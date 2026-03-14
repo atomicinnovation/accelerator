@@ -188,11 +188,11 @@ PR number: [number]
 
 ## Lens
 
-Read the lens skill at: ${CLAUDE_PLUGIN_ROOT}/skills/[lens]-lens/SKILL.md
+Read the lens skill at: ${CLAUDE_PLUGIN_ROOT}/skills/review/lenses/[lens]-lens/SKILL.md
 
 ## Output Format
 
-Read the output format at: ${CLAUDE_PLUGIN_ROOT}/skills/pr-review-output-format/SKILL.md
+Read the output format at: ${CLAUDE_PLUGIN_ROOT}/skills/review/output-formats/pr-review-output-format/SKILL.md
 
 IMPORTANT: Return your analysis as a single JSON code block. Do not include
 prose outside the JSON block.

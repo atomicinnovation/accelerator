@@ -92,7 +92,7 @@ The key is to use these agents intelligently:
 
 5. **Gather metadata for the research document:**
 
-- Run the `${CLAUDE_PLUGIN_ROOT}/skills/research-codebase/scripts/research-metadata.sh`
+- Run the `${CLAUDE_PLUGIN_ROOT}/skills/research/research-codebase/scripts/research-metadata.sh`
   script to generate all relevant metadata
 - Filename: `meta/research/YYYY-MM-DD-ENG-XXXX-description.md`
   - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
