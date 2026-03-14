@@ -9,3 +9,4 @@ Initial extraction from `~/.claude/` into a standalone Claude Code plugin.
 - 9 user-invocable skills: commit, create-plan, describe-pr, implement-plan,
   research-codebase, respond-to-pr, review-plan, review-pr, validate-plan
 - 9 supporting skills: 7 review lenses + 2 output formats
+- Skills organized into logical groups: git/, planning/, review/, research/
