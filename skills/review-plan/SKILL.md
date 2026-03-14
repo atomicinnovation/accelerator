@@ -1,0 +1,428 @@
+---
+name: review-plan
+description: Review an implementation plan through multiple quality lenses and
+  collaboratively iterate based on findings. Use when the user wants to evaluate
+  a plan before implementation.
+argument-hint: "[path to plan file]"
+disable-model-invocation: true
+---
+
+# Review Plan
+
+You are tasked with reviewing an implementation plan through multiple quality
+lenses and then collaboratively iterating the plan based on findings.
+
+## Initial Response
+
+When this command is invoked:
+
+1. **Check if a plan path was provided**:
+
+- If a plan path was provided, read it immediately and FULLY
+- If optional focus arguments were provided (e.g., "security and architecture"),
+  note them for lens selection
+- Begin the review process
+
+2. **If no plan path provided**, respond with:
+
+```
+I'll help you review an implementation plan. Please provide:
+1. The path to the plan file (e.g., `meta/plans/2025-01-08-ENG-1478-feature.md`)
+2. (Optional) Focus areas to emphasise (e.g., "focus on security and architecture")
+
+Tip: You can invoke this command with arguments:
+  `/review-plan meta/plans/2025-01-08-feature.md`
+  `/review-plan meta/plans/2025-01-08-feature.md focus on security and architecture`
+```
+
+Then wait for the user's input.
+
+## Available Review Lenses
+
+| Lens               | Lens Skill                    | Focus                                                                 |
+|--------------------|-------------------------------|-----------------------------------------------------------------------|
+| **Architecture**   | `architecture-lens`           | Modularity, coupling, scalability, evolutionary design, tradeoffs     |
+| **Security**       | `security-lens`               | Threats, missing protections, STRIDE analysis, OWASP coverage         |
+| **Test Coverage**  | `test-coverage-lens`          | Testing strategy, test pyramid, edge cases, isolation, risk coverage  |
+| **Code Quality**   | `code-quality-lens`           | Design principles, testability, error handling, complexity management |
+| **Standards**      | `standards-lens`              | Project conventions, API standards, accessibility, documentation      |
+| **Usability**      | `usability-lens`              | Developer experience, API ergonomics, configuration, migration paths  |
+| **Performance**    | `performance-lens`            | Algorithmic efficiency, resource usage, concurrency, caching          |
+
+## Process Steps
+
+### Step 1: Read and Understand the Plan
+
+1. **Read the plan file FULLY** — never use limit/offset
+2. **Read any files the plan references** — tickets, related research, key
+   source files mentioned
+3. **Understand the plan's scope**:
+  - What technologies and layers does it touch?
+  - Does it involve APIs, UI, infrastructure, data models?
+  - What's the complexity and risk profile?
+  - Who are the consumers — other developers, services, end users?
+
+### Step 2: Select Review Lenses
+
+Determine which lenses are relevant based on the plan's scope and any user-
+provided focus arguments.
+
+**If the user provided focus arguments:**
+
+- Map the focus areas to the corresponding lenses
+- Include any additional lenses that are clearly relevant to the plan's scope
+- Briefly explain which lenses you're running and why
+
+**If no focus arguments were provided, auto-detect relevance:**
+
+Take time to think carefully about which lenses apply based on:
+
+- **Architecture** — relevant for most plans; skip only for trivial, single-file
+  changes
+- **Code Quality** — relevant for most plans; skip only for documentation-only
+  or configuration-only changes
+- **Test Coverage** — relevant for most plans; skip only for documentation-only,
+  configuration-only, or infrastructure-only changes with no code
+- **Security** — relevant when the plan involves: authentication/authorisation,
+  user input handling, data storage, external integrations, API endpoints,
+  secrets/credentials, network boundaries
+- **Standards** — relevant when the plan involves: API changes, UI changes,
+  new file/module creation, changes to public interfaces
+- **Usability** — relevant when the plan involves: public APIs, CLI interfaces,
+  configuration surfaces, breaking changes, migration paths, developer-facing
+  libraries
+- **Performance** — relevant when the plan involves: data processing pipelines,
+  database interactions, high-throughput APIs, concurrent processing, caching
+  strategy, or algorithm-heavy logic. Skip for documentation-only,
+  configuration-only, or trivial changes.
+
+Present your lens selection to the user before proceeding:
+
+```
+Based on the plan's scope, I'll review through these lenses:
+- Architecture: [reason]
+- Security: [reason — or "Skipping: no security-sensitive changes identified"]
+- Test Coverage: [reason]
+- Code Quality: [reason]
+- Standards: [reason — or "Skipping: ..."]
+- Usability: [reason — or "Skipping: ..."]
+- Performance: [reason — or "Skipping: no performance-sensitive changes identified"]
+
+Shall I proceed, or would you like to adjust the selection?
+```
+
+Wait for confirmation before spawning reviewers.
+
+### Step 3: Spawn Review Agents
+
+For each selected lens, spawn the generic `reviewer` agent with a prompt
+that includes paths to the lens skill and output format files. Do NOT read
+these files yourself — the agent reads them in its own context.
+
+Compose each agent's prompt following this template:
+
+```
+You are reviewing an implementation plan through the [lens name] lens.
+
+## Context
+
+The implementation plan is at [path]. Read it fully.
+Also read any files the plan references for additional context.
+
+## Analysis Strategy
+
+1. Read your lens skill and output format files (see paths below)
+2. Read the implementation plan file fully
+3. Identify the scope and complexity of the proposed changes
+4. Explore the codebase to understand existing patterns and context
+5. Evaluate the plan through your lens, applying each key question
+6. Reference specific plan sections in your findings using the `location`
+   field (e.g., "Phase 2: API Endpoints", "Testing Strategy section")
+
+## Lens
+
+Read the lens skill at: ${CLAUDE_PLUGIN_ROOT}/skills/[lens]-lens/SKILL.md
+
+## Output Format
+
+Read the output format at: ${CLAUDE_PLUGIN_ROOT}/skills/plan-review-output-format/SKILL.md
+
+IMPORTANT: Return your analysis as a single JSON code block. Do not include
+prose outside the JSON block.
+```
+
+Spawn all selected agents **in parallel** using the Task tool with
+`subagent_type: "reviewer"`.
+
+**IMPORTANT**: Wait for ALL review agents to complete before proceeding.
+
+**Handling malformed agent output**:
+
+If an agent's response is not a clean JSON block, apply this extraction
+strategy:
+
+1. Look for a JSON code block fenced with triple backticks (optionally with
+   a `json` language tag)
+2. If found, extract and parse the content within the fences
+3. If the extracted JSON is valid, use it normally
+4. If no JSON code block is found, or the JSON within it is invalid, apply
+   the fallback: treat the agent's entire output as a single finding with
+   the agent's lens name and `"major"` severity, and include it in the
+   review summary
+
+When falling back, warn the user that the agent's output could not be parsed
+and present the raw agent output in a collapsed form so the user can see what
+the agent actually found.
+
+### Step 4: Aggregate and Curate Findings
+
+Once all reviews are complete:
+
+1. **Parse agent outputs**: Extract the JSON block from each agent's response
+   (see the extraction strategy in Step 3). Collect the `summary`, `strengths`,
+   and `findings` arrays from each.
+
+2. **Aggregate across agents**:
+   - Combine all `findings` arrays into a single list
+   - Combine all `strengths` arrays into a single list
+   - Collect all `summary` strings
+
+3. **Deduplicate findings**: Where multiple agents flag overlapping plan
+   sections with similar concerns, consider merging — but only when the
+   findings address the same underlying concern from different lens
+   perspectives. Location proximity alone is not sufficient; the findings must
+   be semantically related.
+
+   When merging:
+   - Combine the bodies, attributing each part to its lens
+   - Use the highest severity among the merged findings
+   - Use the highest confidence among the merged findings
+   - Note all contributing lenses in the title
+
+   When in doubt, keep findings separate — distinct findings are easier to
+   address individually than a merged finding covering multiple concerns.
+
+4. **Prioritise findings**:
+   - Sort by severity: critical > major > minor > suggestion
+   - Within the same severity, sort by confidence: high > medium > low
+
+5. **Determine suggested verdict**:
+   - If any `"critical"` severity findings exist → suggest `REVISE`
+   - If 3 or more `"major"` severity findings exist → suggest `REVISE`
+   - If 1-2 `"major"` findings or only minor/suggestion → suggest `COMMENT`
+   - If no findings at all (only strengths) → suggest `APPROVE`
+
+   Verdict meanings:
+   - `APPROVE` — plan is sound and ready for implementation
+   - `REVISE` — plan needs changes before implementation
+   - `COMMENT` — observations only, plan is acceptable as-is
+
+   When presenting a `COMMENT` verdict with major findings, note: "Plan is
+   acceptable but could be improved — see major findings below."
+
+6. **Identify cross-cutting themes**: Look for findings that appear across
+   multiple lenses — issues flagged by 2+ agents reinforce each other and
+   should be highlighted in the summary. Also identify tradeoffs where
+   different lenses conflict (e.g., security wants more validation, usability
+   wants less friction).
+
+7. **Compose the review summary**:
+
+   ```markdown
+   ## Plan Review: [Plan Name]
+
+   **Verdict:** [APPROVE | REVISE | COMMENT]
+
+   [Combined assessment: take each agent's summary and synthesise into 2-3
+   sentences covering the overall quality of the plan across all lenses]
+
+   ### Cross-Cutting Themes
+   [Issues that multiple lenses identified — these deserve the most attention]
+   - **[Theme]** (flagged by: [lenses]) — [description]
+
+   ### Tradeoff Analysis
+   [Where different lenses disagree, present both perspectives]
+   - **[Quality A] vs [Quality B]**: [description and recommendation]
+
+   [Omit either section if there are no cross-cutting themes or tradeoffs]
+
+   ### Findings
+
+   #### Critical
+   - 🔴 **[Lens]**: [title]
+     **Location**: [plan section]
+     [First 1-2 sentences of body as summary]
+
+   #### Major
+   - 🟡 **[Lens]**: [title]
+     **Location**: [plan section]
+     [First 1-2 sentences of body as summary]
+
+   #### Minor
+   - 🔵 **[Lens]**: [title]
+     **Location**: [plan section]
+     [First 1-2 sentences of body as summary]
+
+   #### Suggestions
+   - 🔵 **[Lens]**: [title]
+     **Location**: [plan section]
+     [First 1-2 sentences of body as summary]
+
+   ### Strengths
+   - ✅ [Aggregated and deduplicated strengths from all agents]
+
+   ### Recommended Changes
+   [Ordered list of specific, actionable changes to the plan, prioritised by
+   impact. Each should reference the finding(s) it addresses.]
+
+   1. **[Change description]** (addresses: [finding titles])
+      [Specific guidance on what to modify in the plan]
+
+   ---
+   *Review generated by /review-plan*
+   ```
+
+### Step 5: Present the Review
+
+Present the composed review summary from Step 4.7 to the user.
+
+After presenting, offer the user control before proceeding to iteration:
+
+```
+The review is complete. Verdict: [verdict]
+
+Would you like to:
+1. Proceed to address findings? (I'll help edit the plan)
+2. Change the verdict? (currently: [verdict])
+3. Discuss any specific findings in more detail?
+4. Re-run specific lenses with adjusted focus?
+```
+
+### Step 6: Collaborative Plan Iteration
+
+After presenting the review:
+
+1. **Discuss findings with the user**:
+  - Ask which recommendations they want to address
+  - Discuss any tradeoffs where they need to make a judgment call
+  - Clarify any findings that need more context
+
+2. **Edit the plan based on agreed changes**:
+  - Use the Edit tool to modify the plan file directly
+  - Make changes incrementally — one finding at a time or in logical groups
+  - Preserve the plan's existing structure and conventions
+  - Don't rewrite sections unnecessarily — make targeted edits
+
+3. **Summarise changes made**:
+   ```
+   I've made the following changes to the plan:
+   - [Change 1] — addressing [finding]
+   - [Change 2] — addressing [finding]
+   - [Skipped] — [finding you discussed and decided not to address, with reason]
+   ```
+
+### Step 7: Offer Re-Review
+
+After edits are complete:
+
+```
+The plan has been updated. Would you like me to run another review pass to
+verify the changes address the findings? This will re-run the relevant lenses
+to check for any remaining issues or new concerns introduced by the edits.
+```
+
+If the user accepts:
+
+- Re-run **only the lenses that had findings** in the previous pass
+- Use the same spawn pattern and JSON extraction strategy from Steps 3-4
+- Compare previous findings against new findings (by `title` + `lens`) to
+  determine resolution status
+- Focus the review on whether findings were addressed and whether edits
+  introduced new issues
+- Present a shorter, delta-focused review:
+  ```
+  ## Re-Review: [Plan Name]
+
+  **Verdict:** [APPROVE | REVISE | COMMENT]
+
+  ### Previously Identified Issues
+  - [emoji] **[Lens]**: [title] — Resolved / Partially resolved / Still present
+  - ...
+
+  ### New Issues Introduced
+  - [emoji] **[Lens]**: [title] — [brief description]
+
+  ### Assessment
+  [Whether the plan is now in good shape or needs further iteration]
+  ```
+
+If the user declines or the re-review shows all clear, the review is complete.
+
+## Important Guidelines
+
+1. **Read the plan fully** before doing anything else — you need complete
+   context to select lenses and brief the agents properly
+
+2. **Spawn agents in parallel** — the review lenses are independent and should
+   run concurrently for efficiency
+
+3. **Synthesise, don't concatenate** — your value is in compiling a balanced
+   view across lenses, identifying themes and tradeoffs, and prioritising
+   actionable recommendations. Don't just paste seven reports together.
+
+4. **Be balanced** — highlight strengths alongside concerns. A plan that makes
+   good architectural decisions but has security gaps should get credit for
+   both.
+
+5. **Prioritise by impact** — structural issues that are hard to fix later
+   matter more than surface-level concerns. A critical finding from one lens
+   outweighs minor findings from all seven.
+
+6. **Respect tradeoffs** — when lenses conflict, present both sides and let the
+   user decide. Don't privilege one quality attribute over another without
+   justification.
+
+7. **Edit conservatively** — when modifying the plan, make the minimum changes
+   needed to address findings. Don't restructure or rewrite beyond what's
+   required.
+
+8. **Track what was addressed** — when presenting changes, clearly map them
+   back to findings so nothing falls through the cracks.
+
+9. **Handle malformed agent output gracefully** — if an agent doesn't return
+   valid JSON, extract what you can and present the raw output to the user
+   rather than silently dropping findings
+
+10. **Keep positive feedback in the summary** — strengths go in the review
+    summary, not as individual findings. Findings are exclusively for
+    actionable concerns.
+
+11. **Use emoji severity prefixes consistently** — 🔴 critical, 🟡 major,
+    🔵 minor/suggestion, ✅ strengths
+
+## What NOT to Do
+
+- Don't write review findings to a separate file — all output goes to the
+  conversation and then into plan edits
+- Don't skip the lens selection step — always confirm with the user which
+  lenses will run
+- Don't present raw agent output — always aggregate and curate into the
+  structured format
+- Don't make plan edits without user agreement
+- Don't force all findings to be addressed — some may be intentionally
+  accepted tradeoffs
+- Don't run lenses that clearly aren't relevant — a documentation plan doesn't
+  need a security review
+- Don't post findings as individual items for positive feedback — strengths go
+  in the summary only
+- Don't skip the verdict — always include a suggested verdict based on finding
+  severity
+
+## Relationship to Other Commands
+
+The review sits in the plan lifecycle between creation and implementation:
+
+1. `/create-plan` — Create the implementation plan interactively
+2. `/review-plan` — Review and iterate the plan quality (this command)
+3. `/implement-plan` — Execute the approved plan
+4. `/validate-plan` — Verify implementation matches the plan
