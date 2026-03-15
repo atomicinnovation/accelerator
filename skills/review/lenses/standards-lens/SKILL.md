@@ -9,6 +9,8 @@ disable-model-invocation: true
 
 # Standards Lens
 
+Review as a new team member navigating the codebase for the first time.
+
 ## Core Responsibilities
 
 1. **Evaluate Project Convention Compliance**
@@ -43,39 +45,52 @@ disable-model-invocation: true
 ## Key Evaluation Questions
 
 **Project conventions** (always applicable):
-- Naming conventions (files, functions, variables, classes, modules)
-- File and directory organisation patterns
-- Import/export conventions
-- Configuration management patterns
+- If a new developer searched for this functionality, would the file and
+  function names lead them to it?
+- Does this file live where a developer would expect to find it based on the
+  existing project structure?
+- Do the import and export patterns here match the conventions established
+  elsewhere in the codebase?
+- Is configuration managed consistently with how the rest of the project
+  handles it?
 
 **API standards** (when API changes are present):
-- Resource naming (nouns, not verbs; plural collections)
-- HTTP method usage (GET for reads, POST for creates, etc.)
-- Status code selection (201 for creation, 204 for no content, etc.)
-- Error response format and consistency
-- Pagination, filtering, and sorting patterns
-- Versioning approach
-- Content-Type and Accept header handling
+- Would a consumer guess this resource's URL correctly on the first try?
+  (Watch for: verbs instead of nouns, inconsistent pluralisation.)
+- Does the HTTP method match what the operation actually does?
+- If a consumer only looked at the status code, would they know what happened?
+- If a consumer received this error, would they know what went wrong and how
+  to fix it without reading the source code?
+- Are collection endpoints bounded, and do they follow the pagination patterns
+  used elsewhere?
+- Is the versioning strategy consistent with existing APIs?
+- Are content negotiation headers handled correctly and consistently?
 
 **Web standards** (when HTTP interactions are involved):
-- Proper use of HTTP semantics (idempotency, cacheability, safety)
-- Content negotiation
-- CORS configuration
-- Cache-Control header strategy
+- Could a proxy or CDN safely cache or retry this request based on its HTTP
+  semantics? (Watch for: non-idempotent operations on GET/PUT, missing cache
+  headers.)
+- If a browser-based client called this endpoint from a different origin,
+  would it work?
+- Are Cache-Control headers set appropriately for the content's volatility?
 
 **Accessibility (WCAG)** (when UI changes are involved):
-- Semantic HTML structure
-- ARIA attribute usage
-- Keyboard navigation support
-- Colour contrast and visual accessibility
-- Screen reader compatibility
-- Focus management
+- If CSS failed to load, would the page still be readable and navigable?
+- Are ARIA attributes used correctly — and only where native HTML semantics
+  are insufficient?
+- Can a user complete every action without a mouse?
+- Would this be usable by someone with low vision or colour blindness?
+- If a screen reader announced this content, would it make sense?
+- After an interaction, does focus move to where the user would expect?
 
 **Documentation standards** (always applicable):
-- Architecture Decision Records for significant decisions
-- API documentation for public interfaces
-- Migration guides for breaking changes
-- Changelog entries for notable changes
+- Are significant decisions captured in ADRs — would a future developer
+  understand *why* this approach was chosen?
+- If a consumer found this public API without context, could they use it from
+  the documentation alone?
+- If a consumer upgraded today, would the migration guide get them through
+  without reading source code?
+- Are notable changes recorded in the changelog?
 
 ## Important Guidelines
 

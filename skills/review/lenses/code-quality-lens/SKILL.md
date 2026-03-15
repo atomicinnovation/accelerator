@@ -9,6 +9,8 @@ disable-model-invocation: true
 
 # Code Quality Lens
 
+Review as the next developer who will maintain this code in six months.
+
 ## Core Responsibilities
 
 1. **Evaluate Code Complexity, Readability, and Design Principles**
@@ -51,22 +53,39 @@ assessed by the test-coverage lens.
 
 ## Key Evaluation Questions
 
-For each component or change under review, assess:
+**Readability and complexity** (always applicable):
+- **Complexity**: If this function's requirements changed, how many places
+  would need to change? (Watch for: cyclomatic complexity > 10, nesting
+  depth > 3, functions > 50 lines, cognitive complexity that forces
+  re-reading.)
+- **Readability**: Will the next developer understand this code in six months
+  without the original author's context? (Watch for: unclear naming, missing
+  guard clauses, large unfocused units, hidden side effects.)
+- **Code smells**: If I removed this code, what would break — and if the
+  answer is "nothing", why is it here? (Watch for: god objects, feature envy,
+  primitive obsession, flag arguments, data clumps, dead code.)
 
-- **Complexity metrics**: Cyclomatic complexity, cognitive complexity, nesting
-  depth, method/function length
-- **Clean code principles**: Meaningful naming, small focused units, minimal
-  side effects, guard clauses
-- **Design principles**: Single responsibility, open-closed, dependency
-  inversion, interface segregation, composition over inheritance
-- **Code smells**: God objects, feature envy, primitive obsession, flag
-  arguments, data clumps, dead code
-- **Readability**: Will the next developer understand this in six months?
-- **Error handling**: Appropriate categorisation, clear propagation, no
-  swallowed exceptions, specific error types
-- **Observability**: Structured logging, metrics, tracing where appropriate
-- **Testability**: Can components be tested independently? Is dependency
-  injection used appropriately?
+**Design principles** (when the change introduces new classes, interfaces, or
+abstractions):
+- **Design principles**: If this class or module took on one more
+  responsibility, where would it go — and would that feel natural or forced?
+  (Watch for: SRP violations, rigid hierarchies, missing dependency inversion,
+  interface pollution.)
+
+**Error handling and observability** (when the change includes error paths,
+catch blocks, or logging statements):
+- **Error handling**: If this error occurred in production at 3am, would the
+  error message and stack trace lead you to the root cause? (Watch for:
+  swallowed exceptions, generic messages, missing context, unlogged error
+  paths.)
+- **Observability**: If this code misbehaved in production, would you be able
+  to diagnose the issue from logs and traces alone? (Watch for: missing
+  structured logging, absent correlation IDs, no metrics for key operations.)
+
+**Testability** (always applicable):
+- **Testability**: Can this component be tested in isolation without standing
+  up the entire system? (Watch for: hard-coded dependencies, missing injection
+  points, tightly coupled collaborators.)
 
 ## Important Guidelines
 

@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 # Security Lens
 
+Review as an attacker probing for ways to compromise the system.
+
 ## Core Responsibilities
 
 1. **Perform Threat and Vulnerability Analysis**

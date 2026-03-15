@@ -9,6 +9,9 @@ disable-model-invocation: true
 
 # Performance Lens
 
+Review as a capacity planner identifying where the system will bottleneck under
+load.
+
 ## Core Responsibilities
 
 1. **Evaluate Algorithmic Efficiency and Data Structure Selection**
@@ -60,26 +63,42 @@ but does not assess the observability design itself.
 
 ## Key Evaluation Questions
 
-For each component or change under review, assess:
-
+**Algorithmic efficiency** (always applicable):
 - **Algorithmic complexity**: What is the time/space complexity? Is it
   appropriate for the expected data sizes? Are there O(n²) patterns that could
   be O(n) or O(n log n)?
-- **Data structure fitness**: Are data structures chosen for the access patterns
-  used? Would a different structure reduce complexity?
-- **Hot path efficiency**: Is unnecessary work being done in frequently executed
-  code paths? Are there allocations, lookups, or computations that could be
-  hoisted or cached?
-- **Database performance**: Are queries efficient? Are there N+1 patterns? Are
-  result sets bounded? Are batch operations used where appropriate?
-- **Resource management**: Are connections, handles, and pools managed correctly?
-  Are resources released promptly? Are there potential leaks?
-- **I/O efficiency**: Are network calls batched where possible? Is payload size
-  appropriate? Are streaming or pagination patterns used for large data sets?
-- **Concurrency safety**: Is shared mutable state protected? Are locks
-  appropriately scoped? Are async operations correctly awaited?
-- **Caching**: Is caching applied where it would reduce load? Is the
-  invalidation strategy sound? Are TTLs appropriate?
+- **Data structure fitness**: What access pattern does this data structure
+  optimise for, and does that match how it's actually used?
+- **Hot path efficiency**: If this code path runs 1000 times per second, which
+  operations inside it would dominate the cost? (Watch for: allocations in
+  loops, redundant lookups, computations that could be hoisted or cached.)
+
+**Database and query performance** (when the change includes database queries
+or schema changes):
+- **Database performance**: What happens to this query when the table has 10
+  million rows? (Watch for: N+1 patterns, missing indexes, unbounded result
+  sets, missing batch operations.)
+
+**Resource and I/O efficiency** (when the change opens connections, makes
+network calls, or handles file I/O):
+- **Resource management**: What happens to this resource if the operation fails
+  halfway through — will it be released? (Watch for: missing cleanup in error
+  paths, connection leaks, unbounded pool growth.)
+- **I/O efficiency**: If the response payload grew 100x, would this code still
+  work efficiently? (Watch for: missing pagination, unbatched network calls,
+  eager loading of large data sets.)
+
+**Concurrency safety** (when the change uses threads, async/await, or shared
+mutable state):
+- **Concurrency safety**: If two requests hit this code simultaneously, what
+  shared state could they corrupt? (Watch for: unprotected shared mutable
+  state, lock contention, missing awaits, deadlock risk.)
+
+**Caching** (when the change involves repeated lookups or high-frequency access
+patterns):
+- **Caching**: Which operations are repeated with the same inputs, and what
+  would the cost/benefit of caching them be? (Watch for: missing cache
+  invalidation, inappropriate TTLs, cache stampede potential.)
 
 ## Important Guidelines
 

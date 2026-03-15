@@ -9,6 +9,9 @@ disable-model-invocation: true
 
 # Test Coverage Lens
 
+Review as a test engineer responsible for the long-term health and effectiveness
+of the test suite.
+
 ## Core Responsibilities
 
 1. **Evaluate Coverage Adequacy**
@@ -50,23 +53,35 @@ will be tested, how, and whether coverage is proportional to risk.
 
 ## Key Evaluation Questions
 
-For each component or change under review, assess:
-
-- **Coverage adequacy**: Are new code paths or planned features covered by
-  tests? Are error paths included?
+**Coverage adequacy** (always applicable):
+- **Coverage adequacy**: If I introduced a subtle bug in this code path, which
+  specific test would catch it? (Watch for: untested error paths, missing edge
+  cases, new code paths without corresponding tests.)
 - **Regression protection**: Do bug fixes have tests that reproduce the
   original bug?
-- **Edge cases**: Are boundary conditions and unusual inputs covered?
-- **Assertion quality**: Are assertions specific and meaningful? Would a
-  mutation be caught?
-- **Pyramid balance**: Are tests at the right level? Unit for logic,
-  integration for boundaries, E2E sparingly?
-- **Test isolation**: Are tests deterministic? Free from shared mutable state,
-  system time, or external service dependencies?
-- **Mock strategy**: Are mocks used only at true boundaries, not for
-  everything?
+- **Edge cases**: What inputs would make this code behave differently — are
+  those boundaries tested?
 - **Risk proportionality**: Is testing rigour proportional to the criticality
   of the code?
+
+**Test quality and assertions** (always applicable):
+- **Assertion quality**: If I changed an operator or swapped a return value,
+  would any assertion fail? (Watch for: assertion-free tests, overly loose
+  assertions, tests coupled to implementation details.)
+- **Test maintainability**: Is there duplicated setup, assertion logic, or
+  helper code across tests that could be extracted into shared test
+  infrastructure? Would a change to the system under test require updating
+  many tests?
+
+**Test architecture** (when test infrastructure or patterns are involved):
+- **Pyramid balance**: If this test broke, how long would it take to identify
+  the root cause — seconds (unit) or minutes (E2E)? Is it at the right level?
+- **Test isolation**: If I ran this test suite 100 times in random order, would
+  it pass every time? (Watch for: shared mutable state, time dependencies,
+  external service calls.)
+- **Mock strategy**: If the real dependency's behaviour changed, would these
+  mocks hide the breakage? (Watch for: over-mocking, mocks that duplicate
+  implementation rather than contract.)
 
 ## Important Guidelines
 

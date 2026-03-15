@@ -9,6 +9,8 @@ disable-model-invocation: true
 
 # Usability Lens
 
+Review as a developer using this API or interface for the first time.
+
 ## Core Responsibilities
 
 1. **Evaluate Developer Experience**
@@ -43,23 +45,30 @@ disable-model-invocation: true
 
 ## Key Evaluation Questions
 
-For each interface or change under review, assess:
-
-- **Consistency**: Do similar operations work the same way? Are naming patterns
-  predictable?
-- **Minimality**: Is the API surface as small as it can be while meeting
-  requirements?
-- **Discoverability**: Can a developer guess the right method/endpoint without
-  reading docs?
-- **Composability**: Can API primitives be combined for complex use cases?
+**API ergonomics** (always applicable):
+- **Consistency**: If a developer learned how to do operation A, could they
+  guess how to do operation B without reading docs?
+- **Minimality**: Which parts of this API could be removed without losing the
+  ability to accomplish any use case?
+- **Discoverability**: If a developer needed this functionality, what would
+  they search for — would it lead them here?
+- **Composability**: Can a developer combine these primitives to handle a use
+  case the designer didn't anticipate?
 - **Least surprise**: Does anything behave in an unexpected way?
-- **Error experience**: Are error messages structured (what, why, how to fix)?
-  Do they distinguish developer mistakes from system failures? Are they
-  contextual?
-- **Configuration**: Are defaults sensible and secure? Is required configuration
-  minimal? Is complexity proportional to customisation needs?
-- **Migration**: Are breaking changes identified? Is the migration path clear
-  and incremental? Is there a deprecation period?
+- **Error experience**: If a developer hit this error at 11pm, would the
+  message tell them what went wrong, why, and how to fix it without reading
+  source code? (Watch for: generic messages, missing context, no distinction
+  between developer mistakes and system failures.)
+- **Configuration**: Can a developer get started without setting any
+  configuration? What breaks if they accept all defaults? (Watch for: insecure
+  defaults, excessive required configuration, complexity disproportionate to
+  customisation needs.)
+
+**Migration and compatibility** (when breaking changes or version transitions
+are present):
+- **Migration**: If a consumer upgraded to this version today, what would break
+  and would they know how to fix it? (Watch for: undocumented breaking changes,
+  missing migration guides, no deprecation period.)
 
 ## Important Guidelines
 

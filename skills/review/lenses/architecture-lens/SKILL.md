@@ -9,6 +9,9 @@ disable-model-invocation: true
 
 # Architecture Lens
 
+Review as a systems architect evaluating whether the structure will sustain the
+system's evolution.
+
 ## Core Responsibilities
 
 1. **Evaluate Structural Integrity**
@@ -54,25 +57,40 @@ is appropriate, not whether the implementation is efficient.
 
 ## Key Evaluation Questions
 
-For each component or change under review, assess:
-
-- **Modularity**: Are boundaries drawn at natural seams? Could a module be
-  replaced independently?
-- **Coupling & cohesion**: What would change if a dependency changed? Does each
-  module have one reason to change?
+**Structural integrity** (always applicable):
+- **Modularity**: If this module needed to be replaced or extracted, what else
+  would break? (Watch for: unclear boundaries, leaking internals, interfaces
+  that are broader than necessary.)
+- **Coupling & cohesion**: If a dependency released a breaking change, how many
+  files would need to change? Does each module have one reason to change?
+  (Watch for: circular dependencies, depending on concretions rather than
+  abstractions, data flowing across trust boundaries without transformation.)
 - **System impact**: What happens to the broader system given these changes?
   Are failure modes affected?
+- **Domain alignment**: If a domain expert described this feature, would the
+  module and function names match the words they'd use?
+- **Architectural consistency**: Where does this change diverge from
+  established architectural patterns — is the divergence justified and
+  explicitly acknowledged? (Watch for: implicit quality attribute tradeoffs,
+  unjustified pattern breaks.)
+
+**Resilience** (when external dependencies or failure modes are present):
+- **Resilience**: What happens when a dependency fails or slows down? (Watch
+  for: missing retry/backoff strategies, no graceful degradation, timeouts not
+  set or propagated, non-idempotent operations that may be retried.)
+
+**Scalability** (when the change affects data volume, request rate, or resource
+consumption):
 - **Scalability**: What happens under 10x load? Can the architecture scale
   horizontally? Are there bottleneck components?
-- **Resilience**: What happens when a dependency fails? Are retry and backoff
-  strategies appropriate? Is there graceful degradation? Are timeouts set and
-  propagated? Are operations idempotent where they need to be?
-- **Evolutionary design**: Can the design accommodate likely future changes
-  without structural rewrites?
-- **Functional core / imperative shell**: Is business logic kept separate from
-  side effects? Are pure computations isolated from I/O?
-- **Domain alignment**: Do module boundaries reflect domain boundaries? Is the
-  ubiquitous language consistent?
+
+**Evolutionary fitness** (always applicable):
+- **Evolutionary design**: What is the most likely change to requirements in
+  the next six months — could this design accommodate it without structural
+  rewrites?
+- **Functional core / imperative shell**: If you needed to unit test the core
+  business logic without any I/O, could you? (Watch for: side effects mixed
+  into business logic, I/O coupled to pure computation.)
 
 ## Important Guidelines
 
