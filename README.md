@@ -6,11 +6,15 @@ review, implementation planning, codebase research, and git workflow automation.
 ## Installation
 
 ```bash
-# Install from a local directory
-claude plugin install --path ~/Code/organisations/atomic/company/accelerator
+claude plugin install atomicinnovation/accelerator
+```
 
-# Or load directly for a session
-claude --plugin-dir ~/Code/organisations/atomic/company/accelerator
+### Development
+
+To install from a local checkout:
+
+```bash
+claude plugin install --path /path/to/accelerator
 ```
 
 ## Skills
