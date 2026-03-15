@@ -1,0 +1,22 @@
+{
+  "name": "atomic-innovation",
+  "owner": {
+    "name": "Atomic Innovation",
+    "email": "toby@go-atomic.io"
+  },
+  "metadata": {
+    "description": "Plugins by Atomic Innovation"
+  },
+  "plugins": [
+    {
+      "name": "accelerator",
+      "source": "./",
+      "description": "Development acceleration toolkit with multi-lens code review, implementation planning, codebase research, and git workflow automation.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Toby Clemson"
+      },
+      "license": "MIT"
+    }
+  ]
+}

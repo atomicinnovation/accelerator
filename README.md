@@ -11,16 +11,19 @@ review, implementation planning, codebase research, and git workflow automation.
 
 ## Installation
 
+Add the marketplace and install the plugin:
+
 ```bash
-claude plugin install atomicinnovation/accelerator
+/plugin marketplace add atomicinnovation/accelerator
+/plugin install accelerator@atomic-innovation
 ```
 
 ### Development
 
-To install from a local checkout:
+To load from a local checkout:
 
 ```bash
-claude plugin install --path /path/to/accelerator
+claude --plugin-dir /path/to/accelerator
 ```
 
 ## Skills
