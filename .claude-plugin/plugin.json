@@ -1,7 +1,7 @@
 {
   "name": "accelerator",
   "version": "1.0.0",
-  "description": "Development acceleration toolkit with multi-lens code review, implementation planning, codebase research, and git workflow automation",
+  "description": "Development acceleration toolkit with multi-lens code review, implementation planning, codebase research, and git workflow automation.",
   "author": {
     "name": "Toby Clemson",
     "email": "toby@go-atomic.io"
