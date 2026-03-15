@@ -1,4 +1,10 @@
-# Accelerator
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/accelerator_logo_dark_bg.png">
+    <source media="(prefers-color-scheme: light)" srcset="assets/accelerator_logo_light_bg.png">
+    <img alt="Accelerator" src="assets/accelerator_logo_light_bg.png" width="400">
+  </picture>
+</p>
 
 A Claude Code plugin providing development acceleration with multi-lens code
 review, implementation planning, codebase research, and git workflow automation.
