@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/accelerator_logo_dark_bg.png">
     <source media="(prefers-color-scheme: light)" srcset="assets/accelerator_logo_light_bg.png">
-    <img alt="Accelerator" src="assets/accelerator_logo_light_bg.png" width="456px">
+    <img alt="Accelerator" src="assets/accelerator_logo_light_bg.png" width="342px">
   </picture>
 </p>
 
