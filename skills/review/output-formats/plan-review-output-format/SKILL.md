@@ -38,7 +38,8 @@ after the JSON block — the orchestrator will parse this output directly.
 
 - **lens**: Agent lens identifier (e.g., `"architecture"`, `"security"`,
   `"test-coverage"`, `"code-quality"`, `"standards"`, `"usability"`,
-  `"performance"`)
+  `"performance"`, `"documentation"`, `"database"`, `"correctness"`,
+  `"compatibility"`, `"portability"`, `"safety"`)
 - **summary**: 2-3 sentence assessment from this lens perspective. Reflect the
   key dimensions from the lens's Core Responsibilities. This is where holistic
   assessment lives, beyond individual findings.

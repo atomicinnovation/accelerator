@@ -103,10 +103,15 @@ catch blocks, or logging statements):
 
 ## What NOT to Do
 
-- Don't review architecture, security, test coverage, standards, usability, or
-  performance — those are other lenses
-- Don't assess algorithmic efficiency, caching strategy, or concurrency safety
-  — that is the performance lens
+- Don't review architecture, security, performance, standards, test
+  coverage, usability, documentation, database, correctness, compatibility,
+  portability, or safety — those are other lenses
+- Don't assess algorithmic efficiency, caching strategy, or concurrency
+  efficiency — that is the performance lens
+- Don't assess logical correctness (invariant preservation, boundary
+  conditions, state validity) — that is the correctness lens. This lens
+  focuses on *maintainability* — readability, design principles, error
+  handling patterns
 - Don't nitpick style preferences that don't affect maintainability
 - Don't insist on patterns or principles where simplicity serves better
 - Don't penalise pragmatic shortcuts that are explicitly acknowledged

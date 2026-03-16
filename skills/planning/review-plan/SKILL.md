@@ -45,9 +45,15 @@ Then wait for the user's input.
 | **Security**       | `security-lens`               | Threats, missing protections, STRIDE analysis, OWASP coverage         |
 | **Test Coverage**  | `test-coverage-lens`          | Testing strategy, test pyramid, edge cases, isolation, risk coverage  |
 | **Code Quality**   | `code-quality-lens`           | Design principles, testability, error handling, complexity management |
-| **Standards**      | `standards-lens`              | Project conventions, API standards, accessibility, documentation      |
-| **Usability**      | `usability-lens`              | Developer experience, API ergonomics, configuration, migration paths  |
+| **Standards**      | `standards-lens`              | Project conventions, API standards, accessibility                     |
+| **Usability**      | `usability-lens`              | Developer experience, API ergonomics, configuration, onboarding       |
 | **Performance**    | `performance-lens`            | Algorithmic efficiency, resource usage, concurrency, caching          |
+| **Documentation**  | `documentation-lens`          | Documentation completeness, accuracy, audience fit                    |
+| **Database**       | `database-lens`               | Migration safety, schema design, query correctness, integrity         |
+| **Correctness**    | `correctness-lens`            | Logical validity, boundary conditions, state management, concurrency  |
+| **Compatibility**  | `compatibility-lens`          | API contracts, cross-platform, protocol compliance, deps              |
+| **Portability**    | `portability-lens`            | Environment independence, deployment flexibility, vendor lock         |
+| **Safety**         | `safety-lens`                 | Data loss prevention, operational safety, protective mechanisms       |
 
 ## Process Steps
 
@@ -92,9 +98,49 @@ Take time to think carefully about which lenses apply based on:
   configuration surfaces, breaking changes, migration paths, developer-facing
   libraries
 - **Performance** — relevant when the plan involves: data processing pipelines,
-  database interactions, high-throughput APIs, concurrent processing, caching
+  high-throughput APIs, concurrent processing resource efficiency, caching
   strategy, or algorithm-heavy logic. Skip for documentation-only,
   configuration-only, or trivial changes.
+- **Documentation** — relevant when the plan involves: new public APIs, new
+  user-facing features, configuration changes, breaking changes, or new
+  system components that will need documentation.
+- **Database** — relevant when the plan involves: database schema changes,
+  new tables, migrations, query-heavy features, or changes to data access
+  patterns.
+- **Correctness** — relevant for most plans; skip only for
+  documentation-only or trivial configuration changes.
+- **Compatibility** — relevant when the plan involves: public API changes,
+  dependency updates, protocol changes, cross-platform considerations, or
+  versioning decisions.
+- **Portability** — relevant when the plan involves: infrastructure changes,
+  deployment modifications, new cloud service integrations, or
+  environment-specific logic.
+- **Safety** — relevant when the plan involves: data migration, deletion
+  logic, deployment changes, automated processes, or changes to critical
+  system paths.
+
+**Lens selection cap:** With 13 available lenses, running all of them for
+every review would be wasteful. Select the **6 to 8 most relevant lenses**
+for the change under review. Apply these prioritisation rules:
+
+1. **Always consider the core four**: Architecture, Code Quality, Test
+   Coverage, and Correctness are relevant for most non-trivial changes.
+   Include them unless the change is clearly outside their scope (e.g.,
+   documentation-only).
+2. **Add domain-specific lenses based on the change**: Use the auto-detect
+   criteria above to identify which of the remaining lenses are relevant.
+3. **If more than 8 lenses pass auto-detect**, rank by relevance to the
+   specific change and drop the least relevant until you reach 6-8. Prefer
+   lenses whose core responsibilities directly overlap with the change's
+   primary concerns.
+4. **If the user provided focus arguments**, prioritise the requested lenses
+   and fill remaining slots (up to 8) with the most relevant auto-detected
+   lenses.
+5. **Never run fewer than 4 lenses** unless the change is trivially scoped
+   (e.g., a typo fix).
+
+When presenting the lens selection, clearly indicate which lenses are
+selected and which are skipped, with a brief reason for each skip.
 
 Present your lens selection to the user before proceeding:
 
@@ -107,6 +153,12 @@ Based on the plan's scope, I'll review through these lenses:
 - Standards: [reason — or "Skipping: ..."]
 - Usability: [reason — or "Skipping: ..."]
 - Performance: [reason — or "Skipping: no performance-sensitive changes identified"]
+- Documentation: [reason — or "Skipping: ..."]
+- Database: [reason — or "Skipping: no database changes identified"]
+- Correctness: [reason]
+- Compatibility: [reason — or "Skipping: ..."]
+- Portability: [reason — or "Skipping: ..."]
+- Safety: [reason — or "Skipping: ..."]
 
 Shall I proceed, or would you like to adjust the selection?
 ```

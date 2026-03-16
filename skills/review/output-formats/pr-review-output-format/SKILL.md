@@ -49,7 +49,8 @@ after the JSON block — the orchestrator will parse this output directly.
 
 - **lens**: Agent lens identifier (e.g., `"architecture"`, `"security"`,
   `"test-coverage"`, `"code-quality"`, `"standards"`, `"usability"`,
-  `"performance"`)
+  `"performance"`, `"documentation"`, `"database"`, `"correctness"`,
+  `"compatibility"`, `"portability"`, `"safety"`)
 - **summary**: 2-3 sentence assessment from this lens perspective
 - **strengths**: Positive observations (fed into the review summary — never
   posted as inline comments)

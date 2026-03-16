@@ -108,8 +108,9 @@ consumption):
 
 ## What NOT to Do
 
-- Don't review security, test coverage, code quality, standards, usability, or
-  performance — those are other lenses
+- Don't review security, performance, code quality, standards, test
+  coverage, usability, documentation, database, correctness, compatibility,
+  portability, or safety — those are other lenses
 - Don't assess code-level performance (algorithmic complexity, N+1 queries,
   resource efficiency) — that is the performance lens
 - Don't suggest complete redesigns — work within the constraints of what's

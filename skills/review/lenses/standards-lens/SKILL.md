@@ -1,8 +1,8 @@
 ---
 name: standards-lens
 description: Standards compliance review lens for evaluating project conventions,
-  API standards, accessibility, and documentation practices. Used by review
-  orchestrators — not invoked directly.
+  API standards, and accessibility. Used by review orchestrators — not invoked
+  directly.
 user-invocable: false
 disable-model-invocation: true
 ---
@@ -31,15 +31,12 @@ Review as a new team member navigating the codebase for the first time.
 - Check CORS configuration where applicable
 - Assess pagination, filtering, and sorting patterns
 
-3. **Assess Accessibility, Documentation, and Change Management**
+3. **Assess Accessibility and Change Management**
 
 - Check WCAG conformance considerations where UI changes are involved
   (semantic HTML, ARIA, keyboard navigation, colour contrast, screen reader
   compatibility, focus management)
-- Verify documentation provisions (ADRs for decisions, API docs for public
-  interfaces, inline docs for complex logic)
 - Identify breaking changes and whether they are documented
-- Evaluate migration guide provisions for consumers
 - Check changelog entries for notable changes
 
 ## Key Evaluation Questions
@@ -83,15 +80,6 @@ Review as a new team member navigating the codebase for the first time.
 - If a screen reader announced this content, would it make sense?
 - After an interaction, does focus move to where the user would expect?
 
-**Documentation standards** (always applicable):
-- Are significant decisions captured in ADRs — would a future developer
-  understand *why* this approach was chosen?
-- If a consumer found this public API without context, could they use it from
-  the documentation alone?
-- If a consumer upgraded today, would the migration guide get them through
-  without reading source code?
-- Are notable changes recorded in the changelog?
-
 ## Important Guidelines
 
 - **Explore the codebase thoroughly** to discover both documented and implicit
@@ -108,8 +96,12 @@ Review as a new team member navigating the codebase for the first time.
 
 ## What NOT to Do
 
-- Don't review architecture, security, test coverage, code quality, usability,
-  or performance — those are other lenses
+- Don't review architecture, security, performance, code quality, test
+  coverage, usability, documentation, database, correctness, compatibility,
+  portability, or safety — those are other lenses
+- Don't assess documentation completeness, accuracy, or
+  audience-appropriateness — that is the documentation lens. This lens
+  retains naming conventions and style compliance
 - Don't invent standards that don't exist in the project or industry
 - Don't enforce standards on areas where the codebase itself is inconsistent
 - Don't flag regulatory or legal compliance — focus on technical standards only

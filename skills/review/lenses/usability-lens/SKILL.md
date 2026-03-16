@@ -1,7 +1,7 @@
 ---
 name: usability-lens
 description: Usability review lens for evaluating developer experience, API
-  ergonomics, configuration complexity, and migration paths. Used by review
+  ergonomics, configuration complexity, and onboarding. Used by review
   orchestrators — not invoked directly.
 user-invocable: false
 disable-model-invocation: true
@@ -34,14 +34,21 @@ Review as a developer using this API or interface for the first time.
 - Check environment parity — does the system behave consistently across
   environments?
 
-3. **Review Migration and Backward Compatibility**
+3. **Evaluate Onboarding and Learning Curve**
 
-- Identify breaking changes
-- Assess migration path clarity for consumers — are there clear, complete
-  migration guides with before/after examples?
-- Evaluate deprecation strategy — is there a graceful transition period?
-- Check incremental upgrade support — can users upgrade step by step?
-- Verify versioning communication
+- Assess time to first success — how many steps before a developer sees
+  something working?
+- Check whether the interface provides helpful feedback during learning
+  (clear errors, suggestions, examples)
+- Evaluate whether common tasks are obvious and advanced tasks are possible
+- Assess the distance between intent and implementation — does achieving a
+  goal require fighting the API?
+- Check whether the interface follows conventions from similar tools or
+  libraries that developers would already know
+
+**Boundary note**: API contract compatibility, backward/forward compatibility,
+and versioning discipline are assessed by the compatibility lens. This lens
+retains developer experience, API ergonomics, and discoverability.
 
 ## Key Evaluation Questions
 
@@ -64,12 +71,6 @@ Review as a developer using this API or interface for the first time.
   defaults, excessive required configuration, complexity disproportionate to
   customisation needs.)
 
-**Migration and compatibility** (when breaking changes or version transitions
-are present):
-- **Migration**: If a consumer upgraded to this version today, what would break
-  and would they know how to fix it? (Watch for: undocumented breaking changes,
-  missing migration guides, no deprecation period.)
-
 ## Important Guidelines
 
 - **Explore the codebase** for existing DX patterns and conventions
@@ -86,8 +87,11 @@ are present):
 
 ## What NOT to Do
 
-- Don't review architecture, security, test coverage, code quality, standards,
-  or performance — those are other lenses
+- Don't review architecture, security, performance, code quality, standards,
+  test coverage, documentation, database, correctness, compatibility,
+  portability, or safety — those are other lenses
+- Don't assess API contract compatibility, backward/forward compatibility,
+  or versioning discipline — that is the compatibility lens
 - Don't evaluate end-user UX unless the changes explicitly involve UI
 - Don't insist on documentation for every internal interface
 - Don't prioritise convenience over safety — flag the tradeoff, don't decide it

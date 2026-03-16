@@ -1,8 +1,8 @@
 ---
 name: performance-lens
 description: Performance review lens for evaluating algorithmic efficiency,
-  resource usage, and concurrency safety. Used by review orchestrators — not
-  invoked directly.
+  resource usage, and concurrency efficiency. Used by review orchestrators —
+  not invoked directly.
 user-invocable: false
 disable-model-invocation: true
 ---
@@ -29,26 +29,21 @@ load.
 
 - Check for memory allocation patterns in hot paths (object creation in loops,
   unbounded caches, string concatenation in loops)
-- Evaluate connection and resource pool management (database connections, HTTP
-  clients, file handles)
-- Identify N+1 query patterns and missing batch operations
-- Assess query efficiency (missing indexes, unbounded result sets, missing
-  pagination)
+- Evaluate connection and resource pool management (HTTP clients, file
+  handles)
 - Evaluate I/O patterns (lazy vs eager loading, streaming vs buffering, payload
   size, compression)
 - Check for unnecessary network round-trips and missing connection reuse
 
-3. **Review Concurrency Safety and Caching Strategy**
+3. **Review Concurrency Resource Efficiency and Caching Strategy**
 
-- Identify race conditions, data races, and shared mutable state
-- Assess lock granularity and contention potential
-- Check for deadlock risk in lock ordering
-- Evaluate async/await correctness (missing awaits, unnecessary serialisation
-  of independent operations)
+- Assess lock granularity and contention potential — are locks held longer
+  than necessary?
+- Evaluate thread pool and worker pool sizing
+- Identify unnecessary serialisation of independent async operations
 - Assess caching strategy — what to cache, invalidation approach, TTL
   appropriateness
 - Check for cache stampede / thundering herd potential
-- Evaluate thread pool and worker pool sizing
 
 **Boundary note**: System-level scalability (how the architecture handles 10x
 load, horizontal scaling, component failure) is assessed by the architecture
@@ -59,7 +54,12 @@ is appropriate. This lens focuses on *code-level performance* — whether
 individual components, algorithms, and data paths are efficient. Observability
 infrastructure (structured logging, metrics collection, tracing) is assessed
 by the code quality lens. This lens may note *what to measure* for performance
-but does not assess the observability design itself.
+but does not assess the observability design itself. Database query
+performance, N+1 patterns, index fitness, and migration locking are assessed
+by the database lens. This lens retains algorithmic efficiency and general
+resource management. Concurrency *correctness* (race conditions, deadlocks,
+data races) is assessed by the correctness lens. This lens retains
+concurrency *resource efficiency* (lock contention, thread pool sizing).
 
 ## Key Evaluation Questions
 
@@ -73,12 +73,6 @@ but does not assess the observability design itself.
   operations inside it would dominate the cost? (Watch for: allocations in
   loops, redundant lookups, computations that could be hoisted or cached.)
 
-**Database and query performance** (when the change includes database queries
-or schema changes):
-- **Database performance**: What happens to this query when the table has 10
-  million rows? (Watch for: N+1 patterns, missing indexes, unbounded result
-  sets, missing batch operations.)
-
 **Resource and I/O efficiency** (when the change opens connections, makes
 network calls, or handles file I/O):
 - **Resource management**: What happens to this resource if the operation fails
@@ -88,11 +82,12 @@ network calls, or handles file I/O):
   work efficiently? (Watch for: missing pagination, unbatched network calls,
   eager loading of large data sets.)
 
-**Concurrency safety** (when the change uses threads, async/await, or shared
-mutable state):
-- **Concurrency safety**: If two requests hit this code simultaneously, what
-  shared state could they corrupt? (Watch for: unprotected shared mutable
-  state, lock contention, missing awaits, deadlock risk.)
+**Concurrency efficiency** (when the change uses threads, async/await, or
+shared mutable state):
+- **Concurrency efficiency**: What is the contention cost of the
+  synchronisation strategy? (Watch for: coarse-grained locks that
+  serialise independent operations, oversized or undersized thread pools,
+  unnecessary serialisation of async work.)
 
 **Caching** (when the change involves repeated lookups or high-frequency access
 patterns):
@@ -118,8 +113,15 @@ patterns):
 
 ## What NOT to Do
 
-- Don't review architecture, security, test coverage, code quality, standards,
-  or usability — those are other lenses
+- Don't review architecture, security, code quality, standards, test
+  coverage, usability, documentation, database, correctness, compatibility,
+  portability, or safety — those are other lenses
+- Don't assess database query correctness, schema design, or migration
+  safety — that is the database lens. This lens retains algorithmic
+  efficiency and general resource management
+- Don't assess concurrency correctness (race conditions, deadlocks, data
+  races) — that is the correctness lens. This lens retains concurrency
+  *resource efficiency* (lock contention, thread pool sizing)
 - Don't recommend premature optimisation — only flag issues proportional to
   expected scale and frequency
 - Don't micro-optimise — focus on algorithmic and structural improvements, not
@@ -131,6 +133,6 @@ patterns):
 - Don't penalise code that has been profiled and shown to be adequate
 
 Remember: You're evaluating whether code will perform well under expected load
-— efficient algorithms, appropriate resource management, safe concurrency, and
-effective caching. The best performance work targets the right bottleneck with
-the simplest fix.
+— efficient algorithms, appropriate resource management, efficient concurrency,
+and effective caching. The best performance work targets the right bottleneck
+with the simplest fix.

@@ -51,9 +51,15 @@ the user's input.
 | **Security**       | `security-lens`               | OWASP Top 10, input validation, auth/authz, secrets, data flows        |
 | **Test Coverage**  | `test-coverage-lens`          | Coverage adequacy, assertion quality, test pyramid, anti-patterns       |
 | **Code Quality**   | `code-quality-lens`           | Complexity, design principles, error handling, code smells             |
-| **Standards**      | `standards-lens`              | Project conventions, API standards, naming, documentation              |
-| **Usability**      | `usability-lens`              | Developer experience, API ergonomics, configuration, migration paths   |
+| **Standards**      | `standards-lens`              | Project conventions, API standards, naming, accessibility              |
+| **Usability**      | `usability-lens`              | Developer experience, API ergonomics, configuration, onboarding        |
 | **Performance**    | `performance-lens`            | Algorithmic efficiency, resource usage, concurrency, caching           |
+| **Documentation**  | `documentation-lens`          | Documentation completeness, accuracy, audience fit                     |
+| **Database**       | `database-lens`               | Migration safety, schema design, query correctness, integrity          |
+| **Correctness**    | `correctness-lens`            | Logical validity, boundary conditions, state management, concurrency   |
+| **Compatibility**  | `compatibility-lens`          | API contracts, cross-platform, protocol compliance, deps               |
+| **Portability**    | `portability-lens`            | Environment independence, deployment flexibility, vendor lock          |
+| **Safety**         | `safety-lens`                 | Data loss prevention, operational safety, protective mechanisms        |
 
 ## Process Steps
 
@@ -131,10 +137,54 @@ Take time to think carefully about which lenses apply based on:
   public interfaces, naming-heavy changes
 - **Usability** — relevant when changes involve: public APIs, CLI interfaces,
   configuration surfaces, breaking changes, developer-facing libraries
-- **Performance** — relevant when changes involve: data processing, database
-  queries, API endpoints handling load, algorithm-heavy code, concurrency
-  primitives, caching logic, or hot code paths. Skip for documentation-only,
+- **Performance** — relevant when changes involve: data processing, API
+  endpoints handling load, algorithm-heavy code, concurrency resource
+  efficiency, caching logic, or hot code paths. Skip for documentation-only,
   configuration-only, or simple UI changes.
+- **Documentation** — relevant when changes involve: public APIs, README
+  files, configuration surfaces, new features that need documentation,
+  breaking changes requiring migration guides. Skip for internal refactoring
+  with no interface changes.
+- **Database** — relevant when changes involve: database migrations, schema
+  changes, new queries, ORM model changes, transaction logic, connection
+  pool configuration. Skip for changes with no database interaction.
+- **Correctness** — relevant for most PRs; skip only for documentation-only,
+  configuration-only, or simple renaming changes.
+- **Compatibility** — relevant when changes involve: public API
+  modifications, dependency updates, serialisation format changes,
+  cross-platform code, protocol implementations. Skip for internal-only
+  changes with no external consumers.
+- **Portability** — relevant when changes involve: infrastructure
+  configuration, deployment scripts, containerisation, cloud provider
+  integrations, environment-specific code paths. Skip for application logic
+  with no environment dependencies.
+- **Safety** — relevant when changes involve: data deletion or modification
+  operations, deployment configuration, automated batch processes,
+  infrastructure changes, feature flags, or critical system components.
+  Skip for read-only features, documentation, or UI-only changes.
+
+**Lens selection cap:** With 13 available lenses, running all of them for
+every review would be wasteful. Select the **6 to 8 most relevant lenses**
+for the change under review. Apply these prioritisation rules:
+
+1. **Always consider the core four**: Architecture, Code Quality, Test
+   Coverage, and Correctness are relevant for most non-trivial changes.
+   Include them unless the change is clearly outside their scope (e.g.,
+   documentation-only).
+2. **Add domain-specific lenses based on the change**: Use the auto-detect
+   criteria above to identify which of the remaining lenses are relevant.
+3. **If more than 8 lenses pass auto-detect**, rank by relevance to the
+   specific change and drop the least relevant until you reach 6-8. Prefer
+   lenses whose core responsibilities directly overlap with the change's
+   primary concerns.
+4. **If the user provided focus arguments**, prioritise the requested lenses
+   and fill remaining slots (up to 8) with the most relevant auto-detected
+   lenses.
+5. **Never run fewer than 4 lenses** unless the change is trivially scoped
+   (e.g., a typo fix).
+
+When presenting the lens selection, clearly indicate which lenses are
+selected and which are skipped, with a brief reason for each skip.
 
 Present lens selection to the user before proceeding:
 
@@ -147,6 +197,12 @@ Based on the PR's scope, I'll review through these lenses:
 - Standards: [reason — or "Skipping: ..."]
 - Usability: [reason — or "Skipping: ..."]
 - Performance: [reason — or "Skipping: no performance-sensitive changes identified"]
+- Documentation: [reason — or "Skipping: ..."]
+- Database: [reason — or "Skipping: no database changes identified"]
+- Correctness: [reason]
+- Compatibility: [reason — or "Skipping: ..."]
+- Portability: [reason — or "Skipping: ..."]
+- Safety: [reason — or "Skipping: ..."]
 
 Shall I proceed, or would you like to adjust the selection?
 ```

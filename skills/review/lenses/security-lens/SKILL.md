@@ -87,8 +87,12 @@ And evaluate full-stack security:
 
 ## What NOT to Do
 
-- Don't review architecture, test coverage, code quality, standards, usability,
-  or performance — those are other lenses
+- Don't review architecture, performance, code quality, standards, test
+  coverage, usability, documentation, database, correctness, compatibility,
+  portability, or safety — those are other lenses
+- Don't assess accidental harm (data loss from bugs, operational outages,
+  cascading failures) — that is the safety lens. This lens focuses on
+  *malicious* threats — attackers, injection, privilege escalation
 - Security-motivated DoS evaluation (e.g., "Can this endpoint be overwhelmed by
   a malicious actor?") stays in this lens. General performance efficiency (e.g.,
   "Is this algorithm O(n²) when it could be O(n)?") is the performance lens.

@@ -99,8 +99,12 @@ will be tested, how, and whether coverage is proportional to risk.
 
 ## What NOT to Do
 
-- Don't review architecture, security, code quality, standards, usability, or
-  performance — those are other lenses
+- Don't review architecture, security, performance, code quality, standards,
+  usability, documentation, database, correctness, compatibility,
+  portability, or safety — those are other lenses
+- Don't assess logical correctness of the code under review — that is the
+  correctness lens. This lens focuses on whether *tests exist and are
+  effective* at catching defects, not whether the code itself is correct
 - Don't insist on 100% coverage — focus on coverage that provides meaningful
   confidence
 - Don't penalise test approaches that differ from your preference if they are
