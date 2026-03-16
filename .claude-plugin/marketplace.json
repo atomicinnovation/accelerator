@@ -12,7 +12,7 @@
       "name": "accelerator",
       "source": "./",
       "description": "Development acceleration toolkit with multi-lens code review, implementation planning, codebase research, and git workflow automation.",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "author": {
         "name": "Toby Clemson"
       },
