@@ -2,7 +2,7 @@
 
 # Check for jq dependency
 if ! command -v jq &>/dev/null; then
-  echo '{"hookSpecificOutput":{"additionalContext":"WARNING: jq is not installed. VCS detection could not run. Install jq for full VCS support. Defaulting to git commands."}}'
+  echo '{"systemMessage":"WARNING: jq is not installed. VCS detection could not run. Install jq for full VCS support. Defaulting to git commands."}'
   exit 0
 fi
 
@@ -76,6 +76,7 @@ esac
 # Use jq to safely encode the context string as JSON
 jq -n --arg context "$CONTEXT" '{
   "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
     "additionalContext": $context
   }
 }'
