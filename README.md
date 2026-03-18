@@ -87,17 +87,36 @@ This approach means:
 - Artifacts are structured and machine-parseable (YAML frontmatter, JSON
   schemas)
 
-## PR Workflow Skills
+## VCS Detection
 
-Alongside the development loop, Accelerator provides skills for team workflows
-around pull requests:
+Accelerator automatically detects whether a repository uses git or
+[jujutsu (jj)](https://github.com/jj-vcs/jj) and adapts its behaviour
+accordingly. A `SessionStart` hook inspects the working directory for `.jj/` and
+`.git/` directories, injecting VCS-specific context (command references and
+conventions) into the session. A complementary `PreToolUse` guard warns when raw
+git commands are used in a jujutsu repository.
 
-| Skill             | Usage                            | Description                                                      |
-|-------------------|----------------------------------|------------------------------------------------------------------|
-| **commit**        | `/accelerator:commit`            | Create well-structured, atomic git commits                       |
-| **describe-pr**   | `/accelerator:describe-pr 123`   | Generate comprehensive PR descriptions following repo templates  |
-| **review-pr**     | `/accelerator:review-pr 123`     | Review a PR through multiple quality lenses with inline comments |
-| **respond-to-pr** | `/accelerator:respond-to-pr 123` | Address PR review feedback interactively with code changes       |
+This means all VCS-aware skills — `commit`, `respond-to-pr`, and ad-hoc
+interactions — use the correct CLI commands without manual configuration. The
+detection covers three modes:
+
+| Mode              | Detected when         | VCS commands used |
+|-------------------|-----------------------|-------------------|
+| **git**           | `.git/` only          | `git`             |
+| **jj (colocated)**| `.jj/` and `.git/`    | `jj`              |
+| **jj (pure)**     | `.jj/` only           | `jj`              |
+
+## VCS and PR Workflow Skills
+
+Alongside the development loop, Accelerator provides skills for version control
+and team workflows around pull requests:
+
+| Skill             | Usage                            | Description                                                              |
+|-------------------|----------------------------------|--------------------------------------------------------------------------|
+| **commit**        | `/accelerator:commit`            | Create well-structured, atomic commits (works with both git and jujutsu) |
+| **describe-pr**   | `/accelerator:describe-pr 123`   | Generate comprehensive PR descriptions following repo templates          |
+| **review-pr**     | `/accelerator:review-pr 123`     | Review a PR through multiple quality lenses with inline comments         |
+| **respond-to-pr** | `/accelerator:respond-to-pr 123` | Address PR review feedback interactively with code changes               |
 
 ## Review System
 
