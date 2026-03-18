@@ -70,13 +70,14 @@ persistent state for the development workflow. Each skill reads from and writes
 to predictable paths within it (directories are created on first use by their
 respective skills):
 
-| Directory    | Purpose                                         | Written by          |
-|--------------|-------------------------------------------------|---------------------|
-| `research/`  | Research findings with YAML frontmatter         | `research-codebase` |
-| `plans/`     | Implementation plans with phased changes        | `create-plan`       |
-| `prs/`       | PR descriptions                                 | `describe-pr`       |
-| `templates/` | Reusable templates (e.g., PR descriptions)      | manual              |
-| `tmp/`       | Ephemeral working data (e.g., review artifacts) | `review-pr`         |
+| Directory    | Purpose                                         | Written by                                 |
+|--------------|-------------------------------------------------|--------------------------------------------|
+| `research/`  | Research findings with YAML frontmatter         | `research-codebase`                        |
+| `plans/`     | Implementation plans with phased changes        | `create-plan`                              |
+| `decisions/` | Architecture decision records (ADRs)            | `create-adr`, `extract-adrs`, `review-adr` |
+| `prs/`       | PR descriptions                                 | `describe-pr`                              |
+| `templates/` | Reusable templates (e.g., PR descriptions)      | manual                                     |
+| `tmp/`       | Ephemeral working data (e.g., review artifacts) | `review-pr`                                |
 
 This approach means:
 
@@ -100,11 +101,37 @@ This means all VCS-aware skills — `commit`, `respond-to-pr`, and ad-hoc
 interactions — use the correct CLI commands without manual configuration. The
 detection covers three modes:
 
-| Mode              | Detected when         | VCS commands used |
-|-------------------|-----------------------|-------------------|
-| **git**           | `.git/` only          | `git`             |
-| **jj (colocated)**| `.jj/` and `.git/`    | `jj`              |
-| **jj (pure)**     | `.jj/` only           | `jj`              |
+| Mode               | Detected when      | VCS commands used |
+|--------------------|--------------------|-------------------|
+| **git**            | `.git/` only       | `git`             |
+| **jj (colocated)** | `.jj/` and `.git/` | `jj`              |
+| **jj (pure)**      | `.jj/` only        | `jj`              |
+
+## Architecture Decision Records
+
+ADR skills capture architectural decisions that emerge from research and
+planning:
+
+```
+research-codebase → create-plan → implement-plan
+       ↓                ↓
+  meta/research/    meta/plans/
+       ↓                ↓
+  extract-adrs ←────────┘
+       ↓
+  meta/decisions/
+       ↓
+  review-adr → accepted ADRs inform future research & planning
+```
+
+| Skill            | Usage                                                   | Description                                                |
+|------------------|---------------------------------------------------------|------------------------------------------------------------|
+| **create-adr**   | `/accelerator:create-adr [topic]`                       | Interactively create an ADR with context gathering         |
+| **extract-adrs** | `/accelerator:extract-adrs [@meta/doc.md ...]`          | Extract decisions from existing meta documents into ADRs   |
+| **review-adr**   | `/accelerator:review-adr [@meta/decisions/ADR-NNNN.md]` | Review proposed ADRs; accept, reject, or suggest revisions |
+
+ADRs follow an append-only lifecycle: once accepted, an ADR's content becomes
+immutable. To revise a decision, create a new ADR that supersedes the original.
 
 ## VCS and PR Workflow Skills
 

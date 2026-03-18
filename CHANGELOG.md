@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.3.0 — 2026-03-18
+
+_Versions 1.1.0–1.2.1 added VCS detection, jujutsu support, and bug fixes
+but were not recorded in the changelog._
+
+### Added
+
+- **Architecture Decision Records (ADRs)**: New `decisions/` skill category
+  with three skills for managing architectural decisions
+  - `create-adr` — Interactively create ADRs with context gathering and
+    quality guidelines
+  - `extract-adrs` — Extract decisions from existing research and planning
+    documents into formal ADRs
+  - `review-adr` — Review proposed ADRs for quality; accept, reject, or
+    deprecate with append-only lifecycle enforcement
+- Companion scripts `adr-next-number.sh` and `adr-read-status.sh` for ADR
+  number assignment and status checking
+- `meta/decisions/` directory for storing ADRs with sequential `ADR-NNNN`
+  numbering
+
 ## 1.0.0 — 2026-03-14
 
 Initial extraction from `~/.claude/` into a standalone Claude Code plugin.
