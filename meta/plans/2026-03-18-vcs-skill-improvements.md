@@ -350,13 +350,13 @@ definitions.
 
 #### Automated Verification:
 
-- [ ] `hooks/vcs-detect.sh` exists and is executable
-- [ ] `hooks/hooks.json` exists and is valid JSON
-- [ ] Running `hooks/vcs-detect.sh` in a git repo outputs valid JSON with
+- [x] `hooks/vcs-detect.sh` exists and is executable
+- [x] `hooks/hooks.json` exists and is valid JSON
+- [x] Running `hooks/vcs-detect.sh` in a git repo outputs valid JSON with
   `hookSpecificOutput.additionalContext` containing "git"
-- [ ] Running `hooks/vcs-detect.sh` in a directory with `.jj/` and `.git/`
+- [x] Running `hooks/vcs-detect.sh` in a directory with `.jj/` and `.git/`
   outputs JSON mentioning "jj-colocated"
-- [ ] Running `hooks/vcs-detect.sh` in a directory with only `.jj/` outputs
+- [x] Running `hooks/vcs-detect.sh` in a directory with only `.jj/` outputs
   JSON mentioning "jj" mode
 
 #### Manual Verification:
