@@ -56,10 +56,13 @@ research-codebase  →  create-plan  →  implement-plan
    the plan phase by phase, checking off success criteria as each phase
    completes. The plan file serves as both instructions and progress tracker.
 
-Two complementary skills support this loop:
+Three complementary skills support this loop:
 
 - `/accelerator:review-plan @meta/plans/plan.md` — Review a plan through
   multiple quality lenses before implementation
+- `/accelerator:stress-test-plan @meta/plans/plan.md` — Interactively
+  stress-test a plan through adversarial questioning to find issues,
+  inconsistencies, and gaps
 - `/accelerator:validate-plan @meta/plans/plan.md` — Verify after
   implementation that the code matches the plan
 
