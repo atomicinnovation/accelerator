@@ -776,23 +776,23 @@ Keep commits focused and atomic.
 
 #### Automated Verification:
 
-- [ ] `hooks/vcs-guard.sh` exists and is executable
-- [ ] `hooks/hooks.json` contains both `SessionStart` and `PreToolUse` entries
-- [ ] `hooks/hooks.json` is valid JSON
-- [ ] Running `hooks/vcs-guard.sh` with a `git status` command in a directory
+- [x] `hooks/vcs-guard.sh` exists and is executable
+- [x] `hooks/hooks.json` contains both `SessionStart` and `PreToolUse` entries
+- [x] `hooks/hooks.json` is valid JSON
+- [x] Running `hooks/vcs-guard.sh` with a `git status` command in a directory
   with only `.jj/` outputs JSON with `"decision": "block"`
-- [ ] Running `hooks/vcs-guard.sh` with a `git status` command in a directory
+- [x] Running `hooks/vcs-guard.sh` with a `git status` command in a directory
   with both `.jj/` and `.git/` outputs JSON with `"decision": "allow"` and a
   `systemMessage` warning
-- [ ] Running `hooks/vcs-guard.sh` with a `gh pr view` command outputs nothing
+- [x] Running `hooks/vcs-guard.sh` with a `gh pr view` command outputs nothing
   (exit 0)
-- [ ] Running `hooks/vcs-guard.sh` with a `git push` command in a jj repo
+- [x] Running `hooks/vcs-guard.sh` with a `git push` command in a jj repo
   outputs nothing (exit 0 — push is allowed)
-- [ ] `skills/github/respond-to-pr/SKILL.md` does not contain
+- [x] `skills/github/respond-to-pr/SKILL.md` does not contain
   `git branch --show-current`
-- [ ] `skills/github/respond-to-pr/SKILL.md` does not contain
+- [x] `skills/github/respond-to-pr/SKILL.md` does not contain
   `git add` as an instruction (may reference git in explanatory context)
-- [ ] `skills/github/respond-to-pr/SKILL.md` does not contain
+- [x] `skills/github/respond-to-pr/SKILL.md` does not contain
   `git add -A` or `git add .`
 
 #### Manual Verification:

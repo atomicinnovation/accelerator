@@ -61,13 +61,10 @@ the user's input.
    gh api user --jq '.login'
    ```
 
-4. **Ensure on the correct branch**: Check if the user is on the PR's head
-   branch. If not, inform them and ask if they want to switch:
-   ```bash
-   git branch --show-current
-   ```
-   Compare with the PR's `headRefName`. If different, ask the user whether to
-   switch to it.
+4. **Ensure on the correct branch**: Check the current branch or bookmark
+   using the appropriate VCS command for this repository (refer to the
+   session's VCS context). Compare with the PR's `headRefName`. If different,
+   inform the user and ask if they want to switch.
 
 5. **Fetch review threads via GraphQL** (primary source for inline feedback):
 
@@ -323,9 +320,9 @@ before posting it. The user can edit the draft response before it is sent.
   offer to commit all changes in that category.
 - **At-end**: Track changes but don't offer to commit until Step 5.
 
-When committing, follow the `commit` skill pattern: `git add` specific
-files, create the commit with the suggested message (or user's amended
-message). Never use `git add -A` or `git add .`.
+When committing, follow the `commit` skill pattern using the appropriate
+VCS commands for this repository (refer to the session's VCS context).
+Keep commits focused and atomic.
 
 **4e. Respond on GitHub:**
 
@@ -458,7 +455,8 @@ After all items have been addressed (or the user says "stop here"):
 
 6. **Respect commit preference** — Follow the user's chosen commit strategy
    (per-item, per-category, or at-end). Keep commits atomic and focused.
-   Follow the `commit` skill pattern (specific file adds, no `-A`).
+   Follow the `commit` skill pattern for this repository's VCS (refer to
+   session VCS context). Keep commits focused and atomic.
 
 7. **Reply in threads** — Always reply in the specific comment thread, not
    as a new top-level comment. This keeps the conversation organised.
@@ -491,7 +489,7 @@ After all items have been addressed (or the user says "stop here"):
 - Don't resolve threads without having addressed the feedback
 - Don't automatically re-request review — always offer first
 - Don't add co-author information or Claude attribution to commits
-- Don't use `git add -A` or `git add .` — add specific files only
+- When staging files, always add specific files by name — never bulk-add
 
 ## Relationship to Other Commands
 
