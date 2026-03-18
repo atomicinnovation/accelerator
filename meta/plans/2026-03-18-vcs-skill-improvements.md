@@ -513,18 +513,18 @@ current working state. If unavailable, determine an alternative path mechanism
 
 #### Automated Verification:
 
-- [ ] `scripts/vcs-common.sh` exists and is executable
-- [ ] `scripts/vcs-status.sh` exists and is executable
-- [ ] `scripts/vcs-log.sh` exists and is executable
-- [ ] Running `scripts/vcs-status.sh` in a git repo runs `git diff --cached --stat`
-- [ ] Running `scripts/vcs-status.sh` in a jj repo runs `jj status`
-- [ ] Running `scripts/vcs-log.sh` in a git repo runs `git log --oneline -5`
-- [ ] Running `scripts/vcs-log.sh` in a jj repo runs `jj log --limit 5`
-- [ ] `skills/vcs/commit/SKILL.md` uses `!` backtick expressions referencing
+- [x] `scripts/vcs-common.sh` exists and is executable
+- [x] `scripts/vcs-status.sh` exists and is executable
+- [x] `scripts/vcs-log.sh` exists and is executable
+- [x] Running `scripts/vcs-status.sh` in a git repo runs `git diff --cached --stat`
+- [x] Running `scripts/vcs-status.sh` in a jj repo runs `jj status`
+- [x] Running `scripts/vcs-log.sh` in a git repo runs `git log --oneline -5`
+- [x] Running `scripts/vcs-log.sh` in a jj repo runs `jj log --limit 5`
+- [x] `skills/vcs/commit/SKILL.md` uses `!` backtick expressions referencing
   the VCS-aware wrapper scripts (not hardcoded git commands)
-- [ ] `skills/vcs/commit/SKILL.md` does not contain hardcoded `git status`,
+- [x] `skills/vcs/commit/SKILL.md` does not contain hardcoded `git status`,
   `git diff`, `git add`, or `git log` as instructions in the process steps
-- [ ] YAML frontmatter is valid with `name: commit`
+- [x] YAML frontmatter is valid with `name: commit`
 
 #### Manual Verification:
 

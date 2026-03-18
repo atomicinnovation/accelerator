@@ -1,6 +1,6 @@
 ---
 name: commit
-description: Create git commits for session changes. Use when the user wants to
+description: Create VCS commits for session changes. Use when the user wants to
   commit their work with well-structured, atomic commits.
 argument-hint: "[optional message or flags]"
 disable-model-invocation: true
@@ -8,17 +8,15 @@ disable-model-invocation: true
 
 # Commit Changes
 
-## Current State
-- Staged changes: !`git diff --cached --stat`
-- Recent commits: !`git log --oneline -5`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/vcs-status.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/vcs-log.sh`
 
 ## Process:
 
 1. **Think about what changed:**
 
 - Review the conversation history and understand what was accomplished
-- Run `git status` to see current changes
-- Run `git diff` to understand the modifications
+- Review the VCS status and diff above to see what files changed
 - Consider whether changes should be one commit or multiple logical commits
 
 2. **Plan your commit(s):**
@@ -30,15 +28,16 @@ disable-model-invocation: true
 
 3. **Present your plan to the user:**
 
-- List the files you plan to add for each commit
+- List the files you plan to include in each commit
 - Show the commit message(s) you'll use
 - Ask: "I plan to create [N] commit(s) with these changes. Shall I proceed?"
 
 4. **Execute upon confirmation:**
 
-- Use `git add` with specific files (never use `-A` or `.`)
-- Create commits with your planned messages
-- Show the result with `git log --oneline -n [number]`
+- Stage and commit the planned files with your planned messages
+- Use the VCS commands appropriate for this repository (refer to the
+  session's VCS context for the correct commands)
+- Show recent commit history to confirm the result
 
 ## Important:
 
@@ -47,6 +46,10 @@ disable-model-invocation: true
 - Do not include any "Generated with Claude" messages
 - Do not add "Co-Authored-By" lines
 - Write commit messages as if the user wrote them
+- Use the VCS commands appropriate for this repository's version control
+  system (refer to the session's VCS context for the correct commands)
+- When staging files, always add specific files by name — never bulk-add
+  all changes at once
 
 ## Remember:
 
