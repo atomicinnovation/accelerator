@@ -14,8 +14,9 @@ contents in depth.
 
 - Check meta/research/ for research on specific work items
 - Check meta/plans/ for implementation plans for specific work items
-- Check meta/decisions/ for documents about architectural decision for the 
+- Check meta/decisions/ for documents about architectural decision for the
   codebase
+- Check meta/reviews/ for review artifacts (plan reviews and PR reviews)
 - Check meta/global/ for cross-repo information
 
 2. **Categorise findings by type**
@@ -23,6 +24,7 @@ contents in depth.
 - Tickets (usually in tickets/ subdirectory)
 - Research documents (in research/)
 - Implementation plans (in plans/)
+- Review artifacts (in reviews/)
 - PR descriptions (in prs/)
 - General notes and discussions
 - Meeting notes or decisions
@@ -45,6 +47,7 @@ to best categorise the findings for the user.
 meta/
 ├── research/  # Research documents
 ├── plans/     # Implementation plans
+├── reviews/   # Review artifacts (plan and PR reviews)
 ├── tickets/   # Ticket documentation
 ├── prs/       # PR descriptions
 ├── decisions/ # Technical and architectural decisions
@@ -79,6 +82,12 @@ Structure your findings like this:
 ### Related Discussions
 - `meta/notes/meeting-2024-01-10.md` - Team discussion about rate limiting
 - `meta/decisions/rate-limit-values.md` - Decision on rate limit thresholds
+
+### Reviews
+- `meta/reviews/plans/2026-03-22-improve-error-handling-review-1.md` - Review of
+  error handling plan (review 1, verdict: REVISE)
+- `meta/reviews/prs/456-review-1.md` - Review of PR #456 (review 1, verdict:
+  COMMENT)
 
 ### PR Descriptions
 - `meta/prs/pr-456-rate-limiting.md` - PR that implemented basic rate limiting

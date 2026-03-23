@@ -379,6 +379,70 @@ Once all reviews are complete:
    combine the bodies with a blank line separator and attribute each section
    to its lens.
 
+10. **Write the review artifact** to `meta/reviews/prs/`:
+
+    Determine the next review number:
+    ```bash
+    mkdir -p meta/reviews/prs
+    # Glob for existing reviews of this PR
+    ls meta/reviews/prs/{number}-review-*.md 2>/dev/null
+    # Extract the highest number, increment by 1. If none exist, use 1.
+    ```
+
+    Write the review document to `meta/reviews/prs/{number}-review-{N}.md`:
+
+    ```markdown
+    ---
+    date: "{ISO timestamp}"
+    type: pr-review
+    skill: review-pr
+    target: "PR #{number}"
+    pr_number: {number}
+    pr_title: "{title}"
+    review_number: {N}
+    verdict: {APPROVE | REQUEST_CHANGES | COMMENT}
+    lenses: [{list of lenses used}]
+    status: complete
+    ---
+
+    {The full review summary from Step 4.8}
+
+    ## Inline Comments
+
+    ### `{path}:{line}` — {title}
+    **Severity**: {severity} | **Confidence**: {confidence} | **Lens**: {lens}
+
+    {comment body}
+
+    ---
+
+    ### `{path}:{line}` — {title}
+    ...
+
+    ## Per-Lens Results
+
+    ### {Lens 1 Name}
+
+    **Summary**: {agent summary}
+
+    **Strengths**:
+    {agent strengths}
+
+    **Comments**:
+    {agent comments — each with path, line, severity, confidence, and body}
+
+    **General Findings**:
+    {agent general findings}
+
+    ### {Lens 2 Name}
+
+    ...
+    ```
+
+    This review artifact captures the complete analysis. The GitHub review
+    (posted in Step 6) may be a curated subset (capped at ~10 inline
+    comments), but the persistent artifact retains everything.
+
 ### Step 5: Present the Review
 
 Present a two-part preview showing exactly what will be posted to the PR:
@@ -509,6 +573,12 @@ stale commit):
 7. **Clean up temp directory only at session end** — agents may need to
    re-reference the PR context during follow-up discussion.
 
+   The `meta/tmp/pr-review-{number}/` directory contains ephemeral working
+   data (diff, changed-files, PR description, commits, head SHA, repo info,
+   review payload JSON) used during the review session. The review itself
+   (summary, inline comments, per-lens results) is persisted separately to
+   `meta/reviews/prs/{number}-review-{N}.md` and is NOT stored in tmp/.
+
 8. **Handle API errors gracefully** — if the review post fails due to invalid
    line references, identify the problematic comments and offer to retry
    without them rather than failing entirely
@@ -524,8 +594,8 @@ stale commit):
 
 ## What NOT to Do
 
-- Don't write review findings to a separate file — all output goes to the
-  conversation and then to GitHub via the API
+- Don't skip writing the review artifact — always persist to
+  meta/reviews/prs/ so the full analysis is available to the team
 - Don't post inline comments for positive feedback — strengths go in the
   summary only
 - Don't post more than ~10 inline comments — prioritise by severity (always

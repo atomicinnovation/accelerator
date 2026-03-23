@@ -328,15 +328,15 @@ With:
 
 #### Automated Verification
 
-- [ ] The file `skills/planning/review-plan/SKILL.md` contains instructions
+- [x] The file `skills/planning/review-plan/SKILL.md` contains instructions
       to write to `meta/reviews/plans/`
-- [ ] The file no longer contains "Don't write review findings to a separate
+- [x] The file no longer contains "Don't write review findings to a separate
       file"
-- [ ] The file contains frontmatter schema with `type: plan-review`, `target`,
+- [x] The file contains frontmatter schema with `type: plan-review`, `target`,
       `review_number`, `verdict`, `lenses`, `review_pass`, and `status` fields
-- [ ] The file contains instructions for re-reviews to append to the existing
+- [x] The file contains instructions for re-reviews to append to the existing
       review document
-- [ ] The file contains instructions to glob for existing reviews and
+- [x] The file contains instructions to glob for existing reviews and
       determine the next review number
 
 #### Manual Verification
@@ -482,14 +482,14 @@ review payload JSON) used during the review session. The review itself
 
 #### Automated Verification
 
-- [ ] The file `skills/github/review-pr/SKILL.md` contains instructions
+- [x] The file `skills/github/review-pr/SKILL.md` contains instructions
   to write to `meta/reviews/prs/`
-- [ ] The file no longer contains "Don't write review findings to a separate
+- [x] The file no longer contains "Don't write review findings to a separate
   file"
-- [ ] The file contains frontmatter schema with `type: pr-review`,
+- [x] The file contains frontmatter schema with `type: pr-review`,
   `pr_number`, `review_number`, `verdict`, `lenses`, and `status` fields
-- [ ] The file contains a note clarifying the tmp/ vs reviews/ distinction
-- [ ] The file contains instructions to glob for existing reviews and
+- [x] The file contains a note clarifying the tmp/ vs reviews/ distinction
+- [x] The file contains instructions to glob for existing reviews and
   determine the next review number
 
 #### Manual Verification
@@ -579,8 +579,8 @@ Add a reviews section to the output format example (around line 80):
 
 #### Automated Verification
 
-- [ ] `README.md` contains a `reviews/` row in the meta/ directory table
-- [ ] `agents/documents-locator.md` references `meta/reviews/` in its
+- [x] `README.md` contains a `reviews/` row in the meta/ directory table
+- [x] `agents/documents-locator.md` references `meta/reviews/` in its
   directory list, structure diagram, and output format example
 
 #### Manual Verification

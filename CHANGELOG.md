@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Persistent review artifacts**: `review-plan` and `review-pr` now write
+  structured review documents to `meta/reviews/` so findings survive across
+  sessions and are visible to the whole team
+  - `review-plan` writes to `meta/reviews/plans/{stem}-review-{N}.md` with
+    YAML frontmatter, the full review summary, and per-lens results
+  - `review-pr` writes to `meta/reviews/prs/{number}-review-{N}.md` with
+    YAML frontmatter, inline comments, and per-lens results
+  - `review-plan` checks for prior reviews when starting a new review cycle,
+    enabling cross-session continuity
+  - Re-reviews in `review-plan` append to the existing review file and update
+    frontmatter (`verdict`, `review_pass`, `date`)
+  - `documents-locator` agent now discovers review artifacts in
+    `meta/reviews/`
+
 ## 1.3.0 — 2026-03-18
 
 _Versions 1.1.0–1.2.1 added VCS detection, jujutsu support, and bug fixes

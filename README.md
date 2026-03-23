@@ -78,6 +78,7 @@ respective skills):
 | `research/`  | Research findings with YAML frontmatter         | `research-codebase`                        |
 | `plans/`     | Implementation plans with phased changes        | `create-plan`                              |
 | `decisions/` | Architecture decision records (ADRs)            | `create-adr`, `extract-adrs`, `review-adr` |
+| `reviews/`   | Review summaries and per-lens results           | `review-pr`, `review-plan`                 |
 | `prs/`       | PR descriptions                                 | `describe-pr`                              |
 | `templates/` | Reusable templates (e.g., PR descriptions)      | manual                                     |
 | `tmp/`       | Ephemeral working data (e.g., review artifacts) | `review-pr`                                |
