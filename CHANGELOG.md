@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.5.0 — 2026-03-23
+
 ### Added
 
 - **Persistent review artifacts**: `review-plan` and `review-pr` now write
