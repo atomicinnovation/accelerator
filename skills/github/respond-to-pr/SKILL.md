@@ -66,7 +66,21 @@ the user's input.
    session's VCS context). Compare with the PR's `headRefName`. If different,
    inform the user and ask if they want to switch.
 
-5. **Fetch review threads via GraphQL** (primary source for inline feedback):
+5. **Check for a structured review artifact**:
+
+   Look for `meta/reviews/prs/{number}-review-*.md` (e.g.,
+   `123-review-1.md`, `123-review-2.md`). If one or more files match:
+
+- Load the highest-numbered file (the most recent review cycle)
+- Read the review document
+- Extract the verdict, lenses used, and per-lens findings
+- Note the severity and confidence of each finding
+- This will inform the triage in Step 2
+
+If no matching files are found, proceed without review context — the
+skill works the same as before, just without the additional context.
+
+6. **Fetch review threads via GraphQL** (primary source for inline feedback):
 
    Use the GraphQL API as the single source of truth for review thread data.
    This avoids the need to correlate REST and GraphQL IDs — each thread node
@@ -108,7 +122,7 @@ the user's input.
    threads are fetched. If the total exceeds 100 threads, inform the user of
    the count so they know the full scope.
 
-6. **Fetch top-level reviews and issue comments via REST**:
+7. **Fetch top-level reviews and issue comments via REST**:
 
    These are not part of the review thread model and require REST:
 
@@ -125,7 +139,7 @@ the user's input.
    thread model. These items follow a "respond only" path in Step 4 (skip
    the resolve step).
 
-7. **Error handling** (standard pattern):
+8. **Error handling** (standard pattern):
    - `gh` not installed or not authenticated: suggest `gh auth login`
    - No default remote: suggest `gh repo set-default`
    - PR not found: inform user, list open PRs with `gh pr list --limit 10`
@@ -161,6 +175,20 @@ the user's input.
    | **Question** | Needs a response, not code changes | Clarification requests, "why did you..." |
    | **Disagreement** | Feedback appears incorrect or inappropriate | Suggestions that would break things, misunderstandings |
 
+   If a structured review artifact was loaded in Step 1, cross-reference
+   GitHub review comments against the review's findings. For each comment
+   that matches a finding from the review:
+
+   - Use the finding's `severity` to inform the category (critical severity
+     → Blocking; major affecting multiple files or requiring design decisions
+     → Complex; major affecting a single file with a clear fix → Simple)
+   - Note the `confidence` level — low-confidence findings may warrant
+     more careful verification in Step 4a
+   - Note the `lens` — this provides context about what quality dimension
+     the finding addresses
+   - If the review's cross-cutting themes are relevant, mention them when
+     presenting the item to the user in Step 3
+
 3. **Group by review thread**: Keep inline comments that belong to the same
    review thread together — they share context and should be addressed as a
    unit.
@@ -179,6 +207,13 @@ the user's input.
    re-request review from them. Then exit the workflow.
 
 ### Step 3: Present Feedback Summary and Gather Preferences
+
+If a review artifact was loaded, add a note after the header:
+
+```
+> Review context loaded from `meta/reviews/prs/{number}-review-{N}.md`
+> (verdict: {verdict}, {N} lenses, {date})
+```
 
 Present the triaged feedback to the user with a total count upfront:
 

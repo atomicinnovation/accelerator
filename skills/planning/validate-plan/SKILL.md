@@ -149,6 +149,52 @@ Create comprehensive validation summary:
 - Document new API endpoints
 ```
 
+### Step 4: Persist the Validation Report
+
+Write the validation report to `meta/validations/`:
+
+1. Derive the filename from the plan filename: extract the filename stem
+   (without directory path or `.md` extension) regardless of how the path
+   was provided. For example, if the plan is
+   `meta/plans/2026-03-22-improve-error-handling.md`, the validation is
+   `meta/validations/2026-03-22-improve-error-handling-validation.md`.
+
+2. Create the directory if it doesn't exist:
+   ```bash
+   mkdir -p meta/validations
+   ```
+
+3. Write the validation document with YAML frontmatter followed by the
+   report from Step 3:
+
+   ```markdown
+   ---
+   date: "{ISO timestamp}"
+   type: plan-validation
+   skill: validate-plan
+   target: "meta/plans/{plan-filename}.md"
+   result: {pass | partial | fail}
+   status: complete
+   ---
+
+   {The full validation report from Step 3}
+   ```
+
+   Determine the `result` field from the report:
+
+- `pass`: all phases fully implemented, all automated checks pass
+- `partial`: some phases implemented or some checks failing
+- `fail`: major deviations or critical failures
+
+4. If the validation result is `pass`, update the plan's frontmatter
+   `status` field to `complete` (if the plan has YAML frontmatter with a
+   `status` field). This closes the plan lifecycle.
+
+5. Inform the user where the report was saved:
+   ```
+   Validation report saved to meta/validations/{filename}.md
+   ```
+
 ## Working with Existing Context
 
 If you were part of the implementation:
@@ -185,7 +231,8 @@ Recommended workflow:
 
 1. `/implement-plan` - Execute the implementation
 2. `/commit` - Create atomic commits for changes
-3. `/validate-plan` - Verify implementation correctness
+3. `/validate-plan` - Verify implementation correctness (saves report to
+   `meta/validations/`)
 4. `/describe-pr` - Generate PR description
 
 The validation works best after commits are made, as it can analyze the git

@@ -17,6 +17,22 @@
     frontmatter (`verdict`, `review_pass`, `date`)
   - `documents-locator` agent now discovers review artifacts in
     `meta/reviews/`
+- **Persistent validation artifacts**: `validate-plan` now writes validation
+  reports to `meta/validations/` with YAML frontmatter (`type`, `target`,
+  `result`, `status`), completing the plan lifecycle audit trail
+  - A passing validation (`result: pass`) updates the plan's `status`
+    frontmatter to `complete`
+  - `documents-locator` agent now discovers validation artifacts in
+    `meta/validations/`
+- **Review cross-referencing in `respond-to-pr`**: When a structured review
+  artifact exists at `meta/reviews/prs/{number}-review-*.md`, `respond-to-pr`
+  loads it and uses severity, confidence, and lens data to inform triage
+  categorisation
+- **Frontmatter for plans**: `create-plan` now includes YAML frontmatter
+  (`date`, `type`, `skill`, `ticket`, `status`) in the plan template
+- **Frontmatter for PR descriptions**: `describe-pr` now includes YAML
+  frontmatter (`date`, `type`, `skill`, `pr_number`, `pr_title`, `status`) in
+  `meta/prs/` output, stripped before posting to GitHub
 
 ## 1.3.0 — 2026-03-18
 

@@ -73,15 +73,16 @@ persistent state for the development workflow. Each skill reads from and writes
 to predictable paths within it (directories are created on first use by their
 respective skills):
 
-| Directory    | Purpose                                         | Written by                                 |
-|--------------|-------------------------------------------------|--------------------------------------------|
-| `research/`  | Research findings with YAML frontmatter         | `research-codebase`                        |
-| `plans/`     | Implementation plans with phased changes        | `create-plan`                              |
-| `decisions/` | Architecture decision records (ADRs)            | `create-adr`, `extract-adrs`, `review-adr` |
-| `reviews/`   | Review summaries and per-lens results           | `review-pr`, `review-plan`                 |
-| `prs/`       | PR descriptions                                 | `describe-pr`                              |
-| `templates/` | Reusable templates (e.g., PR descriptions)      | manual                                     |
-| `tmp/`       | Ephemeral working data (e.g., review artifacts) | `review-pr`                                |
+| Directory      | Purpose                                         | Written by                                 |
+|----------------|-------------------------------------------------|--------------------------------------------|
+| `research/`    | Research findings with YAML frontmatter         | `research-codebase`                        |
+| `plans/`       | Implementation plans with phased changes        | `create-plan`                              |
+| `decisions/`   | Architecture decision records (ADRs)            | `create-adr`, `extract-adrs`, `review-adr` |
+| `reviews/`     | Review summaries and per-lens results           | `review-pr`, `review-plan`                 |
+| `validations/` | Plan validation reports                         | `validate-plan`                            |
+| `prs/`         | PR descriptions                                 | `describe-pr`                              |
+| `templates/`   | Reusable templates (e.g., PR descriptions)      | manual                                     |
+| `tmp/`         | Ephemeral working data (e.g., review artifacts) | `review-pr`                                |
 
 This approach means:
 

@@ -309,12 +309,12 @@ Add a validations section to the output format example (around line 80):
 
 #### Automated Verification
 
-- [ ] `skills/planning/validate-plan/SKILL.md` contains instructions to write
+- [x] `skills/planning/validate-plan/SKILL.md` contains instructions to write
   to `meta/validations/`
-- [ ] `skills/planning/validate-plan/SKILL.md` contains frontmatter schema
+- [x] `skills/planning/validate-plan/SKILL.md` contains frontmatter schema
   with `type: plan-validation`, `target`, `result`, and `status` fields
-- [ ] `README.md` contains a `validations/` row in the meta/ directory table
-- [ ] `agents/documents-locator.md` references `meta/validations/`
+- [x] `README.md` contains a `validations/` row in the meta/ directory table
+- [x] `agents/documents-locator.md` references `meta/validations/`
 
 #### Manual Verification
 
@@ -408,9 +408,9 @@ If a review artifact was loaded, add a note after the header:
 
 #### Automated Verification
 
-- [ ] `skills/github/respond-to-pr/SKILL.md` contains instructions to check
+- [x] `skills/github/respond-to-pr/SKILL.md` contains instructions to check
   for `meta/reviews/prs/{number}-review-*.md` in Step 1
-- [ ] The file contains guidance for using review severity/confidence in
+- [x] The file contains guidance for using review severity/confidence in
   triage categorisation
 
 #### Manual Verification
@@ -478,7 +478,7 @@ metadata inside the file.
 
 #### Automated Verification
 
-- [ ] `skills/planning/create-plan/SKILL.md` contains a YAML frontmatter
+- [x] `skills/planning/create-plan/SKILL.md` contains a YAML frontmatter
   block in the plan template with `date`, `type`, `skill`, `ticket`,
   and `status` fields
 
@@ -566,9 +566,9 @@ In step 9 ("Update the PR", line 84), update the instructions:
 
 #### Automated Verification
 
-- [ ] `skills/github/describe-pr/SKILL.md` contains instructions to write
+- [x] `skills/github/describe-pr/SKILL.md` contains instructions to write
   YAML frontmatter to `meta/prs/{number}-description.md`
-- [ ] The file contains instructions to strip frontmatter before posting to
+- [x] The file contains instructions to strip frontmatter before posting to
   GitHub
 
 #### Manual Verification

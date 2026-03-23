@@ -17,6 +17,7 @@ contents in depth.
 - Check meta/decisions/ for documents about architectural decision for the
   codebase
 - Check meta/reviews/ for review artifacts (plan reviews and PR reviews)
+- Check meta/validations/ for plan validation reports
 - Check meta/global/ for cross-repo information
 
 2. **Categorise findings by type**
@@ -25,6 +26,7 @@ contents in depth.
 - Research documents (in research/)
 - Implementation plans (in plans/)
 - Review artifacts (in reviews/)
+- Validations (in validations/ — plan validation reports)
 - PR descriptions (in prs/)
 - General notes and discussions
 - Meeting notes or decisions
@@ -45,14 +47,15 @@ to best categorise the findings for the user.
 
 ```
 meta/
-├── research/  # Research documents
-├── plans/     # Implementation plans
-├── reviews/   # Review artifacts (plan and PR reviews)
-├── tickets/   # Ticket documentation
-├── prs/       # PR descriptions
-├── decisions/ # Technical and architectural decisions
-├── notes/     # General notes
-└── global/    # Cross-repository thoughts
+├── research/     # Research documents
+├── plans/        # Implementation plans
+├── reviews/      # Review artifacts (plan and PR reviews)
+├── validations/  # Plan validation reports
+├── decisions/    # Technical and architectural decisions
+├── tickets/      # Ticket documentation
+├── prs/          # PR descriptions
+├── notes/        # General notes
+└── global/       # Cross-repository thoughts
 ```
 
 ### Search Patterns
@@ -88,6 +91,10 @@ Structure your findings like this:
   error handling plan (review 1, verdict: REVISE)
 - `meta/reviews/prs/456-review-1.md` - Review of PR #456 (review 1, verdict:
   COMMENT)
+
+### Validations
+- `meta/validations/2026-03-22-improve-error-handling-validation.md` -
+  Validation of error handling plan (result: partial)
 
 ### PR Descriptions
 - `meta/prs/pr-456-rate-limiting.md` - PR that implemented basic rate limiting

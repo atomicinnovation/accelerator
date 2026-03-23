@@ -79,15 +79,44 @@ following the repository's standard template.
 8. **Save and show the description:**
 
 - Write the completed description to `meta/prs/{number}-description.md`
-- Show the user the generated description
+  with YAML frontmatter:
+
+  ```markdown
+  ---
+  date: "{ISO timestamp}"
+  type: pr-description
+  skill: describe-pr
+  pr_number: {number}
+  pr_title: "{title}"
+  status: complete
+  ---
+
+  {The generated PR description}
+  ```
+
+- Show the user the generated description (without frontmatter — they'll
+  see what gets posted to GitHub)
+- On re-run (when `meta/prs/{number}-description.md` already exists),
+  regenerate the frontmatter with an updated `date` timestamp. The
+  existing step 3 already handles reading the prior description for
+  context; the frontmatter is simply regenerated fresh.
 
 9. **Update the PR:**
 
-- Update the PR description directly:
-  `gh pr edit {number} --body-file meta/prs/{number}-description.md`
+- The `meta/prs/{number}-description.md` file contains YAML frontmatter
+  that should not appear on GitHub. Before posting, strip the frontmatter
+  block from the start of the file:
+  1. Read the file content
+  2. The frontmatter block starts with `---` on line 1 and ends at the
+     next `---` line (which closes the YAML block). Only match the
+     opening frontmatter block — do not match `---` lines that appear
+     later in the body (e.g., markdown horizontal rules).
+  3. Write everything after the closing `---` line to a temporary file
+  4. Post with `gh pr edit {number} --body-file /tmp/pr-body-{number}.md`
+  5. Clean up the temporary file
 - Confirm the update was successful
-- If any verification steps remain unchecked, remind the user to complete them
-  before merging
+- If any verification steps remain unchecked, remind the user to complete
+  them before merging
 
 ## Important notes:
 

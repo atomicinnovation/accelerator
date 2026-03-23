@@ -207,6 +207,14 @@ After structure approval:
 2. **Use this template structure**:
 
 ````markdown
+---
+date: "{ISO timestamp}"
+type: plan
+skill: create-plan
+ticket: "{ticket reference, if any}"
+status: draft
+---
+
 # [Feature/Task Name] Implementation Plan
 
 ## Overview
