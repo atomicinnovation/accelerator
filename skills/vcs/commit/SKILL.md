@@ -10,6 +10,7 @@ disable-model-invocation: true
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/vcs-status.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/vcs-log.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 
 ## Process:
 

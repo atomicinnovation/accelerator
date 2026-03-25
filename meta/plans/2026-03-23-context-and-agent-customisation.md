@@ -306,9 +306,9 @@ fi
 
 #### Automated Verification:
 
-- [ ] `scripts/config-read-agents.sh` exists and is executable
-- [ ] `scripts/config-read-agent-name.sh` exists and is executable
-- [ ] `bash scripts/test-config.sh` passes all tests including new ones
+- [x] `scripts/config-read-agents.sh` exists and is executable
+- [x] `scripts/config-read-agent-name.sh` exists and is executable
+- [x] `bash scripts/test-config.sh` passes all tests including new ones
 
 #### Manual Verification:
 
@@ -422,9 +422,9 @@ Insert after the existing `!`command`` preprocessor lines:
 
 #### Automated Verification:
 
-- [ ] All 13 skills listed above contain the `config-read-context.sh` preprocessor line
-- [ ] `grep -r 'config-read-context.sh' skills/` returns 13 matches
-- [ ] `bash scripts/test-config.sh` preprocessor placement tests pass (each
+- [x] All 13 skills listed above contain the `config-read-context.sh` preprocessor line
+- [x] `grep -r 'config-read-context.sh' skills/` returns 13 matches
+- [x] `bash scripts/test-config.sh` preprocessor placement tests pass (each
   skill has the line within a few lines of the first `#` heading, not
   relative to the start of the file — this decouples the test from
   frontmatter length)
@@ -540,14 +540,14 @@ Agents referenced: `documents-locator`, `codebase-locator`
 
 #### Automated Verification:
 
-- [ ] All 8 skills listed above contain the `config-read-agents.sh` preprocessor line
-- [ ] `grep -r 'config-read-agents.sh' skills/` returns 8 matches
-- [ ] The 5 non-agent skills (`implement-plan`, `validate-plan`, `describe-pr`,
+- [x] All 8 skills listed above contain the `config-read-agents.sh` preprocessor line
+- [x] `grep -r 'config-read-agents.sh' skills/` returns 8 matches
+- [x] The 5 non-agent skills (`implement-plan`, `validate-plan`, `describe-pr`,
   `respond-to-pr`, `commit`) do NOT contain `config-read-agents.sh`
-- [ ] `bash scripts/test-config.sh` preprocessor placement tests pass
+- [x] `bash scripts/test-config.sh` preprocessor placement tests pass
   (`config-read-agents.sh` appears on the line after `config-read-context.sh`
   in each of the 8 skills)
-- [ ] `review-pr` and `review-plan` contain
+- [x] `review-pr` and `review-plan` contain
   `config-read-agent-name.sh reviewer` inline in their `subagent_type` line
 
 #### Manual Verification:

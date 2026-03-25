@@ -10,6 +10,9 @@ disable-model-invocation: true
 
 # Extract ADRs from Meta Documents
 
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
 You are tasked with identifying architectural decisions within existing meta
 documents and helping the user capture them as formal ADRs.
 

@@ -10,6 +10,9 @@ disable-model-invocation: true
 
 # Create Architecture Decision Record
 
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
 You are tasked with guiding the user through creating an architecture decision
 record (ADR) — a concise document capturing a significant architectural
 decision, its context, the options considered, and the consequences.

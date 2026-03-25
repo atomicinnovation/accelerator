@@ -7,6 +7,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 READ_VALUE="$SCRIPT_DIR/config-read-value.sh"
 READ_CONTEXT="$SCRIPT_DIR/config-read-context.sh"
+READ_AGENTS="$SCRIPT_DIR/config-read-agents.sh"
+READ_AGENT_NAME="$SCRIPT_DIR/config-read-agent-name.sh"
 CONFIG_SUMMARY="$SCRIPT_DIR/config-summary.sh"
 CONFIG_DETECT="$SCRIPT_DIR/../hooks/config-detect.sh"
 
@@ -650,6 +652,370 @@ printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT" 2>/dev/null)
 HOOK_EVENT=$(echo "$OUTPUT" | jq -r '.hookSpecificOutput.hookEventName' 2>/dev/null || true)
 assert_eq "hookEventName is SessionStart" "SessionStart" "$HOOK_EVENT"
+
+echo ""
+
+# ============================================================
+echo "=== config-read-agents.sh ==="
+echo ""
+
+echo "Test: No config files -> outputs nothing"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+assert_eq "outputs nothing" "" "$OUTPUT"
+
+echo "Test: Config with agents section -> outputs override table"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+agents:
+  reviewer: my-custom-reviewer
+  codebase-locator: my-locator
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+if echo "$OUTPUT" | grep -q "## Agent Overrides" && \
+   echo "$OUTPUT" | grep -q '| `reviewer` | `my-custom-reviewer` |' && \
+   echo "$OUTPUT" | grep -q '| `codebase-locator` | `my-locator` |'; then
+  echo "  PASS: outputs override table with correct rows"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: outputs override table with correct rows"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Config with partial overrides -> only changed agents listed"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+agents:
+  reviewer: my-reviewer
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+if echo "$OUTPUT" | grep -q '| `reviewer` | `my-reviewer` |' && \
+   ! echo "$OUTPUT" | grep -q 'codebase-locator'; then
+  echo "  PASS: only overridden agent listed"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: only overridden agent listed"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Local overrides team for same agent key"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+agents:
+  reviewer: team-reviewer
+---
+FIXTURE
+cat > "$REPO/.claude/accelerator.local.md" << 'FIXTURE'
+---
+agents:
+  reviewer: local-reviewer
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+if echo "$OUTPUT" | grep -q '| `reviewer` | `local-reviewer` |' && \
+   ! echo "$OUTPUT" | grep -q 'team-reviewer'; then
+  echo "  PASS: local overrides team"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: local overrides team"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Non-overlapping overrides across team and local -> both appear"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+agents:
+  reviewer: custom-reviewer
+---
+FIXTURE
+cat > "$REPO/.claude/accelerator.local.md" << 'FIXTURE'
+---
+agents:
+  codebase-locator: custom-locator
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+if echo "$OUTPUT" | grep -q '| `reviewer` | `custom-reviewer` |' && \
+   echo "$OUTPUT" | grep -q '| `codebase-locator` | `custom-locator` |'; then
+  echo "  PASS: both overrides appear"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: both overrides appear"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Unknown agent keys -> ignored with warning to stderr"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+agents:
+  reviewer: my-reviewer
+  unknown-agent: something
+---
+FIXTURE
+STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS" 2>&1 1>/dev/null)
+OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS" 2>/dev/null)
+if echo "$STDERR_OUTPUT" | grep -q "Warning.*unknown-agent" && \
+   ! echo "$OUTPUT" | grep -q 'unknown-agent'; then
+  echo "  PASS: unknown key warned and ignored"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: unknown key warned and ignored"
+  echo "    Stderr: $(printf '%q' "$STDERR_OUTPUT")"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Agent key with same value as default -> not listed as override"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+agents:
+  reviewer: reviewer
+  codebase-locator: my-locator
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+if ! echo "$OUTPUT" | grep -q '| `reviewer`' && \
+   echo "$OUTPUT" | grep -q '| `codebase-locator` | `my-locator` |'; then
+  echo "  PASS: identity override not listed"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: identity override not listed"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Table rows appear in fixed order (AGENT_KEYS order)"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+agents:
+  web-search-researcher: custom-web
+  reviewer: custom-reviewer
+  codebase-locator: custom-locator
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+# Extract just the table rows (lines starting with |, excluding header)
+ROWS=$(echo "$OUTPUT" | grep '^| `' || true)
+FIRST_ROW=$(echo "$ROWS" | head -1)
+LAST_ROW=$(echo "$ROWS" | tail -1)
+if echo "$FIRST_ROW" | grep -q 'reviewer' && \
+   echo "$LAST_ROW" | grep -q 'web-search-researcher'; then
+  echo "  PASS: rows in AGENT_KEYS order"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: rows in AGENT_KEYS order"
+  echo "    Rows: $(printf '%q' "$ROWS")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Config with frontmatter but no agents section -> outputs nothing"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  max_count: 5
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+assert_eq "outputs nothing" "" "$OUTPUT"
+
+echo "Test: AGENT_KEYS list matches actual agent .md files in the plugin"
+# Extract agent keys from the script source (not by sourcing it)
+SCRIPT_KEYS=$(grep -A 20 '^AGENT_KEYS=(' "$READ_AGENTS" | sed -n '/^AGENT_KEYS=(/,/^)/p' | grep -v '^AGENT_KEYS=(' | grep -v '^)' | sed 's/^[[:space:]]*//' | sort)
+# List actual agent .md files (strip path and extension)
+AGENT_DIR="$SCRIPT_DIR/../agents"
+FILE_KEYS=$(ls "$AGENT_DIR"/*.md 2>/dev/null | xargs -I{} basename {} .md | sort)
+assert_eq "AGENT_KEYS matches agent files" "$FILE_KEYS" "$SCRIPT_KEYS"
+
+echo ""
+
+# ============================================================
+echo "=== config-read-agent-name.sh ==="
+echo ""
+
+echo "Test: No config -> outputs the default agent name"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_AGENT_NAME" "reviewer")
+assert_eq "outputs default" "reviewer" "$OUTPUT"
+
+echo "Test: Config with override for requested agent -> outputs override value"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+agents:
+  reviewer: my-custom-reviewer
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_AGENT_NAME" "reviewer")
+assert_eq "outputs override" "my-custom-reviewer" "$OUTPUT"
+
+echo "Test: Config with override for different agent -> outputs the default"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+agents:
+  codebase-locator: my-locator
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_AGENT_NAME" "reviewer")
+assert_eq "outputs default" "reviewer" "$OUTPUT"
+
+echo "Test: Local overrides team for same agent key"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+agents:
+  reviewer: team-reviewer
+---
+FIXTURE
+cat > "$REPO/.claude/accelerator.local.md" << 'FIXTURE'
+---
+agents:
+  reviewer: local-reviewer
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_AGENT_NAME" "reviewer")
+assert_eq "local overrides team" "local-reviewer" "$OUTPUT"
+
+echo "Test: No argument -> exits with error"
+REPO=$(setup_repo)
+assert_exit_code "exits with error" 1 bash "$READ_AGENT_NAME"
+
+echo ""
+
+# ============================================================
+echo "=== Preprocessor placement tests ==="
+echo ""
+
+SKILLS_DIR="$SCRIPT_DIR/../skills"
+
+echo "Test: config-read-context.sh appears in exactly 13 skills"
+CONTEXT_COUNT=$(grep -r 'config-read-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
+assert_eq "13 skills have context injection" "13" "$CONTEXT_COUNT"
+
+echo "Test: config-read-agents.sh appears in exactly 8 skills"
+AGENTS_COUNT=$(grep -r 'config-read-agents.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
+assert_eq "8 skills have agent override injection" "8" "$AGENTS_COUNT"
+
+echo "Test: context injection is within a few lines of first # heading"
+CONTEXT_SKILLS=(
+  "planning/create-plan"
+  "planning/review-plan"
+  "planning/implement-plan"
+  "planning/validate-plan"
+  "planning/stress-test-plan"
+  "research/research-codebase"
+  "github/review-pr"
+  "github/describe-pr"
+  "github/respond-to-pr"
+  "decisions/create-adr"
+  "decisions/extract-adrs"
+  "decisions/review-adr"
+  "vcs/commit"
+)
+CONTEXT_PLACEMENT_OK=true
+for skill in "${CONTEXT_SKILLS[@]}"; do
+  SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
+  HEADING_LINE=$(grep -n '^# ' "$SKILL_FILE" | head -1 | cut -d: -f1)
+  CONTEXT_LINE=$(grep -n 'config-read-context.sh' "$SKILL_FILE" | head -1 | cut -d: -f1)
+  DIFF=$((CONTEXT_LINE - HEADING_LINE))
+  if [ "$DIFF" -lt 1 ] || [ "$DIFF" -gt 5 ]; then
+    echo "  FAIL: $skill - heading at line $HEADING_LINE, context at line $CONTEXT_LINE (diff=$DIFF)"
+    CONTEXT_PLACEMENT_OK=false
+    FAIL=$((FAIL + 1))
+    break
+  fi
+done
+if [ "$CONTEXT_PLACEMENT_OK" = true ]; then
+  echo "  PASS: all context injections within 5 lines of heading"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: config-read-agents.sh appears on line after config-read-context.sh"
+AGENT_SKILLS=(
+  "planning/create-plan"
+  "planning/review-plan"
+  "planning/stress-test-plan"
+  "research/research-codebase"
+  "github/review-pr"
+  "decisions/create-adr"
+  "decisions/extract-adrs"
+  "decisions/review-adr"
+)
+AGENT_PLACEMENT_OK=true
+for skill in "${AGENT_SKILLS[@]}"; do
+  SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
+  CONTEXT_LINE=$(grep -n 'config-read-context.sh' "$SKILL_FILE" | head -1 | cut -d: -f1)
+  AGENTS_LINE=$(grep -n 'config-read-agents.sh' "$SKILL_FILE" | head -1 | cut -d: -f1)
+  EXPECTED_LINE=$((CONTEXT_LINE + 1))
+  if [ "$AGENTS_LINE" -ne "$EXPECTED_LINE" ]; then
+    echo "  FAIL: $skill - context at line $CONTEXT_LINE, agents at line $AGENTS_LINE (expected $EXPECTED_LINE)"
+    AGENT_PLACEMENT_OK=false
+    FAIL=$((FAIL + 1))
+    break
+  fi
+done
+if [ "$AGENT_PLACEMENT_OK" = true ]; then
+  echo "  PASS: all agent overrides on line after context injection"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: Non-agent skills do NOT have config-read-agents.sh"
+NON_AGENT_SKILLS=(
+  "planning/implement-plan"
+  "planning/validate-plan"
+  "github/describe-pr"
+  "github/respond-to-pr"
+  "vcs/commit"
+)
+NON_AGENT_OK=true
+for skill in "${NON_AGENT_SKILLS[@]}"; do
+  SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
+  if grep -q 'config-read-agents.sh' "$SKILL_FILE"; then
+    echo "  FAIL: $skill should not have config-read-agents.sh"
+    NON_AGENT_OK=false
+    FAIL=$((FAIL + 1))
+    break
+  fi
+done
+if [ "$NON_AGENT_OK" = true ]; then
+  echo "  PASS: non-agent skills correctly excluded"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: review-pr and review-plan have inline config-read-agent-name.sh"
+if grep -q 'config-read-agent-name.sh reviewer' "$SKILLS_DIR/github/review-pr/SKILL.md" && \
+   grep -q 'config-read-agent-name.sh reviewer' "$SKILLS_DIR/planning/review-plan/SKILL.md"; then
+  echo "  PASS: both review skills have inline agent name substitution"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: review skills missing inline agent name substitution"
+  FAIL=$((FAIL + 1))
+fi
 
 echo ""
 

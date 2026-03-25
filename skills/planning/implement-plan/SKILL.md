@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 # Implement Plan
 
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+
 You are tasked with implementing an approved technical plan from
 `meta/plans/`. These plans contain phases with specific changes and
 success criteria.

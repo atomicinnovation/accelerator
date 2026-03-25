@@ -59,8 +59,7 @@ Display the current configuration:
 ### `create` (or no argument with no existing config)
 
 Help the user create a configuration file. Focus on gathering project context
-for the markdown body — this is the primary value of config files in the
-current version. Structured settings will be added in future versions.
+for the markdown body — this is the highest-value feature.
 
 1. Ask whether they want to create a team config (shared) or personal config
    (local), or both
@@ -73,9 +72,13 @@ current version. Structured settings will be added in future versions.
    - Any specific conventions or standards?
    - Any domain-specific context that should inform skills?
    - Build and test commands?
-4. Write the config file with a markdown body containing the gathered context.
-   Include a minimal YAML frontmatter section with a comment noting that
-   structured settings will be available in future versions.
+4. Optionally ask about agent overrides: "Would you also like to configure
+   custom agent overrides? (This is an advanced feature — most users can skip
+   this.)" If yes, explain the available agents and their roles, then gather
+   override mappings.
+5. Write the config file with a markdown body containing the gathered context
+   and YAML frontmatter containing any agent overrides (or empty frontmatter
+   if none).
 
 ### `help`
 
@@ -89,32 +92,80 @@ Both config files use YAML frontmatter with a markdown body:
 
 \```yaml
 ---
-# Structured settings (YAML) — settings will be added in future versions.
-# For now, the frontmatter section can be left empty or omitted.
+agents:
+  reviewer: my-custom-reviewer
 ---
 
 # Free-form project context (markdown)
 Additional context that skills will consider when making decisions.
 \```
 
-### Structured Settings
+### agents
 
-Structured configuration settings (for customising agents, review behaviour,
-output paths, etc.) will be added in future versions of the plugin. When
-available, they will use YAML frontmatter with max 2-level nesting:
+Override which agents are used when skills spawn sub-agents. Config keys
+use the same hyphenated names as the agents themselves:
+
+Available agents and their roles:
+
+| Config Key | Default Role |
+|---|---|
+| `reviewer` | Reviews plans and PRs using configured lenses |
+| `codebase-locator` | Finds relevant source files for a given task |
+| `codebase-analyser` | Analyses implementation details of components |
+| `codebase-pattern-finder` | Finds similar implementations and usage examples |
+| `documents-locator` | Discovers relevant documents in meta/ directory |
+| `documents-analyser` | Deep-dives on research topics in documents |
+| `web-search-researcher` | Researches topics via web search |
 
 \```yaml
 ---
-section:
-  key: value
+agents:
+  reviewer: my-custom-reviewer
+  codebase-locator: my-locator
+  codebase-analyser: my-analyser
+  codebase-pattern-finder: my-pattern-finder
+  documents-locator: my-doc-locator
+  documents-analyser: my-doc-analyser
+  web-search-researcher: my-web-researcher
 ---
 \```
 
+Only list agents you want to override. Unlisted agents use their defaults.
+Unrecognised keys produce a warning to stderr and are ignored. Override
+values can be any agent name — the plugin does not validate values since
+the override may reference a user-defined agent outside the plugin.
+
 ### Project Context
 
-The markdown body of your config file is injected into skills that benefit
-from project awareness. This is the primary configuration mechanism in the
-current version. Use it for:
+The markdown body is injected into skills as project-specific guidance:
+
+\```markdown
+---
+agents:
+  reviewer: my-custom-reviewer
+---
+
+# Project Context
+
+## Tech Stack
+- Language: TypeScript with strict mode
+- Framework: Next.js 14 with App Router
+- Database: PostgreSQL via Prisma ORM
+- Testing: Vitest for unit tests, Playwright for E2E
+
+## Conventions
+- All API routes use GraphQL (no REST endpoints)
+- Database migrations must be backward-compatible
+- Feature flags managed via LaunchDarkly
+
+## Build & Test
+- Build: `npm run build`
+- Test: `npm run test`
+- Lint: `npm run lint`
+- Full check: `npm run check`
+\```
+
+Use the project context for:
 - Tech stack description
 - Coding conventions
 - Domain-specific terminology

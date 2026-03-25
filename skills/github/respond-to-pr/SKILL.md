@@ -9,6 +9,8 @@ disable-model-invocation: true
 
 # Respond to PR
 
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+
 You are tasked with working through outstanding pull request review feedback
 in a systematic, interactive fashion. For each piece of feedback, you verify
 it against the codebase, confirm the approach with the user, make changes,

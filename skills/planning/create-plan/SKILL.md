@@ -8,6 +8,9 @@ disable-model-invocation: true
 
 # Implementation Plan
 
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
 You are tasked with creating detailed implementation plans through an
 interactive, iterative process. You should be skeptical, thorough, and work
 collaboratively with the user to produce high-quality technical specifications.

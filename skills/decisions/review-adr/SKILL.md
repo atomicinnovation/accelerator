@@ -11,6 +11,9 @@ disable-model-invocation: true
 
 # Review Architecture Decision Record
 
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
 You are tasked with reviewing ADRs for quality and managing their lifecycle
 status transitions, enforcing the append-only immutability model.
 

@@ -9,6 +9,9 @@ disable-model-invocation: true
 
 # Review PR
 
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
 You are tasked with reviewing a pull request through multiple quality lenses
 and then presenting a compiled analysis of the code changes.
 
@@ -255,7 +258,7 @@ prose outside the JSON block.
 ```
 
 Spawn all selected agents **in parallel** using the Task tool with
-`subagent_type: "reviewer"`.
+`subagent_type: "!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agent-name.sh reviewer`"`.
 
 **IMPORTANT**: Wait for ALL review agents to complete before proceeding.
 

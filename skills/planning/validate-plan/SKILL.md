@@ -9,6 +9,8 @@ disable-model-invocation: true
 
 # Validate Plan
 
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+
 You are tasked with validating that an implementation plan was correctly
 executed, verifying all success criteria and identifying any deviations or
 issues.

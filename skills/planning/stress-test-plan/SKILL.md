@@ -9,6 +9,9 @@ disable-model-invocation: true
 
 # Stress-Test Plan
 
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
 You are tasked with stress-testing an implementation plan by interviewing the
 user relentlessly about every aspect of it. Your goal is to find issues,
 inconsistencies, missing edge cases, flawed assumptions, and potential bugs

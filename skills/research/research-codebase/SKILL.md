@@ -9,6 +9,9 @@ disable-model-invocation: true
 
 # Research Codebase
 
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
 You are tasked with conducting comprehensive research across the codebase to
 answer user questions by spawning parallel sub-agents and synthesising their
 findings.

@@ -9,6 +9,9 @@ disable-model-invocation: true
 
 # Review Plan
 
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
 You are tasked with reviewing an implementation plan through multiple quality
 lenses and then collaboratively iterating the plan based on findings.
 
@@ -224,7 +227,7 @@ prose outside the JSON block.
 ```
 
 Spawn all selected agents **in parallel** using the Task tool with
-`subagent_type: "reviewer"`.
+`subagent_type: "!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agent-name.sh reviewer`"`.
 
 **IMPORTANT**: Wait for ALL review agents to complete before proceeding.
 

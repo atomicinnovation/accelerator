@@ -9,6 +9,8 @@ disable-model-invocation: true
 
 # Generate PR Description
 
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+
 You are tasked with generating a comprehensive pull request description
 following the repository's standard template.
 
