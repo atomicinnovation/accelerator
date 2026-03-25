@@ -9,6 +9,15 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/vcs-detect.sh"
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/config-detect.sh"
+          }
+        ]
       }
     ],
     "PreToolUse": [

@@ -461,19 +461,19 @@ echo "$SUMMARY"
 
 #### Automated Verification:
 
-- [ ] `scripts/config-common.sh` exists and is executable
-- [ ] `scripts/config-read-value.sh` exists and is executable
-- [ ] `scripts/config-read-context.sh` exists and is executable
-- [ ] `scripts/config-summary.sh` exists and is executable
-- [ ] `bash scripts/test-config.sh` passes all tests
+- [x] `scripts/config-common.sh` exists and is executable
+- [x] `scripts/config-read-value.sh` exists and is executable
+- [x] `scripts/config-read-context.sh` exists and is executable
+- [x] `scripts/config-summary.sh` exists and is executable
+- [x] `bash scripts/test-config.sh` passes all tests
 
 #### Manual Verification:
 
-- [ ] `config-read-value.sh agents.reviewer reviewer` outputs `reviewer` (default)
-- [ ] With a test config file, `config-read-value.sh agents.reviewer reviewer`
+- [x] `config-read-value.sh agents.reviewer reviewer` outputs `reviewer` (default)
+- [x] With a test config file, `config-read-value.sh agents.reviewer reviewer`
   outputs the configured value
-- [ ] `config-read-context.sh` outputs nothing when no config files exist
-- [ ] `config-read-context.sh` outputs formatted context when config files exist
+- [x] `config-read-context.sh` outputs nothing when no config files exist
+- [x] `config-read-context.sh` outputs formatted context when config files exist
 
 ---
 
@@ -572,8 +572,8 @@ Follow the `assert_eq` / `assert_exit_code` pattern from
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-config.sh` passes all tests
-- [ ] Test script is executable: `chmod +x scripts/test-config.sh`
+- [x] `bash scripts/test-config.sh` passes all tests
+- [x] Test script is executable: `chmod +x scripts/test-config.sh`
 
 ---
 
@@ -681,10 +681,10 @@ fi
 
 #### Automated Verification:
 
-- [ ] `hooks/config-detect.sh` exists and is executable
-- [ ] `hooks/hooks.json` is valid JSON: `jq . hooks/hooks.json`
-- [ ] Hook JSON includes config-detect.sh in SessionStart configuration
-- [ ] `bash scripts/test-config.sh` config-detect.sh tests pass
+- [x] `hooks/config-detect.sh` exists and is executable
+- [x] `hooks/hooks.json` is valid JSON: `jq . hooks/hooks.json`
+- [x] Hook JSON includes config-detect.sh in SessionStart configuration
+- [x] `bash scripts/test-config.sh` config-detect.sh tests pass
 
 #### Manual Verification:
 
@@ -864,9 +864,9 @@ Add `"./skills/config/"` to the `skills` array.
 
 #### Automated Verification:
 
-- [ ] `skills/config/configure/SKILL.md` exists
-- [ ] `.claude-plugin/plugin.json` includes `"./skills/config/"` in skills array
-- [ ] Plugin JSON is valid: `jq . .claude-plugin/plugin.json`
+- [x] `skills/config/configure/SKILL.md` exists
+- [x] `.claude-plugin/plugin.json` includes `"./skills/config/"` in skills array
+- [x] Plugin JSON is valid: `jq . .claude-plugin/plugin.json`
 
 #### Manual Verification:
 
@@ -904,9 +904,9 @@ The new section should cover:
 
 #### Manual Verification:
 
-- [ ] README has a "Configuration" section
-- [ ] Example config file in README is valid YAML
-- [ ] Documentation accurately describes the implemented behaviour
+- [x] README has a "Configuration" section
+- [x] Example config file in README is valid YAML
+- [x] Documentation accurately describes the implemented behaviour
 
 ---
 

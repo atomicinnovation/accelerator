@@ -112,6 +112,66 @@ detection covers three modes:
 | **jj (colocated)** | `.jj/` and `.git/` | `jj`              |
 | **jj (pure)**      | `.jj/` only        | `jj`              |
 
+## Configuration
+
+Accelerator supports project-specific configuration through markdown files with
+YAML frontmatter. Configuration allows you to provide project context that
+skills use when making decisions, with structured settings coming in future
+versions.
+
+### Config Files
+
+| File                           | Scope                   | Purpose                             |
+|--------------------------------|-------------------------|-------------------------------------|
+| `.claude/accelerator.md`       | Team-shared (committed) | Shared project context and settings |
+| `.claude/accelerator.local.md` | Personal (gitignored)   | Personal overrides and preferences  |
+
+Local settings override team settings for the same key. Markdown bodies from
+both files are concatenated (team context first, then personal).
+
+### File Format
+
+Both files use YAML frontmatter for structured settings and a markdown body for
+free-form project context:
+
+```yaml
+---
+# Structured settings will be added in future versions.
+# For now, the frontmatter section can be left empty or omitted.
+---
+
+## Project Context
+
+  This is a Ruby on Rails application using PostgreSQL and Redis.
+
+### Conventions
+- Follow StandardRB for code style
+- Use service objects for business logic
+- All API endpoints require authentication
+
+### Build & Test
+- `bundle exec rspec` to run tests
+- `bin/dev` to start the development server
+```
+
+### Getting Started
+
+Run `/accelerator:configure` to create or view your configuration. The skill
+walks you through gathering project context and writes the config file for you.
+
+### How It Works
+
+- A `SessionStart` hook detects config files and injects a summary into the
+  session context
+- Skills read project context at invocation time via the `!` preprocessor
+- Config changes take effect on the next skill invocation (no session restart
+  needed for skills); the SessionStart summary updates on session restart
+
+### Future Versions
+
+Structured configuration settings for customising agents, review behaviour,
+output paths, and templates will be added in future versions of the plugin.
+
 ## Architecture Decision Records
 
 ADR skills capture architectural decisions that emerge from research and

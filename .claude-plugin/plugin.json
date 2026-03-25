@@ -13,6 +13,7 @@
     "./skills/research/",
     "./skills/decisions/",
     "./skills/review/lenses/",
-    "./skills/review/output-formats/"
+    "./skills/review/output-formats/",
+    "./skills/config/"
   ]
 }
