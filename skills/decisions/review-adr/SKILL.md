@@ -7,12 +7,15 @@ description: Review an architecture decision record for quality and
   review, or when an accepted ADR needs to be deprecated.
 argument-hint: "[@meta/decisions/ADR-NNNN.md] [--deprecate reason]"
 disable-model-invocation: true
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
 ---
 
 # Review Architecture Decision Record
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
+**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh decisions meta/decisions`
 
 You are tasked with reviewing ADRs for quality and managing their lifecycle
 status transitions, enforcing the append-only immutability model.
@@ -26,14 +29,14 @@ When this command is invoked:
 - If an ADR path was provided, read it fully and proceed to review
 - If `--deprecate` was specified with a path, proceed to deprecation workflow
 - If `--deprecate` was specified without a path:
-  - Scan `meta/decisions/` for ADRs in `accepted` status
+  - Scan the configured decisions directory for ADRs in `accepted` status
   - Present them for selection:
     ```
     I found the following accepted ADRs available for deprecation:
 
-    1. `meta/decisions/ADR-0001-use-jujutsu.md` — Use Jujutsu for Version
+    1. `{decisions directory}/ADR-0001-use-jujutsu.md` — Use Jujutsu for Version
        Control
-    2. `meta/decisions/ADR-0002-filesystem-chaining.md` — Filesystem-Mediated
+    2. `{decisions directory}/ADR-0002-filesystem-chaining.md` — Filesystem-Mediated
        Skill Chaining
 
     Which ADR would you like to deprecate? (enter number or path)
@@ -41,14 +44,14 @@ When this command is invoked:
   - After selection, ask for the deprecation reason and proceed to deprecation
     workflow
 - If no parameters provided:
-  - Scan `meta/decisions/` for ADRs in `proposed` status
+  - Scan the configured decisions directory for ADRs in `proposed` status
   - Present them for selection:
 
 ```
 I found the following proposed ADRs ready for review:
 
-1. `meta/decisions/ADR-0001-use-jujutsu.md` — Use Jujutsu for Version Control
-2. `meta/decisions/ADR-0003-append-only-lifecycle.md` — Append-Only ADR
+1. `{decisions directory}/ADR-0001-use-jujutsu.md` — Use Jujutsu for Version Control
+2. `{decisions directory}/ADR-0003-append-only-lifecycle.md` — Append-Only ADR
    Lifecycle
 
 Which ADR would you like to review? (enter number or path)
@@ -221,7 +224,7 @@ ADR-NNNN is in "[status]" status, which is terminal. No further changes are
 permitted.
 
 [If superseded]: This ADR was superseded by ADR-MMMM. See
-`meta/decisions/ADR-MMMM-description.md`.
+`{decisions directory}/ADR-MMMM-description.md`.
 [If deprecated]: Reason: [deprecated_reason from frontmatter]
 [If rejected]: Reason: [rejected_reason from frontmatter]
 ```

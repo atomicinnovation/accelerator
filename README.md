@@ -68,10 +68,11 @@ Three complementary skills support this loop:
 
 ## The `meta/` Directory
 
-Every project using Accelerator gets a `meta/` directory that serves as
-persistent state for the development workflow. Each skill reads from and writes
-to predictable paths within it (directories are created on first use by their
-respective skills):
+Every project using Accelerator gets a `meta/` directory (by default) that
+serves as persistent state for the development workflow. Each skill reads from
+and writes to predictable paths within it (directories are created on first use
+by their respective skills). These paths can be overridden via the `paths`
+configuration section:
 
 | Directory      | Purpose                                         | Written by                                 |
 |----------------|-------------------------------------------------|--------------------------------------------|
@@ -157,9 +158,10 @@ This is a Ruby on Rails application using PostgreSQL and Redis.
 - `bin/dev` to start the development server
 ```
 
-The YAML frontmatter supports `agents` (override which agents skills spawn) and
-`review` (customise review behaviour). See `/accelerator:configure help` for the
-full key reference.
+The YAML frontmatter supports `agents` (override which agents skills spawn),
+`review` (customise review behaviour), `paths` (override where skills write
+output documents), and `templates` (point to custom document templates). See
+`/accelerator:configure help` for the full key reference.
 
 ### Getting Started
 

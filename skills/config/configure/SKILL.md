@@ -15,10 +15,10 @@ You help users manage their Accelerator plugin configuration.
 Accelerator reads configuration from two files in the project's `.claude/`
 directory:
 
-| File | Scope | Git | Purpose |
-|------|-------|-----|---------|
-| `.claude/accelerator.md` | Team-shared | Committed | Shared project context and settings |
-| `.claude/accelerator.local.md` | Personal | Gitignored | Personal overrides and preferences |
+| File                           | Scope       | Git        | Purpose                             |
+|--------------------------------|-------------|------------|-------------------------------------|
+| `.claude/accelerator.md`       | Team-shared | Committed  | Shared project context and settings |
+| `.claude/accelerator.local.md` | Personal    | Gitignored | Personal overrides and preferences  |
 
 Both files use YAML frontmatter for structured settings and a markdown body for
 free-form project context. Local settings override team settings for the same
@@ -29,18 +29,19 @@ key.
 When invoked:
 
 1. **Check current configuration state**:
-   - Check if `.claude/accelerator.md` exists
-   - Check if `.claude/accelerator.local.md` exists
-   - If either exists, read and display current settings
-   - **If a config file already exists, always show its current contents and ask
-     the user to confirm before overwriting. Never silently replace an existing
-     config file.**
+  - Check if `.claude/accelerator.md` exists
+  - Check if `.claude/accelerator.local.md` exists
+  - If either exists, read and display current settings
+  - **If a config file already exists, always show its current contents and ask
+    the user to confirm before overwriting. Never silently replace an existing
+    config file.**
 
 2. **Based on the argument or user intent**:
 
 ### `view` (or no argument with existing config)
 
 Display the current configuration:
+
 ```
 ## Current Accelerator Configuration
 
@@ -68,18 +69,20 @@ for the markdown body — this is the highest-value feature.
    the repo root `.gitignore`.
 3. Ask about their project context — frame questions around "What should
    Accelerator skills know about your project?":
-   - What tech stack do they use? (languages, frameworks, build system)
-   - Any specific conventions or standards?
-   - Any domain-specific context that should inform skills?
-   - Build and test commands?
+  - What tech stack do they use? (languages, frameworks, build system)
+  - Any specific conventions or standards?
+  - Any domain-specific context that should inform skills?
+  - Build and test commands?
 4. Optionally ask about agent overrides: "Would you also like to configure
    custom agent overrides? (This is an advanced feature — most users can skip
    this.)" If yes, explain the available agents and their roles, then gather
    override mappings.
-5. Mention that review customisation is also available: "You can also
+5. Mention that additional customisation is available: "You can also
    customise review behaviour (lens selection, verdict thresholds, inline
-   comment limits). Run `/accelerator:configure help` for the full key
-   reference — you can add a `review:` section to the frontmatter later."
+   comment limits), output paths (where skills write documents), and
+   document templates (plan, ADR, research, validation formats). Run
+   `/accelerator:configure help` for the full key reference — you can add
+   `review:`, `paths:`, and `templates:` sections to the frontmatter later."
 6. Write the config file with a markdown body containing the gathered context
    and YAML frontmatter containing any agent overrides (or empty frontmatter
    if none).
@@ -87,6 +90,7 @@ for the markdown body — this is the highest-value feature.
 ### `help`
 
 Display the configuration reference:
+
 ```
 ## Accelerator Configuration Reference
 
@@ -229,6 +233,91 @@ auto_detect: Relevant when changes touch regulatory, compliance, or policy-relat
 
 See any lens in the plugin's `skills/review/lenses/` directory for full
 examples of the expected structure.
+
+### paths
+
+Override where skills write output documents. Paths are relative to the
+project root (absolute paths are also supported):
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `plans` | `meta/plans` | Implementation plans |
+| `research` | `meta/research` | Research documents |
+| `decisions` | `meta/decisions` | Architecture decision records |
+| `prs` | `meta/prs` | PR descriptions |
+| `validations` | `meta/validations` | Plan validation reports |
+| `review_plans` | `meta/reviews/plans` | Plan review artifacts |
+| `review_prs` | `meta/reviews/prs` | PR review working directories |
+| `templates` | `meta/templates` | User-provided templates (e.g., PR description) |
+| `tickets` | `meta/tickets` | Ticket files referenced by create-plan |
+| `notes` | `meta/notes` | Notes directory |
+
+Example configuration:
+
+\```yaml
+---
+paths:
+  plans: docs/plans
+  research: docs/research
+  decisions: docs/adrs
+  prs: docs/prs
+  validations: docs/validations
+  review_plans: docs/reviews/plans
+  review_prs: docs/reviews/prs
+  templates: docs/templates
+  tickets: docs/tickets
+  notes: docs/notes
+---
+\```
+
+Note: YAML comments (`#`) are not supported by the config parser. Do not
+add inline comments to config values.
+
+### templates
+
+Override document templates by placing custom template files in the
+templates directory (`paths.templates`, defaults to `meta/templates/`):
+
+\```
+meta/templates/
+  plan.md            # Custom plan template
+  research.md        # Custom research template
+  adr.md             # Custom ADR template
+  validation.md      # Custom validation template
+  pr-description.md  # PR description template (used by describe-pr)
+\```
+
+All templates — both skill structure templates (plan, ADR, research,
+validation) and user content templates (PR description) — live in the same
+directory. Override `paths.templates` to move them all:
+
+\```yaml
+---
+paths:
+  templates: docs/templates
+---
+\```
+
+For advanced use cases, you can also point individual templates to specific
+file paths using the `templates` config section:
+
+\```yaml
+---
+templates:
+  plan: docs/templates/our-plan-format.md
+  adr: docs/templates/our-adr-format.md
+---
+\```
+
+Resolution order: `templates.<name>` config path (if set) → templates
+directory (`paths.templates`) → plugin default. Use the plugin's
+`templates/` directory as a starting point for customisation.
+
+**Note on cross-references**: Default templates contain hardcoded references
+to other skills' output paths (e.g., the plan template references
+`meta/research/` in its References section). If you override output paths
+(e.g., `paths.research: docs/research`), you should also provide custom
+templates with updated cross-references.
 
 ### Project Context
 

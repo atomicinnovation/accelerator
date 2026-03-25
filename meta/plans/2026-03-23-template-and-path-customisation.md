@@ -149,8 +149,8 @@ the interface clean for callers.
 
 #### Automated Verification:
 
-- [ ] `scripts/config-read-path.sh` exists and is executable
-- [ ] `bash scripts/test-config.sh` passes all tests
+- [x] `scripts/config-read-path.sh` exists and is executable
+- [x] `bash scripts/test-config.sh` passes all tests
 
 ---
 
@@ -217,18 +217,18 @@ limitation should be documented in the configure skill's help text (Phase 5).
 
 #### Automated Verification:
 
-- [ ] `templates/plan.md` exists
-- [ ] `templates/research.md` exists
-- [ ] `templates/adr.md` exists
-- [ ] `templates/validation.md` exists
-- [ ] Each template file does NOT include code fence delimiters (the script
+- [x] `templates/plan.md` exists
+- [x] `templates/research.md` exists
+- [x] `templates/adr.md` exists
+- [x] `templates/validation.md` exists
+- [x] Each template file does NOT include code fence delimiters (the script
   wraps them)
-- [ ] `templates/plan.md` contains `## Overview` and `## Phase` headings
-- [ ] `templates/research.md` contains `## Research Question` and YAML
-  frontmatter with `research_question` field
-- [ ] `templates/adr.md` contains `adr_id` and `## Context` heading
-- [ ] `templates/validation.md` contains `## Implementation Status` heading
-- [ ] Each template's line count is within reasonable range of the original
+- [x] `templates/plan.md` contains `## Overview` and `## Phase` headings
+- [x] `templates/research.md` contains `## Research Question` and YAML
+  frontmatter with `topic` field
+- [x] `templates/adr.md` contains `adr_id` and `## Context` heading
+- [x] `templates/validation.md` contains `### Implementation Status` heading
+- [x] Each template's line count is within reasonable range of the original
   embedded block (guards against partial extraction)
 
 ---
@@ -358,7 +358,7 @@ exit 1
 
 #### Automated Verification:
 
-- [ ] `scripts/config-read-template.sh` exists and is executable
+- [x] `scripts/config-read-template.sh` exists and is executable
 - [ ] `bash scripts/test-config.sh` passes all tests
 
 ---
@@ -632,24 +632,24 @@ available for future skills and for `config-dump.sh` completeness.
 
 #### Automated Verification:
 
-- [ ] No hardcoded `meta/plans/` in `create-plan/SKILL.md` (except in examples)
-- [ ] No hardcoded `meta/research/` in `research-codebase/SKILL.md` (except
+- [x] No hardcoded `meta/plans/` in `create-plan/SKILL.md` (except in examples)
+- [x] No hardcoded `meta/research/` in `research-codebase/SKILL.md` (except
   in examples)
-- [ ] No generic `meta/` scan references in `research-codebase/SKILL.md`
+- [x] No generic `meta/` scan references in `research-codebase/SKILL.md`
   (replaced with configured path references)
-- [ ] No hardcoded `meta/decisions/` in ADR skills or `adr-next-number.sh`
+- [x] No hardcoded `meta/decisions/` in ADR skills or `adr-next-number.sh`
   (except in examples)
-- [ ] No hardcoded `meta/reviews/plans/` in `review-plan/SKILL.md` (except
+- [x] No hardcoded `meta/reviews/plans/` in `review-plan/SKILL.md` (except
   in examples)
-- [ ] No hardcoded `meta/reviews/prs/` in `review-pr/SKILL.md` (except
+- [x] No hardcoded `meta/reviews/prs/` in `review-pr/SKILL.md` (except
   in examples)
-- [ ] No hardcoded `meta/tickets/` in `create-plan/SKILL.md` (except in
+- [x] No hardcoded `meta/tickets/` in `create-plan/SKILL.md` (except in
   examples)
-- [ ] No hardcoded `meta/templates/` in `describe-pr/SKILL.md` (except in
+- [x] No hardcoded `meta/templates/` in `describe-pr/SKILL.md` (except in
   examples)
-- [ ] All affected skills contain `config-read-path.sh` and/or
+- [x] All affected skills contain `config-read-path.sh` and/or
   `config-read-template.sh` preprocessor lines
-- [ ] `bash scripts/test-config.sh` passes all tests, including:
+- [x] `bash scripts/test-config.sh` passes all tests, including:
   - `config-read-path.sh plans meta/plans` with no config outputs `meta/plans`
   - `config-read-path.sh plans meta/plans` with `paths.plans: docs/plans`
     outputs `docs/plans`
@@ -659,8 +659,8 @@ available for future skills and for `config-dump.sh` completeness.
     outputs user template content
   - `config-read-template.sh plan` with `paths.templates: docs/templates`
     and template at `docs/templates/plan.md` outputs that template
-- [ ] `bash skills/decisions/scripts/test-adr-scripts.sh` still passes
-- [ ] New `adr-next-number.sh` integration tests pass:
+- [x] `bash skills/decisions/scripts/test-adr-scripts.sh` still passes
+- [x] New `adr-next-number.sh` integration tests pass:
   - Default path behaviour preserved when no config exists
   - With `paths.decisions: custom/adrs` and ADR files in that directory,
     script scans custom directory and returns correct next number

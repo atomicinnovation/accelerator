@@ -5,11 +5,15 @@ description: Generate a comprehensive pull request description following the
   PR description.
 argument-hint: "[PR number or URL]"
 disable-model-invocation: true
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---
 
 # Generate PR Description
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+
+**PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh prs meta/prs`
+**Templates directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh templates meta/templates`
 
 You are tasked with generating a comprehensive pull request description
 following the repository's standard template.
@@ -18,9 +22,10 @@ following the repository's standard template.
 
 1. **Read the PR description template:**
 
-- First, check if `meta/templates/pr-description.md` exists
+- First, check if `{templates directory}/pr-description.md` exists (where
+  the templates directory is shown above)
 - If it doesn't exist, inform the user that they need to create a PR
-  description template at `meta/templates/pr-description.md`
+  description template at `{templates directory}/pr-description.md`
 - Read the template carefully to understand all sections and requirements
 
 2. **Identify the PR to describe:**
@@ -33,7 +38,7 @@ following the repository's standard template.
 
 3. **Check for existing description:**
 
-- Check if `meta/prs/{number}-description.md` already exists
+- Check if `{prs directory}/{number}-description.md` already exists
 - If it exists, read it and inform the user you'll be updating it
 - Consider what has changed since the last description was written
 
@@ -80,7 +85,7 @@ following the repository's standard template.
 
 8. **Save and show the description:**
 
-- Write the completed description to `meta/prs/{number}-description.md`
+- Write the completed description to `{prs directory}/{number}-description.md`
   with YAML frontmatter:
 
   ```markdown
@@ -98,14 +103,14 @@ following the repository's standard template.
 
 - Show the user the generated description (without frontmatter — they'll
   see what gets posted to GitHub)
-- On re-run (when `meta/prs/{number}-description.md` already exists),
+- On re-run (when `{prs directory}/{number}-description.md` already exists),
   regenerate the frontmatter with an updated `date` timestamp. The
   existing step 3 already handles reading the prior description for
   context; the frontmatter is simply regenerated fresh.
 
 9. **Update the PR:**
 
-- The `meta/prs/{number}-description.md` file contains YAML frontmatter
+- The `{prs directory}/{number}-description.md` file contains YAML frontmatter
   that should not appear on GitHub. Before posting, strip the frontmatter
   block from the start of the file:
   1. Read the file content

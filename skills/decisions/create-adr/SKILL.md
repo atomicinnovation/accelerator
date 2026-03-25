@@ -6,12 +6,15 @@ description: Interactively create an architecture decision record (ADR). Use
   analysis, and consequence documentation.
 argument-hint: "[topic or description] [--supersedes ADR-NNNN]"
 disable-model-invocation: true
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
 ---
 
 # Create Architecture Decision Record
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
+**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh decisions meta/decisions`
 
 You are tasked with guiding the user through creating an architecture decision
 record (ADR) — a concise document capturing a significant architectural
@@ -49,7 +52,7 @@ ${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/adr-next-number.sh
 ```
 
 2. If `--supersedes ADR-NNNN` was specified:
-   - Find the target ADR file by matching `meta/decisions/ADR-NNNN-*.md`
+   - Find the target ADR file by matching `{decisions directory}/ADR-NNNN-*.md`
    - Verify exactly one file matches the glob pattern (error if zero or
      multiple matches)
    - Read the target ADR's status using the companion script:
@@ -66,7 +69,7 @@ ${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/adr-next-number.sh
 1. **Spawn agents to gather relevant context** (in parallel):
 
 - Use **documents-locator** to find related research, plans, and existing ADRs
-  in `meta/`
+  in the configured document directories
 - Use **codebase-locator** to find relevant code related to the decision topic
 
 2. **Read any directly mentioned files** fully
@@ -131,10 +134,10 @@ Wait for user approval or revision requests before writing.
 
 ### Step 4: Write the ADR
 
-1. Create the `meta/decisions/` directory if it doesn't exist
+1. Create the configured decisions directory if it doesn't exist
 
 2. Write the ADR to:
-   `meta/decisions/ADR-NNNN-description.md`
+   `{decisions directory}/ADR-NNNN-description.md`
    where NNNN is the number from Step 1 and description is a kebab-case summary
 
 3. If this supersedes an existing ADR:
@@ -147,7 +150,7 @@ Wait for user approval or revision requests before writing.
 4. Present the result:
 
 ```
-ADR created: `meta/decisions/ADR-NNNN-description.md`
+ADR created: `{decisions directory}/ADR-NNNN-description.md`
 Status: proposed
 
 [If supersession]: Updated ADR-XXXX status to "superseded"
@@ -161,61 +164,7 @@ Next steps:
 
 Use this exact template structure when generating ADRs:
 
-```markdown
----
-adr_id: ADR-NNNN
-date: "YYYY-MM-DDTHH:MM:SS+00:00"
-author: Author Name
-status: proposed
-supersedes: ADR-NNNN     # only include if this ADR replaces another
-tags: [tag1, tag2]
----
-
-# ADR-NNNN: Title as Short Noun Phrase
-
-**Date**: YYYY-MM-DD
-**Status**: Proposed
-**Author**: Author Name
-
-## Context
-
-[Forces at play — technological, political, social, project-specific.
-Value-neutral language describing facts, not advocating.]
-
-## Decision Drivers
-
-- [Driver 1]
-- [Driver 2]
-
-## Considered Options
-
-1. **Option A** — Brief description
-2. **Option B** — Brief description
-3. **Option C** — Brief description
-
-## Decision
-
-[The chosen option and why, stated in active voice: "We will..."]
-
-## Consequences
-
-### Positive
-
-- [Consequence 1]
-
-### Negative
-
-- [Consequence 1]
-
-### Neutral
-
-- [Consequence 1]
-
-## References
-
-- `meta/research/YYYY-MM-DD-topic.md` — Related research
-- `meta/decisions/ADR-NNNN.md` — Related/superseded ADR
-```
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh adr`
 
 ## Quality Guidelines
 

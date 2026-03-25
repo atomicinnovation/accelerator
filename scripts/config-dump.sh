@@ -169,3 +169,56 @@ for i in "${!AGENT_KEYS[@]}"; do
   source=$(get_source "$key")
   echo "| \`$key\` | \`$value\` | $source |"
 done
+
+# Path keys
+PATH_KEYS=(
+  "paths.plans"
+  "paths.research"
+  "paths.decisions"
+  "paths.prs"
+  "paths.validations"
+  "paths.review_plans"
+  "paths.review_prs"
+  "paths.templates"
+  "paths.tickets"
+  "paths.notes"
+)
+
+PATH_DEFAULTS=(
+  "meta/plans"
+  "meta/research"
+  "meta/decisions"
+  "meta/prs"
+  "meta/validations"
+  "meta/reviews/plans"
+  "meta/reviews/prs"
+  "meta/templates"
+  "meta/tickets"
+  "meta/notes"
+)
+
+for i in "${!PATH_KEYS[@]}"; do
+  key="${PATH_KEYS[$i]}"
+  default="${PATH_DEFAULTS[$i]}"
+  value=$("$READ_VALUE" "$key" "$default")
+  source=$(get_source "$key")
+  echo "| \`$key\` | \`$value\` | $source |"
+done
+
+# Template keys
+TEMPLATE_KEYS=(
+  "templates.plan"
+  "templates.research"
+  "templates.adr"
+  "templates.validation"
+)
+
+for key in "${TEMPLATE_KEYS[@]}"; do
+  value=$("$READ_VALUE" "$key" "")
+  source=$(get_source "$key")
+  if [ -n "$value" ]; then
+    echo "| \`$key\` | \`$value\` | $source |"
+  else
+    echo "| \`$key\` | *(not set)* | default |"
+  fi
+done

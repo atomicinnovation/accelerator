@@ -5,6 +5,7 @@ description: Review a pull request through multiple quality lenses and present a
   review.
 argument-hint: "[PR number or URL]"
 disable-model-invocation: true
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---
 
 # Review PR
@@ -12,6 +13,8 @@ disable-model-invocation: true
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh pr`
+
+**PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs meta/reviews/prs`
 
 You are tasked with reviewing a pull request through multiple quality lenses
 and then presenting a compiled analysis of the code changes.
@@ -72,18 +75,18 @@ the user's input.
 1. **Get PR metadata**:
    `gh pr view {number} --json number,url,title,state,baseRefName,headRefName`
 
-2. **Create temp directory** at `meta/tmp/pr-review-{number}` (substituting
+2. **Create temp directory** at `{pr reviews directory}/pr-review-{number}` (substituting
    the actual PR number):
    ```bash
-   mkdir -p meta/tmp/pr-review-{number}
+   mkdir -p {pr reviews directory}/pr-review-{number}
    ```
 
 3. **Fetch diff, changed files, PR description, and commit context**:
    ```bash
-   gh pr diff {number} > meta/tmp/pr-review-{number}/diff.patch
-   gh pr diff {number} --name-only > meta/tmp/pr-review-{number}/changed-files.txt
-   gh pr view {number} --json body --jq '.body' > meta/tmp/pr-review-{number}/pr-description.md
-   gh pr view {number} --json commits --jq '.commits[].messageHeadline' > meta/tmp/pr-review-{number}/commits.txt
+   gh pr diff {number} > {pr reviews directory}/pr-review-{number}/diff.patch
+   gh pr diff {number} --name-only > {pr reviews directory}/pr-review-{number}/changed-files.txt
+   gh pr view {number} --json body --jq '.body' > {pr reviews directory}/pr-review-{number}/pr-description.md
+   gh pr view {number} --json commits --jq '.commits[].messageHeadline' > {pr reviews directory}/pr-review-{number}/commits.txt
    ```
 
 4. **Read the diff, changed files list, PR description, and commits** to
@@ -91,8 +94,8 @@ the user's input.
 
 5. **Fetch additional metadata for the Reviews API**:
    ```bash
-   gh api repos/{owner}/{repo}/pulls/{number} --jq '.head.sha' > meta/tmp/pr-review-{number}/head-sha.txt
-   gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"' > meta/tmp/pr-review-{number}/repo-info.txt
+   gh api repos/{owner}/{repo}/pulls/{number} --jq '.head.sha' > {pr reviews directory}/pr-review-{number}/head-sha.txt
+   gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"' > {pr reviews directory}/pr-review-{number}/repo-info.txt
    ```
 
    Where `{owner}` and `{repo}` are extracted from the PR metadata already
@@ -238,7 +241,7 @@ You are reviewing pull request changes through the [lens name] lens.
 
 ## Context
 
-The PR artefacts are in the temp directory at meta/tmp/pr-review-{number}:
+The PR artefacts are in the temp directory at {pr reviews directory}/pr-review-{number}:
 - `diff.patch` — the full diff
 - `changed-files.txt` — list of changed file paths
 - `pr-description.md` — PR description
@@ -403,17 +406,17 @@ Once all reviews are complete:
    combine the bodies with a blank line separator and attribute each section
    to its lens.
 
-10. **Write the review artifact** to `meta/reviews/prs/`:
+10. **Write the review artifact** to `{pr reviews directory}/`:
 
     Determine the next review number:
     ```bash
     mkdir -p meta/reviews/prs
     # Glob for existing reviews of this PR
-    ls meta/reviews/prs/{number}-review-*.md 2>/dev/null
+    ls {pr reviews directory}/{number}-review-*.md 2>/dev/null
     # Extract the highest number, increment by 1. If none exist, use 1.
     ```
 
-    Write the review document to `meta/reviews/prs/{number}-review-{N}.md`:
+    Write the review document to `{pr reviews directory}/{number}-review-{N}.md`:
 
     ```markdown
     ---
@@ -513,8 +516,8 @@ The review is ready. Would you like to:
 **When the user chooses to post** (option 1):
 
 1. Read the HEAD SHA and repo info from the temp directory at
-   `meta/tmp/pr-review-{number}/head-sha.txt` and
-   `meta/tmp/pr-review-{number}/repo-info.txt` using the Read tool.
+   `{pr reviews directory}/pr-review-{number}/head-sha.txt` and
+   `{pr reviews directory}/pr-review-{number}/repo-info.txt` using the Read tool.
 
 2. Construct the review payload as a JSON object containing:
    - `commit_id`: the HEAD SHA
@@ -537,10 +540,10 @@ The review is ready. Would you like to:
        API `{start_line: 10, start_side: "RIGHT", line: 15, side: "RIGHT"}`
 
 3. Write the review payload JSON to
-   `meta/tmp/pr-review-{number}/review-payload.json`, then post the review:
+   `{pr reviews directory}/pr-review-{number}/review-payload.json`, then post the review:
    ```bash
    gh api repos/{owner}/{repo}/pulls/{number}/reviews \
-     --method POST --input meta/tmp/pr-review-{number}/review-payload.json
+     --method POST --input {pr reviews directory}/pr-review-{number}/review-payload.json
    ```
 
    Where `{owner}/{repo}` are the values read from `repo-info.txt`.
@@ -597,11 +600,11 @@ stale commit):
 7. **Clean up temp directory only at session end** — agents may need to
    re-reference the PR context during follow-up discussion.
 
-   The `meta/tmp/pr-review-{number}/` directory contains ephemeral working
+   The `{pr reviews directory}/pr-review-{number}/` directory contains ephemeral working
    data (diff, changed-files, PR description, commits, head SHA, repo info,
    review payload JSON) used during the review session. The review itself
    (summary, inline comments, per-lens results) is persisted separately to
-   `meta/reviews/prs/{number}-review-{N}.md` and is NOT stored in tmp/.
+   `{pr reviews directory}/{number}-review-{N}.md` and is NOT stored in tmp/.
 
 8. **Handle API errors gracefully** — if the review post fails due to invalid
    line references, identify the problematic comments and offer to retry
@@ -626,7 +629,7 @@ stale commit):
 ## What NOT to Do
 
 - Don't skip writing the review artifact — always persist to
-  meta/reviews/prs/ so the full analysis is available to the team
+  {pr reviews directory}/ so the full analysis is available to the team
 - Don't post inline comments for positive feedback — strengths go in the
   summary only
 - Don't post more than the configured `max_inline_comments` (default: ~10)

@@ -4,6 +4,7 @@ description: Create VCS commits for session changes. Use when the user wants to
   commit their work with well-structured, atomic commits.
 argument-hint: "[optional message or flags]"
 disable-model-invocation: true
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*)
 ---
 
 # Commit Changes

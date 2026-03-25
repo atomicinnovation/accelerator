@@ -29,9 +29,20 @@ if ! [[ "$COUNT" =~ ^[1-9][0-9]*$ ]]; then
 fi
 
 REPO_ROOT=$(find_repo_root) || REPO_ROOT="$PWD"
-DECISIONS_DIR="$REPO_ROOT/meta/decisions"
 
+# Read configured decisions path, defaulting to meta/decisions
+DECISIONS_PATH=$("$PLUGIN_ROOT/scripts/config-read-path.sh" decisions meta/decisions)
+
+# Resolve: absolute paths used as-is, relative paths resolved against repo root
+if [[ "$DECISIONS_PATH" == /* ]]; then
+  DECISIONS_DIR="$DECISIONS_PATH"
+else
+  DECISIONS_DIR="$REPO_ROOT/$DECISIONS_PATH"
+fi
+
+# If directory doesn't exist, output sequential numbers starting from 0001
 if [ ! -d "$DECISIONS_DIR" ]; then
+  echo "Warning: decisions directory '$DECISIONS_DIR' does not exist — defaulting to next number 0001" >&2
   for ((i = 1; i <= COUNT; i++)); do
     printf "%04d\n" "$i"
   done

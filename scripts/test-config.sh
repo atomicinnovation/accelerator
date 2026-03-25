@@ -1801,6 +1801,520 @@ assert_eq "review config on line after agents in review-plan" "$EXPECTED_LINE" "
 echo ""
 
 # ============================================================
+echo "=== config-read-path.sh ==="
+echo ""
+
+READ_PATH="$SCRIPT_DIR/config-read-path.sh"
+
+echo "Test: No paths config -> outputs default"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "plans" "meta/plans")
+assert_eq "outputs default" "meta/plans" "$OUTPUT"
+
+echo "Test: paths.plans configured -> outputs configured value"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  plans: docs/plans
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "plans" "meta/plans")
+assert_eq "outputs configured path" "docs/plans" "$OUTPUT"
+
+echo "Test: paths.decisions configured -> outputs configured value"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  decisions: docs/adrs
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "decisions" "meta/decisions")
+assert_eq "outputs configured path" "docs/adrs" "$OUTPUT"
+
+echo "Test: paths.review_plans configured"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  review_plans: docs/reviews/plans
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "review_plans" "meta/reviews/plans")
+assert_eq "outputs configured path" "docs/reviews/plans" "$OUTPUT"
+
+echo "Test: paths.review_prs configured"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  review_prs: docs/reviews/prs
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "review_prs" "meta/reviews/prs")
+assert_eq "outputs configured path" "docs/reviews/prs" "$OUTPUT"
+
+echo "Test: paths.templates configured"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  templates: docs/templates
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "templates" "meta/templates")
+assert_eq "outputs configured path" "docs/templates" "$OUTPUT"
+
+echo "Test: paths.tickets configured"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  tickets: docs/tickets
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "tickets" "meta/tickets")
+assert_eq "outputs configured path" "docs/tickets" "$OUTPUT"
+
+echo "Test: paths.notes configured"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  notes: docs/notes
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "notes" "meta/notes")
+assert_eq "outputs configured path" "docs/notes" "$OUTPUT"
+
+echo "Test: Absolute path is output as-is"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  plans: /opt/docs/plans
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "plans" "meta/plans")
+assert_eq "outputs absolute path" "/opt/docs/plans" "$OUTPUT"
+
+echo "Test: Local overrides team for paths"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  plans: team/plans
+---
+FIXTURE
+cat > "$REPO/.claude/accelerator.local.md" << 'FIXTURE'
+---
+paths:
+  plans: my/plans
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "plans" "meta/plans")
+assert_eq "local overrides team" "my/plans" "$OUTPUT"
+
+echo ""
+
+# ============================================================
+echo "=== config-read-template.sh ==="
+echo ""
+
+READ_TEMPLATE="$SCRIPT_DIR/config-read-template.sh"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+echo "Test: No user template -> outputs plugin default wrapped in code fences"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+FIRST_LINE=$(echo "$OUTPUT" | head -1)
+LAST_LINE=$(echo "$OUTPUT" | tail -1)
+assert_eq "starts with code fence" '```markdown' "$FIRST_LINE"
+assert_eq "ends with code fence" '```' "$LAST_LINE"
+if echo "$OUTPUT" | grep -q "## Overview"; then
+  echo "  PASS: contains plan template content"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: contains plan template content"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Template in configured templates directory (default meta/templates/) -> outputs user template"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+cat > "$REPO/meta/templates/plan.md" << 'FIXTURE'
+# Custom Plan Template
+
+## My Custom Section
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+FIRST_LINE=$(echo "$OUTPUT" | head -1)
+assert_eq "starts with code fence" '```markdown' "$FIRST_LINE"
+if echo "$OUTPUT" | grep -q "My Custom Section"; then
+  echo "  PASS: contains user template content"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: contains user template content"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: paths.templates overridden -> looks in overridden directory"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+mkdir -p "$REPO/docs/templates"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  templates: docs/templates
+---
+FIXTURE
+cat > "$REPO/docs/templates/plan.md" << 'FIXTURE'
+# Overridden Directory Plan Template
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+if echo "$OUTPUT" | grep -q "Overridden Directory Plan Template"; then
+  echo "  PASS: finds template in overridden directory"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: finds template in overridden directory"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Config path specified (templates.<name>) and exists -> takes precedence"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+mkdir -p "$REPO/custom"
+mkdir -p "$REPO/meta/templates"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+templates:
+  plan: custom/my-plan.md
+---
+FIXTURE
+cat > "$REPO/custom/my-plan.md" << 'FIXTURE'
+# Config-Specified Plan
+FIXTURE
+cat > "$REPO/meta/templates/plan.md" << 'FIXTURE'
+# Templates-Dir Plan (should NOT be used)
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+if echo "$OUTPUT" | grep -q "Config-Specified Plan"; then
+  echo "  PASS: config path takes precedence over templates dir"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: config path takes precedence over templates dir"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Template file already starts with code fence -> output as-is (no double-wrapping)"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+printf '```markdown\n# Already Fenced\n```\n' > "$REPO/meta/templates/plan.md"
+OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+# Count occurrences of ```markdown - should be exactly 1
+FENCE_COUNT=$(echo "$OUTPUT" | grep -c '```markdown' || true)
+assert_eq "no double-wrapping" "1" "$FENCE_COUNT"
+
+echo "Test: Config path specified but missing -> falls back to plugin default with warning"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+templates:
+  plan: nonexistent/plan.md
+---
+FIXTURE
+STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan" 2>&1 1>/dev/null)
+if echo "$STDERR_OUTPUT" | grep -q "Warning"; then
+  echo "  PASS: warning emitted to stderr"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: warning emitted to stderr"
+  FAIL=$((FAIL + 1))
+fi
+OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan" 2>/dev/null)
+if echo "$OUTPUT" | grep -q "## Overview"; then
+  echo "  PASS: falls back to plugin default"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: falls back to plugin default"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Config path specified as relative -> resolved against project root"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+mkdir -p "$REPO/relative/path"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+templates:
+  plan: relative/path/plan.md
+---
+FIXTURE
+cat > "$REPO/relative/path/plan.md" << 'FIXTURE'
+# Relative Path Plan
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+if echo "$OUTPUT" | grep -q "Relative Path Plan"; then
+  echo "  PASS: relative path resolved correctly"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: relative path resolved correctly"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Config path specified as absolute -> used as-is"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+ABS_TEMPLATE=$(mktemp "$TMPDIR_BASE/abs-template-XXXXXX.md")
+cat > "$ABS_TEMPLATE" << 'FIXTURE'
+# Absolute Path Plan
+FIXTURE
+cat > "$REPO/.claude/accelerator.md" << FIXTURE
+---
+templates:
+  plan: $ABS_TEMPLATE
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+if echo "$OUTPUT" | grep -q "Absolute Path Plan"; then
+  echo "  PASS: absolute path used as-is"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: absolute path used as-is"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Unknown template name -> error listing available template names"
+REPO=$(setup_repo)
+STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "nonexistent" 2>&1 1>/dev/null || true)
+if echo "$STDERR_OUTPUT" | grep -q "plan, research, adr, validation"; then
+  echo "  PASS: error lists available templates"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: error lists available templates"
+  echo "    Actual stderr: $STDERR_OUTPUT"
+  FAIL=$((FAIL + 1))
+fi
+assert_exit_code "exits 1 for unknown template" 1 bash "$READ_TEMPLATE" "nonexistent"
+
+echo ""
+
+# ============================================================
+echo "=== adr-next-number.sh with path overrides ==="
+echo ""
+
+ADR_NEXT="$SCRIPT_DIR/../skills/decisions/scripts/adr-next-number.sh"
+
+echo "Test: Default path behaviour preserved when no config exists"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/decisions"
+cp "$TMPDIR_BASE/repo-"*/meta/decisions/ADR-* "$REPO/meta/decisions/" 2>/dev/null || true
+# Create a sample ADR file
+cat > "$REPO/meta/decisions/ADR-0005-test.md" << 'FIXTURE'
+---
+adr_id: ADR-0005
+status: proposed
+---
+# ADR-0005
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$ADR_NEXT")
+assert_eq "outputs 0006" "0006" "$OUTPUT"
+
+echo "Test: With paths.decisions configured, scans custom directory"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+mkdir -p "$REPO/custom/adrs"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  decisions: custom/adrs
+---
+FIXTURE
+cat > "$REPO/custom/adrs/ADR-0003-test.md" << 'FIXTURE'
+---
+adr_id: ADR-0003
+status: proposed
+---
+# ADR-0003
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$ADR_NEXT")
+assert_eq "scans custom directory" "0004" "$OUTPUT"
+
+echo "Test: With configured directory that does not exist, warns and returns 0001"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  decisions: nonexistent/adrs
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$ADR_NEXT" 2>/dev/null)
+assert_eq "returns 0001" "0001" "$OUTPUT"
+STDERR_OUTPUT=$(cd "$REPO" && bash "$ADR_NEXT" 2>&1 1>/dev/null)
+if echo "$STDERR_OUTPUT" | grep -q "Warning"; then
+  echo "  PASS: warning emitted to stderr"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: warning emitted to stderr"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
+echo "=== Skill integration checks ==="
+echo ""
+
+SKILLS_DIR="$SCRIPT_DIR/../skills"
+
+echo "Test: create-plan uses config-read-path.sh"
+if grep -q 'config-read-path.sh plans' "$SKILLS_DIR/planning/create-plan/SKILL.md"; then
+  echo "  PASS: create-plan has plans path injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: create-plan has plans path injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: create-plan uses config-read-template.sh"
+if grep -q 'config-read-template.sh plan' "$SKILLS_DIR/planning/create-plan/SKILL.md"; then
+  echo "  PASS: create-plan has template injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: create-plan has template injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: research-codebase uses config-read-path.sh"
+if grep -q 'config-read-path.sh research' "$SKILLS_DIR/research/research-codebase/SKILL.md"; then
+  echo "  PASS: research-codebase has research path injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: research-codebase has research path injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: research-codebase uses config-read-template.sh"
+if grep -q 'config-read-template.sh research' "$SKILLS_DIR/research/research-codebase/SKILL.md"; then
+  echo "  PASS: research-codebase has template injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: research-codebase has template injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: create-adr uses config-read-path.sh"
+if grep -q 'config-read-path.sh decisions' "$SKILLS_DIR/decisions/create-adr/SKILL.md"; then
+  echo "  PASS: create-adr has decisions path injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: create-adr has decisions path injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: create-adr uses config-read-template.sh"
+if grep -q 'config-read-template.sh adr' "$SKILLS_DIR/decisions/create-adr/SKILL.md"; then
+  echo "  PASS: create-adr has template injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: create-adr has template injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: extract-adrs uses config-read-path.sh for decisions, research, plans"
+EXTRACT_SKILL="$SKILLS_DIR/decisions/extract-adrs/SKILL.md"
+EXTRACT_PASS=true
+for key in decisions research plans; do
+  if ! grep -q "config-read-path.sh $key" "$EXTRACT_SKILL"; then
+    EXTRACT_PASS=false
+    break
+  fi
+done
+if $EXTRACT_PASS; then
+  echo "  PASS: extract-adrs has all path injections"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: extract-adrs has all path injections"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: review-adr uses config-read-path.sh"
+if grep -q 'config-read-path.sh decisions' "$SKILLS_DIR/decisions/review-adr/SKILL.md"; then
+  echo "  PASS: review-adr has decisions path injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: review-adr has decisions path injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: validate-plan uses config-read-path.sh"
+if grep -q 'config-read-path.sh validations' "$SKILLS_DIR/planning/validate-plan/SKILL.md"; then
+  echo "  PASS: validate-plan has validations path injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: validate-plan has validations path injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: validate-plan uses config-read-template.sh"
+if grep -q 'config-read-template.sh validation' "$SKILLS_DIR/planning/validate-plan/SKILL.md"; then
+  echo "  PASS: validate-plan has template injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: validate-plan has template injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: describe-pr uses config-read-path.sh for prs and templates"
+DESCRIBE_SKILL="$SKILLS_DIR/github/describe-pr/SKILL.md"
+DESCRIBE_PASS=true
+for key in prs templates; do
+  if ! grep -q "config-read-path.sh $key" "$DESCRIBE_SKILL"; then
+    DESCRIBE_PASS=false
+    break
+  fi
+done
+if $DESCRIBE_PASS; then
+  echo "  PASS: describe-pr has prs and templates path injections"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: describe-pr has prs and templates path injections"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: review-plan uses config-read-path.sh"
+if grep -q 'config-read-path.sh review_plans' "$SKILLS_DIR/planning/review-plan/SKILL.md"; then
+  echo "  PASS: review-plan has review_plans path injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: review-plan has review_plans path injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: review-pr uses config-read-path.sh"
+if grep -q 'config-read-path.sh review_prs' "$SKILLS_DIR/github/review-pr/SKILL.md"; then
+  echo "  PASS: review-pr has review_prs path injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: review-pr has review_prs path injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
 echo "=== Results ==="
 echo "Passed: $PASS"
 echo "Failed: $FAIL"

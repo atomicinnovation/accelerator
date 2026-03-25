@@ -4,12 +4,16 @@ description: Create detailed implementation plans through interactive, iterative
   collaboration. Use when the user needs to plan a feature, refactoring, or task.
 argument-hint: "[ticket reference or description]"
 disable-model-invocation: true
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---
 
 # Implementation Plan
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
+**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tickets meta/tickets`
 
 You are tasked with creating detailed implementation plans through an
 interactive, iterative process. You should be skeptical, thorough, and work
@@ -38,8 +42,8 @@ Please provide:
 
 I'll analyze this information and work with you to create a comprehensive plan.
 
-Tip: You can also invoke this command with a ticket file directly: `/create-plan meta/tickets/eng-1234.md`
-For deeper analysis, try: `/create-plan think deeply about meta/tickets/eng-1234.md`
+Tip: You can also invoke this command with a ticket file directly: `/create-plan @tickets/eng-1234.md` (where the tickets directory is shown above)
+For deeper analysis, try: `/create-plan think deeply about @tickets/eng-1234.md`
 ```
 
 Then wait for the user's input.
@@ -50,7 +54,7 @@ Then wait for the user's input.
 
 1. **Read all mentioned files immediately and FULLY**:
 
-- Ticket files (e.g., `meta/tickets/eng-1234.md`)
+- Ticket files in the configured tickets directory
 - Research documents
 - Related implementation plans
 - Any JSON/data files mentioned
@@ -197,7 +201,7 @@ Once aligned on approach:
 After structure approval:
 
 1. **Write the plan** to
-   `meta/plans/YYYY-MM-DD-ENG-XXXX-description.md`
+   `!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans``/YYYY-MM-DD-ENG-XXXX-description.md
 
 - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
   - YYYY-MM-DD is today's date
@@ -209,123 +213,14 @@ After structure approval:
 
 2. **Use this template structure**:
 
-````markdown
----
-date: "{ISO timestamp}"
-type: plan
-skill: create-plan
-ticket: "{ticket reference, if any}"
-status: draft
----
-
-# [Feature/Task Name] Implementation Plan
-
-## Overview
-
-[Brief description of what we're implementing and why]
-
-## Current State Analysis
-
-[What exists now, what's missing, key constraints discovered]
-
-## Desired End State
-
-[A Specification of the desired end state after this plan is complete, and how to verify it]
-
-### Key Discoveries:
-
-- [Important finding with file:line reference]
-- [Pattern to follow]
-- [Constraint to work within]
-
-## What We're NOT Doing
-
-[Explicitly list out-of-scope items to prevent scope creep]
-
-## Implementation Approach
-
-[High-level strategy and reasoning]
-
-## Phase 1: [Descriptive Name]
-
-### Overview
-
-[What this phase accomplishes]
-
-### Changes Required:
-
-#### 1. [Component/File Group]
-
-**File**: `path/to/file.ext`
-**Changes**: [Summary of changes]
-
-```[language]
-// Specific code to add/modify
-```
-
-### Success Criteria:
-
-#### Automated Verification:
-
-- [ ] Migration applies cleanly: `make migrate`
-- [ ] Unit tests pass: `make test-component`
-- [ ] Type checking passes: `npm run typecheck`
-- [ ] Linting passes: `make lint`
-- [ ] Integration tests pass: `make test-integration`
-
-#### Manual Verification:
-
-- [ ] Feature works as expected when tested via UI
-- [ ] Performance is acceptable under load
-- [ ] Edge case handling verified manually
-- [ ] No regressions in related features
-
----
-
-## Phase 2: [Descriptive Name]
-
-[Similar structure with both automated and manual success criteria...]
-
----
-
-## Testing Strategy
-
-### Unit Tests:
-
-- [What to test]
-- [Key edge cases]
-
-### Integration Tests:
-
-- [End-to-end scenarios]
-
-### Manual Testing Steps:
-
-1. [Specific step to verify feature]
-2. [Another verification step]
-3. [Edge case to test manually]
-
-## Performance Considerations
-
-[Any performance implications or optimizations needed]
-
-## Migration Notes
-
-[If applicable, how to handle existing data/systems]
-
-## References
-
-- Original ticket: `meta/tickets/eng-XXXX.md`
-- Related research: `meta/research/[relevant].md`
-- Similar implementation: `[file:line]`
-````
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh plan`
 
 ### Step 5: Sync and Review
 
 1. **Present the draft plan location**:
    ```
    I've created the initial implementation plan at:
-   `meta/plans/YYYY-MM-DD-ENG-XXXX-description.md`
+   `{configured plans directory}/YYYY-MM-DD-ENG-XXXX-description.md`
 
    Please review it and let me know:
    - Are the phases properly scoped?

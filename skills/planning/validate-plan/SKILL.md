@@ -5,11 +5,14 @@ description: Validate that an implementation plan was correctly executed by
   a plan to verify correctness.
 argument-hint: "[path to plan file]"
 disable-model-invocation: true
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---
 
 # Validate Plan
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+
+**Validations directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh validations meta/validations`
 
 You are tasked with validating that an implementation plan was correctly
 executed, verifying all success criteria and identifying any deviations or
@@ -99,72 +102,21 @@ For each phase in the plan:
 
 ### Step 3: Generate Validation Report
 
-Create comprehensive validation summary:
+Create comprehensive validation summary using this template:
 
-```markdown
-## Validation Report: [Plan Name]
-
-### Implementation Status
-
-✓ Phase 1: [Name] - Fully implemented
-✓ Phase 2: [Name] - Fully implemented
-⚠️ Phase 3: [Name] - Partially implemented (see issues)
-
-### Automated Verification Results
-
-✓ Build passes: `make build`
-✓ Tests pass: `make test`
-✗ Linting issues: `make lint` (3 warnings)
-
-### Code Review Findings
-
-#### Matches Plan:
-
-- Database migration correctly adds [table]
-- API endpoints implement specified methods
-- Error handling follows plan
-
-#### Deviations from Plan:
-
-- Used different variable names in [file:line]
-- Added extra validation in [file:line] (improvement)
-
-#### Potential Issues:
-
-- Missing index on foreign key could impact performance
-- No rollback handling in migration
-
-### Manual Testing Required:
-
-1. UI functionality:
-  - [ ] Verify [feature] appears correctly
-  - [ ] Test error states with invalid input
-
-2. Integration:
-  - [ ] Confirm works with existing [component]
-  - [ ] Check performance with large datasets
-
-### Recommendations:
-
-- Address linting warnings before merge
-- Consider adding integration test for [scenario]
-- Document new API endpoints
-```
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh validation`
 
 ### Step 4: Persist the Validation Report
 
-Write the validation report to `meta/validations/`:
+Write the validation report to the configured validations directory:
 
 1. Derive the filename from the plan filename: extract the filename stem
    (without directory path or `.md` extension) regardless of how the path
    was provided. For example, if the plan is
    `meta/plans/2026-03-22-improve-error-handling.md`, the validation is
-   `meta/validations/2026-03-22-improve-error-handling-validation.md`.
+   `{validations directory}/2026-03-22-improve-error-handling-validation.md`.
 
-2. Create the directory if it doesn't exist:
-   ```bash
-   mkdir -p meta/validations
-   ```
+2. Create the configured validations directory if it doesn't exist.
 
 3. Write the validation document with YAML frontmatter followed by the
    report from Step 3:
@@ -194,7 +146,7 @@ Write the validation report to `meta/validations/`:
 
 5. Inform the user where the report was saved:
    ```
-   Validation report saved to meta/validations/{filename}.md
+   Validation report saved to {validations directory}/{filename}.md
    ```
 
 ## Working with Existing Context
@@ -234,7 +186,7 @@ Recommended workflow:
 1. `/implement-plan` - Execute the implementation
 2. `/commit` - Create atomic commits for changes
 3. `/validate-plan` - Verify implementation correctness (saves report to
-   `meta/validations/`)
+   the configured validations directory)
 4. `/describe-pr` - Generate PR description
 
 The validation works best after commits are made, as it can analyze the git

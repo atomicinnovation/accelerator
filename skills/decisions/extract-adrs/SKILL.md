@@ -6,12 +6,17 @@ description: Extract architecture decision records from existing meta documents
   buried in research or planning documents and need to be captured formally.
 argument-hint: "[@meta/research/doc.md ...] or leave empty to scan all"
 disable-model-invocation: true
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/research/research-codebase/scripts/*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
 ---
 
 # Extract ADRs from Meta Documents
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
+**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh decisions meta/decisions`
+**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research meta/research`
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
 
 You are tasked with identifying architectural decisions within existing meta
 documents and helping the user capture them as formal ADRs.
@@ -29,8 +34,8 @@ When this command is invoked:
 I'll help you extract architectural decisions from existing documents.
 
 You can:
-1. Specify documents to scan: `/accelerator:extract-adrs @meta/research/2026-03-18-auth-flow.md`
-2. Let me scan all meta documents for decisions (this may take a moment)
+1. Specify documents to scan: `/accelerator:extract-adrs @{research directory}/2026-03-18-auth-flow.md`
+2. Let me scan all documents in the configured directories for decisions (this may take a moment)
 
 Which would you prefer?
 ```
@@ -43,18 +48,18 @@ Wait for user input.
 
 1. If specific files were provided, read them FULLY
 2. If scanning all meta documents:
-   - Spawn a **documents-locator** agent to find all documents in `meta/`
-     (research, plans, decisions)
+   - Spawn a **documents-locator** agent to find all documents in the
+     configured research, plans, and decisions directories (shown above)
    - Present the discovered documents and let the user select which to scan:
      ```
-     I found the following documents in meta/:
+     I found the following documents:
 
      **Research:**
-     - `meta/research/2026-03-18-auth-flow.md` — Authentication flow research
+     - `{research directory}/2026-03-18-auth-flow.md` — Authentication flow research
      - ...
 
      **Plans:**
-     - `meta/plans/2026-03-18-api-redesign.md` — API redesign plan
+     - `{plans directory}/2026-03-18-api-redesign.md` — API redesign plan
      - ...
 
      Which documents should I scan for decisions? (enter numbers, "all", or
@@ -87,11 +92,11 @@ I found the following architectural decisions in the scanned documents:
 
 1. **[Short title]** — In the context of [X], facing [Y], we decided for [Z]
    to achieve [Q], accepting [D].
-   Source: `meta/research/2026-03-18-topic.md`
+   Source: `{research directory}/2026-03-18-topic.md`
 
 2. **[Short title]** — In the context of [X], facing [Y], we decided for [Z]
    to achieve [Q], accepting [D].
-   Source: `meta/plans/2026-03-18-topic.md`
+   Source: `{plans directory}/2026-03-18-topic.md`
 
 3. ...
 
@@ -140,16 +145,16 @@ Wait for user selection.
 
 ### Step 4: Write ADRs
 
-1. Create `meta/decisions/` directory if it doesn't exist
+1. Create the configured decisions directory if it doesn't exist
 
 2. Write each approved ADR to:
-   `meta/decisions/ADR-NNNN-description.md`
+   `{decisions directory}/ADR-NNNN-description.md`
 
 3. Present summary:
    ```
    Created the following ADRs:
-   - `meta/decisions/ADR-0001-description.md` — [title]
-   - `meta/decisions/ADR-0002-description.md` — [title]
+   - `{decisions directory}/ADR-0001-description.md` — [title]
+   - `{decisions directory}/ADR-0002-description.md` — [title]
    - ...
 
    All ADRs are in "proposed" status. Use `/accelerator:review-adr` to

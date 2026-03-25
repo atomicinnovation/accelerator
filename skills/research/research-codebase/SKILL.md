@@ -5,12 +5,17 @@ description: Conduct comprehensive codebase research by spawning parallel
   user needs to deeply understand a codebase area or answer technical questions.
 argument-hint: "[research question]"
 disable-model-invocation: true
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/research/research-codebase/scripts/*)
 ---
 
 # Research Codebase
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
+**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research meta/research`
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
+**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh decisions meta/decisions`
 
 You are tasked with conducting comprehensive research across the codebase to
 answer user questions by spawning parallel sub-agents and synthesising their
@@ -62,7 +67,8 @@ Then wait for the user's research query.
 **For meta directory:**
 
 - Use the **documents-locator** agent to discover what documents exist about the
-  topic
+  topic in the configured research, plans, and decisions directories (shown
+  above)
 - Use the **documents-analyser** agent to extract key insights from specific
   documents (only the most relevant ones)
 
@@ -86,7 +92,7 @@ The key is to use these agents intelligently:
 - IMPORTANT: Wait for ALL sub-agent tasks to complete before proceeding
 - Compile all sub-agent results (both codebase and document findings)
 - Prioritise live codebase findings as primary source of truth
-- Use meta/ findings as supplementary historical context
+- Use document findings as supplementary historical context
 - Connect findings across different components
 - Include specific file paths and line numbers for reference
 - Verify all meta/ paths are correct
@@ -97,7 +103,7 @@ The key is to use these agents intelligently:
 
 - Run the `${CLAUDE_PLUGIN_ROOT}/skills/research/research-codebase/scripts/research-metadata.sh`
   script to generate all relevant metadata
-- Filename: `meta/research/YYYY-MM-DD-ENG-XXXX-description.md`
+- Filename: write to the configured research directory (shown above) using
   - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
     - YYYY-MM-DD is today's date
     - ENG-XXXX is the ticket number (omit if no ticket)
@@ -109,64 +115,10 @@ The key is to use these agents intelligently:
 6. **Generate research document:**
 
 - Use the metadata gathered in step 4
-- Structure the document with YAML frontmatter followed by content:
-  ```markdown
-  ---
-  date: [Current date and time with timezone in ISO format]
-  researcher: [Git author]
-  git_commit: [Current commit hash]
-  branch: [Current branch name]
-  repository: [Repository name]
-  topic: "[User's Question/Topic]"
-  tags: [research, codebase, relevant-component-names]
-  status: complete
-  last_updated: [Current date in YYYY-MM-DD format]
-  last_updated_by: [Researcher name]
-  ---
+- Structure the document with YAML frontmatter followed by content using this
+  template:
 
-  # Research: [User's Question/Topic]
-
-  **Date**: [Current date and time with timezone from step 4]
-  **Researcher**: [Researcher name from thoughts status]
-  **Git Commit**: [Current commit hash from step 4]
-  **Branch**: [Current branch name from step 4]
-  **Repository**: [Repository name]
-
-  ## Research Question
-  [Original user query]
-
-  ## Summary
-  [High-level findings answering the user's question]
-
-  ## Detailed Findings
-
-  ### [Component/Area 1]
-  - Finding with reference ([file.ext:line](link))
-  - Connection to other components
-  - Implementation details
-
-  ### [Component/Area 2]
-  ...
-
-  ## Code References
-  - `path/to/file.py:123` - Description of what's there
-  - `another/file.ts:45-67` - Description of the code block
-
-  ## Architecture Insights
-  [Patterns, conventions, and design decisions discovered]
-
-  ## Historical Context (from thoughts/)
-  [Relevant insights from thoughts/ directory with references]
-  - `thoughts/shared/something.md` - Historical decision about X
-  - `thoughts/local/notes.md` - Past exploration of Y
-  Note: Paths exclude "searchable/" even if found there
-
-  ## Related Research
-  [Links to other research documents in thoughts/shared/research/]
-
-  ## Open Questions
-  [Any areas that need further investigation]
-  ```
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh research`
 
 7. **Add GitHub permalinks (if applicable):**
 
@@ -201,8 +153,8 @@ The key is to use these agents intelligently:
   usage
 - Always run fresh codebase research - never rely solely on existing research
   documents
-- The meta/ directory provides historical context to supplement live
-  findings
+- The configured document directories provide historical context to supplement
+  live findings
 - Focus on finding concrete file paths and line numbers for developer reference
 - Research documents should be self-contained with all necessary context
 - Each sub-agent prompt should be specific and focused on read-only operations
@@ -211,7 +163,7 @@ The key is to use these agents intelligently:
 - Link to GitHub when possible for permanent references
 - Keep the main agent focused on synthesis, not deep file reading
 - Encourage sub-agents to find examples and usage patterns, not just definitions
-- Explore the entire meta/ directory, not just the research subdirectory
+- Explore all configured document directories (research, plans, decisions)
 - **File reading**: Always read mentioned files FULLY (no limit/offset) before
   spawning sub-tasks
 - **Critical ordering**: Follow the numbered steps exactly
