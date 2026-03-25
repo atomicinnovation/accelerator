@@ -115,9 +115,8 @@ detection covers three modes:
 ## Configuration
 
 Accelerator supports project-specific configuration through markdown files with
-YAML frontmatter. Configuration allows you to provide project context that
-skills use when making decisions, with structured settings coming in future
-versions.
+YAML frontmatter. Configuration allows you to provide project context, customise
+agent behaviour, and tune review settings.
 
 ### Config Files
 
@@ -136,13 +135,17 @@ free-form project context:
 
 ```yaml
 ---
-# Structured settings will be added in future versions.
-# For now, the frontmatter section can be left empty or omitted.
+agents:
+  reviewer: my-custom-reviewer
+review:
+  disabled_lenses: [portability, compatibility]
+  max_inline_comments: 15
+  pr_request_changes_severity: major
 ---
 
 ## Project Context
 
-  This is a Ruby on Rails application using PostgreSQL and Redis.
+This is a Ruby on Rails application using PostgreSQL and Redis.
 
 ### Conventions
 - Follow StandardRB for code style
@@ -153,6 +156,10 @@ free-form project context:
 - `bundle exec rspec` to run tests
 - `bin/dev` to start the development server
 ```
+
+The YAML frontmatter supports `agents` (override which agents skills spawn) and
+`review` (customise review behaviour). See `/accelerator:configure help` for the
+full key reference.
 
 ### Getting Started
 
@@ -167,10 +174,12 @@ walks you through gathering project context and writes the config file for you.
 - Config changes take effect on the next skill invocation (no session restart
   needed for skills); the SessionStart summary updates on session restart
 
-### Future Versions
+### Custom Review Lenses
 
-Structured configuration settings for customising agents, review behaviour,
-output paths, and templates will be added in future versions of the plugin.
+You can add custom review lenses alongside the 13 built-in ones. Place them in
+`.claude/accelerator/lenses/` following the `[name]-lens/SKILL.md` convention.
+Custom lenses are auto-discovered and included in the lens catalogue. See
+`/accelerator:configure help` for details and a minimal template.
 
 ## Architecture Decision Records
 

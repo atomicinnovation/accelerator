@@ -76,7 +76,11 @@ for the markdown body — this is the highest-value feature.
    custom agent overrides? (This is an advanced feature — most users can skip
    this.)" If yes, explain the available agents and their roles, then gather
    override mappings.
-5. Write the config file with a markdown body containing the gathered context
+5. Mention that review customisation is also available: "You can also
+   customise review behaviour (lens selection, verdict thresholds, inline
+   comment limits). Run `/accelerator:configure help` for the full key
+   reference — you can add a `review:` section to the frontmatter later."
+6. Write the config file with a markdown body containing the gathered context
    and YAML frontmatter containing any agent overrides (or empty frontmatter
    if none).
 
@@ -134,6 +138,97 @@ Only list agents you want to override. Unlisted agents use their defaults.
 Unrecognised keys produce a warning to stderr and are ignored. Override
 values can be any agent name — the plugin does not validate values since
 the override may reference a user-defined agent outside the plugin.
+
+### review
+
+Customise review behaviour for `/accelerator:review-pr` and
+`/accelerator:review-plan`. Config keys use underscores (e.g.,
+`max_inline_comments`). Lens names within array values use their original
+hyphenated form (e.g., `code-quality`, `test-coverage`):
+
+Shared settings (apply to both `review-pr` and `review-plan`):
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `min_lenses` | `4` | Minimum lenses to run |
+| `max_lenses` | `8` | Maximum lenses to run |
+| `core_lenses` | `[architecture, code-quality, test-coverage, correctness]` | Lenses considered "core four" |
+| `disabled_lenses` | `[]` | Lenses to never use |
+
+PR review only (`review-pr`):
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `max_inline_comments` | `10` | Max inline comments |
+| `dedup_proximity` | `3` | Line proximity for merging findings |
+| `pr_request_changes_severity` | `critical` | Min severity for REQUEST_CHANGES (`critical`, `major`, or `none`) |
+
+Plan review only (`review-plan`):
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `plan_revise_severity` | `critical` | Min severity for REVISE (`critical`, `major`, or `none`) |
+| `plan_revise_major_count` | `3` | Major findings count to trigger REVISE |
+
+Example configuration:
+
+\```yaml
+---
+review:
+  min_lenses: 3
+  max_lenses: 10
+  core_lenses: [architecture, security, test-coverage, correctness]
+  disabled_lenses: [portability, compatibility]
+  max_inline_comments: 15
+  dedup_proximity: 5
+  pr_request_changes_severity: major
+  plan_revise_severity: critical
+  plan_revise_major_count: 2
+---
+\```
+
+Note: YAML comments (`#`) are not supported by the config parser. Do not
+add inline comments to config values.
+
+#### Custom Lenses
+
+Create custom review lenses in `.claude/accelerator/lenses/`:
+
+\```
+.claude/accelerator/lenses/
+  compliance-lens/
+    SKILL.md           # Follow the same structure as built-in lenses
+  accessibility-lens/
+    SKILL.md
+\```
+
+Custom lenses are auto-discovered and added to the available lens catalogue.
+They must have YAML frontmatter with a `name` field and follow the same
+SKILL.md structure as built-in lenses. Custom lenses that provide an
+`auto_detect` field participate in auto-detect selection like built-in
+lenses. Those without `auto_detect` are always included. Minimal template:
+
+\```markdown
+---
+name: compliance
+description: Evaluates regulatory and policy compliance
+auto_detect: Relevant when changes touch regulatory, compliance, or policy-related code
+---
+
+# Compliance Lens
+
+## Core Responsibilities
+- [What this lens evaluates]
+
+## Key Questions
+1. [Questions the reviewer should ask through this lens]
+
+## Boundary
+- [What is NOT in scope for this lens]
+\```
+
+See any lens in the plugin's `skills/review/lenses/` directory for full
+examples of the expected structure.
 
 ### Project Context
 

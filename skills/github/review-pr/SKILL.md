@@ -11,6 +11,7 @@ disable-model-invocation: true
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh pr`
 
 You are tasked with reviewing a pull request through multiple quality lenses
 and then presenting a compiled analysis of the code changes.
@@ -166,25 +167,37 @@ Take time to think carefully about which lenses apply based on:
   infrastructure changes, feature flags, or critical system components.
   Skip for read-only features, documentation, or UI-only changes.
 
-**Lens selection cap:** With 13 available lenses, running all of them for
-every review would be wasteful. Select the **6 to 8 most relevant lenses**
-for the change under review. Apply these prioritisation rules:
+**Lens selection cap:** Select the most relevant lenses for the change under
+review. If review configuration is provided above, use the configured
+`min_lenses` and `max_lenses` values. Otherwise, use the defaults: **6 to 8**
+lenses. Apply these prioritisation rules:
 
-1. **Always consider the core four**: Architecture, Code Quality, Test
-   Coverage, and Correctness are relevant for most non-trivial changes.
-   Include them unless the change is clearly outside their scope (e.g.,
-   documentation-only).
-2. **Add domain-specific lenses based on the change**: Use the auto-detect
-   criteria above to identify which of the remaining lenses are relevant.
-3. **If more than 8 lenses pass auto-detect**, rank by relevance to the
-   specific change and drop the least relevant until you reach 6-8. Prefer
-   lenses whose core responsibilities directly overlap with the change's
-   primary concerns.
-4. **If the user provided focus arguments**, prioritise the requested lenses
-   and fill remaining slots (up to 8) with the most relevant auto-detected
-   lenses.
-5. **Never run fewer than 4 lenses** unless the change is trivially scoped
-   (e.g., a typo fix).
+Apply this lens selection pipeline in order:
+
+1. **Start with all available lenses**: the 13 built-in lenses plus any
+   custom lenses listed in the review configuration above.
+2. **Remove disabled lenses**: if review configuration specifies
+   `disabled_lenses`, remove those from the available set. They are never
+   selected regardless of auto-detect criteria.
+3. **Mark core lenses**: if review configuration specifies `core_lenses`,
+   use that list. Otherwise, the core lenses are Architecture, Code Quality,
+   Test Coverage, and Correctness. Core lenses are included unless the change
+   is clearly outside their scope.
+4. **Auto-detect remaining lenses**: use the criteria below (for built-in
+   lenses) and the auto-detect criteria from review configuration (for custom
+   lenses) to identify which non-core lenses are relevant to the change.
+   Custom lenses that provide auto-detect criteria participate in selection
+   like any other non-core lens. Custom lenses without auto-detect criteria
+   (marked "always include" in the configuration) are always selected. Custom
+   lenses use absolute paths instead of the `${CLAUDE_PLUGIN_ROOT}` lens
+   path template.
+5. **Apply focus arguments**: if the user provided focus areas, prioritise
+   the corresponding lenses and fill remaining slots with auto-detected ones.
+6. **Cap at `max_lenses`**: if more lenses than the configured maximum pass
+   selection, rank by relevance and drop the least relevant. Prefer lenses
+   whose core responsibilities directly overlap with the change's concerns.
+7. **Enforce `min_lenses` floor**: never run fewer than `min_lenses` unless
+   the change is trivially scoped.
 
 When presenting the lens selection, clearly indicate which lenses are
 selected and which are skipped, with a brief reason for each skip.
@@ -247,7 +260,9 @@ PR number: [number]
 
 ## Lens
 
-Read the lens skill at: ${CLAUDE_PLUGIN_ROOT}/skills/review/lenses/[lens]-lens/SKILL.md
+Read the lens skill at the path listed in the Lens Catalogue table in the
+review configuration above. If no review configuration is present, use:
+${CLAUDE_PLUGIN_ROOT}/skills/review/lenses/[lens]-lens/SKILL.md
 
 ## Output Format
 
@@ -308,7 +323,7 @@ Once all reviews are complete:
 
 4. **Deduplicate inline comments**: Where multiple agents flag the same file,
    same side, and overlapping or adjacent line range (same path, lines within
-   3 of each other), consider merging — but only when the findings address the
+   the configured `dedup_proximity` — default: 3 — of each other), consider merging — but only when the findings address the
    same underlying concern from different lens perspectives. Spatial proximity
    alone is not sufficient; the findings must be semantically related.
 
@@ -326,14 +341,20 @@ Once all reviews are complete:
    - Sort by severity: critical > major > minor > suggestion
    - Within the same severity, sort by confidence: high > medium > low
    - Always include all critical findings, even if that exceeds 10
-   - Select up to 10 comments total for inline posting (more if all critical
-     findings push beyond 10)
+   - Select up to the configured `max_inline_comments` (default: 10) comments
+     total for inline posting (more if all critical findings push beyond the cap)
    - Move any remaining comments to the summary body as an "Additional
      Findings" list (title + file:line only)
 
 6. **Determine suggested verdict**:
-   - If any `"critical"` severity findings exist → suggest `REQUEST_CHANGES`
-   - If only `"major"` or lower → suggest `COMMENT`
+
+   If review configuration provides verdict overrides above, apply those
+   thresholds instead of the defaults below:
+   - If `pr_request_changes_severity` is `none`, skip this rule (never
+     suggest REQUEST_CHANGES based on severity)
+   - If any findings at or above the configured `pr_request_changes_severity`
+     (default: `critical`) exist → suggest `REQUEST_CHANGES`
+   - If only findings below that threshold → suggest `COMMENT`
    - If no findings at all (only strengths) → suggest `APPROVE`
 
 7. **Identify cross-cutting themes**: Look for findings that appear across
@@ -586,9 +607,10 @@ stale commit):
    line references, identify the problematic comments and offer to retry
    without them rather than failing entirely
 
-9. **Cap inline comments at 10** — if agents produce more findings, prioritise
-   critical and major severity. Always include all critical findings even if
-   that exceeds 10. Move overflow to the summary body. This prevents PR comment
+9. **Cap inline comments** — if agents produce more findings, prioritise
+   critical and major severity. Use the configured max (default: 10). Always
+   include all critical findings even if that exceeds the cap. Move overflow
+   to the summary body. This prevents PR comment
    spam.
 
 10. **Keep positive feedback in the summary** — strengths and good observations
@@ -607,8 +629,9 @@ stale commit):
   meta/reviews/prs/ so the full analysis is available to the team
 - Don't post inline comments for positive feedback — strengths go in the
   summary only
-- Don't post more than ~10 inline comments — prioritise by severity (always
-  include all critical findings even if that exceeds 10)
+- Don't post more than the configured `max_inline_comments` (default: ~10)
+  inline comments — prioritise by severity (always include all critical
+  findings even if that exceeds the cap)
 - Don't post generic or vague inline comments — each must be specific and
   actionable
 - Don't skip the preview step — always show the user what will be posted

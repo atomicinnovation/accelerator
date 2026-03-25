@@ -61,6 +61,25 @@ config_extract_body() {
 
 # Trim leading and trailing blank lines from stdin.
 # Centralised to avoid duplicating fragile sed idioms.
+# Parse a YAML-style inline array string into one element per line.
+# Input: "[a, b, c]" (as returned by config-read-value.sh)
+# Output: one element per line, whitespace-trimmed
+# Empty input or "[]" produces no output.
+config_parse_array() {
+  local raw="$1"
+  # Strip brackets
+  raw="${raw#\[}"
+  raw="${raw%\]}"
+  # Empty after stripping → nothing to output
+  [ -z "$raw" ] && return 0
+  # Split on commas and trim whitespace
+  echo "$raw" | tr ',' '\n' | while IFS= read -r item; do
+    # Trim leading/trailing whitespace
+    item=$(echo "$item" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    [ -n "$item" ] && echo "$item"
+  done
+}
+
 config_trim_body() {
   awk '
     NF { found = 1 }

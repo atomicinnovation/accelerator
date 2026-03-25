@@ -356,9 +356,9 @@ Implementation notes:
 
 #### Automated Verification:
 
-- [ ] `scripts/config-read-review.sh` exists and is executable
-- [ ] `scripts/config-dump.sh` exists and is executable
-- [ ] `bash scripts/test-config.sh` passes all tests
+- [x] `scripts/config-read-review.sh` exists and is executable
+- [x] `scripts/config-dump.sh` exists and is executable
+- [x] `bash scripts/test-config.sh` passes all tests
 
 ---
 
@@ -515,8 +515,8 @@ ${CLAUDE_PLUGIN_ROOT}/skills/review/lenses/[lens]-lens/SKILL.md
 
 #### Automated Verification:
 
-- [ ] `grep -c 'config-read-review.sh' skills/github/review-pr/SKILL.md` returns 1
-- [ ] Skill file contains references to configured values instead of only
+- [x] `grep -c 'config-read-review.sh' skills/github/review-pr/SKILL.md` returns 1
+- [x] Skill file contains references to configured values instead of only
   hardcoded numbers
 
 #### Manual Verification:
@@ -636,9 +636,9 @@ In `plan` mode:
 
 #### Automated Verification:
 
-- [ ] `grep -c 'config-read-review.sh' skills/planning/review-plan/SKILL.md`
+- [x] `grep -c 'config-read-review.sh' skills/planning/review-plan/SKILL.md`
   returns 1
-- [ ] Both orchestrator skills reference configurable values for lens selection,
+- [x] Both orchestrator skills reference configurable values for lens selection,
   verdict thresholds, and numeric limits
 
 #### Manual Verification:
@@ -766,8 +766,8 @@ configuration details.
 
 #### Manual Verification:
 
-- [ ] `/accelerator:configure help` shows review configuration options
-- [ ] README documents review configuration
+- [x] `/accelerator:configure help` shows review configuration options
+- [x] README documents review configuration
 
 ---
 

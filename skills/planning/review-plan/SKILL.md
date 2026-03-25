@@ -11,6 +11,7 @@ disable-model-invocation: true
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh plan`
 
 You are tasked with reviewing an implementation plan through multiple quality
 lenses and then collaboratively iterating the plan based on findings.
@@ -142,25 +143,37 @@ Take time to think carefully about which lenses apply based on:
   logic, deployment changes, automated processes, or changes to critical
   system paths.
 
-**Lens selection cap:** With 13 available lenses, running all of them for
-every review would be wasteful. Select the **6 to 8 most relevant lenses**
-for the change under review. Apply these prioritisation rules:
+**Lens selection cap:** Select the most relevant lenses for the change under
+review. If review configuration is provided above, use the configured
+`min_lenses` and `max_lenses` values. Otherwise, use the defaults: **6 to 8**
+lenses. Apply these prioritisation rules:
 
-1. **Always consider the core four**: Architecture, Code Quality, Test
-   Coverage, and Correctness are relevant for most non-trivial changes.
-   Include them unless the change is clearly outside their scope (e.g.,
-   documentation-only).
-2. **Add domain-specific lenses based on the change**: Use the auto-detect
-   criteria above to identify which of the remaining lenses are relevant.
-3. **If more than 8 lenses pass auto-detect**, rank by relevance to the
-   specific change and drop the least relevant until you reach 6-8. Prefer
-   lenses whose core responsibilities directly overlap with the change's
-   primary concerns.
-4. **If the user provided focus arguments**, prioritise the requested lenses
-   and fill remaining slots (up to 8) with the most relevant auto-detected
-   lenses.
-5. **Never run fewer than 4 lenses** unless the change is trivially scoped
-   (e.g., a typo fix).
+Apply this lens selection pipeline in order:
+
+1. **Start with all available lenses**: the 13 built-in lenses plus any
+   custom lenses listed in the review configuration above.
+2. **Remove disabled lenses**: if review configuration specifies
+   `disabled_lenses`, remove those from the available set. They are never
+   selected regardless of auto-detect criteria.
+3. **Mark core lenses**: if review configuration specifies `core_lenses`,
+   use that list. Otherwise, the core lenses are Architecture, Code Quality,
+   Test Coverage, and Correctness. Core lenses are included unless the change
+   is clearly outside their scope.
+4. **Auto-detect remaining lenses**: use the criteria below (for built-in
+   lenses) and the auto-detect criteria from review configuration (for custom
+   lenses) to identify which non-core lenses are relevant to the change.
+   Custom lenses that provide auto-detect criteria participate in selection
+   like any other non-core lens. Custom lenses without auto-detect criteria
+   (marked "always include" in the configuration) are always selected. Custom
+   lenses use absolute paths instead of the `${CLAUDE_PLUGIN_ROOT}` lens
+   path template.
+5. **Apply focus arguments**: if the user provided focus areas, prioritise
+   the corresponding lenses and fill remaining slots with auto-detected ones.
+6. **Cap at `max_lenses`**: if more lenses than the configured maximum pass
+   selection, rank by relevance and drop the least relevant. Prefer lenses
+   whose core responsibilities directly overlap with the change's concerns.
+7. **Enforce `min_lenses` floor**: never run fewer than `min_lenses` unless
+   the change is trivially scoped.
 
 When presenting the lens selection, clearly indicate which lenses are
 selected and which are skipped, with a brief reason for each skip.
@@ -216,7 +229,9 @@ Also read any files the plan references for additional context.
 
 ## Lens
 
-Read the lens skill at: ${CLAUDE_PLUGIN_ROOT}/skills/review/lenses/[lens]-lens/SKILL.md
+Read the lens skill at the path listed in the Lens Catalogue table in the
+review configuration above. If no review configuration is present, use:
+${CLAUDE_PLUGIN_ROOT}/skills/review/lenses/[lens]-lens/SKILL.md
 
 ## Output Format
 
@@ -282,9 +297,17 @@ Once all reviews are complete:
    - Within the same severity, sort by confidence: high > medium > low
 
 5. **Determine suggested verdict**:
-   - If any `"critical"` severity findings exist → suggest `REVISE`
-   - If 3 or more `"major"` severity findings exist → suggest `REVISE`
-   - If 1-2 `"major"` findings or only minor/suggestion → suggest `COMMENT`
+
+   If review configuration provides verdict overrides above, apply those
+   thresholds instead of the defaults below:
+   - If `plan_revise_severity` is `none`, skip the severity-based REVISE
+     rule (major count rule still applies independently)
+   - If any findings at or above `plan_revise_severity` (default: `critical`)
+     exist → suggest `REVISE`
+   - If `plan_revise_major_count` or more `"major"` findings exist (default: 3)
+     → suggest `REVISE`
+   - If fewer major findings than the threshold, or only minor/suggestion
+     → suggest `COMMENT`
    - If no findings at all (only strengths) → suggest `APPROVE`
 
    Verdict meanings:
