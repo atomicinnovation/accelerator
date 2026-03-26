@@ -592,6 +592,12 @@ stale commit):
     go in the review body, never as inline comments. Inline comments are
     exclusively for actionable findings.
 
+11. **Use emoji severity prefixes consistently** — 🔴 critical, 🟡 major,
+    🔵 minor/suggestion, ✅ strengths. **IMPORTANT**: Use the actual Unicode
+    emoji characters (🔴 🟡 🔵 ✅), NOT text shortcodes like `:red_circle:`,
+    `:yellow_circle:`, `:blue_circle:`, or `:white_check_mark:`. Shortcodes
+    are not rendered in markdown and will appear as literal text.
+
 ## What NOT to Do
 
 - Don't skip writing the review artifact — always persist to

@@ -59,10 +59,15 @@ after the JSON block — the orchestrator will parse this output directly.
 
 ## Severity Emoji Prefixes
 
-Use these at the start of each finding `body`:
+Use these **actual Unicode emoji characters** at the start of each finding `body`:
 - `🔴` for `"critical"` severity
 - `🟡` for `"major"` severity
 - `🔵` for `"minor"` and `"suggestion"` severity
+
+**IMPORTANT**: Use the actual Unicode emoji characters shown above (🔴 🟡 🔵), NOT
+text shortcodes like `:red_circle:`, `:yellow_circle:`, or `:blue_circle:`. The
+output is rendered as markdown, not Slack/Discord, so shortcodes will appear as
+literal text.
 
 ## Finding Body Format
 

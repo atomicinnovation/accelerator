@@ -565,7 +565,10 @@ If the user declines or the re-review shows all clear, the review is complete.
     actionable concerns.
 
 11. **Use emoji severity prefixes consistently** — 🔴 critical, 🟡 major,
-    🔵 minor/suggestion, ✅ strengths
+    🔵 minor/suggestion, ✅ strengths. **IMPORTANT**: Use the actual Unicode
+    emoji characters (🔴 🟡 🔵 ✅), NOT text shortcodes like `:red_circle:`,
+    `:yellow_circle:`, `:blue_circle:`, or `:white_check_mark:`. Shortcodes
+    are not rendered in markdown and will appear as literal text.
 
 ## What NOT to Do
 
