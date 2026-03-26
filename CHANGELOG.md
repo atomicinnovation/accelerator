@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+## 1.6.0 — 2026-03-27
+
+### Added
+
+- **Userspace configuration**: New `configure` skill and configuration
+  infrastructure allowing per-project and per-user customisation via
+  `.claude/accelerator.md` (team-shared) and `.claude/accelerator.local.md`
+  (personal overrides) files using YAML frontmatter and markdown body
+  - `agents:` section to override which agents skills spawn as sub-agents
+    (e.g., swap in a custom reviewer or locator)
+  - `review:` section to customise review behaviour — lens selection
+    (`min_lenses`, `max_lenses`, `core_lenses`, `disabled_lenses`), verdict
+    thresholds (`pr_request_changes_severity`, `plan_revise_severity`,
+    `plan_revise_major_count`), and inline comment limits
+  - `paths:` section to override where skills write output documents (plans,
+    research, decisions, PRs, validations, reviews, templates, tickets, notes)
+  - `templates:` section to override document templates (plan, ADR, research,
+    validation) with custom formats from a configurable templates directory
+  - Custom review lenses via `.claude/accelerator/lenses/` with auto-discovery
+  - Project context injected into all skills from the markdown body
+  - `/accelerator:configure` skill with `view`, `create`, and `help` actions
+  - Config preprocessing via shell scripts and a SessionStart hook, working
+    around plugin permission limitations
+- **Default document templates**: Extractable templates for plans, ADRs,
+  research documents, and validation reports in `templates/` directory, used as
+  defaults when no user override is provided
+
+### Fixed
+
+- Emoji rendering issues in review output format skills
+
 ## 1.5.0 — 2026-03-23
 
 ### Added
