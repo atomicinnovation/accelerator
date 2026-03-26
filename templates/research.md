@@ -42,14 +42,13 @@ last_updated_by: [Researcher name]
 ## Architecture Insights
 [Patterns, conventions, and design decisions discovered]
 
-## Historical Context (from thoughts/)
-[Relevant insights from thoughts/ directory with references]
-- `thoughts/shared/something.md` - Historical decision about X
-- `thoughts/local/notes.md` - Past exploration of Y
-Note: Paths exclude "searchable/" even if found there
+## Historical Context
+[Relevant insights from research, plans, and decisions directories]
+- `meta/decisions/some-decision.md` - Historical decision about X
+- `meta/research/past-exploration.md` - Past exploration of Y
 
 ## Related Research
-[Links to other research documents in thoughts/shared/research/]
+[Links to other research documents in the research directory]
 
 ## Open Questions
 [Any areas that need further investigation]
