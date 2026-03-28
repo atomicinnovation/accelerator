@@ -200,11 +200,11 @@ research-codebase → create-plan → implement-plan
   review-adr → accepted ADRs inform future research & planning
 ```
 
-| Skill            | Usage                                                   | Description                                                |
-|------------------|---------------------------------------------------------|------------------------------------------------------------|
-| **create-adr**   | `/accelerator:create-adr [topic]`                       | Interactively create an ADR with context gathering         |
-| **extract-adrs** | `/accelerator:extract-adrs [@meta/doc.md ...]`          | Extract decisions from existing meta documents into ADRs   |
-| **review-adr**   | `/accelerator:review-adr [@meta/decisions/ADR-NNNN.md]` | Review proposed ADRs; accept, reject, or suggest revisions |
+| Skill            | Usage                                                  | Description                                                |
+|------------------|--------------------------------------------------------|------------------------------------------------------------|
+| **create-adr**   | `/accelerator:create-adr [topic]`                      | Interactively create an ADR with context gathering         |
+| **extract-adrs** | `/accelerator:extract-adrs [doc paths...]`             | Extract decisions from existing meta documents into ADRs   |
+| **review-adr**   | `/accelerator:review-adr [path to ADR]`                | Review proposed ADRs; accept, reject, or suggest revisions |
 
 ADRs follow an append-only lifecycle: once accepted, an ADR's content becomes
 immutable. To revise a decision, create a new ADR that supersedes the original.
@@ -217,7 +217,7 @@ and team workflows around pull requests:
 | Skill             | Usage                            | Description                                                              |
 |-------------------|----------------------------------|--------------------------------------------------------------------------|
 | **commit**        | `/accelerator:commit`            | Create well-structured, atomic commits (works with both git and jujutsu) |
-| **describe-pr**   | `/accelerator:describe-pr 123`   | Generate comprehensive PR descriptions following repo templates          |
+| **describe-pr**   | `/accelerator:describe-pr 123`   | Generate comprehensive PR descriptions from a configurable template      |
 | **review-pr**     | `/accelerator:review-pr 123`     | Review a PR through multiple quality lenses with inline comments         |
 | **respond-to-pr** | `/accelerator:respond-to-pr 123` | Address PR review feedback interactively with code changes               |
 
@@ -227,15 +227,21 @@ The `review-pr` and `review-plan` skills use a multi-lens review system. Each
 lens is a specialised subagent that evaluates changes through a specific quality
 perspective:
 
-| Lens              | Focus                                                                |
-|-------------------|----------------------------------------------------------------------|
-| **Architecture**  | Modularity, coupling, dependency direction, structural drift         |
-| **Code Quality**  | Complexity, design principles, error handling, code smells           |
-| **Performance**   | Algorithmic efficiency, resource usage, concurrency, caching         |
-| **Security**      | OWASP Top 10, input validation, auth/authz, secrets, data flows      |
-| **Standards**     | Project conventions, API standards, naming, documentation            |
-| **Test Coverage** | Coverage adequacy, assertion quality, test pyramid, anti-patterns    |
-| **Usability**     | Developer experience, API ergonomics, configuration, migration paths |
+| Lens               | Focus                                                                |
+|--------------------|----------------------------------------------------------------------|
+| **Architecture**   | Modularity, coupling, dependency direction, structural drift         |
+| **Code Quality**   | Complexity, design principles, error handling, code smells           |
+| **Compatibility**  | API contracts, cross-platform, protocol compliance, deps             |
+| **Correctness**    | Logical validity, boundary conditions, state management, concurrency |
+| **Database**       | Migration safety, schema design, query correctness, integrity        |
+| **Documentation**  | Documentation completeness, accuracy, audience fit                   |
+| **Performance**    | Algorithmic efficiency, resource usage, concurrency, caching         |
+| **Portability**    | Environment independence, deployment flexibility, vendor lock        |
+| **Safety**         | Data loss prevention, operational safety, protective mechanisms      |
+| **Security**       | OWASP Top 10, input validation, auth/authz, secrets, data flows     |
+| **Standards**      | Project conventions, API standards, naming, accessibility            |
+| **Test Coverage**  | Coverage adequacy, assertion quality, test pyramid, anti-patterns    |
+| **Usability**      | Developer experience, API ergonomics, configuration, migration paths |
 
 Lenses are automatically selected based on scope, or you can specify focus
 areas:
@@ -255,7 +261,7 @@ focused summary to the parent:
 | **codebase-locator**        | Finds files and components by description              | Grep, Glob, LS                            |
 | **codebase-analyser**       | Analyses implementation details of specific components | Read, Grep, Glob, LS                      |
 | **codebase-pattern-finder** | Finds similar implementations and usage examples       | Read, Grep, Glob, LS                      |
-| **documents-locator**       | Discovers relevant documents in `meta/`                | Grep, Glob, LS                            |
+| **documents-locator**       | Discovers relevant documents in configured directories | Grep, Glob, LS                            |
 | **documents-analyser**      | Extracts insights from meta documents                  | Read, Grep, Glob, LS                      |
 | **reviewer**                | Evaluates code/plans through a specific quality lens   | Read, Grep, Glob, LS                      |
 | **web-search-researcher**   | Researches external documentation and resources        | WebSearch, WebFetch, Read, Grep, Glob, LS |
