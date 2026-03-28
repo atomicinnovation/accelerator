@@ -74,6 +74,63 @@ if [ "$HAS_CONTEXT" = true ]; then
 - Project context: provided (will be injected into skills)"
 fi
 
+# Check for per-skill customisations
+SKILL_CUSTOM_DIR="$ROOT/.claude/accelerator/skills"
+SKILL_CUSTOMISATIONS=""
+
+# Derive known skill names dynamically from plugin skill directories
+# (excludes configure, which is not customisable via this mechanism)
+PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+KNOWN_SKILLS=""
+for skill_md in "$PLUGIN_ROOT"/skills/*/SKILL.md "$PLUGIN_ROOT"/skills/*/*/SKILL.md; do
+  [ -f "$skill_md" ] || continue
+  sname=$(awk '/^name:/{print $2; exit}' "$skill_md")
+  [ "$sname" = "configure" ] && continue
+  [ -n "$sname" ] && KNOWN_SKILLS="$KNOWN_SKILLS $sname"
+done
+KNOWN_SKILLS="${KNOWN_SKILLS# }"
+
+if [ -d "$SKILL_CUSTOM_DIR" ]; then
+  for skill_dir in "$SKILL_CUSTOM_DIR"/*/; do
+    [ -d "$skill_dir" ] || continue
+    skill_name=$(basename "$skill_dir")
+
+    # Warn about unrecognised skill names
+    case " $KNOWN_SKILLS " in
+      *" $skill_name "*) ;;
+      *) echo "Warning: .claude/accelerator/skills/$skill_name/ does not match any known skill name. Valid names: $KNOWN_SKILLS" >&2 ;;
+    esac
+
+    # Check for non-empty content (matching reader script behaviour)
+    has_context=false
+    has_instructions=false
+    if [ -f "$skill_dir/context.md" ]; then
+      trimmed=$(config_trim_body < "$skill_dir/context.md")
+      [ -n "$trimmed" ] && has_context=true
+    fi
+    if [ -f "$skill_dir/instructions.md" ]; then
+      trimmed=$(config_trim_body < "$skill_dir/instructions.md")
+      [ -n "$trimmed" ] && has_instructions=true
+    fi
+
+    if [ "$has_context" = true ] || [ "$has_instructions" = true ]; then
+      types=""
+      [ "$has_context" = true ] && types="context"
+      if [ "$has_instructions" = true ]; then
+        [ -n "$types" ] && types="$types + "
+        types="${types}instructions"
+      fi
+      SKILL_CUSTOMISATIONS="$SKILL_CUSTOMISATIONS
+    - $skill_name ($types)"
+    fi
+  done
+fi
+
+if [ -n "$SKILL_CUSTOMISATIONS" ]; then
+  SUMMARY="$SUMMARY
+- Per-skill customisations:$SKILL_CUSTOMISATIONS"
+fi
+
 SUMMARY="$SUMMARY
 
 Skills will read this configuration at invocation time. To view or edit configuration, use /accelerator:configure."
