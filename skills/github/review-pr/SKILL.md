@@ -177,8 +177,8 @@ Take time to think carefully about which lenses apply based on:
 
 **Lens selection cap:** Select the most relevant lenses for the change under
 review. If review configuration is provided above, use the configured
-`min_lenses` and `max_lenses` values. Otherwise, use the defaults: **6 to 8**
-lenses. Apply these prioritisation rules:
+`min_lenses` and `max_lenses` values. Otherwise, use the defaults: 
+**{min lenses} to {max lenses}** lenses. Apply these prioritisation rules:
 
 Apply this lens selection pipeline in order:
 
@@ -331,9 +331,10 @@ Once all reviews are complete:
 
 4. **Deduplicate inline comments**: Where multiple agents flag the same file,
    same side, and overlapping or adjacent line range (same path, lines within
-   the configured `dedup_proximity` — default: 3 — of each other), consider merging — but only when the findings address the
-   same underlying concern from different lens perspectives. Spatial proximity
-   alone is not sufficient; the findings must be semantically related.
+   the configured dedup proximity ({dedup proximity}) of each other), consider 
+   merging — but only when the findings address the same underlying concern 
+   from different lens perspectives. Spatial proximity alone is not sufficient; 
+   the findings must be semantically related.
 
    When merging:
    - Combine the bodies, attributing each part to its lens
@@ -348,9 +349,11 @@ Once all reviews are complete:
 5. **Prioritise and cap inline comments**:
    - Sort by severity: critical > major > minor > suggestion
    - Within the same severity, sort by confidence: high > medium > low
-   - Always include all critical findings, even if that exceeds 10
-   - Select up to the configured `max_inline_comments` (default: 10) comments
-     total for inline posting (more if all critical findings push beyond the cap)
+   - Always include all critical findings, even if that exceeds 
+     {max inline comments}
+   - Select up to the configured max inline comments ({max inline comments}) 
+     comments total for inline posting (more if all critical findings push 
+     beyond the cap)
    - Move any remaining comments to the summary body as an "Additional
      Findings" list (title + file:line only)
 
@@ -399,7 +402,8 @@ Once all reviews are complete:
    - [emoji] **[Lens]**: [General findings from all agents, sorted by severity]
 
    ### Additional Findings
-   [Only if more than 10 inline comments were produced and some were deferred]
+   [Only if more than {max inline comments} inline comments were produced and 
+   some were deferred]
    - [emoji] `file:line` — [title] ([lens])
 
    ---
@@ -472,8 +476,8 @@ Once all reviews are complete:
     ```
 
     This review artifact captures the complete analysis. The GitHub review
-    (posted in Step 6) may be a curated subset (capped at ~10 inline
-    comments), but the persistent artifact retains everything.
+    (posted in Step 6) may be a curated subset (capped at ~{max inline comments}
+    inline comments), but the persistent artifact retains everything.
 
 ### Step 5: Present the Review
 
@@ -500,7 +504,7 @@ can see exactly what will be posted.
 - Line [N]: [emoji] **[Lens]** — [title]
   > [First 1-2 sentences of body as preview]
 
-[If comments were deferred due to the ~10 cap:]
+[If comments were deferred due to the ~{max inline comments} cap:]
 ### Deferred to summary ([count] findings)
 - [emoji] [Lens]: [title] — `file:line`
 ```
@@ -616,10 +620,9 @@ stale commit):
    without them rather than failing entirely
 
 9. **Cap inline comments** — if agents produce more findings, prioritise
-   critical and major severity. Use the configured max (default: 10). Always
-   include all critical findings even if that exceeds the cap. Move overflow
-   to the summary body. This prevents PR comment
-   spam.
+   critical and major severity. Use the configured max ({max inline comments}).
+   Always include all critical findings even if that exceeds the cap. Move 
+   overflow to the summary body. This prevents PR comment spam.
 
 10. **Keep positive feedback in the summary** — strengths and good observations
     go in the review body, never as inline comments. Inline comments are
@@ -637,9 +640,9 @@ stale commit):
   {pr reviews directory}/ so the full analysis is available to the team
 - Don't post inline comments for positive feedback — strengths go in the
   summary only
-- Don't post more than the configured `max_inline_comments` (default: ~10)
-  inline comments — prioritise by severity (always include all critical
-  findings even if that exceeds the cap)
+- Don't post more than the configured max inline comments 
+  ({max inline comments}) inline comments — prioritise by severity (always 
+  include all critical findings even if that exceeds the cap)
 - Don't post generic or vague inline comments — each must be specific and
   actionable
 - Don't skip the preview step — always show the user what will be posted

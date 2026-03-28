@@ -253,50 +253,36 @@ if [ "$available_count" -lt "$min_lenses" ]; then
   echo "Warning: Only $available_count lenses available after disabling, but min_lenses is $min_lenses" >&2
 fi
 
-# --- Determine if there's anything to output ---
-has_config=false
-has_custom_lenses=false
-
-[ ${#custom_lens_names[@]} -gt 0 ] && has_custom_lenses=true
-
-# Check if any review config values differ from defaults
-if [ "$max_inline_comments" != "$DEFAULT_MAX_INLINE_COMMENTS" ] || \
-   [ "$dedup_proximity" != "$DEFAULT_DEDUP_PROXIMITY" ] || \
-   [ "$pr_request_changes_severity" != "$DEFAULT_PR_REQUEST_CHANGES_SEVERITY" ] || \
-   [ "$plan_revise_severity" != "$DEFAULT_PLAN_REVISE_SEVERITY" ] || \
-   [ "$plan_revise_major_count" != "$DEFAULT_PLAN_REVISE_MAJOR_COUNT" ] || \
-   [ "$min_lenses" != "$DEFAULT_MIN_LENSES" ] || \
-   [ "$max_lenses" != "$DEFAULT_MAX_LENSES" ] || \
-   [ ${#core_lenses[@]} -gt 0 ] || \
-   [ ${#disabled_lenses[@]} -gt 0 ]; then
-  has_config=true
-fi
-
-if [ "$has_config" = false ] && [ "$has_custom_lenses" = false ]; then
-  exit 0
-fi
+# --- Helper: emit a labeled value, annotating overrides ---
+_emit_value() {
+  local label="$1" value="$2" default="$3"
+  if [ "$value" != "$default" ]; then
+    echo "- **${label}**: ${value} (default: ${default})"
+  else
+    echo "- **${label}**: ${value}"
+  fi
+}
 
 # --- Generate output ---
 echo "## Review Configuration"
 echo ""
-echo "The following review settings are configured for this project. These override"
-echo "the defaults specified later in this skill:"
-echo ""
 
-# Output only changed values
-if [ "$min_lenses" != "$DEFAULT_MIN_LENSES" ] || [ "$max_lenses" != "$DEFAULT_MAX_LENSES" ]; then
-  echo "- **Lens count range**: $min_lenses to $max_lenses (default: $DEFAULT_MIN_LENSES to $DEFAULT_MAX_LENSES)"
-fi
-
+# Always output labeled variable definitions for all numeric/threshold values
 if [ "$MODE" = "pr" ]; then
-  if [ "$max_inline_comments" != "$DEFAULT_MAX_INLINE_COMMENTS" ]; then
-    echo "- **Max inline comments**: $max_inline_comments (default: $DEFAULT_MAX_INLINE_COMMENTS)"
-  fi
-  if [ "$dedup_proximity" != "$DEFAULT_DEDUP_PROXIMITY" ]; then
-    echo "- **Dedup proximity**: $dedup_proximity lines (default: $DEFAULT_DEDUP_PROXIMITY)"
-  fi
+  _emit_value "max inline comments" "$max_inline_comments" "$DEFAULT_MAX_INLINE_COMMENTS"
+  _emit_value "dedup proximity" "$dedup_proximity" "$DEFAULT_DEDUP_PROXIMITY"
+  _emit_value "pr request changes severity" "$pr_request_changes_severity" "$DEFAULT_PR_REQUEST_CHANGES_SEVERITY"
 fi
 
+if [ "$MODE" = "plan" ]; then
+  _emit_value "plan revise severity" "$plan_revise_severity" "$DEFAULT_PLAN_REVISE_SEVERITY"
+  _emit_value "plan revise major count" "$plan_revise_major_count" "$DEFAULT_PLAN_REVISE_MAJOR_COUNT"
+fi
+
+_emit_value "min lenses" "$min_lenses" "$DEFAULT_MIN_LENSES"
+_emit_value "max lenses" "$max_lenses" "$DEFAULT_MAX_LENSES"
+
+# Conditional blocks: only shown when overridden (informational, not referenced as variables)
 if [ ${#core_lenses[@]} -gt 0 ]; then
   core_str=$(printf '%s, ' "${core_lenses[@]}" | sed 's/, $//')
   default_core_str=$(echo "$DEFAULT_CORE_LENSES" | tr ' ' ', ' | sed 's/,/, /g')
@@ -310,7 +296,7 @@ if [ ${#disabled_lenses[@]} -gt 0 ]; then
   echo "  (these lenses should be skipped regardless of auto-detect)"
 fi
 
-# Verdict overrides
+# Verdict overrides (conditional — only shown when changed)
 if [ "$MODE" = "pr" ]; then
   if [ "$pr_request_changes_severity" != "$DEFAULT_PR_REQUEST_CHANGES_SEVERITY" ]; then
     if [ "$pr_request_changes_severity" = "none" ]; then

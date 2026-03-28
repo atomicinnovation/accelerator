@@ -605,12 +605,12 @@ Replace all hardcoded numeric defaults with variable references:
 
 #### Automated Verification:
 
-- [ ] 
+- [x]
   `grep -n 'default: 10\|default: ~10\|default: 3' skills/github/review-pr/SKILL.md`
   returns zero results
-- [ ] `grep -n '6 to 8' skills/` returns zero results
-- [ ] `scripts/test-config.sh` passes (including updated review config tests)
-- [ ] Run `scripts/config-read-review.sh pr` with no config — verify it
+- [x] `grep -n '6 to 8' skills/` returns zero results
+- [x] `scripts/test-config.sh` passes (including updated review config tests)
+- [x] Run `scripts/config-read-review.sh pr` with no config — verify it
   outputs a "Review Configuration" section with all labeled values including
   `min lenses: 4` and `max lenses: 8`
 

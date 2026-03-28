@@ -154,8 +154,8 @@ Take time to think carefully about which lenses apply based on:
 
 **Lens selection cap:** Select the most relevant lenses for the change under
 review. If review configuration is provided above, use the configured
-`min_lenses` and `max_lenses` values. Otherwise, use the defaults: **6 to 8**
-lenses. Apply these prioritisation rules:
+`min_lenses` and `max_lenses` values. Otherwise, use the defaults: 
+**{min lenses} to {max lenses}** lenses. Apply these prioritisation rules:
 
 Apply this lens selection pipeline in order:
 
@@ -311,9 +311,9 @@ Once all reviews are complete:
    thresholds instead of the defaults below:
    - If `plan_revise_severity` is `none`, skip the severity-based REVISE
      rule (major count rule still applies independently)
-   - If any findings at or above `plan_revise_severity` (default: `critical`)
+   - If any findings at or above the plan revise severity ({plan revise severity})
      exist → suggest `REVISE`
-   - If `plan_revise_major_count` or more `"major"` findings exist (default: 3)
+   - If {plan revise major count} or more "major" findings exist
      → suggest `REVISE`
    - If fewer major findings than the threshold, or only minor/suggestion
      → suggest `COMMENT`

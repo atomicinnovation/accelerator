@@ -1086,12 +1086,40 @@ assert_exit_code "exits with error" 1 bash "$READ_REVIEW"
 echo "Test: Invalid argument -> exits with error"
 assert_exit_code "invalid argument exits" 1 bash "$READ_REVIEW" "invalid"
 
-echo "Test: No review config -> outputs nothing"
+echo "Test: No review config with pr mode -> outputs all PR-relevant defaults"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-assert_eq "outputs nothing" "" "$OUTPUT"
+if echo "$OUTPUT" | grep -q "## Review Configuration" && \
+   echo "$OUTPUT" | grep -q '\- \*\*max inline comments\*\*: 10' && \
+   echo "$OUTPUT" | grep -q '\- \*\*dedup proximity\*\*: 3' && \
+   echo "$OUTPUT" | grep -q '\- \*\*pr request changes severity\*\*: critical' && \
+   echo "$OUTPUT" | grep -q '\- \*\*min lenses\*\*: 4' && \
+   echo "$OUTPUT" | grep -q '\- \*\*max lenses\*\*: 8'; then
+  echo "  PASS: outputs all PR-relevant defaults"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: outputs all PR-relevant defaults"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
 
-echo "Test: Partial config (only some keys) -> outputs only changed values"
+echo "Test: No review config with plan mode -> outputs all plan-relevant defaults"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
+if echo "$OUTPUT" | grep -q "## Review Configuration" && \
+   echo "$OUTPUT" | grep -q '\- \*\*plan revise severity\*\*: critical' && \
+   echo "$OUTPUT" | grep -q '\- \*\*plan revise major count\*\*: 3' && \
+   echo "$OUTPUT" | grep -q '\- \*\*min lenses\*\*: 4' && \
+   echo "$OUTPUT" | grep -q '\- \*\*max lenses\*\*: 8'; then
+  echo "  PASS: outputs all plan-relevant defaults"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: outputs all plan-relevant defaults"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Partial config (only some keys) -> overridden values show default annotation"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
@@ -1101,17 +1129,17 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "Max inline comments.*15" && \
-   ! echo "$OUTPUT" | grep -q "Dedup proximity"; then
-  echo "  PASS: outputs only changed values"
+if echo "$OUTPUT" | grep -q '\- \*\*max inline comments\*\*: 15 (default: 10)' && \
+   echo "$OUTPUT" | grep -q '\- \*\*dedup proximity\*\*: 3$'; then
+  echo "  PASS: overridden value annotated, default value plain"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: outputs only changed values"
+  echo "  FAIL: overridden value annotated, default value plain"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: Full config -> outputs all overrides"
+echo "Test: Full config -> outputs all overrides with default annotations"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
@@ -1127,16 +1155,17 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "Max inline comments.*15" && \
-   echo "$OUTPUT" | grep -q "Dedup proximity.*5" && \
-   echo "$OUTPUT" | grep -q "Lens count range.*3 to 10" && \
+if echo "$OUTPUT" | grep -q '\*\*max inline comments\*\*: 15 (default: 10)' && \
+   echo "$OUTPUT" | grep -q '\*\*dedup proximity\*\*: 5 (default: 3)' && \
+   echo "$OUTPUT" | grep -q '\*\*min lenses\*\*: 3 (default: 4)' && \
+   echo "$OUTPUT" | grep -q '\*\*max lenses\*\*: 10 (default: 8)' && \
    echo "$OUTPUT" | grep -q "Core lenses" && \
    echo "$OUTPUT" | grep -q "Disabled lenses" && \
    echo "$OUTPUT" | grep -q "Verdict"; then
-  echo "  PASS: outputs all overrides"
+  echo "  PASS: outputs all overrides with annotations"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: outputs all overrides"
+  echo "  FAIL: outputs all overrides with annotations"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
 fi
@@ -1229,11 +1258,19 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: Directory without SKILL.md -> skipped"
+echo "Test: Directory without SKILL.md -> skipped (no custom lens in output)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude/accelerator/lenses/empty-lens"
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-assert_eq "outputs nothing" "" "$OUTPUT"
+if echo "$OUTPUT" | grep -q "## Review Configuration" && \
+   ! echo "$OUTPUT" | grep -q "custom"; then
+  echo "  PASS: empty lens dir skipped, defaults still emitted"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: empty lens dir skipped, defaults still emitted"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
 
 echo "Test: Custom lens with missing name in frontmatter -> warning, skipped"
 REPO=$(setup_repo)
@@ -1543,7 +1580,7 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: plan_revise_severity: critical (same as default) -> not listed as override"
+echo "Test: plan_revise_severity: critical (same as default) -> shown without annotation"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
@@ -1553,7 +1590,14 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-assert_eq "outputs nothing for default severity" "" "$OUTPUT"
+if echo "$OUTPUT" | grep -q '\*\*plan revise severity\*\*: critical$'; then
+  echo "  PASS: default severity shown without annotation"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: default severity shown without annotation"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
 
 echo "Test: Lens Catalogue always present when config exists"
 REPO=$(setup_repo)
@@ -1587,8 +1631,8 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "Max inline comments" && \
-   ! echo "$OUTPUT" | grep -q "plan_revise"; then
+if echo "$OUTPUT" | grep -q "max inline comments" && \
+   ! echo "$OUTPUT" | grep -q "plan revise"; then
   echo "  PASS: PR mode excludes plan settings"
   PASS=$((PASS + 1))
 else
@@ -1608,8 +1652,8 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-if ! echo "$OUTPUT" | grep -q "Max inline comments" && \
-   echo "$OUTPUT" | grep -q "2+.*major"; then
+if ! echo "$OUTPUT" | grep -q "max inline comments" && \
+   echo "$OUTPUT" | grep -q "plan revise major count.*2"; then
   echo "  PASS: Plan mode excludes PR settings"
   PASS=$((PASS + 1))
 else
@@ -1636,9 +1680,9 @@ FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 REVIEW_PR="$SCRIPT_DIR/../skills/github/review-pr/SKILL.md"
 CONFIG_OK=true
-for var_name in max_inline_comments dedup_proximity min_lenses max_lenses core_lenses disabled_lenses pr_request_changes_severity; do
+for var_name in "max inline comments" "dedup proximity" "min lenses" "max lenses" "core_lenses" "disabled_lenses"; do
   if ! grep -q "$var_name" "$REVIEW_PR"; then
-    echo "  FAIL: $var_name not found in review-pr SKILL.md"
+    echo "  FAIL: '$var_name' not found in review-pr SKILL.md"
     CONFIG_OK=false
     FAIL=$((FAIL + 1))
     break
@@ -1652,9 +1696,9 @@ fi
 echo "Test: Config variable names in plan output match review-plan SKILL.md"
 REVIEW_PLAN="$SCRIPT_DIR/../skills/planning/review-plan/SKILL.md"
 PLAN_CONFIG_OK=true
-for var_name in min_lenses max_lenses core_lenses disabled_lenses plan_revise_severity plan_revise_major_count; do
+for var_name in "min lenses" "max lenses" "core_lenses" "disabled_lenses" "plan revise severity" "plan revise major count"; do
   if ! grep -q "$var_name" "$REVIEW_PLAN"; then
-    echo "  FAIL: $var_name not found in review-plan SKILL.md"
+    echo "  FAIL: '$var_name' not found in review-plan SKILL.md"
     PLAN_CONFIG_OK=false
     FAIL=$((FAIL + 1))
     break
@@ -1665,10 +1709,17 @@ if [ "$PLAN_CONFIG_OK" = true ]; then
   PASS=$((PASS + 1))
 fi
 
-echo "Test: No config files -> empty output (regression guard)"
+echo "Test: No config files -> always outputs Review Configuration (regression guard)"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-assert_eq "outputs nothing" "" "$OUTPUT"
+if echo "$OUTPUT" | grep -q "## Review Configuration"; then
+  echo "  PASS: always outputs Review Configuration"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: always outputs Review Configuration"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
 
 echo ""
 
