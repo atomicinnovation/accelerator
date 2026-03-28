@@ -13,6 +13,8 @@ READ_REVIEW="$SCRIPT_DIR/config-read-review.sh"
 CONFIG_DUMP="$SCRIPT_DIR/config-dump.sh"
 CONFIG_SUMMARY="$SCRIPT_DIR/config-summary.sh"
 CONFIG_DETECT="$SCRIPT_DIR/../hooks/config-detect.sh"
+READ_SKILL_CONTEXT="$SCRIPT_DIR/config-read-skill-context.sh"
+READ_SKILL_INSTRUCTIONS="$SCRIPT_DIR/config-read-skill-instructions.sh"
 
 # Source config-common.sh for direct function tests
 source "$SCRIPT_DIR/config-common.sh"
@@ -45,6 +47,31 @@ assert_exit_code() {
     echo "  FAIL: $test_name"
     echo "    Expected exit code: $expected_code"
     echo "    Actual exit code:   $actual_code"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_contains() {
+  local test_name="$1" needle="$2" haystack="$3"
+  if printf '%s' "$haystack" | grep -qF "$needle"; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected to contain: $needle"
+    echo "    Actual: $haystack"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_empty() {
+  local test_name="$1" actual="$2"
+  if [ -z "$actual" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected empty, got: $actual"
     FAIL=$((FAIL + 1))
   fi
 }
@@ -2439,6 +2466,434 @@ if grep -q 'config-read-path.sh plans' "$SKILLS_DIR/planning/review-plan/SKILL.m
 else
   echo "  FAIL: review-plan has plans path injection"
   FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
+echo "=== config-read-skill-context.sh ==="
+echo ""
+
+echo "Test: No skill name argument -> exits with error"
+assert_exit_code "exits 1 with no argument" 1 bash "$READ_SKILL_CONTEXT"
+
+echo "Test: No customisation directory -> no output"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
+assert_empty "no output without directory" "$OUTPUT"
+
+echo "Test: Skill directory exists but no context.md -> no output"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
+assert_empty "no output without context.md" "$OUTPUT"
+
+echo "Test: context.md exists with content -> outputs section with header"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
+printf 'Some context content.\n' > "$REPO/.claude/accelerator/skills/create-plan/context.md"
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
+EXPECTED="## Skill-Specific Context
+
+The following context is specific to the create-plan skill. Apply this
+context in addition to any project-wide context above.
+
+Some context content."
+assert_eq "outputs full section with header" "$EXPECTED" "$OUTPUT"
+
+echo "Test: context.md exists but is empty -> no output"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
+touch "$REPO/.claude/accelerator/skills/create-plan/context.md"
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
+assert_empty "no output for empty file" "$OUTPUT"
+
+echo "Test: context.md exists with only whitespace/blank lines -> no output"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
+printf '   \n\n  \n' > "$REPO/.claude/accelerator/skills/create-plan/context.md"
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
+assert_empty "no output for whitespace-only file" "$OUTPUT"
+
+echo "Test: context.md with leading/trailing blank lines -> trimmed output"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
+printf '\n\nTrimmed content.\n\n\n' > "$REPO/.claude/accelerator/skills/review-pr/context.md"
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" review-pr)
+assert_contains "content is trimmed" "Trimmed content." "$OUTPUT"
+# Should not start with blank lines in content section
+CONTENT_AFTER_HEADER=$(echo "$OUTPUT" | tail -1)
+assert_eq "last line is trimmed content" "Trimmed content." "$CONTENT_AFTER_HEADER"
+
+echo "Test: Output includes skill name in header text"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
+printf 'Content.\n' > "$REPO/.claude/accelerator/skills/review-pr/context.md"
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" review-pr)
+assert_contains "header mentions skill name" "review-pr skill" "$OUTPUT"
+
+echo "Test: Multiple skills with context -> each reads only its own"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
+mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
+printf 'Plan context.\n' > "$REPO/.claude/accelerator/skills/create-plan/context.md"
+printf 'PR context.\n' > "$REPO/.claude/accelerator/skills/review-pr/context.md"
+OUTPUT_PLAN=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
+OUTPUT_PR=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" review-pr)
+assert_contains "plan reads its own context" "Plan context." "$OUTPUT_PLAN"
+assert_contains "pr reads its own context" "PR context." "$OUTPUT_PR"
+# Verify isolation
+if printf '%s' "$OUTPUT_PLAN" | grep -qF "PR context."; then
+  echo "  FAIL: plan output should not contain pr context"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: plan output does not contain pr context"
+  PASS=$((PASS + 1))
+fi
+
+echo ""
+
+# ============================================================
+echo "=== config-read-skill-instructions.sh ==="
+echo ""
+
+echo "Test: No skill name argument -> exits with error"
+assert_exit_code "exits 1 with no argument" 1 bash "$READ_SKILL_INSTRUCTIONS"
+
+echo "Test: No customisation directory -> no output"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
+assert_empty "no output without directory" "$OUTPUT"
+
+echo "Test: Skill directory exists but no instructions.md -> no output"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
+assert_empty "no output without instructions.md" "$OUTPUT"
+
+echo "Test: instructions.md exists with content -> outputs section with header"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
+printf 'Always check for tests.\n' > "$REPO/.claude/accelerator/skills/review-pr/instructions.md"
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
+EXPECTED="## Additional Instructions
+
+The following additional instructions have been provided for the
+review-pr skill. Follow these instructions in addition to all
+instructions above.
+
+Always check for tests."
+assert_eq "outputs full section with header" "$EXPECTED" "$OUTPUT"
+
+echo "Test: instructions.md exists but is empty -> no output"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
+touch "$REPO/.claude/accelerator/skills/review-pr/instructions.md"
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
+assert_empty "no output for empty file" "$OUTPUT"
+
+echo "Test: instructions.md exists with only whitespace/blank lines -> no output"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
+printf '   \n\n  \n' > "$REPO/.claude/accelerator/skills/review-pr/instructions.md"
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
+assert_empty "no output for whitespace-only file" "$OUTPUT"
+
+echo "Test: instructions.md with leading/trailing blank lines -> trimmed output"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/commit"
+printf '\n\nTrimmed instructions.\n\n\n' > "$REPO/.claude/accelerator/skills/commit/instructions.md"
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" commit)
+assert_contains "content is trimmed" "Trimmed instructions." "$OUTPUT"
+CONTENT_AFTER_HEADER=$(echo "$OUTPUT" | tail -1)
+assert_eq "last line is trimmed content" "Trimmed instructions." "$CONTENT_AFTER_HEADER"
+
+echo "Test: Output includes skill name in header text"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/commit"
+printf 'Instructions.\n' > "$REPO/.claude/accelerator/skills/commit/instructions.md"
+OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" commit)
+assert_contains "header mentions skill name" "commit skill" "$OUTPUT"
+
+echo "Test: Multiple skills with instructions -> each reads only its own"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/skills/commit"
+mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
+printf 'Commit instructions.\n' > "$REPO/.claude/accelerator/skills/commit/instructions.md"
+printf 'Review instructions.\n' > "$REPO/.claude/accelerator/skills/review-pr/instructions.md"
+OUTPUT_COMMIT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" commit)
+OUTPUT_PR=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
+assert_contains "commit reads its own instructions" "Commit instructions." "$OUTPUT_COMMIT"
+assert_contains "pr reads its own instructions" "Review instructions." "$OUTPUT_PR"
+if printf '%s' "$OUTPUT_COMMIT" | grep -qF "Review instructions."; then
+  echo "  FAIL: commit output should not contain pr instructions"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: commit output does not contain pr instructions"
+  PASS=$((PASS + 1))
+fi
+
+echo ""
+
+# ============================================================
+echo "=== config-summary.sh (per-skill customisations) ==="
+echo ""
+
+echo "Test: No per-skill directories -> no per-skill line in summary"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
+if echo "$OUTPUT" | grep -q "Per-skill"; then
+  echo "  FAIL: should not mention per-skill without directories"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: no per-skill line in summary"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: One skill with context.md -> summary lists skill with (context)"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
+mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
+printf 'Some context.\n' > "$REPO/.claude/accelerator/skills/create-plan/context.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
+assert_contains "lists skill with context" "create-plan (context)" "$OUTPUT"
+
+echo "Test: One skill with instructions.md -> summary lists skill with (instructions)"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
+mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
+printf 'Some instructions.\n' > "$REPO/.claude/accelerator/skills/review-pr/instructions.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
+assert_contains "lists skill with instructions" "review-pr (instructions)" "$OUTPUT"
+
+echo "Test: One skill with both files -> summary lists skill with (context + instructions)"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
+mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
+printf 'Context.\n' > "$REPO/.claude/accelerator/skills/create-plan/context.md"
+printf 'Instructions.\n' > "$REPO/.claude/accelerator/skills/create-plan/instructions.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
+assert_contains "lists skill with both" "create-plan (context + instructions)" "$OUTPUT"
+
+echo "Test: Multiple skills with customisations -> all listed"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
+mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
+mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
+printf 'Context.\n' > "$REPO/.claude/accelerator/skills/create-plan/context.md"
+printf 'Instructions.\n' > "$REPO/.claude/accelerator/skills/review-pr/instructions.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
+assert_contains "lists create-plan" "create-plan (context)" "$OUTPUT"
+assert_contains "lists review-pr" "review-pr (instructions)" "$OUTPUT"
+
+echo "Test: Skill directory with no recognised files -> not listed"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
+mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
+printf 'Some other file.\n' > "$REPO/.claude/accelerator/skills/create-plan/notes.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
+if echo "$OUTPUT" | grep -q "Per-skill"; then
+  echo "  FAIL: should not list skill with no recognised files"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: skill with no recognised files not listed"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: Empty context.md and instructions.md -> skill not listed"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
+mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
+touch "$REPO/.claude/accelerator/skills/create-plan/context.md"
+touch "$REPO/.claude/accelerator/skills/create-plan/instructions.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
+if echo "$OUTPUT" | grep -q "Per-skill"; then
+  echo "  FAIL: should not list skill with empty files"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: skill with empty files not listed"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: Whitespace-only context.md -> skill not listed (matches reader behaviour)"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
+mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
+printf '   \n\n  \n' > "$REPO/.claude/accelerator/skills/create-plan/context.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
+if echo "$OUTPUT" | grep -q "Per-skill"; then
+  echo "  FAIL: should not list skill with whitespace-only files"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: skill with whitespace-only files not listed"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: Unrecognised skill directory name -> stderr warning emitted"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
+mkdir -p "$REPO/.claude/accelerator/skills/nonexistent-skill"
+printf 'Content.\n' > "$REPO/.claude/accelerator/skills/nonexistent-skill/context.md"
+STDERR_OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>&1 1>/dev/null)
+assert_contains "warns about unrecognised skill" "does not match any known skill name" "$STDERR_OUTPUT"
+
+echo "Test: Known skill directory name -> no stderr warning"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
+mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
+printf 'Content.\n' > "$REPO/.claude/accelerator/skills/create-plan/context.md"
+STDERR_OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>&1 1>/dev/null)
+if [ -z "$STDERR_OUTPUT" ]; then
+  echo "  PASS: no stderr warning for known skill name"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: unexpected stderr for known skill name"
+  echo "    Stderr: $(printf '%q' "$STDERR_OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
+echo "=== Preprocessor placement (per-skill) ==="
+echo ""
+
+echo "Test: config-read-skill-context.sh appears in exactly 13 skills"
+SKILL_CONTEXT_COUNT=$(grep -r 'config-read-skill-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
+assert_eq "13 skills have skill-context injection" "13" "$SKILL_CONTEXT_COUNT"
+
+echo "Test: config-read-skill-instructions.sh appears in exactly 13 skills"
+SKILL_INSTRUCTIONS_COUNT=$(grep -r 'config-read-skill-instructions.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
+assert_eq "13 skills have skill-instructions injection" "13" "$SKILL_INSTRUCTIONS_COUNT"
+
+echo "Test: config-read-skill-context.sh appears immediately after config-read-context.sh in each skill"
+ALL_SKILLS=(
+  "planning/create-plan"
+  "planning/review-plan"
+  "planning/stress-test-plan"
+  "planning/implement-plan"
+  "planning/validate-plan"
+  "research/research-codebase"
+  "github/review-pr"
+  "github/describe-pr"
+  "github/respond-to-pr"
+  "decisions/create-adr"
+  "decisions/extract-adrs"
+  "decisions/review-adr"
+  "vcs/commit"
+)
+SKILL_CTX_PLACEMENT_OK=true
+for skill in "${ALL_SKILLS[@]}"; do
+  SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
+  CONTEXT_LINE=$(grep -n 'config-read-context\.sh[^-]' "$SKILL_FILE" | head -1 | cut -d: -f1)
+  SKILL_CTX_LINE=$(grep -n 'config-read-skill-context.sh' "$SKILL_FILE" | head -1 | cut -d: -f1)
+  EXPECTED_LINE=$((CONTEXT_LINE + 1))
+  if [ "$SKILL_CTX_LINE" -ne "$EXPECTED_LINE" ]; then
+    echo "  FAIL: $skill - context at line $CONTEXT_LINE, skill-context at line $SKILL_CTX_LINE (expected $EXPECTED_LINE)"
+    SKILL_CTX_PLACEMENT_OK=false
+    FAIL=$((FAIL + 1))
+    break
+  fi
+done
+if [ "$SKILL_CTX_PLACEMENT_OK" = true ]; then
+  echo "  PASS: all skill-context injections immediately after context injection"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: config-read-skill-instructions.sh is the last preprocessor line in each skill"
+SKILL_INSTR_PLACEMENT_OK=true
+for skill in "${ALL_SKILLS[@]}"; do
+  SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
+  LAST_PREPROCESSOR_LINE=$(grep -n '^!\`' "$SKILL_FILE" | tail -1 | cut -d: -f1)
+  SKILL_INSTR_LINE=$(grep -n 'config-read-skill-instructions.sh' "$SKILL_FILE" | head -1 | cut -d: -f1)
+  if [ "$SKILL_INSTR_LINE" -ne "$LAST_PREPROCESSOR_LINE" ]; then
+    echo "  FAIL: $skill - skill-instructions at line $SKILL_INSTR_LINE, last preprocessor at line $LAST_PREPROCESSOR_LINE"
+    SKILL_INSTR_PLACEMENT_OK=false
+    FAIL=$((FAIL + 1))
+    break
+  fi
+done
+if [ "$SKILL_INSTR_PLACEMENT_OK" = true ]; then
+  echo "  PASS: all skill-instructions injections are last preprocessor line"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: Skill name argument in each preprocessor call matches the skill's frontmatter name field"
+SKILL_NAME_MATCH_OK=true
+for skill in "${ALL_SKILLS[@]}"; do
+  SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
+  FM_NAME=$(awk '/^name:/{print $2; exit}' "$SKILL_FILE")
+  CTX_ARG=$(grep 'config-read-skill-context.sh' "$SKILL_FILE" | sed 's/.*config-read-skill-context.sh //' | sed 's/`$//')
+  INSTR_ARG=$(grep 'config-read-skill-instructions.sh' "$SKILL_FILE" | sed 's/.*config-read-skill-instructions.sh //' | sed 's/`$//')
+  if [ "$FM_NAME" != "$CTX_ARG" ] || [ "$FM_NAME" != "$INSTR_ARG" ]; then
+    echo "  FAIL: $skill - frontmatter name=$FM_NAME, context arg=$CTX_ARG, instructions arg=$INSTR_ARG"
+    SKILL_NAME_MATCH_OK=false
+    FAIL=$((FAIL + 1))
+    break
+  fi
+done
+if [ "$SKILL_NAME_MATCH_OK" = true ]; then
+  echo "  PASS: all skill name arguments match frontmatter name fields"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: configure skill does NOT contain per-skill preprocessor lines"
+CONFIGURE_FILE="$SKILLS_DIR/config/configure/SKILL.md"
+if grep -q 'config-read-skill-context.sh\|config-read-skill-instructions.sh' "$CONFIGURE_FILE"; then
+  echo "  FAIL: configure skill should not have per-skill preprocessor lines"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: configure skill correctly excluded"
+  PASS=$((PASS + 1))
+fi
+
+echo ""
+
+# ============================================================
+echo "=== config-detect.sh (per-skill customisations) ==="
+echo ""
+
+echo "Test: Per-skill customisations appear in hook additionalContext JSON"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
+mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
+printf 'Context content.\n' > "$REPO/.claude/accelerator/skills/create-plan/context.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT" 2>/dev/null)
+ADDITIONAL_CONTEXT=$(echo "$OUTPUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || true)
+assert_contains "per-skill info in additionalContext" "Per-skill customisations" "$ADDITIONAL_CONTEXT"
+
+echo "Test: Unrecognised skill name warning appears in stderr (not in JSON)"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
+mkdir -p "$REPO/.claude/accelerator/skills/nonexistent-skill"
+printf 'Content.\n' > "$REPO/.claude/accelerator/skills/nonexistent-skill/context.md"
+STDERR_OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT" 2>&1 1>/dev/null)
+STDOUT_OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT" 2>/dev/null)
+assert_contains "warning in stderr" "does not match any known skill name" "$STDERR_OUTPUT"
+# Verify warning is not in the JSON output
+if echo "$STDOUT_OUTPUT" | grep -qF "does not match"; then
+  echo "  FAIL: warning should not appear in JSON stdout"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: warning not in JSON stdout"
+  PASS=$((PASS + 1))
 fi
 
 echo ""
