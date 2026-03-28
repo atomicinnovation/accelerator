@@ -12,6 +12,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*)
 !`${CLAUDE_PLUGIN_ROOT}/scripts/vcs-status.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/vcs-log.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh commit`
 
 ## Process:
 
@@ -59,3 +60,5 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*)
 - Group related changes together
 - Keep commits focused and atomic when possible
 - The user trusts your judgment - they asked you to commit
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh commit`

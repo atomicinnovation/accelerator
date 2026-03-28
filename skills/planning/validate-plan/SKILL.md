@@ -11,6 +11,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 # Validate Plan
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh validate-plan`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults: reviewer,
@@ -200,3 +201,5 @@ history to understand what was implemented.
 
 Remember: Good validation catches issues before they reach production. Be
 constructive but thorough in identifying gaps or improvements.
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh validate-plan`

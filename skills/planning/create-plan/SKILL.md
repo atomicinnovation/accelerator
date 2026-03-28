@@ -10,6 +10,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 # Implementation Plan
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh create-plan`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults: reviewer,
@@ -403,3 +404,5 @@ Based on the ticket, I understand we need to track parent-child relationships fo
 
 [Interactive process continues...]
 ```
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh create-plan`

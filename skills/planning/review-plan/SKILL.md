@@ -11,6 +11,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 # Review Plan
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh review-plan`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults: reviewer,
@@ -631,3 +632,5 @@ The review sits in the plan lifecycle between creation and implementation:
 2. `/review-plan` — Review and iterate the plan quality (this command)
 3. `/implement-plan` — Execute the approved plan
 4. `/validate-plan` — Verify implementation matches the plan
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh review-plan`

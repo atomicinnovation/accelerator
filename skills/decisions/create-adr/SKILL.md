@@ -12,6 +12,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGI
 # Create Architecture Decision Record
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh create-adr`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults: reviewer,
@@ -209,3 +210,5 @@ When drafting ADRs, follow these principles:
   ALWAYS update both locations.
 - Before writing a new ADR file, verify the target path does not already exist
   to prevent accidental overwrites from concurrent invocations
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh create-adr`

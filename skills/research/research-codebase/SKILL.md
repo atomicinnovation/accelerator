@@ -11,6 +11,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGI
 # Research Codebase
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh research-codebase`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults: reviewer,
@@ -182,3 +183,5 @@ The key is to use these agents intelligently:
   - Use snake_case for multi-word field names (e.g., `last_updated`,
     `git_commit`)
   - Tags should be relevant to the research topic and components studied
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh research-codebase`

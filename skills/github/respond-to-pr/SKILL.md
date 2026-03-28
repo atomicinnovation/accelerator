@@ -11,6 +11,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 # Respond to PR
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh respond-to-pr`
 
 **PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs meta/reviews/prs`
 
@@ -543,3 +544,5 @@ The respond-to-pr skill fills a gap in the development lifecycle:
 6. `/review-pr` — Review the PR through quality lenses
 7. **`/respond-to-pr`** — Address review feedback (this command)
 8. `/commit` — Commit changes (used within this workflow)
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh respond-to-pr`

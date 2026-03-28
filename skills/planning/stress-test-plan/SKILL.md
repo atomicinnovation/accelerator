@@ -11,6 +11,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 # Stress-Test Plan
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh stress-test-plan`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults: reviewer,
@@ -222,3 +223,5 @@ This skill sits in the plan lifecycle between review and implementation:
 - `/stress-test-plan` goes deep through interactive conversation — good for
   finding logical inconsistencies, missing edge cases, flawed assumptions, and
   gaps that only surface when you trace through scenarios step by step
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh stress-test-plan`

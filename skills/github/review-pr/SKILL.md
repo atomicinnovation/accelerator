@@ -11,6 +11,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 # Review PR
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh review-pr`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults: reviewer,
@@ -664,3 +665,5 @@ The PR review sits in the development lifecycle alongside other commands:
 4. `/validate-plan` — Verify implementation matches the plan
 5. `/describe-pr` — Generate PR description
 6. `/review-pr` — Review the PR through quality lenses (this command)
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh review-pr`

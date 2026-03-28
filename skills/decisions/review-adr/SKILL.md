@@ -13,6 +13,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGI
 # Review Architecture Decision Record
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh review-adr`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults: reviewer,
@@ -248,3 +249,5 @@ permitted.
   protection. This is an accepted tradeoff — skill-level enforcement is
   simpler and sufficient for the intended workflow. If an ADR appears to have
   been modified outside the skills, note this to the user during review.
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh review-adr`

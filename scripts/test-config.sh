@@ -979,7 +979,7 @@ if [ "$CONTEXT_PLACEMENT_OK" = true ]; then
   PASS=$((PASS + 1))
 fi
 
-echo "Test: config-read-agents.sh appears on line after config-read-context.sh"
+echo "Test: config-read-agents.sh appears after config-read-context.sh and config-read-skill-context.sh"
 AGENT_SKILLS=(
   "planning/create-plan"
   "planning/review-plan"
@@ -997,7 +997,7 @@ for skill in "${AGENT_SKILLS[@]}"; do
   SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
   CONTEXT_LINE=$(grep -n 'config-read-context.sh' "$SKILL_FILE" | head -1 | cut -d: -f1)
   AGENTS_LINE=$(grep -n 'config-read-agents.sh' "$SKILL_FILE" | head -1 | cut -d: -f1)
-  EXPECTED_LINE=$((CONTEXT_LINE + 1))
+  EXPECTED_LINE=$((CONTEXT_LINE + 2))
   if [ "$AGENTS_LINE" -ne "$EXPECTED_LINE" ]; then
     echo "  FAIL: $skill - context at line $CONTEXT_LINE, agents at line $AGENTS_LINE (expected $EXPECTED_LINE)"
     AGENT_PLACEMENT_OK=false

@@ -12,6 +12,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGI
 # Extract ADRs from Meta Documents
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh extract-adrs`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults: reviewer,
@@ -195,3 +196,5 @@ When populating the template from extracted decisions:
   each becomes a separate ADR.
 - Use sequential numbering: determine the starting number once, then increment
   for batch creation.
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh extract-adrs`

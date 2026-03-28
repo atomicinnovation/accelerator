@@ -11,6 +11,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 # Generate PR Description
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh describe-pr`
 
 **PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh prs meta/prs`
 
@@ -135,3 +136,5 @@ following the repository's standard template.
 - If the PR touches multiple components, organize the description accordingly
 - Always attempt to run verification commands when possible
 - Clearly communicate which verification steps need manual testing
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh describe-pr`
