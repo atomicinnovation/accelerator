@@ -55,6 +55,19 @@ Display the current configuration:
 
 ### Effective Settings
 [Show merged settings with source attribution]
+
+### Per-Skill Customisations
+[For each directory under .claude/accelerator/skills/ that contains
+non-empty context.md or instructions.md, list:]
+
+- `<skill-name>`:
+  - context.md: [present / not found]
+  - instructions.md: [present / not found]
+
+[If no per-skill customisation directories exist:]
+
+No per-skill customisations found. See `/accelerator:configure help`
+for details on per-skill context and instructions.
 ```
 
 ### `create` (or no argument with no existing config)
@@ -79,10 +92,10 @@ for the markdown body — this is the highest-value feature.
    override mappings.
 5. Mention that additional customisation is available: "You can also
    customise review behaviour (lens selection, verdict thresholds, inline
-   comment limits), output paths (where skills write documents), and
-   document templates (plan, ADR, research, validation formats). Run
-   `/accelerator:configure help` for the full key reference — you can add
-   `review:`, `paths:`, and `templates:` sections to the frontmatter later."
+   comment limits), output paths (where skills write documents), document
+   templates (plan, ADR, research, validation formats), and per-skill
+   context and instructions (`.claude/accelerator/skills/<skill-name>/`).
+   Run `/accelerator:configure help` for the full key reference."
 6. Write the config file with a markdown body containing the gathered context
    and YAML frontmatter containing any agent overrides (or empty frontmatter
    if none).
@@ -233,6 +246,81 @@ auto_detect: Relevant when changes touch regulatory, compliance, or policy-relat
 
 See any lens in the plugin's `skills/review/lenses/` directory for full
 examples of the expected structure.
+
+### Per-Skill Customisation
+
+Provide context or additional instructions for specific skills by placing
+files in `.claude/accelerator/skills/<skill-name>/`:
+
+\```
+.claude/accelerator/skills/
+  create-plan/
+    context.md          # Context specific to plan creation
+    instructions.md     # Additional instructions for plan creation
+  review-pr/
+    context.md          # Context specific to PR review
+    instructions.md     # Additional instructions for PR review
+  commit/
+    instructions.md     # Additional instructions for commits
+\```
+
+**`context.md`** — Skill-specific context injected after global project
+context. Use this for information that is only relevant to a particular
+skill. For example, review-pr might need to know about specific review
+criteria, while create-plan might need architecture context.
+
+**`instructions.md`** — Additional instructions appended to the skill's
+prompt. Use this to customise skill behaviour: add extra steps, enforce
+conventions, or modify output format.
+
+Both files are optional. If neither exists for a skill, it behaves as
+before. Files are read at skill invocation time. Do not add YAML
+frontmatter to these files — their entire content is injected as-is.
+
+**When to use which**: Use **global context** (`.claude/accelerator.md`)
+for information all skills should know. Use **skill context**
+(`context.md`) for information only one skill needs. Use **skill
+instructions** (`instructions.md`) to change how a skill behaves — add
+steps, enforce formats, or modify output. Per-skill context and
+instructions supplement global context (both are visible to the skill);
+per-skill instructions appear at the end of the prompt and will typically
+take precedence if they conflict with earlier instructions.
+
+**Shared vs personal**: Per-skill files are typically committed to the
+repository as team-shared customisations. For personal per-skill
+preferences, add the relevant directories to `.gitignore`.
+
+**Troubleshooting**: Directory names must match a known skill name exactly.
+The directory name matches the skill name after `/accelerator:` — for
+example, `/accelerator:review-pr` uses `review-pr/`,
+`/accelerator:create-plan` uses `create-plan/`. Run
+`/accelerator:configure view` to see all available skill names and any
+active per-skill customisations. The SessionStart hook output also lists
+detected per-skill customisations and warns about unrecognised directory
+names. To temporarily disable a customisation, rename the file (e.g.,
+`context.md.disabled`).
+
+Note: The `configure` skill is not customisable via this mechanism as it
+manages configuration itself.
+
+Example `context.md` for review-pr:
+
+\```markdown
+## Review Focus Areas
+
+Our team particularly cares about:
+- API backward compatibility (we have external consumers)
+- Database migration safety (zero-downtime deploys required)
+- Test coverage for error paths (we've had incidents from untested error handling)
+\```
+
+Example `instructions.md` for create-plan:
+
+\```markdown
+- Always include a "Security Considerations" section in plans
+- Reference our threat model at docs/security/threat-model.md
+- Plans touching the payments service require a rollback strategy
+\```
 
 ### paths
 
