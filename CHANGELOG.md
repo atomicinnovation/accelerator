@@ -19,19 +19,53 @@
   - `paths:` section to override where skills write output documents (plans,
     research, decisions, PRs, validations, reviews, templates, tickets, notes)
   - `templates:` section to override document templates (plan, ADR, research,
-    validation) with custom formats from a configurable templates directory
+    validation, PR description) with custom formats from a configurable
+    templates directory
   - Custom review lenses via `.claude/accelerator/lenses/` with auto-discovery
   - Project context injected into all skills from the markdown body
   - `/accelerator:configure` skill with `view`, `create`, and `help` actions
   - Config preprocessing via shell scripts and a SessionStart hook, working
     around plugin permission limitations
 - **Default document templates**: Extractable templates for plans, ADRs,
-  research documents, and validation reports in `templates/` directory, used as
-  defaults when no user override is provided
+  research documents, validation reports, and PR descriptions in `templates/`
+  directory, used as defaults when no user override is provided
+
+### Improved
+
+- **Reliable agent name resolution**: All 10 agent-spawning skills now resolve
+  agent names via labeled variable definitions from `config-read-agents.sh`,
+  replacing the non-deterministic override table pattern. Agent names are always
+  emitted (with defaults when no overrides configured), and skills reference
+  them via `{agent name agent}` variables. Includes a fallback instruction for
+  graceful degradation if the preprocessor fails.
+  - `implement-plan` and `validate-plan` now include `config-read-agents.sh`
+    (previously missing despite spawning sub-tasks)
+- **Dynamic operational paths**: All `mkdir`, `glob`, and artifact `target`
+  fields now use dynamic `{directory}` variables from `config-read-path.sh`
+  instead of hardcoded `meta/` paths
+  - `respond-to-pr` now declares a `review_prs` path variable (previously
+    missing)
+  - `implement-plan`, `validate-plan`, `review-plan`, and `stress-test-plan`
+    now declare a `plans` path variable
+- **Review numeric defaults via preprocessor**: `config-read-review.sh` now
+  always emits labeled variable definitions for all numeric and threshold
+  values, even when they match defaults. Review skill prose references these
+  variables instead of hardcoding numbers (fixes incorrect "6 to 8" default
+  lens range — actual default is 4 to 8).
+- **`describe-pr` template handling**: Switched from manual filesystem check to
+  `config-read-template.sh`, consistent with all other template-using skills.
+  The `templates.<name>` config key now supports `pr-description`.
+- **Dynamic example paths**: Replaced ~14 hardcoded `meta/` paths in examples,
+  argument hints, and illustrative text across 7 skills with dynamic
+  `{directory variable}` references. Argument hints in `review-adr` and
+  `extract-adrs` use generic descriptions since frontmatter cannot reference
+  preprocessor variables.
 
 ### Fixed
 
 - Emoji rendering issues in review output format skills
+- `config-read-template.sh` error message now dynamically lists available
+  templates instead of a hardcoded list
 
 ## 1.5.0 — 2026-03-23
 
