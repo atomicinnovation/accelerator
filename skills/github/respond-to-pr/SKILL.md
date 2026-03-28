@@ -12,6 +12,8 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 
+**PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs meta/reviews/prs`
+
 You are tasked with working through outstanding pull request review feedback
 in a systematic, interactive fashion. For each piece of feedback, you verify
 it against the codebase, confirm the approach with the user, make changes,
@@ -71,7 +73,7 @@ the user's input.
 
 5. **Check for a structured review artifact**:
 
-   Look for `meta/reviews/prs/{number}-review-*.md` (e.g.,
+   Look for `{pr reviews directory}/{number}-review-*.md` (e.g.,
    `123-review-1.md`, `123-review-2.md`). If one or more files match:
 
 - Load the highest-numbered file (the most recent review cycle)
@@ -214,7 +216,7 @@ skill works the same as before, just without the additional context.
 If a review artifact was loaded, add a note after the header:
 
 ```
-> Review context loaded from `meta/reviews/prs/{number}-review-{N}.md`
+> Review context loaded from `{pr reviews directory}/{number}-review-{N}.md`
 > (verdict: {verdict}, {N} lenses, {date})
 ```
 

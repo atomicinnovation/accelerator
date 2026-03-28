@@ -415,7 +415,7 @@ Once all reviews are complete:
 
     Determine the next review number:
     ```bash
-    mkdir -p meta/reviews/prs
+    mkdir -p {pr reviews directory}
     # Glob for existing reviews of this PR
     ls {pr reviews directory}/{number}-review-*.md 2>/dev/null
     # Extract the highest number, increment by 1. If none exist, use 1.

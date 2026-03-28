@@ -2344,6 +2344,42 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+echo "Test: respond-to-pr uses config-read-path.sh"
+if grep -q 'config-read-path.sh review_prs' "$SKILLS_DIR/github/respond-to-pr/SKILL.md"; then
+  echo "  PASS: respond-to-pr has review_prs path injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: respond-to-pr has review_prs path injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: implement-plan uses config-read-path.sh"
+if grep -q 'config-read-path.sh plans' "$SKILLS_DIR/planning/implement-plan/SKILL.md"; then
+  echo "  PASS: implement-plan has plans path injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: implement-plan has plans path injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: validate-plan has plans path injection"
+if grep -q 'config-read-path.sh plans' "$SKILLS_DIR/planning/validate-plan/SKILL.md"; then
+  echo "  PASS: validate-plan has plans path injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: validate-plan has plans path injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: review-plan has plans path injection"
+if grep -q 'config-read-path.sh plans' "$SKILLS_DIR/planning/review-plan/SKILL.md"; then
+  echo "  PASS: review-plan has plans path injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: review-plan has plans path injection"
+  FAIL=$((FAIL + 1))
+fi
+
 echo ""
 
 # ============================================================

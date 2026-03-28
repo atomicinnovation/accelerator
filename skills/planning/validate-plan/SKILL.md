@@ -17,6 +17,7 @@ If no "Agent Names" section appears above, use these defaults: reviewer,
 codebase-locator, codebase-analyser, codebase-pattern-finder,
 documents-locator, documents-analyser, web-search-researcher.
 
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
 **Validations directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh validations meta/validations`
 
 You are tasked with validating that an implementation plan was correctly
@@ -131,7 +132,7 @@ Write the validation report to the configured validations directory:
    date: "{ISO timestamp}"
    type: plan-validation
    skill: validate-plan
-   target: "meta/plans/{plan-filename}.md"
+   target: "{plans directory}/{plan-filename}.md"
    result: {pass | partial | fail}
    status: complete
    ---

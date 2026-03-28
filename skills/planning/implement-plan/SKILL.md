@@ -1,7 +1,8 @@
 ---
 name: implement-plan
-description: Execute an approved implementation plan from meta/plans/. Use when
-  the user wants to implement a plan phase by phase with verification.
+description: Execute an approved implementation plan from the configured plans
+  directory. Use when the user wants to implement a plan phase by phase with
+  verification.
 argument-hint: "[path to plan file]"
 disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
@@ -16,9 +17,11 @@ If no "Agent Names" section appears above, use these defaults: reviewer,
 codebase-locator, codebase-analyser, codebase-pattern-finder,
 documents-locator, documents-analyser, web-search-researcher.
 
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
+
 You are tasked with implementing an approved technical plan from
-`meta/plans/`. These plans contain phases with specific changes and
-success criteria.
+the configured plans directory (shown above). These plans contain phases with
+specific changes and success criteria.
 
 ## Getting Started
 

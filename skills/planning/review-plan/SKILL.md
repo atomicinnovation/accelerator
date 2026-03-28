@@ -19,6 +19,7 @@ documents-locator, documents-analyser, web-search-researcher.
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh plan`
 
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
 **Plan reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_plans meta/reviews/plans`
 
 You are tasked with reviewing an implementation plan through multiple quality
@@ -399,7 +400,7 @@ Once all reviews are complete:
 
    To determine the next review number:
    ```bash
-   mkdir -p meta/reviews/plans
+   mkdir -p {plan reviews directory}
    # Glob for existing reviews of this plan
    ls {plan reviews directory}/{plan-stem}-review-*.md 2>/dev/null
    # Extract the highest number, increment by 1. If none exist, use 1.
@@ -414,7 +415,7 @@ Once all reviews are complete:
    date: "{ISO timestamp}"
    type: plan-review
    skill: review-plan
-   target: "meta/plans/{plan-stem}.md"
+   target: "{plans directory}/{plan-stem}.md"
    review_number: {N}
    verdict: {APPROVE | REVISE | COMMENT}
    lenses: [{list of lenses used}]

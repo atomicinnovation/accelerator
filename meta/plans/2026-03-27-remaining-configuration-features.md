@@ -448,14 +448,14 @@ Add path declaration after line 17:
 
 #### Automated Verification:
 
-- [ ] `grep -rn 'mkdir -p meta/' skills/` returns zero results
-- [ ] `grep -n 'meta/reviews/prs' skills/github/respond-to-pr/SKILL.md`
+- [x] `grep -rn 'mkdir -p meta/' skills/` returns zero results
+- [x] `grep -n 'meta/reviews/prs' skills/github/respond-to-pr/SKILL.md`
   returns zero results
-- [ ] `grep -n 'meta/plans' skills/planning/implement-plan/SKILL.md` returns
+- [x] `grep -n 'meta/plans' skills/planning/implement-plan/SKILL.md` returns
   zero results (except preprocessor default argument)
-- [ ] `grep -q 'config-read-path.sh review_prs' skills/github/respond-to-pr/SKILL.md`
+- [x] `grep -q 'config-read-path.sh review_prs' skills/github/respond-to-pr/SKILL.md`
   succeeds (structural test for new path injection)
-- [ ] `scripts/test-config.sh` passes
+- [x] `scripts/test-config.sh` passes
 
 #### Manual Verification:
 
