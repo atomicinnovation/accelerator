@@ -1,7 +1,7 @@
 ---
 title: "Lens design principles: PBR, boundaries, and structural invariants"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Lens design principles: PBR, boundaries, and structural invariants

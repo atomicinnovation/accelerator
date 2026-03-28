@@ -1,7 +1,7 @@
 ---
 title: "Correctness as a dedicated lens"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Correctness as a dedicated lens

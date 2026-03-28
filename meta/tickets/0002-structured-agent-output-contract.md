@@ -1,7 +1,7 @@
 ---
 title: "Structured agent output contract with context-specific schemas"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Structured agent output contract with context-specific schemas

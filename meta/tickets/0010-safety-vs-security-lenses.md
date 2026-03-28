@@ -1,7 +1,7 @@
 ---
 title: "Safety vs security as distinct lenses"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Safety vs security as distinct lenses

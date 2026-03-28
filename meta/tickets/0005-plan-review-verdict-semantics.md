@@ -1,7 +1,7 @@
 ---
 title: "Plan review verdict semantics"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Plan review verdict semantics

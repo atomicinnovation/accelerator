@@ -1,7 +1,7 @@
 ---
 title: "Configuration system architecture"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Configuration system architecture

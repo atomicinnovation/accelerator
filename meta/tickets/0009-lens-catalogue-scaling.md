@@ -1,7 +1,7 @@
 ---
 title: "Lens catalogue scaling: 7 to 13 with selection cap"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Lens catalogue scaling: 7 to 13 with selection cap

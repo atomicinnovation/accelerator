@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Added
+
+- **Review system ADRs**: Extracted nine architecture decision records
+  (ADR-0002 through ADR-0010) from existing research and planning documents,
+  covering the three-layer review architecture, PBR lens design, lens
+  catalogue expansion, the single generic reviewer agent pattern, the
+  structured agent output contract, divergent verdict semantics for plan
+  and PR reviews, the shared temp directory for PR diff delivery, dual-gate
+  finding deduplication, and atomic review posting via the GitHub REST API.
+  Related tickets (0001–0007, 0009, 0014) and `skills/decisions/create-adr`
+  now cross-reference the corresponding ADRs.
+
 ## 1.18.0 — 2026-04-17
 
 _Versions 1.12.0 through 1.18.0 were iterative build-system and release-pipeline

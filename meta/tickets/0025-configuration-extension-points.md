@@ -1,7 +1,7 @@
 ---
 title: "Configuration extension points: templates, agents, and custom lenses"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Configuration extension points: templates, agents, and custom lenses

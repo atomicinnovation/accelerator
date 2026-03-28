@@ -1,7 +1,7 @@
 ---
 title: "Performance as dedicated lens, resilience into architecture"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Performance as dedicated lens, resilience into architecture

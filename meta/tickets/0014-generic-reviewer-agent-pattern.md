@@ -1,7 +1,7 @@
 ---
 title: "Generic reviewer agent with path passing and three-way separation"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Generic reviewer agent with path passing and three-way separation

@@ -1,7 +1,7 @@
 ---
 title: "Diff data pipeline: shared storage, hybrid access, and validation"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Diff data pipeline: shared storage, hybrid access, and validation

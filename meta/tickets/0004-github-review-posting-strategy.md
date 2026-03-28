@@ -1,7 +1,7 @@
 ---
 title: "GitHub review posting strategy"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: GitHub review posting strategy

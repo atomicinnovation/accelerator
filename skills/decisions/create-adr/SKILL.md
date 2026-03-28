@@ -6,7 +6,7 @@ description: Interactively create an architecture decision record (ADR). Use
   analysis, and consequence documentation.
 argument-hint: "[topic or description] [--supersedes ADR-NNNN]"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/research/scripts/*)
 ---
 
 # Create Architecture Decision Record

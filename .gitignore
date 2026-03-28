@@ -5,6 +5,5 @@
 *.iml
 *.ipr
 *.iws
-meta/tmp/
 workspaces/
 .claude/settings.local.json

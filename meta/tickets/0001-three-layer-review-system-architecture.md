@@ -1,7 +1,7 @@
 ---
 title: "Three-layer review system architecture"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Three-layer review system architecture

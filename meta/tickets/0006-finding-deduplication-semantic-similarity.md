@@ -1,7 +1,7 @@
 ---
 title: "Finding deduplication requires semantic similarity"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Finding deduplication requires semantic similarity

@@ -1,7 +1,7 @@
 ---
 title: "Test coverage as a plan review lens"
 type: adr-creation-task
-status: todo
+status: done
 ---
 
 # ADR Ticket: Test coverage as a plan review lens
