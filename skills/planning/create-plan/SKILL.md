@@ -12,6 +12,10 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
+If no "Agent Names" section appears above, use these defaults: reviewer,
+codebase-locator, codebase-analyser, codebase-pattern-finder,
+documents-locator, documents-analyser, web-search-researcher.
+
 **Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
 **Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tickets meta/tickets`
 
@@ -68,11 +72,11 @@ Then wait for the user's input.
    Before asking the user any questions, use specialized agents to research in
    parallel:
 
-- Use the **codebase-locator** agent to find all files related to the
+- Use the **{codebase locator agent}** agent to find all files related to the
   ticket/task
-- Use the **codebase-analyser** agent to understand how the current
+- Use the **{codebase analyser agent}** agent to understand how the current
   implementation works
-- If relevant, use the **documents-locator** agent to find any existing
+- If relevant, use the **{documents locator agent}** agent to find any existing
   documents about this feature
 
 These agents will:
@@ -133,17 +137,17 @@ After getting initial clarifications:
 
 **For deeper investigation:**
 
-- **codebase-locator** - To find more specific files (e.g., "find all files that
+- **{codebase locator agent}** - To find more specific files (e.g., "find all files that
   handle [specific component]")
-- **codebase-analyser** - To understand implementation details (e.g., "analyze
+- **{codebase analyser agent}** - To understand implementation details (e.g., "analyze
   how [system] works")
-- **codebase-pattern-finder** - To find similar features we can model after
+- **{codebase pattern finder agent}** - To find similar features we can model after
 
 **For historical context:**
 
-- **documents-locator** - To find any research, plans, or decisions about this
+- **{documents locator agent}** - To find any research, plans, or decisions about this
   area
-- **documents-analyser** - To extract key insights from the most relevant
+- **{documents analyser agent}** - To extract key insights from the most relevant
   documents
 
 Each agent knows how to:

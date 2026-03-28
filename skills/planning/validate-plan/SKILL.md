@@ -11,6 +11,11 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 # Validate Plan
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
+If no "Agent Names" section appears above, use these defaults: reviewer,
+codebase-locator, codebase-analyser, codebase-pattern-finder,
+documents-locator, documents-analyser, web-search-researcher.
 
 **Validations directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh validations meta/validations`
 

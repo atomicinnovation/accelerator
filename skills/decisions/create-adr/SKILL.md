@@ -14,6 +14,10 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGI
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
+If no "Agent Names" section appears above, use these defaults: reviewer,
+codebase-locator, codebase-analyser, codebase-pattern-finder,
+documents-locator, documents-analyser, web-search-researcher.
+
 **Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh decisions meta/decisions`
 
 You are tasked with guiding the user through creating an architecture decision
@@ -68,9 +72,9 @@ ${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/adr-next-number.sh
 
 1. **Spawn agents to gather relevant context** (in parallel):
 
-- Use **documents-locator** to find related research, plans, and existing ADRs
+- Use **{documents locator agent}** to find related research, plans, and existing ADRs
   in the configured document directories
-- Use **codebase-locator** to find relevant code related to the decision topic
+- Use **{codebase locator agent}** to find relevant code related to the decision topic
 
 2. **Read any directly mentioned files** fully
 
@@ -196,7 +200,7 @@ When drafting ADRs, follow these principles:
 - File naming is `ADR-NNNN-description.md` (e.g., `ADR-0001-use-jujutsu.md`)
 - Only modify existing ADRs to update status fields during supersession
 - Cross-reference related documents in the References section
-- Use `documents-locator` and `codebase-locator` agents for context, not deep
+- Use {documents locator agent} and {codebase locator agent} agents for context, not deep
   file reads in the main context
 - **Dual status fields**: The template includes status in both YAML frontmatter
   (`status: proposed`) and the body (`**Status**: Proposed`). The frontmatter

@@ -10,6 +10,11 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 # Implement Plan
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
+If no "Agent Names" section appears above, use these defaults: reviewer,
+codebase-locator, codebase-analyser, codebase-pattern-finder,
+documents-locator, documents-analyser, web-search-researcher.
 
 You are tasked with implementing an approved technical plan from
 `meta/plans/`. These plans contain phases with specific changes and

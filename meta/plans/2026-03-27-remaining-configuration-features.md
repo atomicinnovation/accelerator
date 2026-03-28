@@ -323,15 +323,15 @@ is for inline use at critical spawn points only.
 
 #### Automated Verification:
 
-- [ ] `grep -rn 'Agent Overrides' scripts/` returns zero results (old table
+- [x] `grep -rn 'Agent Overrides' scripts/` returns zero results (old table
   heading removed)
-- [ ] `scripts/test-config.sh` passes (including updated assertions)
-- [ ] All skills that include `config-read-agents.sh` reference agent names
+- [x] `scripts/test-config.sh` passes (including updated assertions)
+- [x] All skills that include `config-read-agents.sh` reference agent names
   only via `{..agent}` variables:
   `grep -rn 'codebase-locator\|codebase-analyser\|documents-locator\|documents-analyser\|codebase-pattern-finder\|web-search-researcher' skills/ | grep -v 'config-read\|agent}\|subagent_type'`
   should return zero matches in skill prose (matches in preprocessor arguments
   and `subagent_type` values are expected)
-- [ ] `grep -rn '{codebase locator}\|{documents locator}\|{reviewer}' skills/`
+- [x] `grep -rn '{codebase locator}\|{documents locator}\|{reviewer}' skills/`
   returns zero results (all variable references must include ` agent` suffix)
 
 #### Manual Verification:

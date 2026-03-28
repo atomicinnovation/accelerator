@@ -4,6 +4,11 @@ set -euo pipefail
 # Reads a single agent name override from accelerator config files.
 # Outputs the configured override or the default agent name.
 #
+# This script is for inline use at critical spawn points where truly
+# deterministic preprocessor-time resolution is required (e.g., the
+# subagent_type parameter in review-pr and review-plan). For bulk
+# resolution of all agent names, use config-read-agents.sh instead.
+#
 # Usage: config-read-agent-name.sh <default-agent-name>
 #
 # Example: config-read-agent-name.sh reviewer

@@ -13,6 +13,10 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGI
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
+If no "Agent Names" section appears above, use these defaults: reviewer,
+codebase-locator, codebase-analyser, codebase-pattern-finder,
+documents-locator, documents-analyser, web-search-researcher.
+
 **Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research meta/research`
 **Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
 **Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh decisions meta/decisions`
@@ -59,22 +63,22 @@ Then wait for the user's research query.
 
 **For codebase research:**
 
-- Use the **codebase-locator** agent to find WHERE files and components live
-- Use the **codebase-analyser** agent to understand HOW specific code works
-- Use the **codebase-pattern-finder** agent if you need examples of similar
+- Use the **{codebase locator agent}** agent to find WHERE files and components live
+- Use the **{codebase analyser agent}** agent to understand HOW specific code works
+- Use the **{codebase pattern finder agent}** agent if you need examples of similar
   implementations
 
 **For meta directory:**
 
-- Use the **documents-locator** agent to discover what documents exist about the
+- Use the **{documents locator agent}** agent to discover what documents exist about the
   topic in the configured research, plans, and decisions directories (shown
   above)
-- Use the **documents-analyser** agent to extract key insights from specific
+- Use the **{documents analyser agent}** agent to extract key insights from specific
   documents (only the most relevant ones)
 
 **For web research (only if user explicitly asks):**
 
-- Use the **web-search-researcher** agent for external documentation and
+- Use the **{web search researcher agent}** agent for external documentation and
   resources
 - IF you use web-research agents, instruct them to return LINKS with their
   findings, and please INCLUDE those links in your final report

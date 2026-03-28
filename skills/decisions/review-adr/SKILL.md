@@ -15,6 +15,10 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGI
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
+If no "Agent Names" section appears above, use these defaults: reviewer,
+codebase-locator, codebase-analyser, codebase-pattern-finder,
+documents-locator, documents-analyser, web-search-researcher.
+
 **Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh decisions meta/decisions`
 
 You are tasked with reviewing ADRs for quality and managing their lifecycle
@@ -102,8 +106,8 @@ To revise this decision, create a new ADR that supersedes it:
 1. Read the ADR fully
 2. Check status is `proposed` (if not, apply mutability rules above)
 3. Spawn agents for context (in parallel):
-   - **documents-locator** to find related ADRs and source documents
-   - **codebase-locator** to verify technical claims in the ADR
+   - **{documents locator agent}** to find related ADRs and source documents
+   - **{codebase locator agent}** to verify technical claims in the ADR
 
 #### Step 2: Quality Review
 

@@ -12,6 +12,11 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+
+If no "Agent Names" section appears above, use these defaults: reviewer,
+codebase-locator, codebase-analyser, codebase-pattern-finder,
+documents-locator, documents-analyser, web-search-researcher.
+
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh pr`
 
 **PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs meta/reviews/prs`
@@ -230,7 +235,7 @@ Wait for confirmation before spawning reviewers.
 
 ### Step 3: Spawn Review Agents
 
-For each selected lens, spawn the generic `reviewer` agent with a prompt
+For each selected lens, spawn the {reviewer agent} agent with a prompt
 that includes paths to the lens skill and output format files. Do NOT read
 these files yourself — the agent reads them in its own context.
 

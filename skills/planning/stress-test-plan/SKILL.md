@@ -13,6 +13,10 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
+If no "Agent Names" section appears above, use these defaults: reviewer,
+codebase-locator, codebase-analyser, codebase-pattern-finder,
+documents-locator, documents-analyser, web-search-researcher.
+
 You are tasked with stress-testing an implementation plan by interviewing the
 user relentlessly about every aspect of it. Your goal is to find issues,
 inconsistencies, missing edge cases, flawed assumptions, and potential bugs
@@ -32,8 +36,8 @@ When this command is invoked:
 - Read any files the plan references — tickets, research documents, key source
   files mentioned
 - Spawn sub-agents to understand the current codebase context:
-  - Use the **codebase-locator** agent to find files related to the plan's scope
-  - Use the **codebase-analyser** agent to understand current implementation
+  - Use the **{codebase locator agent}** agent to find files related to the plan's scope
+  - Use the **{codebase analyser agent}** agent to understand current implementation
     details referenced in the plan
 - Wait for sub-agents to complete
 - Begin stress-testing (see process below)

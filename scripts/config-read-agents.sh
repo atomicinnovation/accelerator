@@ -98,32 +98,25 @@ while IFS= read -r config_file; do
   done <<< "$parsed"
 done < <(config_find_files)
 
-# Build override rows in AGENT_KEYS order (fixed display order).
-OVERRIDE_ROWS=""
+# Build resolved name for each agent (override or default).
+# Convert hyphenated keys to space-separated display names for consistency
+# with path variable labels (e.g., "codebase locator" not "codebase-locator").
+AGENT_LINES=""
 for key in "${AGENT_KEYS[@]}"; do
   val=$(printf '%s\n' "$OVERRIDES" | grep "^${key}=" | tail -1 | sed 's/^[^=]*=//' || true)
-  if [ -n "$val" ] && [ "$val" != "$key" ]; then
-    OVERRIDE_ROWS="${OVERRIDE_ROWS}| \`$key\` | \`$val\` |
-"
+  if [ -z "$val" ]; then
+    val="$key"
   fi
+  display_name="${key//-/ }"
+  AGENT_LINES="${AGENT_LINES}- **${display_name} agent**: ${val}
+"
 done
 
-# Output nothing if no overrides configured
-if [ -z "$OVERRIDE_ROWS" ]; then
-  exit 0
-fi
-
-# Output markdown instruction block with rows in AGENT_KEYS order
-echo "## Agent Overrides"
+# Always output agent names block (skills reference these variables).
+echo "## Agent Names"
 echo ""
-echo "The following agent names are overridden by project configuration."
-echo "When the instructions below reference an agent by its default name,"
-echo "use the configured name instead when spawning sub-agents:"
+echo "The following agent names are configured for this project. Always use"
+echo "the name shown for each role as the \`subagent_type\` parameter when"
+echo "spawning agents via the Agent/Task tool."
 echo ""
-echo "| Default Agent | Use Instead |"
-echo "|---|---|"
-printf '%s' "$OVERRIDE_ROWS"
-echo ""
-echo "This applies to all agent references in this skill, including"
-echo "the \`subagent_type\` parameter when spawning agents via the"
-echo "Agent/Task tool."
+printf '%s' "$AGENT_LINES"

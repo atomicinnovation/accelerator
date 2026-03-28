@@ -14,6 +14,10 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGI
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
+If no "Agent Names" section appears above, use these defaults: reviewer,
+codebase-locator, codebase-analyser, codebase-pattern-finder,
+documents-locator, documents-analyser, web-search-researcher.
+
 **Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh decisions meta/decisions`
 **Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research meta/research`
 **Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
@@ -48,7 +52,7 @@ Wait for user input.
 
 1. If specific files were provided, read them FULLY
 2. If scanning all meta documents:
-   - Spawn a **documents-locator** agent to find all documents in the
+   - Spawn a **{documents locator agent}** agent to find all documents in the
      configured research, plans, and decisions directories (shown above)
    - Present the discovered documents and let the user select which to scan:
      ```
@@ -69,7 +73,7 @@ Wait for user input.
 
 ### Step 2: Analyse Documents for Decisions
 
-1. **Spawn documents-analyser agents** (one per document, in parallel) with
+1. **Spawn {documents analyser agent} agents** (one per document, in parallel) with
    instructions to identify architectural decisions. Look for:
 
    - Explicit decision statements ("We decided...", "We will use...",

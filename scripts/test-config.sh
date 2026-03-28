@@ -661,12 +661,26 @@ echo ""
 echo "=== config-read-agents.sh ==="
 echo ""
 
-echo "Test: No config files -> outputs nothing"
+echo "Test: No config files -> outputs all agents with default names"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-assert_eq "outputs nothing" "" "$OUTPUT"
+if echo "$OUTPUT" | grep -q "## Agent Names" && \
+   echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: reviewer' && \
+   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: codebase-locator' && \
+   echo "$OUTPUT" | grep -q '\- \*\*codebase analyser agent\*\*: codebase-analyser' && \
+   echo "$OUTPUT" | grep -q '\- \*\*codebase pattern finder agent\*\*: codebase-pattern-finder' && \
+   echo "$OUTPUT" | grep -q '\- \*\*documents locator agent\*\*: documents-locator' && \
+   echo "$OUTPUT" | grep -q '\- \*\*documents analyser agent\*\*: documents-analyser' && \
+   echo "$OUTPUT" | grep -q '\- \*\*web search researcher agent\*\*: web-search-researcher'; then
+  echo "  PASS: outputs all 7 agents with default names"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: outputs all 7 agents with default names"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
 
-echo "Test: Config with agents section -> outputs override table"
+echo "Test: Config with agents section -> outputs labeled agent names with overrides"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
@@ -677,18 +691,18 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q "## Agent Overrides" && \
-   echo "$OUTPUT" | grep -q '| `reviewer` | `my-custom-reviewer` |' && \
-   echo "$OUTPUT" | grep -q '| `codebase-locator` | `my-locator` |'; then
-  echo "  PASS: outputs override table with correct rows"
+if echo "$OUTPUT" | grep -q "## Agent Names" && \
+   echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: my-custom-reviewer' && \
+   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: my-locator'; then
+  echo "  PASS: outputs labeled agent names with overrides"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: outputs override table with correct rows"
+  echo "  FAIL: outputs labeled agent names with overrides"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: Config with partial overrides -> only changed agents listed"
+echo "Test: Config with partial overrides -> overridden agent shows new name, others show defaults"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
@@ -698,12 +712,12 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q '| `reviewer` | `my-reviewer` |' && \
-   ! echo "$OUTPUT" | grep -q 'codebase-locator'; then
-  echo "  PASS: only overridden agent listed"
+if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: my-reviewer' && \
+   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: codebase-locator'; then
+  echo "  PASS: overridden agent shows new name, others show defaults"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: only overridden agent listed"
+  echo "  FAIL: overridden agent shows new name, others show defaults"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
 fi
@@ -724,7 +738,7 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q '| `reviewer` | `local-reviewer` |' && \
+if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: local-reviewer' && \
    ! echo "$OUTPUT" | grep -q 'team-reviewer'; then
   echo "  PASS: local overrides team"
   PASS=$((PASS + 1))
@@ -750,8 +764,8 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q '| `reviewer` | `custom-reviewer` |' && \
-   echo "$OUTPUT" | grep -q '| `codebase-locator` | `custom-locator` |'; then
+if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: custom-reviewer' && \
+   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: custom-locator'; then
   echo "  PASS: both overrides appear"
   PASS=$((PASS + 1))
 else
@@ -783,7 +797,7 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: Agent key with same value as default -> not listed as override"
+echo "Test: Agent key with same value as default -> shows default name"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
@@ -794,17 +808,17 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if ! echo "$OUTPUT" | grep -q '| `reviewer`' && \
-   echo "$OUTPUT" | grep -q '| `codebase-locator` | `my-locator` |'; then
-  echo "  PASS: identity override not listed"
+if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: reviewer' && \
+   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: my-locator'; then
+  echo "  PASS: identity override shows default name, other override applied"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: identity override not listed"
+  echo "  FAIL: identity override shows default name, other override applied"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: Table rows appear in fixed order (AGENT_KEYS order)"
+echo "Test: Agent lines appear in fixed order (AGENT_KEYS order)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
@@ -816,12 +830,12 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-# Extract just the table rows (lines starting with |, excluding header)
-ROWS=$(echo "$OUTPUT" | grep '^| `' || true)
+# Extract just the agent lines (lines starting with -)
+ROWS=$(echo "$OUTPUT" | grep '^- \*\*' || true)
 FIRST_ROW=$(echo "$ROWS" | head -1)
 LAST_ROW=$(echo "$ROWS" | tail -1)
-if echo "$FIRST_ROW" | grep -q 'reviewer' && \
-   echo "$LAST_ROW" | grep -q 'web-search-researcher'; then
+if echo "$FIRST_ROW" | grep -q 'reviewer agent' && \
+   echo "$LAST_ROW" | grep -q 'web search researcher agent'; then
   echo "  PASS: rows in AGENT_KEYS order"
   PASS=$((PASS + 1))
 else
@@ -830,7 +844,7 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: Config with frontmatter but no agents section -> outputs nothing"
+echo "Test: Config with frontmatter but no agents section -> outputs all defaults"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
@@ -840,7 +854,15 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-assert_eq "outputs nothing" "" "$OUTPUT"
+if echo "$OUTPUT" | grep -q "## Agent Names" && \
+   echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: reviewer'; then
+  echo "  PASS: outputs all defaults when no agents section"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: outputs all defaults when no agents section"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
 
 echo "Test: AGENT_KEYS list matches actual agent .md files in the plugin"
 # Extract agent keys from the script source (not by sourcing it)
@@ -919,9 +941,9 @@ echo "Test: config-read-context.sh appears in exactly 13 skills"
 CONTEXT_COUNT=$(grep -r 'config-read-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
 assert_eq "13 skills have context injection" "13" "$CONTEXT_COUNT"
 
-echo "Test: config-read-agents.sh appears in exactly 8 skills"
+echo "Test: config-read-agents.sh appears in exactly 10 skills"
 AGENTS_COUNT=$(grep -r 'config-read-agents.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "8 skills have agent override injection" "8" "$AGENTS_COUNT"
+assert_eq "10 skills have agent override injection" "10" "$AGENTS_COUNT"
 
 echo "Test: context injection is within a few lines of first # heading"
 CONTEXT_SKILLS=(
@@ -962,6 +984,8 @@ AGENT_SKILLS=(
   "planning/create-plan"
   "planning/review-plan"
   "planning/stress-test-plan"
+  "planning/implement-plan"
+  "planning/validate-plan"
   "research/research-codebase"
   "github/review-pr"
   "decisions/create-adr"
@@ -988,8 +1012,6 @@ fi
 
 echo "Test: Non-agent skills do NOT have config-read-agents.sh"
 NON_AGENT_SKILLS=(
-  "planning/implement-plan"
-  "planning/validate-plan"
   "github/describe-pr"
   "github/respond-to-pr"
   "vcs/commit"
@@ -1786,17 +1808,27 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: config-read-review.sh appears on line after config-read-agents.sh in review-pr"
+echo "Test: config-read-review.sh appears after config-read-agents.sh (with fallback) in review-pr"
 AGENTS_LINE=$(grep -n 'config-read-agents.sh' "$SKILLS_DIR/github/review-pr/SKILL.md" | head -1 | cut -d: -f1)
 REVIEW_LINE=$(grep -n 'config-read-review.sh' "$SKILLS_DIR/github/review-pr/SKILL.md" | head -1 | cut -d: -f1)
-EXPECTED_LINE=$((AGENTS_LINE + 1))
-assert_eq "review config on line after agents in review-pr" "$EXPECTED_LINE" "$REVIEW_LINE"
+if [ "$REVIEW_LINE" -gt "$AGENTS_LINE" ]; then
+  echo "  PASS: review config after agents in review-pr (agents:$AGENTS_LINE, review:$REVIEW_LINE)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: review config should be after agents in review-pr (agents:$AGENTS_LINE, review:$REVIEW_LINE)"
+  FAIL=$((FAIL + 1))
+fi
 
-echo "Test: config-read-review.sh appears on line after config-read-agents.sh in review-plan"
+echo "Test: config-read-review.sh appears after config-read-agents.sh (with fallback) in review-plan"
 AGENTS_LINE=$(grep -n 'config-read-agents.sh' "$SKILLS_DIR/planning/review-plan/SKILL.md" | head -1 | cut -d: -f1)
 REVIEW_LINE=$(grep -n 'config-read-review.sh' "$SKILLS_DIR/planning/review-plan/SKILL.md" | head -1 | cut -d: -f1)
-EXPECTED_LINE=$((AGENTS_LINE + 1))
-assert_eq "review config on line after agents in review-plan" "$EXPECTED_LINE" "$REVIEW_LINE"
+if [ "$REVIEW_LINE" -gt "$AGENTS_LINE" ]; then
+  echo "  PASS: review config after agents in review-plan (agents:$AGENTS_LINE, review:$REVIEW_LINE)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: review config should be after agents in review-plan (agents:$AGENTS_LINE, review:$REVIEW_LINE)"
+  FAIL=$((FAIL + 1))
+fi
 
 echo ""
 
