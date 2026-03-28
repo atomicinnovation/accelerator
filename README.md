@@ -183,6 +183,33 @@ You can add custom review lenses alongside the 13 built-in ones. Place them in
 Custom lenses are auto-discovered and included in the lens catalogue. See
 `/accelerator:configure help` for details and a minimal template.
 
+### Per-Skill Customisation
+
+Beyond global context, you can provide context or instructions targeted at
+individual skills by placing files in
+`.claude/accelerator/skills/<skill-name>/`:
+
+```
+.claude/accelerator/skills/
+  review-pr/
+    context.md          # Context specific to PR review
+    instructions.md     # Additional instructions for PR review
+  create-plan/
+    instructions.md     # Additional instructions for plan creation
+```
+
+- **`context.md`** — Injected after global project context. Use for information
+  only one skill needs (e.g., review criteria for `review-pr`, architecture
+  context for `create-plan`).
+- **`instructions.md`** — Appended to the end of the skill's prompt. Use to add
+  steps, enforce conventions, or modify output format. Instructions at the end
+  of the prompt typically take precedence when they conflict with earlier
+  instructions.
+
+Both files are optional. Directory names must match the skill name exactly (the
+part after `/accelerator:`). The SessionStart hook warns about unrecognised
+directory names. See `/accelerator:configure help` for the full reference.
+
 ## Architecture Decision Records
 
 ADR skills capture architectural decisions that emerge from research and

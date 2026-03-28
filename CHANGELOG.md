@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Added
+
+- **Per-skill customisation**: Users can now provide skill-specific context and
+  additional instructions by placing files in
+  `.claude/accelerator/skills/<skill-name>/` directories
+  - `context.md` — Skill-specific context injected after global project context;
+    use for information only one skill needs
+  - `instructions.md` — Additional instructions appended to the end of a skill's
+    prompt; use to add steps, enforce conventions, or modify output format
+  - Both files are optional and apply to all 13 user-facing skills (the
+    `configure` skill is excluded)
+  - SessionStart hook reports detected per-skill customisations and warns about
+    unrecognised skill directory names
+  - `/accelerator:configure help` documents the feature with examples and
+    troubleshooting guidance
+  - `/accelerator:configure view` enumerates active per-skill customisations
+
 ## 1.6.0 — 2026-03-27
 
 ### Added
