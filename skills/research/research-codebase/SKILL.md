@@ -99,7 +99,7 @@ The key is to use these agents intelligently:
 - Use document findings as supplementary historical context
 - Connect findings across different components
 - Include specific file paths and line numbers for reference
-- Verify all meta/ paths are correct
+- Verify all output paths are correct
 - Highlight patterns, connections, and architectural decisions
 - Answer the user's specific questions with concrete evidence
 

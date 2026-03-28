@@ -394,7 +394,7 @@ tasks = [
 User: /create-plan
 Assistant: I'll help you create a detailed implementation plan...
 
-User: We need to add parent-child tracking for Claude sub-tasks. See meta/tickets/eng-1478.md
+User: We need to add parent-child tracking for Claude sub-tasks. See {tickets directory}/eng-1478.md
 Assistant: Let me read that ticket file completely first...
 
 [Reads file fully]

@@ -119,7 +119,7 @@ Write the validation report to the configured validations directory:
 1. Derive the filename from the plan filename: extract the filename stem
    (without directory path or `.md` extension) regardless of how the path
    was provided. For example, if the plan is
-   `meta/plans/2026-03-22-improve-error-handling.md`, the validation is
+   `{plans directory}/2026-03-22-improve-error-handling.md`, the validation is
    `{validations directory}/2026-03-22-improve-error-handling-validation.md`.
 
 2. Create the configured validations directory if it doesn't exist.

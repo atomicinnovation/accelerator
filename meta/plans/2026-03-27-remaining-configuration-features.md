@@ -879,15 +879,15 @@ Same limitation — use a generic description:
 
 #### Automated Verification:
 
-- [ ] `grep -rn 'meta/plans/' skills/ | grep -v 'config-read-path\|test-'`
+- [x] `grep -rn 'meta/plans/' skills/ | grep -v 'config-read-path\|test-'`
   returns zero results
-- [ ] `grep -rn 'meta/tickets/' skills/ | grep -v 'config-read-path\|test-'`
+- [x] `grep -rn 'meta/tickets/' skills/ | grep -v 'config-read-path\|test-'`
   returns zero results
-- [ ] `grep -rn 'meta/decisions/' skills/ | grep -v 'config-read-path\|test-\|configure/'`
+- [x] `grep -rn 'meta/decisions/' skills/ | grep -v 'config-read-path\|test-\|configure/'`
   returns zero results
-- [ ] `grep -rn 'meta/research/' skills/ | grep -v 'config-read-path\|test-\|configure/'`
+- [x] `grep -rn 'meta/research/' skills/ | grep -v 'config-read-path\|test-\|configure/'`
   returns zero results
-- [ ] `scripts/test-config.sh` passes
+- [x] `scripts/test-config.sh` passes
 
 #### Manual Verification:
 

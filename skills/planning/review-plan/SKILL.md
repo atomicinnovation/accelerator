@@ -40,12 +40,12 @@ When this command is invoked:
 
 ```
 I'll help you review an implementation plan. Please provide:
-1. The path to the plan file (e.g., `meta/plans/2025-01-08-ENG-1478-feature.md`)
+1. The path to the plan file (e.g., `{plans directory}/2025-01-08-ENG-1478-feature.md`)
 2. (Optional) Focus areas to emphasise (e.g., "focus on security and architecture")
 
 Tip: You can invoke this command with arguments:
-  `/review-plan meta/plans/2025-01-08-feature.md`
-  `/review-plan meta/plans/2025-01-08-feature.md focus on security and architecture`
+  `/review-plan {plans directory}/2025-01-08-feature.md`
+  `/review-plan {plans directory}/2025-01-08-feature.md focus on security and architecture`
 ```
 
 Then wait for the user's input.
@@ -394,7 +394,7 @@ Once all reviews are complete:
    Derive the review filename using the plan stem and the next available
    review number. The plan stem is the basename of the plan path without
    the `.md` extension. For example, if the plan is
-   `meta/plans/2026-03-22-improve-error-handling.md` and no prior reviews
+   `{plans directory}/2026-03-22-improve-error-handling.md` and no prior reviews
    exist, the review filename is
    `{plan reviews directory}/2026-03-22-improve-error-handling-review-1.md`.
 

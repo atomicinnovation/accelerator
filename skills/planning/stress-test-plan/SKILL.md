@@ -17,6 +17,8 @@ If no "Agent Names" section appears above, use these defaults: reviewer,
 codebase-locator, codebase-analyser, codebase-pattern-finder,
 documents-locator, documents-analyser, web-search-researcher.
 
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
+
 You are tasked with stress-testing an implementation plan by interviewing the
 user relentlessly about every aspect of it. Your goal is to find issues,
 inconsistencies, missing edge cases, flawed assumptions, and potential bugs
@@ -47,7 +49,7 @@ When this command is invoked:
 ```
 I'll stress-test your implementation plan. Please provide the path to the plan file.
 
-Example: `/stress-test-plan meta/plans/2025-01-08-ENG-1478-feature.md`
+Example: `/stress-test-plan {plans directory}/2025-01-08-ENG-1478-feature.md`
 ```
 
 Then wait for the user's input.

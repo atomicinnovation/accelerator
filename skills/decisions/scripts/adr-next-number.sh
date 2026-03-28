@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Outputs the next sequential ADR number in NNNN format.
-# Scans meta/decisions/ for the highest existing ADR-NNNN number
+# Scans the configured decisions directory for the highest existing ADR-NNNN number
 # and increments by one. Outputs "0001" if no ADRs exist.
 #
 # Usage: adr-next-number.sh [--count N]
