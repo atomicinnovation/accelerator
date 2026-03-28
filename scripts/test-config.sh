@@ -2181,15 +2181,31 @@ fi
 echo "Test: Unknown template name -> error listing available template names"
 REPO=$(setup_repo)
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "nonexistent" 2>&1 1>/dev/null || true)
-if echo "$STDERR_OUTPUT" | grep -q "plan, research, adr, validation"; then
-  echo "  PASS: error lists available templates"
+if echo "$STDERR_OUTPUT" | grep -q "pr-description" && \
+   echo "$STDERR_OUTPUT" | grep -q "plan" && \
+   echo "$STDERR_OUTPUT" | grep -q "research" && \
+   echo "$STDERR_OUTPUT" | grep -q "adr" && \
+   echo "$STDERR_OUTPUT" | grep -q "validation"; then
+  echo "  PASS: error lists available templates (including pr-description)"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: error lists available templates"
+  echo "  FAIL: error lists available templates (including pr-description)"
   echo "    Actual stderr: $STDERR_OUTPUT"
   FAIL=$((FAIL + 1))
 fi
 assert_exit_code "exits 1 for unknown template" 1 bash "$READ_TEMPLATE" "nonexistent"
+
+echo "Test: pr-description template -> outputs plugin default"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "pr-description")
+if echo "$OUTPUT" | grep -q "PR Title" && echo "$OUTPUT" | grep -q "Summary"; then
+  echo "  PASS: pr-description template content output"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pr-description template content output"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
 
 echo ""
 
@@ -2360,20 +2376,14 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: describe-pr uses config-read-path.sh for prs and templates"
+echo "Test: describe-pr uses config-read-path.sh for prs and config-read-template.sh for pr-description"
 DESCRIBE_SKILL="$SKILLS_DIR/github/describe-pr/SKILL.md"
-DESCRIBE_PASS=true
-for key in prs templates; do
-  if ! grep -q "config-read-path.sh $key" "$DESCRIBE_SKILL"; then
-    DESCRIBE_PASS=false
-    break
-  fi
-done
-if $DESCRIBE_PASS; then
-  echo "  PASS: describe-pr has prs and templates path injections"
+if grep -q 'config-read-path.sh prs' "$DESCRIBE_SKILL" && \
+   grep -q 'config-read-template.sh pr-description' "$DESCRIBE_SKILL"; then
+  echo "  PASS: describe-pr has prs path and pr-description template injections"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: describe-pr has prs and templates path injections"
+  echo "  FAIL: describe-pr has prs path and pr-description template injections"
   FAIL=$((FAIL + 1))
 fi
 

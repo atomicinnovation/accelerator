@@ -758,12 +758,12 @@ templates.
 
 #### Automated Verification:
 
-- [ ] `templates/pr-description.md` exists
-- [ ] `scripts/config-read-template.sh pr-description` succeeds and outputs
+- [x] `templates/pr-description.md` exists
+- [x] `scripts/config-read-template.sh pr-description` succeeds and outputs
   template content (three-tier resolution works for new key)
-- [ ] `grep -n 'check if.*templates directory.*pr-description' skills/github/describe-pr/SKILL.md`
+- [x] `grep -n 'check if.*templates directory.*pr-description' skills/github/describe-pr/SKILL.md`
   returns zero results (manual check removed)
-- [ ] `scripts/test-config.sh` passes (including new pr-description test)
+- [x] `scripts/test-config.sh` passes (including new pr-description test)
 
 #### Manual Verification:
 

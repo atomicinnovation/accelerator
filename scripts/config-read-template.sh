@@ -4,7 +4,7 @@ set -euo pipefail
 # Reads a template file, checking user overrides before plugin defaults.
 # Usage: config-read-template.sh <template_name>
 #
-# Template names: plan, research, adr, validation
+# Template names: plan, research, adr, validation, pr-description
 # (Invalid names produce an error listing available templates.)
 #
 # Resolution order:
@@ -82,5 +82,18 @@ if [ -f "$DEFAULT_PATH" ]; then
   exit 0
 fi
 
-echo "Error: Template '$TEMPLATE_NAME' not found. Available templates: plan, research, adr, validation" >&2
+available=""
+for f in "$PLUGIN_ROOT/templates/"*.md; do
+  [ -f "$f" ] || continue
+  name="$(basename "$f" .md)"
+  if [ -z "$available" ]; then
+    available="$name"
+  else
+    available="$available, $name"
+  fi
+done
+if [ -z "$available" ]; then
+  available="(none found)"
+fi
+echo "Error: Template '$TEMPLATE_NAME' not found. Available templates: $available" >&2
 exit 1

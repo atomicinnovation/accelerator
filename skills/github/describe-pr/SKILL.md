@@ -13,19 +13,19 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 
 **PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh prs meta/prs`
-**Templates directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh templates meta/templates`
+
+**PR description template**:
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh pr-description`
 
 You are tasked with generating a comprehensive pull request description
 following the repository's standard template.
 
 ## Steps to follow:
 
-1. **Read the PR description template:**
+1. **Use the PR description template:**
 
-- First, check if `{templates directory}/pr-description.md` exists (where
-  the templates directory is shown above)
-- If it doesn't exist, inform the user that they need to create a PR
-  description template at `{templates directory}/pr-description.md`
+- The template is shown above under "PR description template"
 - Read the template carefully to understand all sections and requirements
 
 2. **Identify the PR to describe:**

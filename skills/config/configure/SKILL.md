@@ -306,6 +306,7 @@ file paths using the `templates` config section:
 templates:
   plan: docs/templates/our-plan-format.md
   adr: docs/templates/our-adr-format.md
+  pr-description: docs/templates/our-pr-template.md
 ---
 \```
 
