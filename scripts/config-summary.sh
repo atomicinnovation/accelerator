@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Outputs a brief summary of active Accelerator configuration.
 # Used by the SessionStart hook to inject config awareness into the session.
-# Outputs nothing if no config files exist and the repo is already initialised.
+# Outputs nothing if no config files exist and the repo is already init'd.
 # Emits warnings to stderr for malformed config files.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,7 +20,7 @@ TMP_PATH=$("$SCRIPT_DIR/config-read-path.sh" tmp meta/tmp)
 INITIALISED=true
 [ ! -f "$TMP_PATH/.gitignore" ] && INITIALISED=false
 
-INIT_HINT="Accelerator has not been initialised in this repository. Type /accelerator:initialise at the prompt to set up the expected directory structure and gitignore entries."
+INIT_HINT="Accelerator has not been initialised in this repository. Type /accelerator:init at the prompt to set up the expected directory structure and gitignore entries."
 
 if [ ${#FILES[@]} -eq 0 ]; then
   if [ "$INITIALISED" = false ]; then

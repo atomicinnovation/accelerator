@@ -1,5 +1,5 @@
 ---
-name: initialise
+name: init
 description: Prepare a repository with the directories and gitignore entries
   that Accelerator skills expect. Safe to run repeatedly.
 argument-hint: "(no arguments — safe to run repeatedly)"
