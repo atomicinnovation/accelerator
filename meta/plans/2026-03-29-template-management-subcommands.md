@@ -469,15 +469,15 @@ Make executable: `chmod +x scripts/config-show-template.sh`
 
 #### Automated Verification:
 
-- [ ] `config-show-template.sh plan` outputs source metadata line + raw
+- [x] `config-show-template.sh plan` outputs source metadata line + raw
       content (no code fences)
-- [ ] Output starts with `Source: plugin default (...)` when no override
+- [x] Output starts with `Source: plugin default (...)` when no override
       exists
-- [ ] User override is correctly identified as `user override`
-- [ ] Config path override is correctly identified as `config path`
-- [ ] Unknown template name produces error listing available templates
-- [ ] Missing argument produces usage message to stderr and exit 1
-- [ ] Tests pass in `test-config.sh`
+- [x] User override is correctly identified as `user override`
+- [x] Config path override is correctly identified as `config path`
+- [x] Unknown template name produces error listing available templates
+- [x] Missing argument produces usage message to stderr and exit 1
+- [x] Tests pass in `test-config.sh`
 
 ---
 

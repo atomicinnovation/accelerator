@@ -3228,6 +3228,79 @@ fi
 echo ""
 
 # ============================================================
+echo "=== config-show-template.sh ==="
+echo ""
+
+echo "Test: No override -> shows Source: plugin default + raw content"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "plan")
+FIRST_LINE=$(echo "$OUTPUT" | head -1)
+assert_contains "source line says plugin default" "Source: plugin default" "$FIRST_LINE"
+SECOND_LINE=$(echo "$OUTPUT" | sed -n '2p')
+assert_eq "separator line" "---" "$SECOND_LINE"
+# Content should NOT have code fences
+if echo "$OUTPUT" | grep -q '```markdown'; then
+  echo "  FAIL: should not contain code fences"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: no code fences in output"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: User override -> shows Source: user override + user content"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+echo "# My Custom Plan" > "$REPO/meta/templates/plan.md"
+OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "plan")
+assert_contains "source line says user override" "Source: user override" "$(echo "$OUTPUT" | head -1)"
+assert_contains "contains user content" "My Custom Plan" "$OUTPUT"
+
+echo "Test: Config path override -> shows Source: config path + content"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+mkdir -p "$REPO/custom"
+echo "# Config Plan" > "$REPO/custom/my-plan.md"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+templates:
+  plan: custom/my-plan.md
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "plan")
+assert_contains "source line says config path" "Source: config path" "$(echo "$OUTPUT" | head -1)"
+assert_contains "contains config content" "Config Plan" "$OUTPUT"
+
+echo "Test: Unknown template name -> error to stderr, exit 1"
+REPO=$(setup_repo)
+STDERR_OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "nonexistent" 2>&1 1>/dev/null || true)
+assert_contains "error mentions available templates" "Available templates:" "$STDERR_OUTPUT"
+assert_exit_code "exits 1 for unknown template" 1 bash "$SHOW_TEMPLATE" "nonexistent"
+
+echo "Test: No argument -> usage to stderr, exit 1"
+REPO=$(setup_repo)
+STDERR_OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" 2>&1 1>/dev/null || true)
+assert_contains "usage message" "Usage:" "$STDERR_OUTPUT"
+assert_exit_code "exits 1 for no argument" 1 bash "$SHOW_TEMPLATE"
+
+echo "Test: Content is raw (no code fences added)"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+printf '# Raw Template\n\nSome content here.\n' > "$REPO/meta/templates/plan.md"
+OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "plan")
+# Extract content after the --- separator
+CONTENT=$(echo "$OUTPUT" | sed '1,2d')
+if echo "$CONTENT" | grep -q '```'; then
+  echo "  FAIL: raw content should not contain added fences"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: content is raw without added fences"
+  PASS=$((PASS + 1))
+fi
+assert_contains "raw content present" "Some content here." "$CONTENT"
+
+echo ""
+
+# ============================================================
 echo "=== Results ==="
 echo "Passed: $PASS"
 echo "Failed: $FAIL"
