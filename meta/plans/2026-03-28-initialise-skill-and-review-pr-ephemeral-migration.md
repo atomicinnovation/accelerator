@@ -505,10 +505,10 @@ under your PR reviews path (default: meta/reviews/prs/):
 
 #### Automated Verification:
 
-- [ ] No remaining references to `{pr reviews directory}/pr-review-` in
+- [x] No remaining references to `{pr reviews directory}/pr-review-` in
       `skills/github/review-pr/SKILL.md` (search for the pattern)
-- [ ] `{tmp directory}` is referenced correctly throughout
-- [ ] The `{pr reviews directory}` variable is still used for the persistent
+- [x] `{tmp directory}` is referenced correctly throughout
+- [x] The `{pr reviews directory}` variable is still used for the persistent
       review artifact path (`{pr reviews directory}/{number}-review-{N}.md`)
 
 #### Manual Verification:

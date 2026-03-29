@@ -21,6 +21,7 @@ documents-locator, documents-analyser, web-search-researcher.
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh pr`
 
 **PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs meta/reviews/prs`
+**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp meta/tmp`
 
 You are tasked with reviewing a pull request through multiple quality lenses
 and then presenting a compiled analysis of the code changes.
@@ -81,18 +82,18 @@ the user's input.
 1. **Get PR metadata**:
    `gh pr view {number} --json number,url,title,state,baseRefName,headRefName`
 
-2. **Create temp directory** at `{pr reviews directory}/pr-review-{number}` (substituting
+2. **Create temp directory** at `{tmp directory}/pr-review-{number}` (substituting
    the actual PR number):
    ```bash
-   mkdir -p {pr reviews directory}/pr-review-{number}
+   mkdir -p {tmp directory}/pr-review-{number}
    ```
 
 3. **Fetch diff, changed files, PR description, and commit context**:
    ```bash
-   gh pr diff {number} > {pr reviews directory}/pr-review-{number}/diff.patch
-   gh pr diff {number} --name-only > {pr reviews directory}/pr-review-{number}/changed-files.txt
-   gh pr view {number} --json body --jq '.body' > {pr reviews directory}/pr-review-{number}/pr-description.md
-   gh pr view {number} --json commits --jq '.commits[].messageHeadline' > {pr reviews directory}/pr-review-{number}/commits.txt
+   gh pr diff {number} > {tmp directory}/pr-review-{number}/diff.patch
+   gh pr diff {number} --name-only > {tmp directory}/pr-review-{number}/changed-files.txt
+   gh pr view {number} --json body --jq '.body' > {tmp directory}/pr-review-{number}/pr-description.md
+   gh pr view {number} --json commits --jq '.commits[].messageHeadline' > {tmp directory}/pr-review-{number}/commits.txt
    ```
 
 4. **Read the diff, changed files list, PR description, and commits** to
@@ -100,8 +101,8 @@ the user's input.
 
 5. **Fetch additional metadata for the Reviews API**:
    ```bash
-   gh api repos/{owner}/{repo}/pulls/{number} --jq '.head.sha' > {pr reviews directory}/pr-review-{number}/head-sha.txt
-   gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"' > {pr reviews directory}/pr-review-{number}/repo-info.txt
+   gh api repos/{owner}/{repo}/pulls/{number} --jq '.head.sha' > {tmp directory}/pr-review-{number}/head-sha.txt
+   gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"' > {tmp directory}/pr-review-{number}/repo-info.txt
    ```
 
    Where `{owner}` and `{repo}` are extracted from the PR metadata already
@@ -247,7 +248,7 @@ You are reviewing pull request changes through the [lens name] lens.
 
 ## Context
 
-The PR artefacts are in the temp directory at {pr reviews directory}/pr-review-{number}:
+The PR artefacts are in the temp directory at {tmp directory}/pr-review-{number}:
 - `diff.patch` — the full diff
 - `changed-files.txt` — list of changed file paths
 - `pr-description.md` — PR description
@@ -526,8 +527,8 @@ The review is ready. Would you like to:
 **When the user chooses to post** (option 1):
 
 1. Read the HEAD SHA and repo info from the temp directory at
-   `{pr reviews directory}/pr-review-{number}/head-sha.txt` and
-   `{pr reviews directory}/pr-review-{number}/repo-info.txt` using the Read tool.
+   `{tmp directory}/pr-review-{number}/head-sha.txt` and
+   `{tmp directory}/pr-review-{number}/repo-info.txt` using the Read tool.
 
 2. Construct the review payload as a JSON object containing:
    - `commit_id`: the HEAD SHA
@@ -550,10 +551,11 @@ The review is ready. Would you like to:
        API `{start_line: 10, start_side: "RIGHT", line: 15, side: "RIGHT"}`
 
 3. Write the review payload JSON to
-   `{pr reviews directory}/pr-review-{number}/review-payload.json`, then post the review:
+   `{tmp directory}/pr-review-{number}/review-payload.json`, then post the
+   review:
    ```bash
    gh api repos/{owner}/{repo}/pulls/{number}/reviews \
-     --method POST --input {pr reviews directory}/pr-review-{number}/review-payload.json
+     --method POST --input {tmp directory}/pr-review-{number}/review-payload.json
    ```
 
    Where `{owner}/{repo}` are the values read from `repo-info.txt`.
@@ -610,11 +612,11 @@ stale commit):
 7. **Clean up temp directory only at session end** — agents may need to
    re-reference the PR context during follow-up discussion.
 
-   The `{pr reviews directory}/pr-review-{number}/` directory contains ephemeral working
-   data (diff, changed-files, PR description, commits, head SHA, repo info,
-   review payload JSON) used during the review session. The review itself
-   (summary, inline comments, per-lens results) is persisted separately to
-   `{pr reviews directory}/{number}-review-{N}.md` and is NOT stored in tmp/.
+   The `{tmp directory}/pr-review-{number}/` directory contains ephemeral
+   working data (diff, changed-files, PR description, commits, head SHA,
+   repo info, review payload JSON) used during the review session. The review
+   itself (summary, inline comments, per-lens results) is persisted separately
+   to `{pr reviews directory}/{number}-review-{N}.md`.
 
 8. **Handle API errors gracefully** — if the review post fails due to invalid
    line references, identify the problematic comments and offer to retry
