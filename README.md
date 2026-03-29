@@ -70,9 +70,9 @@ Three complementary skills support this loop:
 
 Every project using Accelerator gets a `meta/` directory (by default) that
 serves as persistent state for the development workflow. Each skill reads from
-and writes to predictable paths within it (directories are created on first use
-by their respective skills). These paths can be overridden via the `paths`
-configuration section:
+and writes to predictable paths within it. Run `/accelerator:initialise` to
+create all directories up front, or let skills create them on first use.
+These paths can be overridden via the `paths` configuration section:
 
 | Directory      | Purpose                                         | Written by                                 |
 |----------------|-------------------------------------------------|--------------------------------------------|
@@ -83,6 +83,8 @@ configuration section:
 | `validations/` | Plan validation reports                         | `validate-plan`                            |
 | `prs/`         | PR descriptions                                 | `describe-pr`                              |
 | `templates/`   | Reusable templates (e.g., PR descriptions)      | manual                                     |
+| `tickets/`     | Ticket files referenced by planning             | manual                                     |
+| `notes/`       | Notes and working documents                     | manual                                     |
 | `tmp/`         | Ephemeral working data (e.g., review artifacts) | `review-pr`                                |
 
 This approach means:
@@ -139,14 +141,14 @@ free-form project context:
 agents:
   reviewer: my-custom-reviewer
 review:
-  disabled_lenses: [portability, compatibility]
+  disabled_lenses: [ portability, compatibility ]
   max_inline_comments: 15
   pr_request_changes_severity: major
 ---
 
 ## Project Context
 
-This is a Ruby on Rails application using PostgreSQL and Redis.
+  This is a Ruby on Rails application using PostgreSQL and Redis.
 
 ### Conventions
 - Follow StandardRB for code style
@@ -227,11 +229,11 @@ research-codebase → create-plan → implement-plan
   review-adr → accepted ADRs inform future research & planning
 ```
 
-| Skill            | Usage                                                  | Description                                                |
-|------------------|--------------------------------------------------------|------------------------------------------------------------|
-| **create-adr**   | `/accelerator:create-adr [topic]`                      | Interactively create an ADR with context gathering         |
-| **extract-adrs** | `/accelerator:extract-adrs [doc paths...]`             | Extract decisions from existing meta documents into ADRs   |
-| **review-adr**   | `/accelerator:review-adr [path to ADR]`                | Review proposed ADRs; accept, reject, or suggest revisions |
+| Skill            | Usage                                      | Description                                                |
+|------------------|--------------------------------------------|------------------------------------------------------------|
+| **create-adr**   | `/accelerator:create-adr [topic]`          | Interactively create an ADR with context gathering         |
+| **extract-adrs** | `/accelerator:extract-adrs [doc paths...]` | Extract decisions from existing meta documents into ADRs   |
+| **review-adr**   | `/accelerator:review-adr [path to ADR]`    | Review proposed ADRs; accept, reject, or suggest revisions |
 
 ADRs follow an append-only lifecycle: once accepted, an ADR's content becomes
 immutable. To revise a decision, create a new ADR that supersedes the original.
@@ -254,21 +256,21 @@ The `review-pr` and `review-plan` skills use a multi-lens review system. Each
 lens is a specialised subagent that evaluates changes through a specific quality
 perspective:
 
-| Lens               | Focus                                                                |
-|--------------------|----------------------------------------------------------------------|
-| **Architecture**   | Modularity, coupling, dependency direction, structural drift         |
-| **Code Quality**   | Complexity, design principles, error handling, code smells           |
-| **Compatibility**  | API contracts, cross-platform, protocol compliance, deps             |
-| **Correctness**    | Logical validity, boundary conditions, state management, concurrency |
-| **Database**       | Migration safety, schema design, query correctness, integrity        |
-| **Documentation**  | Documentation completeness, accuracy, audience fit                   |
-| **Performance**    | Algorithmic efficiency, resource usage, concurrency, caching         |
-| **Portability**    | Environment independence, deployment flexibility, vendor lock        |
-| **Safety**         | Data loss prevention, operational safety, protective mechanisms      |
-| **Security**       | OWASP Top 10, input validation, auth/authz, secrets, data flows     |
-| **Standards**      | Project conventions, API standards, naming, accessibility            |
-| **Test Coverage**  | Coverage adequacy, assertion quality, test pyramid, anti-patterns    |
-| **Usability**      | Developer experience, API ergonomics, configuration, migration paths |
+| Lens              | Focus                                                                |
+|-------------------|----------------------------------------------------------------------|
+| **Architecture**  | Modularity, coupling, dependency direction, structural drift         |
+| **Code Quality**  | Complexity, design principles, error handling, code smells           |
+| **Compatibility** | API contracts, cross-platform, protocol compliance, deps             |
+| **Correctness**   | Logical validity, boundary conditions, state management, concurrency |
+| **Database**      | Migration safety, schema design, query correctness, integrity        |
+| **Documentation** | Documentation completeness, accuracy, audience fit                   |
+| **Performance**   | Algorithmic efficiency, resource usage, concurrency, caching         |
+| **Portability**   | Environment independence, deployment flexibility, vendor lock        |
+| **Safety**        | Data loss prevention, operational safety, protective mechanisms      |
+| **Security**      | OWASP Top 10, input validation, auth/authz, secrets, data flows      |
+| **Standards**     | Project conventions, API standards, naming, accessibility            |
+| **Test Coverage** | Coverage adequacy, assertion quality, test pyramid, anti-patterns    |
+| **Usability**     | Developer experience, API ergonomics, configuration, migration paths |
 
 Lenses are automatically selected based on scope, or you can specify focus
 areas:

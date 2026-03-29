@@ -682,11 +682,11 @@ create all directories up front, or let skills create them on first use.
 
 #### Automated Verification:
 
-- [ ] `tmp` appears in the paths table in `skills/config/configure/SKILL.md`
-- [ ] `tmp` appears in the example configuration block
-- [ ] CHANGELOG has an entry for the new version documenting all changes
-- [ ] `plugin.json` version is bumped
-- [ ] README directory table includes `tickets/` and `notes/` rows
+- [x] `tmp` appears in the paths table in `skills/config/configure/SKILL.md`
+- [x] `tmp` appears in the example configuration block
+- [x] CHANGELOG has an entry for the new version documenting all changes
+- [x] `plugin.json` version is bumped
+- [x] README directory table includes `tickets/` and `notes/` rows
 
 #### Manual Verification:
 

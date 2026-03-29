@@ -339,6 +339,7 @@ project root (absolute paths are also supported):
 | `templates` | `meta/templates` | User-provided templates (e.g., PR description) |
 | `tickets` | `meta/tickets` | Ticket files referenced by create-plan |
 | `notes` | `meta/notes` | Notes directory |
+| `tmp` | `meta/tmp` | Ephemeral working data (gitignored) |
 
 Example configuration:
 
@@ -355,6 +356,7 @@ paths:
   templates: docs/templates
   tickets: docs/tickets
   notes: docs/notes
+  tmp: docs/tmp
 ---
 \```
 

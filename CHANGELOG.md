@@ -18,6 +18,31 @@
   - `/accelerator:configure help` documents the feature with examples and
     troubleshooting guidance
   - `/accelerator:configure view` enumerates active per-skill customisations
+- **`/accelerator:initialise` skill**: Prepares a consumer repository with all
+  directories and gitignore entries that Accelerator skills expect. Creates all
+  11 configured output directories with `.gitkeep` files, sets up the tmp
+  directory with a self-contained `.gitignore`, and ensures
+  `.claude/accelerator.local.md` is in the consumer's root `.gitignore`. Safe
+  to run repeatedly — reports what was created versus what already existed.
+- **`tmp` configurable path key**: New `paths.tmp` configuration key (default:
+  `meta/tmp`) for ephemeral working data. The tmp directory uses an inner
+  `.gitignore` to ignore its contents while remaining tracked by git.
+- **SessionStart initialisation detection**: The SessionStart hook now detects
+  when a consumer repository has not been initialised and suggests running
+  `/accelerator:initialise`.
+
+### Changed
+
+- **`review-pr` ephemeral file location**: Ephemeral working files (diff,
+  changed-files, PR description, commits, head SHA, repo info, review payload)
+  are now written to `{tmp directory}/pr-review-{number}/` instead of
+  `{pr reviews directory}/pr-review-{number}/`. Persistent review artifacts
+  remain at `{pr reviews directory}/{number}-review-{N}.md`. After upgrading,
+  you can safely remove any existing `pr-review-*/` directories under your PR
+  reviews path (default: `meta/reviews/prs/`):
+  ```
+  rm -rf meta/reviews/prs/pr-review-*/
+  ```
 
 ## 1.6.0 — 2026-03-27
 
