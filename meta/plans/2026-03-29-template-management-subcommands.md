@@ -887,14 +887,14 @@ Make executable: `chmod +x scripts/config-reset-template.sh`
 
 #### Automated Verification:
 
-- [ ] `config-reset-template.sh plan` with no override exits 2 with
+- [x] `config-reset-template.sh plan` with no override exits 2 with
       "already using plugin default" message
-- [ ] With an override, exits 0 and outputs the override path and source
-- [ ] `--confirm` with an override deletes the file
-- [ ] Config path overrides produce note about removing config entry
-- [ ] Unknown template name produces error listing available templates
-- [ ] Missing argument produces usage message and exit 1
-- [ ] Tests pass in `test-config.sh`
+- [x] With an override, exits 0 and outputs the override path and source
+- [x] `--confirm` with an override deletes the file
+- [x] Config path overrides produce note about removing config entry
+- [x] Unknown template name produces error listing available templates
+- [x] Missing argument produces usage message and exit 1
+- [x] Tests pass in `test-config.sh`
 
 #### Manual Verification:
 

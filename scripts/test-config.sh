@@ -3492,6 +3492,86 @@ assert_contains "usage message" "Usage:" "$STDERR_OUTPUT"
 echo ""
 
 # ============================================================
+echo "=== config-reset-template.sh ==="
+echo ""
+
+echo "Test: No override -> exit 2 with 'already using plugin default' to stderr"
+REPO=$(setup_repo)
+RC=0
+STDERR_OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" "plan" 2>&1 1>/dev/null) || RC=$?
+assert_eq "exit code 2" "2" "$RC"
+assert_contains "already using default" "already using plugin default" "$STDERR_OUTPUT"
+
+echo "Test: User override without --confirm -> exit 0, outputs override path and source"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+echo "# Custom" > "$REPO/meta/templates/plan.md"
+OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" "plan")
+assert_contains "found override" "Found override:" "$OUTPUT"
+assert_contains "source is user override" "user override" "$OUTPUT"
+assert_contains "path shown" "meta/templates/plan.md" "$OUTPUT"
+assert_file_exists "file still exists (not deleted)" "$REPO/meta/templates/plan.md"
+
+echo "Test: Config path override without --confirm -> includes note about config entry"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+mkdir -p "$REPO/custom"
+echo "# Config" > "$REPO/custom/my-plan.md"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+templates:
+  plan: custom/my-plan.md
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" "plan")
+assert_contains "config path source" "config path" "$OUTPUT"
+assert_contains "note about config entry" "also remove the 'templates.plan' entry" "$OUTPUT"
+
+echo "Test: Config path outside project root without --confirm -> warning shown"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+OUTSIDE_FILE=$(mktemp "$TMPDIR_BASE/outside-plan-XXXXXX.md")
+echo "# Outside" > "$OUTSIDE_FILE"
+cat > "$REPO/.claude/accelerator.md" << FIXTURE
+---
+templates:
+  plan: $OUTSIDE_FILE
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" "plan")
+assert_contains "outside project warning" "Warning: This file is outside the project directory" "$OUTPUT"
+
+echo "Test: --confirm with user override -> deletes file"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+echo "# Custom" > "$REPO/meta/templates/plan.md"
+OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" --confirm "plan")
+assert_file_not_exists "file deleted" "$REPO/meta/templates/plan.md"
+assert_contains "reset message" "Reset: plan" "$OUTPUT"
+
+echo "Test: --confirm with no override -> exit 2"
+REPO=$(setup_repo)
+RC=0
+cd "$REPO" && bash "$RESET_TEMPLATE" --confirm "plan" >/dev/null 2>&1 || RC=$?
+assert_eq "exit code 2" "2" "$RC"
+
+echo "Test: Unknown template name -> error, exit 1"
+REPO=$(setup_repo)
+RC=0
+STDERR_OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" "nonexistent" 2>&1 1>/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+assert_contains "error lists available" "Available:" "$STDERR_OUTPUT"
+
+echo "Test: No argument -> usage, exit 1"
+REPO=$(setup_repo)
+RC=0
+STDERR_OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" 2>&1 1>/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+assert_contains "usage message" "Usage:" "$STDERR_OUTPUT"
+
+echo ""
+
+# ============================================================
 echo "=== Results ==="
 echo "Passed: $PASS"
 echo "Failed: $FAIL"
