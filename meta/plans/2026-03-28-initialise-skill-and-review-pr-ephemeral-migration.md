@@ -588,16 +588,16 @@ automatically appear in the session context.
 
 #### Automated Verification:
 
-- [ ] `bash scripts/config-summary.sh` in an uninitialised repo (no
+- [x] `bash scripts/config-summary.sh` in an uninitialised repo (no
       `meta/tmp/.gitignore`) outputs the initialisation hint
-- [ ] `bash scripts/config-summary.sh` in an initialised repo does not
+- [x] `bash scripts/config-summary.sh` in an initialised repo does not
       output the hint
-- [ ] `bash scripts/config-summary.sh` in a repo with config but no
+- [x] `bash scripts/config-summary.sh` in a repo with config but no
       initialisation outputs both the config summary and the hint
-- [ ] `bash scripts/config-summary.sh` in a repo where `meta/tmp/` exists
+- [x] `bash scripts/config-summary.sh` in a repo where `meta/tmp/` exists
       (created by `review-pr`) but `meta/tmp/.gitignore` does not — still
       outputs the hint (sentinel is the file, not the directory)
-- [ ] The no-config-but-uninitialised path does NOT include the trailing
+- [x] The no-config-but-uninitialised path does NOT include the trailing
       "Skills will read this configuration..." instruction
 
 #### Manual Verification:

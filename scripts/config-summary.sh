@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Outputs a brief summary of active Accelerator configuration.
 # Used by the SessionStart hook to inject config awareness into the session.
-# Outputs nothing if no config files exist.
+# Outputs nothing if no config files exist and the repo is already initialised.
 # Emits warnings to stderr for malformed config files.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,7 +14,20 @@ while IFS= read -r f; do
   FILES+=("$f")
 done < <(config_find_files)
 
-[ ${#FILES[@]} -eq 0 ] && exit 0
+# Check for tmp/.gitignore (not just tmp/) as the initialisation sentinel,
+# because review-pr creates tmp/ organically via mkdir -p.
+TMP_PATH=$("$SCRIPT_DIR/config-read-path.sh" tmp meta/tmp)
+INITIALISED=true
+[ ! -f "$TMP_PATH/.gitignore" ] && INITIALISED=false
+
+INIT_HINT="Accelerator has not been initialised in this repository. Type /accelerator:initialise at the prompt to set up the expected directory structure and gitignore entries."
+
+if [ ${#FILES[@]} -eq 0 ]; then
+  if [ "$INITIALISED" = false ]; then
+    echo "$INIT_HINT"
+  fi
+  exit 0
+fi
 
 ROOT=$(config_project_root)
 SUMMARY="Accelerator plugin configuration detected:"
@@ -134,5 +147,11 @@ fi
 SUMMARY="$SUMMARY
 
 Skills will read this configuration at invocation time. To view or edit configuration, use /accelerator:configure."
+
+if [ "$INITIALISED" = false ]; then
+  SUMMARY="$SUMMARY
+
+$INIT_HINT"
+fi
 
 echo "$SUMMARY"
