@@ -91,3 +91,122 @@ config_trim_body() {
     }
   '
 }
+
+# Enumerate available template keys from the plugin's templates directory.
+# Outputs one template key per line (basename without .md extension).
+# Arguments:
+#   $1 - plugin root directory path
+config_enumerate_templates() {
+  local plugin_root="$1"
+  local templates_dir="$plugin_root/templates"
+  if [ ! -d "$templates_dir" ]; then
+    return 0
+  fi
+  for f in "$templates_dir"/*.md; do
+    [ -f "$f" ] || continue
+    basename "$f" .md
+  done
+}
+
+# Format the list of available template keys as a comma-separated string.
+# Returns "(none found)" if no templates exist.
+# Arguments:
+#   $1 - plugin root directory path
+config_format_available_templates() {
+  local plugin_root="$1"
+  local available
+  available=$(config_enumerate_templates "$plugin_root" | tr '\n' ', ' \
+    | sed 's/,$//' | sed 's/,/, /g')
+  if [ -z "$available" ]; then
+    echo "(none found)"
+  else
+    echo "$available"
+  fi
+}
+
+# Source labels used by config_resolve_template. Defined as constants so
+# both the resolver and consumers reference the same values.
+CONFIG_TEMPLATE_SOURCE_CONFIG_PATH="config path"
+CONFIG_TEMPLATE_SOURCE_USER_OVERRIDE="user override"
+CONFIG_TEMPLATE_SOURCE_PLUGIN_DEFAULT="plugin default"
+
+# Resolve a template key through the three-tier resolution order.
+# Outputs a single tab-delimited line: <source>\t<path>
+# If the template is not found, outputs nothing and returns 1.
+#
+# Resolution order:
+#   1. Config-specified path (templates.<key>)
+#   2. Templates directory (<paths.templates>/<key>.md)
+#   3. Plugin default (<plugin_root>/templates/<key>.md)
+#
+# Requires: $SCRIPT_DIR must be set to the scripts/ directory by the
+#   sourcing script before calling this function (used to locate
+#   config-read-value.sh and config-read-path.sh).
+#
+# Arguments:
+#   $1 - template key name
+#   $2 - plugin root directory path
+config_resolve_template() {
+  local key="$1"
+  local plugin_root="$2"
+  local project_root
+  project_root=$(config_project_root)
+
+  # Tier 1: Config-specified path
+  local config_path
+  config_path=$("$SCRIPT_DIR/config-read-value.sh" "templates.${key}" "")
+  if [ -n "$config_path" ]; then
+    if [[ "$config_path" != /* ]]; then
+      config_path="$project_root/$config_path"
+    fi
+    if [ -f "$config_path" ]; then
+      printf '%s\t%s\n' "$CONFIG_TEMPLATE_SOURCE_CONFIG_PATH" "$config_path"
+      return 0
+    else
+      echo "Warning: configured template path '$config_path' not found, falling back to defaults" >&2
+    fi
+  fi
+
+  # Tier 2: Templates directory
+  local templates_dir
+  templates_dir=$("$SCRIPT_DIR/config-read-path.sh" templates meta/templates)
+  if [[ "$templates_dir" != /* ]]; then
+    templates_dir="$project_root/$templates_dir"
+  fi
+  if [ -f "$templates_dir/${key}.md" ]; then
+    printf '%s\t%s\n' "$CONFIG_TEMPLATE_SOURCE_USER_OVERRIDE" "$templates_dir/${key}.md"
+    return 0
+  fi
+
+  # Tier 3: Plugin default
+  local default_path="$plugin_root/templates/${key}.md"
+  if [ -f "$default_path" ]; then
+    printf '%s\t%s\n' "$CONFIG_TEMPLATE_SOURCE_PLUGIN_DEFAULT" "$default_path"
+    return 0
+  fi
+
+  return 1
+}
+
+# Shorten an absolute path for display purposes.
+#   - Paths under project root are shown relative to it
+#   - Paths under plugin root are shown as <plugin>/...
+#   - Other paths are shown as-is
+#
+# Arguments:
+#   $1 - absolute path to shorten
+#   $2 - plugin root directory path
+config_display_path() {
+  local path="$1"
+  local plugin_root="$2"
+  local project_root
+  project_root=$(config_project_root)
+
+  if [[ "$path" == "$project_root"/* ]]; then
+    echo "${path#"$project_root"/}"
+  elif [[ "$path" == "$plugin_root"/* ]]; then
+    echo "<plugin>/${path#"$plugin_root"/}"
+  else
+    echo "$path"
+  fi
+}

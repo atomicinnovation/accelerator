@@ -76,6 +76,50 @@ assert_empty() {
   fi
 }
 
+assert_file_exists() {
+  local test_name="$1" file_path="$2"
+  if [ -f "$file_path" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected file to exist: $file_path"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_file_not_exists() {
+  local test_name="$1" file_path="$2"
+  if [ ! -f "$file_path" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected file to not exist: $file_path"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_file_content_eq() {
+  local test_name="$1" file_path="$2" expected="$3"
+  local actual
+  actual=$(cat "$file_path" 2>/dev/null) || {
+    echo "  FAIL: $test_name"
+    echo "    File not found: $file_path"
+    FAIL=$((FAIL + 1))
+    return
+  }
+  if [ "$expected" = "$actual" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected content: $(printf '%q' "$expected")"
+    echo "    Actual content:   $(printf '%q' "$actual")"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
 # Create a temporary directory base
 TMPDIR_BASE=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_BASE"' EXIT
@@ -498,10 +542,16 @@ echo ""
 echo "=== config-summary.sh ==="
 echo ""
 
-echo "Test: No config files -> outputs nothing"
+echo "Test: No config files -> outputs nothing (initialised repo)"
 REPO=$(setup_repo)
+mkdir -p "$REPO/meta/tmp" && touch "$REPO/meta/tmp/.gitignore"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
 assert_eq "outputs nothing" "" "$OUTPUT"
+
+echo "Test: No config files, uninitialised repo -> outputs init hint"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
+assert_contains "init hint shown" "has not been initialised" "$OUTPUT"
 
 echo "Test: Team config present -> lists it"
 REPO=$(setup_repo)
@@ -647,10 +697,16 @@ echo ""
 echo "=== config-detect.sh (hook output) ==="
 echo ""
 
-echo "Test: No config files -> outputs nothing"
+echo "Test: No config files -> outputs nothing (initialised repo)"
 REPO=$(setup_repo)
+mkdir -p "$REPO/meta/tmp" && touch "$REPO/meta/tmp/.gitignore"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT")
 assert_eq "outputs nothing" "" "$OUTPUT"
+
+echo "Test: No config files, uninitialised repo -> outputs init hint JSON"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT")
+assert_contains "init hint in JSON" "has not been initialised" "$OUTPUT"
 
 echo "Test: Config present -> outputs valid JSON"
 REPO=$(setup_repo)
@@ -2042,6 +2098,11 @@ echo "=== config-read-template.sh ==="
 echo ""
 
 READ_TEMPLATE="$SCRIPT_DIR/config-read-template.sh"
+LIST_TEMPLATE="$SCRIPT_DIR/config-list-template.sh"
+SHOW_TEMPLATE="$SCRIPT_DIR/config-show-template.sh"
+EJECT_TEMPLATE="$SCRIPT_DIR/config-eject-template.sh"
+DIFF_TEMPLATE="$SCRIPT_DIR/config-diff-template.sh"
+RESET_TEMPLATE="$SCRIPT_DIR/config-reset-template.sh"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "Test: No user template -> outputs plugin default wrapped in code fences"
@@ -2895,6 +2956,162 @@ else
   echo "  PASS: warning not in JSON stdout"
   PASS=$((PASS + 1))
 fi
+
+echo ""
+
+# ============================================================
+echo "=== config_enumerate_templates ==="
+echo ""
+
+echo "Test: Lists all template keys from plugin templates directory"
+OUTPUT=$(config_enumerate_templates "$PLUGIN_ROOT")
+assert_contains "contains plan" "plan" "$OUTPUT"
+assert_contains "contains research" "research" "$OUTPUT"
+assert_contains "contains adr" "adr" "$OUTPUT"
+assert_contains "contains validation" "validation" "$OUTPUT"
+assert_contains "contains pr-description" "pr-description" "$OUTPUT"
+LINE_COUNT=$(echo "$OUTPUT" | wc -l | tr -d ' ')
+assert_eq "outputs 5 keys" "5" "$LINE_COUNT"
+
+echo "Test: Returns nothing if templates directory is empty"
+EMPTY_ROOT=$(mktemp -d "$TMPDIR_BASE/empty-plugin-XXXXXX")
+mkdir -p "$EMPTY_ROOT/templates"
+OUTPUT=$(config_enumerate_templates "$EMPTY_ROOT")
+assert_empty "empty output for empty directory" "$OUTPUT"
+
+echo "Test: Only returns .md files (ignores other extensions)"
+MIXED_ROOT=$(mktemp -d "$TMPDIR_BASE/mixed-plugin-XXXXXX")
+mkdir -p "$MIXED_ROOT/templates"
+echo "template" > "$MIXED_ROOT/templates/plan.md"
+echo "not a template" > "$MIXED_ROOT/templates/readme.txt"
+echo "also not" > "$MIXED_ROOT/templates/notes.json"
+OUTPUT=$(config_enumerate_templates "$MIXED_ROOT")
+assert_eq "only returns plan" "plan" "$OUTPUT"
+
+echo "Test: Returns nothing if directory exists with only non-.md files"
+NOMD_ROOT=$(mktemp -d "$TMPDIR_BASE/nomd-plugin-XXXXXX")
+mkdir -p "$NOMD_ROOT/templates"
+echo "not md" > "$NOMD_ROOT/templates/readme.txt"
+OUTPUT=$(config_enumerate_templates "$NOMD_ROOT")
+assert_empty "empty output for non-md files" "$OUTPUT"
+
+echo ""
+
+# ============================================================
+echo "=== config_resolve_template ==="
+echo ""
+
+echo "Test: Resolves to plugin default when no config or override exists"
+REPO=$(setup_repo)
+RESOLUTION=$(cd "$REPO" && config_resolve_template "plan" "$PLUGIN_ROOT")
+IFS=$'\t' read -r SOURCE PATH_VAL <<< "$RESOLUTION"
+assert_eq "source is plugin default" "$CONFIG_TEMPLATE_SOURCE_PLUGIN_DEFAULT" "$SOURCE"
+assert_contains "path contains templates/plan.md" "templates/plan.md" "$PATH_VAL"
+
+echo "Test: Resolves to user override when present in templates directory"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+echo "# Custom" > "$REPO/meta/templates/plan.md"
+RESOLUTION=$(cd "$REPO" && config_resolve_template "plan" "$PLUGIN_ROOT")
+IFS=$'\t' read -r SOURCE PATH_VAL <<< "$RESOLUTION"
+assert_eq "source is user override" "$CONFIG_TEMPLATE_SOURCE_USER_OVERRIDE" "$SOURCE"
+assert_contains "path contains meta/templates/plan.md" "meta/templates/plan.md" "$PATH_VAL"
+
+echo "Test: Resolves to config path when templates.<key> is set"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+mkdir -p "$REPO/custom"
+echo "# Config Path" > "$REPO/custom/my-plan.md"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+templates:
+  plan: custom/my-plan.md
+---
+FIXTURE
+RESOLUTION=$(cd "$REPO" && config_resolve_template "plan" "$PLUGIN_ROOT")
+IFS=$'\t' read -r SOURCE PATH_VAL <<< "$RESOLUTION"
+assert_eq "source is config path" "$CONFIG_TEMPLATE_SOURCE_CONFIG_PATH" "$SOURCE"
+assert_contains "path contains custom/my-plan.md" "custom/my-plan.md" "$PATH_VAL"
+
+echo "Test: Config path takes precedence over user override"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+mkdir -p "$REPO/custom"
+mkdir -p "$REPO/meta/templates"
+echo "# Config Path" > "$REPO/custom/my-plan.md"
+echo "# User Override" > "$REPO/meta/templates/plan.md"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+templates:
+  plan: custom/my-plan.md
+---
+FIXTURE
+RESOLUTION=$(cd "$REPO" && config_resolve_template "plan" "$PLUGIN_ROOT")
+IFS=$'\t' read -r SOURCE PATH_VAL <<< "$RESOLUTION"
+assert_eq "source is config path (precedence)" "$CONFIG_TEMPLATE_SOURCE_CONFIG_PATH" "$SOURCE"
+
+echo "Test: Returns 1 when template key is unknown"
+REPO=$(setup_repo)
+RC=0
+cd "$REPO" && config_resolve_template "nonexistent" "$PLUGIN_ROOT" >/dev/null 2>&1 || RC=$?
+assert_eq "returns 1 for unknown key" "1" "$RC"
+
+echo "Test: Emits warning to stderr when config path is missing but falls back"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+templates:
+  plan: nonexistent/plan.md
+---
+FIXTURE
+STDERR_OUTPUT=$(cd "$REPO" && config_resolve_template "plan" "$PLUGIN_ROOT" 2>&1 1>/dev/null)
+assert_contains "warning about missing config path" "Warning" "$STDERR_OUTPUT"
+
+echo ""
+
+# ============================================================
+echo "=== config_format_available_templates ==="
+echo ""
+
+echo "Test: Formats template keys as comma-separated list"
+OUTPUT=$(config_format_available_templates "$PLUGIN_ROOT")
+assert_contains "contains plan" "plan" "$OUTPUT"
+assert_contains "contains comma separator" ", " "$OUTPUT"
+
+echo "Test: Returns '(none found)' when no templates exist"
+EMPTY_ROOT=$(mktemp -d "$TMPDIR_BASE/empty-fmt-XXXXXX")
+mkdir -p "$EMPTY_ROOT/templates"
+OUTPUT=$(config_format_available_templates "$EMPTY_ROOT")
+assert_eq "none found message" "(none found)" "$OUTPUT"
+
+echo ""
+
+# ============================================================
+echo "=== config-dump.sh pr-description template key ==="
+echo ""
+
+echo "Test: Output contains templates.pr-description row"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\ntemplates:\n  pr-description: custom/pr.md\n---\n' > "$REPO/.claude/accelerator.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+assert_contains "pr-description key in dump" "templates.pr-description" "$OUTPUT"
+
+echo ""
+
+# ============================================================
+echo "=== config-read-template.sh regression (refactored) ==="
+echo ""
+
+echo "Test: Unknown template still lists all 5 template names including pr-description"
+REPO=$(setup_repo)
+STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "nonexistent" 2>&1 1>/dev/null || true)
+assert_contains "error lists plan" "plan" "$STDERR_OUTPUT"
+assert_contains "error lists research" "research" "$STDERR_OUTPUT"
+assert_contains "error lists adr" "adr" "$STDERR_OUTPUT"
+assert_contains "error lists validation" "validation" "$STDERR_OUTPUT"
+assert_contains "error lists pr-description" "pr-description" "$STDERR_OUTPUT"
 
 echo ""
 

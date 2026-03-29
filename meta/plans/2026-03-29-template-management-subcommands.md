@@ -330,13 +330,13 @@ following test sections:
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-config.sh` passes (all existing tests still pass,
+- [x] `bash scripts/test-config.sh` passes (all existing tests still pass,
       new Phase 1 tests pass)
-- [ ] `config-dump.sh` output includes `templates.pr-description` row
-- [ ] `config-read-template.sh nonexistent` error message still lists all 5
+- [x] `config-dump.sh` output includes `templates.pr-description` row
+- [x] `config-read-template.sh nonexistent` error message still lists all 5
       template names
-- [ ] `config_resolve_template` returns correct source and path for each tier
-- [ ] `config_format_available_templates` returns comma-separated list
+- [x] `config_resolve_template` returns correct source and path for each tier
+- [x] `config_format_available_templates` returns comma-separated list
 
 #### Manual Verification:
 

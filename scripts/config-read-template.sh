@@ -48,52 +48,12 @@ _output_template() {
   fi
 }
 
-PROJECT_ROOT=$(config_project_root)
+# Resolve template through three-tier fallback
+RESOLUTION=$(config_resolve_template "$TEMPLATE_NAME" "$PLUGIN_ROOT") || {
+  AVAILABLE=$(config_format_available_templates "$PLUGIN_ROOT")
+  echo "Error: Template '$TEMPLATE_NAME' not found. Available templates: $AVAILABLE" >&2
+  exit 1
+}
 
-# 1. Check config-specified path
-CONFIG_PATH=$("$SCRIPT_DIR/config-read-value.sh" "templates.${TEMPLATE_NAME}" "")
-if [ -n "$CONFIG_PATH" ]; then
-  # Resolve relative to project root
-  if [[ "$CONFIG_PATH" != /* ]]; then
-    CONFIG_PATH="$PROJECT_ROOT/$CONFIG_PATH"
-  fi
-  if [ -f "$CONFIG_PATH" ]; then
-    _output_template "$CONFIG_PATH"
-    exit 0
-  else
-    echo "Warning: configured template path '$CONFIG_PATH' not found, falling back to defaults" >&2
-  fi
-fi
-
-# 2. Check configured templates directory (paths.templates, default: meta/templates)
-TEMPLATES_DIR=$("$SCRIPT_DIR/config-read-path.sh" templates meta/templates)
-if [[ "$TEMPLATES_DIR" != /* ]]; then
-  TEMPLATES_DIR="$PROJECT_ROOT/$TEMPLATES_DIR"
-fi
-if [ -f "$TEMPLATES_DIR/${TEMPLATE_NAME}.md" ]; then
-  _output_template "$TEMPLATES_DIR/${TEMPLATE_NAME}.md"
-  exit 0
-fi
-
-# 3. Fall back to plugin default
-DEFAULT_PATH="$PLUGIN_ROOT/templates/${TEMPLATE_NAME}.md"
-if [ -f "$DEFAULT_PATH" ]; then
-  _output_template "$DEFAULT_PATH"
-  exit 0
-fi
-
-available=""
-for f in "$PLUGIN_ROOT/templates/"*.md; do
-  [ -f "$f" ] || continue
-  name="$(basename "$f" .md)"
-  if [ -z "$available" ]; then
-    available="$name"
-  else
-    available="$available, $name"
-  fi
-done
-if [ -z "$available" ]; then
-  available="(none found)"
-fi
-echo "Error: Template '$TEMPLATE_NAME' not found. Available templates: $available" >&2
-exit 1
+IFS=$'\t' read -r _SOURCE RESOLVED_PATH <<< "$RESOLUTION"
+_output_template "$RESOLVED_PATH"
