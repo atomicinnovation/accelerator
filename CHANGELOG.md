@@ -1,5 +1,44 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Template management subcommands**: New `/accelerator:configure templates`
+  subcommands for inspecting, customising, and managing document templates
+  without manually locating plugin internals
+  - `templates list` — List all template keys with their resolution source
+    (plugin default / user override / config path) and resolved file path
+  - `templates show <key>` — Display a template's raw content with source
+    metadata (no code fence wrapping, unlike `config-read-template.sh`)
+  - `templates eject <key|--all>` — Copy plugin default template(s) to the
+    user's templates directory for customisation; supports `--force` to
+    overwrite existing files and `--dry-run` to preview changes
+  - `templates diff <key>` — Show unified diff between a user's customised
+    template and the plugin default
+  - `templates reset <key>` — Remove a user's customised template to revert to
+    the plugin default, with confirmation flow and config entry cleanup
+  - `/accelerator:configure help` now includes a Template Management Commands
+    reference table
+
+### Fixed
+
+- **Missing `templates.pr-description` in config dump**: `config-dump.sh` now
+  includes the `pr-description` template key alongside the other four template
+  keys
+- **`config-summary.sh` and `config-detect.sh` test failures**: Tests for
+  uninitialised repos now correctly account for the SessionStart initialisation
+  detection added in v1.8.0
+
+### Changed
+
+- **Refactored template resolution into shared helpers**: The three-tier
+  template resolution logic (config path → user override → plugin default) has
+  been extracted from `config-read-template.sh` into reusable functions in
+  `config-common.sh`: `config_enumerate_templates()`,
+  `config_resolve_template()`, `config_format_available_templates()`, and
+  `config_display_path()`. Existing behaviour is preserved.
+
 ## 1.9.0 — 2026-03-29
 
 ### Changed

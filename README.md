@@ -148,7 +148,7 @@ review:
 
 ## Project Context
 
-  This is a Ruby on Rails application using PostgreSQL and Redis.
+This is a Ruby on Rails application using PostgreSQL and Redis.
 
 ### Conventions
 - Follow StandardRB for code style
@@ -164,6 +164,35 @@ The YAML frontmatter supports `agents` (override which agents skills spawn),
 `review` (customise review behaviour), `paths` (override where skills write
 output documents), and `templates` (point to custom document templates). See
 `/accelerator:configure help` for the full key reference.
+
+### Template Management
+
+Templates control the structure of documents produced by skills (plans, ADRs,
+research, validation reports, PR descriptions). The configure skill provides
+subcommands for managing templates without manually locating plugin internals:
+
+| Command                                        | Description                                            |
+|------------------------------------------------|--------------------------------------------------------|
+| `/accelerator:configure templates list`        | List all templates with resolution source and path     |
+| `/accelerator:configure templates show <key>`  | Display the effective template content                 |
+| `/accelerator:configure templates eject <key>` | Copy plugin default to your templates directory        |
+| `/accelerator:configure templates eject --all` | Eject all templates at once                            |
+| `/accelerator:configure templates diff <key>`  | Show differences between your template and the default |
+| `/accelerator:configure templates reset <key>` | Remove your customisation, revert to plugin default    |
+
+Available template keys: `plan`, `research`, `adr`, `validation`,
+`pr-description`.
+
+A typical customisation workflow:
+
+1. `templates list` to see what's available and where each resolves from
+2. `templates eject plan` to copy the plugin default to your templates directory
+3. Edit the ejected file to match your project's conventions
+4. `templates diff plan` to review your changes against the default
+5. `templates reset plan` if you want to revert to the plugin default
+
+Templates are resolved in order: config path (`templates.<key>`) → templates
+directory (`paths.templates`, default `meta/templates/`) → plugin default.
 
 ### Getting Started
 
