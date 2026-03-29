@@ -753,15 +753,15 @@ Make executable: `chmod +x scripts/config-diff-template.sh`
 
 #### Automated Verification:
 
-- [ ] `config-diff-template.sh plan` with no override outputs "No customised
+- [x] `config-diff-template.sh plan` with no override outputs "No customised
       template found" message and exits 2
-- [ ] With a user override, outputs unified diff
-- [ ] Diff output includes the file paths for both default and user template
-- [ ] Unknown template name produces error listing available templates
-- [ ] Missing argument produces usage message and exit 1
-- [ ] Config path overrides (Tier 1) are correctly found and diffed
-- [ ] Templates directory overrides (Tier 2) are correctly found and diffed
-- [ ] Tests pass in `test-config.sh`
+- [x] With a user override, outputs unified diff
+- [x] Diff output includes the file paths for both default and user template
+- [x] Unknown template name produces error listing available templates
+- [x] Missing argument produces usage message and exit 1
+- [x] Config path overrides (Tier 1) are correctly found and diffed
+- [x] Templates directory overrides (Tier 2) are correctly found and diffed
+- [x] Tests pass in `test-config.sh`
 
 ---
 

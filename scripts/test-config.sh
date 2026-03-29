@@ -3424,6 +3424,74 @@ assert_contains "usage message" "Usage:" "$STDERR_OUTPUT"
 echo ""
 
 # ============================================================
+echo "=== config-diff-template.sh ==="
+echo ""
+
+echo "Test: No override -> 'No customised template found' to stderr, exit 2"
+REPO=$(setup_repo)
+RC=0
+STDERR_OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan" 2>&1 1>/dev/null) || RC=$?
+assert_eq "exit code 2" "2" "$RC"
+assert_contains "no customised message" "No customised template found" "$STDERR_OUTPUT"
+
+echo "Test: User override with differences -> outputs unified diff"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+cp "$PLUGIN_ROOT/templates/plan.md" "$REPO/meta/templates/plan.md"
+echo "# Extra line added by user" >> "$REPO/meta/templates/plan.md"
+RC=0
+OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan") || RC=$?
+assert_contains "diff header present" "Comparing plugin default vs user override:" "$OUTPUT"
+assert_contains "diff contains addition" "+# Extra line added by user" "$OUTPUT"
+
+echo "Test: User override with known added line -> diff shows + prefix"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+printf 'Modified content\n' > "$REPO/meta/templates/plan.md"
+RC=0
+OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan") || RC=$?
+assert_contains "additions shown with +" "+Modified content" "$OUTPUT"
+
+echo "Test: User override identical to default -> 'Templates are identical.'"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+cp "$PLUGIN_ROOT/templates/plan.md" "$REPO/meta/templates/plan.md"
+OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan")
+assert_contains "identical message" "Templates are identical." "$OUTPUT"
+
+echo "Test: Config path override -> diffs correctly"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+mkdir -p "$REPO/custom"
+cp "$PLUGIN_ROOT/templates/plan.md" "$REPO/custom/my-plan.md"
+echo "# Config override addition" >> "$REPO/custom/my-plan.md"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+templates:
+  plan: custom/my-plan.md
+---
+FIXTURE
+RC=0
+OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan") || RC=$?
+assert_contains "config path diff shows addition" "+# Config override addition" "$OUTPUT"
+
+echo "Test: Unknown template name -> error, exit 1"
+REPO=$(setup_repo)
+RC=0
+STDERR_OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "nonexistent" 2>&1 1>/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+assert_contains "error lists available" "Available:" "$STDERR_OUTPUT"
+
+echo "Test: No argument -> usage, exit 1"
+REPO=$(setup_repo)
+RC=0
+STDERR_OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" 2>&1 1>/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+assert_contains "usage message" "Usage:" "$STDERR_OUTPUT"
+
+echo ""
+
+# ============================================================
 echo "=== Results ==="
 echo "Passed: $PASS"
 echo "Failed: $FAIL"
