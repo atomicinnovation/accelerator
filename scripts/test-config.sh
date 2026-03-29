@@ -3572,6 +3572,99 @@ assert_contains "usage message" "Usage:" "$STDERR_OUTPUT"
 echo ""
 
 # ============================================================
+echo "=== Skill integration: configure skill references template scripts ==="
+echo ""
+
+CONFIGURE_SKILL="$SKILLS_DIR/config/configure/SKILL.md"
+
+echo "Test: Configure skill SKILL.md contains config-list-template.sh"
+if grep -q 'config-list-template.sh' "$CONFIGURE_SKILL"; then
+  echo "  PASS: config-list-template.sh referenced"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: config-list-template.sh referenced"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Configure skill SKILL.md contains config-show-template.sh"
+if grep -q 'config-show-template.sh' "$CONFIGURE_SKILL"; then
+  echo "  PASS: config-show-template.sh referenced"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: config-show-template.sh referenced"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Configure skill SKILL.md contains config-eject-template.sh"
+if grep -q 'config-eject-template.sh' "$CONFIGURE_SKILL"; then
+  echo "  PASS: config-eject-template.sh referenced"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: config-eject-template.sh referenced"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Configure skill SKILL.md contains config-diff-template.sh"
+if grep -q 'config-diff-template.sh' "$CONFIGURE_SKILL"; then
+  echo "  PASS: config-diff-template.sh referenced"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: config-diff-template.sh referenced"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Configure skill SKILL.md contains config-reset-template.sh"
+if grep -q 'config-reset-template.sh' "$CONFIGURE_SKILL"; then
+  echo "  PASS: config-reset-template.sh referenced"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: config-reset-template.sh referenced"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
+echo "=== Template management integration tests ==="
+echo ""
+
+echo "Test: Eject then list: plan shows as user override"
+REPO=$(setup_repo)
+cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null
+OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
+if echo "$OUTPUT" | grep '`plan`' | grep -q "user override"; then
+  echo "  PASS: plan shows user override after eject"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: plan shows user override after eject"
+  echo "    Output: $(echo "$OUTPUT" | grep 'plan' || echo "(not found)")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Eject then diff (identical): produces 'Templates are identical'"
+REPO=$(setup_repo)
+cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null
+OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan")
+assert_contains "identical message" "Templates are identical." "$OUTPUT"
+
+echo "Test: Eject + edit + diff: shows addition with + prefix"
+REPO=$(setup_repo)
+cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null
+echo "# User addition" >> "$REPO/meta/templates/plan.md"
+RC=0
+OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan") || RC=$?
+assert_contains "addition shown with +" "+# User addition" "$OUTPUT"
+
+echo "Test: Eject then reset: deletes the override"
+REPO=$(setup_repo)
+cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null
+assert_file_exists "plan exists after eject" "$REPO/meta/templates/plan.md"
+cd "$REPO" && bash "$RESET_TEMPLATE" --confirm "plan" >/dev/null
+assert_file_not_exists "plan deleted after reset" "$REPO/meta/templates/plan.md"
+
+echo ""
+
+# ============================================================
 echo "=== Results ==="
 echo "Passed: $PASS"
 echo "Failed: $FAIL"
