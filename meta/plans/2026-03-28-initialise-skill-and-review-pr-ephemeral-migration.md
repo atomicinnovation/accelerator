@@ -291,9 +291,9 @@ The `.gitignore` operations should:
 
 #### Automated Verification:
 
-- [ ] File exists at `skills/config/initialise/SKILL.md`
-- [ ] Frontmatter has `name: initialise` and `disable-model-invocation: true`
-- [ ] No changes needed to `plugin.json` (verify `./skills/config/` is
+- [x] File exists at `skills/config/initialise/SKILL.md`
+- [x] Frontmatter has `name: initialise` and `disable-model-invocation: true`
+- [x] No changes needed to `plugin.json` (verify `./skills/config/` is
   already registered)
 
 #### Manual Verification:
