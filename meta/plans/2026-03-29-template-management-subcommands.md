@@ -650,20 +650,20 @@ Make executable: `chmod +x scripts/config-eject-template.sh`
 
 #### Automated Verification:
 
-- [ ] `config-eject-template.sh plan` creates
+- [x] `config-eject-template.sh plan` creates
       `meta/templates/plan.md` with plugin default content
-- [ ] Creates the templates directory if it doesn't exist
-- [ ] Exit code 2 when target already exists without `--force`
-- [ ] `--force` overwrites existing file and exits 0
-- [ ] `--all` ejects all 5 templates
-- [ ] `--all` with some existing files exits 2 (without `--force`); error
+- [x] Creates the templates directory if it doesn't exist
+- [x] Exit code 2 when target already exists without `--force`
+- [x] `--force` overwrites existing file and exits 0
+- [x] `--all` ejects all 5 templates
+- [x] `--all` with some existing files exits 2 (without `--force`); error
       (exit 1) takes precedence over exists (exit 2)
-- [ ] `--all --force` overwrites all existing files
-- [ ] `--dry-run` outputs what would happen without writing files
-- [ ] Multiple positional arguments produce an error
-- [ ] Unknown template name produces error with available templates list
-- [ ] Respects `paths.templates` config override for target directory
-- [ ] Tests pass in `test-config.sh`
+- [x] `--all --force` overwrites all existing files
+- [x] `--dry-run` outputs what would happen without writing files
+- [x] Multiple positional arguments produce an error
+- [x] Unknown template name produces error with available templates list
+- [x] Respects `paths.templates` config override for target directory
+- [x] Tests pass in `test-config.sh`
 
 ---
 

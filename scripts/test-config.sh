@@ -3301,6 +3301,129 @@ assert_contains "raw content present" "Some content here." "$CONTENT"
 echo ""
 
 # ============================================================
+echo "=== config-eject-template.sh ==="
+echo ""
+
+echo "Test: Ejects template to default meta/templates/ directory"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" "plan")
+assert_file_exists "plan.md created" "$REPO/meta/templates/plan.md"
+assert_contains "ejected message" "Ejected:" "$OUTPUT"
+
+echo "Test: Creates templates directory if it doesn't exist"
+REPO=$(setup_repo)
+cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null
+assert_file_exists "directory and file created" "$REPO/meta/templates/plan.md"
+
+echo "Test: File content matches plugin default"
+REPO=$(setup_repo)
+cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null
+EXPECTED=$(cat "$PLUGIN_ROOT/templates/plan.md")
+assert_file_content_eq "content matches plugin default" "$REPO/meta/templates/plan.md" "$EXPECTED"
+
+echo "Test: Exit code 2 when target exists without --force"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+echo "# Existing" > "$REPO/meta/templates/plan.md"
+RC=0
+cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null 2>&1 || RC=$?
+assert_eq "exit code 2" "2" "$RC"
+assert_file_content_eq "file unchanged" "$REPO/meta/templates/plan.md" "# Existing"
+
+echo "Test: --force overwrites existing file, exit 0"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+echo "# Existing" > "$REPO/meta/templates/plan.md"
+RC=0
+OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --force "plan") || RC=$?
+assert_eq "exit code 0" "0" "$RC"
+assert_contains "overwritten message" "Overwritten:" "$OUTPUT"
+EXPECTED=$(cat "$PLUGIN_ROOT/templates/plan.md")
+assert_file_content_eq "content replaced with plugin default" "$REPO/meta/templates/plan.md" "$EXPECTED"
+
+echo "Test: --all ejects all 5 templates"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --all)
+for KEY in plan research adr validation pr-description; do
+  assert_file_exists "$KEY ejected" "$REPO/meta/templates/${KEY}.md"
+done
+
+echo "Test: --all --force overwrites all existing"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+echo "# Old" > "$REPO/meta/templates/plan.md"
+echo "# Old" > "$REPO/meta/templates/research.md"
+RC=0
+OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --all --force) || RC=$?
+assert_eq "exit code 0" "0" "$RC"
+EXPECTED=$(cat "$PLUGIN_ROOT/templates/plan.md")
+assert_file_content_eq "plan overwritten" "$REPO/meta/templates/plan.md" "$EXPECTED"
+
+echo "Test: --all with some existing files exits 2 without --force"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+echo "# Existing" > "$REPO/meta/templates/plan.md"
+RC=0
+cd "$REPO" && bash "$EJECT_TEMPLATE" --all >/dev/null 2>&1 || RC=$?
+assert_eq "exit code 2" "2" "$RC"
+# Non-conflicting templates should still be written
+assert_file_exists "research still ejected" "$REPO/meta/templates/research.md"
+
+echo "Test: --dry-run outputs what would happen without writing files"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --dry-run "plan")
+assert_contains "would eject message" "Would eject:" "$OUTPUT"
+assert_file_not_exists "file not created" "$REPO/meta/templates/plan.md"
+
+echo "Test: --dry-run produces exit 0 for non-existing target"
+REPO=$(setup_repo)
+RC=0
+cd "$REPO" && bash "$EJECT_TEMPLATE" --dry-run "plan" >/dev/null 2>&1 || RC=$?
+assert_eq "exit code 0 for dry-run" "0" "$RC"
+
+echo "Test: --dry-run with existing file shows would skip"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+echo "# Existing" > "$REPO/meta/templates/plan.md"
+OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --dry-run "plan" 2>&1) || true
+assert_contains "would skip message" "Would skip:" "$OUTPUT"
+
+echo "Test: Multiple positional arguments -> error, exit 1"
+REPO=$(setup_repo)
+RC=0
+STDERR_OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" "research" 2>&1 1>/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+assert_contains "unexpected argument error" "unexpected argument" "$STDERR_OUTPUT"
+
+echo "Test: Respects paths.templates config override"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  templates: docs/tpl
+---
+FIXTURE
+cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null
+assert_file_exists "ejected to custom dir" "$REPO/docs/tpl/plan.md"
+
+echo "Test: Unknown template name -> error, exit 1"
+REPO=$(setup_repo)
+RC=0
+STDERR_OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" "nonexistent" 2>&1 1>/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+assert_contains "error lists available" "Available:" "$STDERR_OUTPUT"
+
+echo "Test: No argument -> usage, exit 1"
+REPO=$(setup_repo)
+RC=0
+STDERR_OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" 2>&1 1>/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+assert_contains "usage message" "Usage:" "$STDERR_OUTPUT"
+
+echo ""
+
+# ============================================================
 echo "=== Results ==="
 echo "Passed: $PASS"
 echo "Failed: $FAIL"
