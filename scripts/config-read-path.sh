@@ -15,6 +15,7 @@ set -euo pipefail
 #   templates     → where user templates are found (default: meta/templates)
 #   tickets       → where ticket files are stored (default: meta/tickets)
 #   notes         → where notes are stored (default: meta/notes)
+#   tmp           → ephemeral working data, gitignored (default: meta/tmp)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

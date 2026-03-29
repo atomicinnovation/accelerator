@@ -161,13 +161,13 @@ to `config-read-value.sh` generically. The comment is documentation only.
 
 #### Automated Verification:
 
-- [ ] `bash scripts/config-read-path.sh tmp meta/tmp` outputs `meta/tmp`
-- [ ] All existing path keys still resolve correctly:
+- [x] `bash scripts/config-read-path.sh tmp meta/tmp` outputs `meta/tmp`
+- [x] All existing path keys still resolve correctly:
   `bash scripts/config-read-path.sh plans meta/plans` outputs `meta/plans`
 
 #### Manual Verification:
 
-- [ ] Comment block in `config-read-path.sh` includes `tmp` entry
+- [x] Comment block in `config-read-path.sh` includes `tmp` entry
 
 ---
 
