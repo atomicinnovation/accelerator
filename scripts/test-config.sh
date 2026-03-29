@@ -3116,6 +3116,118 @@ assert_contains "error lists pr-description" "pr-description" "$STDERR_OUTPUT"
 echo ""
 
 # ============================================================
+echo "=== config-list-template.sh ==="
+echo ""
+
+echo "Test: No config -> all 5 templates show plugin default source"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/tmp" && touch "$REPO/meta/tmp/.gitignore"
+OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
+LINE_COUNT=$(echo "$OUTPUT" | grep -c '| `' || true)
+assert_eq "5 template rows" "5" "$LINE_COUNT"
+for KEY in plan research adr validation pr-description; do
+  if echo "$OUTPUT" | grep "\`$KEY\`" | grep -q "plugin default"; then
+    echo "  PASS: $KEY shows plugin default"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $KEY shows plugin default"
+    echo "    Output: $(echo "$OUTPUT" | grep "$KEY" || echo "(not found)")"
+    FAIL=$((FAIL + 1))
+  fi
+done
+
+echo "Test: User override in meta/templates/ -> shows user override"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+echo "# Custom" > "$REPO/meta/templates/plan.md"
+OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
+if echo "$OUTPUT" | grep '`plan`' | grep -q "user override"; then
+  echo "  PASS: plan shows user override"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: plan shows user override"
+  echo "    Output: $(echo "$OUTPUT" | grep 'plan' || echo "(not found)")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Config path override -> shows config path"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+mkdir -p "$REPO/custom"
+echo "# Config" > "$REPO/custom/my-plan.md"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+templates:
+  plan: custom/my-plan.md
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
+if echo "$OUTPUT" | grep '`plan`' | grep -q "config path"; then
+  echo "  PASS: plan shows config path"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: plan shows config path"
+  echo "    Output: $(echo "$OUTPUT" | grep 'plan' || echo "(not found)")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Custom paths.templates -> finds override in custom directory"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+mkdir -p "$REPO/docs/tpl"
+echo "# Custom" > "$REPO/docs/tpl/research.md"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  templates: docs/tpl
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
+if echo "$OUTPUT" | grep '`research`' | grep -q "user override"; then
+  echo "  PASS: research shows user override via custom paths.templates"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: research shows user override via custom paths.templates"
+  echo "    Output: $(echo "$OUTPUT" | grep 'research' || echo "(not found)")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Output is valid markdown table (starts with header row)"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
+FIRST_LINE=$(echo "$OUTPUT" | head -1)
+assert_eq "header row" "| Template | Source | Path |" "$FIRST_LINE"
+SECOND_LINE=$(echo "$OUTPUT" | sed -n '2p')
+assert_eq "separator row" "|----------|--------|------|" "$SECOND_LINE"
+
+echo "Test: Mixed sources in single run"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+mkdir -p "$REPO/custom"
+mkdir -p "$REPO/meta/templates"
+echo "# Config" > "$REPO/custom/my-plan.md"
+echo "# Override" > "$REPO/meta/templates/research.md"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+templates:
+  plan: custom/my-plan.md
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
+if echo "$OUTPUT" | grep '`plan`' | grep -q "config path" && \
+   echo "$OUTPUT" | grep '`research`' | grep -q "user override" && \
+   echo "$OUTPUT" | grep '`adr`' | grep -q "plugin default"; then
+  echo "  PASS: mixed sources correctly labelled"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: mixed sources correctly labelled"
+  echo "    Output: $OUTPUT"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
 echo "=== Results ==="
 echo "Passed: $PASS"
 echo "Failed: $FAIL"

@@ -402,14 +402,14 @@ Make executable: `chmod +x scripts/config-list-template.sh`
 
 #### Automated Verification:
 
-- [ ] `bash scripts/config-list-template.sh` outputs a markdown table with
+- [x] `bash scripts/config-list-template.sh` outputs a markdown table with
       5 rows (one per template)
-- [ ] All 5 templates resolve to `plugin default` when no config exists
-- [ ] When a user override exists in `meta/templates/`, the source shows
+- [x] All 5 templates resolve to `plugin default` when no config exists
+- [x] When a user override exists in `meta/templates/`, the source shows
       `user override`
-- [ ] When a config path is set via `templates.<key>`, the source shows
+- [x] When a config path is set via `templates.<key>`, the source shows
       `config path`
-- [ ] Tests pass in `test-config.sh`
+- [x] Tests pass in `test-config.sh`
 
 ---
 
