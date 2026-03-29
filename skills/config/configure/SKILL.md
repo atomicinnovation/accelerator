@@ -1,8 +1,7 @@
 ---
 name: configure
-description: View, create, or edit Accelerator plugin configuration. Use when the
-  user wants to customise how Accelerator skills behave in their project.
-argument-hint: "[view | create | help]"
+description: "View, create, or edit Accelerator plugin configuration. Manage document templates."
+argument-hint: "[view | create | help | templates ...]"
 disable-model-invocation: true
 ---
 
@@ -128,15 +127,15 @@ use the same hyphenated names as the agents themselves:
 
 Available agents and their roles:
 
-| Config Key | Default Role |
-|---|---|
-| `reviewer` | Reviews plans and PRs using configured lenses |
-| `codebase-locator` | Finds relevant source files for a given task |
-| `codebase-analyser` | Analyses implementation details of components |
+| Config Key                | Default Role                                     |
+|---------------------------|--------------------------------------------------|
+| `reviewer`                | Reviews plans and PRs using configured lenses    |
+| `codebase-locator`        | Finds relevant source files for a given task     |
+| `codebase-analyser`       | Analyses implementation details of components    |
 | `codebase-pattern-finder` | Finds similar implementations and usage examples |
-| `documents-locator` | Discovers relevant documents in meta/ directory |
-| `documents-analyser` | Deep-dives on research topics in documents |
-| `web-search-researcher` | Researches topics via web search |
+| `documents-locator`       | Discovers relevant documents in meta/ directory  |
+| `documents-analyser`      | Deep-dives on research topics in documents       |
+| `web-search-researcher`   | Researches topics via web search                 |
 
 \```yaml
 ---
@@ -165,27 +164,27 @@ hyphenated form (e.g., `code-quality`, `test-coverage`):
 
 Shared settings (apply to both `review-pr` and `review-plan`):
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `min_lenses` | `4` | Minimum lenses to run |
-| `max_lenses` | `8` | Maximum lenses to run |
-| `core_lenses` | `[architecture, code-quality, test-coverage, correctness]` | Lenses considered "core four" |
-| `disabled_lenses` | `[]` | Lenses to never use |
+| Key               | Default                                                    | Description                   |
+|-------------------|------------------------------------------------------------|-------------------------------|
+| `min_lenses`      | `4`                                                        | Minimum lenses to run         |
+| `max_lenses`      | `8`                                                        | Maximum lenses to run         |
+| `core_lenses`     | `[architecture, code-quality, test-coverage, correctness]` | Lenses considered "core four" |
+| `disabled_lenses` | `[]`                                                       | Lenses to never use           |
 
 PR review only (`review-pr`):
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `max_inline_comments` | `10` | Max inline comments |
-| `dedup_proximity` | `3` | Line proximity for merging findings |
+| Key                           | Default    | Description                                                       |
+|-------------------------------|------------|-------------------------------------------------------------------|
+| `max_inline_comments`         | `10`       | Max inline comments                                               |
+| `dedup_proximity`             | `3`        | Line proximity for merging findings                               |
 | `pr_request_changes_severity` | `critical` | Min severity for REQUEST_CHANGES (`critical`, `major`, or `none`) |
 
 Plan review only (`review-plan`):
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `plan_revise_severity` | `critical` | Min severity for REVISE (`critical`, `major`, or `none`) |
-| `plan_revise_major_count` | `3` | Major findings count to trigger REVISE |
+| Key                       | Default    | Description                                              |
+|---------------------------|------------|----------------------------------------------------------|
+| `plan_revise_severity`    | `critical` | Min severity for REVISE (`critical`, `major`, or `none`) |
+| `plan_revise_major_count` | `3`        | Major findings count to trigger REVISE                   |
 
 Example configuration:
 
@@ -327,19 +326,19 @@ Example `instructions.md` for create-plan:
 Override where skills write output documents. Paths are relative to the
 project root (absolute paths are also supported):
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `plans` | `meta/plans` | Implementation plans |
-| `research` | `meta/research` | Research documents |
-| `decisions` | `meta/decisions` | Architecture decision records |
-| `prs` | `meta/prs` | PR descriptions |
-| `validations` | `meta/validations` | Plan validation reports |
-| `review_plans` | `meta/reviews/plans` | Plan review artifacts |
-| `review_prs` | `meta/reviews/prs` | PR review working directories |
-| `templates` | `meta/templates` | User-provided templates (e.g., PR description) |
-| `tickets` | `meta/tickets` | Ticket files referenced by create-plan |
-| `notes` | `meta/notes` | Notes directory |
-| `tmp` | `meta/tmp` | Ephemeral working data (gitignored) |
+| Key            | Default              | Description                                    |
+|----------------|----------------------|------------------------------------------------|
+| `plans`        | `meta/plans`         | Implementation plans                           |
+| `research`     | `meta/research`      | Research documents                             |
+| `decisions`    | `meta/decisions`     | Architecture decision records                  |
+| `prs`          | `meta/prs`           | PR descriptions                                |
+| `validations`  | `meta/validations`   | Plan validation reports                        |
+| `review_plans` | `meta/reviews/plans` | Plan review artifacts                          |
+| `review_prs`   | `meta/reviews/prs`   | PR review working directories                  |
+| `templates`    | `meta/templates`     | User-provided templates (e.g., PR description) |
+| `tickets`      | `meta/tickets`       | Ticket files referenced by create-plan         |
+| `notes`        | `meta/notes`         | Notes directory                                |
+| `tmp`          | `meta/tmp`           | Ephemeral working data (gitignored)            |
 
 Example configuration:
 
@@ -410,6 +409,22 @@ to other skills' output paths (e.g., the plan template references
 (e.g., `paths.research: docs/research`), you should also provide custom
 templates with updated cross-references.
 
+#### Template Management Commands
+
+Use `/accelerator:configure templates <action>` to manage templates:
+
+| Command                 | Description |
+|-------------------------|--------------------------------------------------------|
+| `templates list`        | List all templates with resolution source and path     |
+| `templates show <key>`  | Display the effective template content                 |
+| `templates eject <key>` | Copy plugin default to your templates directory        |
+| `templates eject --all` | Eject all templates at once                            |
+| `templates diff <key>`  | Show differences between your template and the default |
+| `templates reset <key>` | Remove your customisation, revert to plugin default    |
+
+Available template keys: `plan`, `research`, `adr`, `validation`,
+`pr-description`.
+
 ### Project Context
 
 The markdown body is injected into skills as project-specific guidance:
@@ -455,6 +470,119 @@ are not currently supported in frontmatter values:
 - YAML comments (the `#` character in values is included as-is)
 - Nesting deeper than 2 levels
 ```
+
+### `templates`
+
+When the user's argument starts with `templates`, dispatch based on the
+action that follows. The `CLAUDE_PLUGIN_ROOT` environment variable points
+to the plugin installation directory where scripts are located.
+
+#### `templates list`
+
+Run the list script and display its output:
+
+```bash
+bash "$CLAUDE_PLUGIN_ROOT/scripts/config-list-template.sh"
+```
+
+Present the table output to the user.
+
+#### `templates show <key>`
+
+Run the show script with the template key:
+
+```bash
+bash "$CLAUDE_PLUGIN_ROOT/scripts/config-show-template.sh" <key>
+```
+
+Present the source metadata and template content to the user. If the user
+doesn't specify a key, ask which template they'd like to see, or suggest
+running `templates list` first.
+
+#### `templates eject <key>` or `templates eject --all`
+
+**Before ejecting**, run with `--dry-run` to preview what will happen:
+
+```bash
+bash "$CLAUDE_PLUGIN_ROOT/scripts/config-eject-template.sh" --dry-run <key|--all>
+```
+
+Present the dry-run output to the user. If any templates already exist
+(exit code 2), ask whether they want to overwrite. If the user confirms
+overwriting, run a second dry-run with `--force` to show the full preview
+(including which files will be overwritten):
+
+```bash
+bash "$CLAUDE_PLUGIN_ROOT/scripts/config-eject-template.sh" --dry-run --force <key|--all>
+```
+
+Present this preview, then run the actual eject with `--force`:
+
+```bash
+bash "$CLAUDE_PLUGIN_ROOT/scripts/config-eject-template.sh" --force <key|--all>
+```
+
+If no templates already exist (exit code 0 from the initial dry-run),
+proceed directly with the eject (no `--force` needed):
+
+```bash
+bash "$CLAUDE_PLUGIN_ROOT/scripts/config-eject-template.sh" <key|--all>
+```
+
+If the user says `eject --all` or `eject all`, pass `--all` to the script.
+
+After successful ejection, inform the user:
+- Which file(s) were created and where
+- That they can now edit the template(s) at the ejected path
+- That the customised template will be used by the relevant skill on next
+  invocation
+
+#### `templates diff <key>`
+
+Run the diff script:
+
+```bash
+bash "$CLAUDE_PLUGIN_ROOT/scripts/config-diff-template.sh" <key>
+```
+
+Present the diff output to the user. If exit code is 2, no customisation
+exists — relay the "using plugin default" message.
+
+#### `templates reset <key>`
+
+This action removes a user's customised template to revert to the plugin
+default. Reset operates on a **single template at a time** — if the user
+requests resetting all templates, process them one-by-one with individual
+confirmations.
+
+1. Determine the template key. If not provided, ask the user.
+2. Run the reset script without `--confirm` to check for an override:
+   ```bash
+   bash "$CLAUDE_PLUGIN_ROOT/scripts/config-reset-template.sh" <key>
+   ```
+3. If exit code 2: tell the user "No customised template found for '<key>'
+   — already using plugin default."
+4. If exit code 0: present the override information to the user and ask for
+   confirmation. Show the file path and note about config entry if present.
+   If the output includes "Warning: This file is outside the project
+   directory", explicitly highlight this to the user and ask them to
+   confirm they want to delete a file outside the project root.
+5. On confirmation, run with `--confirm`:
+   ```bash
+   bash "$CLAUDE_PLUGIN_ROOT/scripts/config-reset-template.sh" --confirm <key>
+   ```
+6. Inform the user that the template was reset. If the script output
+   includes a note about removing a config entry (i.e., the override was
+   a config path / Tier 1), also remove the `templates.<key>` entry from
+   the config using the Edit tool. Check both `.claude/accelerator.md`
+   (team) and `.claude/accelerator.local.md` (local) for the entry:
+   - If the entry exists in **local only**: remove it from local.
+   - If the entry exists in **team only**: remove it from team.
+   - If the entry exists in **both with the same value**: remove from both.
+   - If the entry exists in **both with different values**: remove from
+     local only (team config may affect other team members). Inform the
+     user that the team config still has a `templates.<key>` entry and
+     they should coordinate with their team if it should also be removed.
 
 ## Important Notes
 

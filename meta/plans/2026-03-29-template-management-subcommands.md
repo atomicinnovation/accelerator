@@ -1079,9 +1079,9 @@ Available template keys: `plan`, `research`, `adr`, `validation`,
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-config.sh` passes
-- [ ] The skill frontmatter `argument-hint` includes `templates`
-- [ ] The skill frontmatter `description` mentions template management
+- [x] `bash scripts/test-config.sh` passes
+- [x] The skill frontmatter `argument-hint` includes `templates`
+- [x] The skill frontmatter `description` mentions template management
 
 #### Manual Verification:
 
