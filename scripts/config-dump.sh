@@ -141,13 +141,13 @@ AGENT_KEYS=(
 )
 
 AGENT_DEFAULTS=(
-  "reviewer"
-  "codebase-locator"
-  "codebase-analyser"
-  "codebase-pattern-finder"
-  "documents-locator"
-  "documents-analyser"
-  "web-search-researcher"
+  "${AGENT_PREFIX}reviewer"
+  "${AGENT_PREFIX}codebase-locator"
+  "${AGENT_PREFIX}codebase-analyser"
+  "${AGENT_PREFIX}codebase-pattern-finder"
+  "${AGENT_PREFIX}documents-locator"
+  "${AGENT_PREFIX}documents-analyser"
+  "${AGENT_PREFIX}web-search-researcher"
 )
 
 echo "## Effective Configuration"

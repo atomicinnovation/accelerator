@@ -105,7 +105,7 @@ AGENT_LINES=""
 for key in "${AGENT_KEYS[@]}"; do
   val=$(printf '%s\n' "$OVERRIDES" | grep "^${key}=" | tail -1 | sed 's/^[^=]*=//' || true)
   if [ -z "$val" ]; then
-    val="$key"
+    val="${AGENT_PREFIX}$key"
   fi
   display_name="${key//-/ }"
   AGENT_LINES="${AGENT_LINES}- **${display_name} agent**: ${val}

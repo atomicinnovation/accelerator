@@ -14,9 +14,11 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh review-plan`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
-If no "Agent Names" section appears above, use these defaults: reviewer,
-codebase-locator, codebase-analyser, codebase-pattern-finder,
-documents-locator, documents-analyser, web-search-researcher.
+If no "Agent Names" section appears above, use these defaults:
+accelerator:reviewer, accelerator:codebase-locator,
+accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
+accelerator:documents-locator, accelerator:documents-analyser,
+accelerator:web-search-researcher.
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh plan`
 

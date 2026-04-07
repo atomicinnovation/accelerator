@@ -15,6 +15,7 @@ set -euo pipefail
 #   -> outputs "my-custom-reviewer" if configured, otherwise "reviewer"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/config-common.sh"
 
 DEFAULT="${1:-}"
 if [ -z "$DEFAULT" ]; then
@@ -22,4 +23,4 @@ if [ -z "$DEFAULT" ]; then
   exit 1
 fi
 
-"$SCRIPT_DIR/config-read-value.sh" "agents.$DEFAULT" "$DEFAULT"
+"$SCRIPT_DIR/config-read-value.sh" "agents.$DEFAULT" "${AGENT_PREFIX}$DEFAULT"

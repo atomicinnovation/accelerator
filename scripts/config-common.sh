@@ -7,6 +7,9 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/vcs-common.sh"
 
+# shellcheck disable=SC2034
+AGENT_PREFIX="accelerator:"
+
 # Locate the project root. Reuses find_repo_root() from vcs-common.sh
 # with a fallback to $PWD if no VCS root is found.
 config_project_root() {

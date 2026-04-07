@@ -748,13 +748,13 @@ echo "Test: No config files -> outputs all agents with default names"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
 if echo "$OUTPUT" | grep -q "## Agent Names" && \
-   echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: reviewer' && \
-   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: codebase-locator' && \
-   echo "$OUTPUT" | grep -q '\- \*\*codebase analyser agent\*\*: codebase-analyser' && \
-   echo "$OUTPUT" | grep -q '\- \*\*codebase pattern finder agent\*\*: codebase-pattern-finder' && \
-   echo "$OUTPUT" | grep -q '\- \*\*documents locator agent\*\*: documents-locator' && \
-   echo "$OUTPUT" | grep -q '\- \*\*documents analyser agent\*\*: documents-analyser' && \
-   echo "$OUTPUT" | grep -q '\- \*\*web search researcher agent\*\*: web-search-researcher'; then
+   echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: accelerator:reviewer' && \
+   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: accelerator:codebase-locator' && \
+   echo "$OUTPUT" | grep -q '\- \*\*codebase analyser agent\*\*: accelerator:codebase-analyser' && \
+   echo "$OUTPUT" | grep -q '\- \*\*codebase pattern finder agent\*\*: accelerator:codebase-pattern-finder' && \
+   echo "$OUTPUT" | grep -q '\- \*\*documents locator agent\*\*: accelerator:documents-locator' && \
+   echo "$OUTPUT" | grep -q '\- \*\*documents analyser agent\*\*: accelerator:documents-analyser' && \
+   echo "$OUTPUT" | grep -q '\- \*\*web search researcher agent\*\*: accelerator:web-search-researcher'; then
   echo "  PASS: outputs all 7 agents with default names"
   PASS=$((PASS + 1))
 else
@@ -796,7 +796,7 @@ agents:
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
 if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: my-reviewer' && \
-   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: codebase-locator'; then
+   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: accelerator:codebase-locator'; then
   echo "  PASS: overridden agent shows new name, others show defaults"
   PASS=$((PASS + 1))
 else
@@ -938,7 +938,7 @@ review:
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
 if echo "$OUTPUT" | grep -q "## Agent Names" && \
-   echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: reviewer'; then
+   echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: accelerator:reviewer'; then
   echo "  PASS: outputs all defaults when no agents section"
   PASS=$((PASS + 1))
 else
@@ -964,7 +964,7 @@ echo ""
 echo "Test: No config -> outputs the default agent name"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENT_NAME" "reviewer")
-assert_eq "outputs default" "reviewer" "$OUTPUT"
+assert_eq "outputs default" "accelerator:reviewer" "$OUTPUT"
 
 echo "Test: Config with override for requested agent -> outputs override value"
 REPO=$(setup_repo)
@@ -988,7 +988,7 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENT_NAME" "reviewer")
-assert_eq "outputs default" "reviewer" "$OUTPUT"
+assert_eq "outputs default" "accelerator:reviewer" "$OUTPUT"
 
 echo "Test: Local overrides team for same agent key"
 REPO=$(setup_repo)
@@ -1916,6 +1916,26 @@ done
 if [ "$ALL_KEYS_OK" = true ]; then
   echo "  PASS: all review config keys present"
   PASS=$((PASS + 1))
+fi
+
+echo "Test: No config overrides -> config-dump shows prefixed agent defaults"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  max_inline_comments: 15
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+if echo "$OUTPUT" | grep -q 'agents\.reviewer.*accelerator:reviewer.*default' && \
+   echo "$OUTPUT" | grep -q 'agents\.codebase-locator.*accelerator:codebase-locator.*default'; then
+  echo "  PASS: config-dump shows prefixed agent defaults"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: config-dump shows prefixed agent defaults"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
 fi
 
 echo ""

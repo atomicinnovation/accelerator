@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Bare agent name defaults**: Default agent names emitted by configuration
+  scripts and skill fallback lines now include the `accelerator:` plugin prefix
+  (e.g., `accelerator:reviewer` instead of `reviewer`). Without the prefix, the
+  Agent tool could not resolve bare names to the correct plugin-provided agent
+  definitions. Affects `config-read-agents.sh`, `config-read-agent-name.sh`,
+  `config-dump.sh`, and fallback lines in all 10 skills that reference agents.
+  User-provided overrides are passed through unchanged.
+
 ## 1.10.0 — 2026-03-30
 
 ### Added

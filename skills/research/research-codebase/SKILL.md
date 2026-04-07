@@ -14,9 +14,11 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGI
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh research-codebase`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
-If no "Agent Names" section appears above, use these defaults: reviewer,
-codebase-locator, codebase-analyser, codebase-pattern-finder,
-documents-locator, documents-analyser, web-search-researcher.
+If no "Agent Names" section appears above, use these defaults:
+accelerator:reviewer, accelerator:codebase-locator,
+accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
+accelerator:documents-locator, accelerator:documents-analyser,
+accelerator:web-search-researcher.
 
 **Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research meta/research`
 **Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
