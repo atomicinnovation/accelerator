@@ -4,6 +4,16 @@
 
 ### Fixed
 
+- **`describe-pr` hardcoded `/tmp` path**: The temporary PR body file was
+  written to `/tmp/pr-body-{number}.md` instead of using the configured tmp
+  directory. Now uses `{tmp directory}` resolved via `config-read-path.sh`,
+  consistent with `review-pr` and `init`. Adds a `mkdir -p` step to ensure the
+  directory exists.
+- **`review-pr` template variable resolution**: Added explicit substitution
+  instructions after the bold-label definitions and a reminder at the sub-agent
+  prompt composition site, preventing silent fallback to `/tmp` when the LLM
+  fails to resolve `{tmp directory}` placeholders — particularly in two-hop
+  sub-agent prompt composition.
 - **Bare agent name defaults**: Default agent names emitted by configuration
   scripts and skill fallback lines now include the `accelerator:` plugin prefix
   (e.g., `accelerator:reviewer` instead of `reviewer`). Without the prefix, the

@@ -25,6 +25,15 @@ accelerator:web-search-researcher.
 **PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs meta/reviews/prs`
 **Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp meta/tmp`
 
+**IMPORTANT**: Wherever `{tmp directory}` or `{pr reviews directory}` appears
+in the instructions below, substitute the actual resolved path shown above.
+Never use `/tmp` or any other path not shown above.
+
+**IMPORTANT**: When composing prompts for sub-agents, resolve all `{...}`
+path placeholders to their actual values before passing the prompt —
+sub-agents cannot see the bold-label definitions above and have no way to
+resolve the placeholders themselves.
+
 You are tasked with reviewing a pull request through multiple quality lenses
 and then presenting a compiled analysis of the code changes.
 
@@ -242,6 +251,10 @@ Wait for confirmation before spawning reviewers.
 For each selected lens, spawn the {reviewer agent} agent with a prompt
 that includes paths to the lens skill and output format files. Do NOT read
 these files yourself — the agent reads them in its own context.
+
+**Reminder**: In the template below, replace `{tmp directory}` with the
+actual path resolved at the top of this skill before passing the prompt to
+the agent.
 
 Compose each agent's prompt following this template:
 

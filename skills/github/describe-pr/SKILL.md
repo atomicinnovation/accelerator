@@ -14,6 +14,10 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh describe-pr`
 
 **PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh prs meta/prs`
+**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp meta/tmp`
+
+**IMPORTANT**: Wherever `{prs directory}` or `{tmp directory}` appears in
+the instructions below, substitute the actual resolved path shown above.
 
 **PR description template**:
 
@@ -119,9 +123,11 @@ following the repository's standard template.
      next `---` line (which closes the YAML block). Only match the
      opening frontmatter block — do not match `---` lines that appear
      later in the body (e.g., markdown horizontal rules).
-  3. Write everything after the closing `---` line to a temporary file
-  4. Post with `gh pr edit {number} --body-file /tmp/pr-body-{number}.md`
-  5. Clean up the temporary file
+  3. Ensure the tmp directory exists: `mkdir -p {tmp directory}`
+  4. Write everything after the closing `---` line to
+     `{tmp directory}/pr-body-{number}.md`
+  5. Post with `gh pr edit {number} --body-file {tmp directory}/pr-body-{number}.md`
+  6. Clean up `{tmp directory}/pr-body-{number}.md`
 - Confirm the update was successful
 - If any verification steps remain unchecked, remind the user to complete
   them before merging
