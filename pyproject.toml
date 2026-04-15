@@ -1,0 +1,24 @@
+[project]
+name = "accelerator"
+dynamic = ["version"]
+description = "A Claude Code plugin for structured, context-efficient software development."
+readme = "README.md"
+requires-python = ">=3.14"
+authors = [{ name = "Toby Clemson", email = "toby@go-atomic.io" }]
+license = "MIT"
+
+[dependency-groups]
+build = [
+    "invoke>=2.2.1",
+    "rich>=14.2.0",
+]
+
+[tool.uv]
+prerelease = "allow"
+
+[tool.setuptools]
+packages = []
+
+[project.urls]
+Homepage = "https://github.com/atomicinnovation/accelerator"
+Repository = "https://github.com/atomicinnovation/accelerator"

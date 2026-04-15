@@ -1,0 +1,18 @@
+name: Build & Test
+on:
+  push:
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+          experimental: true
+
+      - name: Run all tests
+        run: mise run test

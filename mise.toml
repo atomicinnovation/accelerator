@@ -1,0 +1,21 @@
+[env]
+_.python.venv = ".venv"
+
+[tools]
+uv = "0.11.6"
+python = "3.14.4"
+gh = "2.89.0"
+
+[settings]
+experimental = true
+
+[hooks]
+postinstall = "uv sync --only-group build --frozen"
+
+[tasks."test:integration"]
+description = "Run integration tests"
+run = "invoke test.integration"
+
+[tasks.test]
+description = "Run all tests"
+depends = ["test:integration"]
