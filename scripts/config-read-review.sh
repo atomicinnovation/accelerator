@@ -204,9 +204,11 @@ fi
 # --- Step 4: Validate lens names in disabled_lenses and core_lenses ---
 # Build combined set of all valid lens names
 all_lens_names=("${BUILTIN_LENSES[@]}")
-for name in "${custom_lens_names[@]}"; do
-  all_lens_names+=("$name")
-done
+if [ ${#custom_lens_names[@]} -gt 0 ]; then
+  for name in "${custom_lens_names[@]}"; do
+    all_lens_names+=("$name")
+  done
+fi
 
 is_valid_lens() {
   local name="$1"
@@ -216,37 +218,45 @@ is_valid_lens() {
   return 1
 }
 
-for lens in "${disabled_lenses[@]}"; do
-  if ! is_valid_lens "$lens"; then
-    echo "Warning: review.disabled_lenses contains unrecognised lens '$lens'" >&2
-  fi
-done
-
-for lens in "${core_lenses[@]}"; do
-  if ! is_valid_lens "$lens"; then
-    echo "Warning: review.core_lenses contains unrecognised lens '$lens'" >&2
-  fi
-done
-
-# Check for lenses in both core and disabled
-for lens in "${core_lenses[@]}"; do
-  for disabled in "${disabled_lenses[@]}"; do
-    if [ "$lens" = "$disabled" ]; then
-      echo "Warning: Lens '$lens' appears in both core_lenses and disabled_lenses — disabled_lenses takes precedence" >&2
+if [ ${#disabled_lenses[@]} -gt 0 ]; then
+  for lens in "${disabled_lenses[@]}"; do
+    if ! is_valid_lens "$lens"; then
+      echo "Warning: review.disabled_lenses contains unrecognised lens '$lens'" >&2
     fi
   done
-done
+fi
+
+if [ ${#core_lenses[@]} -gt 0 ]; then
+  for lens in "${core_lenses[@]}"; do
+    if ! is_valid_lens "$lens"; then
+      echo "Warning: review.core_lenses contains unrecognised lens '$lens'" >&2
+    fi
+  done
+fi
+
+# Check for lenses in both core and disabled
+if [ ${#core_lenses[@]} -gt 0 ] && [ ${#disabled_lenses[@]} -gt 0 ]; then
+  for lens in "${core_lenses[@]}"; do
+    for disabled in "${disabled_lenses[@]}"; do
+      if [ "$lens" = "$disabled" ]; then
+        echo "Warning: Lens '$lens' appears in both core_lenses and disabled_lenses — disabled_lenses takes precedence" >&2
+      fi
+    done
+  done
+fi
 
 # Check available lens count vs min_lenses
 available_count=${#BUILTIN_LENSES[@]}
-for builtin in "${BUILTIN_LENSES[@]}"; do
-  for disabled in "${disabled_lenses[@]}"; do
-    if [ "$builtin" = "$disabled" ]; then
-      available_count=$((available_count - 1))
-      break
-    fi
+if [ ${#disabled_lenses[@]} -gt 0 ]; then
+  for builtin in "${BUILTIN_LENSES[@]}"; do
+    for disabled in "${disabled_lenses[@]}"; do
+      if [ "$builtin" = "$disabled" ]; then
+        available_count=$((available_count - 1))
+        break
+      fi
+    done
   done
-done
+fi
 available_count=$((available_count + ${#custom_lens_names[@]}))
 
 if [ "$available_count" -lt "$min_lenses" ]; then
@@ -342,13 +352,15 @@ for lens in "${BUILTIN_LENSES[@]}"; do
   echo "| $lens | $lens_path | built-in |"
 done
 
-for i in "${!custom_lens_names[@]}"; do
-  name="${custom_lens_names[$i]}"
-  path="${custom_lens_paths[$i]}"
-  auto="${custom_lens_auto_detect[$i]}"
-  if [ -n "$auto" ]; then
-    echo "| $name | $path | custom |"
-  else
-    echo "| $name | $path | custom (always include) |"
-  fi
-done
+if [ ${#custom_lens_names[@]} -gt 0 ]; then
+  for i in "${!custom_lens_names[@]}"; do
+    name="${custom_lens_names[$i]}"
+    path="${custom_lens_paths[$i]}"
+    auto="${custom_lens_auto_detect[$i]}"
+    if [ -n "$auto" ]; then
+      echo "| $name | $path | custom |"
+    else
+      echo "| $name | $path | custom (always include) |"
+    fi
+  done
+fi
