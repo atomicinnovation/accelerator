@@ -7,6 +7,9 @@ jobs:
     name: Run tests
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Install dependencies
         uses: jdx/mise-action@v4
         with:
