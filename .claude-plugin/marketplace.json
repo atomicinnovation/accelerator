@@ -11,8 +11,8 @@
     {
       "name": "accelerator",
       "source": "./",
-      "description": "Development acceleration toolkit with multi-lens code review, implementation planning, codebase research, and git workflow automation.",
-      "version": "1.11.0",
+      "description": "A Claude Code plugin for structured, context-efficient software development.",
+      "version": "1.12.0-pre.1",
       "author": {
         "name": "Toby Clemson"
       },
