@@ -6,6 +6,7 @@
     "name": "Toby Clemson",
     "email": "toby@go-atomic.io"
   },
+  "license": "MIT",
   "skills": [
     "./skills/vcs/",
     "./skills/github/",

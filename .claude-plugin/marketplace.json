@@ -10,13 +10,7 @@
   "plugins": [
     {
       "name": "accelerator",
-      "source": "./",
-      "description": "A Claude Code plugin for structured, context-efficient software development.",
-      "version": "1.12.0-pre.1",
-      "author": {
-        "name": "Toby Clemson"
-      },
-      "license": "MIT"
+      "source": "./"
     }
   ]
 }
