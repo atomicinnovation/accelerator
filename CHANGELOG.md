@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.11.0 — 2026-04-15
+
 ### Fixed
 
 - **`describe-pr` hardcoded `/tmp` path**: The temporary PR body file was
