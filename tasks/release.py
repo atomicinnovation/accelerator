@@ -8,7 +8,7 @@ def prerelease(context: Context):
     git.configure(context)
     git.pull(context)
 
-    version.bump(context, release_type="pre")
+    version.bump(context, release_type=version.BumpType.PRE)
     git.commit_version(context)
     git.tag_version(context)
 
@@ -21,13 +21,19 @@ def release(context: Context):
     git.configure(context)
     git.pull(context)
 
-    release_version = version.bump(context, release_type="minor")
-    marketplace.update_version(context, plugin="accelerator", version=str(release_version))
+    release_version = version.bump(
+        context, release_type=version.BumpType.FINALISE
+    )
+    marketplace.update_version(
+        context, plugin="accelerator", version=str(release_version)
+    )
     changelog.release(context)
     git.commit_version(context)
     git.tag_version(context)
 
-    version.bump(context, release_type="pre")
+    version.bump(
+        context, release_type=version.BumpType.NEXT_PRE
+    )
     git.commit_version(context)
     git.tag_version(context)
 
