@@ -34,5 +34,5 @@ def tag_version(context: Context):
 def commit_version(context: Context):
     """Commit changes with a version bump message."""
     current_version = version.read(context, print_to_stdout=False)
-    context.run("git add .claude-plugin/plugin.json")
+    context.run("git add .")
     context.run(f"git commit -m 'Bump version to {current_version} [skip ci]'")

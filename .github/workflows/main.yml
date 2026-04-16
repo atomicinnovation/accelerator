@@ -68,5 +68,5 @@ jobs:
           cache: true
           experimental: true
 
-      - name: Create prerelease
+      - name: Create release
         run: mise run release

@@ -9,8 +9,8 @@ def prerelease(context: Context):
     git.pull(context)
 
     version.bump(context, release_type="pre")
-    git.tag_version(context)
     git.commit_version(context)
+    git.tag_version(context)
 
     git.push(context)
 
@@ -23,11 +23,11 @@ def release(context: Context):
 
     version.bump(context, release_type="minor")
     changelog.release(context)
-    git.tag_version(context)
     git.commit_version(context)
+    git.tag_version(context)
 
     version.bump(context, release_type="pre")
-    git.tag_version(context)
     git.commit_version(context)
+    git.tag_version(context)
 
     git.push(context)
