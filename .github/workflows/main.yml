@@ -69,4 +69,4 @@ jobs:
           experimental: true
 
       - name: Create prerelease
-        run: mise run prerelease
+        run: mise run release

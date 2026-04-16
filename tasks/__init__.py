@@ -11,6 +11,7 @@ from . import (
 ns = Collection()
 
 ns.add_task(release.prerelease, name="prerelease")
+ns.add_task(release.release, name="release")
 
 ns.add_collection(Collection.from_module(changelog))
 ns.add_collection(Collection.from_module(git))
