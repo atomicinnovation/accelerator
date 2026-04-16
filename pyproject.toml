@@ -10,8 +10,9 @@ license = "MIT"
 [dependency-groups]
 build = [
     "invoke>=2.2.1",
+    "keepachangelog>=2.0.0",
     "rich>=14.2.0",
-    "semver>=3.0.4"
+    "semver>=3.0.4",
 ]
 
 [tool.uv]

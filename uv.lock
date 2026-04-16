@@ -12,6 +12,7 @@ source = { virtual = "." }
 [package.dev-dependencies]
 build = [
     { name = "invoke" },
+    { name = "keepachangelog" },
     { name = "rich" },
     { name = "semver" },
 ]
@@ -21,6 +22,7 @@ build = [
 [package.metadata.requires-dev]
 build = [
     { name = "invoke", specifier = ">=2.2.1" },
+    { name = "keepachangelog", specifier = ">=2.0.0" },
     { name = "rich", specifier = ">=14.2.0" },
     { name = "semver", specifier = ">=3.0.4" },
 ]
@@ -32,6 +34,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/33/f6/227c48c5fe47fa178ccf1fda8f047d16c97ba926567b661e9ce2045c600c/invoke-3.0.3.tar.gz", hash = "sha256:437b6a622223824380bfb4e64f612711a6b648c795f565efc8625af66fb57f0c", size = 343419, upload-time = "2026-04-07T15:17:48.307Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5a/de/bbc12563bbf979618d17625a4e753ff7a078523e28d870d3626daa97261a/invoke-3.0.3-py3-none-any.whl", hash = "sha256:f11327165e5cbb89b2ad1d88d3292b5113332c43b8553b494da435d6ec6f5053", size = 160958, upload-time = "2026-04-07T15:17:46.875Z" },
+]
+
+[[package]]
+name = "keepachangelog"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fa/2e/951923e56c149b6772dbffee0dcac00738405d7d7a0fdd30537047cf6727/keepachangelog-2.0.0.tar.gz", hash = "sha256:6839f0646690ae514aca6dedbc7b8aa652c56db3be43081a1940c55c1c807709", size = 24488, upload-time = "2024-06-14T12:56:28.442Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/23/06/b4f06ca7afb5d9e942c642980c308ffcfa1fa0e8b0a3ddbec78483ef1614/keepachangelog-2.0.0-py3-none-any.whl", hash = "sha256:0b2259fd73b55f2b99e61035ff83f3d86d0f2764841a7e2de86e31e675e42fee", size = 13349, upload-time = "2024-06-14T12:56:26.884Z" },
 ]
 
 [[package]]

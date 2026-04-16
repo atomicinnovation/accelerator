@@ -1,6 +1,6 @@
 from invoke import Context, task
 
-from . import version, git
+from . import changelog, git, version
 
 @task
 def prerelease(context: Context):
@@ -9,4 +9,21 @@ def prerelease(context: Context):
     version.bump(context, release_type="pre")
     git.tag_version(context)
     git.commit_version(context)
+    git.push(context)
+
+
+@task
+def release(context: Context):
+    """Prepare a release."""
+    git.configure(context)
+
+    version.bump(context, release_type="minor")
+    changelog.release(context)
+    git.tag_version(context)
+    git.commit_version(context)
+
+    version.bump(context, release_type="pre")
+    git.tag_version(context)
+    git.commit_version(context)
+
     git.push(context)
