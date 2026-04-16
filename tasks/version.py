@@ -1,5 +1,6 @@
 import json
 from enum import StrEnum
+from collections.abc import Sequence
 
 import semver
 from invoke import Context, task
@@ -11,7 +12,7 @@ class BumpType(StrEnum):
     PATCH = "patch"
     PRE = "pre"
     FINALISE = "finalise"
-    NEXT_PRE = "next-pre"
+    NEXT_MINOR = "next-minor"
 
 
 def read_plugin_metadata():
@@ -40,30 +41,33 @@ def write(_context: Context, version: str):
     )
 
 
-@task
-def bump(_context: Context, release_type: BumpType = BumpType.PRE):
+@task(iterable=["bump_type"])
+def bump(_context: Context, bump_type=None):
     """Bump plugin version."""
-    current_version = read(_context, print_to_stdout=False)
     prerelease_token = "pre"
+    current_version = read(_context, print_to_stdout=False)
+    new_version = current_version
 
-    match release_type:
-        case BumpType.MAJOR:
-            new_version = current_version.bump_major()
-        case BumpType.MINOR:
-            new_version = current_version.bump_minor()
-        case BumpType.PATCH:
-            new_version = current_version.bump_patch()
-        case BumpType.PRE:
-            new_version = current_version.bump_prerelease(
-                token=prerelease_token
-            )
-        case BumpType.FINALISE:
-            new_version = current_version.finalize_version()
-        case BumpType.NEXT_PRE:
-            new_version = current_version.next_version(
-                part="prerelease",
-                prerelease_token=prerelease_token
-            )
+    bump_types = bump_type or (BumpType.PRE,)
+    for bt in bump_types:
+        match bt:
+            case BumpType.MAJOR:
+                new_version = new_version.bump_major()
+            case BumpType.MINOR:
+                new_version = new_version.bump_minor()
+            case BumpType.PATCH:
+                new_version = new_version.bump_patch()
+            case BumpType.PRE:
+                new_version = new_version.bump_prerelease(
+                    token=prerelease_token
+                )
+            case BumpType.FINALISE:
+                new_version = new_version.finalize_version()
+            case BumpType.NEXT_MINOR:
+                new_version = new_version.next_version(
+                    part="minor",
+                    prerelease_token=prerelease_token
+                )
 
     write(_context, str(new_version))
 
