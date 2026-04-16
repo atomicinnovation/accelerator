@@ -5,6 +5,7 @@ from . import version, git
 @task
 def prerelease(context: Context):
     """Prepare a release candidate."""
+    git.configure(context)
     version.bump(context, release_type="pre")
     git.tag_version(context)
     git.commit_version(context)

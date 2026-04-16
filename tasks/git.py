@@ -4,6 +4,17 @@ from . import version
 
 
 @task
+def configure(
+    context: Context,
+    user_name: str = "Atomic Maintainers",
+    user_email: str = "maintainers@go-atomic.io"
+):
+    """Configure git settings for the project."""
+    context.run(f"git config --local user.name '{user_name}'")
+    context.run(f"git config --local user.email '{user_email}'")
+
+
+@task
 def pull(context: Context):
     """Ensure current branch up to date with remote."""
     context.run("git pull")
