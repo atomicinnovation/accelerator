@@ -6,9 +6,12 @@ from . import changelog, git, version
 def prerelease(context: Context):
     """Prepare a release candidate."""
     git.configure(context)
+    git.pull(context)
+
     version.bump(context, release_type="pre")
     git.tag_version(context)
     git.commit_version(context)
+
     git.push(context)
 
 
@@ -16,6 +19,7 @@ def prerelease(context: Context):
 def release(context: Context):
     """Prepare a release."""
     git.configure(context)
+    git.pull(context)
 
     version.bump(context, release_type="minor")
     changelog.release(context)
