@@ -54,3 +54,5 @@ def bump(_context: Context, release_type: ReleaseType = ReleaseType.PRE):
             new_version = current_version.bump_prerelease(token="pre")
 
     write(_context, str(new_version))
+
+    return new_version

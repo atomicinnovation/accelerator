@@ -1,6 +1,6 @@
 from invoke import Context, task
 
-from . import changelog, git, version
+from . import changelog, git, marketplace, version
 
 @task
 def prerelease(context: Context):
@@ -21,7 +21,8 @@ def release(context: Context):
     git.configure(context)
     git.pull(context)
 
-    version.bump(context, release_type="minor")
+    release_version = version.bump(context, release_type="minor")
+    marketplace.update_version(context, plugin="accelerator", version=str(release_version))
     changelog.release(context)
     git.commit_version(context)
     git.tag_version(context)

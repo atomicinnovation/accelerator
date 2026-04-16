@@ -10,7 +10,11 @@
   "plugins": [
     {
       "name": "accelerator",
-      "source": "./"
+      "source": {
+        "source": "github",
+        "repo": "atomicinnovation/accelerator",
+        "ref": "v1.13.0"
+      }
     }
   ]
 }
