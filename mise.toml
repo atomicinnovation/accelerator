@@ -1,5 +1,5 @@
 [env]
-_.python.venv = ".venv"
+_.python.venv = { path = ".venv", create = true }
 
 [tools]
 uv = "0.11.6"
@@ -19,3 +19,19 @@ run = "invoke test.integration"
 [tasks.test]
 description = "Run all tests"
 depends = ["test:integration"]
+
+[tasks."version:read"]
+description = "Read plugin version"
+run = "invoke version.read"
+
+[tasks."version:write"]
+description = "Write plugin version"
+run = "invoke version.write"
+
+[tasks."version:bump"]
+description = "Bump plugin version"
+run = "invoke version.bump"
+
+[tasks."prerelease"]
+description = "Create prerelease version of library"
+run = "invoke prerelease"
