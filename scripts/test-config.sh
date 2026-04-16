@@ -2900,7 +2900,7 @@ echo "Test: config-read-skill-instructions.sh is the last preprocessor line in e
 SKILL_INSTR_PLACEMENT_OK=true
 for skill in "${ALL_SKILLS[@]}"; do
   SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
-  LAST_PREPROCESSOR_LINE=$(grep -n '^!\`' "$SKILL_FILE" | tail -1 | cut -d: -f1)
+  LAST_PREPROCESSOR_LINE=$(grep -n '^!`' "$SKILL_FILE" | tail -1 | cut -d: -f1)
   SKILL_INSTR_LINE=$(grep -n 'config-read-skill-instructions.sh' "$SKILL_FILE" | head -1 | cut -d: -f1)
   if [ "$SKILL_INSTR_LINE" -ne "$LAST_PREPROCESSOR_LINE" ]; then
     echo "  FAIL: $skill - skill-instructions at line $SKILL_INSTR_LINE, last preprocessor at line $LAST_PREPROCESSOR_LINE"
