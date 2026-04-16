@@ -25,14 +25,14 @@ def push(context: Context):
     context.run(f"git push origin HEAD --tags")
 
 @task
-def tag_version(context: Context):
+def tag_version(context: Context, target_version: str | None = None):
     """Tag the current git commit with the current project version."""
-    current_version = version.read(context, print_to_stdout=False)
-    context.run(f"git tag -a 'v{current_version}' -m 'Release version {current_version}'")
+    resolved_version = target_version or version.read(context, print_to_stdout=False)
+    context.run(f"git tag -a 'v{resolved_version}' -m 'Release version {resolved_version}'")
 
 @task
-def commit_version(context: Context):
+def commit_version(context: Context, target_version: str | None = None):
     """Commit changes with a version bump message."""
-    current_version = version.read(context, print_to_stdout=False)
+    resolved_version = target_version or version.read(context, print_to_stdout=False)
     context.run("git add .")
-    context.run(f"git commit -m 'Bump version to {current_version} [skip ci]'")
+    context.run(f"git commit -m 'Bump version to {resolved_version} [skip ci]'")

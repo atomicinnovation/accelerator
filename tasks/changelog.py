@@ -1,11 +1,11 @@
 import keepachangelog
 from invoke import Context, task
 
-from tasks.version import read as version_read
+from . import version
 
 
 @task
 def release(context: Context):
     """Mark unreleased changelog entries with the current version."""
-    version = version_read(context, print_to_stdout=False)
-    keepachangelog.release("CHANGELOG.md", new_version=str(version))
+    current_version = version.read(context, print_to_stdout=False)
+    keepachangelog.release("CHANGELOG.md", new_version=str(current_version))
