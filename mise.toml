@@ -35,3 +35,7 @@ run = "invoke version.bump"
 [tasks."prerelease"]
 description = "Create prerelease version of library"
 run = "invoke prerelease"
+
+[tasks."release"]
+description = "Create release version of library"
+run = "invoke release"
