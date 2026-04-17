@@ -1,6 +1,6 @@
 {
   "name": "accelerator",
-  "version": "1.19.0-pre.1",
+  "version": "1.19.0-pre.2",
   "description": "A Claude Code plugin for structured, context-efficient software development.",
   "author": {
     "name": "Toby Clemson",
