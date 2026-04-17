@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+## 1.18.0 — 2026-04-17
+
+_Versions 1.12.0 through 1.18.0 were iterative build-system and release-pipeline
+changes and are not recorded as separate entries. The combined work is
+described below._
+
+### Added
+
+- **Build system**: New Python-based build system under `tasks/` using
+  [invoke](https://www.pyinvoke.org/), bootstrapped through `mise.toml` with
+  pinned `uv`, Python, and `gh` toolchains. `pyproject.toml` declares a `build`
+  dependency group (`invoke`, `keepachangelog`, `rich`, `semver`) installed via
+  `uv sync` on `mise install`.
+- **Integration test task**: `mise run test` (backed by
+  `invoke test.integration`) runs the existing config and ADR shell test
+  suites so they execute consistently in CI and locally.
+- **Continuous integration pipeline**: `.github/workflows/main.yml` runs the
+  test suite on every push and pull request.
+- **Prerelease automation**: The CI pipeline now bumps the prerelease
+  identifier, tags the commit, and pushes to `main` after tests pass
+  (`mise run prerelease` → `invoke prerelease`). Git identity is configured
+  during the job to attribute automated commits to "Atomic Maintainers".
+- **Release automation**: The CI pipeline now promotes prereleases to full
+  releases on `main` pushes (`mise run release` → `invoke release`). The
+  release task finalises the semver version, updates
+  `.claude-plugin/marketplace.json` to point at the released tag, marks the
+  `Unreleased` changelog section as the new version via `keepachangelog`,
+  tags and pushes, creates a GitHub release with auto-generated notes via
+  `gh release create`, and then bumps to the next minor prerelease ready for
+  continued development.
+
+### Fixed
+
+- **Tests failing on bash 5.2**: Test harness adjustments so suites pass on
+  the bash version available on GitHub Actions runners.
+
 ## 1.11.0 — 2026-04-15
 
 ### Fixed
