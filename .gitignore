@@ -7,3 +7,4 @@
 *.iws
 workspaces/
 .claude/settings.local.json
+.claude/accelerator.local.md

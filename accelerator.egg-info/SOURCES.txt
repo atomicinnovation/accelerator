@@ -1,7 +1,0 @@
-LICENSE
-README.md
-pyproject.toml
-accelerator.egg-info/PKG-INFO
-accelerator.egg-info/SOURCES.txt
-accelerator.egg-info/dependency_links.txt
-accelerator.egg-info/top_level.txt

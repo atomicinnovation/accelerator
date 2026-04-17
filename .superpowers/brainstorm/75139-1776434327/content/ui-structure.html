@@ -1,0 +1,169 @@
+<h2>Which top-level UI structure feels right?</h2>
+<p class="subtitle">Three skeletons for how Reader / Lifecycle / Kanban fit into one app. Low-fi on purpose — we're picking the skeleton, not the skin.</p>
+
+<style>
+  .wire { font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.4; }
+  .wire .row { display: flex; gap: 6px; }
+  .wire .col { flex: 1; }
+  .wire .bx { border: 1px dashed currentColor; padding: 8px; border-radius: 4px; background: rgba(255,255,255,0.02); }
+  .wire .bx.filled { background: rgba(100,150,255,0.08); border-style: solid; }
+  .wire .bx.active { background: rgba(100,200,150,0.15); border-color: rgba(100,200,150,0.6); border-style: solid; }
+  .wire .title { font-weight: 600; font-size: 11px; text-transform: uppercase; opacity: 0.7; margin-bottom: 6px; }
+  .wire .muted { opacity: 0.5; font-size: 11px; }
+  .wire .stack > * + * { margin-top: 6px; }
+  .wire .hstack { display: flex; gap: 6px; }
+  .wire .pill { display: inline-block; padding: 1px 6px; border: 1px solid currentColor; border-radius: 10px; font-size: 10px; opacity: 0.7; margin-right: 4px; }
+  .wire .pill.on { background: rgba(100,200,150,0.25); border-color: rgba(100,200,150,0.8); opacity: 1; }
+  .wire h4 { margin: 0 0 6px 0; font-size: 13px; }
+  .approach { margin-bottom: 20px; }
+  .approach > h3 { margin-bottom: 8px; }
+</style>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="wire" style="padding: 10px;">
+        <div class="bx" style="margin-bottom: 6px; text-align: center;">
+          <span class="pill on">Library</span>
+          <span class="pill">Lifecycle</span>
+          <span class="pill">Kanban</span>
+        </div>
+        <div class="row">
+          <div class="col" style="flex: 0.4;">
+            <div class="bx stack">
+              <div class="title">Doc types</div>
+              <div class="muted">Decisions</div>
+              <div class="muted">&nbsp;&nbsp;ADR-0001</div>
+              <div class="muted">&nbsp;&nbsp;ADR-0002</div>
+              <div class="muted">Tickets</div>
+              <div class="muted">&nbsp;&nbsp;0001-review</div>
+              <div class="muted">Plans</div>
+              <div class="muted">Research</div>
+              <div class="muted">Reviews</div>
+              <div class="muted">Notes</div>
+            </div>
+          </div>
+          <div class="col" style="flex: 1.3;">
+            <div class="bx filled stack" style="min-height: 160px;">
+              <div class="title">ADR-0002 · three-layer review</div>
+              <div>## Context</div>
+              <div class="muted">The review system needs to evaluate code across multiple…</div>
+              <div class="muted">&nbsp;</div>
+              <div>## Decision</div>
+              <div class="muted">Use three layers: agent / orchestrator / convention…</div>
+            </div>
+          </div>
+          <div class="col" style="flex: 0.5;">
+            <div class="bx stack">
+              <div class="title">Metadata</div>
+              <div class="muted">status: accepted</div>
+              <div class="muted">author: toby</div>
+              <div class="muted">date: 2026-03-30</div>
+              <div class="title" style="margin-top: 8px;">Linked</div>
+              <div class="muted">→ ticket 0001</div>
+              <div class="muted">→ plan 2026-02-22</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · Mode switcher on top, tri-pane below</h3>
+      <p>Top-nav picks the mode (Library / Lifecycle / Kanban). Each mode has its own layout — Library is a classic three-pane reader (tree, content, metadata). Feels like docs site + IDE.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="wire" style="padding: 10px;">
+        <div class="row">
+          <div class="col" style="flex: 0.35;">
+            <div class="bx stack">
+              <div class="title">Navigation</div>
+              <div class="muted"><strong>Library</strong></div>
+              <div class="muted">&nbsp;&nbsp;Decisions</div>
+              <div class="muted">&nbsp;&nbsp;Tickets</div>
+              <div class="muted">&nbsp;&nbsp;Plans · Research</div>
+              <div class="muted">&nbsp;&nbsp;Reviews · Notes</div>
+              <div class="muted">&nbsp;</div>
+              <div class="muted"><strong>Views</strong></div>
+              <div class="muted">&nbsp;&nbsp;⚑ Kanban</div>
+              <div class="muted">&nbsp;&nbsp;⏱ Lifecycle</div>
+              <div class="muted">&nbsp;&nbsp;(future: graph)</div>
+              <div class="muted">&nbsp;</div>
+              <div class="muted"><strong>Activity</strong></div>
+              <div class="muted">&nbsp;&nbsp;plan.md · 2m ago</div>
+            </div>
+          </div>
+          <div class="col" style="flex: 1.65;">
+            <div class="bx filled stack" style="min-height: 180px;">
+              <div class="title">ADR-0002</div>
+              <div>Three-layer review system architecture</div>
+              <div class="muted">&nbsp;</div>
+              <div class="muted">## Context</div>
+              <div class="muted">The review system needs to evaluate code across multiple quality dimensions…</div>
+              <div class="muted">&nbsp;</div>
+              <div class="muted">## Decision</div>
+              <div class="muted">Adopt three layers — agent, orchestrator, convention…</div>
+              <div class="muted">&nbsp;</div>
+              <div class="muted">Links → ticket 0001 · plan 2026-02-22</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · One sidebar, everything is a "view"</h3>
+      <p>Doc-site feel. Left sidebar has <em>doc types</em>, <em>views</em> (Kanban, Lifecycle as virtual entries), and <em>activity</em>. Main pane renders whatever you click. Kanban and Lifecycle are just richer "pages".</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="wire" style="padding: 10px;">
+        <div class="bx stack" style="margin-bottom: 6px;">
+          <div class="title">Home · accelerator</div>
+          <div class="hstack">
+            <div class="bx" style="flex: 1;">
+              <div class="title">Active work</div>
+              <div class="muted">3 in progress</div>
+              <div class="muted">ADR-0009 · review</div>
+            </div>
+            <div class="bx" style="flex: 1;">
+              <div class="title">Ticket board</div>
+              <div class="muted">5 todo · 2 doing</div>
+              <div class="muted">→ open kanban</div>
+            </div>
+            <div class="bx" style="flex: 1;">
+              <div class="title">Recent</div>
+              <div class="muted">plan.md · 2m</div>
+              <div class="muted">note.md · 1h</div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <div class="bx stack">
+              <div class="title">Recently touched</div>
+              <div class="muted">2026-04-17 · note · owasp</div>
+              <div class="muted">2026-04-08 · plan · tickets</div>
+              <div class="muted">2026-03-30 · ADR-0002</div>
+              <div class="muted">&nbsp;</div>
+              <div class="title">Quick views</div>
+              <div class="muted">📘 Library · 📊 Kanban</div>
+              <div class="muted">⏱ Lifecycle · 🔎 Search</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · Home dashboard + drill-in</h3>
+      <p>Opens to a <em>status home</em>: what's in flight, what moved recently, quick links to Library / Kanban / Lifecycle. Feels like a project dashboard; the companion story is the activity feed on the home page.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top: 16px;">Pick one or tell me what to hybridise. I'm leaning B — it scales as new doc types arrive (just another sidebar entry) and keeps Kanban/Lifecycle feeling like peer views rather than special modes. A is more familiar; C foregrounds the "what's happening right now" companion story but front-loads more chrome.</p>
