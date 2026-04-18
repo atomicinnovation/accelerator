@@ -1042,9 +1042,9 @@ echo ""
 
 SKILLS_DIR="$SCRIPT_DIR/../skills"
 
-echo "Test: config-read-context.sh appears in exactly 20 skills"
+echo "Test: config-read-context.sh appears in exactly 21 skills"
 CONTEXT_COUNT=$(grep -r 'config-read-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "20 skills have context injection" "20" "$CONTEXT_COUNT"
+assert_eq "21 skills have context injection" "21" "$CONTEXT_COUNT"
 
 echo "Test: config-read-agents.sh appears in exactly 17 skills"
 AGENTS_COUNT=$(grep -r 'config-read-agents.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
@@ -1065,6 +1065,7 @@ CONTEXT_SKILLS=(
   "decisions/extract-adrs"
   "decisions/review-adr"
   "vcs/commit"
+  "visualisation/visualise"
 )
 CONTEXT_PLACEMENT_OK=true
 for skill in "${CONTEXT_SKILLS[@]}"; do
@@ -3441,13 +3442,13 @@ echo ""
 echo "=== Preprocessor placement (per-skill) ==="
 echo ""
 
-echo "Test: config-read-skill-context.sh appears in exactly 20 skills"
+echo "Test: config-read-skill-context.sh appears in exactly 21 skills"
 SKILL_CONTEXT_COUNT=$(grep -r 'config-read-skill-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "20 skills have skill-context injection" "20" "$SKILL_CONTEXT_COUNT"
+assert_eq "21 skills have skill-context injection" "21" "$SKILL_CONTEXT_COUNT"
 
-echo "Test: config-read-skill-instructions.sh appears in exactly 20 skills"
+echo "Test: config-read-skill-instructions.sh appears in exactly 21 skills"
 SKILL_INSTRUCTIONS_COUNT=$(grep -r 'config-read-skill-instructions.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "20 skills have skill-instructions injection" "20" "$SKILL_INSTRUCTIONS_COUNT"
+assert_eq "21 skills have skill-instructions injection" "21" "$SKILL_INSTRUCTIONS_COUNT"
 
 echo "Test: config-read-skill-context.sh appears immediately after config-read-context.sh in each skill"
 ALL_SKILLS=(
@@ -3464,6 +3465,7 @@ ALL_SKILLS=(
   "decisions/extract-adrs"
   "decisions/review-adr"
   "vcs/commit"
+  "visualisation/visualise"
 )
 SKILL_CTX_PLACEMENT_OK=true
 for skill in "${ALL_SKILLS[@]}"; do

@@ -807,13 +807,13 @@ observes a failing state between sub-phases.
 
 #### Automated Verification
 
-- [ ] `[ -f skills/visualisation/visualise/SKILL.md ]`.
-- [ ] `yq '.' skills/visualisation/visualise/SKILL.md >/dev/null`.
-- [ ] `[ "$(yq '.name' skills/visualisation/visualise/SKILL.md)" = "visualise" ]`.
-- [ ] `[ "$(yq '."disable-model-invocation"' skills/visualisation/visualise/SKILL.md)" = "true" ]`.
-- [ ] `allowed-tools` frontmatter contains both the shared config glob
+- [x] `[ -f skills/visualisation/visualise/SKILL.md ]`.
+- [x] `yq --front-matter=extract '.' skills/visualisation/visualise/SKILL.md >/dev/null` (plain `yq` fails on all SKILL.md files; `--front-matter=extract` is the correct flag).
+- [x] `[ "$(yq --front-matter=extract '.name' skills/visualisation/visualise/SKILL.md)" = "visualise" ]`.
+- [x] `[ "$(yq --front-matter=extract '."disable-model-invocation"' skills/visualisation/visualise/SKILL.md)" = "true" ]`.
+- [x] `allowed-tools` frontmatter contains both the shared config glob
       and the skill-local script glob (grep against the frontmatter).
-- [ ] `bash scripts/test-config.sh` exits 0 after the invariant updates.
+- [x] `bash scripts/test-config.sh` exits 0 after the invariant updates.
 
 #### Manual Verification
 
