@@ -951,14 +951,14 @@ sub-commands, so the runner fails fast on the first broken suite.
 
 #### Automated Verification
 
-- [ ] `mise run test:integration` exits 0 and runs four suites:
+- [x] `mise run test:integration` exits 0 and runs four suites:
       `scripts/test-config.sh`,
       `skills/decisions/scripts/test-adr-scripts.sh`,
       `skills/visualisation/visualise/scripts/test-cli-wrapper.sh`,
       `skills/visualisation/visualise/scripts/test-launch-server.sh`.
-- [ ] `scripts/test-helpers.sh` is **not** in the discovered set
+- [x] `scripts/test-helpers.sh` is **not** in the discovered set
       (its non-executable bit keeps it out).
-- [ ] Spot-check: `touch scripts/test-dummy.sh && chmod +x scripts/test-dummy.sh && printf '#!/usr/bin/env bash\nexit 0\n' > scripts/test-dummy.sh && mise run test:integration`
+- [x] Spot-check: `touch scripts/test-dummy.sh && chmod +x scripts/test-dummy.sh && printf '#!/usr/bin/env bash\nexit 0\n' > scripts/test-dummy.sh && mise run test:integration`
       picks up the new suite automatically; remove the dummy
       afterwards.
 

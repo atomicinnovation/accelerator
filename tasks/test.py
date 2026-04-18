@@ -1,52 +1,30 @@
+import os
+from pathlib import Path
+
 from invoke import Context, task
+
+# Helper files that happen to match the `test-*.sh` pattern but are
+# sourced, not run. Belt-and-braces alongside the executable-bit
+# filter: the name check catches cases where exec bits are synthesised
+# uniformly (e.g. WSL-mounted NTFS) and the exec-bit check catches
+# contributors who forget to `chmod +x` a new suite.
+EXCLUDED_HELPER_NAMES = {"test-helpers.sh"}
+
 
 @task
 def integration(context: Context):
-    """Run integration tests."""
-    print("Running configuration script tests...")
-    context.run("scripts/test-config.sh")
-    print("\n")
-
-    print("Running ADR script tests...")
-    context.run("skills/decisions/scripts/test-adr-scripts.sh")
-    print("\n")
-
-    print("Running work item script tests...")
-    context.run("skills/work/scripts/test-work-item-scripts.sh")
-    print("\n")
-
-    print("Running work item pattern tests...")
-    context.run("skills/work/scripts/test-work-item-pattern.sh")
-    print("\n")
-
-    print("Running lens structure lint...")
-    context.run("scripts/test-lens-structure.sh")
-    print("\n")
-
-    print("Running lens boundary eval checks...")
-    context.run("scripts/test-boundary-evals.sh")
-    print("\n")
-
-    print("Running eval structure self-test...")
-    context.run("scripts/test-evals-structure-self.sh")
-    print("\n")
-
-    print("Running eval structure validation...")
-    context.run("scripts/test-evals-structure.sh")
-    print("\n")
-
-    print("Running hierarchy format drift check...")
-    context.run("scripts/test-hierarchy-format.sh")
-    print("\n")
-
-    print("Running format checks...")
-    context.run("scripts/test-format.sh")
-    print("\n")
-
-    print("Running atomic-common utility tests...")
-    context.run("scripts/test-atomic-common.sh")
-    print("\n")
-
-    print("Running migration framework tests...")
-    context.run("skills/config/migrate/scripts/test-migrate.sh")
-    print("\n")
+    """Run integration tests — auto-discovers every executable test-*.sh."""
+    repo = Path(__file__).resolve().parent.parent
+    suites = sorted(
+        p.relative_to(repo).as_posix()
+        for p in repo.glob("**/test-*.sh")
+        if p.is_file()
+        and p.name not in EXCLUDED_HELPER_NAMES
+        and os.access(p, os.X_OK)
+    )
+    if not suites:
+        raise RuntimeError("No executable test-*.sh suites discovered")
+    for suite in suites:
+        print(f"Running {suite}...")
+        context.run(suite)
+        print()
