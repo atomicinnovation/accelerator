@@ -7,6 +7,14 @@
 *.iws
 workspaces/
 *-workspace/
+**/__pycache__/
+*.egg-info/
 .claude/settings.local.json
 .claude/accelerator.local.md
-meta/eval-workspaces/
++meta/eval-workspaces/
+skills/visualisation/visualise/frontend/.e2e-port
+skills/visualisation/visualise/server/target
+skills/visualisation/visualise/frontend/node_modules
+skills/visualisation/visualise/frontend/dist
+**/test-results/
+*.tsbuildinfo
