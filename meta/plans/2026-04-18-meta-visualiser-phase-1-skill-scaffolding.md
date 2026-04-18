@@ -461,10 +461,10 @@ echo "placeholder://phase-1-scaffold-not-yet-running"
 
 #### Automated Verification
 
-- [ ] `[ -x skills/visualisation/visualise/scripts/test-launch-server.sh ]`
-- [ ] `[ -x skills/visualisation/visualise/scripts/launch-server.sh ]`
-- [ ] `bash skills/visualisation/visualise/scripts/test-launch-server.sh` exits 0.
-- [ ] `bash skills/visualisation/visualise/scripts/launch-server.sh` → `placeholder://phase-1-scaffold-not-yet-running`.
+- [x] `[ -x skills/visualisation/visualise/scripts/test-launch-server.sh ]`
+- [x] `[ -x skills/visualisation/visualise/scripts/launch-server.sh ]`
+- [x] `bash skills/visualisation/visualise/scripts/test-launch-server.sh` exits 0.
+- [x] `bash skills/visualisation/visualise/scripts/launch-server.sh` → `placeholder://phase-1-scaffold-not-yet-running`.
 
 #### Manual Verification
 
