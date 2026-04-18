@@ -878,10 +878,10 @@ version is **not** bumped.
 
 #### Automated Verification
 
-- [ ] `jq -e . .claude-plugin/plugin.json`.
-- [ ] `jq -e '.skills | index("./skills/visualisation/")' .claude-plugin/plugin.json`.
-- [ ] `jq -e '.skills | contains(["./skills/vcs/","./skills/github/","./skills/planning/","./skills/research/","./skills/decisions/","./skills/review/lenses/","./skills/review/output-formats/","./skills/config/"])' .claude-plugin/plugin.json`.
-- [ ] `jq -r '.version' .claude-plugin/plugin.json` unchanged.
+- [x] `jq -e . .claude-plugin/plugin.json`.
+- [x] `jq -e '.skills | index("./skills/visualisation/")' .claude-plugin/plugin.json`.
+- [x] `jq -e '.skills | contains(["./skills/vcs/","./skills/github/","./skills/planning/","./skills/research/","./skills/decisions/","./skills/review/lenses/","./skills/review/output-formats/","./skills/config/"])' .claude-plugin/plugin.json`.
+- [x] `jq -r '.version' .claude-plugin/plugin.json` unchanged.
 
 #### Manual Verification
 
