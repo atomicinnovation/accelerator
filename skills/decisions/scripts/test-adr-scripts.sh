@@ -5,40 +5,11 @@ set -euo pipefail
 # Run: bash skills/decisions/scripts/test-adr-scripts.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+source "$PLUGIN_ROOT/scripts/test-helpers.sh"
+
 NEXT_NUMBER="$SCRIPT_DIR/adr-next-number.sh"
 READ_STATUS="$SCRIPT_DIR/adr-read-status.sh"
-
-PASS=0
-FAIL=0
-
-assert_eq() {
-  local test_name="$1" expected="$2" actual="$3"
-  if [ "$expected" = "$actual" ]; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Expected: $(printf '%q' "$expected")"
-    echo "    Actual:   $(printf '%q' "$actual")"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_exit_code() {
-  local test_name="$1" expected_code="$2"
-  shift 2
-  local actual_code=0
-  "$@" >/dev/null 2>&1 || actual_code=$?
-  if [ "$expected_code" -eq "$actual_code" ]; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Expected exit code: $expected_code"
-    echo "    Actual exit code:   $actual_code"
-    FAIL=$((FAIL + 1))
-  fi
-}
 
 # Create a temporary directory to simulate repo environments
 TMPDIR_BASE=$(mktemp -d)
@@ -265,12 +236,4 @@ assert_exit_code "exits 1" 1 bash "$READ_STATUS"
 
 echo ""
 
-# ============================================================
-echo "=== Results ==="
-echo "Passed: $PASS"
-echo "Failed: $FAIL"
-
-if [ "$FAIL" -gt 0 ]; then
-  exit 1
-fi
-echo "All tests passed!"
+test_summary
