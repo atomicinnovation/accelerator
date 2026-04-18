@@ -179,6 +179,7 @@ PATH_KEYS=(
   "paths.validations"
   "paths.review_plans"
   "paths.review_prs"
+  "paths.review_tickets"
   "paths.templates"
   "paths.tickets"
   "paths.notes"
@@ -192,6 +193,7 @@ PATH_DEFAULTS=(
   "meta/validations"
   "meta/reviews/plans"
   "meta/reviews/prs"
+  "meta/reviews/tickets"
   "meta/templates"
   "meta/tickets"
   "meta/notes"
@@ -212,6 +214,7 @@ TEMPLATE_KEYS=(
   "templates.adr"
   "templates.validation"
   "templates.pr-description"
+  "templates.ticket"
 )
 
 for key in "${TEMPLATE_KEYS[@]}"; do

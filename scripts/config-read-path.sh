@@ -12,6 +12,7 @@ set -euo pipefail
 #   validations   → where validation reports are written (default: meta/validations)
 #   review_plans  → where plan reviews are written (default: meta/reviews/plans)
 #   review_prs    → where PR review working dirs go (default: meta/reviews/prs)
+#   review_tickets → where ticket reviews are written (default: meta/reviews/tickets)
 #   templates     → where user templates are found (default: meta/templates)
 #   tickets       → where ticket files are stored (default: meta/tickets)
 #   notes         → where notes are stored (default: meta/notes)

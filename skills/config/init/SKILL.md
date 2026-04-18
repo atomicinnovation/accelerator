@@ -24,6 +24,7 @@ Resolve each output directory using the plugin's path configuration:
 **Validations directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh validations meta/validations`
 **Review plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_plans meta/reviews/plans`
 **Review PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs meta/reviews/prs`
+**Review tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_tickets meta/reviews/tickets`
 **Templates directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh templates meta/templates`
 **Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tickets meta/tickets`
 **Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh notes meta/notes`
@@ -36,7 +37,7 @@ already existed so you can present a summary at the end.
 
 ### Step 1: Create output directories
 
-For each of the 11 directories resolved above, run:
+For each of the 12 directories resolved above, run:
 
 ```bash
 mkdir -p {directory}
@@ -109,6 +110,7 @@ Directories:
   ✓ {validations directory} (created | already exists)
   ✓ {review plans directory} (created | already exists)
   ✓ {review prs directory} (created | already exists)
+  ✓ {review tickets directory} (created | already exists)
   ✓ {templates directory} (created | already exists)
   ✓ {tickets directory} (created | already exists)
   ✓ {notes directory} (created | already exists)

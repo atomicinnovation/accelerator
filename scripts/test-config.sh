@@ -2052,6 +2052,18 @@ FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "notes" "meta/notes")
 assert_eq "outputs configured path" "docs/notes" "$OUTPUT"
 
+echo "Test: paths.review_tickets configured"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  review_tickets: docs/reviews/tickets
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "review_tickets" "meta/reviews/tickets")
+assert_eq "outputs configured path" "docs/reviews/tickets" "$OUTPUT"
+
 echo "Test: Absolute path is output as-is"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
@@ -2264,11 +2276,12 @@ if echo "$STDERR_OUTPUT" | grep -q "pr-description" && \
    echo "$STDERR_OUTPUT" | grep -q "plan" && \
    echo "$STDERR_OUTPUT" | grep -q "research" && \
    echo "$STDERR_OUTPUT" | grep -q "adr" && \
-   echo "$STDERR_OUTPUT" | grep -q "validation"; then
-  echo "  PASS: error lists available templates (including pr-description)"
+   echo "$STDERR_OUTPUT" | grep -q "validation" && \
+   echo "$STDERR_OUTPUT" | grep -q "ticket"; then
+  echo "  PASS: error lists available templates (including pr-description and ticket)"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: error lists available templates (including pr-description)"
+  echo "  FAIL: error lists available templates (including pr-description and ticket)"
   echo "    Actual stderr: $STDERR_OUTPUT"
   FAIL=$((FAIL + 1))
 fi
@@ -2961,8 +2974,9 @@ assert_contains "contains research" "research" "$OUTPUT"
 assert_contains "contains adr" "adr" "$OUTPUT"
 assert_contains "contains validation" "validation" "$OUTPUT"
 assert_contains "contains pr-description" "pr-description" "$OUTPUT"
+assert_contains "contains ticket" "ticket" "$OUTPUT"
 LINE_COUNT=$(echo "$OUTPUT" | wc -l | tr -d ' ')
-assert_eq "outputs 5 keys" "5" "$LINE_COUNT"
+assert_eq "outputs 6 keys" "6" "$LINE_COUNT"
 
 echo "Test: Returns nothing if templates directory is empty"
 EMPTY_ROOT=$(mktemp -d "$TMPDIR_BASE/empty-plugin-XXXXXX")
@@ -3089,13 +3103,27 @@ printf -- '---\ntemplates:\n  pr-description: custom/pr.md\n---\n' > "$REPO/.cla
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 assert_contains "pr-description key in dump" "templates.pr-description" "$OUTPUT"
 
+echo "Test: Output contains templates.ticket row"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\ntemplates:\n  ticket: custom/ticket.md\n---\n' > "$REPO/.claude/accelerator.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+assert_contains "ticket key in dump" "templates.ticket" "$OUTPUT"
+
+echo "Test: Output contains paths.review_tickets row"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+printf -- '---\npaths:\n  review_tickets: docs/reviews/tickets\n---\n' > "$REPO/.claude/accelerator.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+assert_contains "review_tickets key in dump" "paths.review_tickets" "$OUTPUT"
+
 echo ""
 
 # ============================================================
 echo "=== config-read-template.sh regression (refactored) ==="
 echo ""
 
-echo "Test: Unknown template still lists all 5 template names including pr-description"
+echo "Test: Unknown template lists all 6 template names including pr-description and ticket"
 REPO=$(setup_repo)
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "nonexistent" 2>&1 1>/dev/null || true)
 assert_contains "error lists plan" "plan" "$STDERR_OUTPUT"
@@ -3103,6 +3131,7 @@ assert_contains "error lists research" "research" "$STDERR_OUTPUT"
 assert_contains "error lists adr" "adr" "$STDERR_OUTPUT"
 assert_contains "error lists validation" "validation" "$STDERR_OUTPUT"
 assert_contains "error lists pr-description" "pr-description" "$STDERR_OUTPUT"
+assert_contains "error lists ticket" "ticket" "$STDERR_OUTPUT"
 
 echo ""
 
@@ -3115,8 +3144,8 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/meta/tmp" && touch "$REPO/meta/tmp/.gitignore"
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 LINE_COUNT=$(echo "$OUTPUT" | grep -c '| `' || true)
-assert_eq "5 template rows" "5" "$LINE_COUNT"
-for KEY in plan research adr validation pr-description; do
+assert_eq "6 template rows" "6" "$LINE_COUNT"
+for KEY in plan research adr validation pr-description ticket; do
   if echo "$OUTPUT" | grep "\`$KEY\`" | grep -q "plugin default"; then
     echo "  PASS: $KEY shows plugin default"
     PASS=$((PASS + 1))
@@ -3332,10 +3361,10 @@ assert_contains "overwritten message" "Overwritten:" "$OUTPUT"
 EXPECTED=$(cat "$PLUGIN_ROOT/templates/plan.md")
 assert_file_content_eq "content replaced with plugin default" "$REPO/meta/templates/plan.md" "$EXPECTED"
 
-echo "Test: --all ejects all 5 templates"
+echo "Test: --all ejects all 6 templates"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --all)
-for KEY in plan research adr validation pr-description; do
+for KEY in plan research adr validation pr-description ticket; do
   assert_file_exists "$KEY ejected" "$REPO/meta/templates/${KEY}.md"
 done
 
@@ -3652,6 +3681,20 @@ cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null
 assert_file_exists "plan exists after eject" "$REPO/meta/templates/plan.md"
 cd "$REPO" && bash "$RESET_TEMPLATE" --confirm "plan" >/dev/null
 assert_file_not_exists "plan deleted after reset" "$REPO/meta/templates/plan.md"
+
+echo ""
+
+# ============================================================
+echo "=== init SKILL.md directory count invariant ==="
+echo ""
+
+echo "Test: init SKILL.md directory count matches Path Resolution list"
+INIT_SKILL="$PLUGIN_ROOT/skills/config/init/SKILL.md"
+EXPECTED=$(grep -cE '^\*\*[A-Za-z][^*]* directory\*\*:' "$INIT_SKILL")
+ACTUAL=$(grep -oE 'each of the [0-9]+ directories' "$INIT_SKILL" \
+  | grep -oE '[0-9]+' | head -1)
+assert_eq "directory count agrees with Path Resolution list" \
+  "$EXPECTED" "$ACTUAL"
 
 echo ""
 

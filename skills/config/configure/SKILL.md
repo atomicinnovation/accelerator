@@ -335,6 +335,7 @@ project root (absolute paths are also supported):
 | `validations`  | `meta/validations`   | Plan validation reports                        |
 | `review_plans` | `meta/reviews/plans` | Plan review artifacts                          |
 | `review_prs`   | `meta/reviews/prs`   | PR review working directories                  |
+| `review_tickets` | `meta/reviews/tickets` | Ticket review artifacts                      |
 | `templates`    | `meta/templates`     | User-provided templates (e.g., PR description) |
 | `tickets`      | `meta/tickets`       | Ticket files referenced by create-plan         |
 | `notes`        | `meta/notes`         | Notes directory                                |
@@ -352,6 +353,7 @@ paths:
   validations: docs/validations
   review_plans: docs/reviews/plans
   review_prs: docs/reviews/prs
+  review_tickets: docs/reviews/tickets
   templates: docs/templates
   tickets: docs/tickets
   notes: docs/notes
@@ -374,6 +376,7 @@ meta/templates/
   adr.md             # Custom ADR template
   validation.md      # Custom validation template
   pr-description.md  # PR description template (used by describe-pr)
+  ticket.md          # Custom ticket template
 \```
 
 All templates — both skill structure templates (plan, ADR, research,
@@ -422,8 +425,7 @@ Use `/accelerator:configure templates <action>` to manage templates:
 | `templates diff <key>`  | Show differences between your template and the default |
 | `templates reset <key>` | Remove your customisation, revert to plugin default    |
 
-Available template keys: `plan`, `research`, `adr`, `validation`,
-`pr-description`.
+Available template keys: `plan`, `research`, `adr`, `validation`, `pr-description`, `ticket`.
 
 ### Project Context
 

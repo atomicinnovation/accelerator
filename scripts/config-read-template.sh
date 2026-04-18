@@ -4,7 +4,7 @@ set -euo pipefail
 # Reads a template file, checking user overrides before plugin defaults.
 # Usage: config-read-template.sh <template_name>
 #
-# Template names: plan, research, adr, validation, pr-description
+# Template names: plan, research, adr, validation, pr-description, ticket
 # (Invalid names produce an error listing available templates.)
 #
 # Resolution order:

@@ -180,8 +180,7 @@ subcommands for managing templates without manually locating plugin internals:
 | `/accelerator:configure templates diff <key>`  | Show differences between your template and the default |
 | `/accelerator:configure templates reset <key>` | Remove your customisation, revert to plugin default    |
 
-Available template keys: `plan`, `research`, `adr`, `validation`,
-`pr-description`.
+Available template keys: `plan`, `research`, `adr`, `validation`, `pr-description`, `ticket`.
 
 A typical customisation workflow:
 
