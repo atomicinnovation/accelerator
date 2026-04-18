@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Standalone CLI entry point for the meta visualiser. No .sh extension
+# because users symlink this onto $PATH and type the command directly.
+# Delegates to the same launch-server.sh that the
+# /accelerator:visualise slash command uses, so both entry points have
+# identical behaviour.
+#
+# Symlink resolution uses only POSIX tools — walks the symlink chain
+# with readlink (no -f), then canonicalises via `cd ... && pwd -P`.
+# This mirrors the pattern in scripts/config-*.sh and works identically
+# on macOS (BSD readlink) and Linux (GNU readlink), with no dependency
+# on coreutils or perl. The hop counter bounds the walk at 40 (matching
+# SYMLOOP_MAX on both BSD and GNU) so a cyclic symlink install fails
+# with a clear diagnostic instead of hanging.
+SELF="${BASH_SOURCE[0]}"
+HOPS=0
+while [ -L "$SELF" ]; do
+  HOPS=$((HOPS + 1))
+  if [ "$HOPS" -gt 40 ]; then
+    echo "accelerator-visualiser: symlink loop detected (exceeded 40 hops)" >&2
+    exit 1
+  fi
+  LINK_TARGET=$(readlink "$SELF")
+  case "$LINK_TARGET" in
+    /*) SELF="$LINK_TARGET" ;;
+    *)  SELF="$(cd "$(dirname "$SELF")" && pwd -P)/$LINK_TARGET" ;;
+  esac
+done
+SCRIPT_DIR="$(cd "$(dirname "$SELF")" && pwd -P)"
+SKILL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+
+exec "$SKILL_ROOT/scripts/launch-server.sh" "$@"

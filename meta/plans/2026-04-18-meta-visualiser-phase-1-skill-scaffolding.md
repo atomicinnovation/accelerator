@@ -651,14 +651,14 @@ exec "$SKILL_ROOT/scripts/launch-server.sh" "$@"
 
 #### Automated Verification
 
-- [ ] `[ -x skills/visualisation/visualise/scripts/test-cli-wrapper.sh ]`
-- [ ] `[ -x skills/visualisation/visualise/cli/accelerator-visualiser ]`
-- [ ] `bash skills/visualisation/visualise/scripts/test-cli-wrapper.sh` exits 0.
-- [ ] Parity, tree-relocation, delegation, argument-forwarding
+- [x] `[ -x skills/visualisation/visualise/scripts/test-cli-wrapper.sh ]`
+- [x] `[ -x skills/visualisation/visualise/cli/accelerator-visualiser ]`
+- [x] `bash skills/visualisation/visualise/scripts/test-cli-wrapper.sh` exits 0.
+- [x] Parity, tree-relocation, delegation, argument-forwarding
       (including spaces and empty strings), symlink resolution,
       structural-guard-present, and stderr-silence assertions all
       pass (covered by the harness).
-- [ ] After any test run — including a deliberately failing one — the
+- [x] After any test run — including a deliberately failing one — the
       real `launch-server.sh` is byte-identical to its pre-run state
       (mutation tests operate on the tempdir copy only).
 
