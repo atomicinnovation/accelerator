@@ -9,7 +9,7 @@ tags: [ research, codebase, visualisation-system, meta, skill, http-server, sse,
 status: complete
 last_updated: "2026-04-18"
 last_updated_by: Toby Clemson
-last_updated_note: "Appended follow-up 'Consistency and gap analysis'; corrected the monorepo misconception (`workspaces/visualisation-system/` is a jj workspace, not a monorepo member — single plugin manifest at the repo root); added D9 (Templates view renders all three resolution tiers per template; `templates` is a virtual DocType backed by `config_resolve_template()`); and D10 (frontend embedded into the Rust binary via `rust-embed` — `frontend/dist/` is gitignored, not committed; `dev-frontend` Cargo feature swaps to disk-based `ServeDir` for local iteration). D10 updates D1, D2's tree layout, D3's stack table, Phases 5 and 12, the Open questions list, and resolves follow-up gap #4 (committed-dist drift). Later on 2026-04-18: tightened D4 (and the §1 intro, the jj-workspace architecture insight, the Open-questions recap, and the Code references) to spell out **strict workspace-isolation rules** — Claude must treat the `visualisation-system` workspace root as the sole repository root, never read from or write to any other checkout of the repo on disk, and resolve all relative paths in this document against the workspace root only. Any absolute `/Users/…/accelerator/…` paths that remain are historical artefacts of earlier research gathering, not instructions to step outside the workspace."
+last_updated_note: "Later on 2026-04-18: revised the 'Major gaps' framing — gap items are now explicitly owned by the phase plan that touches them (Gap 1 → Phase 1; Gaps 2/5/6 → Phase 2; Gaps 3/7 → Phase 12; Gap 4 already resolved by D10) rather than being decided wholesale during Phase 1 planning. Gap 1 is concretely resolved by the Phase 1 plan at `meta/plans/2026-04-18-meta-visualiser-phase-1-skill-scaffolding.md`. Earlier same day: appended follow-up 'Consistency and gap analysis'; corrected the monorepo misconception (`workspaces/visualisation-system/` is a jj workspace, not a monorepo member — single plugin manifest at the repo root); added D9 (Templates view renders all three resolution tiers per template; `templates` is a virtual DocType backed by `config_resolve_template()`); and D10 (frontend embedded into the Rust binary via `rust-embed` — `frontend/dist/` is gitignored, not committed; `dev-frontend` Cargo feature swaps to disk-based `ServeDir` for local iteration). D10 updates D1, D2's tree layout, D3's stack table, Phases 5 and 12, the Open questions list, and resolves follow-up gap #4 (committed-dist drift). Later on 2026-04-18: tightened D4 (and the §1 intro, the jj-workspace architecture insight, the Open-questions recap, and the Code references) to spell out **strict workspace-isolation rules** — Claude must treat the `visualisation-system` workspace root as the sole repository root, never read from or write to any other checkout of the repo on disk, and resolve all relative paths in this document against the workspace root only. Any absolute `/Users/…/accelerator/…` paths that remain are historical artefacts of earlier research gathering, not instructions to step outside the workspace."
 ---
 
 # Research: Meta visualiser v1 — implementation context and phasing
@@ -1354,8 +1354,11 @@ plan. The issues found below are **editorial inconsistencies** and
 **implementation-detail gaps**, not structural breakage.
 
 Confidence that a plan skill can proceed from this research: **high**,
-provided the four editorial fixes are applied and the seven gap items
-are decided during Phase 1 planning rather than left to Phase 2+.
+provided the editorial fixes are applied. The seven gap items listed
+below are **decided in their respective phase plans** (Phase 1's plan
+resolves only Gap 1; Gaps 2, 5, 6 land in Phase 2; Gaps 3 and 7 land
+in Phase 12; Gap 4 is already resolved by D10). See the "Major gaps"
+section below for the per-phase mapping.
 
 ### Internal inconsistencies — editorial, fix in place
 
@@ -1420,32 +1423,41 @@ Everything else verified by fresh codebase probes still holds:
 - Cross-reference frontmatter: `target:` on plan-reviews is still
   the only populated cross-ref.
 
-### Major gaps — decide before Phase 1 lands
+### Major gaps — decided per-phase, not all up-front
 
 These are implementation-detail questions the research doesn't answer.
-Each is small enough to resolve in plan discussion, but leaving them
-implicit risks mid-phase churn.
+The initial instinct was to decide all of them before Phase 1 lands,
+but on reflection each gap belongs in the phase plan that actually
+touches it — deciding Phase 12 mechanics during Phase 1 planning just
+bakes in premature contracts. The per-phase mapping below replaces the
+earlier "decide before Phase 1" framing; Phase 1's plan resolves Gap 1
+only (manifest registration shape, concretely specified via the JSON
+diff in that plan's Phase 1.4 section). All other gaps are explicitly
+deferred to the phase listed.
 
-1. **Plugin manifest registration**. Phase 1 registers the skill in
-   the repo-root `.claude-plugin/plugin.json`, but no entry shape is
-   shown. A two-line example for the `visualise` skill would close
-   this.
-2. **`config.json` schema**. The preprocessor writes it and the Rust
-   binary consumes it — the schema (field list, types, required vs
-   optional) isn't pinned anywhere in the research. Candidate fields
-   from the spec plus D9: `doc_paths` (map of the 9 ordinary types),
-   `templates` (map of 5 names → `{config_override, user_override,
-   plugin_default}`), `plugin_root`, `tmp_path`, `owner_pid`,
-   `host`, `log_path`, `plugin_version`.
-3. **Release flow ordering**. D8 and Phase 12 describe the
-   ingredients (cross-compile → checksums → commit manifest → tag →
-   upload) but not the precise order. The correct sequence
-   (build-four → compute-hashes → commit-manifest-with-version-bump →
-   tag → push-tag → upload-to-release via `gh release upload`) should
-   be baked into `scripts/release-visualiser-binaries.sh` or the plan
-   will get it wrong. Particular trap: the committed manifest must
-   match the uploaded assets byte-for-byte, so the commit and the
-   upload have to be atomic from the release-tag's perspective.
+1. **Plugin manifest registration** — *owner: Phase 1*. The skill
+   registers in `.claude-plugin/plugin.json` by appending
+   `"./skills/visualisation/"` to the `skills` array — the full JSON
+   diff is pinned in Phase 1.4 of the Phase 1 plan
+   (`meta/plans/2026-04-18-meta-visualiser-phase-1-skill-scaffolding.md`).
+2. **`config.json` schema** — *owner: Phase 2*. The preprocessor
+   writes it and the Rust binary consumes it — schema lands when the
+   real preprocessor and Rust server are introduced. Candidate
+   fields from the spec plus D9: `doc_paths` (map of the 9 ordinary
+   types), `templates` (map of 5 names → `{config_override,
+   user_override, plugin_default}`), `plugin_root`, `tmp_path`,
+   `owner_pid`, `host`, `log_path`, `plugin_version`. These are
+   proposals, not a commitment — Phase 2 locks the exact shape.
+3. **Release flow ordering** — *owner: Phase 12*. D8 and Phase 12
+   describe the ingredients (cross-compile → checksums → commit
+   manifest → tag → upload) but not the precise order. The correct
+   sequence (build-four → compute-hashes →
+   commit-manifest-with-version-bump → tag → push-tag →
+   upload-to-release via `gh release upload`) should be baked into
+   `scripts/release-visualiser-binaries.sh` at that time. Particular
+   trap: the committed manifest must match the uploaded assets
+   byte-for-byte, so the commit and the upload have to be atomic
+   from the release-tag's perspective.
 4. **`frontend/dist/` freshness guard** — **resolved by D10**. The
    frontend bundle is now embedded into the Rust binary at compile
    time via `rust-embed`, and `frontend/dist/` is gitignored. There
@@ -1453,21 +1465,23 @@ implicit risks mid-phase churn.
    `npm run build` immediately before `cargo zigbuild`, and the
    `build.rs` check fails loudly if `dist/index.html` is missing
    when `embed-dist` is enabled.
-5. **Rust edition and MSRV**. Not specified. For a binary shipped to
-   end users, pinning (e.g. edition 2021, MSRV 1.80) avoids surprise
-   breakage on maintainer-host toolchain drift.
-6. **First-run download UX**. On first invocation per plugin version
-   the preprocessor fetches a ~6–10 MB binary via `curl`. No mention
-   of user-visible feedback during that window. Proposal: emit a
-   single "Downloading visualiser server (first run, ~8 MB)…" line to
-   stderr before the `curl`, so the slash command doesn't appear to
-   hang.
-7. **Pre-release binary-build burden**. D8 says "Pre-release versions
-   (`v1.20.0-pre.1`) also get full binaries". In practice, pre-release
-   versions are cut frequently (the git log shows recent `pre.1` and
-   `pre.2` bumps inside a single day). Four cross-compiles per
-   pre-release is non-trivial. Worth deciding: do pre-releases really
-   need binaries, or can they fall back to `ACCELERATOR_VISUALISER_BIN`
+5. **Rust edition and MSRV** — *owner: Phase 2*. For a binary
+   shipped to end users, pinning (e.g. edition 2021, MSRV 1.80)
+   avoids surprise breakage on maintainer-host toolchain drift.
+   Decided when the `Cargo.toml` is introduced in Phase 2.
+6. **First-run download UX** — *owner: Phase 2*. On first invocation
+   per plugin version the preprocessor fetches a ~6–10 MB binary via
+   `curl`. Proposal: emit a single "Downloading visualiser server
+   (first run, ~8 MB)…" line to stderr before the `curl`, so the
+   slash command doesn't appear to hang. Finalised when the
+   preprocessor gains its binary-fetch logic in Phase 2.
+7. **Pre-release binary-build burden** — *owner: Phase 12*. D8 says
+   "Pre-release versions (`v1.20.0-pre.1`) also get full binaries".
+   In practice, pre-release versions are cut frequently (the git log
+   shows recent `pre.1` and `pre.2` bumps inside a single day). Four
+   cross-compiles per pre-release is non-trivial. Worth deciding at
+   release-process-design time: do pre-releases really need
+   binaries, or can they fall back to `ACCELERATOR_VISUALISER_BIN`
    for internal dogfooding?
 
 ### Non-gaps — explicitly confirmed
@@ -1483,8 +1497,11 @@ implicit risks mid-phase churn.
 
 Apply the seven editorial fixes inline (they're all single-sentence
 edits). Add one pointer line under §2 noting ADR-0016's userspace
-layer. Carry the seven gap items into the Phase 1 plan so they're
-decided in writing before coding starts.
+layer. Treat each gap item as owned by the phase plan that actually
+touches it (see the per-phase mapping above): Gap 1 is resolved by
+Phase 1's plan, Gaps 2/5/6 land with Phase 2's plan, Gaps 3/7 land
+with Phase 12's plan, and Gap 4 is already resolved by D10. Don't
+front-load the later gaps into Phase 1.
 
 ## Related ADRs consulted in this follow-up
 - `meta/decisions/ADR-0015-standalone-test-coverage-lens.md` — no impact on the visualiser (lens SKILL.md only).
