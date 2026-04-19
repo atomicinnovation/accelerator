@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-use accelerator_visualiser::config::Config;
+use accelerator_visualiser::{config::Config, server};
 use clap::Parser;
 use tracing::{error, info};
 
@@ -27,14 +27,16 @@ async fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-
+    let info_path = cfg.tmp_path.join("server-info.json");
     info!(
-        plugin_version = %cfg.plugin_version,
-        host = %cfg.host,
-        owner_pid = cfg.owner_pid,
-        doc_paths = cfg.doc_paths.len(),
-        templates = cfg.templates.len(),
-        "config loaded"
+        config = %cli.config.display(),
+        info_path = %info_path.display(),
+        "bootstrapping server"
     );
+
+    if let Err(e) = server::run(cfg, &info_path).await {
+        error!(error = %e, "server error");
+        return ExitCode::from(1);
+    }
     ExitCode::SUCCESS
 }

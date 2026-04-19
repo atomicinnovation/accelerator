@@ -1370,18 +1370,18 @@ async fn main() -> ExitCode {
 
 #### Automated Verification
 
-- [ ]  `cargo test --manifest-path
+- [x]  `cargo test --manifest-path
   skills/visualisation/visualise/server/Cargo.toml server::tests` passes.
-- [ ] `serves_placeholder_root_and_writes_info` specifically passes (covers
+- [x] `serves_placeholder_root_and_writes_info` specifically passes (covers
   binding, info-file write, HTTP response body).
-- [ ] Manual invocation: with a prepared config.json, the binary stays in the
+- [x] Manual invocation: with a prepared config.json, the binary stays in the
   foreground (no shutdown yet), serves 200 at `/`, and writes
   `<tmp>/server-info.json` with the exact port it bound. Terminate via external
   SIGTERM.
 
 #### Manual Verification
 
-- [ ] Tests written first. Either separate `jj` commit for the test, or mutation
+- [x] Tests written first. Either separate `jj` commit for the test, or mutation
   smoke test: break `url` composition (e.g. swap host and port in the`format!`),
   observe `serves_placeholder_root_and_writes_info` fail, restore.
 

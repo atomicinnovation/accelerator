@@ -5,8 +5,8 @@
 //! `server/tests/*.rs` consume these modules directly.
 
 pub mod config;
+pub mod server;
 
 // Modules are added in later sub-phases:
-// 2.3 → server
 // 2.4 → shutdown  (ShutdownReason + signal handlers)
 // 2.5 → activity, lifecycle
