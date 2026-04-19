@@ -2,189 +2,454 @@
   "metadata": {
     "skill_name": "create-ticket",
     "skill_path": "skills/tickets/create-ticket/SKILL.md",
-    "timestamp": "2026-04-19T22:00:00Z",
+    "iteration": 1,
+    "baseline": "old_skill (snapshot taken before this iteration's edits)",
     "evals_run": [
+      "author-resolution",
       "bare-invocation",
-      "vague-topic",
-      "business-context-first",
-      "model-proposes-type",
-      "challenge-untestable-ac",
       "bug-type-requirements",
+      "business-context-first",
+      "challenge-untestable-ac",
       "draft-xxxx-placeholder",
-      "number-not-consumed",
+      "drafting-notes-populated",
+      "epic-type-requirements",
+      "model-proposes-type",
       "near-duplicate-surfaced",
-      "epic-type-requirements"
+      "number-not-consumed",
+      "references-populated",
+      "template-driven-types",
+      "vague-topic"
     ],
     "runs_per_configuration": 1,
-    "timing_note": "Tasks were batched (5 per agent); per-eval timing is approximate batch average"
+    "timing_note": "Tasks batched (7 per subagent); per-eval timing is batch average"
   },
   "runs": [
     {
+      "eval_id": 12,
+      "eval_name": "author-resolution",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5,
+        "time_seconds": 40.5,
+        "tokens": 6857,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 12,
+      "eval_name": "author-resolution",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5,
+        "time_seconds": 53.7,
+        "tokens": 7384,
+        "errors": 0
+      }
+    },
+    {
       "eval_id": 1,
       "eval_name": "bare-invocation",
       "configuration": "with_skill",
       "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 4, "total": 4, "time_seconds": 21.1, "tokens": 3910, "errors": 0}
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5,
+        "time_seconds": 32.2,
+        "tokens": 6227,
+        "errors": 0
+      }
     },
     {
       "eval_id": 1,
       "eval_name": "bare-invocation",
-      "configuration": "without_skill",
+      "configuration": "old_skill",
       "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 4, "total": 4, "time_seconds": 15.0, "tokens": 2969, "errors": 0}
-    },
-    {
-      "eval_id": 2,
-      "eval_name": "vague-topic",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 4, "total": 4, "time_seconds": 21.1, "tokens": 3910, "errors": 0}
-    },
-    {
-      "eval_id": 2,
-      "eval_name": "vague-topic",
-      "configuration": "without_skill",
-      "run_number": 1,
-      "result": {"pass_rate": 0.75, "passed": 3, "total": 4, "time_seconds": 15.0, "tokens": 2969, "errors": 0}
-    },
-    {
-      "eval_id": 3,
-      "eval_name": "business-context-first",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 6, "total": 6, "time_seconds": 21.1, "tokens": 3910, "errors": 0}
-    },
-    {
-      "eval_id": 3,
-      "eval_name": "business-context-first",
-      "configuration": "without_skill",
-      "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 6, "total": 6, "time_seconds": 15.0, "tokens": 2969, "errors": 0}
-    },
-    {
-      "eval_id": 4,
-      "eval_name": "model-proposes-type",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 7, "total": 7, "time_seconds": 21.1, "tokens": 3910, "errors": 0}
-    },
-    {
-      "eval_id": 4,
-      "eval_name": "model-proposes-type",
-      "configuration": "without_skill",
-      "run_number": 1,
-      "result": {"pass_rate": 0.571, "passed": 4, "total": 7, "time_seconds": 15.0, "tokens": 2969, "errors": 0}
-    },
-    {
-      "eval_id": 5,
-      "eval_name": "challenge-untestable-ac",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 5, "total": 5, "time_seconds": 21.1, "tokens": 3910, "errors": 0}
-    },
-    {
-      "eval_id": 5,
-      "eval_name": "challenge-untestable-ac",
-      "configuration": "without_skill",
-      "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 5, "total": 5, "time_seconds": 15.0, "tokens": 2969, "errors": 0}
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5,
+        "time_seconds": 31.0,
+        "tokens": 5988,
+        "errors": 0
+      }
     },
     {
       "eval_id": 6,
       "eval_name": "bug-type-requirements",
       "configuration": "with_skill",
       "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 8, "total": 8, "time_seconds": 32.2, "tokens": 4833, "errors": 0}
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "total": 8,
+        "time_seconds": 32.2,
+        "tokens": 6227,
+        "errors": 0
+      }
     },
     {
       "eval_id": 6,
       "eval_name": "bug-type-requirements",
-      "configuration": "without_skill",
+      "configuration": "old_skill",
       "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 8, "total": 8, "time_seconds": 22.6, "tokens": 3440, "errors": 0}
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "total": 8,
+        "time_seconds": 31.0,
+        "tokens": 5988,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "business-context-first",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "total": 6,
+        "time_seconds": 32.2,
+        "tokens": 6227,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "business-context-first",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "total": 6,
+        "time_seconds": 31.0,
+        "tokens": 5988,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "challenge-untestable-ac",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "total": 4,
+        "time_seconds": 32.2,
+        "tokens": 6227,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "challenge-untestable-ac",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "total": 4,
+        "time_seconds": 31.0,
+        "tokens": 5988,
+        "errors": 0
+      }
     },
     {
       "eval_id": 7,
       "eval_name": "draft-xxxx-placeholder",
       "configuration": "with_skill",
       "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 7, "total": 7, "time_seconds": 32.2, "tokens": 4833, "errors": 0}
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5,
+        "time_seconds": 32.2,
+        "tokens": 6227,
+        "errors": 0
+      }
     },
     {
       "eval_id": 7,
       "eval_name": "draft-xxxx-placeholder",
-      "configuration": "without_skill",
+      "configuration": "old_skill",
       "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 7, "total": 7, "time_seconds": 22.6, "tokens": 3440, "errors": 0}
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5,
+        "time_seconds": 31.0,
+        "tokens": 5988,
+        "errors": 0
+      }
     },
     {
-      "eval_id": 8,
-      "eval_name": "number-not-consumed",
+      "eval_id": 11,
+      "eval_name": "drafting-notes-populated",
       "configuration": "with_skill",
       "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 4, "total": 4, "time_seconds": 32.2, "tokens": 4833, "errors": 0}
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5,
+        "time_seconds": 40.5,
+        "tokens": 6857,
+        "errors": 0
+      }
     },
     {
-      "eval_id": 8,
-      "eval_name": "number-not-consumed",
-      "configuration": "without_skill",
+      "eval_id": 11,
+      "eval_name": "drafting-notes-populated",
+      "configuration": "old_skill",
       "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 4, "total": 4, "time_seconds": 22.6, "tokens": 3440, "errors": 0}
-    },
-    {
-      "eval_id": 9,
-      "eval_name": "near-duplicate-surfaced",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 7, "total": 7, "time_seconds": 32.2, "tokens": 4833, "errors": 0}
-    },
-    {
-      "eval_id": 9,
-      "eval_name": "near-duplicate-surfaced",
-      "configuration": "without_skill",
-      "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 7, "total": 7, "time_seconds": 22.6, "tokens": 3440, "errors": 0}
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "total": 5,
+        "time_seconds": 53.7,
+        "tokens": 7384,
+        "errors": 0
+      }
     },
     {
       "eval_id": 10,
       "eval_name": "epic-type-requirements",
       "configuration": "with_skill",
       "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 8, "total": 8, "time_seconds": 32.2, "tokens": 4833, "errors": 0}
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5,
+        "time_seconds": 40.5,
+        "tokens": 6857,
+        "errors": 0
+      }
     },
     {
       "eval_id": 10,
       "eval_name": "epic-type-requirements",
-      "configuration": "without_skill",
+      "configuration": "old_skill",
       "run_number": 1,
-      "result": {"pass_rate": 0.75, "passed": 6, "total": 8, "time_seconds": 22.6, "tokens": 3440, "errors": 0}
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5,
+        "time_seconds": 53.7,
+        "tokens": 7384,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "model-proposes-type",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5,
+        "time_seconds": 32.2,
+        "tokens": 6227,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "model-proposes-type",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5,
+        "time_seconds": 31.0,
+        "tokens": 5988,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 9,
+      "eval_name": "near-duplicate-surfaced",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "total": 4,
+        "time_seconds": 40.5,
+        "tokens": 6857,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 9,
+      "eval_name": "near-duplicate-surfaced",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "total": 4,
+        "time_seconds": 53.7,
+        "tokens": 7384,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 8,
+      "eval_name": "number-not-consumed",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "total": 4,
+        "time_seconds": 40.5,
+        "tokens": 6857,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 8,
+      "eval_name": "number-not-consumed",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "total": 4,
+        "time_seconds": 53.7,
+        "tokens": 7384,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 14,
+      "eval_name": "references-populated",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "total": 4,
+        "time_seconds": 40.5,
+        "tokens": 6857,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 14,
+      "eval_name": "references-populated",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "total": 4,
+        "time_seconds": 53.7,
+        "tokens": 7384,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 13,
+      "eval_name": "template-driven-types",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "total": 4,
+        "time_seconds": 40.5,
+        "tokens": 6857,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 13,
+      "eval_name": "template-driven-types",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "total": 4,
+        "time_seconds": 53.7,
+        "tokens": 7384,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "vague-topic",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5,
+        "time_seconds": 32.2,
+        "tokens": 6227,
+        "errors": 0
+      }
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "vague-topic",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5,
+        "time_seconds": 31.0,
+        "tokens": 5988,
+        "errors": 0
+      }
     }
   ],
   "run_summary": {
     "with_skill": {
-      "pass_rate": {"mean": 1.0, "stddev": 0.0},
-      "time_seconds": {"mean": 26.7, "stddev": 5.6},
-      "tokens": {"mean": 4372, "stddev": 462}
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0
+      },
+      "time_seconds": {
+        "mean": 36.35,
+        "stddev": 4.15
+      },
+      "tokens": {
+        "mean": 6542.0,
+        "stddev": 315.0
+      }
     },
-    "without_skill": {
-      "pass_rate": {"mean": 0.907, "stddev": 0.135},
-      "time_seconds": {"mean": 18.8, "stddev": 3.8},
-      "tokens": {"mean": 3204, "stddev": 247}
-    },
-    "delta": {
-      "pass_rate": "+0.093",
-      "time_seconds": "+7.9",
-      "tokens": "+1168"
+    "old_skill": {
+      "pass_rate": {
+        "mean": 0.9857,
+        "stddev": 0.0515
+      },
+      "time_seconds": {
+        "mean": 42.35,
+        "stddev": 11.35
+      },
+      "tokens": {
+        "mean": 6686.0,
+        "stddev": 698.0
+      }
     }
   },
-  "notes": [
-    "with_skill achieves 100% pass rate (60/60 assertions); without_skill 90% (54/60)",
-    "Timing is approximate — tasks were batched (5 per agent); individual timings are batch averages",
-    "vague-topic without_skill: agent jumped to business context questions before topic was clear — skill's Step 0 gate correctly holds this back",
-    "model-proposes-type without_skill: used 'Feature' type (not in skill vocabulary); missing Requirements section; no explicit rationale format",
-    "epic-type-requirements without_skill: renamed Requirements to 'Story Breakdown' — skill's template-section-naming enforcement prevents this",
-    "draft-xxxx-placeholder without_skill: now correctly uses ticket_id: XXXX and proper YAML frontmatter — this eval is no longer a clear differentiator",
-    "Stable core differentiators across all 3 iterations: type vocabulary (story/epic/task/bug/spike), Requirements section naming, template structure adherence",
-    "challenge-untestable-ac: both with and without skill ask clarifying questions first in iter 3 — skill's contribution here is reliability, not novelty"
-  ]
+  "delta": {
+    "pass_rate": "+0.014",
+    "time_seconds": "-6.0",
+    "tokens": "-144"
+  }
 }

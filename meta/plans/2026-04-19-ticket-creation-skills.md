@@ -334,10 +334,10 @@ Eval scenarios: [the 12 scenarios listed above in Subphase 2.1]
 
 #### Automated Verification
 
-- [ ] Phase 1 regression suite passes: `bash skills/tickets/scripts/test-ticket-scripts.sh`
-- [ ] File exists: `skills/tickets/create-ticket/SKILL.md`
-- [ ] `grep "disable-model-invocation: true" skills/tickets/create-ticket/SKILL.md` matches
-- [ ] `grep "accelerator:reviewer" skills/tickets/create-ticket/SKILL.md` matches
+- [x] Phase 1 regression suite passes: `bash skills/tickets/scripts/test-ticket-scripts.sh`
+- [x] File exists: `skills/tickets/create-ticket/SKILL.md`
+- [x] `grep "disable-model-invocation: true" skills/tickets/create-ticket/SKILL.md` matches
+- [x] `grep "accelerator:reviewer" skills/tickets/create-ticket/SKILL.md` matches
 
 #### Manual Verification (via `/skill-creator` evals)
 
@@ -360,11 +360,20 @@ Eval scenarios: [the 12 scenarios listed above in Subphase 2.1]
 ### Overview
 
 Author `skills/tickets/extract-tickets/SKILL.md` — a batch extraction skill
-that reads source documents, identifies requirements and work items, pre-generates
-all ticket drafts before the review loop, presents them for user selection,
-and writes all approved tickets in one batch using
-`ticket-next-number.sh --count N` called exactly once after all approvals are
-collected.
+that reads source documents, identifies requirements and work items, presents
+candidates for user selection, then enriches each selected candidate per-user-choice
+(interactive enrichment with model knowledge + web research, similar to
+`/create-ticket`, OR accept the source-derived skeleton as-is for a thin
+draft). All approved tickets — enriched and thin — are written in one batch
+using `ticket-next-number.sh --count N` called exactly once after all
+approvals are collected.
+
+The two-tier approval model exists because source documents typically tell
+us *what* tickets should exist but rarely give the full business context,
+testable acceptance criteria, dependencies, and assumptions a good ticket
+needs. Enrichment is the path to that depth; thin drafts are an honest
+escape hatch for items the user wants to refine later (or via a future
+`/refine-ticket`).
 
 ### Eval Scenarios
 
@@ -438,6 +447,163 @@ contents, meeting agenda with no actionable items)
 Expected: Skill presents an empty candidate list, informs the user that no
 actionable items were found, and exits cleanly without writing any files.
 
+**Scenario 12 — Slug collision aborts before number allocation**
+Input: User approves a draft whose kebab-case slug already exists in the
+tickets directory (e.g. an existing `0042-add-search.md` and a new draft
+that would also slug to `add-search`)
+Expected: Skill detects the slug collision via a glob check
+(`{tickets_dir}/[0-9][0-9][0-9][0-9]-{slug}.md`) before calling
+`ticket-next-number.sh`, reports which slugs collide and which existing
+files they match, and aborts. No number is allocated, no file is written.
+
+**Scenario 13 — 9999 overflow surfaces verbatim, no files written**
+Input: Approvals would push the next number past 9999 (e.g. existing
+`9998-foo.md` plus three approvals)
+Expected: `ticket-next-number.sh --count N` exits non-zero with the
+"ticket number space exhausted" error. Skill aborts immediately, surfaces
+the script's stderr verbatim, and writes no files — even though the script
+emits partial numbers on stdout before exiting.
+
+**Scenario 14 — Mid-batch write error reports allocated/written/missing**
+Input: 3 approvals; second `Write` fails (e.g. permission error)
+Expected: Skill reports which numbers were allocated (all N), which files
+were written successfully, and which were not, so the user can manually
+write the missing files using the pre-assigned numbers. Skill does not
+silently retry, and does not call `ticket-next-number.sh` again.
+
+**Scenario 15 — Deduplication preserves all source paths**
+Input: Two documents both describe the same work item with similar wording
+Expected: Skill presents one merged candidate. The candidate's source line
+lists both document paths. The written ticket's `References` section
+includes both source paths, one per line.
+
+**Scenario 16 — "Approve all remaining" mid-loop, after some skips**
+Input: 5 candidates selected. User approves draft 1, skips draft 2, then
+chooses "approve all remaining" on draft 3
+Expected: Drafts 3, 4, 5 are marked approved without being shown. Draft 2
+stays skipped. N=4 (drafts 1,3,4,5). `ticket-next-number.sh` is not called
+until Step 4.
+
+**Scenario 17 — Iterative revise stays on the same draft**
+Input: User chooses "revise" on draft 1 with instructions, sees the updated
+draft, chooses "revise" again with further instructions, then "approve"
+Expected: Skill re-presents draft 1 (same draft number) after each revision
+and only advances to draft 2 once the user types "approve" or "skip".
+"revise" never advances the loop.
+
+**Scenario 18 — Type inference: spike**
+Input: Source paragraph framed as an open question with a time-box
+("Investigate over 2 days whether moving to gRPC reduces p99 latency by
+20%; report findings.")
+Expected: Extracted draft has `type: spike`. The Requirements section
+contains the research question, the time-box, and the exit criterion.
+
+**Scenario 19 — Type inference: epic**
+Input: Source describing a broad multi-deliverable theme ("Modernise the
+checkout funnel: address mobile UX, payment retries, and analytics
+instrumentation.")
+Expected: Extracted draft has `type: epic`. The Requirements section
+contains the initial story decomposition as a list.
+
+**Scenario 20 — Ambiguous content defaults to story**
+Input: Source describing a vague piece of work without bug symptoms,
+research questions, or epic-scale scope ("Improve the dashboard's empty
+state.")
+Expected: Extracted draft has `type: story`, not bug, task, spike, or
+epic. The default is reached because none of the more specific type
+heuristics match.
+
+**Scenario 21 — All frontmatter fields populated, no placeholder text**
+Input: Any approved draft written to disk
+Expected: The written file's frontmatter contains every field defined in
+the ticket template (`ticket_id` matching the assigned NNNN, `date`,
+`author`, `type`, `status: draft`, `priority`, `parent`, `tags`). No
+field contains placeholder text like `[author]`, `NNNN`, or
+`YYYY-MM-DD…`. `parent` is an empty string unless the source establishes
+a parent. `tags` is a YAML array, possibly empty.
+
+**Scenario 22 — Structural content is not extracted**
+Input: Document containing actionable requirements interleaved with table
+of contents entries, navigation headings, and an agenda block listing
+"Next steps: discuss" with no concrete outcome
+Expected: Candidate list contains only the actionable items; the TOC
+entries, navigation headings, and the bare agenda line are not surfaced
+as candidate tickets.
+
+**Scenario 23 — Non-existent file path is reported, not silently skipped**
+Input: `/extract-tickets meta/research/2026-04-08-real.md meta/research/does-not-exist.md`
+Expected: Skill reports that `meta/research/does-not-exist.md` does not
+exist and asks the user to correct or remove the path. It does not
+silently proceed with only the first file, and does not produce an empty
+candidate list with no explanation.
+
+**Scenario 24 — Numbers assigned in presentation order, not approval order**
+Input: 5 candidates presented in order [A, B, C, D, E]. User responds in
+the loop with: A=approve, B=skip, C=revise then approve, D=skip,
+E=approve
+Expected: Approved set is {A, C, E}. After `ticket-next-number.sh --count 3`
+returns (e.g.) `0042 0043 0044`, A receives 0042, C receives 0043, E
+receives 0044. The numbers map to the original presentation order, not
+the order in which the user finished approving.
+
+**Scenario 25 — Faithfulness: inferred extensions flagged as assumptions**
+Input: Source describes a feature outline but does not state acceptance
+criteria
+Expected: Draft includes proposed acceptance criteria derived from the
+outline, but the draft explicitly flags them as assumptions (e.g. an
+"Assumptions" note or an inline marker) so the user can validate them
+during the review loop. Skill does not silently add criteria as if they
+were stated in the source.
+
+**Scenario 26 — Enrich path: Q&A + research → enriched draft**
+Input: User selects "enrich" on a candidate whose source content is thin
+on business context (e.g. "add CSV export to the report page" with no
+detail on who needs it or what fields are required)
+Expected: Skill asks 1–3 focused business-context questions tailored to
+this candidate, spawns `{web-search-researcher agent}` if uncertainty
+warrants it, then re-presents an updated draft containing material
+absent from the source — testable acceptance criteria (preferring
+Given/When/Then), dependencies, and an explicit `Assumptions` block
+listing anything still inferred. Skill iterates until the user
+explicitly approves; a vague acceptance criterion ("it should work
+correctly") is challenged before being accepted.
+
+**Scenario 27 — Accept-as-is: thin draft carries non-enrichment note**
+Input: User selects "accept as-is" on a candidate
+Expected: Final draft is the source-derived skeleton from 3.1 with no
+further questions asked. The `Assumptions` section contains a note that
+the ticket was extracted without interactive enrichment and that
+acceptance criteria, dependencies, and type may need refinement before
+promoting from `draft` to `ready`. The candidate is marked approved
+(thin) and added to the batch.
+
+**Scenario 28 — Mid-loop mode switch: enrich some, then accept rest as-is**
+Input: 5 candidates. User enriches candidates 1 and 2 (full Q&A +
+research), then chooses "accept remaining as-is" on candidate 3
+Expected: Candidates 3, 4, 5 are written as thin drafts with the
+non-enrichment `Assumptions` note. No further questions are asked.
+Enriched and thin drafts coexist in the same batch; the directory
+ends with two enriched and three thin tickets, each numbered in
+presentation order. `ticket-next-number.sh --count 5` is called once.
+
+**Scenario 29 — Skip during enrichment honours interrupt immediately**
+Input: User chooses "enrich" on a candidate, answers the questions,
+then partway through reviewing the proposed draft chooses "skip"
+Expected: Skill exits enrichment for this candidate immediately,
+excludes it from the batch, and advances to the next candidate. The
+candidate does not become approved by virtue of having been partially
+enriched, and `ticket-next-number.sh` is not called.
+
+**Scenario 30 — Numbering presentation-order across enriched + thin mix**
+Input: 5 candidates presented as [A, B, C, D, E]. User enriches A and
+D, accepts B and C as-is, skips E. Enrichment of D takes longer than
+A's, so A is approved first chronologically and D last
+Expected: Approved set is {A, B, C, D} in presentation order. After
+`ticket-next-number.sh --count 4` returns (e.g.) `0042 0043 0044 0045`,
+A receives 0042, B receives 0043, C receives 0044, D receives 0045.
+Numbers map to original presentation order regardless of which were
+enriched vs accepted, or in which order they were approved.
+
 ### Changes Required
 
 #### 1. Create `skills/tickets/extract-tickets/SKILL.md`
@@ -504,26 +670,68 @@ Skill flow:
     it came from. Wait for user to select items ("1,3,5", "all", or "none").
     If the user selects "none": exit cleanly without writing any files.
 
-  Step 3 — Pre-generate all drafts, then review
-    For ALL selected items, generate complete ticket drafts before beginning
-    the review loop. Use XXXX as the placeholder number in every draft. Read
-    valid ticket types from the ticket template's frontmatter and infer the
-    type for each item from its content:
-      - clear bug reports with symptoms → bug
-      - open-ended investigation with questions → spike
-      - broad multi-deliverable themes → epic
-      - specific deliverables → story
-      - one-off tasks → task
-      Default to story for ambiguous items.
-    Once all drafts are generated, begin the review loop. For each draft in
-    order, present it with options: approve / revise / skip / approve all
-    remaining. Wait for the user's response before advancing.
-    If the user selects "revise": accept their revision instructions, update
-    the draft, re-present it with the same options, and wait for approval or
-    skip before advancing to the next draft.
-    "Approve all remaining" means: mark all remaining unreviewed drafts as
-    approved without presenting them. ticket-next-number.sh is NOT called at
-    this point. Writing still happens exclusively in Step 4.
+  Step 3 — Enrich and approve (per candidate)
+    Do NOT pre-generate drafts for the entire batch — enrichment can change
+    a draft significantly, so generation happens per candidate inside this
+    loop. For each selected candidate, in original presented order:
+
+      3.1 Build the source-derived skeleton:
+        Use XXXX as the placeholder ticket number. Read valid ticket types
+        from the ticket template's frontmatter and infer the type:
+          - clear bug reports with symptoms → bug
+          - open-ended investigation with questions → spike
+          - broad multi-deliverable themes → epic
+          - specific deliverables → story
+          - one-off tasks → task
+          Default to story for ambiguous items.
+        Type-specific content placement:
+          - bug: reproduction, expected/actual → Requirements
+          - spike: research questions, time-box, exit criteria → Requirements
+          - epic: initial story decomposition → Requirements as a list
+          - Do not rename or add sections beyond the ticket template.
+        Source-derived content stays faithful to what the source says;
+        anything inferred (type, implied criteria) goes in an Assumptions
+        block flagged as such. References lists all source documents.
+
+      3.2 Present the skeleton with four options:
+        enrich / accept as-is / skip / accept remaining as-is
+        Wait for the user's choice.
+
+      3.3 enrich (interactive):
+        Ask 1–3 focused business-context questions tailored to this
+        candidate (fewer than create-ticket's 3–5 because the source
+        provides some context). Cover whichever are not already clear:
+        pain point + who's affected, desired outcome, constraints/deps,
+        bug impact/blocker, anything to research.
+        Spawn {web-search-researcher agent} when there is uncertainty
+        about any aspect — domain, business, competitive, technical.
+        Skip web research only when the candidate is self-contained.
+        Update the draft from source + answers + model knowledge + research.
+        Re-present as a structured proposal with: type + rationale,
+        requirements, specific testable acceptance criteria
+        (Given/When/Then for story/task), dependencies, Assumptions block,
+        open questions.
+        Challenge weak/untestable acceptance criteria — when not measurable,
+        ask what a passing test would look like and reformulate together.
+        Iterate until the user explicitly approves. Mark approved (enriched).
+        Honour mid-loop interrupts: skip / accept as-is.
+
+      3.4 accept as-is (thin):
+        Take the 3.1 skeleton as the final draft. Append an Assumptions
+        note: "Extracted from source documents without interactive
+        enrichment. Acceptance criteria, dependencies, and type may need
+        refinement before promoting from draft to ready." Mark approved
+        (thin).
+
+      3.5 skip: exclude from batch. Skipped candidates never become
+        approved later, even via accept-remaining-as-is.
+
+      3.6 accept remaining as-is: mark every remaining unreviewed candidate
+        approved (thin) using the same skeleton + Assumptions note as 3.4.
+        Already-skipped stay skipped. Jump to Step 4.
+
+    ticket-next-number.sh is NOT called at any point in Step 3, regardless
+    of which option the user picks. Writing happens exclusively in Step 4.
 
   Step 4 — Write tickets
     Count approved (non-skipped) items: N.
@@ -560,28 +768,59 @@ Quality guidelines:
   - Ticket type inference must use types read from the ticket template
     frontmatter, not a hardcoded list. Default to story for ambiguous items.
   - All eight frontmatter fields must be populated in every written ticket.
-  - "Approve all remaining" only marks drafts as approved — writing always
+  - "Accept remaining as-is" only marks unreviewed candidates as approved
+    (thin) — it does not resurrect skipped candidates, and writing always
     happens exclusively in Step 4, after the single ticket-next-number.sh call.
+  - Source-derived content stays faithful to the source. Extensions
+    (proposed acceptance criteria, inferred type, suggested dependencies,
+    business-context inferences) are model/research contributions and must
+    be flagged in the draft's Assumptions block so the user can validate
+    or challenge them. Do not silently invent requirements.
+  - Enrichment (3.3) is per candidate. Do not pre-generate enriched drafts
+    for the whole batch — enrichment depends on user answers and research,
+    both of which differ per candidate.
+  - Web research is a first-class step inside enrichment — spawn it
+    whenever there is uncertainty about any aspect of the candidate.
+  - Thin and enriched drafts coexist in the same tickets directory. Thin
+    drafts must carry the non-enrichment Assumptions note so they can be
+    identified for follow-up before promotion from draft to ready.
+  - Acceptance criteria in enriched drafts must be specific and testable
+    (Given/When/Then for story/task). Challenge any non-measurable
+    criterion before accepting it.
 
-Eval scenarios: [the 11 scenarios listed above in Subphase 2.2]
+Eval scenarios: [the 30 scenarios listed above in Subphase 2.2]
 ```
 
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] Phase 1 regression suite passes: `bash skills/tickets/scripts/test-ticket-scripts.sh`
-- [ ] File exists: `skills/tickets/extract-tickets/SKILL.md`
-- [ ] `grep "disable-model-invocation: true" skills/tickets/extract-tickets/SKILL.md` matches
-- [ ] `grep "accelerator:reviewer" skills/tickets/extract-tickets/SKILL.md` matches
+- [x] Phase 1 regression suite passes: `bash skills/tickets/scripts/test-ticket-scripts.sh`
+- [x] File exists: `skills/tickets/extract-tickets/SKILL.md`
+- [x] `grep "disable-model-invocation: true" skills/tickets/extract-tickets/SKILL.md` matches
+- [x] `grep "accelerator:reviewer" skills/tickets/extract-tickets/SKILL.md` matches
 
 #### Manual Verification (via `/skill-creator` evals)
 
-- [ ] All 11 eval scenarios pass
+- [ ] All 30 eval scenarios pass
 - [ ] Batch numbering uses `--count N` not N individual calls
 - [ ] Source document reference appears in each written ticket
 - [ ] Skipped items do not consume ticket numbers
 - [ ] All-skip (N=0) exits cleanly without calling `ticket-next-number.sh`
+- [ ] Slug collision aborts before number allocation; 9999 overflow
+  surfaces verbatim and writes nothing
+- [ ] Numbers map to approved drafts in original presented order, across
+  enriched and thin drafts alike
+- [ ] Inferred extensions (acceptance criteria, type) are flagged as
+  assumptions in the draft, not silently added
+- [ ] Non-existent input paths are reported, not silently skipped
+- [ ] Enrichment loop asks 1–3 focused questions, spawns
+  `{web-search-researcher agent}` on uncertainty, and challenges
+  untestable acceptance criteria before accepting them
+- [ ] Thin (accept-as-is) drafts carry a non-enrichment `Assumptions`
+  note identifying them as needing refinement before promotion
+- [ ] Enriched and thin drafts coexist in the same batch and same
+  tickets directory
 - [ ] Written tickets contain all eight frontmatter fields (`ticket_id`, `date`,
   `author`, `type`, `status`, `priority`, `parent`, `tags`) with no unfilled
   placeholder text
@@ -614,11 +853,11 @@ None — verification only.
 
 #### Automated Verification
 
-- [ ] `bash skills/tickets/scripts/test-ticket-scripts.sh` exits 0, "All tests passed!"
-- [ ] `grep -r "disable-model-invocation: true" skills/tickets/` returns two matching files
-- [ ] `grep -r "allowed-tools" skills/tickets/` shows only inline `config-*` and `tickets/scripts/*` patterns (no block scalars)
-- [ ] `grep "accelerator:reviewer" skills/tickets/create-ticket/SKILL.md` matches
-- [ ] `grep "accelerator:reviewer" skills/tickets/extract-tickets/SKILL.md` matches
+- [x] `bash skills/tickets/scripts/test-ticket-scripts.sh` exits 0, "All tests passed!"
+- [x] `grep -r "disable-model-invocation: true" skills/tickets/` returns two matching files
+- [x] `grep -r "allowed-tools" skills/tickets/` shows only inline `config-*` and `tickets/scripts/*` patterns (no block scalars)
+- [x] `grep "accelerator:reviewer" skills/tickets/create-ticket/SKILL.md` matches
+- [x] `grep "accelerator:reviewer" skills/tickets/extract-tickets/SKILL.md` matches
 
 #### Manual Verification
 

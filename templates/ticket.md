@@ -42,15 +42,26 @@ Link to source documents if extracted.]
 
 - Given [precondition], when [action], then [expected result]]
 
+## Open Questions
+
+- [Question 1 — unresolved business or scope question that affects how work should proceed]
+
 ## Dependencies
 
 - Blocked by: [ticket references or external dependencies]
 - Blocks: [tickets that depend on this one]
 
+## Assumptions
+
+- [Business or technical assumptions that may require validation or clarification]
+
 ## Technical Notes
 
-[Optional: implementation hints, relevant code references,
-architectural considerations discovered during refinement]
+[Optional: implementation hints, relevant code references, architectural considerations discovered during refinement]
+
+## Drafting Notes
+
+- [Interpretations made while drafting — business-context calls, scope decisions, or technical choices that someone should review if they turn out to be wrong]
 
 ## References
 
