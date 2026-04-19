@@ -4,8 +4,9 @@
 //! lives in the modules declared here. Integration tests under
 //! `server/tests/*.rs` consume these modules directly.
 
+pub mod config;
+
 // Modules are added in later sub-phases:
-// 2.2 → config
 // 2.3 → server
 // 2.4 → shutdown  (ShutdownReason + signal handlers)
 // 2.5 → activity, lifecycle

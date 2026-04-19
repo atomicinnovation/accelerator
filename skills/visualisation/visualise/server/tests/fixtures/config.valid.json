@@ -1,0 +1,47 @@
+{
+  "plugin_root": "/abs/path/to/plugin",
+  "plugin_version": "1.19.0-pre.2",
+  "tmp_path": "/abs/path/to/project/meta/tmp/visualiser",
+  "host": "127.0.0.1",
+  "owner_pid": 0,
+  "owner_start_time": null,
+  "log_path": "/abs/path/to/project/meta/tmp/visualiser/server.log",
+  "doc_paths": {
+    "decisions": "/abs/path/to/project/meta/decisions",
+    "tickets": "/abs/path/to/project/meta/tickets",
+    "plans": "/abs/path/to/project/meta/plans",
+    "research": "/abs/path/to/project/meta/research",
+    "review_plans": "/abs/path/to/project/meta/reviews/plans",
+    "review_prs": "/abs/path/to/project/meta/reviews/prs",
+    "validations": "/abs/path/to/project/meta/validations",
+    "notes": "/abs/path/to/project/meta/notes",
+    "prs": "/abs/path/to/project/meta/prs"
+  },
+  "templates": {
+    "adr": {
+      "config_override": null,
+      "user_override": "/abs/path/to/project/meta/templates/adr.md",
+      "plugin_default": "/abs/path/to/plugin/templates/adr.md"
+    },
+    "plan": {
+      "config_override": null,
+      "user_override": "/abs/path/to/project/meta/templates/plan.md",
+      "plugin_default": "/abs/path/to/plugin/templates/plan.md"
+    },
+    "research": {
+      "config_override": null,
+      "user_override": "/abs/path/to/project/meta/templates/research.md",
+      "plugin_default": "/abs/path/to/plugin/templates/research.md"
+    },
+    "validation": {
+      "config_override": null,
+      "user_override": "/abs/path/to/project/meta/templates/validation.md",
+      "plugin_default": "/abs/path/to/plugin/templates/validation.md"
+    },
+    "pr-description": {
+      "config_override": null,
+      "user_override": "/abs/path/to/project/meta/templates/pr-description.md",
+      "plugin_default": "/abs/path/to/plugin/templates/pr-description.md"
+    }
+  }
+}

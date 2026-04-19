@@ -885,19 +885,19 @@ fn parses_fixture_config_and_exits_success() {
 
 #### Automated Verification
 
-- [ ]  `cargo test --manifest-path
+- [x]  `cargo test --manifest-path
   skills/visualisation/visualise/server/Cargo.toml --lib config::tests` runs ≥4
   tests, all pass.
-- [ ]  `cargo test --manifest-path
+- [x]  `cargo test --manifest-path
   skills/visualisation/visualise/server/Cargo.toml --test config_cli` runs 2
   tests, both pass.
-- [ ] Binary exits with code 2 on missing config file (provable by `cargo run --
+- [x] Binary exits with code 2 on missing config file (provable by `cargo run --
   --config /nonexistent.json; echo $?`).
-- [ ] `tests/fixtures/config.valid.json` parses without modification.
+- [x] `tests/fixtures/config.valid.json` parses without modification.
 
 #### Manual Verification
 
-- [ ] Tests written first (red-then-green). Either (a) test file(s) committed in
+- [x] Tests written first (red-then-green). Either (a) test file(s) committed in
   a `jj` revision before `config.rs`, or (b) bundled commit + mutation smoke
   test: temporarily rename `plugin_root` → `plugin_roots` in `config.rs`, run
   `cargo test` and observe failure, restore.

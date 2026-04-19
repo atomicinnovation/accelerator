@@ -1,0 +1,9 @@
+{
+  "plugin_version": "1.19.0-pre.2",
+  "tmp_path": "/tmp/visualiser",
+  "host": "127.0.0.1",
+  "owner_pid": 0,
+  "log_path": "/tmp/visualiser/server.log",
+  "doc_paths": {},
+  "templates": {}
+}
