@@ -109,76 +109,77 @@ Input: `/create-ticket` (no arguments)
 Expected: Skill asks for a description or topic and waits. Does not write any
 file.
 
-**Scenario 2 — Context gathering happens before type selection**
-Input: `/create-ticket add search to the docs index page`
-Expected: Skill spawns `{documents locator agent}` and `{codebase locator
-agent}` in parallel immediately after receiving the topic. It presents a brief
-context summary, then asks for the ticket type. It does not ask for the type
-before gathering context.
-
-**Scenario 3 — Bug type populates Requirements with reproduction steps**
-Input: Topic with type `bug`
-Expected: Skill asks for reproduction steps, expected behaviour, actual
-behaviour, and environment. The draft's `Requirements` section contains this
-information — the section is not renamed. The `Acceptance Criteria` section
-is omitted or left minimal.
-
-**Scenario 4 — Spike type populates Requirements with research questions**
-Input: Topic with type `spike`
-Expected: Skill asks for time-box duration, research questions, and exit
-criteria. The draft's `Requirements` section contains this information. There
-is no section renamed to `Research Questions`.
-
-**Scenario 5 — Draft is presented for review before any file is written**
-Input: Any topic, any type
-Expected: Skill shows the full draft ticket using `XXXX` as the ticket number
-placeholder and asks for explicit approval or revision. No file is written and
-`ticket-next-number.sh` is not called until the user approves.
-
-**Scenario 6 — Approved draft is written to correct location with correct name**
-Input: Topic approved by user
-Expected: File written to `{tickets_dir}/NNNN-kebab-slug.md` where NNNN is the
-output of `ticket-next-number.sh` called at write time and the slug is a
-meaningful kebab-case summary of the title. All eight frontmatter fields
-(`ticket_id`, `date`, `author`, `type`, `status`, `priority`, `parent`,
-`tags`) are populated; `status` is `draft` and `ticket_id` matches the NNNN
-prefix of the filename. The `Summary` and `Requirements` sections contain
-substantive content with no unfilled `[...]` placeholder text.
-
-**Scenario 7 — Revision loop re-presents draft without writing**
-Input: User requests changes to the draft
-Expected: Skill revises and re-presents the draft (still with XXXX). Writing
-only occurs after the revised draft is explicitly approved. `ticket-next-number.sh`
-is not called during revisions.
-
-**Scenario 8 — Epic type populates Requirements with story decomposition**
-Input: Topic with type `epic`
-Expected: Skill asks for the high-level goal, epic-level success criteria, and
-initial story decomposition. The draft's `Summary` and `Requirements` sections
-are substantive — the `Requirements` section contains the initial stories as a
-list. The `Acceptance Criteria` section is not used for epics. No section is
-renamed or added beyond the standard template sections.
-
-**Scenario 9 — Ticket number not consumed when session is abandoned**
-Input: Topic and type provided; draft presented but user does not approve
-(session ends without approval)
-Expected: `ticket-next-number.sh` has not been called. A subsequent invocation
-of `/create-ticket` for a different ticket receives the same next number as
-would have been assigned to the abandoned draft.
-
-**Scenario 10 — Vague topic prompts clarification before type selection**
+**Scenario 2 — Vague topic prompts clarification in Step 0**
 Input: `/create-ticket improve things`
-Expected: Skill recognises the topic as too vague to draft a useful ticket.
-It asks at least one clarifying question ("What specifically needs improving?",
-"What does done look like?") before proceeding to type selection or context
-gathering.
+Expected: Skill recognises the topic as too vague and asks at least one
+clarifying question ("What specifically needs improving?", "What does done look
+like?") before proceeding to business context questions or investigation.
 
-**Scenario 11 — Near-duplicate existing ticket is surfaced**
-Input: Topic that matches the title or description of an existing ticket in the
-tickets directory (discovered by the documents locator agent)
-Expected: Skill presents the similar existing ticket to the user and asks
-whether to proceed with a new ticket or exit (to update the existing one
-manually). It does not silently create a duplicate.
+**Scenario 3 — Business context questions asked before investigation**
+Input: `/create-ticket add search to the docs index page`
+Expected: Skill asks 3–5 open questions to understand business context (who is
+affected, what success looks like, constraints, etc.) before spawning any
+agents. It does not investigate or propose anything until the user answers.
+
+**Scenario 4 — Investigation restricted to tickets directory**
+Input: Topic with business context provided
+Expected: Skill spawns `{documents locator agent}` scoped to `{tickets_dir}`
+only. It does not search research documents, plans, or the codebase.
+
+**Scenario 5 — Web search spawned for domain or business uncertainty**
+Input: Topic involving a domain concept or business rule the model is uncertain
+about (e.g., a regulated industry workflow, a competitor feature, an unfamiliar
+business process)
+Expected: Skill spawns `{web-search-researcher agent}` to gather context on the
+uncertain aspect before proposing requirements. The proposal reflects findings
+from the research.
+
+**Scenario 6 — Model proposes type with rationale**
+Input: Topic and business context provided
+Expected: Skill recommends a ticket type with a one-sentence rationale rather
+than presenting a bare list and asking the user to choose. The user can
+validate, challenge, or change the suggestion.
+
+**Scenario 7 — Model proposes acceptance criteria; challenges untestable ones**
+Input: Topic and business context provided; user validates the proposal but
+offers a vague acceptance criterion ("it should work correctly")
+Expected: Skill proposes its own specific, testable acceptance criteria from
+domain knowledge and research. When the user offers an untestable criterion,
+the skill pushes back and asks what a passing test would look like before
+accepting it into the draft.
+
+**Scenario 8 — Bug type: model elicits reproduction details; Requirements
+contains them**
+Input: Topic that is a bug report; business context provided
+Expected: Skill recognises the bug type, asks for or proposes reproduction
+steps, expected behaviour, actual behaviour, and environment. The draft's
+`Requirements` section contains this information — the section is not renamed.
+
+**Scenario 9 — Near-duplicate ticket surfaced during investigation**
+Input: Topic that matches an existing ticket in the tickets directory
+Expected: Skill surfaces the similar ticket and asks whether to proceed with a
+new ticket or exit. It does not silently create a duplicate.
+
+**Scenario 10 — Draft presented with XXXX before any file is written**
+Input: Proposal agreed by user
+Expected: Skill shows the full draft using `XXXX` as the ticket number
+placeholder and asks for explicit approval or revision. No file is written and
+`ticket-next-number.sh` is not called.
+
+**Scenario 11 — Approved draft written to correct location with all fields**
+Input: User approves the draft
+Expected: File written to `{tickets_dir}/NNNN-kebab-slug.md` where NNNN is the
+output of `ticket-next-number.sh` called at write time. All eight frontmatter
+fields (`ticket_id`, `date`, `author`, `type`, `status`, `priority`, `parent`,
+`tags`) are populated; `status` is `draft` and `ticket_id` matches the NNNN
+prefix of the filename. `Summary` and `Requirements` contain substantive content
+with no unfilled `[...]` placeholder text.
+
+**Scenario 12 — Ticket number not consumed when session is abandoned**
+Input: Business context and proposal agreed; draft presented but user does not
+approve (session ends without approval)
+Expected: `ticket-next-number.sh` has not been called. A subsequent invocation
+receives the same next number as would have been assigned to the abandoned draft.
 
 ### Changes Required
 
@@ -234,45 +235,64 @@ Skill flow:
     check to the user's response — if still vague, ask a clarifying question
     before proceeding to Step 1.
 
-  Step 1 — Gather context
-    Spawn in parallel immediately after the topic is known:
-      - {documents locator agent}: find related research, plans, and existing
-        tickets relevant to this topic. Note any existing tickets with similar
-        titles.
-      - {codebase locator agent}: find relevant source files related to this
-        topic.
-    Present a brief context summary, noting any similar existing tickets found.
-    If a similar existing ticket is found: surface it to the user and ask
-    whether to proceed with a new ticket or exit (to update the existing ticket
-    manually via /update-ticket once that skill is available). Do not offer to
-    perform the update inline — create-ticket cannot modify existing files.
-    Wait for their choice.
+  Step 1 — Gather business context
+    Ask 3–5 open questions to understand the business context before
+    investigating. Tailor questions to the topic but cover: what problem this
+    solves and who is affected; what success looks like from a user or business
+    perspective; constraints, deadlines, or dependencies; impact and blocking
+    status (for bugs); and whether there is anything the user is uncertain about
+    or wants researched. Ask all relevant questions at once and wait for answers
+    before proceeding to Step 2.
 
-  Step 2 — Determine type and ask clarifying questions
-    Present the context summary and ask the user to choose a ticket type.
-    Read valid types from the ticket template's frontmatter (story, epic, task,
-    bug, spike). Wait for the user's answer.
-    Then ask 2–4 type-specific clarifying questions based on the chosen type:
-      - story/task: What does done look like? What are the acceptance criteria?
-        Are there edge cases to handle?
-      - bug: What are the reproduction steps? What is the expected behaviour?
-        What is the actual behaviour? What environment does this occur in?
-      - spike: What is the time-box? What specific research questions must be
-        answered? What are the exit criteria for a successful spike?
-      - epic: What business goal does this epic achieve? What are the
-        epic-level success criteria? What are the initial stories to decompose
-        into?
-    Wait for user input before proceeding.
+  Step 2 — Investigate
+    Using the topic and business context, run investigation agents in parallel:
+      - {documents locator agent}: search {tickets_dir} only — look for
+        existing tickets with similar titles, descriptions, or scope. Do not
+        search research, plans, or the codebase — tickets are about business
+        requirements, not implementation details.
+      - {web-search-researcher agent}: spawn when there is uncertainty or a
+        need for richer context about any aspect of the topic — business rules,
+        domain concepts, competitive landscape, industry standards, external
+        technology, or anything the model lacks confidence on. Skip only when
+        the topic is entirely self-contained and well-understood.
+    Synthesise findings — model knowledge, research results, and prior tickets —
+    as the foundation for Step 3.
+    If a similar existing ticket is found: surface it and ask whether to proceed
+    with a new ticket or exit (to update the existing one manually). Do not
+    offer to modify it inline. Wait for the user's choice.
 
-  Step 3 — Draft ticket
-    Load the ticket template. Draft a complete ticket using the user's answers
-    and gathered context. Use XXXX as the placeholder ticket number throughout
-    (do NOT call ticket-next-number.sh at this step).
-    Present the full draft to the user. Wait for approval or revision requests.
+  Step 3 — Propose and refine
+    Lead with a structured proposal — do not ask the user to generate
+    requirements or acceptance criteria from scratch. Propose them and invite
+    challenge. Include:
+      - Recommended ticket type with a one-sentence rationale (read valid types
+        from the ticket template's type field: story, epic, task, bug, spike)
+      - Draft requirements drawn from business context and research
+      - Draft acceptance criteria — specific and testable, preferring
+        Given/When/Then for story/task; draw on domain knowledge and research
+        to make these thorough
+      - Assumptions made in the proposal, flagged explicitly
+      - Open questions for the user to clarify before drafting
+    Present as a structured proposal and wait for the user to validate, push
+    back, or refine. Challenge vague or untestable responses — if an acceptance
+    criterion is not measurable, ask what a passing test would look like. Do not
+    accept weak criteria. Iterate until the proposal is well-specified and agreed.
+
+  Step 4 — Draft ticket
+    Load the ticket template. Draft a complete ticket from the agreed proposal.
+    Use XXXX as the placeholder ticket number throughout (do NOT call
+    ticket-next-number.sh at this step).
+    Type-specific content placement:
+      - bug reproduction steps, expected/actual behaviour → Requirements section
+      - spike research questions, time-box, exit criteria → Requirements section
+      - epic initial stories → Requirements section as a list
+      Do not rename or add sections beyond those in the ticket template.
+    Present the full draft. Continue to challenge during the review loop —
+    flag untestable criteria or gaps from research that remain unaddressed.
     Iterate until the user explicitly approves. ticket-next-number.sh is never
     called during this loop.
 
-  Step 4 — Write ticket
+  Step 5 — Write ticket
     Call ticket-next-number.sh to get the next NNNN. If the script exits
     non-zero (e.g., 9999 overflow), abort immediately and surface the error
     message verbatim — do not proceed.
@@ -289,21 +309,25 @@ Quality guidelines:
   - Never write a file without explicit user approval.
   - Never call ticket-next-number.sh before the user approves the draft.
   - The slug must be a meaningful kebab-case title, not raw input text.
-  - Type-specific content belongs in the appropriate template sections: bug
-    reproduction steps go in Requirements; spike research questions go in
-    Requirements; epic initial stories go in Requirements. Do not rename
-    or add sections beyond those defined in the ticket template.
-  - Acceptance criteria for story/task should be specific and testable;
-    prefer Given/When/Then format.
+  - The model must contribute its own knowledge and research to the proposal —
+    not simply transcribe the user's answers.
+  - Restrict {documents locator agent} to {tickets_dir} only. Do not search
+    research, plans, or the codebase.
+  - Spawn {web-search-researcher agent} whenever there is uncertainty about any
+    aspect of the topic — business, domain, competitive, technical, or otherwise.
+  - Acceptance criteria must be specific and testable; prefer Given/When/Then
+    format. Challenge any criterion that is not measurable before accepting it.
+  - Type-specific content belongs in the appropriate template sections; do not
+    rename or add sections beyond those in the ticket template.
   - All eight frontmatter fields must be populated in the written file:
     ticket_id (matching NNNN), date, author, type, status (draft), priority
-    (medium unless the user specified otherwise), parent, tags. No field
-    may be left with unfilled placeholder text.
+    (medium unless specified otherwise), parent, tags. No field may be left
+    with unfilled placeholder text.
   - Summary and Requirements must have substantive content — no [bracketed
     placeholder text] in the final written file.
   - If ticket-next-number.sh exits non-zero, abort and surface the error.
 
-Eval scenarios: [the 11 scenarios listed above in Subphase 2.1]
+Eval scenarios: [the 12 scenarios listed above in Subphase 2.1]
 ```
 
 ### Success Criteria
@@ -317,8 +341,13 @@ Eval scenarios: [the 11 scenarios listed above in Subphase 2.1]
 
 #### Manual Verification (via `/skill-creator` evals)
 
-- [ ] All 11 eval scenarios pass
+- [ ] All 12 eval scenarios pass
 - [ ] Bare `/create-ticket` invocation prompts for topic and waits
+- [ ] Business context questions are asked before any agent is spawned
+- [ ] Documents agent is restricted to `{tickets_dir}` — no codebase or
+  research lookups
+- [ ] Model proposes type, requirements, and acceptance criteria; pushes back
+  on untestable criteria
 - [ ] Written file has correct NNNN prefix, kebab-case slug, and all eight
   frontmatter fields populated
 - [ ] No unfilled `[...]` placeholder text in a written ticket
