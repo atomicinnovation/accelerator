@@ -526,24 +526,25 @@ gitignored separately in Phase 2.6.
 
 #### Automated Verification
 
-- [ ]  `cargo check --manifest-path
+- [x]  `cargo check --manifest-path
   skills/visualisation/visualise/server/Cargo.toml` exits 0.
-- [ ]  `cargo test --manifest-path
+- [x]  `cargo test --manifest-path
   skills/visualisation/visualise/server/Cargo.toml` exits 0 with "0 tests"
   (vacuous pass).
-- [ ]  `cargo build --release --manifest-path
+- [x]  `cargo build --release --manifest-path
   skills/visualisation/visualise/server/Cargo.toml` exits 0 and produces
   `server/target/release/accelerator-visualiser`.
-- [ ]  `[ -x
+- [x]  `[ -x
   skills/visualisation/visualise/server/target/release/accelerator-visualiser ]`
   ( after build).
-- [ ] Both `src/lib.rs` and `src/main.rs` exist; `cargo test --manifest-path …`
+- [x] Both `src/lib.rs` and `src/main.rs` exist; `cargo test --manifest-path …`
   compiles the library target in addition to the binary.
-- [ ] `grep -F 'skills/visualisation/visualise/server/target/' .gitignore`
+- [x] `grep -F 'skills/visualisation/visualise/server/target/' .gitignore`
   matches.
-- [ ]  `awk '/rust-version/' skills/visualisation/visualise/server/Cargo.toml |
-  grep -F '"1.80"'` matches.
-- [ ]  `awk '/edition/' skills/visualisation/visualise/server/Cargo.toml | grep
+- [x]  `awk '/rust-version/' skills/visualisation/visualise/server/Cargo.toml |
+  grep -F '"1.85"'` matches (bumped from planned 1.80 — edition2024 required by
+  modern crate ecosystem).
+- [x]  `awk '/edition/' skills/visualisation/visualise/server/Cargo.toml | grep
   -F '"2021"'` matches.
 
 #### Manual Verification

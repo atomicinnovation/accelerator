@@ -5,6 +5,7 @@ _.python.venv = { path = ".venv", create = true }
 uv = "0.11.6"
 python = "3.14.4"
 gh = "2.89.0"
+rust = "1.90.0"
 
 [settings]
 experimental = true
