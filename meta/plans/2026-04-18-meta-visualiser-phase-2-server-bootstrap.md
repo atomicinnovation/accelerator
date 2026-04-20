@@ -2170,16 +2170,16 @@ frontend in Phase 5.
 
 #### Automated Verification
 
-- [ ]  `jq -e '.version, .binaries["darwin-arm64"], .binaries["darwin-x64"],
+- [x]  `jq -e '.version, .binaries["darwin-arm64"], .binaries["darwin-x64"],
   .binaries["linux-arm64"], .binaries["linux-x64"]'
   skills/visualisation/visualise/bin/checksums.json` exits 0.
-- [ ] `jq -r '.version' skills/visualisation/visualise/bin/checksums.json`equals
+- [x] `jq -r '.version' skills/visualisation/visualise/bin/checksums.json`equals
   `jq -r '.version' .claude-plugin/plugin.json` (drift check).
-- [ ]  `grep -F 'skills/visualisation/visualise/bin/accelerator-visualiser-*'
+- [x]  `grep -F 'skills/visualisation/visualise/bin/accelerator-visualiser-*'
   .gitignore` matches.
-- [ ] `grep -F 'skills/visualisation/visualise/frontend/dist/' .gitignore`
+- [x] `grep -F 'skills/visualisation/visualise/frontend/dist/' .gitignore`
   matches.
-- [ ]  `grep -F 'skills/visualisation/visualise/frontend/node_modules/'
+- [x]  `grep -F 'skills/visualisation/visualise/frontend/node_modules/'
   .gitignore` matches.
 
 #### Manual Verification

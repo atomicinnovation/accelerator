@@ -11,7 +11,8 @@ workspaces/
 *.egg-info/
 .claude/settings.local.json
 .claude/accelerator.local.md
-+meta/eval-workspaces/
+meta/eval-workspaces/
+skills/visualisation/visualise/bin/accelerator-visualiser-*
 skills/visualisation/visualise/frontend/.e2e-port
 skills/visualisation/visualise/server/target
 skills/visualisation/visualise/frontend/node_modules
