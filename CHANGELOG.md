@@ -4,6 +4,35 @@
 
 ### Added
 
+- **Ticket management**: New `tickets/` skill category with two skills for
+  capturing work items as structured documents under `meta/tickets/` (default;
+  override via `paths.tickets`)
+  - `create-ticket` — Interactively create a single ticket (feature, bug,
+    task, spike, or epic) through a collaborative, challenging conversation
+    that contributes research and pushes back on under-specified inputs
+    rather than transcribing what the user says
+  - `extract-tickets` — Batch-extract tickets from existing documents (specs,
+    PRDs, research, plans, meeting notes, design docs), keeping
+    source-derived content faithful while surfacing business-context gaps as
+    assumptions, open questions, and drafting notes
+- **Ticket template**: New `templates/ticket.md` default template with YAML
+  frontmatter (`ticket_id`, `date`, `author`, `type`, `status`, `priority`,
+  `parent`, `tags`) and structured body sections (Summary, Context,
+  Requirements, Acceptance Criteria, Open Questions, Dependencies,
+  Assumptions, Technical Notes, Drafting Notes, References). Overridable via
+  `templates.ticket`.
+- **Ticket numbering and frontmatter helpers**: Supporting shell scripts in
+  `skills/tickets/scripts/`
+  - `ticket-next-number.sh` — Assigns the next sequential ticket number from
+    the configured tickets directory, enforcing a 4-digit ceiling
+  - `ticket-read-field.sh` — Generic YAML frontmatter field reader that uses
+    bash prefix matching to avoid regex metacharacter injection
+  - `ticket-read-status.sh` — Thin convenience wrapper over
+    `ticket-read-field.sh` for the common status lookup
+- **`paths.review_tickets` configuration key**: New configurable path
+  (default: `meta/reviews/tickets`) for future ticket review artifacts,
+  included in `/accelerator:init` directory creation and reported in
+  `config-dump.sh`.
 - **Review system ADRs**: Extracted nine architecture decision records
   (ADR-0002 through ADR-0010) from existing research and planning documents,
   covering the three-layer review architecture, PBR lens design, lens

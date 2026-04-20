@@ -82,8 +82,8 @@ These paths can be overridden via the `paths` configuration section:
 | `reviews/`     | Review summaries and per-lens results           | `review-pr`, `review-plan`                 |
 | `validations/` | Plan validation reports                         | `validate-plan`                            |
 | `prs/`         | PR descriptions                                 | `describe-pr`                              |
-| `templates/`   | Reusable templates (e.g., PR descriptions)      | manual                                     |
-| `tickets/`     | Ticket files referenced by planning             | manual                                     |
+| `templates/`   | Reusable templates (e.g., PR descriptions)      | `configure template`                       |
+| `tickets/`     | Ticket files referenced by planning             | `create-ticket`, `extract-tickets`         |
 | `notes/`       | Notes and working documents                     | manual                                     |
 | `tmp/`         | Ephemeral working data (e.g., review artifacts) | `review-pr`                                |
 
@@ -239,6 +239,30 @@ individual skills by placing files in
 Both files are optional. Directory names must match the skill name exactly (the
 part after `/accelerator:`). The SessionStart hook warns about unrecognised
 directory names. See `/accelerator:configure help` for the full reference.
+
+## Ticket Management
+
+Ticket skills capture work items — features, bugs, tasks, spikes, and epics —
+as structured documents that feed into planning:
+
+```
+existing docs (specs, PRDs, notes)
+       │
+       ├── extract-tickets ──┐
+       │                     ↓
+       create-ticket ──→  meta/tickets/  ──→  create-plan → implement-plan
+```
+
+| Skill                | Usage                                         | Description                                                               |
+|----------------------|-----------------------------------------------|---------------------------------------------------------------------------|
+| **create-ticket**    | `/accelerator:create-ticket [topic]`          | Interactively create a single ticket through collaborative refinement     |
+| **extract-tickets**  | `/accelerator:extract-tickets [doc paths...]` | Batch-extract tickets from existing specs, PRDs, research, plans, or notes |
+
+Tickets use a shared template with YAML frontmatter (`ticket_id`, `type`,
+`status`, `priority`, `parent`, `tags`) and structured body sections
+(Summary, Context, Requirements, Acceptance Criteria, Open Questions,
+Dependencies, Assumptions, Technical Notes, Drafting Notes, References).
+The template is customisable via `/accelerator:configure templates eject ticket`.
 
 ## Architecture Decision Records
 
