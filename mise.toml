@@ -13,13 +13,37 @@ experimental = true
 [hooks]
 postinstall = "uv sync --only-group build --frozen"
 
+[tasks."test:unit:visualiser"]
+description = "Run visualiser unit tests"
+run = "invoke test.unit.visualiser"
+
+[tasks."test:unit"]
+description = "Run all unit tests in parallel"
+depends = ["test:unit:visualiser"]
+
+[tasks."test:integration:visualiser"]
+description = "Run visualiser integration tests"
+run = "invoke test.integration.visualiser"
+
+[tasks."test:integration:config"]
+description = "Run config integration tests"
+run = "invoke test.integration.config"
+
+[tasks."test:integration:decisions"]
+description = "Run decisions integration tests"
+run = "invoke test.integration.decisions"
+
 [tasks."test:integration"]
-description = "Run integration tests"
-run = "invoke test.integration"
+description = "Run all integration tests in parallel"
+depends = [
+    "test:integration:visualiser",
+    "test:integration:config",
+    "test:integration:decisions"
+]
 
 [tasks.test]
-description = "Run all tests"
-depends = ["test:integration"]
+description = "Run all tests in parallel"
+depends = ["test:unit", "test:integration"]
 
 [tasks."version:read"]
 description = "Read plugin version"

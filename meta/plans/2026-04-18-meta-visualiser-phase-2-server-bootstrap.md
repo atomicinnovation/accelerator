@@ -3367,7 +3367,6 @@ Diff (conceptual):
 +     binary: <absolute or project-relative path>
 +   ---
 +   ```
-
 +
 + in `.claude/accelerator.md` (team-committed) or
 + `.claude/accelerator.local.md` (personal, gitignored).
@@ -3377,20 +3376,13 @@ Diff (conceptual):
 + the repo — anyone approving a PR that changes it should
 + treat the value as code, not data.
 +
-
 +The release-binary mirror URL can be overridden via
 +`ACCELERATOR_VISUALISER_RELEASES_URL=<base-url>` (air-gapped
 +or proxy-hosted mirrors).
-
 +
-
 +To run the visualiser from a terminal, symlink the CLI wrapper:
-
 +
-
-+**Install command**: !
-`printf 'ln -s "%s" "%s"' "${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/cli/accelerator-visualiser" "$HOME/.local/bin/accelerator-visualiser"`
-
++**Install command**: !`printf 'ln -s "%s" "%s"' "${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/cli/accelerator-visualiser" "$HOME/.local/bin/accelerator-visualiser"`
 ```
 
 The `**Visualiser**` bold label (now without the "URL" suffix) is emitted by the

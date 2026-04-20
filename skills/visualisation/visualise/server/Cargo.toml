@@ -9,6 +9,9 @@ rust-version = "1.85"
 description = "Meta-directory visualiser server for the accelerator Claude Code plugin"
 publish = false
 
+[lib]
+test = false
+
 [[bin]]
 name = "accelerator-visualiser"
 path = "src/main.rs"

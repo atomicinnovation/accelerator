@@ -286,33 +286,44 @@ pub(crate) fn process_start_time(pid: i32) -> Option<u64> {
     }
     #[cfg(target_os = "macos")]
     {
-        // Delegate to BSD `date -j -f` so Rust and shell
-        // (scripts/launcher-helpers.sh `start_time_of`) produce
-        // byte-identical epoch-seconds. The alternative — parsing
-        // the wall-clock components manually — would diverge from
-        // the shell whenever the host isn't in UTC, because BSD
-        // `date -j` interprets the input in the local timezone.
-        let ps = std::process::Command::new("ps")
-            .args(["-p", &pid.to_string(), "-o", "lstart="])
-            .output()
-            .ok()?;
-        if !ps.status.success() {
+        // Read p_starttime directly via sysctl(KERN_PROC_PID) rather than
+        // shelling out to `ps` + `date`. The subprocess approach races with
+        // Tokio's internal infrastructure when tests run in parallel, causing
+        // sporadic None returns. tv_sec is a UTC epoch value and matches what
+        // `date -j -f "%a %b %d %H:%M:%S %Y" "$(ps -p pid -o lstart=)" +%s`
+        // returns in _launcher-helpers.sh: both truncate to the same second.
+        //
+        // libc does not export kinfo_proc, so we use a raw byte buffer.
+        // p_starttime (a timeval) is the first field of extern_proc's p_un
+        // union, which is the first field of kinfo_proc — tv_sec is at byte 0.
+        //
+        // CTL_KERN=1, KERN_PROC=14, KERN_PROC_PID=1 (stable macOS ABI).
+        // sizeof(kinfo_proc) = 648 on all 64-bit macOS targets.
+        const CTL_KERN: libc::c_int = 1;
+        const KERN_PROC: libc::c_int = 14;
+        const KERN_PROC_PID: libc::c_int = 1;
+        const KINFO_PROC_SIZE: usize = 648;
+        let mut buf = [0u8; KINFO_PROC_SIZE];
+        let mut size: usize = KINFO_PROC_SIZE;
+        let mib = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid];
+        let ret = unsafe {
+            libc::sysctl(
+                mib.as_ptr() as *mut libc::c_int,
+                mib.len() as libc::c_uint,
+                buf.as_mut_ptr() as *mut libc::c_void,
+                &mut size,
+                std::ptr::null_mut(),
+                0,
+            )
+        };
+        if ret != 0 || size == 0 {
             return None;
         }
-        let lstart = String::from_utf8(ps.stdout).ok()?;
-        let lstart = lstart.trim();
-        if lstart.is_empty() {
+        let tv_sec = i64::from_ne_bytes(buf[..8].try_into().ok()?);
+        if tv_sec <= 0 {
             return None;
         }
-        let date = std::process::Command::new("date")
-            .args(["-j", "-f", "%a %b %d %H:%M:%S %Y", lstart, "+%s"])
-            .output()
-            .ok()?;
-        if !date.status.success() {
-            return None;
-        }
-        let epoch = String::from_utf8(date.stdout).ok()?;
-        epoch.trim().parse::<u64>().ok()
+        Some(tv_sec as u64)
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {

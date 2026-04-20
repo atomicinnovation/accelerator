@@ -1,7 +1,7 @@
 ---
 name: visualise
-description: Open the accelerator meta visualiser. Currently prints a placeholder sentinel; the companion-window server is not yet available.
-argument-hint: "(no arguments — server not yet available)"
+description: Open the accelerator meta visualiser. Launches the companion-window server in the background and returns a URL.
+argument-hint: "(no arguments)"
 disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/*)
 ---
@@ -10,16 +10,6 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGI
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh visualise`
-
-<!--
-The 11 path-key resolutions below are intentional forward-compat
-scaffolding for a later phase, where the launcher will take these paths as
-inputs to the server's config.json. They are not consumed in this phase;
-the only functional payload here is the
-`Visualiser URL (not yet running)` line further down. Resolving them
-now locks in the preamble shape so the next phase can extend it without
-re-editing this block.
--->
 
 **Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
 **Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research meta/research`
@@ -33,31 +23,72 @@ re-editing this block.
 **Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh notes meta/notes`
 **Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp meta/tmp`
 
-**Visualiser URL (not yet running)**: !`bash ${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/launch-server.sh`
+**Visualiser**: !`bash ${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/launch-server.sh`
 
-## Availability
+## Server lifecycle
 
 <!--
-Context for Claude only — do not relay to the user:
-This is a scaffold release. The Rust server that will eventually
-back the URL line is added in a later phase. No server is running and no
-port is listening.
+Context for Claude only — do not relay to the user verbatim:
+The visualiser server is a locally-backgrounded Rust process. It
+binds a random high port on 127.0.0.1 and exits automatically when
+idle for 30 minutes, when the process that launched the server
+exits, or when `stop-server.sh` is invoked. Re-running
+`/accelerator:visualise` while the server is up reuses the
+existing instance. Note: "the process that launched the server"
+means different things by invocation mode — for the slash command
+it's the Claude Code harness; for the CLI wrapper it's the
+terminal shell. Don't assume Claude Code specifically.
 -->
 
-Tell the user, without referring to phases, sub-phases, or release
-numbers: the visualiser UI isn't ready yet — this is a scaffold
-release. There's no server to connect to; the `placeholder://` line
-above will be replaced by a real URL in a future release. Do not
-attempt to open the placeholder in a browser.
+The server runs in the background on your local machine. The
+`**Visualiser**:` line above renders the URL on success, or a
+JSON error line on failure. Tell the user:
+- Open the URL in a browser — no HTML UI is served yet; only a
+  plain-text placeholder response that confirms the server is up.
+- Re-running this command returns the same URL if the server is
+  already running.
+- The server exits on its own after 30 minutes idle, or when the
+  process that launched it exits. To stop it explicitly, run the
+  command below.
+- If the line above contains a JSON `{"error":...}` object, the
+  server isn't running; read the `hint` field in the JSON for
+  remediation.
 
-To use the same entry point from a terminal (also a placeholder
-today), symlink the wrapper onto `$PATH`. Copy the full command
-below — the path is pre-resolved for you:
+**Stop command**: !`printf 'bash "%s"' "${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/stop-server.sh"`
+**Status command**: !`printf 'bash "%s" status' "${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/stop-server.sh"`
+
+### Overrides
+
+By default the plugin downloads a verified per-arch binary from
+GitHub Releases on first use. Two overrides exist for dev,
+air-gapped, or pinned-binary workflows:
+
+1. **Environment variable** (one-shot, shell-scoped):
+   `ACCELERATOR_VISUALISER_BIN=<path>`. Bypasses SHA-256
+   verification; use for local dev builds.
+2. **Config key** (persistent, per-project):
+
+   ```yaml
+   ---
+   visualiser:
+     binary: <absolute or project-relative path>
+   ---
+   ```
+
+   in `.claude/accelerator.md` (team-committed) or
+   `.claude/accelerator.local.md` (personal, gitignored).
+   Relative paths resolve against the project root.
+
+   The team-committed form is trusted on par with the rest of
+   the repo — anyone approving a PR that changes it should
+   treat the value as code, not data.
+
+The release-binary mirror URL can be overridden via
+`ACCELERATOR_VISUALISER_RELEASES_URL=<base-url>` (air-gapped
+or proxy-hosted mirrors).
+
+To run the visualiser from a terminal, symlink the CLI wrapper:
 
 **Install command**: !`printf 'ln -s "%s" "%s"' "${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/cli/accelerator-visualiser" "$HOME/.local/bin/accelerator-visualiser"`
-
-If `accelerator-visualiser` is not found after running that command,
-make sure `$HOME/.local/bin` is on your `$PATH` (on macOS you may
-need to add `export PATH="$HOME/.local/bin:$PATH"` to your shell rc).
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh visualise`
