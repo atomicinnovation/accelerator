@@ -71,6 +71,38 @@ assert_stderr_empty() {
   fi
 }
 
+assert_json_eq() {
+  local test_name="$1" jq_filter="$2" expected="$3" json_path="$4"
+  local actual
+  actual=$(jq -r "$jq_filter" "$json_path" 2>/dev/null || echo '__jq_error__')
+  if [ "$expected" = "$actual" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Filter:   $jq_filter"
+    echo "    Expected: $(printf '%q' "$expected")"
+    echo "    Actual:   $(printf '%q' "$actual")"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_stderr_contains() {
+  local test_name="$1" substr="$2"
+  shift 2
+  local stderr
+  stderr=$("$@" 2>&1 >/dev/null) || true
+  if echo "$stderr" | grep -qF "$substr"; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected stderr to contain: $(printf '%q' "$substr")"
+    echo "    Actual stderr: $stderr"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
 test_summary() {
   echo ""
   echo "=== Results ==="

@@ -2232,13 +2232,9 @@ Responsibilities, in strict order:
    placeholder hashes and must use an override.
 8. Call `scripts/write-visualiser-config.sh` with the resolved paths + owner PID
    + plugin version to write `<tmp>/visualiser/config.json`.
-9.
-
-`nohup <binary> --config <tmp>/visualiser/config.json >>
-<tmp>/visualiser/server.log 2>&1 &`; `disown`. **No `echo $! > server.pid`** —
-the Rust server writes its own `server.pid` atomically from inside `server::run`
-(Phase 2.3).
-
+9. `nohup <binary> --config <tmp>/visualiser/config.json >> <tmp>/visualiser/server.log 2>&1 &`; 
+    `disown`. **No `echo $! > server.pid`** — the Rust server writes its own 
+    `server.pid` atomically from inside `server::run` (Phase 2.3).
 10. Poll `<tmp>/visualiser/server-info.json` for up to 5s; read and strictly
     validate the `url` field; print it on stdout under the `**Visualiser URL**:`
     label. On timeout, print a JSON error and exit 1.
@@ -2898,45 +2894,46 @@ of the launcher, not the real one). No change needed.
 #### Automated Verification
 
 - [ ] `bash skills/visualisation/visualise/scripts/test-launch-server.sh` exits
-  0.
-- [ ]  `[ -x skills/visualisation/visualise/scripts/write-visualiser-config.sh
-  ]`.
-- [ ]  `skills/visualisation/visualise/scripts/write-visualiser-config.sh
-  --plugin-root <root> --plugin-version 0.0.0-test --project-root <proj>
-  --tmp-dir <tmp> --log-file <log> --owner-pid 0 | jq -e '.doc_paths | length ==
-  9'` exits 0 (standalone invocation produces a valid config.json body).
+      0.
+- [ ] `[ -x skills/visualisation/visualise/scripts/write-visualiser-config.sh]`.
+- [ ] `skills/visualisation/visualise/scripts/write-visualiser-config.sh
+      --plugin-root <root> --plugin-version 0.0.0-test --project-root <proj>
+      --tmp-dir <tmp> --log-file <log> --owner-pid 0 | jq -e '.doc_paths | 
+      length == 9'` exits 0 (standalone invocation produces a valid config.json 
+      body).
 - [ ] `mise run test:integration` exits 0 (glob picks up the new suite without
   edits).
-- [ ]  `ACCELERATOR_VISUALISER_BIN=…/target/release/accelerator-visualiser bash
-  skills/visualisation/visualise/scripts/launch-server.sh` prints a
-  `**Visualiser URL**: http://127.0.0.1:<port>` line and `curl -fsS "$URL"`
-  returns 200.
+- [ ] `ACCELERATOR_VISUALISER_BIN=…/target/release/accelerator-visualiser bash
+      skills/visualisation/visualise/scripts/launch-server.sh` prints a
+      `**Visualiser URL**: http://127.0.0.1:<port>` line and `curl -fsS "$URL"`
+      returns 200.
 - [ ] In a project whose `.claude/accelerator.local.md` sets `visualiser.binary:
-  <abs path to built binary>` and with no env var set, the launcher execs the
-  configured binary (provable via the config-override test case in
-  `test-launch-server.sh`).
+      <abs path to built binary>` and with no env var set, the launcher execs 
+      the configured binary (provable via the config-override test case in
+      `test-launch-server.sh`).
 - [ ] With both env var and config key set, the env var wins (provable via the
-  precedence test case).
+      precedence test case).
 - [ ] With `visualiser.binary` pointing at a non-existent path, the launcher
-  exits 1 with `{"error":"configured visualiser.binary is not executable",...}`
-  on stderr.
+      exits 1 with `{"error":"configured visualiser.binary is not executable",...}`
+      on stderr.
 - [ ] With placeholder checksums (`sha256:0…0`) in `checksums.json` and no
-  override, the launcher fails with `{"error":"no released binary for this
-  plugin version",...,"hint":"set ACCELERATOR_VISUALISER_BIN=<path> ..."}` — the
-  sentinel is not a usable verification path.
+      override, the launcher fails with `{"error":"no released binary for this
+      plugin version",...,"hint":"set ACCELERATOR_VISUALISER_BIN=<path> ..."}`
+      — the sentinel is not a usable verification path.
 - [ ] With `ACCELERATOR_VISUALISER_RELEASES_URL` pointing at a local HTTP
-  fixture serving a binary whose hash doesn't match the manifest, the launcher
-  exits with `{"error":"checksum mismatch",...}` (automated via the SHA-256
-  mismatch test in Phase 2.7 harness, see Testing Strategy).
+      fixture serving a binary whose hash doesn't match the manifest, the
+      launcher exits with `{"error":"checksum mismatch",...}` (automated via the 
+      SHA-256 mismatch test in Phase 2.7 harness, see Testing Strategy).
 - [ ] Two concurrent launcher invocations in the same project: the second prints
-  `{"error":"another launcher is running"...}` rather than racing to spawn a
-  duplicate server (provable via a concurrent-launch test case).
+      `{"error":"another launcher is running"...}` rather than racing to spawn a
+      duplicate server (provable via a concurrent-launch test case).
 - [ ] With a stale `server-info.json` recording a PID that is now recycled to a
-  *different* process (spawn a child, record its PID, wait, start an unrelated
-  long-running process hopefully with that PID — or synthesise via the test
-  harness by writing a `server-info.json` with our own PID but a mismatched
-  `start_time`), the launcher detects the identity mismatch, removes the stale
-  files, and starts a fresh server rather than hand out the stale URL.
+      *different* process (spawn a child, record its PID, wait, start an 
+      unrelated long-running process hopefully with that PID — or synthesise 
+      via the test harness by writing a `server-info.json` with our own PID but 
+      a mismatched `start_time`), the launcher detects the identity mismatch, 
+      removes the stale files, and starts a fresh server rather than hand out
+      the stale URL.
 
 #### Manual Verification
 

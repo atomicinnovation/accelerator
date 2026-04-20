@@ -6,42 +6,39 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
 REAL_CLI="$SCRIPT_DIR/../cli/accelerator-visualiser"
-REAL_STUB="$SCRIPT_DIR/launch-server.sh"
 
 TMPDIR_BASE=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_BASE"' EXIT
 
-# Make a relocated copy of the cli/scripts sibling pair. Mutation tests
-# operate on the copy only — the real files are never touched, so a
-# mid-test failure can never corrupt the working tree. This also
-# exercises the wrapper's plugin-root resolution from an arbitrary
-# directory, proving the cli/↔scripts/ sibling contract beyond the
-# in-tree happy path.
+# Make a relocated copy of the cli binary into a cli/scripts sibling pair.
+# TEMP_STUB starts as a simple sentinel so invocation tests work without
+# a full project tree (the real launcher now requires find_repo_root).
 TEMP_SKILL="$TMPDIR_BASE/skill-copy"
 mkdir -p "$TEMP_SKILL/cli" "$TEMP_SKILL/scripts"
 cp "$REAL_CLI" "$TEMP_SKILL/cli/accelerator-visualiser"
-cp "$REAL_STUB" "$TEMP_SKILL/scripts/launch-server.sh"
-chmod +x "$TEMP_SKILL/cli/accelerator-visualiser" "$TEMP_SKILL/scripts/launch-server.sh"
+chmod +x "$TEMP_SKILL/cli/accelerator-visualiser"
 TEMP_CLI="$TEMP_SKILL/cli/accelerator-visualiser"
 TEMP_STUB="$TEMP_SKILL/scripts/launch-server.sh"
 
-echo "=== accelerator-visualiser CLI wrapper (Phase 1) ==="
+INITIAL_SENTINEL="cli-wrapper-initial-sentinel"
+cat > "$TEMP_STUB" << SENTINELEOF
+#!/usr/bin/env bash
+echo "$INITIAL_SENTINEL"
+SENTINELEOF
+chmod +x "$TEMP_STUB"
+
+echo "=== accelerator-visualiser CLI wrapper ==="
 echo ""
 
 echo "Test: wrapper is executable"
 assert_file_executable "executable bit set" "$REAL_CLI"
 
-echo "Test: wrapper exits 0"
-assert_exit_code "exits 0" 0 bash "$REAL_CLI"
-
-echo "Test: wrapper output matches stub output"
-REAL_OUTPUT=$(bash "$REAL_CLI")
-STUB_OUTPUT=$(bash "$REAL_STUB")
-assert_eq "wrapper output equals stub output" "$STUB_OUTPUT" "$REAL_OUTPUT"
+echo "Test: wrapper exits 0 (via relocated tree with sentinel stub)"
+assert_exit_code "exits 0" 0 bash "$TEMP_CLI"
 
 echo "Test: wrapper works from a relocated tree"
-RELOCATED_OUTPUT=$(bash "$TEMP_CLI")
-assert_eq "relocated wrapper output equals stub output" "$STUB_OUTPUT" "$RELOCATED_OUTPUT"
+RELOCATED_OUTPUT=$(bash "$TEMP_CLI") || true
+assert_eq "relocated wrapper delegates to sentinel stub" "$INITIAL_SENTINEL" "$RELOCATED_OUTPUT"
 
 echo "Test: wrapper actually delegates (proven by sentinel)"
 # Replace the TEMP_STUB with a unique-UUID echo. If the wrapper ever
@@ -69,10 +66,17 @@ EXPECTED_ARGS=$(printf -- "--foo\nbar\nhello world\n\na b c")
 assert_eq "wrapper preserves \$@ quoting" "$EXPECTED_ARGS" "$ARG_OUTPUT"
 
 echo "Test: wrapper works via symlink (skip if filesystem forbids symlinks)"
+# Restore a sentinel stub before the symlink test (it was replaced above).
+LINK_SENTINEL="symlink-sentinel-$$"
+cat > "$TEMP_STUB" << LINKEOF
+#!/usr/bin/env bash
+echo "$LINK_SENTINEL"
+LINKEOF
+chmod +x "$TEMP_STUB"
 LINK="$TMPDIR_BASE/accelerator-visualiser-link"
-if ln -s "$REAL_CLI" "$LINK" 2>/dev/null; then
-  LINK_OUTPUT=$("$LINK")
-  assert_eq "symlink output equals stub output" "$STUB_OUTPUT" "$LINK_OUTPUT"
+if ln -s "$TEMP_CLI" "$LINK" 2>/dev/null; then
+  LINK_OUTPUT=$("$LINK") || true
+  assert_eq "symlink output equals sentinel" "$LINK_SENTINEL" "$LINK_OUTPUT"
   assert_exit_code "symlink exits 0" 0 "$LINK"
 else
   echo "  SKIP: filesystem does not permit symlinks"
@@ -94,7 +98,13 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: stderr is empty on happy path"
-assert_stderr_empty "no stderr output" bash "$REAL_CLI"
+echo "Test: stderr is empty on happy path (sentinel stub)"
+# Restore a quiet sentinel so the wrapper produces no stderr.
+cat > "$TEMP_STUB" <<'EOF'
+#!/usr/bin/env bash
+echo "ok"
+EOF
+chmod +x "$TEMP_STUB"
+assert_stderr_empty "no stderr output" bash "$TEMP_CLI"
 
 test_summary
