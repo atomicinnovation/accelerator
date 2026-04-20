@@ -6,66 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_ROOT="${ACCELERATOR_VISUALISER_SKILL_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 source "$PLUGIN_ROOT/scripts/vcs-common.sh"
-
-# ─── helpers ─────────────────────────────────────────────────
-
-die_json() {
-  echo "$1" >&2
-  exit 1
-}
-
-sha256_of() {
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$1" | awk '{print $1}'
-  else
-    shasum -a 256 "$1" | awk '{print $1}'
-  fi
-}
-
-download_to() {
-  local url="$1" dest="$2"
-  if command -v curl >/dev/null 2>&1; then
-    if [ -n "${ACCELERATOR_VISUALISER_INSECURE_DOWNLOAD:-}" ]; then
-      curl -fsSL --retry 3 --max-redirs 3 --max-filesize 33554432 -o "$dest" "$url"
-    else
-      curl -fsSL --proto '=https' --tlsv1.2 --retry 3 --max-redirs 3 \
-        --max-filesize 33554432 -o "$dest" "$url"
-    fi
-  elif command -v wget >/dev/null 2>&1; then
-    wget -q --tries=3 --max-redirect=3 -O "$dest" "$url"
-  else
-    return 127
-  fi
-}
-
-ppid_of() {
-  local pid="$1"
-  if [ -r "/proc/$pid/status" ]; then
-    awk '/^PPid:/ {print $2}' "/proc/$pid/status"
-  elif command -v ps >/dev/null 2>&1; then
-    ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' '
-  else
-    return 1
-  fi
-}
-
-start_time_of() {
-  local pid="$1"
-  if [ -r "/proc/$pid/stat" ] && [ -r "/proc/stat" ]; then
-    local tail; tail="$(sed -E 's/.*\) //' "/proc/$pid/stat")"
-    local starttime_ticks; starttime_ticks="$(echo "$tail" | awk '{print $20}')"
-    local hz; hz="$(getconf CLK_TCK 2>/dev/null || echo 0)"
-    [ "$hz" -gt 0 ] || return 1
-    local btime; btime="$(awk '/^btime / {print $2}' /proc/stat)"
-    echo $(( btime + starttime_ticks / hz ))
-  elif command -v ps >/dev/null 2>&1 && [ "$(uname -s)" = "Darwin" ]; then
-    local out; out="$(ps -p "$pid" -o lstart= 2>/dev/null | tr -s ' ' ' ' | sed 's/^ //;s/ $//')"
-    [ -n "$out" ] || return 1
-    date -j -f "%a %b %d %H:%M:%S %Y" "$out" +%s 2>/dev/null
-  else
-    return 1
-  fi
-}
+source "$SCRIPT_DIR/launcher-helpers.sh"
 
 # ─── top-level pipeline ──────────────────────────────────────
 

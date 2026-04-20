@@ -287,7 +287,7 @@ pub(crate) fn process_start_time(pid: i32) -> Option<u64> {
     #[cfg(target_os = "macos")]
     {
         // Delegate to BSD `date -j -f` so Rust and shell
-        // (scripts/_launcher-helpers.sh `start_time_of`) produce
+        // (scripts/launcher-helpers.sh `start_time_of`) produce
         // byte-identical epoch-seconds. The alternative — parsing
         // the wall-clock components manually — would diverge from
         // the shell whenever the host isn't in UTC, because BSD
