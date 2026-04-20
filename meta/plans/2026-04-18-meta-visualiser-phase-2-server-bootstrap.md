@@ -2091,13 +2091,13 @@ async fn owner_pid_death_triggers_shutdown() {
 
 #### Automated Verification
 
-- [ ]  `cargo test --manifest-path
+- [x]  `cargo test --manifest-path
   skills/visualisation/visualise/server/Cargo.toml lifecycle::tests` passes
   (unit tests for `owner_alive`).
-- [ ]  `cargo test --manifest-path
+- [x]  `cargo test --manifest-path
   skills/visualisation/visualise/server/Cargo.toml --test lifecycle_idle` passes
   within 5s.
-- [ ]  `cargo test --manifest-path
+- [x]  `cargo test --manifest-path
   skills/visualisation/visualise/server/Cargo.toml --test lifecycle_owner`
   passes within 5s.
 

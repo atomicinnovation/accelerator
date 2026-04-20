@@ -82,8 +82,14 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
     let state = Arc::new(AppState {
         cfg: Arc::new(cfg),
     });
+    let activity = Arc::new(crate::activity::Activity::new());
+
     let app = Router::new()
         .route("/", get(placeholder_root))
+        .route_layer(axum::middleware::from_fn_with_state(
+            activity.clone(),
+            crate::activity::middleware,
+        ))
         .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
         .layer(TimeoutLayer::new(REQUEST_TIMEOUT))
         .layer(middleware::from_fn(host_header_guard))
@@ -127,6 +133,13 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
 
     let (tx, mut rx) = mpsc::channel::<ShutdownReason>(4);
     spawn_signal_handlers(tx.clone());
+    crate::lifecycle::spawn(
+        activity.clone(),
+        state.cfg.owner_pid,
+        state.cfg.owner_start_time,
+        crate::lifecycle::Settings::DEFAULT,
+        tx.clone(),
+    );
 
     let info_path = info_path.to_path_buf();
     let pid_path = info_path.with_file_name("server.pid");
