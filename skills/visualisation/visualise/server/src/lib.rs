@@ -6,7 +6,7 @@
 
 pub mod config;
 pub mod server;
+pub mod shutdown;
 
 // Modules are added in later sub-phases:
-// 2.4 → shutdown  (ShutdownReason + signal handlers)
 // 2.5 → activity, lifecycle

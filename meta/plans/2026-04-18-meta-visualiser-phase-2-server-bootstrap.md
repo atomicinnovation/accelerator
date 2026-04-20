@@ -1741,17 +1741,17 @@ async fn server_writes_pid_file_with_its_own_pid() {
 
 #### Automated Verification
 
-- [ ]  `cargo test --manifest-path
+- [x]  `cargo test --manifest-path
   skills/visualisation/visualise/server/Cargo.toml --test shutdown` passes
   (including `shutdown_preserves_state_on_stopped_write_failure`).
-- [ ]  `cargo test --manifest-path
+- [x]  `cargo test --manifest-path
   skills/visualisation/visualise/server/Cargo.toml
   server::tests::write_server_stopped_produces_parseable_json` passes.
-- [ ]  `cargo test --manifest-path
+- [x]  `cargo test --manifest-path
   skills/visualisation/visualise/server/Cargo.toml
   server::tests::shutdown_preserves_info_when_stopped_write_fails` passes —
   verifies disk-full shutdown leaves info+pid in place.
-- [ ] The integration test's 30-second timeout passes consistently on a
+- [x] The integration test's 30-second timeout passes consistently on a
   reasonably loaded dev machine; if it flakes, a fix lands in the same sub-phase
   rather than being deferred.
 

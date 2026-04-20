@@ -20,11 +20,13 @@ use axum::{
 };
 use serde::Serialize;
 use tokio::net::TcpListener;
+use tokio::sync::mpsc;
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use tracing::info;
 
 use crate::config::Config;
+use crate::shutdown::ShutdownReason;
 
 /// 1 MiB cap on request bodies. The placeholder route never reads a body,
 /// but the cap is the default-deny baseline every later phase inherits.
@@ -123,7 +125,86 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
     })?;
     info!(url = %info.url, pid = info.pid, start_time = ?info.start_time, "server-started");
 
-    axum::serve(listener, app).await?;
+    let (tx, mut rx) = mpsc::channel::<ShutdownReason>(4);
+    spawn_signal_handlers(tx.clone());
+
+    let info_path = info_path.to_path_buf();
+    let pid_path = info_path.with_file_name("server.pid");
+    let stopped_path = info_path.with_file_name("server-stopped.json");
+    let shutdown_signal = async move {
+        // `rx.recv()` only returns None if every Sender has been
+        // dropped before producing a reason — a programming bug,
+        // not a real shutdown. Distinguish it via the dedicated
+        // `StartupFailure` variant so the audit trail records the
+        // anomaly instead of falsely attributing it to SIGTERM.
+        let reason = rx.recv().await.unwrap_or(ShutdownReason::StartupFailure);
+        info!(?reason, "shutdown requested");
+        // Order matters: write server-stopped.json first, then
+        // remove server-info.json + server.pid only if the stopped
+        // write succeeded. If the stopped write fails (disk-full,
+        // read-only FS, EXDEV), leave info.json + server.pid in
+        // place — the launcher's stale-PID reuse path treats that
+        // as "previous instance left state behind" and recovers
+        // cleanly on next launch. The reverse order, or
+        // unconditional removal, yields a {no info, no stopped}
+        // state that breaks the post-shutdown audit invariant.
+        match write_server_stopped(&stopped_path, reason) {
+            Ok(()) => {
+                let _ = std::fs::remove_file(&info_path);
+                let _ = std::fs::remove_file(&pid_path);
+            }
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "failed to write server-stopped.json; preserving server-info.json and server.pid for next-launch recovery"
+                );
+            }
+        }
+    };
+
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal)
+        .await?;
+    Ok(())
+}
+
+fn spawn_signal_handlers(tx: mpsc::Sender<ShutdownReason>) {
+    use tokio::signal::unix::{signal, SignalKind};
+    tokio::spawn({
+        let tx = tx.clone();
+        async move {
+            let mut s = signal(SignalKind::terminate()).expect("SIGTERM handler");
+            s.recv().await;
+            let _ = tx.send(ShutdownReason::Sigterm).await;
+        }
+    });
+    tokio::spawn(async move {
+        let mut s = signal(SignalKind::interrupt()).expect("SIGINT handler");
+        s.recv().await;
+        let _ = tx.send(ShutdownReason::Sigint).await;
+    });
+}
+
+fn write_server_stopped(path: &Path, reason: ShutdownReason) -> std::io::Result<()> {
+    let record = serde_json::json!({
+        "reason": reason,
+        // System-clock read — if this errs (pre-epoch clock) we
+        // emit a null timestamp rather than a silent 0 that would
+        // read as a legitimate 1970-01-01 exit.
+        "timestamp": std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .ok()
+            .map(|d| d.as_secs()),
+    });
+    let dir = path.parent().ok_or_else(|| std::io::Error::new(
+        std::io::ErrorKind::InvalidInput, "server-stopped.json path has no parent"))?;
+    std::fs::create_dir_all(dir)?;
+    let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
+    serde_json::to_writer_pretty(&mut tmp, &record)?;
+    tmp.as_file_mut().write_all(b"\n")?;
+    use std::os::unix::fs::PermissionsExt;
+    tmp.as_file().set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    tmp.persist(path)?;
     Ok(())
 }
 
@@ -326,6 +407,46 @@ mod tests {
         cfg.host = "0.0.0.0".into();
         let err = run(cfg, &dir.path().join("server-info.json")).await.unwrap_err();
         assert!(matches!(err, ServerError::NonLoopbackHost(_)), "got {err:?}");
+    }
+
+    #[test]
+    fn write_server_stopped_produces_parseable_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("server-stopped.json");
+        write_server_stopped(&p, ShutdownReason::Sigterm).unwrap();
+        let v: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
+        assert_eq!(v["reason"], "sigterm");
+        assert!(v["timestamp"].as_u64().unwrap() > 0);
+    }
+
+    #[tokio::test]
+    async fn shutdown_preserves_info_when_stopped_write_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        let info_path = dir.path().join("server-info.json");
+        let pid_path = dir.path().join("server.pid");
+        let stopped_path = dir.path().join("server-stopped.json");
+
+        // Seed fake lifecycle files as if the server were live.
+        std::fs::write(&info_path, r#"{"url":"http://127.0.0.1:1"}"#).unwrap();
+        std::fs::write(&pid_path, "9999\n").unwrap();
+
+        // Block the stopped-file write by occupying its path with a
+        // non-empty directory that tempfile::persist cannot replace.
+        std::fs::create_dir(&stopped_path).unwrap();
+        std::fs::write(stopped_path.join("blocker"), "x").unwrap();
+
+        match write_server_stopped(&stopped_path, ShutdownReason::Sigterm) {
+            Ok(()) => panic!("expected write_server_stopped to fail"),
+            Err(e) => {
+                tracing::warn!(error = %e, "expected failure");
+            }
+        }
+
+        assert!(info_path.exists(),
+            "server-info.json must be preserved when stopped-write fails");
+        assert!(pid_path.exists(),
+            "server.pid must be preserved when stopped-write fails");
     }
 
     #[tokio::test]
