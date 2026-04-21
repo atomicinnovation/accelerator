@@ -1,5 +1,6 @@
 ---
 ticket_id: NNNN                              # from ticket-next-number.sh
+title: "Title as Short Noun Phrase"          # human-readable title; kept in sync with body H1
 date: "YYYY-MM-DDTHH:MM:SS+00:00"            # date -u +%Y-%m-%dT%H:%M:%S+00:00
 author: Author Name                          # your name or GitHub handle
 type: story                                  # story | epic | task | bug | spike

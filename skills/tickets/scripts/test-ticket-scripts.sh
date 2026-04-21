@@ -435,4 +435,274 @@ assert_eq "outputs draft (no orphan quote)" "draft" "$OUTPUT"
 
 echo ""
 
+# ============================================================
+echo "=== ticket-update-tags.sh ==="
+echo ""
+
+UPDATE_TAGS="$SCRIPT_DIR/ticket-update-tags.sh"
+
+# Helper: create a ticket with specific tags content
+make_tagged_ticket() {
+  local repo="$1"
+  local tags_line="$2"
+  mkdir -p "$repo/meta/tickets"
+  cat > "$repo/meta/tickets/0001-test.md" << FIXTURE
+---
+ticket_id: 0001
+status: draft
+${tags_line}
+---
+
+# 0001: Test Ticket
+FIXTURE
+}
+
+# Test 1: Add to existing flow-style array
+echo "Test: Add to existing flow-style array"
+REPO=$(setup_repo)
+make_tagged_ticket "$REPO" "tags: [api, search]"
+OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/tickets/0001-test.md" add backend)
+assert_eq "outputs new array" "[api, search, backend]" "$OUTPUT"
+
+# Test 2: Add duplicate (no-change)
+echo "Test: Add duplicate tag"
+REPO=$(setup_repo)
+make_tagged_ticket "$REPO" "tags: [api, search]"
+OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/tickets/0001-test.md" add api)
+assert_eq "outputs no-change" "no-change" "$OUTPUT"
+
+# Test 3: Remove existing tag
+echo "Test: Remove existing tag"
+REPO=$(setup_repo)
+make_tagged_ticket "$REPO" "tags: [api, backend, search]"
+OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/tickets/0001-test.md" remove backend)
+assert_eq "outputs remaining tags" "[api, search]" "$OUTPUT"
+
+# Test 4: Remove absent tag (no-change)
+echo "Test: Remove absent tag"
+REPO=$(setup_repo)
+make_tagged_ticket "$REPO" "tags: [api, search]"
+OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/tickets/0001-test.md" remove backend)
+assert_eq "outputs no-change" "no-change" "$OUTPUT"
+
+# Test 5: Remove last tag → []
+echo "Test: Remove last tag yields empty array"
+REPO=$(setup_repo)
+make_tagged_ticket "$REPO" "tags: [backend]"
+OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/tickets/0001-test.md" remove backend)
+assert_eq "outputs empty array" "[]" "$OUTPUT"
+
+# Test 6: Remove from empty [] → no-change
+echo "Test: Remove from empty array"
+REPO=$(setup_repo)
+make_tagged_ticket "$REPO" "tags: []"
+OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/tickets/0001-test.md" remove backend)
+assert_eq "outputs no-change" "no-change" "$OUTPUT"
+
+# Test 7: Add to absent field → [new-tag]
+echo "Test: Add to absent tags field"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/tickets"
+cat > "$REPO/meta/tickets/0001-test.md" << 'FIXTURE'
+---
+ticket_id: 0001
+status: draft
+---
+
+# 0001: Test Ticket
+FIXTURE
+OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/tickets/0001-test.md" add backend)
+assert_eq "outputs single-element array" "[backend]" "$OUTPUT"
+
+# Test 8: Add to empty [] → [new-tag]
+echo "Test: Add to empty array"
+REPO=$(setup_repo)
+make_tagged_ticket "$REPO" "tags: []"
+OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/tickets/0001-test.md" add backend)
+assert_eq "outputs single-element array" "[backend]" "$OUTPUT"
+
+# Test 9: Block-style detection → exit 1
+echo "Test: Block-style tags rejected"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/tickets"
+cat > "$REPO/meta/tickets/0001-test.md" << 'FIXTURE'
+---
+ticket_id: 0001
+tags:
+  - api
+  - search
+---
+
+# 0001: Test Ticket
+FIXTURE
+RC=0
+STDERR=$(bash "$UPDATE_TAGS" "$REPO/meta/tickets/0001-test.md" add backend 2>&1 >/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+echo "$STDERR" | grep -q "block format" && echo "  PASS: stderr mentions block format" || { echo "  FAIL: stderr missing block format message"; FAIL=$((FAIL + 1)); }
+
+# Test 10: Non-existent file → exit 1
+echo "Test: Non-existent file"
+RC=0
+STDERR=$(bash "$UPDATE_TAGS" "/nonexistent/file.md" add backend 2>&1 >/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+echo "$STDERR" | grep -q "file not found" && echo "  PASS: stderr mentions file not found" || { echo "  FAIL: stderr missing file not found message"; FAIL=$((FAIL + 1)); }
+
+# Test 11: Missing frontmatter → exit 1
+echo "Test: Missing frontmatter"
+REPO=$(setup_repo)
+cat > "$REPO/no-fm.md" << 'FIXTURE'
+# Just markdown
+
+No frontmatter here.
+FIXTURE
+RC=0
+STDERR=$(bash "$UPDATE_TAGS" "$REPO/no-fm.md" add backend 2>&1 >/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+
+# Test 12: Unclosed frontmatter → exit 1
+echo "Test: Unclosed frontmatter"
+REPO=$(setup_repo)
+cat > "$REPO/unclosed.md" << 'FIXTURE'
+---
+ticket_id: 0001
+tags: [api]
+FIXTURE
+RC=0
+STDERR=$(bash "$UPDATE_TAGS" "$REPO/unclosed.md" add backend 2>&1 >/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+
+# Test 13: Tag containing comma is quoted
+echo "Test: Tag with comma is quoted"
+REPO=$(setup_repo)
+make_tagged_ticket "$REPO" "tags: [api]"
+OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/tickets/0001-test.md" add "one,two")
+assert_eq "outputs quoted tag" '[api, "one,two"]' "$OUTPUT"
+
+# Test 14: Tag containing colon is quoted
+echo "Test: Tag with colon is quoted"
+REPO=$(setup_repo)
+make_tagged_ticket "$REPO" "tags: [api]"
+OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/tickets/0001-test.md" add "key:val")
+assert_eq "outputs quoted tag" '[api, "key:val"]' "$OUTPUT"
+
+# Test 15: Tag containing hash is quoted
+echo "Test: Tag with hash is quoted"
+REPO=$(setup_repo)
+make_tagged_ticket "$REPO" "tags: [api]"
+OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/tickets/0001-test.md" add "tag#1")
+assert_eq "outputs quoted tag" '[api, "tag#1"]' "$OUTPUT"
+
+echo ""
+
+# ============================================================
+echo "=== ticket-template-field-hints.sh ==="
+echo ""
+
+FIELD_HINTS="$SCRIPT_DIR/ticket-template-field-hints.sh"
+
+# Test 1: Field with trailing comment → parsed values (status)
+echo "Test: Status field parsed from template comment"
+OUTPUT=$(bash "$FIELD_HINTS" status)
+EXPECTED=$(printf "draft\nready\nin-progress\nreview\ndone\nblocked\nabandoned")
+assert_eq "returns 7 status values" "$EXPECTED" "$OUTPUT"
+
+# Test 2: Type field parsed from template comment
+echo "Test: Type field parsed from template comment"
+OUTPUT=$(bash "$FIELD_HINTS" type)
+EXPECTED=$(printf "story\nepic\ntask\nbug\nspike")
+assert_eq "returns 5 type values" "$EXPECTED" "$OUTPUT"
+
+# Test 3: Priority field parsed from template comment
+echo "Test: Priority field parsed from template comment"
+OUTPUT=$(bash "$FIELD_HINTS" priority)
+EXPECTED=$(printf "high\nmedium\nlow")
+assert_eq "returns 3 priority values" "$EXPECTED" "$OUTPUT"
+
+# Test 4: Unknown field with no comment → empty output
+echo "Test: Unknown field returns empty output"
+OUTPUT=$(bash "$FIELD_HINTS" nonexistent)
+assert_eq "returns empty string" "" "$OUTPUT"
+
+# Test 5: User-overridden template with custom values
+echo "Test: User-overridden template with custom values"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+cat > "$REPO/meta/templates/ticket.md" << 'FIXTURE'
+---
+ticket_id: NNNN
+status: open                                   # open | closed | wontfix
+type: feature                                  # feature | defect
+priority: p1                                   # p1 | p2 | p3 | p4
+---
+
+# NNNN: Title
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$FIELD_HINTS" status)
+EXPECTED=$(printf "open\nclosed\nwontfix")
+assert_eq "returns custom status values" "$EXPECTED" "$OUTPUT"
+
+# Test 6: config-read-template failure → hardcoded fallback for known fields
+echo "Test: Template read failure falls back to hardcoded defaults"
+# Create a repo with no template at all and set PLUGIN_ROOT to a nonexistent
+# plugin to force config-read-template.sh to fail
+REPO=$(setup_repo)
+# Override PLUGIN_ROOT to simulate failure — run in subshell with modified env
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="/nonexistent/plugin" bash "$FIELD_HINTS" status 2>/dev/null) || true
+EXPECTED=$(printf "draft\nready\nin-progress\nreview\ndone\nblocked\nabandoned")
+assert_eq "returns hardcoded status values" "$EXPECTED" "$OUTPUT"
+
+# Test 7: Field with no trailing comment → hardcoded fallback
+echo "Test: Field with no comment falls back to hardcoded"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/templates"
+cat > "$REPO/meta/templates/ticket.md" << 'FIXTURE'
+---
+ticket_id: NNNN
+status: draft
+type: story
+priority: medium
+---
+
+# NNNN: Title
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$FIELD_HINTS" status)
+EXPECTED=$(printf "draft\nready\nin-progress\nreview\ndone\nblocked\nabandoned")
+assert_eq "returns hardcoded status fallback" "$EXPECTED" "$OUTPUT"
+
+# Test 8: Tripwire — hardcoded fallback values match shipping template's comments
+echo "Test: Tripwire — hardcoded fallbacks match shipping template"
+# Parse shipping template status comment directly
+SHIPPING_TEMPLATE="$PLUGIN_ROOT/templates/ticket.md"
+STATUS_LINE=$(grep "^status:" "$SHIPPING_TEMPLATE")
+STATUS_COMMENT="${STATUS_LINE#*#}"
+SHIPPING_VALUES=""
+while IFS= read -r token; do
+  token=$(echo "$token" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  [ -n "$token" ] && SHIPPING_VALUES="${SHIPPING_VALUES}${SHIPPING_VALUES:+$'\n'}${token}"
+done < <(echo "$STATUS_COMMENT" | tr '|' '\n')
+HARDCODED_VALUES=$(cd /tmp && CLAUDE_PLUGIN_ROOT="/nonexistent" bash "$FIELD_HINTS" status 2>/dev/null) || true
+assert_eq "hardcoded status matches shipping template" "$SHIPPING_VALUES" "$HARDCODED_VALUES"
+
+TYPE_LINE=$(grep "^type:" "$SHIPPING_TEMPLATE")
+TYPE_COMMENT="${TYPE_LINE#*#}"
+SHIPPING_VALUES=""
+while IFS= read -r token; do
+  token=$(echo "$token" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  [ -n "$token" ] && SHIPPING_VALUES="${SHIPPING_VALUES}${SHIPPING_VALUES:+$'\n'}${token}"
+done < <(echo "$TYPE_COMMENT" | tr '|' '\n')
+HARDCODED_VALUES=$(cd /tmp && CLAUDE_PLUGIN_ROOT="/nonexistent" bash "$FIELD_HINTS" type 2>/dev/null) || true
+assert_eq "hardcoded type matches shipping template" "$SHIPPING_VALUES" "$HARDCODED_VALUES"
+
+PRIORITY_LINE=$(grep "^priority:" "$SHIPPING_TEMPLATE")
+PRIORITY_COMMENT="${PRIORITY_LINE#*#}"
+SHIPPING_VALUES=""
+while IFS= read -r token; do
+  token=$(echo "$token" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  [ -n "$token" ] && SHIPPING_VALUES="${SHIPPING_VALUES}${SHIPPING_VALUES:+$'\n'}${token}"
+done < <(echo "$PRIORITY_COMMENT" | tr '|' '\n')
+HARDCODED_VALUES=$(cd /tmp && CLAUDE_PLUGIN_ROOT="/nonexistent" bash "$FIELD_HINTS" priority 2>/dev/null) || true
+assert_eq "hardcoded priority matches shipping template" "$SHIPPING_VALUES" "$HARDCODED_VALUES"
+
+echo ""
+
 test_summary

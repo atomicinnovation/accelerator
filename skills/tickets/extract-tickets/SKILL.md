@@ -418,11 +418,13 @@ Created the following tickets:
   frontmatter (loaded at the top of this skill), not a hardcoded list.
   Default to `story` for items where the type is genuinely ambiguous.
 - All frontmatter fields defined in the ticket template must be populated
-  in every written ticket — `ticket_id` matching the assigned NNNN, `date`,
-  `author`, `type`, `status` (draft), `priority` (medium unless the source
-  implies otherwise), `parent` (empty string unless the source establishes
-  a parent), and `tags` (a YAML array, possibly empty). No field may
-  contain unfilled placeholder text like `[author]` or `NNNN`.
+  in every written ticket — `ticket_id` matching the assigned NNNN, `title`
+  matching the ticket's title, `date`, `author`, `type`, `status` (draft),
+  `priority` (medium unless the source implies otherwise), `parent` (empty
+  string unless the source establishes a parent), and `tags` (a YAML
+  array, possibly empty). No field may contain unfilled placeholder text
+  like `[author]` or `NNNN`. The body H1 format is `# NNNN: <title>` —
+  kept in sync with the frontmatter `title:` field.
 - `date` must use the ticket template's `YYYY-MM-DDTHH:MM:SS+00:00`
   format in UTC (e.g. obtained via `date -u +%Y-%m-%dT%H:%M:%S+00:00`).
 - `author` is sourced in this order: configuration if present, then the

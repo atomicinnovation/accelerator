@@ -325,25 +325,25 @@ ticket-template-field-hints.sh <field>
 
 ### Prerequisite Success Criteria
 
-- [ ] `grep -n "^title:" templates/ticket.md` returns a line
+- [x] `grep -n "^title:" templates/ticket.md` returns a line
 - [ ] A ticket created by `/create-ticket` after P.2 contains a
   non-empty `title:` frontmatter field whose value matches the body H1
   suffix after the `NNNN: ` prefix
 - [ ] A ticket extracted by `/extract-tickets` after P.3 contains a
   non-empty `title:` frontmatter field matching the body H1 suffix
-- [ ] File exists: `skills/tickets/scripts/ticket-update-tags.sh`
-- [ ] `ticket-update-tags.sh` tests pass within `test-ticket-scripts.sh`
+- [x] File exists: `skills/tickets/scripts/ticket-update-tags.sh`
+- [x] `ticket-update-tags.sh` tests pass within `test-ticket-scripts.sh`
   (add, remove, duplicate, absent, empty, last-removal, block-style,
   file-not-found, malformed-frontmatter, special characters per
   delimiter type)
-- [ ] File exists: `skills/tickets/scripts/ticket-template-field-hints.sh`
-- [ ] `ticket-template-field-hints.sh status` returns the 7 shipping
+- [x] File exists: `skills/tickets/scripts/ticket-template-field-hints.sh`
+- [x] `ticket-template-field-hints.sh status` returns the 7 shipping
   default statuses (one per line)
-- [ ] `ticket-template-field-hints.sh` tests pass within
+- [x] `ticket-template-field-hints.sh` tests pass within
   `test-ticket-scripts.sh` (comment parsing, fallback, unknown field,
   custom template, config-read-template failure, fallback-vs-template
   tripwire)
-- [ ] The Phase 1 regression suite still passes
+- [x] The Phase 1 regression suite still passes
   (`bash skills/tickets/scripts/test-ticket-scripts.sh`)
 
 ---

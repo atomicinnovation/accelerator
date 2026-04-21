@@ -279,11 +279,13 @@ Ticket created: `{tickets_dir}/NNNN-kebab-slug.md`
   the top of this skill), not a hardcoded list. Default to `story` when the
   type is genuinely ambiguous.
 - All frontmatter fields defined in the ticket template must be populated
-  in every written ticket: `ticket_id` matching the assigned NNNN, `date`,
-  `author`, `type`, `status` (draft), `priority` (medium unless the user
-  specified otherwise), `parent` (empty string unless a parent was
-  established), and `tags` (a YAML array, possibly empty). No field may
-  contain unfilled placeholder text like `[author]` or `NNNN`.
+  in every written ticket: `ticket_id` matching the assigned NNNN, `title`
+  matching the user-approved title, `date`, `author`, `type`, `status`
+  (draft), `priority` (medium unless the user specified otherwise),
+  `parent` (empty string unless a parent was established), and `tags`
+  (a YAML array, possibly empty). No field may contain unfilled
+  placeholder text like `[author]` or `NNNN`. The body H1 format is
+  `# NNNN: <title>` — kept in sync with the frontmatter `title:` field.
 - `date` must use the ticket template's `YYYY-MM-DDTHH:MM:SS+00:00` format
   in UTC (e.g. obtained via `date -u +%Y-%m-%dT%H:%M:%S+00:00`).
 - `author` is sourced in this order: configuration if present, then the
