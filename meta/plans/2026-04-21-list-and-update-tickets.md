@@ -683,11 +683,11 @@ Eval scenarios: [the 20 scenarios listed above in Subphase 3.1]
 
 #### Automated Verification
 
-- [ ] Phase 1 regression suite passes: `bash skills/tickets/scripts/test-ticket-scripts.sh`
-- [ ] File exists: `skills/tickets/list-tickets/SKILL.md`
-- [ ] `grep "disable-model-invocation: true" skills/tickets/list-tickets/SKILL.md` matches
-- [ ] `grep "accelerator:reviewer" skills/tickets/list-tickets/SKILL.md` matches
-- [ ] `grep -E "allowed-tools:.*tickets/scripts/\*" skills/tickets/list-tickets/SKILL.md` matches
+- [x] Phase 1 regression suite passes: `bash skills/tickets/scripts/test-ticket-scripts.sh`
+- [x] File exists: `skills/tickets/list-tickets/SKILL.md`
+- [x] `grep "disable-model-invocation: true" skills/tickets/list-tickets/SKILL.md` matches
+- [x] `grep "accelerator:reviewer" skills/tickets/list-tickets/SKILL.md` matches
+- [x] `grep -E "allowed-tools:.*tickets/scripts/\*" skills/tickets/list-tickets/SKILL.md` matches
 
 #### Manual Verification (via `/skill-creator` evals)
 
