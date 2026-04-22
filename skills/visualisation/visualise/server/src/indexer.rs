@@ -10,6 +10,8 @@ use crate::file_driver::{FileDriver, FileDriverError};
 use crate::frontmatter::{self, FrontmatterState};
 use crate::slug;
 
+pub const FRONTMATTER_MALFORMED: &str = "malformed";
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexEntry {
