@@ -1,3 +1,4 @@
+mod events;
 mod types;
 mod docs;
 mod templates;
@@ -16,6 +17,7 @@ use crate::server::AppState;
 
 pub fn mount(_state: Arc<AppState>) -> Router<Arc<AppState>> {
     Router::new()
+        .route("/api/events", get(events::events))
         .route("/api/types", get(types::types))
         .route("/api/docs", get(docs::docs_list))
         .route("/api/docs/*path", get(docs::doc_fetch))

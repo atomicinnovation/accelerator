@@ -44,6 +44,7 @@ pub struct AppState {
     pub templates: Arc<crate::templates::TemplateResolver>,
     pub clusters: Arc<RwLock<Vec<crate::clusters::LifecycleCluster>>>,
     pub activity: Arc<crate::activity::Activity>,
+    pub sse_hub: Arc<crate::sse_hub::SseHub>,
 }
 
 impl AppState {
@@ -64,6 +65,7 @@ impl AppState {
         );
         let cluster_seed = crate::clusters::compute_clusters(&indexer.all().await);
         let clusters = Arc::new(RwLock::new(cluster_seed));
+        let sse_hub = Arc::new(crate::sse_hub::SseHub::new(256));
         Ok(Arc::new(Self {
             cfg,
             file_driver: driver,
@@ -71,6 +73,7 @@ impl AppState {
             templates,
             clusters,
             activity,
+            sse_hub,
         }))
     }
 }
@@ -185,6 +188,26 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
         crate::lifecycle::Settings::DEFAULT,
         tx.clone(),
     );
+
+    let watch_dirs: Vec<std::path::PathBuf> =
+        state.cfg.doc_paths.values().cloned().collect();
+    let watcher_handle = crate::watcher::spawn(
+        watch_dirs,
+        state.cfg.project_root.clone(),
+        state.indexer.clone(),
+        state.clusters.clone(),
+        state.sse_hub.clone(),
+        crate::watcher::Settings::DEFAULT,
+    );
+    tokio::spawn(async move {
+        if let Err(e) = watcher_handle.await {
+            tracing::error!(
+                error = %e,
+                "filesystem watcher task exited unexpectedly; \
+                 file-change notifications are disabled until the server restarts",
+            );
+        }
+    });
 
     let info_path = info_path.to_path_buf();
     let pid_path = info_path.with_file_name("server.pid");
