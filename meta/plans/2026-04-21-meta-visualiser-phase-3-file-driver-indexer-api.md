@@ -3380,8 +3380,8 @@ async fn host_header_guard_still_rejects_foreign_hosts() {
 
 #### Automated Verification
 
-- [ ] `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --test router_compose` exits 0 with 3 tests passing.
-- [ ] `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --tests` exits 0 (all Phase 2 integration tests still green).
+- [x] `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --test router_compose` exits 0 with 3 tests passing.
+- [x] `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --tests` exits 0 (all Phase 2 integration tests still green).
 - [ ] `mise run test` exits 0.
 
 #### Manual Verification

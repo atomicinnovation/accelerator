@@ -1,6 +1,7 @@
 {
   "plugin_root": "/abs/path/to/plugin",
   "plugin_version": "1.19.0-pre.2",
+  "project_root": "/abs/path/to/project",
   "tmp_path": "/abs/path/to/project/meta/tmp/visualiser",
   "host": "127.0.0.1",
   "owner_pid": 0,

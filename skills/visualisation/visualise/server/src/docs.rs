@@ -166,6 +166,7 @@ mod tests {
         let cfg = crate::config::Config {
             plugin_root: "/p".into(),
             plugin_version: "test".into(),
+            project_root: "/p".into(),
             tmp_path: "/t".into(),
             host: "127.0.0.1".into(),
             owner_pid: 0,
@@ -191,6 +192,7 @@ mod tests {
         let cfg = crate::config::Config {
             plugin_root: "/p".into(),
             plugin_version: "test".into(),
+            project_root: "/p".into(),
             tmp_path: "/t".into(),
             host: "127.0.0.1".into(),
             owner_pid: 0,

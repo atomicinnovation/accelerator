@@ -80,6 +80,7 @@ fi
 jq -n \
   --arg plugin_root "$PLUGIN_ROOT" \
   --arg plugin_version "$PLUGIN_VERSION" \
+  --arg project_root "$PROJECT_ROOT" \
   --arg tmp_path "$TMP_DIR" \
   --arg host "127.0.0.1" \
   --argjson owner_pid "$OWNER_PID" \
@@ -94,6 +95,7 @@ jq -n \
   '{
     plugin_root: $plugin_root,
     plugin_version: $plugin_version,
+    project_root: $project_root,
     tmp_path: $tmp_path,
     host: $host,
     owner_pid: $owner_pid,

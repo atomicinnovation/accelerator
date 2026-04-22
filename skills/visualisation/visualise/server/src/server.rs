@@ -20,7 +20,7 @@ use axum::{
 };
 use serde::Serialize;
 use tokio::net::TcpListener;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, RwLock};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use tracing::info;
@@ -39,6 +39,46 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct AppState {
     pub cfg: Arc<Config>,
+    pub file_driver: Arc<crate::file_driver::LocalFileDriver>,
+    pub indexer: Arc<crate::indexer::Indexer>,
+    pub templates: Arc<crate::templates::TemplateResolver>,
+    pub clusters: Arc<RwLock<Vec<crate::clusters::LifecycleCluster>>>,
+    pub activity: Arc<crate::activity::Activity>,
+}
+
+impl AppState {
+    pub async fn build(
+        cfg: Config,
+        activity: Arc<crate::activity::Activity>,
+    ) -> Result<Arc<Self>, AppStateError> {
+        let cfg = Arc::new(cfg);
+        let template_roots = crate::file_driver::template_extra_roots(&cfg.templates);
+        let driver = Arc::new(
+            crate::file_driver::LocalFileDriver::new(&cfg.doc_paths, template_roots),
+        );
+        let indexer = Arc::new(
+            crate::indexer::Indexer::build(driver.clone(), cfg.project_root.clone()).await?,
+        );
+        let templates = Arc::new(
+            crate::templates::TemplateResolver::build(&cfg.templates, driver.as_ref()).await,
+        );
+        let cluster_seed = crate::clusters::compute_clusters(&indexer.all().await);
+        let clusters = Arc::new(RwLock::new(cluster_seed));
+        Ok(Arc::new(Self {
+            cfg,
+            file_driver: driver,
+            indexer,
+            templates,
+            clusters,
+            activity,
+        }))
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum AppStateError {
+    #[error("indexer build failed: {0}")]
+    Indexer(#[from] crate::file_driver::FileDriverError),
 }
 
 #[derive(Debug, Serialize)]
@@ -60,6 +100,8 @@ pub struct ServerInfo {
 pub enum ServerError {
     #[error("host {0} is not a loopback address")]
     NonLoopbackHost(String),
+    #[error("startup failed: {0}")]
+    Startup(#[from] AppStateError),
     #[error("failed to bind listener on {addr}: {source}")]
     Bind { addr: String, source: std::io::Error },
     #[error("failed to write lifecycle file {path}: {source}")]
@@ -68,9 +110,24 @@ pub enum ServerError {
     Serve(#[from] std::io::Error),
 }
 
+pub fn build_router(state: Arc<AppState>) -> Router {
+    Router::new()
+        .route("/", get(placeholder_root))
+        .route("/api/healthz", get(healthz))
+        .merge(crate::api::mount(state.clone()))
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.activity.clone(),
+            crate::activity::middleware,
+        ))
+        .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
+        .layer(TimeoutLayer::new(REQUEST_TIMEOUT))
+        .layer(middleware::from_fn(host_header_guard))
+        .with_state(state)
+}
+
+async fn healthz() -> &'static str { "ok\n" }
+
 pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
-    // Defence-in-depth: refuse any non-loopback host even though
-    // the launcher always writes 127.0.0.1.
     let host: IpAddr = cfg
         .host
         .parse()
@@ -79,21 +136,9 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
         return Err(ServerError::NonLoopbackHost(cfg.host.clone()));
     }
 
-    let state = Arc::new(AppState {
-        cfg: Arc::new(cfg),
-    });
     let activity = Arc::new(crate::activity::Activity::new());
-
-    let app = Router::new()
-        .route("/", get(placeholder_root))
-        .route_layer(axum::middleware::from_fn_with_state(
-            activity.clone(),
-            crate::activity::middleware,
-        ))
-        .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
-        .layer(TimeoutLayer::new(REQUEST_TIMEOUT))
-        .layer(middleware::from_fn(host_header_guard))
-        .with_state(state.clone());
+    let state = AppState::build(cfg, activity.clone()).await?;
+    let app = build_router(state.clone());
 
     let bind_addr = SocketAddr::new(host, 0);
     let listener = TcpListener::bind(bind_addr).await.map_err(|source| ServerError::Bind {
@@ -365,6 +410,7 @@ mod tests {
         Config {
             plugin_root: tmp.to_path_buf(),
             plugin_version: "test".into(),
+            project_root: tmp.to_path_buf(),
             tmp_path: tmp.to_path_buf(),
             host: "127.0.0.1".into(),
             owner_pid: 0,

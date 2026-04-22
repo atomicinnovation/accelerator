@@ -1,1 +1,8 @@
-//! Placeholder for Phase 3.8/3.9 (API routes).
+use axum::Router;
+use std::sync::Arc;
+
+use crate::server::AppState;
+
+pub fn mount(_state: Arc<AppState>) -> Router<Arc<AppState>> {
+    Router::new()
+}

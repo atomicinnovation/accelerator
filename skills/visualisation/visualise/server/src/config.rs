@@ -15,6 +15,7 @@ use serde::Deserialize;
 pub struct Config {
     pub plugin_root: PathBuf,
     pub plugin_version: String,
+    pub project_root: PathBuf,
     pub tmp_path: PathBuf,
     pub host: String,
     pub owner_pid: i32,
@@ -106,6 +107,7 @@ mod tests {
         // otherwise silently produce an empty map.
         let json = r#"{
             "plugin_root": "/p", "plugin_version": "0.0.0",
+            "project_root": "/r",
             "tmp_path": "/t", "host": "127.0.0.1", "owner_pid": 0,
             "log_path": "/l", "doc_paths": {}, "templates": {},
             "doc_path": {"decisions": "/typo"}
@@ -120,6 +122,7 @@ mod tests {
         let json = r#"{
             "plugin_root": "/p",
             "plugin_version": "0.0.0",
+            "project_root": "/r",
             "tmp_path": "/t",
             "host": "127.0.0.1",
             "owner_pid": 1,

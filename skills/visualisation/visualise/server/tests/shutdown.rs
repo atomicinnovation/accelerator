@@ -11,6 +11,7 @@ async fn sigterm_removes_info_writes_stopped_and_exits() {
     let config = serde_json::json!({
         "plugin_root": tmp.path(),
         "plugin_version": "0.0.0-test",
+        "project_root": tmp.path(),
         "tmp_path": tmp.path(),
         "host": "127.0.0.1",
         "owner_pid": 0,
@@ -63,6 +64,7 @@ async fn server_writes_pid_file_with_its_own_pid() {
     let config = serde_json::json!({
         "plugin_root": tmp.path(),
         "plugin_version": "0.0.0-test",
+        "project_root": tmp.path(),
         "tmp_path": tmp.path(),
         "host": "127.0.0.1",
         "owner_pid": 0,
@@ -112,6 +114,7 @@ async fn shutdown_preserves_state_on_stopped_write_failure() {
     let config = serde_json::json!({
         "plugin_root": tmp.path(),
         "plugin_version": "0.0.0-test",
+        "project_root": tmp.path(),
         "tmp_path": tmp.path(),
         "host": "127.0.0.1",
         "owner_pid": 0,
