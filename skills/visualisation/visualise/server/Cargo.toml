@@ -33,6 +33,8 @@ sha2 = "0.10"
 gray_matter = { version = "0.3", default-features = false, features = ["yaml"] }
 serde_yml = "0.0.12"
 hex = "0.4"
+notify = "6"
+tokio-stream = "0.1"
 
 [dev-dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
