@@ -1199,17 +1199,17 @@ cargo test --test sse_e2e
 
 Implement in this order within a single session:
 
-1. `Cargo.toml` — add `notify` + `tokio-stream`.
-2. `src/sse_hub.rs` — tests (6) then implementation.
-3. `src/indexer.rs` — add `pub const FRONTMATTER_MALFORMED`.
-4. `src/lib.rs` — add `pub mod sse_hub; pub mod watcher;`.
-5. `src/server.rs` — add `sse_hub` field to `AppState` + `AppState::build()`.
-6. `src/watcher.rs` — tests (5) then implementation.
-7. `src/api/events.rs` — tests then implementation.
-8. `src/api/mod.rs` — add `mod events;` + route.
-9. `src/server.rs` — `watcher::spawn(...)` + supervisor in `run()`.
-10. `tests/sse_e2e.rs` — end-to-end integration test.
-11. Run full suite: `cargo test`.
+1. [x] `Cargo.toml` — add `notify` + `tokio-stream`.
+2. [x] `src/sse_hub.rs` — tests (6) then implementation.
+3. [x] `src/indexer.rs` — add `pub const FRONTMATTER_MALFORMED`.
+4. [x] `src/lib.rs` — add `pub mod sse_hub; pub mod watcher;`.
+5. [x] `src/server.rs` — add `sse_hub` field to `AppState` + `AppState::build()`.
+6. [x] `src/watcher.rs` — tests (5) then implementation.
+7. [x] `src/api/events.rs` — tests then implementation.
+8. [x] `src/api/mod.rs` — add `mod events;` + route.
+9. [x] `src/server.rs` — `watcher::spawn(...)` + supervisor in `run()`.
+10. [x] `tests/sse_e2e.rs` — end-to-end integration test.
+11. [x] Run full suite: `cargo test`.
 
 Stop after each step to verify the new tests pass before proceeding.
 
