@@ -379,22 +379,22 @@ confirm the whole harness passes.
 
 #### Automated Verification:
 
-- [ ] `skills/tickets/scripts/test-ticket-scripts.sh` is wired into
+- [x] `skills/tickets/scripts/test-ticket-scripts.sh` is wired into
       `mise run test` and runs successfully.
-- [ ] New tests added to `scripts/test-config.sh` fail against the
+- [x] New tests added to `scripts/test-config.sh` fail against the
       current script: `bash scripts/test-config.sh` exits non-zero
       with failures localised to the new section.
-- [ ] After script changes, all tests pass:
+- [x] After script changes, all tests pass:
       `bash scripts/test-config.sh` exits 0.
-- [ ] Regression: `bash skills/tickets/scripts/test-ticket-scripts.sh`
+- [x] Regression: `bash skills/tickets/scripts/test-ticket-scripts.sh`
       still exits 0 (should be unaffected).
 - [ ] Full test suite passes: `mise run test` exits 0.
-- [ ] `bash scripts/config-read-review.sh pr` output byte-for-byte
+- [x] `bash scripts/config-read-review.sh pr` output byte-for-byte
       matches the pre-change output for a clean repo
       (recorded as a golden fixture in the test).
-- [ ] `bash scripts/config-read-review.sh plan` output byte-for-byte
+- [x] `bash scripts/config-read-review.sh plan` output byte-for-byte
       matches the pre-change output for a clean repo.
-- [ ] `bash scripts/config-read-review.sh ticket` exits 0, prints a
+- [x] `bash scripts/config-read-review.sh ticket` exits 0, prints a
       `## Review Configuration` block, and emits a Lens Catalogue
       with zero lens rows.
 

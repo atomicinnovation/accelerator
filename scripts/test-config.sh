@@ -1778,6 +1778,341 @@ fi
 echo ""
 
 # ============================================================
+echo "=== config-read-review.sh per-type catalogue ==="
+echo ""
+
+echo "Test: pr mode emits all 13 code lens names and no others"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
+EXPECTED_LENSES="architecture code-quality compatibility correctness database documentation performance portability safety security standards test-coverage usability"
+CATALOGUE_OK=true
+for lens in $EXPECTED_LENSES; do
+  if ! echo "$OUTPUT" | grep -q "| $lens |"; then
+    echo "  FAIL: pr mode missing lens '$lens'"
+    CATALOGUE_OK=false
+    FAIL=$((FAIL + 1))
+    break
+  fi
+done
+if [ "$CATALOGUE_OK" = true ]; then
+  echo "  PASS: pr mode emits all 13 code lenses"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: plan mode emits all 13 code lens names"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
+CATALOGUE_OK=true
+for lens in $EXPECTED_LENSES; do
+  if ! echo "$OUTPUT" | grep -q "| $lens |"; then
+    echo "  FAIL: plan mode missing lens '$lens'"
+    CATALOGUE_OK=false
+    FAIL=$((FAIL + 1))
+    break
+  fi
+done
+if [ "$CATALOGUE_OK" = true ]; then
+  echo "  PASS: plan mode emits all 13 code lenses"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: ticket mode emits zero lens rows and warns about available_count < min_lenses"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>&1 || true)
+CATALOGUE_LINES=$(echo "$OUTPUT" | grep -c "| .* | .* | built-in |" || true)
+if [ "$CATALOGUE_LINES" -eq 0 ] && echo "$OUTPUT" | grep -q "Warning.*lenses available"; then
+  echo "  PASS: ticket mode emits zero built-in lens rows and warns"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: ticket mode emits zero built-in lens rows and warns"
+  echo "    Catalogue lines: $CATALOGUE_LINES"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: unknown mode -> exit 1 and usage contains pr|plan|ticket"
+STDERR_OUTPUT=$(bash "$READ_REVIEW" "bad-mode" 2>&1 || true)
+if echo "$STDERR_OUTPUT" | grep -q "pr|plan|ticket"; then
+  echo "  PASS: usage string updated to include ticket"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: usage string updated to include ticket"
+  echo "    Stderr: $(printf '%q' "$STDERR_OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+assert_exit_code "unknown mode exits 1" 1 bash "$READ_REVIEW" "bad-mode"
+
+echo "Test: custom lens with applies_to: [plan] appears only in plan mode"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/lenses/plan-only-lens"
+cat > "$REPO/.claude/accelerator/lenses/plan-only-lens/SKILL.md" << 'FIXTURE'
+---
+name: plan-only
+description: Appears in plan only
+applies_to: [plan]
+---
+FIXTURE
+PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
+PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
+TICKET_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+if ! echo "$PR_OUT" | grep -q "| plan-only |" && \
+   echo "$PLAN_OUT" | grep -q "| plan-only |" && \
+   ! echo "$TICKET_OUT" | grep -q "| plan-only |"; then
+  echo "  PASS: applies_to: [plan] restricts lens to plan mode only"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: applies_to: [plan] restricts lens to plan mode only"
+  echo "    PR has it: $(echo "$PR_OUT" | grep -c "| plan-only |")"
+  echo "    Plan has it: $(echo "$PLAN_OUT" | grep -c "| plan-only |")"
+  echo "    Ticket has it: $(echo "$TICKET_OUT" | grep -c "| plan-only |")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: custom lens without applies_to appears in all three modes"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/lenses/all-modes-lens"
+cat > "$REPO/.claude/accelerator/lenses/all-modes-lens/SKILL.md" << 'FIXTURE'
+---
+name: all-modes
+description: Appears everywhere
+---
+FIXTURE
+PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
+PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
+TICKET_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+if echo "$PR_OUT" | grep -q "| all-modes |" && \
+   echo "$PLAN_OUT" | grep -q "| all-modes |" && \
+   echo "$TICKET_OUT" | grep -q "| all-modes |"; then
+  echo "  PASS: no applies_to means all modes"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: no applies_to means all modes"
+  echo "    PR: $(echo "$PR_OUT" | grep "| all-modes |")"
+  echo "    Plan: $(echo "$PLAN_OUT" | grep "| all-modes |")"
+  echo "    Ticket: $(echo "$TICKET_OUT" | grep "| all-modes |")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: custom lens with applies_to: [ticket, plan] appears in ticket+plan but not pr"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/lenses/ticket-plan-lens"
+cat > "$REPO/.claude/accelerator/lenses/ticket-plan-lens/SKILL.md" << 'FIXTURE'
+---
+name: ticket-plan
+description: Ticket and plan modes only
+applies_to: [ticket, plan]
+---
+FIXTURE
+PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
+PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
+TICKET_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+if ! echo "$PR_OUT" | grep -q "| ticket-plan |" && \
+   echo "$PLAN_OUT" | grep -q "| ticket-plan |" && \
+   echo "$TICKET_OUT" | grep -q "| ticket-plan |"; then
+  echo "  PASS: applies_to: [ticket, plan] includes ticket and plan but not pr"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: applies_to: [ticket, plan] includes ticket and plan but not pr"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: core_lenses: [architecture] in plan mode produces no warning (valid cross-mode lens)"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  core_lenses: [architecture]
+---
+FIXTURE
+STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan 2>&1 1>/dev/null)
+if ! echo "$STDERR_OUT" | grep -q "unrecognised"; then
+  echo "  PASS: architecture in core_lenses produces no warning in plan mode"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: architecture in core_lenses produces no warning in plan mode"
+  echo "    Stderr: $(printf '%q' "$STDERR_OUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: cross-mode filter - ticket-only custom lens in core_lenses shows Filtered info in pr mode"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/lenses/ticket-custom-lens"
+cat > "$REPO/.claude/accelerator/lenses/ticket-custom-lens/SKILL.md" << 'FIXTURE'
+---
+name: ticket-custom
+description: Ticket only custom lens
+applies_to: [ticket]
+---
+FIXTURE
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  core_lenses: [architecture, ticket-custom]
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
+if echo "$OUTPUT" | grep -qi "Filtered core lenses"; then
+  echo "  PASS: cross-mode filtered core lenses shown in Review Configuration"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: cross-mode filtered core lenses shown in Review Configuration"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: unknown lens xyz in core_lenses still produces unrecognised warning"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  core_lenses: [architecture, xyz]
+---
+FIXTURE
+STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan 2>&1 1>/dev/null)
+if echo "$STDERR_OUT" | grep -q "unrecognised.*xyz"; then
+  echo "  PASS: unrecognised lens xyz still warns"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: unrecognised lens xyz still warns"
+  echo "    Stderr: $(printf '%q' "$STDERR_OUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: applies_to: [prr] -> unrecognised mode warning, lens absent from all catalogues"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/lenses/bad-mode-lens"
+cat > "$REPO/.claude/accelerator/lenses/bad-mode-lens/SKILL.md" << 'FIXTURE'
+---
+name: bad-mode
+description: Has unrecognised mode
+applies_to: [prr]
+---
+FIXTURE
+STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
+PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>/dev/null)
+PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan 2>/dev/null)
+if echo "$STDERR_OUT" | grep -qi "unrecognised mode.*prr\|prr.*unrecognised" && \
+   ! echo "$PR_OUT" | grep -q "| bad-mode |" && \
+   ! echo "$PLAN_OUT" | grep -q "| bad-mode |"; then
+  echo "  PASS: unrecognised mode warns and excludes lens from all catalogues"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: unrecognised mode warns and excludes lens from all catalogues"
+  echo "    Stderr: $(printf '%q' "$STDERR_OUT")"
+  echo "    PR has bad-mode: $(echo "$PR_OUT" | grep -c "| bad-mode |")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: applies_to: [] -> empty applies_to warning, lens absent from all catalogues"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/lenses/empty-applies-lens"
+cat > "$REPO/.claude/accelerator/lenses/empty-applies-lens/SKILL.md" << 'FIXTURE'
+---
+name: empty-applies
+description: Has empty applies_to
+applies_to: []
+---
+FIXTURE
+STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
+PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>/dev/null)
+if echo "$STDERR_OUT" | grep -qi "empty applies_to" && \
+   ! echo "$PR_OUT" | grep -q "| empty-applies |"; then
+  echo "  PASS: empty applies_to warns and excludes lens"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: empty applies_to warns and excludes lens"
+  echo "    Stderr: $(printf '%q' "$STDERR_OUT")"
+  echo "    PR output: $(printf '%q' "$PR_OUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: applies_to: pr (scalar) -> parsed as [pr], appears in pr only"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/lenses/scalar-applies-lens"
+cat > "$REPO/.claude/accelerator/lenses/scalar-applies-lens/SKILL.md" << 'FIXTURE'
+---
+name: scalar-applies
+description: Scalar applies_to
+applies_to: pr
+---
+FIXTURE
+PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
+PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
+if echo "$PR_OUT" | grep -q "| scalar-applies |" && \
+   ! echo "$PLAN_OUT" | grep -q "| scalar-applies |"; then
+  echo "  PASS: scalar applies_to treated as [pr]"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: scalar applies_to treated as [pr]"
+  echo "    PR has it: $(echo "$PR_OUT" | grep -c "| scalar-applies |")"
+  echo "    Plan has it: $(echo "$PLAN_OUT" | grep -c "| scalar-applies |")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: applies_to: [pr, pr] (duplicate) -> deduplicated, appears in pr exactly once"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude/accelerator/lenses/dedup-applies-lens"
+cat > "$REPO/.claude/accelerator/lenses/dedup-applies-lens/SKILL.md" << 'FIXTURE'
+---
+name: dedup-applies
+description: Duplicate applies_to entries
+applies_to: [pr, pr]
+---
+FIXTURE
+PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
+COUNT=$(echo "$PR_OUT" | grep -c "| dedup-applies |" || true)
+if [ "$COUNT" -eq 1 ]; then
+  echo "  PASS: duplicate applies_to deduplicated"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: duplicate applies_to deduplicated (count=$COUNT)"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: pr mode still emits PR verdict override when pr_request_changes_severity set to major"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  pr_request_changes_severity: major
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
+if echo "$OUTPUT" | grep -q "Verdict.*REQUEST_CHANGES.*major"; then
+  echo "  PASS: pr mode verdict override unchanged after refactor"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pr mode verdict override unchanged after refactor"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: plan mode still emits plan verdict override when plan_revise_severity set to major"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  plan_revise_severity: major
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
+if echo "$OUTPUT" | grep -q "Verdict.*REVISE.*major"; then
+  echo "  PASS: plan mode verdict override unchanged after refactor"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: plan mode verdict override unchanged after refactor"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
 echo "=== config-dump.sh ==="
 echo ""
 
