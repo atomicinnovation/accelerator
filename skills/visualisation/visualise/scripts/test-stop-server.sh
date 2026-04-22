@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
+source "$SCRIPT_DIR/test-helpers.sh"
 
 LAUNCH_SERVER="$SCRIPT_DIR/launch-server.sh"
 STOP_SERVER="$SCRIPT_DIR/stop-server.sh"

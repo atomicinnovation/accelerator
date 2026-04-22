@@ -10,7 +10,6 @@ description = "Meta-directory visualiser server for the accelerator Claude Code 
 publish = false
 
 [lib]
-test = false
 
 [[bin]]
 name = "accelerator-visualiser"
@@ -30,12 +29,18 @@ nix = { version = "0.28", features = ["signal", "process"] }
 anyhow = "1"
 thiserror = "1"
 libc = "0.2"
+sha2 = "0.10"
+gray_matter = { version = "0.3", default-features = false, features = ["yaml"] }
+serde_yml = "0.0.12"
+hex = "0.4"
 
 [dev-dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "process"] }
 assert_cmd = "2"
 predicates = "3"
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
 
 [profile.release]
 lto = "thin"
