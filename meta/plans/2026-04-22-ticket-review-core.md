@@ -556,11 +556,11 @@ Update the review section (lines 158-207):
 
 #### Automated Verification:
 
-- [ ] New `test-config.sh` assertions pass:
+- [x] New `test-config.sh` assertions pass:
       `bash scripts/test-config.sh` exits 0.
-- [ ] `bash scripts/config-read-review.sh ticket` emits labelled
+- [x] `bash scripts/config-read-review.sh ticket` emits labelled
       ticket verdict lines with correct defaults.
-- [ ] `ticket-review-output-format/SKILL.md` exists, has valid
+- [x] `ticket-review-output-format/SKILL.md` exists, has valid
       YAML frontmatter, and `grep -c '^##' skills/review/output-formats/ticket-review-output-format/SKILL.md`
       returns at least 4 (JSON Schema, Field Reference, Severity
       Emoji Prefixes, Finding Body Format).

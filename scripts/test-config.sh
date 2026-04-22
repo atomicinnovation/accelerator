@@ -2110,6 +2110,120 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+echo "Test: ticket mode emits ticket revise severity and count with defaults"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+if echo "$OUTPUT" | grep -q '\*\*ticket revise severity\*\*: critical$' && \
+   echo "$OUTPUT" | grep -q '\*\*ticket revise major count\*\*: 2$'; then
+  echo "  PASS: ticket mode emits verdict defaults without annotation"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: ticket mode emits verdict defaults without annotation"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: ticket_revise_severity: major -> annotated with default"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  ticket_revise_severity: major
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+if echo "$OUTPUT" | grep -q '\*\*ticket revise severity\*\*: major (default: critical)'; then
+  echo "  PASS: ticket severity override annotated"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: ticket severity override annotated"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: ticket_revise_major_count: 5 -> annotated with default"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  ticket_revise_major_count: 5
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+if echo "$OUTPUT" | grep -q '\*\*ticket revise major count\*\*: 5 (default: 2)'; then
+  echo "  PASS: ticket major count override annotated"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: ticket major count override annotated"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: ticket_revise_major_count: 0 -> warning, falls back to 2"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  ticket_revise_major_count: 0
+---
+FIXTURE
+STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>&1 1>/dev/null || true)
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+if echo "$STDERR_OUT" | grep -q "Warning.*ticket_revise_major_count" && \
+   echo "$OUTPUT" | grep -q '\*\*ticket revise major count\*\*: 2$'; then
+  echo "  PASS: invalid major count warns and falls back to default"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: invalid major count warns and falls back to default"
+  echo "    Stderr: $(printf '%q' "$STDERR_OUT")"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: ticket_revise_severity: sometimes -> warning, falls back to critical"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  ticket_revise_severity: sometimes
+---
+FIXTURE
+STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>&1 1>/dev/null || true)
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+if echo "$STDERR_OUT" | grep -q "Warning.*ticket_revise_severity" && \
+   echo "$OUTPUT" | grep -q '\*\*ticket revise severity\*\*: critical$'; then
+  echo "  PASS: invalid severity warns and falls back to default"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: invalid severity warns and falls back to default"
+  echo "    Stderr: $(printf '%q' "$STDERR_OUT")"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: ticket_revise_severity: none -> severity-based REVISE disabled verdict line"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  ticket_revise_severity: none
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+if echo "$OUTPUT" | grep -q "severity-based REVISE disabled"; then
+  echo "  PASS: ticket severity none produces disabled verdict line"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: ticket severity none produces disabled verdict line"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
 echo ""
 
 # ============================================================

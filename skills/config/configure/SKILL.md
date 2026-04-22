@@ -129,7 +129,7 @@ Available agents and their roles:
 
 | Config Key                | Default Role                                     |
 |---------------------------|--------------------------------------------------|
-| `reviewer`                | Reviews plans and PRs using configured lenses    |
+| `reviewer`                | Reviews plans, PRs, and tickets using configured lenses |
 | `codebase-locator`        | Finds relevant source files for a given task     |
 | `codebase-analyser`       | Analyses implementation details of components    |
 | `codebase-pattern-finder` | Finds similar implementations and usage examples |
@@ -157,16 +157,16 @@ the override may reference a user-defined agent outside the plugin.
 
 ### review
 
-Customise review behaviour for `/accelerator:review-pr` and
-`/accelerator:review-plan`. Config keys use underscores (e.g.,
-`max_inline_comments`). Lens names within array values use their original
-hyphenated form (e.g., `code-quality`, `test-coverage`):
+Customise review behaviour for `/accelerator:review-pr`,
+`/accelerator:review-plan`, and `/accelerator:review-ticket`. Config keys use
+underscores (e.g., `max_inline_comments`). Lens names within array values use
+their original hyphenated form (e.g., `code-quality`, `test-coverage`):
 
-Shared settings (apply to both `review-pr` and `review-plan`):
+Shared settings (apply to `review-pr`, `review-plan`, and `review-ticket`):
 
 | Key               | Default                                                    | Description                   |
 |-------------------|------------------------------------------------------------|-------------------------------|
-| `min_lenses`      | `4`                                                        | Minimum lenses to run         |
+| `min_lenses`      | `4` (3 for ticket)                                         | Minimum lenses to run         |
 | `max_lenses`      | `8`                                                        | Maximum lenses to run         |
 | `core_lenses`     | `[architecture, code-quality, test-coverage, correctness]` | Lenses considered "core four" |
 | `disabled_lenses` | `[]`                                                       | Lenses to never use           |
@@ -186,6 +186,16 @@ Plan review only (`review-plan`):
 | `plan_revise_severity`    | `critical` | Min severity for REVISE (`critical`, `major`, or `none`) |
 | `plan_revise_major_count` | `3`        | Major findings count to trigger REVISE                   |
 
+Ticket review only (`review-ticket`):
+
+| Key                         | Default    | Description                                              |
+|-----------------------------|------------|----------------------------------------------------------|
+| `ticket_revise_severity`    | `critical` | Min severity for REVISE (`critical`, `major`, or `none`) |
+| `ticket_revise_major_count` | `2`        | Major findings count to trigger REVISE                   |
+
+Tickets are smaller artifacts than plans, so `ticket_revise_major_count`
+defaults to `2` (not `3`): a lower threshold produces equivalent signal density.
+
 Example configuration:
 
 \```yaml
@@ -200,11 +210,29 @@ review:
   pr_request_changes_severity: major
   plan_revise_severity: critical
   plan_revise_major_count: 2
+  ticket_revise_severity: major
+  ticket_revise_major_count: 3
 ---
 \```
 
 Note: YAML comments (`#`) are not supported by the config parser. Do not
 add inline comments to config values.
+
+#### Per-Review-Type Lenses
+
+Built-in lenses are partitioned by review type: the 13 code-review lenses
+(`architecture`, `code-quality`, etc.) are used by `review-pr` and
+`review-plan`; ticket-specific lenses (`completeness`, `testability`,
+`clarity`) are used by `review-ticket`. Each command sees only its own lenses
+in the Lens Catalogue.
+
+`core_lenses` and `disabled_lenses` entries are cross-mode: they are validated
+against the union of all built-in and custom lens names, so naming a PR lens in
+`core_lenses` does not produce a warning when running `review-ticket`. Entries
+not applicable to the active mode are silently filtered out, with an
+informational note in the `## Review Configuration` block so you have an audit
+trail. Entries that are not valid in any mode still produce an "unrecognised
+lens" warning.
 
 #### Custom Lenses
 
@@ -246,6 +274,32 @@ auto_detect: Relevant when changes touch regulatory, compliance, or policy-relat
 See any lens in the plugin's `skills/review/lenses/` directory for full
 examples of the expected structure.
 
+**Optional fields** — by default a custom lens appears in all review modes
+(`pr`, `plan`, and `ticket`). To restrict it to specific modes, add an
+`applies_to` field:
+
+\```markdown
+---
+name: compliance
+description: Evaluates regulatory and policy compliance
+auto_detect: Relevant when changes touch regulatory, compliance, or policy-related code
+# no applies_to — applies to all modes: pr, plan, and ticket
+---
+\```
+
+\```markdown
+---
+name: ticket-style
+description: Evaluates ticket-specific style conventions
+applies_to: [ticket]   # ticket reviews only
+---
+\```
+
+Accepted values: `pr`, `plan`, `ticket`. The field accepts a YAML flow array
+(`[pr, plan]`) or a bare scalar (`pr`). Omitting it is equivalent to all modes.
+The `applies_to` field is only for custom lenses — built-in lenses are
+partitioned via script arrays, not frontmatter.
+
 ### Per-Skill Customisation
 
 Provide context or additional instructions for specific skills by placing
@@ -259,6 +313,9 @@ files in `.claude/accelerator/skills/<skill-name>/`:
   review-pr/
     context.md          # Context specific to PR review
     instructions.md     # Additional instructions for PR review
+  review-ticket/
+    context.md          # Context specific to ticket review
+    instructions.md     # Additional instructions for ticket review
   commit/
     instructions.md     # Additional instructions for commits
 \```
