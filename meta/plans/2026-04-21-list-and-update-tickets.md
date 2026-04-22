@@ -1340,15 +1340,15 @@ None — verification only.
 
 #### Automated Verification
 
-- [ ] `bash skills/tickets/scripts/test-ticket-scripts.sh` exits 0, "All tests passed!"
-- [ ] `grep "disable-model-invocation: true" skills/tickets/create-ticket/SKILL.md` matches
-- [ ] `grep "disable-model-invocation: true" skills/tickets/extract-tickets/SKILL.md` matches
-- [ ] `grep "disable-model-invocation: true" skills/tickets/list-tickets/SKILL.md` matches
-- [ ] `grep "disable-model-invocation: true" skills/tickets/update-ticket/SKILL.md` matches
-- [ ] `grep "allowed-tools" skills/tickets/list-tickets/SKILL.md` shows inline `config-*` and `tickets/scripts/*` (no block scalar)
-- [ ] `grep "allowed-tools" skills/tickets/update-ticket/SKILL.md` shows inline `config-*` and `tickets/scripts/*` (no block scalar)
-- [ ] `grep "accelerator:reviewer" skills/tickets/list-tickets/SKILL.md` matches
-- [ ] `grep "accelerator:reviewer" skills/tickets/update-ticket/SKILL.md` matches
+- [x] `bash skills/tickets/scripts/test-ticket-scripts.sh` exits 0, "All tests passed!"
+- [x] `grep "disable-model-invocation: true" skills/tickets/create-ticket/SKILL.md` matches
+- [x] `grep "disable-model-invocation: true" skills/tickets/extract-tickets/SKILL.md` matches
+- [x] `grep "disable-model-invocation: true" skills/tickets/list-tickets/SKILL.md` matches
+- [x] `grep "disable-model-invocation: true" skills/tickets/update-ticket/SKILL.md` matches
+- [x] `grep "allowed-tools" skills/tickets/list-tickets/SKILL.md` shows inline `config-*` and `tickets/scripts/*` (no block scalar)
+- [x] `grep "allowed-tools" skills/tickets/update-ticket/SKILL.md` shows inline `config-*` and `tickets/scripts/*` (no block scalar)
+- [x] `grep "accelerator:reviewer" skills/tickets/list-tickets/SKILL.md` matches
+- [x] `grep "accelerator:reviewer" skills/tickets/update-ticket/SKILL.md` matches
 
 #### Manual Verification
 
@@ -1356,7 +1356,7 @@ None — verification only.
   produces a full table when invoked with no arguments
 - [ ] `/update-ticket` is available and prompts for a ticket
   reference when invoked with no arguments
-- [ ] No unresolved `{agent placeholder}` tokens visible in either
+- [x] No unresolved `{agent placeholder}` tokens visible in either
   skill
 - [ ] End-to-end: `/list-tickets only drafts` returns zero rows
   against the current 29 legacy tickets (all are `todo` or `done`);
