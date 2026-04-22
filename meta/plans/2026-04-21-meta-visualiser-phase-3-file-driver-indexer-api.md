@@ -4350,11 +4350,11 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
 
 #### Automated Verification
 
-- [ ] `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --test api_smoke` exits 0.
-- [ ] `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --tests` exits 0.
+- [x] `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --test api_smoke` exits 0.
+- [x] `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --tests` exits 0.
 - [ ] `mise run test` exits 0 (unit + integration levels, including the new api_smoke suite).
-- [ ] `ls skills/visualisation/visualise/server/tests/fixtures/meta/decisions/ADR-*.md | wc -l` ≥ 2.
-- [ ] `ls skills/visualisation/visualise/server/tests/fixtures/meta/reviews/plans/*-review-*.md | wc -l` ≥ 2.
+- [x] `ls skills/visualisation/visualise/server/tests/fixtures/meta/decisions/ADR-*.md | wc -l` ≥ 2.
+- [x] `ls skills/visualisation/visualise/server/tests/fixtures/meta/reviews/plans/*-review-*.md | wc -l` ≥ 2.
 
 #### Manual Verification
 
