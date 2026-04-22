@@ -1,0 +1,83 @@
+{
+  "skill_name": "update-ticket",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Update ticket 0001 to status ready",
+      "expected_output": "Should show a diff preview (-status: done / +status: ready), ask for confirmation, and on 'y' write the change. Should also update the body **Status**: label if present.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "shows_diff_preview",
+          "type": "output_contains",
+          "description": "Shows a before/after diff with the old and new status values",
+          "check": "Output contains both '-status: done' and '+status: ready' (or equivalent diff notation)"
+        },
+        {
+          "name": "asks_confirmation",
+          "type": "output_contains",
+          "description": "Asks user to confirm before writing",
+          "check": "Output contains a y/n confirmation prompt before any file write"
+        },
+        {
+          "name": "no_file_write_before_confirm",
+          "type": "behavioral",
+          "description": "Does not use Edit tool before user confirms",
+          "check": "No Edit tool calls appear before the confirmation prompt"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Update ticket 0001 ticket_id 9999",
+      "expected_output": "Should print an error that ticket_id cannot be changed and suggest file rename via jj mv. Should NOT show a diff or write anything.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "hard_blocks_ticket_id",
+          "type": "output_contains",
+          "description": "Prints error about ticket_id being immutable",
+          "check": "Output contains 'ticket_id cannot be changed' or equivalent error message"
+        },
+        {
+          "name": "mentions_rename",
+          "type": "output_contains",
+          "description": "Suggests file rename as the correct approach",
+          "check": "Output mentions 'jj mv' or file rename"
+        },
+        {
+          "name": "no_diff_shown",
+          "type": "behavioral",
+          "description": "Does not show a diff preview or write any files",
+          "check": "No diff preview and no Edit tool calls"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Update ticket 0011 to priority high",
+      "expected_output": "Should handle a legacy ticket (type: adr-creation-task, no priority field) gracefully. Should show a diff with +priority: high (field insertion). May note that the ticket has a non-template type but should proceed.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "handles_legacy_ticket",
+          "type": "behavioral",
+          "description": "Does not error on non-template type value adr-creation-task",
+          "check": "Does not refuse to update or require migration of the legacy ticket"
+        },
+        {
+          "name": "shows_field_insertion",
+          "type": "output_contains",
+          "description": "Shows priority being added as a new field",
+          "check": "Output shows +priority: high in the diff (field insertion, not replacement)"
+        },
+        {
+          "name": "asks_confirmation",
+          "type": "output_contains",
+          "description": "Asks user to confirm before writing",
+          "check": "Output contains a y/n confirmation prompt"
+        }
+      ]
+    }
+  ]
+}

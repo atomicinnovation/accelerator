@@ -6,5 +6,6 @@
 *.ipr
 *.iws
 workspaces/
+*-workspace/
 .claude/settings.local.json
 .claude/accelerator.local.md

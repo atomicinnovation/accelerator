@@ -1268,12 +1268,12 @@ Eval scenarios: [the 36 scenarios listed above in Subphase 3.2]
 
 #### Automated Verification
 
-- [ ] Phase 1 regression suite passes: `bash skills/tickets/scripts/test-ticket-scripts.sh`
-- [ ] File exists: `skills/tickets/update-ticket/SKILL.md`
-- [ ] `grep "disable-model-invocation: true" skills/tickets/update-ticket/SKILL.md` matches
-- [ ] `grep "accelerator:reviewer" skills/tickets/update-ticket/SKILL.md` matches
-- [ ] `grep -E "allowed-tools:.*tickets/scripts/\*" skills/tickets/update-ticket/SKILL.md` matches
-- [ ] No transition-graph assertion anywhere in the SKILL.md:
+- [x] Phase 1 regression suite passes: `bash skills/tickets/scripts/test-ticket-scripts.sh`
+- [x] File exists: `skills/tickets/update-ticket/SKILL.md`
+- [x] `grep "disable-model-invocation: true" skills/tickets/update-ticket/SKILL.md` matches
+- [x] `grep "accelerator:reviewer" skills/tickets/update-ticket/SKILL.md` matches
+- [x] `grep -E "allowed-tools:.*tickets/scripts/\*" skills/tickets/update-ticket/SKILL.md` matches
+- [x] No transition-graph assertion anywhere in the SKILL.md:
   `grep -iE "transition|draft.*ready|invalid.*status" skills/tickets/update-ticket/SKILL.md`
   returns nothing suggesting enforcement (manual verification against
   remaining matches)
