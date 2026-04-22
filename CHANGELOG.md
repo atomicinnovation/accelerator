@@ -4,9 +4,9 @@
 
 ### Added
 
-- **Ticket management**: New `tickets/` skill category with two skills for
-  capturing work items as structured documents under `meta/tickets/` (default;
-  override via `paths.tickets`)
+- **Ticket management**: New `tickets/` skill category with four skills for
+  capturing, discovering, and managing work items as structured documents
+  under `meta/tickets/` (default; override via `paths.tickets`)
   - `create-ticket` — Interactively create a single ticket (feature, bug,
     task, spike, or epic) through a collaborative, challenging conversation
     that contributes research and pushes back on under-specified inputs
@@ -15,10 +15,21 @@
     PRDs, research, plans, meeting notes, design docs), keeping
     source-derived content faithful while surfacing business-context gaps as
     assumptions, open questions, and drafting notes
+  - `list-tickets` — List and filter tickets by status, type, priority, tag,
+    parent, or free-text title search. Supports natural language filters
+    (`drafts`, `bugs in review`), explicit structured forms (`status todo`,
+    `tagged backend`, `under 0042`), and hierarchy rendering with cycle
+    detection. Read-only; no sub-agents spawned
+  - `update-ticket` — Update frontmatter fields (status, priority, tags,
+    parent, title, etc.) on an existing ticket. Shows a diff preview and
+    requires confirmation before writing. Syncs body labels
+    (`**Status**:`, `**Type**:`, `**Priority**:`, `**Author**:`) and the
+    H1 heading when the corresponding fields change. No status transition
+    enforcement — arbitrary changes are allowed
 - **Ticket template**: New `templates/ticket.md` default template with YAML
-  frontmatter (`ticket_id`, `date`, `author`, `type`, `status`, `priority`,
-  `parent`, `tags`) and structured body sections (Summary, Context,
-  Requirements, Acceptance Criteria, Open Questions, Dependencies,
+  frontmatter (`ticket_id`, `title`, `date`, `author`, `type`, `status`,
+  `priority`, `parent`, `tags`) and structured body sections (Summary,
+  Context, Requirements, Acceptance Criteria, Open Questions, Dependencies,
   Assumptions, Technical Notes, Drafting Notes, References). Overridable via
   `templates.ticket`.
 - **Ticket numbering and frontmatter helpers**: Supporting shell scripts in
@@ -29,6 +40,14 @@
     bash prefix matching to avoid regex metacharacter injection
   - `ticket-read-status.sh` — Thin convenience wrapper over
     `ticket-read-field.sh` for the common status lookup
+  - `ticket-update-tags.sh` — Tag array mutation helper that parses the
+    current value, applies add/remove operations, and emits canonical
+    flow-style format. Detects block-style arrays and rejects them with
+    guidance
+  - `ticket-template-field-hints.sh` — Extracts hint values for a given
+    frontmatter field from the ticket template's trailing comments, with
+    hardcoded fallback for type, status, and priority when comments are
+    absent
 - **`paths.review_tickets` configuration key**: New configurable path
   (default: `meta/reviews/tickets`) for future ticket review artifacts,
   included in `/accelerator:init` directory creation and reported in

@@ -74,18 +74,18 @@ and writes to predictable paths within it. Run `/accelerator:init` to
 create all directories up front, or let skills create them on first use.
 These paths can be overridden via the `paths` configuration section:
 
-| Directory      | Purpose                                         | Written by                                 |
-|----------------|-------------------------------------------------|--------------------------------------------|
-| `research/`    | Research findings with YAML frontmatter         | `research-codebase`                        |
-| `plans/`       | Implementation plans with phased changes        | `create-plan`                              |
-| `decisions/`   | Architecture decision records (ADRs)            | `create-adr`, `extract-adrs`, `review-adr` |
-| `reviews/`     | Review summaries and per-lens results           | `review-pr`, `review-plan`                 |
-| `validations/` | Plan validation reports                         | `validate-plan`                            |
-| `prs/`         | PR descriptions                                 | `describe-pr`                              |
-| `templates/`   | Reusable templates (e.g., PR descriptions)      | `configure template`                       |
-| `tickets/`     | Ticket files referenced by planning             | `create-ticket`, `extract-tickets`         |
-| `notes/`       | Notes and working documents                     | manual                                     |
-| `tmp/`         | Ephemeral working data (e.g., review artifacts) | `review-pr`                                |
+| Directory      | Purpose                                         | Written by                                          |
+|----------------|-------------------------------------------------|-----------------------------------------------------|
+| `research/`    | Research findings with YAML frontmatter         | `research-codebase`                                 |
+| `plans/`       | Implementation plans with phased changes        | `create-plan`                                       |
+| `decisions/`   | Architecture decision records (ADRs)            | `create-adr`, `extract-adrs`, `review-adr`          |
+| `reviews/`     | Review summaries and per-lens results           | `review-pr`, `review-plan`                          |
+| `validations/` | Plan validation reports                         | `validate-plan`                                     |
+| `prs/`         | PR descriptions                                 | `describe-pr`                                       |
+| `templates/`   | Reusable templates (e.g., PR descriptions)      | `configure template`                                |
+| `tickets/`     | Ticket files referenced by planning             | `create-ticket`, `extract-tickets`, `update-ticket` |
+| `notes/`       | Notes and working documents                     | manual                                              |
+| `tmp/`         | Ephemeral working data (e.g., review artifacts) | `review-pr`                                         |
 
 This approach means:
 
@@ -148,7 +148,7 @@ review:
 
 ## Project Context
 
-This is a Ruby on Rails application using PostgreSQL and Redis.
+  This is a Ruby on Rails application using PostgreSQL and Redis.
 
 ### Conventions
 - Follow StandardRB for code style
@@ -180,7 +180,8 @@ subcommands for managing templates without manually locating plugin internals:
 | `/accelerator:configure templates diff <key>`  | Show differences between your template and the default |
 | `/accelerator:configure templates reset <key>` | Remove your customisation, revert to plugin default    |
 
-Available template keys: `plan`, `research`, `adr`, `validation`, `pr-description`, `ticket`.
+Available template keys: `plan`, `research`, `adr`, `validation`,
+`pr-description`, `ticket`.
 
 A typical customisation workflow:
 
@@ -250,19 +251,24 @@ existing docs (specs, PRDs, notes)
        │
        ├── extract-tickets ──┐
        │                     ↓
-       create-ticket ──→  meta/tickets/  ──→  create-plan → implement-plan
+       create-ticket ──→  meta/tickets/  ←── update-ticket
+                              │
+                         list-tickets ──→  create-plan → implement-plan
 ```
 
-| Skill                | Usage                                         | Description                                                               |
-|----------------------|-----------------------------------------------|---------------------------------------------------------------------------|
-| **create-ticket**    | `/accelerator:create-ticket [topic]`          | Interactively create a single ticket through collaborative refinement     |
-| **extract-tickets**  | `/accelerator:extract-tickets [doc paths...]` | Batch-extract tickets from existing specs, PRDs, research, plans, or notes |
+| Skill               | Usage                                                | Description                                                                |
+|---------------------|------------------------------------------------------|----------------------------------------------------------------------------|
+| **create-ticket**   | `/accelerator:create-ticket [topic]`                 | Interactively create a single ticket through collaborative refinement      |
+| **extract-tickets** | `/accelerator:extract-tickets [doc paths...]`        | Batch-extract tickets from existing specs, PRDs, research, plans, or notes |
+| **list-tickets**    | `/accelerator:list-tickets [filter]`                 | List and filter tickets by status, type, priority, tag, parent, or title   |
+| **update-ticket**   | `/accelerator:update-ticket [ticket-ref] [field-op]` | Update ticket fields with diff preview and confirmation                    |
 
-Tickets use a shared template with YAML frontmatter (`ticket_id`, `type`,
-`status`, `priority`, `parent`, `tags`) and structured body sections
+Tickets use a shared template with YAML frontmatter (`ticket_id`, `title`,
+`type`, `status`, `priority`, `parent`, `tags`) and structured body sections
 (Summary, Context, Requirements, Acceptance Criteria, Open Questions,
 Dependencies, Assumptions, Technical Notes, Drafting Notes, References).
-The template is customisable via `/accelerator:configure templates eject ticket`.
+The template is customisable via
+`/accelerator:configure templates eject ticket`.
 
 ## Architecture Decision Records
 
