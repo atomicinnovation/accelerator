@@ -16,7 +16,7 @@ name = "accelerator-visualiser"
 path = "src/main.rs"
 
 [dependencies]
-axum = { version = "0.7", default-features = false, features = ["http1", "tokio"] }
+axum = { version = "0.7", default-features = false, features = ["http1", "tokio", "json", "query"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "sync", "time", "net", "fs"] }
 tower-http = { version = "0.5", features = ["trace", "limit", "timeout"] }
 serde = { version = "1", features = ["derive"] }

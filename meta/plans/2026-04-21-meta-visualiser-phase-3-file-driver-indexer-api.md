@@ -4122,8 +4122,8 @@ the Phase 3.9 test files consume `common::seeded_cfg` as-is.
 
 #### Automated Verification
 
-- [ ] `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --test api_types --test api_docs --test api_templates --test api_lifecycle --test router_compose` exits 0 with all tests passing.
-- [ ] `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --tests` exits 0 (no Phase 2 regression).
+- [x] `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --test api_types --test api_docs --test api_templates --test api_lifecycle --test router_compose` exits 0 with all tests passing.
+- [x] `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --tests` exits 0 (no Phase 2 regression).
 - [ ] `mise run test:integration` exits 0.
 - [ ] `mise run test` exits 0.
 
