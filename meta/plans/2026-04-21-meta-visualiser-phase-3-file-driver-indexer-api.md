@@ -1783,7 +1783,7 @@ pub fn template_extra_roots(
 ) -> Vec<PathBuf> {
     let mut dirs = std::collections::HashSet::new();
     for tiers in templates.values() {
-        if let Some(ref co) = tiers.config_override {
+        if let Some(co) = &tiers.config_override {
             if let Some(p) = co.parent() { dirs.insert(p.to_path_buf()); }
         }
         if let Some(p) = tiers.user_override.parent() {
