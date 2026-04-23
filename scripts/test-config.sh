@@ -1816,15 +1816,17 @@ if [ "$CATALOGUE_OK" = true ]; then
   PASS=$((PASS + 1))
 fi
 
-echo "Test: ticket mode emits zero lens rows and warns about available_count < min_lenses"
+echo "Test: ticket mode catalogue contains exactly completeness (1 row) and warns about min_lenses"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>&1 || true)
 CATALOGUE_LINES=$(echo "$OUTPUT" | grep -c "| .* | .* | built-in |" || true)
-if [ "$CATALOGUE_LINES" -eq 0 ] && echo "$OUTPUT" | grep -q "Warning.*lenses available"; then
-  echo "  PASS: ticket mode emits zero built-in lens rows and warns"
+if [ "$CATALOGUE_LINES" -eq 1 ] && \
+   echo "$OUTPUT" | grep -q "| completeness |" && \
+   echo "$OUTPUT" | grep -q "Warning.*lenses available"; then
+  echo "  PASS: ticket mode emits exactly 1 built-in lens row and warns"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: ticket mode emits zero built-in lens rows and warns"
+  echo "  FAIL: ticket mode emits exactly 1 built-in lens row and warns"
   echo "    Catalogue lines: $CATALOGUE_LINES"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
@@ -2221,6 +2223,49 @@ if echo "$OUTPUT" | grep -q "severity-based REVISE disabled"; then
 else
   echo "  FAIL: ticket severity none produces disabled verdict line"
   echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: ticket mode catalogue contains completeness, not in pr or plan"
+REPO=$(setup_repo)
+PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
+PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
+TICKET_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+if echo "$TICKET_OUT" | grep -q "| completeness |" && \
+   ! echo "$PR_OUT" | grep -q "| completeness |" && \
+   ! echo "$PLAN_OUT" | grep -q "| completeness |"; then
+  echo "  PASS: completeness in ticket only"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: completeness in ticket only"
+  echo "    Ticket has it: $(echo "$TICKET_OUT" | grep -c "| completeness |" || true)"
+  echo "    PR has it: $(echo "$PR_OUT" | grep -c "| completeness |" || true)"
+  echo "    Plan has it: $(echo "$PLAN_OUT" | grep -c "| completeness |" || true)"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: cross-mode core_lenses: [architecture, completeness] produces no warning in pr, plan, or ticket mode"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  core_lenses: [architecture, completeness]
+---
+FIXTURE
+PR_STDERR=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
+PLAN_STDERR=$(cd "$REPO" && bash "$READ_REVIEW" plan 2>&1 1>/dev/null)
+TICKET_STDERR=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>&1 1>/dev/null || true)
+if ! echo "$PR_STDERR" | grep -q "unrecognised" && \
+   ! echo "$PLAN_STDERR" | grep -q "unrecognised" && \
+   ! echo "$TICKET_STDERR" | grep -q "unrecognised"; then
+  echo "  PASS: cross-mode core_lenses produces no unrecognised warning"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: cross-mode core_lenses produces no unrecognised warning"
+  echo "    PR stderr: $(printf '%q' "$PR_STDERR")"
+  echo "    Plan stderr: $(printf '%q' "$PLAN_STDERR")"
+  echo "    Ticket stderr: $(printf '%q' "$TICKET_STDERR")"
   FAIL=$((FAIL + 1))
 fi
 

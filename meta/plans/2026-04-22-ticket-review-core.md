@@ -693,13 +693,13 @@ skill — see Testing Strategy):
 
 #### Automated Verification:
 
-- [ ] `scripts/test-config.sh` catalogue assertions pass:
+- [x] `scripts/test-config.sh` catalogue assertions pass:
       `bash scripts/test-config.sh` exits 0.
-- [ ] `completeness-lens/SKILL.md` exists and has valid YAML
+- [x] `completeness-lens/SKILL.md` exists and has valid YAML
       frontmatter (checked via a simple awk frontmatter delimit
       count in the test).
 - [ ] `mise run test` passes.
-- [ ] Regression: `bash scripts/config-read-review.sh plan` output
+- [x] Regression: `bash scripts/config-read-review.sh plan` output
       unchanged from Phase 4B (verified against the golden fixture
       from 4A).
 
