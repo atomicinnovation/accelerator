@@ -1,0 +1,35 @@
+{
+  "skill_name": "testability",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "You are a reviewer agent evaluating a ticket through the testability lens.\n\nRead the testability lens skill at /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/testability-lens/SKILL.md fully.\n\nRead the output format specification at:\n/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/output-formats/ticket-review-output-format/SKILL.md\n\nRead the ticket at /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/testability-lens/evals/files/vague-unmeasurable-ac/ticket.md fully.\n\nApply the testability lens guidance to evaluate the ticket. Return your analysis as a single JSON code block following the output format specification. Do not include any prose outside the JSON block.",
+      "expected_output": "A JSON block with lens='testability'. Should identify that all four Acceptance Criteria are untestable: 'quickly' has no latency threshold, 'edge cases' has no defined scope, 'relevant' has no defined relevance measure, and 'correctly on all supported browsers' has no defined browser list. Severity should be major or critical. Should NOT flag section presence issues.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "You are a reviewer agent evaluating a ticket through the testability lens.\n\nRead the testability lens skill at /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/testability-lens/SKILL.md fully.\n\nRead the output format specification at:\n/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/output-formats/ticket-review-output-format/SKILL.md\n\nRead the ticket at /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/testability-lens/evals/files/bug-incomplete-repro-spec/ticket.md fully.\n\nApply the testability lens guidance to evaluate the ticket. Return your analysis as a single JSON code block following the output format specification. Do not include any prose outside the JSON block.",
+      "expected_output": "A JSON block with lens='testability'. Should identify that the Acceptance Criteria are not testable as written: 'completes successfully', 'correct output', and 'do not time out' are all missing the specific input conditions (what dataset size triggers failure?), the exact expected vs actual outcome, and a measurable threshold for the timeout. Severity should be major or critical.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "You are a reviewer agent evaluating a ticket through the testability lens.\n\nRead the testability lens skill at /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/testability-lens/SKILL.md fully.\n\nRead the output format specification at:\n/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/output-formats/ticket-review-output-format/SKILL.md\n\nRead the ticket at /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/testability-lens/evals/files/spike-open-ended-exit/ticket.md fully.\n\nApply the testability lens guidance to evaluate the ticket. Return your analysis as a single JSON code block following the output format specification. Do not include any prose outside the JSON block.",
+      "expected_output": "A JSON block with lens='testability'. Should identify that the Acceptance Criteria for this spike are not enumerable artefacts or decisions: 'good understanding', 'clear recommendation', 'risks considered', and 'enough context' are all subjective and non-verifiable. The criteria don't name a specific deliverable (document, memo, benchmark data) that would confirm the spike is done. Severity should be major or critical.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "You are a reviewer agent evaluating a ticket through the testability lens.\n\nRead the testability lens skill at /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/testability-lens/SKILL.md fully.\n\nRead the output format specification at:\n/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/output-formats/ticket-review-output-format/SKILL.md\n\nRead the ticket at /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/testability-lens/evals/files/tautological-ac/ticket.md fully.\n\nApply the testability lens guidance to evaluate the ticket. Return your analysis as a single JSON code block following the output format specification. Do not include any prose outside the JSON block.",
+      "expected_output": "A JSON block with lens='testability'. Should identify that the Acceptance Criteria are tautological or unbounded: 'works correctly end-to-end' provides no test procedure, 'no existing tests broken' is a meta-constraint not a criterion, 'all edge cases handled' uses unbounded scope language, 'meets security requirements' is circular with no specified requirements listed. Severity should be major or critical.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "You are a reviewer agent evaluating a ticket through the testability lens.\n\nRead the testability lens skill at /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/testability-lens/SKILL.md fully.\n\nRead the output format specification at:\n/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/output-formats/ticket-review-output-format/SKILL.md\n\nRead the ticket at /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/testability-lens/evals/files/clean-ticket/ticket.md fully.\n\nApply the testability lens guidance to evaluate the ticket. Return your analysis as a single JSON code block following the output format specification. Do not include any prose outside the JSON block.",
+      "expected_output": "A JSON block with lens='testability'. Should produce no critical or major findings — each Acceptance Criterion is expressed as a Given/When/Then statement with specific numeric thresholds (100 req/min, HTTP 429, Retry-After 1-60s, 5ms p99 latency), named fields in API responses, and concrete preconditions. May produce minor findings or none. Strengths list should reflect the criteria quality.",
+      "files": []
+    }
+  ]
+}

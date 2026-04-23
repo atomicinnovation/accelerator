@@ -71,10 +71,12 @@ follow-up questions.
 
 **Type-specific content** (based on ticket type):
 
-- **Bug**: Are reproduction steps present and complete — including the specific
+- **Bug**: Are reproduction steps present — does the ticket include the specific
   input, the action taken, the expected outcome, and the actual outcome? (Watch
-  for: "it crashes" with no steps, missing expected vs actual, no environment
-  details when relevant.)
+  for: "it crashes" with no steps, no environment details when relevant.)
+  Treat these four elements as a single logical unit: if any are absent, report
+  them together in one finding — not as separate findings for "missing expected
+  outcome" and "missing actual outcome".
 - **Story**: Is the user or system whose need is being met identified? Are all
   criteria specific enough to verify? (Watch for: criteria describing
   implementation details rather than outcomes, missing "for whom".)
@@ -114,6 +116,11 @@ follow-up questions.
   clarity lens
 - Don't assess scope appropriateness or dependency graph completeness — those
   are the scope and dependencies lenses (Phase 5)
+- Don't flag missing scenarios, edge cases, error-handling paths, default
+  behaviours, or unstated non-functional requirements — the lens measures
+  whether sections are present and substantively populated, not whether every
+  conceivable scenario is enumerated. What the ticket doesn't mention may be
+  intentionally left to implementation judgment.
 - Don't read source code, run codebase exploration agents, or make inferences
   about the implementation beyond what the ticket explicitly states
 - Don't penalise a ticket for lacking content that is genuinely not applicable

@@ -1,0 +1,189 @@
+{
+  "metadata": {
+    "skill_name": "completeness",
+    "skill_path": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/completeness-lens",
+    "timestamp": "2026-04-23T00:00:00Z",
+    "evals_run": ["missing-acceptance-criteria", "bug-missing-repro-steps", "epic-no-decomposition", "sparse-context-implied-deps", "clean-ticket"],
+    "runs_per_configuration": 1
+  },
+
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "missing-acceptance-criteria",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 26.7, "tokens": 14078, "tool_calls": 5, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 1 finding."},
+        {"text": "The top-level 'lens' field equals 'completeness'", "passed": true, "evidence": "\"lens\": \"completeness\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "1 critical finding."},
+        {"text": "At least one finding mentions the Acceptance Criteria section being thin, sparse, or covering only one of the requirements", "passed": true, "evidence": "'Acceptance Criteria contains only one criterion for a five-requirement story'."},
+        {"text": "No finding is solely about missing scenarios, error-handling paths, or unstated default behaviours", "passed": true, "evidence": "Only 1 finding, about the structural AC gap. No scope-bleed findings."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "missing-acceptance-criteria",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 30.9, "tokens": 14294, "tool_calls": 6, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 1 finding."},
+        {"text": "The top-level 'lens' field equals 'completeness'", "passed": true, "evidence": "\"lens\": \"completeness\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "1 critical finding."},
+        {"text": "At least one finding mentions the Acceptance Criteria section being thin, sparse, or covering only one of the requirements", "passed": true, "evidence": "'Acceptance Criteria section contains only one criterion, leaving most requirements uncovered'."},
+        {"text": "No finding is solely about missing scenarios, error-handling paths, or unstated default behaviours", "passed": true, "evidence": "Only 1 finding. No scope bleed this run (contrast: iteration-1 without_skill had 3 findings including 2 scope-related — non-deterministic)."}
+      ],
+      "notes": ["Old_skill was clean this run — the scope bleed seen in iteration-1 did not appear. Single-run evaluations cannot reliably surface non-deterministic failure modes."]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "bug-missing-repro-steps",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 35.4, "tokens": 14526, "tool_calls": 6, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 1 finding."},
+        {"text": "The top-level 'lens' field equals 'completeness'", "passed": true, "evidence": "\"lens\": \"completeness\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "1 critical: 'Reproduction steps absent'."},
+        {"text": "At least one finding mentions the absence of structured reproduction steps", "passed": true, "evidence": "Finding states 'the lens requires: the specific input used, the action taken, the expected outcome, and the actual outcome — none of these are present'."},
+        {"text": "The absence of reproduction steps and the missing expected/actual outcome are reported together as a single finding — there is no separate finding whose sole subject is 'missing expected outcome' or 'missing actual outcome'", "passed": true, "evidence": "Only 1 finding covering all four missing repro elements."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "bug-missing-repro-steps",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 28.6, "tokens": 14127, "tool_calls": 5, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 1 finding."},
+        {"text": "The top-level 'lens' field equals 'completeness'", "passed": true, "evidence": "\"lens\": \"completeness\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "1 critical: 'Reproduction steps absent'."},
+        {"text": "At least one finding mentions the absence of structured reproduction steps", "passed": true, "evidence": "Finding states 'no sequence of actions a developer can follow to trigger the bug, no explicit expected outcome, and no description of the actual (erroneous) outcome'."},
+        {"text": "The absence of reproduction steps and the missing expected/actual outcome are reported together as a single finding — there is no separate finding whose sole subject is 'missing expected outcome' or 'missing actual outcome'", "passed": true, "evidence": "Only 1 finding. Old_skill also grouped correctly in this run (iteration-1 without_skill split into 2 — non-deterministic)."}
+      ],
+      "notes": ["Old_skill grouped repro steps as one finding this run. The split seen in iteration-1 did not reappear."]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "epic-no-decomposition",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 26.7, "tokens": 14222, "tool_calls": 6, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 1 finding."},
+        {"text": "The top-level 'lens' field equals 'completeness'", "passed": true, "evidence": "\"lens\": \"completeness\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "1 critical: 'No decomposition strategy or child story list'."},
+        {"text": "At least one finding mentions the absence of a decomposition strategy, child stories, or constituent work items", "passed": true, "evidence": "Finding title and body explicitly address the missing decomposition."},
+        {"text": "No finding is solely about missing non-functional requirements, migration strategy, authentication approach, or other implementation concerns not explicitly required for completeness of an epic", "passed": true, "evidence": "Only 1 finding about decomposition structure. No scope bleed."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "epic-no-decomposition",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 29.8, "tokens": 13881, "tool_calls": 5, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 1 finding."},
+        {"text": "The top-level 'lens' field equals 'completeness'", "passed": true, "evidence": "\"lens\": \"completeness\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "1 critical: 'Epic has no decomposition strategy or child story list'."},
+        {"text": "At least one finding mentions the absence of a decomposition strategy, child stories, or constituent work items", "passed": true, "evidence": "Finding explicitly addresses missing child story list."},
+        {"text": "No finding is solely about missing non-functional requirements, migration strategy, authentication approach, or other implementation concerns not explicitly required for completeness of an epic", "passed": true, "evidence": "Only 1 finding. No scope bleed in this run (iteration-1 without_skill had 7 findings including migration strategy and auth token concerns — non-deterministic)."}
+      ],
+      "notes": ["Old_skill was clean this run — iteration-1 had 7 findings and 2 critical. The scope bleed was non-deterministic and did not appear here."]
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "sparse-context-implied-deps",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 41.3, "tokens": 14904, "tool_calls": 6, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 3 findings (2 major + 1 minor)."},
+        {"text": "The top-level 'lens' field equals 'completeness'", "passed": true, "evidence": "\"lens\": \"completeness\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "2 major findings."},
+        {"text": "At least one finding mentions the Context section being insufficient, sparse, a restatement of the Summary, or lacking motivation/rationale", "passed": true, "evidence": "'Context restates the summary without explaining motivation'."},
+        {"text": "At least one finding mentions the Dependencies section being empty or missing despite implied dependencies", "passed": true, "evidence": "'Dependencies section is empty despite clear external coupling' — names OMS and secrets manager."}
+      ],
+      "notes": ["Third finding (minor, medium confidence): story does not name its beneficiary. Reasonable but borderline."]
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "sparse-context-implied-deps",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 35.5, "tokens": 14515, "tool_calls": 5, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 3 findings (2 major + 1 minor)."},
+        {"text": "The top-level 'lens' field equals 'completeness'", "passed": true, "evidence": "\"lens\": \"completeness\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "2 major findings."},
+        {"text": "At least one finding mentions the Context section being insufficient, sparse, a restatement of the Summary, or lacking motivation/rationale", "passed": true, "evidence": "'Context restates the summary rather than explaining the motivation'."},
+        {"text": "At least one finding mentions the Dependencies section being empty or missing despite implied dependencies", "passed": true, "evidence": "'Dependencies section is empty despite clear external coupling'."}
+      ],
+      "notes": ["Third finding (minor, high confidence): implied assumptions not captured (OMS contract, Node.js stack, checkout extensibility). Slightly different from with_skill's missing-beneficiary finding but both reasonable."]
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "clean-ticket",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6, "time_seconds": 35.1, "tokens": 14638, "tool_calls": 6, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 0 findings."},
+        {"text": "The top-level 'lens' field equals 'completeness'", "passed": true, "evidence": "\"lens\": \"completeness\"."},
+        {"text": "No finding has severity 'critical'", "passed": true, "evidence": "0 findings."},
+        {"text": "No finding has severity 'major'", "passed": true, "evidence": "0 findings. Perfect proportionality."},
+        {"text": "No finding is solely about a missing scenario, error-handling path, or unstated edge case", "passed": true, "evidence": "0 findings. Perfect scope discipline."},
+        {"text": "The 'strengths' array is non-empty", "passed": true, "evidence": "6 strengths listed."}
+      ],
+      "notes": ["Perfect: 0 findings on the clean ticket. Consistent across both iteration-1 and iteration-2 with_skill runs."]
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "clean-ticket",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6, "time_seconds": 36.2, "tokens": 14770, "tool_calls": 5, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 1 finding (minor)."},
+        {"text": "The top-level 'lens' field equals 'completeness'", "passed": true, "evidence": "\"lens\": \"completeness\"."},
+        {"text": "No finding has severity 'critical'", "passed": true, "evidence": "1 finding, severity 'minor'."},
+        {"text": "No finding has severity 'major'", "passed": true, "evidence": "1 finding, severity 'minor'. Correctly avoids escalation."},
+        {"text": "No finding is solely about a missing scenario, error-handling path, or unstated edge case", "passed": true, "evidence": "Finding is about acting_user_id omitted from deactivation AC — an intra-ticket inconsistency, not a missing scenario. Assertion passes."},
+        {"text": "The 'strengths' array is non-empty", "passed": true, "evidence": "6 strengths listed."}
+      ],
+      "notes": ["Old_skill found 1 minor finding: acting_user_id omitted from deactivation AC despite Requirement 1 mandating it and the creation AC including it. This is a legitimate micro-observation, not scope bleed. Iteration-1 without_skill found 3 findings (2 were scope-bleed); this run is much more disciplined. The acting_user_id finding is arguably correct — with_skill suppresses it, which is more proportional but potentially loses a real signal."]
+    }
+  ],
+
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 33.0, "stddev": 5.6, "min": 26.7, "max": 41.3},
+      "tokens": {"mean": 14474, "stddev": 295, "min": 14078, "max": 14904}
+    },
+    "old_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 32.2, "stddev": 3.1, "min": 28.6, "max": 36.2},
+      "tokens": {"mean": 14317, "stddev": 307, "min": 13881, "max": 14770}
+    },
+    "delta": {
+      "pass_rate": "0.0",
+      "time_seconds": "+0.8",
+      "tokens": "+157"
+    }
+  },
+
+  "notes": [
+    "Both configurations achieve 100% pass rate — same as iteration-1. The scope-bleed and grouping problems that appeared in iteration-1's without_skill did not appear in iteration-2's old_skill runs. This is non-deterministic: single runs cannot reliably surface the failure modes the skill guards against.",
+    "Qualitative picture: with_skill produced 0 findings on eval 5 (clean ticket); old_skill found 1 minor finding (acting_user_id inconsistency in deactivation AC). The old_skill finding is arguably correct — it is a real intra-ticket inconsistency. with_skill suppresses it, which is more proportional but potentially loses a real signal.",
+    "Eval 4 (sparse-context-implied-deps): Both configurations are nearly identical — 2 major + 1 minor findings. The minor findings differ: with_skill flags missing beneficiary (medium confidence); old_skill flags implied assumptions (high confidence). Neither is clearly superior.",
+    "The benchmark confirms the skill changes are correct but the improvement is not quantitatively measurable with a single run per eval. To get statistical signal, 3+ runs per eval would be needed to catch the non-deterministic scope-bleed failures."
+  ]
+}

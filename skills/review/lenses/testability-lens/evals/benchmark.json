@@ -1,0 +1,190 @@
+{
+  "metadata": {
+    "skill_name": "testability",
+    "skill_path": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/testability-lens",
+    "timestamp": "2026-04-23T00:00:00Z",
+    "evals_run": ["vague-unmeasurable-ac", "bug-incomplete-repro-spec", "spike-open-ended-exit", "tautological-ac", "clean-ticket"],
+    "runs_per_configuration": 1
+  },
+
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "vague-unmeasurable-ac",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 43.6, "tokens": 14865, "tool_calls": 6, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 5 findings (4 critical + 1 major)."},
+        {"text": "The top-level 'lens' field equals 'testability'", "passed": true, "evidence": "\"lens\": \"testability\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "4 critical + 1 major."},
+        {"text": "At least one finding mentions 'quickly', 'fast', or the absence of a latency threshold", "passed": true, "evidence": "'\"Search results appear quickly\" has no measurable threshold'."},
+        {"text": "At least one finding mentions 'edge cases', 'unusual input', or unbounded scope language in the acceptance criteria", "passed": true, "evidence": "'\"Handles edge cases and unusual input appropriately\" is unbounded and tautological'."}
+      ],
+      "notes": ["5th finding (major): Context's 30-second lookup target not promoted to any AC. Genuine testability observation — most concrete performance target invisible at sign-off. without_skill omits this."]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "vague-unmeasurable-ac",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 40.1, "tokens": 13038, "tool_calls": 6, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 4 findings (3 critical + 1 major)."},
+        {"text": "The top-level 'lens' field equals 'testability'", "passed": true, "evidence": "\"lens\": \"testability\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "3 critical + 1 major."},
+        {"text": "At least one finding mentions 'quickly', 'fast', or the absence of a latency threshold", "passed": true, "evidence": "'Performance AC uses unmeasurable qualifier \"quickly\"'."},
+        {"text": "At least one finding mentions 'edge cases', 'unusual input', or unbounded scope language in the acceptance criteria", "passed": true, "evidence": "'Edge-case AC names no specific edge cases'."}
+      ],
+      "notes": ["Rates the browser AC as major vs with_skill's critical — marginally lower severity that is defensible. Misses the Context→AC target-promotion finding."]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "bug-incomplete-repro-spec",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 47.8, "tokens": 14976, "tool_calls": 5, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 6 findings (3 critical + 2 major + 1 minor)."},
+        {"text": "The top-level 'lens' field equals 'testability'", "passed": true, "evidence": "\"lens\": \"testability\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "3 critical + 2 major."},
+        {"text": "At least one finding mentions the AC lacking a specific input condition, dataset size threshold, or trigger specification", "passed": true, "evidence": "Critical: 'No reproduction specification: trigger input and actual outcome are absent'. Critical: '\"Large dataset\" threshold is undefined'."},
+        {"text": "No finding is primarily about section presence or absence — that is the completeness lens", "passed": true, "evidence": "All findings target AC content verifiability."}
+      ],
+      "notes": ["Most thorough: 6 findings. Correctly identifies 'all sizes' as unbounded in Requirements (major) and 'completes successfully' as circular (major). Minor about Req 3 record count verification also legitimate."]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "bug-incomplete-repro-spec",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 39.5, "tokens": 12833, "tool_calls": 5, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 4 findings (2 critical + 2 major)."},
+        {"text": "The top-level 'lens' field equals 'testability'", "passed": true, "evidence": "\"lens\": \"testability\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "2 critical + 2 major."},
+        {"text": "At least one finding mentions the AC lacking a specific input condition, dataset size threshold, or trigger specification", "passed": true, "evidence": "Critical: 'No reproduction steps or minimum failing dataset size defined'."},
+        {"text": "No finding is primarily about section presence or absence — that is the completeness lens", "passed": true, "evidence": "All findings about verifiability of content."}
+      ],
+      "notes": ["without_skill adds 'No expected vs. actual failure behaviour described' (major) — a genuine error-path testability gap with_skill subsumes into the repro-spec finding. 4 vs 6 findings but core gaps are covered."]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "spike-open-ended-exit",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 33.4, "tokens": 14225, "tool_calls": 5, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 4 findings (2 critical + 2 major)."},
+        {"text": "The top-level 'lens' field equals 'testability'", "passed": true, "evidence": "\"lens\": \"testability\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "2 critical + 2 major."},
+        {"text": "At least one finding identifies that the spike's exit criteria are non-enumerable or subjective", "passed": true, "evidence": "Critical: '\"good understanding\" is not a verifiable artefact'. Critical: '\"risks have been considered\" is tautological'."},
+        {"text": "At least one finding suggests/implies a concrete artefact instead of a state of knowledge", "passed": true, "evidence": "Suggestions reference 'comparison matrix', 'risk register', 'decision memo'."}
+      ],
+      "notes": ["One finding per criterion — most granular. Correctly identifies that the 3-options requirement doesn't appear in AC (major). The skill's explicit guidance about spike exit criteria (artefacts, not states) is evident in finding quality."]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "spike-open-ended-exit",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 37.8, "tokens": 12602, "tool_calls": 4, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 4 findings (1 critical + 2 major + 1 minor)."},
+        {"text": "The top-level 'lens' field equals 'testability'", "passed": true, "evidence": "\"lens\": \"testability\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "1 critical + 2 major."},
+        {"text": "At least one finding identifies that the spike's exit criteria are non-enumerable or subjective", "passed": true, "evidence": "Critical: 'All ACs are subjective and cannot be objectively verified'."},
+        {"text": "At least one finding suggests/implies a concrete artefact instead of a state of knowledge", "passed": true, "evidence": "Major: 'No required output artifact is specified'. Suggests 'spike summary document committed to the repository'."}
+      ],
+      "notes": ["Groups all 4 tautological ACs into one critical. Also catches the 3-options gap (same as with_skill). without_skill's structure is coarser but covers the key issues."]
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "tautological-ac",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 47.7, "tokens": 15099, "tool_calls": 6, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 5 findings (3 critical + 2 major)."},
+        {"text": "The top-level 'lens' field equals 'testability'", "passed": true, "evidence": "\"lens\": \"testability\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "3 critical + 2 major."},
+        {"text": "At least one finding identifies tautological or unfalsifiable criteria", "passed": true, "evidence": "Critical: 'All criteria are tautological and provide no verification value'."},
+        {"text": "At least one finding mentions unbounded scope language — 'all edge cases' or similar", "passed": true, "evidence": "Critical: '\"All edge cases around TOTP validation\" is unbounded scope'. Also: recovery criterion uses 'all cases'."}
+      ],
+      "notes": ["with_skill rates missing logging AC as major (correct — Req 4 explicitly mandates logging). without_skill rates it minor. The 'no existing tests broken' meta-criterion finding (major) is a good catch: it's a process instruction, not a verifiable outcome."]
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "tautological-ac",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 43.9, "tokens": 12648, "tool_calls": 5, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 3 findings (1 critical + 1 major + 1 minor)."},
+        {"text": "The top-level 'lens' field equals 'testability'", "passed": true, "evidence": "\"lens\": \"testability\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "1 critical + 1 major."},
+        {"text": "At least one finding identifies tautological or unfalsifiable criteria", "passed": true, "evidence": "Critical: 'All ACs are tautological and untestable'. Quotes 'works correctly end-to-end', 'handles all cases properly', 'meets the security requirements'."},
+        {"text": "At least one finding mentions unbounded scope language — 'all edge cases' or similar", "passed": true, "evidence": "Critical finding body quotes 'All edge cases around TOTP validation'. Major finding targets 'all cases' in recovery criterion."}
+      ],
+      "notes": ["without_skill groups all tautological ACs into one critical (coarser but correct). Adds a valuable major about missing failure-path criteria (expired codes, repeated failures) — this security-critical gap with_skill splits across individual findings. Rates logging gap as minor vs with_skill's major — severity underestimation."]
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "clean-ticket",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 50.7, "tokens": 15310, "tool_calls": 6, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 3 findings (2 minor + 1 suggestion)."},
+        {"text": "The top-level 'lens' field equals 'testability'", "passed": true, "evidence": "\"lens\": \"testability\"."},
+        {"text": "No finding has severity 'critical'", "passed": true, "evidence": "0 critical. Highest severity is minor."},
+        {"text": "No finding has severity 'major'", "passed": true, "evidence": "0 major findings."},
+        {"text": "The 'strengths' array is non-empty", "passed": true, "evidence": "5 strengths covering boundary conditions, load test methodology, sliding-window criterion, admin endpoint fields, and requirement-to-AC traceability."}
+      ],
+      "notes": ["3 findings vs without_skill's 2. Extra finding: admin endpoint field value semantics (suggestion, low confidence) — legitimate but very minor. The Retry-After accuracy finding is a genuine gap (a fixed value of 30 would pass all criteria)."]
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "clean-ticket",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 30.1, "tokens": 12559, "tool_calls": 5, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON with 2 findings (2 minor)."},
+        {"text": "The top-level 'lens' field equals 'testability'", "passed": true, "evidence": "\"lens\": \"testability\"."},
+        {"text": "No finding has severity 'critical'", "passed": true, "evidence": "0 critical."},
+        {"text": "No finding has severity 'major'", "passed": true, "evidence": "0 major."},
+        {"text": "The 'strengths' array is non-empty", "passed": true, "evidence": "5 strengths listed."}
+      ],
+      "notes": ["2 findings (p99 baseline method unspecified, window-reset criterion missing HTTP status). Both legitimate micro-observations. without_skill is slightly more restrained than with_skill on this clean ticket, which is appropriate proportionality."]
+    }
+  ],
+
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 44.6, "stddev": 6.1, "min": 33.4, "max": 50.7},
+      "tokens": {"mean": 14895, "stddev": 366, "min": 14225, "max": 15310}
+    },
+    "without_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 38.3, "stddev": 4.5, "min": 30.1, "max": 43.9},
+      "tokens": {"mean": 12736, "stddev": 178, "min": 12559, "max": 13038}
+    },
+    "delta": {
+      "pass_rate": "0.0",
+      "time_seconds": "+6.3",
+      "tokens": "+2159"
+    }
+  },
+
+  "notes": [
+    "Both configurations achieve 100% pass rate. Testability evaluation is well within the base model's capability — the skill does not unlock detection that the model couldn't do on its own.",
+    "Qualitative pattern: with_skill is consistently more granular — one finding per criterion rather than grouping. This produces more actionable output (each finding = one concrete fix) but more findings overall. whether this is better or noisier is a judgment call.",
+    "Severity calibration is the clearest differentiator: eval 4 (tautological-ac) has the missing logging AC rated major by with_skill, minor by without_skill. Given that Requirement 4 explicitly mandates logging, major is the more correct severity — this is a real quality advantage of the skill.",
+    "Token cost: +2159 tokens per run (~17% overhead) vs completeness-lens's ~13%. The testability SKILL.md is slightly longer.",
+    "Time cost: +6.3s per run (44.6 vs 38.3s). More noticeable than completeness-lens's negligible time delta.",
+    "The skill adds a consistent additional finding in eval 1: Context's concrete performance target not promoted to AC. This is a genuine gap the base model consistently misses.",
+    "Assertions are detection-oriented and pass for both. To measure the granularity and severity-calibration advantages, iteration-2 assertions should test: (a) eval 4 missing logging rated as major not minor; (b) eval 1 performance target finding present."
+  ]
+}

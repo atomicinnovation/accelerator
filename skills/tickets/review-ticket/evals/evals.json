@@ -1,0 +1,42 @@
+{
+  "skill_name": "review-ticket",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to review a ticket but I'm not sure which one to pick. How do I use the review-ticket command?",
+      "expected_output": "Responds with help text explaining how to invoke the skill. Should mention providing a ticket path or ticket number shorthand, give an example invocation, and reference /list-tickets as a way to discover tickets. Should NOT attempt to run a review.",
+      "files": [],
+      "assertions": [
+        {"text": "mentions /list-tickets as a discovery tool"},
+        {"text": "shows an example invocation with a ticket path or number"},
+        {"text": "does not attempt to run a review or read any ticket file"},
+        {"text": "response is a help prompt rather than a question asking for more information"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Please review the ticket at meta/tickets/9999-nonexistent-ticket.md",
+      "expected_output": "Reports that the ticket does not exist at the given path. Should use phrasing like 'No ticket at meta/tickets/9999-nonexistent-ticket.md' and offer to run /list-tickets to find a valid ticket path. Should NOT attempt to run a review against a nonexistent file.",
+      "files": [],
+      "assertions": [
+        {"text": "response contains 'No ticket at' followed by the path"},
+        {"text": "offers to run /list-tickets"},
+        {"text": "does not attempt to review or open the nonexistent file"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Please review the ticket at /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/tickets/review-ticket/evals/files/full-review-flow/ticket.md\n\nProceed with all three lenses without waiting for confirmation. After the review is complete and the review file is written, also copy the review file to the outputs directory at the path you were given for outputs.",
+      "expected_output": "Runs the full review flow: reads the ticket, spawns three reviewer agents in parallel (completeness, testability, clarity), aggregates findings, determines a verdict, presents the review summary, and writes a review artifact. The review file should have correct frontmatter (type: ticket-review, skill: review-ticket, lenses listing all three). The ticket is a well-structured story so verdict should be APPROVE or COMMENT. Per-Lens Results section should be present.",
+      "files": [],
+      "assertions": [
+        {"text": "spawns three reviewer agents (completeness, testability, clarity)"},
+        {"text": "review file written with correct frontmatter (type: ticket-review, skill: review-ticket)"},
+        {"text": "all three lenses listed in the lenses frontmatter field"},
+        {"text": "verdict is one of APPROVE, REVISE, or COMMENT"},
+        {"text": "review contains a Per-Lens Results section"},
+        {"text": "no critical findings for this well-structured ticket"}
+      ]
+    }
+  ]
+}

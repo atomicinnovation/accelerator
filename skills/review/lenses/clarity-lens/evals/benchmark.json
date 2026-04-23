@@ -1,0 +1,278 @@
+{
+  "metadata": {
+    "skill_name": "clarity",
+    "skill_path": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/clarity-lens",
+    "timestamp": "2026-04-23T00:00:00Z",
+    "evals_run": ["pronoun-ambiguity", "internal-contradiction", "undefined-acronyms", "passive-voice-obscuring-actor", "clean-ticket"],
+    "runs_per_configuration": 1
+  },
+
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "pronoun-ambiguity",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 51.4,
+        "tokens": 15677,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON code block with 6 findings."},
+        {"text": "The top-level 'lens' field equals 'clarity'", "passed": true, "evidence": "\"lens\": \"clarity\" at top level."},
+        {"text": "The 'findings' array contains at least one entry", "passed": true, "evidence": "6 findings: 5 major + 1 minor. All pronoun 'it' ambiguities identified per-instance."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "5 major findings."},
+        {"text": "At least one finding body or title contains 'it' or 'pronoun' or 'referent' or 'ambiguous'", "passed": true, "evidence": "Every title contains \"Ambiguous 'it'\"."}
+      ],
+      "notes": ["Iteration-3 splits Summary pronouns into 2 separate major findings rather than grouping 3 into 1 critical. Both approaches detect the same issues; iteration-2's grouping was arguably more concise."]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "pronoun-ambiguity",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 68.2,
+        "tokens": 16029,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON code block (iteration-2 with_skill output)."},
+        {"text": "The top-level 'lens' field equals 'clarity'", "passed": true, "evidence": "\"lens\": \"clarity\" at top level."},
+        {"text": "The 'findings' array contains at least one entry", "passed": true, "evidence": "5 findings: 1 critical (3 Summary pronouns grouped) + 4 major."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "1 critical + 4 major."},
+        {"text": "At least one finding body or title contains 'it' or 'pronoun' or 'referent' or 'ambiguous'", "passed": true, "evidence": "Titles include \"Multiple 'it' pronouns... are ambiguous\", \"'it'... has no clear referent\"."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "internal-contradiction",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 45.1,
+        "tokens": 14757,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON code block with 2 findings."},
+        {"text": "The top-level 'lens' field equals 'clarity'", "passed": true, "evidence": "\"lens\": \"clarity\" at top level."},
+        {"text": "The 'findings' array contains at least one entry", "passed": true, "evidence": "2 findings: 1 critical (scope contradiction) + 1 major (Req 4 introduces unexplained concern)."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "1 critical + 1 major."},
+        {"text": "At least one finding mentions a scope mismatch, contradiction, or inconsistency between Summary and Requirements", "passed": true, "evidence": "Critical finding: 'Requirements contradict the scope stated in Summary and Context'."},
+        {"text": "No finding is solely about a requirement lacking a corresponding Acceptance Criterion — that is a completeness or testability concern", "passed": true, "evidence": "Req 4 finding is titled 'Requirement 4 introduces a concern unrelated to the stated problem' — framed as unexplained scope, not missing AC."}
+      ],
+      "notes": ["Scope bleed fix worked: Req 4 finding is now a coherence/clarity issue (unexplained relationship to stated problem) rather than a testability issue (missing AC)."]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "internal-contradiction",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.833,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 55.0,
+        "tokens": 15073,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON code block (iteration-2 with_skill output)."},
+        {"text": "The top-level 'lens' field equals 'clarity'", "passed": true, "evidence": "\"lens\": \"clarity\" at top level."},
+        {"text": "The 'findings' array contains at least one entry", "passed": true, "evidence": "2 findings: 1 critical + 1 major."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "1 critical + 1 major."},
+        {"text": "At least one finding mentions a scope mismatch, contradiction, or inconsistency between Summary and Requirements", "passed": true, "evidence": "'Requirements contradict the stated scope in Summary and Context'."},
+        {"text": "No finding is solely about a requirement lacking a corresponding Acceptance Criterion — that is a completeness or testability concern", "passed": false, "evidence": "Major finding title: 'Acceptance Criteria do not cover Requirement 4 (retry logic)'. Body says 'no observable completion condition... making it untestable' — testability scope bleed."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "undefined-acronyms",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 37.4,
+        "tokens": 14642,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON code block with 1 finding."},
+        {"text": "The top-level 'lens' field equals 'clarity'", "passed": true, "evidence": "\"lens\": \"clarity\" at top level."},
+        {"text": "The 'findings' array contains at least one entry", "passed": true, "evidence": "1 major finding grouping 12 undefined acronyms."},
+        {"text": "At least one finding names a specific undefined acronym", "passed": true, "evidence": "Lists RBAC, OIDC, IdP, SRE, APM, P99, SLO, RFC 7807, JWT, JWKS, RS256, ACL_DENY."},
+        {"text": "No finding has severity 'critical'", "passed": true, "evidence": "1 major finding. No critical."}
+      ],
+      "notes": ["Iteration-3 consolidates back to 1 finding (vs iteration-2's 3 findings). Simpler and equally effective."]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "undefined-acronyms",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 84.0,
+        "tokens": 15494,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON code block (iteration-2 with_skill output)."},
+        {"text": "The top-level 'lens' field equals 'clarity'", "passed": true, "evidence": "\"lens\": \"clarity\" at top level."},
+        {"text": "The 'findings' array contains at least one entry", "passed": true, "evidence": "3 findings: 1 major + 2 minor."},
+        {"text": "At least one finding names a specific undefined acronym", "passed": true, "evidence": "Names RBAC, OIDC, IdP, SRE, APM, SLO, JWT, RFC, JWKS, ACL, RS256."},
+        {"text": "No finding has severity 'critical'", "passed": true, "evidence": "1 major + 2 minor. No critical."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "passive-voice-obscuring-actor",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": 41.2,
+        "tokens": 14670,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON code block with 1 finding."},
+        {"text": "The top-level 'lens' field equals 'clarity'", "passed": true, "evidence": "\"lens\": \"clarity\" at top level."},
+        {"text": "At least one finding mentions passive voice / unnamed actor / rendering or generating or streaming", "passed": true, "evidence": "'Passive voice in multiple requirements obscures which component performs each action'."},
+        {"text": "Not every finding has confidence 'high' — mixed cases; some passive constructions have obvious actors", "passed": false, "evidence": "1 grouped finding with confidence 'high'. Same as iteration-2 — grouping prevents per-instance confidence variation."}
+      ],
+      "notes": ["Persistent: this assertion fails in both iterations because grouping and confidence differentiation are in tension. Resolving requires guidance on confidence assignment within grouped findings."]
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "passive-voice-obscuring-actor",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": 55.2,
+        "tokens": 14964,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON code block (iteration-2 with_skill output)."},
+        {"text": "The top-level 'lens' field equals 'clarity'", "passed": true, "evidence": "\"lens\": \"clarity\" at top level."},
+        {"text": "At least one finding mentions passive voice / unnamed actor / rendering or generating or streaming", "passed": true, "evidence": "'Passive voice in Requirements 2–5 and 7 obscures which component is responsible for each action'."},
+        {"text": "Not every finding has confidence 'high' — mixed cases; some passive constructions have obvious actors", "passed": false, "evidence": "1 grouped finding with confidence 'high'. Same failure as with_skill."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "clean-ticket",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 34.3,
+        "tokens": 14730,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON code block with 1 finding."},
+        {"text": "The top-level 'lens' field equals 'clarity'", "passed": true, "evidence": "\"lens\": \"clarity\" at top level."},
+        {"text": "No finding has severity 'critical'", "passed": true, "evidence": "0 critical findings."},
+        {"text": "No finding has severity 'major'", "passed": true, "evidence": "0 major findings. 1 minor (low confidence) about fallback/AC reconciliation."},
+        {"text": "The 'strengths' array is non-empty", "passed": true, "evidence": "5 strengths listed."}
+      ],
+      "notes": ["Iteration-3 rates the Technical Notes fallback finding as low confidence vs iteration-2's high confidence — better calibration for a subtle implicit gap."]
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "clean-ticket",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 72.2,
+        "tokens": 15364,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with a top-level 'findings' array", "passed": true, "evidence": "Valid JSON code block (iteration-2 with_skill output)."},
+        {"text": "The top-level 'lens' field equals 'clarity'", "passed": true, "evidence": "\"lens\": \"clarity\" at top level."},
+        {"text": "No finding has severity 'critical'", "passed": true, "evidence": "0 critical findings."},
+        {"text": "No finding has severity 'major'", "passed": true, "evidence": "0 major findings. 1 minor."},
+        {"text": "The 'strengths' array is non-empty", "passed": true, "evidence": "5 strengths listed."}
+      ],
+      "notes": []
+    }
+  ],
+
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 0.96, "stddev": 0.1, "min": 0.75, "max": 1.0},
+      "time_seconds": {"mean": 41.9, "stddev": 6.0, "min": 34.3, "max": 51.4},
+      "tokens": {"mean": 14895, "stddev": 393, "min": 14642, "max": 15677}
+    },
+    "old_skill": {
+      "pass_rate": {"mean": 0.917, "stddev": 0.1, "min": 0.75, "max": 1.0},
+      "time_seconds": {"mean": 66.9, "stddev": 11.0, "min": 55.0, "max": 84.0},
+      "tokens": {"mean": 15385, "stddev": 375, "min": 14964, "max": 16029}
+    },
+    "delta": {
+      "pass_rate": "+0.042",
+      "time_seconds": "-25.0",
+      "tokens": "-490"
+    }
+  },
+
+  "notes": [
+    "Scope bleed fix worked: eval 2 now passes all 6 assertions (including new assertion 6). The Req 4 finding is now framed as 'introduces a concern unrelated to the stated problem' — a genuine clarity/coherence issue — rather than 'no AC exists' (testability).",
+    "Eval 4 (passive-voice) still fails the confidence differentiation assertion in both configurations. This is a standing issue: grouping and per-instance confidence variation are in tension. The assertion reflects desired behaviour; the skill needs guidance on confidence assignment within grouped findings.",
+    "Eval 5 (clean-ticket): iteration-3 rates the Technical Notes fallback observation as low confidence (vs iteration-2's high). Better calibrated — a subtle implicit gap deserves low confidence.",
+    "Timing: iteration-3 with_skill averages 41.9s vs old_skill 66.9s (-25s). Token counts also lower (14895 vs 15385, -490). The outputs are more concise without quality loss.",
+    "Overall: with_skill 96% vs old_skill 92% (+4pp). The single remaining failure is the passive-voice confidence assertion, which is a structural tension in the grouping guidance rather than a lens boundary issue."
+  ]
+}

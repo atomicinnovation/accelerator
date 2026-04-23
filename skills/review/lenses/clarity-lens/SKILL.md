@@ -112,13 +112,26 @@ the reader to guess.
 - **Be proportional** — a single undefined acronym in a long, otherwise
   clear ticket warrants at most a suggestion; a ticket riddled with ambiguous
   pronouns warrants a major finding
+- **Group or split consistently** — when the same class of issue appears in
+  multiple places, choose one approach and apply it uniformly: either a
+  single grouped finding that lists every occurrence in the body, or one
+  finding per location. Never group some instances while splitting others —
+  that inconsistency makes the review harder to act on. The choice should
+  follow the nature of the fix: group when all instances share the same root
+  cause and resolution (e.g., all undefined acronyms need "define on first
+  use"); split when each occurrence has a meaningfully different impact or
+  requires different information to resolve (e.g., each ambiguous pronoun in
+  a different section assigns responsibility to a different component)
 
 ## What NOT to Do
 
 - Don't assess whether sections exist or are populated — that is the
   completeness lens
 - Don't evaluate whether Acceptance Criteria are measurable or verifiable —
-  that is the testability lens
+  that is the testability lens. This includes noticing that a requirement has
+  no corresponding Acceptance Criterion — the absence of a criterion is a
+  completeness concern, not a clarity one. Your job is to assess whether the
+  criteria that exist are unambiguous, not whether there are enough of them
 - Don't assess scope appropriateness or dependency graph completeness — those
   are the scope and dependencies lenses (Phase 5)
 - Don't read source code, run codebase exploration agents, or make inferences

@@ -388,7 +388,7 @@ confirm the whole harness passes.
       `bash scripts/test-config.sh` exits 0.
 - [x] Regression: `bash skills/tickets/scripts/test-ticket-scripts.sh`
       still exits 0 (should be unaffected).
-- [ ] Full test suite passes: `mise run test` exits 0.
+- [x] Full test suite passes: `mise run test` exits 0.
 - [x] `bash scripts/config-read-review.sh pr` output byte-for-byte
       matches the pre-change output for a clean repo
       (recorded as a golden fixture in the test).
@@ -564,7 +564,7 @@ Update the review section (lines 158-207):
       YAML frontmatter, and `grep -c '^##' skills/review/output-formats/ticket-review-output-format/SKILL.md`
       returns at least 4 (JSON Schema, Field Reference, Severity
       Emoji Prefixes, Finding Body Format).
-- [ ] Full test suite still green: `mise run test` exits 0.
+- [x] Full test suite still green: `mise run test` exits 0.
 
 #### Manual Verification:
 
@@ -698,7 +698,7 @@ skill — see Testing Strategy):
 - [x] `completeness-lens/SKILL.md` exists and has valid YAML
       frontmatter (checked via a simple awk frontmatter delimit
       count in the test).
-- [ ] `mise run test` passes.
+- [x] `mise run test` passes.
 - [x] Regression: `bash scripts/config-read-review.sh plan` output
       unchanged from Phase 4B (verified against the golden fixture
       from 4A).
@@ -807,7 +807,7 @@ grammar beyond what affects meaning.
       three lens rows: `bash scripts/test-config.sh` exits 0.
 - [x] Both `testability-lens/SKILL.md` and `clarity-lens/SKILL.md`
       exist with valid frontmatter.
-- [ ] `mise run test` passes.
+- [x] `mise run test` passes.
 
 #### Manual Verification:
 
@@ -1045,12 +1045,12 @@ Not a code change — documented here so the implementer runs it:
 
 - [x] `skills/tickets/review-ticket/SKILL.md` exists with valid
       frontmatter.
-- [ ] `/skill-creator:skill-creator` evals pass for the
+- [x] `/skill-creator:skill-creator` evals pass for the
       orchestrator.
-- [ ] `mise run test` still passes (no test should regress; there
+- [x] `mise run test` still passes (no test should regress; there
       are no new shell tests in 4E — the orchestrator is a SKILL.md,
       exercised via skill-creator evals).
-- [ ] The plugin registers the skill: invoking `/review-ticket` in
+- [x] The plugin registers the skill: invoking `/review-ticket` in
       a fresh Claude Code session resolves to the new SKILL.md
       (verified by re-reading the skills table in the session's
       system reminders; `./skills/tickets/` is already in
