@@ -253,7 +253,8 @@ existing docs (specs, PRDs, notes)
        │                     ↓
        create-ticket ──→  meta/tickets/  ←── update-ticket
                               │
-                         list-tickets ──→  create-plan → implement-plan
+                         list-tickets ──┬──→  review-ticket → meta/reviews/tickets/
+                                        └──→  create-plan → implement-plan
 ```
 
 | Skill               | Usage                                                | Description                                                                |
@@ -262,6 +263,7 @@ existing docs (specs, PRDs, notes)
 | **extract-tickets** | `/accelerator:extract-tickets [doc paths...]`        | Batch-extract tickets from existing specs, PRDs, research, plans, or notes |
 | **list-tickets**    | `/accelerator:list-tickets [filter]`                 | List and filter tickets by status, type, priority, tag, parent, or title   |
 | **update-ticket**   | `/accelerator:update-ticket [ticket-ref] [field-op]` | Update ticket fields with diff preview and confirmation                    |
+| **review-ticket**   | `/accelerator:review-ticket [ticket-ref]`            | Review a ticket through completeness, testability, and clarity lenses      |
 
 Tickets use a shared template with YAML frontmatter (`ticket_id`, `title`,
 `type`, `status`, `priority`, `parent`, `tags`) and structured body sections
@@ -310,9 +312,11 @@ and team workflows around pull requests:
 
 ## Review System
 
-The `review-pr` and `review-plan` skills use a multi-lens review system. Each
-lens is a specialised subagent that evaluates changes through a specific quality
-perspective:
+The `review-pr`, `review-plan`, and `review-ticket` skills use a multi-lens
+review system. Each lens is a specialised subagent that evaluates the artefact
+through a specific quality perspective.
+
+**Code review lenses** (used by `review-pr` and `review-plan`):
 
 | Lens              | Focus                                                                |
 |-------------------|----------------------------------------------------------------------|
@@ -330,11 +334,20 @@ perspective:
 | **Test Coverage** | Coverage adequacy, assertion quality, test pyramid, anti-patterns    |
 | **Usability**     | Developer experience, API ergonomics, configuration, migration paths |
 
+**Ticket review lenses** (used by `review-ticket`):
+
+| Lens              | Focus                                                          |
+|-------------------|----------------------------------------------------------------|
+| **Completeness**  | Section presence, content density, type-appropriate content    |
+| **Testability**   | Measurable criteria, verifiable outcomes, verification framing |
+| **Clarity**       | Unambiguous referents, internal consistency, jargon handling   |
+
 Lenses are automatically selected based on scope, or you can specify focus
 areas:
 
 ```
 /accelerator:review-pr 123 focus on security and architecture
+/accelerator:review-ticket 0042 focus on testability
 ```
 
 ## Agents

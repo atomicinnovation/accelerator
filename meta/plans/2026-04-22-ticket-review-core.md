@@ -1043,7 +1043,7 @@ Not a code change — documented here so the implementer runs it:
 
 #### Automated Verification:
 
-- [ ] `skills/tickets/review-ticket/SKILL.md` exists with valid
+- [x] `skills/tickets/review-ticket/SKILL.md` exists with valid
       frontmatter.
 - [ ] `/skill-creator:skill-creator` evals pass for the
       orchestrator.

@@ -52,6 +52,33 @@
   (default: `meta/reviews/tickets`) for future ticket review artifacts,
   included in `/accelerator:init` directory creation and reported in
   `config-dump.sh`.
+- **Ticket review system**: Three-lens ticket review capability
+  - `review-ticket` — Orchestrator skill that reviews a ticket through
+    completeness, testability, and clarity lenses in parallel, aggregates
+    findings into an APPROVE/REVISE/COMMENT verdict, persists results to
+    `meta/reviews/tickets/{ticket-stem}-review-{N}.md`, and supports
+    appendable re-review passes
+  - `completeness-lens` — Ticket review lens for evaluating section presence,
+    content density, type-appropriate content (bug/story/spike/epic), and
+    frontmatter integrity
+  - `testability-lens` — Ticket review lens for evaluating whether Acceptance
+    Criteria and requirements admit a concrete verification strategy
+  - `clarity-lens` — Ticket review lens for evaluating unambiguous referents,
+    internal consistency, and jargon/acronym handling
+  - `ticket-review-output-format` — Output format specification for ticket
+    review agents (JSON schema, location examples anchored to ticket sections)
+- **Ticket review configuration keys**: Two new keys in the `review` section
+  - `ticket_revise_severity` (default: `critical`) — minimum severity for REVISE
+  - `ticket_revise_major_count` (default: `2`) — major-findings count to trigger REVISE
+- **Per-review-type lens partitioning**: `config-read-review.sh` now accepts
+  `ticket` as a third mode, emitting only the catalogue for the active mode.
+  The 13 code-review lenses remain exclusive to `pr` and `plan`; the three
+  ticket lenses are exclusive to `ticket`
+- **`applies_to` field for custom lenses**: Custom lenses in
+  `.claude/accelerator/lenses/` can now declare an optional
+  `applies_to: [pr, plan, ticket]` frontmatter field to restrict their
+  appearance to specific review modes. Absent means all modes
+  (backwards-compatible)
 - **Review system ADRs**: Extracted nine architecture decision records
   (ADR-0002 through ADR-0010) from existing research and planning documents,
   covering the three-layer review architecture, PBR lens design, lens
