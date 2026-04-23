@@ -803,9 +803,9 @@ grammar beyond what affects meaning.
 
 #### Automated Verification:
 
-- [ ] `scripts/test-config.sh` ticket catalogue assertion expects
+- [x] `scripts/test-config.sh` ticket catalogue assertion expects
       three lens rows: `bash scripts/test-config.sh` exits 0.
-- [ ] Both `testability-lens/SKILL.md` and `clarity-lens/SKILL.md`
+- [x] Both `testability-lens/SKILL.md` and `clarity-lens/SKILL.md`
       exist with valid frontmatter.
 - [ ] `mise run test` passes.
 

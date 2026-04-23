@@ -53,6 +53,8 @@ BUILTIN_CODE_LENSES=(
 # Built-in lens names for ticket reviews (ticket mode)
 BUILTIN_TICKET_LENSES=(
   completeness
+  testability
+  clarity
 )
 
 # Select the appropriate built-in lenses for the active mode.

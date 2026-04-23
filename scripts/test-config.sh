@@ -1816,20 +1816,38 @@ if [ "$CATALOGUE_OK" = true ]; then
   PASS=$((PASS + 1))
 fi
 
-echo "Test: ticket mode catalogue contains exactly completeness (1 row) and warns about min_lenses"
+echo "Test: ticket mode catalogue contains exactly 3 rows (completeness, testability, clarity)"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>&1 || true)
-CATALOGUE_LINES=$(echo "$OUTPUT" | grep -c "| .* | .* | built-in |" || true)
-if [ "$CATALOGUE_LINES" -eq 1 ] && \
-   echo "$OUTPUT" | grep -q "| completeness |" && \
-   echo "$OUTPUT" | grep -q "Warning.*lenses available"; then
-  echo "  PASS: ticket mode emits exactly 1 built-in lens row and warns"
+TICKET_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+CATALOGUE_LINES=$(echo "$TICKET_OUT" | grep -c "| .* | .* | built-in |" || true)
+SORTED_LENSES=$(echo "$TICKET_OUT" | grep "| built-in |" | awk -F'|' '{print $2}' | tr -d ' ' | sort | tr '\n' ' ' | tr -s ' ' | sed 's/^ //;s/ $//')
+if [ "$CATALOGUE_LINES" -eq 3 ] && \
+   [ "$SORTED_LENSES" = "clarity completeness testability" ]; then
+  echo "  PASS: ticket mode emits exactly 3 built-in lens rows"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: ticket mode emits exactly 1 built-in lens row and warns"
+  echo "  FAIL: ticket mode emits exactly 3 built-in lens rows"
   echo "    Catalogue lines: $CATALOGUE_LINES"
-  echo "    Output: $(printf '%q' "$OUTPUT")"
+  echo "    Sorted lenses: '$SORTED_LENSES'"
   FAIL=$((FAIL + 1))
+fi
+
+echo "Test: none of the three ticket lenses appear in pr or plan mode"
+REPO=$(setup_repo)
+PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
+PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
+CROSS_OK=true
+for lens in completeness testability clarity; do
+  if echo "$PR_OUT" | grep -q "| $lens |" || echo "$PLAN_OUT" | grep -q "| $lens |"; then
+    echo "  FAIL: ticket lens '$lens' leaked into pr or plan catalogue"
+    CROSS_OK=false
+    FAIL=$((FAIL + 1))
+    break
+  fi
+done
+if [ "$CROSS_OK" = true ]; then
+  echo "  PASS: no ticket lens appears in pr or plan catalogue"
+  PASS=$((PASS + 1))
 fi
 
 echo "Test: unknown mode -> exit 1 and usage contains pr|plan|ticket"
