@@ -52,10 +52,13 @@
   (default: `meta/reviews/tickets`) for future ticket review artifacts,
   included in `/accelerator:init` directory creation and reported in
   `config-dump.sh`.
-- **Ticket review system**: Three-lens ticket review capability
+- **Ticket review system**: Five-lens ticket review capability
+  (`/review-ticket`) combining completeness, testability, clarity, scope, and
+  dependency lenses.
   - `review-ticket` — Orchestrator skill that reviews a ticket through
-    completeness, testability, and clarity lenses in parallel, aggregates
-    findings into an APPROVE/REVISE/COMMENT verdict, persists results to
+    completeness, testability, clarity, scope, and dependency lenses in
+    parallel, aggregates findings into an APPROVE/REVISE/COMMENT verdict,
+    persists results to
     `meta/reviews/tickets/{ticket-stem}-review-{N}.md`, and supports
     appendable re-review passes
   - `completeness-lens` — Ticket review lens for evaluating section presence,
@@ -65,6 +68,11 @@
     Criteria and requirements admit a concrete verification strategy
   - `clarity-lens` — Ticket review lens for evaluating unambiguous referents,
     internal consistency, and jargon/acronym handling
+  - `scope-lens` — Ticket review lens for evaluating ticket sizing,
+    decomposition, and orthogonality of requirements
+  - `dependency-lens` — Ticket review lens for evaluating whether implied
+    couplings (blockers, consumers, external systems, ordering) are
+    explicitly captured
   - `ticket-review-output-format` — Output format specification for ticket
     review agents (JSON schema, location examples anchored to ticket sections)
 - **Ticket review configuration keys**: Two new keys in the `review` section
@@ -72,7 +80,7 @@
   - `ticket_revise_major_count` (default: `2`) — major-findings count to trigger REVISE
 - **Per-review-type lens partitioning**: `config-read-review.sh` now accepts
   `ticket` as a third mode, emitting only the catalogue for the active mode.
-  The 13 code-review lenses remain exclusive to `pr` and `plan`; the three
+  The 13 code-review lenses remain exclusive to `pr` and `plan`; the five
   ticket lenses are exclusive to `ticket`
 - **`applies_to` field for custom lenses**: Custom lenses in
   `.claude/accelerator/lenses/` can now declare an optional

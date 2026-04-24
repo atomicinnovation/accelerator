@@ -40,8 +40,7 @@ emit it.
 
 ## Field Reference
 
-- **lens**: Agent lens identifier (e.g., `"completeness"`, `"testability"`,
-  `"clarity"`)
+- **lens**: Agent lens identifier (e.g., `"completeness"`, `"scope"`, …)
 - **summary**: 2-3 sentence assessment from this lens perspective. Reflect the
   key dimensions from the lens's Core Responsibilities. This is where holistic
   assessment lives, beyond individual findings.
@@ -61,8 +60,8 @@ emit it.
   - **body**: Self-contained finding body. See "Finding Body Format" below.
 
 The canonical source of valid lens identifiers is the Lens Catalogue emitted
-by `config-read-review.sh ticket`. The current ticket lenses are:
-`completeness`, `testability`, `clarity`.
+by `config-read-review.sh ticket`. See the Lens Catalogue for the current
+list.
 
 ## Severity Emoji Prefixes
 

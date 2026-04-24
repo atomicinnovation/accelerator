@@ -52,9 +52,11 @@ BUILTIN_CODE_LENSES=(
 
 # Built-in lens names for ticket reviews (ticket mode)
 BUILTIN_TICKET_LENSES=(
-  completeness
-  testability
   clarity
+  completeness
+  dependency
+  scope
+  testability
 )
 
 # Select the appropriate built-in lenses for the active mode.
@@ -445,6 +447,31 @@ if [ "$available_count" -lt "$min_lenses" ]; then
   echo "Warning: Only $available_count lenses available after disabling, but min_lenses is $min_lenses" >&2
 fi
 
+# In ticket mode, when the user has explicitly set core_lenses to a subset of
+# the built-in ticket lenses, emit a one-time informational note so they know
+# the remaining non-disabled built-ins will be added up to max_lenses.
+if [ "$MODE" = "ticket" ] && [ ${#core_lenses[@]} -gt 0 ]; then
+  _missing_from_core=""
+  for _blens in "${BUILTIN_TICKET_LENSES[@]}"; do
+    _in_disabled=false
+    for _dlens in "${disabled_lenses[@]+"${disabled_lenses[@]}"}"; do
+      [ "$_blens" = "$_dlens" ] && _in_disabled=true && break
+    done
+    _in_core=false
+    for _clens in "${core_lenses[@]}"; do
+      [ "$_blens" = "$_clens" ] && _in_core=true && break
+    done
+    if ! $_in_disabled && ! $_in_core; then
+      _missing_from_core="$_missing_from_core $_blens"
+    fi
+  done
+  if [ -n "$_missing_from_core" ]; then
+    _missing_from_core="${_missing_from_core# }"
+    printf >&2 'Note: built-in ticket lens(es) not in your core_lenses but will be added up to max_lenses: %s\n' "$_missing_from_core"
+    printf >&2 '      Add them to disabled_lenses to opt out, or raise core_lenses to include them explicitly.\n'
+  fi
+fi
+
 # --- Helper: emit a labeled value, annotating overrides ---
 _emit_value() {
   local label="$1" value="$2" default="$3"
@@ -555,10 +582,11 @@ echo "| Lens | Path | Source |"
 echo "|------|------|--------|"
 
 LENSES_BASE="$SCRIPT_DIR/../skills/review/lenses"
+_LENSES_BASE_ABS="$(cd "$LENSES_BASE" && pwd)"
 
 while IFS= read -r lens; do
   [ -n "$lens" ] || continue
-  lens_path=$(cd "$LENSES_BASE/${lens}-lens" 2>/dev/null && echo "$(pwd)/SKILL.md")
+  lens_path="$_LENSES_BASE_ABS/${lens}-lens/SKILL.md"
   echo "| $lens | $lens_path | built-in |"
 done < <(_select_builtin_lenses_for_mode)
 

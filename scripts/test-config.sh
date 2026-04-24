@@ -1816,37 +1816,77 @@ if [ "$CATALOGUE_OK" = true ]; then
   PASS=$((PASS + 1))
 fi
 
-echo "Test: ticket mode catalogue contains exactly 3 rows (completeness, testability, clarity)"
-REPO=$(setup_repo)
-TICKET_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
-CATALOGUE_LINES=$(echo "$TICKET_OUT" | grep -c "| .* | .* | built-in |" || true)
-SORTED_LENSES=$(echo "$TICKET_OUT" | grep "| built-in |" | awk -F'|' '{print $2}' | tr -d ' ' | sort | tr '\n' ' ' | tr -s ' ' | sed 's/^ //;s/ $//')
-if [ "$CATALOGUE_LINES" -eq 3 ] && \
-   [ "$SORTED_LENSES" = "clarity completeness testability" ]; then
-  echo "  PASS: ticket mode emits exactly 3 built-in lens rows"
-  PASS=$((PASS + 1))
-else
-  echo "  FAIL: ticket mode emits exactly 3 built-in lens rows"
-  echo "    Catalogue lines: $CATALOGUE_LINES"
-  echo "    Sorted lenses: '$SORTED_LENSES'"
-  FAIL=$((FAIL + 1))
-fi
+# Helper local to this block: extract sorted built-in lens names
+# from a catalogue output. Accepts the output on stdin.
+_extract_builtin_lens_names() {
+  grep "| built-in |" \
+    | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2}' \
+    | sort \
+    | tr '\n' ' ' \
+    | sed 's/ $//'
+}
 
-echo "Test: none of the three ticket lenses appear in pr or plan mode"
+echo "Test: ticket mode catalogue contains exactly 5 built-in rows"
+REPO=$(setup_repo)
+TICKET_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null)
+CATALOGUE_LINES=$(echo "$TICKET_OUT" | awk '/\| .* \| .* \| built-in \|/ {c++} END {print c+0}')
+assert_eq "ticket mode emits 5 built-in lens rows" 5 "$CATALOGUE_LINES"
+
+echo "Test: ticket mode catalogue emits the expected sorted lens set"
+SORTED_LENSES=$(echo "$TICKET_OUT" | _extract_builtin_lens_names)
+assert_eq "ticket mode sorted lens set" \
+  "clarity completeness dependency scope testability" \
+  "$SORTED_LENSES"
+
+echo "Test: ticket-mode output is byte-identical to its committed golden fixture"
+TICKET_GOLDEN="$SCRIPT_DIR/test-fixtures/config-read-review/ticket-mode-golden.txt"
+assert_eq "ticket-mode output matches golden fixture" \
+  "$(cat "$TICKET_GOLDEN")" \
+  "$TICKET_OUT"
+
+echo "Test: none of the five ticket lenses appear in pr or plan mode"
 REPO=$(setup_repo)
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-CROSS_OK=true
-for lens in completeness testability clarity; do
-  if echo "$PR_OUT" | grep -q "| $lens |" || echo "$PLAN_OUT" | grep -q "| $lens |"; then
-    echo "  FAIL: ticket lens '$lens' leaked into pr or plan catalogue"
-    CROSS_OK=false
-    FAIL=$((FAIL + 1))
-    break
+LEAKED=""
+for lens in completeness testability clarity scope dependency; do
+  if echo "$PR_OUT" | grep -q "| $lens |"; then
+    LEAKED="$LEAKED pr:$lens"
+  fi
+  if echo "$PLAN_OUT" | grep -q "| $lens |"; then
+    LEAKED="$LEAKED plan:$lens"
   fi
 done
-if [ "$CROSS_OK" = true ]; then
-  echo "  PASS: no ticket lens appears in pr or plan catalogue"
+assert_eq "no ticket lens leaks into pr or plan catalogue" "" "$LEAKED"
+
+echo "Test: core_lenses override emits informational note in ticket mode"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+review:
+  core_lenses: [completeness, testability, clarity]
+---
+FIXTURE
+STDERR_NOTE=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>&1 1>/dev/null)
+if echo "$STDERR_NOTE" | grep -q "Note: built-in ticket lens"; then
+  echo "  PASS: core_lenses override emits informational note in ticket mode"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: core_lenses override emits informational note in ticket mode"
+  echo "    Stderr: $(printf '%q' "$STDERR_NOTE")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: empty core_lenses does not emit informational note in ticket mode"
+REPO=$(setup_repo)
+STDERR_EMPTY=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>&1 1>/dev/null)
+if echo "$STDERR_EMPTY" | grep -q "Note: built-in ticket lens"; then
+  echo "  FAIL: empty core_lenses emits unexpected informational note in ticket mode"
+  echo "    Stderr: $(printf '%q' "$STDERR_EMPTY")"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: empty core_lenses does not emit informational note in ticket mode"
   PASS=$((PASS + 1))
 fi
 

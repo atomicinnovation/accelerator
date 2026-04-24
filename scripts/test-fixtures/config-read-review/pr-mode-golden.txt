@@ -1,0 +1,28 @@
+## Review Configuration
+
+- **max inline comments**: 10
+- **dedup proximity**: 3
+- **pr request changes severity**: critical
+- **min lenses**: 4
+- **max lenses**: 8
+
+### Lens Catalogue
+
+Use the paths below when constructing agent prompts. Always use the path
+from this table rather than constructing paths from the lens name.
+
+| Lens | Path | Source |
+|------|------|--------|
+| architecture | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/architecture-lens/SKILL.md | built-in |
+| code-quality | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/code-quality-lens/SKILL.md | built-in |
+| compatibility | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/compatibility-lens/SKILL.md | built-in |
+| correctness | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/correctness-lens/SKILL.md | built-in |
+| database | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/database-lens/SKILL.md | built-in |
+| documentation | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/documentation-lens/SKILL.md | built-in |
+| performance | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/performance-lens/SKILL.md | built-in |
+| portability | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/portability-lens/SKILL.md | built-in |
+| safety | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/safety-lens/SKILL.md | built-in |
+| security | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/security-lens/SKILL.md | built-in |
+| standards | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/standards-lens/SKILL.md | built-in |
+| test-coverage | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/test-coverage-lens/SKILL.md | built-in |
+| usability | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/usability-lens/SKILL.md | built-in |

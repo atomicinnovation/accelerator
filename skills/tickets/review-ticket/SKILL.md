@@ -1,8 +1,8 @@
 ---
 name: review-ticket
-description: Review a ticket through completeness, testability, and clarity
-  lenses and collaboratively iterate based on findings. Use when the user wants
-  to evaluate a ticket before implementation or escalation.
+description: Review a ticket through multiple ticket-quality lenses and
+  collaboratively iterate based on findings. Use when the user wants to
+  evaluate a ticket before implementation or escalation.
 argument-hint: "[path to ticket file]"
 disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/tickets/scripts/ticket-read-*)
@@ -63,11 +63,17 @@ Then wait for the user's input.
 
 ## Available Review Lenses
 
-| Lens              | Lens Skill          | Focus                                                          |
-|-------------------|---------------------|----------------------------------------------------------------|
-| **Completeness**  | `completeness-lens` | Section presence, content density, type-appropriate content    |
-| **Testability**   | `testability-lens`  | Measurable criteria, verifiable outcomes, verification framing |
-| **Clarity**       | `clarity-lens`      | Unambiguous referents, internal consistency, jargon handling   |
+| Lens             | Lens Skill          | Focus                                                                   |
+|------------------|---------------------|-------------------------------------------------------------------------|
+| **Clarity**      | `clarity-lens`      | Unambiguous referents, internal consistency, jargon handling            |
+| **Completeness** | `completeness-lens` | Section presence, content density, type-appropriate content             |
+| **Dependency**   | `dependency-lens`   | Implied couplings not captured — blockers, consumers, external systems  |
+| **Scope**        | `scope-lens`        | Right-sized, single coherent unit of work; decomposition; orthogonality |
+| **Testability**  | `testability-lens`  | Measurable criteria, verifiable outcomes, verification framing          |
+
+> Note: completeness flags an *absent* Dependencies section; dependency flags
+> an *empty or underspecified* section whose contents fail to name every
+> coupling the ticket implies.
 
 ## Process Steps
 
@@ -95,36 +101,40 @@ Then wait for the user's input.
 
 ### Step 2: Select Review Lenses
 
-With three ticket lenses available, the default is to run all three unless
-the user has provided focus arguments or config restricts the selection.
+By default, run every lens registered in `BUILTIN_TICKET_LENSES` unless the
+user has provided focus arguments or config restricts the selection. The five
+ticket lenses cover orthogonal concerns, so there is no relevance-based
+auto-selection.
 
 **If the user provided focus arguments:**
 
-- Map the focus areas to the corresponding lenses (completeness, testability,
-  clarity)
+- Map the focus areas to the corresponding lenses
 - Include any additional lenses that are clearly relevant
 - Briefly explain which lenses you're running
 
 **If no focus arguments were provided:**
 
-Run all three lenses unless:
-- A lens is listed in `disabled_lenses` from the review configuration above —
-  remove it from the active set
-- The user's configured `core_lenses` has filtered this to a subset
+Run all built-in ticket lenses unless:
+- A lens is listed in `disabled_lenses` — remove it from the active set
+- The user's configured `core_lenses` has filtered this to a subset (see below)
 
-When `core_lenses` is set in config, apply it as the minimum required set; add
-any remaining non-disabled lenses up to `max_lenses`.
+When `core_lenses` is set in config, apply it as the *minimum required set*;
+add any remaining non-disabled lenses up to `max_lenses`. This means users
+who previously pinned `core_lenses` to the Phase 4 ticket lenses
+(`completeness`, `testability`, `clarity`) will also receive `scope` and
+`dependency` on upgrade, unless they add those names to `disabled_lenses` or
+set `max_lenses` to their subset size.
 
-Because there are only three lenses and they cover orthogonal concerns, present
-the selection briefly:
+Present the selection briefly — enumerate the chosen lenses with a one-line
+focus each — then wait for confirmation before spawning reviewers. The
+confirmation gate is preserved even though the default always selects every
+lens; the gate is useful when focus args or config have narrowed the set.
+
+Example (default path, no focus args, no `core_lenses` restriction):
 
 ```
-I'll review this ticket through all three lenses:
-- Completeness: [section presence, content density, type-appropriate content]
-- Testability: [measurable criteria, verifiable outcomes]
-- Clarity: [unambiguous language, internal consistency]
-
-Shall I proceed?
+I'll review this ticket through all ticket lenses (clarity, completeness,
+dependency, scope, testability). Shall I proceed?
 ```
 
 Wait for confirmation before spawning reviewers.
@@ -478,7 +488,7 @@ If the user declines or the re-review shows all clear, the review is complete.
 
 1. **Read the ticket fully** before doing anything else
 
-2. **Spawn agents in parallel** — the three ticket lenses are independent and
+2. **Spawn agents in parallel** — the ticket lenses are independent and
    should run concurrently for efficiency
 
 3. **Synthesise, don't concatenate** — your value is in compiling a balanced
