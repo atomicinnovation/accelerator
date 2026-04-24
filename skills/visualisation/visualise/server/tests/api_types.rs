@@ -29,6 +29,6 @@ async fn types_returns_ten_entries_with_virtual_flag_on_templates() {
     assert_eq!(templates["virtual"], true);
     assert!(templates["dirPath"].is_null());
     let decisions = arr.iter().find(|t| t["key"] == "decisions").unwrap();
-    assert!(decisions.get("virtual").is_none());
+    assert_eq!(decisions["virtual"], false);
     assert!(decisions["dirPath"].is_string());
 }

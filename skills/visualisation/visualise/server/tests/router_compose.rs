@@ -25,21 +25,40 @@ async fn healthz_returns_200() {
     assert_eq!(&body[..], b"ok\n");
 }
 
+/// Root path serves the SPA. Under dev-frontend, use `build_router_with_dist`
+/// with a seeded tempdir so this runs without `npm run build` having produced
+/// `frontend/dist/`.
+#[cfg(feature = "dev-frontend")]
 #[tokio::test]
-async fn placeholder_root_is_preserved() {
+async fn root_serves_spa_index() {
+    use accelerator_visualiser::server::build_router_with_dist;
+
     let tmp = tempfile::tempdir().unwrap();
+    let dist = tempfile::tempdir().unwrap();
+    std::fs::write(dist.path().join("index.html"), "<!doctype html><html>app</html>").unwrap();
+
     let cfg = common::seeded_cfg(tmp.path());
     let activity = Arc::new(Activity::new());
     let state = AppState::build(cfg, activity).await.unwrap();
-    let app = build_router(state);
+    let app = build_router_with_dist(state, dist.path().to_path_buf());
+
     let res = app
-        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/")
+                .header("host", "127.0.0.1")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
     let body = res.into_body().collect().await.unwrap().to_bytes();
     let body = std::str::from_utf8(&body).unwrap();
-    assert!(body.starts_with("accelerator-visualiser "));
+    assert!(
+        body.contains("<!doctype html") || body.contains("<!DOCTYPE html"),
+        "expected HTML at /, got: {body:.200}",
+    );
 }
 
 #[tokio::test]

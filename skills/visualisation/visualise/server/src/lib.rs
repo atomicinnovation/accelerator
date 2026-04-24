@@ -6,6 +6,7 @@
 
 pub mod activity;
 pub mod api;
+pub mod assets;
 pub mod clusters;
 pub mod config;
 pub mod docs;

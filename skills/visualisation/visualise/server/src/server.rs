@@ -15,7 +15,7 @@ use axum::{
     http::StatusCode,
     middleware::{self, Next},
     response::Response,
-    routing::get,
+    routing::{any, get},
     Router,
 };
 use serde::Serialize;
@@ -114,21 +114,58 @@ pub enum ServerError {
 }
 
 pub fn build_router(state: Arc<AppState>) -> Router {
-    Router::new()
-        .route("/", get(placeholder_root))
+    build_router_with_spa(state, |router| crate::assets::apply_spa_serving(router))
+}
+
+/// Like `build_router` but points the SPA fallback at a caller-supplied
+/// `dist_path`. Only exists under `dev-frontend` — under `embed-dist`
+/// the dist is baked into the binary and cannot be swapped at runtime.
+/// Callers that need to test the embed-dist handler use `serve_embedded<E>`
+/// with a fixture embed type instead.
+#[cfg(feature = "dev-frontend")]
+pub fn build_router_with_dist(
+    state: Arc<AppState>,
+    dist_path: std::path::PathBuf,
+) -> Router {
+    build_router_with_spa(state, move |router| {
+        crate::assets::apply_spa_serving_with_dist_path(router, dist_path)
+    })
+}
+
+fn build_router_with_spa<F: FnOnce(Router) -> Router>(
+    state: Arc<AppState>,
+    attach_spa: F,
+) -> Router {
+    let api_router = Router::new()
         .route("/api/healthz", get(healthz))
         .merge(crate::api::mount(state.clone()))
-        .route_layer(axum::middleware::from_fn_with_state(
+        .route("/api/*rest", any(api_not_found))
+        .with_state(state.clone());
+
+    attach_spa(api_router)
+        .layer(tower_http::compression::CompressionLayer::new())
+        .layer(axum::middleware::from_fn_with_state(
             state.activity.clone(),
             crate::activity::middleware,
         ))
         .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
         .layer(TimeoutLayer::new(REQUEST_TIMEOUT))
         .layer(middleware::from_fn(host_header_guard))
-        .with_state(state)
 }
 
 async fn healthz() -> &'static str { "ok\n" }
+
+async fn api_not_found(
+    uri: axum::http::Uri,
+) -> impl axum::response::IntoResponse {
+    (
+        StatusCode::NOT_FOUND,
+        axum::Json(serde_json::json!({
+            "error": "not-found",
+            "path": uri.path(),
+        })),
+    )
+}
 
 pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
     let host: IpAddr = cfg
@@ -416,14 +453,6 @@ async fn host_header_guard(req: Request, next: Next) -> Result<Response, StatusC
     }
 }
 
-async fn placeholder_root() -> &'static str {
-    concat!(
-        "accelerator-visualiser ",
-        env!("CARGO_PKG_VERSION"),
-        " — Phase 2 bootstrap. UI lands in a later phase.\n"
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -542,37 +571,193 @@ mod tests {
             "server.pid must be preserved when stopped-write fails");
     }
 
+    #[cfg(feature = "dev-frontend")]
+    fn seed_stub_dist(tmp: &std::path::Path) {
+        std::fs::write(tmp.join("index.html"), "<!doctype html><html>stub</html>").unwrap();
+    }
+
+    #[cfg(feature = "dev-frontend")]
+    async fn build_minimal_state(tmp: &std::path::Path) -> Arc<AppState> {
+        let cfg = minimal_config(tmp);
+        let activity = Arc::new(crate::activity::Activity::new());
+        AppState::build(cfg, activity).await.unwrap()
+    }
+
+    #[cfg(feature = "dev-frontend")]
     #[tokio::test]
-    async fn serves_placeholder_root_and_writes_info() {
+    async fn serves_spa_root_and_writes_info() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt as _;
+
         let dir = tempfile::tempdir().unwrap();
         let info_path = dir.path().join("server-info.json");
-        let cfg = minimal_config(dir.path());
 
-        let info_path_clone = info_path.clone();
+        let dist = tempfile::tempdir().unwrap();
+        seed_stub_dist(dist.path());
+
+        let state = build_minimal_state(dir.path()).await;
+        let app = build_router_with_dist(state.clone(), dist.path().to_path_buf());
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        let info = ServerInfo {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            pid: std::process::id() as i32,
+            start_time: process_start_time(std::process::id() as i32),
+            host: "127.0.0.1".into(),
+            port,
+            url: format!("http://127.0.0.1:{port}"),
+            log_path: state.cfg.log_path.clone(),
+            tmp_path: state.cfg.tmp_path.clone(),
+        };
+        write_server_info(&info_path, &info).unwrap();
+
         let handle = tokio::spawn(async move {
-            run(cfg, &info_path_clone).await.unwrap();
+            axum::serve(listener, app).await.unwrap();
         });
 
-        // Poll for server-info.json to appear (bounded).
-        let start = std::time::Instant::now();
-        loop {
-            if info_path.exists() {
-                break;
-            }
-            if start.elapsed().as_secs() > 5 {
-                panic!("server-info.json did not appear in 5s");
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-        }
-
-        let info: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(&info_path).unwrap()).unwrap();
-        let url = info["url"].as_str().unwrap().to_string();
-
-        let body = reqwest::get(&url).await.unwrap().text().await.unwrap();
-        assert!(body.starts_with("accelerator-visualiser "));
-        assert!(body.contains("Phase 2 bootstrap"));
+        assert!(info_path.exists(), "server-info.json must exist");
+        let url = format!("http://127.0.0.1:{port}");
+        let resp = reqwest::get(&url).await.unwrap();
+        assert_eq!(resp.status(), 200);
+        let body = resp.text().await.unwrap();
+        assert!(
+            body.contains("<!doctype html") || body.contains("<!DOCTYPE html"),
+            "expected HTML, got: {body:.200}",
+        );
 
         handle.abort();
+    }
+
+    #[cfg(feature = "dev-frontend")]
+    #[tokio::test]
+    async fn spa_fallback_is_covered_by_host_header_guard() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let dist = tempfile::tempdir().unwrap();
+        seed_stub_dist(dist.path());
+        let state = build_minimal_state(dir.path()).await;
+        let app = build_router_with_dist(state, dist.path().to_path_buf());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/library/decisions")
+                    .header("host", "evil.example")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[cfg(feature = "dev-frontend")]
+    #[tokio::test]
+    async fn spa_fallback_updates_activity() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let dist = tempfile::tempdir().unwrap();
+        seed_stub_dist(dist.path());
+        let state = build_minimal_state(dir.path()).await;
+        let before = state.activity.last_millis();
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        let app = build_router_with_dist(state.clone(), dist.path().to_path_buf());
+
+        let _ = app
+            .oneshot(
+                Request::builder()
+                    .uri("/library/decisions")
+                    .header("host", "127.0.0.1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let after = state.activity.last_millis();
+        assert!(after > before, "expected activity to update (before={before}, after={after})");
+    }
+
+    #[cfg(feature = "dev-frontend")]
+    #[tokio::test]
+    async fn unmatched_api_path_returns_json_404_not_spa_html() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let dist = tempfile::tempdir().unwrap();
+        seed_stub_dist(dist.path());
+        let state = build_minimal_state(dir.path()).await;
+        let app = build_router_with_dist(state, dist.path().to_path_buf());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/bogus")
+                    .header("host", "127.0.0.1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        let ct = resp.headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        assert!(
+            ct.contains("application/json"),
+            "expected JSON 404, got content-type: {ct}",
+        );
+    }
+
+    #[cfg(feature = "dev-frontend")]
+    #[tokio::test]
+    async fn spa_asset_is_brotli_encoded_for_br_clients() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let dist = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dist.path().join("assets")).unwrap();
+        std::fs::write(
+            dist.path().join("assets/app.js"),
+            "// ".to_string() + &"x".repeat(4096),
+        ).unwrap();
+        std::fs::write(dist.path().join("index.html"), "<!doctype html>").unwrap();
+
+        let state = build_minimal_state(dir.path()).await;
+        let app = build_router_with_dist(state, dist.path().to_path_buf());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/app.js")
+                    .header("host", "127.0.0.1")
+                    .header("accept-encoding", "br")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let ce = resp.headers()
+            .get("content-encoding")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        assert_eq!(ce, "br", "expected Content-Encoding: br, got: {ce:?}");
     }
 }
