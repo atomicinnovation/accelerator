@@ -133,7 +133,7 @@ the reader to guess.
   completeness concern, not a clarity one. Your job is to assess whether the
   criteria that exist are unambiguous, not whether there are enough of them
 - Don't assess scope appropriateness or dependency graph completeness — those
-  are the scope and dependencies lenses (Phase 5)
+  are the scope and dependency lenses
 - Don't read source code, run codebase exploration agents, or make inferences
   about the codebase beyond what the ticket explicitly states
 - Don't flag grammar issues that do not affect meaning — correct grammar is

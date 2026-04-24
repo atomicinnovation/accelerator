@@ -1,7 +1,7 @@
 {
   "metadata": {
     "skill_name": "testability",
-    "skill_path": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/testability-lens",
+    "skill_path": "skills/review/lenses/testability-lens",
     "timestamp": "2026-04-23T00:00:00Z",
     "evals_run": ["vague-unmeasurable-ac", "bug-incomplete-repro-spec", "spike-open-ended-exit", "tautological-ac", "clean-ticket"],
     "runs_per_configuration": 1

@@ -1,0 +1,17 @@
+{
+  "skill_name": "scope",
+  "boundary_evals": [
+    {
+      "id": 1,
+      "prompt": "You are a reviewer agent evaluating a ticket through the scope lens.\n\nRead the scope lens skill at skills/review/lenses/scope-lens/SKILL.md fully.\n\nRead the output format specification at:\nskills/review/output-formats/ticket-review-output-format/SKILL.md\n\nRead the ticket at skills/review/lenses/completeness-lens/evals/files/missing-acceptance-criteria/ticket.md fully.\n\nApply the scope lens guidance to evaluate the ticket. Return your analysis as a single JSON code block following the output format specification. Do not include any prose outside the JSON block.",
+      "expected_output": "A JSON block with lens='scope'. The reviewer produces no finding about missing sections or empty-section content — those are completeness-lens concerns. Scope evaluates whether the ticket describes one coherent, appropriately sized unit of work. Any findings should address whether the ticket bundles multiple concerns, spans service boundaries, or is inappropriately sized for its declared type.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "You are a reviewer agent evaluating a ticket through the scope lens.\n\nRead the scope lens skill at skills/review/lenses/scope-lens/SKILL.md fully.\n\nRead the output format specification at:\nskills/review/output-formats/ticket-review-output-format/SKILL.md\n\nRead the ticket at skills/review/lenses/testability-lens/evals/files/vague-unmeasurable-ac/ticket.md fully.\n\nApply the scope lens guidance to evaluate the ticket. Return your analysis as a single JSON code block following the output format specification. Do not include any prose outside the JSON block.",
+      "expected_output": "A JSON block with lens='scope'. The reviewer produces no finding about the measurability or verifiability of acceptance criteria — those are testability-lens concerns. Scope evaluates the ticket as a unit of work: its size, coherence, and boundary. Any findings should address whether the ticket bundles multiple concerns or is inappropriately sized for its type.",
+      "files": []
+    }
+  ]
+}

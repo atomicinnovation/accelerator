@@ -1,7 +1,7 @@
 {
   "metadata": {
     "skill_name": "dependency",
-    "skill_path": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/dependency-lens",
+    "skill_path": "skills/review/lenses/dependency-lens",
     "timestamp": "2026-04-24T00:00:00Z",
     "evals_run": [
       "implied-external-dep-missing",

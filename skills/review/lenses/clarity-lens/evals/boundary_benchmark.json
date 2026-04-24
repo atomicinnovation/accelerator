@@ -1,0 +1,56 @@
+{
+  "metadata": {
+    "skill_name": "clarity",
+    "skill_path": "skills/review/lenses/clarity-lens",
+    "timestamp": "2026-04-24T00:00:00Z",
+    "evals_run": [
+      "story-mixing-feature-and-refactor",
+      "vendor-dep-not-captured"
+    ],
+    "runs_per_configuration": 1,
+    "notes": "Boundary evals testing clarity scope discipline: (1) clarity lens on a scope fixture (ticket mixing feature and refactor) must not allege bundling or recommend splitting — only internal ambiguity or contradictions are in scope; (2) clarity lens on a dependency fixture (vendor dep not captured) must not flag missing external-vendor couplings in Dependencies — only ambiguous phrasing in body text is in scope. Both evals passed on first run."
+  },
+
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "story-mixing-feature-and-refactor",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 22.1, "tokens": 7601, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='clarity'", "passed": true, "evidence": "\"lens\": \"clarity\"."},
+        {"text": "No finding body alleges the ticket mixes two units of work, bundles unrelated concerns, or should be split into separate tickets", "passed": true, "evidence": "Two findings present. Finding 1: 'Migration framed as external prerequisite in Context but as in-scope work in Requirements' — this is an internal contradiction between sections, a clarity concern. Finding 2: passive construction in AC. Neither finding says 'split this ticket' or 'bundles unrelated concerns'."},
+        {"text": "Findings address ambiguity, contradiction, or unclear referents, not scope coherence", "passed": true, "evidence": "Finding 1 flags an inconsistent framing (internal contradiction between Context and Requirements). Finding 2 flags a passive voice omitting the enforcement actor. Both are clarity observations."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "vendor-dep-not-captured",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 22.0, "tokens": 7665, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='clarity'", "passed": true, "evidence": "\"lens\": \"clarity\"."},
+        {"text": "No finding body alleges missing external-vendor dependencies or criticises the Dependencies section stating 'None identified'", "passed": true, "evidence": "Two findings present. Finding 1: 'Export action actor is implicit in first criterion' — passive voice in AC. Finding 2: 'Authentication mechanism is ambiguous (API key / OAuth token)' — ambiguous phrasing in Assumptions. Neither mentions HubSpot as a missing dependency or the Dependencies section content."},
+        {"text": "Any finding about external services addresses ambiguous phrasing in ticket body text, not absent coupling capture", "passed": true, "evidence": "Finding 2 flags that 'API key / OAuth token' is ambiguous because HubSpot v3 deprecated API-key auth — this is a clarity observation about imprecise wording in Assumptions, not a dependency observation about what belongs in Dependencies."}
+      ],
+      "notes": []
+    }
+  ],
+
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 22.1, "stddev": 0.1, "min": 22.0, "max": 22.1},
+      "tokens": {"mean": 7633, "stddev": 45, "min": 7601, "max": 7665}
+    }
+  },
+
+  "notes": [
+    "Boundary evals confirm clarity lens stays in its lane when presented with scope and dependency fixtures.",
+    "Both evals passed on first run — no SKILL.md iteration required for clarity.",
+    "Notable: clarity lens correctly identified a genuine ambiguity in the HubSpot auth mechanism ('API key / OAuth token') on the dependency fixture — this is a clarity concern about imprecise language, not a dependency concern about what's in Dependencies."
+  ]
+}

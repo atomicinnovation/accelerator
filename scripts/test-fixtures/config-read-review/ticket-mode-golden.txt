@@ -12,8 +12,8 @@ from this table rather than constructing paths from the lens name.
 
 | Lens | Path | Source |
 |------|------|--------|
-| clarity | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/clarity-lens/SKILL.md | built-in |
-| completeness | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/completeness-lens/SKILL.md | built-in |
-| dependency | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/dependency-lens/SKILL.md | built-in |
-| scope | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/scope-lens/SKILL.md | built-in |
-| testability | /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/testability-lens/SKILL.md | built-in |
+| clarity | skills/review/lenses/clarity-lens/SKILL.md | built-in |
+| completeness | skills/review/lenses/completeness-lens/SKILL.md | built-in |
+| dependency | skills/review/lenses/dependency-lens/SKILL.md | built-in |
+| scope | skills/review/lenses/scope-lens/SKILL.md | built-in |
+| testability | skills/review/lenses/testability-lens/SKILL.md | built-in |

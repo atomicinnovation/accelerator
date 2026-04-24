@@ -1,0 +1,56 @@
+{
+  "metadata": {
+    "skill_name": "dependency",
+    "skill_path": "skills/review/lenses/dependency-lens",
+    "timestamp": "2026-04-24T00:00:00Z",
+    "evals_run": [
+      "epic-no-decomposition",
+      "tautological-ac"
+    ],
+    "runs_per_configuration": 1,
+    "notes": "Boundary evals testing dependency lens discipline against Phase 4 fixtures: (1) dependency lens on a completeness fixture (epic-no-decomposition) must not produce findings about the absent Stories list — only uncaptured couplings are in scope; (2) dependency lens on a testability fixture (tautological-ac) must not flag measurability or tautological criteria — only uncaptured couplings. Both evals passed on first run."
+  },
+
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "epic-no-decomposition",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 30.7, "tokens": 7586, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='dependency'", "passed": true, "evidence": "\"lens\": \"dependency\"."},
+        {"text": "No finding body alleges the absent Stories list or lack of child story decomposition", "passed": true, "evidence": "Four findings present. All address uncaptured couplings: (1) PostgreSQL RLS and API gateway capability not listed as upstream blockers; (2) infrastructure team constraint not captured; (3) downstream enterprise-prospect tickets not in Blocks; (4) ordering constraints between implied child stories unrecorded. No finding says 'add a Stories list' or 'this epic lacks decomposition'."},
+        {"text": "Findings address uncaptured couplings (blockers, consumers, cross-team, ordering), not section-level structural gaps", "passed": true, "evidence": "Finding 4 references 'no child story list' as context for why ordering constraints cannot be captured, but the finding is about the ordering constraints themselves — not the absent Stories list. The suggestion says 'when child stories are created, record explicit ordering constraints', not 'add a Stories list'."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "tautological-ac",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 28.5, "tokens": 7550, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='dependency'", "passed": true, "evidence": "\"lens\": \"dependency\"."},
+        {"text": "No finding about measurability, verifiability, or tautological criterion wording", "passed": true, "evidence": "Four findings present. All address uncaptured couplings: (1) security audit report not captured as upstream dependency; (2) schema migration DBA/cross-team action not captured; (3) recovery flow communication/ops dependency uncaptured; (4) downstream auth-contract consumers not listed as Blocks. No finding mentions tautological wording or unmeasurable criteria."},
+        {"text": "Findings address dependency couplings implied by ticket body that are absent from Dependencies section", "passed": true, "evidence": "All four findings identify couplings implied by body text (audit-driven requirements, schema migration ownership, recovery channel, downstream consumers) that should appear in Dependencies but don't."}
+      ],
+      "notes": []
+    }
+  ],
+
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 29.6, "stddev": 1.6, "min": 28.5, "max": 30.7},
+      "tokens": {"mean": 7568, "stddev": 25, "min": 7550, "max": 7586}
+    }
+  },
+
+  "notes": [
+    "Boundary evals confirm dependency lens stays in its lane when presented with Phase 4 completeness and testability fixtures.",
+    "Both evals passed on first run — no SKILL.md iteration required for dependency boundary discipline.",
+    "Dependency lens correctly identified rich coupling content in both 'structural gap' fixtures (epic-no-decomposition and tautological-ac), confirming it can find real work on any ticket regardless of which other lens's failure mode the ticket was designed to exhibit."
+  ]
+}

@@ -582,11 +582,11 @@ echo "| Lens | Path | Source |"
 echo "|------|------|--------|"
 
 LENSES_BASE="$SCRIPT_DIR/../skills/review/lenses"
-_LENSES_BASE_ABS="$(cd "$LENSES_BASE" && pwd)"
+_LENSES_BASE_REL="skills/review/lenses"
 
 while IFS= read -r lens; do
   [ -n "$lens" ] || continue
-  lens_path="$_LENSES_BASE_ABS/${lens}-lens/SKILL.md"
+  lens_path="$_LENSES_BASE_REL/${lens}-lens/SKILL.md"
   echo "| $lens | $lens_path | built-in |"
 done < <(_select_builtin_lenses_for_mode)
 

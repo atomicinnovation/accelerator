@@ -1,0 +1,17 @@
+{
+  "skill_name": "testability",
+  "boundary_evals": [
+    {
+      "id": 1,
+      "prompt": "You are a reviewer agent evaluating a ticket through the testability lens.\n\nRead the testability lens skill at skills/review/lenses/testability-lens/SKILL.md fully.\n\nRead the output format specification at:\nskills/review/output-formats/ticket-review-output-format/SKILL.md\n\nRead the ticket at skills/review/lenses/scope-lens/evals/files/spike-unbounded-exploration/ticket.md fully.\n\nApply the testability lens guidance to evaluate the ticket. Return your analysis as a single JSON code block following the output format specification. Do not include any prose outside the JSON block.",
+      "expected_output": "A JSON block with lens='testability'. The reviewer produces no finding whose body describes the research question as too broad, unbounded, or impossible to bound — those are scope-lens concerns. Testability only evaluates whether the exit criteria are measurable. The spike's exit-criteria text 'have a good grasp of the system' may legitimately be flagged as unmeasurable or subjective; the breadth of the underlying research question ('understand our microservices architecture') is off-lens for testability.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "You are a reviewer agent evaluating a ticket through the testability lens.\n\nRead the testability lens skill at skills/review/lenses/testability-lens/SKILL.md fully.\n\nRead the output format specification at:\nskills/review/output-formats/ticket-review-output-format/SKILL.md\n\nRead the ticket at skills/review/lenses/dependency-lens/evals/files/epic-unordered-children/ticket.md fully.\n\nApply the testability lens guidance to evaluate the ticket. Return your analysis as a single JSON code block following the output format specification. Do not include any prose outside the JSON block.",
+      "expected_output": "A JSON block with lens='testability'. The reviewer produces no finding about ordering constraints, missing Blocks entries, or dependencies between child stories — those are dependency-lens concerns. Testability evaluates only the measurability and verifiability of the epic's acceptance criteria. Any findings should address whether the acceptance criteria (e.g., 'all API endpoints accept a Bearer JWT token') are measurable and verifiable.",
+      "files": []
+    }
+  ]
+}

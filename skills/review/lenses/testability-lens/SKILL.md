@@ -111,7 +111,7 @@ defined check that would conclusively confirm each criterion is met?
 - Don't flag ambiguous language, unclear referents, or undefined terms —
   that is the clarity lens
 - Don't assess scope appropriateness or dependency graph completeness — those
-  are the scope and dependencies lenses (Phase 5)
+  are the scope and dependency lenses
 - Don't read source code, run codebase exploration agents, or make inferences
   about the implementation beyond what the ticket explicitly states
 - Don't require a specific test framework, format, or methodology — assess

@@ -1,0 +1,56 @@
+{
+  "metadata": {
+    "skill_name": "scope",
+    "skill_path": "skills/review/lenses/scope-lens",
+    "timestamp": "2026-04-24T00:00:00Z",
+    "evals_run": [
+      "missing-acceptance-criteria",
+      "vague-unmeasurable-ac"
+    ],
+    "runs_per_configuration": 1,
+    "notes": "Boundary evals testing scope lens discipline against Phase 4 fixtures: (1) scope lens on a completeness fixture (missing-acceptance-criteria) must not flag missing sections or empty content — only scope shape is in scope; (2) scope lens on a testability fixture (vague-unmeasurable-ac) must not flag measurability of AC — only ticket coherence and sizing. Both evals passed on first run."
+  },
+
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "missing-acceptance-criteria",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 19.3, "tokens": 7718, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
+        {"text": "No finding about missing sections or empty-section content (those are completeness concerns)", "passed": true, "evidence": "One finding present: 'Requirement 5 pulls in notification service ownership without orchestration strategy' — a service-boundary scope concern. No mention of missing sections or empty content."},
+        {"text": "Any finding addresses ticket shape: sizing, bundling, service boundaries, or decomposition", "passed": true, "evidence": "Finding addresses cross-service boundary in Requirement 5 (notification service work alongside UI/persistence work with no orchestration strategy). This is a scope-lens observation about the ticket spanning two delivery units."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "vague-unmeasurable-ac",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 10.0, "tokens": 7553, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
+        {"text": "No finding about measurability or verifiability of acceptance criteria (those are testability concerns)", "passed": true, "evidence": "Zero findings. The lens correctly identified the ticket as well-scoped and produced no findings."},
+        {"text": "No findings at critical or major severity about AC quality", "passed": true, "evidence": "Zero findings. Strengths list notes single coherent capability, single service boundary, and appropriate story sizing."}
+      ],
+      "notes": []
+    }
+  ],
+
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 14.7, "stddev": 5.3, "min": 10.0, "max": 19.3},
+      "tokens": {"mean": 7636, "stddev": 91, "min": 7553, "max": 7718}
+    }
+  },
+
+  "notes": [
+    "Boundary evals confirm scope lens stays in its lane when presented with Phase 4 completeness and testability fixtures.",
+    "Both evals passed on first run — no SKILL.md iteration required for scope boundary discipline.",
+    "Eval 2 (vague-unmeasurable-ac) correctly produced zero findings — the ticket's scope is sound even though its AC measurability is weak. This confirms scope/testability separation is clean."
+  ]
+}

@@ -36,14 +36,18 @@ follow-up questions.
 - For unknown or absent `type`, treat the ticket as a generic work item and
   assess based on available fields
 
-3. **Check Context, Dependencies, and Assumptions**
+3. **Check Context, Assumptions, and Section Population**
 
 - Assess whether the Context section explains the forces behind the ticket
 - Check whether Dependencies, Assumptions, and Open Questions are populated
   where relevant (empty sections are acceptable only when the content is
   genuinely not applicable)
-- Note missing assumptions or dependencies that are implied by the body text
-  but not captured explicitly
+- Note missing *sections* whose absence makes the ticket under-specified for
+  its type (e.g., a story with no Context section, an epic with no Stories
+  list). Do not reason about *content* within a present section —
+  implied-but-uncaptured couplings (blockers, consumers, external systems,
+  ordering) are the `dependency` lens's domain; unmeasurable criteria within
+  a present Acceptance Criteria section are the `testability` lens's domain
 
 4. **Verify Frontmatter Integrity**
 
@@ -104,7 +108,10 @@ follow-up questions.
   requires less than a story; flag missing content relative to the ticket type
 - **Treat empty-but-optional sections fairly** — an empty Dependencies section
   on a standalone chore is not a finding; an empty Dependencies section on a
-  feature with obvious external coupling is
+  feature with obvious external coupling may be flagged as potentially sparse.
+  If you flag it, note only that the section appears sparse relative to the
+  ticket's content — do not name which external systems or services are implied.
+  Identifying specific implied couplings is the `dependency` lens's job.
 - **Focus on actionability** — flag gaps that would cause confusion, rework, or
   delay during implementation; do not flag trivially resolvable gaps
 
@@ -115,7 +122,7 @@ follow-up questions.
 - Don't flag ambiguous language, unclear referents, or jargon — that is the
   clarity lens
 - Don't assess scope appropriateness or dependency graph completeness — those
-  are the scope and dependencies lenses (Phase 5)
+  are the scope and dependency lenses
 - Don't flag missing scenarios, edge cases, error-handling paths, default
   behaviours, or unstated non-functional requirements — the lens measures
   whether sections are present and substantively populated, not whether every

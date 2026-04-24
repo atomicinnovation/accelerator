@@ -1,0 +1,56 @@
+{
+  "metadata": {
+    "skill_name": "testability",
+    "skill_path": "skills/review/lenses/testability-lens",
+    "timestamp": "2026-04-24T00:00:00Z",
+    "evals_run": [
+      "spike-unbounded-exploration",
+      "epic-unordered-children"
+    ],
+    "runs_per_configuration": 1,
+    "notes": "Boundary evals testing testability scope discipline: (1) testability lens on a spike scope fixture must not flag the research question breadth as too wide — only exit-criteria measurability is in scope; (2) testability lens on a dependency fixture (epic with unordered children) must not flag ordering constraints — only AC measurability is in scope. Both evals passed on first run."
+  },
+
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "spike-unbounded-exploration",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 32.5, "tokens": 6982, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='testability'", "passed": true, "evidence": "\"lens\": \"testability\"."},
+        {"text": "No finding body describes the research question itself as too broad, unbounded, or impossible to bound as a scope concern", "passed": true, "evidence": "Four findings present. Finding 4 mentions 'scope questions' but frames the concern as 'unresolved scope questions make the acceptance criteria unverifiable even in principle' — this is testability framing (AC verifiability), not scope framing (research question breadth). No finding says the question 'understand our microservices architecture' is inherently too broad or should be narrowed."},
+        {"text": "Findings address exit-criteria measurability, not research scope", "passed": true, "evidence": "Findings: (1) exit criteria are unmeasurable internal states; (2) no enumerable deliverables; (3) tautological criterion; (4) open questions make AC unverifiable. All four are testability observations about criterion verifiability."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "epic-unordered-children",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 32.9, "tokens": 7362, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='testability'", "passed": true, "evidence": "\"lens\": \"testability\"."},
+        {"text": "No finding body mentions ordering constraints, missing Blocks entries, or dependencies between child stories", "passed": true, "evidence": "Four findings present. All address measurability: (1) 'all API endpoints' unbounded scope; (2) tautological removal criterion; (3) internal consumer migration unverifiable; (4) load-test SLA criterion missing. None mention ordering, Blocks entries, or inter-story dependencies."},
+        {"text": "Findings evaluate AC measurability and verifiability, not dependency graph completeness", "passed": true, "evidence": "All four findings are testability observations: unbounded quantifier ('all'), tautological wording, missing coverage criteria, missing SLA definition."}
+      ],
+      "notes": []
+    }
+  ],
+
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 32.7, "stddev": 0.3, "min": 32.5, "max": 32.9},
+      "tokens": {"mean": 7172, "stddev": 213, "min": 6982, "max": 7362}
+    }
+  },
+
+  "notes": [
+    "Boundary evals confirm testability lens stays in its lane when presented with scope and dependency fixtures.",
+    "Both evals passed on first run — no SKILL.md iteration required for testability.",
+    "Note: finding 4 in eval 1 ('unresolved scope questions make AC unverifiable') is borderline. The body uses the phrase 'scope questions' but clearly frames the concern as testability: the open questions are prerequisites for verifiable exit criteria, not a finding that the research question is too broad. This is an acceptable testability observation."
+  ]
+}

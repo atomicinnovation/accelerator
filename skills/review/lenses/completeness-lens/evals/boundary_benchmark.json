@@ -1,0 +1,55 @@
+{
+  "metadata": {
+    "skill_name": "completeness",
+    "skill_path": "skills/review/lenses/completeness-lens",
+    "timestamp": "2026-04-24T00:00:00Z",
+    "evals_run": [
+      "epic-bundling-unrelated-themes",
+      "implied-external-dep-missing"
+    ],
+    "runs_per_configuration": 1,
+    "notes": "Boundary evals testing completeness scope discipline: (1) completeness lens on a scope fixture must not produce bundling findings; (2) completeness lens on a dependency fixture must not name specific implied couplings. Eval 2 required one SKILL.md iteration: the first run named Stripe explicitly as a missing coupling (boundary violation). The 'Treat empty-but-optional sections fairly' guideline was tightened to instruct the lens to flag a sparse Dependencies section without naming which couplings are missing. Re-run of eval 2 passed."
+  },
+
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "epic-bundling-unrelated-themes",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 21.1, "tokens": 7496, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='completeness'", "passed": true, "evidence": "\"lens\": \"completeness\"."},
+        {"text": "No finding body mentions bundling, sizing, splitting into separate epics, or unrelated themes", "passed": true, "evidence": "Two findings present: (1) 'Acceptance Criteria lack per-feature coverage' — about AC content quality; (2) 'Context only restates the leadership directive' — about section content. Neither mentions bundling, splitting, or unrelated themes."},
+        {"text": "Any findings are completeness-lens concerns (section presence or content density), not scope concerns", "passed": true, "evidence": "Finding 1 is about AC coverage gaps (completeness). Finding 2 is about thin Context (completeness). No scope-boundary bleed."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "implied-external-dep-missing",
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 17.8, "tokens": 7576, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='completeness'", "passed": true, "evidence": "\"lens\": \"completeness\"."},
+        {"text": "No finding body names Stripe, secrets-management, or any specific external coupling as missing from Dependencies", "passed": true, "evidence": "One finding present: 'Assumptions section raises an open question with no corresponding Open Questions section to capture it'. Finding addresses structural gap (missing Open Questions section for unverified assumption), not implied Stripe or secrets-management couplings."},
+        {"text": "Any Dependencies finding is about section-level sparseness, not about which specific couplings should appear", "passed": true, "evidence": "No Dependencies finding present. The structural gap finding is about Assumptions/Open Questions section completeness — a legitimate completeness observation."}
+      ],
+      "notes": ["Run 1 (not recorded here) produced a finding naming Stripe explicitly as a missing coupling and recommending adding it to Dependencies — a dependency-lens boundary violation. SKILL.md 'Important Guidelines' was updated to instruct the lens to flag Dependencies sparseness without naming which systems are implied. Run 2 passed."]
+    }
+  ],
+
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 19.5, "stddev": 2.3, "min": 17.8, "max": 21.1},
+      "tokens": {"mean": 7536, "stddev": 57, "min": 7496, "max": 7576}
+    }
+  },
+
+  "notes": [
+    "Boundary evals confirm completeness lens stays in its lane when presented with scope and dependency fixtures.",
+    "The one SKILL.md iteration required was directly caused by the boundary test: without the boundary eval, the implied-coupling reasoning in the Dependencies guideline would have remained and leaked into production reviews."
+  ]
+}

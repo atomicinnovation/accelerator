@@ -18,3 +18,7 @@ def integration(context: Context):
     print("Running lens structure lint...")
     context.run("scripts/test-lens-structure.sh")
     print("\n")
+
+    print("Running lens boundary eval checks...")
+    context.run("scripts/test-boundary-evals.sh")
+    print("\n")
