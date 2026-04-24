@@ -83,7 +83,6 @@ pub struct DocType {
     pub dir_path: Option<PathBuf>,
     pub in_lifecycle: bool,
     pub in_kanban: bool,
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub r#virtual: bool,
 }
 
@@ -188,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    fn virtual_flag_omitted_when_false_in_json() {
+    fn virtual_flag_always_serialised_in_json() {
         let cfg = crate::config::Config {
             plugin_root: "/p".into(),
             plugin_version: "test".into(),
@@ -204,7 +203,8 @@ mod tests {
         let types = describe_types(&cfg);
         let decisions = types.iter().find(|t| t.key == DocTypeKey::Decisions).unwrap();
         let json = serde_json::to_value(decisions).unwrap();
-        assert!(json.get("virtual").is_none(), "virtual must be omitted when false");
+        assert_eq!(json.get("virtual"), Some(&serde_json::Value::Bool(false)),
+            "virtual must always be emitted, even when false");
         let templates = types.iter().find(|t| t.key == DocTypeKey::Templates).unwrap();
         let json = serde_json::to_value(templates).unwrap();
         assert_eq!(json.get("virtual"), Some(&serde_json::Value::Bool(true)));
