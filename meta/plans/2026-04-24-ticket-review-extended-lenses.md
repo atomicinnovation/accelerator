@@ -630,42 +630,42 @@ section carries the change until the next release cadence.
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-config.sh` — row-count assertion:
+- [x] `bash scripts/test-config.sh` — row-count assertion:
       ticket mode emits exactly 5 built-in rows.
-- [ ] `bash scripts/test-config.sh` — sorted-set assertion:
+- [x] `bash scripts/test-config.sh` — sorted-set assertion:
       ticket mode sorted lens set equals
       `"clarity completeness dependency scope testability"`.
-- [ ] `bash scripts/test-config.sh` — cross-mode isolation:
+- [x] `bash scripts/test-config.sh` — cross-mode isolation:
       `LEAKED` variable is empty (none of the five ticket
       lenses appear in pr or plan output).
-- [ ] `bash scripts/test-config.sh` — ticket-mode golden
+- [x] `bash scripts/test-config.sh` — ticket-mode golden
       fixture assertion: `bash scripts/config-read-review.sh
       ticket` on a clean repo matches the committed fixture at
       `scripts/test-fixtures/config-read-review/ticket-mode-golden.txt`
       byte-for-byte.
-- [ ] `bash scripts/test-config.sh` — `core_lenses`
+- [x] `bash scripts/test-config.sh` — `core_lenses`
       informational-note assertion: the note fires when
       `core_lenses=[completeness, testability, clarity]` and
       does not fire when `core_lenses` is empty.
-- [ ] `mise run test` passes.
-- [ ] Golden-fixture regression: `bash scripts/config-read-review.sh
+- [x] `mise run test` passes.
+- [x] Golden-fixture regression: `bash scripts/config-read-review.sh
       pr` output on a clean repo is byte-identical to the pre-5A
       capture (compare against a just-before-5A snapshot, since no
       canonical committed fixture exists for Phase 4 pr/plan —
       Phase 5A optionally captures these alongside the ticket
       golden fixture for future regression protection).
-- [ ] Golden-fixture regression: `bash scripts/config-read-review.sh
+- [x] Golden-fixture regression: `bash scripts/config-read-review.sh
       plan` output on a clean repo is byte-identical to the
       pre-5A capture.
-- [ ] `bash scripts/config-read-review.sh ticket` exits 0 (the
+- [x] `bash scripts/config-read-review.sh ticket` exits 0 (the
       target SKILL.md paths may not exist yet — the script emits
       paths without validating file presence).
-- [ ] Prose-drift sweep:
+- [x] Prose-drift sweep:
       `grep -n -E '\bthree\b|\[completeness, testability, clarity\]' \
       skills/tickets/review-ticket/SKILL.md \
       skills/review/output-formats/ticket-review-output-format/SKILL.md`
       returns zero matches.
-- [ ] CHANGELOG amendment present: `grep -q 'Five-lens ticket
+- [x] CHANGELOG amendment present: `grep -q 'Five-lens ticket
       review capability' CHANGELOG.md` succeeds.
 
 #### Manual Verification:

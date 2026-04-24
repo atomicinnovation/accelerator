@@ -1,0 +1,173 @@
+{
+  "metadata": {
+    "skill_name": "scope",
+    "skill_path": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/ticket-management/skills/review/lenses/scope-lens",
+    "timestamp": "2026-04-24T00:00:00Z",
+    "evals_run": [
+      "epic-bundling-unrelated-themes",
+      "story-mixing-feature-and-refactor",
+      "undersized-standalone-story",
+      "spike-unbounded-exploration",
+      "over-decomposed-epic",
+      "story-crossing-bounded-contexts",
+      "well-scoped-story",
+      "well-scoped-spike",
+      "well-scoped-epic"
+    ],
+    "runs_per_configuration": 1,
+    "notes": "Eval 3 required one SKILL.md iteration before passing: iteration 1 produced major/high-confidence severity for the type mislabel; the proportionality guidance was sharpened to explicitly anchor chore-vs-story mismatches at minor/medium-confidence. All other evals passed on iteration 1."
+  },
+
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "epic-bundling-unrelated-themes",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 29.9, "tokens": 7687, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
+        {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "1 critical + 2 major findings."},
+        {"text": "Finding is located in Summary or Requirements", "passed": true, "evidence": "Critical finding in Summary: 'Epic bundles four unrelated product capabilities with no unifying theme'."},
+        {"text": "Finding body identifies that the epic bundles unrelated themes and recommends splitting into separate epics", "passed": true, "evidence": "Body names all four themes (user profile rework, billing migration, push notifications, audit logs) and explicitly suggests splitting into four separate epics."},
+        {"text": "No finding flags missing sections or unmeasurable criteria", "passed": true, "evidence": "All three findings are scope-boundary observations (bundling, multi-team ownership, done-condition coupling). No completeness or testability bleed."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "story-mixing-feature-and-refactor",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 21.1, "tokens": 7690, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
+        {"text": "At least one finding has severity 'major' or 'critical', located in Requirements or Summary", "passed": true, "evidence": "1 critical in Summary + 1 major in Requirements."},
+        {"text": "Finding notes two independent units of work: CSV export feature and large framework migration (3-4 weeks)", "passed": true, "evidence": "Critical finding explicitly names CSV export (Requirements 1-2) and grid migration (Requirements 3-4) as orthogonal workstreams with independent value."},
+        {"text": "Finding recommends splitting into separate tickets", "passed": true, "evidence": "Suggestion: 'Split into two tickets — one story for the CSV export feature and a separate story or epic for the grid framework migration.'"},
+        {"text": "No finding about ambiguous language or missing acceptance criteria as scope issues", "passed": true, "evidence": "Both findings are scope observations (bundling and sizing). No clarity or testability bleed."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "undersized-standalone-story",
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {"pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6, "time_seconds": 16.5, "tokens": 7961, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
+        {"text": "No finding at 'critical' or 'major' severity", "passed": true, "evidence": "1 finding at 'minor' severity only."},
+        {"text": "At least one finding at 'minor' or 'suggestion' severity", "passed": true, "evidence": "1 minor finding present."},
+        {"text": "Finding is located in Summary or Frontmatter: type", "passed": true, "evidence": "Location: 'Frontmatter: type'."},
+        {"text": "Finding confidence is 'medium'", "passed": true, "evidence": "confidence: 'medium'."},
+        {"text": "No finding about missing required sections", "passed": true, "evidence": "Only 1 finding, a proportional type-mislabel observation. No completeness bleed."}
+      ],
+      "notes": ["Iteration 1 produced major/high-confidence severity — the proportionality guidance was too weak. After sharpening the 'Be proportional' bullet in Important Guidelines to explicitly anchor chore-vs-story mismatches at minor/medium-confidence, the eval passed on iteration 2."]
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "spike-unbounded-exploration",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4, "time_seconds": 27.8, "tokens": 7402, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
+        {"text": "At least one finding at 'major' or 'critical', located in Acceptance Criteria or Summary", "passed": true, "evidence": "1 critical in Summary: 'Spike research question is entirely unbounded'."},
+        {"text": "Finding notes the research question is too broad and unbounded (not merely that exit criteria are unmeasurable)", "passed": true, "evidence": "Critical finding addresses the research question itself ('explore and understand the company's microservices architecture') as open-ended with no decision point — distinct from measurability of criteria."},
+        {"text": "No finding flags exit criteria wording as unmeasurable without first flagging the underlying question as too broad", "passed": true, "evidence": "All three findings target the scope/bounding problem (unbounded question, undefined framing, unbounded survey requirements). No testability bleed."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "over-decomposed-epic",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 21.9, "tokens": 7631, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
+        {"text": "At least one finding at 'minor' or higher severity", "passed": true, "evidence": "1 major + 1 minor finding."},
+        {"text": "Finding addresses over-decomposition — twelve micro-tasks that could be one story, not an epic with twelve children", "passed": true, "evidence": "Major: 'Epic type is inappropriate for trivially small, atomic refactor' — notes twelve renames deliverable in one commit. Minor: child stories are not independently releasable."},
+        {"text": "Finding is in Frontmatter: type, Requirements, or Stories", "passed": true, "evidence": "Major finding in Frontmatter: type; minor finding in Stories."},
+        {"text": "No finding about missing context or unclear acceptance criteria", "passed": true, "evidence": "Both findings are structural scope observations. No completeness or clarity bleed."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "eval_name": "story-crossing-bounded-contexts",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 22.0, "tokens": 7668, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
+        {"text": "At least one finding at 'major' or 'critical', located in Requirements or Summary", "passed": true, "evidence": "1 critical in Requirements + 1 major in Summary."},
+        {"text": "Finding notes ticket spans three distinct service boundaries (inventory, billing, notification) with no owning team or orchestration decision", "passed": true, "evidence": "Critical finding names all three teams (inventory, payments, platform) and notes no owning team or orchestration mechanism."},
+        {"text": "Finding recommends splitting into per-service tickets plus coordination", "passed": true, "evidence": "Suggestion: 'decompose into a thin orchestrator story owned by one team plus per-service stories owned by each respective team, linked under an epic.'"},
+        {"text": "No finding about missing ordering of operations as a dependency concern", "passed": true, "evidence": "Both findings are scope observations (service boundaries, sizing). No dependency-lens bleed about ordering."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "eval_name": "well-scoped-story",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 12.0, "tokens": 7712, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
+        {"text": "No finding at 'critical' or 'major' severity", "passed": true, "evidence": "0 findings."},
+        {"text": "Strengths list notes coherent single-capability scope", "passed": true, "evidence": "Strengths include: 'All three substantive sections describe exactly the same scope' and 'strictly front-end in nature... making team ownership and service boundaries unambiguous'."},
+        {"text": "No finding alleging the ticket mixes multiple concerns", "passed": true, "evidence": "0 findings. Perfect scope discipline."},
+        {"text": "No finding alleging unbounded exploration, over/under-decomposition, or service-boundary spanning", "passed": true, "evidence": "0 findings."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 8,
+      "eval_name": "well-scoped-spike",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 11.9, "tokens": 7697, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
+        {"text": "Zero findings at 'critical' or 'major' severity", "passed": true, "evidence": "0 findings."},
+        {"text": "At most one minor/suggestion finding total", "passed": true, "evidence": "0 findings."},
+        {"text": "Strengths list notes bounded scope (three specific libraries, three-day time-box) and concrete exit criteria", "passed": true, "evidence": "Strengths include: 'three named libraries... four named criteria'; 'time-box (3 working days) is explicit'; 'produces a concrete, named deliverable'."},
+        {"text": "No finding about sizing, bundling, decomposition, or unbounded exploration", "passed": true, "evidence": "0 findings."}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 9,
+      "eval_name": "well-scoped-epic",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 11.7, "tokens": 7640, "tool_calls": 3, "errors": 0},
+      "expectations": [
+        {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
+        {"text": "Zero findings at 'critical' or 'major' severity", "passed": true, "evidence": "0 findings."},
+        {"text": "At most one minor/suggestion finding total", "passed": true, "evidence": "0 findings."},
+        {"text": "Strengths list notes coherent epic scope and well-articulated decomposition (three child stories serving one capability)", "passed": true, "evidence": "Strengths include: 'epic names exactly one user-visible capability'; 'three child stories are genuinely cohesive — each addresses a different layer'; 'neither over-decomposed nor under-decomposed'."},
+        {"text": "No finding mentioning bundling, over-decomposition, or under-decomposition", "passed": true, "evidence": "0 findings."}
+      ],
+      "notes": []
+    }
+  ],
+
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 19.4, "stddev": 6.5, "min": 11.7, "max": 29.9},
+      "tokens": {"mean": 7699, "stddev": 149, "min": 7402, "max": 7961}
+    }
+  },
+
+  "notes": [
+    "All 9 evals pass at iteration 2. Iteration 1 had 8/9 passing — eval 3 (undersized-standalone-story) produced major/high-confidence for a type-mislabel (chore as story), whereas the eval expects minor/medium-confidence. The proportionality guidance in Important Guidelines was sharpened to explicitly anchor chore-vs-story mismatches as minor/suggestion at medium confidence, since what is 'chore-like' depends on team norms the reviewer cannot observe.",
+    "Positive fixtures (evals 7-9) all produced 0 findings with strong strengths notes — no false positives observed on clean tickets.",
+    "Token counts are notably lower than the completeness-lens benchmark (~7700 vs ~14500) because the scope lens reviewer reads fewer files (lens SKILL.md + output format + ticket, no multiple tools). Timing is similarly faster (12-30s vs 27-41s).",
+    "Single-run evaluation cannot surface non-deterministic failure modes. Multi-run evaluation (3 runs per eval) would be needed to detect edge-case drift, especially on the positive fixtures where false positives are the primary risk."
+  ]
+}
