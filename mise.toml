@@ -6,6 +6,7 @@ uv = "0.11.6"
 python = "3.14.4"
 gh = "2.89.0"
 rust = "1.90.0"
+node = "22"
 
 [settings]
 experimental = true
@@ -17,9 +18,13 @@ postinstall = "uv sync --only-group build --frozen"
 description = "Run visualiser unit tests"
 run = "invoke test.unit.visualiser"
 
+[tasks."test:unit:frontend"]
+description = "Run visualiser frontend unit tests (Vitest)"
+run = "invoke test.unit.frontend"
+
 [tasks."test:unit"]
 description = "Run all unit tests in parallel"
-depends = ["test:unit:visualiser"]
+depends = ["test:unit:visualiser", "test:unit:frontend"]
 
 [tasks."test:integration:visualiser"]
 description = "Run visualiser integration tests"

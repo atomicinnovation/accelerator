@@ -1,0 +1,41 @@
+{
+  "name": "accelerator-visualiser-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5",
+    "@tanstack/react-router": "^1",
+    "highlight.js": "^11",
+    "react": "^19",
+    "react-dom": "^19",
+    "react-markdown": "^9",
+    "rehype-highlight": "^7",
+    "remark-gfm": "^4"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6",
+    "@testing-library/react": "^16",
+    "@testing-library/user-event": "^14",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4",
+    "@vitest/coverage-v8": "^3",
+    "jsdom": "^26",
+    "typescript": "^5",
+    "vite": "^6",
+    "vitest": "^3"
+  }
+}
