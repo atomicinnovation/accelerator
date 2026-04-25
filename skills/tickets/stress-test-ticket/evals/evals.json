@@ -1,0 +1,214 @@
+{
+  "skill_name": "stress-test-ticket",
+  "evals": [
+    {
+      "id": 1,
+      "name": "bare-invocation",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nA user invokes: /stress-test-ticket (with no arguments)\n\nFollow the skill's Initial Response instructions for the no-path case. Save your response to outputs/response.md.\n\nStop after your initial response. Do not read any ticket files. Do not start questioning.",
+      "expected_output": "Skill asks the user to provide a ticket path or number. Mentions accepting both a path (e.g. meta/tickets/0042-user-auth.md) and a bare number (e.g. 0042 or 42). Suggests running /list-tickets to discover available tickets. Does not read any files or begin questioning.",
+      "files": [],
+      "expectations": [
+        "Response asks for a ticket path or number without starting to question",
+        "Response mentions accepting a bare ticket number (e.g. 42 or 0042) as well as a full path",
+        "Response suggests running /list-tickets to discover available tickets",
+        "No ticket file is read (no Read tool call for a ticket)",
+        "No stress-testing questions are asked"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "reads-ticket-fully-before-questioning",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nA user invokes: /stress-test-ticket skills/tickets/stress-test-ticket/evals/files/weak-acs/ticket.md\n\nRead the ticket file fully, then ask your first stress-testing question. Save your response to outputs/response.md.\n\nStop after asking exactly one question. Do not simulate further user input.",
+      "expected_output": "Skill reads the entire ticket file before asking any question. The first question references specific content from the ticket — such as a named acceptance criterion, a specific requirement, or a named assumption — not a generic question.",
+      "files": [
+        "skills/tickets/stress-test-ticket/evals/files/weak-acs/ticket.md"
+      ],
+      "expectations": [
+        "The ticket file is read before any question is asked",
+        "The first question references specific content from the ticket (e.g. names an acceptance criterion or requirement from the ticket, not a generic question)",
+        "Exactly one question (or tightly related cluster) is asked — not a list of multiple unrelated questions"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "one-question-at-a-time",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nA user invokes: /stress-test-ticket skills/tickets/stress-test-ticket/evals/files/weak-acs/ticket.md\n\nThe ticket has five vague acceptance criteria (handle errors gracefully, be fast, work correctly, users can log in, token validation works). Read the ticket and ask your first stress-testing question. Save your response to outputs/response.md.\n\nStop after your first response. Do not simulate further user input.",
+      "expected_output": "Skill asks exactly one question (or a tightly related cluster on a single point) — NOT a bulleted list enumerating all five vague criteria at once, and NOT multiple unrelated questions. Response ends in a question awaiting user input.",
+      "files": [
+        "skills/tickets/stress-test-ticket/evals/files/weak-acs/ticket.md"
+      ],
+      "expectations": [
+        "Response contains exactly one question or a tightly related cluster on a single point",
+        "Response does NOT list all five vague acceptance criteria as separate items to address",
+        "Response ends with a question awaiting user input",
+        "Response does NOT contain multiple unrelated questions"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "depth-first-follows-thread",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nSimulate this conversation so far:\n[Step 1: User invoked /stress-test-ticket on the weak-acs ticket (ticket_id 0042, User Authentication Refactor).]\n[Step 2: You read the ticket and asked: \"The first acceptance criterion says 'the system should handle errors gracefully' — what does 'gracefully' mean in concrete terms? What should happen when, say, the Redis connection fails during a login attempt?\"]\n[Step 3: User responds: \"I think it should log and keep running.\"]\n\nNow produce your next response. Save it to outputs/response.md.\n\nThe user's answer is vague — do NOT switch to a new topic. Follow up on the SAME branch (the meaning of 'gracefully' / logging behaviour) with a more specific question.",
+      "expected_output": "Skill asks a follow-up question on the SAME branch — about what should be logged, what format, who reads the log, or what the user-facing response should be — rather than switching to a new topic like scope, dependencies, or a different acceptance criterion.",
+      "files": [],
+      "expectations": [
+        "Response asks a follow-up question on the same branch (logging / error handling details) rather than switching to a new topic",
+        "Response does NOT pivot to scope, dependencies, or a different acceptance criterion",
+        "Response ends with a specific follow-up question about the error-handling or logging behaviour"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "challenges-vague-acceptance-criteria",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nA user invokes: /stress-test-ticket skills/tickets/stress-test-ticket/evals/files/weak-acs/ticket.md\n\nRead the ticket. The first acceptance criterion is 'The system should handle errors gracefully.' Challenge this criterion. Save your response to outputs/response.md.\n\nStop after your challenge/question. Do not simulate further user input.",
+      "expected_output": "Skill challenges the vague criterion concretely — asks what 'gracefully' means, what a failing path looks like, or what a passing test would assert. Does NOT accept 'handle errors gracefully' as a valid acceptance criterion.",
+      "files": [
+        "skills/tickets/stress-test-ticket/evals/files/weak-acs/ticket.md"
+      ],
+      "expectations": [
+        "Skill challenges 'handle errors gracefully' as too vague",
+        "Challenge asks what the criterion means concretely — what a failing path looks like, or what a passing test would assert",
+        "Skill does NOT accept the vague criterion as-is and move on"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "probes-over-scoped-tickets",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nA user invokes: /stress-test-ticket skills/tickets/stress-test-ticket/evals/files/over-scoped/ticket.md\n\nRead the ticket. It contains six acceptance criteria covering: concurrent auth race conditions, structured JSON logging, Prometheus metrics, UI Bootstrap-to-design-system migration, database migrations, and unit test coverage — all unrelated concerns. Raise the scope concern. Save your response to outputs/response.md.\n\nStop after your first response.",
+      "expected_output": "Skill surfaces the scope concern — notes that the ticket covers multiple unrelated concerns and asks whether it should be decomposed into separate tickets or whether some criteria belong elsewhere.",
+      "files": [
+        "skills/tickets/stress-test-ticket/evals/files/over-scoped/ticket.md"
+      ],
+      "expectations": [
+        "Skill raises the scope concern — the ticket covers multiple unrelated concerns",
+        "Skill asks whether the ticket should be decomposed or whether some criteria belong in separate tickets",
+        "Skill identifies at least two of the unrelated concern areas from the ticket"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "probes-edge-cases",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nA user invokes: /stress-test-ticket skills/tickets/stress-test-ticket/evals/files/happy-path-only/ticket.md\n\nRead the ticket. The acceptance criteria cover only the happy path: redirect to OAuth consent screen, authentication on success, new user creation, existing user recognised, and GitHub flow working. No edge cases are mentioned. Probe for edge cases. Save your response to outputs/response.md.\n\nStop after your first question.",
+      "expected_output": "Skill asks about specific edge cases relevant to OAuth login — such as what happens when the OAuth provider is unavailable, when the user denies consent, when the OAuth callback contains an error, when the provider returns a duplicate email, or when the network times out. The edge cases are specific to OAuth, not a generic checklist.",
+      "files": [
+        "skills/tickets/stress-test-ticket/evals/files/happy-path-only/ticket.md"
+      ],
+      "expectations": [
+        "Skill asks about at least one edge case specific to the OAuth flow (not a generic 'what about errors?' question)",
+        "Edge case examples include: OAuth provider unavailable, user denies consent, callback error parameter, duplicate email from different provider, token exchange failure, or similar OAuth-specific scenarios",
+        "Skill does NOT ask a generic 'what about edge cases?' without specifics"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "verifies-technical-assumptions",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nA user invokes: /stress-test-ticket on a ticket that states: 'Requirements: The auth service already supports token refresh via the TokenRefresher class.' \n\nSIMULATE {codebase analyser agent} returning: \"The auth service has no TokenRefresher class. The nearest capability is a refreshToken() function in src/services/auth.ts:89 that is marked @deprecated and scheduled for removal.\"\nDo NOT actually spawn the agent — use the simulated result directly.\n\nYour first response should reference the simulated agent finding. Save to outputs/response.md.",
+      "expected_output": "Skill's first response references the simulated agent finding — notes that the codebase shows no TokenRefresher class and that the nearest capability is the deprecated refreshToken() function — rather than asking the user the factual question about whether it exists.",
+      "files": [],
+      "expectations": [
+        "Response references the agent finding: no TokenRefresher class exists in the codebase",
+        "Response mentions the deprecated refreshToken() function in src/services/auth.ts as the nearest capability",
+        "Response does NOT ask the user 'does the auth service support token refresh?' as if the agent hadn't been consulted",
+        "Response raises this as a concern for the user to address (intent, scope, or plan change)"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "probes-empty-dependencies",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nA user invokes: /stress-test-ticket skills/tickets/stress-test-ticket/evals/files/empty-deps/ticket.md\n\nRead the ticket. The Dependencies section is empty ('Blocked by:' and 'Blocks:' are both blank). However, the Requirements clearly state the ticket depends on: a new user schema migration's `onboarding_status` field, an email service with valid SMTP credentials, an `email_preferences` table, and an analytics service. Probe the empty Dependencies section. Save your response to outputs/response.md.\n\nStop after your first question.",
+      "expected_output": "Skill asks about the empty Dependencies section in light of the prerequisites implied by the Requirements — specifically asks what must exist before this work can proceed (schema migration, email service, email_preferences table, or analytics service), or whether the Dependencies section accurately reflects these prerequisites.",
+      "files": [
+        "skills/tickets/stress-test-ticket/evals/files/empty-deps/ticket.md"
+      ],
+      "expectations": [
+        "Skill identifies the contradiction between empty Dependencies and Requirements that imply prerequisites",
+        "Skill asks about at least one of the prerequisites implied by the Requirements (e.g. schema migration, email service, email_preferences table, analytics service)",
+        "Skill does NOT accept the empty Dependencies section without challenging it"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "stops-when-all-branches-resolved",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nSimulate this compressed conversation history:\n[Ticket: skills/tickets/stress-test-ticket/evals/files/weak-acs/ticket.md (User Authentication Refactor).]\n[You asked: \"What does 'handle errors gracefully' mean? What happens when the Redis connection fails?\"]\n[User: \"It should return HTTP 503, log the error as JSON with level=error, and not crash the process.\"]\n[You asked: \"What does 'authentication should be fast' mean concretely?\"]\n[User: \"Under 100ms p95 for the token validation step.\"]\n[You asked: \"What does 'the refactored code should work correctly' mean — what specific behaviour needs to be verified?\"]\n[User: \"It should pass the existing integration test suite, plus new tests for the Redis store.\"]\n[You asked: \"The Dependencies section is empty but you're adding Redis — is Redis already provisioned in all environments?\"]\n[User: \"Yes, Redis is already in staging and prod. No new dependency.\"]\n[You asked: \"Are you assuming the existing session token format is compatible with the new Redis store?\"]\n[User: \"Yes, confirmed with the team — format is the same.\"]\n[User responds: \"Yes, that's confirmed.\"]\n\nNow produce your next response. Save it to outputs/response.md.",
+      "expected_output": "Skill's next response is the three-section findings summary (Issues to fix, Decisions confirmed, Risks accepted) — NOT another question. The summary draws from the simulated conversation history. Skill asks whether to update the ticket.",
+      "files": [],
+      "expectations": [
+        "Response is the structured findings summary — NOT another question",
+        "Summary contains an 'Issues to fix' section",
+        "Summary contains a 'Decisions confirmed' section",
+        "Summary contains a 'Risks accepted' section",
+        "Response asks whether to update the ticket"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "findings-summary-structured",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nSimulate a completed stress-test conversation:\n[Ticket: skills/tickets/stress-test-ticket/evals/files/weak-acs/ticket.md]\n[Multiple rounds of questioning completed — acceptance criteria clarified, edge cases addressed, dependencies confirmed.]\n[All branches resolved. User has confirmed their final position.]\n\nProduce the findings summary. Save to outputs/response.md.",
+      "expected_output": "Skill emits a structured summary with exactly three sections: **Issues to fix**, **Decisions confirmed**, **Risks accepted**. Skill asks whether to update the ticket.",
+      "files": [],
+      "expectations": [
+        "Response contains a section labelled 'Issues to fix' (or equivalent bold heading)",
+        "Response contains a section labelled 'Decisions confirmed' (or equivalent bold heading)",
+        "Response contains a section labelled 'Risks accepted' (or equivalent bold heading)",
+        "Response asks whether to update the ticket with the identified changes"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "optional-targeted-edit",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nSimulate a concluded stress-test:\n[Ticket: skills/tickets/stress-test-ticket/evals/files/weak-acs/ticket.md]\n[Findings summary presented. Issues: the five acceptance criteria need to be rewritten as specific, testable criteria.]\n[User approves: \"Yes, please update the Acceptance Criteria section.\"]\n\nApply the edit. Save your response to outputs/response.md.\n\nIMPORTANT: Do NOT actually write to the fixture file. Describe what Edit call you would make and to which section. Confirm which sections you are NOT touching.",
+      "expected_output": "Skill uses the Edit tool to modify the Acceptance Criteria section only. Skill explicitly confirms it is NOT touching frontmatter fields (ticket_id, title, date, author, type, status, priority, parent, tags) and NOT touching body labels (**Type**, **Status**, **Priority**, **Author**), Summary, Requirements, Dependencies, Assumptions, or Technical Notes.",
+      "files": [
+        "skills/tickets/stress-test-ticket/evals/files/weak-acs/ticket.md"
+      ],
+      "expectations": [
+        "Skill targets the Edit at the Acceptance Criteria section only",
+        "Skill confirms it is NOT modifying any frontmatter field",
+        "Skill confirms it is NOT modifying the Summary or Requirements sections",
+        "Skill confirms it is NOT modifying the body **Type**/**Status**/**Priority**/**Author** labels"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "no-redesign-guard",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nSimulate this conversation:\n[Ticket: User Authentication Refactor (0042) — using Redis for session store.]\n[You asked about Redis failure handling.]\n[User confirmed Redis will have a fallback.]\n[During the conversation, you identify a concern: 'Actually, using a distributed session store like Redis introduces network latency on every request. A JWT-based stateless approach would eliminate this overhead entirely and be more scalable.']\n\nProduce your response to this concern. Save to outputs/response.md.",
+      "expected_output": "Skill flags the concern as an Issue (latency, network dependency, scalability) for the user to decide — does NOT propose switching to JWTs or rewrite the Requirements section to reflect the alternative approach.",
+      "files": [],
+      "expectations": [
+        "Skill raises the latency/scalability concern as an issue for the user to consider",
+        "Skill does NOT propose rewriting the ticket to use JWTs instead of Redis",
+        "Skill does NOT rewrite the Requirements section with an alternative architecture",
+        "Skill frames the concern as a decision for the user, not a recommendation to change the approach"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "missing-invalid-ticket-path",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nA user invokes: /stress-test-ticket @meta/tickets/9999-does-not-exist.md\n\nHandle this invocation. Save your response to outputs/response.md.",
+      "expected_output": "Skill reports a clear error stating the ticket file does not exist at the given path (e.g. 'No ticket file at meta/tickets/9999-does-not-exist.md') and exits without reading any other file or starting questioning.",
+      "files": [],
+      "expectations": [
+        "Skill reports that no ticket file exists at the given path",
+        "Error message includes the path meta/tickets/9999-does-not-exist.md",
+        "Skill does NOT read any other files",
+        "Skill does NOT start asking stress-testing questions"
+      ]
+    },
+    {
+      "id": 15,
+      "name": "edit-targets-only-owned-sections",
+      "prompt": "Read skills/tickets/stress-test-ticket/SKILL.md fully. You are running the stress-test-ticket skill.\n\nSimulate a concluded stress-test. The ticket you worked on is at:\n  skills/tickets/stress-test-ticket-workspace/iteration-1/eval-15/inputs/ticket.md\n\n[Stress-test focused on the vague Acceptance Criteria only.]\n[User approved: 'Please rewrite only the Acceptance Criteria with the specific, measurable versions we discussed — the five criteria around Redis error handling, latency threshold, correctness via the test suite, Redis provisioning, and session format compatibility.']\n\nApply the Edit to the workspace copy at skills/tickets/stress-test-ticket-workspace/iteration-1/eval-15/inputs/ticket.md (you MAY modify this file). Then save a diff summary to outputs/response.md confirming which sections changed.\n\nAfter editing, compare the modified file against skills/tickets/stress-test-ticket/evals/files/scenario-15/expected-target.md. Report any differences.",
+      "expected_output": "Skill applies an Edit targeting the Acceptance Criteria section of the workspace copy. After editing, only the Acceptance Criteria section differs from the original; all nine frontmatter fields, body **Type**/**Status**/**Priority**/**Author** labels, Summary, Context, Requirements, and all other sections are byte-for-byte unchanged. The post-edit file matches expected-target.md.",
+      "files": [
+        "skills/tickets/stress-test-ticket-workspace/iteration-1/eval-15/inputs/ticket.md",
+        "skills/tickets/stress-test-ticket/evals/files/scenario-15/expected-target.md"
+      ],
+      "expectations": [
+        "Edit is applied to the workspace copy (the file is actually modified)",
+        "Edit targets only the Acceptance Criteria section",
+        "All nine frontmatter fields are unchanged after the edit",
+        "Body **Type**/**Status**/**Priority**/**Author** labels are unchanged after the edit",
+        "Summary and Requirements sections are unchanged after the edit"
+      ]
+    }
+  ]
+}

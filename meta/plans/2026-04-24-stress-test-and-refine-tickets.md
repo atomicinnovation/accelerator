@@ -283,20 +283,20 @@ illustrative ambiguity.
 ### Success Criteria
 
 #### Automated Verification:
-- [ ] `grep -F '├── ' skills/tickets/list-tickets/SKILL.md` returns a match
-- [ ] `grep -F '└── ' skills/tickets/list-tickets/SKILL.md` returns a match
-- [ ] The phrase "Indent two spaces per depth level" appears verbatim
+- [x] `grep -F '├── ' skills/tickets/list-tickets/SKILL.md` returns a match
+- [x] `grep -F '└── ' skills/tickets/list-tickets/SKILL.md` returns a match
+- [x] The phrase "Indent two spaces per depth level" appears verbatim
   in `skills/tickets/list-tickets/SKILL.md`
-- [ ] The phrase "Unicode box-drawing characters" appears verbatim
+- [x] The phrase "Unicode box-drawing characters" appears verbatim
   in `skills/tickets/list-tickets/SKILL.md`
-- [ ] HTML markers `<!-- canonical-tree-fence -->` and
+- [x] HTML markers `<!-- canonical-tree-fence -->` and
   `<!-- /canonical-tree-fence -->` both appear in
   `skills/tickets/list-tickets/SKILL.md`
 - [ ] `test-hierarchy-format.sh` (added in Subphase 6C §3) passes —
   asserts byte-equality between the marker-bracketed fence in
   `list-tickets/SKILL.md` and the marker-bracketed fence in
   `refine-ticket/SKILL.md` Step 5
-- [ ] `mise run test` passes
+- [x] `mise run test` passes
 
 #### Manual Verification:
 - [ ] `/list-tickets hierarchy` on a fixture with at least one epic
@@ -635,23 +635,23 @@ and 14.
 
 #### Automated Verification:
 
-- [ ] Skill directory created:
+- [x] Skill directory created:
   `test -d skills/tickets/stress-test-ticket`
-- [ ] SKILL.md exists:
+- [x] SKILL.md exists:
   `test -f skills/tickets/stress-test-ticket/SKILL.md`
-- [ ] Evals file exists:
+- [x] Evals file exists:
   `test -f skills/tickets/stress-test-ticket/evals/evals.json`
-- [ ] Benchmark file exists:
+- [x] Benchmark file exists:
   `test -f skills/tickets/stress-test-ticket/evals/benchmark.json`
-- [ ] All 15 evals pass 100% in `benchmark.json` (verified by reading
+- [x] All 15 evals pass 100% in `benchmark.json` (verified by reading
   `run_summary.with_skill.pass_rate.mean == 1.0`)
-- [ ] Phase 1–5 regression suite passes: `mise run test`
-- [ ] Skill frontmatter matches the specification:
+- [x] Phase 1–5 regression suite passes: `mise run test`
+- [x] Skill frontmatter matches the specification:
   `grep -E '^(name|description|argument-hint|disable-model-invocation|allowed-tools):' skills/tickets/stress-test-ticket/SKILL.md` matches the spec field-for-field
-- [ ] Frontmatter field ORDER is correct — the grep above emits the
+- [x] Frontmatter field ORDER is correct — the grep above emits the
   five keys in the exact order name, description, argument-hint,
   disable-model-invocation, allowed-tools
-- [ ] Preamble present: grep confirms each of the three
+- [x] Preamble present: grep confirms each of the three
   `config-read-*.sh` bang-executions is present in the SKILL.md
 
 #### Manual Verification:

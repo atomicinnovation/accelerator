@@ -200,8 +200,22 @@ Present the filtered tickets as a markdown table with these columns:
 If a hierarchy presentation keyword was detected in Step 1:
 
 - Tickets with no `parent` (or empty `parent`) appear at the top level.
-- Tickets whose `parent` points to a ticket in the current result set
-  appear indented beneath their parent.
+- Tickets whose `parent` points to a ticket in the current result
+  set are rendered as children. Each parent→children group prints
+  as a tree using Unicode box-drawing characters. Children use
+  `├── ` for all entries except the last in the group, which uses
+  `└── `. Indent two spaces per depth level. Example:
+
+<!-- canonical-tree-fence -->
+NNNN — parent title (type: <type>, status: <status>)
+  ├── NNNN — child 1 title (type: <type>, status: <status>)
+  ├── NNNN — child 2 title (type: <type>, status: <status>)
+  └── NNNN — last child title (type: <type>, status: <status>)
+<!-- /canonical-tree-fence -->
+
+  No ASCII fallback is attempted; terminals without Unicode
+  support will render mojibake. Users on such terminals can
+  re-display the hierarchy via /list-tickets.
 - Tickets whose `parent` points to a ticket number that does not exist
   in the result set appear at the top level with a suffix:
   `(parent NNNN not found)`.

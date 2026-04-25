@@ -1,0 +1,612 @@
+{
+  "metadata": {
+    "skill_name": "stress-test-ticket",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-04-25T10:54:27Z",
+    "evals_run": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response asks for a ticket path or number without starting to question",
+          "passed": true,
+          "evidence": "Response opens with 'I'll stress-test your ticket. Please provide the path or ticket number.' \u2014 it requests the ticket location and stops there, asking nothing else."
+        },
+        {
+          "text": "Response mentions accepting a bare ticket number (e.g. 42 or 0042) as well as a full path",
+          "passed": true,
+          "evidence": "Response includes 'Or by number: `/stress-test-ticket 42`' alongside the full-path example, explicitly showing both forms."
+        },
+        {
+          "text": "Response suggests running /list-tickets to discover available tickets",
+          "passed": true,
+          "evidence": "Response ends with 'Run `/list-tickets` to see available tickets.'"
+        },
+        {
+          "text": "No ticket file is read (no Read tool call for a ticket)",
+          "passed": true,
+          "evidence": "The response contains no ticket content and there is no transcript showing a Read tool call. The entire output is a short 6-line prompt for input, with no ticket data referenced."
+        },
+        {
+          "text": "No stress-testing questions are asked",
+          "passed": true,
+          "evidence": "The response asks only for a ticket path/number \u2014 there are no questions about ticket content, requirements, or acceptance criteria."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 10,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 0.0,
+        "tokens": 1866,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response is the structured findings summary \u2014 NOT another question",
+          "passed": true,
+          "evidence": "The response opens 'We've now resolved every open branch I was tracking' and then delivers a structured summary with three clearly labelled sections. The only question is a closing offer to update the ticket, which is a procedural prompt, not a probe into the ticket's content."
+        },
+        {
+          "text": "Summary contains an 'Issues to fix' section",
+          "passed": true,
+          "evidence": "Response contains the heading '**Issues to fix:**' followed by a bulleted list of five specific acceptance criteria improvements."
+        },
+        {
+          "text": "Summary contains a 'Decisions confirmed' section",
+          "passed": true,
+          "evidence": "Response contains the heading '**Decisions confirmed:**' followed by two confirmed facts (Redis availability and session token format compatibility)."
+        },
+        {
+          "text": "Summary contains a 'Risks accepted' section",
+          "passed": true,
+          "evidence": "Response contains the heading '**Risks accepted:**' followed by 'None identified.' The section is present even though it is empty."
+        },
+        {
+          "text": "Response asks whether to update the ticket",
+          "passed": true,
+          "evidence": "Response ends with: 'Would you like me to update the ticket with these changes?' \u2014 a direct, closed question offering to apply the findings."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 11,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response contains a section labelled 'Issues to fix' (or equivalent bold heading)",
+          "passed": true,
+          "evidence": "Response opens with 'Here's what we found during the stress test:' followed immediately by '**Issues to fix:**' as a bold heading."
+        },
+        {
+          "text": "Response contains a section labelled 'Decisions confirmed' (or equivalent bold heading)",
+          "passed": true,
+          "evidence": "Response contains '**Decisions confirmed:**' as a bold heading, listing three confirmed decisions about Redis, refactor scope, and legacyAuth removal."
+        },
+        {
+          "text": "Response contains a section labelled 'Risks accepted' (or equivalent bold heading)",
+          "passed": true,
+          "evidence": "Response contains '**Risks accepted:**' as a bold heading, listing two accepted risks: session format compatibility and single-instance Redis."
+        },
+        {
+          "text": "Response asks whether to update the ticket with the identified changes",
+          "passed": true,
+          "evidence": "Final line of response reads: 'Would you like me to update the ticket with these changes?'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 12,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Edit targets only the Acceptance Criteria section",
+          "passed": true,
+          "evidence": "Response explicitly states: 'I would make a single Edit call targeting the **Acceptance Criteria** section' and provides old_string/new_string covering only the five checklist items under that section."
+        },
+        {
+          "text": "Skill confirms it is NOT modifying any frontmatter field",
+          "passed": true,
+          "evidence": "Under 'Sections I am NOT touching', the response lists 'Frontmatter (ticket_id, title, date, author, type, status, priority, parent, tags) \u2014 no changes' explicitly."
+        },
+        {
+          "text": "Skill confirms it is NOT modifying the Summary or Requirements sections",
+          "passed": true,
+          "evidence": "The 'Sections I am NOT touching' list includes '**Summary** \u2014 no changes' and '**Requirements** \u2014 no changes'."
+        },
+        {
+          "text": "Skill confirms it is NOT modifying the body **Type**/**Status**/**Priority**/**Author** labels",
+          "passed": true,
+          "evidence": "Response lists 'Body metadata labels (**Type**:, **Status**:, **Priority**:, **Author**:) \u2014 no changes' in the sections not being touched."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 13,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Skill raises the latency/scalability concern as an issue for the user to consider",
+          "passed": true,
+          "evidence": "Response opens: 'I want to flag this as a concern rather than a recommendation' and states: 'A distributed session store like Redis introduces a network round-trip on every authenticated request. A stateless JWT-based approach would eliminate that overhead and remove Redis as a dependency entirely.'"
+        },
+        {
+          "text": "Skill does NOT propose rewriting the ticket to use JWTs instead of Redis",
+          "passed": true,
+          "evidence": "The response explicitly declines to advocate: 'my role here is to surface this so you can make an informed decision, not to advocate for a different architecture.' It frames JWT as one option for the user to consider, not a proposal to rewrite."
+        },
+        {
+          "text": "Skill does NOT rewrite the Requirements section with an alternative architecture",
+          "passed": true,
+          "evidence": "The response contains no rewritten Requirements section. The only content is a discussion of the trade-off and a question back to the user."
+        },
+        {
+          "text": "Skill frames the concern as a decision for the user, not a recommendation to change the approach",
+          "passed": true,
+          "evidence": "Response closes with: 'So the question is: given that revocability matters to you... do you want to revisit the approach \u2014 or proceed with the Redis path as scoped? What's your call?' This explicitly places the decision with the user."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 14,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Skill reports that no ticket file exists at the given path",
+          "passed": true,
+          "evidence": "Response begins: 'No ticket file at `meta/tickets/9999-does-not-exist.md`.' and continues: 'I cannot start the stress-test because the ticket does not exist at the resolved path.'"
+        },
+        {
+          "text": "Error message includes the path meta/tickets/9999-does-not-exist.md",
+          "passed": true,
+          "evidence": "First line of response is: 'No ticket file at `meta/tickets/9999-does-not-exist.md`.' \u2014 the exact path is present."
+        },
+        {
+          "text": "Skill does NOT read any other files",
+          "passed": true,
+          "evidence": "The response is three sentences with no evidence of reading other files. The brevity and directness of the response is consistent with early exit after a path check failure. No content from other files appears in the output."
+        },
+        {
+          "text": "Skill does NOT start asking stress-testing questions",
+          "passed": true,
+          "evidence": "The response contains no stress-testing questions. It terminates immediately with the error and a suggestion to run /list-tickets."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 15,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Edit is applied to the workspace copy (the file is actually modified \u2014 its Acceptance Criteria differ from the original vague criteria)",
+          "passed": true,
+          "evidence": "The modified ticket.md contains five specific, measurable acceptance criteria (Redis failure \u2192 HTTP 503, token validation < 50ms, session cookie attributes, invalid token \u2192 HTTP 401, mid-request expiry behaviour). The original vague criteria ('should handle errors gracefully', 'Authentication should be fast', etc.) no longer appear. A diff of ticket.md against expected-target.md produces no output, confirming the file was actually written on disk, not merely described."
+        },
+        {
+          "text": "Edit targets only the Acceptance Criteria section",
+          "passed": true,
+          "evidence": "The response.md lists every other section (frontmatter fields, body labels, Summary, Context, Requirements, Open Questions, Dependencies, Assumptions, Technical Notes, Drafting Notes, References) as unchanged. Reading ticket.md directly confirms the Acceptance Criteria section is the sole section that differs from the pre-edit layout, and the diff against expected-target.md is empty, meaning no other section diverges from the target."
+        },
+        {
+          "text": "All nine frontmatter fields are unchanged after the edit",
+          "passed": true,
+          "evidence": "ticket.md frontmatter contains all nine fields with their original values: ticket_id='0042', title='User Authentication Refactor', date='2026-04-01T10:00:00+00:00', author='Test Author', type=story, status=draft, priority=high, parent='', tags=[auth, backend]. These match expected-target.md exactly."
+        },
+        {
+          "text": "Body **Type**/**Status**/**Priority**/**Author** labels are unchanged after the edit",
+          "passed": true,
+          "evidence": "ticket.md lines 15-18 show '**Type**: Story', '**Status**: Draft', '**Priority**: High', '**Author**: Test Author', matching expected-target.md lines 15-18 exactly."
+        },
+        {
+          "text": "Summary and Requirements sections are unchanged after the edit",
+          "passed": true,
+          "evidence": "Reading ticket.md directly: Summary section (lines 20-22) describes refactoring the authentication service with identical wording to expected-target.md. Requirements section (lines 28-33) lists all four numbered items (Redis-backed session store, TokenValidator class, structured logging, remove legacyAuth flag) unchanged and matching expected-target.md exactly."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The ticket file is read before any question is asked",
+          "passed": true,
+          "evidence": "Response opens with 'I've read ticket 0042 \u2014 *User Authentication Refactor*.' confirming the ticket was read first. The response then asks a question. There is no question before acknowledgement of having read the ticket."
+        },
+        {
+          "text": "The first question references specific content from the ticket (e.g. names an acceptance criterion or requirement from the ticket, not a generic question)",
+          "passed": true,
+          "evidence": "The question references 'The first acceptance criterion says \"The system should handle errors gracefully\"' and names specific ticket details: Redis session management and token validation. These are not generic \u2014 they are drawn from ticket content."
+        },
+        {
+          "text": "Exactly one question (or tightly related cluster) is asked \u2014 not a list of multiple unrelated questions",
+          "passed": true,
+          "evidence": "A single focused question is asked: what does 'gracefully' mean concretely for Redis connection failure, with sub-options listed (return error, fall back, retry silently) to give context. All parts concern the same criterion and the same failure scenario."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response contains exactly one question or a tightly related cluster on a single point",
+          "passed": true,
+          "evidence": "The response poses one question: what does 'gracefully' mean if Redis is unreachable during login, with four concrete options listed (return error, retry, fall back to in-memory, something else). All content is tightly scoped to a single failure scenario."
+        },
+        {
+          "text": "Response does NOT list all five vague acceptance criteria as separate items to address",
+          "passed": true,
+          "evidence": "The response addresses only the first acceptance criterion ('handle errors gracefully') and does not enumerate or mention any other criteria."
+        },
+        {
+          "text": "Response ends with a question awaiting user input",
+          "passed": true,
+          "evidence": "The response ends with '...or something else? And what would a failing test assert to prove the behaviour is wrong?' \u2014 a direct question requiring user input."
+        },
+        {
+          "text": "Response does NOT contain multiple unrelated questions",
+          "passed": true,
+          "evidence": "Only one line of questioning is present, focused entirely on the error-handling behaviour for Redis unavailability. No other topics are raised."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response asks a follow-up question on the same branch (logging / error handling details) rather than switching to a new topic",
+          "passed": true,
+          "evidence": "The response stays entirely within the Redis failure / error-handling branch: it probes what 'log and keep running' means \u2014 specifically whether the system falls back to the in-memory store or rejects new logins \u2014 and then asks about log level, log fields, and the response returned to the caller. No new topic is introduced."
+        },
+        {
+          "text": "Response does NOT pivot to scope, dependencies, or a different acceptance criterion",
+          "passed": true,
+          "evidence": "Scope, dependencies, and other acceptance criteria are entirely absent from the response. Every sentence concerns the Redis-down failure path raised in the previous turn."
+        },
+        {
+          "text": "Response ends with a specific follow-up question about the error-handling or logging behaviour",
+          "passed": true,
+          "evidence": "The response ends with: 'Concretely: what log level and what fields does the log entry contain, and does the login request return a success response or an error to the caller when Redis is unavailable?' \u2014 a specific, scoped question about logging and observable error behaviour."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Skill challenges 'handle errors gracefully' as too vague",
+          "passed": true,
+          "evidence": "Response states directly: '\"The system should handle errors gracefully\" is not a testable acceptance criterion. A developer could ship a `console.log(\"oops\")` and a 500 response and claim it passes.' This is an explicit challenge to the criterion's vagueness."
+        },
+        {
+          "text": "Challenge asks what the criterion means concretely \u2014 what a failing path looks like, or what a passing test would assert",
+          "passed": true,
+          "evidence": "Response asks: 'what specific error scenarios does \"gracefully\" need to cover, and for each one, what is the externally observable behaviour that a test can assert \u2014 does the user get an error, a retry, a degraded-mode response? What does the log record contain?' This directly asks for concrete failure paths and assertable test conditions."
+        },
+        {
+          "text": "Skill does NOT accept the vague criterion as-is and move on",
+          "passed": true,
+          "evidence": "The response devotes its entire content to challenging the criterion before proceeding. It ends with a question that requires the user to concretise the criterion \u2014 no further progress is offered until that is answered."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 2010,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Skill raises the scope concern \u2014 the ticket covers multiple unrelated concerns",
+          "passed": true,
+          "evidence": "Response opens: 'Before we go any further, I need to raise a scope concern. This ticket bundles six acceptance criteria that cover at least five completely unrelated technical concerns.' The concern is the central theme of the entire response."
+        },
+        {
+          "text": "Skill asks whether the ticket should be decomposed or whether some criteria belong in separate tickets",
+          "passed": true,
+          "evidence": "Response asks explicitly: 'should this ticket be decomposed into (at minimum) five separate tickets, one per concern? Each could be tagged and linked to a common parent epic if you need sprint-level visibility. What's driving the decision to keep them in a single ticket?'"
+        },
+        {
+          "text": "Skill identifies at least two of the unrelated concern areas from the ticket",
+          "passed": true,
+          "evidence": "Response enumerates six distinct concern areas: (1) Auth race conditions, (2) Structured JSON logging, (3) Prometheus metrics, (4) UI Bootstrap-to-design-system migration, (5) Database migrations, (6) Unit test coverage for PasswordHasher \u2014 well exceeding the minimum of two."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 665,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Skill asks about at least one edge case specific to the OAuth flow (not a generic 'what about errors?' question)",
+          "passed": true,
+          "evidence": "Response asks: 'What happens when the OAuth provider returns an error instead of a code? For example, the user clicks \"Deny\" on the Google consent screen, or Google returns an `access_denied` error. Where does the user land, and what do they see?' This is specific to OAuth error handling, not a generic probe."
+        },
+        {
+          "text": "Edge case examples include: OAuth provider unavailable, user denies consent, callback error parameter, duplicate email from different provider, token exchange failure, or similar OAuth-specific scenarios",
+          "passed": true,
+          "evidence": "Response specifically calls out 'the user clicks \"Deny\" on the Google consent screen' (user denies consent) and 'Google returns an `access_denied` error' (callback error parameter). Both match the enumerated expected examples."
+        },
+        {
+          "text": "Skill does NOT ask a generic 'what about edge cases?' without specifics",
+          "passed": true,
+          "evidence": "The response goes directly to a specific scenario (OAuth provider error / user denial) with concrete examples. There is no generic 'what about edge cases?' phrasing anywhere in the response."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 8,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 987,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response references the agent finding: no TokenRefresher class exists in the codebase",
+          "passed": true,
+          "evidence": "Response states: 'I checked the codebase to verify this claim. The codebase analyser found no `TokenRefresher` class anywhere in the auth service.' Direct, unambiguous citation of the agent's finding."
+        },
+        {
+          "text": "Response mentions the deprecated refreshToken() function in src/services/auth.ts as the nearest capability",
+          "passed": true,
+          "evidence": "Response states: 'The nearest relevant capability is a `refreshToken()` function in `src/services/auth.ts` at line 89 \u2014 but it is marked `@deprecated` and is scheduled for removal.' Matches the expectation precisely, including the file path and deprecated status."
+        },
+        {
+          "text": "Response does NOT ask the user 'does the auth service support token refresh?' as if the agent hadn't been consulted",
+          "passed": true,
+          "evidence": "The response does not ask whether the auth service supports token refresh. It presents confirmed findings from the codebase analyser and then asks about intent and scope \u2014 a substantively different and more informed line of questioning."
+        },
+        {
+          "text": "Response raises this as a concern for the user to address (intent, scope, or plan change)",
+          "passed": true,
+          "evidence": "Response closes with: 'Before we go further: did the team intend to build *on top of* an existing token refresh capability, or did someone assume that capability existed when it doesn't? If it doesn't exist, does this ticket need to scope in building it \u2014 or does that become a separate prerequisite ticket?' Directly raises intent, scope, and planning implications."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 9,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 1325,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Skill identifies the contradiction between empty Dependencies and Requirements that imply prerequisites",
+          "passed": true,
+          "evidence": "Response states: 'The Dependencies section is blank \u2014 both \"Blocked by\" and \"Blocks\" are empty. But the Requirements tell a different story.' The word 'contradiction' is implicit but the structural identification is explicit and clear."
+        },
+        {
+          "text": "Skill asks about at least one of the prerequisites implied by the Requirements (e.g. schema migration, email service, email_preferences table, analytics service)",
+          "passed": true,
+          "evidence": "Response asks directly: 'Is the schema migration that adds `onboarding_status` to the users table a separate in-flight ticket, or is it work that needs to be done as part of this ticket? If it's separate, this ticket cannot start until that migration has been applied \u2014 and that blocker needs to be captured in Dependencies with a ticket reference.' This matches 'schema migration' from the enumerated examples."
+        },
+        {
+          "text": "Skill does NOT accept the empty Dependencies section without challenging it",
+          "passed": true,
+          "evidence": "The entire response is built around challenging the empty Dependencies section. The skill enumerates four specific undocumented dependencies from the Requirements body and calls out that 'none of these are in the Dependencies section.' No part of the response accepts the empty section as correct."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "tokens": {
+        "mean": 456.8667,
+        "stddev": 735.0009,
+        "min": 0,
+        "max": 2010
+      }
+    },
+    "delta": {
+      "pass_rate": "+1.00",
+      "time_seconds": "+0.0",
+      "tokens": "+457"
+    }
+  },
+  "notes": []
+}
