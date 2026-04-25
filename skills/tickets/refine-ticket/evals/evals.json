@@ -1,0 +1,944 @@
+{
+  "skill_name": "refine-ticket",
+  "evals": [
+    {
+      "id": 1,
+      "name": "bare-invocation-prompts-for-ticket",
+      "prompt": "/refine-ticket",
+      "expected_output": "Skill asks for a ticket path or number. Includes an example using the tickets directory. Mentions /list-tickets. Does not read or edit any file. Does not spawn agents. Does not start any operation.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "asks-for-ticket-path",
+          "description": "Response asks for a ticket path or number",
+          "type": "llm",
+          "value": "The response asks the user to provide a ticket path or number before proceeding"
+        },
+        {
+          "name": "mentions-list-tickets",
+          "description": "Response mentions /list-tickets",
+          "type": "contains",
+          "value": "/list-tickets"
+        },
+        {
+          "name": "no-file-reads",
+          "description": "No files were read",
+          "type": "llm",
+          "value": "The skill did not read any files, spawn any agents, or perform any operations"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "reads-ticket-fully-before-acting",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-2/ticket.md\n\nDo not actually spawn the codebase agents. Simulate that they returned no relevant files. Proceed to show the menu.",
+      "expected_output": "Skill reads the entire ticket file. Presents the five-operation menu. Does not proceed without user selection.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-2/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "reads-ticket-file",
+          "description": "Skill reads the ticket file",
+          "type": "llm",
+          "value": "The skill read the ticket file at the provided path before presenting the menu"
+        },
+        {
+          "name": "presents-five-operations",
+          "description": "Menu shows five operations",
+          "type": "llm",
+          "value": "The menu includes all five operations: decompose, enrich, sharpen, size, and link"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "parallel-agents-both-in-same-turn",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-3/ticket.md\n\nSIMULATE {codebase locator agent} returning: \"src/auth/session.ts, src/auth/tokens.ts, src/middleware/auth.ts are relevant.\"\nSIMULATE {codebase analyser agent} returning: \"session.ts uses an in-memory map; tokens.ts signs JWTs; middleware reads cookies.\"\nBoth agents should appear in a single parallel tool-use turn. Do not actually spawn the agents.",
+      "expected_output": "Skill spawns both codebase agents in a single parallel tool-use turn (not sequential). The menu references the simulated findings (e.g., '3 relevant files identified', specific file names).",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-3/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "both-agents-in-parallel",
+          "description": "Both agents spawned in same turn",
+          "type": "llm",
+          "value": "Both the codebase locator agent and codebase analyser agent are invoked in a single parallel tool-use turn, not in separate sequential turns"
+        },
+        {
+          "name": "menu-references-agent-findings",
+          "description": "Menu references agent findings",
+          "type": "llm",
+          "value": "The menu preview for at least one operation references the simulated agent findings (file names, counts, or specific components)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "menu-presents-five-operations",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-4/ticket.md\n\nSimulate both agents returned results. Show the menu only; do not execute any operation yet.",
+      "expected_output": "Menu shows exactly five operations: decompose, enrich, sharpen, size, link — each with a one-line description.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-4/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "all-five-operations-present",
+          "description": "All five operations shown",
+          "type": "llm",
+          "value": "The menu shows all five operations: decompose, enrich, sharpen, size, and link"
+        },
+        {
+          "name": "each-has-description",
+          "description": "Each operation has a description",
+          "type": "llm",
+          "value": "Each of the five operations has at least a one-line description or preview"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "decompose-epic-proposes-child-stories",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md\n\nSimulate both agents returned results. User selects decompose.\n\nDo NOT actually write any files. Show the proposal only.",
+      "expected_output": "Skill proposes 2-5 candidate child stories, each with a draft title and one-line Summary derived from the epic's Requirements. Grammar legend appears under the numbered list: 'Commands: approve all | edit N: <title> | drop N | add: <title> | regenerate | cancel'.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "proposes-2-to-5-children",
+          "description": "Proposal has 2-5 child candidates",
+          "type": "llm",
+          "value": "The skill proposes between 2 and 5 candidate child tickets"
+        },
+        {
+          "name": "child-type-is-story",
+          "description": "Children are stories",
+          "type": "llm",
+          "value": "The proposed children are described as story type (since parent is epic)"
+        },
+        {
+          "name": "grammar-legend-present",
+          "description": "Grammar legend appears",
+          "type": "contains",
+          "value": "Commands: approve all | edit N: <title> | drop N | add: <title> | regenerate | cancel"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "decompose-5a-approve-proceeds-to-warning",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md\n\nSimulate both agents returned results. Simulate the skill has just presented a proposal of 3 child stories titled:\n1. Redis Session Management\n2. Token Validator Consolidation\n3. Auth Audit Logging\n\nUser types: approve all\n\nDo NOT actually write files. Show the pre-write warning only.",
+      "expected_output": "Skill emits the pre-write warning: 'This will allocate 3 ticket numbers and write 3 files; aborting mid-write leaves partial state — use `jj restore <file>` to discard any children written. Proceed? (y/n)'. Waits for explicit y/n. Does NOT write files.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "pre-write-warning-emitted",
+          "description": "Pre-write warning shown",
+          "type": "llm",
+          "value": "The skill emits a pre-write warning about allocating ticket numbers and writing files before proceeding"
+        },
+        {
+          "name": "warning-mentions-jj-restore",
+          "description": "Warning mentions jj restore",
+          "type": "contains",
+          "value": "jj restore"
+        },
+        {
+          "name": "waits-for-confirmation",
+          "description": "Waits for y/n confirmation",
+          "type": "llm",
+          "value": "The skill waits for explicit y/n confirmation and does not write files in this response"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "decompose-5a-edit-updates-proposal",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md\n\nSimulate both agents returned results. Simulate the skill has presented a 3-child proposal:\n1. Redis Session Management\n2. Token Validator Consolidation\n3. Auth Audit Logging\n\nUser types: edit 2: JWT Token Validator\n\nDo NOT write files.",
+      "expected_output": "Skill re-shows updated proposal where child 2's title is exactly 'JWT Token Validator'. Children 1 and 3 are unchanged. Grammar legend is restated. Skill does NOT proceed to write.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "child-2-title-updated",
+          "description": "Child 2 title updated",
+          "type": "contains",
+          "value": "JWT Token Validator"
+        },
+        {
+          "name": "other-children-unchanged",
+          "description": "Children 1 and 3 unchanged",
+          "type": "llm",
+          "value": "The updated proposal shows child 1 as 'Redis Session Management' and child 3 as 'Auth Audit Logging', unchanged from the original"
+        },
+        {
+          "name": "grammar-legend-restated",
+          "description": "Grammar legend restated",
+          "type": "contains",
+          "value": "Commands: approve all | edit N: <title> | drop N | add: <title> | regenerate | cancel"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "decompose-5a-drop-renumbers",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md\n\nSimulate both agents returned results. Simulate 3-child proposal:\n1. Redis Session Management\n2. Token Validator Consolidation\n3. Auth Audit Logging\n\nUser types: drop 2\n\nDo NOT write files.",
+      "expected_output": "Skill re-shows 2-child proposal containing only 'Redis Session Management' (1) and 'Auth Audit Logging' (2). Grammar legend restated. Skill does NOT write.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "dropped-child-removed",
+          "description": "Child 2 removed",
+          "type": "llm",
+          "value": "The updated proposal no longer contains 'Token Validator Consolidation'"
+        },
+        {
+          "name": "remaining-children-renumbered",
+          "description": "Remaining children renumbered 1-2",
+          "type": "llm",
+          "value": "The remaining two children are renumbered as 1 and 2, with 'Redis Session Management' as 1 and 'Auth Audit Logging' as 2"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "decompose-5a-add-appends-child",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md\n\nSimulate both agents returned results. Simulate 3-child proposal:\n1. Redis Session Management\n2. Token Validator Consolidation\n3. Auth Audit Logging\n\nUser types: add: Legacy Auth Flag Removal\n\nDo NOT write files.",
+      "expected_output": "Skill re-shows 4-child proposal with A/B/C/Legacy Auth Flag Removal numbered 1-4. Grammar legend restated. Skill does NOT write.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "new-child-appended",
+          "description": "New child appended as 4th",
+          "type": "llm",
+          "value": "The updated proposal has 4 children with 'Legacy Auth Flag Removal' as child 4"
+        },
+        {
+          "name": "original-children-preserved",
+          "description": "Original 3 children preserved",
+          "type": "llm",
+          "value": "The original 3 children (Redis Session Management, Token Validator Consolidation, Auth Audit Logging) remain as children 1, 2, and 3"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "decompose-5a-regenerate-fresh-proposal",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md\n\nSimulate both agents returned results. Simulate 3-child proposal:\n1. Redis Session Management\n2. Token Validator Consolidation\n3. Auth Audit Logging\n\nUser types: regenerate\n\nDo NOT write files.",
+      "expected_output": "Skill discards current proposal and generates a fresh set of 2-5 candidate children grounded in the same Requirements but with different titles or scope. Grammar legend appears. Skill does NOT write.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "fresh-proposal-generated",
+          "description": "New proposal generated",
+          "type": "llm",
+          "value": "The skill generates a new candidate proposal (the new proposal may differ from the original A/B/C titles)"
+        },
+        {
+          "name": "proposal-size-2-to-5",
+          "description": "New proposal has 2-5 children",
+          "type": "llm",
+          "value": "The regenerated proposal contains between 2 and 5 candidate children"
+        },
+        {
+          "name": "grammar-legend-present",
+          "description": "Grammar legend present",
+          "type": "contains",
+          "value": "Commands: approve all | edit N: <title> | drop N | add: <title> | regenerate | cancel"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "decompose-5a-cancel-exits-without-writing",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md\n\nSimulate both agents returned results. Simulate 3-child proposal:\n1. Redis Session Management\n2. Token Validator Consolidation\n3. Auth Audit Logging\n\nUser types: cancel\n\nDo NOT write files.",
+      "expected_output": "Skill exits decompose with 'decompose cancelled — no children written' message. Returns to menu or exits. No ticket numbers allocated. No files written.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "cancelled-message",
+          "description": "Cancellation message shown",
+          "type": "llm",
+          "value": "The skill confirms that decompose was cancelled and no children were written"
+        },
+        {
+          "name": "no-files-written",
+          "description": "No files written",
+          "type": "llm",
+          "value": "No ticket files were written to disk"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "decompose-5a-unknown-input-shows-legend",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md\n\nSimulate both agents returned results. Simulate 3-child proposal:\n1. Redis Session Management\n2. Token Validator Consolidation\n3. Auth Audit Logging\n\nUser types: looks fine to me\n\nDo NOT write files.",
+      "expected_output": "Skill prints 'unrecognised command' plus the grammar legend and re-shows the unchanged proposal. Skill does NOT proceed to write and does NOT silently treat input as approval.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "unrecognised-command-message",
+          "description": "Shows unrecognised command message",
+          "type": "llm",
+          "value": "The skill indicates the input was unrecognised (does not silently treat it as approval)"
+        },
+        {
+          "name": "grammar-legend-restated",
+          "description": "Grammar legend restated",
+          "type": "contains",
+          "value": "Commands: approve all | edit N: <title> | drop N | add: <title> | regenerate | cancel"
+        },
+        {
+          "name": "proposal-unchanged",
+          "description": "Original proposal re-shown unchanged",
+          "type": "llm",
+          "value": "The unchanged 3-child proposal is re-shown"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "decompose-5a-legend-on-initial-proposal",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md\n\nSimulate both agents returned results. User selects decompose. Skill generates its FIRST candidate proposal.\n\nDo NOT write files.",
+      "expected_output": "The initial proposal output includes the grammar legend immediately under the numbered child list: 'Commands: approve all | edit N: <title> | drop N | add: <title> | regenerate | cancel'. The legend appears on the FIRST proposal, not only after an unrecognised command.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-5/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "legend-on-first-proposal",
+          "description": "Legend appears on first proposal",
+          "type": "contains",
+          "value": "Commands: approve all | edit N: <title> | drop N | add: <title> | regenerate | cancel"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "decompose-story-proposes-child-tasks",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-6/ticket.md\n\nSimulate both agents returned results. User selects decompose.\n\nDo NOT actually write any files. Show the proposal only.",
+      "expected_output": "Skill proposes 2-4 candidate child tasks (since parent is story). Grammar legend appears. Children would have type: task when written.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-6/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "proposes-2-to-4-children",
+          "description": "Proposal has 2-4 children for story",
+          "type": "llm",
+          "value": "The skill proposes between 2 and 4 candidate child tickets (story decomposition uses 2-4 range)"
+        },
+        {
+          "name": "children-are-tasks",
+          "description": "Children are tasks",
+          "type": "llm",
+          "value": "The proposed children are described as task type (since parent is a story)"
+        },
+        {
+          "name": "grammar-legend-present",
+          "description": "Grammar legend shown",
+          "type": "contains",
+          "value": "Commands: approve all | edit N: <title> | drop N | add: <title> | regenerate | cancel"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "enrich-adds-technical-notes",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-8/ticket.md\n\nSIMULATE {codebase locator agent} returning: \"src/auth/session.ts, src/auth/tokens.ts, src/middleware/auth.ts are relevant.\"\nSIMULATE {codebase analyser agent} returning: \"session.ts:42 uses an in-memory Map for session storage; tokens.ts:15 signs JWTs using the 'jsonwebtoken' library; middleware/auth.ts:88 reads the session cookie.\"\nDo not actually spawn agents.\n\nUser selects enrich. The ticket has empty Technical Notes. User approves the proposed content.",
+      "expected_output": "Skill proposes Technical Notes content with specific path:line references from agent results. On user approval, Edit tool applies the change to Technical Notes only. Requirements, Acceptance Criteria, Summary, and frontmatter are unchanged.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-8/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "technical-notes-proposed-with-references",
+          "description": "Proposed notes include path:line references",
+          "type": "llm",
+          "value": "The proposed Technical Notes content includes specific path:line references (e.g., 'session.ts:42' or similar from the simulated agent results)"
+        },
+        {
+          "name": "only-technical-notes-modified",
+          "description": "Only Technical Notes section modified",
+          "type": "llm",
+          "value": "The Edit operation targets only the Technical Notes section; Requirements, Acceptance Criteria, and Summary are not modified"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "name": "sharpen-challenges-vague-criteria",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-9/ticket.md\n\nSimulate both agents returned results. User selects sharpen.",
+      "expected_output": "Skill identifies the vague acceptance criteria ('should be fast', 'should be cached', 'handle errors gracefully') and proposes specific, measurable rewrites for each. Does not modify already-testable criteria.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-9/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "vague-criteria-identified",
+          "description": "Vague criteria identified",
+          "type": "llm",
+          "value": "The skill identifies that the acceptance criteria contain vague language (e.g., 'should be fast', 'handle errors gracefully')"
+        },
+        {
+          "name": "specific-rewrites-proposed",
+          "description": "Specific measurable rewrites proposed",
+          "type": "llm",
+          "value": "The skill proposes specific, measurable rewrites for the vague criteria (e.g., specific latency thresholds, specific error response behaviour)"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "size-appends-first-line-of-technical-notes",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-10/ticket.md\n\nSIMULATE {codebase locator agent} returning: \"src/auth/session.ts, src/auth/tokens.ts are relevant.\"\nSIMULATE {codebase analyser agent} returning: \"session.ts touches the in-memory session store; tokens.ts handles JWT signing.\"\nDo not actually spawn agents.\n\nUser selects size. Propose M with rationale. User approves.",
+      "expected_output": "Skill proposes a t-shirt size (M) with rationale referencing specific files from agent results. On approval, Edit inserts '**Size**: M — <rationale>' as the FIRST line of Technical Notes, followed by a blank line. Does NOT add as a frontmatter key.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-10/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "size-line-format",
+          "description": "Size written in correct format",
+          "type": "llm",
+          "value": "The size output is written as '**Size**: <value> — <rationale>' as the first line of Technical Notes"
+        },
+        {
+          "name": "no-frontmatter-key",
+          "description": "Not added as frontmatter key",
+          "type": "llm",
+          "value": "The size value is not added as a frontmatter YAML key; it is added only to the Technical Notes body section"
+        },
+        {
+          "name": "rationale-references-files",
+          "description": "Rationale references codebase",
+          "type": "llm",
+          "value": "The size rationale references specific files or subsystems from the simulated agent results"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "name": "size-rerun-requires-diff-and-second-confirmation",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-10a/ticket.md\n\nSIMULATE {codebase locator agent} returning: \"src/auth/session.ts, src/auth/tokens.ts, src/auth/middleware.ts, src/routes/auth.ts are relevant.\"\nSIMULATE {codebase analyser agent} returning: \"session.ts, tokens.ts, middleware.ts, and routes/auth.ts all need changes — larger scope than originally estimated.\"\nDo not actually spawn agents.\n\nUser selects size. Propose L with new rationale (different from existing M). User approves.",
+      "expected_output": "Skill reads the existing **Size**: M line, proposes L with new rationale, shows a unified diff of the change, and requires an explicit second y/n confirmation before invoking Edit. On approval, replaces the M line with the L line in place. Does NOT append a second **Size**: line.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-10a/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "reads-existing-size-line",
+          "description": "Existing size line detected",
+          "type": "llm",
+          "value": "The skill detects the existing '**Size**: M — touches auth and session store; ~4 files' line"
+        },
+        {
+          "name": "diff-shown",
+          "description": "Diff shown before replacing",
+          "type": "llm",
+          "value": "The skill shows a comparison or diff of the existing size line vs. the proposed new size line before asking for confirmation"
+        },
+        {
+          "name": "second-confirmation-required",
+          "description": "Second confirmation required",
+          "type": "llm",
+          "value": "The skill requires an explicit second y/n confirmation before making the Edit (destructive replacement path)"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "name": "link-empty-deps-reads-directly-under-30",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-11/ticket.md\n\nThe tickets directory for this eval is: skills/tickets/refine-ticket/evals/files/scenario-11c/tickets/ (exactly 30 files).\n\nSimulate both agents returned results. User selects link.",
+      "expected_output": "Skill counts NNNN-*.md files via a single Glob, observes count is <= 30, reads them directly via batched Read. NO documents-locator-agent spawned. Proposes Blocked by/Blocks entries from real ticket numbers found.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-11/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "glob-used-to-count",
+          "description": "Glob used to enumerate files",
+          "type": "llm",
+          "value": "The skill uses a Glob tool call to enumerate the NNNN-*.md files in the tickets directory"
+        },
+        {
+          "name": "direct-read-used-not-agent",
+          "description": "Direct read, no documents-locator",
+          "type": "llm",
+          "value": "The skill reads the ticket files directly (batched Read) and does NOT spawn a documents-locator agent"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "name": "link-with-more-than-30-tickets-spawns-agent",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-11b/target-ticket.md\n\nThe tickets directory for this eval is: skills/tickets/refine-ticket/evals/files/scenario-11b/tickets/ (35 files).\n\nSIMULATE {documents locator agent} returning: \"0031 appears to be a blocker for this work; 0029 references the same subsystem.\"\nDo not actually spawn the agent.\n\nSimulate both codebase agents returned results. User selects link.",
+      "expected_output": "Skill uses a single Glob invocation to count the NNNN-*.md files, observes count > 30, spawns documents-locator agent as a single tool-use call. Does NOT batch-read the 35 files. Proposed link entries reference 0031 and 0029 from simulated agent result.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-11b/target-ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "glob-used-to-count",
+          "description": "Glob used for enumeration",
+          "type": "llm",
+          "value": "The skill uses a Glob tool call to enumerate and count the ticket files"
+        },
+        {
+          "name": "documents-locator-spawned",
+          "description": "documents-locator agent spawned",
+          "type": "llm",
+          "value": "The skill spawns a documents-locator agent (not reads files directly) because count exceeds 30"
+        },
+        {
+          "name": "no-batch-read-of-35-files",
+          "description": "Does not batch-read 35 files",
+          "type": "llm",
+          "value": "The skill does not perform batched Read calls on all 35 ticket files"
+        },
+        {
+          "name": "references-simulated-results",
+          "description": "References 0031 and 0029",
+          "type": "llm",
+          "value": "The proposed link entries reference ticket numbers 0031 and/or 0029 from the simulated agent result"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "name": "link-rerun-offers-replace-append-skip",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-11a/ticket.md\n\nSimulate both agents returned results. User selects link.",
+      "expected_output": "Skill reads existing Dependencies entries (0055 and 0062) and asks: 'replace (overwrites existing entries) / append (add new entries after existing) / skip?'. Replace requires a unified diff and second y/n confirmation. Append skips duplicates.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-11a/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "detects-existing-dependencies",
+          "description": "Existing deps detected",
+          "type": "llm",
+          "value": "The skill detects and reads the existing Dependencies entries (0055 and 0062)"
+        },
+        {
+          "name": "offers-replace-append-skip",
+          "description": "Offers replace/append/skip",
+          "type": "llm",
+          "value": "The skill asks whether to replace, append, or skip rather than blindly overwriting"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "name": "numbering-consumed-eagerly-ledger-emitted",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-12/ticket.md\n\nSimulate both agents returned results. User selects decompose. Simulate proposal of 3 children already accepted with 'approve all'. User confirms pre-write warning with 'y'.\n\nSimulate ticket-next-number.sh --count 3 returns: 0043, 0044, 0045.\nSimulate writing all three child files succeeds.\nSimulate parent Edit succeeds.\n\nShow the completion ledger.",
+      "expected_output": "ticket-next-number.sh --count 3 called exactly once. After all writes: ledger shows 'Wrote 0043 — title', 'Wrote 0044 — title', 'Wrote 0045 — title', followed by 'Allocated 3 numbers, wrote 3 files.'",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-12/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "ticket-next-number-called-once",
+          "description": "ticket-next-number.sh called with --count 3",
+          "type": "llm",
+          "value": "The skill calls ticket-next-number.sh with --count 3 (or equivalent count) exactly once, not once per child"
+        },
+        {
+          "name": "ledger-emitted",
+          "description": "Completion ledger emitted",
+          "type": "llm",
+          "value": "The skill emits a completion ledger listing each written child file and the total count of allocated vs written"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "hierarchy-displayed-after-decompose",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-13/ticket.md\n\nSimulate both agents returned results. User selects decompose. Simulate 3 children approved and written:\n- 0043 — Session Store (type: story, status: draft)\n- 0044 — Token Signing (type: story, status: draft)\n- 0045 — Middleware Refactor (type: story, status: draft)\nParent 0042 is 'User Auth Rework' (type: epic).\nSimulate parent Edit succeeded.\n\nShow the hierarchy display.",
+      "expected_output": "Skill displays the tree using Unicode box-drawing characters:\n0042 — User Auth Rework (type: epic)\n  ├── 0043 — Session Store (type: story, status: draft)\n  ├── 0044 — Token Signing (type: story, status: draft)\n  └── 0045 — Middleware Refactor (type: story, status: draft)\n\nThe Unicode characters ├── and └── appear. Two-space indentation per level.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-13/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "uses-box-drawing-characters",
+          "description": "Uses Unicode box-drawing characters",
+          "type": "llm",
+          "value": "The hierarchy display uses Unicode box-drawing characters (├── and └──) not ASCII dashes"
+        },
+        {
+          "name": "correct-tree-format",
+          "description": "Correct tree format with two-space indent",
+          "type": "llm",
+          "value": "The tree shows parent at top level, children indented with two spaces, using ├── for first two children and └── for the last child"
+        },
+        {
+          "name": "all-four-tickets-shown",
+          "description": "All four tickets in tree",
+          "type": "llm",
+          "value": "All four tickets (0042, 0043, 0044, 0045) appear in the hierarchy display"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "name": "idempotent-enrich-asks-replace-append-skip",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-14/ticket.md\n\nSIMULATE {codebase locator agent} returning: \"src/auth/session.ts, src/auth/tokens.ts are relevant.\"\nSIMULATE {codebase analyser agent} returning: \"session.ts:42 uses Map for session storage; tokens.ts:15 handles JWT signing.\"\nDo not actually spawn agents.\n\nUser selects enrich. The ticket already has substantive Technical Notes content.",
+      "expected_output": "Skill reads existing Technical Notes content, proposes net-new content from agent results, then asks 'replace / append / skip?'. Replace requires diff preview and second y/n confirmation. Append preserves existing content. No blind duplication.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-14/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "reads-existing-technical-notes",
+          "description": "Existing Technical Notes detected",
+          "type": "llm",
+          "value": "The skill reads and acknowledges the existing Technical Notes content before proposing"
+        },
+        {
+          "name": "offers-replace-append-skip",
+          "description": "Offers replace/append/skip",
+          "type": "llm",
+          "value": "The skill asks whether to replace, append, or skip — not blindly overwrite"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "name": "offers-review-after-refinement",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-2/ticket.md\n\nSimulate both agents returned results. User selects enrich. Simulate Technical Notes empty. Propose content, user approves. Enrich Edit applied.\n\nShow the post-operation offer.",
+      "expected_output": "After the operation completes, skill offers 'Would you like to run /review-ticket on this ticket now?' Does NOT invoke /review-ticket automatically. Skill exits after the offer.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-2/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "offers-review-ticket",
+          "description": "Offers to run /review-ticket",
+          "type": "contains",
+          "value": "/review-ticket"
+        },
+        {
+          "name": "does-not-invoke-review",
+          "description": "Does not invoke review automatically",
+          "type": "llm",
+          "value": "The skill offers to run /review-ticket but does not invoke it automatically"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "name": "multi-op-canonical-order",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-16/ticket.md\n\nSimulate both agents returned results with relevant files for auth.\n\nUser selects size, decompose, and enrich (in that order).\n\nSimulate decompose: 3 children proposed, approved, written. Simulate enrich: content proposed, approved. Simulate size: M proposed, approved.\n\nDescribe the order of operations.",
+      "expected_output": "Regardless of selection order (size, decompose, enrich), operations execute in canonical order: decompose first, then enrich, then size. The hierarchy display appears immediately after decompose (before enrich). The **Size**: line appears as the FIRST line of Technical Notes in the final state (above enrich content).",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-16/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "decompose-runs-first",
+          "description": "Decompose runs first",
+          "type": "llm",
+          "value": "The skill executes decompose as the first operation regardless of the user's selection order"
+        },
+        {
+          "name": "hierarchy-before-enrich",
+          "description": "Hierarchy shown before enrich",
+          "type": "llm",
+          "value": "The hierarchy tree display appears after decompose completes and before enrich runs"
+        },
+        {
+          "name": "size-last-among-selected",
+          "description": "Size runs after enrich",
+          "type": "llm",
+          "value": "Size runs after enrich, placing the **Size**: line as the first line of Technical Notes (above any content enrich added)"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "name": "missing-ticket-path-error",
+      "prompt": "/refine-ticket @meta/tickets/9999-does-not-exist.md",
+      "expected_output": "Skill reports a clear error about the missing path, mentions /list-tickets, and exits without reading any other file, spawning any agent, or writing anything.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "error-message-shown",
+          "description": "Error shown for missing path",
+          "type": "llm",
+          "value": "The skill reports a clear error indicating the ticket file does not exist"
+        },
+        {
+          "name": "mentions-list-tickets",
+          "description": "Mentions /list-tickets",
+          "type": "contains",
+          "value": "/list-tickets"
+        },
+        {
+          "name": "no-operations-started",
+          "description": "No operations started",
+          "type": "llm",
+          "value": "The skill does not spawn agents, read other files, or start any refinement operation"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "name": "malformed-frontmatter-error",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-18/ticket.md",
+      "expected_output": "Skill reports 'Could not parse frontmatter in <path> — the file may be corrupted. Re-open it and check that the YAML frontmatter is bracketed by two `---` lines and contains all nine required fields, or run `/update-ticket <path>` which surfaces the same diagnostic with field-level detail.' Exits without editing or spawning agents.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-18/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "frontmatter-error-shown",
+          "description": "Frontmatter parse error shown",
+          "type": "llm",
+          "value": "The skill reports that it could not parse the frontmatter in the ticket file"
+        },
+        {
+          "name": "mentions-update-ticket",
+          "description": "Mentions /update-ticket",
+          "type": "contains",
+          "value": "/update-ticket"
+        },
+        {
+          "name": "no-edits-or-agents",
+          "description": "No edits or agents",
+          "type": "llm",
+          "value": "The skill does not attempt to edit the file or spawn any agents"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "name": "decompose-bug-challenges-user",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-19/ticket.md\n\nSimulate both agents returned results. User selects decompose.",
+      "expected_output": "Skill asks 'bug/spike tickets don't typically decompose — are you sure? (y/n)'. Only proceeds to propose children on explicit y. On n, exits decompose and returns to menu.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-19/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "challenges-bug-decompose",
+          "description": "Challenges bug decomposition",
+          "type": "llm",
+          "value": "The skill asks for confirmation before decomposing a bug ticket, indicating this is atypical"
+        },
+        {
+          "name": "waits-for-confirmation",
+          "description": "Waits for y/n",
+          "type": "llm",
+          "value": "The skill waits for explicit confirmation (y/n) before proceeding to propose children"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "name": "decompose-existing-children-offers-append-skip-cancel",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-20/ticket.md\n\nSimulate both agents returned results. User selects decompose.",
+      "expected_output": "Skill detects the existing '### Child tickets' subsection and offers 'append (add new children to the existing list) / skip (do not decompose further) / cancel'. Never replaces the existing list silently.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-20/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "detects-existing-children",
+          "description": "Existing children detected",
+          "type": "llm",
+          "value": "The skill detects that the ticket already has a '### Child tickets' subsection with children 0043 and 0044"
+        },
+        {
+          "name": "offers-append-skip-cancel",
+          "description": "Offers append/skip/cancel",
+          "type": "llm",
+          "value": "The skill offers to append new children, skip, or cancel — not silently replace"
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "name": "sharpen-all-testable-reports-nothing",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-21/ticket.md\n\nSimulate both agents returned results. User selects sharpen.",
+      "expected_output": "Skill reports 'all acceptance criteria already testable — nothing to sharpen' and makes no Edit.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-21/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "reports-all-testable",
+          "description": "Reports all criteria testable",
+          "type": "llm",
+          "value": "The skill reports that all acceptance criteria are already testable and there is nothing to sharpen"
+        },
+        {
+          "name": "no-edit-performed",
+          "description": "No Edit performed",
+          "type": "llm",
+          "value": "The skill does not invoke the Edit tool to modify any acceptance criteria"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "name": "enrich-no-concrete-results-skips",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-22/ticket.md\n\nSIMULATE {codebase locator agent} returning: \"no relevant files found\".\nSIMULATE {codebase analyser agent} returning: \"no components identified\".\nDo not actually spawn agents.\n\nUser selects enrich.",
+      "expected_output": "Skill reports 'no enrichment could be grounded in code — skipping enrich' and makes no Edit. Does not invent path:line references.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-22/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "reports-no-enrichment",
+          "description": "Reports no enrichment possible",
+          "type": "llm",
+          "value": "The skill reports that enrichment cannot be grounded in code results and skips the operation"
+        },
+        {
+          "name": "no-invented-references",
+          "description": "No invented references",
+          "type": "llm",
+          "value": "The skill does not invent or hallucinate path:line references to satisfy the operation"
+        },
+        {
+          "name": "no-edit-performed",
+          "description": "No Edit performed",
+          "type": "llm",
+          "value": "The skill does not invoke the Edit tool"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "name": "partial-write-cancel-consistent-ledger",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-23/ticket.md\n\n[Step 1: user invokes /refine-ticket on epic 0042]\n[Step 2: both agents return results]\n[Step 3: skill proposes 3 children: 0043 Session Store, 0044 Token Signing, 0045 Auth Audit Logging]\n[Step 4: user types 'approve all']\n[Step 5: skill emits pre-write warning; user types 'y']\n[Step 6: skill writes child 0043 (Session Store) and child 0044 (Token Signing)]\n[Step 7: BEFORE writing child 0045, user types 'cancel']\n\nShow the ledger that would be emitted after cancellation.",
+      "expected_output": "Skill stops the write loop after 0043 and 0044. Does NOT write 0045. Does NOT update parent's Requirements. Prints ledger showing allocated 3 numbers (0043, 0044, 0045), wrote 2 files (0043, 0044), and instructs user how to restore via jj restore.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-23/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "ledger-shows-partial-write",
+          "description": "Ledger shows partial write state",
+          "type": "llm",
+          "value": "The ledger shows that 3 numbers were allocated but only 2 files were written"
+        },
+        {
+          "name": "jj-restore-mentioned",
+          "description": "jj restore instructions given",
+          "type": "contains",
+          "value": "jj restore"
+        },
+        {
+          "name": "parent-not-updated",
+          "description": "Parent not updated on partial write",
+          "type": "llm",
+          "value": "The skill indicates the parent ticket was NOT updated since not all children were written"
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "name": "edit-target-not-found-aborts-that-edit",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-24a/ticket-before-edit.md\n\nSimulate both agents returned results with files at src/auth/session.ts:42.\n\n[Step 1: skill reads ticket-before-edit.md; AC1 is '- [ ] AC1: foo']\n[Step 2: skill proposes enrich Technical Notes; user approves]\n[Step 3: skill proposes sharpen 'AC1: foo' → 'AC1: foo measurably under 50ms'; user approves]\n[Step 4: the file on disk is now ticket-during-edit.md whose AC1 is '- [ ] AC1: foo (updated)']\n\nThe enrich Edit on Technical Notes succeeds. The sharpen Edit on Acceptance Criteria fails because old_string 'AC1: foo' is not found.",
+      "expected_output": "Skill's enrich Edit on Technical Notes succeeds. Skill's sharpen Edit on Acceptance Criteria fails with diagnostic: 'Edit target for \"Acceptance Criteria\" did not match — the section may have changed since this session began. Sharpen aborted; other operations preserved.' Skill continues with any remaining operations.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-24a/ticket-before-edit.md",
+        "skills/tickets/refine-ticket/evals/files/scenario-24a/ticket-during-edit.md"
+      ],
+      "assertions": [
+        {
+          "name": "enrich-edit-succeeds",
+          "description": "Enrich Edit succeeds",
+          "type": "llm",
+          "value": "The enrich operation successfully adds Technical Notes content via Edit"
+        },
+        {
+          "name": "sharpen-edit-failure-reported",
+          "description": "Sharpen failure reported with diagnostic",
+          "type": "llm",
+          "value": "The skill reports a diagnostic that the Acceptance Criteria edit target did not match (section may have changed)"
+        },
+        {
+          "name": "continues-after-failure",
+          "description": "Continues after the failed edit",
+          "type": "llm",
+          "value": "The skill continues processing remaining operations after the sharpen edit failure"
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "name": "edit-not-unique-aborts-parent-update",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-24b/parent-with-duplicate-heading.md\n\nSimulate both agents returned results. User selects decompose. Simulate 2 children approved: 0043 Redis Session Management, 0044 Token Validator.\n\nThe parent ticket contains '## Acceptance Criteria' twice (once in Requirements body as an example, once as the real section heading).\n\nSimulate pre-write warning acknowledged with 'y'. Children written successfully. Parent Edit fails due to non-unique anchor.",
+      "expected_output": "Skill performs the pre-Edit uniqueness count, observes '## Acceptance Criteria' appears more than once, aborts the parent update with diagnostic about the duplicate anchor. Children 0043 and 0044 remain on disk. Skill prints their numbers for manual linking. NO Edit is attempted on the parent.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-24b/parent-with-duplicate-heading.md"
+      ],
+      "assertions": [
+        {
+          "name": "uniqueness-check-performed",
+          "description": "Uniqueness check performed",
+          "type": "llm",
+          "value": "The skill checks for uniqueness of the Edit anchor before attempting the parent update"
+        },
+        {
+          "name": "parent-not-updated",
+          "description": "Parent not updated",
+          "type": "llm",
+          "value": "The skill aborts the parent update and reports that the parent was NOT updated due to the non-unique anchor"
+        },
+        {
+          "name": "orphan-children-listed",
+          "description": "Orphan children listed for manual linking",
+          "type": "llm",
+          "value": "The skill lists the written child ticket numbers so the user can manually add the links"
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "name": "link-30-threshold-reads-directly",
+      "prompt": "/refine-ticket @skills/tickets/refine-ticket/evals/files/scenario-11/ticket.md\n\nThe tickets directory for this eval is: skills/tickets/refine-ticket/evals/files/scenario-11c/tickets/ (exactly 30 files).\n\nSimulate both codebase agents returned results. User selects link.",
+      "expected_output": "Skill uses a single Glob to count files, observes count is exactly 30 (<=30 boundary), reads files directly via batched Read. No documents-locator agent spawned. Proposed link entries reference real ticket numbers from the read files.",
+      "files": [
+        "skills/tickets/refine-ticket/evals/files/scenario-11/ticket.md"
+      ],
+      "assertions": [
+        {
+          "name": "glob-used",
+          "description": "Glob used for counting",
+          "type": "llm",
+          "value": "The skill uses a Glob tool call to enumerate the ticket files"
+        },
+        {
+          "name": "reads-directly-at-exactly-30",
+          "description": "Direct read at exactly 30",
+          "type": "llm",
+          "value": "The skill reads ticket files directly (batch Read) because count is exactly 30 (the <= 30 threshold)"
+        },
+        {
+          "name": "no-documents-locator",
+          "description": "No documents-locator spawned",
+          "type": "llm",
+          "value": "The skill does NOT spawn a documents-locator agent for exactly 30 tickets"
+        }
+      ]
+    }
+  ]
+}
