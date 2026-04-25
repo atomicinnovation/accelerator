@@ -1,0 +1,111 @@
+import {
+  createRouter,
+  createRoute,
+  createRootRoute,
+  redirect,
+} from '@tanstack/react-router'
+import { RootLayout } from './components/RootLayout/RootLayout'
+import { LibraryLayout } from './routes/library/LibraryLayout'
+import { LibraryTypeView } from './routes/library/LibraryTypeView'
+import { LibraryDocView } from './routes/library/LibraryDocView'
+import { LibraryTemplatesIndex } from './routes/library/LibraryTemplatesIndex'
+import { LibraryTemplatesView } from './routes/library/LibraryTemplatesView'
+import { LifecycleStub } from './routes/lifecycle/LifecycleStub'
+import { KanbanStub } from './routes/kanban/KanbanStub'
+import { isDocTypeKey, type DocTypeKey } from './api/types'
+
+const rootRoute = createRootRoute({ component: RootLayout })
+
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  beforeLoad: () => { throw redirect({ to: '/library' }) },
+})
+
+const libraryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/library',
+  component: LibraryLayout,
+})
+
+// Landing at /library redirects to the Decisions index so users see
+// content rather than an empty main pane.
+const libraryIndexRoute = createRoute({
+  getParentRoute: () => libraryRoute,
+  path: '/',
+  beforeLoad: () => {
+    throw redirect({ to: '/library/$type', params: { type: 'decisions' } })
+  },
+})
+
+// Dedicated Templates routes — literal paths beat the `/$type` param
+// route below, so these are dispatched directly by the router rather
+// than via a runtime `if (type === 'templates')` branch inside the
+// generic views.
+const libraryTemplatesIndexRoute = createRoute({
+  getParentRoute: () => libraryRoute,
+  path: '/templates',
+  component: LibraryTemplatesIndex,
+})
+
+const libraryTemplateDetailRoute = createRoute({
+  getParentRoute: () => libraryRoute,
+  path: '/templates/$name',
+  component: LibraryTemplatesView,
+})
+
+// `parseParams` narrows `type: string` → `type: DocTypeKey` at the router
+// boundary. An unknown type in the URL redirects to /library rather than
+// rendering a silently-wrong view.
+const libraryTypeRoute = createRoute({
+  getParentRoute: () => libraryRoute,
+  path: '/$type',
+  parseParams: (raw: Record<string, string>): { type: DocTypeKey } => {
+    if (!isDocTypeKey(raw.type)) {
+      throw redirect({ to: '/library' })
+    }
+    return { type: raw.type }
+  },
+  component: LibraryTypeView,
+})
+
+const libraryDocRoute = createRoute({
+  getParentRoute: () => libraryTypeRoute,
+  path: '/$fileSlug',
+  component: LibraryDocView,
+})
+
+const lifecycleRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/lifecycle',
+  component: LifecycleStub,
+})
+
+const kanbanRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/kanban',
+  component: KanbanStub,
+})
+
+// Exported so tests can construct an isolated router with memory history.
+export const routeTree = rootRoute.addChildren([
+  indexRoute,
+  libraryRoute.addChildren([
+    libraryIndexRoute,
+    // Dedicated Templates routes registered before the generic $type route;
+    // literal-path specificity means the router matches these first.
+    libraryTemplatesIndexRoute,
+    libraryTemplateDetailRoute,
+    libraryTypeRoute.addChildren([libraryDocRoute]),
+  ]),
+  lifecycleRoute,
+  kanbanRoute,
+])
+
+export const router = createRouter({ routeTree })
+
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router
+  }
+}

@@ -1,0 +1,2 @@
+.shell { display: flex; min-height: 100vh; font-family: system-ui, sans-serif; }
+.main { flex: 1; overflow: auto; padding: 1.5rem 2rem; }

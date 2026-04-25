@@ -1,0 +1,37 @@
+.sidebar {
+  width: 220px;
+  min-height: 100vh;
+  padding: 1rem 0;
+  border-right: 1px solid #e5e7eb;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.section { padding: 0 0.75rem; }
+
+.sectionHeading {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  margin: 0 0 0.4rem;
+}
+
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.link {
+  display: block;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #374151;
+  text-decoration: none;
+}
+.link:hover { background: #e5e7eb; }
+.active { background: #dbeafe; color: #1d4ed8; font-weight: 500; }
+
+.meta .sectionHeading { color: #9ca3af; }
+.muted { color: #6b7280; }
