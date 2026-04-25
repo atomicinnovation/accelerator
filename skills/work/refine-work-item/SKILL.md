@@ -1,12 +1,12 @@
 ---
-name: refine-ticket
-description: Interactively refine a ticket by decomposing it into children,
+name: refine-work-item
+description: Interactively refine a work item by decomposing it into children,
   enriching it with codebase context, sharpening its acceptance criteria,
-  sizing it, or linking it to dependencies. Use after a ticket has been
+  sizing it, or linking it to dependencies. Use after a work item has been
   drafted and before planning begins.
-argument-hint: "[ticket number or path]"
+argument-hint: "[work item number or path]"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/tickets/scripts/*)
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # Refine Ticket
@@ -21,7 +21,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tickets meta/tickets`
+**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 
 ## Ticket Template
 

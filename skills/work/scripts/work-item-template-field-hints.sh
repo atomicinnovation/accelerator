@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Extracts hint values for a frontmatter field from the ticket template.
-# Usage: ticket-template-field-hints.sh <field>
+# Extracts hint values for a frontmatter field from the work item template.
+# Usage: work-item-template-field-hints.sh <field>
 # Outputs one value per line, parsed from the template's trailing comment.
 # Falls back to hardcoded defaults for type/status/priority if the template
 # comment is absent or the template cannot be read.
 # Exit code: always 0.
 
-TICKET_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_ROOT="$(cd "$TICKET_SCRIPT_DIR/../../.." && pwd)"
+WORK_ITEM_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$WORK_ITEM_SCRIPT_DIR/../../.." && pwd)"
 
 if [ $# -lt 1 ]; then
-  echo "Usage: ticket-template-field-hints.sh <field>" >&2
+  echo "Usage: work-item-template-field-hints.sh <field>" >&2
   exit 1
 fi
 
@@ -49,6 +49,9 @@ hardcoded_fallback() {
 }
 
 # Try to read the template
+# NOTE: config-read-template.sh key argument stays as "ticket" until Phase 3
+# when the template file itself is renamed to work-item.md and the recognised
+# keys list in config-read-template.sh is updated atomically.
 TEMPLATE_OUTPUT=""
 TEMPLATE_OUTPUT=$("$PLUGIN_ROOT/scripts/config-read-template.sh" ticket 2>/dev/null) || {
   hardcoded_fallback "$FIELD"

@@ -1,11 +1,11 @@
 ---
-name: list-tickets
-description: List and filter tickets from the configured tickets directory.
-  Use when discovering what tickets exist, filtering by
-  status/type/priority/parent/tag, or viewing the ticket hierarchy.
+name: list-work-items
+description: List and filter work items from the configured work directory.
+  Use when discovering what work items exist, filtering by
+  status/type/priority/parent/tag, or viewing the work item hierarchy.
 argument-hint: "[filter description]"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/tickets/scripts/*)
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # List Tickets
@@ -20,7 +20,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tickets meta/tickets`
+**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 
 ## Ticket Template
 

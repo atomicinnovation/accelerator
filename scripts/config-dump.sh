@@ -179,9 +179,9 @@ PATH_KEYS=(
   "paths.validations"
   "paths.review_plans"
   "paths.review_prs"
-  "paths.review_tickets"
+  "paths.review_work"
   "paths.templates"
-  "paths.tickets"
+  "paths.work"
   "paths.notes"
 )
 
@@ -193,9 +193,9 @@ PATH_DEFAULTS=(
   "meta/validations"
   "meta/reviews/plans"
   "meta/reviews/prs"
-  "meta/reviews/tickets"
+  "meta/reviews/work"
   "meta/templates"
-  "meta/tickets"
+  "meta/work"
   "meta/notes"
 )
 

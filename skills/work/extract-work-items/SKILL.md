@@ -1,13 +1,13 @@
 ---
-name: extract-tickets
-description: Extract tickets in batch from existing documents (specs, PRDs,
+name: extract-work-items
+description: Extract work items in batch from existing documents (specs, PRDs,
   research, plans, meeting notes, design docs). Use whenever the user wants
   to capture, pull out, or convert requirements, work items, user stories,
   bug reports, or actionable tasks from existing files into structured
-  tickets in meta/tickets/ — even if they don't say "extract" explicitly.
+  work items in meta/work/ — even if they don't say "extract" explicitly.
 argument-hint: "[document paths...] or leave empty to scan all"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/tickets/scripts/*)
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # Extract Tickets from Meta Documents
@@ -22,7 +22,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tickets meta/tickets`
+**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 **Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research meta/research`
 **Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
 

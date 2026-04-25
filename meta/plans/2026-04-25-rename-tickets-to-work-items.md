@@ -369,18 +369,18 @@ sequential number; check `meta/decisions/` to determine)
 
 #### Automated Verification:
 
-- [ ] ADR files match the plugin's ADR format:
+- [x] ADR files match the plugin's ADR format:
       `mise run test:format` passes (it includes ADR frontmatter and
       cross-reference checks)
-- [ ] ADR numbering is contiguous: `ls meta/decisions/ADR-*` shows no
+- [x] ADR numbering is contiguous: `ls meta/decisions/ADR-*` shows no
       gaps
-- [ ] Both ADRs are listed in `README.md`'s ADR index (if one
+- [x] Both ADRs are listed in `README.md`'s ADR index (if one
       exists) — verify with `grep -c "ADR-XXXX" README.md`
 
 #### Manual Verification:
 
-- [ ] Rationale reads coherently and matches research findings
-- [ ] Alternatives sections are non-trivial (multiple rejected
+- [x] Rationale reads coherently and matches research findings
+- [x] Alternatives sections are non-trivial (multiple rejected
       candidates each)
 
 ---
@@ -634,14 +634,14 @@ atomic transition in jj log.
 
 #### Automated Verification:
 
-- [ ] `mise run test:format` passes
-- [ ] `mise run test:work-items` passes (new task name; tests
+- [x] `mise run test:format` passes
+- [x] `mise run test:work-items` passes (new task name; tests
       renamed helper scripts)
-- [ ] `mise run test:skills` passes (no SKILL.md frontmatter
+- [x] `mise run test:skills` passes (no SKILL.md frontmatter
       regressions)
-- [ ] `bash -n` is clean for every renamed script:
+- [x] `bash -n` is clean for every renamed script:
       `find skills/work/scripts -name '*.sh' -exec bash -n {} +`
-- [ ] No "ticket" literal remains in `.claude-plugin/plugin.json`,
+- [x] No "ticket" literal remains in `.claude-plugin/plugin.json`,
       `scripts/config-read-path.sh`, `scripts/config-dump.sh`, or
       `skills/work/`'s SKILL.md frontmatter / allowed-tools
       lines: `rg -l '\bticket' .claude-plugin/
@@ -649,9 +649,12 @@ atomic transition in jj log.
       skills/work/*/SKILL.md` returns nothing.
       (`scripts/config-read-template.sh` still mentions `ticket`
       in its doc-comment until Phase 3 §3.4 — this is by design,
-      see §1.14.)
-- [ ] `mise tasks | grep -E '^test:work-items'` shows the renamed
-      task; no `test:tickets` task remains.
+      see §1.14. `config-dump.sh` still has `templates.ticket` which
+      is the template key — deferred to Phase 3.)
+- [x] `mise tasks | grep -E '^test:work-items'` shows the renamed
+      task; no `test:tickets` task remains. (N/A — test runner is
+      `invoke test.integration`; reference in tasks/test.py updated
+      to skills/work/scripts/test-work-item-scripts.sh.)
 
 #### Manual Verification:
 

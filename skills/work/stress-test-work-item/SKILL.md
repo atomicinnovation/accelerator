@@ -1,10 +1,10 @@
 ---
-name: stress-test-ticket
-description: Interactively stress-test a ticket by grilling the user
+name: stress-test-work-item
+description: Interactively stress-test a work item by grilling the user
   on scope, assumptions, acceptance criteria, edge cases, and
   dependencies to surface issues, gaps, and flawed assumptions before
   implementation is planned.
-argument-hint: "[ticket number or path]"
+argument-hint: "[work item number or path]"
 disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---
@@ -21,7 +21,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tickets meta/tickets`
+**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 
 You are tasked with stress-testing a ticket by interviewing the user
 relentlessly about every aspect of it. Your goal is to find issues,

@@ -11,8 +11,8 @@ def integration(context: Context):
     context.run("skills/decisions/scripts/test-adr-scripts.sh")
     print("\n")
 
-    print("Running ticket script tests...")
-    context.run("skills/tickets/scripts/test-ticket-scripts.sh")
+    print("Running work item script tests...")
+    context.run("skills/work/scripts/test-work-item-scripts.sh")
     print("\n")
 
     print("Running lens structure lint...")

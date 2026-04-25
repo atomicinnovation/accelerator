@@ -392,9 +392,9 @@ project root (absolute paths are also supported):
 | `validations`  | `meta/validations`   | Plan validation reports                        |
 | `review_plans` | `meta/reviews/plans` | Plan review artifacts                          |
 | `review_prs`   | `meta/reviews/prs`   | PR review working directories                  |
-| `review_tickets` | `meta/reviews/tickets` | Ticket review artifacts                      |
+| `review_work`  | `meta/reviews/work`  | Work item review artifacts                     |
 | `templates`    | `meta/templates`     | User-provided templates (e.g., PR description) |
-| `tickets`      | `meta/tickets`       | Ticket files referenced by create-plan         |
+| `work`         | `meta/work`          | Work item files referenced by create-plan      |
 | `notes`        | `meta/notes`         | Notes directory                                |
 | `tmp`          | `meta/tmp`           | Ephemeral working data (gitignored)            |
 
@@ -410,9 +410,9 @@ paths:
   validations: docs/validations
   review_plans: docs/reviews/plans
   review_prs: docs/reviews/prs
-  review_tickets: docs/reviews/tickets
+  review_work: docs/reviews/work
   templates: docs/templates
-  tickets: docs/tickets
+  work: docs/work
   notes: docs/notes
   tmp: docs/tmp
 ---

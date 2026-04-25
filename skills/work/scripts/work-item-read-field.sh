@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Reads a named field from a ticket file's YAML frontmatter.
-# Usage: ticket-read-field.sh <field-name> <path-to-ticket-file>
+# Reads a named field from a work item file's YAML frontmatter.
+# Usage: work-item-read-field.sh <field-name> <path-to-work-item-file>
 # Outputs the raw field value (surrounding quotes are stripped).
 # Exits with code 1 if the file is missing, frontmatter is missing or
 # unclosed, or the field is not present.
@@ -12,34 +12,34 @@ set -euo pipefail
 # Array values (e.g., `tags: [a, b]`) are returned verbatim — callers are
 # responsible for parsing them (see config_parse_array in config-common.sh).
 
-TICKET_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_ROOT="$(cd "$TICKET_SCRIPT_DIR/../../.." && pwd)"
+WORK_ITEM_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$WORK_ITEM_SCRIPT_DIR/../../.." && pwd)"
 
 source "$PLUGIN_ROOT/scripts/config-common.sh"
 
 if [ $# -lt 2 ]; then
-  echo "Usage: ticket-read-field.sh <field-name> <ticket-file-path>" >&2
+  echo "Usage: work-item-read-field.sh <field-name> <work-item-file-path>" >&2
   exit 1
 fi
 
 FIELD_NAME="$1"
-TICKET_FILE="$2"
+WORK_ITEM_FILE="$2"
 
-if [ ! -f "$TICKET_FILE" ]; then
-  echo "Error: File not found: $TICKET_FILE" >&2
+if [ ! -f "$WORK_ITEM_FILE" ]; then
+  echo "Error: File not found: $WORK_ITEM_FILE" >&2
   exit 1
 fi
 
 # Distinguish no-frontmatter from unclosed-frontmatter before calling the
 # helper, so the error message can point at the specific problem.
-FIRST_LINE=$(head -n 1 "$TICKET_FILE")
+FIRST_LINE=$(head -n 1 "$WORK_ITEM_FILE")
 if ! [[ "$FIRST_LINE" =~ ^---[[:space:]]*$ ]]; then
-  echo "Error: No YAML frontmatter in $(basename "$TICKET_FILE"). Add a '---' line as the first line of the file." >&2
+  echo "Error: No YAML frontmatter in $(basename "$WORK_ITEM_FILE"). Add a '---' line as the first line of the file." >&2
   exit 1
 fi
 
-FRONTMATTER=$(config_extract_frontmatter "$TICKET_FILE") || {
-  echo "Error: YAML frontmatter opened but not closed in $(basename "$TICKET_FILE"). Add a '---' line after the last frontmatter key." >&2
+FRONTMATTER=$(config_extract_frontmatter "$WORK_ITEM_FILE") || {
+  echo "Error: YAML frontmatter opened but not closed in $(basename "$WORK_ITEM_FILE"). Add a '---' line after the last frontmatter key." >&2
   exit 1
 }
 
@@ -67,5 +67,5 @@ if [ "$FOUND_FIELD" = true ]; then
   exit 0
 fi
 
-echo "Error: No '$FIELD_NAME' field found in frontmatter of $(basename "$TICKET_FILE")." >&2
+echo "Error: No '$FIELD_NAME' field found in frontmatter of $(basename "$WORK_ITEM_FILE")." >&2
 exit 1

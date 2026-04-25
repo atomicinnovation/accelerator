@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Outputs the next sequential ticket number in NNNN format.
-# Scans the configured tickets directory for the highest existing NNNN number
-# and increments by one. Outputs "0001" if no tickets exist.
+# Outputs the next sequential work item number in NNNN format.
+# Scans the configured work directory for the highest existing NNNN number
+# and increments by one. Outputs "0001" if no work items exist.
 #
-# Usage: ticket-next-number.sh [--count N]
+# Usage: work-item-next-number.sh [--count N]
 #   --count N  Output N sequential numbers, one per line (default: 1)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,7 +21,7 @@ while [ $# -gt 0 ]; do
         echo "Error: --count requires a value" >&2; exit 1
       fi
       COUNT="$2"; shift 2 ;;
-    *) echo "Usage: ticket-next-number.sh [--count N]" >&2; exit 1 ;;
+    *) echo "Usage: work-item-next-number.sh [--count N]" >&2; exit 1 ;;
   esac
 done
 
@@ -32,19 +32,19 @@ fi
 
 REPO_ROOT=$(find_repo_root) || REPO_ROOT="$PWD"
 
-TICKETS_PATH=$("$PLUGIN_ROOT/scripts/config-read-path.sh" tickets meta/tickets)
+WORK_PATH=$("$PLUGIN_ROOT/scripts/config-read-path.sh" work meta/work)
 
-if [[ "$TICKETS_PATH" == /* ]]; then
-  TICKETS_DIR="$TICKETS_PATH"
+if [[ "$WORK_PATH" == /* ]]; then
+  WORK_DIR="$WORK_PATH"
 else
-  TICKETS_DIR="$REPO_ROOT/$TICKETS_PATH"
+  WORK_DIR="$REPO_ROOT/$WORK_PATH"
 fi
 
 HIGHEST=0
-if [ ! -d "$TICKETS_DIR" ]; then
-  echo "Warning: tickets directory '$TICKETS_DIR' does not exist — defaulting to next number 0001. Run /accelerator:init or create the directory to persist tickets." >&2
+if [ ! -d "$WORK_DIR" ]; then
+  echo "Warning: work directory '$WORK_DIR' does not exist — defaulting to next number 0001. Run /accelerator:init or create the directory to persist work items." >&2
 else
-  for f in "$TICKETS_DIR"/[0-9][0-9][0-9][0-9]-*; do
+  for f in "$WORK_DIR"/[0-9][0-9][0-9][0-9]-*; do
     [ -e "$f" ] || continue
     BASE=$(basename "$f")
     NUM=$(echo "$BASE" | grep -oE '^[0-9]+')
@@ -58,7 +58,7 @@ fi
 # exactly 4 digits followed by '-', so numbers beyond 9999 would be
 # invisible on subsequent runs and cause collisions.
 if [ "$((HIGHEST + COUNT))" -gt 9999 ]; then
-  echo "Error: ticket number space exhausted (9999 reached); archive completed tickets to free numbers below 9999, or file an enhancement ticket requesting a 5-digit pattern" >&2
+  echo "Error: work item number space exhausted (9999 reached); archive completed work items to free numbers below 9999, or file an enhancement work item requesting a 5-digit pattern" >&2
   # Still emit any numbers that fit before the boundary
   for ((i = 1; i <= COUNT; i++)); do
     NEXT=$((HIGHEST + i))

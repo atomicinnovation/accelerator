@@ -18,8 +18,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-FILE_A="${1:-$REPO/skills/tickets/list-tickets/SKILL.md}"
-FILE_B="${2:-$REPO/skills/tickets/refine-ticket/SKILL.md}"
+FILE_A="${1:-$REPO/skills/work/list-work-items/SKILL.md}"
+FILE_B="${2:-$REPO/skills/work/refine-work-item/SKILL.md}"
 
 extract_fence() {
   local file="$1"

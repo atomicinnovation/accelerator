@@ -1,12 +1,12 @@
 ---
-name: update-ticket
+name: update-work-item
 description: Update fields (status, priority, tags, parent, etc.) of an
-  existing ticket. Use to transition status, change priority, manage tags,
+  existing work item. Use to transition status, change priority, manage tags,
   or edit any frontmatter field. No transition enforcement — arbitrary
   changes are allowed.
-argument-hint: "[ticket-ref] [field-op...]"
+argument-hint: "[work-item-ref] [field-op...]"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/tickets/scripts/*)
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # Update Ticket
@@ -21,7 +21,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tickets meta/tickets`
+**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 
 ## Ticket Template
 

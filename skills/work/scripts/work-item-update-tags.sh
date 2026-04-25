@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Mutates the tags field on a ticket: adds or removes a single tag.
-# Usage: ticket-update-tags.sh <ticket-path> add <tag>
-#        ticket-update-tags.sh <ticket-path> remove <tag>
+# Mutates the tags field on a work item: adds or removes a single tag.
+# Usage: work-item-update-tags.sh <work-item-path> add <tag>
+#        work-item-update-tags.sh <work-item-path> remove <tag>
 # Outputs:
 #   - The new canonical array string on success (e.g. [api, search, backend])
 #   - "no-change" if the mutation is a no-op (duplicate add or absent remove)
@@ -11,33 +11,33 @@ set -euo pipefail
 #   0 — success or no-change
 #   1 — validation error (missing file, bad frontmatter, block-style tags)
 
-TICKET_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_ROOT="$(cd "$TICKET_SCRIPT_DIR/../../.." && pwd)"
+WORK_ITEM_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$WORK_ITEM_SCRIPT_DIR/../../.." && pwd)"
 
 source "$PLUGIN_ROOT/scripts/config-common.sh"
 
 if [ $# -lt 3 ]; then
-  echo "Usage: ticket-update-tags.sh <ticket-path> add|remove <tag>" >&2
+  echo "Usage: work-item-update-tags.sh <work-item-path> add|remove <tag>" >&2
   exit 1
 fi
 
-TICKET_FILE="$1"
+WORK_ITEM_FILE="$1"
 ACTION="$2"
 TAG="$3"
 
-if [ ! -f "$TICKET_FILE" ]; then
-  echo "Error: file not found: $TICKET_FILE" >&2
+if [ ! -f "$WORK_ITEM_FILE" ]; then
+  echo "Error: file not found: $WORK_ITEM_FILE" >&2
   exit 1
 fi
 
-FIRST_LINE=$(head -n 1 "$TICKET_FILE")
+FIRST_LINE=$(head -n 1 "$WORK_ITEM_FILE")
 if ! [[ "$FIRST_LINE" =~ ^---[[:space:]]*$ ]]; then
-  echo "Error: No YAML frontmatter in $(basename "$TICKET_FILE"). Add a '---' line as the first line of the file." >&2
+  echo "Error: No YAML frontmatter in $(basename "$WORK_ITEM_FILE"). Add a '---' line as the first line of the file." >&2
   exit 1
 fi
 
-FRONTMATTER=$(config_extract_frontmatter "$TICKET_FILE") || {
-  echo "Error: YAML frontmatter opened but not closed in $(basename "$TICKET_FILE"). Add a '---' line after the last frontmatter key." >&2
+FRONTMATTER=$(config_extract_frontmatter "$WORK_ITEM_FILE") || {
+  echo "Error: YAML frontmatter opened but not closed in $(basename "$WORK_ITEM_FILE"). Add a '---' line after the last frontmatter key." >&2
   exit 1
 }
 
@@ -68,9 +68,9 @@ if [ -n "$TAGS_LINE" ]; then
   fi
 fi
 
-# Read the current tags value via ticket-read-field.sh
+# Read the current tags value via work-item-read-field.sh
 FIELD_ABSENT=false
-RAW_TAGS=$("$TICKET_SCRIPT_DIR/ticket-read-field.sh" tags "$TICKET_FILE" 2>/dev/null) || FIELD_ABSENT=true
+RAW_TAGS=$("$WORK_ITEM_SCRIPT_DIR/work-item-read-field.sh" tags "$WORK_ITEM_FILE" 2>/dev/null) || FIELD_ABSENT=true
 
 # Parse current tags into an array
 declare -a CURRENT_TAGS=()
@@ -157,7 +157,7 @@ case "$ACTION" in
     build_canonical "${NEW_TAGS[@]+"${NEW_TAGS[@]}"}"
     ;;
   *)
-    echo "Usage: ticket-update-tags.sh <ticket-path> add|remove <tag>" >&2
+    echo "Usage: work-item-update-tags.sh <work-item-path> add|remove <tag>" >&2
     exit 1
     ;;
 esac

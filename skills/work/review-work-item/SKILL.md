@@ -1,11 +1,11 @@
 ---
-name: review-ticket
-description: Review a ticket through multiple ticket-quality lenses and
+name: review-work-item
+description: Review a work item through multiple quality lenses and
   collaboratively iterate based on findings. Use when the user wants to
-  evaluate a ticket before implementation or escalation.
-argument-hint: "[path to ticket file]"
+  evaluate a work item before implementation or escalation.
+argument-hint: "[path to work item file]"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/tickets/scripts/ticket-read-*)
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-*)
 ---
 
 # Review Ticket
@@ -22,8 +22,8 @@ accelerator:web-search-researcher.
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh ticket`
 
-**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tickets meta/tickets`
-**Ticket reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_tickets meta/reviews/tickets`
+**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
+**Ticket reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_work meta/reviews/work`
 
 You are tasked with reviewing a ticket through quality lenses and then
 collaboratively iterating the ticket based on findings.
@@ -178,7 +178,7 @@ ${CLAUDE_PLUGIN_ROOT}/skills/review/lenses/[lens]-lens/SKILL.md
 ## Output Format
 
 Read the output format at:
-${CLAUDE_PLUGIN_ROOT}/skills/review/output-formats/ticket-review-output-format/SKILL.md
+${CLAUDE_PLUGIN_ROOT}/skills/review/output-formats/work-item-review-output-format/SKILL.md
 
 IMPORTANT: Return your analysis as a single JSON code block. Do not include
 prose outside the JSON block.
@@ -343,7 +343,7 @@ Once all reviews are complete:
    ```markdown
    ---
    date: "{ISO timestamp}"
-   type: ticket-review
+   type: work-item-review
    skill: review-ticket
    target: "{tickets directory}/{ticket-stem}.md"
    ticket_id: "{4-digit number, e.g. 0042}"
