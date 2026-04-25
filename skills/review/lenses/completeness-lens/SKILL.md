@@ -1,6 +1,6 @@
 ---
 name: completeness
-description: Ticket review lens for evaluating structural and informational
+description: Work-item review lens for evaluating structural and informational
   completeness — section presence, content density, type-appropriate content,
   and frontmatter integrity. Used by review orchestrators — not invoked directly.
 user-invocable: false

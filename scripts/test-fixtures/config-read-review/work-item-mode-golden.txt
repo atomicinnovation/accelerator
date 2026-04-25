@@ -1,7 +1,7 @@
 ## Review Configuration
 
-- **ticket revise severity**: critical
-- **ticket revise major count**: 2
+- **work-item revise severity**: critical
+- **work-item revise major count**: 2
 - **min lenses**: 3
 - **max lenses**: 8
 

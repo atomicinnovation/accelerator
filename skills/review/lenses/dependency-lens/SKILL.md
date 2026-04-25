@@ -1,6 +1,6 @@
 ---
 name: dependency
-description: Ticket review lens for evaluating explicit capture of blockers,
+description: Work-item review lens for evaluating explicit capture of blockers,
   consumers, external systems, and ordering. Used by review orchestrators
   — not invoked directly.
 user-invocable: false

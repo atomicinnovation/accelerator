@@ -4,7 +4,7 @@ set -euo pipefail
 # Reads review configuration and outputs a markdown block with effective
 # review settings and a unified lens catalogue.
 #
-# Usage: config-read-review.sh <pr|plan|ticket>
+# Usage: config-read-review.sh <pr|plan|work-item>
 #
 # Outputs nothing if no review config exists AND no custom lenses are found.
 
@@ -12,8 +12,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config-common.sh"
 
 MODE="${1:-}"
-if [ -z "$MODE" ] || { [ "$MODE" != "pr" ] && [ "$MODE" != "plan" ] && [ "$MODE" != "ticket" ]; }; then
-  echo "Usage: config-read-review.sh <pr|plan|ticket>" >&2
+if [ -z "$MODE" ] || { [ "$MODE" != "pr" ] && [ "$MODE" != "plan" ] && [ "$MODE" != "work-item" ]; }; then
+  echo "Usage: config-read-review.sh <pr|plan|work-item>" >&2
   exit 1
 fi
 
@@ -25,10 +25,10 @@ DEFAULT_DEDUP_PROXIMITY=3
 DEFAULT_PR_REQUEST_CHANGES_SEVERITY="critical"
 DEFAULT_PLAN_REVISE_SEVERITY="critical"
 DEFAULT_PLAN_REVISE_MAJOR_COUNT=3
-DEFAULT_TICKET_REVISE_SEVERITY="critical"
-DEFAULT_TICKET_REVISE_MAJOR_COUNT=2
+DEFAULT_WORK_ITEM_REVISE_SEVERITY="critical"
+DEFAULT_WORK_ITEM_REVISE_MAJOR_COUNT=2
 DEFAULT_MIN_LENSES=4
-DEFAULT_MIN_LENSES_TICKET=3
+DEFAULT_MIN_LENSES_WORK_ITEM=3
 DEFAULT_MAX_LENSES=8
 DEFAULT_CORE_LENSES="architecture code-quality test-coverage correctness"
 DEFAULT_DISABLED_LENSES=""
@@ -50,8 +50,8 @@ BUILTIN_CODE_LENSES=(
   usability
 )
 
-# Built-in lens names for ticket reviews (ticket mode)
-BUILTIN_TICKET_LENSES=(
+# Built-in lens names for work-item reviews (work-item mode)
+BUILTIN_WORK_ITEM_LENSES=(
   clarity
   completeness
   dependency
@@ -62,16 +62,16 @@ BUILTIN_TICKET_LENSES=(
 # Select the appropriate built-in lenses for the active mode.
 # Returns them as newline-separated names via echo (Bash 3.2 compatible).
 _select_builtin_lenses_for_mode() {
-  if [ "$MODE" = "ticket" ]; then
-    printf '%s\n' "${BUILTIN_TICKET_LENSES[@]+"${BUILTIN_TICKET_LENSES[@]}"}"
+  if [ "$MODE" = "work-item" ]; then
+    printf '%s\n' "${BUILTIN_WORK_ITEM_LENSES[@]+"${BUILTIN_WORK_ITEM_LENSES[@]}"}"
   else
     printf '%s\n' "${BUILTIN_CODE_LENSES[@]}"
   fi
 }
 
 # Effective min_lenses default depends on mode
-if [ "$MODE" = "ticket" ]; then
-  DEFAULT_MIN_LENSES_EFFECTIVE=$DEFAULT_MIN_LENSES_TICKET
+if [ "$MODE" = "work-item" ]; then
+  DEFAULT_MIN_LENSES_EFFECTIVE=$DEFAULT_MIN_LENSES_WORK_ITEM
 else
   DEFAULT_MIN_LENSES_EFFECTIVE=$DEFAULT_MIN_LENSES
 fi
@@ -82,8 +82,8 @@ dedup_proximity=$("$READ_VALUE" "review.dedup_proximity" "$DEFAULT_DEDUP_PROXIMI
 pr_request_changes_severity=$("$READ_VALUE" "review.pr_request_changes_severity" "$DEFAULT_PR_REQUEST_CHANGES_SEVERITY")
 plan_revise_severity=$("$READ_VALUE" "review.plan_revise_severity" "$DEFAULT_PLAN_REVISE_SEVERITY")
 plan_revise_major_count=$("$READ_VALUE" "review.plan_revise_major_count" "$DEFAULT_PLAN_REVISE_MAJOR_COUNT")
-ticket_revise_severity=$("$READ_VALUE" "review.ticket_revise_severity" "$DEFAULT_TICKET_REVISE_SEVERITY")
-ticket_revise_major_count=$("$READ_VALUE" "review.ticket_revise_major_count" "$DEFAULT_TICKET_REVISE_MAJOR_COUNT")
+work_item_revise_severity=$("$READ_VALUE" "review.work_item_revise_severity" "$DEFAULT_WORK_ITEM_REVISE_SEVERITY")
+work_item_revise_major_count=$("$READ_VALUE" "review.work_item_revise_major_count" "$DEFAULT_WORK_ITEM_REVISE_MAJOR_COUNT")
 min_lenses=$("$READ_VALUE" "review.min_lenses" "$DEFAULT_MIN_LENSES_EFFECTIVE")
 max_lenses=$("$READ_VALUE" "review.max_lenses" "$DEFAULT_MAX_LENSES")
 core_lenses_raw=$("$READ_VALUE" "review.core_lenses" "")
@@ -141,7 +141,7 @@ validate_severity() {
 # arg1: lens name (for warning messages), arg2: raw applies_to value
 validate_applies_to() {
   local lens_name="$1" raw="$2"
-  local valid_modes="pr plan ticket"
+  local valid_modes="pr plan work-item"
 
   # Empty string means field was absent — caller handles this
   if [ -z "$raw" ]; then
@@ -203,10 +203,10 @@ dedup_proximity=$(validate_non_negative_int "dedup_proximity" "$dedup_proximity"
 min_lenses=$(validate_positive_int "min_lenses" "$min_lenses" "$DEFAULT_MIN_LENSES_EFFECTIVE")
 max_lenses=$(validate_positive_int "max_lenses" "$max_lenses" "$DEFAULT_MAX_LENSES")
 plan_revise_major_count=$(validate_positive_int "plan_revise_major_count" "$plan_revise_major_count" "$DEFAULT_PLAN_REVISE_MAJOR_COUNT")
-ticket_revise_major_count=$(validate_positive_int "ticket_revise_major_count" "$ticket_revise_major_count" "$DEFAULT_TICKET_REVISE_MAJOR_COUNT")
+work_item_revise_major_count=$(validate_positive_int "work_item_revise_major_count" "$work_item_revise_major_count" "$DEFAULT_WORK_ITEM_REVISE_MAJOR_COUNT")
 pr_request_changes_severity=$(validate_severity "pr_request_changes_severity" "$pr_request_changes_severity" "$DEFAULT_PR_REQUEST_CHANGES_SEVERITY")
 plan_revise_severity=$(validate_severity "plan_revise_severity" "$plan_revise_severity" "$DEFAULT_PLAN_REVISE_SEVERITY")
-ticket_revise_severity=$(validate_severity "ticket_revise_severity" "$ticket_revise_severity" "$DEFAULT_TICKET_REVISE_SEVERITY")
+work_item_revise_severity=$(validate_severity "work_item_revise_severity" "$work_item_revise_severity" "$DEFAULT_WORK_ITEM_REVISE_SEVERITY")
 
 # Validate min_lenses <= max_lenses
 if [ "$min_lenses" -gt "$max_lenses" ]; then
@@ -293,7 +293,7 @@ if [ -d "$CUSTOM_LENSES_DIR" ]; then
     fi
 
     # Check for name collision with any built-in lens (union of all modes)
-    for builtin in "${BUILTIN_CODE_LENSES[@]}" "${BUILTIN_TICKET_LENSES[@]+"${BUILTIN_TICKET_LENSES[@]}"}"; do
+    for builtin in "${BUILTIN_CODE_LENSES[@]}" "${BUILTIN_WORK_ITEM_LENSES[@]+"${BUILTIN_WORK_ITEM_LENSES[@]}"}"; do
       if [ "$lens_name" = "$builtin" ]; then
         echo "Warning: Custom lens '$lens_name' conflicts with built-in lens name — skipping" >&2
         continue 2
@@ -357,7 +357,7 @@ fi
 
 # --- Step 4: Validate lens names in disabled_lenses and core_lenses ---
 # Build combined set of all valid lens names (union across all modes)
-all_lens_names=("${BUILTIN_CODE_LENSES[@]}" "${BUILTIN_TICKET_LENSES[@]+"${BUILTIN_TICKET_LENSES[@]}"}")
+all_lens_names=("${BUILTIN_CODE_LENSES[@]}" "${BUILTIN_WORK_ITEM_LENSES[@]+"${BUILTIN_WORK_ITEM_LENSES[@]}"}")
 if [ ${#custom_lens_names[@]} -gt 0 ]; then
   for name in "${custom_lens_names[@]}"; do
     all_lens_names+=("$name")
@@ -411,8 +411,8 @@ if [ ${#core_lenses[@]} -gt 0 ]; then
       effective_core_lenses+=("$lens")
     fi
   done
-elif [ "$MODE" = "ticket" ]; then
-  # Default core lenses for ticket mode = all built-in ticket lenses
+elif [ "$MODE" = "work-item" ]; then
+  # Default core lenses for work-item mode = all built-in work-item lenses
   while IFS= read -r l; do
     [ -n "$l" ] && effective_core_lenses+=("$l")
   done < <(_select_builtin_lenses_for_mode)
@@ -447,12 +447,12 @@ if [ "$available_count" -lt "$min_lenses" ]; then
   echo "Warning: Only $available_count lenses available after disabling, but min_lenses is $min_lenses" >&2
 fi
 
-# In ticket mode, when the user has explicitly set core_lenses to a subset of
-# the built-in ticket lenses, emit a one-time informational note so they know
+# In work-item mode, when the user has explicitly set core_lenses to a subset of
+# the built-in work-item lenses, emit a one-time informational note so they know
 # the remaining non-disabled built-ins will be added up to max_lenses.
-if [ "$MODE" = "ticket" ] && [ ${#core_lenses[@]} -gt 0 ]; then
+if [ "$MODE" = "work-item" ] && [ ${#core_lenses[@]} -gt 0 ]; then
   _missing_from_core=""
-  for _blens in "${BUILTIN_TICKET_LENSES[@]}"; do
+  for _blens in "${BUILTIN_WORK_ITEM_LENSES[@]}"; do
     _in_disabled=false
     for _dlens in "${disabled_lenses[@]+"${disabled_lenses[@]}"}"; do
       [ "$_blens" = "$_dlens" ] && _in_disabled=true && break
@@ -467,7 +467,7 @@ if [ "$MODE" = "ticket" ] && [ ${#core_lenses[@]} -gt 0 ]; then
   done
   if [ -n "$_missing_from_core" ]; then
     _missing_from_core="${_missing_from_core# }"
-    printf >&2 'Note: built-in ticket lens(es) not in your core_lenses but will be added up to max_lenses: %s\n' "$_missing_from_core"
+    printf >&2 'Note: built-in work-item lens(es) not in your core_lenses but will be added up to max_lenses: %s\n' "$_missing_from_core"
     printf >&2 '      Add them to disabled_lenses to opt out, or raise core_lenses to include them explicitly.\n'
   fi
 fi
@@ -498,9 +498,9 @@ if [ "$MODE" = "plan" ]; then
   _emit_value "plan revise major count" "$plan_revise_major_count" "$DEFAULT_PLAN_REVISE_MAJOR_COUNT"
 fi
 
-if [ "$MODE" = "ticket" ]; then
-  _emit_value "ticket revise severity" "$ticket_revise_severity" "$DEFAULT_TICKET_REVISE_SEVERITY"
-  _emit_value "ticket revise major count" "$ticket_revise_major_count" "$DEFAULT_TICKET_REVISE_MAJOR_COUNT"
+if [ "$MODE" = "work-item" ]; then
+  _emit_value "work-item revise severity" "$work_item_revise_severity" "$DEFAULT_WORK_ITEM_REVISE_SEVERITY"
+  _emit_value "work-item revise major count" "$work_item_revise_major_count" "$DEFAULT_WORK_ITEM_REVISE_MAJOR_COUNT"
 fi
 
 _emit_value "min lenses" "$min_lenses" "$DEFAULT_MIN_LENSES_EFFECTIVE"
@@ -553,21 +553,21 @@ elif [ "$MODE" = "plan" ]; then
     echo "- **Verdict**: REVISE when $sev_part or ${plan_revise_major_count}+ \`major\`"
     echo "  (default: any \`$DEFAULT_PLAN_REVISE_SEVERITY\` or ${DEFAULT_PLAN_REVISE_MAJOR_COUNT}+ \`major\`)"
   fi
-elif [ "$MODE" = "ticket" ]; then
-  ticket_verdict_changed=false
-  if [ "$ticket_revise_severity" != "$DEFAULT_TICKET_REVISE_SEVERITY" ] || \
-     [ "$ticket_revise_major_count" != "$DEFAULT_TICKET_REVISE_MAJOR_COUNT" ]; then
-    ticket_verdict_changed=true
+elif [ "$MODE" = "work-item" ]; then
+  work_item_verdict_changed=false
+  if [ "$work_item_revise_severity" != "$DEFAULT_WORK_ITEM_REVISE_SEVERITY" ] || \
+     [ "$work_item_revise_major_count" != "$DEFAULT_WORK_ITEM_REVISE_MAJOR_COUNT" ]; then
+    work_item_verdict_changed=true
   fi
 
-  if [ "$ticket_verdict_changed" = true ]; then
-    if [ "$ticket_revise_severity" = "none" ]; then
+  if [ "$work_item_verdict_changed" = true ]; then
+    if [ "$work_item_revise_severity" = "none" ]; then
       sev_part="severity-based REVISE disabled"
     else
-      sev_part="any \`$ticket_revise_severity\`"
+      sev_part="any \`$work_item_revise_severity\`"
     fi
-    echo "- **Verdict**: REVISE when $sev_part or ${ticket_revise_major_count}+ \`major\`"
-    echo "  (default: any \`$DEFAULT_TICKET_REVISE_SEVERITY\` or ${DEFAULT_TICKET_REVISE_MAJOR_COUNT}+ \`major\`)"
+    echo "- **Verdict**: REVISE when $sev_part or ${work_item_revise_major_count}+ \`major\`"
+    echo "  (default: any \`$DEFAULT_WORK_ITEM_REVISE_SEVERITY\` or ${DEFAULT_WORK_ITEM_REVISE_MAJOR_COUNT}+ \`major\`)"
   fi
 fi
 

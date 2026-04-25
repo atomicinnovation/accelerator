@@ -1826,25 +1826,25 @@ _extract_builtin_lens_names() {
     | sed 's/ $//'
 }
 
-echo "Test: ticket mode catalogue contains exactly 5 built-in rows"
+echo "Test: work-item mode catalogue contains exactly 5 built-in rows"
 REPO=$(setup_repo)
-TICKET_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null)
-CATALOGUE_LINES=$(echo "$TICKET_OUT" | awk '/\| .* \| .* \| built-in \|/ {c++} END {print c+0}')
-assert_eq "ticket mode emits 5 built-in lens rows" 5 "$CATALOGUE_LINES"
+WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null)
+CATALOGUE_LINES=$(echo "$WORK_ITEM_OUT" | awk '/\| .* \| .* \| built-in \|/ {c++} END {print c+0}')
+assert_eq "work-item mode emits 5 built-in lens rows" 5 "$CATALOGUE_LINES"
 
-echo "Test: ticket mode catalogue emits the expected sorted lens set"
-SORTED_LENSES=$(echo "$TICKET_OUT" | _extract_builtin_lens_names)
-assert_eq "ticket mode sorted lens set" \
+echo "Test: work-item mode catalogue emits the expected sorted lens set"
+SORTED_LENSES=$(echo "$WORK_ITEM_OUT" | _extract_builtin_lens_names)
+assert_eq "work-item mode sorted lens set" \
   "clarity completeness dependency scope testability" \
   "$SORTED_LENSES"
 
-echo "Test: ticket-mode output is byte-identical to its committed golden fixture"
-TICKET_GOLDEN="$SCRIPT_DIR/test-fixtures/config-read-review/ticket-mode-golden.txt"
-assert_eq "ticket-mode output matches golden fixture" \
-  "$(cat "$TICKET_GOLDEN")" \
-  "$TICKET_OUT"
+echo "Test: work-item-mode output is byte-identical to its committed golden fixture"
+WORK_ITEM_GOLDEN="$SCRIPT_DIR/test-fixtures/config-read-review/work-item-mode-golden.txt"
+assert_eq "work-item-mode output matches golden fixture" \
+  "$(cat "$WORK_ITEM_GOLDEN")" \
+  "$WORK_ITEM_OUT"
 
-echo "Test: none of the five ticket lenses appear in pr or plan mode"
+echo "Test: none of the five work-item lenses appear in pr or plan mode"
 REPO=$(setup_repo)
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
@@ -1857,9 +1857,9 @@ for lens in completeness testability clarity scope dependency; do
     LEAKED="$LEAKED plan:$lens"
   fi
 done
-assert_eq "no ticket lens leaks into pr or plan catalogue" "" "$LEAKED"
+assert_eq "no work-item lens leaks into pr or plan catalogue" "" "$LEAKED"
 
-echo "Test: core_lenses override emits informational note in ticket mode"
+echo "Test: core_lenses override emits informational note in work-item mode"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
@@ -1868,35 +1868,35 @@ review:
   core_lenses: [completeness, testability, clarity]
 ---
 FIXTURE
-STDERR_NOTE=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>&1 1>/dev/null)
-if echo "$STDERR_NOTE" | grep -q "Note: built-in ticket lens"; then
-  echo "  PASS: core_lenses override emits informational note in ticket mode"
+STDERR_NOTE=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>&1 1>/dev/null)
+if echo "$STDERR_NOTE" | grep -q "Note: built-in work-item lens"; then
+  echo "  PASS: core_lenses override emits informational note in work-item mode"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: core_lenses override emits informational note in ticket mode"
+  echo "  FAIL: core_lenses override emits informational note in work-item mode"
   echo "    Stderr: $(printf '%q' "$STDERR_NOTE")"
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: empty core_lenses does not emit informational note in ticket mode"
+echo "Test: empty core_lenses does not emit informational note in work-item mode"
 REPO=$(setup_repo)
-STDERR_EMPTY=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>&1 1>/dev/null)
-if echo "$STDERR_EMPTY" | grep -q "Note: built-in ticket lens"; then
-  echo "  FAIL: empty core_lenses emits unexpected informational note in ticket mode"
+STDERR_EMPTY=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>&1 1>/dev/null)
+if echo "$STDERR_EMPTY" | grep -q "Note: built-in work-item lens"; then
+  echo "  FAIL: empty core_lenses emits unexpected informational note in work-item mode"
   echo "    Stderr: $(printf '%q' "$STDERR_EMPTY")"
   FAIL=$((FAIL + 1))
 else
-  echo "  PASS: empty core_lenses does not emit informational note in ticket mode"
+  echo "  PASS: empty core_lenses does not emit informational note in work-item mode"
   PASS=$((PASS + 1))
 fi
 
-echo "Test: unknown mode -> exit 1 and usage contains pr|plan|ticket"
+echo "Test: unknown mode -> exit 1 and usage contains pr|plan|work-item"
 STDERR_OUTPUT=$(bash "$READ_REVIEW" "bad-mode" 2>&1 || true)
-if echo "$STDERR_OUTPUT" | grep -q "pr|plan|ticket"; then
-  echo "  PASS: usage string updated to include ticket"
+if echo "$STDERR_OUTPUT" | grep -q "pr|plan|work-item"; then
+  echo "  PASS: usage string includes work-item"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: usage string updated to include ticket"
+  echo "  FAIL: usage string includes work-item"
   echo "    Stderr: $(printf '%q' "$STDERR_OUTPUT")"
   FAIL=$((FAIL + 1))
 fi
@@ -1914,17 +1914,17 @@ applies_to: [plan]
 FIXTURE
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-TICKET_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
 if ! echo "$PR_OUT" | grep -q "| plan-only |" && \
    echo "$PLAN_OUT" | grep -q "| plan-only |" && \
-   ! echo "$TICKET_OUT" | grep -q "| plan-only |"; then
+   ! echo "$WORK_ITEM_OUT" | grep -q "| plan-only |"; then
   echo "  PASS: applies_to: [plan] restricts lens to plan mode only"
   PASS=$((PASS + 1))
 else
   echo "  FAIL: applies_to: [plan] restricts lens to plan mode only"
   echo "    PR has it: $(echo "$PR_OUT" | grep -c "| plan-only |")"
   echo "    Plan has it: $(echo "$PLAN_OUT" | grep -c "| plan-only |")"
-  echo "    Ticket has it: $(echo "$TICKET_OUT" | grep -c "| plan-only |")"
+  echo "    Work-item has it: $(echo "$WORK_ITEM_OUT" | grep -c "| plan-only |")"
   FAIL=$((FAIL + 1))
 fi
 
@@ -1939,40 +1939,40 @@ description: Appears everywhere
 FIXTURE
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-TICKET_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
 if echo "$PR_OUT" | grep -q "| all-modes |" && \
    echo "$PLAN_OUT" | grep -q "| all-modes |" && \
-   echo "$TICKET_OUT" | grep -q "| all-modes |"; then
+   echo "$WORK_ITEM_OUT" | grep -q "| all-modes |"; then
   echo "  PASS: no applies_to means all modes"
   PASS=$((PASS + 1))
 else
   echo "  FAIL: no applies_to means all modes"
   echo "    PR: $(echo "$PR_OUT" | grep "| all-modes |")"
   echo "    Plan: $(echo "$PLAN_OUT" | grep "| all-modes |")"
-  echo "    Ticket: $(echo "$TICKET_OUT" | grep "| all-modes |")"
+  echo "    Work-item: $(echo "$WORK_ITEM_OUT" | grep "| all-modes |")"
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: custom lens with applies_to: [ticket, plan] appears in ticket+plan but not pr"
+echo "Test: custom lens with applies_to: [work-item, plan] appears in ticket+plan but not pr"
 REPO=$(setup_repo)
-mkdir -p "$REPO/.claude/accelerator/lenses/ticket-plan-lens"
-cat > "$REPO/.claude/accelerator/lenses/ticket-plan-lens/SKILL.md" << 'FIXTURE'
+mkdir -p "$REPO/.claude/accelerator/lenses/work-item-plan-lens"
+cat > "$REPO/.claude/accelerator/lenses/work-item-plan-lens/SKILL.md" << 'FIXTURE'
 ---
-name: ticket-plan
-description: Ticket and plan modes only
-applies_to: [ticket, plan]
+name: work-item-plan
+description: Work-item and plan modes only
+applies_to: [work-item, plan]
 ---
 FIXTURE
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-TICKET_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
-if ! echo "$PR_OUT" | grep -q "| ticket-plan |" && \
-   echo "$PLAN_OUT" | grep -q "| ticket-plan |" && \
-   echo "$TICKET_OUT" | grep -q "| ticket-plan |"; then
-  echo "  PASS: applies_to: [ticket, plan] includes ticket and plan but not pr"
+WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
+if ! echo "$PR_OUT" | grep -q "| work-item-plan |" && \
+   echo "$PLAN_OUT" | grep -q "| work-item-plan |" && \
+   echo "$WORK_ITEM_OUT" | grep -q "| work-item-plan |"; then
+  echo "  PASS: applies_to: [work-item, plan] includes ticket and plan but not pr"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: applies_to: [ticket, plan] includes ticket and plan but not pr"
+  echo "  FAIL: applies_to: [work-item, plan] includes ticket and plan but not pr"
   FAIL=$((FAIL + 1))
 fi
 
@@ -1995,21 +1995,21 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: cross-mode filter - ticket-only custom lens in core_lenses shows Filtered info in pr mode"
+echo "Test: cross-mode filter - work-item-only custom lens in core_lenses shows Filtered info in pr mode"
 REPO=$(setup_repo)
-mkdir -p "$REPO/.claude/accelerator/lenses/ticket-custom-lens"
-cat > "$REPO/.claude/accelerator/lenses/ticket-custom-lens/SKILL.md" << 'FIXTURE'
+mkdir -p "$REPO/.claude/accelerator/lenses/work-item-custom-lens"
+cat > "$REPO/.claude/accelerator/lenses/work-item-custom-lens/SKILL.md" << 'FIXTURE'
 ---
-name: ticket-custom
-description: Ticket only custom lens
-applies_to: [ticket]
+name: work-item-custom
+description: Work-item only custom lens
+applies_to: [work-item]
 ---
 FIXTURE
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
 ---
 review:
-  core_lenses: [architecture, ticket-custom]
+  core_lenses: [architecture, work-item-custom]
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
@@ -2170,70 +2170,70 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: ticket mode emits ticket revise severity and count with defaults"
+echo "Test: work-item mode emits ticket revise severity and count with defaults"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
-if echo "$OUTPUT" | grep -q '\*\*ticket revise severity\*\*: critical$' && \
-   echo "$OUTPUT" | grep -q '\*\*ticket revise major count\*\*: 2$'; then
-  echo "  PASS: ticket mode emits verdict defaults without annotation"
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
+if echo "$OUTPUT" | grep -q '\*\*work-item revise severity\*\*: critical$' && \
+   echo "$OUTPUT" | grep -q '\*\*work-item revise major count\*\*: 2$'; then
+  echo "  PASS: work-item mode emits verdict defaults without annotation"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: ticket mode emits verdict defaults without annotation"
+  echo "  FAIL: work-item mode emits verdict defaults without annotation"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: ticket_revise_severity: major -> annotated with default"
+echo "Test: work_item_revise_severity: major -> annotated with default"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
 ---
 review:
-  ticket_revise_severity: major
+  work_item_revise_severity: major
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
-if echo "$OUTPUT" | grep -q '\*\*ticket revise severity\*\*: major (default: critical)'; then
-  echo "  PASS: ticket severity override annotated"
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
+if echo "$OUTPUT" | grep -q '\*\*work-item revise severity\*\*: major (default: critical)'; then
+  echo "  PASS: work-item severity override annotated"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: ticket severity override annotated"
+  echo "  FAIL: work-item severity override annotated"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: ticket_revise_major_count: 5 -> annotated with default"
+echo "Test: work_item_revise_major_count: 5 -> annotated with default"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
 ---
 review:
-  ticket_revise_major_count: 5
+  work_item_revise_major_count: 5
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
-if echo "$OUTPUT" | grep -q '\*\*ticket revise major count\*\*: 5 (default: 2)'; then
-  echo "  PASS: ticket major count override annotated"
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
+if echo "$OUTPUT" | grep -q '\*\*work-item revise major count\*\*: 5 (default: 2)'; then
+  echo "  PASS: work-item major count override annotated"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: ticket major count override annotated"
+  echo "  FAIL: work-item major count override annotated"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: ticket_revise_major_count: 0 -> warning, falls back to 2"
+echo "Test: work_item_revise_major_count: 0 -> warning, falls back to 2"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
 ---
 review:
-  ticket_revise_major_count: 0
+  work_item_revise_major_count: 0
 ---
 FIXTURE
-STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>&1 1>/dev/null || true)
-OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
-if echo "$STDERR_OUT" | grep -q "Warning.*ticket_revise_major_count" && \
-   echo "$OUTPUT" | grep -q '\*\*ticket revise major count\*\*: 2$'; then
+STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>&1 1>/dev/null || true)
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
+if echo "$STDERR_OUT" | grep -q "Warning.*work_item_revise_major_count" && \
+   echo "$OUTPUT" | grep -q '\*\*work-item revise major count\*\*: 2$'; then
   echo "  PASS: invalid major count warns and falls back to default"
   PASS=$((PASS + 1))
 else
@@ -2243,19 +2243,19 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: ticket_revise_severity: sometimes -> warning, falls back to critical"
+echo "Test: work_item_revise_severity: sometimes -> warning, falls back to critical"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
 ---
 review:
-  ticket_revise_severity: sometimes
+  work_item_revise_severity: sometimes
 ---
 FIXTURE
-STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>&1 1>/dev/null || true)
-OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
-if echo "$STDERR_OUT" | grep -q "Warning.*ticket_revise_severity" && \
-   echo "$OUTPUT" | grep -q '\*\*ticket revise severity\*\*: critical$'; then
+STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>&1 1>/dev/null || true)
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
+if echo "$STDERR_OUT" | grep -q "Warning.*work_item_revise_severity" && \
+   echo "$OUTPUT" | grep -q '\*\*work-item revise severity\*\*: critical$'; then
   echo "  PASS: invalid severity warns and falls back to default"
   PASS=$((PASS + 1))
 else
@@ -2265,44 +2265,44 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: ticket_revise_severity: none -> severity-based REVISE disabled verdict line"
+echo "Test: work_item_revise_severity: none -> severity-based REVISE disabled verdict line"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
 ---
 review:
-  ticket_revise_severity: none
+  work_item_revise_severity: none
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
+OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
 if echo "$OUTPUT" | grep -q "severity-based REVISE disabled"; then
-  echo "  PASS: ticket severity none produces disabled verdict line"
+  echo "  PASS: work-item severity none produces disabled verdict line"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: ticket severity none produces disabled verdict line"
+  echo "  FAIL: work-item severity none produces disabled verdict line"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: ticket mode catalogue contains completeness, not in pr or plan"
+echo "Test: work-item mode catalogue contains completeness, not in pr or plan"
 REPO=$(setup_repo)
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-TICKET_OUT=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>/dev/null || true)
-if echo "$TICKET_OUT" | grep -q "| completeness |" && \
+WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
+if echo "$WORK_ITEM_OUT" | grep -q "| completeness |" && \
    ! echo "$PR_OUT" | grep -q "| completeness |" && \
    ! echo "$PLAN_OUT" | grep -q "| completeness |"; then
-  echo "  PASS: completeness in ticket only"
+  echo "  PASS: completeness in work-item only"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: completeness in ticket only"
-  echo "    Ticket has it: $(echo "$TICKET_OUT" | grep -c "| completeness |" || true)"
+  echo "  FAIL: completeness in work-item only"
+  echo "    Work-item has it: $(echo "$WORK_ITEM_OUT" | grep -c "| completeness |" || true)"
   echo "    PR has it: $(echo "$PR_OUT" | grep -c "| completeness |" || true)"
   echo "    Plan has it: $(echo "$PLAN_OUT" | grep -c "| completeness |" || true)"
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: cross-mode core_lenses: [architecture, completeness] produces no warning in pr, plan, or ticket mode"
+echo "Test: cross-mode core_lenses: [architecture, completeness] produces no warning in pr, plan, or work-item mode"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
@@ -2313,17 +2313,17 @@ review:
 FIXTURE
 PR_STDERR=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
 PLAN_STDERR=$(cd "$REPO" && bash "$READ_REVIEW" plan 2>&1 1>/dev/null)
-TICKET_STDERR=$(cd "$REPO" && bash "$READ_REVIEW" ticket 2>&1 1>/dev/null || true)
+WORK_ITEM_STDERR=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>&1 1>/dev/null || true)
 if ! echo "$PR_STDERR" | grep -q "unrecognised" && \
    ! echo "$PLAN_STDERR" | grep -q "unrecognised" && \
-   ! echo "$TICKET_STDERR" | grep -q "unrecognised"; then
+   ! echo "$WORK_ITEM_STDERR" | grep -q "unrecognised"; then
   echo "  PASS: cross-mode core_lenses produces no unrecognised warning"
   PASS=$((PASS + 1))
 else
   echo "  FAIL: cross-mode core_lenses produces no unrecognised warning"
   echo "    PR stderr: $(printf '%q' "$PR_STDERR")"
   echo "    Plan stderr: $(printf '%q' "$PLAN_STDERR")"
-  echo "    Ticket stderr: $(printf '%q' "$TICKET_STDERR")"
+  echo "    Work-item stderr: $(printf '%q' "$WORK_ITEM_STDERR")"
   FAIL=$((FAIL + 1))
 fi
 
@@ -2580,17 +2580,17 @@ FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "templates" "meta/templates")
 assert_eq "outputs configured path" "docs/templates" "$OUTPUT"
 
-echo "Test: paths.tickets configured"
+echo "Test: paths.work configured"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
 ---
 paths:
-  tickets: docs/tickets
+  work: docs/work
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "tickets" "meta/tickets")
-assert_eq "outputs configured path" "docs/tickets" "$OUTPUT"
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "work" "meta/work")
+assert_eq "outputs configured path" "docs/work" "$OUTPUT"
 
 echo "Test: paths.notes configured"
 REPO=$(setup_repo)
@@ -2604,17 +2604,17 @@ FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "notes" "meta/notes")
 assert_eq "outputs configured path" "docs/notes" "$OUTPUT"
 
-echo "Test: paths.review_tickets configured"
+echo "Test: paths.review_work configured"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
 ---
 paths:
-  review_tickets: docs/reviews/tickets
+  review_work: docs/reviews/work
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "review_tickets" "meta/reviews/tickets")
-assert_eq "outputs configured path" "docs/reviews/tickets" "$OUTPUT"
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "review_work" "meta/reviews/work")
+assert_eq "outputs configured path" "docs/reviews/work" "$OUTPUT"
 
 echo "Test: Absolute path is output as-is"
 REPO=$(setup_repo)
@@ -3662,12 +3662,12 @@ printf -- '---\ntemplates:\n  ticket: custom/ticket.md\n---\n' > "$REPO/.claude/
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 assert_contains "ticket key in dump" "templates.ticket" "$OUTPUT"
 
-echo "Test: Output contains paths.review_tickets row"
+echo "Test: Output contains paths.review_work row"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
-printf -- '---\npaths:\n  review_tickets: docs/reviews/tickets\n---\n' > "$REPO/.claude/accelerator.md"
+printf -- '---\npaths:\n  review_work: docs/reviews/work\n---\n' > "$REPO/.claude/accelerator.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-assert_contains "review_tickets key in dump" "paths.review_tickets" "$OUTPUT"
+assert_contains "review_work key in dump" "paths.review_work" "$OUTPUT"
 
 echo ""
 

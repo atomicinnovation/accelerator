@@ -1,6 +1,6 @@
 ---
 name: scope
-description: Ticket review lens for evaluating sizing, decomposition, and
+description: Work-item review lens for evaluating sizing, decomposition, and
   orthogonality of requirements. Used by review orchestrators — not invoked
   directly.
 user-invocable: false

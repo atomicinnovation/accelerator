@@ -1,13 +1,13 @@
 ---
-name: ticket-review-output-format
-description: Output format specification for ticket review agents. Defines the
+name: work-item-review-output-format
+description: Output format specification for work-item review agents. Defines the
   JSON schema, field reference, severity emoji prefixes, and finding body format
-  for ticket reviews. Used by review orchestrators — not invoked directly.
+  for work-item reviews. Used by review orchestrators — not invoked directly.
 user-invocable: false
 disable-model-invocation: true
 ---
 
-# Ticket Review Output Format
+# Work-Item Review Output Format
 
 ## JSON Schema
 
@@ -19,7 +19,7 @@ after the JSON block — the orchestrator will parse this output directly.
   "lens": "<lens-identifier>",
   "summary": "2-3 sentence assessment from this lens perspective.",
   "strengths": [
-    "Positive observation about what the ticket gets right from this lens perspective"
+    "Positive observation about what the work item gets right from this lens perspective"
   ],
   "findings": [
     {
@@ -46,13 +46,13 @@ emit it.
   assessment lives, beyond individual findings.
 - **strengths**: Positive observations (fed into the review summary — never
   posted as individual findings)
-- **findings**: All findings, each referencing a location in the ticket
+- **findings**: All findings, each referencing a location in the work item
   - **severity**: One of `"critical"`, `"major"`, `"minor"`, `"suggestion"`
   - **confidence**: One of `"high"`, `"medium"`, `"low"`
   - **lens**: The lens identifier (same value as the top-level `lens` field).
     Included on each finding so the orchestrator can attribute findings after
     merging outputs from multiple agents.
-  - **location**: Human-readable reference to the ticket section where the
+  - **location**: Human-readable reference to the work item section where the
     finding is most relevant (e.g., `"Summary"`, `"Acceptance Criteria"`,
     `"Dependencies"`, `"Open Questions"`, `"Context"`, `"Requirements"`,
     `"Frontmatter: type"`)
@@ -60,7 +60,7 @@ emit it.
   - **body**: Self-contained finding body. See "Finding Body Format" below.
 
 The canonical source of valid lens identifiers is the Lens Catalogue emitted
-by `config-read-review.sh ticket`. See the Lens Catalogue for the current
+by `config-read-review.sh work-item`. See the Lens Catalogue for the current
 list.
 
 ## Severity Emoji Prefixes
@@ -94,7 +94,7 @@ Example:
 ```
 🔴 **Completeness**
 
-The ticket has no Acceptance Criteria section, so there is no definition of
+The work item has no Acceptance Criteria section, so there is no definition of
 what "done" means.
 
 **Impact**: Implementers cannot verify when the work is complete, risking

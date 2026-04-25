@@ -1,6 +1,6 @@
 ---
 name: clarity
-description: Ticket review lens for evaluating unambiguous communication —
+description: Work-item review lens for evaluating unambiguous communication —
   referent clarity, internal consistency, jargon handling, and actor/outcome
   identification. Used by review orchestrators — not invoked directly.
 user-invocable: false

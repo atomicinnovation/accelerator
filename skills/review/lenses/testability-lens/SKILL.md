@@ -1,6 +1,6 @@
 ---
 name: testability
-description: Ticket review lens for evaluating whether Acceptance Criteria and
+description: Work-item review lens for evaluating whether Acceptance Criteria and
   requirements admit a concrete verification strategy — each criterion must be
   specific, measurable, and verifiable. Used by review orchestrators — not
   invoked directly.
