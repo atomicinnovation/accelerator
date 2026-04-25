@@ -137,6 +137,51 @@ fn yml_to_json(v: &serde_yml::Value) -> Option<serde_json::Value> {
     })
 }
 
+const PREVIEW_MAX_CHARS: usize = 200;
+
+pub fn body_preview_from(body: &str) -> String {
+    let mut buf = String::new();
+    let mut char_count: usize = 0;
+    'outer: for line in body.lines() {
+        let trimmed = line.trim();
+        let is_break = trimmed.is_empty() || trimmed.starts_with('#');
+        if is_break {
+            if !buf.is_empty() { break; }
+            continue;
+        }
+        if !buf.is_empty() {
+            buf.push(' ');
+            char_count += 1;
+        }
+        let mut last_was_space = false;
+        for ch in trimmed.chars() {
+            if ch.is_whitespace() {
+                if !last_was_space {
+                    buf.push(' ');
+                    char_count += 1;
+                    last_was_space = true;
+                }
+            } else {
+                buf.push(ch);
+                char_count += 1;
+                last_was_space = false;
+            }
+            // Collect one extra char past the limit so the truncation
+            // branch below can distinguish "exactly 200" from "> 200".
+            if char_count > PREVIEW_MAX_CHARS {
+                break 'outer;
+            }
+        }
+    }
+
+    if char_count > PREVIEW_MAX_CHARS {
+        let truncated: String = buf.chars().take(PREVIEW_MAX_CHARS).collect();
+        format!("{truncated}…")
+    } else {
+        buf
+    }
+}
+
 pub fn title_from(parsed: &FrontmatterState, body: &str, filename_stem: &str) -> String {
     if let FrontmatterState::Parsed(m) = parsed {
         if let Some(v) = m.get("title") {
@@ -307,5 +352,84 @@ mod tests {
         raw.push(0xff);
         let p = parse(&raw);
         assert!(matches!(p.state, FrontmatterState::Parsed(_)));
+    }
+}
+
+#[cfg(test)]
+mod body_preview_tests {
+    use super::body_preview_from;
+
+    #[test]
+    fn empty_body_returns_empty_string() {
+        assert_eq!(body_preview_from(""), "");
+        assert_eq!(body_preview_from("   \n\n   "), "");
+    }
+
+    #[test]
+    fn skips_leading_h1_to_avoid_duplicating_title() {
+        let body = "# The Foo Plan\n\nThis is the body of the plan.\n";
+        assert_eq!(body_preview_from(body), "This is the body of the plan.");
+    }
+
+    #[test]
+    fn takes_first_non_heading_paragraph() {
+        let body = "## Section\n\nFirst sentence here.\n\n## Next\n\nSecond.\n";
+        assert_eq!(body_preview_from(body), "First sentence here.");
+    }
+
+    #[test]
+    fn collapses_internal_whitespace() {
+        let body = "Line one.\nLine two.\n\tLine three.\n";
+        assert_eq!(body_preview_from(body), "Line one. Line two. Line three.");
+    }
+
+    #[test]
+    fn truncates_with_ellipsis_at_200_chars() {
+        let long = "abcdefghij".repeat(30); // 300 chars
+        let preview = body_preview_from(&long);
+        assert_eq!(preview.chars().count(), 201);
+        assert!(preview.ends_with('…'));
+    }
+
+    #[test]
+    fn truncation_respects_utf8_boundaries() {
+        let body = "é".repeat(300);
+        let preview = body_preview_from(&body);
+        assert!(std::str::from_utf8(preview.as_bytes()).is_ok());
+        assert!(preview.ends_with('…'));
+    }
+
+    #[test]
+    fn body_with_only_headings_returns_empty() {
+        let body = "# H1\n## H2\n### H3\n";
+        assert_eq!(body_preview_from(body), "");
+    }
+
+    #[test]
+    fn heading_after_content_terminates_the_preview() {
+        let body = "First para.\n## Heading\nMore text.\n";
+        assert_eq!(body_preview_from(body), "First para.");
+    }
+
+    #[test]
+    fn body_of_exactly_200_chars_is_not_truncated() {
+        let exact = "a".repeat(200);
+        let preview = body_preview_from(&exact);
+        assert_eq!(preview.chars().count(), 200);
+        assert!(!preview.ends_with('…'));
+    }
+
+    #[test]
+    fn body_of_201_chars_truncates_with_ellipsis() {
+        let just_over = "a".repeat(201);
+        let preview = body_preview_from(&just_over);
+        assert_eq!(preview.chars().count(), 201); // 200 + '…'
+        assert!(preview.ends_with('…'));
+    }
+
+    #[test]
+    fn joins_multi_line_first_paragraph_with_single_spaces() {
+        let body = "Line one.\nLine two.\nLine three.\n\nNext paragraph.\n";
+        assert_eq!(body_preview_from(body), "Line one. Line two. Line three.");
     }
 }

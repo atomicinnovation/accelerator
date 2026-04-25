@@ -125,22 +125,10 @@ fn derive_completeness(entries: &[IndexEntry]) -> Completeness {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
+    use crate::test_support::entry_for_test;
 
     fn entry(kind: DocTypeKey, slug: &str, mtime_ms: i64, title: &str) -> IndexEntry {
-        IndexEntry {
-            r#type: kind,
-            path: PathBuf::from(format!("/x/{slug}.md")),
-            rel_path: PathBuf::from(format!("{slug}.md")),
-            slug: Some(slug.to_string()),
-            title: title.to_string(),
-            frontmatter: serde_json::Value::Null,
-            frontmatter_state: "parsed".to_string(),
-            ticket: None,
-            mtime_ms,
-            size: 0,
-            etag: "sha256-00".to_string(),
-        }
+        entry_for_test(kind, slug, mtime_ms, title)
     }
 
     #[test]

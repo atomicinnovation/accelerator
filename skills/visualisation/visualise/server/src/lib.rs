@@ -20,3 +20,6 @@ pub mod slug;
 pub mod sse_hub;
 pub mod templates;
 pub mod watcher;
+
+#[cfg(test)]
+pub(crate) mod test_support;

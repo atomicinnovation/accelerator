@@ -26,6 +26,7 @@ pub struct IndexEntry {
     pub mtime_ms: i64,
     pub size: u64,
     pub etag: String,
+    pub body_preview: String,
 }
 
 pub struct Indexer {
@@ -74,6 +75,7 @@ impl Indexer {
                 let filename_stem = filename.strip_suffix(".md").unwrap_or(filename);
                 let slug_val = slug::derive(kind, filename);
                 let title = frontmatter::title_from(&parsed.state, &parsed.body, filename_stem);
+                let body_preview = frontmatter::body_preview_from(&parsed.body);
                 let ticket = frontmatter::ticket_of(&parsed.state);
 
                 let (state_str, fm_json) = match &parsed.state {
@@ -118,6 +120,7 @@ impl Indexer {
                     mtime_ms: content.mtime_ms,
                     size: content.size,
                     etag: content.etag,
+                    body_preview,
                 };
                 entries.insert(path, entry);
             }
@@ -353,6 +356,26 @@ mod tests {
         let entry = idx.get(&path).await.expect("malformed entry still indexed");
         assert_eq!(entry.frontmatter_state, "malformed");
         assert!(entry.etag.starts_with("sha256-"));
+    }
+
+    #[tokio::test]
+    async fn index_entry_carries_body_preview() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::write(
+            plans.join("2026-04-25-foo.md"),
+            "---\ntitle: Foo\n---\n# Foo\n\nFirst paragraph of the body.\n",
+        ).unwrap();
+
+        let mut paths = std::collections::HashMap::new();
+        paths.insert("plans".to_string(), plans);
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(crate::file_driver::LocalFileDriver::new(&paths, vec![]));
+        let idx = Indexer::build(driver, tmp.path().to_path_buf()).await.unwrap();
+        let entries = idx.all().await;
+        let foo = entries.iter().find(|e| e.title == "Foo").unwrap();
+        assert_eq!(foo.body_preview, "First paragraph of the body.");
     }
 
     #[tokio::test]
