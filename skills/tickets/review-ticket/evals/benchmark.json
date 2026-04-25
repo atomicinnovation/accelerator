@@ -1,0 +1,126 @@
+{
+  "metadata": {
+    "skill_name": "review-ticket",
+    "evals_run": [
+      1,
+      2,
+      3
+    ]
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "expectations": [
+        {
+          "text": "mentions /list-tickets as a discovery tool",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "shows an example invocation with a ticket path or number",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "does not attempt to run a review or read any ticket file",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "response is a help prompt rather than a question asking for more information",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3
+      },
+      "expectations": [
+        {
+          "text": "response contains 'No ticket at' followed by the path",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "offers to run /list-tickets",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "does not attempt to review or open the nonexistent file",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6
+      },
+      "expectations": [
+        {
+          "text": "spawns three reviewer agents (completeness, testability, clarity)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "review file written with correct frontmatter (type: ticket-review, skill: review-ticket)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "all three lenses listed in the lenses frontmatter field",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "verdict is one of APPROVE, REVISE, or COMMENT",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "review contains a Per-Lens Results section",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "no critical findings for this well-structured ticket",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      }
+    }
+  }
+}

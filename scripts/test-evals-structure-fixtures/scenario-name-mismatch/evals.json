@@ -1,0 +1,8 @@
+{
+  "skill_name": "fixture-skill-mismatch",
+  "evals": [
+    {"id": 1, "name": "scenario-a", "prompt": "a", "expected_output": "a", "files": [], "assertions": []},
+    {"id": 2, "name": "scenario-b", "prompt": "b", "expected_output": "b", "files": [], "assertions": []},
+    {"id": 3, "name": "scenario-c", "prompt": "c", "expected_output": "c", "files": [], "assertions": []}
+  ]
+}

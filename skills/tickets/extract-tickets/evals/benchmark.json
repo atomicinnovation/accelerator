@@ -1,0 +1,362 @@
+{
+  "metadata": {
+    "skill_name": "extract-tickets",
+    "evals_run": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ]
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "Response offers to scan all configured directories as one option",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Response offers the option to specify files manually as an alternative",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Response does not proceed to read or list any documents before user answers",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Response does not include any candidate list, ticket drafts, or extracted content",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Response includes examples or context about what kinds of sources can be provided (e.g. files, planning docs, meeting notes)",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 12,
+        "failed": 0,
+        "total": 12
+      },
+      "expectations": [
+        {
+          "text": "The dashboard charts stale data item is assigned type 'bug' in its skeleton",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The CSV export item is assigned type 'story' in its skeleton",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The search options evaluation item is assigned type 'spike' in its skeleton",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The auth system modernisation item is assigned type 'epic' in its skeleton",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Every skeleton uses XXXX as the ticket_id placeholder (ticket-next-number.sh not called)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The bug skeleton's Requirements section contains reproduction steps and expected/actual behaviour",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The spike skeleton's Requirements section contains the research questions, time-box, and exit criterion",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The epic skeleton's Requirements section contains the initial story decomposition as a list",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The Drafting Notes section does not contain routine type-choice documentation for obvious type assignments (bug and story are unambiguous here); a note explaining a non-obvious inference (e.g. spike vs story when it could be either) is acceptable",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The Drafting Notes section does not contain routine priority-mapping boilerplate; a priority note is only acceptable if it explains a genuine scope interpretation tied to urgency language in the source",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "At least one skeleton's Drafting Notes section contains a substantive interpretation note beyond the verbatim thin-draft text",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "If an Assumptions section is present in any skeleton, it contains interpretations where the wrong call would change scope or what gets built \u2014 not routine field selections",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6
+      },
+      "expectations": [
+        {
+          "text": "Each thin draft contains the exact phrase 'Extracted from source documents without interactive enrichment'",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Each thin draft contains the exact phrase 'Acceptance criteria, dependencies, and type may need refinement before promoting from `draft` to `ready`'",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "ticket-next-number.sh was NOT called at any point during this process",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Each thin draft uses XXXX as the ticket_id placeholder",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Each thin draft contains an Open Questions section",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Each thin draft has a section headed 'Drafting Notes' (not 'Assumptions') that contains the verbatim non-enrichment note",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6
+      },
+      "expectations": [
+        {
+          "text": "Candidate list presents at most 2 actionable items (notification preferences is the clear one)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Table of contents entries (Introduction, Current Issues, Proposed Solutions, Implementation Plan, Next Steps) are NOT listed as candidates",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Navigation items (Overview, Architecture, API Reference, Changelog) are NOT listed as candidates",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The 'Next Steps: Discuss with team' line is NOT listed as a candidate",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The 'Implementation Plan: TBD based on engineering estimates' line is NOT listed as a candidate",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The notification preferences requirement IS identified as a candidate",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 5,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "Response explicitly names the missing path 'meta/research/does-not-exist-2026-04-20.md'",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Response states the file does not exist (uses language like 'not found', 'does not exist', or 'missing')",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Response asks the user to correct or remove the path",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Response does NOT present an empty candidate list as if the file was found",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Response does NOT proceed to Step 2 or spawn any agents",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 6,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7
+      },
+      "expectations": [
+        {
+          "text": "The skeleton's Summary reflects only what the source document actually states",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Any acceptance criteria or specific requirements NOT in the source are flagged via Assumptions, Drafting Notes, or Open Questions",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The Drafting Notes section captures broader drafting interpretations (scope boundaries, who stakeholders are, vague term meanings) rather than field-choice reasoning",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The Drafting Notes section does NOT explain why the ticket type was chosen or why a priority level was selected",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Open Questions contains at least one question about a genuine business unknown raised by the sparse source",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The thin draft carries the verbatim non-enrichment note from Step 3.4 in the Drafting Notes section",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "If an Assumptions section is present, it contains interpretations where the wrong call would change what gets built \u2014 not routine field selections",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 7,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8
+      },
+      "expectations": [
+        {
+          "text": "Post-enrichment prompt explicitly names 'approve' (or 'approved') as a numbered option",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Post-enrichment prompt makes clear that the user can provide revision instructions to update the draft",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Post-enrichment prompt mentions 'skip' as a numbered option",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Post-enrichment prompt mentions 'accept as-is' as a numbered option",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Enriched draft contains acceptance criteria that are specific and testable",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Enriched draft reflects the Q&A answers (search team, 2 devs, go/no-go recommendation, 3-day time-box)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The enriched draft's Drafting Notes section does not contain explanations of why the ticket type or priority was chosen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "If an Assumptions section is present in the enriched draft, it contains scope-changing interpretations (not the same content that is already reflected in Requirements or Acceptance Criteria)",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "metadata": {"skill_name": "fixture-skill-low", "evals_run": [1, 2]},
+  "runs": [
+    {
+      "eval_id": 1, "configuration": "with_skill", "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3},
+      "expectations": [
+        {"text": "a1", "passed": true, "evidence": "ok"},
+        {"text": "a2", "passed": true, "evidence": "ok"},
+        {"text": "a3", "passed": true, "evidence": "ok"}
+      ]
+    },
+    {
+      "eval_id": 2, "configuration": "with_skill", "run_number": 1,
+      "result": {"pass_rate": 0.67, "passed": 2, "failed": 1, "total": 3},
+      "expectations": [
+        {"text": "b1", "passed": true, "evidence": "ok"},
+        {"text": "b2", "passed": true, "evidence": "ok"},
+        {"text": "b3", "passed": false, "evidence": "failed"}
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {"pass_rate": {"mean": 0.83, "stddev": 0.17, "min": 0.67, "max": 1.0}}
+  }
+}

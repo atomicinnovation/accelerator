@@ -1,0 +1,29 @@
+{
+  "skill_name": "fixture-skill",
+  "evals": [
+    {
+      "id": 1,
+      "name": "scenario-a",
+      "prompt": "test prompt a",
+      "expected_output": "expected a",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 2,
+      "name": "scenario-b",
+      "prompt": "test prompt b",
+      "expected_output": "expected b",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 3,
+      "name": "scenario-c",
+      "prompt": "test prompt c",
+      "expected_output": "expected c",
+      "files": [],
+      "assertions": []
+    }
+  ]
+}
