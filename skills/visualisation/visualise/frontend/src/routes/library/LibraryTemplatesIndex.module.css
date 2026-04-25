@@ -1,0 +1,8 @@
+.container { max-width: 600px; }
+.list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.list li { display: flex; align-items: center; gap: 1rem; }
+.active { font-size: 0.75rem; color: #6b7280; }
+.error {
+  color: #991b1b; background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 4px; padding: 0.5rem 0.75rem; margin-top: 1rem;
+}

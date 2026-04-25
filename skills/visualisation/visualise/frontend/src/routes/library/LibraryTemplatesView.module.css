@@ -1,0 +1,17 @@
+.container { max-width: 900px; }
+.title { font-size: 1.5rem; font-weight: 700; margin: 0 0 1.5rem; }
+.tiers { display: flex; flex-direction: column; gap: 1.5rem; }
+.panel { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; }
+.panel.absent { opacity: 0.55; background: #f9fafb; }
+.panelHeader { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+.tierLabel { font-weight: 600; font-size: 0.875rem; color: #374151; }
+.activeBadge {
+  font-size: 0.7rem; background: #dbeafe; color: #1d4ed8;
+  border-radius: 9999px; padding: 0.1rem 0.5rem; font-weight: 600;
+}
+.path { font-size: 0.75rem; color: #6b7280; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.absentNote { font-style: italic; color: #6b7280; margin: 0; }
+.error {
+  color: #991b1b; background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 4px; padding: 0.5rem 0.75rem; margin-top: 1rem;
+}
