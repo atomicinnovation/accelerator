@@ -1,0 +1,19 @@
+.article {
+  display: grid;
+  grid-template-areas: "header header" "body aside";
+  grid-template-columns: 1fr 260px;
+  gap: 1.5rem 2rem;
+  max-width: 1100px;
+}
+.header { grid-area: header; }
+.title { font-size: 1.6rem; font-weight: 700; margin: 0 0 0.5rem; }
+.body { grid-area: body; }
+.aside { grid-area: aside; font-size: 0.85rem; color: #6b7280; }
+.aside h3 { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; margin: 0 0 0.4rem; }
+.aside section { margin-bottom: 1.5rem; }
+.empty { font-style: italic; }
+.meta { word-break: break-all; font-family: monospace; font-size: 0.78rem; }
+.error {
+  color: #991b1b; background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 4px; padding: 0.5rem 0.75rem; margin-top: 1rem;
+}
