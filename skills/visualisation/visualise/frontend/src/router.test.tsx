@@ -4,7 +4,6 @@ import {
   RouterProvider, createRouter, createMemoryHistory,
 } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import React from 'react'
 import { routeTree } from './router'
 import * as fetchModule from './api/fetch'
 
@@ -28,7 +27,7 @@ function renderAt(url: string) {
  *  single-shot resolve; `waitFor` polls the router state until the
  *  expected destination is reached. */
 async function waitForPath(
-  router: ReturnType<typeof createRouter>,
+  router: { state: { location: { pathname: string } } },
   expected: string,
 ): Promise<void> {
   await waitFor(() => {
