@@ -26,6 +26,7 @@ pub struct LifecycleCluster {
     pub title: String,
     pub entries: Vec<IndexEntry>,
     pub completeness: Completeness,
+    pub last_changed_ms: i64,
 }
 
 pub fn compute_clusters(entries: &[IndexEntry]) -> Vec<LifecycleCluster> {
@@ -46,6 +47,7 @@ pub fn compute_clusters(entries: &[IndexEntry]) -> Vec<LifecycleCluster> {
                     .cmp(&canonical_rank(b.r#type))
                     .then(a.mtime_ms.cmp(&b.mtime_ms))
             });
+            let last_changed_ms = entries.iter().map(|e| e.mtime_ms).max().unwrap_or(0);
             let title = derive_title(&slug, &entries);
             let completeness = derive_completeness(&entries);
             LifecycleCluster {
@@ -53,6 +55,7 @@ pub fn compute_clusters(entries: &[IndexEntry]) -> Vec<LifecycleCluster> {
                 title,
                 entries,
                 completeness,
+                last_changed_ms,
             }
         })
         .collect();
@@ -223,6 +226,41 @@ mod tests {
         e.slug = None;
         let clusters = compute_clusters(&[e]);
         assert!(clusters.is_empty());
+    }
+
+    #[test]
+    fn last_changed_ms_is_max_mtime_across_entries() {
+        let entries = vec![
+            entry(DocTypeKey::Tickets, "foo", 100, "T"),
+            entry(DocTypeKey::Plans, "foo", 500, "P"),
+            entry(DocTypeKey::PlanReviews, "foo", 300, "R"),
+        ];
+        let clusters = compute_clusters(&entries);
+        assert_eq!(clusters.len(), 1);
+        assert_eq!(clusters[0].last_changed_ms, 500);
+    }
+
+    #[test]
+    fn last_changed_ms_for_single_entry_is_that_entry_mtime() {
+        let entries = vec![entry(DocTypeKey::Plans, "solo", 42, "P")];
+        let clusters = compute_clusters(&entries);
+        assert_eq!(clusters[0].last_changed_ms, 42);
+    }
+
+    #[test]
+    fn last_changed_ms_is_per_cluster_and_survives_slug_sort() {
+        let entries = vec![
+            entry(DocTypeKey::Plans,   "foo", 100, "P-foo"),
+            entry(DocTypeKey::Tickets, "foo", 500, "T-foo"),
+            entry(DocTypeKey::Plans,   "bar", 900, "P-bar"),
+            entry(DocTypeKey::Tickets, "bar", 200, "T-bar"),
+        ];
+        let clusters = compute_clusters(&entries);
+        assert_eq!(clusters.len(), 2);
+        assert_eq!(clusters[0].slug, "bar");
+        assert_eq!(clusters[0].last_changed_ms, 900);
+        assert_eq!(clusters[1].slug, "foo");
+        assert_eq!(clusters[1].last_changed_ms, 500);
     }
 
     #[test]
