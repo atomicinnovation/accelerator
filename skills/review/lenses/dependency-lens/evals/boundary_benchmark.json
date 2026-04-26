@@ -20,7 +20,7 @@
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 30.7, "tokens": 7586, "tool_calls": 3, "errors": 0},
       "expectations": [
         {"text": "Output contains a valid JSON code block with lens='dependency'", "passed": true, "evidence": "\"lens\": \"dependency\"."},
-        {"text": "No finding body alleges the absent Stories list or lack of child story decomposition", "passed": true, "evidence": "Four findings present. All address uncaptured couplings: (1) PostgreSQL RLS and API gateway capability not listed as upstream blockers; (2) infrastructure team constraint not captured; (3) downstream enterprise-prospect tickets not in Blocks; (4) ordering constraints between implied child stories unrecorded. No finding says 'add a Stories list' or 'this epic lacks decomposition'."},
+        {"text": "No finding body alleges the absent Stories list or lack of child story decomposition", "passed": true, "evidence": "Four findings present. All address uncaptured couplings: (1) PostgreSQL RLS and API gateway capability not listed as upstream blockers; (2) infrastructure team constraint not captured; (3) downstream enterprise-prospect work items not in Blocks; (4) ordering constraints between implied child stories unrecorded. No finding says 'add a Stories list' or 'this epic lacks decomposition'."},
         {"text": "Findings address uncaptured couplings (blockers, consumers, cross-team, ordering), not section-level structural gaps", "passed": true, "evidence": "Finding 4 references 'no child story list' as context for why ordering constraints cannot be captured, but the finding is about the ordering constraints themselves — not the absent Stories list. The suggestion says 'when child stories are created, record explicit ordering constraints', not 'add a Stories list'."}
       ],
       "notes": []
@@ -34,7 +34,7 @@
       "expectations": [
         {"text": "Output contains a valid JSON code block with lens='dependency'", "passed": true, "evidence": "\"lens\": \"dependency\"."},
         {"text": "No finding about measurability, verifiability, or tautological criterion wording", "passed": true, "evidence": "Four findings present. All address uncaptured couplings: (1) security audit report not captured as upstream dependency; (2) schema migration DBA/cross-team action not captured; (3) recovery flow communication/ops dependency uncaptured; (4) downstream auth-contract consumers not listed as Blocks. No finding mentions tautological wording or unmeasurable criteria."},
-        {"text": "Findings address dependency couplings implied by ticket body that are absent from Dependencies section", "passed": true, "evidence": "All four findings identify couplings implied by body text (audit-driven requirements, schema migration ownership, recovery channel, downstream consumers) that should appear in Dependencies but don't."}
+        {"text": "Findings address dependency couplings implied by work item body that are absent from Dependencies section", "passed": true, "evidence": "All four findings identify couplings implied by body text (audit-driven requirements, schema migration ownership, recovery channel, downstream consumers) that should appear in Dependencies but don't."}
       ],
       "notes": []
     }
@@ -51,6 +51,6 @@
   "notes": [
     "Boundary evals confirm dependency lens stays in its lane when presented with Phase 4 completeness and testability fixtures.",
     "Both evals passed on first run — no SKILL.md iteration required for dependency boundary discipline.",
-    "Dependency lens correctly identified rich coupling content in both 'structural gap' fixtures (epic-no-decomposition and tautological-ac), confirming it can find real work on any ticket regardless of which other lens's failure mode the ticket was designed to exhibit."
+    "Dependency lens correctly identified rich coupling content in both 'structural gap' fixtures (epic-no-decomposition and tautological-ac), confirming it can find real work on any work item regardless of which other lens's failure mode the work item was designed to exhibit."
   ]
 }

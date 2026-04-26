@@ -24,9 +24,9 @@ Resolve each output directory using the plugin's path configuration:
 **Validations directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh validations meta/validations`
 **Review plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_plans meta/reviews/plans`
 **Review PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs meta/reviews/prs`
-**Review tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_work meta/reviews/work`
+**Review work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_work meta/reviews/work`
 **Templates directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh templates meta/templates`
-**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 **Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh notes meta/notes`
 **Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp meta/tmp`
 
@@ -110,9 +110,9 @@ Directories:
   ✓ {validations directory} (created | already exists)
   ✓ {review plans directory} (created | already exists)
   ✓ {review prs directory} (created | already exists)
-  ✓ {review tickets directory} (created | already exists)
+  ✓ {review work items directory} (created | already exists)
   ✓ {templates directory} (created | already exists)
-  ✓ {tickets directory} (created | already exists)
+  ✓ {work items directory} (created | already exists)
   ✓ {notes directory} (created | already exists)
   ✓ {tmp directory} (created | already exists)
 

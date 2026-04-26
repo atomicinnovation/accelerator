@@ -2,7 +2,7 @@
 name: create-plan
 description: Create detailed implementation plans through interactive, iterative
   collaboration. Use when the user needs to plan a feature, refactoring, or task.
-argument-hint: "[ticket reference or description]"
+argument-hint: "[work item reference or description]"
 disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---
@@ -20,7 +20,7 @@ accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
 **Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
-**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 
 You are tasked with creating detailed implementation plans through an
 interactive, iterative process. You should be skeptical, thorough, and work
@@ -32,7 +32,7 @@ When this command is invoked:
 
 1. **Check if parameters were provided**:
 
-- If a file path or ticket reference was provided as a parameter, skip the
+- If a file path or work item reference was provided as a parameter, skip the
   default message
 - Immediately read any provided files FULLY
 - Begin the research process
@@ -43,14 +43,14 @@ When this command is invoked:
 I'll help you create a detailed implementation plan. Let me start by understanding what we're building.
 
 Please provide:
-1. The task/ticket description (or reference to a ticket file)
+1. The task/work item description (or reference to a work item file)
 2. Any relevant context, constraints, or specific requirements
 3. Links to related research or previous implementations
 
 I'll analyze this information and work with you to create a comprehensive plan.
 
-Tip: You can also invoke this command with a ticket file directly: `/create-plan @tickets/eng-1234.md` (where the tickets directory is shown above)
-For deeper analysis, try: `/create-plan think deeply about @tickets/eng-1234.md`
+Tip: You can also invoke this command with a work item file directly: `/create-plan @meta/work/eng-1234.md` (where the work items directory is shown above)
+For deeper analysis, try: `/create-plan think deeply about @meta/work/eng-1234.md`
 ```
 
 Then wait for the user's input.
@@ -61,7 +61,7 @@ Then wait for the user's input.
 
 1. **Read all mentioned files immediately and FULLY**:
 
-- Ticket files in the configured tickets directory
+- Work item files in the configured work items directory
 - Research documents
 - Related implementation plans
 - Any JSON/data files mentioned
@@ -76,7 +76,7 @@ Then wait for the user's input.
    parallel:
 
 - Use the **{codebase locator agent}** agent to find all files related to the
-  ticket/task
+  work item or task
 - Use the **{codebase analyser agent}** agent to understand how the current
   implementation works
 - If relevant, use the **{documents locator agent}** agent to find any existing
@@ -97,14 +97,14 @@ These agents will:
 
 4. **Analyze and verify understanding**:
 
-- Cross-reference the ticket requirements with actual code
+- Cross-reference the work item requirements with actual code
 - Identify any discrepancies or misunderstandings
 - Note assumptions that need verification
 - Determine true scope based on codebase reality
 
 5. **Present informed understanding and focused questions**:
    ```
-   Based on the ticket and my research of the codebase, I understand we need to [accurate summary].
+   Based on the work item and my research of the codebase, I understand we need to [accurate summary].
 
    I've found that:
    - [Current implementation detail with file:line reference]
@@ -212,11 +212,11 @@ After structure approval:
 
 - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
   - YYYY-MM-DD is today's date
-  - ENG-XXXX is the ticket number (omit if no ticket)
+  - ENG-XXXX is the work item number (omit if no work item)
   - description is a brief kebab-case description
 - Examples:
-  - With ticket: `2025-01-08-ENG-1478-parent-child-tracking.md`
-  - Without ticket: `2025-01-08-improve-error-handling.md`
+  - With work item: `2025-01-08-ENG-1478-parent-child-tracking.md`
+  - Without work item: `2025-01-08-improve-error-handling.md`
 
 2. **Use this template structure**:
 
@@ -397,12 +397,12 @@ tasks = [
 User: /create-plan
 Assistant: I'll help you create a detailed implementation plan...
 
-User: We need to add parent-child tracking for Claude sub-tasks. See {tickets directory}/eng-1478.md
-Assistant: Let me read that ticket file completely first...
+User: We need to add parent-child tracking for Claude sub-tasks. See {work_dir}/eng-1478.md
+Assistant: Let me read that work item file completely first...
 
 [Reads file fully]
 
-Based on the ticket, I understand we need to track parent-child relationships for events in the webhook daemon. Before I start planning, I have some questions...
+Based on the work item, I understand we need to track parent-child relationships for events in the webhook daemon. Before I start planning, I have some questions...
 
 [Interactive process continues...]
 ```

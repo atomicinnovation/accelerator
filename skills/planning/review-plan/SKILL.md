@@ -76,7 +76,7 @@ Then wait for the user's input.
 ### Step 1: Read and Understand the Plan
 
 1. **Read the plan file FULLY** — never use limit/offset
-2. **Read any files the plan references** — tickets, related research, key
+2. **Read any files the plan references** — work items, related research, key
    source files mentioned
 3. **Understand the plan's scope**:
   - What technologies and layers does it touch?

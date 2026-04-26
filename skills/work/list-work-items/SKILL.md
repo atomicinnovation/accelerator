@@ -8,10 +8,10 @@ disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
-# List Tickets
+# List Work Items
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh list-tickets`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh list-work-items`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults:
@@ -20,18 +20,18 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 
-## Ticket Template
+## Work Item Template
 
-The following template defines the ticket schema and field defaults.
+The following template defines the work item schema and field defaults.
 Hint values for filter parsing are extracted at runtime via
-`ticket-template-field-hints.sh`.
+`work-item-template-field-hints.sh`.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh ticket`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh work-item`
 
-You are tasked with listing and filtering tickets from the configured
-tickets directory. This is a **read-only** skill — never write any files
+You are tasked with listing and filtering work items from the configured
+work items directory. This is a **read-only** skill — never write any files
 and never spawn sub-agents. The entire flow uses filesystem reads and the
 companion scripts listed in `allowed-tools`.
 
@@ -40,20 +40,20 @@ companion scripts listed in `allowed-tools`.
 If an argument was provided, parse it as a filter expression using the
 following precedence rules. The first rule that matches wins.
 
-Before applying rules 3–4, call `ticket-template-field-hints.sh` for
+Before applying rules 3–4, call `work-item-template-field-hints.sh` for
 each of `type`, `status`, and `priority` to populate the known
 template-comment values:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/tickets/scripts/ticket-template-field-hints.sh type
-${CLAUDE_PLUGIN_ROOT}/skills/tickets/scripts/ticket-template-field-hints.sh status
-${CLAUDE_PLUGIN_ROOT}/skills/tickets/scripts/ticket-template-field-hints.sh priority
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh type
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh status
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh priority
 ```
 
 Each call outputs one value per line. Collect these into three sets:
 known types, known statuses, and known priorities. These hints inform
 the shorthand rules below but do not restrict what values may appear on
-tickets — legacy values like `todo`, `done`, or `adr-creation-task` are
+work items — legacy values like `todo`, `done`, or `adr-creation-task` are
 matchable only via the explicit structured form (rule 2).
 
 ### Filter Precedence Rules
@@ -66,8 +66,8 @@ argument and continue parsing the remainder, if any, through rules 2–5.
 **Rule 2 — Explicit structured forms** (keyword identifies the field):
 - `tagged <value>` or `with tag <value>` → filter by tag
 - `under <value>` or `children of <value>` → filter by parent
-- `status <value>` → filter by status (matches any value on any ticket)
-- `type <value>` → filter by type (matches any value on any ticket)
+- `status <value>` → filter by status (matches any value on any work item)
+- `type <value>` → filter by type (matches any value on any work item)
 - `priority <value>` → filter by priority
 - `about <text>` → free-text title search (case-insensitive substring)
 
@@ -94,37 +94,37 @@ ask the user for disambiguation rather than guessing.
 user can rephrase if the parse was wrong. Example: `Filter: status=draft
 (3 matches)`.
 
-If no argument was provided: filter is "all tickets, no filter".
+If no argument was provided: filter is "all work items, no filter".
 
-## Step 2: Scan Tickets Directory
+## Step 2: Scan Work Items Directory
 
-1. Check that `{tickets_dir}` exists. If not, print:
+1. Check that `{work_dir}` exists. If not, print:
    ```
-   Tickets directory `{tickets_dir}` not found.
-   Check the `paths.tickets` configuration or run `/create-ticket` to
-   create the first ticket.
+   Work items directory `{work_dir}` not found.
+   Check the `paths.work` configuration or run `/create-work-item` to
+   create the first work item.
    ```
    and exit cleanly.
 
 2. List all files matching the glob `[0-9][0-9][0-9][0-9]-*.md` in
-   `{tickets_dir}`. Files that do not match this pattern (e.g.
+   `{work_dir}`. Files that do not match this pattern (e.g.
    `README.md`, `notes.txt`, `000-missing-digit.md`, subdirectories)
    are silently excluded.
 
 3. If no matching files exist, print:
    ```
-   No tickets found in `{tickets_dir}`.
+   No work items found in `{work_dir}`.
    ```
    and exit cleanly.
 
-4. **Extract frontmatter from all tickets in a single pass.** Ticket
+4. **Extract frontmatter from all work items in a single pass.** Work item
    directories can contain dozens of files, so reading each one
    individually would be too slow. Instead, use a single Bash command
    to extract the frontmatter fields from every matching file at once.
 
    Example approach — run one `awk` command across all matched files:
    ```bash
-   for f in {tickets_dir}/[0-9][0-9][0-9][0-9]-*.md; do
+   for f in {work_dir}/[0-9][0-9][0-9][0-9]-*.md; do
      awk -v file="$f" '
        NR==1 && /^---[[:space:]]*$/ { in_fm=1; next }
        NR==1 { print file "\tERROR\tno frontmatter"; exit }
@@ -137,46 +137,46 @@ If no argument was provided: filter is "all tickets, no filter".
 
    This outputs one line per frontmatter field per file (tab-delimited:
    filepath, field line) plus ERROR lines for malformed files. Parse the
-   output to build the ticket list in memory.
+   output to build the work item list in memory.
 
    - Lines containing `ERROR	no frontmatter`: warn
      `"<filename>: skipped — no frontmatter"` and exclude the file.
    - Lines containing `ERROR	unclosed frontmatter`: warn
      `"<filename>: skipped — unclosed frontmatter"` and exclude.
-   - For each valid file, derive the ticket number from the filename
+   - For each valid file, derive the work item number from the filename
      prefix (`0042-foo.md` → `0042`). The filename prefix is the
-     authoritative ticket number, even if `ticket_id` in frontmatter
+     authoritative work item number, even if `work_item_id` in frontmatter
      differs.
 
 5. From the extracted frontmatter lines, parse these fields for each
-   ticket (all optional — missing fields are recorded as absent, not
+   work item (all optional — missing fields are recorded as absent, not
    as errors):
    - `title` — the human-readable title
-   - `type` — the ticket type
+   - `type` — the work item type
    - `status` — the current status
    - `priority` — the priority level
    - `tags` — a YAML inline array (e.g. `[backend, api]`)
-   - `parent` — the parent ticket number
+   - `parent` — the parent work item number
 
 ## Step 3: Apply Filter
 
-Apply the parsed filter from Step 1 to the scanned tickets.
+Apply the parsed filter from Step 1 to the scanned work items.
 
-- **"All, no filter"**: keep every ticket.
+- **"All, no filter"**: keep every work item.
 - **Status/type/priority filter**: match the field value exactly
-  (case-sensitive, matching the raw frontmatter value). Tickets missing
+  (case-sensitive, matching the raw frontmatter value). Work items missing
   the filtered field are excluded from the result (not errors).
 - **Tag filter**: parse the raw `tags` value (e.g. `[backend, api]`)
-  into individual tag strings. A ticket matches if any tag equals the
-  filter value. Tickets with `tags: []`, empty `tags:`, or absent `tags`
+  into individual tag strings. A work item matches if any tag equals the
+  filter value. Work items with `tags: []`, empty `tags:`, or absent `tags`
   field do not match (and are not errors).
 - **Parent filter** (`under X`): normalise both the filter value and
-  each ticket's `parent` field before comparison — strip quotes and
+  each work item's `parent` field before comparison — strip quotes and
   leading zeros, then zero-pad to 4 digits. So `parent: "0042"`,
   `parent: 0042`, `parent: 42`, and `parent: "42"` all match
   `under 0042` or `under 42`.
 - **Free-text title search** (`about X` or rule 5): case-insensitive
-  substring match against the `title:` frontmatter value. Tickets
+  substring match against the `title:` frontmatter value. Work items
   without a `title` field are excluded.
 - **Combined filters** (rule 3): all conditions must hold (AND).
 
@@ -184,23 +184,23 @@ Apply the parsed filter from Step 1 to the scanned tickets.
 
 ### Default Rendering (table)
 
-Present the filtered tickets as a markdown table with these columns:
+Present the filtered work items as a markdown table with these columns:
 
 | ID | Title | Type | Status | Priority |
 
-- Sort rows by ticket number ascending.
+- Sort rows by work item number ascending.
 - Render missing fields as `—`.
 - If a column would be `—` for every row in the current result set,
   suppress that column entirely to reduce noise. For example, a listing
-  of only legacy tickets (which lack `priority`) would omit the Priority
+  of only legacy work items (which lack `priority`) would omit the Priority
   column.
 
 ### Hierarchy Rendering
 
 If a hierarchy presentation keyword was detected in Step 1:
 
-- Tickets with no `parent` (or empty `parent`) appear at the top level.
-- Tickets whose `parent` points to a ticket in the current result
+- Work items with no `parent` (or empty `parent`) appear at the top level.
+- Work items whose `parent` points to a work item in the current result
   set are rendered as children. Each parent→children group prints
   as a tree using Unicode box-drawing characters. Children use
   `├── ` for all entries except the last in the group, which uses
@@ -215,20 +215,20 @@ NNNN — parent title (type: <type>, status: <status>)
 
   No ASCII fallback is attempted; terminals without Unicode
   support will render mojibake. Users on such terminals can
-  re-display the hierarchy via /list-tickets.
-- Tickets whose `parent` points to a ticket number that does not exist
+  re-display the hierarchy via /list-work-items.
+- Work items whose `parent` points to a work item number that does not exist
   in the result set appear at the top level with a suffix:
   `(parent NNNN not found)`.
 - **Cycle detection**: before rendering, walk the parent chain for each
-  ticket. If a ticket is visited twice during a walk, it is part of a
-  cycle. Render all cyclic tickets at the top level with a `(cycle)`
+  work item. If a work item is visited twice during a walk, it is part of a
+  cycle. Render all cyclic work items at the top level with a `(cycle)`
   marker. This ensures bounded execution — no infinite loops.
 
 ### Empty Results
 
-- If zero tickets match the filter, print:
+- If zero work items match the filter, print:
   ```
-  No tickets matched: <filter description>.
+  No work items matched: <filter description>.
   ```
   Do not render an empty table. If the active filter was a free-text
   title search (rule 5), append:
@@ -249,7 +249,7 @@ Children of 0042 (2 matches)
 ```
 or for no filter:
 ```
-All tickets (29 total)
+All work items (29 total)
 ```
 
 ## Quality Guidelines
@@ -263,17 +263,17 @@ All tickets (29 total)
   defaults, not a closed set. Users may override the template with
   custom values.
 - **Explicit structured filters are universal**: `status <value>`,
-  `type <value>`, etc. match any value present on any ticket, not just
+  `type <value>`, etc. match any value present on any work item, not just
   template defaults. This is how legacy values like `todo` or
   `adr-creation-task` are reachable.
-- **Resilient to malformed tickets**: missing or unclosed frontmatter
+- **Resilient to malformed work items**: missing or unclosed frontmatter
   must not crash the listing — warn using the resolved filename and
-  continue. Warning phrasing should match `ticket-read-field.sh`:
+  continue. Warning phrasing should match `work-item-read-field.sh`:
   "no frontmatter" / "unclosed frontmatter".
 - **Filename is authoritative**: the NNNN prefix from the filename is
-  the ticket number, even if `ticket_id` in frontmatter differs.
+  the work item number, even if `work_item_id` in frontmatter differs.
 - **Hierarchy safety**: hierarchy rendering must terminate in bounded
   time even if parent cycles exist. Detect cycles and render affected
-  tickets flat with a marker.
+  work items flat with a marker.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh list-tickets`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh list-work-items`

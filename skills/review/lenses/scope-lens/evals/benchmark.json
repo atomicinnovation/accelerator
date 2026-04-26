@@ -44,7 +44,7 @@
         {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
         {"text": "At least one finding has severity 'major' or 'critical', located in Requirements or Summary", "passed": true, "evidence": "1 critical in Summary + 1 major in Requirements."},
         {"text": "Finding notes two independent units of work: CSV export feature and large framework migration (3-4 weeks)", "passed": true, "evidence": "Critical finding explicitly names CSV export (Requirements 1-2) and grid migration (Requirements 3-4) as orthogonal workstreams with independent value."},
-        {"text": "Finding recommends splitting into separate tickets", "passed": true, "evidence": "Suggestion: 'Split into two tickets — one story for the CSV export feature and a separate story or epic for the grid framework migration.'"},
+        {"text": "Finding recommends splitting into separate work items", "passed": true, "evidence": "Suggestion: 'Split into two work items — one story for the CSV export feature and a separate story or epic for the grid framework migration.'"},
         {"text": "No finding about ambiguous language or missing acceptance criteria as scope issues", "passed": true, "evidence": "Both findings are scope observations (bundling and sizing). No clarity or testability bleed."}
       ],
       "notes": []
@@ -103,8 +103,8 @@
       "expectations": [
         {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
         {"text": "At least one finding at 'major' or 'critical', located in Requirements or Summary", "passed": true, "evidence": "1 critical in Requirements + 1 major in Summary."},
-        {"text": "Finding notes ticket spans three distinct service boundaries (inventory, billing, notification) with no owning team or orchestration decision", "passed": true, "evidence": "Critical finding names all three teams (inventory, payments, platform) and notes no owning team or orchestration mechanism."},
-        {"text": "Finding recommends splitting into per-service tickets plus coordination", "passed": true, "evidence": "Suggestion: 'decompose into a thin orchestrator story owned by one team plus per-service stories owned by each respective team, linked under an epic.'"},
+        {"text": "Finding notes work item spans three distinct service boundaries (inventory, billing, notification) with no owning team or orchestration decision", "passed": true, "evidence": "Critical finding names all three teams (inventory, payments, platform) and notes no owning team or orchestration mechanism."},
+        {"text": "Finding recommends splitting into per-service work items plus coordination", "passed": true, "evidence": "Suggestion: 'decompose into a thin orchestrator story owned by one team plus per-service stories owned by each respective team, linked under an epic.'"},
         {"text": "No finding about missing ordering of operations as a dependency concern", "passed": true, "evidence": "Both findings are scope observations (service boundaries, sizing). No dependency-lens bleed about ordering."}
       ],
       "notes": []
@@ -119,7 +119,7 @@
         {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
         {"text": "No finding at 'critical' or 'major' severity", "passed": true, "evidence": "0 findings."},
         {"text": "Strengths list notes coherent single-capability scope", "passed": true, "evidence": "Strengths include: 'All three substantive sections describe exactly the same scope' and 'strictly front-end in nature... making team ownership and service boundaries unambiguous'."},
-        {"text": "No finding alleging the ticket mixes multiple concerns", "passed": true, "evidence": "0 findings. Perfect scope discipline."},
+        {"text": "No finding alleging the work item mixes multiple concerns", "passed": true, "evidence": "0 findings. Perfect scope discipline."},
         {"text": "No finding alleging unbounded exploration, over/under-decomposition, or service-boundary spanning", "passed": true, "evidence": "0 findings."}
       ],
       "notes": []
@@ -166,8 +166,8 @@
 
   "notes": [
     "All 9 evals pass at iteration 2. Iteration 1 had 8/9 passing — eval 3 (undersized-standalone-story) produced major/high-confidence for a type-mislabel (chore as story), whereas the eval expects minor/medium-confidence. The proportionality guidance in Important Guidelines was sharpened to explicitly anchor chore-vs-story mismatches as minor/suggestion at medium confidence, since what is 'chore-like' depends on team norms the reviewer cannot observe.",
-    "Positive fixtures (evals 7-9) all produced 0 findings with strong strengths notes — no false positives observed on clean tickets.",
-    "Token counts are notably lower than the completeness-lens benchmark (~7700 vs ~14500) because the scope lens reviewer reads fewer files (lens SKILL.md + output format + ticket, no multiple tools). Timing is similarly faster (12-30s vs 27-41s).",
+    "Positive fixtures (evals 7-9) all produced 0 findings with strong strengths notes — no false positives observed on clean work items.",
+    "Token counts are notably lower than the completeness-lens benchmark (~7700 vs ~14500) because the scope lens reviewer reads fewer files (lens SKILL.md + output format + work item, no multiple tools). Timing is similarly faster (12-30s vs 27-41s).",
     "Single-run evaluation cannot surface non-deterministic failure modes. Multi-run evaluation (3 runs per eval) would be needed to detect edge-case drift, especially on the positive fixtures where false positives are the primary risk."
   ]
 }

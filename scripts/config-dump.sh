@@ -214,7 +214,7 @@ TEMPLATE_KEYS=(
   "templates.adr"
   "templates.validation"
   "templates.pr-description"
-  "templates.ticket"
+  "templates.work-item"
 )
 
 for key in "${TEMPLATE_KEYS[@]}"; do

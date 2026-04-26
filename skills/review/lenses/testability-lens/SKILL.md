@@ -64,7 +64,7 @@ defined check that would conclusively confirm each criterion is met?
   Summary, or are there implied requirements not captured in any criterion?
   (Watch for: Summary describing three behaviours but only one criterion.)
 
-**Type-specific verification** (based on ticket type):
+**Type-specific verification** (based on work item type):
 
 - **Story framing**: Are criteria expressed as observable behaviours rather than
   implementation instructions? (Watch for: "use a database index" instead of
@@ -89,7 +89,7 @@ defined check that would conclusively confirm each criterion is met?
 
 ## Important Guidelines
 
-- **Do not read source code or run codebase exploration agents** — ticket
+- **Do not read source code or run codebase exploration agents** — work item
   content is the sole artefact under review
 - **Rate confidence** on each finding — distinguish definite failures (a
   criterion with no measurable outcome) from judgements (a criterion that
@@ -100,7 +100,7 @@ defined check that would conclusively confirm each criterion is met?
 - **Do not require Given/When/Then format explicitly** — any unambiguous
   specification of precondition, action, and expected outcome is acceptable;
   flag the missing component, not the missing keyword
-- **Consider the ticket type** — a spike with "produce a 1-page decision memo"
+- **Consider the work item type** — a spike with "produce a 1-page decision memo"
   as exit criteria is adequately testable; do not over-apply story criteria to
   other types
 
@@ -113,7 +113,7 @@ defined check that would conclusively confirm each criterion is met?
 - Don't assess scope appropriateness or dependency graph completeness — those
   are the scope and dependency lenses
 - Don't read source code, run codebase exploration agents, or make inferences
-  about the implementation beyond what the ticket explicitly states
+  about the implementation beyond what the work item explicitly states
 - Don't require a specific test framework, format, or methodology — assess
   whether the specification is verifiable, not how it will be verified
 

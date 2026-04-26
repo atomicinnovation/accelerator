@@ -3,7 +3,7 @@
     "skill_name": "completeness",
     "skill_path": "skills/review/lenses/completeness-lens",
     "timestamp": "2026-04-23T00:00:00Z",
-    "evals_run": ["missing-acceptance-criteria", "bug-missing-repro-steps", "epic-no-decomposition", "sparse-context-implied-deps", "clean-ticket"],
+    "evals_run": ["missing-acceptance-criteria", "bug-missing-repro-steps", "epic-no-decomposition", "sparse-context-implied-deps", "clean-work item"],
     "runs_per_configuration": 1
   },
 
@@ -130,7 +130,7 @@
     },
     {
       "eval_id": 5,
-      "eval_name": "clean-ticket",
+      "eval_name": "clean-work item",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6, "time_seconds": 35.1, "tokens": 14638, "tool_calls": 6, "errors": 0},
@@ -142,11 +142,11 @@
         {"text": "No finding is solely about a missing scenario, error-handling path, or unstated edge case", "passed": true, "evidence": "0 findings. Perfect scope discipline."},
         {"text": "The 'strengths' array is non-empty", "passed": true, "evidence": "6 strengths listed."}
       ],
-      "notes": ["Perfect: 0 findings on the clean ticket. Consistent across both iteration-1 and iteration-2 with_skill runs."]
+      "notes": ["Perfect: 0 findings on the clean work item. Consistent across both iteration-1 and iteration-2 with_skill runs."]
     },
     {
       "eval_id": 5,
-      "eval_name": "clean-ticket",
+      "eval_name": "clean-work item",
       "configuration": "old_skill",
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6, "time_seconds": 36.2, "tokens": 14770, "tool_calls": 5, "errors": 0},
@@ -155,7 +155,7 @@
         {"text": "The top-level 'lens' field equals 'completeness'", "passed": true, "evidence": "\"lens\": \"completeness\"."},
         {"text": "No finding has severity 'critical'", "passed": true, "evidence": "1 finding, severity 'minor'."},
         {"text": "No finding has severity 'major'", "passed": true, "evidence": "1 finding, severity 'minor'. Correctly avoids escalation."},
-        {"text": "No finding is solely about a missing scenario, error-handling path, or unstated edge case", "passed": true, "evidence": "Finding is about acting_user_id omitted from deactivation AC — an intra-ticket inconsistency, not a missing scenario. Assertion passes."},
+        {"text": "No finding is solely about a missing scenario, error-handling path, or unstated edge case", "passed": true, "evidence": "Finding is about acting_user_id omitted from deactivation AC — an intra-work item inconsistency, not a missing scenario. Assertion passes."},
         {"text": "The 'strengths' array is non-empty", "passed": true, "evidence": "6 strengths listed."}
       ],
       "notes": ["Old_skill found 1 minor finding: acting_user_id omitted from deactivation AC despite Requirement 1 mandating it and the creation AC including it. This is a legitimate micro-observation, not scope bleed. Iteration-1 without_skill found 3 findings (2 were scope-bleed); this run is much more disciplined. The acting_user_id finding is arguably correct — with_skill suppresses it, which is more proportional but potentially loses a real signal."]
@@ -182,7 +182,7 @@
 
   "notes": [
     "Both configurations achieve 100% pass rate — same as iteration-1. The scope-bleed and grouping problems that appeared in iteration-1's without_skill did not appear in iteration-2's old_skill runs. This is non-deterministic: single runs cannot reliably surface the failure modes the skill guards against.",
-    "Qualitative picture: with_skill produced 0 findings on eval 5 (clean ticket); old_skill found 1 minor finding (acting_user_id inconsistency in deactivation AC). The old_skill finding is arguably correct — it is a real intra-ticket inconsistency. with_skill suppresses it, which is more proportional but potentially loses a real signal.",
+    "Qualitative picture: with_skill produced 0 findings on eval 5 (clean work item); old_skill found 1 minor finding (acting_user_id inconsistency in deactivation AC). The old_skill finding is arguably correct — it is a real intra-work item inconsistency. with_skill suppresses it, which is more proportional but potentially loses a real signal.",
     "Eval 4 (sparse-context-implied-deps): Both configurations are nearly identical — 2 major + 1 minor findings. The minor findings differ: with_skill flags missing beneficiary (medium confidence); old_skill flags implied assumptions (high confidence). Neither is clearly superior.",
     "The benchmark confirms the skill changes are correct but the improvement is not quantitatively measurable with a single run per eval. To get statistical signal, 3+ runs per eval would be needed to catch the non-deterministic scope-bleed failures."
   ]

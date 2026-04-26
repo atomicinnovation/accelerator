@@ -51,7 +51,7 @@ the first question is whether the code itself could be clearer.
 - Check that complex algorithms or non-obvious logic have explanatory
   comments
 - Verify that TODO/FIXME/HACK comments include context (who, when, why,
-  ticket reference)
+  work item reference)
 - Identify misleading or outdated comments that contradict the code
 - Evaluate whether the code is sufficiently self-documenting to minimise
   comment need

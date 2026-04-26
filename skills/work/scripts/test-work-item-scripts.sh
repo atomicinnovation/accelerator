@@ -157,7 +157,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
 cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
 ---
-ticket_id: 0001
+work_item_id: 0001
 status: draft
 ---
 
@@ -172,7 +172,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
 cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
 ---
-ticket_id: 0001
+work_item_id: 0001
 status: ready
 ---
 
@@ -187,7 +187,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
 cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
 ---
-ticket_id: 0001
+work_item_id: 0001
 status: "draft"
 ---
 
@@ -202,7 +202,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
 cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
 ---
-ticket_id: 0001
+work_item_id: 0001
 status:draft
 ---
 
@@ -239,7 +239,7 @@ echo "Test: Unclosed frontmatter"
 REPO=$(setup_repo)
 cat > "$REPO/unclosed.md" << 'FIXTURE'
 ---
-ticket_id: 0001
+work_item_id: 0001
 status: draft
 FIXTURE
 assert_exit_code "exits 1" 1 bash "$READ_STATUS" "$REPO/unclosed.md"
@@ -250,7 +250,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
 cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
 ---
-ticket_id: 0001
+work_item_id: 0001
 status: draft
 ---
 
@@ -286,7 +286,7 @@ make_ticket() {
   mkdir -p "$repo/meta/work"
   cat > "$repo/meta/work/0001-test.md" << 'FIXTURE'
 ---
-ticket_id: 0001
+work_item_id: 0001
 type: story
 priority: high
 status: draft
@@ -448,7 +448,7 @@ make_tagged_ticket() {
   mkdir -p "$repo/meta/work"
   cat > "$repo/meta/work/0001-test.md" << FIXTURE
 ---
-ticket_id: 0001
+work_item_id: 0001
 status: draft
 ${tags_line}
 ---
@@ -505,7 +505,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
 cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
 ---
-ticket_id: 0001
+work_item_id: 0001
 status: draft
 ---
 
@@ -527,7 +527,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
 cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
 ---
-ticket_id: 0001
+work_item_id: 0001
 tags:
   - api
   - search
@@ -564,7 +564,7 @@ echo "Test: Unclosed frontmatter"
 REPO=$(setup_repo)
 cat > "$REPO/unclosed.md" << 'FIXTURE'
 ---
-ticket_id: 0001
+work_item_id: 0001
 tags: [api]
 FIXTURE
 RC=0
@@ -627,9 +627,9 @@ assert_eq "returns empty string" "" "$OUTPUT"
 echo "Test: User-overridden template with custom values"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/templates"
-cat > "$REPO/meta/templates/ticket.md" << 'FIXTURE'
+cat > "$REPO/meta/templates/work-item.md" << 'FIXTURE'
 ---
-ticket_id: NNNN
+work_item_id: NNNN
 status: open                                   # open | closed | wontfix
 type: feature                                  # feature | defect
 priority: p1                                   # p1 | p2 | p3 | p4
@@ -655,9 +655,9 @@ assert_eq "returns hardcoded status values" "$EXPECTED" "$OUTPUT"
 echo "Test: Field with no comment falls back to hardcoded"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/templates"
-cat > "$REPO/meta/templates/ticket.md" << 'FIXTURE'
+cat > "$REPO/meta/templates/work-item.md" << 'FIXTURE'
 ---
-ticket_id: NNNN
+work_item_id: NNNN
 status: draft
 type: story
 priority: medium
@@ -672,7 +672,7 @@ assert_eq "returns hardcoded status fallback" "$EXPECTED" "$OUTPUT"
 # Test 8: Tripwire — hardcoded fallback values match shipping template's comments
 echo "Test: Tripwire — hardcoded fallbacks match shipping template"
 # Parse shipping template status comment directly
-SHIPPING_TEMPLATE="$PLUGIN_ROOT/templates/ticket.md"
+SHIPPING_TEMPLATE="$PLUGIN_ROOT/templates/work-item.md"
 STATUS_LINE=$(grep "^status:" "$SHIPPING_TEMPLATE")
 STATUS_COMMENT="${STATUS_LINE#*#}"
 SHIPPING_VALUES=""

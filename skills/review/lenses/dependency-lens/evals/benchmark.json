@@ -28,7 +28,7 @@
         {"text": "Output contains a valid JSON code block with lens='dependency'", "passed": true, "evidence": "\"lens\": \"dependency\"."},
         {"text": "At least one finding has severity 'major' or 'critical'", "passed": true, "evidence": "2 major findings."},
         {"text": "Finding is located in Dependencies", "passed": true, "evidence": "Both findings located in 'Dependencies'."},
-        {"text": "Finding body notes that Stripe webhook registration, Stripe account configuration, and/or signing key in shared-secrets manager is implied by the ticket but absent from Dependencies", "passed": true, "evidence": "First finding: 'registering a webhook with Stripe also requires a corresponding action in the Stripe Dashboard to subscribe to the charge.refunded event'; second finding: 'Stripe (specifically its webhook delivery service) does not appear anywhere in the Dependencies section'."}
+        {"text": "Finding body notes that Stripe webhook registration, Stripe account configuration, and/or signing key in shared-secrets manager is implied by the work item but absent from Dependencies", "passed": true, "evidence": "First finding: 'registering a webhook with Stripe also requires a corresponding action in the Stripe Dashboard to subscribe to the charge.refunded event'; second finding: 'Stripe (specifically its webhook delivery service) does not appear anywhere in the Dependencies section'."}
       ],
       "notes": ["The signing-key/secrets-manager coupling was not explicitly surfaced — the two findings cover webhook registration and external service SLA instead. Both are valid per the expected_output's 'and/or' phrasing."]
     },
@@ -41,8 +41,8 @@
       "expectations": [
         {"text": "Output contains a valid JSON code block with lens='dependency'", "passed": true, "evidence": "\"lens\": \"dependency\"."},
         {"text": "At least one finding at 'minor' or 'major' severity, located in Dependencies", "passed": true, "evidence": "1 major + 1 minor, both in Dependencies."},
-        {"text": "Finding notes that #1041, #1042, #1043 are named in Context but absent from Blocks entries", "passed": true, "evidence": "Major finding: 'tickets #1041, #1042, and #1043 are already drafted and waiting for this story to merge before they can proceed, yet the Dependencies section lists no Blocks entries'."},
-        {"text": "No finding flags the ticket as over-sized or ambiguously worded", "passed": true, "evidence": "Both findings are dependency observations. No scope or clarity bleed."}
+        {"text": "Finding notes that #1041, #1042, #1043 are named in Context but absent from Blocks entries", "passed": true, "evidence": "Major finding: 'work items #1041, #1042, and #1043 are already drafted and waiting for this story to merge before they can proceed, yet the Dependencies section lists no Blocks entries'."},
+        {"text": "No finding flags the work item as over-sized or ambiguously worded", "passed": true, "evidence": "Both findings are dependency observations. No scope or clarity bleed."}
       ],
       "notes": ["Minor finding about cross-team OpenAPI acceptance being unconfirmed is reasonable and within scope for the dependency lens."]
     },
@@ -72,7 +72,7 @@
         {"text": "Finding notes that the story lists parent epic #0042 as a 'Blocked by' entry, creating a circular/self-referential dependency since the epic cannot complete until its children (including this story) are done", "passed": true, "evidence": "Critical finding: 'The Dependencies section lists Blocked by: #0042 (parent epic), creating a circular dependency: this story is a child of epic #0042, so making the story depend on the epic means the epic depends on this story completing while this story is blocked waiting for the epic'."},
         {"text": "No finding about scope or acceptance criteria", "passed": true, "evidence": "All findings are dependency observations. No scope or testability bleed."}
       ],
-      "notes": ["Critical severity (rather than expected major) is appropriate given the circular blocker makes the ticket permanently unschedulable."]
+      "notes": ["Critical severity (rather than expected major) is appropriate given the circular blocker makes the work item permanently unschedulable."]
     },
     {
       "eval_id": 5,
@@ -83,7 +83,7 @@
       "expectations": [
         {"text": "Output contains a valid JSON code block with lens='dependency'", "passed": true, "evidence": "\"lens\": \"dependency\"."},
         {"text": "At least one finding at 'major' or 'critical', located in Dependencies", "passed": true, "evidence": "1 major finding in Dependencies."},
-        {"text": "Finding notes that the HubSpot CRM API is named in the ticket body but absent from the Dependencies section", "passed": true, "evidence": "'The ticket body explicitly names the HubSpot v3 Contacts API as the external service this fix targets, yet the Dependencies section states None identified.'"},
+        {"text": "Finding notes that the HubSpot CRM API is named in the work item body but absent from the Dependencies section", "passed": true, "evidence": "'The work item body explicitly names the HubSpot v3 Contacts API as the external service this fix targets, yet the Dependencies section states None identified.'"},
         {"text": "No finding about ambiguous wording or missing acceptance criteria", "passed": true, "evidence": "Only 1 finding, a dependency observation. No clarity or testability bleed."}
       ],
       "notes": []
@@ -97,7 +97,7 @@
       "expectations": [
         {"text": "Output contains a valid JSON code block with lens='dependency'", "passed": true, "evidence": "\"lens\": \"dependency\"."},
         {"text": "At least one finding at 'minor' or higher, located in Dependencies", "passed": true, "evidence": "1 major finding in Dependencies."},
-        {"text": "Finding notes that #1201, #1202, #1203 are named in Context as waiting on this spike's decision but absent from Blocks entries", "passed": true, "evidence": "'feature tickets #1201, #1202, and #1203 cannot be designed or estimated until the spike concludes … yet the Dependencies section reads None identified with no Blocks entries'."},
+        {"text": "Finding notes that #1201, #1202, #1203 are named in Context as waiting on this spike's decision but absent from Blocks entries", "passed": true, "evidence": "'feature work items #1201, #1202, and #1203 cannot be designed or estimated until the spike concludes … yet the Dependencies section reads None identified with no Blocks entries'."},
         {"text": "No finding about the spike's research question being unbounded or its acceptance criteria being unmeasurable", "passed": true, "evidence": "Only 1 finding, about downstream consumers. No scope or testability bleed."}
       ],
       "notes": []
@@ -111,8 +111,8 @@
       "expectations": [
         {"text": "Output contains a valid JSON code block with lens='dependency'", "passed": true, "evidence": "\"lens\": \"dependency\"."},
         {"text": "Zero findings at 'critical' or 'major' severity", "passed": true, "evidence": "0 findings."},
-        {"text": "Strengths list notes explicit, well-structured dependencies (Blocked by two prerequisites, Blocks two downstream tickets, External API with SLA)", "passed": true, "evidence": "Strengths: 'Both upstream blockers (#0987 and #1005) named with ticket references'; 'Downstream consumers (#1089 and #1090) listed as Blocks'; 'external Google OAuth API explicitly named with SLA implications'."},
-        {"text": "No finding alleges that a coupling implied by the ticket body is missing from Dependencies", "passed": true, "evidence": "0 findings. Perfect dependency discipline."}
+        {"text": "Strengths list notes explicit, well-structured dependencies (Blocked by two prerequisites, Blocks two downstream work items, External API with SLA)", "passed": true, "evidence": "Strengths: 'Both upstream blockers (#0987 and #1005) named with work item references'; 'Downstream consumers (#1089 and #1090) listed as Blocks'; 'external Google OAuth API explicitly named with SLA implications'."},
+        {"text": "No finding alleges that a coupling implied by the work item body is missing from Dependencies", "passed": true, "evidence": "0 findings. Perfect dependency discipline."}
       ],
       "notes": []
     },
@@ -144,7 +144,7 @@
     "All 8 evals pass on iteration 1 — no SKILL.md iteration required.",
     "Positive fixtures (evals 7-8) produced 0 findings with thorough strengths notes — no false positives.",
     "Eval 3 (epic-unordered-children) produced four distinct ordering constraints rather than the expected one or two — all correct and within the dependency lens domain.",
-    "Eval 4 (circular-dep-to-parent-epic) correctly escalated to critical severity for the self-referential blocker that makes the ticket permanently unschedulable.",
+    "Eval 4 (circular-dep-to-parent-epic) correctly escalated to critical severity for the self-referential blocker that makes the work item permanently unschedulable.",
     "Token counts are consistent with the scope-lens benchmark (~7800 vs ~7700) as both lenses read the same set of files.",
     "Single-run evaluation cannot surface non-deterministic failure modes. Multi-run evaluation (3 runs per eval) would provide stronger statistical confidence, especially on positive fixtures where false positives are the primary risk."
   ]

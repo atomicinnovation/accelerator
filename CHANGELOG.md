@@ -2,89 +2,114 @@
 
 ## Unreleased
 
+### Changed
+
+- **BREAKING**: Renamed the `tickets` skill category to `work` and
+  individual `ticket` references to `work-item`. Slash commands are
+  now `/accelerator:create-work-item`,
+  `/accelerator:extract-work-items`, `/accelerator:list-work-items`,
+  `/accelerator:refine-work-item`, `/accelerator:review-work-item`,
+  `/accelerator:stress-test-work-item`, and
+  `/accelerator:update-work-item`. Default storage directory is
+  `meta/work/`. Config keys `paths.work`/`paths.review_work` replace
+  the former `paths.tickets`/`paths.review_tickets`. Template renamed
+  `templates/ticket.md` → `templates/work-item.md`; frontmatter field
+  `ticket_id` becomes `work_item_id`.
+- **Upgrade procedure**: commit any pending changes to your
+  repository, then run `/accelerator:migrate`. The skill renames
+  `meta/tickets/` → `meta/work/` (preserving any custom
+  `paths.tickets` directory location and rewriting only the
+  config key), rewrites `ticket_id:` → `work_item_id:` in every
+  file under the resolved work-item directory, and updates
+  `.claude/accelerator*.md` config keys. The skill is destructive
+  by default but refuses to run on a dirty working tree, and
+  prints a one-line preview per pending migration before
+  applying. Review the resulting `jj diff` / `git diff` before
+  committing.
+
 ### Added
 
-- **Ticket management**: New `tickets/` skill category with four skills for
+- **Work item management**: New `work/` skill category with four skills for
   capturing, discovering, and managing work items as structured documents
-  under `meta/tickets/` (default; override via `paths.tickets`)
-  - `create-ticket` — Interactively create a single ticket (feature, bug,
+  under `meta/work/` (default; override via `paths.work`)
+  - `create-work-item` — Interactively create a single work item (feature, bug,
     task, spike, or epic) through a collaborative, challenging conversation
     that contributes research and pushes back on under-specified inputs
     rather than transcribing what the user says
-  - `extract-tickets` — Batch-extract tickets from existing documents (specs,
+  - `extract-work-items` — Batch-extract work items from existing documents (specs,
     PRDs, research, plans, meeting notes, design docs), keeping
     source-derived content faithful while surfacing business-context gaps as
     assumptions, open questions, and drafting notes
-  - `list-tickets` — List and filter tickets by status, type, priority, tag,
+  - `list-work-items` — List and filter work items by status, type, priority, tag,
     parent, or free-text title search. Supports natural language filters
     (`drafts`, `bugs in review`), explicit structured forms (`status todo`,
     `tagged backend`, `under 0042`), and hierarchy rendering with cycle
     detection. Read-only; no sub-agents spawned
-  - `update-ticket` — Update frontmatter fields (status, priority, tags,
-    parent, title, etc.) on an existing ticket. Shows a diff preview and
+  - `update-work-item` — Update frontmatter fields (status, priority, tags,
+    parent, title, etc.) on an existing work item. Shows a diff preview and
     requires confirmation before writing. Syncs body labels
     (`**Status**:`, `**Type**:`, `**Priority**:`, `**Author**:`) and the
     H1 heading when the corresponding fields change. No status transition
     enforcement — arbitrary changes are allowed
-- **Ticket template**: New `templates/ticket.md` default template with YAML
-  frontmatter (`ticket_id`, `title`, `date`, `author`, `type`, `status`,
+- **Work item template**: New `templates/work-item.md` default template with YAML
+  frontmatter (`work_item_id`, `title`, `date`, `author`, `type`, `status`,
   `priority`, `parent`, `tags`) and structured body sections (Summary,
   Context, Requirements, Acceptance Criteria, Open Questions, Dependencies,
   Assumptions, Technical Notes, Drafting Notes, References). Overridable via
-  `templates.ticket`.
-- **Ticket numbering and frontmatter helpers**: Supporting shell scripts in
-  `skills/tickets/scripts/`
-  - `ticket-next-number.sh` — Assigns the next sequential ticket number from
-    the configured tickets directory, enforcing a 4-digit ceiling
-  - `ticket-read-field.sh` — Generic YAML frontmatter field reader that uses
+  `templates.work-item`.
+- **Work item numbering and frontmatter helpers**: Supporting shell scripts in
+  `skills/work/scripts/`
+  - `work-item-next-number.sh` — Assigns the next sequential work item number from
+    the configured work items directory, enforcing a 4-digit ceiling
+  - `work-item-read-field.sh` — Generic YAML frontmatter field reader that uses
     bash prefix matching to avoid regex metacharacter injection
-  - `ticket-read-status.sh` — Thin convenience wrapper over
-    `ticket-read-field.sh` for the common status lookup
-  - `ticket-update-tags.sh` — Tag array mutation helper that parses the
+  - `work-item-read-status.sh` — Thin convenience wrapper over
+    `work-item-read-field.sh` for the common status lookup
+  - `work-item-update-tags.sh` — Tag array mutation helper that parses the
     current value, applies add/remove operations, and emits canonical
     flow-style format. Detects block-style arrays and rejects them with
     guidance
-  - `ticket-template-field-hints.sh` — Extracts hint values for a given
-    frontmatter field from the ticket template's trailing comments, with
+  - `work-item-template-field-hints.sh` — Extracts hint values for a given
+    frontmatter field from the work item template's trailing comments, with
     hardcoded fallback for type, status, and priority when comments are
     absent
-- **`paths.review_tickets` configuration key**: New configurable path
-  (default: `meta/reviews/tickets`) for future ticket review artifacts,
+- **`paths.review_work` configuration key**: New configurable path
+  (default: `meta/reviews/work`) for future work item review artifacts,
   included in `/accelerator:init` directory creation and reported in
   `config-dump.sh`.
-- **Ticket review system**: Five-lens ticket review capability
-  (`/review-ticket`) combining completeness, testability, clarity, scope, and
+- **Work item review system**: Five-lens work item review capability
+  (`/review-work-item`) combining completeness, testability, clarity, scope, and
   dependency lenses.
-  - `review-ticket` — Orchestrator skill that reviews a ticket through
+  - `review-work-item` — Orchestrator skill that reviews a work item through
     completeness, testability, clarity, scope, and dependency lenses in
     parallel, aggregates findings into an APPROVE/REVISE/COMMENT verdict,
     persists results to
-    `meta/reviews/tickets/{ticket-stem}-review-{N}.md`, and supports
+    `meta/reviews/work/{work-item-stem}-review-{N}.md`, and supports
     appendable re-review passes
-  - `completeness-lens` — Ticket review lens for evaluating section presence,
+  - `completeness-lens` — Work item review lens for evaluating section presence,
     content density, type-appropriate content (bug/story/spike/epic), and
     frontmatter integrity
-  - `testability-lens` — Ticket review lens for evaluating whether Acceptance
+  - `testability-lens` — Work item review lens for evaluating whether Acceptance
     Criteria and requirements admit a concrete verification strategy
-  - `clarity-lens` — Ticket review lens for evaluating unambiguous referents,
+  - `clarity-lens` — Work item review lens for evaluating unambiguous referents,
     internal consistency, and jargon/acronym handling
-  - `scope-lens` — Ticket review lens for evaluating ticket sizing,
+  - `scope-lens` — Work item review lens for evaluating work item sizing,
     decomposition, and orthogonality of requirements
-  - `dependency-lens` — Ticket review lens for evaluating whether implied
+  - `dependency-lens` — Work item review lens for evaluating whether implied
     couplings (blockers, consumers, external systems, ordering) are
     explicitly captured
-  - `ticket-review-output-format` — Output format specification for ticket
-    review agents (JSON schema, location examples anchored to ticket sections)
-- **Ticket review configuration keys**: Two new keys in the `review` section
-  - `ticket_revise_severity` (default: `critical`) — minimum severity for REVISE
-  - `ticket_revise_major_count` (default: `2`) — major-findings count to trigger REVISE
+  - `work-item-review-output-format` — Output format specification for work item
+    review agents (JSON schema, location examples anchored to work item sections)
+- **Work item review configuration keys**: Two new keys in the `review` section
+  - `work_item_revise_severity` (default: `critical`) — minimum severity for REVISE
+  - `work_item_revise_major_count` (default: `2`) — major-findings count to trigger REVISE
 - **Per-review-type lens partitioning**: `config-read-review.sh` now accepts
-  `ticket` as a third mode, emitting only the catalogue for the active mode.
+  `work-item` as a third mode, emitting only the catalogue for the active mode.
   The 13 code-review lenses remain exclusive to `pr` and `plan`; the five
-  ticket lenses are exclusive to `ticket`
+  work item lenses are exclusive to `work-item`
 - **`applies_to` field for custom lenses**: Custom lenses in
   `.claude/accelerator/lenses/` can now declare an optional
-  `applies_to: [pr, plan, ticket]` frontmatter field to restrict their
+  `applies_to: [pr, plan, work-item]` frontmatter field to restrict their
   appearance to specific review modes. Absent means all modes
   (backwards-compatible)
 - **Review system ADRs**: Extracted nine architecture decision records
@@ -94,7 +119,7 @@
   structured agent output contract, divergent verdict semantics for plan
   and PR reviews, the shared temp directory for PR diff delivery, dual-gate
   finding deduplication, and atomic review posting via the GitHub REST API.
-  Related tickets (0001–0007, 0009, 0014) and `skills/decisions/create-adr`
+  Related work items (0001–0007, 0009, 0014) and `skills/decisions/create-adr`
   now cross-reference the corresponding ADRs.
 
 ## 1.18.0 — 2026-04-17
@@ -267,7 +292,7 @@ described below._
     thresholds (`pr_request_changes_severity`, `plan_revise_severity`,
     `plan_revise_major_count`), and inline comment limits
   - `paths:` section to override where skills write output documents (plans,
-    research, decisions, PRs, validations, reviews, templates, tickets, notes)
+    research, decisions, PRs, validations, reviews, templates, work items, notes)
   - `templates:` section to override document templates (plan, ADR, research,
     validation, PR description) with custom formats from a configurable
     templates directory
@@ -346,7 +371,7 @@ described below._
   loads it and uses severity, confidence, and lens data to inform triage
   categorisation
 - **Frontmatter for plans**: `create-plan` now includes YAML frontmatter
-  (`date`, `type`, `skill`, `ticket`, `status`) in the plan template
+  (`date`, `type`, `skill`, `work-item`, `status`) in the plan template
 - **Frontmatter for PR descriptions**: `describe-pr` now includes YAML
   frontmatter (`date`, `type`, `skill`, `pr_number`, `pr_title`, `status`) in
   `meta/prs/` output, stripped before posting to GitHub

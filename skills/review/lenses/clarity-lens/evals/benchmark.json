@@ -3,7 +3,7 @@
     "skill_name": "clarity",
     "skill_path": "skills/review/lenses/clarity-lens",
     "timestamp": "2026-04-23T00:00:00Z",
-    "evals_run": ["pronoun-ambiguity", "internal-contradiction", "undefined-acronyms", "passive-voice-obscuring-actor", "clean-ticket"],
+    "evals_run": ["pronoun-ambiguity", "internal-contradiction", "undefined-acronyms", "passive-voice-obscuring-actor", "clean-work item"],
     "runs_per_configuration": 1
   },
 
@@ -202,7 +202,7 @@
     },
     {
       "eval_id": 5,
-      "eval_name": "clean-ticket",
+      "eval_name": "clean-work item",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {
@@ -226,7 +226,7 @@
     },
     {
       "eval_id": 5,
-      "eval_name": "clean-ticket",
+      "eval_name": "clean-work item",
       "configuration": "old_skill",
       "run_number": 1,
       "result": {
@@ -271,7 +271,7 @@
   "notes": [
     "Scope bleed fix worked: eval 2 now passes all 6 assertions (including new assertion 6). The Req 4 finding is now framed as 'introduces a concern unrelated to the stated problem' — a genuine clarity/coherence issue — rather than 'no AC exists' (testability).",
     "Eval 4 (passive-voice) still fails the confidence differentiation assertion in both configurations. This is a standing issue: grouping and per-instance confidence variation are in tension. The assertion reflects desired behaviour; the skill needs guidance on confidence assignment within grouped findings.",
-    "Eval 5 (clean-ticket): iteration-3 rates the Technical Notes fallback observation as low confidence (vs iteration-2's high). Better calibrated — a subtle implicit gap deserves low confidence.",
+    "Eval 5 (clean-work item): iteration-3 rates the Technical Notes fallback observation as low confidence (vs iteration-2's high). Better calibrated — a subtle implicit gap deserves low confidence.",
     "Timing: iteration-3 with_skill averages 41.9s vs old_skill 66.9s (-25s). Token counts also lower (14895 vs 15385, -490). The outputs are more concise without quality loss.",
     "Overall: with_skill 96% vs old_skill 92% (+4pp). The single remaining failure is the passive-voice confidence assertion, which is a structural tension in the grouping guidance rather than a lens boundary issue."
   ]

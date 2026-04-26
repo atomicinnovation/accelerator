@@ -8,7 +8,7 @@
       "vendor-dep-not-captured"
     ],
     "runs_per_configuration": 1,
-    "notes": "Boundary evals testing clarity scope discipline: (1) clarity lens on a scope fixture (ticket mixing feature and refactor) must not allege bundling or recommend splitting — only internal ambiguity or contradictions are in scope; (2) clarity lens on a dependency fixture (vendor dep not captured) must not flag missing external-vendor couplings in Dependencies — only ambiguous phrasing in body text is in scope. Both evals passed on first run."
+    "notes": "Boundary evals testing clarity scope discipline: (1) clarity lens on a scope fixture (work item mixing feature and refactor) must not allege bundling or recommend splitting — only internal ambiguity or contradictions are in scope; (2) clarity lens on a dependency fixture (vendor dep not captured) must not flag missing external-vendor couplings in Dependencies — only ambiguous phrasing in body text is in scope. Both evals passed on first run."
   },
 
   "runs": [
@@ -20,7 +20,7 @@
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 22.1, "tokens": 7601, "tool_calls": 3, "errors": 0},
       "expectations": [
         {"text": "Output contains a valid JSON code block with lens='clarity'", "passed": true, "evidence": "\"lens\": \"clarity\"."},
-        {"text": "No finding body alleges the ticket mixes two units of work, bundles unrelated concerns, or should be split into separate tickets", "passed": true, "evidence": "Two findings present. Finding 1: 'Migration framed as external prerequisite in Context but as in-scope work in Requirements' — this is an internal contradiction between sections, a clarity concern. Finding 2: passive construction in AC. Neither finding says 'split this ticket' or 'bundles unrelated concerns'."},
+        {"text": "No finding body alleges the work item mixes two units of work, bundles unrelated concerns, or should be split into separate work items", "passed": true, "evidence": "Two findings present. Finding 1: 'Migration framed as external prerequisite in Context but as in-scope work in Requirements' — this is an internal contradiction between sections, a clarity concern. Finding 2: passive construction in AC. Neither finding says 'split this work item' or 'bundles unrelated concerns'."},
         {"text": "Findings address ambiguity, contradiction, or unclear referents, not scope coherence", "passed": true, "evidence": "Finding 1 flags an inconsistent framing (internal contradiction between Context and Requirements). Finding 2 flags a passive voice omitting the enforcement actor. Both are clarity observations."}
       ],
       "notes": []
@@ -34,7 +34,7 @@
       "expectations": [
         {"text": "Output contains a valid JSON code block with lens='clarity'", "passed": true, "evidence": "\"lens\": \"clarity\"."},
         {"text": "No finding body alleges missing external-vendor dependencies or criticises the Dependencies section stating 'None identified'", "passed": true, "evidence": "Two findings present. Finding 1: 'Export action actor is implicit in first criterion' — passive voice in AC. Finding 2: 'Authentication mechanism is ambiguous (API key / OAuth token)' — ambiguous phrasing in Assumptions. Neither mentions HubSpot as a missing dependency or the Dependencies section content."},
-        {"text": "Any finding about external services addresses ambiguous phrasing in ticket body text, not absent coupling capture", "passed": true, "evidence": "Finding 2 flags that 'API key / OAuth token' is ambiguous because HubSpot v3 deprecated API-key auth — this is a clarity observation about imprecise wording in Assumptions, not a dependency observation about what belongs in Dependencies."}
+        {"text": "Any finding about external services addresses ambiguous phrasing in work item body text, not absent coupling capture", "passed": true, "evidence": "Finding 2 flags that 'API key / OAuth token' is ambiguous because HubSpot v3 deprecated API-key auth — this is a clarity observation about imprecise wording in Assumptions, not a dependency observation about what belongs in Dependencies."}
       ],
       "notes": []
     }

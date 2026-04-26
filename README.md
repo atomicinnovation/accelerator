@@ -83,7 +83,7 @@ These paths can be overridden via the `paths` configuration section:
 | `validations/` | Plan validation reports                         | `validate-plan`                                     |
 | `prs/`         | PR descriptions                                 | `describe-pr`                                       |
 | `templates/`   | Reusable templates (e.g., PR descriptions)      | `configure template`                                |
-| `tickets/`     | Ticket files referenced by planning             | `create-ticket`, `extract-tickets`, `update-ticket` |
+| `work/`         | Work item files referenced by planning          | `create-work-item`, `extract-work-items`, `update-work-item` |
 | `notes/`       | Notes and working documents                     | manual                                              |
 | `tmp/`         | Ephemeral working data (e.g., review artifacts) | `review-pr`                                         |
 
@@ -181,7 +181,7 @@ subcommands for managing templates without manually locating plugin internals:
 | `/accelerator:configure templates reset <key>` | Remove your customisation, revert to plugin default    |
 
 Available template keys: `plan`, `research`, `adr`, `validation`,
-`pr-description`, `ticket`.
+`pr-description`, `work-item`.
 
 A typical customisation workflow:
 
@@ -241,36 +241,36 @@ Both files are optional. Directory names must match the skill name exactly (the
 part after `/accelerator:`). The SessionStart hook warns about unrecognised
 directory names. See `/accelerator:configure help` for the full reference.
 
-## Ticket Management
+## Work Item Management
 
-Ticket skills capture work items — features, bugs, tasks, spikes, and epics —
+Work item skills capture work items — features, bugs, tasks, spikes, and epics —
 as structured documents that feed into planning:
 
 ```
 existing docs (specs, PRDs, notes)
        │
-       ├── extract-tickets ──┐
+       ├── extract-work-items ──┐
        │                     ↓
-       create-ticket ──→  meta/tickets/  ←── update-ticket
+       create-work-item ──→  meta/work/  ←── update-work-item
                               │
-                         list-tickets ──┬──→  review-ticket → meta/reviews/tickets/
+                         list-work-items ──┬──→  review-work-item → meta/reviews/work/
                                         └──→  create-plan → implement-plan
 ```
 
 | Skill               | Usage                                                | Description                                                                |
 |---------------------|------------------------------------------------------|----------------------------------------------------------------------------|
-| **create-ticket**   | `/accelerator:create-ticket [topic]`                 | Interactively create a single ticket through collaborative refinement      |
-| **extract-tickets** | `/accelerator:extract-tickets [doc paths...]`        | Batch-extract tickets from existing specs, PRDs, research, plans, or notes |
-| **list-tickets**    | `/accelerator:list-tickets [filter]`                 | List and filter tickets by status, type, priority, tag, parent, or title   |
-| **update-ticket**   | `/accelerator:update-ticket [ticket-ref] [field-op]` | Update ticket fields with diff preview and confirmation                    |
-| **review-ticket**   | `/accelerator:review-ticket [ticket-ref]`            | Review a ticket through completeness, testability, and clarity lenses      |
+| **create-work-item**   | `/accelerator:create-work-item [topic]`                 | Interactively create a single work item through collaborative refinement      |
+| **extract-work-items** | `/accelerator:extract-work-items [doc paths...]`        | Batch-extract work items from existing specs, PRDs, research, plans, or notes |
+| **list-work-items**    | `/accelerator:list-work-items [filter]`                 | List and filter work items by status, type, priority, tag, parent, or title   |
+| **update-work-item**   | `/accelerator:update-work-item [work-item-ref] [field-op]` | Update work item fields with diff preview and confirmation                    |
+| **review-work-item**   | `/accelerator:review-work-item [work-item-ref]`            | Review a work item through completeness, testability, and clarity lenses      |
 
-Tickets use a shared template with YAML frontmatter (`ticket_id`, `title`,
+Work items use a shared template with YAML frontmatter (`work_item_id`, `title`,
 `type`, `status`, `priority`, `parent`, `tags`) and structured body sections
 (Summary, Context, Requirements, Acceptance Criteria, Open Questions,
 Dependencies, Assumptions, Technical Notes, Drafting Notes, References).
 The template is customisable via
-`/accelerator:configure templates eject ticket`.
+`/accelerator:configure templates eject work-item`.
 
 ## Architecture Decision Records
 
@@ -312,7 +312,7 @@ and team workflows around pull requests:
 
 ## Review System
 
-The `review-pr`, `review-plan`, and `review-ticket` skills use a multi-lens
+The `review-pr`, `review-plan`, and `review-work-item` skills use a multi-lens
 review system. Each lens is a specialised subagent that evaluates the artefact
 through a specific quality perspective.
 
@@ -334,7 +334,7 @@ through a specific quality perspective.
 | **Test Coverage** | Coverage adequacy, assertion quality, test pyramid, anti-patterns    |
 | **Usability**     | Developer experience, API ergonomics, configuration, migration paths |
 
-**Ticket review lenses** (used by `review-ticket`):
+**Work item review lenses** (used by `review-work-item`):
 
 | Lens              | Focus                                                          |
 |-------------------|----------------------------------------------------------------|
@@ -347,7 +347,7 @@ areas:
 
 ```
 /accelerator:review-pr 123 focus on security and architecture
-/accelerator:review-ticket 0042 focus on testability
+/accelerator:review-work-item 0042 focus on testability
 ```
 
 ## Agents

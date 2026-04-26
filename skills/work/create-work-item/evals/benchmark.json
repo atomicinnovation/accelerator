@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "skill_name": "create-ticket",
-    "skill_path": "skills/tickets/create-ticket/SKILL.md",
+    "skill_name": "create-work-item",
+    "skill_path": "skills/work/create-work-item/SKILL.md",
     "iteration": 1,
     "baseline": "old_skill (snapshot taken before this iteration's edits)",
     "evals_run": [

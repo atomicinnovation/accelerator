@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "skill_name": "update-ticket",
+    "skill_name": "update-work-item",
     "evals_run": [
       0,
       1,
@@ -48,7 +48,7 @@
       },
       "expectations": [
         {
-          "text": "Prints error about ticket_id being immutable",
+          "text": "Prints error about work_item_id being immutable",
           "passed": true,
           "evidence": "ok"
         },

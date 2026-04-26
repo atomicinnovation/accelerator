@@ -10,7 +10,7 @@ disable-model-invocation: true
 # Clarity Lens
 
 Review as an unambiguous-communication specialist evaluating whether every
-statement in the ticket has exactly one reasonable interpretation — no
+statement in the work item has exactly one reasonable interpretation — no
 ambiguous pronouns, no internal contradictions, no undefined terms that force
 the reader to guess.
 
@@ -29,7 +29,7 @@ the reader to guess.
 2. **Assess Internal Consistency**
 
 - Compare the stated scope across Summary, Context, Requirements, and
-  Acceptance Criteria — contradictions between sections indicate the ticket
+  Acceptance Criteria — contradictions between sections indicate the work item
   does not have a single coherent intent
 - Check that the stated problem in Context matches the solution described in
   Requirements
@@ -38,7 +38,7 @@ the reader to guess.
 
 3. **Evaluate Jargon and Acronym Handling**
 
-- Identify acronyms used without prior definition in the ticket (a link to a
+- Identify acronyms used without prior definition in the work item (a link to a
   glossary or related document counts as a definition)
 - Flag domain-specific jargon where a reader outside the immediate team would
   need a definition to understand the requirement
@@ -60,10 +60,10 @@ the reader to guess.
 **Referent clarity** (always applicable):
 
 - **Pronoun resolution**: For every "it", "they", "this", or "the system" in
-  the ticket, is there exactly one reasonable referent? (Watch for: sentences
+  the work item, is there exactly one reasonable referent? (Watch for: sentences
   where "it" could refer to two different things introduced in the same
   paragraph, "the service" used before any service has been named.)
-- **Subject identity**: Is "the user" the same entity throughout the ticket?
+- **Subject identity**: Is "the user" the same entity throughout the work item?
   Is "the API" the same endpoint in all sections? (Watch for: shifting
   subjects that are all called "the user" but describe different actors.)
 
@@ -99,18 +99,18 @@ the reader to guess.
 
 ## Important Guidelines
 
-- **Do not read source code or run codebase exploration agents** — ticket
+- **Do not read source code or run codebase exploration agents** — work item
   content is the sole artefact under review
 - **Rate confidence** on each finding — distinguish definite ambiguities
   (a pronoun with two equally valid referents) from stylistic preferences
   (passive voice where the actor is obvious from context)
 - **Assess meaning, not grammar** — passive voice is only a finding when it
   obscures who does what; it is not inherently wrong
-- **Do not rewrite the ticket** — identify what is unclear and suggest
+- **Do not rewrite the work item** — identify what is unclear and suggest
   what information would resolve the ambiguity; do not produce replacement
   text
 - **Be proportional** — a single undefined acronym in a long, otherwise
-  clear ticket warrants at most a suggestion; a ticket riddled with ambiguous
+  clear work item warrants at most a suggestion; a work item riddled with ambiguous
   pronouns warrants a major finding
 - **Group or split consistently** — when the same class of issue appears in
   multiple places, choose one approach and apply it uniformly: either a
@@ -135,13 +135,13 @@ the reader to guess.
 - Don't assess scope appropriateness or dependency graph completeness — those
   are the scope and dependency lenses
 - Don't read source code, run codebase exploration agents, or make inferences
-  about the codebase beyond what the ticket explicitly states
+  about the codebase beyond what the work item explicitly states
 - Don't flag grammar issues that do not affect meaning — correct grammar is
   not required; unambiguous meaning is
 - Don't penalise deliberate use of domain vocabulary that is standard within
   the project's known context
 
-Remember: You're evaluating whether every statement in the ticket has exactly
+Remember: You're evaluating whether every statement in the work item has exactly
 one reasonable interpretation for a reader who knows the domain but has not
 spoken with the author. Clarity means no reader should need to ask "wait, what
 does that refer to?" or "does this contradict what was said earlier?"

@@ -1,0 +1,71 @@
+---
+work_item_id: NNNN                           # from work-item-next-number.sh
+title: "Title as Short Noun Phrase"          # human-readable title; kept in sync with body H1
+date: "YYYY-MM-DDTHH:MM:SS+00:00"            # date -u +%Y-%m-%dT%H:%M:%S+00:00
+author: Author Name                          # your name or GitHub handle
+type: story                                  # story | epic | task | bug | spike
+status: draft                                # draft | ready | in-progress | review | done | blocked | abandoned
+priority: medium                             # high | medium | low
+parent: ""                                   # work-item number of the parent epic/story, or empty
+tags: []                                     # YAML array, e.g. [backend, performance]
+---
+
+# NNNN: Title as Short Noun Phrase
+
+**Type**: Story | Epic | Task | Bug | Spike
+**Status**: Draft
+**Priority**: High | Medium | Low
+**Author**: Author Name
+
+## Summary
+
+[1-3 sentence description of what this work item is about and why it matters]
+
+## Context
+
+[Background information, forces at play, relevant constraints.
+Link to source documents if extracted.]
+
+## Requirements
+
+[For stories/tasks: specific requirements to be met]
+[For epics: high-level goals and themes]
+[For bugs: reproduction steps, expected vs actual behaviour]
+[For spikes: research questions and time-box]
+
+## Acceptance Criteria
+
+- [ ] [Criterion 1 — specific, testable, measurable]
+- [ ] [Criterion 2]
+- [ ] [Criterion 3]
+
+[For stories, prefer Given/When/Then format where applicable:
+
+- Given [precondition], when [action], then [expected result]]
+
+## Open Questions
+
+- [Question 1 — unresolved business or scope question that affects how work should proceed]
+
+## Dependencies
+
+- Blocked by: [work-item references or external dependencies]
+- Blocks: [work items that depend on this one]
+
+## Assumptions
+
+- [Business or technical assumptions that may require validation or clarification]
+
+## Technical Notes
+
+[Optional: implementation hints, relevant code references, architectural considerations discovered during refinement]
+
+## Drafting Notes
+
+- [Interpretations made while drafting — business-context calls, scope decisions, or technical choices that someone should review if they turn out to be wrong]
+
+## References
+
+- Source: `path/to/source-document.md`
+- Related: NNNN, NNNN
+- Research: `meta/research/YYYY-MM-DD-topic.md`

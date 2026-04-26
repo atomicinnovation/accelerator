@@ -49,11 +49,8 @@ hardcoded_fallback() {
 }
 
 # Try to read the template
-# NOTE: config-read-template.sh key argument stays as "ticket" until Phase 3
-# when the template file itself is renamed to work-item.md and the recognised
-# keys list in config-read-template.sh is updated atomically.
 TEMPLATE_OUTPUT=""
-TEMPLATE_OUTPUT=$("$PLUGIN_ROOT/scripts/config-read-template.sh" ticket 2>/dev/null) || {
+TEMPLATE_OUTPUT=$("$PLUGIN_ROOT/scripts/config-read-template.sh" work-item 2>/dev/null) || {
   hardcoded_fallback "$FIELD"
   exit 0
 }

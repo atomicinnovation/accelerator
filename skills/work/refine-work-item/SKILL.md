@@ -9,10 +9,10 @@ disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
-# Refine Ticket
+# Refine Work Item
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh refine-ticket`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh refine-work-item`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults:
@@ -21,33 +21,33 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 
-## Ticket Template
+## Work Item Template
 
 The template below defines the sections and frontmatter fields that every
-ticket must contain. Read it now — use it to know valid types, statuses,
+work item must contain. Read it now — use it to know valid types, statuses,
 priorities, and section names without re-reading the file at runtime.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh ticket`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh work-item`
 
-You are tasked with refining a ticket through one or more of five operations:
-decompose it into child tickets, enrich it with codebase context, sharpen
+You are tasked with refining a work item through one or more of five operations:
+decompose it into child work items, enrich it with codebase context, sharpen
 vague acceptance criteria, add a t-shirt size indicator, or populate its
 dependencies. Every operation is interactive and targeted — you propose, the
 user approves, and the Edit tool makes the minimum change needed.
 
 ## Step 0 — Parameter Check
 
-**If no ticket path or number was provided**, respond with:
+**If no work item path or number was provided**, respond with:
 
 ```
-I'll help you refine a ticket. Please provide the path or ticket number.
+I'll help you refine a work item. Please provide the path or work item number.
 
-Example: `/refine-ticket {tickets_dir}/0042-user-auth.md`
-Or by number: `/refine-ticket 42`
+Example: `/refine-work-item {work_dir}/0042-user-auth.md`
+Or by number: `/refine-work-item 42`
 
-Run `/list-tickets` to see available tickets.
+Run `/list-work-items` to see available work items.
 ```
 
 Then wait for the user's input.
@@ -55,12 +55,12 @@ Then wait for the user's input.
 **If a path or number was provided**: proceed to Step 1.
 
 Accepted forms:
-- A path (e.g. `meta/tickets/0042-user-auth.md`)
-- A bare ticket number (e.g. `0042` or `42`, resolved against `{tickets_dir}`)
+- A path (e.g. `meta/work/0042-user-auth.md`)
+- A bare work item number (e.g. `0042` or `42`, resolved against `{work_dir}`)
 
 If the resolved path does not exist, report:
 ```
-No ticket file at <path> — run `/list-tickets` to see available tickets.
+No work item file at <path> — run `/list-work-items` to see available work items.
 ```
 and exit without reading any other file, spawning any agent, or writing anything.
 
@@ -69,27 +69,27 @@ error), report:
 ```
 Could not parse frontmatter in <path> — the file may be corrupted. Re-open it
 and check that the YAML frontmatter is bracketed by two `---` lines and
-contains all nine required fields, or run `/update-ticket <path>` which
+contains all nine required fields, or run `/update-work-item <path>` which
 surfaces the same diagnostic with field-level detail.
 ```
 and exit without editing the file or spawning agents.
 
 ## Step 1 — Read Target and Context
 
-Read the target ticket fully. If the `parent` field is non-empty, also read
-the parent ticket. The ticket template (loaded above) tells you the valid
+Read the target work item fully. If the `parent` field is non-empty, also read
+the parent work item. The work item template (loaded above) tells you the valid
 types, statuses, and priorities — do not re-read it at runtime.
 
 ## Step 2 — Analyse (mandatory parallel agents)
 
 Spawn BOTH agents in the same tool-use turn (parallel, not sequential):
 
-- **{codebase locator agent}**: find files relevant to the ticket's
+- **{codebase locator agent}**: find files relevant to the work item's
   Requirements and Summary
 - **{codebase analyser agent}**: analyse how the relevant components
   currently work
 
-Wait for both before presenting the menu. Even if the ticket seems
+Wait for both before presenting the menu. Even if the work item seems
 straightforward, always spawn these agents — the menu previews depend
 on their findings.
 
@@ -98,7 +98,7 @@ on their findings.
 Present the five operations with one-line descriptions. Reference agent
 findings in the previews so the user can pick informed:
 
-1. **decompose** — split into child tickets (epic→stories, story→tasks);
+1. **decompose** — split into child work items (epic→stories, story→tasks);
    e.g. "Requirements suggest 3 child stories (R1, R2, R3)"
 2. **enrich** — add Technical Notes from codebase analysis;
    e.g. "4 relevant files identified (src/auth/session.ts, …)"
@@ -106,8 +106,8 @@ findings in the previews so the user can pick informed:
    e.g. "2 vague criteria detected (AC3, AC5)" or "all criteria already testable"
 4. **size** — append a t-shirt size indicator with rationale;
    e.g. "estimate M based on files in auth/ and session/"
-5. **link** — populate Dependencies from related tickets;
-   e.g. "1 potential blocker found (0031)" or "no related tickets found"
+5. **link** — populate Dependencies from related work items;
+   e.g. "1 potential blocker found (0031)" or "no related work items found"
 
 Operations that have nothing to do should be marked as such (e.g.
 "sharpen — all criteria already testable").
@@ -125,19 +125,19 @@ any link operation references them.
 Propose 2–5 candidate children (2–4 for story decomposing to tasks) with
 draft titles and one-line Summaries derived from the Requirements section.
 
-**Bug/spike challenge**: if the ticket type is `bug` or `spike`, first ask:
+**Bug/spike challenge**: if the work item type is `bug` or `spike`, first ask:
 ```
-bug/spike tickets don't typically decompose — are you sure? (y/n)
+bug/spike work items don't typically decompose — are you sure? (y/n)
 ```
 Only proceed on explicit `y`. On `n`, exit decompose and return to the menu.
 
 **Existing children**: if the Requirements section already contains a
-`### Child tickets` subsection, offer:
+`### Child work items` subsection, offer:
 ```
 append (add new children to the existing list) / skip (do not decompose further) / cancel
 ```
 Never replace the existing list silently. For the append path, use the
-anchor described below under "append to existing `### Child tickets`".
+anchor described below under "append to existing `### Child work items`".
 
 **Approval grammar**: each proposal MUST include a one-line grammar legend
 immediately under the numbered child list:
@@ -165,7 +165,7 @@ Process user input:
 
 **Pre-write warning**: before writing, emit:
 ```
-This will allocate N ticket numbers and write N files; aborting mid-write
+This will allocate N work item numbers and write N files; aborting mid-write
 leaves partial state — use `jj restore <file>` to discard any children
 written. Proceed? (y/n)
 ```
@@ -173,15 +173,15 @@ Wait for explicit `y`. On `n`, cancel without writing.
 
 **On approval**:
 
-1. Call `ticket-next-number.sh --count N` exactly once to allocate N
+1. Call `work-item-next-number.sh --count N` exactly once to allocate N
    consecutive numbers.
 
 2. For each child, write `NNNN-kebab-slug.md` with all nine frontmatter
    fields:
-   - `ticket_id` — from the script, zero-padded four-digit string
+   - `work_item_id` — from the script, zero-padded four-digit string
    - `title` — per-child proposal title; body H1 matches exactly
    - `date` — current UTC timestamp via `date -u +%Y-%m-%dT%H:%M:%S+00:00`
-   - `author` — first match in chain: parent ticket's `author` field → configured
+   - `author` — first match in chain: parent work item's `author` field → configured
      `author` value (from context config) → `jj config get user.name` →
      `git config user.name` → ask the user once and apply to all children
    - `type` — derived: `epic → story`, `story → task`, `bug`/`spike` → ask
@@ -190,7 +190,7 @@ Wait for explicit `y`. On `n`, cancel without writing.
    - `status` — literal `draft`
    - `priority` — inherit from parent; if parent has none, ask once and
      apply to every child written in this session
-   - `parent` — the target ticket's `ticket_id`, canonicalised to a
+   - `parent` — the target work item's `work_item_id`, canonicalised to a
      zero-padded four-digit string (e.g. `"1"` → `"0001"`)
    - `tags` — verbatim copy of the parent's `tags` array (empty array `[]`
      if the parent has none)
@@ -209,7 +209,7 @@ Wait for explicit `y`. On `n`, cancel without writing.
    (minimal but substantive; sharpen can tighten these later), Dependencies
    (blank), and remaining template sections.
 
-3. **Append `### Child tickets` to the parent's Requirements section**:
+3. **Append `### Child work items` to the parent's Requirements section**:
 
    After all children are written successfully:
    - Read the parent file
@@ -218,9 +218,9 @@ Wait for explicit `y`. On `n`, cancel without writing.
      before the blank-line transition to Acceptance Criteria); call this
      `<req_tail>`
    - Build: `old_string` = `<req_tail>\n\n## Acceptance Criteria\n`
-   - Build: `new_string` = `<req_tail>\n\n### Child tickets\n\n- NNNN — title\n…\n\n## Acceptance Criteria\n`
+   - Build: `new_string` = `<req_tail>\n\n### Child work items\n\n- NNNN — title\n…\n\n## Acceptance Criteria\n`
    - Edge case — empty Requirements: use `## Requirements\n\n## Acceptance Criteria\n`
-     as `old_string` and insert `### Child tickets` between them.
+     as `old_string` and insert `### Child work items` between them.
    - Pre-Edit, count occurrences of `old_string` in the parent file. If not
      exactly 1, abort the parent update with:
      ```
@@ -231,8 +231,8 @@ Wait for explicit `y`. On `n`, cancel without writing.
      ```
      Children already written remain on disk.
 
-   **Append to existing `### Child tickets`** (re-decompose path):
-   - Locate `### Child tickets` subsection, find its last `- NNNN — title`
+   **Append to existing `### Child work items`** (re-decompose path):
+   - Locate `### Child work items` subsection, find its last `- NNNN — title`
      line; call this `<last_link>`
    - Build: `old_string` = `<last_link>\n\n## Acceptance Criteria\n`
    - Build: `new_string` = `<last_link>\n- NNNN — title\n…\n\n## Acceptance Criteria\n`
@@ -252,7 +252,7 @@ running any remaining operations.
 
 ### 4b. Enrich
 
-Read the target ticket's existing Technical Notes content.
+Read the target work item's existing Technical Notes content.
 
 If the codebase agents returned nothing concrete (no specific files or
 components identified), report:
@@ -280,7 +280,7 @@ Requirements, Acceptance Criteria, Summary, or any frontmatter field.
 
 ### 4c. Sharpen
 
-Read the target ticket's Acceptance Criteria. Identify criteria that are
+Read the target work item's Acceptance Criteria. Identify criteria that are
 vague or untestable (non-measurable phrases like "should be fast", "handles
 errors gracefully", "works correctly").
 
@@ -300,7 +300,7 @@ agreed rewrites. Preserve criteria that were not sharpened byte-for-byte.
 
 ### 4d. Size
 
-Read the target ticket's Technical Notes. Check whether a `**Size**:` line
+Read the target work item's Technical Notes. Check whether a `**Size**:` line
 already exists as the first line.
 
 Propose a t-shirt size (`XS`, `S`, `M`, `L`, `XL`) with a rationale
@@ -321,16 +321,16 @@ On approval:
 
 ### 4e. Link
 
-Count `NNNN-*.md` files in `{tickets_dir}` using a single Glob invocation.
+Count `NNNN-*.md` files in `{work_dir}` using a single Glob invocation.
 
 - **Count ≤ 30**: read them directly via batched Read
-- **Count > 30**: spawn **{documents locator agent}** scoped to `{tickets_dir}`
+- **Count > 30**: spawn **{documents locator agent}** scoped to `{work_dir}`
 
 Propose `Blocked by:` and/or `Blocks:` entries in Dependencies, referencing
-only real ticket numbers (verify each proposed number exists before
-including it). If no related tickets are found, print:
+only real work item numbers (verify each proposed number exists before
+including it). If no related work items are found, print:
 ```
-no related tickets found — link skipped
+no related work items found — link skipped
 ```
 and make no Edit.
 
@@ -350,12 +350,12 @@ On approval via Edit: modify only the Dependencies section.
 Run immediately after decompose writes at least one child (skip if decompose
 was cancelled, declined by user, or the parent Edit failed).
 
-Render the parent → children tree using the format pinned in `/list-tickets`:
+Render the parent → children tree using the format pinned in `/list-work-items`:
 Unicode box-drawing characters, two-space indent per depth level, `├── ` for
 all children except the last, `└── ` for the last child. The canonical fence
 below MUST appear verbatim in this step's prose so
 `scripts/test-hierarchy-format.sh` can verify byte-equality with the matching
-fence in `list-tickets/SKILL.md`:
+fence in `list-work-items/SKILL.md`:
 
 <!-- canonical-tree-fence -->
 NNNN — parent title (type: <type>, status: <status>)
@@ -364,7 +364,7 @@ NNNN — parent title (type: <type>, status: <status>)
   └── NNNN — last child title (type: <type>, status: <status>)
 <!-- /canonical-tree-fence -->
 
-Concrete ticket IDs and titles replace the placeholders in the actual
+Concrete work item IDs and titles replace the placeholders in the actual
 output (e.g. `0042 — User Auth Rework (type: epic)`). The status field
 of the parent is omitted only if blank; all present fields are shown.
 
@@ -376,30 +376,30 @@ subsequent operations.
 
 After the entire selected operation set completes, offer:
 ```
-Would you like to run `/review-ticket` on this ticket now?
+Would you like to run `/review-work-item` on this work item now?
 ```
 If decompose was in the selection, also offer to run review on each child
-written. Do NOT invoke `/review-ticket` automatically — only make the offer.
+written. Do NOT invoke `/review-work-item` automatically — only make the offer.
 The skill exits after this offer regardless of the user's response.
 
 ## Important Guidelines
 
 - **Mandatory agents at Step 2**: always spawn both codebase agents in
-  parallel before presenting the menu, even for simple tickets.
+  parallel before presenting the menu, even for simple work items.
 - **Canonical operation order**: decompose → enrich → sharpen → size → link,
   regardless of the order the user selected them.
 - **Each operation owns its sections only**:
-  - decompose: writes new child files and appends `### Child tickets` to
+  - decompose: writes new child files and appends `### Child work items` to
     the parent's Requirements (never touching existing Requirements prose)
   - enrich: owns Technical Notes prose content
   - sharpen: owns Acceptance Criteria
   - size: owns the single `**Size**: <value> — <rationale>` line, always as
     the FIRST line of Technical Notes; replace in place on re-run
   - link: owns Dependencies
-- **Never modify any frontmatter field** of the target ticket (`ticket_id`,
+- **Never modify any frontmatter field** of the target work item (`work_item_id`,
   `title`, `date`, `author`, `type`, `status`, `priority`, `parent`,
-  `tags`) — those transitions are `/update-ticket`'s concern. Children of
-  decompose are new tickets getting their initial frontmatter.
+  `tags`) — those transitions are `/update-work-item`'s concern. Children of
+  decompose are new work items getting their initial frontmatter.
 - **Destructive paths require two-step confirmation**: replace mode for
   enrich, replace mode for link, clobbering an existing `**Size**:` line —
   each must show a unified diff and require a second `y/n` confirmation.
@@ -407,21 +407,21 @@ The skill exits after this offer regardless of the user's response.
   changed between read and edit), abort that specific edit with a clear
   diagnostic and continue with remaining approved edits. For decompose: write
   all children first, update the parent last; if the parent Edit fails,
-  children stay on disk and ticket numbers are printed for manual linking.
+  children stay on disk and work item numbers are printed for manual linking.
 - **Numbering is consumed eagerly** on decompose with no rollback; the skill
   assumes a single-session invocation.
 - **Canonicalise parent field** to zero-padded four-digit string (same as
-  `/update-ticket`), e.g. `"1"` → `"0001"`.
+  `/update-work-item`), e.g. `"1"` → `"0001"`.
 - **Idempotent on re-run**: every operation checks existing content before
   proposing additions.
 
 ## Relationship to Other Commands
 
-1. `/create-ticket` or `/extract-tickets` — create the ticket
-2. `/refine-ticket` — decompose and enrich (this command)
-3. `/review-ticket` — automated multi-lens quality review
-4. `/stress-test-ticket` — interactive adversarial examination
-5. `/update-ticket` — status/metadata transitions (not this skill's concern)
-6. `/create-plan` — plan implementation from an approved ticket
+1. `/create-work-item` or `/extract-work-items` — create the work item
+2. `/refine-work-item` — decompose and enrich (this command)
+3. `/review-work-item` — automated multi-lens quality review
+4. `/stress-test-work-item` — interactive adversarial examination
+5. `/update-work-item` — status/metadata transitions (not this skill's concern)
+6. `/create-plan` — plan implementation from an approved work item
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh refine-ticket`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh refine-work-item`

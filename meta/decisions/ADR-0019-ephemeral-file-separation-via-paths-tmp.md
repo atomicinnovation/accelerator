@@ -132,7 +132,7 @@ clones.
 
 ## References
 
-- `meta/tickets/0027-ephemeral-file-separation-via-paths-tmp.md` — Ticket
+- `meta/work/0027-ephemeral-file-separation-via-paths-tmp.md` — Work item
   driving this ADR
 - `meta/research/2026-04-07-pr-review-tmp-directory-usage.md` — Research
   identifying the co-location problem and the conflict between root-level

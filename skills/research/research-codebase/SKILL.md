@@ -42,7 +42,7 @@ Then wait for the user's research query.
 
 1. **Read any directly mentioned files first:**
 
-- If the user mentions specific files (tickets, docs, JSON), read them FULLY
+- If the user mentions specific files (work items, docs, JSON), read them FULLY
   first
 - **IMPORTANT**: Use the Read tool WITHOUT limit/offset parameters to read
   entire files
@@ -113,11 +113,11 @@ The key is to use these agents intelligently:
 - Filename: write to the configured research directory (shown above) using
   - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
     - YYYY-MM-DD is today's date
-    - ENG-XXXX is the ticket number (omit if no ticket)
+    - ENG-XXXX is the work item number (omit if no work item)
     - description is a brief kebab-case description of the research topic
   - Examples:
-    - With ticket: `2025-01-08-ENG-1478-parent-child-tracking.md`
-    - Without ticket: `2025-01-08-authentication-flow.md`
+    - With work item: `2025-01-08-ENG-1478-parent-child-tracking.md`
+    - Without work item: `2025-01-08-authentication-flow.md`
 
 6. **Generate research document:**
 

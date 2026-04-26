@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "skill_name": "refine-ticket",
+    "skill_name": "refine-work-item",
     "skill_path": "<path/to/skill>",
     "executor_model": "<model-name>",
     "analyzer_model": "<model-name>",
@@ -15,9 +15,9 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Response asks the user to provide a ticket path or number before proceeding", "passed": true, "evidence": "Response opens with a prompt asking for a ticket path or number, showing an example like '/refine-ticket {tickets_dir}/0042-user-auth.md'."},
-        {"text": "Response mentions /list-tickets to discover available tickets", "passed": true, "evidence": "Response includes 'Run `/list-tickets` to see available tickets.'"},
-        {"text": "Skill did not read any files, spawn any agents, or perform any operations", "passed": true, "evidence": "Response is entirely a request for input; no ticket data or agent results appear."}
+        {"text": "Response asks the user to provide a work item path or number before proceeding", "passed": true, "evidence": "Response opens with a prompt asking for a work item path or number, showing an example like '/refine-work-item {tickets_dir}/0042-user-auth.md'."},
+        {"text": "Response mentions /list-work-items to discover available work items", "passed": true, "evidence": "Response includes 'Run `/list-work-items` to see available work items.'"},
+        {"text": "Skill did not read any files, spawn any agents, or perform any operations", "passed": true, "evidence": "Response is entirely a request for input; no work item data or agent results appear."}
       ],
       "notes": []
     },
@@ -27,7 +27,7 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill reads the ticket file at the provided path before presenting the menu", "passed": true, "evidence": "Response acknowledges having read ticket 0042 before presenting the five-operation menu."},
+        {"text": "Skill reads the work item file at the provided path before presenting the menu", "passed": true, "evidence": "Response acknowledges having read work item 0042 before presenting the five-operation menu."},
         {"text": "Menu includes all five operations: decompose, enrich, sharpen, size, and link", "passed": true, "evidence": "Response lists all five operations with one-line descriptions."}
       ],
       "notes": []
@@ -60,7 +60,7 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill proposes between 2 and 5 candidate child tickets", "passed": true, "evidence": "Response proposes 3 candidate child stories derived from the epic's Requirements."},
+        {"text": "Skill proposes between 2 and 5 candidate child work items", "passed": true, "evidence": "Response proposes 3 candidate child stories derived from the epic's Requirements."},
         {"text": "Proposed children are described as story type since parent is epic", "passed": true, "evidence": "Children are described as stories, consistent with epic→story derivation rule."},
         {"text": "Grammar legend appears: 'Commands: approve all | edit N: <title> | drop N | add: <title> | regenerate | cancel'", "passed": true, "evidence": "Grammar legend appears immediately below the numbered child list."}
       ],
@@ -72,7 +72,7 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill emits a pre-write warning about allocating ticket numbers and writing files before proceeding", "passed": true, "evidence": "Response includes the pre-write warning mentioning allocation of 3 ticket numbers and 3 files."},
+        {"text": "Skill emits a pre-write warning about allocating work item numbers and writing files before proceeding", "passed": true, "evidence": "Response includes the pre-write warning mentioning allocation of 3 work item numbers and 3 files."},
         {"text": "Warning mentions jj restore for discarding children", "passed": true, "evidence": "Warning includes 'use `jj restore <file>` to discard any children written'."},
         {"text": "Skill waits for explicit y/n confirmation and does not write files in this response", "passed": true, "evidence": "Response ends with 'Proceed? (y/n)' without writing any files."}
       ],
@@ -131,7 +131,7 @@
       "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
         {"text": "Skill confirms that decompose was cancelled and no children were written", "passed": true, "evidence": "Response states 'decompose cancelled — no children written' and returns to the menu."},
-        {"text": "No ticket files were written to disk", "passed": true, "evidence": "No Write tool calls appear; no file paths are mentioned as created."}
+        {"text": "No work item files were written to disk", "passed": true, "evidence": "No Write tool calls appear; no file paths are mentioned as created."}
       ],
       "notes": []
     },
@@ -163,7 +163,7 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill proposes between 2 and 4 candidate child tickets for story decomposition", "passed": true, "evidence": "Response proposes 3 candidate child tasks within the 2-4 range for story type."},
+        {"text": "Skill proposes between 2 and 4 candidate child work items for story decomposition", "passed": true, "evidence": "Response proposes 3 candidate child tasks within the 2-4 range for story type."},
         {"text": "Proposed children are described as task type since parent is story", "passed": true, "evidence": "Children are described as tasks, consistent with story→task derivation rule."},
         {"text": "Grammar legend appears in the proposal", "passed": true, "evidence": "Grammar legend appears immediately below the numbered child list."}
       ],
@@ -221,8 +221,8 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill uses a Glob tool call to enumerate the NNNN-*.md files in the tickets directory", "passed": true, "evidence": "A Glob tool invocation appears in the tool trace enumerating NNNN-*.md files."},
-        {"text": "Skill reads ticket files directly (batched Read) and does NOT spawn a documents-locator agent", "passed": true, "evidence": "Read tool calls appear for individual ticket files; no documents-locator Agent invocation appears."}
+        {"text": "Skill uses a Glob tool call to enumerate the NNNN-*.md files in the work items directory", "passed": true, "evidence": "A Glob tool invocation appears in the tool trace enumerating NNNN-*.md files."},
+        {"text": "Skill reads work item files directly (batched Read) and does NOT spawn a documents-locator agent", "passed": true, "evidence": "Read tool calls appear for individual work item files; no documents-locator Agent invocation appears."}
       ],
       "notes": []
     },
@@ -232,10 +232,10 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill uses a Glob tool call to enumerate and count the ticket files", "passed": true, "evidence": "A Glob tool call appears for NNNN-*.md enumeration."},
+        {"text": "Skill uses a Glob tool call to enumerate and count the work item files", "passed": true, "evidence": "A Glob tool call appears for NNNN-*.md enumeration."},
         {"text": "Skill spawns a documents-locator agent (not reads files directly) because count exceeds 30", "passed": true, "evidence": "An Agent invocation for documents-locator appears after the count exceeds 30."},
-        {"text": "Skill does not perform batched Read calls on all 35 ticket files", "passed": true, "evidence": "No 35 individual Read calls appear for the stub ticket files."},
-        {"text": "Proposed link entries reference ticket numbers 0031 and/or 0029 from the simulated agent result", "passed": true, "evidence": "Proposed Dependencies entries reference 0031 and 0029 from the simulated agent result."}
+        {"text": "Skill does not perform batched Read calls on all 35 work item files", "passed": true, "evidence": "No 35 individual Read calls appear for the stub work item files."},
+        {"text": "Proposed link entries reference work item numbers 0031 and/or 0029 from the simulated agent result", "passed": true, "evidence": "Proposed Dependencies entries reference 0031 and 0029 from the simulated agent result."}
       ],
       "notes": []
     },
@@ -256,7 +256,7 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill calls ticket-next-number.sh with --count 3 exactly once, not once per child", "passed": true, "evidence": "A single Bash call to ticket-next-number.sh --count 3 appears; there are not three separate calls."},
+        {"text": "Skill calls work-item-next-number.sh with --count 3 exactly once, not once per child", "passed": true, "evidence": "A single Bash call to work-item-next-number.sh --count 3 appears; there are not three separate calls."},
         {"text": "Skill emits a completion ledger listing each written child file and the total count", "passed": true, "evidence": "Response includes 'Wrote 0043 — ...', 'Wrote 0044 — ...', 'Wrote 0045 — ...' followed by 'Allocated 3 numbers, wrote 3 files.'"}
       ],
       "notes": []
@@ -269,7 +269,7 @@
       "expectations": [
         {"text": "Hierarchy display uses Unicode box-drawing characters (├── and └──) not ASCII dashes", "passed": true, "evidence": "Response includes ├── and └── Unicode box-drawing characters in the tree display."},
         {"text": "Tree shows parent at top, children indented with two spaces, ├── for first two, └── for last", "passed": true, "evidence": "Tree correctly uses ├── for children 0043 and 0044, └── for child 0045, with two-space indentation."},
-        {"text": "All four tickets (0042, 0043, 0044, 0045) appear in the hierarchy display", "passed": true, "evidence": "All four ticket IDs and titles appear in the hierarchy tree."}
+        {"text": "All four work items (0042, 0043, 0044, 0045) appear in the hierarchy display", "passed": true, "evidence": "All four work item IDs and titles appear in the hierarchy tree."}
       ],
       "notes": []
     },
@@ -290,8 +290,8 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Response offers to run /review-ticket after the operation completes", "passed": true, "evidence": "Response includes 'Would you like to run `/review-ticket` on this ticket now?'"},
-        {"text": "Skill offers /review-ticket but does not invoke it automatically", "passed": true, "evidence": "No /review-ticket invocation appears in the tool trace; the offer is text only."}
+        {"text": "Response offers to run /review-work-item after the operation completes", "passed": true, "evidence": "Response includes 'Would you like to run `/review-work-item` on this work item now?'"},
+        {"text": "Skill offers /review-work-item but does not invoke it automatically", "passed": true, "evidence": "No /review-work-item invocation appears in the tool trace; the offer is text only."}
       ],
       "notes": []
     },
@@ -313,8 +313,8 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill reports a clear error indicating the ticket file does not exist", "passed": true, "evidence": "Response states 'No ticket file at meta/tickets/9999-does-not-exist.md — run `/list-tickets` to see available tickets'."},
-        {"text": "Response mentions /list-tickets", "passed": true, "evidence": "Response includes a reference to '/list-tickets'."},
+        {"text": "Skill reports a clear error indicating the work item file does not exist", "passed": true, "evidence": "Response states 'No work item file at meta/work/9999-does-not-exist.md — run `/list-work-items` to see available work items'."},
+        {"text": "Response mentions /list-work-items", "passed": true, "evidence": "Response includes a reference to '/list-work-items'."},
         {"text": "Skill does not spawn agents, read other files, or start any refinement operation", "passed": true, "evidence": "Response terminates immediately after the error message with no tool invocations for agents or file reads."}
       ],
       "notes": []
@@ -325,8 +325,8 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill reports that it could not parse the frontmatter in the ticket file", "passed": true, "evidence": "Response begins with 'Could not parse frontmatter in <path> — the file may be corrupted.'"},
-        {"text": "Response mentions /update-ticket", "passed": true, "evidence": "Response includes 'or run `/update-ticket <path>` which surfaces the same diagnostic with field-level detail.'"},
+        {"text": "Skill reports that it could not parse the frontmatter in the work item file", "passed": true, "evidence": "Response begins with 'Could not parse frontmatter in <path> — the file may be corrupted.'"},
+        {"text": "Response mentions /update-work-item", "passed": true, "evidence": "Response includes 'or run `/update-work-item <path>` which surfaces the same diagnostic with field-level detail.'"},
         {"text": "Skill does not attempt to edit the file or spawn any agents", "passed": true, "evidence": "No Edit tool calls or Agent invocations appear; the response terminates with the error message."}
       ],
       "notes": []
@@ -337,7 +337,7 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill asks for confirmation before decomposing a bug ticket, indicating this is atypical", "passed": true, "evidence": "Response asks 'bug/spike tickets don't typically decompose — are you sure? (y/n)'."},
+        {"text": "Skill asks for confirmation before decomposing a bug work item, indicating this is atypical", "passed": true, "evidence": "Response asks 'bug/spike work items don't typically decompose — are you sure? (y/n)'."},
         {"text": "Skill waits for explicit confirmation (y/n) before proceeding to propose children", "passed": true, "evidence": "Response ends with (y/n) and does not proceed to propose children without confirmation."}
       ],
       "notes": []
@@ -348,7 +348,7 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill detects that the ticket already has a '### Child tickets' subsection with children 0043 and 0044", "passed": true, "evidence": "Response reads and acknowledges the existing ### Child tickets subsection listing 0043 and 0044."},
+        {"text": "Skill detects that the work item already has a '### Child work items' subsection with children 0043 and 0044", "passed": true, "evidence": "Response reads and acknowledges the existing ### Child work items subsection listing 0043 and 0044."},
         {"text": "Skill offers to append new children, skip, or cancel — not silently replace", "passed": true, "evidence": "Response presents 'append / skip / cancel' options before proposing any new children."}
       ],
       "notes": []
@@ -384,7 +384,7 @@
       "expectations": [
         {"text": "Ledger shows that 3 numbers were allocated but only 2 files were written", "passed": true, "evidence": "Ledger states 'Allocated 3 numbers (0043, 0044, 0045); wrote 2 files' with 0045 listed as cancelled."},
         {"text": "Response mentions jj restore commands for the written children", "passed": true, "evidence": "Response includes `jj restore` commands for 0043-session-store.md and 0044-token-signing.md."},
-        {"text": "Skill indicates the parent ticket was NOT updated since not all children were written", "passed": true, "evidence": "Response states 'Parent 0042 was NOT updated' since the write loop was cancelled before completion."}
+        {"text": "Skill indicates the parent work item was NOT updated since not all children were written", "passed": true, "evidence": "Response states 'Parent 0042 was NOT updated' since the write loop was cancelled before completion."}
       ],
       "notes": []
     },
@@ -408,7 +408,7 @@
       "expectations": [
         {"text": "Skill checks for uniqueness of the Edit anchor before attempting the parent update", "passed": true, "evidence": "Response describes performing a uniqueness count of the Edit anchor string before invoking Edit."},
         {"text": "Skill aborts the parent update and reports that the parent was NOT updated due to the non-unique anchor", "passed": true, "evidence": "Response states 'Could not locate a unique \\'## Acceptance Criteria\\' anchor in <path> (matches found: 2). Parent not updated.'"},
-        {"text": "Skill lists the written child ticket numbers so the user can manually add the links", "passed": true, "evidence": "Response lists child ticket numbers (0043, 0044) so the user can manually add links or restore via jj restore."}
+        {"text": "Skill lists the written child work item numbers so the user can manually add the links", "passed": true, "evidence": "Response lists child work item numbers (0043, 0044) so the user can manually add links or restore via jj restore."}
       ],
       "notes": []
     },
@@ -418,9 +418,9 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Skill uses a Glob tool call to enumerate the ticket files", "passed": true, "evidence": "A Glob tool invocation appears enumerating NNNN-*.md files."},
-        {"text": "Skill reads ticket files directly (batch Read) because count is exactly 30 (the <= 30 threshold)", "passed": true, "evidence": "Read tool calls appear for individual ticket files at the exactly-30 boundary."},
-        {"text": "Skill does NOT spawn a documents-locator agent for exactly 30 tickets", "passed": true, "evidence": "No Agent invocation for documents-locator appears; the count of 30 is at or below the threshold."}
+        {"text": "Skill uses a Glob tool call to enumerate the work item files", "passed": true, "evidence": "A Glob tool invocation appears enumerating NNNN-*.md files."},
+        {"text": "Skill reads work item files directly (batch Read) because count is exactly 30 (the <= 30 threshold)", "passed": true, "evidence": "Read tool calls appear for individual work item files at the exactly-30 boundary."},
+        {"text": "Skill does NOT spawn a documents-locator agent for exactly 30 work items", "passed": true, "evidence": "No Agent invocation for documents-locator appears; the count of 30 is at or below the threshold."}
       ],
       "notes": []
     }

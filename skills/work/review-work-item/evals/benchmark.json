@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "skill_name": "review-ticket",
+    "skill_name": "review-work-item",
     "evals_run": [
       1,
       2,
@@ -20,17 +20,17 @@
       },
       "expectations": [
         {
-          "text": "mentions /list-tickets as a discovery tool",
+          "text": "mentions /list-work-items as a discovery tool",
           "passed": true,
           "evidence": "ok"
         },
         {
-          "text": "shows an example invocation with a ticket path or number",
+          "text": "shows an example invocation with a work item path or number",
           "passed": true,
           "evidence": "ok"
         },
         {
-          "text": "does not attempt to run a review or read any ticket file",
+          "text": "does not attempt to run a review or read any work item file",
           "passed": true,
           "evidence": "ok"
         },
@@ -53,12 +53,12 @@
       },
       "expectations": [
         {
-          "text": "response contains 'No ticket at' followed by the path",
+          "text": "response contains 'No work item at' followed by the path",
           "passed": true,
           "evidence": "ok"
         },
         {
-          "text": "offers to run /list-tickets",
+          "text": "offers to run /list-work-items",
           "passed": true,
           "evidence": "ok"
         },
@@ -86,7 +86,7 @@
           "evidence": "ok"
         },
         {
-          "text": "review file written with correct frontmatter (type: ticket-review, skill: review-ticket)",
+          "text": "review file written with correct frontmatter (type: work-item-review, skill: review-work-item)",
           "passed": true,
           "evidence": "ok"
         },
@@ -106,7 +106,7 @@
           "evidence": "ok"
         },
         {
-          "text": "no critical findings for this well-structured ticket",
+          "text": "no critical findings for this well-structured work item",
           "passed": true,
           "evidence": "ok"
         }

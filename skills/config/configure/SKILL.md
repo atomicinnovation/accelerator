@@ -127,15 +127,15 @@ use the same hyphenated names as the agents themselves:
 
 Available agents and their roles:
 
-| Config Key                | Default Role                                     |
-|---------------------------|--------------------------------------------------|
-| `reviewer`                | Reviews plans, PRs, and tickets using configured lenses |
-| `codebase-locator`        | Finds relevant source files for a given task     |
-| `codebase-analyser`       | Analyses implementation details of components    |
-| `codebase-pattern-finder` | Finds similar implementations and usage examples |
-| `documents-locator`       | Discovers relevant documents in meta/ directory  |
-| `documents-analyser`      | Deep-dives on research topics in documents       |
-| `web-search-researcher`   | Researches topics via web search                 |
+| Config Key                | Default Role                                               |
+|---------------------------|------------------------------------------------------------|
+| `reviewer`                | Reviews plans, PRs, and work items using configured lenses |
+| `codebase-locator`        | Finds relevant source files for a given task               |
+| `codebase-analyser`       | Analyses implementation details of components              |
+| `codebase-pattern-finder` | Finds similar implementations and usage examples           |
+| `documents-locator`       | Discovers relevant documents in meta/ directory            |
+| `documents-analyser`      | Deep-dives on research topics in documents                 |
+| `web-search-researcher`   | Researches topics via web search                           |
 
 \```yaml
 ---
@@ -158,15 +158,15 @@ the override may reference a user-defined agent outside the plugin.
 ### review
 
 Customise review behaviour for `/accelerator:review-pr`,
-`/accelerator:review-plan`, and `/accelerator:review-ticket`. Config keys use
+`/accelerator:review-plan`, and `/accelerator:review-work-item`. Config keys use
 underscores (e.g., `max_inline_comments`). Lens names within array values use
 their original hyphenated form (e.g., `code-quality`, `test-coverage`):
 
-Shared settings (apply to `review-pr`, `review-plan`, and `review-ticket`):
+Shared settings (apply to `review-pr`, `review-plan`, and `review-work-item`):
 
 | Key               | Default                                                    | Description                   |
 |-------------------|------------------------------------------------------------|-------------------------------|
-| `min_lenses`      | `4` (3 for ticket)                                         | Minimum lenses to run         |
+| `min_lenses`      | `4` (3 for work item)                                      | Minimum lenses to run         |
 | `max_lenses`      | `8`                                                        | Maximum lenses to run         |
 | `core_lenses`     | `[architecture, code-quality, test-coverage, correctness]` | Lenses considered "core four" |
 | `disabled_lenses` | `[]`                                                       | Lenses to never use           |
@@ -186,14 +186,14 @@ Plan review only (`review-plan`):
 | `plan_revise_severity`    | `critical` | Min severity for REVISE (`critical`, `major`, or `none`) |
 | `plan_revise_major_count` | `3`        | Major findings count to trigger REVISE                   |
 
-Ticket review only (`review-ticket`):
+Work item review only (`review-work-item`):
 
-| Key                         | Default    | Description                                              |
-|-----------------------------|------------|----------------------------------------------------------|
-| `ticket_revise_severity`    | `critical` | Min severity for REVISE (`critical`, `major`, or `none`) |
-| `ticket_revise_major_count` | `2`        | Major findings count to trigger REVISE                   |
+| Key                            | Default    | Description                                              |
+|--------------------------------|------------|----------------------------------------------------------|
+| `work_item_revise_severity`    | `critical` | Min severity for REVISE (`critical`, `major`, or `none`) |
+| `work_item_revise_major_count` | `2`        | Major findings count to trigger REVISE                   |
 
-Tickets are smaller artifacts than plans, so `ticket_revise_major_count`
+Work items are smaller artifacts than plans, so `work_item_revise_major_count`
 defaults to `2` (not `3`): a lower threshold produces equivalent signal density.
 
 Example configuration:
@@ -210,8 +210,8 @@ review:
   pr_request_changes_severity: major
   plan_revise_severity: critical
   plan_revise_major_count: 2
-  ticket_revise_severity: major
-  ticket_revise_major_count: 3
+  work_item_revise_severity: major
+  work_item_revise_major_count: 3
 ---
 \```
 
@@ -222,13 +222,13 @@ add inline comments to config values.
 
 Built-in lenses are partitioned by review type: the 13 code-review lenses
 (`architecture`, `code-quality`, etc.) are used by `review-pr` and
-`review-plan`; ticket-specific lenses (`completeness`, `testability`,
-`clarity`) are used by `review-ticket`. Each command sees only its own lenses
+`review-plan`; work-item-specific lenses (`completeness`, `testability`,
+`clarity`) are used by `review-work-item`. Each command sees only its own lenses
 in the Lens Catalogue.
 
 `core_lenses` and `disabled_lenses` entries are cross-mode: they are validated
 against the union of all built-in and custom lens names, so naming a PR lens in
-`core_lenses` does not produce a warning when running `review-ticket`. Entries
+`core_lenses` does not produce a warning when running `review-work-item`. Entries
 not applicable to the active mode are silently filtered out, with an
 informational note in the `## Review Configuration` block so you have an audit
 trail. Entries that are not valid in any mode still produce an "unrecognised
@@ -275,7 +275,7 @@ See any lens in the plugin's `skills/review/lenses/` directory for full
 examples of the expected structure.
 
 **Optional fields** — by default a custom lens appears in all review modes
-(`pr`, `plan`, and `ticket`). To restrict it to specific modes, add an
+(`pr`, `plan`, and `work-item`). To restrict it to specific modes, add an
 `applies_to` field:
 
 \```markdown
@@ -283,19 +283,19 @@ examples of the expected structure.
 name: compliance
 description: Evaluates regulatory and policy compliance
 auto_detect: Relevant when changes touch regulatory, compliance, or policy-related code
-# no applies_to — applies to all modes: pr, plan, and ticket
+# no applies_to — applies to all modes: pr, plan, and work-item
 ---
 \```
 
 \```markdown
 ---
-name: ticket-style
-description: Evaluates ticket-specific style conventions
-applies_to: [ticket]   # ticket reviews only
+name: work-item-style
+description: Evaluates work-item-specific style conventions
+applies_to: [work-item]   # work item reviews only
 ---
 \```
 
-Accepted values: `pr`, `plan`, `ticket`. The field accepts a YAML flow array
+Accepted values: `pr`, `plan`, `work-item`. The field accepts a YAML flow array
 (`[pr, plan]`) or a bare scalar (`pr`). Omitting it is equivalent to all modes.
 The `applies_to` field is only for custom lenses — built-in lenses are
 partitioned via script arrays, not frontmatter.
@@ -313,9 +313,9 @@ files in `.claude/accelerator/skills/<skill-name>/`:
   review-pr/
     context.md          # Context specific to PR review
     instructions.md     # Additional instructions for PR review
-  review-ticket/
-    context.md          # Context specific to ticket review
-    instructions.md     # Additional instructions for ticket review
+  review-work-item/
+    context.md          # Context specific to work item review
+    instructions.md     # Additional instructions for work item review
   commit/
     instructions.md     # Additional instructions for commits
 \```
@@ -433,7 +433,7 @@ meta/templates/
   adr.md             # Custom ADR template
   validation.md      # Custom validation template
   pr-description.md  # PR description template (used by describe-pr)
-  ticket.md          # Custom ticket template
+  work-item.md       # Custom work-item template
 \```
 
 All templates — both skill structure templates (plan, ADR, research,
@@ -482,7 +482,7 @@ Use `/accelerator:configure templates <action>` to manage templates:
 | `templates diff <key>`  | Show differences between your template and the default |
 | `templates reset <key>` | Remove your customisation, revert to plugin default    |
 
-Available template keys: `plan`, `research`, `adr`, `validation`, `pr-description`, `ticket`.
+Available template keys: `plan`, `research`, `adr`, `validation`, `pr-description`, `work-item`.
 
 ### Project Context
 

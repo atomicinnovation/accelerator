@@ -9,10 +9,10 @@ disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
-# Update Ticket
+# Update Work Item
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh update-ticket`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh update-work-item`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults:
@@ -21,36 +21,36 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 
-## Ticket Template
+## Work Item Template
 
-The following template defines the ticket schema and field defaults.
-Hint values are extracted at runtime via `ticket-template-field-hints.sh`.
+The following template defines the work item schema and field defaults.
+Hint values are extracted at runtime via `work-item-template-field-hints.sh`.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh ticket`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh work-item`
 
-You are tasked with updating frontmatter fields on an existing ticket.
+You are tasked with updating frontmatter fields on an existing work item.
 This skill supports status transitions, priority changes, tag management,
 parent assignment, title changes, and any other frontmatter field edit.
 No status transition logic is enforced — the user decides what's valid.
 A future feature may add user-configurable transition graphs; this skill
 predates that feature.
 
-## Step 1: Identify Target Ticket
+## Step 1: Identify Target Work Item
 
-Parse the first argument to determine the target ticket.
+Parse the first argument to determine the target work item.
 
 - **Path-like** (contains `/` or ends in `.md`): treat as a file path.
-  If the file does not exist, print `"No ticket at <path>."` and exit.
-- **Numeric**: treat as a ticket number. Zero-pad to 4 digits, then
-  glob `{tickets_dir}/NNNN-*.md`.
-  - Zero matches: print `"No ticket numbered NNNN found in
-    {tickets_dir}."` and exit.
+  If the file does not exist, print `"No work item at <path>."` and exit.
+- **Numeric**: treat as a work item number. Zero-pad to 4 digits, then
+  glob `{work_dir}/NNNN-*.md`.
+  - Zero matches: print `"No work item numbered NNNN found in
+    {work_dir}."` and exit.
   - One match: use it.
   - Multiple matches: list them as numbered options and ask the user to
     select by number or specify the full path.
-- **No argument**: ask the user which ticket to update. Accept the
+- **No argument**: ask the user which work item to update. Accept the
   response in the same two forms (number or path).
 
 ## Step 2: Read Current Frontmatter
@@ -69,7 +69,7 @@ order for diff rendering in Step 4.
 
 ## Step 3: Interpret Operation
 
-Parse the remaining arguments (after the ticket reference) as one or
+Parse the remaining arguments (after the work item reference) as one or
 more field operations. If no operation arguments were provided, show the
 current frontmatter and ask which field(s) to change.
 
@@ -77,10 +77,10 @@ Arguments are parsed left-to-right using these rules:
 
 ### 3.1 Tag operations
 `add tag <value>` / `remove tag <value>` — delegate to
-`ticket-update-tags.sh`:
+`work-item-update-tags.sh`:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/tickets/scripts/ticket-update-tags.sh <path> add|remove <value>
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-update-tags.sh <path> add|remove <value>
 ```
 
 The script handles parsing, mutation, canonical re-serialisation, and
@@ -96,10 +96,10 @@ as the value. Quoted strings are treated as a single value.
 
 ### 3.3 Field-only hint elicitation
 A known field name as the **last token** with no following value
-triggers hint elicitation. Call `ticket-template-field-hints.sh`:
+triggers hint elicitation. Call `work-item-template-field-hints.sh`:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/tickets/scripts/ticket-template-field-hints.sh <field>
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh <field>
 ```
 
 Present the returned values as examples: "Common statuses: draft,
@@ -122,12 +122,12 @@ user choose.
 
 ### Special field rules
 
-**`ticket_id` — hard-blocked**: print `"Error: ticket_id cannot be
-changed — the filename prefix is the authoritative ticket number. To
-renumber a ticket, rename the file (e.g. jj mv) and update ticket_id to
+**`work_item_id` — hard-blocked**: print `"Error: work_item_id cannot be
+changed — the filename prefix is the authoritative work item number. To
+renumber a work item, rename the file (e.g. jj mv) and update work_item_id to
 match."` No diff, no write, no confirmation prompt.
 
-**`date` — warned**: print `"date records the ticket's creation time and
+**`date` — warned**: print `"date records the work item's creation time and
 is typically not edited. Proceed anyway? (y/n)"`. If the user confirms,
 proceed through the normal diff-and-confirm flow. If declined, print
 "No changes applied." and exit.
@@ -189,7 +189,7 @@ case (`waiting-on-legal` → `Waiting on Legal`,
 If the title is changing, include the body H1 change in the diff too.
 The H1 is the first `# ` line in the body after the frontmatter.
 Preserve any prefix before the first `: ` in the existing H1 (e.g.
-`# 0042: Old title` or `# ADR Ticket: Old title`) and substitute
+`# 0042: Old title` or `# ADR Work item: Old title`) and substitute
 the new title after the prefix:
 ```
 -# 0042: Old title
@@ -208,8 +208,8 @@ unrecognised, treat as decline.
 
 ### Field insertion preview
 
-When a field does not exist in the target ticket's frontmatter (e.g.
-adding `priority:` to a legacy ticket), the diff preview shows a pure
+When a field does not exist in the target work item's frontmatter (e.g.
+adding `priority:` to a legacy work item), the diff preview shows a pure
 addition: `+priority: high`.
 
 ## Step 5: Write
@@ -241,30 +241,30 @@ Updated <filename>:
   acceptable. Arbitrary transitions (draft → done, skipping
   intermediate states) are allowed without warning.
 - **Hint values are suggestions, not constraints**: when surfacing
-  field hints via `ticket-template-field-hints.sh`, present them as
+  field hints via `work-item-template-field-hints.sh`, present them as
   examples. Accept any value the user provides.
-- **`ticket_id` is immutable**: hard-block edits with an error pointing
+- **`work_item_id` is immutable**: hard-block edits with an error pointing
   to file rename (`jj mv`) as the correct approach.
 - **`date` is guarded**: warn before editing the creation timestamp;
   allow if the user confirms.
 - **Tags via script**: delegate all tag operations to
-  `ticket-update-tags.sh`. The script owns parsing, mutation, and
+  `work-item-update-tags.sh`. The script owns parsing, mutation, and
   canonical re-serialisation. If the script exits 1 (block-style),
   print stderr and exit. If it prints `no-change`, report "No change
   needed" and exit.
 - **Body label sync scope**: only update the first non-code-fence
   occurrence of `**Status**:`, `**Type**:`, `**Priority**:`, or
-  `**Author**:`. Do not inject labels into tickets that lack them.
+  `**Author**:`. Do not inject labels into work items that lack them.
   Do not update occurrences inside code fences.
 - **Resilient to malformed frontmatter**: abort cleanly on missing or
   unclosed frontmatter. Error messages use the resolved filename and
-  match `ticket-read-field.sh` phrasing.
-- **Legacy tickets supported**: tickets with unusual type or status
+  match `work-item-read-field.sh` phrasing.
+- **Legacy work items supported**: work items with unusual type or status
   values (e.g. `type: adr-creation-task`, `status: todo`) are fully
   updatable. No migration is offered or required.
-- **Ambiguous globs**: if multiple tickets match a number glob, list
+- **Ambiguous globs**: if multiple work items match a number glob, list
   them and ask the user to choose. Never silently pick one.
-- **No file renaming**: `ticket_id` edits are hard-blocked. Point the
+- **No file renaming**: `work_item_id` edits are hard-blocked. Point the
   user to `jj mv` + manual frontmatter edit for renumbering.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh update-ticket`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh update-work-item`

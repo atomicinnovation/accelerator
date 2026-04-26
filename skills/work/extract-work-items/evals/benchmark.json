@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "skill_name": "extract-tickets",
+    "skill_name": "extract-work-items",
     "evals_run": [
       1,
       2,
@@ -39,7 +39,7 @@
           "evidence": "ok"
         },
         {
-          "text": "Response does not include any candidate list, ticket drafts, or extracted content",
+          "text": "Response does not include any candidate list, work item drafts, or extracted content",
           "passed": true,
           "evidence": "ok"
         },
@@ -82,7 +82,7 @@
           "evidence": "ok"
         },
         {
-          "text": "Every skeleton uses XXXX as the ticket_id placeholder (ticket-next-number.sh not called)",
+          "text": "Every skeleton uses XXXX as the work_item_id placeholder (work-item-next-number.sh not called)",
           "passed": true,
           "evidence": "ok"
         },
@@ -145,12 +145,12 @@
           "evidence": "ok"
         },
         {
-          "text": "ticket-next-number.sh was NOT called at any point during this process",
+          "text": "work-item-next-number.sh was NOT called at any point during this process",
           "passed": true,
           "evidence": "ok"
         },
         {
-          "text": "Each thin draft uses XXXX as the ticket_id placeholder",
+          "text": "Each thin draft uses XXXX as the work_item_id placeholder",
           "passed": true,
           "evidence": "ok"
         },
@@ -274,7 +274,7 @@
           "evidence": "ok"
         },
         {
-          "text": "The Drafting Notes section does NOT explain why the ticket type was chosen or why a priority level was selected",
+          "text": "The Drafting Notes section does NOT explain why the work item type was chosen or why a priority level was selected",
           "passed": true,
           "evidence": "ok"
         },
@@ -337,7 +337,7 @@
           "evidence": "ok"
         },
         {
-          "text": "The enriched draft's Drafting Notes section does not contain explanations of why the ticket type or priority was chosen",
+          "text": "The enriched draft's Drafting Notes section does not contain explanations of why the work item type or priority was chosen",
           "passed": true,
           "evidence": "ok"
         },

@@ -34,3 +34,7 @@ def integration(context: Context):
     print("Running hierarchy format drift check...")
     context.run("scripts/test-hierarchy-format.sh")
     print("\n")
+
+    print("Running format checks...")
+    context.run("scripts/test-format.sh")
+    print("\n")

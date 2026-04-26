@@ -10,10 +10,10 @@ disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
-# Extract Tickets from Meta Documents
+# Extract Work Items from Meta Documents
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh extract-tickets`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh extract-work-items`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults:
@@ -22,24 +22,24 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 **Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research meta/research`
 **Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
 
-## Ticket Template
+## Work Item Template
 
 The template below defines the sections and frontmatter fields that every
-ticket must contain. Read it now — the valid ticket types live in the `type`
+work item must contain. Read it now — the valid work item types live in the `type`
 field (not a hardcoded list elsewhere in this skill), and every written file
 must populate every frontmatter field.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh ticket`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh work-item`
 
 You are tasked with identifying requirements, work items, and actionable
 tasks within existing meta documents and helping the user capture them as
-formal tickets. Source documents typically tell you *what* tickets should
+formal work items. Source documents typically tell you *what* work items should
 exist but rarely give the full business context, testable acceptance
-criteria, dependencies, and assumptions a good ticket needs. The model,
+criteria, dependencies, and assumptions a good work item needs. The model,
 the user, and web research fill those gaps.
 
 Extraction therefore proceeds in two layers:
@@ -50,7 +50,7 @@ Extraction therefore proceeds in two layers:
 - **Business-context gaps are surfaced.** The `Assumptions`, `Open Questions`
   and `Drafting Notes` sections serve different purposes when present, and all 
   matter:
-  - **Assumptions** are interpretations you made that affect the ticket's
+  - **Assumptions** are interpretations you made that affect the work item's
     meaning. Flag one only when using the wrong interpretation would lead
     someone to build something different. Example: *"Interpreted 'users' as
     end users rather than internal staff — if wrong, scope changes."*
@@ -59,7 +59,7 @@ Extraction therefore proceeds in two layers:
     proceed. Example: *"What does 'better results' mean — improved relevance, 
     faster delivery, or both?"*
   - **Drafting Notes** capture interpretations you made while filling out
-    the ticket — business-context calls, scope decisions, or technical
+    the work item — business-context calls, scope decisions, or technical
     choices that someone should review if they turn out to be wrong.
     Actively populate this section. If you inferred who the stakeholders
     are, what a vague term means, what the scope boundary is, or which
@@ -71,11 +71,11 @@ Extraction therefore proceeds in two layers:
     interpretation that a reviewer should be aware of.
 
 For each selected candidate, you offer the user the choice between
-*enriching* the ticket interactively (with model knowledge, web research,
-and a few focused questions, similar to `/create-ticket`) or *accepting
+*enriching* the work item interactively (with model knowledge, web research,
+and a few focused questions, similar to `/create-work-item`) or *accepting
 the source-derived skeleton as-is* and refining later. The enrichment
 loop is per candidate, not pre-generated, so the work the model invests
-matches the depth the user wants for each ticket.
+matches the depth the user wants for each work item.
 
 ## Initial Setup
 
@@ -117,7 +117,7 @@ Wait for user input.
      - `{plans directory}/2026-04-19-feature.md` — Feature plan
      - ...
 
-     Which documents should I scan for tickets? (enter numbers, "all", or
+     Which documents should I scan for work items? (enter numbers, "all", or
      specific paths)
      ```
    - Wait for user selection.
@@ -154,7 +154,7 @@ I found the following actionable items across the scanned documents:
 
 3. ...
 
-Which items would you like to create tickets for? (enter numbers, "all",
+Which items would you like to create work items for? (enter numbers, "all",
 or "none")
 ```
 
@@ -176,21 +176,21 @@ happens per candidate inside this loop.
 
 For the current candidate:
 
-- Infer the ticket type from its content using types read from the
-  ticket template's `type` field:
+- Infer the work item type from its content using types read from the
+  work item template's `type` field:
   - clear bug reports with symptoms and expected/actual behaviour → `bug`
   - open-ended investigations with specific questions → `spike`
   - broad multi-deliverable themes → `epic`
   - specific single deliverables → `story`
   - one-off technical or operational tasks → `task`
   - Default to `story` for items where the type is genuinely ambiguous.
-- Draft a complete ticket from the source content alone, using `XXXX`
-  as the placeholder ticket number.
+- Draft a complete work item from the source content alone, using `XXXX`
+  as the placeholder work item number.
 - Type-specific content placement:
   - bug: reproduction steps, expected/actual behaviour → `Requirements` section
   - spike: research questions, time-box, exit criteria → `Requirements` section
   - epic: initial story decomposition → `Requirements` section as a list
-  - Do not rename or add sections beyond those in the ticket template.
+  - Do not rename or add sections beyond those in the work item template.
 - Surface business-context gaps using the right section: put your
   interpretation in `Assumptions` (when you made a call and the wrong call
   changes what gets built). Put unanswered questions in `Open Questions` when 
@@ -208,7 +208,7 @@ Candidate #N of M: [title]
 Type (proposed): [type]
 Source: [paths]
 
-[ticket content with XXXX placeholder, including Drafting Notes section]
+[work item content with XXXX placeholder, including Drafting Notes section]
 
 How would you like to proceed?
   1. enrich              — interactive Q&A, web research where useful, then approve
@@ -228,11 +228,11 @@ substantive.
 
 #### 3.3 enrich — interactive enrichment
 
-Treat this as a focused, per-candidate version of the `/create-ticket`
+Treat this as a focused, per-candidate version of the `/create-work-item`
 flow, seeded with the skeleton above:
 
 1. **Ask 1–3 focused business-context questions** tailored to this
-   candidate. Fewer than `/create-ticket`'s 3–5 because the source
+   candidate. Fewer than `/create-work-item`'s 3–5 because the source
    already provides some context. Cover whichever of the following are
    not already clear from the source:
    - What pain point or problem does this address, and who experiences it?
@@ -300,7 +300,7 @@ Honour these interrupts immediately on the turn they are received.
 
 Take the source-derived skeleton from 3.1 as the final draft for this
 candidate. Append (or extend) the `Drafting Notes` section with the
-following note **verbatim** (so future tooling like `/refine-ticket`
+following note **verbatim** (so future tooling like `/refine-work-item`
 and human reviewers can detect thin drafts deterministically):
 
 > Extracted from source documents without interactive enrichment.
@@ -326,37 +326,37 @@ applying the same skeleton + assumptions note as 3.4. Do not ask
 further questions. Already-skipped candidates stay skipped. Jump to
 Step 4.
 
-#### 3.7 No `ticket-next-number.sh` calls in Step 3
+#### 3.7 No `work-item-next-number.sh` calls in Step 3
 
-`ticket-next-number.sh` is not called at any point during Step 3,
+`work-item-next-number.sh` is not called at any point during Step 3,
 regardless of which option the user picks. Writing happens exclusively
 in Step 4 after all approvals — enriched and thin — are collected.
 
-### Step 4: Write Tickets
+### Step 4: Write Work Items
 
 1. **Count approved (non-skipped) items: N.**
 
-2. **If N is 0**: print "No tickets approved — nothing written." and exit
-   cleanly. Do NOT call `ticket-next-number.sh`.
+2. **If N is 0**: print "No work items approved — nothing written." and exit
+   cleanly. Do NOT call `work-item-next-number.sh`.
 
 3. **Otherwise**:
 
    a. **Compute target slugs** — for each approved draft, derive a meaningful
       kebab-case slug from its title.
 
-   b. **Create the tickets directory** if it does not exist.
+   b. **Create the work items directory** if it does not exist.
 
    c. **Verify all N target slugs are free** before allocating any numbers.
       Numbers are not yet known, so check by slug pattern: for each approved
       draft's slug, confirm that no file matching
-      `{tickets_dir}/[0-9][0-9][0-9][0-9]-{slug}.md` already exists. If any
+      `{work_dir}/[0-9][0-9][0-9][0-9]-{slug}.md` already exists. If any
       slug collides, report which slugs collide and which existing files
-      they match, abort without calling `ticket-next-number.sh`, and ask
+      they match, abort without calling `work-item-next-number.sh`, and ask
       the user to resolve the collision (rename or remove) before re-running.
 
-   d. **Call `ticket-next-number.sh --count N` exactly once**:
+   d. **Call `work-item-next-number.sh --count N` exactly once**:
       ```
-      ${CLAUDE_PLUGIN_ROOT}/skills/tickets/scripts/ticket-next-number.sh --count N
+      ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-next-number.sh --count N
       ```
       If the script exits non-zero (e.g., 9999 overflow), abort immediately
       and surface the error message verbatim — do not write any files. The
@@ -368,7 +368,7 @@ in Step 4 after all approvals — enriched and thin — are collected.
       in the candidate list) receives the first number, and so on. Do not
       reorder by approval timestamp or by user selection order.
 
-   f. **Write all N ticket files**. Each ticket's `References` section must
+   f. **Write all N work item files**. Each work item's `References` section must
       include all source document paths the item was extracted from. For
       deduplicated items that appeared in multiple documents, list every
       contributing source under `References`, one per line.
@@ -376,56 +376,56 @@ in Step 4 after all approvals — enriched and thin — are collected.
    g. If a write error occurs mid-batch: report which numbers were allocated,
       which files were written successfully, and which were not — so the user
       can manually write the missing files with their pre-assigned numbers.
-      Do not retry writes silently and do not call `ticket-next-number.sh`
+      Do not retry writes silently and do not call `work-item-next-number.sh`
       again to re-allocate; the original allocation stands. The user needs
       to know the exact state.
 
 4. **Print a summary table**:
 
 ```
-Created the following tickets:
+Created the following work items:
 | Number | Title | File |
 |--------|-------|------|
-| 0001   | [title] | `{tickets_dir}/0001-slug.md` |
-| 0002   | [title] | `{tickets_dir}/0002-slug.md` |
+| 0001   | [title] | `{work_dir}/0001-slug.md` |
+| 0002   | [title] | `{work_dir}/0002-slug.md` |
 ...
 ```
 
 ## Quality Guidelines
 
-- Never call `ticket-next-number.sh` before all approvals are collected.
+- Never call `work-item-next-number.sh` before all approvals are collected.
   The number space is shared and finite; consuming numbers for drafts the
   user might still skip creates gaps that are impossible to clean up later.
-- Never call `ticket-next-number.sh` when N=0. An all-skipped session must
+- Never call `work-item-next-number.sh` when N=0. An all-skipped session must
   exit cleanly with no side effects.
-- If `ticket-next-number.sh` exits non-zero, abort immediately and surface
+- If `work-item-next-number.sh` exits non-zero, abort immediately and surface
   the script's error output verbatim — even if it emitted some numbers on
   stdout before failing, treat the entire batch as failed.
-- Verify all target slugs are free BEFORE calling `ticket-next-number.sh` —
+- Verify all target slugs are free BEFORE calling `work-item-next-number.sh` —
   collision checks happen before number allocation, by slug pattern, since
   numbers are not yet known.
 - Numbers are assigned to approved drafts in their original presented
   order, not in approval timestamp order. This makes outputs deterministic
   and matches the order the user reviewed.
-- Every written ticket MUST include all source document paths in its
+- Every written work item MUST include all source document paths in its
   `References` section. For deduplicated items that appeared in multiple
   documents, list every contributing source.
 - Do not extract structural or navigational content (table of contents
   entries, section headings with no requirements content, agenda items
-  with no actionable outcome) as candidate tickets. If a heading just
+  with no actionable outcome) as candidate work items. If a heading just
   organises content rather than describing work, skip it.
-- Ticket type inference must use types read from the ticket template
+- Work item type inference must use types read from the work item template
   frontmatter (loaded at the top of this skill), not a hardcoded list.
   Default to `story` for items where the type is genuinely ambiguous.
-- All frontmatter fields defined in the ticket template must be populated
-  in every written ticket — `ticket_id` matching the assigned NNNN, `title`
-  matching the ticket's title, `date`, `author`, `type`, `status` (draft),
+- All frontmatter fields defined in the work item template must be populated
+  in every written work item — `work_item_id` matching the assigned NNNN, `title`
+  matching the work item's title, `date`, `author`, `type`, `status` (draft),
   `priority` (medium unless the source implies otherwise), `parent` (empty
   string unless the source establishes a parent), and `tags` (a YAML
   array, possibly empty). No field may contain unfilled placeholder text
   like `[author]` or `NNNN`. The body H1 format is `# NNNN: <title>` —
   kept in sync with the frontmatter `title:` field.
-- `date` must use the ticket template's `YYYY-MM-DDTHH:MM:SS+00:00`
+- `date` must use the work item template's `YYYY-MM-DDTHH:MM:SS+00:00`
   format in UTC (e.g. obtained via `date -u +%Y-%m-%dT%H:%M:%S+00:00`).
 - `author` is sourced in this order: configuration if present, then the
   source document's author/owner field if named, then the current git/jj
@@ -433,11 +433,11 @@ Created the following tickets:
   before writing the batch. Never write `[author]` or any placeholder.
 - "Accept remaining as-is" only marks unreviewed candidates as approved
   (thin) — it does not resurrect skipped candidates, and writing still
-  happens exclusively in Step 4 after the single `ticket-next-number.sh`
+  happens exclusively in Step 4 after the single `work-item-next-number.sh`
   call.
 - Source-derived content stays faithful to what the source documents say.
   Do not silently invent requirements. When you make an interpretation while
-  filling out the ticket — about scope, stakeholders, terminology, or implied
+  filling out the work item — about scope, stakeholders, terminology, or implied
   approach — capture it in `Drafting Notes`. Use `Open Questions` for genuine
   unknowns the source leaves unanswered. A Drafting Note is worth writing
   whenever the wrong interpretation would send someone in a meaningfully
@@ -452,12 +452,12 @@ Created the following tickets:
   domain, business, competitive, or technical aspects of the candidate.
   Skip only when the candidate is self-contained and well-understood.
 - Thin drafts (accepted as-is) and enriched drafts coexist in the same
-  tickets directory. Thin drafts must carry the verbatim `Drafting Notes`
-  entry recording non-enrichment so a future `/refine-ticket` invocation (or
+  work items directory. Thin drafts must carry the verbatim `Drafting Notes`
+  entry recording non-enrichment so a future `/refine-work-item` invocation (or
   manual review) can identify them as needing follow-up before promotion
   from `draft` to `ready`.
 - Acceptance criteria in enriched drafts must be specific and testable;
   prefer Given/When/Then for story/task. Challenge any criterion that
   is not measurable before accepting it into the draft.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh extract-tickets`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh extract-work-items`

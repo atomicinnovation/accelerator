@@ -1953,7 +1953,7 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: custom lens with applies_to: [work-item, plan] appears in ticket+plan but not pr"
+echo "Test: custom lens with applies_to: [work-item, plan] appears in work-item+plan but not pr"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude/accelerator/lenses/work-item-plan-lens"
 cat > "$REPO/.claude/accelerator/lenses/work-item-plan-lens/SKILL.md" << 'FIXTURE'
@@ -1969,10 +1969,10 @@ WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
 if ! echo "$PR_OUT" | grep -q "| work-item-plan |" && \
    echo "$PLAN_OUT" | grep -q "| work-item-plan |" && \
    echo "$WORK_ITEM_OUT" | grep -q "| work-item-plan |"; then
-  echo "  PASS: applies_to: [work-item, plan] includes ticket and plan but not pr"
+  echo "  PASS: applies_to: [work-item, plan] includes work-item and plan but not pr"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: applies_to: [work-item, plan] includes ticket and plan but not pr"
+  echo "  FAIL: applies_to: [work-item, plan] includes work-item and plan but not pr"
   FAIL=$((FAIL + 1))
 fi
 
@@ -2170,7 +2170,7 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: work-item mode emits ticket revise severity and count with defaults"
+echo "Test: work-item mode emits work-item revise severity and count with defaults"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
 if echo "$OUTPUT" | grep -q '\*\*work-item revise severity\*\*: critical$' && \
@@ -2829,11 +2829,11 @@ if echo "$STDERR_OUTPUT" | grep -q "pr-description" && \
    echo "$STDERR_OUTPUT" | grep -q "research" && \
    echo "$STDERR_OUTPUT" | grep -q "adr" && \
    echo "$STDERR_OUTPUT" | grep -q "validation" && \
-   echo "$STDERR_OUTPUT" | grep -q "ticket"; then
-  echo "  PASS: error lists available templates (including pr-description and ticket)"
+   echo "$STDERR_OUTPUT" | grep -q "work-item"; then
+  echo "  PASS: error lists available templates (including pr-description and work-item)"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: error lists available templates (including pr-description and ticket)"
+  echo "  FAIL: error lists available templates (including pr-description and work-item)"
   echo "    Actual stderr: $STDERR_OUTPUT"
   FAIL=$((FAIL + 1))
 fi
@@ -3526,7 +3526,7 @@ assert_contains "contains research" "research" "$OUTPUT"
 assert_contains "contains adr" "adr" "$OUTPUT"
 assert_contains "contains validation" "validation" "$OUTPUT"
 assert_contains "contains pr-description" "pr-description" "$OUTPUT"
-assert_contains "contains ticket" "ticket" "$OUTPUT"
+assert_contains "contains work-item" "work-item" "$OUTPUT"
 LINE_COUNT=$(echo "$OUTPUT" | wc -l | tr -d ' ')
 assert_eq "outputs 6 keys" "6" "$LINE_COUNT"
 
@@ -3655,12 +3655,12 @@ printf -- '---\ntemplates:\n  pr-description: custom/pr.md\n---\n' > "$REPO/.cla
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 assert_contains "pr-description key in dump" "templates.pr-description" "$OUTPUT"
 
-echo "Test: Output contains templates.ticket row"
+echo "Test: Output contains templates.work-item row"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
-printf -- '---\ntemplates:\n  ticket: custom/ticket.md\n---\n' > "$REPO/.claude/accelerator.md"
+printf -- '---\ntemplates:\n  work-item: custom/work-item.md\n---\n' > "$REPO/.claude/accelerator.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-assert_contains "ticket key in dump" "templates.ticket" "$OUTPUT"
+assert_contains "work-item key in dump" "templates.work-item" "$OUTPUT"
 
 echo "Test: Output contains paths.review_work row"
 REPO=$(setup_repo)
@@ -3675,7 +3675,7 @@ echo ""
 echo "=== config-read-template.sh regression (refactored) ==="
 echo ""
 
-echo "Test: Unknown template lists all 6 template names including pr-description and ticket"
+echo "Test: Unknown template lists all 6 template names including pr-description and work-item"
 REPO=$(setup_repo)
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "nonexistent" 2>&1 1>/dev/null || true)
 assert_contains "error lists plan" "plan" "$STDERR_OUTPUT"
@@ -3683,7 +3683,7 @@ assert_contains "error lists research" "research" "$STDERR_OUTPUT"
 assert_contains "error lists adr" "adr" "$STDERR_OUTPUT"
 assert_contains "error lists validation" "validation" "$STDERR_OUTPUT"
 assert_contains "error lists pr-description" "pr-description" "$STDERR_OUTPUT"
-assert_contains "error lists ticket" "ticket" "$STDERR_OUTPUT"
+assert_contains "error lists work-item" "work-item" "$STDERR_OUTPUT"
 
 echo ""
 
@@ -3697,7 +3697,7 @@ mkdir -p "$REPO/meta/tmp" && touch "$REPO/meta/tmp/.gitignore"
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 LINE_COUNT=$(echo "$OUTPUT" | grep -c '| `' || true)
 assert_eq "6 template rows" "6" "$LINE_COUNT"
-for KEY in plan research adr validation pr-description ticket; do
+for KEY in plan research adr validation pr-description work-item; do
   if echo "$OUTPUT" | grep "\`$KEY\`" | grep -q "plugin default"; then
     echo "  PASS: $KEY shows plugin default"
     PASS=$((PASS + 1))
@@ -3916,7 +3916,7 @@ assert_file_content_eq "content replaced with plugin default" "$REPO/meta/templa
 echo "Test: --all ejects all 6 templates"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --all)
-for KEY in plan research adr validation pr-description ticket; do
+for KEY in plan research adr validation pr-description work-item; do
   assert_file_exists "$KEY ejected" "$REPO/meta/templates/${KEY}.md"
 done
 

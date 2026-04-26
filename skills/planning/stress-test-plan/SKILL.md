@@ -38,7 +38,7 @@ When this command is invoked:
 1. **If a plan path was provided**:
 
 - Read the plan file FULLY
-- Read any files the plan references — tickets, research documents, key source
+- Read any files the plan references — work items, research documents, key source
   files mentioned
 - Spawn sub-agents to understand the current codebase context:
   - Use the **{codebase locator agent}** agent to find files related to the plan's scope

@@ -1,5 +1,5 @@
 ---
-ticket_id: "0042"
+work_item_id: "0042"
 title: "User Authentication Refactor"
 date: "2026-04-01T10:00:00+00:00"
 author: "Test Author"

@@ -9,8 +9,8 @@ disable-model-invocation: true
 
 # Completeness Lens
 
-Review as a ticket completeness specialist ensuring that every section contains
-the information a reader needs to understand and act on the ticket without
+Review as a work item completeness specialist ensuring that every section contains
+the information a reader needs to understand and act on the work item without
 follow-up questions.
 
 ## Core Responsibilities
@@ -25,7 +25,7 @@ follow-up questions.
 
 2. **Evaluate Type-Appropriate Content**
 
-- Confirm the ticket contains the content its `type` demands:
+- Confirm the work item contains the content its `type` demands:
   - **Bug**: reproduction steps (input, action, expected outcome, actual outcome)
   - **Story**: context explaining why the feature is wanted, plus criteria that
     define when the story is done
@@ -33,16 +33,16 @@ follow-up questions.
     exit criteria (deliverables or decisions to be made)
   - **Epic**: a list of constituent child stories or a decomposition strategy
   - **Chore / Task**: clear definition of the work to be done
-- For unknown or absent `type`, treat the ticket as a generic work item and
+- For unknown or absent `type`, treat the work item as a generic work item and
   assess based on available fields
 
 3. **Check Context, Assumptions, and Section Population**
 
-- Assess whether the Context section explains the forces behind the ticket
+- Assess whether the Context section explains the forces behind the work item
 - Check whether Dependencies, Assumptions, and Open Questions are populated
   where relevant (empty sections are acceptable only when the content is
   genuinely not applicable)
-- Note missing *sections* whose absence makes the ticket under-specified for
+- Note missing *sections* whose absence makes the work item under-specified for
   its type (e.g., a story with no Context section, an epic with no Stories
   list). Do not reason about *content* within a present section —
   implied-but-uncaptured couplings (blockers, consumers, external systems,
@@ -73,9 +73,9 @@ follow-up questions.
   that describe desired outcomes but not the actual work, requirements that
   duplicate acceptance criteria without adding detail.)
 
-**Type-specific content** (based on ticket type):
+**Type-specific content** (based on work item type):
 
-- **Bug**: Are reproduction steps present — does the ticket include the specific
+- **Bug**: Are reproduction steps present — does the work item include the specific
   input, the action taken, the expected outcome, and the actual outcome? (Watch
   for: "it crashes" with no steps, no environment details when relevant.)
   Treat these four elements as a single logical unit: if any are absent, report
@@ -95,22 +95,22 @@ follow-up questions.
 
 - **Type field**: Is `type` present and set to a recognised value? (Watch for:
   absent `type`, values like `unknown` or `tbd`.)
-- **Status field**: Is `status` present and appropriate for a ticket in its
+- **Status field**: Is `status` present and appropriate for a work item in its
   current state?
 
 ## Important Guidelines
 
-- **Do not read source code or run codebase exploration agents** — ticket
+- **Do not read source code or run codebase exploration agents** — work item
   content is the sole artefact under review
 - **Rate confidence** on each finding — distinguish definite gaps (section
   absent) from judgement calls (context deemed insufficient)
 - **Be proportional** — a spike requires less detail than an epic; a chore
-  requires less than a story; flag missing content relative to the ticket type
+  requires less than a story; flag missing content relative to the work item type
 - **Treat empty-but-optional sections fairly** — an empty Dependencies section
   on a standalone chore is not a finding; an empty Dependencies section on a
   feature with obvious external coupling may be flagged as potentially sparse.
   If you flag it, note only that the section appears sparse relative to the
-  ticket's content — do not name which external systems or services are implied.
+  work item's content — do not name which external systems or services are implied.
   Identifying specific implied couplings is the `dependency` lens's job.
 - **Focus on actionability** — flag gaps that would cause confusion, rework, or
   delay during implementation; do not flag trivially resolvable gaps
@@ -126,16 +126,16 @@ follow-up questions.
 - Don't flag missing scenarios, edge cases, error-handling paths, default
   behaviours, or unstated non-functional requirements — the lens measures
   whether sections are present and substantively populated, not whether every
-  conceivable scenario is enumerated. What the ticket doesn't mention may be
+  conceivable scenario is enumerated. What the work item doesn't mention may be
   intentionally left to implementation judgment.
 - Don't read source code, run codebase exploration agents, or make inferences
-  about the implementation beyond what the ticket explicitly states
-- Don't penalise a ticket for lacking content that is genuinely not applicable
+  about the implementation beyond what the work item explicitly states
+- Don't penalise a work item for lacking content that is genuinely not applicable
   to its type or context
-- Don't apply a rigid checklist regardless of ticket type — assess what the
+- Don't apply a rigid checklist regardless of work item type — assess what the
   type requires
 
-Remember: You're evaluating whether the ticket gives a reader everything they
+Remember: You're evaluating whether the work item gives a reader everything they
 need to understand the work and take action without asking the author follow-up
-questions. A complete ticket makes the right information present in the right
+questions. A complete work item makes the right information present in the right
 place.

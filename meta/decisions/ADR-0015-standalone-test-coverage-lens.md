@@ -150,7 +150,7 @@ a plan's prose alone.
 
 ## References
 
-- `meta/tickets/0012-test-coverage-as-plan-review-lens.md` — Source ticket for
+- `meta/work/0012-test-coverage-as-plan-review-lens.md` — Source work item for
   this ADR
 - `meta/decisions/ADR-0002-three-layer-review-architecture.md` — Three-layer
   review system (orchestrator / specialist / knowledge)

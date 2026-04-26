@@ -3,7 +3,7 @@
     "skill_name": "testability",
     "skill_path": "skills/review/lenses/testability-lens",
     "timestamp": "2026-04-23T00:00:00Z",
-    "evals_run": ["vague-unmeasurable-ac", "bug-incomplete-repro-spec", "spike-open-ended-exit", "tautological-ac", "clean-ticket"],
+    "evals_run": ["vague-unmeasurable-ac", "bug-incomplete-repro-spec", "spike-open-ended-exit", "tautological-ac", "clean-work item"],
     "runs_per_configuration": 1
   },
 
@@ -130,7 +130,7 @@
     },
     {
       "eval_id": 5,
-      "eval_name": "clean-ticket",
+      "eval_name": "clean-work item",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 50.7, "tokens": 15310, "tool_calls": 6, "errors": 0},
@@ -145,7 +145,7 @@
     },
     {
       "eval_id": 5,
-      "eval_name": "clean-ticket",
+      "eval_name": "clean-work item",
       "configuration": "without_skill",
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 30.1, "tokens": 12559, "tool_calls": 5, "errors": 0},
@@ -156,7 +156,7 @@
         {"text": "No finding has severity 'major'", "passed": true, "evidence": "0 major."},
         {"text": "The 'strengths' array is non-empty", "passed": true, "evidence": "5 strengths listed."}
       ],
-      "notes": ["2 findings (p99 baseline method unspecified, window-reset criterion missing HTTP status). Both legitimate micro-observations. without_skill is slightly more restrained than with_skill on this clean ticket, which is appropriate proportionality."]
+      "notes": ["2 findings (p99 baseline method unspecified, window-reset criterion missing HTTP status). Both legitimate micro-observations. without_skill is slightly more restrained than with_skill on this clean work item, which is appropriate proportionality."]
     }
   ],
 

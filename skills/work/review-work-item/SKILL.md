@@ -8,10 +8,10 @@ disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-*)
 ---
 
-# Review Ticket
+# Review Work Item
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh review-ticket`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh review-work-item`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
 
 If no "Agent Names" section appears above, use these defaults:
@@ -20,43 +20,43 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh ticket`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh work-item`
 
-**Tickets directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
-**Ticket reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_work meta/reviews/work`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
+**Work item reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_work meta/reviews/work`
 
-You are tasked with reviewing a ticket through quality lenses and then
-collaboratively iterating the ticket based on findings.
+You are tasked with reviewing a work item through quality lenses and then
+collaboratively iterating the work item based on findings.
 
 ## Initial Response
 
 When this command is invoked:
 
-1. **Check if a ticket path or number was provided**:
+1. **Check if a work item path or number was provided**:
 
    - **Path-like** (contains `/` or ends in `.md`): treat as a file path. If
-     the file does not exist, print `"No ticket at <path>."` and offer to run
-     `/list-tickets` to find a valid path.
-   - **Numeric**: treat as a ticket number. Zero-pad to 4 digits, then glob
-     `{tickets directory}/NNNN-*.md`.
-     - Zero matches: print `"No ticket numbered NNNN found in {tickets
-       directory}."` and offer to run `/list-tickets`.
+     the file does not exist, print `"No work item at <path>."` and offer to run
+     `/list-work-items` to find a valid path.
+   - **Numeric**: treat as a work item number. Zero-pad to 4 digits, then glob
+     `{work_dir}/NNNN-*.md`.
+     - Zero matches: print `"No work item numbered NNNN found in {work items
+       directory}."` and offer to run `/list-work-items`.
      - One match: use it.
      - Multiple matches: list them and ask the user to select.
-   - If a path or number was provided and resolves correctly, read the ticket
+   - If a path or number was provided and resolves correctly, read the work item
      immediately and FULLY, then begin the review process.
    - If optional focus arguments were provided (e.g., "focus on testability"),
      note them for lens selection.
 
-2. **If no ticket path or number provided**, respond with:
+2. **If no work item path or number provided**, respond with:
 
 ```
-I'll help you review a ticket. Please provide:
-1. The path to the ticket file (e.g., `{tickets directory}/0042-my-ticket.md`)
-2. (Optional) A ticket number shorthand (e.g., `/review-ticket 42`)
+I'll help you review a work item. Please provide:
+1. The path to the work item file (e.g., `{work_dir}/0042-my-work-item.md`)
+2. (Optional) A work item number shorthand (e.g., `/review-work-item 42`)
 3. (Optional) Focus areas to emphasise (e.g., "focus on testability")
 
-Tip: Use `/list-tickets` to find the ticket you want to review.
+Tip: Use `/list-work-items` to find the work item you want to review.
 ```
 
 Then wait for the user's input.
@@ -73,24 +73,24 @@ Then wait for the user's input.
 
 > Note: completeness flags an *absent* Dependencies section; dependency flags
 > an *empty or underspecified* section whose contents fail to name every
-> coupling the ticket implies.
+> coupling the work item implies.
 
 ## Process Steps
 
-### Step 1: Read and Understand the Ticket
+### Step 1: Read and Understand the Work Item
 
-1. **Read the ticket file FULLY** — never use limit/offset
+1. **Read the work item file FULLY** — never use limit/offset
 2. **Parse the frontmatter** to note `type` (bug, story, spike, epic, etc.)
    and `status`
 3. **Read any documents referenced in the References section** — these provide
    context the lenses may need; do not read source code
 4. **Check for existing reviews**: Glob for review documents matching
-   `{ticket reviews directory}/{ticket-stem}-review-*.md`. If any are found:
+   `{work_reviews_dir}/{work-item-stem}-review-*.md`. If any are found:
    - Read the most recent review document (highest review number)
    - Note the previous verdict, review pass count, and key findings
-   - Inform the user: "I found {N} previous review(s) of this ticket. The
+   - Inform the user: "I found {N} previous review(s) of this work item. The
      most recent (review {N}, verdict: {verdict}) will be used as context."
-   - The agents do NOT receive the previous review — they review the ticket
+   - The agents do NOT receive the previous review — they review the work item
      fresh. But the aggregation step (Step 4) should reference the previous
      review when composing cross-cutting themes and the assessment.
    - If the prior review file exists but cannot be parsed (malformed
@@ -103,7 +103,7 @@ Then wait for the user's input.
 
 By default, run every lens registered in `BUILTIN_TICKET_LENSES` unless the
 user has provided focus arguments or config restricts the selection. The five
-ticket lenses cover orthogonal concerns, so there is no relevance-based
+work item lenses cover orthogonal concerns, so there is no relevance-based
 auto-selection.
 
 **If the user provided focus arguments:**
@@ -114,13 +114,13 @@ auto-selection.
 
 **If no focus arguments were provided:**
 
-Run all built-in ticket lenses unless:
+Run all built-in work item lenses unless:
 - A lens is listed in `disabled_lenses` — remove it from the active set
 - The user's configured `core_lenses` has filtered this to a subset (see below)
 
 When `core_lenses` is set in config, apply it as the *minimum required set*;
 add any remaining non-disabled lenses up to `max_lenses`. This means users
-who previously pinned `core_lenses` to the Phase 4 ticket lenses
+who previously pinned `core_lenses` to the Phase 4 work item lenses
 (`completeness`, `testability`, `clarity`) will also receive `scope` and
 `dependency` on upgrade, unless they add those names to `disabled_lenses` or
 set `max_lenses` to their subset size.
@@ -133,7 +133,7 @@ lens; the gate is useful when focus args or config have narrowed the set.
 Example (default path, no focus args, no `core_lenses` restriction):
 
 ```
-I'll review this ticket through all ticket lenses (clarity, completeness,
+I'll review this work item through all work item lenses (clarity, completeness,
 dependency, scope, testability). Shall I proceed?
 ```
 
@@ -148,25 +148,25 @@ files yourself — the agent reads them in its own context.
 Compose each agent's prompt following this template:
 
 ```
-You are reviewing a ticket through the [lens name] lens.
+You are reviewing a work item through the [lens name] lens.
 
 ## Context
 
-The ticket is at [path]. Read it fully.
-Also read any source documents listed in the ticket's References section.
+The work item is at [path]. Read it fully.
+Also read any source documents listed in the work item's References section.
 
 ## Analysis Strategy
 
 1. Read your lens skill and output format files (see paths below)
-2. Read the ticket file fully
-3. Read referenced documents from the ticket's References section if present
-4. Evaluate the ticket through your lens, applying each key question
-5. Reference specific ticket sections in your findings using the `location`
+2. Read the work item file fully
+3. Read referenced documents from the work item's References section if present
+4. Evaluate the work item through your lens, applying each key question
+5. Reference specific work item sections in your findings using the `location`
    field (e.g., "Acceptance Criteria", "Requirements", "Frontmatter: type")
 
-IMPORTANT: Do not evaluate the codebase — ticket content (and any documents
+IMPORTANT: Do not evaluate the codebase — work item content (and any documents
 it explicitly references) is the sole artefact under review. Do not run
-codebase exploration agents or read source files unless the ticket's
+codebase exploration agents or read source files unless the work item's
 References section explicitly links to them.
 
 ## Lens
@@ -245,20 +245,20 @@ Once all reviews are complete:
    thresholds instead of the defaults below:
    - If `ticket_revise_severity` is `none`, skip the severity-based REVISE
      rule (major count rule still applies independently)
-   - If any findings at or above the ticket revise severity
-     ({ticket revise severity}) exist → suggest `REVISE`
-   - If {ticket revise major count} or more `"major"` findings exist
+   - If any findings at or above the work item revise severity
+     ({work item revise severity}) exist → suggest `REVISE`
+   - If {work item revise major count} or more `"major"` findings exist
      → suggest `REVISE`
    - If fewer major findings than the threshold, or only minor/suggestion
      → suggest `COMMENT`
    - If no findings at all (only strengths) → suggest `APPROVE`
 
    Verdict meanings:
-   - `APPROVE` — ticket is ready for implementation
-   - `REVISE` — ticket needs changes before implementation
-   - `COMMENT` — observations only, ticket is acceptable as-is
+   - `APPROVE` — work item is ready for implementation
+   - `REVISE` — work item needs changes before implementation
+   - `COMMENT` — observations only, work item is acceptable as-is
 
-   When presenting a `COMMENT` verdict with major findings, note: "Ticket is
+   When presenting a `COMMENT` verdict with major findings, note: "Work item is
    acceptable but could be improved — see major findings below."
 
 6. **Identify cross-cutting themes**: Look for findings that appear across
@@ -268,12 +268,12 @@ Once all reviews are complete:
 7. **Compose the review summary**:
 
    ```markdown
-   ## Ticket Review: [Ticket Title]
+   ## Work Item Review: [Work item Title]
 
    **Verdict:** [APPROVE | REVISE | COMMENT]
 
    [Combined assessment: synthesise each agent's summary into 2-3 sentences
-   covering the overall quality of the ticket across all lenses]
+   covering the overall quality of the work item across all lenses]
 
    ### Cross-Cutting Themes
    [Issues that multiple lenses identified — these deserve the most attention]
@@ -283,57 +283,57 @@ Once all reviews are complete:
 
    #### Critical
    - 🔴 **[Lens]**: [title]
-     **Location**: [ticket section]
+     **Location**: [work item section]
      [First 1-2 sentences of body as summary]
 
    #### Major
    - 🟡 **[Lens]**: [title]
-     **Location**: [ticket section]
+     **Location**: [work item section]
      [First 1-2 sentences of body as summary]
 
    #### Minor
    - 🔵 **[Lens]**: [title]
-     **Location**: [ticket section]
+     **Location**: [work item section]
      [First 1-2 sentences of body as summary]
 
    #### Suggestions
    - 🔵 **[Lens]**: [title]
-     **Location**: [ticket section]
+     **Location**: [work item section]
      [First 1-2 sentences of body as summary]
 
    ### Strengths
    - ✅ [Aggregated and deduplicated strengths from all agents]
 
    ### Recommended Changes
-   [Ordered list of specific, actionable changes to the ticket, prioritised by
+   [Ordered list of specific, actionable changes to the work item, prioritised by
    impact. Each should reference the finding(s) it addresses.]
 
    1. **[Change description]** (addresses: [finding titles])
-      [Specific guidance on what to modify in the ticket]
+      [Specific guidance on what to modify in the work item]
 
    ---
-   *Review generated by /review-ticket*
+   *Review generated by /review-work-item*
    ```
 
-8. **Write the review artifact** to `{ticket reviews directory}/`:
+8. **Write the review artifact** to `{work_reviews_dir}/`:
 
-   Derive the review filename using the ticket stem and the next available
-   review number. The ticket stem is the basename of the ticket path without
-   the `.md` extension. For example, if the ticket is
-   `{tickets directory}/0042-improve-search.md` and no prior reviews exist,
+   Derive the review filename using the work item stem and the next available
+   review number. The work item stem is the basename of the work item path without
+   the `.md` extension. For example, if the work item is
+   `{work_dir}/0042-improve-search.md` and no prior reviews exist,
    the review filename is
-   `{ticket reviews directory}/0042-improve-search-review-1.md`.
+   `{work_reviews_dir}/0042-improve-search-review-1.md`.
 
    To determine the next review number:
    ```bash
-   mkdir -p {ticket reviews directory}
-   # Glob for existing reviews of this ticket
-   ls {ticket reviews directory}/{ticket-stem}-review-*.md 2>/dev/null
+   mkdir -p {work_reviews_dir}
+   # Glob for existing reviews of this work item
+   ls {work_reviews_dir}/{work-item-stem}-review-*.md 2>/dev/null
    # Extract the highest number, increment by 1. If none exist, use 1.
    ```
 
-   Extract the ticket's stable 4-digit identifier from its filename using
-   `${CLAUDE_PLUGIN_ROOT}/skills/tickets/scripts/ticket-read-field.sh {path} number`
+   Extract the work item's stable 4-digit identifier from its filename using
+   `${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh {path} number`
    (or parse the 4-digit prefix from the filename directly).
 
    Write the review document with YAML frontmatter followed by the review
@@ -344,9 +344,9 @@ Once all reviews are complete:
    ---
    date: "{ISO timestamp}"
    type: work-item-review
-   skill: review-ticket
-   target: "{tickets directory}/{ticket-stem}.md"
-   ticket_id: "{4-digit number, e.g. 0042}"
+   skill: review-work-item
+   target: "{work_dir}/{work-item-stem}.md"
+   work_item_id: "{4-digit number, e.g. 0042}"
    review_number: {N}
    verdict: {APPROVE | REVISE | COMMENT}
    lenses: [{list of lenses used}]
@@ -373,8 +373,8 @@ Once all reviews are complete:
    ...
    ```
 
-   The `ticket_id` field stores the ticket's stable 4-digit identifier,
-   providing resilience against ticket renames. `target` remains as the path
+   The `work_item_id` field stores the work item's stable 4-digit identifier,
+   providing resilience against work item renames. `target` remains as the path
    used at review time.
 
 ### Step 5: Present the Review
@@ -387,13 +387,13 @@ After presenting, offer the user control before proceeding to iteration:
 The review is complete. Verdict: [verdict]
 
 Would you like to:
-1. Proceed to address findings? (I'll help edit the ticket)
+1. Proceed to address findings? (I'll help edit the work item)
 2. Change the verdict? (currently: [verdict])
 3. Discuss any specific findings in more detail?
 4. Re-run specific lenses with adjusted focus?
 ```
 
-### Step 6: Collaborative Ticket Iteration
+### Step 6: Collaborative Work Item Iteration
 
 After presenting the review:
 
@@ -401,16 +401,16 @@ After presenting the review:
    - Ask which recommendations they want to address
    - Clarify any findings that need more context
 
-2. **Edit the ticket based on agreed changes**:
-   - Use the Edit tool to modify the ticket file directly
-   - Make targeted edits to the relevant ticket sections (Summary, Context,
+2. **Edit the work item based on agreed changes**:
+   - Use the Edit tool to modify the work item file directly
+   - Make targeted edits to the relevant work item sections (Summary, Context,
      Requirements, Acceptance Criteria, etc.)
    - Do NOT modify the `status` field — that is a separate workflow decision
-   - Preserve the ticket's existing frontmatter and section structure
+   - Preserve the work item's existing frontmatter and section structure
 
 3. **Summarise changes made**:
    ```
-   I've made the following changes to the ticket:
+   I've made the following changes to the work item:
    - [Change 1] — addressing [finding]
    - [Change 2] — addressing [finding]
    - [Skipped] — [finding discussed and decided not to address, with reason]
@@ -421,7 +421,7 @@ After presenting the review:
 After edits are complete:
 
 ```
-The ticket has been updated. Would you like me to run another review pass to
+The work item has been updated. Would you like me to run another review pass to
 verify the changes address the findings? This will re-run the relevant lenses
 to check for any remaining issues.
 ```
@@ -433,7 +433,7 @@ If the user accepts:
 - Compare previous findings against new findings to determine resolution status
 - Present a shorter, delta-focused review:
   ```
-  ## Re-Review: [Ticket Title]
+  ## Re-Review: [Work item Title]
 
   **Verdict:** [APPROVE | REVISE | COMMENT]
 
@@ -444,14 +444,14 @@ If the user accepts:
   - [emoji] **[Lens]**: [title] — [brief description]
 
   ### Assessment
-  [Whether the ticket is now ready for implementation or needs further iteration]
+  [Whether the work item is now ready for implementation or needs further iteration]
   ```
 
 After composing the re-review summary, **update the review artifact**
 as a single write operation:
 
 1. Read the full content of the existing review document at
-   `{ticket reviews directory}/{ticket-stem}-review-{N}.md`
+   `{work_reviews_dir}/{work-item-stem}-review-{N}.md`
 2. If the existing review file's frontmatter cannot be parsed (malformed),
    warn the user and write a fresh `-review-{N+1}.md` file instead of
    appending in place
@@ -479,29 +479,29 @@ latest verdict and pass count:
 - {emoji} **{Lens}**: {title} — {brief description}
 
 ### Assessment
-{Whether the ticket is now ready for implementation or needs further iteration}
+{Whether the work item is now ready for implementation or needs further iteration}
 ```
 
 If the user declines or the re-review shows all clear, the review is complete.
 
 ## Important Guidelines
 
-1. **Read the ticket fully** before doing anything else
+1. **Read the work item fully** before doing anything else
 
-2. **Spawn agents in parallel** — the ticket lenses are independent and
+2. **Spawn agents in parallel** — the work item lenses are independent and
    should run concurrently for efficiency
 
 3. **Synthesise, don't concatenate** — your value is in compiling a balanced
    view across lenses, identifying themes, and prioritising actionable
    recommendations
 
-4. **Do not modify the ticket's `status` field** — a REVISE verdict does not
-   automatically change the ticket's status; that transition belongs to a
+4. **Do not modify the work item's `status` field** — a REVISE verdict does not
+   automatically change the work item's status; that transition belongs to a
    separate workflow decision by the team
 
 5. **Do not run codebase exploration agents** — the reviewer agents stay
-   inside the ticket and any documents it explicitly references; source code
-   is out of scope for ticket review
+   inside the work item and any documents it explicitly references; source code
+   is out of scope for work item review
 
 6. **Be balanced** — highlight strengths alongside concerns
 
@@ -519,23 +519,23 @@ If the user declines or the re-review shows all clear, the review is complete.
 ## What NOT to Do
 
 - Don't skip writing the review artifact — always persist to
-  `{ticket reviews directory}/` so the review is visible to the team
-- Don't modify the ticket's `status` field during review
+  `{work_reviews_dir}/` so the review is visible to the team
+- Don't modify the work item's `status` field during review
 - Don't run codebase exploration agents or read source files
 - Don't skip the lens selection step — always confirm with the user
 - Don't present raw agent output — always aggregate and curate
-- Don't make ticket edits without user agreement
+- Don't make work item edits without user agreement
 - Don't post findings as individual items for positive feedback —
   strengths go in the summary only
 
 ## Relationship to Other Commands
 
-Ticket review sits in the ticket lifecycle between authoring and implementation:
+Work item review sits in the work item lifecycle between authoring and implementation:
 
-1. `/create-ticket` or `/extract-tickets` — Author or capture the ticket
-2. `/list-tickets` — Discover tickets available for review
-3. `/review-ticket` — Review and iterate ticket quality (this command)
-4. `/update-ticket` — Apply status transitions after review decisions
-5. `/create-plan` — Create an implementation plan from an approved ticket
+1. `/create-work-item` or `/extract-work-items` — Author or capture the work item
+2. `/list-work-items` — Discover work items available for review
+3. `/review-work-item` — Review and iterate work item quality (this command)
+4. `/update-work-item` — Apply status transitions after review decisions
+5. `/create-plan` — Create an implementation plan from an approved work item
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh review-ticket`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh review-work-item`

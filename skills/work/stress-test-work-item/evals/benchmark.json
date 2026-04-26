@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "skill_name": "stress-test-ticket",
+    "skill_name": "stress-test-work-item",
     "skill_path": "<path/to/skill>",
     "executor_model": "<model-name>",
     "analyzer_model": "<model-name>",
@@ -41,29 +41,29 @@
       },
       "expectations": [
         {
-          "text": "Response asks for a ticket path or number without starting to question",
+          "text": "Response asks for a work item path or number without starting to question",
           "passed": true,
-          "evidence": "Response opens with 'I'll stress-test your ticket. Please provide the path or ticket number.' \u2014 it requests the ticket location and stops there, asking nothing else."
+          "evidence": "Response opens with 'I'll stress-test your work item. Please provide the path or work item number.' \u2014 it requests the work item location and stops there, asking nothing else."
         },
         {
-          "text": "Response mentions accepting a bare ticket number (e.g. 42 or 0042) as well as a full path",
+          "text": "Response mentions accepting a bare work item number (e.g. 42 or 0042) as well as a full path",
           "passed": true,
-          "evidence": "Response includes 'Or by number: `/stress-test-ticket 42`' alongside the full-path example, explicitly showing both forms."
+          "evidence": "Response includes 'Or by number: `/stress-test-work-item 42`' alongside the full-path example, explicitly showing both forms."
         },
         {
-          "text": "Response suggests running /list-tickets to discover available tickets",
+          "text": "Response suggests running /list-work-items to discover available work items",
           "passed": true,
-          "evidence": "Response ends with 'Run `/list-tickets` to see available tickets.'"
+          "evidence": "Response ends with 'Run `/list-work-items` to see available work items.'"
         },
         {
-          "text": "No ticket file is read (no Read tool call for a ticket)",
+          "text": "No work item file is read (no Read tool call for a work item)",
           "passed": true,
-          "evidence": "The response contains no ticket content and there is no transcript showing a Read tool call. The entire output is a short 6-line prompt for input, with no ticket data referenced."
+          "evidence": "The response contains no work item content and there is no transcript showing a Read tool call. The entire output is a short 6-line prompt for input, with no work item data referenced."
         },
         {
           "text": "No stress-testing questions are asked",
           "passed": true,
-          "evidence": "The response asks only for a ticket path/number \u2014 there are no questions about ticket content, requirements, or acceptance criteria."
+          "evidence": "The response asks only for a work item path/number \u2014 there are no questions about work item content, requirements, or acceptance criteria."
         }
       ],
       "notes": []
@@ -86,7 +86,7 @@
         {
           "text": "Response is the structured findings summary \u2014 NOT another question",
           "passed": true,
-          "evidence": "The response opens 'We've now resolved every open branch I was tracking' and then delivers a structured summary with three clearly labelled sections. The only question is a closing offer to update the ticket, which is a procedural prompt, not a probe into the ticket's content."
+          "evidence": "The response opens 'We've now resolved every open branch I was tracking' and then delivers a structured summary with three clearly labelled sections. The only question is a closing offer to update the work item, which is a procedural prompt, not a probe into the work item's content."
         },
         {
           "text": "Summary contains an 'Issues to fix' section",
@@ -104,9 +104,9 @@
           "evidence": "Response contains the heading '**Risks accepted:**' followed by 'None identified.' The section is present even though it is empty."
         },
         {
-          "text": "Response asks whether to update the ticket",
+          "text": "Response asks whether to update the work item",
           "passed": true,
-          "evidence": "Response ends with: 'Would you like me to update the ticket with these changes?' \u2014 a direct, closed question offering to apply the findings."
+          "evidence": "Response ends with: 'Would you like me to update the work item with these changes?' \u2014 a direct, closed question offering to apply the findings."
         }
       ],
       "notes": []
@@ -142,9 +142,9 @@
           "evidence": "Response contains '**Risks accepted:**' as a bold heading, listing two accepted risks: session format compatibility and single-instance Redis."
         },
         {
-          "text": "Response asks whether to update the ticket with the identified changes",
+          "text": "Response asks whether to update the work item with the identified changes",
           "passed": true,
-          "evidence": "Final line of response reads: 'Would you like me to update the ticket with these changes?'"
+          "evidence": "Final line of response reads: 'Would you like me to update the work item with these changes?'"
         }
       ],
       "notes": []
@@ -172,7 +172,7 @@
         {
           "text": "Skill confirms it is NOT modifying any frontmatter field",
           "passed": true,
-          "evidence": "Under 'Sections I am NOT touching', the response lists 'Frontmatter (ticket_id, title, date, author, type, status, priority, parent, tags) \u2014 no changes' explicitly."
+          "evidence": "Under 'Sections I am NOT touching', the response lists 'Frontmatter (work_item_id, title, date, author, type, status, priority, parent, tags) \u2014 no changes' explicitly."
         },
         {
           "text": "Skill confirms it is NOT modifying the Summary or Requirements sections",
@@ -208,7 +208,7 @@
           "evidence": "Response opens: 'I want to flag this as a concern rather than a recommendation' and states: 'A distributed session store like Redis introduces a network round-trip on every authenticated request. A stateless JWT-based approach would eliminate that overhead and remove Redis as a dependency entirely.'"
         },
         {
-          "text": "Skill does NOT propose rewriting the ticket to use JWTs instead of Redis",
+          "text": "Skill does NOT propose rewriting the work item to use JWTs instead of Redis",
           "passed": true,
           "evidence": "The response explicitly declines to advocate: 'my role here is to surface this so you can make an informed decision, not to advocate for a different architecture.' It frames JWT as one option for the user to consider, not a proposal to rewrite."
         },
@@ -241,14 +241,14 @@
       },
       "expectations": [
         {
-          "text": "Skill reports that no ticket file exists at the given path",
+          "text": "Skill reports that no work item file exists at the given path",
           "passed": true,
-          "evidence": "Response begins: 'No ticket file at `meta/tickets/9999-does-not-exist.md`.' and continues: 'I cannot start the stress-test because the ticket does not exist at the resolved path.'"
+          "evidence": "Response begins: 'No work item file at `meta/work/9999-does-not-exist.md`.' and continues: 'I cannot start the stress-test because the work item does not exist at the resolved path.'"
         },
         {
-          "text": "Error message includes the path meta/tickets/9999-does-not-exist.md",
+          "text": "Error message includes the path meta/work/9999-does-not-exist.md",
           "passed": true,
-          "evidence": "First line of response is: 'No ticket file at `meta/tickets/9999-does-not-exist.md`.' \u2014 the exact path is present."
+          "evidence": "First line of response is: 'No work item file at `meta/work/9999-does-not-exist.md`.' \u2014 the exact path is present."
         },
         {
           "text": "Skill does NOT read any other files",
@@ -258,7 +258,7 @@
         {
           "text": "Skill does NOT start asking stress-testing questions",
           "passed": true,
-          "evidence": "The response contains no stress-testing questions. It terminates immediately with the error and a suggestion to run /list-tickets."
+          "evidence": "The response contains no stress-testing questions. It terminates immediately with the error and a suggestion to run /list-work-items."
         }
       ],
       "notes": []
@@ -281,27 +281,27 @@
         {
           "text": "Edit is applied to the workspace copy (the file is actually modified \u2014 its Acceptance Criteria differ from the original vague criteria)",
           "passed": true,
-          "evidence": "The modified ticket.md contains five specific, measurable acceptance criteria (Redis failure \u2192 HTTP 503, token validation < 50ms, session cookie attributes, invalid token \u2192 HTTP 401, mid-request expiry behaviour). The original vague criteria ('should handle errors gracefully', 'Authentication should be fast', etc.) no longer appear. A diff of ticket.md against expected-target.md produces no output, confirming the file was actually written on disk, not merely described."
+          "evidence": "The modified work item.md contains five specific, measurable acceptance criteria (Redis failure \u2192 HTTP 503, token validation < 50ms, session cookie attributes, invalid token \u2192 HTTP 401, mid-request expiry behaviour). The original vague criteria ('should handle errors gracefully', 'Authentication should be fast', etc.) no longer appear. A diff of work item.md against expected-target.md produces no output, confirming the file was actually written on disk, not merely described."
         },
         {
           "text": "Edit targets only the Acceptance Criteria section",
           "passed": true,
-          "evidence": "The response.md lists every other section (frontmatter fields, body labels, Summary, Context, Requirements, Open Questions, Dependencies, Assumptions, Technical Notes, Drafting Notes, References) as unchanged. Reading ticket.md directly confirms the Acceptance Criteria section is the sole section that differs from the pre-edit layout, and the diff against expected-target.md is empty, meaning no other section diverges from the target."
+          "evidence": "The response.md lists every other section (frontmatter fields, body labels, Summary, Context, Requirements, Open Questions, Dependencies, Assumptions, Technical Notes, Drafting Notes, References) as unchanged. Reading work item.md directly confirms the Acceptance Criteria section is the sole section that differs from the pre-edit layout, and the diff against expected-target.md is empty, meaning no other section diverges from the target."
         },
         {
           "text": "All nine frontmatter fields are unchanged after the edit",
           "passed": true,
-          "evidence": "ticket.md frontmatter contains all nine fields with their original values: ticket_id='0042', title='User Authentication Refactor', date='2026-04-01T10:00:00+00:00', author='Test Author', type=story, status=draft, priority=high, parent='', tags=[auth, backend]. These match expected-target.md exactly."
+          "evidence": "work item.md frontmatter contains all nine fields with their original values: work_item_id='0042', title='User Authentication Refactor', date='2026-04-01T10:00:00+00:00', author='Test Author', type=story, status=draft, priority=high, parent='', tags=[auth, backend]. These match expected-target.md exactly."
         },
         {
           "text": "Body **Type**/**Status**/**Priority**/**Author** labels are unchanged after the edit",
           "passed": true,
-          "evidence": "ticket.md lines 15-18 show '**Type**: Story', '**Status**: Draft', '**Priority**: High', '**Author**: Test Author', matching expected-target.md lines 15-18 exactly."
+          "evidence": "work item.md lines 15-18 show '**Type**: Story', '**Status**: Draft', '**Priority**: High', '**Author**: Test Author', matching expected-target.md lines 15-18 exactly."
         },
         {
           "text": "Summary and Requirements sections are unchanged after the edit",
           "passed": true,
-          "evidence": "Reading ticket.md directly: Summary section (lines 20-22) describes refactoring the authentication service with identical wording to expected-target.md. Requirements section (lines 28-33) lists all four numbered items (Redis-backed session store, TokenValidator class, structured logging, remove legacyAuth flag) unchanged and matching expected-target.md exactly."
+          "evidence": "Reading work item.md directly: Summary section (lines 20-22) describes refactoring the authentication service with identical wording to expected-target.md. Requirements section (lines 28-33) lists all four numbered items (Redis-backed session store, TokenValidator class, structured logging, remove legacyAuth flag) unchanged and matching expected-target.md exactly."
         }
       ],
       "notes": []
@@ -322,14 +322,14 @@
       },
       "expectations": [
         {
-          "text": "The ticket file is read before any question is asked",
+          "text": "The work item file is read before any question is asked",
           "passed": true,
-          "evidence": "Response opens with 'I've read ticket 0042 \u2014 *User Authentication Refactor*.' confirming the ticket was read first. The response then asks a question. There is no question before acknowledgement of having read the ticket."
+          "evidence": "Response opens with 'I've read work item 0042 \u2014 *User Authentication Refactor*.' confirming the work item was read first. The response then asks a question. There is no question before acknowledgement of having read the work item."
         },
         {
-          "text": "The first question references specific content from the ticket (e.g. names an acceptance criterion or requirement from the ticket, not a generic question)",
+          "text": "The first question references specific content from the work item (e.g. names an acceptance criterion or requirement from the work item, not a generic question)",
           "passed": true,
-          "evidence": "The question references 'The first acceptance criterion says \"The system should handle errors gracefully\"' and names specific ticket details: Redis session management and token validation. These are not generic \u2014 they are drawn from ticket content."
+          "evidence": "The question references 'The first acceptance criterion says \"The system should handle errors gracefully\"' and names specific work item details: Redis session management and token validation. These are not generic \u2014 they are drawn from work item content."
         },
         {
           "text": "Exactly one question (or tightly related cluster) is asked \u2014 not a list of multiple unrelated questions",
@@ -459,17 +459,17 @@
       },
       "expectations": [
         {
-          "text": "Skill raises the scope concern \u2014 the ticket covers multiple unrelated concerns",
+          "text": "Skill raises the scope concern \u2014 the work item covers multiple unrelated concerns",
           "passed": true,
-          "evidence": "Response opens: 'Before we go any further, I need to raise a scope concern. This ticket bundles six acceptance criteria that cover at least five completely unrelated technical concerns.' The concern is the central theme of the entire response."
+          "evidence": "Response opens: 'Before we go any further, I need to raise a scope concern. This work item bundles six acceptance criteria that cover at least five completely unrelated technical concerns.' The concern is the central theme of the entire response."
         },
         {
-          "text": "Skill asks whether the ticket should be decomposed or whether some criteria belong in separate tickets",
+          "text": "Skill asks whether the work item should be decomposed or whether some criteria belong in separate work items",
           "passed": true,
-          "evidence": "Response asks explicitly: 'should this ticket be decomposed into (at minimum) five separate tickets, one per concern? Each could be tagged and linked to a common parent epic if you need sprint-level visibility. What's driving the decision to keep them in a single ticket?'"
+          "evidence": "Response asks explicitly: 'should this work item be decomposed into (at minimum) five separate work items, one per concern? Each could be tagged and linked to a common parent epic if you need sprint-level visibility. What's driving the decision to keep them in a single work item?'"
         },
         {
-          "text": "Skill identifies at least two of the unrelated concern areas from the ticket",
+          "text": "Skill identifies at least two of the unrelated concern areas from the work item",
           "passed": true,
           "evidence": "Response enumerates six distinct concern areas: (1) Auth race conditions, (2) Structured JSON logging, (3) Prometheus metrics, (4) UI Bootstrap-to-design-system migration, (5) Database migrations, (6) Unit test coverage for PasswordHasher \u2014 well exceeding the minimum of two."
         }
@@ -542,7 +542,7 @@
         {
           "text": "Response raises this as a concern for the user to address (intent, scope, or plan change)",
           "passed": true,
-          "evidence": "Response closes with: 'Before we go further: did the team intend to build *on top of* an existing token refresh capability, or did someone assume that capability existed when it doesn't? If it doesn't exist, does this ticket need to scope in building it \u2014 or does that become a separate prerequisite ticket?' Directly raises intent, scope, and planning implications."
+          "evidence": "Response closes with: 'Before we go further: did the team intend to build *on top of* an existing token refresh capability, or did someone assume that capability existed when it doesn't? If it doesn't exist, does this work item need to scope in building it \u2014 or does that become a separate prerequisite work item?' Directly raises intent, scope, and planning implications."
         }
       ],
       "notes": []
@@ -570,7 +570,7 @@
         {
           "text": "Skill asks about at least one of the prerequisites implied by the Requirements (e.g. schema migration, email service, email_preferences table, analytics service)",
           "passed": true,
-          "evidence": "Response asks directly: 'Is the schema migration that adds `onboarding_status` to the users table a separate in-flight ticket, or is it work that needs to be done as part of this ticket? If it's separate, this ticket cannot start until that migration has been applied \u2014 and that blocker needs to be captured in Dependencies with a ticket reference.' This matches 'schema migration' from the enumerated examples."
+          "evidence": "Response asks directly: 'Is the schema migration that adds `onboarding_status` to the users table a separate in-flight work item, or is it work that needs to be done as part of this work item? If it's separate, this work item cannot start until that migration has been applied \u2014 and that blocker needs to be captured in Dependencies with a work item reference.' This matches 'schema migration' from the enumerated examples."
         },
         {
           "text": "Skill does NOT accept the empty Dependencies section without challenging it",
