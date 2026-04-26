@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useParams } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { fetchDocs } from '../../api/fetch'
+import { formatMtime } from '../../api/format'
 import { queryKeys } from '../../api/query-keys'
 import type { IndexEntry, DocTypeKey } from '../../api/types'
 import { isDocTypeKey } from '../../api/types'
@@ -153,13 +154,3 @@ function SortHeader({
   )
 }
 
-/** Format recently-modified times as a short relative string ("5m ago"),
- *  older times as a full date-time string. */
-function formatMtime(ms: number): string {
-  const diffMs = Date.now() - ms
-  const diffSec = Math.floor(diffMs / 1000)
-  if (diffSec < 60)              return `${diffSec}s ago`
-  if (diffSec < 3600)            return `${Math.floor(diffSec / 60)}m ago`
-  if (diffSec < 24 * 3600)       return `${Math.floor(diffSec / 3600)}h ago`
-  return new Date(ms).toLocaleString()
-}

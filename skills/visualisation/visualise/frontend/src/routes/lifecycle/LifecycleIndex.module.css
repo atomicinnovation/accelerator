@@ -1,0 +1,108 @@
+.container { max-width: 900px; }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.filterInput {
+  flex: 0 1 220px;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  margin-right: 0.5rem;
+}
+
+.filterInput:focus {
+  outline: 2px solid #1d4ed8;
+  outline-offset: -1px;
+  border-color: #1d4ed8;
+}
+
+.toolbarLabel {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-right: 4px;
+}
+
+.sortButton {
+  all: unset;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid #d1d5db;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #374151;
+  cursor: pointer;
+}
+
+.sortButton:hover,
+.sortButton:focus-visible {
+  border-color: #1d4ed8;
+  color: #1d4ed8;
+  outline: 2px solid #1d4ed8;
+  outline-offset: -2px;
+}
+
+.sortButtonActive {
+  background: #dbeafe;
+  border-color: #1d4ed8;
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+.cardList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #ffffff;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+
+.card:hover,
+.card:focus-within {
+  border-color: #1d4ed8;
+  box-shadow: 0 1px 4px rgba(29, 78, 216, 0.12);
+}
+
+.card:hover .cardTitle,
+.card:focus-within .cardTitle { color: #1d4ed8; }
+
+.cardLink {
+  display: block;
+  padding: 1rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.cardHeader { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.6rem; }
+.cardTitle { font-size: 1rem; font-weight: 600; margin: 0; color: #111827; }
+.cardSlug { font-size: 0.75rem; color: #9ca3af; font-family: monospace; }
+
+.cardMeta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.6rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.empty { color: #6b7280; }
+.error {
+  color: #991b1b; background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 4px; padding: 0.5rem 0.75rem;
+}
