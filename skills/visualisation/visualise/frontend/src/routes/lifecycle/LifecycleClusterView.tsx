@@ -1,4 +1,5 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useParams } from '@tanstack/react-router'
+import { lifecycleClusterRoute } from '../../router'
 import { useQuery } from '@tanstack/react-query'
 import { fetchLifecycleCluster, FetchError } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
@@ -131,10 +132,9 @@ function EntryCard({ entry }: { entry: IndexEntry }) {
   )
 }
 
-/** Router-bound shell. Wired in router.ts (Step 10). */
+/** Router-bound shell. Reads the strictly-typed `slug` from the
+ *  cluster route and forwards it to the pure renderer. */
 export function LifecycleClusterView() {
-  // Imported and used by lifecycleClusterRoute in router.ts.
-  // The route param is read there; this placeholder keeps the export
-  // available before the router is updated.
-  return null
+  const { slug } = useParams({ from: lifecycleClusterRoute.id })
+  return <LifecycleClusterContent slug={slug} />
 }

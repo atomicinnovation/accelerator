@@ -10,7 +10,9 @@ import { LibraryTypeView } from './routes/library/LibraryTypeView'
 import { LibraryDocView } from './routes/library/LibraryDocView'
 import { LibraryTemplatesIndex } from './routes/library/LibraryTemplatesIndex'
 import { LibraryTemplatesView } from './routes/library/LibraryTemplatesView'
-import { LifecycleStub } from './routes/lifecycle/LifecycleStub'
+import { LifecycleLayout } from './routes/lifecycle/LifecycleLayout'
+import { LifecycleIndex } from './routes/lifecycle/LifecycleIndex'
+import { LifecycleClusterView } from './routes/lifecycle/LifecycleClusterView'
 import { KanbanStub } from './routes/kanban/KanbanStub'
 import { isDocTypeKey, type DocTypeKey } from './api/types'
 
@@ -78,7 +80,19 @@ const libraryDocRoute = createRoute({
 const lifecycleRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/lifecycle',
-  component: LifecycleStub,
+  component: LifecycleLayout,
+})
+
+const lifecycleIndexRoute = createRoute({
+  getParentRoute: () => lifecycleRoute,
+  path: '/',
+  component: LifecycleIndex,
+})
+
+export const lifecycleClusterRoute = createRoute({
+  getParentRoute: () => lifecycleRoute,
+  path: '/$slug',
+  component: LifecycleClusterView,
 })
 
 const kanbanRoute = createRoute({
@@ -98,7 +112,7 @@ export const routeTree = rootRoute.addChildren([
     libraryTemplateDetailRoute,
     libraryTypeRoute.addChildren([libraryDocRoute]),
   ]),
-  lifecycleRoute,
+  lifecycleRoute.addChildren([lifecycleIndexRoute, lifecycleClusterRoute]),
   kanbanRoute,
 ])
 

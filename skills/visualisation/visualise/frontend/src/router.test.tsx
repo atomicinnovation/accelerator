@@ -84,4 +84,31 @@ describe('router', () => {
     const router = renderAt('/library/bogus')
     await waitForPath(router, '/library/decisions')
   })
+
+  it('routes /lifecycle to the index view', async () => {
+    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue([])
+    const router = renderAt('/lifecycle')
+    await waitForPath(router, '/lifecycle')
+    expect(
+      await screen.findByText(/no lifecycle clusters/i),
+    ).toBeInTheDocument()
+  })
+
+  it('routes /lifecycle/foo to the cluster detail view', async () => {
+    const spy = vi.spyOn(fetchModule, 'fetchLifecycleCluster').mockResolvedValue({
+      slug: 'foo', title: 'Foo Cluster', entries: [],
+      completeness: {
+        hasTicket: false, hasResearch: false, hasPlan: false,
+        hasPlanReview: false, hasValidation: false, hasPr: false,
+        hasPrReview: false, hasDecision: false, hasNotes: false,
+      },
+      lastChangedMs: 0,
+    })
+    const router = renderAt('/lifecycle/foo')
+    await waitForPath(router, '/lifecycle/foo')
+    expect(
+      await screen.findByRole('heading', { name: 'Foo Cluster' }),
+    ).toBeInTheDocument()
+    expect(spy).toHaveBeenCalledWith('foo')
+  })
 })
