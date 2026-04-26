@@ -31,7 +31,7 @@ The current auth code is spread across multiple modules.
 2. Consolidate token validation into a single `TokenValidator` class.
 3. Add structured audit logging for all auth events.
 
-### Child tickets
+### Child work items
 
 - 0043 — Redis Session Management
 - 0044 — Token Validator Consolidation

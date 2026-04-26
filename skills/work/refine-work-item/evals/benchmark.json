@@ -15,7 +15,7 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "Response asks the user to provide a work item path or number before proceeding", "passed": true, "evidence": "Response opens with a prompt asking for a work item path or number, showing an example like '/refine-work-item {tickets_dir}/0042-user-auth.md'."},
+        {"text": "Response asks the user to provide a work item path or number before proceeding", "passed": true, "evidence": "Response opens with a prompt asking for a work item path or number, showing an example like '/refine-work-item {work_items_dir}/0042-user-auth.md'."},
         {"text": "Response mentions /list-work-items to discover available work items", "passed": true, "evidence": "Response includes 'Run `/list-work-items` to see available work items.'"},
         {"text": "Skill did not read any files, spawn any agents, or perform any operations", "passed": true, "evidence": "Response is entirely a request for input; no work item data or agent results appear."}
       ],

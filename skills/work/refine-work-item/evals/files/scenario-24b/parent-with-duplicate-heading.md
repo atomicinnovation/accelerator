@@ -30,7 +30,7 @@ The auth code needs consolidation.
 1. Implement Redis-backed session management.
 2. Consolidate token validation.
 
-Note: See the ticket template structure for reference:
+Note: See the work item template structure for reference:
 
 ```markdown
 ## Acceptance Criteria

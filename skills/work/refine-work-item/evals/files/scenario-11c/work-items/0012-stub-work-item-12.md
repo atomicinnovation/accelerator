@@ -1,6 +1,6 @@
 ---
 work_item_id: "0012"
-title: "Stub Ticket 12"
+title: "Stub Work Item 12"
 date: "2026-04-01T10:00:00+00:00"
 author: "Test Author"
 type: story
@@ -10,7 +10,7 @@ parent: ""
 tags: []
 ---
 
-# 0012: Stub Ticket 12
+# 0012: Stub Work Item 12
 
 **Type**: Story
 **Status**: Done
@@ -19,4 +19,4 @@ tags: []
 
 ## Summary
 
-Stub ticket for testing.
+Stub work item for testing.
