@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Check that the canonical tree fence in list-tickets/SKILL.md and
-# refine-ticket/SKILL.md are byte-for-byte identical.
+# Check that the canonical tree fence in list-work-items/SKILL.md and
+# refine-work-item/SKILL.md are byte-for-byte identical.
 #
 # Both SKILL.md files bracket the canonical hierarchy example with:
 #   <!-- canonical-tree-fence -->

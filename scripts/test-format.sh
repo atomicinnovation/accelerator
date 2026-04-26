@@ -22,7 +22,7 @@ echo "=== Format checks ==="
 #      e.g. meta/reviews/work items/ or paths.work items
 #
 # This check is intentionally targeted, not exhaustive. Run the broader
-# `rg '\bticket\b' skills/` sweep manually for prose audits.
+# `rg '\bwork item\b' skills/` sweep manually for prose audits.
 
 PATTERN1='work item-[a-z]'  # compound-word hyphen: work item-foo
 PATTERN2='work items/'      # plural as path component

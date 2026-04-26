@@ -63,16 +63,16 @@ touch "$REPO/meta/work/0005-fifth.md"
 OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER")
 assert_eq "outputs 0006" "0006" "$OUTPUT"
 
-# Test 5: Directory with non-ticket files only (README.md) → outputs 0001
-echo "Test: Directory with non-ticket files only"
+# Test 5: Directory with non-work-item files only (README.md) → outputs 0001
+echo "Test: Directory with non-work-item files only"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
 touch "$REPO/meta/work/README.md"
 OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER")
 assert_eq "outputs 0001" "0001" "$OUTPUT"
 
-# Test 6: Mixed ticket and non-ticket files → outputs next after highest ticket
-echo "Test: Mixed ticket and non-ticket files"
+# Test 6: Mixed work-item and non-work-item files → outputs next after highest work item
+echo "Test: Mixed work-item and non-work-item files"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
 touch "$REPO/meta/work/0002-something.md"
@@ -97,7 +97,7 @@ assert_exit_code "exits 1" 1 bash "$NEXT_NUMBER" --count 0
 echo "Test: --count abc (invalid)"
 assert_exit_code "exits 1" 1 bash "$NEXT_NUMBER" --count abc
 
-# Test 10: Highest 9999 → exits 1 with "ticket number space exhausted" error
+# Test 10: Highest 9999 → exits 1 with "work item number space exhausted" error
 echo "Test: Highest 9999 (space exhausted)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
@@ -215,7 +215,7 @@ assert_eq "outputs draft" "draft" "$OUTPUT"
 echo "Test: Trailing whitespace"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
-printf -- '---\nticket_id: 0001\nstatus: draft  \n---\n\n# 0001: Test\n' \
+printf -- '---\nwork_item_id: 0001\nstatus: draft  \n---\n\n# 0001: Test\n' \
   > "$REPO/meta/work/0001-test.md"
 OUTPUT=$(bash "$READ_STATUS" "$REPO/meta/work/0001-test.md")
 assert_eq "outputs draft (stripped)" "draft" "$OUTPUT"
@@ -265,7 +265,7 @@ assert_eq "outputs draft (ignores body)" "draft" "$OUTPUT"
 echo "Test: Empty status value"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
-printf -- '---\nticket_id: 0001\nstatus: \n---\n\n# 0001: Test\n' \
+printf -- '---\nwork_item_id: 0001\nstatus: \n---\n\n# 0001: Test\n' \
   > "$REPO/meta/work/0001-test.md"
 OUTPUT=$(bash "$READ_STATUS" "$REPO/meta/work/0001-test.md")
 assert_eq "outputs empty string" "" "$OUTPUT"
@@ -280,8 +280,8 @@ echo ""
 echo "=== work-item-read-field.sh ==="
 echo ""
 
-# Helper: create a standard ticket fixture in a temp repo
-make_ticket() {
+# Helper: create a standard work-item fixture in a temp repo
+make_work_item() {
   local repo="$1"
   mkdir -p "$repo/meta/work"
   cat > "$repo/meta/work/0001-test.md" << 'FIXTURE'
@@ -295,7 +295,7 @@ tags: [backend, performance]
 sub.type: foo
 ---
 
-# 0001: Test Ticket
+# 0001: Test Work Item
 
 type: epic
 FIXTURE
@@ -304,48 +304,48 @@ FIXTURE
 # Test 1: Read type field → outputs "story"
 echo "Test: Read type field"
 REPO=$(setup_repo)
-make_ticket "$REPO"
+make_work_item "$REPO"
 OUTPUT=$(bash "$READ_FIELD" type "$REPO/meta/work/0001-test.md")
 assert_eq "outputs story" "story" "$OUTPUT"
 
 # Test 2: Read priority field → outputs "high"
 echo "Test: Read priority field"
 REPO=$(setup_repo)
-make_ticket "$REPO"
+make_work_item "$REPO"
 OUTPUT=$(bash "$READ_FIELD" priority "$REPO/meta/work/0001-test.md")
 assert_eq "outputs high" "high" "$OUTPUT"
 
 # Test 3: Read status field → outputs "draft" (works same as read-status)
 echo "Test: Read status field"
 REPO=$(setup_repo)
-make_ticket "$REPO"
+make_work_item "$REPO"
 OUTPUT=$(bash "$READ_FIELD" status "$REPO/meta/work/0001-test.md")
 assert_eq "outputs draft" "draft" "$OUTPUT"
 
 # Test 4: Read parent field → outputs "0001"
 echo "Test: Read parent field"
 REPO=$(setup_repo)
-make_ticket "$REPO"
+make_work_item "$REPO"
 OUTPUT=$(bash "$READ_FIELD" parent "$REPO/meta/work/0001-test.md")
 assert_eq "outputs 0001" "0001" "$OUTPUT"
 
 # Test 5: Read missing field → exits 1 with error
 echo "Test: Read missing field"
 REPO=$(setup_repo)
-make_ticket "$REPO"
+make_work_item "$REPO"
 assert_exit_code "exits 1" 1 bash "$READ_FIELD" nonexistent "$REPO/meta/work/0001-test.md"
 
 # Test 6: Quoted field value → strips quotes
 echo "Test: Quoted field value strips quotes"
 REPO=$(setup_repo)
-make_ticket "$REPO"
+make_work_item "$REPO"
 OUTPUT=$(bash "$READ_FIELD" parent "$REPO/meta/work/0001-test.md")
 assert_eq "outputs 0001 (no quotes)" "0001" "$OUTPUT"
 
 # Test 7: Field with array value tags: [a, b] → outputs "[backend, performance]" verbatim
 echo "Test: Array field value returned verbatim"
 REPO=$(setup_repo)
-make_ticket "$REPO"
+make_work_item "$REPO"
 OUTPUT=$(bash "$READ_FIELD" tags "$REPO/meta/work/0001-test.md")
 assert_eq "outputs array verbatim" "[backend, performance]" "$OUTPUT"
 
@@ -384,7 +384,7 @@ assert_exit_code "exits 1" 1 bash "$READ_FIELD" status
 # Test 13: Field name in body ignored, frontmatter value returned
 echo "Test: Body field ignored"
 REPO=$(setup_repo)
-make_ticket "$REPO"
+make_work_item "$REPO"
 OUTPUT=$(bash "$READ_FIELD" type "$REPO/meta/work/0001-test.md")
 assert_eq "outputs story (not epic from body)" "story" "$OUTPUT"
 
@@ -404,13 +404,13 @@ assert_eq "returns first occurrence" "first" "$OUTPUT"
 # Test 15: Prefix-collision (query `tag`, fixture has only `tags:`) → exits 1
 echo "Test: Prefix collision does not match"
 REPO=$(setup_repo)
-make_ticket "$REPO"
+make_work_item "$REPO"
 assert_exit_code "exits 1" 1 bash "$READ_FIELD" tag "$REPO/meta/work/0001-test.md"
 
 # Test 16a: Literal-match — fixture has `sub.type: foo`, query `sub.type` → outputs "foo"
 echo "Test: Dots matched literally (positive)"
 REPO=$(setup_repo)
-make_ticket "$REPO"
+make_work_item "$REPO"
 OUTPUT=$(bash "$READ_FIELD" "sub.type" "$REPO/meta/work/0001-test.md")
 assert_eq "outputs foo" "foo" "$OUTPUT"
 
@@ -441,8 +441,8 @@ echo ""
 
 UPDATE_TAGS="$SCRIPT_DIR/work-item-update-tags.sh"
 
-# Helper: create a ticket with specific tags content
-make_tagged_ticket() {
+# Helper: create a work item with specific tags content
+make_tagged_work_item() {
   local repo="$1"
   local tags_line="$2"
   mkdir -p "$repo/meta/work"
@@ -453,49 +453,49 @@ status: draft
 ${tags_line}
 ---
 
-# 0001: Test Ticket
+# 0001: Test Work Item
 FIXTURE
 }
 
 # Test 1: Add to existing flow-style array
 echo "Test: Add to existing flow-style array"
 REPO=$(setup_repo)
-make_tagged_ticket "$REPO" "tags: [api, search]"
+make_tagged_work_item "$REPO" "tags: [api, search]"
 OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" add backend)
 assert_eq "outputs new array" "[api, search, backend]" "$OUTPUT"
 
 # Test 2: Add duplicate (no-change)
 echo "Test: Add duplicate tag"
 REPO=$(setup_repo)
-make_tagged_ticket "$REPO" "tags: [api, search]"
+make_tagged_work_item "$REPO" "tags: [api, search]"
 OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" add api)
 assert_eq "outputs no-change" "no-change" "$OUTPUT"
 
 # Test 3: Remove existing tag
 echo "Test: Remove existing tag"
 REPO=$(setup_repo)
-make_tagged_ticket "$REPO" "tags: [api, backend, search]"
+make_tagged_work_item "$REPO" "tags: [api, backend, search]"
 OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" remove backend)
 assert_eq "outputs remaining tags" "[api, search]" "$OUTPUT"
 
 # Test 4: Remove absent tag (no-change)
 echo "Test: Remove absent tag"
 REPO=$(setup_repo)
-make_tagged_ticket "$REPO" "tags: [api, search]"
+make_tagged_work_item "$REPO" "tags: [api, search]"
 OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" remove backend)
 assert_eq "outputs no-change" "no-change" "$OUTPUT"
 
 # Test 5: Remove last tag → []
 echo "Test: Remove last tag yields empty array"
 REPO=$(setup_repo)
-make_tagged_ticket "$REPO" "tags: [backend]"
+make_tagged_work_item "$REPO" "tags: [backend]"
 OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" remove backend)
 assert_eq "outputs empty array" "[]" "$OUTPUT"
 
 # Test 6: Remove from empty [] → no-change
 echo "Test: Remove from empty array"
 REPO=$(setup_repo)
-make_tagged_ticket "$REPO" "tags: []"
+make_tagged_work_item "$REPO" "tags: []"
 OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" remove backend)
 assert_eq "outputs no-change" "no-change" "$OUTPUT"
 
@@ -509,7 +509,7 @@ work_item_id: 0001
 status: draft
 ---
 
-# 0001: Test Ticket
+# 0001: Test Work Item
 FIXTURE
 OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" add backend)
 assert_eq "outputs single-element array" "[backend]" "$OUTPUT"
@@ -517,7 +517,7 @@ assert_eq "outputs single-element array" "[backend]" "$OUTPUT"
 # Test 8: Add to empty [] → [new-tag]
 echo "Test: Add to empty array"
 REPO=$(setup_repo)
-make_tagged_ticket "$REPO" "tags: []"
+make_tagged_work_item "$REPO" "tags: []"
 OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" add backend)
 assert_eq "outputs single-element array" "[backend]" "$OUTPUT"
 
@@ -533,7 +533,7 @@ tags:
   - search
 ---
 
-# 0001: Test Ticket
+# 0001: Test Work Item
 FIXTURE
 RC=0
 STDERR=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" add backend 2>&1 >/dev/null) || RC=$?
@@ -574,21 +574,21 @@ assert_eq "exit code 1" "1" "$RC"
 # Test 13: Tag containing comma is quoted
 echo "Test: Tag with comma is quoted"
 REPO=$(setup_repo)
-make_tagged_ticket "$REPO" "tags: [api]"
+make_tagged_work_item "$REPO" "tags: [api]"
 OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" add "one,two")
 assert_eq "outputs quoted tag" '[api, "one,two"]' "$OUTPUT"
 
 # Test 14: Tag containing colon is quoted
 echo "Test: Tag with colon is quoted"
 REPO=$(setup_repo)
-make_tagged_ticket "$REPO" "tags: [api]"
+make_tagged_work_item "$REPO" "tags: [api]"
 OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" add "key:val")
 assert_eq "outputs quoted tag" '[api, "key:val"]' "$OUTPUT"
 
 # Test 15: Tag containing hash is quoted
 echo "Test: Tag with hash is quoted"
 REPO=$(setup_repo)
-make_tagged_ticket "$REPO" "tags: [api]"
+make_tagged_work_item "$REPO" "tags: [api]"
 OUTPUT=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" add "tag#1")
 assert_eq "outputs quoted tag" '[api, "tag#1"]' "$OUTPUT"
 

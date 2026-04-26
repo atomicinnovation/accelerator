@@ -60,7 +60,7 @@
       "files": [],
       "assertions": [
         {
-          "name": "handles_legacy_ticket",
+          "name": "handles_legacy_work_item",
           "type": "behavioral",
           "description": "Does not error on non-template type value adr-creation-task",
           "check": "Does not refuse to update or require migration of the legacy work item"

@@ -104,7 +104,7 @@ a prompt-only skill with `disable-model-invocation: true`, following the
 - Adds `.claude/accelerator.local.md` to the consumer's root `.gitignore`
   unconditionally, with whitespace-tolerant dedup against existing entries
 - Applies selective `.gitkeep` only to manually-populated directories
-  (`tmp/`, `templates/`, `tickets/`, `notes/`) — skill-output directories get
+  (`tmp/`, `templates/`, `work/`, `notes/`) — skill-output directories get
   artifacts on first use
 - Reports "did this" vs "already present" and only emits "Initialisation
   complete" after all steps succeed

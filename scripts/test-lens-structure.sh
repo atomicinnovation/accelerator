@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Lint every ticket review lens SKILL.md for structural conformance.
+# Lint every work-item review lens SKILL.md for structural conformance.
 # When a single lens directory name is given (e.g. "scope-lens") only that
 # lens is checked; otherwise all *-lens directories under the lenses base are
 # checked.
 #
-# Structural checks apply to every lens.  The peer-ticket-lens reference check
-# applies only to lenses whose identifier appears in TICKET_LENSES (the five
-# built-in ticket lenses) because code-review lenses are not expected to
-# reference ticket-specific peers.
+# Structural checks apply to every lens.  The peer-work-item-lens reference check
+# applies only to lenses whose identifier appears in WORK_ITEM_LENSES (the five
+# built-in work-item lenses) because code-review lenses are not expected to
+# reference work-item-specific peers.
 #
 # Usage:
 #   scripts/test-lens-structure.sh [lens-dir-name]
@@ -21,12 +21,12 @@ source "$SCRIPT_DIR/test-helpers.sh"
 
 LENSES_BASE="$SCRIPT_DIR/../skills/review/lenses"
 
-# Built-in ticket lens identifiers — peer-reference check applies only to these.
-TICKET_LENSES=(clarity completeness dependency scope testability)
+# Built-in work-item lens identifiers — peer-reference check applies only to these.
+WORK_ITEM_LENSES=(clarity completeness dependency scope testability)
 
-_is_ticket_lens() {
+_is_work_item_lens() {
   local id="$1"
-  for tl in "${TICKET_LENSES[@]}"; do
+  for tl in "${WORK_ITEM_LENSES[@]}"; do
     [ "$id" = "$tl" ] && return 0
   done
   return 1
@@ -121,7 +121,7 @@ for LENS_DIR in "${LENS_DIRS[@]}"; do
 
   # --- Persona sentence check ---
   # A single persona sentence must exist between the H1 and the first ## heading.
-  # For ticket lenses this should follow the "Review as a[n] ... specialist ..."
+  # For work-item lenses this should follow the "Review as a[n] ... specialist ..."
   # shape; for code-review lenses any non-empty line is accepted.
   PERSONA_LINE="$(awk '/^# /{found_h1=1; next} found_h1 && /^## /{exit} found_h1 && /[[:alnum:]]/{print; exit}' "$SKILL_FILE")"
   if [ -n "$PERSONA_LINE" ]; then
@@ -132,21 +132,21 @@ for LENS_DIR in "${LENS_DIRS[@]}"; do
     FAIL=$((FAIL + 1))
   fi
 
-  # --- What NOT to Do: peer ticket-lens references (ticket lenses only) ---
-  if _is_ticket_lens "$LENS_ID"; then
+  # --- What NOT to Do: peer work-item-lens references (work-item lenses only) ---
+  if _is_work_item_lens "$LENS_ID"; then
     WHAT_NOT_BODY="$(awk '/^## What NOT to Do/{found=1; next} found && /^## /{exit} found{print}' "$SKILL_FILE")"
     PEER_COUNT=0
-    for PEER in "${TICKET_LENSES[@]}"; do
+    for PEER in "${WORK_ITEM_LENSES[@]}"; do
       [ "$PEER" = "$LENS_ID" ] && continue
       if echo "$WHAT_NOT_BODY" | grep -qE "\b$PEER\b"; then
         PEER_COUNT=$((PEER_COUNT + 1))
       fi
     done
     if [ "$PEER_COUNT" -ge 3 ]; then
-      echo "  PASS: $LENS_NAME 'What NOT to Do' names at least 3 peer ticket lenses ($PEER_COUNT found)"
+      echo "  PASS: $LENS_NAME 'What NOT to Do' names at least 3 peer work-item lenses ($PEER_COUNT found)"
       PASS=$((PASS + 1))
     else
-      echo "  FAIL: $LENS_NAME 'What NOT to Do' names only $PEER_COUNT peer ticket lenses (need >= 3)"
+      echo "  FAIL: $LENS_NAME 'What NOT to Do' names only $PEER_COUNT peer work-item lenses (need >= 3)"
       FAIL=$((FAIL + 1))
     fi
   fi

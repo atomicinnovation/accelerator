@@ -101,7 +101,7 @@ Then wait for the user's input.
 
 ### Step 2: Select Review Lenses
 
-By default, run every lens registered in `BUILTIN_TICKET_LENSES` unless the
+By default, run every lens registered in `BUILTIN_WORK_ITEM_LENSES` unless the
 user has provided focus arguments or config restricts the selection. The five
 work item lenses cover orthogonal concerns, so there is no relevance-based
 auto-selection.
@@ -205,7 +205,7 @@ strategy:
 
    Note: `"suggestion"` severity is used here (not `"major"` as in
    `review-plan`) so a single flaky agent cannot deterministically force a
-   REVISE verdict when `ticket_revise_severity` is `major` or higher.
+   REVISE verdict when `work_item_revise_severity` is `major` or higher.
 
 When falling back, warn the user that the agent's output could not be parsed
 and present the raw agent output so the user can see what the agent found.
@@ -243,7 +243,7 @@ Once all reviews are complete:
 
    If review configuration provides verdict overrides above, apply those
    thresholds instead of the defaults below:
-   - If `ticket_revise_severity` is `none`, skip the severity-based REVISE
+   - If `work_item_revise_severity` is `none`, skip the severity-based REVISE
      rule (major count rule still applies independently)
    - If any findings at or above the work item revise severity
      ({work item revise severity}) exist → suggest `REVISE`

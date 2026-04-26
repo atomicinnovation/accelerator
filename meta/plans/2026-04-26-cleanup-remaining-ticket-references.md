@@ -3,7 +3,7 @@ date: "2026-04-26T00:00:00+01:00"
 type: plan
 skill: create-plan
 work-item: ""
-status: draft
+status: complete
 ---
 
 # Cleanup Remaining Ticket References Implementation Plan
@@ -380,10 +380,10 @@ Lines 512 and 536 — update remaining fixture H1 headings:
 
 #### Automated Verification
 
-- [ ] Grep confirms no `ticket` references remain in `scripts/` or
+- [x] Grep confirms no `ticket` references remain in `scripts/` or
   `skills/work/scripts/`:
   `grep -rni ticket scripts/ skills/work/scripts/`
-- [ ] Tests pass: `mise run test`
+- [x] Tests pass: `mise run test`
 
 ---
 
@@ -461,7 +461,7 @@ Line 107 — update directory name in body text:
 
 #### Automated Verification
 
-- [ ] Grep confirms no remaining missed `ticket` references across all target
+- [x] Grep confirms no remaining missed `ticket` references across all target
   files:
   ```bash
   grep -rni ticket \
@@ -471,7 +471,7 @@ Line 107 — update directory name in body text:
     skills/work/scripts/ \
     meta/work/0026-init-skill-for-repo-bootstrap.md
   ```
-- [ ] Tests pass: `mise run test`
+- [x] Tests pass: `mise run test`
 
 ---
 
