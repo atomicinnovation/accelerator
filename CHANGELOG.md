@@ -121,6 +121,24 @@
   finding deduplication, and atomic review posting via the GitHub REST API.
   Related work items (0001–0007, 0009, 0014) and `skills/decisions/create-adr`
   now cross-reference the corresponding ADRs.
+- **`/accelerator:migrate` skill**: New skill that applies ordered, idempotent
+  migrations to a consumer repository's `meta/` directory and
+  `.claude/accelerator*.md` config files after a plugin update. Refuses to run
+  on a dirty working tree, prints a one-line preview per pending migration
+  before applying, and tracks applied migrations in
+  `meta/.migrations-applied`. Recoverable via VCS revert. Set
+  `ACCELERATOR_MIGRATE_FORCE=1` to bypass the clean-tree check if needed.
+- **Migration discoverability hook**: A `SessionStart` hook
+  (`hooks/migrate-discoverability.sh`) warns when `meta/.migrations-applied`
+  lags the bundled migrations, reminding you to run `/accelerator:migrate`.
+  Fires automatically at session start when Accelerator is detected in the
+  repository.
+- **`0001-rename-tickets-to-work` migration**: First bundled migration, applied
+  automatically by `/accelerator:migrate`. Renames `meta/tickets/` →
+  `meta/work/`, rewrites `ticket_id:` → `work_item_id:` in every file under
+  the resolved work-item directory, and updates `paths.tickets` /
+  `paths.review_tickets` config keys to `paths.work` / `paths.review_work` in
+  `.claude/accelerator*.md`. Preserves custom directory locations.
 
 ## 1.18.0 — 2026-04-17
 
