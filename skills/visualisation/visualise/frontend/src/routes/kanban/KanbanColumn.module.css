@@ -1,0 +1,38 @@
+.column {
+  display: flex;
+  flex-direction: column;
+  min-width: 16rem;
+  flex: 1 1 16rem;
+  background: #f3f4f6;
+  border-radius: 0.25rem;
+  padding: 0.75rem;
+}
+.columnHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+.columnHeading { margin: 0; font-size: 1rem; color: #111827; }
+.columnCount {
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 0 0.5rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+.columnDescription {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+.cardList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.empty {
+  margin: 0.5rem 0;
+  color: #9ca3af;
+  font-style: italic;
+}
