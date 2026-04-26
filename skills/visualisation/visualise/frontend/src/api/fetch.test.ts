@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
+  FetchError,
   fetchTypes, fetchDocs, fetchDocContent,
   fetchTemplates, fetchTemplateDetail,
   fetchLifecycleClusters, fetchLifecycleCluster,
@@ -150,6 +151,39 @@ describe('fetchLifecycleClusters', () => {
   it('throws on non-200', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500 })
     await expect(fetchLifecycleClusters()).rejects.toThrow('500')
+  })
+})
+
+describe('FetchError contract — all helpers throw FetchError on non-2xx', () => {
+  it.each([
+    ['fetchTypes',          () => fetchTypes()],
+    ['fetchDocs',           () => fetchDocs('tickets')],
+    ['fetchDocContent',     () => fetchDocContent('meta/tickets/0001-x.md')],
+    ['fetchTemplates',      () => fetchTemplates()],
+    ['fetchTemplateDetail', () => fetchTemplateDetail('foo')],
+  ])('%s rejects with FetchError carrying the status', async (_name, call) => {
+    mockFetch.mockResolvedValue({ ok: false, status: 503, headers: { get: () => null }, text: async () => '', json: async () => ({}) })
+    await expect(call()).rejects.toBeInstanceOf(FetchError)
+    try {
+      await call()
+    } catch (err) {
+      expect(err).toBeInstanceOf(FetchError)
+      expect((err as FetchError).status).toBe(503)
+    }
+  })
+
+  it.each([
+    ['fetchTypes',          () => fetchTypes(),                 404],
+    ['fetchDocs',           () => fetchDocs('tickets'),         404],
+    ['fetchDocContent',     () => fetchDocContent('foo.md'),    404],
+    ['fetchTemplates',      () => fetchTemplates(),             404],
+    ['fetchTemplateDetail', () => fetchTemplateDetail('foo'),   404],
+  ])('%s rejects with FetchError(404)', async (_name, call, status) => {
+    mockFetch.mockResolvedValue({ ok: false, status, headers: { get: () => null }, text: async () => '', json: async () => ({}) })
+    await expect(call()).rejects.toMatchObject({
+      name: 'FetchError',
+      status,
+    })
   })
 })
 
