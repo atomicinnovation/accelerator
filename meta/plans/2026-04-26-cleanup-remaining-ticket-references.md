@@ -188,9 +188,9 @@ Line 121 — update naming hint:
 
 #### Automated Verification
 
-- [ ] Grep confirms no `ticket` references remain in `agents/`:
+- [x] Grep confirms no `ticket` references remain in `agents/`:
   `grep -rni ticket agents/`
-- [ ] Tests pass: `mise run test`
+- [x] Tests pass: `mise run test`
 
 ---
 

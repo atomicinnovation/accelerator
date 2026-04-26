@@ -22,7 +22,7 @@ contents in depth.
 
 2. **Categorise findings by type**
 
-- Tickets (usually in tickets/ subdirectory)
+- Work items (usually in work/ subdirectory)
 - Research documents (in research/)
 - Implementation plans (in plans/)
 - Review artifacts (in reviews/)
@@ -52,7 +52,7 @@ meta/
 ├── reviews/      # Review artifacts (plan and PR reviews)
 ├── validations/  # Plan validation reports
 ├── decisions/    # Technical and architectural decisions
-├── tickets/      # Ticket documentation
+├── work/         # Work item documentation
 ├── prs/          # PR descriptions
 ├── notes/        # General notes
 └── global/       # Cross-repository thoughts
@@ -71,9 +71,9 @@ Structure your findings like this:
 ```
 ## Documents about [Topic]
 
-### Tickets
-- `meta/tickets/eng-1234.md` - Implement rate limiting for API
-- `meta/tickets/eng-1235.md` - Rate limit configuration design
+### Work Items
+- `meta/work/0001-implement-rate-limiting.md` - Implement rate limiting for API
+- `meta/work/0002-rate-limit-configuration-design.md` - Rate limit configuration design
 
 ### Research Documents
 - `meta/research/2024-01-15_rate_limiting_approaches.md` - Research on different rate limiting strategies
@@ -118,7 +118,7 @@ Total: 8 relevant documents found
 
 3. **Look for patterns**:
 
-- Ticket files often named `eng-XXXX.md`
+- Work item files often named `NNNN-title.md`
 - Research files often dated `YYYY-MM-DD_topic.md`
 - Plan files often named `feature-name.md`
 
