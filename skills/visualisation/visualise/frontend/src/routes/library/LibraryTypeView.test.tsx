@@ -15,6 +15,7 @@ const mockEntries: IndexEntry[] = [
     frontmatter: { status: 'draft', date: '2026-01-01' },
     frontmatterState: 'parsed', ticket: null,
     mtimeMs: 1_700_000_000_000, size: 100, etag: 'sha256-a',
+    bodyPreview: '',
   },
   {
     type: 'plans', path: '/p/meta/plans/2026-02-01-bar.md',
@@ -23,6 +24,7 @@ const mockEntries: IndexEntry[] = [
     frontmatter: { status: 'complete', date: '2026-02-01' },
     frontmatterState: 'parsed', ticket: null,
     mtimeMs: 1_700_100_000_000, size: 200, etag: 'sha256-b',
+    bodyPreview: '',
   },
 ]
 

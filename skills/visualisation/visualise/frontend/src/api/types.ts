@@ -45,6 +45,7 @@ export interface IndexEntry {
   mtimeMs: number
   size: number
   etag: string
+  bodyPreview: string
 }
 
 export interface DocsListResponse {
@@ -92,3 +93,58 @@ export interface SseDocInvalidEvent {
 }
 
 export type SseEvent = SseDocChangedEvent | SseDocInvalidEvent
+
+export interface Completeness {
+  hasTicket: boolean
+  hasResearch: boolean
+  hasPlan: boolean
+  hasPlanReview: boolean
+  hasValidation: boolean
+  hasPr: boolean
+  hasPrReview: boolean
+  hasDecision: boolean
+  hasNotes: boolean
+}
+
+export interface LifecycleCluster {
+  slug: string
+  title: string
+  entries: IndexEntry[]
+  completeness: Completeness
+  lastChangedMs: number
+}
+
+export interface LifecycleListResponse {
+  clusters: LifecycleCluster[]
+}
+
+type PipelineStepKey =
+  | 'hasTicket' | 'hasResearch' | 'hasPlan' | 'hasPlanReview'
+  | 'hasValidation' | 'hasPr' | 'hasPrReview' | 'hasDecision'
+  | 'hasNotes'
+
+export const LIFECYCLE_PIPELINE_STEPS: ReadonlyArray<{
+  key: PipelineStepKey
+  docType: DocTypeKey
+  label: string
+  placeholder: string
+  longTail?: boolean
+}> = [
+  { key: 'hasTicket',     docType: 'tickets',      label: 'Ticket',      placeholder: 'no ticket yet' },
+  { key: 'hasResearch',   docType: 'research',     label: 'Research',    placeholder: 'no research yet' },
+  { key: 'hasPlan',       docType: 'plans',        label: 'Plan',        placeholder: 'no plan yet' },
+  { key: 'hasPlanReview', docType: 'plan-reviews', label: 'Plan review', placeholder: 'no plan review yet' },
+  { key: 'hasValidation', docType: 'validations',  label: 'Validation',  placeholder: 'no validation yet' },
+  { key: 'hasPr',         docType: 'prs',          label: 'PR',          placeholder: 'no PR yet' },
+  { key: 'hasPrReview',   docType: 'pr-reviews',   label: 'PR review',   placeholder: 'no PR review yet' },
+  { key: 'hasDecision',   docType: 'decisions',    label: 'Decision',    placeholder: 'no decision yet' },
+  { key: 'hasNotes',      docType: 'notes',        label: 'Notes',       placeholder: 'no notes yet', longTail: true },
+] as const
+
+export const WORKFLOW_PIPELINE_STEPS = LIFECYCLE_PIPELINE_STEPS.filter(
+  s => !s.longTail,
+)
+
+export const LONG_TAIL_PIPELINE_STEPS = LIFECYCLE_PIPELINE_STEPS.filter(
+  s => s.longTail,
+)

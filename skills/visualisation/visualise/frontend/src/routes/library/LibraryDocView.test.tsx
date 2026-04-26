@@ -13,6 +13,7 @@ const mockEntry: IndexEntry = {
   slug: 'foo', title: 'Foo Plan',
   frontmatter: { status: 'draft' }, frontmatterState: 'parsed', ticket: null,
   mtimeMs: 1_700_000_000_000, size: 100, etag: 'sha256-a',
+  bodyPreview: '',
 }
 
 function Wrapper({ children }: { children: React.ReactNode }) {
