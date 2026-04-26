@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   fetchTypes, fetchDocs, fetchDocContent,
   fetchTemplates, fetchTemplateDetail,
+  fetchLifecycleClusters, fetchLifecycleCluster,
 } from './fetch'
 
 const mockFetch = vi.fn()
@@ -117,5 +118,78 @@ describe('fetchTemplateDetail', () => {
   it('throws on non-200', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 404 })
     await expect(fetchTemplateDetail('missing')).rejects.toThrow('404')
+  })
+})
+
+describe('fetchLifecycleClusters', () => {
+  it('unwraps the `clusters` field from the response envelope', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        clusters: [
+          {
+            slug: 'foo',
+            title: 'Foo',
+            entries: [],
+            completeness: {
+              hasTicket: false, hasResearch: false, hasPlan: true,
+              hasPlanReview: false, hasValidation: false, hasPr: false,
+              hasPrReview: false, hasDecision: false, hasNotes: false,
+            },
+            lastChangedMs: 1_700_000_000_000,
+          },
+        ],
+      }),
+    })
+    const clusters = await fetchLifecycleClusters()
+    expect(clusters).toHaveLength(1)
+    expect(clusters[0].slug).toBe('foo')
+    expect(clusters[0].lastChangedMs).toBe(1_700_000_000_000)
+  })
+
+  it('throws on non-200', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 })
+    await expect(fetchLifecycleClusters()).rejects.toThrow('500')
+  })
+})
+
+describe('fetchLifecycleCluster', () => {
+  it('returns the single-cluster payload directly', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        slug: 'foo', title: 'Foo', entries: [],
+        completeness: {
+          hasTicket: false, hasResearch: false, hasPlan: false,
+          hasPlanReview: false, hasValidation: false, hasPr: false,
+          hasPrReview: false, hasDecision: false, hasNotes: false,
+        },
+        lastChangedMs: 0,
+      }),
+    })
+    const cluster = await fetchLifecycleCluster('foo')
+    expect(cluster.slug).toBe('foo')
+  })
+
+  it('url-encodes the slug', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        slug: 'foo bar', title: '', entries: [],
+        completeness: {
+          hasTicket: false, hasResearch: false, hasPlan: false,
+          hasPlanReview: false, hasValidation: false, hasPr: false,
+          hasPrReview: false, hasDecision: false, hasNotes: false,
+        },
+        lastChangedMs: 0,
+      }),
+    })
+    await fetchLifecycleCluster('foo bar')
+    expect(mockFetch).toHaveBeenCalledWith('/api/lifecycle/foo%20bar')
+  })
+
+  it('throws on 404', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 })
+    await expect(fetchLifecycleCluster('missing')).rejects.toThrow('404')
   })
 })
