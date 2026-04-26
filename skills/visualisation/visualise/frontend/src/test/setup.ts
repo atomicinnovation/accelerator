@@ -17,8 +17,18 @@ class MockEventSource {
   constructor(_url: string) {}
 }
 
+class MockResizeObserver {
+  observe = vi.fn()
+  unobserve = vi.fn()
+  disconnect = vi.fn()
+}
+
 beforeAll(() => {
   vi.stubGlobal('EventSource', MockEventSource)
+  vi.stubGlobal('ResizeObserver', MockResizeObserver)
+  if (!Element.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = vi.fn()
+  }
 })
 
 afterAll(() => {

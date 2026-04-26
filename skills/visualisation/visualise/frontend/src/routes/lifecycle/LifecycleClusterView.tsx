@@ -6,7 +6,7 @@ import { queryKeys } from '../../api/query-keys'
 import { fileSlugFromRelPath } from '../../api/path-utils'
 import {
   WORKFLOW_PIPELINE_STEPS, LONG_TAIL_PIPELINE_STEPS,
-  type IndexEntry, type LifecycleCluster,
+  type IndexEntry,
 } from '../../api/types'
 import styles from './LifecycleClusterView.module.css'
 
