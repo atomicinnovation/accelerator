@@ -38,3 +38,7 @@ def integration(context: Context):
     print("Running format checks...")
     context.run("scripts/test-format.sh")
     print("\n")
+
+    print("Running migration framework tests...")
+    context.run("skills/config/migrate/scripts/test-migrate.sh")
+    print("\n")

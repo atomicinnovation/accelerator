@@ -96,6 +96,25 @@ This approach means:
 - Artifacts are structured and machine-parseable (YAML frontmatter, JSON
   schemas)
 
+## Migrations
+
+When a new plugin version renames directories, config keys, or file formats, a
+migration script handles the upgrade. Run `/accelerator:migrate` after updating
+the plugin to apply any pending migrations to your `meta/` directory and
+`.claude/accelerator*.md` config files.
+
+```
+/accelerator:migrate
+```
+
+Safety guards: the skill refuses to run on a dirty working tree and prints a
+one-line preview per pending migration before applying anything. All mutations
+are tracked in `meta/.migrations-applied`. Recovery is via VCS revert. Set
+`ACCELERATOR_MIGRATE_FORCE=1` to bypass the clean-tree check if needed.
+
+A `SessionStart` hook fires automatically when `meta/.migrations-applied` lags
+the bundled migrations, reminding you to run `/accelerator:migrate`.
+
 ## VCS Detection
 
 Accelerator automatically detects whether a repository uses git or

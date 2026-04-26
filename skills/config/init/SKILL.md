@@ -125,3 +125,7 @@ Gitignore entries:
 ```
 
 Use the actual resolved paths in the output (not the variable names).
+
+---
+
+`/accelerator:init` bootstraps a fresh repository. To upgrade an existing repository after a plugin update, use `/accelerator:migrate` instead — it applies ordered, idempotent migrations to bring `meta/` and `.claude/accelerator*.md` in line with the latest schema.

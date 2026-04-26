@@ -652,3 +652,9 @@ confirmations.
   with this
 - Team config should contain only project-relevant context, not personal
   preferences
+
+## Related Skills
+
+- `/accelerator:init` — bootstrap a fresh repository with all directories
+- `/accelerator:migrate` — apply pending schema migrations after a plugin upgrade
+  (renames `meta/` directories and config keys to match the latest conventions)

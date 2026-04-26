@@ -16,9 +16,13 @@ postinstall = "uv sync --only-group build --frozen"
 description = "Run integration tests"
 run = "invoke test.integration"
 
+[tasks."test:migrate"]
+description = "Run migration framework tests"
+run = "bash skills/config/migrate/scripts/test-migrate.sh"
+
 [tasks.test]
 description = "Run all tests"
-depends = ["test:integration"]
+depends = ["test:integration", "test:migrate"]
 
 [tasks."version:read"]
 description = "Read plugin version"
