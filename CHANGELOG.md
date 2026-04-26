@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## [Unreleased]
+
+## [1.19.0] - 2026-04-26
 
 ### Changed
 
@@ -140,7 +142,7 @@
   `paths.review_tickets` config keys to `paths.work` / `paths.review_work` in
   `.claude/accelerator*.md`. Preserves custom directory locations.
 
-## 1.18.0 — 2026-04-17
+## [1.18.0] — 2026-04-17
 
 _Versions 1.12.0 through 1.18.0 were iterative build-system and release-pipeline
 changes and are not recorded as separate entries. The combined work is
@@ -176,7 +178,7 @@ described below._
 - **Tests failing on bash 5.2**: Test harness adjustments so suites pass on
   the bash version available on GitHub Actions runners.
 
-## 1.11.0 — 2026-04-15
+## [1.11.0] — 2026-04-15
 
 ### Fixed
 
@@ -198,7 +200,7 @@ described below._
   `config-dump.sh`, and fallback lines in all 10 skills that reference agents.
   User-provided overrides are passed through unchanged.
 
-## 1.10.0 — 2026-03-30
+## [1.10.0] — 2026-03-30
 
 ### Added
 
@@ -237,7 +239,7 @@ described below._
   `config_resolve_template()`, `config_format_available_templates()`, and
   `config_display_path()`. Existing behaviour is preserved.
 
-## 1.9.0 — 2026-03-29
+## [1.9.0] — 2026-03-29
 
 ### Changed
 
@@ -246,7 +248,7 @@ described below._
   frontmatter name, config-summary hint, and README reference have all been
   updated. No backwards-compatibility shim — the old name was unreleased.
 
-## 1.8.0 — 2026-03-29
+## [1.8.0] — 2026-03-29
 
 ### Added
 
@@ -276,7 +278,7 @@ described below._
   rm -rf meta/reviews/prs/pr-review-*/
   ```
 
-## 1.7.0 — 2026-03-28
+## [1.7.0] — 2026-03-28
 
 ### Added
 
@@ -295,7 +297,7 @@ described below._
     troubleshooting guidance
   - `/accelerator:configure view` enumerates active per-skill customisations
 
-## 1.6.0 — 2026-03-27
+## [1.6.0] — 2026-03-27
 
 ### Added
 
@@ -360,7 +362,7 @@ described below._
 - `config-read-template.sh` error message now dynamically lists available
   templates instead of a hardcoded list
 
-## 1.5.0 — 2026-03-23
+## [1.5.0] — 2026-03-23
 
 ### Added
 
@@ -394,7 +396,7 @@ described below._
   frontmatter (`date`, `type`, `skill`, `pr_number`, `pr_title`, `status`) in
   `meta/prs/` output, stripped before posting to GitHub
 
-## 1.3.0 — 2026-03-18
+## [1.3.0] — 2026-03-18
 
 _Versions 1.1.0–1.2.1 added VCS detection, jujutsu support, and bug fixes
 but were not recorded in the changelog._
@@ -414,7 +416,7 @@ but were not recorded in the changelog._
 - `meta/decisions/` directory for storing ADRs with sequential `ADR-NNNN`
   numbering
 
-## 1.0.0 — 2026-03-14
+## [1.0.0] — 2026-03-14
 
 Initial extraction from `~/.claude/` into a standalone Claude Code plugin.
 
