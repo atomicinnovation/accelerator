@@ -5,7 +5,7 @@ import React from 'react'
 import { LibraryTemplatesView } from './LibraryTemplatesView'
 import * as fetchModule from '../../api/fetch'
 import type { TemplateDetail } from '../../api/types'
-import { MemoryRouter } from '../../components/Sidebar/test-helpers'
+import { MemoryRouter } from '../../test/router-helpers'
 
 const mockDetail: TemplateDetail = {
   name: 'adr',

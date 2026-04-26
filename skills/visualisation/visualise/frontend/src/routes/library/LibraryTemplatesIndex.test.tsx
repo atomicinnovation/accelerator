@@ -5,7 +5,7 @@ import React from 'react'
 import { LibraryTemplatesIndex } from './LibraryTemplatesIndex'
 import * as fetchModule from '../../api/fetch'
 import type { TemplateSummary } from '../../api/types'
-import { MemoryRouter } from '../../components/Sidebar/test-helpers'
+import { MemoryRouter } from '../../test/router-helpers'
 
 const mockTemplates: TemplateSummary[] = [
   { name: 'adr',    activeTier: 'plugin-default', tiers: [] },

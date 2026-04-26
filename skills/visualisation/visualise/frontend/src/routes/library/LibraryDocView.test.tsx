@@ -5,7 +5,7 @@ import React from 'react'
 import { LibraryDocView } from './LibraryDocView'
 import * as fetchModule from '../../api/fetch'
 import type { IndexEntry } from '../../api/types'
-import { MemoryRouter } from '../../components/Sidebar/test-helpers'
+import { MemoryRouter } from '../../test/router-helpers'
 
 const mockEntry: IndexEntry = {
   type: 'plans', path: '/p/meta/plans/2026-01-01-foo.md',

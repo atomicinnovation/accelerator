@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { MemoryRouter } from '../../components/Sidebar/test-helpers'
+import { MemoryRouter } from '../../test/router-helpers'
 import { LibraryTypeView } from './LibraryTypeView'
 import * as fetchModule from '../../api/fetch'
 import type { IndexEntry } from '../../api/types'

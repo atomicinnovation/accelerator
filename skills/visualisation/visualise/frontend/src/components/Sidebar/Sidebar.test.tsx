@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { MemoryRouter } from './test-helpers'
+import { MemoryRouter } from '../../test/router-helpers'
 import { Sidebar } from './Sidebar'
 import type { DocType } from '../../api/types'
 
