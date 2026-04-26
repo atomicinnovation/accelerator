@@ -21,7 +21,7 @@ Q2. Engineering needs to ship the refund code to production ahead of the
 vendor's schedule so it can be tested in staging, but the feature must not be
 visible to end users until the processor signals readiness. The flag service
 (LaunchDarkly) is already integrated and used for three other features; this
-ticket follows the same integration pattern.
+work item follows the same integration pattern.
 
 ## Requirements
 
@@ -59,13 +59,13 @@ ticket follows the same integration pattern.
 ## Dependencies
 
 - LaunchDarkly integration (already live; owned by: platform team)
-- Refund endpoint implementation (in-progress, tracked in ticket 0041)
-- Refund UI component (in-progress, same ticket)
+- Refund endpoint implementation (in-progress, tracked in work item 0041)
+- Refund UI component (in-progress, same work item)
 
 ## Assumptions
 
 - The platform team will create the `payment_refund_enabled` flag in LaunchDarkly
-  as part of this ticket; engineering does not need a separate provisioning step.
+  as part of this work item; engineering does not need a separate provisioning step.
 - The LDCM-recommended TTL for flag evaluation caching is 5 seconds; if this
   changes, the implementation must be updated separately.
 - Returning HTTP 404 for a flag-blocked refund request is an agreed UX decision
