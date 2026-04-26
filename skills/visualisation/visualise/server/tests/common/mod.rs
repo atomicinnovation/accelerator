@@ -68,3 +68,28 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
         templates,
     }
 }
+
+#[allow(dead_code)]
+pub fn seeded_cfg_with_tickets(tmp: &Path) -> Config {
+    let mut cfg = seeded_cfg(tmp);
+    let tickets = tmp.join("meta/tickets");
+    std::fs::create_dir_all(&tickets).unwrap();
+    std::fs::write(
+        tickets.join("0001-todo-fixture.md"),
+        "---\ntitle: \"Todo fixture\"\ntype: adr-creation-task\nstatus: todo\n---\n# body\n",
+    )
+    .unwrap();
+    std::fs::write(
+        tickets.join("0002-done-fixture.md"),
+        "---\ntitle: \"Done fixture\"\ntype: adr-creation-task\nstatus: done\n---\n# body\n",
+    )
+    .unwrap();
+    std::fs::write(
+        tickets.join("0003-other-fixture.md"),
+        "---\ntitle: \"Blocked fixture\"\ntype: adr-creation-task\nstatus: blocked\n---\n# body\n",
+    )
+    .unwrap();
+    cfg.doc_paths
+        .insert("tickets".into(), tickets);
+    cfg
+}

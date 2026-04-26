@@ -171,6 +171,57 @@ async fn doc_fetch_handles_percent_encoded_path() {
 }
 
 #[tokio::test]
+async fn docs_list_for_tickets_carries_frontmatter_status() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = common::seeded_cfg_with_tickets(tmp.path());
+    let activity = Arc::new(Activity::new());
+    let state = AppState::build(cfg, activity).await.unwrap();
+    let app = build_router(state);
+
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/docs?type=tickets")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let docs = v["docs"].as_array().expect("docs array");
+
+    let by_status: std::collections::HashMap<&str, &str> =
+        std::collections::HashMap::from([
+            ("todo", "0001-todo-fixture"),
+            ("done", "0002-done-fixture"),
+            ("blocked", "0003-other-fixture"),
+        ]);
+    for (status, slug_prefix) in &by_status {
+        let entry = docs
+            .iter()
+            .find(|d| {
+                d["relPath"]
+                    .as_str()
+                    .map(|p| p.contains(slug_prefix))
+                    .unwrap_or(false)
+            })
+            .unwrap_or_else(|| panic!("expected ticket {slug_prefix}"));
+        assert_eq!(
+            entry["frontmatter"]["status"].as_str(),
+            Some(*status),
+            "status pass-through broken for {slug_prefix}: got {entry}",
+        );
+        assert_eq!(
+            entry["frontmatterState"].as_str(),
+            Some("parsed"),
+            "frontmatterState should be `parsed` for {slug_prefix}: got {entry}",
+        );
+    }
+}
+
+#[tokio::test]
 async fn docs_list_returns_empty_array_for_type_with_no_files() {
     let tmp = tempfile::tempdir().unwrap();
     let cfg = common::seeded_cfg(tmp.path());
