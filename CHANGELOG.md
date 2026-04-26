@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Visualiser kanban view** — `/kanban` now renders a read-only kanban board
+  with `Todo`, `In progress`, and `Done` columns populated from ticket
+  frontmatter. Tickets with non-canonical or missing statuses surface in an
+  `Other` swimlane below the three main columns, with an explanatory line so
+  authors understand why a ticket landed there. Cards show the ticket number,
+  title, type, and last-modified time, and link through to the existing library
+  detail page. External edits to a ticket's `status:` field land in the UI
+  within ~250 ms via the existing SSE-driven query invalidation. Drag-and-drop
+  is wired via `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/utilities`
+  for Phase 8 but disabled in this release. *Behind no flag — visible to all
+  users on first navigation to `/kanban`.*
+
 ## [1.20.0] - 2026-04-28
 
 ### Added
