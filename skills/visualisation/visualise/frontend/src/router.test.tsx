@@ -111,4 +111,21 @@ describe('router', () => {
     ).toBeInTheDocument()
     expect(spy).toHaveBeenCalledWith('foo')
   })
+
+  it('routes /kanban to the kanban board with three columns', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
+    const router = renderAt('/kanban')
+    await waitForPath(router, '/kanban')
+    expect(await screen.findByRole('region', { name: /todo/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /in progress/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /done/i })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /other/i })).toBeNull()
+  })
+
+  it('does not render the legacy "coming in Phase 7" stub copy at /kanban', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
+    const router = renderAt('/kanban')
+    await waitForPath(router, '/kanban')
+    expect(screen.queryByText(/coming in phase 7/i)).toBeNull()
+  })
 })

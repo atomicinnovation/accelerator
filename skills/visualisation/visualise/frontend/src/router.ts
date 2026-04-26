@@ -13,7 +13,7 @@ import { LibraryTemplatesView } from './routes/library/LibraryTemplatesView'
 import { LifecycleLayout } from './routes/lifecycle/LifecycleLayout'
 import { LifecycleIndex } from './routes/lifecycle/LifecycleIndex'
 import { LifecycleClusterView } from './routes/lifecycle/LifecycleClusterView'
-import { KanbanStub } from './routes/kanban/KanbanStub'
+import { KanbanBoard } from './routes/kanban/KanbanBoard'
 import { isDocTypeKey, type DocTypeKey } from './api/types'
 
 const rootRoute = createRootRoute({ component: RootLayout })
@@ -98,7 +98,7 @@ export const lifecycleClusterRoute = createRoute({
 const kanbanRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/kanban',
-  component: KanbanStub,
+  component: KanbanBoard,
 })
 
 // Exported so tests can construct an isolated router with memory history.
