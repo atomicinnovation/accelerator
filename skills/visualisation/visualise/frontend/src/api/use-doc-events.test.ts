@@ -46,6 +46,32 @@ describe('dispatchSseEvent', () => {
       expect.objectContaining({ queryKey: queryKeys.kanban() }),
     )
   })
+
+  it('invalidates the lifecycle-cluster prefix on doc-changed event', () => {
+    queryClient.setQueryData(queryKeys.lifecycleCluster('foo'), null)
+    queryClient.setQueryData(queryKeys.lifecycleCluster('bar'), null)
+
+    dispatchSseEvent(
+      { type: 'doc-changed', docType: 'plans', path: 'meta/plans/x.md', etag: 'sha256-x' },
+      queryClient,
+    )
+
+    expect(queryClient.getQueryState(queryKeys.lifecycleCluster('foo'))?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(queryKeys.lifecycleCluster('bar'))?.isInvalidated).toBe(true)
+  })
+
+  it('also invalidates the lifecycle-cluster prefix on doc-invalid event', () => {
+    queryClient.setQueryData(queryKeys.lifecycleCluster('foo'), null)
+
+    dispatchSseEvent(
+      { type: 'doc-invalid', docType: 'plans', path: 'meta/plans/x.md' },
+      queryClient,
+    )
+
+    expect(
+      queryClient.getQueryState(queryKeys.lifecycleCluster('foo'))?.isInvalidated,
+    ).toBe(true)
+  })
 })
 
 // ── Wiring tests via the factory ─────────────────────────────────────────

@@ -7,6 +7,7 @@ export const queryKeys = {
   templates: () => ['templates'] as const,
   templateDetail: (name: string) => ['template-detail', name] as const,
   lifecycle: () => ['lifecycle'] as const,
+  lifecycleClusterPrefix: () => ['lifecycle-cluster'] as const,
   lifecycleCluster: (slug: string) => ['lifecycle-cluster', slug] as const,
   kanban: () => ['kanban'] as const,
 } as const

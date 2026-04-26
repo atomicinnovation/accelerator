@@ -22,6 +22,7 @@ export function dispatchSseEvent(
     void queryClient.invalidateQueries({ queryKey: queryKeys.docs(event.docType) })
     void queryClient.invalidateQueries({ queryKey: queryKeys.docContent(event.path) })
     void queryClient.invalidateQueries({ queryKey: queryKeys.lifecycle() })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.lifecycleClusterPrefix() })
     if (event.docType === 'tickets') {
       void queryClient.invalidateQueries({ queryKey: queryKeys.kanban() })
     }
