@@ -1,0 +1,45 @@
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #111827;
+}
+.columns {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.otherSwimlane {
+  border-top: 1px dashed #e5e7eb;
+  padding-top: 1rem;
+}
+.status {
+  margin: 0;
+  color: #6b7280;
+  font-style: italic;
+}
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  border-radius: 0.25rem;
+  color: #991b1b;
+}
+.alertMessage { margin: 0; flex: 1; }
+.retry {
+  background: #ffffff;
+  border: 1px solid #fecaca;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  color: #991b1b;
+}
+.retry:hover { background: #fee2e2; }
