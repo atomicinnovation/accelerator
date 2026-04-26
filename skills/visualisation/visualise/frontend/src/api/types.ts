@@ -148,3 +148,22 @@ export const WORKFLOW_PIPELINE_STEPS = LIFECYCLE_PIPELINE_STEPS.filter(
 export const LONG_TAIL_PIPELINE_STEPS = LIFECYCLE_PIPELINE_STEPS.filter(
   s => s.longTail,
 )
+
+export type KanbanColumnKey = 'todo' | 'in-progress' | 'done'
+
+export const OTHER_COLUMN_KEY = 'other' as const
+export type KanbanGroupKey = KanbanColumnKey | typeof OTHER_COLUMN_KEY
+
+export const STATUS_COLUMNS: ReadonlyArray<{
+  key: KanbanColumnKey
+  label: string
+}> = [
+  { key: 'todo',        label: 'Todo' },
+  { key: 'in-progress', label: 'In progress' },
+  { key: 'done',        label: 'Done' },
+] as const
+
+export const OTHER_COLUMN: { key: typeof OTHER_COLUMN_KEY; label: string } = {
+  key: OTHER_COLUMN_KEY,
+  label: 'Other',
+}
