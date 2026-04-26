@@ -16,9 +16,9 @@ one with a documented rationale.
 ## Context
 
 Three upcoming features require reliable async job processing: background
-report generation (feature ticket #1201), user data export (feature ticket
-#1202), and scheduled email delivery (feature ticket #1203). All three are
-currently blocked on a vendor decision — they cannot be designed or
+report generation (feature work item #1201), user data export (feature work 
+item #1202), and scheduled email delivery (feature work item #1203). All three 
+are currently blocked on a vendor decision — they cannot be designed or
 estimated until the queue infrastructure is chosen.
 
 The platform runs on AWS. The team has experience with Redis but no

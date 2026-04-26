@@ -9,7 +9,7 @@ status: ready
 ## Summary
 
 When a user submits a password that fails validation, the error message shown
-is generic and unhelpful. This ticket fixes the wording of the error message
+is generic and unhelpful. This work item fixes the wording of the error message
 to tell the user which specific validation rule was violated.
 
 ## Context

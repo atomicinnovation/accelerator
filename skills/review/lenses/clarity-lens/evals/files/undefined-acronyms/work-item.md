@@ -8,7 +8,7 @@ status: ready
 
 ## Summary
 
-The API currently has no authorisation model. This ticket adds role-based
+The API currently has no authorisation model. This work item adds role-based
 access control to all endpoints using OIDC tokens issued by the IdP.
 
 ## Context

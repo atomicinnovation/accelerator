@@ -10,7 +10,7 @@ priority: medium
 ## Summary
 
 Administrative actions (user creation, role changes, data exports) currently
-leave no audit trail. This ticket adds structured audit logging so that all
+leave no audit trail. This work item adds structured audit logging so that all
 in-scope administrative actions are recorded with the acting user, the action
 type, the affected resource, and the timestamp.
 

@@ -27,7 +27,7 @@ Adding a versioned schema file will:
 - Let the documentation team auto-generate API reference pages from a
   single source of truth
 
-Three follow-up tickets are already drafted and waiting for this story to
+Three follow-up work items are already drafted and waiting for this story to
 merge before they can proceed: client type generation (#1041), contract-
 change CI check (#1042), and API reference auto-generation (#1043).
 

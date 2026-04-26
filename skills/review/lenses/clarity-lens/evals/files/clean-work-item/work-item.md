@@ -11,7 +11,7 @@ priority: high
 
 The public API currently has no rate limiting, allowing a single client to
 make unlimited requests and potentially degrade service for all users. This
-ticket adds per-client rate limiting at the API gateway layer, enforced using
+work item adds per-client rate limiting at the API gateway layer, enforced using
 a sliding window algorithm with limits configurable per API key.
 
 ## Context

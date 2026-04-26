@@ -8,7 +8,7 @@ status: ready
 
 ## Summary
 
-Reports can currently only be viewed in the browser. This ticket adds the
+Reports can currently only be viewed in the browser. This work item adds the
 ability for a user to export a report as a downloadable PDF file.
 
 ## Context

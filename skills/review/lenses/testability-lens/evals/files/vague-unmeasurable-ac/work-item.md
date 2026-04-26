@@ -8,10 +8,14 @@ priority: medium
 Add full-text search to the admin user management dashboard
 
 ## Context
-The admin dashboard has no search capability. Support team members manually scroll through paginated user lists to find accounts. With 50,000+ users, this can take up to 15 minutes per support ticket. Adding search should bring that down to under 30 seconds per lookup.
+The admin dashboard has no search capability. Support team members manually 
+scroll through paginated user lists to find accounts. With 50,000+ users, this 
+can take up to 15 minutes per support ticket. Adding search should bring that 
+down to under 30 seconds per lookup.
 
 ## Requirements
-1. The admin dashboard must include a search field in the user management section
+1. The admin dashboard must include a search field in the user management 
+   section
 2. Search must support querying by email address, username, and display name
 3. Results must update as the user types, without requiring a form submission
 4. Search must be functional across all major browsers
@@ -27,4 +31,5 @@ The admin dashboard has no search capability. Support team members manually scro
 - Admin frontend React app (existing)
 
 ## Assumptions
-- The user management API already supports filtering by email, username, and display name
+- The user management API already supports filtering by email, username, and 
+  display name

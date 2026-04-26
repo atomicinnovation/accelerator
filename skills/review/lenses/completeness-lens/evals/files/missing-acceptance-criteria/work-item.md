@@ -10,7 +10,7 @@ priority: medium
 ## Summary
 
 Users currently receive all notification types with no ability to opt out. This
-ticket adds a notification preferences screen to the user settings, allowing
+work item adds a notification preferences screen to the user settings, allowing
 users to enable or disable each notification category independently.
 
 ## Context
