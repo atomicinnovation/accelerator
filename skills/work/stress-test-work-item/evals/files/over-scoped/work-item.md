@@ -23,7 +23,7 @@ Improve overall system quality by addressing a backlog of technical improvements
 
 ## Context
 
-The team has accumulated several quality improvement items across different subsystems. This ticket captures them all for the sprint.
+The team has accumulated several quality improvement items across different subsystems. This work item captures them all for the sprint.
 
 ## Requirements
 
@@ -49,7 +49,7 @@ The team has accumulated several quality improvement items across different subs
 
 ## Dependencies
 
-- Blocked by: Design system token library must be published (no ticket yet)
+- Blocked by: Design system token library must be published (no work item yet)
 - Blocks:
 
 ## Assumptions

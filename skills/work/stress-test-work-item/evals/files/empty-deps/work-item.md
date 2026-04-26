@@ -29,9 +29,9 @@ New user retention is lower than expected. Post-signup interviews reveal that ma
 
 1. Trigger a welcome email when a new user account is created (both direct signup and OAuth signup paths).
 2. The email must use the new user schema migration's `onboarding_status` field to track whether the welcome email has been sent; do not send duplicate emails if the trigger fires more than once.
-3. Render the email using the Handlebars template in `templates/emails/welcome.hbs` (which must be created as part of this ticket).
+3. Render the email using the Handlebars template in `templates/emails/welcome.hbs` (which must be created as part of this work item).
 4. Send via the email service configured in `config/email.js`. The email service must be running and configured with valid SMTP credentials before this feature can be tested end-to-end.
-5. Include an unsubscribe link that writes to the `email_preferences` table. This table must exist in the database before this ticket can be completed.
+5. Include an unsubscribe link that writes to the `email_preferences` table. This table must exist in the database before this work item can be completed.
 6. Log a `welcome_email_sent` event to the analytics service for each email dispatched.
 
 ## Acceptance Criteria
@@ -59,7 +59,7 @@ New user retention is lower than expected. Post-signup interviews reveal that ma
 
 ## Drafting Notes
 
-- Analytics service integration is required; if not available, this ticket is blocked.
+- Analytics service integration is required; if not available, this work item is blocked.
 
 ## References
 

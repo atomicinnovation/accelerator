@@ -74,18 +74,18 @@ and writes to predictable paths within it. Run `/accelerator:init` to
 create all directories up front, or let skills create them on first use.
 These paths can be overridden via the `paths` configuration section:
 
-| Directory      | Purpose                                         | Written by                                          |
-|----------------|-------------------------------------------------|-----------------------------------------------------|
-| `research/`    | Research findings with YAML frontmatter         | `research-codebase`                                 |
-| `plans/`       | Implementation plans with phased changes        | `create-plan`                                       |
-| `decisions/`   | Architecture decision records (ADRs)            | `create-adr`, `extract-adrs`, `review-adr`          |
-| `reviews/`     | Review summaries and per-lens results           | `review-pr`, `review-plan`                          |
-| `validations/` | Plan validation reports                         | `validate-plan`                                     |
-| `prs/`         | PR descriptions                                 | `describe-pr`                                       |
-| `templates/`   | Reusable templates (e.g., PR descriptions)      | `configure template`                                |
-| `work/`         | Work item files referenced by planning          | `create-work-item`, `extract-work-items`, `update-work-item` |
-| `notes/`       | Notes and working documents                     | manual                                              |
-| `tmp/`         | Ephemeral working data (e.g., review artifacts) | `review-pr`                                         |
+| Directory      | Purpose                                         | Written by                                                   |
+|----------------|-------------------------------------------------|--------------------------------------------------------------|
+| `research/`    | Research findings with YAML frontmatter         | `research-codebase`                                          |
+| `plans/`       | Implementation plans with phased changes        | `create-plan`                                                |
+| `decisions/`   | Architecture decision records (ADRs)            | `create-adr`, `extract-adrs`, `review-adr`                   |
+| `reviews/`     | Review summaries and per-lens results           | `review-pr`, `review-plan`                                   |
+| `validations/` | Plan validation reports                         | `validate-plan`                                              |
+| `prs/`         | PR descriptions                                 | `describe-pr`                                                |
+| `templates/`   | Reusable templates (e.g., PR descriptions)      | `configure template`                                         |
+| `work/`        | Work item files referenced by planning          | `create-work-item`, `extract-work-items`, `update-work-item` |
+| `notes/`       | Notes and working documents                     | manual                                                       |
+| `tmp/`         | Ephemeral working data (e.g., review artifacts) | `review-pr`                                                  |
 
 This approach means:
 
@@ -276,11 +276,11 @@ existing docs (specs, PRDs, notes)
                                         └──→  create-plan → implement-plan
 ```
 
-| Skill               | Usage                                                | Description                                                                |
-|---------------------|------------------------------------------------------|----------------------------------------------------------------------------|
-| **create-work-item**   | `/accelerator:create-work-item [topic]`                 | Interactively create a single work item through collaborative refinement      |
-| **extract-work-items** | `/accelerator:extract-work-items [doc paths...]`        | Batch-extract work items from existing specs, PRDs, research, plans, or notes |
-| **list-work-items**    | `/accelerator:list-work-items [filter]`                 | List and filter work items by status, type, priority, tag, parent, or title   |
+| Skill                  | Usage                                                      | Description                                                                   |
+|------------------------|------------------------------------------------------------|-------------------------------------------------------------------------------|
+| **create-work-item**   | `/accelerator:create-work-item [topic]`                    | Interactively create a single work item through collaborative refinement      |
+| **extract-work-items** | `/accelerator:extract-work-items [doc paths...]`           | Batch-extract work items from existing specs, PRDs, research, plans, or notes |
+| **list-work-items**    | `/accelerator:list-work-items [filter]`                    | List and filter work items by status, type, priority, tag, parent, or title   |
 | **update-work-item**   | `/accelerator:update-work-item [work-item-ref] [field-op]` | Update work item fields with diff preview and confirmation                    |
 | **review-work-item**   | `/accelerator:review-work-item [work-item-ref]`            | Review a work item through completeness, testability, and clarity lenses      |
 
@@ -355,11 +355,11 @@ through a specific quality perspective.
 
 **Work item review lenses** (used by `review-work-item`):
 
-| Lens              | Focus                                                          |
-|-------------------|----------------------------------------------------------------|
-| **Completeness**  | Section presence, content density, type-appropriate content    |
-| **Testability**   | Measurable criteria, verifiable outcomes, verification framing |
-| **Clarity**       | Unambiguous referents, internal consistency, jargon handling   |
+| Lens             | Focus                                                          |
+|------------------|----------------------------------------------------------------|
+| **Completeness** | Section presence, content density, type-appropriate content    |
+| **Testability**  | Measurable criteria, verifiable outcomes, verification framing |
+| **Clarity**      | Unambiguous referents, internal consistency, jargon handling   |
 
 Lenses are automatically selected based on scope, or you can specify focus
 areas:
