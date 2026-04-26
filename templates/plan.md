@@ -2,7 +2,7 @@
 date: "{ISO timestamp}"
 type: plan
 skill: create-plan
-ticket: "{ticket reference, if any}"
+work-item: "{work-item reference, if any}"
 status: draft
 ---
 
@@ -103,6 +103,6 @@ status: draft
 
 ## References
 
-- Original ticket: `meta/tickets/eng-XXXX.md`
+- Original work item: `meta/work/NNNN-title.md`
 - Related research: `meta/research/[relevant].md`
 - Similar implementation: `[file:line]`

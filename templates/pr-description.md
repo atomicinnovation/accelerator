@@ -21,7 +21,7 @@ status: complete
 
 ## Context
 
-[Link to relevant ticket, plan, or research document if applicable]
+[Link to relevant work item, plan, or research document if applicable]
 
 ## Testing
 

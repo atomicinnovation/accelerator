@@ -123,9 +123,9 @@ Line 24 — update placeholder text:
 
 #### Automated Verification
 
-- [ ] Grep confirms no `ticket` references remain in `templates/`:
+- [x] Grep confirms no `ticket` references remain in `templates/`:
   `grep -rni ticket templates/`
-- [ ] Tests pass: `mise run test`
+- [x] Tests pass: `mise run test`
 
 #### Manual Verification
 
