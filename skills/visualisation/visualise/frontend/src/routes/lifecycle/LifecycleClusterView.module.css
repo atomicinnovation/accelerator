@@ -1,0 +1,134 @@
+.container { max-width: 800px; }
+
+.backLink {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+  text-decoration: none;
+}
+
+.backLink:hover,
+.backLink:focus-visible {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.title { margin: 0; font-size: 1.4rem; color: #111827; }
+.slug  { font-family: monospace; font-size: 0.85rem; color: #9ca3af; }
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid #e5e7eb;
+}
+
+.stage {
+  position: relative;
+  padding: 0 0 1.25rem 1.5rem;
+  margin-left: 6px;
+}
+
+.stage::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1.5px #1d4ed8;
+}
+
+.absent::before {
+  background: #f3f4f6;
+  box-shadow: 0 0 0 1.5px #d1d5db;
+}
+
+.stageLabel {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+  margin-bottom: 0.4rem;
+}
+
+.placeholder {
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 0.875rem;
+}
+
+.entryList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+
+.entryCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 0.55rem 0.8rem;
+  background: #ffffff;
+}
+
+.entryLink { text-decoration: none; color: inherit; }
+.entryLink:hover .entryTitle { color: #1d4ed8; }
+.entryTitle { font-weight: 500; color: #111827; }
+
+.entryMeta {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border-radius: 9999px;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.bodyPreview {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: #4b5563;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-height: calc(1.4em * 3);
+}
+
+.error {
+  color: #991b1b; background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 4px; padding: 0.5rem 0.75rem;
+}
+
+.longTail {
+  margin-top: 1.75rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.longTailHeading {
+  margin: 0 0 0.6rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  font-weight: 600;
+}
