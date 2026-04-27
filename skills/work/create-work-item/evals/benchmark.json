@@ -1,56 +1,151 @@
 {
   "metadata": {
     "skill_name": "create-work-item",
-    "skill_path": "skills/work/create-work-item/SKILL.md",
-    "iteration": 1,
-    "baseline": "old_skill (snapshot taken before this iteration's edits)",
+    "skill_path": "skills/work/create-work-item",
+    "executor_model": "claude-sonnet-4-6",
+    "analyzer_model": "claude-sonnet-4-6",
+    "timestamp": "2026-04-27T22:05:54Z",
     "evals_run": [
-      "author-resolution",
-      "bare-invocation",
-      "bug-type-requirements",
-      "business-context-first",
-      "challenge-untestable-ac",
-      "draft-xxxx-placeholder",
-      "drafting-notes-populated",
-      "epic-type-requirements",
-      "model-proposes-type",
-      "near-duplicate-surfaced",
-      "number-not-consumed",
-      "references-populated",
-      "template-driven-types",
-      "vague-topic"
+      "1",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "2",
+      "20",
+      "21",
+      "21a",
+      "21b",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "3",
+      "30",
+      "30a",
+      "31",
+      "32",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9"
     ],
-    "runs_per_configuration": 1,
-    "timing_note": "Tasks batched (7 per subagent); per-eval timing is batch average"
+    "runs_per_configuration": 1
   },
   "runs": [
     {
       "eval_id": 12,
       "eval_name": "author-resolution",
-      "configuration": "with_skill",
+      "configuration": "old_skill",
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 5,
-        "total": 5,
-        "time_seconds": 40.5,
-        "tokens": 6857,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says author was resolved automatically (not asked of the user)",
+          "passed": true,
+          "evidence": "behavior.md section (b): 'Resolved automatically. No configuration override was present. The git/jj user identity was available as `Toby Clemson <toby@go-atomic.io>`. The display name `Toby Clemson` was extracted from that identity and used directly. The user was never asked.'"
+        },
+        {
+          "text": "final-work-item.md frontmatter has author: Toby Clemson (not a placeholder)",
+          "passed": true,
+          "evidence": "final-work-item.md line 5: 'author: Toby Clemson'"
+        },
+        {
+          "text": "behavior.md says author field does not contain placeholder text like [author]",
+          "passed": true,
+          "evidence": "behavior.md section (c): 'No. The field contains `Toby Clemson` \u2014 a fully resolved real name. No placeholder text appears anywhere in the written file.'"
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 12,
       "eval_name": "author-resolution",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says author was resolved automatically (not asked of the user)",
+          "passed": true,
+          "evidence": "behavior.md section (b): 'Resolved automatically. The skill's Quality Guidelines specify that `author` is sourced in this order: Configuration... Current git/jj user identity... Only if both fail \u2014 ask the user once before writing the file. The eval prompt explicitly provided the current git/jj user as `Toby Clemson <toby@go-atomic.io>`. The user was never asked for their name.'"
+        },
+        {
+          "text": "final-work-item.md frontmatter has author: Toby Clemson (not a placeholder)",
+          "passed": true,
+          "evidence": "final-work-item.md line 5: 'author: Toby Clemson'"
+        },
+        {
+          "text": "behavior.md says author field does not contain placeholder text like [author]",
+          "passed": true,
+          "evidence": "behavior.md section (c): 'No. The `author` field contains the resolved real name `Toby Clemson`. No placeholder text of any kind appears in the frontmatter. The skill explicitly prohibits writing `[author]` or any placeholder: \"Never write `[author]` or any placeholder.\"'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "bare-invocation",
       "configuration": "old_skill",
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 5,
-        "total": 5,
-        "time_seconds": 53.7,
-        "tokens": 7384,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "Response invites the user to describe their problem or goal",
+          "passed": true,
+          "evidence": "response.md asks 'describe what you want to achieve \u2014 what's the problem or goal?' and provides examples, directly inviting the user to supply their topic."
+        },
+        {
+          "text": "Response does not proceed further or ask business context questions",
+          "passed": true,
+          "evidence": "The response stops after the invitation to describe the topic. transcript.md confirms the agent 'did not proceed to Step 1 or simulate further turns' and asked no business context questions."
+        },
+        {
+          "text": "Response does not write any work item files",
+          "passed": true,
+          "evidence": "transcript.md explicitly states 'No work item files were written' and the outputs directory contains only response.md."
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 1,
@@ -59,40 +154,32 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 5,
-        "total": 5,
-        "time_seconds": 32.2,
-        "tokens": 6227,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
-    },
-    {
-      "eval_id": 1,
-      "eval_name": "bare-invocation",
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 5,
-        "total": 5,
-        "time_seconds": 31.0,
-        "tokens": 5988,
-        "errors": 0
-      }
-    },
-    {
-      "eval_id": 6,
-      "eval_name": "bug-type-requirements",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 8,
-        "total": 8,
-        "time_seconds": 32.2,
-        "tokens": 6227,
-        "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "Response invites the user to describe their problem or goal",
+          "passed": true,
+          "evidence": "response.md opens with 'To get started, describe what you want to achieve \u2014 what's the problem or goal?' and offers examples, clearly inviting the user to provide their initial description."
+        },
+        {
+          "text": "Response does not proceed further or ask business context questions",
+          "passed": true,
+          "evidence": "The response only asks for the initial topic description; it does not ask about pain point, success criteria, or any Step 1 business context. transcript.md confirms the agent stopped after producing this message."
+        },
+        {
+          "text": "Response does not write any work item files",
+          "passed": true,
+          "evidence": "transcript.md explicitly states 'no files are written' and the outputs directory contains only response.md \u2014 no work item files were created."
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 6,
@@ -101,12 +188,95 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 8,
-        "total": 8,
-        "time_seconds": 31.0,
-        "tokens": 5988,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says type 'bug' was proposed",
+          "passed": true,
+          "evidence": "behavior.md states under '(a) What type was proposed?': 'bug' in bold, with rationale that the scenario describes a server-side regression introduced by a recent code change."
+        },
+        {
+          "text": "draft.md Requirements section contains reproduction steps (e.g. numbered steps, expected behavior, actual behavior)",
+          "passed": true,
+          "evidence": "draft.md Requirements section contains 'Reproduction steps:' with three numbered steps, 'Expected behaviour:' and 'Actual behaviour:' subsections, plus environment details."
+        },
+        {
+          "text": "behavior.md says Requirements section was NOT renamed",
+          "passed": true,
+          "evidence": "behavior.md states under '(c) Is the Requirements section renamed?': 'No. The section retains the standard template heading ## Requirements. It is not renamed to \"Bug Report\", \"Defect Details\", or any other variant.'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "eval_name": "bug-type-requirements",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says type 'bug' was proposed",
+          "passed": true,
+          "evidence": "behavior.md states under '(a) What type was proposed?': 'The skill proposed type bug.' with rationale that the scenario describes an unintended server error regression."
+        },
+        {
+          "text": "draft.md Requirements section contains reproduction steps (e.g. numbered steps, expected behavior, actual behavior)",
+          "passed": true,
+          "evidence": "draft.md Requirements section contains 'Reproduction steps:' with three numbered steps, followed by 'Expected behaviour:' and 'Actual behaviour:' subsections."
+        },
+        {
+          "text": "behavior.md says Requirements section was NOT renamed",
+          "passed": true,
+          "evidence": "behavior.md states under '(c) Is the Requirements section renamed?': 'No. The section is titled ## Requirements \u2014 the standard name from the work item template.'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "business-context-first",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says agents were NOT spawned before asking questions",
+          "passed": true,
+          "evidence": "behavior.md states '(a) did you spawn any agents before asking these questions? no'"
+        },
+        {
+          "text": "questions.md contains between 3 and 5 questions",
+          "passed": true,
+          "evidence": "questions.md contains exactly 5 numbered questions covering: pain point and current behaviour, user perspective on done, solution/approach preference, constraints/deadlines/dependencies, and uncertainties or research requests."
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 3,
@@ -115,40 +285,27 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 6,
-        "total": 6,
-        "time_seconds": 32.2,
-        "tokens": 6227,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
-    },
-    {
-      "eval_id": 3,
-      "eval_name": "business-context-first",
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 6,
-        "total": 6,
-        "time_seconds": 31.0,
-        "tokens": 5988,
-        "errors": 0
-      }
-    },
-    {
-      "eval_id": 5,
-      "eval_name": "challenge-untestable-ac",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "total": 4,
-        "time_seconds": 32.2,
-        "tokens": 6227,
-        "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says agents were NOT spawned before asking questions",
+          "passed": true,
+          "evidence": "behavior.md states '(a) did you spawn any agents before asking these questions? no'"
+        },
+        {
+          "text": "questions.md contains between 3 and 5 questions",
+          "passed": true,
+          "evidence": "questions.md contains exactly 5 numbered questions covering: current problem, primary users, success definition, solution approach, and constraints/dependencies."
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 5,
@@ -157,12 +314,85 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 4,
-        "total": 4,
-        "time_seconds": 31.0,
-        "tokens": 5988,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "response.md does NOT accept 'should work correctly' as a valid acceptance criterion (does not just add it)",
+          "passed": true,
+          "evidence": "response.md states 'Thanks for the feedback \u2014 \"Search should work correctly\" is too open-ended to verify' and does not include it in any draft. The criterion was rejected."
+        },
+        {
+          "text": "response.md pushes back and asks for something measurable or testable instead",
+          "passed": true,
+          "evidence": "response.md asks 'Can you help me understand what you have in mind?' and offers candidate interpretations (accuracy, precision, edge cases, something else) to elicit a testable reformulation."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "challenge-untestable-ac",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md does NOT accept 'should work correctly' as a valid acceptance criterion (does not just add it)",
+          "passed": true,
+          "evidence": "response.md opens with 'I can't accept \"Search should work correctly\" as written \u2014 it isn't testable.' The criterion was explicitly rejected and not added to a draft."
+        },
+        {
+          "text": "response.md pushes back and asks for something measurable or testable instead",
+          "passed": true,
+          "evidence": "response.md asks 'What would \"working correctly\" actually look like in practice?' and offers four concrete candidate interpretations (result accuracy, ranking, edge cases, special characters/archived pages) to help the user articulate a measurable criterion."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "eval_name": "draft-xxxx-placeholder",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "draft.md contains 'work_item_id: XXXX' in frontmatter (not a real number)",
+          "passed": true,
+          "evidence": "draft.md frontmatter contains 'work_item_id: XXXX' on line 2, and the H1 heading reads '# XXXX: Add CSV export to the reporting dashboard'."
+        },
+        {
+          "text": "behavior.md says the draft does not contain any real work item number (0001, 0002, etc.)",
+          "passed": true,
+          "evidence": "behavior.md states under '(b) Does the draft contain any real work item number (0001, 0002, etc.)?': 'No. The draft contains no real numeric work item ID anywhere in its content. The only identifier present is the XXXX placeholder.'"
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 7,
@@ -171,26 +401,61 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 5,
-        "total": 5,
-        "time_seconds": 32.2,
-        "tokens": 6227,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "draft.md contains 'work_item_id: XXXX' in frontmatter (not a real number)",
+          "passed": true,
+          "evidence": "draft.md frontmatter contains 'work_item_id: XXXX' on line 2, and the H1 heading reads '# XXXX: CSV Export for Reporting Dashboard'."
+        },
+        {
+          "text": "behavior.md says the draft does not contain any real work item number (0001, 0002, etc.)",
+          "passed": true,
+          "evidence": "behavior.md states under '(b) Does the draft contain any real work item number (0001, 0002, etc.)?': 'No. The draft contains no real work item numbers. The only numeric work item reference placeholder is XXXX.'"
+        }
+      ],
+      "notes": []
     },
     {
-      "eval_id": 7,
-      "eval_name": "draft-xxxx-placeholder",
+      "eval_id": 11,
+      "eval_name": "drafting-notes-populated",
       "configuration": "old_skill",
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 5,
-        "total": 5,
-        "time_seconds": 31.0,
-        "tokens": 5988,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says the proposal included a Drafting Notes section",
+          "passed": true,
+          "evidence": "behavior.md section (a): 'Yes. The Step 3 proposal presented a \"Drafting Notes (interpretations a reviewer should see)\" section, consistent with the skill's explicit instruction to surface every meaningful drafting-time interpretation in the proposal.'"
+        },
+        {
+          "text": "behavior.md says the final draft included a Drafting Notes section",
+          "passed": true,
+          "evidence": "behavior.md section (b): 'Yes. The draft work item contains a populated `## Drafting Notes` section, consistent with Step 4's instruction to carry over interpretations from the agreed proposal.'"
+        },
+        {
+          "text": "behavior.md lists Drafting Notes entries that capture interpretations about scope (which users, which data), format, or compliance framing",
+          "passed": true,
+          "evidence": "behavior.md section (c) lists five entries covering: 'giving users control over their data' interpreted as self-service (not DSAR/legal), 'whenever they want' as on-demand with rate limiting, format choice (JSON+CSV) from industry practice, no deadline so medium priority, notification mechanism unspecified. These cover scope (users, compliance framing) and format interpretations."
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 11,
@@ -199,26 +464,862 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 5,
-        "total": 5,
-        "time_seconds": 40.5,
-        "tokens": 6857,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says the proposal included a Drafting Notes section",
+          "passed": true,
+          "evidence": "behavior.md section (a): 'Yes. The Step 3 proposal (proposal.md) included an explicit **Drafting Notes** section listing five entries...'"
+        },
+        {
+          "text": "behavior.md says the final draft included a Drafting Notes section",
+          "passed": true,
+          "evidence": "behavior.md section (b): 'Yes. The Step 4 draft (draft.md) includes a populated **Drafting Notes** section carrying forward the interpretations from the proposal, with minor elaboration appropriate to the final work item format.'"
+        },
+        {
+          "text": "behavior.md lists Drafting Notes entries that capture interpretations about scope (which users, which data), format, or compliance framing",
+          "passed": true,
+          "evidence": "behavior.md section (c) lists six entries covering: who 'users' means (end users vs. admin), what 'their data' means (broad vs. narrow scope), unresolved export format (JSON/CSV/ZIP), no compliance framing applied (GDPR/CCPA decision), 'whenever they want' as on-demand not scheduled, and priority rationale"
+        }
+      ],
+      "notes": []
     },
     {
-      "eval_id": 11,
-      "eval_name": "drafting-notes-populated",
+      "eval_id": 24,
+      "eval_name": "enrich-existing-augmentation-proposal",
       "configuration": "old_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 0.8,
-        "passed": 4,
-        "total": 5,
-        "time_seconds": 53.7,
-        "tokens": 7384,
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 3,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "Step 3 output annotates each section with one of: [complete], [needs improvement: ...], or [missing]",
+          "passed": false,
+          "evidence": "The old skill response contains no section-level annotations. It uses the from-scratch proposal format with headers like '**Suggested type**', '**Requirements I'd suggest**', '**Acceptance criteria I'd suggest**', etc. No section of the existing work item is labelled complete, needs improvement, or missing."
+        },
+        {
+          "text": "Output includes per-field lines for Title, Type, Priority, Parent, Tags each marked 'keep' or 'propose change'",
+          "passed": false,
+          "evidence": "The old skill response has no per-field keep/propose lines for Title, Type, Priority, Parent, or Tags. The type is mentioned inline as 'Suggested type: story' with a rationale, but there are no structured field-level disposition lines."
+        },
+        {
+          "text": "Output does not include the from-scratch 'Suggested type' / 'Requirements I'd suggest' framing from the topic-string flow",
+          "passed": false,
+          "evidence": "The old skill response explicitly uses '**Suggested type**: story' on line 3 and '**Requirements I'd suggest**:' on line 6, which is the canonical from-scratch topic-string framing. The entire response follows the new-creation proposal format rather than an enrich-existing augmentation format."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 24,
+      "eval_name": "enrich-existing-augmentation-proposal",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Step 3 output annotates each section with one of: [complete], [needs improvement: ...], or [missing]",
+          "passed": true,
+          "evidence": "Every section heading is followed by a status annotation using the dash notation: e.g. '**Summary** \u2014 missing (placeholder-only)', '**Context** \u2014 missing (placeholder-only)', '**References** \u2014 needs improvement (placeholder-only)'. While the format uses dashes rather than square brackets, each section is unambiguously annotated with its gap status using the required vocabulary (missing, needs improvement)."
+        },
+        {
+          "text": "Output includes per-field lines for Title, Type, Priority, Parent, Tags each marked 'keep' or 'propose change'",
+          "passed": true,
+          "evidence": "The response ends with explicit per-field lines: '**Title**: keep', '**Type**: keep existing `story`', '**Priority**: keep `medium`', '**Parent**: keep empty', '**Tags**: propose adding `[\"documentation\", \"search\"]`'. All five required fields are present and each is marked keep or propose."
+        },
+        {
+          "text": "Output does not include the from-scratch 'Suggested type' / 'Requirements I'd suggest' framing from the topic-string flow",
+          "passed": true,
+          "evidence": "The response contains no 'Suggested type:' header or 'Requirements I'd suggest' phrasing. Requirements are presented as a proposed addition under '**Requirements** \u2014 missing (placeholder-only)' with an '*Proposed addition:*' label, consistent with the enrich-existing augmentation format."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 21,
+      "eval_name": "enrich-existing-gap-analysis",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 4,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response contains a 'Complete:' listing and a 'Gaps:' listing",
+          "passed": false,
+          "evidence": "The old skill response contains no 'Complete:' or 'Gaps:' listings. Instead it asks five broad business context questions treating the path string as a topic (Step 1 of the new-creation flow). The response has no concept of gap analysis."
+        },
+        {
+          "text": "Each gap entry is tagged with exactly one of: empty, placeholder-only, instructional-prose, or partial",
+          "passed": false,
+          "evidence": "No gap entries or tags of any kind appear in the response. The old skill never reads the existing file's sections and produces no section-level analysis."
+        },
+        {
+          "text": "Step 1 follow-up questions target only sections listed under Gaps",
+          "passed": false,
+          "evidence": "The five questions asked are generic business context questions (problem/goal, audience, done-looks-like, constraints, uncertainties). They are not derived from any gap analysis of the existing file's sections."
+        },
+        {
+          "text": "Transcript shows no broad-discovery questions (the default Step 1 vagueness check is not run)",
+          "passed": false,
+          "evidence": "The transcript shows the old skill ran its normal Step 1 business context discovery flow, asking five broad questions about the 'topic' (the file path string). The default broad-discovery questioning was triggered \u2014 enrich-existing mode does not exist in the old skill."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 21,
+      "eval_name": "enrich-existing-gap-analysis",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response contains a 'Complete:' listing and a 'Gaps:' listing",
+          "passed": true,
+          "evidence": "Response contains 'Complete: none (frontmatter identity fields are populated ...)' and 'Gaps:' followed by a list of sections"
+        },
+        {
+          "text": "Each gap entry is tagged with exactly one of: empty, placeholder-only, instructional-prose, or partial",
+          "passed": true,
+          "evidence": "All ten gap entries are tagged '(placeholder-only)': Summary, Context, Requirements, Acceptance Criteria, Open Questions, Dependencies, Assumptions, Technical Notes, Drafting Notes, References"
+        },
+        {
+          "text": "Step 1 follow-up questions target only sections listed under Gaps",
+          "passed": true,
+          "evidence": "Follow-up questions address Summary, Context, Requirements, Acceptance Criteria, Dependencies, and Open Questions \u2014 all sections explicitly listed under Gaps; no question targets a section listed as Complete"
+        },
+        {
+          "text": "Transcript shows no broad-discovery questions (the default Step 1 vagueness check is not run)",
+          "passed": true,
+          "evidence": "Questions are targeted at specific missing sections (e.g. 'Summary \u2014 what and why', 'Context \u2014 background and constraints') rather than generic discovery prompts like 'what pain point' or 'what is the desired outcome'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": "21b",
+      "eval_name": "enrich-existing-gap-instructional-prose",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The Summary section is classified as a gap with the tag 'instructional-prose'",
+          "passed": true,
+          "evidence": "Gaps list includes '- Summary (instructional-prose)'"
+        },
+        {
+          "text": "Step 1 asks a follow-up question targeting the instructional-prose Summary",
+          "passed": true,
+          "evidence": "Follow-up question 1 is explicitly labelled 'Business value and beneficiaries (Summary gap)' and asks about the problem users face and who the primary users are"
+        },
+        {
+          "text": "The instructional-prose section is NOT classified as 'partial' or 'placeholder-only'",
+          "passed": true,
+          "evidence": "Summary is tagged '(instructional-prose)' \u2014 not 'partial' or 'placeholder-only'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": "21a",
+      "eval_name": "enrich-existing-gap-mixed-section",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The Summary section is classified as a gap with the tag 'partial'",
+          "passed": true,
+          "evidence": "Gaps list includes '- Summary (partial)'"
+        },
+        {
+          "text": "Step 1 asks a follow-up question about the Summary section",
+          "passed": true,
+          "evidence": "Follow-up questions reference the Summary: 'The Summary establishes that users need full-text search on the documentation index, but the remaining sections are entirely unfilled.' \u2014 the first question asks about 'Impact and scope of the problem' targeting the Summary gap"
+        },
+        {
+          "text": "Other fully-bracketed sections are tagged 'empty' or 'placeholder-only', not 'partial'",
+          "passed": true,
+          "evidence": "Context, Requirements, Acceptance Criteria, Open Questions, Dependencies, Assumptions, Drafting Notes, References are all tagged '(placeholder-only)'; Technical Notes is tagged '(instructional-prose)'. None of the other sections are tagged 'partial'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 27,
+      "eval_name": "enrich-existing-h1-real-number",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Written file's body H1 begins with '# 0042:'",
+          "passed": true,
+          "evidence": "final-work-item.md contains '# 0042: Add Full-Text Search to Documentation Index' as the body H1. behavior.md confirms: '(a) Body H1 line in the written file: # 0042: Add Full-Text Search to Documentation Index'."
+        },
+        {
+          "text": "Written file contains no literal XXXX token",
+          "passed": true,
+          "evidence": "behavior.md states '(b) Does the file contain the literal token XXXX anywhere? No. The file does not contain the literal token `XXXX` anywhere.' The final-work-item.md content was reviewed and confirms no XXXX appears."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 31,
+      "eval_name": "enrich-existing-identity-swap-check-performed",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Transcript at Step 5 shows a work-item-read-field.sh work_item_id <path> invocation immediately before the confirmation prompt is rendered",
+          "passed": true,
+          "evidence": "The transcript shows the command \"bash ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh work_item_id skills/work/create-work-item/evals/files/0042-existing-sparse.md\" was invoked immediately before presenting the confirmation prompt. The behavior.md confirms: \"Was work-item-read-field.sh invoked immediately before the confirmation prompt? yes\"."
+        },
+        {
+          "text": "Step 5 confirmation prompt appears after the read",
+          "passed": true,
+          "evidence": "The behavior.md states \"Did the confirmation prompt appear after the read? yes\". The transcript confirms the at-write identity-swap check was performed first (script invocation), then the confirmation prompt was presented showing target path, sections changed, and frontmatter changes."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 18,
+      "eval_name": "enrich-existing-missing-path-fallback",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response includes a warning that names the input path meta/work/9999-nope.md explicitly",
+          "passed": true,
+          "evidence": "First line reads: 'No work item at meta/work/9999-nope.md \u2014 interpreting as topic string.'"
+        },
+        {
+          "text": "Response indicates the input is being interpreted as a topic string",
+          "passed": true,
+          "evidence": "First line ends with '\u2014 interpreting as topic string' and the subsequent paragraph describes the string as looking like 'a file path rather than a topic description'"
+        },
+        {
+          "text": "Conversation continues into topic-string Step 0 logic \u2014 does not abort",
+          "passed": true,
+          "evidence": "Response continues with Step 0 discovery questions asking what the user wants to capture as a work item, with example phrasings"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 26,
+      "eval_name": "enrich-existing-no-next-number-call",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 1,
+        "failed": 0,
+        "total": 1,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Transcript shows no invocation of work-item-next-number.sh at any point in the conversation",
+          "passed": true,
+          "evidence": "behavior.md states 'Was work-item-next-number.sh called at any point? no'. The transcript confirms this in the Step 4 key decisions section: 'Script avoidance rule applied: did NOT call work-item-next-number.sh', and in the Step 5 section: 'Step 5.1 \u2014 Script avoidance: Did NOT call work-item-next-number.sh.' No invocation of the script appears anywhere in the transcript."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 17,
+      "eval_name": "enrich-existing-numeric-multi-match",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response lists both matching files as numbered options",
+          "passed": true,
+          "evidence": "Response lists two numbered options: '1. `skills/work/create-work-item/evals/files/0042-existing-sparse.md`' and '2. `skills/work/create-work-item/evals/files/0042-other-slug.md`'"
+        },
+        {
+          "text": "Response asks the user to select a file by number or specify the full path",
+          "passed": true,
+          "evidence": "Response ends with: 'Which would you like to open? Reply with the number (1 or 2) or specify the full path.'"
+        },
+        {
+          "text": "Response does not proceed into enrich mode \u2014 waits for user selection",
+          "passed": true,
+          "evidence": "The response stops after presenting the options and asking the user to choose; no gap analysis or enrichment questions follow"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 20,
+      "eval_name": "enrich-existing-numeric-no-match-fallback",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response includes a warning that names the input number 9999 explicitly",
+          "passed": true,
+          "evidence": "First line reads: 'No work item numbered 9999 found in meta/work \u2014 interpreting as topic string.'"
+        },
+        {
+          "text": "Response indicates the input is being interpreted as a topic string",
+          "passed": true,
+          "evidence": "First line ends with '\u2014 interpreting as topic string' and the next paragraph refers to the string '9999' as 'a number rather than a topic description'"
+        },
+        {
+          "text": "Conversation continues into topic-string Step 0 logic \u2014 does not abort",
+          "passed": true,
+          "evidence": "Response continues with Step 0 discovery questions: 'What problem are you trying to solve, or what feature do you want to add? Who is affected by it?'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 16,
+      "eval_name": "enrich-existing-numeric-single-match",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response cites the resolved file's work_item_id (0042) or title",
+          "passed": true,
+          "evidence": "response.md opens: 'I've read the existing work item (`skills/work/create-work-item/evals/files/0042-existing-sparse.md`).' The title 'Add Full-Text Search to Documentation Index' is also referenced explicitly."
+        },
+        {
+          "text": "Response does not ask topic-clarification questions",
+          "passed": true,
+          "evidence": "The response proceeds directly to a gap analysis listing all sparse/placeholder sections, then asks targeted content questions about the existing work item's gaps (current search experience, audience, content structure, success criteria, constraints). It does not ask what the user wants to build or what topic to pursue."
+        },
+        {
+          "text": "Response indicates enrich mode \u2014 reading the existing file and preparing to identify gaps",
+          "passed": true,
+          "evidence": "response.md explicitly states 'I've read the existing work item' and provides a structured 'Complete / Gaps' analysis listing every placeholder-only section before asking gap-filling questions \u2014 clearly indicating enrich mode operation."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": "30a",
+      "eval_name": "enrich-existing-oblique-status-mention",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Model asks a clarifying question about the user's status intent rather than inferring a transition",
+          "passed": true,
+          "evidence": "The response.md shows the model kept status: draft and appended an explicit clarifying question: \"you mentioned 'this is now in flight'; did you mean you'd like to transition the status to `in-progress`? If so, please confirm and I'll include that change.\" The behavior report confirms this is exactly what the Identity Field Rules require."
+        },
+        {
+          "text": "Model does NOT unilaterally propose a status transition (e.g. draft \u2192 in-progress) without a clarifying question",
+          "passed": true,
+          "evidence": "The behavior report confirms the model did not infer draft \u2192 in-progress or any other transition. It preserved the cached status (draft) and surfaced the ambiguity before making any change. No transition was proposed or shown in the frontmatter summary without confirmation."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 28,
+      "eval_name": "enrich-existing-overwrites-path",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The Write tool's target path equals skills/work/create-work-item/evals/files/0042-existing-sparse.md",
+          "passed": true,
+          "evidence": "behavior.md states '(a) What path did you write the file to? skills/work/create-work-item/evals/files/0042-existing-sparse.md', confirming the target path is exactly the cached existing_work_item_path from Step 0."
+        },
+        {
+          "text": "The post-write confirmation message reads 'Work item updated: skills/work/create-work-item/evals/files/0042-existing-sparse.md'",
+          "passed": true,
+          "evidence": "behavior.md states '(b) What confirmation message did you print after writing? Work item updated: skills/work/create-work-item/evals/files/0042-existing-sparse.md', exactly matching the expected template."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 15,
+      "eval_name": "enrich-existing-path-like",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 3,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response cites the file's existing title or work_item_id (0042)",
+          "passed": false,
+          "evidence": "The old skill does not have an enrich-existing mode. response.md treats the input as an unrecognised topic description and asks the user to clarify: 'That path doesn't tell me what you want to build or fix \u2014 it looks like a file path rather than a topic description.' It never reads the file or cites 0042."
+        },
+        {
+          "text": "Response does not ask 'what do you want to achieve' or similar topic-clarification questions",
+          "passed": false,
+          "evidence": "response.md asks: 'What specifically needs to change, or what problem are you trying to solve?' and 'What is the deliverable or goal here?' \u2014 these are direct topic-clarification questions equivalent to 'what do you want to achieve'."
+        },
+        {
+          "text": "Response indicates the skill is in enrich mode (e.g. mentions reading the existing file or reviewing it for gaps)",
+          "passed": false,
+          "evidence": "The old skill has no enrich-existing mode. The response treats the path-like input as a malformed topic string and asks for clarification. It does not read any existing file or perform gap analysis."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 15,
+      "eval_name": "enrich-existing-path-like",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response cites the file's existing title or work_item_id (0042)",
+          "passed": true,
+          "evidence": "response.md opens: 'I've read the existing work item (`skills/work/create-work-item/evals/files/0042-existing-sparse.md`).' It also references the title 'Add Full-Text Search to Documentation Index' and describes the frontmatter details, confirming it identified and cites the 0042 file."
+        },
+        {
+          "text": "Response does not ask 'what do you want to achieve' or similar topic-clarification questions",
+          "passed": true,
+          "evidence": "The response goes straight into gap analysis and then asks targeted content questions (problem/pain point, scope, desired outcome, solution approach, dependencies). It does not ask what the user wants to build or what topic to pursue \u2014 it already knows the topic from the existing file."
+        },
+        {
+          "text": "Response indicates the skill is in enrich mode (e.g. mentions reading the existing file or reviewing it for gaps)",
+          "passed": true,
+          "evidence": "response.md explicitly states 'I've read the existing work item' and follows with a structured gap analysis ('Complete: none / Gaps: ...'), indicating the skill is operating in enrich mode and reviewing the existing file for gaps."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 25,
+      "eval_name": "enrich-existing-preserves-identity",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Written file's frontmatter work_item_id matches the cached value: 0042",
+          "passed": false,
+          "evidence": "The written file has work_item_id: \"0099\". The old skill has no enrich-existing mode; it treated the file path as a topic string, called work-item-next-number.sh, and assigned a fresh ID (0099). The original 0042 was never read or preserved."
+        },
+        {
+          "text": "Written file's date matches the cached value: 2026-01-15T09:00:00+00:00",
+          "passed": false,
+          "evidence": "The written file has date: \"2026-04-27T16:43:14+00:00\" \u2014 the current UTC timestamp at write time. The original file's date was not consulted or carried forward."
+        },
+        {
+          "text": "Written file's author matches the cached value: Toby Clemson",
+          "passed": true,
+          "evidence": "The written file has author: Toby Clemson, which matches the cached value. However, this is coincidental \u2014 the old skill resolved the author independently via git config user.name, not by preserving the original file's author field."
+        },
+        {
+          "text": "Written file's status matches the cached value (draft) \u2014 no transition was proposed",
+          "passed": true,
+          "evidence": "The written file has status: draft, which matches the cached value. Again, this is coincidental \u2014 the old skill sets status: draft as a default for every new work item, not because it preserved the original value."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 25,
+      "eval_name": "enrich-existing-preserves-identity",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Written file's frontmatter work_item_id matches the cached value: 0042",
+          "passed": true,
+          "evidence": "The final-work-item.md frontmatter contains 'work_item_id: \"0042\"', and behavior.md confirms '(a) What is the work_item_id in the written file? 0042 \u2014 carried through unchanged from the cached identity value established in Step 0.'"
+        },
+        {
+          "text": "Written file's date matches the cached value: 2026-01-15T09:00:00+00:00",
+          "passed": true,
+          "evidence": "The final-work-item.md frontmatter contains 'date: \"2026-01-15T09:00:00+00:00\"', and behavior.md confirms '(b) What is the date? 2026-01-15T09:00:00+00:00 \u2014 the immutable date field was preserved verbatim from the source file.'"
+        },
+        {
+          "text": "Written file's author matches the cached value: Toby Clemson",
+          "passed": true,
+          "evidence": "The final-work-item.md frontmatter contains 'author: Toby Clemson', and behavior.md confirms '(c) What is the author? Toby Clemson \u2014 the immutable author field was preserved verbatim from the source file.'"
+        },
+        {
+          "text": "Written file's status matches the cached value (draft) \u2014 no transition was proposed",
+          "passed": true,
+          "evidence": "The final-work-item.md frontmatter contains 'status: draft', and behavior.md confirms '(d) What is the status? draft \u2014 no explicit status-change request was made by the user, so the preserved-unless-explicitly-changed rule kept it at the cached value.'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 22,
+      "eval_name": "enrich-existing-rich-confirms",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response confirms there are no obvious gaps",
+          "passed": true,
+          "evidence": "Response states 'Gaps: (none)' and 'No obvious gaps remain' explicitly: 'This work item is thoroughly specified \u2014 all sections contain substantive content ... No obvious gaps remain.'"
+        },
+        {
+          "text": "Response asks what the user wants to add or improve",
+          "passed": true,
+          "evidence": "Response asks: 'What would you like to add or improve?' followed by concrete examples of possible enhancements"
+        },
+        {
+          "text": "Response does not re-ask the default Step 1 discovery questions (e.g. 'what pain point', 'what is the desired outcome')",
+          "passed": true,
+          "evidence": "No generic discovery questions appear; suggestions offered are specific to the rich content already present (e.g. 'Resolve or expand the open question about cross-version search scope')"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 23,
+      "eval_name": "enrich-existing-self-not-duplicate",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response continues into Step 3 augmentation framing referencing the input file by its preserved work_item_id (0042) and title",
+          "passed": true,
+          "evidence": "The response is titled '# Step 3: Augmentation Proposal for Work Item 0042' and opens with a transition note explicitly referencing the resolved input file 'skills/work/create-work-item/evals/files/0042-existing-sparse.md' with title 'Add Full-Text Search to Documentation Index'. The augmentation proposal then proceeds section by section for this work item."
+        },
+        {
+          "text": "Response does NOT enumerate the duplicate-handling options ('Proceed with new', 'Exit and update', 'Continue creating linked')",
+          "passed": true,
+          "evidence": "The response contains no mention of 'Proceed with new', 'Exit and update', or 'Continue creating linked' options. The transition note explains that the single result returned by the documents-locator agent is the input file itself, which is excluded by the self-exclusion rule, and then proceeds directly to augmentation."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 30,
+      "eval_name": "enrich-existing-status-changed",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Step 3 surfaces the proposed transition draft \u2192 in-progress and asks for explicit confirmation",
+          "passed": true,
+          "evidence": "The behavior report confirms Step 3 showed \"**Status**: draft \u2192 in-progress (transition requested \u2014 please confirm)\" and asked for user confirmation before accepting the change."
+        },
+        {
+          "text": "Written file's frontmatter status is in-progress",
+          "passed": true,
+          "evidence": "The written file's frontmatter contains status: in-progress and the body metadata block reads **Status**: In-Progress."
+        },
+        {
+          "text": "Transcript shows the model did not propose a status change before the user explicitly asked for one",
+          "passed": true,
+          "evidence": "The behavior report confirms the status transition was not proposed unsolicited. The user explicitly requested it in Step 1 with \"Fill in the gaps. Also, set status to in-progress.\" The model did not volunteer a transition during gap analysis or any prior turn."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 29,
+      "eval_name": "enrich-existing-status-preserved",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Written file's status is in-progress",
+          "passed": true,
+          "evidence": "The written file's frontmatter contains status: in-progress, and the body metadata block reads **Status**: In Progress. The cached value was in-progress and was preserved unchanged."
+        },
+        {
+          "text": "Transcript contains no proposed status transition",
+          "passed": true,
+          "evidence": "The behavior report confirms no status transition was proposed. The Step 3 augmentation proposal surfaced \"Status: keep in-progress \u2014 say so if you'd like to transition it\" as an affordance only. No user request for a change was made, so no transition appeared in any step."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 19,
+      "eval_name": "enrich-existing-unparseable-frontmatter",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response prints the unparseable-frontmatter diagnostic containing the substring 'Could not parse frontmatter'",
+          "passed": true,
+          "evidence": "Response begins: 'Could not parse frontmatter in skills/work/create-work-item/evals/files/0099-broken-frontmatter.md \u2014 the file may be corrupted.'"
+        },
+        {
+          "text": "Conversation aborts \u2014 no Step 1 business-context or gap-analysis questions follow",
+          "passed": true,
+          "evidence": "Response contains only the error diagnostic and instructions to fix the file; no questions about business context, gaps, or enrichment follow"
+        },
+        {
+          "text": "Response does NOT fall back to topic-string handling",
+          "passed": true,
+          "evidence": "There is no mention of interpreting the input as a topic string, and no Step 0 discovery questions appear in the response"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 10,
+      "eval_name": "epic-type-requirements",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says type 'epic' was proposed",
+          "passed": true,
+          "evidence": "behavior.md section (a): '**epic**' \u2014 'The user described this as a major initiative spanning multiple teams that decomposes into many sub-stories, with three distinct named capability areas (SSO, MFA, session management).'"
+        },
+        {
+          "text": "draft.md Requirements section contains an initial story decomposition or list of sub-stories",
+          "passed": true,
+          "evidence": "draft.md Requirements section (lines 28-36) contains seven bulleted sub-stories: SSO Integration, MFA Enrolment and Enforcement, MFA Recovery Flows, Session Management Improvements, Credential Migration, Admin Controls, Testing and Security Review"
+        },
+        {
+          "text": "behavior.md says Requirements section was NOT renamed (it is still called Requirements, not Stories or Epics)",
+          "passed": true,
+          "evidence": "behavior.md section (c): 'No. The skill explicitly says: \"Do not rename or add sections beyond those defined in the work item template.\" The section is titled `Requirements` in the draft, unchanged.'"
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 10,
@@ -227,40 +1328,32 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 5,
-        "total": 5,
-        "time_seconds": 40.5,
-        "tokens": 6857,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
-    },
-    {
-      "eval_id": 10,
-      "eval_name": "epic-type-requirements",
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 5,
-        "total": 5,
-        "time_seconds": 53.7,
-        "tokens": 7384,
-        "errors": 0
-      }
-    },
-    {
-      "eval_id": 4,
-      "eval_name": "model-proposes-type",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 5,
-        "total": 5,
-        "time_seconds": 32.2,
-        "tokens": 6227,
-        "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says type 'epic' was proposed",
+          "passed": true,
+          "evidence": "behavior.md section (a): '**epic**' \u2014 'The user explicitly described this as a \"major initiative spanning multiple teams\" that \"will decompose into many sub-stories\"...'"
+        },
+        {
+          "text": "draft.md Requirements section contains an initial story decomposition or list of sub-stories",
+          "passed": true,
+          "evidence": "draft.md Requirements section (lines 38-45) contains five bulleted themes: SSO integration, MFA options, Improved session management, Migration and backwards compatibility, Observability and audit logging, each described as something that 'will be decomposed into one or more stories during sprint planning'"
+        },
+        {
+          "text": "behavior.md says Requirements section was NOT renamed (it is still called Requirements, not Stories or Epics)",
+          "passed": true,
+          "evidence": "behavior.md section (c): 'No. The section retains its template name: `## Requirements`. The SKILL.md states \"Do not rename or add sections beyond those defined in the work item template\"...'"
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 4,
@@ -269,12 +1362,90 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 5,
-        "total": 5,
-        "time_seconds": 31.0,
-        "tokens": 5988,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says model recommended a specific type with rationale (not just listed types and asked user to choose)",
+          "passed": true,
+          "evidence": "behavior.md states 'The old skill (baseline snapshot) recommended a specific type with a rationale. The model did not present a menu of types and ask the user to choose.' and quotes the proposal opening: 'Suggested type: story / Rationale: This is a user-facing feature with a concrete, testable outcome...'"
+        },
+        {
+          "text": "proposal.md includes a recommendation for a specific work item type (likely 'story') with a brief one-sentence rationale",
+          "passed": true,
+          "evidence": "proposal.md opens with 'Suggested type: story' and 'Rationale: This is a user-facing feature with a concrete, testable outcome (users can search and receive ranked results within 2 seconds). It maps cleanly to a story.' \u2014 one sentence identifying the type and explaining why."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "model-proposes-type",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says model recommended a specific type with rationale (not just listed types and asked user to choose)",
+          "passed": true,
+          "evidence": "behavior.md states 'The model recommended a specific type with a rationale. It did not list multiple types and ask the user to choose.' and quotes the proposal's opening: 'Suggested type: story / Rationale: This is a user-facing capability improvement...'"
+        },
+        {
+          "text": "proposal.md includes a recommendation for a specific work item type (likely 'story') with a brief one-sentence rationale",
+          "passed": true,
+          "evidence": "proposal.md opens with 'Suggested type: story' followed by 'Rationale: This is a user-facing capability improvement \u2014 a clearly scoped deliverable that changes how all documentation users interact with the site, fitting the story form of \"as a [role], I want [goal], so that [benefit].\"' \u2014 one sentence, specific type, clear rationale."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 9,
+      "eval_name": "near-duplicate-surfaced",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md surfaces the existing work item (mentions the filename or title '0001-add-search-to-docs.md' or 'Add full-text search to documentation index')",
+          "passed": true,
+          "evidence": "response.md line 5: '**`meta/work/0001-add-search-to-docs.md`**' and line 6: 'Title: *Add full-text search to documentation index*'"
+        },
+        {
+          "text": "response.md offers the user numbered options (e.g. proceed with new, exit and update existing, continue linked)",
+          "passed": true,
+          "evidence": "response.md lines 12-15 show three numbered options: 1. Proceed with a new work item, 2. Exit and update the existing work item instead, 3. Continue creating a new work item linked to the existing one as a parent"
+        },
+        {
+          "text": "behavior.md says the skill did NOT silently continue creating a new work item",
+          "passed": true,
+          "evidence": "behavior.md section (c): 'No. The skill halted after presenting the finding and options, and explicitly waited for the user's choice before proceeding. This is the correct behaviour per the Step 2 instruction: \"Do not silently continue or modify the existing work item inline. Wait for the user's choice before proceeding.\"'"
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 9,
@@ -283,40 +1454,32 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 4,
-        "total": 4,
-        "time_seconds": 40.5,
-        "tokens": 6857,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
-    },
-    {
-      "eval_id": 9,
-      "eval_name": "near-duplicate-surfaced",
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "total": 4,
-        "time_seconds": 53.7,
-        "tokens": 7384,
-        "errors": 0
-      }
-    },
-    {
-      "eval_id": 8,
-      "eval_name": "number-not-consumed",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "total": 4,
-        "time_seconds": 40.5,
-        "tokens": 6857,
-        "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "response.md surfaces the existing work item (mentions the filename or title '0001-add-search-to-docs.md' or 'Add full-text search to documentation index')",
+          "passed": true,
+          "evidence": "response.md line 3: '**`meta/work/0001-add-search-to-docs.md`**' and line 4: 'Title: Add full-text search to documentation index'"
+        },
+        {
+          "text": "response.md offers the user numbered options (e.g. proceed with new, exit and update existing, continue linked)",
+          "passed": true,
+          "evidence": "response.md lines 9-11 show three numbered options: 1. Proceed with a new work item, 2. Exit and update the existing work item instead, 3. Continue creating a new work item linked to the existing one as a parent"
+        },
+        {
+          "text": "behavior.md says the skill did NOT silently continue creating a new work item",
+          "passed": true,
+          "evidence": "behavior.md section (c): 'No. The skill explicitly prohibits silently continuing or modifying the existing work item inline when a non-closed near-duplicate is found. The response halts at the options prompt and waits for the user's choice before proceeding to Step 3.'"
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 8,
@@ -325,12 +1488,90 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 4,
-        "total": 4,
-        "time_seconds": 53.7,
-        "tokens": 7384,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says work-item-next-number.sh was NOT called at any point",
+          "passed": true,
+          "evidence": "behavior.md states under 'Was work-item-next-number.sh called at any point?': 'No.' and explains the skill's guard held correctly because the session ended at Step 4 without user approval."
+        },
+        {
+          "text": "behavior.md says no work item file was written to disk",
+          "passed": true,
+          "evidence": "behavior.md states under 'Was any work item file written to disk?': 'No.' with the explanation that 'Never write a file without explicit user approval' held correctly."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 8,
+      "eval_name": "number-not-consumed",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says work-item-next-number.sh was NOT called at any point",
+          "passed": true,
+          "evidence": "behavior.md states: '- Was work-item-next-number.sh called at any point? no'"
+        },
+        {
+          "text": "behavior.md says no work item file was written to disk",
+          "passed": true,
+          "evidence": "behavior.md states: '- Was any work item file written to disk? no'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 14,
+      "eval_name": "references-populated",
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "draft.md contains a References section (## References)",
+          "passed": true,
+          "evidence": "draft.md ends with '## References' followed by four entries prefixed with 'Research:' covering all four URLs."
+        },
+        {
+          "text": "behavior.md lists references that include research URLs from the investigation (opensearch.org, typesense.org, meilisearch.com, or the blog post URL)",
+          "passed": true,
+          "evidence": "behavior.md section (b) lists all four verbatim: https://opensearch.org/, https://typesense.org/, https://www.meilisearch.com/, https://example.com/2025/elasticsearch-eol."
+        },
+        {
+          "text": "behavior.md confirms the research URLs from Step 2 are reflected in the References section",
+          "passed": true,
+          "evidence": "behavior.md section (c) includes a table stating 'All four URLs from the Step 2 web research simulation appear verbatim in the References section' with each URL explicitly marked as present."
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 14,
@@ -339,40 +1580,32 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 4,
-        "total": 4,
-        "time_seconds": 40.5,
-        "tokens": 6857,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
-    },
-    {
-      "eval_id": 14,
-      "eval_name": "references-populated",
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "total": 4,
-        "time_seconds": 53.7,
-        "tokens": 7384,
-        "errors": 0
-      }
-    },
-    {
-      "eval_id": 13,
-      "eval_name": "template-driven-types",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "total": 4,
-        "time_seconds": 40.5,
-        "tokens": 6857,
-        "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "draft.md contains a References section (## References)",
+          "passed": true,
+          "evidence": "draft.md ends with '## References' followed by four URLs: opensearch.org, typesense.org, meilisearch.com, and example.com/2025/elasticsearch-eol."
+        },
+        {
+          "text": "behavior.md lists references that include research URLs from the investigation (opensearch.org, typesense.org, meilisearch.com, or the blog post URL)",
+          "passed": true,
+          "evidence": "behavior.md section (b) lists all four verbatim: https://opensearch.org/, https://typesense.org/, https://www.meilisearch.com/, https://example.com/2025/elasticsearch-eol \u2014 covering all four target domains."
+        },
+        {
+          "text": "behavior.md confirms the research URLs from Step 2 are reflected in the References section",
+          "passed": true,
+          "evidence": "behavior.md section (c) includes a table explicitly confirming all four Step 2 URLs are present in the References section, stating 'All four URLs from the Step 2 web research simulation appear verbatim in the References section.'"
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 13,
@@ -381,26 +1614,90 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 4,
-        "total": 4,
-        "time_seconds": 53.7,
-        "tokens": 7384,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says 'chore' was considered as a valid type (not dismissed as invalid)",
+          "passed": true,
+          "evidence": "behavior.md section (b) states: 'Yes. `chore` was explicitly considered and chosen as the best fit.' The proposal selects `chore` and the Drafting Notes record the reasoning for preferring it over `task`."
+        },
+        {
+          "text": "behavior.md says the type list was treated as open-ended (from template) rather than a hardcoded list of five types",
+          "passed": true,
+          "evidence": "behavior.md section (c) states the old skill's instruction explicitly reads: 'Valid types come from the work item template's `type` field (loaded at the top of this skill) \u2014 do not hardcode the list.' It concludes: 'The old skill's architecture is type-list-open (reads from template). It does not have a hardcoded five-type list in the instruction text.'"
+        }
+      ],
+      "notes": []
     },
     {
-      "eval_id": 2,
-      "eval_name": "vague-topic",
+      "eval_id": 13,
+      "eval_name": "template-driven-types",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 5,
-        "total": 5,
-        "time_seconds": 32.2,
-        "tokens": 6227,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "behavior.md says 'chore' was considered as a valid type (not dismissed as invalid)",
+          "passed": true,
+          "evidence": "behavior.md section (b) states: 'Yes. The eval specifies that the template's `type` field comment reads `story | epic | task | bug | spike | chore`. Since `chore` appeared in the template's type comment, it was treated as a fully valid type.' The proposal also selected `chore` as the recommended type."
+        },
+        {
+          "text": "behavior.md says the type list was treated as open-ended (from template) rather than a hardcoded list of five types",
+          "passed": true,
+          "evidence": "behavior.md section (c) states: 'The type list was treated as open-ended and read from the template. The skill instruction is unambiguous: \"Valid types come from the work item template's `type` field (loaded at the top of this skill) \u2014 do not hardcode the list.\"' It explicitly confirms the original five types were not treated as exhaustive."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 32,
+      "eval_name": "topic-string-flow-still-calls-next-number",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Transcript shows exactly one invocation of work-item-next-number.sh during Step 5",
+          "passed": true,
+          "evidence": "The behavior report confirms work-item-next-number.sh was called in Step 5 after user approval. It was called as the very first action of Step 5, before the target path was resolved or any file was written. The draft used XXXX in Steps 3\u20134 and XXXX was substituted with 0043 only after the script returned."
+        },
+        {
+          "text": "Written file's work_item_id is the value returned by that invocation (0043)",
+          "passed": true,
+          "evidence": "The written file's frontmatter contains work_item_id: \"0043\", matching the value returned by work-item-next-number.sh."
+        },
+        {
+          "text": "Written file's body H1 begins with '# 0043:'",
+          "passed": true,
+          "evidence": "The written file's body H1 is \"# 0043: Dark mode toggle for settings page\", which begins with '# 0043:' as required."
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 2,
@@ -409,47 +1706,111 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 5,
-        "total": 5,
-        "time_seconds": 31.0,
-        "tokens": 5988,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
         "errors": 0
-      }
+      },
+      "expectations": [
+        {
+          "text": "Response asks at least one clarifying question about what 'improve things' means",
+          "passed": true,
+          "evidence": "response.md asks two clarifying questions: (1) What specifically needs to change? (2) What does 'done' look like? Both address the vagueness of 'improve things' by demanding a concrete subject and outcome."
+        },
+        {
+          "text": "Response does not skip ahead to ask business context questions (e.g. about pain point, success criteria)",
+          "passed": true,
+          "evidence": "transcript.md confirms 'No business context questions were asked (correct \u2014 Step 0 precedes Step 1)' and the response ends with 'Once I have a more concrete description, I can move forward with gathering the full business context', explicitly deferring that step."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "vague-topic",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response asks at least one clarifying question about what 'improve things' means",
+          "passed": true,
+          "evidence": "response.md asks three questions: (1) What specifically needs improving? (2) What is the problem you're experiencing or observing? (3) What would 'improved' look like when you're done? All three target the vagueness of 'improve things'."
+        },
+        {
+          "text": "Response does not skip ahead to ask business context questions (e.g. about pain point, success criteria)",
+          "passed": true,
+          "evidence": "The questions are aimed at disambiguating the vague topic so a subject can be identified, not at gathering Step 1 business context. transcript.md confirms the agent 'did not proceed to Step 1 (business context questions)' and stopped after the vagueness check."
+        }
+      ],
+      "notes": []
     }
   ],
   "run_summary": {
     "with_skill": {
       "pass_rate": {
         "mean": 1.0,
-        "stddev": 0.0
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
       },
       "time_seconds": {
-        "mean": 36.35,
-        "stddev": 4.15
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0.0,
+        "max": 0.0
       },
       "tokens": {
-        "mean": 6542.0,
-        "stddev": 315.0
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
       }
     },
     "old_skill": {
       "pass_rate": {
-        "mean": 0.9857,
-        "stddev": 0.0515
+        "mean": 0.8056,
+        "stddev": 0.3888,
+        "min": 0.0,
+        "max": 1.0
       },
       "time_seconds": {
-        "mean": 42.35,
-        "stddev": 11.35
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0.0,
+        "max": 0.0
       },
       "tokens": {
-        "mean": 6686.0,
-        "stddev": 698.0
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
       }
+    },
+    "delta": {
+      "pass_rate": "+0.19",
+      "time_seconds": "+0.0",
+      "tokens": "+0"
     }
   },
-  "delta": {
-    "pass_rate": "+0.014",
-    "time_seconds": "-6.0",
-    "tokens": "-144"
-  }
+  "notes": [
+    "with_skill achieves 100% pass rate (35/35 evals) with zero failures.",
+    "old_skill runs were limited to 18 representative evals; the remaining 17 enrich-existing evals were omitted since they all test a mode that does not exist in the old skill \u2014 including them would trivially inflate the delta without adding insight.",
+    "old_skill failures are all on enrich-existing mode evals: eval 15 (path-like discriminator), eval 21 (gap analysis), eval 24 (augmentation proposal) all score 0% because the old skill treats path-like input as a topic string.",
+    "eval 25 (enrich-existing-preserves-identity) scores 50% in old_skill: author and status fields coincidentally match (both resolved from git config / set as default draft), but work_item_id and date are fresh values \u2014 showing identity is not preserved.",
+    "All 14 pre-existing evals (1\u201314) pass 100% in both configs \u2014 no regressions introduced by the enrich-existing extension.",
+    "Evals 1\u201314 assertions are identical for both configs: the enrich-existing changes are purely additive (new Step 0 discriminator path) and do not alter existing topic-string flow behavior."
+  ]
 }
