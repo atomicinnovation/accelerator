@@ -17,7 +17,9 @@ async fn idle_timeout_fires_with_fast_clock() {
         tx,
     );
     let reason = tokio::time::timeout(Duration::from_secs(3), rx.recv())
-        .await.expect("idle fires within 3s").expect("channel ok");
+        .await
+        .expect("idle fires within 3s")
+        .expect("channel ok");
     assert!(
         matches!(reason, ShutdownReason::IdleTimeout),
         "expected IdleTimeout, got {reason:?}"

@@ -1,8 +1,8 @@
-mod events;
-mod types;
 mod docs;
-mod templates;
+mod events;
 mod lifecycle;
+mod templates;
+mod types;
 
 use std::sync::Arc;
 
@@ -47,11 +47,7 @@ impl IntoResponse for ApiError {
             ApiError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
             ApiError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
         };
-        (
-            status,
-            Json(serde_json::json!({ "error": msg })),
-        )
-            .into_response()
+        (status, Json(serde_json::json!({ "error": msg }))).into_response()
     }
 }
 
@@ -64,9 +60,12 @@ pub(crate) fn api_from_fd(e: crate::file_driver::FileDriverError) -> ApiError {
     match e {
         F::PathEscape { .. } | F::TypeNotConfigured { .. } => ApiError::PathEscape,
         F::NotFound { path } => ApiError::NotFound(path.display().to_string()),
-        F::TooLarge { path, size, limit } => ApiError::Internal(
-            format!("{} is {} bytes (limit {})", path.display(), size, limit),
-        ),
+        F::TooLarge { path, size, limit } => ApiError::Internal(format!(
+            "{} is {} bytes (limit {})",
+            path.display(),
+            size,
+            limit
+        )),
         F::Io { source, .. } => ApiError::Internal(source.to_string()),
     }
 }

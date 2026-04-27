@@ -17,7 +17,12 @@ async fn healthz_returns_200() {
     let state = AppState::build(cfg, activity).await.unwrap();
     let app = build_router(state);
     let res = app
-        .oneshot(Request::builder().uri("/api/healthz").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/api/healthz")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
@@ -35,7 +40,11 @@ async fn root_serves_spa_index() {
 
     let tmp = tempfile::tempdir().unwrap();
     let dist = tempfile::tempdir().unwrap();
-    std::fs::write(dist.path().join("index.html"), "<!doctype html><html>app</html>").unwrap();
+    std::fs::write(
+        dist.path().join("index.html"),
+        "<!doctype html><html>app</html>",
+    )
+    .unwrap();
 
     let cfg = common::seeded_cfg(tmp.path());
     let activity = Arc::new(Activity::new());

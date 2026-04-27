@@ -89,7 +89,6 @@ pub fn seeded_cfg_with_tickets(tmp: &Path) -> Config {
         "---\ntitle: \"Blocked fixture\"\ntype: adr-creation-task\nstatus: blocked\n---\n# body\n",
     )
     .unwrap();
-    cfg.doc_paths
-        .insert("tickets".into(), tickets);
+    cfg.doc_paths.insert("tickets".into(), tickets);
     cfg
 }

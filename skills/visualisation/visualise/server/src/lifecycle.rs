@@ -100,7 +100,8 @@ mod tests {
     async fn reaped_child_pid_is_dead() {
         let child = tokio::process::Command::new("sh")
             .args(["-c", "exit 0"])
-            .spawn().unwrap();
+            .spawn()
+            .unwrap();
         let pid = child.id().unwrap() as i32;
         let _ = child.wait_with_output().await;
         assert!(!owner_alive(pid, None));

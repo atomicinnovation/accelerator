@@ -17,7 +17,12 @@ async fn types_returns_ten_entries_with_virtual_flag_on_templates() {
     let state = AppState::build(cfg, activity).await.unwrap();
     let app = build_router(state);
     let res = app
-        .oneshot(Request::builder().uri("/api/types").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/api/types")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);

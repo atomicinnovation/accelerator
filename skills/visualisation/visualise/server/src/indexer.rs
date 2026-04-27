@@ -38,7 +38,10 @@ pub struct Indexer {
 }
 
 impl Indexer {
-    pub async fn build(driver: Arc<dyn FileDriver>, project_root: PathBuf) -> Result<Self, FileDriverError> {
+    pub async fn build(
+        driver: Arc<dyn FileDriver>,
+        project_root: PathBuf,
+    ) -> Result<Self, FileDriverError> {
         let me = Self {
             driver,
             project_root,
@@ -226,17 +229,12 @@ mod tests {
         )
         .unwrap();
         std::fs::write(
-            reviews.join(
-                "2026-03-28-initialise-skill-and-review-pr-ephemeral-migration-review-1.md",
-            ),
+            reviews
+                .join("2026-03-28-initialise-skill-and-review-pr-ephemeral-migration-review-1.md"),
             "---\ntitle: review\n---\n",
         )
         .unwrap();
-        std::fs::write(
-            notes.join("2026-03-30-no-fm.md"),
-            "# A bare note\n",
-        )
-        .unwrap();
+        std::fs::write(notes.join("2026-03-30-no-fm.md"), "# A bare note\n").unwrap();
 
         let mut map = HashMap::new();
         map.insert("decisions".into(), dec);
@@ -248,9 +246,7 @@ mod tests {
 
     async fn build_indexer(tmp: &Path) -> Indexer {
         let (root, map) = seed(tmp);
-        let driver: Arc<dyn FileDriver> = Arc::new(
-            LocalFileDriver::new(&map, vec![]),
-        );
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![]));
         Indexer::build(driver, root).await.unwrap()
     }
 
@@ -288,14 +284,8 @@ mod tests {
             .into_iter()
             .map(|e| (e.path.file_name().unwrap().to_string_lossy().to_string(), e))
             .collect();
-        assert_eq!(
-            by_name["2026-04-18-hello.md"].frontmatter_state,
-            "parsed"
-        );
-        assert_eq!(
-            by_name["2026-03-22-no-fm.md"].frontmatter_state,
-            "absent"
-        );
+        assert_eq!(by_name["2026-04-18-hello.md"].frontmatter_state, "parsed");
+        assert_eq!(by_name["2026-03-22-no-fm.md"].frontmatter_state, "absent");
         assert_eq!(
             by_name["2026-04-01-malformed.md"].frontmatter_state,
             "malformed"
@@ -307,8 +297,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
         let revs = idx.all_by_type(DocTypeKey::PlanReviews).await;
-        let slugs: Vec<String> =
-            revs.iter().filter_map(|e| e.slug.clone()).collect();
+        let slugs: Vec<String> = revs.iter().filter_map(|e| e.slug.clone()).collect();
         assert!(slugs.contains(&"hello".to_string()));
         assert!(
             slugs.contains(&"initialise-skill-and-review-pr-ephemeral-migration".to_string()),
@@ -366,13 +355,16 @@ mod tests {
         std::fs::write(
             plans.join("2026-04-25-foo.md"),
             "---\ntitle: Foo\n---\n# Foo\n\nFirst paragraph of the body.\n",
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut paths = std::collections::HashMap::new();
         paths.insert("plans".to_string(), plans);
         let driver: Arc<dyn FileDriver> =
             Arc::new(crate::file_driver::LocalFileDriver::new(&paths, vec![]));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf()).await.unwrap();
+        let idx = Indexer::build(driver, tmp.path().to_path_buf())
+            .await
+            .unwrap();
         let entries = idx.all().await;
         let foo = entries.iter().find(|e| e.title == "Foo").unwrap();
         assert_eq!(foo.body_preview, "First paragraph of the body.");
@@ -381,8 +373,7 @@ mod tests {
     #[tokio::test]
     async fn scan_2000_files_completes_within_one_second() {
         let tmp = tempfile::tempdir().unwrap();
-        let body = "---\ntitle: Filler\n---\n".to_string()
-            + &"x".repeat(10 * 1024);
+        let body = "---\ntitle: Filler\n---\n".to_string() + &"x".repeat(10 * 1024);
 
         let dirs = [
             ("decisions", "meta/decisions", "0001"),
@@ -401,9 +392,7 @@ mod tests {
             map.insert(key.to_string(), dir_path);
         }
 
-        let driver: Arc<dyn FileDriver> = Arc::new(
-            LocalFileDriver::new(&map, vec![]),
-        );
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![]));
         let start = std::time::Instant::now();
         let idx = Indexer::build(driver, tmp.path().to_path_buf())
             .await

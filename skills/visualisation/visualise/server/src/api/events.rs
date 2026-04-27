@@ -17,16 +17,14 @@ use crate::server::AppState;
 
 pub async fn events(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let rx = state.sse_hub.subscribe();
-    let stream = BroadcastStream::new(rx).filter_map(|msg| {
-        match msg {
-            Ok(payload) => {
-                let data = serde_json::to_string(&payload).ok()?;
-                Some(Ok::<Event, Infallible>(Event::default().data(data)))
-            }
-            Err(tokio_stream::wrappers::errors::BroadcastStreamRecvError::Lagged(n)) => {
-                tracing::warn!(dropped = n, "SSE subscriber lagged; messages dropped");
-                None
-            }
+    let stream = BroadcastStream::new(rx).filter_map(|msg| match msg {
+        Ok(payload) => {
+            let data = serde_json::to_string(&payload).ok()?;
+            Some(Ok::<Event, Infallible>(Event::default().data(data)))
+        }
+        Err(tokio_stream::wrappers::errors::BroadcastStreamRecvError::Lagged(n)) => {
+            tracing::warn!(dropped = n, "SSE subscriber lagged; messages dropped");
+            None
         }
     });
 

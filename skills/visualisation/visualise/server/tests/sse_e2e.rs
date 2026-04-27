@@ -67,7 +67,11 @@ async fn file_mutation_arrives_as_sse_event() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Mutate a watched file.
-    std::fs::write(plans.join("2026-01-01-test.md"), "---\ntitle: Updated\n---\n").unwrap();
+    std::fs::write(
+        plans.join("2026-01-01-test.md"),
+        "---\ntitle: Updated\n---\n",
+    )
+    .unwrap();
 
     // Read SSE frames until we see "doc-changed" or time out.
     // 2000ms deadline: 100ms debounce + OS notification latency + reqwest

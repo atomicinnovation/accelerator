@@ -110,7 +110,10 @@ mod tests {
             etag: None,
         };
         let json = serde_json::to_string(&deleted).unwrap();
-        assert!(!json.contains("etag"), "etag must be absent for deletions: {json}");
+        assert!(
+            !json.contains("etag"),
+            "etag must be absent for deletions: {json}"
+        );
 
         let invalid = SsePayload::DocInvalid {
             doc_type: crate::docs::DocTypeKey::Plans,

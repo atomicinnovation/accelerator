@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
-use axum::{extract::{Path as AxumPath, State}, Json};
+use axum::{
+    extract::{Path as AxumPath, State},
+    Json,
+};
 use serde::Serialize;
 
-use crate::server::AppState;
 use super::ApiError;
+use crate::server::AppState;
 
 #[derive(Serialize)]
 pub(crate) struct TemplatesListResponse {
@@ -23,5 +26,9 @@ pub(crate) async fn template_detail(
     State(state): State<Arc<AppState>>,
     AxumPath(name): AxumPath<String>,
 ) -> Result<Json<crate::templates::TemplateDetail>, ApiError> {
-    state.templates.detail(&name).map(Json).ok_or(ApiError::NotFound(name))
+    state
+        .templates
+        .detail(&name)
+        .map(Json)
+        .ok_or(ApiError::NotFound(name))
 }

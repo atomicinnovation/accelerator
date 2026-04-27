@@ -6,10 +6,9 @@ use tokio::process::Command;
 
 #[tokio::test]
 async fn api_surface_is_fully_reachable_against_fixture_meta() {
-    let fixtures = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/meta");
-    let plugin_templates = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/templates");
+    let fixtures = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/meta");
+    let plugin_templates =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/templates");
     let tmp = tempfile::tempdir().unwrap();
     let cfg_path = tmp.path().join("config.json");
     let tmp_dir = tmp.path().join("visualiser");
@@ -78,7 +77,11 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
     }
     let info: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&info_path).unwrap()).unwrap();
-    let base = info["url"].as_str().unwrap().trim_end_matches('/').to_string();
+    let base = info["url"]
+        .as_str()
+        .unwrap()
+        .trim_end_matches('/')
+        .to_string();
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
@@ -86,33 +89,76 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         .unwrap();
 
     // /api/types -> 10 entries.
-    let t: serde_json::Value = client.get(format!("{base}/api/types")).send().await.unwrap().json().await.unwrap();
+    let t: serde_json::Value = client
+        .get(format!("{base}/api/types"))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
     assert_eq!(t["types"].as_array().unwrap().len(), 10);
 
     // /api/docs?type=decisions -> 2 entries.
-    let d: serde_json::Value = client.get(format!("{base}/api/docs?type=decisions")).send().await.unwrap().json().await.unwrap();
+    let d: serde_json::Value = client
+        .get(format!("{base}/api/docs?type=decisions"))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
     assert_eq!(d["docs"].as_array().unwrap().len(), 2);
 
     // /api/docs?type=plan-reviews -> 2 entries with expected slugs.
-    let pr: serde_json::Value = client.get(format!("{base}/api/docs?type=plan-reviews")).send().await.unwrap().json().await.unwrap();
-    let slugs: Vec<&str> = pr["docs"].as_array().unwrap().iter().map(|e| e["slug"].as_str().unwrap()).collect();
+    let pr: serde_json::Value = client
+        .get(format!("{base}/api/docs?type=plan-reviews"))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let slugs: Vec<&str> = pr["docs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["slug"].as_str().unwrap())
+        .collect();
     assert!(slugs.contains(&"first-plan"));
     assert!(slugs.contains(&"example-and-review-some-topic"));
 
     // /api/templates -> 5 entries.
-    let tpl: serde_json::Value = client.get(format!("{base}/api/templates")).send().await.unwrap().json().await.unwrap();
+    let tpl: serde_json::Value = client
+        .get(format!("{base}/api/templates"))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
     assert_eq!(tpl["templates"].as_array().unwrap().len(), 5);
 
     // /api/docs/{*path} with If-None-Match round-trip.
     let r1 = client
-        .get(format!("{base}/api/docs/meta/decisions/ADR-0001-example-decision.md"))
+        .get(format!(
+            "{base}/api/docs/meta/decisions/ADR-0001-example-decision.md"
+        ))
         .send()
         .await
         .unwrap();
     assert_eq!(r1.status(), 200);
-    let etag = r1.headers().get("etag").unwrap().to_str().unwrap().to_string();
+    let etag = r1
+        .headers()
+        .get("etag")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
     let r2 = client
-        .get(format!("{base}/api/docs/meta/decisions/ADR-0001-example-decision.md"))
+        .get(format!(
+            "{base}/api/docs/meta/decisions/ADR-0001-example-decision.md"
+        ))
         .header("if-none-match", &etag)
         .send()
         .await
@@ -120,7 +166,14 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
     assert_eq!(r2.status(), 304);
 
     // /api/lifecycle returns a non-empty cluster list.
-    let lc: serde_json::Value = client.get(format!("{base}/api/lifecycle")).send().await.unwrap().json().await.unwrap();
+    let lc: serde_json::Value = client
+        .get(format!("{base}/api/lifecycle"))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
     assert!(!lc["clusters"].as_array().unwrap().is_empty());
 
     let _ = child.kill().await;

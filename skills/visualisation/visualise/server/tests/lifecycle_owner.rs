@@ -9,7 +9,8 @@ async fn owner_pid_death_triggers_shutdown() {
     // OwnerPidExited.
     let child = tokio::process::Command::new("sh")
         .args(["-c", "exit 0"])
-        .spawn().unwrap();
+        .spawn()
+        .unwrap();
     let pid = child.id().unwrap() as i32;
     let _ = child.wait_with_output().await;
 
@@ -26,7 +27,9 @@ async fn owner_pid_death_triggers_shutdown() {
         tx,
     );
     let reason = tokio::time::timeout(Duration::from_secs(3), rx.recv())
-        .await.expect("owner-death fires within 3s").expect("channel ok");
+        .await
+        .expect("owner-death fires within 3s")
+        .expect("channel ok");
     assert!(
         matches!(reason, ShutdownReason::OwnerPidExited),
         "expected OwnerPidExited, got {reason:?}"

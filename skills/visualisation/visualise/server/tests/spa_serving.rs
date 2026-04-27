@@ -1,7 +1,10 @@
 #[cfg(feature = "dev-frontend")]
 mod tests {
     use accelerator_visualiser::server::AppState;
-    use axum::{body::Body, http::{Request, StatusCode}};
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
     use http_body_util::BodyExt as _;
     use std::collections::HashMap;
     use tower::ServiceExt as _;
@@ -32,7 +35,8 @@ mod tests {
         std::fs::write(
             dist.path().join("index.html"),
             "<!doctype html><html>app</html>",
-        ).unwrap();
+        )
+        .unwrap();
 
         let app = accelerator_visualiser::server::build_router_with_dist(
             state,
@@ -53,7 +57,9 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::OK);
         let body = resp.into_body().collect().await.unwrap().to_bytes();
         let text = std::str::from_utf8(&body).unwrap();
-        assert!(text.contains("<!doctype html") || text.contains("<!DOCTYPE html"),
-            "expected HTML, got: {text:.200}");
+        assert!(
+            text.contains("<!doctype html") || text.contains("<!DOCTYPE html"),
+            "expected HTML, got: {text:.200}"
+        );
     }
 }

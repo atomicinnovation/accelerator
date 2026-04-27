@@ -192,12 +192,11 @@ async fn docs_list_for_tickets_carries_frontmatter_status() {
     let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let docs = v["docs"].as_array().expect("docs array");
 
-    let by_status: std::collections::HashMap<&str, &str> =
-        std::collections::HashMap::from([
-            ("todo", "0001-todo-fixture"),
-            ("done", "0002-done-fixture"),
-            ("blocked", "0003-other-fixture"),
-        ]);
+    let by_status: std::collections::HashMap<&str, &str> = std::collections::HashMap::from([
+        ("todo", "0001-todo-fixture"),
+        ("done", "0002-done-fixture"),
+        ("blocked", "0003-other-fixture"),
+    ]);
     for (status, slug_prefix) in &by_status {
         let entry = docs
             .iter()

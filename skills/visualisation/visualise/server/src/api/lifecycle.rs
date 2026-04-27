@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
-use axum::{extract::{Path as AxumPath, State}, Json};
+use axum::{
+    extract::{Path as AxumPath, State},
+    Json,
+};
 use serde::Serialize;
 
-use crate::server::AppState;
 use super::ApiError;
+use crate::server::AppState;
 
 #[derive(Serialize)]
 pub(crate) struct LifecycleListResponse {

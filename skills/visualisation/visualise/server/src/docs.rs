@@ -135,7 +135,11 @@ mod tests {
         let mut v = DocTypeKey::all().to_vec();
         v.sort_by_key(|k| k.label().to_string());
         v.dedup();
-        assert_eq!(v.len(), 10, "DocTypeKey::all must return 10 distinct variants");
+        assert_eq!(
+            v.len(),
+            10,
+            "DocTypeKey::all must return 10 distinct variants"
+        );
     }
 
     #[test]
@@ -177,11 +181,26 @@ mod tests {
 
         let types = describe_types(&cfg);
         assert_eq!(types.len(), 10);
-        let decisions = types.iter().find(|t| t.key == DocTypeKey::Decisions).unwrap();
-        assert_eq!(decisions.dir_path.as_deref(), Some(std::path::Path::new("/abs/decisions")));
-        let plan_reviews = types.iter().find(|t| t.key == DocTypeKey::PlanReviews).unwrap();
-        assert_eq!(plan_reviews.dir_path.as_deref(), Some(std::path::Path::new("/abs/reviews/plans")));
-        let templates = types.iter().find(|t| t.key == DocTypeKey::Templates).unwrap();
+        let decisions = types
+            .iter()
+            .find(|t| t.key == DocTypeKey::Decisions)
+            .unwrap();
+        assert_eq!(
+            decisions.dir_path.as_deref(),
+            Some(std::path::Path::new("/abs/decisions"))
+        );
+        let plan_reviews = types
+            .iter()
+            .find(|t| t.key == DocTypeKey::PlanReviews)
+            .unwrap();
+        assert_eq!(
+            plan_reviews.dir_path.as_deref(),
+            Some(std::path::Path::new("/abs/reviews/plans"))
+        );
+        let templates = types
+            .iter()
+            .find(|t| t.key == DocTypeKey::Templates)
+            .unwrap();
         assert!(templates.dir_path.is_none());
         assert!(templates.r#virtual);
     }
@@ -201,11 +220,20 @@ mod tests {
             templates: Default::default(),
         };
         let types = describe_types(&cfg);
-        let decisions = types.iter().find(|t| t.key == DocTypeKey::Decisions).unwrap();
+        let decisions = types
+            .iter()
+            .find(|t| t.key == DocTypeKey::Decisions)
+            .unwrap();
         let json = serde_json::to_value(decisions).unwrap();
-        assert_eq!(json.get("virtual"), Some(&serde_json::Value::Bool(false)),
-            "virtual must always be emitted, even when false");
-        let templates = types.iter().find(|t| t.key == DocTypeKey::Templates).unwrap();
+        assert_eq!(
+            json.get("virtual"),
+            Some(&serde_json::Value::Bool(false)),
+            "virtual must always be emitted, even when false"
+        );
+        let templates = types
+            .iter()
+            .find(|t| t.key == DocTypeKey::Templates)
+            .unwrap();
         let json = serde_json::to_value(templates).unwrap();
         assert_eq!(json.get("virtual"), Some(&serde_json::Value::Bool(true)));
     }

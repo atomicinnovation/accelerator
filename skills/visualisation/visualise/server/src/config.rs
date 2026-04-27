@@ -39,19 +39,29 @@ pub struct TemplateTiers {
 
 impl Config {
     pub fn from_path(path: &std::path::Path) -> Result<Self, ConfigError> {
-        let bytes = std::fs::read(path)
-            .map_err(|source| ConfigError::Read { path: path.to_path_buf(), source })?;
-        serde_json::from_slice(&bytes)
-            .map_err(|source| ConfigError::Parse { path: path.to_path_buf(), source })
+        let bytes = std::fs::read(path).map_err(|source| ConfigError::Read {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        serde_json::from_slice(&bytes).map_err(|source| ConfigError::Parse {
+            path: path.to_path_buf(),
+            source,
+        })
     }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
     #[error("failed to read config {path}: {source}")]
-    Read { path: PathBuf, source: std::io::Error },
+    Read {
+        path: PathBuf,
+        source: std::io::Error,
+    },
     #[error("failed to parse config {path}: {source}")]
-    Parse { path: PathBuf, source: serde_json::Error },
+    Parse {
+        path: PathBuf,
+        source: serde_json::Error,
+    },
 }
 
 #[cfg(test)]
@@ -112,8 +122,7 @@ mod tests {
             "log_path": "/l", "doc_paths": {}, "templates": {},
             "doc_path": {"decisions": "/typo"}
         }"#;
-        let err = serde_json::from_str::<Config>(json)
-            .expect_err("unknown field must fail");
+        let err = serde_json::from_str::<Config>(json).expect_err("unknown field must fail");
         assert!(err.to_string().contains("unknown field"));
     }
 
@@ -138,6 +147,9 @@ mod tests {
         }"#;
         let c: Config = serde_json::from_str(json).expect("parse");
         let adr = c.templates.get("adr").unwrap();
-        assert_eq!(adr.config_override.as_deref().unwrap(), std::path::Path::new("/custom/adr.md"));
+        assert_eq!(
+            adr.config_override.as_deref().unwrap(),
+            std::path::Path::new("/custom/adr.md")
+        );
     }
 }

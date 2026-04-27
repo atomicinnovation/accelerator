@@ -172,7 +172,11 @@ mod tests {
             entry(DocTypeKey::PlanReviews, "foo", 200, "Review 2"),
         ];
         let clusters = compute_clusters(&entries);
-        let titles: Vec<String> = clusters[0].entries.iter().map(|e| e.title.clone()).collect();
+        let titles: Vec<String> = clusters[0]
+            .entries
+            .iter()
+            .map(|e| e.title.clone())
+            .collect();
         assert_eq!(titles, vec!["Review 1", "Review 2", "Review 3"]);
     }
 
@@ -238,9 +242,9 @@ mod tests {
     #[test]
     fn last_changed_ms_is_per_cluster_and_survives_slug_sort() {
         let entries = vec![
-            entry(DocTypeKey::Plans,   "foo", 100, "P-foo"),
+            entry(DocTypeKey::Plans, "foo", 100, "P-foo"),
             entry(DocTypeKey::Tickets, "foo", 500, "T-foo"),
-            entry(DocTypeKey::Plans,   "bar", 900, "P-bar"),
+            entry(DocTypeKey::Plans, "bar", 900, "P-bar"),
             entry(DocTypeKey::Tickets, "bar", 200, "T-bar"),
         ];
         let clusters = compute_clusters(&entries);

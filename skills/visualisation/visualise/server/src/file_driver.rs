@@ -27,7 +27,11 @@ pub enum FileDriverError {
     #[error("not found: {path}")]
     NotFound { path: PathBuf },
     #[error("file too large: {path} is {size} bytes (limit {limit})")]
-    TooLarge { path: PathBuf, size: u64, limit: u64 },
+    TooLarge {
+        path: PathBuf,
+        size: u64,
+        limit: u64,
+    },
     #[error("io error reading {path}: {source}")]
     Io {
         path: PathBuf,
@@ -54,14 +58,15 @@ pub struct LocalFileDriver {
 }
 
 impl LocalFileDriver {
-    pub fn new(
-        doc_paths: &HashMap<String, PathBuf>,
-        extra_roots: Vec<PathBuf>,
-    ) -> Self {
+    pub fn new(doc_paths: &HashMap<String, PathBuf>, extra_roots: Vec<PathBuf>) -> Self {
         let mut roots = HashMap::new();
         for kind in DocTypeKey::all() {
-            let Some(cfg_key) = kind.config_path_key() else { continue };
-            let Some(raw) = doc_paths.get(cfg_key) else { continue };
+            let Some(cfg_key) = kind.config_path_key() else {
+                continue;
+            };
+            let Some(raw) = doc_paths.get(cfg_key) else {
+                continue;
+            };
             let canonical = std::fs::canonicalize(raw).unwrap_or_else(|_| raw.clone());
             roots.insert(kind, canonical);
         }
@@ -80,8 +85,13 @@ impl LocalFileDriver {
     }
 
     fn path_is_allowed(&self, canonical_path: &Path) -> bool {
-        self.roots.values().any(|root| canonical_path.starts_with(root))
-            || self.extra_roots.iter().any(|r| canonical_path.starts_with(r))
+        self.roots
+            .values()
+            .any(|root| canonical_path.starts_with(root))
+            || self
+                .extra_roots
+                .iter()
+                .any(|r| canonical_path.starts_with(r))
     }
 }
 
@@ -89,7 +99,8 @@ impl FileDriver for LocalFileDriver {
     fn list(
         &self,
         kind: DocTypeKey,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<Vec<PathBuf>, FileDriverError>> + Send + '_>> {
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<Vec<PathBuf>, FileDriverError>> + Send + '_>>
+    {
         let root = match self.root_for(kind) {
             Ok(r) => r.to_path_buf(),
             Err(e) => return Box::pin(std::future::ready(Err(e))),
@@ -137,22 +148,30 @@ impl FileDriver for LocalFileDriver {
     fn read(
         &self,
         path: &Path,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<FileContent, FileDriverError>> + Send + '_>> {
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<FileContent, FileDriverError>> + Send + '_>>
+    {
         let path = path.to_path_buf();
         Box::pin(async move {
             let canonical = tokio::fs::canonicalize(&path).await.map_err(|source| {
                 if source.kind() == std::io::ErrorKind::NotFound {
                     FileDriverError::NotFound { path: path.clone() }
                 } else {
-                    FileDriverError::Io { path: path.clone(), source }
+                    FileDriverError::Io {
+                        path: path.clone(),
+                        source,
+                    }
                 }
             })?;
             if !self.path_is_allowed(&canonical) {
                 return Err(FileDriverError::PathEscape { path });
             }
-            let meta = tokio::fs::metadata(&canonical).await.map_err(|source| {
-                FileDriverError::Io { path: canonical.clone(), source }
-            })?;
+            let meta =
+                tokio::fs::metadata(&canonical)
+                    .await
+                    .map_err(|source| FileDriverError::Io {
+                        path: canonical.clone(),
+                        source,
+                    })?;
             if meta.len() > MAX_DOC_BYTES {
                 return Err(FileDriverError::TooLarge {
                     path,
@@ -162,9 +181,14 @@ impl FileDriver for LocalFileDriver {
             }
             let bytes = tokio::fs::read(&canonical).await.map_err(|source| {
                 if source.kind() == std::io::ErrorKind::NotFound {
-                    FileDriverError::NotFound { path: canonical.clone() }
+                    FileDriverError::NotFound {
+                        path: canonical.clone(),
+                    }
                 } else {
-                    FileDriverError::Io { path: canonical.clone(), source }
+                    FileDriverError::Io {
+                        path: canonical.clone(),
+                        source,
+                    }
                 }
             })?;
             let mtime_ms = meta
@@ -196,7 +220,9 @@ pub fn template_extra_roots(
     let mut dirs = std::collections::HashSet::new();
     for tiers in templates.values() {
         if let Some(co) = &tiers.config_override {
-            if let Some(p) = co.parent() { dirs.insert(p.to_path_buf()); }
+            if let Some(p) = co.parent() {
+                dirs.insert(p.to_path_buf());
+            }
         }
         if let Some(p) = tiers.user_override.parent() {
             dirs.insert(p.to_path_buf());
@@ -273,7 +299,10 @@ mod tests {
         let outside = tmp.path().join("outside.md");
         std::fs::write(&outside, "x").unwrap();
         let err = d.read(&outside).await.unwrap_err();
-        assert!(matches!(err, FileDriverError::PathEscape { .. }), "got {err:?}");
+        assert!(
+            matches!(err, FileDriverError::PathEscape { .. }),
+            "got {err:?}"
+        );
     }
 
     #[cfg(unix)]
@@ -287,7 +316,10 @@ mod tests {
         let link = dec.join("escape.md");
         std::os::unix::fs::symlink(&outside, &link).unwrap();
         let err = d.read(&link).await.unwrap_err();
-        assert!(matches!(err, FileDriverError::PathEscape { .. }), "got {err:?}");
+        assert!(
+            matches!(err, FileDriverError::PathEscape { .. }),
+            "got {err:?}"
+        );
     }
 
     #[tokio::test]

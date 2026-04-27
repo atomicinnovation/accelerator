@@ -35,7 +35,9 @@ async fn lifecycle_list_carries_last_changed_ms_and_body_preview() {
         .find(|c| c["slug"] == "foo")
         .unwrap();
 
-    let last = foo["lastChangedMs"].as_i64().expect("lastChangedMs missing");
+    let last = foo["lastChangedMs"]
+        .as_i64()
+        .expect("lastChangedMs missing");
     assert!(last > 0, "expected a positive mtime, got {last}");
 
     for entry in foo["entries"].as_array().unwrap() {

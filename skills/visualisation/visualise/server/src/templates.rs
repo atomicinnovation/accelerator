@@ -60,10 +60,7 @@ impl TemplateResolver {
                 .config_override
                 .clone()
                 .unwrap_or_else(|| PathBuf::from(format!("<no config override for {name}>")));
-            let (present, content, etag) = load_via_driver(
-                &tiers.config_override,
-                driver,
-            ).await;
+            let (present, content, etag) = load_via_driver(&tiers.config_override, driver).await;
             ordered.push(TemplateTier {
                 source: TemplateTierSource::ConfigOverride,
                 path: config_path,
@@ -73,10 +70,8 @@ impl TemplateResolver {
                 etag,
             });
 
-            let (present, content, etag) = load_via_driver(
-                &Some(tiers.user_override.clone()),
-                driver,
-            ).await;
+            let (present, content, etag) =
+                load_via_driver(&Some(tiers.user_override.clone()), driver).await;
             ordered.push(TemplateTier {
                 source: TemplateTierSource::UserOverride,
                 path: tiers.user_override.clone(),
@@ -86,10 +81,8 @@ impl TemplateResolver {
                 etag,
             });
 
-            let (present, content, etag) = load_via_driver(
-                &Some(tiers.plugin_default.clone()),
-                driver,
-            ).await;
+            let (present, content, etag) =
+                load_via_driver(&Some(tiers.plugin_default.clone()), driver).await;
             ordered.push(TemplateTier {
                 source: TemplateTierSource::PluginDefault,
                 path: tiers.plugin_default.clone(),
@@ -166,7 +159,9 @@ async fn load_via_driver(
     path: &Option<PathBuf>,
     driver: &dyn FileDriver,
 ) -> (bool, Option<String>, Option<String>) {
-    let Some(p) = path else { return (false, None, None); };
+    let Some(p) = path else {
+        return (false, None, None);
+    };
     match driver.read(p).await {
         Ok(fc) => {
             let content = String::from_utf8(fc.bytes).ok();

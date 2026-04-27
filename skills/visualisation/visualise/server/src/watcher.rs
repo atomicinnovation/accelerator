@@ -30,8 +30,7 @@ pub fn spawn(
     hub: Arc<SseHub>,
     settings: Settings,
 ) -> JoinHandle<()> {
-    let (tx, mut rx) =
-        tokio::sync::mpsc::channel::<notify::Result<Event>>(1024);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<notify::Result<Event>>(1024);
 
     let mut watcher = RecommendedWatcher::new(
         move |res| {
@@ -94,6 +93,7 @@ pub fn spawn(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn on_path_changed_debounced(
     path: PathBuf,
     project_root: PathBuf,
@@ -170,7 +170,9 @@ mod tests {
     use std::time::Duration;
     use tokio::sync::RwLock;
 
-    async fn setup(tmp: &std::path::Path) -> (
+    async fn setup(
+        tmp: &std::path::Path,
+    ) -> (
         HashMap<String, std::path::PathBuf>,
         Arc<Indexer>,
         Arc<SseHub>,
@@ -187,13 +189,11 @@ mod tests {
         doc_paths.insert("plans".into(), plans);
         let driver: Arc<dyn crate::file_driver::FileDriver> =
             Arc::new(LocalFileDriver::new(&doc_paths, vec![]));
-        let indexer = Arc::new(
-            Indexer::build(driver, tmp.to_path_buf()).await.unwrap(),
-        );
+        let indexer = Arc::new(Indexer::build(driver, tmp.to_path_buf()).await.unwrap());
         let hub = Arc::new(SseHub::new(64));
-        let clusters = Arc::new(RwLock::new(
-            crate::clusters::compute_clusters(&indexer.all().await),
-        ));
+        let clusters = Arc::new(RwLock::new(crate::clusters::compute_clusters(
+            &indexer.all().await,
+        )));
         (doc_paths, indexer, hub, clusters)
     }
 
@@ -209,7 +209,9 @@ mod tests {
             indexer,
             clusters,
             hub,
-            Settings { debounce: Duration::from_millis(5) },
+            Settings {
+                debounce: Duration::from_millis(5),
+            },
         );
 
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -243,7 +245,9 @@ mod tests {
             indexer,
             clusters,
             hub,
-            Settings { debounce: Duration::from_millis(50) },
+            Settings {
+                debounce: Duration::from_millis(50),
+            },
         );
 
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -280,7 +284,9 @@ mod tests {
             indexer,
             clusters,
             hub,
-            Settings { debounce: Duration::from_millis(5) },
+            Settings {
+                debounce: Duration::from_millis(5),
+            },
         );
 
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -314,7 +320,9 @@ mod tests {
             indexer,
             clusters,
             hub,
-            Settings { debounce: Duration::from_millis(5) },
+            Settings {
+                debounce: Duration::from_millis(5),
+            },
         );
 
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -346,7 +354,9 @@ mod tests {
             indexer,
             clusters,
             hub,
-            Settings { debounce: Duration::from_millis(5) },
+            Settings {
+                debounce: Duration::from_millis(5),
+            },
         );
 
         tokio::time::sleep(Duration::from_millis(50)).await;

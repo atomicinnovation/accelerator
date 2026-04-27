@@ -9,6 +9,12 @@ use axum::{extract::Request, middleware::Next, response::Response};
 
 pub struct Activity(AtomicI64);
 
+impl Default for Activity {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Activity {
     pub fn new() -> Self {
         Self(AtomicI64::new(now_millis()))

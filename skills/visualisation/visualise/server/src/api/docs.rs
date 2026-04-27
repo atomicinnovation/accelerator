@@ -9,11 +9,11 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
+use super::{api_from_fd, parse_kind, ApiError};
 use crate::docs::DocTypeKey;
 use crate::file_driver::FileDriver;
 use crate::indexer::IndexEntry;
 use crate::server::AppState;
-use super::{ApiError, api_from_fd, parse_kind};
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct DocsListQuery {
@@ -61,11 +61,7 @@ pub(crate) async fn doc_fetch(
 
     let (etag, bytes) = match entry {
         Some(e) => {
-            let content = state
-                .file_driver
-                .read(&e.path)
-                .await
-                .map_err(api_from_fd)?;
+            let content = state.file_driver.read(&e.path).await.map_err(api_from_fd)?;
             (e.etag, content.bytes)
         }
         None => {
@@ -83,7 +79,10 @@ pub(crate) async fn doc_fetch(
     Ok((
         StatusCode::OK,
         [
-            (header::ETAG, HeaderValue::from_str(&format!("\"{etag}\"")).unwrap()),
+            (
+                header::ETAG,
+                HeaderValue::from_str(&format!("\"{etag}\"")).unwrap(),
+            ),
             (
                 header::CONTENT_TYPE,
                 HeaderValue::from_static("text/markdown; charset=utf-8"),

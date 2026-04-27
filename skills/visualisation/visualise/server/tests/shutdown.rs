@@ -97,7 +97,10 @@ async fn server_writes_pid_file_with_its_own_pid() {
 
     let pid_str = std::fs::read_to_string(&pid_path).unwrap();
     let recorded_pid: i32 = pid_str.trim().parse().unwrap();
-    assert_eq!(recorded_pid, child_pid, "server.pid must match the child's PID");
+    assert_eq!(
+        recorded_pid, child_pid,
+        "server.pid must match the child's PID"
+    );
 
     child.kill().await.ok();
     let _ = child.wait().await;
@@ -154,11 +157,18 @@ async fn shutdown_preserves_state_on_stopped_write_failure() {
         .await
         .expect("server exits within 30s")
         .expect("wait");
-    assert!(status.success(), "server must exit 0 even when stopped-write fails: {status:?}");
+    assert!(
+        status.success(),
+        "server must exit 0 even when stopped-write fails: {status:?}"
+    );
 
     let pid_path = tmp.path().join("server.pid");
-    assert!(info_path.exists(),
-        "server-info.json must be preserved when stopped-write fails");
-    assert!(pid_path.exists(),
-        "server.pid must be preserved when stopped-write fails");
+    assert!(
+        info_path.exists(),
+        "server-info.json must be preserved when stopped-write fails"
+    );
+    assert!(
+        pid_path.exists(),
+        "server.pid must be preserved when stopped-write fails"
+    );
 }

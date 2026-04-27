@@ -54,9 +54,10 @@ impl AppState {
     ) -> Result<Arc<Self>, AppStateError> {
         let cfg = Arc::new(cfg);
         let template_roots = crate::file_driver::template_extra_roots(&cfg.templates);
-        let driver = Arc::new(
-            crate::file_driver::LocalFileDriver::new(&cfg.doc_paths, template_roots),
-        );
+        let driver = Arc::new(crate::file_driver::LocalFileDriver::new(
+            &cfg.doc_paths,
+            template_roots,
+        ));
         let indexer = Arc::new(
             crate::indexer::Indexer::build(driver.clone(), cfg.project_root.clone()).await?,
         );
@@ -106,15 +107,21 @@ pub enum ServerError {
     #[error("startup failed: {0}")]
     Startup(#[from] AppStateError),
     #[error("failed to bind listener on {addr}: {source}")]
-    Bind { addr: String, source: std::io::Error },
+    Bind {
+        addr: String,
+        source: std::io::Error,
+    },
     #[error("failed to write lifecycle file {path}: {source}")]
-    LifecycleWrite { path: PathBuf, source: std::io::Error },
+    LifecycleWrite {
+        path: PathBuf,
+        source: std::io::Error,
+    },
     #[error(transparent)]
     Serve(#[from] std::io::Error),
 }
 
 pub fn build_router(state: Arc<AppState>) -> Router {
-    build_router_with_spa(state, |router| crate::assets::apply_spa_serving(router))
+    build_router_with_spa(state, crate::assets::apply_spa_serving)
 }
 
 /// Like `build_router` but points the SPA fallback at a caller-supplied
@@ -123,10 +130,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
 /// Callers that need to test the embed-dist handler use `serve_embedded<E>`
 /// with a fixture embed type instead.
 #[cfg(feature = "dev-frontend")]
-pub fn build_router_with_dist(
-    state: Arc<AppState>,
-    dist_path: std::path::PathBuf,
-) -> Router {
+pub fn build_router_with_dist(state: Arc<AppState>, dist_path: std::path::PathBuf) -> Router {
     build_router_with_spa(state, move |router| {
         crate::assets::apply_spa_serving_with_dist_path(router, dist_path)
     })
@@ -153,11 +157,11 @@ fn build_router_with_spa<F: FnOnce(Router) -> Router>(
         .layer(middleware::from_fn(host_header_guard))
 }
 
-async fn healthz() -> &'static str { "ok\n" }
+async fn healthz() -> &'static str {
+    "ok\n"
+}
 
-async fn api_not_found(
-    uri: axum::http::Uri,
-) -> impl axum::response::IntoResponse {
+async fn api_not_found(uri: axum::http::Uri) -> impl axum::response::IntoResponse {
     (
         StatusCode::NOT_FOUND,
         axum::Json(serde_json::json!({
@@ -181,10 +185,12 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
     let app = build_router(state.clone());
 
     let bind_addr = SocketAddr::new(host, 0);
-    let listener = TcpListener::bind(bind_addr).await.map_err(|source| ServerError::Bind {
-        addr: bind_addr.to_string(),
-        source,
-    })?;
+    let listener = TcpListener::bind(bind_addr)
+        .await
+        .map_err(|source| ServerError::Bind {
+            addr: bind_addr.to_string(),
+            source,
+        })?;
     let local = listener.local_addr().map_err(|source| ServerError::Bind {
         addr: bind_addr.to_string(),
         source,
@@ -226,8 +232,7 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
         tx.clone(),
     );
 
-    let watch_dirs: Vec<std::path::PathBuf> =
-        state.cfg.doc_paths.values().cloned().collect();
+    let watch_dirs: Vec<std::path::PathBuf> = state.cfg.doc_paths.values().cloned().collect();
     let watcher_handle = crate::watcher::spawn(
         watch_dirs,
         state.cfg.project_root.clone(),
@@ -314,14 +319,19 @@ fn write_server_stopped(path: &Path, reason: ShutdownReason) -> std::io::Result<
             .ok()
             .map(|d| d.as_secs()),
     });
-    let dir = path.parent().ok_or_else(|| std::io::Error::new(
-        std::io::ErrorKind::InvalidInput, "server-stopped.json path has no parent"))?;
+    let dir = path.parent().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "server-stopped.json path has no parent",
+        )
+    })?;
     std::fs::create_dir_all(dir)?;
     let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
     serde_json::to_writer_pretty(&mut tmp, &record)?;
     tmp.as_file_mut().write_all(b"\n")?;
     use std::os::unix::fs::PermissionsExt;
-    tmp.as_file().set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    tmp.as_file()
+        .set_permissions(std::fs::Permissions::from_mode(0o600))?;
     tmp.persist(path)?;
     Ok(())
 }
@@ -341,7 +351,8 @@ fn write_server_info(path: &Path, info: &ServerInfo) -> std::io::Result<()> {
     // process identity, and lives under the user's project tree
     // where other local accounts may have traversal.
     use std::os::unix::fs::PermissionsExt;
-    tmp.as_file().set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    tmp.as_file()
+        .set_permissions(std::fs::Permissions::from_mode(0o600))?;
     tmp.persist(path)?;
     Ok(())
 }
@@ -357,7 +368,8 @@ fn write_pid_file(path: &Path, pid: i32) -> std::io::Result<()> {
     let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
     writeln!(tmp.as_file_mut(), "{pid}")?;
     use std::os::unix::fs::PermissionsExt;
-    tmp.as_file().set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    tmp.as_file()
+        .set_permissions(std::fs::Permissions::from_mode(0o600))?;
     tmp.persist(path)?;
     Ok(())
 }
@@ -527,8 +539,13 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mut cfg = minimal_config(dir.path());
         cfg.host = "0.0.0.0".into();
-        let err = run(cfg, &dir.path().join("server-info.json")).await.unwrap_err();
-        assert!(matches!(err, ServerError::NonLoopbackHost(_)), "got {err:?}");
+        let err = run(cfg, &dir.path().join("server-info.json"))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, ServerError::NonLoopbackHost(_)),
+            "got {err:?}"
+        );
     }
 
     #[test]
@@ -536,8 +553,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path().join("server-stopped.json");
         write_server_stopped(&p, ShutdownReason::Sigterm).unwrap();
-        let v: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
         assert_eq!(v["reason"], "sigterm");
         assert!(v["timestamp"].as_u64().unwrap() > 0);
     }
@@ -565,10 +581,14 @@ mod tests {
             }
         }
 
-        assert!(info_path.exists(),
-            "server-info.json must be preserved when stopped-write fails");
-        assert!(pid_path.exists(),
-            "server.pid must be preserved when stopped-write fails");
+        assert!(
+            info_path.exists(),
+            "server-info.json must be preserved when stopped-write fails"
+        );
+        assert!(
+            pid_path.exists(),
+            "server.pid must be preserved when stopped-write fails"
+        );
     }
 
     #[cfg(feature = "dev-frontend")]
@@ -684,7 +704,10 @@ mod tests {
             .unwrap();
 
         let after = state.activity.last_millis();
-        assert!(after > before, "expected activity to update (before={before}, after={after})");
+        assert!(
+            after > before,
+            "expected activity to update (before={before}, after={after})"
+        );
     }
 
     #[cfg(feature = "dev-frontend")]
@@ -712,7 +735,8 @@ mod tests {
             .unwrap();
 
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-        let ct = resp.headers()
+        let ct = resp
+            .headers()
             .get("content-type")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
@@ -735,7 +759,8 @@ mod tests {
         std::fs::write(
             dist.path().join("assets/app.js"),
             "// ".to_string() + &"x".repeat(4096),
-        ).unwrap();
+        )
+        .unwrap();
         std::fs::write(dist.path().join("index.html"), "<!doctype html>").unwrap();
 
         let state = build_minimal_state(dir.path()).await;
@@ -754,7 +779,8 @@ mod tests {
             .unwrap();
 
         assert_eq!(resp.status(), StatusCode::OK);
-        let ce = resp.headers()
+        let ce = resp
+            .headers()
             .get("content-encoding")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
