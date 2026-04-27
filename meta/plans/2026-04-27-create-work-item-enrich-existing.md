@@ -463,9 +463,9 @@ defaults to 3, so per-scenario `trigger_rate` is `passes / 3`.
 - [x] `bash skills/work/scripts/work-item-read-field.sh work_item_id evals/files/0042-existing-sparse.md` returns `0042`.
 - [x] `bash skills/work/scripts/work-item-read-field.sh work_item_id evals/files/0099-broken-frontmatter.md` exits 1 (frontmatter unclosed).
 - [ ] Markdown lint clean on `SKILL.md`: `make lint`. (No lint target in this project — SKILL.md reviewed manually.)
-- [x] `evals/evals.json` ids are monotonic and unique:
-      `jq '.evals | map(.id) | . == (sort | unique)' evals/evals.json`
-      prints `true`.
+- [x] `evals/evals.json` ids are unique (note: Phase 2 introduces string IDs "21a"/"21b", so use
+      `jq '.evals | map(.id | tostring) | length == (unique | length)' evals/evals.json`
+      — prints `true`.
 
 #### Manual Verification:
 
@@ -621,7 +621,7 @@ content.
       but no enrich variants in Steps 1–3 — so these scenarios
       genuinely test the Phase 2 delta).
 - [ ] Existing 14 scenarios continue to pass on `old_skill`.
-- [ ] `make lint` passes on `SKILL.md`.
+- [ ] `make lint` passes on `SKILL.md`. (No lint target in this project — SKILL.md reviewed manually.)
 
 The new scenarios are:
 

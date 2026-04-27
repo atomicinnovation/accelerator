@@ -179,6 +179,90 @@
         "Response indicates the input is being interpreted as a topic string",
         "Conversation continues into topic-string Step 0 logic — does not abort"
       ]
+    },
+    {
+      "id": 21,
+      "name": "enrich-existing-gap-analysis",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nA user invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-sparse.md\n\nThe file exists and is available — read it fully.\n\nFollow Step 0: path-like argument, file exists, frontmatter validates (work_item_id: 0042). Enter enrich-existing mode.\n\nFollow Step 1 in enrich-existing mode: identify which body sections are substantive (real content beyond [bracketed placeholder] text) and which are gaps. Tag each gap with exactly one of: empty, placeholder-only, instructional-prose, or partial. Present the gap analysis in the specified format, then ask targeted questions about the identified gaps.\n\nSave to outputs/:\n- response.md: Your full Step 1 response including gap analysis and follow-up questions.\n\nStop after asking your gap-targeted questions. Do not simulate user answers.",
+      "expected_output": "Skill presents a gap analysis listing Complete and Gaps sections. Each gap is tagged with one of the four literal tokens (empty, placeholder-only, instructional-prose, partial). Follow-up questions target only the identified gaps, not broad discovery questions.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md"
+      ],
+      "expectations": [
+        "Response contains a 'Complete:' listing and a 'Gaps:' listing",
+        "Each gap entry is tagged with exactly one of: empty, placeholder-only, instructional-prose, or partial",
+        "Step 1 follow-up questions target only sections listed under Gaps",
+        "Transcript shows no broad-discovery questions (the default Step 1 vagueness check is not run)"
+      ]
+    },
+    {
+      "id": "21a",
+      "name": "enrich-existing-gap-mixed-section",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nA user invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-mixed.md\n\nThe file exists and is available — read it fully. Note that the Summary section contains one substantive sentence ('Users need a way to search for content...') followed by a residual [bracketed] placeholder on the next line. All other body sections are fully bracketed placeholders.\n\nFollow Step 0: path-like, file exists, frontmatter validates. Enter enrich-existing mode.\n\nFollow Step 1 in enrich-existing mode: identify gaps, tag each with the appropriate literal token. The mixed Summary section should be classified as 'partial' (one substantive sentence alongside a residual placeholder).\n\nSave to outputs/:\n- response.md: Your gap analysis and follow-up questions.\n\nStop after asking questions.",
+      "expected_output": "The mixed Summary section (one substantive sentence plus a residual placeholder) is classified as a gap with reason 'partial'. A follow-up question targets that section. Other fully-bracketed sections are classified as empty or placeholder-only.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-mixed.md"
+      ],
+      "expectations": [
+        "The Summary section is classified as a gap with the tag 'partial'",
+        "Step 1 asks a follow-up question about the Summary section",
+        "Other fully-bracketed sections are tagged 'empty' or 'placeholder-only', not 'partial'"
+      ]
+    },
+    {
+      "id": "21b",
+      "name": "enrich-existing-gap-instructional-prose",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nA user invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-instructional.md\n\nThe file exists and is available — read it fully. Note that the Summary section contains the template's instructional prose verbatim: 'Describe the business value of this work item here. Explain what problem it solves and who benefits from the solution.' All other body sections are standard bracketed placeholders.\n\nFollow Step 0: path-like, file exists, frontmatter validates. Enter enrich-existing mode.\n\nFollow Step 1 in enrich-existing mode: identify gaps. The instructional-prose Summary must be classified as a gap with tag 'instructional-prose'.\n\nSave to outputs/:\n- response.md: Your gap analysis and follow-up questions.\n\nStop after asking questions.",
+      "expected_output": "The Summary section containing verbatim template instructional prose is classified as a gap with the tag 'instructional-prose'. Follow-up questions target it.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-instructional.md"
+      ],
+      "expectations": [
+        "The Summary section is classified as a gap with the tag 'instructional-prose'",
+        "Step 1 asks a follow-up question targeting the instructional-prose Summary",
+        "The instructional-prose section is NOT classified as 'partial' or 'placeholder-only'"
+      ]
+    },
+    {
+      "id": 22,
+      "name": "enrich-existing-rich-confirms",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nA user invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-rich.md\n\nThe file exists and is available — read it fully. It contains a fully-fleshed work item with substantive content in all sections.\n\nFollow Step 0: path-like, file exists, frontmatter validates. Enter enrich-existing mode.\n\nFollow Step 1 in enrich-existing mode. The existing content is rich enough that no obvious gaps remain. Briefly confirm this and ask what the user wants to add or improve.\n\nSave to outputs/:\n- response.md: Your Step 1 response.\n\nStop after your response. Do not simulate user answers.",
+      "expected_output": "Skill confirms there are no obvious gaps in the rich work item and asks what the user wants to add or improve. Does not run the default Step 1 broad-discovery questions.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-rich.md"
+      ],
+      "expectations": [
+        "Response confirms there are no obvious gaps",
+        "Response asks what the user wants to add or improve",
+        "Response does not re-ask the default Step 1 discovery questions (e.g. 'what pain point', 'what is the desired outcome')"
+      ]
+    },
+    {
+      "id": 23,
+      "name": "enrich-existing-self-not-duplicate",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nSimulate this conversation in enrich-existing mode:\n\nUser invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-sparse.md\n\n[Step 0: path-like, file resolves, frontmatter validates. Enter enrich-existing mode with existing_work_item_path = skills/work/create-work-item/evals/files/0042-existing-sparse.md, work_item_id = 0042, title = 'Add Full-Text Search to Documentation Index'.]\n\n[Step 1 in enrich-existing mode: gap analysis run. User answers gap questions.]\n\nUser: \"The search should work across all our documentation pages. No constraints, just get something working.\"\n\n[Step 2: SIMULATE the documents-locator agent returning the input file itself as a search result:\n  - skills/work/create-work-item/evals/files/0042-existing-sparse.md, title 'Add Full-Text Search to Documentation Index', status draft\nDo NOT actually spawn an agent.]\n\nNow apply the Step 2 self-exclusion rule: exclude the resolved input file from duplicate detection. Continue into Step 3 augmentation framing.\n\nSave to outputs/:\n- response.md: Your Step 3 response (or the transition from Step 2 to Step 3).\n\nStop after presenting the Step 3 augmentation proposal.",
+      "expected_output": "The input file is not surfaced as a near-duplicate of itself. The skill transitions directly into Step 3 augmentation framing referencing the existing work item by its preserved work_item_id and title. The duplicate-handling options (Proceed with new, Exit and update, Continue creating linked) are NOT presented.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md"
+      ],
+      "expectations": [
+        "Response continues into Step 3 augmentation framing referencing the input file by its preserved work_item_id (0042) and title",
+        "Response does NOT enumerate the duplicate-handling options ('Proceed with new', 'Exit and update', 'Continue creating linked')"
+      ]
+    },
+    {
+      "id": 24,
+      "name": "enrich-existing-augmentation-proposal",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nSimulate this conversation in enrich-existing mode:\n\nUser invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-sparse.md\n\n[Step 0: path-like, file resolves, frontmatter validates. Enter enrich-existing mode. Cache: work_item_id=0042, title='Add Full-Text Search to Documentation Index', type=story, status=draft, priority=medium.]\n\n[Step 1 in enrich-existing mode: gap analysis identifies all body sections as gaps.]\n\nUser answers: \"This affects all our documentation users. We want them to type a keyword and get results. The search should work with our MkDocs site. No deadline, medium priority.\"\n\n[Step 2: SIMULATE documents-locator returns no other similar work items (only the input file itself, which is excluded). No web research spawn needed for this eval.]\n\n[Step 3 in enrich-existing mode: present the section-by-section augmentation proposal.]\n\nSave to outputs/:\n- response.md: Your full Step 3 augmentation proposal.\n\nStop after presenting the proposal. Do not simulate user response.",
+      "expected_output": "Step 3 output annotates each section with one of [complete], [needs improvement: ...], or [missing]. Output includes per-field lines for Title, Type, Priority, Parent, Tags marked 'keep' or 'propose change'. Output does not include the from-scratch 'Suggested type' / 'Requirements I'd suggest' framing from the topic-string flow.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md"
+      ],
+      "expectations": [
+        "Step 3 output annotates each section with one of: [complete], [needs improvement: ...], or [missing]",
+        "Output includes per-field lines for Title, Type, Priority, Parent, Tags each marked 'keep' or 'propose change'",
+        "Output does not include the from-scratch 'Suggested type' / 'Requirements I'd suggest' framing from the topic-string flow"
+      ]
     }
   ]
 }

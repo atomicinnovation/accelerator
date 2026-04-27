@@ -157,6 +157,46 @@ worth asking. Tailor the questions to the topic, but cover:
 Ask all relevant questions at once rather than one at a time. Wait for the
 user's answers before proceeding to Step 2.
 
+### In enrich-existing mode
+
+Do not ask the broad discovery questions above. Instead:
+
+1. Identify which body sections of the existing file are **substantive** (real
+   content beyond `[bracketed placeholder]` text) and which are **gaps** (empty,
+   placeholder-only, or missing entirely). Tag each gap with **exactly one** of
+   the literal tokens:
+   - `empty` — section is absent or contains no content
+   - `placeholder-only` — section contains only template `[...]` blocks
+   - `instructional-prose` — section contains the template's instructional
+     prose carried over verbatim (e.g. "Describe the business value of this
+     work item here…")
+   - `partial` — section contains one or more substantive sentences alongside
+     residual placeholders
+
+   Use the literal token; do not paraphrase. The eval grader pattern-matches
+   on these exact strings.
+
+2. Present the gap analysis briefly:
+
+   ```
+   I've read the existing work item (<resolved path>). Here's what looks
+   complete and what still needs work:
+
+   Complete: [section list, or "none"]
+   Gaps:
+     - <Section> (<tag>)
+     - ...
+
+   I'll ask targeted questions about the gaps.
+   ```
+
+3. Ask only questions that address the identified gaps. Do not re-ask
+   questions whose answers are already substantively present in the file.
+
+4. If the existing content is rich enough that no obvious gaps remain,
+   briefly confirm this and ask what the user wants to add or improve, then
+   proceed to Step 2.
+
 ## Step 2: Investigate
 
 Using the topic and business context from Step 1, run investigation agents
@@ -193,6 +233,12 @@ what research turned up, what prior work items exist — as the foundation for S
   Adapt the options to what makes sense given the work item's type and status.
   Do not silently continue or modify the existing work item inline. Wait for
   the user's choice before proceeding.
+
+**In enrich-existing mode**: exclude the resolved input file from the
+similarity scan. The {documents locator agent} search of `{work_dir}` will
+find the file being enriched; do not surface it as a "potential duplicate" of
+itself. Other near-duplicates discovered are handled per the unchanged rules
+above.
 
 ## Step 3: Propose and Refine
 
@@ -251,6 +297,38 @@ intent ("what would a passing test actually look like here?"). Only after
 understanding the intent should you help reformulate it into something
 testable. Do not accept vague criteria into the draft. Iterate until the
 proposal is well-specified and agreed.
+
+### In enrich-existing mode
+
+Do not lead with a from-scratch proposal. Instead present a section-by-section
+review and augmentation:
+
+```
+Here's how the existing work item reads against my research, with proposed
+additions for the gaps:
+
+**[Section name]** — [complete | needs improvement: <reason> | missing]
+[existing content excerpt or note that it is missing]
+[proposed addition or replacement, when applicable]
+
+[repeat per section]
+
+**Title**: [keep / propose new title with rationale]
+**Type**: [keep existing <type> / propose change to <type> with rationale]
+**Priority**: [keep / propose change with rationale]
+**Parent**: [keep / propose change]
+**Tags**: [keep / propose additions]
+**Status**: [keep <cached> — say so if you'd like to transition it]
+```
+
+Apply the canonical Identity Field Rules (see Quality Guidelines): propose
+only the fields marked Proposable; never propose changes to immutable fields;
+surface a status transition only if the user makes a direct explicit request
+for one (the listing offers the affordance but never proposes a change
+unsolicited).
+
+The refinement loop in this step (challenging untestable criteria, vague
+requirements, etc.) applies equally to existing and proposed content.
 
 ## Step 4: Draft Work Item
 
