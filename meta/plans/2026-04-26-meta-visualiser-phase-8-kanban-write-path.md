@@ -1477,14 +1477,14 @@ needed.
 
 #### Automated
 
-- [ ] `cd skills/visualisation/visualise/frontend &&
+- [x] `cd skills/visualisation/visualise/frontend &&
        npm test -- fetch` — all 4.1–4.5 pass plus existing.
-- [ ] `npm test -- self-cause` — 4.6–4.9 pass.
-- [ ] `npm test -- use-move-ticket` — 4.10–4.14 pass.
-- [ ] `npm test -- use-doc-events` — 4.15–4.16 pass plus existing.
-- [ ] `npm test` (whole suite) green.
-- [ ] `npm run lint` clean.
-- [ ] `npm run typecheck` clean (TS type-check).
+- [x] `npm test -- self-cause` — 4.6–4.9 pass.
+- [x] `npm test -- use-move-ticket` — 4.10–4.14 pass.
+- [x] `npm test -- use-doc-events` — 4.15–4.16 pass plus existing.
+- [x] `npm test` (whole suite) green.
+- [x] `npm run lint` clean (no lint script; `npm run build` / tsc clean).
+- [x] `npm run typecheck` clean (TS type-check via `npm run build`).
 
 #### Manual
 

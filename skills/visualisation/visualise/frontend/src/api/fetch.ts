@@ -1,7 +1,7 @@
 import type {
   DocType, DocTypeKey, DocsListResponse, IndexEntry,
   TemplateSummaryListResponse, TemplateDetail,
-  LifecycleCluster, LifecycleListResponse,
+  LifecycleCluster, LifecycleListResponse, KanbanColumnKey,
 } from './types'
 
 /** Typed error thrown by fetch helpers on non-2xx responses, so
@@ -12,6 +12,44 @@ export class FetchError extends Error {
     super(message)
     this.name = 'FetchError'
   }
+}
+
+export class ConflictError extends FetchError {
+  constructor(status: number, message: string, public readonly currentEtag: string) {
+    super(status, message)
+    this.name = 'ConflictError'
+  }
+}
+
+export interface PatchResult {
+  etag: string
+}
+
+export async function patchTicketFrontmatter(
+  relPath: string,
+  patch: { status: KanbanColumnKey },
+  etag: string,
+): Promise<PatchResult> {
+  const encodedPath = relPath.split('/').map(encodeURIComponent).join('/')
+  const r = await fetch(`/api/docs/${encodedPath}/frontmatter`, {
+    method: 'PATCH',
+    headers: {
+      'If-Match': `"${etag}"`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ patch }),
+  })
+  if (r.status === 412) {
+    const body = (await r.json()) as { currentEtag: string }
+    throw new ConflictError(412, `PATCH /api/docs/${relPath}/frontmatter: 412`, body.currentEtag)
+  }
+  if (!r.ok) {
+    throw new FetchError(r.status, `PATCH /api/docs/${relPath}/frontmatter: ${r.status}`)
+  }
+  const rawEtag = r.headers.get('etag') ?? ''
+  const parsedEtag =
+    rawEtag.startsWith('"') && rawEtag.endsWith('"') ? rawEtag.slice(1, -1) : rawEtag
+  return { etag: parsedEtag }
 }
 
 export async function fetchTypes(): Promise<DocType[]> {

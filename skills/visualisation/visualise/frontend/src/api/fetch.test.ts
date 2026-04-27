@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
-  FetchError,
+  FetchError, ConflictError,
   fetchTypes, fetchDocs, fetchDocContent,
   fetchTemplates, fetchTemplateDetail,
   fetchLifecycleClusters, fetchLifecycleCluster,
+  patchTicketFrontmatter,
 } from './fetch'
 
 const mockFetch = vi.fn()
@@ -184,6 +185,76 @@ describe('FetchError contract — all helpers throw FetchError on non-2xx', () =
       name: 'FetchError',
       status,
     })
+  })
+})
+
+describe('patchTicketFrontmatter', () => {
+  it('sends PATCH with If-Match and JSON body', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      headers: { get: (h: string) => h === 'etag' ? '"sha256-NEW"' : null },
+    })
+    const result = await patchTicketFrontmatter(
+      'meta/tickets/0001-foo.md',
+      { status: 'in-progress' },
+      'sha256-OLD',
+    )
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/docs/meta/tickets/0001-foo.md/frontmatter',
+      expect.objectContaining({
+        method: 'PATCH',
+        headers: expect.objectContaining({ 'If-Match': '"sha256-OLD"' }),
+        body: JSON.stringify({ patch: { status: 'in-progress' } }),
+      }),
+    )
+    expect(result).toEqual({ etag: 'sha256-NEW' })
+  })
+
+  it('unwraps quoted etag from response', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      headers: { get: (h: string) => h === 'etag' ? '"sha256-NEW"' : null },
+    })
+    const result = await patchTicketFrontmatter('meta/tickets/0001-foo.md', { status: 'todo' }, 'sha256-OLD')
+    expect(result.etag).toBe('sha256-NEW')
+  })
+
+  it('throws ConflictError on 412 with currentEtag', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 412,
+      json: async () => ({ currentEtag: 'sha256-LATEST' }),
+    })
+    await expect(
+      patchTicketFrontmatter('meta/tickets/0001-foo.md', { status: 'done' }, 'sha256-OLD'),
+    ).rejects.toSatisfy((e: unknown) => {
+      return e instanceof ConflictError && e.status === 412 && e.currentEtag === 'sha256-LATEST'
+    })
+  })
+
+  it('throws FetchError (not ConflictError) on other 4xx', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({}) })
+    const err = await patchTicketFrontmatter(
+      'meta/tickets/0001-foo.md', { status: 'todo' }, 'sha256-OLD',
+    ).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(FetchError)
+    expect(err).not.toBeInstanceOf(ConflictError)
+    expect((err as FetchError).status).toBe(400)
+  })
+
+  it('encodes rel path segments', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      headers: { get: () => '"sha256-NEW"' },
+    })
+    await patchTicketFrontmatter('meta/tickets/0001 weird path.md', { status: 'todo' }, 'sha256-X')
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/docs/meta/tickets/0001%20weird%20path.md/frontmatter',
+      expect.anything(),
+    )
   })
 })
 

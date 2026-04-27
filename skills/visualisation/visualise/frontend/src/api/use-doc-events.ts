@@ -1,9 +1,28 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { queryKeys } from './query-keys'
 import type { SseEvent } from './types'
+import { type SelfCauseRegistry, defaultSelfCauseRegistry } from './self-cause'
 
 export type EventSourceFactory = (url: string) => EventSource
+
+export interface DocEventsHandle {
+  setDragInProgress(v: boolean): void
+}
+
+function queryKeysForEvent(event: SseEvent): ReadonlyArray<readonly unknown[]> {
+  if (event.type !== 'doc-changed' && event.type !== 'doc-invalid') return []
+  const keys: Array<readonly unknown[]> = [
+    queryKeys.docs(event.docType),
+    queryKeys.docContent(event.path),
+    queryKeys.lifecycle(),
+    queryKeys.lifecycleClusterPrefix(),
+  ]
+  if (event.docType === 'tickets') {
+    keys.push(queryKeys.kanban())
+  }
+  return keys
+}
 
 /**
  * Pure dispatch: given an SSE event, invalidate the appropriate query
@@ -13,11 +32,18 @@ export type EventSourceFactory = (url: string) => EventSource
  * `event.path` matches the `relPath` used by `fetchDocContent`, so
  * invalidating `docContent(event.path)` refreshes the rendered markdown
  * body when the currently-open detail view's file changes on disk.
+ *
+ * When `registry` is supplied, `doc-changed` events whose etag matches a
+ * locally-registered mutation are silently dropped (self-cause filter).
  */
 export function dispatchSseEvent(
   event: SseEvent,
   queryClient: QueryClient,
+  registry?: SelfCauseRegistry,
 ): void {
+  if (event.type === 'doc-changed' && registry?.has(event.etag)) {
+    return
+  }
   if (event.type === 'doc-changed' || event.type === 'doc-invalid') {
     void queryClient.invalidateQueries({ queryKey: queryKeys.docs(event.docType) })
     void queryClient.invalidateQueries({ queryKey: queryKeys.docContent(event.path) })
@@ -30,41 +56,82 @@ export function dispatchSseEvent(
 }
 
 /**
- * Build a `useDocEvents` hook bound to a specific EventSource factory.
- * Production wires the real `EventSource` once (see `useDocEvents` below);
- * tests construct isolated hooks with fake factories so they can capture
- * the EventSource instance via a test-local closure — no global stub
- * coordination required.
+ * Build a `useDocEvents` hook bound to a specific EventSource factory and
+ * self-cause registry. Production wires the real `EventSource` once (see
+ * `useDocEvents` below); tests construct isolated hooks with fake factories
+ * so they can capture the EventSource instance via a test-local closure.
  */
-export function makeUseDocEvents(createSource: EventSourceFactory) {
-  return function useDocEvents(): void {
+export function makeUseDocEvents(
+  createSource: EventSourceFactory,
+  registry: SelfCauseRegistry = defaultSelfCauseRegistry,
+) {
+  return function useDocEvents(): DocEventsHandle {
     const queryClient = useQueryClient()
+    const isDraggingRef = useRef(false)
+    const pendingRef = useRef(new Set<string>())
+
+    const setDragInProgress = useCallback(
+      (v: boolean) => {
+        isDraggingRef.current = v
+        if (!v) {
+          for (const qkStr of pendingRef.current) {
+            void queryClient.invalidateQueries({ queryKey: JSON.parse(qkStr) as unknown[] })
+          }
+          pendingRef.current.clear()
+        }
+      },
+      [queryClient],
+    )
 
     useEffect(() => {
+      let wasErrored = false
       const source = createSource('/api/events')
+
+      source.onopen = () => {
+        if (wasErrored) {
+          registry.reset()
+          for (const qkStr of pendingRef.current) {
+            void queryClient.invalidateQueries({ queryKey: JSON.parse(qkStr) as unknown[] })
+          }
+          pendingRef.current.clear()
+          wasErrored = false
+        }
+      }
 
       source.onmessage = (e: MessageEvent) => {
         try {
           const event = JSON.parse(e.data as string) as SseEvent
-          dispatchSseEvent(event, queryClient)
+
+          // Self-cause filter: non-consuming membership check suppresses every
+          // SSE echo of our own mutation within the TTL window.
+          if (event.type === 'doc-changed' && registry.has(event.etag)) {
+            return
+          }
+
+          if (isDraggingRef.current) {
+            // Queue query keys while a drag is in progress to prevent dnd-kit
+            // sortable items from remounting mid-gesture.
+            for (const k of queryKeysForEvent(event)) {
+              pendingRef.current.add(JSON.stringify(k))
+            }
+          } else {
+            dispatchSseEvent(event, queryClient)
+          }
         } catch (err) {
-          // Malformed SSE data — don't crash the hook, but surface the
-          // problem so server/client schema drift is debuggable.
           console.warn('useDocEvents: failed to parse SSE message', { data: e.data, err })
         }
       }
 
-      // Native EventSource auto-reconnects on network errors; events
-      // fired during the outage are lost. Invalidate the top-level docs
-      // prefix so reconnecting clients refetch and reconcile. Full
-      // reconnect UX (banner + backoff) is Phase 10.
       source.onerror = () => {
+        wasErrored = true
         console.warn('useDocEvents: EventSource error — invalidating docs cache')
         void queryClient.invalidateQueries({ queryKey: ['docs'] })
       }
 
       return () => source.close()
-    }, [queryClient])
+    }, [queryClient, createSource, registry])
+
+    return { setDragInProgress }
   }
 }
 
