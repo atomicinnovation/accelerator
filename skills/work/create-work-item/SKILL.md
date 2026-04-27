@@ -369,6 +369,29 @@ changes before I write it to disk:
    Iterate until the user explicitly approves. **`work-item-next-number.sh` is
    never called during this loop.**
 
+### In enrich-existing mode
+
+1. Produce a complete updated draft incorporating the existing content plus the
+   additions approved in Step 3.
+2. Apply the canonical Identity Field Rules (see Quality Guidelines) when
+   filling frontmatter — the rules are the single source of truth for which
+   fields are immutable, preserved, or proposable.
+3. Apply the H1 sync rule (see Quality Guidelines).
+4. Apply the Script avoidance rule (see Quality Guidelines).
+5. Present the full updated draft, framed as an update preview:
+
+   ```
+   Here's the updated work item. The Step 5 confirmation will name the file
+   path and ask for explicit approval before any write:
+
+   [draft content]
+   ```
+
+6. Continue to challenge during review — apply the same rules as the
+   normal-path Step 4. Iterate the draft until the user is happy with it. Do
+   **not** treat a "looks good" mid-iteration as approval to write — that
+   approval is gated by Step 5's single confirmation.
+
 ## Step 5: Write Work Item
 
 1. **Call `work-item-next-number.sh`** to get the next number NNNN:
@@ -401,6 +424,78 @@ concurrently. Please re-run /create-work-item.
 Work item created: `{work_dir}/NNNN-kebab-slug.md`
 ```
 
+### In enrich-existing mode
+
+1. Do **not** call `work-item-next-number.sh`. The target path is the resolved
+   `existing_work_item_path` cached in Step 0.
+
+2. **At-write identity-swap check** (best-effort guard): immediately before
+   the confirmation prompt, re-read the target file's `work_item_id` from
+   disk via:
+
+   ```
+   bash ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh work_item_id <existing_work_item_path>
+   ```
+
+   - If the script exits non-zero (file gone or frontmatter unparseable since
+     Step 0), abort with:
+     `"Error: <path> is no longer present or its frontmatter is unparseable.
+     Your proposed draft is below — copy it before re-running
+     /create-work-item: <draft>"`
+   - If the on-disk `work_item_id` differs from the value cached in Step 0,
+     abort with:
+     `"Error: <path> changed identity since Step 0 (was <cached>, now
+     <current>). Your proposed draft is below — copy it before re-running
+     /create-work-item to refresh: <draft>"`
+
+3. **Single confirmation gate**: present the path and a per-section change
+   summary, then require explicit y/n approval before any write:
+
+   ```
+   I'm about to overwrite <existing_work_item_path>.
+
+   Sections changed:
+     Added:    [...]
+     Modified: [...]
+
+   Frontmatter changed:
+     <field>: <cached> → <new>     # repeated per modified field
+     (status: <cached> unchanged)  # always show status explicitly
+
+   Sections preserved verbatim: <count> (<terse list or "none">)
+   Frontmatter fields preserved verbatim: work_item_id, date, author
+     [+ any unmodified proposable fields]
+
+   Proceed? (y/n)
+   ```
+
+4. **Confirmation interpretation** (fail-safe):
+   - Exactly `y` or `Y` (after trimming whitespace): proceed to step 5.
+   - Exactly `n` or `N`: go to step 8.
+   - Anything else (empty input, "yes", "go ahead", "looks good but also...",
+     paragraph of feedback): treat as `n`. Print:
+     `"Did not recognise <response> as y/n — staying in review. What change
+     would you like before I overwrite?"` and go to step 8.
+
+5. **On `y` — substitute cached immutable fields, then write**: immediately
+   before invoking the Write tool, re-read the cached immutable identity fields
+   (`work_item_id`, `date`, `author`) from conversation state and overwrite the
+   corresponding frontmatter lines in the draft text with those exact values,
+   even if they appear unchanged. This textual substitution defends against
+   drift during Step 4 iteration.
+
+6. Write the file to `existing_work_item_path`. The path-existence guard from
+   the normal flow does not apply — overwrite is the intended behaviour.
+
+7. Print:
+
+   ```
+   Work item updated: <existing_work_item_path>
+   ```
+
+8. **On `n` or unrecognised**: stay in Step 4 / Step 5 review and iterate.
+   Do not re-run the identity-swap check until the next `y`; do not write.
+
 ## Quality Guidelines
 
 - Never write a file without explicit user approval.
@@ -417,6 +512,38 @@ Work item created: `{work_dir}/NNNN-kebab-slug.md`
   (a YAML array, possibly empty). No field may contain unfilled
   placeholder text like `[author]` or `NNNN`. The body H1 format is
   `# NNNN: <title>` — kept in sync with the frontmatter `title:` field.
+
+**Identity Field Rules** (apply in enrich-existing mode):
+
+- **Immutable** — `work_item_id`, `date`, `author`. Cached from the source
+  file in Step 0; never proposed for change; the model substitutes the cached
+  values back into the draft frontmatter at write time (Step 5 step 5) as a
+  defence against drift during Step 4 iteration. This is a textual
+  substitution the model performs — the eval suite verifies the written file's
+  values match the cached values, which is the strongest guarantee the
+  grader-mediated harness can provide.
+- **Preserved unless explicitly changed** — `status`. Defaults to the cached
+  value. May only change if the user makes an explicit, direct request during
+  the conversation (e.g. "set status to in-progress"). The model must not
+  propose a status change unsolicited; if the user makes only an oblique
+  reference (e.g. "this is now in flight"), the model asks a clarifying
+  question rather than infer the transition. A proposed transition is shown
+  explicitly (e.g. "draft → in-progress") and requires confirmation in Step 3
+  before acceptance. The `status: draft` default applies only to
+  newly-created work items, not to enrichment.
+- **Proposable in Step 3** — `title`, `type`, `priority`, `parent`, `tags`.
+  Default to the cached values; can be replaced after explicit user agreement
+  in Step 3's augmentation review.
+
+**H1 sync** (enrich-existing mode): the body H1 is `# <work_item_id>: <title>`,
+using the cached immutable `work_item_id` (4-digit, never `XXXX`) and the
+title as confirmed or replaced in Step 3.
+
+**Script avoidance** (enrich-existing mode): `work-item-next-number.sh` is
+never called. The number is already cached. The path-existence guard in Step 5
+does not apply — overwrite is the intended behaviour once the at-write
+identity-swap check passes.
+
 - `date` must use the work item template's `YYYY-MM-DDTHH:MM:SS+00:00` format
   in UTC (e.g. obtained via `date -u +%Y-%m-%dT%H:%M:%S+00:00`).
 - `author` is sourced in this order: configuration if present, then the

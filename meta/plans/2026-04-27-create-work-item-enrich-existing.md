@@ -898,7 +898,7 @@ once the at-write identity-swap check passes.
       `with_skill` — it tests behaviour the snapshot already
       supports.
 - [ ] Existing 14 scenarios continue to pass on `old_skill`.
-- [ ] `make lint` passes on `SKILL.md`.
+- [ ] `make lint` passes on `SKILL.md`. (No lint target in this project — SKILL.md reviewed manually.)
 
 The new scenarios are:
 

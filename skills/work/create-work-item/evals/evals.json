@@ -263,6 +263,124 @@
         "Output includes per-field lines for Title, Type, Priority, Parent, Tags each marked 'keep' or 'propose change'",
         "Output does not include the from-scratch 'Suggested type' / 'Requirements I'd suggest' framing from the topic-string flow"
       ]
+    },
+    {
+      "id": 25,
+      "name": "enrich-existing-preserves-identity",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nSimulate a full conversation through Step 5 in enrich-existing mode:\n\nUser invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-sparse.md\n\n[Step 0: path-like, file resolves. Frontmatter validates. Cache identity fields: work_item_id=0042, date='2026-01-15T09:00:00+00:00', author='Toby Clemson', status=draft, title='Add Full-Text Search to Documentation Index', type=story, priority=medium, parent='', tags=[].]\n\n[Step 1 in enrich-existing mode: gap analysis. All body sections are gaps.]\nUser: \"Users can't find anything in our docs. Success = keyword search returning ranked results.\"\n\n[Step 2: SIMULATE no near-duplicates found (input file excluded). No web research needed.]\n\n[Step 3 in enrich-existing mode: augmentation proposal.]\nUser: \"Looks good, approved.\"\n\n[Step 4 in enrich-existing mode: draft updated work item. Apply identity field rules — use cached work_item_id=0042, date='2026-01-15T09:00:00+00:00', author='Toby Clemson'.]\n\nUser: \"Looks good.\"\n\n[Step 5 in enrich-existing mode:\n1. Do NOT call work-item-next-number.sh.\n2. Re-read work_item_id from skills/work/create-work-item/evals/files/0042-existing-sparse.md via work-item-read-field.sh (simulate: returns 0042, matching cached value).\n3. Present confirmation prompt naming the path and showing changes.\n4. User says: y\n5. Substitute cached immutable fields into draft, write to skills/work/create-work-item/evals/files/0042-existing-sparse.md.]\n\nSave to outputs/:\n- final-work-item.md: The written file content.\n- behavior.md: (a) What is the work_item_id in the written file? (b) What is the date? (c) What is the author? (d) What is the status? (e) Was work-item-next-number.sh called?",
+      "expected_output": "Written file's frontmatter work_item_id is 0042, date is '2026-01-15T09:00:00+00:00', author is 'Toby Clemson', status is 'draft'. work-item-next-number.sh is never called.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md"
+      ],
+      "expectations": [
+        "Written file's frontmatter work_item_id matches the cached value: 0042",
+        "Written file's date matches the cached value: 2026-01-15T09:00:00+00:00",
+        "Written file's author matches the cached value: Toby Clemson",
+        "Written file's status matches the cached value (draft) — no transition was proposed"
+      ]
+    },
+    {
+      "id": 26,
+      "name": "enrich-existing-no-next-number-call",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nSimulate a full conversation through Step 5 in enrich-existing mode:\n\nUser invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-sparse.md\n\n[Step 0: path-like, file resolves, frontmatter validates. Cache: work_item_id=0042, all identity fields.]\n[Step 1 enrich mode: gap analysis.]\nUser: \"Fill in the gaps — users need keyword search for our docs.\"\n[Step 2: SIMULATE no near-duplicates.]\n[Step 3 enrich mode: augmentation proposal.]\nUser: \"Approved.\"\n[Step 4 enrich mode: draft. Do NOT call work-item-next-number.sh.]\nUser: \"Looks good.\"\n[Step 5 enrich mode: identity-swap check (simulate returns 0042), confirmation prompt. User: y. Write.]\n\nSave to outputs/behavior.md:\n- Was work-item-next-number.sh called at any point? (yes/no)\n- If yes, at what step?\n- What path was the file written to?",
+      "expected_output": "work-item-next-number.sh is never called at any point in the conversation. The file is written to the cached existing_work_item_path.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md"
+      ],
+      "expectations": [
+        "Transcript shows no invocation of work-item-next-number.sh at any point in the conversation"
+      ]
+    },
+    {
+      "id": 27,
+      "name": "enrich-existing-h1-real-number",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nSimulate a full conversation through Step 5 in enrich-existing mode:\n\nUser invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-sparse.md\n\n[Step 0: cache work_item_id=0042.]\n[Steps 1-3 enrich mode: gap analysis, no duplicates, augmentation proposal approved.]\n[Step 4 enrich mode: produce full updated draft. The body H1 must be '# 0042: Add Full-Text Search to Documentation Index' — never '# XXXX: ...']\nUser: \"Looks good.\"\n[Step 5 enrich mode: identity-swap check OK, confirmation, user says y, write.]\n\nSave to outputs/:\n- final-work-item.md: The written file content.\n- behavior.md: (a) What is the body H1 line in the written file? (b) Does the file contain the literal token XXXX anywhere?",
+      "expected_output": "The written file's body H1 begins with '# 0042:'. The literal token XXXX does not appear anywhere in the written file.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md"
+      ],
+      "expectations": [
+        "Written file's body H1 begins with '# 0042:'",
+        "Written file contains no literal XXXX token"
+      ]
+    },
+    {
+      "id": 28,
+      "name": "enrich-existing-overwrites-path",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nSimulate a full conversation through Step 5 in enrich-existing mode:\n\nUser invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-sparse.md\n\n[Steps 0-4 enrich mode: cache existing_work_item_path=skills/work/create-work-item/evals/files/0042-existing-sparse.md, complete gap analysis, augmentation proposal approved, draft produced.]\nUser: \"Looks good.\"\n[Step 5 enrich mode: identity-swap check (simulate returns 0042), confirmation prompt. User: y. Write the file to the cached existing_work_item_path.]\n\nSave to outputs/:\n- behavior.md: (a) What path did you write the file to? (b) What confirmation message did you print after writing?",
+      "expected_output": "The Write tool targets skills/work/create-work-item/evals/files/0042-existing-sparse.md exactly. The post-write confirmation message reads 'Work item updated: skills/work/create-work-item/evals/files/0042-existing-sparse.md'.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md"
+      ],
+      "expectations": [
+        "The Write tool's target path equals skills/work/create-work-item/evals/files/0042-existing-sparse.md",
+        "The post-write confirmation message reads 'Work item updated: skills/work/create-work-item/evals/files/0042-existing-sparse.md'"
+      ]
+    },
+    {
+      "id": 29,
+      "name": "enrich-existing-status-preserved",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nSimulate a full conversation through Step 5 in enrich-existing mode using a work item with status in-progress:\n\nThe input file has frontmatter status: in-progress. Cache: work_item_id=0042, status=in-progress, all other identity fields from 0042-existing-sparse.md.\n\nUser invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-sparse.md\n\n[Steps 0-4: gap analysis, augmentation proposal, draft. The conversation does NOT include any user request to change status.]\nUser: \"Looks good.\"\n[Step 5: identity-swap check OK, confirmation. User: y. Write.]\n\nSave to outputs/:\n- final-work-item.md: Written file content.\n- behavior.md: (a) What is the status in the written file? (b) Did the transcript include a proposed status transition?",
+      "expected_output": "Written file's status is 'in-progress'. The transcript contains no proposed status transition — the cached value is preserved verbatim.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md"
+      ],
+      "expectations": [
+        "Written file's status is in-progress",
+        "Transcript contains no proposed status transition"
+      ]
+    },
+    {
+      "id": 30,
+      "name": "enrich-existing-status-changed",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nSimulate a full conversation through Step 5 in enrich-existing mode:\n\nUser invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-sparse.md\n\n[Step 0: cache work_item_id=0042, status=draft.]\n[Step 1 enrich mode: gap analysis.]\nUser: \"Fill in the gaps. Also, set status to in-progress.\"\n[Step 2: no duplicates.]\n[Step 3 enrich mode: augmentation proposal. Surface the proposed status transition draft → in-progress explicitly and ask for confirmation.]\nUser: \"Yes, transition the status.\"\n[Step 4 enrich mode: draft with status=in-progress.]\nUser: \"Looks good.\"\n[Step 5: identity-swap check OK, confirmation shows status change draft → in-progress. User: y. Write.]\n\nSave to outputs/:\n- final-work-item.md: Written file content.\n- behavior.md: (a) Did Step 3 surface the proposed transition explicitly? (b) What is the status in the written file? (c) Did the model propose the status change before the user asked, or only after?",
+      "expected_output": "Step 3 surfaces the proposed transition 'draft → in-progress' and asks for explicit confirmation. Written file's status is 'in-progress'. The model did not propose the status change before the user explicitly asked for it.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md"
+      ],
+      "expectations": [
+        "Step 3 surfaces the proposed transition draft → in-progress and asks for explicit confirmation",
+        "Written file's frontmatter status is in-progress",
+        "Transcript shows the model did not propose a status change before the user explicitly asked for one"
+      ]
+    },
+    {
+      "id": "30a",
+      "name": "enrich-existing-oblique-status-mention",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nSimulate a conversation in enrich-existing mode up through Step 3:\n\nUser invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-sparse.md\n\n[Step 0: cache work_item_id=0042, status=draft.]\n[Step 1 enrich mode: gap analysis.]\nUser: \"Fill in the gaps. Oh and this is now in flight.\"\n[Step 2: no duplicates.]\n[Step 3 enrich mode: the user's message contains an oblique remark 'this is now in flight'. This is NOT a direct request to set status. The model must ask a clarifying question about the user's status intent rather than inferring a transition.]\n\nSave to outputs/:\n- response.md: Your Step 3 response.\n- behavior.md: (a) Did the model ask a clarifying question about the status remark? (b) Did the model infer and propose a status transition without asking?",
+      "expected_output": "Model asks a clarifying question about whether 'now in flight' means the user wants to change the status (e.g. to 'in-progress'), rather than inferring the transition. The model does not unilaterally propose 'draft → in-progress'.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md"
+      ],
+      "expectations": [
+        "Model asks a clarifying question about the user's status intent rather than inferring a transition",
+        "Model does NOT unilaterally propose a status transition (e.g. draft → in-progress) without a clarifying question"
+      ]
+    },
+    {
+      "id": 31,
+      "name": "enrich-existing-identity-swap-check-performed",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nSimulate a full conversation through Step 5 in enrich-existing mode:\n\nUser invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-sparse.md\n\n[Steps 0-4: cache work_item_id=0042, existing_work_item_path=skills/work/create-work-item/evals/files/0042-existing-sparse.md. Complete gap analysis, augmentation proposal, draft.]\nUser: \"Looks good.\"\n\n[Step 5: immediately before the confirmation prompt, re-read work_item_id from the file via:\n  bash skills/work/scripts/work-item-read-field.sh work_item_id skills/work/create-work-item/evals/files/0042-existing-sparse.md\nSimulate it returning 0042 (matching cached value — no abort). Then present the confirmation prompt.]\n\nUser: y\n[Write the file.]\n\nSave to outputs/behavior.md:\n- Was work-item-read-field.sh invoked immediately before the confirmation prompt? (yes/no)\n- What command was invoked?\n- Did the confirmation prompt appear after the read? (yes/no)",
+      "expected_output": "Transcript at Step 5 shows a work-item-read-field.sh work_item_id invocation immediately before the confirmation prompt is rendered. The confirmation prompt appears after the read.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md"
+      ],
+      "expectations": [
+        "Transcript at Step 5 shows a work-item-read-field.sh work_item_id <path> invocation immediately before the confirmation prompt is rendered",
+        "Step 5 confirmation prompt appears after the read"
+      ]
+    },
+    {
+      "id": 32,
+      "name": "topic-string-flow-still-calls-next-number",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nSimulate a full run through the topic-string flow (no discriminator argument) through to write:\n\nUser: /create-work-item add dark mode to the settings page\n\n[Step 0: clear topic string — no path-like or numeric discriminator. Proceed to topic-string handling.]\n[Step 1: ask business context questions.]\nUser: \"Users want dark mode. Success = toggle in settings that persists. Medium priority.\"\n[Step 2: SIMULATE no near-duplicates. No web research needed.]\n[Step 3: propose story type, requirements, acceptance criteria.]\nUser: \"Good proposal, approved.\"\n[Step 4: draft with XXXX placeholder. Do NOT call work-item-next-number.sh yet.]\nUser: \"Looks good, write it.\"\n[Step 5: call work-item-next-number.sh to get NNNN. Simulate it returning 0043. Write to meta/work/0043-dark-mode-settings-page.md.]\n\nSave to outputs/:\n- final-work-item.md: The written file content.\n- behavior.md: (a) Was work-item-next-number.sh called? (b) At what step? (c) What work_item_id appears in the written file? (d) Does the body H1 begin with '# 0043:'?",
+      "expected_output": "Transcript shows exactly one invocation of work-item-next-number.sh during Step 5. Written file's work_item_id is 0043. Body H1 begins with '# 0043:'. Confirms the topic-string flow is unaffected by the enrich-existing additions.",
+      "files": [],
+      "expectations": [
+        "Transcript shows exactly one invocation of work-item-next-number.sh during Step 5",
+        "Written file's work_item_id is the value returned by that invocation (0043)",
+        "Written file's body H1 begins with '# 0043:'"
+      ]
     }
   ]
 }
