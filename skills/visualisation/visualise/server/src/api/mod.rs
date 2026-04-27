@@ -7,7 +7,7 @@ mod types;
 use std::sync::Arc;
 
 use axum::{
-    http::StatusCode,
+    http::{header, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     routing::get,
     Json, Router,
@@ -20,7 +20,14 @@ pub fn mount(_state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/api/events", get(events::events))
         .route("/api/types", get(types::types))
         .route("/api/docs", get(docs::docs_list))
-        .route("/api/docs/*path", get(docs::doc_fetch))
+        // PATCH URL exposed to clients is /api/docs/{path}/frontmatter, but matchit 0.7
+        // forbids catch-all + literal suffix (https://github.com/ibraheemdev/matchit/issues/39).
+        // Both method handlers share this route; the PATCH handler strips the trailing
+        // /frontmatter suffix from *path and returns 400 if it is absent.
+        .route(
+            "/api/docs/*path",
+            get(docs::doc_fetch).patch(docs::doc_patch_frontmatter),
+        )
         .route("/api/templates", get(templates::templates_list))
         .route("/api/templates/:name", get(templates::template_detail))
         .route("/api/lifecycle", get(lifecycle::lifecycle_list))
@@ -37,17 +44,90 @@ pub(crate) enum ApiError {
     NotFound(String),
     #[error("internal error: {0}")]
     Internal(String),
+    // Write-path errors
+    #[error("patch URL must end with /frontmatter")]
+    PatchEndpointMismatch,
+    #[error("only tickets are writable")]
+    OnlyTicketsAreWritable,
+    #[error("invalid patch: {0}")]
+    InvalidPatch(String),
+    #[error("unsupported If-Match value: {0}")]
+    UnsupportedIfMatch(String),
+    #[error("If-Match header is required")]
+    IfMatchRequired,
+    #[error("etag mismatch")]
+    EtagMismatch { current: String },
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let (status, msg) = match &self {
-            ApiError::InvalidDocType(_) => (StatusCode::BAD_REQUEST, self.to_string()),
-            ApiError::PathEscape => (StatusCode::FORBIDDEN, "path escape".into()),
-            ApiError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
-            ApiError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
-        };
-        (status, Json(serde_json::json!({ "error": msg }))).into_response()
+        match self {
+            ApiError::InvalidDocType(s) => (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": s })),
+            )
+                .into_response(),
+            ApiError::PathEscape => (
+                StatusCode::FORBIDDEN,
+                Json(serde_json::json!({ "error": "path escape" })),
+            )
+                .into_response(),
+            ApiError::NotFound(s) => (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "error": s })),
+            )
+                .into_response(),
+            ApiError::Internal(s) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": s })),
+            )
+                .into_response(),
+            ApiError::PatchEndpointMismatch => (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": "patch URL must end with /frontmatter" })),
+            )
+                .into_response(),
+            ApiError::OnlyTicketsAreWritable => (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": "only tickets are writable" })),
+            )
+                .into_response(),
+            ApiError::InvalidPatch(s) => (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": s })),
+            )
+                .into_response(),
+            ApiError::UnsupportedIfMatch(s) => (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": s })),
+            )
+                .into_response(),
+            // 428 Precondition Required — no currentEtag, no ETag header.
+            // A client that omits If-Match entirely demonstrated no prior knowledge,
+            // so we do not leak the current state. This prevents the optimistic-
+            // concurrency rollback UI from triggering on a client programming bug.
+            ApiError::IfMatchRequired => (
+                StatusCode::from_u16(428).unwrap(),
+                Json(serde_json::json!({ "error": "if-match-required" })),
+            )
+                .into_response(),
+            // 412 Precondition Failed — include currentEtag + ETag header.
+            // The client demonstrated prior knowledge by sending an If-Match value;
+            // echoing the current etag lets it retry with the up-to-date precondition.
+            ApiError::EtagMismatch { current } => {
+                let quoted = format!("\"{}\"", current);
+                (
+                    StatusCode::PRECONDITION_FAILED,
+                    [(
+                        header::ETAG,
+                        HeaderValue::from_str(&quoted)
+                            .unwrap_or_else(|_| HeaderValue::from_static("")),
+                    )],
+                    Json(serde_json::json!({ "currentEtag": current })),
+                )
+                    .into_response()
+            }
+        }
     }
 }
 
@@ -67,10 +147,9 @@ pub(crate) fn api_from_fd(e: crate::file_driver::FileDriverError) -> ApiError {
             limit
         )),
         F::Io { source, .. } => ApiError::Internal(source.to_string()),
-        // Write-path errors — mapped properly in Phase 3; stub to Internal for now.
-        F::EtagMismatch { .. } => ApiError::Internal("etag mismatch".into()),
-        F::Patch(p) => ApiError::Internal(p.to_string()),
-        F::PathNotWritable { .. } => ApiError::Internal("path not writable".into()),
+        F::EtagMismatch { current } => ApiError::EtagMismatch { current },
+        F::Patch(p) => ApiError::InvalidPatch(p.to_string()),
+        F::PathNotWritable { .. } => ApiError::OnlyTicketsAreWritable,
         F::CrossFilesystem { .. } => ApiError::Internal("cross-filesystem rename".into()),
     }
 }

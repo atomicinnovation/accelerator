@@ -94,7 +94,7 @@ pub fn spawn(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn on_path_changed_debounced(
+pub async fn on_path_changed_debounced(
     path: PathBuf,
     project_root: PathBuf,
     indexer: Arc<Indexer>,

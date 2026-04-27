@@ -164,6 +164,11 @@ fn build_router_with_spa<F: FnOnce(Router) -> Router>(
         ))
         .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
         .layer(TimeoutLayer::new(REQUEST_TIMEOUT))
+        // origin_guard (inner) runs after host_header_guard (outer).
+        // host_header_guard rejects DNS-rebinding; origin_guard rejects cross-origin
+        // state-changing requests as defence-in-depth against CSRF if a future
+        // maintainer ever adds a permissive CORS layer.
+        .layer(middleware::from_fn(origin_guard))
         .layer(middleware::from_fn(host_header_guard))
 }
 
@@ -474,6 +479,30 @@ async fn host_header_guard(req: Request, next: Next) -> Result<Response, StatusC
     } else {
         Err(StatusCode::FORBIDDEN)
     }
+}
+
+async fn origin_guard(req: Request, next: Next) -> Result<Response, StatusCode> {
+    // Reject state-changing requests from foreign origins. Browsers always send
+    // Origin on cross-origin PATCH/POST/PUT/DELETE; curl and server-to-server
+    // callers omit it, so requests with no Origin header are allowed through.
+    // Allowed: http://127.0.0.1[:<port>] and http://localhost[:<port>].
+    let is_state_changing = matches!(
+        req.method(),
+        &axum::http::Method::PATCH
+            | &axum::http::Method::POST
+            | &axum::http::Method::PUT
+            | &axum::http::Method::DELETE
+    );
+    if is_state_changing {
+        if let Some(origin) = req.headers().get("origin") {
+            let s = origin.to_str().unwrap_or("");
+            let allowed = s.starts_with("http://127.0.0.1") || s.starts_with("http://localhost");
+            if !allowed {
+                return Err(StatusCode::FORBIDDEN);
+            }
+        }
+    }
+    Ok(next.run(req).await)
 }
 
 #[cfg(test)]

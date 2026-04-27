@@ -1142,12 +1142,12 @@ the existing read tests). Each test boots an `AppState` from
 
 #### Automated
 
-- [ ] `cargo test --test api_docs_patch` — all 23 tests pass
+- [x] `cargo test --test api_docs_patch` — all 23 tests pass
       (Steps 3.3a/b, 3.10a/b/c, 3.14b, 3.14c, 3.15, 3.16, 3.17 added).
-- [ ] `cargo test --test api_docs` — Phase 7 GET tests still
+- [x] `cargo test --test api_docs` — Phase 7 GET tests still
       green (regression).
-- [ ] `cargo test` (full suite) green.
-- [ ] `cargo clippy --all-targets -- -D warnings` clean.
+- [x] `cargo test` (full suite) green.
+- [x] `cargo clippy --all-targets -- -D warnings` clean.
 
 #### Manual
 
