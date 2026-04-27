@@ -4,12 +4,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
-use tokio::sync::{RwLock, Semaphore};
+use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
 use crate::clusters::{compute_clusters, LifecycleCluster};
 use crate::indexer::{IndexEntry, Indexer, FRONTMATTER_MALFORMED};
 use crate::sse_hub::{SseHub, SsePayload};
+use crate::write_coordinator::WriteCoordinator;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Settings {
@@ -28,6 +29,7 @@ pub fn spawn(
     indexer: Arc<Indexer>,
     clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
     hub: Arc<SseHub>,
+    write_coordinator: Arc<WriteCoordinator>,
     settings: Settings,
 ) -> JoinHandle<()> {
     let (tx, mut rx) = tokio::sync::mpsc::channel::<notify::Result<Event>>(1024);
@@ -51,8 +53,6 @@ pub fn spawn(
             }
         }
     }
-
-    let rescan_lock = Arc::new(Semaphore::new(1));
 
     tokio::spawn(async move {
         let _watcher = watcher;
@@ -78,9 +78,9 @@ pub fn spawn(
                             indexer.clone(),
                             clusters.clone(),
                             hub.clone(),
+                            write_coordinator.clone(),
                             settings.debounce,
                             pre,
-                            rescan_lock.clone(),
                         ));
                         pending.insert(path, h);
                     }
@@ -100,13 +100,25 @@ async fn on_path_changed_debounced(
     indexer: Arc<Indexer>,
     clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
     hub: Arc<SseHub>,
+    write_coordinator: Arc<WriteCoordinator>,
     debounce: Duration,
     pre: Option<IndexEntry>,
-    rescan_lock: Arc<Semaphore>,
 ) {
     tokio::time::sleep(debounce).await;
 
-    let _permit = rescan_lock.acquire().await.unwrap();
+    // Canonicalize the event path so it matches the canonical paths stored by
+    // the WriteCoordinator (the notifier may deliver symlink or /var vs
+    // /private/var variants on macOS). If canonicalization fails (file deleted
+    // between event and debounce), fall back to the original path — the lookup
+    // will miss and the watcher proceeds with its normal rescan.
+    let canonical = tokio::fs::canonicalize(&path)
+        .await
+        .unwrap_or_else(|_| path.clone());
+
+    if write_coordinator.should_suppress(&canonical) {
+        tracing::debug!(file = %path.display(), "watcher suppressed self-write broadcast");
+        return;
+    }
 
     if let Err(e) = indexer.rescan().await {
         tracing::warn!(path = %path.display(), error = %e, "rescan failed after watch event");
@@ -188,7 +200,7 @@ mod tests {
         let mut doc_paths = HashMap::new();
         doc_paths.insert("plans".into(), plans);
         let driver: Arc<dyn crate::file_driver::FileDriver> =
-            Arc::new(LocalFileDriver::new(&doc_paths, vec![]));
+            Arc::new(LocalFileDriver::new(&doc_paths, vec![], vec![]));
         let indexer = Arc::new(Indexer::build(driver, tmp.to_path_buf()).await.unwrap());
         let hub = Arc::new(SseHub::new(64));
         let clusters = Arc::new(RwLock::new(crate::clusters::compute_clusters(
@@ -209,6 +221,7 @@ mod tests {
             indexer,
             clusters,
             hub,
+            Arc::new(WriteCoordinator::new()),
             Settings {
                 debounce: Duration::from_millis(5),
             },
@@ -245,6 +258,7 @@ mod tests {
             indexer,
             clusters,
             hub,
+            Arc::new(WriteCoordinator::new()),
             Settings {
                 debounce: Duration::from_millis(50),
             },
@@ -284,6 +298,7 @@ mod tests {
             indexer,
             clusters,
             hub,
+            Arc::new(WriteCoordinator::new()),
             Settings {
                 debounce: Duration::from_millis(5),
             },
@@ -320,6 +335,7 @@ mod tests {
             indexer,
             clusters,
             hub,
+            Arc::new(WriteCoordinator::new()),
             Settings {
                 debounce: Duration::from_millis(5),
             },
@@ -354,6 +370,7 @@ mod tests {
             indexer,
             clusters,
             hub,
+            Arc::new(WriteCoordinator::new()),
             Settings {
                 debounce: Duration::from_millis(5),
             },

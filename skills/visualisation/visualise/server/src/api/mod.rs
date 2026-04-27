@@ -67,5 +67,10 @@ pub(crate) fn api_from_fd(e: crate::file_driver::FileDriverError) -> ApiError {
             limit
         )),
         F::Io { source, .. } => ApiError::Internal(source.to_string()),
+        // Write-path errors — mapped properly in Phase 3; stub to Internal for now.
+        F::EtagMismatch { .. } => ApiError::Internal("etag mismatch".into()),
+        F::Patch(p) => ApiError::Internal(p.to_string()),
+        F::PathNotWritable { .. } => ApiError::Internal("path not writable".into()),
+        F::CrossFilesystem { .. } => ApiError::Internal("cross-filesystem rename".into()),
     }
 }

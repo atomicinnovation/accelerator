@@ -1,5 +1,16 @@
 use crate::frontmatter::{self, FenceError};
 
+#[derive(Debug, Clone, Copy)]
+pub enum FrontmatterPatch {
+    Status(TicketStatus),
+}
+
+pub fn apply(raw: &[u8], patch: FrontmatterPatch) -> Result<Vec<u8>, PatchError> {
+    match patch {
+        FrontmatterPatch::Status(s) => patch_status(raw, s),
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TicketStatus {
     Todo,

@@ -21,6 +21,7 @@ pub mod slug;
 pub mod sse_hub;
 pub mod templates;
 pub mod watcher;
+pub mod write_coordinator;
 
 #[cfg(test)]
 pub(crate) mod test_support;

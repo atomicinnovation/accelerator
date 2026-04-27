@@ -45,6 +45,7 @@ pub struct AppState {
     pub clusters: Arc<RwLock<Vec<crate::clusters::LifecycleCluster>>>,
     pub activity: Arc<crate::activity::Activity>,
     pub sse_hub: Arc<crate::sse_hub::SseHub>,
+    pub write_coordinator: Arc<crate::write_coordinator::WriteCoordinator>,
 }
 
 impl AppState {
@@ -54,9 +55,16 @@ impl AppState {
     ) -> Result<Arc<Self>, AppStateError> {
         let cfg = Arc::new(cfg);
         let template_roots = crate::file_driver::template_extra_roots(&cfg.templates);
+        let tickets_root = cfg
+            .doc_paths
+            .get("tickets")
+            .cloned()
+            .map(|p| vec![p])
+            .unwrap_or_default();
         let driver = Arc::new(crate::file_driver::LocalFileDriver::new(
             &cfg.doc_paths,
             template_roots,
+            tickets_root,
         ));
         let indexer = Arc::new(
             crate::indexer::Indexer::build(driver.clone(), cfg.project_root.clone()).await?,
@@ -67,6 +75,7 @@ impl AppState {
         let cluster_seed = crate::clusters::compute_clusters(&indexer.all().await);
         let clusters = Arc::new(RwLock::new(cluster_seed));
         let sse_hub = Arc::new(crate::sse_hub::SseHub::new(256));
+        let write_coordinator = Arc::new(crate::write_coordinator::WriteCoordinator::new());
         Ok(Arc::new(Self {
             cfg,
             file_driver: driver,
@@ -75,6 +84,7 @@ impl AppState {
             clusters,
             activity,
             sse_hub,
+            write_coordinator,
         }))
     }
 }
@@ -239,6 +249,7 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
         state.indexer.clone(),
         state.clusters.clone(),
         state.sse_hub.clone(),
+        state.write_coordinator.clone(),
         crate::watcher::Settings::DEFAULT,
     );
     tokio::spawn(async move {

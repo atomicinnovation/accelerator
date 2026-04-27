@@ -744,11 +744,11 @@ For each step the test goes first.
 
 #### Automated
 
-- [ ] `cargo test --lib file_driver::write_tests::` — all 13 tests pass
+- [x] `cargo test --lib file_driver::write_tests::` — all 13 tests pass
       (steps 2.13 marked `#[ignore]`).
-- [ ] `cargo test --lib indexer::refresh_tests::` — all 6 tests pass.
-- [ ] `cargo test --lib` — full library tests still green.
-- [ ] `cargo clippy --all-targets -- -D warnings` clean.
+- [x] `cargo test --lib indexer::refresh_tests::` — all 6 tests pass.
+- [x] `cargo test --lib` — full library tests still green.
+- [x] `cargo clippy --all-targets -- -D warnings` clean.
 
 #### Manual
 
