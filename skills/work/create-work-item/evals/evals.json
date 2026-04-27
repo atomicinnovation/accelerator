@@ -98,6 +98,87 @@
       "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nSimulate through to draft generation:\n\nUser: /create-work-item evaluate options for replacing our search backend\n\n[Step 0: clear topic.]\n[Step 1: Ask business context questions.]\n\nUser: \"Our current search is Elasticsearch 6 which is end-of-life. We need to pick a replacement. Affects all users who search the site. Success = we've chosen a path forward with a documented rationale. No deadline but sooner is better.\"\n\n[Step 2: Investigate. SIMULATE these results — do NOT actually spawn agents:\n- documents-locator returns: no similar work items in meta/work/.\n- web-search-researcher returns: https://opensearch.org/ (Elasticsearch fork), https://typesense.org/, https://www.meilisearch.com/, and a blog post at https://example.com/2025/elasticsearch-eol discussing migration paths.]\n\n[Step 3: Propose as a spike given the uncertainty.]\n\nUser: \"Good proposal, approved.\"\n\n[Step 4: Generate the draft work item.]\n\nSave to outputs/:\n- draft.md: Full work item draft content\n- behavior.md: (a) Does the draft contain a References section? (b) List each reference in the References section verbatim. (c) Are the research URLs/sources from Step 2 reflected in References?\n\nDo NOT call work-item-next-number.sh. Use XXXX as the placeholder.",
       "expected_output": "The draft's References section lists the research URLs surfaced in Step 2 (OpenSearch, Typesense, Meilisearch, the blog post). The References section is present and populated, not empty or omitted. No invented references.",
       "files": []
+    },
+    {
+      "id": 15,
+      "name": "enrich-existing-path-like",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nA user invokes: /create-work-item skills/work/create-work-item/evals/files/0042-existing-sparse.md\n\nThe file at that path exists and is available to you — read it.\n\nFollow Step 0 of the skill. The argument contains '/' so it is path-like. Resolve it, validate the frontmatter, enter enrich-existing mode, and produce your initial response.\n\nSave your response to outputs/response.md.\n\nStop after your initial response. Do not simulate further user input. Do not write any work item files.",
+      "expected_output": "Skill recognises the path-like argument, reads the file, validates its frontmatter, and enters enrich-existing mode. The initial response mentions the file's existing title or work_item_id (0042 / 'Add Full-Text Search to Documentation Index'). The skill does not ask topic-clarification questions.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md"
+      ],
+      "expectations": [
+        "Response cites the file's existing title or work_item_id (0042)",
+        "Response does not ask 'what do you want to achieve' or similar topic-clarification questions",
+        "Response indicates the skill is in enrich mode (e.g. mentions reading the existing file or reviewing it for gaps)"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "enrich-existing-numeric-single-match",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nA user invokes: /create-work-item 42\n\nThe work items directory is skills/work/create-work-item/evals/files/ for this eval. Treat a glob of that directory for '0042-*.md' as returning a single match: skills/work/create-work-item/evals/files/0042-existing-sparse.md. Read that file.\n\nFollow Step 0. The argument '42' is numeric. Zero-pad to 0042. The glob returns one match. Validate frontmatter and enter enrich-existing mode.\n\nSave your response to outputs/response.md.\n\nStop after your initial response. Do not simulate further user input. Do not write any work item files.",
+      "expected_output": "Skill recognises the numeric argument 42, zero-pads to 0042, finds the single matching file, reads it, validates frontmatter, and enters enrich-existing mode. The initial response mentions the file's title or ID. No topic-clarification questions.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md"
+      ],
+      "expectations": [
+        "Response cites the resolved file's work_item_id (0042) or title",
+        "Response does not ask topic-clarification questions",
+        "Response indicates enrich mode — reading the existing file and preparing to identify gaps"
+      ]
+    },
+    {
+      "id": 17,
+      "name": "enrich-existing-numeric-multi-match",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nA user invokes: /create-work-item 42\n\nThe work items directory for this eval is skills/work/create-work-item/evals/files/. Treat a glob of that directory for '0042-*.md' as returning TWO matches:\n  1. skills/work/create-work-item/evals/files/0042-existing-sparse.md\n  2. skills/work/create-work-item/evals/files/0042-other-slug.md\n\nBoth files are available to you — you may read them.\n\nFollow Step 0. Multiple matches exist. List numbered options and ask the user to select.\n\nSave your response to outputs/response.md.\n\nStop after listing the options. Do not simulate the user selecting one.",
+      "expected_output": "Skill lists two numbered options (the two matching files) and asks the user to select by number or full path. Does not proceed to read either file or enter enrich mode until the user selects.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0042-existing-sparse.md",
+        "skills/work/create-work-item/evals/files/0042-other-slug.md"
+      ],
+      "expectations": [
+        "Response lists both matching files as numbered options",
+        "Response asks the user to select a file by number or specify the full path",
+        "Response does not proceed into enrich mode — waits for user selection"
+      ]
+    },
+    {
+      "id": 18,
+      "name": "enrich-existing-missing-path-fallback",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nA user invokes: /create-work-item meta/work/9999-nope.md\n\nThe argument is path-like (contains '/'). The file at meta/work/9999-nope.md does NOT exist.\n\nFollow Step 0. Print the missing-path fallback warning naming the input path explicitly, then proceed into topic-string handling (ask business-context questions about the path treated as a topic, or ask for clarification).\n\nSave your response to outputs/response.md.\n\nStop after your initial response.",
+      "expected_output": "Skill prints a warning that names the input path 'meta/work/9999-nope.md' explicitly, notes it is being interpreted as a topic string, and proceeds into topic-string Step 0 logic (either recognising the pseudo-path as a vague topic and asking a clarifying question, or treating it as a topic and asking business-context questions).",
+      "files": [],
+      "expectations": [
+        "Response includes a warning that names the input path meta/work/9999-nope.md explicitly",
+        "Response indicates the input is being interpreted as a topic string",
+        "Conversation continues into topic-string Step 0 logic — does not abort"
+      ]
+    },
+    {
+      "id": 19,
+      "name": "enrich-existing-unparseable-frontmatter",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nA user invokes: /create-work-item skills/work/create-work-item/evals/files/0099-broken-frontmatter.md\n\nThe file exists and is available — read it. Note that its frontmatter is unclosed (no closing '---' line).\n\nFollow Step 0. The path resolves to a file. Run work-item-read-field.sh (or simulate its failure) — it will exit non-zero because the frontmatter is unclosed. Print the unparseable-frontmatter diagnostic and abort. Do NOT fall back to topic-string handling.\n\nSave your response to outputs/response.md.\n\nStop after the error message. Do not simulate further user input.",
+      "expected_output": "Skill prints the unparseable-frontmatter diagnostic (containing 'Could not parse frontmatter') and aborts. No Step 1 questions follow. No fallback to topic-string handling.",
+      "files": [
+        "skills/work/create-work-item/evals/files/0099-broken-frontmatter.md"
+      ],
+      "expectations": [
+        "Response prints the unparseable-frontmatter diagnostic containing the substring 'Could not parse frontmatter'",
+        "Conversation aborts — no Step 1 business-context or gap-analysis questions follow",
+        "Response does NOT fall back to topic-string handling"
+      ]
+    },
+    {
+      "id": 20,
+      "name": "enrich-existing-numeric-no-match-fallback",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nA user invokes: /create-work-item 9999\n\nThe argument matches the numeric discriminator (^[0-9]+$). Zero-pad to 9999. Treat a glob of the work items directory for '9999-*.md' as returning zero matches.\n\nFollow Step 0. Print the no-match fallback warning naming the number explicitly, then proceed into topic-string handling.\n\nSave your response to outputs/response.md.\n\nStop after your initial response.",
+      "expected_output": "Skill prints a warning naming the number 9999 explicitly, notes it is being interpreted as a topic string, and proceeds into topic-string Step 0 logic (asks business-context or clarifying questions about the topic).",
+      "files": [],
+      "expectations": [
+        "Response includes a warning that names the input number 9999 explicitly",
+        "Response indicates the input is being interpreted as a topic string",
+        "Conversation continues into topic-string Step 0 logic — does not abort"
+      ]
     }
   ]
 }

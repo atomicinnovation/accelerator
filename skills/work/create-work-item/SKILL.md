@@ -2,7 +2,7 @@
 name: create-work-item
 description: Interactively create a well-formed work item. Use when capturing a
   feature, bug, task, spike, or epic as a structured work item in meta/work/.
-argument-hint: "[topic or description]"
+argument-hint: "[topic or existing work item path/number]"
 disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
@@ -61,14 +61,67 @@ different things — populate each deliberately:
 
 When this command is invoked:
 
-1. **If a topic was provided as an argument**: Check whether it is too vague
-   (no clear deliverable or subject).
+1. **If an argument was provided**:
+
+   First, **try to resolve the argument as a reference to an existing work
+   item**. The discriminator order is path-like → numeric.
+
+   - **Path-like** — argument contains `/` or ends in `.md`: treat as a file
+     path. Resolve relative to the user's current working directory if
+     relative, or use the argument verbatim if absolute.
+     - File exists and resolves: continue to frontmatter validation below.
+     - File does not exist: print
+       `"No work item at <path> — interpreting as topic string. If that's
+       wrong, abort and re-run with a different argument (or
+       /list-work-items to find a valid path)."` and proceed to
+       topic-string handling below.
+
+   - **Numeric** — argument matches `^[0-9]+$`: zero-pad to 4 digits (or
+     use as-is if already ≥4) and glob `{work_dir}/NNNN-*.md`. The glob
+     is case-sensitive and does not recurse.
+     - One match: continue to frontmatter validation below.
+     - Multiple matches: list them as numbered options and ask the user to
+       select by number or specify the full path.
+     - Zero matches: print `"No work item numbered NNNN found in {work_dir}
+       — interpreting as topic string. If that's wrong, abort and re-run
+       with a different argument (or /list-work-items to find a valid
+       number)."` and proceed to topic-string handling below.
+
+   **Frontmatter validation** (only reached after a file was successfully
+   resolved). Run:
+
+   ```
+   bash ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh work_item_id <path>
+   ```
+
+   If it exits non-zero (frontmatter missing or unclosed), print:
+
+   ```
+   Could not parse frontmatter in <path> — the file may be corrupted.
+   Re-open it and check that the YAML frontmatter is bracketed by two
+   `---` lines and contains all nine required fields.
+   ```
+
+   and exit without spawning agents or writing any file. (The file clearly
+   resolved, so the user intended a path — no fallback applies.)
+
+   If validation passes, read the file fully (frontmatter and body) and
+   cache the identity fields in conversation state:
+   `work_item_id`, `date`, `author`, `status`, `title`, `type`,
+   `priority`, `parent`, `tags`. For any missing optional field, use the
+   template default — do not abort. Set the conversation into
+   **enrich-existing mode** with `existing_work_item_path` cached, and
+   skip directly to Step 1 in that mode — do not run the vagueness check.
+
+   **Topic-string handling**: if no resolution succeeded (discriminators
+   did not trigger, or they triggered with a fallback warning), check
+   whether the argument is too vague (no clear deliverable or subject).
    - Vague examples: "improve things", "fix the API", "add more features"
    - Clear examples: "add full-text search to the docs index page",
      "fix login timeout after password reset"
-   - If vague, ask at least one clarifying question ("What specifically needs
-     to change?", "What does done look like?") and wait for a more specific
-     description before proceeding to Step 1.
+   - If vague, ask at least one clarifying question and wait for a more
+     specific description before proceeding to Step 1.
+   - If clear, proceed directly to Step 1.
 
 2. **If no argument was provided**, respond with:
 

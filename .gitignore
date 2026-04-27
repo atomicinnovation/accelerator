@@ -9,3 +9,4 @@ workspaces/
 *-workspace/
 .claude/settings.local.json
 .claude/accelerator.local.md
+meta/eval-workspaces/
