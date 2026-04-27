@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { screen, fireEvent } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import { DndContext } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { TicketCard } from './TicketCard'
@@ -88,7 +88,7 @@ describe('TicketCard', () => {
     expect(screen.getByText('foo-without-number')).toBeInTheDocument()
   })
 
-  it('does not announce a misleading "sortable" role-description while disabled', async () => {
+  it('announces_sortable_role_description_when_enabled', async () => {
     const entry = makeIndexEntry({
       type: 'tickets',
       relPath: 'meta/tickets/0001-a.md',
@@ -97,22 +97,19 @@ describe('TicketCard', () => {
     })
     renderCard(entry)
     const link = await screen.findByRole('link', { name: /some ticket/i })
-    expect(link.getAttribute('aria-roledescription')).toBeNull()
+    expect(link.getAttribute('aria-roledescription')).toBe('sortable')
   })
 
-  it('does not respond to drag interaction while disabled', async () => {
+  it('card_carries_data_relpath_for_focus_restore', async () => {
     const entry = makeIndexEntry({
       type: 'tickets',
-      relPath: 'meta/tickets/0001-drag.md',
-      title: 'Draggy',
+      relPath: 'meta/tickets/0001-a.md',
+      title: 'Some ticket',
       frontmatter: { type: 'adr-creation-task', status: 'todo' },
     })
     renderCard(entry)
-    const link = await screen.findByRole('link', { name: /draggy/i })
-    const before = link.getAttribute('style') ?? ''
-    fireEvent.pointerDown(link)
-    fireEvent.pointerMove(link, { clientX: 50, clientY: 50 })
-    const after = link.getAttribute('style') ?? ''
-    expect(after).toBe(before)
+    await screen.findByRole('link', { name: /some ticket/i })
+    const li = document.querySelector('[data-relpath="meta/tickets/0001-a.md"]')
+    expect(li).not.toBeNull()
   })
 })

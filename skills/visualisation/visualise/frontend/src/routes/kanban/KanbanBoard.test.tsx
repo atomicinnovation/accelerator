@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
@@ -42,6 +42,10 @@ function renderKanbanAt(qc: QueryClient = new QueryClient({ defaultOptions: { qu
 describe('KanbanBoard', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders the page-level heading at the top of the board', async () => {
@@ -164,6 +168,19 @@ describe('KanbanBoard', () => {
     expect(link.getAttribute('href')).toBe(
       '/library/tickets/0029-template-management-subcommand-surface',
     )
+  })
+
+  it('renders polite-announcement status region initially empty and no conflict banner', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
+    renderKanbanAt()
+    // Wait for the loaded board (the column regions only appear after data loads)
+    await screen.findByRole('region', { name: /^todo$/i })
+    // Polite announcement region always present, initially empty
+    const statusRegion = document.querySelector('[role="status"][aria-live="polite"]')
+    expect(statusRegion).not.toBeNull()
+    expect(statusRegion!.textContent).toBe('')
+    // No conflict banner initially
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('moves a card between columns when the tickets query is invalidated (SSE-driven update)', async () => {

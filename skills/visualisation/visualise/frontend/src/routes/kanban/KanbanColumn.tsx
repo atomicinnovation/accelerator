@@ -1,6 +1,8 @@
+import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { TicketCard } from './TicketCard'
 import type { IndexEntry, KanbanGroupKey } from '../../api/types'
+import { OTHER_COLUMN_KEY } from '../../api/types'
 import styles from './KanbanColumn.module.css'
 
 export interface KanbanColumnProps {
@@ -15,10 +17,16 @@ export function KanbanColumn({ columnKey, label, entries, description }: KanbanC
   const count = entries.length
   const headingId = `kanban-col-${columnKey}-heading`
   const ticketWord = count === 1 ? 'ticket' : 'tickets'
+  const isOtherColumn = columnKey === OTHER_COLUMN_KEY
+  const { setNodeRef, isOver } = useDroppable({
+    id: `column:${columnKey}`,
+    disabled: isOtherColumn,
+  })
 
   return (
     <section
-      className={styles.column}
+      ref={setNodeRef}
+      className={`${styles.column}${isOver ? ` ${styles.columnOver}` : ''}`}
       aria-labelledby={headingId}
       data-column={columnKey}
     >

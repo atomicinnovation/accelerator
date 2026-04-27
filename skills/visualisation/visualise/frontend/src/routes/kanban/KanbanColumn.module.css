@@ -36,3 +36,7 @@
   color: #9ca3af;
   font-style: italic;
 }
+.columnOver {
+  outline: 2px dashed #6366f1;
+  outline-offset: 2px;
+}

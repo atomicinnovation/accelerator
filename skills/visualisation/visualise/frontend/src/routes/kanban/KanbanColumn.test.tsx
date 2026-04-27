@@ -1,9 +1,22 @@
 import { describe, it, expect } from 'vitest'
-import { screen, within } from '@testing-library/react'
-import { DndContext } from '@dnd-kit/core'
+import React from 'react'
+import { screen, within, waitFor } from '@testing-library/react'
+import { DndContext, useDndContext } from '@dnd-kit/core'
 import { KanbanColumn } from './KanbanColumn'
 import { makeIndexEntry } from '../../api/test-fixtures'
 import { renderWithRouterAt } from '../../test/router-helpers'
+
+function DroppableProbe({ id }: { id: string }) {
+  const { droppableContainers } = useDndContext()
+  const container = droppableContainers.get(id)
+  return (
+    <div
+      data-testid={`probe-${id}`}
+      data-registered={String(container !== undefined)}
+      data-disabled={String(container?.disabled ?? false)}
+    />
+  )
+}
 
 function renderColumn(ui: React.ReactNode) {
   return renderWithRouterAt(<DndContext>{ui}</DndContext>)
@@ -51,6 +64,54 @@ describe('KanbanColumn', () => {
     renderColumn(<KanbanColumn columnKey="todo" label="Todo" entries={[]} />)
     await screen.findByRole('region', { name: /todo/i })
     expect(screen.getByLabelText(/^0 tickets$/i)).toBeInTheDocument()
+  })
+
+  it('non_other_column_is_registered_as_droppable_with_column_key_id', async () => {
+    renderColumn(
+      <>
+        <KanbanColumn columnKey="todo" label="Todo" entries={[]} />
+        <DroppableProbe id="column:todo" />
+      </>,
+    )
+    await screen.findByRole('region', { name: /todo/i })
+    await waitFor(() => {
+      const probe = screen.getByTestId('probe-column:todo')
+      expect(probe.dataset.registered).toBe('true')
+      expect(probe.dataset.disabled).toBe('false')
+    })
+  })
+
+  it('empty_non_other_column_is_still_droppable', async () => {
+    renderColumn(
+      <>
+        <KanbanColumn columnKey="in-progress" label="In progress" entries={[]} />
+        <DroppableProbe id="column:in-progress" />
+      </>,
+    )
+    await screen.findByRole('region', { name: /in progress/i })
+    await waitFor(() => {
+      const probe = screen.getByTestId('probe-column:in-progress')
+      expect(probe.dataset.registered).toBe('true')
+    })
+  })
+
+  it('other_column_registers_droppable_as_disabled', async () => {
+    const x = makeIndexEntry({
+      type: 'tickets', relPath: 'meta/tickets/0007-x.md', title: 'Exotic',
+      frontmatter: { status: 'blocked' },
+    })
+    renderColumn(
+      <>
+        <KanbanColumn columnKey="other" label="Other" entries={[x]} />
+        <DroppableProbe id="column:other" />
+      </>,
+    )
+    await screen.findByRole('region', { name: /other/i })
+    await waitFor(() => {
+      const probe = screen.getByTestId('probe-column:other')
+      expect(probe.dataset.registered).toBe('true')
+      expect(probe.dataset.disabled).toBe('true')
+    })
   })
 
   it('renders the "Other" column variant with a distinct heading and explanation', async () => {

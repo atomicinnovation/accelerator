@@ -15,6 +15,16 @@
   is wired via `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/utilities`
   for Phase 8 but disabled in this release. *Behind no flag — visible to all
   users on first navigation to `/kanban`.*
+- **Kanban write path**: Drag-and-drop now writes ticket status to disk via
+  `PATCH /api/docs/{path}/frontmatter` with `If-Match` optimistic concurrency.
+  Conflicts roll the card back and announce via `aria-live`; SSE invalidations
+  from other tabs are queued during a drag and flushed on drop to prevent
+  mid-gesture remounts.
+
+### Notes
+
+- Tickets are written in place. If a write produces unexpected output, recover
+  with `git checkout meta/tickets/<file>`.
 
 ## [1.20.0] - 2026-04-28
 

@@ -12,19 +12,16 @@ export interface TicketCardProps {
   now?: number
 }
 
-const PHASE_7_DISABLED = true
-
 export function TicketCard({ entry, now }: TicketCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: entry.relPath,
-    disabled: PHASE_7_DISABLED,
   })
 
-  // Strip role="button" and aria-roledescription="sortable" while drag is
-  // disabled — the anchor's native role="link" must be preserved, and ARIA
-  // must not announce a drag affordance that doesn't exist. Phase 8 re-adds
-  // both when PHASE_7_DISABLED flips to false.
-  const { 'aria-roledescription': _ariaRoleDescription, role: _role, ...phase7Attributes } = attributes
+  // Strip role="button" so the anchor keeps its native role="link" — the card
+  // is still a navigation target and must be discoverable via link navigation.
+  // aria-roledescription="sortable" is kept so screen readers announce the
+  // drag affordance without misrepresenting the element as a button.
+  const { role: _role, ...sortableAttributes } = attributes
 
   const number = parseTicketNumber(entry.relPath)
   const fmType = entry.frontmatter['type']
@@ -35,7 +32,7 @@ export function TicketCard({ entry, now }: TicketCardProps) {
     : fileSlug
 
   return (
-    <li className={styles.card}>
+    <li className={styles.card} data-relpath={entry.relPath}>
       <Link
         ref={setNodeRef}
         to="/library/$type/$fileSlug"
@@ -45,7 +42,7 @@ export function TicketCard({ entry, now }: TicketCardProps) {
           transform: CSS.Transform.toString(transform),
           transition,
         }}
-        {...phase7Attributes}
+        {...sortableAttributes}
         {...listeners}
       >
         <div className={styles.cardHeader}>
