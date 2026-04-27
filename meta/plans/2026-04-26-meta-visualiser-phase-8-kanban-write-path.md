@@ -380,14 +380,14 @@ inline in `src/patcher.rs` under
 
 #### Automated
 
-- [ ] `cd skills/visualisation/visualise/server && cargo test --lib patcher::`
+- [x] `cd skills/visualisation/visualise/server && cargo test --lib patcher::`
       runs and all 18 tests pass.
-- [ ] `cargo test --lib frontmatter::fence_offsets` — the new
+- [x] `cargo test --lib frontmatter::fence_offsets` — the new
       shared helper has its own tests and `frontmatter::parse`
       is refactored to consume it (asserted by all existing
       `frontmatter::tests` continuing to pass).
-- [ ] `cargo clippy --all-targets -- -D warnings` clean.
-- [ ] `cargo fmt --check` clean.
+- [x] `cargo clippy --all-targets -- -D warnings` clean.
+- [x] `cargo fmt --check` clean.
 
 #### Manual
 

@@ -14,6 +14,7 @@ pub mod file_driver;
 pub mod frontmatter;
 pub mod indexer;
 pub mod lifecycle;
+pub mod patcher;
 pub mod server;
 pub mod shutdown;
 pub mod slug;

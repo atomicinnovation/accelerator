@@ -1,5 +1,77 @@
 use std::collections::BTreeMap;
 
+#[derive(Debug, PartialEq)]
+pub enum FenceError {
+    Malformed,
+}
+
+/// Returns the byte range `(yaml_start, body_start)` of the YAML content
+/// region inside `---` fences, or `None` when no frontmatter is present
+/// (file doesn't start with `---\n` or `---\r\n`).
+///
+/// Returns `Err(Malformed)` when the opening fence is found but no closing
+/// fence exists within the 1 MiB scan window.
+///
+/// Works on raw bytes — invalid UTF-8 in the body does not affect fence
+/// detection because `---` is pure ASCII.
+///
+/// `yaml_start`: byte offset of the first character after the opening fence line.
+/// `body_start`: byte offset of the first character after the closing fence line.
+pub fn fence_offsets(raw: &[u8]) -> Result<Option<(usize, usize)>, FenceError> {
+    // Find the end of the first line.
+    let first_lf = match raw.iter().position(|&b| b == b'\n') {
+        Some(p) => p,
+        None => {
+            // Single line with no newline: can't be valid frontmatter.
+            return Ok(None);
+        }
+    };
+    // Strip optional CRLF.
+    let first_line_end = if first_lf > 0 && raw[first_lf - 1] == b'\r' {
+        first_lf - 1
+    } else {
+        first_lf
+    };
+    if &raw[..first_line_end] != b"---" {
+        return Ok(None);
+    }
+
+    const MAX_SCAN: usize = 1 << 20;
+    let scan_end = raw.len().min(MAX_SCAN);
+    let yaml_start = first_lf + 1;
+    if yaml_start >= raw.len() {
+        return Err(FenceError::Malformed);
+    }
+
+    let mut pos = yaml_start;
+    while pos < scan_end {
+        let line_lf = raw[pos..scan_end]
+            .iter()
+            .position(|&b| b == b'\n')
+            .map(|n| pos + n);
+        let line_lf = match line_lf {
+            Some(p) => p,
+            None => break, // no newline found before scan_end
+        };
+        let line_end = if line_lf > pos && raw[line_lf - 1] == b'\r' {
+            line_lf - 1
+        } else {
+            line_lf
+        };
+        if &raw[pos..line_end] == b"---" {
+            let body_start = if line_lf < raw.len() {
+                line_lf + 1
+            } else {
+                raw.len()
+            };
+            return Ok(Some((yaml_start, body_start)));
+        }
+        pos = line_lf + 1;
+    }
+
+    Err(FenceError::Malformed)
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum FrontmatterState {
     Parsed(BTreeMap<String, serde_json::Value>),
@@ -29,54 +101,58 @@ pub fn parse(raw: &[u8]) -> Parsed {
         Err(_) => String::from_utf8_lossy(raw).into_owned(),
     };
 
-    let first_line_end = s.find('\n').unwrap_or(s.len());
-    let first_line = s[..first_line_end].trim_end_matches('\r');
-    if first_line != "---" {
-        return Parsed { state: FrontmatterState::Absent, body: s };
-    }
-
-    const MAX_SCAN: usize = 1 << 20;
-    let scan_end = s.len().min(MAX_SCAN);
-    let after_first = first_line_end + 1;
-    if after_first >= s.len() {
-        return Parsed { state: FrontmatterState::Malformed, body: s };
-    }
-
-    let mut close_at: Option<usize> = None;
-    let mut pos = after_first;
-    while pos < scan_end {
-        let line_end = s[pos..].find('\n').map(|n| pos + n).unwrap_or(s.len());
-        let line = s[pos..line_end].trim_end_matches('\r');
-        if line == "---" {
-            close_at = Some(line_end);
-            break;
+    let (yaml_start, body_start) = match fence_offsets(raw) {
+        Ok(None) => {
+            return Parsed {
+                state: FrontmatterState::Absent,
+                body: s,
+            }
         }
-        pos = line_end + 1;
-    }
-
-    let close = match close_at {
-        Some(c) => c,
-        None => return Parsed { state: FrontmatterState::Malformed, body: s },
+        Err(FenceError::Malformed) => {
+            return Parsed {
+                state: FrontmatterState::Malformed,
+                body: s,
+            }
+        }
+        Ok(Some(offsets)) => offsets,
     };
 
-    let yaml_start = first_line_end + 1;
-    let yaml_end = s[..close]
-        .rfind('\n')
-        .map(|n| n + 1)
-        .unwrap_or(yaml_start);
-    let yaml_src = &s[yaml_start..yaml_end.saturating_sub(1).max(yaml_start)];
-    let body_start = (close + 1).min(s.len());
+    // The YAML content lives between yaml_start and the closing fence line.
+    // body_start points to the first byte after the closing `---\n`.
+    // We need the YAML string: everything from yaml_start up to (but not
+    // including) the closing `---` line. Since body_start is right after
+    // the closing fence newline, we find the closing fence by searching
+    // backwards from body_start in the raw bytes.
+    let yaml_region = &s[yaml_start..body_start];
+    // Strip the closing `---` line (and its preceding newline) from the end.
+    let yaml_src = if let Some(close_pos) = yaml_region.rfind("---") {
+        yaml_region[..close_pos]
+            .trim_end_matches('\r')
+            .trim_end_matches('\n')
+    } else {
+        yaml_region.trim_end_matches('\r').trim_end_matches('\n')
+    };
     let body = s[body_start..].trim_start_matches('\n').to_string();
 
     let value: serde_yml::Value = match serde_yml::from_str(yaml_src) {
         Ok(v) => v,
-        Err(_) => return Parsed { state: FrontmatterState::Malformed, body },
+        Err(_) => {
+            return Parsed {
+                state: FrontmatterState::Malformed,
+                body,
+            }
+        }
     };
 
     let mapping = match value {
         serde_yml::Value::Mapping(m) => m,
         serde_yml::Value::Null => serde_yml::Mapping::new(),
-        _ => return Parsed { state: FrontmatterState::Malformed, body },
+        _ => {
+            return Parsed {
+                state: FrontmatterState::Malformed,
+                body,
+            }
+        }
     };
 
     let mut out: BTreeMap<String, serde_json::Value> = BTreeMap::new();
@@ -85,17 +161,30 @@ pub fn parse(raw: &[u8]) -> Parsed {
             serde_yml::Value::String(s) => s,
             other => match serde_yml::to_string(&other) {
                 Ok(s) => s.trim().to_string(),
-                Err(_) => return Parsed { state: FrontmatterState::Malformed, body },
+                Err(_) => {
+                    return Parsed {
+                        state: FrontmatterState::Malformed,
+                        body,
+                    }
+                }
             },
         };
         let json_val = match yml_to_json(&v) {
             Some(v) => v,
-            None => return Parsed { state: FrontmatterState::Malformed, body },
+            None => {
+                return Parsed {
+                    state: FrontmatterState::Malformed,
+                    body,
+                }
+            }
         };
         out.insert(key, json_val);
     }
 
-    Parsed { state: FrontmatterState::Parsed(out), body }
+    Parsed {
+        state: FrontmatterState::Parsed(out),
+        body,
+    }
 }
 
 fn yml_to_json(v: &serde_yml::Value) -> Option<serde_json::Value> {
@@ -109,7 +198,9 @@ fn yml_to_json(v: &serde_yml::Value) -> Option<serde_json::Value> {
             } else if let Some(u) = n.as_u64() {
                 J::Number(u.into())
             } else if let Some(f) = n.as_f64() {
-                serde_json::Number::from_f64(f).map(J::Number).unwrap_or(J::Null)
+                serde_json::Number::from_f64(f)
+                    .map(J::Number)
+                    .unwrap_or(J::Null)
             } else {
                 J::Null
             }
@@ -146,7 +237,9 @@ pub fn body_preview_from(body: &str) -> String {
         let trimmed = line.trim();
         let is_break = trimmed.is_empty() || trimmed.starts_with('#');
         if is_break {
-            if !buf.is_empty() { break; }
+            if !buf.is_empty() {
+                break;
+            }
             continue;
         }
         if !buf.is_empty() {
@@ -216,7 +309,9 @@ pub fn ticket_of(parsed: &FrontmatterState) -> Option<String> {
 mod tests {
     use super::*;
 
-    fn b(s: &str) -> Vec<u8> { s.as_bytes().to_vec() }
+    fn b(s: &str) -> Vec<u8> {
+        s.as_bytes().to_vec()
+    }
 
     #[test]
     fn parsed_extracts_mapping_and_body() {
@@ -431,5 +526,67 @@ mod body_preview_tests {
     fn joins_multi_line_first_paragraph_with_single_spaces() {
         let body = "Line one.\nLine two.\nLine three.\n\nNext paragraph.\n";
         assert_eq!(body_preview_from(body), "Line one. Line two. Line three.");
+    }
+}
+
+#[cfg(test)]
+mod fence_offsets_tests {
+    use super::{fence_offsets, FenceError};
+
+    #[test]
+    fn returns_none_when_no_leading_fence() {
+        assert_eq!(fence_offsets(b"# Heading\n"), Ok(None));
+    }
+
+    #[test]
+    fn returns_none_for_empty_input() {
+        assert_eq!(fence_offsets(b""), Ok(None));
+    }
+
+    #[test]
+    fn returns_offsets_for_simple_frontmatter() {
+        // "---\nstatus: todo\n---\nbody\n"
+        let raw = b"---\nstatus: todo\n---\nbody\n";
+        let r = fence_offsets(raw).unwrap().unwrap();
+        assert_eq!(r.0, 4); // yaml_start: after "---\n"
+        assert_eq!(r.1, 21); // body_start: after closing "---\n"
+        assert_eq!(&raw[r.0..r.1], b"status: todo\n---\n");
+    }
+
+    #[test]
+    fn returns_malformed_when_no_closing_fence() {
+        assert_eq!(
+            fence_offsets(b"---\ntitle: foo\n"),
+            Err(FenceError::Malformed)
+        );
+    }
+
+    #[test]
+    fn returns_malformed_when_only_opening_fence_and_no_content() {
+        assert_eq!(fence_offsets(b"---\n"), Err(FenceError::Malformed));
+    }
+
+    #[test]
+    fn handles_crlf_fences() {
+        let raw = b"---\r\ntitle: Foo\r\n---\r\nbody\r\n";
+        let r = fence_offsets(raw).unwrap().unwrap();
+        assert_eq!(r.0, 5); // yaml_start: after "---\r\n"
+        assert_eq!(&raw[r.0..r.0 + 10], b"title: Foo");
+    }
+
+    #[test]
+    fn body_start_is_after_closing_fence_newline() {
+        let raw = b"---\ntitle: foo\n---\nbody starts here\n";
+        let (_, body_start) = fence_offsets(raw).unwrap().unwrap();
+        assert_eq!(&raw[body_start..], b"body starts here\n");
+    }
+
+    #[test]
+    fn empty_frontmatter_returns_offsets() {
+        // "---\n---\n"
+        let raw = b"---\n---\nbody\n";
+        let r = fence_offsets(raw).unwrap().unwrap();
+        assert_eq!(r.0, 4); // yaml_start
+        assert_eq!(r.1, 8); // body_start (after second ---\n)
     }
 }
