@@ -107,10 +107,20 @@ the plugin to apply any pending migrations to your `meta/` directory and
 /accelerator:migrate
 ```
 
-Safety guards: the skill refuses to run on a dirty working tree and prints a
-one-line preview per pending migration before applying anything. All mutations
-are tracked in `meta/.migrations-applied`. Recovery is via VCS revert. Set
-`ACCELERATOR_MIGRATE_FORCE=1` to bypass the clean-tree check if needed.
+Safety guards: the skill refuses to run on a dirty working tree, prints a
+pre-run banner listing each pending migration, and previews each one before
+applying. All mutations are tracked in `meta/.migrations-applied`. Recovery is
+via VCS revert. Set `ACCELERATOR_MIGRATE_FORCE=1` to bypass the clean-tree
+check if needed.
+
+To opt out of an individual migration, run
+`bash skills/config/migrate/scripts/run-migrations.sh --skip <id>` (and
+`--unskip <id>` to re-enable it). Skipped IDs are tracked in
+`meta/.migrations-skipped` and surfaced by name in the runner's summary line
+so a permanent skip is never invisible. A migration can also self-defer by
+emitting `MIGRATION_RESULT: no_op_pending` on stdout — useful for migrations
+whose preconditions (e.g. a `{project}` pattern in `work.id_pattern`) aren't
+yet configured.
 
 A `SessionStart` hook fires automatically when `meta/.migrations-applied` lags
 the bundled migrations, reminding you to run `/accelerator:migrate`.

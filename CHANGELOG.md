@@ -2,6 +2,116 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Configurable work-item ID filename pattern**: The `NNNN-` filename prefix
+  is now driven by a small pattern DSL so teams using external trackers can
+  adopt project-coded IDs (`PROJ-0042-add-search.md`) without losing the
+  legacy convention. Default behaviour is unchanged for users who set no
+  configuration.
+  - `work.id_pattern` config key (default `{number:04d}`) — supports the
+    tokens `{number[:0Nd]}` (required, exactly one) and `{project}`
+    (optional, at most one). Validation enforces zero-padded width specs
+    so the overflow guard (`10^N - 1`) is well-defined, rejects
+    filesystem-hostile literals, and requires at least one literal
+    character between adjacent dynamic tokens
+  - `work.default_project_code` config key (default empty) — supplies the
+    project value for `{project}` patterns when no explicit `--project`
+    flag is passed. Project codes must match `[A-Za-z][A-Za-z0-9]*`
+  - `work-item-pattern.sh` — Pattern compiler CLI exposing
+    `--validate`, `--compile-scan`, and `--compile-format` modes. Errors
+    use stable `E_PATTERN_*` prefixes
+  - `work-item-common.sh` — Sourcable bash library with pattern compile,
+    ID canonicalisation, legacy detection, and frontmatter predicate
+    helpers shared by the resolver, allocator, work-item skills, and
+    migration 0002
+  - `work-item-resolve-id.sh` — New ID resolver script. Classifies a user
+    input as path / full ID / bare number / invalid and returns the
+    canonical work-item file path, surfacing per-source-category
+    candidates (`legacy`, `project-prepended`, `pattern-shape`,
+    `<project-code>`) on ambiguity
+  - `--project CODE` and `--count N` flags on `work-item-next-number.sh`
+    — per-project sequential allocation with width-agnostic scanning so
+    legacy and configured-pattern files coexist; the overflow guard
+    reports the offending HIGHEST value so a stray over-width file is
+    spotted rather than silently consuming the number space
+  - **Multi-project amendment flow in `/extract-work-items`**: When the
+    pattern contains `{project}`, the skill presents a `| # | Slug |
+    Project | Projected ID |` table seeded with
+    `work.default_project_code`, accepts amendments via a canonical
+    `<rows> <PROJECT>` / `<rows> -` / `?` / `q` / blank grammar, and
+    allocates per distinct project on confirmation. Same-slug
+    coexistence across different projects is allowed; same-slug-same-
+    project is detected as a collision before any allocation
+  - **Broadened discovery glob in `/list-work-items`**: Discovery now
+    walks `*.md` with frontmatter validation rather than the literal
+    `[0-9][0-9][0-9][0-9]-*.md` glob, so legacy files remain listable
+    after a structural pattern change. Mixed-prefix corpora emit a
+    one-line `note:` informational hint pointing at
+    `/accelerator:migrate`
+  - **`work_item_id` frontmatter type contract**: Always a quoted YAML
+    string regardless of pattern shape (consistent across default and
+    `{project}` patterns). Documented in
+    `skills/config/configure/SKILL.md > Work Items`. Existing files are
+    rewritten to the quoted form by migration 0002 when the user
+    configures a `{project}` pattern
+- **Migration framework — skip-tracking and self-deferring migrations**:
+  Strictly additive extension to `/accelerator:migrate` so users can opt
+  out of individual migrations and so a migration can defer its own
+  recording when its preconditions aren't yet met
+  - `--skip <id>` and `--unskip <id>` flags on `run-migrations.sh` —
+    Manage `meta/.migrations-skipped` (sibling of
+    `meta/.migrations-applied`, same line-delimited format).
+    `pending = (id NOT IN applied) AND (id NOT IN skipped)`. Unknown IDs
+    are preserved on rewrite with a warning, mirroring the existing
+    forward-compat semantics
+  - `MIGRATION_RESULT: no_op_pending` runner contract — A migration that
+    exits 0 with this status line on stdout is *not* recorded in
+    `meta/.migrations-applied`; it stays pending so a later config
+    change re-evaluates it on the next run. Migrations doing
+    destructive work must either succeed (record applied) or fail
+    non-zero — the no-op contract is for self-deferring no-ops only
+  - **Pre-run banner**: Before applying migrations, the runner prints
+    an `About to apply N migration(s):` banner with the
+    commit-before-running expectation and the
+    `ACCELERATOR_MIGRATE_FORCE=1` escape hatch, so the VCS-revert
+    recovery contract is visible at the moment of decision
+  - **Updated summary line**: `applied: A; skipped: <names...>;
+    available: V`. Skipped migration names are listed (not just
+    counted) so a permanent skip of an important migration is never
+    invisible
+  - `scripts/atomic-common.sh` — New shared bash helper exposing
+    `atomic_write` (stdin → tempfile → `mv`),
+    `atomic_append_unique`, and `atomic_remove_line`. Used by the
+    runner's skip-tracking writes and by migration 0002's per-file
+    rewrites to avoid `sed -i` (BSD/GNU portable)
+- **`0002-rename-work-items-with-project-prefix` migration**: New
+  bundled migration applied automatically by `/accelerator:migrate`. No
+  forced upgrade — the migration is a deliberate no-op for users who
+  keep the default `{number:04d}` pattern, and stays pending (via the
+  `MIGRATION_RESULT: no_op_pending` contract) so it re-evaluates on a
+  later config change. When `work.id_pattern` contains `{project}` and
+  `work.default_project_code` is set, the migration:
+  - Renames `meta/work/[0-9][0-9][0-9][0-9]-*.md` to the configured
+    pattern (e.g. `0042-add-search.md` → `PROJ-0042-add-search.md`)
+  - Rewrites the `work_item_id` frontmatter field of each renamed file
+    to the full new ID (string-quoted)
+  - Rewrites ID-bearing frontmatter fields (`work_item_id`, `parent`,
+    `related`, `blocks`, `blocked_by`, `supersedes`, `superseded_by`)
+    repo-wide across `meta/`, anchored to YAML scalar boundaries so
+    already-rewritten values silently skip
+  - Rewrites markdown links of the form
+    `[text](path/0042-slug.md[#anchor])` to the new prefix
+  - Rewrites strict-form prose references: bare `#0042` tokens on
+    heading lines, and `meta/work/0042-slug.md` paths inside fenced
+    code blocks tagged `bash`/`sh`/`yaml`/`json`/`text`. Bare-fenced
+    blocks and plain prose are intentionally left intact to preserve
+    historical references and avoid lossy rewrites
+  - Pre-flight collision check aborts before any rewrite if a target
+    filename already exists; idempotent under partial-failure
+    recovery (every rewrite class matches only legacy old-ID shapes,
+    so a re-run after VCS revert is safe and never double-prefixes)
+
 ### Changed
 
 - **`create-work-item` enrich-existing mode**: The skill now accepts an
