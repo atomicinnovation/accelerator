@@ -4,6 +4,7 @@ import {
   fetchTypes, fetchDocs, fetchDocContent,
   fetchTemplates, fetchTemplateDetail,
   fetchLifecycleClusters, fetchLifecycleCluster,
+  fetchRelated,
   patchTicketFrontmatter,
 } from './fetch'
 
@@ -152,6 +153,64 @@ describe('fetchLifecycleClusters', () => {
   it('throws on non-200', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500 })
     await expect(fetchLifecycleClusters()).rejects.toThrow('500')
+  })
+})
+
+describe('fetchRelated', () => {
+  // ── Step 5.1 ─────────────────────────────────────────────────────────
+  it('builds the right URL and decodes the payload', async () => {
+    const payload = {
+      inferredCluster: [],
+      declaredOutbound: [],
+      declaredInbound: [],
+    }
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => payload })
+    const result = await fetchRelated('meta/plans/foo.md')
+    expect(mockFetch).toHaveBeenCalledWith('/api/related/meta/plans/foo.md')
+    expect(result).toEqual(payload)
+  })
+
+  // ── Step 5.2 ─────────────────────────────────────────────────────────
+  it('throws FetchError on non-2xx', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 })
+    try {
+      await fetchRelated('meta/plans/missing.md')
+      throw new Error('expected throw')
+    } catch (err) {
+      expect(err).toBeInstanceOf(FetchError)
+      expect((err as FetchError).status).toBe(404)
+    }
+  })
+
+  // ── Step 5.3 ─────────────────────────────────────────────────────────
+  it('encodes path segments individually, preserving slash separators', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        inferredCluster: [],
+        declaredOutbound: [],
+        declaredInbound: [],
+      }),
+    })
+    await fetchRelated('meta/plans/with spaces/file#1.md')
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/related/meta/plans/with%20spaces/file%231.md',
+    )
+  })
+
+  it('round-trips a literal % through encode/decode', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        inferredCluster: [],
+        declaredOutbound: [],
+        declaredInbound: [],
+      }),
+    })
+    await fetchRelated('meta/plans/100%-coverage.md')
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/related/meta/plans/100%25-coverage.md',
+    )
   })
 })
 

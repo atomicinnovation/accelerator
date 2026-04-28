@@ -1657,9 +1657,9 @@ qc.invalidateQueries({
 
 #### Automated Verification
 
-- [ ] `npm test` is fully green.
-- [ ] `npm run typecheck` is clean.
-- [ ] `npm run lint` is clean.
+- [x] `npm test` is fully green.
+- [x] `npm run typecheck` is clean.
+- [x] `npm run lint` is clean.
 
 ---
 

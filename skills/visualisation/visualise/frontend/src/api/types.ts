@@ -118,6 +118,12 @@ export interface LifecycleListResponse {
   clusters: LifecycleCluster[]
 }
 
+export interface RelatedArtifactsResponse {
+  inferredCluster: IndexEntry[]
+  declaredOutbound: IndexEntry[]
+  declaredInbound: IndexEntry[]
+}
+
 type PipelineStepKey =
   | 'hasTicket' | 'hasResearch' | 'hasPlan' | 'hasPlanReview'
   | 'hasValidation' | 'hasPr' | 'hasPrReview' | 'hasDecision'

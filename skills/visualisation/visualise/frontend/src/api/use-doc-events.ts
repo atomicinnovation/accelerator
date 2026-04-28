@@ -17,6 +17,7 @@ function queryKeysForEvent(event: SseEvent): ReadonlyArray<readonly unknown[]> {
     queryKeys.docContent(event.path),
     queryKeys.lifecycle(),
     queryKeys.lifecycleClusterPrefix(),
+    queryKeys.relatedPrefix(),
   ]
   if (event.docType === 'tickets') {
     keys.push(queryKeys.kanban())
@@ -49,6 +50,19 @@ export function dispatchSseEvent(
     void queryClient.invalidateQueries({ queryKey: queryKeys.docContent(event.path) })
     void queryClient.invalidateQueries({ queryKey: queryKeys.lifecycle() })
     void queryClient.invalidateQueries({ queryKey: queryKeys.lifecycleClusterPrefix() })
+    // Prefix-invalidate the related namespace. The set of related-of
+    // pages that depend on a given doc is unbounded (every doc whose
+    // cluster contains it; every plan if it's a review's target;
+    // transitively…), and the lists are tiny — prefix-invalidate is
+    // the simplest correct behaviour. `refetchType: 'all'` revalidates
+    // unmounted-but-cached queries too, so navigating to a target
+    // plan after deleting one of its reviews shows fresh data on
+    // mount rather than serving stale cached data until the next
+    // event.
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.relatedPrefix(),
+      refetchType: 'all',
+    })
     if (event.docType === 'tickets') {
       void queryClient.invalidateQueries({ queryKey: queryKeys.kanban() })
     }

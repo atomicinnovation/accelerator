@@ -2,6 +2,7 @@ import type {
   DocType, DocTypeKey, DocsListResponse, IndexEntry,
   TemplateSummaryListResponse, TemplateDetail,
   LifecycleCluster, LifecycleListResponse, KanbanColumnKey,
+  RelatedArtifactsResponse,
 } from './types'
 
 /** Typed error thrown by fetch helpers on non-2xx responses, so
@@ -99,5 +100,12 @@ export async function fetchLifecycleClusters(): Promise<LifecycleCluster[]> {
 export async function fetchLifecycleCluster(slug: string): Promise<LifecycleCluster> {
   const r = await fetch(`/api/lifecycle/${encodeURIComponent(slug)}`)
   if (!r.ok) throw new FetchError(r.status, `GET /api/lifecycle/${slug}: ${r.status}`)
+  return r.json()
+}
+
+export async function fetchRelated(relPath: string): Promise<RelatedArtifactsResponse> {
+  const encodedPath = relPath.split('/').map(encodeURIComponent).join('/')
+  const r = await fetch(`/api/related/${encodedPath}`)
+  if (!r.ok) throw new FetchError(r.status, `GET /api/related/${relPath}: ${r.status}`)
   return r.json()
 }

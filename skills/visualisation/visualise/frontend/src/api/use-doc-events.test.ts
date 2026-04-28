@@ -73,6 +73,44 @@ describe('dispatchSseEvent', () => {
       queryClient.getQueryState(queryKeys.lifecycleCluster('foo'))?.isInvalidated,
     ).toBe(true)
   })
+
+  // ── Step 5.5 ────────────────────────────────────────────────────────
+  it('invalidates the related prefix with refetchType: "all" on doc-changed', () => {
+    dispatchSseEvent(
+      { type: 'doc-changed', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-x' },
+      queryClient,
+    )
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: queryKeys.relatedPrefix(),
+        refetchType: 'all',
+      }),
+    )
+  })
+
+  it('related-prefix invalidation marks unmounted-but-cached related queries stale', () => {
+    queryClient.setQueryData(queryKeys.related('meta/plans/a.md'), null)
+    queryClient.setQueryData(queryKeys.related('meta/plans/b.md'), null)
+    dispatchSseEvent(
+      { type: 'doc-changed', docType: 'plans', path: 'meta/plans/x.md', etag: 'sha256-x' },
+      queryClient,
+    )
+    expect(queryClient.getQueryState(queryKeys.related('meta/plans/a.md'))?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(queryKeys.related('meta/plans/b.md'))?.isInvalidated).toBe(true)
+  })
+
+  // ── Step 5.5b ───────────────────────────────────────────────────────
+  it('does not invalidate related-prefix on unknown event kinds', () => {
+    queryClient.setQueryData(queryKeys.related('meta/plans/a.md'), null)
+    dispatchSseEvent(
+      { type: 'connected' } as unknown as Parameters<typeof dispatchSseEvent>[0],
+      queryClient,
+    )
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: queryKeys.relatedPrefix() }),
+    )
+    expect(queryClient.getQueryState(queryKeys.related('meta/plans/a.md'))?.isInvalidated).toBe(false)
+  })
 })
 
 // ── Wiring tests via the factory ─────────────────────────────────────────
