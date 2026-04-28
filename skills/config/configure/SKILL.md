@@ -421,6 +421,101 @@ paths:
 Note: YAML comments (`#`) are not supported by the config parser. Do not
 add inline comments to config values.
 
+### work
+
+Customise work-item identifier filenames. Two keys are recognised:
+
+| Key                          | Default          | Description                                |
+|------------------------------|------------------|--------------------------------------------|
+| `id_pattern`                 | `{number:04d}`   | DSL controlling work-item ID shape         |
+| `default_project_code`       | (empty)          | Project code substituted into `{project}`  |
+
+Example configuration for a project tracking issues with project-coded
+IDs (matching Jira/Linear conventions):
+
+\```yaml
+---
+work:
+  id_pattern: "{project}-{number:04d}"
+  default_project_code: "PROJ"
+---
+\```
+
+This produces work-item filenames such as `meta/work/PROJ-0042-add-foo.md`,
+H1 headings like `# PROJ-0042: add foo`, and a `work_item_id: "PROJ-0042"`
+frontmatter field.
+
+#### Pattern DSL Reference
+
+The `id_pattern` value is a small DSL with two tokens:
+
+- `{number[:format]}` — required, exactly one occurrence. The `format`
+  is a printf width spec of the form `0Nd` (e.g. `04d`, `05d`). If
+  omitted, defaults to `04d`. The width is enforced when generating
+  new IDs; scanning is width-agnostic, so legacy 4-digit files remain
+  visible after a width change.
+- `{project}` — optional, at most one occurrence. Substituted with a
+  project value at use time, taken from `--project` flags or
+  `default_project_code`.
+- `{{` and `}}` — escaped literals for a literal `{` or `}`.
+
+**Validation rules** (enforced when the pattern is consumed):
+
+1. Pattern must contain at least one `{number}` token.
+2. No filesystem-hostile chars (`/`, `\`, `:`, `*`, `?`, `<`, `>`,
+   `|`, `"`) outside token format specs.
+3. Adjacent dynamic tokens must have at least one literal char between
+   them (`{project}{number}` is rejected; `{project}-{number}` is
+   accepted).
+4. The `{number}` format spec must be `0Nd`. Non-padded specs (`%d`)
+   are rejected so the overflow guard cap is well-defined.
+5. Project values must match `[A-Za-z][A-Za-z0-9]*`. This covers
+   Jira/Linear-style alphanumeric project keys (`PROJ`, `ENG`, `ENG2`).
+   Project keys with internal hyphens or underscores (`PROJ-FE`,
+   `proj_alpha`) are rejected — this is a known limitation of the
+   initial scope.
+
+#### work_item_id frontmatter type contract
+
+The `work_item_id` frontmatter field on every work item is **always a
+quoted YAML string**, regardless of the configured pattern. New work
+items created post-feature land write `work_item_id: "0001"` under the
+default pattern and `work_item_id: "PROJ-0001"` under
+`{project}-{number:04d}`. Consumers must treat the field as a string;
+do not coerce to integer.
+
+#### Choosing between default and project-coded patterns
+
+Pick the default `{number:04d}` if your project tracks work items
+internally and does not link out to an external tracker. Pick
+`{project}-{number:04d}` when:
+
+- You mirror tickets from Jira, Linear, or another external tracker
+  and want filenames to align with the tracker's IDs.
+- Multiple projects share one repo and you want a clear visual
+  separation between project workstreams.
+
+#### Width changes vs structural changes
+
+Changing the width spec (`{number:04d}` → `{number:05d}`) is
+**absorbed transparently**: legacy files remain visible because the
+scan regex is width-agnostic. New files are generated at the new
+width.
+
+Changing the structural shape (default → `{project}-{number:04d}`,
+or vice versa) leaves legacy files coexisting with their original IDs.
+Use `/accelerator:migrate` to apply migration `0002-rename-work-items-with-project-prefix`,
+which renames legacy `NNNN-*.md` files to the configured pattern with
+your `default_project_code`. The migration stays pending until both
+the pattern includes `{project}` and `default_project_code` is set; if
+neither applies, you can opt out via `bash run-migrations.sh --skip
+0002-rename-work-items-with-project-prefix`.
+
+#### Recognised keys
+
+Only `work.id_pattern` and `work.default_project_code` are recognised.
+Other `work.*` keys are not consumed by any plugin script.
+
 ### templates
 
 Override document templates by placing custom template files in the

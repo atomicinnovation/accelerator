@@ -309,6 +309,57 @@ FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "agents.reviewer" "default")
 assert_eq "local overrides team" "my-reviewer" "$OUTPUT"
 
+echo "Test: work.id_pattern reads from team config"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+work:
+  id_pattern: "{project}-{number:04d}"
+  default_project_code: "PROJ"
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "work.id_pattern" "{number:04d}")
+assert_eq "reads work.id_pattern" "{project}-{number:04d}" "$OUTPUT"
+OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "work.default_project_code" "")
+assert_eq "reads work.default_project_code" "PROJ" "$OUTPUT"
+
+echo "Test: work.id_pattern defaults when unset"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+agents:
+  reviewer: senior-dev
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "work.id_pattern" "{number:04d}")
+assert_eq "default returned" "{number:04d}" "$OUTPUT"
+OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "work.default_project_code" "")
+assert_eq "empty returned" "" "$OUTPUT"
+
+echo "Test: work.id_pattern local override wins"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+work:
+  id_pattern: "{number:04d}"
+  default_project_code: ""
+---
+FIXTURE
+cat > "$REPO/.claude/accelerator.local.md" << 'FIXTURE'
+---
+work:
+  id_pattern: "{project}-{number:04d}"
+  default_project_code: "ENG"
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "work.id_pattern" "{number:04d}")
+assert_eq "local wins for id_pattern" "{project}-{number:04d}" "$OUTPUT"
+OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "work.default_project_code" "")
+assert_eq "local wins for default_project_code" "ENG" "$OUTPUT"
+
 echo "Test: Values with double quotes are stripped"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"

@@ -15,6 +15,10 @@ def integration(context: Context):
     context.run("skills/work/scripts/test-work-item-scripts.sh")
     print("\n")
 
+    print("Running work item pattern tests...")
+    context.run("skills/work/scripts/test-work-item-pattern.sh")
+    print("\n")
+
     print("Running lens structure lint...")
     context.run("scripts/test-lens-structure.sh")
     print("\n")
