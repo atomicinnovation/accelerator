@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **`create-work-item` enrich-existing mode**: The skill now accepts an
+  existing work item as its argument — either a file path
+  (e.g. `meta/work/0042-add-search.md`) or a bare number (`42`) — in
+  addition to the original free-text topic string. When an existing item is
+  supplied the skill reads the file, performs a gap analysis of each section
+  (tagging gaps as `empty`, `placeholder-only`, `instructional-prose`, or
+  `partial`), and runs the collaborative conversation to fill gaps rather
+  than starting from scratch. Identity fields (`work_item_id`, `date`,
+  `author`) are preserved verbatim; `status` is preserved unless the user
+  explicitly requests a change; all other fields can be proposed for
+  improvement. The enriched file is written back to the original path. A
+  pre-write identity-swap check re-reads `work_item_id` immediately before
+  confirmation to guard against concurrent edits. Numeric references that
+  match multiple files present a disambiguation menu; references that match
+  no file fall back to the topic-string flow with a warning.
+
 ## [1.19.0] - 2026-04-26
 
 ### Changed

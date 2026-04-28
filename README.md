@@ -278,7 +278,7 @@ existing docs (specs, PRDs, notes)
 
 | Skill                  | Usage                                                      | Description                                                                   |
 |------------------------|------------------------------------------------------------|-------------------------------------------------------------------------------|
-| **create-work-item**   | `/accelerator:create-work-item [topic]`                    | Interactively create a single work item through collaborative refinement      |
+| **create-work-item**   | `/accelerator:create-work-item [topic-or-ref]`             | Interactively create a work item from a topic, or enrich an existing one by path or number |
 | **extract-work-items** | `/accelerator:extract-work-items [doc paths...]`           | Batch-extract work items from existing specs, PRDs, research, plans, or notes |
 | **list-work-items**    | `/accelerator:list-work-items [filter]`                    | List and filter work items by status, type, priority, tag, parent, or title   |
 | **update-work-item**   | `/accelerator:update-work-item [work-item-ref] [field-op]` | Update work item fields with diff preview and confirmation                    |
