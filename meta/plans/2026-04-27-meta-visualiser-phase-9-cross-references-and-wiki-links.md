@@ -1131,8 +1131,8 @@ vitest assertions.
 
 #### Automated Verification
 
-- [ ] `npm test -- wiki-links` passes all seventeen cases.
-- [ ] `npm run typecheck` is clean.
+- [x] `npm test -- wiki-links` passes all seventeen cases.
+- [x] `npm run typecheck` is clean.
 
 ---
 
