@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { LibraryDocView } from './LibraryDocView'
@@ -88,5 +88,105 @@ describe('LibraryDocView', () => {
     vi.spyOn(fetchModule, 'fetchDocContent').mockRejectedValue(new Error('content-boom'))
     render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
     expect(await screen.findByRole('alert')).toHaveTextContent(/Failed to load document content/i)
+  })
+
+  // ── Step 6.6 ──────────────────────────────────────────────────────────
+  it('fetches related on mount and renders the inbound group when present', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: 'Body.',
+      etag: '"sha256-a"',
+    })
+    const review: IndexEntry = {
+      ...mockEntry,
+      type: 'plan-reviews',
+      relPath: 'meta/reviews/plans/2026-01-01-foo-review-1.md',
+      title: 'Foo review',
+    }
+    vi.spyOn(fetchModule, 'fetchRelated').mockResolvedValue({
+      inferredCluster: [],
+      declaredOutbound: [],
+      declaredInbound: [review],
+    })
+    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
+    expect(
+      await screen.findByRole('heading', { level: 4, name: 'Inbound reviews' }),
+    ).toBeInTheDocument()
+  })
+
+  // ── Step 6.6b ─────────────────────────────────────────────────────────
+  it('renders error path with role=alert when fetchRelated fails', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: 'Body.',
+      etag: '"sha256-a"',
+    })
+    vi.spyOn(fetchModule, 'fetchRelated').mockRejectedValue(new Error('related-boom'))
+    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
+    expect(
+      await screen.findByText(/Failed to load related artifacts/i),
+    ).toBeInTheDocument()
+  })
+
+  // ── Step 6.7 ──────────────────────────────────────────────────────────
+  it('real wiring resolves wiki-link to anchor when ADR is in cache', async () => {
+    const adrEntry: IndexEntry = {
+      ...mockEntry,
+      type: 'decisions',
+      relPath: 'meta/decisions/ADR-0001-example.md',
+      title: 'Example decision',
+      frontmatter: { adr_id: 'ADR-0001' },
+    }
+    vi.spyOn(fetchModule, 'fetchDocs').mockImplementation((type) => {
+      if (type === 'decisions') return Promise.resolve([adrEntry])
+      if (type === 'plans') return Promise.resolve([mockEntry])
+      return Promise.resolve([])
+    })
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: 'Reference: [[ADR-0001]] in body.',
+      etag: '"sha256-a"',
+    })
+    vi.spyOn(fetchModule, 'fetchRelated').mockResolvedValue({
+      inferredCluster: [],
+      declaredOutbound: [],
+      declaredInbound: [],
+    })
+    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
+    const link = await screen.findByRole('link', { name: 'Example decision' })
+    expect(link.getAttribute('href')).toBe('/library/decisions/ADR-0001-example')
+    expect(link.getAttribute('title')).toBe('[[ADR-0001]]')
+  })
+
+  // ── Step 6.8 ──────────────────────────────────────────────────────────
+  it('renders unresolved-wiki-link span when ADR is not in cache after settle', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockImplementation((type) => {
+      // Both decisions and tickets settle as empty arrays — resolver
+      // moves from kind=pending to kind=unresolved.
+      if (type === 'plans') return Promise.resolve([mockEntry])
+      return Promise.resolve([])
+    })
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: 'Missing ref: [[ADR-9999]].',
+      etag: '"sha256-a"',
+    })
+    vi.spyOn(fetchModule, 'fetchRelated').mockResolvedValue({
+      inferredCluster: [],
+      declaredOutbound: [],
+      declaredInbound: [],
+    })
+    const { container } = render(
+      <LibraryDocView type="plans" fileSlug="2026-01-01-foo" />,
+      { wrapper: Wrapper },
+    )
+    // Wait for the pending → unresolved flip after both fetchDocs
+    // queries settle. The unresolved span appears once the resolver
+    // rotates and MarkdownRenderer re-runs the plugin pipeline.
+    const span = await waitFor(() => {
+      const el = container.querySelector('span.unresolved-wiki-link')
+      if (!el) throw new Error('not yet')
+      return el
+    })
+    expect(span.textContent).toBe('[[ADR-9999]]')
+    expect(span.getAttribute('title')).toBe('No matching ADR found for ID 9999')
   })
 })

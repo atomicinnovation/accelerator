@@ -1,0 +1,64 @@
+.legend {
+  font-size: 0.7rem;
+  margin: 0 0 0.5rem;
+  color: #6b7280;
+}
+.legend dt { display: inline; font-weight: 600; }
+.legend dd { display: inline; margin: 0 0.5rem 0 0.25rem; }
+.legend dd::after { content: ""; }
+
+.group {
+  margin: 0 0 1rem;
+  padding-left: 0.5rem;
+}
+.groupHeading {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin: 0 0 0.25rem;
+}
+.groupList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.groupItem {
+  padding: 0.15rem 0;
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+}
+.groupItem a {
+  flex: 1;
+  word-break: break-all;
+}
+
+/* Element-named modifiers — declared vs inferred provenance carries
+ * a different border treatment so authors can tell them apart at a
+ * glance without reading the badge. */
+.groupDeclared { border-left: 2px solid #2563eb; }
+.groupInferred { border-left: 2px dashed #9ca3af; }
+
+.badge {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  padding: 0 0.3rem;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+.badgeDeclared { color: #2563eb; }
+.badgeInferred { color: #9ca3af; }
+
+.emptyAll {
+  font-style: italic;
+  color: #9ca3af;
+}
+.updating {
+  font-size: 0.7rem;
+  font-style: italic;
+  color: #9ca3af;
+  margin: 0 0 0.4rem;
+}

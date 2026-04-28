@@ -2001,10 +2001,10 @@ extending `src/routes/library/LibraryDocView.test.tsx`.
 
 #### Automated Verification
 
-- [ ] `npm test` is fully green.
-- [ ] `npm run typecheck` is clean.
-- [ ] `npm run lint` is clean.
-- [ ] `npm run build` produces a clean dist (no TS errors, no
+- [x] `npm test` is fully green.
+- [x] `npm run typecheck` is clean.
+- [x] `npm run lint` is clean.
+- [x] `npm run build` produces a clean dist (no TS errors, no
   unused-import warnings).
 
 #### Manual Verification

@@ -1,9 +1,13 @@
 import { useParams } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { fetchDocs, fetchDocContent } from '../../api/fetch'
+import { fetchDocs } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
+import { useDocPageData } from '../../api/use-doc-page-data'
+import { useWikiLinkResolver } from '../../api/use-wiki-link-resolver'
+import { useDeferredFetchingHint } from '../../api/use-deferred-fetching-hint'
 import { FrontmatterChips } from '../../components/FrontmatterChips/FrontmatterChips'
 import { MarkdownRenderer } from '../../components/MarkdownRenderer/MarkdownRenderer'
+import { RelatedArtifacts } from '../../components/RelatedArtifacts/RelatedArtifacts'
 import type { DocTypeKey } from '../../api/types'
 import { isDocTypeKey } from '../../api/types'
 import { fileSlugFromRelPath } from '../../api/path-utils'
@@ -24,18 +28,19 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
     rawType && isDocTypeKey(rawType) ? rawType : undefined
 
   const { data: entries = [], isError: listError, error: listErr } = useQuery({
-    queryKey: type ? queryKeys.docs(type) : ['docs', '__invalid__'] as const,
+    queryKey: type ? queryKeys.docs(type) : queryKeys.disabled('docs'),
     queryFn: () => fetchDocs(type!),
     enabled: type !== undefined,
   })
 
   const entry = entries.find(e => fileSlugFromRelPath(e.relPath) === fileSlug)
 
-  const { data: docContent, isLoading, isError: contentError, error: contentErr } = useQuery({
-    queryKey: queryKeys.docContent(entry?.relPath ?? ''),
-    queryFn: () => fetchDocContent(entry!.relPath),
-    enabled: !!entry,
-  })
+  // The doc-view's read path: content + related, both gated on
+  // `entry?.relPath`. Body rendering is *not* gated on the wiki-link
+  // resolver — pending markers handle the cache-warming window.
+  const { content, related } = useDocPageData(entry?.relPath)
+  const { resolver: resolveWikiLink } = useWikiLinkResolver()
+  const showUpdatingHint = useDeferredFetchingHint(related)
 
   if (type === undefined) {
     return <p role="alert">Unknown doc type: {String(rawType)}</p>
@@ -50,15 +55,15 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
       </p>
     )
   }
-  if (contentError) {
+  if (content.isError) {
     return (
       <p role="alert" className={styles.error}>
-        Failed to load document content: {contentErr instanceof Error ? contentErr.message : String(contentErr)}
+        Failed to load document content: {content.error instanceof Error ? content.error.message : String(content.error)}
       </p>
     )
   }
   if (!entry && entries.length > 0) return <p>Document not found.</p>
-  if (isLoading || !docContent) return <p>Loading…</p>
+  if (content.isPending || !content.data) return <p>Loading…</p>
 
   return (
     <article className={styles.article}>
@@ -73,7 +78,21 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
       <div className={styles.aside}>
         <section>
           <h3>Related artifacts</h3>
-          <p className={styles.empty}>No related artifacts yet.</p>
+          {related.isError && (
+            <p role="alert" className={styles.error}>
+              Failed to load related artifacts:{' '}
+              {related.error instanceof Error ? related.error.message : String(related.error)}
+            </p>
+          )}
+          {related.isPending && !related.isError && (
+            <p>Loading…</p>
+          )}
+          {related.data && (
+            <RelatedArtifacts
+              related={related.data}
+              showUpdatingHint={showUpdatingHint}
+            />
+          )}
         </section>
         <section>
           <h3>File</h3>
@@ -82,7 +101,7 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
       </div>
 
       <div className={styles.body}>
-        <MarkdownRenderer content={docContent.content} />
+        <MarkdownRenderer content={content.data.content} resolveWikiLink={resolveWikiLink} />
       </div>
     </article>
   )

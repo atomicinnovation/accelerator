@@ -1,0 +1,21 @@
+/* Deliberate globals — the remark plugin emits these classes as
+ * literal kebab-case strings on `data.hProperties`. CSS-module hashing
+ * would break the selector match because the plugin can't compute
+ * hashed identifiers at AST-build time. This file is the only place
+ * in this project that uses unscoped class names; keep it narrow.
+ */
+
+.wiki-link-pending {
+  /* Neutral skeleton: italic, dimmed, no underline. Reads as
+     "loading", not "broken". */
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.unresolved-wiki-link {
+  /* Broken-reference styling: muted with dotted underline. Reads as
+     "this didn't resolve, check your ID". */
+  color: #9ca3af;
+  border-bottom: 1px dotted currentColor;
+  cursor: help;
+}
