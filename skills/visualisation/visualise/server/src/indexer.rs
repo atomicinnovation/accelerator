@@ -1,5 +1,5 @@
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::collections::{BTreeSet, HashMap};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -29,14 +29,40 @@ pub struct IndexEntry {
     pub body_preview: String,
 }
 
+/// Test rendezvous point used by Phase 9 concurrency tests to inspect
+/// state at the precise moment after the secondary indexes have been
+/// updated but before the `entries.write()` guard is released. Two
+/// `oneshot` channels — `reached` (writer → test) and `proceed`
+/// (test → writer) — give a deterministic, lost-wakeup-free
+/// rendezvous.
+#[cfg(test)]
+pub(crate) struct PostSecondaryUpdateHook {
+    pub reached: tokio::sync::oneshot::Sender<()>,
+    pub proceed: tokio::sync::oneshot::Receiver<()>,
+}
+
 pub struct Indexer {
     driver: Arc<dyn FileDriver>,
+    /// Canonicalised once at the top of `Indexer::build`. Every
+    /// secondary-index key derivation routes through this prefix so
+    /// primary keys (canonical via `build_entry`) and secondary keys
+    /// (lexical `project_root.join(raw)`) share the same canonical
+    /// prefix. The field is module-private (no `pub`) — read-only
+    /// access is exposed via `project_root()`.
     project_root: PathBuf,
     entries: Arc<RwLock<HashMap<PathBuf, IndexEntry>>>,
     adr_by_id: Arc<RwLock<HashMap<u32, PathBuf>>>,
     ticket_by_number: Arc<RwLock<HashMap<u32, PathBuf>>>,
+    /// Reverse declared-link index. Keys are lexically-clean absolute
+    /// paths of target plans (or any future target type); values are
+    /// sets of canonicalised paths of reviews referencing the target.
+    /// `BTreeSet` gives deterministic iteration order and
+    /// dedup-by-construction.
+    reviews_by_target: Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
     // Serialises rescan() against refresh_one() so they cannot interleave.
     rescan_lock: Arc<Semaphore>,
+    #[cfg(test)]
+    test_post_secondary_update: tokio::sync::Mutex<Option<PostSecondaryUpdateHook>>,
 }
 
 impl Indexer {
@@ -44,13 +70,28 @@ impl Indexer {
         driver: Arc<dyn FileDriver>,
         project_root: PathBuf,
     ) -> Result<Self, FileDriverError> {
+        // Canonicalise once. Every downstream consumer — `rescan`,
+        // `refresh_one`, the secondary-index helpers, and
+        // `Indexer::reviews_by_target` — sees a canonical path. The
+        // failure (e.g., the project_root does not exist) is mapped
+        // into the existing `FileDriverError` channel so call sites
+        // do not learn a new error type.
+        let project_root = tokio::fs::canonicalize(&project_root)
+            .await
+            .map_err(|source| FileDriverError::Io {
+                path: project_root.clone(),
+                source,
+            })?;
         let me = Self {
             driver,
             project_root,
             entries: Arc::new(RwLock::new(HashMap::new())),
             adr_by_id: Arc::new(RwLock::new(HashMap::new())),
             ticket_by_number: Arc::new(RwLock::new(HashMap::new())),
+            reviews_by_target: Arc::new(RwLock::new(HashMap::new())),
             rescan_lock: Arc::new(Semaphore::new(1)),
+            #[cfg(test)]
+            test_post_secondary_update: tokio::sync::Mutex::new(None),
         };
         me.rescan().await?;
         Ok(me)
@@ -63,9 +104,10 @@ impl Indexer {
     pub async fn rescan(&self) -> Result<(), FileDriverError> {
         let _permit = self.rescan_lock.acquire().await.unwrap();
 
-        let mut entries = HashMap::new();
-        let mut adr_by_id = HashMap::new();
-        let mut ticket_by_number = HashMap::new();
+        let mut entries: HashMap<PathBuf, IndexEntry> = HashMap::new();
+        let mut adr_by_id: HashMap<u32, PathBuf> = HashMap::new();
+        let mut ticket_by_number: HashMap<u32, PathBuf> = HashMap::new();
+        let mut reviews_by_target: HashMap<PathBuf, BTreeSet<PathBuf>> = HashMap::new();
 
         for kind in DocTypeKey::all() {
             if kind == DocTypeKey::Templates {
@@ -90,14 +132,29 @@ impl Indexer {
                 if let Some(n) = ticket_number_from_entry(&entry) {
                     ticket_by_number.insert(n, path.clone());
                 }
+                if let Some(target_key) = target_path_from_entry(&entry, &self.project_root) {
+                    reviews_by_target
+                        .entry(target_key)
+                        .or_default()
+                        .insert(path.clone());
+                }
 
                 entries.insert(path, entry);
             }
         }
 
-        *self.entries.write().await = entries;
-        *self.adr_by_id.write().await = adr_by_id;
-        *self.ticket_by_number.write().await = ticket_by_number;
+        // Hold all four write locks simultaneously and replace contents
+        // so readers never observe a partial (entries, secondary)
+        // snapshot. Always acquire in the same order: entries → adr →
+        // ticket → reviews_by_target.
+        let mut entries_w = self.entries.write().await;
+        let mut adr_w = self.adr_by_id.write().await;
+        let mut ticket_w = self.ticket_by_number.write().await;
+        let mut reviews_w = self.reviews_by_target.write().await;
+        *entries_w = entries;
+        *adr_w = adr_by_id;
+        *ticket_w = ticket_by_number;
+        *reviews_w = reviews_by_target;
         Ok(())
     }
 
@@ -106,6 +163,11 @@ impl Indexer {
     /// Acquires the same `rescan_lock` that `rescan()` uses, so the two cannot
     /// interleave. If the file no longer exists, its entry is removed and
     /// `Ok(None)` is returned.
+    ///
+    /// Lock-ordering invariant: the entire update happens while holding a
+    /// single `entries.write()` guard. Each secondary-index helper takes its
+    /// own write lock *while* the caller holds `entries.write()`, so readers
+    /// never observe a partial (entries, secondary) snapshot.
     pub async fn refresh_one(&self, path: &Path) -> Result<Option<IndexEntry>, FileDriverError> {
         let _permit = self.rescan_lock.acquire().await.unwrap();
 
@@ -120,76 +182,90 @@ impl Indexer {
                 let kind = match self.driver.kind_for_canonical_path(&canonical) {
                     Some(k) => k,
                     None => {
-                        // Path is not under any known root; remove if present and bail
-                        self.entries.write().await.remove(&canonical);
+                        // Path is not under any known root; remove if present and bail.
+                        // Hold entries.write() and clean each secondary index for
+                        // any previous entry under this path before dropping.
+                        let mut entries = self.entries.write().await;
+                        if let Some(previous) = entries.get(&canonical).cloned() {
+                            remove_from_adr_by_id(&self.adr_by_id, &previous).await;
+                            remove_from_ticket_by_number(&self.ticket_by_number, &previous).await;
+                            remove_from_reviews_by_target(
+                                &self.reviews_by_target,
+                                &self.project_root,
+                                &previous,
+                            )
+                            .await;
+                            entries.remove(&canonical);
+                        }
                         return Ok(None);
                     }
                 };
 
                 let entry = build_entry(kind, canonical.clone(), &content, &self.project_root);
 
-                if let Some(id) = adr_id_from_entry(&entry) {
-                    self.adr_by_id.write().await.insert(id, canonical.clone());
-                }
-                if let Some(n) = ticket_number_from_entry(&entry) {
-                    self.ticket_by_number
-                        .write()
-                        .await
-                        .insert(n, canonical.clone());
-                }
+                // Single-writer-lock invariant: hold entries.write() across
+                // every secondary-index update so readers see a consistent
+                // (entries, secondary) snapshot.
+                let mut entries = self.entries.write().await;
+                let previous = entries.get(&canonical).cloned();
 
-                self.entries.write().await.insert(canonical, entry.clone());
+                update_adr_by_id(&self.adr_by_id, &entry, previous.as_ref()).await;
+                update_ticket_by_number(&self.ticket_by_number, &entry, previous.as_ref()).await;
+                update_reviews_by_target(
+                    &self.reviews_by_target,
+                    &self.project_root,
+                    &entry,
+                    previous.as_ref(),
+                )
+                .await;
+
+                entries.insert(canonical.clone(), entry.clone());
+
+                #[cfg(test)]
+                if let Some(hook) = self.test_post_secondary_update.lock().await.take() {
+                    let _ = hook.reached.send(());
+                    let _ = hook.proceed.await;
+                }
+                drop(entries);
+
                 Ok(Some(entry))
             }
             Err(FileDriverError::NotFound { .. }) => {
-                // Find the existing entry. When the file is deleted we can no
-                // longer canonicalize it (the inode is gone), so fall back to
-                // matching by canonical parent + filename. This handles the
-                // macOS /var → /private/var symlink and similar indirections.
-                let existing = self.find_entry_for_deleted(path).await;
+                // Acquire the write guard FIRST, then perform the lookup
+                // against it. Eliminates the read-then-write TOCTOU window
+                // and keeps deletion under the same single-writer-lock
+                // invariant.
+                let mut entries = self.entries.write().await;
+                let previous = find_entry_for_deleted(&entries, path);
 
-                if let Some(entry) = &existing {
-                    let key = entry.path.clone();
-                    self.entries.write().await.remove(&key);
-                    if let Some(id) = adr_id_from_entry(entry) {
-                        self.adr_by_id.write().await.remove(&id);
-                    }
-                    if let Some(n) = ticket_number_from_entry(entry) {
-                        self.ticket_by_number.write().await.remove(&n);
-                    }
+                if let Some(previous) = previous {
+                    remove_from_adr_by_id(&self.adr_by_id, &previous).await;
+                    remove_from_ticket_by_number(&self.ticket_by_number, &previous).await;
+                    remove_from_reviews_by_target(
+                        &self.reviews_by_target,
+                        &self.project_root,
+                        &previous,
+                    )
+                    .await;
+                    entries.remove(&previous.path);
                 }
+
+                #[cfg(test)]
+                if let Some(hook) = self.test_post_secondary_update.lock().await.take() {
+                    let _ = hook.reached.send(());
+                    let _ = hook.proceed.await;
+                }
+                drop(entries);
+
                 Ok(None)
             }
             Err(e) => Err(e),
         }
     }
 
-    /// Finds an existing index entry for a path whose file has been deleted.
-    ///
-    /// Direct map lookup is tried first. When that misses (e.g., the path
-    /// contains a symlink that `canonicalize` could resolve while the file
-    /// existed but can no longer resolve), the parent directory is
-    /// canonicalized (it still exists) and used together with the filename to
-    /// find the entry — catching macOS `/var` ↔ `/private/var` indirection.
-    async fn find_entry_for_deleted(&self, path: &Path) -> Option<IndexEntry> {
-        let guard = self.entries.read().await;
-
-        // Fast path: direct lookup (works when path is already canonical)
-        if let Some(e) = guard.get(path) {
-            return Some(e.clone());
-        }
-
-        // Canonicalize only the parent directory (the file itself is gone)
-        let filename = path.file_name()?;
-        let canonical_parent = path.parent().and_then(|p| std::fs::canonicalize(p).ok())?;
-
-        guard
-            .values()
-            .find(|e| {
-                e.path.file_name() == Some(filename)
-                    && e.path.parent() == Some(canonical_parent.as_path())
-            })
-            .cloned()
+    #[cfg(test)]
+    pub(crate) async fn install_post_secondary_update_hook(&self, hook: PostSecondaryUpdateHook) {
+        *self.test_post_secondary_update.lock().await = Some(hook);
     }
 
     pub async fn all_by_type(&self, kind: DocTypeKey) -> Vec<IndexEntry> {
@@ -225,6 +301,255 @@ impl Indexer {
     pub async fn ticket_by_number(&self, n: u32) -> Option<IndexEntry> {
         let path = { self.ticket_by_number.read().await.get(&n).cloned()? };
         self.get(&path).await
+    }
+
+    /// Returns the project root (canonicalised at construction). Used by
+    /// callers that need to construct lexical absolute keys (e.g., the
+    /// related-artifacts handler).
+    pub fn project_root(&self) -> &Path {
+        &self.project_root
+    }
+
+    /// Returns reviews whose `target:` resolves to the given absolute path.
+    /// Lock-ordering: acquires `entries.read()` *before* the secondary
+    /// `reviews_by_target.read()` so readers and writers share a single
+    /// canonical lock-acquisition order (entries → secondary).
+    pub async fn reviews_by_target(&self, target: &Path) -> Vec<IndexEntry> {
+        let key = normalize_absolute(target);
+        let entries = self.entries.read().await;
+        let map = self.reviews_by_target.read().await;
+        let Some(paths) = map.get(&key) else {
+            return Vec::new();
+        };
+        // BTreeSet iteration is lexical-by-path; no explicit sort.
+        paths
+            .iter()
+            .filter_map(|p| entries.get(p).cloned())
+            .collect()
+    }
+
+    /// Returns the resolved declared-outbound entries for the given entry.
+    /// Phase 9 wires only the plan-review `target:` field; other declared
+    /// fields will be activated in follow-ups.
+    pub async fn declared_outbound(&self, entry: &IndexEntry) -> Vec<IndexEntry> {
+        let Some(target_key) = target_path_from_entry(entry, &self.project_root) else {
+            return Vec::new();
+        };
+        let entries = self.entries.read().await;
+        entries.get(&target_key).cloned().into_iter().collect()
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Lexical path helpers.
+// ──────────────────────────────────────────────────────────────────────
+
+/// Lexically clean an absolute path: collapse `.` and `..` segments
+/// without touching the filesystem.
+///
+/// Algorithm:
+///   - walk path components left to right;
+///   - skip `Component::CurDir` (`.`);
+///   - on `Component::ParentDir` (`..`) pop the last `Normal` component
+///     if any, else discard (do not escape root);
+///   - keep `Component::RootDir` and `Component::Prefix` as-is;
+///   - rejoin via `PathBuf::push`.
+///
+/// Does NOT perform Unicode normalisation, case folding, trailing-slash
+/// stripping, or symlink resolution. Read/write parity in the
+/// reverse-index keying relies on `project_root` being canonical (set
+/// once at `Indexer::build`) so both sides land at the same form.
+fn normalize_absolute(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for c in path.components() {
+        match c {
+            Component::Prefix(_) | Component::RootDir => out.push(c.as_os_str()),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                // Pop only Normal components; never pop past RootDir/Prefix.
+                let popped = out
+                    .components()
+                    .next_back()
+                    .map(|c| matches!(c, Component::Normal(_)))
+                    .unwrap_or(false);
+                if popped {
+                    out.pop();
+                }
+            }
+            Component::Normal(s) => out.push(s),
+        }
+    }
+    out
+}
+
+/// Validate and normalise a `target:` frontmatter value. Returns
+/// `None` for any value that:
+///   - is empty;
+///   - contains `..`, `.`, NUL, or backslash in any segment;
+///   - starts with `/` (absolute paths bypass `project_root`);
+///   - resolves outside `project_root` after lexical join.
+fn normalize_target_key(raw: &str, project_root: &Path) -> Option<PathBuf> {
+    if raw.is_empty() || raw.starts_with('/') {
+        return None;
+    }
+    for segment in raw.split('/') {
+        if segment.is_empty()
+            || segment == "."
+            || segment == ".."
+            || segment.contains('\\')
+            || segment.contains('\0')
+        {
+            return None;
+        }
+    }
+    let joined = project_root.join(raw);
+    let normalized = normalize_absolute(&joined);
+    // Defence in depth: per-segment validation already rejects `..`,
+    // but verify the normalised form retains the project_root prefix.
+    if !normalized.starts_with(project_root) {
+        return None;
+    }
+    Some(normalized)
+}
+
+/// Phase 9 scope: `target:` is populated only on plan-reviews. Activation
+/// for other declared-link fields (e.g., PR-reviews) is a follow-up.
+fn target_path_from_entry(entry: &IndexEntry, project_root: &Path) -> Option<PathBuf> {
+    if entry.r#type != DocTypeKey::PlanReviews {
+        return None;
+    }
+    let raw = entry.frontmatter.get("target")?.as_str()?;
+    normalize_target_key(raw, project_root)
+}
+
+/// Pure function over a held entries snapshot — direct map lookup first,
+/// then fall back to canonicalised parent + filename matching to handle
+/// macOS `/var` → `/private/var` indirection. The file is gone, so we
+/// can no longer canonicalise the path itself; the parent directory still
+/// exists and can be canonicalised.
+fn find_entry_for_deleted(
+    entries: &HashMap<PathBuf, IndexEntry>,
+    path: &Path,
+) -> Option<IndexEntry> {
+    if let Some(e) = entries.get(path) {
+        return Some(e.clone());
+    }
+    let filename = path.file_name()?;
+    let canonical_parent = path.parent().and_then(|p| std::fs::canonicalize(p).ok())?;
+    entries
+        .values()
+        .find(|e| {
+            e.path.file_name() == Some(filename)
+                && e.path.parent() == Some(canonical_parent.as_path())
+        })
+        .cloned()
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Secondary-index update / remove helpers.
+//
+// Each helper takes (storage, [context], new_entry, previous) — except
+// `remove_from_*` which only needs the entry being removed. They are
+// async only because the per-index `RwLock::write().await` acquisition
+// is async; the bodies are otherwise straight map mutation. They are
+// expected to be called *while the caller holds `entries.write()`* —
+// see the lock-ordering invariant on `Indexer`.
+// ──────────────────────────────────────────────────────────────────────
+
+async fn update_adr_by_id(
+    map: &Arc<RwLock<HashMap<u32, PathBuf>>>,
+    new_entry: &IndexEntry,
+    previous: Option<&IndexEntry>,
+) {
+    let prev_id = previous.and_then(adr_id_from_entry);
+    let next_id = adr_id_from_entry(new_entry);
+    let mut m = map.write().await;
+    if let Some(prev_id) = prev_id {
+        if Some(prev_id) != next_id {
+            m.remove(&prev_id);
+        }
+    }
+    if let Some(id) = next_id {
+        m.insert(id, new_entry.path.clone());
+    }
+}
+
+async fn update_ticket_by_number(
+    map: &Arc<RwLock<HashMap<u32, PathBuf>>>,
+    new_entry: &IndexEntry,
+    previous: Option<&IndexEntry>,
+) {
+    let prev_n = previous.and_then(ticket_number_from_entry);
+    let next_n = ticket_number_from_entry(new_entry);
+    let mut m = map.write().await;
+    if let Some(prev_n) = prev_n {
+        if Some(prev_n) != next_n {
+            m.remove(&prev_n);
+        }
+    }
+    if let Some(n) = next_n {
+        m.insert(n, new_entry.path.clone());
+    }
+}
+
+async fn update_reviews_by_target(
+    map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
+    project_root: &Path,
+    new_entry: &IndexEntry,
+    previous: Option<&IndexEntry>,
+) {
+    // The remove-then-insert is unconditional even when prev_target ==
+    // next_target. An earlier short-circuit on equal targets masked a
+    // path-change leak: if the *review's own* file is renamed (path
+    // changes) while its `target:` is unchanged, the old path would
+    // remain in the BTreeSet under the still-current target key. Always
+    // removing `previous.path` and inserting `new_entry.path` keeps the
+    // contract correct on rename. BTreeSet ops are O(log n) so the
+    // redundant work is negligible at v1 scale.
+    let prev_target = previous.and_then(|p| target_path_from_entry(p, project_root));
+    let next_target = target_path_from_entry(new_entry, project_root);
+    let mut m = map.write().await;
+    if let (Some(t), Some(prev)) = (&prev_target, previous) {
+        if let Some(set) = m.get_mut(t) {
+            set.remove(&prev.path);
+            if set.is_empty() {
+                m.remove(t);
+            }
+        }
+    }
+    if let Some(t) = next_target {
+        m.entry(t).or_default().insert(new_entry.path.clone());
+    }
+}
+
+async fn remove_from_adr_by_id(map: &Arc<RwLock<HashMap<u32, PathBuf>>>, previous: &IndexEntry) {
+    if let Some(id) = adr_id_from_entry(previous) {
+        map.write().await.remove(&id);
+    }
+}
+
+async fn remove_from_ticket_by_number(
+    map: &Arc<RwLock<HashMap<u32, PathBuf>>>,
+    previous: &IndexEntry,
+) {
+    if let Some(n) = ticket_number_from_entry(previous) {
+        map.write().await.remove(&n);
+    }
+}
+
+async fn remove_from_reviews_by_target(
+    map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
+    project_root: &Path,
+    previous: &IndexEntry,
+) {
+    if let Some(target_key) = target_path_from_entry(previous, project_root) {
+        let mut m = map.write().await;
+        if let Some(set) = m.get_mut(&target_key) {
+            set.remove(&previous.path);
+            if set.is_empty() {
+                m.remove(&target_key);
+            }
+        }
     }
 }
 
@@ -744,6 +1069,650 @@ mod refresh_tests {
         assert_eq!(
             entry.etag, expected_etag,
             "final entry must reflect the edited file content"
+        );
+    }
+}
+
+#[cfg(test)]
+mod reverse_index_tests {
+    use super::*;
+    use crate::file_driver::LocalFileDriver;
+    use std::sync::Arc;
+
+    /// Seed a tempdir with one plan and one review whose `target:`
+    /// points at the plan. Returns (idx, plan_path, review_path), with
+    /// paths in canonicalised form so they match the indexer's primary
+    /// keys directly.
+    async fn build_with_plan_and_review(tmp: &Path) -> (Indexer, PathBuf, PathBuf) {
+        let plans = tmp.join("meta/plans");
+        let reviews = tmp.join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        let plan = plans.join("2026-04-18-foo.md");
+        let review = reviews.join("2026-04-18-foo-review-1.md");
+        std::fs::write(&plan, "---\ntitle: Foo Plan\n---\nbody\n").unwrap();
+        std::fs::write(
+            &review,
+            "---\ntarget: \"meta/plans/2026-04-18-foo.md\"\n---\nbody\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans);
+        map.insert("review_plans".into(), reviews);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(driver, tmp.to_path_buf()).await.unwrap();
+        // Canonicalise the paths so callers compare against the
+        // indexer's primary key form.
+        let plan = std::fs::canonicalize(&plan).unwrap();
+        let review = std::fs::canonicalize(&review).unwrap();
+        (idx, plan, review)
+    }
+
+    // ── Step 1.0 ────────────────────────────────────────────────────────────
+    #[test]
+    fn normalize_absolute_collapses_dot_and_dotdot_lexically() {
+        // Cases come from Step 1.0 of the plan.
+        assert_eq!(
+            normalize_absolute(&PathBuf::from("/a/./b")),
+            PathBuf::from("/a/b")
+        );
+        assert_eq!(
+            normalize_absolute(&PathBuf::from("/a/b/../c")),
+            PathBuf::from("/a/c")
+        );
+        // Cannot escape root.
+        assert_eq!(
+            normalize_absolute(&PathBuf::from("/a/../../b")),
+            PathBuf::from("/b")
+        );
+        assert_eq!(
+            normalize_absolute(&PathBuf::from("/a//b")),
+            PathBuf::from("/a/b")
+        );
+        assert_eq!(
+            normalize_absolute(&PathBuf::from("/a/b/.")),
+            PathBuf::from("/a/b")
+        );
+    }
+
+    // ── Step 1.1 ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn reviews_by_target_populated_on_initial_scan() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (idx, plan_path, review_path) = build_with_plan_and_review(tmp.path()).await;
+        let inbound = idx.reviews_by_target(&plan_path).await;
+        assert_eq!(inbound.len(), 1, "expected exactly one inbound review");
+        assert_eq!(inbound[0].path, review_path);
+    }
+
+    // ── Step 1.2 ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn reviews_by_target_round_trips_via_canonical_root() {
+        // tempfile::tempdir on macOS gives /var/folders/... which is a
+        // symlink to /private/var/folders/.... Construct with the
+        // *non-canonical* form and assert lookups via the canonical
+        // form succeed — the discipline canonicalises project_root once.
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: Foo\n---\n").unwrap();
+        std::fs::write(
+            reviews.join("2026-04-18-foo-review-1.md"),
+            "---\ntarget: \"meta/plans/2026-04-18-foo.md\"\n---\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans);
+        map.insert("review_plans".into(), reviews);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(driver, tmp.path().to_path_buf())
+            .await
+            .unwrap();
+
+        // Look up the plan via Indexer::get with the non-canonical path.
+        let plan = idx
+            .get(&tmp.path().join("meta/plans/2026-04-18-foo.md"))
+            .await
+            .expect("plan entry should be indexed");
+        // Use the entry's stored canonical path as the lookup key.
+        let inbound = idx.reviews_by_target(&plan.path).await;
+        assert_eq!(inbound.len(), 1, "round-trip via canonical entry path");
+    }
+
+    // ── Step 1.3 ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn reviews_by_target_excludes_reviews_without_target_field() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: Foo\n---\n").unwrap();
+        std::fs::write(
+            reviews.join("2026-04-18-foo-review-1.md"),
+            "---\ntitle: review with no target\n---\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans);
+        map.insert("review_plans".into(), reviews);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(driver, tmp.path().to_path_buf())
+            .await
+            .unwrap();
+
+        let map_guard = idx.reviews_by_target.read().await;
+        assert!(
+            map_guard.is_empty(),
+            "no reverse-index keys for review without target"
+        );
+    }
+
+    // ── Step 1.4 ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn reviews_by_target_tolerates_target_pointing_at_missing_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        // Plan does NOT exist; review's target points at it anyway.
+        std::fs::write(
+            reviews.join("2026-04-18-foo-review-1.md"),
+            "---\ntarget: \"meta/plans/never-created.md\"\n---\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans);
+        map.insert("review_plans".into(), reviews);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(driver, tmp.path().to_path_buf())
+            .await
+            .unwrap();
+
+        // Compute the lexical key the way the production code does.
+        let project_root = idx.project_root().to_path_buf();
+        let key = project_root.join("meta/plans/never-created.md");
+        let key = normalize_absolute(&key);
+        let inbound = idx.reviews_by_target(&key).await;
+        assert_eq!(
+            inbound.len(),
+            1,
+            "reverse index materialises by lexical key even when target file does not exist"
+        );
+    }
+
+    // ── Step 1.5 ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn reviews_by_target_supports_multiple_reviews_per_target() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: Foo\n---\n").unwrap();
+        std::fs::write(
+            reviews.join("2026-04-18-foo-review-1.md"),
+            "---\ntarget: \"meta/plans/2026-04-18-foo.md\"\n---\n",
+        )
+        .unwrap();
+        std::fs::write(
+            reviews.join("2026-04-18-foo-review-2.md"),
+            "---\ntarget: \"meta/plans/2026-04-18-foo.md\"\n---\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans.clone());
+        map.insert("review_plans".into(), reviews.clone());
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(driver, tmp.path().to_path_buf())
+            .await
+            .unwrap();
+
+        let plan_canon = std::fs::canonicalize(plans.join("2026-04-18-foo.md")).unwrap();
+        let inbound = idx.reviews_by_target(&plan_canon).await;
+        assert_eq!(inbound.len(), 2, "both reviews must appear");
+        // BTreeSet iteration is path-sorted; review-1 sorts before review-2.
+        let names: Vec<String> = inbound
+            .iter()
+            .map(|e| e.path.file_name().unwrap().to_string_lossy().to_string())
+            .collect();
+        assert_eq!(
+            names,
+            vec![
+                "2026-04-18-foo-review-1.md".to_string(),
+                "2026-04-18-foo-review-2.md".to_string(),
+            ],
+            "BTreeSet iteration must be lexically ordered"
+        );
+    }
+
+    // ── Step 1.5b ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn refresh_one_on_unchanged_review_keeps_set_size_one() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (idx, plan_path, review_path) = build_with_plan_and_review(tmp.path()).await;
+        // Refresh the review twice without touching its content.
+        idx.refresh_one(&review_path).await.unwrap();
+        idx.refresh_one(&review_path).await.unwrap();
+        let inbound = idx.reviews_by_target(&plan_path).await;
+        assert_eq!(inbound.len(), 1, "BTreeSet dedup-by-construction holds");
+    }
+
+    // ── Step 1.5c ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn refresh_one_on_renamed_review_with_unchanged_target() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (idx, plan_path, review_a) = build_with_plan_and_review(tmp.path()).await;
+
+        // Move the review (rename to a new path), keeping target the same.
+        let review_b = review_a.with_file_name("2026-04-18-foo-review-2.md");
+        std::fs::rename(&review_a, &review_b).unwrap();
+        // Watcher's typical sequence: refresh_one on new path then on old.
+        idx.refresh_one(&review_b).await.unwrap();
+        idx.refresh_one(&review_a).await.unwrap();
+
+        let inbound = idx.reviews_by_target(&plan_path).await;
+        let paths: Vec<&Path> = inbound.iter().map(|e| e.path.as_path()).collect();
+        let review_b_canon = std::fs::canonicalize(&review_b).unwrap();
+        assert_eq!(
+            paths,
+            vec![review_b_canon.as_path()],
+            "old path must drop, new path must remain"
+        );
+    }
+
+    // ── Step 1.6 ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn refresh_one_adds_review_to_reverse_index() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Build with plan only — no review yet.
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: Foo\n---\n").unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans.clone());
+        map.insert("review_plans".into(), reviews.clone());
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(driver, tmp.path().to_path_buf())
+            .await
+            .unwrap();
+
+        // Now create a review and refresh_one.
+        let new_review = reviews.join("2026-04-18-foo-review-1.md");
+        std::fs::write(
+            &new_review,
+            "---\ntarget: \"meta/plans/2026-04-18-foo.md\"\n---\n",
+        )
+        .unwrap();
+        idx.refresh_one(&new_review).await.unwrap();
+
+        let plan_canon = std::fs::canonicalize(plans.join("2026-04-18-foo.md")).unwrap();
+        let inbound = idx.reviews_by_target(&plan_canon).await;
+        assert_eq!(inbound.len(), 1);
+    }
+
+    // ── Step 1.7 ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn refresh_one_removes_review_from_reverse_index_on_target_change() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Two plans + one review initially targeting plan A.
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        std::fs::write(plans.join("a.md"), "---\ntitle: A\n---\n").unwrap();
+        std::fs::write(plans.join("b.md"), "---\ntitle: B\n---\n").unwrap();
+        let review = reviews.join("rev-1.md");
+        std::fs::write(&review, "---\ntarget: \"meta/plans/a.md\"\n---\n").unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans.clone());
+        map.insert("review_plans".into(), reviews);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(driver, tmp.path().to_path_buf())
+            .await
+            .unwrap();
+
+        let plan_a = std::fs::canonicalize(plans.join("a.md")).unwrap();
+        let plan_b = std::fs::canonicalize(plans.join("b.md")).unwrap();
+
+        // Migrate target from A to B.
+        std::fs::write(&review, "---\ntarget: \"meta/plans/b.md\"\n---\n").unwrap();
+        idx.refresh_one(&review).await.unwrap();
+
+        let inbound_a = idx.reviews_by_target(&plan_a).await;
+        let inbound_b = idx.reviews_by_target(&plan_b).await;
+        assert!(inbound_a.is_empty(), "stale key under A must be dropped");
+        assert_eq!(inbound_b.len(), 1, "new key under B must be present");
+    }
+
+    // ── Step 1.7b ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn refresh_one_target_migration_is_atomic_under_single_writer_lock() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        std::fs::write(plans.join("a.md"), "---\ntitle: A\n---\n").unwrap();
+        std::fs::write(plans.join("b.md"), "---\ntitle: B\n---\n").unwrap();
+        let review = reviews.join("rev-1.md");
+        std::fs::write(&review, "---\ntarget: \"meta/plans/a.md\"\n---\n").unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans.clone());
+        map.insert("review_plans".into(), reviews);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Arc::new(
+            Indexer::build(driver, tmp.path().to_path_buf())
+                .await
+                .unwrap(),
+        );
+
+        let plan_a = std::fs::canonicalize(plans.join("a.md")).unwrap();
+        let plan_b = std::fs::canonicalize(plans.join("b.md")).unwrap();
+
+        // Pre-arm the rendezvous channels.
+        let (reached_tx, reached_rx) = tokio::sync::oneshot::channel::<()>();
+        let (proceed_tx, proceed_rx) = tokio::sync::oneshot::channel::<()>();
+        idx.install_post_secondary_update_hook(PostSecondaryUpdateHook {
+            reached: reached_tx,
+            proceed: proceed_rx,
+        })
+        .await;
+
+        // Spawn the writer: migrate the review's target from A → B.
+        std::fs::write(&review, "---\ntarget: \"meta/plans/b.md\"\n---\n").unwrap();
+        let writer_idx = idx.clone();
+        let writer_review = review.clone();
+        let writer = tokio::spawn(async move {
+            writer_idx.refresh_one(&writer_review).await.unwrap();
+        });
+
+        // Wait for the writer to reach the post-secondary-update barrier.
+        reached_rx.await.expect("writer reached barrier");
+
+        // Spawn the reader. It must block on entries.read() until the
+        // writer drops its guard.
+        let reader_idx = idx.clone();
+        let reader = tokio::spawn(async move {
+            let inbound_a = reader_idx.reviews_by_target(&plan_a).await;
+            let inbound_b = reader_idx.reviews_by_target(&plan_b).await;
+            (inbound_a, inbound_b)
+        });
+
+        // Give the reader a moment to attempt entries.read(); it should
+        // block. We can't observe the block directly, but if the reader
+        // *doesn't* block, it will return the *pre*-update state and
+        // the assertion below will fail.
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        // Release the writer.
+        proceed_tx.send(()).expect("writer awaiting proceed");
+        writer.await.unwrap();
+
+        let (inbound_a, inbound_b) = reader.await.unwrap();
+        assert!(
+            inbound_a.is_empty(),
+            "post-migration: A must have no inbound"
+        );
+        assert_eq!(inbound_b.len(), 1, "post-migration: B must have the review");
+    }
+
+    // ── Step 1.8 ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn refresh_one_removes_review_from_reverse_index_on_deletion() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (idx, plan_path, review_path) = build_with_plan_and_review(tmp.path()).await;
+        std::fs::remove_file(&review_path).unwrap();
+        idx.refresh_one(&review_path).await.unwrap();
+        let inbound = idx.reviews_by_target(&plan_path).await;
+        assert!(
+            inbound.is_empty(),
+            "reviews_by_target must drop the deleted review"
+        );
+    }
+
+    // ── Step 1.8b ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn delete_target_plan_with_inbound_reviews() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        std::fs::write(plans.join("a.md"), "---\ntitle: A\n---\n").unwrap();
+        std::fs::write(
+            reviews.join("rev-1.md"),
+            "---\ntarget: \"meta/plans/a.md\"\n---\n",
+        )
+        .unwrap();
+        std::fs::write(
+            reviews.join("rev-2.md"),
+            "---\ntarget: \"meta/plans/a.md\"\n---\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans.clone());
+        map.insert("review_plans".into(), reviews.clone());
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(driver, tmp.path().to_path_buf())
+            .await
+            .unwrap();
+
+        let plan_a = plans.join("a.md");
+        let plan_a_canon = std::fs::canonicalize(&plan_a).unwrap();
+        std::fs::remove_file(&plan_a).unwrap();
+        idx.refresh_one(&plan_a).await.unwrap();
+
+        // Reviews must still be addressable via the (now-non-existent)
+        // canonical plan path — deferred materialisation contract.
+        let inbound = idx.reviews_by_target(&plan_a_canon).await;
+        assert_eq!(
+            inbound.len(),
+            2,
+            "lexical key survives target-file deletion"
+        );
+        // Reviews' own entries are unchanged.
+        let rev_canon = std::fs::canonicalize(reviews.join("rev-1.md")).unwrap();
+        assert!(idx.get(&rev_canon).await.is_some());
+    }
+
+    // ── Step 1.9 ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn reviews_by_target_survives_full_rescan() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (idx, plan_path, _review_path) = build_with_plan_and_review(tmp.path()).await;
+        idx.rescan().await.unwrap();
+        let inbound = idx.reviews_by_target(&plan_path).await;
+        assert_eq!(inbound.len(), 1, "rescan re-populates the reverse index");
+    }
+
+    // ── Step 1.10 ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn reviews_by_target_only_admits_plan_reviews() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let pr_reviews = tmp.path().join("meta/reviews/prs");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&pr_reviews).unwrap();
+        std::fs::write(plans.join("a.md"), "---\ntitle: A\n---\n").unwrap();
+        // PR review with a synthetic target — should NOT be admitted.
+        std::fs::write(
+            pr_reviews.join("pr-rev.md"),
+            "---\ntarget: \"meta/plans/a.md\"\n---\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans.clone());
+        map.insert("review_prs".into(), pr_reviews);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(driver, tmp.path().to_path_buf())
+            .await
+            .unwrap();
+
+        let plan_a = std::fs::canonicalize(plans.join("a.md")).unwrap();
+        let inbound = idx.reviews_by_target(&plan_a).await;
+        assert!(inbound.is_empty(), "PR-reviews are out of Phase 9 scope");
+    }
+
+    // ── Step 1.11 ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn target_path_from_entry_rejects_malformed_values() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        std::fs::write(plans.join("a.md"), "---\ntitle: A\n---\n").unwrap();
+        // Each malformed target keeps the review indexable but should
+        // contribute no reverse-index key.
+        let cases = [
+            ("rev-empty.md", "target: \"\""),
+            ("rev-escape.md", "target: \"../escape.md\""),
+            ("rev-abs.md", "target: \"/etc/passwd\""),
+            ("rev-back.md", "target: \"foo\\\\bar\""),
+            ("rev-collapse.md", "target: \"foo/../escape.md\""),
+            ("rev-num.md", "target: 42"),
+            ("rev-null.md", "target: null"),
+            ("rev-list.md", "target: [\"a\"]"),
+        ];
+        for (name, fm) in cases {
+            std::fs::write(
+                reviews.join(name),
+                format!("---\n{fm}\n---\n# review with malformed target\n"),
+            )
+            .unwrap();
+        }
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans);
+        map.insert("review_plans".into(), reviews.clone());
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(driver, tmp.path().to_path_buf())
+            .await
+            .unwrap();
+
+        // Each review entry is admitted to the primary index.
+        for (name, _) in cases {
+            let p = std::fs::canonicalize(reviews.join(name)).unwrap();
+            assert!(
+                idx.get(&p).await.is_some(),
+                "review {name} must still be indexed"
+            );
+        }
+        // No reverse-index keys were inserted.
+        let map_guard = idx.reviews_by_target.read().await;
+        assert!(
+            map_guard.is_empty(),
+            "malformed targets must not produce reverse-index keys",
+        );
+    }
+
+    // ── Step 1.12 ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn rescan_clears_all_three_secondary_maps_before_repopulating() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (idx, _plan_path, _review_path) = build_with_plan_and_review(tmp.path()).await;
+        // Inject stale data into each of the three secondary maps.
+        idx.adr_by_id
+            .write()
+            .await
+            .insert(99, PathBuf::from("/nonexistent/ADR-9999.md"));
+        idx.ticket_by_number
+            .write()
+            .await
+            .insert(99, PathBuf::from("/nonexistent/9999-ticket.md"));
+        idx.reviews_by_target.write().await.insert(
+            PathBuf::from("/nonexistent/plan.md"),
+            BTreeSet::from([PathBuf::from("/nonexistent/review.md")]),
+        );
+
+        idx.rescan().await.unwrap();
+
+        let adr_map = idx.adr_by_id.read().await;
+        let ticket_map = idx.ticket_by_number.read().await;
+        let reviews_map = idx.reviews_by_target.read().await;
+        assert!(!adr_map.contains_key(&99u32), "stale ADR cleared on rescan");
+        assert!(
+            !ticket_map.contains_key(&99u32),
+            "stale ticket cleared on rescan"
+        );
+        assert!(
+            !reviews_map.contains_key(&PathBuf::from("/nonexistent/plan.md")),
+            "stale review-target cleared on rescan",
+        );
+    }
+
+    // ── Step 1.13 ────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn concurrent_rescan_and_target_migration_under_rescan_lock() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        std::fs::write(plans.join("a.md"), "---\ntitle: A\n---\n").unwrap();
+        std::fs::write(plans.join("b.md"), "---\ntitle: B\n---\n").unwrap();
+        let review = reviews.join("rev-1.md");
+        std::fs::write(&review, "---\ntarget: \"meta/plans/a.md\"\n---\n").unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans.clone());
+        map.insert("review_plans".into(), reviews);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Arc::new(
+            Indexer::build(driver, tmp.path().to_path_buf())
+                .await
+                .unwrap(),
+        );
+
+        let (reached_tx, reached_rx) = tokio::sync::oneshot::channel::<()>();
+        let (proceed_tx, proceed_rx) = tokio::sync::oneshot::channel::<()>();
+        idx.install_post_secondary_update_hook(PostSecondaryUpdateHook {
+            reached: reached_tx,
+            proceed: proceed_rx,
+        })
+        .await;
+
+        // Migrate target from A to B; the writer holds the rescan_lock
+        // permit while parked at the post-secondary-update barrier.
+        std::fs::write(&review, "---\ntarget: \"meta/plans/b.md\"\n---\n").unwrap();
+        let writer_idx = idx.clone();
+        let writer_review = review.clone();
+        let writer = tokio::spawn(async move {
+            writer_idx.refresh_one(&writer_review).await.unwrap();
+        });
+
+        reached_rx.await.expect("writer reached barrier");
+
+        // While the writer is parked, the rescan_lock semaphore must
+        // be empty — try_acquire must fail.
+        let permit = idx.rescan_lock().try_acquire_owned();
+        assert!(
+            permit.is_err(),
+            "rescan_lock must be held by writer at the barrier",
+        );
+
+        // Schedule a rescan; it must wait for the writer to release.
+        let rescan_idx = idx.clone();
+        let rescan = tokio::spawn(async move { rescan_idx.rescan().await.unwrap() });
+
+        // Release the writer.
+        proceed_tx.send(()).expect("writer awaiting proceed");
+        writer.await.unwrap();
+        rescan.await.unwrap();
+
+        let plan_a = std::fs::canonicalize(plans.join("a.md")).unwrap();
+        let plan_b = std::fs::canonicalize(plans.join("b.md")).unwrap();
+        let inbound_a = idx.reviews_by_target(&plan_a).await;
+        let inbound_b = idx.reviews_by_target(&plan_b).await;
+        assert!(inbound_a.is_empty(), "review must not be under A");
+        assert_eq!(
+            inbound_b.len(),
+            1,
+            "review must be under exactly one target (B)"
         );
     }
 }

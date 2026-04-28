@@ -805,11 +805,11 @@ existing module structure.
 
 #### Automated Verification
 
-- [ ] `cargo test -p accelerator-visualiser indexer::tests` passes.
-- [ ] `cargo test -p accelerator-visualiser indexer::refresh_tests`
+- [x] `cargo test -p accelerator-visualiser indexer::tests` passes.
+- [x] `cargo test -p accelerator-visualiser indexer::refresh_tests`
   passes (existing + new coverage).
-- [ ] `cargo clippy -p accelerator-visualiser` is clean.
-- [ ] `cargo fmt --check` is clean.
+- [x] `cargo clippy -p accelerator-visualiser` is clean.
+- [x] `cargo fmt --check` is clean.
 
 ---
 
