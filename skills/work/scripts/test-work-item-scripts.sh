@@ -107,13 +107,14 @@ OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER" 2>/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
 assert_eq "no stdout output" "" "$OUTPUT"
 
-# Test 11: Files with 5-digit prefix (00003-foo.md) → glob does not match, outputs 0001
-echo "Test: 5-digit prefix files ignored"
+# Test 11: Files with 5-digit prefix (00003-foo.md, value 3) — width-agnostic
+# scan picks the file up. Highest=3, next=0004 under default {number:04d}.
+echo "Test: 5-digit prefix files visible via width-agnostic scan"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
 touch "$REPO/meta/work/00003-foo.md"
 OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER")
-assert_eq "outputs 0001" "0001" "$OUTPUT"
+assert_eq "outputs 0004" "0004" "$OUTPUT"
 
 # Test 12: Existing ADR-style files mixed in → ignored, outputs 0001
 echo "Test: ADR-style files ignored"
@@ -144,6 +145,326 @@ mkdir -p "$REPO/meta/work"
 touch "$REPO/meta/work/0001.md"
 OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER")
 assert_eq "outputs 0001" "0001" "$OUTPUT"
+
+# Helper to write a {project} pattern config
+write_project_config() {
+  local repo="$1" project_default="${2-}"
+  mkdir -p "$repo/.claude"
+  if [ -n "$project_default" ]; then
+    cat > "$repo/.claude/accelerator.md" << FIXTURE
+---
+work:
+  id_pattern: "{project}-{number:04d}"
+  default_project_code: "$project_default"
+---
+FIXTURE
+  else
+    cat > "$repo/.claude/accelerator.md" << 'FIXTURE'
+---
+work:
+  id_pattern: "{project}-{number:04d}"
+---
+FIXTURE
+  fi
+}
+
+echo ""
+
+# ============================================================
+echo "=== work-item-next-number.sh (configured pattern) ==="
+echo ""
+
+# Per-project scoping
+echo "Test: --project PROJ scoping with mixed corpus"
+REPO=$(setup_repo)
+write_project_config "$REPO" "PROJ"
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/PROJ-0001-x.md"
+touch "$REPO/meta/work/PROJ-0003-y.md"
+touch "$REPO/meta/work/OTHER-0007-z.md"
+OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER" --project PROJ)
+assert_eq "outputs PROJ-0004" "PROJ-0004" "$OUTPUT"
+
+echo "Test: --project OTHER scoping picks OTHER's max"
+REPO=$(setup_repo)
+write_project_config "$REPO" "PROJ"
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/PROJ-0001-x.md"
+touch "$REPO/meta/work/PROJ-0003-y.md"
+touch "$REPO/meta/work/OTHER-0007-z.md"
+OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER" --project OTHER)
+assert_eq "outputs OTHER-0008" "OTHER-0008" "$OUTPUT"
+
+echo "Test: pattern needs {project}, no flag, no default → error"
+REPO=$(setup_repo)
+write_project_config "$REPO" ""
+mkdir -p "$REPO/meta/work"
+RC=0
+ERR=$(cd "$REPO" && bash "$NEXT_NUMBER" 2>&1 >/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+assert_contains() {
+  local test_name="$1" needle="$2" haystack="$3"
+  if printf '%s' "$haystack" | grep -qF "$needle"; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected to contain: $needle"
+    echo "    Actual: $haystack"
+    FAIL=$((FAIL + 1))
+  fi
+}
+assert_contains "stderr names rule" "E_PATTERN_MISSING_PROJECT" "$ERR"
+
+echo "Test: default project_code from config when --project absent"
+REPO=$(setup_repo)
+write_project_config "$REPO" "PROJ"
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/PROJ-0042-y.md"
+OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER")
+assert_eq "outputs PROJ-0043" "PROJ-0043" "$OUTPUT"
+
+echo "Test: --project on default pattern → error"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/work"
+RC=0
+ERR=$(cd "$REPO" && bash "$NEXT_NUMBER" --project PROJ 2>&1 >/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+assert_contains "stderr names rule" "E_PATTERN_PROJECT_UNUSED" "$ERR"
+
+echo "Test: width change {number:05d} over 0001 corpus → 00002"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+work:
+  id_pattern: "{number:05d}"
+---
+FIXTURE
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/0001-foo.md"
+OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER")
+assert_eq "outputs 00002" "00002" "$OUTPUT"
+
+echo "Test: --count 3 with --project PROJ"
+REPO=$(setup_repo)
+write_project_config "$REPO" "PROJ"
+mkdir -p "$REPO/meta/work"
+OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER" --project PROJ --count 3)
+EXPECTED=$(printf 'PROJ-0001\nPROJ-0002\nPROJ-0003')
+assert_eq "outputs three project IDs" "$EXPECTED" "$OUTPUT"
+
+echo "Test: overflow under {number:04d} with 9999 corpus"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/9999-foo.md"
+RC=0
+ERR=$(cd "$REPO" && bash "$NEXT_NUMBER" 2>&1 >/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+assert_contains "stderr names overflow" "E_PATTERN_OVERFLOW" "$ERR"
+assert_contains "stderr names highest" "highest=9999" "$ERR"
+
+echo "Test: overflow boundary under {number:05d}, 99998 corpus, --count 1 succeeds"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+work:
+  id_pattern: "{number:05d}"
+---
+FIXTURE
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/99998-foo.md"
+OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER")
+assert_eq "outputs 99999" "99999" "$OUTPUT"
+
+echo "Test: overflow boundary under {number:05d}, 99998 corpus, --count 2 fails"
+RC=0
+OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER" --count 2 2>/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+
+echo "Test: out-of-width legacy 12345 under {number:04d} → overflow"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/12345-foo.md"
+RC=0
+ERR=$(cd "$REPO" && bash "$NEXT_NUMBER" 2>&1 >/dev/null) || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+assert_contains "stderr names out-of-width file" "12345-foo.md" "$ERR"
+
+echo ""
+
+# ============================================================
+echo "=== work-item-resolve-id.sh ==="
+echo ""
+
+RESOLVE="$SCRIPT_DIR/work-item-resolve-id.sh"
+
+echo "Test: existing path returns absolute path"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/0042-foo.md"
+OUTPUT=$(cd "$REPO" && bash "$RESOLVE" "meta/work/0042-foo.md")
+assert_eq "absolute path" "$REPO/meta/work/0042-foo.md" "$OUTPUT"
+
+echo "Test: missing path exits 3"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/work"
+RC=0
+(cd "$REPO" && bash "$RESOLVE" "meta/work/nope.md") >/dev/null 2>&1 || RC=$?
+assert_eq "exit code 3" "3" "$RC"
+
+echo "Test: full ID PROJ-0042 single match"
+REPO=$(setup_repo)
+write_project_config "$REPO" "PROJ"
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/PROJ-0042-foo.md"
+OUTPUT=$(cd "$REPO" && bash "$RESOLVE" "PROJ-0042")
+assert_eq "absolute path" "$REPO/meta/work/PROJ-0042-foo.md" "$OUTPUT"
+
+echo "Test: full ID PROJ-0042 not found exits 3"
+REPO=$(setup_repo)
+write_project_config "$REPO" "PROJ"
+mkdir -p "$REPO/meta/work"
+RC=0
+(cd "$REPO" && bash "$RESOLVE" "PROJ-0042") >/dev/null 2>&1 || RC=$?
+assert_eq "exit code 3" "3" "$RC"
+
+echo "Test: legacy 0042 under default pattern resolves"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/0042-legacy.md"
+OUTPUT=$(cd "$REPO" && bash "$RESOLVE" "0042")
+assert_eq "absolute path" "$REPO/meta/work/0042-legacy.md" "$OUTPUT"
+
+echo "Test: bare 42 (≤4 digits) zero-pads under default project code"
+REPO=$(setup_repo)
+write_project_config "$REPO" "PROJ"
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/PROJ-0042-foo.md"
+OUTPUT=$(cd "$REPO" && bash "$RESOLVE" "42")
+assert_eq "absolute path" "$REPO/meta/work/PROJ-0042-foo.md" "$OUTPUT"
+
+echo "Test: ambiguity — legacy + project-prepended"
+REPO=$(setup_repo)
+write_project_config "$REPO" "PROJ"
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/0042-legacy.md"
+touch "$REPO/meta/work/PROJ-0042-current.md"
+RC=0
+ERR=$(cd "$REPO" && bash "$RESOLVE" "0042" 2>&1 >/dev/null) || RC=$?
+assert_eq "exit code 2" "2" "$RC"
+assert_contains "lists legacy candidate" "[legacy]" "$ERR"
+assert_contains "lists project-prepended candidate" "[project-prepended]" "$ERR"
+
+echo "Test: ambiguity — cross-project, no default project code"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+work:
+  id_pattern: "{project}-{number:04d}"
+---
+FIXTURE
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/PROJ-0042-x.md"
+touch "$REPO/meta/work/OTHER-0042-y.md"
+RC=0
+ERR=$(cd "$REPO" && bash "$RESOLVE" "0042" 2>&1 >/dev/null) || RC=$?
+assert_eq "exit code 2" "2" "$RC"
+assert_contains "lists PROJ" "[PROJ]" "$ERR"
+assert_contains "lists OTHER" "[OTHER]" "$ERR"
+
+echo "Test: ambiguity — default project + cross-project (deduplication)"
+REPO=$(setup_repo)
+write_project_config "$REPO" "PROJ"
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/PROJ-0042-x.md"
+touch "$REPO/meta/work/OTHER-0042-y.md"
+RC=0
+ERR=$(cd "$REPO" && bash "$RESOLVE" "0042" 2>&1 >/dev/null) || RC=$?
+assert_eq "exit code 2" "2" "$RC"
+assert_contains "lists project-prepended" "[project-prepended]" "$ERR"
+assert_contains "lists OTHER" "[OTHER]" "$ERR"
+# PROJ-0042-x.md must appear once with project-prepended tag, not twice
+PROJ_OCCURRENCES=$(printf '%s\n' "$ERR" | grep -c "PROJ-0042-x.md")
+assert_eq "PROJ-0042-x.md listed once" "1" "$PROJ_OCCURRENCES"
+
+echo "Test: single cross-project match resolves"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+work:
+  id_pattern: "{project}-{number:04d}"
+---
+FIXTURE
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/OTHER-0042-y.md"
+OUTPUT=$(cd "$REPO" && bash "$RESOLVE" "0042")
+assert_eq "absolute path" "$REPO/meta/work/OTHER-0042-y.md" "$OUTPUT"
+
+echo "Test: garbage input invalid exits 1"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/work"
+RC=0
+(cd "$REPO" && bash "$RESOLVE" "foo bar") >/dev/null 2>&1 || RC=$?
+assert_eq "exit code 1" "1" "$RC"
+
+echo "Test: legacy 42 under {project} pattern, no default — finds legacy file"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+work:
+  id_pattern: "{project}-{number:04d}"
+---
+FIXTURE
+mkdir -p "$REPO/meta/work"
+touch "$REPO/meta/work/0042-legacy.md"
+OUTPUT=$(cd "$REPO" && bash "$RESOLVE" "0042")
+assert_eq "absolute path" "$REPO/meta/work/0042-legacy.md" "$OUTPUT"
+
+echo ""
+
+# ============================================================
+echo "=== work-item-next-number.sh default-pattern golden file ==="
+echo ""
+
+GOLDEN_FIXTURE_DIR="$SCRIPT_DIR/test-fixtures"
+GOLDEN_FILE="$GOLDEN_FIXTURE_DIR/work-item-next-number.golden"
+
+if [ -f "$GOLDEN_FILE" ]; then
+  while IFS= read -r line; do
+    case "$line" in
+      ''|'#'*) continue ;;
+    esac
+    SETUP="${line%%|*}"
+    REST="${line#*|}"
+    ARGS="${REST%%|*}"
+    EXPECTED_RAW="${REST#*|}"
+    # Replace literal \n with actual newlines in expected
+    EXPECTED=$(printf '%b' "$EXPECTED_RAW")
+
+    REPO=$(setup_repo)
+    mkdir -p "$REPO/meta/work"
+    if [ -n "$SETUP" ]; then
+      IFS=',' read -ra FILES <<< "$SETUP"
+      for fname in "${FILES[@]}"; do
+        touch "$REPO/meta/work/$fname"
+      done
+    fi
+    if [ -z "$ARGS" ]; then
+      OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER" 2>/dev/null)
+    else
+      # shellcheck disable=SC2086
+      OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER" $ARGS 2>/dev/null)
+    fi
+    assert_eq "golden: setup='$SETUP' args='$ARGS'" "$EXPECTED" "$OUTPUT"
+  done < "$GOLDEN_FILE"
+else
+  echo "  SKIP: golden file not found at $GOLDEN_FILE"
+fi
 
 echo ""
 

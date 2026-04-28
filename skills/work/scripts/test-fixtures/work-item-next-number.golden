@@ -1,0 +1,15 @@
+# Default-pattern allocator golden file.
+# Format: <comma-separated-files>|<args>|<expected-stdout>
+# Newlines in expected stdout encoded as literal \n.
+# Empty setup means empty corpus.
+# This file pins the regression boundary for the default-pattern allocator
+# behaviour: byte-for-byte identical stdout under {number:04d}.
+
+||0001
+0001-foo.md|--count 1|0002
+0002-something.md|--count 1|0003
+0001-first.md,0005-fifth.md||0006
+0001-first.md|--count 3|0002\n0003\n0004
+0042-foo.md|--count 1|0043
+0001-foo.md,0002-bar.md|--count 1|0003
+0099-baz.md|--count 1|0100

@@ -570,21 +570,21 @@ script is in the tree. Phase 1 introduces only the first.
 
 #### Automated Verification
 
-- [ ] New compiler tests pass: `bash skills/work/scripts/test-work-item-pattern.sh`
-- [ ] Existing work-item script tests still pass: `bash skills/work/scripts/test-work-item-scripts.sh`
-- [ ] Config tests pass with new cases: `bash scripts/test-config.sh`
-- [ ] Full integration suite passes: `mise run test`
-- [ ] Format checks pass: `bash scripts/test-format.sh`
+- [x] New compiler tests pass: `bash skills/work/scripts/test-work-item-pattern.sh`
+- [x] Existing work-item script tests still pass: `bash skills/work/scripts/test-work-item-scripts.sh`
+- [x] Config tests pass with new cases: `bash scripts/test-config.sh`
+- [x] Full integration suite passes: `mise run test`
+- [x] Format checks pass: `bash scripts/test-format.sh`
 
 #### Manual Verification
 
-- [ ] `work-item-pattern.sh --validate "{number:04d}"` exits 0
-- [ ] `work-item-pattern.sh --validate "no-number"` prints a clear error
+- [x] `work-item-pattern.sh --validate "{number:04d}"` exits 0
+- [x] `work-item-pattern.sh --validate "no-number"` prints a clear error
       naming validation rule 1
-- [ ] `work-item-pattern.sh --compile-scan "{project}-{number:04d}" "PROJ"`
+- [x] `work-item-pattern.sh --compile-scan "{project}-{number:04d}" "PROJ"`
       produces a regex (`^PROJ-([0-9]+)-`) that matches `PROJ-0042-foo.md`
       and not `OTHER-0042-foo.md`
-- [ ] `work-item-pattern.sh --compile-scan "{number:04d}" ""` matches
+- [x] `work-item-pattern.sh --compile-scan "{number:04d}" ""` matches
       both `0042-foo.md` (4 digits) and `12345-foo.md` (5 digits) — width
       is enforced only at format time
 
@@ -783,8 +783,8 @@ For `work-item-resolve-id.sh`:
 
 #### Automated Verification
 
-- [ ] All work-item script tests pass: `bash skills/work/scripts/test-work-item-scripts.sh`
-- [ ] **Default-pattern allocator golden file**: a committed
+- [x] All work-item script tests pass: `bash skills/work/scripts/test-work-item-scripts.sh`
+- [x] **Default-pattern allocator golden file**: a committed
       `skills/work/scripts/test-fixtures/work-item-next-number.golden`
       file enumerates `(corpus_setup, expected_stdout)` pairs covering
       the eight pre-existing regression cases (empty corpus, single
@@ -792,17 +792,17 @@ For `work-item-resolve-id.sh`:
       `test_default_pattern_golden` runs the rewritten allocator
       against each setup and asserts byte-for-byte identical stdout.
       This locks the default-pattern regression boundary in code.
-- [ ] Pattern compiler tests still pass: `bash skills/work/scripts/test-work-item-pattern.sh`
-- [ ] Full integration suite passes: `mise run test`
+- [x] Pattern compiler tests still pass: `bash skills/work/scripts/test-work-item-pattern.sh`
+- [x] Full integration suite passes: `mise run test`
 
 #### Manual Verification
 
-- [ ] In a fresh repo with
+- [x] In a fresh repo with
       `work.id_pattern: "{project}-{number:04d}"` and
       `work.default_project_code: "PROJ"`:
       `bash work-item-next-number.sh` outputs `PROJ-0001`
-- [ ] `bash work-item-next-number.sh --project OTHER` outputs `OTHER-0001`
-- [ ] In the same repo with a legacy `0042-foo.md` present,
+- [x] `bash work-item-next-number.sh --project OTHER` outputs `OTHER-0001`
+- [x] In the same repo with a legacy `0042-foo.md` present,
       `bash work-item-resolve-id.sh 0042` returns the legacy file path
 
 ## Phase 3: Skill Wiring
