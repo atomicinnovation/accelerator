@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-04-28
+
 ### Added
 
 - **Configurable work-item ID filename pattern**: The `NNNN-` filename prefix
