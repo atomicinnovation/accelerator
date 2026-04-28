@@ -383,4 +383,179 @@ assert_eq "exit 0 with FORCE flag" "0" "$RC"
 APPLIED=$(cat "$REPO/meta/.migrations-applied" 2>/dev/null || echo "")
 assert_contains "migration applied with FORCE" "0001-rename-tickets-to-work" "$APPLIED"
 
+# ============================================================
+echo ""
+echo "=== --skip / --unskip flags ==="
+echo ""
+
+echo "Test: --skip records the ID in .migrations-skipped"
+REPO=$(setup_old_repo)
+RC=0
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 0001-rename-tickets-to-work \
+  > /dev/null 2>&1 || RC=$?
+assert_eq "exit 0" "0" "$RC"
+SKIPPED=$(cat "$REPO/meta/.migrations-skipped" 2>/dev/null || echo "")
+assert_contains "skip file has migration ID" "0001-rename-tickets-to-work" "$SKIPPED"
+
+echo "Test: subsequent run reports no pending migrations"
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+assert_contains "outputs no pending" "No pending migrations" "$OUTPUT"
+assert_contains "summary lists skipped name" "Skipped:" "$OUTPUT"
+assert_contains "skipped name visible" "0001-rename-tickets-to-work" "$OUTPUT"
+# Migration must NOT have run
+assert_file_exists "meta/tickets/0001-foo.md still present" "$REPO/meta/tickets/0001-foo.md"
+
+echo "Test: --unskip removes the ID and migration becomes pending again"
+RC=0
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --unskip 0001-rename-tickets-to-work \
+  > /dev/null 2>&1 || RC=$?
+assert_eq "exit 0" "0" "$RC"
+SKIPPED=$(cat "$REPO/meta/.migrations-skipped" 2>/dev/null || echo "")
+assert_not_contains "skip file no longer has ID" "0001-rename-tickets-to-work" "$SKIPPED"
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+APPLIED=$(cat "$REPO/meta/.migrations-applied" 2>/dev/null || echo "")
+assert_contains "migration applied after unskip" "0001-rename-tickets-to-work" "$APPLIED"
+
+echo "Test: --skip is idempotent"
+REPO=$(setup_old_repo)
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 0001-rename-tickets-to-work \
+  > /dev/null 2>&1
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 0001-rename-tickets-to-work \
+  > /dev/null 2>&1
+COUNT=$(grep -c "^0001-rename-tickets-to-work$" "$REPO/meta/.migrations-skipped")
+assert_eq "ID present exactly once" "1" "$COUNT"
+
+echo "Test: --unskip on absent ID is a no-op"
+REPO=$(setup_old_repo)
+RC=0
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --unskip 0001-rename-tickets-to-work \
+  > /dev/null 2>&1 || RC=$?
+assert_eq "exit 0" "0" "$RC"
+
+echo "Test: skipping unknown ID writes it and warns on next run"
+REPO=$(setup_old_repo)
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 9999-future-migration \
+  > /dev/null 2>&1
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+assert_contains "warning about unknown skipped ID" "9999-future-migration" "$OUTPUT"
+SKIPPED=$(cat "$REPO/meta/.migrations-skipped" 2>/dev/null || echo "")
+assert_contains "unknown skipped ID preserved" "9999-future-migration" "$SKIPPED"
+
+echo "Test: ACCELERATOR_MIGRATE_FORCE bypasses dirty-tree only — skip still wins"
+REPO=$(setup_old_repo)
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 0001-rename-tickets-to-work \
+  > /dev/null 2>&1
+git -C "$REPO" init -q
+git -C "$REPO" -c user.email=t@t -c user.name=T add .
+git -C "$REPO" -c user.email=t@t -c user.name=T commit -qm initial
+printf '\nx\n' >> "$REPO/meta/tickets/0001-foo.md"
+RC=0
+OUTPUT=$(cd "$REPO" && ACCELERATOR_MIGRATE_FORCE=1 CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+assert_contains "no pending under FORCE+skip" "No pending migrations" "$OUTPUT"
+APPLIED=$(cat "$REPO/meta/.migrations-applied" 2>/dev/null || echo "")
+assert_not_contains "skipped migration NOT applied under FORCE" "0001-rename-tickets-to-work" "$APPLIED"
+
+echo "Test: applied + skipped same ID — applied wins, warning emitted"
+REPO=$(setup_old_repo)
+mkdir -p "$REPO/meta"
+printf '0001-rename-tickets-to-work\n' > "$REPO/meta/.migrations-applied"
+printf '0001-rename-tickets-to-work\n' > "$REPO/meta/.migrations-skipped"
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+assert_contains "warns about cross-state inconsistency" "BOTH" "$OUTPUT"
+assert_contains "no pending output (applied wins)" "No pending migrations" "$OUTPUT"
+
+echo "Test: empty .migrations-skipped is treated as no-skip"
+REPO=$(setup_old_repo)
+mkdir -p "$REPO/meta"
+: > "$REPO/meta/.migrations-skipped"
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+APPLIED=$(cat "$REPO/meta/.migrations-applied" 2>/dev/null || echo "")
+assert_contains "migration applied" "0001-rename-tickets-to-work" "$APPLIED"
+
+# ============================================================
+echo ""
+echo "=== MIGRATION_RESULT contract ==="
+echo ""
+
+# Build a temporary migrations dir with a stub migration that emits the sentinel
+echo "Test: migration emitting MIGRATION_RESULT: no_op_pending stays unapplied"
+REPO=$(mktemp -d "$TMPDIR_BASE/no-op-XXXXXX")
+mkdir -p "$REPO/.git" "$REPO/meta"
+STUB_DIR=$(mktemp -d "$TMPDIR_BASE/stubmigs-XXXXXX")
+cat > "$STUB_DIR/9001-stub-no-op.sh" << 'STUB'
+#!/usr/bin/env bash
+# DESCRIPTION: stub migration that defers via the no_op_pending sentinel
+echo "MIGRATION_RESULT: no_op_pending"
+exit 0
+STUB
+chmod +x "$STUB_DIR/9001-stub-no-op.sh"
+RC=0
+OUTPUT=$(cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$STUB_DIR" \
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+APPLIED=$(cat "$REPO/meta/.migrations-applied" 2>/dev/null || echo "")
+assert_not_contains "stub NOT recorded as applied" "9001-stub-no-op" "$APPLIED"
+# Sentinel is stripped from the user-visible output
+assert_not_contains "sentinel hidden from user" "MIGRATION_RESULT:" "$OUTPUT"
+
+echo "Test: stub stays pending across re-runs"
+RC=0
+OUTPUT=$(cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$STUB_DIR" \
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+assert_contains "stub still listed as about-to-apply" "9001-stub-no-op" "$OUTPUT"
+
+echo "Test: 0-exit migration WITHOUT sentinel IS recorded"
+STUB2_DIR=$(mktemp -d "$TMPDIR_BASE/stubmigs2-XXXXXX")
+cat > "$STUB2_DIR/9002-stub-applied.sh" << 'STUB'
+#!/usr/bin/env bash
+# DESCRIPTION: stub migration that records as applied
+echo "did some work"
+exit 0
+STUB
+chmod +x "$STUB2_DIR/9002-stub-applied.sh"
+REPO=$(mktemp -d "$TMPDIR_BASE/applied-XXXXXX")
+mkdir -p "$REPO/.git" "$REPO/meta"
+RC=0
+cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$STUB2_DIR" \
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+assert_eq "exit 0" "0" "$RC"
+APPLIED=$(cat "$REPO/meta/.migrations-applied" 2>/dev/null || echo "")
+assert_contains "stub recorded as applied" "9002-stub-applied" "$APPLIED"
+
+# ============================================================
+echo ""
+echo "=== Pre-run banner ==="
+echo ""
+
+echo "Test: banner appears when at least one pending migration"
+REPO=$(setup_old_repo)
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+assert_contains "banner present" "About to apply" "$OUTPUT"
+assert_contains "commit-before-running warning" "your working tree before running" "$OUTPUT"
+assert_contains "skip hint per migration" "To skip:" "$OUTPUT"
+
+echo "Test: banner suppressed when no pending migrations"
+REPO=$(mktemp -d "$TMPDIR_BASE/empty-XXXXXX")
+mkdir -p "$REPO/.git" "$REPO/meta"
+printf '0001-rename-tickets-to-work\n' > "$REPO/meta/.migrations-applied"
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+assert_not_contains "no banner" "About to apply" "$OUTPUT"
+
 test_summary

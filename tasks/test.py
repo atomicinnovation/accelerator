@@ -43,6 +43,10 @@ def integration(context: Context):
     context.run("scripts/test-format.sh")
     print("\n")
 
+    print("Running atomic-common utility tests...")
+    context.run("scripts/test-atomic-common.sh")
+    print("\n")
+
     print("Running migration framework tests...")
     context.run("skills/config/migrate/scripts/test-migrate.sh")
     print("\n")

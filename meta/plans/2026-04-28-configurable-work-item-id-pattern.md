@@ -1589,12 +1589,12 @@ Tests at `scripts/test-atomic-common.sh` (new):
 
 #### Automated Verification
 
-- [ ] All migrate tests pass: `bash skills/config/migrate/scripts/test-migrate.sh`
-- [ ] Existing `0001-rename-tickets-to-work` migration still applies
+- [x] All migrate tests pass: `bash skills/config/migrate/scripts/test-migrate.sh`
+- [x] Existing `0001-rename-tickets-to-work` migration still applies
       cleanly on a fresh repo
-- [ ] `meta/.migrations-applied` format is unchanged (byte-equality
+- [x] `meta/.migrations-applied` format is unchanged (byte-equality
       check against a pre-Phase-5 reference state file)
-- [ ] Full integration suite passes: `mise run test`
+- [x] Full integration suite passes: `mise run test`
 
 #### Manual Verification
 
