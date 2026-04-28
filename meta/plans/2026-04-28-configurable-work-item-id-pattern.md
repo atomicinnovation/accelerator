@@ -1360,8 +1360,13 @@ configured).
 #### Automated Verification
 
 - [ ] `extract-work-items` evals pass at ≥95% (skill-creator threshold)
-- [ ] Full integration suite passes: `mise run test`
-- [ ] Eval-structure validation passes: `bash scripts/test-evals-structure.sh`
+      — deferred: new eval fixtures land alongside the runner work in
+      a follower PR. The mixed-project-batch.md fixture is committed
+      to anchor the SKILL.md prose; the remaining fixtures and
+      expected-output assertions rely on the eval-runner mode-tagging
+      contract from Phase 3 §6 which is itself deferred.
+- [x] Full integration suite passes: `mise run test`
+- [x] Eval-structure validation passes: `bash scripts/test-evals-structure.sh`
 
 #### Manual Verification
 
@@ -1370,11 +1375,12 @@ configured).
       `work.default_project_code: "PROJ"`. The skill presents a table,
       accepts an amendment of two rows to `OTHER`, and writes
       `PROJ-0001-…`, `OTHER-0001-…`, `PROJ-0002-…` (numbers
-      allocated per project, in presentation order)
+      allocated per project, in presentation order) — driven through
+      the model running the skill; verified by user during /extract-work-items.
 - [ ] Decline at the table prompt → no files written, no numbers
-      consumed
+      consumed — same: user-verified at runtime.
 - [ ] Introduce a slug collision against a legacy file → batch aborts
-      with a clear message identifying the colliding slug
+      with a clear message identifying the colliding slug — same.
 
 ## Phase 5: Migration Framework — Skip-Tracking
 

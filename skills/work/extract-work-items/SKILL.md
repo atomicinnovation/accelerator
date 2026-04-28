@@ -344,52 +344,127 @@ in Step 4 after all approvals — enriched and thin — are collected.
    a. **Compute target slugs** — for each approved draft, derive a meaningful
       kebab-case slug from its title.
 
-   b. **Create the work items directory** if it does not exist.
-
-   c. **Verify all N target slugs are free** before allocating any numbers.
-      Numbers are not yet known, so check by slug pattern: for each approved
-      draft's slug, confirm that no file matching
-      `{work_dir}/[0-9][0-9][0-9][0-9]-{slug}.md` already exists. If any
-      slug collides, report which slugs collide and which existing files
-      they match, abort without calling `work-item-next-number.sh`, and ask
-      the user to resolve the collision (rename or remove) before re-running.
-
-   d. **Call `work-item-next-number.sh --count N` exactly once**:
+   b. **Read configuration**:
       ```
-      ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-next-number.sh --count N
+      PATTERN=$(${CLAUDE_PLUGIN_ROOT}/scripts/config-read-value.sh work.id_pattern "{number:04d}")
+      DEFAULT_PROJECT=$(${CLAUDE_PLUGIN_ROOT}/scripts/config-read-value.sh work.default_project_code "")
       ```
-      If the script exits non-zero (e.g., 9999 overflow), abort immediately
-      and surface the error message verbatim — do not write any files. The
-      script may emit partial numbers on stdout before exiting non-zero;
-      ignore those numbers and write nothing.
 
-   e. **Substitute sequential numbers** into approved drafts in their
-      original presented order — the first approved draft (lowest position
-      in the candidate list) receives the first number, and so on. Do not
-      reorder by approval timestamp or by user selection order.
+   c. **Suggest projected IDs**: if `PATTERN` contains `{project}`, the
+      default project for each row is `DEFAULT_PROJECT` (warn and require
+      user amendment if `DEFAULT_PROJECT` is empty). If `PATTERN` lacks
+      `{project}`, no project column is shown.
 
-   f. **Write all N work item files**. Each work item's `References` section must
-      include all source document paths the item was extracted from. For
-      deduplicated items that appeared in multiple documents, list every
-      contributing source under `References`, one per line.
+      Compute *display-only* projected IDs by calling, per distinct
+      project code:
+      ```
+      ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-next-number.sh --project <code> --count <count-for-that-project>
+      ```
+      These calls do not commit numbers; the same call is re-issued after
+      every amendment to keep the table accurate.
 
-   g. If a write error occurs mid-batch: report which numbers were allocated,
-      which files were written successfully, and which were not — so the user
-      can manually write the missing files with their pre-assigned numbers.
-      Do not retry writes silently and do not call `work-item-next-number.sh`
-      again to re-allocate; the original allocation stands. The user needs
-      to know the exact state.
+   d. **Present an amendment table**:
+
+      ```
+      | # | Slug       | Project | Projected ID |
+      | 1 | add-foo    | PROJ    | PROJ-0001    |
+      | 2 | fix-bar    | PROJ    | PROJ-0002    |
+      | 3 | update-baz | PROJ    | PROJ-0003    |
+
+      Amend any rows? (`<rows> <PROJECT>` to set, `<rows> -` to revert to
+      default, `?` for help, `q` to cancel, blank to confirm.)
+      ```
+
+      When `PATTERN` lacks `{project}`, omit the `Project` column and
+      render only `| # | Slug | Projected ID |`. The amendment prompt is
+      not shown in that case — proceed directly to confirmation.
+
+      **Amendment grammar** (canonical — same wording in every state):
+
+      - `<rows>`: one row number (`2`) or comma-separated list (`2,3,7`).
+        Whitespace around commas is permitted (`2, 3, 7`) and trimmed.
+      - `<PROJECT>`: a project code matching `[A-Za-z][A-Za-z0-9]*`.
+      - `<rows> -`: revert the named rows to the default project code
+        (or to "no project" when no default is set).
+      - `?`: re-display the amendment grammar reference plus the
+        unchanged table; no state change.
+      - `q`: cancel the entire flow with no files written and no numbers
+        allocated.
+      - Blank input: confirms the current table state.
+
+      **Validation**: out-of-range row numbers re-prompt with
+      `error: row N — out of range (valid: 1-M)` without applying any
+      other amendments in the same input. Invalid project codes
+      re-prompt with `error: row N — project value "<value>" must
+      match [A-Za-z][A-Za-z0-9]*` and discard the entire input
+      (no partial application). Unrecognised commands re-prompt with
+      `error: unrecognised input. Type ? for help.` On any rejection
+      the table reverts to its last valid state.
+
+      After every accepted amendment, recompute projected IDs by
+      re-issuing the per-project allocator calls (display only).
+
+   e. **Project-aware slug-collision check** before any allocation. For
+      each row, glob:
+      - When the pattern has `{project}`:
+        `{work_dir}/<project>-*-<slug>.md` for the row's project — a
+        same-slug file under the *same* project is a real collision.
+      - Always (legacy fallback):
+        `{work_dir}/[0-9][0-9][0-9][0-9]-<slug>.md` — a same-slug legacy
+        file shadows the new file regardless of project.
+
+      Within the same batch, two amendments to the same project with
+      the same slug are also a collision. Same slug under different
+      projects (`PROJ-0001-add-foo.md` and `OTHER-0001-add-foo.md`) is
+      legitimate and not a collision.
+
+      If any collision is detected, report which slugs collide and
+      which existing files they match, abort without calling the
+      allocator, and ask the user to resolve the collision before
+      re-running.
+
+   f. **Allocate per distinct project code**, in original presentation
+      order:
+      ```
+      ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-next-number.sh --project <code> --count <count>
+      ```
+      One call per distinct project code; `--project` is omitted when
+      the pattern lacks `{project}`. If any allocator call exits
+      non-zero, abort immediately and surface the error verbatim — do
+      not write any files. The whole batch fails atomically.
+
+   g. **Substitute the allocated full IDs** into approved drafts in
+      their original presented order. Within a single project, the
+      first row in presentation order takes the first allocated
+      number; multiple projects each preserve their own ordering. The
+      `work_item_id` frontmatter is **always quoted** (`"PROJ-0001"`).
+
+   h. **Write all N work item files**. Each work item's `References`
+      section must include all source document paths the item was
+      extracted from. For deduplicated items that appeared in multiple
+      documents, list every contributing source under `References`,
+      one per line.
+
+   i. If a write error occurs mid-batch: report which numbers were
+      allocated, which files were written successfully, and which were
+      not — so the user can manually write the missing files with
+      their pre-assigned IDs. Do not retry writes silently and do not
+      call the allocator again to re-allocate; the original allocation
+      stands. The user needs to know the exact state.
 
 4. **Print a summary table**:
 
 ```
 Created the following work items:
-| Number | Title | File |
-|--------|-------|------|
-| 0001   | [title] | `{work_dir}/0001-slug.md` |
-| 0002   | [title] | `{work_dir}/0002-slug.md` |
+| ID         | Title   | File                                 |
+|------------|---------|--------------------------------------|
+| PROJ-0001  | [title] | `{work_dir}/PROJ-0001-slug.md`       |
+| OTHER-0001 | [title] | `{work_dir}/OTHER-0001-slug.md`      |
 ...
 ```
+
+Under the default `{number:04d}` pattern the ID column shows
+`0001`, `0002`, etc., and no project amendment table appears.
 
 ## Quality Guidelines
 
@@ -403,7 +478,15 @@ Created the following work items:
   stdout before failing, treat the entire batch as failed.
 - Verify all target slugs are free BEFORE calling `work-item-next-number.sh` —
   collision checks happen before number allocation, by slug pattern, since
-  numbers are not yet known.
+  numbers are not yet known. Under a `{project}` pattern the collision
+  check is **project-aware**: the same slug under two different project
+  codes (`PROJ-0001-add-foo.md` and `OTHER-0001-add-foo.md`) is
+  legitimate. Same-slug legacy `NNNN-{slug}.md` files always count as a
+  collision.
+- Under a `{project}` pattern, the amendment table prompts the user
+  to assign or override project codes per row before allocation. The
+  display-only projected IDs are recomputed after every amendment.
+  No numbers are committed until the user confirms with blank input.
 - Numbers are assigned to approved drafts in their original presented
   order, not in approval timestamp order. This makes outputs deterministic
   and matches the order the user reviewed.
