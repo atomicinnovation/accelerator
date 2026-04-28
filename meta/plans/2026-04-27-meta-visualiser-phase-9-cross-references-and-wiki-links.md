@@ -1399,10 +1399,10 @@ Tests in `src/components/MarkdownRenderer/MarkdownRenderer.test.tsx`
 
 #### Automated Verification
 
-- [ ] `npm test -- MarkdownRenderer` passes (existing + new cases).
-- [ ] `npm test -- wiki-link-plugin` passes.
-- [ ] `npm run typecheck` is clean.
-- [ ] `npm run lint` is clean.
+- [x] `npm test -- MarkdownRenderer` passes (existing + new cases).
+- [x] `npm test -- wiki-link-plugin` passes.
+- [x] `npm run typecheck` is clean.
+- [x] `npm run lint` is clean.
 
 ---
 
