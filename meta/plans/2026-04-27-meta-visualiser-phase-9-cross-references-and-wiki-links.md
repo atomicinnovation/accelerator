@@ -3,7 +3,7 @@ date: "2026-04-27T00:00:00Z"
 type: plan
 skill: create-plan
 ticket: null
-status: draft
+status: implemented
 ---
 
 # Phase 9 — Cross-references and wiki-links implementation plan
@@ -2137,12 +2137,12 @@ data immediately.
 
 #### Automated Verification
 
-- [ ] `cargo test -p accelerator-visualiser` is fully green.
-- [ ] `npm test` is fully green (including the new smoke test).
-- [ ] `cargo clippy -p accelerator-visualiser` is clean.
-- [ ] `cargo fmt --check` is clean.
-- [ ] `npm run typecheck` is clean.
-- [ ] `npm run lint` is clean.
+- [x] `cargo test -p accelerator-visualiser` is fully green.
+- [x] `npm test` is fully green (including the new smoke test).
+- [x] `cargo clippy -p accelerator-visualiser` is clean.
+- [x] `cargo fmt --check` is clean.
+- [x] `npm run typecheck` is clean.
+- [x] `npm run lint` is clean.
 
 #### Manual Verification
 

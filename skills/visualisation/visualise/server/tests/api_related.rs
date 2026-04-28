@@ -471,6 +471,45 @@ async fn related_endpoint_returns_empty_outbound_after_target_deletion() {
     );
 }
 
+// ── Step 7.1 ───────────────────────────────────────────────────────────────
+#[tokio::test]
+async fn related_endpoint_returns_multiple_inbound_reviews() {
+    let tmp = tempfile::tempdir().unwrap();
+    let plans = tmp.path().join("meta/plans");
+    let reviews = tmp.path().join("meta/reviews/plans");
+    std::fs::create_dir_all(&plans).unwrap();
+    std::fs::create_dir_all(&reviews).unwrap();
+    std::fs::write(plans.join("2026-01-01-first-plan.md"), "---\ntitle: First\n---\n").unwrap();
+    std::fs::write(
+        reviews.join("2026-01-01-first-plan-review-1.md"),
+        "---\ntarget: \"meta/plans/2026-01-01-first-plan.md\"\n---\n",
+    )
+    .unwrap();
+    std::fs::write(
+        reviews.join("2026-01-01-first-plan-review-2.md"),
+        "---\ntarget: \"meta/plans/2026-01-01-first-plan.md\"\n---\n",
+    )
+    .unwrap();
+    let mut paths = HashMap::new();
+    paths.insert("plans".into(), plans);
+    paths.insert("review_plans".into(), reviews);
+    let cfg = cfg_with_only(tmp.path(), paths);
+    let (_state, app) = build_app(cfg).await;
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/related/meta/plans/2026-01-01-first-plan.md")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = json_body(res).await;
+    let inbound = body["declaredInbound"].as_array().unwrap();
+    assert_eq!(inbound.len(), 2, "both reviews must appear in declaredInbound");
+}
+
 // ── Step 2.14 ──────────────────────────────────────────────────────────────
 #[tokio::test]
 async fn related_endpoint_validates_decoded_path_segments() {
