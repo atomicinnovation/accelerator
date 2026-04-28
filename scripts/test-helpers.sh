@@ -103,6 +103,30 @@ assert_stderr_contains() {
   fi
 }
 
+assert_contains() {
+  local test_name="$1" haystack="$2" needle="$3"
+  if echo "$haystack" | grep -qF "$needle"; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected to contain: $(printf '%q' "$needle")"
+    echo "    Actual: $(printf '%q' "$haystack")"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_dir_absent() {
+  local test_name="$1" path="$2"
+  if [ ! -d "$path" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name — directory exists: $path"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
 test_summary() {
   echo ""
   echo "=== Results ==="

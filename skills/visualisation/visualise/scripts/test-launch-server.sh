@@ -22,8 +22,8 @@ ARCH_RAW="$(uname -m)"
 case "$OS_RAW" in darwin) OS="darwin" ;; linux) OS="linux" ;; *) OS="$OS_RAW" ;; esac
 case "$ARCH_RAW" in arm64|aarch64) ARCH="arm64" ;; x86_64) ARCH="x64" ;; *) ARCH="$ARCH_RAW" ;; esac
 
-# All test projects get .jj so find_repo_root succeeds.
-make_project() { local d="$1"; mkdir -p "$d/.jj" "$d/.claude"; }
+# All test projects get .jj so find_repo_root succeeds, plus the init sentinel.
+make_project() { local d="$1"; mkdir -p "$d/.jj" "$d/.claude" "$d/meta/tmp"; : > "$d/meta/tmp/.gitignore"; }
 
 echo "=== launch-server.sh (Phase 2) ==="
 echo ""
@@ -251,6 +251,53 @@ RC=0; ERR="$TMPDIR_BASE/t-bados.err"
 PATH="$FAKE_BINS:$PATH" bash "$LAUNCH_SERVER" >/dev/null 2>"$ERR" || RC=$?
 assert_eq "badplatform: exit code" "1" "$RC"
 assert_json_eq "badplatform: error field" ".error" "unsupported platform" "$ERR"
+unset ACCELERATOR_VISUALISER_BIN
+cd "$ORIG_DIR"
+
+# ─── 13. uninitialised project is rejected ───────────────────────
+echo "Test: uninitialised project (no sentinel) → rejected with JSON error"
+PROJ="$TMPDIR_BASE/t-uninit"
+mkdir -p "$PROJ/.jj" "$PROJ/.claude" "$PROJ/meta/tmp"
+cd "$PROJ"
+unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
+RC=0; ERR="$TMPDIR_BASE/t-uninit.err"
+bash "$LAUNCH_SERVER" >/dev/null 2>"$ERR" || RC=$?
+assert_eq "uninit: exit code" "1" "$RC"
+UNINIT_ERR="$(jq -r '.error // empty' "$ERR" 2>/dev/null)"
+UNINIT_HINT="$(jq -r '.hint // empty' "$ERR" 2>/dev/null)"
+assert_eq "uninit: error field" "accelerator not initialised" "$UNINIT_ERR"
+assert_contains "uninit: hint mentions /accelerator:init" "$UNINIT_HINT" "/accelerator:init"
+assert_contains "uninit: hint mentions project root" "$UNINIT_HINT" "$PROJ"
+assert_dir_absent "uninit: no visualiser tmp dir created" "$PROJ/meta/tmp/visualiser"
+cd "$ORIG_DIR"
+
+# ─── 14. initialised project proceeds past sentinel ──────────────
+echo "Test: initialised project proceeds past sentinel check"
+PROJ="$TMPDIR_BASE/t-initok"; make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-initok"; make_fake_visualiser "$FAKE"
+cd "$PROJ"
+export ACCELERATOR_VISUALISER_BIN="$FAKE"
+OUT="$TMPDIR_BASE/t-initok.out"
+RC=0; bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
+assert_eq "initok: exit code" "0" "$RC"
+unset ACCELERATOR_VISUALISER_BIN
+cd "$ORIG_DIR"
+
+# ─── 15. sentinel deletion does not kill already-running server ──
+echo "Test: sentinel deletion mid-session → reuse short-circuit still works"
+PROJ="$TMPDIR_BASE/t-sentdel"; make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-sentdel"; make_fake_visualiser "$FAKE"
+cd "$PROJ"
+export ACCELERATOR_VISUALISER_BIN="$FAKE"
+bash "$LAUNCH_SERVER" >/dev/null 2>/dev/null || true
+# Delete the sentinel after the server is running.
+rm -f "$PROJ/meta/tmp/.gitignore"
+OUT="$TMPDIR_BASE/t-sentdel.out"
+RC=0; bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
+assert_eq "sentdel: exit code" "0" "$RC"
+URL="$(grep '^\*\*Visualiser URL\*\*:' "$OUT" 2>/dev/null | sed 's/\*\*Visualiser URL\*\*: //')" || true
+URLMATCH="$(echo "$URL" | grep -cE '^http://127\.0\.0\.1:[0-9]+/?$')" || true
+assert_eq "sentdel: URL still returned" "1" "$URLMATCH"
 unset ACCELERATOR_VISUALISER_BIN
 cd "$ORIG_DIR"
 

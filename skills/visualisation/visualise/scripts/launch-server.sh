@@ -15,8 +15,6 @@ cd "$PROJECT_ROOT"
 
 TMP_REL="$("$PLUGIN_ROOT/scripts/config-read-path.sh" tmp meta/tmp)"
 TMP_DIR="$PROJECT_ROOT/$TMP_REL/visualiser"
-mkdir -p "$TMP_DIR"
-chmod 0700 "$TMP_DIR" 2>/dev/null || true
 
 INFO="$TMP_DIR/server-info.json"
 PID_FILE="$TMP_DIR/server.pid"
@@ -24,6 +22,37 @@ LOG_FILE="$TMP_DIR/server.log"
 CFG="$TMP_DIR/config.json"
 STOPPED="$TMP_DIR/server-stopped.json"
 LOCK="$TMP_DIR/launcher.lock"
+
+# Reuse short-circuit with (pid, start_time) identity cross-check.
+# Runs before the sentinel check so an already-running server is not
+# killed by a transient sentinel deletion.
+if [ -d "$TMP_DIR" ] && [ -f "$INFO" ] && [ -f "$PID_FILE" ]; then
+  EXISTING_PID="$(tr -cd '0-9' < "$PID_FILE")"
+  EXPECTED_START="$(jq -r '.start_time // empty' "$INFO" 2>/dev/null || true)"
+  if [ -n "$EXISTING_PID" ] && kill -0 "$EXISTING_PID" 2>/dev/null; then
+    if [ -z "$EXPECTED_START" ] || [ "$(start_time_of "$EXISTING_PID" 2>/dev/null || echo '')" = "$EXPECTED_START" ]; then
+      URL="$(jq -r '.url // empty' "$INFO" 2>/dev/null || true)"
+      if [[ "$URL" =~ ^http://127\.0\.0\.1:[0-9]+/?$ ]]; then
+        echo "**Visualiser URL**: $URL"
+        exit 0
+      fi
+    fi
+  fi
+  rm -f "$INFO" "$PID_FILE"
+fi
+
+# Init sentinel: reject launches in projects that haven't run /accelerator:init.
+SENTINEL="$PROJECT_ROOT/$TMP_REL/.gitignore"
+if [ ! -f "$SENTINEL" ]; then
+  die_json "$(jq -nc \
+    --arg error 'accelerator not initialised' \
+    --arg hint "run /accelerator:init in $PROJECT_ROOT before launching the visualiser" \
+    --arg root "$PROJECT_ROOT" \
+    '{error:$error,hint:$hint,project_root:$root}')"
+fi
+
+mkdir -p "$TMP_DIR"
+chmod 0700 "$TMP_DIR" 2>/dev/null || true
 
 # Serialise concurrent invocations.
 if command -v flock >/dev/null 2>&1; then
@@ -42,21 +71,6 @@ else
   trap 'rmdir "$LOCK.d" 2>/dev/null || true' EXIT
 fi
 
-# Reuse short-circuit with (pid, start_time) identity cross-check.
-if [ -f "$INFO" ] && [ -f "$PID_FILE" ]; then
-  EXISTING_PID="$(tr -cd '0-9' < "$PID_FILE")"
-  EXPECTED_START="$(jq -r '.start_time // empty' "$INFO" 2>/dev/null || true)"
-  if [ -n "$EXISTING_PID" ] && kill -0 "$EXISTING_PID" 2>/dev/null; then
-    if [ -z "$EXPECTED_START" ] || [ "$(start_time_of "$EXISTING_PID" 2>/dev/null || echo '')" = "$EXPECTED_START" ]; then
-      URL="$(jq -r '.url // empty' "$INFO" 2>/dev/null || true)"
-      if [[ "$URL" =~ ^http://127\.0\.0\.1:[0-9]+/?$ ]]; then
-        echo "**Visualiser URL**: $URL"
-        exit 0
-      fi
-    fi
-  fi
-  rm -f "$INFO" "$PID_FILE"
-fi
 rm -f "$STOPPED"
 
 # Platform detection.

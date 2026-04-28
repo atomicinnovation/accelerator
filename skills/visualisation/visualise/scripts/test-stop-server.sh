@@ -17,7 +17,7 @@ trap '
   rm -rf "$TMPDIR_BASE"
 ' EXIT
 
-make_project() { local d="$1"; mkdir -p "$d/.jj" "$d/.claude"; }
+make_project() { local d="$1"; mkdir -p "$d/.jj" "$d/.claude" "$d/meta/tmp"; : > "$d/meta/tmp/.gitignore"; }
 
 launch_fake() {
   local proj="$1" fake="$2"
