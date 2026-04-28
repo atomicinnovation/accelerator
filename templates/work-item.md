@@ -1,5 +1,5 @@
 ---
-work_item_id: NNNN                           # from work-item-next-number.sh
+work_item_id: "NNNN"                         # from work-item-next-number.sh; always a quoted string
 title: "Title as Short Noun Phrase"          # human-readable title; kept in sync with body H1
 date: "YYYY-MM-DDTHH:MM:SS+00:00"            # date -u +%Y-%m-%dT%H:%M:%S+00:00
 author: Author Name                          # your name or GitHub handle

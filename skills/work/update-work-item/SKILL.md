@@ -39,19 +39,27 @@ predates that feature.
 
 ## Step 1: Identify Target Work Item
 
-Parse the first argument to determine the target work item.
+Parse the first argument and resolve via the configured pattern's
+resolver:
 
-- **Path-like** (contains `/` or ends in `.md`): treat as a file path.
-  If the file does not exist, print `"No work item at <path>."` and exit.
-- **Numeric**: treat as a work item number. Zero-pad to 4 digits, then
-  glob `{work_dir}/NNNN-*.md`.
-  - Zero matches: print `"No work item numbered NNNN found in
-    {work_dir}."` and exit.
-  - One match: use it.
-  - Multiple matches: list them as numbered options and ask the user to
-    select by number or specify the full path.
+```
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-resolve-id.sh <argument>
+```
+
+The resolver respects `work.id_pattern` and accepts paths, full IDs
+(`PROJ-0042`), and bare numbers (legacy or pattern-shape).
+
+- **Exit 0**: stdout is the absolute path; use it.
+- **Exit 1**: input was unrecognised. Print
+  `"Unrecognised input '<argument>' — pass a path, a full ID, or a
+  bare number."` and exit.
+- **Exit 2**: ambiguous match. The resolver lists every candidate with
+  a source-category tag. Show the list and ask the user to
+  disambiguate by re-running with a full ID or path.
+- **Exit 3**: no match. Print `"No work item matching <argument>."` and
+  exit.
 - **No argument**: ask the user which work item to update. Accept the
-  response in the same two forms (number or path).
+  response and run the resolver against it.
 
 ## Step 2: Read Current Frontmatter
 
@@ -123,18 +131,25 @@ user choose.
 ### Special field rules
 
 **`work_item_id` — hard-blocked**: print `"Error: work_item_id cannot be
-changed — the filename prefix is the authoritative work item number. To
-renumber a work item, rename the file (e.g. jj mv) and update work_item_id to
-match."` No diff, no write, no confirmation prompt.
+changed — the filename prefix is the authoritative work item ID. To
+renumber a work item, rename the file (e.g. jj mv) and update
+work_item_id to match. The work_item_id field is always a quoted
+string."` No diff, no write, no confirmation prompt.
 
 **`date` — warned**: print `"date records the work item's creation time and
 is typically not edited. Proceed anyway? (y/n)"`. If the user confirms,
 proceed through the normal diff-and-confirm flow. If declined, print
 "No changes applied." and exit.
 
-**`parent` — canonicalised**: normalise the value to a zero-padded
-4-digit quoted string before writing (e.g. `1` → `"0001"`,
-`42` → `"0042"`).
+**`parent` — canonicalised**: normalise the value via
+`work-item-common.sh:wip_canonicalise_id` before writing. The
+canonicaliser produces the full ID under the configured pattern,
+quoted as a string. Examples:
+
+- Default `{number:04d}`: `1` → `"0001"`, `42` → `"0042"`.
+- `{project}-{number:04d}` with `default_project_code: PROJ`:
+  `1` → `"PROJ-0001"`, `PROJ-0042` → `"PROJ-0042"`,
+  `0042` (legacy) → `"PROJ-0042"` (canonical form).
 
 ### No-op detection
 If the computed new value equals the current value:

@@ -21,6 +21,8 @@ accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
 **Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
+**Work item ID pattern**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-value.sh work.id_pattern "{number:04d}"`
+**Default project code**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-value.sh work.default_project_code ""`
 
 ## Work Item Template
 
@@ -106,12 +108,17 @@ If no argument was provided: filter is "all work items, no filter".
    ```
    and exit cleanly.
 
-2. List all files matching the glob `[0-9][0-9][0-9][0-9]-*.md` in
-   `{work_dir}`. Files that do not match this pattern (e.g.
-   `README.md`, `notes.txt`, `000-missing-digit.md`, subdirectories)
-   are silently excluded.
+2. List all `*.md` files in `{work_dir}`. The discovery glob is broadened
+   from a literal numeric prefix to `*.md` because the work-item ID
+   pattern is configurable (`work.id_pattern`) and legacy `NNNN-*.md`
+   files may coexist with project-coded files (`PROJ-NNNN-*.md`) during
+   a pattern transition. A file is treated as a work item iff
+   `work-item-common.sh:wip_is_work_item_file` returns success — that is,
+   the file has YAML frontmatter and a non-empty `work_item_id` field.
+   Files lacking either are silently excluded; files with malformed
+   frontmatter emit a one-line warning to stderr and are skipped.
 
-3. If no matching files exist, print:
+3. If no work-item files exist after filtering, print:
    ```
    No work items found in `{work_dir}`.
    ```
@@ -122,9 +129,13 @@ If no argument was provided: filter is "all work items, no filter".
    individually would be too slow. Instead, use a single Bash command
    to extract the frontmatter fields from every matching file at once.
 
-   Example approach — run one `awk` command across all matched files:
+   Example approach — run one `awk` command across all `*.md` files:
    ```bash
-   for f in {work_dir}/[0-9][0-9][0-9][0-9]-*.md; do
+   for f in {work_dir}/*.md; do
+     # Filter to true work items via wip_is_work_item_file
+     if ! bash -c "source ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-common.sh && wip_is_work_item_file '$f'"; then
+       continue
+     fi
      awk -v file="$f" '
        NR==1 && /^---[[:space:]]*$/ { in_fm=1; next }
        NR==1 { print file "\tERROR\tno frontmatter"; exit }
@@ -143,10 +154,26 @@ If no argument was provided: filter is "all work items, no filter".
      `"<filename>: skipped — no frontmatter"` and exclude the file.
    - Lines containing `ERROR	unclosed frontmatter`: warn
      `"<filename>: skipped — unclosed frontmatter"` and exclude.
-   - For each valid file, derive the work item number from the filename
-     prefix (`0042-foo.md` → `0042`). The filename prefix is the
-     authoritative work item number, even if `work_item_id` in frontmatter
-     differs.
+   - For each valid file, derive the work item ID from the filename via
+     `wip_extract_id_from_filename`. The compiled scan regex respects
+     the configured `work.id_pattern`; a legacy `0042-foo.md` file
+     under a `{project}-{number:04d}` pattern is matched by a
+     legacy-fallback path so the file remains visible in the listing.
+     The filename prefix remains the authoritative work item ID, even
+     if `work_item_id` in frontmatter differs.
+
+5. **Mixed-prefix discoverability hint**: when the listing detects both
+   files matching the legacy `[0-9]{4}-` shape AND files matching the
+   configured `{project}` pattern in the same corpus, prepend a single
+   informational line to the output before the table:
+
+   ```
+   note: mixed prefix corpus detected — N legacy items, M project-prefixed
+   items. Run /accelerator:migrate to normalise.
+   ```
+
+   The note appears once per invocation (not per file) and is suppressed
+   when the configured pattern lacks `{project}`.
 
 5. From the extracted frontmatter lines, parse these fields for each
    work item (all optional — missing fields are recorded as absent, not
@@ -171,10 +198,17 @@ Apply the parsed filter from Step 1 to the scanned work items.
   filter value. Work items with `tags: []`, empty `tags:`, or absent `tags`
   field do not match (and are not errors).
 - **Parent filter** (`under X`): normalise both the filter value and
-  each work item's `parent` field before comparison — strip quotes and
-  leading zeros, then zero-pad to 4 digits. So `parent: "0042"`,
+  each work item's `parent` field via
+  `work-item-common.sh:wip_canonicalise_id` before comparison. The
+  canonicaliser strips quotes, accepts short and long forms, and
+  zero-pads to the configured pattern's width (or pre-pends the
+  default project code when the pattern requires `{project}` and the
+  input is a bare number). So under default config `parent: "0042"`,
   `parent: 0042`, `parent: 42`, and `parent: "42"` all match
-  `under 0042` or `under 42`.
+  `under 0042` or `under 42`. Under `{project}-{number:04d}` config
+  with `default_project_code: PROJ`, `parent: "PROJ-0042"`,
+  `parent: "0042"` (legacy), and `parent: 42` all canonicalise to
+  `PROJ-0042` and match `under PROJ-0042` or `under 42`.
 - **Free-text title search** (`about X` or rule 5): case-insensitive
   substring match against the `title:` frontmatter value. Work items
   without a `title` field are excluded.
@@ -270,8 +304,10 @@ All work items (29 total)
   must not crash the listing — warn using the resolved filename and
   continue. Warning phrasing should match `work-item-read-field.sh`:
   "no frontmatter" / "unclosed frontmatter".
-- **Filename is authoritative**: the NNNN prefix from the filename is
-  the work item number, even if `work_item_id` in frontmatter differs.
+- **Filename is authoritative**: the ID extracted from the filename
+  (via `wip_extract_id_from_filename`) is the work item ID, even if
+  `work_item_id` in frontmatter differs. This applies to both legacy
+  bare-number filenames and project-coded filenames.
 - **Hierarchy safety**: hierarchy rendering must terminate in bounded
   time even if parent cycles exist. Detect cycles and render affected
   work items flat with a marker.

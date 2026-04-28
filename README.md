@@ -181,8 +181,9 @@ review:
 
 The YAML frontmatter supports `agents` (override which agents skills spawn),
 `review` (customise review behaviour), `paths` (override where skills write
-output documents), and `templates` (point to custom document templates). See
-`/accelerator:configure help` for the full key reference.
+output documents), `templates` (point to custom document templates), and
+`work` (customise work-item ID filename pattern and default project code).
+See `/accelerator:configure help` for the full key reference.
 
 ### Template Management
 
@@ -263,7 +264,13 @@ directory names. See `/accelerator:configure help` for the full reference.
 ## Work Item Management
 
 Work item skills capture work items — features, bugs, tasks, spikes, and epics —
-as structured documents that feed into planning:
+as structured documents that feed into planning. The filename prefix
+defaults to a 4-digit number (`meta/work/0042-add-search.md`) but is
+configurable via `work.id_pattern` and `work.default_project_code` —
+e.g. `{project}-{number:04d}` with `default_project_code: PROJ` produces
+`meta/work/PROJ-0042-add-search.md`. See
+`skills/config/configure/SKILL.md > work` for the full pattern DSL and
+type contract.
 
 ```
 existing docs (specs, PRDs, notes)

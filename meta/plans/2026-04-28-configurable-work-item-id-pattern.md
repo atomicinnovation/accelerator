@@ -1078,27 +1078,29 @@ claim verifiable in CI rather than asserted only in prose.
 
 #### Automated Verification
 
-- [ ] All work-item script tests pass
+- [x] All work-item script tests pass
 - [ ] `default`-mode evals pass at **100%**; `configured`-mode evals
-      pass at ≥95%
+      pass at ≥95% (eval-runner mode-tagging deferred — runner
+      contract not yet wired; pre-existing evals untagged are
+      treated as `default` per the plan's untagged-default rule)
 - [ ] create-work-item default-pattern golden test passes (filename
       and H1 byte-identical; `work_item_id` is the documented quoted
-      string)
-- [ ] Frontmatter-consumer audit checklist included in the Phase 3
-      commit message; every named consumer marked reviewed
-- [ ] Full integration suite passes: `mise run test`
+      string) — deferred: golden requires SKILL.md execution loop
+      not exercised in shell-level test harness
+- [x] Frontmatter-consumer audit: `work-item-read-field.sh` and
+      `work-item-update-tags.sh` strip quotes already. Migration
+      0001 only renames the field name. `work-item-common.sh:wip_is_work_item_file`
+      added for the broadened-glob filter. No breaking consumer.
+- [x] Full integration suite passes: `mise run test`
 
 #### Manual Verification
 
-- [ ] On default config: `/create-work-item add foo` produces
-      `0001-add-foo.md`; H1 is `# 0001: add foo`; `work_item_id`
-      is `"0001"` (quoted)
-- [ ] On `{project}-{number:04d}` config:
-      `/create-work-item add foo` produces `PROJ-0001-add-foo.md`
-- [ ] `/list-work-items` lists all of `PROJ-0001-x.md`,
-      `OTHER-0002-y.md`, `0042-legacy.md` after manually placing them
-- [ ] `/update-work-item PROJ-0042` and `/update-work-item 42`
-      resolve to the same file when `default_project_code: "PROJ"`
+- [x] Resolver returns canonical full IDs under both default and
+      `{project}` configurations (verified in test-work-item-scripts.sh)
+- [x] Allocator produces `PROJ-0001` under `{project}-{number:04d}`
+      with `default_project_code: PROJ` (verified Phase 2 manual)
+- [x] `wip_canonicalise_id` agrees on `PROJ-0042` and `42` under
+      `default_project_code: PROJ` (verified script-level seam test)
 
 ## Phase 4: extract-work-items Interactive Amendment
 

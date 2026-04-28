@@ -469,6 +469,92 @@ fi
 echo ""
 
 # ============================================================
+echo "=== Frontmatter consumer integration (quoted work_item_id) ==="
+echo ""
+
+# Source the common library so we can call wip_canonicalise_id directly
+# shellcheck source=work-item-common.sh
+source "$SCRIPT_DIR/work-item-common.sh"
+
+echo "Test: read-field tolerates quoted work_item_id under default config"
+REPO=$(setup_repo)
+mkdir -p "$REPO/meta/work"
+cat > "$REPO/meta/work/0001-foo.md" << 'FIXTURE'
+---
+work_item_id: "0001"
+title: "Foo"
+status: draft
+---
+
+# 0001: Foo
+FIXTURE
+OUTPUT=$(bash "$READ_FIELD" work_item_id "$REPO/meta/work/0001-foo.md")
+assert_eq "quoted ID returned unquoted" "0001" "$OUTPUT"
+
+echo "Test: read-field tolerates quoted full ID under {project} pattern"
+REPO=$(setup_repo)
+write_project_config "$REPO" "PROJ"
+mkdir -p "$REPO/meta/work"
+cat > "$REPO/meta/work/PROJ-0001-foo.md" << 'FIXTURE'
+---
+work_item_id: "PROJ-0001"
+title: "Foo"
+status: draft
+---
+
+# PROJ-0001: Foo
+FIXTURE
+OUTPUT=$(bash "$READ_FIELD" work_item_id "$REPO/meta/work/PROJ-0001-foo.md")
+assert_eq "quoted full ID returned unquoted" "PROJ-0001" "$OUTPUT"
+
+echo "Test: wip_is_work_item_file accepts quoted ID files"
+if wip_is_work_item_file "$REPO/meta/work/PROJ-0001-foo.md"; then
+  echo "  PASS: file recognised as work item"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: file should be recognised"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: wip_is_work_item_file rejects file without work_item_id"
+NOWI=$(mktemp "$TMPDIR_BASE/no-wid-XXXXXX.md")
+cat > "$NOWI" << 'FIXTURE'
+---
+title: "Foo"
+---
+FIXTURE
+if wip_is_work_item_file "$NOWI"; then
+  echo "  FAIL: file should be rejected"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: file without work_item_id rejected"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: wip_canonicalise_id under default pattern"
+OUT=$(wip_canonicalise_id "42" "{number:04d}" "")
+assert_eq "bare 42 → 0042" "0042" "$OUT"
+OUT=$(wip_canonicalise_id "0042" "{number:04d}" "")
+assert_eq "0042 → 0042" "0042" "$OUT"
+OUT=$(wip_canonicalise_id "\"0042\"" "{number:04d}" "")
+assert_eq "quoted 0042 → 0042 (quotes stripped)" "0042" "$OUT"
+
+echo "Test: wip_canonicalise_id under {project} pattern"
+OUT=$(wip_canonicalise_id "PROJ-0042" "{project}-{number:04d}" "PROJ")
+assert_eq "PROJ-0042 → PROJ-0042" "PROJ-0042" "$OUT"
+OUT=$(wip_canonicalise_id "42" "{project}-{number:04d}" "PROJ")
+assert_eq "bare 42 + PROJ default → PROJ-0042" "PROJ-0042" "$OUT"
+OUT=$(wip_canonicalise_id "\"PROJ-0042\"" "{project}-{number:04d}" "PROJ")
+assert_eq "quoted PROJ-0042 → PROJ-0042" "PROJ-0042" "$OUT"
+
+echo "Test: parent comparison via canonicalise — equality"
+A=$(wip_canonicalise_id "PROJ-0042" "{project}-{number:04d}" "PROJ")
+B=$(wip_canonicalise_id "42" "{project}-{number:04d}" "PROJ")
+assert_eq "PROJ-0042 ≡ 42" "$A" "$B"
+
+echo ""
+
+# ============================================================
 echo "=== work-item-read-status.sh ==="
 echo ""
 

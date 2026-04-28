@@ -32,19 +32,25 @@ collaboratively iterating the work item based on findings.
 
 When this command is invoked:
 
-1. **Check if a work item path or number was provided**:
+1. **Check if a work item path or ID was provided**: invoke the
+   resolver:
 
-   - **Path-like** (contains `/` or ends in `.md`): treat as a file path. If
-     the file does not exist, print `"No work item at <path>."` and offer to run
-     `/list-work-items` to find a valid path.
-   - **Numeric**: treat as a work item number. Zero-pad to 4 digits, then glob
-     `{work_dir}/NNNN-*.md`.
-     - Zero matches: print `"No work item numbered NNNN found in {work items
-       directory}."` and offer to run `/list-work-items`.
-     - One match: use it.
-     - Multiple matches: list them and ask the user to select.
-   - If a path or number was provided and resolves correctly, read the work item
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-resolve-id.sh <argument>
+   ```
+
+   The resolver respects `work.id_pattern` and accepts paths, full IDs
+   (`PROJ-0042`), and bare numbers.
+
+   - **Exit 0**: stdout is the absolute path. Read the work item
      immediately and FULLY, then begin the review process.
+   - **Exit 1**: unrecognised input. Print the resolver's error and
+     offer to run `/list-work-items`.
+   - **Exit 2**: ambiguous match. The resolver lists candidates with
+     source-category tags. Ask the user to disambiguate by re-running
+     with a full ID or path.
+   - **Exit 3**: no match. Print the resolver's error and offer to run
+     `/list-work-items`.
    - If optional focus arguments were provided (e.g., "focus on testability"),
      note them for lens selection.
 

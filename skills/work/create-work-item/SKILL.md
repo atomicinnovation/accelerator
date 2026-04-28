@@ -63,29 +63,32 @@ When this command is invoked:
 
 1. **If an argument was provided**:
 
-   First, **try to resolve the argument as a reference to an existing work
-   item**. The discriminator order is path-like → numeric.
+   First, **try to resolve the argument as a reference to an existing
+   work item** by invoking the resolver:
 
-   - **Path-like** — argument contains `/` or ends in `.md`: treat as a file
-     path. Resolve relative to the user's current working directory if
-     relative, or use the argument verbatim if absolute.
-     - File exists and resolves: continue to frontmatter validation below.
-     - File does not exist: print
-       `"No work item at <path> — interpreting as topic string. If that's
-       wrong, abort and re-run with a different argument (or
-       /list-work-items to find a valid path)."` and proceed to
-       topic-string handling below.
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-resolve-id.sh <argument>
+   ```
 
-   - **Numeric** — argument matches `^[0-9]+$`: zero-pad to 4 digits (or
-     use as-is if already ≥4) and glob `{work_dir}/NNNN-*.md`. The glob
-     is case-sensitive and does not recurse.
-     - One match: continue to frontmatter validation below.
-     - Multiple matches: list them as numbered options and ask the user to
-       select by number or specify the full path.
-     - Zero matches: print `"No work item numbered NNNN found in {work_dir}
-       — interpreting as topic string. If that's wrong, abort and re-run
-       with a different argument (or /list-work-items to find a valid
-       number)."` and proceed to topic-string handling below.
+   The resolver respects `work.id_pattern` and accepts paths, full IDs
+   (`PROJ-0042`), legacy bare numbers (`0042`), and short numbers (`42`,
+   resolved against `work.default_project_code` when set).
+
+   - **Exit 0** (single match): the resolver echoes the absolute path on
+     stdout. Continue to frontmatter validation below.
+   - **Exit 1** (input invalid — neither path, full ID, nor bare number):
+     proceed to topic-string handling below; treat the argument as a
+     topic.
+   - **Exit 2** (ambiguous match): the resolver lists every candidate
+     with a source-category tag (`legacy`, `project-prepended`,
+     `pattern-shape`, or a project code). Present the list to the user
+     and ask them to disambiguate by re-running with a full ID (e.g.
+     `PROJ-0042`) or a path.
+   - **Exit 3** (no match): print
+     `"No work item matching <argument> — interpreting as topic string.
+     If that's wrong, abort and re-run with a different argument (or
+     /list-work-items to find a valid reference)."` and proceed to
+     topic-string handling below.
 
    **Frontmatter validation** (only reached after a file was successfully
    resolved). Run:
@@ -394,18 +397,26 @@ changes before I write it to disk:
 
 ## Step 5: Write Work Item
 
-1. **Call `work-item-next-number.sh`** to get the next number NNNN:
+1. **Call `work-item-next-number.sh`** to get the next full ID under the
+   configured pattern:
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-next-number.sh
 ```
 
-If the script exits non-zero (e.g., 9999 overflow), abort immediately and
-surface the error message verbatim — do not proceed.
+The output is the full ID (`0001` under default `{number:04d}`,
+`PROJ-0001` under `{project}-{number:04d}` with
+`work.default_project_code: "PROJ"`). The allocator reads the pattern
+and default project code from configuration; pass `--project CODE` if
+the user explicitly wants a non-default project.
 
-2. **Resolve the target path**: `{work_dir}/NNNN-kebab-slug.md`
-   where the slug is a meaningful kebab-case summary of the title (not raw
-   input text).
+If the script exits non-zero (e.g., overflow, missing project value),
+abort immediately and surface the error message verbatim — do not
+proceed.
+
+2. **Resolve the target path**: `{work_dir}/<full-id>-kebab-slug.md`
+   where `<full-id>` is the allocator's output and the slug is a
+   meaningful kebab-case summary of the title (not raw input text).
 
 3. **Check that the target path does not already exist**. If it does, abort:
 
@@ -416,12 +427,16 @@ concurrently. Please re-run /create-work-item.
 
 4. **Create the work items directory** if it does not exist.
 
-5. **Substitute `XXXX` with `NNNN`** throughout the draft and write the file.
+5. **Substitute `XXXX` with the full ID** throughout the draft (in both
+   the H1 line and `work_item_id` frontmatter) and write the file. The
+   `work_item_id` value must be **quoted as a YAML string**:
+   `work_item_id: "0001"` or `work_item_id: "PROJ-0001"`. The H1 line
+   reads `# <full-id>: <title>`.
 
 6. **Print a confirmation**:
 
 ```
-Work item created: `{work_dir}/NNNN-kebab-slug.md`
+Work item created: `{work_dir}/<full-id>-kebab-slug.md`
 ```
 
 ### In enrich-existing mode
@@ -505,13 +520,24 @@ Work item created: `{work_dir}/NNNN-kebab-slug.md`
   the top of this skill), not a hardcoded list. Default to `story` when the
   type is genuinely ambiguous.
 - All frontmatter fields defined in the work item template must be populated
-  in every written work item: `work_item_id` matching the assigned NNNN, `title`
-  matching the user-approved title, `date`, `author`, `type`, `status`
-  (draft), `priority` (medium unless the user specified otherwise),
-  `parent` (empty string unless a parent was established), and `tags`
-  (a YAML array, possibly empty). No field may contain unfilled
-  placeholder text like `[author]` or `NNNN`. The body H1 format is
-  `# NNNN: <title>` — kept in sync with the frontmatter `title:` field.
+  in every written work item: `work_item_id` matching the assigned full ID
+  (a quoted YAML string — see contract below), `title` matching the
+  user-approved title, `date`, `author`, `type`, `status` (draft),
+  `priority` (medium unless the user specified otherwise), `parent`
+  (empty string unless a parent was established), and `tags` (a YAML
+  array, possibly empty). No field may contain unfilled placeholder
+  text like `[author]` or `NNNN`. The body H1 format is
+  `# <full-id>: <title>` where `<full-id>` is whatever the configured
+  `work.id_pattern` produces — kept in sync with the frontmatter
+  `title:` field.
+
+- **`work_item_id` frontmatter type contract**: the field is **always a
+  quoted YAML string**, regardless of the configured pattern. Files
+  created under default `{number:04d}` write `work_item_id: "0001"`;
+  files created under `{project}-{number:04d}` write
+  `work_item_id: "PROJ-0001"`. This contract is uniform so consumers
+  can read the field as a string without coercion. See
+  `skills/config/configure/SKILL.md > work` for the full contract.
 
 **Identity Field Rules** (apply in enrich-existing mode):
 
@@ -536,8 +562,9 @@ Work item created: `{work_dir}/NNNN-kebab-slug.md`
   in Step 3's augmentation review.
 
 **H1 sync** (enrich-existing mode): the body H1 is `# <work_item_id>: <title>`,
-using the cached immutable `work_item_id` (4-digit, never `XXXX`) and the
-title as confirmed or replaced in Step 3.
+using the cached immutable `work_item_id` (the full ID produced by
+the configured pattern, never a placeholder) and the title as
+confirmed or replaced in Step 3.
 
 **Script avoidance** (enrich-existing mode): `work-item-next-number.sh` is
 never called. The number is already cached. The path-existence guard in Step 5
