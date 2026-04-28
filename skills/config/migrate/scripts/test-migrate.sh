@@ -20,6 +20,19 @@ ONLY_0001_DIR="$TMPDIR_BASE/only-0001-migrations"
 mkdir -p "$ONLY_0001_DIR"
 cp "$MIGRATIONS_DIR/0001-rename-tickets-to-work.sh" "$ONLY_0001_DIR/"
 
+# Hash every file under $1 (optionally filtered by find args in $2..) and emit
+# a single digest of the combined per-file digests. Portable across macOS
+# (md5 -q) and Linux (md5sum).
+tree_hash() {
+  local root="$1"
+  shift
+  if command -v md5sum >/dev/null 2>&1; then
+    find "$root" -type f "$@" -exec md5sum {} \; | awk '{print $1}' | sort | md5sum | awk '{print $1}'
+  else
+    find "$root" -type f "$@" -exec md5 -q {} \; | sort | md5 -q
+  fi
+}
+
 # ── Additional assert helpers ────────────────────────────────────────────────
 
 assert_contains() {
@@ -671,11 +684,11 @@ assert_contains "notes unchanged" "non-work-item file" "$CONTENT"
 assert_not_contains "notes not renamed" "PROJ" "$CONTENT"
 
 echo "Test: idempotency — second run is a no-op"
-HASH1=$(find "$REPO/meta" -type f -exec md5 -q {} \; | sort | md5 -q)
+HASH1=$(tree_hash "$REPO/meta")
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0 second run" "0" "$RC"
-HASH2=$(find "$REPO/meta" -type f -exec md5 -q {} \; | sort | md5 -q)
+HASH2=$(tree_hash "$REPO/meta")
 assert_eq "byte-identical" "$HASH1" "$HASH2"
 
 echo "Test: already-rewritten input is a no-op"
@@ -684,11 +697,11 @@ cp -R "$REPO/." "$REPO2/"
 # Remove from applied so 0002 runs again
 grep -v "0002-rename-work-items-with-project-prefix" "$REPO2/meta/.migrations-applied" > "$REPO2/meta/.migrations-applied.tmp" || true
 mv "$REPO2/meta/.migrations-applied.tmp" "$REPO2/meta/.migrations-applied"
-HASH1=$(find "$REPO2/meta" -type f -name '*.md' -exec md5 -q {} \; | sort | md5 -q)
+HASH1=$(tree_hash "$REPO2/meta" -name '*.md')
 RC=0
 OUTPUT=$(cd "$REPO2" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0 already-rewritten" "0" "$RC"
-HASH2=$(find "$REPO2/meta" -type f -name '*.md' -exec md5 -q {} \; | sort | md5 -q)
+HASH2=$(tree_hash "$REPO2/meta" -name '*.md')
 assert_eq "no changes on rewritten input" "$HASH1" "$HASH2"
 
 echo "Test: collision — target file exists, aborts cleanly"
