@@ -979,10 +979,10 @@ under `#[cfg(test)] mod tests`.
 
 #### Automated Verification
 
-- [ ] `cargo test -p accelerator-visualiser --test api_related` passes
+- [x] `cargo test -p accelerator-visualiser --test api_related` passes
   all fourteen cases.
-- [ ] `cargo test -p accelerator-visualiser` is fully green.
-- [ ] `cargo clippy -p accelerator-visualiser` is clean.
+- [x] `cargo test -p accelerator-visualiser` is fully green.
+- [x] `cargo clippy -p accelerator-visualiser` is clean.
 - [ ] Manual `curl` against a running dev server (with the seeded
   fixture) returns the expected JSON for both directions.
 

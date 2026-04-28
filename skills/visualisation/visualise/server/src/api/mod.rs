@@ -1,6 +1,7 @@
 mod docs;
 mod events;
 mod lifecycle;
+mod related;
 mod templates;
 mod types;
 
@@ -32,6 +33,7 @@ pub fn mount(_state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/api/templates/:name", get(templates::template_detail))
         .route("/api/lifecycle", get(lifecycle::lifecycle_list))
         .route("/api/lifecycle/:slug", get(lifecycle::lifecycle_one))
+        .route("/api/related/*path", get(related::related_get))
 }
 
 #[derive(Debug, thiserror::Error)]
