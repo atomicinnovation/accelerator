@@ -14,6 +14,12 @@ MIGRATIONS_DIR="$SCRIPT_DIR/../migrations"
 TMPDIR_BASE=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_BASE"' EXIT
 
+# A migrations directory containing only 0001, used by tests that
+# don't want 0002 interfering with "No pending" assertions.
+ONLY_0001_DIR="$TMPDIR_BASE/only-0001-migrations"
+mkdir -p "$ONLY_0001_DIR"
+cp "$MIGRATIONS_DIR/0001-rename-tickets-to-work.sh" "$ONLY_0001_DIR/"
+
 # ── Additional assert helpers ────────────────────────────────────────────────
 
 assert_contains() {
@@ -147,11 +153,11 @@ echo ""
 echo "Test: Re-running is idempotent"
 REPO=$(setup_old_repo)
 # First run
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" > /dev/null 2>&1
 BEFORE_STATE=$(cat "$REPO/meta/.migrations-applied")
 # Second run
 RC=0
-OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 AFTER_STATE=$(cat "$REPO/meta/.migrations-applied")
 assert_eq "exit 0" "0" "$RC"
 assert_contains "outputs no pending" "No pending migrations" "$OUTPUT"
@@ -168,7 +174,7 @@ mkdir -p "$REPO/.claude"
 printf -- '---\npaths:\n  work: meta/work\n---\n' > "$REPO/.claude/accelerator.md"
 printf '0001-rename-tickets-to-work\n' > "$REPO/meta/.migrations-applied"
 RC=0
-OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
 assert_contains "no pending output" "No pending migrations" "$OUTPUT"
 
@@ -399,7 +405,7 @@ assert_contains "skip file has migration ID" "0001-rename-tickets-to-work" "$SKI
 
 echo "Test: subsequent run reports no pending migrations"
 RC=0
-OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
 assert_contains "outputs no pending" "No pending migrations" "$OUTPUT"
 assert_contains "summary lists skipped name" "Skipped:" "$OUTPUT"
@@ -457,7 +463,7 @@ git -C "$REPO" -c user.email=t@t -c user.name=T commit -qm initial
 printf '\nx\n' >> "$REPO/meta/tickets/0001-foo.md"
 RC=0
 OUTPUT=$(cd "$REPO" && ACCELERATOR_MIGRATE_FORCE=1 CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
-  bash "$DRIVER" 2>&1) || RC=$?
+  ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
 assert_contains "no pending under FORCE+skip" "No pending migrations" "$OUTPUT"
 APPLIED=$(cat "$REPO/meta/.migrations-applied" 2>/dev/null || echo "")
@@ -469,7 +475,7 @@ mkdir -p "$REPO/meta"
 printf '0001-rename-tickets-to-work\n' > "$REPO/meta/.migrations-applied"
 printf '0001-rename-tickets-to-work\n' > "$REPO/meta/.migrations-skipped"
 RC=0
-OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
 assert_contains "warns about cross-state inconsistency" "BOTH" "$OUTPUT"
 assert_contains "no pending output (applied wins)" "No pending migrations" "$OUTPUT"
@@ -554,8 +560,155 @@ REPO=$(mktemp -d "$TMPDIR_BASE/empty-XXXXXX")
 mkdir -p "$REPO/.git" "$REPO/meta"
 printf '0001-rename-tickets-to-work\n' > "$REPO/meta/.migrations-applied"
 RC=0
-OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
 assert_not_contains "no banner" "About to apply" "$OUTPUT"
+
+echo ""
+
+echo "=== Migration 0002: rename work items with project prefix ==="
+echo ""
+
+FIXTURE_0002="$SCRIPT_DIR/test-fixtures/0002"
+
+setup_0002_repo() {
+  local repo
+  repo=$(mktemp -d "$TMPDIR_BASE/m0002-XXXXXX")
+  cp -R "$FIXTURE_0002/." "$repo/"
+  mkdir -p "$repo/.git" "$repo/meta"
+  # Mark 0001 as applied so only 0002 runs
+  printf '0001-rename-tickets-to-work\n' > "$repo/meta/.migrations-applied"
+  printf '%s\n' "$repo"
+}
+
+echo "Test: pattern lacks {project} — no-op, stays pending"
+REPO=$(mktemp -d "$TMPDIR_BASE/m0002-noproj-XXXXXX")
+cp -R "$FIXTURE_0002/." "$REPO/"
+mkdir -p "$REPO/.git" "$REPO/meta"
+# Override config to have no {project}
+printf '%s\n' '---' 'work:' '  id_pattern: "{number:04d}"' '---' > "$REPO/.claude/accelerator.md"
+printf '0001-rename-tickets-to-work\n' > "$REPO/meta/.migrations-applied"
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+APPLIED=$(cat "$REPO/meta/.migrations-applied")
+assert_not_contains "stays pending" "0002-rename-work-items-with-project-prefix" "$APPLIED"
+# Files unchanged
+assert_eq "files unchanged" "1" "$([ -f "$REPO/meta/work/0001-add-foo.md" ] && echo 1 || echo 0)"
+
+echo "Test: pattern has {project} but default_project_code empty — exits non-zero"
+REPO=$(mktemp -d "$TMPDIR_BASE/m0002-nocode-XXXXXX")
+cp -R "$FIXTURE_0002/." "$REPO/"
+mkdir -p "$REPO/.git" "$REPO/meta"
+printf '%s\n' '---' 'work:' '  id_pattern: "{project}-{number:04d}"' '---' > "$REPO/.claude/accelerator.md"
+printf '0001-rename-tickets-to-work\n' > "$REPO/meta/.migrations-applied"
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "non-zero exit" "1" "$([ "$RC" -ne 0 ] && echo 1 || echo 0)"
+assert_contains "error mentions default_project_code" "default_project_code" "$OUTPUT"
+assert_eq "file unchanged" "1" "$([ -f "$REPO/meta/work/0001-add-foo.md" ] && echo 1 || echo 0)"
+
+echo "Test: single-project rename — files renamed and frontmatter updated"
+REPO=$(setup_0002_repo)
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+assert_eq "0001 renamed" "1" "$([ -f "$REPO/meta/work/PROJ-0001-add-foo.md" ] && echo 1 || echo 0)"
+assert_eq "0042 renamed" "1" "$([ -f "$REPO/meta/work/PROJ-0042-add-bar.md" ] && echo 1 || echo 0)"
+assert_eq "0099 renamed" "1" "$([ -f "$REPO/meta/work/PROJ-0099-bare-frontmatter.md" ] && echo 1 || echo 0)"
+assert_eq "old 0001 gone" "0" "$([ -f "$REPO/meta/work/0001-add-foo.md" ] && echo 1 || echo 0)"
+CONTENT=$(cat "$REPO/meta/work/PROJ-0001-add-foo.md")
+assert_contains "work_item_id updated" 'work_item_id: "PROJ-0001"' "$CONTENT"
+
+echo "Test: parent quoted scalar rewrites"
+CONTENT=$(cat "$REPO/meta/work/PROJ-0042-add-bar.md")
+assert_contains "parent rewritten" 'parent: "PROJ-0001"' "$CONTENT"
+
+echo "Test: parent bare scalar rewrites to quoted"
+CONTENT=$(cat "$REPO/meta/work/PROJ-0099-bare-frontmatter.md")
+assert_contains "bare parent rewritten" 'parent: "PROJ-0042"' "$CONTENT"
+
+echo "Test: related inline list (quoted) rewrites"
+CONTENT=$(cat "$REPO/meta/research/2026-04-02-research.md")
+assert_contains "related list rewritten" '"PROJ-0001"' "$CONTENT"
+assert_contains "related list item 2" '"PROJ-0042"' "$CONTENT"
+
+echo "Test: related inline list (bare) rewrites"
+CONTENT=$(cat "$REPO/meta/work/PROJ-0099-bare-frontmatter.md")
+assert_contains "bare list item 0001" '"PROJ-0001"' "$CONTENT"
+assert_contains "bare list item 0099" '"PROJ-0099"' "$CONTENT"
+
+echo "Test: markdown links rewritten"
+CONTENT=$(cat "$REPO/meta/plans/2026-04-01-some-plan.md")
+assert_contains "link 0001 rewritten" "../work/PROJ-0001-add-foo.md" "$CONTENT"
+assert_contains "link 0042 with anchor" "../work/PROJ-0042-add-bar.md#section" "$CONTENT"
+
+echo "Test: fenced-code-block path in tagged block rewritten"
+CONTENT=$(cat "$REPO/meta/research/2026-04-02-research.md")
+assert_contains "code block path 0042" "meta/work/PROJ-0042-add-bar.md" "$CONTENT"
+assert_contains "code block path 0001" "meta/work/PROJ-0001-add-foo.md" "$CONTENT"
+
+echo "Test: heading-line #NNNN references rewritten"
+CONTENT=$(cat "$REPO/meta/plans/2026-04-01-some-plan.md")
+assert_contains "heading #0042" "#PROJ-0042" "$CONTENT"
+assert_contains "multi-ref heading #0001" "#PROJ-0001" "$CONTENT"
+
+echo "Test: negative — bare fenced block NOT rewritten"
+CONTENT=$(cat "$REPO/meta/research/2026-04-03-history.md")
+assert_contains "bare block preserved" "meta/work/0042-add-bar.md" "$CONTENT"
+
+echo "Test: negative — prose 0042 NOT rewritten"
+assert_contains "prose 0042" "port 0042" "$CONTENT"
+assert_contains "occurrences" "0042 occurrences" "$CONTENT"
+assert_contains "timestamp" "2026-04-15" "$CONTENT"
+
+echo "Test: negative — non-path numeric in tagged block NOT rewritten"
+assert_contains "non-path code" "foo --id 0042" "$CONTENT"
+
+echo "Test: non-work-item file in meta/work/ unchanged"
+CONTENT=$(cat "$REPO/meta/work/notes.md")
+assert_contains "notes unchanged" "non-work-item file" "$CONTENT"
+assert_not_contains "notes not renamed" "PROJ" "$CONTENT"
+
+echo "Test: idempotency — second run is a no-op"
+HASH1=$(find "$REPO/meta" -type f -exec md5 -q {} \; | sort | md5 -q)
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0 second run" "0" "$RC"
+HASH2=$(find "$REPO/meta" -type f -exec md5 -q {} \; | sort | md5 -q)
+assert_eq "byte-identical" "$HASH1" "$HASH2"
+
+echo "Test: already-rewritten input is a no-op"
+REPO2=$(mktemp -d "$TMPDIR_BASE/m0002-rewritten-XXXXXX")
+cp -R "$REPO/." "$REPO2/"
+# Remove from applied so 0002 runs again
+grep -v "0002-rename-work-items-with-project-prefix" "$REPO2/meta/.migrations-applied" > "$REPO2/meta/.migrations-applied.tmp" || true
+mv "$REPO2/meta/.migrations-applied.tmp" "$REPO2/meta/.migrations-applied"
+HASH1=$(find "$REPO2/meta" -type f -name '*.md' -exec md5 -q {} \; | sort | md5 -q)
+RC=0
+OUTPUT=$(cd "$REPO2" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0 already-rewritten" "0" "$RC"
+HASH2=$(find "$REPO2/meta" -type f -name '*.md' -exec md5 -q {} \; | sort | md5 -q)
+assert_eq "no changes on rewritten input" "$HASH1" "$HASH2"
+
+echo "Test: collision — target file exists, aborts cleanly"
+REPO=$(setup_0002_repo)
+# Create the target file to cause collision
+touch "$REPO/meta/work/PROJ-0001-add-foo.md"
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "non-zero on collision" "1" "$([ "$RC" -ne 0 ] && echo 1 || echo 0)"
+assert_contains "collision error" "collision" "$OUTPUT"
+# Original file still there
+assert_eq "original preserved" "1" "$([ -f "$REPO/meta/work/0001-add-foo.md" ] && echo 1 || echo 0)"
+
+echo "Test: skip-tracking suppresses migration 0002"
+REPO=$(setup_0002_repo)
+(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 0002-rename-work-items-with-project-prefix)
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0 with skip" "0" "$RC"
+assert_contains "no pending" "No pending migrations" "$OUTPUT"
+assert_eq "file not renamed" "1" "$([ -f "$REPO/meta/work/0001-add-foo.md" ] && echo 1 || echo 0)"
 
 test_summary

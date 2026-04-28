@@ -1874,15 +1874,15 @@ that the migration is safe to re-run after a VCS revert.
 
 #### Automated Verification
 
-- [ ] All migrate tests pass: `bash skills/config/migrate/scripts/test-migrate.sh`
-- [ ] Migration is idempotent on the test fixture (second run is a
+- [x] All migrate tests pass: `bash skills/config/migrate/scripts/test-migrate.sh`
+- [x] Migration is idempotent on the test fixture (second run is a
       no-op verified by file-tree hash comparison)
 - [ ] Migration is idempotent under partial-failure recovery
       (kill mid-cross-ref-rewrite, re-run, byte-identical to single-shot)
-- [ ] Default-pattern config produces a no-op AND stays pending
+- [x] Default-pattern config produces a no-op AND stays pending
       (the test corpus is unchanged; `.migrations-applied` does not
       gain the migration ID)
-- [ ] Full integration suite passes: `mise run test`
+- [x] Full integration suite passes: `mise run test`
 
 #### Manual Verification
 
