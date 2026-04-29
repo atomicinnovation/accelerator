@@ -266,11 +266,11 @@ itself passes the dist path through configuration or env var.
 
 #### Automated Verification:
 
-- [ ] `cargo test --test shutdown --no-default-features --features dev-frontend`
+- [x] `cargo test --test shutdown --no-default-features --features dev-frontend`
       — 3 tests pass
-- [ ] `cargo test --test api_smoke --no-default-features --features dev-frontend`
+- [x] `cargo test --test api_smoke --no-default-features --features dev-frontend`
       — 1 test passes
-- [ ] `cargo test --test sse_e2e --no-default-features --features dev-frontend`
+- [x] `cargo test --test sse_e2e --no-default-features --features dev-frontend`
       — 1 test passes
 
 #### Manual Verification:
