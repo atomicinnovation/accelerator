@@ -183,6 +183,16 @@ fn build_router_with_spa<F: FnOnce(Router) -> Router>(
         // maintainer ever adds a permissive CORS layer.
         .layer(middleware::from_fn(origin_guard))
         .layer(middleware::from_fn(host_header_guard))
+        .layer(middleware::from_fn(version_header))
+}
+
+async fn version_header(req: Request, next: Next) -> Response {
+    let mut resp = next.run(req).await;
+    resp.headers_mut().insert(
+        "accelerator-visualiser-version",
+        axum::http::HeaderValue::from_static(crate::VERSION),
+    );
+    resp
 }
 
 async fn healthz() -> &'static str {
@@ -225,7 +235,7 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
     })?;
 
     let info = ServerInfo {
-        version: env!("CARGO_PKG_VERSION").to_string(),
+        version: crate::VERSION.to_string(),
         pid: std::process::id() as i32,
         start_time: process_start_time(std::process::id() as i32),
         host: state.cfg.host.clone(),
@@ -676,7 +686,7 @@ mod tests {
         let port = listener.local_addr().unwrap().port();
 
         let info = ServerInfo {
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            version: crate::VERSION.to_string(),
             pid: std::process::id() as i32,
             start_time: process_start_time(std::process::id() as i32),
             host: "127.0.0.1".into(),

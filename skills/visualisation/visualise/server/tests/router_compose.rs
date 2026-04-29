@@ -85,3 +85,74 @@ async fn host_header_guard_still_rejects_foreign_hosts() {
     let res = app.oneshot(req).await.unwrap();
     assert_eq!(res.status(), StatusCode::FORBIDDEN);
 }
+
+#[tokio::test]
+async fn responses_carry_version_header_on_normal_route() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = common::seeded_cfg(tmp.path());
+    let activity = Arc::new(Activity::new());
+    let state = AppState::build(cfg, activity).await.unwrap();
+    let app = build_router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/healthz")
+                .header("host", "127.0.0.1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let header = resp
+        .headers()
+        .get("accelerator-visualiser-version")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    assert_eq!(header, accelerator_visualiser::VERSION);
+}
+
+#[tokio::test]
+async fn version_header_present_on_404_fallback() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = common::seeded_cfg(tmp.path());
+    let activity = Arc::new(Activity::new());
+    let state = AppState::build(cfg, activity).await.unwrap();
+    let app = build_router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/does-not-exist")
+                .header("host", "127.0.0.1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    assert!(resp.headers().contains_key("accelerator-visualiser-version"));
+}
+
+#[tokio::test]
+async fn version_header_present_on_host_header_guard_rejection() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = common::seeded_cfg(tmp.path());
+    let activity = Arc::new(Activity::new());
+    let state = AppState::build(cfg, activity).await.unwrap();
+    let app = build_router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/healthz")
+                .header("host", "evil.example")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+    assert!(
+        resp.headers().contains_key("accelerator-visualiser-version"),
+        "version header must survive guard short-circuits",
+    );
+}

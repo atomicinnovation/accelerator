@@ -4,6 +4,8 @@
 //! lives in the modules declared here. Integration tests under
 //! `server/tests/*.rs` consume these modules directly.
 
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub mod activity;
 pub mod api;
 pub mod assets;
