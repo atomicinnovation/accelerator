@@ -100,6 +100,13 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
         </section>
       </div>
 
+      {entry!.frontmatterState === 'malformed' && (
+        <div className={styles.malformedBanner} aria-label="Document metadata header notice">
+          <strong className={styles.malformedPrefix}>Warning:</strong>{' '}
+          We couldn&rsquo;t read this document&rsquo;s metadata header; showing the file as-is.
+        </div>
+      )}
+
       <div className={styles.body}>
         <MarkdownRenderer content={content.data.content} resolveWikiLink={resolveWikiLink} />
       </div>

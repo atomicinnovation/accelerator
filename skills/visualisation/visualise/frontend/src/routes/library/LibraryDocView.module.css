@@ -17,3 +17,15 @@
   color: #991b1b; background: #fef2f2; border: 1px solid #fecaca;
   border-radius: 4px; padding: 0.5rem 0.75rem; margin-top: 1rem;
 }
+.malformedBanner {
+  grid-column: 1 / -1;
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: var(--color-warning-bg, #fff8e6);
+  border-left: 4px solid var(--color-warning-border, #d97706);
+  color: var(--color-warning-text, #7c2d12);
+  font-size: 0.95rem;
+}
+.malformedPrefix {
+  margin-right: 0.25rem;
+}

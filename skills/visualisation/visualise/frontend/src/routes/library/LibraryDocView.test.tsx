@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { LibraryDocView } from './LibraryDocView'
 import * as fetchModule from '../../api/fetch'
+import { dispatchSseEvent } from '../../api/use-doc-events'
 import type { IndexEntry } from '../../api/types'
 import { MemoryRouter } from '../../test/router-helpers'
 
@@ -188,5 +189,69 @@ describe('LibraryDocView', () => {
     })
     expect(span.textContent).toBe('[[ADR-9999]]')
     expect(span.getAttribute('title')).toBe('No matching ADR found for ID 9999')
+  })
+
+  // ── Phase 10.6: Malformed-frontmatter banner ─────────────────────────
+  it('renders a malformed-frontmatter banner when entry.frontmatterState is malformed', async () => {
+    const malformedEntry: IndexEntry = {
+      ...mockEntry,
+      frontmatterState: 'malformed',
+    }
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([malformedEntry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: '# body', etag: '"sha256-a"',
+    })
+    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
+    const banner = await screen.findByLabelText(/metadata header/i)
+    expect(banner).toHaveTextContent(/We couldn.t read this document.s metadata header/i)
+    expect(banner).not.toHaveAttribute('role', 'status')
+  })
+
+  it('does not render the malformed banner for parsed or absent state', async () => {
+    for (const state of ['parsed', 'absent'] as const) {
+      const entry: IndexEntry = {
+        ...mockEntry,
+        relPath: `meta/plans/2026-01-01-${state}.md`,
+        frontmatterState: state,
+      }
+      vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([entry])
+      vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+        content: '# body', etag: '"sha256-a"',
+      })
+      const { unmount } = render(
+        <LibraryDocView type="plans" fileSlug={`2026-01-01-${state}`} />,
+        { wrapper: Wrapper },
+      )
+      await screen.findByRole('article')
+      expect(screen.queryByLabelText(/metadata header/i)).toBeNull()
+      unmount()
+    }
+  })
+
+  it('shows the malformed banner mid-session when docs query refetches with malformed state', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: '# body', etag: '"sha256-a"',
+    })
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    function WrapperWithQC({ children }: { children: React.ReactNode }) {
+      return (
+        <QueryClientProvider client={qc}>
+          <MemoryRouter>{children}</MemoryRouter>
+        </QueryClientProvider>
+      )
+    }
+    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: WrapperWithQC })
+    await screen.findByRole('article')
+    expect(screen.queryByLabelText(/metadata header/i)).toBeNull()
+
+    // Simulate: SSE doc-invalid flips entry to malformed on refetch
+    const malformedEntry: IndexEntry = { ...mockEntry, frontmatterState: 'malformed' }
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([malformedEntry])
+    dispatchSseEvent(
+      { type: 'doc-invalid', docType: 'plans', path: mockEntry.relPath },
+      qc,
+    )
+    await screen.findByLabelText(/metadata header/i)
   })
 })
