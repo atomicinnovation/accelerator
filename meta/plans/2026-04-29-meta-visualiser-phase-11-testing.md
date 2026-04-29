@@ -191,10 +191,10 @@ read-only.
 
 #### Automated Verification:
 
-- [ ] `cargo test --lib --no-default-features --features dev-frontend`
+- [x] `cargo test --lib --no-default-features --features dev-frontend`
       passes with 0 failures (watcher tests skip gracefully when notify
       doesn't fire)
-- [ ] No test panics or timeouts
+- [x] No test panics or timeouts
 
 #### Manual Verification:
 

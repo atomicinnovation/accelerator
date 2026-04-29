@@ -683,7 +683,14 @@ mod tests {
         let state = build_minimal_state(dir.path()).await;
         let app = build_router_with_dist(state.clone(), dist.path().to_path_buf());
 
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let listener = match tokio::net::TcpListener::bind("127.0.0.1:0").await {
+            Ok(l) => l,
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+                eprintln!("SKIP: TCP bind not permitted in this environment: {e}");
+                return;
+            }
+            Err(e) => panic!("unexpected bind error: {e}"),
+        };
         let port = listener.local_addr().unwrap().port();
 
         let info = ServerInfo {
