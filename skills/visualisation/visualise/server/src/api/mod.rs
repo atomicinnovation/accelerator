@@ -1,5 +1,6 @@
 mod docs;
 mod events;
+pub(crate) mod info;
 mod lifecycle;
 mod related;
 mod templates;

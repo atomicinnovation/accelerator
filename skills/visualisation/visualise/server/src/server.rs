@@ -152,6 +152,7 @@ fn build_router_with_spa<F: FnOnce(Router) -> Router>(
 ) -> Router {
     let api_router = Router::new()
         .route("/api/healthz", get(healthz))
+        .route("/api/info", get(crate::api::info::get_info))
         .merge(crate::api::mount(state.clone()))
         .route("/api/*rest", any(api_not_found))
         .with_state(state.clone());

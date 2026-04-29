@@ -1,6 +1,7 @@
 import type { DocTypeKey } from './types'
 
 export const queryKeys = {
+  serverInfo: () => ['server-info'] as const,
   types: () => ['types'] as const,
   docs: (type: DocTypeKey) => ['docs', type] as const,
   docContent: (relPath: string) => ['doc-content', relPath] as const,

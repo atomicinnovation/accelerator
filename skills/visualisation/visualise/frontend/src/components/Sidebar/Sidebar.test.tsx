@@ -1,8 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from '../../test/router-helpers'
 import { Sidebar } from './Sidebar'
 import type { DocType } from '../../api/types'
+
+vi.mock('../../api/use-server-info', () => ({
+  useServerInfo: vi.fn(() => ({ data: undefined })),
+}))
 
 const mockDocTypes: DocType[] = [
   { key: 'decisions', label: 'Decisions', dirPath: '/p', inLifecycle: true, inKanban: false, virtual: false },

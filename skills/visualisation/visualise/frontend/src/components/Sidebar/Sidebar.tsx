@@ -1,5 +1,6 @@
 import { Link, useRouterState } from '@tanstack/react-router'
 import type { DocType } from '../../api/types'
+import { SidebarFooter } from '../SidebarFooter/SidebarFooter'
 import styles from './Sidebar.module.css'
 
 const VIEW_TYPES: Array<{ path: string; label: string }> = [
@@ -77,6 +78,8 @@ export function Sidebar({ docTypes }: Props) {
           ))}
         </ul>
       </section>
+
+      <SidebarFooter />
     </nav>
   )
 }
