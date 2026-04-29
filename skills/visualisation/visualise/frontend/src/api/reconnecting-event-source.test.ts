@@ -45,7 +45,7 @@ describe('ReconnectingEventSource', () => {
       onmessage: ((e: any) => void) | null
       close: ReturnType<typeof vi.fn>
     }> = []
-    const factory = vi.fn(() => {
+    const factory = vi.fn((_url: string) => {
       const fake = {
         onopen: null as any,
         onerror: null as any,

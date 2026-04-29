@@ -554,12 +554,12 @@ playwright-report/
 
 #### Automated Verification:
 
-- [ ] `cd frontend && npx playwright test e2e/smoke.spec.ts` passes
-- [ ] Server starts, serves the SPA, and shuts down cleanly after tests
+- [x] `cd frontend && npx playwright test e2e/smoke.spec.ts` passes
+- [x] Server starts, serves the SPA, and shuts down cleanly after tests
 
 #### Manual Verification:
 
-- [ ] `npx playwright test --ui` opens the Playwright UI and the smoke
+- [x] `npx playwright test --ui` opens the Playwright UI and the smoke
       test passes visually
 
 ---

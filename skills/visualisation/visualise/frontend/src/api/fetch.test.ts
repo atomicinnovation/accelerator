@@ -17,7 +17,7 @@ describe('fetchTypes', () => {
   it('returns parsed JSON on 200', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => [{ key: 'decisions', label: 'Decisions', dirPath: '/p', inLifecycle: true, inKanban: false, virtual: false }],
+      json: async () => ({ types: [{ key: 'decisions', label: 'Decisions', dirPath: '/p', inLifecycle: true, inKanban: false, virtual: false }] }),
     })
     const types = await fetchTypes()
     expect(types).toHaveLength(1)

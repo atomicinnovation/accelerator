@@ -56,7 +56,8 @@ export async function patchTicketFrontmatter(
 export async function fetchTypes(): Promise<DocType[]> {
   const r = await fetch('/api/types')
   if (!r.ok) throw new FetchError(r.status, `GET /api/types: ${r.status}`)
-  return r.json()
+  const body: { types: DocType[] } = await r.json()
+  return body.types
 }
 
 export async function fetchDocs(type: DocTypeKey): Promise<IndexEntry[]> {

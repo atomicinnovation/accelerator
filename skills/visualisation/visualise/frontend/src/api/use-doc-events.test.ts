@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { dispatchSseEvent, makeUseDocEvents } from './use-doc-events'
 import { createSelfCauseRegistry } from './self-cause'
-import { queryKeys, SESSION_STABLE_QUERY_ROOTS } from './query-keys'
+import { queryKeys } from './query-keys'
 
 // ── Pure dispatch tests ──────────────────────────────────────────────────
 // No hooks, no EventSource, no async — just exercise the invalidation
