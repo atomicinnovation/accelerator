@@ -3,7 +3,7 @@ title: Meta directory visualiser — design
 type: spec
 status: draft
 date: "2026-04-17"
-last_updated: "2026-04-18"
+last_updated: "2026-04-29"
 author: Toby Clemson
 slug: meta-visualisation
 ---
@@ -26,10 +26,11 @@ a standalone CLI for longer, session-independent usage.
 
 ## Scope (v1)
 
-Three views on the ten supported document types:
+Three views on the eleven supported document types:
 
 1. **Library** — a reader for every doc type (decisions, tickets, plans,
-   research, plan-reviews, pr-reviews, validations, notes, PRs, templates).
+   research, plan-reviews, pr-reviews, ticket-reviews, validations, notes,
+   PRs, templates).
    Markdown rendering with frontmatter-aware chrome and cross-reference links.
    Deep-linkable URLs.
 2. **Lifecycle** — timeline view of *work units* formed by slug-clustering
@@ -39,10 +40,10 @@ Three views on the ten supported document types:
    tickets. Drag-and-drop updates the ticket's frontmatter `status:` field in
    place.
 
-The configured `review_plans` and `review_prs` paths are surfaced as two
-distinct doc types — `plan-reviews` and `pr-reviews` — each a flat walk of its
-own directory. Clustering across them (lifecycle view) is by slug match
-regardless of sub-type.
+The configured `review_plans`, `review_prs`, and `review_tickets` paths are
+surfaced as three distinct doc types — `plan-reviews`, `pr-reviews`, and
+`ticket-reviews` — each a flat walk of its own directory. Clustering across
+them (lifecycle view) is by slug match regardless of sub-type.
 
 `templates` is a **virtual doc type** backed by the plugin's three-tier
 template resolver (`config_resolve_template()` in `config-common.sh`)
@@ -157,12 +158,14 @@ the slash command and the CLI wrapper — the Rust server itself does no
 shell-outs. The preprocessor:
 
 1. Reads `tmp` path via `scripts/config-read-path.sh tmp`.
-2. Reads the path for each of the ten doc types via `config-read-path.sh`
+2. Reads the path for each of the eleven doc types via `config-read-path.sh`
    (`decisions`, `tickets`, `plans`, `research`, `review_plans`,
-   `review_prs`, `validations`, `notes`, `prs`, `templates`).
+   `review_prs`, `review_tickets`, `validations`, `notes`, `prs`,
+   `templates`).
 3. Ensures `<tmp>/visualiser/` exists.
-4. If `<tmp>/visualiser/server-info.json` exists and its PID is alive,
-   prints the URL and exits (reuse).
+4. If `<tmp>/visualiser/server-info.json` exists, its PID is alive, and a
+   `GET /api/types` health-check responds within 2s, prints the URL and
+   exits (reuse). The HTTP check guards against PID recycling.
 5. Detects host platform via `uname -s` / `uname -m`, resolving to one of
    `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-x64`.
 6. Computes expected binary path at
@@ -291,7 +294,7 @@ the same shape.
 ```ts
 type DocTypeKey =
   | "decisions" | "tickets" | "plans" | "research"
-  | "plan-reviews" | "pr-reviews"
+  | "plan-reviews" | "pr-reviews" | "ticket-reviews"
   | "validations" | "notes" | "prs" | "templates";
 
 interface DocType {
@@ -307,9 +310,10 @@ interface DocType {
 ```
 
 `plan-reviews` reads from the `review_plans` configured path, `pr-reviews`
-from `review_prs`. Both are flat walks of their respective directories —
-no recursion is required because the two-type split absorbs the physical
-nesting of `meta/reviews/plans/` and `meta/reviews/prs/`.
+from `review_prs`, and `ticket-reviews` from `review_tickets`. All three are
+flat walks of their respective directories — no recursion is required because
+the three-type split absorbs the physical nesting of `meta/reviews/plans/`,
+`meta/reviews/prs/`, and `meta/reviews/tickets/`.
 
 `templates` is backed by three-tier resolution rather than a directory
 walk. See the "Templates" subsection below for the data shape the
@@ -338,7 +342,7 @@ Deterministic, per type:
 - **tickets** — strip leading `NNNN-`. `0001-three-layer-review-system-architecture` → `three-layer-review-system-architecture`.
 - **decisions** — strip leading `ADR-NNNN-`. `ADR-0002-three-layer-review-architecture` → `three-layer-review-architecture`.
 - **plans / research / validations / notes / prs** — strip leading `YYYY-MM-DD-`. `2026-02-22-pr-review-agents` → `pr-review-agents`.
-- **plan-reviews / pr-reviews** — strip leading `YYYY-MM-DD-` **and** trailing `-review-N` suffix. `2026-03-27-remaining-configuration-features-review-1` → `remaining-configuration-features`. Without the suffix strip, reviews do not cluster with their target plan or PR.
+- **plan-reviews / pr-reviews / ticket-reviews** — strip leading `YYYY-MM-DD-` **and** trailing `-review-N` suffix. `2026-03-27-remaining-configuration-features-review-1` → `remaining-configuration-features`. Without the suffix strip, reviews do not cluster with their target plan, PR, or ticket.
 - **templates** — no slug; excluded from lifecycle.
 
 Docs with the same intent cluster by slug regardless of where they live.
@@ -424,6 +428,7 @@ interface LifecycleCluster {
     hasResearch: boolean;
     hasPlan: boolean;
     hasPlanReview: boolean;
+    hasTicketReview: boolean;
     hasValidation: boolean;
     hasPr: boolean;
     hasPrReview: boolean;
@@ -432,9 +437,9 @@ interface LifecycleCluster {
 }
 ```
 
-Timeline ordering: ticket → research → plan → plan-review → validation →
-PR → pr-review → decision → notes (grouped). Within a doc type, order by
-mtime ascending.
+Timeline ordering: ticket → research → plan → plan-review → ticket-review →
+validation → PR → pr-review → decision → notes (grouped). Within a doc type,
+order by mtime ascending.
 
 ### Kanban state
 
@@ -550,8 +555,9 @@ for a future "promote inferred to explicit" affordance.
 ### Live updates
 
 - The `notify` crate watches each configured doc-type directory
-  (non-recursive — the ten per-type roots are flat). On macOS this is
-  backed by FSEvents; on Linux, inotify.
+  (non-recursive — the ten directory-backed type roots are flat;
+  `templates` is virtual and not watched). On macOS this is backed by
+  FSEvents; on Linux, inotify.
 - On `add | change | unlink`, the indexer re-reads (or removes) and
   broadcasts `doc-changed` with the new ETag.
 - Events are debounced 100ms per path to coalesce editor-save chatter.
@@ -582,7 +588,7 @@ Rust unit tests colocated with each module (`#[cfg(test)] mod tests`):
   order, trailing whitespace; atomic rename write; symlink-escape
   rejection via `canonicalize` + prefix check.
 - `slug` — one table-driven test per doc type covering prefix and
-  (for plan-reviews / pr-reviews) suffix patterns.
+  (for plan-reviews / pr-reviews / ticket-reviews) suffix patterns.
 - `indexer` — constructs correct clusters from a synthetic tree; updates
   correctly on add / change / unlink; debounces noisy event streams;
   distinguishes absent vs malformed frontmatter.
@@ -699,7 +705,7 @@ Rust unit tests colocated with each module (`#[cfg(test)] mod tests`):
 | Frontend stack | React + Vite + TanStack Router + TanStack Query + dnd-kit, TypeScript | User preference for React; TanStack Query is a natural fit for server state + SSE invalidation + optimistic mutations; dnd-kit is the current best-in-class DnD lib. |
 | Launch | Slash command + standalone CLI, one `launch-server.sh` implementation | Covers both the companion and pre/post-flight use cases without a second codebase. |
 | Port | Dynamic | Avoids collisions across multiple accelerator repos. |
-| Doc-type list | Hardcoded to the ten known types | Simplicity for v1; auto-discovery deferred to v2+. |
+| Doc-type list | Hardcoded to the eleven known types | Simplicity for v1; auto-discovery deferred to v2+. |
 | Path resolution | Done by bash preprocessor, handed to the Rust binary via `config.json` | Keeps the server pure; avoids shelling out from Rust; uses the existing `scripts/config-read-path.sh`. |
 | State location | `<meta/tmp>/visualiser/` | Reuses the existing gitignored `tmp` convention from `/accelerator:init`. |
 | Lifecycle anchor | Slug cluster | Works today without retrofitting frontmatter; the visualiser makes gaps visible and nudges authoring toward cleaner slugs. |
@@ -707,7 +713,7 @@ Rust unit tests colocated with each module (`#[cfg(test)] mod tests`):
 | Writes in v1 | Only `status:` on tickets | Scopes one surface to test and get right; avoids body-edit conflicts entirely. |
 | Conflict detection | HTTP ETags (SHA-256 content hash via `sha2`) with `If-Match` | Standard HTTP semantics; resolution-free; enables conditional GETs and cheap SSE reconciliation. |
 | Live updates | Server-Sent Events | One-way is sufficient; simpler than WebSockets; axum's SSE support is first-class. |
-| Reviews type modelling | Two distinct DocTypes (`plan-reviews`, `pr-reviews`) | The config system splits the paths (`review_plans` / `review_prs`); modelling as two types keeps each walk flat and avoids recursive-watch complexity. |
+| Reviews type modelling | Three distinct DocTypes (`plan-reviews`, `pr-reviews`, `ticket-reviews`) | The config system splits the paths (`review_plans` / `review_prs` / `review_tickets`); modelling as three types keeps each walk flat and avoids recursive-watch complexity. |
 | Templates modelling | Virtual doc type backed by the three-tier resolver; the library shows every tier per template | Mirrors the plugin's `config_resolve_template()` semantics (config override > user override > plugin default); users preview what a template renders to regardless of their current configuration, and drift between "what I configured" and "what I'd get" is always visible. |
 
 ## Roadmap (post-v1)

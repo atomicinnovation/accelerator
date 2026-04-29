@@ -43,7 +43,7 @@ available on disk at
 and is **a direct structural template** we should model the launch pattern
 after. (Its implementation is Node; we model the *pattern*, not the code.)
 
-Seven design decisions have now been resolved and locked in (see
+Ten design decisions have now been resolved and locked in (see
 **Resolved design decisions** below). The most impactful:
 
 - The server is implemented in **Rust** (axum + tokio + notify + gray_matter
@@ -59,11 +59,11 @@ Six spec assumptions do not match reality and need adjustment before v1
 implementation:
 
 1. **Path keys**: spec lists 9 doc types; the plugin's config system
-   exposes **11** (`reviews` is split into `review_plans` + `review_prs`;
-   `tmp` is the 11th).
+   exposes **12** (`reviews` is split into `review_plans` + `review_prs` +
+   `review_tickets`; `tmp` is the 12th).
 2. **Reviews directory is nested**: `meta/reviews/plans/` and (future)
    `meta/reviews/prs/`. Spec's flat-directory assumption breaks — resolved
-   via D5 (two separate DocTypes, each flat).
+   via D5 (three separate DocTypes, each flat).
 3. **Templates resolve across three tiers, not one directory**: templates
    aren't a single flat walk. `config_resolve_template()` in
    `scripts/config-common.sh:152-192` applies winner-first precedence:
@@ -153,23 +153,24 @@ Precedence: local overrides team overrides default (last file wins).
 `scripts/vcs-common.sh:8-18` — it walks up for `.jj` or `.git` and falls back to
 `$PWD`.
 
-**Path keys** (authoritative list from `scripts/config-read-path.sh:7-18`):
+**Path keys** (authoritative list from `scripts/config-read-path.sh:7-19`):
 
-| Key            | Default              | Notes                                                                  |
-|----------------|----------------------|------------------------------------------------------------------------|
-| `plans`        | `meta/plans`         |                                                                        |
-| `research`     | `meta/research`      |                                                                        |
-| `decisions`    | `meta/decisions`     |                                                                        |
-| `prs`          | `meta/prs`           | Directory not yet populated anywhere.                                  |
-| `validations`  | `meta/validations`   | Directory does not exist on disk yet.                                  |
-| `review_plans` | `meta/reviews/plans` | Not `reviews` — note the split.                                        |
-| `review_prs`   | `meta/reviews/prs`   | Not yet populated.                                                     |
-| `templates`    | `meta/templates`     | Empty in both locations; real templates at `<plugin-root>/templates/`. |
-| `tickets`      | `meta/tickets`       |                                                                        |
-| `notes`        | `meta/notes`         |                                                                        |
-| `tmp`          | `meta/tmp`           | Ephemeral; gitignored via nested `.gitignore`.                         |
+| Key              | Default                | Notes                                                                  |
+|------------------|------------------------|------------------------------------------------------------------------|
+| `plans`          | `meta/plans`           |                                                                        |
+| `research`       | `meta/research`        |                                                                        |
+| `decisions`      | `meta/decisions`       |                                                                        |
+| `prs`            | `meta/prs`             | Directory not yet populated anywhere.                                  |
+| `validations`    | `meta/validations`     | Directory does not exist on disk yet.                                  |
+| `review_plans`   | `meta/reviews/plans`   | Not `reviews` — note the split.                                        |
+| `review_prs`     | `meta/reviews/prs`     | Not yet populated.                                                     |
+| `review_tickets` | `meta/reviews/tickets` | Added 2026-04-24 for ticket review skill.                             |
+| `templates`      | `meta/templates`       | Empty in both locations; real templates at `<plugin-root>/templates/`. |
+| `tickets`        | `meta/tickets`         |                                                                        |
+| `notes`          | `meta/notes`           |                                                                        |
+| `tmp`            | `meta/tmp`             | Ephemeral; gitignored via nested `.gitignore`.                         |
 
-That is **11 keys, not 9**, and `reviews` is fundamentally split into two paths.
+That is **12 keys, not 9**, and `reviews` is fundamentally split into three paths.
 The spec's `DocTypeKey` union needs to accommodate that distinction — either as
 `review_plans` + `review_prs` at the type level, or as a single `reviews` type
 that internally unions two directories. See "Spec-vs-reality gaps" for the
@@ -179,9 +180,9 @@ recommended resolution.
 
 `skills/config/init/SKILL.md:1-126`:
 
-- Resolves all 11 path keys via `config-read-path.sh` in the frontmatter
+- Resolves all 12 path keys via `config-read-path.sh` in the frontmatter
   preamble (`SKILL.md:16-30`).
-- Creates each directory with `mkdir -p` + `.gitkeep` (11 directories, including
+- Creates each directory with `mkdir -p` + `.gitkeep` (12 directories, including
   `meta/reviews/` as the implicit parent of `reviews/plans/` and
   `reviews/prs/`).
 - Writes a **nested** `.gitignore` at `meta/tmp/.gitignore` with the content:
@@ -268,7 +269,7 @@ source "$PLUGIN_ROOT/scripts/vcs-common.sh"
 The visualiser's preprocessor(s) will follow the same idiom:
 `skills/visualisation/visualise/scripts/launch-server.sh` discovering
 `PLUGIN_ROOT` from its own location, sourcing `vcs-common.sh`, and invoking
-`config-read-path.sh` for each of the 11 keys.
+`config-read-path.sh` for each of the 12 keys.
 
 ### 6. The direct precedent: `superpowers:brainstorming`
 
@@ -377,10 +378,14 @@ Slug derivation (reality):
 - **tickets** — strip `NNNN-`. ✓ matches spec.
 - **plans / research / notes / prs / validations** — strip `YYYY-MM-DD-`. ✓
   matches spec.
-- **reviews** — strip `YYYY-MM-DD-` prefix AND `-review-N` suffix. **Spec does
-  not mention the suffix.** Without this, a plan with slug
+- **reviews** — strip `YYYY-MM-DD-` prefix AND the **last** occurrence of
+  `-review-N` suffix (anchored to end of stem:
+  `^\d{4}-\d{2}-\d{2}-(.+)-review-\d+$`, greedy `.+`). **Spec does not
+  mention the suffix.** Without this, a plan with slug
   `remaining-configuration-features` would never cluster with its review file
-  `2026-03-27-remaining-configuration-features-review-1.md`.
+  `2026-03-27-remaining-configuration-features-review-1.md`. The "last
+  occurrence" rule ensures slugs that contain the literal substring
+  `-review-` (e.g. `plan-review-process`) are handled correctly.
 - **templates** — spec says no slug, excluded from lifecycle. ✓ matches template
   ergonomics.
 
@@ -449,8 +454,8 @@ high bands):
 
 | #   | Spec assumption                                                                 | Reality                                                                                              | Recommendation                                                                                                                                                                                                                                                                                                                                |
 |-----|---------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| G1  | 9 doc types with single `reviews` key                                           | 11 path keys, `reviews` split into `review_plans` + `review_prs`                                     | **Split at the DocType level** (D5): `plan-reviews` and `pr-reviews` are distinct `DocTypeKey`s each reading from its own path. Slug derivation is identical for both.                                                                                                                                                                        |
-| G2  | `GET /api/docs/:type/:path` and flat walking                                    | Reviews directory is nested (`meta/reviews/plans/*.md`)                                              | Each of `plan-reviews` and `pr-reviews` walks its own flat directory (`meta/reviews/plans/` and `meta/reviews/prs/` respectively). Non-recursive watches suffice per type once split — the nesting is absorbed by the two-type split.                                                                                                         |
+| G1  | ~~9 doc types with single `reviews` key~~ (spec updated 2026-04-29)             | 12 path keys, `reviews` split into `review_plans` + `review_prs` + `review_tickets`                  | **Split at the DocType level** (D5): `plan-reviews`, `pr-reviews`, and `ticket-reviews` are distinct `DocTypeKey`s each reading from its own path. Slug derivation is identical for all three. ✅ Spec now aligned.                                                                                                                             |
+| G2  | `GET /api/docs/:type/:path` and flat walking                                    | Reviews directory is nested (`meta/reviews/{plans,prs,tickets}/*.md`)                                | Each of `plan-reviews`, `pr-reviews`, and `ticket-reviews` walks its own flat directory. Non-recursive watches suffice per type once split — the nesting is absorbed by the three-type split.                                                                                                                                                  |
 | G3  | Slug strips `YYYY-MM-DD-` for reviews                                           | Review filenames also have `-review-N.md` suffix                                                     | Add suffix-strip for reviews: `YYYY-MM-DD-(.+)-review-\d+\.md` → group 1 is the slug. Without this, reviews don't cluster with their targets.                                                                                                                                                                                                 |
 | G4  | Wiki-links `[[ADR-NNNN]]` and `[[TICKET-NNNN]]`                                 | Tickets are `NNNN-...md` with **no** `TICKET-` prefix; ADRs do use `ADR-NNNN-`                       | **Spec form wins (D6)**: `[[ADR-NNNN]]` → resolve via index's `adr_id`/filename lookup; `[[TICKET-NNNN]]` → strip the `TICKET-` in the resolver and look up the ticket by its numeric `NNNN-` filename prefix. Bare `[[NNNN]]` is not supported — keeps the prefix available for future namespaces (e.g. `[[EPIC-NNNN]]`).                    |
 | G5  | Ticket statuses `todo \| in-progress \| done` + Other                           | Only `todo` and `done` in the wild                                                                   | Keep spec's triple — Kanban's drag-drop will be the first thing to actually write `in-progress`. The "Other" swimlane is a no-op for now.                                                                                                                                                                                                     |
@@ -607,12 +612,17 @@ version. Specifics:
   1. `OS=$(uname -s | tr '[:upper:]' '[:lower:]')`; `ARCH=$(uname -m)`;
      normalise (`x86_64` → `x64`, `aarch64` / `arm64` → `arm64`).
   2. Read plugin version from
-     `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json` via `jq`.
+     `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json` via `jq`
+     (prerequisite; fail fast with "jq is required but not found" if
+     absent).
   3. Expected binary at
      `${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/bin/accelerator-visualiser-${OS}-${ARCH}`.
-  4. If binary exists and `shasum -a 256` matches the manifest entry, skip
-     to step 7.
-  5. Otherwise, `curl -fsSL -o <tmp>.part https://github.com/<owner>/<repo>/releases/download/v<version>/accelerator-visualiser-${OS}-${ARCH}`.
+  4. If binary exists and SHA-256 matches the manifest entry (using the
+     portable wrapper: `sha256sum` on Linux, `shasum -a 256` on macOS),
+     skip to step 7.
+  5. Remove any existing `.part` file for this platform (cleans up
+     orphans from prior interrupted downloads). Then download:
+     `curl -fsSL -o <tmp>.part https://github.com/<owner>/<repo>/releases/download/v<version>/accelerator-visualiser-${OS}-${ARCH}`.
   6. Verify SHA-256 against manifest. On match, `chmod +x` and rename to
      the cache path. On mismatch, delete the partial and exit with a
      clear error.
@@ -623,7 +633,8 @@ version. Specifics:
   - Network failure on download → clear error pointing at the release
     URL and suggesting `ACCELERATOR_VISUALISER_BIN` for offline use.
   - Checksum mismatch → treated as a security failure: delete the
-    partial, don't retry, exit.
+    partial, print expected/actual hashes and the release URL, mention
+    `ACCELERATOR_VISUALISER_BIN` as a recovery path, don't retry, exit.
 - **Dev override**: `ACCELERATOR_VISUALISER_BIN=/path/to/dev/binary`
   short-circuits steps 3-6 entirely. Supports `cargo run` / `cargo build`
   workflows without touching the release pipeline. The preprocessor
@@ -689,12 +700,13 @@ commits carrying the manifest change propagate through normal VCS
 operations; no manual file copy between checkouts is required or
 permitted.
 
-### D5. Reviews modelling — two separate DocTypes (Q5)
+### D5. Reviews modelling — three separate DocTypes (Q5)
 
-UI, sidebar, and `DocTypeKey` union expose `plan-reviews` and `pr-reviews` as
-distinct types. Each reads from its configured path (`review_plans` →
-`meta/reviews/plans/`, `review_prs` → `meta/reviews/prs/`). Slug derivation
-still strips `YYYY-MM-DD-` and `-review-N` suffix for both. Lifecycle clustering
+UI, sidebar, and `DocTypeKey` union expose `plan-reviews`, `pr-reviews`, and
+`ticket-reviews` as distinct types. Each reads from its configured path
+(`review_plans` → `meta/reviews/plans/`, `review_prs` → `meta/reviews/prs/`,
+`review_tickets` → `meta/reviews/tickets/`). Slug derivation still strips
+`YYYY-MM-DD-` and `-review-N` suffix for all three. Lifecycle clustering
 groups across them by slug match.
 
 **Updated DocTypeKey union (v1)**:
@@ -702,14 +714,13 @@ groups across them by slug match.
 ```ts
 type DocTypeKey =
   | "decisions" | "tickets" | "plans" | "research"
-  | "plan-reviews" | "pr-reviews"
+  | "plan-reviews" | "pr-reviews" | "ticket-reviews"
   | "validations" | "notes" | "prs" | "templates";
 ```
 
-That's 10 keys (9 from the spec with `reviews` split into two, minus the fact
-that `templates` is included in the union for library visibility but gates out
-of lifecycle and kanban as before). `tmp` is **not** a DocType — it's runtime
-state only.
+That's 11 keys (9 from the spec with `reviews` split into three, plus
+`templates` for library visibility — templates gates out of lifecycle and
+kanban as before). `tmp` is **not** a DocType — it's runtime state only.
 
 ### D6. Wiki-link forms — `[[TICKET-NNNN]]` with `TICKET-` prefix (Q6)
 
@@ -759,7 +770,7 @@ a distinct *active* badge. Absent tiers render as greyed-out cards
 with a one-line "not currently configured" note, not hidden, so the
 user learns what would change if they ejected or configured.
 
-**Server-side contract**: unlike the other nine DocTypes (flat walk of
+**Server-side contract**: unlike the other ten DocTypes (flat walk of
 one directory), `templates` is a *virtual* DocType backed by
 three-tier resolution. The server exposes:
 - `GET /api/docs?type=templates` — list of the five names with
@@ -895,7 +906,7 @@ nothing else.
 - Create `skills/visualisation/visualise/SKILL.md` with frontmatter (
   `disable-model-invocation: true`,
   `allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/*)`).
-- Preamble resolves all 11 path keys + tmp via `!`-prefixed
+- Preamble resolves all 12 path keys (including `tmp`) via `!`-prefixed
   `config-read-path.sh` calls, following the `review-pr` template.
 - Add `skills/visualisation/visualise/scripts/launch-server.sh` as a stub that
   prints a hardcoded `http://localhost:0000` JSON line and exits 0.
@@ -927,15 +938,42 @@ first run.
   cache path at `${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/bin/`
   for an existing binary, verifies its SHA-256 against the committed
   `checksums.json`, downloads from the GitHub Release on miss (`curl
-  -fsSL`), re-verifies, and `chmod +x`. Supports
+  --progress-bar`), re-verifies, and `chmod +x`. Supports
   `ACCELERATOR_VISUALISER_BIN` env override for local dev builds.
+  - **Portable SHA-256**: use `sha256sum` on Linux (check availability
+    first), fall back to `shasum -a 256` on macOS. Both produce the
+    same hex digest; the wrapper normalises the output format.
+  - **Progress and error UX**: emit a single-line "Downloading
+    visualiser server (first run, ~8 MB)…" to stderr before the
+    download. Use `curl --progress-bar` so progress is visible. On
+    network failure, suggest retrying and mention
+    `ACCELERATOR_VISUALISER_BIN` for offline use. On checksum
+    mismatch, print both expected and actual hashes, the release URL
+    fetched, and a note to verify the plugin version is current.
 - Implement server lifecycle in Rust: env-var config read, `axum::serve`
   listener, `server-info.json` + `server-stopped.json` lifecycle files,
   owner-PID watch loop via `tokio::time::interval` + `nix::sys::signal::kill(pid, None)`
-  every 60s, 30-min idle timeout, SIGTERM/SIGINT handlers via
-  `tokio::signal`.
+  every 60s, 30-min idle timeout (defined as "no new HTTP requests
+  AND no active SSE subscribers" — an open SSE connection keeps the
+  server alive; once all subscribers disconnect the countdown begins),
+  SIGTERM/SIGINT handlers via `tokio::signal`.
+- **CORS**: configure `tower-http::cors::CorsLayer` to reject all
+  cross-origin requests (no `Access-Control-Allow-Origin` header
+  emitted). This prevents any website open in the user's browser from
+  making API requests to the visualiser even if it discovers the
+  dynamic port via localhost port scanning.
 - `/accelerator:visualise` now prints the real URL from `server-info.json`;
-  re-invocation detects live PID and reuses.
+  re-invocation detects live PID **and verifies liveness via a
+  `GET /api/types` health-check with a 2s timeout** before declaring
+  the server alive. This prevents stale server-info.json (from an
+  unclean shutdown where the PID was recycled) from causing a false
+  reuse.
+- **Owner-PID passed explicitly**: the preprocessor passes the harness
+  PID to the server as an explicit field in `config.json` (or env var)
+  rather than deriving it from process ancestry (ppid-of-ppid). This
+  mirrors the superpowers `BRAINSTORM_OWNER_PID` pattern and avoids
+  fragility when the process tree depth between Claude Code and the
+  launched script varies.
 - **No HTML served yet** — `GET /` returns 200 with placeholder text.
 
 **Deliverable**: slash command or CLI starts the server (first invocation
@@ -950,11 +988,11 @@ all return real data.
 
 - Implement `file_driver` module with a `FileDriver` trait (methods
   `list`, `read`, `watch`) and a `LocalFileDriver` impl. No
-  `write_frontmatter` yet. The **nine ordinary** source directories
+  `write_frontmatter` yet. The **ten ordinary** source directories
   (per D5: `decisions`, `tickets`, `plans`, `research`, `plan-reviews`
-  at `review_plans`, `pr-reviews` at `review_prs`, `validations`,
-  `notes`, `prs`) are flat walks — the two-type review split absorbs
-  the nesting.
+  at `review_plans`, `pr-reviews` at `review_prs`, `ticket-reviews`
+  at `review_tickets`, `validations`, `notes`, `prs`) are flat walks —
+  the three-type review split absorbs the nesting.
 - `templates` is a **virtual DocType** backed by the three-tier
   resolver (D9), not a flat walk. Implement it as a separate code
   path that consumes the `config.templates` map and produces one
@@ -962,16 +1000,16 @@ all return real data.
   template name, always including the plugin-default tier. Missing
   tier files are indexed with `present: false` (not treated as
   errors).
-- Implement `indexer` module: scan the nine ordinary dirs, parse with
+- Implement `indexer` module: scan the ten ordinary dirs, parse with
   `gray_matter` + `serde_yml`, tolerate absent frontmatter (new
   `FrontmatterState::Absent` variant — not an error), malformed
   frontmatter (`FrontmatterState::Malformed` — indexed raw-only + emit
   `doc-invalid` in Phase 4), compute SHA-256 ETag via `sha2`, derive slug
-  per-type including the `-review-N` suffix strip for `plan-reviews` and
-  `pr-reviews`. Templates are indexed separately — no slug, no
-  clustering.
-- Wire-format `DocTypeKey` union per D5 matches the TS union in the spec:
-  `"decisions" | "tickets" | "plans" | "research" | "plan-reviews" | "pr-reviews" | "validations" | "notes" | "prs" | "templates"`.
+  per-type including the `-review-N` suffix strip for `plan-reviews`,
+  `pr-reviews`, and `ticket-reviews`. Templates are indexed separately —
+  no slug, no clustering.
+- Wire-format `DocTypeKey` union per D5 (extends spec with `ticket-reviews`):
+  `"decisions" | "tickets" | "plans" | "research" | "plan-reviews" | "pr-reviews" | "ticket-reviews" | "validations" | "notes" | "prs" | "templates"`.
   Rust side uses a `DocTypeKey` enum with `#[serde(rename_all = "kebab-case")]`.
 - Implement axum routes: `/api/types`, `/api/docs?type=…`,
   `/api/docs/{*path}` with strong ETag and `If-None-Match` → 304.
@@ -1000,13 +1038,24 @@ a template fetch returns up to three tier entries with their content.
 **Goal**: `GET /api/events` streams `doc-changed` events.
 
 - Implement `sse_hub` module built on `tokio::sync::broadcast`:
-  subscriber management via an axum SSE stream, broadcast semantics,
-  dropped-oldest-on-slow-consumer behaviour exposed via the channel's
-  natural backpressure.
+  subscriber management via an axum SSE stream, broadcast semantics.
+  On `RecvError::Lagged` (slow consumer fell behind the channel
+  capacity), inject a synthetic `invalidate-all` event into that
+  subscriber's SSE stream so the frontend triggers a full refetch
+  rather than silently operating on stale data.
 - Wire `notify` watchers to each of the 10 source dirs (non-recursive —
-  flat per type after the D5 split).
+  flat per type after the D5 split; templates is virtual, not watched).
 - 100ms per-path debounce implemented with a
-  `HashMap<PathBuf, JoinHandle<()>>` of pending tasks.
+  `HashMap<PathBuf, Instant>` recording the scheduled time per path.
+  Each spawned task checks on wake whether it is still the latest
+  scheduled instance (compare its own timestamp against the map entry);
+  only proceed with re-indexing if it is the latest. This avoids
+  aborting tasks mid-execution which could leave the index in an
+  inconsistent state. After successful re-indexing, remove the path's
+  entry from the HashMap to prevent unbounded growth during long server
+  sessions. If pending entries exceed a threshold (e.g., 100 paths),
+  switch to a full-rescan strategy to handle mass file operations (git
+  checkout, format-all) gracefully.
 - Route change → index update → ETag recompute → SSE broadcast
   `{type, path, etag}`.
 - Handle `FrontmatterState::Malformed` by emitting `doc-invalid`
@@ -1017,17 +1066,18 @@ see the event.
 
 ### Phase 5 — Frontend scaffold and library view
 
-**Goal**: SPA loads, sidebar lists the 10 doc types, clicking a doc renders its
-markdown.
+**Goal**: SPA loads, sidebar lists the 11 doc types, clicking a doc renders its
+markdown. Critical error UX ships alongside the scaffold.
 
 - Scaffold frontend at `skills/visualisation/visualise/frontend/` with Vite +
   TS + React.
 - TanStack Router route tree: `/`, `/library`, `/library/:type`,
-  `/library/:type/:filename`. Templates share the same route shape —
+  `/library/:type/:fileSlug`. Templates share the same route shape —
   `/library/templates/:name` — but render the three-tier panel layout
   described in D9 instead of a single doc body.
-- TanStack Query client with `EventSource` subscribing to `/api/events` and
-  dispatching invalidations.
+- TanStack Query client with a `ReconnectingEventSource` subscribing to
+  `/api/events` with **exponential backoff on disconnect** and
+  **invalidate-all on reconnect**, so the UI never silently goes stale.
 - Shell layout with sidebar (doc type groupings + views). Templates
   sit under a de-emphasised "Meta" heading per spec and excluded from
   lifecycle and kanban.
@@ -1048,17 +1098,30 @@ markdown.
   appear without a Rust rebuild.
 - Markdown rendering: CommonMark + GFM + syntax highlighting. No wiki-link
   resolution yet (Phase 9).
+- **Critical error UX (pulled forward from Phase 10)**:
+  - Init-not-run detection: if the server reports no configured
+    directories exist, show a friendly full-page message with
+    `/accelerator:init` hint.
+  - Server-shutdown SSE event: when the server emits a `shutdown`
+    event (fired before process exit), the frontend shows a clear
+    message: "The visualiser server has shut down. Relaunch with
+    /accelerator:visualise."
+  - Basic keyboard focus management: visible focus rings on
+    interactive elements, tab-navigable sidebar.
 
 **Deliverable**: open the URL, navigate the sidebar, read all documents
-including the five templates with their three-tier breakdown.
+including the five templates with their three-tier breakdown. SSE
+reconnects gracefully; init-not-run and server-shutdown show clear
+messages.
 
 ### Phase 6 — Lifecycle clusters and view
 
 **Goal**: `/lifecycle` and `/lifecycle/:slug` render.
 
 - Extend `Indexer` with `buildClusters()`: group index entries by slug, compute
-  `completeness`, sort by canonical order (ticket → research → plan → review →
-  validation → PR → decision → notes), then by mtime within a type.
+  `completeness`, sort by canonical order (ticket → research → plan →
+  plan-review → ticket-review → validation → PR → pr-review → decision →
+  notes), then by mtime within a type.
 - `/api/lifecycle` and `/api/lifecycle/:slug` endpoints.
 - `/lifecycle` index — card per cluster with pipeline dots.
 - `/lifecycle/:slug` — vertical timeline with placeholders for missing stages.
@@ -1089,14 +1152,21 @@ field; unknown values go to "Other".
     `{"todo", "in-progress", "done"}`.
   - Path-escape guard via `std::fs::canonicalize` + prefix check against
     the tickets dir.
+  - **Fresh ETag verification at read time**: read the file, compute
+    SHA-256 of the bytes just read, and compare that hash against the
+    `If-Match` header directly — do not rely on the cached ETag from
+    the indexer. This eliminates the TOCTOU window between the indexer's
+    debounced cache update and the actual file state.
   - YAML-aware line patcher (new `patcher` module): replaces only the
     `status:` line in the frontmatter block, preserving
     comments/order/whitespace.
   - Atomic write via `tempfile::NamedTempFile::persist` (sibling tempfile
     + rename).
-  - Recompute ETag, broadcast `doc-changed` through the SSE hub.
-- Frontend: optimistic mutation, rollback on `412`, toast on conflict, SSE
-  reconciles silently on `204`.
+  - Recompute ETag, update the indexer cache, broadcast `doc-changed`
+    through the SSE hub.
+- Frontend: optimistic mutation, rollback on `412`, toast on conflict
+  ("This ticket was modified externally — the board has been refreshed
+  with the current state."), SSE reconciles silently on `204`.
 
 **Deliverable**: drag a card → `status:` line in the `.md` file changes →
 a second tab receives the update.
@@ -1128,11 +1198,13 @@ declared link back to its target plan.
 ### Phase 10 — Error handling, accessibility, polish
 
 - Malformed-frontmatter banner on doc page; JSON-line logging to
-  `<tmp>/visualiser/server.log` with 5MB rotation; SSE reconnect with exponential
-  backoff; server version header + sidebar footer; keyboard-navigable kanban;
-  focus rings; WCAG AA contrast.
-- Init-not-run detection (check for `<meta/tmp>/.gitignore` sentinel, per
-  `config-summary.sh`) → friendly error with `/accelerator:init` hint.
+  `<tmp>/visualiser/server.log` with 5MB rotation (retain at most 3
+  rotated files, ~20MB maximum); server version header + sidebar footer;
+  keyboard-navigable kanban; WCAG AA contrast.
+- Note: init-not-run detection, SSE reconnect with backoff, basic focus
+  rings, and server-shutdown notification were pulled forward to Phase 5
+  so early adopters get a usable experience from the first frontend
+  phase.
 
 **Deliverable**: the visualiser handles every failure mode listed in the spec's
 matrix, plus is keyboard-usable.
@@ -1175,7 +1247,14 @@ matrix, plus is keyboard-usable.
   the checksums.json update, and uploads the assets to the GitHub Release
   via `gh release upload`. The script must fail loudly if `frontend/dist/`
   is missing or stale relative to `frontend/src/` at the moment the
-  Rust builds start.
+  Rust builds start. **Release ordering for atomicity**: (1) build all
+  four binaries; (2) compute SHA-256 checksums; (3) create a **draft**
+  GitHub Release and upload all four binaries; (4) verify uploaded
+  asset checksums match computed hashes (re-download and check); (5)
+  commit `checksums.json` with the version bump; (6) push the tag; (7)
+  promote the release from draft to published. If any step fails, the
+  script aborts without pushing a tag or publishing, so users never see
+  a release with missing or mismatched assets.
 - **Plugin `.gitignore`**: add
   `skills/visualisation/visualise/bin/accelerator-visualiser-*` and
   `skills/visualisation/visualise/frontend/dist/` so downloaded
@@ -1196,7 +1275,7 @@ matrix, plus is keyboard-usable.
 ### Phasing rationale
 
 - **Phase 1 ships immediately**: something invokable even though empty.
-  Validates the slash-command wiring before any Node is written.
+  Validates the slash-command wiring before any Rust is written.
 - **Phases 2-4 are server-only**: incremental increases in capability. Each
   phase produces a testable API surface.
 - **Phases 5-9 layer the frontend**: library → lifecycle → kanban (read) →
@@ -1231,7 +1310,7 @@ updates.
 - `scripts/config-read-value.sh:1-130` — underlying resolver; layered file precedence.
 - `scripts/config-common.sh:15-192` — `find_repo_root`, frontmatter extraction, template resolution.
 - `scripts/config-summary.sh:19-21` — init sentinel (check for `<tmp>/.gitignore`).
-- `skills/config/init/SKILL.md:1-126` — init skill; 11 path keys, nested `tmp/.gitignore`.
+- `skills/config/init/SKILL.md:1-126` — init skill; 12 path keys, nested `tmp/.gitignore`.
 - `skills/github/review-pr/SKILL.md:1-36` — canonical `!`-preamble + `{placeholder}` skill pattern.
 - `skills/github/review-pr/SKILL.md:96-117, 627-634` — `{tmp directory}/pr-review-{id}/` subdirectory + cleanup discipline.
 - `skills/decisions/create-adr/SKILL.md:1-25` — extended `allowed-tools` with skill-local scripts.
@@ -1277,8 +1356,9 @@ updates.
 
 - `meta/research/2026-03-18-meta-management-strategy.md` — the conceptual model
   for doc types that this visualiser is making visible.
-- `meta/plans/2026-03-23-template-and-path-customisation.md` — defined the 11
-  path keys the visualiser reads. Authoritative on naming.
+- `meta/plans/2026-03-23-template-and-path-customisation.md` — defined the
+  path keys the visualiser reads (originally 11; now 12 with `review_tickets`
+  added 2026-04-24). Authoritative on naming.
 - `meta/plans/2026-03-22-validation-crossref-frontmatter.md` — proposed the
   cross-ref frontmatter fields the spec assumes are populated. Those proposals
   have not yet been implemented by authoring skills, which is why the
@@ -1318,7 +1398,7 @@ All design decisions flagged during research are resolved. See the
   Single plugin manifest at the workspace's own
   `./.claude-plugin/plugin.json` (no "root" outside the workspace, no
   per-workspace-vs-root distinction).
-- D5 Reviews modelling — two separate DocTypes.
+- D5 Reviews modelling — three separate DocTypes.
 - D6 Wiki-links — `[[TICKET-NNNN]]` prefixed form only.
 - D7 Declared links — shipped in v1 (the `target:` field on plan-reviews
   is the only populated cross-ref today; it renders bidirectionally).
@@ -1362,32 +1442,25 @@ section below for the per-phase mapping.
 
 ### Internal inconsistencies — editorial, fix in place
 
-1. **"Seven design decisions" is stale**. The Summary section says
-   "Seven design decisions have now been resolved" but the Resolved
-   design decisions section lists **eight** (D1–D8). D8 was added in
-   the Rust switch; the header count was never updated.
+1. **"Seven design decisions" is stale**. ~~The Summary section says
+   "Seven design decisions have now been resolved" but there are D1–D10.~~
+   **Fixed**: now reads "Ten design decisions".
 2. **"Cargo workspace for the server" is mis-termed**. §1 says "a
    Cargo workspace for the server", but D2's layout shows a single
    Cargo crate (one `Cargo.toml`, one `src/` tree). A *workspace* is a
    `[workspace]` with multiple member crates, which isn't what's
    proposed. Should read "a Cargo project" or "a single Cargo crate".
-3. **Phase 1 preamble double-counts `tmp`**. Phase 1 says "Preamble
-   resolves all 11 path keys + tmp". `tmp` is one of the 11 keys — the
-   "+ tmp" is double-counting. Either "all 11 path keys" or
-   "all 10 doc-type paths + tmp".
-4. **Phase 6 canonical order omits `pr-review`**. The phase says:
-   `ticket → research → plan → review → validation → PR → decision → notes`.
-   The spec's own lifecycle timeline (Data model § LifecycleCluster)
-   is `ticket → research → plan → plan-review → validation → PR →
-   pr-review → decision → notes`. Given D5 splits reviews into two
-   DocTypes, the phased plan should cite the split ordering too.
-5. **D5's "10 keys" arithmetic is muddled**. The rationale reads
-   "9 from the spec with `reviews` split into two, minus the fact that
-   `templates` is included in the union for library visibility but
-   gates out of lifecycle and kanban as before" — the subtraction
-   phrasing implies `templates` wasn't in the spec's 9 types, but it
-   *was*. Cleaner: "Spec's 9 types with `reviews` split into two = 10
-   types."
+3. **Phase 1 preamble double-counts `tmp`**. ~~Phase 1 says "Preamble
+   resolves all 11 path keys + tmp".~~ **Fixed**: now reads "all 12 path
+   keys (including `tmp`)".
+4. **Phase 6 canonical order omits `pr-review`**. ~~The phase used a
+   collapsed ordering without the D5 split.~~ **Fixed**: Phase 6 now
+   reads `ticket → research → plan → plan-review → ticket-review →
+   validation → PR → pr-review → decision → notes`.
+5. **D5's "10 keys" arithmetic is muddled**. ~~The rationale reads
+   "9 from the spec with `reviews` split into two, minus …"~~
+   **Fixed**: now reads "11 keys (9 from the spec with `reviews` split
+   into three, plus `templates` for library visibility)".
 6. **§6 `<tmp>/visualiser/` layout omits `config.json`**. The "What
    to take from this precedent" list enumerates
    `{server-info.json, server.pid, server.log, server-stopped.json}`,
@@ -1408,13 +1481,14 @@ section below for the per-phase mapping.
 
 | Claim in doc                                        | Disk state 2026-04-18                                                                                                                     | Impact                                                                                                                                                                      |
 |-----------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `decisions/` has 14 ADRs                            | **17** (ADR-0001 … ADR-0017, no gaps)                                                                                                     | Cosmetic. The new ADRs (0015 test-coverage lens, 0016 userspace config, 0017 config extension points) don't touch the 11 path keys or the 10 DocTypes.                      |
+| `decisions/` has 14 ADRs                            | **17** (ADR-0001 … ADR-0017, no gaps)                                                                                                     | Cosmetic. The new ADRs (0015 test-coverage lens, 0016 userspace config, 0017 config extension points) don't touch the 12 path keys or the 11 DocTypes.                      |
 | Config system has 3 layers (team / local / default) | ADR-0016 adds a **userspace** config layer (`~/.claude/accelerator/…`) between local and default                                          | Minor. The visualiser consumes fully-resolved paths via `config-read-path.sh`, so the layer count is invisible to the Rust server — but §2's enumeration is now incomplete. |
 | `meta/templates/` is empty in consumer repos        | ADR-0017 defines **userspace** templates at `meta/templates/<name>.md` (user-ejected overrides) + `templates.<name>` config map for paths | **Superseded by D9**: the visualiser now renders **all three resolution tiers** (config override > user override > plugin default) per template, not just user-ejected ones. `templates` becomes a virtual DocType backed by `config_resolve_template()` rather than a flat walk. |
 
 Everything else verified by fresh codebase probes still holds:
-- 11 path keys in `scripts/config-read-path.sh` — unchanged.
-- `/accelerator:init` still creates all 11 dirs + `.gitkeep`, writes
+- 12 path keys in `scripts/config-read-path.sh` (including `review_tickets`
+  added 2026-04-24).
+- `/accelerator:init` still creates all 12 dirs + `.gitkeep`, writes
   nested `meta/tmp/.gitignore`, does not write the config file.
 - `tickets/` file counts (25) and status distribution — only `todo`
   and `done`, never `in-progress`.
@@ -1443,7 +1517,7 @@ deferred to the phase listed.
 2. **`config.json` schema** — *owner: Phase 2*. The preprocessor
    writes it and the Rust binary consumes it — schema lands when the
    real preprocessor and Rust server are introduced. Candidate
-   fields from the spec plus D9: `doc_paths` (map of the 9 ordinary
+   fields from the spec plus D9: `doc_paths` (map of the 10 ordinary
    types), `templates` (map of 5 names → `{config_override,
    user_override, plugin_default}`), `plugin_root`, `tmp_path`,
    `owner_pid`, `host`, `log_path`, `plugin_version`. These are
