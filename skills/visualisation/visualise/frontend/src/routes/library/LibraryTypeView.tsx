@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams } from '@tanstack/react-router'
+import { Link, Outlet, useParams } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { fetchDocs } from '../../api/fetch'
 import { formatMtime } from '../../api/format'
@@ -16,8 +16,8 @@ type SortDir = 'asc' | 'desc'
  *  chain in the rendered cell. Sort contract: clicking a column header
  *  orders rows by what the user sees in that column. */
 function statusCellValue(entry: IndexEntry): string {
-  const fm = entry.frontmatter as Record<string, unknown>
-  return String(fm.status ?? fm.date ?? '')
+  const fm = entry.frontmatter as Record<string, unknown> | null
+  return String(fm?.status ?? fm?.date ?? '')
 }
 
 function sortEntries(entries: IndexEntry[], key: SortKey, dir: SortDir): IndexEntry[] {
@@ -43,7 +43,7 @@ export function LibraryTypeView({ type: propType }: Props) {
   // otherwise read from the router. The route's `parseParams` (see
   // router.ts) has already narrowed the URL param to DocTypeKey — the
   // `isDocTypeKey` check below is belt-and-braces for the prop path.
-  const params = useParams({ strict: false }) as { type?: string }
+  const params = useParams({ strict: false }) as { type?: string; fileSlug?: string }
   const rawType = propType ?? params.type
 
   const [sortKey, setSortKey] = useState<SortKey>('mtime')
@@ -77,6 +77,11 @@ export function LibraryTypeView({ type: propType }: Props) {
   const ariaSortFor = (key: SortKey): 'ascending' | 'descending' | 'none' =>
     sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'
 
+  // When a child route (document detail) is active, delegate rendering to it.
+  // LibraryDocView is a child of this route in the route tree, so it only
+  // renders if we provide <Outlet />.
+  if (params.fileSlug) return <Outlet />
+
   if (type === undefined) {
     return <p role="alert">Unknown doc type: {String(rawType)}</p>
   }
@@ -104,7 +109,7 @@ export function LibraryTypeView({ type: propType }: Props) {
           {sorted.map(entry => (
             <tr key={entry.relPath}>
               <td>
-                <Link to="/library/$type/$fileSlug" params={{ type, fileSlug: fileSlugFromRelPath(entry.relPath) }}>
+                <Link to="/library/$type/$fileSlug" params={{ type, fileSlug: entry.slug ?? fileSlugFromRelPath(entry.relPath) }}>
                   {entry.title}
                 </Link>
               </td>

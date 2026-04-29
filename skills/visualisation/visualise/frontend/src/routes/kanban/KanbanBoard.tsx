@@ -11,7 +11,7 @@ import { queryKeys } from '../../api/query-keys'
 import { groupTicketsByStatus } from '../../api/ticket'
 import { STATUS_COLUMNS, OTHER_COLUMN, OTHER_COLUMN_KEY } from '../../api/types'
 import type { IndexEntry } from '../../api/types'
-import { useDocEvents } from '../../api/use-doc-events'
+import { useDocEventsContext } from '../../api/use-doc-events'
 import { useMoveTicket } from '../../api/use-move-ticket'
 import { resolveDropOutcome } from './resolve-drop-outcome'
 import { buildKanbanAnnouncements } from './announcements'
@@ -70,7 +70,7 @@ export function KanbanBoard() {
     [],
   )
 
-  const docEvents = useDocEvents()
+  const docEvents = useDocEventsContext()
   const move = useMoveTicket()
 
   function showConflict(msg: string) {
@@ -167,7 +167,7 @@ export function KanbanBoard() {
       onDragEnd={handleDragEnd}
       accessibility={{ announcements }}
     >
-      <div className={styles.board}>
+      <div className={styles.board} data-sse-state={docEvents.connectionState}>
         <h1 className={styles.title}>Kanban</h1>
         {conflict !== null && (
           <div role="alert" aria-atomic="true" className={styles.conflictBanner}>

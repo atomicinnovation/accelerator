@@ -1,10 +1,10 @@
 import { useServerInfo } from '../../api/use-server-info'
-import { useDocEvents } from '../../api/use-doc-events'
+import { useDocEventsContext } from '../../api/use-doc-events'
 import styles from './SidebarFooter.module.css'
 
 export function SidebarFooter() {
   const { data: serverInfo } = useServerInfo()
-  const { connectionState, justReconnected } = useDocEvents()
+  const { connectionState, justReconnected } = useDocEventsContext()
   const versionLabel = serverInfo?.version ? `Visualiser v${serverInfo.version}` : null
 
   const showReconnecting = connectionState === 'reconnecting'

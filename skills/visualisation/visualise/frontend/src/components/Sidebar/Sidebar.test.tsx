@@ -9,7 +9,7 @@ vi.mock('../../api/use-server-info', () => ({
 }))
 
 vi.mock('../../api/use-doc-events', () => ({
-  useDocEvents: vi.fn(() => ({
+  useDocEventsContext: vi.fn(() => ({
     setDragInProgress: vi.fn(),
     connectionState: 'open',
     justReconnected: false,

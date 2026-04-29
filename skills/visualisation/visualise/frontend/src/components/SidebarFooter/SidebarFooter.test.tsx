@@ -7,11 +7,11 @@ vi.mock('../../api/use-server-info', () => ({
 }))
 
 vi.mock('../../api/use-doc-events', () => ({
-  useDocEvents: vi.fn(),
+  useDocEventsContext: vi.fn(),
 }))
 
 import { useServerInfo } from '../../api/use-server-info'
-import { useDocEvents } from '../../api/use-doc-events'
+import { useDocEventsContext } from '../../api/use-doc-events'
 
 function mockDefaults(overrides: {
   serverInfo?: { name?: string; version?: string }
@@ -21,7 +21,7 @@ function mockDefaults(overrides: {
   vi.mocked(useServerInfo).mockReturnValue({
     data: overrides.serverInfo,
   } as any)
-  vi.mocked(useDocEvents).mockReturnValue({
+  vi.mocked(useDocEventsContext).mockReturnValue({
     setDragInProgress: vi.fn(),
     connectionState: overrides.connectionState ?? 'open',
     justReconnected: overrides.justReconnected ?? false,

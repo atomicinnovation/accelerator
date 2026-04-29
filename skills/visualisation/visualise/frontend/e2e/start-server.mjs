@@ -94,7 +94,6 @@ writeFileSync(configPath, JSON.stringify({
 // ── 4. Spawn the visualiser server ────────────────────────────────────────────
 
 const child = spawn(bin, ['--config', configPath], {
-  // Expose fixtures path so E2E tests can mutate files for conflict scenarios
   env: { ...process.env, FIXTURES_PATH: fixturesDir },
   stdio: 'inherit',
 })

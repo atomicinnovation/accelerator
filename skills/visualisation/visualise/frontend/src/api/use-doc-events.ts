@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { queryKeys, SESSION_STABLE_QUERY_ROOTS } from './query-keys'
 import type { SseEvent } from './types'
@@ -161,3 +161,15 @@ export function makeUseDocEvents(
 
 /** Production hook. Wired once at module load. */
 export const useDocEvents = makeUseDocEvents((url) => new EventSource(url))
+
+const _defaultHandle: DocEventsHandle = {
+  setDragInProgress: () => {},
+  connectionState: 'connecting',
+  justReconnected: false,
+}
+
+export const DocEventsContext = createContext<DocEventsHandle>(_defaultHandle)
+
+export function useDocEventsContext(): DocEventsHandle {
+  return useContext(DocEventsContext)
+}

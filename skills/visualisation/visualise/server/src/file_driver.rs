@@ -166,6 +166,7 @@ impl LocalFileDriver {
         use std::io::Write as _;
 
         let canonical_clone = canonical.clone();
+
         tokio::task::spawn_blocking(move || -> Result<(), FileDriverError> {
             let parent = canonical_clone
                 .parent()

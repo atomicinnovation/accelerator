@@ -33,7 +33,9 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
     enabled: type !== undefined,
   })
 
-  const entry = entries.find(e => fileSlugFromRelPath(e.relPath) === fileSlug)
+  const entry = entries.find(
+    e => e.slug === fileSlug || fileSlugFromRelPath(e.relPath) === fileSlug,
+  )
 
   // The doc-view's read path: content + related, both gated on
   // `entry?.relPath`. Body rendering is *not* gated on the wiki-link

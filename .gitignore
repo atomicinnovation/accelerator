@@ -11,11 +11,11 @@ workspaces/
 *.egg-info/
 .claude/settings.local.json
 .claude/accelerator.local.md
+**/test-results/
+*.tsbuildinfo
 meta/eval-workspaces/
 skills/visualisation/visualise/bin/accelerator-visualiser-*
 skills/visualisation/visualise/frontend/.e2e-port
-skills/visualisation/visualise/server/target
-skills/visualisation/visualise/frontend/node_modules
-skills/visualisation/visualise/frontend/dist
-**/test-results/
-*.tsbuildinfo
+skills/visualisation/visualise/frontend/dist/
+skills/visualisation/visualise/frontend/node_modules/
+skills/visualisation/visualise/server/target/
