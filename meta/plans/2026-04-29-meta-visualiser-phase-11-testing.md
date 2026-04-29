@@ -425,14 +425,14 @@ adding fixtures, update any count assertions.
 
 #### Automated Verification:
 
-- [ ] `cargo test --test api_smoke` passes with updated counts
-- [ ] `cargo test` passes — new fixtures don't break existing indexer
+- [x] `cargo test --test api_smoke` passes with updated counts
+- [x] `cargo test` passes — new fixtures don't break existing indexer
       tests
-- [ ] Fixture files committed to VCS
+- [x] Fixture files committed to VCS
 
 #### Manual Verification:
 
-- [ ] Each fixture type has 3-5 files covering: well-formed, absent
+- [x] Each fixture type has 3-5 files covering: well-formed, absent
       frontmatter, and malformed frontmatter cases
 
 ---
