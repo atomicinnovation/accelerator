@@ -2712,19 +2712,19 @@ Tests for `<SidebarFooter>`:
 
 #### Automated Verification
 
-- [ ] `npm test` (vitest) green; new tests for backoff math
+- [x] `npm test` (vitest) green; new tests for backoff math
   (including extreme attempts), reconnect flow with deterministic
   random, error-then-first-open, repeated-error idempotency,
   post-close resurrection guard, and factory-throws-then-retries
   pass.
-- [ ] `npm test` green for an extended `useDocEvents` test that
+- [x] `npm test` green for an extended `useDocEvents` test that
   asserts: (a) `connectionState` is reactive (consumer re-renders
   on transition), (b) `onReconnect` calls
   `queryClient.invalidateQueries` with a predicate that *excludes*
   `'server-info'`, (c) `'server-info'` cache survives reconnect
   while `'docs'` is invalidated.
-- [ ] `npm run typecheck` green.
-- [ ] Existing `dispatchSseEvent` test suite still passes
+- [x] `npm run typecheck` green.
+- [x] Existing `dispatchSseEvent` test suite still passes
   unchanged (transport upgrade, dispatch unchanged).
 
 #### Manual Verification
@@ -2889,10 +2889,10 @@ blocking 10.6's tests.
 
 #### Automated Verification
 
-- [ ] `npm test` (vitest) green; the three new banner tests
+- [x] `npm test` (vitest) green; the three new banner tests
   (parsed-no-banner, malformed-shows-banner, mid-session
   transition) pass.
-- [ ] Existing `LibraryDocView` tests still pass.
+- [x] Existing `LibraryDocView` tests still pass.
 
 #### Manual Verification
 
@@ -3308,12 +3308,12 @@ itself doesn't silently invalidate every token assertion:
 
 #### Automated Verification
 
-- [ ] `npm test` (vitest) green: focus-ring rule (3 tests), dnd-kit
+- [x] `npm test` (vitest) green: focus-ring rule (3 tests), dnd-kit
   announcement builder (4 tests + `ticketNumberFromRelPath` 2
   tests), token-vs-CSS drift (one per token), AA-contrast (3
   tests).
-- [ ] `npm run typecheck` green.
-- [ ] `npm run lint` green.
+- [x] `npm run typecheck` green.
+- [x] `npm run lint` green.
 
 #### Manual Verification
 

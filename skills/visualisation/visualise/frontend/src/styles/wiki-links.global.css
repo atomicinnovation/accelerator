@@ -15,7 +15,7 @@
 .unresolved-wiki-link {
   /* Broken-reference styling: muted with dotted underline. Reads as
      "this didn't resolve, check your ID". */
-  color: #9ca3af;
+  color: #6b7280;
   border-bottom: 1px dotted currentColor;
   cursor: help;
 }

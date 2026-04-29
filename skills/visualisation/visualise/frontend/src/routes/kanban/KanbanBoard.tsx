@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   DndContext, PointerSensor, KeyboardSensor,
@@ -14,6 +14,7 @@ import type { IndexEntry } from '../../api/types'
 import { useDocEvents } from '../../api/use-doc-events'
 import { useMoveTicket } from '../../api/use-move-ticket'
 import { resolveDropOutcome } from './resolve-drop-outcome'
+import { buildKanbanAnnouncements } from './announcements'
 import { KanbanColumn } from './KanbanColumn'
 import styles from './KanbanBoard.module.css'
 
@@ -59,6 +60,14 @@ export function KanbanBoard() {
   const entriesByRelPath = useMemo(
     () => new Map<string, IndexEntry>(entries.map(e => [e.relPath, e])),
     [entries],
+  )
+
+  const entriesRef = useRef(entriesByRelPath)
+  useEffect(() => { entriesRef.current = entriesByRelPath }, [entriesByRelPath])
+
+  const announcements = useMemo(
+    () => buildKanbanAnnouncements({ entries: () => entriesRef.current }),
+    [],
   )
 
   const docEvents = useDocEvents()
@@ -156,6 +165,7 @@ export function KanbanBoard() {
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      accessibility={{ announcements }}
     >
       <div className={styles.board}>
         <h1 className={styles.title}>Kanban</h1>

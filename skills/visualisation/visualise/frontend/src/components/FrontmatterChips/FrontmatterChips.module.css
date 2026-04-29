@@ -5,7 +5,7 @@
   padding: 0.2rem 0.5rem; font-size: 0.78rem;
 }
 .key { font-weight: 600; color: #374151; margin: 0; }
-.value { color: #6b7280; margin: 0; }
+.value { color: #374151; margin: 0; }
 .banner {
   background: #fef3c7; border: 1px solid #f59e0b;
   border-radius: 4px; padding: 0.5rem 0.75rem;
