@@ -158,6 +158,19 @@ fn build_router_with_spa<F: FnOnce(Router) -> Router>(
 
     attach_spa(api_router)
         .layer(tower_http::compression::CompressionLayer::new())
+        .layer(
+            tower_http::trace::TraceLayer::new_for_http()
+                .make_span_with(
+                    tower_http::trace::DefaultMakeSpan::new()
+                        .level(tracing::Level::INFO)
+                        .include_headers(false),
+                )
+                .on_response(
+                    tower_http::trace::DefaultOnResponse::new()
+                        .level(tracing::Level::INFO)
+                        .latency_unit(tower_http::LatencyUnit::Millis),
+                ),
+        )
         .layer(axum::middleware::from_fn_with_state(
             state.activity.clone(),
             crate::activity::middleware,

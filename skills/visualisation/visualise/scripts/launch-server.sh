@@ -190,7 +190,10 @@ fi
 
 # ─── background launch; server writes its own pid file ───────
 
-nohup "$BIN" --config "$CFG" >> "$LOG_FILE" 2>&1 &
+BOOTSTRAP_LOG="$TMP_DIR/server.bootstrap.log"
+: > "$BOOTSTRAP_LOG"
+chmod 0600 "$BOOTSTRAP_LOG"
+nohup "$BIN" --config "$CFG" >> "$BOOTSTRAP_LOG" 2>&1 &
 SERVER_PID=$!
 disown "$SERVER_PID" 2>/dev/null || true
 
