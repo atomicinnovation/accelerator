@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { renderHook, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { dispatchSseEvent, makeUseDocEvents } from './use-doc-events'
 import { createSelfCauseRegistry } from './self-cause'
-import { queryKeys } from './query-keys'
+import { queryKeys, SESSION_STABLE_QUERY_ROOTS } from './query-keys'
 
 // ── Pure dispatch tests ──────────────────────────────────────────────────
 // No hooks, no EventSource, no async — just exercise the invalidation
@@ -127,7 +127,11 @@ describe('makeUseDocEvents wiring', () => {
     constructor(public url: string) {}
   }
 
-  beforeEach(() => { queryClient = new QueryClient() })
+  beforeEach(() => {
+    vi.useFakeTimers()
+    queryClient = new QueryClient()
+  })
+  afterEach(() => { vi.useRealTimers() })
 
   function wrapper({ children }: { children: React.ReactNode }) {
     return React.createElement(QueryClientProvider, { client: queryClient }, children)
@@ -162,6 +166,7 @@ describe('makeUseDocEvents wiring', () => {
       return captured as unknown as EventSource
     })
     renderHook(() => useDocEvents(), { wrapper })
+    captured!.onopen?.(new Event('open'))
 
     expect(() => {
       captured!.onmessage?.(new MessageEvent('message', { data: 'not json' }))
@@ -169,28 +174,61 @@ describe('makeUseDocEvents wiring', () => {
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
   })
 
-  it('invalidates all docs queries via prefix match on EventSource error', () => {
-    // Seed two populated docs queries so the prefix invalidation can be
-    // observed by state change, not just by call shape. This locks in
-    // TanStack Query's default partial-match semantics (`exact: false`)
-    // — a future global `exact: true` would break reconcile-on-reconnect
-    // and this test would catch it.
+  it('invalidates all queries except session-stable on reconnect', () => {
     queryClient.setQueryData(queryKeys.docs('plans'), [])
     queryClient.setQueryData(queryKeys.docs('tickets'), [])
+    queryClient.setQueryData(queryKeys.serverInfo(), { name: 'x', version: '1.0.0' })
     vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    let captured: FakeEventSource | null = null
+    const fakes: FakeEventSource[] = []
     const useDocEvents = makeUseDocEvents((url) => {
-      captured = new FakeEventSource(url)
-      return captured as unknown as EventSource
+      const fake = new FakeEventSource(url)
+      fakes.push(fake)
+      return fake as unknown as EventSource
     })
     renderHook(() => useDocEvents(), { wrapper })
 
-    captured!.onerror?.(new Event('error'))
+    // Establish open connection then error → reconnect
+    fakes[0].onopen?.(new Event('open'))
+    fakes[0].onerror?.(new Event('error'))
+    // Max possible first-attempt delay with +20% jitter = 1200ms
+    vi.advanceTimersByTime(1500)
+    fakes[1].onopen?.(new Event('open'))
 
-    // Both child queries are marked stale.
+    // Docs queries are invalidated on reconnect
     expect(queryClient.getQueryState(queryKeys.docs('plans'))?.isInvalidated).toBe(true)
     expect(queryClient.getQueryState(queryKeys.docs('tickets'))?.isInvalidated).toBe(true)
+    // Session-stable query survives
+    expect(queryClient.getQueryState(queryKeys.serverInfo())?.isInvalidated).toBe(false)
+  })
+
+  it('exposes connectionState and justReconnected', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fakes: FakeEventSource[] = []
+    const useDocEvents = makeUseDocEvents((url) => {
+      const fake = new FakeEventSource(url)
+      fakes.push(fake)
+      return fake as unknown as EventSource
+    })
+    const { result } = renderHook(() => useDocEvents(), { wrapper })
+
+    expect(result.current.connectionState).toBe('connecting')
+
+    act(() => { fakes[0].onopen?.(new Event('open')) })
+    expect(result.current.connectionState).toBe('open')
+    expect(result.current.justReconnected).toBe(false)
+
+    act(() => { fakes[0].onerror?.(new Event('error')) })
+    expect(result.current.connectionState).toBe('reconnecting')
+
+    // Max possible first-attempt delay with +20% jitter = 1200ms
+    act(() => { vi.advanceTimersByTime(1500) })
+    act(() => { fakes[1].onopen?.(new Event('open')) })
+    expect(result.current.connectionState).toBe('open')
+    expect(result.current.justReconnected).toBe(true)
+
+    act(() => { vi.advanceTimersByTime(3000) })
+    expect(result.current.justReconnected).toBe(false)
   })
 })
 
@@ -207,15 +245,20 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
   }
 
   function makeFactory() {
-    let captured: FakeEventSource | null = null
+    const fakes: FakeEventSource[] = []
     const factory = (url: string) => {
-      captured = new FakeEventSource(url)
-      return captured as unknown as EventSource
+      const fake = new FakeEventSource(url)
+      fakes.push(fake)
+      return fake as unknown as EventSource
     }
-    return { factory, get source() { return captured! } }
+    return { factory, get source() { return fakes[fakes.length - 1]! }, fakes }
   }
 
-  beforeEach(() => { queryClient = new QueryClient() })
+  beforeEach(() => {
+    vi.useFakeTimers()
+    queryClient = new QueryClient()
+  })
+  afterEach(() => { vi.useRealTimers() })
 
   function wrapper({ children }: { children: React.ReactNode }) {
     return React.createElement(QueryClientProvider, { client: queryClient }, children)
@@ -227,6 +270,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     const ctx = makeFactory()
     const useDocEvents = makeUseDocEvents(ctx.factory, registry)
     renderHook(() => useDocEvents(), { wrapper })
+    ctx.source.onopen?.(new Event('open'))
 
     registry.register('sha256-X')
     ctx.source.onmessage?.(new MessageEvent('message', {
@@ -242,6 +286,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     const ctx = makeFactory()
     const useDocEvents = makeUseDocEvents(ctx.factory, registry)
     renderHook(() => useDocEvents(), { wrapper })
+    ctx.source.onopen?.(new Event('open'))
 
     ctx.source.onmessage?.(new MessageEvent('message', {
       data: JSON.stringify({ type: 'doc-changed', docType: 'tickets', path: 'meta/tickets/foo.md', etag: 'sha256-FOREIGN' }),
@@ -256,6 +301,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     const ctx = makeFactory()
     const useDocEvents = makeUseDocEvents(ctx.factory, registry)
     renderHook(() => useDocEvents(), { wrapper })
+    ctx.source.onopen?.(new Event('open'))
 
     registry.register('sha256-X')
     const msg = new MessageEvent('message', {
@@ -273,6 +319,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     const ctx = makeFactory()
     const useDocEvents = makeUseDocEvents(ctx.factory, registry)
     const { result } = renderHook(() => useDocEvents(), { wrapper })
+    ctx.source.onopen?.(new Event('open'))
 
     result.current.setDragInProgress(true)
     ctx.source.onmessage?.(new MessageEvent('message', {
@@ -292,6 +339,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     const ctx = makeFactory()
     const useDocEvents = makeUseDocEvents(ctx.factory, registry)
     const { result } = renderHook(() => useDocEvents(), { wrapper })
+    ctx.source.onopen?.(new Event('open'))
 
     result.current.setDragInProgress(true)
     const makeMsg = (path: string) => new MessageEvent('message', {
@@ -317,6 +365,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     const useDocEvents = makeUseDocEvents(ctx.factory, registry)
     const { result } = renderHook(() => useDocEvents(), { wrapper })
 
+    ctx.source.onopen?.(new Event('open'))
     registry.register('sha256-X')
 
     // Queue an invalidation during drag, then flush (clear the pending set)
@@ -329,17 +378,18 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
 
     // Re-register and simulate disconnect → reconnect
     registry.register('sha256-X')
-    ctx.source.onerror?.(new Event('error'))
 
-    // Re-queue a pending invalidation that the reconnect flush should dispatch
+    // Queue a pending invalidation during drag
     result.current.setDragInProgress(true)
     ctx.source.onmessage?.(new MessageEvent('message', {
       data: JSON.stringify({ type: 'doc-changed', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-PLAN' }),
     }))
     spy.mockClear()
 
-    // Reconnect: should reset registry and flush pending invalidations
-    ctx.source.onopen?.(new Event('open'))
+    // Trigger error → backoff → reconnect
+    ctx.source.onerror?.(new Event('error'))
+    vi.advanceTimersByTime(1500)
+    ctx.fakes[1].onopen?.(new Event('open'))
 
     expect(registry.has('sha256-X')).toBe(false)
     expect(queryClient.invalidateQueries).toHaveBeenCalled()

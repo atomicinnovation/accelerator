@@ -8,6 +8,14 @@ vi.mock('../../api/use-server-info', () => ({
   useServerInfo: vi.fn(() => ({ data: undefined })),
 }))
 
+vi.mock('../../api/use-doc-events', () => ({
+  useDocEvents: vi.fn(() => ({
+    setDragInProgress: vi.fn(),
+    connectionState: 'open',
+    justReconnected: false,
+  })),
+}))
+
 const mockDocTypes: DocType[] = [
   { key: 'decisions', label: 'Decisions', dirPath: '/p', inLifecycle: true, inKanban: false, virtual: false },
   { key: 'tickets', label: 'Tickets', dirPath: '/p', inLifecycle: true, inKanban: true, virtual: false },

@@ -19,3 +19,7 @@ export const queryKeys = {
    *  relPath) the caller had to provide. */
   disabled: (prefix: string) => [prefix, '__disabled__'] as const,
 } as const
+
+export const SESSION_STABLE_QUERY_ROOTS: ReadonlySet<unknown> = new Set([
+  'server-info',
+])

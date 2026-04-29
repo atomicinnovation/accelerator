@@ -1,13 +1,21 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { queryKeys } from './query-keys'
+import { queryKeys, SESSION_STABLE_QUERY_ROOTS } from './query-keys'
 import type { SseEvent } from './types'
 import { type SelfCauseRegistry, defaultSelfCauseRegistry } from './self-cause'
+import {
+  ReconnectingEventSource,
+  type ConnectionState,
+} from './reconnecting-event-source'
+
+export type { ConnectionState } from './reconnecting-event-source'
 
 export type EventSourceFactory = (url: string) => EventSource
 
 export interface DocEventsHandle {
   setDragInProgress(v: boolean): void
+  connectionState: ConnectionState
+  justReconnected: boolean
 }
 
 function queryKeysForEvent(event: SseEvent): ReadonlyArray<readonly unknown[]> {
@@ -83,6 +91,8 @@ export function makeUseDocEvents(
     const queryClient = useQueryClient()
     const isDraggingRef = useRef(false)
     const pendingRef = useRef(new Set<string>())
+    const [connectionState, setConnectionState] = useState<ConnectionState>('connecting')
+    const [justReconnected, setJustReconnected] = useState(false)
 
     const setDragInProgress = useCallback(
       (v: boolean) => {
@@ -98,33 +108,36 @@ export function makeUseDocEvents(
     )
 
     useEffect(() => {
-      let wasErrored = false
-      const source = createSource('/api/events')
-
-      source.onopen = () => {
-        if (wasErrored) {
+      let reconnectedTimer: ReturnType<typeof setTimeout> | null = null
+      const reconnecting = new ReconnectingEventSource('/api/events', {
+        factory: createSource,
+        onStateChange: setConnectionState,
+        onerror: () => {
+          console.warn('useDocEvents: SSE error — reconnecting')
+        },
+        onReconnect: () => {
           registry.reset()
           for (const qkStr of pendingRef.current) {
             void queryClient.invalidateQueries({ queryKey: JSON.parse(qkStr) as unknown[] })
           }
           pendingRef.current.clear()
-          wasErrored = false
-        }
-      }
+          void queryClient.invalidateQueries({
+            predicate: (q) => !SESSION_STABLE_QUERY_ROOTS.has(q.queryKey[0]),
+          })
+          if (reconnectedTimer !== null) clearTimeout(reconnectedTimer)
+          setJustReconnected(true)
+          reconnectedTimer = setTimeout(() => {
+            setJustReconnected(false)
+            reconnectedTimer = null
+          }, 3_000)
+        },
+      })
 
-      source.onmessage = (e: MessageEvent) => {
+      reconnecting.onmessage = (e: MessageEvent) => {
         try {
           const event = JSON.parse(e.data as string) as SseEvent
-
-          // Self-cause filter: non-consuming membership check suppresses every
-          // SSE echo of our own mutation within the TTL window.
-          if (event.type === 'doc-changed' && registry.has(event.etag)) {
-            return
-          }
-
+          if (event.type === 'doc-changed' && registry.has(event.etag)) return
           if (isDraggingRef.current) {
-            // Queue query keys while a drag is in progress to prevent dnd-kit
-            // sortable items from remounting mid-gesture.
             for (const k of queryKeysForEvent(event)) {
               pendingRef.current.add(JSON.stringify(k))
             }
@@ -136,16 +149,13 @@ export function makeUseDocEvents(
         }
       }
 
-      source.onerror = () => {
-        wasErrored = true
-        console.warn('useDocEvents: EventSource error — invalidating docs cache')
-        void queryClient.invalidateQueries({ queryKey: ['docs'] })
+      return () => {
+        if (reconnectedTimer !== null) clearTimeout(reconnectedTimer)
+        reconnecting.close()
       }
-
-      return () => source.close()
     }, [queryClient, createSource, registry])
 
-    return { setDragInProgress }
+    return { setDragInProgress, connectionState, justReconnected }
   }
 }
 
