@@ -13,32 +13,6 @@ source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 PATTERN_CLI="$SCRIPT_DIR/work-item-pattern.sh"
 COMMON_LIB="$SCRIPT_DIR/work-item-common.sh"
 
-assert_matches_regex() {
-  local test_name="$1" regex="$2" subject="$3"
-  if printf '%s' "$subject" | grep -qE "$regex"; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Subject: $subject"
-    echo "    Regex:   $regex"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_not_matches_regex() {
-  local test_name="$1" regex="$2" subject="$3"
-  if printf '%s' "$subject" | grep -qE "$regex"; then
-    echo "  FAIL: $test_name"
-    echo "    Subject: $subject"
-    echo "    Should not have matched: $regex"
-    FAIL=$((FAIL + 1))
-  else
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  fi
-}
-
 # ============================================================
 echo "=== work-item-pattern.sh --validate ==="
 echo ""

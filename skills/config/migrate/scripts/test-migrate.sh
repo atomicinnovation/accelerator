@@ -33,54 +33,6 @@ tree_hash() {
   fi
 }
 
-assert_file_not_exists() {
-  local name="$1" path="$2"
-  if [ ! -f "$path" ]; then
-    echo "  PASS: $name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $name"
-    echo "    Expected file to not exist: $path"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_dir_exists() {
-  local name="$1" path="$2"
-  if [ -d "$path" ]; then
-    echo "  PASS: $name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $name"
-    echo "    Expected directory: $path"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_dir_not_exists() {
-  local name="$1" path="$2"
-  if [ ! -d "$path" ]; then
-    echo "  PASS: $name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $name"
-    echo "    Expected directory to not exist: $path"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_neq() {
-  local name="$1" unexpected="$2" actual="$3"
-  if [ "$unexpected" != "$actual" ]; then
-    echo "  PASS: $name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $name"
-    echo "    Expected something other than: $(printf '%q' "$unexpected")"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
 # ── setup_old_repo: temp dir with old ticket structure (no VCS dir) ──────────
 # No .git or .jj means find_repo_root falls back to $PWD, and the
 # VCS clean-tree check is skipped entirely.

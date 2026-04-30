@@ -5,9 +5,11 @@
 #
 # Exposes: PASS/FAIL counters and assert_eq, assert_contains,
 # assert_not_contains, assert_file_exists, assert_file_not_exists,
-# assert_not_exists, assert_empty, assert_exit_code, assert_file_content_eq,
+# assert_not_exists, assert_neq, assert_empty, assert_matches_regex,
+# assert_not_matches_regex, assert_file_not_exists, assert_file_content_eq,
+# assert_dir_exists, assert_dir_not_exists, assert_exit_code,
 # assert_file_executable, assert_dir_absent, assert_stderr_empty,
-# assert_stderr_contains, assert_json_eq, test_summary.
+# assert_stderr_contains, assert_json_eq, test_summary
 
 PASS=0
 FAIL=0
@@ -86,6 +88,18 @@ assert_not_exists() {
   fi
 }
 
+assert_neq() {
+  local test_name="$1" unexpected="$2" actual="$3"
+  if [ "$unexpected" != "$actual" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected something other than: $(printf '%q' "$unexpected")"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
 assert_empty() {
   local test_name="$1" actual="$2"
   if [ -z "$actual" ]; then
@@ -93,7 +107,85 @@ assert_empty() {
     PASS=$((PASS + 1))
   else
     echo "  FAIL: $test_name"
-    echo "    Expected empty, got: $actual"
+    echo "    Expected empty, got: $(printf '%q' "$actual")"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_matches_regex() {
+  local test_name="$1" regex="$2" subject="$3"
+  if printf '%s' "$subject" | grep -qE "$regex"; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Subject: $(printf '%q' "$subject")"
+    echo "    Regex:   $regex"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_not_matches_regex() {
+  local test_name="$1" regex="$2" subject="$3"
+  if ! printf '%s' "$subject" | grep -qE "$regex"; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Subject:                 $(printf '%q' "$subject")"
+    echo "    Should not have matched: $regex"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_file_not_exists() {
+  local test_name="$1" file_path="$2"
+  if [ ! -f "$file_path" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name (expected file to not exist: $file_path)"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_file_content_eq() {
+  local test_name="$1" file_path="$2" expected="$3"
+  local actual
+  actual=$(cat "$file_path" 2>/dev/null) || {
+    echo "  FAIL: $test_name (file not found: $file_path)"
+    FAIL=$((FAIL + 1))
+    return
+  }
+  if [ "$expected" = "$actual" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected content: $(printf '%q' "$expected")"
+    echo "    Actual content:   $(printf '%q' "$actual")"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_dir_exists() {
+  local test_name="$1" path="$2"
+  if [ -d "$path" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name (expected directory: $path)"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_dir_not_exists() {
+  local test_name="$1" path="$2"
+  if [ ! -d "$path" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name (expected directory to not exist: $path)"
     FAIL=$((FAIL + 1))
   fi
 }
@@ -119,26 +211,6 @@ assert_exit_code() {
     FAIL=$((FAIL + 1))
   fi
   rm -f "$stderr_file"
-}
-
-assert_file_content_eq() {
-  local test_name="$1" file_path="$2" expected="$3"
-  local actual
-  actual=$(cat "$file_path" 2>/dev/null) || {
-    echo "  FAIL: $test_name"
-    echo "    File not found: $file_path"
-    FAIL=$((FAIL + 1))
-    return
-  }
-  if [ "$expected" = "$actual" ]; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Expected content: $(printf '%q' "$expected")"
-    echo "    Actual content:   $(printf '%q' "$actual")"
-    FAIL=$((FAIL + 1))
-  fi
 }
 
 assert_file_executable() {
