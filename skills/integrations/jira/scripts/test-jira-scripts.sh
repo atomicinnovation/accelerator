@@ -9,4 +9,8 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
-test_summary
+EXIT_CODE=0
+bash "$SCRIPT_DIR/test-jira-common.sh" || EXIT_CODE=$?
+bash "$SCRIPT_DIR/test-jira-auth.sh" || EXIT_CODE=$?
+
+exit "$EXIT_CODE"

@@ -1120,11 +1120,11 @@ convention — no script in the family is dual-mode.
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-common.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-common.sh`
   passes.
-- [ ] `bash skills/integrations/jira/scripts/test-jira-auth.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-auth.sh`
   passes (thirteen assertion groups).
-- [ ] `mise run test` passes.
+- [x] `mise run test` passes.
 - [ ] Token-redaction sentinel test: with token set to
   `tok-SENTINEL-xyz123`, `bash jira-auth-cli.sh --debug 2>&1
   1>/dev/null | grep -F tok-SENTINEL-xyz123` exits non-zero. The
