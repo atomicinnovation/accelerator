@@ -1,0 +1,36 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/myself",
+      "response": {
+        "status": 429,
+        "body": "{  \"errorMessages\": [\"Too many requests. Please wait before retrying.\"],  \"errors\": {}}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/rest/api/3/myself",
+      "response": {
+        "status": 429,
+        "body": "{  \"errorMessages\": [\"Too many requests. Please wait before retrying.\"],  \"errors\": {}}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/rest/api/3/myself",
+      "response": {
+        "status": 429,
+        "body": "{  \"errorMessages\": [\"Too many requests. Please wait before retrying.\"],  \"errors\": {}}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/rest/api/3/myself",
+      "response": {
+        "status": 429,
+        "body": "{  \"errorMessages\": [\"Too many requests. Please wait before retrying.\"],  \"errors\": {}}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"expectations":[{"method":"GET","path":"/rest/api/3/myself","response":{"status":403,"body":"{  \"errorMessages\": [\"You do not have the permission to see the specified issue.\", \"Login Required\"],  \"errors\": {}}"}}]}

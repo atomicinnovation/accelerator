@@ -1,0 +1,1 @@
+{"expectations":[{"method":"GET","path":"/rest/api/3/myself","response":{"status":410,"body":"{  \"errorMessages\": [\"Issue has been deleted.\"],  \"errors\": {}}"}}]}

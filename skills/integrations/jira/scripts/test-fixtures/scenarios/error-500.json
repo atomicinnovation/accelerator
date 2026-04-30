@@ -1,0 +1,36 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/myself",
+      "response": {
+        "status": 500,
+        "body": "{  \"errorMessages\": [\"Internal server error.\"],  \"errors\": {}}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/rest/api/3/myself",
+      "response": {
+        "status": 500,
+        "body": "{  \"errorMessages\": [\"Internal server error.\"],  \"errors\": {}}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/rest/api/3/myself",
+      "response": {
+        "status": 500,
+        "body": "{  \"errorMessages\": [\"Internal server error.\"],  \"errors\": {}}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/rest/api/3/myself",
+      "response": {
+        "status": 500,
+        "body": "{  \"errorMessages\": [\"Internal server error.\"],  \"errors\": {}}"
+      }
+    }
+  ]
+}

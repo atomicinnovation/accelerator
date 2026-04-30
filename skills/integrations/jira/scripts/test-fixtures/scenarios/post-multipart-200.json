@@ -1,0 +1,1 @@
+{"expectations":[{"method":"POST","path":"/rest/api/3/issue/ENG-1/attachments","expect_headers":{"X-Atlassian-Token":"no-check"},"response":{"status":200,"body":"[]"}}]}
