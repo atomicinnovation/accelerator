@@ -14,8 +14,21 @@ experimental = true
 [hooks]
 postinstall = "uv sync --only-group build --frozen"
 
+[tasks."build:frontend"]
+description = "Build the visualiser frontend (Vite production build into dist/)"
+run = "invoke build.frontend"
+
+[tasks."build:server:dev"]
+description = "Build the visualiser server binary with the dev-frontend feature"
+run = "invoke build.server_dev"
+
+[tasks."build:server:release"]
+description = "Build the visualiser server binary for release (embed-dist)"
+run = "invoke build.server_release"
+
 [tasks."test:unit:visualiser"]
 description = "Run visualiser unit tests"
+depends = ["build:frontend"]
 run = "invoke test.unit.visualiser"
 
 [tasks."test:unit:frontend"]
@@ -46,9 +59,18 @@ depends = [
     "test:integration:decisions"
 ]
 
+[tasks."test:e2e:visualiser"]
+description = "Run visualiser E2E tests (Playwright)"
+depends = ["build:frontend", "build:server:dev"]
+run = "invoke test.e2e.visualiser"
+
+[tasks."test:e2e"]
+description = "Run all E2E tests in parallel"
+depends = ["test:e2e:visualiser"]
+
 [tasks.test]
 description = "Run all tests in parallel"
-depends = ["test:unit", "test:integration"]
+depends = ["test:unit", "test:integration", "test:e2e"]
 
 [tasks."version:read"]
 description = "Read plugin version"
