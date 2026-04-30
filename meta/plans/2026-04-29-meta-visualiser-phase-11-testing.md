@@ -3,7 +3,7 @@ date: "2026-04-29T19:15:00+01:00"
 type: plan
 skill: create-plan
 ticket: null
-status: draft
+status: complete
 ---
 
 # Meta Visualiser — Phase 11: Testing
@@ -814,8 +814,8 @@ graph LR
 
 #### Automated Verification:
 
-- [ ] `cd frontend && npx playwright test` — all 5+ test files pass
-- [ ] Tests complete within 60 seconds total
+- [x] `cd frontend && npx playwright test` — all 5+ test files pass
+- [x] Tests complete within 60 seconds total
 
 #### Manual Verification:
 
@@ -874,11 +874,12 @@ Add a comment in `[package]` metadata:
 
 #### Automated Verification:
 
-- [ ] `bash scripts/run-tests.sh` exits 0
-- [ ] `cargo test --no-default-features --features dev-frontend` — all
-      tests pass (watcher tests skip gracefully where needed)
-- [ ] `npm test` — 309+ tests pass
-- [ ] `npx playwright test` — all E2E scenarios pass
+- [x] `mise run test` exits 0 (replaced `scripts/run-tests.sh` with
+      mise/invoke task orchestration matching project tooling)
+- [x] `cargo test --no-default-features --features dev-frontend` — all
+      tests pass (watcher tests run successfully in dev environment)
+- [x] `npm test` — 309 tests pass
+- [x] `npx playwright test` — all 8 E2E scenarios pass
 
 #### Manual Verification:
 
