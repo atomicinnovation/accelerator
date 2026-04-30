@@ -33,46 +33,6 @@ tree_hash() {
   fi
 }
 
-# ── Additional assert helpers ────────────────────────────────────────────────
-
-assert_contains() {
-  local name="$1" needle="$2" haystack="$3"
-  if printf '%s' "$haystack" | grep -qF "$needle"; then
-    echo "  PASS: $name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $name"
-    echo "    Expected to contain: $needle"
-    echo "    Actual: $haystack"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_not_contains() {
-  local name="$1" needle="$2" haystack="$3"
-  if ! printf '%s' "$haystack" | grep -qF "$needle"; then
-    echo "  PASS: $name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $name"
-    echo "    Expected NOT to contain: $needle"
-    echo "    Actual: $haystack"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_file_exists() {
-  local name="$1" path="$2"
-  if [ -f "$path" ]; then
-    echo "  PASS: $name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $name"
-    echo "    Expected file: $path"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
 assert_file_not_exists() {
   local name="$1" path="$2"
   if [ ! -f "$path" ]; then

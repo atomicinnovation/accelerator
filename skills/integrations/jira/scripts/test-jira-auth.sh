@@ -9,31 +9,6 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
-assert_contains() {
-  local test_name="$1" needle="$2" haystack="$3"
-  if printf '%s' "$haystack" | grep -qF "$needle"; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Expected to contain: $(printf '%q' "$needle")"
-    echo "    Actual:              $(printf '%q' "$haystack")"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_not_contains() {
-  local test_name="$1" needle="$2" haystack="$3"
-  if ! printf '%s' "$haystack" | grep -qF "$needle"; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Expected NOT to contain: $(printf '%q' "$needle")"
-    echo "    Actual:                  $(printf '%q' "$haystack")"
-    FAIL=$((FAIL + 1))
-  fi
-}
 
 AUTH_CLI="$SCRIPT_DIR/jira-auth-cli.sh"
 

@@ -13,19 +13,6 @@ source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 PATTERN_CLI="$SCRIPT_DIR/work-item-pattern.sh"
 COMMON_LIB="$SCRIPT_DIR/work-item-common.sh"
 
-assert_contains() {
-  local test_name="$1" needle="$2" haystack="$3"
-  if printf '%s' "$haystack" | grep -qF "$needle"; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Expected to contain: $needle"
-    echo "    Actual: $haystack"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
 assert_matches_regex() {
   local test_name="$1" regex="$2" subject="$3"
   if printf '%s' "$subject" | grep -qE "$regex"; then

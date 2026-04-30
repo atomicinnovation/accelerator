@@ -202,18 +202,6 @@ mkdir -p "$REPO/meta/work"
 RC=0
 ERR=$(cd "$REPO" && bash "$NEXT_NUMBER" 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-assert_contains() {
-  local test_name="$1" needle="$2" haystack="$3"
-  if printf '%s' "$haystack" | grep -qF "$needle"; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Expected to contain: $needle"
-    echo "    Actual: $haystack"
-    FAIL=$((FAIL + 1))
-  fi
-}
 assert_contains "stderr names rule" "E_PATTERN_MISSING_PROJECT" "$ERR"
 
 echo "Test: default project_code from config when --project absent"

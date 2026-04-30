@@ -10,40 +10,6 @@ JIRA_COMMON="$SCRIPT_DIR/jira-common.sh"
 
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
-assert_contains() {
-  local test_name="$1" needle="$2" haystack="$3"
-  if printf '%s' "$haystack" | grep -qF "$needle"; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Expected to contain: $(printf '%q' "$needle")"
-    echo "    Actual:              $(printf '%q' "$haystack")"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_file_exists() {
-  local test_name="$1" path="$2"
-  if [ -e "$path" ]; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name ($path does not exist)"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_not_exists() {
-  local test_name="$1" path="$2"
-  if [ ! -e "$path" ]; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name ($path should not exist)"
-    FAIL=$((FAIL + 1))
-  fi
-}
 
 TMPDIR_BASE=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_BASE"' EXIT
