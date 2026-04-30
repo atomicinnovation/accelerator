@@ -383,22 +383,23 @@ Example `instructions.md` for create-plan:
 Override where skills write output documents. Paths are relative to the
 project root (absolute paths are also supported):
 
-| Key                  | Default                   | Description                                                                |
-|----------------------|---------------------------|----------------------------------------------------------------------------|
-| `plans`              | `meta/plans`              | Implementation plans                                                       |
-| `research`           | `meta/research`           | Research documents                                                         |
-| `decisions`          | `meta/decisions`          | Architecture decision records                                              |
-| `prs`                | `meta/prs`                | PR descriptions                                                            |
-| `validations`        | `meta/validations`        | Plan validation reports                                                    |
-| `review_plans`       | `meta/reviews/plans`      | Plan review artifacts                                                      |
-| `review_prs`         | `meta/reviews/prs`        | PR review working directories                                              |
-| `review_work`        | `meta/reviews/work`       | Work item review artifacts                                                 |
-| `templates`          | `meta/templates`          | User-provided templates (e.g., PR description)                             |
-| `work`               | `meta/work`               | Work item files referenced by create-plan                                  |
-| `notes`              | `meta/notes`              | Notes directory                                                            |
-| `tmp`                | `meta/tmp`                | Ephemeral working data (gitignored)                                        |
-| `design_inventories` | `meta/design-inventories` | Design-inventory artifacts (one directory per snapshot, with screenshots/) |
-| `design_gaps`        | `meta/design-gaps`        | Design-gap analysis artifacts                                              |
+| Key                  | Default                   | Description                                                                      |
+|----------------------|---------------------------|----------------------------------------------------------------------------------|
+| `plans`              | `meta/plans`              | Implementation plans                                                             |
+| `research`           | `meta/research`           | Research documents                                                               |
+| `decisions`          | `meta/decisions`          | Architecture decision records                                                    |
+| `prs`                | `meta/prs`                | PR descriptions                                                                  |
+| `validations`        | `meta/validations`        | Plan validation reports                                                          |
+| `review_plans`       | `meta/reviews/plans`      | Plan review artifacts                                                            |
+| `review_prs`         | `meta/reviews/prs`        | PR review working directories                                                    |
+| `review_work`        | `meta/reviews/work`       | Work item review artifacts                                                       |
+| `templates`          | `meta/templates`          | User-provided templates (e.g., PR description)                                   |
+| `work`               | `meta/work`               | Work item files referenced by create-plan                                        |
+| `notes`              | `meta/notes`              | Notes directory                                                                  |
+| `tmp`                | `meta/tmp`                | Ephemeral working data (gitignored)                                              |
+| `design_inventories` | `meta/design-inventories` | Design-inventory artifacts (one directory per snapshot, with screenshots/)       |
+| `design_gaps`        | `meta/design-gaps`        | Design-gap analysis artifacts                                                    |
+| `integrations`       | `meta/integrations`       | Per-integration cached state (Jira fields/projects, future Linear/Trello caches) |
 
 Example configuration:
 
@@ -517,6 +518,102 @@ neither applies, you can opt out via `bash run-migrations.sh --skip
 
 Only `work.id_pattern` and `work.default_project_code` are recognised.
 Other `work.*` keys are not consumed by any plugin script.
+
+### jira
+
+Configure access to a Jira Cloud tenant. Two keys belong in team-shared
+`accelerator.md`:
+
+| Key      | Default | Description                                |
+|----------|---------|--------------------------------------------|
+| `site`   | (empty) | Cloud subdomain (e.g. `atomic-innovation`) |
+| `email`  | (empty) | Atlassian account email                    |
+
+Example shared configuration in `accelerator.md`:
+
+\```yaml
+---
+jira:
+  site: atomic-innovation
+  email: toby@go-atomic.io
+---
+\```
+
+#### Local-only credentials (do not commit)
+
+Two additional keys exist for credential storage. **Both must live
+exclusively in `accelerator.local.md`**, which is gitignored:
+
+| Key         | Default | Description                                            |
+|-------------|---------|--------------------------------------------------------|
+| `token`     | (empty) | Plaintext API token (discouraged — prefer `token_cmd`) |
+| `token_cmd` | (empty) | Shell command whose stdout is the token                |
+
+`token_cmd` from the team-shared `accelerator.md` is **never** honoured: a
+committed `token_cmd` is a supply-chain command-injection sink (a single PR
+could land arbitrary shell that runs on every contributor's machine). When
+detected, the resolver emits `E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd
+in accelerator.md ignored — move to accelerator.local.md` to stderr.
+
+`token` plaintext is supported but discouraged — prefer `token_cmd` with a
+password manager. The resolver checks `accelerator.local.md` permissions and
+warns if looser than `0600`.
+
+Example `accelerator.local.md` (preferred form, using a password manager):
+
+\```yaml
+---
+jira:
+  token_cmd: "op read op://Work/Atlassian/credential"
+---
+\```
+
+Authentication resolves through this chain (first non-empty wins):
+
+1. `ACCELERATOR_JIRA_TOKEN` env var.
+2. `ACCELERATOR_JIRA_TOKEN_CMD` env var (run via `bash -c`, stdout trimmed).
+3. `accelerator.local.md` `jira.token`.
+4. `accelerator.local.md` `jira.token_cmd`.
+5. `accelerator.md` `jira.token` *(only when `accelerator.local.md` does not
+   exist; emits a runtime warning)*.
+
+`jira.token_cmd` is **never** consumed from the team-shared `accelerator.md`
+file. Only the four sources above (env vars and `accelerator.local.md`) are
+honoured. A `jira.token_cmd` value found in `accelerator.md` is ignored; a
+runtime warning prints `E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd in
+accelerator.md ignored — move to accelerator.local.md` to stderr. Rationale:
+a committed `token_cmd` is a supply-chain command-injection sink — a single PR
+could land `jira.token_cmd: "<arbitrary shell>"` and that command would execute
+on every contributor's machine the next time any Jira helper or `/init-jira`
+ran. Restricting the executable indirection to local-only files keeps the blast
+radius bounded to the user's own machine.
+
+`token_cmd` is the supported integration point for password managers and
+keychains: 1Password CLI (`op read ...`), `pass`, macOS Keychain (`security
+find-generic-password ...`), Freedesktop Secret Service (`secret-tool ...`),
+and AWS Secrets Manager all work without plugin-side knowledge.
+
+The default Jira project key is **`work.default_project_code`** — the same key
+used by the work-item ID pattern. No separate `jira.default_project_key`
+exists.
+
+#### Skill registration order
+
+The `skills` array in `.claude-plugin/plugin.json` is **workflow-ordered**, not
+alphabetical. Its sequence groups categories by lifecycle:
+
+```
+vcs → external trackers (github, integrations/jira) → planning → execution (work) → review → meta (config)
+```
+
+Future integrations (Linear, Trello) land in the `integrations/` group,
+immediately after `./skills/integrations/jira/`. Do not sort the array
+alphabetically.
+
+#### Recognised keys
+
+Only `jira.site`, `jira.email`, `jira.token`, and `jira.token_cmd` are
+recognised. Other `jira.*` keys are not consumed by any plugin script.
 
 ### templates
 

@@ -293,6 +293,57 @@ assert_eq "local wins for id_pattern" "{project}-{number:04d}" "$OUTPUT"
 OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "work.default_project_code" "")
 assert_eq "local wins for default_project_code" "ENG" "$OUTPUT"
 
+echo "Test: jira.* keys read from team config"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+jira:
+  site: atomic-innovation
+  email: toby@go-atomic.io
+  token_cmd: "op read op://Work/Atlassian/credential"
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "jira.site" "")
+assert_eq "reads jira.site" "atomic-innovation" "$OUTPUT"
+OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "jira.email" "")
+assert_eq "reads jira.email" "toby@go-atomic.io" "$OUTPUT"
+OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "jira.token_cmd" "")
+assert_eq "reads jira.token_cmd" "op read op://Work/Atlassian/credential" "$OUTPUT"
+
+echo "Test: jira.* defaults when unset"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+agents:
+  reviewer: senior-dev
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "jira.site" "")
+assert_eq "empty default for jira.site" "" "$OUTPUT"
+
+echo "Test: jira.token local override wins"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+jira:
+  site: atomic-innovation
+  email: toby@go-atomic.io
+---
+FIXTURE
+cat > "$REPO/.claude/accelerator.local.md" << 'FIXTURE'
+---
+jira:
+  token: "secret-local-token"
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "jira.token" "")
+assert_eq "local jira.token wins" "secret-local-token" "$OUTPUT"
+OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "jira.site" "")
+assert_eq "team jira.site preserved" "atomic-innovation" "$OUTPUT"
+
 echo "Test: Values with double quotes are stripped"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"

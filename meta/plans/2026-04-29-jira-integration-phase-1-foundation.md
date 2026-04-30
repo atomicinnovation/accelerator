@@ -263,7 +263,7 @@ M3: jira-jql.sh                                  ◄─ pure bash, no network
 M4: jira-adf-to-md.sh, jira-md-to-adf.sh         ◄─ pure jq + awk, no network
        │
        ▼
-M5: jira-request.sh                              ◄─ Python http.server mock
+M5: jira-request.sh                              ◄─ Python mock (test-infra only)
        │
        ▼
 M6: jira-fields.sh                               ◄─ uses request + mock
@@ -328,7 +328,9 @@ Cross-cutting principles for every milestone:
 - **Namespacing**: all shell functions in helpers use `jira_*` /
   `_jira_*`. CLI wrapper exit codes documented in a header comment.
 - **No live API calls in CI**: `jira-request.sh` and `jira-fields.sh`
-  tests use the local Python mock server fixture (M5).
+  tests use the local Python mock server fixture (M5). Python is a
+  pinned dev dependency (`mise.toml`) — the mock server is test
+  infrastructure only; all runtime helpers are pure bash/curl/jq/awk.
 - **Token redaction**: `jira-auth.sh` and `jira-request.sh` must never
   print the token to stderr or under `--debug`. Tests verify this.
 - **Atomic writes**: helpers that persist to `meta/integrations/jira/`
@@ -421,20 +423,20 @@ Cross-cutting principles for every milestone:
   - `mkdir` atomicity is not guaranteed on NFS/SMB-mounted state
     directories. Users who relocate `paths.integrations` onto a
     network mount lose the serialisation guarantee; the helper
-    detects this via a small python3 helper
-    (`_jira_pyhelper fstype <path>`) that reads `mountpoint` for
-    the path's containing filesystem and matches against a known
-    list (`nfs`, `nfs4`, `smb`, `cifs`, `smbfs`, `fuse.sshfs`).
-    The python3 detection is portable across macOS and Linux —
+    detects this via `_jira_fstype <path>` — a pure bash/awk
+    function that resolves the filesystem type without Python.
+    On Linux it reads `/proc/mounts` with awk to find the longest
+    matching mount point; on macOS it parses `mount` output with
+    awk. The detected type is matched against a known list
+    (`nfs`, `nfs4`, `smb`, `cifs`, `smbfs`, `fuse.sshfs`).
     `stat -f -c %T` (GNU-only) and `df -T` (GNU-only) are
     deliberately avoided because they fail on macOS, the user's
     primary dev platform. On detection, the helper emits a
     one-time warning at lock acquisition:
     `Warning: jira_state_dir on non-local filesystem; lock
     serialisation is best-effort`. If the detection itself fails
-    (python3 unavailable, mountpoint inaccessible), no warning is
-    emitted and the lock proceeds — best-effort detection, not a
-    safety gate.
+    (mountpoint inaccessible), no warning is emitted and the lock
+    proceeds — best-effort detection, not a safety gate.
 - **Byte-idempotency in committed caches**: persisted JSON files
   under `meta/integrations/jira/` (committed to VCS) must be byte-
   identical after a no-op refresh. Mutable metadata
@@ -558,20 +560,6 @@ example, recognised-keys note.
 
 ```markdown
 ### jira
-
-**Prerequisites**: the Jira integration requires `bash`, `jq`
-≥1.6, `curl`, POSIX `awk`, and **`python3` ≥3.9** on `PATH`.
-Python is load-bearing for credential resolution itself (the
-TOCTOU-safe permission check on `accelerator.local.md` is a
-single python3 subprocess), in addition to the mock test fixture,
-the UUID v4 fallback, the HTTP-date Retry-After parser, and the
-filesystem-type detection used by the multi-file refresh lock.
-Minimal Linux containers without python3 (Alpine without the
-`python3` package, distroless base images) are not supported
-targets for the Jira helpers; `mise install python@3.14.4` (the
-project's pinned version) is the canonical path. The helper
-emits `E_MISSING_DEP` early when python3 is absent so the failure
-is diagnosable rather than a confusing exec error mid-flow.
 
 Configure access to a Jira Cloud tenant. Two keys belong in
 team-shared `accelerator.md`:
@@ -738,16 +726,16 @@ print("\n")
 
 #### Automated Verification
 
-- [ ] `mise run test` passes (the new umbrella stub is wired and runs
+- [x] `mise run test` passes (the new umbrella stub is wired and runs
   cleanly).
-- [ ] `bash scripts/test-config.sh` passes with the new `jira.*` cases.
-- [ ] `bash skills/integrations/jira/scripts/test-jira-scripts.sh`
+- [x] `bash scripts/test-config.sh` passes with the new `jira.*` cases.
+- [x] `bash skills/integrations/jira/scripts/test-jira-scripts.sh`
   passes (stub returns 0 with no failed assertions).
-- [ ] `bash scripts/config-read-value.sh jira.site '<default>'` returns
+- [x] `bash scripts/config-read-value.sh jira.site '<default>'` returns
   the default literally when no config is set.
-- [ ] `jq -e '.skills | index("./skills/integrations/jira/")' .claude-plugin/plugin.json`
+- [x] `jq -e '.skills | index("./skills/integrations/jira/")' .claude-plugin/plugin.json`
   returns a non-null index.
-- [ ] `bash scripts/test-format.sh` passes (no `work item-` violations
+- [x] `bash scripts/test-format.sh` passes (no `work item-` violations
   in new files).
 
 #### Manual Verification
@@ -896,13 +884,13 @@ groups functions by concern:
 #                                full semantics
 #
 # Dependency checks:
-#   jira_require_dependencies -> assert jq, curl, awk, python3 on
-#                                PATH (jq >= 1.6); on miss, log_die
-#                                with E_MISSING_DEP
+#   jira_require_dependencies -> assert jq (>= 1.6), curl, awk on
+#                                PATH; on miss, log_die with
+#                                E_MISSING_DEP
 #
 # UUID generation:
 #   _jira_uuid_v4             -> portable UUID v4 (uuidgen
-#                                -> python3 -> POSIX od fallback);
+#                                -> POSIX od + awk fallback);
 #                                honours JIRA_ADF_LOCALID_SEED for
 #                                test determinism
 ```
@@ -911,8 +899,8 @@ Stable error prefixes documented in the header comment:
 
 - `E_NO_REPO` — repo root not locatable.
 - `E_BAD_JSON` — input does not parse as JSON.
-- `E_MISSING_DEP` — required dependency (`jq` ≥1.6, `curl`, `awk`,
-  `python3` ≥3.9) not found on PATH or below minimum version.
+- `E_MISSING_DEP` — required dependency (`jq` ≥1.6, `curl`, `awk`)
+  not found on PATH or below minimum version.
 - `E_REFRESH_LOCKED` (53) — `jira_with_lock` could not acquire
   the integration lock within 60 s.
 
@@ -1027,31 +1015,27 @@ ignored — move to accelerator.local.md` to stderr and continues
 through the chain.
 
 When the resolver would consume `jira.token` or `jira.token_cmd`
-from `accelerator.local.md`, it performs a **TOCTOU-safe**
-permission check before reading:
+from `accelerator.local.md`, it performs a permission check
+before reading:
 
-1. `lstat` the path to verify it is a regular file (not a
-   symlink). Symlinks are rejected outright with
-   `E_LOCAL_PERMS_INSECURE` since their target's permissions are
-   not the file the user expects to control.
-2. Open the file once with `O_NOFOLLOW` (refuse to traverse a
-   symlink swapped in mid-flight) using a small helper. The
-   helper invocation is a single `python3` subprocess that opens,
-   `fstat`s the open fd, and reads the contents — eliminating
-   the race window between `stat` and `cat` that a separate-stat
-   approach would leave. (Python is already a hard dependency
-   for the mock server and UUID fallback.)
-3. The fstat'd mode is checked against `≤ 0600`; on failure the
-   file contents are discarded without being parsed.
+1. Check `! -L "$file"` to verify it is not a symlink. Symlinks
+   are rejected outright with `E_LOCAL_PERMS_INSECURE` since
+   their target's permissions are not the file the user expects
+   to control.
+2. Read the file mode using a platform-portable helper:
+   `stat -f '%Lp' "$file"` (BSD/macOS) with a fallback to
+   `stat -c '%a' "$file"` (GNU/Linux). The two-attempt pattern
+   (`cmd1 2>/dev/null || cmd2`) avoids a uname-based branch and
+   handles the common case (macOS or standard Linux) in one try.
+3. The mode is checked against `≤ 0600`; on failure the file
+   is not read.
 
-This closes the stat-then-read TOCTOU window where an attacker
-with write access to `.claude/` could swap the file (or replace
-it with a symlink) between the permission check and the read.
+This is a stat-then-read approach that has a narrow TOCTOU window,
+but the threat model for a local dev config file does not warrant
+the complexity of `O_NOFOLLOW` via a subprocess. The symlink check
+in step 1 already closes the most common symlink-swap attack.
 
-The mode extraction itself uses portable awk + the python helper's
-output to avoid the BSD-vs-GNU `stat` argv divergence (`stat -c
-'%a'` on GNU vs `stat -f '%Lp'` on BSD/macOS). Refusal is **mode
-looser than `0600`**, exiting non-zero with `E_LOCAL_PERMS_INSECURE`
+Refusal is **mode looser than `0600`**, exiting non-zero with `E_LOCAL_PERMS_INSECURE`
 (29) and an actionable error message:
 `E_LOCAL_PERMS_INSECURE: accelerator.local.md is mode <NNNN>;
 chmod 600 to allow credential read, or set
@@ -1597,16 +1581,14 @@ Two-pass design per research §4.2:
 - `taskItem.attrs.localId` is generated by a portable
   `_jira_uuid_v4` function with the following dependency tier:
   1. `uuidgen` if on PATH (macOS, most Linux distros).
-  2. Otherwise `python3 -c 'import uuid; print(uuid.uuid4())'`
-     (Python 3 is already a dependency for the mock server).
-  3. Otherwise POSIX `od` + `awk` to format 16 random bytes from
+  2. Otherwise POSIX `od` + `awk` to format 16 random bytes from
      `/dev/urandom` as a real UUID v4 with version nibble forced to
      `4` and variant nibble forced to `8|9|a|b`:
      `od -An -N16 -tx1 /dev/urandom | tr -d ' \n' | awk '{ ... }'`
      where the awk program inserts hyphens at positions 8/12/16/20
      and substitutes the version/variant nibbles.
-  4. If all three fail (`/dev/urandom` unreadable in addition to
-     missing tools), exit non-zero with `E_MISSING_DEP: cannot
+  3. If both fail (`/dev/urandom` unreadable in addition to
+     missing `uuidgen`), exit non-zero with `E_MISSING_DEP: cannot
      generate UUID` rather than falling through with malformed
      output.
 
@@ -1790,7 +1772,9 @@ Land the curl wrapper that signs every Jira API request, retries on
 429 with `Retry-After`-respecting exponential backoff, maps
 non-2xx status codes to documented exit codes, and surfaces the
 response body on stderr for caller diagnostics. Tests use a small
-Python `http.server` mock fixture rather than live calls.
+Python `http.server` mock fixture rather than live calls. Python is
+already a pinned dev dependency (`mise.toml`); the mock server is
+test infrastructure only — the runtime helper is pure bash/curl/jq.
 
 ### Changes Required
 
@@ -2130,33 +2114,25 @@ Retry policy specification:
   the server's date has already passed.
 - When `Retry-After` is absent on a 429 or 5xx, sleep
   `min(base * 2^attempt, 60) * (1 ± rand(0..0.30))` with `base=1s`,
-  applying ±30% jitter; the seed comes from
-  `EPOCHREALTIME` (or `python3 -c 'import time; print(time.time())'`
-  for portability).
-- HTTP-date `Retry-After` parsing uses
-  `python3 -c 'from email.utils import parsedate_to_datetime; ...'`
-  (already a dependency for the mock server). The parser runs
-  under `LC_ALL=C` so month-name parsing is locale-independent.
-  Implementation contract: wrap the parse in
-  `try/except (ValueError, TypeError)`; **reject tz-naive results**
-  (raise from the parser so the outer try/except catches it — a
-  tz-less HTTP-date is non-conformant and may be a local-time
-  stamp that would misinterpret as UTC by hours, hot-retrying an
-  overloaded endpoint). When the result is tz-aware, compute
-  `delta_seconds = max(1, min(int(round((dt -
-  datetime.now(tz=timezone.utc)).total_seconds())), 60))` —
-  arithmetic completes inside the python sub-shell so bash never
-  sees a float, and the clamp is applied before the bash side
-  reads the value. On any exception (parse failure, tz-naive
-  rejection, arithmetic error) fall through to the absent-header
-  branch (exponential + jitter) with a single-line stderr warning
+  applying ±30% jitter; the seed is derived from `$RANDOM` (bash
+  built-in, always available) XORed with `$(date +%s)` to avoid
+  identical seeds across rapid restarts.
+- HTTP-date `Retry-After` parsing uses a pure-bash `_jira_parse_http_date`
+  function that tries GNU `date -d "$datestr"` first (Linux), then
+  BSD `date -j -f "%a, %d %b %Y %H:%M:%S %Z" "$datestr"` (macOS)
+  and the RFC-850 form `date -j -f "%A, %d-%b-%y %H:%M:%S %Z"`.
+  Both invocations run under `LC_ALL=C` so month-name parsing is
+  locale-independent. On any failure (unrecognised format, tz-less
+  string, unsupported form), the function returns non-zero and the
+  caller falls through to the absent-header branch (exponential +
+  jitter) with a single-line stderr warning
   `Warning: malformed Retry-After header; falling back to
-  exponential backoff`. RFC-850 and asctime forms with explicit
-  timezone are accepted via the same parser. Test cases (Phase 5
-  §2 cases 9, 9a, 9b, 9c, 9d) cover: future date (clamps to ≤60
-  s), past date (clamps to 1 s floor), malformed string (warning +
-  jittered backoff), RFC-850 form (accepted), tz-naive form
-  (rejected → warning + jittered backoff).
+  exponential backoff`. The resulting epoch value is compared
+  against `$(date +%s)` to compute `delta_seconds`, clamped to
+  `[1, 60]`. Test cases (Phase 5 §2 cases 9, 9a, 9b, 9c, 9d)
+  cover: future date (clamps to ≤60 s), past date (clamps to 1 s
+  floor), malformed string (warning + jittered backoff), RFC-850
+  form (accepted), unrecognised form (falls back).
 - For test determinism, the helper honours
   `JIRA_RETRY_SLEEP_FN` — but **only when `ACCELERATOR_TEST_MODE=1`
   is also set** (matching the gating policy on
@@ -2478,6 +2454,22 @@ Honours `--non-interactive` (or `-y`) — fails fast with
 `E_INIT_NEEDS_CONFIG` (60) when a value would otherwise be prompted
 for, so the helper is usable from CI/scripts.
 
+**Gitignore management**: both the full flow and the `verify`
+subcommand call `_jira_ensure_gitignore` as their first
+side-effecting step (before persisting `site.json`). This ensures
+consumer repos — not just the plugin development repo — get the
+necessary entries. The function:
+
+1. Resolves `jira_state_dir` and computes the two paths relative to
+   the repo root: `<rel>/jira/.lock` and `<rel>/jira/.refresh-meta.json`,
+   where `<rel>` is the value of `paths.integrations` (default
+   `meta/integrations`).
+2. Locates the repo root `.gitignore`, creating it if absent.
+3. Appends each entry only if not already present — literal string
+   match, so re-running `/init-jira` never duplicates lines.
+4. Emits no output on success; warns to stderr if `.gitignore` is
+   not writable.
+
 Emits a final summary line on success: `Initialised Jira
 integration: <N> fields, <M> projects, default project <KEY>` so
 the user sees at-a-glance what happened.
@@ -2505,6 +2497,14 @@ mock fixture. Cases:
    no prompts.
 8. Verify-only (`verify` subcommand) leaves `projects.json` and
    `fields.json` untouched.
+9. **Gitignore entries written**: after a successful full flow the
+   repo root `.gitignore` contains both `meta/integrations/jira/.lock`
+   and `meta/integrations/jira/.refresh-meta.json`. Running the flow
+   a second time does not duplicate either entry (idempotency).
+10. **Custom `paths.integrations`**: when `accelerator.md` sets
+    `paths.integrations: .state/integrations`, the entries written
+    to `.gitignore` are `.state/integrations/jira/.lock` and
+    `.state/integrations/jira/.refresh-meta.json` — not the defaults.
 
 #### 3. Eval scaffolding (omitted in Phase 1)
 
