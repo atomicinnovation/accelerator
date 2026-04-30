@@ -1276,16 +1276,16 @@ in the user's personal `~/.claude/skills/jira/SKILL.md`.
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-jql.sh` passes.
-- [ ] `mise run test` passes.
-- [ ] Round-trip safety: a fixture file of 50 hand-crafted user
+- [x] `bash skills/integrations/jira/scripts/test-jira-jql.sh` passes.
+- [x] `mise run test` passes.
+- [x] Round-trip safety: a fixture file of 50 hand-crafted user
   inputs (drawn from the personal `jira` skill's filter examples)
   produces JQL that contains zero unescaped single quotes per
   `grep -c "[^']'[^']'" output` (i.e. all single quotes are doubled).
 
 #### Manual Verification
 
-- [ ] Hand-construct a query: `bash jira-jql.sh compose --project ENG
+- [x] Hand-construct a query: `bash jira-jql.sh compose --project ENG
   --status 'In Progress' --label bug` and verify the printed JQL is
   human-readable and pasteable into Jira's advanced-search UI.
 
@@ -1743,14 +1743,14 @@ marker scheme might miss only if the bug also erases markers.
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-adf-to-md.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-adf-to-md.sh`
   passes (all rendering fixtures + placeholder cases).
-- [ ] `bash skills/integrations/jira/scripts/test-jira-md-to-adf.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-md-to-adf.sh`
   passes (all compile fixtures + rejection cases + placeholder
   collision case).
-- [ ] `bash skills/integrations/jira/scripts/test-jira-adf-roundtrip.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-adf-roundtrip.sh`
   passes (every fixture is a round-trip fixed point).
-- [ ] `mise run test` passes.
+- [x] `mise run test` passes.
 
 #### Manual Verification
 
@@ -2197,12 +2197,12 @@ or any base64-decoded substring of the token.
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-request.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-request.sh`
   passes (twenty-four cases including the path-traversal,
   test-override, malformed-response, and test-hook-gating
   regressions).
-- [ ] `mise run test` passes.
-- [ ] Backoff sequence test: case 10 asserts the captured sleep
+- [x] `mise run test` passes.
+- [x] Backoff sequence test: case 10 asserts the captured sleep
   sequence (3 sleeps, each `min(2^attempt, 60) ± 30%` from the
   recorded values) — no wall-clock dependence.
 
@@ -2320,9 +2320,9 @@ Documented exit codes:
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-fields.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-fields.sh`
   passes (thirteen cases).
-- [ ] `mise run test` passes.
+- [x] `mise run test` passes.
 
 #### Manual Verification
 
@@ -2530,13 +2530,13 @@ schema in `skills/work/create-work-item/evals/`.
 
 #### Automated Verification
 
-- [ ] `bash scripts/test-evals-structure.sh` passes (no `evals/`
+- [x] `bash scripts/test-evals-structure.sh` passes (no `evals/`
   directory under `init-jira/` — the linter only inspects
   directories that contain `evals.json`, so absence is a pass).
-- [ ] `bash scripts/test-lens-structure.sh` passes (init-jira is not
+- [x] `bash scripts/test-lens-structure.sh` passes (init-jira is not
   a lens but the linter must not regress).
-- [ ] `bash scripts/test-format.sh` passes.
-- [ ] `mise run test` passes.
+- [x] `bash scripts/test-format.sh` passes.
+- [x] `mise run test` passes.
 
 #### Manual Verification
 
