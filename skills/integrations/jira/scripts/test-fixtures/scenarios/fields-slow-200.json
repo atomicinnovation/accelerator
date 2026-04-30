@@ -1,0 +1,13 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/field",
+      "response": {
+        "status": 200,
+        "delay": 0.3,
+        "body": "[{\"id\":\"summary\",\"key\":\"summary\",\"name\":\"Summary\"},{\"id\":\"description\",\"key\":\"description\",\"name\":\"Description\"},{\"id\":\"customfield_10014\",\"key\":\"customfield_10014\",\"name\":\"Epic Link\"},{\"id\":\"customfield_10016\",\"key\":\"customfield_10016\",\"name\":\"Story Points\"},{\"id\":\"customfield_10020\",\"key\":\"customfield_10020\",\"name\":\"Sprint\"},{\"id\":\"customfield_10100\",\"key\":\"customfield_10100\",\"name\":\"Customer Champion?\"},{\"id\":\"customfield_10200\",\"key\":\"customfield_10200\",\"name\":\"  Spaces  \"},{\"id\":\"customfield_10300\",\"key\":\"customfield_10300\",\"name\":\"Sprint Velocidad\"},{\"id\":\"customfield_10301\",\"key\":\"customfield_10301\",\"name\":\"Story Points 故事点\"}]"
+      }
+    }
+  ]
+}
