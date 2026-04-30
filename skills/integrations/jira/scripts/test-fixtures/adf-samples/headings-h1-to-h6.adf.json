@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "type": "doc",
+  "content": [
+    {"type": "heading", "attrs": {"level": 1}, "content": [{"type": "text", "text": "Heading One"}]},
+    {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Heading Two"}]},
+    {"type": "heading", "attrs": {"level": 3}, "content": [{"type": "text", "text": "Heading Three"}]},
+    {"type": "heading", "attrs": {"level": 4}, "content": [{"type": "text", "text": "Heading Four"}]},
+    {"type": "heading", "attrs": {"level": 5}, "content": [{"type": "text", "text": "Heading Five"}]},
+    {"type": "heading", "attrs": {"level": 6}, "content": [{"type": "text", "text": "Heading Six"}]}
+  ]
+}

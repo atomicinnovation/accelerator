@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {"type": "text", "text": "Hello "},
+        {"type": "mention", "attrs": {"id": "user-id", "text": "@User"}},
+        {"type": "text", "text": " how are you?"}
+      ]
+    }
+  ]
+}

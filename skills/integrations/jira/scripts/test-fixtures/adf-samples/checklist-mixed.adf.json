@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "type": "doc",
+  "content": [
+    {
+      "type": "taskList",
+      "attrs": {"localId": "00000000-0000-4000-8000-000000000004"},
+      "content": [
+        {
+          "type": "taskItem",
+          "attrs": {"localId": "00000000-0000-4000-8000-000000000001", "state": "TODO"},
+          "content": [{"type": "text", "text": "Unchecked item"}]
+        },
+        {
+          "type": "taskItem",
+          "attrs": {"localId": "00000000-0000-4000-8000-000000000002", "state": "DONE"},
+          "content": [{"type": "text", "text": "Checked item"}]
+        },
+        {
+          "type": "taskItem",
+          "attrs": {"localId": "00000000-0000-4000-8000-000000000003", "state": "TODO"},
+          "content": [{"type": "text", "text": "Another unchecked"}]
+        }
+      ]
+    }
+  ]
+}

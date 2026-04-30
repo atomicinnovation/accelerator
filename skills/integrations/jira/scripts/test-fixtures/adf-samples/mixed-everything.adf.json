@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "type": "doc",
+  "content": [
+    {"type": "heading", "attrs": {"level": 1}, "content": [{"type": "text", "text": "Heading with HEAD_M00009"}]},
+    {
+      "type": "paragraph",
+      "content": [
+        {"type": "text", "text": "PARA_M00010 text with "},
+        {"type": "text", "text": "BOLD_M00003 bold", "marks": [{"type": "strong"}]},
+        {"type": "text", "text": ", "},
+        {"type": "text", "text": "ITALIC_M00004 italic", "marks": [{"type": "em"}]},
+        {"type": "text", "text": ", "},
+        {"type": "text", "text": "CODE5_M00005", "marks": [{"type": "code"}]},
+        {"type": "text", "text": ", and "},
+        {"type": "text", "text": "LNKTEXT_M00012 link", "marks": [{"type": "link", "attrs": {"href": "https://example.com/URL_M00001"}}]},
+        {"type": "text", "text": "."}
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "LIST_M00006 bullet item"}]}]},
+        {"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Another bullet item"}]}]}
+      ]
+    },
+    {
+      "type": "orderedList",
+      "attrs": {"order": 1},
+      "content": [
+        {"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "ORD_M00007 ordered item"}]}]},
+        {"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Second ordered item"}]}]}
+      ]
+    },
+    {
+      "type": "taskList",
+      "attrs": {"localId": "00000000-0000-4000-8000-000000000003"},
+      "content": [
+        {
+          "type": "taskItem",
+          "attrs": {"localId": "00000000-0000-4000-8000-000000000001", "state": "TODO"},
+          "content": [{"type": "text", "text": "TASK_M00008 todo task"}]
+        },
+        {
+          "type": "taskItem",
+          "attrs": {"localId": "00000000-0000-4000-8000-000000000002", "state": "DONE"},
+          "content": [{"type": "text", "text": "Done task"}]
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "attrs": {"language": "CODE_M00002"},
+      "content": [{"type": "text", "text": "code block content"}]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {"type": "text", "text": "Line with hard break HBR_M00011"},
+        {"type": "hardBreak"},
+        {"type": "text", "text": "Line after break."}
+      ]
+    }
+  ]
+}

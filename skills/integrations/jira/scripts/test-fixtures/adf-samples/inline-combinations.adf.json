@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "bold link",
+          "marks": [
+            {"type": "strong"},
+            {"type": "link", "attrs": {"href": "https://example.com/bold"}}
+          ]
+        },
+        {"type": "text", "text": " and "},
+        {
+          "type": "text",
+          "text": "italic link",
+          "marks": [
+            {"type": "em"},
+            {"type": "link", "attrs": {"href": "https://example.com/italic"}}
+          ]
+        },
+        {"type": "text", "text": " text."}
+      ]
+    }
+  ]
+}

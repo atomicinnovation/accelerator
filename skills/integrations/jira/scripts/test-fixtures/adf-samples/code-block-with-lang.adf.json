@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "type": "doc",
+  "content": [
+    {
+      "type": "codeBlock",
+      "attrs": {"language": "python"},
+      "content": [{"type": "text", "text": "def hello():\n    print(\"Hello, world!\")"}]
+    }
+  ]
+}

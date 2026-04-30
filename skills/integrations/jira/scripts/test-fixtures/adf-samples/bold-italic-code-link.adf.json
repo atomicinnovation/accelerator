@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {"type": "text", "text": "This has "},
+        {"type": "text", "text": "bold text", "marks": [{"type": "strong"}]},
+        {"type": "text", "text": ", "},
+        {"type": "text", "text": "italic text", "marks": [{"type": "em"}]},
+        {"type": "text", "text": ", "},
+        {"type": "text", "text": "inline code", "marks": [{"type": "code"}]},
+        {"type": "text", "text": ", and "},
+        {"type": "text", "text": "linked text", "marks": [{"type": "link", "attrs": {"href": "https://example.com"}}]},
+        {"type": "text", "text": "."}
+      ]
+    }
+  ]
+}
