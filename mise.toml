@@ -7,12 +7,22 @@ python = "3.14.4"
 gh = "2.89.0"
 rust = "1.90.0"
 node = "22"
+zig = "0.13.0"
+cargo-zigbuild = "0.19.5"
 
 [settings]
 experimental = true
 
 [hooks]
 postinstall = "uv sync --only-group build --frozen"
+
+[tasks."deps:install:python"]
+description = "Install all Python dependencies"
+run = "invoke deps.install-python"
+
+[tasks."deps:install:rust-targets"]
+description = "Install Rust cross-compile targets required for release builds"
+run = "invoke deps.install-rust-targets"
 
 [tasks."build:frontend"]
 description = "Build the visualiser frontend (Vite production build into dist/)"
@@ -35,9 +45,14 @@ run = "invoke test.unit.visualiser"
 description = "Run visualiser frontend unit tests (Vitest)"
 run = "invoke test.unit.frontend"
 
+[tasks."test:unit:tasks"]
+description = "Run pytest unit tests for invoke tasks"
+depends = ["deps:install:python"]
+run = "pytest tests/tasks/ -v"
+
 [tasks."test:unit"]
 description = "Run all unit tests in parallel"
-depends = ["test:unit:visualiser", "test:unit:frontend"]
+depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks"]
 
 [tasks."test:integration:visualiser"]
 description = "Run visualiser integration tests"

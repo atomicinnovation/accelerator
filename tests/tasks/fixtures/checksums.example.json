@@ -1,0 +1,9 @@
+{
+  "version": "1.20.0",
+  "binaries": {
+    "darwin-arm64": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "darwin-x64": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "linux-arm64": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "linux-x64": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  }
+}

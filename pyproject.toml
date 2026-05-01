@@ -12,8 +12,17 @@ build = [
     "invoke>=2.2.1",
     "keepachangelog>=2.0.0",
     "rich>=14.2.0",
-    "semver>=3.0.4",
+    "semver>=3.0.4,<4",
+    "tomlkit>=0.13,<0.14",
 ]
+dev = [
+    "pytest>=8",
+    "pytest-mock>=3.14",
+]
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+pythonpath = ["."]
 
 [tool.uv]
 prerelease = "allow"
