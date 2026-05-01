@@ -96,6 +96,23 @@ write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  tok
 OUTPUT=$(cd "$REPO" && bash "$AUTH_CLI")
 assert_contains "shared token" "token=shared-token" "$OUTPUT"
 
+echo "Test 5a: accelerator.md jira.token blocked when accelerator.local.md exists but has no token"
+REPO=$(setup_repo)
+write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  token: shared-token"
+write_local_config "$REPO"  # local.md exists but contains no jira.token entry
+EXIT_CODE=0
+STDOUT=$(cd "$REPO" && bash "$AUTH_CLI" 2>/dev/null) || EXIT_CODE=$?
+STDERR=$(cd "$REPO" && bash "$AUTH_CLI" 2>&1 1>/dev/null) || true
+assert_contains "E_NO_TOKEN in stderr" "E_NO_TOKEN" "$STDERR"
+if [ "$EXIT_CODE" -ne 0 ]; then
+  echo "  PASS: exits non-zero (shared token not used)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: expected non-zero exit — shared token should be blocked when local.md exists"
+  FAIL=$((FAIL + 1))
+fi
+assert_eq "stdout is empty" "" "$STDOUT"
+
 echo "Test 6: accelerator.md jira.token_cmd is ignored — E_TOKEN_CMD_FROM_SHARED_CONFIG + E_NO_TOKEN"
 REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  token_cmd: echo ignored"

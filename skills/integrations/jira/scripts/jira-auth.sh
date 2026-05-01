@@ -217,13 +217,16 @@ jira_resolve_credentials() {
     fi
   fi
 
-  # 4. accelerator.md — token only (token_cmd is never honoured here)
-  if [ -z "$JIRA_TOKEN" ]; then
+  # 4. accelerator.md — token only, and only when accelerator.local.md is absent.
+  # (token_cmd is never honoured from shared config.)
+  if [ -z "$JIRA_TOKEN" ] && [ ! -f "$local_cfg" ]; then
     if _v=$(_jira_read_field_from_file "$team_cfg" "token_cmd") && [ -n "$_v" ]; then
       echo "E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd in accelerator.md ignored — move to accelerator.local.md" >&2
     fi
-    if _v=$(_jira_read_field_from_file "$team_cfg" "token") && [ -n "$_v" ]; then
-      JIRA_TOKEN="$_v"
+    local _shared_token
+    _shared_token=$("$_JIRA_AUTH_PLUGIN_ROOT/scripts/config-read-value.sh" jira.token "")
+    if [ -n "$_shared_token" ]; then
+      JIRA_TOKEN="$_shared_token"
       JIRA_RESOLUTION_SOURCE_TOKEN="shared"
     fi
   fi
