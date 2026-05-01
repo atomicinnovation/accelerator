@@ -3,18 +3,15 @@ import json
 from invoke import Context, task
 
 from . import version
+from .shared.paths import MARKETPLACE_JSON
 
 
 def read_metadata():
-    return json.load(open(".claude-plugin/marketplace.json"))
+    return json.loads(MARKETPLACE_JSON.read_text())
 
 
 def write_metadata(metadata):
-    json.dump(
-        metadata,
-        open(".claude-plugin/marketplace.json", "w"),
-        indent=2
-    )
+    MARKETPLACE_JSON.write_text(json.dumps(metadata, indent=2))
 
 
 @task

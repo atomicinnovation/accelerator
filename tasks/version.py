@@ -1,9 +1,10 @@
 import json
 from enum import StrEnum
-from collections.abc import Sequence
 
 import semver
 from invoke import Context, task
+
+from .shared.paths import PLUGIN_JSON
 
 
 class BumpType(StrEnum):
@@ -16,7 +17,7 @@ class BumpType(StrEnum):
 
 
 def read_plugin_metadata():
-    return json.load(open(".claude-plugin/plugin.json"))
+    return json.loads(PLUGIN_JSON.read_text())
 
 
 @task
@@ -34,11 +35,7 @@ def write(_context: Context, version: str):
     """Write plugin version."""
     plugin_metadata = read_plugin_metadata()
     plugin_metadata["version"] = version
-    json.dump(
-        plugin_metadata,
-        open(".claude-plugin/plugin.json", "w"),
-        indent=2
-    )
+    PLUGIN_JSON.write_text(json.dumps(plugin_metadata, indent=2))
 
 
 @task(iterable=["bump_type"])

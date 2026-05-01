@@ -4,6 +4,17 @@ from . import version
 
 
 @task
+def check_clean(context: Context):
+    """Abort if the working tree has any uncommitted changes."""
+    result = context.run("git status --porcelain", hide=True, warn=True)
+    if result.stdout.strip():
+        raise RuntimeError(
+            f"working tree is not clean; commit or stash changes before releasing:\n"
+            f"{result.stdout.strip()}"
+        )
+
+
+@task
 def configure(
     context: Context,
     user_name: str = "Atomic Maintainers",

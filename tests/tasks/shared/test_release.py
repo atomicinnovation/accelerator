@@ -13,7 +13,7 @@ from tasks.shared.releases import (
     validate_version_coherence,
 )
 
-_FIXTURES = Path(__file__).resolve().parent / "fixtures"
+_FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
 
 
 # ── _atomic_write_text ────────────────────────────────────────────

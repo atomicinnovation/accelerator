@@ -1,11 +1,9 @@
 from invoke import Context, task
 
-_CROSS_TARGETS = (
-    "aarch64-apple-darwin",
-    "x86_64-apple-darwin",
-    "aarch64-unknown-linux-musl",
-    "x86_64-unknown-linux-musl",
-)
+from tasks.shared.paths import FRONTEND
+from tasks.shared.targets import TARGETS
+
+_CROSS_TARGETS = tuple(triple for triple, _ in TARGETS)
 
 
 @task
@@ -18,3 +16,9 @@ def install_python(context: Context):
 def install_rust_targets(context: Context):
     """Install the four Rust cross-compile targets required for release builds."""
     context.run(f"rustup target add {' '.join(_CROSS_TARGETS)}")
+
+
+@task
+def install_node(context: Context):
+    """Install Node.js dependencies for the visualiser frontend."""
+    context.run(f"npm --prefix {FRONTEND} ci")

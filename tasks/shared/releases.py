@@ -6,11 +6,11 @@ from typing import Mapping
 
 import semver
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+from .paths import CARGO_TOML, CHECKSUMS, PLUGIN_JSON, REPO_ROOT
 
-_PLUGIN_JSON = _REPO_ROOT / ".claude-plugin/plugin.json"
-_CARGO_TOML = _REPO_ROOT / "skills/visualisation/visualise/server/Cargo.toml"
-_CHECKSUMS_JSON = _REPO_ROOT / "skills/visualisation/visualise/bin/checksums.json"
+_CARGO_TOML_RELATIVE  = CARGO_TOML.relative_to(REPO_ROOT)
+_PLUGIN_JSON_RELATIVE = PLUGIN_JSON.relative_to(REPO_ROOT)
+_CHECKSUMS_RELATIVE   = CHECKSUMS.relative_to(REPO_ROOT)
 
 
 class ReleaseHelperError(Exception): ...
@@ -29,20 +29,18 @@ def _atomic_write_text(path: Path, content: str) -> None:
 
 
 def _read_plugin_json_version(root: Path) -> str:
-    data = json.loads((root / ".claude-plugin/plugin.json").read_text())
+    data = json.loads((root / _PLUGIN_JSON_RELATIVE).read_text())
     return data["version"]
 
 
 def _read_cargo_toml_version(root: Path) -> str:
-    with open(root / "skills/visualisation/visualise/server/Cargo.toml", "rb") as f:
+    with open(root / _CARGO_TOML_RELATIVE, "rb") as f:
         data = tomllib.load(f)
     return data["package"]["version"]
 
 
 def _read_checksums_json_version(root: Path) -> str:
-    data = json.loads(
-        (root / "skills/visualisation/visualise/bin/checksums.json").read_text()
-    )
+    data = json.loads((root / _CHECKSUMS_RELATIVE).read_text())
     return data["version"]
 
 
@@ -73,7 +71,7 @@ def validate_version_coherence(
 ) -> None:
     if not expected_version:
         raise InvalidVersionError("expected_version must not be empty")
-    root = repo_root or _REPO_ROOT
+    root = repo_root or REPO_ROOT
     found = {
         "plugin.json":    _read_plugin_json_version(root),
         "Cargo.toml":     _read_cargo_toml_version(root),

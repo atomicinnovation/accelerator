@@ -14,6 +14,8 @@ build = [
     "rich>=14.2.0",
     "semver>=3.0.4,<4",
     "tomlkit>=0.13,<0.14",
+    "ziglang>=0.16.0",
+    "cargo-zigbuild>=0.22.3"
 ]
 dev = [
     "pytest>=8",

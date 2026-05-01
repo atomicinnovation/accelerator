@@ -7,8 +7,6 @@ python = "3.14.4"
 gh = "2.89.0"
 rust = "1.90.0"
 node = "22"
-zig = "0.13.0"
-cargo-zigbuild = "0.19.5"
 
 [settings]
 experimental = true
@@ -24,8 +22,13 @@ run = "invoke deps.install-python"
 description = "Install Rust cross-compile targets required for release builds"
 run = "invoke deps.install-rust-targets"
 
+[tasks."deps:install:node"]
+description = "Install Node.js dependencies for the visualiser frontend"
+run = "invoke deps.install-node"
+
 [tasks."build:frontend"]
 description = "Build the visualiser frontend (Vite production build into dist/)"
+depends = ["deps:install:node"]
 run = "invoke build.frontend"
 
 [tasks."build:server:dev"]
@@ -35,6 +38,21 @@ run = "invoke build.server_dev"
 [tasks."build:server:release"]
 description = "Build the visualiser server binary for release (embed-dist)"
 run = "invoke build.server_release"
+
+[tasks."build:server:cross-compile"]
+description = "Cross-compile the visualiser server for all four release targets"
+depends = ["build:frontend"]
+run = "invoke build.server-cross-compile"
+
+[tasks."build:debug-archives"]
+description = "Create .debug.tar.gz archives for all cross-compiled release binaries"
+depends = ["build:server:cross-compile"]
+run = "invoke build.create-debug-archives"
+
+[tasks."build:checksums"]
+description = "Compute SHA-256 checksums for all release binaries and write checksums.json"
+depends = ["build:server:cross-compile"]
+run = "invoke build.create-checksums"
 
 [tasks."test:unit:visualiser"]
 description = "Run visualiser unit tests"
@@ -48,7 +66,12 @@ run = "invoke test.unit.frontend"
 [tasks."test:unit:tasks"]
 description = "Run pytest unit tests for invoke tasks"
 depends = ["deps:install:python"]
-run = "pytest tests/tasks/ -v"
+run = "uv run pytest tests/tasks/shared/test_release.py -v"
+
+[tasks."test:integration:tasks"]
+description = "Run pytest integration tests for invoke tasks"
+depends = ["deps:install:python"]
+run = "uv run pytest tests/tasks/shared/test_binaries.py -v"
 
 [tasks."test:unit"]
 description = "Run all unit tests in parallel"
@@ -71,7 +94,8 @@ description = "Run all integration tests in parallel"
 depends = [
     "test:integration:visualiser",
     "test:integration:config",
-    "test:integration:decisions"
+    "test:integration:decisions",
+    "test:integration:tasks",
 ]
 
 [tasks."test:e2e:visualiser"]
@@ -99,10 +123,20 @@ run = "invoke version.write"
 description = "Bump plugin version"
 run = "invoke version.bump"
 
+[tasks."github:check-auth"]
+description = "Verify the GitHub CLI is authenticated"
+run = "invoke github.check-auth"
+
+[tasks."git:check-clean"]
+description = "Abort if the working tree has any uncommitted changes"
+run = "invoke git.check-clean"
+
 [tasks."prerelease"]
 description = "Create prerelease version of library"
+depends = ["build:debug-archives", "github:check-auth", "git:check-clean"]
 run = "invoke prerelease"
 
 [tasks."release"]
 description = "Create release version of library"
+depends = ["build:debug-archives", "github:check-auth", "git:check-clean"]
 run = "invoke release"

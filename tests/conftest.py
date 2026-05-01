@@ -9,9 +9,6 @@ _TASKS_FIXTURES = _REPO_ROOT / "tests/tasks/fixtures"
 
 @pytest.fixture
 def fake_repo_tree(tmp_path: Path) -> Path:
-    """Build a stub repo tree with plugin.json, Cargo.toml, and
-    bin/checksums.json at the same paths the helpers expect.
-    """
     (tmp_path / ".claude-plugin").mkdir()
     (tmp_path / ".claude-plugin/plugin.json").write_text(
         '{"name":"accelerator","version":"1.20.0"}'
