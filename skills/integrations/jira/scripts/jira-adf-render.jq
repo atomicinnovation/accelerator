@@ -7,6 +7,21 @@
 # jq -r adds exactly one trailing newline to the final output.
 # Empty doc uses `empty` so jq -r outputs nothing.
 
+# _safe_href: returns true if the href is safe to render as a link.
+# Allows: http, https, mailto (case-insensitive); schemeless (relative/fragment).
+# Strips: any other scheme (javascript:, data:, vbscript:, etc.).
+# Leading whitespace is trimmed before the scheme check.
+def _safe_href:
+  . as $href |
+  ($href | sub("^[ \t\n\r]+"; "")) as $trimmed |
+  ($trimmed | ascii_downcase) as $lower |
+  if ($lower | startswith("http://")) or ($lower | startswith("https://")) or ($lower | startswith("mailto:"))
+  then true
+  elif $lower | test("^[a-z][a-z0-9+.\\-]*:")
+  then false
+  else true
+  end;
+
 def render_inline:
   . as $node |
   if $node.type == "text" then
@@ -17,8 +32,11 @@ def render_inline:
     (if ($marks | any(.type == "strong")) then "**" + . + "**" else . end) |
     . as $inner |
     if ($marks | any(.type == "link")) then
-      ($marks | map(select(.type == "link")) | .[0].attrs.href) as $href |
-      "[" + $inner + "](" + $href + ")"
+      ($marks | map(select(.type == "link")) | .[0].attrs.href // "") as $href |
+      if ($href | _safe_href)
+      then "[" + $inner + "](" + $href + ")"
+      else $inner
+      end
     else $inner end
   elif $node.type == "hardBreak" then "  \n"
   else "[unsupported ADF inline: \($node.type)]"

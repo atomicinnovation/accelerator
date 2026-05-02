@@ -40,8 +40,9 @@ table. Gaps within ranges are reserved.
 | 51   | `E_FIELD_CACHE_MISSING`          | `jira-fields.sh`    | `fields.json` absent; run `refresh` or `/init-jira`                                      |
 | 52   | `E_FIELD_CACHE_CORRUPT`          | `jira-fields.sh`    | `fields.json` present but not valid JSON                                                 |
 | 53   | `E_REFRESH_LOCKED`               | `jira-common.sh`    | `jira_with_lock` timed out waiting for the integration lock                              |
-| 60   | `E_INIT_NEEDS_CONFIG`            | `jira-init-flow.sh` | Required config missing in non-interactive mode                                          |
-| 61   | `E_INIT_VERIFY_FAILED`           | `jira-init-flow.sh` | `/rest/api/3/myself` verification failed                                                 |
+| 60   | `E_INIT_NEEDS_CONFIG`            | `jira-init-flow.sh`        | Required config missing in non-interactive mode                                          |
+| 61   | `E_INIT_VERIFY_FAILED`           | `jira-init-flow.sh`        | `/rest/api/3/myself` verification failed                                                 |
+| 90   | `E_RENDER_BAD_INPUT`             | `jira-render-adf-fields.sh` | Stdin is not valid JSON                                                                  |
 
 ## Test-seam policy
 
@@ -60,4 +61,6 @@ production behaviour.
 | `JIRA_RETRY_SLEEP_FN`                     | `ACCELERATOR_TEST_MODE=1` | `jira-request.sh` | Shell function name to call instead of `sleep` between retries |
 | `JIRA_ADF_LOCALID_SEED`                   | `ACCELERATOR_TEST_MODE=1` | `jira-common.sh`  | Integer seed for deterministic `_jira_uuid_v4` output          |
 | `JIRA_LOCK_TIMEOUT_SECS`                  | `ACCELERATOR_TEST_MODE=1` | `jira-common.sh`  | Override 60 s lock-acquisition timeout                         |
-| `JIRA_LOCK_SLEEP_SECS`                    | `ACCELERATOR_TEST_MODE=1` | `jira-common.sh`  | Override 0.1 s sleep between lock-acquisition retries          |
+| `JIRA_LOCK_SLEEP_SECS`                    | `ACCELERATOR_TEST_MODE=1` | `jira-common.sh`              | Override 0.1 s sleep between lock-acquisition retries          |
+| `ACCELERATOR_JIRA_FIELDS_CACHE_PATH_TEST` | `ACCELERATOR_TEST_MODE=1` | `jira-render-adf-fields.sh`   | Override the `fields.json` path used to look up custom textarea field IDs |
+| `ACCELERATOR_JIRA_ADF_RENDERER_TEST`      | `ACCELERATOR_TEST_MODE=1` | `jira-render-adf-fields.sh`   | Override the `jira-adf-to-md.sh` renderer path (used by idempotency stub tests) |

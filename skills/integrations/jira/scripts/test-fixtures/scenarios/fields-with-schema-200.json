@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/field",
+      "response": {
+        "status": 200,
+        "body": "[{\"id\":\"summary\",\"key\":\"summary\",\"name\":\"Summary\"},{\"id\":\"description\",\"key\":\"description\",\"name\":\"Description\"},{\"id\":\"customfield_10100\",\"key\":\"customfield_10100\",\"name\":\"Design Notes\",\"schema\":{\"type\":\"string\",\"custom\":\"com.atlassian.jira.plugin.system.customfieldtypes:textarea\",\"customId\":10100}},{\"id\":\"customfield_10200\",\"key\":\"customfield_10200\",\"name\":\"Short Text\",\"schema\":{\"type\":\"string\",\"custom\":\"com.atlassian.jira.plugin.system.customfieldtypes:textfield\",\"customId\":10200}},{\"id\":\"customfield_10300\",\"key\":\"customfield_10300\",\"name\":\"Score\",\"schema\":{\"type\":\"number\",\"custom\":\"com.atlassian.jira.plugin.system.customfieldtypes:float\",\"customId\":10300}}]"
+      }
+    }
+  ]
+}

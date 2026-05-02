@@ -57,11 +57,13 @@ _fields_do_refresh() {
 
   local fields_json
   if ! fields_json=$(printf '%s\n' "$raw_json" | jq --arg site "$JIRA_SITE" \
-    '{site: $site, fields: [.[] | {id, key, name,
-       slug: (.name | ascii_downcase
-                     | gsub("[^a-z0-9]+"; "-")
-                     | ltrimstr("-")
-                     | rtrimstr("-"))}
+    '{site: $site, fields: [.[] |
+       {id, key, name,
+        slug: (.name | ascii_downcase
+                      | gsub("[^a-z0-9]+"; "-")
+                      | ltrimstr("-")
+                      | rtrimstr("-"))}
+       + (if .schema.custom then {schema: {custom: .schema.custom}} else {} end)
     ]}'); then
     echo "E_BAD_JSON: could not parse /rest/api/3/field response" >&2
     return 1

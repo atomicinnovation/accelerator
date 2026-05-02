@@ -664,11 +664,11 @@ the helper iterates indices in bash and recurses.
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-fields.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-fields.sh`
   passes with the two new refresh-widening cases (writes
   `schema.custom` for textarea custom fields; omits `schema` on
   standard fields).
-- [ ] `bash skills/integrations/jira/scripts/test-jira-render-adf-fields.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-render-adf-fields.sh`
   passes (thirteen top-level cases — original twelve plus the
   strict-equality gate assertion for
   `ACCELERATOR_JIRA_FIELDS_CACHE_PATH_TEST`. Case 1 has three
@@ -676,13 +676,13 @@ the helper iterates indices in bash and recurses.
   heading + list + marks, code block + paragraphs — and case
   11 has two sub-cases (11a/11b) for byte-identical second pass
   AND renderer-not-re-spawned instrumentation).
-- [ ] `bash skills/integrations/jira/scripts/test-jira-adf-to-md.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-adf-to-md.sh`
   passes with the seven new link-scheme cases (http(s)/mailto
   pass through; javascript:/data:/vbscript: stripped;
   case-insensitive matching; relative URLs pass through;
   whitespace-leading scheme handled).
-- [ ] `mise run test` passes.
-- [ ] `EXIT_CODES.md` documents code 90 and the new test seam.
+- [x] `mise run test` passes.
+- [x] `EXIT_CODES.md` documents code 90 and the new test seam.
 
 #### Manual Verification
 

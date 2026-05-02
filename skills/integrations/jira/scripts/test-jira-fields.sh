@@ -263,4 +263,50 @@ fi
 echo ""
 
 # ============================================================
+echo "=== Case 14: refresh writes schema.custom for textarea custom fields ==="
+echo ""
+
+REPO14=$(setup_repo)
+FIELDS14="$REPO14/meta/integrations/jira/fields.json"
+
+start_mock "$SCENARIOS/fields-with-schema-200.json"
+(cd "$REPO14" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" \
+  ACCELERATOR_TEST_MODE=1 \
+  ACCELERATOR_JIRA_BASE_URL_OVERRIDE_TEST="$MOCK_URL" \
+  bash "$SCRIPT" refresh)
+stop_mock
+
+TEXTAREA_CUSTOM=$(jq -r '.fields[] | select(.id=="customfield_10100") | .schema.custom' "$FIELDS14")
+assert_eq "textarea schema.custom persisted" \
+  "com.atlassian.jira.plugin.system.customfieldtypes:textarea" \
+  "$TEXTAREA_CUSTOM"
+echo ""
+
+# ============================================================
+echo "=== Case 15: refresh omits schema on standard fields ==="
+echo ""
+
+HAS_SCHEMA=$(jq -r '.fields[] | select(.id=="summary") | has("schema")' "$FIELDS14")
+assert_eq "standard field has no schema key" "false" "$HAS_SCHEMA"
+
+HAS_SCHEMA_DESC=$(jq -r '.fields[] | select(.id=="description") | has("schema")' "$FIELDS14")
+assert_eq "description field has no schema key" "false" "$HAS_SCHEMA_DESC"
+echo ""
+
+# ============================================================
+echo "=== Case 16: refresh preserves non-textarea schema.custom verbatim ==="
+echo ""
+
+TEXTFIELD_CUSTOM=$(jq -r '.fields[] | select(.id=="customfield_10200") | .schema.custom' "$FIELDS14")
+assert_eq "textfield schema.custom preserved" \
+  "com.atlassian.jira.plugin.system.customfieldtypes:textfield" \
+  "$TEXTFIELD_CUSTOM"
+
+FLOAT_CUSTOM=$(jq -r '.fields[] | select(.id=="customfield_10300") | .schema.custom' "$FIELDS14")
+assert_eq "float schema.custom preserved" \
+  "com.atlassian.jira.plugin.system.customfieldtypes:float" \
+  "$FLOAT_CUSTOM"
+echo ""
+
+# ============================================================
 test_summary
