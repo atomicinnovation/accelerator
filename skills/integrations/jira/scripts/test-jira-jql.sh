@@ -197,4 +197,76 @@ assert_contains "warns about raw jql" "raw JQL" "$ERR"
 echo ""
 
 # ============================================================
+echo "=== New flags: --type, --component, --reporter, --parent, --watching, --text ==="
+echo ""
+
+echo "Test 21: --type Bug"
+OUT=$(jql_compose --project ENG --type Bug)
+assert_eq "--type single value" "project = 'ENG' AND issuetype IN ('Bug')" "$OUT"
+
+echo "Test 22: --type ~Bug negation"
+OUT=$(jql_compose --project ENG --type '~Bug')
+assert_eq "--type negation" "project = 'ENG' AND issuetype NOT IN ('Bug')" "$OUT"
+
+echo "Test 23: --type multiple values"
+OUT=$(jql_compose --project ENG --type Bug --type Story)
+assert_eq "--type multi-value" "project = 'ENG' AND issuetype IN ('Bug','Story')" "$OUT"
+
+echo "Test 24: --component with mixed positives and negatives"
+OUT=$(jql_compose --project ENG --component frontend --component '~legacy')
+assert_eq "--component mixed neg" \
+  "project = 'ENG' AND component IN ('frontend') AND component NOT IN ('legacy')" \
+  "$OUT"
+
+echo "Test 25: --reporter"
+OUT=$(jql_compose --project ENG --reporter alice)
+assert_eq "--reporter single" "project = 'ENG' AND reporter IN ('alice')" "$OUT"
+
+echo "Test 26: --parent"
+OUT=$(jql_compose --project ENG --parent ENG-1)
+assert_eq "--parent single" "project = 'ENG' AND parent IN ('ENG-1')" "$OUT"
+
+echo "Test 27: --watching adds watcher = currentUser()"
+OUT=$(jql_compose --project ENG --watching)
+assert_eq "--watching clause" "project = 'ENG' AND watcher = currentUser()" "$OUT"
+
+echo "Test 28: --text basic match"
+OUT=$(jql_compose --project ENG --text "foo bar")
+assert_eq "--text basic" 'project = '"'"'ENG'"'"' AND text ~ "foo bar"' "$OUT"
+
+echo "Test 29: --text backslash escaped"
+OUT=$(jql_compose --project ENG --text 'has\backslash')
+assert_eq "--text backslash" 'project = '"'"'ENG'"'"' AND text ~ "has\\backslash"' "$OUT"
+
+echo "Test 30: --text double-quote escaped"
+OUT=$(jql_compose --project ENG --text 'has"quote')
+assert_eq "--text double-quote" 'project = '"'"'ENG'"'"' AND text ~ "has\"quote"' "$OUT"
+
+echo "Test 31: --text control character exits 31"
+CTRL_VAL=$'foo\tbar'
+ERR=$(jql_compose --project ENG --text "$CTRL_VAL" 2>&1 >/dev/null || true)
+assert_contains "--text ctrl: error on stderr" "E_JQL_BAD_VALUE" "$ERR"
+assert_exit_code "--text ctrl: exits 31" 31 jql_compose --project ENG --text "$CTRL_VAL"
+
+echo "Test 32: --text injection resistance"
+INJECT='foo" OR project = X OR text ~ "bar'
+OUT=$(jql_compose --project ENG --text "$INJECT")
+EXPECTED_CLAUSE='text ~ "foo\" OR project = X OR text ~ \"bar"'
+assert_contains "--text injection resistance" "$EXPECTED_CLAUSE" "$OUT"
+
+echo "Test 32b: --text backslash-quote ordering (adversarial: backslash+quote)"
+OUT=$(jql_compose --project ENG --text '\"')
+assert_eq "--text backslash-quote ordering" \
+  'project = '"'"'ENG'"'"' AND text ~ "\\\""' \
+  "$OUT"
+
+echo "Test 33: combined flags compose correctly"
+OUT=$(jql_compose --project ENG --status 'In Progress' --type Bug --component frontend --reporter alice --watching --text "API")
+assert_eq "combined flags" \
+  "project = 'ENG' AND status IN ('In Progress') AND issuetype IN ('Bug') AND component IN ('frontend') AND reporter IN ('alice') AND watcher = currentUser() AND text ~ \"API\"" \
+  "$OUT"
+
+echo ""
+
+# ============================================================
 test_summary

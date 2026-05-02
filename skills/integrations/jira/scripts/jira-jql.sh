@@ -144,6 +144,28 @@ jql_split_neg() {
 }
 
 # ---------------------------------------------------------------------------
+# jql_match <field> <value>
+# Compose `<field> ~ "<escaped-value>"` for JQL contains-match.
+# Escapes `\` and `"` per Atlassian's double-quoted string rules and
+# rejects control characters (exit 31).
+#
+# IMPORTANT — escape order: `\` MUST be escaped before `"`.
+# If `"` were escaped first, the `\` in front of every `"` would be
+# doubled on the backslash pass, producing `\\"` instead of `\"`.
+# ---------------------------------------------------------------------------
+jql_match() {
+  local field="$1" value="$2"
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    echo "E_JQL_BAD_VALUE: control character in match value" >&2
+    return 31
+  fi
+  # Escape order matters: backslash first, then double-quote.
+  local escaped="${value//\\/\\\\}"
+  escaped="${escaped//\"/\\\"}"
+  printf '%s ~ "%s"' "$field" "$escaped"
+}
+
+# ---------------------------------------------------------------------------
 # jql_compose [flags...]
 #
 # Flags:
@@ -152,25 +174,39 @@ jql_split_neg() {
 #   --status <value>     accumulate status values (~ prefix = negation)
 #   --label <value>      accumulate label values (~ prefix = negation)
 #   --assignee <value>   accumulate assignee values (~ prefix = negation)
+#   --type <value>       accumulate issuetype values (~ prefix = negation)
+#   --component <value>  accumulate component values (~ prefix = negation)
+#   --reporter <value>   accumulate reporter values (~ prefix = negation)
+#   --parent <value>     accumulate parent values (~ prefix = negation)
+#   --watching           add watcher = currentUser() clause (no value)
+#   --text <value>       add text ~ "<escaped>" clause via jql_match
 #   --empty <field>      add <field> IS EMPTY clause
 #   --not-empty <field>  add <field> IS NOT EMPTY clause
 #   --jql <raw>          append raw JQL verbatim (with AND); emits stderr warning
 # ---------------------------------------------------------------------------
 jql_compose() {
-  local project="" all_projects=0 raw_jql=""
+  local project="" all_projects=0 raw_jql="" watching=0
   local -a status_vals=() label_vals=() assignee_vals=()
+  local -a type_vals=() component_vals=() reporter_vals=()
+  local -a parent_vals=() text_vals=()
   local -a empty_fields=() not_empty_fields=()
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --project)      project="$2";        shift 2 ;;
-      --all-projects) all_projects=1;      shift ;;
-      --status)       status_vals+=("$2"); shift 2 ;;
-      --label)        label_vals+=("$2");  shift 2 ;;
-      --assignee)     assignee_vals+=("$2"); shift 2 ;;
-      --empty)        empty_fields+=("$2"); shift 2 ;;
+      --project)      project="$2";           shift 2 ;;
+      --all-projects) all_projects=1;         shift ;;
+      --status)       status_vals+=("$2");    shift 2 ;;
+      --label)        label_vals+=("$2");     shift 2 ;;
+      --assignee)     assignee_vals+=("$2");  shift 2 ;;
+      --type)         type_vals+=("$2");      shift 2 ;;
+      --component)    component_vals+=("$2"); shift 2 ;;
+      --reporter)     reporter_vals+=("$2");  shift 2 ;;
+      --parent)       parent_vals+=("$2");    shift 2 ;;
+      --watching)     watching=1;             shift ;;
+      --text)         text_vals+=("$2");      shift 2 ;;
+      --empty)        empty_fields+=("$2");   shift 2 ;;
       --not-empty)    not_empty_fields+=("$2"); shift 2 ;;
-      --jql)          raw_jql="$2";        shift 2 ;;
+      --jql)          raw_jql="$2";           shift 2 ;;
       *)
         echo "E_JQL_BAD_FLAG: unrecognised flag: $1" >&2
         return 32
@@ -201,10 +237,24 @@ jql_compose() {
     clauses+=("$f IS NOT EMPTY")
   done
 
-  # Multi-value fields: status, labels, assignee
-  _jql_compose_field clauses status  status_vals  || return $?
-  _jql_compose_field clauses labels  label_vals   || return $?
-  _jql_compose_field clauses assignee assignee_vals || return $?
+  # Multi-value fields: status, labels, assignee, issuetype, component, reporter, parent
+  _jql_compose_field clauses status    status_vals    || return $?
+  _jql_compose_field clauses labels    label_vals     || return $?
+  _jql_compose_field clauses assignee  assignee_vals  || return $?
+  _jql_compose_field clauses issuetype type_vals      || return $?
+  _jql_compose_field clauses component component_vals || return $?
+  _jql_compose_field clauses reporter  reporter_vals  || return $?
+  _jql_compose_field clauses parent    parent_vals    || return $?
+
+  # Watching (singleton — no value, no negation)
+  (( watching )) && clauses+=("watcher = currentUser()")
+
+  # Text contains-match (one clause per value)
+  local v clause
+  for v in "${text_vals[@]+"${text_vals[@]}"}"; do
+    clause=$(jql_match text "$v") || return $?
+    clauses+=("$clause")
+  done
 
   # Raw JQL append
   if [[ -n "$raw_jql" ]]; then

@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/search/jql",
+      "expect_headers": {"Content-Type": "application/json"},
+      "response": {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": "{\"issues\":[{\"key\":\"ENG-1\",\"id\":\"10001\",\"fields\":{\"summary\":\"ADF issue\",\"description\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"hello from ADF\"}]}]}}}]}"
+      }
+    }
+  ]
+}

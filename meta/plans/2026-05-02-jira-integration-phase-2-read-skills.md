@@ -1200,11 +1200,11 @@ extension.
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-search.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-search.sh`
   passes (seventeen cases — original sixteen plus the
   `--help`/`-h` banner case added in B8).
-- [ ] `mise run test` passes.
-- [ ] `EXIT_CODES.md` documents codes 70–73.
+- [x] `mise run test` passes.
+- [x] `EXIT_CODES.md` documents codes 70–73.
 
 #### Manual Verification
 

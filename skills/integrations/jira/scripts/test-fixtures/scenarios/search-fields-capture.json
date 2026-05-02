@@ -1,0 +1,16 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/search/jql",
+      "consume": false,
+      "capture_body": true,
+      "expect_headers": {"Content-Type": "application/json"},
+      "response": {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": "{\"issues\":[]}"
+      }
+    }
+  ]
+}

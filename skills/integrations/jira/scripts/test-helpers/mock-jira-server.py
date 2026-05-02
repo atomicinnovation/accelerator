@@ -75,10 +75,14 @@ class MockHandler(BaseHTTPRequestHandler):
                     f"Header {header}: got '{actual}', want '{value}'"
                 )
 
-        # Consume request body (so connection stays clean)
+        # Consume request body (so connection stays clean); optionally capture it
         content_length = int(self.headers.get("Content-Length", 0))
+        request_body = b""
         if content_length:
-            self.rfile.read(content_length)
+            request_body = self.rfile.read(content_length)
+        if exp.get("capture_body", False):
+            with server.lock:
+                server.captured_bodies.append(request_body.decode("utf-8", errors="replace"))
 
         resp = exp["response"]
         status = resp.get("status", 200)
@@ -111,6 +115,7 @@ class MockServer(HTTPServer):
         super().__init__(("127.0.0.1", 0), MockHandler)
         self.expectations = list(expectations)
         self.errors: list[str] = []
+        self.captured_bodies: list[str] = []
         self.lock = threading.Lock()
 
 
@@ -118,6 +123,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenario", required=True)
     parser.add_argument("--url-file", required=True)
+    parser.add_argument("--captured-bodies-file", default="")
     args = parser.parse_args()
 
     expectations = load_scenario(args.scenario)
@@ -133,6 +139,9 @@ def main():
     try:
         server.serve_forever()
     finally:
+        if args.captured_bodies_file:
+            with open(args.captured_bodies_file, "w") as f:
+                json.dump(server.captured_bodies, f)
         if server.errors:
             print("MOCK ERRORS:", file=sys.stderr)
             for e in server.errors:

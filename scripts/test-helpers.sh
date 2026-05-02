@@ -3,13 +3,15 @@
 #
 #   source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/..(etc)../scripts/test-helpers.sh"
 #
-# Exposes: PASS/FAIL counters and assert_eq, assert_contains,
-# assert_not_contains, assert_file_exists, assert_file_not_exists,
-# assert_not_exists, assert_neq, assert_empty, assert_matches_regex,
-# assert_not_matches_regex, assert_file_not_exists, assert_file_content_eq,
-# assert_dir_exists, assert_dir_not_exists, assert_exit_code,
-# assert_file_executable, assert_dir_absent, assert_stderr_empty,
-# assert_stderr_contains, assert_json_eq, test_summary
+# Exposes: PASS/FAIL counters and the following assert helpers:
+#   assert_eq, assert_neq, assert_empty
+#   assert_contains, assert_not_contains
+#   assert_matches_regex, assert_not_matches_regex
+#   assert_file_exists, assert_not_exists
+#   assert_file_not_exists, assert_file_content_eq
+#   assert_dir_exists, assert_dir_not_exists
+#   assert_exit_code, assert_file_executable, assert_stderr_empty
+#   test_summary
 
 PASS=0
 FAIL=0

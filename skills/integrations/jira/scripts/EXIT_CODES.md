@@ -42,6 +42,10 @@ table. Gaps within ranges are reserved.
 | 53   | `E_REFRESH_LOCKED`               | `jira-common.sh`    | `jira_with_lock` timed out waiting for the integration lock                              |
 | 60   | `E_INIT_NEEDS_CONFIG`            | `jira-init-flow.sh`        | Required config missing in non-interactive mode                                          |
 | 61   | `E_INIT_VERIFY_FAILED`           | `jira-init-flow.sh`        | `/rest/api/3/myself` verification failed                                                 |
+| 70   | `E_SEARCH_BAD_PAGE_TOKEN`        | `jira-search-flow.sh`      | `--page-token` contains invalid characters or exceeds maximum length                     |
+| 71   | `E_SEARCH_BAD_LIMIT`             | `jira-search-flow.sh`      | `--limit` is not a positive integer in `[1, 100]`                                        |
+| 72   | `E_SEARCH_NO_SITE_CACHE`         | `jira-search-flow.sh`      | `@me` used but `site.json` is missing; run `/init-jira`                                  |
+| 73   | `E_SEARCH_BAD_FLAG`              | `jira-search-flow.sh`      | Unrecognised flag passed to search flow                                                  |
 | 90   | `E_RENDER_BAD_INPUT`             | `jira-render-adf-fields.sh` | Stdin is not valid JSON                                                                  |
 
 ## Test-seam policy

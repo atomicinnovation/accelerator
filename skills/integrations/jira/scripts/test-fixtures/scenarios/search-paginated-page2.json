@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/search/jql",
+      "expect_headers": {"Content-Type": "application/json"},
+      "response": {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": "{\"issues\":[{\"key\":\"ENG-2\",\"id\":\"10002\",\"fields\":{\"summary\":\"Page two issue\",\"status\":{\"name\":\"Done\"}}}]}"
+      }
+    }
+  ]
+}
