@@ -6,7 +6,7 @@ import semver
 from invoke import Context, task
 
 from .shared.paths import CARGO_TOML, CHECKSUMS, PLUGIN_JSON
-from .shared.files import _atomic_write_text
+from .shared.files import atomic_write_text
 
 
 class BumpType(StrEnum):
@@ -57,9 +57,9 @@ def write(_context: Context, version: str):
     rendered_cargo_toml = _render_cargo_toml(version)
     rendered_checksums = _render_checksums_version(version)
 
-    _atomic_write_text(PLUGIN_JSON, rendered_plugin_json)
-    _atomic_write_text(CARGO_TOML, rendered_cargo_toml)
-    _atomic_write_text(CHECKSUMS, rendered_checksums)
+    atomic_write_text(PLUGIN_JSON, rendered_plugin_json)
+    atomic_write_text(CARGO_TOML, rendered_cargo_toml)
+    atomic_write_text(CHECKSUMS, rendered_checksums)
 
 
 @task(iterable=["bump_type"])

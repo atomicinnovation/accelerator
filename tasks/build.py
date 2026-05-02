@@ -19,7 +19,7 @@ from tasks.shared.paths import (
     debug_archive_path,
 )
 from tasks.shared.errors import InvalidVersionError
-from tasks.shared.files import _atomic_write_text
+from tasks.shared.files import atomic_write_text
 from tasks.shared.hashing import compute_sha256
 
 
@@ -64,7 +64,7 @@ def update_checksums_json(
     if platform_hashes:
         for platform, hex_digest in platform_hashes.items():
             data.setdefault("binaries", {})[platform] = f"sha256:{hex_digest}"
-    _atomic_write_text(manifest_path, json.dumps(data, indent=2) + "\n")
+    atomic_write_text(manifest_path, json.dumps(data, indent=2) + "\n")
 
 
 def validate_version_coherence(
