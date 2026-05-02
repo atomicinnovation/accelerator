@@ -46,6 +46,9 @@ table. Gaps within ranges are reserved.
 | 71   | `E_SEARCH_BAD_LIMIT`             | `jira-search-flow.sh`      | `--limit` is not a positive integer in `[1, 100]`                                        |
 | 72   | `E_SEARCH_NO_SITE_CACHE`         | `jira-search-flow.sh`      | `@me` used but `site.json` is missing; run `/init-jira`                                  |
 | 73   | `E_SEARCH_BAD_FLAG`              | `jira-search-flow.sh`      | Unrecognised flag passed to search flow                                                  |
+| 80   | `E_SHOW_NO_KEY`                  | `jira-show-flow.sh`        | No issue key supplied as positional argument                                             |
+| 81   | `E_SHOW_BAD_COMMENTS_LIMIT`      | `jira-show-flow.sh`        | `--comments` is not an integer in `[0, 100]`                                             |
+| 82   | `E_SHOW_BAD_FLAG`                | `jira-show-flow.sh`        | Unrecognised flag passed to show flow                                                    |
 | 90   | `E_RENDER_BAD_INPUT`             | `jira-render-adf-fields.sh` | Stdin is not valid JSON                                                                  |
 
 ## Test-seam policy

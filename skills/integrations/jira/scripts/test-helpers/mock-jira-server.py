@@ -75,6 +75,11 @@ class MockHandler(BaseHTTPRequestHandler):
                     f"Header {header}: got '{actual}', want '{value}'"
                 )
 
+        # Optionally capture the full request URL (path + query string)
+        if exp.get("capture_url", False):
+            with server.lock:
+                server.captured_urls.append(self.path)
+
         # Consume request body (so connection stays clean); optionally capture it
         content_length = int(self.headers.get("Content-Length", 0))
         request_body = b""
@@ -116,6 +121,7 @@ class MockServer(HTTPServer):
         self.expectations = list(expectations)
         self.errors: list[str] = []
         self.captured_bodies: list[str] = []
+        self.captured_urls: list[str] = []
         self.lock = threading.Lock()
 
 
@@ -124,6 +130,7 @@ def main():
     parser.add_argument("--scenario", required=True)
     parser.add_argument("--url-file", required=True)
     parser.add_argument("--captured-bodies-file", default="")
+    parser.add_argument("--captured-urls-file", default="")
     args = parser.parse_args()
 
     expectations = load_scenario(args.scenario)
@@ -142,6 +149,9 @@ def main():
         if args.captured_bodies_file:
             with open(args.captured_bodies_file, "w") as f:
                 json.dump(server.captured_bodies, f)
+        if args.captured_urls_file:
+            with open(args.captured_urls_file, "w") as f:
+                json.dump(server.captured_urls, f)
         if server.errors:
             print("MOCK ERRORS:", file=sys.stderr)
             for e in server.errors:

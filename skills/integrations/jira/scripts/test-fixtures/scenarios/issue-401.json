@@ -1,0 +1,15 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1",
+      "response": {
+        "status": 401,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"errorMessages\":[],\"errors\":{},\"status\":401}"
+      }
+    }
+  ]
+}

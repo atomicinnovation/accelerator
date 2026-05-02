@@ -1,0 +1,15 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1",
+      "response": {
+        "status": 404,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"errorMessages\":[\"Issue does not exist or you do not have permission to see it.\"],\"errors\":{}}"
+      }
+    }
+  ]
+}

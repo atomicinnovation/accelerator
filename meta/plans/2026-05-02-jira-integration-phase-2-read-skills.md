@@ -1645,7 +1645,7 @@ exercising the iterative-decode behaviour.
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-show.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-show.sh`
   passes (sixteen cases — the original twelve, with case 5
   expanded into five sub-cases (5a–5e) for the comment-slice
   edge cases, case 10 expanded into three sub-cases (10a–10c)
@@ -1655,8 +1655,8 @@ exercising the iterative-decode behaviour.
   `--no-render-adf` opts out, case 14 covering `--help`/`-h`,
   case 15 covering mixed-content rendering, and case 16
   covering `--expand` × `--fields` × `--comments` interaction).
-- [ ] `mise run test` passes.
-- [ ] `EXIT_CODES.md` documents codes 80–82.
+- [x] `mise run test` passes.
+- [x] `EXIT_CODES.md` documents codes 80–82.
 
 #### Manual Verification
 

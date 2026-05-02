@@ -1,0 +1,15 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"id\":\"10001\",\"key\":\"ENG-1\",\"fields\":{\"summary\":\"Issue with comments\",\"status\":{\"name\":\"In Progress\"},\"description\":null,\"comment\":{\"comments\":[{\"id\":\"c1\",\"created\":\"2024-01-01T00:00:00.000+0000\",\"body\":\"Comment 1\"},{\"id\":\"c2\",\"created\":\"2024-01-02T00:00:00.000+0000\",\"body\":\"Comment 2\"},{\"id\":\"c3\",\"created\":\"2024-01-03T00:00:00.000+0000\",\"body\":\"Comment 3\"},{\"id\":\"c4\",\"created\":\"2024-01-04T00:00:00.000+0000\",\"body\":\"Comment 4\"},{\"id\":\"c5\",\"created\":\"2024-01-05T00:00:00.000+0000\",\"body\":\"Comment 5\"},{\"id\":\"c6\",\"created\":\"2024-01-06T00:00:00.000+0000\",\"body\":\"Comment 6\"},{\"id\":\"c7\",\"created\":\"2024-01-07T00:00:00.000+0000\",\"body\":\"Comment 7\"},{\"id\":\"c8\",\"created\":\"2024-01-08T00:00:00.000+0000\",\"body\":\"Comment 8\"}],\"total\":8}}}"
+      }
+    }
+  ]
+}

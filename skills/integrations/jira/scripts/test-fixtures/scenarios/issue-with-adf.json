@@ -1,0 +1,15 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"id\":\"10001\",\"key\":\"ENG-1\",\"fields\":{\"summary\":\"ADF issue\",\"status\":{\"name\":\"In Progress\"},\"description\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"hello from ADF\"}]}]},\"comment\":{\"comments\":[{\"id\":\"c1\",\"created\":\"2024-01-01T00:00:00.000+0000\",\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"comment 1 from ADF\"}]}]}},{\"id\":\"c2\",\"created\":\"2024-01-02T00:00:00.000+0000\",\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"comment 2 from ADF\"}]}]}},{\"id\":\"c3\",\"created\":\"2024-01-03T00:00:00.000+0000\",\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"comment 3 from ADF\"}]}]}}],\"total\":3}}}"
+      }
+    }
+  ]
+}

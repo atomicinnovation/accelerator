@@ -1,0 +1,15 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"id\":\"10001\",\"key\":\"ENG-1\",\"fields\":{\"summary\":\"Issue without comment block\",\"status\":{\"name\":\"In Progress\"},\"description\":null}}"
+      }
+    }
+  ]
+}

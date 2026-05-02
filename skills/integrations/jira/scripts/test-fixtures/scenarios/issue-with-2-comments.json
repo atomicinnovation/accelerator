@@ -1,0 +1,15 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"id\":\"10001\",\"key\":\"ENG-1\",\"fields\":{\"summary\":\"Issue with 2 comments\",\"status\":{\"name\":\"In Progress\"},\"description\":null,\"comment\":{\"comments\":[{\"id\":\"c1\",\"created\":\"2024-01-01T00:00:00.000+0000\",\"body\":\"Comment 1\"},{\"id\":\"c2\",\"created\":\"2024-01-02T00:00:00.000+0000\",\"body\":\"Comment 2\"}],\"total\":2}}}"
+      }
+    }
+  ]
+}

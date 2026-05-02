@@ -1,0 +1,15 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1",
+      "response": {
+        "status": 403,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"errorMessages\":[\"You do not have permission to see this issue.\"],\"errors\":{}}"
+      }
+    }
+  ]
+}

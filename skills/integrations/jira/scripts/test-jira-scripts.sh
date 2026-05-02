@@ -19,5 +19,8 @@ bash "$SCRIPT_DIR/test-jira-adf-roundtrip.sh" || EXIT_CODE=$?
 bash "$SCRIPT_DIR/test-jira-request.sh" || EXIT_CODE=$?
 bash "$SCRIPT_DIR/test-jira-fields.sh" || EXIT_CODE=$?
 bash "$SCRIPT_DIR/test-jira-init-flow.sh" || EXIT_CODE=$?
+bash "$SCRIPT_DIR/test-jira-render-adf-fields.sh" || EXIT_CODE=$?
+bash "$SCRIPT_DIR/test-jira-search.sh" || EXIT_CODE=$?
+bash "$SCRIPT_DIR/test-jira-show.sh" || EXIT_CODE=$?
 
 exit "$EXIT_CODE"

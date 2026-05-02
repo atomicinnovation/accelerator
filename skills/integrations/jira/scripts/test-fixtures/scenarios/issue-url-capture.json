@@ -1,0 +1,17 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1",
+      "consume": false,
+      "capture_url": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"id\":\"10001\",\"key\":\"ENG-1\",\"fields\":{\"summary\":\"First issue\",\"status\":{\"name\":\"In Progress\"},\"description\":null}}"
+      }
+    }
+  ]
+}
