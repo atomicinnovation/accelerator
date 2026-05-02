@@ -43,8 +43,9 @@ the top of each wrapper in `tasks/release.py` raises `RuntimeError` if
 1. Configures git identity and pulls `main`
 2. Bumps the pre-release counter (`1.2.3-pre.N` → `1.2.3-pre.N+1`)
 3. Writes the new version to `Cargo.toml`, `plugin.json`, and `bin/checksums.json`
-4. Cross-compiles four-platform binaries via `cargo zigbuild` (`tasks/build.py`)
-5. Computes SHA-256 checksums and writes them to `bin/checksums.json`
+4. Updates `.claude-plugin/marketplace-prerelease.json` to the new version tag
+5. Cross-compiles four-platform binaries via `cargo zigbuild` (`tasks/build.py`)
+6. Computes SHA-256 checksums and writes them to `bin/checksums.json`
 
 `prerelease_finalise` steps (shared `_publish` helper in `tasks/release.py`):
 6. Commits the version bump
@@ -76,14 +77,14 @@ After the stable release publishes, the job reuses `prerelease_prepare` /
 
 ## Source files
 
-| File                  | Responsibility                                               |
-|-----------------------|--------------------------------------------------------------|
-| `tasks/release.py`    | Orchestration tasks; `_refuse_under_ci` guard; `_publish`   |
-| `tasks/github.py`     | `create_release`, `upload_and_verify`, `download_and_verify` |
-| `tasks/build.py`      | `create_checksums`, `validate_version_coherence`             |
-| `tasks/version.py`    | Version read / bump / write across all tracked files         |
-| `tasks/changelog.py`  | `changelog.release` moves Unreleased to a version heading    |
-| `tasks/marketplace.py`| Updates `.claude-plugin/marketplace.json` on stable release  |
+| File                   | Responsibility                                                                                  |
+|------------------------|-------------------------------------------------------------------------------------------------|
+| `tasks/release.py`     | Orchestration tasks; `_refuse_under_ci` guard; `_publish`                                       |
+| `tasks/github.py`      | `create_release`, `upload_and_verify`, `download_and_verify`                                    |
+| `tasks/build.py`       | `create_checksums`, `validate_version_coherence`                                                |
+| `tasks/version.py`     | Version read / bump / write across all tracked files                                            |
+| `tasks/changelog.py`   | `changelog.release` moves Unreleased to a version heading                                       |
+| `tasks/marketplace.py` | Updates `marketplace.json` on stable release; `marketplace-prerelease.json` on every prerelease |
 
 ## Local diagnostics
 

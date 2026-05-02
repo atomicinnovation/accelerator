@@ -7,8 +7,9 @@ CHECKSUMS        = BIN_DIR / "checksums.json"
 SERVER           = VISUALISER / "server"
 CARGO_TOML       = SERVER / "Cargo.toml"
 FRONTEND         = VISUALISER / "frontend"
-PLUGIN_JSON      = REPO_ROOT / ".claude-plugin/plugin.json"
-MARKETPLACE_JSON = REPO_ROOT / ".claude-plugin/marketplace.json"
+PLUGIN_JSON                  = REPO_ROOT / ".claude-plugin/plugin.json"
+MARKETPLACE_JSON             = REPO_ROOT / ".claude-plugin/marketplace.json"
+PRERELEASE_MARKETPLACE_JSON  = REPO_ROOT / ".claude-plugin/marketplace-prerelease.json"
 CHANGELOG        = REPO_ROOT / "CHANGELOG.md"
 
 

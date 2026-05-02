@@ -39,6 +39,7 @@ def prerelease_prepare(context: Context):
     git.pull(context)
     version.bump(context, bump_type=[version.BumpType.PRE])
     resolved_version = str(version.read(context, print_to_stdout=False))
+    marketplace.update_prerelease_version(context, plugin="accelerator")
     build.create_checksums(context, resolved_version)
 
 

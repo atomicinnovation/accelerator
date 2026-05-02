@@ -3,7 +3,7 @@ import json
 from invoke import Context, task
 
 from . import version
-from .shared.paths import MARKETPLACE_JSON
+from .shared.paths import MARKETPLACE_JSON, PRERELEASE_MARKETPLACE_JSON
 
 
 def read_metadata():
@@ -12,6 +12,14 @@ def read_metadata():
 
 def write_metadata(metadata):
     MARKETPLACE_JSON.write_text(json.dumps(metadata, indent=2))
+
+
+def read_prerelease_metadata():
+    return json.loads(PRERELEASE_MARKETPLACE_JSON.read_text())
+
+
+def write_prerelease_metadata(metadata):
+    PRERELEASE_MARKETPLACE_JSON.write_text(json.dumps(metadata, indent=2))
 
 
 @task
@@ -23,3 +31,14 @@ def update_version(_context: Context, plugin: str, target_version: str | None = 
         if entry["name"] == plugin:
             entry["source"]["ref"] = f"v{resolved_version}"
     write_metadata(marketplace)
+
+
+@task
+def update_prerelease_version(_context: Context, plugin: str, target_version: str | None = None):
+    """Update prerelease marketplace plugin ref to the given version."""
+    resolved_version = target_version or version.read(_context, print_to_stdout=False)
+    marketplace = read_prerelease_metadata()
+    for entry in marketplace["plugins"]:
+        if entry["name"] == plugin:
+            entry["source"]["ref"] = f"v{resolved_version}"
+    write_prerelease_metadata(marketplace)
