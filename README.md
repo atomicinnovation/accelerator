@@ -310,6 +310,24 @@ Dependencies, Assumptions, Technical Notes, Drafting Notes, References).
 The template is customisable via
 `/accelerator:configure templates eject work-item`.
 
+## Jira Integration
+
+Accelerator includes skills for reading from a Jira Cloud tenant. Run
+`/accelerator:init-jira` once to store your site URL, email address, and API
+token before using these skills. See
+`meta/research/2026-04-29-jira-cloud-integration-skills.md` for background on
+the design.
+
+| Skill | Usage | Description |
+|---|---|---|
+| **search-jira-issues** | `/accelerator:search-jira-issues [flags]` | Search Jira tickets by assignee, status, label, project, type, component, reporter, and more; composes safe JQL from structured flags |
+| **show-jira-issue** | `/accelerator:show-jira-issue <KEY>` | Display a single Jira issue with optional comment slice and Markdown rendering of ADF descriptions |
+
+Both skills render ADF content to Markdown by default. `show-jira-issue`
+defaults render-on; `search-jira-issues` defaults render-off (pass
+`--render-adf` for bulk results). Pass `--no-render-adf` to `show-jira-issue`
+to get raw JSON.
+
 ## Architecture Decision Records
 
 ADR skills capture architectural decisions that emerge from research and

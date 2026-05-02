@@ -1842,10 +1842,10 @@ exercises both skills end-to-end against a live tenant. See
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-scripts.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-scripts.sh`
   runs all eleven sub-tests (existing nine + three new) and
   passes.
-- [ ] `mise run test` passes.
+- [x] `mise run test` passes.
 
 #### Manual Verification
 
