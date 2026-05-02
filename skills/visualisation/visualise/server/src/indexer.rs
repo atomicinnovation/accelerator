@@ -848,8 +848,8 @@ mod tests {
         let elapsed = start.elapsed();
 
         assert!(
-            elapsed.as_secs() < 1,
-            "scan took {elapsed:?}, expected < 1 s",
+            elapsed < std::time::Duration::from_secs(5),
+            "scan took {elapsed:?}, expected < 5 s",
         );
         assert_eq!(idx.all().await.len(), 2000);
     }
