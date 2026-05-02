@@ -20,6 +20,10 @@ def is_prerelease_version(version: str) -> bool:
     return bool(parsed.prerelease)
 
 
+def _emit_forensic_alert(context: Context, tag: str, message: str) -> None:
+    print(f"::error title=Visualiser release {tag}::{message}", flush=True)
+
+
 class AssetVerificationError(Exception):
     pass
 
@@ -143,7 +147,3 @@ def upload_and_verify(context: Context, version: str) -> None:
             warn=True, timeout=120,
         )
         raise
-
-
-def _emit_forensic_alert(context: Context, tag: str, message: str) -> None:
-    print(f"::error title=Visualiser release {tag}::{message}", flush=True)

@@ -18,12 +18,10 @@ from tasks.shared.paths import (
     binary_path,
     debug_archive_path,
 )
-from tasks.shared.releases import (
-    InvalidVersionError,
-    VersionCoherenceError,
-    _atomic_write_text,
-    compute_sha256,
-)
+from tasks.shared.releases import InvalidVersionError, _atomic_write_text, compute_sha256
+
+
+class VersionCoherenceError(Exception): ...
 from tasks.shared.targets import TARGETS
 
 _CARGO_TOML_RELATIVE  = CARGO_TOML.relative_to(REPO_ROOT)
