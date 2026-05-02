@@ -364,8 +364,20 @@ and team workflows around pull requests:
 accelerator-visualiser            # CLI wrapper — optionally symlink onto $PATH
 ```
 
-The server binds to `localhost` on a dynamic port and opens your default
-browser. It has no authentication and emits no telemetry.
+The server binds to `localhost` on a dynamic port. It has no authentication
+and emits no telemetry. Re-running the command while the server is alive
+returns the same URL.
+
+### Lifecycle
+
+```bash
+/accelerator:visualise status     # JSON: running | stale | not_running
+/accelerator:visualise stop       # SIGTERM, escalating to SIGKILL after 2s
+```
+
+Both subcommands also work via the `accelerator-visualiser` CLI wrapper.
+The server auto-exits after 30 minutes idle or when the process that
+launched it exits, so explicit `stop` is rarely necessary.
 
 ### First-run binary download
 

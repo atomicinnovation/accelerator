@@ -22,6 +22,10 @@
     drop to prevent mid-gesture remounts
   - Wiki-link resolution `[[ADR-NNNN]]`, `[[TICKET-NNNN]]`
   - Error handling, accessibility polish, and observability
+  - `/accelerator:visualise stop` and `/accelerator:visualise status`
+    subcommands for managing the running server. Both also work via the
+    `accelerator-visualiser` CLI wrapper. The server still auto-exits after
+    30 minutes idle or when the launching process exits
 
 ### Notes
 
