@@ -54,6 +54,20 @@ def _read_checksums_json_version(root: Path) -> str:
     return data["version"]
 
 
+def _assert_magic_bytes(path, triple: str) -> None:
+    magic = path.read_bytes()[:4]
+    if "darwin" in triple:
+        if magic not in _MACHO_MAGIC:
+            raise RuntimeError(
+                f"unexpected magic bytes for darwin binary {path.name}: {magic!r}"
+            )
+    else:
+        if magic != _ELF_MAGIC:
+            raise RuntimeError(
+                f"unexpected magic bytes for linux binary {path.name}: {magic!r}"
+            )
+
+
 def update_checksums_json(
     manifest_path: Path,
     version: str,
@@ -152,17 +166,3 @@ def create_checksums(context: Context, version: str) -> None:
     hashes = {platform: compute_sha256(path) for platform, path in binaries.items()}
     update_checksums_json(CHECKSUMS, version, hashes)
     validate_version_coherence(version)
-
-
-def _assert_magic_bytes(path, triple: str) -> None:
-    magic = path.read_bytes()[:4]
-    if "darwin" in triple:
-        if magic not in _MACHO_MAGIC:
-            raise RuntimeError(
-                f"unexpected magic bytes for darwin binary {path.name}: {magic!r}"
-            )
-    else:
-        if magic != _ELF_MAGIC:
-            raise RuntimeError(
-                f"unexpected magic bytes for linux binary {path.name}: {magic!r}"
-            )
