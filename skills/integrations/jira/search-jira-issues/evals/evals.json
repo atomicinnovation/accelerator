@@ -1,0 +1,90 @@
+{
+  "skill_name": "search-jira-issues",
+  "evals": [
+    {
+      "id": 1,
+      "name": "assigned-to-me",
+      "prompt": "Read skills/integrations/jira/search-jira-issues/SKILL.md fully. You are running the search-jira-issues skill.\n\nA user says: \"what's assigned to me in ENG?\"\n\nDo NOT make real API calls. Instead, write to outputs/invocation.sh the exact jira-search-flow.sh command you would run (flags only — use placeholder paths). Write to outputs/reasoning.md one sentence explaining your flag choices.",
+      "expected_output": "Invocation uses --project ENG --assignee @me. Does not use --jql. Does not include --status Done (no filter requested).",
+      "files": [],
+      "assertions": [
+        {
+          "id": "uses-assignee-at-me",
+          "description": "Invocation includes --assignee @me"
+        },
+        {
+          "id": "uses-project-eng",
+          "description": "Invocation includes --project ENG"
+        },
+        {
+          "id": "no-raw-jql",
+          "description": "Invocation does not use --jql"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "bugs-by-status",
+      "prompt": "Read skills/integrations/jira/search-jira-issues/SKILL.md fully. You are running the search-jira-issues skill.\n\nA user says: \"show me open bugs in CORE\"\n\nDo NOT make real API calls. Write to outputs/invocation.sh the exact jira-search-flow.sh command you would run. Write to outputs/reasoning.md one sentence explaining your flag choices.",
+      "expected_output": "Invocation uses --project CORE --type Bug. Status filter is optional but if present should exclude Done (not include it).",
+      "files": [],
+      "assertions": [
+        {
+          "id": "uses-project-core",
+          "description": "Invocation includes --project CORE"
+        },
+        {
+          "id": "uses-type-bug",
+          "description": "Invocation includes --type Bug"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "pagination-next-page",
+      "prompt": "Read skills/integrations/jira/search-jira-issues/SKILL.md fully. You are running the search-jira-issues skill.\n\nThe user previously ran a search with flags '--project ENG --status \"In Progress\" --limit 10' and the response included nextPageToken: \"tok-abc123\".\n\nThe user now says: \"show me the next page\"\n\nDo NOT make real API calls. Write to outputs/invocation.sh the exact jira-search-flow.sh command you would run. Write to outputs/reasoning.md one sentence explaining your flag choices.",
+      "expected_output": "Invocation repeats the prior flags (--project ENG --status 'In Progress' --limit 10) and adds --page-token tok-abc123.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "includes-page-token",
+          "description": "Invocation includes --page-token tok-abc123"
+        },
+        {
+          "id": "repeats-prior-flags",
+          "description": "Invocation includes --project ENG and --status"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "negation-filter",
+      "prompt": "Read skills/integrations/jira/search-jira-issues/SKILL.md fully. You are running the search-jira-issues skill.\n\nA user says: \"list all non-Done tickets in PROJ\"\n\nDo NOT make real API calls. Write to outputs/invocation.sh the exact jira-search-flow.sh command you would run. Write to outputs/reasoning.md one sentence explaining your flag choices.",
+      "expected_output": "Invocation uses --project PROJ and --status '~Done' (negation prefix) to exclude Done tickets.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "uses-negation-status",
+          "description": "Invocation uses status negation (~Done or similar) rather than a raw --jql clause"
+        },
+        {
+          "id": "no-raw-jql-for-negation",
+          "description": "Invocation does not use --jql for the negation — uses the ~ prefix flag instead"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "no-trigger-unrelated",
+      "prompt": "Read skills/integrations/jira/search-jira-issues/SKILL.md fully. You are running the search-jira-issues skill.\n\nA user says: \"open the file at src/search.go and explain what it does\"\n\nWrite to outputs/response.md whether you would invoke jira-search-flow.sh for this request, and why or why not.",
+      "expected_output": "Skill does NOT invoke jira-search-flow.sh. The request is about a local source file, not a Jira search.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "does-not-invoke-search",
+          "description": "Response explains this is a file-read request, not a Jira search, and declines to invoke jira-search-flow.sh"
+        }
+      ]
+    }
+  ]
+}
