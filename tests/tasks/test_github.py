@@ -110,8 +110,10 @@ class TestUploadReleaseAsset:
 class TestDownloadReleaseAsset:
     def test_success_writes_file(self, ctx, tmp_path):
         out = tmp_path / "out"
+        captured = {}
 
         def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
             Path(cmd[cmd.index("--output") + 1]).write_bytes(b"data")
             return MagicMock(returncode=0, stderr="")
 
@@ -120,6 +122,9 @@ class TestDownloadReleaseAsset:
             download_release_asset(ctx, "v1.20.0", "binary", out)
 
         assert out.read_bytes() == b"data"
+        cmd = captured["cmd"]
+        assert "--pattern" in cmd
+        assert cmd[cmd.index("--pattern") + 1] == "binary"
 
     def test_non_zero_exit_raises(self, ctx, tmp_path):
         out = tmp_path / "out"

@@ -71,7 +71,8 @@ def download_release_asset(
 ) -> None:
     """Download a single asset from a GitHub release to output_path."""
     result = subprocess.run(
-        ["gh", "release", "download", tag, asset_name,
+        ["gh", "release", "download", tag,
+         "--pattern", asset_name,
          "--output", str(output_path), "--clobber"],
         capture_output=True, text=True, timeout=120,
     )
