@@ -22,3 +22,9 @@ def install_rust_targets(context: Context):
 def install_node(context: Context):
     """Install Node.js dependencies for the visualiser frontend."""
     context.run(f"npm --prefix {FRONTEND} ci")
+
+
+@task
+def install_playwright(context: Context):
+    """Install Playwright browser binaries (Chromium + OS-level deps)."""
+    context.run(f"npx --prefix {FRONTEND} playwright install --with-deps chromium")

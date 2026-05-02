@@ -26,6 +26,11 @@ run = "invoke deps.install-rust-targets"
 description = "Install Node.js dependencies for the visualiser frontend"
 run = "invoke deps.install-node"
 
+[tasks."deps:install:playwright"]
+description = "Install Playwright browser binaries (Chromium + OS-level deps)"
+depends = ["deps:install:node"]
+run = "invoke deps.install-playwright"
+
 [tasks."build:frontend"]
 description = "Build the visualiser frontend (Vite production build into dist/)"
 depends = ["deps:install:node"]
@@ -106,7 +111,7 @@ depends = [
 
 [tasks."test:e2e:visualiser"]
 description = "Run visualiser E2E tests (Playwright)"
-depends = ["build:frontend", "build:server:dev"]
+depends = ["deps:install:playwright", "build:frontend", "build:server:dev"]
 run = "invoke test.e2e.visualiser"
 
 [tasks."test:e2e"]
