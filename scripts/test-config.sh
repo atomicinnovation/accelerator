@@ -1043,11 +1043,11 @@ echo ""
 SKILLS_DIR="$SCRIPT_DIR/../skills"
 
 echo "Test: config-read-context.sh appears in exactly 21 skills"
-CONTEXT_COUNT=$(grep -r 'config-read-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
+CONTEXT_COUNT=$(grep -r --exclude-dir=node_modules 'config-read-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
 assert_eq "21 skills have context injection" "21" "$CONTEXT_COUNT"
 
 echo "Test: config-read-agents.sh appears in exactly 17 skills"
-AGENTS_COUNT=$(grep -r 'config-read-agents.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
+AGENTS_COUNT=$(grep -r --exclude-dir=node_modules 'config-read-agents.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
 assert_eq "17 skills have agent override injection" "17" "$AGENTS_COUNT"
 
 echo "Test: context injection is within a few lines of first # heading"
@@ -3443,11 +3443,11 @@ echo "=== Preprocessor placement (per-skill) ==="
 echo ""
 
 echo "Test: config-read-skill-context.sh appears in exactly 21 skills"
-SKILL_CONTEXT_COUNT=$(grep -r 'config-read-skill-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
+SKILL_CONTEXT_COUNT=$(grep -r --exclude-dir=node_modules 'config-read-skill-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
 assert_eq "21 skills have skill-context injection" "21" "$SKILL_CONTEXT_COUNT"
 
 echo "Test: config-read-skill-instructions.sh appears in exactly 21 skills"
-SKILL_INSTRUCTIONS_COUNT=$(grep -r 'config-read-skill-instructions.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
+SKILL_INSTRUCTIONS_COUNT=$(grep -r --exclude-dir=node_modules 'config-read-skill-instructions.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
 assert_eq "21 skills have skill-instructions injection" "21" "$SKILL_INSTRUCTIONS_COUNT"
 
 echo "Test: config-read-skill-context.sh appears immediately after config-read-context.sh in each skill"
