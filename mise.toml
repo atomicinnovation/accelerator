@@ -46,7 +46,7 @@ run = "invoke build.server-release"
 
 [tasks."build:server:cross-compile"]
 description = "Cross-compile the visualiser server for all four release targets"
-depends = ["build:frontend"]
+depends = ["deps:install:rust-targets", "build:frontend"]
 run = "invoke build.server-cross-compile"
 
 [tasks."build:debug-archives"]
