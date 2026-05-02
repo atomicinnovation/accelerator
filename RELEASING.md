@@ -94,7 +94,7 @@ To exercise the pipeline locally (e.g. against a fork):
 mise run prerelease    # no attestation — local-dev only
 ```
 
-Never run these tasks against the `atomic-innovation/accelerator` remote. The
+Never run these tasks against the `atomicinnovation/accelerator` remote. The
 `_refuse_under_ci` guard only blocks CI; it does not prevent running against
 the wrong remote.
 
@@ -115,7 +115,7 @@ A failed mid-step run may leave an orphan draft release and tag. Check with:
 
 ```bash
 gh release list
-gh api repos/atomic-innovation/accelerator/git/refs/tags
+gh api repos/atomicinnovation/accelerator/git/refs/tags
 ```
 
 Delete orphans before re-running.
@@ -156,7 +156,7 @@ Any user can verify a binary's SLSA provenance independently of the launcher:
 
 ```bash
 gh attestation verify accelerator-visualiser-<os>-<arch> \
-    --repo atomic-innovation/accelerator
+    --repo atomicinnovation/accelerator
 ```
 
 Requires `gh >= 2.49.0`. The same command runs inside `launch-server.sh` when

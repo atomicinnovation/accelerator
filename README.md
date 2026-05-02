@@ -401,7 +401,7 @@ Every released binary carries a SLSA build-provenance attestation
 (sigstore-keyless, GitHub Actions OIDC, transparency-log-backed). The default
 SHA-256 check proves the cached binary matches what the build runner produced.
 Setting `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE=1` adds a second layer: the
-launcher calls `gh attestation verify --repo atomic-innovation/accelerator`
+launcher calls `gh attestation verify --repo atomicinnovation/accelerator`
 and refuses to start if the attestation is missing or invalid. Requires
 `gh >= 2.49.0` and network reachability to `api.github.com`.
 

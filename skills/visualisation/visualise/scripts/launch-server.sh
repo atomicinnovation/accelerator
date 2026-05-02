@@ -95,7 +95,7 @@ fi
 PLUGIN_VERSION="$(jq -r .version "$PLUGIN_ROOT/.claude-plugin/plugin.json")"
 MANIFEST="$SKILL_ROOT/bin/checksums.json"
 BIN_CACHE="$SKILL_ROOT/bin/accelerator-visualiser-${OS}-${ARCH}"
-RELEASES_URL_BASE="${ACCELERATOR_VISUALISER_RELEASES_URL:-https://github.com/atomic-innovation/accelerator/releases/download}"
+RELEASES_URL_BASE="${ACCELERATOR_VISUALISER_RELEASES_URL:-https://github.com/atomicinnovation/accelerator/releases/download}"
 
 # ─── tri-precedence binary resolution ────────────────────────
 
