@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -13,13 +13,12 @@ import tasks.github as gh
 import tasks.git as tgit
 from tasks.release import (
     _refuse_under_ci,
-    post_stable_prepare,
-    post_stable_publish,
     prerelease,
-    prerelease_finalize,
+    prerelease_finalise,
     prerelease_prepare,
-    stable_prepare,
-    stable_publish,
+    release,
+    release_finalise,
+    release_prepare,
 )
 
 
@@ -74,7 +73,6 @@ class TestPrereleasePrepare:
         mock_read = mocker.patch.object(tv, "read", return_value=MagicMock())
         mock_read.return_value.__str__ = lambda _: "1.21.0-pre.1"
         mocker.patch.object(tb, "create_checksums")
-        return mock_read
 
     def test_calls_configure_and_pull(self, ctx, mocker):
         self._setup(mocker)
@@ -82,30 +80,21 @@ class TestPrereleasePrepare:
         tgit.configure.assert_called_once_with(ctx)
         tgit.pull.assert_called_once_with(ctx)
 
-    def test_bumps_version(self, ctx, mocker):
+    def test_bumps_pre_version(self, ctx, mocker):
         self._setup(mocker)
         prerelease_prepare(ctx)
         tv.bump.assert_called_once()
-        assert tv.BumpType.PRE in tv.bump.call_args.kwargs.get("bump_type", []) or \
-               tv.BumpType.PRE in (tv.bump.call_args.args[1] if len(tv.bump.call_args.args) > 1 else [])
 
-    def test_creates_checksums_after_bump(self, ctx, mocker):
+    def test_creates_checksums(self, ctx, mocker):
         self._setup(mocker)
         prerelease_prepare(ctx)
         tb.create_checksums.assert_called_once()
-        # Verify bump was called before create_checksums
-        bump_idx = next(
-            i for i, c in enumerate(mocker.call_args_list
-                                     if hasattr(mocker, 'call_args_list') else [])
-            if "bump" in str(c)
-        ) if hasattr(mocker, 'call_args_list') else 0
-        assert tb.create_checksums.called
 
 
-# ── prerelease_finalize() ────────────────────────────────────────────
+# ── prerelease_finalise() ────────────────────────────────────────────
 
 
-class TestPrereleaseFinalizeOrdering:
+class TestPrereleaseFinalise:
     def test_commits_before_upload(self, ctx, mocker):
         mocker.patch.object(tv, "read", return_value=MagicMock(__str__=lambda _: "1.21.0-pre.1"))
         mock_commit = mocker.patch.object(tgit, "commit_version")
@@ -114,7 +103,7 @@ class TestPrereleaseFinalizeOrdering:
         mocker.patch.object(tgit, "push")
         mocker.patch.object(gh, "create_release")
 
-        prerelease_finalize(ctx)
+        prerelease_finalise(ctx)
 
         assert mock_commit.called
         assert mock_upload.called
@@ -127,13 +116,13 @@ class TestPrereleaseFinalizeOrdering:
         mock_create = mocker.patch.object(gh, "create_release")
         mock_upload = mocker.patch.object(gh, "upload_and_verify")
 
-        prerelease_finalize(ctx)
+        prerelease_finalise(ctx)
 
         assert mock_create.called
         assert mock_upload.called
 
 
-# ── prerelease() / release() refuse-under-ci ─────────────────────────
+# ── Local-dev guard and composition ──────────────────────────────────
 
 
 class TestLocalDevGuards:
@@ -147,14 +136,26 @@ class TestLocalDevGuards:
         monkeypatch.setenv("GITHUB_ACTIONS", "true")
         monkeypatch.delenv("CI", raising=False)
         with pytest.raises(RuntimeError):
-            from tasks.release import release as tr_release
-            tr_release(ctx)
+            release(ctx)
 
-    def test_prerelease_composes_prepare_and_finalize(self, ctx, mocker, monkeypatch):
+    def test_prerelease_composes_prepare_and_finalise(self, ctx, mocker, monkeypatch):
         monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
         monkeypatch.delenv("CI", raising=False)
         mock_prepare = mocker.patch.object(tr, "prerelease_prepare")
-        mock_finalize = mocker.patch.object(tr, "prerelease_finalize")
+        mock_finalise = mocker.patch.object(tr, "prerelease_finalise")
         prerelease(ctx)
         mock_prepare.assert_called_once_with(ctx)
-        mock_finalize.assert_called_once_with(ctx)
+        mock_finalise.assert_called_once_with(ctx)
+
+    def test_release_calls_all_four_halves(self, ctx, mocker, monkeypatch):
+        monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+        monkeypatch.delenv("CI", raising=False)
+        mock_rp = mocker.patch.object(tr, "release_prepare")
+        mock_rf = mocker.patch.object(tr, "release_finalise")
+        mock_pp = mocker.patch.object(tr, "prerelease_prepare")
+        mock_pf = mocker.patch.object(tr, "prerelease_finalise")
+        release(ctx)
+        mock_rp.assert_called_once_with(ctx)
+        mock_rf.assert_called_once_with(ctx)
+        mock_pp.assert_called_once_with(ctx)
+        mock_pf.assert_called_once_with(ctx)

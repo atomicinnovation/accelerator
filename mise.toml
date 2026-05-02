@@ -131,32 +131,23 @@ run = "invoke github.check-auth"
 description = "Abort if the working tree has any uncommitted changes"
 run = "invoke git.check-clean"
 
-[tasks."release:prerelease-prepare"]
+[tasks."prerelease:prepare"]
 description = "CI prerelease halve 1: bump version, build binaries, compute checksums"
 depends = ["build:debug-archives", "github:check-auth", "git:check-clean"]
-run = "invoke prerelease-prepare"
+run = "invoke prerelease.prepare"
 
-[tasks."release:prerelease-finalize"]
+[tasks."prerelease:finalise"]
 description = "CI prerelease halve 2: commit, tag, push, create release, upload, publish"
-run = "invoke prerelease-finalize"
+run = "invoke prerelease.finalise"
 
-[tasks."release:stable-prepare"]
-description = "CI stable halve 1: finalise version, update marketplace and changelog, build binaries"
+[tasks."release:prepare"]
+description = "CI stable release halve 1: finalise version, update marketplace and changelog, build binaries"
 depends = ["build:debug-archives", "github:check-auth", "git:check-clean"]
-run = "invoke stable-prepare"
+run = "invoke release.prepare"
 
-[tasks."release:stable-publish"]
-description = "CI stable halve 2: commit, tag, push, create release, upload, publish"
-run = "invoke stable-publish"
-
-[tasks."release:post-stable-prepare"]
-description = "CI post-stable halve 1: bump to next minor pre, build binaries"
-depends = ["build:debug-archives"]
-run = "invoke post-stable-prepare"
-
-[tasks."release:post-stable-publish"]
-description = "CI post-stable halve 2: commit, tag, push, create release, upload, publish"
-run = "invoke post-stable-publish"
+[tasks."release:finalise"]
+description = "CI stable release halve 2: commit, tag, push, create release, upload, publish"
+run = "invoke release.finalise"
 
 [tasks."prerelease"]
 description = "Local dev only: full prerelease flow without SLSA attestation"

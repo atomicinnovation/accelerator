@@ -54,17 +54,17 @@ jobs:
       - name: Prepare prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mise run release:prerelease-prepare
+        run: mise run prerelease:prepare
 
       - name: Attest binary provenance
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: "skills/visualisation/visualise/bin/accelerator-visualiser-*"
 
-      - name: Finalize prerelease
+      - name: Finalise prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mise run release:prerelease-finalize
+        run: mise run prerelease:finalise
 
   release:
     name: Create release
@@ -91,29 +91,29 @@ jobs:
       - name: Prepare stable release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mise run release:stable-prepare
+        run: mise run release:prepare
 
       - name: Attest stable binary provenance
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: "skills/visualisation/visualise/bin/accelerator-visualiser-*"
 
-      - name: Publish stable release
+      - name: Finalise stable release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mise run release:stable-publish
+        run: mise run release:finalise
 
       - name: Prepare post-stable prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mise run release:post-stable-prepare
+        run: mise run prerelease:prepare
 
       - name: Attest post-stable binary provenance
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: "skills/visualisation/visualise/bin/accelerator-visualiser-*"
 
-      - name: Publish post-stable prerelease
+      - name: Finalise post-stable prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mise run release:post-stable-publish
+        run: mise run prerelease:finalise

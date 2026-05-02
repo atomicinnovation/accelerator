@@ -8,17 +8,15 @@ from . import build, changelog, git, github, marketplace, version
 def _refuse_under_ci(task_name: str) -> None:
     """Raise if called from a CI environment.
 
-    The local-dev convenience tasks (prerelease/release) skip SLSA attestation
-    because they run outside GitHub Actions. CI must use the prepare/finalize
-    split so the workflow can interleave actions/attest-build-provenance
-    between build and publish.
+    Local-dev convenience tasks skip SLSA attestation because they run outside
+    GitHub Actions. CI must use the prepare/finalise split so the workflow can
+    interleave actions/attest-build-provenance between build and publish.
     """
     if os.environ.get("GITHUB_ACTIONS") or os.environ.get("CI"):
         raise RuntimeError(
             f"{task_name} is the local-dev convenience task; CI must use "
-            f"the prepare/finalize split (mise run release:prerelease-prepare "
-            f"+ release:prerelease-finalize). Bypassing the split skips SLSA "
-            f"attestation."
+            f"the prepare/finalise split (mise run prerelease:prepare + "
+            f"prerelease:finalise). Bypassing the split skips SLSA attestation."
         )
 
 
@@ -29,6 +27,9 @@ def _publish(context: Context) -> None:
     git.push(context)
     github.create_release(context, target_version=resolved_version)
     github.upload_and_verify(context, resolved_version)
+
+
+# ── CI split tasks ────────────────────────────────────────────────────
 
 
 @task
@@ -42,14 +43,14 @@ def prerelease_prepare(context: Context):
 
 
 @task
-def prerelease_finalize(context: Context):
+def prerelease_finalise(context: Context):
     """CI prerelease halve 2: commit, tag, push, create release, upload, publish."""
     _publish(context)
 
 
 @task
-def stable_prepare(context: Context):
-    """CI stable halve 1: finalise version, update marketplace and changelog, build binaries."""
+def release_prepare(context: Context):
+    """CI stable release halve 1: finalise version, update marketplace and changelog, build binaries."""
     git.configure(context)
     git.pull(context)
     version.bump(context, bump_type=[version.BumpType.FINALISE])
@@ -60,23 +61,12 @@ def stable_prepare(context: Context):
 
 
 @task
-def stable_publish(context: Context):
-    """CI stable halve 2: commit, tag, push, create release, upload, publish."""
+def release_finalise(context: Context):
+    """CI stable release halve 2: commit, tag, push, create release, upload, publish."""
     _publish(context)
 
 
-@task
-def post_stable_prepare(context: Context):
-    """CI post-stable halve 1: bump to next minor pre, build binaries."""
-    version.bump(context, bump_type=[version.BumpType.MINOR, version.BumpType.PRE])
-    resolved_version = str(version.read(context, print_to_stdout=False))
-    build.create_checksums(context, resolved_version)
-
-
-@task
-def post_stable_publish(context: Context):
-    """CI post-stable halve 2: commit, tag, push, create release, upload, publish."""
-    _publish(context)
+# ── Local-dev convenience wrappers ───────────────────────────────────
 
 
 @task
@@ -84,14 +74,18 @@ def prerelease(context: Context):
     """Local-dev only: full prerelease flow without SLSA attestation."""
     _refuse_under_ci("prerelease")
     prerelease_prepare(context)
-    prerelease_finalize(context)
+    prerelease_finalise(context)
 
 
 @task
 def release(context: Context):
-    """Local-dev only: full stable release flow without SLSA attestation."""
+    """Local-dev only: full stable release flow without SLSA attestation.
+
+    Runs: release prepare → release finalise → prerelease prepare →
+    prerelease finalise (the post-stable pre.0 cut is a standard prerelease).
+    """
     _refuse_under_ci("release")
-    stable_prepare(context)
-    stable_publish(context)
-    post_stable_prepare(context)
-    post_stable_publish(context)
+    release_prepare(context)
+    release_finalise(context)
+    prerelease_prepare(context)
+    prerelease_finalise(context)
