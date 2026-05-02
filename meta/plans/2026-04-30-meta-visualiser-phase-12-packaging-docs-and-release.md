@@ -3146,21 +3146,23 @@ actual version will be whatever the auto-bumper has produced.
 
 #### Automated Verification:
 
-- [ ] README, CHANGELOG, and `RELEASING.md` render correctly in
+- [x] README, CHANGELOG, and `RELEASING.md` render correctly in
       `markdown-lint` / GFM-aware tooling (no broken links, no
       malformed lists).
-- [ ] README new section is between 50 and 80 lines (verified via
+- [x] README new section is between 50 and 80 lines (verified via
       `awk '/^### .*[Vv]isualis/{flag=1} flag{print} /^### / && flag && NR>l{exit} {l=NR}' README.md | wc -l`
       or equivalent). Disproportionate length is a documentation
-      smell against the existing terse style.
-- [ ] README new section mentions each public customisation env var
+      smell against the existing terse style. (58 lines)
+- [x] README new section mentions each public customisation env var
       at least once: `ACCELERATOR_VISUALISER_BIN`,
       `visualiser.binary`, `ACCELERATOR_VISUALISER_RELEASES_URL`,
       `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE` (verified via
       `grep` for each).
-- [ ] `RELEASING.md` exists at the repo root and references
-      `tasks/release_helpers.py`, `tasks/release_binaries.py`, and
-      `tasks/release.py` by name.
+- [x] `RELEASING.md` exists at the repo root and references
+      `tasks/release.py`, `tasks/github.py`, and `tasks/build.py` by
+      name (module structure deviated from plan — see Implementation
+      Deviations; `tasks/release_helpers.py` and
+      `tasks/release_binaries.py` were never created).
 
 #### Manual Verification:
 

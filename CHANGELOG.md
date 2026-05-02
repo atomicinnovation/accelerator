@@ -4,27 +4,36 @@
 
 ### Added
 
-- **Visualiser kanban view** — `/kanban` now renders a read-only kanban board
-  with `Todo`, `In progress`, and `Done` columns populated from ticket
-  frontmatter. Tickets with non-canonical or missing statuses surface in an
-  `Other` swimlane below the three main columns, with an explanatory line so
-  authors understand why a ticket landed there. Cards show the ticket number,
-  title, type, and last-modified time, and link through to the existing library
-  detail page. External edits to a ticket's `status:` field land in the UI
-  within ~250 ms via the existing SSE-driven query invalidation. Drag-and-drop
-  is wired via `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/utilities`
-  for Phase 8 but disabled in this release. *Behind no flag — visible to all
-  users on first navigation to `/kanban`.*
-- **Kanban write path**: Drag-and-drop now writes ticket status to disk via
-  `PATCH /api/docs/{path}/frontmatter` with `If-Match` optimistic concurrency.
-  Conflicts roll the card back and announce via `aria-live`; SSE invalidations
-  from other tabs are queued during a drag and flushed on drop to prevent
-  mid-gesture remounts.
+- **Meta visualiser** — a new browser-based companion view of the `meta/`
+  directory. Launches via `/accelerator:visualise` or the
+  `accelerator-visualiser` CLI. Three views: library (markdown reader for all
+  doc types), lifecycle (slug-clustered timelines), kanban (drag-and-drop
+  ticket status updates). Distributed as per-arch native binaries via GitHub
+  Releases — every plugin version, pre-release and stable, ships its own
+  four-platform binaries; first run downloads ~8 MB over HTTPS and verifies
+  against a committed SHA-256 manifest. See the
+  [Visualiser section of the README](#visualiser) for details.
+
+  - Library reader for all 11 doc types with cross-reference rendering
+  - Lifecycle clusters and slug-based timeline view
+  - Read-only kanban
+  - Kanban write path via `PATCH /api/docs/{path}/frontmatter` with `If-Match`
+    optimistic concurrency; SSE invalidations queued during drag, flushed on
+    drop to prevent mid-gesture remounts
+  - Wiki-link resolution `[[ADR-NNNN]]`, `[[TICKET-NNNN]]`
+  - Error handling, accessibility polish, and observability
 
 ### Notes
 
 - Tickets are written in place. If a write produces unexpected output, recover
   with `git checkout meta/tickets/<file>`.
+- Air-gapped installs: point `ACCELERATOR_VISUALISER_RELEASES_URL` at an
+  internal HTTPS mirror, or set `ACCELERATOR_VISUALISER_BIN` to a
+  locally-built binary for offline use.
+- Pre-release plugin versions ship matching pre-release binaries — dogfooding
+  the visualiser does not require a local cargo build.
+- The visualiser respects `paths.*` configuration: changing `paths.tickets`
+  routes the visualiser at the updated location.
 
 ## [1.20.0] - 2026-04-28
 

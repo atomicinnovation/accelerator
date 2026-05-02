@@ -28,3 +28,10 @@ def config(context: Context):
 def decisions(context: Context):
     """Integration tests for the decisions skill scripts."""
     run_shell_suites(context, "skills/decisions")
+
+
+@task
+def binary_acquisition(context: Context):
+    """Test launch-server.sh binary acquisition paths (sentinel rejection, SHA mismatch, 404)."""
+    script = repo_root() / "skills/visualisation/visualise/scripts/test-launch-server.sh"
+    context.run(f"bash {script}")

@@ -346,6 +346,65 @@ and team workflows around pull requests:
 | **review-pr**     | `/accelerator:review-pr 123`     | Review a PR through multiple quality lenses with inline comments         |
 | **respond-to-pr** | `/accelerator:respond-to-pr 123` | Address PR review feedback interactively with code changes               |
 
+## Visualiser
+
+`/accelerator:visualise` opens a browser-based companion view of your project's
+`meta/` directory. Three views cover the breadth of the directory:
+
+| View          | What it shows                                                         |
+|---------------|-----------------------------------------------------------------------|
+| **Library**   | Markdown reader for every doc type (plans, research, ADRs, tickets …) |
+| **Lifecycle** | Slug-clustered timelines grouping related documents across phases     |
+| **Kanban**    | Ticket board driven by `status:` frontmatter; drag-and-drop to update |
+
+### Launching
+
+```bash
+/accelerator:visualise            # from inside a Claude Code session
+accelerator-visualiser            # CLI wrapper — optionally symlink onto $PATH
+```
+
+The server binds to `localhost` on a dynamic port and opens your default
+browser. It has no authentication and emits no telemetry.
+
+### First-run binary download
+
+The server is distributed as a pre-compiled native binary (~8 MB). On first
+run the launcher:
+
+1. Reads `bin/checksums.json` (committed in the plugin) to find the SHA-256
+   for your platform and the current plugin version.
+2. Downloads the matching binary from the plugin's GitHub Releases over HTTPS.
+3. Verifies the download against the manifest and caches it under the plugin
+   root. Subsequent launches skip the download.
+
+Every plugin version — pre-release (`X.Y.Z-pre.N`) and stable (`X.Y.Z`) —
+ships four-platform binaries. There is no need to build locally to use a
+pre-release version.
+
+### Customisation
+
+| Mechanism                                   | Purpose                                                             |
+|---------------------------------------------|---------------------------------------------------------------------|
+| `ACCELERATOR_VISUALISER_BIN`                | One-shot override pointing at a locally-built binary                |
+| `visualiser.binary` config key              | Persistent binary override in `.claude/accelerator.local.md`       |
+| `ACCELERATOR_VISUALISER_RELEASES_URL`       | Alternative HTTPS mirror for air-gapped or self-hosted installs    |
+| `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE`  | Set to `1` to verify SLSA build-provenance after the SHA-256 check |
+
+The `ACCELERATOR_VISUALISER_RELEASES_URL` mirror must be HTTPS. A localhost
+exemption (`127.0.0.1`, `::1`, `localhost`) accepts HTTP for integration
+testing; any other plaintext URL is rejected by the launcher.
+
+### Provenance verification
+
+Every released binary carries a SLSA build-provenance attestation
+(sigstore-keyless, GitHub Actions OIDC, transparency-log-backed). The default
+SHA-256 check proves the cached binary matches what the build runner produced.
+Setting `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE=1` adds a second layer: the
+launcher calls `gh attestation verify --repo atomic-innovation/accelerator`
+and refuses to start if the attestation is missing or invalid. Requires
+`gh >= 2.49.0` and network reachability to `api.github.com`.
+
 ## Review System
 
 The `review-pr`, `review-plan`, and `review-work-item` skills use a multi-lens
