@@ -26,6 +26,7 @@ class MockResizeObserver {
 beforeAll(() => {
   vi.stubGlobal('EventSource', MockEventSource)
   vi.stubGlobal('ResizeObserver', MockResizeObserver)
+  vi.stubGlobal('scrollTo', vi.fn())
   if (!Element.prototype.scrollIntoView) {
     Element.prototype.scrollIntoView = vi.fn()
   }

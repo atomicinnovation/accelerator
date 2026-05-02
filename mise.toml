@@ -33,11 +33,11 @@ run = "invoke build.frontend"
 
 [tasks."build:server:dev"]
 description = "Build the visualiser server binary with the dev-frontend feature"
-run = "invoke build.server_dev"
+run = "invoke build.server-dev"
 
 [tasks."build:server:release"]
 description = "Build the visualiser server binary for release (embed-dist)"
-run = "invoke build.server_release"
+run = "invoke build.server-release"
 
 [tasks."build:server:cross-compile"]
 description = "Cross-compile the visualiser server for all four release targets"
@@ -61,6 +61,7 @@ run = "invoke test.unit.visualiser"
 
 [tasks."test:unit:frontend"]
 description = "Run visualiser frontend unit tests (Vitest)"
+depends = ["deps:install:node"]
 run = "invoke test.unit.frontend"
 
 [tasks."test:unit:tasks"]

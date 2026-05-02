@@ -166,7 +166,7 @@ describe('makeUseDocEvents wiring', () => {
       return captured as unknown as EventSource
     })
     renderHook(() => useDocEvents(), { wrapper })
-    captured!.onopen?.(new Event('open'))
+    act(() => { captured!.onopen?.(new Event('open')) })
 
     expect(() => {
       captured!.onmessage?.(new MessageEvent('message', { data: 'not json' }))
@@ -189,11 +189,11 @@ describe('makeUseDocEvents wiring', () => {
     renderHook(() => useDocEvents(), { wrapper })
 
     // Establish open connection then error → reconnect
-    fakes[0].onopen?.(new Event('open'))
-    fakes[0].onerror?.(new Event('error'))
+    act(() => { fakes[0].onopen?.(new Event('open')) })
+    act(() => { fakes[0].onerror?.(new Event('error')) })
     // Max possible first-attempt delay with +20% jitter = 1200ms
-    vi.advanceTimersByTime(1500)
-    fakes[1].onopen?.(new Event('open'))
+    act(() => { vi.advanceTimersByTime(1500) })
+    act(() => { fakes[1].onopen?.(new Event('open')) })
 
     // Docs queries are invalidated on reconnect
     expect(queryClient.getQueryState(queryKeys.docs('plans'))?.isInvalidated).toBe(true)
@@ -270,7 +270,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     const ctx = makeFactory()
     const useDocEvents = makeUseDocEvents(ctx.factory, registry)
     renderHook(() => useDocEvents(), { wrapper })
-    ctx.source.onopen?.(new Event('open'))
+    act(() => { ctx.source.onopen?.(new Event('open')) })
 
     registry.register('sha256-X')
     ctx.source.onmessage?.(new MessageEvent('message', {
@@ -286,7 +286,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     const ctx = makeFactory()
     const useDocEvents = makeUseDocEvents(ctx.factory, registry)
     renderHook(() => useDocEvents(), { wrapper })
-    ctx.source.onopen?.(new Event('open'))
+    act(() => { ctx.source.onopen?.(new Event('open')) })
 
     ctx.source.onmessage?.(new MessageEvent('message', {
       data: JSON.stringify({ type: 'doc-changed', docType: 'tickets', path: 'meta/tickets/foo.md', etag: 'sha256-FOREIGN' }),
@@ -301,7 +301,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     const ctx = makeFactory()
     const useDocEvents = makeUseDocEvents(ctx.factory, registry)
     renderHook(() => useDocEvents(), { wrapper })
-    ctx.source.onopen?.(new Event('open'))
+    act(() => { ctx.source.onopen?.(new Event('open')) })
 
     registry.register('sha256-X')
     const msg = new MessageEvent('message', {
@@ -319,15 +319,15 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     const ctx = makeFactory()
     const useDocEvents = makeUseDocEvents(ctx.factory, registry)
     const { result } = renderHook(() => useDocEvents(), { wrapper })
-    ctx.source.onopen?.(new Event('open'))
+    act(() => { ctx.source.onopen?.(new Event('open')) })
 
-    result.current.setDragInProgress(true)
+    act(() => { result.current.setDragInProgress(true) })
     ctx.source.onmessage?.(new MessageEvent('message', {
       data: JSON.stringify({ type: 'doc-changed', docType: 'tickets', path: 'meta/tickets/foo.md', etag: 'sha256-FOREIGN' }),
     }))
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
 
-    result.current.setDragInProgress(false)
+    act(() => { result.current.setDragInProgress(false) })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: queryKeys.docs('tickets') }),
     )
@@ -339,9 +339,9 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     const ctx = makeFactory()
     const useDocEvents = makeUseDocEvents(ctx.factory, registry)
     const { result } = renderHook(() => useDocEvents(), { wrapper })
-    ctx.source.onopen?.(new Event('open'))
+    act(() => { ctx.source.onopen?.(new Event('open')) })
 
-    result.current.setDragInProgress(true)
+    act(() => { result.current.setDragInProgress(true) })
     const makeMsg = (path: string) => new MessageEvent('message', {
       data: JSON.stringify({ type: 'doc-changed', docType: 'tickets', path, etag: `sha256-${path}` }),
     })
@@ -349,7 +349,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     ctx.source.onmessage?.(makeMsg('meta/tickets/b.md'))
     ctx.source.onmessage?.(makeMsg('meta/tickets/c.md'))
 
-    result.current.setDragInProgress(false)
+    act(() => { result.current.setDragInProgress(false) })
 
     const docsTicketsCalls = spy.mock.calls.filter(
       ([arg]) => JSON.stringify((arg as { queryKey: unknown }).queryKey) === JSON.stringify(queryKeys.docs('tickets'))
@@ -365,31 +365,31 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     const useDocEvents = makeUseDocEvents(ctx.factory, registry)
     const { result } = renderHook(() => useDocEvents(), { wrapper })
 
-    ctx.source.onopen?.(new Event('open'))
+    act(() => { ctx.source.onopen?.(new Event('open')) })
     registry.register('sha256-X')
 
     // Queue an invalidation during drag, then flush (clear the pending set)
-    result.current.setDragInProgress(true)
+    act(() => { result.current.setDragInProgress(true) })
     ctx.source.onmessage?.(new MessageEvent('message', {
       data: JSON.stringify({ type: 'doc-changed', docType: 'tickets', path: 'meta/tickets/foo.md', etag: 'sha256-FOREIGN' }),
     }))
-    result.current.setDragInProgress(false)
+    act(() => { result.current.setDragInProgress(false) })
     spy.mockClear()
 
     // Re-register and simulate disconnect → reconnect
     registry.register('sha256-X')
 
     // Queue a pending invalidation during drag
-    result.current.setDragInProgress(true)
+    act(() => { result.current.setDragInProgress(true) })
     ctx.source.onmessage?.(new MessageEvent('message', {
       data: JSON.stringify({ type: 'doc-changed', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-PLAN' }),
     }))
     spy.mockClear()
 
     // Trigger error → backoff → reconnect
-    ctx.source.onerror?.(new Event('error'))
-    vi.advanceTimersByTime(1500)
-    ctx.fakes[1].onopen?.(new Event('open'))
+    act(() => { ctx.source.onerror?.(new Event('error')) })
+    act(() => { vi.advanceTimersByTime(1500) })
+    act(() => { ctx.fakes[1].onopen?.(new Event('open')) })
 
     expect(registry.has('sha256-X')).toBe(false)
     expect(queryClient.invalidateQueries).toHaveBeenCalled()
