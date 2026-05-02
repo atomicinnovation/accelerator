@@ -37,8 +37,14 @@ echo "Test: placeholder checksums → sentinel refusal"
 PROJ="$TMPDIR_BASE/t-sentinel"; make_project "$PROJ"
 cd "$PROJ"
 unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
+FAKE_SENTINEL="$TMPDIR_BASE/fake-sentinel"; mkdir -p "$FAKE_SENTINEL/bin"
+ZERO_SHA="0000000000000000000000000000000000000000000000000000000000000000"
+cat > "$FAKE_SENTINEL/bin/checksums.json" << SENTINELJSON
+{"version":"$PLUGIN_VERSION","binaries":{"darwin-arm64":"sha256:$ZERO_SHA","darwin-x64":"sha256:$ZERO_SHA","linux-arm64":"sha256:$ZERO_SHA","linux-x64":"sha256:$ZERO_SHA"}}
+SENTINELJSON
 RC=0; ERR="$TMPDIR_BASE/t-sentinel.err"
-bash "$LAUNCH_SERVER" >/dev/null 2>"$ERR" || RC=$?
+ACCELERATOR_VISUALISER_SKILL_ROOT="$FAKE_SENTINEL" \
+  bash "$LAUNCH_SERVER" >/dev/null 2>"$ERR" || RC=$?
 assert_eq "sentinel: exit code" "1" "$RC"
 assert_json_eq "sentinel: error field" ".error" "no released binary for this plugin version" "$ERR"
 cd "$ORIG_DIR"
