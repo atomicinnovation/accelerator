@@ -1,10 +1,12 @@
 import json
 from enum import StrEnum
 
+import tomlkit
 import semver
 from invoke import Context, task
 
-from .shared.paths import PLUGIN_JSON
+from .shared.paths import CARGO_TOML, CHECKSUMS, PLUGIN_JSON
+from .shared.releases import _atomic_write_text
 
 
 class BumpType(StrEnum):
@@ -20,6 +22,24 @@ def read_plugin_metadata():
     return json.loads(PLUGIN_JSON.read_text())
 
 
+def _render_plugin_json(version: str) -> str:
+    data = read_plugin_metadata()
+    data["version"] = version
+    return json.dumps(data, indent=2)
+
+
+def _render_cargo_toml(version: str) -> str:
+    data = tomlkit.parse(CARGO_TOML.read_text())
+    data["package"]["version"] = version
+    return tomlkit.dumps(data)
+
+
+def _render_checksums_version(version: str) -> str:
+    data = json.loads(CHECKSUMS.read_text())
+    data["version"] = version
+    return json.dumps(data, indent=2) + "\n"
+
+
 @task
 def read(_context: Context, print_to_stdout: bool = True):
     """Read plugin version."""
@@ -32,10 +52,14 @@ def read(_context: Context, print_to_stdout: bool = True):
 
 @task
 def write(_context: Context, version: str):
-    """Write plugin version."""
-    plugin_metadata = read_plugin_metadata()
-    plugin_metadata["version"] = version
-    PLUGIN_JSON.write_text(json.dumps(plugin_metadata, indent=2))
+    """Write plugin version to plugin.json, Cargo.toml, and checksums.json."""
+    rendered_plugin_json = _render_plugin_json(version)
+    rendered_cargo_toml = _render_cargo_toml(version)
+    rendered_checksums = _render_checksums_version(version)
+
+    _atomic_write_text(PLUGIN_JSON, rendered_plugin_json)
+    _atomic_write_text(CARGO_TOML, rendered_cargo_toml)
+    _atomic_write_text(CHECKSUMS, rendered_checksums)
 
 
 @task(iterable=["bump_type"])

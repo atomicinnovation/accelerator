@@ -10,12 +10,14 @@ from invoke import Context
 import tasks.github as gh
 from tasks.github import (
     AssetVerificationError,
+    create_release,
     download_and_verify,
     download_release_asset,
     upload_and_verify,
     upload_release_asset,
     verify_release_asset,
 )
+from tasks.shared.releases import InvalidVersionError
 from tasks.shared.targets import TARGETS
 
 _PLATFORMS = tuple(platform for _, platform in TARGETS)
@@ -57,6 +59,35 @@ def _setup_upload_and_verify(
             (tmp_path / f"accelerator-visualiser-{platform}.debug.tar.gz").write_bytes(
                 b"\x00" * 8
             )
+
+
+# ── create_release() ─────────────────────────────────────────────────
+
+
+class TestCreateRelease:
+    def test_stable_version_no_prerelease_flag(self, ctx):
+        create_release(ctx, target_version="1.20.0")
+        cmd = ctx.run.call_args.args[0]
+        assert "gh release create v1.20.0" in cmd
+        assert "--draft" in cmd
+        assert "--prerelease" not in cmd
+
+    def test_prerelease_version_adds_prerelease_flag(self, ctx):
+        create_release(ctx, target_version="1.20.0-pre.5")
+        cmd = ctx.run.call_args.args[0]
+        assert "v1.20.0-pre.5" in cmd
+        assert "--prerelease" in cmd
+
+    def test_uses_v_prefixed_draft_tag(self, ctx):
+        create_release(ctx, target_version="1.20.0")
+        cmd = ctx.run.call_args.args[0]
+        assert "v1.20.0" in cmd
+        assert "--draft" in cmd
+
+    def test_malformed_version_raises_before_run(self, ctx):
+        with pytest.raises(InvalidVersionError):
+            create_release(ctx, target_version="not-a-version")
+        ctx.run.assert_not_called()
 
 
 # ── upload_release_asset() ────────────────────────────────────────────

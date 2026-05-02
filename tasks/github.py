@@ -1,4 +1,5 @@
 import json
+import shlex
 import subprocess
 import tempfile
 from pathlib import Path
@@ -6,7 +7,7 @@ from pathlib import Path
 from invoke import Context, task
 
 from tasks.shared.paths import CHECKSUMS, binary_path, debug_archive_path
-from tasks.shared.releases import compute_sha256
+from tasks.shared.releases import compute_sha256, is_prerelease_version
 from tasks.shared.targets import TARGETS
 
 
@@ -26,14 +27,22 @@ def check_auth(context: Context):
 
 @task
 def create_release(context: Context, target_version: str | None = None):
-    """Create a draft GitHub release for the current version."""
+    """Create a draft GitHub release for the current version.
+
+    Passes --prerelease for pre-release versions (X.Y.Z-suffix) and
+    --draft unconditionally so no assets are visible until upload_and_verify
+    has verified every binary and published the release.
+    """
     from tasks import version
-    resolved_version = target_version or version.read(context, print_to_stdout=False)
-    tag = f"v{resolved_version}"
-    context.run(
-        f'gh release create {tag} --draft --generate-notes --title {tag}',
-        pty=True,
+    resolved_version = str(
+        target_version or version.read(context, print_to_stdout=False)
     )
+    tag = f"v{resolved_version}"
+    cmd = ["gh", "release", "create", tag,
+           "--draft", "--generate-notes", "--title", tag]
+    if is_prerelease_version(resolved_version):
+        cmd.append("--prerelease")
+    context.run(shlex.join(cmd), pty=True)
 
 
 @task

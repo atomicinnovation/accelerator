@@ -66,12 +66,12 @@ run = "invoke test.unit.frontend"
 [tasks."test:unit:tasks"]
 description = "Run pytest unit tests for invoke tasks"
 depends = ["deps:install:python"]
-run = "uv run pytest tests/tasks/shared/test_release.py -v"
+run = "uv run pytest tests/tasks/shared/test_release.py tests/tasks/test_build.py tests/tasks/test_version.py -v"
 
 [tasks."test:integration:tasks"]
 description = "Run pytest integration tests for invoke tasks"
 depends = ["deps:install:python"]
-run = "uv run pytest tests/tasks/shared/test_binaries.py -v"
+run = "uv run pytest tests/tasks/test_github.py tests/tasks/test_release.py -v"
 
 [tasks."test:unit"]
 description = "Run all unit tests in parallel"
@@ -131,12 +131,39 @@ run = "invoke github.check-auth"
 description = "Abort if the working tree has any uncommitted changes"
 run = "invoke git.check-clean"
 
+[tasks."release:prerelease-prepare"]
+description = "CI prerelease halve 1: bump version, build binaries, compute checksums"
+depends = ["build:debug-archives", "github:check-auth", "git:check-clean"]
+run = "invoke prerelease-prepare"
+
+[tasks."release:prerelease-finalize"]
+description = "CI prerelease halve 2: commit, tag, push, create release, upload, publish"
+run = "invoke prerelease-finalize"
+
+[tasks."release:stable-prepare"]
+description = "CI stable halve 1: finalise version, update marketplace and changelog, build binaries"
+depends = ["build:debug-archives", "github:check-auth", "git:check-clean"]
+run = "invoke stable-prepare"
+
+[tasks."release:stable-publish"]
+description = "CI stable halve 2: commit, tag, push, create release, upload, publish"
+run = "invoke stable-publish"
+
+[tasks."release:post-stable-prepare"]
+description = "CI post-stable halve 1: bump to next minor pre, build binaries"
+depends = ["build:debug-archives"]
+run = "invoke post-stable-prepare"
+
+[tasks."release:post-stable-publish"]
+description = "CI post-stable halve 2: commit, tag, push, create release, upload, publish"
+run = "invoke post-stable-publish"
+
 [tasks."prerelease"]
-description = "Create prerelease version of library"
+description = "Local dev only: full prerelease flow without SLSA attestation"
 depends = ["build:debug-archives", "github:check-auth", "git:check-clean"]
 run = "invoke prerelease"
 
 [tasks."release"]
-description = "Create release version of library"
+description = "Local dev only: full stable release flow without SLSA attestation"
 depends = ["build:debug-archives", "github:check-auth", "git:check-clean"]
 run = "invoke release"

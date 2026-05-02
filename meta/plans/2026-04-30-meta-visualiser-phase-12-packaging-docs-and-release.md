@@ -840,6 +840,19 @@ Update the `test:unit` depends list to include `test:unit:tasks` so
 
 ### Overview
 
+> **Implementation deviation**: The planned `tasks/release_binaries.py` module
+> and `BuildArtefacts` dataclass were not created. Instead the concerns were
+> split between existing modules: cross-compile/stage/checksum tasks live in
+> `tasks/build.py` (as `server_cross_compile`, `create_debug_archives`,
+> `create_checksums`); upload/verify/publish tasks live in `tasks/github.py`
+> (as `upload_release_asset`, `download_release_asset`, `verify_release_asset`,
+> `download_and_verify`, `upload_and_verify`). `upload_and_verify` takes a plain
+> `version: str` parameter and reads hashes from `checksums.json` directly,
+> rather than from a `BuildArtefacts` dataclass. Helper functions remain in
+> `tasks/shared/releases.py` (Phase 12.2's module, renamed from
+> `release_helpers.py`). Path constants live in `tasks/shared/paths.py` and
+> platform targets in `tasks/shared/targets.py`.
+
 The orchestration lives as a Python invoke task in a new
 `tasks/release_binaries.py` module, wired into the collection in
 `tasks/__init__.py`. The task is callable directly via
@@ -1552,6 +1565,15 @@ exercises multiple modules.)
 ## Phase 12.4: Wire into existing release tasks + CI workflow
 
 ### Overview
+
+> **Implementation deviation**: Because invoke does not allow a task and a
+> sub-collection to share the same name, the split tasks are registered as
+> flat top-level invoke tasks (`invoke prerelease-prepare`) rather than under
+> a `release` collection (`invoke release.prerelease-prepare`). The mise task
+> keys still use the `release:*` prefix (e.g. `mise run release:prerelease-prepare`)
+> so the external interface is unchanged. `BuildArtefacts.from_disk` was not
+> implemented; `upload_and_verify` reads hashes from `checksums.json` on disk
+> directly, which eliminates the need for the reconstruct helper.
 
 Connect the new binary-build / upload-and-verify task to the existing
 `tasks/release.py:prerelease()` and `tasks/release.py:release()`
