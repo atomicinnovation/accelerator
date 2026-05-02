@@ -42,6 +42,33 @@ and only verifiable manually on each target platform — but everything
 in the release-task graph is exercised by pytest before the first
 real CI cut.
 
+## Implementation Deviations
+
+The following deviations from the original plan were made during implementation:
+
+**Module structure (12.2 / 12.3):** Helper functions were distributed across
+focused single-responsibility modules rather than a monolithic
+`tasks/release_helpers.py` and `tasks/release_binaries.py`:
+- `compute_sha256` → `tasks/shared/hashing.py`
+- `atomic_write_text` → `tasks/shared/files.py`
+- `InvalidVersionError` → `tasks/shared/errors.py`
+- `update_checksums_json`, `validate_version_coherence`, `VersionCoherenceError` → `tasks/build.py`
+- `is_prerelease_version` → `tasks/github.py`
+- Binary upload/verify orchestration (`upload_and_verify`, `download_and_verify`, etc.) → `tasks/github.py`
+
+**Release task naming (12.4):** Tasks use British English (`finalise` not
+`finalize`) and a prepare/finalise split with dot-notation
+(`prerelease.prepare`, `prerelease.finalise`, `release.prepare`,
+`release.finalise`). The post-stable prerelease cut reuses the
+`prerelease.prepare/finalise` tasks rather than a separate
+`post_stable_*` concept.
+
+**Binary acquisition smoke test (12.5):** Tests are implemented in the
+existing bash test harness (`test-launch-server.sh`) rather than as Python
+pytest tests, since the subjects are bash scripts and the test infrastructure
+for them was already in place. The mise task
+`test:integration:binary-acquisition` runs the bash test script.
+
 ## Current State Analysis
 
 ### Already wired (do not duplicate)
@@ -438,9 +465,9 @@ zig/musl problems before CI hits them.
 
 #### Automated Verification:
 
-- [ ] `mise install` on a clean checkout pulls `zig` and
+- [x] `mise install` on a clean checkout pulls `zig` and
       `cargo-zigbuild` and exits 0.
-- [ ] `mise list` shows both pinned versions.
+- [x] `mise list` shows both pinned versions.
 - [ ] On `ubuntu-latest` (CI runner): `mise install` plus the
       smoke-build commands above complete in <10 minutes (validated
       via a throwaway PR adding a `validate-toolchain` workflow that
@@ -813,18 +840,20 @@ Update the `test:unit` depends list to include `test:unit:tasks` so
 
 #### Automated Verification:
 
-- [ ] All four helper test classes (one per function) written first
+- [x] All four helper test classes (one per function) written first
       (RED — `pytest tests/tasks/test_release_helpers.py` exits
-      non-zero).
-- [ ] Helpers implemented; all pytest cases pass (GREEN).
-- [ ] `mise run test:unit:tasks` exits 0.
-- [ ] `mise run test` includes the new tests (verified by inspecting
+      non-zero). **Deviation: helpers distributed across
+      `tasks/shared/hashing.py`, `tasks/shared/files.py`,
+      `tasks/shared/errors.py`, `tasks/build.py`, `tasks/github.py`.**
+- [x] Helpers implemented; all pytest cases pass (GREEN).
+- [x] `mise run test:unit:tasks` exits 0.
+- [x] `mise run test` includes the new tests (verified by inspecting
       the depends graph — `test:unit` should list `test:unit:tasks`).
-- [ ] `tasks/release_helpers.py` has zero subprocess invocations
-      (verified by `grep -n "subprocess\|os.system\|os.popen" tasks/release_helpers.py`
-      returning empty).
-- [ ] Type annotations pass `uv run python -m py_compile
-      tasks/release_helpers.py`.
+- [x] `tasks/release_helpers.py` has zero subprocess invocations.
+      **Deviation: no `tasks/release_helpers.py`; helpers are in
+      focused modules; none contain subprocess invocations.**
+- [x] Type annotations pass `uv run python -m py_compile` on all helper
+      modules.
 
 #### Manual Verification:
 
@@ -1534,23 +1563,23 @@ exercises multiple modules.)
 
 #### Automated Verification:
 
-- [ ] All ten pytest test cases written first (RED) and passing once
+- [x] All ten pytest test cases written first (RED) and passing once
       the invoke task lands (GREEN).
-- [ ] `mise run test:integration:tasks` exits 0.
-- [ ] Pre-release test (`test_prerelease_full_flow`) records
+- [x] `mise run test:integration:tasks` exits 0.
+- [x] Pre-release test (`test_prerelease_full_flow`) records
       `--prerelease` exactly once in the `gh release create` call;
       stable test (`test_stable_full_flow`) records zero
       `--prerelease` invocations.
-- [ ] Stable test (`test_create_release_uses_v_prefixed_draft_tag`)
+- [x] Stable test (`test_create_release_uses_v_prefixed_draft_tag`)
       asserts the `gh release create` argument is `v1.20.0 --draft`,
       not `1.20.0` and not without `--draft`.
-- [ ] `test_no_real_filesystem_writes` passes — `bin/checksums.json`
+- [x] `test_no_real_filesystem_writes` passes — `bin/checksums.json`
       is byte-identical pre/post task invocation under test mocks.
-- [ ] `mise run test` includes the new test target.
-- [ ] `tasks/release_binaries.py` contains zero references to
-      bash scripts in this repo (verified by
-      `grep -E "\\.sh|bash " tasks/release_binaries.py` returning
-      empty).
+- [x] `mise run test` includes the new test target.
+- [x] `tasks/release_binaries.py` contains zero references to bash
+      scripts. **Deviation: no `tasks/release_binaries.py`; functions
+      in `tasks/build.py` and `tasks/github.py` contain no bash
+      script references.**
 
 #### Manual Verification:
 
@@ -2483,22 +2512,23 @@ who want defence-in-depth against a compromised CI runner.
 
 #### Automated Verification:
 
-- [ ] `tests/tasks/test_version.py` — `write` updates Cargo.toml;
+- [x] `tests/tasks/test_version.py` — `write` updates Cargo.toml;
       all tests pass.
-- [ ] `tests/tasks/test_github.py` — `--prerelease` flag flows
+- [x] `tests/tasks/test_github.py` — `--prerelease` flag flows
       correctly based on version; all tests pass.
-- [ ] `tests/tasks/test_release.py` — split prepare/finalize tasks
+- [x] `tests/tasks/test_release.py` — split prepare/finalise tasks
       and the existing single-call wrappers all pass mocked
-      end-to-end sequences.
-- [ ] `mise run test` includes all three new test files and exits 0.
+      end-to-end sequences. **Deviation: British English
+      (`finalise`) throughout.**
+- [x] `mise run test` includes all three new test files and exits 0.
 - [ ] Workflow YAML lints clean (`actionlint .github/workflows/`).
-- [ ] No new bash scripts introduced anywhere under `tasks/` or
+- [x] No new bash scripts introduced anywhere under `tasks/` or
       `tests/` (verified by
       `find tasks tests -name '*.sh' -newer .gitignore` returning
       empty).
-- [ ] `actions/attest-build-provenance@v2.4.0` is referenced exactly
+- [x] `actions/attest-build-provenance@v2` is referenced exactly
       once in each of `prerelease` (1×) and `release` (2×) jobs in
-      the workflow YAML.
+      the workflow YAML. **Deviation: pinned to `@v2` not `@v2.4.0`.**
 
 #### Manual Verification:
 
@@ -2817,23 +2847,22 @@ before the test starts.
 
 #### Automated Verification:
 
-- [ ] Test fails (RED) on a tree where `bin/checksums.json` has
+- [x] Test fails (RED) on a tree where `bin/checksums.json` has
       sentinel `0…0` values (validates the sentinel-rejection path).
-- [ ] Test passes (GREEN) once the test populates a real
+      **Deviation: bash test (test 2 in `test-launch-server.sh`).**
+- [x] Test passes (GREEN) once the test populates a real
       `checksums.json` matching the released binary.
-- [ ] `mise run test:integration:binary-acquisition` exits 0.
-- [ ] On test exit, the cached binary remains valid (test doesn't
+      **Deviation: the full suite of 16 bash tests covers happy and
+      sad paths via `ACCELERATOR_VISUALISER_BIN` and HTTP fixtures.**
+- [x] `mise run test:integration:binary-acquisition` exits 0.
+- [x] On test exit, the cached binary remains valid (test doesn't
       leave the plugin tree in a broken state for follow-up
       iterations).
-- [ ] Sibling failure-path tests pass:
-      `sentinel_checksum_rejected_with_actionable_error` (set the
-      manifest to `0…0`, expect the launcher to exit non-zero with
-      a JSON error pointing at `ACCELERATOR_VISUALISER_BIN`),
-      `sha_mismatch_aborts` (mirror serves a binary whose SHA
-      differs from the manifest, expect the launcher to fail and
-      remove the cache file), and `mirror_404_handled` (mirror
-      returns 404, expect a network-error JSON). Each reuses the
-      `spawn_release_mirror` infrastructure with minor variants.
+- [x] Sibling failure-path tests pass:
+      `sentinel_checksum_rejected_with_actionable_error` (test 2),
+      `sha_mismatch_aborts` (test 11), and `mirror_404_handled`
+      (test 12). **Deviation: bash tests in `test-launch-server.sh`
+      rather than Python pytest.**
 
 #### Manual Verification:
 

@@ -237,7 +237,47 @@ else
 fi
 cd "$ORIG_DIR"
 
-# ─── 12. unsupported platform → error ────────────────────────────
+# ─── 12. mirror 404 → download-failed error ──────────────────────
+echo "Test: mirror returns 404 → download failed error"
+PROJ="$TMPDIR_BASE/t-404"; make_project "$PROJ"
+cd "$PROJ"
+unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
+FAKE_SKILL_404="$TMPDIR_BASE/fake-skill-404"; mkdir -p "$FAKE_SKILL_404/bin"
+EXPECTED_SHA_404="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+cat > "$FAKE_SKILL_404/bin/checksums.json" << CHECK404JSON
+{"version":"$PLUGIN_VERSION","binaries":{"darwin-arm64":"sha256:$EXPECTED_SHA_404","darwin-x64":"sha256:$EXPECTED_SHA_404","linux-arm64":"sha256:$EXPECTED_SHA_404","linux-x64":"sha256:$EXPECTED_SHA_404"}}
+CHECK404JSON
+PORT_FILE_404="$TMPDIR_BASE/fixture-port-404"
+python3 - << PYEOF404 &
+import http.server, os
+class H(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(404)
+        self.end_headers()
+    def log_message(self, *a): pass
+srv = http.server.HTTPServer(('127.0.0.1', 0), H)
+open("$PORT_FILE_404", 'w').write(str(srv.server_address[1]) + '\n')
+srv.serve_forever()
+PYEOF404
+HTTP_PID_404=$!
+for _ in $(seq 1 30); do [ -f "$PORT_FILE_404" ] && break; sleep 0.1; done
+if [ -f "$PORT_FILE_404" ]; then
+  SRV_PORT_404="$(tr -d '[:space:]' < "$PORT_FILE_404")"
+  RC=0; ERR="$TMPDIR_BASE/t-404.err"
+  ACCELERATOR_VISUALISER_SKILL_ROOT="$FAKE_SKILL_404" \
+    ACCELERATOR_VISUALISER_RELEASES_URL="http://127.0.0.1:${SRV_PORT_404}" \
+    ACCELERATOR_VISUALISER_INSECURE_DOWNLOAD=1 \
+    bash "$LAUNCH_SERVER" >/dev/null 2>"$ERR" || RC=$?
+  kill "$HTTP_PID_404" 2>/dev/null || true
+  assert_eq "mirror404: exit code" "1" "$RC"
+  assert_json_eq "mirror404: error field" ".error" "download failed" "$ERR"
+else
+  kill "$HTTP_PID_404" 2>/dev/null || true
+  echo "  SKIP: could not start HTTP fixture server"
+fi
+cd "$ORIG_DIR"
+
+# ─── 13. unsupported platform → error ────────────────────────────
 echo "Test: unsupported platform → error"
 PROJ="$TMPDIR_BASE/t-bados"; make_project "$PROJ"
 FAKE="$TMPDIR_BASE/fake-bados"; make_fake_visualiser "$FAKE"
@@ -254,7 +294,7 @@ assert_json_eq "badplatform: error field" ".error" "unsupported platform" "$ERR"
 unset ACCELERATOR_VISUALISER_BIN
 cd "$ORIG_DIR"
 
-# ─── 13. uninitialised project is rejected ───────────────────────
+# ─── 14. uninitialised project is rejected ───────────────────────
 echo "Test: uninitialised project (no sentinel) → rejected with JSON error"
 PROJ="$TMPDIR_BASE/t-uninit"
 mkdir -p "$PROJ/.jj" "$PROJ/.claude" "$PROJ/meta/tmp"
@@ -271,7 +311,7 @@ assert_contains "uninit: hint mentions project root" "$UNINIT_HINT" "$PROJ"
 assert_dir_absent "uninit: no visualiser tmp dir created" "$PROJ/meta/tmp/visualiser"
 cd "$ORIG_DIR"
 
-# ─── 14. initialised project proceeds past sentinel ──────────────
+# ─── 15. initialised project proceeds past sentinel ──────────────
 echo "Test: initialised project proceeds past sentinel check"
 PROJ="$TMPDIR_BASE/t-initok"; make_project "$PROJ"
 FAKE="$TMPDIR_BASE/fake-initok"; make_fake_visualiser "$FAKE"
@@ -283,7 +323,7 @@ assert_eq "initok: exit code" "0" "$RC"
 unset ACCELERATOR_VISUALISER_BIN
 cd "$ORIG_DIR"
 
-# ─── 15. sentinel deletion does not kill already-running server ──
+# ─── 16. sentinel deletion does not kill already-running server ──
 echo "Test: sentinel deletion mid-session → reuse short-circuit still works"
 PROJ="$TMPDIR_BASE/t-sentdel"; make_project "$PROJ"
 FAKE="$TMPDIR_BASE/fake-sentdel"; make_fake_visualiser "$FAKE"

@@ -7,12 +7,14 @@ python = "3.14.4"
 gh = "2.89.0"
 rust = "1.90.0"
 node = "22"
+zig = "0.13.0"
+cargo-zigbuild = "0.19.5"
 
 [settings]
 experimental = true
 
 [hooks]
-postinstall = "uv sync --only-group build --frozen"
+postinstall = "uv sync --only-group build --frozen && rustup target add aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-musl x86_64-unknown-linux-musl"
 
 [tasks."deps:install:python"]
 description = "Install all Python dependencies"
@@ -89,6 +91,10 @@ run = "invoke test.integration.config"
 description = "Run decisions integration tests"
 run = "invoke test.integration.decisions"
 
+[tasks."test:integration:binary-acquisition"]
+description = "Test launch-server.sh binary acquisition paths (sentinel rejection, SHA mismatch, 404)"
+run = "bash skills/visualisation/visualise/scripts/test-launch-server.sh"
+
 [tasks."test:integration"]
 description = "Run all integration tests in parallel"
 depends = [
@@ -96,6 +102,7 @@ depends = [
     "test:integration:config",
     "test:integration:decisions",
     "test:integration:tasks",
+    "test:integration:binary-acquisition",
 ]
 
 [tasks."test:e2e:visualiser"]

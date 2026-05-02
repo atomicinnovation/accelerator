@@ -21,10 +21,10 @@ from tasks.shared.paths import (
 from tasks.shared.errors import InvalidVersionError
 from tasks.shared.files import atomic_write_text
 from tasks.shared.hashing import compute_sha256
+from tasks.shared.targets import TARGETS
 
 
 class VersionCoherenceError(Exception): ...
-from tasks.shared.targets import TARGETS
 
 _CARGO_TOML_RELATIVE  = CARGO_TOML.relative_to(REPO_ROOT)
 _PLUGIN_JSON_RELATIVE = PLUGIN_JSON.relative_to(REPO_ROOT)
