@@ -8,7 +8,8 @@ import semver
 from invoke import Context, task
 
 from tasks.shared.paths import CHECKSUMS, binary_path, debug_archive_path
-from tasks.shared.releases import InvalidVersionError, compute_sha256
+from tasks.shared.errors import InvalidVersionError
+from tasks.shared.hashing import compute_sha256
 from tasks.shared.targets import TARGETS
 
 

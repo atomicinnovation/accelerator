@@ -18,7 +18,9 @@ from tasks.shared.paths import (
     binary_path,
     debug_archive_path,
 )
-from tasks.shared.releases import InvalidVersionError, _atomic_write_text, compute_sha256
+from tasks.shared.errors import InvalidVersionError
+from tasks.shared.files import _atomic_write_text
+from tasks.shared.hashing import compute_sha256
 
 
 class VersionCoherenceError(Exception): ...

@@ -13,11 +13,12 @@ from tasks.github import (
     create_release,
     download_and_verify,
     download_release_asset,
+    is_prerelease_version,
     upload_and_verify,
     upload_release_asset,
     verify_release_asset,
 )
-from tasks.shared.releases import InvalidVersionError
+from tasks.shared.errors import InvalidVersionError
 from tasks.shared.targets import TARGETS
 
 _PLATFORMS = tuple(platform for _, platform in TARGETS)
@@ -334,3 +335,32 @@ class TestUploadAndVerify:
         )
         with pytest.raises(subprocess.CalledProcessError, match="gh upload"):
             upload_and_verify(ctx, "1.20.0")
+
+
+# ── is_prerelease_version() ───────────────────────────────────────────
+
+
+class TestIsPreReleaseVersion:
+    def test_stable_returns_false(self):
+        assert is_prerelease_version("1.20.0") is False
+
+    def test_pre_suffix_returns_true(self):
+        assert is_prerelease_version("1.20.0-pre.1") is True
+
+    def test_rc_suffix_returns_true(self):
+        assert is_prerelease_version("1.20.0-rc.1") is True
+
+    def test_pre_with_build_metadata_returns_true(self):
+        assert is_prerelease_version("1.20.0-pre.2+build.42") is True
+
+    def test_incomplete_version_raises(self):
+        with pytest.raises(InvalidVersionError):
+            is_prerelease_version("1.20")
+
+    def test_empty_string_raises(self):
+        with pytest.raises(InvalidVersionError):
+            is_prerelease_version("")
+
+    def test_none_raises(self):
+        with pytest.raises(InvalidVersionError):
+            is_prerelease_version(None)

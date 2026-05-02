@@ -6,7 +6,7 @@ import semver
 from invoke import Context, task
 
 from .shared.paths import CARGO_TOML, CHECKSUMS, PLUGIN_JSON
-from .shared.releases import _atomic_write_text
+from .shared.files import _atomic_write_text
 
 
 class BumpType(StrEnum):

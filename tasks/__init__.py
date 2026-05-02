@@ -14,14 +14,12 @@ from . import (
 
 ns = Collection()
 
-# prerelease collection: invoke prerelease (default), prerelease.prepare, prerelease.finalise
 ns_prerelease = Collection("prerelease")
 ns_prerelease.add_task(release.prerelease, default=True)
 ns_prerelease.add_task(release.prerelease_prepare, name="prepare")
 ns_prerelease.add_task(release.prerelease_finalise, name="finalise")
 ns.add_collection(ns_prerelease)
 
-# release collection: invoke release (default), release.prepare, release.finalise
 ns_release = Collection("release")
 ns_release.add_task(release.release, default=True)
 ns_release.add_task(release.release_prepare, name="prepare")

@@ -66,7 +66,7 @@ run = "invoke test.unit.frontend"
 [tasks."test:unit:tasks"]
 description = "Run pytest unit tests for invoke tasks"
 depends = ["deps:install:python"]
-run = "uv run pytest tests/tasks/shared/test_release.py tests/tasks/test_build.py tests/tasks/test_version.py -v"
+run = "uv run pytest tests/tasks/shared/ tests/tasks/test_build.py tests/tasks/test_version.py -v"
 
 [tasks."test:integration:tasks"]
 description = "Run pytest integration tests for invoke tasks"

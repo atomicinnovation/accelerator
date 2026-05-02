@@ -9,7 +9,7 @@ from invoke import Context
 
 import tasks.build as tb
 from tasks.build import create_checksums, update_checksums_json, validate_version_coherence, VersionCoherenceError
-from tasks.shared.releases import InvalidVersionError
+from tasks.shared.errors import InvalidVersionError
 from tasks.shared.targets import TARGETS
 
 _FIXTURES = Path(__file__).resolve().parent / "fixtures"
