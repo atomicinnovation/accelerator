@@ -22,74 +22,7 @@ source "$SCRIPT_DIR/config-common.sh"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
-assert_contains() {
-  local test_name="$1" needle="$2" haystack="$3"
-  if printf '%s' "$haystack" | grep -qF "$needle"; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Expected to contain: $needle"
-    echo "    Actual: $haystack"
-    FAIL=$((FAIL + 1))
-  fi
-}
 
-assert_empty() {
-  local test_name="$1" actual="$2"
-  if [ -z "$actual" ]; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Expected empty, got: $actual"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_file_exists() {
-  local test_name="$1" file_path="$2"
-  if [ -f "$file_path" ]; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Expected file to exist: $file_path"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_file_not_exists() {
-  local test_name="$1" file_path="$2"
-  if [ ! -f "$file_path" ]; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Expected file to not exist: $file_path"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_file_content_eq() {
-  local test_name="$1" file_path="$2" expected="$3"
-  local actual
-  actual=$(cat "$file_path" 2>/dev/null) || {
-    echo "  FAIL: $test_name"
-    echo "    File not found: $file_path"
-    FAIL=$((FAIL + 1))
-    return
-  }
-  if [ "$expected" = "$actual" ]; then
-    echo "  PASS: $test_name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $test_name"
-    echo "    Expected content: $(printf '%q' "$expected")"
-    echo "    Actual content:   $(printf '%q' "$actual")"
-    FAIL=$((FAIL + 1))
-  fi
-}
 
 # Create a temporary directory base
 TMPDIR_BASE=$(mktemp -d)
@@ -573,7 +506,7 @@ assert_eq "outputs nothing" "" "$OUTPUT"
 echo "Test: No config files, uninitialised repo -> outputs init hint"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
-assert_contains "init hint shown" "has not been initialised" "$OUTPUT"
+assert_contains "init hint shown" "$OUTPUT" "has not been initialised"
 
 echo "Test: Team config present -> lists it"
 REPO=$(setup_repo)
@@ -728,7 +661,7 @@ assert_eq "outputs nothing" "" "$OUTPUT"
 echo "Test: No config files, uninitialised repo -> outputs init hint JSON"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT")
-assert_contains "init hint in JSON" "has not been initialised" "$OUTPUT"
+assert_contains "init hint in JSON" "$OUTPUT" "has not been initialised"
 
 echo "Test: Config present -> outputs valid JSON"
 REPO=$(setup_repo)
@@ -3193,7 +3126,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
 printf '\n\nTrimmed content.\n\n\n' > "$REPO/.claude/accelerator/skills/review-pr/context.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" review-pr)
-assert_contains "content is trimmed" "Trimmed content." "$OUTPUT"
+assert_contains "content is trimmed" "$OUTPUT" "Trimmed content."
 # Should not start with blank lines in content section
 CONTENT_AFTER_HEADER=$(echo "$OUTPUT" | tail -1)
 assert_eq "last line is trimmed content" "Trimmed content." "$CONTENT_AFTER_HEADER"
@@ -3203,7 +3136,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
 printf 'Content.\n' > "$REPO/.claude/accelerator/skills/review-pr/context.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" review-pr)
-assert_contains "header mentions skill name" "review-pr skill" "$OUTPUT"
+assert_contains "header mentions skill name" "$OUTPUT" "review-pr skill"
 
 echo "Test: Multiple skills with context -> each reads only its own"
 REPO=$(setup_repo)
@@ -3213,8 +3146,8 @@ printf 'Plan context.\n' > "$REPO/.claude/accelerator/skills/create-plan/context
 printf 'PR context.\n' > "$REPO/.claude/accelerator/skills/review-pr/context.md"
 OUTPUT_PLAN=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
 OUTPUT_PR=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" review-pr)
-assert_contains "plan reads its own context" "Plan context." "$OUTPUT_PLAN"
-assert_contains "pr reads its own context" "PR context." "$OUTPUT_PR"
+assert_contains "plan reads its own context" "$OUTPUT_PLAN" "Plan context."
+assert_contains "pr reads its own context" "$OUTPUT_PR" "PR context."
 # Verify isolation
 if printf '%s' "$OUTPUT_PLAN" | grep -qF "PR context."; then
   echo "  FAIL: plan output should not contain pr context"
@@ -3277,7 +3210,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.claude/accelerator/skills/commit"
 printf '\n\nTrimmed instructions.\n\n\n' > "$REPO/.claude/accelerator/skills/commit/instructions.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" commit)
-assert_contains "content is trimmed" "Trimmed instructions." "$OUTPUT"
+assert_contains "content is trimmed" "$OUTPUT" "Trimmed instructions."
 CONTENT_AFTER_HEADER=$(echo "$OUTPUT" | tail -1)
 assert_eq "last line is trimmed content" "Trimmed instructions." "$CONTENT_AFTER_HEADER"
 
@@ -3286,7 +3219,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.claude/accelerator/skills/commit"
 printf 'Instructions.\n' > "$REPO/.claude/accelerator/skills/commit/instructions.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" commit)
-assert_contains "header mentions skill name" "commit skill" "$OUTPUT"
+assert_contains "header mentions skill name" "$OUTPUT" "commit skill"
 
 echo "Test: Multiple skills with instructions -> each reads only its own"
 REPO=$(setup_repo)
@@ -3296,8 +3229,8 @@ printf 'Commit instructions.\n' > "$REPO/.claude/accelerator/skills/commit/instr
 printf 'Review instructions.\n' > "$REPO/.claude/accelerator/skills/review-pr/instructions.md"
 OUTPUT_COMMIT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" commit)
 OUTPUT_PR=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
-assert_contains "commit reads its own instructions" "Commit instructions." "$OUTPUT_COMMIT"
-assert_contains "pr reads its own instructions" "Review instructions." "$OUTPUT_PR"
+assert_contains "commit reads its own instructions" "$OUTPUT_COMMIT" "Commit instructions."
+assert_contains "pr reads its own instructions" "$OUTPUT_PR" "Review instructions."
 if printf '%s' "$OUTPUT_COMMIT" | grep -qF "Review instructions."; then
   echo "  FAIL: commit output should not contain pr instructions"
   FAIL=$((FAIL + 1))
@@ -3333,7 +3266,7 @@ printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
 mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
 printf 'Some context.\n' > "$REPO/.claude/accelerator/skills/create-plan/context.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
-assert_contains "lists skill with context" "create-plan (context)" "$OUTPUT"
+assert_contains "lists skill with context" "$OUTPUT" "create-plan (context)"
 
 echo "Test: One skill with instructions.md -> summary lists skill with (instructions)"
 REPO=$(setup_repo)
@@ -3342,7 +3275,7 @@ printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
 mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
 printf 'Some instructions.\n' > "$REPO/.claude/accelerator/skills/review-pr/instructions.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
-assert_contains "lists skill with instructions" "review-pr (instructions)" "$OUTPUT"
+assert_contains "lists skill with instructions" "$OUTPUT" "review-pr (instructions)"
 
 echo "Test: One skill with both files -> summary lists skill with (context + instructions)"
 REPO=$(setup_repo)
@@ -3352,7 +3285,7 @@ mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
 printf 'Context.\n' > "$REPO/.claude/accelerator/skills/create-plan/context.md"
 printf 'Instructions.\n' > "$REPO/.claude/accelerator/skills/create-plan/instructions.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
-assert_contains "lists skill with both" "create-plan (context + instructions)" "$OUTPUT"
+assert_contains "lists skill with both" "$OUTPUT" "create-plan (context + instructions)"
 
 echo "Test: Multiple skills with customisations -> all listed"
 REPO=$(setup_repo)
@@ -3363,8 +3296,8 @@ mkdir -p "$REPO/.claude/accelerator/skills/review-pr"
 printf 'Context.\n' > "$REPO/.claude/accelerator/skills/create-plan/context.md"
 printf 'Instructions.\n' > "$REPO/.claude/accelerator/skills/review-pr/instructions.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
-assert_contains "lists create-plan" "create-plan (context)" "$OUTPUT"
-assert_contains "lists review-pr" "review-pr (instructions)" "$OUTPUT"
+assert_contains "lists create-plan" "$OUTPUT" "create-plan (context)"
+assert_contains "lists review-pr" "$OUTPUT" "review-pr (instructions)"
 
 echo "Test: Skill directory with no recognised files -> not listed"
 REPO=$(setup_repo)
@@ -3422,7 +3355,7 @@ printf -- '---\nkey: value\n---\n' > "$REPO/.claude/accelerator.md"
 mkdir -p "$REPO/.claude/accelerator/skills/nonexistent-skill"
 printf 'Content.\n' > "$REPO/.claude/accelerator/skills/nonexistent-skill/context.md"
 STDERR_OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>&1 1>/dev/null)
-assert_contains "warns about unrecognised skill" "does not match any known skill name" "$STDERR_OUTPUT"
+assert_contains "warns about unrecognised skill" "$STDERR_OUTPUT" "does not match any known skill name"
 
 echo "Test: Known skill directory name -> no stderr warning"
 REPO=$(setup_repo)
@@ -3550,7 +3483,7 @@ mkdir -p "$REPO/.claude/accelerator/skills/create-plan"
 printf 'Context content.\n' > "$REPO/.claude/accelerator/skills/create-plan/context.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT" 2>/dev/null)
 ADDITIONAL_CONTEXT=$(echo "$OUTPUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || true)
-assert_contains "per-skill info in additionalContext" "Per-skill customisations" "$ADDITIONAL_CONTEXT"
+assert_contains "per-skill info in additionalContext" "$ADDITIONAL_CONTEXT" "Per-skill customisations"
 
 echo "Test: Unrecognised skill name warning appears in stderr (not in JSON)"
 REPO=$(setup_repo)
@@ -3560,7 +3493,7 @@ mkdir -p "$REPO/.claude/accelerator/skills/nonexistent-skill"
 printf 'Content.\n' > "$REPO/.claude/accelerator/skills/nonexistent-skill/context.md"
 STDERR_OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT" 2>&1 1>/dev/null)
 STDOUT_OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT" 2>/dev/null)
-assert_contains "warning in stderr" "does not match any known skill name" "$STDERR_OUTPUT"
+assert_contains "warning in stderr" "$STDERR_OUTPUT" "does not match any known skill name"
 # Verify warning is not in the JSON output
 if echo "$STDOUT_OUTPUT" | grep -qF "does not match"; then
   echo "  FAIL: warning should not appear in JSON stdout"
@@ -3578,12 +3511,12 @@ echo ""
 
 echo "Test: Lists all template keys from plugin templates directory"
 OUTPUT=$(config_enumerate_templates "$PLUGIN_ROOT")
-assert_contains "contains plan" "plan" "$OUTPUT"
-assert_contains "contains research" "research" "$OUTPUT"
-assert_contains "contains adr" "adr" "$OUTPUT"
-assert_contains "contains validation" "validation" "$OUTPUT"
-assert_contains "contains pr-description" "pr-description" "$OUTPUT"
-assert_contains "contains work-item" "work-item" "$OUTPUT"
+assert_contains "contains plan" "$OUTPUT" "plan"
+assert_contains "contains research" "$OUTPUT" "research"
+assert_contains "contains adr" "$OUTPUT" "adr"
+assert_contains "contains validation" "$OUTPUT" "validation"
+assert_contains "contains pr-description" "$OUTPUT" "pr-description"
+assert_contains "contains work-item" "$OUTPUT" "work-item"
 LINE_COUNT=$(echo "$OUTPUT" | wc -l | tr -d ' ')
 assert_eq "outputs 6 keys" "6" "$LINE_COUNT"
 
@@ -3620,7 +3553,7 @@ REPO=$(setup_repo)
 RESOLUTION=$(cd "$REPO" && config_resolve_template "plan" "$PLUGIN_ROOT")
 IFS=$'\t' read -r SOURCE PATH_VAL <<< "$RESOLUTION"
 assert_eq "source is plugin default" "$CONFIG_TEMPLATE_SOURCE_PLUGIN_DEFAULT" "$SOURCE"
-assert_contains "path contains templates/plan.md" "templates/plan.md" "$PATH_VAL"
+assert_contains "path contains templates/plan.md" "$PATH_VAL" "templates/plan.md"
 
 echo "Test: Resolves to user override when present in templates directory"
 REPO=$(setup_repo)
@@ -3629,7 +3562,7 @@ echo "# Custom" > "$REPO/meta/templates/plan.md"
 RESOLUTION=$(cd "$REPO" && config_resolve_template "plan" "$PLUGIN_ROOT")
 IFS=$'\t' read -r SOURCE PATH_VAL <<< "$RESOLUTION"
 assert_eq "source is user override" "$CONFIG_TEMPLATE_SOURCE_USER_OVERRIDE" "$SOURCE"
-assert_contains "path contains meta/templates/plan.md" "meta/templates/plan.md" "$PATH_VAL"
+assert_contains "path contains meta/templates/plan.md" "$PATH_VAL" "meta/templates/plan.md"
 
 echo "Test: Resolves to config path when templates.<key> is set"
 REPO=$(setup_repo)
@@ -3645,7 +3578,7 @@ FIXTURE
 RESOLUTION=$(cd "$REPO" && config_resolve_template "plan" "$PLUGIN_ROOT")
 IFS=$'\t' read -r SOURCE PATH_VAL <<< "$RESOLUTION"
 assert_eq "source is config path" "$CONFIG_TEMPLATE_SOURCE_CONFIG_PATH" "$SOURCE"
-assert_contains "path contains custom/my-plan.md" "custom/my-plan.md" "$PATH_VAL"
+assert_contains "path contains custom/my-plan.md" "$PATH_VAL" "custom/my-plan.md"
 
 echo "Test: Config path takes precedence over user override"
 REPO=$(setup_repo)
@@ -3680,7 +3613,7 @@ templates:
 ---
 FIXTURE
 STDERR_OUTPUT=$(cd "$REPO" && config_resolve_template "plan" "$PLUGIN_ROOT" 2>&1 1>/dev/null)
-assert_contains "warning about missing config path" "Warning" "$STDERR_OUTPUT"
+assert_contains "warning about missing config path" "$STDERR_OUTPUT" "Warning"
 
 echo ""
 
@@ -3690,8 +3623,8 @@ echo ""
 
 echo "Test: Formats template keys as comma-separated list"
 OUTPUT=$(config_format_available_templates "$PLUGIN_ROOT")
-assert_contains "contains plan" "plan" "$OUTPUT"
-assert_contains "contains comma separator" ", " "$OUTPUT"
+assert_contains "contains plan" "$OUTPUT" "plan"
+assert_contains "contains comma separator" "$OUTPUT" ", "
 
 echo "Test: Returns '(none found)' when no templates exist"
 EMPTY_ROOT=$(mktemp -d "$TMPDIR_BASE/empty-fmt-XXXXXX")
@@ -3710,21 +3643,21 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 printf -- '---\ntemplates:\n  pr-description: custom/pr.md\n---\n' > "$REPO/.claude/accelerator.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-assert_contains "pr-description key in dump" "templates.pr-description" "$OUTPUT"
+assert_contains "pr-description key in dump" "$OUTPUT" "templates.pr-description"
 
 echo "Test: Output contains templates.work-item row"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 printf -- '---\ntemplates:\n  work-item: custom/work-item.md\n---\n' > "$REPO/.claude/accelerator.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-assert_contains "work-item key in dump" "templates.work-item" "$OUTPUT"
+assert_contains "work-item key in dump" "$OUTPUT" "templates.work-item"
 
 echo "Test: Output contains paths.review_work row"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 printf -- '---\npaths:\n  review_work: docs/reviews/work\n---\n' > "$REPO/.claude/accelerator.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-assert_contains "review_work key in dump" "paths.review_work" "$OUTPUT"
+assert_contains "review_work key in dump" "$OUTPUT" "paths.review_work"
 
 echo ""
 
@@ -3735,12 +3668,12 @@ echo ""
 echo "Test: Unknown template lists all 6 template names including pr-description and work-item"
 REPO=$(setup_repo)
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "nonexistent" 2>&1 1>/dev/null || true)
-assert_contains "error lists plan" "plan" "$STDERR_OUTPUT"
-assert_contains "error lists research" "research" "$STDERR_OUTPUT"
-assert_contains "error lists adr" "adr" "$STDERR_OUTPUT"
-assert_contains "error lists validation" "validation" "$STDERR_OUTPUT"
-assert_contains "error lists pr-description" "pr-description" "$STDERR_OUTPUT"
-assert_contains "error lists work-item" "work-item" "$STDERR_OUTPUT"
+assert_contains "error lists plan" "$STDERR_OUTPUT" "plan"
+assert_contains "error lists research" "$STDERR_OUTPUT" "research"
+assert_contains "error lists adr" "$STDERR_OUTPUT" "adr"
+assert_contains "error lists validation" "$STDERR_OUTPUT" "validation"
+assert_contains "error lists pr-description" "$STDERR_OUTPUT" "pr-description"
+assert_contains "error lists work-item" "$STDERR_OUTPUT" "work-item"
 
 echo ""
 
@@ -3864,7 +3797,7 @@ echo "Test: No override -> shows Source: plugin default + raw content"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "plan")
 FIRST_LINE=$(echo "$OUTPUT" | head -1)
-assert_contains "source line says plugin default" "Source: plugin default" "$FIRST_LINE"
+assert_contains "source line says plugin default" "$FIRST_LINE" "Source: plugin default"
 SECOND_LINE=$(echo "$OUTPUT" | sed -n '2p')
 assert_eq "separator line" "---" "$SECOND_LINE"
 # Content should NOT have code fences
@@ -3881,8 +3814,8 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/meta/templates"
 echo "# My Custom Plan" > "$REPO/meta/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "plan")
-assert_contains "source line says user override" "Source: user override" "$(echo "$OUTPUT" | head -1)"
-assert_contains "contains user content" "My Custom Plan" "$OUTPUT"
+assert_contains "source line says user override" "$(echo "$OUTPUT" | head -1)" "Source: user override"
+assert_contains "contains user content" "$OUTPUT" "My Custom Plan"
 
 echo "Test: Config path override -> shows Source: config path + content"
 REPO=$(setup_repo)
@@ -3896,19 +3829,19 @@ templates:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "plan")
-assert_contains "source line says config path" "Source: config path" "$(echo "$OUTPUT" | head -1)"
-assert_contains "contains config content" "Config Plan" "$OUTPUT"
+assert_contains "source line says config path" "$(echo "$OUTPUT" | head -1)" "Source: config path"
+assert_contains "contains config content" "$OUTPUT" "Config Plan"
 
 echo "Test: Unknown template name -> error to stderr, exit 1"
 REPO=$(setup_repo)
 STDERR_OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "nonexistent" 2>&1 1>/dev/null || true)
-assert_contains "error mentions available templates" "Available templates:" "$STDERR_OUTPUT"
+assert_contains "error mentions available templates" "$STDERR_OUTPUT" "Available templates:"
 assert_exit_code "exits 1 for unknown template" 1 bash "$SHOW_TEMPLATE" "nonexistent"
 
 echo "Test: No argument -> usage to stderr, exit 1"
 REPO=$(setup_repo)
 STDERR_OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" 2>&1 1>/dev/null || true)
-assert_contains "usage message" "Usage:" "$STDERR_OUTPUT"
+assert_contains "usage message" "$STDERR_OUTPUT" "Usage:"
 assert_exit_code "exits 1 for no argument" 1 bash "$SHOW_TEMPLATE"
 
 echo "Test: Content is raw (no code fences added)"
@@ -3925,7 +3858,7 @@ else
   echo "  PASS: content is raw without added fences"
   PASS=$((PASS + 1))
 fi
-assert_contains "raw content present" "Some content here." "$CONTENT"
+assert_contains "raw content present" "$CONTENT" "Some content here."
 
 echo ""
 
@@ -3937,7 +3870,7 @@ echo "Test: Ejects template to default meta/templates/ directory"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" "plan")
 assert_file_exists "plan.md created" "$REPO/meta/templates/plan.md"
-assert_contains "ejected message" "Ejected:" "$OUTPUT"
+assert_contains "ejected message" "$OUTPUT" "Ejected:"
 
 echo "Test: Creates templates directory if it doesn't exist"
 REPO=$(setup_repo)
@@ -3966,7 +3899,7 @@ echo "# Existing" > "$REPO/meta/templates/plan.md"
 RC=0
 OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --force "plan") || RC=$?
 assert_eq "exit code 0" "0" "$RC"
-assert_contains "overwritten message" "Overwritten:" "$OUTPUT"
+assert_contains "overwritten message" "$OUTPUT" "Overwritten:"
 EXPECTED=$(cat "$PLUGIN_ROOT/templates/plan.md")
 assert_file_content_eq "content replaced with plugin default" "$REPO/meta/templates/plan.md" "$EXPECTED"
 
@@ -4001,7 +3934,7 @@ assert_file_exists "research still ejected" "$REPO/meta/templates/research.md"
 echo "Test: --dry-run outputs what would happen without writing files"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --dry-run "plan")
-assert_contains "would eject message" "Would eject:" "$OUTPUT"
+assert_contains "would eject message" "$OUTPUT" "Would eject:"
 assert_file_not_exists "file not created" "$REPO/meta/templates/plan.md"
 
 echo "Test: --dry-run produces exit 0 for non-existing target"
@@ -4015,14 +3948,14 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/meta/templates"
 echo "# Existing" > "$REPO/meta/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --dry-run "plan" 2>&1) || true
-assert_contains "would skip message" "Would skip:" "$OUTPUT"
+assert_contains "would skip message" "$OUTPUT" "Would skip:"
 
 echo "Test: Multiple positional arguments -> error, exit 1"
 REPO=$(setup_repo)
 RC=0
 STDERR_OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" "research" 2>&1 1>/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-assert_contains "unexpected argument error" "unexpected argument" "$STDERR_OUTPUT"
+assert_contains "unexpected argument error" "$STDERR_OUTPUT" "unexpected argument"
 
 echo "Test: Respects paths.templates config override"
 REPO=$(setup_repo)
@@ -4041,14 +3974,14 @@ REPO=$(setup_repo)
 RC=0
 STDERR_OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" "nonexistent" 2>&1 1>/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-assert_contains "error lists available" "Available:" "$STDERR_OUTPUT"
+assert_contains "error lists available" "$STDERR_OUTPUT" "Available:"
 
 echo "Test: No argument -> usage, exit 1"
 REPO=$(setup_repo)
 RC=0
 STDERR_OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" 2>&1 1>/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-assert_contains "usage message" "Usage:" "$STDERR_OUTPUT"
+assert_contains "usage message" "$STDERR_OUTPUT" "Usage:"
 
 echo ""
 
@@ -4061,7 +3994,7 @@ REPO=$(setup_repo)
 RC=0
 STDERR_OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan" 2>&1 1>/dev/null) || RC=$?
 assert_eq "exit code 2" "2" "$RC"
-assert_contains "no customised message" "No customised template found" "$STDERR_OUTPUT"
+assert_contains "no customised message" "$STDERR_OUTPUT" "No customised template found"
 
 echo "Test: User override with differences -> outputs unified diff"
 REPO=$(setup_repo)
@@ -4070,8 +4003,8 @@ cp "$PLUGIN_ROOT/templates/plan.md" "$REPO/meta/templates/plan.md"
 echo "# Extra line added by user" >> "$REPO/meta/templates/plan.md"
 RC=0
 OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan") || RC=$?
-assert_contains "diff header present" "Comparing plugin default vs user override:" "$OUTPUT"
-assert_contains "diff contains addition" "+# Extra line added by user" "$OUTPUT"
+assert_contains "diff header present" "$OUTPUT" "Comparing plugin default vs user override:"
+assert_contains "diff contains addition" "$OUTPUT" "+# Extra line added by user"
 
 echo "Test: User override with known added line -> diff shows + prefix"
 REPO=$(setup_repo)
@@ -4079,14 +4012,14 @@ mkdir -p "$REPO/meta/templates"
 printf 'Modified content\n' > "$REPO/meta/templates/plan.md"
 RC=0
 OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan") || RC=$?
-assert_contains "additions shown with +" "+Modified content" "$OUTPUT"
+assert_contains "additions shown with +" "$OUTPUT" "+Modified content"
 
 echo "Test: User override identical to default -> 'Templates are identical.'"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/templates"
 cp "$PLUGIN_ROOT/templates/plan.md" "$REPO/meta/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan")
-assert_contains "identical message" "Templates are identical." "$OUTPUT"
+assert_contains "identical message" "$OUTPUT" "Templates are identical."
 
 echo "Test: Config path override -> diffs correctly"
 REPO=$(setup_repo)
@@ -4102,21 +4035,21 @@ templates:
 FIXTURE
 RC=0
 OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan") || RC=$?
-assert_contains "config path diff shows addition" "+# Config override addition" "$OUTPUT"
+assert_contains "config path diff shows addition" "$OUTPUT" "+# Config override addition"
 
 echo "Test: Unknown template name -> error, exit 1"
 REPO=$(setup_repo)
 RC=0
 STDERR_OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "nonexistent" 2>&1 1>/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-assert_contains "error lists available" "Available:" "$STDERR_OUTPUT"
+assert_contains "error lists available" "$STDERR_OUTPUT" "Available:"
 
 echo "Test: No argument -> usage, exit 1"
 REPO=$(setup_repo)
 RC=0
 STDERR_OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" 2>&1 1>/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-assert_contains "usage message" "Usage:" "$STDERR_OUTPUT"
+assert_contains "usage message" "$STDERR_OUTPUT" "Usage:"
 
 echo ""
 
@@ -4129,16 +4062,16 @@ REPO=$(setup_repo)
 RC=0
 STDERR_OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" "plan" 2>&1 1>/dev/null) || RC=$?
 assert_eq "exit code 2" "2" "$RC"
-assert_contains "already using default" "already using plugin default" "$STDERR_OUTPUT"
+assert_contains "already using default" "$STDERR_OUTPUT" "already using plugin default"
 
 echo "Test: User override without --confirm -> exit 0, outputs override path and source"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/templates"
 echo "# Custom" > "$REPO/meta/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" "plan")
-assert_contains "found override" "Found override:" "$OUTPUT"
-assert_contains "source is user override" "user override" "$OUTPUT"
-assert_contains "path shown" "meta/templates/plan.md" "$OUTPUT"
+assert_contains "found override" "$OUTPUT" "Found override:"
+assert_contains "source is user override" "$OUTPUT" "user override"
+assert_contains "path shown" "$OUTPUT" "meta/templates/plan.md"
 assert_file_exists "file still exists (not deleted)" "$REPO/meta/templates/plan.md"
 
 echo "Test: Config path override without --confirm -> includes note about config entry"
@@ -4153,8 +4086,8 @@ templates:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" "plan")
-assert_contains "config path source" "config path" "$OUTPUT"
-assert_contains "note about config entry" "also remove the 'templates.plan' entry" "$OUTPUT"
+assert_contains "config path source" "$OUTPUT" "config path"
+assert_contains "note about config entry" "$OUTPUT" "also remove the 'templates.plan' entry"
 
 echo "Test: Config path outside project root without --confirm -> warning shown"
 REPO=$(setup_repo)
@@ -4168,7 +4101,7 @@ templates:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" "plan")
-assert_contains "outside project warning" "Warning: This file is outside the project directory" "$OUTPUT"
+assert_contains "outside project warning" "$OUTPUT" "Warning: This file is outside the project directory"
 
 echo "Test: --confirm with user override -> deletes file"
 REPO=$(setup_repo)
@@ -4176,7 +4109,7 @@ mkdir -p "$REPO/meta/templates"
 echo "# Custom" > "$REPO/meta/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" --confirm "plan")
 assert_file_not_exists "file deleted" "$REPO/meta/templates/plan.md"
-assert_contains "reset message" "Reset: plan" "$OUTPUT"
+assert_contains "reset message" "$OUTPUT" "Reset: plan"
 
 echo "Test: --confirm with no override -> exit 2"
 REPO=$(setup_repo)
@@ -4189,14 +4122,14 @@ REPO=$(setup_repo)
 RC=0
 STDERR_OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" "nonexistent" 2>&1 1>/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-assert_contains "error lists available" "Available:" "$STDERR_OUTPUT"
+assert_contains "error lists available" "$STDERR_OUTPUT" "Available:"
 
 echo "Test: No argument -> usage, exit 1"
 REPO=$(setup_repo)
 RC=0
 STDERR_OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" 2>&1 1>/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-assert_contains "usage message" "Usage:" "$STDERR_OUTPUT"
+assert_contains "usage message" "$STDERR_OUTPUT" "Usage:"
 
 echo ""
 
@@ -4274,7 +4207,7 @@ echo "Test: Eject then diff (identical): produces 'Templates are identical'"
 REPO=$(setup_repo)
 cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null
 OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan")
-assert_contains "identical message" "Templates are identical." "$OUTPUT"
+assert_contains "identical message" "$OUTPUT" "Templates are identical."
 
 echo "Test: Eject + edit + diff: shows addition with + prefix"
 REPO=$(setup_repo)
@@ -4282,7 +4215,7 @@ cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null
 echo "# User addition" >> "$REPO/meta/templates/plan.md"
 RC=0
 OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan") || RC=$?
-assert_contains "addition shown with +" "+# User addition" "$OUTPUT"
+assert_contains "addition shown with +" "$OUTPUT" "+# User addition"
 
 echo "Test: Eject then reset: deletes the override"
 REPO=$(setup_repo)
@@ -4308,3 +4241,4 @@ assert_eq "directory count agrees with Path Resolution list" \
 echo ""
 
 test_summary
+

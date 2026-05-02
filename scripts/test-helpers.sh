@@ -3,8 +3,10 @@
 #
 #   source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/..(etc)../scripts/test-helpers.sh"
 #
-# Exposes: PASS/FAIL counters and assert_eq, assert_exit_code,
-# assert_file_executable, assert_stderr_empty, test_summary.
+# Exposes: PASS/FAIL counters and assert_contains, assert_empty,
+# assert_eq, assert_exit_code, assert_file_content_eq,
+# assert_file_executable, assert_file_exists, assert_file_not_exists,
+# assert_not_contains, assert_stderr_empty, test_summary.
 
 PASS=0
 FAIL=0
@@ -124,6 +126,75 @@ assert_dir_absent() {
   else
     echo "  FAIL: $test_name — directory exists: $path"
     FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_empty() {
+  local test_name="$1" actual="$2"
+  if [ -z "$actual" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected empty, got: $actual"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_file_content_eq() {
+  local test_name="$1" file_path="$2" expected="$3"
+  local actual
+  actual=$(cat "$file_path" 2>/dev/null) || {
+    echo "  FAIL: $test_name"
+    echo "    File not found: $file_path"
+    FAIL=$((FAIL + 1))
+    return
+  }
+  if [ "$expected" = "$actual" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected content: $(printf '%q' "$expected")"
+    echo "    Actual content:   $(printf '%q' "$actual")"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_file_exists() {
+  local test_name="$1" file_path="$2"
+  if [ -f "$file_path" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected file to exist: $file_path"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_file_not_exists() {
+  local test_name="$1" file_path="$2"
+  if [ ! -f "$file_path" ]; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected file to not exist: $file_path"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_not_contains() {
+  local test_name="$1" haystack="$2" needle="$3"
+  if echo "$haystack" | grep -qF "$needle"; then
+    echo "  FAIL: $test_name"
+    echo "    Expected NOT to contain: $(printf '%q' "$needle")"
+    echo "    Actual: $(printf '%q' "$haystack")"
+    FAIL=$((FAIL + 1))
+  else
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
   fi
 }
 
