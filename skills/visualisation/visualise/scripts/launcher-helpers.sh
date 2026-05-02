@@ -19,10 +19,10 @@ download_to() {
   local url="$1" dest="$2"
   if command -v curl >/dev/null 2>&1; then
     if [ -n "${ACCELERATOR_VISUALISER_INSECURE_DOWNLOAD:-}" ]; then
-      curl -fsSL --retry 3 --max-redirs 3 --max-filesize 33554432 -o "$dest" "$url"
+      curl -fsSL --retry 3 --max-redirs 3 --max-filesize 33554432 -o "$dest" "$url" 2>/dev/null
     else
       curl -fsSL --proto '=https' --tlsv1.2 --retry 3 --max-redirs 3 \
-        --max-filesize 33554432 -o "$dest" "$url"
+        --max-filesize 33554432 -o "$dest" "$url" 2>/dev/null
     fi
   elif command -v wget >/dev/null 2>&1; then
     wget -q --tries=3 --max-redirect=3 -O "$dest" "$url"
