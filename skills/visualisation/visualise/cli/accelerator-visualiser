@@ -3,9 +3,9 @@ set -euo pipefail
 
 # Standalone CLI entry point for the meta visualiser. No .sh extension
 # because users symlink this onto $PATH and type the command directly.
-# Delegates to the same launch-server.sh that the
+# Delegates to the same visualiser.sh dispatcher that the
 # /accelerator:visualise slash command uses, so both entry points have
-# identical behaviour.
+# identical behaviour. Forwards subcommand args (start | stop | status).
 #
 # Symlink resolution uses only POSIX tools — walks the symlink chain
 # with readlink (no -f), then canonicalises via `cd ... && pwd -P`.
@@ -31,4 +31,4 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$SELF")" && pwd -P)"
 SKILL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 
-exec "$SKILL_ROOT/scripts/launch-server.sh" "$@"
+exec "$SKILL_ROOT/scripts/visualiser.sh" "$@"

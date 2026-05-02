@@ -55,17 +55,7 @@ assert_eq "notrun: exit code" "0" "$RC"
 assert_json_eq "notrun: status" ".status" "not_running" "$OUT"
 cd "$ORIG_DIR"
 
-# ─── 4. status subverb: not_running ──────────────────────────────
-echo "Test: status with no server → not_running"
-PROJ="$TMPDIR_BASE/t-statusnr"; make_project "$PROJ"
-cd "$PROJ"
-OUT="$TMPDIR_BASE/t-statusnr.out"; RC=0
-bash "$STOP_SERVER" status >"$OUT" 2>/dev/null || RC=$?
-assert_eq "statusnr: exit code" "0" "$RC"
-assert_json_eq "statusnr: status" ".status" "not_running" "$OUT"
-cd "$ORIG_DIR"
-
-# ─── 5. stop running server ──────────────────────────────────────
+# ─── 4. stop running server ──────────────────────────────────────
 echo "Test: stop running server → stopped, URL unreachable, server-stopped.json exists"
 PROJ="$TMPDIR_BASE/t-stop"; make_project "$PROJ"
 FAKE="$TMPDIR_BASE/fake-stop"; make_fake_visualiser "$FAKE"
@@ -108,26 +98,7 @@ else
 fi
 cd "$ORIG_DIR"
 
-# ─── 6. status subverb: running ──────────────────────────────────
-echo "Test: status with running server → running + url + pid"
-PROJ="$TMPDIR_BASE/t-statusrun"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-statusrun"; make_fake_visualiser "$FAKE"
-launch_fake "$PROJ" "$FAKE"
-
-INFO_FILE="$PROJ/meta/tmp/visualiser/server-info.json"
-EXPECTED_URL="$(jq -r '.url' "$INFO_FILE")"
-
-cd "$PROJ"
-OUT="$TMPDIR_BASE/t-statusrun.out"; RC=0
-bash "$STOP_SERVER" status >"$OUT" 2>/dev/null || RC=$?
-assert_eq "statusrun: exit code" "0" "$RC"
-assert_json_eq "statusrun: status" ".status" "running" "$OUT"
-assert_json_eq "statusrun: url" ".url" "$EXPECTED_URL" "$OUT"
-# Clean up
-bash "$STOP_SERVER" >/dev/null 2>/dev/null || true
-cd "$ORIG_DIR"
-
-# ─── 7. double launch → reuse, same URL ──────────────────────────
+# ─── 5. double launch → reuse, same URL ──────────────────────────
 echo "Test: double launch reuses existing server (same URL)"
 PROJ="$TMPDIR_BASE/t-reuse"; make_project "$PROJ"
 FAKE="$TMPDIR_BASE/fake-reuse"; make_fake_visualiser "$FAKE"
@@ -143,7 +114,7 @@ unset ACCELERATOR_VISUALISER_BIN
 bash "$STOP_SERVER" >/dev/null 2>/dev/null || true
 cd "$ORIG_DIR"
 
-# ─── 8. stale PID cleanup ────────────────────────────────────────
+# ─── 6. stale PID cleanup ────────────────────────────────────────
 echo "Test: stale server.pid → launcher starts fresh server"
 PROJ="$TMPDIR_BASE/t-stale"; make_project "$PROJ"
 FAKE="$TMPDIR_BASE/fake-stale"; make_fake_visualiser "$FAKE"
@@ -174,7 +145,7 @@ unset ACCELERATOR_VISUALISER_BIN
 bash "$STOP_SERVER" >/dev/null 2>/dev/null || true
 cd "$ORIG_DIR"
 
-# ─── 9. identity-mismatch refusal ────────────────────────────────
+# ─── 7. identity-mismatch refusal ────────────────────────────────
 echo "Test: stop refuses when PID start_time doesn't match"
 PROJ="$TMPDIR_BASE/t-idmm"; make_project "$PROJ"
 INFO_DIR="$PROJ/meta/tmp/visualiser"; mkdir -p "$INFO_DIR"
@@ -218,7 +189,7 @@ else
 fi
 cd "$ORIG_DIR"
 
-# ─── 10. forced SIGKILL path ─────────────────────────────────────
+# ─── 8. forced SIGKILL path ──────────────────────────────────────
 echo "Test: unkillable server escalates to SIGKILL, server-stopped.json synthesised"
 PROJ="$TMPDIR_BASE/t-sigkill"; make_project "$PROJ"
 FAKE="$TMPDIR_BASE/fake-sigkill"; make_unkillable_fake_visualiser "$FAKE"
@@ -241,23 +212,6 @@ fi
 assert_json_eq "sigkill: stopped reason" ".reason" "forced-sigkill" "$STOPPED_FILE"
 assert_json_eq "sigkill: stopped written_by" ".written_by" "stop-server.sh" "$STOPPED_FILE"
 unset ACCELERATOR_VISUALISER_BIN
-cd "$ORIG_DIR"
-
-# ─── 11. status subverb: stale ───────────────────────────────────
-echo "Test: status with dead PID in info file → stale"
-PROJ="$TMPDIR_BASE/t-statusstale"; make_project "$PROJ"
-DEAD_PID="$(spawn_and_reap_pid)"
-INFO_DIR="$PROJ/meta/tmp/visualiser"; mkdir -p "$INFO_DIR"
-cat > "$INFO_DIR/server-info.json" << INFOJSON
-{"version":"0.0.0-test","pid":$DEAD_PID,"start_time":null,"host":"127.0.0.1","port":9996,"url":"http://127.0.0.1:9996","log_path":"$INFO_DIR/server.log","tmp_path":"$INFO_DIR"}
-INFOJSON
-echo "$DEAD_PID" > "$INFO_DIR/server.pid"
-
-cd "$PROJ"
-OUT="$TMPDIR_BASE/t-statusstale.out"; RC=0
-bash "$STOP_SERVER" status >"$OUT" 2>/dev/null || RC=$?
-assert_eq "statusstale: exit code" "0" "$RC"
-assert_json_eq "statusstale: status" ".status" "stale" "$OUT"
 cd "$ORIG_DIR"
 
 test_summary

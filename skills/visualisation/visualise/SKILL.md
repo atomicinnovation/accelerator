@@ -1,7 +1,7 @@
 ---
 name: visualise
-description: Open the accelerator meta visualiser. Launches the companion-window server in the background and returns a URL.
-argument-hint: "(no arguments)"
+description: Open the accelerator meta visualiser. Launches the companion-window server in the background and returns a URL. Subcommands stop and status manage the running server.
+argument-hint: "[stop | status]"
 disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/*)
 ---
@@ -23,7 +23,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGI
 **Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh notes meta/notes`
 **Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp meta/tmp`
 
-**Visualiser**: !`${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/launch-server.sh`
+**Visualiser**: !`${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/visualiser.sh "$ARGUMENTS"`
 
 ## Server lifecycle
 
@@ -32,30 +32,48 @@ Context for Claude only — do not relay to the user verbatim:
 The visualiser server is a locally-backgrounded Rust process. It
 binds a random high port on 127.0.0.1 and exits automatically when
 idle for 30 minutes, when the process that launched the server
-exits, or when `stop-server.sh` is invoked. Re-running
+exits, or when `/accelerator:visualise stop` is invoked. Re-running
 `/accelerator:visualise` while the server is up reuses the
 existing instance. Note: "the process that launched the server"
 means different things by invocation mode — for the slash command
 it's the Claude Code harness; for the CLI wrapper it's the
 terminal shell. Don't assume Claude Code specifically.
+
+The dispatcher routes a single argument: empty/`start` launches
+the server, `stop` terminates it, `status` probes its lifecycle
+files. Output shape varies by subcommand — read it carefully
+before relaying to the user.
 -->
 
-The server runs in the background on your local machine. The
-`**Visualiser**:` line above renders the URL on success, or a
-JSON error line on failure. Tell the user:
-- Open the URL in a browser — no HTML UI is served yet; only a
-  plain-text placeholder response that confirms the server is up.
-- Re-running this command returns the same URL if the server is
-  already running.
-- The server exits on its own after 30 minutes idle, or when the
-  process that launched it exits. To stop it explicitly, run the
-  command below.
-- If the line above contains a JSON `{"error":...}` object, the
-  server isn't running; read the `hint` field in the JSON for
-  remediation.
+The user's argument selects the action. Interpret the
+`**Visualiser**:` line above according to which subcommand was
+invoked:
 
-**Stop command**: !`printf 'bash "%s"' "${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/stop-server.sh"`
-**Status command**: !`printf 'bash "%s" status' "${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/stop-server.sh"`
+**No argument (start)** — the line is either:
+- `**Visualiser URL**: <url>` — server is running, relay the URL
+  to the user. Tell them:
+  - Open the URL in a browser to use the visualiser UI.
+  - Re-running `/accelerator:visualise` returns the same URL
+    while the server is alive.
+  - The server auto-exits after 30 minutes idle, or when the
+    process that launched it exits. To stop it explicitly, run
+    `/accelerator:visualise stop`.
+- A JSON `{"error":...}` object — the server isn't running.
+  Read the `hint` field and relay the remediation.
+
+**`stop`** — the line is a JSON object describing the result:
+- `{"status":"stopped"}` (optionally `"forced":true`) — the
+  server has been terminated.
+- `{"status":"not_running"}` — there was no server to stop.
+- `{"status":"refused",...}` or `{"status":"failed",...}` —
+  relay the reason/error to the user.
+
+**`status`** — the line is a JSON object: `{"status":"running"|"stale"|"not_running","url":...,"pid":...}`.
+Relay the status (and URL/PID when present) to the user.
+
+**`{"error":"unknown subcommand",...}`** — the user passed an
+unrecognised argument. Tell them the valid subcommands are
+`stop` and `status` (no argument starts the server).
 
 ### Overrides
 

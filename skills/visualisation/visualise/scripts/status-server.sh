@@ -14,6 +14,5 @@ TMP_REL="$("$PLUGIN_ROOT/scripts/config-read-path.sh" tmp meta/tmp)"
 TMP_DIR="$PROJECT_ROOT/$TMP_REL/visualiser"
 INFO="$TMP_DIR/server-info.json"
 PID_FILE="$TMP_DIR/server.pid"
-STOPPED="$TMP_DIR/server-stopped.json"
 
-stop_server_stop
+stop_server_status

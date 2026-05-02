@@ -12,13 +12,14 @@ trap 'rm -rf "$TMPDIR_BASE"' EXIT
 
 # Make a relocated copy of the cli binary into a cli/scripts sibling pair.
 # TEMP_STUB starts as a simple sentinel so invocation tests work without
-# a full project tree (the real launcher now requires find_repo_root).
+# a full project tree (the real dispatcher delegates to launch-server.sh
+# which requires find_repo_root).
 TEMP_SKILL="$TMPDIR_BASE/skill-copy"
 mkdir -p "$TEMP_SKILL/cli" "$TEMP_SKILL/scripts"
 cp "$REAL_CLI" "$TEMP_SKILL/cli/accelerator-visualiser"
 chmod +x "$TEMP_SKILL/cli/accelerator-visualiser"
 TEMP_CLI="$TEMP_SKILL/cli/accelerator-visualiser"
-TEMP_STUB="$TEMP_SKILL/scripts/launch-server.sh"
+TEMP_STUB="$TEMP_SKILL/scripts/visualiser.sh"
 
 INITIAL_SENTINEL="cli-wrapper-initial-sentinel"
 cat > "$TEMP_STUB" << SENTINELEOF
