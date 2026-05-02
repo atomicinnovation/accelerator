@@ -670,10 +670,6 @@ mod tests {
     #[cfg(feature = "dev-frontend")]
     #[tokio::test]
     async fn serves_spa_root_and_writes_info() {
-        use axum::body::Body;
-        use axum::http::Request;
-        use tower::ServiceExt as _;
-
         let dir = tempfile::tempdir().unwrap();
         let info_path = dir.path().join("server-info.json");
 
