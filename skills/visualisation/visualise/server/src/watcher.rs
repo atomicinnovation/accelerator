@@ -283,6 +283,11 @@ mod tests {
         let (doc_paths, indexer, hub, clusters) = setup(tmp.path()).await;
         let mut rx = hub.subscribe();
 
+        // Use a generous debounce so the coalescing assertion is robust to
+        // CI scheduler / inotify-delivery jitter — on a slow runner the gap
+        // between consecutive events arriving at the consumer can exceed a
+        // tight debounce, splitting the burst into two broadcasts.
+        let debounce = Duration::from_millis(300);
         spawn(
             doc_paths.values().cloned().collect(),
             tmp.path().to_path_buf(),
@@ -290,27 +295,28 @@ mod tests {
             clusters,
             hub,
             Arc::new(WriteCoordinator::new()),
-            Settings {
-                debounce: Duration::from_millis(50),
-            },
+            Settings { debounce },
         );
 
         tokio::time::sleep(Duration::from_millis(50)).await;
 
+        // Write back-to-back without yielding to the runtime — under a
+        // current_thread test runtime an inter-write `sleep().await` lets the
+        // consumer start scheduling debounces mid-burst, which fragments the
+        // coalescing window.
         let path = tmp.path().join("meta/plans/2026-01-01-foo.md");
         for i in 0..5u32 {
             std::fs::write(&path, format!("---\ntitle: v{i}\n---\n")).unwrap();
-            tokio::time::sleep(Duration::from_millis(2)).await;
         }
 
-        let event = tokio::time::timeout(Duration::from_millis(500), rx.recv())
+        let event = tokio::time::timeout(debounce + Duration::from_millis(500), rx.recv())
             .await
             .expect("timed out")
             .expect("channel closed");
         assert!(matches!(event, SsePayload::DocChanged { .. }));
 
         assert!(
-            tokio::time::timeout(Duration::from_millis(200), rx.recv())
+            tokio::time::timeout(Duration::from_millis(300), rx.recv())
                 .await
                 .is_err(),
             "expected no second event but got one",
