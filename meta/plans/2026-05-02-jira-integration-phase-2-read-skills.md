@@ -1778,9 +1778,9 @@ needs softening on the bare-paste rule.
 
 #### Automated Verification
 
-- [ ] `bash scripts/test-evals-structure.sh` passes.
-- [ ] `bash scripts/test-format.sh` passes.
-- [ ] `mise run test` passes.
+- [x] `bash scripts/test-evals-structure.sh` passes.
+- [x] `bash scripts/test-format.sh` passes.
+- [x] `mise run test` passes.
 
 #### Manual Verification
 

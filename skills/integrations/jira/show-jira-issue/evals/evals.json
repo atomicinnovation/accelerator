@@ -1,0 +1,82 @@
+{
+  "skill_name": "show-jira-issue",
+  "evals": [
+    {
+      "id": 1,
+      "name": "explicit-lookup",
+      "prompt": "Read skills/integrations/jira/show-jira-issue/SKILL.md fully. You are running the show-jira-issue skill.\n\nA user says: \"look up PROJ-1234\"\n\nDo NOT make real API calls. Instead, write to outputs/invocation.sh the exact jira-show-flow.sh command you would run (flags only — use placeholder paths). Write to outputs/reasoning.md one sentence explaining your flag choices.",
+      "expected_output": "Invocation uses PROJ-1234 as the key. No --no-render-adf flag (default ON). No other flags needed.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "uses-proj-1234-key",
+          "description": "Invocation includes PROJ-1234 as the issue key"
+        },
+        {
+          "id": "no-no-render-adf",
+          "description": "Invocation does not include --no-render-adf (default ON applies)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "status-query",
+      "prompt": "Read skills/integrations/jira/show-jira-issue/SKILL.md fully. You are running the show-jira-issue skill.\n\nA user says: \"what's the status of ENG-42\"\n\nDo NOT make real API calls. Write to outputs/invocation.sh the exact jira-show-flow.sh command you would run. Write to outputs/reasoning.md one sentence explaining your flag choices.",
+      "expected_output": "Invocation uses ENG-42 as the key. No extra flags required for a simple status query.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "uses-eng-42-key",
+          "description": "Invocation includes ENG-42 as the issue key"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "with-comments",
+      "prompt": "Read skills/integrations/jira/show-jira-issue/SKILL.md fully. You are running the show-jira-issue skill.\n\nA user says: \"show me the last 5 comments on ENG-42\"\n\nDo NOT make real API calls. Write to outputs/invocation.sh the exact jira-show-flow.sh command you would run. Write to outputs/reasoning.md one sentence explaining your flag choices.",
+      "expected_output": "Invocation uses ENG-42 and --comments 5.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "uses-eng-42-key",
+          "description": "Invocation includes ENG-42 as the issue key"
+        },
+        {
+          "id": "uses-comments-5",
+          "description": "Invocation includes --comments 5"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "raw-json-escape-hatch",
+      "prompt": "Read skills/integrations/jira/show-jira-issue/SKILL.md fully. You are running the show-jira-issue skill.\n\nA user says: \"give me the raw JSON for ENG-42 — I'm piping it to jq\"\n\nDo NOT make real API calls. Write to outputs/invocation.sh the exact jira-show-flow.sh command you would run. Write to outputs/reasoning.md one sentence explaining your flag choices.",
+      "expected_output": "Invocation uses ENG-42 and --no-render-adf to preserve ADF as raw JSON.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "uses-eng-42-key",
+          "description": "Invocation includes ENG-42 as the issue key"
+        },
+        {
+          "id": "uses-no-render-adf",
+          "description": "Invocation includes --no-render-adf for the raw JSON request"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "no-trigger-in-prose",
+      "prompt": "Read skills/integrations/jira/show-jira-issue/SKILL.md fully. You are running the show-jira-issue skill.\n\nA user says: \"I committed PROJ-1234 to the repo\"\n\nWrite to outputs/response.md whether you would invoke jira-show-flow.sh for this request, and why or why not.",
+      "expected_output": "Skill does NOT invoke jira-show-flow.sh. The issue key appears incidentally in prose about a commit; the user is not asking to fetch the issue.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "does-not-invoke-show",
+          "description": "Response explains the key appears in prose about a commit and declines to invoke jira-show-flow.sh"
+        }
+      ]
+    }
+  ]
+}
