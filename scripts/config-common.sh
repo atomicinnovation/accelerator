@@ -26,6 +26,7 @@ config_find_files() {
   local local_="$root/.claude/accelerator.local.md"
   [ -f "$team" ] && echo "$team"
   [ -f "$local_" ] && echo "$local_"
+  return 0
 }
 
 # Extract YAML frontmatter from a file as raw text (between --- delimiters).
