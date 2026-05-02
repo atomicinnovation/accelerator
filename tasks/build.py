@@ -1,19 +1,34 @@
+import json
 import shutil
 import tarfile
+import tomllib
+from pathlib import Path
+from typing import Mapping
 
 from invoke import Context, task
 
 from tasks.shared.paths import (
     BIN_DIR,
-    CHECKSUMS,
     CARGO_TOML,
+    CHECKSUMS,
     FRONTEND,
+    PLUGIN_JSON,
+    REPO_ROOT,
     SERVER,
     binary_path,
     debug_archive_path,
 )
-from tasks.shared.releases import compute_sha256, update_checksums_json, validate_version_coherence
+from tasks.shared.releases import (
+    InvalidVersionError,
+    VersionCoherenceError,
+    _atomic_write_text,
+    compute_sha256,
+)
 from tasks.shared.targets import TARGETS
+
+_CARGO_TOML_RELATIVE  = CARGO_TOML.relative_to(REPO_ROOT)
+_PLUGIN_JSON_RELATIVE = PLUGIN_JSON.relative_to(REPO_ROOT)
+_CHECKSUMS_RELATIVE   = CHECKSUMS.relative_to(REPO_ROOT)
 
 _MACHO_MAGIC = frozenset([
     b"\xcf\xfa\xed\xfe",
@@ -21,6 +36,54 @@ _MACHO_MAGIC = frozenset([
     b"\xca\xfe\xba\xbe",
 ])
 _ELF_MAGIC = b"\x7fELF"
+
+
+def _read_plugin_json_version(root: Path) -> str:
+    data = json.loads((root / _PLUGIN_JSON_RELATIVE).read_text())
+    return data["version"]
+
+
+def _read_cargo_toml_version(root: Path) -> str:
+    with open(root / _CARGO_TOML_RELATIVE, "rb") as f:
+        data = tomllib.load(f)
+    return data["package"]["version"]
+
+
+def _read_checksums_json_version(root: Path) -> str:
+    data = json.loads((root / _CHECKSUMS_RELATIVE).read_text())
+    return data["version"]
+
+
+def update_checksums_json(
+    manifest_path: Path,
+    version: str,
+    platform_hashes: Mapping[str, str] | None = None,
+) -> None:
+    data = json.loads(manifest_path.read_text())
+    data["version"] = version
+    if platform_hashes:
+        for platform, hex_digest in platform_hashes.items():
+            data.setdefault("binaries", {})[platform] = f"sha256:{hex_digest}"
+    _atomic_write_text(manifest_path, json.dumps(data, indent=2) + "\n")
+
+
+def validate_version_coherence(
+    expected_version: str,
+    repo_root: Path | None = None,
+) -> None:
+    if not expected_version:
+        raise InvalidVersionError("expected_version must not be empty")
+    root = repo_root or REPO_ROOT
+    found = {
+        "plugin.json":    _read_plugin_json_version(root),
+        "Cargo.toml":     _read_cargo_toml_version(root),
+        "checksums.json": _read_checksums_json_version(root),
+    }
+    mismatches = {k: v for k, v in found.items() if v != expected_version}
+    if mismatches:
+        raise VersionCoherenceError(
+            f"expected {expected_version!r}, found mismatches: {mismatches}"
+        )
 
 
 @task

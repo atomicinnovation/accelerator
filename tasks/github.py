@@ -4,11 +4,20 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import semver
 from invoke import Context, task
 
 from tasks.shared.paths import CHECKSUMS, binary_path, debug_archive_path
-from tasks.shared.releases import compute_sha256, is_prerelease_version
+from tasks.shared.releases import InvalidVersionError, compute_sha256
 from tasks.shared.targets import TARGETS
+
+
+def is_prerelease_version(version: str) -> bool:
+    try:
+        parsed = semver.Version.parse(version)
+    except (ValueError, TypeError) as exc:
+        raise InvalidVersionError(f"not a valid semver: {version!r}") from exc
+    return bool(parsed.prerelease)
 
 
 class AssetVerificationError(Exception):

@@ -6,8 +6,9 @@ import pytest
 
 from invoke import Context
 
+import tasks.build as tb
 import tasks.version as tv
-from tasks.shared.releases import validate_version_coherence
+from tasks.build import validate_version_coherence
 
 
 @pytest.fixture
@@ -88,7 +89,6 @@ class TestWrite:
 
     def test_coherence_passes_after_write(self, ctx, mocker, fake_repo_tree):
         _patch_paths(mocker, fake_repo_tree)
-        import tasks.shared.releases as sr
-        mocker.patch.object(sr, "REPO_ROOT", fake_repo_tree)
+        mocker.patch.object(tb, "REPO_ROOT", fake_repo_tree)
         tv.write(ctx, "1.21.0")
         validate_version_coherence("1.21.0", repo_root=fake_repo_tree)
