@@ -85,6 +85,7 @@ depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks"]
 
 [tasks."test:integration:visualiser"]
 description = "Run visualiser integration tests"
+depends = ["build:server:dev"]
 run = "invoke test.integration.visualiser"
 
 [tasks."test:integration:config"]
