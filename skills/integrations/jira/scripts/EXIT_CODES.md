@@ -59,6 +59,14 @@ table. Gaps within ranges are reserved.
 | 105  | `E_CREATE_NO_BODY`               | `jira-create-flow.sh`       | No body source available                                                                 |
 | 106  | `E_CREATE_NO_SITE_CACHE`         | `jira-create-flow.sh`       | `--assignee`/`--reporter` `@me` but `site.json` missing; run `/init-jira`                |
 | 107  | `E_CREATE_BAD_ASSIGNEE`          | `jira-create-flow.sh`       | `--assignee` value is not `@me` or a raw accountId (email addresses not supported)       |
+| 110  | `E_UPDATE_NO_KEY`                | `jira-update-flow.sh`       | No issue key positional argument                                                          |
+| 111  | `E_UPDATE_LABEL_MODE_CONFLICT`   | `jira-update-flow.sh`       | `--label` mixed with `--add-label`/`--remove-label`, or `--component` with `--add/--remove-component` |
+| 112  | `E_UPDATE_NO_OPS`                | `jira-update-flow.sh`       | No mutating flags supplied                                                                |
+| 113  | `E_UPDATE_BAD_FLAG`              | `jira-update-flow.sh`       | Unrecognised flag                                                                         |
+| 114  | `E_UPDATE_BAD_FIELD`             | `jira-update-flow.sh`       | `--custom` value failed schema coercion or slug not found in cache                        |
+| 115  | `E_UPDATE_NO_SITE_CACHE`         | `jira-update-flow.sh`       | `--assignee`/`--reporter` `@me` but `site.json` missing; run `/init-jira`                 |
+| 116  | `E_UPDATE_NO_BODY`               | `jira-update-flow.sh`       | `--body`/`--body-file` resolution failed                                                  |
+| 117  | `E_UPDATE_BAD_ASSIGNEE`          | `jira-update-flow.sh`       | `--assignee` not `@me`, `""` (unassign), or a raw accountId (email not supported)         |
 
 **Reservation note**: codes 91–99 are reserved for `jira-comment-flow.sh` (M4).
 

@@ -1291,12 +1291,12 @@ flow maps the same string to its own number.)
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-update.sh` exits
+- [x] `bash skills/integrations/jira/scripts/test-jira-update.sh` exits
       0; all 32 cases pass (27 numbered + 14a/14b for E_UPDATE_BAD_ASSIGNEE
       + 28/29/30 for empty-fields/5xx/ADF round-trip).
 - [ ] `shellcheck` clean.
-- [ ] If `jira-custom-fields.sh` was extracted, M2 tests still pass.
-- [ ] `--print-payload` prints valid JSON and the final query string.
+- [x] If `jira-custom-fields.sh` was extracted, M2 tests still pass.
+- [x] `--print-payload` prints valid JSON and the final query string.
 
 #### Manual Verification
 

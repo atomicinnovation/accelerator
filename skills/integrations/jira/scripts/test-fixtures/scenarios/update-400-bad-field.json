@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {
+      "method": "PUT",
+      "path": "/rest/api/3/issue/ENG-1",
+      "response": {
+        "status": 400,
+        "body": "{\"errorMessages\":[],\"errors\":{\"customfield_99999\":\"Field 'customfield_99999' cannot be set. It is not on the appropriate screen, or unknown.\"},\"status\":400}"
+      }
+    }
+  ]
+}
