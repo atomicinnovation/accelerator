@@ -6,15 +6,11 @@ description: >
   — it must never be auto-invoked from conversational context. Accepts a project
   key, issue type, summary, optional Markdown body, and optional fields
   (assignee, priority, labels, components, parent, custom fields). Converts the
-  body to ADF, shows a payload preview, requires explicit y/Y confirmation, then
+  body to ADF, shows a payload preview, requires explicit confirmation, then
   POSTs to Jira and returns the new issue key.
 argument-hint: "[--project KEY] --type NAME --summary TEXT [--body TEXT | --body-file PATH] [--assignee @me|ACCTID] [--reporter @me|ACCTID] [--priority NAME] [--label NAME]... [--component NAME]... [--parent KEY] [--custom SLUG=VALUE]... [--issuetype-id ID] [--quiet]"
 disable-model-invocation: true
-allowed-tools: >
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*),
-  Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*),
-  Bash(jq),
-  Bash(curl)
+allowed-tools: Bash, Read, Write
 ---
 
 # Create Jira Issue
@@ -122,14 +118,16 @@ Ask the user:
 > Send this to Jira? Reply **y** to confirm, **n** to revise, anything else
 > to abort.
 
-Match strictly:
-- `y` or `Y` (trimming surrounding whitespace) → proceed to Step 8.
-- `n` or `N` → stay in review. Ask "What would you like to change?" Re-apply
+Interpret the reply:
+- Clear yes intent — `y`, `Y`, `yes`, `YES`, or a phrase like "yes go ahead",
+  "looks good", "sure", "confirmed" → proceed to Step 8.
+- Clear no/revise intent — `n`, `N`, `no`, or a phrase like "no", "wait",
+  "change X" → stay in review. Ask "What would you like to change?" Re-apply
   Step 3 (trust-boundary enforcement) to the revision before invoking
   `--print-payload` again. Rebuild the preview from Step 4 and re-ask.
   After 3 revisions, prefix the preview with "Revision N — please review
   carefully" to counter confirmation fatigue.
-- Anything else (including "yes", "sure", "looks good", silence) → abort with:
+- Ambiguous or off-topic reply (silence, a question, unrelated text) → abort:
 
   > Aborted — no Jira write was made.
 

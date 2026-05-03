@@ -6,15 +6,11 @@ description: >
   effects — it must never be auto-invoked from conversational context. Accepts
   an issue key and at least one mutating flag (summary, body, priority, assignee,
   labels, components, parent, custom fields). Shows a payload preview with
-  explicit set-vs-update label semantics, requires explicit y/Y confirmation,
-  then PUTs to Jira.
+  explicit set-vs-update label semantics, requires explicit confirmation, then
+  PUTs to Jira.
 argument-hint: "ISSUE-KEY [--summary TEXT] [--body TEXT | --body-file PATH] [--priority NAME] [--assignee @me|ACCTID|\"\"] [--reporter @me|ACCTID] [--parent KEY|\"\"] [--label NAME]... [--add-label NAME]... [--remove-label NAME]... [--component NAME]... [--add-component NAME]... [--remove-component NAME]... [--custom SLUG=VALUE]... [--no-notify] [--quiet]"
 disable-model-invocation: true
-allowed-tools: >
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*),
-  Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*),
-  Bash(jq),
-  Bash(curl)
+allowed-tools: Bash, Read, Write
 ---
 
 # Update Jira Issue
@@ -125,14 +121,16 @@ Ask the user:
 > Send this to Jira? Reply **y** to confirm, **n** to revise, anything else
 > to abort.
 
-Match strictly:
-- `y` or `Y` (trimming surrounding whitespace) → proceed to Step 7.
-- `n` or `N` → stay in review. Ask "What would you like to change?" Re-apply
+Interpret the reply:
+- Clear yes intent — `y`, `Y`, `yes`, `YES`, or a phrase like "yes go ahead",
+  "looks good", "sure", "confirmed" → proceed to Step 7.
+- Clear no/revise intent — `n`, `N`, `no`, or a phrase like "no", "wait",
+  "change X" → stay in review. Ask "What would you like to change?" Re-apply
   Step 2 (trust-boundary enforcement) to the revision before invoking
   `--print-payload` again. Rebuild the preview from Step 3 and re-ask.
   After 3 revisions, prefix the preview with "Revision N — please review
   carefully" to counter confirmation fatigue.
-- Anything else (including "yes", "sure", "looks good", silence) → abort with:
+- Ambiguous or off-topic reply (silence, a question, unrelated text) → abort:
 
   > Aborted — no Jira write was made.
 

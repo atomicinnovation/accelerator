@@ -7,14 +7,10 @@ description: >
   conversational context. Subcommands: add (post a new comment), list (fetch
   all comments with pagination), edit (update an existing comment), delete
   (remove a comment — irreversible). Write subcommands show a payload preview
-  and require explicit y/Y confirmation before calling the API.
+  and require explicit confirmation before calling the API.
 argument-hint: "add ISSUE-KEY [--body TEXT | --body-file PATH] [--visibility role:NAME | group:NAME] [--no-notify] [--render-adf | --no-render-adf] | list ISSUE-KEY [--page-size N] [--first-page-only] [--render-adf | --no-render-adf] | edit ISSUE-KEY COMMENT-ID [--body TEXT | --body-file PATH] [--visibility role:NAME | group:NAME] [--no-notify] [--render-adf | --no-render-adf] | delete ISSUE-KEY COMMENT-ID [--no-notify]"
 disable-model-invocation: true
-allowed-tools: >
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*),
-  Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*),
-  Bash(jq),
-  Bash(curl)
+allowed-tools: Bash, Read, Write
 ---
 
 # Comment Jira Issue
@@ -136,13 +132,15 @@ Ask the user:
 > Send this to Jira? Reply **y** to confirm, **n** to revise, anything else
 > to abort.
 
-Match strictly:
-- `y` or `Y` (trimming surrounding whitespace) → proceed to Step 7.
-- `n` or `N` → stay in review. Ask "What would you like to change?" Re-apply
+Interpret the reply:
+- Clear yes intent — `y`, `Y`, `yes`, `YES`, or a phrase like "yes go ahead",
+  "looks good", "sure", "confirmed" → proceed to Step 7.
+- Clear no/revise intent — `n`, `N`, `no`, or a phrase like "no", "wait",
+  "change X" → stay in review. Ask "What would you like to change?" Re-apply
   Step 2 (trust-boundary enforcement) to the revision before invoking
   `--print-payload`/`--describe` again. Rebuild the preview from Step 3 and
   re-ask. After 3 revisions, prefix with "Revision N — please review carefully".
-- Anything else → abort with:
+- Ambiguous or off-topic reply (silence, a question, unrelated text) → abort:
 
   > Aborted — no Jira write was made.
 
