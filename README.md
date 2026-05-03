@@ -461,24 +461,39 @@ areas:
 
 ## Design Convergence
 
-The design convergence workflow captures your application's current visual state
-as a structured inventory, then compares it against a target design to identify
-and prioritise gaps:
+Design convergence skills capture two design surfaces — a current frontend and a
+target prototype — as structured inventory artifacts, then compute a structured
+gap between them. The gap artifact's prose paragraphs satisfy the cue-phrase
+contract that `extract-work-items` consumes, so the workflow plugs straight into
+the existing work-item lifecycle. Each inventory snapshot is self-contained
+(markdown plus screenshots in a dated directory); re-running for the same source
+supersedes the prior snapshot without losing it.
 
 ```
-inventory-design  →  analyse-design-gaps
-       ↓                      ↓
-meta/design-inventories/  meta/design-gaps/
+inventory-design (current)  ─┐
+                             ├─▶ analyse-design-gaps ─▶ extract-work-items ─▶ meta/work/*
+inventory-design (target)   ─┘
 ```
 
-`/accelerator:inventory-design` crawls a design source — a local dev server, a
-hosted prototype, or a static file tree — and produces a `design-inventory`
-document with screenshots, design-token observations, and a component catalogue.
-`/accelerator:analyse-design-gaps` compares two inventories and produces a
-`design-gap` document that sequences remediation work.
+| Skill                   | Usage                                                                   | Description                                                                               |
+|-------------------------|-------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| **inventory-design**    | `/accelerator:inventory-design [source-id] [location] [--crawler MODE]` | Generate a design inventory (tokens, components, screens, features) for a frontend source |
+| **analyse-design-gaps** | `/accelerator:analyse-design-gaps [current-source-id] [target-source-id]` | Compute a structured gap between two inventories as actionable prose                    |
 
-The `browser-*` agents power the `runtime` and `hybrid` crawl modes.
-`/accelerator:inventory-design --crawler code` works without Playwright.
+Three-step example:
+
+```
+/accelerator:inventory-design current ./apps/webapp
+/accelerator:inventory-design prototype https://prototype.example.com
+/accelerator:analyse-design-gaps current prototype
+```
+
+The resulting gap artifact under `meta/design-gaps/` feeds straight into
+`/accelerator:extract-work-items <gap-file>`.
+
+`inventory-design` supports three crawler modes: `code` (static analysis only,
+no Playwright needed), `runtime` (Playwright MCP only), and `hybrid` (both,
+default for code-repo sources when the MCP is available).
 
 ### Authenticated browser crawls
 

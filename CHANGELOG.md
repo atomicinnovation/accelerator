@@ -14,7 +14,8 @@
   against a committed SHA-256 manifest. See the
   [Visualiser section of the README](#visualiser) for details.
 
-  - Library reader for all 11 doc types with cross-reference rendering
+  - Library reader for all currently-surfaced doc types with cross-reference 
+    rendering
   - Lifecycle clusters and slug-based timeline view
   - Read-only kanban
   - Kanban write path via `PATCH /api/docs/{path}/frontmatter` with `If-Match`
@@ -27,8 +28,41 @@
     `accelerator-visualiser` CLI wrapper. The server still auto-exits after
     30 minutes idle or when the launching process exits
 
+- **Design convergence workflow** — inventory-and-diff pipeline for comparing
+  a current frontend to a target prototype. Two new skills (`inventory-design`,
+  `analyse-design-gaps`) under a new `skills/design/` category, two new
+  browser-inspection agents, and two new artifact templates. The gap artifact's
+  prose paragraphs satisfy the `extract-work-items` cue-phrase contract so the
+  workflow feeds straight into the existing work-item lifecycle.
+
+  - Added `inventory-design` skill: crawls a design source (code repo, dev
+    server, or hosted prototype) via static analysis, Playwright MCP, or both,
+    producing a dated `design-inventory` directory with screenshots and token
+    observations. Supersedes prior snapshots for the same source-id without
+    deleting them.
+  - Added `analyse-design-gaps` skill: compares two inventories across five
+    drift categories (token, component, screen, net-new, removed); enforces
+    cue-phrase compliance via a post-write audit script.
+  - Added `browser-locator` and `browser-analyser` agents (Playwright MCP).
+  - Added `design-inventory` and `design-gap` artifact templates.
+  - Added `paths.design_inventories` and `paths.design_gaps` config keys.
+  - Added Playwright MCP server dependency (`.claude-plugin/.mcp.json`, pinned
+    to a specific `@playwright/mcp` version).
+
 ### Notes
 
+- `inventory-design` reads `ACCELERATOR_BROWSER_AUTH_HEADER` (or the trio
+  `ACCELERATOR_BROWSER_USERNAME` / `ACCELERATOR_BROWSER_PASSWORD` /
+  `ACCELERATOR_BROWSER_LOGIN_URL`) when crawling authenticated prototypes.
+  Header takes precedence; partial form-login sets fail fast with a named error.
+  The auth header is stripped on cross-origin navigations. Screenshots mask
+  password and token fields; the skill refuses to write if any env-var literal
+  appears in the generated body.
+- The Playwright MCP server is pinned in `.claude-plugin/.mcp.json` and Claude
+  Code prompts to enable it on first use of any skill that needs it.
+  `inventory-design --crawler code` works without the MCP.
+- First-time runtime crawls may require browser-binary installation:
+  `mise run deps:install:playwright`.
 - Tickets are written in place. If a write produces unexpected output, recover
   with `git checkout meta/tickets/<file>`.
 - Air-gapped installs: point `ACCELERATOR_VISUALISER_RELEASES_URL` at an
