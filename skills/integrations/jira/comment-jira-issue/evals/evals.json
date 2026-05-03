@@ -1,0 +1,43 @@
+{
+  "skill_name": "comment-jira-issue",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/comment-jira-issue add ENG-42 --body 'Thanks for flagging this — investigating the root cause now. Will update by EOD.'",
+      "expected_output": "Skill invokes jira-comment-flow.sh add --print-payload, renders the payload under the review heading, then stops at the confirmation gate. No actual comment is posted.",
+      "files": [],
+      "expectations": [
+        "The response invokes jira-comment-flow.sh add with --print-payload (or shows its output)",
+        "The response shows a preview heading like 'Proposed Jira write' or 'review before sending'",
+        "The endpoint shown is POST /rest/api/3/issue/ENG-42/comment",
+        "The response asks the user for confirmation before posting",
+        "No actual comment is posted (jira-comment-flow.sh not called without --print-payload)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/comment-jira-issue delete ENG-42 10042",
+      "expected_output": "Skill invokes jira-comment-flow.sh delete --describe (not --print-payload), presents the operation description clearly labelling it as irreversible (e.g. '(irreversible)'), then stops at the confirmation gate.",
+      "files": [],
+      "expectations": [
+        "The response invokes jira-comment-flow.sh delete with --describe (or shows its output)",
+        "The response explicitly labels the delete operation as irreversible",
+        "The response shows the DELETE method and the correct path /rest/api/3/issue/ENG-42/comment/10042",
+        "The response asks the user for confirmation before deleting",
+        "No actual delete is made (jira-comment-flow.sh not called without --describe)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/comment-jira-issue list ENG-42",
+      "expected_output": "Skill invokes jira-comment-flow.sh list ENG-42 DIRECTLY, with no payload preview and no confirmation gate. List is read-only so the confirmation gate is deliberately absent. The command may fail due to missing credentials, which is expected — the key observable is that no preview/gate step was presented.",
+      "files": [],
+      "expectations": [
+        "The response invokes jira-comment-flow.sh list directly (no --print-payload or --describe flag)",
+        "The response does NOT show a 'Proposed Jira write' preview heading before the list command",
+        "The response does NOT ask the user for confirmation before running the list command",
+        "The skill treats the list subcommand as read-only (skips the confirmation gate steps)"
+      ]
+    }
+  ]
+}

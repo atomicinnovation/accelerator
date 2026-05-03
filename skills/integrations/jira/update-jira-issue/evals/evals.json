@@ -1,0 +1,30 @@
+{
+  "skill_name": "update-jira-issue",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/update-jira-issue ENG-42 --add-label needs-review --no-notify",
+      "expected_output": "Skill invokes jira-update-flow.sh --print-payload, renders a preview that explicitly frames the label change as 'ADD needs-review' (not REPLACE ALL), includes a notification-suppressed warning, then stops at the confirmation gate.",
+      "files": [],
+      "expectations": [
+        "The response invokes jira-update-flow.sh with --print-payload (or shows its output)",
+        "The preview shows the label operation as incremental ADD (not REPLACE ALL labels)",
+        "The preview shows a warning about notifications being suppressed (--no-notify)",
+        "The response asks the user for confirmation before proceeding",
+        "The response does NOT call jira-update-flow.sh without --print-payload"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Simulate this two-turn exchange and document what happens at each step:\n\nTurn 1 — user says: /update-jira-issue ENG-42 --summary 'Revised: fix login timeout on slow networks'\n\nThe skill follows its steps, shows a payload preview, and asks for confirmation.\n\nTurn 2 — user responds: 'n'\n\nFollow the skill's confirmation gate logic exactly and document how Claude responds.",
+      "expected_output": "Claude shows the preview and asks for confirmation. When the user says 'n', the skill opens a revision loop by asking 'What would you like to change?' or similar — it does NOT abort. The interaction continues rather than terminating with 'Aborted'.",
+      "files": [],
+      "expectations": [
+        "Claude presents the payload preview and asks for confirmation",
+        "After the user says 'n', Claude asks what the user wants to change (revision loop) rather than aborting",
+        "Claude does NOT respond with 'Aborted — no Jira write was made' when the user says 'n'",
+        "The response invites the user to continue iterating on the request"
+      ]
+    }
+  ]
+}
