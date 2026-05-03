@@ -3518,7 +3518,7 @@ assert_contains "contains validation" "$OUTPUT" "validation"
 assert_contains "contains pr-description" "$OUTPUT" "pr-description"
 assert_contains "contains work-item" "$OUTPUT" "work-item"
 LINE_COUNT=$(echo "$OUTPUT" | wc -l | tr -d ' ')
-assert_eq "outputs 6 keys" "6" "$LINE_COUNT"
+assert_eq "outputs 8 keys" "8" "$LINE_COUNT"
 
 echo "Test: Returns nothing if templates directory is empty"
 EMPTY_ROOT=$(mktemp -d "$TMPDIR_BASE/empty-plugin-XXXXXX")
@@ -3686,7 +3686,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/meta/tmp" && touch "$REPO/meta/tmp/.gitignore"
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 LINE_COUNT=$(echo "$OUTPUT" | grep -c '| `' || true)
-assert_eq "6 template rows" "6" "$LINE_COUNT"
+assert_eq "8 template rows" "8" "$LINE_COUNT"
 for KEY in plan research adr validation pr-description work-item; do
   if echo "$OUTPUT" | grep "\`$KEY\`" | grep -q "plugin default"; then
     echo "  PASS: $KEY shows plugin default"
@@ -4233,10 +4233,44 @@ echo ""
 echo "Test: init SKILL.md directory count matches Path Resolution list"
 INIT_SKILL="$PLUGIN_ROOT/skills/config/init/SKILL.md"
 EXPECTED=$(grep -cE '^\*\*[A-Za-z][^*]* directory\*\*:' "$INIT_SKILL")
-ACTUAL=$(grep -oE 'each of the [0-9]+ directories' "$INIT_SKILL" \
+ACTUAL=$(grep -oE '<!-- DIR_COUNT:[0-9]+ -->' "$INIT_SKILL" \
   | grep -oE '[0-9]+' | head -1)
 assert_eq "directory count agrees with Path Resolution list" \
   "$EXPECTED" "$ACTUAL"
+
+echo ""
+
+# ============================================================
+echo "=== design templates: auto-discovery ==="
+echo ""
+
+assert_eq "design-inventory listed by enumerator" \
+  "$(config_enumerate_templates "$PLUGIN_ROOT" | grep -c '^design-inventory$')" "1"
+assert_eq "design-gap listed by enumerator" \
+  "$(config_enumerate_templates "$PLUGIN_ROOT" | grep -c '^design-gap$')" "1"
+
+echo ""
+
+echo "=== design templates: resolver returns plugin default ==="
+echo ""
+
+REPO=$(setup_repo)
+RESOLVED=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "design-inventory")
+assert_contains "design-inventory resolves to plugin templates dir" \
+  "$RESOLVED" "templates/design-inventory.md"
+RESOLVED=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "design-gap")
+assert_contains "design-gap resolves to plugin templates dir" \
+  "$RESOLVED" "templates/design-gap.md"
+
+echo ""
+
+echo "=== design path keys: defaults work ==="
+echo ""
+
+ACTUAL=$("$READ_VALUE" paths.design_inventories meta/design-inventories)
+assert_eq "design_inventories default" "meta/design-inventories" "$ACTUAL"
+ACTUAL=$("$READ_VALUE" paths.design_gaps meta/design-gaps)
+assert_eq "design_gaps default" "meta/design-gaps" "$ACTUAL"
 
 echo ""
 

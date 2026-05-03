@@ -28,6 +28,8 @@ Resolve each output directory using the plugin's path configuration:
 **Templates directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh templates meta/templates`
 **Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 **Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh notes meta/notes`
+**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh design_inventories meta/design-inventories`
+**Design gaps directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh design_gaps meta/design-gaps`
 **Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp meta/tmp`
 
 ## Steps
@@ -37,7 +39,8 @@ already existed so you can present a summary at the end.
 
 ### Step 1: Create output directories
 
-For each of the 12 directories resolved above, run:
+<!-- DIR_COUNT:14 -->
+For each of the directories resolved above, run:
 
 ```bash
 mkdir -p {directory}
@@ -114,6 +117,8 @@ Directories:
   ✓ {templates directory} (created | already exists)
   ✓ {work items directory} (created | already exists)
   ✓ {notes directory} (created | already exists)
+  ✓ {design inventories directory} (created | already exists)
+  ✓ {design gaps directory} (created | already exists)
   ✓ {tmp directory} (created | already exists)
 
 Tmp directory:

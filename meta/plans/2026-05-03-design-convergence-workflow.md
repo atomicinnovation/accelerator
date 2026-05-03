@@ -583,15 +583,15 @@ green `mise run test` is the gate.
 
 #### Automated Verification:
 
-- [ ] Templates discoverable: `bash scripts/test-config.sh` includes
+- [x] Templates discoverable: `bash scripts/test-config.sh` includes
       and passes the new design-template assertions.
-- [ ] Path keys resolvable: `scripts/config-read-path.sh
+- [x] Path keys resolvable: `scripts/config-read-path.sh
       design_inventories meta/design-inventories` returns
       `meta/design-inventories`.
-- [ ] Foundation structural test passes (Foundation section of
+- [x] Foundation structural test passes (Foundation section of
       `bash scripts/test-design.sh` — see Phase 1 §5 consolidation
       decision).
-- [ ] CI gate passes: `mise run test` green (the new test-design.sh
+- [x] CI gate passes: `mise run test` green (the new test-design.sh
       is auto-discovered by `test:integration:config` via
       `run_shell_suites`).
 

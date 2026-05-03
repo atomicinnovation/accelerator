@@ -74,18 +74,20 @@ and writes to predictable paths within it. Run `/accelerator:init` to
 create all directories up front, or let skills create them on first use.
 These paths can be overridden via the `paths` configuration section:
 
-| Directory      | Purpose                                         | Written by                                                   |
-|----------------|-------------------------------------------------|--------------------------------------------------------------|
-| `research/`    | Research findings with YAML frontmatter         | `research-codebase`                                          |
-| `plans/`       | Implementation plans with phased changes        | `create-plan`                                                |
-| `decisions/`   | Architecture decision records (ADRs)            | `create-adr`, `extract-adrs`, `review-adr`                   |
-| `reviews/`     | Review summaries and per-lens results           | `review-pr`, `review-plan`                                   |
-| `validations/` | Plan validation reports                         | `validate-plan`                                              |
-| `prs/`         | PR descriptions                                 | `describe-pr`                                                |
-| `templates/`   | Reusable templates (e.g., PR descriptions)      | `configure template`                                         |
-| `work/`        | Work item files referenced by planning          | `create-work-item`, `extract-work-items`, `update-work-item` |
-| `notes/`       | Notes and working documents                     | manual                                                       |
-| `tmp/`         | Ephemeral working data (e.g., review artifacts) | `review-pr`                                                  |
+| Directory             | Purpose                                                        | Written by                                                   |
+|-----------------------|----------------------------------------------------------------|--------------------------------------------------------------|
+| `research/`           | Research findings with YAML frontmatter                        | `research-codebase`                                          |
+| `plans/`              | Implementation plans with phased changes                       | `create-plan`                                                |
+| `decisions/`          | Architecture decision records (ADRs)                           | `create-adr`, `extract-adrs`, `review-adr`                   |
+| `reviews/`            | Review summaries and per-lens results                          | `review-pr`, `review-plan`                                   |
+| `validations/`        | Plan validation reports                                        | `validate-plan`                                              |
+| `prs/`                | PR descriptions                                                | `describe-pr`                                                |
+| `templates/`          | Reusable templates (e.g., PR descriptions)                     | `configure template`                                         |
+| `work/`               | Work item files referenced by planning                         | `create-work-item`, `extract-work-items`, `update-work-item` |
+| `notes/`              | Notes and working documents                                    | manual                                                       |
+| `design-inventories/` | Per-source design inventory snapshots (markdown + screenshots) | `inventory-design`                                           |
+| `design-gaps/`        | Design-gap analysis artifacts                                  | `analyse-design-gaps`                                        |
+| `tmp/`                | Ephemeral working data (e.g., review artifacts)                | `review-pr`                                                  |
 
 This approach means:
 
@@ -211,7 +213,7 @@ subcommands for managing templates without manually locating plugin internals:
 | `/accelerator:configure templates reset <key>` | Remove your customisation, revert to plugin default    |
 
 Available template keys: `plan`, `research`, `adr`, `validation`,
-`pr-description`, `work-item`.
+`pr-description`, `work-item`, `design-inventory`, `design-gap`.
 
 A typical customisation workflow:
 
