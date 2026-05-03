@@ -731,7 +731,7 @@ Update `EXIT_CODES.md` to add:
       equivalent) exits 0 with cases for `_jira_emit_generic_hint`
       covering codes 11/12/13/19/20/21/22/24 (13 returns 1 — caller
       handles).
-- [ ] `shellcheck` clean for all new and modified scripts.
+- [x] `shellcheck` clean for all new and modified scripts.
 - [x] `bash skills/integrations/jira/scripts/test-jira-scripts.sh` still
       exits 0 (this milestone does not yet register new tests in the
       umbrella; that happens in M6).
@@ -1057,7 +1057,7 @@ Append rows:
       0; `test_summary` reports all 28 cases passing (24 numbered +
       11a/11b for E_CREATE_BAD_ASSIGNEE + 25/26 for 5xx and ADF
       round-trip).
-- [ ] `shellcheck skills/integrations/jira/scripts/jira-create-flow.sh
+- [x] `shellcheck skills/integrations/jira/scripts/jira-create-flow.sh
       skills/integrations/jira/scripts/test-jira-create.sh` reports no
       warnings.
 - [x] `bash skills/integrations/jira/scripts/jira-create-flow.sh --help`
@@ -1294,7 +1294,7 @@ flow maps the same string to its own number.)
 - [x] `bash skills/integrations/jira/scripts/test-jira-update.sh` exits
       0; all 32 cases pass (27 numbered + 14a/14b for E_UPDATE_BAD_ASSIGNEE
       + 28/29/30 for empty-fields/5xx/ADF round-trip).
-- [ ] `shellcheck` clean.
+- [x] `shellcheck` clean.
 - [x] If `jira-custom-fields.sh` was extracted, M2 tests still pass.
 - [x] `--print-payload` prints valid JSON and the final query string.
 

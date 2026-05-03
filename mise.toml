@@ -7,6 +7,7 @@ python = "3.14.4"
 gh = "2.89.0"
 rust = "1.90.0"
 node = "22"
+shellcheck = "0.11.0"
 
 [settings]
 experimental = true

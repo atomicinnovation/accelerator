@@ -238,7 +238,7 @@ BODY_FILE_7=$(mktemp "$TMPDIR_BASE/bodyfile-XXXXXX")
 printf 'from file content\n' > "$BODY_FILE_7"
 BODIES_7=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_7"
-OUT_7=$(printf 'from stdin content\n' | create --project ENG --type Task --summary "foo" --body-file "$BODY_FILE_7" 2>/dev/null)
+printf 'from stdin content\n' | create --project ENG --type Task --summary "foo" --body-file "$BODY_FILE_7" > /dev/null 2>&1
 stop_mock
 
 CAPTURED_7=$(jq -r '.[0]' "$BODIES_7")
@@ -252,7 +252,7 @@ echo ""
 
 BODIES_8=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_8"
-OUT_8=$(printf 'from stdin input\n' | create --project ENG --type Task --summary "foo" 2>/dev/null)
+printf 'from stdin input\n' | create --project ENG --type Task --summary "foo" > /dev/null 2>&1
 stop_mock
 
 CAPTURED_8=$(jq -r '.[0]' "$BODIES_8")
@@ -277,7 +277,7 @@ echo ""
 
 BODIES_10=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_10"
-OUT_10=$(create --project ENG --type Task --summary "foo" --body "x" --assignee @me 2>/dev/null)
+create --project ENG --type Task --summary "foo" --body "x" --assignee @me > /dev/null 2>&1
 stop_mock
 
 CAPTURED_10=$(jq -r '.[0]' "$BODIES_10")
@@ -332,7 +332,7 @@ echo ""
 
 BODIES_12=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_12"
-OUT_12=$(create --project ENG --type Task --summary "foo" --body "x" --label foo --label bar 2>/dev/null)
+create --project ENG --type Task --summary "foo" --body "x" --label foo --label bar > /dev/null 2>&1
 stop_mock
 
 CAPTURED_12=$(jq -r '.[0]' "$BODIES_12")
@@ -346,7 +346,7 @@ echo ""
 
 BODIES_13=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_13"
-OUT_13=$(create --project ENG --type Task --summary "foo" --body "x" --component "API" 2>/dev/null)
+create --project ENG --type Task --summary "foo" --body "x" --component "API" > /dev/null 2>&1
 stop_mock
 
 CAPTURED_13=$(jq -r '.[0]' "$BODIES_13")
@@ -360,7 +360,7 @@ echo ""
 
 BODIES_14=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_14"
-OUT_14=$(create --project ENG --type Task --summary "foo" --body "x" --parent ENG-99 2>/dev/null)
+create --project ENG --type Task --summary "foo" --body "x" --parent ENG-99 > /dev/null 2>&1
 stop_mock
 
 CAPTURED_14=$(jq -r '.[0]' "$BODIES_14")
@@ -373,7 +373,7 @@ echo ""
 
 BODIES_15=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-with-custom-fields-capture.json" "$BODIES_15"
-OUT_15=$(create --project ENG --type Task --summary "foo" --body "x" --custom story-points=5 2>/dev/null)
+create --project ENG --type Task --summary "foo" --body "x" --custom story-points=5 > /dev/null 2>&1
 stop_mock
 
 CAPTURED_15=$(jq -r '.[0]' "$BODIES_15")
@@ -398,7 +398,7 @@ echo ""
 
 BODIES_17=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-with-custom-fields-capture.json" "$BODIES_17"
-OUT_17=$(create --project ENG --type Task --summary "foo" --body "x" --custom 'sprint=@json:[42]' 2>/dev/null)
+create --project ENG --type Task --summary "foo" --body "x" --custom 'sprint=@json:[42]' > /dev/null 2>&1
 stop_mock
 
 CAPTURED_17=$(jq -r '.[0]' "$BODIES_17")
@@ -423,7 +423,7 @@ echo ""
 
 BODIES_19=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_19"
-OUT_19=$(create --project ENG --issuetype-id 10001 --summary "foo" --body "x" 2>/dev/null)
+create --project ENG --issuetype-id 10001 --summary "foo" --body "x" > /dev/null 2>&1
 stop_mock
 
 CAPTURED_19=$(jq -r '.[0]' "$BODIES_19")

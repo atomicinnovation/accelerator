@@ -121,7 +121,7 @@ _jira_create() {
   local body_inline_set=0 body_file_set=0
   local assignee="" reporter="" priority="" parent=""
   local -a labels=() components=() customs=()
-  local render_adf=1 print_payload=0 quiet=0 no_editor=0
+  local print_payload=0 quiet=0 no_editor=0
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
