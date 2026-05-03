@@ -1,0 +1,13 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1/comment",
+      "capture_url": true,
+      "response": {
+        "status": 200,
+        "body": "{\"startAt\":0,\"maxResults\":50,\"total\":2,\"comments\":[{\"id\":\"100\",\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Test comment body\"}]}]},\"author\":{\"accountId\":\"abc123\",\"displayName\":\"Test User\"},\"created\":\"2026-01-01T00:00:00.000+0000\",\"updated\":\"2026-01-01T00:00:00.000+0000\"},{\"id\":\"101\",\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Second comment body\"}]}]},\"author\":{\"accountId\":\"def456\",\"displayName\":\"Other User\"},\"created\":\"2026-01-02T00:00:00.000+0000\",\"updated\":\"2026-01-02T00:00:00.000+0000\"}]}"
+      }
+    }
+  ]
+}

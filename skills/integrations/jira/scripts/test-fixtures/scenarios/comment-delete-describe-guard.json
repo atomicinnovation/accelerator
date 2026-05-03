@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {
+      "method": "DELETE",
+      "path": "/rest/api/3/issue/ENG-1/comment/100",
+      "consume": false,
+      "capture_url": true,
+      "response": {
+        "status": 204,
+        "body": ""
+      }
+    }
+  ]
+}

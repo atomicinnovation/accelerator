@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/ENG-1/comment",
+      "consume": false,
+      "capture_url": true,
+      "response": {
+        "status": 201,
+        "body": ""
+      }
+    }
+  ]
+}

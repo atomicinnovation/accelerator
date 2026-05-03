@@ -1,0 +1,36 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/ENG-1/comment",
+      "response": {
+        "status": 500,
+        "body": "{\"errorMessages\":[\"Internal Server Error\"],\"errors\":{}}"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/ENG-1/comment",
+      "response": {
+        "status": 500,
+        "body": "{\"errorMessages\":[\"Internal Server Error\"],\"errors\":{}}"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/ENG-1/comment",
+      "response": {
+        "status": 500,
+        "body": "{\"errorMessages\":[\"Internal Server Error\"],\"errors\":{}}"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/ENG-1/comment",
+      "response": {
+        "status": 500,
+        "body": "{\"errorMessages\":[\"Internal Server Error\"],\"errors\":{}}"
+      }
+    }
+  ]
+}

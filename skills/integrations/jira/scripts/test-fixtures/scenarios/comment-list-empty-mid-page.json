@@ -1,0 +1,20 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1/comment",
+      "response": {
+        "status": 200,
+        "body": "{\"startAt\":0,\"maxResults\":50,\"total\":3,\"comments\":[{\"id\":\"1\",\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Comment one\"}]}]},\"author\":{\"accountId\":\"abc123\",\"displayName\":\"Test User\"},\"created\":\"2026-01-01T00:00:00.000+0000\"},{\"id\":\"2\",\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Comment two\"}]}]},\"author\":{\"accountId\":\"abc123\",\"displayName\":\"Test User\"},\"created\":\"2026-01-01T01:00:00.000+0000\"}]}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1/comment",
+      "response": {
+        "status": 200,
+        "body": "{\"startAt\":2,\"maxResults\":50,\"total\":3,\"comments\":[]}"
+      }
+    }
+  ]
+}

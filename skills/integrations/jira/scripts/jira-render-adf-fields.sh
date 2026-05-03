@@ -89,6 +89,13 @@ _render_issue() {
   printf '%s' "$json"
 }
 
+# _render_comment <comment_json>
+# Renders the .body field of a single comment if it is an ADF doc object.
+_render_comment() {
+  local json="$1"
+  _render_at_jq_path "$json" '["body"]'
+}
+
 main() {
   local input
   input=$(cat)
@@ -123,10 +130,24 @@ main() {
 
   local result="$input"
 
-  # Dispatch: search response (has "issues" key) vs single issue
-  local has_issues
-  has_issues=$(printf '%s' "$result" | jq -r 'if has("issues") then "true" else "false" end' \
+  # Dispatch: search response → comment-list → single-comment → single-issue.
+  # Each new branch uses positive discriminators plus (has("fields") | not) to
+  # avoid false-positive matches on single-issue shapes that happen to carry a
+  # top-level `body` or `comments` key.
+  local has_issues has_comment_list has_single_comment
+  has_issues=$(printf '%s' "$result" | jq -r \
+    'if has("issues") then "true" else "false" end' \
     2>/dev/null) || has_issues="false"
+  has_comment_list=$(printf '%s' "$result" | jq -r \
+    'if has("comments") and has("startAt") and (has("fields") | not)
+     then "true" else "false" end' \
+    2>/dev/null) || has_comment_list="false"
+  has_single_comment=$(printf '%s' "$result" | jq -r \
+    'if has("body") and (.body | type == "object")
+        and has("id") and has("author")
+        and (has("fields") | not)
+     then "true" else "false" end' \
+    2>/dev/null) || has_single_comment="false"
 
   if [[ "$has_issues" == "true" ]]; then
     # Search response: iterate issues[] by index
@@ -139,6 +160,20 @@ main() {
       result=$(printf '%s' "$result" | jq --argjson i "$i" --argjson v "$rendered_issue" \
         '.issues[$i] = $v')
     done
+  elif [[ "$has_comment_list" == "true" ]]; then
+    # Comment-list response: iterate comments[] by index
+    local comment_count
+    comment_count=$(printf '%s' "$result" | jq -r '.comments | length' 2>/dev/null) || comment_count=0
+    local i comment_json rendered_comment
+    for (( i = 0; i < comment_count; i++ )); do
+      comment_json=$(printf '%s' "$result" | jq ".comments[$i]")
+      rendered_comment=$(_render_comment "$comment_json")
+      result=$(printf '%s' "$result" | jq --argjson i "$i" --argjson v "$rendered_comment" \
+        '.comments[$i] = $v')
+    done
+  elif [[ "$has_single_comment" == "true" ]]; then
+    # Single comment
+    result=$(_render_comment "$result")
   else
     # Single issue
     result=$(_render_issue "$result" "${custom_ids[@]+"${custom_ids[@]}"}")

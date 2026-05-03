@@ -1,0 +1,31 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1/comment",
+      "capture_url": true,
+      "response": {
+        "status": 200,
+        "body": "{\"startAt\":0,\"maxResults\":2,\"total\":5,\"comments\":[{\"id\":\"1\",\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Comment one\"}]}]},\"author\":{\"accountId\":\"abc123\",\"displayName\":\"Test User\"},\"created\":\"2026-01-01T00:00:00.000+0000\"},{\"id\":\"2\",\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Comment two\"}]}]},\"author\":{\"accountId\":\"abc123\",\"displayName\":\"Test User\"},\"created\":\"2026-01-01T01:00:00.000+0000\"}]}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1/comment",
+      "capture_url": true,
+      "response": {
+        "status": 200,
+        "body": "{\"startAt\":2,\"maxResults\":2,\"total\":5,\"comments\":[{\"id\":\"3\",\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Comment three\"}]}]},\"author\":{\"accountId\":\"abc123\",\"displayName\":\"Test User\"},\"created\":\"2026-01-01T02:00:00.000+0000\"},{\"id\":\"4\",\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Comment four\"}]}]},\"author\":{\"accountId\":\"abc123\",\"displayName\":\"Test User\"},\"created\":\"2026-01-01T03:00:00.000+0000\"}]}"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1/comment",
+      "capture_url": true,
+      "response": {
+        "status": 200,
+        "body": "{\"startAt\":4,\"maxResults\":2,\"total\":5,\"comments\":[{\"id\":\"5\",\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Comment five\"}]}]},\"author\":{\"accountId\":\"abc123\",\"displayName\":\"Test User\"},\"created\":\"2026-01-01T04:00:00.000+0000\"}]}"
+      }
+    }
+  ]
+}

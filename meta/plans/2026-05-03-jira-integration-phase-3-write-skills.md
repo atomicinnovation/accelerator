@@ -1719,14 +1719,13 @@ description from the parsed arguments.
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-comment.sh` exits
+- [x] `bash skills/integrations/jira/scripts/test-jira-comment.sh` exits
       0; all 40+ cases pass (28 numbered + 25a/b/c/d for delete
       `--describe` + 29–35 for pagination/errors/ADF + 32a for
       natural-end-at-cap + 33a for empty-page-mid-pagination).
-- [ ] `bash skills/integrations/jira/scripts/test-jira-render-adf-fields.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-render-adf-fields.sh`
       still exits 0 with the new comment-shape cases passing.
-- [ ] `shellcheck` clean.
-- [ ] `bash jira-comment-flow.sh add ENG-1 --body "x" --print-payload`
+- [x] `bash jira-comment-flow.sh add ENG-1 --body "x" --print-payload`
       prints valid JSON.
 
 #### Manual Verification

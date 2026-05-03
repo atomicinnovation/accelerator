@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-999/comment",
+      "response": {
+        "status": 404,
+        "body": "{\"errorMessages\":[\"Issue does not exist or you do not have permission to see it.\"],\"errors\":{}}"
+      }
+    }
+  ]
+}

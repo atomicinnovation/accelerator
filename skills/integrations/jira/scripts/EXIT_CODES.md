@@ -67,8 +67,15 @@ table. Gaps within ranges are reserved.
 | 115  | `E_UPDATE_NO_SITE_CACHE`         | `jira-update-flow.sh`       | `--assignee`/`--reporter` `@me` but `site.json` missing; run `/init-jira`                 |
 | 116  | `E_UPDATE_NO_BODY`               | `jira-update-flow.sh`       | `--body`/`--body-file` resolution failed                                                  |
 | 117  | `E_UPDATE_BAD_ASSIGNEE`          | `jira-update-flow.sh`       | `--assignee` not `@me`, `""` (unassign), or a raw accountId (email not supported)         |
-
-**Reservation note**: codes 91–99 are reserved for `jira-comment-flow.sh` (M4).
+| 91   | `E_COMMENT_NO_SUBCOMMAND`        | `jira-comment-flow.sh`      | No subcommand provided                                                                    |
+| 92   | `E_COMMENT_BAD_SUBCOMMAND`       | `jira-comment-flow.sh`      | Unknown subcommand                                                                        |
+| 93   | `E_COMMENT_NO_KEY`               | `jira-comment-flow.sh`      | No issue key positional argument                                                          |
+| 94   | `E_COMMENT_NO_BODY`              | `jira-comment-flow.sh`      | `add`/`edit` without resolvable body                                                      |
+| 95   | `E_COMMENT_NO_ID`                | `jira-comment-flow.sh`      | `edit`/`delete` without comment id argument                                               |
+| 96   | `E_COMMENT_BAD_FLAG`             | `jira-comment-flow.sh`      | Unrecognised flag                                                                         |
+| 97   | `E_COMMENT_BAD_PAGE_SIZE`        | `jira-comment-flow.sh`      | `--page-size` not in `[1, 100]`                                                           |
+| 98   | `E_COMMENT_BAD_VISIBILITY`       | `jira-comment-flow.sh`      | `--visibility` not in form `role:NAME` or `group:NAME`                                    |
+| 99   | `E_COMMENT_BAD_RESPONSE`         | `jira-comment-flow.sh`      | `.total` or `.comments\|length` not an integer in list response                           |
 
 ## Body-input helper (caller-namespaced)
 

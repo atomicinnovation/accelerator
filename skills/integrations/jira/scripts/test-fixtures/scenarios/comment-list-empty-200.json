@@ -1,0 +1,13 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1/comment",
+      "capture_url": true,
+      "response": {
+        "status": 200,
+        "body": "{\"startAt\":0,\"maxResults\":50,\"total\":0,\"comments\":[]}"
+      }
+    }
+  ]
+}

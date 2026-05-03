@@ -307,4 +307,69 @@ assert_eq "custom field not rendered when gate inactive" "object" "$CF_TYPE13"
 echo ""
 
 # ---------------------------------------------------------------------------
+echo "=== Case 14: comment-list shape — bodies rendered ==="
+echo ""
+
+COMMENT_LIST=$(jq -cn \
+  --argjson adf1 "$SIMPLE_ADF" \
+  --argjson adf2 "$SIMPLE_ADF" \
+  '{startAt:0, maxResults:50, total:2,
+    comments:[
+      {"id":"1","body":$adf1,"author":{"accountId":"u1","displayName":"Alice"},"created":"2026-01-01T00:00:00.000+0000"},
+      {"id":"2","body":$adf2,"author":{"accountId":"u2","displayName":"Bob"},"created":"2026-01-02T00:00:00.000+0000"}
+    ]}')
+OUT14=$(printf '%s' "$COMMENT_LIST" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
+assert_eq "comment-list: first body rendered"  "hello world" "$(printf '%s' "$OUT14" | jq -r '.comments[0].body')"
+assert_eq "comment-list: second body rendered" "hello world" "$(printf '%s' "$OUT14" | jq -r '.comments[1].body')"
+assert_eq "comment-list: startAt preserved"    "0"           "$(printf '%s' "$OUT14" | jq -r '.startAt')"
+assert_eq "comment-list: total preserved"      "2"           "$(printf '%s' "$OUT14" | jq -r '.total')"
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "=== Case 15: single-comment shape — body rendered ==="
+echo ""
+
+SINGLE_COMMENT=$(jq -cn \
+  --argjson adf "$SIMPLE_ADF" \
+  '{id:"42", body:$adf, author:{"accountId":"u1","displayName":"Alice"}, created:"2026-01-01T00:00:00.000+0000"}')
+OUT15=$(printf '%s' "$SINGLE_COMMENT" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
+assert_eq "single-comment: body rendered" "hello world" "$(printf '%s' "$OUT15" | jq -r '.body')"
+assert_eq "single-comment: id preserved"  "42"          "$(printf '%s' "$OUT15" | jq -r '.id')"
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "=== Case 16: already-rendered comment-list is idempotent ==="
+echo ""
+
+PASS1_16=$(printf '%s' "$COMMENT_LIST" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
+PASS2_16=$(printf '%s' "$PASS1_16"     | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
+assert_eq "comment-list idempotent" "$PASS1_16" "$PASS2_16"
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "=== Case 17: single-comment with non-ADF body passes through unchanged ==="
+echo ""
+
+PLAIN_COMMENT='{"id":"42","body":"plain text body","author":{"accountId":"u1","displayName":"Alice"}}'
+OUT17=$(printf '%s' "$PLAIN_COMMENT" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
+assert_eq "non-ADF body preserved" "plain text body" "$(printf '%s' "$OUT17" | jq -r '.body')"
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "=== Case 18: single-issue with top-level startAt+comments dispatches to single-issue ==="
+echo ""
+
+# Regression guard: a shape that matches has("comments") and has("startAt") but ALSO
+# has("fields") must NOT dispatch to the comment-list branch.
+ISSUE_WITH_COMMENTS=$(jq -cn \
+  --argjson adf "$SIMPLE_ADF" \
+  '{key:"ENG-1", startAt:0, fields:{description:$adf, summary:"Test"}, comments:[{id:"1"}]}')
+OUT18=$(printf '%s' "$ISSUE_WITH_COMMENTS" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
+assert_eq "issue+comments: description rendered (single-issue branch used)" \
+  "hello world" "$(printf '%s' "$OUT18" | jq -r '.fields.description')"
+assert_eq "issue+comments: top-level comments array preserved" \
+  "1" "$(printf '%s' "$OUT18" | jq '.comments | length')"
+echo ""
+
+# ---------------------------------------------------------------------------
 test_summary

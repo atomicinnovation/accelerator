@@ -1,0 +1,36 @@
+{
+  "expectations": [
+    {
+      "method": "DELETE",
+      "path": "/rest/api/3/issue/ENG-1/comment/100",
+      "response": {
+        "status": 500,
+        "body": "{\"errorMessages\":[\"Internal Server Error\"],\"errors\":{}}"
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/rest/api/3/issue/ENG-1/comment/100",
+      "response": {
+        "status": 500,
+        "body": "{\"errorMessages\":[\"Internal Server Error\"],\"errors\":{}}"
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/rest/api/3/issue/ENG-1/comment/100",
+      "response": {
+        "status": 500,
+        "body": "{\"errorMessages\":[\"Internal Server Error\"],\"errors\":{}}"
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/rest/api/3/issue/ENG-1/comment/100",
+      "response": {
+        "status": 500,
+        "body": "{\"errorMessages\":[\"Internal Server Error\"],\"errors\":{}}"
+      }
+    }
+  ]
+}
