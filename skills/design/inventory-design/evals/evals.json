@@ -1,0 +1,162 @@
+{
+  "skill_name": "inventory-design",
+  "evals": [
+    {
+      "id": 1,
+      "name": "code-crawler-fixture",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nA user invokes: /accelerator:inventory-design design-test-app ./examples/design-test-app --crawler code\n\nFollow Steps 1-9 of the skill. For Step 5, analyse the files in examples/design-test-app/ directly rather than spawning real agents. For Step 8, simulate writing the artifact by producing the inventory body in your response rather than actually writing to disk.\n\nSave to outputs/:\n- inventory.md: The full content of the inventory.md you would write\n- summary.md: The summary you would present to the user (Step 9)",
+      "expected_output": "Inventory contains a Component Catalogue with Button and Card components named. Token table lists the four Tailwind palette entries (primary, primary-muted, surface, danger). Screen Inventory identifies at least Home and Settings screens. Artifact path follows the YYYY-MM-DD-HHMMSS-design-test-app/ pattern.",
+      "files": [],
+      "expectations": [
+        "inventory.md frontmatter includes source: design-test-app",
+        "inventory.md frontmatter includes sequence: 1 (first run, no prior inventories)",
+        "Component Catalogue section names the Button component",
+        "Component Catalogue section names the Card component",
+        "Design Tokens section includes the primary colour token",
+        "Design Tokens section includes the danger colour token",
+        "Screen Inventory section references a Home screen",
+        "Screen Inventory section references a Settings screen",
+        "Artifact directory path shown in summary follows YYYY-MM-DD-HHMMSS-design-test-app pattern"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "supersede-prior-inventory",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nContext: a prior inventory already exists at meta/design-inventories/2026-05-01-120000-design-test-app/inventory.md with frontmatter status: accepted and sequence: 1.\n\nA user invokes: /accelerator:inventory-design design-test-app ./examples/design-test-app --crawler code\n\nFollow the supersede protocol (Step 4 and end of Step 8). Simulate the sequence computation and the supersede mutation.\n\nSave to outputs/:\n- sequence.md: What sequence number would be assigned to the new inventory and why\n- supersede.md: Which prior directory would be marked superseded and what change would be made to its frontmatter\n- summary.md: The summary presented to the user",
+      "expected_output": "New inventory gets sequence 2. Prior 2026-05-01-120000-design-test-app inventory is marked status: superseded. Summary confirms supersede occurred and names the prior directory.",
+      "files": [],
+      "expectations": [
+        "New inventory is assigned sequence: 2",
+        "Prior directory 2026-05-01-120000-design-test-app is identified for superseding",
+        "The mutation described sets status: superseded on the prior inventory.md",
+        "Summary explicitly mentions the prior inventory that was superseded",
+        "New directory name contains the source-id design-test-app"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "mcp-unavailable-fallback",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nIMPORTANT: For this eval, mcp__playwright__browser_navigate is NOT in your available tool set.\n\nA user invokes: /accelerator:inventory-design design-test-app ./examples/design-test-app --crawler hybrid\n\nFollow Step 3 (MCP detection). The MCP is unavailable.\n\nSave to outputs/:\n- response.md: Your exact response to the user before starting the crawl\n- crawl-notes.md: What you would write in the Crawl Notes section about the downgrade",
+      "expected_output": "Skill prints the auto-fallback notice BEFORE starting the crawl (not only in Crawl Notes). Falls back to code-only. Both the pre-crawl notice and Crawl Notes mention Playwright MCP unavailability.",
+      "files": [],
+      "expectations": [
+        "Response printed before crawl starts mentions Playwright MCP not available",
+        "Response instructs user to enable MCP to get runtime data",
+        "Crawl Notes content mentions the downgrade from hybrid to code-only",
+        "Skill does not attempt to use any mcp__playwright__* tools",
+        "Skill continues with code crawler after downgrade (does not abort)"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "auth-walled-no-credentials",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root. No ACCELERATOR_BROWSER_* environment variables are set.\n\nA user invokes: /accelerator:inventory-design my-app https://prototype.example.com --crawler runtime\n\nDuring the crawl, the browser-locator agent reports that /dashboard requires authentication (returns a login redirect).\n\nSave to outputs/:\n- crawl-notes.md: What you would write in the Crawl Notes section for the auth-walled route\n- console.md: The console message emitted when the route is skipped",
+      "expected_output": "Auth-walled route is skipped and noted in Crawl Notes. Console message names the env vars that would unlock the route. No fabricated observations for the dashboard screen.",
+      "files": [],
+      "expectations": [
+        "Crawl Notes records the skipped URL /dashboard (or equivalent auth-walled route)",
+        "Console message mentions ACCELERATOR_BROWSER_AUTH_HEADER",
+        "Console message mentions ACCELERATOR_BROWSER_USERNAME / _PASSWORD / _LOGIN_URL",
+        "No observations fabricated for the auth-walled screen",
+        "Auth-walled skip does not abort the crawl — remaining routes continue"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "source-id-in-frontmatter",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nA user invokes: /accelerator:inventory-design my-prototype https://prototype.example.com --crawler code\n\nOnly produce the frontmatter block of the inventory.md (Steps 1-8, frontmatter only — no body prose needed).\n\nSave to outputs/:\n- frontmatter.md: The YAML frontmatter block you would write",
+      "expected_output": "Frontmatter source field matches user-supplied source-id my-prototype exactly.",
+      "files": [],
+      "expectations": [
+        "frontmatter contains source: my-prototype",
+        "frontmatter contains a sequence field with a numeric value",
+        "frontmatter contains a status field",
+        "frontmatter contains screenshots_incomplete field"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "same-day-rerun-no-clobber",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nContext: an inventory already exists at meta/design-inventories/2026-05-03-090000-design-test-app/inventory.md (written earlier today).\n\nA user invokes (later that same minute): /accelerator:inventory-design design-test-app ./examples/design-test-app --crawler code\n\nExplain the artifact directory that would be written and why it does not collide with the prior directory.\n\nSave to outputs/:\n- directory-name.md: The new directory name that would be written and why it is distinct from the prior one",
+      "expected_output": "New directory has a different HHMMSS timestamp from the prior directory. No clobber occurs. Sequence number is incremented.",
+      "files": [],
+      "expectations": [
+        "New directory name is distinct from 2026-05-03-090000-design-test-app (different HHMMSS)",
+        "New inventory gets sequence: 2",
+        "Explanation mentions that HHMMSS suffix prevents same-day collision"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "auth-header-precedence",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nEnvironment: ACCELERATOR_BROWSER_AUTH_HEADER=Bearer-test, ACCELERATOR_BROWSER_USERNAME=alice, ACCELERATOR_BROWSER_PASSWORD=secret, ACCELERATOR_BROWSER_LOGIN_URL=https://example.com/login are all set.\n\nSimulate running resolve-auth.sh with these env vars.\n\nSave to outputs/:\n- auth-mode.md: Which mode is selected and why\n- warning.md: The warning message that would be emitted to stderr",
+      "expected_output": "Auth mode is header (AUTH_HEADER takes precedence). Warning names the ignored form-login vars.",
+      "files": [],
+      "expectations": [
+        "Auth mode resolved is 'header'",
+        "Warning message mentions ACCELERATOR_BROWSER_USERNAME",
+        "Warning message mentions ACCELERATOR_BROWSER_PASSWORD",
+        "Warning message mentions ACCELERATOR_BROWSER_LOGIN_URL",
+        "Warning message uses the word 'ignoring' or 'ignored'"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "partial-credentials-fail-fast",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nEnvironment: ACCELERATOR_BROWSER_USERNAME=alice and ACCELERATOR_BROWSER_PASSWORD=secret are set, but ACCELERATOR_BROWSER_LOGIN_URL is NOT set.\n\nSimulate running resolve-auth.sh with these env vars.\n\nSave to outputs/:\n- behavior.md: What the script outputs and what exit code it returns",
+      "expected_output": "Script exits non-zero and names the missing ACCELERATOR_BROWSER_LOGIN_URL variable.",
+      "files": [],
+      "expectations": [
+        "Script exits with a non-zero exit code",
+        "Error message names ACCELERATOR_BROWSER_LOGIN_URL as the missing variable",
+        "Script does NOT attempt to perform a partial login",
+        "Script does NOT output 'form' or 'none'"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "url-scheme-rejection",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nA user invokes: /accelerator:inventory-design test-fs file:///etc/passwd\n\nSimulate running validate-source.sh with the location file:///etc/passwd.\n\nSave to outputs/:\n- behavior.md: What the script outputs, its exit code, and whether any artifact directory was created",
+      "expected_output": "Script exits non-zero before any agent is spawned. Error names the rejected scheme. No artifact directory is created.",
+      "files": [],
+      "expectations": [
+        "Script exits with a non-zero exit code",
+        "Error message mentions file:// scheme",
+        "No artifact directory is created",
+        "No agents are spawned"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "internal-host-rejection",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nSimulate running validate-source.sh with location http://127.0.0.1:8080, then with http://169.254.169.254/.\n\nSave to outputs/:\n- behavior.md: Exit code and error message for each URL",
+      "expected_output": "Both exit non-zero with errors referencing the host allowlist. No artifact directories are created.",
+      "files": [],
+      "expectations": [
+        "http://127.0.0.1:8080 causes a non-zero exit",
+        "http://169.254.169.254/ causes a non-zero exit",
+        "Error for 127.0.0.1 mentions loopback",
+        "Error for 169.254.169.254 mentions link-local or metadata",
+        "No artifact directories are created for either URL"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "browser-evaluate-safety-structural",
+      "prompt": "Read agents/browser-analyser.md fully.\n\nSave to outputs/:\n- forbidden-patterns.md: List every forbidden browser_evaluate payload pattern that is explicitly named in the agent body",
+      "expected_output": "Agent body explicitly lists each forbidden pattern: fetch, XMLHttpRequest, document.cookie, localStorage, sessionStorage, indexedDB, eval, innerHTML, window.open.",
+      "files": [],
+      "expectations": [
+        "fetch is named as forbidden",
+        "XMLHttpRequest is named as forbidden",
+        "document.cookie is named as forbidden",
+        "localStorage is named as forbidden",
+        "sessionStorage is named as forbidden",
+        "indexedDB is named as forbidden",
+        "eval is named as forbidden",
+        "innerHTML is named as forbidden",
+        "window.open is named as forbidden"
+      ]
+    }
+  ]
+}

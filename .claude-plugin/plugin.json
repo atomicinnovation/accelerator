@@ -17,6 +17,7 @@
     "./skills/review/lenses/",
     "./skills/review/output-formats/",
     "./skills/visualisation/",
+    "./skills/design/",
     "./skills/config/"
   ]
 }
