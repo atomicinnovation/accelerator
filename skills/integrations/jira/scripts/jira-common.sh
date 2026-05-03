@@ -256,3 +256,22 @@ _jira_uuid_v4() {
       }'
   fi
 }
+
+# ---------------------------------------------------------------------------
+# Generic request-error hint emitter
+
+# Emit a generic Hint: line for a propagated jira-request.sh exit code.
+# Returns 0 if a generic hint was emitted, 1 if the code is flow-specific
+# (caller should emit its own message).
+_jira_emit_generic_hint() {
+  local code="$1"
+  case "$code" in
+    11|12|22) printf 'Hint: check credentials with /init-jira.\n' >&2 ;;
+    19)       printf 'Hint: rate-limited by Jira; wait briefly and retry.\n' >&2 ;;
+    20)       printf 'Hint: Jira returned a server error; check the Jira status page.\n' >&2 ;;
+    21)       printf 'Hint: connection failed; check network and ACCELERATOR_JIRA_BASE_URL.\n' >&2 ;;
+    34)       printf 'Hint: check the field error above; run /init-jira --refresh-fields if a custom field id was rejected.\n' >&2 ;;
+    *)        return 1 ;;
+  esac
+  return 0
+}

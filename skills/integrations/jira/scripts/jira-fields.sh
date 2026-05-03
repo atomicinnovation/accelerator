@@ -63,7 +63,10 @@ _fields_do_refresh() {
                       | gsub("[^a-z0-9]+"; "-")
                       | ltrimstr("-")
                       | rtrimstr("-"))}
-       + (if .schema.custom then {schema: {custom: .schema.custom}} else {} end)
+       + (if (.schema.custom or .schema.type) then
+             {schema: ((if .schema.custom then {custom: .schema.custom} else {} end)
+                      + (if .schema.type  then {type:   .schema.type}  else {} end))}
+           else {} end)
     ]}'); then
     echo "E_BAD_JSON: could not parse /rest/api/3/field response" >&2
     return 1

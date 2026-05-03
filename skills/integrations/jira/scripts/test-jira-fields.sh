@@ -309,4 +309,18 @@ assert_eq "float schema.custom preserved" \
 echo ""
 
 # ============================================================
+echo "=== Case 17: refresh persists schema.type alongside schema.custom ==="
+echo ""
+
+TEXTAREA_TYPE=$(jq -r '.fields[] | select(.id=="customfield_10100") | .schema.type' "$FIELDS14")
+assert_eq "textarea schema.type persisted" "string" "$TEXTAREA_TYPE"
+
+TEXTFIELD_TYPE=$(jq -r '.fields[] | select(.id=="customfield_10200") | .schema.type' "$FIELDS14")
+assert_eq "textfield schema.type persisted" "string" "$TEXTFIELD_TYPE"
+
+FLOAT_TYPE=$(jq -r '.fields[] | select(.id=="customfield_10300") | .schema.type' "$FIELDS14")
+assert_eq "float schema.type persisted" "number" "$FLOAT_TYPE"
+echo ""
+
+# ============================================================
 test_summary

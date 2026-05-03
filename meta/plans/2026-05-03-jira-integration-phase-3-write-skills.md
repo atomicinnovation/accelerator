@@ -717,22 +717,22 @@ Update `EXIT_CODES.md` to add:
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-body-input.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-body-input.sh`
       exits 0; `test_summary` reports all 14 cases passing (including
       case 13 EDITOR injection guard returning E_BODY_EDITOR_INVALID
       with internal code 6).
-- [ ] `bash skills/integrations/jira/scripts/test-jira-custom-fields.sh`
+- [x] `bash skills/integrations/jira/scripts/test-jira-custom-fields.sh`
       exits 0; all 12 cases pass.
-- [ ] `bash skills/integrations/jira/scripts/test-jira-fields.sh` exits
+- [x] `bash skills/integrations/jira/scripts/test-jira-fields.sh` exits
       0 with the regression cases asserting `schema.type` is persisted.
-- [ ] `bash skills/integrations/jira/scripts/test-jira-request.sh` exits
+- [x] `bash skills/integrations/jira/scripts/test-jira-request.sh` exits
       0 with the new 400-mapping case.
-- [ ] `bash skills/integrations/jira/scripts/test-jira-common.sh` (or
+- [x] `bash skills/integrations/jira/scripts/test-jira-common.sh` (or
       equivalent) exits 0 with cases for `_jira_emit_generic_hint`
       covering codes 11/12/13/19/20/21/22/24 (13 returns 1 — caller
       handles).
 - [ ] `shellcheck` clean for all new and modified scripts.
-- [ ] `bash skills/integrations/jira/scripts/test-jira-scripts.sh` still
+- [x] `bash skills/integrations/jira/scripts/test-jira-scripts.sh` still
       exits 0 (this milestone does not yet register new tests in the
       umbrella; that happens in M6).
 

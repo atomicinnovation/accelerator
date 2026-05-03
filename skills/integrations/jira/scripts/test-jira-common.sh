@@ -356,4 +356,57 @@ assert_eq "dependencies satisfied" "0" "$EXIT_CODE"
 
 echo ""
 
+# ---------------------------------------------------------------------------
+echo "=== _jira_emit_generic_hint ==="
+echo ""
+
+source "$JIRA_COMMON"
+
+_hint() {
+  local code="$1"
+  _jira_emit_generic_hint "$code" 2>&1 >/dev/null || true
+}
+_hint_rc() {
+  local code="$1"
+  local rc=0
+  _jira_emit_generic_hint "$code" 2>/dev/null || rc=$?
+  echo "$rc"
+}
+
+echo "Test: code 11 → credentials hint, returns 0"
+assert_contains "code 11 emits credentials hint" "credentials" "$(_hint 11)"
+assert_eq "code 11 returns 0" "0" "$(_hint_rc 11)"
+
+echo "Test: code 12 → credentials hint, returns 0"
+assert_contains "code 12 emits credentials hint" "credentials" "$(_hint 12)"
+assert_eq "code 12 returns 0" "0" "$(_hint_rc 12)"
+
+echo "Test: code 22 → credentials hint, returns 0"
+assert_contains "code 22 emits credentials hint" "credentials" "$(_hint 22)"
+assert_eq "code 22 returns 0" "0" "$(_hint_rc 22)"
+
+echo "Test: code 19 → rate-limit hint, returns 0"
+assert_contains "code 19 emits rate-limit hint" "rate-limited" "$(_hint 19)"
+assert_eq "code 19 returns 0" "0" "$(_hint_rc 19)"
+
+echo "Test: code 20 → server error hint, returns 0"
+assert_contains "code 20 emits server-error hint" "server error" "$(_hint 20)"
+assert_eq "code 20 returns 0" "0" "$(_hint_rc 20)"
+
+echo "Test: code 21 → connection hint, returns 0"
+assert_contains "code 21 emits connection hint" "connection failed" "$(_hint 21)"
+assert_eq "code 21 returns 0" "0" "$(_hint_rc 21)"
+
+echo "Test: code 34 → field error hint, returns 0"
+assert_contains "code 34 emits refresh-fields hint" "refresh-fields" "$(_hint 34)"
+assert_eq "code 34 returns 0" "0" "$(_hint_rc 34)"
+
+echo "Test: code 13 → no hint emitted, returns 1 (flow-specific)"
+HINT_13=$(_hint 13)
+assert_empty "code 13 emits no hint (flow-specific)" "$HINT_13"
+HINT_13_RC=$(_hint_rc 13)
+assert_eq "code 13 returns 1" "1" "$HINT_13_RC"
+
+echo ""
+
 test_summary

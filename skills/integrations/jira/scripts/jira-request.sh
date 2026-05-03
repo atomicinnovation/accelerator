@@ -328,6 +328,7 @@ while [ $attempt -lt $max_attempts ]; do
       printf '%s' "$body"
       exit 0
       ;;
+    400) cat "$body_file" >&2; exit 34 ;;
     401) cat "$body_file" >&2; exit 11 ;;
     403) cat "$body_file" >&2; exit 12 ;;
     404) cat "$body_file" >&2; exit 13 ;;

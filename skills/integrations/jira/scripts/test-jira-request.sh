@@ -481,4 +481,20 @@ assert_exit_code "bad site exits 15" 15 \
 echo ""
 
 # ============================================================
+echo "=== Case 27: HTTP 400 — exits 34, body forwarded to stderr ==="
+echo ""
+
+start_mock "$SCENARIOS/error-400.json"
+EXIT_400=0
+ERR_400=$(cd "$REPO" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" \
+  ACCELERATOR_TEST_MODE=1 \
+  ACCELERATOR_JIRA_BASE_URL_OVERRIDE_TEST="$MOCK_URL" \
+  bash "$SCRIPT" POST /rest/api/3/issue 2>&1 >/dev/null) || EXIT_400=$?
+stop_mock
+
+assert_eq "HTTP 400 exits 34" "34" "$EXIT_400"
+assert_contains "HTTP 400 body forwarded to stderr" "Summary is required" "$ERR_400"
+echo ""
+
+# ============================================================
 test_summary

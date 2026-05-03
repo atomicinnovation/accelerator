@@ -33,6 +33,7 @@ table. Gaps within ranges are reserved.
 | 31   | `E_JQL_UNSAFE_VALUE`             | `jira-jql.sh`       | Value contains a control character                                                       |
 | 32   | `E_JQL_BAD_FLAG`                 | `jira-jql.sh`       | Unrecognised flag                                                                        |
 | 33   | `E_JQL_EMPTY_VALUE`              | `jira-jql.sh`       | Empty string where a value was expected                                                  |
+| 34   | `E_REQ_BAD_REQUEST`              | `jira-request.sh`   | HTTP 400 — request body rejected by server (validation error)                            |
 | 40   | `E_BAD_JSON`                     | `jira-adf-to-md.sh` | Stdin is not valid JSON, or not an ADF document                                          |
 | 41   | `E_ADF_UNSUPPORTED_*`            | `jira-md-to-adf.sh` | Markdown input contains an unsupported ADF construct                                     |
 | 42   | `E_ADF_BAD_INPUT`                | `jira-md-to-adf.sh` | Malformed or unacceptable Markdown input                                                 |
@@ -50,6 +51,21 @@ table. Gaps within ranges are reserved.
 | 81   | `E_SHOW_BAD_COMMENTS_LIMIT`      | `jira-show-flow.sh`        | `--comments` is not an integer in `[0, 100]`                                             |
 | 82   | `E_SHOW_BAD_FLAG`                | `jira-show-flow.sh`        | Unrecognised flag passed to show flow                                                    |
 | 90   | `E_RENDER_BAD_INPUT`             | `jira-render-adf-fields.sh` | Stdin is not valid JSON                                                                  |
+
+## Body-input helper (caller-namespaced)
+
+`jira-body-input.sh` does not own numeric flow exit codes — callers map
+its non-zero returns to their own codes. The internal numerics and their
+`E_BODY_*` names are listed here for discoverability:
+
+| Internal | Name                    | Description                                                      |
+|----------|-------------------------|------------------------------------------------------------------|
+| 1        | `E_BODY_BAD_FLAG`       | Unrecognised flag or duplicate `--body`/`--body-file`            |
+| 2        | `E_BODY_FILE_NOT_FOUND` | `--body-file` path does not exist                                |
+| 3        | `E_BODY_STDIN_DISALLOWED` | Piped stdin present but `--allow-stdin` not set                |
+| 4        | `E_BODY_EDITOR_FAILED`  | Editor process exited non-zero                                   |
+| 5        | `E_BODY_NONE_PROVIDED`  | No body source available                                         |
+| 6        | `E_BODY_EDITOR_INVALID` | `$EDITOR` contains characters outside `[A-Za-z0-9_./-]`         |
 
 ## Test-seam policy
 
@@ -71,3 +87,4 @@ production behaviour.
 | `JIRA_LOCK_SLEEP_SECS`                    | `ACCELERATOR_TEST_MODE=1` | `jira-common.sh`              | Override 0.1 s sleep between lock-acquisition retries          |
 | `ACCELERATOR_JIRA_FIELDS_CACHE_PATH_TEST` | `ACCELERATOR_TEST_MODE=1` | `jira-render-adf-fields.sh`   | Override the `fields.json` path used to look up custom textarea field IDs |
 | `ACCELERATOR_JIRA_ADF_RENDERER_TEST`      | `ACCELERATOR_TEST_MODE=1` | `jira-render-adf-fields.sh`   | Override the `jira-adf-to-md.sh` renderer path (used by idempotency stub tests) |
+| `JIRA_BODY_STDIN_IS_TTY_TEST`             | `ACCELERATOR_TEST_MODE=1` | `jira-body-input.sh`          | Forces stdin-is-TTY path, enabling EDITOR tests in non-interactive CI environments |
