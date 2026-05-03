@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue",
+      "consume": false,
+      "capture_url": true,
+      "response": {
+        "status": 201,
+        "body": "{\"id\":\"10042\",\"key\":\"ENG-123\",\"self\":\"https://example.atlassian.net/rest/api/3/issue/10042\"}"
+      }
+    }
+  ]
+}

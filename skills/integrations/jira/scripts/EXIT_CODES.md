@@ -51,6 +51,16 @@ table. Gaps within ranges are reserved.
 | 81   | `E_SHOW_BAD_COMMENTS_LIMIT`      | `jira-show-flow.sh`        | `--comments` is not an integer in `[0, 100]`                                             |
 | 82   | `E_SHOW_BAD_FLAG`                | `jira-show-flow.sh`        | Unrecognised flag passed to show flow                                                    |
 | 90   | `E_RENDER_BAD_INPUT`             | `jira-render-adf-fields.sh` | Stdin is not valid JSON                                                                  |
+| 100  | `E_CREATE_NO_PROJECT`            | `jira-create-flow.sh`       | `--project` missing and `work.default_project_code` unset                                |
+| 101  | `E_CREATE_NO_TYPE`               | `jira-create-flow.sh`       | `--type` and `--issuetype-id` both missing                                               |
+| 102  | `E_CREATE_NO_SUMMARY`            | `jira-create-flow.sh`       | `--summary` missing                                                                      |
+| 103  | `E_CREATE_BAD_FIELD`             | `jira-create-flow.sh`       | `--custom` value failed schema coercion or slug not found in cache                       |
+| 104  | `E_CREATE_BAD_FLAG`              | `jira-create-flow.sh`       | Unrecognised flag                                                                        |
+| 105  | `E_CREATE_NO_BODY`               | `jira-create-flow.sh`       | No body source available                                                                 |
+| 106  | `E_CREATE_NO_SITE_CACHE`         | `jira-create-flow.sh`       | `--assignee`/`--reporter` `@me` but `site.json` missing; run `/init-jira`                |
+| 107  | `E_CREATE_BAD_ASSIGNEE`          | `jira-create-flow.sh`       | `--assignee` value is not `@me` or a raw accountId (email addresses not supported)       |
+
+**Reservation note**: codes 91–99 are reserved for `jira-comment-flow.sh` (M4).
 
 ## Body-input helper (caller-namespaced)
 

@@ -1053,16 +1053,16 @@ Append rows:
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-create.sh` exits
+- [x] `bash skills/integrations/jira/scripts/test-jira-create.sh` exits
       0; `test_summary` reports all 28 cases passing (24 numbered +
       11a/11b for E_CREATE_BAD_ASSIGNEE + 25/26 for 5xx and ADF
       round-trip).
 - [ ] `shellcheck skills/integrations/jira/scripts/jira-create-flow.sh
       skills/integrations/jira/scripts/test-jira-create.sh` reports no
       warnings.
-- [ ] `bash skills/integrations/jira/scripts/jira-create-flow.sh --help`
+- [x] `bash skills/integrations/jira/scripts/jira-create-flow.sh --help`
       exits 0 and prints the banner.
-- [ ] `bash skills/integrations/jira/scripts/jira-create-flow.sh
+- [x] `bash skills/integrations/jira/scripts/jira-create-flow.sh
       --project ENG --type Task --summary "x" --body "y" --print-payload`
       prints valid JSON and exits 0 (manual fixture-free smoke).
 
