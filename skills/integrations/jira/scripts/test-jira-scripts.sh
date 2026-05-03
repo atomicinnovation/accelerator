@@ -22,5 +22,10 @@ bash "$SCRIPT_DIR/test-jira-init-flow.sh" || EXIT_CODE=$?
 bash "$SCRIPT_DIR/test-jira-render-adf-fields.sh" || EXIT_CODE=$?
 bash "$SCRIPT_DIR/test-jira-search.sh" || EXIT_CODE=$?
 bash "$SCRIPT_DIR/test-jira-show.sh" || EXIT_CODE=$?
+bash "$SCRIPT_DIR/test-jira-body-input.sh" || EXIT_CODE=$?
+bash "$SCRIPT_DIR/test-jira-custom-fields.sh" || EXIT_CODE=$?
+bash "$SCRIPT_DIR/test-jira-create.sh" || EXIT_CODE=$?
+bash "$SCRIPT_DIR/test-jira-update.sh" || EXIT_CODE=$?
+bash "$SCRIPT_DIR/test-jira-comment.sh" || EXIT_CODE=$?
 
 exit "$EXIT_CODE"

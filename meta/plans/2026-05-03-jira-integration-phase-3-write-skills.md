@@ -2018,11 +2018,12 @@ all M6 verifications pass.
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-scripts.sh` exits
+- [x] `bash skills/integrations/jira/scripts/test-jira-scripts.sh` exits
       0 with all new tests registered.
-- [ ] `tasks/test.py` (or whichever task entrypoint) runs and exits 0,
+- [x] `tasks/test.py` (or whichever task entrypoint) runs and exits 0,
       confirming the umbrella is invoked from the standard test target.
-- [ ] `EXIT_CODES.md` has every code allocated in M1–M4 documented in
+      (No tasks/test.py in this workspace; umbrella script is the standard target.)
+- [x] `EXIT_CODES.md` has every code allocated in M1–M4 documented in
       numeric order with stable names.
 
 #### Manual Verification

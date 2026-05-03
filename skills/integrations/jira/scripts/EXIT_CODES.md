@@ -51,22 +51,6 @@ table. Gaps within ranges are reserved.
 | 81   | `E_SHOW_BAD_COMMENTS_LIMIT`      | `jira-show-flow.sh`        | `--comments` is not an integer in `[0, 100]`                                             |
 | 82   | `E_SHOW_BAD_FLAG`                | `jira-show-flow.sh`        | Unrecognised flag passed to show flow                                                    |
 | 90   | `E_RENDER_BAD_INPUT`             | `jira-render-adf-fields.sh` | Stdin is not valid JSON                                                                  |
-| 100  | `E_CREATE_NO_PROJECT`            | `jira-create-flow.sh`       | `--project` missing and `work.default_project_code` unset                                |
-| 101  | `E_CREATE_NO_TYPE`               | `jira-create-flow.sh`       | `--type` and `--issuetype-id` both missing                                               |
-| 102  | `E_CREATE_NO_SUMMARY`            | `jira-create-flow.sh`       | `--summary` missing                                                                      |
-| 103  | `E_CREATE_BAD_FIELD`             | `jira-create-flow.sh`       | `--custom` value failed schema coercion or slug not found in cache                       |
-| 104  | `E_CREATE_BAD_FLAG`              | `jira-create-flow.sh`       | Unrecognised flag                                                                        |
-| 105  | `E_CREATE_NO_BODY`               | `jira-create-flow.sh`       | No body source available                                                                 |
-| 106  | `E_CREATE_NO_SITE_CACHE`         | `jira-create-flow.sh`       | `--assignee`/`--reporter` `@me` but `site.json` missing; run `/init-jira`                |
-| 107  | `E_CREATE_BAD_ASSIGNEE`          | `jira-create-flow.sh`       | `--assignee` value is not `@me` or a raw accountId (email addresses not supported)       |
-| 110  | `E_UPDATE_NO_KEY`                | `jira-update-flow.sh`       | No issue key positional argument                                                          |
-| 111  | `E_UPDATE_LABEL_MODE_CONFLICT`   | `jira-update-flow.sh`       | `--label` mixed with `--add-label`/`--remove-label`, or `--component` with `--add/--remove-component` |
-| 112  | `E_UPDATE_NO_OPS`                | `jira-update-flow.sh`       | No mutating flags supplied                                                                |
-| 113  | `E_UPDATE_BAD_FLAG`              | `jira-update-flow.sh`       | Unrecognised flag                                                                         |
-| 114  | `E_UPDATE_BAD_FIELD`             | `jira-update-flow.sh`       | `--custom` value failed schema coercion or slug not found in cache                        |
-| 115  | `E_UPDATE_NO_SITE_CACHE`         | `jira-update-flow.sh`       | `--assignee`/`--reporter` `@me` but `site.json` missing; run `/init-jira`                 |
-| 116  | `E_UPDATE_NO_BODY`               | `jira-update-flow.sh`       | `--body`/`--body-file` resolution failed                                                  |
-| 117  | `E_UPDATE_BAD_ASSIGNEE`          | `jira-update-flow.sh`       | `--assignee` not `@me`, `""` (unassign), or a raw accountId (email not supported)         |
 | 91   | `E_COMMENT_NO_SUBCOMMAND`        | `jira-comment-flow.sh`      | No subcommand provided                                                                    |
 | 92   | `E_COMMENT_BAD_SUBCOMMAND`       | `jira-comment-flow.sh`      | Unknown subcommand                                                                        |
 | 93   | `E_COMMENT_NO_KEY`               | `jira-comment-flow.sh`      | No issue key positional argument                                                          |
@@ -76,6 +60,38 @@ table. Gaps within ranges are reserved.
 | 97   | `E_COMMENT_BAD_PAGE_SIZE`        | `jira-comment-flow.sh`      | `--page-size` not in `[1, 100]`                                                           |
 | 98   | `E_COMMENT_BAD_VISIBILITY`       | `jira-comment-flow.sh`      | `--visibility` not in form `role:NAME` or `group:NAME`                                    |
 | 99   | `E_COMMENT_BAD_RESPONSE`         | `jira-comment-flow.sh`      | `.total` or `.comments\|length` not an integer in list response                           |
+| 100  | `E_CREATE_NO_PROJECT`            | `jira-create-flow.sh`       | `--project` missing and `work.default_project_code` unset                                |
+| 101  | `E_CREATE_NO_TYPE`               | `jira-create-flow.sh`       | `--type` and `--issuetype-id` both missing                                               |
+| 102  | `E_CREATE_NO_SUMMARY`            | `jira-create-flow.sh`       | `--summary` missing                                                                      |
+| 103  | `E_CREATE_BAD_FIELD`             | `jira-create-flow.sh`       | `--custom` value failed schema coercion or slug not found in cache                       |
+| 104  | `E_CREATE_BAD_FLAG`              | `jira-create-flow.sh`       | Unrecognised flag                                                                        |
+| 105  | `E_CREATE_NO_BODY`               | `jira-create-flow.sh`       | No body source available                                                                 |
+| 106  | `E_CREATE_NO_SITE_CACHE`         | `jira-create-flow.sh`       | `--assignee`/`--reporter` `@me` but `site.json` missing; run `/init-jira`                |
+| 107  | `E_CREATE_BAD_ASSIGNEE`          | `jira-create-flow.sh`       | `--assignee` value is not `@me` or a raw accountId (email addresses not supported)       |
+| 108  | —                                | reserved                    | Reserved for follow-up                                                                   |
+| 109  | —                                | reserved                    | Reserved for follow-up                                                                   |
+| 110  | `E_UPDATE_NO_KEY`                | `jira-update-flow.sh`       | No issue key positional argument                                                          |
+| 111  | `E_UPDATE_LABEL_MODE_CONFLICT`   | `jira-update-flow.sh`       | `--label` mixed with `--add-label`/`--remove-label`, or `--component` with `--add/--remove-component` |
+| 112  | `E_UPDATE_NO_OPS`                | `jira-update-flow.sh`       | No mutating flags supplied                                                                |
+| 113  | `E_UPDATE_BAD_FLAG`              | `jira-update-flow.sh`       | Unrecognised flag                                                                         |
+| 114  | `E_UPDATE_BAD_FIELD`             | `jira-update-flow.sh`       | `--custom` value failed schema coercion or slug not found in cache                        |
+| 115  | `E_UPDATE_NO_SITE_CACHE`         | `jira-update-flow.sh`       | `--assignee`/`--reporter` `@me` but `site.json` missing; run `/init-jira`                 |
+| 116  | `E_UPDATE_NO_BODY`               | `jira-update-flow.sh`       | `--body`/`--body-file` resolution failed                                                  |
+| 117  | `E_UPDATE_BAD_ASSIGNEE`          | `jira-update-flow.sh`       | `--assignee` not `@me`, `""` (unassign), or a raw accountId (email not supported)         |
+| 118  | —                                | reserved                    | Reserved for follow-up                                                                   |
+| 119  | —                                | reserved                    | Reserved for follow-up                                                                   |
+
+## Phase 3 namespace summary
+
+| Range     | Owner                  | Notes                                              |
+|-----------|------------------------|----------------------------------------------------|
+| 34        | `jira-request.sh`      | `E_REQ_BAD_REQUEST` — HTTP 400                     |
+| 91–99     | `jira-comment-flow.sh` | 99 = `E_COMMENT_BAD_RESPONSE`                      |
+| 100–107   | `jira-create-flow.sh`  |                                                    |
+| 108–109   | reserved               | Reserved for follow-up                             |
+| 110–117   | `jira-update-flow.sh`  |                                                    |
+| 118–119   | reserved               | Reserved for follow-up                             |
+| 120+      | reserved               | Phase 4 (transition / attach)                      |
 
 ## Body-input helper (caller-namespaced)
 
