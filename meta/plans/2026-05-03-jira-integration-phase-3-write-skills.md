@@ -1904,15 +1904,15 @@ Each SKILL ends with 3–4 worked examples, mirroring the Phase 2 SKILLs.
 
 #### Automated Verification
 
-- [ ] Three new files exist:
+- [x] Three new files exist:
       `skills/integrations/jira/create-jira-issue/SKILL.md`,
       `skills/integrations/jira/update-jira-issue/SKILL.md`,
       `skills/integrations/jira/comment-jira-issue/SKILL.md`.
-- [ ] Each SKILL.md frontmatter is valid YAML and includes
+- [x] Each SKILL.md frontmatter is valid YAML and includes
       `disable-model-invocation: true`.
-- [ ] Each SKILL.md references the correct flow helper path under
+- [x] Each SKILL.md references the correct flow helper path under
       `${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/`.
-- [ ] `bash skills/integrations/jira/scripts/test-jira-scripts.sh` exits
+- [x] `bash skills/integrations/jira/scripts/test-jira-scripts.sh` exits
       0 (no SKILL-level tests but the umbrella still passes).
 
 #### Manual Verification
