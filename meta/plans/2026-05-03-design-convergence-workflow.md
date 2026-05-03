@@ -875,11 +875,11 @@ assert_eq "mcp.json is valid JSON" "$(jq empty "$MCP" 2>&1)" ""
 
 #### Automated Verification:
 
-- [ ] Bash agent/MCP tests pass (Browser agents and MCP manifest
+- [x] Bash agent/MCP tests pass (Browser agents and MCP manifest
       sections of `bash scripts/test-design.sh`).
-- [ ] `.claude-plugin/.mcp.json` is valid JSON: `jq empty
+- [x] `.claude-plugin/.mcp.json` is valid JSON: `jq empty
       .claude-plugin/.mcp.json`.
-- [ ] CI gate passes: `mise run test` green.
+- [x] CI gate passes: `mise run test` green.
 
 #### Manual Verification:
 

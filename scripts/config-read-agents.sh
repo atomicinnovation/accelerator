@@ -31,6 +31,8 @@ source "$SCRIPT_DIR/config-common.sh"
 # that can be overridden. Order determines table row order in output.
 AGENT_KEYS=(
   reviewer
+  browser-analyser
+  browser-locator
   codebase-locator
   codebase-analyser
   codebase-pattern-finder

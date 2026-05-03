@@ -459,6 +459,67 @@ areas:
 /accelerator:review-work-item 0042 focus on testability
 ```
 
+## Design Convergence
+
+The design convergence workflow captures your application's current visual state
+as a structured inventory, then compares it against a target design to identify
+and prioritise gaps:
+
+```
+inventory-design  →  analyse-design-gaps
+       ↓                      ↓
+meta/design-inventories/  meta/design-gaps/
+```
+
+`/accelerator:inventory-design` crawls a design source — a local dev server, a
+hosted prototype, or a static file tree — and produces a `design-inventory`
+document with screenshots, design-token observations, and a component catalogue.
+`/accelerator:analyse-design-gaps` compares two inventories and produces a
+`design-gap` document that sequences remediation work.
+
+The `browser-*` agents power the `runtime` and `hybrid` crawl modes.
+`/accelerator:inventory-design --crawler code` works without Playwright.
+
+### Authenticated browser crawls
+
+`/accelerator:inventory-design` reads the following environment variables when
+the location is a hosted prototype or running app and authentication is
+required. They are also read by any future skill that uses the `browser-*`
+agents.
+
+| Variable                          | Purpose                                                          |
+|-----------------------------------|------------------------------------------------------------------|
+| `ACCELERATOR_BROWSER_AUTH_HEADER` | Header injected on navigations to the resolved location's origin |
+| `ACCELERATOR_BROWSER_USERNAME`    | Form-login username (used with `_PASSWORD` and `_LOGIN_URL`)     |
+| `ACCELERATOR_BROWSER_PASSWORD`    | Form-login password                                              |
+| `ACCELERATOR_BROWSER_LOGIN_URL`   | Login form URL                                                   |
+
+Precedence: if `AUTH_HEADER` is set it takes precedence and the form-login
+vars are ignored (with a warning). If `AUTH_HEADER` is unset, all three of
+`USERNAME`, `PASSWORD`, and `LOGIN_URL` must be set together — partial sets
+cause the skill to fail with a clear error. With none set, auth-walled routes
+are skipped and noted in the inventory's Crawl Notes.
+
+Security: `AUTH_HEADER` is sent **only** on navigations whose origin matches
+the resolved location (or the login URL); cross-origin navigations strip it.
+Screenshots mask password and token fields. The skill refuses to write an
+inventory if any env-var literal appears in the generated body.
+
+### Security considerations
+
+- **Env vars**: store `ACCELERATOR_BROWSER_*` values in your shell profile or
+  a local `.env` file (gitignored), not in committed config.
+- **Screenshots**: each inventory directory contains screenshots committed to
+  the repo. Avoid pointing `inventory-design` at screens that display
+  sensitive personal data, PII, or credentials.
+- **Side-effecting forms**: the `browser-analyser` agent uses `browser_click`
+  and `browser_type` for state-transition testing. Do not point
+  `inventory-design` at production systems with forms that have real-world
+  side effects (payments, email sends, account mutations).
+- **Supply-chain pin**: `@playwright/mcp` is pinned to a specific version in
+  `.claude-plugin/.mcp.json`. Upgrading requires an explicit PR so the version
+  is always deliberate.
+
 ## Agents
 
 Accelerator uses specialised subagents to keep the main context lean. Each
@@ -473,11 +534,21 @@ focused summary to the parent:
 | **documents-locator**       | Discovers relevant documents in configured directories | Grep, Glob, LS                            |
 | **documents-analyser**      | Extracts insights from meta documents                  | Read, Grep, Glob, LS                      |
 | **reviewer**                | Evaluates code/plans through a specific quality lens   | Read, Grep, Glob, LS                      |
-| **web-search-researcher**   | Researches external documentation and resources        | WebSearch, WebFetch, Read, Grep, Glob, LS |
+| **web-search-researcher**   | Researches external documentation and resources                   | WebSearch, WebFetch, Read, Grep, Glob, LS                                                                                                                                                                                                     |
+| **browser-locator**         | Locates routes/screens/components in a running app via Playwright | mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot                                                                                                                                                                          |
+| **browser-analyser**        | Analyses screens, captures state and screenshots via Playwright   | mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_evaluate, mcp__playwright__browser_click, mcp__playwright__browser_type, mcp__playwright__browser_wait_for |
 
 The separation between locators (find, no Read) and analysers (understand, with
 Read) is deliberate: it prevents any single agent from needing to both search
 broadly and read deeply, keeping each agent's context bounded.
+
+`browser-*` agents require the Playwright MCP server, declared in
+`.claude-plugin/.mcp.json` (pinned to a specific `@playwright/mcp` version).
+Claude Code will prompt to enable it on first use of any skill that needs it;
+run `mise run deps:install:playwright` to install the browser binaries.
+Note: `.mcp.json` uses a leading dot while the sibling `plugin.json` does not
+— this asymmetry is upstream-mandated by Claude Code's MCP manifest discovery
+and is not a typo.
 
 ## Installation
 
