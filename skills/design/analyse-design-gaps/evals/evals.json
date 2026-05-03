@@ -1,0 +1,121 @@
+{
+  "skill_name": "analyse-design-gaps",
+  "evals": [
+    {
+      "id": 1,
+      "name": "token-drift-cue-phrase",
+      "prompt": "Read skills/design/analyse-design-gaps/SKILL.md fully. You are running the analyse-design-gaps skill.\n\nThe working directory is the plugin root.\n\nContext: two inventories exist.\n\nCurrent inventory (meta/design-inventories/2026-05-01-120000-current/inventory.md) Design Tokens section lists 14 colours: primary-50 through primary-900 plus danger-500, warning-500, success-500, neutral-500.\n\nTarget inventory (meta/design-inventories/2026-05-01-130000-target/inventory.md) Design Tokens section lists 8 colours: primary, primary-muted, surface, danger, warning, success, neutral, background.\n\nA user invokes: /accelerator:analyse-design-gaps current target\n\nFollow Steps 1-4. Produce only the Token Drift section prose.\n\nSave to outputs/:\n- token-drift.md: The Token Drift section you would write",
+      "expected_output": "Token Drift section contains at least one paragraph with 'we need to migrate' or equivalent cue-phrase language naming the colour-scale consolidation.",
+      "files": [],
+      "expectations": [
+        "Token Drift section contains a cue-phrase paragraph (we need / users need / the system must / Implement ...)",
+        "Token Drift prose names the colour-scale migration explicitly",
+        "Token Drift section does not fabricate token names not present in the inventories"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "net-new-feature",
+      "prompt": "Read skills/design/analyse-design-gaps/SKILL.md fully. You are running the analyse-design-gaps skill.\n\nThe working directory is the plugin root.\n\nContext: target inventory has a Search feature (Cmd+K, query input, recent-history panel) that is absent from the current inventory.\n\nA user invokes: /accelerator:analyse-design-gaps current target\n\nProduce only the Net-New Features section prose.\n\nSave to outputs/:\n- net-new.md: The Net-New Features section you would write",
+      "expected_output": "Net-New Features section contains a paragraph recommending implementation of Search, with 'Implement Search' or 'we need to implement' cue-phrase language.",
+      "files": [],
+      "expectations": [
+        "Net-New Features contains a cue-phrase paragraph",
+        "Net-New Features names the Search feature",
+        "Net-New Features describes at least one aspect of the feature (Cmd+K, or query input, or recent history)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "removed-feature-confirmation",
+      "prompt": "Read skills/design/analyse-design-gaps/SKILL.md fully. You are running the analyse-design-gaps skill.\n\nThe working directory is the plugin root.\n\nContext: current inventory has an Analytics tab that is absent from the target inventory.\n\nA user invokes: /accelerator:analyse-design-gaps current target\n\nProduce only the Removed Features section prose.\n\nSave to outputs/:\n- removed.md: The Removed Features section you would write",
+      "expected_output": "Removed Features section explicitly asks for confirmation before removing the Analytics tab rather than directly recommending deletion.",
+      "files": [],
+      "expectations": [
+        "Removed Features contains a cue-phrase paragraph",
+        "Removed Features names the Analytics tab or feature",
+        "Removed Features explicitly asks for confirmation, verification, or stakeholder input before removal"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "empty-category-omitted",
+      "prompt": "Read skills/design/analyse-design-gaps/SKILL.md fully. You are running the analyse-design-gaps skill.\n\nThe working directory is the plugin root.\n\nContext: the two inventories have identical component catalogues (zero component drift) but differ in design tokens.\n\nA user invokes: /accelerator:analyse-design-gaps current target\n\nExplain which H2 sections would be present and which would be omitted.\n\nSave to outputs/:\n- structure.md: List of H2 sections present and absent in the output",
+      "expected_output": "Component Drift section is omitted because there are no component differences. Token Drift section is present.",
+      "files": [],
+      "expectations": [
+        "Component Drift is identified as absent/omitted",
+        "Token Drift is identified as present",
+        "Explanation cites the skill's 'omit empty categories' rule"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "round-trip-extract-work-items",
+      "prompt": "Read skills/design/analyse-design-gaps/SKILL.md fully. You are running the analyse-design-gaps skill.\n\nThe working directory is the plugin root.\n\nProduce a complete gap artifact body for a scenario with: Token Drift (14→8 colour scale), Component Drift (Button needs 3 new variants), Net-New Features (Search with Cmd+K).\n\nThen read skills/work/extract-work-items/SKILL.md and simulate Step 2 of extract-work-items against your gap artifact body.\n\nSave to outputs/:\n- gap-body.md: The full gap artifact body\n- extracted-candidates.md: The work item candidates identified from the gap body",
+      "expected_output": "At least one work item candidate per non-empty drift category. Each candidate has a clear title and is grounded in the gap prose.",
+      "files": [],
+      "expectations": [
+        "Gap body contains Token Drift section with cue-phrase paragraph",
+        "Gap body contains Component Drift section with cue-phrase paragraph",
+        "Gap body contains Net-New Features section with cue-phrase paragraph",
+        "extract-work-items identifies at least one candidate from Token Drift",
+        "extract-work-items identifies at least one candidate from Component Drift",
+        "extract-work-items identifies at least one candidate from Net-New Features"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "zero-match-source-id",
+      "prompt": "Read skills/design/analyse-design-gaps/SKILL.md fully. You are running the analyse-design-gaps skill.\n\nThe working directory is the plugin root. The meta/design-inventories/ directory contains only:\n- 2026-05-01-120000-webapp/inventory.md\n\nA user invokes: /accelerator:analyse-design-gaps nonexistent-id webapp\n\nSimulate Step 1 resolver for source-id 'nonexistent-id'.\n\nSave to outputs/:\n- response.md: Your exact response to the user",
+      "expected_output": "Skill exits non-zero with the documented error message listing available source-ids. Suggests running inventory-design first.",
+      "files": [],
+      "expectations": [
+        "Response names the missing source-id 'nonexistent-id'",
+        "Response lists 'webapp' as an available source-id",
+        "Response suggests running /accelerator:inventory-design",
+        "Response does not proceed to generate any gap artifact"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "multi-match-resolver-sequence-tiebreaker",
+      "prompt": "Read skills/design/analyse-design-gaps/SKILL.md fully. You are running the analyse-design-gaps skill.\n\nThe working directory is the plugin root.\n\nContext: two directories exist for source-id 'current':\n- meta/design-inventories/2026-05-01-150000-current/inventory.md — status: draft, sequence: 3, mtime: older\n- meta/design-inventories/2026-05-01-120000-current/inventory.md — status: draft, sequence: 2, mtime: newer\n\n(The older directory has higher sequence — simulating a scenario where clock skew would mislead a date-only resolver.)\n\nA user invokes: /accelerator:analyse-design-gaps current target\n\nSimulate the resolver for source-id 'current'. Explain which directory is selected and why.\n\nSave to outputs/:\n- resolver.md: Which directory was selected, which tiebreaker fired, and the warning emitted",
+      "expected_output": "Resolver selects 2026-05-01-150000-current (sequence: 3, highest) even though 2026-05-01-120000-current has a newer mtime. Warning names the non-selected directory.",
+      "files": [],
+      "expectations": [
+        "Resolver selects the directory with sequence: 3 (2026-05-01-150000-current)",
+        "Resolver explains that sequence is the primary tiebreaker",
+        "Warning names 2026-05-01-120000-current as a non-selected directory",
+        "Resolver does not select the directory with newer mtime when sequence differs"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "malformed-prior-frontmatter",
+      "prompt": "Read skills/design/analyse-design-gaps/SKILL.md fully. You are running the analyse-design-gaps skill.\n\nThe working directory is the plugin root.\n\nContext: three directories exist for source-id 'current':\n- meta/design-inventories/2026-05-01-120000-current/inventory.md — status: accepted, sequence: 1\n- meta/design-inventories/2026-05-01-130000-current/inventory.md — has invalid YAML in frontmatter (not parseable)\n- meta/design-inventories/2026-05-01-140000-current/inventory.md — status: accepted, sequence: 3\n\nA user invokes: /accelerator:analyse-design-gaps current target\n\nSimulate the resolver. Explain what happens to each directory.\n\nSave to outputs/:\n- resolver.md: How each directory is handled and which is selected",
+      "expected_output": "Malformed directory is treated as superseded with a warning. The run does not abort. Highest-sequence accepted directory is selected.",
+      "files": [],
+      "expectations": [
+        "Malformed frontmatter directory 2026-05-01-130000-current is treated as superseded",
+        "A warning is logged naming the malformed directory",
+        "The run does not abort due to the malformed directory",
+        "Directory with sequence: 3 (2026-05-01-140000-current) is selected"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "cue-phrase-audit-enforced",
+      "prompt": "Read skills/design/analyse-design-gaps/SKILL.md fully. You are running the analyse-design-gaps skill.\n\nThe working directory is the plugin root.\n\nSimulate generating a gap body where the Token Drift section initially has only 'The colour scale changed.' (no cue phrase).\n\nDescribe: (a) what the audit script reports, (b) how the skill responds, (c) what the revised Token Drift section looks like.\n\nSave to outputs/:\n- audit-flow.md: The audit failure message, the revised section, and confirmation that the audit passed on the second attempt",
+      "expected_output": "Audit fails naming Token Drift. Skill revises only Token Drift to add a cue-phrase paragraph. Audit passes on second attempt.",
+      "files": [],
+      "expectations": [
+        "Audit output names Token Drift as the failing section",
+        "Skill revises Token Drift to include a cue-phrase paragraph",
+        "Revised Token Drift contains 'we need', 'users need', 'the system must', or 'Implement [A-Z]...'",
+        "Audit passes after revision",
+        "Other sections (if any) are not modified during the revision"
+      ]
+    }
+  ]
+}

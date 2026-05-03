@@ -246,6 +246,96 @@ assert_eq "benchmark.json is valid JSON" "$(jq empty "$BENCH" 2>&1)" ""
 
 echo ""
 
-# Subsequent phases append further sections to this same file.
-# test_summary runs once at the end of the file after all sections are added.
+echo "=== analyse-design-gaps: skill structure ==="
+
+SKILL="$PLUGIN_ROOT/skills/design/analyse-design-gaps/SKILL.md"
+assert_file_exists "analyse-design-gaps SKILL.md exists" "$SKILL"
+assert_contains "name field set" "$(cat "$SKILL")" "name: analyse-design-gaps"
+assert_contains "argument-hint two positional ids" \
+  "$(cat "$SKILL")" 'argument-hint: "[current-source-id] [target-source-id]"'
+assert_contains "instructs cue-phrase prose" \
+  "$(cat "$SKILL")" "we need"
+assert_contains "skill body invokes the cue-phrase audit script" \
+  "$(cat "$SKILL")" "audit-cue-phrases.sh"
+assert_file_exists "audit-cue-phrases.sh exists" \
+  "$PLUGIN_ROOT/skills/design/analyse-design-gaps/scripts/audit-cue-phrases.sh"
+assert_file_executable "audit-cue-phrases.sh is executable" \
+  "$PLUGIN_ROOT/skills/design/analyse-design-gaps/scripts/audit-cue-phrases.sh"
+
+echo ""
+
+echo "=== analyse-design-gaps: audit-cue-phrases.sh behavioural ==="
+
+AUDIT="$PLUGIN_ROOT/skills/design/analyse-design-gaps/scripts/audit-cue-phrases.sh"
+
+COMPLIANT="$(mktemp)"
+cat > "$COMPLIANT" <<'EOF'
+# Gap
+
+## Token Drift
+We need to migrate the colour scale.
+
+## Component Drift
+Users need a five-variant Button.
+
+## Screen Drift
+The system must support a redesigned navigation pattern.
+
+## Net-New Features
+Implement Search to expose Cmd+K activation and recent-history previews.
+EOF
+assert_exit_code "audit passes on compliant fixture (all four cue patterns, capitalised)" 0 "$AUDIT" "$COMPLIANT"
+
+NONCOMPLIANT="$(mktemp)"
+cat > "$NONCOMPLIANT" <<'EOF'
+# Gap
+
+## Token Drift
+The colours are different.
+
+## Component Drift
+We need a five-variant Button.
+EOF
+assert_exit_code "audit fails on non-compliant fixture" 1 "$AUDIT" "$NONCOMPLIANT"
+
+LOWER_IMPL="$(mktemp)"
+cat > "$LOWER_IMPL" <<'EOF'
+# Gap
+
+## Token Drift
+implement foo to handle the colour migration.
+EOF
+assert_exit_code "audit fails when 'implement' is followed by lowercase" 1 "$AUDIT" "$LOWER_IMPL"
+
+EMPTY_H2="$(mktemp)"
+cat > "$EMPTY_H2" <<'EOF'
+# Gap
+
+## Token Drift
+
+## Component Drift
+We need a five-variant Button.
+EOF
+assert_exit_code "audit passes when an H2 is empty" 0 "$AUDIT" "$EMPTY_H2"
+
+assert_file_exists "extract-work-items cue-phrase regex file exists" \
+  "$PLUGIN_ROOT/scripts/extract-work-items-cue-phrases.txt"
+
+rm -f "$COMPLIANT" "$NONCOMPLIANT" "$LOWER_IMPL" "$EMPTY_H2"
+assert_contains "ends with skill-instructions hook" \
+  "$(tail -n 5 "$SKILL")" "config-read-skill-instructions.sh analyse-design-gaps"
+
+echo ""
+
+echo "=== analyse-design-gaps: evals ==="
+
+EVALS="$PLUGIN_ROOT/skills/design/analyse-design-gaps/evals/evals.json"
+BENCH="$PLUGIN_ROOT/skills/design/analyse-design-gaps/evals/benchmark.json"
+assert_file_exists "evals.json exists" "$EVALS"
+assert_file_exists "benchmark.json exists" "$BENCH"
+assert_eq "evals.json is valid JSON" "$(jq empty "$EVALS" 2>&1)" ""
+assert_eq "benchmark.json is valid JSON" "$(jq empty "$BENCH" 2>&1)" ""
+
+echo ""
+
 test_summary

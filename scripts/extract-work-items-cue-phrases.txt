@@ -1,0 +1,19 @@
+# Canonical cue-phrase patterns for extract-work-items and audit-cue-phrases.sh.
+# One ERE alternative per non-comment line.
+# Lines starting with # are comments.
+#
+# Usage: join non-comment lines with | to build a single ERE pattern.
+# Apply case-insensitively (-iE) for the word-variation patterns below.
+# The implement pattern is applied case-sensitively (grep -E, no -i) so that
+# "implement Foo" (proper noun) matches but "implement foo" does not.
+#
+# These patterns mirror the cue-phrase enumeration in
+# skills/work/extract-work-items/SKILL.md:130-138.
+we need
+users? need
+the system must
+# Note: applied with case-sensitive grep — requires an uppercase letter
+# immediately after "implement " to identify proper-noun feature names.
+# Use [Ii]mplement [A-Z] to allow sentence-case "Implement Foo" while
+# rejecting lowercase "implement foo". Do not apply this pattern with -i.
+[Ii]mplement [A-Z]

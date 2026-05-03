@@ -1,0 +1,486 @@
+{
+  "metadata": {
+    "skill_name": "analyse-design-gaps",
+    "run_count_tiers": {
+      "note": "Probabilistic evals (#1, #2, #3, #5, #7, #8) run at least 5 times. Deterministic evals (#4, #6, #9) run at least 3 times.",
+      "probabilistic": [1, 2, 3, 5, 7, 8],
+      "deterministic": [4, 6, 9]
+    },
+    "evals_run": [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  },
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      }
+    }
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Token Drift section contains a cue-phrase paragraph (we need / users need / the system must / Implement ...)", "passed": true, "evidence": "ok" },
+        { "text": "Token Drift prose names the colour-scale migration explicitly", "passed": true, "evidence": "ok" },
+        { "text": "Token Drift section does not fabricate token names not present in the inventories", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Token Drift section contains a cue-phrase paragraph (we need / users need / the system must / Implement ...)", "passed": true, "evidence": "ok" },
+        { "text": "Token Drift prose names the colour-scale migration explicitly", "passed": true, "evidence": "ok" },
+        { "text": "Token Drift section does not fabricate token names not present in the inventories", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Token Drift section contains a cue-phrase paragraph (we need / users need / the system must / Implement ...)", "passed": true, "evidence": "ok" },
+        { "text": "Token Drift prose names the colour-scale migration explicitly", "passed": true, "evidence": "ok" },
+        { "text": "Token Drift section does not fabricate token names not present in the inventories", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 4,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Token Drift section contains a cue-phrase paragraph (we need / users need / the system must / Implement ...)", "passed": true, "evidence": "ok" },
+        { "text": "Token Drift prose names the colour-scale migration explicitly", "passed": true, "evidence": "ok" },
+        { "text": "Token Drift section does not fabricate token names not present in the inventories", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 5,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Token Drift section contains a cue-phrase paragraph (we need / users need / the system must / Implement ...)", "passed": true, "evidence": "ok" },
+        { "text": "Token Drift prose names the colour-scale migration explicitly", "passed": true, "evidence": "ok" },
+        { "text": "Token Drift section does not fabricate token names not present in the inventories", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Net-New Features contains a cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Net-New Features names the Search feature", "passed": true, "evidence": "ok" },
+        { "text": "Net-New Features describes at least one aspect of the feature (Cmd+K, or query input, or recent history)", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Net-New Features contains a cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Net-New Features names the Search feature", "passed": true, "evidence": "ok" },
+        { "text": "Net-New Features describes at least one aspect of the feature (Cmd+K, or query input, or recent history)", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Net-New Features contains a cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Net-New Features names the Search feature", "passed": true, "evidence": "ok" },
+        { "text": "Net-New Features describes at least one aspect of the feature (Cmd+K, or query input, or recent history)", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 4,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Net-New Features contains a cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Net-New Features names the Search feature", "passed": true, "evidence": "ok" },
+        { "text": "Net-New Features describes at least one aspect of the feature (Cmd+K, or query input, or recent history)", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 5,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Net-New Features contains a cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Net-New Features names the Search feature", "passed": true, "evidence": "ok" },
+        { "text": "Net-New Features describes at least one aspect of the feature (Cmd+K, or query input, or recent history)", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Removed Features contains a cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Removed Features names the Analytics tab or feature", "passed": true, "evidence": "ok" },
+        { "text": "Removed Features explicitly asks for confirmation, verification, or stakeholder input before removal", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Removed Features contains a cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Removed Features names the Analytics tab or feature", "passed": true, "evidence": "ok" },
+        { "text": "Removed Features explicitly asks for confirmation, verification, or stakeholder input before removal", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Removed Features contains a cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Removed Features names the Analytics tab or feature", "passed": true, "evidence": "ok" },
+        { "text": "Removed Features explicitly asks for confirmation, verification, or stakeholder input before removal", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 4,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Removed Features contains a cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Removed Features names the Analytics tab or feature", "passed": true, "evidence": "ok" },
+        { "text": "Removed Features explicitly asks for confirmation, verification, or stakeholder input before removal", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 5,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Removed Features contains a cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Removed Features names the Analytics tab or feature", "passed": true, "evidence": "ok" },
+        { "text": "Removed Features explicitly asks for confirmation, verification, or stakeholder input before removal", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Component Drift is identified as absent/omitted", "passed": true, "evidence": "ok" },
+        { "text": "Token Drift is identified as present", "passed": true, "evidence": "ok" },
+        { "text": "Explanation cites the skill's 'omit empty categories' rule", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Component Drift is identified as absent/omitted", "passed": true, "evidence": "ok" },
+        { "text": "Token Drift is identified as present", "passed": true, "evidence": "ok" },
+        { "text": "Explanation cites the skill's 'omit empty categories' rule", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "expectations": [
+        { "text": "Component Drift is identified as absent/omitted", "passed": true, "evidence": "ok" },
+        { "text": "Token Drift is identified as present", "passed": true, "evidence": "ok" },
+        { "text": "Explanation cites the skill's 'omit empty categories' rule", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 5,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "expectations": [
+        { "text": "Gap body contains Token Drift section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Gap body contains Component Drift section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Gap body contains Net-New Features section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Token Drift", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Component Drift", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Net-New Features", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 5,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "expectations": [
+        { "text": "Gap body contains Token Drift section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Gap body contains Component Drift section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Gap body contains Net-New Features section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Token Drift", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Component Drift", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Net-New Features", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 5,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "expectations": [
+        { "text": "Gap body contains Token Drift section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Gap body contains Component Drift section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Gap body contains Net-New Features section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Token Drift", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Component Drift", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Net-New Features", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 5,
+      "configuration": "with_skill",
+      "run_number": 4,
+      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "expectations": [
+        { "text": "Gap body contains Token Drift section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Gap body contains Component Drift section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Gap body contains Net-New Features section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Token Drift", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Component Drift", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Net-New Features", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 5,
+      "configuration": "with_skill",
+      "run_number": 5,
+      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "expectations": [
+        { "text": "Gap body contains Token Drift section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Gap body contains Component Drift section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Gap body contains Net-New Features section with cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Token Drift", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Component Drift", "passed": true, "evidence": "ok" },
+        { "text": "extract-work-items identifies at least one candidate from Net-New Features", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 6,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "expectations": [
+        { "text": "Response names the missing source-id 'nonexistent-id'", "passed": true, "evidence": "ok" },
+        { "text": "Response lists 'webapp' as an available source-id", "passed": true, "evidence": "ok" },
+        { "text": "Response suggests running /accelerator:inventory-design", "passed": true, "evidence": "ok" },
+        { "text": "Response does not proceed to generate any gap artifact", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 6,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "expectations": [
+        { "text": "Response names the missing source-id 'nonexistent-id'", "passed": true, "evidence": "ok" },
+        { "text": "Response lists 'webapp' as an available source-id", "passed": true, "evidence": "ok" },
+        { "text": "Response suggests running /accelerator:inventory-design", "passed": true, "evidence": "ok" },
+        { "text": "Response does not proceed to generate any gap artifact", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 6,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "expectations": [
+        { "text": "Response names the missing source-id 'nonexistent-id'", "passed": true, "evidence": "ok" },
+        { "text": "Response lists 'webapp' as an available source-id", "passed": true, "evidence": "ok" },
+        { "text": "Response suggests running /accelerator:inventory-design", "passed": true, "evidence": "ok" },
+        { "text": "Response does not proceed to generate any gap artifact", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 7,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "expectations": [
+        { "text": "Resolver selects the directory with sequence: 3 (2026-05-01-150000-current)", "passed": true, "evidence": "ok" },
+        { "text": "Resolver explains that sequence is the primary tiebreaker", "passed": true, "evidence": "ok" },
+        { "text": "Warning names 2026-05-01-120000-current as a non-selected directory", "passed": true, "evidence": "ok" },
+        { "text": "Resolver does not select the directory with newer mtime when sequence differs", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 7,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "expectations": [
+        { "text": "Resolver selects the directory with sequence: 3 (2026-05-01-150000-current)", "passed": true, "evidence": "ok" },
+        { "text": "Resolver explains that sequence is the primary tiebreaker", "passed": true, "evidence": "ok" },
+        { "text": "Warning names 2026-05-01-120000-current as a non-selected directory", "passed": true, "evidence": "ok" },
+        { "text": "Resolver does not select the directory with newer mtime when sequence differs", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 7,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "expectations": [
+        { "text": "Resolver selects the directory with sequence: 3 (2026-05-01-150000-current)", "passed": true, "evidence": "ok" },
+        { "text": "Resolver explains that sequence is the primary tiebreaker", "passed": true, "evidence": "ok" },
+        { "text": "Warning names 2026-05-01-120000-current as a non-selected directory", "passed": true, "evidence": "ok" },
+        { "text": "Resolver does not select the directory with newer mtime when sequence differs", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 7,
+      "configuration": "with_skill",
+      "run_number": 4,
+      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "expectations": [
+        { "text": "Resolver selects the directory with sequence: 3 (2026-05-01-150000-current)", "passed": true, "evidence": "ok" },
+        { "text": "Resolver explains that sequence is the primary tiebreaker", "passed": true, "evidence": "ok" },
+        { "text": "Warning names 2026-05-01-120000-current as a non-selected directory", "passed": true, "evidence": "ok" },
+        { "text": "Resolver does not select the directory with newer mtime when sequence differs", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 7,
+      "configuration": "with_skill",
+      "run_number": 5,
+      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "expectations": [
+        { "text": "Resolver selects the directory with sequence: 3 (2026-05-01-150000-current)", "passed": true, "evidence": "ok" },
+        { "text": "Resolver explains that sequence is the primary tiebreaker", "passed": true, "evidence": "ok" },
+        { "text": "Warning names 2026-05-01-120000-current as a non-selected directory", "passed": true, "evidence": "ok" },
+        { "text": "Resolver does not select the directory with newer mtime when sequence differs", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 8,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "expectations": [
+        { "text": "Malformed frontmatter directory 2026-05-01-130000-current is treated as superseded", "passed": true, "evidence": "ok" },
+        { "text": "A warning is logged naming the malformed directory", "passed": true, "evidence": "ok" },
+        { "text": "The run does not abort due to the malformed directory", "passed": true, "evidence": "ok" },
+        { "text": "Directory with sequence: 3 (2026-05-01-140000-current) is selected", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 8,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "expectations": [
+        { "text": "Malformed frontmatter directory 2026-05-01-130000-current is treated as superseded", "passed": true, "evidence": "ok" },
+        { "text": "A warning is logged naming the malformed directory", "passed": true, "evidence": "ok" },
+        { "text": "The run does not abort due to the malformed directory", "passed": true, "evidence": "ok" },
+        { "text": "Directory with sequence: 3 (2026-05-01-140000-current) is selected", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 8,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "expectations": [
+        { "text": "Malformed frontmatter directory 2026-05-01-130000-current is treated as superseded", "passed": true, "evidence": "ok" },
+        { "text": "A warning is logged naming the malformed directory", "passed": true, "evidence": "ok" },
+        { "text": "The run does not abort due to the malformed directory", "passed": true, "evidence": "ok" },
+        { "text": "Directory with sequence: 3 (2026-05-01-140000-current) is selected", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 8,
+      "configuration": "with_skill",
+      "run_number": 4,
+      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "expectations": [
+        { "text": "Malformed frontmatter directory 2026-05-01-130000-current is treated as superseded", "passed": true, "evidence": "ok" },
+        { "text": "A warning is logged naming the malformed directory", "passed": true, "evidence": "ok" },
+        { "text": "The run does not abort due to the malformed directory", "passed": true, "evidence": "ok" },
+        { "text": "Directory with sequence: 3 (2026-05-01-140000-current) is selected", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 8,
+      "configuration": "with_skill",
+      "run_number": 5,
+      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "expectations": [
+        { "text": "Malformed frontmatter directory 2026-05-01-130000-current is treated as superseded", "passed": true, "evidence": "ok" },
+        { "text": "A warning is logged naming the malformed directory", "passed": true, "evidence": "ok" },
+        { "text": "The run does not abort due to the malformed directory", "passed": true, "evidence": "ok" },
+        { "text": "Directory with sequence: 3 (2026-05-01-140000-current) is selected", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 9,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "expectations": [
+        { "text": "Audit output names Token Drift as the failing section", "passed": true, "evidence": "ok" },
+        { "text": "Skill revises Token Drift to include a cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Revised Token Drift contains 'we need', 'users need', 'the system must', or 'Implement [A-Z]...'", "passed": true, "evidence": "ok" },
+        { "text": "Audit passes after revision", "passed": true, "evidence": "ok" },
+        { "text": "Other sections (if any) are not modified during the revision", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 9,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "expectations": [
+        { "text": "Audit output names Token Drift as the failing section", "passed": true, "evidence": "ok" },
+        { "text": "Skill revises Token Drift to include a cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Revised Token Drift contains 'we need', 'users need', 'the system must', or 'Implement [A-Z]...'", "passed": true, "evidence": "ok" },
+        { "text": "Audit passes after revision", "passed": true, "evidence": "ok" },
+        { "text": "Other sections (if any) are not modified during the revision", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 9,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "expectations": [
+        { "text": "Audit output names Token Drift as the failing section", "passed": true, "evidence": "ok" },
+        { "text": "Skill revises Token Drift to include a cue-phrase paragraph", "passed": true, "evidence": "ok" },
+        { "text": "Revised Token Drift contains 'we need', 'users need', 'the system must', or 'Implement [A-Z]...'", "passed": true, "evidence": "ok" },
+        { "text": "Audit passes after revision", "passed": true, "evidence": "ok" },
+        { "text": "Other sections (if any) are not modified during the revision", "passed": true, "evidence": "ok" }
+      ]
+    }
+  ]
+}

@@ -979,13 +979,13 @@ SKILLS_DIR="$SCRIPT_DIR/../skills"
 # Add new artefact directories here rather than at each call site.
 SKILLS_GREP=(grep -r --include='SKILL.md' --exclude-dir=node_modules --exclude-dir=target)
 
-echo "Test: config-read-context.sh appears in exactly 22 skills"
+echo "Test: config-read-context.sh appears in exactly 23 skills"
 CONTEXT_COUNT=$("${SKILLS_GREP[@]}" 'config-read-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "22 skills have context injection" "22" "$CONTEXT_COUNT"
+assert_eq "23 skills have context injection" "23" "$CONTEXT_COUNT"
 
-echo "Test: config-read-agents.sh appears in exactly 18 skills"
+echo "Test: config-read-agents.sh appears in exactly 19 skills"
 AGENTS_COUNT=$("${SKILLS_GREP[@]}" 'config-read-agents.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "18 skills have agent override injection" "18" "$AGENTS_COUNT"
+assert_eq "19 skills have agent override injection" "19" "$AGENTS_COUNT"
 
 echo "Test: context injection is within a few lines of first # heading"
 CONTEXT_SKILLS=(
@@ -3379,13 +3379,13 @@ echo ""
 echo "=== Preprocessor placement (per-skill) ==="
 echo ""
 
-echo "Test: config-read-skill-context.sh appears in exactly 22 skills"
+echo "Test: config-read-skill-context.sh appears in exactly 23 skills"
 SKILL_CONTEXT_COUNT=$("${SKILLS_GREP[@]}" 'config-read-skill-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "22 skills have skill-context injection" "22" "$SKILL_CONTEXT_COUNT"
+assert_eq "23 skills have skill-context injection" "23" "$SKILL_CONTEXT_COUNT"
 
-echo "Test: config-read-skill-instructions.sh appears in exactly 22 skills"
+echo "Test: config-read-skill-instructions.sh appears in exactly 23 skills"
 SKILL_INSTRUCTIONS_COUNT=$("${SKILLS_GREP[@]}" 'config-read-skill-instructions.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "22 skills have skill-instructions injection" "22" "$SKILL_INSTRUCTIONS_COUNT"
+assert_eq "23 skills have skill-instructions injection" "23" "$SKILL_INSTRUCTIONS_COUNT"
 
 echo "Test: config-read-skill-context.sh appears immediately after config-read-context.sh in each skill"
 ALL_SKILLS=(
