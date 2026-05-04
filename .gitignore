@@ -20,6 +20,7 @@ meta/integrations/jira/.lock
 meta/integrations/jira/.refresh-meta.json
 skills/visualisation/visualise/bin/accelerator-visualiser-*
 skills/visualisation/visualise/frontend/.e2e-port
+skills/visualisation/visualise/frontend/.e2e-fixture-snapshot.json
 skills/visualisation/visualise/frontend/dist/
 skills/visualisation/visualise/frontend/node_modules/
 skills/visualisation/visualise/server/target/

@@ -7,6 +7,7 @@ export default defineConfig({
   timeout: 30_000,
   retries: 1,
   globalSetup: './e2e/global-setup.ts',
+  globalTeardown: './e2e/global-teardown.ts',
   use: {
     // BASE_URL is populated by globalSetup (which runs after webServer).
     baseURL: process.env.BASE_URL ?? 'http://127.0.0.1',

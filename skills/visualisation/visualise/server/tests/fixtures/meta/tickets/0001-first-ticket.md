@@ -1,6 +1,6 @@
 ---
 title: First Ticket
-status: in-progress
+status: todo
 ticket: 1
 ---
 

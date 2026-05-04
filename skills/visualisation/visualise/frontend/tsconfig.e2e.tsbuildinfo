@@ -1,1 +1,1 @@
-{"root":["./e2e/fixtures.ts","./e2e/global-setup.ts","./e2e/kanban-conflict.spec.ts","./e2e/kanban.spec.ts","./e2e/mermaid.spec.ts","./e2e/navigation.spec.ts","./e2e/smoke.spec.ts","./e2e/wiki-links.spec.ts"],"version":"5.9.3"}
+{"root":["./e2e/fixtures.ts","./e2e/global-setup.ts","./e2e/global-teardown.ts","./e2e/kanban-conflict.spec.ts","./e2e/kanban.spec.ts","./e2e/mermaid.spec.ts","./e2e/navigation.spec.ts","./e2e/smoke.spec.ts","./e2e/wiki-links.spec.ts"],"version":"5.9.3"}
