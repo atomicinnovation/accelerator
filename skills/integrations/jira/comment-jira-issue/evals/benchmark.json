@@ -1,0 +1,53 @@
+{
+  "metadata": {
+    "skill_name": "comment-jira-issue",
+    "evals_run": [1, 2, 3]
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5},
+      "expectations": [
+        {"text": "The response invokes jira-comment-flow.sh add with --print-payload (or shows its output)", "passed": true, "evidence": "response invokes jira-comment-flow.sh add --print-payload"},
+        {"text": "The response shows a preview heading like 'Proposed Jira write' or 'review before sending'", "passed": true, "evidence": "response includes 'Proposed Jira write — review before sending' heading"},
+        {"text": "The endpoint shown is POST /rest/api/3/issue/ENG-42/comment", "passed": true, "evidence": "response shows POST /rest/api/3/issue/ENG-42/comment"},
+        {"text": "The response asks the user for confirmation before posting", "passed": true, "evidence": "response asks user to confirm before posting"},
+        {"text": "No actual comment is posted (jira-comment-flow.sh not called without --print-payload)", "passed": true, "evidence": "jira-comment-flow.sh only called with --print-payload flag"}
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5},
+      "expectations": [
+        {"text": "The response invokes jira-comment-flow.sh delete with --describe (or shows its output)", "passed": true, "evidence": "response invokes jira-comment-flow.sh delete --describe"},
+        {"text": "The response explicitly labels the delete operation as irreversible", "passed": true, "evidence": "response labels operation as '(irreversible)'"},
+        {"text": "The response shows the DELETE method and the correct path /rest/api/3/issue/ENG-42/comment/10042", "passed": true, "evidence": "response shows DELETE /rest/api/3/issue/ENG-42/comment/10042"},
+        {"text": "The response asks the user for confirmation before deleting", "passed": true, "evidence": "response asks user to confirm before deleting"},
+        {"text": "No actual delete is made (jira-comment-flow.sh not called without --describe)", "passed": true, "evidence": "jira-comment-flow.sh only called with --describe flag"}
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4},
+      "expectations": [
+        {"text": "The response invokes jira-comment-flow.sh list directly (no --print-payload or --describe flag)", "passed": true, "evidence": "response invokes jira-comment-flow.sh list ENG-42 with no preview flag"},
+        {"text": "The response does NOT show a 'Proposed Jira write' preview heading before the list command", "passed": true, "evidence": "no preview heading appears before the list invocation"},
+        {"text": "The response does NOT ask the user for confirmation before running the list command", "passed": true, "evidence": "no confirmation gate presented for read-only list operation"},
+        {"text": "The skill treats the list subcommand as read-only (skips the confirmation gate steps)", "passed": true, "evidence": "list executed directly without write-path gate"}
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 0.0, "stddev": 0.0, "min": 0.0, "max": 0.0},
+      "tokens": {"mean": 0.0, "stddev": 0.0, "min": 0, "max": 0}
+    }
+  }
+}

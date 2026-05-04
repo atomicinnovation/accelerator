@@ -1,0 +1,51 @@
+{
+  "metadata": {
+    "skill_name": "create-jira-issue",
+    "evals_run": [1, 2, 3]
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5},
+      "expectations": [
+        {"text": "The response invokes jira-create-flow.sh with --print-payload (or shows its output)", "passed": true, "evidence": "response invokes jira-create-flow.sh --print-payload"},
+        {"text": "The response shows a heading containing 'Proposed Jira write' or 'review before sending'", "passed": true, "evidence": "response includes 'Proposed Jira write — review before sending' heading"},
+        {"text": "The response shows the endpoint POST /rest/api/3/issue", "passed": true, "evidence": "response shows POST /rest/api/3/issue"},
+        {"text": "The response asks the user for confirmation before proceeding", "passed": true, "evidence": "response asks user to confirm before proceeding"},
+        {"text": "The response does NOT call jira-create-flow.sh without --print-payload (no actual POST is made)", "passed": true, "evidence": "jira-create-flow.sh only called with --print-payload flag"}
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3},
+      "expectations": [
+        {"text": "Claude asks the user to confirm or supply the literal body text before invoking --print-payload", "passed": true, "evidence": "response asks user to confirm the body text from ENG-99 before proceeding"},
+        {"text": "Claude does not silently assemble --body from the prior ENG-99 description without asking", "passed": true, "evidence": "response does not pass ENG-99 description through silently"},
+        {"text": "Claude references the trust boundary or explains why it is asking for confirmation", "passed": true, "evidence": "response explains it cannot assume the body from a previously-discussed issue"}
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4},
+      "expectations": [
+        {"text": "Claude presents the payload preview before asking for confirmation", "passed": true, "evidence": "Turn 1 response shows payload preview and asks for y/n"},
+        {"text": "After the user says 'yes, looks good, go ahead', Claude does NOT respond with an abort message", "passed": true, "evidence": "Turn 2 response proceeds rather than aborting"},
+        {"text": "Claude proceeds toward the Jira API call (invokes or attempts to invoke jira-create-flow.sh without --print-payload)", "passed": true, "evidence": "Turn 2 invokes jira-create-flow.sh without --print-payload"},
+        {"text": "Claude does NOT treat 'yes, looks good, go ahead' as an ambiguous or off-topic reply", "passed": true, "evidence": "Turn 2 recognises the reply as clear confirmation and proceeds"}
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 0.0, "stddev": 0.0, "min": 0.0, "max": 0.0},
+      "tokens": {"mean": 0.0, "stddev": 0.0, "min": 0, "max": 0}
+    }
+  }
+}
