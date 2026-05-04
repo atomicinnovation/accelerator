@@ -11,15 +11,15 @@ export interface ResolvedWikiLink {
   title: string
 }
 
-/** Match `[[ADR-NNNN]]` and `[[TICKET-NNNN]]` only. Bare `[[NNNN]]` is
+/** Match `[[ADR-NNNN]]` and `[[WORK-ITEM-NNNN]]` only. Bare `[[NNNN]]` is
  *  intentionally excluded so the prefix namespace stays free for
  *  future ID kinds (`[[EPIC-NNNN]]`, etc.). The digit count is bounded
  *  to 1..6 to comfortably exceed any realistic ID space while
  *  preventing pathological inputs from producing values that overflow
  *  `Number.MAX_SAFE_INTEGER`. */
-export const WIKI_LINK_PATTERN = /\[\[(ADR|TICKET)-(\d{1,6})\]\]/g
+export const WIKI_LINK_PATTERN = /\[\[(ADR|WORK-ITEM)-(\d{1,6})\]\]/g
 
-type WikiLinkKind = 'ADR' | 'TICKET'
+type WikiLinkKind = 'ADR' | 'WORK-ITEM'
 
 /** Parse an ADR id that may live on `frontmatter.adr_id` (e.g. `"ADR-0017"`)
  *  or in the filename prefix (`ADR-0017-foo.md`). Frontmatter wins over
@@ -62,7 +62,7 @@ function parsePositiveInt(s: string): number | null {
  *  `frontmatter.adr_id` *or* the filename prefix; work items are keyed by
  *  the filename's leading numeric prefix. Defensively filters by
  *  `entry.type` so a misuse — accidentally passing plans as work items —
- *  cannot route `[[TICKET-N]]` to a non-work-item. On duplicate keys the
+ *  cannot route `[[WORK-ITEM-N]]` to a non-work-item. On duplicate keys the
  *  entry with the lexically-earliest `relPath` wins (deterministic
  *  across reloads). */
 export function buildWikiLinkIndex(

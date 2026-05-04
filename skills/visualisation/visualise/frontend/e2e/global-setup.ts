@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 
 const E2E_DIR = dirname(fileURLToPath(import.meta.url))
 const portFile = join(E2E_DIR, '..', '.e2e-port')
-const FIXTURES_DIR = join(E2E_DIR, '..', '..', 'server', 'tests', 'fixtures', 'meta', 'tickets')
+const FIXTURES_DIR = join(E2E_DIR, '..', '..', 'server', 'tests', 'fixtures', 'meta', 'work')
 export const SNAPSHOT_FILE = join(E2E_DIR, '..', '.e2e-fixture-snapshot.json')
 
 function readFixtures(): Record<string, string> {

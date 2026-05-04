@@ -51,7 +51,7 @@ describe('useMoveWorkItem', () => {
     const entry = makeEntry()
     queryClient.setQueryData(queryKeys.docs('work-items'), [entry])
 
-    vi.spyOn(fetchModule, 'patchTicketFrontmatter').mockReturnValue(new Promise(() => {}))
+    vi.spyOn(fetchModule, 'patchWorkItemFrontmatter').mockReturnValue(new Promise(() => {}))
 
     const { result } = renderHook(() => useMoveWorkItem(), { wrapper })
     act(() => { result.current.mutate({ entry, toStatus: 'in-progress' }) })
@@ -66,7 +66,7 @@ describe('useMoveWorkItem', () => {
     const entry = makeEntry()
     queryClient.setQueryData(queryKeys.docs('work-items'), [entry])
 
-    vi.spyOn(fetchModule, 'patchTicketFrontmatter').mockRejectedValue(
+    vi.spyOn(fetchModule, 'patchWorkItemFrontmatter').mockRejectedValue(
       new ConflictError(412, 'conflict', 'sha256-LATEST'),
     )
 
@@ -83,7 +83,7 @@ describe('useMoveWorkItem', () => {
     const entry = makeEntry()
     queryClient.setQueryData(queryKeys.docs('work-items'), [entry])
 
-    vi.spyOn(fetchModule, 'patchTicketFrontmatter').mockResolvedValue({ etag: 'sha256-NEW' })
+    vi.spyOn(fetchModule, 'patchWorkItemFrontmatter').mockResolvedValue({ etag: 'sha256-NEW' })
 
     const { result } = renderHook(() => useMoveWorkItem(), { wrapper })
     act(() => { result.current.mutate({ entry, toStatus: 'in-progress' }) })
@@ -97,7 +97,7 @@ describe('useMoveWorkItem', () => {
     const entry = makeEntry()
     queryClient.setQueryData(queryKeys.docs('work-items'), [entry])
 
-    vi.spyOn(fetchModule, 'patchTicketFrontmatter').mockResolvedValue({ etag: 'sha256-NEW' })
+    vi.spyOn(fetchModule, 'patchWorkItemFrontmatter').mockResolvedValue({ etag: 'sha256-NEW' })
     vi.spyOn(queryClient, 'invalidateQueries')
 
     const { result } = renderHook(() => useMoveWorkItem(), { wrapper })
@@ -115,7 +115,7 @@ describe('useMoveWorkItem', () => {
     const entryB = makeEntry({ relPath: 'meta/work/B.md', etag: 'sha256-B' })
     queryClient.setQueryData(queryKeys.docs('work-items'), [entryA, entryB])
 
-    vi.spyOn(fetchModule, 'patchTicketFrontmatter').mockReturnValue(new Promise(() => {}))
+    vi.spyOn(fetchModule, 'patchWorkItemFrontmatter').mockReturnValue(new Promise(() => {}))
 
     const { result } = renderHook(() => useMoveWorkItem(), { wrapper })
     act(() => { result.current.mutate({ entry: entryA, toStatus: 'in-progress' }) })

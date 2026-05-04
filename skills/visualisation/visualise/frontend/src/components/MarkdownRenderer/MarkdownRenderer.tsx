@@ -8,7 +8,7 @@ import { remarkWikiLinks, type Resolver } from './wiki-link-plugin'
 interface Props {
   content: string
   /** Optional. When provided, body text matching the wiki-link
-   *  bracket-shape (`[[ADR-NNNN]]` / `[[TICKET-NNNN]]`) is rewritten
+   *  bracket-shape (`[[ADR-NNNN]]` / `[[WORK-ITEM-NNNN]]`) is rewritten
    *  to anchors / pending-markers / unresolved-markers per the
    *  resolver's return kind. When omitted, no rewriting happens — the
    *  pre-Phase-9 behaviour. */

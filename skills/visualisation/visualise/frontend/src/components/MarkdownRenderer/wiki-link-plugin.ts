@@ -14,7 +14,7 @@ export type ResolverResult =
   | { kind: 'pending' }
 
 export type Resolver = (
-  prefix: 'ADR' | 'TICKET',
+  prefix: 'ADR' | 'WORK-ITEM',
   n: number,
 ) => ResolverResult
 
@@ -38,7 +38,7 @@ export interface MarkerNode {
 
 type ReplacementNode = Text | Link | MarkerNode
 
-/** remark plugin that rewrites `[[ADR-NNNN]]` / `[[TICKET-NNNN]]`
+/** remark plugin that rewrites `[[ADR-NNNN]]` / `[[WORK-ITEM-NNNN]]`
  *  occurrences inside `text` nodes only. mdast represents fenced and
  *  inline code as `code`/`inlineCode` nodes whose interior text is
  *  *not* `text`-typed children, so the visitor never enters them. */
@@ -74,7 +74,7 @@ function splitTextNode(node: Text, resolve: Resolver): ReplacementNode[] | null 
   let match: RegExpExecArray | null = WIKI_LINK_PATTERN.exec(value)
   while (match !== null) {
     const [bracketForm, prefixRaw, digitsRaw] = match
-    const prefix = prefixRaw as 'ADR' | 'TICKET'
+    const prefix = prefixRaw as 'ADR' | 'WORK-ITEM'
     const n = parseInt(digitsRaw, 10)
     const start = match.index
     const end = start + bracketForm.length

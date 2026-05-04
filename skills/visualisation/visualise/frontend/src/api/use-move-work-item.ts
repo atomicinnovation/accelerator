@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { patchTicketFrontmatter, type FetchError } from './fetch'
+import { patchWorkItemFrontmatter, type FetchError } from './fetch'
 import { useSelfCauseRegistry } from './self-cause'
 import { queryKeys } from './query-keys'
 import type { IndexEntry, KanbanColumnKey } from './types'
@@ -18,7 +18,7 @@ export function useMoveWorkItem() {
 
   return useMutation<PatchResult, FetchError, MoveWorkItemVars, MoveWorkItemContext>({
     mutationFn: ({ entry, toStatus }) =>
-      patchTicketFrontmatter(entry.relPath, { status: toStatus }, entry.etag),
+      patchWorkItemFrontmatter(entry.relPath, { status: toStatus }, entry.etag),
 
     onMutate: async ({ entry, toStatus }) => {
       await qc.cancelQueries({ queryKey: queryKeys.docs('work-items') })

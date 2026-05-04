@@ -20,11 +20,11 @@ function matches(s: string): Array<{ prefix: string; n: string }> {
 
 describe('WIKI_LINK_PATTERN', () => {
   // ── Step 3.1 ─────────────────────────────────────────────────────────
-  it('matches both ADR and TICKET forms', () => {
-    const m = matches('see [[ADR-0017]] and [[TICKET-1]]')
+  it('matches both ADR and WORK-ITEM forms', () => {
+    const m = matches('see [[ADR-0017]] and [[WORK-ITEM-1]]')
     expect(m).toEqual([
       { prefix: 'ADR', n: '0017' },
-      { prefix: 'TICKET', n: '1' },
+      { prefix: 'WORK-ITEM', n: '1' },
     ])
   })
 
@@ -164,7 +164,7 @@ describe('resolveWikiLink', () => {
 
   // ── Step 3.11 ────────────────────────────────────────────────────────
   it('returns href and title for known work item', () => {
-    expect(resolveWikiLink('TICKET', 1, idx)).toEqual({
+    expect(resolveWikiLink('WORK-ITEM', 1, idx)).toEqual({
       href: '/library/work-items/0001-foo',
       title: 'Three-layer review system architecture',
     })
@@ -172,7 +172,7 @@ describe('resolveWikiLink', () => {
 
   // ── Step 3.12 ────────────────────────────────────────────────────────
   it('returns null for unknown work item', () => {
-    expect(resolveWikiLink('TICKET', 9999, idx)).toBeNull()
+    expect(resolveWikiLink('WORK-ITEM', 9999, idx)).toBeNull()
   })
 
   // ── Step 3.13 ────────────────────────────────────────────────────────

@@ -26,7 +26,7 @@ export interface PatchResult {
   etag: string
 }
 
-export async function patchTicketFrontmatter(
+export async function patchWorkItemFrontmatter(
   relPath: string,
   patch: { status: KanbanColumnKey },
   etag: string,

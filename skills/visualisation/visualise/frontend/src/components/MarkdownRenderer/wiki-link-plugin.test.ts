@@ -18,6 +18,12 @@ const resolveAlwaysResolved: Resolver = (prefix, n) => ({
   title: prefix === 'ADR' ? 'Example decision' : 'Example work item',
 })
 
+// Work-item resolver used in multi-match tests
+const resolveWorkItemOnly: Resolver = (prefix) =>
+  prefix === 'WORK-ITEM'
+    ? { kind: 'resolved', href: '/library/work-items/0001-foo', title: 'Foo work item' }
+    : { kind: 'unresolved' }
+
 const resolveAlwaysUnresolved: Resolver = () => ({ kind: 'unresolved' })
 const resolveAlwaysPending: Resolver = () => ({ kind: 'pending' })
 
@@ -83,7 +89,7 @@ describe('remarkWikiLinks: emits pending marker when resolver returns kind=pendi
 // ── Step 4.4 ────────────────────────────────────────────────────────────────
 describe('remarkWikiLinks: handles multiple matches in one text node', () => {
   it('produces interleaved Link/Text/Link when both resolve', () => {
-    const tree = transform('[[ADR-0001]] and [[TICKET-1]]\n', resolveAlwaysResolved)
+    const tree = transform('[[ADR-0001]] and [[WORK-ITEM-1]]\n', resolveAlwaysResolved)
     const para = tree.children[0]
     if (para.type !== 'paragraph') throw new Error('expected paragraph')
     expect(para.children.map((c) => c.type)).toEqual(['link', 'text', 'link'])
@@ -92,18 +98,10 @@ describe('remarkWikiLinks: handles multiple matches in one text node', () => {
   })
 
   it('mixes Link with marker variants when resolver returns mixed kinds', () => {
-    const mixed: Resolver = (prefix) =>
-      prefix === 'TICKET'
-        ? {
-            kind: 'resolved',
-            href: '/library/work-items/0001-foo',
-            title: 'Foo work item',
-          }
-        : { kind: 'unresolved' }
-    const tree = transform('[[ADR-0001]] and [[TICKET-1]]\n', mixed)
+    const tree = transform('[[ADR-0001]] and [[WORK-ITEM-1]]\n', resolveWorkItemOnly)
     const para = tree.children[0]
     if (para.type !== 'paragraph') throw new Error('expected paragraph')
-    // [marker (ADR unresolved), text(' and '), link (TICKET resolved)]
+    // [marker (ADR unresolved), text(' and '), link (WORK-ITEM resolved)]
     expect(para.children[0].type).toBe('wikiLinkMarker')
     expect(para.children[1].type).toBe('text')
     expect(para.children[2].type).toBe('link')

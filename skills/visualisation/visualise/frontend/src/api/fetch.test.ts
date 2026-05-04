@@ -5,7 +5,7 @@ import {
   fetchTemplates, fetchTemplateDetail,
   fetchLifecycleClusters, fetchLifecycleCluster,
   fetchRelated,
-  patchTicketFrontmatter,
+  patchWorkItemFrontmatter,
 } from './fetch'
 
 const mockFetch = vi.fn()
@@ -247,14 +247,14 @@ describe('FetchError contract — all helpers throw FetchError on non-2xx', () =
   })
 })
 
-describe('patchTicketFrontmatter', () => {
+describe('patchWorkItemFrontmatter', () => {
   it('sends PATCH with If-Match and JSON body', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 204,
       headers: { get: (h: string) => h === 'etag' ? '"sha256-NEW"' : null },
     })
-    const result = await patchTicketFrontmatter(
+    const result = await patchWorkItemFrontmatter(
       'meta/work/0001-foo.md',
       { status: 'in-progress' },
       'sha256-OLD',
@@ -276,7 +276,7 @@ describe('patchTicketFrontmatter', () => {
       status: 204,
       headers: { get: (h: string) => h === 'etag' ? '"sha256-NEW"' : null },
     })
-    const result = await patchTicketFrontmatter('meta/work/0001-foo.md', { status: 'todo' }, 'sha256-OLD')
+    const result = await patchWorkItemFrontmatter('meta/work/0001-foo.md', { status: 'todo' }, 'sha256-OLD')
     expect(result.etag).toBe('sha256-NEW')
   })
 
@@ -287,7 +287,7 @@ describe('patchTicketFrontmatter', () => {
       json: async () => ({ currentEtag: 'sha256-LATEST' }),
     })
     await expect(
-      patchTicketFrontmatter('meta/work/0001-foo.md', { status: 'done' }, 'sha256-OLD'),
+      patchWorkItemFrontmatter('meta/work/0001-foo.md', { status: 'done' }, 'sha256-OLD'),
     ).rejects.toSatisfy((e: unknown) => {
       return e instanceof ConflictError && e.status === 412 && e.currentEtag === 'sha256-LATEST'
     })
@@ -295,7 +295,7 @@ describe('patchTicketFrontmatter', () => {
 
   it('throws FetchError (not ConflictError) on other 4xx', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({}) })
-    const err = await patchTicketFrontmatter(
+    const err = await patchWorkItemFrontmatter(
       'meta/work/0001-foo.md', { status: 'todo' }, 'sha256-OLD',
     ).catch((e: unknown) => e)
     expect(err).toBeInstanceOf(FetchError)
@@ -309,7 +309,7 @@ describe('patchTicketFrontmatter', () => {
       status: 204,
       headers: { get: () => '"sha256-NEW"' },
     })
-    await patchTicketFrontmatter('meta/work/0001 weird path.md', { status: 'todo' }, 'sha256-X')
+    await patchWorkItemFrontmatter('meta/work/0001 weird path.md', { status: 'todo' }, 'sha256-X')
     expect(mockFetch).toHaveBeenCalledWith(
       '/api/docs/meta/work/0001%20weird%20path.md/frontmatter',
       expect.anything(),
