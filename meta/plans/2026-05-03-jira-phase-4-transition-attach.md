@@ -1113,9 +1113,9 @@ allowed-tools: Bash, Read, Write
 
 #### Automated Verification
 
-- [ ] `ls skills/integrations/jira/attach-jira-issue/SKILL.md` exits 0.
-- [ ] SKILL.md frontmatter is valid YAML.
-- [ ] `skill-creator` eval passes.
+- [x] `ls skills/integrations/jira/attach-jira-issue/SKILL.md` exits 0.
+- [x] SKILL.md frontmatter is valid YAML.
+- [x] `skill-creator` eval passes.
 
 #### Manual Verification
 
