@@ -1,0 +1,20 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1/transitions",
+      "response": {
+        "status": 200,
+        "body": "{\"transitions\":[{\"id\":\"31\",\"name\":\"Done\",\"to\":{\"name\":\"Done\"}}]}"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/ENG-1/transitions",
+      "response": {
+        "status": 400,
+        "body": "{\"errorMessages\":[\"A resolution must be set.\"],\"errors\":{}}"
+      }
+    }
+  ]
+}

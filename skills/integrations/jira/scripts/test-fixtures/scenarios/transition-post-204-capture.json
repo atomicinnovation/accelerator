@@ -1,0 +1,21 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1/transitions",
+      "response": {
+        "status": 200,
+        "body": "{\"transitions\":[{\"id\":\"21\",\"name\":\"In Progress\",\"to\":{\"name\":\"In Progress\"}}]}"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/ENG-1/transitions",
+      "capture_body": true,
+      "response": {
+        "status": 204,
+        "body": ""
+      }
+    }
+  ]
+}

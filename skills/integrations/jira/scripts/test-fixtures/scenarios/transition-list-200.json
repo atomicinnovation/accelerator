@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1/transitions",
+      "response": {
+        "status": 200,
+        "body": "{\"transitions\":[{\"id\":\"11\",\"name\":\"To Do\",\"to\":{\"name\":\"To Do\"}},{\"id\":\"21\",\"name\":\"In Progress\",\"to\":{\"name\":\"In Progress\"}},{\"id\":\"31\",\"name\":\"Done\",\"to\":{\"name\":\"Done\"}}]}"
+      }
+    }
+  ]
+}

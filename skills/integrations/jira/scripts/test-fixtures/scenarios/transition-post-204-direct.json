@@ -1,0 +1,13 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/ENG-1/transitions",
+      "capture_body": true,
+      "response": {
+        "status": 204,
+        "body": ""
+      }
+    }
+  ]
+}

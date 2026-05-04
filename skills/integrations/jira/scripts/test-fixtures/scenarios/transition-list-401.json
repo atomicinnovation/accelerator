@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/ENG-1/transitions",
+      "response": {
+        "status": 401,
+        "body": "{\"errorMessages\":[\"You do not have permission to access this resource.\"],\"errors\":{}}"
+      }
+    }
+  ]
+}
