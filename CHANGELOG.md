@@ -101,10 +101,11 @@
     `jira-transition-flow.sh`, `jira-attach-flow.sh` — Per-skill orchestration
     helpers with `--describe` dry-run support on all write flows
 - **Jira config section**: New `jira` YAML section in `accelerator.md` /
-  `accelerator.local.md` with keys `site`, `email`, `token`, `token_cmd`.
-  Documented in `skills/config/configure/SKILL.md`. `work.default_project_code`
-  doubles as the default Jira project key — no separate `jira.default_project_key`
-  is introduced
+  `accelerator.local.md`. `site` goes in team-shared `accelerator.md`;
+  `email`, `token`, and `token_cmd` are personal and belong in the gitignored
+  `accelerator.local.md`. Documented in `skills/config/configure/SKILL.md`.
+  `work.default_project_code` doubles as the default Jira project key — no
+  separate `jira.default_project_key` is introduced
 - **`meta/integrations/jira/` state directory**: Version-controlled
   team-shared cache for the field catalogue, project list, and site metadata.
   Path honours the `paths.integrations` config key (default:

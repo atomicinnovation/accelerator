@@ -521,13 +521,12 @@ Other `work.*` keys are not consumed by any plugin script.
 
 ### jira
 
-Configure access to a Jira Cloud tenant. Two keys belong in team-shared
+Configure access to a Jira Cloud tenant. One key belongs in team-shared
 `accelerator.md`:
 
-| Key      | Default | Description                                |
-|----------|---------|--------------------------------------------|
-| `site`   | (empty) | Cloud subdomain (e.g. `atomic-innovation`) |
-| `email`  | (empty) | Atlassian account email                    |
+| Key    | Default | Description                                |
+|--------|---------|--------------------------------------------|
+| `site` | (empty) | Cloud subdomain (e.g. `atomic-innovation`) |
 
 Example shared configuration in `accelerator.md`:
 
@@ -535,17 +534,17 @@ Example shared configuration in `accelerator.md`:
 ---
 jira:
   site: atomic-innovation
-  email: toby@go-atomic.io
 ---
 \```
 
-#### Local-only credentials (do not commit)
+#### Personal settings (do not commit)
 
-Two additional keys exist for credential storage. **Both must live
-exclusively in `accelerator.local.md`**, which is gitignored:
+Three keys are personal and **must live exclusively in
+`accelerator.local.md`**, which is gitignored:
 
 | Key         | Default | Description                                            |
 |-------------|---------|--------------------------------------------------------|
+| `email`     | (empty) | Your Atlassian account email                           |
 | `token`     | (empty) | Plaintext API token (discouraged — prefer `token_cmd`) |
 | `token_cmd` | (empty) | Shell command whose stdout is the token                |
 
@@ -564,6 +563,7 @@ Example `accelerator.local.md` (preferred form, using a password manager):
 \```yaml
 ---
 jira:
+  email: toby@go-atomic.io
   token_cmd: "op read op://Work/Atlassian/credential"
 ---
 \```

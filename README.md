@@ -321,15 +321,14 @@ team-shared field and project catalogue before using the other skills.
 
 ### Configuration
 
-Add shared settings to `.claude/accelerator.md` and personal credentials to
-`.claude/accelerator.local.md` (gitignored):
+Add the shared site setting to `.claude/accelerator.md` and personal
+credentials to `.claude/accelerator.local.md` (gitignored):
 
 ```yaml
 # accelerator.md — commit this
 ---
 jira:
-  site: your-subdomain       # e.g. "atomic-innovation" for atomic-innovation.atlassian.net
-  email: you@example.com
+  site: your-subdomain   # e.g. "atomic-innovation" for atomic-innovation.atlassian.net
 ---
 ```
 
@@ -337,6 +336,7 @@ jira:
 # accelerator.local.md — do not commit
 ---
 jira:
+  email: you@example.com
   token_cmd: "op read op://Work/Atlassian/credential"  # any password-manager command
 ---
 ```
