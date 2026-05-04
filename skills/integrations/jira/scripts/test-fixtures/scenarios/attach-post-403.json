@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/ENG-1/attachments",
+      "response": {
+        "status": 403,
+        "body": "{\"errorMessages\":[\"You do not have permission to attach files to this issue.\"],\"errors\":{}}"
+      }
+    }
+  ]
+}

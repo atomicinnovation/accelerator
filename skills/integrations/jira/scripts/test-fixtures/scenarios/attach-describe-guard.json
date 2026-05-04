@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/ENG-1/attachments",
+      "consume": false,
+      "capture_url": true,
+      "response": {
+        "status": 200,
+        "body": "[]"
+      }
+    }
+  ]
+}

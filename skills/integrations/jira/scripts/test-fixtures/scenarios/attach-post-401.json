@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/ENG-1/attachments",
+      "response": {
+        "status": 401,
+        "body": "{\"errorMessages\":[\"You do not have permission to access this resource.\"],\"errors\":{}}"
+      }
+    }
+  ]
+}

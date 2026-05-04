@@ -907,7 +907,7 @@ POST attachments → 401 Unauthorized:
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-attach.sh` exits
+- [x] `bash skills/integrations/jira/scripts/test-jira-attach.sh` exits
   non-zero (FAIL lines) before `jira-attach-flow.sh` exists — proves the
   tests are live.
 
