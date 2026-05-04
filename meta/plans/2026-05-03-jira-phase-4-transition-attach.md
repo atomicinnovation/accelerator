@@ -1010,11 +1010,11 @@ bash "$SCRIPT_DIR/test-jira-attach.sh" || EXIT_CODE=$?
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-attach.sh` exits 0,
+- [x] `bash skills/integrations/jira/scripts/test-jira-attach.sh` exits 0,
   all 11 cases PASS (Cases 1–4, 5a, 5b, 6–10), no FAIL lines. (Cases 5a and
   5b are two separate assert blocks within Case 5's test block — the total
   test table entry count is 10.)
-- [ ] `bash skills/integrations/jira/scripts/test-jira-scripts.sh` exits 0.
+- [x] `bash skills/integrations/jira/scripts/test-jira-scripts.sh` exits 0.
 
 #### Manual Verification
 

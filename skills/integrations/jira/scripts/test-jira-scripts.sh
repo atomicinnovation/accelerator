@@ -28,5 +28,6 @@ bash "$SCRIPT_DIR/test-jira-create.sh" || EXIT_CODE=$?
 bash "$SCRIPT_DIR/test-jira-update.sh" || EXIT_CODE=$?
 bash "$SCRIPT_DIR/test-jira-comment.sh" || EXIT_CODE=$?
 bash "$SCRIPT_DIR/test-jira-transition.sh" || EXIT_CODE=$?
+bash "$SCRIPT_DIR/test-jira-attach.sh" || EXIT_CODE=$?
 
 exit "$EXIT_CODE"
