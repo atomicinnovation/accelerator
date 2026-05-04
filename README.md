@@ -87,6 +87,7 @@ These paths can be overridden via the `paths` configuration section:
 | `notes/`              | Notes and working documents                                    | manual                                                       |
 | `design-inventories/` | Per-source design inventory snapshots (markdown + screenshots) | `inventory-design`                                           |
 | `design-gaps/`        | Design-gap analysis artifacts                                  | `analyse-design-gaps`                                        |
+| `integrations/jira/`     | Jira field catalogue, project list, and site metadata | `init-jira`                                                |
 | `tmp/`                | Ephemeral working data (e.g., review artifacts)                | `review-pr`                                                  |
 
 This approach means:
@@ -312,21 +313,81 @@ The template is customisable via
 
 ## Jira Integration
 
-Accelerator includes skills for reading from a Jira Cloud tenant. Run
-`/accelerator:init-jira` once to store your site URL, email address, and API
-token before using these skills. See
-`meta/research/2026-04-29-jira-cloud-integration-skills.md` for background on
-the design.
+Accelerator includes a full set of skills for interacting with a Jira Cloud
+tenant — searching for and reading issues, creating and updating them,
+commenting, transitioning through workflows, and uploading attachments. Run
+`/accelerator:init-jira` once to verify credentials and persist the
+team-shared field and project catalogue before using the other skills.
+
+### Configuration
+
+Add shared settings to `.claude/accelerator.md` and personal credentials to
+`.claude/accelerator.local.md` (gitignored):
+
+```yaml
+# accelerator.md — commit this
+---
+jira:
+  site: your-subdomain       # e.g. "atomic-innovation" for atomic-innovation.atlassian.net
+  email: you@example.com
+---
+```
+
+```yaml
+# accelerator.local.md — do not commit
+---
+jira:
+  token_cmd: "op read op://Work/Atlassian/credential"  # any password-manager command
+---
+```
+
+The default project key reuses `work.default_project_code`. See
+`/accelerator:configure help` for the full credential resolution chain and
+`token_cmd` examples (1Password, `pass`, macOS Keychain, AWS Secrets Manager).
+
+### Skills
 
 | Skill | Usage | Description |
 |---|---|---|
-| **search-jira-issues** | `/accelerator:search-jira-issues [flags]` | Search Jira tickets by assignee, status, label, project, type, component, reporter, and more; composes safe JQL from structured flags |
-| **show-jira-issue** | `/accelerator:show-jira-issue <KEY>` | Display a single Jira issue with optional comment slice and Markdown rendering of ADF descriptions |
+| **init-jira** | `/accelerator:init-jira` | Verify credentials, discover projects and custom fields, persist the team-shared catalogue to `meta/integrations/jira/` |
+| **search-jira-issues** | `/accelerator:search-jira-issues [flags]` | Search via structured flags (assignee, status, label, type, component, reporter, parent, watching); composes safe JQL with a `--jql` escape hatch |
+| **show-jira-issue** | `/accelerator:show-jira-issue <KEY>` | Fetch a single issue with optional comment slice and Markdown rendering of ADF descriptions |
+| **create-jira-issue** | `/accelerator:create-jira-issue [flags]` | Create a new issue; body accepted inline, from a file, from stdin, or via `$EDITOR` |
+| **update-jira-issue** | `/accelerator:update-jira-issue <KEY> [flags]` | Edit summary, description, assignee, priority, labels, components, parent, and custom fields |
+| **comment-jira-issue** | `/accelerator:comment-jira-issue <sub> <KEY>` | Add, list, edit, or delete comments (`add`, `list`, `edit`, `delete` sub-actions) |
+| **transition-jira-issue** | `/accelerator:transition-jira-issue <KEY> <state>` | Move an issue through its workflow by state name (case-insensitive lookup), with optional resolution and comment |
+| **attach-jira-issue** | `/accelerator:attach-jira-issue <KEY> <file...>` | Upload one or more files as issue attachments |
 
-Both skills render ADF content to Markdown by default. `show-jira-issue`
-defaults render-on; `search-jira-issues` defaults render-off (pass
-`--render-adf` for bulk results). Pass `--no-render-adf` to `show-jira-issue`
-to get raw JSON.
+Read skills (`search-jira-issues`, `show-jira-issue`) trigger automatically on
+natural-language phrasing. Write skills are slash-only — they display a
+payload preview and require explicit confirmation before making any change to
+the tenant.
+
+### ADF / Markdown
+
+Jira Cloud v3 stores rich-text fields in Atlassian Document Format (ADF).
+Accelerator converts bidirectionally using pure bash + awk + jq with no
+additional dependencies:
+
+- **Reading** — ADF is rendered to Markdown by default on `show-jira-issue`
+  (pass `--no-render-adf` for raw JSON) and on `comment-jira-issue list`.
+  `search-jira-issues` defaults render-off; pass `--render-adf` for bulk
+  results with description text.
+- **Writing** — `create-jira-issue`, `update-jira-issue`, and
+  `comment-jira-issue add`/`edit` convert Markdown input to ADF before
+  sending.
+
+Supported Markdown: paragraphs, headings (`#`–`######`), fenced code blocks
+with language, single-level bullet/ordered lists, GitHub-style checklists
+(`- [ ]` / `- [x]`), inline bold/italic/code/links, and hard breaks.
+
+### State cache
+
+`/init-jira` persists the field catalogue, project list, and site metadata to
+`meta/integrations/jira/`. This directory is version-controlled and
+team-shared — instance-specific custom field IDs are not secrets and are worth
+committing so teammates don't need to re-run init. Per-developer credentials
+live in `accelerator.local.md` and env vars only.
 
 ## Architecture Decision Records
 

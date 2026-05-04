@@ -49,6 +49,68 @@
   - Added Playwright MCP server dependency (`.claude-plugin/.mcp.json`, pinned
     to a specific `@playwright/mcp` version).
 
+- **Jira integration helper scripts**: Sourceable and executable bash
+  libraries shared across all eight skills
+  - `jira-common.sh` — `jira_die`, `jira_warn`, `jira_state_dir` (honours
+    `paths.integrations`), `jira_with_lock`, `_jira_uuid_v4`, and JSON
+    utility wrappers
+  - `jira-auth.sh` / `jira-auth-cli.sh` — Token resolution chain:
+    `ACCELERATOR_JIRA_TOKEN` env → `ACCELERATOR_JIRA_TOKEN_CMD` env →
+    `accelerator.local.md` `jira.token` → `accelerator.local.md`
+    `jira.token_cmd` → `accelerator.md` `jira.token`. `token_cmd` from the
+    team-shared `accelerator.md` is rejected with
+    `E_TOKEN_CMD_FROM_SHARED_CONFIG` (supply-chain injection guard). Token is
+    redacted from all debug output
+  - `jira-request.sh` — Signed curl wrapper. Composes the URL from configured
+    site; sets `Authorization: Basic`; handles JSON and multipart bodies;
+    honours `Retry-After` on HTTP 429 with capped exponential backoff (4
+    retries, ±30% jitter); maps HTTP status to stable exit codes
+    (`E_JIRA_UNAUTHORIZED`, `E_JIRA_FORBIDDEN`, `E_JIRA_NOT_FOUND`,
+    `E_JIRA_RATE_LIMITED`, `E_JIRA_SERVER_ERROR`); surfaces non-2xx response
+    bodies to stderr
+  - `jira-jql.sh` / `jira-jql-cli.sh` — JQL builder with `jql_filter`,
+    `jql_in`, `jql_not_in`, `jql_split_neg`; wraps values in single quotes
+    and doubles embedded single quotes; rejects unsafe characters. Default
+    scope prepends `project = "…" AND` when a project is configured;
+    `--all-projects` disables it
+  - `jira-fields.sh` — Custom-field discovery and slug-based name resolution.
+    `resolve <name>` returns the `customfield_NNNNN` ID; `list` prints the
+    cached catalogue; `refresh` re-fetches from `/rest/api/3/field`. Slug
+    generated client-side (lowercase + non-alphanumeric → dash collapse)
+  - `jira-custom-fields.sh` — Helpers for building `fields`/`update` payload
+    fragments from `--custom slug=value` arguments, resolving slugs to field
+    IDs via `jira-fields.sh`
+  - `jira-md-to-adf.sh` — Markdown → ADF compiler (awk block tokeniser +
+    jq record-stream compiler). Rejects unsupported constructs (tables,
+    blockquotes, nested lists, HTML) with a named-feature error before
+    generating any output
+  - `jira-adf-to-md.sh` — ADF → Markdown renderer (single-pass recursive jq).
+    Unsupported ADF node types emit `[unsupported ADF node: <type>]`
+    placeholders so data is never silently dropped
+  - `jira-render-adf-fields.sh` — Post-processes an API JSON response,
+    replacing ADF subtrees at known field paths (`fields.description`,
+    `fields.environment`, each comment body, multi-line custom fields) with
+    rendered Markdown strings via `setpath`; used by the `--render-adf` flag
+    on all read-side helpers
+  - `jira-body-input.sh` — Shared body-input precedence chain:
+    `--body <inline>` → `--body-file <path>` → stdin (when not a TTY) →
+    `$EDITOR` on a tempfile (interactive fallback). Used by create, update,
+    comment, and transition
+  - `jira-init-flow.sh`, `jira-search-flow.sh`, `jira-show-flow.sh`,
+    `jira-create-flow.sh`, `jira-update-flow.sh`, `jira-comment-flow.sh`,
+    `jira-transition-flow.sh`, `jira-attach-flow.sh` — Per-skill orchestration
+    helpers with `--describe` dry-run support on all write flows
+- **Jira config section**: New `jira` YAML section in `accelerator.md` /
+  `accelerator.local.md` with keys `site`, `email`, `token`, `token_cmd`.
+  Documented in `skills/config/configure/SKILL.md`. `work.default_project_code`
+  doubles as the default Jira project key — no separate `jira.default_project_key`
+  is introduced
+- **`meta/integrations/jira/` state directory**: Version-controlled
+  team-shared cache for the field catalogue, project list, and site metadata.
+  Path honours the `paths.integrations` config key (default:
+  `meta/integrations`) so a future top-level `.accelerator/state/` reorg is a
+  one-key change
+
 ### Notes
 
 - `inventory-design` reads `ACCELERATOR_BROWSER_AUTH_HEADER` (or the trio
@@ -72,6 +134,55 @@
   the visualiser does not require a local cargo build.
 - The visualiser respects `paths.*` configuration: changing `paths.tickets`
   routes the visualiser at the updated location.
+- **Jira Cloud integration**: Eight verb-decomposed skills for interacting
+  with a Jira Cloud tenant, backed by the Jira Cloud REST API v3 directly
+  (no external CLI dependency) and a shared set of bash helper scripts under
+  `skills/integrations/jira/scripts/`
+  - `init-jira` — Verify credentials against `/rest/api/3/myself`; discover
+    and persist the project list (`meta/integrations/jira/projects.json`),
+    custom-field catalogue (`meta/integrations/jira/fields.json`), and site
+    metadata (`meta/integrations/jira/site.json`). Re-running re-verifies and
+    refreshes the caches. `--refresh-fields` re-fetches only the field
+    catalogue; `--list-projects` and `--list-fields` are fast read-only
+    inspection modes
+  - `search-jira-issues` — Search via structured flags (`--assignee`,
+    `--status`, `--label`, `--type`, `--component`, `--reporter`, `--parent`,
+    `--watching`, `--project`) with `~`-prefix negation, free-text positional
+    argument, `--jql` escape hatch, and token-based pagination
+    (`--page-token`). JQL is composed by `jira-jql.sh` with safe quoting and
+    logged to stderr for auditability. Returns the API's `{issues,
+    nextPageToken}` JSON verbatim; `--render-adf` replaces ADF description
+    subtrees with rendered Markdown strings in-place
+  - `show-jira-issue` — Fetch a single issue (`GET /rest/api/3/issue/{key}`);
+    optional `--comments N` appends the N most recent comments; ADF fields
+    rendered to Markdown by default (pass `--no-render-adf` for raw JSON).
+    `@me` in filter arguments resolves to the cached `accountId` from
+    `site.json` without an extra round-trip
+  - `create-jira-issue` — Create an issue with required `--project`,
+    `--type`, `--summary`; optional body (inline/file/stdin/`$EDITOR` chain),
+    `--assignee`, `--priority`, `--label`, `--component`, `--parent`,
+    `--custom <slug>=<value>`. Markdown body converted to ADF before POST.
+    Displays a payload preview and requires `y` confirmation before writing
+  - `update-jira-issue` — Edit summary, description, assignee, priority,
+    labels, components, parent, and custom fields. Multi-value fields support
+    `--add-label`/`--remove-label` for additive operations alongside `--label`
+    set semantics. PUT body converted to ADF for rich-text fields.
+    `--no-notify` maps to `?notifyUsers=false`. Confirmation gated as for
+    create
+  - `comment-jira-issue` — Four sub-actions: `add KEY [body]`, `list KEY`,
+    `edit KEY COMMENT_ID [body]`, `delete KEY COMMENT_ID`. Body chain
+    (inline/file/stdin/`$EDITOR`) shared with create/update. ADF rendered on
+    `list` and `add`/`edit` responses by default. `--no-notify` suppresses
+    email on `add`/`edit`. `--describe` dry-run emits a JSON preview without
+    making any API call
+  - `transition-jira-issue` — Accept a state name (case-insensitive); look up
+    available transitions from the current state, match by `to.name`,
+    POST with the resolved transition ID. Optional `--resolution` and
+    `--comment` (Markdown body converted to ADF). Disambiguates when multiple
+    transitions lead to the same state name. Confirmation gated
+  - `attach-jira-issue` — Upload one or more files via multipart/form-data
+    (`POST .../attachments`) with automatic `X-Atlassian-Token: no-check`
+    injection. Confirmation gated before upload
 
 ## [1.20.0] - 2026-04-28
 
