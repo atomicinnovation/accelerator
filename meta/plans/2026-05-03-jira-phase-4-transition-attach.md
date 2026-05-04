@@ -440,7 +440,7 @@ MOCK_SERVER="$SCRIPT_DIR/test-helpers/mock-jira-server.py"
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-transition.sh` exits
+- [x] `bash skills/integrations/jira/scripts/test-jira-transition.sh` exits
   non-zero with `FAIL` lines (because `jira-transition-flow.sh` does not exist
   yet) — this proves the tests are actually testing something.
 
@@ -599,9 +599,9 @@ bash "$SCRIPT_DIR/test-jira-transition.sh" || EXIT_CODE=$?
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/jira/scripts/test-jira-transition.sh` exits 0,
+- [x] `bash skills/integrations/jira/scripts/test-jira-transition.sh` exits 0,
   all 23 cases PASS (Cases 1–22 including 3b), no FAIL lines.
-- [ ] `bash skills/integrations/jira/scripts/test-jira-scripts.sh` exits 0.
+- [x] `bash skills/integrations/jira/scripts/test-jira-scripts.sh` exits 0.
 
 #### Manual Verification
 
@@ -750,9 +750,9 @@ allowed-tools: Bash, Read, Write
 
 #### Automated Verification
 
-- [ ] `ls skills/integrations/jira/transition-jira-issue/SKILL.md` exits 0.
-- [ ] The SKILL.md frontmatter parses cleanly (valid YAML between `---` delimiters).
-- [ ] `skill-creator` eval passes (all eval cases PASS).
+- [x] `ls skills/integrations/jira/transition-jira-issue/SKILL.md` exits 0.
+- [x] The SKILL.md frontmatter parses cleanly (valid YAML between `---` delimiters).
+- [x] `skill-creator` eval passes (all eval cases PASS).
 
 #### Manual Verification
 
