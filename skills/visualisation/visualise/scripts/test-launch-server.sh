@@ -65,7 +65,7 @@ CURLRC=0; curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
 assert_eq "binenv: curl 200" "0" "$CURLRC"
 CFG_FILE="$PROJ/meta/tmp/visualiser/config.json"
 assert_json_eq "config: decisions"    ".doc_paths.decisions"    "$PROJ/meta/decisions"     "$CFG_FILE"
-assert_json_eq "config: tickets"      ".doc_paths.tickets"      "$PROJ/meta/tickets"       "$CFG_FILE"
+assert_json_eq "config: work"         ".doc_paths.work"         "$PROJ/meta/work"          "$CFG_FILE"
 assert_json_eq "config: plans"        ".doc_paths.plans"        "$PROJ/meta/plans"         "$CFG_FILE"
 assert_json_eq "config: research"     ".doc_paths.research"     "$PROJ/meta/research"      "$CFG_FILE"
 assert_json_eq "config: review_plans" ".doc_paths.review_plans" "$PROJ/meta/reviews/plans" "$CFG_FILE"

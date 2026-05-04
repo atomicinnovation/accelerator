@@ -4,6 +4,6 @@ type: adr-creation-task
 status: in-progress
 ---
 
-# In-progress ticket
+# In-progress work item
 
-A ticket currently in progress.
+A work item currently in progress.

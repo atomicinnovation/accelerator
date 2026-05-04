@@ -4,7 +4,7 @@ import { PipelineDots } from './PipelineDots'
 import type { Completeness } from '../../api/types'
 
 const empty: Completeness = {
-  hasTicket: false, hasResearch: false, hasPlan: false,
+  hasWorkItem: false, hasResearch: false, hasPlan: false,
   hasPlanReview: false, hasValidation: false, hasPr: false,
   hasPrReview: false, hasDecision: false, hasNotes: false,
 }
@@ -16,12 +16,12 @@ describe('PipelineDots', () => {
   })
 
   it('marks present stages as filled and absent as unfilled via data-present', () => {
-    const c: Completeness = { ...empty, hasTicket: true, hasPlan: true }
+    const c: Completeness = { ...empty, hasWorkItem: true, hasPlan: true }
     const { container } = render(<PipelineDots completeness={c} />)
-    const ticket = container.querySelector('[data-stage="hasTicket"]')!
+    const workItem = container.querySelector('[data-stage="hasWorkItem"]')!
     const plan = container.querySelector('[data-stage="hasPlan"]')!
     const research = container.querySelector('[data-stage="hasResearch"]')!
-    expect(ticket.getAttribute('data-present')).toBe('true')
+    expect(workItem.getAttribute('data-present')).toBe('true')
     expect(plan.getAttribute('data-present')).toBe('true')
     expect(research.getAttribute('data-present')).toBe('false')
   })
@@ -37,6 +37,6 @@ describe('PipelineDots', () => {
     const c: Completeness = { ...empty, hasPlan: true }
     render(<PipelineDots completeness={c} />)
     expect(screen.getByLabelText('Plan: present')).toBeInTheDocument()
-    expect(screen.getByLabelText('Ticket: missing')).toBeInTheDocument()
+    expect(screen.getByLabelText('Work item: missing')).toBeInTheDocument()
   })
 })

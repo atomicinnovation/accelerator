@@ -15,7 +15,7 @@ function transform(source: string, resolver: Resolver): Root {
 const resolveAlwaysResolved: Resolver = (prefix, n) => ({
   kind: 'resolved',
   href: `/library/decisions/ADR-${String(n).padStart(4, '0')}-foo`,
-  title: prefix === 'ADR' ? 'Example decision' : 'Example ticket',
+  title: prefix === 'ADR' ? 'Example decision' : 'Example work item',
 })
 
 const resolveAlwaysUnresolved: Resolver = () => ({ kind: 'unresolved' })
@@ -96,8 +96,8 @@ describe('remarkWikiLinks: handles multiple matches in one text node', () => {
       prefix === 'TICKET'
         ? {
             kind: 'resolved',
-            href: '/library/tickets/0001-foo',
-            title: 'Foo ticket',
+            href: '/library/work-items/0001-foo',
+            title: 'Foo work item',
           }
         : { kind: 'unresolved' }
     const tree = transform('[[ADR-0001]] and [[TICKET-1]]\n', mixed)

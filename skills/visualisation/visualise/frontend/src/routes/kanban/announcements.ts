@@ -6,7 +6,7 @@ interface Deps {
   entries: () => Map<string, IndexEntry>
 }
 
-export function ticketNumberFromRelPath(relPath: string): string | null {
+export function workItemIdFromRelPath(relPath: string): string | null {
   const m = /(\d{4})-/.exec(relPath.split('/').pop() ?? '')
   return m ? m[1] : null
 }
@@ -18,13 +18,13 @@ function labelFor(columnId: unknown): string {
 }
 
 function describe(id: unknown, entries: Map<string, IndexEntry>): string {
-  if (typeof id !== 'string') return `ticket ${String(id)}`
+  if (typeof id !== 'string') return `work item ${String(id)}`
   const entry = entries.get(id)
-  const num = ticketNumberFromRelPath(id)
+  const num = workItemIdFromRelPath(id)
   const title = entry?.title
-  if (num && title) return `ticket ${num}: ${title}`
-  if (title) return `ticket ${title}`
-  return `ticket ${id}`
+  if (num && title) return `work item ${num}: ${title}`
+  if (title) return `work item ${title}`
+  return `work item ${id}`
 }
 
 export function buildKanbanAnnouncements(

@@ -8,7 +8,7 @@ use crate::indexer::IndexEntry;
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Completeness {
-    pub has_ticket: bool,
+    pub has_work_item: bool,
     pub has_research: bool,
     pub has_plan: bool,
     pub has_plan_review: bool,
@@ -66,13 +66,14 @@ pub fn compute_clusters(entries: &[IndexEntry]) -> Vec<LifecycleCluster> {
 
 fn canonical_rank(kind: DocTypeKey) -> u8 {
     match kind {
-        DocTypeKey::Tickets => 0,
+        DocTypeKey::WorkItems => 0,
         DocTypeKey::Research => 1,
         DocTypeKey::Plans => 2,
         DocTypeKey::PlanReviews => 3,
         DocTypeKey::Validations => 4,
         DocTypeKey::Prs => 5,
         DocTypeKey::PrReviews => 6,
+        DocTypeKey::WorkItemReviews => 6,
         DocTypeKey::Decisions => 7,
         DocTypeKey::Notes => 8,
         DocTypeKey::Templates => u8::MAX,
@@ -95,7 +96,7 @@ fn derive_title(slug: &str, entries: &[IndexEntry]) -> String {
 
 fn derive_completeness(entries: &[IndexEntry]) -> Completeness {
     let mut c = Completeness {
-        has_ticket: false,
+        has_work_item: false,
         has_research: false,
         has_plan: false,
         has_plan_review: false,
@@ -107,10 +108,11 @@ fn derive_completeness(entries: &[IndexEntry]) -> Completeness {
     };
     for e in entries {
         match e.r#type {
-            DocTypeKey::Tickets => c.has_ticket = true,
+            DocTypeKey::WorkItems => c.has_work_item = true,
             DocTypeKey::Research => c.has_research = true,
             DocTypeKey::Plans => c.has_plan = true,
             DocTypeKey::PlanReviews => c.has_plan_review = true,
+            DocTypeKey::WorkItemReviews => {}
             DocTypeKey::Validations => c.has_validation = true,
             DocTypeKey::Prs => c.has_pr = true,
             DocTypeKey::PrReviews => c.has_pr_review = true,
@@ -136,7 +138,7 @@ mod tests {
         let entries = vec![
             entry(DocTypeKey::Plans, "foo", 10, "Plan for Foo"),
             entry(DocTypeKey::PlanReviews, "foo", 20, "Review"),
-            entry(DocTypeKey::Tickets, "foo", 5, "Ticket"),
+            entry(DocTypeKey::WorkItems, "foo", 5, "Work Item"),
         ];
         let clusters = compute_clusters(&entries);
         assert_eq!(clusters.len(), 1);
@@ -146,18 +148,18 @@ mod tests {
     }
 
     #[test]
-    fn canonical_ordering_is_ticket_then_plan_then_review() {
+    fn canonical_ordering_is_work_item_then_plan_then_review() {
         let entries = vec![
             entry(DocTypeKey::PlanReviews, "foo", 30, "Review"),
             entry(DocTypeKey::Plans, "foo", 20, "Plan"),
-            entry(DocTypeKey::Tickets, "foo", 10, "Ticket"),
+            entry(DocTypeKey::WorkItems, "foo", 10, "Work Item"),
         ];
         let clusters = compute_clusters(&entries);
         let kinds: Vec<DocTypeKey> = clusters[0].entries.iter().map(|e| e.r#type).collect();
         assert_eq!(
             kinds,
             vec![
-                DocTypeKey::Tickets,
+                DocTypeKey::WorkItems,
                 DocTypeKey::Plans,
                 DocTypeKey::PlanReviews,
             ]
@@ -183,13 +185,13 @@ mod tests {
     #[test]
     fn completeness_flags_track_present_types() {
         let entries = vec![
-            entry(DocTypeKey::Tickets, "foo", 10, "T"),
+            entry(DocTypeKey::WorkItems, "foo", 10, "T"),
             entry(DocTypeKey::Plans, "foo", 20, "P"),
             entry(DocTypeKey::Decisions, "foo", 30, "D"),
         ];
         let clusters = compute_clusters(&entries);
         let c = &clusters[0].completeness;
-        assert!(c.has_ticket);
+        assert!(c.has_work_item);
         assert!(c.has_plan);
         assert!(c.has_decision);
         assert!(!c.has_research);
@@ -223,7 +225,7 @@ mod tests {
     #[test]
     fn last_changed_ms_is_max_mtime_across_entries() {
         let entries = vec![
-            entry(DocTypeKey::Tickets, "foo", 100, "T"),
+            entry(DocTypeKey::WorkItems, "foo", 100, "T"),
             entry(DocTypeKey::Plans, "foo", 500, "P"),
             entry(DocTypeKey::PlanReviews, "foo", 300, "R"),
         ];
@@ -243,9 +245,9 @@ mod tests {
     fn last_changed_ms_is_per_cluster_and_survives_slug_sort() {
         let entries = vec![
             entry(DocTypeKey::Plans, "foo", 100, "P-foo"),
-            entry(DocTypeKey::Tickets, "foo", 500, "T-foo"),
+            entry(DocTypeKey::WorkItems, "foo", 500, "T-foo"),
             entry(DocTypeKey::Plans, "bar", 900, "P-bar"),
-            entry(DocTypeKey::Tickets, "bar", 200, "T-bar"),
+            entry(DocTypeKey::WorkItems, "bar", 200, "T-bar"),
         ];
         let clusters = compute_clusters(&entries);
         assert_eq!(clusters.len(), 2);

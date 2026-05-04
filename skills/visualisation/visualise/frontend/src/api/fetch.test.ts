@@ -135,7 +135,7 @@ describe('fetchLifecycleClusters', () => {
             title: 'Foo',
             entries: [],
             completeness: {
-              hasTicket: false, hasResearch: false, hasPlan: true,
+              hasWorkItem: false, hasResearch: false, hasPlan: true,
               hasPlanReview: false, hasValidation: false, hasPr: false,
               hasPrReview: false, hasDecision: false, hasNotes: false,
             },
@@ -217,8 +217,8 @@ describe('fetchRelated', () => {
 describe('FetchError contract — all helpers throw FetchError on non-2xx', () => {
   it.each([
     ['fetchTypes',          () => fetchTypes()],
-    ['fetchDocs',           () => fetchDocs('tickets')],
-    ['fetchDocContent',     () => fetchDocContent('meta/tickets/0001-x.md')],
+    ['fetchDocs',           () => fetchDocs('work-items')],
+    ['fetchDocContent',     () => fetchDocContent('meta/work/0001-x.md')],
     ['fetchTemplates',      () => fetchTemplates()],
     ['fetchTemplateDetail', () => fetchTemplateDetail('foo')],
   ])('%s rejects with FetchError carrying the status', async (_name, call) => {
@@ -234,7 +234,7 @@ describe('FetchError contract — all helpers throw FetchError on non-2xx', () =
 
   it.each([
     ['fetchTypes',          () => fetchTypes(),                 404],
-    ['fetchDocs',           () => fetchDocs('tickets'),         404],
+    ['fetchDocs',           () => fetchDocs('work-items'),         404],
     ['fetchDocContent',     () => fetchDocContent('foo.md'),    404],
     ['fetchTemplates',      () => fetchTemplates(),             404],
     ['fetchTemplateDetail', () => fetchTemplateDetail('foo'),   404],
@@ -255,12 +255,12 @@ describe('patchTicketFrontmatter', () => {
       headers: { get: (h: string) => h === 'etag' ? '"sha256-NEW"' : null },
     })
     const result = await patchTicketFrontmatter(
-      'meta/tickets/0001-foo.md',
+      'meta/work/0001-foo.md',
       { status: 'in-progress' },
       'sha256-OLD',
     )
     expect(mockFetch).toHaveBeenCalledWith(
-      '/api/docs/meta/tickets/0001-foo.md/frontmatter',
+      '/api/docs/meta/work/0001-foo.md/frontmatter',
       expect.objectContaining({
         method: 'PATCH',
         headers: expect.objectContaining({ 'If-Match': '"sha256-OLD"' }),
@@ -276,7 +276,7 @@ describe('patchTicketFrontmatter', () => {
       status: 204,
       headers: { get: (h: string) => h === 'etag' ? '"sha256-NEW"' : null },
     })
-    const result = await patchTicketFrontmatter('meta/tickets/0001-foo.md', { status: 'todo' }, 'sha256-OLD')
+    const result = await patchTicketFrontmatter('meta/work/0001-foo.md', { status: 'todo' }, 'sha256-OLD')
     expect(result.etag).toBe('sha256-NEW')
   })
 
@@ -287,7 +287,7 @@ describe('patchTicketFrontmatter', () => {
       json: async () => ({ currentEtag: 'sha256-LATEST' }),
     })
     await expect(
-      patchTicketFrontmatter('meta/tickets/0001-foo.md', { status: 'done' }, 'sha256-OLD'),
+      patchTicketFrontmatter('meta/work/0001-foo.md', { status: 'done' }, 'sha256-OLD'),
     ).rejects.toSatisfy((e: unknown) => {
       return e instanceof ConflictError && e.status === 412 && e.currentEtag === 'sha256-LATEST'
     })
@@ -296,7 +296,7 @@ describe('patchTicketFrontmatter', () => {
   it('throws FetchError (not ConflictError) on other 4xx', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({}) })
     const err = await patchTicketFrontmatter(
-      'meta/tickets/0001-foo.md', { status: 'todo' }, 'sha256-OLD',
+      'meta/work/0001-foo.md', { status: 'todo' }, 'sha256-OLD',
     ).catch((e: unknown) => e)
     expect(err).toBeInstanceOf(FetchError)
     expect(err).not.toBeInstanceOf(ConflictError)
@@ -309,9 +309,9 @@ describe('patchTicketFrontmatter', () => {
       status: 204,
       headers: { get: () => '"sha256-NEW"' },
     })
-    await patchTicketFrontmatter('meta/tickets/0001 weird path.md', { status: 'todo' }, 'sha256-X')
+    await patchTicketFrontmatter('meta/work/0001 weird path.md', { status: 'todo' }, 'sha256-X')
     expect(mockFetch).toHaveBeenCalledWith(
-      '/api/docs/meta/tickets/0001%20weird%20path.md/frontmatter',
+      '/api/docs/meta/work/0001%20weird%20path.md/frontmatter',
       expect.anything(),
     )
   })
@@ -324,7 +324,7 @@ describe('fetchLifecycleCluster', () => {
       json: async () => ({
         slug: 'foo', title: 'Foo', entries: [],
         completeness: {
-          hasTicket: false, hasResearch: false, hasPlan: false,
+          hasWorkItem: false, hasResearch: false, hasPlan: false,
           hasPlanReview: false, hasValidation: false, hasPr: false,
           hasPrReview: false, hasDecision: false, hasNotes: false,
         },
@@ -341,7 +341,7 @@ describe('fetchLifecycleCluster', () => {
       json: async () => ({
         slug: 'foo bar', title: '', entries: [],
         completeness: {
-          hasTicket: false, hasResearch: false, hasPlan: false,
+          hasWorkItem: false, hasResearch: false, hasPlan: false,
           hasPlanReview: false, hasValidation: false, hasPr: false,
           hasPrReview: false, hasDecision: false, hasNotes: false,
         },

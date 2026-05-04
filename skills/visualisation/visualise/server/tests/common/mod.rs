@@ -46,7 +46,7 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
 
     let mut doc_paths = HashMap::new();
     doc_paths.insert("decisions".into(), decisions);
-    doc_paths.insert("tickets".into(), meta.join("tickets"));
+    doc_paths.insert("work".into(), meta.join("work"));
     doc_paths.insert("plans".into(), plans);
     doc_paths.insert("research".into(), meta.join("research"));
     doc_paths.insert("review_plans".into(), reviews);
@@ -70,25 +70,25 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
 }
 
 #[allow(dead_code)]
-pub fn seeded_cfg_with_tickets(tmp: &Path) -> Config {
+pub fn seeded_cfg_with_work_items(tmp: &Path) -> Config {
     let mut cfg = seeded_cfg(tmp);
-    let tickets = tmp.join("meta/tickets");
-    std::fs::create_dir_all(&tickets).unwrap();
+    let work = tmp.join("meta/work");
+    std::fs::create_dir_all(&work).unwrap();
     std::fs::write(
-        tickets.join("0001-todo-fixture.md"),
+        work.join("0001-todo-fixture.md"),
         "---\ntitle: \"Todo fixture\"\ntype: adr-creation-task\nstatus: todo\n---\n# body\n",
     )
     .unwrap();
     std::fs::write(
-        tickets.join("0002-done-fixture.md"),
+        work.join("0002-done-fixture.md"),
         "---\ntitle: \"Done fixture\"\ntype: adr-creation-task\nstatus: done\n---\n# body\n",
     )
     .unwrap();
     std::fs::write(
-        tickets.join("0003-other-fixture.md"),
+        work.join("0003-other-fixture.md"),
         "---\ntitle: \"Blocked fixture\"\ntype: adr-creation-task\nstatus: blocked\n---\n# body\n",
     )
     .unwrap();
-    cfg.doc_paths.insert("tickets".into(), tickets);
+    cfg.doc_paths.insert("work".into(), work);
     cfg
 }

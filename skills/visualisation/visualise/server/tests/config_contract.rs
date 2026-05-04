@@ -44,13 +44,14 @@ fn write_visualiser_config_produces_valid_config_json() {
     assert_eq!(cfg.owner_pid, 0);
     assert_eq!(
         cfg.doc_paths.len(),
-        9,
-        "expected 9 doc_paths, got {:?}",
+        10,
+        "expected 10 doc_paths, got {:?}",
         cfg.doc_paths.keys().collect::<Vec<_>>()
     );
     for key in [
         "decisions",
-        "tickets",
+        "work",
+        "review_work",
         "plans",
         "research",
         "review_plans",

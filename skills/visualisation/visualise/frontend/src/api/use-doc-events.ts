@@ -27,7 +27,7 @@ function queryKeysForEvent(event: SseEvent): ReadonlyArray<readonly unknown[]> {
     queryKeys.lifecycleClusterPrefix(),
     queryKeys.relatedPrefix(),
   ]
-  if (event.docType === 'tickets') {
+  if (event.docType === 'work-items') {
     keys.push(queryKeys.kanban())
   }
   return keys
@@ -71,7 +71,7 @@ export function dispatchSseEvent(
       queryKey: queryKeys.relatedPrefix(),
       refetchType: 'all',
     })
-    if (event.docType === 'tickets') {
+    if (event.docType === 'work-items') {
       void queryClient.invalidateQueries({ queryKey: queryKeys.kanban() })
     }
   }

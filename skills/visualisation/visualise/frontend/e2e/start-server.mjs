@@ -59,7 +59,7 @@ const infoPath = join(tmpDir, 'server-info.json')
 
 const docPaths = {
   decisions: join(fixturesDir, 'decisions'),
-  tickets: join(fixturesDir, 'tickets'),
+  work: join(fixturesDir, 'work'),
   plans: join(fixturesDir, 'plans'),
   research: join(fixturesDir, 'research'),
   review_plans: join(fixturesDir, 'reviews/plans'),

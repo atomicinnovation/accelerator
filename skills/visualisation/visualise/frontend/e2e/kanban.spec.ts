@@ -5,10 +5,10 @@ import { fileURLToPath } from 'node:url'
 
 const FIXTURES_DIR = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../server/tests/fixtures/meta/tickets',
+  '../../server/tests/fixtures/meta/work',
 )
-const TICKET_0001_PATH = resolve(FIXTURES_DIR, '0001-first-ticket.md')
-const TICKET_0005_PATH = resolve(FIXTURES_DIR, '0005-sse-test-ticket.md')
+const WORK_ITEM_0001_PATH = resolve(FIXTURES_DIR, '0001-first-work-item.md')
+const WORK_ITEM_0005_PATH = resolve(FIXTURES_DIR, '0005-sse-test-work-item.md')
 
 // dnd-kit's PointerSensor requires 5px of movement before activating.
 // We simulate a full pointer-down → move → move → up sequence so the
@@ -38,12 +38,12 @@ async function dndDrag(
 }
 
 test('drag todo card to in-progress column', async ({ page }) => {
-  const original = readFileSync(TICKET_0001_PATH, 'utf-8')
+  const original = readFileSync(WORK_ITEM_0001_PATH, 'utf-8')
   try {
     await page.goto('/kanban')
 
     const todoCard = page.locator(
-      'li[data-relpath="tests/fixtures/meta/tickets/0001-first-ticket.md"]',
+      'li[data-relpath="tests/fixtures/meta/work/0001-first-work-item.md"]',
     )
     const inProgressColumn = page.locator('section[data-column="in-progress"]')
 
@@ -51,24 +51,24 @@ test('drag todo card to in-progress column', async ({ page }) => {
 
     await dndDrag(
       page,
-      'li[data-relpath="tests/fixtures/meta/tickets/0001-first-ticket.md"] a',
+      'li[data-relpath="tests/fixtures/meta/work/0001-first-work-item.md"] a',
       'section[data-column="in-progress"]',
     )
 
     // Card should now appear in the in-progress column
     await expect(
       inProgressColumn.locator(
-        'li[data-relpath="tests/fixtures/meta/tickets/0001-first-ticket.md"]',
+        'li[data-relpath="tests/fixtures/meta/work/0001-first-work-item.md"]',
       ),
     ).toBeVisible({ timeout: 5000 })
   } finally {
-    writeFileSync(TICKET_0001_PATH, original)
+    writeFileSync(WORK_ITEM_0001_PATH, original)
   }
 })
 
 test('second tab receives SSE update after drag', async ({ page, context }) => {
   test.setTimeout(60_000)
-  const original = readFileSync(TICKET_0005_PATH, 'utf-8')
+  const original = readFileSync(WORK_ITEM_0005_PATH, 'utf-8')
   try {
     const page2 = await context.newPage()
     await page.goto('/kanban')
@@ -86,14 +86,14 @@ test('second tab receives SSE update after drag', async ({ page, context }) => {
 
     await dndDrag(
       page,
-      'li[data-relpath="tests/fixtures/meta/tickets/0005-sse-test-ticket.md"] a',
+      'li[data-relpath="tests/fixtures/meta/work/0005-sse-test-work-item.md"] a',
       'section[data-column="in-progress"]',
     )
 
     // Confirm optimistic update on page 1.
     await expect(
       page.locator(
-        'section[data-column="in-progress"] li[data-relpath="tests/fixtures/meta/tickets/0005-sse-test-ticket.md"]',
+        'section[data-column="in-progress"] li[data-relpath="tests/fixtures/meta/work/0005-sse-test-work-item.md"]',
       ),
     ).toBeVisible({ timeout: 5000 })
 
@@ -105,10 +105,10 @@ test('second tab receives SSE update after drag', async ({ page, context }) => {
     // Second tab should receive the SSE event and move the card.
     await expect(
       page2.locator(
-        'section[data-column="in-progress"] li[data-relpath="tests/fixtures/meta/tickets/0005-sse-test-ticket.md"]',
+        'section[data-column="in-progress"] li[data-relpath="tests/fixtures/meta/work/0005-sse-test-work-item.md"]',
       ),
     ).toBeVisible({ timeout: 10000 })
   } finally {
-    writeFileSync(TICKET_0005_PATH, original)
+    writeFileSync(WORK_ITEM_0005_PATH, original)
   }
 })

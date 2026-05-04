@@ -50,8 +50,10 @@ pub(crate) enum ApiError {
     // Write-path errors
     #[error("patch URL must end with /frontmatter")]
     PatchEndpointMismatch,
-    #[error("only tickets are writable")]
-    OnlyTicketsAreWritable,
+    #[error("only work-items are writable")]
+    OnlyWorkItemsAreWritable,
+    #[error("unknown kanban status")]
+    UnknownKanbanStatus { accepted_keys: Vec<String> },
     #[error("invalid patch: {0}")]
     InvalidPatch(String),
     #[error("unsupported If-Match value: {0}")]
@@ -90,9 +92,17 @@ impl IntoResponse for ApiError {
                 Json(serde_json::json!({ "error": "patch URL must end with /frontmatter" })),
             )
                 .into_response(),
-            ApiError::OnlyTicketsAreWritable => (
+            ApiError::OnlyWorkItemsAreWritable => (
                 StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({ "error": "only tickets are writable" })),
+                Json(serde_json::json!({ "error": "only work-items are writable" })),
+            )
+                .into_response(),
+            ApiError::UnknownKanbanStatus { accepted_keys } => (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "error": "unknown_kanban_status",
+                    "acceptedKeys": accepted_keys
+                })),
             )
                 .into_response(),
             ApiError::InvalidPatch(s) => (
@@ -152,7 +162,7 @@ pub(crate) fn api_from_fd(e: crate::file_driver::FileDriverError) -> ApiError {
         F::Io { source, .. } => ApiError::Internal(source.to_string()),
         F::EtagMismatch { current } => ApiError::EtagMismatch { current },
         F::Patch(p) => ApiError::InvalidPatch(p.to_string()),
-        F::PathNotWritable { .. } => ApiError::OnlyTicketsAreWritable,
+        F::PathNotWritable { .. } => ApiError::OnlyWorkItemsAreWritable,
         F::CrossFilesystem { .. } => ApiError::Internal("cross-filesystem rename".into()),
     }
 }

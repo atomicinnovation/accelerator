@@ -134,14 +134,14 @@ async fn related_endpoint_for_plan_with_no_relations() {
 async fn related_endpoint_includes_slug_cluster_siblings() {
     let tmp = tempfile::tempdir().unwrap();
     let plans = tmp.path().join("meta/plans");
-    let tickets = tmp.path().join("meta/tickets");
+    let work = tmp.path().join("meta/work");
     std::fs::create_dir_all(&plans).unwrap();
-    std::fs::create_dir_all(&tickets).unwrap();
+    std::fs::create_dir_all(&work).unwrap();
     std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: P\n---\n").unwrap();
-    std::fs::write(tickets.join("0001-foo.md"), "---\ntitle: T\n---\n").unwrap();
+    std::fs::write(work.join("0001-foo.md"), "---\ntitle: T\n---\n").unwrap();
     let mut paths = HashMap::new();
     paths.insert("plans".into(), plans);
-    paths.insert("tickets".into(), tickets);
+    paths.insert("work".into(), work);
     let cfg = cfg_with_only(tmp.path(), paths);
     let (_state, app) = build_app(cfg).await;
 
@@ -158,7 +158,7 @@ async fn related_endpoint_includes_slug_cluster_siblings() {
     let body = json_body(res).await;
     let inferred = body["inferredCluster"].as_array().unwrap();
     assert_eq!(inferred.len(), 1);
-    assert_eq!(inferred[0]["type"], "tickets");
+    assert_eq!(inferred[0]["type"], "work-items");
 }
 
 // ── Step 2.5 ───────────────────────────────────────────────────────────────

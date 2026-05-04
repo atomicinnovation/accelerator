@@ -11,11 +11,11 @@ describe('renderWithRouterAt', () => {
 
   it('resolves <Link> targets at the library doc route', async () => {
     renderWithRouterAt(
-      <Link to="/library/$type/$fileSlug" params={{ type: 'tickets', fileSlug: '0001-x' }}>
-        ticket link
+      <Link to="/library/$type/$fileSlug" params={{ type: 'work-items', fileSlug: '0001-x' }}>
+        work item link
       </Link>,
     )
-    const link = await screen.findByRole('link', { name: /ticket link/i })
-    expect(link.getAttribute('href')).toBe('/library/tickets/0001-x')
+    const link = await screen.findByRole('link', { name: /work item link/i })
+    expect(link.getAttribute('href')).toBe('/library/work-items/0001-x')
   })
 })

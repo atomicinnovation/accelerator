@@ -8,7 +8,7 @@ import * as fetchModule from '../../api/fetch'
 import type { LifecycleCluster, Completeness } from '../../api/types'
 
 const empty: Completeness = {
-  hasTicket: false, hasResearch: false, hasPlan: false,
+  hasWorkItem: false, hasResearch: false, hasPlan: false,
   hasPlanReview: false, hasValidation: false, hasPr: false,
   hasPrReview: false, hasDecision: false, hasNotes: false,
 }

@@ -116,22 +116,22 @@ describe('buildWikiLinkIndex', () => {
 
   // ── Step 3.7c ────────────────────────────────────────────────────────
   it('defensively filters by entry type', () => {
-    const planMaskedAsTicket = makeIndexEntry({
+    const planMaskedAsWorkItem = makeIndexEntry({
       type: 'plans',
       relPath: 'meta/plans/2026-04-18-foo.md',
     })
-    const idx = buildWikiLinkIndex([], [planMaskedAsTicket])
-    expect(idx.ticketByNumber.get(2026)).toBeUndefined()
+    const idx = buildWikiLinkIndex([], [planMaskedAsWorkItem])
+    expect(idx.workItemById.get(2026)).toBeUndefined()
   })
 
   // ── Step 3.8 ─────────────────────────────────────────────────────────
-  it('indexes tickets by filename numeric prefix', () => {
-    const ticket = makeIndexEntry({
-      type: 'tickets',
-      relPath: 'meta/tickets/0001-foo.md',
+  it('indexes work items by filename numeric prefix', () => {
+    const workItem = makeIndexEntry({
+      type: 'work-items',
+      relPath: 'meta/work/0001-foo.md',
     })
-    const idx = buildWikiLinkIndex([], [ticket])
-    expect(idx.ticketByNumber.get(1)).toBe(ticket)
+    const idx = buildWikiLinkIndex([], [workItem])
+    expect(idx.workItemById.get(1)).toBe(workItem)
   })
 })
 
@@ -142,12 +142,12 @@ describe('resolveWikiLink', () => {
     title: 'Configuration extension points',
     frontmatter: { adr_id: 'ADR-0017' },
   })
-  const ticket = makeIndexEntry({
-    type: 'tickets',
-    relPath: 'meta/tickets/0001-foo.md',
+  const workItem = makeIndexEntry({
+    type: 'work-items',
+    relPath: 'meta/work/0001-foo.md',
     title: 'Three-layer review system architecture',
   })
-  const idx = buildWikiLinkIndex([adr], [ticket])
+  const idx = buildWikiLinkIndex([adr], [workItem])
 
   // ── Step 3.9 ─────────────────────────────────────────────────────────
   it('returns null for unknown ADR id', () => {
@@ -163,15 +163,15 @@ describe('resolveWikiLink', () => {
   })
 
   // ── Step 3.11 ────────────────────────────────────────────────────────
-  it('returns href and title for known ticket', () => {
+  it('returns href and title for known work item', () => {
     expect(resolveWikiLink('TICKET', 1, idx)).toEqual({
-      href: '/library/tickets/0001-foo',
+      href: '/library/work-items/0001-foo',
       title: 'Three-layer review system architecture',
     })
   })
 
   // ── Step 3.12 ────────────────────────────────────────────────────────
-  it('returns null for unknown ticket', () => {
+  it('returns null for unknown work item', () => {
     expect(resolveWikiLink('TICKET', 9999, idx)).toBeNull()
   })
 

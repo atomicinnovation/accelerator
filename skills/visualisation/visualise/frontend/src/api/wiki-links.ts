@@ -3,7 +3,7 @@ import { fileSlugFromRelPath } from './path-utils'
 
 export interface WikiLinkIndex {
   adrById: Map<number, IndexEntry>
-  ticketByNumber: Map<number, IndexEntry>
+  workItemById: Map<number, IndexEntry>
 }
 
 export interface ResolvedWikiLink {
@@ -39,10 +39,10 @@ function adrIdOf(entry: IndexEntry): number | null {
   return parsePositiveInt(rest.slice(0, dash))
 }
 
-/** Parse a ticket number from the leading numeric prefix of the
+/** Parse a work item id from the leading numeric prefix of the
  *  filename, e.g. `0001-foo.md` → 1. Leading zeros are stripped via
  *  `parseInt(_, 10)`. */
-function ticketNumberOf(entry: IndexEntry): number | null {
+function workItemIdOf(entry: IndexEntry): number | null {
   const filename = entry.relPath.split('/').at(-1) ?? ''
   const dash = filename.indexOf('-')
   if (dash <= 0) return null
@@ -59,15 +59,15 @@ function parsePositiveInt(s: string): number | null {
 }
 
 /** Build the resolver maps from the docs caches. ADRs are keyed by
- *  `frontmatter.adr_id` *or* the filename prefix; tickets are keyed by
+ *  `frontmatter.adr_id` *or* the filename prefix; work items are keyed by
  *  the filename's leading numeric prefix. Defensively filters by
- *  `entry.type` so a misuse — accidentally passing plans as tickets —
- *  cannot route `[[TICKET-N]]` to a non-ticket. On duplicate keys the
+ *  `entry.type` so a misuse — accidentally passing plans as work items —
+ *  cannot route `[[TICKET-N]]` to a non-work-item. On duplicate keys the
  *  entry with the lexically-earliest `relPath` wins (deterministic
  *  across reloads). */
 export function buildWikiLinkIndex(
   adrEntries: IndexEntry[],
-  ticketEntries: IndexEntry[],
+  workItemEntries: IndexEntry[],
 ): WikiLinkIndex {
   const adrById = new Map<number, IndexEntry>()
   for (const entry of adrEntries) {
@@ -76,14 +76,14 @@ export function buildWikiLinkIndex(
     if (id === null) continue
     insertWithEarliestRelPathTieBreak(adrById, id, entry)
   }
-  const ticketByNumber = new Map<number, IndexEntry>()
-  for (const entry of ticketEntries) {
-    if (entry.type !== 'tickets') continue
-    const n = ticketNumberOf(entry)
+  const workItemById = new Map<number, IndexEntry>()
+  for (const entry of workItemEntries) {
+    if (entry.type !== 'work-items') continue
+    const n = workItemIdOf(entry)
     if (n === null) continue
-    insertWithEarliestRelPathTieBreak(ticketByNumber, n, entry)
+    insertWithEarliestRelPathTieBreak(workItemById, n, entry)
   }
-  return { adrById, ticketByNumber }
+  return { adrById, workItemById }
 }
 
 function insertWithEarliestRelPathTieBreak(
@@ -107,7 +107,7 @@ export function resolveWikiLink(
   n: number,
   idx: WikiLinkIndex,
 ): ResolvedWikiLink | null {
-  const entry = prefix === 'ADR' ? idx.adrById.get(n) : idx.ticketByNumber.get(n)
+  const entry = prefix === 'ADR' ? idx.adrById.get(n) : idx.workItemById.get(n)
   if (!entry) return null
   const fileSlug = fileSlugFromRelPath(entry.relPath)
   return {

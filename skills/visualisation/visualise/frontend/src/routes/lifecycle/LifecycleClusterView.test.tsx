@@ -9,7 +9,7 @@ import { makeIndexEntry } from '../../api/test-fixtures'
 import type { LifecycleCluster, Completeness, IndexEntry } from '../../api/types'
 
 const empty: Completeness = {
-  hasTicket: false, hasResearch: false, hasPlan: false,
+  hasWorkItem: false, hasResearch: false, hasPlan: false,
   hasPlanReview: false, hasValidation: false, hasPr: false,
   hasPrReview: false, hasDecision: false, hasNotes: false,
 }
@@ -82,7 +82,7 @@ describe('LifecycleClusterContent', () => {
     vi.spyOn(fetchModule, 'fetchLifecycleCluster').mockResolvedValue(cluster)
     render(<LifecycleClusterContent slug="foo" />, { wrapper: Wrapper })
     expect(await screen.findByText('The Foo Plan')).toBeInTheDocument()
-    expect(screen.getByText(/no ticket yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/no work item yet/i)).toBeInTheDocument()
     expect(screen.getByText(/no research yet/i)).toBeInTheDocument()
     expect(screen.getByText(/no plan review yet/i)).toBeInTheDocument()
     expect(screen.getByText(/no validation yet/i)).toBeInTheDocument()

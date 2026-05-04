@@ -55,16 +55,16 @@ impl AppState {
     ) -> Result<Arc<Self>, AppStateError> {
         let cfg = Arc::new(cfg);
         let template_roots = crate::file_driver::template_extra_roots(&cfg.templates);
-        let tickets_root = cfg
+        let work_root = cfg
             .doc_paths
-            .get("tickets")
+            .get("work")
             .cloned()
             .map(|p| vec![p])
             .unwrap_or_default();
         let driver = Arc::new(crate::file_driver::LocalFileDriver::new(
             &cfg.doc_paths,
             template_roots,
-            tickets_root,
+            work_root,
         ));
         let indexer = Arc::new(
             crate::indexer::Indexer::build(driver.clone(), cfg.project_root.clone()).await?,

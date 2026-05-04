@@ -3,9 +3,9 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const TICKET_PATH = resolve(
+const WORK_ITEM_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../server/tests/fixtures/meta/tickets/0006-conflict-test-ticket.md',
+  '../../server/tests/fixtures/meta/work/0006-conflict-test-work-item.md',
 )
 
 async function dndDrag(
@@ -29,7 +29,7 @@ async function dndDrag(
 }
 
 test('stale ETag produces conflict banner, card stays in todo', async ({ page }) => {
-  const original = readFileSync(TICKET_PATH, 'utf-8')
+  const original = readFileSync(WORK_ITEM_PATH, 'utf-8')
 
   // Intercept PATCH: mutate the file on disk before the request completes
   // so the server sees a changed ETag and returns 412.
@@ -41,23 +41,23 @@ test('stale ETag produces conflict banner, card stays in todo', async ({ page })
       await route.continue()
       return
     }
-    writeFileSync(TICKET_PATH, original.replace('status: todo', 'status: done'))
+    writeFileSync(WORK_ITEM_PATH, original.replace('status: todo', 'status: done'))
     // Short pause so the server's watcher can detect the change
     await new Promise((r) => setTimeout(r, 300))
     const response = await route.fetch()
-    writeFileSync(TICKET_PATH, original)
+    writeFileSync(WORK_ITEM_PATH, original)
     await route.fulfill({ response })
   })
 
   try {
     await page.goto('/kanban')
     await expect(
-      page.locator('li[data-relpath="tests/fixtures/meta/tickets/0006-conflict-test-ticket.md"]'),
+      page.locator('li[data-relpath="tests/fixtures/meta/work/0006-conflict-test-work-item.md"]'),
     ).toBeVisible()
 
     await dndDrag(
       page,
-      'li[data-relpath="tests/fixtures/meta/tickets/0006-conflict-test-ticket.md"] a',
+      'li[data-relpath="tests/fixtures/meta/work/0006-conflict-test-work-item.md"] a',
       'section[data-column="in-progress"]',
     )
 
@@ -69,10 +69,10 @@ test('stale ETag produces conflict banner, card stays in todo', async ({ page })
     // Card should have snapped back to todo (optimistic rollback)
     await expect(
       page.locator(
-        'section[data-column="todo"] li[data-relpath="tests/fixtures/meta/tickets/0006-conflict-test-ticket.md"]',
+        'section[data-column="todo"] li[data-relpath="tests/fixtures/meta/work/0006-conflict-test-work-item.md"]',
       ),
     ).toBeVisible({ timeout: 5000 })
   } finally {
-    writeFileSync(TICKET_PATH, original)
+    writeFileSync(WORK_ITEM_PATH, original)
   }
 })

@@ -2,8 +2,8 @@
 // `#[serde(rename_all = "camelCase")]` output.
 
 export type DocTypeKey =
-  | 'decisions' | 'tickets' | 'plans' | 'research'
-  | 'plan-reviews' | 'pr-reviews'
+  | 'decisions' | 'work-items' | 'plans' | 'research'
+  | 'plan-reviews' | 'pr-reviews' | 'work-item-reviews'
   | 'validations' | 'notes' | 'prs' | 'templates'
 
 /** Single source of truth for the DocTypeKey union at runtime. Drives both
@@ -11,8 +11,8 @@ export type DocTypeKey =
  *  so URL params are narrowed at the routing boundary rather than inside
  *  each view component. */
 export const DOC_TYPE_KEYS: readonly DocTypeKey[] = [
-  'decisions', 'tickets', 'plans', 'research',
-  'plan-reviews', 'pr-reviews',
+  'decisions', 'work-items', 'plans', 'research',
+  'plan-reviews', 'pr-reviews', 'work-item-reviews',
   'validations', 'notes', 'prs', 'templates',
 ] as const
 
@@ -41,7 +41,7 @@ export interface IndexEntry {
   title: string
   frontmatter: Record<string, unknown>
   frontmatterState: 'parsed' | 'absent' | 'malformed'
-  ticket: string | null
+  workItemRefs: string[]
   mtimeMs: number
   size: number
   etag: string
@@ -95,7 +95,7 @@ export interface SseDocInvalidEvent {
 export type SseEvent = SseDocChangedEvent | SseDocInvalidEvent
 
 export interface Completeness {
-  hasTicket: boolean
+  hasWorkItem: boolean
   hasResearch: boolean
   hasPlan: boolean
   hasPlanReview: boolean
@@ -125,7 +125,7 @@ export interface RelatedArtifactsResponse {
 }
 
 type PipelineStepKey =
-  | 'hasTicket' | 'hasResearch' | 'hasPlan' | 'hasPlanReview'
+  | 'hasWorkItem' | 'hasResearch' | 'hasPlan' | 'hasPlanReview'
   | 'hasValidation' | 'hasPr' | 'hasPrReview' | 'hasDecision'
   | 'hasNotes'
 
@@ -136,7 +136,7 @@ export const LIFECYCLE_PIPELINE_STEPS: ReadonlyArray<{
   placeholder: string
   longTail?: boolean
 }> = [
-  { key: 'hasTicket',     docType: 'tickets',      label: 'Ticket',      placeholder: 'no ticket yet' },
+  { key: 'hasWorkItem',   docType: 'work-items',   label: 'Work item',   placeholder: 'no work item yet' },
   { key: 'hasResearch',   docType: 'research',     label: 'Research',    placeholder: 'no research yet' },
   { key: 'hasPlan',       docType: 'plans',        label: 'Plan',        placeholder: 'no plan yet' },
   { key: 'hasPlanReview', docType: 'plan-reviews', label: 'Plan review', placeholder: 'no plan review yet' },

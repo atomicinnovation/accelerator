@@ -6,7 +6,7 @@ import {
   type KanbanGroupKey,
 } from './types'
 
-export function parseTicketNumber(relPath: string): number | null {
+export function parseWorkItemId(relPath: string): number | null {
   const filename = relPath.split('/').at(-1) ?? ''
   const match = filename.match(/^(\d+)-/)
   if (!match) return null
@@ -27,7 +27,7 @@ function statusGroupOf(entry: IndexEntry): KanbanGroupKey {
     : OTHER_COLUMN_KEY
 }
 
-export function groupTicketsByStatus(
+export function groupWorkItemsByStatus(
   entries: IndexEntry[],
 ): Map<KanbanGroupKey, IndexEntry[]> {
   const groups = new Map<KanbanGroupKey, IndexEntry[]>()

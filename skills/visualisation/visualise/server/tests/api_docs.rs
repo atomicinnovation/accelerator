@@ -171,9 +171,9 @@ async fn doc_fetch_handles_percent_encoded_path() {
 }
 
 #[tokio::test]
-async fn docs_list_for_tickets_carries_frontmatter_status() {
+async fn docs_list_for_work_items_carries_frontmatter_status() {
     let tmp = tempfile::tempdir().unwrap();
-    let cfg = common::seeded_cfg_with_tickets(tmp.path());
+    let cfg = common::seeded_cfg_with_work_items(tmp.path());
     let activity = Arc::new(Activity::new());
     let state = AppState::build(cfg, activity).await.unwrap();
     let app = build_router(state);
@@ -181,7 +181,7 @@ async fn docs_list_for_tickets_carries_frontmatter_status() {
     let res = app
         .oneshot(
             Request::builder()
-                .uri("/api/docs?type=tickets")
+                .uri("/api/docs?type=work-items")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -206,7 +206,7 @@ async fn docs_list_for_tickets_carries_frontmatter_status() {
                     .map(|p| p.contains(slug_prefix))
                     .unwrap_or(false)
             })
-            .unwrap_or_else(|| panic!("expected ticket {slug_prefix}"));
+            .unwrap_or_else(|| panic!("expected work item {slug_prefix}"));
         assert_eq!(
             entry["frontmatter"]["status"].as_str(),
             Some(*status),
@@ -230,7 +230,7 @@ async fn docs_list_returns_empty_array_for_type_with_no_files() {
     let res = app
         .oneshot(
             Request::builder()
-                .uri("/api/docs?type=tickets")
+                .uri("/api/docs?type=work-items")
                 .body(Body::empty())
                 .unwrap(),
         )

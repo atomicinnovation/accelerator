@@ -5,11 +5,12 @@ use std::path::PathBuf;
 #[serde(rename_all = "kebab-case")]
 pub enum DocTypeKey {
     Decisions,
-    Tickets,
+    WorkItems,
     Plans,
     Research,
     PlanReviews,
     PrReviews,
+    WorkItemReviews,
     Validations,
     Notes,
     Prs,
@@ -17,14 +18,15 @@ pub enum DocTypeKey {
 }
 
 impl DocTypeKey {
-    pub fn all() -> [DocTypeKey; 10] {
+    pub fn all() -> [DocTypeKey; 11] {
         [
             DocTypeKey::Decisions,
-            DocTypeKey::Tickets,
+            DocTypeKey::WorkItems,
             DocTypeKey::Plans,
             DocTypeKey::Research,
             DocTypeKey::PlanReviews,
             DocTypeKey::PrReviews,
+            DocTypeKey::WorkItemReviews,
             DocTypeKey::Validations,
             DocTypeKey::Notes,
             DocTypeKey::Prs,
@@ -35,11 +37,12 @@ impl DocTypeKey {
     pub fn config_path_key(self) -> Option<&'static str> {
         match self {
             DocTypeKey::Decisions => Some("decisions"),
-            DocTypeKey::Tickets => Some("tickets"),
+            DocTypeKey::WorkItems => Some("work"),
             DocTypeKey::Plans => Some("plans"),
             DocTypeKey::Research => Some("research"),
             DocTypeKey::PlanReviews => Some("review_plans"),
             DocTypeKey::PrReviews => Some("review_prs"),
+            DocTypeKey::WorkItemReviews => Some("review_work"),
             DocTypeKey::Validations => Some("validations"),
             DocTypeKey::Notes => Some("notes"),
             DocTypeKey::Prs => Some("prs"),
@@ -50,11 +53,12 @@ impl DocTypeKey {
     pub fn label(self) -> &'static str {
         match self {
             DocTypeKey::Decisions => "Decisions",
-            DocTypeKey::Tickets => "Tickets",
+            DocTypeKey::WorkItems => "Work items",
             DocTypeKey::Plans => "Plans",
             DocTypeKey::Research => "Research",
             DocTypeKey::PlanReviews => "Plan reviews",
             DocTypeKey::PrReviews => "PR reviews",
+            DocTypeKey::WorkItemReviews => "Work-item reviews",
             DocTypeKey::Validations => "Validations",
             DocTypeKey::Notes => "Notes",
             DocTypeKey::Prs => "PRs",
@@ -67,7 +71,7 @@ impl DocTypeKey {
     }
 
     pub fn in_kanban(self) -> bool {
-        matches!(self, DocTypeKey::Tickets)
+        matches!(self, DocTypeKey::WorkItems)
     }
 
     pub fn is_virtual(self) -> bool {
@@ -112,11 +116,12 @@ mod tests {
     fn kebab_case_round_trip_covers_every_variant() {
         let pairs = [
             (DocTypeKey::Decisions, "decisions"),
-            (DocTypeKey::Tickets, "tickets"),
+            (DocTypeKey::WorkItems, "work-items"),
             (DocTypeKey::Plans, "plans"),
             (DocTypeKey::Research, "research"),
             (DocTypeKey::PlanReviews, "plan-reviews"),
             (DocTypeKey::PrReviews, "pr-reviews"),
+            (DocTypeKey::WorkItemReviews, "work-item-reviews"),
             (DocTypeKey::Validations, "validations"),
             (DocTypeKey::Notes, "notes"),
             (DocTypeKey::Prs, "prs"),
@@ -137,9 +142,33 @@ mod tests {
         v.dedup();
         assert_eq!(
             v.len(),
-            10,
-            "DocTypeKey::all must return 10 distinct variants"
+            11,
+            "DocTypeKey::all must return 11 distinct variants"
         );
+    }
+
+    #[test]
+    fn work_item_reviews_serialises_to_kebab_case_wire_form() {
+        let v = DocTypeKey::WorkItemReviews;
+        assert_eq!(serde_json::to_string(&v).unwrap(), "\"work-item-reviews\"");
+    }
+
+    #[test]
+    fn work_item_reviews_uses_review_work_config_path_key() {
+        assert_eq!(DocTypeKey::WorkItemReviews.config_path_key(), Some("review_work"));
+    }
+
+    #[test]
+    fn work_item_reviews_appears_in_all_and_in_lifecycle_only() {
+        assert!(DocTypeKey::all().contains(&DocTypeKey::WorkItemReviews));
+        assert!(DocTypeKey::WorkItemReviews.in_lifecycle());
+        assert!(!DocTypeKey::WorkItemReviews.in_kanban());
+        assert!(!DocTypeKey::WorkItemReviews.is_virtual());
+    }
+
+    #[test]
+    fn doc_type_key_all_returns_eleven_variants() {
+        assert_eq!(DocTypeKey::all().len(), 11);
     }
 
     #[test]
@@ -150,11 +179,11 @@ mod tests {
     }
 
     #[test]
-    fn tickets_is_the_only_kanban_type() {
+    fn work_items_is_the_only_kanban_type() {
         for k in DocTypeKey::all() {
             assert_eq!(
                 k.in_kanban(),
-                matches!(k, DocTypeKey::Tickets),
+                matches!(k, DocTypeKey::WorkItems),
                 "in_kanban mismatch for {k:?}",
             );
         }
@@ -180,7 +209,7 @@ mod tests {
         };
 
         let types = describe_types(&cfg);
-        assert_eq!(types.len(), 10);
+        assert_eq!(types.len(), 11);
         let decisions = types
             .iter()
             .find(|t| t.key == DocTypeKey::Decisions)

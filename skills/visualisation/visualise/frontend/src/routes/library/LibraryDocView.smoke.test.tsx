@@ -16,7 +16,7 @@ const planEntry: IndexEntry = {
   title: 'Foo Plan',
   frontmatter: {},
   frontmatterState: 'parsed',
-  ticket: null,
+  workItemRefs: [],
   mtimeMs: 0,
   size: 0,
   etag: 'sha256-a',

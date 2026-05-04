@@ -98,7 +98,7 @@ describe('router', () => {
     const spy = vi.spyOn(fetchModule, 'fetchLifecycleCluster').mockResolvedValue({
       slug: 'foo', title: 'Foo Cluster', entries: [],
       completeness: {
-        hasTicket: false, hasResearch: false, hasPlan: false,
+        hasWorkItem: false, hasResearch: false, hasPlan: false,
         hasPlanReview: false, hasValidation: false, hasPr: false,
         hasPrReview: false, hasDecision: false, hasNotes: false,
       },

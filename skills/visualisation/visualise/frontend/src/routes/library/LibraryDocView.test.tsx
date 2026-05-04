@@ -12,7 +12,7 @@ const mockEntry: IndexEntry = {
   type: 'plans', path: '/p/meta/plans/2026-01-01-foo.md',
   relPath: 'meta/plans/2026-01-01-foo.md',
   slug: 'foo', title: 'Foo Plan',
-  frontmatter: { status: 'draft' }, frontmatterState: 'parsed', ticket: null,
+  frontmatter: { status: 'draft' }, frontmatterState: 'parsed', workItemRefs: [],
   mtimeMs: 1_700_000_000_000, size: 100, etag: 'sha256-a',
   bodyPreview: '',
 }
@@ -161,7 +161,7 @@ describe('LibraryDocView', () => {
   // ── Step 6.8 ──────────────────────────────────────────────────────────
   it('renders unresolved-wiki-link span when ADR is not in cache after settle', async () => {
     vi.spyOn(fetchModule, 'fetchDocs').mockImplementation((type) => {
-      // Both decisions and tickets settle as empty arrays — resolver
+      // Both decisions and work items settle as empty arrays — resolver
       // moves from kind=pending to kind=unresolved.
       if (type === 'plans') return Promise.resolve([mockEntry])
       return Promise.resolve([])

@@ -8,32 +8,32 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { fetchDocs, FetchError, ConflictError } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
-import { groupTicketsByStatus } from '../../api/ticket'
+import { groupWorkItemsByStatus } from '../../api/work-item'
 import { STATUS_COLUMNS, OTHER_COLUMN, OTHER_COLUMN_KEY } from '../../api/types'
 import type { IndexEntry } from '../../api/types'
 import { useDocEventsContext } from '../../api/use-doc-events'
-import { useMoveTicket } from '../../api/use-move-ticket'
+import { useMoveWorkItem } from '../../api/use-move-work-item'
 import { resolveDropOutcome } from './resolve-drop-outcome'
 import { buildKanbanAnnouncements } from './announcements'
 import { KanbanColumn } from './KanbanColumn'
 import styles from './KanbanBoard.module.css'
 
 const OTHER_DESCRIPTION =
-  'Tickets whose status is missing or not one of: todo, in-progress, done.'
+  'Work items whose status is missing or not one of: todo, in-progress, done.'
 
 function errorMessageFor(error: unknown): string {
   if (error instanceof FetchError && error.status >= 500) {
     return 'The visualiser server returned an error. Try again in a moment.'
   }
-  return 'Something went wrong loading the tickets.'
+  return 'Something went wrong loading the work items.'
 }
 
 function conflictMessageFor(error: unknown): string {
   if (error instanceof ConflictError) {
-    return 'This ticket was updated by another editor. Your change was not saved — the card has been returned to its original column.'
+    return 'This work item was updated by another editor. Your change was not saved — the card has been returned to its original column.'
   }
   if (error instanceof FetchError) {
-    return 'The ticket could not be saved. Try again in a moment.'
+    return 'The work item could not be saved. Try again in a moment.'
   }
   return 'An unexpected error occurred while saving. Try again.'
 }
@@ -51,11 +51,11 @@ export function KanbanBoard() {
   )
 
   const { data: entries = [], isPending, isError, error } = useQuery({
-    queryKey: queryKeys.docs('tickets'),
-    queryFn: () => fetchDocs('tickets'),
+    queryKey: queryKeys.docs('work-items'),
+    queryFn: () => fetchDocs('work-items'),
   })
 
-  const groups = useMemo(() => groupTicketsByStatus(entries), [entries])
+  const groups = useMemo(() => groupWorkItemsByStatus(entries), [entries])
   const otherEntries = groups.get(OTHER_COLUMN_KEY) ?? []
   const entriesByRelPath = useMemo(
     () => new Map<string, IndexEntry>(entries.map(e => [e.relPath, e])),
@@ -71,7 +71,7 @@ export function KanbanBoard() {
   )
 
   const docEvents = useDocEventsContext()
-  const move = useMoveTicket()
+  const move = useMoveWorkItem()
 
   function showConflict(msg: string) {
     setConflict(msg)
@@ -149,7 +149,7 @@ export function KanbanBoard() {
             type="button"
             className={styles.retry}
             onClick={() => {
-              queryClient.invalidateQueries({ queryKey: queryKeys.docs('tickets') })
+              queryClient.invalidateQueries({ queryKey: queryKeys.docs('work-items') })
             }}
           >
             Retry

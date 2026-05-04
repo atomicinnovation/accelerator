@@ -102,10 +102,24 @@ pub(crate) struct PatchFrontmatterBody {
     patch: PatchFields,
 }
 
+const DEFAULT_KANBAN_STATUSES: &[&str] = &[
+    "draft", "ready", "in-progress", "review", "done", "blocked", "abandoned",
+];
+
+fn validate_kanban_status(status: &str, accepted: &[&str]) -> Result<(), super::ApiError> {
+    if accepted.contains(&status) {
+        Ok(())
+    } else {
+        Err(super::ApiError::UnknownKanbanStatus {
+            accepted_keys: accepted.iter().map(|s| s.to_string()).collect(),
+        })
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct PatchFields {
-    status: Option<crate::patcher::TicketStatus>,
+    status: Option<String>,
 }
 
 /// PATCH /api/docs/{path}/frontmatter
@@ -150,9 +164,9 @@ pub(crate) async fn doc_patch_frontmatter(
         .await
         .ok_or_else(|| ApiError::NotFound(doc_rel.to_string()))?;
 
-    // Step 5 — ticket-type guard.
-    if entry.r#type != crate::docs::DocTypeKey::Tickets {
-        return Err(ApiError::OnlyTicketsAreWritable);
+    // Step 5 — work-item type guard.
+    if entry.r#type != crate::docs::DocTypeKey::WorkItems {
+        return Err(ApiError::OnlyWorkItemsAreWritable);
     }
 
     // Step 6 — parse JSON body. Result<Json<T>, JsonRejection> intercepts axum's extractor
@@ -162,6 +176,7 @@ pub(crate) async fn doc_patch_frontmatter(
         .patch
         .status
         .ok_or_else(|| ApiError::InvalidPatch("patch object is empty".into()))?;
+    validate_kanban_status(&status, DEFAULT_KANBAN_STATUSES)?;
 
     // Step 7 — read and validate If-Match header.
     let if_match = {
@@ -206,7 +221,7 @@ pub(crate) async fn doc_patch_frontmatter(
         .file_driver
         .write_frontmatter(
             &abs,
-            crate::patcher::FrontmatterPatch::Status(status),
+            crate::patcher::FrontmatterPatch::Status(status.clone()),
             &if_match,
             on_committed,
         )

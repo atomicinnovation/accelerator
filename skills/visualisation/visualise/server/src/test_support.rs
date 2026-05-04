@@ -13,7 +13,7 @@ pub fn entry_for_test(doc_type: DocTypeKey, slug: &str, mtime_ms: i64, title: &s
         title: title.to_string(),
         frontmatter: serde_json::Value::Null,
         frontmatter_state: "parsed".to_string(),
-        ticket: None,
+        work_item_refs: Vec::new(),
         mtime_ms,
         size: 0,
         etag: "sha256-x".to_string(),

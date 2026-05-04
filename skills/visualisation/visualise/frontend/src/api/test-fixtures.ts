@@ -12,7 +12,7 @@ export function makeIndexEntry(overrides: Partial<IndexEntry> = {}): IndexEntry 
     title: 'Foo',
     frontmatter: {},
     frontmatterState: 'parsed',
-    ticket: null,
+    workItemRefs: [],
     mtimeMs: 0,
     size: 0,
     etag: 'sha256-x',

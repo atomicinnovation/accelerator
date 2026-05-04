@@ -13,11 +13,11 @@ use tower::ServiceExt;
 
 mod common;
 
-const TICKET_PATH: &str = "meta/tickets/0001-todo-fixture.md";
+const WORK_ITEM_PATH: &str = "meta/work/0001-todo-fixture.md";
 const PLAN_PATH: &str = "meta/plans/2026-04-18-foo.md";
 
 async fn setup(tmp: &std::path::Path) -> Arc<AppState> {
-    let cfg = common::seeded_cfg_with_tickets(tmp);
+    let cfg = common::seeded_cfg_with_work_items(tmp);
     let activity = Arc::new(Activity::new());
     AppState::build(cfg, activity).await.unwrap()
 }
@@ -76,12 +76,12 @@ async fn read_body(res: axum::response::Response) -> serde_json::Value {
 async fn patch_succeeds_with_correct_if_match_returns_204_and_new_etag() {
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
-    let etag = fetch_etag(state.clone(), TICKET_PATH).await;
+    let etag = fetch_etag(state.clone(), WORK_ITEM_PATH).await;
 
     let app = build_router(state);
     let res = app
         .oneshot(patch_req(
-            TICKET_PATH,
+            WORK_ITEM_PATH,
             &etag,
             r#"{"patch":{"status":"in-progress"}}"#,
         ))
@@ -98,7 +98,7 @@ async fn patch_succeeds_with_correct_if_match_returns_204_and_new_etag() {
         .to_string();
     assert_ne!(new_etag, etag, "ETag should change after a real write");
 
-    let on_disk = tokio::fs::read_to_string(tmp.path().join(TICKET_PATH))
+    let on_disk = tokio::fs::read_to_string(tmp.path().join(WORK_ITEM_PATH))
         .await
         .unwrap();
     assert!(
@@ -113,13 +113,13 @@ async fn patch_succeeds_with_correct_if_match_returns_204_and_new_etag() {
 async fn patch_broadcasts_doc_changed_with_new_etag() {
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
-    let etag = fetch_etag(state.clone(), TICKET_PATH).await;
+    let etag = fetch_etag(state.clone(), WORK_ITEM_PATH).await;
     let mut rx = state.sse_hub.subscribe();
 
     let app = build_router(state);
     let res = app
         .oneshot(patch_req(
-            TICKET_PATH,
+            WORK_ITEM_PATH,
             &etag,
             r#"{"patch":{"status":"in-progress"}}"#,
         ))
@@ -145,8 +145,8 @@ async fn patch_broadcasts_doc_changed_with_new_etag() {
             path,
             etag: Some(broadcast_etag),
         } => {
-            assert_eq!(doc_type, accelerator_visualiser::docs::DocTypeKey::Tickets);
-            assert_eq!(path, TICKET_PATH);
+            assert_eq!(doc_type, accelerator_visualiser::docs::DocTypeKey::WorkItems);
+            assert_eq!(path, WORK_ITEM_PATH);
             assert_eq!(
                 format!("\"{}\"", broadcast_etag),
                 response_etag,
@@ -163,11 +163,11 @@ async fn patch_broadcasts_doc_changed_with_new_etag() {
 async fn patch_with_stale_if_match_returns_412_when_indexer_not_refreshed() {
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
-    let original_etag = fetch_etag(state.clone(), TICKET_PATH).await;
+    let original_etag = fetch_etag(state.clone(), WORK_ITEM_PATH).await;
 
     // Out-of-band edit — do NOT call refresh_one; index is now stale.
     tokio::fs::write(
-        tmp.path().join(TICKET_PATH),
+        tmp.path().join(WORK_ITEM_PATH),
         "---\ntitle: \"Todo fixture\"\ntype: adr-creation-task\nstatus: done\n---\n# body\n",
     )
     .await
@@ -176,7 +176,7 @@ async fn patch_with_stale_if_match_returns_412_when_indexer_not_refreshed() {
     let app = build_router(state);
     let res = app
         .oneshot(patch_req(
-            TICKET_PATH,
+            WORK_ITEM_PATH,
             &original_etag,
             r#"{"patch":{"status":"in-progress"}}"#,
         ))
@@ -203,8 +203,8 @@ async fn patch_with_stale_if_match_returns_412_when_indexer_not_refreshed() {
 async fn patch_with_stale_if_match_returns_412_when_indexer_refreshed() {
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
-    let original_etag = fetch_etag(state.clone(), TICKET_PATH).await;
-    let abs = tmp.path().join(TICKET_PATH);
+    let original_etag = fetch_etag(state.clone(), WORK_ITEM_PATH).await;
+    let abs = tmp.path().join(WORK_ITEM_PATH);
 
     // Out-of-band edit then refresh index.
     tokio::fs::write(
@@ -218,7 +218,7 @@ async fn patch_with_stale_if_match_returns_412_when_indexer_refreshed() {
     let app = build_router(state);
     let res = app
         .oneshot(patch_req(
-            TICKET_PATH,
+            WORK_ITEM_PATH,
             &original_etag,
             r#"{"patch":{"status":"in-progress"}}"#,
         ))
@@ -243,7 +243,7 @@ async fn patch_without_if_match_returns_428() {
     let app = build_router(state);
     let res = app
         .oneshot(patch_req_no_if_match(
-            TICKET_PATH,
+            WORK_ITEM_PATH,
             r#"{"patch":{"status":"in-progress"}}"#,
         ))
         .await
@@ -277,7 +277,7 @@ async fn patch_with_unsupported_if_match_returns_400() {
         .oneshot(
             Request::builder()
                 .method(Method::PATCH)
-                .uri(format!("/api/docs/{TICKET_PATH}/frontmatter"))
+                .uri(format!("/api/docs/{WORK_ITEM_PATH}/frontmatter"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .header(header::IF_MATCH, "*")
                 .body(Body::from(r#"{"patch":{"status":"in-progress"}}"#))
@@ -293,7 +293,7 @@ async fn patch_with_unsupported_if_match_returns_400() {
         .oneshot(
             Request::builder()
                 .method(Method::PATCH)
-                .uri(format!("/api/docs/{TICKET_PATH}/frontmatter"))
+                .uri(format!("/api/docs/{WORK_ITEM_PATH}/frontmatter"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .header(header::IF_MATCH, "W/\"sha256-abc\"")
                 .body(Body::from(r#"{"patch":{"status":"in-progress"}}"#))
@@ -308,7 +308,7 @@ async fn patch_with_unsupported_if_match_returns_400() {
         .oneshot(
             Request::builder()
                 .method(Method::PATCH)
-                .uri(format!("/api/docs/{TICKET_PATH}/frontmatter"))
+                .uri(format!("/api/docs/{WORK_ITEM_PATH}/frontmatter"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .header(header::IF_MATCH, "\"sha256-a\", \"sha256-b\"")
                 .body(Body::from(r#"{"patch":{"status":"in-progress"}}"#))
@@ -325,14 +325,14 @@ async fn patch_with_unsupported_if_match_returns_400() {
 async fn patch_with_unknown_status_value_returns_400() {
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
-    let etag = fetch_etag(state.clone(), TICKET_PATH).await;
+    let etag = fetch_etag(state.clone(), WORK_ITEM_PATH).await;
 
     let app = build_router(state);
     let res = app
         .oneshot(patch_req(
-            TICKET_PATH,
+            WORK_ITEM_PATH,
             &etag,
-            r#"{"patch":{"status":"blocked"}}"#,
+            r#"{"patch":{"status":"not-a-real-status"}}"#,
         ))
         .await
         .unwrap();
@@ -346,12 +346,12 @@ async fn patch_with_unknown_status_value_returns_400() {
 async fn patch_with_disallowed_field_returns_400() {
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
-    let etag = fetch_etag(state.clone(), TICKET_PATH).await;
+    let etag = fetch_etag(state.clone(), WORK_ITEM_PATH).await;
 
     let app = build_router(state);
     let res = app
         .oneshot(patch_req(
-            TICKET_PATH,
+            WORK_ITEM_PATH,
             &etag,
             r#"{"patch":{"title":"foo"}}"#,
         ))
@@ -367,11 +367,11 @@ async fn patch_with_disallowed_field_returns_400() {
 async fn patch_with_empty_patch_object_returns_400() {
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
-    let etag = fetch_etag(state.clone(), TICKET_PATH).await;
+    let etag = fetch_etag(state.clone(), WORK_ITEM_PATH).await;
 
     let app = build_router(state);
     let res = app
-        .oneshot(patch_req(TICKET_PATH, &etag, r#"{"patch":{}}"#))
+        .oneshot(patch_req(WORK_ITEM_PATH, &etag, r#"{"patch":{}}"#))
         .await
         .unwrap();
 
@@ -381,7 +381,7 @@ async fn patch_with_empty_patch_object_returns_400() {
 // ── Step 3.8 ─────────────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn patch_to_non_ticket_path_returns_400() {
+async fn patch_to_non_work_item_path_returns_400() {
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
     let plan_etag = fetch_etag(state.clone(), PLAN_PATH).await;
@@ -409,7 +409,7 @@ async fn patch_to_missing_path_returns_404() {
     let app = build_router(state);
     let res = app
         .oneshot(patch_req(
-            "meta/tickets/9999-ghost.md",
+            "meta/work/9999-ghost.md",
             "\"sha256-doesntmatter\"",
             r#"{"patch":{"status":"in-progress"}}"#,
         ))
@@ -431,7 +431,7 @@ async fn path_with_dotdot_segment_rejected_at_handler() {
         .oneshot(
             Request::builder()
                 .method(Method::PATCH)
-                .uri("/api/docs/meta/tickets/../plans/foo.md/frontmatter")
+                .uri("/api/docs/meta/work/../plans/foo.md/frontmatter")
                 .header(header::CONTENT_TYPE, "application/json")
                 .header(header::IF_MATCH, "\"sha256-x\"")
                 .body(Body::from(r#"{"patch":{"status":"in-progress"}}"#))
@@ -451,18 +451,18 @@ async fn path_passing_handler_check_but_resolving_outside_writable_roots_rejecte
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
 
-    // Create a symlink inside tickets/ pointing outside the writable root.
-    let tickets_dir = tmp.path().join("meta/tickets");
+    // Create a symlink inside work/ pointing outside the writable root.
+    let work_dir = tmp.path().join("meta/work");
     let plans_dir = tmp.path().join("meta/plans");
-    let sneaky = tickets_dir.join("sneaky.md");
+    let sneaky = work_dir.join("sneaky.md");
     std::os::unix::fs::symlink(plans_dir.join("2026-04-18-foo.md"), &sneaky).unwrap();
 
-    let etag = fetch_etag(state.clone(), "meta/tickets/sneaky.md").await;
+    let etag = fetch_etag(state.clone(), "meta/work/sneaky.md").await;
 
     let app = build_router(state);
     let res = app
         .oneshot(patch_req(
-            "meta/tickets/sneaky.md",
+            "meta/work/sneaky.md",
             &etag,
             r#"{"patch":{"status":"in-progress"}}"#,
         ))
@@ -489,7 +489,7 @@ async fn legitimate_filename_with_dots_is_not_rejected() {
     let app = build_router(state);
     let res = app
         .oneshot(patch_req(
-            "meta/tickets/0001..todo.md",
+            "meta/work/0001..todo.md",
             "\"sha256-fake\"",
             r#"{"patch":{"status":"in-progress"}}"#,
         ))
@@ -517,7 +517,7 @@ async fn patch_url_without_frontmatter_suffix_returns_400() {
         .oneshot(
             Request::builder()
                 .method(Method::PATCH)
-                .uri(format!("/api/docs/{TICKET_PATH}"))
+                .uri(format!("/api/docs/{WORK_ITEM_PATH}"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .header(header::IF_MATCH, "\"sha256-x\"")
                 .body(Body::from(r#"{"patch":{"status":"in-progress"}}"#))
@@ -544,7 +544,7 @@ async fn patch_with_invalid_json_body_returns_400() {
 
     let app = build_router(state);
     let res = app
-        .oneshot(patch_req(TICKET_PATH, "\"sha256-x\"", "not json at all"))
+        .oneshot(patch_req(WORK_ITEM_PATH, "\"sha256-x\"", "not json at all"))
         .await
         .unwrap();
 
@@ -562,7 +562,7 @@ async fn get_request_unaffected_by_patch_method_being_added() {
     let res = app
         .oneshot(
             Request::builder()
-                .uri(format!("/api/docs/{TICKET_PATH}"))
+                .uri(format!("/api/docs/{WORK_ITEM_PATH}"))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -589,7 +589,7 @@ async fn idempotent_patch_with_same_value_returns_204_with_unchanged_etag_and_no
     let tmp = tempfile::tempdir().unwrap();
     // Use a done-fixture so we can PATCH with status=done (same value).
     let state = setup(tmp.path()).await;
-    let done_path = "meta/tickets/0002-done-fixture.md";
+    let done_path = "meta/work/0002-done-fixture.md";
     let etag = fetch_etag(state.clone(), done_path).await;
     let mtime_before = tokio::fs::metadata(tmp.path().join(done_path))
         .await
@@ -647,12 +647,12 @@ async fn idempotent_patch_with_same_value_returns_204_with_unchanged_etag_and_no
 async fn patch_with_unknown_field_in_body_returns_400() {
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
-    let etag = fetch_etag(state.clone(), TICKET_PATH).await;
+    let etag = fetch_etag(state.clone(), WORK_ITEM_PATH).await;
 
     let app = build_router(state);
     let res = app
         .oneshot(patch_req(
-            TICKET_PATH,
+            WORK_ITEM_PATH,
             &etag,
             r#"{"patch":{"status":"todo","title":"hijack"}}"#,
         ))
@@ -668,7 +668,7 @@ async fn patch_with_unknown_field_in_body_returns_400() {
 async fn patch_from_disallowed_origin_returns_403_allowed_origins_succeed() {
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
-    let etag = fetch_etag(state.clone(), TICKET_PATH).await;
+    let etag = fetch_etag(state.clone(), WORK_ITEM_PATH).await;
     let app = build_router(state);
 
     // Foreign origin → 403
@@ -677,7 +677,7 @@ async fn patch_from_disallowed_origin_returns_403_allowed_origins_succeed() {
         .oneshot(
             Request::builder()
                 .method(Method::PATCH)
-                .uri(format!("/api/docs/{TICKET_PATH}/frontmatter"))
+                .uri(format!("/api/docs/{WORK_ITEM_PATH}/frontmatter"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .header(header::IF_MATCH, &etag)
                 .header("origin", "https://evil.example")
@@ -696,7 +696,7 @@ async fn patch_from_disallowed_origin_returns_403_allowed_origins_succeed() {
     let res = app
         .clone()
         .oneshot(patch_req(
-            TICKET_PATH,
+            WORK_ITEM_PATH,
             &etag,
             r#"{"patch":{"status":"in-progress"}}"#,
         ))
@@ -715,7 +715,7 @@ async fn patch_from_disallowed_origin_returns_403_allowed_origins_succeed() {
 async fn patch_emits_exactly_one_doc_changed_event() {
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
-    let etag = fetch_etag(state.clone(), TICKET_PATH).await;
+    let etag = fetch_etag(state.clone(), WORK_ITEM_PATH).await;
 
     let mut rx = state.sse_hub.subscribe();
     let clusters = Arc::new(RwLock::new(
@@ -725,7 +725,7 @@ async fn patch_emits_exactly_one_doc_changed_event() {
     let app = build_router(state.clone());
     let res = app
         .oneshot(patch_req(
-            TICKET_PATH,
+            WORK_ITEM_PATH,
             &etag,
             r#"{"patch":{"status":"in-progress"}}"#,
         ))
@@ -744,7 +744,7 @@ async fn patch_emits_exactly_one_doc_changed_event() {
     );
 
     // Now synthesise a watcher event for the same path.
-    let canonical = tokio::fs::canonicalize(tmp.path().join(TICKET_PATH))
+    let canonical = tokio::fs::canonicalize(tmp.path().join(WORK_ITEM_PATH))
         .await
         .unwrap();
     watcher::on_path_changed_debounced(
@@ -774,9 +774,9 @@ async fn patch_emits_exactly_one_doc_changed_event() {
 #[tokio::test]
 async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
     let tmp = tempfile::tempdir().unwrap();
-    // Create a symlinked tickets directory.
-    let real_dir = tmp.path().join("meta/tickets_real");
-    let link_dir = tmp.path().join("meta/tickets_link");
+    // Create a symlinked work directory.
+    let real_dir = tmp.path().join("meta/work_real");
+    let link_dir = tmp.path().join("meta/work_link");
     tokio::fs::create_dir_all(&real_dir).await.unwrap();
     tokio::fs::write(
         real_dir.join("0001-todo-fixture.md"),
@@ -786,14 +786,14 @@ async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
     .unwrap();
     std::os::unix::fs::symlink(&real_dir, &link_dir).unwrap();
 
-    // Build a cfg pointing the tickets root at the symlinked path.
-    let mut cfg = common::seeded_cfg_with_tickets(tmp.path());
-    cfg.doc_paths.insert("tickets".into(), link_dir.clone());
+    // Build a cfg pointing the work root at the symlinked path.
+    let mut cfg = common::seeded_cfg_with_work_items(tmp.path());
+    cfg.doc_paths.insert("work".into(), link_dir.clone());
     let activity = Arc::new(Activity::new());
     let state = AppState::build(cfg, activity).await.unwrap();
 
-    let ticket_via_link = "meta/tickets_link/0001-todo-fixture.md";
-    let etag = fetch_etag(state.clone(), ticket_via_link).await;
+    let work_item_via_link = "meta/work_link/0001-todo-fixture.md";
+    let etag = fetch_etag(state.clone(), work_item_via_link).await;
     let mut rx = state.sse_hub.subscribe();
     let clusters = Arc::new(RwLock::new(
         accelerator_visualiser::clusters::compute_clusters(&state.indexer.all().await),
@@ -802,7 +802,7 @@ async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
     let app = build_router(state.clone());
     let res = app
         .oneshot(patch_req(
-            ticket_via_link,
+            work_item_via_link,
             &etag,
             r#"{"patch":{"status":"in-progress"}}"#,
         ))
@@ -845,7 +845,7 @@ async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
 async fn patch_does_not_register_self_write_on_idempotent() {
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
-    let done_path = "meta/tickets/0002-done-fixture.md";
+    let done_path = "meta/work/0002-done-fixture.md";
     let etag = fetch_etag(state.clone(), done_path).await;
 
     let app = build_router(state.clone());

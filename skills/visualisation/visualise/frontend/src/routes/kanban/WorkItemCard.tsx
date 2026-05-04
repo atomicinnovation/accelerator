@@ -3,16 +3,16 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { formatMtime } from '../../api/format'
 import { fileSlugFromRelPath } from '../../api/path-utils'
-import { parseTicketNumber } from '../../api/ticket'
+import { parseWorkItemId } from '../../api/work-item'
 import type { IndexEntry } from '../../api/types'
-import styles from './TicketCard.module.css'
+import styles from './WorkItemCard.module.css'
 
-export interface TicketCardProps {
+export interface WorkItemCardProps {
   entry: IndexEntry
   now?: number
 }
 
-export function TicketCard({ entry, now }: TicketCardProps) {
+export function WorkItemCard({ entry, now }: WorkItemCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: entry.relPath,
   })
@@ -23,7 +23,7 @@ export function TicketCard({ entry, now }: TicketCardProps) {
   // drag affordance without misrepresenting the element as a button.
   const { role: _role, ...sortableAttributes } = attributes
 
-  const number = parseTicketNumber(entry.relPath)
+  const number = parseWorkItemId(entry.relPath)
   const fmType = entry.frontmatter['type']
   const typeLabel = typeof fmType === 'string' && fmType.length > 0 ? fmType : null
   const fileSlug = fileSlugFromRelPath(entry.relPath)
@@ -36,7 +36,7 @@ export function TicketCard({ entry, now }: TicketCardProps) {
       <Link
         ref={setNodeRef}
         to="/library/$type/$fileSlug"
-        params={{ type: 'tickets', fileSlug }}
+        params={{ type: 'work-items', fileSlug }}
         className={styles.cardLink}
         style={{
           transform: CSS.Transform.toString(transform),

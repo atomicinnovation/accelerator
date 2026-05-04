@@ -1,31 +1,13 @@
 use crate::frontmatter::{self, FenceError};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum FrontmatterPatch {
-    Status(TicketStatus),
+    Status(String),
 }
 
 pub fn apply(raw: &[u8], patch: FrontmatterPatch) -> Result<Vec<u8>, PatchError> {
     match patch {
-        FrontmatterPatch::Status(s) => patch_status(raw, s),
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum TicketStatus {
-    Todo,
-    InProgress,
-    Done,
-}
-
-impl TicketStatus {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Todo => "todo",
-            Self::InProgress => "in-progress",
-            Self::Done => "done",
-        }
+        FrontmatterPatch::Status(s) => patch_status(raw, &s),
     }
 }
 
@@ -46,7 +28,7 @@ pub enum PatchError {
 /// Operates line-by-line so comments, key order, and surrounding whitespace
 /// are preserved verbatim. Only a top-level (non-indented) `status:` key is
 /// touched; nested occurrences inside YAML mappings are ignored.
-pub fn patch_status(raw: &[u8], new_value: TicketStatus) -> Result<Vec<u8>, PatchError> {
+pub fn patch_status(raw: &[u8], new_value: &str) -> Result<Vec<u8>, PatchError> {
     let (yaml_start, body_start) = match frontmatter::fence_offsets(raw) {
         Ok(None) => return Err(PatchError::FrontmatterAbsent),
         Err(FenceError::Malformed) => return Err(PatchError::FrontmatterMalformed),
@@ -116,7 +98,7 @@ fn strip_line_ending(line: &[u8]) -> &[u8] {
 /// Rewrites the value portion of a `status: <value>` line, preserving
 /// the original quote style (none / single / double), any trailing inline
 /// comment, and the line's original line ending (LF or CRLF).
-fn replace_status_value(line: &[u8], new_value: TicketStatus) -> Result<Vec<u8>, PatchError> {
+fn replace_status_value(line: &[u8], new_value: &str) -> Result<Vec<u8>, PatchError> {
     let (without_ending, line_ending) = if line.ends_with(b"\r\n") {
         (&line[..line.len() - 2], &b"\r\n"[..])
     } else if line.ends_with(b"\n") {
@@ -142,7 +124,7 @@ fn replace_status_value(line: &[u8], new_value: TicketStatus) -> Result<Vec<u8>,
         });
     }
 
-    let new_str = new_value.as_str().as_bytes();
+    let new_str = new_value.as_bytes();
 
     match value_part[0] {
         b'|' | b'>' => Err(PatchError::UnsupportedValueShape {
@@ -265,155 +247,127 @@ mod tests {
         s.as_bytes().to_vec()
     }
 
-    // ── Step 1.1 ────────────────────────────────────────────────────────────
     #[test]
     fn replaces_simple_unquoted_status_value() {
         let input = b("---\nstatus: todo\n---\n# body\n");
-        let out = patch_status(&input, TicketStatus::InProgress).unwrap();
+        let out = patch_status(&input, "in-progress").unwrap();
         assert_eq!(out, b("---\nstatus: in-progress\n---\n# body\n"));
     }
 
-    // ── Step 1.2 ────────────────────────────────────────────────────────────
     #[test]
     fn preserves_other_frontmatter_keys_and_order() {
-        let input = b("---\ntitle: Foo\nstatus: todo\nticket: bar\n---\nbody\n");
-        let out = patch_status(&input, TicketStatus::Done).unwrap();
+        let input = b("---\ntitle: Foo\nstatus: todo\nwork-item: bar\n---\nbody\n");
+        let out = patch_status(&input, "done").unwrap();
         let out_str = std::str::from_utf8(&out).unwrap();
         assert!(out_str.contains("title: Foo\n"));
         assert!(out_str.contains("status: done\n"));
-        assert!(out_str.contains("ticket: bar\n"));
-        // Key order preserved: title comes before status
+        assert!(out_str.contains("work-item: bar\n"));
         let title_pos = out_str.find("title:").unwrap();
         let status_pos = out_str.find("status:").unwrap();
-        let ticket_pos = out_str.find("ticket:").unwrap();
-        assert!(title_pos < status_pos && status_pos < ticket_pos);
+        let wi_pos = out_str.find("work-item:").unwrap();
+        assert!(title_pos < status_pos && status_pos < wi_pos);
     }
 
-    // ── Step 1.3 ────────────────────────────────────────────────────────────
     #[test]
     fn preserves_quoted_status_values() {
         let input = b("---\nstatus: \"todo\"\n---\nbody\n");
-        let out = patch_status(&input, TicketStatus::InProgress).unwrap();
+        let out = patch_status(&input, "in-progress").unwrap();
         assert_eq!(out, b("---\nstatus: \"in-progress\"\n---\nbody\n"));
     }
 
-    // ── Step 1.4 ────────────────────────────────────────────────────────────
     #[test]
     fn preserves_inline_comment_after_status() {
         let input = b("---\nstatus: todo  # current\n---\nbody\n");
-        let out = patch_status(&input, TicketStatus::InProgress).unwrap();
+        let out = patch_status(&input, "in-progress").unwrap();
         assert_eq!(out, b("---\nstatus: in-progress  # current\n---\nbody\n"));
     }
 
-    // ── Step 1.5 ────────────────────────────────────────────────────────────
     #[test]
     fn preserves_body_byte_for_byte() {
-        // Body contains `---` inside a fenced code block.
         let body = "# heading\n\n```\n---\nsome code\n```\n";
         let input_str = format!("---\nstatus: todo\n---\n{body}");
         let input = input_str.as_bytes().to_vec();
-        let out = patch_status(&input, TicketStatus::Done).unwrap();
+        let out = patch_status(&input, "done").unwrap();
         let out_str = std::str::from_utf8(&out).unwrap();
-        let body_part = out_str.split_once("---\n").unwrap().1; // after opening fence
-        let body_part = body_part.split_once("---\n").unwrap().1; // after closing fence
+        let body_part = out_str.split_once("---\n").unwrap().1;
+        let body_part = body_part.split_once("---\n").unwrap().1;
         assert_eq!(body_part, body);
     }
 
-    // ── Step 1.6 ────────────────────────────────────────────────────────────
     #[test]
     fn preserves_crlf_line_endings() {
         let input = b("---\r\nstatus: todo\r\n---\r\nbody\r\n");
-        let out = patch_status(&input, TicketStatus::InProgress).unwrap();
+        let out = patch_status(&input, "in-progress").unwrap();
         assert_eq!(out, b("---\r\nstatus: in-progress\r\n---\r\nbody\r\n"));
     }
 
-    // ── Step 1.7 ────────────────────────────────────────────────────────────
     #[test]
     fn idempotent_for_same_value() {
         let input = b("---\nstatus: done\n---\n");
-        let out = patch_status(&input, TicketStatus::Done).unwrap();
+        let out = patch_status(&input, "done").unwrap();
         assert_eq!(out, input);
     }
 
-    // ── Step 1.8 ────────────────────────────────────────────────────────────
     #[test]
-    fn accepts_each_ticket_status_variant() {
+    fn accepts_any_string_status_value() {
         let base = b("---\nstatus: todo\n---\n");
-        let todo = patch_status(&base, TicketStatus::Todo).unwrap();
-        assert!(std::str::from_utf8(&todo)
-            .unwrap()
-            .contains("status: todo\n"));
-
-        let ip = patch_status(&base, TicketStatus::InProgress).unwrap();
-        assert!(std::str::from_utf8(&ip)
-            .unwrap()
-            .contains("status: in-progress\n"));
-
-        let done = patch_status(&base, TicketStatus::Done).unwrap();
-        assert!(std::str::from_utf8(&done)
-            .unwrap()
-            .contains("status: done\n"));
+        for status in &["draft", "ready", "in-progress", "review", "done", "blocked", "abandoned"] {
+            let out = patch_status(&base, status).unwrap();
+            let out_str = std::str::from_utf8(&out).unwrap();
+            assert!(out_str.contains(&format!("status: {status}\n")));
+        }
     }
 
-    // ── Step 1.9 ────────────────────────────────────────────────────────────
+    #[test]
+    fn accepts_legacy_proposed_status() {
+        let input = b("---\nstatus: proposed\n---\n");
+        let out = patch_status(&input, "ready").unwrap();
+        assert_eq!(out, b("---\nstatus: ready\n---\n"));
+    }
+
     #[test]
     fn rejects_when_status_key_missing() {
         let input = b("---\ntitle: foo\n---\nbody\n");
-        let err = patch_status(&input, TicketStatus::Done).unwrap_err();
+        let err = patch_status(&input, "done").unwrap_err();
         assert_eq!(err, PatchError::KeyNotFound);
     }
 
-    // ── Step 1.10 ───────────────────────────────────────────────────────────
     #[test]
     fn rejects_when_frontmatter_absent() {
         let input = b("# Heading\nbody\n");
-        let err = patch_status(&input, TicketStatus::Done).unwrap_err();
+        let err = patch_status(&input, "done").unwrap_err();
         assert_eq!(err, PatchError::FrontmatterAbsent);
     }
 
-    // ── Step 1.11 ───────────────────────────────────────────────────────────
     #[test]
     fn rejects_when_frontmatter_malformed() {
         let input = b("---\ntitle: foo\nno closing fence");
-        let err = patch_status(&input, TicketStatus::Done).unwrap_err();
+        let err = patch_status(&input, "done").unwrap_err();
         assert_eq!(err, PatchError::FrontmatterMalformed);
     }
 
-    // ── Step 1.12 ───────────────────────────────────────────────────────────
     #[test]
     fn does_not_mutate_indented_status_in_nested_mapping() {
         let input = b("---\nmetadata:\n  status: todo\nstatus: todo\n---\nbody\n");
-        let out = patch_status(&input, TicketStatus::Done).unwrap();
+        let out = patch_status(&input, "done").unwrap();
         let out_str = std::str::from_utf8(&out).unwrap();
-        // Indented status: unchanged
         assert!(out_str.contains("  status: todo\n"));
-        // Top-level status: replaced
         assert!(out_str.contains("\nstatus: done\n"));
     }
 
-    // ── Step 1.13 ───────────────────────────────────────────────────────────
     #[test]
     fn does_not_close_frontmatter_at_body_internal_triple_dash() {
-        // The body contains `---` on its own line. A naive "second --- ends
-        // frontmatter" parser would mis-locate the close if the body `---`
-        // appeared before a real status: line — but since we use fence_offsets
-        // (which correctly finds the first --- WITHIN the YAML region), the
-        // real frontmatter close is found and only the frontmatter's status:
-        // is rewritten.
         let input = b("---\nstatus: todo\n---\n# body\n\n---\n\nmore text\n");
-        let out = patch_status(&input, TicketStatus::Done).unwrap();
+        let out = patch_status(&input, "done").unwrap();
         let out_str = std::str::from_utf8(&out).unwrap();
-        // Frontmatter status replaced
         assert!(out_str.starts_with("---\nstatus: done\n---\n"));
-        // Body's `---` preserved
         assert!(out_str.ends_with("\n---\n\nmore text\n"));
     }
 
-    // ── Step 1.14 ───────────────────────────────────────────────────────────
     #[test]
     fn rejects_block_scalar_status_value() {
         let input = b("---\nstatus: |\n  todo\n---\nbody\n");
-        let err = patch_status(&input, TicketStatus::Done).unwrap_err();
+        let err = patch_status(&input, "done").unwrap_err();
         match err {
             PatchError::UnsupportedValueShape { reason } => {
                 assert!(reason.contains("block scalar"), "reason: {reason}");
@@ -422,19 +376,17 @@ mod tests {
         }
     }
 
-    // ── Step 1.15 ───────────────────────────────────────────────────────────
     #[test]
     fn preserves_single_quoted_status_value() {
         let input = b("---\nstatus: 'todo'\n---\nbody\n");
-        let out = patch_status(&input, TicketStatus::InProgress).unwrap();
+        let out = patch_status(&input, "in-progress").unwrap();
         assert_eq!(out, b("---\nstatus: 'in-progress'\n---\nbody\n"));
     }
 
-    // ── Step 1.16 ───────────────────────────────────────────────────────────
     #[test]
     fn rejects_anchored_status_value() {
         let input = b("---\nstatus: &s todo\n---\nbody\n");
-        let err = patch_status(&input, TicketStatus::Done).unwrap_err();
+        let err = patch_status(&input, "done").unwrap_err();
         match err {
             PatchError::UnsupportedValueShape { reason } => {
                 assert!(reason.contains("anchor"), "reason: {reason}");
@@ -443,31 +395,23 @@ mod tests {
         }
     }
 
-    // ── Step 1.17 ───────────────────────────────────────────────────────────
-    // Flow-style top-level mapping: `{status: todo}` — the line-based scanner
-    // never sees a `status:` key because the whole document is on one line
-    // starting with `{`, so KeyNotFound is the correct error.
     #[test]
     fn rejects_flow_style_mapping_status_with_key_not_found() {
         let input = b("---\n{status: todo}\n---\nbody\n");
-        let err = patch_status(&input, TicketStatus::Done).unwrap_err();
+        let err = patch_status(&input, "done").unwrap_err();
         assert_eq!(err, PatchError::KeyNotFound);
     }
 
-    // ── Step 1.18 ───────────────────────────────────────────────────────────
     #[test]
     fn preserves_line_specific_line_ending() {
-        // All LF except the `status:` line which uses CRLF.
-        let input = b"---\ntitle: foo\nstatus: todo\r\nticket: bar\n---\nbody\n";
-        let out = patch_status(input, TicketStatus::Done).unwrap();
-        // The status line must use CRLF in the output.
+        let input = b"---\ntitle: foo\nstatus: todo\r\nwork-item: bar\n---\nbody\n";
+        let out = patch_status(input, "done").unwrap();
         let out_str = std::str::from_utf8(&out).unwrap();
         assert!(
             out_str.contains("status: done\r\n"),
             "expected CRLF on status line"
         );
-        // All other lines still use LF only.
         assert!(out_str.contains("title: foo\n"));
-        assert!(out_str.contains("ticket: bar\n"));
+        assert!(out_str.contains("work-item: bar\n"));
     }
 }

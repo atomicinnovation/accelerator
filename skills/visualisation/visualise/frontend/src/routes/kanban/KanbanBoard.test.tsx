@@ -54,7 +54,7 @@ describe('KanbanBoard', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /^kanban$/i })).toBeInTheDocument()
   })
 
-  it('shows a loading state while the tickets list is pending', async () => {
+  it('shows a loading state while the work items list is pending', async () => {
     vi.spyOn(fetchModule, 'fetchDocs').mockImplementation(() => new Promise(() => {}))
     renderKanbanAt()
     const loading = await screen.findByText(/loading/i)
@@ -62,7 +62,7 @@ describe('KanbanBoard', () => {
     expect(loading.closest('[role="status"]')).not.toBeNull()
   })
 
-  it('renders three labelled columns when there are no tickets, no Other swimlane', async () => {
+  it('renders three labelled columns when there are no work items, no Other swimlane', async () => {
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
     renderKanbanAt()
     expect(await screen.findByRole('region', { name: /todo/i })).toBeInTheDocument()
@@ -71,45 +71,45 @@ describe('KanbanBoard', () => {
     expect(screen.queryByRole('region', { name: /other/i })).toBeNull()
   })
 
-  it('places tickets in the column matching their frontmatter.status', async () => {
+  it('places work items in the column matching their frontmatter.status', async () => {
     const todo = makeIndexEntry({
-      type: 'tickets', relPath: 'meta/tickets/0001-todo.md', title: 'Todo ticket',
+      type: 'work-items', relPath: 'meta/work/0001-todo.md', title: 'Todo work item',
       frontmatter: { type: 'adr-creation-task', status: 'todo' },
     })
     const inProgress = makeIndexEntry({
-      type: 'tickets', relPath: 'meta/tickets/0002-wip.md', title: 'WIP ticket',
+      type: 'work-items', relPath: 'meta/work/0002-wip.md', title: 'WIP work item',
       frontmatter: { type: 'adr-creation-task', status: 'in-progress' },
     })
     const done = makeIndexEntry({
-      type: 'tickets', relPath: 'meta/tickets/0003-done.md', title: 'Done ticket',
+      type: 'work-items', relPath: 'meta/work/0003-done.md', title: 'Done work item',
       frontmatter: { type: 'adr-creation-task', status: 'done' },
     })
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([todo, inProgress, done])
     renderKanbanAt()
     const todoCol = await screen.findByRole('region', { name: /todo/i })
-    expect(within(todoCol).getByText('Todo ticket')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: /in progress/i })).getByText('WIP ticket')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: /done/i })).getByText('Done ticket')).toBeInTheDocument()
+    expect(within(todoCol).getByText('Todo work item')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: /in progress/i })).getByText('WIP work item')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: /done/i })).getByText('Done work item')).toBeInTheDocument()
   })
 
   it('renders the Other swimlane with non-canonical statuses', async () => {
     const blocked = makeIndexEntry({
-      type: 'tickets', relPath: 'meta/tickets/0007-blocked.md', title: 'Blocked ticket',
+      type: 'work-items', relPath: 'meta/work/0007-blocked.md', title: 'Blocked work item',
       frontmatter: { type: 'adr-creation-task', status: 'blocked' },
     })
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([blocked])
     renderKanbanAt()
     const other = await screen.findByRole('region', { name: /other/i })
-    expect(within(other).getByText('Blocked ticket')).toBeInTheDocument()
+    expect(within(other).getByText('Blocked work item')).toBeInTheDocument()
   })
 
   it('sorts cards within a column by mtimeMs descending', async () => {
     const old = makeIndexEntry({
-      type: 'tickets', relPath: 'meta/tickets/0001-old.md', title: 'Old',
+      type: 'work-items', relPath: 'meta/work/0001-old.md', title: 'Old',
       frontmatter: { type: 'adr-creation-task', status: 'todo' }, mtimeMs: 100,
     })
     const newest = makeIndexEntry({
-      type: 'tickets', relPath: 'meta/tickets/0002-new.md', title: 'Newest',
+      type: 'work-items', relPath: 'meta/work/0002-new.md', title: 'Newest',
       frontmatter: { type: 'adr-creation-task', status: 'todo' }, mtimeMs: 300,
     })
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([old, newest])
@@ -124,7 +124,7 @@ describe('KanbanBoard', () => {
 
   it('renders a typed-aware error message on FetchError(5xx)', async () => {
     vi.spyOn(fetchModule, 'fetchDocs').mockRejectedValue(
-      new fetchModule.FetchError(500, 'GET /api/docs?type=tickets: 500'),
+      new fetchModule.FetchError(500, 'GET /api/docs?type=work-items: 500'),
     )
     renderKanbanAt()
     const alert = await screen.findByRole('alert')
@@ -137,7 +137,7 @@ describe('KanbanBoard', () => {
     vi.spyOn(fetchModule, 'fetchDocs').mockRejectedValue(new Error('boom'))
     renderKanbanAt()
     const alert = await screen.findByRole('alert')
-    expect(alert.textContent).toMatch(/something went wrong loading the tickets/i)
+    expect(alert.textContent).toMatch(/something went wrong loading/i)
     expect(alert.textContent).not.toMatch(/server returned an error/i)
     expect(alert.textContent).not.toMatch(/boom/)
   })
@@ -152,21 +152,21 @@ describe('KanbanBoard', () => {
     fireEvent.click(retry)
     expect(await screen.findByRole('region', { name: /todo/i })).toBeInTheDocument()
     expect(fetchSpy).toHaveBeenCalledTimes(2)
-    expect(queryClient.getQueryState(queryKeys.docs('tickets'))?.status).toBe('success')
+    expect(queryClient.getQueryState(queryKeys.docs('work-items'))?.status).toBe('success')
   })
 
   it('links cards to their library detail pages via the canonical typed-route form', async () => {
-    const ticket = makeIndexEntry({
-      type: 'tickets',
-      relPath: 'meta/tickets/0029-template-management-subcommand-surface.md',
+    const entry = makeIndexEntry({
+      type: 'work-items',
+      relPath: 'meta/work/0029-template-management-subcommand-surface.md',
       title: 'Template management',
       frontmatter: { type: 'adr-creation-task', status: 'done' },
     })
-    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([ticket])
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([entry])
     renderKanbanAt()
     const link = await screen.findByRole('link', { name: /template management/i })
     expect(link.getAttribute('href')).toBe(
-      '/library/tickets/0029-template-management-subcommand-surface',
+      '/library/work-items/0029-template-management-subcommand-surface',
     )
   })
 
@@ -183,13 +183,13 @@ describe('KanbanBoard', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  it('moves a card between columns when the tickets query is invalidated (SSE-driven update)', async () => {
+  it('moves a card between columns when the work items query is invalidated (SSE-driven update)', async () => {
     const before = makeIndexEntry({
-      type: 'tickets', relPath: 'meta/tickets/0001-x.md', title: 'Movable',
+      type: 'work-items', relPath: 'meta/work/0001-x.md', title: 'Movable',
       frontmatter: { type: 'adr-creation-task', status: 'todo' },
     })
     const after = makeIndexEntry({
-      type: 'tickets', relPath: 'meta/tickets/0001-x.md', title: 'Movable',
+      type: 'work-items', relPath: 'meta/work/0001-x.md', title: 'Movable',
       frontmatter: { type: 'adr-creation-task', status: 'done' },
     })
     const fetchSpy = vi.spyOn(fetchModule, 'fetchDocs')
@@ -201,7 +201,7 @@ describe('KanbanBoard', () => {
     expect(within(todoCol).getByText('Movable')).toBeInTheDocument()
 
     await act(async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.docs('tickets') })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.docs('work-items') })
     })
 
     const doneCol = await screen.findByRole('region', { name: /done/i })

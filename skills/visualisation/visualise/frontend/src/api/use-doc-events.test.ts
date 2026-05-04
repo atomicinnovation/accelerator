@@ -38,9 +38,9 @@ describe('dispatchSseEvent', () => {
     )
   })
 
-  it('invalidates kanban on ticket doc-changed event', () => {
+  it('invalidates kanban on work-item doc-changed event', () => {
     dispatchSseEvent(
-      { type: 'doc-changed', docType: 'tickets', path: 'meta/tickets/0001-foo.md', etag: 'sha256-abc' },
+      { type: 'doc-changed', docType: 'work-items', path: 'meta/work/0001-foo.md', etag: 'sha256-abc' },
       queryClient,
     )
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
@@ -176,7 +176,7 @@ describe('makeUseDocEvents wiring', () => {
 
   it('invalidates all queries except session-stable on reconnect', () => {
     queryClient.setQueryData(queryKeys.docs('plans'), [])
-    queryClient.setQueryData(queryKeys.docs('tickets'), [])
+    queryClient.setQueryData(queryKeys.docs('work-items'), [])
     queryClient.setQueryData(queryKeys.serverInfo(), { name: 'x', version: '1.0.0' })
     vi.spyOn(console, 'warn').mockImplementation(() => {})
 
@@ -197,7 +197,7 @@ describe('makeUseDocEvents wiring', () => {
 
     // Docs queries are invalidated on reconnect
     expect(queryClient.getQueryState(queryKeys.docs('plans'))?.isInvalidated).toBe(true)
-    expect(queryClient.getQueryState(queryKeys.docs('tickets'))?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(queryKeys.docs('work-items'))?.isInvalidated).toBe(true)
     // Session-stable query survives
     expect(queryClient.getQueryState(queryKeys.serverInfo())?.isInvalidated).toBe(false)
   })
@@ -274,7 +274,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
 
     registry.register('sha256-X')
     ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'tickets', path: 'meta/tickets/foo.md', etag: 'sha256-X' }),
+      data: JSON.stringify({ type: 'doc-changed', docType: 'work-items', path: 'meta/work/foo.md', etag: 'sha256-X' }),
     }))
 
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
@@ -289,7 +289,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     act(() => { ctx.source.onopen?.(new Event('open')) })
 
     ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'tickets', path: 'meta/tickets/foo.md', etag: 'sha256-FOREIGN' }),
+      data: JSON.stringify({ type: 'doc-changed', docType: 'work-items', path: 'meta/work/foo.md', etag: 'sha256-FOREIGN' }),
     }))
 
     expect(queryClient.invalidateQueries).toHaveBeenCalled()
@@ -305,7 +305,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
 
     registry.register('sha256-X')
     const msg = new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'tickets', path: 'meta/tickets/foo.md', etag: 'sha256-X' }),
+      data: JSON.stringify({ type: 'doc-changed', docType: 'work-items', path: 'meta/work/foo.md', etag: 'sha256-X' }),
     })
     ctx.source.onmessage?.(msg)
     ctx.source.onmessage?.(msg)
@@ -323,13 +323,13 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
 
     act(() => { result.current.setDragInProgress(true) })
     ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'tickets', path: 'meta/tickets/foo.md', etag: 'sha256-FOREIGN' }),
+      data: JSON.stringify({ type: 'doc-changed', docType: 'work-items', path: 'meta/work/foo.md', etag: 'sha256-FOREIGN' }),
     }))
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
 
     act(() => { result.current.setDragInProgress(false) })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: queryKeys.docs('tickets') }),
+      expect.objectContaining({ queryKey: queryKeys.docs('work-items') }),
     )
   })
 
@@ -343,18 +343,18 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
 
     act(() => { result.current.setDragInProgress(true) })
     const makeMsg = (path: string) => new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'tickets', path, etag: `sha256-${path}` }),
+      data: JSON.stringify({ type: 'doc-changed', docType: 'work-items', path, etag: `sha256-${path}` }),
     })
-    ctx.source.onmessage?.(makeMsg('meta/tickets/a.md'))
-    ctx.source.onmessage?.(makeMsg('meta/tickets/b.md'))
-    ctx.source.onmessage?.(makeMsg('meta/tickets/c.md'))
+    ctx.source.onmessage?.(makeMsg('meta/work/a.md'))
+    ctx.source.onmessage?.(makeMsg('meta/work/b.md'))
+    ctx.source.onmessage?.(makeMsg('meta/work/c.md'))
 
     act(() => { result.current.setDragInProgress(false) })
 
-    const docsTicketsCalls = spy.mock.calls.filter(
-      ([arg]) => JSON.stringify((arg as { queryKey: unknown }).queryKey) === JSON.stringify(queryKeys.docs('tickets'))
+    const docsWorkItemsCalls = spy.mock.calls.filter(
+      ([arg]) => JSON.stringify((arg as { queryKey: unknown }).queryKey) === JSON.stringify(queryKeys.docs('work-items'))
     )
-    expect(docsTicketsCalls).toHaveLength(1)
+    expect(docsWorkItemsCalls).toHaveLength(1)
   })
 
   it('resets registry and flushes pending invalidations on SSE reconnect', () => {
@@ -371,7 +371,7 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     // Queue an invalidation during drag, then flush (clear the pending set)
     act(() => { result.current.setDragInProgress(true) })
     ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'tickets', path: 'meta/tickets/foo.md', etag: 'sha256-FOREIGN' }),
+      data: JSON.stringify({ type: 'doc-changed', docType: 'work-items', path: 'meta/work/foo.md', etag: 'sha256-FOREIGN' }),
     }))
     act(() => { result.current.setDragInProgress(false) })
     spy.mockClear()

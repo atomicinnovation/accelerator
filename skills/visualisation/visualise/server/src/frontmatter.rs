@@ -294,15 +294,36 @@ pub fn title_from(parsed: &FrontmatterState, body: &str, filename_stem: &str) ->
     filename_stem.to_string()
 }
 
-pub fn ticket_of(parsed: &FrontmatterState) -> Option<String> {
-    match parsed {
-        FrontmatterState::Parsed(m) => match m.get("ticket") {
-            Some(serde_json::Value::String(s)) if !s.is_empty() => Some(s.clone()),
-            Some(serde_json::Value::Number(n)) => Some(n.to_string()),
+/// Reads cross-reference keys from frontmatter for work-item aggregation.
+///
+/// Phase 1: reads `work-item:` (current) and `ticket:` (legacy). When both
+/// are present `work-item:` wins — the newer key is taken and the legacy key
+/// is silently ignored. Returns an empty Vec when neither key is present.
+///
+/// Phase 3 extends this to also read `parent:` and `related:`.
+pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
+    let FrontmatterState::Parsed(m) = parsed else {
+        return Vec::new();
+    };
+    let extract_scalar = |v: &serde_json::Value| -> Option<String> {
+        match v {
+            serde_json::Value::String(s) if !s.is_empty() => Some(s.clone()),
+            serde_json::Value::Number(n) => Some(n.to_string()),
             _ => None,
-        },
-        _ => None,
+        }
+    };
+    // `work-item:` wins over legacy `ticket:` when both are present.
+    if let Some(v) = m.get("work-item") {
+        if let Some(s) = extract_scalar(v) {
+            return vec![s];
+        }
     }
+    if let Some(v) = m.get("ticket") {
+        if let Some(s) = extract_scalar(v) {
+            return vec![s];
+        }
+    }
+    Vec::new()
 }
 
 #[cfg(test)]
@@ -391,31 +412,45 @@ mod tests {
     }
 
     #[test]
-    fn ticket_of_absent_value_returns_none() {
-        let raw = b("---\nticket:\n---\nbody\n");
+    fn read_ref_keys_returns_empty_when_neither_key_present() {
+        let raw = b("---\ntitle: foo\n---\nbody\n");
         let p = parse(&raw);
-        assert_eq!(ticket_of(&p.state), None);
+        assert!(read_ref_keys(&p.state).is_empty());
     }
 
     #[test]
-    fn ticket_of_null_returns_none() {
-        let raw = b("---\nticket: null\n---\nbody\n");
+    fn read_ref_keys_reads_work_item_key() {
+        let raw = b("---\nwork-item: \"0042\"\n---\nbody\n");
         let p = parse(&raw);
-        assert_eq!(ticket_of(&p.state), None);
+        assert_eq!(read_ref_keys(&p.state), vec!["0042".to_string()]);
     }
 
     #[test]
-    fn ticket_of_empty_string_returns_none() {
-        let raw = b("---\nticket: \"\"\n---\nbody\n");
-        let p = parse(&raw);
-        assert_eq!(ticket_of(&p.state), None);
-    }
-
-    #[test]
-    fn ticket_of_numeric_value_is_stringified() {
+    fn read_ref_keys_reads_legacy_ticket_key() {
         let raw = b("---\nticket: 1478\n---\nbody\n");
         let p = parse(&raw);
-        assert_eq!(ticket_of(&p.state).as_deref(), Some("1478"));
+        assert_eq!(read_ref_keys(&p.state), vec!["1478".to_string()]);
+    }
+
+    #[test]
+    fn read_ref_keys_with_both_legacy_and_current_keys_prefers_current() {
+        let raw = b("---\nwork-item: \"0007\"\nticket: 0042\n---\nbody\n");
+        let p = parse(&raw);
+        assert_eq!(read_ref_keys(&p.state), vec!["0007".to_string()]);
+    }
+
+    #[test]
+    fn read_ref_keys_absent_frontmatter_returns_empty() {
+        let raw = b("no frontmatter here\n");
+        let p = parse(&raw);
+        assert!(read_ref_keys(&p.state).is_empty());
+    }
+
+    #[test]
+    fn read_ref_keys_numeric_ticket_value_is_stringified() {
+        let raw = b("---\nticket: 1478\n---\nbody\n");
+        let p = parse(&raw);
+        assert_eq!(read_ref_keys(&p.state), vec!["1478".to_string()]);
     }
 
     #[test]

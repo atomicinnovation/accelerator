@@ -16,7 +16,7 @@ export interface UseWikiLinkResolverResult {
   resolver: Resolver
 }
 
-/** Combine the ADR + ticket caches into a memoised `Resolver` suitable
+/** Combine the ADR + work item caches into a memoised `Resolver` suitable
  *  for `MarkdownRenderer`'s `resolveWikiLink` prop.
  *
  *  Pending semantics: `isPending` (TanStack Query v5) is true *only* on
@@ -33,16 +33,16 @@ export function useWikiLinkResolver(): UseWikiLinkResolverResult {
     queryKey: queryKeys.docs('decisions'),
     queryFn: () => fetchDocs('decisions'),
   })
-  const tickets = useQuery({
-    queryKey: queryKeys.docs('tickets'),
-    queryFn: () => fetchDocs('tickets'),
+  const workItems = useQuery({
+    queryKey: queryKeys.docs('work-items'),
+    queryFn: () => fetchDocs('work-items'),
   })
 
-  const isWarming = adrs.isPending || tickets.isPending
+  const isWarming = adrs.isPending || workItems.isPending
 
   const wikiIndex = useMemo<WikiLinkIndex>(
-    () => buildWikiLinkIndex(adrs.data ?? [], tickets.data ?? []),
-    [adrs.data, tickets.data],
+    () => buildWikiLinkIndex(adrs.data ?? [], workItems.data ?? []),
+    [adrs.data, workItems.data],
   )
 
   const resolver = useMemo<Resolver>(

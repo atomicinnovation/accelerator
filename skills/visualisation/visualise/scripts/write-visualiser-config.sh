@@ -35,8 +35,20 @@ abs_path() {
   echo "$PROJECT_ROOT/$(resolve_path "$1" "$2")"
 }
 
+# Pre-flight migration check: reject launches from projects that still carry a
+# `paths.tickets` config key without a corresponding `paths.work` key. This
+# indicates the project predates the tickets→work-items rename and the
+# visualiser would silently produce an empty kanban without this guard.
+TICKETS_OVERRIDE="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "paths.tickets" "" 2>/dev/null || true)"
+WORK_OVERRIDE="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "paths.work" "" 2>/dev/null || true)"
+if [ -n "$TICKETS_OVERRIDE" ] && [ -z "$WORK_OVERRIDE" ]; then
+  echo "This project predates the tickets→work-items rename. Run \`/accelerator:migrate\` to apply migration \`0001-rename-tickets-to-work\` before launching the visualiser." >&2
+  exit 1
+fi
+
 DECISIONS="$(abs_path decisions meta/decisions)"
-TICKETS="$(abs_path tickets meta/tickets)"
+WORK="$(abs_path work meta/work)"
+REVIEW_WORK="$(abs_path review_work meta/reviews/work)"
 PLANS="$(abs_path plans meta/plans)"
 RESEARCH="$(abs_path research meta/research)"
 REVIEW_PLANS="$(abs_path review_plans meta/reviews/plans)"
@@ -86,7 +98,7 @@ jq -n \
   --argjson owner_pid "$OWNER_PID" \
   --argjson owner_start_time "$OWNER_START_TIME_JSON" \
   --arg log_path "$LOG_FILE" \
-  --arg decisions "$DECISIONS" --arg tickets "$TICKETS" \
+  --arg decisions "$DECISIONS" --arg work "$WORK" --arg review_work "$REVIEW_WORK" \
   --arg plans "$PLANS" --arg research "$RESEARCH" \
   --arg review_plans "$REVIEW_PLANS" --arg review_prs "$REVIEW_PRS" \
   --arg validations "$VALIDATIONS" --arg notes "$NOTES" --arg prs "$PRS" \
@@ -102,8 +114,8 @@ jq -n \
     owner_start_time: $owner_start_time,
     log_path: $log_path,
     doc_paths: {
-      decisions: $decisions, tickets: $tickets, plans: $plans,
-      research: $research, review_plans: $review_plans,
+      decisions: $decisions, work: $work, review_work: $review_work,
+      plans: $plans, research: $research, review_plans: $review_plans,
       review_prs: $review_prs, validations: $validations,
       notes: $notes, prs: $prs
     },

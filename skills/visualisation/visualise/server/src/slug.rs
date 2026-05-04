@@ -8,13 +8,13 @@ pub fn derive(kind: DocTypeKey, filename: &str) -> Option<String> {
 
     match kind {
         DocTypeKey::Decisions => strip_prefix_numbered(stem, "ADR-"),
-        DocTypeKey::Tickets => strip_prefix_ticket_number(stem),
+        DocTypeKey::WorkItems => strip_prefix_work_item_id(stem),
         DocTypeKey::Plans
         | DocTypeKey::Research
         | DocTypeKey::Validations
         | DocTypeKey::Notes
         | DocTypeKey::Prs => strip_prefix_date(stem),
-        DocTypeKey::PlanReviews | DocTypeKey::PrReviews => {
+        DocTypeKey::PlanReviews | DocTypeKey::PrReviews | DocTypeKey::WorkItemReviews => {
             let without_date = strip_prefix_date(stem)?;
             strip_suffix_review_n(&without_date)
         }
@@ -32,7 +32,7 @@ fn strip_prefix_numbered(stem: &str, prefix: &str) -> Option<String> {
     Some(tail[1..].to_string()).filter(|s| !s.is_empty())
 }
 
-fn strip_prefix_ticket_number(stem: &str) -> Option<String> {
+fn strip_prefix_work_item_id(stem: &str) -> Option<String> {
     let dash = stem.find('-')?;
     let (digits, tail) = stem.split_at(dash);
     if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
@@ -100,7 +100,7 @@ mod tests {
     }
 
     #[test]
-    fn tickets_strip_numeric_prefix() {
+    fn work_items_strip_numeric_prefix() {
         let cases = &[
             (
                 "0001-three-layer-review-system-architecture.md",
@@ -115,7 +115,7 @@ mod tests {
             ("0001.md", None),
         ];
         for (input, expected) in cases {
-            let got = derive(DocTypeKey::Tickets, input);
+            let got = derive(DocTypeKey::WorkItems, input);
             assert_eq!(got.as_deref(), *expected, "input={input}");
         }
     }
@@ -191,6 +191,22 @@ mod tests {
     fn plan_review_with_non_numeric_suffix_returns_none() {
         let got = derive(DocTypeKey::PlanReviews, "2026-04-18-foo-review-latest.md");
         assert_eq!(got, None);
+    }
+
+    #[test]
+    fn work_item_reviews_strip_date_and_review_n_suffix() {
+        let cases = &[
+            (
+                "2026-04-30-completeness-pass-review-1.md",
+                Some("completeness-pass"),
+            ),
+            ("2026-05-02-foo-review-7.md", Some("foo")),
+            ("2026-04-30-no-suffix.md", None),
+        ];
+        for (input, expected) in cases {
+            let got = derive(DocTypeKey::WorkItemReviews, input);
+            assert_eq!(got.as_deref(), *expected, "input={input}");
+        }
     }
 
     #[test]

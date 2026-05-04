@@ -1,6 +1,6 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { TicketCard } from './TicketCard'
+import { WorkItemCard } from './WorkItemCard'
 import type { IndexEntry, KanbanGroupKey } from '../../api/types'
 import { OTHER_COLUMN_KEY } from '../../api/types'
 import styles from './KanbanColumn.module.css'
@@ -16,7 +16,7 @@ export function KanbanColumn({ columnKey, label, entries, description }: KanbanC
   const ids = entries.map(e => e.relPath)
   const count = entries.length
   const headingId = `kanban-col-${columnKey}-heading`
-  const ticketWord = count === 1 ? 'ticket' : 'tickets'
+  const itemWord = count === 1 ? 'work item' : 'work items'
   const isOtherColumn = columnKey === OTHER_COLUMN_KEY
   const { setNodeRef, isOver } = useDroppable({
     id: `column:${columnKey}`,
@@ -34,18 +34,18 @@ export function KanbanColumn({ columnKey, label, entries, description }: KanbanC
         <h2 id={headingId} className={styles.columnHeading}>
           {label}
         </h2>
-        <span className={styles.columnCount} aria-label={`${count} ${ticketWord}`}>
+        <span className={styles.columnCount} aria-label={`${count} ${itemWord}`}>
           {count}
         </span>
       </header>
       {description && <p className={styles.columnDescription}>{description}</p>}
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
         {entries.length === 0 ? (
-          <p className={styles.empty} aria-hidden="true">No tickets</p>
+          <p className={styles.empty} aria-hidden="true">No work items</p>
         ) : (
           <ul className={styles.cardList}>
             {entries.map(entry => (
-              <TicketCard key={entry.relPath} entry={entry} />
+              <WorkItemCard key={entry.relPath} entry={entry} />
             ))}
           </ul>
         )}

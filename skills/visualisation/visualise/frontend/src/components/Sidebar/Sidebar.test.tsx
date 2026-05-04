@@ -18,7 +18,7 @@ vi.mock('../../api/use-doc-events', () => ({
 
 const mockDocTypes: DocType[] = [
   { key: 'decisions', label: 'Decisions', dirPath: '/p', inLifecycle: true, inKanban: false, virtual: false },
-  { key: 'tickets', label: 'Tickets', dirPath: '/p', inLifecycle: true, inKanban: true, virtual: false },
+  { key: 'work-items', label: 'Work items', dirPath: '/p', inLifecycle: true, inKanban: true, virtual: false },
   { key: 'plans', label: 'Plans', dirPath: '/p', inLifecycle: true, inKanban: false, virtual: false },
   { key: 'templates', label: 'Templates', dirPath: null, inLifecycle: false, inKanban: false, virtual: true },
 ]
@@ -29,7 +29,7 @@ describe('Sidebar', () => {
   it('renders all doc type labels', async () => {
     render(<MemoryRouter><Sidebar docTypes={mockDocTypes} /></MemoryRouter>)
     expect(await screen.findByText('Decisions')).toBeInTheDocument()
-    expect(screen.getByText('Tickets')).toBeInTheDocument()
+    expect(screen.getByText('Work items')).toBeInTheDocument()
     expect(screen.getByText('Plans')).toBeInTheDocument()
   })
 

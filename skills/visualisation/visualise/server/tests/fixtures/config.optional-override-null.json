@@ -9,7 +9,7 @@
   "log_path": "/abs/path/to/project/meta/tmp/visualiser/server.log",
   "doc_paths": {
     "decisions": "/abs/path/to/project/meta/decisions",
-    "tickets": "/abs/path/to/project/meta/tickets",
+    "work": "/abs/path/to/project/meta/work",
     "plans": "/abs/path/to/project/meta/plans",
     "research": "/abs/path/to/project/meta/research",
     "review_plans": "/abs/path/to/project/meta/reviews/plans",

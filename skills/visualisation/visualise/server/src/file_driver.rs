@@ -591,13 +591,13 @@ mod tests {
 #[cfg(test)]
 mod write_tests {
     use super::*;
-    use crate::patcher::{FrontmatterPatch, TicketStatus};
+    use crate::patcher::FrontmatterPatch;
 
     fn seeded_write_driver(tmp: &Path) -> LocalFileDriver {
-        let tickets = tmp.join("tickets");
-        std::fs::create_dir_all(&tickets).unwrap();
+        let work = tmp.join("work");
+        std::fs::create_dir_all(&work).unwrap();
         std::fs::write(
-            tickets.join("0001-foo.md"),
+            work.join("0001-foo.md"),
             "---\ntitle: Foo\nstatus: todo\n---\n# body\n",
         )
         .unwrap();
@@ -610,9 +610,9 @@ mod write_tests {
         .unwrap();
 
         let mut map = HashMap::new();
-        map.insert("tickets".into(), tickets.clone());
+        map.insert("work".into(), work.clone());
         map.insert("plans".into(), plans);
-        LocalFileDriver::new(&map, vec![], vec![tickets])
+        LocalFileDriver::new(&map, vec![], vec![work])
     }
 
     // ── Step 2.1 ─────────────────────────────────────────────────────────────
@@ -620,12 +620,12 @@ mod write_tests {
     async fn writes_status_to_disk_atomically() {
         let tmp = tempfile::tempdir().unwrap();
         let d = seeded_write_driver(tmp.path());
-        let path = tmp.path().join("tickets").join("0001-foo.md");
+        let path = tmp.path().join("work").join("0001-foo.md");
         let content = d.read(&path).await.unwrap();
 
         d.write_frontmatter(
             &path,
-            FrontmatterPatch::Status(TicketStatus::InProgress),
+            FrontmatterPatch::Status("in-progress".to_string()),
             &content.etag,
             Box::new(|_| {}),
         )
@@ -644,13 +644,13 @@ mod write_tests {
     async fn returns_new_etag_and_mtime_in_filecontent() {
         let tmp = tempfile::tempdir().unwrap();
         let d = seeded_write_driver(tmp.path());
-        let path = tmp.path().join("tickets").join("0001-foo.md");
+        let path = tmp.path().join("work").join("0001-foo.md");
         let before = d.read(&path).await.unwrap();
 
         let after = d
             .write_frontmatter(
                 &path,
-                FrontmatterPatch::Status(TicketStatus::InProgress),
+                FrontmatterPatch::Status("in-progress".to_string()),
                 &before.etag,
                 Box::new(|_| {}),
             )
@@ -667,12 +667,12 @@ mod write_tests {
     async fn preserves_other_frontmatter_and_body() {
         let tmp = tempfile::tempdir().unwrap();
         let d = seeded_write_driver(tmp.path());
-        let path = tmp.path().join("tickets").join("0001-foo.md");
+        let path = tmp.path().join("work").join("0001-foo.md");
         let before = d.read(&path).await.unwrap();
 
         d.write_frontmatter(
             &path,
-            FrontmatterPatch::Status(TicketStatus::Done),
+            FrontmatterPatch::Status("done".to_string()),
             &before.etag,
             Box::new(|_| {}),
         )
@@ -690,7 +690,7 @@ mod write_tests {
     async fn rejects_etag_mismatch_with_current_etag() {
         let tmp = tempfile::tempdir().unwrap();
         let d = seeded_write_driver(tmp.path());
-        let path = tmp.path().join("tickets").join("0001-foo.md");
+        let path = tmp.path().join("work").join("0001-foo.md");
         let original = d.read(&path).await.unwrap();
 
         // Out-of-band edit
@@ -699,7 +699,7 @@ mod write_tests {
         let err = d
             .write_frontmatter(
                 &path,
-                FrontmatterPatch::Status(TicketStatus::InProgress),
+                FrontmatterPatch::Status("in-progress".to_string()),
                 &original.etag,
                 Box::new(|_| {}),
             )
@@ -721,7 +721,7 @@ mod write_tests {
 
     // ── Step 2.5 ─────────────────────────────────────────────────────────────
     #[tokio::test]
-    async fn rejects_path_outside_tickets_root() {
+    async fn rejects_path_outside_work_root() {
         let tmp = tempfile::tempdir().unwrap();
         let d = seeded_write_driver(tmp.path());
         let plans_path = tmp.path().join("plans").join("2026-01-01-plan.md");
@@ -730,7 +730,7 @@ mod write_tests {
         let err = d
             .write_frontmatter(
                 &plans_path,
-                FrontmatterPatch::Status(TicketStatus::InProgress),
+                FrontmatterPatch::Status("in-progress".to_string()),
                 &content.etag,
                 Box::new(|_| {}),
             )
@@ -751,7 +751,7 @@ mod write_tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn rejects_path_escape_via_symlink() {
-        // Create a symlink inside tickets/ pointing at a sibling plans/ file.
+        // Create a symlink inside work/ pointing at a sibling plans/ file.
         // Canonicalisation resolves the symlink; the canonical path is outside
         // writable_roots, so PathNotWritable must be returned.
         // (Windows symlinks require elevated privileges, so this test is Unix-only.)
@@ -759,7 +759,7 @@ mod write_tests {
         let d = seeded_write_driver(tmp.path());
 
         let plans_path = tmp.path().join("plans").join("2026-01-01-plan.md");
-        let link_path = tmp.path().join("tickets").join("sneaky.md");
+        let link_path = tmp.path().join("work").join("sneaky.md");
         std::os::unix::fs::symlink(&plans_path, &link_path).unwrap();
 
         // Read the symlink to get an etag (goes through read which allows extra_roots)
@@ -770,7 +770,7 @@ mod write_tests {
         let err = d
             .write_frontmatter(
                 &link_path,
-                FrontmatterPatch::Status(TicketStatus::Done),
+                FrontmatterPatch::Status("done".to_string()),
                 &etag,
                 Box::new(|_| {}),
             )
@@ -787,22 +787,22 @@ mod write_tests {
     #[tokio::test]
     async fn propagates_patcher_error_when_frontmatter_absent() {
         let tmp = tempfile::tempdir().unwrap();
-        let tickets = tmp.path().join("tickets");
-        std::fs::create_dir_all(&tickets).unwrap();
-        std::fs::write(tickets.join("0001-no-fm.md"), "# Heading\nno frontmatter\n").unwrap();
+        let work = tmp.path().join("work");
+        std::fs::create_dir_all(&work).unwrap();
+        std::fs::write(work.join("0001-no-fm.md"), "# Heading\nno frontmatter\n").unwrap();
 
         let mut map = HashMap::new();
-        map.insert("tickets".into(), tickets.clone());
-        let d = LocalFileDriver::new(&map, vec![], vec![tickets.clone()]);
+        map.insert("work".into(), work.clone());
+        let d = LocalFileDriver::new(&map, vec![], vec![work.clone()]);
 
-        let path = tickets.join("0001-no-fm.md");
+        let path = work.join("0001-no-fm.md");
         let raw = std::fs::read(&path).unwrap();
         let etag = etag_of(&raw);
 
         let err = d
             .write_frontmatter(
                 &path,
-                FrontmatterPatch::Status(TicketStatus::Done),
+                FrontmatterPatch::Status("done".to_string()),
                 &etag,
                 Box::new(|_| {}),
             )
@@ -822,26 +822,26 @@ mod write_tests {
     #[tokio::test]
     async fn propagates_patcher_error_for_missing_status_key() {
         let tmp = tempfile::tempdir().unwrap();
-        let tickets = tmp.path().join("tickets");
-        std::fs::create_dir_all(&tickets).unwrap();
+        let work = tmp.path().join("work");
+        std::fs::create_dir_all(&work).unwrap();
         std::fs::write(
-            tickets.join("0001-no-status.md"),
+            work.join("0001-no-status.md"),
             "---\ntitle: Foo\n---\n# body\n",
         )
         .unwrap();
 
         let mut map = HashMap::new();
-        map.insert("tickets".into(), tickets.clone());
-        let d = LocalFileDriver::new(&map, vec![], vec![tickets.clone()]);
+        map.insert("work".into(), work.clone());
+        let d = LocalFileDriver::new(&map, vec![], vec![work.clone()]);
 
-        let path = tickets.join("0001-no-status.md");
+        let path = work.join("0001-no-status.md");
         let raw = std::fs::read(&path).unwrap();
         let etag = etag_of(&raw);
 
         let err = d
             .write_frontmatter(
                 &path,
-                FrontmatterPatch::Status(TicketStatus::Done),
+                FrontmatterPatch::Status("done".to_string()),
                 &etag,
                 Box::new(|_| {}),
             )
@@ -864,18 +864,18 @@ mod write_tests {
         use tokio::sync::Barrier;
 
         let tmp = tempfile::tempdir().unwrap();
-        let tickets = tmp.path().join("tickets");
-        std::fs::create_dir_all(&tickets).unwrap();
+        let work = tmp.path().join("work");
+        std::fs::create_dir_all(&work).unwrap();
         std::fs::write(
-            tickets.join("0001-foo.md"),
+            work.join("0001-foo.md"),
             "---\ntitle: Foo\nstatus: todo\n---\n# body\n",
         )
         .unwrap();
         let mut map = HashMap::new();
-        map.insert("tickets".into(), tickets.clone());
-        let d = StdArc::new(LocalFileDriver::new(&map, vec![], vec![tickets.clone()]));
+        map.insert("work".into(), work.clone());
+        let d = StdArc::new(LocalFileDriver::new(&map, vec![], vec![work.clone()]));
 
-        let path = tickets.join("0001-foo.md");
+        let path = work.join("0001-foo.md");
         let etag = {
             let raw = std::fs::read(&path).unwrap();
             etag_of(&raw)
@@ -884,7 +884,7 @@ mod write_tests {
         let barrier = StdArc::new(Barrier::new(2));
         let mut handles = vec![];
 
-        for status in [TicketStatus::InProgress, TicketStatus::Done] {
+        for status in ["in-progress".to_string(), "done".to_string()] {
             let d2 = d.clone();
             let p2 = path.clone();
             let e2 = etag.clone();
@@ -915,7 +915,7 @@ mod write_tests {
     async fn tolerates_quoted_etag_in_if_match() {
         let tmp = tempfile::tempdir().unwrap();
         let d = seeded_write_driver(tmp.path());
-        let path = tmp.path().join("tickets").join("0001-foo.md");
+        let path = tmp.path().join("work").join("0001-foo.md");
         let raw = std::fs::read(&path).unwrap();
         let bare_etag = etag_of(&raw);
 
@@ -923,7 +923,7 @@ mod write_tests {
         let r1 = d
             .write_frontmatter(
                 &path,
-                FrontmatterPatch::Status(TicketStatus::InProgress),
+                FrontmatterPatch::Status("in-progress".to_string()),
                 &bare_etag,
                 Box::new(|_| {}),
             )
@@ -937,7 +937,7 @@ mod write_tests {
         let r2 = d
             .write_frontmatter(
                 &path,
-                FrontmatterPatch::Status(TicketStatus::Done),
+                FrontmatterPatch::Status("done".to_string()),
                 &quoted2,
                 Box::new(|_| {}),
             )
@@ -949,18 +949,18 @@ mod write_tests {
     #[tokio::test]
     async fn idempotent_same_value_short_circuits() {
         let tmp = tempfile::tempdir().unwrap();
-        let tickets = tmp.path().join("tickets");
-        std::fs::create_dir_all(&tickets).unwrap();
+        let work = tmp.path().join("work");
+        std::fs::create_dir_all(&work).unwrap();
         std::fs::write(
-            tickets.join("0001-foo.md"),
+            work.join("0001-foo.md"),
             "---\ntitle: Foo\nstatus: in-progress\n---\n# body\n",
         )
         .unwrap();
         let mut map = HashMap::new();
-        map.insert("tickets".into(), tickets.clone());
-        let d = LocalFileDriver::new(&map, vec![], vec![tickets.clone()]);
+        map.insert("work".into(), work.clone());
+        let d = LocalFileDriver::new(&map, vec![], vec![work.clone()]);
 
-        let path = tickets.join("0001-foo.md");
+        let path = work.join("0001-foo.md");
         let raw = std::fs::read(&path).unwrap();
         let etag = etag_of(&raw);
         let mtime_before = std::fs::metadata(&path).unwrap().modified().unwrap();
@@ -968,7 +968,7 @@ mod write_tests {
         let result = d
             .write_frontmatter(
                 &path,
-                FrontmatterPatch::Status(TicketStatus::InProgress),
+                FrontmatterPatch::Status("in-progress".to_string()),
                 &etag,
                 Box::new(|_| {}),
             )
@@ -994,7 +994,7 @@ mod write_tests {
 
         let tmp = tempfile::tempdir().unwrap();
         let d = seeded_write_driver(tmp.path());
-        let path = tmp.path().join("tickets").join("0001-foo.md");
+        let path = tmp.path().join("work").join("0001-foo.md");
 
         // Set mode to 0o644
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
@@ -1004,7 +1004,7 @@ mod write_tests {
 
         d.write_frontmatter(
             &path,
-            FrontmatterPatch::Status(TicketStatus::Done),
+            FrontmatterPatch::Status("done".to_string()),
             &etag,
             Box::new(|_| {}),
         )

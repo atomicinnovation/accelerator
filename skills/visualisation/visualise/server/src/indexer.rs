@@ -22,7 +22,7 @@ pub struct IndexEntry {
     pub title: String,
     pub frontmatter: serde_json::Value,
     pub frontmatter_state: String,
-    pub ticket: Option<String>,
+    pub work_item_refs: Vec<String>,
     pub mtime_ms: i64,
     pub size: u64,
     pub etag: String,
@@ -52,7 +52,7 @@ pub struct Indexer {
     project_root: PathBuf,
     entries: Arc<RwLock<HashMap<PathBuf, IndexEntry>>>,
     adr_by_id: Arc<RwLock<HashMap<u32, PathBuf>>>,
-    ticket_by_number: Arc<RwLock<HashMap<u32, PathBuf>>>,
+    work_item_by_id: Arc<RwLock<HashMap<u32, PathBuf>>>,
     /// Reverse declared-link index. Keys are lexically-clean absolute
     /// paths of target plans (or any future target type); values are
     /// sets of canonicalised paths of reviews referencing the target.
@@ -87,7 +87,7 @@ impl Indexer {
             project_root,
             entries: Arc::new(RwLock::new(HashMap::new())),
             adr_by_id: Arc::new(RwLock::new(HashMap::new())),
-            ticket_by_number: Arc::new(RwLock::new(HashMap::new())),
+            work_item_by_id: Arc::new(RwLock::new(HashMap::new())),
             reviews_by_target: Arc::new(RwLock::new(HashMap::new())),
             rescan_lock: Arc::new(Semaphore::new(1)),
             #[cfg(test)]
@@ -106,7 +106,7 @@ impl Indexer {
 
         let mut entries: HashMap<PathBuf, IndexEntry> = HashMap::new();
         let mut adr_by_id: HashMap<u32, PathBuf> = HashMap::new();
-        let mut ticket_by_number: HashMap<u32, PathBuf> = HashMap::new();
+        let mut work_item_by_id: HashMap<u32, PathBuf> = HashMap::new();
         let mut reviews_by_target: HashMap<PathBuf, BTreeSet<PathBuf>> = HashMap::new();
 
         for kind in DocTypeKey::all() {
@@ -129,8 +129,8 @@ impl Indexer {
                 if let Some(id) = adr_id_from_entry(&entry) {
                     adr_by_id.insert(id, path.clone());
                 }
-                if let Some(n) = ticket_number_from_entry(&entry) {
-                    ticket_by_number.insert(n, path.clone());
+                if let Some(n) = work_item_id_from_entry(&entry) {
+                    work_item_by_id.insert(n, path.clone());
                 }
                 if let Some(target_key) = target_path_from_entry(&entry, &self.project_root) {
                     reviews_by_target
@@ -146,14 +146,14 @@ impl Indexer {
         // Hold all four write locks simultaneously and replace contents
         // so readers never observe a partial (entries, secondary)
         // snapshot. Always acquire in the same order: entries → adr →
-        // ticket → reviews_by_target.
+        // work_item → reviews_by_target.
         let mut entries_w = self.entries.write().await;
         let mut adr_w = self.adr_by_id.write().await;
-        let mut ticket_w = self.ticket_by_number.write().await;
+        let mut work_item_w = self.work_item_by_id.write().await;
         let mut reviews_w = self.reviews_by_target.write().await;
         *entries_w = entries;
         *adr_w = adr_by_id;
-        *ticket_w = ticket_by_number;
+        *work_item_w = work_item_by_id;
         *reviews_w = reviews_by_target;
         Ok(())
     }
@@ -188,7 +188,7 @@ impl Indexer {
                         let mut entries = self.entries.write().await;
                         if let Some(previous) = entries.get(&canonical).cloned() {
                             remove_from_adr_by_id(&self.adr_by_id, &previous).await;
-                            remove_from_ticket_by_number(&self.ticket_by_number, &previous).await;
+                            remove_from_work_item_by_id(&self.work_item_by_id, &previous).await;
                             remove_from_reviews_by_target(
                                 &self.reviews_by_target,
                                 &self.project_root,
@@ -210,7 +210,7 @@ impl Indexer {
                 let previous = entries.get(&canonical).cloned();
 
                 update_adr_by_id(&self.adr_by_id, &entry, previous.as_ref()).await;
-                update_ticket_by_number(&self.ticket_by_number, &entry, previous.as_ref()).await;
+                update_work_item_by_id(&self.work_item_by_id, &entry, previous.as_ref()).await;
                 update_reviews_by_target(
                     &self.reviews_by_target,
                     &self.project_root,
@@ -240,7 +240,7 @@ impl Indexer {
 
                 if let Some(previous) = previous {
                     remove_from_adr_by_id(&self.adr_by_id, &previous).await;
-                    remove_from_ticket_by_number(&self.ticket_by_number, &previous).await;
+                    remove_from_work_item_by_id(&self.work_item_by_id, &previous).await;
                     remove_from_reviews_by_target(
                         &self.reviews_by_target,
                         &self.project_root,
@@ -298,8 +298,8 @@ impl Indexer {
         self.get(&path).await
     }
 
-    pub async fn ticket_by_number(&self, n: u32) -> Option<IndexEntry> {
-        let path = { self.ticket_by_number.read().await.get(&n).cloned()? };
+    pub async fn work_item_by_id(&self, n: u32) -> Option<IndexEntry> {
+        let path = { self.work_item_by_id.read().await.get(&n).cloned()? };
         self.get(&path).await
     }
 
@@ -474,13 +474,13 @@ async fn update_adr_by_id(
     }
 }
 
-async fn update_ticket_by_number(
+async fn update_work_item_by_id(
     map: &Arc<RwLock<HashMap<u32, PathBuf>>>,
     new_entry: &IndexEntry,
     previous: Option<&IndexEntry>,
 ) {
-    let prev_n = previous.and_then(ticket_number_from_entry);
-    let next_n = ticket_number_from_entry(new_entry);
+    let prev_n = previous.and_then(work_item_id_from_entry);
+    let next_n = work_item_id_from_entry(new_entry);
     let mut m = map.write().await;
     if let Some(prev_n) = prev_n {
         if Some(prev_n) != next_n {
@@ -528,11 +528,11 @@ async fn remove_from_adr_by_id(map: &Arc<RwLock<HashMap<u32, PathBuf>>>, previou
     }
 }
 
-async fn remove_from_ticket_by_number(
+async fn remove_from_work_item_by_id(
     map: &Arc<RwLock<HashMap<u32, PathBuf>>>,
     previous: &IndexEntry,
 ) {
-    if let Some(n) = ticket_number_from_entry(previous) {
+    if let Some(n) = work_item_id_from_entry(previous) {
         map.write().await.remove(&n);
     }
 }
@@ -565,7 +565,7 @@ fn build_entry(
     let slug_val = slug::derive(kind, filename);
     let title = frontmatter::title_from(&parsed.state, &parsed.body, filename_stem);
     let body_preview = frontmatter::body_preview_from(&parsed.body);
-    let ticket = frontmatter::ticket_of(&parsed.state);
+    let work_item_refs = frontmatter::read_ref_keys(&parsed.state);
 
     let (state_str, fm_json) = match &parsed.state {
         FrontmatterState::Parsed(m) => {
@@ -592,7 +592,7 @@ fn build_entry(
         title,
         frontmatter: fm_json,
         frontmatter_state: state_str,
-        ticket,
+        work_item_refs,
         mtime_ms: content.mtime_ms,
         size: content.size,
         etag: content.etag.clone(),
@@ -608,12 +608,12 @@ fn adr_id_from_entry(entry: &IndexEntry) -> Option<u32> {
     parse_adr_id(&entry.frontmatter, filename)
 }
 
-fn ticket_number_from_entry(entry: &IndexEntry) -> Option<u32> {
-    if entry.r#type != DocTypeKey::Tickets {
+fn work_item_id_from_entry(entry: &IndexEntry) -> Option<u32> {
+    if entry.r#type != DocTypeKey::WorkItems {
         return None;
     }
     let filename = entry.path.file_name()?.to_str()?;
-    parse_ticket_number(filename)
+    parse_work_item_id(filename)
 }
 
 fn parse_adr_id(fm: &serde_json::Value, filename: &str) -> Option<u32> {
@@ -629,7 +629,7 @@ fn parse_adr_id(fm: &serde_json::Value, filename: &str) -> Option<u32> {
     rest[..dash].parse().ok()
 }
 
-fn parse_ticket_number(filename: &str) -> Option<u32> {
+fn parse_work_item_id(filename: &str) -> Option<u32> {
     let dash = filename.find('-')?;
     filename[..dash].parse().ok()
 }
@@ -862,20 +862,20 @@ mod refresh_tests {
     use std::sync::Arc;
 
     async fn build_refresh_indexer(tmp: &Path) -> (Indexer, PathBuf) {
-        let tickets = tmp.join("meta/tickets");
-        std::fs::create_dir_all(&tickets).unwrap();
+        let work = tmp.join("meta/work");
+        std::fs::create_dir_all(&work).unwrap();
         std::fs::write(
-            tickets.join("0001-foo.md"),
+            work.join("0001-foo.md"),
             "---\ntitle: Foo\nstatus: todo\n---\n# body\n",
         )
         .unwrap();
         std::fs::write(
-            tickets.join("0002-bar.md"),
+            work.join("0002-bar.md"),
             "---\ntitle: Bar\nstatus: done\n---\n# body\n",
         )
         .unwrap();
         std::fs::write(
-            tickets.join("0003-baz.md"),
+            work.join("0003-baz.md"),
             "---\ntitle: Baz\nstatus: in-progress\n---\n# body\n",
         )
         .unwrap();
@@ -889,21 +889,21 @@ mod refresh_tests {
         .unwrap();
 
         let mut map = HashMap::new();
-        map.insert("tickets".into(), tickets.clone());
+        map.insert("work".into(), work.clone());
         map.insert("decisions".into(), dec);
         let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let idx = Indexer::build(driver, tmp.to_path_buf()).await.unwrap();
-        (idx, tickets)
+        (idx, work)
     }
 
     // ── Step 2.14 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_picks_up_external_edit() {
         let tmp = tempfile::tempdir().unwrap();
-        let (idx, tickets) = build_refresh_indexer(tmp.path()).await;
+        let (idx, work) = build_refresh_indexer(tmp.path()).await;
 
-        // Write a new ticket file that didn't exist at build time
-        let new_path = tickets.join("0004-new.md");
+        // Write a new work item file that didn't exist at build time
+        let new_path = work.join("0004-new.md");
         std::fs::write(&new_path, "---\ntitle: New\nstatus: todo\n---\n# body\n").unwrap();
 
         let entry = idx.refresh_one(&new_path).await.unwrap();
@@ -917,9 +917,9 @@ mod refresh_tests {
         let raw = std::fs::read(&new_path).unwrap();
         assert_eq!(entry.etag, etag_of(&raw));
 
-        let tickets_entries = idx.all_by_type(DocTypeKey::Tickets).await;
+        let work_entries = idx.all_by_type(DocTypeKey::WorkItems).await;
         assert!(
-            tickets_entries.iter().any(|e| e.title == "New"),
+            work_entries.iter().any(|e| e.title == "New"),
             "all_by_type should include the new entry"
         );
     }
@@ -928,9 +928,9 @@ mod refresh_tests {
     #[tokio::test]
     async fn refresh_one_updates_etag_on_change() {
         let tmp = tempfile::tempdir().unwrap();
-        let (idx, tickets) = build_refresh_indexer(tmp.path()).await;
+        let (idx, work) = build_refresh_indexer(tmp.path()).await;
 
-        let path = tickets.join("0001-foo.md");
+        let path = work.join("0001-foo.md");
         let old_entry = idx.get(&path).await.unwrap();
 
         // Edit the file out-of-band
@@ -951,9 +951,9 @@ mod refresh_tests {
     #[tokio::test]
     async fn refresh_one_removes_deleted_file() {
         let tmp = tempfile::tempdir().unwrap();
-        let (idx, tickets) = build_refresh_indexer(tmp.path()).await;
+        let (idx, work) = build_refresh_indexer(tmp.path()).await;
 
-        let path = tickets.join("0001-foo.md");
+        let path = work.join("0001-foo.md");
         assert!(
             idx.get(&path).await.is_some(),
             "entry should exist before deletion"
@@ -971,8 +971,8 @@ mod refresh_tests {
             "entry should be gone from index"
         );
         assert!(
-            idx.ticket_by_number(1).await.is_none(),
-            "ticket_by_number index must also be cleaned up"
+            idx.work_item_by_id(1).await.is_none(),
+            "work_item_by_id index must also be cleaned up"
         );
     }
 
@@ -980,11 +980,11 @@ mod refresh_tests {
     #[tokio::test]
     async fn refresh_one_does_not_disturb_unrelated_entries() {
         let tmp = tempfile::tempdir().unwrap();
-        let (idx, tickets) = build_refresh_indexer(tmp.path()).await;
+        let (idx, work) = build_refresh_indexer(tmp.path()).await;
 
-        let path1 = tickets.join("0001-foo.md");
-        let path2 = tickets.join("0002-bar.md");
-        let path3 = tickets.join("0003-baz.md");
+        let path1 = work.join("0001-foo.md");
+        let path2 = work.join("0002-bar.md");
+        let path3 = work.join("0003-baz.md");
 
         let before2 = idx.get(&path2).await.unwrap();
         let before3 = idx.get(&path3).await.unwrap();
@@ -994,26 +994,26 @@ mod refresh_tests {
         let after2 = idx.get(&path2).await.unwrap();
         let after3 = idx.get(&path3).await.unwrap();
 
-        assert_eq!(before2.etag, after2.etag, "ticket 2 etag must not change");
+        assert_eq!(before2.etag, after2.etag, "work item 2 etag must not change");
         assert_eq!(
             before2.mtime_ms, after2.mtime_ms,
-            "ticket 2 mtime must not change"
+            "work item 2 mtime must not change"
         );
-        assert_eq!(before3.etag, after3.etag, "ticket 3 etag must not change");
+        assert_eq!(before3.etag, after3.etag, "work item 3 etag must not change");
     }
 
     // ── Step 2.18 ────────────────────────────────────────────────────────────
     #[tokio::test]
-    async fn refresh_one_rebuilds_secondary_indexes_for_tickets_and_decisions() {
+    async fn refresh_one_rebuilds_secondary_indexes_for_work_items_and_decisions() {
         let tmp = tempfile::tempdir().unwrap();
-        let (idx, tickets) = build_refresh_indexer(tmp.path()).await;
+        let (idx, work) = build_refresh_indexer(tmp.path()).await;
 
-        // Refresh ticket #1 — ticket_by_number must still work
-        let path1 = tickets.join("0001-foo.md");
+        // Refresh work item #1 — work_item_by_id must still work
+        let path1 = work.join("0001-foo.md");
         idx.refresh_one(&path1).await.unwrap();
         assert!(
-            idx.ticket_by_number(1).await.is_some(),
-            "ticket_by_number(1) must still resolve after refresh_one"
+            idx.work_item_by_id(1).await.is_some(),
+            "work_item_by_id(1) must still resolve after refresh_one"
         );
 
         // Refresh ADR-0001 — adr_by_id must still work
@@ -1032,10 +1032,10 @@ mod refresh_tests {
         use tokio::sync::Barrier;
 
         let tmp = tempfile::tempdir().unwrap();
-        let (idx, tickets) = build_refresh_indexer(tmp.path()).await;
+        let (idx, work) = build_refresh_indexer(tmp.path()).await;
         let idx = StdArc::new(idx);
 
-        let path = tickets.join("0001-foo.md");
+        let path = work.join("0001-foo.md");
         // Out-of-band edit so refresh_one picks up a different etag
         std::fs::write(&path, "---\ntitle: Foo\nstatus: done\n---\n# body\n").unwrap();
         let expected_etag = etag_of(&std::fs::read(&path).unwrap());
@@ -1621,10 +1621,10 @@ mod reverse_index_tests {
             .write()
             .await
             .insert(99, PathBuf::from("/nonexistent/ADR-9999.md"));
-        idx.ticket_by_number
+        idx.work_item_by_id
             .write()
             .await
-            .insert(99, PathBuf::from("/nonexistent/9999-ticket.md"));
+            .insert(99, PathBuf::from("/nonexistent/9999-work-item.md"));
         idx.reviews_by_target.write().await.insert(
             PathBuf::from("/nonexistent/plan.md"),
             BTreeSet::from([PathBuf::from("/nonexistent/review.md")]),
@@ -1633,12 +1633,12 @@ mod reverse_index_tests {
         idx.rescan().await.unwrap();
 
         let adr_map = idx.adr_by_id.read().await;
-        let ticket_map = idx.ticket_by_number.read().await;
+        let work_item_map = idx.work_item_by_id.read().await;
         let reviews_map = idx.reviews_by_target.read().await;
         assert!(!adr_map.contains_key(&99u32), "stale ADR cleared on rescan");
         assert!(
-            !ticket_map.contains_key(&99u32),
-            "stale ticket cleared on rescan"
+            !work_item_map.contains_key(&99u32),
+            "stale work item cleared on rescan"
         );
         assert!(
             !reviews_map.contains_key(&PathBuf::from("/nonexistent/plan.md")),
