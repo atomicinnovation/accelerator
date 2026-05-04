@@ -80,18 +80,41 @@ table. Gaps within ranges are reserved.
 | 117  | `E_UPDATE_BAD_ASSIGNEE`          | `jira-update-flow.sh`       | `--assignee` not `@me`, `""` (unassign), or a raw accountId (email not supported)         |
 | 118  | —                                | reserved                    | Reserved for follow-up                                                                   |
 | 119  | —                                | reserved                    | Reserved for follow-up                                                                   |
+| 120  | `E_TRANSITION_NO_KEY`            | `jira-transition-flow.sh`   | No issue key positional argument                                                         |
+| 121  | `E_TRANSITION_NO_STATE`          | `jira-transition-flow.sh`   | No target state name or --transition-id                                                  |
+| 122  | `E_TRANSITION_NOT_FOUND`         | `jira-transition-flow.sh`   | No transition matches the given state name                                               |
+| 123  | `E_TRANSITION_AMBIGUOUS`         | `jira-transition-flow.sh`   | Multiple transitions share the state name                                                |
+| 124  | `E_TRANSITION_BAD_FLAG`          | `jira-transition-flow.sh`   | Unrecognised flag, conflicting args, or non-numeric --transition-id                      |
+| 125  | `E_TRANSITION_NO_BODY`           | `jira-transition-flow.sh`   | --comment-file path invalid (dash-prefix, device symlink, missing, or unreadable)        |
+| 126  | `E_TRANSITION_BAD_RESOLUTION`    | `jira-transition-flow.sh`   | --resolution value is empty or whitespace-only                                           |
+| 127  | —                                | reserved                    | Reserved for follow-up                                                                   |
+| 128  | —                                | reserved                    | Reserved for follow-up                                                                   |
+| 129  | —                                | reserved                    | Reserved for follow-up                                                                   |
+| 130  | `E_ATTACH_NO_KEY`                | `jira-attach-flow.sh`       | No issue key positional argument                                                         |
+| 131  | `E_ATTACH_NO_FILES`              | `jira-attach-flow.sh`       | No file paths supplied                                                                   |
+| 132  | `E_ATTACH_FILE_MISSING`          | `jira-attach-flow.sh`       | A named file does not exist or is not readable                                           |
+| 133  | `E_ATTACH_BAD_FLAG`              | `jira-attach-flow.sh`       | Unrecognised flag                                                                        |
+| 134  | —                                | reserved                    | Reserved for follow-up                                                                   |
+| 135  | —                                | reserved                    | Reserved for follow-up                                                                   |
+| 136  | —                                | reserved                    | Reserved for follow-up                                                                   |
+| 137  | —                                | reserved                    | Reserved for follow-up                                                                   |
+| 138  | —                                | reserved                    | Reserved for follow-up                                                                   |
+| 139  | —                                | reserved                    | Reserved for follow-up                                                                   |
 
-## Phase 3 namespace summary
+## Phase 4 namespace summary
 
-| Range     | Owner                  | Notes                                              |
-|-----------|------------------------|----------------------------------------------------|
-| 34        | `jira-request.sh`      | `E_REQ_BAD_REQUEST` — HTTP 400                     |
-| 91–99     | `jira-comment-flow.sh` | 99 = `E_COMMENT_BAD_RESPONSE`                      |
-| 100–107   | `jira-create-flow.sh`  |                                                    |
-| 108–109   | reserved               | Reserved for follow-up                             |
-| 110–117   | `jira-update-flow.sh`  |                                                    |
-| 118–119   | reserved               | Reserved for follow-up                             |
-| 120+      | reserved               | Phase 4 (transition / attach)                      |
+| Range     | Owner                      | Notes                                              |
+|-----------|----------------------------|----------------------------------------------------|
+| 34        | `jira-request.sh`          | `E_REQ_BAD_REQUEST` — HTTP 400                     |
+| 91–99     | `jira-comment-flow.sh`     | 99 = `E_COMMENT_BAD_RESPONSE`                      |
+| 100–107   | `jira-create-flow.sh`      |                                                    |
+| 108–109   | reserved                   | Reserved for follow-up                             |
+| 110–117   | `jira-update-flow.sh`      |                                                    |
+| 118–119   | reserved                   | Reserved for follow-up                             |
+| 120–126   | `jira-transition-flow.sh`  |                                                    |
+| 127–129   | reserved                   | Reserved for follow-up                             |
+| 130–133   | `jira-attach-flow.sh`      |                                                    |
+| 134–139   | reserved                   | Reserved for follow-up                             |
 
 ## Body-input helper (caller-namespaced)
 
