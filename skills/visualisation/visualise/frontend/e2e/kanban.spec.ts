@@ -49,18 +49,26 @@ test('drag todo card to in-progress column', async ({ page }) => {
 
     await expect(todoCard).toBeVisible()
 
+    // Arm before the drag so we don't race the response.
+    const patchDone = page.waitForResponse(
+      (r) => r.url().includes('/api/docs/') && r.request().method() === 'PATCH',
+    )
+
     await dndDrag(
       page,
       'li[data-relpath="tests/fixtures/meta/work/0001-first-work-item.md"] a',
       'section[data-column="in-progress"]',
     )
 
-    // Card should now appear in the in-progress column
+    // Card should now appear in the in-progress column (optimistic update).
     await expect(
       inProgressColumn.locator(
         'li[data-relpath="tests/fixtures/meta/work/0001-first-work-item.md"]',
       ),
     ).toBeVisible({ timeout: 5000 })
+
+    // Wait for the server to finish writing before finally restores the file.
+    await patchDone
   } finally {
     writeFileSync(WORK_ITEM_0001_PATH, original)
   }
