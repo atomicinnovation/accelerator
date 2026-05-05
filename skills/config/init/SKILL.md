@@ -37,66 +37,17 @@ Resolve each output directory using the plugin's path configuration:
 Execute the following steps in order, tracking what was created versus what
 already existed so you can present a summary at the end.
 
-### Step 1: Create output directories
+### Steps 1–3: Run the init script
 
 <!-- DIR_COUNT:14 -->
-For each of the directories resolved above, run:
 
 ```bash
-mkdir -p {directory}
+bash "${CLAUDE_PLUGIN_ROOT}/skills/config/init/scripts/init.sh"
 ```
 
-Then check whether `.gitkeep` already exists. If not, create it:
-
-```bash
-touch {directory}/.gitkeep
-```
-
-Track the status of each directory:
-- If the directory did not exist before `mkdir -p`: **created**
-- If the directory already existed: **already exists**
-
-To determine this, check whether the directory exists before running `mkdir -p`
-(use `[ -d {directory} ]`).
-
-### Step 2: Set up the tmp directory
-
-The tmp directory needs a `.gitignore` that ignores everything except itself.
-This inner `.gitignore` is the sole mechanism for ignoring tmp contents — do
-NOT add the tmp path to the consumer's root `.gitignore` (a root-level ignore
-entry would prevent git from descending into the directory, which means the
-inner `.gitignore`'s exclusions would never take effect and the directory would
-not survive fresh clones).
-
-Check whether `{tmp directory}/.gitignore` already exists. If not, write it
-using the Write tool with this exact content:
-
-```
-# Ignore everything in this directory except the directory itself
-*
-!.gitkeep
-!.gitignore
-```
-
-Track whether it was **created** or **already exists**.
-
-### Step 3: Add `.claude/accelerator.local.md` to root `.gitignore`
-
-Check whether a `.gitignore` file exists at the project root.
-
-**If no `.gitignore` exists**, create one containing:
-
-```
-.claude/accelerator.local.md
-```
-
-**If `.gitignore` already exists**, read it and check whether
-`.claude/accelerator.local.md` is already present. When checking, trim
-whitespace from both the existing lines and the candidate entry before
-comparison. If not present, append it to the end of the file (with a leading
-newline if the file does not end with one).
-
-Track whether it was **added** or **already present**.
+The script creates all 14 directories with `.gitkeep` files, writes the inner
+tmp `.gitignore`, and appends the `.claude/accelerator.local.md` rule to the
+root `.gitignore`. It is idempotent — safe to run repeatedly.
 
 ### Step 4: Report results
 
