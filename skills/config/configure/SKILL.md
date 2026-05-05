@@ -383,23 +383,23 @@ Example `instructions.md` for create-plan:
 Override where skills write output documents. Paths are relative to the
 project root (absolute paths are also supported):
 
-| Key                  | Default                   | Description                                                                      |
-|----------------------|---------------------------|----------------------------------------------------------------------------------|
-| `plans`              | `meta/plans`              | Implementation plans                                                             |
-| `research`           | `meta/research`           | Research documents                                                               |
-| `decisions`          | `meta/decisions`          | Architecture decision records                                                    |
-| `prs`                | `meta/prs`                | PR descriptions                                                                  |
-| `validations`        | `meta/validations`        | Plan validation reports                                                          |
-| `review_plans`       | `meta/reviews/plans`      | Plan review artifacts                                                            |
-| `review_prs`         | `meta/reviews/prs`        | PR review working directories                                                    |
-| `review_work`        | `meta/reviews/work`       | Work item review artifacts                                                       |
-| `templates`          | `meta/templates`          | User-provided templates (e.g., PR description)                                   |
-| `work`               | `meta/work`               | Work item files referenced by create-plan                                        |
-| `notes`              | `meta/notes`              | Notes directory                                                                  |
-| `tmp`                | `meta/tmp`                | Ephemeral working data (gitignored)                                              |
-| `design_inventories` | `meta/design-inventories` | Design-inventory artifacts (one directory per snapshot, with screenshots/)       |
-| `design_gaps`        | `meta/design-gaps`        | Design-gap analysis artifacts                                                    |
-| `integrations`       | `meta/integrations`       | Per-integration cached state (Jira fields/projects, future Linear/Trello caches) |
+| Key                  | Default                           | Description                                                                      |
+|----------------------|-----------------------------------|----------------------------------------------------------------------------------|
+| `plans`              | `meta/plans`                      | Implementation plans                                                             |
+| `research`           | `meta/research`                   | Research documents                                                               |
+| `decisions`          | `meta/decisions`                  | Architecture decision records                                                    |
+| `prs`                | `meta/prs`                        | PR descriptions                                                                  |
+| `validations`        | `meta/validations`                | Plan validation reports                                                          |
+| `review_plans`       | `meta/reviews/plans`              | Plan review artifacts                                                            |
+| `review_prs`         | `meta/reviews/prs`                | PR review working directories                                                    |
+| `review_work`        | `meta/reviews/work`               | Work item review artifacts                                                       |
+| `templates`          | `meta/templates`                  | User-provided templates (e.g., PR description)                                   |
+| `work`               | `meta/work`                       | Work item files referenced by create-plan                                        |
+| `notes`              | `meta/notes`                      | Notes directory                                                                  |
+| `tmp`                | `meta/tmp`                        | Ephemeral working data (gitignored)                                              |
+| `design_inventories` | `meta/design-inventories`         | Design-inventory artifacts (one directory per snapshot, with screenshots/)       |
+| `design_gaps`        | `meta/design-gaps`                | Design-gap analysis artifacts                                                    |
+| `integrations`       | `.accelerator/state/integrations` | Per-integration cached state (Jira fields/projects, future Linear/Trello caches) |
 
 Example configuration:
 

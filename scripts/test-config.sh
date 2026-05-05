@@ -2655,6 +2655,27 @@ FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "review_work" "meta/reviews/work")
 assert_eq "outputs configured path" "docs/reviews/work" "$OUTPUT"
 
+echo "Test: config-read-path.sh integrations returns supplied default when paths.integrations is unset"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+# accelerator
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" integrations .accelerator/state/integrations)
+assert_eq "default returned" ".accelerator/state/integrations" "$OUTPUT"
+
+echo "Test: config-read-path.sh integrations honours paths.integrations override"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.claude"
+cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+---
+paths:
+  integrations: custom/integrations
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" integrations .accelerator/state/integrations)
+assert_eq "override returned" "custom/integrations" "$OUTPUT"
+
 echo "Test: Absolute path is output as-is"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"

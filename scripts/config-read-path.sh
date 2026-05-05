@@ -17,6 +17,7 @@ set -euo pipefail
 #   work          → where work item files are stored (default: meta/work)
 #   notes         → where notes are stored (default: meta/notes)
 #   tmp           → ephemeral working data, gitignored (default: meta/tmp)
+#   integrations  → per-integration cached state (default: .accelerator/state/integrations)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
