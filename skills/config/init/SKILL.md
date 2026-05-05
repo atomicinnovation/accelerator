@@ -25,12 +25,10 @@ Resolve each output directory using the plugin's path configuration:
 **Review plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_plans meta/reviews/plans`
 **Review PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs meta/reviews/prs`
 **Review work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_work meta/reviews/work`
-**Templates directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh templates meta/templates`
 **Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 **Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh notes meta/notes`
 **Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh design_inventories meta/design-inventories`
 **Design gaps directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh design_gaps meta/design-gaps`
-**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp meta/tmp`
 
 ## Steps
 
@@ -39,15 +37,17 @@ already existed so you can present a summary at the end.
 
 ### Steps 1–3: Run the init script
 
-<!-- DIR_COUNT:14 -->
+<!-- DIR_COUNT:12 -->
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/config/init/scripts/init.sh"
 ```
 
-The script creates all 14 directories with `.gitkeep` files, writes the inner
-tmp `.gitignore`, and appends the `.claude/accelerator.local.md` rule to the
-root `.gitignore`. It is idempotent — safe to run repeatedly.
+The script creates 12 `meta/` directories with `.gitkeep` files, creates the
+`.accelerator/` core scaffold (`.gitignore`, `state/`, `tmp/`, `skills/`,
+`lenses/`, `templates/`), writes the inner tmp `.gitignore`, and appends the
+`.accelerator/config.local.md` rule to the root `.gitignore`. It is idempotent
+— safe to run repeatedly.
 
 ### Step 4: Report results
 
@@ -65,23 +65,26 @@ Directories:
   ✓ {review plans directory} (created | already exists)
   ✓ {review prs directory} (created | already exists)
   ✓ {review work items directory} (created | already exists)
-  ✓ {templates directory} (created | already exists)
   ✓ {work items directory} (created | already exists)
   ✓ {notes directory} (created | already exists)
   ✓ {design inventories directory} (created | already exists)
   ✓ {design gaps directory} (created | already exists)
-  ✓ {tmp directory} (created | already exists)
 
-Tmp directory:
-  ✓ {tmp directory}/.gitignore (created | already exists)
-  ✓ {tmp directory}/.gitkeep (created | already exists)
+Accelerator scaffold:
+  ✓ .accelerator/.gitignore (created | already exists)
+  ✓ .accelerator/state/.gitkeep (created | already exists)
+  ✓ .accelerator/skills/.gitkeep (created | already exists)
+  ✓ .accelerator/lenses/.gitkeep (created | already exists)
+  ✓ .accelerator/templates/.gitkeep (created | already exists)
+  ✓ .accelerator/tmp/.gitignore (created | already exists)
+  ✓ .accelerator/tmp/.gitkeep (created | already exists)
 
 Gitignore entries:
-  ✓ .claude/accelerator.local.md (added | already present)
+  ✓ .accelerator/config.local.md (added | already present)
 ```
 
 Use the actual resolved paths in the output (not the variable names).
 
 ---
 
-`/accelerator:init` bootstraps a fresh repository. To upgrade an existing repository after a plugin update, use `/accelerator:migrate` instead — it applies ordered, idempotent migrations to bring `meta/` and `.claude/accelerator*.md` in line with the latest schema.
+`/accelerator:init` bootstraps a fresh repository. To upgrade an existing repository after a plugin update, use `/accelerator:migrate` instead — it applies ordered, idempotent migrations to bring `meta/`, `.claude/`, and `.accelerator/` in line with the latest schema.

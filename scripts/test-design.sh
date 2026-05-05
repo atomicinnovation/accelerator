@@ -15,7 +15,7 @@ assert_contains "init lists design_inventories path key" \
 assert_contains "init lists design_gaps path key" \
   "$(cat "$INIT")" "design_gaps meta/design-gaps"
 assert_contains "init declares directory count via marker" \
-  "$(cat "$INIT")" "<!-- DIR_COUNT:14 -->"
+  "$(cat "$INIT")" "<!-- DIR_COUNT:12 -->"
 assert_contains "init summary lists design inventories directory" \
   "$(cat "$INIT")" "{design inventories directory}"
 assert_contains "init summary lists design gaps directory" \

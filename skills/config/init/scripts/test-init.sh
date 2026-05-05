@@ -33,32 +33,50 @@ tree_hash() {
 echo "=== init.sh ==="
 echo ""
 
-# ── Test 1: fresh repo creates 14 meta directories with .gitkeep ─────────────
-echo "Test: fresh repo creates 14 meta directories with .gitkeep"
+# ── Test 1: fresh repo creates 12 meta directories with .gitkeep ──────────────
+echo "Test: fresh repo creates 12 meta directories with .gitkeep"
 REPO=$(setup_repo)
 PROJECT_ROOT="$REPO" bash "$INIT_SCRIPT"
 for dir in \
   meta/plans meta/research meta/decisions meta/prs meta/validations \
   meta/reviews/plans meta/reviews/prs meta/reviews/work \
-  meta/templates meta/work meta/notes \
-  meta/design-inventories meta/design-gaps \
-  meta/tmp; do
+  meta/work meta/notes \
+  meta/design-inventories meta/design-gaps; do
   assert_dir_exists "directory $dir exists" "$REPO/$dir"
   assert_file_exists ".gitkeep in $dir" "$REPO/$dir/.gitkeep"
 done
+assert_dir_not_exists "meta/templates not created under meta/" "$REPO/meta/templates"
+assert_dir_not_exists "meta/tmp not created under meta/" "$REPO/meta/tmp"
 
-# ── Test 2: inner tmp .gitignore written with ADR-0019 pattern ────────────────
-echo "Test: fresh repo writes inner tmp .gitignore with ADR-0019 pattern"
+# ── Test 2: fresh repo creates .accelerator/ core scaffold ────────────────────
+echo "Test: fresh repo creates .accelerator/ core scaffold"
 REPO=$(setup_repo)
 PROJECT_ROOT="$REPO" bash "$INIT_SCRIPT"
-EXPECTED_GI=$(printf '*\n!.gitkeep\n!.gitignore\n')
-assert_file_content_eq "tmp .gitignore content" "$REPO/meta/tmp/.gitignore" "$EXPECTED_GI"
+assert_file_exists ".accelerator/.gitignore exists" "$REPO/.accelerator/.gitignore"
+INNER_GI=$(cat "$REPO/.accelerator/.gitignore")
+assert_contains ".accelerator/.gitignore contains config.local.md rule" \
+  "$INNER_GI" "config.local.md"
+assert_file_exists "state/.gitkeep exists" "$REPO/.accelerator/state/.gitkeep"
+EXPECTED_TMP_GI=$(printf '*\n!.gitkeep\n!.gitignore\n')
+assert_file_content_eq "tmp .gitignore content" \
+  "$REPO/.accelerator/tmp/.gitignore" "$EXPECTED_TMP_GI"
+assert_file_exists ".accelerator/tmp/.gitkeep exists" "$REPO/.accelerator/tmp/.gitkeep"
+assert_file_exists ".accelerator/skills/.gitkeep exists" "$REPO/.accelerator/skills/.gitkeep"
+assert_file_exists ".accelerator/lenses/.gitkeep exists" "$REPO/.accelerator/lenses/.gitkeep"
+assert_file_exists ".accelerator/templates/.gitkeep exists" "$REPO/.accelerator/templates/.gitkeep"
 
-# ── Test 3: root .gitignore gets .claude/accelerator.local.md rule ───────────
-echo "Test: fresh repo appends .claude/accelerator.local.md to root .gitignore"
+# ── Test 3: fresh repo does NOT create .accelerator/state/integrations/ ───────
+echo "Test: fresh repo does NOT create .accelerator/state/integrations/"
 REPO=$(setup_repo)
 PROJECT_ROOT="$REPO" bash "$INIT_SCRIPT"
-if grep -qFx '.claude/accelerator.local.md' "$REPO/.gitignore"; then
+assert_dir_not_exists ".accelerator/state/integrations absent" \
+  "$REPO/.accelerator/state/integrations"
+
+# ── Test 4: root .gitignore gets anchored .accelerator/config.local.md rule ──
+echo "Test: fresh repo appends .accelerator/config.local.md to root .gitignore"
+REPO=$(setup_repo)
+PROJECT_ROOT="$REPO" bash "$INIT_SCRIPT"
+if grep -qFx '.accelerator/config.local.md' "$REPO/.gitignore"; then
   echo "  PASS: rule present in root .gitignore"
   PASS=$((PASS + 1))
 else
@@ -66,7 +84,7 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-# ── Test 4: re-running on already-initialised repo is idempotent ─────────────
+# ── Test 5: re-running on already-initialised repo is idempotent ─────────────
 echo "Test: re-running on already-initialised repo is idempotent"
 REPO=$(setup_repo)
 PROJECT_ROOT="$REPO" bash "$INIT_SCRIPT"
@@ -75,15 +93,35 @@ PROJECT_ROOT="$REPO" bash "$INIT_SCRIPT"
 HASH_AFTER=$(tree_hash "$REPO")
 assert_eq "tree hash unchanged after second run" "$HASH_BEFORE" "$HASH_AFTER"
 
-# ── Test 5: root .gitignore rule not duplicated on re-run ────────────────────
+# ── Test 6: root .gitignore rule not duplicated on re-run ────────────────────
 echo "Test: re-running on repo where root .gitignore already contains rule does not duplicate it"
 REPO=$(setup_repo)
 PROJECT_ROOT="$REPO" bash "$INIT_SCRIPT"
 PROJECT_ROOT="$REPO" bash "$INIT_SCRIPT"
-COUNT=$(grep -cFx '.claude/accelerator.local.md' "$REPO/.gitignore" || true)
+COUNT=$(grep -cFx '.accelerator/config.local.md' "$REPO/.gitignore" || true)
 assert_eq "rule appears exactly once" "1" "$COUNT"
 
-# ── Test 6: respects paths.tmp override ──────────────────────────────────────
+# ── Test 7: old .claude/accelerator.local.md rule preserved by init ──────────
+echo "Test: re-running on repo with old unanchored rule .claude/accelerator.local.md leaves old rule in place"
+REPO=$(setup_repo)
+printf '.claude/accelerator.local.md\n' > "$REPO/.gitignore"
+PROJECT_ROOT="$REPO" bash "$INIT_SCRIPT"
+if grep -qFx '.claude/accelerator.local.md' "$REPO/.gitignore"; then
+  echo "  PASS: old rule preserved (init does not migrate)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: old rule was removed by init"
+  FAIL=$((FAIL + 1))
+fi
+if grep -qFx '.accelerator/config.local.md' "$REPO/.gitignore"; then
+  echo "  PASS: new rule also present"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: new rule missing"
+  FAIL=$((FAIL + 1))
+fi
+
+# ── Test 8: respects paths.tmp override ──────────────────────────────────────
 echo "Test: respects paths.tmp override via paths.tmp config key"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
@@ -95,7 +133,7 @@ paths:
 FIXTURE
 PROJECT_ROOT="$REPO" bash "$INIT_SCRIPT"
 assert_file_exists "custom tmp .gitignore exists" "$REPO/custom-tmp/.gitignore"
-assert_file_not_exists "default meta/tmp .gitignore absent" "$REPO/meta/tmp/.gitignore"
+assert_dir_not_exists ".accelerator/tmp not created when overridden" "$REPO/.accelerator/tmp"
 
 echo ""
 test_summary
