@@ -13,7 +13,7 @@ source "$SCRIPT_DIR/launcher-helpers.sh"
 PROJECT_ROOT="$(find_repo_root)"
 cd "$PROJECT_ROOT"
 
-TMP_REL="$("$PLUGIN_ROOT/scripts/config-read-path.sh" tmp meta/tmp)"
+TMP_REL="$("$PLUGIN_ROOT/scripts/config-read-path.sh" tmp .accelerator/tmp)"
 TMP_DIR="$PROJECT_ROOT/$TMP_REL/visualiser"
 
 INFO="$TMP_DIR/server-info.json"
@@ -124,7 +124,7 @@ if [ -z "$BIN" ]; then
     die_json "$(jq -nc \
       --arg error 'no released binary for this plugin version' \
       --arg version "$PLUGIN_VERSION" \
-      --arg hint 'set ACCELERATOR_VISUALISER_BIN=<path> (one-shot) or add `visualiser:\n  binary: <path>` to .claude/accelerator.local.md (persistent)' \
+      --arg hint 'set ACCELERATOR_VISUALISER_BIN=<path> (one-shot) or add `visualiser:\n  binary: <path>` to .accelerator/config.local.md (persistent)' \
       '{error:$error,plugin_version:$version,hint:$hint}')"
   fi
   MANIFEST_VERSION="$(jq -r '.version // empty' "$MANIFEST")"

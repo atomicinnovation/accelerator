@@ -11,7 +11,7 @@ set -euo pipefail
 # For top-level keys:
 #   config-read-value.sh enabled true
 #
-# Precedence: .claude/accelerator.local.md overrides .claude/accelerator.md
+# Precedence: .accelerator/config.local.md overrides .accelerator/config.md
 # If the key is not found in either file, outputs the default value.
 # If no default is provided and key not found, outputs nothing.
 #
@@ -19,6 +19,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config-common.sh"
+config_assert_no_legacy_layout
 
 KEY="${1:-}"
 DEFAULT="${2:-}"

@@ -15,10 +15,17 @@ TMPDIR_BASE=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_BASE"' EXIT
 
 # A migrations directory containing only 0001, used by tests that
-# don't want 0002 interfering with "No pending" assertions.
+# don't want 0002 or 0003 interfering with "No pending" assertions.
 ONLY_0001_DIR="$TMPDIR_BASE/only-0001-migrations"
 mkdir -p "$ONLY_0001_DIR"
 cp "$MIGRATIONS_DIR/0001-rename-tickets-to-work.sh" "$ONLY_0001_DIR/"
+
+# A migrations directory containing only 0001 and 0002, used by tests that
+# focus on 0002 behaviour without 0003 running.
+ONLY_0001_0002_DIR="$TMPDIR_BASE/only-0001-0002-migrations"
+mkdir -p "$ONLY_0001_0002_DIR"
+cp "$MIGRATIONS_DIR/0001-rename-tickets-to-work.sh" "$ONLY_0001_0002_DIR/"
+cp "$MIGRATIONS_DIR/0002-rename-work-items-with-project-prefix.sh" "$ONLY_0001_0002_DIR/"
 
 # Hash every file under $1 (optionally filtered by find args in $2..) and emit
 # a single digest of the combined per-file digests. Portable across macOS
@@ -62,15 +69,15 @@ assert_eq "exit 0" "0" "$RC"
 assert_file_exists "meta/work/0001-foo.md created" "$REPO/meta/work/0001-foo.md"
 assert_file_not_exists "meta/tickets/0001-foo.md removed" "$REPO/meta/tickets/0001-foo.md"
 CONTENT=$(cat "$REPO/meta/work/0001-foo.md")
-assert_contains "work_item_id in file" "work_item_id: 0001" "$CONTENT"
-assert_not_contains "ticket_id absent" "ticket_id:" "$CONTENT"
+assert_contains "work_item_id in file" "$CONTENT" "work_item_id: 0001"
+assert_not_contains "ticket_id absent" "$CONTENT" "ticket_id:"
 assert_file_exists "meta/reviews/work/foo-review-1.md created" \
   "$REPO/meta/reviews/work/foo-review-1.md"
 CONFIG=$(cat "$REPO/.accelerator/config.md" 2>/dev/null || echo "")
-assert_contains "config has work key" "work: meta/work" "$CONFIG"
-assert_not_contains "config has no tickets key" "tickets:" "$CONFIG"
+assert_contains "config has work key" "$CONFIG" "work: meta/work"
+assert_not_contains "config has no tickets key" "$CONFIG" "tickets:"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_contains "state file has migration ID" "0001-rename-tickets-to-work" "$APPLIED"
+assert_contains "state file has migration ID" "$APPLIED" "0001-rename-tickets-to-work"
 
 echo ""
 
@@ -85,7 +92,7 @@ RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 AFTER_STATE=$(cat "$REPO/.accelerator/state/migrations-applied")
 assert_eq "exit 0" "0" "$RC"
-assert_contains "outputs no pending" "No pending migrations" "$OUTPUT"
+assert_contains "outputs no pending" "$OUTPUT" "No pending migrations"
 assert_eq "state file unchanged" "$BEFORE_STATE" "$AFTER_STATE"
 
 echo ""
@@ -102,7 +109,7 @@ printf '0001-rename-tickets-to-work\n' > "$REPO/.accelerator/state/migrations-ap
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
-assert_contains "no pending output" "No pending migrations" "$OUTPUT"
+assert_contains "no pending output" "$OUTPUT" "No pending migrations"
 
 echo ""
 
@@ -115,11 +122,11 @@ RC=0
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
 assert_neq "non-zero exit" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_not_contains "state file missing migration ID" "0001-rename-tickets-to-work" "$APPLIED"
+assert_not_contains "state file missing migration ID" "$APPLIED" "0001-rename-tickets-to-work"
 # Step 2 (frontmatter rewrite) ran before step 4 failed — file has work_item_id: in meta/tickets/
 assert_file_exists "meta/tickets/0001-foo.md still present" "$REPO/meta/tickets/0001-foo.md"
 CONTENT=$(cat "$REPO/meta/tickets/0001-foo.md")
-assert_contains "file has work_item_id (step 2 ran)" "work_item_id: 0001" "$CONTENT"
+assert_contains "file has work_item_id (step 2 ran)" "$CONTENT" "work_item_id: 0001"
 
 echo ""
 
@@ -148,7 +155,7 @@ RC=0
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_contains "state file has migration ID" "0001-rename-tickets-to-work" "$APPLIED"
+assert_contains "state file has migration ID" "$APPLIED" "0001-rename-tickets-to-work"
 
 echo ""
 
@@ -164,11 +171,11 @@ cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 
 assert_eq "exit 0" "0" "$RC"
 assert_dir_exists "meta/custom-tix still exists" "$REPO/meta/custom-tix"
 CONTENT=$(cat "$REPO/meta/custom-tix/0001-foo.md")
-assert_contains "work_item_id in file" "work_item_id: 0001" "$CONTENT"
-assert_not_contains "no ticket_id" "ticket_id:" "$CONTENT"
+assert_contains "work_item_id in file" "$CONTENT" "work_item_id: 0001"
+assert_not_contains "no ticket_id" "$CONTENT" "ticket_id:"
 CONFIG=$(cat "$REPO/.accelerator/config.md" 2>/dev/null || echo "")
-assert_contains "config key renamed to work" "work: meta/custom-tix" "$CONFIG"
-assert_not_contains "config has no tickets key" "tickets:" "$CONFIG"
+assert_contains "config key renamed to work" "$CONFIG" "work: meta/custom-tix"
+assert_not_contains "config has no tickets key" "$CONFIG" "tickets:"
 assert_dir_not_exists "meta/work not spuriously created" "$REPO/meta/work"
 
 echo ""
@@ -184,12 +191,12 @@ printf -- '---\n---\n' > "$REPO/.claude/accelerator.md"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_neq "non-zero exit" "0" "$RC"
-assert_contains "error mentions meta/tickets" "meta/tickets" "$OUTPUT"
-assert_contains "error mentions meta/work" "meta/work" "$OUTPUT"
+assert_contains "error mentions meta/tickets" "$OUTPUT" "meta/tickets"
+assert_contains "error mentions meta/work" "$OUTPUT" "meta/work"
 assert_dir_exists "meta/tickets still present" "$REPO/meta/tickets"
 assert_dir_exists "meta/work still present" "$REPO/meta/work"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_not_contains "state file has no migration ID" "0001-rename-tickets-to-work" "$APPLIED"
+assert_not_contains "state file has no migration ID" "$APPLIED" "0001-rename-tickets-to-work"
 
 echo ""
 
@@ -201,10 +208,10 @@ printf -- '---\npaths:\n  tickets: meta/tickets\n' > "$REPO/.claude/accelerator.
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_neq "non-zero exit" "0" "$RC"
-assert_contains "error mentions config file" "accelerator.md" "$OUTPUT"
+assert_contains "error mentions config file" "$OUTPUT" "accelerator.md"
 # meta/tickets/ should be untouched (step 2 never ran)
 CONTENT=$(cat "$REPO/meta/tickets/0001-foo.md")
-assert_contains "ticket_id unchanged" "ticket_id: 0001" "$CONTENT"
+assert_contains "ticket_id unchanged" "$CONTENT" "ticket_id: 0001"
 
 echo ""
 
@@ -217,9 +224,9 @@ RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_contains "unknown ID preserved" "0099-future-migration" "$APPLIED"
-assert_contains "new ID added" "0001-rename-tickets-to-work" "$APPLIED"
-assert_contains "warning about unknown ID" "0099-future-migration" "$OUTPUT"
+assert_contains "unknown ID preserved" "$APPLIED" "0099-future-migration"
+assert_contains "new ID added" "$APPLIED" "0001-rename-tickets-to-work"
+assert_contains "warning about unknown ID" "$OUTPUT" "0099-future-migration"
 
 echo ""
 
@@ -256,7 +263,7 @@ cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 
 assert_eq "exit 0" "0" "$RC"
 assert_file_exists "file with space migrated" "$REPO/meta/work/0001-with space.md"
 CONTENT=$(cat "$REPO/meta/work/0001-with space.md")
-assert_contains "work_item_id in spaced file" "work_item_id: 0001" "$CONTENT"
+assert_contains "work_item_id in spaced file" "$CONTENT" "work_item_id: 0001"
 
 echo ""
 
@@ -280,8 +287,8 @@ cd "$REPO" && \
   bash "$DRIVER" > /dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_contains "state file has 0001" "0001-rename-tickets-to-work" "$APPLIED"
-assert_contains "state file has 0002" "0002-noop" "$APPLIED"
+assert_contains "state file has 0001" "$APPLIED" "0001-rename-tickets-to-work"
+assert_contains "state file has 0002" "$APPLIED" "0002-noop"
 FIRST_LINE=$(head -1 "$REPO/.accelerator/state/migrations-applied")
 assert_eq "0001 recorded first" "0001-rename-tickets-to-work" "$FIRST_LINE"
 assert_file_exists "0002 marker file created" "$MARKER"
@@ -304,9 +311,9 @@ printf '\n# extra line\n' >> "$REPO/meta/tickets/0001-foo.md"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_neq "non-zero exit (dirty tree)" "0" "$RC"
-assert_contains "error mentions dirty working tree" "dirty" "$OUTPUT"
+assert_contains "error mentions dirty working tree" "$OUTPUT" "dirty"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_not_contains "no state entry on abort" "0001-rename-tickets-to-work" "$APPLIED"
+assert_not_contains "no state entry on abort" "$APPLIED" "0001-rename-tickets-to-work"
 # Re-run with ACCELERATOR_MIGRATE_FORCE=1 bypasses the check
 RC=0
 cd "$REPO" && \
@@ -314,7 +321,7 @@ cd "$REPO" && \
   > /dev/null 2>&1 || RC=$?
 assert_eq "exit 0 with FORCE flag" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_contains "migration applied with FORCE" "0001-rename-tickets-to-work" "$APPLIED"
+assert_contains "migration applied with FORCE" "$APPLIED" "0001-rename-tickets-to-work"
 
 # ============================================================
 echo ""
@@ -328,15 +335,15 @@ cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 0001-renam
   > /dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 SKIPPED=$(cat "$REPO/.accelerator/state/migrations-skipped" 2>/dev/null || echo "")
-assert_contains "skip file has migration ID" "0001-rename-tickets-to-work" "$SKIPPED"
+assert_contains "skip file has migration ID" "$SKIPPED" "0001-rename-tickets-to-work"
 
 echo "Test: subsequent run reports no pending migrations"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
-assert_contains "outputs no pending" "No pending migrations" "$OUTPUT"
-assert_contains "summary lists skipped name" "Skipped:" "$OUTPUT"
-assert_contains "skipped name visible" "0001-rename-tickets-to-work" "$OUTPUT"
+assert_contains "outputs no pending" "$OUTPUT" "No pending migrations"
+assert_contains "summary lists skipped name" "$OUTPUT" "Skipped:"
+assert_contains "skipped name visible" "$OUTPUT" "0001-rename-tickets-to-work"
 # Migration must NOT have run
 assert_file_exists "meta/tickets/0001-foo.md still present" "$REPO/meta/tickets/0001-foo.md"
 
@@ -346,12 +353,12 @@ cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --unskip 0001-ren
   > /dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 SKIPPED=$(cat "$REPO/.accelerator/state/migrations-skipped" 2>/dev/null || echo "")
-assert_not_contains "skip file no longer has ID" "0001-rename-tickets-to-work" "$SKIPPED"
+assert_not_contains "skip file no longer has ID" "$SKIPPED" "0001-rename-tickets-to-work"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_contains "migration applied after unskip" "0001-rename-tickets-to-work" "$APPLIED"
+assert_contains "migration applied after unskip" "$APPLIED" "0001-rename-tickets-to-work"
 
 echo "Test: --skip is idempotent"
 REPO=$(setup_old_repo)
@@ -376,9 +383,9 @@ cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 9999-futur
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
-assert_contains "warning about unknown skipped ID" "9999-future-migration" "$OUTPUT"
+assert_contains "warning about unknown skipped ID" "$OUTPUT" "9999-future-migration"
 SKIPPED=$(cat "$REPO/.accelerator/state/migrations-skipped" 2>/dev/null || echo "")
-assert_contains "unknown skipped ID preserved" "9999-future-migration" "$SKIPPED"
+assert_contains "unknown skipped ID preserved" "$SKIPPED" "9999-future-migration"
 
 echo "Test: ACCELERATOR_MIGRATE_FORCE bypasses dirty-tree only — skip still wins"
 REPO=$(setup_old_repo)
@@ -392,9 +399,9 @@ RC=0
 OUTPUT=$(cd "$REPO" && ACCELERATOR_MIGRATE_FORCE=1 CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
   ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
-assert_contains "no pending under FORCE+skip" "No pending migrations" "$OUTPUT"
+assert_contains "no pending under FORCE+skip" "$OUTPUT" "No pending migrations"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_not_contains "skipped migration NOT applied under FORCE" "0001-rename-tickets-to-work" "$APPLIED"
+assert_not_contains "skipped migration NOT applied under FORCE" "$APPLIED" "0001-rename-tickets-to-work"
 
 echo "Test: applied + skipped same ID — applied wins, warning emitted"
 REPO=$(setup_old_repo)
@@ -404,8 +411,8 @@ printf '0001-rename-tickets-to-work\n' > "$REPO/.accelerator/state/migrations-sk
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
-assert_contains "warns about cross-state inconsistency" "BOTH" "$OUTPUT"
-assert_contains "no pending output (applied wins)" "No pending migrations" "$OUTPUT"
+assert_contains "warns about cross-state inconsistency" "$OUTPUT" "BOTH"
+assert_contains "no pending output (applied wins)" "$OUTPUT" "No pending migrations"
 
 echo "Test: empty .migrations-skipped is treated as no-skip"
 REPO=$(setup_old_repo)
@@ -415,7 +422,7 @@ RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_contains "migration applied" "0001-rename-tickets-to-work" "$APPLIED"
+assert_contains "migration applied" "$APPLIED" "0001-rename-tickets-to-work"
 
 # ============================================================
 echo ""
@@ -439,16 +446,16 @@ OUTPUT=$(cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$STUB_DIR" \
   CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_not_contains "stub NOT recorded as applied" "9001-stub-no-op" "$APPLIED"
+assert_not_contains "stub NOT recorded as applied" "$APPLIED" "9001-stub-no-op"
 # Sentinel is stripped from the user-visible output
-assert_not_contains "sentinel hidden from user" "MIGRATION_RESULT:" "$OUTPUT"
+assert_not_contains "sentinel hidden from user" "$OUTPUT" "MIGRATION_RESULT:"
 
 echo "Test: stub stays pending across re-runs"
 RC=0
 OUTPUT=$(cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$STUB_DIR" \
   CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
-assert_contains "stub still listed as about-to-apply" "9001-stub-no-op" "$OUTPUT"
+assert_contains "stub still listed as about-to-apply" "$OUTPUT" "9001-stub-no-op"
 
 echo "Test: 0-exit migration WITHOUT sentinel IS recorded"
 STUB2_DIR=$(mktemp -d "$TMPDIR_BASE/stubmigs2-XXXXXX")
@@ -466,7 +473,7 @@ cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$STUB2_DIR" \
   CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_contains "stub recorded as applied" "9002-stub-applied" "$APPLIED"
+assert_contains "stub recorded as applied" "$APPLIED" "9002-stub-applied"
 
 # ============================================================
 echo ""
@@ -478,9 +485,9 @@ REPO=$(setup_old_repo)
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
-assert_contains "banner present" "About to apply" "$OUTPUT"
-assert_contains "commit-before-running warning" "your working tree before running" "$OUTPUT"
-assert_contains "skip hint per migration" "To skip:" "$OUTPUT"
+assert_contains "banner present" "$OUTPUT" "About to apply"
+assert_contains "commit-before-running warning" "$OUTPUT" "your working tree before running"
+assert_contains "skip hint per migration" "$OUTPUT" "To skip:"
 
 echo "Test: banner suppressed when no pending migrations"
 REPO=$(mktemp -d "$TMPDIR_BASE/empty-XXXXXX")
@@ -489,7 +496,7 @@ printf '0001-rename-tickets-to-work\n' > "$REPO/.accelerator/state/migrations-ap
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
-assert_not_contains "no banner" "About to apply" "$OUTPUT"
+assert_not_contains "no banner" "$OUTPUT" "About to apply"
 
 echo ""
 
@@ -519,7 +526,7 @@ RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied")
-assert_not_contains "stays pending" "0002-rename-work-items-with-project-prefix" "$APPLIED"
+assert_not_contains "stays pending" "$APPLIED" "0002-rename-work-items-with-project-prefix"
 # Files unchanged
 assert_eq "files unchanged" "1" "$([ -f "$REPO/meta/work/0001-add-foo.md" ] && echo 1 || echo 0)"
 
@@ -532,7 +539,7 @@ printf '0001-rename-tickets-to-work\n' > "$REPO/.accelerator/state/migrations-ap
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "non-zero exit" "1" "$([ "$RC" -ne 0 ] && echo 1 || echo 0)"
-assert_contains "error mentions default_project_code" "default_project_code" "$OUTPUT"
+assert_contains "error mentions default_project_code" "$OUTPUT" "default_project_code"
 assert_eq "file unchanged" "1" "$([ -f "$REPO/meta/work/0001-add-foo.md" ] && echo 1 || echo 0)"
 
 echo "Test: single-project rename — files renamed and frontmatter updated"
@@ -545,57 +552,57 @@ assert_eq "0042 renamed" "1" "$([ -f "$REPO/meta/work/PROJ-0042-add-bar.md" ] &&
 assert_eq "0099 renamed" "1" "$([ -f "$REPO/meta/work/PROJ-0099-bare-frontmatter.md" ] && echo 1 || echo 0)"
 assert_eq "old 0001 gone" "0" "$([ -f "$REPO/meta/work/0001-add-foo.md" ] && echo 1 || echo 0)"
 CONTENT=$(cat "$REPO/meta/work/PROJ-0001-add-foo.md")
-assert_contains "work_item_id updated" 'work_item_id: "PROJ-0001"' "$CONTENT"
+assert_contains "work_item_id updated" "$CONTENT" 'work_item_id: "PROJ-0001"'
 
 echo "Test: parent quoted scalar rewrites"
 CONTENT=$(cat "$REPO/meta/work/PROJ-0042-add-bar.md")
-assert_contains "parent rewritten" 'parent: "PROJ-0001"' "$CONTENT"
+assert_contains "parent rewritten" "$CONTENT" 'parent: "PROJ-0001"'
 
 echo "Test: parent bare scalar rewrites to quoted"
 CONTENT=$(cat "$REPO/meta/work/PROJ-0099-bare-frontmatter.md")
-assert_contains "bare parent rewritten" 'parent: "PROJ-0042"' "$CONTENT"
+assert_contains "bare parent rewritten" "$CONTENT" 'parent: "PROJ-0042"'
 
 echo "Test: related inline list (quoted) rewrites"
 CONTENT=$(cat "$REPO/meta/research/2026-04-02-research.md")
-assert_contains "related list rewritten" '"PROJ-0001"' "$CONTENT"
-assert_contains "related list item 2" '"PROJ-0042"' "$CONTENT"
+assert_contains "related list rewritten" "$CONTENT" '"PROJ-0001"'
+assert_contains "related list item 2" "$CONTENT" '"PROJ-0042"'
 
 echo "Test: related inline list (bare) rewrites"
 CONTENT=$(cat "$REPO/meta/work/PROJ-0099-bare-frontmatter.md")
-assert_contains "bare list item 0001" '"PROJ-0001"' "$CONTENT"
-assert_contains "bare list item 0099" '"PROJ-0099"' "$CONTENT"
+assert_contains "bare list item 0001" "$CONTENT" '"PROJ-0001"'
+assert_contains "bare list item 0099" "$CONTENT" '"PROJ-0099"'
 
 echo "Test: markdown links rewritten"
 CONTENT=$(cat "$REPO/meta/plans/2026-04-01-some-plan.md")
-assert_contains "link 0001 rewritten" "../work/PROJ-0001-add-foo.md" "$CONTENT"
-assert_contains "link 0042 with anchor" "../work/PROJ-0042-add-bar.md#section" "$CONTENT"
+assert_contains "link 0001 rewritten" "$CONTENT" "../work/PROJ-0001-add-foo.md"
+assert_contains "link 0042 with anchor" "$CONTENT" "../work/PROJ-0042-add-bar.md#section"
 
 echo "Test: fenced-code-block path in tagged block rewritten"
 CONTENT=$(cat "$REPO/meta/research/2026-04-02-research.md")
-assert_contains "code block path 0042" "meta/work/PROJ-0042-add-bar.md" "$CONTENT"
-assert_contains "code block path 0001" "meta/work/PROJ-0001-add-foo.md" "$CONTENT"
+assert_contains "code block path 0042" "$CONTENT" "meta/work/PROJ-0042-add-bar.md"
+assert_contains "code block path 0001" "$CONTENT" "meta/work/PROJ-0001-add-foo.md"
 
 echo "Test: heading-line #NNNN references rewritten"
 CONTENT=$(cat "$REPO/meta/plans/2026-04-01-some-plan.md")
-assert_contains "heading #0042" "#PROJ-0042" "$CONTENT"
-assert_contains "multi-ref heading #0001" "#PROJ-0001" "$CONTENT"
+assert_contains "heading #0042" "$CONTENT" "#PROJ-0042"
+assert_contains "multi-ref heading #0001" "$CONTENT" "#PROJ-0001"
 
 echo "Test: negative — bare fenced block NOT rewritten"
 CONTENT=$(cat "$REPO/meta/research/2026-04-03-history.md")
-assert_contains "bare block preserved" "meta/work/0042-add-bar.md" "$CONTENT"
+assert_contains "bare block preserved" "$CONTENT" "meta/work/0042-add-bar.md"
 
 echo "Test: negative — prose 0042 NOT rewritten"
-assert_contains "prose 0042" "port 0042" "$CONTENT"
-assert_contains "occurrences" "0042 occurrences" "$CONTENT"
-assert_contains "timestamp" "2026-04-15" "$CONTENT"
+assert_contains "prose 0042" "$CONTENT" "port 0042"
+assert_contains "occurrences" "$CONTENT" "0042 occurrences"
+assert_contains "timestamp" "$CONTENT" "2026-04-15"
 
 echo "Test: negative — non-path numeric in tagged block NOT rewritten"
-assert_contains "non-path code" "foo --id 0042" "$CONTENT"
+assert_contains "non-path code" "$CONTENT" "foo --id 0042"
 
 echo "Test: non-work-item file in meta/work/ unchanged"
 CONTENT=$(cat "$REPO/meta/work/notes.md")
-assert_contains "notes unchanged" "non-work-item file" "$CONTENT"
-assert_not_contains "notes not renamed" "PROJ" "$CONTENT"
+assert_contains "notes unchanged" "$CONTENT" "non-work-item file"
+assert_not_contains "notes not renamed" "$CONTENT" "PROJ"
 
 echo "Test: idempotency — second run is a no-op"
 HASH1=$(tree_hash "$REPO/meta")
@@ -625,7 +632,7 @@ touch "$REPO/meta/work/PROJ-0001-add-foo.md"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "non-zero on collision" "1" "$([ "$RC" -ne 0 ] && echo 1 || echo 0)"
-assert_contains "collision error" "collision" "$OUTPUT"
+assert_contains "collision error" "$OUTPUT" "collision"
 # Original file still there
 assert_eq "original preserved" "1" "$([ -f "$REPO/meta/work/0001-add-foo.md" ] && echo 1 || echo 0)"
 
@@ -633,9 +640,10 @@ echo "Test: skip-tracking suppresses migration 0002"
 REPO=$(setup_0002_repo)
 (cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 0002-rename-work-items-with-project-prefix)
 RC=0
-OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_0002_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0 with skip" "0" "$RC"
-assert_contains "no pending" "No pending migrations" "$OUTPUT"
+assert_contains "no pending" "$OUTPUT" "No pending migrations"
 assert_eq "file not renamed" "1" "$([ -f "$REPO/meta/work/0001-add-foo.md" ] && echo 1 || echo 0)"
 
 # ============================================================
@@ -720,9 +728,9 @@ cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
 JIRA_GI="$REPO/.accelerator/state/integrations/jira/.gitignore"
 assert_file_exists "inner .gitignore created" "$JIRA_GI"
 GI_CONTENT=$(cat "$JIRA_GI")
-assert_contains "site.json rule" "site.json" "$GI_CONTENT"
-assert_contains ".refresh-meta.json rule" ".refresh-meta.json" "$GI_CONTENT"
-assert_contains ".lock/ rule" ".lock/" "$GI_CONTENT"
+assert_contains "site.json rule" "$GI_CONTENT" "site.json"
+assert_contains ".refresh-meta.json rule" "$GI_CONTENT" ".refresh-meta.json"
+assert_contains ".lock/ rule" "$GI_CONTENT" ".lock/"
 # Exact-line matches (not substring)
 assert_eq "site.json exact line" "1" \
   "$(grep -cFx 'site.json' "$JIRA_GI" || true)"
@@ -796,7 +804,7 @@ cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0 on re-run" "0" "$RC"
-assert_contains "no pending on re-run" "No pending migrations." "$OUTPUT"
+assert_contains "no pending on re-run" "$OUTPUT" "No pending migrations."
 
 echo ""
 
@@ -827,7 +835,7 @@ sed -i.bak 's|^\.claude/accelerator\.local\.md$|.claude/accelerator.local.md  # 
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_neq "non-zero exit on trailing content" "0" "$RC"
-assert_contains "error message names the offending line" "custom note" "$OUTPUT"
+assert_contains "error message names the offending line" "$OUTPUT" "custom note"
 # File unchanged — no destructive write
 CUSTOM_LINE=$(grep -F '# custom note' "$REPO/.gitignore" || echo "")
 assert_contains "original line preserved" "$CUSTOM_LINE" "# custom note"
@@ -856,7 +864,7 @@ RC=0
 OUTPUT=$(PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
   bash "$MIGRATION_0003" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
-assert_contains "no_op_pending sentinel in stdout" "MIGRATION_RESULT: no_op_pending" "$OUTPUT"
+assert_contains "no_op_pending sentinel in stdout" "$OUTPUT" "MIGRATION_RESULT: no_op_pending"
 
 echo ""
 
@@ -892,7 +900,7 @@ RC=0
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
 assert_eq "exit 0 on partial recovery (state pending)" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied")
-assert_contains "0003 recorded" "0003-relocate-accelerator-state" "$APPLIED"
+assert_contains "0003 recorded" "$APPLIED" "0003-relocate-accelerator-state"
 assert_file_not_exists "meta/.migrations-applied removed" "$REPO/meta/.migrations-applied"
 
 echo ""
@@ -905,8 +913,8 @@ printf 'different content\n' > "$REPO/.accelerator/config.md"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_neq "non-zero exit on conflict" "0" "$RC"
-assert_contains "error names both paths" "accelerator.md" "$OUTPUT"
-assert_contains "error names both paths (dest)" "config.md" "$OUTPUT"
+assert_contains "error names both paths" "$OUTPUT" "accelerator.md"
+assert_contains "error names both paths (dest)" "$OUTPUT" "config.md"
 assert_file_exists ".claude/accelerator.md still present" "$REPO/.claude/accelerator.md"
 assert_file_exists ".accelerator/config.md still present (not wiped)" "$REPO/.accelerator/config.md"
 
@@ -919,9 +927,9 @@ REPO=$(setup_0003_repo)
 # After migration, new state file should be union {0001, 0002, 0003}
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied")
-assert_contains "0001 preserved in merged state" "0001-rename-tickets-to-work" "$APPLIED"
-assert_contains "0002 preserved in merged state" "0002-rename-work-items-with-project-prefix" "$APPLIED"
-assert_contains "0003 recorded" "0003-relocate-accelerator-state" "$APPLIED"
+assert_contains "0001 preserved in merged state" "$APPLIED" "0001-rename-tickets-to-work"
+assert_contains "0002 preserved in merged state" "$APPLIED" "0002-rename-work-items-with-project-prefix"
+assert_contains "0003 recorded" "$APPLIED" "0003-relocate-accelerator-state"
 # 0001 not duplicated despite appearing in both source and dest before merge
 assert_eq "0001 exactly once" "1" \
   "$(grep -c '^0001-rename-tickets-to-work$' "$REPO/.accelerator/state/migrations-applied")"
@@ -947,9 +955,9 @@ printf -- '---\npaths:\n  templates: custom/templates\n  integrations: custom/in
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0 (warning not error)" "0" "$RC"
-assert_contains "warning names templates key" "paths.templates" "$OUTPUT"
-assert_contains "warning names integrations key" "paths.integrations" "$OUTPUT"
-assert_contains "warning names templates value" "custom/templates" "$OUTPUT"
+assert_contains "warning names templates key" "$OUTPUT" "paths.templates"
+assert_contains "warning names integrations key" "$OUTPUT" "paths.integrations"
+assert_contains "warning names templates value" "$OUTPUT" "custom/templates"
 # Migration still moved the files unconditionally
 assert_dir_exists ".accelerator/templates still moved" "$REPO/.accelerator/templates"
 assert_dir_not_exists "meta/templates gone" "$REPO/meta/templates"

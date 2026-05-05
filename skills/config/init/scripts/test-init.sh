@@ -124,8 +124,8 @@ fi
 # ── Test 8: respects paths.tmp override ──────────────────────────────────────
 echo "Test: respects paths.tmp override via paths.tmp config key"
 REPO=$(setup_repo)
-mkdir -p "$REPO/.claude"
-cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
 ---
 paths:
   tmp: custom-tmp

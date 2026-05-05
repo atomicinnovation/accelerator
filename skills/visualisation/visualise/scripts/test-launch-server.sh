@@ -23,7 +23,7 @@ case "$OS_RAW" in darwin) OS="darwin" ;; linux) OS="linux" ;; *) OS="$OS_RAW" ;;
 case "$ARCH_RAW" in arm64|aarch64) ARCH="arm64" ;; x86_64) ARCH="x64" ;; *) ARCH="$ARCH_RAW" ;; esac
 
 # All test projects get .jj so find_repo_root succeeds, plus the init sentinel.
-make_project() { local d="$1"; mkdir -p "$d/.jj" "$d/.claude" "$d/meta/tmp"; : > "$d/meta/tmp/.gitignore"; }
+make_project() { local d="$1"; mkdir -p "$d/.jj" "$d/.accelerator/tmp"; : > "$d/.accelerator/tmp/.gitignore"; }
 
 echo "=== launch-server.sh (Phase 2) ==="
 echo ""
@@ -63,22 +63,22 @@ URLMATCH="$(echo "$URL" | grep -cE '^http://127\.0\.0\.1:[0-9]+/?$')" || true
 assert_eq "binenv: URL format" "1" "$URLMATCH"
 CURLRC=0; curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
 assert_eq "binenv: curl 200" "0" "$CURLRC"
-CFG_FILE="$PROJ/meta/tmp/visualiser/config.json"
-assert_json_eq "config: decisions"    ".doc_paths.decisions"    "$PROJ/meta/decisions"     "$CFG_FILE"
-assert_json_eq "config: work"         ".doc_paths.work"         "$PROJ/meta/work"          "$CFG_FILE"
-assert_json_eq "config: plans"        ".doc_paths.plans"        "$PROJ/meta/plans"         "$CFG_FILE"
-assert_json_eq "config: research"     ".doc_paths.research"     "$PROJ/meta/research"      "$CFG_FILE"
-assert_json_eq "config: review_plans" ".doc_paths.review_plans" "$PROJ/meta/reviews/plans" "$CFG_FILE"
-assert_json_eq "config: review_prs"   ".doc_paths.review_prs"   "$PROJ/meta/reviews/prs"   "$CFG_FILE"
-assert_json_eq "config: validations"  ".doc_paths.validations"  "$PROJ/meta/validations"   "$CFG_FILE"
-assert_json_eq "config: notes"        ".doc_paths.notes"        "$PROJ/meta/notes"         "$CFG_FILE"
-assert_json_eq "config: prs"          ".doc_paths.prs"          "$PROJ/meta/prs"           "$CFG_FILE"
-assert_json_eq "config: adr user_override"            ".templates.adr.user_override"                "$PROJ/meta/templates/adr.md"            "$CFG_FILE"
-assert_json_eq "config: plan user_override"           ".templates.plan.user_override"               "$PROJ/meta/templates/plan.md"           "$CFG_FILE"
-assert_json_eq "config: research user_override"       ".templates.research.user_override"           "$PROJ/meta/templates/research.md"       "$CFG_FILE"
-assert_json_eq "config: validation user_override"     ".templates.validation.user_override"         "$PROJ/meta/templates/validation.md"     "$CFG_FILE"
-assert_json_eq "config: pr-description user_override" '.templates."pr-description".user_override'  "$PROJ/meta/templates/pr-description.md" "$CFG_FILE"
-assert_json_eq "config: work-item user_override"      '.templates."work-item".user_override'        "$PROJ/meta/templates/work-item.md"      "$CFG_FILE"
+CFG_FILE="$PROJ/.accelerator/tmp/visualiser/config.json"
+assert_json_eq "config: decisions"                    ".doc_paths.decisions"                       "$PROJ/meta/decisions"                           "$CFG_FILE"
+assert_json_eq "config: work"                         ".doc_paths.work"                            "$PROJ/meta/work"                                "$CFG_FILE"
+assert_json_eq "config: plans"                        ".doc_paths.plans"                           "$PROJ/meta/plans"                               "$CFG_FILE"
+assert_json_eq "config: research"                     ".doc_paths.research"                        "$PROJ/meta/research"                            "$CFG_FILE"
+assert_json_eq "config: review_plans"                 ".doc_paths.review_plans"                    "$PROJ/meta/reviews/plans"                       "$CFG_FILE"
+assert_json_eq "config: review_prs"                   ".doc_paths.review_prs"                      "$PROJ/meta/reviews/prs"                         "$CFG_FILE"
+assert_json_eq "config: validations"                  ".doc_paths.validations"                     "$PROJ/meta/validations"                         "$CFG_FILE"
+assert_json_eq "config: notes"                        ".doc_paths.notes"                           "$PROJ/meta/notes"                               "$CFG_FILE"
+assert_json_eq "config: prs"                          ".doc_paths.prs"                             "$PROJ/meta/prs"                                 "$CFG_FILE"
+assert_json_eq "config: adr user_override"            ".templates.adr.user_override"               "$PROJ/.accelerator/templates/adr.md"            "$CFG_FILE"
+assert_json_eq "config: plan user_override"           ".templates.plan.user_override"              "$PROJ/.accelerator/templates/plan.md"           "$CFG_FILE"
+assert_json_eq "config: research user_override"       ".templates.research.user_override"          "$PROJ/.accelerator/templates/research.md"       "$CFG_FILE"
+assert_json_eq "config: validation user_override"     ".templates.validation.user_override"        "$PROJ/.accelerator/templates/validation.md"     "$CFG_FILE"
+assert_json_eq "config: pr-description user_override" '.templates."pr-description".user_override'  "$PROJ/.accelerator/templates/pr-description.md" "$CFG_FILE"
+assert_json_eq "config: work-item user_override"      '.templates."work-item".user_override'       "$PROJ/.accelerator/templates/work-item.md"      "$CFG_FILE"
 unset ACCELERATOR_VISUALISER_BIN
 cd "$ORIG_DIR"
 
@@ -100,7 +100,7 @@ PROJ="$TMPDIR_BASE/t-cfgabs"; make_project "$PROJ"
 FAKE="$TMPDIR_BASE/fake-cfgabs"; make_fake_visualiser "$FAKE"
 cd "$PROJ"
 unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
-printf -- '---\nvisualiser:\n  binary: %s\n---\n' "$FAKE" > "$PROJ/.claude/accelerator.local.md"
+printf -- '---\nvisualiser:\n  binary: %s\n---\n' "$FAKE" > "$PROJ/.accelerator/config.local.md"
 OUT="$TMPDIR_BASE/t-cfgabs.out"
 RC=0; bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "cfgabs: exit code" "0" "$RC"
@@ -115,7 +115,7 @@ PROJ="$TMPDIR_BASE/t-cfgrel"; make_project "$PROJ"; mkdir -p "$PROJ/bin"
 FAKE="$PROJ/bin/fake-server"; make_fake_visualiser "$FAKE"
 cd "$PROJ"
 unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
-printf -- '---\nvisualiser:\n  binary: bin/fake-server\n---\n' > "$PROJ/.claude/accelerator.local.md"
+printf -- '---\nvisualiser:\n  binary: bin/fake-server\n---\n' > "$PROJ/.accelerator/config.local.md"
 OUT="$TMPDIR_BASE/t-cfgrel.out"
 RC=0; bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "cfgrel: exit code" "0" "$RC"
@@ -130,7 +130,7 @@ PROJ="$TMPDIR_BASE/t-prec"; make_project "$PROJ"
 FAKE_ENV="$TMPDIR_BASE/fake-env-prec"; make_fake_visualiser "$FAKE_ENV"
 FAKE_CFG="$TMPDIR_BASE/fake-cfg-prec"; make_fake_visualiser "$FAKE_CFG"
 cd "$PROJ"
-printf -- '---\nvisualiser:\n  binary: %s\n---\n' "$FAKE_CFG" > "$PROJ/.claude/accelerator.local.md"
+printf -- '---\nvisualiser:\n  binary: %s\n---\n' "$FAKE_CFG" > "$PROJ/.accelerator/config.local.md"
 export ACCELERATOR_VISUALISER_BIN="$FAKE_ENV"
 OUT="$TMPDIR_BASE/t-prec.out"
 RC=0; bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
@@ -147,7 +147,7 @@ PROJ="$TMPDIR_BASE/t-nonexec"; make_project "$PROJ"
 cd "$PROJ"
 unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
 echo "not-a-binary" > "$TMPDIR_BASE/nonexec-file"
-printf -- '---\nvisualiser:\n  binary: %s\n---\n' "$TMPDIR_BASE/nonexec-file" > "$PROJ/.claude/accelerator.local.md"
+printf -- '---\nvisualiser:\n  binary: %s\n---\n' "$TMPDIR_BASE/nonexec-file" > "$PROJ/.accelerator/config.local.md"
 RC=0; ERR="$TMPDIR_BASE/t-nonexec.err"
 bash "$LAUNCH_SERVER" >/dev/null 2>"$ERR" || RC=$?
 assert_eq "nonexec: exit code" "1" "$RC"
@@ -160,7 +160,7 @@ PROJ="$TMPDIR_BASE/t-conc"; make_project "$PROJ"
 FAKE="$TMPDIR_BASE/fake-conc"; make_fake_visualiser "$FAKE"
 cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
-LOCK_FILE="$PROJ/meta/tmp/visualiser/launcher.lock"
+LOCK_FILE="$PROJ/.accelerator/tmp/visualiser/launcher.lock"
 mkdir -p "$(dirname "$LOCK_FILE")"
 if command -v flock >/dev/null 2>&1; then
   exec 8>"$LOCK_FILE"; flock 8
@@ -186,7 +186,7 @@ PROJ="$TMPDIR_BASE/t-pidmm"; make_project "$PROJ"
 FAKE="$TMPDIR_BASE/fake-pidmm"; make_fake_visualiser "$FAKE"
 cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
-INFO_DIR="$PROJ/meta/tmp/visualiser"; mkdir -p "$INFO_DIR"
+INFO_DIR="$PROJ/.accelerator/tmp/visualiser"; mkdir -p "$INFO_DIR"
 OWN_PID=$$
 cat > "$INFO_DIR/server-info.json" << INFOJSON
 {"version":"0.0.0-stale","pid":$OWN_PID,"start_time":1,"host":"127.0.0.1","port":9999,"url":"http://127.0.0.1:9999","log_path":"$INFO_DIR/server.log","tmp_path":"$INFO_DIR"}
@@ -304,7 +304,7 @@ cd "$ORIG_DIR"
 # ─── 14. uninitialised project is rejected ───────────────────────
 echo "Test: uninitialised project (no sentinel) → rejected with JSON error"
 PROJ="$TMPDIR_BASE/t-uninit"
-mkdir -p "$PROJ/.jj" "$PROJ/.claude" "$PROJ/meta/tmp"
+mkdir -p "$PROJ/.jj" "$PROJ/.accelerator"
 cd "$PROJ"
 unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
 RC=0; ERR="$TMPDIR_BASE/t-uninit.err"
@@ -315,7 +315,7 @@ UNINIT_HINT="$(jq -r '.hint // empty' "$ERR" 2>/dev/null)"
 assert_eq "uninit: error field" "accelerator not initialised" "$UNINIT_ERR"
 assert_contains "uninit: hint mentions /accelerator:init" "$UNINIT_HINT" "/accelerator:init"
 assert_contains "uninit: hint mentions project root" "$UNINIT_HINT" "$PROJ"
-assert_dir_absent "uninit: no visualiser tmp dir created" "$PROJ/meta/tmp/visualiser"
+assert_dir_absent "uninit: no visualiser tmp dir created" "$PROJ/.accelerator/tmp/visualiser"
 cd "$ORIG_DIR"
 
 # ─── 15. initialised project proceeds past sentinel ──────────────
@@ -338,7 +338,7 @@ cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
 bash "$LAUNCH_SERVER" >/dev/null 2>/dev/null || true
 # Delete the sentinel after the server is running.
-rm -f "$PROJ/meta/tmp/.gitignore"
+rm -f "$PROJ/.accelerator/tmp/.gitignore"
 OUT="$TMPDIR_BASE/t-sentdel.out"
 RC=0; bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "sentdel: exit code" "0" "$RC"

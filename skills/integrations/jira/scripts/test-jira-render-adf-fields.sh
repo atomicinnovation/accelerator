@@ -47,7 +47,7 @@ echo ""
 ISSUE=$(make_issue "$RICH_ADF")
 OUT=$(printf '%s' "$ISSUE" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
 DESC=$(printf '%s' "$OUT" | jq -r '.fields.description')
-assert_contains "heading marker present" "## " "$DESC"
+assert_contains "heading marker present" "$DESC" "## "
 # BSD grep rejects patterns starting with '-'; use grep -- to bypass
 if printf '%s' "$DESC" | grep -qF -- "- "; then
   echo "  PASS: list item marker present"
@@ -56,9 +56,9 @@ else
   echo "  FAIL: list item marker present"
   FAIL=$((FAIL + 1))
 fi
-assert_contains "bold marker present" "**" "$DESC"
-assert_contains "italic marker present" "*" "$DESC"
-assert_contains "link target present" "](http" "$DESC"
+assert_contains "bold marker present" "$DESC" "**"
+assert_contains "italic marker present" "$DESC" "*"
+assert_contains "link target present" "$DESC" "](http"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -69,8 +69,8 @@ ISSUE=$(make_issue "$CODE_ADF")
 OUT=$(printf '%s' "$ISSUE" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
 DESC=$(printf '%s' "$OUT" | jq -r '.fields.description')
 assert_contains "fenced code block marker" '```' "$DESC"
-assert_contains "first paragraph text" "First paragraph." "$DESC"
-assert_contains "second paragraph text" "Second paragraph." "$DESC"
+assert_contains "first paragraph text" "$DESC" "First paragraph."
+assert_contains "second paragraph text" "$DESC" "Second paragraph."
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -210,7 +210,7 @@ echo ""
 
 assert_exit_code "bad JSON exits 90" 90 bash -c "printf '%s' 'not-json' | ACCELERATOR_TEST_MODE=1 bash '$RENDER'"
 ERR10=$(printf '%s' 'not-json' | ACCELERATOR_TEST_MODE=1 bash "$RENDER" 2>&1 >/dev/null || true)
-assert_contains "E_RENDER_BAD_INPUT on stderr" "E_RENDER_BAD_INPUT" "$ERR10"
+assert_contains "E_RENDER_BAD_INPUT on stderr" "$ERR10" "E_RENDER_BAD_INPUT"
 echo ""
 
 # ---------------------------------------------------------------------------

@@ -37,7 +37,7 @@ assert_eq "reserved word quoted" "'AND'" "$OUT"
 
 echo "Test 5: empty value exits E_JQL_EMPTY_VALUE"
 ERR=$(jql_quote_value "" 2>&1 >/dev/null || true)
-assert_contains "names error code" "E_JQL_EMPTY_VALUE" "$ERR"
+assert_contains "names error code" "$ERR" "E_JQL_EMPTY_VALUE"
 assert_exit_code "exits non-zero" 33 jql_quote_value ""
 
 echo "Test 6: literal string EMPTY is just a value"
@@ -111,7 +111,7 @@ assert_eq "no status clause when none given" "project = 'ENG'" "$OUT"
 
 echo "Test 15: no project and no --all-projects exits E_JQL_NO_PROJECT"
 ERR=$(jql_compose --status Done 2>&1 >/dev/null || true)
-assert_contains "names error code" "E_JQL_NO_PROJECT" "$ERR"
+assert_contains "names error code" "$ERR" "E_JQL_NO_PROJECT"
 assert_exit_code "exits 30" 30 jql_compose --status Done
 
 echo "Test 16: --all-projects omits project clause"
@@ -128,7 +128,7 @@ echo "Test 17: printable punctuation passes without --unsafe"
 for val in 'feature/auth' 'Customer Champion?' '[brackets]' 'tag#1' \
            'email@example' '100%' '*wildcard*' 'path|pipe' 'bug;urgent'; do
   OUT=$(jql_quote_value "$val")
-  assert_contains "quoted: $val" "'" "$OUT"
+  assert_contains "quoted: $val" "$OUT" "'"
 done
 
 echo "Test 18: control char rejected with named byte"
@@ -136,13 +136,13 @@ ERR=$(printf 'foo\x07bar' | xargs -I{} bash -c 'source '"$JQL_LIB"'; jql_quote_v
 # Use a simpler approach: call jql_quote_value directly with a control char
 CTRL_VAL=$'foo\x07bar'
 ERR=$(jql_quote_value "$CTRL_VAL" 2>&1 >/dev/null || true)
-assert_contains "names error code" "E_JQL_UNSAFE_VALUE" "$ERR"
-assert_contains "names hex code or name" "0x07" "$ERR"
+assert_contains "names error code" "$ERR" "E_JQL_UNSAFE_VALUE"
+assert_contains "names hex code or name" "$ERR" "0x07"
 assert_exit_code "exits 31" 31 jql_quote_value "$CTRL_VAL"
 
 echo "Test 18b: --unsafe overrides control char rejection"
 OUT=$(jql_quote_value --unsafe "$CTRL_VAL")
-assert_contains "output is quoted" "'" "$OUT"
+assert_contains "output is quoted" "$OUT" "'"
 
 echo ""
 
@@ -192,7 +192,7 @@ assert_eq "raw jql appended" \
   "project = 'ENG' AND assignee = currentUser() ORDER BY rank" \
   "$OUT"
 ERR=$(jql_compose --project ENG --jql 'assignee = currentUser()' 2>&1 >/dev/null || true)
-assert_contains "warns about raw jql" "raw JQL" "$ERR"
+assert_contains "warns about raw jql" "$ERR" "raw JQL"
 
 echo ""
 
@@ -245,14 +245,14 @@ assert_eq "--text double-quote" 'project = '"'"'ENG'"'"' AND text ~ "has\"quote"
 echo "Test 31: --text control character exits 31"
 CTRL_VAL=$'foo\tbar'
 ERR=$(jql_compose --project ENG --text "$CTRL_VAL" 2>&1 >/dev/null || true)
-assert_contains "--text ctrl: error on stderr" "E_JQL_BAD_VALUE" "$ERR"
+assert_contains "--text ctrl: error on stderr" "$ERR" "E_JQL_BAD_VALUE"
 assert_exit_code "--text ctrl: exits 31" 31 jql_compose --project ENG --text "$CTRL_VAL"
 
 echo "Test 32: --text injection resistance"
 INJECT='foo" OR project = X OR text ~ "bar'
 OUT=$(jql_compose --project ENG --text "$INJECT")
 EXPECTED_CLAUSE='text ~ "foo\" OR project = X OR text ~ \"bar"'
-assert_contains "--text injection resistance" "$EXPECTED_CLAUSE" "$OUT"
+assert_contains "--text injection resistance" "$OUT" "$EXPECTED_CLAUSE"
 
 echo "Test 32b: --text backslash-quote ordering (adversarial: backslash+quote)"
 OUT=$(jql_compose --project ENG --text '\"')

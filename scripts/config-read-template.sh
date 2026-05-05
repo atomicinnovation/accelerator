@@ -10,12 +10,12 @@ set -euo pipefail
 # Resolution order:
 # 1. Path specified in config: templates.<name> (if set and file exists)
 # 2. Configured templates directory: <paths.templates>/<name>.md
-#    (defaults to meta/templates/<name>.md)
+#    (defaults to .accelerator/templates/<name>.md)
 # 3. Plugin default: <plugin_root>/templates/<name>.md
 #
-# All user-facing templates live in one place (meta/templates/ or whatever
-# paths.templates is set to). The .claude/accelerator/ directory is only
-# used for custom lenses (Plan 3), not templates.
+# All user-facing templates live in one place (.accelerator/templates/ or
+# whatever paths.templates is set to). The .accelerator/lenses/ directory
+# is for custom lenses, not templates.
 #
 # Outputs the template content to stdout, wrapped in markdown code fences
 # (```markdown ... ```) so the LLM interprets the content as a template to
@@ -24,6 +24,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config-common.sh"
+config_assert_no_legacy_layout
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 TEMPLATE_NAME="${1:-}"

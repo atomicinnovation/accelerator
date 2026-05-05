@@ -8,6 +8,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config-common.sh"
+config_assert_no_legacy_layout
 
 FILES=()
 while IFS= read -r f; do
@@ -16,7 +17,7 @@ done < <(config_find_files)
 
 # Check for tmp/.gitignore (not just tmp/) as the initialisation sentinel,
 # because review-pr creates tmp/ organically via mkdir -p.
-TMP_PATH=$("$SCRIPT_DIR/config-read-path.sh" tmp meta/tmp)
+TMP_PATH=$("$SCRIPT_DIR/config-read-path.sh" tmp .accelerator/tmp)
 INITIALISED=true
 [ ! -f "$TMP_PATH/.gitignore" ] && INITIALISED=false
 
@@ -88,7 +89,7 @@ if [ "$HAS_CONTEXT" = true ]; then
 fi
 
 # Check for per-skill customisations
-SKILL_CUSTOM_DIR="$ROOT/.claude/accelerator/skills"
+SKILL_CUSTOM_DIR="$ROOT/.accelerator/skills"
 SKILL_CUSTOMISATIONS=""
 
 # Derive known skill names dynamically from plugin skill directories
@@ -111,7 +112,7 @@ if [ -d "$SKILL_CUSTOM_DIR" ]; then
     # Warn about unrecognised skill names
     case " $KNOWN_SKILLS " in
       *" $skill_name "*) ;;
-      *) echo "Warning: .claude/accelerator/skills/$skill_name/ does not match any known skill name. Valid names: $KNOWN_SKILLS" >&2 ;;
+      *) echo "Warning: .accelerator/skills/$skill_name/ does not match any known skill name. Valid names: $KNOWN_SKILLS" >&2 ;;
     esac
 
     # Check for non-empty content (matching reader script behaviour)

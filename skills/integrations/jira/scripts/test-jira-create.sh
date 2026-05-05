@@ -27,8 +27,8 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 # setup_repo — jira + work config with default project code
 setup_repo() {
   local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude"
-  cat > "$d/.claude/accelerator.md" <<ENDCONFIG
+  mkdir -p "$d/.git" "$d/.accelerator"
+  cat > "$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -43,8 +43,8 @@ ENDCONFIG
 # setup_repo_minimal — jira credentials only, no default project code
 setup_repo_minimal() {
   local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude"
-  cat > "$d/.claude/accelerator.md" <<ENDCONFIG
+  mkdir -p "$d/.git" "$d/.accelerator"
+  cat > "$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -56,14 +56,14 @@ ENDCONFIG
 
 write_site_json() {
   local repo="$1"
-  mkdir -p "$repo/meta/integrations/jira"
+  mkdir -p "$repo/.accelerator/state/integrations/jira"
   printf '{"site":"%s","accountId":"%s"}\n' "$TEST_SITE" "$TEST_ACCOUNT_ID" \
-    > "$repo/meta/integrations/jira/site.json"
+    > "$repo/.accelerator/state/integrations/jira/site.json"
 }
 
 write_fields_json() {
   local repo="$1"
-  mkdir -p "$repo/meta/integrations/jira"
+  mkdir -p "$repo/.accelerator/state/integrations/jira"
   jq -cn '{
     "site": "example",
     "fields": [
@@ -88,7 +88,7 @@ write_fields_json() {
         "schema": {"type": "array", "custom": "com.pyxis.greenhopper.jira:gh-sprint"}
       }
     ]
-  }' > "$repo/meta/integrations/jira/fields.json"
+  }' > "$repo/.accelerator/state/integrations/jira/fields.json"
 }
 
 REPO=$(setup_repo)
@@ -160,8 +160,8 @@ echo "=== Case 1: --help exits 0 with usage banner ==="
 echo ""
 
 OUT_1=$(create --help 2>/dev/null)
-assert_contains "usage includes --project" "--project" "$OUT_1"
-assert_contains "usage includes --summary" "--summary" "$OUT_1"
+assert_contains "usage includes --project" "$OUT_1" "--project"
+assert_contains "usage includes --summary" "$OUT_1" "--summary"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -177,7 +177,7 @@ RC_2=0
   bash "$SCRIPT" --type Task --summary "foo" --body "x" --no-editor 2>/tmp/create-err2.tmp) || RC_2=$?
 ERR_2=$(cat /tmp/create-err2.tmp)
 assert_eq "no project exits 100" "100" "$RC_2"
-assert_contains "E_CREATE_NO_PROJECT on stderr" "E_CREATE_NO_PROJECT" "$ERR_2"
+assert_contains "E_CREATE_NO_PROJECT on stderr" "$ERR_2" "E_CREATE_NO_PROJECT"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -188,7 +188,7 @@ RC_3=0
 create_no_stdin --project ENG --summary "foo" --body "x" --no-editor 2>/tmp/create-err3.tmp || RC_3=$?
 ERR_3=$(cat /tmp/create-err3.tmp)
 assert_eq "no type exits 101" "101" "$RC_3"
-assert_contains "E_CREATE_NO_TYPE on stderr" "E_CREATE_NO_TYPE" "$ERR_3"
+assert_contains "E_CREATE_NO_TYPE on stderr" "$ERR_3" "E_CREATE_NO_TYPE"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -199,7 +199,7 @@ RC_4=0
 create_no_stdin --project ENG --type Task --no-editor 2>/tmp/create-err4.tmp || RC_4=$?
 ERR_4=$(cat /tmp/create-err4.tmp)
 assert_eq "no summary exits 102" "102" "$RC_4"
-assert_contains "E_CREATE_NO_SUMMARY on stderr" "E_CREATE_NO_SUMMARY" "$ERR_4"
+assert_contains "E_CREATE_NO_SUMMARY on stderr" "$ERR_4" "E_CREATE_NO_SUMMARY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -210,7 +210,7 @@ RC_5=0
 create_no_stdin --project ENG --type Task --summary "foo" --body "x" --nope 2>/tmp/create-err5.tmp || RC_5=$?
 ERR_5=$(cat /tmp/create-err5.tmp)
 assert_eq "bad flag exits 104" "104" "$RC_5"
-assert_contains "E_CREATE_BAD_FLAG on stderr" "E_CREATE_BAD_FLAG" "$ERR_5"
+assert_contains "E_CREATE_BAD_FLAG on stderr" "$ERR_5" "E_CREATE_BAD_FLAG"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -243,7 +243,7 @@ stop_mock
 
 CAPTURED_7=$(jq -r '.[0]' "$BODIES_7")
 BODY_7_STR=$(jq -c '.fields.description' <<< "$CAPTURED_7")
-assert_contains "body from file not stdin" "from file content" "$BODY_7_STR"
+assert_contains "body from file not stdin" "$BODY_7_STR" "from file content"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -257,7 +257,7 @@ stop_mock
 
 CAPTURED_8=$(jq -r '.[0]' "$BODIES_8")
 BODY_8_STR=$(jq -c '.fields.description' <<< "$CAPTURED_8")
-assert_contains "body from stdin" "from stdin input" "$BODY_8_STR"
+assert_contains "body from stdin" "$BODY_8_STR" "from stdin input"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -268,7 +268,7 @@ RC_9=0
 create_no_stdin --project ENG --type Task --summary "foo" --no-editor 2>/tmp/create-err9.tmp || RC_9=$?
 ERR_9=$(cat /tmp/create-err9.tmp)
 assert_eq "no body exits 105" "105" "$RC_9"
-assert_contains "E_CREATE_NO_BODY on stderr" "E_CREATE_NO_BODY" "$ERR_9"
+assert_contains "E_CREATE_NO_BODY on stderr" "$ERR_9" "E_CREATE_NO_BODY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -298,7 +298,7 @@ RC_11=0
   2>/tmp/create-err11.tmp) || RC_11=$?
 ERR_11=$(cat /tmp/create-err11.tmp)
 assert_eq "missing site cache exits 106" "106" "$RC_11"
-assert_contains "init-jira hint" "init-jira" "$ERR_11"
+assert_contains "init-jira hint" "$ERR_11" "init-jira"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -310,8 +310,8 @@ create_no_stdin --project ENG --type Task --summary "foo" --body "x" \
   --assignee user@example.com --no-editor 2>/tmp/create-err11a.tmp || RC_11a=$?
 ERR_11a=$(cat /tmp/create-err11a.tmp)
 assert_eq "email assignee exits 107" "107" "$RC_11a"
-assert_contains "E_CREATE_BAD_ASSIGNEE on stderr" "E_CREATE_BAD_ASSIGNEE" "$ERR_11a"
-assert_contains "email not supported message" "email" "$ERR_11a"
+assert_contains "E_CREATE_BAD_ASSIGNEE on stderr" "$ERR_11a" "E_CREATE_BAD_ASSIGNEE"
+assert_contains "email not supported message" "$ERR_11a" "email"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -323,7 +323,7 @@ create_no_stdin --project ENG --type Task --summary "foo" --body "x" \
   --assignee '5b10!@#$' --no-editor 2>/tmp/create-err11b.tmp || RC_11b=$?
 ERR_11b=$(cat /tmp/create-err11b.tmp)
 assert_eq "invalid assignee chars exits 107" "107" "$RC_11b"
-assert_contains "E_CREATE_BAD_ASSIGNEE on stderr" "E_CREATE_BAD_ASSIGNEE" "$ERR_11b"
+assert_contains "E_CREATE_BAD_ASSIGNEE on stderr" "$ERR_11b" "E_CREATE_BAD_ASSIGNEE"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -389,7 +389,7 @@ create_no_stdin --project ENG --type Task --summary "foo" --body "x" \
   --custom story-points=not-a-number --no-editor 2>/tmp/create-err16.tmp || RC_16=$?
 ERR_16=$(cat /tmp/create-err16.tmp)
 assert_eq "bad field value exits 103" "103" "$RC_16"
-assert_contains "E_CREATE_BAD_FIELD on stderr" "E_CREATE_BAD_FIELD" "$ERR_16"
+assert_contains "E_CREATE_BAD_FIELD on stderr" "$ERR_16" "E_CREATE_BAD_FIELD"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -414,7 +414,7 @@ create_no_stdin --project ENG --type Task --summary "foo" --body "x" \
   --custom unknown-field=value --no-editor 2>/tmp/create-err18.tmp || RC_18=$?
 ERR_18=$(cat /tmp/create-err18.tmp)
 assert_eq "unknown field exits 103" "103" "$RC_18"
-assert_contains "refresh-fields hint" "init-jira" "$ERR_18"
+assert_contains "refresh-fields hint" "$ERR_18" "init-jira"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -441,8 +441,8 @@ create --project ENG --type Task --summary "foo" --body "x" 2>/tmp/create-err20.
 stop_mock
 ERR_20=$(cat /tmp/create-err20.tmp)
 assert_eq "API 400 exits 34" "34" "$RC_20"
-assert_contains "field error forwarded to stderr" "Summary is required" "$ERR_20"
-assert_contains "hint emitted for 400" "Hint:" "$ERR_20"
+assert_contains "field error forwarded to stderr" "$ERR_20" "Summary is required"
+assert_contains "hint emitted for 400" "$ERR_20" "Hint:"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -455,7 +455,7 @@ create --project ENG --type Task --summary "foo" --body "x" 2>/tmp/create-err21.
 stop_mock
 ERR_21=$(cat /tmp/create-err21.tmp)
 assert_eq "API 400 bad customfield exits 34" "34" "$RC_21"
-assert_contains "refresh-fields hint" "init-jira --refresh-fields" "$ERR_21"
+assert_contains "refresh-fields hint" "$ERR_21" "init-jira --refresh-fields"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -518,7 +518,7 @@ RC_25=0
 stop_mock
 ERR_25=$(cat /tmp/create-err25.tmp)
 assert_eq "API 500 exits 20" "20" "$RC_25"
-assert_contains "5xx hint emitted" "Hint:" "$ERR_25"
+assert_contains "5xx hint emitted" "$ERR_25" "Hint:"
 echo ""
 
 # ---------------------------------------------------------------------------

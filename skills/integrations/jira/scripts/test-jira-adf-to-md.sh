@@ -33,11 +33,11 @@ echo ""
 
 echo "Test: unsupported panel node emits placeholder"
 OUT=$(bash "$RENDERER" < "$FIXTURES/unsupported-panel.adf.json")
-assert_contains "panel placeholder" "[unsupported ADF node: panel]" "$OUT"
+assert_contains "panel placeholder" "$OUT" "[unsupported ADF node: panel]"
 
 echo "Test: unsupported mention inline emits placeholder"
 OUT=$(bash "$RENDERER" < "$FIXTURES/unsupported-mention.adf.json")
-assert_contains "mention placeholder" "[unsupported ADF inline: mention]" "$OUT"
+assert_contains "mention placeholder" "$OUT" "[unsupported ADF inline: mention]"
 
 echo ""
 
@@ -47,12 +47,12 @@ echo ""
 
 echo "Test: non-JSON input exits E_BAD_JSON"
 ERR=$(bash "$RENDERER" <<< "not json" 2>&1 >/dev/null || true)
-assert_contains "names error code" "E_BAD_JSON" "$ERR"
+assert_contains "names error code" "$ERR" "E_BAD_JSON"
 assert_exit_code "exits 40" 40 bash "$RENDERER" <<< "not json"
 
 echo "Test: valid JSON but not a doc exits E_BAD_JSON"
 ERR=$(bash "$RENDERER" <<< '{"type":"paragraph"}' 2>&1 >/dev/null || true)
-assert_contains "names error code" "E_BAD_JSON" "$ERR"
+assert_contains "names error code" "$ERR" "E_BAD_JSON"
 assert_exit_code "exits 40" 40 bash "$RENDERER" <<< '{"type":"paragraph"}'
 
 echo ""
@@ -74,58 +74,58 @@ render_link() {
 
 echo "Test: http scheme passes through"
 OUT=$(render_link "http://example.com")
-assert_contains "http link preserved" "[click](http://example.com)" "$OUT"
+assert_contains "http link preserved" "$OUT" "[click](http://example.com)"
 
 echo "Test: https scheme passes through"
 OUT=$(render_link "https://example.com/path?q=1")
-assert_contains "https link preserved" "[click](https://example.com/path?q=1)" "$OUT"
+assert_contains "https link preserved" "$OUT" "[click](https://example.com/path?q=1)"
 
 echo "Test: mailto scheme passes through"
 OUT=$(render_link "mailto:foo@bar.com" "email")
-assert_contains "mailto link preserved" "[email](mailto:foo@bar.com)" "$OUT"
+assert_contains "mailto link preserved" "$OUT" "[email](mailto:foo@bar.com)"
 
 echo "Test: javascript: scheme stripped to plain text"
 OUT=$(render_link "javascript:alert(1)")
-assert_not_contains "javascript href absent" "javascript:" "$OUT"
-assert_contains "display text preserved" "click" "$OUT"
-assert_not_contains "no link syntax" "](" "$OUT"
+assert_not_contains "javascript href absent" "$OUT" "javascript:"
+assert_contains "display text preserved" "$OUT" "click"
+assert_not_contains "no link syntax" "$OUT" "]("
 
 echo "Test: data: scheme stripped to plain text"
 OUT=$(render_link "data:text/html,<script>x</script>" "image")
-assert_not_contains "data href absent" "data:" "$OUT"
-assert_contains "display text preserved" "image" "$OUT"
+assert_not_contains "data href absent" "$OUT" "data:"
+assert_contains "display text preserved" "$OUT" "image"
 
 echo "Test: vbscript: scheme stripped to plain text"
 OUT=$(render_link "vbscript:msgbox(1)")
-assert_not_contains "vbscript href absent" "vbscript:" "$OUT"
-assert_contains "display text preserved" "click" "$OUT"
+assert_not_contains "vbscript href absent" "$OUT" "vbscript:"
+assert_contains "display text preserved" "$OUT" "click"
 
 echo "Test: case-insensitive — JavaScript: stripped"
 OUT=$(render_link "JavaScript:alert(1)")
-assert_not_contains "JavaScript href absent" "JavaScript:" "$OUT"
-assert_contains "display text preserved" "click" "$OUT"
+assert_not_contains "JavaScript href absent" "$OUT" "JavaScript:"
+assert_contains "display text preserved" "$OUT" "click"
 
 echo "Test: case-insensitive — JAVASCRIPT: stripped"
 OUT=$(render_link "JAVASCRIPT:alert(1)")
-assert_not_contains "JAVASCRIPT href absent" "JAVASCRIPT:" "$OUT"
-assert_contains "display text preserved" "click" "$OUT"
+assert_not_contains "JAVASCRIPT href absent" "$OUT" "JAVASCRIPT:"
+assert_contains "display text preserved" "$OUT" "click"
 
 echo "Test: schemeless absolute path passes through"
 OUT=$(render_link "/path/to/page")
-assert_contains "absolute path link preserved" "[click](/path/to/page)" "$OUT"
+assert_contains "absolute path link preserved" "$OUT" "[click](/path/to/page)"
 
 echo "Test: fragment-only link passes through"
 OUT=$(render_link "#section")
-assert_contains "fragment link preserved" "[click](#section)" "$OUT"
+assert_contains "fragment link preserved" "$OUT" "[click](#section)"
 
 echo "Test: relative URL passes through"
 OUT=$(render_link "page.html")
-assert_contains "relative URL link preserved" "[click](page.html)" "$OUT"
+assert_contains "relative URL link preserved" "$OUT" "[click](page.html)"
 
 echo "Test: whitespace-leading javascript: scheme stripped"
 OUT=$(render_link "  javascript:foo")
-assert_not_contains "whitespace js href absent" "javascript:" "$OUT"
-assert_contains "display text preserved" "click" "$OUT"
+assert_not_contains "whitespace js href absent" "$OUT" "javascript:"
+assert_contains "display text preserved" "$OUT" "click"
 
 echo ""
 

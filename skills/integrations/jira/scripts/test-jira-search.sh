@@ -26,8 +26,8 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 setup_repo() {
   local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude"
-  cat > "$d/.claude/accelerator.md" <<ENDCONFIG
+  mkdir -p "$d/.git" "$d/.accelerator"
+  cat > "$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -41,14 +41,14 @@ ENDCONFIG
 
 write_site_json() {
   local repo="$1"
-  mkdir -p "$repo/meta/integrations/jira"
+  mkdir -p "$repo/.accelerator/state/integrations/jira"
   printf '{"site":"%s","accountId":"%s"}\n' "$TEST_SITE" "$TEST_ACCOUNT_ID" \
-    > "$repo/meta/integrations/jira/site.json"
+    > "$repo/.accelerator/state/integrations/jira/site.json"
 }
 
 write_fields_json() {
   local repo="$1"
-  mkdir -p "$repo/meta/integrations/jira"
+  mkdir -p "$repo/.accelerator/state/integrations/jira"
   jq -cn '{
     "site":"example",
     "fields":[
@@ -56,7 +56,7 @@ write_fields_json() {
       {"id":"status","key":"status","name":"Status","slug":"status"},
       {"id":"customfield_10016","key":"customfield_10016","name":"Story Points","slug":"story-points"}
     ]
-  }' > "$repo/meta/integrations/jira/fields.json"
+  }' > "$repo/.accelerator/state/integrations/jira/fields.json"
 }
 
 REPO=$(setup_repo)
@@ -116,8 +116,8 @@ stop_mock
 
 ISSUE_COUNT=$(printf '%s' "$OUT" | jq '.issues | length')
 assert_eq "response has 2 issues" "2" "$ISSUE_COUNT"
-assert_contains "JQL in stderr has project" "project = 'ENG'" "$ERR"
-assert_contains "JQL in stderr has status IN" "status IN ('In Progress')" "$ERR"
+assert_contains "JQL in stderr has project" "$ERR" "project = 'ENG'"
+assert_contains "JQL in stderr has status IN" "$ERR" "status IN ('In Progress')"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -129,8 +129,8 @@ OUT2=$(search --all-projects --jql "reporter = currentUser()" 2>/tmp/search-test
 ERR2=$(cat /tmp/search-test-err.tmp)
 stop_mock
 
-assert_contains "raw JQL warning on stderr" "raw JQL passed through" "$ERR2"
-assert_contains "JQL echo shows clause" "reporter = currentUser()" "$ERR2"
+assert_contains "raw JQL warning on stderr" "$ERR2" "raw JQL passed through"
+assert_contains "JQL echo shows clause" "$ERR2" "reporter = currentUser()"
 PARSE_OK=$(printf '%s' "$OUT2" | jq 'type' 2>/dev/null || echo "invalid")
 assert_eq "output is JSON" '"object"' "$PARSE_OK"
 echo ""
@@ -143,7 +143,7 @@ start_mock "$SCENARIOS/search-200.json"
 ERR3=$(search --project ENG --assignee @me 2>&1 >/dev/null)
 stop_mock
 
-assert_contains "@me resolved to accountId in JQL" "$TEST_ACCOUNT_ID" "$ERR3"
+assert_contains "@me resolved to accountId in JQL" "$ERR3" "$TEST_ACCOUNT_ID"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -159,8 +159,8 @@ RESULT4=0
 ERR4=$(cat /tmp/search-test-err.tmp)
 
 assert_eq "@me without site.json exits 72" "72" "$RESULT4"
-assert_contains "E_SEARCH_NO_SITE_CACHE on stderr" "E_SEARCH_NO_SITE_CACHE" "$ERR4"
-assert_contains "points at /init-jira" "init-jira" "$ERR4"
+assert_contains "E_SEARCH_NO_SITE_CACHE on stderr" "$ERR4" "E_SEARCH_NO_SITE_CACHE"
+assert_contains "points at /init-jira" "$ERR4" "init-jira"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -198,7 +198,7 @@ RESULT7=0
 search --project ENG --page-token "$CTRL_TOKEN" 2>/tmp/search-test-err.tmp || RESULT7=$?
 ERR7=$(cat /tmp/search-test-err.tmp)
 assert_eq "control char token exits 70" "70" "$RESULT7"
-assert_contains "E_SEARCH_BAD_PAGE_TOKEN on stderr" "E_SEARCH_BAD_PAGE_TOKEN" "$ERR7"
+assert_contains "E_SEARCH_BAD_PAGE_TOKEN on stderr" "$ERR7" "E_SEARCH_BAD_PAGE_TOKEN"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -223,8 +223,8 @@ assert_eq "--limit 50 sets maxResults 50" "50" "$MAX_RESULTS"
 
 # Verify --limit error message mentions constraint and remediation
 ERR8_MSG=$(search --project ENG --limit 200 2>&1 || true)
-assert_contains "--limit error mentions constraint" "between 1 and 100" "$ERR8_MSG"
-assert_contains "--limit error mentions page-token" "page-token" "$ERR8_MSG"
+assert_contains "--limit error mentions constraint" "$ERR8_MSG" "between 1 and 100"
+assert_contains "--limit error mentions page-token" "$ERR8_MSG" "page-token"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -247,14 +247,14 @@ stop_mock
 FIELDS_CSV=$(jq -r '.[0]' "$BODIES9" | jq -c '.fields' 2>/dev/null || echo "")
 FIELDS_REP=$(jq -r '.[1]' "$BODIES9" | jq -c '.fields' 2>/dev/null || echo "")
 FIELDS_MIX=$(jq -r '.[2]' "$BODIES9" | jq -c '.fields' 2>/dev/null || echo "")
-assert_contains "CSV form contains customfield_10016" "customfield_10016" "$FIELDS_CSV"
+assert_contains "CSV form contains customfield_10016" "$FIELDS_CSV" "customfield_10016"
 assert_eq "repeatable form produces same fields array" "$FIELDS_CSV" "$FIELDS_REP"
 assert_eq "mixed form produces same fields array" "$FIELDS_CSV" "$FIELDS_MIX"
 
 # Unknown slug passes through with stderr warning
 WARN9=$(search --project ENG --fields unknown-xyz-field 2>&1 >/dev/null || true)
-assert_contains "unknown slug warning on stderr" "unknown-xyz-field" "$WARN9"
-assert_contains "warning mentions init-jira" "init-jira" "$WARN9"
+assert_contains "unknown slug warning on stderr" "$WARN9" "unknown-xyz-field"
+assert_contains "warning mentions init-jira" "$WARN9" "init-jira"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -284,7 +284,7 @@ start_mock "$SCENARIOS/search-200.json"
 ERR11=$(search --project ENG --status '~Done' 2>&1 >/dev/null)
 stop_mock
 
-assert_contains "negated status in JQL" "status NOT IN ('Done')" "$ERR11"
+assert_contains "negated status in JQL" "$ERR11" "status NOT IN ('Done')"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -295,10 +295,10 @@ start_mock "$SCENARIOS/search-200.json"
 ERR12=$(search --project ENG --type Bug --label backend --label '~stale' 2>&1 >/dev/null)
 stop_mock
 
-assert_contains "project in JQL" "project = 'ENG'" "$ERR12"
-assert_contains "issuetype in JQL" "issuetype IN ('Bug')" "$ERR12"
-assert_contains "labels IN in JQL" "labels IN ('backend')" "$ERR12"
-assert_contains "labels NOT IN in JQL" "labels NOT IN ('stale')" "$ERR12"
+assert_contains "project in JQL" "$ERR12" "project = 'ENG'"
+assert_contains "issuetype in JQL" "$ERR12" "issuetype IN ('Bug')"
+assert_contains "labels IN in JQL" "$ERR12" "labels IN ('backend')"
+assert_contains "labels NOT IN in JQL" "$ERR12" "labels NOT IN ('stale')"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -308,9 +308,9 @@ echo ""
 RESULT13=0
 ERR13=$(search --project ENG --bogus-flag 2>&1 >/dev/null) || RESULT13=$?
 assert_eq "bad flag exits 73" "73" "$RESULT13"
-assert_contains "E_SEARCH_BAD_FLAG on stderr" "E_SEARCH_BAD_FLAG" "$ERR13"
-assert_contains "Usage banner on stderr" "Usage:" "$ERR13"
-assert_contains "offending flag name on stderr" "bogus-flag" "$ERR13"
+assert_contains "E_SEARCH_BAD_FLAG on stderr" "$ERR13" "E_SEARCH_BAD_FLAG"
+assert_contains "Usage banner on stderr" "$ERR13" "Usage:"
+assert_contains "offending flag name on stderr" "$ERR13" "bogus-flag"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -319,9 +319,9 @@ echo ""
 
 HELP_OUT=$(search --help 2>/dev/null)
 assert_exit_code "--help exits 0" 0 search --help
-assert_contains "--help: Usage present" "Usage:" "$HELP_OUT"
-assert_contains "--help: shows flags" "--project" "$HELP_OUT"
-assert_contains "--help: shows negation note" "~" "$HELP_OUT"
+assert_contains "--help: Usage present" "$HELP_OUT" "Usage:"
+assert_contains "--help: shows flags" "$HELP_OUT" "--project"
+assert_contains "--help: shows negation note" "$HELP_OUT" "~"
 
 H_OUT=$(search -h 2>/dev/null)
 assert_eq "-h output identical to --help" "$HELP_OUT" "$H_OUT"
@@ -335,7 +335,7 @@ start_mock "$SCENARIOS/search-200.json"
 ERR15=$(search 2>&1 >/dev/null)  # no --project flag
 stop_mock
 
-assert_contains "default project ENG in JQL" "project = 'ENG'" "$ERR15"
+assert_contains "default project ENG in JQL" "$ERR15" "project = 'ENG'"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -346,7 +346,7 @@ start_mock "$SCENARIOS/search-200.json"
 ERR16=$(search --project FOO 2>&1 >/dev/null)
 stop_mock
 
-assert_contains "overridden project FOO in JQL" "project = 'FOO'" "$ERR16"
+assert_contains "overridden project FOO in JQL" "$ERR16" "project = 'FOO'"
 echo ""
 
 # ---------------------------------------------------------------------------

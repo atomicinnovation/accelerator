@@ -83,7 +83,7 @@ echo "=== Case 2: @json: invalid JSON returns non-zero ==="
 echo ""
 
 ERR_2=$(coerce "customfield_10016" "@json:not-json" "$FIELDS_JSON" "E_BAD_FIELD" 2>&1 >/dev/null || true)
-assert_contains "@json: invalid JSON: error on stderr" "E_BAD_FIELD" "$ERR_2"
+assert_contains "@json: invalid JSON: error on stderr" "$ERR_2" "E_BAD_FIELD"
 assert_exit_code "@json: invalid JSON exits non-zero" 1 bash -c \
   "source '$CUSTOM_FIELDS'; _jira_coerce_custom_value customfield_10016 '@json:not-json' '$FIELDS_JSON' E_BAD_FIELD"
 echo ""
@@ -110,7 +110,7 @@ echo "=== Case 5: schema.type=number, non-numeric raw value ==="
 echo ""
 
 ERR_5=$(coerce "customfield_10016" "five" "$FIELDS_JSON" "E_BAD_FIELD" 2>&1 >/dev/null || true)
-assert_contains "number: non-numeric rejected" "E_BAD_FIELD" "$ERR_5"
+assert_contains "number: non-numeric rejected" "$ERR_5" "E_BAD_FIELD"
 assert_exit_code "number: non-numeric exits non-zero" 1 bash -c \
   "source '$CUSTOM_FIELDS'; _jira_coerce_custom_value customfield_10016 five '$FIELDS_JSON' E_BAD_FIELD"
 echo ""
@@ -157,8 +157,8 @@ EMPTY_FIELDS="$TMPDIR_BASE/empty-fields.json"
 jq -cn '{"site":"example","fields":[]}' > "$EMPTY_FIELDS"
 
 ERR_10=$(coerce "customfield_99999" "value" "$EMPTY_FIELDS" "E_BAD_FIELD" 2>&1 >/dev/null || true)
-assert_contains "missing field: error on stderr" "E_BAD_FIELD" "$ERR_10"
-assert_contains "missing field: refresh hint" "refresh-fields" "$ERR_10"
+assert_contains "missing field: error on stderr" "$ERR_10" "E_BAD_FIELD"
+assert_contains "missing field: refresh hint" "$ERR_10" "refresh-fields"
 assert_exit_code "missing field exits non-zero" 1 bash -c \
   "source '$CUSTOM_FIELDS'; _jira_coerce_custom_value customfield_99999 value '$EMPTY_FIELDS' E_BAD_FIELD"
 echo ""
@@ -168,8 +168,8 @@ echo "=== Case 11: unsupported schema.type (array) — use @json: escape ==="
 echo ""
 
 ERR_11=$(coerce "customfield_10020" "42" "$FIELDS_JSON" "E_BAD_FIELD" 2>&1 >/dev/null || true)
-assert_contains "unsupported type: error on stderr" "E_BAD_FIELD" "$ERR_11"
-assert_contains "unsupported type: @json: hint in error" "@json:" "$ERR_11"
+assert_contains "unsupported type: error on stderr" "$ERR_11" "E_BAD_FIELD"
+assert_contains "unsupported type: @json: hint in error" "$ERR_11" "@json:"
 assert_exit_code "unsupported type exits non-zero" 1 bash -c \
   "source '$CUSTOM_FIELDS'; _jira_coerce_custom_value customfield_10020 42 '$FIELDS_JSON' E_BAD_FIELD"
 echo ""
@@ -179,7 +179,7 @@ echo "=== Case 12: custom error_prefix parameter ==="
 echo ""
 
 ERR_12=$(coerce "customfield_10016" "not-a-number" "$FIELDS_JSON" "E_CREATE_BAD_FIELD" 2>&1 >/dev/null || true)
-assert_contains "custom prefix: error starts with E_CREATE_BAD_FIELD" "E_CREATE_BAD_FIELD" "$ERR_12"
+assert_contains "custom prefix: error starts with E_CREATE_BAD_FIELD" "$ERR_12" "E_CREATE_BAD_FIELD"
 echo ""
 
 # ============================================================

@@ -57,12 +57,13 @@ _jira_ensure_gitkeep() {
   [ -e "$state_dir/.gitkeep" ] || touch "$state_dir/.gitkeep"
 }
 
-# Emits a log_warn if .accelerator/ is absent from the repo root. Exits 0.
+# Emits a log_warn if the .accelerator/ scaffold has not been initialised.
+# Uses .accelerator/.gitignore as the sentinel created by /accelerator:init.
 _jira_warn_if_accelerator_absent() {
   local repo_root
   repo_root=$(find_repo_root) || return 1
-  if [ ! -d "$repo_root/.accelerator" ]; then
-    log_warn ".accelerator/ is absent — run /accelerator:init to create it."
+  if [ ! -f "$repo_root/.accelerator/.gitignore" ]; then
+    log_warn ".accelerator/ is not initialised — run /accelerator:init to set up the scaffold."
   fi
 }
 

@@ -18,7 +18,7 @@ setup_repo() {
   local repo_dir
   repo_dir=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
   mkdir -p "$repo_dir/.git"
-  mkdir -p "$repo_dir/.claude"
+  mkdir -p "$repo_dir/.accelerator"
   echo "$repo_dir"
 }
 
@@ -37,19 +37,19 @@ echo ""
 echo "=== jira_state_dir ==="
 echo ""
 
-echo "Test: jira_state_dir returns <repo_root>/meta/integrations/jira"
+echo "Test: jira_state_dir returns <repo_root>/.accelerator/state/integrations/jira"
 REPO=$(setup_repo)
 STATE_DIR=$(cd "$REPO" && source "$JIRA_COMMON" && jira_state_dir)
-assert_eq "state dir under repo root" "$REPO/meta/integrations/jira" "$STATE_DIR"
+assert_eq "state dir under repo root" "$REPO/.accelerator/state/integrations/jira" "$STATE_DIR"
 
 echo "Test: jira_state_dir creates the directory if missing"
 REPO=$(setup_repo)
 cd "$REPO" && source "$JIRA_COMMON" && jira_state_dir >/dev/null
-assert_file_exists "state dir created" "$REPO/meta/integrations/jira"
+assert_dir_exists "state dir created" "$REPO/.accelerator/state/integrations/jira"
 
 echo "Test: jira_state_dir respects paths.integrations override"
 REPO=$(setup_repo)
-cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
 ---
 paths:
   integrations: .state/integrations
@@ -67,7 +67,7 @@ echo ""
 echo "Test: jira_die writes message to stderr and exits non-zero"
 REPO=$(setup_repo)
 STDERR=$(cd "$REPO" && source "$JIRA_COMMON" && jira_die "E_TEST: something failed" 2>&1) || true
-assert_contains "stderr contains message" "E_TEST: something failed" "$STDERR"
+assert_contains "stderr contains message" "$STDERR" "E_TEST: something failed"
 
 echo "Test: jira_die exits non-zero"
 REPO=$(setup_repo)
@@ -84,7 +84,7 @@ fi
 echo "Test: jira_warn writes Warning: prefix to stderr"
 REPO=$(setup_repo)
 STDERR=$(cd "$REPO" && source "$JIRA_COMMON" && jira_warn "something notable" 2>&1)
-assert_contains "stderr contains Warning: prefix" "Warning: something notable" "$STDERR"
+assert_contains "stderr contains Warning: prefix" "$STDERR" "Warning: something notable"
 
 echo "Test: jira_warn does not exit"
 REPO=$(setup_repo)
@@ -137,7 +137,7 @@ else
   echo "  FAIL: should exit non-zero on invalid JSON"
   FAIL=$((FAIL + 1))
 fi
-assert_contains "E_BAD_JSON on stderr" "E_BAD_JSON" "$STDERR"
+assert_contains "E_BAD_JSON on stderr" "$STDERR" "E_BAD_JSON"
 
 echo "Test: invalid JSON leaves existing target unchanged"
 REPO=$(setup_repo)
@@ -339,8 +339,8 @@ else
   echo "  FAIL: expected exit 53, got $EXIT_CODE"
   FAIL=$((FAIL + 1))
 fi
-assert_contains "E_REFRESH_LOCKED in stderr" "E_REFRESH_LOCKED" "$STDERR"
-assert_contains "holder pid in stderr" "(pid " "$STDERR"
+assert_contains "E_REFRESH_LOCKED in stderr" "$STDERR" "E_REFRESH_LOCKED"
+assert_contains "holder pid in stderr" "$STDERR" "(pid "
 
 echo ""
 
@@ -374,31 +374,31 @@ _hint_rc() {
 }
 
 echo "Test: code 11 → credentials hint, returns 0"
-assert_contains "code 11 emits credentials hint" "credentials" "$(_hint 11)"
+assert_contains "code 11 emits credentials hint" "$(_hint 11)" "credentials"
 assert_eq "code 11 returns 0" "0" "$(_hint_rc 11)"
 
 echo "Test: code 12 → credentials hint, returns 0"
-assert_contains "code 12 emits credentials hint" "credentials" "$(_hint 12)"
+assert_contains "code 12 emits credentials hint" "$(_hint 12)" "credentials"
 assert_eq "code 12 returns 0" "0" "$(_hint_rc 12)"
 
 echo "Test: code 22 → credentials hint, returns 0"
-assert_contains "code 22 emits credentials hint" "credentials" "$(_hint 22)"
+assert_contains "code 22 emits credentials hint" "$(_hint 22)" "credentials"
 assert_eq "code 22 returns 0" "0" "$(_hint_rc 22)"
 
 echo "Test: code 19 → rate-limit hint, returns 0"
-assert_contains "code 19 emits rate-limit hint" "rate-limited" "$(_hint 19)"
+assert_contains "code 19 emits rate-limit hint" "$(_hint 19)" "rate-limited"
 assert_eq "code 19 returns 0" "0" "$(_hint_rc 19)"
 
 echo "Test: code 20 → server error hint, returns 0"
-assert_contains "code 20 emits server-error hint" "server error" "$(_hint 20)"
+assert_contains "code 20 emits server-error hint" "$(_hint 20)" "server error"
 assert_eq "code 20 returns 0" "0" "$(_hint_rc 20)"
 
 echo "Test: code 21 → connection hint, returns 0"
-assert_contains "code 21 emits connection hint" "connection failed" "$(_hint 21)"
+assert_contains "code 21 emits connection hint" "$(_hint 21)" "connection failed"
 assert_eq "code 21 returns 0" "0" "$(_hint_rc 21)"
 
 echo "Test: code 34 → field error hint, returns 0"
-assert_contains "code 34 emits refresh-fields hint" "refresh-fields" "$(_hint 34)"
+assert_contains "code 34 emits refresh-fields hint" "$(_hint 34)" "refresh-fields"
 assert_eq "code 34 returns 0" "0" "$(_hint_rc 34)"
 
 echo "Test: code 13 → no hint emitted, returns 1 (flow-specific)"

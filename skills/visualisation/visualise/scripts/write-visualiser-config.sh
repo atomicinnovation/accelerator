@@ -58,7 +58,7 @@ VALIDATIONS="$(abs_path validations meta/validations)"
 NOTES="$(abs_path notes meta/notes)"
 PRS="$(abs_path prs meta/prs)"
 
-TEMPLATES_USER_ROOT="$(abs_path templates meta/templates)"
+TEMPLATES_USER_ROOT="$(abs_path templates .accelerator/templates)"
 TEMPLATES_PLUGIN_ROOT="$PLUGIN_ROOT/templates"
 
 template_tier() {

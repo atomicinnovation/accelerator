@@ -25,8 +25,8 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 setup_repo() {
   local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude"
-  cat > "$d/.claude/accelerator.md" <<ENDCONFIG
+  mkdir -p "$d/.git" "$d/.accelerator"
+  cat > "$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -93,7 +93,7 @@ OUT_1=$(attach ENG-1 "$FILE_1" 2>/dev/null) || RC_1=$?
 stop_mock
 
 assert_eq "single file: exits 0"              "0"  "$RC_1"
-assert_contains "single file: stdout has id"  '"id"' "$OUT_1"
+assert_contains "single file: stdout has id"  "$OUT_1" '"id"'
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -153,7 +153,7 @@ attach ENG-1 /nonexistent/path/file.txt \
   2>/tmp/attach-err5a.tmp || RC_5A=$?
 ERR_5A=$(cat /tmp/attach-err5a.tmp)
 assert_eq "missing file: exits 132"                         "132"                  "$RC_5A"
-assert_contains "missing file: E_ATTACH_FILE_MISSING on stderr" "E_ATTACH_FILE_MISSING" "$ERR_5A"
+assert_contains "missing file: E_ATTACH_FILE_MISSING on stderr" "$ERR_5A" "E_ATTACH_FILE_MISSING"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -166,7 +166,7 @@ attach ENG-1 "$FILE_5B" /nonexistent/path/second.txt \
   2>/tmp/attach-err5b.tmp || RC_5B=$?
 ERR_5B=$(cat /tmp/attach-err5b.tmp)
 assert_eq "missing second file: exits 132"                      "132"                  "$RC_5B"
-assert_contains "missing second file: E_ATTACH_FILE_MISSING on stderr" "E_ATTACH_FILE_MISSING" "$ERR_5B"
+assert_contains "missing second file: E_ATTACH_FILE_MISSING on stderr" "$ERR_5B" "E_ATTACH_FILE_MISSING"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -177,7 +177,7 @@ RC_6=0
 attach ENG-1 2>/tmp/attach-err6.tmp || RC_6=$?
 ERR_6=$(cat /tmp/attach-err6.tmp)
 assert_eq "no files: exits 131"                         "131"               "$RC_6"
-assert_contains "no files: E_ATTACH_NO_FILES on stderr" "E_ATTACH_NO_FILES" "$ERR_6"
+assert_contains "no files: E_ATTACH_NO_FILES on stderr" "$ERR_6" "E_ATTACH_NO_FILES"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -188,7 +188,7 @@ RC_7=0
 attach 2>/tmp/attach-err7.tmp || RC_7=$?
 ERR_7=$(cat /tmp/attach-err7.tmp)
 assert_eq "no key: exits 130"                         "130"             "$RC_7"
-assert_contains "no key: E_ATTACH_NO_KEY on stderr"   "E_ATTACH_NO_KEY" "$ERR_7"
+assert_contains "no key: E_ATTACH_NO_KEY on stderr"   "$ERR_7" "E_ATTACH_NO_KEY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -224,7 +224,7 @@ attach ENG-1 --unknown-flag \
   2>/tmp/attach-err10.tmp || RC_10=$?
 ERR_10=$(cat /tmp/attach-err10.tmp)
 assert_eq "bad flag: exits 133"                           "133"               "$RC_10"
-assert_contains "bad flag: E_ATTACH_BAD_FLAG on stderr"   "E_ATTACH_BAD_FLAG" "$ERR_10"
+assert_contains "bad flag: E_ATTACH_BAD_FLAG on stderr"   "$ERR_10" "E_ATTACH_BAD_FLAG"
 echo ""
 
 # ---------------------------------------------------------------------------

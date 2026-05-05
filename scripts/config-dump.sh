@@ -10,6 +10,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config-common.sh"
+config_assert_no_legacy_layout
 
 READ_VALUE="$SCRIPT_DIR/config-read-value.sh"
 
@@ -20,8 +21,8 @@ if [ -z "$config_files" ]; then
 fi
 
 PROJECT_ROOT=$(config_project_root)
-TEAM_FILE="$PROJECT_ROOT/.claude/accelerator.md"
-LOCAL_FILE="$PROJECT_ROOT/.claude/accelerator.local.md"
+TEAM_FILE="$PROJECT_ROOT/.accelerator/config.md"
+LOCAL_FILE="$PROJECT_ROOT/.accelerator/config.local.md"
 
 # Read a value from a specific file only (returns empty if not found)
 _read_from_file() {
@@ -94,9 +95,9 @@ _read_from_file() {
 get_source() {
   local key="$1"
   if [ -f "$LOCAL_FILE" ] && _read_from_file "$LOCAL_FILE" "$key" >/dev/null 2>&1; then
-    echo "local (.claude/accelerator.local.md)"
+    echo "local (.accelerator/config.local.md)"
   elif [ -f "$TEAM_FILE" ] && _read_from_file "$TEAM_FILE" "$key" >/dev/null 2>&1; then
-    echo "team (.claude/accelerator.md)"
+    echo "team (.accelerator/config.md)"
   else
     echo "default"
   fi
@@ -194,7 +195,7 @@ PATH_DEFAULTS=(
   "meta/reviews/plans"
   "meta/reviews/prs"
   "meta/reviews/work"
-  "meta/templates"
+  ".accelerator/templates"
   "meta/work"
   "meta/notes"
 )

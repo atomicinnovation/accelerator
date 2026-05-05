@@ -7,7 +7,7 @@ set -euo pipefail
 #
 # Usage: config-read-agents.sh
 #
-# Config format (in .claude/accelerator.md or .claude/accelerator.local.md):
+# Config format (in .accelerator/config.md or .accelerator/config.local.md):
 #   ---
 #   agents:
 #     reviewer: my-custom-reviewer

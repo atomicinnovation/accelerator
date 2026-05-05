@@ -8,10 +8,11 @@ set -euo pipefail
 # Usage: config-read-skill-instructions.sh <skill-name>
 #
 # Looks for:
-#   <project-root>/.claude/accelerator/skills/<skill-name>/instructions.md
+#   <project-root>/.accelerator/skills/<skill-name>/instructions.md
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config-common.sh"
+config_assert_no_legacy_layout
 
 SKILL_NAME="${1:-}"
 if [ -z "$SKILL_NAME" ]; then
@@ -20,7 +21,7 @@ if [ -z "$SKILL_NAME" ]; then
 fi
 
 PROJECT_ROOT=$(config_project_root)
-INSTRUCTIONS_FILE="$PROJECT_ROOT/.claude/accelerator/skills/$SKILL_NAME/instructions.md"
+INSTRUCTIONS_FILE="$PROJECT_ROOT/.accelerator/skills/$SKILL_NAME/instructions.md"
 
 [ -f "$INSTRUCTIONS_FILE" ] || exit 0
 

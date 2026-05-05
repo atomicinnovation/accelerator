@@ -27,8 +27,8 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 setup_repo() {
   local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude"
-  cat > "$d/.claude/accelerator.md" <<ENDCONFIG
+  mkdir -p "$d/.git" "$d/.accelerator"
+  cat > "$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -113,7 +113,7 @@ echo ""
 start_mock "$SCENARIOS/get-200.json"
 RESULT=$(req GET /rest/api/3/myself)
 stop_mock
-assert_contains "GET 200 body has accountId" '"redacted-account-id"' "$RESULT"
+assert_contains "GET 200 body has accountId" "$RESULT" '"redacted-account-id"'
 
 start_mock "$SCENARIOS/get-200.json"
 assert_exit_code "GET 200 exits 0" 0 req GET /rest/api/3/myself
@@ -127,7 +127,7 @@ echo ""
 start_mock "$SCENARIOS/post-200.json"
 RESULT=$(req POST /rest/api/3/issue --json '{"fields":{"project":{"key":"ENG"}}}')
 stop_mock
-assert_contains "POST 200 returns key" '"ENG-1"' "$RESULT"
+assert_contains "POST 200 returns key" "$RESULT" '"ENG-1"'
 echo ""
 
 # ============================================================
@@ -139,7 +139,7 @@ tmpatt=$(mktemp "$TMPDIR_BASE/attach-XXXXXX")
 echo "attachment" > "$tmpatt"
 RESULT=$(req POST /rest/api/3/issue/ENG-1/attachments --multipart "file=@$tmpatt")
 stop_mock
-assert_contains "POST multipart returns []" "[]" "$RESULT"
+assert_contains "POST multipart returns []" "$RESULT" "[]"
 echo ""
 
 # ============================================================
@@ -149,7 +149,7 @@ echo ""
 start_mock "$SCENARIOS/error-401.json"
 ERR=$(req GET /rest/api/3/myself 2>&1 >/dev/null || true)
 stop_mock
-assert_contains "401 error body on stderr" "401" "$ERR"
+assert_contains "401 error body on stderr" "$ERR" "401"
 
 start_mock "$SCENARIOS/error-401.json"
 assert_exit_code "401 exits 11" 11 req GET /rest/api/3/myself
@@ -190,7 +190,7 @@ RESULT=$(JIRA_RETRY_SLEEP_FN=test_record_sleep req GET /rest/api/3/myself)
 stop_mock
 assert_eq "delta retry: exactly one sleep" "1" "$(get_sleep_count)"
 assert_eq "delta retry: sleep = 1s" "1" "$(get_sleep_arg 1)"
-assert_contains "delta retry: 200 body" '"redacted-account-id"' "$RESULT"
+assert_contains "delta retry: 200 body" "$RESULT" '"redacted-account-id"'
 echo ""
 
 # ============================================================
@@ -258,7 +258,7 @@ reset_sleep_counter
 WARN=$(JIRA_RETRY_SLEEP_FN=test_record_sleep req GET /rest/api/3/myself 2>&1 >/dev/null || true)
 stop_mock
 assert_eq "malformed retry: one sleep" "1" "$(get_sleep_count)"
-assert_contains "malformed retry: warning on stderr" "malformed Retry-After" "$WARN"
+assert_contains "malformed retry: warning on stderr" "$WARN" "malformed Retry-After"
 echo ""
 
 # ============================================================
@@ -270,7 +270,7 @@ reset_sleep_counter
 WARN=$(JIRA_RETRY_SLEEP_FN=test_record_sleep req GET /rest/api/3/myself 2>&1 >/dev/null || true)
 stop_mock
 assert_eq "no-tz retry: one sleep" "1" "$(get_sleep_count)"
-assert_contains "no-tz retry: warning on stderr" "malformed Retry-After" "$WARN"
+assert_contains "no-tz retry: warning on stderr" "$WARN" "malformed Retry-After"
 echo ""
 
 # ============================================================
@@ -331,7 +331,7 @@ DEBUG_OUT=$(JIRA_RETRY_SLEEP_FN="" req GET /rest/api/3/myself --debug 2>&1 >/dev
 stop_mock
 
 assert_not_contains "--debug: no token in stderr" "$TEST_TOKEN" "$DEBUG_OUT"
-assert_not_contains "--debug: no Authorization in stderr" "Authorization:" "$DEBUG_OUT"
+assert_not_contains "--debug: no Authorization in stderr" "$DEBUG_OUT" "Authorization:"
 echo ""
 
 # ============================================================
@@ -339,8 +339,8 @@ echo "=== Case 16: No credentials — exit 22 ==="
 echo ""
 
 NO_CREDS_REPO=$(mktemp -d "$TMPDIR_BASE/nocreds-XXXXXX")
-mkdir -p "$NO_CREDS_REPO/.git" "$NO_CREDS_REPO/.claude"
-cat > "$NO_CREDS_REPO/.claude/accelerator.md" <<'ENDCONF'
+mkdir -p "$NO_CREDS_REPO/.git" "$NO_CREDS_REPO/.accelerator"
+cat > "$NO_CREDS_REPO/.accelerator/config.md" <<'ENDCONF'
 ---
 jira:
   site: example
@@ -362,7 +362,7 @@ ERR=$(cd "$REPO" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" \
   ACCELERATOR_JIRA_BASE_URL_OVERRIDE_TEST="http://127.0.0.1:9999" \
   bash "$SCRIPT" GET /rest/api/3/myself 2>&1 >/dev/null || true)
 
-assert_contains "override without test mode rejected" "E_TEST_OVERRIDE_REJECTED" "$ERR"
+assert_contains "override without test mode rejected" "$ERR" "E_TEST_OVERRIDE_REJECTED"
 echo ""
 
 # ============================================================
@@ -374,7 +374,7 @@ ERR=$(cd "$REPO" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" \
   ACCELERATOR_JIRA_BASE_URL_OVERRIDE_TEST="https://evil.example" \
   bash "$SCRIPT" GET /rest/api/3/myself 2>&1 >/dev/null || true)
 
-assert_contains "non-loopback override rejected" "E_TEST_OVERRIDE_REJECTED" "$ERR"
+assert_contains "non-loopback override rejected" "$ERR" "E_TEST_OVERRIDE_REJECTED"
 echo ""
 
 # ============================================================
@@ -387,12 +387,12 @@ run_path_check() {
     bash "$SCRIPT" GET "$1" 2>&1 >/dev/null || true
 }
 
-assert_contains "absolute URL rejected" "E_REQ_BAD_PATH" "$(run_path_check 'https://evil.example/x')"
-assert_contains "literal traversal rejected" "E_REQ_BAD_PATH" "$(run_path_check '/../../etc/passwd')"
-assert_contains "embedded traversal rejected" "E_REQ_BAD_PATH" "$(run_path_check '/rest/api/3/issue/../../field')"
-assert_contains "single-encoded traversal rejected" "E_REQ_BAD_PATH" "$(run_path_check '/rest/api/3/%2e%2e%2fadmin')"
-assert_contains "double-encoded traversal rejected" "E_REQ_BAD_PATH" "$(run_path_check '/rest/api/3/%252e%252e%252fadmin')"
-assert_contains "consecutive slashes rejected" "E_REQ_BAD_PATH" "$(run_path_check '/rest/api/3//search')"
+assert_contains "absolute URL rejected" "$(run_path_check 'https://evil.example/x')" "E_REQ_BAD_PATH"
+assert_contains "literal traversal rejected" "$(run_path_check '/../../etc/passwd')" "E_REQ_BAD_PATH"
+assert_contains "embedded traversal rejected" "$(run_path_check '/rest/api/3/issue/../../field')" "E_REQ_BAD_PATH"
+assert_contains "single-encoded traversal rejected" "$(run_path_check '/rest/api/3/%2e%2e%2fadmin')" "E_REQ_BAD_PATH"
+assert_contains "double-encoded traversal rejected" "$(run_path_check '/rest/api/3/%252e%252e%252fadmin')" "E_REQ_BAD_PATH"
+assert_contains "consecutive slashes rejected" "$(run_path_check '/rest/api/3//search')" "E_REQ_BAD_PATH"
 
 # Positive case: legitimate query string accepted
 start_mock "$SCENARIOS/get-200.json"
@@ -426,9 +426,9 @@ echo ""
 start_mock "$SCENARIOS/unicode-200.json"
 RESULT=$(req GET /rest/api/3/myself)
 stop_mock
-assert_contains "unicode: CJK preserved" "测试" "$RESULT"
-assert_contains "unicode: emoji preserved" "🚀" "$RESULT"
-assert_contains "unicode: café preserved" "café" "$RESULT"
+assert_contains "unicode: CJK preserved" "$RESULT" "测试"
+assert_contains "unicode: emoji preserved" "$RESULT" "🚀"
+assert_contains "unicode: café preserved" "$RESULT" "café"
 echo ""
 
 # ============================================================
@@ -440,7 +440,7 @@ WARN=$(cd "$REPO" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" \
   ACCELERATOR_JIRA_BASE_URL_OVERRIDE_TEST="http://127.0.0.1:1" \
   JIRA_RETRY_SLEEP_FN=test_record_sleep \
   bash "$SCRIPT" GET /rest/api/3/myself 2>&1 >/dev/null || true)
-assert_contains "no-test-mode hook rejected" "E_TEST_HOOK_REJECTED" "$WARN"
+assert_contains "no-test-mode hook rejected" "$WARN" "E_TEST_HOOK_REJECTED"
 echo ""
 
 # ============================================================
@@ -450,7 +450,7 @@ echo ""
 start_mock "$SCENARIOS/retry-after-delta.json"
 WARN=$(JIRA_RETRY_SLEEP_FN=evil_fn req GET /rest/api/3/myself 2>&1 >/dev/null || true)
 stop_mock
-assert_contains "invalid hook name rejected" "E_TEST_HOOK_REJECTED" "$WARN"
+assert_contains "invalid hook name rejected" "$WARN" "E_TEST_HOOK_REJECTED"
 echo ""
 
 # ============================================================
@@ -458,8 +458,8 @@ echo "=== Case 26: Bad JIRA_SITE format — exit 15 ==="
 echo ""
 
 BAD_SITE_REPO=$(mktemp -d "$TMPDIR_BASE/badsite-XXXXXX")
-mkdir -p "$BAD_SITE_REPO/.git" "$BAD_SITE_REPO/.claude"
-cat > "$BAD_SITE_REPO/.claude/accelerator.md" <<'ENDCONF'
+mkdir -p "$BAD_SITE_REPO/.git" "$BAD_SITE_REPO/.accelerator"
+cat > "$BAD_SITE_REPO/.accelerator/config.md" <<'ENDCONF'
 ---
 jira:
   site: evil.com#
@@ -472,7 +472,7 @@ ERR=$(cd "$BAD_SITE_REPO" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" \
   ACCELERATOR_JIRA_BASE_URL_OVERRIDE_TEST="http://127.0.0.1:1" \
   bash "$SCRIPT" GET /rest/api/3/myself 2>&1 >/dev/null || true)
 
-assert_contains "bad site rejected" "E_BAD_SITE" "$ERR"
+assert_contains "bad site rejected" "$ERR" "E_BAD_SITE"
 assert_exit_code "bad site exits 15" 15 \
   bash -c "cd '$BAD_SITE_REPO' && ACCELERATOR_JIRA_TOKEN='$TEST_TOKEN' \
     ACCELERATOR_TEST_MODE=1 \
@@ -493,7 +493,7 @@ ERR_400=$(cd "$REPO" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" \
 stop_mock
 
 assert_eq "HTTP 400 exits 34" "34" "$EXIT_400"
-assert_contains "HTTP 400 body forwarded to stderr" "Summary is required" "$ERR_400"
+assert_contains "HTTP 400 body forwarded to stderr" "$ERR_400" "Summary is required"
 echo ""
 
 # ============================================================

@@ -62,7 +62,7 @@ echo "=== Case 4: stdin disallowed — piped but --allow-stdin not set ==="
 echo ""
 
 ERR_4=$(printf 'piped' | resolve_body 2>&1 >/dev/null || true)
-assert_contains "stdin disallowed: E_BODY_STDIN_DISALLOWED on stderr" "E_BODY_STDIN_DISALLOWED" "$ERR_4"
+assert_contains "stdin disallowed: E_BODY_STDIN_DISALLOWED on stderr" "$ERR_4" "E_BODY_STDIN_DISALLOWED"
 assert_exit_code "stdin disallowed: exits 3" 3 bash -c \
   "printf 'piped' | bash -c \"source '$BODY_INPUT'; jira_resolve_body\""
 echo ""
@@ -87,7 +87,7 @@ echo "=== Case 6: \$EDITOR disallowed — no source, no --allow-editor ==="
 echo ""
 
 ERR_6=$(resolve_body_no_stdin 2>&1 >/dev/null || true)
-assert_contains "no source: E_BODY_NONE_PROVIDED on stderr" "E_BODY_NONE_PROVIDED" "$ERR_6"
+assert_contains "no source: E_BODY_NONE_PROVIDED on stderr" "$ERR_6" "E_BODY_NONE_PROVIDED"
 assert_exit_code "no source exits 5" 5 \
   env ACCELERATOR_TEST_MODE=1 JIRA_BODY_STDIN_IS_TTY_TEST=1 \
   bash -c "source '$BODY_INPUT'; jira_resolve_body"
@@ -98,7 +98,7 @@ echo "=== Case 7: \$EDITOR exits non-zero ==="
 echo ""
 
 ERR_7=$(EDITOR=false resolve_body_no_stdin --allow-editor 2>&1 >/dev/null || true)
-assert_contains "editor failed: E_BODY_EDITOR_FAILED on stderr" "E_BODY_EDITOR_FAILED" "$ERR_7"
+assert_contains "editor failed: E_BODY_EDITOR_FAILED on stderr" "$ERR_7" "E_BODY_EDITOR_FAILED"
 assert_exit_code "editor failure exits 4" 4 \
   env ACCELERATOR_TEST_MODE=1 JIRA_BODY_STDIN_IS_TTY_TEST=1 EDITOR=false \
   bash -c "source '$BODY_INPUT'; jira_resolve_body --allow-editor"
@@ -133,7 +133,7 @@ echo ""
 MISSING="/tmp/does-not-exist-$$-body-input-test"
 rm -f "$MISSING"
 ERR_10=$(resolve_body --body-file "$MISSING" 2>&1 >/dev/null || true)
-assert_contains "missing file: E_BODY_FILE_NOT_FOUND on stderr" "E_BODY_FILE_NOT_FOUND" "$ERR_10"
+assert_contains "missing file: E_BODY_FILE_NOT_FOUND on stderr" "$ERR_10" "E_BODY_FILE_NOT_FOUND"
 assert_exit_code "missing file exits 2" 2 bash -c \
   "source '$BODY_INPUT'; jira_resolve_body --body-file '$MISSING'"
 echo ""
@@ -143,7 +143,7 @@ echo "=== Case 11: Multiple --body flags rejected with E_BODY_BAD_FLAG ==="
 echo ""
 
 ERR_11=$(resolve_body --body "first" --body "second" 2>&1 >/dev/null || true)
-assert_contains "duplicate --body: E_BODY_BAD_FLAG on stderr" "E_BODY_BAD_FLAG" "$ERR_11"
+assert_contains "duplicate --body: E_BODY_BAD_FLAG on stderr" "$ERR_11" "E_BODY_BAD_FLAG"
 assert_exit_code "duplicate --body exits 1" 1 bash -c \
   "source '$BODY_INPUT'; jira_resolve_body --body first --body second"
 echo ""
@@ -174,7 +174,7 @@ echo "=== Case 13: EDITOR value with disallowed characters rejected ==="
 echo ""
 
 ERR_13=$(EDITOR='rm -rf /tmp/x' resolve_body_no_stdin --allow-editor 2>&1 >/dev/null || true)
-assert_contains "bad EDITOR: E_BODY_EDITOR_INVALID on stderr" "E_BODY_EDITOR_INVALID" "$ERR_13"
+assert_contains "bad EDITOR: E_BODY_EDITOR_INVALID on stderr" "$ERR_13" "E_BODY_EDITOR_INVALID"
 assert_exit_code "bad EDITOR exits 6" 6 \
   env ACCELERATOR_TEST_MODE=1 JIRA_BODY_STDIN_IS_TTY_TEST=1 \
   bash -c "source '$BODY_INPUT'; EDITOR='rm -rf /tmp/x' jira_resolve_body --allow-editor"

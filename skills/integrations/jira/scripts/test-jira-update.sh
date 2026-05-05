@@ -27,8 +27,8 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 setup_repo() {
   local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude"
-  cat > "$d/.claude/accelerator.md" <<ENDCONFIG
+  mkdir -p "$d/.git" "$d/.accelerator"
+  cat > "$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -42,8 +42,8 @@ ENDCONFIG
 
 setup_repo_minimal() {
   local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude"
-  cat > "$d/.claude/accelerator.md" <<ENDCONFIG
+  mkdir -p "$d/.git" "$d/.accelerator"
+  cat > "$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -55,14 +55,14 @@ ENDCONFIG
 
 write_site_json() {
   local repo="$1"
-  mkdir -p "$repo/meta/integrations/jira"
+  mkdir -p "$repo/.accelerator/state/integrations/jira"
   printf '{"site":"%s","accountId":"%s"}\n' "$TEST_SITE" "$TEST_ACCOUNT_ID" \
-    > "$repo/meta/integrations/jira/site.json"
+    > "$repo/.accelerator/state/integrations/jira/site.json"
 }
 
 write_fields_json() {
   local repo="$1"
-  mkdir -p "$repo/meta/integrations/jira"
+  mkdir -p "$repo/.accelerator/state/integrations/jira"
   jq -cn '{
     "site": "example",
     "fields": [
@@ -74,7 +74,7 @@ write_fields_json() {
         "schema": {"type": "number", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:float"}
       }
     ]
-  }' > "$repo/meta/integrations/jira/fields.json"
+  }' > "$repo/.accelerator/state/integrations/jira/fields.json"
 }
 
 REPO=$(setup_repo)
@@ -144,8 +144,8 @@ echo "=== Case 1: --help exits 0 with usage banner ==="
 echo ""
 
 OUT_1=$(update --help 2>/dev/null)
-assert_contains "usage includes KEY" "KEY" "$OUT_1"
-assert_contains "usage includes --summary" "--summary" "$OUT_1"
+assert_contains "usage includes KEY" "$OUT_1" "KEY"
+assert_contains "usage includes --summary" "$OUT_1" "--summary"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -156,7 +156,7 @@ RC_2=0
 update_no_stdin --summary "x" 2>/tmp/update-err2.tmp || RC_2=$?
 ERR_2=$(cat /tmp/update-err2.tmp)
 assert_eq "no key exits 110" "110" "$RC_2"
-assert_contains "E_UPDATE_NO_KEY on stderr" "E_UPDATE_NO_KEY" "$ERR_2"
+assert_contains "E_UPDATE_NO_KEY on stderr" "$ERR_2" "E_UPDATE_NO_KEY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -237,8 +237,8 @@ RC_8=0
 update_no_stdin "$TEST_KEY" --label one --add-label two 2>/tmp/update-err8.tmp || RC_8=$?
 ERR_8=$(cat /tmp/update-err8.tmp)
 assert_eq "label conflict exits 111" "111" "$RC_8"
-assert_contains "E_UPDATE_LABEL_MODE_CONFLICT on stderr" "E_UPDATE_LABEL_MODE_CONFLICT" "$ERR_8"
-assert_contains "mutually exclusive message" "mutually exclusive" "$ERR_8"
+assert_contains "E_UPDATE_LABEL_MODE_CONFLICT on stderr" "$ERR_8" "E_UPDATE_LABEL_MODE_CONFLICT"
+assert_contains "mutually exclusive message" "$ERR_8" "mutually exclusive"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -332,7 +332,7 @@ RC_14a=0
 update_no_stdin "$TEST_KEY" --assignee user@example.com 2>/tmp/update-err14a.tmp || RC_14a=$?
 ERR_14a=$(cat /tmp/update-err14a.tmp)
 assert_eq "email assignee exits 117" "117" "$RC_14a"
-assert_contains "E_UPDATE_BAD_ASSIGNEE on stderr" "E_UPDATE_BAD_ASSIGNEE" "$ERR_14a"
+assert_contains "E_UPDATE_BAD_ASSIGNEE on stderr" "$ERR_14a" "E_UPDATE_BAD_ASSIGNEE"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -343,7 +343,7 @@ RC_14b=0
 update_no_stdin "$TEST_KEY" --assignee '5b10!@#$' 2>/tmp/update-err14b.tmp || RC_14b=$?
 ERR_14b=$(cat /tmp/update-err14b.tmp)
 assert_eq "invalid assignee exits 117" "117" "$RC_14b"
-assert_contains "E_UPDATE_BAD_ASSIGNEE on stderr" "E_UPDATE_BAD_ASSIGNEE" "$ERR_14b"
+assert_contains "E_UPDATE_BAD_ASSIGNEE on stderr" "$ERR_14b" "E_UPDATE_BAD_ASSIGNEE"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -410,7 +410,7 @@ update "$TEST_KEY" --summary "x" --no-notify 2>/dev/null
 stop_mock
 
 CAPTURED_URL_19=$(jq -r '.[0]' "$URLS_19")
-assert_contains "notifyUsers=false in URL" "notifyUsers=false" "$CAPTURED_URL_19"
+assert_contains "notifyUsers=false in URL" "$CAPTURED_URL_19" "notifyUsers=false"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -442,7 +442,7 @@ assert_eq "print-payload exits 0" "0" "$RC_21"
 CAPTURED_URLS_21=$(jq -c '.' "$URLS_21")
 assert_eq "no API calls made" "[]" "$CAPTURED_URLS_21"
 assert_eq "method is PUT" "PUT" "$(jq -r '.method' <<< "$PAYLOAD_21")"
-assert_contains "path contains key" "$TEST_KEY" "$(jq -r '.path' <<< "$PAYLOAD_21")"
+assert_contains "path contains key" "$(jq -r '.path' <<< "$PAYLOAD_21")" "$TEST_KEY"
 assert_eq "body is JSON object" "object" "$(jq -r '.body | type' <<< "$PAYLOAD_21")"
 echo ""
 
@@ -465,7 +465,7 @@ update "$TEST_KEY" --summary "x" 2>/tmp/update-err23.tmp || RC_23=$?
 stop_mock
 ERR_23=$(cat /tmp/update-err23.tmp)
 assert_eq "404 exits 13" "13" "$RC_23"
-assert_contains "not found hint" "not found" "$ERR_23"
+assert_contains "not found hint" "$ERR_23" "not found"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -478,7 +478,7 @@ update "$TEST_KEY" --summary "x" 2>/tmp/update-err24.tmp || RC_24=$?
 stop_mock
 ERR_24=$(cat /tmp/update-err24.tmp)
 assert_eq "400 exits 34" "34" "$RC_24"
-assert_contains "refresh-fields hint" "init-jira --refresh-fields" "$ERR_24"
+assert_contains "refresh-fields hint" "$ERR_24" "init-jira --refresh-fields"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -489,7 +489,7 @@ RC_25=0
 update_no_stdin "$TEST_KEY" 2>/tmp/update-err25.tmp || RC_25=$?
 ERR_25=$(cat /tmp/update-err25.tmp)
 assert_eq "no ops exits 112" "112" "$RC_25"
-assert_contains "E_UPDATE_NO_OPS on stderr" "E_UPDATE_NO_OPS" "$ERR_25"
+assert_contains "E_UPDATE_NO_OPS on stderr" "$ERR_25" "E_UPDATE_NO_OPS"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -500,7 +500,7 @@ RC_26=0
 update_no_stdin "$TEST_KEY" --summary "x" --nope 2>/tmp/update-err26.tmp || RC_26=$?
 ERR_26=$(cat /tmp/update-err26.tmp)
 assert_eq "bad flag exits 113" "113" "$RC_26"
-assert_contains "E_UPDATE_BAD_FLAG on stderr" "E_UPDATE_BAD_FLAG" "$ERR_26"
+assert_contains "E_UPDATE_BAD_FLAG on stderr" "$ERR_26" "E_UPDATE_BAD_FLAG"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -546,7 +546,7 @@ RC_29=0
 stop_mock
 ERR_29=$(cat /tmp/update-err29.tmp)
 assert_eq "500 exits 20" "20" "$RC_29"
-assert_contains "5xx hint" "Hint:" "$ERR_29"
+assert_contains "5xx hint" "$ERR_29" "Hint:"
 echo ""
 
 # ---------------------------------------------------------------------------

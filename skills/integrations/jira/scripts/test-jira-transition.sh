@@ -25,8 +25,8 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 setup_repo() {
   local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude"
-  cat > "$d/.claude/accelerator.md" <<ENDCONFIG
+  mkdir -p "$d/.git" "$d/.accelerator"
+  cat > "$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -165,8 +165,8 @@ stop_mock
 
 assert_eq "ambiguous: exits 123"            "123"   "$RC_5"
 assert_eq "ambiguous: stdout is array"      "array" "$(jq -r 'type' <<< "$OUT_5")"
-assert_contains "ambiguous: id 41 present"  "41"    "$OUT_5"
-assert_contains "ambiguous: id 42 present"  "42"    "$OUT_5"
+assert_contains "ambiguous: id 41 present"  "$OUT_5" "41"
+assert_contains "ambiguous: id 42 present"  "$OUT_5" "42"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -234,7 +234,7 @@ RC_10=0
 transition 2>/tmp/transition-err10.tmp || RC_10=$?
 ERR_10=$(cat /tmp/transition-err10.tmp)
 assert_eq "no key: exits 120"               "120"               "$RC_10"
-assert_contains "no key: E_TRANSITION_NO_KEY on stderr" "E_TRANSITION_NO_KEY" "$ERR_10"
+assert_contains "no key: E_TRANSITION_NO_KEY on stderr" "$ERR_10" "E_TRANSITION_NO_KEY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -245,7 +245,7 @@ RC_11=0
 transition ENG-1 2>/tmp/transition-err11.tmp || RC_11=$?
 ERR_11=$(cat /tmp/transition-err11.tmp)
 assert_eq "no state: exits 121"             "121"               "$RC_11"
-assert_contains "no state: E_TRANSITION_NO_STATE on stderr" "E_TRANSITION_NO_STATE" "$ERR_11"
+assert_contains "no state: E_TRANSITION_NO_STATE on stderr" "$ERR_11" "E_TRANSITION_NO_STATE"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -258,7 +258,7 @@ transition ENG-1 "In Progress" 2>/tmp/transition-err12.tmp || RC_12=$?
 stop_mock
 ERR_12=$(cat /tmp/transition-err12.tmp)
 assert_eq "401: exits 11"                   "11"     "$RC_12"
-assert_contains "401: hint on stderr"       "Hint:" "$ERR_12"
+assert_contains "401: hint on stderr"       "$ERR_12" "Hint:"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -271,7 +271,7 @@ transition ENG-1 "In Progress" 2>/tmp/transition-err13.tmp || RC_13=$?
 stop_mock
 ERR_13=$(cat /tmp/transition-err13.tmp)
 assert_eq "404: exits 13"                   "13"           "$RC_13"
-assert_contains "404: hint on stderr"       "not found"    "$ERR_13"
+assert_contains "404: hint on stderr"       "$ERR_13" "not found"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -284,7 +284,7 @@ transition ENG-1 "Done" 2>/tmp/transition-err14.tmp || RC_14=$?
 stop_mock
 ERR_14=$(cat /tmp/transition-err14.tmp)
 assert_eq "400: exits 34"                   "34"           "$RC_14"
-assert_contains "400: error body on stderr" "resolution"   "$ERR_14"
+assert_contains "400: error body on stderr" "$ERR_14" "resolution"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -295,7 +295,7 @@ RC_15=0
 transition ENG-1 "In Progress" --unknown-flag 2>/tmp/transition-err15.tmp || RC_15=$?
 ERR_15=$(cat /tmp/transition-err15.tmp)
 assert_eq "bad flag: exits 124"             "124"  "$RC_15"
-assert_contains "bad flag: E_TRANSITION_BAD_FLAG on stderr" "E_TRANSITION_BAD_FLAG" "$ERR_15"
+assert_contains "bad flag: E_TRANSITION_BAD_FLAG on stderr" "$ERR_15" "E_TRANSITION_BAD_FLAG"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -307,7 +307,7 @@ transition ENG-1 "In Progress" --comment-file /nonexistent/path/file.txt \
   2>/tmp/transition-err16.tmp || RC_16=$?
 ERR_16=$(cat /tmp/transition-err16.tmp)
 assert_eq "missing comment-file: exits 125" "125" "$RC_16"
-assert_contains "missing comment-file: E_TRANSITION_NO_BODY on stderr" "E_TRANSITION_NO_BODY" "$ERR_16"
+assert_contains "missing comment-file: E_TRANSITION_NO_BODY on stderr" "$ERR_16" "E_TRANSITION_NO_BODY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -319,7 +319,7 @@ transition ENG-1 "In Progress" --resolution '' \
   2>/tmp/transition-err17.tmp || RC_17=$?
 ERR_17=$(cat /tmp/transition-err17.tmp)
 assert_eq "empty resolution: exits 126"     "126" "$RC_17"
-assert_contains "empty resolution: E_TRANSITION_BAD_RESOLUTION on stderr" "E_TRANSITION_BAD_RESOLUTION" "$ERR_17"
+assert_contains "empty resolution: E_TRANSITION_BAD_RESOLUTION on stderr" "$ERR_17" "E_TRANSITION_BAD_RESOLUTION"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -355,7 +355,7 @@ transition ENG-1 "In Progress" --comment-file - \
   2>/tmp/transition-err20.tmp || RC_20=$?
 ERR_20=$(cat /tmp/transition-err20.tmp)
 assert_eq "dash comment-file: exits 125"    "125" "$RC_20"
-assert_contains "dash comment-file: E_TRANSITION_NO_BODY on stderr" "E_TRANSITION_NO_BODY" "$ERR_20"
+assert_contains "dash comment-file: E_TRANSITION_NO_BODY on stderr" "$ERR_20" "E_TRANSITION_NO_BODY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -367,7 +367,7 @@ transition ENG-1 --transition-id abc \
   2>/tmp/transition-err21.tmp || RC_21=$?
 ERR_21=$(cat /tmp/transition-err21.tmp)
 assert_eq "non-numeric id: exits 124"       "124" "$RC_21"
-assert_contains "non-numeric id: E_TRANSITION_BAD_FLAG on stderr" "E_TRANSITION_BAD_FLAG" "$ERR_21"
+assert_contains "non-numeric id: E_TRANSITION_BAD_FLAG on stderr" "$ERR_21" "E_TRANSITION_BAD_FLAG"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -382,7 +382,7 @@ stop_mock
 
 CAPTURED_URL_22=$(jq -r '.[0]' "$URLS_22")
 assert_eq "no-notify: exits 0"              "0" "$RC_22"
-assert_contains "no-notify: URL has notifyUsers=false" "notifyUsers=false" "$CAPTURED_URL_22"
+assert_contains "no-notify: URL has notifyUsers=false" "$CAPTURED_URL_22" "notifyUsers=false"
 echo ""
 
 # ---------------------------------------------------------------------------

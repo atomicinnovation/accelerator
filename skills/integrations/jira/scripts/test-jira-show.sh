@@ -25,8 +25,8 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 setup_repo() {
   local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude"
-  cat > "$d/.claude/accelerator.md" <<ENDCONFIG
+  mkdir -p "$d/.git" "$d/.accelerator"
+  cat > "$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -38,7 +38,7 @@ ENDCONFIG
 
 write_fields_json_with_textarea() {
   local repo="$1"
-  mkdir -p "$repo/meta/integrations/jira"
+  mkdir -p "$repo/.accelerator/state/integrations/jira"
   jq -cn '{
     "site": "example",
     "fields": [
@@ -51,7 +51,7 @@ write_fields_json_with_textarea() {
         }
       }
     ]
-  }' > "$repo/meta/integrations/jira/fields.json"
+  }' > "$repo/.accelerator/state/integrations/jira/fields.json"
 }
 
 REPO=$(setup_repo)
@@ -132,10 +132,10 @@ stop_mock
 URL2_CSV=$(jq -r '.[0]' "$URLS2" 2>/dev/null || echo "")
 URL2_REP=$(jq -r '.[1]' "$URLS2" 2>/dev/null || echo "")
 URL2_MIX=$(jq -r '.[2]' "$URLS2" 2>/dev/null || echo "")
-assert_contains "CSV form has fields=summary" "fields=summary" "$URL2_CSV"
-assert_contains "CSV form has status in fields" "status" "$URL2_CSV"
-assert_contains "repeatable form has fields=summary" "fields=summary" "$URL2_REP"
-assert_contains "mixed form has fields=summary" "fields=summary" "$URL2_MIX"
+assert_contains "CSV form has fields=summary" "$URL2_CSV" "fields=summary"
+assert_contains "CSV form has status in fields" "$URL2_CSV" "status"
+assert_contains "repeatable form has fields=summary" "$URL2_REP" "fields=summary"
+assert_contains "mixed form has fields=summary" "$URL2_MIX" "fields=summary"
 assert_eq "repeatable URL matches CSV URL" "$URL2_CSV" "$URL2_REP"
 assert_eq "mixed URL matches CSV URL" "$URL2_CSV" "$URL2_MIX"
 echo ""
@@ -150,9 +150,9 @@ show ENG-1 --expand changelog,transitions --no-render-adf >/dev/null 2>&1
 stop_mock
 
 URL3=$(jq -r '.[0]' "$URLS3" 2>/dev/null || echo "")
-assert_contains "expand param has changelog" "changelog" "$URL3"
-assert_contains "expand param has transitions" "transitions" "$URL3"
-assert_not_contains "default expand schema not present" "schema" "$URL3"
+assert_contains "expand param has changelog" "$URL3" "changelog"
+assert_contains "expand param has transitions" "$URL3" "transitions"
+assert_not_contains "default expand schema not present" "$URL3" "schema"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -165,10 +165,10 @@ show ENG-1 --no-render-adf >/dev/null 2>&1
 stop_mock
 
 URL4=$(jq -r '.[0]' "$URLS4" 2>/dev/null || echo "")
-assert_not_contains "no --comments means no comments in expand" "comments" "$URL4"
-assert_contains "default expand has names" "names" "$URL4"
-assert_contains "default expand has schema" "schema" "$URL4"
-assert_contains "default expand has transitions" "transitions" "$URL4"
+assert_not_contains "no --comments means no comments in expand" "$URL4" "comments"
+assert_contains "default expand has names" "$URL4" "names"
+assert_contains "default expand has schema" "$URL4" "schema"
+assert_contains "default expand has transitions" "$URL4" "transitions"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -260,7 +260,7 @@ echo ""
 RESULT7=0
 ERR7=$(show 2>&1 >/dev/null) || RESULT7=$?
 assert_eq "no key exits 80" "80" "$RESULT7"
-assert_contains "E_SHOW_NO_KEY on stderr" "E_SHOW_NO_KEY" "$ERR7"
+assert_contains "E_SHOW_NO_KEY on stderr" "$ERR7" "E_SHOW_NO_KEY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -281,9 +281,9 @@ echo ""
 RESULT9=0
 ERR9=$(show ENG-1 --bogus-flag 2>&1 >/dev/null) || RESULT9=$?
 assert_eq "bad flag exits 82" "82" "$RESULT9"
-assert_contains "E_SHOW_BAD_FLAG on stderr" "E_SHOW_BAD_FLAG" "$ERR9"
-assert_contains "Usage banner on stderr" "Usage:" "$ERR9"
-assert_contains "offending flag name on stderr" "bogus-flag" "$ERR9"
+assert_contains "E_SHOW_BAD_FLAG on stderr" "$ERR9" "E_SHOW_BAD_FLAG"
+assert_contains "Usage banner on stderr" "$ERR9" "Usage:"
+assert_contains "offending flag name on stderr" "$ERR9" "bogus-flag"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -310,7 +310,7 @@ stop_mock
 ERR10B=$(cat /tmp/show-test-err10b.tmp)
 
 assert_eq "401 exits 11" "11" "$RESULT10B"
-assert_contains "401 hint mentions init-jira" "init-jira" "$ERR10B"
+assert_contains "401 hint mentions init-jira" "$ERR10B" "init-jira"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -324,7 +324,7 @@ stop_mock
 ERR10C=$(cat /tmp/show-test-err10c.tmp)
 
 assert_eq "403 exits 12" "12" "$RESULT10C"
-assert_contains "403 hint mentions init-jira" "init-jira" "$ERR10C"
+assert_contains "403 hint mentions init-jira" "$ERR10C" "init-jira"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -384,12 +384,12 @@ echo ""
 
 HELP_OUT=$(show --help 2>/dev/null)
 assert_exit_code "--help exits 0" 0 show --help
-assert_contains "--help: Usage present" "Usage:" "$HELP_OUT"
-assert_contains "--help: shows ISSUE-KEY positional" "ISSUE-KEY" "$HELP_OUT"
-assert_contains "--help: shows --comments flag" "--comments" "$HELP_OUT"
-assert_contains "--help: shows --render-adf flag" "--render-adf" "$HELP_OUT"
-assert_contains "--help: shows --no-render-adf flag" "--no-render-adf" "$HELP_OUT"
-assert_contains "--help: shows example invocation" "ENG-1" "$HELP_OUT"
+assert_contains "--help: Usage present" "$HELP_OUT" "Usage:"
+assert_contains "--help: shows ISSUE-KEY positional" "$HELP_OUT" "ISSUE-KEY"
+assert_contains "--help: shows --comments flag" "$HELP_OUT" "--comments"
+assert_contains "--help: shows --render-adf flag" "$HELP_OUT" "--render-adf"
+assert_contains "--help: shows --no-render-adf flag" "$HELP_OUT" "--no-render-adf"
+assert_contains "--help: shows example invocation" "$HELP_OUT" "ENG-1"
 
 H_OUT=$(show -h 2>/dev/null)
 assert_eq "-h output identical to --help" "$HELP_OUT" "$H_OUT"
@@ -432,14 +432,14 @@ stop_mock
 URL16_NO_CMT=$(jq -r '.[0]' "$URLS16" 2>/dev/null || echo "")
 URL16_WITH_CMT=$(jq -r '.[1]' "$URLS16" 2>/dev/null || echo "")
 
-assert_contains "no --comments: expand has changelog" "changelog" "$URL16_NO_CMT"
-assert_contains "no --comments: expand has transitions" "transitions" "$URL16_NO_CMT"
-assert_not_contains "no --comments: expand lacks comments" "comments" "$URL16_NO_CMT"
-assert_contains "no --comments: fields has summary" "summary" "$URL16_NO_CMT"
+assert_contains "no --comments: expand has changelog" "$URL16_NO_CMT" "changelog"
+assert_contains "no --comments: expand has transitions" "$URL16_NO_CMT" "transitions"
+assert_not_contains "no --comments: expand lacks comments" "$URL16_NO_CMT" "comments"
+assert_contains "no --comments: fields has summary" "$URL16_NO_CMT" "summary"
 
-assert_contains "--comments 5: expand has changelog" "changelog" "$URL16_WITH_CMT"
-assert_contains "--comments 5: expand has transitions" "transitions" "$URL16_WITH_CMT"
-assert_contains "--comments 5: expand has comments" "comments" "$URL16_WITH_CMT"
+assert_contains "--comments 5: expand has changelog" "$URL16_WITH_CMT" "changelog"
+assert_contains "--comments 5: expand has transitions" "$URL16_WITH_CMT" "transitions"
+assert_contains "--comments 5: expand has comments" "$URL16_WITH_CMT" "comments"
 echo ""
 
 # ---------------------------------------------------------------------------

@@ -49,22 +49,22 @@ echo ""
 
 echo "Test: reject-table exits 41 with E_ADF_UNSUPPORTED_TABLE"
 ERR=$(bash "$COMPILER" < "$FIXTURES/reject-table.md" 2>&1 >/dev/null || true)
-assert_contains "table error code on stderr" "E_ADF_UNSUPPORTED_TABLE" "$ERR"
+assert_contains "table error code on stderr" "$ERR" "E_ADF_UNSUPPORTED_TABLE"
 assert_exit_code "table exits 41" 41 bash "$COMPILER" < "$FIXTURES/reject-table.md"
 
 echo "Test: reject-nested-list exits 41 with E_ADF_UNSUPPORTED_NESTED_LIST"
 ERR=$(bash "$COMPILER" < "$FIXTURES/reject-nested-list.md" 2>&1 >/dev/null || true)
-assert_contains "nested list error code on stderr" "E_ADF_UNSUPPORTED_NESTED_LIST" "$ERR"
+assert_contains "nested list error code on stderr" "$ERR" "E_ADF_UNSUPPORTED_NESTED_LIST"
 assert_exit_code "nested list exits 41" 41 bash "$COMPILER" < "$FIXTURES/reject-nested-list.md"
 
 echo "Test: reject-blockquote exits 41 with E_ADF_UNSUPPORTED_BLOCKQUOTE"
 ERR=$(bash "$COMPILER" < "$FIXTURES/reject-blockquote.md" 2>&1 >/dev/null || true)
-assert_contains "blockquote error code on stderr" "E_ADF_UNSUPPORTED_BLOCKQUOTE" "$ERR"
+assert_contains "blockquote error code on stderr" "$ERR" "E_ADF_UNSUPPORTED_BLOCKQUOTE"
 assert_exit_code "blockquote exits 41" 41 bash "$COMPILER" < "$FIXTURES/reject-blockquote.md"
 
 echo "Test: reject-control-chars exits 42 with E_ADF_BAD_INPUT"
 ERR=$(bash "$COMPILER" < "$FIXTURES/reject-control-chars.md" 2>&1 >/dev/null || true)
-assert_contains "control chars error code on stderr" "E_ADF_BAD_INPUT" "$ERR"
+assert_contains "control chars error code on stderr" "$ERR" "E_ADF_BAD_INPUT"
 assert_exit_code "control chars exits 42" 42 bash "$COMPILER" < "$FIXTURES/reject-control-chars.md"
 
 echo ""
@@ -75,7 +75,7 @@ echo ""
 
 echo "Test: underscore-warning compiles successfully with notice on stderr"
 WARN=$(bash "$COMPILER" < "$FIXTURES/underscore-warning.md" 2>&1 >/dev/null || true)
-assert_contains "underscore notice fired" "Notice:" "$WARN"
+assert_contains "underscore notice fired" "$WARN" "Notice:"
 assert_exit_code "underscore warning exits 0" 0 bash "$COMPILER" < "$FIXTURES/underscore-warning.md"
 
 echo ""

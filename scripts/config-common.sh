@@ -19,14 +19,49 @@ config_project_root() {
 # Find config files. Outputs paths that exist, one per line.
 # Order matters: team config first, local config second. This ordering
 # is relied upon by read-value.sh for override precedence (last-writer-wins).
+# In migration mode (ACCELERATOR_MIGRATION_MODE=1) also falls back to the
+# legacy .claude/accelerator.md location so migrations 0001/0002 can read
+# config before migration 0003 has moved it.
 config_find_files() {
   local root
   root=$(config_project_root)
-  local team="$root/.claude/accelerator.md"
-  local local_="$root/.claude/accelerator.local.md"
-  [ -f "$team" ] && echo "$team"
-  [ -f "$local_" ] && echo "$local_"
+  local team="$root/.accelerator/config.md"
+  local local_="$root/.accelerator/config.local.md"
+  local found=0
+  if [ -f "$team" ]; then
+    echo "$team"
+    found=1
+  fi
+  if [ -f "$local_" ]; then
+    echo "$local_"
+    found=1
+  fi
+  if [ "$found" -eq 0 ] && [ "${ACCELERATOR_MIGRATION_MODE:-}" = "1" ]; then
+    # Legacy fallback: config not yet moved by migration 0003
+    local legacy_team="$root/.claude/accelerator.md"
+    local legacy_local="$root/.claude/accelerator.local.md"
+    [ -f "$legacy_team" ] && echo "$legacy_team"
+    [ -f "$legacy_local" ] && echo "$legacy_local"
+  fi
   return 0
+}
+
+# Assert that the project is not using the legacy .claude/accelerator.md layout.
+# Exits 1 with a human-readable message if the legacy file exists and the new
+# .accelerator/config.md does not. Call from every config reader entry point.
+# Skipped when ACCELERATOR_MIGRATION_MODE=1 (migration scripts run on old repos).
+config_assert_no_legacy_layout() {
+  [ "${ACCELERATOR_MIGRATION_MODE:-}" = "1" ] && return 0
+  local root
+  root=$(config_project_root)
+  local team="$root/.accelerator/config.md"
+  local legacy_team="$root/.claude/accelerator.md"
+  if [ ! -f "$team" ] && [ -f "$legacy_team" ]; then
+    printf '%s\n' \
+      "Accelerator: legacy config detected at .claude/accelerator.md." \
+      "Run /accelerator:migrate to update the layout, then retry." >&2
+    exit 1
+  fi
 }
 
 # Extract YAML frontmatter from a file as raw text (between --- delimiters).
@@ -173,7 +208,7 @@ config_resolve_template() {
 
   # Tier 2: Templates directory
   local templates_dir
-  templates_dir=$("$SCRIPT_DIR/config-read-path.sh" templates meta/templates)
+  templates_dir=$("$SCRIPT_DIR/config-read-path.sh" templates .accelerator/templates)
   if [[ "$templates_dir" != /* ]]; then
     templates_dir="$project_root/$templates_dir"
   fi

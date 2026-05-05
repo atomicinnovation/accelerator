@@ -19,8 +19,8 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 setup_repo() {
   local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude"
-  cat > "$d/.claude/accelerator.md" <<ENDCONFIG
+  mkdir -p "$d/.git" "$d/.accelerator"
+  cat > "$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -107,8 +107,8 @@ echo ""
 echo "=== Case 5: refresh writes fields.json with expected shape ==="
 echo ""
 
-FIELDS_JSON="$REPO/meta/integrations/jira/fields.json"
-REFRESH_META="$REPO/meta/integrations/jira/.refresh-meta.json"
+FIELDS_JSON="$REPO/.accelerator/state/integrations/jira/fields.json"
+REFRESH_META="$REPO/.accelerator/state/integrations/jira/.refresh-meta.json"
 
 start_mock "$SCENARIOS/fields-200.json"
 fields refresh
@@ -163,7 +163,7 @@ echo ""
 
 assert_exit_code "nonexistent exits 50" 50 fields resolve nonexistent-field-xyz
 ERR=$(fields resolve nonexistent-field-xyz 2>&1 || true)
-assert_contains "E_FIELD_NOT_FOUND on stderr" "E_FIELD_NOT_FOUND" "$ERR"
+assert_contains "E_FIELD_NOT_FOUND on stderr" "$ERR" "E_FIELD_NOT_FOUND"
 echo ""
 
 # ============================================================
@@ -197,7 +197,7 @@ assert_exit_code "absent cache exits 51" 51 \
 
 ERR11=$(cd "$REPO11" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" \
   ACCELERATOR_TEST_MODE=1 bash "$SCRIPT" resolve story-points 2>&1 || true)
-assert_contains "absent cache: E_FIELD_CACHE_MISSING on stderr" "E_FIELD_CACHE_MISSING" "$ERR11"
+assert_contains "absent cache: E_FIELD_CACHE_MISSING on stderr" "$ERR11" "E_FIELD_CACHE_MISSING"
 echo ""
 
 # ============================================================
@@ -230,7 +230,7 @@ start_mock "$SCENARIOS/fields-slow-200.json"
 PID_A=$!
 
 # Wait until A has acquired the lock before starting B
-LOCKDIR="$REPO13/meta/integrations/jira/.lock"
+LOCKDIR="$REPO13/.accelerator/state/integrations/jira/.lock"
 i=0
 while [ ! -d "$LOCKDIR" ] && [ $i -lt 30 ]; do
   sleep 0.05; i=$((i + 1))
@@ -252,7 +252,7 @@ stop_mock
 assert_eq "concurrent: process A succeeded" "0" "$EXIT_A"
 assert_eq "concurrent: process B got E_REFRESH_LOCKED" "53" "$EXIT_B"
 
-FIELDS13="$REPO13/meta/integrations/jira/fields.json"
+FIELDS13="$REPO13/.accelerator/state/integrations/jira/fields.json"
 if [ -f "$FIELDS13" ]; then
   echo "  PASS: fields.json written by winner"
   PASS=$((PASS + 1))
@@ -267,7 +267,7 @@ echo "=== Case 14: refresh writes schema.custom for textarea custom fields ==="
 echo ""
 
 REPO14=$(setup_repo)
-FIELDS14="$REPO14/meta/integrations/jira/fields.json"
+FIELDS14="$REPO14/.accelerator/state/integrations/jira/fields.json"
 
 start_mock "$SCENARIOS/fields-with-schema-200.json"
 (cd "$REPO14" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" \

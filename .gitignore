@@ -10,14 +10,12 @@
 *.tsbuildinfo
 *~
 .DS_Store
-.claude/accelerator.local.md
+.accelerator/config.local.md
 .claude/settings.local.json
 .idea
 .pytest_cache/
 __pycache__/
 meta/eval-workspaces/
-meta/integrations/jira/.lock
-meta/integrations/jira/.refresh-meta.json
 skills/visualisation/visualise/bin/accelerator-visualiser-*
 skills/visualisation/visualise/frontend/.e2e-port
 skills/visualisation/visualise/frontend/.e2e-fixture-snapshot.json

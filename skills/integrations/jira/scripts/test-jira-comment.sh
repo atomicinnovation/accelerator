@@ -25,8 +25,8 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 setup_repo() {
   local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude"
-  cat > "$d/.claude/accelerator.md" <<ENDCONFIG
+  mkdir -p "$d/.git" "$d/.accelerator"
+  cat > "$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -100,10 +100,10 @@ echo "=== Case 1: --help exits 0 with subcommand listing ==="
 echo ""
 
 OUT_1=$(comment --help 2>/dev/null)
-assert_contains "help lists add"    "add"    "$OUT_1"
-assert_contains "help lists list"   "list"   "$OUT_1"
-assert_contains "help lists edit"   "edit"   "$OUT_1"
-assert_contains "help lists delete" "delete" "$OUT_1"
+assert_contains "help lists add"    "$OUT_1" "add"
+assert_contains "help lists list"   "$OUT_1" "list"
+assert_contains "help lists edit"   "$OUT_1" "edit"
+assert_contains "help lists delete" "$OUT_1" "delete"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -114,8 +114,8 @@ RC_2=0
 comment_no_stdin 2>/tmp/comment-err2.tmp || RC_2=$?
 ERR_2=$(cat /tmp/comment-err2.tmp)
 assert_eq "no subcommand exits 91" "91" "$RC_2"
-assert_contains "E_COMMENT_NO_SUBCOMMAND on stderr" "E_COMMENT_NO_SUBCOMMAND" "$ERR_2"
-assert_contains "usage on stderr" "add" "$ERR_2"
+assert_contains "E_COMMENT_NO_SUBCOMMAND on stderr" "$ERR_2" "E_COMMENT_NO_SUBCOMMAND"
+assert_contains "usage on stderr" "$ERR_2" "add"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -126,7 +126,7 @@ RC_3=0
 comment_no_stdin frobnicate 2>/tmp/comment-err3.tmp || RC_3=$?
 ERR_3=$(cat /tmp/comment-err3.tmp)
 assert_eq "bad subcommand exits 92" "92" "$RC_3"
-assert_contains "E_COMMENT_BAD_SUBCOMMAND on stderr" "E_COMMENT_BAD_SUBCOMMAND" "$ERR_3"
+assert_contains "E_COMMENT_BAD_SUBCOMMAND on stderr" "$ERR_3" "E_COMMENT_BAD_SUBCOMMAND"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -137,7 +137,7 @@ RC_4=0
 comment_no_stdin add 2>/tmp/comment-err4.tmp || RC_4=$?
 ERR_4=$(cat /tmp/comment-err4.tmp)
 assert_eq "add no key exits 93" "93" "$RC_4"
-assert_contains "E_COMMENT_NO_KEY on stderr" "E_COMMENT_NO_KEY" "$ERR_4"
+assert_contains "E_COMMENT_NO_KEY on stderr" "$ERR_4" "E_COMMENT_NO_KEY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -148,7 +148,7 @@ RC_5=0
 comment_no_stdin add ENG-1 --no-editor 2>/tmp/comment-err5.tmp || RC_5=$?
 ERR_5=$(cat /tmp/comment-err5.tmp)
 assert_eq "add no body exits 94" "94" "$RC_5"
-assert_contains "E_COMMENT_NO_BODY on stderr" "E_COMMENT_NO_BODY" "$ERR_5"
+assert_contains "E_COMMENT_NO_BODY on stderr" "$ERR_5" "E_COMMENT_NO_BODY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -180,7 +180,7 @@ stop_mock
 
 CAPTURED_7=$(jq -r '.[0]' "$BODIES_7")
 BODY_7_STR=$(jq -c '.body' <<< "$CAPTURED_7")
-assert_contains "add: body from file is ADF" "from file content" "$BODY_7_STR"
+assert_contains "add: body from file is ADF" "$BODY_7_STR" "from file content"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -204,7 +204,7 @@ comment add ENG-1 --body "x" --no-notify 2>/dev/null
 stop_mock
 
 CAPTURED_URL_9=$(jq -r '.[0]' "$URLS_9")
-assert_contains "add --no-notify: URL has notifyUsers=false" "notifyUsers=false" "$CAPTURED_URL_9"
+assert_contains "add --no-notify: URL has notifyUsers=false" "$CAPTURED_URL_9" "notifyUsers=false"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -229,7 +229,7 @@ RC_11=0
 comment_no_stdin list 2>/tmp/comment-err11.tmp || RC_11=$?
 ERR_11=$(cat /tmp/comment-err11.tmp)
 assert_eq "list no key exits 93" "93" "$RC_11"
-assert_contains "E_COMMENT_NO_KEY on stderr" "E_COMMENT_NO_KEY" "$ERR_11"
+assert_contains "E_COMMENT_NO_KEY on stderr" "$ERR_11" "E_COMMENT_NO_KEY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -242,8 +242,8 @@ OUT_12=$(comment list ENG-1 2>/dev/null)
 stop_mock
 
 CAPTURED_URL_12=$(jq -r '.[0]' "$URLS_12")
-assert_contains "list: URL has startAt=0"     "startAt=0"     "$CAPTURED_URL_12"
-assert_contains "list: URL has maxResults=50" "maxResults=50" "$CAPTURED_URL_12"
+assert_contains "list: URL has startAt=0"     "$CAPTURED_URL_12" "startAt=0"
+assert_contains "list: URL has maxResults=50" "$CAPTURED_URL_12" "maxResults=50"
 assert_eq "list: first body rendered to string" "string" "$(jq -r '.comments[0].body | type' <<< "$OUT_12")"
 assert_eq "list: comment count"                 "2"      "$(jq '.comments | length' <<< "$OUT_12")"
 echo ""
@@ -269,7 +269,7 @@ comment list ENG-1 --page-size 3 2>/dev/null
 stop_mock
 
 CAPTURED_URL_14=$(jq -r '.[0]' "$URLS_14")
-assert_contains "list --page-size 3: URL has maxResults=3" "maxResults=3" "$CAPTURED_URL_14"
+assert_contains "list --page-size 3: URL has maxResults=3" "$CAPTURED_URL_14" "maxResults=3"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -298,7 +298,7 @@ OUT_16=$(comment list ENG-1 --page-size 2 --no-render-adf 2>/dev/null)
 stop_mock
 
 FIRST_URL_16=$(jq -r '.[0]' "$URLS_16")
-assert_contains "list --page-size 2: URL has maxResults=2" "maxResults=2" "$FIRST_URL_16"
+assert_contains "list --page-size 2: URL has maxResults=2" "$FIRST_URL_16" "maxResults=2"
 assert_eq "list --page-size 2: 5 comments accumulated"    "5" "$(jq '.comments | length' <<< "$OUT_16")"
 echo ""
 
@@ -324,7 +324,7 @@ RC_18=0
 comment_no_stdin edit 2>/tmp/comment-err18.tmp || RC_18=$?
 ERR_18=$(cat /tmp/comment-err18.tmp)
 assert_eq "edit no key exits 93" "93" "$RC_18"
-assert_contains "E_COMMENT_NO_KEY on stderr" "E_COMMENT_NO_KEY" "$ERR_18"
+assert_contains "E_COMMENT_NO_KEY on stderr" "$ERR_18" "E_COMMENT_NO_KEY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -335,7 +335,7 @@ RC_19=0
 comment_no_stdin edit ENG-1 2>/tmp/comment-err19.tmp || RC_19=$?
 ERR_19=$(cat /tmp/comment-err19.tmp)
 assert_eq "edit no id exits 95" "95" "$RC_19"
-assert_contains "E_COMMENT_NO_ID on stderr" "E_COMMENT_NO_ID" "$ERR_19"
+assert_contains "E_COMMENT_NO_ID on stderr" "$ERR_19" "E_COMMENT_NO_ID"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -363,7 +363,7 @@ comment edit ENG-1 100 --no-notify --body "fix" 2>/dev/null
 stop_mock
 
 CAPTURED_URL_21=$(jq -r '.[0]' "$URLS_21")
-assert_contains "edit --no-notify: URL has notifyUsers=false" "notifyUsers=false" "$CAPTURED_URL_21"
+assert_contains "edit --no-notify: URL has notifyUsers=false" "$CAPTURED_URL_21" "notifyUsers=false"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -374,7 +374,7 @@ RC_22=0
 comment_no_stdin delete 2>/tmp/comment-err22.tmp || RC_22=$?
 ERR_22=$(cat /tmp/comment-err22.tmp)
 assert_eq "delete no key exits 93" "93" "$RC_22"
-assert_contains "E_COMMENT_NO_KEY on stderr" "E_COMMENT_NO_KEY" "$ERR_22"
+assert_contains "E_COMMENT_NO_KEY on stderr" "$ERR_22" "E_COMMENT_NO_KEY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -385,7 +385,7 @@ RC_23=0
 comment_no_stdin delete ENG-1 2>/tmp/comment-err23.tmp || RC_23=$?
 ERR_23=$(cat /tmp/comment-err23.tmp)
 assert_eq "delete no id exits 95" "95" "$RC_23"
-assert_contains "E_COMMENT_NO_ID on stderr" "E_COMMENT_NO_ID" "$ERR_23"
+assert_contains "E_COMMENT_NO_ID on stderr" "$ERR_23" "E_COMMENT_NO_ID"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -401,7 +401,7 @@ stop_mock
 assert_eq "delete: exits 0"          "0"  "$RC_24"
 assert_empty "delete: stdout empty"  "$OUT_24"
 CAPTURED_URL_24=$(jq -r '.[0]' "$URLS_24")
-assert_contains "delete: correct URL" "/rest/api/3/issue/ENG-1/comment/100" "$CAPTURED_URL_24"
+assert_contains "delete: correct URL" "$CAPTURED_URL_24" "/rest/api/3/issue/ENG-1/comment/100"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -414,7 +414,7 @@ comment delete ENG-1 100 --no-notify 2>/dev/null
 stop_mock
 
 CAPTURED_URL_25=$(jq -r '.[0]' "$URLS_25")
-assert_contains "delete --no-notify: URL has notifyUsers=false" "notifyUsers=false" "$CAPTURED_URL_25"
+assert_contains "delete --no-notify: URL has notifyUsers=false" "$CAPTURED_URL_25" "notifyUsers=false"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -459,7 +459,7 @@ RC_25C=0
 comment_no_stdin delete --describe 2>/tmp/comment-err25c.tmp || RC_25C=$?
 ERR_25C=$(cat /tmp/comment-err25c.tmp)
 assert_eq "describe no key exits 93" "93" "$RC_25C"
-assert_contains "E_COMMENT_NO_KEY on stderr" "E_COMMENT_NO_KEY" "$ERR_25C"
+assert_contains "E_COMMENT_NO_KEY on stderr" "$ERR_25C" "E_COMMENT_NO_KEY"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -470,7 +470,7 @@ RC_25D=0
 comment_no_stdin delete ENG-1 --describe 2>/tmp/comment-err25d.tmp || RC_25D=$?
 ERR_25D=$(cat /tmp/comment-err25d.tmp)
 assert_eq "describe no id exits 95" "95" "$RC_25D"
-assert_contains "E_COMMENT_NO_ID on stderr" "E_COMMENT_NO_ID" "$ERR_25D"
+assert_contains "E_COMMENT_NO_ID on stderr" "$ERR_25D" "E_COMMENT_NO_ID"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -483,8 +483,8 @@ comment list ENG-999 2>/tmp/comment-err26.tmp || RC_26=$?
 stop_mock
 ERR_26=$(cat /tmp/comment-err26.tmp)
 assert_eq "404 exits 13"             "13"     "$RC_26"
-assert_contains "hint for 404"       "Hint:"  "$ERR_26"
-assert_contains "not found in hint"  "not found" "$ERR_26"
+assert_contains "hint for 404"       "$ERR_26" "Hint:"
+assert_contains "not found in hint"  "$ERR_26" "not found"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -576,7 +576,7 @@ ERR_32=$(cat /tmp/comment-err32.tmp)
 assert_eq "runaway: exits 0"            "0"    "$RC_32"
 assert_eq "runaway: exactly 20 GETs"    "20"   "$(jq 'length' "$URLS_32")"
 assert_eq "runaway: truncated true"     "true" "$(jq '.truncated' <<< "$OUT_32")"
-assert_contains "runaway: Warning on stderr" "Warning:" "$ERR_32"
+assert_contains "runaway: Warning on stderr" "$ERR_32" "Warning:"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -607,7 +607,7 @@ comment list ENG-1 2>/tmp/comment-err33.tmp || RC_33=$?
 stop_mock
 ERR_33=$(cat /tmp/comment-err33.tmp)
 assert_eq "bad total exits 99"              "99"                      "$RC_33"
-assert_contains "E_COMMENT_BAD_RESPONSE on stderr" "E_COMMENT_BAD_RESPONSE" "$ERR_33"
+assert_contains "E_COMMENT_BAD_RESPONSE on stderr" "$ERR_33" "E_COMMENT_BAD_RESPONSE"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -639,7 +639,7 @@ RC_34=0
 stop_mock
 ERR_34=$(cat /tmp/comment-err34.tmp)
 assert_eq "list 5xx exits 20"        "20"    "$RC_34"
-assert_contains "5xx hint emitted"   "Hint:" "$ERR_34"
+assert_contains "5xx hint emitted"   "$ERR_34" "Hint:"
 echo ""
 
 # ---------------------------------------------------------------------------

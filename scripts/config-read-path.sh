@@ -13,10 +13,10 @@ set -euo pipefail
 #   review_plans  → where plan reviews are written (default: meta/reviews/plans)
 #   review_prs    → where PR review working dirs go (default: meta/reviews/prs)
 #   review_work   → where work-item reviews are written (default: meta/reviews/work)
-#   templates     → where user templates are found (default: meta/templates)
+#   templates     → where user templates are found (default: .accelerator/templates)
 #   work          → where work item files are stored (default: meta/work)
 #   notes         → where notes are stored (default: meta/notes)
-#   tmp           → ephemeral working data, gitignored (default: meta/tmp)
+#   tmp           → ephemeral working data, gitignored (default: .accelerator/tmp)
 #   integrations  → per-integration cached state (default: .accelerator/state/integrations)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -10,6 +10,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config-common.sh"
+config_assert_no_legacy_layout
 
 MODE="${1:-}"
 if [ -z "$MODE" ] || { [ "$MODE" != "pr" ] && [ "$MODE" != "plan" ] && [ "$MODE" != "work-item" ]; }; then
@@ -217,7 +218,7 @@ fi
 
 # --- Step 3: Discover custom lenses ---
 PROJECT_ROOT=$(config_project_root)
-CUSTOM_LENSES_DIR="$PROJECT_ROOT/.claude/accelerator/lenses"
+CUSTOM_LENSES_DIR="$PROJECT_ROOT/.accelerator/lenses"
 
 custom_lens_names=()
 custom_lens_paths=()

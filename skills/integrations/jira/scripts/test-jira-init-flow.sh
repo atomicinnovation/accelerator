@@ -19,8 +19,8 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 setup_repo() {
   local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude" "$d/.accelerator"
-  cat > "$d/.claude/accelerator.md" <<ENDCONFIG
+  mkdir -p "$d/.git" "$d/.accelerator"
+  cat > "$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -84,7 +84,7 @@ flow_for() {
 echo "=== Case 1: full flow populates site.json, projects.json, fields.json ==="
 echo ""
 
-STATE_DIR="$REPO/meta/integrations/jira"
+STATE_DIR="$REPO/.accelerator/state/integrations/jira"
 SITE_JSON="$STATE_DIR/site.json"
 PROJECTS_JSON="$STATE_DIR/projects.json"
 FIELDS_JSON="$STATE_DIR/fields.json"
@@ -148,8 +148,8 @@ echo "=== Case 3: --non-interactive with missing jira.site exits 60 ==="
 echo ""
 
 REPO3=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-mkdir -p "$REPO3/.git" "$REPO3/.claude"
-cat > "$REPO3/.claude/accelerator.md" <<'ENDCONFIG'
+mkdir -p "$REPO3/.git" "$REPO3/.accelerator"
+cat > "$REPO3/.accelerator/config.md" <<'ENDCONFIG'
 ---
 jira:
   email: test@example.com
@@ -221,7 +221,7 @@ assert_exit_code "--non-interactive full flow exits 0" 0 \
     bash '$SCRIPT' --non-interactive"
 stop_mock
 
-SITE7="$REPO7/meta/integrations/jira/site.json"
+SITE7="$REPO7/.accelerator/state/integrations/jira/site.json"
 if [ -f "$SITE7" ]; then
   echo "  PASS: non-interactive: site.json written"
   PASS=$((PASS + 1))
@@ -241,9 +241,9 @@ start_mock "$SCENARIOS/get-200.json"
 flow_for "$REPO8" verify
 stop_mock
 
-SITE8="$REPO8/meta/integrations/jira/site.json"
-PROJ8="$REPO8/meta/integrations/jira/projects.json"
-FIELDS8="$REPO8/meta/integrations/jira/fields.json"
+SITE8="$REPO8/.accelerator/state/integrations/jira/site.json"
+PROJ8="$REPO8/.accelerator/state/integrations/jira/projects.json"
+FIELDS8="$REPO8/.accelerator/state/integrations/jira/fields.json"
 
 if [ -f "$SITE8" ]; then
   echo "  PASS: verify: site.json written"
@@ -338,8 +338,8 @@ echo "=== Case 10: custom paths.integrations produces inner .gitignore ==="
 echo ""
 
 REPO10=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-mkdir -p "$REPO10/.git" "$REPO10/.claude" "$REPO10/.accelerator"
-cat > "$REPO10/.claude/accelerator.md" <<ENDCONFIG
+mkdir -p "$REPO10/.git" "$REPO10/.accelerator"
+cat > "$REPO10/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -396,12 +396,13 @@ fi
 echo ""
 
 # ============================================================
-echo "=== Case 11: .accelerator/ absent emits warning, exits 0 ==="
+echo "=== Case 11: .accelerator/ not initialised emits warning, exits 0 ==="
 echo ""
 
+# Create repo with config but WITHOUT .accelerator/.gitignore (init sentinel)
 REPO11=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-mkdir -p "$REPO11/.git" "$REPO11/.claude"
-cat > "$REPO11/.claude/accelerator.md" <<ENDCONFIG
+mkdir -p "$REPO11/.git" "$REPO11/.accelerator"
+cat > "$REPO11/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -410,16 +411,17 @@ work:
   default_project_code: ENG
 ---
 ENDCONFIG
+# NOTE: .accelerator/.gitignore is intentionally absent — scaffold not init'd
 
 start_mock "$SCENARIOS/init-flow-200.json"
 RC11=0
 ERR11=$(flow_for "$REPO11" 2>&1 1>/dev/null) || RC11=$?
 stop_mock
 
-assert_eq ".accelerator/ absent: exits 0" "0" "$RC11"
-assert_contains ".accelerator/ absent: warning mentions .accelerator/" \
+assert_eq ".accelerator/ not init'd: exits 0" "0" "$RC11"
+assert_contains ".accelerator/ not init'd: warning mentions .accelerator/" \
   "$ERR11" ".accelerator/"
-assert_contains ".accelerator/ absent: warning mentions accelerator:init" \
+assert_contains ".accelerator/ not init'd: warning mentions accelerator:init" \
   "$ERR11" "accelerator:init"
 echo ""
 
@@ -428,7 +430,7 @@ echo "=== Case 12: .lock/ cleaned up on EXIT (failure) ==="
 echo ""
 
 REPO12=$(setup_repo)
-LOCK_DIR12="$REPO12/meta/integrations/jira/.lock"
+LOCK_DIR12="$REPO12/.accelerator/state/integrations/jira/.lock"
 # No mock started — discover fails with connection error; lock must still be removed
 flow_for "$REPO12" discover 2>/dev/null || true
 assert_dir_not_exists ".lock/ cleaned up after failed discover" "$LOCK_DIR12"

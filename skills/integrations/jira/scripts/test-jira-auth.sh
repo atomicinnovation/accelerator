@@ -19,7 +19,7 @@ trap 'rm -rf "$TMPDIR_BASE"' EXIT
 setup_repo() {
   local d
   d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude"
+  mkdir -p "$d/.git" "$d/.accelerator"
   echo "$d"
 }
 
@@ -27,7 +27,7 @@ setup_repo() {
 setup_git_repo() {
   local d
   d=$(mktemp -d "$TMPDIR_BASE/git-XXXXXX")
-  mkdir -p "$d/.claude"
+  mkdir -p "$d/.accelerator"
   (cd "$d" && git init -q && git config user.email "t@t.com" && git config user.name "T")
   echo "$d"
 }
@@ -42,7 +42,7 @@ write_team_config() {
     echo "  email: $email"
     [ -n "$extra_field" ] && printf '%s\n' "$extra_field"
     echo "---"
-  } > "$repo/.claude/accelerator.md"
+  } > "$repo/.accelerator/config.md"
 }
 
 # extra_line should be indented (e.g. "  token: tok")
@@ -55,8 +55,8 @@ write_local_config() {
       printf '%s\n' "$extra_line"
     fi
     echo "---"
-  } > "$repo/.claude/accelerator.local.md"
-  chmod 600 "$repo/.claude/accelerator.local.md"
+  } > "$repo/.accelerator/config.local.md"
+  chmod 600 "$repo/.accelerator/config.local.md"
 }
 
 # ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ echo "Test 1: ACCELERATOR_JIRA_TOKEN env var wins over all config sources"
 REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  token: team-token"
 OUTPUT=$(cd "$REPO" && ACCELERATOR_JIRA_TOKEN=env-token bash "$AUTH_CLI")
-assert_contains "token=env-token in stdout" "token=env-token" "$OUTPUT"
+assert_contains "token=env-token in stdout" "$OUTPUT" "token=env-token"
 
 echo "Test 2: ACCELERATOR_JIRA_TOKEN_CMD resolves with trailing whitespace trimmed"
 REPO=$(setup_repo)
@@ -81,20 +81,20 @@ REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  token: team-token"
 write_local_config "$REPO" "  token: local-token"
 OUTPUT=$(cd "$REPO" && bash "$AUTH_CLI")
-assert_contains "local token wins" "token=local-token" "$OUTPUT"
+assert_contains "local token wins" "$OUTPUT" "token=local-token"
 
 echo "Test 4: accelerator.local.md jira.token_cmd wins over accelerator.md jira.token"
 REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  token: team-token"
 write_local_config "$REPO" "  token_cmd: echo cmd-token"
 OUTPUT=$(cd "$REPO" && bash "$AUTH_CLI")
-assert_contains "local token_cmd wins" "token=cmd-token" "$OUTPUT"
+assert_contains "local token_cmd wins" "$OUTPUT" "token=cmd-token"
 
 echo "Test 5: accelerator.md jira.token used when nothing else is set"
 REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  token: shared-token"
 OUTPUT=$(cd "$REPO" && bash "$AUTH_CLI")
-assert_contains "shared token" "token=shared-token" "$OUTPUT"
+assert_contains "shared token" "$OUTPUT" "token=shared-token"
 
 echo "Test 5a: accelerator.md jira.token blocked when accelerator.local.md exists but has no token"
 REPO=$(setup_repo)
@@ -103,7 +103,7 @@ write_local_config "$REPO"  # local.md exists but contains no jira.token entry
 EXIT_CODE=0
 STDOUT=$(cd "$REPO" && bash "$AUTH_CLI" 2>/dev/null) || EXIT_CODE=$?
 STDERR=$(cd "$REPO" && bash "$AUTH_CLI" 2>&1 1>/dev/null) || true
-assert_contains "E_NO_TOKEN in stderr" "E_NO_TOKEN" "$STDERR"
+assert_contains "E_NO_TOKEN in stderr" "$STDERR" "E_NO_TOKEN"
 if [ "$EXIT_CODE" -ne 0 ]; then
   echo "  PASS: exits non-zero (shared token not used)"
   PASS=$((PASS + 1))
@@ -118,8 +118,8 @@ REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  token_cmd: echo ignored"
 EXIT_CODE=0
 STDERR=$(cd "$REPO" && bash "$AUTH_CLI" 2>&1 1>/dev/null) || EXIT_CODE=$?
-assert_contains "E_TOKEN_CMD_FROM_SHARED_CONFIG in stderr" "E_TOKEN_CMD_FROM_SHARED_CONFIG" "$STDERR"
-assert_contains "E_NO_TOKEN in stderr" "E_NO_TOKEN" "$STDERR"
+assert_contains "E_TOKEN_CMD_FROM_SHARED_CONFIG in stderr" "$STDERR" "E_TOKEN_CMD_FROM_SHARED_CONFIG"
+assert_contains "E_NO_TOKEN in stderr" "$STDERR" "E_NO_TOKEN"
 if [ "$EXIT_CODE" -ne 0 ]; then
   echo "  PASS: exits non-zero"
   PASS=$((PASS + 1))
@@ -134,7 +134,7 @@ write_team_config "$REPO"  # no token fields
 EXIT_CODE=0
 STDOUT=$(cd "$REPO" && bash "$AUTH_CLI" 2>/dev/null) || EXIT_CODE=$?
 STDERR=$(cd "$REPO" && bash "$AUTH_CLI" 2>&1 1>/dev/null) || true
-assert_contains "E_NO_TOKEN in stderr" "E_NO_TOKEN" "$STDERR"
+assert_contains "E_NO_TOKEN in stderr" "$STDERR" "E_NO_TOKEN"
 if [ "$EXIT_CODE" -ne 0 ]; then
   echo "  PASS: exits non-zero"
   PASS=$((PASS + 1))
@@ -150,18 +150,18 @@ write_team_config "$REPO" "https://team.atlassian.net" "user@example.com" "  tok
 OUTPUT=$(cd "$REPO" && bash "$AUTH_CLI")
 LINE_COUNT=$(printf '%s\n' "$OUTPUT" | wc -l | tr -d ' ')
 assert_eq "exactly 3 lines" "3" "$LINE_COUNT"
-assert_contains "site= line present" "site=" "$OUTPUT"
-assert_contains "email= line present" "email=" "$OUTPUT"
-assert_contains "token= line present" "token=" "$OUTPUT"
+assert_contains "site= line present" "$OUTPUT" "site="
+assert_contains "email= line present" "$OUTPUT" "email="
+assert_contains "token= line present" "$OUTPUT" "token="
 
 echo "Test 9: token redaction — sentinel not present in --debug stderr"
 REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "user@example.com" "  token: tok-SENTINEL-xyz123"
 DEBUG_STDERR=$(cd "$REPO" && bash "$AUTH_CLI" --debug 2>&1 1>/dev/null || true)
-assert_not_contains "sentinel absent from debug stderr" "tok-SENTINEL-xyz123" "$DEBUG_STDERR"
+assert_not_contains "sentinel absent from debug stderr" "$DEBUG_STDERR" "tok-SENTINEL-xyz123"
 # Confirm sentinel IS on stdout
 DEBUG_STDOUT=$(cd "$REPO" && bash "$AUTH_CLI" --debug 2>/dev/null)
-assert_contains "sentinel on stdout token= line" "token=tok-SENTINEL-xyz123" "$DEBUG_STDOUT"
+assert_contains "sentinel on stdout token= line" "$DEBUG_STDOUT" "token=tok-SENTINEL-xyz123"
 
 echo "Test 10: token_cmd failure exits with E_TOKEN_CMD_FAILED on stderr"
 REPO=$(setup_repo)
@@ -169,7 +169,7 @@ write_team_config "$REPO"
 write_local_config "$REPO" "  token_cmd: exit 1"
 EXIT_CODE=0
 STDERR=$(cd "$REPO" && bash "$AUTH_CLI" 2>&1 1>/dev/null) || EXIT_CODE=$?
-assert_contains "E_TOKEN_CMD_FAILED in stderr" "E_TOKEN_CMD_FAILED" "$STDERR"
+assert_contains "E_TOKEN_CMD_FAILED in stderr" "$STDERR" "E_TOKEN_CMD_FAILED"
 if [ "$EXIT_CODE" -ne 0 ]; then
   echo "  PASS: exits non-zero"
   PASS=$((PASS + 1))
@@ -182,8 +182,8 @@ echo "Test 11: site/email use only file precedence — ACCELERATOR_JIRA_SITE is 
 REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "user@example.com" "  token: tok"
 OUTPUT=$(cd "$REPO" && ACCELERATOR_JIRA_SITE=https://injected.atlassian.net bash "$AUTH_CLI")
-assert_contains "site from config, not env" "site=https://team.atlassian.net" "$OUTPUT"
-assert_not_contains "injected site absent" "injected.atlassian.net" "$OUTPUT"
+assert_contains "site from config, not env" "$OUTPUT" "site=https://team.atlassian.net"
+assert_not_contains "injected site absent" "$OUTPUT" "injected.atlassian.net"
 
 echo "Test 12: token_cmd whitespace handling — CRLF, multiple newlines, spaces all stripped"
 REPO=$(setup_repo)
@@ -202,11 +202,11 @@ echo "Test 13: mode 0644 — exits 29 with E_LOCAL_PERMS_INSECURE, no token on s
 REPO=$(setup_repo)
 write_team_config "$REPO"
 write_local_config "$REPO" "  token: local-token"
-chmod 644 "$REPO/.claude/accelerator.local.md"
+chmod 644 "$REPO/.accelerator/config.local.md"
 EXIT_CODE=0
 STDERR=$(cd "$REPO" && bash "$AUTH_CLI" 2>&1 1>/dev/null) || EXIT_CODE=$?
 assert_eq "exit code 29" "29" "$EXIT_CODE"
-assert_contains "E_LOCAL_PERMS_INSECURE in stderr" "E_LOCAL_PERMS_INSECURE" "$STDERR"
+assert_contains "E_LOCAL_PERMS_INSECURE in stderr" "$STDERR" "E_LOCAL_PERMS_INSECURE"
 STDOUT=""
 STDOUT=$(cd "$REPO" && bash "$AUTH_CLI" 2>/dev/null) || true
 assert_eq "no token leaked on stdout" "" "$STDOUT"
@@ -221,7 +221,7 @@ echo "Test 14a: mode 0644 + env var set + no marker file → exits 29"
 REPO=$(setup_git_repo)
 write_team_config "$REPO"
 write_local_config "$REPO" "  token: tok"
-chmod 644 "$REPO/.claude/accelerator.local.md"
+chmod 644 "$REPO/.accelerator/config.local.md"
 EXIT_CODE=0
 (cd "$REPO" && ACCELERATOR_ALLOW_INSECURE_LOCAL=1 bash "$AUTH_CLI" 2>/dev/null 1>/dev/null) || EXIT_CODE=$?
 assert_eq "14a: exits 29" "29" "$EXIT_CODE"
@@ -230,19 +230,19 @@ echo "Test 14b: mode 0644 + env var set + tracked marker → proceeds with downg
 REPO=$(setup_git_repo)
 write_team_config "$REPO"
 write_local_config "$REPO" "  token: tok"
-chmod 644 "$REPO/.claude/accelerator.local.md"
+chmod 644 "$REPO/.accelerator/config.local.md"
 touch "$REPO/.claude/insecure-local-ok"
 (cd "$REPO" && git add .claude/insecure-local-ok 2>/dev/null)
 EXIT_CODE=0
 STDERR=$(cd "$REPO" && ACCELERATOR_ALLOW_INSECURE_LOCAL=1 bash "$AUTH_CLI" 2>&1 1>/dev/null) || EXIT_CODE=$?
 assert_eq "14b: exits 0" "0" "$EXIT_CODE"
-assert_contains "14b: downgrade warning on stderr" "Warning:" "$STDERR"
+assert_contains "14b: downgrade warning on stderr" "$STDERR" "Warning:"
 
 echo "Test 14c: mode 0644 + tracked marker + env var unset → exits 29"
 REPO=$(setup_git_repo)
 write_team_config "$REPO"
 write_local_config "$REPO" "  token: tok"
-chmod 644 "$REPO/.claude/accelerator.local.md"
+chmod 644 "$REPO/.accelerator/config.local.md"
 touch "$REPO/.claude/insecure-local-ok"
 (cd "$REPO" && git add .claude/insecure-local-ok 2>/dev/null)
 EXIT_CODE=0
@@ -253,7 +253,7 @@ echo "Test 14d: mode 0644 + env var set + untracked marker → exits 29"
 REPO=$(setup_git_repo)
 write_team_config "$REPO"
 write_local_config "$REPO" "  token: tok"
-chmod 644 "$REPO/.claude/accelerator.local.md"
+chmod 644 "$REPO/.accelerator/config.local.md"
 touch "$REPO/.claude/insecure-local-ok"  # exists but NOT git-added
 EXIT_CODE=0
 (cd "$REPO" && ACCELERATOR_ALLOW_INSECURE_LOCAL=1 bash "$AUTH_CLI" 2>/dev/null 1>/dev/null) || EXIT_CODE=$?
@@ -263,7 +263,7 @@ echo "Test 14e: mode 0644 + env var set + symlink marker → exits 29"
 REPO=$(setup_git_repo)
 write_team_config "$REPO"
 write_local_config "$REPO" "  token: tok"
-chmod 644 "$REPO/.claude/accelerator.local.md"
+chmod 644 "$REPO/.accelerator/config.local.md"
 ln -s /dev/null "$REPO/.claude/insecure-local-ok"
 EXIT_CODE=0
 (cd "$REPO" && ACCELERATOR_ALLOW_INSECURE_LOCAL=1 bash "$AUTH_CLI" 2>/dev/null 1>/dev/null) || EXIT_CODE=$?
@@ -273,7 +273,7 @@ echo "Test 14f: mode 0644 + env var set + directory marker → exits 29"
 REPO=$(setup_git_repo)
 write_team_config "$REPO"
 write_local_config "$REPO" "  token: tok"
-chmod 644 "$REPO/.claude/accelerator.local.md"
+chmod 644 "$REPO/.accelerator/config.local.md"
 mkdir -p "$REPO/.claude/insecure-local-ok"
 EXIT_CODE=0
 (cd "$REPO" && ACCELERATOR_ALLOW_INSECURE_LOCAL=1 bash "$AUTH_CLI" 2>/dev/null 1>/dev/null) || EXIT_CODE=$?

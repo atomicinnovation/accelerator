@@ -10,7 +10,7 @@ source "$SCRIPT_DIR/launcher-helpers.sh"
 PROJECT_ROOT="$(find_repo_root)"
 cd "$PROJECT_ROOT"
 
-TMP_REL="$("$PLUGIN_ROOT/scripts/config-read-path.sh" tmp meta/tmp)"
+TMP_REL="$("$PLUGIN_ROOT/scripts/config-read-path.sh" tmp .accelerator/tmp)"
 TMP_DIR="$PROJECT_ROOT/$TMP_REL/visualiser"
 INFO="$TMP_DIR/server-info.json"
 PID_FILE="$TMP_DIR/server.pid"

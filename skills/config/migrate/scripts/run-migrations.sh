@@ -181,7 +181,7 @@ for f in "${pending_files[@]}"; do
   echo "[${id}] running" >&2
   export PROJECT_ROOT
   STDOUT_FILE=$(mktemp)
-  if ! PROJECT_ROOT="$PROJECT_ROOT" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$f" >"$STDOUT_FILE" 2>&1; then
+  if ! PROJECT_ROOT="$PROJECT_ROOT" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATION_MODE=1 bash "$f" >"$STDOUT_FILE" 2>&1; then
     cat "$STDOUT_FILE" >&2
     rm -f "$STDOUT_FILE"
     echo "[${id}] failed" >&2

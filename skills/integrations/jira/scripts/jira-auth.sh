@@ -134,8 +134,8 @@ jira_resolve_credentials() {
     echo "E_NO_REPO: cannot locate repository root" >&2
     return 1
   }
-  local team_cfg="$root/.claude/accelerator.md"
-  local local_cfg="$root/.claude/accelerator.local.md"
+  local team_cfg="$root/.accelerator/config.md"
+  local local_cfg="$root/.accelerator/config.local.md"
 
   # --- site and email (config files only; no env-var override) ---
   JIRA_SITE=""
@@ -233,17 +233,17 @@ jira_resolve_credentials() {
 
   # Validation
   if [ -z "$JIRA_TOKEN" ]; then
-    echo "E_NO_TOKEN: no Jira token found; configure jira.token or jira.token_cmd in .claude/accelerator.local.md" >&2
+    echo "E_NO_TOKEN: no Jira token found; configure jira.token or jira.token_cmd in .accelerator/config.local.md" >&2
     return 24
   fi
 
   if [ -z "$JIRA_SITE" ]; then
-    echo "E_AUTH_NO_SITE: jira.site not configured in .claude/accelerator.md" >&2
+    echo "E_AUTH_NO_SITE: jira.site not configured in .accelerator/config.md" >&2
     return 27
   fi
 
   if [ -z "$JIRA_EMAIL" ]; then
-    echo "E_AUTH_NO_EMAIL: jira.email not configured in .claude/accelerator.md" >&2
+    echo "E_AUTH_NO_EMAIL: jira.email not configured in .accelerator/config.md" >&2
     return 28
   fi
 }
