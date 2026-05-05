@@ -121,7 +121,16 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-# ── Test 8: respects paths.tmp override ──────────────────────────────────────
+# ── Test 8: no PROJECT_ROOT — finds repo root from a subdirectory ────────────
+echo "Test: invoked from a subdirectory without PROJECT_ROOT resolves to repo root"
+REPO=$(setup_repo)
+SUBDIR="$REPO/src/deep/subdir"
+mkdir -p "$SUBDIR"
+(cd "$SUBDIR" && unset PROJECT_ROOT && bash "$INIT_SCRIPT")
+assert_dir_exists "meta/plans in repo root (not subdir)" "$REPO/meta/plans"
+assert_dir_not_exists "meta/plans NOT created inside subdir" "$SUBDIR/meta/plans"
+
+# ── Test 9: respects paths.tmp override ──────────────────────────────────────
 echo "Test: respects paths.tmp override via paths.tmp config key"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"

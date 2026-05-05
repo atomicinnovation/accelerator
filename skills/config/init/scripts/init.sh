@@ -9,8 +9,9 @@ CONFIG_READ_PATH="$PLUGIN_ROOT/scripts/config-read-path.sh"
 
 # shellcheck source=../../../../scripts/accelerator-scaffold.sh
 source "$PLUGIN_ROOT/scripts/accelerator-scaffold.sh"
+source "$PLUGIN_ROOT/scripts/vcs-common.sh"
 
-PROJECT_ROOT="${PROJECT_ROOT:-$PWD}"
+PROJECT_ROOT="${PROJECT_ROOT:-$(find_repo_root || echo "$PWD")}"
 cd "$PROJECT_ROOT"
 
 # Step 1: project-content directories under meta/ (12 items)
