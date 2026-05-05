@@ -78,6 +78,7 @@ assert_json_eq "config: plan user_override"           ".templates.plan.user_over
 assert_json_eq "config: research user_override"       ".templates.research.user_override"           "$PROJ/meta/templates/research.md"       "$CFG_FILE"
 assert_json_eq "config: validation user_override"     ".templates.validation.user_override"         "$PROJ/meta/templates/validation.md"     "$CFG_FILE"
 assert_json_eq "config: pr-description user_override" '.templates."pr-description".user_override'  "$PROJ/meta/templates/pr-description.md" "$CFG_FILE"
+assert_json_eq "config: work-item user_override"      '.templates."work-item".user_override'        "$PROJ/meta/templates/work-item.md"      "$CFG_FILE"
 unset ACCELERATOR_VISUALISER_BIN
 cd "$ORIG_DIR"
 

@@ -58,7 +58,7 @@ impl DocTypeKey {
             DocTypeKey::Research => "Research",
             DocTypeKey::PlanReviews => "Plan reviews",
             DocTypeKey::PrReviews => "PR reviews",
-            DocTypeKey::WorkItemReviews => "Work-item reviews",
+            DocTypeKey::WorkItemReviews => "Work item reviews",
             DocTypeKey::Validations => "Validations",
             DocTypeKey::Notes => "Notes",
             DocTypeKey::Prs => "PRs",
