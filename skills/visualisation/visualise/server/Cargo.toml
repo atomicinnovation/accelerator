@@ -1,6 +1,6 @@
 [package]
 name = "accelerator-visualiser"
-version = "1.21.0-pre.12"
+version = "1.21.0-pre.13"
 edition = "2021"
 # MSRV is 1.85 (edition2024 stabilisation). The mise toolchain is
 # pinned newer because dev-deps (icu via reqwest/rustls) need 1.86+;
