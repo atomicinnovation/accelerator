@@ -10,8 +10,8 @@ source "$PLUGIN_ROOT/scripts/atomic-common.sh"
 # ── 1. Resolve PROJECT_ROOT ──────────────────────────────────────────────────
 PROJECT_ROOT="${PROJECT_ROOT:-$(config_project_root)}"
 
-STATE_FILE="$PROJECT_ROOT/meta/.migrations-applied"
-SKIP_FILE="$PROJECT_ROOT/meta/.migrations-skipped"
+STATE_FILE="$PROJECT_ROOT/.accelerator/state/migrations-applied"
+SKIP_FILE="$PROJECT_ROOT/.accelerator/state/migrations-skipped"
 
 # ── --skip / --unskip flags ──────────────────────────────────────────────────
 if [ $# -gt 0 ]; then
@@ -21,7 +21,7 @@ if [ $# -gt 0 ]; then
         echo "Usage: run-migrations.sh --skip <migration-id>" >&2
         exit 1
       fi
-      mkdir -p "$PROJECT_ROOT/meta"
+      mkdir -p "$(dirname "$SKIP_FILE")"
       atomic_append_unique "$SKIP_FILE" "$2"
       echo "Skipped migration: $2"
       exit 0
@@ -51,17 +51,18 @@ if [ -z "${ACCELERATOR_MIGRATE_FORCE:-}" ]; then
   if [ "$vcs" = "jj" ]; then
     if command -v jj &>/dev/null; then
       dirty=$(jj --no-pager diff --name-only 2>/dev/null \
-        | grep -E '^(meta/|\.claude/accelerator)' || true)
+        | grep -E '^(meta/|\.claude/accelerator|\.accelerator/)' || true)
     fi
   elif [ "$vcs" = "git" ]; then
     dirty=$(git -C "$PROJECT_ROOT" status --porcelain \
         "meta/" ".claude/accelerator.md" ".claude/accelerator.local.md" \
+        ".accelerator/" \
         2>/dev/null | grep -v '^??' || true)
   fi
 
   if [ -n "$dirty" ]; then
-    echo "Error: dirty working tree — uncommitted changes detected in meta/ or" \
-         ".claude/accelerator*.md." >&2
+    echo "Error: dirty working tree — uncommitted changes detected in meta/," \
+         ".claude/accelerator*.md, or .accelerator/." >&2
     echo "Commit or discard those changes first, or set" \
          "ACCELERATOR_MIGRATE_FORCE=1 to skip this check." >&2
     exit 1
@@ -103,7 +104,7 @@ for applied_id in "${applied_ids[@]+"${applied_ids[@]}"}"; do
     [ "$applied_id" = "$known_id" ] && found=1 && break
   done
   if [ "$found" -eq 0 ]; then
-    echo "[warning] meta/.migrations-applied references unknown migration" \
+    echo "[warning] migrations-applied references unknown migration" \
          "$applied_id — preserved on rewrite" >&2
   fi
 done
@@ -114,7 +115,7 @@ for skipped_id in "${skipped_ids[@]+"${skipped_ids[@]}"}"; do
     [ "$skipped_id" = "$known_id" ] && found=1 && break
   done
   if [ "$found" -eq 0 ]; then
-    echo "[warning] meta/.migrations-skipped references unknown migration" \
+    echo "[warning] migrations-skipped references unknown migration" \
          "$skipped_id — preserved on rewrite" >&2
   fi
 done
@@ -200,7 +201,7 @@ for f in "${pending_files[@]}"; do
     continue
   fi
 
-  mkdir -p "$PROJECT_ROOT/meta"
+  mkdir -p "$(dirname "$STATE_FILE")"
   atomic_append_unique "$STATE_FILE" "$id"
   echo "[${id}] applied" >&2
   applied_count=$((applied_count + 1))
