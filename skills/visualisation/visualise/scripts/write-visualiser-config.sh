@@ -83,6 +83,23 @@ RES="$(template_tier research)"
 VAL="$(template_tier validation)"
 PRD="$(template_tier pr-description)"
 
+# Work-item ID pattern config. Read from `work.id_pattern` / `work.default_project_code`;
+# compile the scan regex via the work-item-pattern skill's --compile-scan subcommand.
+WORK_SCRIPT="$PLUGIN_ROOT/skills/work/scripts/work-item-pattern.sh"
+ID_PATTERN="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "work.id_pattern" "{number:04d}" 2>/dev/null || echo "{number:04d}")"
+PROJECT_CODE="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "work.default_project_code" "" 2>/dev/null || true)"
+SCAN_REGEX="$("$WORK_SCRIPT" --compile-scan "$ID_PATTERN" "$PROJECT_CODE")"
+
+# Build the work_item JSON block. If PROJECT_CODE is empty, omit default_project_code.
+if [ -z "$PROJECT_CODE" ]; then
+  WORK_ITEM_JSON="$(jq -nc --arg scan_regex "$SCAN_REGEX" --arg id_pattern "$ID_PATTERN" \
+    '{scan_regex:$scan_regex, id_pattern:$id_pattern}')"
+else
+  WORK_ITEM_JSON="$(jq -nc --arg scan_regex "$SCAN_REGEX" --arg id_pattern "$ID_PATTERN" \
+    --arg default_project_code "$PROJECT_CODE" \
+    '{scan_regex:$scan_regex, id_pattern:$id_pattern, default_project_code:$default_project_code}')"
+fi
+
 if [ -z "$OWNER_START_TIME" ]; then
   OWNER_START_TIME_JSON="null"
 else
@@ -104,6 +121,7 @@ jq -n \
   --arg validations "$VALIDATIONS" --arg notes "$NOTES" --arg prs "$PRS" \
   --argjson adr "$ADR" --argjson plan "$PLAN" --argjson research_t "$RES" \
   --argjson validation "$VAL" --argjson pr_description "$PRD" \
+  --argjson work_item "$WORK_ITEM_JSON" \
   '{
     plugin_root: $plugin_root,
     plugin_version: $plugin_version,
@@ -122,5 +140,6 @@ jq -n \
     templates: {
       adr: $adr, plan: $plan, research: $research_t,
       validation: $validation, "pr-description": $pr_description
-    }
+    },
+    work_item: $work_item
   }'

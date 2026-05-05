@@ -1,5 +1,16 @@
 use crate::docs::DocTypeKey;
 
+/// Derive the slug for a work-item file using the configured scan regex.
+/// The regex must have capture group 1 covering the ID token (digits or
+/// project-prefixed digits). The slug is everything after the full match
+/// in the filename stem (excluding the `.md` extension).
+pub fn derive_work_item_with_regex(re: &regex::Regex, filename: &str) -> Option<String> {
+    let stem = filename.strip_suffix(".md")?;
+    let m = re.find(stem)?;
+    let tail = &stem[m.end()..];
+    if tail.is_empty() { None } else { Some(tail.to_string()) }
+}
+
 pub fn derive(kind: DocTypeKey, filename: &str) -> Option<String> {
     if !filename.ends_with(".md") {
         return None;
@@ -242,5 +253,75 @@ mod tests {
             assert_eq!(derive(kind, "foo.txt"), None, "{kind:?}");
             assert_eq!(derive(kind, "README.rst"), None, "{kind:?}");
         }
+    }
+
+    fn compile_scan(pattern: &str, project_code: &str) -> regex::Regex {
+        let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../../skills/work/scripts/work-item-pattern.sh");
+        let out = std::process::Command::new(&script)
+            .arg("--compile-scan")
+            .arg(pattern)
+            .arg(project_code)
+            .output()
+            .expect("work-item-pattern.sh must be executable");
+        assert!(out.status.success(), "compile-scan failed for pattern={pattern}: {}", String::from_utf8_lossy(&out.stderr));
+        regex::Regex::new(String::from_utf8(out.stdout).unwrap().trim())
+            .expect("compiler must produce valid regex")
+    }
+
+    fn compile_scan_status(pattern: &str, project_code: &str) -> std::process::Output {
+        let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../../skills/work/scripts/work-item-pattern.sh");
+        std::process::Command::new(&script)
+            .arg("--compile-scan")
+            .arg(pattern)
+            .arg(project_code)
+            .output()
+            .expect("work-item-pattern.sh must be executable")
+    }
+
+    #[test]
+    fn work_items_with_project_pattern_strip_full_id_prefix() {
+        let re = compile_scan("{project}-{number:04d}", "PROJ");
+        let cases = &[
+            ("PROJ-0042-ship-the-thing.md", Some("ship-the-thing")),
+            ("PROJ-1-short.md", Some("short")),
+            ("PROJ-0042.md", None),
+            ("malformed.md", None),
+        ];
+        for (input, expected) in cases {
+            let got = derive_work_item_with_regex(&re, input);
+            assert_eq!(got.as_deref(), *expected, "input={input}");
+        }
+    }
+
+    #[test]
+    fn work_items_with_lowercase_or_digit_project_code() {
+        let re = compile_scan("{project}-{number:04d}", "web2");
+        assert_eq!(
+            derive_work_item_with_regex(&re, "web2-0042-foo.md").as_deref(),
+            Some("foo")
+        );
+    }
+
+    #[test]
+    fn work_items_default_numeric_pattern_still_works() {
+        let re = compile_scan("{number:04d}", "");
+        assert_eq!(
+            derive_work_item_with_regex(&re, "0001-three-layer-review-system-architecture.md")
+                .as_deref(),
+            Some("three-layer-review-system-architecture")
+        );
+    }
+
+    #[test]
+    fn invalid_id_pattern_fails_compilation_with_clear_message() {
+        let out = compile_scan_status("not-a-valid-pattern", "");
+        assert!(!out.status.success());
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            stderr.contains("E_PATTERN_") || stderr.contains("invalid"),
+            "stderr should name the failure: {stderr}"
+        );
     }
 }

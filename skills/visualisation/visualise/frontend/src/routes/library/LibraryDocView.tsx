@@ -41,7 +41,7 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
   // `entry?.relPath`. Body rendering is *not* gated on the wiki-link
   // resolver — pending markers handle the cache-warming window.
   const { content, related } = useDocPageData(entry?.relPath)
-  const { resolver: resolveWikiLink } = useWikiLinkResolver()
+  const { resolver: resolveWikiLink, pattern: wikiLinkPattern } = useWikiLinkResolver()
   const showUpdatingHint = useDeferredFetchingHint(related)
 
   if (type === undefined) {
@@ -110,7 +110,7 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
       )}
 
       <div className={styles.body}>
-        <MarkdownRenderer content={content.data.content} resolveWikiLink={resolveWikiLink} />
+        <MarkdownRenderer content={content.data.content} resolveWikiLink={resolveWikiLink} wikiLinkPattern={wikiLinkPattern} />
       </div>
     </article>
   )

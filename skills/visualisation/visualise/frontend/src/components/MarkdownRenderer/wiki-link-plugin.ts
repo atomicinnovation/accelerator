@@ -1,7 +1,6 @@
 import type { Plugin } from 'unified'
 import type { Link, Parents, Root, Text } from 'mdast'
 import { SKIP, visit } from 'unist-util-visit'
-import { WIKI_LINK_PATTERN } from '../../api/wiki-links'
 
 /** The resolver's three return shapes drive three distinct visual
  *  treatments downstream. The hook in Phase 5 returns `pending` while
@@ -15,7 +14,7 @@ export type ResolverResult =
 
 export type Resolver = (
   prefix: 'ADR' | 'WORK-ITEM',
-  n: number,
+  id: string,
 ) => ResolverResult
 
 /** A pseudo-mdast node rendered as a span with a class modifier. Two
@@ -41,11 +40,15 @@ type ReplacementNode = Text | Link | MarkerNode
 /** remark plugin that rewrites `[[ADR-NNNN]]` / `[[WORK-ITEM-NNNN]]`
  *  occurrences inside `text` nodes only. mdast represents fenced and
  *  inline code as `code`/`inlineCode` nodes whose interior text is
- *  *not* `text`-typed children, so the visitor never enters them. */
-export const remarkWikiLinks: Plugin<[Resolver], Root> = (resolve) => (tree) => {
+ *  *not* `text`-typed children, so the visitor never enters them.
+ *
+ *  Takes the compiled wiki-link pattern as the first argument rather
+ *  than reading a module-level constant, so the caller controls the
+ *  pattern (default numeric vs. project-prefixed). */
+export const remarkWikiLinks: Plugin<[RegExp, Resolver], Root> = (pattern, resolve) => (tree) => {
   visit(tree, 'text', (node: Text, index, parent: Parents | undefined) => {
     if (!parent || index === undefined) return
-    const replacement = splitTextNode(node, resolve)
+    const replacement = splitTextNode(node, pattern, resolve)
     if (!replacement) return
     parent.children.splice(
       index,
@@ -64,18 +67,16 @@ export const remarkWikiLinks: Plugin<[Resolver], Root> = (resolve) => (tree) => 
 /** Returns the replacement node sequence, or `null` when the input
  *  contains no bracket-shape matches at all (no allocation overhead
  *  for plain prose). */
-function splitTextNode(node: Text, resolve: Resolver): ReplacementNode[] | null {
+function splitTextNode(node: Text, pattern: RegExp, resolve: Resolver): ReplacementNode[] | null {
   const value = node.value
-  // Reset lastIndex defensively — the WIKI_LINK_PATTERN regex is
-  // module-scoped and uses the global flag.
-  WIKI_LINK_PATTERN.lastIndex = 0
+  // Reset lastIndex defensively — the pattern regex uses the global flag.
+  pattern.lastIndex = 0
   const out: ReplacementNode[] = []
   let cursor = 0
-  let match: RegExpExecArray | null = WIKI_LINK_PATTERN.exec(value)
+  let match: RegExpExecArray | null = pattern.exec(value)
   while (match !== null) {
-    const [bracketForm, prefixRaw, digitsRaw] = match
+    const [bracketForm, prefixRaw, id] = match
     const prefix = prefixRaw as 'ADR' | 'WORK-ITEM'
-    const n = parseInt(digitsRaw, 10)
     const start = match.index
     const end = start + bracketForm.length
 
@@ -83,7 +84,7 @@ function splitTextNode(node: Text, resolve: Resolver): ReplacementNode[] | null 
       out.push({ type: 'text', value: value.slice(cursor, start) })
     }
 
-    const result = resolve(prefix, n)
+    const result = resolve(prefix, id)
     if (result.kind === 'resolved') {
       out.push(linkNode(result.href, result.title, bracketForm))
     } else if (result.kind === 'unresolved') {
@@ -91,7 +92,7 @@ function splitTextNode(node: Text, resolve: Resolver): ReplacementNode[] | null 
         markerNode(
           bracketForm,
           'unresolved-wiki-link',
-          `No matching ${prefix} found for ID ${n}`,
+          `No matching ${prefix} found for ID ${id}`,
         ),
       )
     } else {
@@ -99,7 +100,7 @@ function splitTextNode(node: Text, resolve: Resolver): ReplacementNode[] | null 
     }
 
     cursor = end
-    match = WIKI_LINK_PATTERN.exec(value)
+    match = pattern.exec(value)
   }
   if (out.length === 0) return null
   if (cursor < value.length) {

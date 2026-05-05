@@ -2,19 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import { remarkWikiLinks, type Resolver } from './wiki-link-plugin'
+import { buildWikiLinkPattern } from '../../api/wiki-links'
 import type { Root } from 'mdast'
+
+const defaultPattern = buildWikiLinkPattern(null)
 
 /** Run the plugin over a parsed markdown source. Returns the
  *  transformed mdast root. */
-function transform(source: string, resolver: Resolver): Root {
+function transform(source: string, resolver: Resolver, pattern: RegExp = defaultPattern): Root {
   const tree = unified().use(remarkParse).parse(source) as Root
-  unified().use(remarkWikiLinks, resolver).runSync(tree)
+  unified().use(remarkWikiLinks, pattern, resolver).runSync(tree)
   return tree
 }
 
-const resolveAlwaysResolved: Resolver = (prefix, n) => ({
+const resolveAlwaysResolved: Resolver = (prefix, id) => ({
   kind: 'resolved',
-  href: `/library/decisions/ADR-${String(n).padStart(4, '0')}-foo`,
+  href: `/library/decisions/ADR-${id.padStart(4, '0')}-foo`,
   title: prefix === 'ADR' ? 'Example decision' : 'Example work item',
 })
 
@@ -156,5 +159,36 @@ describe('remarkWikiLinks: SKIP prevents double rewrite of inserted children', (
     const flat = JSON.stringify(tree)
     const linkCount = (flat.match(/"type":"link"/g) ?? []).length
     expect(linkCount).toBe(1)
+  })
+})
+
+// ── Project-pattern wiki-link tests ─────────────────────────────────────────
+describe('remarkWikiLinks: project-pattern wiki-links', () => {
+  it('rewrites [[WORK-ITEM-PROJ-0042]] with a project-code pattern', () => {
+    const pattern = buildWikiLinkPattern('PROJ')
+    const resolver: Resolver = (prefix, id) =>
+      prefix === 'WORK-ITEM' && id === 'PROJ-0042'
+        ? { kind: 'resolved', href: '/library/work-items/PROJ-0042-foo', title: 'Foo' }
+        : { kind: 'unresolved' }
+    const tree = transform('see [[WORK-ITEM-PROJ-0042]]\n', resolver, pattern)
+    const para = tree.children[0]
+    if (para.type !== 'paragraph') throw new Error('expected paragraph')
+    const link = para.children[1] as { type: string; url: string }
+    expect(link.type).toBe('link')
+    expect(link.url).toBe('/library/work-items/PROJ-0042-foo')
+  })
+
+  it('rewrites bare-numeric [[WORK-ITEM-0007]] under a project pattern (legacy fallback)', () => {
+    const pattern = buildWikiLinkPattern('PROJ')
+    const resolver: Resolver = (prefix, id) =>
+      prefix === 'WORK-ITEM' && id === '0007'
+        ? { kind: 'resolved', href: '/library/work-items/0007-bar', title: 'Bar' }
+        : { kind: 'unresolved' }
+    const tree = transform('see [[WORK-ITEM-0007]]\n', resolver, pattern)
+    const para = tree.children[0]
+    if (para.type !== 'paragraph') throw new Error('expected paragraph')
+    const link = para.children[1] as { type: string; url: string }
+    expect(link.type).toBe('link')
+    expect(link.url).toBe('/library/work-items/0007-bar')
   })
 })

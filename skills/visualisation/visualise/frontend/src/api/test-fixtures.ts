@@ -9,6 +9,7 @@ export function makeIndexEntry(overrides: Partial<IndexEntry> = {}): IndexEntry 
     path: '/x/foo.md',
     relPath: 'foo.md',
     slug: 'foo',
+    workItemId: null,
     title: 'Foo',
     frontmatter: {},
     frontmatterState: 'parsed',

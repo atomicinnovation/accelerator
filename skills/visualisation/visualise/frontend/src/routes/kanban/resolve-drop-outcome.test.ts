@@ -9,6 +9,7 @@ function makeEntry(relPath: string, status: string): IndexEntry {
     path: `/tmp/${relPath}`,
     relPath,
     slug: relPath.split('/').pop()!.replace('.md', ''),
+    workItemId: null,
     title: 'Test',
     frontmatter: { status },
     frontmatterState: 'parsed',

@@ -5,6 +5,7 @@ mod lifecycle;
 mod related;
 mod templates;
 mod types;
+mod work_item_config;
 
 use std::sync::Arc;
 
@@ -35,6 +36,7 @@ pub fn mount(_state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/api/lifecycle", get(lifecycle::lifecycle_list))
         .route("/api/lifecycle/:slug", get(lifecycle::lifecycle_one))
         .route("/api/related/*path", get(related::related_get))
+        .route("/api/work-item/config", get(work_item_config::get_work_item_config))
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -66,6 +66,7 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
         log_path: tmp.join("server.log"),
         doc_paths,
         templates,
+        work_item: None,
     }
 }
 

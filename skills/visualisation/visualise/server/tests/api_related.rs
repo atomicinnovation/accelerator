@@ -56,6 +56,7 @@ fn cfg_with_only(tmp: &std::path::Path, doc_paths: HashMap<String, std::path::Pa
         log_path: tmp.join("server.log"),
         doc_paths,
         templates,
+        work_item: None,
     }
 }
 

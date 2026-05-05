@@ -21,7 +21,19 @@ const exampleAdr = makeIndexEntry({
 })
 
 describe('useWikiLinkResolver', () => {
-  beforeEach(() => vi.restoreAllMocks())
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    // Stub the work-item/config fetch so tests don't need a real server.
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/work-item/config') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ }),
+        })
+      }
+      return Promise.reject(new Error(`unexpected fetch: ${url}`))
+    }))
+  })
 
   // ── Step 5.7 ────────────────────────────────────────────────────────
   it('returns kind=resolved after both docs queries settle and ID matches', async () => {
@@ -35,10 +47,10 @@ describe('useWikiLinkResolver', () => {
     })
 
     await waitFor(() => {
-      const r = result.current.resolver('ADR', 1)
+      const r = result.current.resolver('ADR', '1')
       expect(r.kind).toBe('resolved')
     })
-    const resolved = result.current.resolver('ADR', 1)
+    const resolved = result.current.resolver('ADR', '1')
     expect(resolved).toEqual({
       kind: 'resolved',
       href: '/library/decisions/ADR-0001-example',
@@ -56,7 +68,7 @@ describe('useWikiLinkResolver', () => {
     })
 
     await waitFor(() => {
-      const r = result.current.resolver('ADR', 9999)
+      const r = result.current.resolver('ADR', '9999')
       expect(r.kind).toBe('unresolved')
     })
   })
@@ -73,7 +85,7 @@ describe('useWikiLinkResolver', () => {
       wrapper: makeWrapper(qc),
     })
 
-    expect(result.current.resolver('ADR', 1)).toEqual({ kind: 'pending' })
+    expect(result.current.resolver('ADR', '1')).toEqual({ kind: 'pending' })
   })
 
   // ── Step 5.8b ───────────────────────────────────────────────────────
@@ -95,7 +107,7 @@ describe('useWikiLinkResolver', () => {
 
     // After settle, the resolver reference rotates exactly once.
     await waitFor(() => {
-      expect(result.current.resolver('ADR', 1).kind).toBe('resolved')
+      expect(result.current.resolver('ADR', '1').kind).toBe('resolved')
     })
     const settledFirst = result.current.resolver
     expect(settledFirst).not.toBe(pendingFirst)
@@ -117,7 +129,7 @@ describe('useWikiLinkResolver', () => {
     })
 
     await waitFor(() => {
-      expect(result.current.resolver('ADR', 1).kind).toBe('resolved')
+      expect(result.current.resolver('ADR', '1').kind).toBe('resolved')
     })
 
     // Trigger a background refetch — cached data remains, so isPending
@@ -127,6 +139,6 @@ describe('useWikiLinkResolver', () => {
       await qc.invalidateQueries({ queryKey: queryKeys.docs('decisions') })
     })
 
-    expect(result.current.resolver('ADR', 1).kind).toBe('resolved')
+    expect(result.current.resolver('ADR', '1').kind).toBe('resolved')
   })
 })

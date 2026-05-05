@@ -15,6 +15,7 @@ function makeEntry(overrides: Partial<IndexEntry> = {}): IndexEntry {
     path: '/tmp/meta/work/0001-foo.md',
     relPath: 'meta/work/0001-foo.md',
     slug: '0001-foo',
+    workItemId: null,
     title: 'Foo',
     frontmatter: { status: 'todo' },
     frontmatterState: 'parsed',
@@ -24,7 +25,7 @@ function makeEntry(overrides: Partial<IndexEntry> = {}): IndexEntry {
     etag: 'sha256-OLD',
     bodyPreview: '',
     ...overrides,
-  }
+  } as IndexEntry
 }
 
 describe('useMoveWorkItem', () => {

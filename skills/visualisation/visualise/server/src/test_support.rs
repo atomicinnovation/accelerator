@@ -10,6 +10,7 @@ pub fn entry_for_test(doc_type: DocTypeKey, slug: &str, mtime_ms: i64, title: &s
         path: PathBuf::from(format!("/x/{slug}.md")),
         rel_path: PathBuf::from(format!("{slug}.md")),
         slug: Some(slug.to_string()),
+        work_item_id: None,
         title: title.to_string(),
         frontmatter: serde_json::Value::Null,
         frontmatter_state: "parsed".to_string(),

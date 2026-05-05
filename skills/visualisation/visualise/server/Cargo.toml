@@ -47,6 +47,7 @@ serde_yml = "0.0.12"
 hex = "0.4"
 notify = "6"
 tokio-stream = { version = "0.1", features = ["sync"] }
+regex = "1"
 
 [dev-dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }

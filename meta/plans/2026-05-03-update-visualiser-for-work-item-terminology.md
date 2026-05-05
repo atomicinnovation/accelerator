@@ -1156,13 +1156,13 @@ rendered plan resolves and the click navigates to the work-item.
 
 #### Automated Verification:
 
-- [ ] Server tests pass: `cargo test --all-features`
-- [ ] Frontend tests pass: `npm run test -- --run`
-- [ ] Playwright e2e passes including the new project-pattern spec
-- [ ] Pattern compiler validation rejects invalid `work.id_pattern` at launch with a clear error (asserted via integration test, not manual)
-- [ ] `WorkItemConfig::from_raw` returns `Err(InvalidScanRegex)` on a malformed pattern (unit test)
-- [ ] Mixed-pattern fixture (some files match the configured regex, some don't) indexes per the precedence rule (integration test)
-- [ ] Frontend regex builder consumes server-supplied `default_project_code` and matches both `[[WORK-ITEM-PROJ-0042]]` and `[[WORK-ITEM-0007]]` (legacy bare-numeric fallback) under a project-prefixed configuration; matches `[[WORK-ITEM-0042]]` only under the default pattern. Multi-segment project codes (e.g. `[[WORK-ITEM-ACME-CORE-0042]]`) are out of scope and explicitly do not match.
+- [x] Server tests pass: `cargo test --all-features`
+- [x] Frontend tests pass: `npm run test -- --run`
+- [x] Playwright e2e passes including the new project-pattern spec
+- [x] Pattern compiler validation rejects invalid `work.id_pattern` at launch with a clear error (asserted via integration test, not manual)
+- [x] `WorkItemConfig::from_raw` returns `Err(InvalidScanRegex)` on a malformed pattern (unit test)
+- [x] Mixed-pattern fixture (some files match the configured regex, some don't) indexes per the precedence rule (integration test)
+- [x] Frontend regex builder consumes server-supplied `default_project_code` and matches both `[[WORK-ITEM-PROJ-0042]]` and `[[WORK-ITEM-0007]]` (legacy bare-numeric fallback) under a project-prefixed configuration; matches `[[WORK-ITEM-0042]]` only under the default pattern. Multi-segment project codes (e.g. `[[WORK-ITEM-ACME-CORE-0042]]`) are out of scope and explicitly do not match.
 
 #### Manual Verification:
 

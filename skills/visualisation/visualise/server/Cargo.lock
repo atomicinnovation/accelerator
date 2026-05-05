@@ -19,6 +19,7 @@ dependencies = [
  "nix",
  "notify",
  "predicates",
+ "regex",
  "reqwest",
  "rust-embed",
  "serde",

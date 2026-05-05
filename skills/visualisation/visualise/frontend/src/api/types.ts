@@ -38,6 +38,9 @@ export interface IndexEntry {
   path: string
   relPath: string
   slug: string | null
+  /** Filename-derived work-item ID (regex-extracted). Present for work-item
+   *  entries whose filename matches the configured scan pattern; null otherwise. */
+  workItemId: string | null
   title: string
   frontmatter: Record<string, unknown>
   frontmatterState: 'parsed' | 'absent' | 'malformed'

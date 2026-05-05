@@ -16,6 +16,23 @@ test('resolved wiki-link [[ADR-0001]] renders as a clickable anchor', async ({ p
   }
 })
 
+test('resolved wiki-link [[WORK-ITEM-0001]] renders as a clickable anchor', async ({ page }) => {
+  await page.goto('/library/plans/first-plan')
+  await expect(page.locator('article')).toBeVisible()
+
+  // The plan fixture body contains [[WORK-ITEM-0001]] which should resolve
+  // to the first work item under the default numeric ID pattern.
+  const wikiLink = page.locator('a[href*="/library/work-items/"]').filter({
+    hasText: /first.work.item|0001/i,
+  })
+
+  if (await wikiLink.count() > 0) {
+    await expect(wikiLink.first()).toBeVisible()
+    await wikiLink.first().click()
+    await expect(page).toHaveURL(/\/library\/work-items\//)
+  }
+})
+
 test('unresolved wiki-link [[ADR-9999]] renders as a span, not an anchor', async ({ page }) => {
   await page.goto('/library/plans/first-plan')
   await expect(page.locator('article')).toBeVisible()

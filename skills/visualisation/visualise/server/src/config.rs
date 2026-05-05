@@ -27,6 +27,93 @@ pub struct Config {
     pub log_path: PathBuf,
     pub doc_paths: HashMap<String, PathBuf>,
     pub templates: HashMap<String, TemplateTiers>,
+    /// Work-item ID pattern configuration. Absent from pre-Phase-2
+    /// configs; treated as the numeric default when missing.
+    #[serde(default)]
+    pub work_item: Option<RawWorkItemConfig>,
+}
+
+/// Deserializable form of the work-item ID configuration. The launcher
+/// emits this under the `work_item` key in config.json.
+#[derive(Debug, Clone, Deserialize)]
+pub struct RawWorkItemConfig {
+    pub scan_regex: String,
+    #[serde(default = "default_id_pattern")]
+    pub id_pattern: String,
+    #[serde(default)]
+    pub default_project_code: Option<String>,
+}
+
+fn default_id_pattern() -> String {
+    "{number:04d}".to_string()
+}
+
+/// Runtime work-item ID configuration with the scan regex compiled once
+/// at boot. All downstream code accepts `&WorkItemConfig` and never
+/// re-compiles.
+#[derive(Debug)]
+pub struct WorkItemConfig {
+    pub scan_regex: regex::Regex,
+    pub scan_regex_raw: String,
+    pub id_pattern: String,
+    pub default_project_code: Option<String>,
+}
+
+impl WorkItemConfig {
+    pub fn from_raw(raw: RawWorkItemConfig) -> Result<Self, ConfigError> {
+        let scan_regex = regex::Regex::new(&raw.scan_regex).map_err(|source| {
+            ConfigError::InvalidScanRegex {
+                pattern: raw.scan_regex.clone(),
+                source,
+            }
+        })?;
+        Ok(Self {
+            scan_regex,
+            scan_regex_raw: raw.scan_regex,
+            id_pattern: raw.id_pattern,
+            default_project_code: raw.default_project_code,
+        })
+    }
+
+    /// Fallback used when `work_item` is absent from config (pre-Phase-2
+    /// launchers). Behaves identically to the default `{number:04d}` pattern.
+    pub fn default_numeric() -> Self {
+        let raw = "^([0-9]+)-".to_string();
+        Self {
+            scan_regex: regex::Regex::new(&raw).unwrap(),
+            scan_regex_raw: raw,
+            id_pattern: "{number:04d}".to_string(),
+            default_project_code: None,
+        }
+    }
+
+    /// Extract the full-string work-item ID from a filename.
+    ///
+    /// Two-pass admission:
+    /// 1. Primary: apply the configured scan regex. Capture group 1 is the
+    ///    digit run; the full ID is `<project_code>-<digits>` when a project
+    ///    code is configured, or just `<digits>` for the numeric-only pattern.
+    /// 2. Fallback (project-prefixed pattern only): if the primary regex fails
+    ///    and a `default_project_code` is set, try the bare-numeric form.
+    ///    On match, key the file as `<project_code>-<digits>` so legacy
+    ///    bare-numeric files remain reachable during a pattern-config rollout.
+    pub fn extract_id(&self, filename: &str) -> Option<String> {
+        if let Some(cap) = self.scan_regex.captures(filename) {
+            let digits = cap.get(1)?.as_str();
+            return Some(match &self.default_project_code {
+                Some(code) => format!("{code}-{digits}"),
+                None => digits.to_string(),
+            });
+        }
+        // Fallback: only when a project code is configured.
+        let code = self.default_project_code.as_deref()?;
+        let dash = filename.find('-')?;
+        let prefix = &filename[..dash];
+        if prefix.is_empty() || !prefix.chars().all(|c| c.is_ascii_digit()) {
+            return None;
+        }
+        Some(format!("{code}-{prefix}"))
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -61,6 +148,11 @@ pub enum ConfigError {
     Parse {
         path: PathBuf,
         source: serde_json::Error,
+    },
+    #[error("invalid work-item scan regex '{pattern}': {source}")]
+    InvalidScanRegex {
+        pattern: String,
+        source: regex::Error,
     },
 }
 
@@ -151,5 +243,71 @@ mod tests {
             adr.config_override.as_deref().unwrap(),
             std::path::Path::new("/custom/adr.md")
         );
+    }
+
+    #[test]
+    fn work_item_config_from_raw_compiles_valid_regex() {
+        let raw = RawWorkItemConfig {
+            scan_regex: "^([0-9]+)-".to_string(),
+            id_pattern: "{number:04d}".to_string(),
+            default_project_code: None,
+        };
+        assert!(WorkItemConfig::from_raw(raw).is_ok());
+    }
+
+    #[test]
+    fn work_item_config_from_raw_rejects_invalid_regex() {
+        let raw = RawWorkItemConfig {
+            scan_regex: "([unclosed".to_string(),
+            id_pattern: "{number:04d}".to_string(),
+            default_project_code: None,
+        };
+        let err = WorkItemConfig::from_raw(raw).expect_err("invalid regex must fail");
+        assert!(matches!(err, ConfigError::InvalidScanRegex { .. }));
+    }
+
+    #[test]
+    fn work_item_config_extract_id_default_pattern() {
+        let cfg = WorkItemConfig::default_numeric();
+        assert_eq!(cfg.extract_id("0001-foo.md").as_deref(), Some("0001"));
+        assert_eq!(cfg.extract_id("0042-bar-baz.md").as_deref(), Some("0042"));
+        assert_eq!(cfg.extract_id("malformed.md"), None);
+        assert_eq!(cfg.extract_id("ADR-0001-foo.md"), None);
+    }
+
+    #[test]
+    fn work_item_config_extract_id_project_pattern() {
+        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
+            scan_regex: "^PROJ-([0-9]+)-".to_string(),
+            id_pattern: "{project}-{number:04d}".to_string(),
+            default_project_code: Some("PROJ".to_string()),
+        })
+        .unwrap();
+        assert_eq!(cfg.extract_id("PROJ-0042-foo.md").as_deref(), Some("PROJ-0042"));
+        assert_eq!(cfg.extract_id("PROJ-1-short.md").as_deref(), Some("PROJ-1"));
+        assert_eq!(cfg.extract_id("PROJ-0042.md"), None);
+        assert_eq!(cfg.extract_id("malformed.md"), None);
+    }
+
+    #[test]
+    fn work_item_config_extract_id_fallback_for_legacy_files() {
+        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
+            scan_regex: "^PROJ-([0-9]+)-".to_string(),
+            id_pattern: "{project}-{number:04d}".to_string(),
+            default_project_code: Some("PROJ".to_string()),
+        })
+        .unwrap();
+        // Bare-numeric file that doesn't match the project pattern:
+        // admitted via fallback keyed as PROJ-<digits>.
+        assert_eq!(cfg.extract_id("0042-foo.md").as_deref(), Some("PROJ-0042"));
+        assert_eq!(cfg.extract_id("0001-bar.md").as_deref(), Some("PROJ-0001"));
+    }
+
+    #[test]
+    fn work_item_config_extract_id_no_fallback_without_project_code() {
+        let cfg = WorkItemConfig::default_numeric();
+        // Default pattern: bare-numeric files go through primary, not fallback.
+        // Non-numeric prefixes are rejected.
+        assert_eq!(cfg.extract_id("ADR-0001-foo.md"), None);
     }
 }

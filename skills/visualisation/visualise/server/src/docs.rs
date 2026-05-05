@@ -206,6 +206,7 @@ mod tests {
             log_path: "/l".into(),
             doc_paths,
             templates: Default::default(),
+            work_item: None,
         };
 
         let types = describe_types(&cfg);
@@ -247,6 +248,7 @@ mod tests {
             log_path: "/l".into(),
             doc_paths: Default::default(),
             templates: Default::default(),
+            work_item: None,
         };
         let types = describe_types(&cfg);
         let decisions = types

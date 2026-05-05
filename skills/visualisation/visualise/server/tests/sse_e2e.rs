@@ -24,6 +24,7 @@ async fn file_mutation_arrives_as_sse_event() {
         log_path: tmp.path().join("server.log"),
         doc_paths,
         templates: HashMap::new(),
+        work_item: None,
     };
 
     let info_path = tmp.path().join("server-info.json");

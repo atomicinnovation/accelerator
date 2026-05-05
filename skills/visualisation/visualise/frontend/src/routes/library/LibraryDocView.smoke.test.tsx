@@ -13,6 +13,7 @@ const planEntry: IndexEntry = {
   path: '/p/meta/plans/2026-01-01-foo.md',
   relPath: 'meta/plans/2026-01-01-foo.md',
   slug: 'foo',
+  workItemId: null,
   title: 'Foo Plan',
   frontmatter: {},
   frontmatterState: 'parsed',

@@ -54,6 +54,7 @@ mod tests {
             log_path: tmp.path().join("server.log"),
             doc_paths: Default::default(),
             templates: Default::default(),
+            work_item: None,
         };
         let activity = Arc::new(crate::activity::Activity::new());
         AppState::build(cfg, activity).await.unwrap()

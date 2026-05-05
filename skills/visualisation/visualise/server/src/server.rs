@@ -66,8 +66,12 @@ impl AppState {
             template_roots,
             work_root,
         ));
+        let work_item_cfg = Arc::new(match cfg.work_item.clone() {
+            Some(raw) => crate::config::WorkItemConfig::from_raw(raw)?,
+            None => crate::config::WorkItemConfig::default_numeric(),
+        });
         let indexer = Arc::new(
-            crate::indexer::Indexer::build(driver.clone(), cfg.project_root.clone()).await?,
+            crate::indexer::Indexer::build(driver.clone(), cfg.project_root.clone(), work_item_cfg).await?,
         );
         let templates = Arc::new(
             crate::templates::TemplateResolver::build(&cfg.templates, driver.as_ref()).await,
@@ -93,6 +97,8 @@ impl AppState {
 pub enum AppStateError {
     #[error("indexer build failed: {0}")]
     Indexer(#[from] crate::file_driver::FileDriverError),
+    #[error("invalid work-item config: {0}")]
+    Config(#[from] crate::config::ConfigError),
 }
 
 #[derive(Debug, Serialize)]
@@ -546,6 +552,7 @@ mod tests {
             log_path: tmp.join("server.log"),
             doc_paths: HashMap::new(),
             templates: HashMap::new(),
+            work_item: None,
         }
     }
 

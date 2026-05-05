@@ -11,7 +11,7 @@ const mockEntries: IndexEntry[] = [
   {
     type: 'plans', path: '/p/meta/plans/2026-01-01-foo.md',
     relPath: 'meta/plans/2026-01-01-foo.md',
-    slug: 'foo', title: 'Foo Plan',
+    slug: 'foo', workItemId: null, title: 'Foo Plan',
     frontmatter: { status: 'draft', date: '2026-01-01' },
     frontmatterState: 'parsed', workItemRefs: [],
     mtimeMs: 1_700_000_000_000, size: 100, etag: 'sha256-a',
@@ -20,7 +20,7 @@ const mockEntries: IndexEntry[] = [
   {
     type: 'plans', path: '/p/meta/plans/2026-02-01-bar.md',
     relPath: 'meta/plans/2026-02-01-bar.md',
-    slug: 'bar', title: 'Bar Plan',
+    slug: 'bar', workItemId: null, title: 'Bar Plan',
     frontmatter: { status: 'complete', date: '2026-02-01' },
     frontmatterState: 'parsed', workItemRefs: [],
     mtimeMs: 1_700_100_000_000, size: 200, etag: 'sha256-b',

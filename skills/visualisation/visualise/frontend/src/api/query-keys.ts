@@ -2,6 +2,7 @@ import type { DocTypeKey } from './types'
 
 export const queryKeys = {
   serverInfo: () => ['server-info'] as const,
+  workItemConfig: () => ['work-item-config'] as const,
   types: () => ['types'] as const,
   docs: (type: DocTypeKey) => ['docs', type] as const,
   docContent: (relPath: string) => ['doc-content', relPath] as const,
@@ -22,4 +23,5 @@ export const queryKeys = {
 
 export const SESSION_STABLE_QUERY_ROOTS: ReadonlySet<unknown> = new Set([
   'server-info',
+  'work-item-config',
 ])

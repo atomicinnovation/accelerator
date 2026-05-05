@@ -224,7 +224,8 @@ mod tests {
         doc_paths.insert("plans".into(), plans);
         let driver: Arc<dyn crate::file_driver::FileDriver> =
             Arc::new(LocalFileDriver::new(&doc_paths, vec![], vec![]));
-        let indexer = Arc::new(Indexer::build(driver, tmp.to_path_buf()).await.unwrap());
+        let work_item_cfg = Arc::new(crate::config::WorkItemConfig::default_numeric());
+        let indexer = Arc::new(Indexer::build(driver, tmp.to_path_buf(), work_item_cfg).await.unwrap());
         let hub = Arc::new(SseHub::new(64));
         let clusters = Arc::new(RwLock::new(crate::clusters::compute_clusters(
             &indexer.all().await,
