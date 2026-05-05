@@ -1,7 +1,7 @@
 ---
 title: "Skills and agents as complementary abstractions"
 type: adr-creation-task
-status: todo
+status: ready
 ---
 
 # ADR Ticket: Skills and agents as complementary abstractions

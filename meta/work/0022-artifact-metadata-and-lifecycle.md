@@ -1,7 +1,7 @@
 ---
 title: "Artifact metadata, cross-referencing, and lifecycle transitions"
 type: adr-creation-task
-status: todo
+status: ready
 ---
 
 # ADR Ticket: Artifact metadata, cross-referencing, and lifecycle transitions

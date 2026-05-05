@@ -1,7 +1,7 @@
 ---
 title: "VCS abstraction layer"
 type: adr-creation-task
-status: todo
+status: ready
 ---
 
 # ADR Ticket: VCS abstraction layer

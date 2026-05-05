@@ -1,7 +1,7 @@
 ---
 title: "Artifact persistence lifecycle"
 type: adr-creation-task
-status: todo
+status: ready
 ---
 
 # ADR Ticket: Artifact persistence lifecycle

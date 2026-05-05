@@ -4,7 +4,7 @@ title: "Centralise PATH_DEFAULTS to scripts/config-defaults.sh"
 date: "2026-04-26T00:00:00+00:00"
 author: Toby Clemson
 type: task
-status: proposed
+status: draft
 priority: low
 parent: ""
 tags: [config, refactoring]

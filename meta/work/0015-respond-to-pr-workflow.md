@@ -1,7 +1,7 @@
 ---
 title: "Respond-to-PR as sequential workflow with verify-before-implement"
 type: adr-creation-task
-status: todo
+status: ready
 ---
 
 # ADR Ticket: Respond-to-PR as sequential workflow with verify-before-implement
