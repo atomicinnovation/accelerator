@@ -1983,7 +1983,8 @@ else
 fi
 
 echo "Test: unknown mode -> exit 1 and usage contains pr|plan|work-item"
-STDERR_OUTPUT=$(bash "$READ_REVIEW" "bad-mode" 2>&1 || true)
+REPO=$(setup_repo)
+STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" "bad-mode" 2>&1 || true)
 if echo "$STDERR_OUTPUT" | grep -q "pr|plan|work-item"; then
   echo "  PASS: usage string includes work-item"
   PASS=$((PASS + 1))
@@ -1992,7 +1993,7 @@ else
   echo "    Stderr: $(printf '%q' "$STDERR_OUTPUT")"
   FAIL=$((FAIL + 1))
 fi
-assert_exit_code "unknown mode exits 1" 1 bash "$READ_REVIEW" "bad-mode"
+assert_exit_code "unknown mode exits 1" 1 bash -c "cd '$REPO' && bash '$READ_REVIEW' 'bad-mode'"
 
 echo "Test: custom lens with applies_to: [plan] appears only in plan mode"
 REPO=$(setup_repo)
