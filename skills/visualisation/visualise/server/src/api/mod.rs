@@ -1,6 +1,7 @@
 mod docs;
 mod events;
 pub(crate) mod info;
+mod kanban_config;
 mod lifecycle;
 mod related;
 mod templates;
@@ -37,6 +38,7 @@ pub fn mount(_state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/api/lifecycle/:slug", get(lifecycle::lifecycle_one))
         .route("/api/related/*path", get(related::related_get))
         .route("/api/work-item/config", get(work_item_config::get_work_item_config))
+        .route("/api/kanban/config", get(kanban_config::get_kanban_config))
 }
 
 #[derive(Debug, thiserror::Error)]

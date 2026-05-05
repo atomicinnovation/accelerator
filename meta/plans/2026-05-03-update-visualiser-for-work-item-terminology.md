@@ -1658,17 +1658,17 @@ fn malformed_frontmatter_in_one_file_does_not_break_index_for_others() {
 
 #### Automated Verification:
 
-- [ ] Server tests pass: `cargo test --all-features`
-- [ ] Frontend tests pass: `npm run test -- --run`
+- [x] Server tests pass: `cargo test --all-features`
+- [x] Frontend tests pass: `npm run test -- --run`
 - [ ] Playwright e2e passes (including new cross-ref spec)
 - [ ] Configuring `visualiser.kanban_columns: [ready, in-progress, review, done]` produces a four-column kanban (asserted by an e2e test)
-- [ ] `PATCH /api/docs/.../frontmatter` with an unconfigured status returns 400 with `ApiError::UnknownKanbanStatus` envelope and `accepted_keys` in the body
-- [ ] Empty `visualiser.kanban_columns: []` rejected at boot (config unit test)
-- [ ] Missing `visualiser.kanban_columns` falls back to the seven defaults (config unit test)
-- [ ] Self-referencing work-item does not appear in its own `referencedBy` (indexer test)
-- [ ] Two-way cycle handled without duplication or infinite loop (indexer test)
-- [ ] Heterogeneous YAML shapes for cross-ref keys (null / scalar-where-array / array-where-scalar / int-vs-string) all degrade to defined behaviour with no panic (frontmatter tests)
-- [ ] Plan-review and work-item-ref both surface in `referencedBy` for a doc that's the target of both (composition test against ADR-0017 precedent)
+- [x] `PATCH /api/docs/.../frontmatter` with an unconfigured status returns 400 with `ApiError::UnknownKanbanStatus` envelope and `accepted_keys` in the body
+- [x] Empty `visualiser.kanban_columns: []` rejected at boot (config unit test)
+- [x] Missing `visualiser.kanban_columns` falls back to the seven defaults (config unit test)
+- [x] Self-referencing work-item does not appear in its own `referencedBy` (indexer test)
+- [x] Two-way cycle handled without duplication or infinite loop (indexer test)
+- [x] Heterogeneous YAML shapes for cross-ref keys (null / scalar-where-array / array-where-scalar / int-vs-string) all degrade to defined behaviour with no panic (frontmatter tests)
+- [x] Plan-review and work-item-ref both surface in `referencedBy` for a doc that's the target of both (composition test against ADR-0017 precedent)
 
 #### Manual Verification:
 

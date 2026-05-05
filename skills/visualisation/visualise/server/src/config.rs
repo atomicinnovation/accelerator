@@ -31,6 +31,17 @@ pub struct Config {
     /// configs; treated as the numeric default when missing.
     #[serde(default)]
     pub work_item: Option<RawWorkItemConfig>,
+    /// Kanban column keys. Absent → seven template-status defaults.
+    /// An empty list is rejected at boot.
+    #[serde(default)]
+    pub kanban_columns: Option<Vec<String>>,
+}
+
+/// A single kanban board column, as resolved at boot.
+#[derive(Debug, Clone)]
+pub struct KanbanColumn {
+    pub key: String,
+    pub label: String,
 }
 
 /// Deserializable form of the work-item ID configuration. The launcher
@@ -137,6 +148,42 @@ impl Config {
     }
 }
 
+const DEFAULT_KANBAN_COLUMN_KEYS: &[&str] = &[
+    "draft", "ready", "in-progress", "review", "done", "blocked", "abandoned",
+];
+
+fn label_from_key(key: &str) -> String {
+    let spaced = key.replace('-', " ");
+    let mut chars = spaced.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(first) => first.to_uppercase().to_string() + chars.as_str(),
+    }
+}
+
+impl Config {
+    /// Resolves the raw `kanban_columns` field (list of key strings, or None for
+    /// "use defaults") into a validated `Vec<KanbanColumn>` with derived labels.
+    ///
+    /// Semantics:
+    /// - `None` (field absent from config) → seven template-status defaults.
+    /// - `Some(keys)` where `keys` is non-empty → one `KanbanColumn` per key.
+    /// - `Some([])` (empty list) → `ConfigError::EmptyKanbanColumns` (reject at boot).
+    pub fn resolve_kanban_columns(&self) -> Result<Vec<KanbanColumn>, ConfigError> {
+        match &self.kanban_columns {
+            None => Ok(DEFAULT_KANBAN_COLUMN_KEYS
+                .iter()
+                .map(|k| KanbanColumn { key: k.to_string(), label: label_from_key(k) })
+                .collect()),
+            Some(keys) if keys.is_empty() => Err(ConfigError::EmptyKanbanColumns),
+            Some(keys) => Ok(keys
+                .iter()
+                .map(|k| KanbanColumn { key: k.clone(), label: label_from_key(k) })
+                .collect()),
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
     #[error("failed to read config {path}: {source}")]
@@ -154,6 +201,8 @@ pub enum ConfigError {
         pattern: String,
         source: regex::Error,
     },
+    #[error("visualiser.kanban_columns must not be empty")]
+    EmptyKanbanColumns,
 }
 
 #[cfg(test)]
@@ -309,5 +358,62 @@ mod tests {
         // Default pattern: bare-numeric files go through primary, not fallback.
         // Non-numeric prefixes are rejected.
         assert_eq!(cfg.extract_id("ADR-0001-foo.md"), None);
+    }
+
+    fn bare_config_json() -> &'static str {
+        r#"{
+            "plugin_root": "/p", "plugin_version": "0.0.0", "project_root": "/r",
+            "tmp_path": "/t", "host": "127.0.0.1", "owner_pid": 0,
+            "log_path": "/l", "doc_paths": {}, "templates": {}
+        }"#
+    }
+
+    #[test]
+    fn kanban_columns_missing_field_falls_back_to_defaults() {
+        let cfg: Config = serde_json::from_str(bare_config_json()).unwrap();
+        let cols = cfg.resolve_kanban_columns().unwrap();
+        assert_eq!(
+            cols.iter().map(|c| c.key.as_str()).collect::<Vec<_>>(),
+            vec!["draft", "ready", "in-progress", "review", "done", "blocked", "abandoned"]
+        );
+    }
+
+    #[test]
+    fn kanban_columns_labels_derived_from_keys() {
+        let cfg: Config = serde_json::from_str(bare_config_json()).unwrap();
+        let cols = cfg.resolve_kanban_columns().unwrap();
+        let draft = cols.iter().find(|c| c.key == "draft").unwrap();
+        assert_eq!(draft.label, "Draft");
+        let ip = cols.iter().find(|c| c.key == "in-progress").unwrap();
+        assert_eq!(ip.label, "In progress");
+    }
+
+    #[test]
+    fn kanban_columns_read_from_config() {
+        let json = r#"{
+            "plugin_root": "/p", "plugin_version": "0.0.0", "project_root": "/r",
+            "tmp_path": "/t", "host": "127.0.0.1", "owner_pid": 0,
+            "log_path": "/l", "doc_paths": {}, "templates": {},
+            "kanban_columns": ["ready", "in-progress", "done"]
+        }"#;
+        let cfg: Config = serde_json::from_str(json).unwrap();
+        let cols = cfg.resolve_kanban_columns().unwrap();
+        assert_eq!(
+            cols.iter().map(|c| c.key.as_str()).collect::<Vec<_>>(),
+            vec!["ready", "in-progress", "done"]
+        );
+    }
+
+    #[test]
+    fn kanban_columns_empty_list_rejected_at_boot() {
+        let json = r#"{
+            "plugin_root": "/p", "plugin_version": "0.0.0", "project_root": "/r",
+            "tmp_path": "/t", "host": "127.0.0.1", "owner_pid": 0,
+            "log_path": "/l", "doc_paths": {}, "templates": {},
+            "kanban_columns": []
+        }"#;
+        let cfg: Config = serde_json::from_str(json).unwrap();
+        let err = cfg.resolve_kanban_columns().unwrap_err();
+        assert!(matches!(err, ConfigError::EmptyKanbanColumns));
     }
 }

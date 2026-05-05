@@ -10,10 +10,37 @@ import * as fetchModule from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
 import { makeIndexEntry } from '../../api/test-fixtures'
 
+const THREE_COLS = { columns: [
+  { key: 'todo', label: 'Todo' },
+  { key: 'in-progress', label: 'In progress' },
+  { key: 'done', label: 'Done' },
+]}
+
+const SEVEN_COLS = { columns: [
+  { key: 'draft',       label: 'Draft'       },
+  { key: 'ready',       label: 'Ready'       },
+  { key: 'in-progress', label: 'In progress' },
+  { key: 'review',      label: 'Review'      },
+  { key: 'done',        label: 'Done'        },
+  { key: 'blocked',     label: 'Blocked'     },
+  { key: 'abandoned',   label: 'Abandoned'   },
+]}
+
+function stubKanbanConfig(colsPayload: typeof THREE_COLS | typeof SEVEN_COLS = SEVEN_COLS) {
+  vi.stubGlobal('fetch', vi.fn((url: string) => {
+    if (url === '/api/kanban/config') {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(colsPayload),
+      })
+    }
+    return Promise.reject(new Error(`unexpected fetch: ${url}`))
+  }))
+}
+
 function renderKanbanAt(qc: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   // Render KanbanBoard directly in a minimal router (the library doc route is
   // registered so <Link to="/library/$type/$fileSlug"> resolves in tests).
-  // This avoids a dependency on Step 11's router wiring.
   const root = createRootRoute({ component: () => <Outlet /> })
   const kanbanRoute = createRoute({
     getParentRoute: () => root,
@@ -42,6 +69,7 @@ function renderKanbanAt(qc: QueryClient = new QueryClient({ defaultOptions: { qu
 describe('KanbanBoard', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    stubKanbanConfig(THREE_COLS)
   })
 
   afterEach(() => {
@@ -69,6 +97,35 @@ describe('KanbanBoard', () => {
     expect(screen.getByRole('region', { name: /in progress/i })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: /done/i })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: /other/i })).toBeNull()
+  })
+
+  it('renders the configured column set from the server', async () => {
+    stubKanbanConfig({ columns: [
+      { key: 'ready',       label: 'Ready'       },
+      { key: 'in-progress', label: 'In progress' },
+      { key: 'review',      label: 'Review'      },
+      { key: 'done',        label: 'Done'        },
+    ]})
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
+    renderKanbanAt()
+    expect(await screen.findByRole('region', { name: /ready/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /in progress/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /review/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /done/i })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /todo/i })).toBeNull()
+  })
+
+  it('falls back gracefully if config endpoint returns the seven defaults', async () => {
+    stubKanbanConfig(SEVEN_COLS)
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
+    renderKanbanAt()
+    expect(await screen.findByRole('region', { name: /draft/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /ready/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /in progress/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /review/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /^done$/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /blocked/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /abandoned/i })).toBeInTheDocument()
   })
 
   it('places work items in the column matching their frontmatter.status', async () => {

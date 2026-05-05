@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import {
   RouterProvider, createRouter, createMemoryHistory,
@@ -35,6 +35,19 @@ async function waitForPath(
   })
 }
 
+function stubKanbanConfigFetch(columns = [
+  { key: 'draft', label: 'Draft' },
+  { key: 'ready', label: 'Ready' },
+  { key: 'in-progress', label: 'In progress' },
+]) {
+  vi.stubGlobal('fetch', vi.fn((url: string) => {
+    if (url === '/api/kanban/config') {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ columns }) })
+    }
+    return Promise.reject(new Error(`unexpected fetch: ${url}`))
+  }))
+}
+
 describe('router', () => {
   // RootLayout fetches /api/types and useDocEvents opens EventSource; stub
   // network calls so routing logic is what's actually tested.
@@ -44,6 +57,10 @@ describe('router', () => {
     vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue({
       name: 'adr', activeTier: 'plugin-default', tiers: [],
     })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('redirects / to /library/decisions (via /library)', async () => {
@@ -112,17 +129,19 @@ describe('router', () => {
     expect(spy).toHaveBeenCalledWith('foo')
   })
 
-  it('routes /kanban to the kanban board with three columns', async () => {
+  it('routes /kanban to the kanban board and renders configured columns', async () => {
+    stubKanbanConfigFetch()
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
     const router = renderAt('/kanban')
     await waitForPath(router, '/kanban')
-    expect(await screen.findByRole('region', { name: /todo/i })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: /draft/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /ready/i })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: /in progress/i })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: /done/i })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: /other/i })).toBeNull()
   })
 
   it('does not render the legacy "coming in Phase 7" stub copy at /kanban', async () => {
+    stubKanbanConfigFetch()
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
     const router = renderAt('/kanban')
     await waitForPath(router, '/kanban')

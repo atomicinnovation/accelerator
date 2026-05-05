@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
@@ -64,6 +64,11 @@ pub struct Indexer {
     /// `BTreeSet` gives deterministic iteration order and
     /// dedup-by-construction.
     reviews_by_target: Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
+    /// Reverse work-item cross-ref index. Keys are canonical work-item IDs
+    /// (as produced by `canonicalise_refs`); values are sets of canonicalised
+    /// paths of entries that reference that work-item via `work-item:`,
+    /// `parent:`, or `related:` frontmatter keys.
+    work_item_refs_by_target: Arc<RwLock<HashMap<String, BTreeSet<PathBuf>>>>,
     // Serialises rescan() against refresh_one() so they cannot interleave.
     rescan_lock: Arc<Semaphore>,
     #[cfg(test)]
@@ -96,6 +101,7 @@ impl Indexer {
             adr_by_id: Arc::new(RwLock::new(HashMap::new())),
             work_item_by_id: Arc::new(RwLock::new(HashMap::new())),
             reviews_by_target: Arc::new(RwLock::new(HashMap::new())),
+            work_item_refs_by_target: Arc::new(RwLock::new(HashMap::new())),
             rescan_lock: Arc::new(Semaphore::new(1)),
             #[cfg(test)]
             test_post_secondary_update: tokio::sync::Mutex::new(None),
@@ -115,6 +121,7 @@ impl Indexer {
         let mut adr_by_id: HashMap<u32, PathBuf> = HashMap::new();
         let mut work_item_by_id: HashMap<String, PathBuf> = HashMap::new();
         let mut reviews_by_target: HashMap<PathBuf, BTreeSet<PathBuf>> = HashMap::new();
+        let mut work_item_refs_by_target: HashMap<String, BTreeSet<PathBuf>> = HashMap::new();
 
         for kind in DocTypeKey::all() {
             if kind == DocTypeKey::Templates {
@@ -145,23 +152,35 @@ impl Indexer {
                         .or_default()
                         .insert(path.clone());
                 }
+                for id in canonicalise_refs(entry.work_item_refs.clone(), &self.work_item_cfg) {
+                    // Skip self-references: a doc must not appear in its own index.
+                    if entry.work_item_id.as_deref() == Some(id.as_str()) {
+                        continue;
+                    }
+                    work_item_refs_by_target
+                        .entry(id)
+                        .or_default()
+                        .insert(path.clone());
+                }
 
                 entries.insert(path, entry);
             }
         }
 
-        // Hold all four write locks simultaneously and replace contents
+        // Hold all five write locks simultaneously and replace contents
         // so readers never observe a partial (entries, secondary)
         // snapshot. Always acquire in the same order: entries → adr →
-        // work_item → reviews_by_target.
+        // work_item → reviews_by_target → work_item_refs_by_target.
         let mut entries_w = self.entries.write().await;
         let mut adr_w = self.adr_by_id.write().await;
         let mut work_item_w = self.work_item_by_id.write().await;
         let mut reviews_w = self.reviews_by_target.write().await;
+        let mut refs_w = self.work_item_refs_by_target.write().await;
         *entries_w = entries;
         *adr_w = adr_by_id;
         *work_item_w = work_item_by_id;
         *reviews_w = reviews_by_target;
+        *refs_w = work_item_refs_by_target;
         Ok(())
     }
 
@@ -202,6 +221,12 @@ impl Indexer {
                                 &previous,
                             )
                             .await;
+                            remove_from_work_item_refs_by_target(
+                                &self.work_item_refs_by_target,
+                                &self.work_item_cfg,
+                                &previous,
+                            )
+                            .await;
                             entries.remove(&canonical);
                         }
                         return Ok(None);
@@ -221,6 +246,13 @@ impl Indexer {
                 update_reviews_by_target(
                     &self.reviews_by_target,
                     &self.project_root,
+                    &entry,
+                    previous.as_ref(),
+                )
+                .await;
+                update_work_item_refs_by_target(
+                    &self.work_item_refs_by_target,
+                    &self.work_item_cfg,
                     &entry,
                     previous.as_ref(),
                 )
@@ -251,6 +283,12 @@ impl Indexer {
                     remove_from_reviews_by_target(
                         &self.reviews_by_target,
                         &self.project_root,
+                        &previous,
+                    )
+                    .await;
+                    remove_from_work_item_refs_by_target(
+                        &self.work_item_refs_by_target,
+                        &self.work_item_cfg,
                         &previous,
                     )
                     .await;
@@ -335,15 +373,53 @@ impl Indexer {
             .collect()
     }
 
-    /// Returns the resolved declared-outbound entries for the given entry.
-    /// Phase 9 wires only the plan-review `target:` field; other declared
-    /// fields will be activated in follow-ups.
-    pub async fn declared_outbound(&self, entry: &IndexEntry) -> Vec<IndexEntry> {
-        let Some(target_key) = target_path_from_entry(entry, &self.project_root) else {
+    /// Returns entries whose `work-item:`, `parent:`, or `related:` frontmatter
+    /// canonicalises to the given work-item ID.
+    pub async fn work_item_refs_by_id(&self, id: &str) -> Vec<IndexEntry> {
+        let entries = self.entries.read().await;
+        let map = self.work_item_refs_by_target.read().await;
+        let Some(paths) = map.get(id) else {
             return Vec::new();
         };
+        paths
+            .iter()
+            .filter_map(|p| entries.get(p).cloned())
+            .collect()
+    }
+
+    /// Returns the resolved declared-outbound entries for the given entry:
+    /// - the plan-review `target:` (if this entry is a plan-review), and
+    /// - the work-items referenced via `work-item:`, `parent:`, `related:`.
+    pub async fn declared_outbound(&self, entry: &IndexEntry) -> Vec<IndexEntry> {
         let entries = self.entries.read().await;
-        entries.get(&target_key).cloned().into_iter().collect()
+        let by_id = self.work_item_by_id.read().await;
+        let mut result: Vec<IndexEntry> = Vec::new();
+        let mut seen: HashSet<PathBuf> = HashSet::new();
+
+        // Existing: plan-review `target:` field.
+        if let Some(target_key) = target_path_from_entry(entry, &self.project_root) {
+            if let Some(e) = entries.get(&target_key) {
+                if seen.insert(e.path.clone()) {
+                    result.push(e.clone());
+                }
+            }
+        }
+
+        // Work-item cross-refs from `work-item:`, `parent:`, `related:`.
+        let canon_refs = canonicalise_refs(entry.work_item_refs.clone(), &self.work_item_cfg);
+        for id in &canon_refs {
+            if let Some(path) = by_id.get(id) {
+                if path != &entry.path {
+                    if let Some(e) = entries.get(path) {
+                        if seen.insert(e.path.clone()) {
+                            result.push(e.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        result
     }
 }
 
@@ -560,6 +636,132 @@ async fn remove_from_reviews_by_target(
     }
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// Work-item cross-reference canonicalisation.
+// ──────────────────────────────────────────────────────────────────────
+
+/// Extracts the zero-pad width from an `id_pattern` like `{number:04d}` → 4.
+fn number_width_from_id_pattern(pattern: &str) -> usize {
+    use std::sync::OnceLock;
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    RE.get_or_init(|| regex::Regex::new(r"\{number:0*(\d+)d\}").unwrap())
+        .captures(pattern)
+        .and_then(|c| c.get(1))
+        .and_then(|m| m.as_str().parse().ok())
+        .unwrap_or(4)
+}
+
+/// Canonicalises raw cross-reference strings to match `work_item_by_id` keys.
+///
+/// Four cases (applied in order):
+/// 1. Bare numeric (`^\d+$`) under a non-project pattern: zero-pad to width.
+/// 2. Bare numeric under a project pattern with `default_project_code`: prefix + zero-pad.
+/// 3. Project-prefixed (`^[A-Za-z][A-Za-z0-9]*-\d+$`): pass through verbatim.
+/// 4. Anything else: skip (silent drop; never panics).
+///
+/// Duplicates are removed; insertion order is preserved for the unique elements.
+pub fn canonicalise_refs(
+    raw: Vec<String>,
+    cfg: &crate::config::WorkItemConfig,
+) -> Vec<String> {
+    use std::sync::OnceLock;
+
+    static PROJECT_RE: OnceLock<regex::Regex> = OnceLock::new();
+    let project_re = PROJECT_RE
+        .get_or_init(|| regex::Regex::new(r"^[A-Za-z][A-Za-z0-9]*-\d+$").unwrap());
+
+    static NUMERIC_RE: OnceLock<regex::Regex> = OnceLock::new();
+    let numeric_re = NUMERIC_RE
+        .get_or_init(|| regex::Regex::new(r"^\d+$").unwrap());
+
+    let has_project = cfg.id_pattern.contains("{project}");
+    let width = number_width_from_id_pattern(&cfg.id_pattern);
+
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut result: Vec<String> = Vec::new();
+
+    for r in raw {
+        if r.is_empty() {
+            continue;
+        }
+        let canonical = if numeric_re.is_match(&r) {
+            let n_str = r.parse::<u64>()
+                .map(|n| n.to_string())
+                .unwrap_or(r.clone());
+            let padded = format!("{:0>width$}", n_str, width = width);
+            if has_project {
+                match &cfg.default_project_code {
+                    Some(code) => format!("{code}-{padded}"),
+                    None => padded,
+                }
+            } else {
+                padded
+            }
+        } else if project_re.is_match(&r) {
+            r.clone()
+        } else {
+            continue;
+        };
+
+        if seen.insert(canonical.clone()) {
+            result.push(canonical);
+        }
+    }
+
+    result
+}
+
+async fn update_work_item_refs_by_target(
+    map: &Arc<RwLock<HashMap<String, BTreeSet<PathBuf>>>>,
+    cfg: &crate::config::WorkItemConfig,
+    new_entry: &IndexEntry,
+    previous: Option<&IndexEntry>,
+) {
+    let prev_refs = previous
+        .map(|p| canonicalise_refs(p.work_item_refs.clone(), cfg))
+        .unwrap_or_default();
+    let next_refs = canonicalise_refs(new_entry.work_item_refs.clone(), cfg);
+    let mut m = map.write().await;
+    // Remove the previous entry's path from all its canonical IDs.
+    if let Some(prev) = previous {
+        for id in &prev_refs {
+            if let Some(set) = m.get_mut(id) {
+                set.remove(&prev.path);
+                if set.is_empty() {
+                    m.remove(id);
+                }
+            }
+        }
+    }
+    // Insert the new entry's path under all its canonical IDs (excluding self-refs).
+    for id in &next_refs {
+        if new_entry.work_item_id.as_deref() == Some(id.as_str()) {
+            continue;
+        }
+        m.entry(id.clone()).or_default().insert(new_entry.path.clone());
+    }
+}
+
+async fn remove_from_work_item_refs_by_target(
+    map: &Arc<RwLock<HashMap<String, BTreeSet<PathBuf>>>>,
+    cfg: &crate::config::WorkItemConfig,
+    previous: &IndexEntry,
+) {
+    let refs = canonicalise_refs(previous.work_item_refs.clone(), cfg);
+    if refs.is_empty() {
+        return;
+    }
+    let mut m = map.write().await;
+    for id in &refs {
+        if let Some(set) = m.get_mut(id) {
+            set.remove(&previous.path);
+            if set.is_empty() {
+                m.remove(id);
+            }
+        }
+    }
+}
+
 fn build_entry(
     kind: DocTypeKey,
     path: PathBuf,
@@ -643,6 +845,88 @@ fn parse_adr_id(fm: &serde_json::Value, filename: &str) -> Option<u32> {
     rest[..dash].parse().ok()
 }
 
+
+#[cfg(test)]
+mod canonicalise_tests {
+    use super::*;
+    use crate::config::WorkItemConfig;
+
+    fn cfg_numeric() -> WorkItemConfig {
+        WorkItemConfig::default_numeric() // id_pattern = "{number:04d}", no project
+    }
+
+    fn cfg_project(code: &str) -> WorkItemConfig {
+        let raw = crate::config::RawWorkItemConfig {
+            scan_regex: format!("^{code}-(\\d+)-"),
+            id_pattern: format!("{{project}}-{{number:04d}}"),
+            default_project_code: Some(code.to_string()),
+        };
+        WorkItemConfig::from_raw(raw).unwrap()
+    }
+
+    #[test]
+    fn canonicalise_refs_pads_bare_numeric_under_default_pattern() {
+        let cfg = cfg_numeric();
+        let raw = vec!["42".to_string(), "0007".to_string()];
+        assert_eq!(canonicalise_refs(raw, &cfg), vec!["0042", "0007"]);
+    }
+
+    #[test]
+    fn canonicalise_refs_prefixes_default_project_under_project_pattern() {
+        let cfg = cfg_project("PROJ");
+        let raw = vec!["42".to_string()];
+        assert_eq!(canonicalise_refs(raw, &cfg), vec!["PROJ-0042"]);
+    }
+
+    #[test]
+    fn canonicalise_refs_passes_prefixed_input_through_under_default_pattern() {
+        let cfg = cfg_numeric();
+        let raw = vec!["PROJ-0042".to_string()];
+        assert_eq!(canonicalise_refs(raw, &cfg), vec!["PROJ-0042"]);
+    }
+
+    #[test]
+    fn canonicalise_refs_dedups_after_canonicalisation() {
+        let cfg = cfg_numeric();
+        // "42", "0042", and 42 all canonicalise to "0042"
+        let raw = vec!["42".to_string(), "0042".to_string()];
+        assert_eq!(canonicalise_refs(raw, &cfg), vec!["0042"]);
+    }
+
+    #[test]
+    fn canonicalise_refs_drops_malformed_input() {
+        let cfg = cfg_numeric();
+        let raw = vec![
+            "not-a-valid-id".to_string(),
+            "".to_string(),
+            "42-foo".to_string(),
+            "PROJ-".to_string(),
+            "-0042".to_string(),
+        ];
+        assert_eq!(canonicalise_refs(raw, &cfg), Vec::<String>::new());
+    }
+
+    #[test]
+    fn canonicalise_refs_case_3_vs_case_4_boundary() {
+        let cfg = cfg_numeric();
+        let cases: &[(&str, Option<&str>)] = &[
+            ("PROJ-0042",   Some("PROJ-0042")),
+            ("FOO-1",       Some("FOO-1")),
+            ("Web2-7",      Some("Web2-7")),
+            ("42-foo",      None),
+            ("PROJ-",       None),
+            ("-0042",       None),
+            ("PROJ--0042",  None),
+            ("PROJ-0042-x", None),
+            ("",            None),
+        ];
+        for (input, expected) in cases {
+            let got = canonicalise_refs(vec![input.to_string()], &cfg);
+            let got_first = got.first().map(String::as_str);
+            assert_eq!(got_first, *expected, "input={input}");
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -1732,6 +2016,184 @@ mod reverse_index_tests {
             inbound_b.len(),
             1,
             "review must be under exactly one target (B)"
+        );
+    }
+
+    // ── Work-item cross-ref reverse index tests ──────────────────────────
+
+    async fn build_indexer_with_work_items(
+        tmp: &Path,
+        work_items: &[(&str, &str)],
+        other_docs: &[(&str, &str)],
+    ) -> Indexer {
+        let work_dir = tmp.join("meta/work");
+        let plan_dir = tmp.join("meta/plans");
+        std::fs::create_dir_all(&work_dir).unwrap();
+        std::fs::create_dir_all(&plan_dir).unwrap();
+
+        for (filename, content) in work_items {
+            std::fs::write(work_dir.join(filename), content).unwrap();
+        }
+        for (path, content) in other_docs {
+            let full = tmp.join(path);
+            std::fs::create_dir_all(full.parent().unwrap()).unwrap();
+            std::fs::write(&full, content).unwrap();
+        }
+
+        let mut dir_map = HashMap::new();
+        dir_map.insert("work".into(), work_dir);
+        dir_map.insert("plans".into(), plan_dir);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&dir_map, vec![], vec![]));
+        let work_item_cfg = Arc::new(WorkItemConfig::default_numeric());
+        Indexer::build(driver, tmp.to_path_buf(), work_item_cfg)
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn reverse_cross_ref_index_populates_work_item_refs_by_id() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = build_indexer_with_work_items(
+            tmp.path(),
+            &[("0001-epic.md", "---\ntitle: Epic\n---\n")],
+            &[(
+                "meta/plans/2026-05-01-plan.md",
+                "---\ntitle: A Plan\nwork-item: \"0001\"\n---\n",
+            )],
+        )
+        .await;
+        let refs = idx.work_item_refs_by_id("0001").await;
+        assert_eq!(refs.len(), 1, "plan should appear in work-item 0001's refs");
+        assert!(refs[0].rel_path.to_string_lossy().contains("2026-05-01-plan.md"));
+    }
+
+    #[tokio::test]
+    async fn reverse_cross_ref_excludes_self_reference() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Work-item 0001 has parent: 0001 in its own frontmatter.
+        let idx = build_indexer_with_work_items(
+            tmp.path(),
+            &[("0001-self-ref.md", "---\ntitle: Self Ref\nparent: 0001\n---\n")],
+            &[],
+        )
+        .await;
+        let refs = idx.work_item_refs_by_id("0001").await;
+        assert!(
+            refs.is_empty(),
+            "self-referencing work-item must not appear in its own refs"
+        );
+    }
+
+    #[tokio::test]
+    async fn reverse_cross_ref_handles_two_way_cycle() {
+        let tmp = tempfile::tempdir().unwrap();
+        // A.parent=0002, B.parent=0001 — mutual cycle.
+        let idx = build_indexer_with_work_items(
+            tmp.path(),
+            &[
+                ("0001-a.md", "---\ntitle: A\nparent: 0002\n---\n"),
+                ("0002-b.md", "---\ntitle: B\nparent: 0001\n---\n"),
+            ],
+            &[],
+        )
+        .await;
+        let refs_a = idx.work_item_refs_by_id("0001").await;
+        let refs_b = idx.work_item_refs_by_id("0002").await;
+        assert_eq!(refs_a.len(), 1, "0001 should be referenced by B exactly once");
+        assert_eq!(refs_b.len(), 1, "0002 should be referenced by A exactly once");
+        assert!(refs_a[0].rel_path.to_string_lossy().contains("0002-b.md"));
+        assert!(refs_b[0].rel_path.to_string_lossy().contains("0001-a.md"));
+    }
+
+    #[tokio::test]
+    async fn reverse_cross_ref_to_unknown_id_is_silently_dropped() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Plan references work-item 9999 which doesn't exist; no panic.
+        let idx = build_indexer_with_work_items(
+            tmp.path(),
+            &[("0001-real.md", "---\ntitle: Real\n---\n")],
+            &[(
+                "meta/plans/2026-05-01-plan.md",
+                "---\ntitle: Orphan Plan\nwork-item: \"9999\"\n---\n",
+            )],
+        )
+        .await;
+        // 0001 has no refs from any document.
+        let refs = idx.work_item_refs_by_id("0001").await;
+        assert!(refs.is_empty());
+        // No panic; silently dropped.
+    }
+
+    #[tokio::test]
+    async fn reverse_cross_ref_dedups_within_same_source_doc() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Plan has work-item: 0001, parent: 0001 — two refs to same ID.
+        let idx = build_indexer_with_work_items(
+            tmp.path(),
+            &[("0001-epic.md", "---\ntitle: Epic\n---\n")],
+            &[(
+                "meta/plans/2026-05-01-plan.md",
+                "---\ntitle: Dup Plan\nwork-item: \"0001\"\nparent: 0001\n---\n",
+            )],
+        )
+        .await;
+        let refs = idx.work_item_refs_by_id("0001").await;
+        // work-item: wins over ticket:, so work_item_refs = ["0001", "0001"]
+        // after canonicalisation and dedup, only one entry is added for the plan.
+        assert_eq!(refs.len(), 1, "same source doc should appear at most once");
+    }
+
+    #[tokio::test]
+    async fn composition_plan_review_and_work_item_ref_both_surface() {
+        // ADR-0017 precedent: a work-item can be both the review target (via
+        // reviews_by_target) AND referenced by a work-item cross-ref field.
+        // Both must surface together in declared_inbound.
+        let tmp = tempfile::tempdir().unwrap();
+        let work_dir = tmp.path().join("meta/work");
+        let plan_dir = tmp.path().join("meta/plans");
+        let review_dir = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&work_dir).unwrap();
+        std::fs::create_dir_all(&plan_dir).unwrap();
+        std::fs::create_dir_all(&review_dir).unwrap();
+
+        std::fs::write(work_dir.join("0001-epic.md"), "---\ntitle: Epic\n---\n").unwrap();
+        // A plan that references the work item via work-item:
+        std::fs::write(
+            plan_dir.join("2026-05-01-plan.md"),
+            "---\ntitle: A Plan\nwork-item: \"0001\"\n---\n",
+        )
+        .unwrap();
+        // A plan-review whose `target:` points at the work item directly
+        // (uses the PlanReviews doc type so reviews_by_target indexes it)
+        std::fs::write(
+            review_dir.join("0001-epic-review-1.md"),
+            "---\ntitle: Review\ntarget: \"meta/work/0001-epic.md\"\n---\n",
+        )
+        .unwrap();
+
+        let mut dir_map = HashMap::new();
+        dir_map.insert("work".into(), work_dir.clone());
+        dir_map.insert("plans".into(), plan_dir);
+        dir_map.insert("review_plans".into(), review_dir);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&dir_map, vec![], vec![]));
+        let work_item_cfg = Arc::new(WorkItemConfig::default_numeric());
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), work_item_cfg)
+            .await
+            .unwrap();
+
+        let work_item_path = std::fs::canonicalize(work_dir.join("0001-epic.md")).unwrap();
+        let via_review = idx.reviews_by_target(&work_item_path).await;
+        let via_ref = idx.work_item_refs_by_id("0001").await;
+
+        assert_eq!(via_review.len(), 1, "review must appear under work-item path");
+        assert_eq!(via_ref.len(), 1, "plan must appear under work-item ID");
+        assert!(
+            via_review[0].rel_path.to_string_lossy().contains("0001-epic-review-1.md"),
+            "review entry path must match"
+        );
+        assert!(
+            via_ref[0].rel_path.to_string_lossy().contains("2026-05-01-plan.md"),
+            "ref entry path must match"
         );
     }
 }

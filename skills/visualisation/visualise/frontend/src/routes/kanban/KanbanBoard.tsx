@@ -9,7 +9,8 @@ import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { fetchDocs, FetchError, ConflictError } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
 import { groupWorkItemsByStatus } from '../../api/work-item'
-import { STATUS_COLUMNS, OTHER_COLUMN, OTHER_COLUMN_KEY } from '../../api/types'
+import { useKanbanConfig } from '../../api/use-kanban-config'
+import { OTHER_COLUMN, OTHER_COLUMN_KEY } from '../../api/types'
 import type { IndexEntry } from '../../api/types'
 import { useDocEventsContext } from '../../api/use-doc-events'
 import { useMoveWorkItem } from '../../api/use-move-work-item'
@@ -17,9 +18,6 @@ import { resolveDropOutcome } from './resolve-drop-outcome'
 import { buildKanbanAnnouncements } from './announcements'
 import { KanbanColumn } from './KanbanColumn'
 import styles from './KanbanBoard.module.css'
-
-const OTHER_DESCRIPTION =
-  'Work items whose status is missing or not one of: todo, in-progress, done.'
 
 function errorMessageFor(error: unknown): string {
   if (error instanceof FetchError && error.status >= 500) {
@@ -50,12 +48,16 @@ export function KanbanBoard() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const { data: entries = [], isPending, isError, error } = useQuery({
+  const { data: entries = [], isPending: entriesPending, isError, error } = useQuery({
     queryKey: queryKeys.docs('work-items'),
     queryFn: () => fetchDocs('work-items'),
   })
 
-  const groups = useMemo(() => groupWorkItemsByStatus(entries), [entries])
+  const { data: kanbanConfig, isPending: configPending } = useKanbanConfig()
+  const columns = kanbanConfig?.columns ?? []
+
+  const validColumnKeys = useMemo(() => new Set(columns.map(c => c.key)), [columns])
+  const groups = useMemo(() => groupWorkItemsByStatus(entries, columns), [entries, columns])
   const otherEntries = groups.get(OTHER_COLUMN_KEY) ?? []
   const entriesByRelPath = useMemo(
     () => new Map<string, IndexEntry>(entries.map(e => [e.relPath, e])),
@@ -65,8 +67,11 @@ export function KanbanBoard() {
   const entriesRef = useRef(entriesByRelPath)
   useEffect(() => { entriesRef.current = entriesByRelPath }, [entriesByRelPath])
 
+  const columnsRef = useRef(columns)
+  useEffect(() => { columnsRef.current = columns }, [columns])
+
   const announcements = useMemo(
-    () => buildKanbanAnnouncements({ entries: () => entriesRef.current }),
+    () => buildKanbanAnnouncements({ entries: () => entriesRef.current, columns: () => columnsRef.current }),
     [],
   )
 
@@ -95,7 +100,7 @@ export function KanbanBoard() {
 
   function handleDragEnd({ active, over }: DragEndEvent) {
     docEvents.setDragInProgress(false)
-    const outcome = resolveDropOutcome(active, over, entriesByRelPath)
+    const outcome = resolveDropOutcome(active, over, entriesByRelPath, validColumnKeys)
     const cardId = active.id as string
     const source = entriesByRelPath.get(cardId)
 
@@ -121,7 +126,7 @@ export function KanbanBoard() {
         return
       case 'no-op-same-column': {
         const sourceStatus = String(source?.frontmatter['status'] ?? '')
-        const columnLabel = STATUS_COLUMNS.find(c => c.key === sourceStatus)?.label ?? sourceStatus
+        const columnLabel = columns.find(c => c.key === sourceStatus)?.label ?? sourceStatus
         showAnnouncement(`Card returned to ${columnLabel}.`)
         return
       }
@@ -130,7 +135,7 @@ export function KanbanBoard() {
     }
   }
 
-  if (isPending) {
+  if (entriesPending || configPending) {
     return (
       <div className={styles.board}>
         <h1 className={styles.title}>Kanban</h1>
@@ -159,6 +164,11 @@ export function KanbanBoard() {
     )
   }
 
+  const otherDescription =
+    columns.length > 0
+      ? `Work items whose status is missing or not one of: ${columns.map(c => c.key).join(', ')}.`
+      : 'Work items whose status is missing or does not match any configured column.'
+
   return (
     <DndContext
       sensors={sensors}
@@ -186,7 +196,7 @@ export function KanbanBoard() {
           {announcement}
         </div>
         <div className={styles.columns}>
-          {STATUS_COLUMNS.map(col => (
+          {columns.map(col => (
             <KanbanColumn
               key={col.key}
               columnKey={col.key}
@@ -201,7 +211,7 @@ export function KanbanBoard() {
               columnKey={OTHER_COLUMN.key}
               label={OTHER_COLUMN.label}
               entries={otherEntries}
-              description={OTHER_DESCRIPTION}
+              description={otherDescription}
             />
           </div>
         )}

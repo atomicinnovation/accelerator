@@ -2,12 +2,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { patchWorkItemFrontmatter, type FetchError } from './fetch'
 import { useSelfCauseRegistry } from './self-cause'
 import { queryKeys } from './query-keys'
-import type { IndexEntry, KanbanColumnKey } from './types'
+import type { IndexEntry } from './types'
 import type { PatchResult } from './fetch'
 
 export interface MoveWorkItemVars {
   entry: IndexEntry
-  toStatus: KanbanColumnKey
+  toStatus: string
 }
 
 type MoveWorkItemContext = { previous?: IndexEntry[] }

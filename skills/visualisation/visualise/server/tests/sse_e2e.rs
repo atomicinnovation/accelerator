@@ -25,6 +25,7 @@ async fn file_mutation_arrives_as_sse_event() {
         doc_paths,
         templates: HashMap::new(),
         work_item: None,
+            kanban_columns: None,
     };
 
     let info_path = tmp.path().join("server-info.json");

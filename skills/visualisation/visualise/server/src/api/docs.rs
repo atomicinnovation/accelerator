@@ -102,10 +102,6 @@ pub(crate) struct PatchFrontmatterBody {
     patch: PatchFields,
 }
 
-const DEFAULT_KANBAN_STATUSES: &[&str] = &[
-    "draft", "ready", "in-progress", "review", "done", "blocked", "abandoned",
-];
-
 fn validate_kanban_status(status: &str, accepted: &[&str]) -> Result<(), super::ApiError> {
     if accepted.contains(&status) {
         Ok(())
@@ -176,7 +172,8 @@ pub(crate) async fn doc_patch_frontmatter(
         .patch
         .status
         .ok_or_else(|| ApiError::InvalidPatch("patch object is empty".into()))?;
-    validate_kanban_status(&status, DEFAULT_KANBAN_STATUSES)?;
+    let accepted_keys: Vec<&str> = state.kanban_columns.iter().map(|c| c.key.as_str()).collect();
+    validate_kanban_status(&status, &accepted_keys)?;
 
     // Step 7 — read and validate If-Match header.
     let if_match = {

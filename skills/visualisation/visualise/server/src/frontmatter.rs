@@ -296,11 +296,10 @@ pub fn title_from(parsed: &FrontmatterState, body: &str, filename_stem: &str) ->
 
 /// Reads cross-reference keys from frontmatter for work-item aggregation.
 ///
-/// Phase 1: reads `work-item:` (current) and `ticket:` (legacy). When both
-/// are present `work-item:` wins — the newer key is taken and the legacy key
-/// is silently ignored. Returns an empty Vec when neither key is present.
-///
-/// Phase 3 extends this to also read `parent:` and `related:`.
+/// Reads `work-item:` (preferred) or `ticket:` (legacy fallback) as a scalar,
+/// plus `parent:` and `related:` which may each be a scalar or an array.
+/// All non-empty string/numeric values are aggregated into a single `Vec<String>`.
+/// Returns an empty Vec when no recognised key is present or all values are empty.
 pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
     let FrontmatterState::Parsed(m) = parsed else {
         return Vec::new();
@@ -312,18 +311,37 @@ pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
             _ => None,
         }
     };
-    // `work-item:` wins over legacy `ticket:` when both are present.
+    let extract_values = |v: &serde_json::Value| -> Vec<String> {
+        match v {
+            serde_json::Value::Array(arr) => {
+                arr.iter().filter_map(|item| extract_scalar(item)).collect()
+            }
+            other => extract_scalar(other).into_iter().collect(),
+        }
+    };
+
+    let mut refs: Vec<String> = Vec::new();
+
+    // `work-item:` wins over legacy `ticket:` when both are present (scalar only).
     if let Some(v) = m.get("work-item") {
         if let Some(s) = extract_scalar(v) {
-            return vec![s];
+            refs.push(s);
         }
-    }
-    if let Some(v) = m.get("ticket") {
+    } else if let Some(v) = m.get("ticket") {
         if let Some(s) = extract_scalar(v) {
-            return vec![s];
+            refs.push(s);
         }
     }
-    Vec::new()
+
+    // `parent:` and `related:` always aggregate (scalar or array).
+    if let Some(v) = m.get("parent") {
+        refs.extend(extract_values(v));
+    }
+    if let Some(v) = m.get("related") {
+        refs.extend(extract_values(v));
+    }
+
+    refs
 }
 
 #[cfg(test)]
@@ -451,6 +469,64 @@ mod tests {
         let raw = b("---\nticket: 1478\n---\nbody\n");
         let p = parse(&raw);
         assert_eq!(read_ref_keys(&p.state), vec!["1478".to_string()]);
+    }
+
+    #[test]
+    fn read_ref_keys_reads_parent_and_related() {
+        let raw = b("---\nparent: 0007\nrelated: [0001, 0002]\n---\nbody\n");
+        let p = parse(&raw);
+        let refs = read_ref_keys(&p.state);
+        assert_eq!(refs.len(), 3);
+        assert!(refs.contains(&"0007".to_string()));
+        assert!(refs.contains(&"0001".to_string()));
+        assert!(refs.contains(&"0002".to_string()));
+    }
+
+    #[test]
+    fn read_ref_keys_handles_scalar_related_as_single_element() {
+        let raw = b("---\nrelated: \"0007\"\n---\nbody\n");
+        let p = parse(&raw);
+        assert_eq!(read_ref_keys(&p.state), vec!["0007".to_string()]);
+    }
+
+    #[test]
+    fn read_ref_keys_handles_array_parent_as_multi_element() {
+        let raw = b("---\nparent: [0001, 0002]\n---\nbody\n");
+        let p = parse(&raw);
+        assert_eq!(read_ref_keys(&p.state).len(), 2);
+    }
+
+    #[test]
+    fn read_ref_keys_handles_null_and_empty_string_as_empty() {
+        for raw in [
+            b("---\nparent: null\n---\n"),
+            b("---\nrelated: null\n---\n"),
+            b("---\nrelated: \"\"\n---\n"),
+            b("---\n---\n"),
+        ] {
+            let p = parse(&raw);
+            assert!(read_ref_keys(&p.state).is_empty(), "body={raw:?}");
+        }
+    }
+
+    #[test]
+    fn read_ref_keys_handles_int_and_string_as_equivalent_raw() {
+        let int_raw = b("---\nparent: 42\n---\nbody\n");
+        let str_raw = b("---\nparent: \"42\"\n---\nbody\n");
+        let int_p = parse(&int_raw);
+        let str_p = parse(&str_raw);
+        assert_eq!(read_ref_keys(&int_p.state), read_ref_keys(&str_p.state));
+    }
+
+    #[test]
+    fn read_ref_keys_aggregates_work_item_and_parent_and_related() {
+        let raw = b("---\nwork-item: \"0042\"\nparent: 0007\nrelated: [0011]\n---\nbody\n");
+        let p = parse(&raw);
+        let refs = read_ref_keys(&p.state);
+        assert_eq!(refs.len(), 3);
+        assert!(refs.contains(&"0042".to_string()));
+        assert!(refs.contains(&"0007".to_string()));
+        assert!(refs.contains(&"0011".to_string()));
     }
 
     #[test]

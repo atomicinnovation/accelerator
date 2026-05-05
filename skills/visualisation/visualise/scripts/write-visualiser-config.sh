@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+source "$PLUGIN_ROOT/scripts/config-common.sh"
 
 PLUGIN_VERSION=""
 PROJECT_ROOT=""
@@ -100,6 +101,34 @@ else
     '{scan_regex:$scan_regex, id_pattern:$id_pattern, default_project_code:$default_project_code}')"
 fi
 
+# Kanban columns config. Read from `visualiser.kanban_columns`; default to the
+# seven statuses from templates/work-item.md. Validates inline-array syntax and
+# rejects empty lists (a misconfiguration, not a safe default).
+KANBAN_DEFAULT="[draft, ready, in-progress, review, done, blocked, abandoned]"
+KANBAN_RAW="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "visualiser.kanban_columns" "$KANBAN_DEFAULT" 2>/dev/null || echo "$KANBAN_DEFAULT")"
+
+# Detect unclosed inline-array bracket (starts with [ but doesn't end with ])
+case "$KANBAN_RAW" in
+  "["*)
+    case "$KANBAN_RAW" in
+      *"]") : ;; # valid bracket form
+      *)
+        echo "visualiser.kanban_columns: malformed inline array (missing closing ']')" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+esac
+
+# Parse array elements → JSON array of strings
+KANBAN_COLS_JSON="$(config_parse_array "$KANBAN_RAW" | jq -Rc '.' | jq -s '.')"
+
+# Validate non-empty
+if [ "$(printf '%s' "$KANBAN_COLS_JSON" | jq 'length')" -eq 0 ]; then
+  echo "visualiser.kanban_columns: configured list must not be empty" >&2
+  exit 1
+fi
+
 if [ -z "$OWNER_START_TIME" ]; then
   OWNER_START_TIME_JSON="null"
 else
@@ -122,6 +151,7 @@ jq -n \
   --argjson adr "$ADR" --argjson plan "$PLAN" --argjson research_t "$RES" \
   --argjson validation "$VAL" --argjson pr_description "$PRD" \
   --argjson work_item "$WORK_ITEM_JSON" \
+  --argjson kanban_columns "$KANBAN_COLS_JSON" \
   '{
     plugin_root: $plugin_root,
     plugin_version: $plugin_version,
@@ -141,5 +171,6 @@ jq -n \
       adr: $adr, plan: $plan, research: $research_t,
       validation: $validation, "pr-description": $pr_description
     },
-    work_item: $work_item
+    work_item: $work_item,
+    kanban_columns: $kanban_columns
   }'

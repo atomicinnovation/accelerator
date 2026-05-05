@@ -39,6 +39,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct AppState {
     pub cfg: Arc<Config>,
+    pub kanban_columns: Arc<Vec<crate::config::KanbanColumn>>,
     pub file_driver: Arc<crate::file_driver::LocalFileDriver>,
     pub indexer: Arc<crate::indexer::Indexer>,
     pub templates: Arc<crate::templates::TemplateResolver>,
@@ -53,6 +54,7 @@ impl AppState {
         cfg: Config,
         activity: Arc<crate::activity::Activity>,
     ) -> Result<Arc<Self>, AppStateError> {
+        let kanban_columns = Arc::new(cfg.resolve_kanban_columns()?);
         let cfg = Arc::new(cfg);
         let template_roots = crate::file_driver::template_extra_roots(&cfg.templates);
         let work_root = cfg
@@ -82,6 +84,7 @@ impl AppState {
         let write_coordinator = Arc::new(crate::write_coordinator::WriteCoordinator::new());
         Ok(Arc::new(Self {
             cfg,
+            kanban_columns,
             file_driver: driver,
             indexer,
             templates,
@@ -553,6 +556,7 @@ mod tests {
             doc_paths: HashMap::new(),
             templates: HashMap::new(),
             work_item: None,
+            kanban_columns: None,
         }
     }
 

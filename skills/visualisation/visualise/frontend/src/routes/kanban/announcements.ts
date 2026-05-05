@@ -1,9 +1,10 @@
 import type { Announcements } from '@dnd-kit/core'
-import type { IndexEntry } from '../../api/types'
-import { STATUS_COLUMNS, OTHER_COLUMN } from '../../api/types'
+import type { IndexEntry, KanbanColumn } from '../../api/types'
+import { OTHER_COLUMN } from '../../api/types'
 
 interface Deps {
   entries: () => Map<string, IndexEntry>
+  columns: () => ReadonlyArray<KanbanColumn>
 }
 
 export function workItemIdFromRelPath(relPath: string): string | null {
@@ -11,9 +12,9 @@ export function workItemIdFromRelPath(relPath: string): string | null {
   return m ? m[1] : null
 }
 
-function labelFor(columnId: unknown): string {
+function labelFor(columnId: unknown, columns: ReadonlyArray<KanbanColumn>): string {
   const id = String(columnId)
-  return STATUS_COLUMNS.find(c => c.key === id)?.label
+  return columns.find(c => c.key === id)?.label
     ?? (OTHER_COLUMN.key === id ? OTHER_COLUMN.label : id)
 }
 
@@ -28,7 +29,7 @@ function describe(id: unknown, entries: Map<string, IndexEntry>): string {
 }
 
 export function buildKanbanAnnouncements(
-  { entries }: Deps,
+  { entries, columns }: Deps,
 ): Announcements {
   return {
     onDragStart({ active }): string {
@@ -36,11 +37,11 @@ export function buildKanbanAnnouncements(
     },
     onDragOver({ active, over }): string | undefined {
       if (!over) return undefined
-      return `${describe(active.id, entries())} is over ${labelFor(over.id)}.`
+      return `${describe(active.id, entries())} is over ${labelFor(over.id, columns())}.`
     },
     onDragEnd({ active, over }): string {
       if (!over) return `Drop of ${describe(active.id, entries())} cancelled, no target.`
-      return `Moved ${describe(active.id, entries())} to ${labelFor(over.id)}.`
+      return `Moved ${describe(active.id, entries())} to ${labelFor(over.id, columns())}.`
     },
     onDragCancel({ active }): string {
       return `Drag of ${describe(active.id, entries())} cancelled.`

@@ -1,10 +1,5 @@
-import type { IndexEntry } from './types'
-import {
-  STATUS_COLUMNS,
-  OTHER_COLUMN_KEY,
-  type KanbanColumnKey,
-  type KanbanGroupKey,
-} from './types'
+import type { IndexEntry, KanbanColumn } from './types'
+import { OTHER_COLUMN_KEY } from './types'
 
 export function parseWorkItemId(relPath: string): number | null {
   const filename = relPath.split('/').at(-1) ?? ''
@@ -14,26 +9,19 @@ export function parseWorkItemId(relPath: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-const KNOWN_KEYS: ReadonlySet<KanbanColumnKey> = new Set(
-  STATUS_COLUMNS.map(c => c.key),
-)
-
-function statusGroupOf(entry: IndexEntry): KanbanGroupKey {
-  if (entry.frontmatterState !== 'parsed') return OTHER_COLUMN_KEY
-  const raw = entry.frontmatter['status']
-  if (typeof raw !== 'string') return OTHER_COLUMN_KEY
-  return KNOWN_KEYS.has(raw as KanbanColumnKey)
-    ? (raw as KanbanColumnKey)
-    : OTHER_COLUMN_KEY
-}
-
 export function groupWorkItemsByStatus(
   entries: IndexEntry[],
-): Map<KanbanGroupKey, IndexEntry[]> {
-  const groups = new Map<KanbanGroupKey, IndexEntry[]>()
-  for (const c of STATUS_COLUMNS) groups.set(c.key, [])
+  columns: ReadonlyArray<KanbanColumn>,
+): Map<string, IndexEntry[]> {
+  const knownKeys = new Set(columns.map(c => c.key))
+  const groups = new Map<string, IndexEntry[]>()
+  for (const c of columns) groups.set(c.key, [])
   for (const entry of entries) {
-    const key = statusGroupOf(entry)
+    const raw = entry.frontmatterState === 'parsed'
+      ? entry.frontmatter['status']
+      : undefined
+    const status = typeof raw === 'string' ? raw : null
+    const key = status && knownKeys.has(status) ? status : OTHER_COLUMN_KEY
     let list = groups.get(key)
     if (!list) {
       list = []

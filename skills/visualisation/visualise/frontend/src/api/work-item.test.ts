@@ -3,6 +3,12 @@ import { parseWorkItemId, groupWorkItemsByStatus } from './work-item'
 import { makeIndexEntry } from './test-fixtures'
 import { OTHER_COLUMN_KEY } from './types'
 
+const COLS = [
+  { key: 'todo', label: 'Todo' },
+  { key: 'in-progress', label: 'In progress' },
+  { key: 'done', label: 'Done' },
+]
+
 describe('parseWorkItemId', () => {
   it('returns the integer parsed from a four-digit prefix', () => {
     expect(parseWorkItemId('meta/work/0001-foo.md')).toBe(1)
@@ -38,7 +44,7 @@ describe('groupWorkItemsByStatus', () => {
     const b = makeIndexEntry({ relPath: 'meta/work/0002-b.md', frontmatter: { status: 'in-progress' } })
     const c = makeIndexEntry({ relPath: 'meta/work/0003-c.md', frontmatter: { status: 'done' } })
 
-    const groups = groupWorkItemsByStatus([a, b, c])
+    const groups = groupWorkItemsByStatus([a, b, c], COLS)
     expect(groups.get('todo')).toEqual([a])
     expect(groups.get('in-progress')).toEqual([b])
     expect(groups.get('done')).toEqual([c])
@@ -50,27 +56,27 @@ describe('groupWorkItemsByStatus', () => {
       relPath: 'meta/work/0001-x.md',
       frontmatter: { status: 'blocked' },
     })
-    const groups = groupWorkItemsByStatus([blocked])
+    const groups = groupWorkItemsByStatus([blocked], COLS)
     expect(groups.get(OTHER_COLUMN_KEY)).toEqual([blocked])
     expect(groups.get('todo') ?? []).toEqual([])
   })
 
   it('places work items with missing status in "other"', () => {
     const noStatus = makeIndexEntry({ frontmatter: {} })
-    const groups = groupWorkItemsByStatus([noStatus])
+    const groups = groupWorkItemsByStatus([noStatus], COLS)
     expect(groups.get(OTHER_COLUMN_KEY)).toEqual([noStatus])
   })
 
   it('places work items with non-string status in "other"', () => {
     const numeric = makeIndexEntry({ frontmatter: { status: 42 } })
-    const groups = groupWorkItemsByStatus([numeric])
+    const groups = groupWorkItemsByStatus([numeric], COLS)
     expect(groups.get(OTHER_COLUMN_KEY)).toEqual([numeric])
   })
 
   it('places work items with absent or malformed frontmatter in "other"', () => {
     const absent = makeIndexEntry({ frontmatterState: 'absent', frontmatter: {} })
     const malformed = makeIndexEntry({ frontmatterState: 'malformed', frontmatter: {} })
-    const groups = groupWorkItemsByStatus([absent, malformed])
+    const groups = groupWorkItemsByStatus([absent, malformed], COLS)
     expect(groups.get(OTHER_COLUMN_KEY)).toEqual([absent, malformed])
   })
 
@@ -78,7 +84,7 @@ describe('groupWorkItemsByStatus', () => {
     const old = makeIndexEntry({ relPath: 'meta/work/0001-old.md', frontmatter: { status: 'todo' }, mtimeMs: 100 })
     const mid = makeIndexEntry({ relPath: 'meta/work/0002-mid.md', frontmatter: { status: 'todo' }, mtimeMs: 200 })
     const newest = makeIndexEntry({ relPath: 'meta/work/0003-new.md', frontmatter: { status: 'todo' }, mtimeMs: 300 })
-    const groups = groupWorkItemsByStatus([old, newest, mid])
+    const groups = groupWorkItemsByStatus([old, newest, mid], COLS)
     expect(groups.get('todo')).toEqual([newest, mid, old])
   })
 
@@ -91,7 +97,7 @@ describe('groupWorkItemsByStatus', () => {
       relPath: 'meta/work/0001-alpha.md',
       frontmatter: { status: 'todo' }, mtimeMs: 500,
     })
-    const groups = groupWorkItemsByStatus([beta, alpha])
+    const groups = groupWorkItemsByStatus([beta, alpha], COLS)
     expect(groups.get('todo')).toEqual([alpha, beta])
   })
 
@@ -100,12 +106,12 @@ describe('groupWorkItemsByStatus', () => {
       relPath: 'meta/work/0001-x.md',
       frontmatter: { status: 'todo' },
     })
-    const groups = groupWorkItemsByStatus([todo])
+    const groups = groupWorkItemsByStatus([todo], COLS)
     expect(groups.has(OTHER_COLUMN_KEY)).toBe(false)
   })
 
   it('returns empty arrays for known columns when no work items match', () => {
-    const groups = groupWorkItemsByStatus([])
+    const groups = groupWorkItemsByStatus([], COLS)
     expect(groups.get('todo')).toEqual([])
     expect(groups.get('in-progress')).toEqual([])
     expect(groups.get('done')).toEqual([])

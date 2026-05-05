@@ -1,7 +1,7 @@
 import type {
   DocType, DocTypeKey, DocsListResponse, IndexEntry,
   TemplateSummaryListResponse, TemplateDetail,
-  LifecycleCluster, LifecycleListResponse, KanbanColumnKey,
+  LifecycleCluster, LifecycleListResponse,
   RelatedArtifactsResponse,
 } from './types'
 
@@ -28,7 +28,7 @@ export interface PatchResult {
 
 export async function patchWorkItemFrontmatter(
   relPath: string,
-  patch: { status: KanbanColumnKey },
+  patch: { status: string },
   etag: string,
 ): Promise<PatchResult> {
   const encodedPath = relPath.split('/').map(encodeURIComponent).join('/')

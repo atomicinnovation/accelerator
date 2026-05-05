@@ -111,7 +111,7 @@ describe('LibraryDocView', () => {
     })
     render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
     expect(
-      await screen.findByRole('heading', { level: 4, name: 'Inbound reviews' }),
+      await screen.findByRole('heading', { level: 4, name: 'Referenced by' }),
     ).toBeInTheDocument()
   })
 

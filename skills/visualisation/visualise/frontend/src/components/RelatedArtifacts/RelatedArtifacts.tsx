@@ -43,7 +43,7 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
       )}
       {related.declaredInbound.length > 0 && (
         <RelatedGroup
-          label="Inbound reviews"
+          label="Referenced by"
           entries={related.declaredInbound}
           kind="declared"
         />

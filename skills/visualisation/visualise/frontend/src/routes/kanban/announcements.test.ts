@@ -30,7 +30,8 @@ describe('workItemIdFromRelPath', () => {
 
 describe('buildKanbanAnnouncements', () => {
   const entriesMap = new Map([[fooEntry.relPath, fooEntry]])
-  const a = buildKanbanAnnouncements({ entries: () => entriesMap })
+  const cols = [{ key: 'in-progress', label: 'In progress' }]
+  const a = buildKanbanAnnouncements({ entries: () => entriesMap, columns: () => cols })
 
   it('onDragStart includes the work item number and title (colon separator)', () => {
     const msg = a.onDragStart!({ active: { id: 'meta/work/0001-foo.md' } } as any)

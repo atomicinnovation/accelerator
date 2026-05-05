@@ -82,5 +82,58 @@ OUT3_FILE="$TMPDIR_BASE/out3.json"
 run_config "$PROJ3" > "$OUT3_FILE"
 assert_json_eq "doc_paths.work reflects override" ".doc_paths.work" "$PROJ3/meta/items" "$OUT3_FILE"
 
+# ─── 4. kanban_columns: missing → 7 defaults ─────────────────────────────────
+echo "Test: missing visualiser.kanban_columns → 7 defaults in config"
+PROJ4="$TMPDIR_BASE/t-kanban-default"
+make_project "$PROJ4"
+OUT4_FILE="$TMPDIR_BASE/out4.json"
+run_config "$PROJ4" > "$OUT4_FILE"
+assert_json_eq "kanban_columns has 7 entries" ".kanban_columns | length" "7" "$OUT4_FILE"
+assert_json_eq "kanban_columns[0] is draft" ".kanban_columns[0]" "draft" "$OUT4_FILE"
+assert_json_eq "kanban_columns[6] is abandoned" ".kanban_columns[6]" "abandoned" "$OUT4_FILE"
+
+# ─── 5. kanban_columns: custom array → reflected in config ──────────────────
+echo "Test: custom visualiser.kanban_columns reflected in config"
+PROJ5="$TMPDIR_BASE/t-kanban-custom"
+make_project "$PROJ5"
+write_config "$PROJ5" "visualiser:
+  kanban_columns: [ready, in-progress, review, done]"
+OUT5_FILE="$TMPDIR_BASE/out5.json"
+run_config "$PROJ5" > "$OUT5_FILE"
+assert_json_eq "kanban_columns has 4 entries" ".kanban_columns | length" "4" "$OUT5_FILE"
+assert_json_eq "kanban_columns[0] is ready" ".kanban_columns[0]" "ready" "$OUT5_FILE"
+assert_json_eq "kanban_columns[3] is done" ".kanban_columns[3]" "done" "$OUT5_FILE"
+
+# ─── 6. kanban_columns: empty list → non-zero exit ──────────────────────────
+echo "Test: empty visualiser.kanban_columns → non-zero exit"
+PROJ6="$TMPDIR_BASE/t-kanban-empty"
+make_project "$PROJ6"
+write_config "$PROJ6" "visualiser:
+  kanban_columns: []"
+EXIT6=0
+STDERR6="$(cd "$PROJ6" && "$WRITE_CONFIG" \
+    --plugin-version "0.0.0-test" \
+    --project-root "$PROJ6" \
+    --tmp-dir "$PROJ6/meta/tmp/visualiser" \
+    --log-file "$PROJ6/meta/tmp/visualiser/server.log" \
+    2>&1 >/dev/null)" || EXIT6=$?
+assert_eq "empty kanban_columns exits non-zero" "1" "$EXIT6"
+assert_contains "stderr mentions empty" "$STDERR6" "empty"
+
+# ─── 7. kanban_columns: malformed (unclosed bracket) → non-zero exit ─────────
+echo "Test: malformed visualiser.kanban_columns (unclosed bracket) → non-zero exit"
+PROJ7="$TMPDIR_BASE/t-kanban-malformed"
+make_project "$PROJ7"
+write_config "$PROJ7" 'visualiser:
+  kanban_columns: "[ready, in-progress"'
+EXIT7=0
+STDERR7="$(cd "$PROJ7" && "$WRITE_CONFIG" \
+    --plugin-version "0.0.0-test" \
+    --project-root "$PROJ7" \
+    --tmp-dir "$PROJ7/meta/tmp/visualiser" \
+    --log-file "$PROJ7/meta/tmp/visualiser/server.log" \
+    2>&1 >/dev/null)" || EXIT7=$?
+assert_eq "malformed kanban_columns exits non-zero" "1" "$EXIT7"
+
 echo ""
 test_summary

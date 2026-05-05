@@ -67,6 +67,7 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
         doc_paths,
         templates,
         work_item: None,
+            kanban_columns: None,
     }
 }
 

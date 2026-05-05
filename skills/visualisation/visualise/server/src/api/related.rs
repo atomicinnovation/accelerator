@@ -74,8 +74,19 @@ pub(crate) async fn related_get(
     // (Phase 9: plan-reviews only).
     let declared_outbound = state.indexer.declared_outbound(&entry).await;
 
-    // Declared inbound: reviews whose target resolves to self.
-    let declared_inbound = state.indexer.reviews_by_target(&entry.path).await;
+    // Declared inbound: plan-reviews targeting self + entries that cross-ref
+    // self as a work-item (via work-item:, parent:, related:).
+    let mut declared_inbound = state.indexer.reviews_by_target(&entry.path).await;
+    if let Some(ref id) = entry.work_item_id {
+        let ref_entries = state.indexer.work_item_refs_by_id(id).await;
+        let existing_paths: HashSet<PathBuf> =
+            declared_inbound.iter().map(|e| e.path.clone()).collect();
+        for ref_entry in ref_entries {
+            if !existing_paths.contains(&ref_entry.path) {
+                declared_inbound.push(ref_entry);
+            }
+        }
+    }
 
     // Dedup overlap: an entry that appears in both inferred and any
     // declared list is dropped from inferred. The declared relation

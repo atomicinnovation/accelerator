@@ -77,7 +77,7 @@ describe('LibraryDocView smoke', () => {
       wrapper: makeWrapper(qc),
     })
     expect(
-      await screen.findByRole('heading', { level: 4, name: 'Inbound reviews' }),
+      await screen.findByRole('heading', { level: 4, name: 'Referenced by' }),
     ).toBeInTheDocument()
     expect(fetchRelated).toHaveBeenCalledTimes(1)
 
@@ -95,7 +95,7 @@ describe('LibraryDocView smoke', () => {
     await waitFor(() => expect(fetchRelated).toHaveBeenCalledTimes(2))
     await waitFor(() => {
       expect(
-        screen.queryByRole('heading', { level: 4, name: 'Inbound reviews' }),
+        screen.queryByRole('heading', { level: 4, name: 'Referenced by' }),
       ).toBeNull()
     })
   })
@@ -129,7 +129,7 @@ describe('LibraryDocView smoke', () => {
       { wrapper: makeWrapper(qc) },
     )
     expect(
-      await screen.findByRole('heading', { level: 4, name: 'Inbound reviews' }),
+      await screen.findByRole('heading', { level: 4, name: 'Referenced by' }),
     ).toBeInTheDocument()
 
     // Unmount — query becomes inactive but stays cached per gcTime.
@@ -157,11 +157,11 @@ describe('LibraryDocView smoke', () => {
     })
 
     // Wait for any settled "Loading…" to clear, then assert the
-    // Inbound reviews group never appears.
+    // Referenced by group never appears.
     await screen.findByText('Foo Plan')
     await waitFor(() => {
       expect(
-        screen.queryByRole('heading', { level: 4, name: 'Inbound reviews' }),
+        screen.queryByRole('heading', { level: 4, name: 'Referenced by' }),
       ).toBeNull()
     })
   })

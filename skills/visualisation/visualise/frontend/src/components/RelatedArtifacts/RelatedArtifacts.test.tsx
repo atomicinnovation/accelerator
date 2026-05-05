@@ -49,14 +49,14 @@ describe('RelatedArtifacts', () => {
   })
 
   // ── Step 6.3 ────────────────────────────────────────────────────────
-  it('renders Inbound reviews group as h4 for declaredInbound', () => {
+  it('renders Referenced by group as h4 for declaredInbound', () => {
     render(
       <RelatedArtifacts
         related={{ ...empty, declaredInbound: [exampleReview] }}
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 4, name: 'Inbound reviews' }),
+      screen.getByRole('heading', { level: 4, name: 'Referenced by' }),
     ).toBeInTheDocument()
     const link = screen.getByRole('link', { name: 'Foo review' })
     expect(link.getAttribute('href')).toBe(

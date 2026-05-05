@@ -1,12 +1,12 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { WorkItemCard } from './WorkItemCard'
-import type { IndexEntry, KanbanGroupKey } from '../../api/types'
+import type { IndexEntry } from '../../api/types'
 import { OTHER_COLUMN_KEY } from '../../api/types'
 import styles from './KanbanColumn.module.css'
 
 export interface KanbanColumnProps {
-  columnKey: KanbanGroupKey
+  columnKey: string
   label: string
   entries: IndexEntry[]
   description?: string

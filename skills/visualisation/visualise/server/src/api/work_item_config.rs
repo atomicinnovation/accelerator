@@ -47,6 +47,7 @@ mod tests {
             doc_paths: HashMap::new(),
             templates: HashMap::new(),
             work_item: None,
+            kanban_columns: None,
         }
     }
 
