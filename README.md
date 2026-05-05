@@ -294,13 +294,13 @@ existing docs (specs, PRDs, notes)
                                         └──→  create-plan → implement-plan
 ```
 
-| Skill                  | Usage                                                      | Description                                                                   |
-|------------------------|------------------------------------------------------------|-------------------------------------------------------------------------------|
+| Skill                  | Usage                                                      | Description                                                                                |
+|------------------------|------------------------------------------------------------|--------------------------------------------------------------------------------------------|
 | **create-work-item**   | `/accelerator:create-work-item [topic-or-ref]`             | Interactively create a work item from a topic, or enrich an existing one by path or number |
-| **extract-work-items** | `/accelerator:extract-work-items [doc paths...]`           | Batch-extract work items from existing specs, PRDs, research, plans, or notes |
-| **list-work-items**    | `/accelerator:list-work-items [filter]`                    | List and filter work items by status, type, priority, tag, parent, or title   |
-| **update-work-item**   | `/accelerator:update-work-item [work-item-ref] [field-op]` | Update work item fields with diff preview and confirmation                    |
-| **review-work-item**   | `/accelerator:review-work-item [work-item-ref]`            | Review a work item through completeness, testability, and clarity lenses      |
+| **extract-work-items** | `/accelerator:extract-work-items [doc paths...]`           | Batch-extract work items from existing specs, PRDs, research, plans, or notes              |
+| **list-work-items**    | `/accelerator:list-work-items [filter]`                    | List and filter work items by status, type, priority, tag, parent, or title                |
+| **update-work-item**   | `/accelerator:update-work-item [work-item-ref] [field-op]` | Update work item fields with diff preview and confirmation                                 |
+| **review-work-item**   | `/accelerator:review-work-item [work-item-ref]`            | Review a work item through completeness, testability, and clarity lenses                   |
 
 Work items use a shared template with YAML frontmatter (`work_item_id`, `title`,
 `type`, `status`, `priority`, `parent`, `tags`) and structured body sections
@@ -345,16 +345,16 @@ The default project key reuses `work.default_project_code`. See
 
 ### Skills
 
-| Skill | Usage | Description |
-|---|---|---|
-| **init-jira** | `/accelerator:init-jira` | Verify credentials, discover projects and custom fields, persist the team-shared catalogue to `.accelerator/state/integrations/jira/` |
-| **search-jira-issues** | `/accelerator:search-jira-issues [flags]` | Search via structured flags (assignee, status, label, type, component, reporter, parent, watching); composes safe JQL with a `--jql` escape hatch |
-| **show-jira-issue** | `/accelerator:show-jira-issue <KEY>` | Fetch a single issue with optional comment slice and Markdown rendering of ADF descriptions |
-| **create-jira-issue** | `/accelerator:create-jira-issue [flags]` | Create a new issue; body accepted inline, from a file, from stdin, or via `$EDITOR` |
-| **update-jira-issue** | `/accelerator:update-jira-issue <KEY> [flags]` | Edit summary, description, assignee, priority, labels, components, parent, and custom fields |
-| **comment-jira-issue** | `/accelerator:comment-jira-issue <sub> <KEY>` | Add, list, edit, or delete comments (`add`, `list`, `edit`, `delete` sub-actions) |
-| **transition-jira-issue** | `/accelerator:transition-jira-issue <KEY> <state>` | Move an issue through its workflow by state name (case-insensitive lookup), with optional resolution and comment |
-| **attach-jira-issue** | `/accelerator:attach-jira-issue <KEY> <file...>` | Upload one or more files as issue attachments |
+| Skill                     | Usage                                              | Description                                                                                                                                       |
+|---------------------------|----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| **init-jira**             | `/accelerator:init-jira`                           | Verify credentials, discover projects and custom fields, persist the team-shared catalogue to `.accelerator/state/integrations/jira/`             |
+| **search-jira-issues**    | `/accelerator:search-jira-issues [flags]`          | Search via structured flags (assignee, status, label, type, component, reporter, parent, watching); composes safe JQL with a `--jql` escape hatch |
+| **show-jira-issue**       | `/accelerator:show-jira-issue <KEY>`               | Fetch a single issue with optional comment slice and Markdown rendering of ADF descriptions                                                       |
+| **create-jira-issue**     | `/accelerator:create-jira-issue [flags]`           | Create a new issue; body accepted inline, from a file, from stdin, or via `$EDITOR`                                                               |
+| **update-jira-issue**     | `/accelerator:update-jira-issue <KEY> [flags]`     | Edit summary, description, assignee, priority, labels, components, parent, and custom fields                                                      |
+| **comment-jira-issue**    | `/accelerator:comment-jira-issue <sub> <KEY>`      | Add, list, edit, or delete comments (`add`, `list`, `edit`, `delete` sub-actions)                                                                 |
+| **transition-jira-issue** | `/accelerator:transition-jira-issue <KEY> <state>` | Move an issue through its workflow by state name (case-insensitive lookup), with optional resolution and comment                                  |
+| **attach-jira-issue**     | `/accelerator:attach-jira-issue <KEY> <file...>`   | Upload one or more files as issue attachments                                                                                                     |
 
 Read skills (`search-jira-issues`, `show-jira-issue`) trigger automatically on
 natural-language phrasing. Write skills are slash-only — they display a
@@ -475,12 +475,12 @@ pre-release version.
 
 ### Customisation
 
-| Mechanism                                   | Purpose                                                             |
-|---------------------------------------------|---------------------------------------------------------------------|
-| `ACCELERATOR_VISUALISER_BIN`                | One-shot override pointing at a locally-built binary                |
-| `visualiser.binary` config key              | Persistent binary override in `.accelerator/config.local.md`       |
-| `ACCELERATOR_VISUALISER_RELEASES_URL`       | Alternative HTTPS mirror for air-gapped or self-hosted installs    |
-| `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE`  | Set to `1` to verify SLSA build-provenance after the SHA-256 check |
+| Mechanism                                  | Purpose                                                            |
+|--------------------------------------------|--------------------------------------------------------------------|
+| `ACCELERATOR_VISUALISER_BIN`               | One-shot override pointing at a locally-built binary               |
+| `visualiser.binary` config key             | Persistent binary override in `.accelerator/config.local.md`       |
+| `ACCELERATOR_VISUALISER_RELEASES_URL`      | Alternative HTTPS mirror for air-gapped or self-hosted installs    |
+| `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE` | Set to `1` to verify SLSA build-provenance after the SHA-256 check |
 
 The `ACCELERATOR_VISUALISER_RELEASES_URL` mirror must be HTTPS. A localhost
 exemption (`127.0.0.1`, `::1`, `localhost`) accepts HTTP for integration
@@ -552,10 +552,10 @@ inventory-design (current)  ─┐
 inventory-design (target)   ─┘
 ```
 
-| Skill                   | Usage                                                                   | Description                                                                               |
-|-------------------------|-------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
-| **inventory-design**    | `/accelerator:inventory-design [source-id] [location] [--crawler MODE]` | Generate a design inventory (tokens, components, screens, features) for a frontend source |
-| **analyse-design-gaps** | `/accelerator:analyse-design-gaps [current-source-id] [target-source-id]` | Compute a structured gap between two inventories as actionable prose                    |
+| Skill                   | Usage                                                                     | Description                                                                               |
+|-------------------------|---------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| **inventory-design**    | `/accelerator:inventory-design [source-id] [location] [--crawler MODE]`   | Generate a design inventory (tokens, components, screens, features) for a frontend source |
+| **analyse-design-gaps** | `/accelerator:analyse-design-gaps [current-source-id] [target-source-id]` | Compute a structured gap between two inventories as actionable prose                      |
 
 Three-step example:
 
@@ -618,16 +618,16 @@ Accelerator uses specialised subagents to keep the main context lean. Each
 agent runs in its own context window with restricted tools, returning only a
 focused summary to the parent:
 
-| Agent                       | Role                                                   | Tools                                     |
-|-----------------------------|--------------------------------------------------------|-------------------------------------------|
-| **codebase-locator**        | Finds files and components by description              | Grep, Glob, LS                            |
-| **codebase-analyser**       | Analyses implementation details of specific components | Read, Grep, Glob, LS                      |
-| **codebase-pattern-finder** | Finds similar implementations and usage examples       | Read, Grep, Glob, LS                      |
-| **documents-locator**       | Discovers relevant documents in configured directories | Grep, Glob, LS                            |
-| **documents-analyser**      | Extracts insights from meta documents                  | Read, Grep, Glob, LS                      |
-| **reviewer**                | Evaluates code/plans through a specific quality lens   | Read, Grep, Glob, LS                      |
-| **web-search-researcher**   | Researches external documentation and resources                   | WebSearch, WebFetch, Read, Grep, Glob, LS                                                                                                                                                                                                     |
-| **browser-locator**         | Locates routes/screens/components in a running app via Playwright | mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot                                                                                                                                                                          |
+| Agent                       | Role                                                              | Tools                                                                                                                                                                                                                                               |
+|-----------------------------|-------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **codebase-locator**        | Finds files and components by description                         | Grep, Glob, LS                                                                                                                                                                                                                                      |
+| **codebase-analyser**       | Analyses implementation details of specific components            | Read, Grep, Glob, LS                                                                                                                                                                                                                                |
+| **codebase-pattern-finder** | Finds similar implementations and usage examples                  | Read, Grep, Glob, LS                                                                                                                                                                                                                                |
+| **documents-locator**       | Discovers relevant documents in configured directories            | Grep, Glob, LS                                                                                                                                                                                                                                      |
+| **documents-analyser**      | Extracts insights from meta documents                             | Read, Grep, Glob, LS                                                                                                                                                                                                                                |
+| **reviewer**                | Evaluates code/plans through a specific quality lens              | Read, Grep, Glob, LS                                                                                                                                                                                                                                |
+| **web-search-researcher**   | Researches external documentation and resources                   | WebSearch, WebFetch, Read, Grep, Glob, LS                                                                                                                                                                                                           |
+| **browser-locator**         | Locates routes/screens/components in a running app via Playwright | mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot                                                                                                                                                                                |
 | **browser-analyser**        | Analyses screens, captures state and screenshots via Playwright   | mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_evaluate, mcp__playwright__browser_click, mcp__playwright__browser_type, mcp__playwright__browser_wait_for |
 
 The separation between locators (find, no Read) and analysers (understand, with
