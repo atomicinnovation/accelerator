@@ -82,13 +82,10 @@ These paths can be overridden via the `paths` configuration section:
 | `reviews/`            | Review summaries and per-lens results                          | `review-pr`, `review-plan`                                   |
 | `validations/`        | Plan validation reports                                        | `validate-plan`                                              |
 | `prs/`                | PR descriptions                                                | `describe-pr`                                                |
-| `templates/`          | Reusable templates (e.g., PR descriptions)                     | `configure template`                                         |
 | `work/`               | Work item files referenced by planning                         | `create-work-item`, `extract-work-items`, `update-work-item` |
 | `notes/`              | Notes and working documents                                    | manual                                                       |
 | `design-inventories/` | Per-source design inventory snapshots (markdown + screenshots) | `inventory-design`                                           |
 | `design-gaps/`        | Design-gap analysis artifacts                                  | `analyse-design-gaps`                                        |
-| `integrations/jira/`     | Jira field catalogue, project list, and site metadata | `init-jira`                                                |
-| `tmp/`                | Ephemeral working data (e.g., review artifacts)                | `review-pr`                                                  |
 
 This approach means:
 
@@ -103,8 +100,7 @@ This approach means:
 
 When a new plugin version renames directories, config keys, or file formats, a
 migration script handles the upgrade. Run `/accelerator:migrate` after updating
-the plugin to apply any pending migrations to your `meta/` directory and
-`.claude/accelerator*.md` config files.
+the plugin to apply any pending migrations.
 
 ```
 /accelerator:migrate
@@ -112,21 +108,23 @@ the plugin to apply any pending migrations to your `meta/` directory and
 
 Safety guards: the skill refuses to run on a dirty working tree, prints a
 pre-run banner listing each pending migration, and previews each one before
-applying. All mutations are tracked in `meta/.migrations-applied`. Recovery is
-via VCS revert. Set `ACCELERATOR_MIGRATE_FORCE=1` to bypass the clean-tree
-check if needed.
+applying. All mutations are tracked in `.accelerator/state/migrations-applied`.
+Recovery is via VCS revert. Set `ACCELERATOR_MIGRATE_FORCE=1` to bypass the
+clean-tree check if needed.
 
 To opt out of an individual migration, run
 `bash skills/config/migrate/scripts/run-migrations.sh --skip <id>` (and
 `--unskip <id>` to re-enable it). Skipped IDs are tracked in
-`meta/.migrations-skipped` and surfaced by name in the runner's summary line
-so a permanent skip is never invisible. A migration can also self-defer by
-emitting `MIGRATION_RESULT: no_op_pending` on stdout — useful for migrations
-whose preconditions (e.g. a `{project}` pattern in `work.id_pattern`) aren't
-yet configured.
+`.accelerator/state/migrations-skipped` and surfaced by name in the runner's
+summary line so a permanent skip is never invisible. A migration can also
+self-defer by emitting `MIGRATION_RESULT: no_op_pending` on stdout — useful
+for migrations whose preconditions (e.g. a `{project}` pattern in
+`work.id_pattern`) aren't yet configured.
 
-A `SessionStart` hook fires automatically when `meta/.migrations-applied` lags
-the bundled migrations, reminding you to run `/accelerator:migrate`.
+A `SessionStart` hook fires automatically when the bundled migrations have not
+all been applied, reminding you to run `/accelerator:migrate`. (On repos that
+haven't run migration `0003` yet, the hook reads the legacy
+`meta/.migrations-applied` file as a fallback.)
 
 ## VCS Detection
 
@@ -155,10 +153,10 @@ agent behaviour, and tune review settings.
 
 ### Config Files
 
-| File                           | Scope                   | Purpose                             |
-|--------------------------------|-------------------------|-------------------------------------|
-| `.claude/accelerator.md`       | Team-shared (committed) | Shared project context and settings |
-| `.claude/accelerator.local.md` | Personal (gitignored)   | Personal overrides and preferences  |
+| File                              | Scope                   | Purpose                             |
+|-----------------------------------|-------------------------|-------------------------------------|
+| `.accelerator/config.md`          | Team-shared (committed) | Shared project context and settings |
+| `.accelerator/config.local.md`    | Personal (gitignored)   | Personal overrides and preferences  |
 
 Local settings override team settings for the same key. Markdown bodies from
 both files are concatenated (team context first, then personal).
@@ -225,7 +223,7 @@ A typical customisation workflow:
 5. `templates reset plan` if you want to revert to the plugin default
 
 Templates are resolved in order: config path (`templates.<key>`) → templates
-directory (`paths.templates`, default `meta/templates/`) → plugin default.
+directory (`paths.templates`, default `.accelerator/templates/`) → plugin default.
 
 ### Getting Started
 
@@ -243,7 +241,7 @@ walks you through gathering project context and writes the config file for you.
 ### Custom Review Lenses
 
 You can add custom review lenses alongside the 13 built-in ones. Place them in
-`.claude/accelerator/lenses/` following the `[name]-lens/SKILL.md` convention.
+`.accelerator/lenses/` following the `[name]-lens/SKILL.md` convention.
 Custom lenses are auto-discovered and included in the lens catalogue. See
 `/accelerator:configure help` for details and a minimal template.
 
@@ -251,10 +249,10 @@ Custom lenses are auto-discovered and included in the lens catalogue. See
 
 Beyond global context, you can provide context or instructions targeted at
 individual skills by placing files in
-`.claude/accelerator/skills/<skill-name>/`:
+`.accelerator/skills/<skill-name>/`:
 
 ```
-.claude/accelerator/skills/
+.accelerator/skills/
   review-pr/
     context.md          # Context specific to PR review
     instructions.md     # Additional instructions for PR review
@@ -321,11 +319,11 @@ team-shared field and project catalogue before using the other skills.
 
 ### Configuration
 
-Add the shared site setting to `.claude/accelerator.md` and personal
-credentials to `.claude/accelerator.local.md` (gitignored):
+Add the shared site setting to `.accelerator/config.md` and personal
+credentials to `.accelerator/config.local.md` (gitignored):
 
 ```yaml
-# accelerator.md — commit this
+# .accelerator/config.md — commit this
 ---
 jira:
   site: your-subdomain   # e.g. "atomic-innovation" for atomic-innovation.atlassian.net
@@ -333,7 +331,7 @@ jira:
 ```
 
 ```yaml
-# accelerator.local.md — do not commit
+# .accelerator/config.local.md — do not commit
 ---
 jira:
   email: you@example.com
@@ -349,7 +347,7 @@ The default project key reuses `work.default_project_code`. See
 
 | Skill | Usage | Description |
 |---|---|---|
-| **init-jira** | `/accelerator:init-jira` | Verify credentials, discover projects and custom fields, persist the team-shared catalogue to `meta/integrations/jira/` |
+| **init-jira** | `/accelerator:init-jira` | Verify credentials, discover projects and custom fields, persist the team-shared catalogue to `.accelerator/state/integrations/jira/` |
 | **search-jira-issues** | `/accelerator:search-jira-issues [flags]` | Search via structured flags (assignee, status, label, type, component, reporter, parent, watching); composes safe JQL with a `--jql` escape hatch |
 | **show-jira-issue** | `/accelerator:show-jira-issue <KEY>` | Fetch a single issue with optional comment slice and Markdown rendering of ADF descriptions |
 | **create-jira-issue** | `/accelerator:create-jira-issue [flags]` | Create a new issue; body accepted inline, from a file, from stdin, or via `$EDITOR` |
@@ -384,10 +382,10 @@ with language, single-level bullet/ordered lists, GitHub-style checklists
 ### State cache
 
 `/init-jira` persists the field catalogue, project list, and site metadata to
-`meta/integrations/jira/`. This directory is version-controlled and
-team-shared — instance-specific custom field IDs are not secrets and are worth
-committing so teammates don't need to re-run init. Per-developer credentials
-live in `accelerator.local.md` and env vars only.
+`.accelerator/state/integrations/jira/`. This directory is version-controlled
+and team-shared — instance-specific custom field IDs are not secrets and are
+worth committing so teammates don't need to re-run init. Per-developer
+credentials live in `.accelerator/config.local.md` and env vars only.
 
 ## Architecture Decision Records
 
@@ -480,7 +478,7 @@ pre-release version.
 | Mechanism                                   | Purpose                                                             |
 |---------------------------------------------|---------------------------------------------------------------------|
 | `ACCELERATOR_VISUALISER_BIN`                | One-shot override pointing at a locally-built binary                |
-| `visualiser.binary` config key              | Persistent binary override in `.claude/accelerator.local.md`       |
+| `visualiser.binary` config key              | Persistent binary override in `.accelerator/config.local.md`       |
 | `ACCELERATOR_VISUALISER_RELEASES_URL`       | Alternative HTTPS mirror for air-gapped or self-hosted installs    |
 | `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE`  | Set to `1` to verify SLSA build-provenance after the SHA-256 check |
 

@@ -1708,8 +1708,8 @@ source of upgrade information.
 
 #### Automated Verification:
 
-- [ ] Every test suite still passes
-- [ ] No prose under `README.md`, `skills/`, or `hooks/` (excluding
+- [x] Every test suite still passes
+- [x] No prose under `README.md`, `skills/`, or `hooks/` (excluding
   `meta/notes/`, `meta/research/`, `meta/plans/`, `meta/decisions/`,
   `meta/work/`, `meta/reviews/`, `CHANGELOG.md`, and migration scripts
   `0001`/`0002`) references the legacy paths

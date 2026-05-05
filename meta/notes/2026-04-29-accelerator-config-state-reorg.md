@@ -1,5 +1,9 @@
 # Top-level `.accelerator/` reorganisation
 
+**Status**: Implemented in
+`meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md`.
+Retained for historical context.
+
 ## Problem
 
 Accelerator-specific files are currently scattered across the repository:

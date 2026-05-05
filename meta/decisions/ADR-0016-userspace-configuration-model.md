@@ -9,7 +9,10 @@ tags: [configuration, plugin, skills, bash, preprocessor]
 # ADR-0016: Userspace Configuration Model
 
 **Date**: 2026-04-17
-**Status**: Accepted
+**Status**: Active — file paths superseded in part by
+`meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md`
+(`.accelerator/config*.md` replaces `.claude/accelerator*.md`). A
+full superseding ADR is forthcoming.
 **Author**: Toby Clemson
 
 ## Context

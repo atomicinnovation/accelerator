@@ -82,7 +82,7 @@ If it exits non-zero with `E_NO_TOKEN`, tell the user:
 
 > No Jira API token found. Generate one at
 > <https://id.atlassian.com/manage-profile/security/api-tokens>, then add it
-> to `.claude/accelerator.local.md` (which is gitignored):
+> to `.accelerator/config.local.md` (which is gitignored):
 >
 > ```yaml
 > ---

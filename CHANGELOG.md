@@ -2,6 +2,56 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING**: All Accelerator-owned config, customisation, and state files
+  now live under `.accelerator/` rather than `.claude/` and `meta/`. Run
+  `/accelerator:migrate` to apply migration `0003-relocate-accelerator-state`,
+  which moves existing files into the new layout. Specifically:
+    - `.claude/accelerator.md` → `.accelerator/config.md`
+    - `.claude/accelerator.local.md` → `.accelerator/config.local.md`
+    - `.claude/accelerator/skills/` → `.accelerator/skills/`
+    - `.claude/accelerator/lenses/` → `.accelerator/lenses/`
+    - `meta/templates/` → `.accelerator/templates/`
+    - `meta/integrations/` → `.accelerator/state/integrations/`
+    - `meta/.migrations-*` → `.accelerator/state/migrations-*`
+    - `meta/tmp/` → `.accelerator/tmp/` (only if `paths.tmp` is unset;
+      explicit overrides — including `paths.tmp: meta/tmp` literal —
+      are preserved untouched)
+- **Restart your Claude Code session** after the plugin update before invoking
+  any accelerator skill on an un-migrated repo. The SessionStart
+  discoverability hook prompts you to run the migration; invoking a skill
+  mid-session before running migrate exits with the same directive thanks to a
+  complementary check in `config-common.sh`, but a clean session start gives
+  the cleanest UX.
+- **Pinned `paths.templates` or `paths.integrations` overrides are not
+  preserved**. If you have either of these keys set to a `meta/<dir>` value
+  (or any custom path), the migration moves the legacy `meta/<dir>` contents
+  to the new default location unconditionally and emits a stderr notice naming
+  the pinned key. Update your config to point at the new default
+  (`.accelerator/templates` / `.accelerator/state/integrations`) or reconcile
+  manually post-migration. `paths.tmp` is the one path key whose pinned value
+  the migration leaves untouched.
+- **Project root `.gitignore` is rewritten** by the migration:
+    - `.claude/accelerator.local.md` (anchored or unanchored whole-line forms)
+      is replaced with the anchored `.accelerator/config.local.md` rule.
+    - Legacy `meta/integrations/jira/.lock` and
+      `meta/integrations/jira/.refresh-meta.json` rules are removed (their
+      replacements are covered by the inner
+      `.accelerator/state/integrations/jira/.gitignore`).
+    - The migration refuses to rewrite a line with trailing content (e.g. an
+      inline comment) and prints a reconciliation message; reconcile manually
+      and re-run.
+- **`init-jira` no longer mutates the project root `.gitignore`**. Each
+  integration init skill now owns its own state subdirectory under
+  `.accelerator/state/integrations/<tool>/` — including the inner
+  `.gitignore`. This is the forward convention for all future integration
+  init skills.
+- **Recovery from a failed migration is via VCS revert** (`jj op restore` /
+  `git reset`) followed by a re-run. The migration is idempotent — every
+  step is safe to re-run from any partial state. The migration refuses to run
+  on a dirty working tree, so a committed baseline is always available.
+
 ### Added
 
 - **Meta visualiser** — a new browser-based companion view of the `meta/`
@@ -127,17 +177,18 @@
     `jira-create-flow.sh`, `jira-update-flow.sh`, `jira-comment-flow.sh`,
     `jira-transition-flow.sh`, `jira-attach-flow.sh` — Per-skill orchestration
     helpers with `--describe` dry-run support on all write flows
-- **Jira config section**: New `jira` YAML section in `accelerator.md` /
-  `accelerator.local.md`. `site` goes in team-shared `accelerator.md`;
-  `email`, `token`, and `token_cmd` are personal and belong in the gitignored
-  `accelerator.local.md`. Documented in `skills/config/configure/SKILL.md`.
+- **Jira config section**: New `jira` YAML section in
+  `.accelerator/config.md` / `.accelerator/config.local.md`. `site` goes in
+  team-shared `config.md`; `email`, `token`, and `token_cmd` are personal and
+  belong in the gitignored `config.local.md`. Documented in
+  `skills/config/configure/SKILL.md`.
   `work.default_project_code` doubles as the default Jira project key — no
   separate `jira.default_project_key` is introduced
-- **`meta/integrations/jira/` state directory**: Version-controlled
-  team-shared cache for the field catalogue, project list, and site metadata.
-  Path honours the `paths.integrations` config key (default:
-  `meta/integrations`) so a future top-level `.accelerator/state/` reorg is a
-  one-key change
+- **`.accelerator/state/integrations/jira/` state directory**:
+  Version-controlled team-shared cache for the field catalogue, project list,
+  and site metadata. Owned by `init-jira` (which writes the inner `.gitignore`
+  covering `site.json`, `.refresh-meta.json`, and `.lock/`). Path honours the
+  `paths.integrations` config key (default: `.accelerator/state/integrations`)
 
 ### Notes
 

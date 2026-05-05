@@ -14,10 +14,10 @@ You help users manage their Accelerator plugin configuration.
 Accelerator reads configuration from two files in the project's `.claude/`
 directory:
 
-| File                           | Scope       | Git        | Purpose                             |
-|--------------------------------|-------------|------------|-------------------------------------|
-| `.claude/accelerator.md`       | Team-shared | Committed  | Shared project context and settings |
-| `.claude/accelerator.local.md` | Personal    | Gitignored | Personal overrides and preferences  |
+| File                              | Scope       | Git        | Purpose                             |
+|-----------------------------------|-------------|------------|-------------------------------------|
+| `.accelerator/config.md`          | Team-shared | Committed  | Shared project context and settings |
+| `.accelerator/config.local.md`    | Personal    | Gitignored | Personal overrides and preferences  |
 
 Both files use YAML frontmatter for structured settings and a markdown body for
 free-form project context. Local settings override team settings for the same
@@ -28,8 +28,8 @@ key.
 When invoked:
 
 1. **Check current configuration state**:
-  - Check if `.claude/accelerator.md` exists
-  - Check if `.claude/accelerator.local.md` exists
+  - Check if `.accelerator/config.md` exists
+  - Check if `.accelerator/config.local.md` exists
   - If either exists, read and display current settings
   - **If a config file already exists, always show its current contents and ask
     the user to confirm before overwriting. Never silently replace an existing
@@ -44,11 +44,11 @@ Display the current configuration:
 ```
 ## Current Accelerator Configuration
 
-### Team Config (.claude/accelerator.md)
+### Team Config (.accelerator/config.md)
 [Display frontmatter settings as a formatted table]
 [Display markdown body if present]
 
-### Personal Config (.claude/accelerator.local.md)
+### Personal Config (.accelerator/config.local.md)
 [Display frontmatter settings as a formatted table]
 [Display markdown body if present]
 
@@ -56,7 +56,7 @@ Display the current configuration:
 [Show merged settings with source attribution]
 
 ### Per-Skill Customisations
-[For each directory under .claude/accelerator/skills/ that contains
+[For each directory under .accelerator/skills/ that contains
 non-empty context.md or instructions.md, list:]
 
 - `<skill-name>`:
@@ -76,9 +76,9 @@ for the markdown body — this is the highest-value feature.
 
 1. Ask whether they want to create a team config (shared) or personal config
    (local), or both
-2. If creating a personal config, check whether `.claude/accelerator.local.md`
-   is in `.gitignore` (or `.claude/.gitignore`). If not, offer to add it to
-   the repo root `.gitignore`.
+2. If creating a personal config, check whether `.accelerator/config.local.md`
+   is in `.gitignore` (or `.accelerator/.gitignore`). If not, offer to add it
+   to the repo root `.gitignore`.
 3. Ask about their project context — frame questions around "What should
    Accelerator skills know about your project?":
   - What tech stack do they use? (languages, frameworks, build system)
@@ -93,7 +93,7 @@ for the markdown body — this is the highest-value feature.
    customise review behaviour (lens selection, verdict thresholds, inline
    comment limits), output paths (where skills write documents), document
    templates (plan, ADR, research, validation formats), and per-skill
-   context and instructions (`.claude/accelerator/skills/<skill-name>/`).
+   context and instructions (`.accelerator/skills/<skill-name>/`).
    Run `/accelerator:configure help` for the full key reference."
 6. Write the config file with a markdown body containing the gathered context
    and YAML frontmatter containing any agent overrides (or empty frontmatter
@@ -236,10 +236,10 @@ lens" warning.
 
 #### Custom Lenses
 
-Create custom review lenses in `.claude/accelerator/lenses/`:
+Create custom review lenses in `.accelerator/lenses/`:
 
 \```
-.claude/accelerator/lenses/
+.accelerator/lenses/
   compliance-lens/
     SKILL.md           # Follow the same structure as built-in lenses
   accessibility-lens/
@@ -303,10 +303,10 @@ partitioned via script arrays, not frontmatter.
 ### Per-Skill Customisation
 
 Provide context or additional instructions for specific skills by placing
-files in `.claude/accelerator/skills/<skill-name>/`:
+files in `.accelerator/skills/<skill-name>/`:
 
 \```
-.claude/accelerator/skills/
+.accelerator/skills/
   create-plan/
     context.md          # Context specific to plan creation
     instructions.md     # Additional instructions for plan creation
@@ -333,7 +333,7 @@ Both files are optional. If neither exists for a skill, it behaves as
 before. Files are read at skill invocation time. Do not add YAML
 frontmatter to these files — their entire content is injected as-is.
 
-**When to use which**: Use **global context** (`.claude/accelerator.md`)
+**When to use which**: Use **global context** (`.accelerator/config.md`)
 for information all skills should know. Use **skill context**
 (`context.md`) for information only one skill needs. Use **skill
 instructions** (`instructions.md`) to change how a skill behaves — add
@@ -393,10 +393,10 @@ project root (absolute paths are also supported):
 | `review_plans`       | `meta/reviews/plans`              | Plan review artifacts                                                            |
 | `review_prs`         | `meta/reviews/prs`                | PR review working directories                                                    |
 | `review_work`        | `meta/reviews/work`               | Work item review artifacts                                                       |
-| `templates`          | `meta/templates`                  | User-provided templates (e.g., PR description)                                   |
+| `templates`          | `.accelerator/templates`          | User-provided templates (e.g., PR description)                                   |
 | `work`               | `meta/work`                       | Work item files referenced by create-plan                                        |
 | `notes`              | `meta/notes`                      | Notes directory                                                                  |
-| `tmp`                | `meta/tmp`                        | Ephemeral working data (gitignored)                                              |
+| `tmp`                | `.accelerator/tmp`                | Ephemeral working data (gitignored)                                              |
 | `design_inventories` | `meta/design-inventories`         | Design-inventory artifacts (one directory per snapshot, with screenshots/)       |
 | `design_gaps`        | `meta/design-gaps`                | Design-gap analysis artifacts                                                    |
 | `integrations`       | `.accelerator/state/integrations` | Per-integration cached state (Jira fields/projects, future Linear/Trello caches) |
@@ -661,10 +661,10 @@ recognised. Other `jira.*` keys are not consumed by any plugin script.
 ### templates
 
 Override document templates by placing custom template files in the
-templates directory (`paths.templates`, defaults to `meta/templates/`):
+templates directory (`paths.templates`, defaults to `.accelerator/templates/`):
 
 \```
-meta/templates/
+.accelerator/templates/
   plan.md            # Custom plan template
   research.md        # Custom research template
   adr.md             # Custom ADR template
@@ -870,8 +870,8 @@ confirmations.
 6. Inform the user that the template was reset. If the script output
    includes a note about removing a config entry (i.e., the override was
    a config path / Tier 1), also remove the `templates.<key>` entry from
-   the config using the Edit tool. Check both `.claude/accelerator.md`
-   (team) and `.claude/accelerator.local.md` (local) for the entry:
+   the config using the Edit tool. Check both `.accelerator/config.md`
+   (team) and `.accelerator/config.local.md` (local) for the entry:
    - If the entry exists in **local only**: remove it from local.
    - If the entry exists in **team only**: remove it from team.
    - If the entry exists in **both with the same value**: remove from both.
