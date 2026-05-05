@@ -19,7 +19,7 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 setup_repo() {
   local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-  mkdir -p "$d/.git" "$d/.claude"
+  mkdir -p "$d/.git" "$d/.claude" "$d/.accelerator"
   cat > "$d/.claude/accelerator.md" <<ENDCONFIG
 ---
 jira:
@@ -121,6 +121,9 @@ for f in "$SITE_JSON" "$PROJECTS_JSON" "$FIELDS_JSON"; do
     PASS=$((PASS + 1))
   fi
 done
+
+# After the full flow, the lock dir must be absent
+assert_dir_not_exists ".lock/ absent after successful flow" "$STATE_DIR/.lock"
 echo ""
 
 # ============================================================
@@ -159,7 +162,7 @@ assert_exit_code "missing site non-interactive exits 60" 60 \
 
 ERR3=$(cd "$REPO3" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" \
   ACCELERATOR_TEST_MODE=1 bash "$SCRIPT" --non-interactive 2>&1 || true)
-assert_contains "missing site: E_INIT_NEEDS_CONFIG on stderr" "E_INIT_NEEDS_CONFIG" "$ERR3"
+assert_contains "missing site: E_INIT_NEEDS_CONFIG on stderr" "$ERR3" "E_INIT_NEEDS_CONFIG"
 echo ""
 
 # ============================================================
@@ -268,47 +271,74 @@ fi
 echo ""
 
 # ============================================================
-echo "=== Case 9: .gitignore entries written after full flow ==="
+echo "=== Case 9: inner .gitignore written with correct rules ==="
 echo ""
 
-GITIGNORE="$REPO/.gitignore"
-if [ -f "$GITIGNORE" ]; then
-  if grep -qF "meta/integrations/jira/.lock" "$GITIGNORE"; then
-    echo "  PASS: .gitignore has .lock entry"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: .gitignore missing meta/integrations/jira/.lock"
-    FAIL=$((FAIL + 1))
-  fi
-  if grep -qF "meta/integrations/jira/.refresh-meta.json" "$GITIGNORE"; then
-    echo "  PASS: .gitignore has .refresh-meta.json entry"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: .gitignore missing meta/integrations/jira/.refresh-meta.json"
-    FAIL=$((FAIL + 1))
-  fi
+# Inner .gitignore must exist inside state dir (not at project root)
+assert_file_exists "inner .gitignore exists at state dir" "$STATE_DIR/.gitignore"
 
-  # Idempotency: run full flow again; entries must not be duplicated
-  start_mock "$SCENARIOS/init-flow-200.json"
-  flow
-  stop_mock
-
-  LOCK_COUNT=$(grep -cF "meta/integrations/jira/.lock" "$GITIGNORE" || true)
-  assert_eq ".gitignore lock entry not duplicated" "1" "$LOCK_COUNT"
-  META_COUNT=$(grep -cF "meta/integrations/jira/.refresh-meta.json" "$GITIGNORE" || true)
-  assert_eq ".gitignore meta entry not duplicated" "1" "$META_COUNT"
+# Must contain exactly the three rules (site.json, .refresh-meta.json, .lock/)
+if grep -qFx "site.json" "$STATE_DIR/.gitignore"; then
+  echo "  PASS: inner .gitignore has site.json rule"
+  PASS=$((PASS + 1))
 else
-  echo "  FAIL: .gitignore not created"
-  FAIL=$((FAIL + 2))
+  echo "  FAIL: inner .gitignore missing site.json rule"
+  FAIL=$((FAIL + 1))
 fi
+if grep -qFx ".refresh-meta.json" "$STATE_DIR/.gitignore"; then
+  echo "  PASS: inner .gitignore has .refresh-meta.json rule"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: inner .gitignore missing .refresh-meta.json rule"
+  FAIL=$((FAIL + 1))
+fi
+if grep -qFx ".lock/" "$STATE_DIR/.gitignore"; then
+  echo "  PASS: inner .gitignore has .lock/ rule"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: inner .gitignore missing .lock/ rule"
+  FAIL=$((FAIL + 1))
+fi
+RULE_COUNT=$(wc -l < "$STATE_DIR/.gitignore" 2>/dev/null | tr -d ' ' || echo 0)
+assert_eq "inner .gitignore has exactly 3 rules" "3" "$RULE_COUNT"
+
+# Idempotency: re-run must not duplicate rules
+start_mock "$SCENARIOS/init-flow-200.json"
+flow
+stop_mock
+SITE_COUNT=$(grep -cFx "site.json" "$STATE_DIR/.gitignore" || true)
+assert_eq "site.json rule not duplicated" "1" "$SITE_COUNT"
+META_COUNT=$(grep -cFx ".refresh-meta.json" "$STATE_DIR/.gitignore" || true)
+assert_eq ".refresh-meta.json rule not duplicated" "1" "$META_COUNT"
+LOCK_COUNT=$(grep -cFx ".lock/" "$STATE_DIR/.gitignore" || true)
+assert_eq ".lock/ rule not duplicated" "1" "$LOCK_COUNT"
+
+# .gitkeep must be present
+assert_file_exists ".gitkeep present in state dir" "$STATE_DIR/.gitkeep"
 echo ""
 
 # ============================================================
-echo "=== Case 10: custom paths.integrations produces correct .gitignore entries ==="
+echo "=== Case 9b: project root .gitignore NOT mutated by init-jira ==="
+echo ""
+
+REPO9B=$(setup_repo)
+printf '%s\n' "# custom content" "*.log" > "$REPO9B/.gitignore"
+GI_CONTENT_BEFORE=$(cat "$REPO9B/.gitignore")
+
+start_mock "$SCENARIOS/init-flow-200.json"
+flow_for "$REPO9B"
+stop_mock
+
+GI_CONTENT_AFTER=$(cat "$REPO9B/.gitignore")
+assert_eq "root .gitignore not mutated" "$GI_CONTENT_BEFORE" "$GI_CONTENT_AFTER"
+echo ""
+
+# ============================================================
+echo "=== Case 10: custom paths.integrations produces inner .gitignore ==="
 echo ""
 
 REPO10=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
-mkdir -p "$REPO10/.git" "$REPO10/.claude"
+mkdir -p "$REPO10/.git" "$REPO10/.claude" "$REPO10/.accelerator"
 cat > "$REPO10/.claude/accelerator.md" <<ENDCONFIG
 ---
 jira:
@@ -325,27 +355,83 @@ start_mock "$SCENARIOS/init-flow-200.json"
 flow_for "$REPO10"
 stop_mock
 
-GITIGNORE10="$REPO10/.gitignore"
-if [ -f "$GITIGNORE10" ]; then
-  if grep -qF ".state/integrations/jira/.lock" "$GITIGNORE10"; then
-    echo "  PASS: custom paths: .gitignore has custom .lock entry"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: custom paths: .gitignore missing .state/integrations/jira/.lock"
-    echo "  Content: $(cat "$GITIGNORE10")"
-    FAIL=$((FAIL + 1))
-  fi
-  if grep -qF ".state/integrations/jira/.refresh-meta.json" "$GITIGNORE10"; then
-    echo "  PASS: custom paths: .gitignore has custom .refresh-meta.json entry"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: custom paths: .gitignore missing .state/integrations/jira/.refresh-meta.json"
-    FAIL=$((FAIL + 1))
-  fi
+CUSTOM_STATE_DIR="$REPO10/.state/integrations/jira"
+assert_file_exists "custom paths: inner .gitignore exists" "$CUSTOM_STATE_DIR/.gitignore"
+if grep -qFx "site.json" "$CUSTOM_STATE_DIR/.gitignore"; then
+  echo "  PASS: custom paths: .gitignore has site.json entry"
+  PASS=$((PASS + 1))
 else
-  echo "  FAIL: .gitignore not created for custom paths"
-  FAIL=$((FAIL + 2))
+  echo "  FAIL: custom paths: .gitignore missing site.json"
+  FAIL=$((FAIL + 1))
 fi
+if grep -qFx ".lock/" "$CUSTOM_STATE_DIR/.gitignore"; then
+  echo "  PASS: custom paths: .gitignore has .lock/ entry"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: custom paths: .gitignore missing .lock/"
+  FAIL=$((FAIL + 1))
+fi
+if grep -qFx ".refresh-meta.json" "$CUSTOM_STATE_DIR/.gitignore"; then
+  echo "  PASS: custom paths: .gitignore has .refresh-meta.json entry"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: custom paths: .gitignore missing .refresh-meta.json"
+  FAIL=$((FAIL + 1))
+fi
+
+# Root .gitignore should NOT have legacy entries
+ROOT_GI10="$REPO10/.gitignore"
+if [ ! -f "$ROOT_GI10" ]; then
+  echo "  PASS: custom paths: root .gitignore not created"
+  PASS=$((PASS + 1))
+else
+  if grep -qF ".state/integrations/jira/" "$ROOT_GI10" 2>/dev/null; then
+    echo "  FAIL: custom paths: root .gitignore was mutated with jira entries"
+    FAIL=$((FAIL + 1))
+  else
+    echo "  PASS: custom paths: root .gitignore not mutated with jira entries"
+    PASS=$((PASS + 1))
+  fi
+fi
+echo ""
+
+# ============================================================
+echo "=== Case 11: .accelerator/ absent emits warning, exits 0 ==="
+echo ""
+
+REPO11=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
+mkdir -p "$REPO11/.git" "$REPO11/.claude"
+cat > "$REPO11/.claude/accelerator.md" <<ENDCONFIG
+---
+jira:
+  site: $TEST_SITE
+  email: $TEST_EMAIL
+work:
+  default_project_code: ENG
+---
+ENDCONFIG
+
+start_mock "$SCENARIOS/init-flow-200.json"
+RC11=0
+ERR11=$(flow_for "$REPO11" 2>&1 1>/dev/null) || RC11=$?
+stop_mock
+
+assert_eq ".accelerator/ absent: exits 0" "0" "$RC11"
+assert_contains ".accelerator/ absent: warning mentions .accelerator/" \
+  "$ERR11" ".accelerator/"
+assert_contains ".accelerator/ absent: warning mentions accelerator:init" \
+  "$ERR11" "accelerator:init"
+echo ""
+
+# ============================================================
+echo "=== Case 12: .lock/ cleaned up on EXIT (failure) ==="
+echo ""
+
+REPO12=$(setup_repo)
+LOCK_DIR12="$REPO12/meta/integrations/jira/.lock"
+# No mock started — discover fails with connection error; lock must still be removed
+flow_for "$REPO12" discover 2>/dev/null || true
+assert_dir_not_exists ".lock/ cleaned up after failed discover" "$LOCK_DIR12"
 echo ""
 
 # ============================================================

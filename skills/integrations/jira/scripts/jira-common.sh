@@ -42,6 +42,18 @@ _JIRA_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _JIRA_PLUGIN_ROOT="$(cd "$_JIRA_SCRIPT_DIR/../../../.." && pwd)"
 
 source "$_JIRA_PLUGIN_ROOT/scripts/atomic-common.sh"
+
+# Files inside .accelerator/state/integrations/jira/ that must not be
+# committed: per-developer site identity, refresh timestamp sidecar (not
+# byte-idempotent), transient lock dir.
+# Must stay byte-equal to JIRA_INNER_GITIGNORE_RULES in
+# 0003-relocate-accelerator-state.sh. Both copies are pinned to equality by a
+# test in test-jira-paths.sh (Phase 6 / 4b).
+JIRA_INNER_GITIGNORE_RULES=(
+  site.json
+  .refresh-meta.json
+  .lock/
+)
 source "$_JIRA_PLUGIN_ROOT/scripts/vcs-common.sh"
 source "$_JIRA_PLUGIN_ROOT/scripts/log-common.sh"
 

@@ -35,41 +35,43 @@ source "$_JIRA_INIT_SCRIPT_DIR/jira-fields.sh"
 _JIRA_NON_INTERACTIVE=false
 
 # ---------------------------------------------------------------------------
-# Gitignore management
+# Gitignore, gitkeep, and absent-accelerator helpers
 
-_jira_ensure_gitignore() {
-  local repo_root
-  repo_root=$(find_repo_root) || return 1
-
+# Writes rules from JIRA_INNER_GITIGNORE_RULES into $state_dir/.gitignore.
+# Idempotent: each rule is appended only if not already present (grep -qFx).
+_jira_ensure_inner_gitignore() {
   local state_dir
   state_dir=$(jira_state_dir) || return 1
+  local gi="$state_dir/.gitignore"
+  touch "$gi"
+  for rule in "${JIRA_INNER_GITIGNORE_RULES[@]}"; do
+    grep -qFx "$rule" "$gi" 2>/dev/null || printf '%s\n' "$rule" >> "$gi"
+  done
+}
 
-  # Compute path relative to repo root
-  local rel_state_dir
-  if [[ "$state_dir" == "$repo_root/"* ]]; then
-    rel_state_dir="${state_dir#$repo_root/}"
-  else
-    log_warn "jira state dir is outside repo root; skipping .gitignore update"
-    return 0
+# Ensures $state_dir/.gitkeep exists so the directory is tracked in git when
+# all gitignored files (site.json, .refresh-meta.json) are absent.
+_jira_ensure_gitkeep() {
+  local state_dir
+  state_dir=$(jira_state_dir) || return 1
+  [ -e "$state_dir/.gitkeep" ] || touch "$state_dir/.gitkeep"
+}
+
+# Emits a log_warn if .accelerator/ is absent from the repo root. Exits 0.
+_jira_warn_if_accelerator_absent() {
+  local repo_root
+  repo_root=$(find_repo_root) || return 1
+  if [ ! -d "$repo_root/.accelerator" ]; then
+    log_warn ".accelerator/ is absent — run /accelerator:init to create it."
   fi
-
-  local gitignore="$repo_root/.gitignore"
-  touch "$gitignore" 2>/dev/null || {
-    log_warn ".gitignore is not writable; skipping"
-    return 0
-  }
-
-  local lock_entry="$rel_state_dir/.lock"
-  local meta_entry="$rel_state_dir/.refresh-meta.json"
-
-  grep -qF "$lock_entry" "$gitignore" 2>/dev/null || printf '%s\n' "$lock_entry" >> "$gitignore"
-  grep -qF "$meta_entry" "$gitignore" 2>/dev/null || printf '%s\n' "$meta_entry" >> "$gitignore"
 }
 
 # ---------------------------------------------------------------------------
 # verify subcommand
 
 _jira_verify() {
+  _jira_warn_if_accelerator_absent
+
   # Resolve credentials (sets JIRA_SITE, JIRA_EMAIL, JIRA_TOKEN in the current shell).
   # jira_resolve_credentials must NOT be called inside $() — command substitution
   # creates a subshell and variable assignments would not propagate back.
@@ -113,7 +115,8 @@ _jira_verify() {
     "$(printf '%s' "$account_id" | jq -R '.')" \
     | jira_atomic_write_json "$state_dir/site.json"
 
-  _jira_ensure_gitignore
+  _jira_ensure_inner_gitignore
+  _jira_ensure_gitkeep
 }
 
 # ---------------------------------------------------------------------------

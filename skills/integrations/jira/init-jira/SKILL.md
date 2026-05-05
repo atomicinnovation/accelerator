@@ -4,8 +4,8 @@ description: >
   Set up the Jira Cloud integration for this project. Verifies credentials
   against a real Jira Cloud tenant, discovers the tenant's custom-field
   catalogue and project list, and persists the results under
-  `<paths.integrations>/jira/` (default `meta/integrations/jira/`) as
-  team-shared, version-controlled JSON caches. Idempotent: safe to re-run
+  `<paths.integrations>/jira/` (default `.accelerator/state/integrations/jira/`)
+  as team-shared, version-controlled JSON caches. Idempotent: safe to re-run
   after credential or project changes.
 argument-hint: "[--site <subdomain>] [--email <addr>] [--refresh-fields] [--list-projects] [--list-fields]"
 disable-model-invocation: true
@@ -103,7 +103,7 @@ Run the full initialisation flow (or just verify if re-running mid-setup):
 ${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-init-flow.sh verify
 ```
 
-On success, `meta/integrations/jira/site.json` is written with `{site, accountId}`.
+On success, `.accelerator/state/integrations/jira/site.json` is written with `{site, accountId}`.
 Print: *"Verified as `<accountId>` on `<site>.atlassian.net`."*
 
 On failure, show the error from `jira-request.sh` and stop.
@@ -145,12 +145,14 @@ Print a summary:
 ```
 Jira integration initialised:
   Site:     <site>.atlassian.net
-  Fields:   <N> fields cached (meta/integrations/jira/fields.json)
-  Projects: <M> projects cached (meta/integrations/jira/projects.json)
+  Fields:   <N> fields cached (.accelerator/state/integrations/jira/fields.json)
+  Projects: <M> projects cached (.accelerator/state/integrations/jira/projects.json)
   Default:  <KEY> (work.default_project_code)
 ```
 
-Remind the user to commit `meta/integrations/jira/{site,fields,projects}.json`
+Remind the user to commit `.accelerator/state/integrations/jira/{fields,projects}.json`
 so teammates pick up the shared cache without running `/init-jira` themselves.
+(`site.json` is gitignored — each developer runs `/init-jira` to configure their
+own credentials.)
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh init-jira`
