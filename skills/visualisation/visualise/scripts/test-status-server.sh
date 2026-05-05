@@ -18,7 +18,7 @@ trap '
   rm -rf "$TMPDIR_BASE"
 ' EXIT
 
-make_project() { local d="$1"; mkdir -p "$d/.jj" "$d/.claude" "$d/meta/tmp"; : > "$d/meta/tmp/.gitignore"; }
+make_project() { local d="$1"; mkdir -p "$d/.jj" "$d/.accelerator/tmp"; : > "$d/.accelerator/tmp/.gitignore"; }
 
 launch_fake() {
   local proj="$1" fake="$2"
@@ -52,7 +52,7 @@ PROJ="$TMPDIR_BASE/t-statusrun"; make_project "$PROJ"
 FAKE="$TMPDIR_BASE/fake-statusrun"; make_fake_visualiser "$FAKE"
 launch_fake "$PROJ" "$FAKE"
 
-INFO_FILE="$PROJ/meta/tmp/visualiser/server-info.json"
+INFO_FILE="$PROJ/.accelerator/tmp/visualiser/server-info.json"
 EXPECTED_URL="$(jq -r '.url' "$INFO_FILE")"
 
 cd "$PROJ"
@@ -69,7 +69,7 @@ cd "$ORIG_DIR"
 echo "Test: status with dead PID in info file → stale"
 PROJ="$TMPDIR_BASE/t-statusstale"; make_project "$PROJ"
 DEAD_PID="$(spawn_and_reap_pid)"
-INFO_DIR="$PROJ/meta/tmp/visualiser"; mkdir -p "$INFO_DIR"
+INFO_DIR="$PROJ/.accelerator/tmp/visualiser"; mkdir -p "$INFO_DIR"
 cat > "$INFO_DIR/server-info.json" << INFOJSON
 {"version":"0.0.0-test","pid":$DEAD_PID,"start_time":null,"host":"127.0.0.1","port":9996,"url":"http://127.0.0.1:9996","log_path":"$INFO_DIR/server.log","tmp_path":"$INFO_DIR"}
 INFOJSON

@@ -14,15 +14,16 @@ trap 'cd "$ORIG_DIR"; rm -rf "$TMPDIR_BASE"' EXIT
 # Build a minimal project: needs .jj so config-read scripts find the repo root.
 make_project() {
   local d="$1"
-  mkdir -p "$d/.jj" "$d/.claude" "$d/meta/tmp"
-  : > "$d/meta/tmp/.gitignore"
+  mkdir -p "$d/.jj" "$d/.accelerator/tmp"
+  : > "$d/.accelerator/tmp/.gitignore"
 }
 
-# Write an accelerator.md with given frontmatter body into a project.
+# Write a config.md with given frontmatter body into a project.
 write_config() {
   local proj="$1"
   local body="$2"
-  printf -- "---\n%s\n---\n" "$body" > "$proj/.claude/accelerator.md"
+  mkdir -p "$proj/.accelerator"
+  printf -- "---\n%s\n---\n" "$body" > "$proj/.accelerator/config.md"
 }
 
 run_config() {
@@ -33,8 +34,8 @@ run_config() {
     "$WRITE_CONFIG" \
       --plugin-version "0.0.0-test" \
       --project-root "$proj" \
-      --tmp-dir "$proj/meta/tmp/visualiser" \
-      --log-file "$proj/meta/tmp/visualiser/server.log" \
+      --tmp-dir "$proj/.accelerator/tmp/visualiser" \
+      --log-file "$proj/.accelerator/tmp/visualiser/server.log" \
       "$@"
   )
 }
@@ -66,8 +67,8 @@ EXIT2=0
 STDERR2="$(cd "$PROJ2" && "$WRITE_CONFIG" \
     --plugin-version "0.0.0-test" \
     --project-root "$PROJ2" \
-    --tmp-dir "$PROJ2/meta/tmp/visualiser" \
-    --log-file "$PROJ2/meta/tmp/visualiser/server.log" \
+    --tmp-dir "$PROJ2/.accelerator/tmp/visualiser" \
+    --log-file "$PROJ2/.accelerator/tmp/visualiser/server.log" \
     2>&1 >/dev/null)" || EXIT2=$?
 assert_eq "non-zero exit for pre-migration project" "1" "$EXIT2"
 assert_contains "stderr names the migration" "$STDERR2" "migrate"
@@ -114,8 +115,8 @@ EXIT6=0
 STDERR6="$(cd "$PROJ6" && "$WRITE_CONFIG" \
     --plugin-version "0.0.0-test" \
     --project-root "$PROJ6" \
-    --tmp-dir "$PROJ6/meta/tmp/visualiser" \
-    --log-file "$PROJ6/meta/tmp/visualiser/server.log" \
+    --tmp-dir "$PROJ6/.accelerator/tmp/visualiser" \
+    --log-file "$PROJ6/.accelerator/tmp/visualiser/server.log" \
     2>&1 >/dev/null)" || EXIT6=$?
 assert_eq "empty kanban_columns exits non-zero" "1" "$EXIT6"
 assert_contains "stderr mentions empty" "$STDERR6" "empty"
@@ -130,8 +131,8 @@ EXIT7=0
 STDERR7="$(cd "$PROJ7" && "$WRITE_CONFIG" \
     --plugin-version "0.0.0-test" \
     --project-root "$PROJ7" \
-    --tmp-dir "$PROJ7/meta/tmp/visualiser" \
-    --log-file "$PROJ7/meta/tmp/visualiser/server.log" \
+    --tmp-dir "$PROJ7/.accelerator/tmp/visualiser" \
+    --log-file "$PROJ7/.accelerator/tmp/visualiser/server.log" \
     2>&1 >/dev/null)" || EXIT7=$?
 assert_eq "malformed kanban_columns exits non-zero" "1" "$EXIT7"
 

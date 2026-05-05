@@ -17,7 +17,7 @@ trap '
   rm -rf "$TMPDIR_BASE"
 ' EXIT
 
-make_project() { local d="$1"; mkdir -p "$d/.jj" "$d/.claude" "$d/meta/tmp"; : > "$d/meta/tmp/.gitignore"; }
+make_project() { local d="$1"; mkdir -p "$d/.jj" "$d/.accelerator/tmp"; : > "$d/.accelerator/tmp/.gitignore"; }
 
 launch_fake() {
   local proj="$1" fake="$2"
@@ -61,7 +61,7 @@ PROJ="$TMPDIR_BASE/t-stop"; make_project "$PROJ"
 FAKE="$TMPDIR_BASE/fake-stop"; make_fake_visualiser "$FAKE"
 launch_fake "$PROJ" "$FAKE"
 
-INFO_FILE="$PROJ/meta/tmp/visualiser/server-info.json"
+INFO_FILE="$PROJ/.accelerator/tmp/visualiser/server-info.json"
 URL="$(jq -r '.url' "$INFO_FILE")"
 
 cd "$PROJ"
@@ -70,7 +70,7 @@ bash "$STOP_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "stop: exit code" "0" "$RC"
 assert_json_eq "stop: status" ".status" "stopped" "$OUT"
 
-STOPPED_FILE="$PROJ/meta/tmp/visualiser/server-stopped.json"
+STOPPED_FILE="$PROJ/.accelerator/tmp/visualiser/server-stopped.json"
 if [ -f "$STOPPED_FILE" ]; then
   echo "  PASS: server-stopped.json exists"
   PASS=$((PASS + 1))
@@ -88,7 +88,7 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-PID_FILE_PATH="$PROJ/meta/tmp/visualiser/server.pid"
+PID_FILE_PATH="$PROJ/.accelerator/tmp/visualiser/server.pid"
 if [ ! -f "$PID_FILE_PATH" ]; then
   echo "  PASS: server.pid removed"
   PASS=$((PASS + 1))
@@ -107,7 +107,7 @@ export ACCELERATOR_VISUALISER_BIN="$FAKE"
 URL1="$(bash "$LAUNCH_SERVER" 2>/dev/null | grep '^\*\*Visualiser URL\*\*:' | sed 's/\*\*Visualiser URL\*\*: //')" || true
 URL2="$(bash "$LAUNCH_SERVER" 2>/dev/null | grep '^\*\*Visualiser URL\*\*:' | sed 's/\*\*Visualiser URL\*\*: //')" || true
 assert_eq "reuse: same URL both times" "$URL1" "$URL2"
-PID1="$(tr -cd '0-9' < "$PROJ/meta/tmp/visualiser/server.pid")"
+PID1="$(tr -cd '0-9' < "$PROJ/.accelerator/tmp/visualiser/server.pid")"
 CURLRC=0; curl -fsS "$URL2" >/dev/null 2>/dev/null || CURLRC=$?
 assert_eq "reuse: URL reachable on second launch" "0" "$CURLRC"
 unset ACCELERATOR_VISUALISER_BIN
@@ -120,7 +120,7 @@ PROJ="$TMPDIR_BASE/t-stale"; make_project "$PROJ"
 FAKE="$TMPDIR_BASE/fake-stale"; make_fake_visualiser "$FAKE"
 STALE_PID="$(spawn_and_reap_pid)"
 
-INFO_DIR="$PROJ/meta/tmp/visualiser"; mkdir -p "$INFO_DIR"
+INFO_DIR="$PROJ/.accelerator/tmp/visualiser"; mkdir -p "$INFO_DIR"
 cat > "$INFO_DIR/server-info.json" << INFOJSON
 {"version":"0.0.0-stale","pid":$STALE_PID,"start_time":null,"host":"127.0.0.1","port":9998,"url":"http://127.0.0.1:9998","log_path":"$INFO_DIR/server.log","tmp_path":"$INFO_DIR"}
 INFOJSON
@@ -148,7 +148,7 @@ cd "$ORIG_DIR"
 # ─── 7. identity-mismatch refusal ────────────────────────────────
 echo "Test: stop refuses when PID start_time doesn't match"
 PROJ="$TMPDIR_BASE/t-idmm"; make_project "$PROJ"
-INFO_DIR="$PROJ/meta/tmp/visualiser"; mkdir -p "$INFO_DIR"
+INFO_DIR="$PROJ/.accelerator/tmp/visualiser"; mkdir -p "$INFO_DIR"
 OWN_PID=$$
 cat > "$INFO_DIR/server-info.json" << INFOJSON
 {"version":"0.0.0-test","pid":$OWN_PID,"start_time":1,"host":"127.0.0.1","port":9997,"url":"http://127.0.0.1:9997","log_path":"$INFO_DIR/server.log","tmp_path":"$INFO_DIR"}
@@ -201,7 +201,7 @@ bash "$STOP_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "sigkill: exit code" "0" "$RC"
 assert_json_eq "sigkill: status" ".status" "stopped" "$OUT"
 assert_json_eq "sigkill: forced flag" ".forced" "true" "$OUT"
-STOPPED_FILE="$PROJ/meta/tmp/visualiser/server-stopped.json"
+STOPPED_FILE="$PROJ/.accelerator/tmp/visualiser/server-stopped.json"
 if [ -f "$STOPPED_FILE" ]; then
   echo "  PASS: server-stopped.json synthesised after SIGKILL"
   PASS=$((PASS + 1))
