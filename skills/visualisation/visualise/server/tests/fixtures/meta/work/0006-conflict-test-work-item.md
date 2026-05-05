@@ -1,6 +1,6 @@
 ---
 title: Conflict Test Work Item
-status: todo
+status: draft
 work-item: 6
 ---
 

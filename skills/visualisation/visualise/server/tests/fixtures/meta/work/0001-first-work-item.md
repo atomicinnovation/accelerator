@@ -1,6 +1,6 @@
 ---
 title: First Work Item
-status: todo
+status: draft
 work-item: 1
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: SSE Test Work Item
-status: todo
+status: draft
 work-item: 5
 ---
 

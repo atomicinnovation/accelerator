@@ -1,6 +1,7 @@
 ---
 title: Third Work Item
 work-item: 3
+status: todo
 ---
 
 # Third Work Item

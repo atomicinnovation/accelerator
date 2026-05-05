@@ -8,7 +8,7 @@
   directory. Launches via `/accelerator:visualise` or the
   `accelerator-visualiser` CLI. Three views: library (markdown reader for all
   doc types), lifecycle (slug-clustered timelines), kanban (drag-and-drop
-  ticket status updates). Distributed as per-arch native binaries via GitHub
+  work-item status updates). Distributed as per-arch native binaries via GitHub
   Releases — every plugin version, pre-release and stable, ships its own
   four-platform binaries; first run downloads ~8 MB over HTTPS and verifies
   against a committed SHA-256 manifest. See the
@@ -18,15 +18,42 @@
     rendering
   - Lifecycle clusters and slug-based timeline view
   - Read-only kanban
-  - Kanban write path via `PATCH /api/docs/{path}/frontmatter` with `If-Match`
+  - Kanban write-back via `PATCH /api/docs/{path}/frontmatter` with `If-Match`
     optimistic concurrency; SSE invalidations queued during drag, flushed on
     drop to prevent mid-gesture remounts
-  - Wiki-link resolution `[[ADR-NNNN]]`, `[[TICKET-NNNN]]`
+  - Wiki-link resolution `[[ADR-NNNN]]`, `[[WORK-ITEM-NNNN]]`
   - Error handling, accessibility polish, and observability
   - `/accelerator:visualise stop` and `/accelerator:visualise status`
     subcommands for managing the running server. Both also work via the
     `accelerator-visualiser` CLI wrapper. The server still auto-exits after
     30 minutes idle or when the launching process exits
+
+- **Visualiser — work-item terminology** (follow-on to the initial prerelease):
+
+  - Pre-migration repos must run `/accelerator:migrate` (migration
+    `0001-rename-tickets-to-work`) before launching the visualiser. The
+    launcher now exits with a clear message pointing at the migrate command
+    rather than starting in a broken silent-broken-kanban state.
+  - New `work-item-reviews` doc type appears in the sidebar and
+    lifecycle view (`meta/reviews/work/` directory).
+  - Pattern-aware work-item IDs. Projects configured with
+    `work.id_pattern: "{project}-{number:04d}"` and
+    `work.default_project_code` see project-prefixed IDs in the kanban,
+    lifecycle, and library views; wiki-links of the form
+    `[[WORK-ITEM-PROJ-0042]]` resolve.
+  - Configurable kanban columns via `visualiser.kanban_columns` in
+    `.claude/accelerator.md`. Defaults to the seven template statuses
+    (`draft | ready | in-progress | review | done | blocked | abandoned`).
+    See `skills/config/configure/SKILL.md` for the schema and ADR-0024
+    for rationale.
+  - Multi-field cross-references in the library view's "Related artifacts"
+    aside. The `work-item:`, `parent:`, and `related:` frontmatter keys
+    are all aggregated into the reverse index; a work item's page shows
+    all documents that reference it regardless of which field was used.
+    See ADR-0025 for the canonicalisation and self-reference-filter rules.
+  - Wiki-link prefix is now `[[WORK-ITEM-NNNN]]` (was `[[TICKET-NNNN]]`
+    in the prerelease). Existing `[[TICKET-NNNN]]` references in
+    user-authored docs stop resolving after this update.
 
 - **Design convergence workflow** — inventory-and-diff pipeline for comparing
   a current frontend to a target prototype. Two new skills (`inventory-design`,
@@ -126,14 +153,14 @@
   `inventory-design --crawler code` works without the MCP.
 - First-time runtime crawls may require browser-binary installation:
   `mise run deps:install:playwright`.
-- Tickets are written in place. If a write produces unexpected output, recover
-  with `git checkout meta/tickets/<file>`.
+- Work items are written in place. If a write produces unexpected output, recover
+  with `git checkout meta/work/<file>`.
 - Air-gapped installs: point `ACCELERATOR_VISUALISER_RELEASES_URL` at an
   internal HTTPS mirror, or set `ACCELERATOR_VISUALISER_BIN` to a
   locally-built binary for offline use.
 - Pre-release plugin versions ship matching pre-release binaries — dogfooding
   the visualiser does not require a local cargo build.
-- The visualiser respects `paths.*` configuration: changing `paths.tickets`
+- The visualiser respects `paths.*` configuration: changing `paths.work`
   routes the visualiser at the updated location.
 - **Jira Cloud integration**: Eight verb-decomposed skills for interacting
   with a Jira Cloud tenant, backed by the Jira Cloud REST API v3 directly

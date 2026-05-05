@@ -3,7 +3,7 @@ date: "2026-04-30T22:00:00+01:00"
 type: plan
 skill: create-plan
 ticket: null
-status: draft
+status: complete
 ---
 
 # Meta Visualiser — Phase 12: Packaging, docs, and release

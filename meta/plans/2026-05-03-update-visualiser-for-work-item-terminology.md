@@ -1660,8 +1660,8 @@ fn malformed_frontmatter_in_one_file_does_not_break_index_for_others() {
 
 - [x] Server tests pass: `cargo test --all-features`
 - [x] Frontend tests pass: `npm run test -- --run`
-- [ ] Playwright e2e passes (including new cross-ref spec)
-- [ ] Configuring `visualiser.kanban_columns: [ready, in-progress, review, done]` produces a four-column kanban (asserted by an e2e test)
+- [x] Playwright e2e passes (including new cross-ref spec)
+- [x] Configuring `visualiser.kanban_columns: [ready, in-progress, review, done]` produces a four-column kanban (asserted by an e2e test)
 - [x] `PATCH /api/docs/.../frontmatter` with an unconfigured status returns 400 with `ApiError::UnknownKanbanStatus` envelope and `accepted_keys` in the body
 - [x] Empty `visualiser.kanban_columns: []` rejected at boot (config unit test)
 - [x] Missing `visualiser.kanban_columns` falls back to the seven defaults (config unit test)
@@ -1693,14 +1693,14 @@ Phase 1.
 A consolidated index of every documentation file this plan touches,
 across all phases. Phase 4 success requires every box ticked.
 
-- [ ] `skills/visualisation/visualise/SKILL.md:22` (Phase 1 Step 1.3) — path placeholders updated
-- [ ] `meta/decisions/ADR-0024-visualiser-kanban-column-config.md` (Phase 4 Step 4.1) — new ADR
-- [ ] `meta/decisions/ADR-0025-work-item-cross-ref-aggregation.md` (Phase 4 Step 4.1) — new ADR
-- [ ] `skills/config/configure/SKILL.md` (Phase 4 Step 4.2) — Visualiser subsection added
-- [ ] `skills/visualisation/visualise/SKILL.md` prose review (Phase 4 Step 4.2)
-- [ ] `CHANGELOG.md` Unreleased section (Phase 4 Step 4.3)
-- [ ] `meta/validations/2026-05-04-visualiser-work-item-migration-validation.md` (Phase 4 Step 4.4)
-- [ ] `meta/plans/2026-04-30-meta-visualiser-phase-12-packaging-docs-and-release.md` frontmatter (Phase 4 Step 4.5)
+- [x] `skills/visualisation/visualise/SKILL.md:22` (Phase 1 Step 1.3) — path placeholders updated
+- [x] `meta/decisions/ADR-0024-visualiser-kanban-column-config.md` (Phase 4 Step 4.1) — new ADR
+- [x] `meta/decisions/ADR-0025-work-item-cross-ref-aggregation.md` (Phase 4 Step 4.1) — new ADR
+- [x] `skills/config/configure/SKILL.md` (Phase 4 Step 4.2) — Visualiser subsection added
+- [x] `skills/visualisation/visualise/SKILL.md` prose review (Phase 4 Step 4.2)
+- [x] `CHANGELOG.md` Unreleased section (Phase 4 Step 4.3)
+- [x] `meta/validations/2026-05-04-visualiser-work-item-migration-validation.md` (Phase 4 Step 4.4)
+- [x] `meta/plans/2026-04-30-meta-visualiser-phase-12-packaging-docs-and-release.md` frontmatter (Phase 4 Step 4.5)
 
 A `README.md` was previously listed; the visualise skill does not
 have one, and creating one is out of scope for this plan. Visualiser
@@ -1916,16 +1916,16 @@ remain focused on their concern:
 
 #### Automated Verification:
 
-- [ ] ADR file lints clean: `make lint` (if applicable)
-- [ ] CHANGELOG entry is present and well-formatted
-- [ ] All Phases 1–3 automated checks remain green
+- [x] ADR file lints clean: `make lint` (if applicable)
+- [x] CHANGELOG entry is present and well-formatted
+- [x] All Phases 1–3 automated checks remain green
 
 #### Manual Verification:
 
-- [ ] Both validation scenarios above complete without errors
-- [ ] Regression scenario confirms legacy-schema work-items render
-- [ ] README/SKILL.md prose reads correctly and matches behaviour
-- [ ] ADR is reviewed and merged
+- [x] Both validation scenarios above complete without errors
+- [x] Regression scenario confirms legacy-schema work-items render
+- [x] README/SKILL.md prose reads correctly and matches behaviour
+- [x] ADR is reviewed and merged
 
 ---
 

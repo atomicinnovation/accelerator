@@ -28,7 +28,7 @@ async function dndDrag(
   await page.mouse.up()
 }
 
-test('stale ETag produces conflict banner, card stays in todo', async ({ page }) => {
+test('stale ETag produces conflict banner, card stays in draft', async ({ page }) => {
   const original = readFileSync(WORK_ITEM_PATH, 'utf-8')
 
   // Intercept PATCH: mutate the file on disk before the request completes
@@ -41,7 +41,7 @@ test('stale ETag produces conflict banner, card stays in todo', async ({ page })
       await route.continue()
       return
     }
-    writeFileSync(WORK_ITEM_PATH, original.replace('status: todo', 'status: done'))
+    writeFileSync(WORK_ITEM_PATH, original.replace('status: draft', 'status: done'))
     // Short pause so the server's watcher can detect the change
     await new Promise((r) => setTimeout(r, 300))
     const response = await route.fetch()
@@ -66,10 +66,10 @@ test('stale ETag produces conflict banner, card stays in todo', async ({ page })
       page.locator('[role="alert"][aria-atomic="true"]'),
     ).toBeVisible({ timeout: 8000 })
 
-    // Card should have snapped back to todo (optimistic rollback)
+    // Card should have snapped back to draft (optimistic rollback)
     await expect(
       page.locator(
-        'section[data-column="todo"] li[data-relpath="tests/fixtures/meta/work/0006-conflict-test-work-item.md"]',
+        'section[data-column="draft"] li[data-relpath="tests/fixtures/meta/work/0006-conflict-test-work-item.md"]',
       ),
     ).toBeVisible({ timeout: 5000 })
   } finally {

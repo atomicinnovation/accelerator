@@ -519,6 +519,49 @@ neither applies, you can opt out via `bash run-migrations.sh --skip
 Only `work.id_pattern` and `work.default_project_code` are recognised.
 Other `work.*` keys are not consumed by any plugin script.
 
+### visualiser
+
+Configure the kanban board rendered by the visualiser plugin.
+
+| Key               | Default                                                         | Description                            |
+|-------------------|-----------------------------------------------------------------|----------------------------------------|
+| `kanban_columns`  | `[draft, ready, in-progress, review, done, blocked, abandoned]` | Ordered list of kanban column keys     |
+
+Example configuration for a project using a reduced column set:
+
+\```yaml
+---
+visualiser:
+  kanban_columns: [ready, in-progress, review, done]
+---
+\```
+
+Each key becomes a kanban column; the display label is the key
+title-cased with hyphens replaced by spaces (`in-progress` → `In progress`).
+
+#### Boot-time validation
+
+| Condition                         | Behaviour                              |
+|-----------------------------------|----------------------------------------|
+| Key absent                        | Falls back to the seven defaults above |
+| Key present, non-empty list       | Accepted; each entry becomes a column  |
+| Key present, empty list (`[]`)    | Rejected at boot with a clear error    |
+| Malformed inline-array syntax     | Rejected at boot                       |
+
+The column set is read once at boot. Changing `visualiser.kanban_columns`
+requires a server restart; the browser will pick up the new columns on the
+next page-load (TanStack Query re-fetches `/api/kanban/config` each time).
+
+#### Kanban write-back contract
+
+`PATCH /api/docs/{path}/frontmatter` validates the incoming `status` value
+against the configured column keys. A value outside the configured set —
+including values currently in the "Other" swimlane — is rejected with
+`400 unknown_kanban_status`. Recovery from an accidental drag is a direct
+file edit followed by VCS revert.
+
+See ADR-0024 for full rationale.
+
 ### jira
 
 Configure access to a Jira Cloud tenant. One key belongs in team-shared
