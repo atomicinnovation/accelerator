@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Fixture Page</title></head>
+<body>
+  <h1>Fixture Page</h1>
+  <p id="content">Hello, world!</p>
+  <input type="text" id="text-input" aria-label="Text Input" placeholder="type here">
+  <input type="password" id="password-input" aria-label="Password" placeholder="secret">
+  <button id="btn" onclick="document.getElementById('content').textContent='Button clicked!'">Click Me</button>
+  <div id="dynamic" style="display:none">Loaded!</div>
+  <script>
+    setTimeout(() => { document.getElementById('dynamic').style.display = ''; }, 200);
+  </script>
+</body>
+</html>

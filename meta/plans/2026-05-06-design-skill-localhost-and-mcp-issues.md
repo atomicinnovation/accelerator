@@ -1424,15 +1424,15 @@ Do not yet remove MCP assertions — that happens in Phase 4.
 
 #### Automated Verification
 
-- [ ] `bash skills/design/inventory-design/scripts/playwright/test-run.sh` exits 0
-- [ ] `node --test skills/design/inventory-design/scripts/playwright/test-run.js` exits 0
-- [ ] `node --test skills/design/inventory-design/scripts/playwright/lib/*.test.js` exits 0 (per-module unit tests)
-- [ ] `bash scripts/test-design.sh` still passes (Phase 1 + Phase 2 cohabit)
-- [ ] `shellcheck skills/design/inventory-design/scripts/playwright/run.sh` clean
-- [ ] `node -c skills/design/inventory-design/scripts/playwright/run.js` exits 0
-- [ ] `jq empty skills/design/inventory-design/scripts/playwright/package.json` succeeds
-- [ ] `[ -f skills/design/inventory-design/scripts/playwright/package-lock.json ]` (lockfile committed)
-- [ ] `grep -r 'evaluate-payload-rejected' skills/design/inventory-design` returns no matches outside this plan and historical research (deny-list is gone)
+- [x] `bash skills/design/inventory-design/scripts/playwright/test-run.sh` exits 0
+- [x] `node --test skills/design/inventory-design/scripts/playwright/test-run.js` exits 0
+- [x] `node --test skills/design/inventory-design/scripts/playwright/lib/*.test.js` exits 0 (per-module unit tests)
+- [x] `bash scripts/test-design.sh` still passes (Phase 1 + Phase 2 cohabit)
+- [x] `shellcheck skills/design/inventory-design/scripts/playwright/run.sh` clean
+- [x] `node -c skills/design/inventory-design/scripts/playwright/run.js` exits 0
+- [x] `jq empty skills/design/inventory-design/scripts/playwright/package.json` succeeds
+- [x] `[ -f skills/design/inventory-design/scripts/playwright/package-lock.json ]` (lockfile committed)
+- [x] `grep -r 'evaluate-payload-rejected' skills/design/inventory-design` returns no matches outside this plan and historical research (deny-list is gone)
 
 #### Manual Verification
 

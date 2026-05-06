@@ -436,4 +436,9 @@ bash "$PLUGIN_ROOT/skills/design/inventory-design/scripts/test-ensure-playwright
 
 echo ""
 
+echo "=== inventory-design: playwright executor ==="
+bash "$PLUGIN_ROOT/skills/design/inventory-design/scripts/playwright/test-run.sh"
+
+echo ""
+
 test_summary
