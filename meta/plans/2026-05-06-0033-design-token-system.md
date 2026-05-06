@@ -2033,13 +2033,13 @@ Sections:
 
 #### Automated Verification
 
-- [ ] All Phase 4 success criteria still pass.
-- [ ] `mise run test` (full suite) passes — including the new
+- [x] All Phase 4 success criteria still pass.
+- [x] `mise run test` (full suite) passes — including the new
       Playwright `tests/visual-regression/tokens.spec.ts`.
-- [ ] All 14 visual-regression tests (7 routes × 2 themes) pass
+- [x] All 14 visual-regression tests (7 routes × 2 themes) pass
       against their committed baselines, or any updated baseline
       is justified in the PR description.
-- [ ] No `fonts.googleapis.com` / `fonts.gstatic.com` requests
+- [x] No `fonts.googleapis.com` / `fonts.gstatic.com` requests
       appear in Playwright's network log (asserted alongside the
       visual-regression suite, or via the `fonts.test.ts`
       static check).

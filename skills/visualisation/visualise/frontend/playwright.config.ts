@@ -18,6 +18,12 @@ export default defineConfig({
       name: 'chromium',
       use: { browserName: 'chromium' },
     },
+    {
+      name: 'visual-regression',
+      testDir: './tests/visual-regression',
+      snapshotDir: './tests/visual-regression/__screenshots__',
+      use: { browserName: 'chromium' },
+    },
   ],
   webServer: {
     command: 'node e2e/start-server.mjs',
