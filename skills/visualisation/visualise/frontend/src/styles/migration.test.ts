@@ -7,7 +7,6 @@ import {
   RADIUS_TOKENS,
   LIGHT_SHADOW_TOKENS,
   DARK_SHADOW_TOKENS,
-  COLOR_TOKENS,
 } from './tokens'
 
 const cssModules = import.meta.glob('../**/*.module.css', {
@@ -134,9 +133,6 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/Sidebar/Sidebar.module.css', literal: '4px', count: 1, kind: 'to-migrate', reason: 'TODO' },
   // components/SidebarFooter/SidebarFooter.module.css
   { file: 'components/SidebarFooter/SidebarFooter.module.css', literal: '0.75rem', count: 2, kind: 'to-migrate', reason: 'TODO' },
-  { file: 'components/SidebarFooter/SidebarFooter.module.css', literal: '#4b5563', count: 1, kind: 'to-migrate', reason: 'TODO' },
-  { file: 'components/SidebarFooter/SidebarFooter.module.css', literal: '#7c2d12', count: 1, kind: 'to-migrate', reason: 'TODO' },
-  { file: 'components/SidebarFooter/SidebarFooter.module.css', literal: '#e5e7eb', count: 1, kind: 'to-migrate', reason: 'TODO' },
   { file: 'components/SidebarFooter/SidebarFooter.module.css', literal: '0.25rem', count: 1, kind: 'to-migrate', reason: 'TODO' },
   { file: 'components/SidebarFooter/SidebarFooter.module.css', literal: '0.5rem', count: 1, kind: 'to-migrate', reason: 'TODO' },
   { file: 'components/SidebarFooter/SidebarFooter.module.css', literal: '1.5rem', count: 1, kind: 'to-migrate', reason: 'TODO' },
@@ -194,13 +190,10 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'routes/library/LibraryDocView.module.css', literal: '1.5rem', count: 2, kind: 'to-migrate', reason: 'TODO' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '4px', count: 2, kind: 'to-migrate', reason: 'TODO' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '#6b7280', count: 1, kind: 'to-migrate', reason: 'TODO' },
-  { file: 'routes/library/LibraryDocView.module.css', literal: '#7c2d12', count: 1, kind: 'to-migrate', reason: 'TODO' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '#991b1b', count: 1, kind: 'to-migrate', reason: 'TODO' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '#9ca3af', count: 1, kind: 'to-migrate', reason: 'TODO' },
-  { file: 'routes/library/LibraryDocView.module.css', literal: '#d97706', count: 1, kind: 'to-migrate', reason: 'TODO' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '#fecaca', count: 1, kind: 'to-migrate', reason: 'TODO' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '#fef2f2', count: 1, kind: 'to-migrate', reason: 'TODO' },
-  { file: 'routes/library/LibraryDocView.module.css', literal: '#fff8e6', count: 1, kind: 'to-migrate', reason: 'TODO' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '0.25rem', count: 1, kind: 'to-migrate', reason: 'TODO' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '0.4rem', count: 1, kind: 'to-migrate', reason: 'TODO' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '0.78rem', count: 1, kind: 'to-migrate', reason: 'TODO' },
@@ -341,8 +334,6 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '900px', count: 1, kind: 'to-migrate', reason: 'TODO' },
   { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '9999px', count: 1, kind: 'to-migrate', reason: 'TODO' },
   // styles/wiki-links.global.css
-  { file: 'styles/wiki-links.global.css', literal: '#6b7280', count: 1, kind: 'to-migrate', reason: 'TODO' },
-  { file: 'styles/wiki-links.global.css', literal: '#9ca3af', count: 1, kind: 'to-migrate', reason: 'TODO' },
   { file: 'styles/wiki-links.global.css', literal: '1px', count: 1, kind: 'to-migrate', reason: 'TODO' },
 ]
 
@@ -442,9 +433,6 @@ describe('color-mix() convention (Phase 4 special conventions)', () => {
 })
 
 describe('var(--NAME) references resolve to declared tokens', () => {
-  // COLOR_TOKENS keys are included for Phase 2 — the six legacy var(--color-*, fallback)
-  // sites in SidebarFooter and LibraryDocView are removed in Phase 3 at which point
-  // COLOR_TOKENS is removed from this set too.
   const declared = new Set([
     ...Object.keys(LIGHT_COLOR_TOKENS),
     ...Object.keys(DARK_COLOR_TOKENS),
@@ -453,7 +441,6 @@ describe('var(--NAME) references resolve to declared tokens', () => {
     ...Object.keys(RADIUS_TOKENS),
     ...Object.keys(LIGHT_SHADOW_TOKENS),
     ...Object.keys(DARK_SHADOW_TOKENS),
-    ...Object.keys(COLOR_TOKENS),
   ])
   for (const [path, css] of Object.entries(allCss)) {
     it(`${path} references only declared tokens`, () => {

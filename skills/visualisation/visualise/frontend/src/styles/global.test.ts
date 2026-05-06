@@ -8,7 +8,6 @@ import {
   RADIUS_TOKENS,
   LIGHT_SHADOW_TOKENS,
   DARK_SHADOW_TOKENS,
-  COLOR_TOKENS,
 } from './tokens'
 
 type Scope = 'root' | 'dark'
@@ -87,19 +86,6 @@ describe.each([
 ])('tokens.ts ↔ global.css :root parity (%s)', (_label, tokens) => {
   for (const [name, value] of Object.entries(tokens)) {
     it(`--${name} matches`, () => {
-      expectMatches(readCssVar(name, 'root'), value)
-    })
-  }
-})
-
-// Retained until Phase 3 deletes both `COLOR_TOKENS` (in tokens.ts) and the
-// eight `--color-*` declarations (in global.css) in the same commit. While
-// retained the parity invariant continues to cover the legacy block, so any
-// drift (typo / accidental edit) between the two halves is caught at unit-
-// test time during phases 1–2.
-describe('tokens.ts ↔ global.css :root parity (legacy --color-* — retired in Phase 3)', () => {
-  for (const [name, value] of Object.entries(COLOR_TOKENS)) {
-    it(`--${name} matches COLOR_TOKENS.${name}`, () => {
       expectMatches(readCssVar(name, 'root'), value)
     })
   }

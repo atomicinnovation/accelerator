@@ -112,22 +112,3 @@ export type SpacingToken = keyof typeof SPACING_TOKENS
 export type RadiusToken = keyof typeof RADIUS_TOKENS
 export type LightShadowToken = keyof typeof LIGHT_SHADOW_TOKENS
 export type DarkShadowToken = keyof typeof DARK_SHADOW_TOKENS
-
-/**
- * @deprecated Migrating to LIGHT_COLOR_TOKENS / DARK_COLOR_TOKENS in 0033
- * Phase 3. Do not add new consumers. The eight legacy `--color-*`
- * declarations in `global.css` and this export are deleted together in
- * a single commit so parity remains continuous across the migration.
- */
-export const COLOR_TOKENS = {
-  'color-text':              '#0f172a',
-  'color-muted-text':        '#4b5563',
-  'color-muted-decorative':  '#9ca3af',
-  'color-divider':           '#e5e7eb',
-  'color-focus-ring':        '#2563eb',
-  'color-warning-bg':        '#fff8e6',
-  'color-warning-border':    '#d97706',
-  'color-warning-text':      '#7c2d12',
-} as const
-/** @deprecated See COLOR_TOKENS. */
-export type ColorToken = keyof typeof COLOR_TOKENS

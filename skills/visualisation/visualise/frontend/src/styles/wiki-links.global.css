@@ -8,14 +8,14 @@
 .wiki-link-pending {
   /* Neutral skeleton: italic, dimmed, no underline. Reads as
      "loading", not "broken". */
-  color: #9ca3af;
+  color: var(--ac-fg-faint);
   font-style: italic;
 }
 
 .unresolved-wiki-link {
   /* Broken-reference styling: muted with dotted underline. Reads as
      "this didn't resolve, check your ID". */
-  color: #6b7280;
+  color: var(--ac-fg-muted);
   border-bottom: 1px dotted currentColor;
   cursor: help;
 }

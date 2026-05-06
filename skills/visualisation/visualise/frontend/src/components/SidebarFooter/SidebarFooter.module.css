@@ -3,8 +3,8 @@
   min-height: 1.5rem;
   padding: 0.5rem 0.75rem;
   font-size: 0.75rem;
-  color: var(--color-muted-text, #4b5563);
-  border-top: 1px solid var(--color-divider, #e5e7eb);
+  color: var(--ac-fg-muted);
+  border-top: 1px solid var(--ac-stroke-soft);
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -16,5 +16,5 @@
 
 .reconnecting,
 .reconnected {
-  color: var(--color-warning-text, #7c2d12);
+  color: var(--ac-warn);
 }

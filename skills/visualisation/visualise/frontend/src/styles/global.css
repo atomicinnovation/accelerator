@@ -128,15 +128,6 @@
   --ac-shadow-soft: 0 1px 2px rgba(10,17,27,0.04), 0 8px 28px rgba(10,17,27,0.06);
   --ac-shadow-lift: 0 2px 4px rgba(10,17,27,0.06), 0 20px 60px rgba(10,17,27,0.10);
 
-  /* Legacy --color-* (deprecated, removed in Phase 3) */
-  --color-text:              #0f172a;
-  --color-muted-text:        #4b5563;
-  --color-muted-decorative:  #9ca3af;
-  --color-divider:           #e5e7eb;
-  --color-focus-ring:        #2563eb;
-  --color-warning-bg:        #fff8e6;
-  --color-warning-border:    #d97706;
-  --color-warning-text:      #7c2d12;
 }
 
 /* MIRROR-A: explicit [data-theme="dark"] block — the canonical source of
@@ -200,7 +191,7 @@
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-focus-ring);
+  outline: 2px solid var(--ac-accent);
   outline-offset: 2px;
 }
 
