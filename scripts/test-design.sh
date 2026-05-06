@@ -431,4 +431,9 @@ assert_eq "benchmark.json is valid JSON" "$(jq empty "$BENCH" 2>&1)" ""
 
 echo ""
 
+echo "=== inventory-design: ensure-playwright.sh ==="
+bash "$PLUGIN_ROOT/skills/design/inventory-design/scripts/test-ensure-playwright.sh"
+
+echo ""
+
 test_summary

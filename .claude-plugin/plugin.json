@@ -7,6 +7,9 @@
     "email": "toby@go-atomic.io"
   },
   "license": "MIT",
+  "requirements": [
+    "Node >= 20 (required for inventory-design --crawler runtime|hybrid; macOS and Linux only)"
+  ],
   "skills": [
     "./skills/vcs/",
     "./skills/github/",

@@ -1,0 +1,13 @@
+{
+  "name": "accelerator-playwright-executor",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "playwright": "~1.49.0"
+  },
+  "devDependencies": {
+    "pngjs": "^7.0.0"
+  }
+}

@@ -645,22 +645,22 @@ ${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/validate-source.sh 
 
 #### Automated Verification
 
-- [ ] `bash scripts/test-design.sh` passes — Phase 1 does not modify
+- [x] `bash scripts/test-design.sh` passes — Phase 1 does not modify
       MCP-related assertions; whether they pass depends on whether
       Phase 4 has merged
-- [ ] `bash skills/design/inventory-design/scripts/test-validate-source.sh` exits 0 (helper unit tests)
-- [ ] `bash skills/design/inventory-design/scripts/validate-source.sh "http://localhost:8080"` exits 0
-- [ ] `bash skills/design/inventory-design/scripts/validate-source.sh "http://LOCALHOST/"` exits 0 (canonicalisation)
-- [ ] `bash skills/design/inventory-design/scripts/validate-source.sh "http://10.0.0.1/"` exits 1
-- [ ] `bash skills/design/inventory-design/scripts/validate-source.sh "http://10.0.0.1/" --allow-internal` exits 0
-- [ ] `bash skills/design/inventory-design/scripts/validate-source.sh "http://example.com/"` exits 1, stderr names `--allow-insecure-scheme` (not `--allow-internal`)
-- [ ] `bash skills/design/inventory-design/scripts/validate-source.sh "http://example.com/" --allow-insecure-scheme` exits 0
-- [ ] `bash skills/design/inventory-design/scripts/validate-source.sh "http://2130706433/"` exits 1 (decimal-encoded IP rejected outright)
-- [ ] `bash skills/design/inventory-design/scripts/validate-source.sh "http://localhost/" --alllow-internal` exits 2 (typo rejected, not silently swallowed)
-- [ ] `sh -c "skills/design/inventory-design/scripts/validate-source.sh http://localhost/"` either re-execs under bash or fails loudly (no silent classifier degradation under sh)
-- [ ] `jq empty skills/design/inventory-design/evals/evals.json` succeeds
-- [ ] `jq empty skills/design/inventory-design/evals/benchmark.json` succeeds
-- [ ] `shellcheck skills/design/inventory-design/scripts/validate-source.sh` clean
+- [x] `bash skills/design/inventory-design/scripts/test-validate-source.sh` exits 0 (helper unit tests)
+- [x] `bash skills/design/inventory-design/scripts/validate-source.sh "http://localhost:8080"` exits 0
+- [x] `bash skills/design/inventory-design/scripts/validate-source.sh "http://LOCALHOST/"` exits 0 (canonicalisation)
+- [x] `bash skills/design/inventory-design/scripts/validate-source.sh "http://10.0.0.1/"` exits 1
+- [x] `bash skills/design/inventory-design/scripts/validate-source.sh "http://10.0.0.1/" --allow-internal` exits 0
+- [x] `bash skills/design/inventory-design/scripts/validate-source.sh "http://example.com/"` exits 1, stderr names `--allow-insecure-scheme` (not `--allow-internal`)
+- [x] `bash skills/design/inventory-design/scripts/validate-source.sh "http://example.com/" --allow-insecure-scheme` exits 0
+- [x] `bash skills/design/inventory-design/scripts/validate-source.sh "http://2130706433/"` exits 1 (decimal-encoded IP rejected outright)
+- [x] `bash skills/design/inventory-design/scripts/validate-source.sh "http://localhost/" --alllow-internal` exits 2 (typo rejected, not silently swallowed)
+- [x] `sh -c "skills/design/inventory-design/scripts/validate-source.sh http://localhost/"` either re-execs under bash or fails loudly (no silent classifier degradation under sh)
+- [x] `jq empty skills/design/inventory-design/evals/evals.json` succeeds
+- [x] `jq empty skills/design/inventory-design/evals/benchmark.json` succeeds
+- [x] `shellcheck skills/design/inventory-design/scripts/validate-source.sh` clean
 
 #### Manual Verification
 
@@ -1787,12 +1787,12 @@ bash "$PLUGIN_ROOT/skills/design/inventory-design/scripts/test-ensure-playwright
 
 #### Automated Verification
 
-- [ ] `bash skills/design/inventory-design/scripts/test-ensure-playwright.sh`
+- [x] `bash skills/design/inventory-design/scripts/test-ensure-playwright.sh`
       exits 0 (one real install per CI job, mocks for failure paths)
-- [ ] `bash scripts/test-design.sh` exits 0
-- [ ] `shellcheck skills/design/inventory-design/scripts/ensure-playwright.sh`
+- [x] `bash scripts/test-design.sh` exits 0
+- [x] `shellcheck skills/design/inventory-design/scripts/ensure-playwright.sh`
       clean
-- [ ] `[ -f skills/design/inventory-design/scripts/playwright/package-lock.json ]`
+- [x] `[ -f skills/design/inventory-design/scripts/playwright/package-lock.json ]`
       (lockfile committed)
 
 #### Manual Verification
