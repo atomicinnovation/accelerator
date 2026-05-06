@@ -1,4 +1,134 @@
+@font-face {
+  font-family: "Sora";
+  src: url("/fonts/Sora-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Sora";
+  src: url("/fonts/Sora-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fira Code";
+  src: url("/fonts/FiraCode-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fira Code";
+  src: url("/fonts/FiraCode-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
+  /* Light --ac-* colour layer */
+  --ac-bg:             #fbfcfe;
+  --ac-bg-raised:      #ffffff;
+  --ac-bg-sunken:      #f4f6fa;
+  --ac-bg-chrome:      #ffffff;
+  --ac-bg-sidebar:     #f7f8fb;
+  --ac-bg-card:        #ffffff;
+  --ac-bg-hover:       rgba(32, 34, 49, 0.04);
+  --ac-bg-active:      rgba(89, 95, 200, 0.09);
+  --ac-fg:             #14161f;
+  --ac-fg-strong:      #0a111b;
+  --ac-fg-muted:       #5f6378;
+  --ac-fg-faint:       #8b90a3;
+  --ac-stroke:         rgba(32, 34, 49, 0.10);
+  --ac-stroke-soft:    rgba(32, 34, 49, 0.06);
+  --ac-stroke-strong:  rgba(32, 34, 49, 0.18);
+  --ac-accent:         #595fc8;
+  --ac-accent-2:       #cb4647;
+  --ac-accent-tint:    rgba(89, 95, 200, 0.12);
+  --ac-accent-faint:   rgba(89, 95, 200, 0.06);
+  --ac-ok:             #2e8b57;
+  --ac-warn:           #d98f2e;
+  --ac-err:            #cb4647;
+  --ac-violet:         #7b5cd9;
+
+  /* Typography */
+  --ac-font-display:  "Sora", system-ui, sans-serif;
+  --ac-font-body:     "Inter", system-ui, sans-serif;
+  --ac-font-mono:     "Fira Code", ui-monospace, monospace;
+  --size-hero:        68px;
+  --size-h1:          48px;
+  --size-h2:          36px;
+  --size-h3:          28px;
+  --size-h4:          26px;
+  --size-lg:          22px;
+  --size-body:        20px;
+  --size-md:          18px;
+  --size-sm:          16px;
+  --size-xs:          14px;
+  --size-xxs:         12px;
+  --lh-tight:         1.05;
+  --lh-snug:          1.2;
+  --lh-normal:        1.5;
+  --lh-loose:         1.6;
+  --tracking-caps:    0.12em;
+
+  /* Spacing */
+  --sp-1:   4px;
+  --sp-2:   8px;
+  --sp-3:   12px;
+  --sp-4:   16px;
+  --sp-5:   24px;
+  --sp-6:   32px;
+  --sp-7:   40px;
+  --sp-8:   48px;
+  --sp-9:   64px;
+  --sp-10:  80px;
+  --sp-11:  124px;
+
+  /* Radius */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-pill: 999px;
+
+  /* Shadow (light + theme-invariant) */
+  --shadow-card:    6px 12px 85px 0px rgba(0, 0, 0, 0.08);
+  --shadow-card-lg: 12px 24px 120px 0px rgba(0, 0, 0, 0.12);
+  --shadow-crisp:   0 1px 2px rgba(10, 17, 27, 0.06), 0 4px 12px rgba(10, 17, 27, 0.04);
+  --ac-shadow-soft: 0 1px 2px rgba(10,17,27,0.04), 0 8px 28px rgba(10,17,27,0.06);
+  --ac-shadow-lift: 0 2px 4px rgba(10,17,27,0.06), 0 20px 60px rgba(10,17,27,0.10);
+
+  /* Legacy --color-* (deprecated, removed in Phase 3) */
   --color-text:              #0f172a;
   --color-muted-text:        #4b5563;
   --color-muted-decorative:  #9ca3af;
@@ -7,6 +137,66 @@
   --color-warning-bg:        #fff8e6;
   --color-warning-border:    #d97706;
   --color-warning-text:      #7c2d12;
+}
+
+/* MIRROR-A: explicit [data-theme="dark"] block — the canonical source of
+   truth read by readCssVar('<name>', 'dark'). Any edit to the dark token
+   set MUST also be made to MIRROR-B below; identity is asserted at unit-
+   test time by the parity describe in global.test.ts (search for
+   "[data-theme=\"dark\"] ↔ @media (prefers-color-scheme: dark) parity"). */
+[data-theme="dark"] {
+  --ac-bg:             #0a111b;
+  --ac-bg-raised:      #0e0f19;
+  --ac-bg-sunken:      #070b12;
+  --ac-bg-chrome:      #0e0f19;
+  --ac-bg-sidebar:     #0b121c;
+  --ac-bg-card:        #131524;
+  --ac-bg-hover:       rgba(255, 255, 255, 0.04);
+  --ac-bg-active:      rgba(89, 95, 200, 0.22);
+  --ac-fg:             #e7e9f2;
+  --ac-fg-strong:      #ffffff;
+  --ac-fg-muted:       #a0a5b8;
+  --ac-fg-faint:       #6c7088;
+  --ac-stroke:         rgba(255, 255, 255, 0.08);
+  --ac-stroke-soft:    rgba(255, 255, 255, 0.04);
+  --ac-stroke-strong:  rgba(255, 255, 255, 0.16);
+  --ac-accent:         #8a90e8;
+  --ac-accent-2:       #e86a6b;
+  --ac-accent-tint:    rgba(138, 144, 232, 0.18);
+  --ac-accent-faint:   rgba(138, 144, 232, 0.08);
+  --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
+  --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
+}
+
+/* MIRROR-B: honour OS dark-mode preference until 0034 ships the toggle UI;
+   an explicit [data-theme="light"] opts back into light. Declarations here
+   are a hand-mirrored duplicate of MIRROR-A above (deliberate, so the
+   parity helper can remain flat-block-only). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* MUST stay byte-equivalent (modulo whitespace) to MIRROR-A. */
+    --ac-bg:             #0a111b;
+    --ac-bg-raised:      #0e0f19;
+    --ac-bg-sunken:      #070b12;
+    --ac-bg-chrome:      #0e0f19;
+    --ac-bg-sidebar:     #0b121c;
+    --ac-bg-card:        #131524;
+    --ac-bg-hover:       rgba(255, 255, 255, 0.04);
+    --ac-bg-active:      rgba(89, 95, 200, 0.22);
+    --ac-fg:             #e7e9f2;
+    --ac-fg-strong:      #ffffff;
+    --ac-fg-muted:       #a0a5b8;
+    --ac-fg-faint:       #6c7088;
+    --ac-stroke:         rgba(255, 255, 255, 0.08);
+    --ac-stroke-soft:    rgba(255, 255, 255, 0.04);
+    --ac-stroke-strong:  rgba(255, 255, 255, 0.16);
+    --ac-accent:         #8a90e8;
+    --ac-accent-2:       #e86a6b;
+    --ac-accent-tint:    rgba(138, 144, 232, 0.18);
+    --ac-accent-faint:   rgba(138, 144, 232, 0.08);
+    --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
+    --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
+  }
 }
 
 :focus-visible {
