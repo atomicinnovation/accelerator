@@ -12,6 +12,7 @@ const empty: Completeness = {
   hasWorkItem: false, hasResearch: false, hasPlan: false,
   hasPlanReview: false, hasValidation: false, hasPr: false,
   hasPrReview: false, hasDecision: false, hasNotes: false,
+  hasDesignInventory: false, hasDesignGap: false,
 }
 
 function entry(
@@ -149,6 +150,26 @@ describe('LifecycleClusterContent', () => {
       .toBeInTheDocument()
     expect(screen.getByText('A scratch note')).toBeInTheDocument()
     expect(screen.queryByText(/no notes yet/i)).not.toBeInTheDocument()
+  })
+
+  it('shows design inventory and design gap in the long-tail section when present', async () => {
+    const withDesignDocs: LifecycleCluster = {
+      ...cluster,
+      entries: [
+        ...cluster.entries,
+        entry('design-inventories', 'meta/design-inventories/2026-05-01-foo.md', 'Foo Design Inventory', 150),
+        entry('design-gaps', 'meta/design-gaps/2026-05-02-foo.md', 'Foo Design Gap', 160),
+      ],
+      completeness: { ...cluster.completeness, hasDesignInventory: true, hasDesignGap: true },
+    }
+    vi.spyOn(fetchModule, 'fetchLifecycleCluster').mockResolvedValue(withDesignDocs)
+    render(<LifecycleClusterContent slug="foo" />, { wrapper: Wrapper })
+    expect(await screen.findByRole('region', { name: /other artifacts/i }))
+      .toBeInTheDocument()
+    expect(screen.getByText('Foo Design Inventory')).toBeInTheDocument()
+    expect(screen.getByText('Foo Design Gap')).toBeInTheDocument()
+    expect(screen.queryByText(/no design inventory yet/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/no design gap yet/i)).not.toBeInTheDocument()
   })
 
   it('hides the "Other" long-tail section when no long-tail entries exist', async () => {

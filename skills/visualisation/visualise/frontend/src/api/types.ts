@@ -4,7 +4,8 @@
 export type DocTypeKey =
   | 'decisions' | 'work-items' | 'plans' | 'research'
   | 'plan-reviews' | 'pr-reviews' | 'work-item-reviews'
-  | 'validations' | 'notes' | 'prs' | 'templates'
+  | 'validations' | 'notes' | 'prs' | 'design-gaps' | 'design-inventories'
+  | 'templates'
 
 /** Single source of truth for the DocTypeKey union at runtime. Drives both
  *  the `isDocTypeKey` type guard and the router's `parseParams` validators,
@@ -13,7 +14,8 @@ export type DocTypeKey =
 export const DOC_TYPE_KEYS: readonly DocTypeKey[] = [
   'decisions', 'work-items', 'plans', 'research',
   'plan-reviews', 'pr-reviews', 'work-item-reviews',
-  'validations', 'notes', 'prs', 'templates',
+  'validations', 'notes', 'prs', 'design-gaps', 'design-inventories',
+  'templates',
 ] as const
 
 /** Type guard: narrows a string to `DocTypeKey` when valid. */
@@ -107,6 +109,8 @@ export interface Completeness {
   hasPrReview: boolean
   hasDecision: boolean
   hasNotes: boolean
+  hasDesignInventory: boolean
+  hasDesignGap: boolean
 }
 
 export interface LifecycleCluster {
@@ -130,7 +134,7 @@ export interface RelatedArtifactsResponse {
 type PipelineStepKey =
   | 'hasWorkItem' | 'hasResearch' | 'hasPlan' | 'hasPlanReview'
   | 'hasValidation' | 'hasPr' | 'hasPrReview' | 'hasDecision'
-  | 'hasNotes'
+  | 'hasNotes' | 'hasDesignInventory' | 'hasDesignGap'
 
 export const LIFECYCLE_PIPELINE_STEPS: ReadonlyArray<{
   key: PipelineStepKey
@@ -139,15 +143,29 @@ export const LIFECYCLE_PIPELINE_STEPS: ReadonlyArray<{
   placeholder: string
   longTail?: boolean
 }> = [
-  { key: 'hasWorkItem',   docType: 'work-items',   label: 'Work item',   placeholder: 'no work item yet' },
-  { key: 'hasResearch',   docType: 'research',     label: 'Research',    placeholder: 'no research yet' },
-  { key: 'hasPlan',       docType: 'plans',        label: 'Plan',        placeholder: 'no plan yet' },
+  { key: 'hasWorkItem', docType: 'work-items', label: 'Work item', placeholder: 'no work item yet' },
+  { key: 'hasResearch', docType: 'research', label: 'Research', placeholder: 'no research yet' },
+  { key: 'hasPlan', docType: 'plans', label: 'Plan', placeholder: 'no plan yet' },
   { key: 'hasPlanReview', docType: 'plan-reviews', label: 'Plan review', placeholder: 'no plan review yet' },
-  { key: 'hasValidation', docType: 'validations',  label: 'Validation',  placeholder: 'no validation yet' },
-  { key: 'hasPr',         docType: 'prs',          label: 'PR',          placeholder: 'no PR yet' },
-  { key: 'hasPrReview',   docType: 'pr-reviews',   label: 'PR review',   placeholder: 'no PR review yet' },
-  { key: 'hasDecision',   docType: 'decisions',    label: 'Decision',    placeholder: 'no decision yet' },
-  { key: 'hasNotes',      docType: 'notes',        label: 'Notes',       placeholder: 'no notes yet', longTail: true },
+  { key: 'hasValidation', docType: 'validations', label: 'Validation', placeholder: 'no validation yet' },
+  { key: 'hasPr', docType: 'prs', label: 'PR', placeholder: 'no PR yet' },
+  { key: 'hasPrReview', docType: 'pr-reviews', label: 'PR review', placeholder: 'no PR review yet' },
+  { key: 'hasDecision', docType: 'decisions', label: 'Decision', placeholder: 'no decision yet' },
+  { key: 'hasNotes', docType: 'notes', label: 'Notes', placeholder: 'no notes yet', longTail: true },
+  {
+    key: 'hasDesignInventory',
+    docType: 'design-inventories',
+    label: 'Design inventory',
+    placeholder: 'no design inventory yet',
+    longTail: true
+  },
+  {
+    key: 'hasDesignGap',
+    docType: 'design-gaps',
+    label: 'Design gap',
+    placeholder: 'no design gap yet',
+    longTail: true
+  },
 ] as const
 
 export const WORKFLOW_PIPELINE_STEPS = LIFECYCLE_PIPELINE_STEPS.filter(

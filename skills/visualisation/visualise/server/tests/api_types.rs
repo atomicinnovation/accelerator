@@ -10,7 +10,7 @@ use tower::ServiceExt;
 mod common;
 
 #[tokio::test]
-async fn types_returns_eleven_entries_with_virtual_flag_on_templates() {
+async fn types_returns_thirteen_entries_with_virtual_flag_on_templates() {
     let tmp = tempfile::tempdir().unwrap();
     let cfg = common::seeded_cfg(tmp.path());
     let activity = Arc::new(Activity::new());
@@ -29,11 +29,19 @@ async fn types_returns_eleven_entries_with_virtual_flag_on_templates() {
     let bytes = res.into_body().collect().await.unwrap().to_bytes();
     let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let arr = v["types"].as_array().unwrap();
-    assert_eq!(arr.len(), 11);
+    assert_eq!(arr.len(), 13);
     let templates = arr.iter().find(|t| t["key"] == "templates").unwrap();
     assert_eq!(templates["virtual"], true);
     assert!(templates["dirPath"].is_null());
     let decisions = arr.iter().find(|t| t["key"] == "decisions").unwrap();
     assert_eq!(decisions["virtual"], false);
     assert!(decisions["dirPath"].is_string());
+    let design_gaps = arr.iter().find(|t| t["key"] == "design-gaps").unwrap();
+    assert_eq!(design_gaps["virtual"], false);
+    assert_eq!(design_gaps["inLifecycle"], true);
+    assert!(design_gaps["dirPath"].is_string());
+    let design_inventories = arr.iter().find(|t| t["key"] == "design-inventories").unwrap();
+    assert_eq!(design_inventories["virtual"], false);
+    assert_eq!(design_inventories["inLifecycle"], true);
+    assert!(design_inventories["dirPath"].is_string());
 }

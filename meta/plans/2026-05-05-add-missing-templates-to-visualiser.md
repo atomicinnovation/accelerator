@@ -441,9 +441,9 @@ The exact rendering implementation depends on how the existing long-tail section
 
 #### Automated Verification
 
-- [ ] All server tests pass: `cargo test -p accelerator-visualiser`
-- [ ] Contract test asserts 12 doc_paths: `cargo test -p accelerator-visualiser config_contract`
-- [ ] Frontend tests pass: `npm test` (run from `skills/visualisation/visualise/frontend/`)
+- [x] All server tests pass: `cargo test -p accelerator-visualiser`
+- [x] Contract test asserts 12 doc_paths: `cargo test -p accelerator-visualiser config_contract`
+- [x] Frontend tests pass: `npm test` (run from `skills/visualisation/visualise/frontend/`)
 
 #### Manual Verification
 

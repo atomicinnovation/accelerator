@@ -16,7 +16,9 @@
     "review_prs": "/abs/path/to/project/meta/reviews/prs",
     "validations": "/abs/path/to/project/meta/validations",
     "notes": "/abs/path/to/project/meta/notes",
-    "prs": "/abs/path/to/project/meta/prs"
+    "prs": "/abs/path/to/project/meta/prs",
+    "design_gaps": "/abs/path/to/project/meta/design-gaps",
+    "design_inventories": "/abs/path/to/project/meta/design-inventories"
   },
   "templates": {
     "adr": {

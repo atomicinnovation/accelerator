@@ -88,7 +88,7 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         .build()
         .unwrap();
 
-    // /api/types -> 11 entries.
+    // /api/types -> 13 entries.
     let t: serde_json::Value = client
         .get(format!("{base}/api/types"))
         .send()
@@ -97,7 +97,7 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         .json()
         .await
         .unwrap();
-    assert_eq!(t["types"].as_array().unwrap().len(), 11);
+    assert_eq!(t["types"].as_array().unwrap().len(), 13);
 
     // /api/docs?type=decisions -> 2 entries.
     let d: serde_json::Value = client

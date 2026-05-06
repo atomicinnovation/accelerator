@@ -223,7 +223,7 @@ mod tests {
         assert_eq!(c.plugin_version, "1.19.0-pre.2");
         assert_eq!(c.host, "127.0.0.1");
         assert_eq!(c.owner_pid, 0);
-        assert_eq!(c.doc_paths.len(), 9);
+        assert_eq!(c.doc_paths.len(), 11);
         assert!(c.doc_paths.contains_key("decisions"));
         assert!(c.doc_paths.contains_key("review_plans"));
         assert!(c.doc_paths.contains_key("review_prs"));

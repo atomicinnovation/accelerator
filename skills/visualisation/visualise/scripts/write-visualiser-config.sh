@@ -57,6 +57,8 @@ REVIEW_PRS="$(abs_path review_prs meta/reviews/prs)"
 VALIDATIONS="$(abs_path validations meta/validations)"
 NOTES="$(abs_path notes meta/notes)"
 PRS="$(abs_path prs meta/prs)"
+DESIGN_GAPS="$(abs_path design_gaps meta/design-gaps)"
+DESIGN_INVENTORIES="$(abs_path design_inventories meta/design-inventories)"
 
 TEMPLATES_USER_ROOT="$(abs_path templates .accelerator/templates)"
 TEMPLATES_PLUGIN_ROOT="$PLUGIN_ROOT/templates"
@@ -151,6 +153,8 @@ jq -n \
   --arg plans "$PLANS" --arg research "$RESEARCH" \
   --arg review_plans "$REVIEW_PLANS" --arg review_prs "$REVIEW_PRS" \
   --arg validations "$VALIDATIONS" --arg notes "$NOTES" --arg prs "$PRS" \
+  --arg design_gaps "$DESIGN_GAPS" \
+  --arg design_inventories "$DESIGN_INVENTORIES" \
   --argjson adr "$ADR" --argjson plan "$PLAN" --argjson research_t "$RES" \
   --argjson validation "$VAL" --argjson pr_description "$PRD" \
   --argjson work_item_template "$WI" \
@@ -171,7 +175,9 @@ jq -n \
       decisions: $decisions, work: $work, review_work: $review_work,
       plans: $plans, research: $research, review_plans: $review_plans,
       review_prs: $review_prs, validations: $validations,
-      notes: $notes, prs: $prs
+      notes: $notes, prs: $prs,
+      design_gaps: $design_gaps,
+      design_inventories: $design_inventories
     },
     templates: {
       adr: $adr, plan: $plan, research: $research_t,

@@ -22,6 +22,8 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGI
 **Work directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
 **Work reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_work meta/reviews/work`
 **Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh notes meta/notes`
+**Design gaps directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh design_gaps meta/design-gaps`
+**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh design_inventories meta/design-inventories`
 **Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp .accelerator/tmp`
 
 **Visualiser**: !`${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/visualiser.sh "$ARGUMENTS"`

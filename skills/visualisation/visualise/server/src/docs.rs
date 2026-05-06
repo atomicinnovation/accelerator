@@ -14,11 +14,13 @@ pub enum DocTypeKey {
     Validations,
     Notes,
     Prs,
+    DesignGaps,
+    DesignInventories,
     Templates,
 }
 
 impl DocTypeKey {
-    pub fn all() -> [DocTypeKey; 11] {
+    pub fn all() -> [DocTypeKey; 13] {
         [
             DocTypeKey::Decisions,
             DocTypeKey::WorkItems,
@@ -30,6 +32,8 @@ impl DocTypeKey {
             DocTypeKey::Validations,
             DocTypeKey::Notes,
             DocTypeKey::Prs,
+            DocTypeKey::DesignGaps,
+            DocTypeKey::DesignInventories,
             DocTypeKey::Templates,
         ]
     }
@@ -46,6 +50,8 @@ impl DocTypeKey {
             DocTypeKey::Validations => Some("validations"),
             DocTypeKey::Notes => Some("notes"),
             DocTypeKey::Prs => Some("prs"),
+            DocTypeKey::DesignGaps => Some("design_gaps"),
+            DocTypeKey::DesignInventories => Some("design_inventories"),
             DocTypeKey::Templates => None,
         }
     }
@@ -62,6 +68,8 @@ impl DocTypeKey {
             DocTypeKey::Validations => "Validations",
             DocTypeKey::Notes => "Notes",
             DocTypeKey::Prs => "PRs",
+            DocTypeKey::DesignGaps => "Design gaps",
+            DocTypeKey::DesignInventories => "Design inventories",
             DocTypeKey::Templates => "Templates",
         }
     }
@@ -125,6 +133,8 @@ mod tests {
             (DocTypeKey::Validations, "validations"),
             (DocTypeKey::Notes, "notes"),
             (DocTypeKey::Prs, "prs"),
+            (DocTypeKey::DesignGaps, "design-gaps"),
+            (DocTypeKey::DesignInventories, "design-inventories"),
             (DocTypeKey::Templates, "templates"),
         ];
         for (variant, wire) in pairs {
@@ -142,8 +152,8 @@ mod tests {
         v.dedup();
         assert_eq!(
             v.len(),
-            11,
-            "DocTypeKey::all must return 11 distinct variants"
+            13,
+            "DocTypeKey::all must return 13 distinct variants"
         );
     }
 
@@ -167,8 +177,8 @@ mod tests {
     }
 
     #[test]
-    fn doc_type_key_all_returns_eleven_variants() {
-        assert_eq!(DocTypeKey::all().len(), 11);
+    fn doc_type_key_all_returns_thirteen_variants() {
+        assert_eq!(DocTypeKey::all().len(), 13);
     }
 
     #[test]
@@ -211,7 +221,7 @@ mod tests {
         };
 
         let types = describe_types(&cfg);
-        assert_eq!(types.len(), 11);
+        assert_eq!(types.len(), 13);
         let decisions = types
             .iter()
             .find(|t| t.key == DocTypeKey::Decisions)

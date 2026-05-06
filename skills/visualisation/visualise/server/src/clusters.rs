@@ -17,6 +17,8 @@ pub struct Completeness {
     pub has_pr_review: bool,
     pub has_decision: bool,
     pub has_notes: bool,
+    pub has_design_inventory: bool,
+    pub has_design_gap: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -76,6 +78,8 @@ fn canonical_rank(kind: DocTypeKey) -> u8 {
         DocTypeKey::WorkItemReviews => 6,
         DocTypeKey::Decisions => 7,
         DocTypeKey::Notes => 8,
+        DocTypeKey::DesignInventories => 9,
+        DocTypeKey::DesignGaps => 10,
         DocTypeKey::Templates => u8::MAX,
     }
 }
@@ -105,6 +109,8 @@ fn derive_completeness(entries: &[IndexEntry]) -> Completeness {
         has_pr_review: false,
         has_decision: false,
         has_notes: false,
+        has_design_inventory: false,
+        has_design_gap: false,
     };
     for e in entries {
         match e.r#type {
@@ -118,6 +124,8 @@ fn derive_completeness(entries: &[IndexEntry]) -> Completeness {
             DocTypeKey::PrReviews => c.has_pr_review = true,
             DocTypeKey::Decisions => c.has_decision = true,
             DocTypeKey::Notes => c.has_notes = true,
+            DocTypeKey::DesignGaps => c.has_design_gap = true,
+            DocTypeKey::DesignInventories => c.has_design_inventory = true,
             DocTypeKey::Templates => {}
         }
     }
@@ -200,6 +208,50 @@ mod tests {
         assert!(!c.has_pr);
         assert!(!c.has_pr_review);
         assert!(!c.has_notes);
+        assert!(!c.has_design_gap);
+        assert!(!c.has_design_inventory);
+    }
+
+    #[test]
+    fn completeness_camelcase_field_names_match_typescript_interface() {
+        let entries = vec![
+            entry(DocTypeKey::DesignGaps, "foo", 10, "Gap"),
+            entry(DocTypeKey::DesignInventories, "foo", 20, "Inventory"),
+        ];
+        let clusters = compute_clusters(&entries);
+        let json = serde_json::to_value(&clusters[0].completeness).unwrap();
+        assert_eq!(json["hasDesignGap"], true);
+        assert_eq!(json["hasDesignInventory"], true);
+    }
+
+    #[test]
+    fn design_gap_and_inventory_completeness_flags_are_set() {
+        let entries = vec![
+            entry(DocTypeKey::DesignGaps, "foo", 10, "Gap"),
+            entry(DocTypeKey::DesignInventories, "foo", 20, "Inventory"),
+        ];
+        let clusters = compute_clusters(&entries);
+        assert_eq!(clusters.len(), 1);
+        let c = &clusters[0].completeness;
+        assert!(c.has_design_gap);
+        assert!(c.has_design_inventory);
+    }
+
+    #[test]
+    fn design_inventory_sorts_before_design_gap_in_cluster() {
+        let entries = vec![
+            entry(DocTypeKey::DesignGaps, "foo", 10, "Gap"),
+            entry(DocTypeKey::DesignInventories, "foo", 20, "Inventory"),
+            entry(DocTypeKey::Notes, "foo", 30, "Note"),
+        ];
+        let clusters = compute_clusters(&entries);
+        assert_eq!(clusters.len(), 1);
+        let types: Vec<DocTypeKey> = clusters[0].entries.iter().map(|e| e.r#type).collect();
+        let notes_pos = types.iter().position(|t| *t == DocTypeKey::Notes).unwrap();
+        let inv_pos = types.iter().position(|t| *t == DocTypeKey::DesignInventories).unwrap();
+        let gap_pos = types.iter().position(|t| *t == DocTypeKey::DesignGaps).unwrap();
+        assert!(notes_pos < inv_pos, "Notes should sort before DesignInventories");
+        assert!(inv_pos < gap_pos, "DesignInventories should sort before DesignGaps");
     }
 
     #[test]

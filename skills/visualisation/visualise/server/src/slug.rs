@@ -24,7 +24,9 @@ pub fn derive(kind: DocTypeKey, filename: &str) -> Option<String> {
         | DocTypeKey::Research
         | DocTypeKey::Validations
         | DocTypeKey::Notes
-        | DocTypeKey::Prs => strip_prefix_date(stem),
+        | DocTypeKey::Prs
+        | DocTypeKey::DesignGaps
+        | DocTypeKey::DesignInventories => strip_prefix_date(stem),
         DocTypeKey::PlanReviews | DocTypeKey::PrReviews | DocTypeKey::WorkItemReviews => {
             let without_date = strip_prefix_date(stem)?;
             strip_suffix_review_n(&without_date)

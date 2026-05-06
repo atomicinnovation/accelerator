@@ -7,6 +7,7 @@ const empty: Completeness = {
   hasWorkItem: false, hasResearch: false, hasPlan: false,
   hasPlanReview: false, hasValidation: false, hasPr: false,
   hasPrReview: false, hasDecision: false, hasNotes: false,
+  hasDesignInventory: false, hasDesignGap: false,
 }
 
 describe('PipelineDots', () => {

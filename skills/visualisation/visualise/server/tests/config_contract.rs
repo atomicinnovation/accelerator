@@ -44,8 +44,8 @@ fn write_visualiser_config_produces_valid_config_json() {
     assert_eq!(cfg.owner_pid, 0);
     assert_eq!(
         cfg.doc_paths.len(),
-        10,
-        "expected 10 doc_paths, got {:?}",
+        12,
+        "expected 12 doc_paths, got {:?}",
         cfg.doc_paths.keys().collect::<Vec<_>>()
     );
     for key in [
@@ -59,6 +59,8 @@ fn write_visualiser_config_produces_valid_config_json() {
         "validations",
         "notes",
         "prs",
+        "design_gaps",
+        "design_inventories",
     ] {
         assert!(
             cfg.doc_paths.contains_key(key),

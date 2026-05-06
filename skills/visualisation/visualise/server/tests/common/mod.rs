@@ -55,6 +55,8 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
     doc_paths.insert("validations".into(), meta.join("validations"));
     doc_paths.insert("notes".into(), meta.join("notes"));
     doc_paths.insert("prs".into(), meta.join("prs"));
+    doc_paths.insert("design_gaps".into(), meta.join("design-gaps"));
+    doc_paths.insert("design_inventories".into(), meta.join("design-inventories"));
 
     Config {
         plugin_root: tmp.to_path_buf(),
