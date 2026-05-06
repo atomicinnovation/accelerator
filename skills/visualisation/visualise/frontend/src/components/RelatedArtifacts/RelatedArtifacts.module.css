@@ -1,22 +1,22 @@
 .legend {
-  font-size: 0.7rem;
-  margin: 0 0 0.5rem;
-  color: #6b7280;
+  font-size: var(--size-xxs);
+  margin: 0 0 var(--sp-2);
+  color: var(--ac-fg-muted);
 }
 .legend dt { display: inline; font-weight: 600; }
-.legend dd { display: inline; margin: 0 0.5rem 0 0.25rem; }
+.legend dd { display: inline; margin: 0 var(--sp-2) 0 var(--sp-1); }
 .legend dd::after { content: ""; }
 
 .group {
-  margin: 0 0 1rem;
-  padding-left: 0.5rem;
+  margin: 0 0 var(--sp-4);
+  padding-left: var(--sp-2);
 }
 .groupHeading {
-  font-size: 0.7rem;
+  font-size: var(--size-xxs);
   font-weight: 600;
   text-transform: uppercase;
-  color: #6b7280;
-  margin: 0 0 0.25rem;
+  color: var(--ac-fg-muted);
+  margin: 0 0 var(--sp-1);
 }
 .groupList {
   list-style: none;
@@ -37,28 +37,28 @@
 /* Element-named modifiers — declared vs inferred provenance carries
  * a different border treatment so authors can tell them apart at a
  * glance without reading the badge. */
-.groupDeclared { border-left: 2px solid #2563eb; }
-.groupInferred { border-left: 2px dashed #9ca3af; }
+.groupDeclared { border-left: 2px solid var(--ac-accent); }
+.groupInferred { border-left: 2px dashed var(--ac-fg-faint); }
 
 .badge {
-  font-size: 0.65rem;
+  font-size: var(--size-xxs);
   text-transform: uppercase;
-  padding: 0 0.3rem;
+  padding: 0 var(--sp-1);
   border-radius: 2px;
   border: 1px solid currentColor;
-  color: #6b7280;
+  color: var(--ac-fg-muted);
   flex-shrink: 0;
 }
-.badgeDeclared { color: #2563eb; }
-.badgeInferred { color: #9ca3af; }
+.badgeDeclared { color: var(--ac-accent); }
+.badgeInferred { color: var(--ac-fg-faint); }
 
 .emptyAll {
   font-style: italic;
-  color: #9ca3af;
+  color: var(--ac-fg-faint);
 }
 .updating {
-  font-size: 0.7rem;
+  font-size: var(--size-xxs);
   font-style: italic;
-  color: #9ca3af;
+  color: var(--ac-fg-faint);
   margin: 0 0 0.4rem;
 }

@@ -1,13 +1,13 @@
 .footer {
   margin-top: auto;
-  min-height: 1.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.75rem;
+  min-height: var(--sp-5);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--size-xxs);
   color: var(--ac-fg-muted);
   border-top: 1px solid var(--ac-stroke-soft);
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--sp-1);
 }
 
 .version {

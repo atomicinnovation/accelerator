@@ -1,13 +1,13 @@
-.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 1rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 var(--sp-4); }
 .chip {
-  display: flex; gap: 0.25rem; align-items: baseline;
-  background: #f3f4f6; border-radius: 4px;
-  padding: 0.2rem 0.5rem; font-size: 0.78rem;
+  display: flex; gap: var(--sp-1); align-items: baseline;
+  background: var(--ac-bg-sunken); border-radius: var(--radius-sm);
+  padding: var(--sp-1) var(--sp-2); font-size: var(--size-xxs);
 }
-.key { font-weight: 600; color: #374151; margin: 0; }
-.value { color: #374151; margin: 0; }
+.key { font-weight: 600; color: var(--ac-fg); margin: 0; }
+.value { color: var(--ac-fg); margin: 0; }
 .banner {
-  background: #fef3c7; border: 1px solid #f59e0b;
-  border-radius: 4px; padding: 0.5rem 0.75rem;
-  font-size: 0.875rem; margin-bottom: 1rem;
+  background: color-mix(in srgb, var(--ac-warn) 8%, var(--ac-bg)); border: 1px solid var(--ac-warn);
+  border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3);
+  font-size: var(--size-xs); margin-bottom: var(--sp-4);
 }

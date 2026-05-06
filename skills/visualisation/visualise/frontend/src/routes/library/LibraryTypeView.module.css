@@ -1,37 +1,37 @@
 .container { max-width: 900px; }
-.table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.table { width: 100%; border-collapse: collapse; font-size: var(--size-xs); }
 .table th {
-  text-align: left; padding: 0; /* padding is on .sortButton */
-  border-bottom: 2px solid #e5e7eb;
+  text-align: left; padding: 0;
+  border-bottom: 2px solid var(--ac-stroke-soft);
 }
 .sortButton {
   all: unset;
   display: block;
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  padding: var(--sp-2) var(--sp-3);
   font: inherit;
   font-weight: 600;
-  color: #374151;
+  color: var(--ac-fg);
   cursor: pointer;
   user-select: none;
 }
 .sortButton:hover,
 .sortButton:focus-visible {
-  color: #1d4ed8;
-  outline: 2px solid #1d4ed8;
+  color: var(--ac-accent);
+  outline: 2px solid var(--ac-accent);
   outline-offset: -2px;
 }
-.table td { padding: 0.4rem 0.75rem; border-bottom: 1px solid #f3f4f6; }
-.table tr:hover td { background: #f9fafb; }
+.table td { padding: 0.4rem var(--sp-3); border-bottom: 1px solid var(--ac-bg-sunken); }
+.table tr:hover td { background: var(--ac-bg-sunken); }
 .badge {
-  display: inline-block; padding: 0.1rem 0.45rem;
-  font-size: 0.75rem; border-radius: 9999px;
-  background: #e5e7eb; color: #374151;
+  display: inline-block; padding: 0.1rem var(--sp-2);
+  font-size: var(--size-xxs); border-radius: var(--radius-pill);
+  background: var(--ac-stroke-soft); color: var(--ac-fg);
 }
-.slug { color: #6b7280; font-size: 0.8rem; font-family: monospace; }
-.mtime { color: #9ca3af; font-size: 0.8rem; white-space: nowrap; }
-.empty { color: #6b7280; margin-top: 2rem; }
+.slug { color: var(--ac-fg-muted); font-size: var(--size-xxs); font-family: var(--ac-font-mono); }
+.mtime { color: var(--ac-fg-faint); font-size: var(--size-xxs); white-space: nowrap; }
+.empty { color: var(--ac-fg-muted); margin-top: var(--sp-6); }
 .error {
-  color: #991b1b; background: #fef2f2; border: 1px solid #fecaca;
-  border-radius: 4px; padding: 0.5rem 0.75rem; margin-top: 1rem;
+  color: var(--ac-err); background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg)); border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
+  border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); margin-top: var(--sp-4);
 }

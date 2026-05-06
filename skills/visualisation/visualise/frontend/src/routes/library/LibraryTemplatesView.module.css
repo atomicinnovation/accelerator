@@ -1,17 +1,17 @@
 .container { max-width: 900px; }
-.title { font-size: 1.5rem; font-weight: 700; margin: 0 0 1.5rem; }
-.tiers { display: flex; flex-direction: column; gap: 1.5rem; }
-.panel { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; }
-.panel.absent { opacity: 0.55; background: #f9fafb; }
-.panelHeader { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
-.tierLabel { font-weight: 600; font-size: 0.875rem; color: #374151; }
+.title { font-size: var(--size-lg); font-weight: 700; margin: 0 0 var(--sp-5); }
+.tiers { display: flex; flex-direction: column; gap: var(--sp-5); }
+.panel { border: 1px solid var(--ac-stroke-soft); border-radius: var(--radius-md); padding: var(--sp-4); }
+.panel.absent { opacity: 0.55; background: var(--ac-bg-sunken); }
+.panelHeader { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.tierLabel { font-weight: 600; font-size: var(--size-xs); color: var(--ac-fg); }
 .activeBadge {
-  font-size: 0.7rem; background: #dbeafe; color: #1d4ed8;
-  border-radius: 9999px; padding: 0.1rem 0.5rem; font-weight: 600;
+  font-size: var(--size-xxs); background: var(--ac-accent-tint); color: var(--ac-accent);
+  border-radius: var(--radius-pill); padding: 0.1rem var(--sp-2); font-weight: 600;
 }
-.path { font-size: 0.75rem; color: #6b7280; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.absentNote { font-style: italic; color: #6b7280; margin: 0; }
+.path { font-size: var(--size-xxs); color: var(--ac-fg-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.absentNote { font-style: italic; color: var(--ac-fg-muted); margin: 0; }
 .error {
-  color: #991b1b; background: #fef2f2; border: 1px solid #fecaca;
-  border-radius: 4px; padding: 0.5rem 0.75rem; margin-top: 1rem;
+  color: var(--ac-err); background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg)); border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
+  border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); margin-top: var(--sp-4);
 }

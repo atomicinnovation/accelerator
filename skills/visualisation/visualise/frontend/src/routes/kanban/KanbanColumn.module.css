@@ -3,28 +3,28 @@
   flex-direction: column;
   min-width: 16rem;
   flex: 1 1 16rem;
-  background: #f3f4f6;
-  border-radius: 0.25rem;
-  padding: 0.75rem;
+  background: var(--ac-bg-sunken);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-3);
 }
 .columnHeader {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--sp-2);
 }
-.columnHeading { margin: 0; font-size: 1rem; color: #111827; }
+.columnHeading { margin: 0; font-size: var(--size-sm); color: var(--ac-fg-strong); }
 .columnCount {
-  background: #ffffff;
-  border-radius: 999px;
-  padding: 0 0.5rem;
-  font-size: 0.85rem;
-  color: #6b7280;
+  background: var(--ac-bg-card);
+  border-radius: var(--radius-pill);
+  padding: 0 var(--sp-2);
+  font-size: var(--size-xs);
+  color: var(--ac-fg-muted);
 }
 .columnDescription {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.85rem;
-  color: #6b7280;
+  margin: 0 0 var(--sp-2) 0;
+  font-size: var(--size-xs);
+  color: var(--ac-fg-muted);
 }
 .cardList {
   list-style: none;
@@ -32,11 +32,11 @@
   padding: 0;
 }
 .empty {
-  margin: 0.5rem 0;
-  color: #9ca3af;
+  margin: var(--sp-2) 0;
+  color: var(--ac-fg-faint);
   font-style: italic;
 }
 .columnOver {
-  outline: 2px dashed #6366f1;
+  outline: 2px dashed var(--ac-accent);
   outline-offset: 2px;
 }

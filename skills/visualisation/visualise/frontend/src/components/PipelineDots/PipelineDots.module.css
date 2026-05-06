@@ -11,14 +11,14 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  border: 1.5px solid #d1d5db;
+  border: 1.5px solid var(--ac-stroke);
   background: transparent;
   position: relative;
 }
 
 .present {
-  background: #2563eb;
-  border-color: #1d4ed8;
+  background: var(--ac-accent);
+  border-color: var(--ac-accent);
   border-style: solid;
 }
 
@@ -30,12 +30,12 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--ac-bg-card);
   transform: translate(-50%, -50%);
 }
 
 .absent {
   background: transparent;
-  border-color: #d1d5db;
+  border-color: var(--ac-stroke);
   border-style: dashed;
 }
