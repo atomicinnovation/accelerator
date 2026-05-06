@@ -153,9 +153,9 @@ Line 230: change `assert_eq!(c.templates.len(), 5)` → `assert_eq!(c.templates.
 
 #### Automated Verification
 
-- [ ] Contract test passes (asserts 8 templates): `cargo test -p accelerator-visualiser config_contract`
-- [ ] All server tests pass: `cargo test -p accelerator-visualiser`
-- [ ] Frontend tests pass: `npm test` (run from `skills/visualisation/visualise/frontend/`)
+- [x] Contract test passes (asserts 8 templates): `cargo test -p accelerator-visualiser config_contract`
+- [x] All server tests pass: `cargo test -p accelerator-visualiser`
+- [x] Frontend tests pass: `npm test` (run from `skills/visualisation/visualise/frontend/`)
 
 #### Manual Verification
 

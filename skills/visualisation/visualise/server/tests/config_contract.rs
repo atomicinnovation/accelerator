@@ -67,11 +67,11 @@ fn write_visualiser_config_produces_valid_config_json() {
     }
     assert_eq!(
         cfg.templates.len(),
-        6,
-        "expected 6 templates, got {:?}",
+        8,
+        "expected 8 templates, got {:?}",
         cfg.templates.keys().collect::<Vec<_>>()
     );
-    for name in ["adr", "plan", "research", "validation", "pr-description", "work-item"] {
+    for name in ["adr", "plan", "research", "validation", "pr-description", "work-item", "design-gap", "design-inventory"] {
         assert!(
             cfg.templates.contains_key(name),
             "templates missing: {name}"

@@ -227,7 +227,7 @@ mod tests {
         assert!(c.doc_paths.contains_key("decisions"));
         assert!(c.doc_paths.contains_key("review_plans"));
         assert!(c.doc_paths.contains_key("review_prs"));
-        assert_eq!(c.templates.len(), 5);
+        assert_eq!(c.templates.len(), 8);
         let adr = c.templates.get("adr").expect("adr tier");
         assert!(adr.config_override.is_none());
         assert!(adr.user_override.ends_with("adr.md"));

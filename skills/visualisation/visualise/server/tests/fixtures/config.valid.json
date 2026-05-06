@@ -43,6 +43,21 @@
       "config_override": null,
       "user_override": "/abs/path/to/project/.accelerator/templates/pr-description.md",
       "plugin_default": "/abs/path/to/plugin/templates/pr-description.md"
+    },
+    "work-item": {
+      "config_override": null,
+      "user_override": "/abs/path/to/project/.accelerator/templates/work-item.md",
+      "plugin_default": "/abs/path/to/plugin/templates/work-item.md"
+    },
+    "design-gap": {
+      "config_override": null,
+      "user_override": "/abs/path/to/project/.accelerator/templates/design-gap.md",
+      "plugin_default": "/abs/path/to/plugin/templates/design-gap.md"
+    },
+    "design-inventory": {
+      "config_override": null,
+      "user_override": "/abs/path/to/project/.accelerator/templates/design-inventory.md",
+      "plugin_default": "/abs/path/to/plugin/templates/design-inventory.md"
     }
   }
 }

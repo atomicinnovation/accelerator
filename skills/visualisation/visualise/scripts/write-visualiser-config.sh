@@ -84,6 +84,8 @@ RES="$(template_tier research)"
 VAL="$(template_tier validation)"
 PRD="$(template_tier pr-description)"
 WI="$(template_tier work-item)"
+DGAP="$(template_tier design-gap)"
+DINV="$(template_tier design-inventory)"
 
 # Work-item ID pattern config. Read from `work.id_pattern` / `work.default_project_code`;
 # compile the scan regex via the work-item-pattern skill's --compile-scan subcommand.
@@ -152,6 +154,8 @@ jq -n \
   --argjson adr "$ADR" --argjson plan "$PLAN" --argjson research_t "$RES" \
   --argjson validation "$VAL" --argjson pr_description "$PRD" \
   --argjson work_item_template "$WI" \
+  --argjson design_gap "$DGAP" \
+  --argjson design_inventory "$DINV" \
   --argjson work_item "$WORK_ITEM_JSON" \
   --argjson kanban_columns "$KANBAN_COLS_JSON" \
   '{
@@ -172,7 +176,9 @@ jq -n \
     templates: {
       adr: $adr, plan: $plan, research: $research_t,
       validation: $validation, "pr-description": $pr_description,
-      "work-item": $work_item_template
+      "work-item": $work_item_template,
+      "design-gap": $design_gap,
+      "design-inventory": $design_inventory
     },
     work_item: $work_item,
     kanban_columns: $kanban_columns

@@ -1,0 +1,1 @@
+# design-inventory plugin default
