@@ -6,7 +6,7 @@ description: Generate a structured design inventory for a frontend source —
   a current or target design surface before running analyse-design-gaps. Produces
   a dated artifact directory with an inventory.md and screenshots/. Re-running
   for the same source-id supersedes the prior snapshot without losing it.
-argument-hint: "[source-id] [location] [--crawler code|runtime|hybrid]"
+argument-hint: "[source-id] [location] [--crawler code|runtime|hybrid] [--allow-internal] [--allow-insecure-scheme]"
 disable-model-invocation: true
 allowed-tools: >
   Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*),
@@ -60,11 +60,25 @@ snapshots.
 
 Run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/validate-source.sh "<location>"
+${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/validate-source.sh \
+  "<location>" ${allow_internal_flag} ${allow_insecure_scheme_flag}
 ```
+
+where `allow_internal_flag` is `--allow-internal` if the user passed that flag (otherwise
+omit it), and `allow_insecure_scheme_flag` is `--allow-insecure-scheme` if the user passed
+that flag (otherwise omit it).
 
 If it exits non-zero, report the error to the user and stop. Do not create any
 artifact directory.
+
+By default, `https://` URLs to public hosts and `http://localhost` /
+`http://127.0.0.1` are accepted without any flag. Other internal hosts
+(RFC1918, link-local, other loopback IPs) require `--allow-internal` — on either
+scheme. `--allow-internal` subsumes `--allow-insecure-scheme` for internal hosts:
+a user accepting internal-host SSRF risk has already accepted the strictly-greater
+concern. Plain `http://` to a non-localhost public host requires
+`--allow-insecure-scheme` (NOT `--allow-internal`, which would be a misleading flag
+name for that case).
 
 **Source-id format**: `source-id` must match `^[a-z0-9][a-z0-9-]*$` (kebab-case,
 lowercase, no leading hyphen, no spaces). If it does not, report a clear error

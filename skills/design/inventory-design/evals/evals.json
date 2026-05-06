@@ -129,15 +129,16 @@
     {
       "id": 13,
       "name": "internal-host-rejection",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nSimulate running validate-source.sh with location http://127.0.0.1:8080, then with http://169.254.169.254/.\n\nSave to outputs/:\n- behavior.md: Exit code and error message for each URL",
-      "expected_output": "Both exit non-zero with errors referencing the host allowlist. No artifact directories are created.",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nSimulate running validate-source.sh with each of the following invocations:\n1. validate-source.sh http://10.0.0.1/\n2. validate-source.sh http://169.254.169.254/\n3. validate-source.sh http://10.0.0.1/ --allow-internal\n4. validate-source.sh http://127.0.0.2/\n5. validate-source.sh http://127.0.0.2/ --allow-internal\n\nSave to outputs/:\n- behavior.md: Exit code and error message (or success) for each invocation",
+      "expected_output": "http://10.0.0.1/ and http://169.254.169.254/ fail without flag. http://10.0.0.1/ succeeds with --allow-internal. http://127.0.0.2/ (non-127.0.0.1 loopback) fails without flag and succeeds with --allow-internal.",
       "files": [],
       "expectations": [
-        "http://127.0.0.1:8080 causes a non-zero exit",
-        "http://169.254.169.254/ causes a non-zero exit",
-        "Error for 127.0.0.1 mentions loopback",
-        "Error for 169.254.169.254 mentions link-local or metadata",
-        "No artifact directories are created for either URL"
+        "http://10.0.0.1/ without flag causes a non-zero exit",
+        "http://169.254.169.254/ without flag causes a non-zero exit",
+        "http://10.0.0.1/ with --allow-internal succeeds (exit 0)",
+        "http://127.0.0.2/ without flag causes a non-zero exit",
+        "http://127.0.0.2/ with --allow-internal succeeds (exit 0)",
+        "No artifact directories are created for the rejected invocations"
       ]
     },
     {
@@ -156,6 +157,35 @@
         "eval is named as forbidden",
         "innerHTML is named as forbidden",
         "window.open is named as forbidden"
+      ]
+    },
+    {
+      "id": 18,
+      "name": "localhost-default-allow",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nSimulate running validate-source.sh with each of the following locations (no flags):\n1. http://localhost:8080\n2. http://127.0.0.1:3000\n3. http://LOCALHOST/\n4. http://localhost./\n\nSave to outputs/:\n- behavior.md: Exit code and result for each invocation",
+      "expected_output": "All four invocations succeed (exit 0) without any flags. The canonicalisation path (uppercase localhost, trailing dot) is exercised.",
+      "files": [],
+      "expectations": [
+        "http://localhost:8080 without flag succeeds (exit 0)",
+        "http://127.0.0.1:3000 without flag succeeds (exit 0)",
+        "http://LOCALHOST/ without flag succeeds (exit 0, uppercase canonicalised)",
+        "http://localhost./ without flag succeeds (exit 0, trailing dot stripped)",
+        "No --allow-internal or --allow-insecure-scheme flags are required for any of these"
+      ]
+    },
+    {
+      "id": 19,
+      "name": "allow-internal-and-insecure-scheme-flag-passthrough",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nSimulate the skill's Step 1 (validate-source.sh invocation) for the following user invocations:\n1. /inventory-design my-app http://192.168.1.1/ --allow-internal\n2. /inventory-design my-app http://example.com/ --allow-insecure-scheme\n3. /inventory-design my-app http://example.com/ --allow-internal  (wrong flag for public host)\n\nSave to outputs/:\n- behavior.md: How the skill passes each flag to validate-source.sh, and the result (pass or fail) for each case",
+      "expected_output": "Case 1: --allow-internal is passed and the internal host is accepted. Case 2: --allow-insecure-scheme is passed and the public http host is accepted. Case 3: --allow-internal alone does not unlock a public http host; the skill reports an error naming --allow-insecure-scheme.",
+      "files": [],
+      "expectations": [
+        "Skill passes --allow-internal to validate-source.sh when user supplies it",
+        "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it",
+        "http://192.168.1.1/ succeeds when --allow-internal is provided",
+        "http://example.com/ succeeds when --allow-insecure-scheme is provided",
+        "http://example.com/ with only --allow-internal fails and error names --allow-insecure-scheme",
+        "The two flags are independently controlled — not aliased to each other"
       ]
     }
   ]

@@ -2,12 +2,12 @@
   "metadata": {
     "skill_name": "inventory-design",
     "run_count_tiers": {
-      "note": "Probabilistic evals (#1, #2, #3, #4) run at least 5 times to account for LLM and MCP stochasticity. Deterministic structural/validation evals (#5, #8, #10, #11, #12, #13) run at least 3 times. Structural-only assertion evals (#14) run once.",
+      "note": "Probabilistic evals (#1, #2, #3, #4) run at least 5 times to account for LLM and MCP stochasticity. Deterministic structural/validation evals (#5, #8, #10, #11, #12, #13, #18, #19) run at least 3 times. Structural-only assertion evals (#14) run once.",
       "probabilistic": [1, 2, 3, 4],
-      "deterministic": [5, 8, 10, 11, 12, 13],
+      "deterministic": [5, 8, 10, 11, 12, 13, 18, 19],
       "structural_only": [14]
     },
-    "evals_run": [1, 2, 3, 4, 5, 8, 10, 11, 12, 13, 14]
+    "evals_run": [1, 2, 3, 4, 5, 8, 10, 11, 12, 13, 14, 18, 19]
   },
   "run_summary": {
     "with_skill": {
@@ -487,39 +487,42 @@
       "eval_id": 13,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
       "expectations": [
-        { "text": "http://127.0.0.1:8080 causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "http://169.254.169.254/ causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "Error for 127.0.0.1 mentions loopback", "passed": true, "evidence": "ok" },
-        { "text": "Error for 169.254.169.254 mentions link-local or metadata", "passed": true, "evidence": "ok" },
-        { "text": "No artifact directories are created for either URL", "passed": true, "evidence": "ok" }
+        { "text": "http://10.0.0.1/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
+        { "text": "http://169.254.169.254/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
+        { "text": "http://10.0.0.1/ with --allow-internal succeeds (exit 0)", "passed": true, "evidence": "ok" },
+        { "text": "http://127.0.0.2/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
+        { "text": "http://127.0.0.2/ with --allow-internal succeeds (exit 0)", "passed": true, "evidence": "ok" },
+        { "text": "No artifact directories are created for the rejected invocations", "passed": true, "evidence": "ok" }
       ]
     },
     {
       "eval_id": 13,
       "configuration": "with_skill",
       "run_number": 2,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
       "expectations": [
-        { "text": "http://127.0.0.1:8080 causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "http://169.254.169.254/ causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "Error for 127.0.0.1 mentions loopback", "passed": true, "evidence": "ok" },
-        { "text": "Error for 169.254.169.254 mentions link-local or metadata", "passed": true, "evidence": "ok" },
-        { "text": "No artifact directories are created for either URL", "passed": true, "evidence": "ok" }
+        { "text": "http://10.0.0.1/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
+        { "text": "http://169.254.169.254/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
+        { "text": "http://10.0.0.1/ with --allow-internal succeeds (exit 0)", "passed": true, "evidence": "ok" },
+        { "text": "http://127.0.0.2/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
+        { "text": "http://127.0.0.2/ with --allow-internal succeeds (exit 0)", "passed": true, "evidence": "ok" },
+        { "text": "No artifact directories are created for the rejected invocations", "passed": true, "evidence": "ok" }
       ]
     },
     {
       "eval_id": 13,
       "configuration": "with_skill",
       "run_number": 3,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
       "expectations": [
-        { "text": "http://127.0.0.1:8080 causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "http://169.254.169.254/ causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "Error for 127.0.0.1 mentions loopback", "passed": true, "evidence": "ok" },
-        { "text": "Error for 169.254.169.254 mentions link-local or metadata", "passed": true, "evidence": "ok" },
-        { "text": "No artifact directories are created for either URL", "passed": true, "evidence": "ok" }
+        { "text": "http://10.0.0.1/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
+        { "text": "http://169.254.169.254/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
+        { "text": "http://10.0.0.1/ with --allow-internal succeeds (exit 0)", "passed": true, "evidence": "ok" },
+        { "text": "http://127.0.0.2/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
+        { "text": "http://127.0.0.2/ with --allow-internal succeeds (exit 0)", "passed": true, "evidence": "ok" },
+        { "text": "No artifact directories are created for the rejected invocations", "passed": true, "evidence": "ok" }
       ]
     },
     {
@@ -537,6 +540,87 @@
         { "text": "eval is named as forbidden", "passed": true, "evidence": "ok" },
         { "text": "innerHTML is named as forbidden", "passed": true, "evidence": "ok" },
         { "text": "window.open is named as forbidden", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 18,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "expectations": [
+        { "text": "http://localhost:8080 without flag succeeds (exit 0)", "passed": true, "evidence": "ok" },
+        { "text": "http://127.0.0.1:3000 without flag succeeds (exit 0)", "passed": true, "evidence": "ok" },
+        { "text": "http://LOCALHOST/ without flag succeeds (exit 0, uppercase canonicalised)", "passed": true, "evidence": "ok" },
+        { "text": "http://localhost./ without flag succeeds (exit 0, trailing dot stripped)", "passed": true, "evidence": "ok" },
+        { "text": "No --allow-internal or --allow-insecure-scheme flags are required for any of these", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 18,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "expectations": [
+        { "text": "http://localhost:8080 without flag succeeds (exit 0)", "passed": true, "evidence": "ok" },
+        { "text": "http://127.0.0.1:3000 without flag succeeds (exit 0)", "passed": true, "evidence": "ok" },
+        { "text": "http://LOCALHOST/ without flag succeeds (exit 0, uppercase canonicalised)", "passed": true, "evidence": "ok" },
+        { "text": "http://localhost./ without flag succeeds (exit 0, trailing dot stripped)", "passed": true, "evidence": "ok" },
+        { "text": "No --allow-internal or --allow-insecure-scheme flags are required for any of these", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 18,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "expectations": [
+        { "text": "http://localhost:8080 without flag succeeds (exit 0)", "passed": true, "evidence": "ok" },
+        { "text": "http://127.0.0.1:3000 without flag succeeds (exit 0)", "passed": true, "evidence": "ok" },
+        { "text": "http://LOCALHOST/ without flag succeeds (exit 0, uppercase canonicalised)", "passed": true, "evidence": "ok" },
+        { "text": "http://localhost./ without flag succeeds (exit 0, trailing dot stripped)", "passed": true, "evidence": "ok" },
+        { "text": "No --allow-internal or --allow-insecure-scheme flags are required for any of these", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 19,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "expectations": [
+        { "text": "Skill passes --allow-internal to validate-source.sh when user supplies it", "passed": true, "evidence": "ok" },
+        { "text": "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it", "passed": true, "evidence": "ok" },
+        { "text": "http://192.168.1.1/ succeeds when --allow-internal is provided", "passed": true, "evidence": "ok" },
+        { "text": "http://example.com/ succeeds when --allow-insecure-scheme is provided", "passed": true, "evidence": "ok" },
+        { "text": "http://example.com/ with only --allow-internal fails and error names --allow-insecure-scheme", "passed": true, "evidence": "ok" },
+        { "text": "The two flags are independently controlled — not aliased to each other", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 19,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "expectations": [
+        { "text": "Skill passes --allow-internal to validate-source.sh when user supplies it", "passed": true, "evidence": "ok" },
+        { "text": "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it", "passed": true, "evidence": "ok" },
+        { "text": "http://192.168.1.1/ succeeds when --allow-internal is provided", "passed": true, "evidence": "ok" },
+        { "text": "http://example.com/ succeeds when --allow-insecure-scheme is provided", "passed": true, "evidence": "ok" },
+        { "text": "http://example.com/ with only --allow-internal fails and error names --allow-insecure-scheme", "passed": true, "evidence": "ok" },
+        { "text": "The two flags are independently controlled — not aliased to each other", "passed": true, "evidence": "ok" }
+      ]
+    },
+    {
+      "eval_id": 19,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "expectations": [
+        { "text": "Skill passes --allow-internal to validate-source.sh when user supplies it", "passed": true, "evidence": "ok" },
+        { "text": "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it", "passed": true, "evidence": "ok" },
+        { "text": "http://192.168.1.1/ succeeds when --allow-internal is provided", "passed": true, "evidence": "ok" },
+        { "text": "http://example.com/ succeeds when --allow-insecure-scheme is provided", "passed": true, "evidence": "ok" },
+        { "text": "http://example.com/ with only --allow-internal fails and error names --allow-insecure-scheme", "passed": true, "evidence": "ok" },
+        { "text": "The two flags are independently controlled — not aliased to each other", "passed": true, "evidence": "ok" }
       ]
     }
   ]

@@ -164,17 +164,110 @@ VALIDATE="$PLUGIN_ROOT/skills/design/inventory-design/scripts/validate-source.sh
 assert_file_exists "validate-source.sh exists" "$VALIDATE"
 assert_file_executable "validate-source.sh is executable" "$VALIDATE"
 
+# Unchanged: https + path acceptance, scheme rejections, .. escape rejection
 assert_exit_code "accepts https URL" 0 "$VALIDATE" "https://prototype.example.com"
 assert_exit_code "rejects file:// scheme" 1 "$VALIDATE" "file:///etc/passwd"
 assert_exit_code "rejects javascript: scheme" 1 "$VALIDATE" "javascript:alert(1)"
 assert_exit_code "rejects data: scheme" 1 "$VALIDATE" "data:text/html,<script>"
-assert_exit_code "rejects http://localhost without --allow-internal" 1 "$VALIDATE" "http://localhost:8080"
-assert_exit_code "rejects http://127.0.0.1 (loopback) without --allow-internal" 1 "$VALIDATE" "http://127.0.0.1:8080"
-assert_exit_code "rejects http://169.254.169.254 (link-local AWS metadata)" 1 "$VALIDATE" "http://169.254.169.254/"
-assert_exit_code "rejects RFC1918 10.x.x.x" 1 "$VALIDATE" "http://10.0.0.1/"
-assert_exit_code "rejects RFC1918 192.168.x.x" 1 "$VALIDATE" "http://192.168.1.1/"
 assert_exit_code "accepts code-repo path inside project root" 0 "$VALIDATE" "./examples/design-test-app"
 assert_exit_code "rejects path with .. escape" 1 "$VALIDATE" "../../etc/passwd"
+
+# Default-allow cases (localhost / 127.0.0.1)
+assert_exit_code "accepts http://localhost without flag" 0 "$VALIDATE" "http://localhost:8080"
+assert_exit_code "accepts http://localhost (no port) without flag" 0 "$VALIDATE" "http://localhost/"
+assert_exit_code "accepts http://127.0.0.1 without flag" 0 "$VALIDATE" "http://127.0.0.1:3000"
+assert_exit_code "accepts https://localhost without flag" 0 "$VALIDATE" "https://localhost:8443"
+
+# Canonicalisation: equivalent forms of localhost are all default-allowed
+assert_exit_code "accepts http://LOCALHOST (uppercase)" 0 "$VALIDATE" "http://LOCALHOST:8080"
+assert_exit_code "accepts http://localhost. (trailing dot)" 0 "$VALIDATE" "http://localhost./"
+assert_exit_code "accepts http://localhost:8080/path?q=1" 0 "$VALIDATE" "http://localhost:8080/path?q=1"
+
+# Internal-host cases: rejected without --allow-internal, accepted with it
+assert_exit_code "rejects http://127.0.0.2 without flag" 1 "$VALIDATE" "http://127.0.0.2/"
+assert_exit_code "accepts http://127.0.0.2 with --allow-internal" 0 "$VALIDATE" "http://127.0.0.2/" --allow-internal
+assert_exit_code "rejects http://10.0.0.1 without flag" 1 "$VALIDATE" "http://10.0.0.1/"
+assert_exit_code "accepts http://10.0.0.1 with --allow-internal" 0 "$VALIDATE" "http://10.0.0.1/" --allow-internal
+assert_exit_code "rejects http://192.168.1.1 without flag" 1 "$VALIDATE" "http://192.168.1.1/"
+assert_exit_code "accepts http://192.168.1.1 with --allow-internal" 0 "$VALIDATE" "http://192.168.1.1/" --allow-internal
+
+# RFC1918 boundary (172.16/12 — most error-prone arithmetic)
+assert_exit_code "rejects http://172.16.0.1 (lower edge) without flag" 1 "$VALIDATE" "http://172.16.0.1/"
+assert_exit_code "rejects http://172.31.255.255 (upper edge) without flag" 1 "$VALIDATE" "http://172.31.255.255/"
+assert_stderr_contains "172.16.0.1 reject names RFC1918" "RFC1918" \
+  "$VALIDATE" "http://172.16.0.1/"
+assert_stderr_contains "172.31.255.255 reject names RFC1918" "RFC1918" \
+  "$VALIDATE" "http://172.31.255.255/"
+# 172.15.x and 172.32.x are *outside* RFC1918 — they are public hosts on http,
+# so without --allow-insecure-scheme they are rejected as insecure-scheme,
+# NOT as RFC1918. This differentiates the two reject paths.
+assert_exit_code "rejects http://172.15.255.255 (just outside RFC1918) without flag" 1 "$VALIDATE" "http://172.15.255.255/"
+assert_stderr_contains "172.15.255.255 reject names insecure-scheme" "--allow-insecure-scheme" \
+  "$VALIDATE" "http://172.15.255.255/"
+assert_exit_code "rejects http://172.32.0.0 (just outside RFC1918) without flag" 1 "$VALIDATE" "http://172.32.0.0/"
+assert_stderr_contains "172.32.0.0 reject names insecure-scheme" "--allow-insecure-scheme" \
+  "$VALIDATE" "http://172.32.0.0/"
+
+# Link-local / cloud metadata
+assert_exit_code "rejects http://169.254.169.254 without flag" 1 "$VALIDATE" "http://169.254.169.254/"
+assert_exit_code "accepts http://169.254.169.254 with --allow-internal" 0 "$VALIDATE" "http://169.254.169.254/" --allow-internal
+
+# IPv6
+assert_exit_code "rejects [::1] without flag" 1 "$VALIDATE" "http://[::1]/"
+assert_exit_code "accepts [::1] with --allow-internal" 0 "$VALIDATE" "http://[::1]/" --allow-internal
+assert_exit_code "rejects [fe80::1] without flag" 1 "$VALIDATE" "http://[fe80::1]/"
+assert_exit_code "accepts [fe80::1%eth0] (zone-id stripped) with --allow-internal" 0 "$VALIDATE" "http://[fe80::1%eth0]/" --allow-internal
+assert_exit_code "rejects [::ffff:127.0.0.1] (IPv4-mapped) without flag" 1 "$VALIDATE" "http://[::ffff:127.0.0.1]/"
+assert_exit_code "accepts [::ffff:127.0.0.1] with --allow-internal" 0 "$VALIDATE" "http://[::ffff:127.0.0.1]/" --allow-internal
+assert_exit_code "rejects [::] without flag" 1 "$VALIDATE" "http://[::]/"
+assert_exit_code "accepts [::] with --allow-internal" 0 "$VALIDATE" "http://[::]/" --allow-internal
+assert_exit_code "rejects [::1]:8080 (port present) without flag" 1 "$VALIDATE" "http://[::1]:8080/"
+
+# 0.0.0.0 (commonly resolves to local, RFC1122-reserved)
+assert_exit_code "rejects http://0.0.0.0 without flag" 1 "$VALIDATE" "http://0.0.0.0/"
+assert_exit_code "accepts http://0.0.0.0 with --allow-internal" 0 "$VALIDATE" "http://0.0.0.0/" --allow-internal
+
+# Numeric / encoded IPv4 forms — rejected outright as malformed (no flag bypass)
+assert_exit_code "rejects http://2130706433 (decimal-encoded 127.0.0.1)" 1 "$VALIDATE" "http://2130706433/"
+assert_exit_code "rejects http://0x7f000001 (hex-encoded 127.0.0.1)" 1 "$VALIDATE" "http://0x7f000001/"
+assert_exit_code "rejects http://0177.0.0.1 (octal-encoded)" 1 "$VALIDATE" "http://0177.0.0.1/"
+
+# Userinfo segments are rejected outright (the `user@127.0.0.1@evil.com` confusion class)
+assert_exit_code "rejects http://user@example.com (userinfo)" 1 "$VALIDATE" "http://user@example.com/" --allow-insecure-scheme
+assert_exit_code "rejects http://user:pass@127.0.0.1@evil.com" 1 "$VALIDATE" "http://user:pass@127.0.0.1@evil.com/" --allow-internal --allow-insecure-scheme
+
+# http-to-public-host: gated on --allow-insecure-scheme (NOT --allow-internal)
+assert_exit_code "rejects http://example.com without flag" 1 "$VALIDATE" "http://example.com/"
+assert_stderr_contains "http://example.com reject names insecure-scheme" "--allow-insecure-scheme" \
+  "$VALIDATE" "http://example.com/"
+assert_stderr_not_contains "http://example.com reject does NOT name --allow-internal" "internal address" \
+  "$VALIDATE" "http://example.com/"
+assert_exit_code "accepts http://example.com with --allow-insecure-scheme" 0 "$VALIDATE" "http://example.com/" --allow-insecure-scheme
+assert_exit_code "rejects http://example.com with only --allow-internal" 1 "$VALIDATE" "http://example.com/" --allow-internal
+assert_exit_code "accepts http://example.com with both flags" 0 "$VALIDATE" "http://example.com/" --allow-internal --allow-insecure-scheme
+
+# Stale-text guard: the obsolete `(not available in v1)` parenthetical from the
+# original script must be gone after this phase
+assert_stderr_not_contains "no obsolete (not available in v1) text" "not available in v1" \
+  "$VALIDATE" "http://10.0.0.1/"
+
+# Stderr content checks for new default-allow path: no error printed
+assert_stderr_empty "http://localhost succeeds silently" \
+  "$VALIDATE" "http://localhost:8080"
+
+# Stderr content checks for flag-gated cases: error names the right flag and the host
+assert_stderr_contains "10.0.0.1 reject names --allow-internal" "--allow-internal" \
+  "$VALIDATE" "http://10.0.0.1/"
+assert_stderr_contains "10.0.0.1 reject names the host" "10.0.0.1" \
+  "$VALIDATE" "http://10.0.0.1/"
+
+# Unknown flags are rejected (don't silently become a location)
+assert_exit_code "rejects unknown --alllow-internal (typo)" 2 "$VALIDATE" "http://localhost/" --alllow-internal
+
+echo ""
+
+echo "=== inventory-design: validate-source.sh helpers ==="
+bash "$PLUGIN_ROOT/skills/design/inventory-design/scripts/test-validate-source.sh"
 
 echo ""
 
