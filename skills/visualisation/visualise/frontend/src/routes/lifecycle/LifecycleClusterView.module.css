@@ -2,38 +2,38 @@
 
 .backLink {
   display: inline-block;
-  margin-bottom: 0.75rem;
-  font-size: 0.85rem;
-  color: #6b7280;
+  margin-bottom: var(--sp-3);
+  font-size: var(--size-xs);
+  color: var(--ac-fg-muted);
   text-decoration: none;
 }
 
 .backLink:hover,
 .backLink:focus-visible {
-  color: #1d4ed8;
+  color: var(--ac-accent);
   text-decoration: underline;
 }
 
 .header {
   display: flex;
   align-items: baseline;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
 }
 
-.title { margin: 0; font-size: 1.4rem; color: #111827; }
-.slug  { font-family: monospace; font-size: 0.85rem; color: #9ca3af; }
+.title { margin: 0; font-size: var(--size-lg); color: var(--ac-fg-strong); }
+.slug  { font-family: var(--ac-font-mono); font-size: var(--size-xs); color: var(--ac-fg-faint); }
 
 .timeline {
   list-style: none;
   margin: 0;
   padding: 0;
-  border-left: 2px solid #e5e7eb;
+  border-left: 2px solid var(--ac-stroke-soft);
 }
 
 .stage {
   position: relative;
-  padding: 0 0 1.25rem 1.5rem;
+  padding: 0 0 1.25rem var(--sp-5);
   margin-left: 6px;
 }
 
@@ -41,69 +41,69 @@
   content: '';
   position: absolute;
   left: -7px;
-  top: 4px;
-  width: 12px;
-  height: 12px;
+  top: var(--sp-1);
+  width: var(--sp-3);
+  height: var(--sp-3);
   border-radius: 50%;
-  background: #2563eb;
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 0 1.5px #1d4ed8;
+  background: var(--ac-accent);
+  border: 2px solid var(--ac-bg-card);
+  box-shadow: 0 0 0 1.5px var(--ac-accent);
 }
 
 .absent::before {
-  background: #f3f4f6;
-  box-shadow: 0 0 0 1.5px #d1d5db;
+  background: var(--ac-bg-sunken);
+  box-shadow: 0 0 0 1.5px var(--ac-stroke);
 }
 
 .stageLabel {
   display: block;
-  font-size: 0.75rem;
+  font-size: var(--size-xxs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #6b7280;
+  color: var(--ac-fg-muted);
   margin-bottom: 0.4rem;
 }
 
 .placeholder {
-  color: #9ca3af;
+  color: var(--ac-fg-faint);
   font-style: italic;
-  font-size: 0.875rem;
+  font-size: var(--size-xs);
 }
 
-.entryList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.entryList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
 
 .entryCard {
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  padding: 0.55rem 0.8rem;
-  background: #ffffff;
+  border: 1px solid var(--ac-stroke-soft);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--ac-bg-card);
 }
 
 .entryLink { text-decoration: none; color: inherit; }
-.entryLink:hover .entryTitle { color: #1d4ed8; }
-.entryTitle { font-weight: 500; color: #111827; }
+.entryLink:hover .entryTitle { color: var(--ac-accent); }
+.entryTitle { font-weight: 500; color: var(--ac-fg-strong); }
 
 .entryMeta {
   display: flex;
-  gap: 0.6rem;
+  gap: var(--sp-2);
   align-items: center;
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin-top: 4px;
+  font-size: var(--size-xxs);
+  color: var(--ac-fg-muted);
+  margin-top: var(--sp-1);
 }
 
 .statusBadge {
   display: inline-block;
   padding: 0.05rem 0.4rem;
-  border-radius: 9999px;
-  background: #e5e7eb;
-  color: #374151;
+  border-radius: var(--radius-pill);
+  background: var(--ac-stroke-soft);
+  color: var(--ac-fg);
 }
 
 .bodyPreview {
   margin: 0.4rem 0 0;
-  font-size: 0.85rem;
-  color: #4b5563;
+  font-size: var(--size-xs);
+  color: var(--ac-fg-muted);
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -114,21 +114,21 @@
 }
 
 .error {
-  color: #991b1b; background: #fef2f2; border: 1px solid #fecaca;
-  border-radius: 4px; padding: 0.5rem 0.75rem;
+  color: var(--ac-err); background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg)); border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
+  border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3);
 }
 
 .longTail {
   margin-top: 1.75rem;
-  padding-top: 1rem;
-  border-top: 1px dashed #e5e7eb;
+  padding-top: var(--sp-4);
+  border-top: 1px dashed var(--ac-stroke-soft);
 }
 
 .longTailHeading {
-  margin: 0 0 0.6rem;
-  font-size: 0.7rem;
+  margin: 0 0 var(--sp-2);
+  font-size: var(--size-xxs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #9ca3af;
+  color: var(--ac-fg-faint);
   font-weight: 600;
 }
