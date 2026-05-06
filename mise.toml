@@ -124,6 +124,10 @@ depends = ["test:e2e:visualiser"]
 description = "Run all tests in parallel"
 depends = ["test:unit", "test:integration", "test:e2e"]
 
+[tasks.default]
+description = "Build all artifacts and run all tests"
+depends = ["build:frontend", "build:server:dev", "test"]
+
 [tasks."version:read"]
 description = "Read plugin version"
 run = "invoke version.read"
