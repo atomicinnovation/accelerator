@@ -3,7 +3,7 @@ date: "2026-05-05T07:17:16+00:00"
 type: plan
 skill: create-plan
 work-item: "meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md"
-status: ready
+status: complete
 ---
 
 # 0031: Consolidate Accelerator-Owned Files Under `.accelerator/` — Implementation Plan
@@ -294,15 +294,15 @@ internally consistent per commit.)
 
 #### Automated Verification:
 
-- [ ] All existing config tests pass: `bash scripts/test-config.sh`
-- [ ] New `integrations` test case passes within that suite
-- [ ] No other test suite changes behaviour: `bash skills/config/migrate/scripts/test-migrate.sh && bash skills/integrations/jira/scripts/test-jira-init-flow.sh`
+- [x] All existing config tests pass: `bash scripts/test-config.sh`
+- [x] New `integrations` test case passes within that suite
+- [x] No other test suite changes behaviour: `bash skills/config/migrate/scripts/test-migrate.sh && bash skills/integrations/jira/scripts/test-jira-init-flow.sh`
 
 #### Manual Verification:
 
-- [ ] `scripts/config-read-path.sh` header doc lists 13 keys including
+- [x] `scripts/config-read-path.sh` header doc lists 13 keys including
   `integrations`
-- [ ] `skills/config/configure/SKILL.md:402` shows the new default
+- [x] `skills/config/configure/SKILL.md:402` shows the new default
 
 ---
 
@@ -419,16 +419,16 @@ Test cases (each in a fresh mktemp repo):
 
 #### Automated Verification:
 
-- [ ] All test cases in `test-init.sh` pass: `bash skills/config/init/scripts/test-init.sh`
-- [ ] Existing test suites pass unchanged
-- [ ] `init.sh` is executable: `[ -x skills/config/init/scripts/init.sh ]`
+- [x] All test cases in `test-init.sh` pass: `bash skills/config/init/scripts/test-init.sh`
+- [x] Existing test suites pass unchanged
+- [x] `init.sh` is executable: `[ -x skills/config/init/scripts/init.sh ]`
 
 #### Manual Verification:
 
-- [ ] Running `bash skills/config/init/scripts/init.sh` in a fresh repo
+- [x] Running `bash skills/config/init/scripts/init.sh` in a fresh repo
   produces the same tree that running the SKILL.md bash blocks did before
   this commit (compare via `find . -type f | sort`)
-- [ ] SKILL.md prose still reads coherently with the script invocation in
+- [x] SKILL.md prose still reads coherently with the script invocation in
   place of inline bash
 
 ---
@@ -936,20 +936,20 @@ ad-hoc `sha256sum` invocations. Add a test case per work-item AC:
 
 #### Automated Verification:
 
-- [ ] All test cases pass: `bash skills/config/migrate/scripts/test-migrate.sh`
-- [ ] Hook tests pass: `bash hooks/test-migrate-discoverability.sh`
-- [ ] All existing test suites pass unchanged
-- [ ] Migration script is executable: `[ -x skills/config/migrate/migrations/0003-relocate-accelerator-state.sh ]`
+- [x] All test cases pass: `bash skills/config/migrate/scripts/test-migrate.sh`
+- [x] Hook tests pass: `bash hooks/test-migrate-discoverability.sh`
+- [x] All existing test suites pass unchanged
+- [x] Migration script is executable: `[ -x skills/config/migrate/migrations/0003-relocate-accelerator-state.sh ]`
 
 #### Manual Verification:
 
-- [ ] On a real repo seeded with `.claude/accelerator.md`,
+- [x] On a real repo seeded with `.claude/accelerator.md`,
   `meta/.migrations-applied`, `meta/integrations/jira/fields.json`, and
   `meta/tmp/`, running `/accelerator:migrate` moves all files to
   `.accelerator/` and the original sources are gone
-- [ ] Driver banner shows `0003` description from the script's
+- [x] Driver banner shows `0003` description from the script's
   `# DESCRIPTION:` line
-- [ ] Re-running migrate after success reports "No pending migrations"
+- [x] Re-running migrate after success reports "No pending migrations"
 
 ---
 
@@ -1119,16 +1119,16 @@ covered:
 
 #### Automated Verification:
 
-- [ ] All updated `test-init.sh` cases pass
-- [ ] Existing tests pass unchanged
-- [ ] `init.sh` runs cleanly on a fresh mktemp dir
+- [x] All updated `test-init.sh` cases pass
+- [x] Existing tests pass unchanged
+- [x] `init.sh` runs cleanly on a fresh mktemp dir
 
 #### Manual Verification:
 
-- [ ] On a fresh repo, `init.sh` creates `.accelerator/` with the exact tree
+- [x] On a fresh repo, `init.sh` creates `.accelerator/` with the exact tree
   specified in work item Target directory structure (excluding
   `state/integrations/`)
-- [ ] Re-running `init.sh` is a no-op (no `git status` diff)
+- [x] Re-running `init.sh` is a no-op (no `git status` diff)
 
 ---
 
@@ -1240,18 +1240,18 @@ docs sweep; this is the prose immediately adjacent to the behaviour change.)
 
 #### Automated Verification:
 
-- [ ] All test cases in `test-jira-init-flow.sh` pass
-- [ ] `test-init.sh` and `test-migrate.sh` pass unchanged
-- [ ] Other Jira flow tests pass unchanged: `bash skills/integrations/jira/scripts/test-*.sh`
+- [x] All test cases in `test-jira-init-flow.sh` pass
+- [x] `test-init.sh` and `test-migrate.sh` pass unchanged
+- [x] Other Jira flow tests pass unchanged: `bash skills/integrations/jira/scripts/test-*.sh`
 
 #### Manual Verification:
 
-- [ ] On a fresh repo with `.accelerator/` already initialised, running
+- [x] On a fresh repo with `.accelerator/` already initialised, running
   `/accelerator:init-jira` produces the state directory with inner
   `.gitignore` and `.gitkeep`, and root `.gitignore` is untouched
-- [ ] On a fresh repo without `.accelerator/`, running init-jira emits the
+- [x] On a fresh repo without `.accelerator/`, running init-jira emits the
   warning to stderr and still completes successfully
-- [ ] Re-running init-jira against an unchanged tenant produces no diff
+- [x] Re-running init-jira against an unchanged tenant produces no diff
 
 ---
 
@@ -1503,18 +1503,18 @@ plan was previously delegating to the cross-cutting clean-room grep in
 
 #### Automated Verification:
 
-- [ ] Every test suite passes: `bash scripts/test-config.sh && bash skills/config/init/scripts/test-init.sh && bash skills/config/migrate/scripts/test-migrate.sh && bash skills/integrations/jira/scripts/test-jira-init-flow.sh && bash skills/visualisation/visualise/scripts/test-launch-server.sh && bash hooks/test-migrate-discoverability.sh`
-- [ ] No runtime script under `scripts/`, `skills/`, or `hooks/` references
+- [x] Every test suite passes: `bash scripts/test-config.sh && bash skills/config/init/scripts/test-init.sh && bash skills/config/migrate/scripts/test-migrate.sh && bash skills/integrations/jira/scripts/test-jira-init-flow.sh && bash skills/visualisation/visualise/scripts/test-launch-server.sh && bash hooks/test-migrate-discoverability.sh`
+- [x] No runtime script under `scripts/`, `skills/`, or `hooks/` references
   the legacy paths (the spec command in Desired End State passes)
-- [ ] `config-summary.sh` and `config-dump.sh` produce no `.claude/` or
+- [x] `config-summary.sh` and `config-dump.sh` produce no `.claude/` or
   `meta/` strings in their path-related output
 
 #### Manual Verification:
 
-- [ ] On a migrated repo, `/accelerator:configure` workflow exercises every
+- [x] On a migrated repo, `/accelerator:configure` workflow exercises every
   config surface (skills, lenses, templates, tmp) and resolves them from
   `.accelerator/`
-- [ ] Visualiser launches against a migrated repo and renders templates from
+- [x] Visualiser launches against a migrated repo and renders templates from
   `.accelerator/templates/` correctly
 
 ---
@@ -1713,13 +1713,13 @@ source of upgrade information.
   `meta/notes/`, `meta/research/`, `meta/plans/`, `meta/decisions/`,
   `meta/work/`, `meta/reviews/`, `CHANGELOG.md`, and migration scripts
   `0001`/`0002`) references the legacy paths
-- [ ] CHANGELOG entry renders correctly in markdown preview
+- [x] CHANGELOG entry renders correctly in markdown preview
 
 #### Manual Verification:
 
-- [ ] README walkthrough is internally consistent
-- [ ] configure SKILL.md remains coherent end-to-end
-- [ ] CHANGELOG entry accurately describes the breaking change
+- [x] README walkthrough is internally consistent
+- [x] configure SKILL.md remains coherent end-to-end
+- [x] CHANGELOG entry accurately describes the breaking change
 
 ---
 

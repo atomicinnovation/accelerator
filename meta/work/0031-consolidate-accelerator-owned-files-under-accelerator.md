@@ -4,7 +4,7 @@ title: "Consolidate Accelerator-Owned Files Under .accelerator/"
 date: "2026-05-04T22:19:10+00:00"
 author: Toby Clemson
 type: story
-status: draft
+status: done
 priority: high
 parent: ""
 tags: [configuration, init, migration, paths, integrations, visualiser]
