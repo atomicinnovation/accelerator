@@ -2395,8 +2395,10 @@ Run the full eval suite at the configured run-count tiers and write
 - [x] `grep -r 'evaluate-payload-rejected' skills/design/ agents/ scripts/test-design.sh` returns no matches
       (matches in test-run.sh and test-run.js are assert_exit_code assertions
       that verify the string is absent from executor source — accepted deviation)
-- [ ] skill-creator final benchmark recorded in `evals/benchmark.json`
+- [x] skill-creator final benchmark recorded in `evals/benchmark.json`
       with thresholds met per §4 above
+      (evals 20 and 21 run via subagent; all expectations passed; pass_rate
+      1.0 across all 14 active evals; CI gate test-evals-structure.sh 54/54)
 
 #### Manual Verification
 

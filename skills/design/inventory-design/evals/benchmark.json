@@ -3,11 +3,43 @@
     "skill_name": "inventory-design",
     "run_count_tiers": {
       "note": "Probabilistic evals (#1, #2, #4) run at least 5 times to account for LLM stochasticity. Deterministic structural/validation evals (#5, #8, #10, #11, #12, #13, #18, #19, #20, #21) run at least 3 times. Structural-only assertion evals (#14) run once. Eval #3 retired (deprecated: MCP path removed).",
-      "probabilistic": [1, 2, 4],
-      "deterministic": [5, 8, 10, 11, 12, 13, 18, 19, 20, 21],
-      "structural_only": [14]
+      "probabilistic": [
+        1,
+        2,
+        4
+      ],
+      "deterministic": [
+        5,
+        8,
+        10,
+        11,
+        12,
+        13,
+        18,
+        19,
+        20,
+        21
+      ],
+      "structural_only": [
+        14
+      ]
     },
-    "evals_run": [1, 2, 4, 5, 8, 10, 11, 12, 13, 14, 18, 19, 20, 21]
+    "evals_run": [
+      1,
+      2,
+      4,
+      5,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14,
+      18,
+      19,
+      20,
+      21
+    ]
   },
   "run_summary": {
     "with_skill": {
@@ -24,603 +56,2028 @@
       "eval_id": 1,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 9, "failed": 0, "total": 9 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9
+      },
       "expectations": [
-        { "text": "inventory.md frontmatter includes source: design-test-app", "passed": true, "evidence": "ok" },
-        { "text": "inventory.md frontmatter includes sequence: 1 (first run, no prior inventories)", "passed": true, "evidence": "ok" },
-        { "text": "Component Catalogue section names the Button component", "passed": true, "evidence": "ok" },
-        { "text": "Component Catalogue section names the Card component", "passed": true, "evidence": "ok" },
-        { "text": "Design Tokens section includes the primary colour token", "passed": true, "evidence": "ok" },
-        { "text": "Design Tokens section includes the danger colour token", "passed": true, "evidence": "ok" },
-        { "text": "Screen Inventory section references a Home screen", "passed": true, "evidence": "ok" },
-        { "text": "Screen Inventory section references a Settings screen", "passed": true, "evidence": "ok" },
-        { "text": "Artifact directory path shown in summary follows YYYY-MM-DD-HHMMSS-design-test-app pattern", "passed": true, "evidence": "ok" }
+        {
+          "text": "inventory.md frontmatter includes source: design-test-app",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "inventory.md frontmatter includes sequence: 1 (first run, no prior inventories)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Component Catalogue section names the Button component",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Component Catalogue section names the Card component",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Design Tokens section includes the primary colour token",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Design Tokens section includes the danger colour token",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Screen Inventory section references a Home screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Screen Inventory section references a Settings screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Artifact directory path shown in summary follows YYYY-MM-DD-HHMMSS-design-test-app pattern",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 1,
       "configuration": "with_skill",
       "run_number": 2,
-      "result": { "pass_rate": 1.0, "passed": 9, "failed": 0, "total": 9 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9
+      },
       "expectations": [
-        { "text": "inventory.md frontmatter includes source: design-test-app", "passed": true, "evidence": "ok" },
-        { "text": "inventory.md frontmatter includes sequence: 1 (first run, no prior inventories)", "passed": true, "evidence": "ok" },
-        { "text": "Component Catalogue section names the Button component", "passed": true, "evidence": "ok" },
-        { "text": "Component Catalogue section names the Card component", "passed": true, "evidence": "ok" },
-        { "text": "Design Tokens section includes the primary colour token", "passed": true, "evidence": "ok" },
-        { "text": "Design Tokens section includes the danger colour token", "passed": true, "evidence": "ok" },
-        { "text": "Screen Inventory section references a Home screen", "passed": true, "evidence": "ok" },
-        { "text": "Screen Inventory section references a Settings screen", "passed": true, "evidence": "ok" },
-        { "text": "Artifact directory path shown in summary follows YYYY-MM-DD-HHMMSS-design-test-app pattern", "passed": true, "evidence": "ok" }
+        {
+          "text": "inventory.md frontmatter includes source: design-test-app",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "inventory.md frontmatter includes sequence: 1 (first run, no prior inventories)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Component Catalogue section names the Button component",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Component Catalogue section names the Card component",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Design Tokens section includes the primary colour token",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Design Tokens section includes the danger colour token",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Screen Inventory section references a Home screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Screen Inventory section references a Settings screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Artifact directory path shown in summary follows YYYY-MM-DD-HHMMSS-design-test-app pattern",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 1,
       "configuration": "with_skill",
       "run_number": 3,
-      "result": { "pass_rate": 1.0, "passed": 9, "failed": 0, "total": 9 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9
+      },
       "expectations": [
-        { "text": "inventory.md frontmatter includes source: design-test-app", "passed": true, "evidence": "ok" },
-        { "text": "inventory.md frontmatter includes sequence: 1 (first run, no prior inventories)", "passed": true, "evidence": "ok" },
-        { "text": "Component Catalogue section names the Button component", "passed": true, "evidence": "ok" },
-        { "text": "Component Catalogue section names the Card component", "passed": true, "evidence": "ok" },
-        { "text": "Design Tokens section includes the primary colour token", "passed": true, "evidence": "ok" },
-        { "text": "Design Tokens section includes the danger colour token", "passed": true, "evidence": "ok" },
-        { "text": "Screen Inventory section references a Home screen", "passed": true, "evidence": "ok" },
-        { "text": "Screen Inventory section references a Settings screen", "passed": true, "evidence": "ok" },
-        { "text": "Artifact directory path shown in summary follows YYYY-MM-DD-HHMMSS-design-test-app pattern", "passed": true, "evidence": "ok" }
+        {
+          "text": "inventory.md frontmatter includes source: design-test-app",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "inventory.md frontmatter includes sequence: 1 (first run, no prior inventories)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Component Catalogue section names the Button component",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Component Catalogue section names the Card component",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Design Tokens section includes the primary colour token",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Design Tokens section includes the danger colour token",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Screen Inventory section references a Home screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Screen Inventory section references a Settings screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Artifact directory path shown in summary follows YYYY-MM-DD-HHMMSS-design-test-app pattern",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 1,
       "configuration": "with_skill",
       "run_number": 4,
-      "result": { "pass_rate": 1.0, "passed": 9, "failed": 0, "total": 9 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9
+      },
       "expectations": [
-        { "text": "inventory.md frontmatter includes source: design-test-app", "passed": true, "evidence": "ok" },
-        { "text": "inventory.md frontmatter includes sequence: 1 (first run, no prior inventories)", "passed": true, "evidence": "ok" },
-        { "text": "Component Catalogue section names the Button component", "passed": true, "evidence": "ok" },
-        { "text": "Component Catalogue section names the Card component", "passed": true, "evidence": "ok" },
-        { "text": "Design Tokens section includes the primary colour token", "passed": true, "evidence": "ok" },
-        { "text": "Design Tokens section includes the danger colour token", "passed": true, "evidence": "ok" },
-        { "text": "Screen Inventory section references a Home screen", "passed": true, "evidence": "ok" },
-        { "text": "Screen Inventory section references a Settings screen", "passed": true, "evidence": "ok" },
-        { "text": "Artifact directory path shown in summary follows YYYY-MM-DD-HHMMSS-design-test-app pattern", "passed": true, "evidence": "ok" }
+        {
+          "text": "inventory.md frontmatter includes source: design-test-app",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "inventory.md frontmatter includes sequence: 1 (first run, no prior inventories)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Component Catalogue section names the Button component",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Component Catalogue section names the Card component",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Design Tokens section includes the primary colour token",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Design Tokens section includes the danger colour token",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Screen Inventory section references a Home screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Screen Inventory section references a Settings screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Artifact directory path shown in summary follows YYYY-MM-DD-HHMMSS-design-test-app pattern",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 1,
       "configuration": "with_skill",
       "run_number": 5,
-      "result": { "pass_rate": 1.0, "passed": 9, "failed": 0, "total": 9 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9
+      },
       "expectations": [
-        { "text": "inventory.md frontmatter includes source: design-test-app", "passed": true, "evidence": "ok" },
-        { "text": "inventory.md frontmatter includes sequence: 1 (first run, no prior inventories)", "passed": true, "evidence": "ok" },
-        { "text": "Component Catalogue section names the Button component", "passed": true, "evidence": "ok" },
-        { "text": "Component Catalogue section names the Card component", "passed": true, "evidence": "ok" },
-        { "text": "Design Tokens section includes the primary colour token", "passed": true, "evidence": "ok" },
-        { "text": "Design Tokens section includes the danger colour token", "passed": true, "evidence": "ok" },
-        { "text": "Screen Inventory section references a Home screen", "passed": true, "evidence": "ok" },
-        { "text": "Screen Inventory section references a Settings screen", "passed": true, "evidence": "ok" },
-        { "text": "Artifact directory path shown in summary follows YYYY-MM-DD-HHMMSS-design-test-app pattern", "passed": true, "evidence": "ok" }
+        {
+          "text": "inventory.md frontmatter includes source: design-test-app",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "inventory.md frontmatter includes sequence: 1 (first run, no prior inventories)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Component Catalogue section names the Button component",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Component Catalogue section names the Card component",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Design Tokens section includes the primary colour token",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Design Tokens section includes the danger colour token",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Screen Inventory section references a Home screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Screen Inventory section references a Settings screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Artifact directory path shown in summary follows YYYY-MM-DD-HHMMSS-design-test-app pattern",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 2,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "New inventory is assigned sequence: 2", "passed": true, "evidence": "ok" },
-        { "text": "Prior directory 2026-05-01-120000-design-test-app is identified for superseding", "passed": true, "evidence": "ok" },
-        { "text": "The mutation described sets status: superseded on the prior inventory.md", "passed": true, "evidence": "ok" },
-        { "text": "Summary explicitly mentions the prior inventory that was superseded", "passed": true, "evidence": "ok" },
-        { "text": "New directory name contains the source-id design-test-app", "passed": true, "evidence": "ok" }
+        {
+          "text": "New inventory is assigned sequence: 2",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Prior directory 2026-05-01-120000-design-test-app is identified for superseding",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The mutation described sets status: superseded on the prior inventory.md",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Summary explicitly mentions the prior inventory that was superseded",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "New directory name contains the source-id design-test-app",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 2,
       "configuration": "with_skill",
       "run_number": 2,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "New inventory is assigned sequence: 2", "passed": true, "evidence": "ok" },
-        { "text": "Prior directory 2026-05-01-120000-design-test-app is identified for superseding", "passed": true, "evidence": "ok" },
-        { "text": "The mutation described sets status: superseded on the prior inventory.md", "passed": true, "evidence": "ok" },
-        { "text": "Summary explicitly mentions the prior inventory that was superseded", "passed": true, "evidence": "ok" },
-        { "text": "New directory name contains the source-id design-test-app", "passed": true, "evidence": "ok" }
+        {
+          "text": "New inventory is assigned sequence: 2",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Prior directory 2026-05-01-120000-design-test-app is identified for superseding",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The mutation described sets status: superseded on the prior inventory.md",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Summary explicitly mentions the prior inventory that was superseded",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "New directory name contains the source-id design-test-app",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 2,
       "configuration": "with_skill",
       "run_number": 3,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "New inventory is assigned sequence: 2", "passed": true, "evidence": "ok" },
-        { "text": "Prior directory 2026-05-01-120000-design-test-app is identified for superseding", "passed": true, "evidence": "ok" },
-        { "text": "The mutation described sets status: superseded on the prior inventory.md", "passed": true, "evidence": "ok" },
-        { "text": "Summary explicitly mentions the prior inventory that was superseded", "passed": true, "evidence": "ok" },
-        { "text": "New directory name contains the source-id design-test-app", "passed": true, "evidence": "ok" }
+        {
+          "text": "New inventory is assigned sequence: 2",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Prior directory 2026-05-01-120000-design-test-app is identified for superseding",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The mutation described sets status: superseded on the prior inventory.md",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Summary explicitly mentions the prior inventory that was superseded",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "New directory name contains the source-id design-test-app",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 2,
       "configuration": "with_skill",
       "run_number": 4,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "New inventory is assigned sequence: 2", "passed": true, "evidence": "ok" },
-        { "text": "Prior directory 2026-05-01-120000-design-test-app is identified for superseding", "passed": true, "evidence": "ok" },
-        { "text": "The mutation described sets status: superseded on the prior inventory.md", "passed": true, "evidence": "ok" },
-        { "text": "Summary explicitly mentions the prior inventory that was superseded", "passed": true, "evidence": "ok" },
-        { "text": "New directory name contains the source-id design-test-app", "passed": true, "evidence": "ok" }
+        {
+          "text": "New inventory is assigned sequence: 2",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Prior directory 2026-05-01-120000-design-test-app is identified for superseding",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The mutation described sets status: superseded on the prior inventory.md",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Summary explicitly mentions the prior inventory that was superseded",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "New directory name contains the source-id design-test-app",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 2,
       "configuration": "with_skill",
       "run_number": 5,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "New inventory is assigned sequence: 2", "passed": true, "evidence": "ok" },
-        { "text": "Prior directory 2026-05-01-120000-design-test-app is identified for superseding", "passed": true, "evidence": "ok" },
-        { "text": "The mutation described sets status: superseded on the prior inventory.md", "passed": true, "evidence": "ok" },
-        { "text": "Summary explicitly mentions the prior inventory that was superseded", "passed": true, "evidence": "ok" },
-        { "text": "New directory name contains the source-id design-test-app", "passed": true, "evidence": "ok" }
+        {
+          "text": "New inventory is assigned sequence: 2",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Prior directory 2026-05-01-120000-design-test-app is identified for superseding",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The mutation described sets status: superseded on the prior inventory.md",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Summary explicitly mentions the prior inventory that was superseded",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "New directory name contains the source-id design-test-app",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 3,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Response printed before crawl starts mentions Playwright MCP not available", "passed": true, "evidence": "ok" },
-        { "text": "Response instructs user to enable MCP to get runtime data", "passed": true, "evidence": "ok" },
-        { "text": "Crawl Notes content mentions the downgrade from hybrid to code-only", "passed": true, "evidence": "ok" },
-        { "text": "Skill does not attempt to use any mcp__playwright__* tools", "passed": true, "evidence": "ok" },
-        { "text": "Skill continues with code crawler after downgrade (does not abort)", "passed": true, "evidence": "ok" }
+        {
+          "text": "Response printed before crawl starts mentions Playwright MCP not available",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Response instructs user to enable MCP to get runtime data",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Crawl Notes content mentions the downgrade from hybrid to code-only",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill does not attempt to use any mcp__playwright__* tools",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill continues with code crawler after downgrade (does not abort)",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 3,
       "configuration": "with_skill",
       "run_number": 2,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Response printed before crawl starts mentions Playwright MCP not available", "passed": true, "evidence": "ok" },
-        { "text": "Response instructs user to enable MCP to get runtime data", "passed": true, "evidence": "ok" },
-        { "text": "Crawl Notes content mentions the downgrade from hybrid to code-only", "passed": true, "evidence": "ok" },
-        { "text": "Skill does not attempt to use any mcp__playwright__* tools", "passed": true, "evidence": "ok" },
-        { "text": "Skill continues with code crawler after downgrade (does not abort)", "passed": true, "evidence": "ok" }
+        {
+          "text": "Response printed before crawl starts mentions Playwright MCP not available",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Response instructs user to enable MCP to get runtime data",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Crawl Notes content mentions the downgrade from hybrid to code-only",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill does not attempt to use any mcp__playwright__* tools",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill continues with code crawler after downgrade (does not abort)",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 3,
       "configuration": "with_skill",
       "run_number": 3,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Response printed before crawl starts mentions Playwright MCP not available", "passed": true, "evidence": "ok" },
-        { "text": "Response instructs user to enable MCP to get runtime data", "passed": true, "evidence": "ok" },
-        { "text": "Crawl Notes content mentions the downgrade from hybrid to code-only", "passed": true, "evidence": "ok" },
-        { "text": "Skill does not attempt to use any mcp__playwright__* tools", "passed": true, "evidence": "ok" },
-        { "text": "Skill continues with code crawler after downgrade (does not abort)", "passed": true, "evidence": "ok" }
+        {
+          "text": "Response printed before crawl starts mentions Playwright MCP not available",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Response instructs user to enable MCP to get runtime data",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Crawl Notes content mentions the downgrade from hybrid to code-only",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill does not attempt to use any mcp__playwright__* tools",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill continues with code crawler after downgrade (does not abort)",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 3,
       "configuration": "with_skill",
       "run_number": 4,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Response printed before crawl starts mentions Playwright MCP not available", "passed": true, "evidence": "ok" },
-        { "text": "Response instructs user to enable MCP to get runtime data", "passed": true, "evidence": "ok" },
-        { "text": "Crawl Notes content mentions the downgrade from hybrid to code-only", "passed": true, "evidence": "ok" },
-        { "text": "Skill does not attempt to use any mcp__playwright__* tools", "passed": true, "evidence": "ok" },
-        { "text": "Skill continues with code crawler after downgrade (does not abort)", "passed": true, "evidence": "ok" }
+        {
+          "text": "Response printed before crawl starts mentions Playwright MCP not available",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Response instructs user to enable MCP to get runtime data",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Crawl Notes content mentions the downgrade from hybrid to code-only",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill does not attempt to use any mcp__playwright__* tools",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill continues with code crawler after downgrade (does not abort)",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 3,
       "configuration": "with_skill",
       "run_number": 5,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Response printed before crawl starts mentions Playwright MCP not available", "passed": true, "evidence": "ok" },
-        { "text": "Response instructs user to enable MCP to get runtime data", "passed": true, "evidence": "ok" },
-        { "text": "Crawl Notes content mentions the downgrade from hybrid to code-only", "passed": true, "evidence": "ok" },
-        { "text": "Skill does not attempt to use any mcp__playwright__* tools", "passed": true, "evidence": "ok" },
-        { "text": "Skill continues with code crawler after downgrade (does not abort)", "passed": true, "evidence": "ok" }
+        {
+          "text": "Response printed before crawl starts mentions Playwright MCP not available",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Response instructs user to enable MCP to get runtime data",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Crawl Notes content mentions the downgrade from hybrid to code-only",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill does not attempt to use any mcp__playwright__* tools",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill continues with code crawler after downgrade (does not abort)",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 4,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Crawl Notes records the skipped URL /dashboard (or equivalent auth-walled route)", "passed": true, "evidence": "ok" },
-        { "text": "Console message mentions ACCELERATOR_BROWSER_AUTH_HEADER", "passed": true, "evidence": "ok" },
-        { "text": "Console message mentions ACCELERATOR_BROWSER_USERNAME / _PASSWORD / _LOGIN_URL", "passed": true, "evidence": "ok" },
-        { "text": "No observations fabricated for the auth-walled screen", "passed": true, "evidence": "ok" },
-        { "text": "Auth-walled skip does not abort the crawl — remaining routes continue", "passed": true, "evidence": "ok" }
+        {
+          "text": "Crawl Notes records the skipped URL /dashboard (or equivalent auth-walled route)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Console message mentions ACCELERATOR_BROWSER_AUTH_HEADER",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Console message mentions ACCELERATOR_BROWSER_USERNAME / _PASSWORD / _LOGIN_URL",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No observations fabricated for the auth-walled screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Auth-walled skip does not abort the crawl \u2014 remaining routes continue",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 4,
       "configuration": "with_skill",
       "run_number": 2,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Crawl Notes records the skipped URL /dashboard (or equivalent auth-walled route)", "passed": true, "evidence": "ok" },
-        { "text": "Console message mentions ACCELERATOR_BROWSER_AUTH_HEADER", "passed": true, "evidence": "ok" },
-        { "text": "Console message mentions ACCELERATOR_BROWSER_USERNAME / _PASSWORD / _LOGIN_URL", "passed": true, "evidence": "ok" },
-        { "text": "No observations fabricated for the auth-walled screen", "passed": true, "evidence": "ok" },
-        { "text": "Auth-walled skip does not abort the crawl — remaining routes continue", "passed": true, "evidence": "ok" }
+        {
+          "text": "Crawl Notes records the skipped URL /dashboard (or equivalent auth-walled route)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Console message mentions ACCELERATOR_BROWSER_AUTH_HEADER",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Console message mentions ACCELERATOR_BROWSER_USERNAME / _PASSWORD / _LOGIN_URL",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No observations fabricated for the auth-walled screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Auth-walled skip does not abort the crawl \u2014 remaining routes continue",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 4,
       "configuration": "with_skill",
       "run_number": 3,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Crawl Notes records the skipped URL /dashboard (or equivalent auth-walled route)", "passed": true, "evidence": "ok" },
-        { "text": "Console message mentions ACCELERATOR_BROWSER_AUTH_HEADER", "passed": true, "evidence": "ok" },
-        { "text": "Console message mentions ACCELERATOR_BROWSER_USERNAME / _PASSWORD / _LOGIN_URL", "passed": true, "evidence": "ok" },
-        { "text": "No observations fabricated for the auth-walled screen", "passed": true, "evidence": "ok" },
-        { "text": "Auth-walled skip does not abort the crawl — remaining routes continue", "passed": true, "evidence": "ok" }
+        {
+          "text": "Crawl Notes records the skipped URL /dashboard (or equivalent auth-walled route)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Console message mentions ACCELERATOR_BROWSER_AUTH_HEADER",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Console message mentions ACCELERATOR_BROWSER_USERNAME / _PASSWORD / _LOGIN_URL",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No observations fabricated for the auth-walled screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Auth-walled skip does not abort the crawl \u2014 remaining routes continue",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 4,
       "configuration": "with_skill",
       "run_number": 4,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Crawl Notes records the skipped URL /dashboard (or equivalent auth-walled route)", "passed": true, "evidence": "ok" },
-        { "text": "Console message mentions ACCELERATOR_BROWSER_AUTH_HEADER", "passed": true, "evidence": "ok" },
-        { "text": "Console message mentions ACCELERATOR_BROWSER_USERNAME / _PASSWORD / _LOGIN_URL", "passed": true, "evidence": "ok" },
-        { "text": "No observations fabricated for the auth-walled screen", "passed": true, "evidence": "ok" },
-        { "text": "Auth-walled skip does not abort the crawl — remaining routes continue", "passed": true, "evidence": "ok" }
+        {
+          "text": "Crawl Notes records the skipped URL /dashboard (or equivalent auth-walled route)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Console message mentions ACCELERATOR_BROWSER_AUTH_HEADER",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Console message mentions ACCELERATOR_BROWSER_USERNAME / _PASSWORD / _LOGIN_URL",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No observations fabricated for the auth-walled screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Auth-walled skip does not abort the crawl \u2014 remaining routes continue",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 4,
       "configuration": "with_skill",
       "run_number": 5,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Crawl Notes records the skipped URL /dashboard (or equivalent auth-walled route)", "passed": true, "evidence": "ok" },
-        { "text": "Console message mentions ACCELERATOR_BROWSER_AUTH_HEADER", "passed": true, "evidence": "ok" },
-        { "text": "Console message mentions ACCELERATOR_BROWSER_USERNAME / _PASSWORD / _LOGIN_URL", "passed": true, "evidence": "ok" },
-        { "text": "No observations fabricated for the auth-walled screen", "passed": true, "evidence": "ok" },
-        { "text": "Auth-walled skip does not abort the crawl — remaining routes continue", "passed": true, "evidence": "ok" }
+        {
+          "text": "Crawl Notes records the skipped URL /dashboard (or equivalent auth-walled route)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Console message mentions ACCELERATOR_BROWSER_AUTH_HEADER",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Console message mentions ACCELERATOR_BROWSER_USERNAME / _PASSWORD / _LOGIN_URL",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No observations fabricated for the auth-walled screen",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Auth-walled skip does not abort the crawl \u2014 remaining routes continue",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 5,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
       "expectations": [
-        { "text": "frontmatter contains source: my-prototype", "passed": true, "evidence": "ok" },
-        { "text": "frontmatter contains a sequence field with a numeric value", "passed": true, "evidence": "ok" },
-        { "text": "frontmatter contains a status field", "passed": true, "evidence": "ok" },
-        { "text": "frontmatter contains screenshots_incomplete field", "passed": true, "evidence": "ok" }
+        {
+          "text": "frontmatter contains source: my-prototype",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "frontmatter contains a sequence field with a numeric value",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "frontmatter contains a status field",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "frontmatter contains screenshots_incomplete field",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 5,
       "configuration": "with_skill",
       "run_number": 2,
-      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
       "expectations": [
-        { "text": "frontmatter contains source: my-prototype", "passed": true, "evidence": "ok" },
-        { "text": "frontmatter contains a sequence field with a numeric value", "passed": true, "evidence": "ok" },
-        { "text": "frontmatter contains a status field", "passed": true, "evidence": "ok" },
-        { "text": "frontmatter contains screenshots_incomplete field", "passed": true, "evidence": "ok" }
+        {
+          "text": "frontmatter contains source: my-prototype",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "frontmatter contains a sequence field with a numeric value",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "frontmatter contains a status field",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "frontmatter contains screenshots_incomplete field",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 5,
       "configuration": "with_skill",
       "run_number": 3,
-      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
       "expectations": [
-        { "text": "frontmatter contains source: my-prototype", "passed": true, "evidence": "ok" },
-        { "text": "frontmatter contains a sequence field with a numeric value", "passed": true, "evidence": "ok" },
-        { "text": "frontmatter contains a status field", "passed": true, "evidence": "ok" },
-        { "text": "frontmatter contains screenshots_incomplete field", "passed": true, "evidence": "ok" }
+        {
+          "text": "frontmatter contains source: my-prototype",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "frontmatter contains a sequence field with a numeric value",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "frontmatter contains a status field",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "frontmatter contains screenshots_incomplete field",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 8,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3
+      },
       "expectations": [
-        { "text": "New directory name is distinct from 2026-05-03-090000-design-test-app (different HHMMSS)", "passed": true, "evidence": "ok" },
-        { "text": "New inventory gets sequence: 2", "passed": true, "evidence": "ok" },
-        { "text": "Explanation mentions that HHMMSS suffix prevents same-day collision", "passed": true, "evidence": "ok" }
+        {
+          "text": "New directory name is distinct from 2026-05-03-090000-design-test-app (different HHMMSS)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "New inventory gets sequence: 2",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Explanation mentions that HHMMSS suffix prevents same-day collision",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 8,
       "configuration": "with_skill",
       "run_number": 2,
-      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3
+      },
       "expectations": [
-        { "text": "New directory name is distinct from 2026-05-03-090000-design-test-app (different HHMMSS)", "passed": true, "evidence": "ok" },
-        { "text": "New inventory gets sequence: 2", "passed": true, "evidence": "ok" },
-        { "text": "Explanation mentions that HHMMSS suffix prevents same-day collision", "passed": true, "evidence": "ok" }
+        {
+          "text": "New directory name is distinct from 2026-05-03-090000-design-test-app (different HHMMSS)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "New inventory gets sequence: 2",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Explanation mentions that HHMMSS suffix prevents same-day collision",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 8,
       "configuration": "with_skill",
       "run_number": 3,
-      "result": { "pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3
+      },
       "expectations": [
-        { "text": "New directory name is distinct from 2026-05-03-090000-design-test-app (different HHMMSS)", "passed": true, "evidence": "ok" },
-        { "text": "New inventory gets sequence: 2", "passed": true, "evidence": "ok" },
-        { "text": "Explanation mentions that HHMMSS suffix prevents same-day collision", "passed": true, "evidence": "ok" }
+        {
+          "text": "New directory name is distinct from 2026-05-03-090000-design-test-app (different HHMMSS)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "New inventory gets sequence: 2",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Explanation mentions that HHMMSS suffix prevents same-day collision",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 10,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Auth mode resolved is 'header'", "passed": true, "evidence": "ok" },
-        { "text": "Warning message mentions ACCELERATOR_BROWSER_USERNAME", "passed": true, "evidence": "ok" },
-        { "text": "Warning message mentions ACCELERATOR_BROWSER_PASSWORD", "passed": true, "evidence": "ok" },
-        { "text": "Warning message mentions ACCELERATOR_BROWSER_LOGIN_URL", "passed": true, "evidence": "ok" },
-        { "text": "Warning message uses the word 'ignoring' or 'ignored'", "passed": true, "evidence": "ok" }
+        {
+          "text": "Auth mode resolved is 'header'",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Warning message mentions ACCELERATOR_BROWSER_USERNAME",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Warning message mentions ACCELERATOR_BROWSER_PASSWORD",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Warning message mentions ACCELERATOR_BROWSER_LOGIN_URL",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Warning message uses the word 'ignoring' or 'ignored'",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 10,
       "configuration": "with_skill",
       "run_number": 2,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Auth mode resolved is 'header'", "passed": true, "evidence": "ok" },
-        { "text": "Warning message mentions ACCELERATOR_BROWSER_USERNAME", "passed": true, "evidence": "ok" },
-        { "text": "Warning message mentions ACCELERATOR_BROWSER_PASSWORD", "passed": true, "evidence": "ok" },
-        { "text": "Warning message mentions ACCELERATOR_BROWSER_LOGIN_URL", "passed": true, "evidence": "ok" },
-        { "text": "Warning message uses the word 'ignoring' or 'ignored'", "passed": true, "evidence": "ok" }
+        {
+          "text": "Auth mode resolved is 'header'",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Warning message mentions ACCELERATOR_BROWSER_USERNAME",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Warning message mentions ACCELERATOR_BROWSER_PASSWORD",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Warning message mentions ACCELERATOR_BROWSER_LOGIN_URL",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Warning message uses the word 'ignoring' or 'ignored'",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 10,
       "configuration": "with_skill",
       "run_number": 3,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Auth mode resolved is 'header'", "passed": true, "evidence": "ok" },
-        { "text": "Warning message mentions ACCELERATOR_BROWSER_USERNAME", "passed": true, "evidence": "ok" },
-        { "text": "Warning message mentions ACCELERATOR_BROWSER_PASSWORD", "passed": true, "evidence": "ok" },
-        { "text": "Warning message mentions ACCELERATOR_BROWSER_LOGIN_URL", "passed": true, "evidence": "ok" },
-        { "text": "Warning message uses the word 'ignoring' or 'ignored'", "passed": true, "evidence": "ok" }
+        {
+          "text": "Auth mode resolved is 'header'",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Warning message mentions ACCELERATOR_BROWSER_USERNAME",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Warning message mentions ACCELERATOR_BROWSER_PASSWORD",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Warning message mentions ACCELERATOR_BROWSER_LOGIN_URL",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Warning message uses the word 'ignoring' or 'ignored'",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 11,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
       "expectations": [
-        { "text": "Script exits with a non-zero exit code", "passed": true, "evidence": "ok" },
-        { "text": "Error message names ACCELERATOR_BROWSER_LOGIN_URL as the missing variable", "passed": true, "evidence": "ok" },
-        { "text": "Script does NOT attempt to perform a partial login", "passed": true, "evidence": "ok" },
-        { "text": "Script does NOT output 'form' or 'none'", "passed": true, "evidence": "ok" }
+        {
+          "text": "Script exits with a non-zero exit code",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Error message names ACCELERATOR_BROWSER_LOGIN_URL as the missing variable",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Script does NOT attempt to perform a partial login",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Script does NOT output 'form' or 'none'",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 11,
       "configuration": "with_skill",
       "run_number": 2,
-      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
       "expectations": [
-        { "text": "Script exits with a non-zero exit code", "passed": true, "evidence": "ok" },
-        { "text": "Error message names ACCELERATOR_BROWSER_LOGIN_URL as the missing variable", "passed": true, "evidence": "ok" },
-        { "text": "Script does NOT attempt to perform a partial login", "passed": true, "evidence": "ok" },
-        { "text": "Script does NOT output 'form' or 'none'", "passed": true, "evidence": "ok" }
+        {
+          "text": "Script exits with a non-zero exit code",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Error message names ACCELERATOR_BROWSER_LOGIN_URL as the missing variable",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Script does NOT attempt to perform a partial login",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Script does NOT output 'form' or 'none'",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 11,
       "configuration": "with_skill",
       "run_number": 3,
-      "result": { "pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
       "expectations": [
-        { "text": "Script exits with a non-zero exit code", "passed": true, "evidence": "ok" },
-        { "text": "Error message names ACCELERATOR_BROWSER_LOGIN_URL as the missing variable", "passed": true, "evidence": "ok" },
-        { "text": "Script does NOT attempt to perform a partial login", "passed": true, "evidence": "ok" },
-        { "text": "Script does NOT output 'form' or 'none'", "passed": true, "evidence": "ok" }
+        {
+          "text": "Script exits with a non-zero exit code",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Error message names ACCELERATOR_BROWSER_LOGIN_URL as the missing variable",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Script does NOT attempt to perform a partial login",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Script does NOT output 'form' or 'none'",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 12,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Script exits with a non-zero exit code", "passed": true, "evidence": "ok" },
-        { "text": "Error message mentions file:// scheme", "passed": true, "evidence": "ok" },
-        { "text": "No artifact directory is created", "passed": true, "evidence": "ok" },
-        { "text": "No agents are spawned", "passed": true, "evidence": "ok" },
-        { "text": "Error is reported before any crawl begins", "passed": true, "evidence": "ok" }
+        {
+          "text": "Script exits with a non-zero exit code",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Error message mentions file:// scheme",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No artifact directory is created",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No agents are spawned",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Error is reported before any crawl begins",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 12,
       "configuration": "with_skill",
       "run_number": 2,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Script exits with a non-zero exit code", "passed": true, "evidence": "ok" },
-        { "text": "Error message mentions file:// scheme", "passed": true, "evidence": "ok" },
-        { "text": "No artifact directory is created", "passed": true, "evidence": "ok" },
-        { "text": "No agents are spawned", "passed": true, "evidence": "ok" },
-        { "text": "Error is reported before any crawl begins", "passed": true, "evidence": "ok" }
+        {
+          "text": "Script exits with a non-zero exit code",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Error message mentions file:// scheme",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No artifact directory is created",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No agents are spawned",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Error is reported before any crawl begins",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 12,
       "configuration": "with_skill",
       "run_number": 3,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "Script exits with a non-zero exit code", "passed": true, "evidence": "ok" },
-        { "text": "Error message mentions file:// scheme", "passed": true, "evidence": "ok" },
-        { "text": "No artifact directory is created", "passed": true, "evidence": "ok" },
-        { "text": "No agents are spawned", "passed": true, "evidence": "ok" },
-        { "text": "Error is reported before any crawl begins", "passed": true, "evidence": "ok" }
+        {
+          "text": "Script exits with a non-zero exit code",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Error message mentions file:// scheme",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No artifact directory is created",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No agents are spawned",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Error is reported before any crawl begins",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 13,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6
+      },
       "expectations": [
-        { "text": "http://10.0.0.1/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "http://169.254.169.254/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "http://10.0.0.1/ with --allow-internal succeeds (exit 0)", "passed": true, "evidence": "ok" },
-        { "text": "http://127.0.0.2/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "http://127.0.0.2/ with --allow-internal succeeds (exit 0)", "passed": true, "evidence": "ok" },
-        { "text": "No artifact directories are created for the rejected invocations", "passed": true, "evidence": "ok" }
+        {
+          "text": "http://10.0.0.1/ without flag causes a non-zero exit",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://169.254.169.254/ without flag causes a non-zero exit",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://10.0.0.1/ with --allow-internal succeeds (exit 0)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://127.0.0.2/ without flag causes a non-zero exit",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://127.0.0.2/ with --allow-internal succeeds (exit 0)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No artifact directories are created for the rejected invocations",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 13,
       "configuration": "with_skill",
       "run_number": 2,
-      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6
+      },
       "expectations": [
-        { "text": "http://10.0.0.1/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "http://169.254.169.254/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "http://10.0.0.1/ with --allow-internal succeeds (exit 0)", "passed": true, "evidence": "ok" },
-        { "text": "http://127.0.0.2/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "http://127.0.0.2/ with --allow-internal succeeds (exit 0)", "passed": true, "evidence": "ok" },
-        { "text": "No artifact directories are created for the rejected invocations", "passed": true, "evidence": "ok" }
+        {
+          "text": "http://10.0.0.1/ without flag causes a non-zero exit",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://169.254.169.254/ without flag causes a non-zero exit",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://10.0.0.1/ with --allow-internal succeeds (exit 0)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://127.0.0.2/ without flag causes a non-zero exit",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://127.0.0.2/ with --allow-internal succeeds (exit 0)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No artifact directories are created for the rejected invocations",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 13,
       "configuration": "with_skill",
       "run_number": 3,
-      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6
+      },
       "expectations": [
-        { "text": "http://10.0.0.1/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "http://169.254.169.254/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "http://10.0.0.1/ with --allow-internal succeeds (exit 0)", "passed": true, "evidence": "ok" },
-        { "text": "http://127.0.0.2/ without flag causes a non-zero exit", "passed": true, "evidence": "ok" },
-        { "text": "http://127.0.0.2/ with --allow-internal succeeds (exit 0)", "passed": true, "evidence": "ok" },
-        { "text": "No artifact directories are created for the rejected invocations", "passed": true, "evidence": "ok" }
+        {
+          "text": "http://10.0.0.1/ without flag causes a non-zero exit",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://169.254.169.254/ without flag causes a non-zero exit",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://10.0.0.1/ with --allow-internal succeeds (exit 0)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://127.0.0.2/ without flag causes a non-zero exit",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://127.0.0.2/ with --allow-internal succeeds (exit 0)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No artifact directories are created for the rejected invocations",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 14,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 9, "failed": 0, "total": 9 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9
+      },
       "expectations": [
-        { "text": "fetch is named as forbidden", "passed": true, "evidence": "ok" },
-        { "text": "XMLHttpRequest is named as forbidden", "passed": true, "evidence": "ok" },
-        { "text": "document.cookie is named as forbidden", "passed": true, "evidence": "ok" },
-        { "text": "localStorage is named as forbidden", "passed": true, "evidence": "ok" },
-        { "text": "sessionStorage is named as forbidden", "passed": true, "evidence": "ok" },
-        { "text": "indexedDB is named as forbidden", "passed": true, "evidence": "ok" },
-        { "text": "eval is named as forbidden", "passed": true, "evidence": "ok" },
-        { "text": "innerHTML is named as forbidden", "passed": true, "evidence": "ok" },
-        { "text": "window.open is named as forbidden", "passed": true, "evidence": "ok" }
+        {
+          "text": "fetch is named as forbidden",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "XMLHttpRequest is named as forbidden",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "document.cookie is named as forbidden",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "localStorage is named as forbidden",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "sessionStorage is named as forbidden",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "indexedDB is named as forbidden",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "eval is named as forbidden",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "innerHTML is named as forbidden",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "window.open is named as forbidden",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 18,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "http://localhost:8080 without flag succeeds (exit 0)", "passed": true, "evidence": "ok" },
-        { "text": "http://127.0.0.1:3000 without flag succeeds (exit 0)", "passed": true, "evidence": "ok" },
-        { "text": "http://LOCALHOST/ without flag succeeds (exit 0, uppercase canonicalised)", "passed": true, "evidence": "ok" },
-        { "text": "http://localhost./ without flag succeeds (exit 0, trailing dot stripped)", "passed": true, "evidence": "ok" },
-        { "text": "No --allow-internal or --allow-insecure-scheme flags are required for any of these", "passed": true, "evidence": "ok" }
+        {
+          "text": "http://localhost:8080 without flag succeeds (exit 0)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://127.0.0.1:3000 without flag succeeds (exit 0)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://LOCALHOST/ without flag succeeds (exit 0, uppercase canonicalised)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://localhost./ without flag succeeds (exit 0, trailing dot stripped)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No --allow-internal or --allow-insecure-scheme flags are required for any of these",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 18,
       "configuration": "with_skill",
       "run_number": 2,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "http://localhost:8080 without flag succeeds (exit 0)", "passed": true, "evidence": "ok" },
-        { "text": "http://127.0.0.1:3000 without flag succeeds (exit 0)", "passed": true, "evidence": "ok" },
-        { "text": "http://LOCALHOST/ without flag succeeds (exit 0, uppercase canonicalised)", "passed": true, "evidence": "ok" },
-        { "text": "http://localhost./ without flag succeeds (exit 0, trailing dot stripped)", "passed": true, "evidence": "ok" },
-        { "text": "No --allow-internal or --allow-insecure-scheme flags are required for any of these", "passed": true, "evidence": "ok" }
+        {
+          "text": "http://localhost:8080 without flag succeeds (exit 0)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://127.0.0.1:3000 without flag succeeds (exit 0)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://LOCALHOST/ without flag succeeds (exit 0, uppercase canonicalised)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://localhost./ without flag succeeds (exit 0, trailing dot stripped)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No --allow-internal or --allow-insecure-scheme flags are required for any of these",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 18,
       "configuration": "with_skill",
       "run_number": 3,
-      "result": { "pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
       "expectations": [
-        { "text": "http://localhost:8080 without flag succeeds (exit 0)", "passed": true, "evidence": "ok" },
-        { "text": "http://127.0.0.1:3000 without flag succeeds (exit 0)", "passed": true, "evidence": "ok" },
-        { "text": "http://LOCALHOST/ without flag succeeds (exit 0, uppercase canonicalised)", "passed": true, "evidence": "ok" },
-        { "text": "http://localhost./ without flag succeeds (exit 0, trailing dot stripped)", "passed": true, "evidence": "ok" },
-        { "text": "No --allow-internal or --allow-insecure-scheme flags are required for any of these", "passed": true, "evidence": "ok" }
+        {
+          "text": "http://localhost:8080 without flag succeeds (exit 0)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://127.0.0.1:3000 without flag succeeds (exit 0)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://LOCALHOST/ without flag succeeds (exit 0, uppercase canonicalised)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://localhost./ without flag succeeds (exit 0, trailing dot stripped)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No --allow-internal or --allow-insecure-scheme flags are required for any of these",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 19,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6
+      },
       "expectations": [
-        { "text": "Skill passes --allow-internal to validate-source.sh when user supplies it", "passed": true, "evidence": "ok" },
-        { "text": "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it", "passed": true, "evidence": "ok" },
-        { "text": "http://192.168.1.1/ succeeds when --allow-internal is provided", "passed": true, "evidence": "ok" },
-        { "text": "http://example.com/ succeeds when --allow-insecure-scheme is provided", "passed": true, "evidence": "ok" },
-        { "text": "http://example.com/ with only --allow-internal fails and error names --allow-insecure-scheme", "passed": true, "evidence": "ok" },
-        { "text": "The two flags are independently controlled — not aliased to each other", "passed": true, "evidence": "ok" }
+        {
+          "text": "Skill passes --allow-internal to validate-source.sh when user supplies it",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://192.168.1.1/ succeeds when --allow-internal is provided",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://example.com/ succeeds when --allow-insecure-scheme is provided",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://example.com/ with only --allow-internal fails and error names --allow-insecure-scheme",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The two flags are independently controlled \u2014 not aliased to each other",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 19,
       "configuration": "with_skill",
       "run_number": 2,
-      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6
+      },
       "expectations": [
-        { "text": "Skill passes --allow-internal to validate-source.sh when user supplies it", "passed": true, "evidence": "ok" },
-        { "text": "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it", "passed": true, "evidence": "ok" },
-        { "text": "http://192.168.1.1/ succeeds when --allow-internal is provided", "passed": true, "evidence": "ok" },
-        { "text": "http://example.com/ succeeds when --allow-insecure-scheme is provided", "passed": true, "evidence": "ok" },
-        { "text": "http://example.com/ with only --allow-internal fails and error names --allow-insecure-scheme", "passed": true, "evidence": "ok" },
-        { "text": "The two flags are independently controlled — not aliased to each other", "passed": true, "evidence": "ok" }
+        {
+          "text": "Skill passes --allow-internal to validate-source.sh when user supplies it",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://192.168.1.1/ succeeds when --allow-internal is provided",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://example.com/ succeeds when --allow-insecure-scheme is provided",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://example.com/ with only --allow-internal fails and error names --allow-insecure-scheme",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The two flags are independently controlled \u2014 not aliased to each other",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     },
     {
       "eval_id": 19,
       "configuration": "with_skill",
       "run_number": 3,
-      "result": { "pass_rate": 1.0, "passed": 6, "failed": 0, "total": 6 },
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6
+      },
       "expectations": [
-        { "text": "Skill passes --allow-internal to validate-source.sh when user supplies it", "passed": true, "evidence": "ok" },
-        { "text": "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it", "passed": true, "evidence": "ok" },
-        { "text": "http://192.168.1.1/ succeeds when --allow-internal is provided", "passed": true, "evidence": "ok" },
-        { "text": "http://example.com/ succeeds when --allow-insecure-scheme is provided", "passed": true, "evidence": "ok" },
-        { "text": "http://example.com/ with only --allow-internal fails and error names --allow-insecure-scheme", "passed": true, "evidence": "ok" },
-        { "text": "The two flags are independently controlled — not aliased to each other", "passed": true, "evidence": "ok" }
+        {
+          "text": "Skill passes --allow-internal to validate-source.sh when user supplies it",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://192.168.1.1/ succeeds when --allow-internal is provided",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://example.com/ succeeds when --allow-insecure-scheme is provided",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "http://example.com/ with only --allow-internal fails and error names --allow-insecure-scheme",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "The two flags are independently controlled \u2014 not aliased to each other",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 20,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "Response printed before crawl starts contains the literal bootstrap-failed downgrade message",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Crawl Notes records the downgrade from hybrid to code-only",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill uses code crawler (no run.sh navigate calls beyond the ping probe)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Inventory artifact is produced with code-mode data",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill does not abort -- it continues with code crawler after bootstrap failure",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 20,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "Response printed before crawl starts contains the literal bootstrap-failed downgrade message",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Crawl Notes records the downgrade from hybrid to code-only",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill uses code crawler (no run.sh navigate calls beyond the ping probe)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Inventory artifact is produced with code-mode data",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill does not abort -- it continues with code crawler after bootstrap failure",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 20,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "Response printed before crawl starts contains the literal bootstrap-failed downgrade message",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Crawl Notes records the downgrade from hybrid to code-only",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill uses code crawler (no run.sh navigate calls beyond the ping probe)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Inventory artifact is produced with code-mode data",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Skill does not abort -- it continues with code crawler after bootstrap failure",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 21,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "Step 4 (ensure-playwright.sh) is skipped for code-only crawl",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Step 5 (run.sh ping) is skipped for code-only crawl",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No run.sh commands are invoked during a code-only crawl",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Inventory is produced using only code-static analysis",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Summary correctly identifies crawler mode as 'code'",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 21,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "Step 4 (ensure-playwright.sh) is skipped for code-only crawl",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Step 5 (run.sh ping) is skipped for code-only crawl",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No run.sh commands are invoked during a code-only crawl",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Inventory is produced using only code-static analysis",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Summary correctly identifies crawler mode as 'code'",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 21,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "Step 4 (ensure-playwright.sh) is skipped for code-only crawl",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Step 5 (run.sh ping) is skipped for code-only crawl",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "No run.sh commands are invoked during a code-only crawl",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Inventory is produced using only code-static analysis",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "Summary correctly identifies crawler mode as 'code'",
+          "passed": true,
+          "evidence": "ok"
+        }
       ]
     }
   ]
