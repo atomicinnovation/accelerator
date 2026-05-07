@@ -6,7 +6,7 @@ description: Extract work items in batch from existing documents (specs, PRDs,
   bug reports, or actionable tasks from existing files into structured
   work items in meta/work/ — even if they don't say "extract" explicitly.
 argument-hint: "[document paths...] or leave empty to scan all"
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 

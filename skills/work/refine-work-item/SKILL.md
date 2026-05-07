@@ -5,7 +5,7 @@ description: Interactively refine a work item by decomposing it into children,
   sizing it, or linking it to dependencies. Use after a work item has been
   drafted and before planning begins.
 argument-hint: "[work item number or path]"
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 

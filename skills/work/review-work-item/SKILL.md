@@ -4,7 +4,7 @@ description: Review a work item through multiple quality lenses and
   collaboratively iterate based on findings. Use when the user wants to
   evaluate a work item before implementation or escalation.
 argument-hint: "[path to work item file]"
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-*)
 ---
 

@@ -5,7 +5,7 @@ description: Interactively stress-test a work item by grilling the user
   dependencies to surface issues, gaps, and flawed assumptions before
   implementation is planned.
 argument-hint: "[work item number or path]"
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---
 

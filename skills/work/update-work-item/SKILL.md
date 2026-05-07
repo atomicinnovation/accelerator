@@ -5,7 +5,7 @@ description: Update fields (status, priority, tags, parent, etc.) of an
   or edit any frontmatter field. No transition enforcement — arbitrary
   changes are allowed.
 argument-hint: "[work-item-ref] [field-op...]"
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
