@@ -30,10 +30,10 @@ jobs:
           mise run build:server:dev
 
       - name: Capture Linux baselines
-        run: |
-          ACCELERATOR_VISUALISER_BIN=$(pwd)/skills/visualisation/visualise/server/target/debug/accelerator-visualiser \
-            npx --prefix skills/visualisation/visualise/frontend playwright test \
-              --project visual-regression --update-snapshots
+        working-directory: skills/visualisation/visualise/frontend
+        env:
+          ACCELERATOR_VISUALISER_BIN: ${{ github.workspace }}/skills/visualisation/visualise/server/target/debug/accelerator-visualiser
+        run: npx playwright test --project visual-regression --update-snapshots
 
       - name: Commit and push baselines
         run: |
