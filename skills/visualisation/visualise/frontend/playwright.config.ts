@@ -6,6 +6,11 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 30_000,
   retries: 1,
+  // Force sequential execution across all projects so that the chromium
+  // kanban drag tests cannot run concurrently with each other or with the
+  // visual-regression snapshot tests (both touch shared fixture files or
+  // compare screenshots of fixture-driven content).
+  workers: 1,
   globalSetup: './e2e/global-setup.ts',
   globalTeardown: './e2e/global-teardown.ts',
   use: {
@@ -24,6 +29,9 @@ export default defineConfig({
     },
     {
       name: 'chromium',
+      // Depends on visual-regression so the kanban snapshot is captured
+      // against clean fixtures before the drag tests modify work item statuses.
+      dependencies: ['visual-regression'],
       use: { browserName: 'chromium' },
     },
   ],
