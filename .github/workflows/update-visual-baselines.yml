@@ -24,7 +24,10 @@ jobs:
           experimental: true
 
       - name: Build frontend and server
-        run: mise run deps:install:playwright build:frontend build:server:dev
+        run: |
+          mise run deps:install:playwright
+          mise run build:frontend
+          mise run build:server:dev
 
       - name: Capture Linux baselines
         run: |
