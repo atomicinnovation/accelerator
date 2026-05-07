@@ -105,6 +105,10 @@ export const DARK_SHADOW_TOKENS = {
   'ac-shadow-lift': '0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55)',
 } as const
 
+export const LAYOUT_TOKENS = {
+  'ac-topbar-h': '56px',
+} as const
+
 export type ColorTokenLight = keyof typeof LIGHT_COLOR_TOKENS
 export type ColorTokenDark = keyof typeof DARK_COLOR_TOKENS
 export type TypographyToken = keyof typeof TYPOGRAPHY_TOKENS
@@ -112,3 +116,4 @@ export type SpacingToken = keyof typeof SPACING_TOKENS
 export type RadiusToken = keyof typeof RADIUS_TOKENS
 export type LightShadowToken = keyof typeof LIGHT_SHADOW_TOKENS
 export type DarkShadowToken = keyof typeof DARK_SHADOW_TOKENS
+export type LayoutToken = keyof typeof LAYOUT_TOKENS

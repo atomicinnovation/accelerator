@@ -8,6 +8,7 @@ import {
   RADIUS_TOKENS,
   LIGHT_SHADOW_TOKENS,
   DARK_SHADOW_TOKENS,
+  LAYOUT_TOKENS,
 } from './tokens'
 
 type Scope = 'root' | 'dark'
@@ -83,6 +84,7 @@ describe.each([
   ['spacing', SPACING_TOKENS],
   ['radius', RADIUS_TOKENS],
   ['light shadow', LIGHT_SHADOW_TOKENS],
+  ['layout', LAYOUT_TOKENS],
 ])('tokens.ts ↔ global.css :root parity (%s)', (_label, tokens) => {
   for (const [name, value] of Object.entries(tokens)) {
     it(`--${name} matches`, () => {
@@ -159,6 +161,16 @@ describe('global.css [data-theme="dark"] ↔ @media (prefers-color-scheme: dark)
   })
 })
 
+describe('global.css @keyframes ac-pulse', () => {
+  it('declares @keyframes ac-pulse', () => {
+    expect(globalCss).toMatch(/@keyframes\s+ac-pulse\s*\{/)
+  })
+  it('has the canonical body (0%/100% opacity:1, 50% opacity:0.4)', () => {
+    expect(globalCss).toContain('0%, 100% { opacity: 1; }')
+    expect(globalCss).toContain('50% { opacity: 0.4; }')
+  })
+})
+
 /**
  * Sanity guard: catch the silent-truncation failure mode of the flat-block
  * regex in `readCssVar`. If a future contributor introduces a nested rule
@@ -168,8 +180,8 @@ describe('global.css [data-theme="dark"] ↔ @media (prefers-color-scheme: dark)
  * failure rather than passing on a partial extraction.
  */
 describe('readCssVar truncation guard', () => {
-  it(':root block extends past --shadow-crisp', () => {
-    expect(readCssVar('shadow-crisp', 'root')).not.toBeNull()
+  it(':root block extends past --ac-topbar-h', () => {
+    expect(readCssVar('ac-topbar-h', 'root')).not.toBeNull()
   })
   it('[data-theme="dark"] block extends past --ac-shadow-lift', () => {
     expect(readCssVar('ac-shadow-lift', 'dark')).not.toBeNull()
