@@ -72,6 +72,9 @@ class TestPrereleasePrepare:
         mocker.patch.object(tv, "bump")
         mock_read = mocker.patch.object(tv, "read", return_value=MagicMock())
         mock_read.return_value.__str__ = lambda _: "1.21.0-pre.1"
+        mocker.patch.object(tb, "frontend")
+        mocker.patch.object(tb, "server_cross_compile")
+        mocker.patch.object(tb, "create_debug_archives")
         mocker.patch.object(tb, "create_checksums")
 
     def test_calls_configure_and_pull(self, ctx, mocker):
@@ -85,10 +88,37 @@ class TestPrereleasePrepare:
         prerelease_prepare(ctx)
         tv.bump.assert_called_once()
 
+    def test_builds_frontend_and_cross_compiles(self, ctx, mocker):
+        self._setup(mocker)
+        prerelease_prepare(ctx)
+        tb.frontend.assert_called_once_with(ctx)
+        tb.server_cross_compile.assert_called_once_with(ctx)
+        tb.create_debug_archives.assert_called_once_with(ctx)
+
     def test_creates_checksums(self, ctx, mocker):
         self._setup(mocker)
         prerelease_prepare(ctx)
         tb.create_checksums.assert_called_once()
+
+    def test_build_happens_after_version_bump(self, ctx, mocker):
+        call_log = []
+        mocker.patch.object(tgit, "configure")
+        mocker.patch.object(tgit, "pull")
+        mocker.patch.object(tv, "bump", side_effect=lambda *a, **kw: call_log.append("bump"))
+        mock_read = mocker.patch.object(tv, "read", return_value=MagicMock())
+        mock_read.return_value.__str__ = lambda _: "1.21.0-pre.1"
+        mocker.patch.object(tb, "frontend", side_effect=lambda *a, **kw: call_log.append("frontend"))
+        mocker.patch.object(tb, "server_cross_compile", side_effect=lambda *a, **kw: call_log.append("cross_compile"))
+        mocker.patch.object(tb, "create_debug_archives", side_effect=lambda *a, **kw: call_log.append("debug_archives"))
+        mocker.patch.object(tb, "create_checksums", side_effect=lambda *a, **kw: call_log.append("checksums"))
+
+        prerelease_prepare(ctx)
+
+        bump_idx = call_log.index("bump")
+        assert call_log.index("frontend") > bump_idx
+        assert call_log.index("cross_compile") > bump_idx
+        assert call_log.index("debug_archives") > bump_idx
+        assert call_log.index("checksums") > bump_idx
 
 
 # ── prerelease_finalise() ────────────────────────────────────────────

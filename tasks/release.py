@@ -40,6 +40,9 @@ def prerelease_prepare(context: Context):
     version.bump(context, bump_type=[version.BumpType.PRE])
     resolved_version = str(version.read(context, print_to_stdout=False))
     marketplace.update_prerelease_version(context, plugin="accelerator")
+    build.frontend(context)
+    build.server_cross_compile(context)
+    build.create_debug_archives(context)
     build.create_checksums(context, resolved_version)
 
 
@@ -58,6 +61,9 @@ def release_prepare(context: Context):
     resolved_version = str(version.read(context, print_to_stdout=False))
     marketplace.update_version(context, plugin="accelerator")
     changelog.release(context)
+    build.frontend(context)
+    build.server_cross_compile(context)
+    build.create_debug_archives(context)
     build.create_checksums(context, resolved_version)
 
 

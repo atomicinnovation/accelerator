@@ -150,7 +150,7 @@ run = "invoke git.check-clean"
 
 [tasks."prerelease:prepare"]
 description = "CI prerelease halve 1: bump version, build binaries, compute checksums"
-depends = ["build:debug-archives", "github:check-auth", "git:check-clean"]
+depends = ["deps:install:rust-targets", "deps:install:node", "github:check-auth", "git:check-clean"]
 run = "invoke prerelease.prepare"
 
 [tasks."prerelease:finalise"]
@@ -159,7 +159,7 @@ run = "invoke prerelease.finalise"
 
 [tasks."release:prepare"]
 description = "CI stable release halve 1: finalise version, update marketplace and changelog, build binaries"
-depends = ["build:debug-archives", "github:check-auth", "git:check-clean"]
+depends = ["deps:install:rust-targets", "deps:install:node", "github:check-auth", "git:check-clean"]
 run = "invoke release.prepare"
 
 [tasks."release:finalise"]
@@ -168,10 +168,10 @@ run = "invoke release.finalise"
 
 [tasks."prerelease"]
 description = "Local dev only: full prerelease flow without SLSA attestation"
-depends = ["build:debug-archives", "github:check-auth", "git:check-clean"]
+depends = ["deps:install:rust-targets", "deps:install:node", "github:check-auth", "git:check-clean"]
 run = "invoke prerelease"
 
 [tasks."release"]
 description = "Local dev only: full stable release flow without SLSA attestation"
-depends = ["build:debug-archives", "github:check-auth", "git:check-clean"]
+depends = ["deps:install:rust-targets", "deps:install:node", "github:check-auth", "git:check-clean"]
 run = "invoke release"
