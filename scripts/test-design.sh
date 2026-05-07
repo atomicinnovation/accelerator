@@ -82,36 +82,16 @@ extract_tools() {
 LOC_TOOLS="$(extract_tools "$LOC")"
 ANA_TOOLS="$(extract_tools "$ANA")"
 
-assert_eq "browser-locator declares executor + navigate + snapshot" \
-  "Bash(\${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *),mcp__playwright__browser_navigate,mcp__playwright__browser_snapshot" \
+assert_eq "browser-locator declares exactly the run.sh executor tool" \
+  "Bash(\${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *)" \
   "$LOC_TOOLS"
-assert_not_contains "browser-locator does not declare browser_take_screenshot" \
-  "$LOC_TOOLS" "browser_take_screenshot"
-
-EXPECTED_ANA_TOOLS="Bash(\${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *),mcp__playwright__browser_click,mcp__playwright__browser_evaluate,mcp__playwright__browser_navigate,mcp__playwright__browser_snapshot,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for"
-assert_eq "browser-analyser declares executor + seven Playwright tools" \
-  "$EXPECTED_ANA_TOOLS" "$ANA_TOOLS"
-
-# Dual-mode contract: both executor (Bash) and MCP tools must be declared
-assert_contains "browser-locator declares Bash run.sh executor" \
-  "$LOC_TOOLS" "run.sh"
-assert_contains "browser-analyser declares Bash run.sh executor" \
-  "$ANA_TOOLS" "run.sh"
-assert_contains "browser-locator declares mcp__playwright__browser_navigate" \
-  "$LOC_TOOLS" "mcp__playwright__browser_navigate"
-assert_contains "browser-analyser declares mcp__playwright__browser_navigate" \
-  "$ANA_TOOLS" "mcp__playwright__browser_navigate"
-
-# 4a transitional safety: run.sh instructions must precede MCP fallback in prose
-LOC_RUNSH_FIRST="$(grep -n 'run\.sh' "$LOC" | head -1 | cut -d: -f1)"
-LOC_MCP_FIRST="$(grep -n 'mcp__playwright__' "$LOC" | head -1 | cut -d: -f1)"
-assert_exit_code "browser-locator: run.sh appears before mcp__playwright__" 0 \
-  test "$LOC_RUNSH_FIRST" -lt "$LOC_MCP_FIRST"
-
-ANA_RUNSH_FIRST="$(grep -n 'run\.sh' "$ANA" | head -1 | cut -d: -f1)"
-ANA_MCP_FIRST="$(grep -n 'mcp__playwright__' "$ANA" | head -1 | cut -d: -f1)"
-assert_exit_code "browser-analyser: run.sh appears before mcp__playwright__" 0 \
-  test "$ANA_RUNSH_FIRST" -lt "$ANA_MCP_FIRST"
+assert_eq "browser-analyser declares exactly the run.sh executor tool" \
+  "Bash(\${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *)" \
+  "$ANA_TOOLS"
+assert_not_contains "browser-locator declares no mcp__playwright__ tools" \
+  "$LOC_TOOLS" "mcp__playwright__"
+assert_not_contains "browser-analyser declares no mcp__playwright__ tools" \
+  "$ANA_TOOLS" "mcp__playwright__"
 
 echo ""
 
@@ -127,18 +107,20 @@ done
 
 echo ""
 
+echo "=== inventory-design: executor deny-list absent ==="
+
+EXECUTOR_SRC_DIR="$PLUGIN_ROOT/skills/design/inventory-design/scripts/playwright"
+assert_exit_code "evaluate-payload-rejected not in executor source" 1 \
+  grep -r "evaluate-payload-rejected" "$EXECUTOR_SRC_DIR/lib" "$EXECUTOR_SRC_DIR/run.js"
+assert_exit_code "no mcp__playwright__ references in executor source" 1 \
+  grep -r "mcp__playwright__" "$EXECUTOR_SRC_DIR/lib" "$EXECUTOR_SRC_DIR/run.js"
+
+echo ""
+
 echo "=== .mcp.json ==="
 
-MCP="$PLUGIN_ROOT/.claude-plugin/.mcp.json"
-assert_file_exists ".mcp.json exists" "$MCP"
-assert_eq "mcp.json declares playwright server" \
-  "$(jq -r '.mcpServers.playwright.command' "$MCP")" "npx"
-PLAYWRIGHT_ARG="$(jq -r '.mcpServers.playwright.args[0]' "$MCP")"
-assert_contains "mcp.json playwright args pins @playwright/mcp" \
-  "$PLAYWRIGHT_ARG" "@playwright/mcp@"
-assert_not_contains ".mcp.json pins @playwright/mcp to a specific version (not @latest)" \
-  "$PLAYWRIGHT_ARG" "@latest"
-assert_eq "mcp.json is valid JSON" "$(jq empty "$MCP" 2>&1)" ""
+assert_exit_code ".claude-plugin/.mcp.json does not exist (MCP path removed)" 1 \
+  test -e "$PLUGIN_ROOT/.claude-plugin/.mcp.json"
 
 echo ""
 
@@ -151,22 +133,12 @@ assert_contains "argument-hint declares positional source-id and location" \
   "$(cat "$SKILL")" 'argument-hint: "[source-id] [location]'
 assert_contains "disable-model-invocation true" \
   "$(cat "$SKILL")" "disable-model-invocation: true"
-assert_contains "allowed-tools enumerates browser_navigate" \
-  "$(cat "$SKILL")" "mcp__playwright__browser_navigate"
-assert_contains "allowed-tools enumerates browser_snapshot" \
-  "$(cat "$SKILL")" "mcp__playwright__browser_snapshot"
-assert_contains "allowed-tools enumerates browser_take_screenshot" \
-  "$(cat "$SKILL")" "mcp__playwright__browser_take_screenshot"
-assert_contains "allowed-tools enumerates browser_evaluate" \
-  "$(cat "$SKILL")" "mcp__playwright__browser_evaluate"
-assert_contains "allowed-tools enumerates browser_click" \
-  "$(cat "$SKILL")" "mcp__playwright__browser_click"
-assert_contains "allowed-tools enumerates browser_type" \
-  "$(cat "$SKILL")" "mcp__playwright__browser_type"
-assert_contains "allowed-tools enumerates browser_wait_for" \
-  "$(cat "$SKILL")" "mcp__playwright__browser_wait_for"
-assert_not_contains "allowed-tools must not use mcp__playwright__* wildcard" \
-  "$(cat "$SKILL")" "mcp__playwright__*"
+assert_contains "argument-hint includes --allow-internal flag" \
+  "$(cat "$SKILL")" "--allow-internal"
+assert_contains "argument-hint includes --allow-insecure-scheme flag" \
+  "$(cat "$SKILL")" "--allow-insecure-scheme"
+assert_not_contains "allowed-tools contains no mcp__playwright__ entries" \
+  "$(cat "$SKILL")" "mcp__playwright__"
 assert_contains "allowed-tools enumerates playwright run.sh Bash" \
   "$(cat "$SKILL")" 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *)'
 assert_contains "allowed-tools enumerates ensure-playwright.sh Bash" \

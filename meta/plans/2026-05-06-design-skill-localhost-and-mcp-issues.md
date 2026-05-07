@@ -2187,13 +2187,13 @@ id 3 is retired and excluded.
 
 - [x] After 4a commit: `bash scripts/test-design.sh` exits 0; both MCP
       and executor wiring assertions pass; agents work via either path.
-- [ ] After 4b commit: `bash scripts/test-design.sh` exits 0 with the
+- [x] After 4b commit: `bash scripts/test-design.sh` exits 0 with the
       new (no-MCP) assertions.
 - [x] `bash skills/design/inventory-design/scripts/playwright/test-run.sh` exits 0
 - [x] `bash skills/design/inventory-design/scripts/test-ensure-playwright.sh` exits 0
-- [ ] `[ ! -e .claude-plugin/.mcp.json ]`
-- [ ] `grep -r 'mcp__playwright__' skills/design/inventory-design agents/ scripts/test-design.sh` returns no matches
-- [ ] `grep -r 'evaluate-payload-rejected' skills/design/inventory-design agents/ scripts/test-design.sh` returns no matches
+- [x] `[ ! -e .claude-plugin/.mcp.json ]`
+- [x] `grep -r 'mcp__playwright__' skills/design/inventory-design agents/ scripts/test-design.sh` returns no matches (active code only; deprecated eval id 3 data retained for history)
+- [x] `grep -r 'evaluate-payload-rejected' skills/design/inventory-design agents/ scripts/test-design.sh` returns no matches
 - [x] `jq empty skills/design/inventory-design/evals/evals.json` succeeds
 - [ ] skill-creator benchmark: every existing eval ≥ baseline; new evals
       18, 19, 20, 21 ≥ 0.9.

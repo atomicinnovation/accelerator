@@ -2,12 +2,12 @@
   "metadata": {
     "skill_name": "inventory-design",
     "run_count_tiers": {
-      "note": "Probabilistic evals (#1, #2, #3, #4) run at least 5 times to account for LLM and MCP stochasticity. Deterministic structural/validation evals (#5, #8, #10, #11, #12, #13, #18, #19) run at least 3 times. Structural-only assertion evals (#14) run once.",
-      "probabilistic": [1, 2, 3, 4],
-      "deterministic": [5, 8, 10, 11, 12, 13, 18, 19],
+      "note": "Probabilistic evals (#1, #2, #4) run at least 5 times to account for LLM stochasticity. Deterministic structural/validation evals (#5, #8, #10, #11, #12, #13, #18, #19, #20, #21) run at least 3 times. Structural-only assertion evals (#14) run once. Eval #3 retired (deprecated: MCP path removed).",
+      "probabilistic": [1, 2, 4],
+      "deterministic": [5, 8, 10, 11, 12, 13, 18, 19, 20, 21],
       "structural_only": [14]
     },
-    "evals_run": [1, 2, 3, 4, 5, 8, 10, 11, 12, 13, 14, 18, 19]
+    "evals_run": [1, 2, 4, 5, 8, 10, 11, 12, 13, 14, 18, 19, 20, 21]
   },
   "run_summary": {
     "with_skill": {

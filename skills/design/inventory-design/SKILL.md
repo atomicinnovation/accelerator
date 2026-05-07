@@ -13,14 +13,7 @@ allowed-tools: >
   Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*),
   Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *),
   Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/ensure-playwright.sh *),
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/notify-downgrade.sh *),
-  mcp__playwright__browser_navigate,
-  mcp__playwright__browser_snapshot,
-  mcp__playwright__browser_take_screenshot,
-  mcp__playwright__browser_evaluate,
-  mcp__playwright__browser_click,
-  mcp__playwright__browser_type,
-  mcp__playwright__browser_wait_for
+  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/notify-downgrade.sh *)
 ---
 
 # Inventory Design

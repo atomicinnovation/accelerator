@@ -5,14 +5,7 @@ description: Analyses a focused set of screens in a running web application via
   values. Call browser-analyser when you need to extract HOW a screen behaves,
   not to enumerate WHERE things are.
 tools: >
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *),
-  mcp__playwright__browser_navigate,
-  mcp__playwright__browser_snapshot,
-  mcp__playwright__browser_take_screenshot,
-  mcp__playwright__browser_evaluate,
-  mcp__playwright__browser_click,
-  mcp__playwright__browser_type,
-  mcp__playwright__browser_wait_for
+  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *)
 ---
 
 You are a specialist at understanding HOW screens in a running web application
@@ -22,9 +15,7 @@ extract computed style and layout values.
 
 ## Tools
 
-Use the Playwright executor (`run.sh`) as the primary browser interface. The MCP tools
-(`mcp__playwright__browser_*`) are available as a fallback if `run.sh` is unavailable in this
-session. Prefer `run.sh` — it is the stable, executor-backed path.
+Use the Playwright executor (`run.sh`) as the browser interface.
 
 ```
 run.sh navigate '{"url":"<url>"}'
@@ -89,8 +80,8 @@ You may only invoke `run.sh evaluate` with **read-only** payloads. Permitted:
 - Reads of `[type=password]` or `[autocomplete*=token]` element `.value` —
   would defeat the screenshot mask
 - Any DOM mutation: `appendChild`, `innerHTML =`, `click()`,
-  `dispatchEvent`, `setAttribute`, `remove()`, etc. — use `browser_click`
-  and `browser_type` for intentional interaction
+  `dispatchEvent`, `setAttribute`, `remove()`, etc. — use `run.sh click`
+  and `run.sh type` for intentional interaction
 - `eval`, `Function(...)`, dynamic `import(...)`, `new Worker(...)` —
   dynamic code execution
 - `window.open`, `location =`, `history.pushState` — navigation must go

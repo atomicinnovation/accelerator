@@ -5,9 +5,7 @@ description: Locates routes, screens, and DOM-level component presence in a
   when you need to enumerate WHERE things appear in the rendered UI, not to
   extract their detail.
 tools: >
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *),
-  mcp__playwright__browser_navigate,
-  mcp__playwright__browser_snapshot
+  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *)
 ---
 
 You are a specialist at finding WHERE things appear in a running web
@@ -45,11 +43,9 @@ run.sh navigate '{"url":"<url>"}'
 run.sh snapshot
 ```
 
-The MCP tools (`mcp__playwright__browser_navigate`, `mcp__playwright__browser_snapshot`) are
-available as a fallback if `run.sh` is unavailable in this session. Prefer `run.sh` — it is the
-stable, executor-backed path. If `run.sh navigate` returns an error JSON, surface it to the
-caller without retrying. Inspect `error.category`: `bootstrap` means unrecoverable; `browser`
-or `usage` means the caller should diagnose; `protocol` means a contract mismatch (file as a bug).
+If `run.sh navigate` returns an error JSON, surface it to the caller without retrying. Inspect
+`error.category`: `bootstrap` means unrecoverable; `browser` or `usage` means the caller should
+diagnose; `protocol` means a contract mismatch (file as a bug).
 
 ## Search Strategy
 

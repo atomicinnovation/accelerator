@@ -36,6 +36,8 @@
     {
       "id": 3,
       "name": "mcp-unavailable-fallback",
+      "deprecated": true,
+      "deprecation_reason": "MCP path removed in Phase 4b. Replaced by eval id 20 (executor-bootstrap-failure-fallback).",
       "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nIMPORTANT: For this eval, mcp__playwright__browser_navigate is NOT in your available tool set.\n\nA user invokes: /accelerator:inventory-design design-test-app ./examples/design-test-app --crawler hybrid\n\nFollow Step 3 (MCP detection). The MCP is unavailable.\n\nSave to outputs/:\n- response.md: Your exact response to the user before starting the crawl\n- crawl-notes.md: What you would write in the Crawl Notes section about the downgrade",
       "expected_output": "Skill prints the auto-fallback notice BEFORE starting the crawl (not only in Crawl Notes). Falls back to code-only. Both the pre-crawl notice and Crawl Notes mention Playwright MCP unavailability.",
       "files": [],
@@ -186,6 +188,34 @@
         "http://example.com/ succeeds when --allow-insecure-scheme is provided",
         "http://example.com/ with only --allow-internal fails and error names --allow-insecure-scheme",
         "The two flags are independently controlled — not aliased to each other"
+      ]
+    },
+    {
+      "id": 20,
+      "name": "executor-bootstrap-failure-fallback",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nContext: ACCELERATOR_PLAYWRIGHT_MOCK_NPM_EXIT=1 is set (simulates npm ci failure during bootstrap).\n\nA user invokes: /accelerator:inventory-design design-test-app ./examples/design-test-app --crawler hybrid\n\nFollow Steps 1-9. In Step 4, simulate running ensure-playwright.sh — it exits 14 and emits ACCELERATOR_DOWNGRADE_REASON=bootstrap-failed to stderr. Follow the hybrid-downgrade path.\n\nSave to outputs/:\n- response.md: The downgrade notice printed to the user before the crawl begins\n- crawl-notes.md: What you would write in the Crawl Notes section\n- summary.md: The summary presented to the user at Step 13",
+      "expected_output": "Skill prints the notify-downgrade.sh output for 'bootstrap-failed' before starting the crawl. Falls back to code-only crawler. Crawl Notes records the bootstrap failure. No run.sh navigate calls are made.",
+      "files": [],
+      "expectations": [
+        "Response printed before crawl starts contains the literal bootstrap-failed downgrade message",
+        "Crawl Notes records the downgrade from hybrid to code-only",
+        "Skill uses code crawler (no run.sh navigate calls beyond the ping probe)",
+        "Inventory artifact is produced with code-mode data",
+        "Skill does not abort — it continues with code crawler after bootstrap failure"
+      ]
+    },
+    {
+      "id": 21,
+      "name": "executor-ping-no-browser",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nA user invokes: /accelerator:inventory-design design-test-app ./examples/design-test-app --crawler code\n\nFollow Steps 1-13. Because the crawler mode is 'code', Steps 4-5 (ensure-playwright.sh and run.sh ping) are skipped entirely.\n\nSave to outputs/:\n- behavior.md: Which steps are skipped and why, and whether any executor or browser commands are invoked",
+      "expected_output": "Steps 4 and 5 are skipped because the crawler mode is 'code'. No ensure-playwright.sh invocation. No run.sh ping call. No Chromium browser launched. The code-only crawl completes without any executor interaction.",
+      "files": [],
+      "expectations": [
+        "Step 4 (ensure-playwright.sh) is skipped for code-only crawl",
+        "Step 5 (run.sh ping) is skipped for code-only crawl",
+        "No run.sh commands are invoked during a code-only crawl",
+        "Inventory is produced using only code-static analysis",
+        "Summary correctly identifies crawler mode as 'code'"
       ]
     }
   ]
