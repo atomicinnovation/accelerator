@@ -1,0 +1,41 @@
+name: Update visual regression baselines
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-baselines:
+    name: Capture Linux baselines
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+          experimental: true
+
+      - name: Build frontend and server
+        run: mise run deps:install:playwright build:frontend build:server:dev
+
+      - name: Capture Linux baselines
+        run: |
+          ACCELERATOR_VISUALISER_BIN=$(pwd)/skills/visualisation/visualise/server/target/debug/accelerator-visualiser \
+            npx --prefix skills/visualisation/visualise/frontend playwright test \
+              --project visual-regression --update-snapshots
+
+      - name: Commit and push baselines
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add skills/visualisation/visualise/frontend/tests/visual-regression/__screenshots__/
+          git diff --staged --quiet || git commit -m "Update Linux visual regression baselines"
+          git push origin HEAD:${{ github.ref_name }}
