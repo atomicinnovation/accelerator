@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { vi, beforeAll, afterAll } from 'vitest'
+import { vi, afterAll } from 'vitest'
 
 // Stub global EventSource as a safety net — prevents any test that
 // mounts a component using the production `useDocEvents` hook from
@@ -23,14 +23,17 @@ class MockResizeObserver {
   disconnect = vi.fn()
 }
 
-beforeAll(() => {
-  vi.stubGlobal('EventSource', MockEventSource)
-  vi.stubGlobal('ResizeObserver', MockResizeObserver)
-  vi.stubGlobal('scrollTo', vi.fn())
-  if (!Element.prototype.scrollIntoView) {
-    Element.prototype.scrollIntoView = vi.fn()
-  }
-})
+// These are set via Object.defineProperty rather than vi.stubGlobal so that
+// they survive vi.unstubAllGlobals() calls in individual test files (e.g.
+// router.test.tsx's afterEach). vi.stubGlobal-based stubs are reverted by
+// unstubAllGlobals(), which would restore jsdom's "Not implemented" scrollTo
+// and its real EventSource (which fires onerror when it can't connect).
+Object.defineProperty(window, 'scrollTo', { value: vi.fn(), writable: true })
+Object.defineProperty(window, 'EventSource', { value: MockEventSource, writable: true, configurable: true })
+Object.defineProperty(window, 'ResizeObserver', { value: MockResizeObserver, writable: true, configurable: true })
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = vi.fn()
+}
 
 afterAll(() => {
   vi.unstubAllGlobals()
