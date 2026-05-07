@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- **Node ≥ 20 required for `/inventory-design --crawler runtime|hybrid`**.
+  The Playwright MCP integration has been replaced by a Bash-invoked Node.js
+  executor (`run.sh`). The executor requires Node.js 20 or later, macOS or
+  Linux, and ~500 MB free disk for the first-run Chromium install. `--crawler
+  code` (static analysis) has no Node dependency and is unaffected.
+- **`.claude-plugin/.mcp.json` removed**. The project-scoped Playwright MCP
+  registration has been deleted. Users who relied on the project-scoped
+  `@playwright/mcp` server must register it in their own MCP configuration if
+  still needed.
+- **Eval id 3 retired; eval ids 18–21 added**. Eval id 3 (`mcp-toolset-check`)
+  is marked deprecated. New evals: 18 (`localhost-default-allow`), 19
+  (`allow-internal-flag`), 20 (`executor-bootstrap-failure-fallback`), 21
+  (`executor-ping-no-browser`). Eval id 14 updated from
+  `browser_evaluate payload pattern` to `run.sh evaluate payload pattern`.
+
+### Added
+
+- **`/inventory-design` — `--allow-internal` flag**. Permits crawling
+  RFC1918, link-local, and loopback-variant hosts. `http://localhost` and
+  `http://127.0.0.1` are now default-allowed without any flag.
+- **`/inventory-design` — `--allow-insecure-scheme` flag**. Permits plain
+  `http://` to non-localhost public hosts. Separate from `--allow-internal`
+  so the risk surface is explicit at the call site.
+- **`/inventory-design` — Playwright executor** (`run.sh`). Replaces the MCP
+  path with a Bash-invoked Node.js TCP daemon that drives Playwright's
+  Chromium. Sub-agents use `Bash(run.sh <op>)` instead of `mcp__playwright__*`
+  tools, eliminating the sub-agent MCP-inheritance hallucination class (Claude
+  Code issues #13605, #13898).
+- **`/inventory-design` — lazy Chromium bootstrap** (`ensure-playwright.sh`).
+  First use with `--crawler runtime|hybrid` installs Playwright + Chromium
+  (~150 MB) into `~/.cache/accelerator/playwright/`. Subsequent runs reuse the
+  cache without a network round-trip. `hybrid` mode auto-downgrades to `code`
+  if bootstrap fails, with a printed notice.
+- **`skills/design/inventory-design/PROTOCOL.md`** — executor wire protocol
+  reference. Documents request/response envelopes, per-op args and error
+  codes, the downgrade-reason enum mapping, and the v1 stability commitment.
+
 ### Changed
 
 - **BREAKING**: All Accelerator-owned config, customisation, and state files

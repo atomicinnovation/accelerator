@@ -569,8 +569,60 @@ The resulting gap artifact under `meta/design-gaps/` feeds straight into
 `/accelerator:extract-work-items <gap-file>`.
 
 `inventory-design` supports three crawler modes: `code` (static analysis only,
-no Playwright needed), `runtime` (Playwright MCP only), and `hybrid` (both,
-default for code-repo sources when the MCP is available).
+no Playwright needed), `runtime` (Playwright executor only), and `hybrid`
+(both, default for code-repo sources).
+
+New flags: `--allow-internal` (permit RFC1918 / loopback-variant hosts) and
+`--allow-insecure-scheme` (permit plain `http://` to non-localhost public
+hosts). `http://localhost` and `http://127.0.0.1` are accepted without any
+flag.
+
+### Requirements
+
+For `--crawler runtime` or `--crawler hybrid`:
+
+- **Node ≥ 20** — executor bootstrap and daemon require Node.js 20 or later
+- **macOS or Linux** — Windows is not supported
+- **~500 MB free disk** — first-run Chromium install writes to the cache
+
+Run `ensure-playwright.sh` to bootstrap the executor manually; the skill runs
+it automatically on first use.
+
+### Runtime browser dependency
+
+The executor (`run.sh`) wraps a Node.js daemon that drives Playwright's
+Chromium. On first use with `--crawler runtime|hybrid`, the skill runs
+`ensure-playwright.sh` to install Playwright and Chromium into a per-machine
+cache. Subsequent runs reuse the cache without a network round-trip.
+
+Cache root: `~/.cache/accelerator/playwright/<sha8>/` (namespace keyed on the
+skill-shipped `package-lock.json` hash).
+
+For the executor wire protocol see
+[`skills/design/inventory-design/PROTOCOL.md`](skills/design/inventory-design/PROTOCOL.md).
+
+### Cache & cleanup
+
+| Path | Purpose |
+|------|---------|
+| `~/.cache/accelerator/playwright/` | Per-machine Playwright + Chromium cache |
+| `<project>/.accelerator/tmp/inventory-design-playwright/` | Per-project daemon state (port file, PID) |
+
+To reset both:
+
+```bash
+run.sh daemon-stop
+rm -rf ~/.cache/accelerator/playwright .accelerator/tmp/inventory-design-playwright
+```
+
+### Troubleshooting
+
+- **Hung daemon**: run `run.sh daemon-stop` to shut it down cleanly.
+- **Bootstrap failure**: run `ensure-playwright.sh` directly to see the full
+  error output. Check `NPM_CONFIG_REGISTRY`, `NODE_EXTRA_CA_CERTS`,
+  `HTTPS_PROXY`, and `PLAYWRIGHT_DOWNLOAD_HOST`.
+- **Downgrade to code**: if bootstrap fails in `hybrid` mode the skill
+  automatically falls back to `code`-only crawl with a printed notice.
 
 ### Authenticated browser crawls
 
@@ -608,9 +660,10 @@ inventory if any env-var literal appears in the generated body.
   and `browser_type` for state-transition testing. Do not point
   `inventory-design` at production systems with forms that have real-world
   side effects (payments, email sends, account mutations).
-- **Supply-chain pin**: `@playwright/mcp` is pinned to a specific version in
-  `.claude-plugin/.mcp.json`. Upgrading requires an explicit PR so the version
-  is always deliberate.
+- **Executor isolation**: the Playwright executor runs as a local TCP daemon on
+  `127.0.0.1` only. It never binds to an external interface. Screenshots mask
+  `[type=password]`, `[autocomplete*=token]`, and `[data-secret]` fields
+  automatically.
 
 ## Agents
 
@@ -627,20 +680,17 @@ focused summary to the parent:
 | **documents-analyser**      | Extracts insights from meta documents                             | Read, Grep, Glob, LS                                                                                                                                                                                                                                |
 | **reviewer**                | Evaluates code/plans through a specific quality lens              | Read, Grep, Glob, LS                                                                                                                                                                                                                                |
 | **web-search-researcher**   | Researches external documentation and resources                   | WebSearch, WebFetch, Read, Grep, Glob, LS                                                                                                                                                                                                           |
-| **browser-locator**         | Locates routes/screens/components in a running app via Playwright | mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot                                                                                                                                                                                |
-| **browser-analyser**        | Analyses screens, captures state and screenshots via Playwright   | mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_evaluate, mcp__playwright__browser_click, mcp__playwright__browser_type, mcp__playwright__browser_wait_for |
+| **browser-locator**         | Locates routes/screens/components in a running app via Playwright | `Bash(run.sh navigate)`, `Bash(run.sh snapshot)`                   |
+| **browser-analyser**        | Analyses screens, captures state and screenshots via Playwright   | `Bash(run.sh navigate\|snapshot\|screenshot\|evaluate\|click\|type\|wait_for)` |
 
 The separation between locators (find, no Read) and analysers (understand, with
 Read) is deliberate: it prevents any single agent from needing to both search
 broadly and read deeply, keeping each agent's context bounded.
 
-`browser-*` agents require the Playwright MCP server, declared in
-`.claude-plugin/.mcp.json` (pinned to a specific `@playwright/mcp` version).
-Claude Code will prompt to enable it on first use of any skill that needs it;
-run `mise run deps:install:playwright` to install the browser binaries.
-Note: `.mcp.json` uses a leading dot while the sibling `plugin.json` does not
-— this asymmetry is upstream-mandated by Claude Code's MCP manifest discovery
-and is not a typo.
+`browser-*` agents drive Playwright through the skill-shipped executor
+(`run.sh`), a Bash wrapper around a Node.js TCP daemon that runs Chromium.
+No MCP server is required. See `skills/design/inventory-design/PROTOCOL.md`
+for the executor wire protocol.
 
 ## Installation
 

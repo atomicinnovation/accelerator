@@ -2327,7 +2327,7 @@ This plan introduces breaking changes:
 - Introduces a Node ≥ 20 hard requirement for runtime/hybrid crawls.
 
 Action items:
-- **Bump to a minor version** (e.g. `1.21.x` → `1.22.0`) with a prominent
+- **Bump to a minor version** (e.g. `1.21.x` → `1.22.0`) with a prominent [x]
   CHANGELOG "Breaking" callout. Precedent: this project's CHANGELOG
   shows prior breaking changes (e.g. the `tickets → work` skill-category
   rename) shipped under minor bumps with explicit `### Breaking`
@@ -2385,12 +2385,16 @@ Run the full eval suite at the configured run-count tiers and write
 
 #### Automated Verification
 
-- [ ] `bash scripts/test-design.sh` exits 0
-- [ ] `bash skills/design/inventory-design/scripts/playwright/test-run.sh` exits 0
-- [ ] `bash skills/design/inventory-design/scripts/test-ensure-playwright.sh` exits 0
-- [ ] `bash skills/design/inventory-design/scripts/validate-source.sh "http://localhost:8080"` exits 0
-- [ ] `grep -r 'mcp__playwright__\|Playwright MCP' README.md skills/design/ agents/ scripts/test-design.sh` returns no matches
-- [ ] `grep -r 'evaluate-payload-rejected' skills/design/ agents/ scripts/test-design.sh` returns no matches
+- [x] `bash scripts/test-design.sh` exits 0
+- [x] `bash skills/design/inventory-design/scripts/playwright/test-run.sh` exits 0
+- [x] `bash skills/design/inventory-design/scripts/test-ensure-playwright.sh` exits 0
+- [x] `bash skills/design/inventory-design/scripts/validate-source.sh "http://localhost:8080"` exits 0
+- [x] `grep -r 'mcp__playwright__\|Playwright MCP' README.md skills/design/ agents/ scripts/test-design.sh` returns no matches
+      (matches in evals/evals.json id 3 and benchmark.json are deprecated eval
+      data kept for historical reference — accepted as in Phase 4b)
+- [x] `grep -r 'evaluate-payload-rejected' skills/design/ agents/ scripts/test-design.sh` returns no matches
+      (matches in test-run.sh and test-run.js are assert_exit_code assertions
+      that verify the string is absent from executor source — accepted deviation)
 - [ ] skill-creator final benchmark recorded in `evals/benchmark.json`
       with thresholds met per §4 above
 
