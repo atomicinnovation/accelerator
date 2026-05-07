@@ -1,4 +1,10 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+
+// Relative timestamps ("57s ago", "2m ago") change between baseline capture
+// and test runs. Mask any <span> whose text ends with " ago" so pixel
+// differences in card headers don't cause spurious failures.
+const relativeTimeMask = (page: Page) =>
+  page.locator('span').filter({ hasText: / ago$/ })
 
 const ROUTES = [
   ['kanban', '/kanban'],
@@ -17,13 +23,17 @@ for (const [id, path] of ROUTES) {
       await page.setViewportSize(VIEWPORT)
       await page.goto(path)
       if (theme === 'dark') {
-        await page.evaluate(() => {
+        // Wait for a rAF after setting the attribute so the browser commits
+        // the style recalculation before the screenshot is taken.
+        await page.evaluate(() => new Promise<void>(resolve => {
           document.documentElement.dataset.theme = 'dark'
-        })
+          requestAnimationFrame(() => resolve())
+        }))
       }
       await expect(page).toHaveScreenshot(`${id}-${theme}.png`, {
         maxDiffPixelRatio: 0.05,
         animations: 'disabled',
+        mask: [relativeTimeMask(page)],
       })
     })
   }
@@ -40,21 +50,24 @@ test('lifecycle-cluster-after-click (light)', async ({ page }) => {
   await expect(page).toHaveScreenshot('lifecycle-cluster-after-click-light.png', {
     maxDiffPixelRatio: 0.05,
     animations: 'disabled',
+    mask: [relativeTimeMask(page)],
   })
 })
 
 test('lifecycle-cluster-after-click (dark)', async ({ page }) => {
   await page.setViewportSize(VIEWPORT)
   await page.goto('/lifecycle/first-plan')
-  await page.evaluate(() => {
+  await page.evaluate(() => new Promise<void>(resolve => {
     document.documentElement.dataset.theme = 'dark'
-  })
+    requestAnimationFrame(() => resolve())
+  }))
   const preClickUrl = page.url()
   await page.getByRole('link').first().click()
   await page.waitForURL(url => url.href !== preClickUrl, { timeout: 10000 })
   await expect(page).toHaveScreenshot('lifecycle-cluster-after-click-dark.png', {
     maxDiffPixelRatio: 0.05,
     animations: 'disabled',
+    mask: [relativeTimeMask(page)],
   })
 })
 
@@ -69,5 +82,6 @@ test('library (prefers-color-scheme: dark, no data-theme attribute)', async ({ p
   await expect(page).toHaveScreenshot('library-dark.png', {
     maxDiffPixelRatio: 0.05,
     animations: 'disabled',
+    mask: [relativeTimeMask(page)],
   })
 })

@@ -14,14 +14,16 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
-    {
-      name: 'chromium',
-      use: { browserName: 'chromium' },
-    },
+    // visual-regression runs first so the kanban snapshot captures the clean
+    // fixture state before the chromium project's drag tests modify it.
     {
       name: 'visual-regression',
       testDir: './tests/visual-regression',
       snapshotDir: './tests/visual-regression/__screenshots__',
+      use: { browserName: 'chromium' },
+    },
+    {
+      name: 'chromium',
       use: { browserName: 'chromium' },
     },
   ],
