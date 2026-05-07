@@ -1,0 +1,1 @@
+inventory-design: Playwright executor is unhealthy. Falling back to code-only crawler. Run `run.sh ping` manually to diagnose, or pass --crawler code to suppress this notice.

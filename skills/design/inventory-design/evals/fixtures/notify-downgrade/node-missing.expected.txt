@@ -1,0 +1,1 @@
+inventory-design: Playwright runtime is unavailable (Node >= 20 not found). Falling back to code-only crawler. Run `ensure-playwright.sh` manually to install, or pass --crawler code to suppress this notice.

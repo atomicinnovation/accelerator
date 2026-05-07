@@ -1,0 +1,1 @@
+inventory-design: Playwright runtime is unavailable (Node version is too old; >= 20 required). Falling back to code-only crawler. Run `ensure-playwright.sh` manually after upgrading Node, or pass --crawler code to suppress this notice.

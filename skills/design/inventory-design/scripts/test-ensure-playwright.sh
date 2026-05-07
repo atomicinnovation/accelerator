@@ -32,7 +32,12 @@ assert_stderr_contains "rejects when node missing — names install URL" "nodejs
   env PATH="/usr/bin:/bin" \
   bash "$ENSURE"
 
-assert_exit_code "rejects when node missing" 1 \
+assert_exit_code "rejects when node missing" 10 \
+  env PATH="/usr/bin:/bin" \
+  bash "$ENSURE"
+
+assert_stderr_contains "node-missing emits ACCELERATOR_DOWNGRADE_REASON=node-missing" \
+  "ACCELERATOR_DOWNGRADE_REASON=node-missing" \
   env PATH="/usr/bin:/bin" \
   bash "$ENSURE"
 
@@ -72,7 +77,7 @@ MOCK_CACHE_FAIL="$(mktemp -d)"
 trap 'rm -rf "$MOCK_CACHE_FAIL"' EXIT
 
 # Simulated npm ci failure
-assert_exit_code "exits 1 on simulated npm ci failure" 1 \
+assert_exit_code "exits 14 on simulated npm ci failure" 14 \
   env ACCELERATOR_PLAYWRIGHT_CACHE="$MOCK_CACHE_FAIL" \
   ACCELERATOR_PLAYWRIGHT_MOCK_NPM_EXIT=42 \
   bash "$ENSURE"
@@ -82,17 +87,30 @@ assert_stderr_contains "npm failure names NPM_CONFIG_REGISTRY" "NPM_CONFIG_REGIS
   ACCELERATOR_PLAYWRIGHT_MOCK_NPM_EXIT=42 \
   bash "$ENSURE"
 
+assert_stderr_contains "npm failure emits ACCELERATOR_DOWNGRADE_REASON=bootstrap-failed" \
+  "ACCELERATOR_DOWNGRADE_REASON=bootstrap-failed" \
+  env ACCELERATOR_PLAYWRIGHT_CACHE="$MOCK_CACHE_FAIL" \
+  ACCELERATOR_PLAYWRIGHT_MOCK_NPM_EXIT=42 \
+  bash "$ENSURE"
+
 MOCK_CACHE_FAIL2="$(mktemp -d)"
 trap 'rm -rf "$MOCK_CACHE_FAIL2"' EXIT
 
 # Simulated playwright install failure
-assert_exit_code "exits 1 on simulated playwright install failure" 1 \
+assert_exit_code "exits 15 on simulated playwright install failure" 15 \
   env ACCELERATOR_PLAYWRIGHT_CACHE="$MOCK_CACHE_FAIL2" \
   ACCELERATOR_PLAYWRIGHT_MOCK_NPM_OK=1 \
   ACCELERATOR_PLAYWRIGHT_MOCK_PLAYWRIGHT_EXIT=42 \
   bash "$ENSURE"
 
 assert_stderr_contains "playwright failure names PLAYWRIGHT_DOWNLOAD_HOST" "PLAYWRIGHT_DOWNLOAD_HOST" \
+  env ACCELERATOR_PLAYWRIGHT_CACHE="$MOCK_CACHE_FAIL2" \
+  ACCELERATOR_PLAYWRIGHT_MOCK_NPM_OK=1 \
+  ACCELERATOR_PLAYWRIGHT_MOCK_PLAYWRIGHT_EXIT=42 \
+  bash "$ENSURE"
+
+assert_stderr_contains "playwright failure emits ACCELERATOR_DOWNGRADE_REASON=bootstrap-failed" \
+  "ACCELERATOR_DOWNGRADE_REASON=bootstrap-failed" \
   env ACCELERATOR_PLAYWRIGHT_CACHE="$MOCK_CACHE_FAIL2" \
   ACCELERATOR_PLAYWRIGHT_MOCK_NPM_OK=1 \
   ACCELERATOR_PLAYWRIGHT_MOCK_PLAYWRIGHT_EXIT=42 \

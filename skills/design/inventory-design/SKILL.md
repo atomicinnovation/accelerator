@@ -11,6 +11,9 @@ disable-model-invocation: true
 allowed-tools: >
   Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*),
   Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*),
+  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *),
+  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/ensure-playwright.sh *),
+  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/notify-downgrade.sh *),
   mcp__playwright__browser_navigate,
   mcp__playwright__browser_snapshot,
   mcp__playwright__browser_take_screenshot,
@@ -43,15 +46,14 @@ snapshots.
 
 ## Crawler Modes
 
-| Mode      | Description                                                                                                                                                                                 | Requires Playwright MCP |
-|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------|
-| `code`    | Static analysis of source files only. Reads tokens from config files (Tailwind, CSS custom properties, design-token JSON), components from JSX/TSX/Vue/Svelte, screens from routing config. | No                      |
-| `runtime` | Live browser inspection only. Navigates each screen, captures computed styles and state via Playwright.                                                                                     | Yes                     |
-| `hybrid`  | Code-static as ground truth for tokens and components; runtime fills in screen states and screenshots. Default when the source is a code repo and the MCP is available.                     | Yes                     |
+| Mode      | Description                                                                                                                                                                                 | Requires Playwright runtime |
+|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|
+| `code`    | Static analysis of source files only. Reads tokens from config files (Tailwind, CSS custom properties, design-token JSON), components from JSX/TSX/Vue/Svelte, screens from routing config. | No                          |
+| `runtime` | Live browser inspection only. Navigates each screen, captures computed styles and state via Playwright.                                                                                     | Yes                         |
+| `hybrid`  | Code-static as ground truth for tokens and components; runtime fills in screen states and screenshots. Default when the source is a code repo.                                              | Yes                         |
 
 **Default selection**: if `--crawler` is not specified, the skill selects:
-- `hybrid` — when the location is a code-repo path and `mcp__playwright__browser_navigate` is in the available tool set
-- `code` — when the location is a code-repo path and Playwright MCP is unavailable (auto-downgrade; see MCP detection below)
+- `hybrid` — when the location is a code-repo path (auto-downgrades to `code` if Playwright is unavailable; see Steps 3–5)
 - `runtime` — when the location is an `https://` URL
 
 ## Steps
@@ -112,39 +114,61 @@ require authentication, skip it and record it in `Crawl Notes` with the message:
 
 Do not fabricate observations for auth-walled screens.
 
-### 3. Detect MCP Availability and Choose Crawler
+### 3. Provisional Crawler-Mode Resolution
 
-Check whether `mcp__playwright__browser_navigate` is in your available tool set.
-Do **not** probe with a navigation — check your own toolbox.
+Determine the provisional crawler mode from the CLI flag and defaults:
 
-- `--crawler runtime` + MCP absent: exit non-zero with:
-  > `error: Playwright MCP server not enabled in this session. Run
-  > \`claude mcp\` to enable it, or accept the prompt the next time you
-  > start Claude Code in this repo.`
+- Explicit `--crawler code` → `code` (skip Steps 4–6)
+- Explicit `--crawler runtime` → `runtime` (proceed to Step 4)
+- Explicit `--crawler hybrid` → `hybrid` (proceed to Step 4)
+- No flag, location is a code-repo path → `hybrid` (proceed to Step 4)
+- No flag, location is an `https://` URL → `runtime` (proceed to Step 4)
 
-- `--crawler hybrid` (or default) + MCP absent: downgrade to `code`. Print
-  **before the crawl starts** (not only in Crawl Notes):
-  > `inventory-design: Playwright MCP not available — falling back to
-  > code-only crawler. Enable the MCP and re-run to include runtime
-  > screen states and screenshots.`
-  Then record the same message in the `Crawl Notes` section.
+### 4. Bootstrap Playwright
 
-- MCP present but `browser_navigate` fails on first real navigation: re-emit
-  the upstream error with the suffix:
-  > `If this is the first run on this machine, the browser binaries may be
-  > missing — run \`mise run deps:install:playwright\`.`
-  This is always a hard failure — do not silently downgrade.
+Only if provisional mode is `runtime` or `hybrid`, run:
+```bash
+${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/ensure-playwright.sh
+```
 
-- Mid-crawl navigation failures: record against the affected screen in
-  `Crawl Notes` and continue with remaining screens.
+Capture its stdout, stderr, and exit code.
 
-### 4. Compute Next Sequence Number
+- **Exit 0** → bootstrap ready; proceed to Step 5.
+- **Non-zero exit** → extract the `ACCELERATOR_DOWNGRADE_REASON=<enum>` line from stderr.
+  - If provisional mode was `hybrid`: downgrade to `code`. Print the downgrade notice (see below)
+    and record it in `Crawl Notes`. Then skip to Step 7 (no ping needed).
+  - If provisional mode was `runtime`: hard-fail with the bootstrap stderr and stop.
+
+**Downgrade notice**: run `notify-downgrade.sh --from <mode> --to code --reason <enum>` and
+print its stdout **before the crawl starts** (not only in Crawl Notes).
+
+### 5. Confirm Executor Liveness
+
+Only if Step 4 succeeded (bootstrap ready), run:
+```bash
+${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh ping
+```
+
+- **Returns `{"ok":true,...}`** → executor is healthy; proceed to Step 6.
+- **Returns error JSON or fails** → treat as `executor-ping-failed`.
+  - If provisional mode was `hybrid`: downgrade to `code`. Run `notify-downgrade.sh --from hybrid
+    --to code --reason executor-ping-failed` and print the result. Record in `Crawl Notes`.
+  - If provisional mode was `runtime`: hard-fail with the ping error and stop.
+
+### 6. Finalize Crawler Mode
+
+The crawler mode is now finalised. Use what survived Steps 3–5:
+- If Step 3 set `code`, use `code`.
+- If Steps 4–5 succeeded for `runtime` or `hybrid`, use that mode.
+- If downgrade occurred in Steps 4 or 5, use `code`.
+
+### 7. Compute Next Sequence Number
 
 Scan all `*-{source-id}/inventory.md` files under the design inventories root.
 Read each frontmatter `sequence` field. Take `max + 1`, starting at 1 if none
 exist. This is the sequence number for the new inventory.
 
-### 5. Spawn Agents in Parallel
+### 8. Spawn Agents in Parallel
 
 Based on the chosen crawler mode:
 
@@ -171,15 +195,21 @@ screen states, computed styles, and screenshots.
   The crawl continues until another bound fires; the inventory is written with
   `screenshots_incomplete: true` in frontmatter.
 
-**Screenshot masking**: when calling `mcp__playwright__browser_take_screenshot`,
-pass the Playwright `mask` option for `[type=password]`, `[autocomplete*=token]`,
-and `[data-secret]` selectors. Never attempt to read or expose the values of
-masked fields.
+**Screenshot masking**: the executor automatically masks `[type=password]`,
+`[autocomplete*=token]`, and `[data-secret]` selectors in screenshots. Never
+attempt to read or expose the values of masked fields.
 
 **URL scrubbing**: strip query strings from any URL written into the inventory
 body (screen routes, references). Document this reduction in `Crawl Notes`.
 
-### 6. Synthesise
+**Auth-header origin allowlist (security-critical)**: if auth mode is `header`,
+the executor's `route()` handler enforces that `ACCELERATOR_BROWSER_AUTH_HEADER`
+is injected only on navigations whose origin matches the resolved `[location]`
+origin or the `ACCELERATOR_BROWSER_LOGIN_URL` origin. Instruct the
+`{browser analyser agent}` to enforce this explicitly for any manual header
+injection it performs.
+
+### 9. Synthesise
 
 Compile agent findings into the five inventory categories:
 
@@ -189,14 +219,14 @@ Compile agent findings into the five inventory categories:
 4. **Feature catalogue** — named features, activation mechanism (route, flag, interaction)
 5. **Information architecture** — navigation structure, primary user flows
 
-### 7. Generate Metadata
+### 10. Generate Metadata
 
 Run:
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/inventory-metadata.sh
 ```
 
-### 8. Write Artifact (Atomic)
+### 11. Write Artifact (Atomic)
 
 Build the inventory under a sibling temporary directory:
 ```
@@ -235,7 +265,17 @@ the just-written directory. For each remaining directory where `inventory.md` ha
 idempotent; if it fails partway through, the new directory is already
 authoritative (the resolver uses `sequence` as its primary tiebreaker).
 
-### 9. Present Summary
+### 12. Cleanup
+
+If a Playwright daemon was started (Steps 4–5 succeeded), stop it:
+```bash
+${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh daemon-stop
+```
+
+This is belt-and-braces — the browser agents also call `run.sh daemon-stop` as their final
+action. Running it here ensures cleanup even if an agent exits abnormally.
+
+### 13. Present Summary
 
 Report:
 - The artifact path

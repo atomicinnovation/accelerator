@@ -144,7 +144,7 @@
     {
       "id": 14,
       "name": "browser-evaluate-safety-structural",
-      "prompt": "Read agents/browser-analyser.md fully.\n\nSave to outputs/:\n- forbidden-patterns.md: List every forbidden browser_evaluate payload pattern that is explicitly named in the agent body",
+      "prompt": "Read agents/browser-analyser.md fully.\n\nSave to outputs/:\n- forbidden-patterns.md: List every forbidden run.sh evaluate payload pattern that is explicitly named in the '## run.sh evaluate Payload Allowlist' section of the agent body",
       "expected_output": "Agent body explicitly lists each forbidden pattern: fetch, XMLHttpRequest, document.cookie, localStorage, sessionStorage, indexedDB, eval, innerHTML, window.open.",
       "files": [],
       "expectations": [

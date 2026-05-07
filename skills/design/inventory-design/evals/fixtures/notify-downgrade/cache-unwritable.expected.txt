@@ -1,0 +1,1 @@
+inventory-design: Playwright cache directory is not writable. Falling back to code-only crawler. Check permissions on $ACCELERATOR_PLAYWRIGHT_CACHE (or ~/.cache/accelerator/playwright) and retry, or pass --crawler code to suppress this notice.

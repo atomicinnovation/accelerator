@@ -128,14 +128,16 @@ check_node() {
   if ! command -v node >/dev/null 2>&1; then
     echo "error: Node >= $NODE_FLOOR_MAJOR is required to use inventory-design --crawler runtime|hybrid." >&2
     echo "       Install from https://nodejs.org/ (OSTYPE=${OSTYPE:-unknown})" >&2
-    exit 1
+    echo "ACCELERATOR_DOWNGRADE_REASON=node-missing" >&2
+    exit 10
   fi
   local node_major
   node_major="$(node -e 'process.stdout.write(String(process.versions.node.split(".")[0]))')"
   if (( node_major < NODE_FLOOR_MAJOR )); then
     echo "error: Node >= $NODE_FLOOR_MAJOR required; detected Node $node_major.x" >&2
     echo "       Install from https://nodejs.org/ (OSTYPE=${OSTYPE:-unknown})" >&2
-    exit 1
+    echo "ACCELERATOR_DOWNGRADE_REASON=node-too-old" >&2
+    exit 11
   fi
 }
 
@@ -150,7 +152,8 @@ check_disk() {
   if (( avail_mb < DISK_FLOOR_MB )); then
     echo "error: ensure-playwright.sh: cache filesystem has ${avail_mb} MB free; >= ${DISK_FLOOR_MB} MB required." >&2
     echo "       Cache root: $target_dir" >&2
-    exit 1
+    echo "ACCELERATOR_DOWNGRADE_REASON=disk-floor-not-met" >&2
+    exit 12
   fi
 }
 
@@ -274,8 +277,9 @@ if [[ -n "${ACCELERATOR_PLAYWRIGHT_MOCK_NPM_EXIT:-}" ]]; then
   mkdir -p "$NS_ROOT"
   echo "error: npm ci failed with exit ${ACCELERATOR_PLAYWRIGHT_MOCK_NPM_EXIT} (simulated)" >&2
   echo "       Check: NPM_CONFIG_REGISTRY, NODE_EXTRA_CA_CERTS, HTTPS_PROXY" >&2
+  echo "ACCELERATOR_DOWNGRADE_REASON=bootstrap-failed" >&2
   release_lock
-  exit 1
+  exit 14
 fi
 
 if [[ -n "${ACCELERATOR_PLAYWRIGHT_MOCK_PLAYWRIGHT_EXIT:-}" ]]; then
@@ -286,8 +290,9 @@ if [[ -n "${ACCELERATOR_PLAYWRIGHT_MOCK_PLAYWRIGHT_EXIT:-}" ]]; then
     > "$NS_ROOT/node_modules/playwright/package.json"
   echo "error: playwright install chromium failed with exit ${ACCELERATOR_PLAYWRIGHT_MOCK_PLAYWRIGHT_EXIT} (simulated)" >&2
   echo "       Check: PLAYWRIGHT_DOWNLOAD_HOST" >&2
+  echo "ACCELERATOR_DOWNGRADE_REASON=bootstrap-failed" >&2
   release_lock
-  exit 1
+  exit 15
 fi
 
 # -- Real install path --------------------------------------------------------
@@ -300,7 +305,8 @@ check_disk "$CACHE_ROOT"
 # 2. Create cache directory
 if ! mkdir -p "$CACHE_ROOT" 2>/dev/null; then
   echo "error: ensure-playwright.sh: cache directory is not writable; tried $CACHE_ROOT" >&2
-  exit 1
+  echo "ACCELERATOR_DOWNGRADE_REASON=cache-unwritable" >&2
+  exit 13
 fi
 mkdir -p "$NS_ROOT"
 chmod 0700 "$CACHE_ROOT" "$NS_ROOT" 2>/dev/null || true
@@ -330,8 +336,9 @@ cd "$NS_ROOT"
 if ! npm ci --ignore-scripts --no-fund; then
   echo "error: npm ci failed. Check your network configuration:" >&2
   echo "  NPM_CONFIG_REGISTRY, NODE_EXTRA_CA_CERTS, HTTPS_PROXY" >&2
+  echo "ACCELERATOR_DOWNGRADE_REASON=bootstrap-failed" >&2
   release_lock
-  exit 1
+  exit 14
 fi
 
 # 7a. Non-failing audit (surface advisory warnings)
@@ -342,8 +349,9 @@ npm audit --omit=dev --audit-level=high 2>&1 || \
 if ! npx playwright install chromium; then
   echo "error: playwright install chromium failed. Check your network configuration:" >&2
   echo "  PLAYWRIGHT_DOWNLOAD_HOST" >&2
+  echo "ACCELERATOR_DOWNGRADE_REASON=bootstrap-failed" >&2
   release_lock
-  exit 1
+  exit 15
 fi
 
 # 9. Write sentinel and top-level pointer

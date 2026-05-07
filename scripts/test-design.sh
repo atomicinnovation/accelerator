@@ -69,6 +69,7 @@ extract_tools() {
     END { print line }
   ' "$file" \
   | sed 's/^tools:[[:space:]]*//' \
+  | sed 's/^>[[:space:]]*//' \
   | tr ',' '\n' \
   | sed 's/^[[:space:]]*//' \
   | sed 's/[[:space:]]*$//' \
@@ -81,25 +82,46 @@ extract_tools() {
 LOC_TOOLS="$(extract_tools "$LOC")"
 ANA_TOOLS="$(extract_tools "$ANA")"
 
-assert_eq "browser-locator declares exactly navigate+snapshot" \
-  "mcp__playwright__browser_navigate,mcp__playwright__browser_snapshot" \
+assert_eq "browser-locator declares executor + navigate + snapshot" \
+  "Bash(\${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *),mcp__playwright__browser_navigate,mcp__playwright__browser_snapshot" \
   "$LOC_TOOLS"
 assert_not_contains "browser-locator does not declare browser_take_screenshot" \
   "$LOC_TOOLS" "browser_take_screenshot"
 
-EXPECTED_ANA_TOOLS="mcp__playwright__browser_click,mcp__playwright__browser_evaluate,mcp__playwright__browser_navigate,mcp__playwright__browser_snapshot,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for"
-assert_eq "browser-analyser declares exactly the seven Playwright tools" \
+EXPECTED_ANA_TOOLS="Bash(\${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *),mcp__playwright__browser_click,mcp__playwright__browser_evaluate,mcp__playwright__browser_navigate,mcp__playwright__browser_snapshot,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for"
+assert_eq "browser-analyser declares executor + seven Playwright tools" \
   "$EXPECTED_ANA_TOOLS" "$ANA_TOOLS"
+
+# Dual-mode contract: both executor (Bash) and MCP tools must be declared
+assert_contains "browser-locator declares Bash run.sh executor" \
+  "$LOC_TOOLS" "run.sh"
+assert_contains "browser-analyser declares Bash run.sh executor" \
+  "$ANA_TOOLS" "run.sh"
+assert_contains "browser-locator declares mcp__playwright__browser_navigate" \
+  "$LOC_TOOLS" "mcp__playwright__browser_navigate"
+assert_contains "browser-analyser declares mcp__playwright__browser_navigate" \
+  "$ANA_TOOLS" "mcp__playwright__browser_navigate"
+
+# 4a transitional safety: run.sh instructions must precede MCP fallback in prose
+LOC_RUNSH_FIRST="$(grep -n 'run\.sh' "$LOC" | head -1 | cut -d: -f1)"
+LOC_MCP_FIRST="$(grep -n 'mcp__playwright__' "$LOC" | head -1 | cut -d: -f1)"
+assert_exit_code "browser-locator: run.sh appears before mcp__playwright__" 0 \
+  test "$LOC_RUNSH_FIRST" -lt "$LOC_MCP_FIRST"
+
+ANA_RUNSH_FIRST="$(grep -n 'run\.sh' "$ANA" | head -1 | cut -d: -f1)"
+ANA_MCP_FIRST="$(grep -n 'mcp__playwright__' "$ANA" | head -1 | cut -d: -f1)"
+assert_exit_code "browser-analyser: run.sh appears before mcp__playwright__" 0 \
+  test "$ANA_RUNSH_FIRST" -lt "$ANA_MCP_FIRST"
 
 echo ""
 
-echo "=== browser_evaluate payload allowlist ==="
+echo "=== run.sh evaluate payload allowlist ==="
 
 ANA_BODY="$(cat "$ANA")"
 for forbidden in "fetch" "XMLHttpRequest" "document.cookie" \
                  "localStorage" "sessionStorage" "indexedDB" \
                  "eval" "innerHTML" "window.open"; do
-  assert_contains "browser-analyser body forbids $forbidden in browser_evaluate" \
+  assert_contains "browser-analyser body forbids $forbidden in run.sh evaluate" \
     "$ANA_BODY" "$forbidden"
 done
 
@@ -145,6 +167,12 @@ assert_contains "allowed-tools enumerates browser_wait_for" \
   "$(cat "$SKILL")" "mcp__playwright__browser_wait_for"
 assert_not_contains "allowed-tools must not use mcp__playwright__* wildcard" \
   "$(cat "$SKILL")" "mcp__playwright__*"
+assert_contains "allowed-tools enumerates playwright run.sh Bash" \
+  "$(cat "$SKILL")" 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *)'
+assert_contains "allowed-tools enumerates ensure-playwright.sh Bash" \
+  "$(cat "$SKILL")" 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/ensure-playwright.sh *)'
+assert_contains "allowed-tools enumerates notify-downgrade.sh Bash" \
+  "$(cat "$SKILL")" 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/notify-downgrade.sh *)'
 assert_contains "loads config context" \
   "$(cat "$SKILL")" "config-read-context.sh"
 assert_contains "loads agent names" \
@@ -438,6 +466,11 @@ echo ""
 
 echo "=== inventory-design: playwright executor ==="
 bash "$PLUGIN_ROOT/skills/design/inventory-design/scripts/playwright/test-run.sh"
+
+echo ""
+
+echo "=== inventory-design: notify-downgrade.sh ==="
+bash "$PLUGIN_ROOT/skills/design/inventory-design/scripts/test-notify-downgrade.sh"
 
 echo ""
 

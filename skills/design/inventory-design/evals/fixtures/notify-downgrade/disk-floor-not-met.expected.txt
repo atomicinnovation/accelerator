@@ -1,0 +1,1 @@
+inventory-design: Playwright cache filesystem has less than 500 MB free. Falling back to code-only crawler. Free space at $ACCELERATOR_PLAYWRIGHT_CACHE and retry, or pass --crawler code to suppress this notice.
