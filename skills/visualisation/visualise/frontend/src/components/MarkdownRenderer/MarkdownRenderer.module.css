@@ -4,7 +4,7 @@
   color: var(--ac-fg-strong);
 }
 .markdown h1, .markdown h2, .markdown h3 {
-  margin-top: var(--sp-5); margin-bottom: var(--sp-2); font-weight: 600;
+  margin-top: var(--sp-5); margin-bottom: var(--sp-2); font-weight: 600; font-family: var(--ac-font-display);
 }
 .markdown h1 { font-size: 1.75rem; border-bottom: 1px solid var(--ac-stroke-soft); padding-bottom: var(--sp-1); }
 .markdown h2 { font-size: var(--size-lg); }

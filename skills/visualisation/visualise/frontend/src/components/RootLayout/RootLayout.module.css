@@ -1,2 +1,2 @@
-.shell { display: flex; min-height: 100vh; font-family: system-ui, sans-serif; }
+.shell { display: flex; min-height: 100vh; font-family: var(--ac-font-body); }
 .main { flex: 1; overflow: auto; padding: var(--sp-5) var(--sp-6); }
