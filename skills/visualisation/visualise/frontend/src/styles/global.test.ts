@@ -9,6 +9,7 @@ import {
   LIGHT_SHADOW_TOKENS,
   DARK_SHADOW_TOKENS,
   LAYOUT_TOKENS,
+  MONO_FONT_TOKENS,
 } from './tokens'
 
 type Scope = 'root' | 'dark'
@@ -198,6 +199,22 @@ function countTopLevelBodyRules(css: string): number {
   const stripped = css.replace(/@[^{]+\{(?:[^{}]|\{[^}]*\})*\}/g, '')
   return (stripped.match(/(^|\s|,)body\s*\{/g) ?? []).length
 }
+
+function readMonoVar(name: string): string | null {
+  const blockRe = /\[data-font="mono"\]\s*\{([\s\S]*?)\}/
+  const block = blockRe.exec(globalCss)?.[1] ?? ''
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const re = new RegExp(`--${escapedName}:\\s*([^;]+);`)
+  return re.exec(block)?.[1].trim().toLowerCase() ?? null
+}
+
+describe('tokens.ts ↔ global.css [data-font="mono"] parity', () => {
+  for (const [name, value] of Object.entries(MONO_FONT_TOKENS)) {
+    it(`--${name} matches MONO_FONT_TOKENS.${name}`, () => {
+      expectMatches(readMonoVar(name), value)
+    })
+  }
+})
 
 describe('global body/html token consumption', () => {
   it('there is exactly one top-level body rule', () => {

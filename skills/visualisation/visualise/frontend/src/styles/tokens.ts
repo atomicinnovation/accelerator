@@ -109,6 +109,13 @@ export const LAYOUT_TOKENS = {
   'ac-topbar-h': '48px',
 } as const
 
+export const MONO_FONT_TOKENS = {
+  'ac-font-display': 'var(--ac-font-mono)',
+  'ac-font-body':    'var(--ac-font-mono)',
+} as const
+
+export type MonoFontToken = keyof typeof MONO_FONT_TOKENS
+
 export type ColorTokenLight = keyof typeof LIGHT_COLOR_TOKENS
 export type ColorTokenDark = keyof typeof DARK_COLOR_TOKENS
 export type TypographyToken = keyof typeof TYPOGRAPHY_TOKENS

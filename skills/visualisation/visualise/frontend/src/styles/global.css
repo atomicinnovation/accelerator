@@ -204,6 +204,16 @@ body {
   }
 }
 
+/* MIRROR-C: explicit [data-font="mono"] block — repoints the display
+   and body font-family tokens to var(--ac-font-mono) so the cascade
+   from .root flips the entire app to Fira Code. Components that
+   already reference --ac-font-mono directly (OriginPill, SseIndicator)
+   are unaffected. */
+[data-font="mono"] {
+  --ac-font-display: var(--ac-font-mono);
+  --ac-font-body:    var(--ac-font-mono);
+}
+
 :focus-visible {
   outline: 2px solid var(--ac-accent);
   outline-offset: 2px;
