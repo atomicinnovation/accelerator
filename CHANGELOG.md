@@ -54,6 +54,12 @@
 
 ### Added
 
+- **`/accelerator:research-issue` skill**: Hypothesis-driven root cause analysis
+  for production issues and bugs. Accepts stacktraces, logs, error messages, or
+  vague behavioral descriptions and produces an RCA document in `meta/research/`.
+  Uses parallel sub-agents to investigate multiple hypotheses concurrently.
+  New `rca` template added for structured output.
+
 - **Meta visualiser** — a new browser-based companion view of the `meta/`
   directory. Launches via `/accelerator:visualise` or the
   `accelerator-visualiser` CLI. Three views: library (markdown reader for all

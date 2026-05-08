@@ -56,6 +56,13 @@ research-codebase  →  create-plan  →  implement-plan
    the plan phase by phase, checking off success criteria as each phase
    completes. The plan file serves as both instructions and progress tracker.
 
+A companion skill handles issue investigation:
+
+- `/accelerator:research-issue "auth timeout on token refresh"` — Investigate
+  production issues through hypothesis-driven debugging. Accepts stacktraces,
+  logs, or behavioral descriptions and produces an RCA document in
+  `meta/research/`.
+
 Three complementary skills support this loop:
 
 - `/accelerator:review-plan @meta/plans/plan.md` — Review a plan through
@@ -76,7 +83,7 @@ These paths can be overridden via the `paths` configuration section:
 
 | Directory             | Purpose                                                        | Written by                                                   |
 |-----------------------|----------------------------------------------------------------|--------------------------------------------------------------|
-| `research/`           | Research findings with YAML frontmatter                        | `research-codebase`                                          |
+| `research/`           | Research findings with YAML frontmatter                        | `research-codebase`, `research-issue`                        |
 | `plans/`              | Implementation plans with phased changes                       | `create-plan`                                                |
 | `decisions/`          | Architecture decision records (ADRs)                           | `create-adr`, `extract-adrs`, `review-adr`                   |
 | `reviews/`            | Review summaries and per-lens results                          | `review-pr`, `review-plan`                                   |
