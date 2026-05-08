@@ -2948,6 +2948,59 @@ fi
 echo ""
 
 # ============================================================
+echo "=== config-read-all-paths.sh ==="
+echo ""
+
+READ_ALL_PATHS="$SCRIPT_DIR/config-read-all-paths.sh"
+
+echo "Test: outputs ## Configured Paths header"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_ALL_PATHS")
+assert_contains "has Configured Paths header" "$OUTPUT" "## Configured Paths"
+
+echo "Test: all 11 document-discovery keys present with defaults"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_ALL_PATHS")
+for key_default in \
+  "plans: meta/plans" \
+  "research: meta/research" \
+  "decisions: meta/decisions" \
+  "prs: meta/prs" \
+  "validations: meta/validations" \
+  "review_plans: meta/reviews/plans" \
+  "review_prs: meta/reviews/prs" \
+  "review_work: meta/reviews/work" \
+  "work: meta/work" \
+  "notes: meta/notes" \
+  "global: meta/global"; do
+  assert_contains "default for ${key_default%:*}" "$OUTPUT" "- ${key_default}"
+done
+
+echo "Test: excluded keys not in output"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_ALL_PATHS")
+for excl in tmp templates integrations design_inventories design_gaps; do
+  assert_not_contains "excluded key ${excl} absent" "$OUTPUT" "- ${excl}:"
+done
+
+echo "Test: config override reflected in output"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+paths:
+  work: docs/work-items
+  global: shared/global
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_ALL_PATHS")
+assert_contains "work override reflected" "$OUTPUT" "- work: docs/work-items"
+assert_contains "global override reflected" "$OUTPUT" "- global: shared/global"
+assert_contains "unset key still defaults" "$OUTPUT" "- plans: meta/plans"
+
+echo ""
+
+# ============================================================
 echo "=== config-read-template.sh ==="
 echo ""
 
