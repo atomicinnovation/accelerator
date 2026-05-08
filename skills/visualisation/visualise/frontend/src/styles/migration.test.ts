@@ -77,6 +77,7 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   // components/Breadcrumbs/Breadcrumbs.module.css
   { file: 'components/Breadcrumbs/Breadcrumbs.module.css', literal: '2px', count: 3, kind: 'irreducible', reason: 'outline width/offset, border-radius — below --sp-1 floor' },
   // components/OriginPill/OriginPill.module.css
+  { file: 'components/OriginPill/OriginPill.module.css', literal: '6px', count: 2, kind: 'irreducible', reason: 'dot width/height — between --sp-1 (4px) and --sp-2 (8px)' },
   { file: 'components/OriginPill/OriginPill.module.css', literal: '3px', count: 1, kind: 'irreducible', reason: 'box-shadow ring spread — below --sp-1 floor' },
   // components/Topbar/Topbar.module.css
   { file: 'components/Topbar/Topbar.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'border-bottom and divider widths — below --sp-1 floor' },
@@ -254,7 +255,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 410 // Dot ring: 3px raw replaces var(--sp-1) (-1 var ref)
+const AC5_FLOOR = 408 // Dot size: 6px raw replaces var(--sp-1) width+height (-2 var refs)
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 
