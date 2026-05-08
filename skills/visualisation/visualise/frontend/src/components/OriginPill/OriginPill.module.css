@@ -1,0 +1,26 @@
+.originPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--ac-stroke-soft);
+  background: var(--ac-bg-chrome);
+  font-family: var(--ac-font-mono);
+  font-size: 0.875rem;
+  color: var(--ac-fg);
+}
+
+.pulseDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ac-ok);
+  animation: ac-pulse 2s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulseDot {
+    animation: none;
+  }
+}
