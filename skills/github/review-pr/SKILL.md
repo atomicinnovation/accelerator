@@ -22,8 +22,8 @@ accelerator:web-search-researcher.
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh pr`
 
-**PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs meta/reviews/prs`
-**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp .accelerator/tmp`
+**PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs`
+**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp`
 
 **IMPORTANT**: Wherever `{tmp directory}` or `{pr reviews directory}` appears
 in the instructions below, substitute the actual resolved path shown above.

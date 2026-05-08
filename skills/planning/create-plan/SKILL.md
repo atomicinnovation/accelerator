@@ -19,8 +19,8 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
 
 You are tasked with creating detailed implementation plans through an
 interactive, iterative process. You should be skeptical, thorough, and work
@@ -208,7 +208,7 @@ Once aligned on approach:
 After structure approval:
 
 1. **Write the plan** to
-   `!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans``/YYYY-MM-DD-ENG-XXXX-description.md
+   `!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans``/YYYY-MM-DD-ENG-XXXX-description.md
 
 - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
   - YYYY-MM-DD is today's date

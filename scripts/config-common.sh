@@ -209,7 +209,7 @@ config_resolve_template() {
 
   # Tier 2: Templates directory
   local templates_dir
-  templates_dir=$("$SCRIPT_DIR/config-read-path.sh" templates .accelerator/templates)
+  templates_dir=$("$SCRIPT_DIR/config-read-path.sh" templates)
   if [[ "$templates_dir" != /* ]]; then
     templates_dir="$project_root/$templates_dir"
   fi

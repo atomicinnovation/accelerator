@@ -13,8 +13,8 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh describe-pr`
 
-**PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh prs meta/prs`
-**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp .accelerator/tmp`
+**PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh prs`
+**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp`
 
 **IMPORTANT**: Wherever `{prs directory}` or `{tmp directory}` appears in
 the instructions below, substitute the actual resolved path shown above.

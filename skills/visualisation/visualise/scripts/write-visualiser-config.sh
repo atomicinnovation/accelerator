@@ -31,9 +31,9 @@ for required in PLUGIN_VERSION PROJECT_ROOT TMP_DIR LOG_FILE; do
   fi
 done
 
-resolve_path() { "$PLUGIN_ROOT/scripts/config-read-path.sh" "$1" "$2"; }
+resolve_path() { "$PLUGIN_ROOT/scripts/config-read-path.sh" "$1"; }
 abs_path() {
-  echo "$PROJECT_ROOT/$(resolve_path "$1" "$2")"
+  echo "$PROJECT_ROOT/$(resolve_path "$1")"
 }
 
 # Pre-flight migration check: reject launches from projects that still carry a
@@ -47,20 +47,20 @@ if [ -n "$TICKETS_OVERRIDE" ] && [ -z "$WORK_OVERRIDE" ]; then
   exit 1
 fi
 
-DECISIONS="$(abs_path decisions meta/decisions)"
-WORK="$(abs_path work meta/work)"
-REVIEW_WORK="$(abs_path review_work meta/reviews/work)"
-PLANS="$(abs_path plans meta/plans)"
-RESEARCH="$(abs_path research meta/research)"
-REVIEW_PLANS="$(abs_path review_plans meta/reviews/plans)"
-REVIEW_PRS="$(abs_path review_prs meta/reviews/prs)"
-VALIDATIONS="$(abs_path validations meta/validations)"
-NOTES="$(abs_path notes meta/notes)"
-PRS="$(abs_path prs meta/prs)"
-DESIGN_GAPS="$(abs_path design_gaps meta/design-gaps)"
-DESIGN_INVENTORIES="$(abs_path design_inventories meta/design-inventories)"
+DECISIONS="$(abs_path decisions)"
+WORK="$(abs_path work)"
+REVIEW_WORK="$(abs_path review_work)"
+PLANS="$(abs_path plans)"
+RESEARCH="$(abs_path research)"
+REVIEW_PLANS="$(abs_path review_plans)"
+REVIEW_PRS="$(abs_path review_prs)"
+VALIDATIONS="$(abs_path validations)"
+NOTES="$(abs_path notes)"
+PRS="$(abs_path prs)"
+DESIGN_GAPS="$(abs_path design_gaps)"
+DESIGN_INVENTORIES="$(abs_path design_inventories)"
 
-TEMPLATES_USER_ROOT="$(abs_path templates .accelerator/templates)"
+TEMPLATES_USER_ROOT="$(abs_path templates)"
 TEMPLATES_PLUGIN_ROOT="$PLUGIN_ROOT/templates"
 
 template_tier() {

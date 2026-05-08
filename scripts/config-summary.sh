@@ -17,7 +17,7 @@ done < <(config_find_files)
 
 # Check for tmp/.gitignore (not just tmp/) as the initialisation sentinel,
 # because review-pr creates tmp/ organically via mkdir -p.
-TMP_PATH=$("$SCRIPT_DIR/config-read-path.sh" tmp .accelerator/tmp)
+TMP_PATH=$("$SCRIPT_DIR/config-read-path.sh" tmp)
 INITIALISED=true
 [ ! -f "$TMP_PATH/.gitignore" ] && INITIALISED=false
 

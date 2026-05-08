@@ -13,7 +13,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh respond-to-pr`
 
-**PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs meta/reviews/prs`
+**PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs`
 
 You are tasked with working through outstanding pull request review feedback
 in a systematic, interactive fashion. For each piece of feedback, you verify

@@ -66,7 +66,7 @@ fi
 PROJECT_ROOT=$(config_project_root)
 
 # Resolve target directory
-TEMPLATES_DIR=$("$SCRIPT_DIR/config-read-path.sh" templates .accelerator/templates)
+TEMPLATES_DIR=$("$SCRIPT_DIR/config-read-path.sh" templates)
 if [[ "$TEMPLATES_DIR" != /* ]]; then
   TEMPLATES_DIR="$PROJECT_ROOT/$TEMPLATES_DIR"
 fi

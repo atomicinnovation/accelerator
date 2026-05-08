@@ -11,9 +11,9 @@ README="$PLUGIN_ROOT/README.md"
 echo "=== Foundation: init SKILL.md ==="
 
 assert_contains "init lists design_inventories path key" \
-  "$(cat "$INIT")" "design_inventories meta/design-inventories"
+  "$(cat "$INIT")" "design_inventories"
 assert_contains "init lists design_gaps path key" \
-  "$(cat "$INIT")" "design_gaps meta/design-gaps"
+  "$(cat "$INIT")" "design_gaps"
 assert_contains "init declares directory count via marker" \
   "$(cat "$INIT")" "<!-- DIR_COUNT:12 -->"
 assert_contains "init summary lists design inventories directory" \

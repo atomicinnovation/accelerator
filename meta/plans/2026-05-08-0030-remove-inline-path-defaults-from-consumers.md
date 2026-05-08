@@ -3,7 +3,7 @@ date: "2026-05-08T00:00:00Z"
 type: plan
 skill: create-plan
 work-item: "0030"
-status: draft
+status: complete
 ---
 
 # Remove Inline Path Defaults from Consumer Call Sites
@@ -208,13 +208,13 @@ also continues to pass (only `config-defaults.sh` defines the arrays).
 
 #### Automated Verification
 
-- [ ] `mise run test:integration:config` passes with updated length assertions
+- [x] `mise run test:integration:config` passes with updated length assertions
       (11 → 15) and content assertions for `PATH_KEYS` and `PATH_DEFAULTS`.
-- [ ] AC2 grep still returns only `./scripts/config-defaults.sh`.
+- [x] AC2 grep still returns only `./scripts/config-defaults.sh`.
 
 #### Manual Verification
 
-- [ ] Four new entries at the end of each array in `config-defaults.sh`; order
+- [x] Four new entries at the end of each array in `config-defaults.sh`; order
       and content match the table above.
 
 ---
@@ -371,22 +371,22 @@ with a comment that reflects the new reality:
 
 #### Automated Verification
 
-- [ ] New `=== config-read-path.sh (no-default lookup) ===` block passes for
+- [x] New `=== config-read-path.sh (no-default lookup) ===` block passes for
       all nine tests (plans, tmp, integrations, design_inventories, design_gaps,
       templates, config-set value with no `$2`, unknown key returns empty,
       explicit override).
-- [ ] All existing `=== config-read-path.sh ===` tests continue to pass
+- [x] All existing `=== config-read-path.sh ===` tests continue to pass
       (explicit `$2` path is unaffected).
-- [ ] `mise run test:integration:config` passes.
+- [x] `mise run test:integration:config` passes.
 
 #### Manual Verification
 
-- [ ] `bash scripts/config-read-path.sh plans` (no second arg, no config)
+- [x] `bash scripts/config-read-path.sh plans` (no second arg, no config)
       outputs `meta/plans`.
-- [ ] `bash scripts/config-read-path.sh tmp` outputs `.accelerator/tmp`.
-- [ ] `bash scripts/config-read-path.sh unknown_key` prints a warning to
+- [x] `bash scripts/config-read-path.sh tmp` outputs `.accelerator/tmp`.
+- [x] `bash scripts/config-read-path.sh unknown_key` prints a warning to
       stderr and produces no stdout output.
-- [ ] `scripts/config-defaults.sh` line 19 no longer contains "Do not source
+- [x] `scripts/config-defaults.sh` line 19 no longer contains "Do not source
       this file directly"; the updated comment explains the sourcing split.
 
 ---
@@ -554,20 +554,20 @@ continue to pass.
 
 #### Automated Verification
 
-- [ ] Structural grep test passes (0 inline-default matches in SKILL.md and
+- [x] Structural grep test passes (0 inline-default matches in SKILL.md and
       bash consumer files, excluding `test-config.sh` and migrations).
-- [ ] `mise run test:integration:config` passes with 0 failures.
-- [ ] `mise run test:integration` passes (full suite).
+- [x] `mise run test:integration:config` passes with 0 failures.
+- [x] `mise run test:integration` passes (full suite).
 
 #### Manual Verification
 
-- [ ] `bash scripts/config-read-path.sh work` (no config, no second arg)
+- [x] `bash scripts/config-read-path.sh work` (no config, no second arg)
       outputs `meta/work`.
 - [ ] `bash scripts/config-eject-template.sh` does not fail or produce an empty
       templates path (smoke test the template ejection flow).
 - [ ] Launch the visualiser in a project with no `.accelerator/config.md` —
       verify all paths resolve to their plugin defaults.
-- [ ] `grep -rn 'config-read-path\.sh' skills/ --include='SKILL.md' | grep -v 'test-' | head -5`
+- [x] `grep -rn 'config-read-path\.sh' skills/ --include='SKILL.md' | grep -v 'test-' | head -5`
       shows calls with only one argument after the script name.
 
 ---

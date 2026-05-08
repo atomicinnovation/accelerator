@@ -22,8 +22,8 @@ accelerator:web-search-researcher.
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh plan`
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans meta/plans`
-**Plan reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_plans meta/reviews/plans`
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
+**Plan reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_plans`
 
 You are tasked with reviewing an implementation plan through multiple quality
 lenses and then collaboratively iterating the plan based on findings.

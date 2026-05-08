@@ -29,7 +29,7 @@ accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher, accelerator:browser-locator,
 accelerator:browser-analyser.
 
-**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh design_inventories meta/design-inventories`
+**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh design_inventories`
 
 You are tasked with crawling a design source and producing a structured
 `design-inventory` artifact. The artifact captures the design tokens,

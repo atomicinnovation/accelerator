@@ -18,7 +18,7 @@ if [[ -z "${PROJECT_ROOT:-}" ]]; then
   exit 2
 fi
 
-TMP_REL="$("$PLUGIN_ROOT/scripts/config-read-path.sh" tmp .accelerator/tmp 2>/dev/null || echo '.accelerator/tmp')"
+TMP_REL="$("$PLUGIN_ROOT/scripts/config-read-path.sh" tmp)"
 STATE_DIR="$PROJECT_ROOT/$TMP_REL/inventory-design-playwright"
 mkdir -p "$STATE_DIR"
 chmod 0700 "$STATE_DIR" 2>/dev/null || true

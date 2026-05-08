@@ -22,8 +22,8 @@ accelerator:web-search-researcher.
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh work-item`
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work meta/work`
-**Work item reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_work meta/reviews/work`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
+**Work item reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_work`
 
 You are tasked with reviewing a work item through quality lenses and then
 collaboratively iterating the work item based on findings.

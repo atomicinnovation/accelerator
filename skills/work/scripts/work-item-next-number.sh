@@ -48,7 +48,7 @@ fi
 
 REPO_ROOT=$(find_repo_root) || REPO_ROOT="$PWD"
 
-WORK_PATH=$("$PLUGIN_ROOT/scripts/config-read-path.sh" work meta/work)
+WORK_PATH=$("$PLUGIN_ROOT/scripts/config-read-path.sh" work)
 if [[ "$WORK_PATH" == /* ]]; then
   WORK_DIR="$WORK_PATH"
 else

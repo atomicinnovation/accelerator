@@ -49,7 +49,7 @@ for d in skills lenses templates; do
 done
 
 # Step 3: tmp directory and inner .gitignore (path may be overridden)
-TMP_DIR=$(bash "$CONFIG_READ_PATH" tmp .accelerator/tmp)
+TMP_DIR=$(bash "$CONFIG_READ_PATH" tmp)
 mkdir -p "$TMP_DIR"
 TMP_GITIGNORE="$TMP_DIR/.gitignore"
 if [ ! -f "$TMP_GITIGNORE" ]; then

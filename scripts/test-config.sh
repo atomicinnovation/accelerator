@@ -2880,6 +2880,36 @@ REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_PATH" plans custom/plans)
 assert_eq "explicit override" "custom/plans" "$OUTPUT"
 
+echo "Test: no consumer passes a hardcoded inline default to config-read-path.sh"
+# "? matches both bare invocations (SKILL.md backtick style: config-read-path.sh key default)
+# and quoted-path bash style ("$VAR/config-read-path.sh" key default).
+INLINE_DEFAULT_PATTERN='config-read-path\.sh"?[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]+[^$"\n[:space:]]'
+SKILL_MATCHES=$(cd "$PLUGIN_ROOT" && grep -rn --include='SKILL.md' \
+  --exclude-dir=workspaces \
+  -E "$INLINE_DEFAULT_PATTERN" . | sort -u || true)
+BASH_MATCHES=$(cd "$PLUGIN_ROOT" && grep -rn --include='*.sh' \
+  --exclude-dir=workspaces \
+  --exclude='test-config.sh' \
+  -E "$INLINE_DEFAULT_PATTERN" . | grep -v '/migrations/' | grep -v ':[[:space:]]*#' | sort -u || true)
+# jira-common.sh uses a multiline invocation — check the default token separately
+# (line continuation means key and default don't appear on the same line).
+JIRA_FILE="$PLUGIN_ROOT/skills/integrations/jira/scripts/jira-common.sh"
+if [ ! -f "$JIRA_FILE" ]; then
+  echo "  FAIL: $JIRA_FILE not found — cannot verify multiline call site"
+  FAIL=$((FAIL + 1))
+fi
+JIRA_MATCHES=$(grep -n '\.accelerator/state/integrations' "$JIRA_FILE" 2>/dev/null | \
+  grep -v '#' | sort -u || true)
+ALL_MATCHES="${SKILL_MATCHES}${BASH_MATCHES}${JIRA_MATCHES}"
+if [ -z "$ALL_MATCHES" ]; then
+  echo "  PASS: no inline defaults found"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: inline defaults remain at:"
+  echo "$ALL_MATCHES" | sed 's/^/    /'
+  FAIL=$((FAIL + 1))
+fi
+
 echo ""
 
 # ============================================================
