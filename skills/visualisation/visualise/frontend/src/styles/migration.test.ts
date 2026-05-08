@@ -252,7 +252,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 407 // Design reconciliation: OriginPill pill stripped (-4), Topbar divider (+2), Breadcrumbs simplified (-1)
+const AC5_FLOOR = 411 // Design polish: OriginPill box-shadow (+3), SseIndicator label (+1)
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 

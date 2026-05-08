@@ -12,8 +12,8 @@ export function Brand() {
       >
         <defs>
           <linearGradient id="hexg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="var(--ac-accent)" stopOpacity="1" />
-            <stop offset="100%" stopColor="var(--ac-accent-2)" stopOpacity="1" />
+            <stop offset="0%" stopColor="var(--ac-accent)" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="var(--ac-accent)" stopOpacity="1" />
           </linearGradient>
         </defs>
         <path
@@ -22,13 +22,13 @@ export function Brand() {
           stroke="url(#hexg)"
           strokeWidth="2"
         />
-        <circle cx="20" cy="20" r="3" fill="var(--ac-accent)" />
+        <circle cx="20" cy="20" r="3" fill="var(--ac-accent-2)" />
         <circle
           cx="20"
           cy="20"
           r="7.5"
           fill="none"
-          stroke="var(--ac-accent-2)"
+          stroke="var(--ac-accent)"
           strokeWidth="1"
           strokeOpacity="0.5"
         />

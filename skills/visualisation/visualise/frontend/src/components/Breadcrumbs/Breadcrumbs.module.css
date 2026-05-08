@@ -19,7 +19,7 @@
 }
 
 .link {
-  color: var(--ac-fg-faint);
+  color: var(--ac-fg-muted);
   text-decoration: none;
 }
 
@@ -35,9 +35,8 @@
 
 .current {
   color: var(--ac-fg);
-  font-weight: 600;
 }
 
 .sep {
-  color: var(--ac-fg-faint);
+  color: var(--ac-fg-muted);
 }

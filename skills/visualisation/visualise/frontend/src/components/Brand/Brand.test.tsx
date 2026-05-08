@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { Brand } from './Brand'
 
 describe('Brand', () => {
-  it('renders an aria-hidden SVG with a gradient referencing accent tokens', () => {
+  it('renders an aria-hidden SVG with a gradient and accent-2 dot', () => {
     render(<Brand />)
     const svg = document.querySelector('svg')
     expect(svg).not.toBeNull()
@@ -12,7 +12,11 @@ describe('Brand', () => {
     const stops = document.querySelectorAll('stop')
     const stopColors = Array.from(stops).map(s => s.getAttribute('stop-color'))
     expect(stopColors).toContain('var(--ac-accent)')
-    expect(stopColors).toContain('var(--ac-accent-2)')
+
+    // Center dot uses the secondary accent (orange/coral)
+    const circles = document.querySelectorAll('circle')
+    const fills = Array.from(circles).map(c => c.getAttribute('fill')).filter(Boolean)
+    expect(fills).toContain('var(--ac-accent-2)')
   })
 
   it('renders "Accelerator" text', () => {

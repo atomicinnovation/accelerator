@@ -26,16 +26,17 @@ export function SseIndicator() {
         viewBox="0 0 14 10"
         fill="none"
         aria-hidden="true"
+        className={styles.icon}
       >
         <path
-          d="M1 5 L3 2 L5 8 L7 1 L9 8 L11 2 L13 5"
+          d="M1 5 L5 5 L6 2 L7 9 L8 5 L13 5"
           stroke="currentColor"
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
       </svg>
-      <span>SSE</span>
+      <span className={styles.label}>SSE</span>
     </span>
   )
 }

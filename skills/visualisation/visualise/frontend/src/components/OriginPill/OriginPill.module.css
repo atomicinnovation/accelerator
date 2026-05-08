@@ -4,7 +4,7 @@
   gap: var(--sp-2);
   font-family: var(--ac-font-mono);
   font-size: var(--size-xs);
-  color: var(--ac-fg-faint);
+  color: var(--ac-fg-muted);
 }
 
 .pulseDot {
@@ -12,6 +12,7 @@
   height: var(--sp-2);
   border-radius: var(--radius-pill);
   background: var(--ac-ok);
+  box-shadow: 0 0 0 var(--sp-1) color-mix(in srgb, var(--ac-ok) 30%, var(--ac-bg));
   animation: ac-pulse 2s ease-in-out infinite alternate;
 }
 

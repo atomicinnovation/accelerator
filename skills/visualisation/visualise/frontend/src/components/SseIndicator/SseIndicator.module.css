@@ -5,10 +5,13 @@
   font-family: var(--ac-font-mono);
   font-size: var(--size-xs);
 }
-.sse[data-state='open']         { color: var(--ac-ok); }
-.sse[data-state='reconnecting'] { color: var(--ac-warn); }
-.sse[data-state='connecting']   { color: var(--ac-fg-faint); }
-.sse[data-state='closed']       { color: var(--ac-err); }
+
+.label { color: var(--ac-fg-muted); }
+
+.sse[data-state='open'] .icon         { color: var(--ac-ok); }
+.sse[data-state='reconnecting'] .icon { color: var(--ac-warn); }
+.sse[data-state='connecting'] .icon   { color: var(--ac-fg-faint); }
+.sse[data-state='closed'] .icon       { color: var(--ac-err); }
 .sse[data-animated='true'] {
   animation: ac-pulse 2s ease-in-out infinite alternate;
 }
