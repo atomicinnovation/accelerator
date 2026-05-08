@@ -149,3 +149,100 @@ describe('router', () => {
     expect(screen.queryByText(/coming in phase 7/i)).toBeNull()
   })
 })
+
+describe('loader crumbs', () => {
+  beforeEach(() => {
+    vi.spyOn(fetchModule, 'fetchTypes').mockResolvedValue([])
+    vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: [] })
+    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue({
+      name: 'adr', activeTier: 'plugin-default', tiers: [],
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('/library/templates → Templates crumb with Library ancestor', async () => {
+    const router = renderAt('/library/templates')
+    await waitForPath(router, '/library/templates')
+    const matches = router.state.matches
+    const templatesMatch = matches.find(m => m.routeId.includes('templates') && !m.routeId.includes('$name'))
+    const libraryMatch = matches.find(m => m.routeId === '/library')
+    expect((templatesMatch?.loaderData as any)?.crumb).toBe('Templates')
+    expect((libraryMatch?.loaderData as any)?.crumb).toBe('Library')
+  })
+
+  it('/library/templates/adr → adr crumb', async () => {
+    const router = renderAt('/library/templates/adr')
+    await waitForPath(router, '/library/templates/adr')
+    const matches = router.state.matches
+    const detailMatch = matches.find(m => m.routeId.includes('$name'))
+    expect((detailMatch?.loaderData as any)?.crumb).toBe('adr')
+  })
+
+  it('/library/decisions → decisions crumb with Library ancestor', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
+    const router = renderAt('/library/decisions')
+    await waitForPath(router, '/library/decisions')
+    const matches = router.state.matches
+    const typeMatch = matches.find(m => m.routeId.includes('$type'))
+    const libraryMatch = matches.find(m => m.routeId === '/library')
+    expect((typeMatch?.loaderData as any)?.crumb).toBe('decisions')
+    expect((libraryMatch?.loaderData as any)?.crumb).toBe('Library')
+  })
+
+  it('/library/decisions/some-slug → some-slug crumb with Library and decisions ancestors', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([
+      { slug: 'some-slug', title: 'Some', docType: 'decisions', tags: [], lastModifiedMs: 0 } as any,
+    ])
+    const router = renderAt('/library/decisions/some-slug')
+    await waitForPath(router, '/library/decisions/some-slug')
+    const matches = router.state.matches
+    const docMatch = matches.find(m => m.routeId.includes('$fileSlug'))
+    const typeMatch = matches.find(m => m.routeId.includes('$type'))
+    const libraryMatch = matches.find(m => m.routeId === '/library')
+    expect((docMatch?.loaderData as any)?.crumb).toBe('some-slug')
+    expect((typeMatch?.loaderData as any)?.crumb).toBe('decisions')
+    expect((libraryMatch?.loaderData as any)?.crumb).toBe('Library')
+  })
+
+  it('/lifecycle → Lifecycle crumb', async () => {
+    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue([])
+    const router = renderAt('/lifecycle')
+    await waitForPath(router, '/lifecycle')
+    const matches = router.state.matches
+    const lifecycleMatch = matches.find(m => m.routeId === '/lifecycle')
+    expect((lifecycleMatch?.loaderData as any)?.crumb).toBe('Lifecycle')
+  })
+
+  it('/lifecycle/some-cluster → some-cluster crumb with Lifecycle ancestor', async () => {
+    vi.spyOn(fetchModule, 'fetchLifecycleCluster').mockResolvedValue({
+      slug: 'some-cluster', title: 'Some Cluster', entries: [],
+      completeness: {
+        hasWorkItem: false, hasResearch: false, hasPlan: false,
+        hasPlanReview: false, hasValidation: false, hasPr: false,
+        hasPrReview: false, hasDecision: false, hasNotes: false,
+        hasDesignInventory: false, hasDesignGap: false,
+      },
+      lastChangedMs: 0,
+    })
+    const router = renderAt('/lifecycle/some-cluster')
+    await waitForPath(router, '/lifecycle/some-cluster')
+    const matches = router.state.matches
+    const clusterMatch = matches.find(m => m.routeId.includes('$slug'))
+    const lifecycleMatch = matches.find(m => m.routeId === '/lifecycle')
+    expect((clusterMatch?.loaderData as any)?.crumb).toBe('some-cluster')
+    expect((lifecycleMatch?.loaderData as any)?.crumb).toBe('Lifecycle')
+  })
+
+  it('/kanban → Kanban crumb', async () => {
+    stubKanbanConfigFetch()
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
+    const router = renderAt('/kanban')
+    await waitForPath(router, '/kanban')
+    const matches = router.state.matches
+    const kanbanMatch = matches.find(m => m.routeId === '/kanban')
+    expect((kanbanMatch?.loaderData as any)?.crumb).toBe('Kanban')
+  })
+})
