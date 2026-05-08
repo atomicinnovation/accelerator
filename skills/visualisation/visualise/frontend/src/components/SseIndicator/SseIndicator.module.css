@@ -1,0 +1,19 @@
+.sse {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+}
+.sse[data-state='open']         { background: var(--ac-ok); }
+.sse[data-state='reconnecting'] { background: var(--ac-warn); }
+.sse[data-state='connecting']   { background: var(--ac-fg-faint); }
+.sse[data-state='closed']       { background: var(--ac-err); }
+.sse[data-animated='true'] {
+  animation: ac-pulse 2s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sse[data-animated='true'] {
+    animation: none;
+  }
+}
