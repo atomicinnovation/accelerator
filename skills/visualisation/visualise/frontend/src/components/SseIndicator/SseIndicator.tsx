@@ -21,17 +21,17 @@ export function SseIndicator() {
       data-animated={animated ? 'true' : undefined}
     >
       <svg
-        width="14"
-        height="10"
-        viewBox="0 0 14 10"
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
         fill="none"
         aria-hidden="true"
         className={styles.icon}
       >
         <path
-          d="M1 5 L4 5 L5 1 L9 9 L10 5 L13 5"
+          d="M3 12h4l3-8 4 16 3-8h4"
           stroke="currentColor"
-          strokeWidth="1.5"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
