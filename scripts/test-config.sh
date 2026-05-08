@@ -2423,6 +2423,59 @@ fi
 echo ""
 
 # ============================================================
+echo "=== config-defaults.sh ==="
+echo ""
+
+DEFAULTS_FILE="$SCRIPT_DIR/config-defaults.sh"
+
+echo "Test: config-defaults.sh exists"
+if [ -f "$DEFAULTS_FILE" ]; then
+  echo "  PASS: file exists"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: file exists"
+  echo "    Expected: $DEFAULTS_FILE"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: PATH_KEYS has expected length and order"
+EXPECTED_PATH_KEYS="paths.plans paths.research paths.decisions paths.prs paths.validations paths.review_plans paths.review_prs paths.review_work paths.templates paths.work paths.notes"
+ACTUAL_PATH_KEYS_LEN=$( source "$DEFAULTS_FILE" && echo "${#PATH_KEYS[@]}" )
+assert_eq "PATH_KEYS length" "11" "$ACTUAL_PATH_KEYS_LEN"
+ACTUAL_PATH_KEYS=$( source "$DEFAULTS_FILE" && echo "${PATH_KEYS[*]}" )
+assert_eq "PATH_KEYS contents" "$EXPECTED_PATH_KEYS" "$ACTUAL_PATH_KEYS"
+
+echo "Test: PATH_DEFAULTS has expected length and order"
+EXPECTED_PATH_DEFAULTS="meta/plans meta/research meta/decisions meta/prs meta/validations meta/reviews/plans meta/reviews/prs meta/reviews/work .accelerator/templates meta/work meta/notes"
+ACTUAL_PATH_DEFAULTS_LEN=$( source "$DEFAULTS_FILE" && echo "${#PATH_DEFAULTS[@]}" )
+assert_eq "PATH_DEFAULTS length" "11" "$ACTUAL_PATH_DEFAULTS_LEN"
+ACTUAL_PATH_DEFAULTS=$( source "$DEFAULTS_FILE" && echo "${PATH_DEFAULTS[*]}" )
+assert_eq "PATH_DEFAULTS contents" "$EXPECTED_PATH_DEFAULTS" "$ACTUAL_PATH_DEFAULTS"
+
+echo "Test: TEMPLATE_KEYS has expected length and order"
+EXPECTED_TEMPLATE_KEYS="templates.plan templates.research templates.adr templates.validation templates.pr-description templates.work-item"
+ACTUAL_TEMPLATE_KEYS_LEN=$( source "$DEFAULTS_FILE" && echo "${#TEMPLATE_KEYS[@]}" )
+assert_eq "TEMPLATE_KEYS length" "6" "$ACTUAL_TEMPLATE_KEYS_LEN"
+ACTUAL_TEMPLATE_KEYS=$( source "$DEFAULTS_FILE" && echo "${TEMPLATE_KEYS[*]}" )
+assert_eq "TEMPLATE_KEYS contents" "$EXPECTED_TEMPLATE_KEYS" "$ACTUAL_TEMPLATE_KEYS"
+
+echo "Test: config-dump.sh renders at least one paths.* and one templates.* row"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' > "$REPO/.accelerator/config.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+if echo "$OUTPUT" | grep -qF '| `paths.plans` |' && echo "$OUTPUT" | grep -qF '| `templates.plan` |'; then
+  echo "  PASS: paths.* and templates.* rows present in config-dump output"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: paths.* and templates.* rows present in config-dump output"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
 echo "=== config-dump.sh ==="
 echo ""
 
