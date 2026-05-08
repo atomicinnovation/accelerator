@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { safeGetItem, safeSetItem } from './safe-storage'
+import { FONT_MODE_STORAGE_KEY } from './storage-keys'
 
 export type FontMode = 'display' | 'mono'
-export const FONT_MODE_STORAGE_KEY = 'ac-font-mode'
+export { FONT_MODE_STORAGE_KEY }
 
 export interface FontModeHandle {
   fontMode: FontMode

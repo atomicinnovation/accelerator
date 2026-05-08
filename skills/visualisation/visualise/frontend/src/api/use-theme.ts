@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { safeGetItem, safeSetItem } from './safe-storage'
+import { THEME_STORAGE_KEY } from './storage-keys'
 
 export type Theme = 'light' | 'dark'
-export const THEME_STORAGE_KEY = 'ac-theme'
+export { THEME_STORAGE_KEY }
 
 export interface ThemeHandle {
   theme: Theme

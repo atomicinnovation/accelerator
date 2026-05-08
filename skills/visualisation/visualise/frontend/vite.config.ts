@@ -1,6 +1,21 @@
 import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vitest/config'
+import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import { BOOT_SCRIPT_SOURCE } from './src/api/storage-keys'
+
+function bootThemePlugin(): Plugin {
+  return {
+    name: 'ac-boot-theme',
+    transformIndexHtml: {
+      order: 'pre',
+      handler: (html) => html.replace(
+        /<head([^>]*)>/,
+        `<head$1>\n    <script>${BOOT_SCRIPT_SOURCE}</script>`,
+      ),
+    },
+  }
+}
 
 /**
  * Resolve the dev API port in this order:
@@ -36,7 +51,7 @@ function resolveApiPort(): number {
 const apiPort = resolveApiPort()
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [bootThemePlugin(), react()],
   server: {
     proxy: {
       '/api': {
