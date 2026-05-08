@@ -2825,6 +2825,64 @@ assert_eq "local overrides team" "my/plans" "$OUTPUT"
 echo ""
 
 # ============================================================
+echo "=== config-read-path.sh (no-default lookup) ==="
+echo ""
+
+echo "Test: plans key → meta/plans with no \$2"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" plans)
+assert_eq "plans default" "meta/plans" "$OUTPUT"
+
+echo "Test: tmp key → .accelerator/tmp with no \$2"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" tmp)
+assert_eq "tmp default" ".accelerator/tmp" "$OUTPUT"
+
+echo "Test: integrations key → .accelerator/state/integrations with no \$2"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" integrations)
+assert_eq "integrations default" ".accelerator/state/integrations" "$OUTPUT"
+
+echo "Test: design_inventories key → meta/design-inventories with no \$2"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" design_inventories)
+assert_eq "design_inventories default" "meta/design-inventories" "$OUTPUT"
+
+echo "Test: design_gaps key → meta/design-gaps with no \$2"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" design_gaps)
+assert_eq "design_gaps default" "meta/design-gaps" "$OUTPUT"
+
+echo "Test: templates key → .accelerator/templates with no \$2"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" templates)
+assert_eq "templates default" ".accelerator/templates" "$OUTPUT"
+
+echo "Test: no-\$2 returns configured value when key is set in config"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+paths:
+  work: docs/work-items
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" work)
+assert_eq "config-set value with no \$2" "docs/work-items" "$OUTPUT"
+
+echo "Test: unknown key returns empty output with no \$2"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" unknown_key 2>/dev/null || true)
+assert_eq "unknown key returns empty" "" "$OUTPUT"
+
+echo "Test: explicit \$2 still overrides centralized default"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" plans custom/plans)
+assert_eq "explicit override" "custom/plans" "$OUTPUT"
+
+echo ""
+
+# ============================================================
 echo "=== config-read-template.sh ==="
 echo ""
 

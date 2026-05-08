@@ -16,7 +16,9 @@
 # (bare keys vs paths.*-prefixed) and are tracked for unification in a
 # follow-on work item.
 #
-# Do not source this file directly — source config-common.sh instead.
+# config-read-path.sh sources this file directly (it cannot afford the VCS
+# detection overhead pulled in via config-common.sh). All other consumers
+# should source config-common.sh, which sources this file transitively.
 
 # shellcheck disable=SC2034
 # (variables are exported-by-sourcing; consumers are invisible to a
