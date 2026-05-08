@@ -2127,12 +2127,12 @@ no token references in this revision.
 
 #### Automated Verification
 
-- [ ] `npm run test src/components/ThemeToggle/ThemeToggle.test.tsx` is
+- [x] `npm run test src/components/ThemeToggle/ThemeToggle.test.tsx` is
   green.
-- [ ] `npm run test src/styles/migration.test.ts` is green (AC5 floor
+- [x] `npm run test src/styles/migration.test.ts` is green (AC5 floor
   bumped, no new hex/px literals).
-- [ ] `npm run test` overall is green.
-- [ ] `npm run build` succeeds.
+- [x] `npm run test` overall is green.
+- [x] `npm run build` succeeds.
 
 #### Manual Verification
 
@@ -2321,11 +2321,11 @@ mid-implementation waypoints.
 
 #### Automated Verification
 
-- [ ] `npm run test src/components/FontModeToggle/FontModeToggle.test.tsx`
+- [x] `npm run test src/components/FontModeToggle/FontModeToggle.test.tsx`
   is green.
-- [ ] `npm run test src/styles/migration.test.ts` is green.
-- [ ] `npm run test` overall is green.
-- [ ] `npm run build` succeeds.
+- [x] `npm run test src/styles/migration.test.ts` is green.
+- [x] `npm run test` overall is green.
+- [x] `npm run build` succeeds.
 
 #### Manual Verification
 
@@ -2510,10 +2510,10 @@ flex row.
 
 #### Automated Verification
 
-- [ ] `npm run test src/components/Topbar/Topbar.test.tsx` is green
+- [x] `npm run test src/components/Topbar/Topbar.test.tsx` is green
   (new content assertions pass; old emptiness assertions removed).
-- [ ] `npm run test` overall is green.
-- [ ] `npm run build` succeeds.
+- [x] `npm run test` overall is green.
+- [x] `npm run build` succeeds.
 
 #### Manual Verification
 
@@ -2577,7 +2577,7 @@ All tests green.
 
 #### Automated Verification
 
-- [ ] `npm run test:e2e` is green against the re-captured baselines.
+- [x] `npm run test:e2e` is green against the re-captured baselines.
 
 #### Manual Verification
 
@@ -2634,7 +2634,7 @@ item Drafting Notes:
 
 #### Automated Verification
 
-- [ ] The work item file no longer contains the literal string
+- [x] The work item file no longer contains the literal string
   `default/mono` or `default` in the `data-font` context.
 
 #### Manual Verification

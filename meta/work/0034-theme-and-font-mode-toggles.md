@@ -40,7 +40,7 @@ Reference screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-
 
 - Implement a theme context hook that sets `data-theme` (`light`/`dark`) on
   the document root.
-- Implement a font-mode context hook that sets `data-font` (`default`/`mono`)
+- Implement a font-mode context hook that sets `data-font` (`display`/`mono`)
   on the document root.
 - Author the `[data-font="mono"]` CSS block in `global.css` (not delivered by
   0033), reassigning `--ac-font-display` and `--ac-font-body` to `"Fira Code"`
@@ -65,7 +65,7 @@ Reference screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-
   theme-appropriate values, verified by the pre-existing dark-block parity
   assertion in `global.test.ts` (line 167).
 - [ ] Given the user clicks the font-mode toggle, then `data-font` switches
-  between `default` and `mono` and `--ac-font-display` / `--ac-font-body` both
+  between `display` and `mono` and `--ac-font-display` / `--ac-font-body` both
   compute to `"Fira Code"` on `document.documentElement`.
 - [ ] Given `localStorage` contains `"ac-theme"` and/or `"ac-font-mode"`
   entries from a prior session, when the app boots, then the stored
@@ -178,6 +178,11 @@ Reference screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-
 - Context updated to reflect that 0033 shipped dark-mode token values and the
   `--ac-font-mono` brand token; the `[data-font="mono"]` CSS override block was
   not delivered by 0033 and is authored by this story.
+- Attribute value `data-font="display"` adopted (not `default`) to align with
+  the prototype design inventory's canonical naming
+  (`meta/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md:227`).
+  The plan (`meta/plans/2026-05-08-0034-theme-and-font-mode-toggles.md`) records
+  this decision.
 
 ## References
 
