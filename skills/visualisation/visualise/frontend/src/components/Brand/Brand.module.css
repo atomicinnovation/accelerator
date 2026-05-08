@@ -1,0 +1,31 @@
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.mark {
+  flex-shrink: 0;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  line-height: var(--lh-tight);
+}
+
+.brandName {
+  font-family: var(--ac-font-display);
+  font-weight: 600;
+  font-size: var(--size-sm);
+  color: var(--ac-fg);
+}
+
+.brandSub {
+  font-family: var(--ac-font-body);
+  font-size: var(--size-xxs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ac-fg-muted);
+}
