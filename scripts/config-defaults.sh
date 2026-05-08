@@ -40,6 +40,7 @@ PATH_KEYS=(
   "paths.integrations"
   "paths.design_inventories"
   "paths.design_gaps"
+  "paths.global"
 )
 
 PATH_DEFAULTS=(
@@ -58,6 +59,7 @@ PATH_DEFAULTS=(
   ".accelerator/state/integrations"
   "meta/design-inventories"
   "meta/design-gaps"
+  "meta/global"
 )
 
 TEMPLATE_KEYS=(

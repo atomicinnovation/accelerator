@@ -29,6 +29,7 @@ Resolve each output directory using the plugin's path configuration:
 **Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh notes`
 **Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh design_inventories`
 **Design gaps directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh design_gaps`
+**Global directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh global`
 
 ## Steps
 
@@ -37,13 +38,13 @@ already existed so you can present a summary at the end.
 
 ### Steps 1–3: Run the init script
 
-<!-- DIR_COUNT:12 -->
+<!-- DIR_COUNT:13 -->
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/config/init/scripts/init.sh"
 ```
 
-The script creates 12 `meta/` directories with `.gitkeep` files, creates the
+The script creates 13 `meta/` directories with `.gitkeep` files, creates the
 `.accelerator/` core scaffold (`.gitignore`, `state/`, `tmp/`, `skills/`,
 `lenses/`, `templates/`), writes the inner tmp `.gitignore`, and appends the
 `.accelerator/config.local.md` rule to the root `.gitignore`. It is idempotent
@@ -69,6 +70,7 @@ Directories:
   ✓ {notes directory} (created | already exists)
   ✓ {design inventories directory} (created | already exists)
   ✓ {design gaps directory} (created | already exists)
+  ✓ {global directory} (created | already exists)
 
 Accelerator scaffold:
   ✓ .accelerator/.gitignore (created | already exists)

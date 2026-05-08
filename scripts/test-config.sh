@@ -2439,16 +2439,16 @@ else
 fi
 
 echo "Test: PATH_KEYS has expected length and order"
-EXPECTED_PATH_KEYS="paths.plans paths.research paths.decisions paths.prs paths.validations paths.review_plans paths.review_prs paths.review_work paths.templates paths.work paths.notes paths.tmp paths.integrations paths.design_inventories paths.design_gaps"
+EXPECTED_PATH_KEYS="paths.plans paths.research paths.decisions paths.prs paths.validations paths.review_plans paths.review_prs paths.review_work paths.templates paths.work paths.notes paths.tmp paths.integrations paths.design_inventories paths.design_gaps paths.global"
 ACTUAL_PATH_KEYS_LEN=$( source "$DEFAULTS_FILE" && echo "${#PATH_KEYS[@]}" )
-assert_eq "PATH_KEYS length" "15" "$ACTUAL_PATH_KEYS_LEN"
+assert_eq "PATH_KEYS length" "16" "$ACTUAL_PATH_KEYS_LEN"
 ACTUAL_PATH_KEYS=$( source "$DEFAULTS_FILE" && echo "${PATH_KEYS[*]}" )
 assert_eq "PATH_KEYS contents" "$EXPECTED_PATH_KEYS" "$ACTUAL_PATH_KEYS"
 
 echo "Test: PATH_DEFAULTS has expected length and order"
-EXPECTED_PATH_DEFAULTS="meta/plans meta/research meta/decisions meta/prs meta/validations meta/reviews/plans meta/reviews/prs meta/reviews/work .accelerator/templates meta/work meta/notes .accelerator/tmp .accelerator/state/integrations meta/design-inventories meta/design-gaps"
+EXPECTED_PATH_DEFAULTS="meta/plans meta/research meta/decisions meta/prs meta/validations meta/reviews/plans meta/reviews/prs meta/reviews/work .accelerator/templates meta/work meta/notes .accelerator/tmp .accelerator/state/integrations meta/design-inventories meta/design-gaps meta/global"
 ACTUAL_PATH_DEFAULTS_LEN=$( source "$DEFAULTS_FILE" && echo "${#PATH_DEFAULTS[@]}" )
-assert_eq "PATH_DEFAULTS length" "15" "$ACTUAL_PATH_DEFAULTS_LEN"
+assert_eq "PATH_DEFAULTS length" "16" "$ACTUAL_PATH_DEFAULTS_LEN"
 ACTUAL_PATH_DEFAULTS=$( source "$DEFAULTS_FILE" && echo "${PATH_DEFAULTS[*]}" )
 assert_eq "PATH_DEFAULTS contents" "$EXPECTED_PATH_DEFAULTS" "$ACTUAL_PATH_DEFAULTS"
 
@@ -2852,6 +2852,41 @@ echo "Test: design_gaps key → meta/design-gaps with no \$2"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_PATH" design_gaps)
 assert_eq "design_gaps default" "meta/design-gaps" "$OUTPUT"
+
+echo "Test: global key → meta/global with no \$2"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" global)
+assert_eq "global default" "meta/global" "$OUTPUT"
+
+echo "Test: global key returns config override when set"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+paths:
+  global: custom/global
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" global)
+assert_eq "global config override" "custom/global" "$OUTPUT"
+
+echo "Test: global key returns config.local.md override (last-writer-wins)"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+paths:
+  global: custom/global
+---
+FIXTURE
+cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+---
+paths:
+  global: local/override
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" global)
+assert_eq "global local override" "local/override" "$OUTPUT"
 
 echo "Test: templates key → .accelerator/templates with no \$2"
 REPO=$(setup_repo)
