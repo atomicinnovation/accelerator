@@ -3,7 +3,7 @@
   align-items: center;
   gap: var(--sp-3);
   height: var(--ac-topbar-h);
-  padding: 0 var(--sp-5);
+  padding: 0 var(--sp-3);
   border-bottom: 1px solid var(--ac-stroke);
   background: var(--ac-bg-chrome);
 }

@@ -44,6 +44,8 @@ const VAR_COUNT_RE = /var\(\s*--/g
 type Exception = { file: string; literal: string; count: number; reason: string }
 
 const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible' }> = [
+  // components/Brand/Brand.module.css
+  { file: 'components/Brand/Brand.module.css', literal: '10px', count: 1, kind: 'irreducible', reason: 'VISUALISER sub-label — below --size-xxs (12px) floor' },
   // components/FrontmatterChips/FrontmatterChips.module.css
   { file: 'components/FrontmatterChips/FrontmatterChips.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'off-scale gap (6.4px) — between --sp-1 and --sp-2' },
   { file: 'components/FrontmatterChips/FrontmatterChips.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
@@ -255,7 +257,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 409 // Breadcrumbs font-size token added (+1)
+const AC5_FLOOR = 408 // VISUALISER sub-label: 10px raw replaces var(--size-xxs) (-1)
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 
