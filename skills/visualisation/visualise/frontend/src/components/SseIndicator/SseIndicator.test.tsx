@@ -75,21 +75,21 @@ describe('SseIndicator', () => {
   })
 
   describe('CSS source assertions', () => {
-    it("[data-state='open'] binds --ac-ok background", () => {
+    it("[data-state='open'] binds --ac-ok color", () => {
       expect(sseCss).toContain("[data-state='open']")
-      expect(sseCss).toMatch(/\[data-state='open'\][^{]*\{[^}]*background:\s*var\(--ac-ok\)/)
+      expect(sseCss).toMatch(/\[data-state='open'\][^{]*\{[^}]*color:\s*var\(--ac-ok\)/)
     })
 
-    it("[data-state='reconnecting'] binds --ac-warn background", () => {
-      expect(sseCss).toMatch(/\[data-state='reconnecting'\][^{]*\{[^}]*background:\s*var\(--ac-warn\)/)
+    it("[data-state='reconnecting'] binds --ac-warn color", () => {
+      expect(sseCss).toMatch(/\[data-state='reconnecting'\][^{]*\{[^}]*color:\s*var\(--ac-warn\)/)
     })
 
-    it("[data-state='connecting'] binds --ac-fg-faint background", () => {
-      expect(sseCss).toMatch(/\[data-state='connecting'\][^{]*\{[^}]*background:\s*var\(--ac-fg-faint\)/)
+    it("[data-state='connecting'] binds --ac-fg-faint color", () => {
+      expect(sseCss).toMatch(/\[data-state='connecting'\][^{]*\{[^}]*color:\s*var\(--ac-fg-faint\)/)
     })
 
-    it("[data-state='closed'] binds --ac-err background", () => {
-      expect(sseCss).toMatch(/\[data-state='closed'\][^{]*\{[^}]*background:\s*var\(--ac-err\)/)
+    it("[data-state='closed'] binds --ac-err color", () => {
+      expect(sseCss).toMatch(/\[data-state='closed'\][^{]*\{[^}]*color:\s*var\(--ac-err\)/)
     })
 
     it("[data-animated='true'] binds animation: ac-pulse", () => {

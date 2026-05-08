@@ -13,15 +13,29 @@ export function SseIndicator() {
   const { connectionState } = useDocEventsContext()
   const animated = connectionState === 'reconnecting'
 
-  // `data-animated={animated ? 'true' : undefined}` — React omits
-  // attributes whose value is `undefined`, so the attribute is
-  // absent from the DOM in non-reconnecting states.
   return (
     <span
       className={styles.sse}
       aria-label={LABELS[connectionState]}
       data-state={connectionState}
       data-animated={animated ? 'true' : undefined}
-    />
+    >
+      <svg
+        width="14"
+        height="10"
+        viewBox="0 0 14 10"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M1 5 L3 2 L5 8 L7 1 L9 8 L11 2 L13 5"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <span>SSE</span>
+    </span>
   )
 }

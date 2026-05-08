@@ -8,6 +8,13 @@
   background: var(--ac-bg-chrome);
 }
 
+.divider {
+  width: 1px;
+  height: var(--sp-5);
+  background: var(--ac-stroke);
+  flex-shrink: 0;
+}
+
 .spacer { flex: 1; }
 
 .slot:empty {

@@ -51,11 +51,11 @@ export function Breadcrumbs() {
             <li key={m.id} className={styles.crumb}>
               {i > 0 && (
                 <span className={styles.sep} aria-hidden="true">
-                  /
+                  ›
                 </span>
               )}
               {isLast ? (
-                <span aria-current="page">{m.loaderData.crumb}</span>
+                <span className={styles.current} aria-current="page">{m.loaderData.crumb}</span>
               ) : (
                 <a
                   href={m.pathname}

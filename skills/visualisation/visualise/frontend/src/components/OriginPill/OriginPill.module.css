@@ -2,13 +2,9 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: var(--sp-1) var(--sp-3);
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--ac-stroke-soft);
-  background: var(--ac-bg-chrome);
   font-family: var(--ac-font-mono);
   font-size: var(--size-xs);
-  color: var(--ac-fg);
+  color: var(--ac-fg-faint);
 }
 
 .pulseDot {

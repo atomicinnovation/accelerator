@@ -19,21 +19,23 @@
 }
 
 .link {
-  color: var(--ac-fg);
-  text-decoration: underline;
-  text-decoration-color: var(--ac-fg-faint);
-  text-underline-offset: 2px;
+  color: var(--ac-fg-faint);
+  text-decoration: none;
 }
 
 .link:hover {
   color: var(--ac-accent);
-  text-decoration-color: var(--ac-accent);
 }
 
 .link:focus-visible {
   outline: 2px solid var(--ac-accent);
   outline-offset: 2px;
   border-radius: 2px;
+}
+
+.current {
+  color: var(--ac-fg);
+  font-weight: 600;
 }
 
 .sep {

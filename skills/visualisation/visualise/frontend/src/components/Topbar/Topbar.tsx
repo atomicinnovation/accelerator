@@ -8,6 +8,7 @@ export function Topbar() {
   return (
     <header className={styles.topbar}>
       <Brand />
+      <div className={styles.divider} />
       <Breadcrumbs />
       <div className={styles.spacer} />
       <OriginPill />

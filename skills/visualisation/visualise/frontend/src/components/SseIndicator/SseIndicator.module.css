@@ -1,13 +1,14 @@
 .sse {
-  width: var(--sp-2);
-  height: var(--sp-2);
-  border-radius: var(--radius-pill);
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xs);
 }
-.sse[data-state='open']         { background: var(--ac-ok); }
-.sse[data-state='reconnecting'] { background: var(--ac-warn); }
-.sse[data-state='connecting']   { background: var(--ac-fg-faint); }
-.sse[data-state='closed']       { background: var(--ac-err); }
+.sse[data-state='open']         { color: var(--ac-ok); }
+.sse[data-state='reconnecting'] { color: var(--ac-warn); }
+.sse[data-state='connecting']   { color: var(--ac-fg-faint); }
+.sse[data-state='closed']       { color: var(--ac-err); }
 .sse[data-animated='true'] {
   animation: ac-pulse 2s ease-in-out infinite alternate;
 }
