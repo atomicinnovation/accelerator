@@ -6,6 +6,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/vcs-common.sh"
+source "$SCRIPT_DIR/config-defaults.sh"
 
 # shellcheck disable=SC2034
 AGENT_PREFIX="accelerator:"

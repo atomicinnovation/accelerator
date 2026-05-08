@@ -2473,6 +2473,15 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+echo "Test: config-defaults.sh is the only definition site for the arrays"
+DEFINITION_PATTERN='^[[:space:]]*((declare|typeset)[[:space:]]+(-[a-zA-Z]+[[:space:]]+)?|readonly[[:space:]]+|export[[:space:]]+|local[[:space:]]+)?(PATH_KEYS|PATH_DEFAULTS|TEMPLATE_KEYS)(\+)?='
+MATCHES=$(cd "$PLUGIN_ROOT" && grep -rlnE --include='*.sh' \
+  --exclude-dir=workspaces \
+  "$DEFINITION_PATTERN" . | sort -u)
+EXPECTED="./scripts/config-defaults.sh"
+assert_eq "only config-defaults.sh defines PATH_KEYS/PATH_DEFAULTS/TEMPLATE_KEYS" \
+  "$EXPECTED" "$MATCHES"
+
 echo ""
 
 # ============================================================

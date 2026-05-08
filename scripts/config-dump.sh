@@ -171,35 +171,7 @@ for i in "${!AGENT_KEYS[@]}"; do
   echo "| \`$key\` | \`$value\` | $source |"
 done
 
-# Path keys
-PATH_KEYS=(
-  "paths.plans"
-  "paths.research"
-  "paths.decisions"
-  "paths.prs"
-  "paths.validations"
-  "paths.review_plans"
-  "paths.review_prs"
-  "paths.review_work"
-  "paths.templates"
-  "paths.work"
-  "paths.notes"
-)
-
-PATH_DEFAULTS=(
-  "meta/plans"
-  "meta/research"
-  "meta/decisions"
-  "meta/prs"
-  "meta/validations"
-  "meta/reviews/plans"
-  "meta/reviews/prs"
-  "meta/reviews/work"
-  ".accelerator/templates"
-  "meta/work"
-  "meta/notes"
-)
-
+# Path keys (defined in config-defaults.sh)
 for i in "${!PATH_KEYS[@]}"; do
   key="${PATH_KEYS[$i]}"
   default="${PATH_DEFAULTS[$i]}"
@@ -208,16 +180,7 @@ for i in "${!PATH_KEYS[@]}"; do
   echo "| \`$key\` | \`$value\` | $source |"
 done
 
-# Template keys
-TEMPLATE_KEYS=(
-  "templates.plan"
-  "templates.research"
-  "templates.adr"
-  "templates.validation"
-  "templates.pr-description"
-  "templates.work-item"
-)
-
+# Template keys (defined in config-defaults.sh)
 for key in "${TEMPLATE_KEYS[@]}"; do
   value=$("$READ_VALUE" "$key" "")
   source=$(get_source "$key")
