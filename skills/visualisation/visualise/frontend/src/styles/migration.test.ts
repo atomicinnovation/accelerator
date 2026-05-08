@@ -7,6 +7,7 @@ import {
   RADIUS_TOKENS,
   LIGHT_SHADOW_TOKENS,
   DARK_SHADOW_TOKENS,
+  LAYOUT_TOKENS,
 } from './tokens'
 
 const cssModules = import.meta.glob('../**/*.module.css', {
@@ -73,8 +74,12 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/Sidebar/Sidebar.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   { file: 'components/Sidebar/Sidebar.module.css', literal: '220px', count: 1, kind: 'irreducible', reason: 'fixed sidebar width — no token equivalent' },
   { file: 'components/Sidebar/Sidebar.module.css', literal: '2px', count: 1, kind: 'irreducible', reason: 'list gap — below --sp-1 floor' },
-  // components/SidebarFooter/SidebarFooter.module.css
-  { file: 'components/SidebarFooter/SidebarFooter.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
+  // components/Breadcrumbs/Breadcrumbs.module.css
+  { file: 'components/Breadcrumbs/Breadcrumbs.module.css', literal: '2px', count: 4, kind: 'irreducible', reason: 'text-underline-offset, outline width/offset, border-radius — below --sp-1 floor' },
+  // components/OriginPill/OriginPill.module.css
+  { file: 'components/OriginPill/OriginPill.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
+  // components/Topbar/Topbar.module.css
+  { file: 'components/Topbar/Topbar.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border-bottom width — below --sp-1 floor' },
   // routes/kanban/KanbanBoard.module.css
   { file: 'routes/kanban/KanbanBoard.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   // routes/kanban/KanbanColumn.module.css
@@ -231,6 +236,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
     ...Object.keys(RADIUS_TOKENS),
     ...Object.keys(LIGHT_SHADOW_TOKENS),
     ...Object.keys(DARK_SHADOW_TOKENS),
+    ...Object.keys(LAYOUT_TOKENS),
   ])
   for (const [path, css] of Object.entries(allCss)) {
     it(`${path} references only declared tokens`, () => {
@@ -248,7 +254,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 374 // Wave 4b; raise per commit as var refs grow
+const AC5_FLOOR = 411 // Wave 4c (topbar + breadcrumbs + origin-pill + sse-indicator); raise per commit as var refs grow
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 

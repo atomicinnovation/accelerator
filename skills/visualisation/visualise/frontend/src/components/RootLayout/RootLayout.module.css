@@ -1,2 +1,17 @@
-.shell { display: flex; min-height: 100vh; font-family: var(--ac-font-body); }
-.main { flex: 1; overflow: auto; padding: var(--sp-5) var(--sp-6); }
+.root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  font-family: var(--ac-font-body);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+}
+
+.main {
+  flex: 1;
+  overflow: auto;
+  padding: var(--sp-5) var(--sp-6);
+}

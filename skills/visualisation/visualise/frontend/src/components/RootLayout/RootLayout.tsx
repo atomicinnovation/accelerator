@@ -1,6 +1,7 @@
 import { Outlet } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Sidebar } from '../Sidebar/Sidebar'
+import { Topbar } from '../Topbar/Topbar'
 import { useDocEvents, DocEventsContext } from '../../api/use-doc-events'
 import { fetchTypes } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
@@ -16,11 +17,14 @@ export function RootLayout() {
 
   return (
     <DocEventsContext.Provider value={docEvents}>
-      <div className={styles.shell}>
-        <Sidebar docTypes={docTypes} />
-        <main className={styles.main}>
-          <Outlet />
-        </main>
+      <div className={styles.root}>
+        <Topbar />
+        <div className={styles.body}>
+          <Sidebar docTypes={docTypes} />
+          <main className={styles.main}>
+            <Outlet />
+          </main>
+        </div>
       </div>
     </DocEventsContext.Provider>
   )

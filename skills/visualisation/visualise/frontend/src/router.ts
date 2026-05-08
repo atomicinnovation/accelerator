@@ -3,6 +3,7 @@ import {
   createRoute,
   createRootRoute,
   redirect,
+  type AnyRoute,
 } from '@tanstack/react-router'
 
 export type CrumbLoaderData = { crumb: string }
@@ -21,15 +22,21 @@ export function resolveCrumb(
   }
 }
 
-export function withCrumb(
+// Wraps createRoute with a breadcrumb loader. Generic over TParentRoute and
+// TPath so the returned Route carries the correct path literal type — required
+// for TanStack Router's module-level type registry to include these routes.
+export function withCrumb<
+  TParentRoute extends AnyRoute,
+  TPath extends string,
+>(
   crumbOrResolver: string | CrumbResolver,
-  options: Omit<Parameters<typeof createRoute>[0], 'loader'>,
-) {
+  options: { getParentRoute: () => TParentRoute; path: TPath } & Record<string, unknown>,
+): ReturnType<typeof createRoute<unknown, TParentRoute, TPath>> {
   return createRoute({
     ...options,
-    loader: ({ params }) =>
-      resolveCrumb(crumbOrResolver, params as Record<string, string>),
-  })
+    loader: ({ params }: { params: Record<string, string> }) =>
+      resolveCrumb(crumbOrResolver, params),
+  } as any) as ReturnType<typeof createRoute<unknown, TParentRoute, TPath>>
 }
 import { RootLayout } from './components/RootLayout/RootLayout'
 import { LibraryLayout } from './routes/library/LibraryLayout'

@@ -1,7 +1,7 @@
 .sse {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
+  width: var(--sp-2);
+  height: var(--sp-2);
+  border-radius: var(--radius-pill);
   display: inline-block;
 }
 .sse[data-state='open']         { background: var(--ac-ok); }

@@ -1581,13 +1581,13 @@ need changing — but verify and remove anything that becomes dead).
 
 #### Automated Verification
 
-- [ ] `npm test` (full suite) passes from
+- [x] `npm test` (full suite) passes from
       `skills/visualisation/visualise/frontend/`.
-- [ ] `npm run typecheck` passes.
-- [ ] `npm run lint` passes.
-- [ ] `git grep -n SidebarFooter -- 'skills/visualisation/visualise/frontend/src/'`
+- [x] `npm run typecheck` passes.
+- [x] `npm run lint` passes.
+- [x] `git grep -n SidebarFooter -- 'skills/visualisation/visualise/frontend/src/'`
       returns zero hits.
-- [ ] `git grep -n "components/SidebarFooter" -- 'skills/visualisation/visualise/frontend/src/'`
+- [x] `git grep -n "components/SidebarFooter" -- 'skills/visualisation/visualise/frontend/src/'`
       returns zero hits.
 
 #### Manual Verification

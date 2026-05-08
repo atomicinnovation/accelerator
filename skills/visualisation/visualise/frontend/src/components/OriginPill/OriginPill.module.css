@@ -7,14 +7,14 @@
   border: 1px solid var(--ac-stroke-soft);
   background: var(--ac-bg-chrome);
   font-family: var(--ac-font-mono);
-  font-size: 0.875rem;
+  font-size: var(--size-xs);
   color: var(--ac-fg);
 }
 
 .pulseDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
+  width: var(--sp-2);
+  height: var(--sp-2);
+  border-radius: var(--radius-pill);
   background: var(--ac-ok);
   animation: ac-pulse 2s ease-in-out infinite alternate;
 }

@@ -1,5 +1,4 @@
 import {
-  isMatch,
   useMatches,
   useRouter,
 } from '@tanstack/react-router'
@@ -13,11 +12,8 @@ type CrumbMatch = Omit<Match, 'loaderData'> & {
 }
 
 function hasCrumb(m: Match): m is CrumbMatch {
-  return (
-    isMatch(m, 'loaderData.crumb') &&
-    typeof m.loaderData?.crumb === 'string' &&
-    m.loaderData.crumb.length > 0
-  )
+  const ld = m.loaderData as { crumb?: unknown } | null | undefined
+  return typeof ld?.crumb === 'string' && ld.crumb.length > 0
 }
 
 export function Breadcrumbs() {
@@ -26,11 +22,7 @@ export function Breadcrumbs() {
 
   if (import.meta.env.DEV) {
     for (const m of matches) {
-      if (
-        m.status === 'success' &&
-        m.routeId !== rootRouteId &&
-        !isMatch(m, 'loaderData.crumb')
-      ) {
+      if (m.status === 'success' && m.routeId !== rootRouteId && !hasCrumb(m)) {
         console.warn(
           `[Breadcrumbs] Route ${m.routeId} has no loaderData.crumb. ` +
             `Did you forget to use withCrumb()?`,
@@ -39,7 +31,7 @@ export function Breadcrumbs() {
     }
   }
 
-  const crumbs = matches.filter(hasCrumb)
+  const crumbs = matches.filter(hasCrumb) as unknown as CrumbMatch[]
   if (crumbs.length === 0) return null
 
   const handleClick = (pathname: string) => (e: MouseEvent) => {

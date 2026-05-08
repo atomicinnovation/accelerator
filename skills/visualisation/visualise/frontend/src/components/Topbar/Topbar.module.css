@@ -1,0 +1,17 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: var(--ac-topbar-h);
+  padding: 0 var(--sp-5);
+  border-bottom: 1px solid var(--ac-stroke);
+  background: var(--ac-bg-chrome);
+}
+
+.spacer { flex: 1; }
+
+.slot:empty {
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}

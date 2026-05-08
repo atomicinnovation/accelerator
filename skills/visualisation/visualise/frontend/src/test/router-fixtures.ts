@@ -1,4 +1,4 @@
-import { vi, beforeEach } from 'vitest'
+import { vi, beforeEach, expect } from 'vitest'
 import { waitFor } from '@testing-library/react'
 import { createRouter, createMemoryHistory } from '@tanstack/react-router'
 import { QueryClient } from '@tanstack/react-query'

@@ -16,6 +16,10 @@ vi.mock('../../api/use-doc-events', () => ({
   })),
 }))
 
+vi.mock('../../api/use-origin', () => ({
+  useOrigin: vi.fn(() => 'localhost'),
+}))
+
 const mockDocTypes: DocType[] = [
   { key: 'decisions', label: 'Decisions', dirPath: '/p', inLifecycle: true, inKanban: false, virtual: false },
   { key: 'work-items', label: 'Work items', dirPath: '/p', inLifecycle: true, inKanban: true, virtual: false },
@@ -43,5 +47,11 @@ describe('Sidebar', () => {
     render(<MemoryRouter><Sidebar docTypes={mockDocTypes} /></MemoryRouter>)
     expect(await screen.findByText('Lifecycle')).toBeInTheDocument()
     expect(screen.getByText('Kanban')).toBeInTheDocument()
+  })
+
+  it('does not render the sidebar version label', async () => {
+    render(<MemoryRouter><Sidebar docTypes={mockDocTypes} /></MemoryRouter>)
+    await screen.findByText('Lifecycle')
+    expect(screen.queryByText(/Visualiser v/)).toBeNull()
   })
 })
