@@ -3,7 +3,7 @@ date: "2026-05-08T23:00:00+01:00"
 type: plan
 skill: create-plan
 work-item: "meta/work/0052-make-documents-locator-paths-config-driven.md"
-status: revised-2
+status: complete
 ---
 
 # 0052: Documents-Locator Config-Driven Paths — Implementation Plan
@@ -248,18 +248,18 @@ before the blank line before `Accelerator scaffold:`):
 
 #### Automated Verification
 
-- [ ] New `global` tests pass: `bash scripts/test-config.sh 2>&1 | grep -E "global"`
+- [x] New `global` tests pass: `bash scripts/test-config.sh 2>&1 | grep -E "global"`
   → all three "global default", "global config override", "global local override" show PASS
-- [ ] PATH_KEYS/PATH_DEFAULTS snapshot tests pass: `bash scripts/test-config.sh 2>&1 | grep -E "PATH_KEYS|PATH_DEFAULTS"`
+- [x] PATH_KEYS/PATH_DEFAULTS snapshot tests pass: `bash scripts/test-config.sh 2>&1 | grep -E "PATH_KEYS|PATH_DEFAULTS"`
   → PASS (length=16, content includes `paths.global` / `meta/global`)
-- [ ] DIR_COUNT invariant still passes: `bash scripts/test-config.sh 2>&1 | grep "directory count"`
+- [x] DIR_COUNT invariant still passes: `bash scripts/test-config.sh 2>&1 | grep "directory count"`
   → PASS (expected=13, actual=13)
-- [ ] Full test suite green: `bash scripts/test-config.sh` exits 0
+- [x] Full test suite green: `bash scripts/test-config.sh` exits 0
 
 #### Manual Verification
 
-- [ ] `bash scripts/config-read-path.sh global` → `meta/global`
-- [ ] `bash scripts/config-read-path.sh global` in a project with
+- [x] `bash scripts/config-read-path.sh global` → `meta/global`
+- [x] `bash scripts/config-read-path.sh global` in a project with
   `paths: {global: custom/global}` → `custom/global`
 
 ---
@@ -382,15 +382,15 @@ Make executable: `chmod +x scripts/config-read-all-paths.sh`
 
 #### Automated Verification
 
-- [ ] New test section fully passes: `bash scripts/test-config.sh 2>&1 | grep -A100 "config-read-all-paths.sh"`
+- [x] New test section fully passes: `bash scripts/test-config.sh 2>&1 | grep -A100 "config-read-all-paths.sh"`
   → all PASS
-- [ ] Full test suite green: `bash scripts/test-config.sh` exits 0
+- [x] Full test suite green: `bash scripts/test-config.sh` exits 0
 
 #### Manual Verification
 
-- [ ] `bash scripts/config-read-all-paths.sh` in a default project outputs 11 lines
+- [x] `bash scripts/config-read-all-paths.sh` in a default project outputs 11 lines
   + header
-- [ ] `bash scripts/config-read-all-paths.sh` in a project with one override
+- [x] `bash scripts/config-read-all-paths.sh` in a project with one override
   reflects that override; all others show defaults
 
 ---
@@ -506,11 +506,11 @@ If a path key is not listed above, use the plugin default for that key.
 
 #### Automated Verification
 
-- [ ] New structural tests pass: `bash scripts/test-config.sh 2>&1 | grep -A30 "skills/config/paths"`
+- [x] New structural tests pass: `bash scripts/test-config.sh 2>&1 | grep -A30 "skills/config/paths"`
   → all PASS
-- [ ] Preprocessor count tests unchanged — still 31: `bash scripts/test-config.sh 2>&1 | grep "31 skills"`
+- [x] Preprocessor count tests unchanged — still 31: `bash scripts/test-config.sh 2>&1 | grep "31 skills"`
   → PASS
-- [ ] Full test suite green: `bash scripts/test-config.sh` exits 0
+- [x] Full test suite green: `bash scripts/test-config.sh` exits 0
 
 ---
 
@@ -923,16 +923,16 @@ Append the new `skills-detect.sh` entry as the **fourth (final)** entry in the
 
 #### Automated Verification
 
-- [ ] Spy script removed: `hooks/tmp-stdin-spy.sh` does not exist and
+- [x] Spy script removed: `hooks/tmp-stdin-spy.sh` does not exist and
   `hooks/hooks.json` contains no reference to it — confirm before registering the
   production hook
-- [ ] Agent frontmatter tolerance confirmed: adding `skills: []` to a minimal test
+- [x] Agent frontmatter tolerance confirmed: adding `skills: []` to a minimal test
   agent did not break its invocation — confirm before Phase 5 proceeds
-- [ ] Hook test suite passes: `bash hooks/test-skills-detect.sh` exits 0
-- [ ] Full test suite unaffected: `bash scripts/test-config.sh` still exits 0
-- [ ] `bash hooks/skills-detect.sh` in a project where no agent has `skills:`
+- [x] Hook test suite passes: `bash hooks/test-skills-detect.sh` exits 0
+- [x] Full test suite unaffected: `bash scripts/test-config.sh` still exits 0
+- [x] `bash hooks/skills-detect.sh` in a project where no agent has `skills:`
   exits 0 with no output
-- [ ] `bash hooks/skills-detect.sh` in the accelerator repo (after Phase 5 adds
+- [x] `bash hooks/skills-detect.sh` in the accelerator repo (after Phase 5 adds
   `skills: [paths]` to documents-locator) outputs valid JSON with `additionalContext`
   containing `## Configured Paths`
 
@@ -943,8 +943,8 @@ Append the new `skills-detect.sh` entry as the **fourth (final)** entry in the
   output)
 - [ ] Invoke a second agent (e.g. `codebase-locator`) and confirm it does NOT get
   the paths block (since it has no `skills:` frontmatter)
-- [ ] Confirm the discovery spike result: if stdin carried agent identity, update
-  this phase to use targeted injection instead of unconditional
+- [x] Confirm the discovery spike result: stdin is empty for SessionStart hooks;
+  unconditional injection implemented as fallback (architectural debt noted)
 
 ---
 
@@ -1064,14 +1064,14 @@ Help users quickly discover what historical context and documentation exists.
 
 #### Automated Verification
 
-- [ ] Grep confirms no hardcoded `meta/` paths remain in instructions:
+- [x] Grep confirms no hardcoded `meta/` paths remain in instructions:
   `grep -n 'meta/' agents/documents-locator.md` should return only comments or
   the fallback-default list in Core Responsibilities (which is intentional)
-- [ ] Grep confirms `skills: [paths]` is in frontmatter:
+- [x] Grep confirms `skills: [paths]` is in frontmatter:
   `grep 'skills:' agents/documents-locator.md` → `skills: [paths]`
-- [ ] Grep confirms no reference to `documents-locator` in `skills/config/paths/SKILL.md`:
+- [x] Grep confirms no reference to `documents-locator` in `skills/config/paths/SKILL.md`:
   `grep -i 'documents-locator' skills/config/paths/SKILL.md` → no output
-- [ ] Full test suite green: `bash scripts/test-config.sh` exits 0
+- [x] Full test suite green: `bash scripts/test-config.sh` exits 0
 
 #### Manual Verification
 
