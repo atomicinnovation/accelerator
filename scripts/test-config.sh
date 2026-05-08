@@ -4604,6 +4604,75 @@ assert_eq "directory count agrees with Path Resolution list" \
 echo ""
 
 # ============================================================
+echo "=== skills/config/paths/SKILL.md structural tests ==="
+echo ""
+
+PATHS_SKILL="$PLUGIN_ROOT/skills/config/paths/SKILL.md"
+
+echo "Test: skills/config/paths/SKILL.md exists"
+assert_file_exists "paths skill exists" "$PATHS_SKILL"
+
+echo "Test: paths skill contains bang call to config-read-all-paths.sh"
+if grep -q 'config-read-all-paths\.sh' "$PATHS_SKILL"; then
+  echo "  PASS: bang call to config-read-all-paths.sh present"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: bang call to config-read-all-paths.sh missing"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: paths skill name frontmatter is 'paths'"
+FM_NAME=$(config_extract_frontmatter "$PATHS_SKILL" | awk '/^name:/{print $2; exit}')
+assert_eq "paths skill name" "paths" "$FM_NAME"
+
+echo "Test: paths skill does NOT contain config-read-skill-context.sh"
+if ! grep -q 'config-read-skill-context\.sh' "$PATHS_SKILL"; then
+  echo "  PASS: skill-context preprocessor absent (preload-only skill)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: skill-context preprocessor present — paths skill must be exempt"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: paths skill does NOT contain config-read-skill-instructions.sh"
+if ! grep -q 'config-read-skill-instructions\.sh' "$PATHS_SKILL"; then
+  echo "  PASS: skill-instructions preprocessor absent (preload-only skill)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: skill-instructions preprocessor present — paths skill must be exempt"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: paths skill does NOT contain disable-model-invocation: true"
+if ! grep -q 'disable-model-invocation' "$PATHS_SKILL"; then
+  echo "  PASS: disable-model-invocation absent"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: disable-model-invocation present — harness preload pipeline skips such skills"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: paths skill has user-invocable: false"
+if grep -q 'user-invocable: false' "$PATHS_SKILL"; then
+  echo "  PASS: user-invocable: false present"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: user-invocable: false missing — preload-only skills must signal non-invocable"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: configure skill exclusion test for paths skill"
+if ! grep -q 'config-read-skill-context\.sh\|config-read-skill-instructions\.sh' "$PATHS_SKILL"; then
+  echo "  PASS: paths skill correctly excluded from per-skill preprocessors"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: paths skill has per-skill preprocessors — it must be excluded"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
 echo "=== design templates: auto-discovery ==="
 echo ""
 
