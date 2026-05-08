@@ -2,14 +2,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--ac-topbar-h);
-  height: var(--ac-topbar-h);
+  width: var(--sp-6);
+  height: var(--sp-6);
   background: transparent;
-  color: var(--ac-fg);
+  color: var(--ac-fg-muted);
   border: none;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  font-family: var(--ac-font-body);
   font-size: var(--size-md);
   line-height: 1;
   padding: 0;
@@ -17,10 +16,12 @@
 
 .toggle:hover {
   background: var(--ac-bg-hover);
+  color: var(--ac-fg-strong);
 }
 
 .toggle:active {
   background: var(--ac-bg-active);
+  color: var(--ac-fg-strong);
 }
 
 /* Forced-colors mode (Windows High Contrast): explicit border so

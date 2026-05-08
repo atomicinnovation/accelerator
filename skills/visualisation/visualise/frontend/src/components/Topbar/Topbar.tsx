@@ -15,11 +15,13 @@ export function Topbar() {
       <div className={styles.spacer} />
       <OriginPill />
       <SseIndicator />
-      <div className={styles.slot} data-slot="theme-toggle">
-        <ThemeToggle />
-      </div>
-      <div className={styles.slot} data-slot="font-mode-toggle">
-        <FontModeToggle />
+      <div className={styles.toggleGroup}>
+        <div className={styles.slot} data-slot="theme-toggle">
+          <ThemeToggle />
+        </div>
+        <div className={styles.slot} data-slot="font-mode-toggle">
+          <FontModeToggle />
+        </div>
       </div>
     </header>
   )

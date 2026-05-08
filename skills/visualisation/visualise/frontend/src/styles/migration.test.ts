@@ -260,7 +260,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 423 // 0034: route titles + ThemeToggle + FontModeToggle (+~17)
+const AC5_FLOOR = 423 // 0034: FontModeToggle switched to SVG icon (-2)
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 

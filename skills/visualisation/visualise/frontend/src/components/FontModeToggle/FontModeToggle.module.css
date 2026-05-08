@@ -1,6 +1,0 @@
-/* The display glyph uses the body font (Inter); the mono glyph uses
-   the mono font (Fira Code), regardless of [data-font="mono"] state.
-   This makes the icon a preview of the *target* mode rather than a
-   reflection of the current cascade. */
-.display { font-family: var(--ac-font-body); font-weight: 600; }
-.mono    { font-family: var(--ac-font-mono); font-weight: 600; }

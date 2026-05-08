@@ -23,16 +23,14 @@ describe('FontModeToggle', () => {
     expect(screen.getByRole('button', { name: /mono font/i })).toBeInTheDocument()
   })
 
-  it('previews the target font in display mode (mono glyph)', () => {
+  it('sets data-icon="display" in display mode', () => {
     mountWith('display')
-    expect(screen.getByRole('button')).toHaveAttribute('data-icon', 'mono')
-    expect(screen.getByRole('button').textContent).toContain('Aa')
+    expect(screen.getByRole('button')).toHaveAttribute('data-icon', 'display')
   })
 
-  it('previews the target font in mono mode (display glyph)', () => {
+  it('sets data-icon="mono" in mono mode', () => {
     mountWith('mono')
-    expect(screen.getByRole('button')).toHaveAttribute('data-icon', 'display')
-    expect(screen.getByRole('button').textContent).toContain('Aa')
+    expect(screen.getByRole('button')).toHaveAttribute('data-icon', 'mono')
   })
 
   it('exposes aria-pressed reflecting whether mono is active', () => {

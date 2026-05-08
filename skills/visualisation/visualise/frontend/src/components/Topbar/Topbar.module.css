@@ -17,6 +17,11 @@
 
 .spacer { flex: 1; }
 
+.toggleGroup {
+  display: flex;
+  gap: var(--sp-1);
+}
+
 .slot:empty {
   width: 0;
   height: 0;

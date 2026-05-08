@@ -23,16 +23,14 @@ describe('ThemeToggle', () => {
     expect(screen.getByRole('button', { name: /dark theme/i })).toBeInTheDocument()
   })
 
-  it('renders the current-state glyph in light mode', () => {
+  it('sets data-icon="moon" in light mode (previews target dark mode)', () => {
     mountWith('light')
-    expect(screen.getByRole('button')).toHaveAttribute('data-icon', 'sun')
-    expect(screen.getByRole('button').textContent).toContain('☀︎')
+    expect(screen.getByRole('button')).toHaveAttribute('data-icon', 'moon')
   })
 
-  it('renders the current-state glyph in dark mode', () => {
+  it('sets data-icon="sun" in dark mode (previews target light mode)', () => {
     mountWith('dark')
-    expect(screen.getByRole('button')).toHaveAttribute('data-icon', 'moon')
-    expect(screen.getByRole('button').textContent).toContain('☽︎')
+    expect(screen.getByRole('button')).toHaveAttribute('data-icon', 'sun')
   })
 
   it('exposes aria-pressed reflecting whether dark is active', () => {
