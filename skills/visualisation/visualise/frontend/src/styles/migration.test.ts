@@ -76,6 +76,8 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/Sidebar/Sidebar.module.css', literal: '2px', count: 1, kind: 'irreducible', reason: 'list gap — below --sp-1 floor' },
   // components/Breadcrumbs/Breadcrumbs.module.css
   { file: 'components/Breadcrumbs/Breadcrumbs.module.css', literal: '2px', count: 3, kind: 'irreducible', reason: 'outline width/offset, border-radius — below --sp-1 floor' },
+  // components/OriginPill/OriginPill.module.css
+  { file: 'components/OriginPill/OriginPill.module.css', literal: '3px', count: 1, kind: 'irreducible', reason: 'box-shadow ring spread — below --sp-1 floor' },
   // components/Topbar/Topbar.module.css
   { file: 'components/Topbar/Topbar.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'border-bottom and divider widths — below --sp-1 floor' },
   // routes/kanban/KanbanBoard.module.css
@@ -252,7 +254,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 411 // Design polish: OriginPill box-shadow (+3), SseIndicator label (+1)
+const AC5_FLOOR = 410 // Dot ring: 3px raw replaces var(--sp-1) (-1 var ref)
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 

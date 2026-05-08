@@ -29,7 +29,7 @@ export function SseIndicator() {
         className={styles.icon}
       >
         <path
-          d="M1 5 L5 5 L6 2 L7 9 L8 5 L13 5"
+          d="M1 5 L4 5 L5 1 L9 9 L10 5 L13 5"
           stroke="currentColor"
           strokeWidth="1.5"
           strokeLinecap="round"

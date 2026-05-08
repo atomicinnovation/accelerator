@@ -12,7 +12,7 @@ export function Brand() {
       >
         <defs>
           <linearGradient id="hexg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="var(--ac-accent)" stopOpacity="0.6" />
+            <stop offset="0%" stopColor="var(--ac-accent-2)" stopOpacity="1" />
             <stop offset="100%" stopColor="var(--ac-accent)" stopOpacity="1" />
           </linearGradient>
         </defs>
