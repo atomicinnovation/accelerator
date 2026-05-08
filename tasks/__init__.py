@@ -4,6 +4,7 @@ from . import (
     build,
     changelog,
     deps,
+    dev,
     git,
     github,
     marketplace,
@@ -27,6 +28,7 @@ ns_release.add_task(release.release_finalise, name="finalise")
 ns.add_collection(ns_release)
 
 ns.add_collection(Collection.from_module(build))
+ns.add_collection(Collection.from_module(dev))
 ns.add_collection(Collection.from_module(changelog))
 ns.add_collection(Collection.from_module(deps))
 ns.add_collection(Collection.from_module(git))

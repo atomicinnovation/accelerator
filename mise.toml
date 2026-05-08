@@ -32,6 +32,16 @@ description = "Install Playwright browser binaries (Chromium + OS-level deps)"
 depends = ["deps:install:node"]
 run = "invoke deps.install-playwright"
 
+[tasks."dev:server"]
+description = "Start the visualiser API server in dev mode (run alongside dev:frontend in a second terminal)"
+depends = ["build:server:dev"]
+run = "invoke dev.server"
+
+[tasks."dev:frontend"]
+description = "Start the Vite frontend dev server proxying /api to dev:server (start dev:server first)"
+depends = ["deps:install:node"]
+run = "invoke dev.frontend"
+
 [tasks."build:frontend"]
 description = "Build the visualiser frontend (Vite production build into dist/)"
 depends = ["deps:install:node"]
