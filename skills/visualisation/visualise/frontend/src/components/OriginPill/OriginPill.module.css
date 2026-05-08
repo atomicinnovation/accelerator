@@ -8,8 +8,8 @@
 }
 
 .pulseDot {
-  width: var(--sp-2);
-  height: var(--sp-2);
+  width: var(--sp-1);
+  height: var(--sp-1);
   border-radius: var(--radius-pill);
   background: var(--ac-ok);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-ok) 30%, var(--ac-bg));
