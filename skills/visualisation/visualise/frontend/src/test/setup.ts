@@ -31,6 +31,20 @@ class MockResizeObserver {
 Object.defineProperty(window, 'scrollTo', { value: vi.fn(), writable: true })
 Object.defineProperty(window, 'EventSource', { value: MockEventSource, writable: true, configurable: true })
 Object.defineProperty(window, 'ResizeObserver', { value: MockResizeObserver, writable: true, configurable: true })
+Object.defineProperty(window, 'matchMedia', {
+  value: vi.fn((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+  writable: true,
+  configurable: true,
+})
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = vi.fn()
 }
