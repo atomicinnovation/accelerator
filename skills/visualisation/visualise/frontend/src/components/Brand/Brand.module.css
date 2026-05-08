@@ -12,13 +12,14 @@
 .text {
   display: flex;
   flex-direction: column;
+  gap: 2px;
   line-height: var(--lh-tight);
 }
 
 .brandName {
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: var(--size-xs);
+  font-size: var(--size-sm);
   color: var(--ac-fg);
 }
 

@@ -46,6 +46,7 @@ type Exception = { file: string; literal: string; count: number; reason: string 
 const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible' }> = [
   // components/Brand/Brand.module.css
   { file: 'components/Brand/Brand.module.css', literal: '10px', count: 1, kind: 'irreducible', reason: 'VISUALISER sub-label — below --size-xxs (12px) floor' },
+  { file: 'components/Brand/Brand.module.css', literal: '2px', count: 1, kind: 'irreducible', reason: 'text stack gap — below --sp-1 (4px) floor' },
   // components/FrontmatterChips/FrontmatterChips.module.css
   { file: 'components/FrontmatterChips/FrontmatterChips.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'off-scale gap (6.4px) — between --sp-1 and --sp-2' },
   { file: 'components/FrontmatterChips/FrontmatterChips.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
