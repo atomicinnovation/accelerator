@@ -1,0 +1,32 @@
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--ac-topbar-h);
+  height: var(--ac-topbar-h);
+  background: transparent;
+  color: var(--ac-fg);
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-family: var(--ac-font-body);
+  font-size: var(--size-md);
+  line-height: 1;
+  padding: 0;
+}
+
+.toggle:hover {
+  background: var(--ac-bg-hover);
+}
+
+.toggle:active {
+  background: var(--ac-bg-active);
+}
+
+/* Forced-colors mode (Windows High Contrast): explicit border so
+   the button is distinguishable from the topbar background. */
+@media (forced-colors: active) {
+  .toggle {
+    border: 1px solid ButtonText;
+  }
+}

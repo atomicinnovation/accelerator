@@ -84,6 +84,8 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/OriginPill/OriginPill.module.css', literal: '3px', count: 1, kind: 'irreducible', reason: 'box-shadow ring spread — below --sp-1 floor' },
   // components/Topbar/Topbar.module.css
   { file: 'components/Topbar/Topbar.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'border-bottom and divider widths — below --sp-1 floor' },
+  // components/TopbarIconButton/TopbarIconButton.module.css
+  { file: 'components/TopbarIconButton/TopbarIconButton.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   // routes/kanban/KanbanBoard.module.css
   { file: 'routes/kanban/KanbanBoard.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   // routes/kanban/KanbanColumn.module.css
