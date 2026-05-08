@@ -3663,8 +3663,9 @@ assert_contains "contains adr" "$OUTPUT" "adr"
 assert_contains "contains validation" "$OUTPUT" "validation"
 assert_contains "contains pr-description" "$OUTPUT" "pr-description"
 assert_contains "contains work-item" "$OUTPUT" "work-item"
+assert_contains "contains rca" "$OUTPUT" "rca"
 LINE_COUNT=$(echo "$OUTPUT" | wc -l | tr -d ' ')
-assert_eq "outputs 8 keys" "8" "$LINE_COUNT"
+assert_eq "outputs 9 keys" "9" "$LINE_COUNT"
 
 echo "Test: Returns nothing if templates directory is empty"
 EMPTY_ROOT=$(mktemp -d "$TMPDIR_BASE/empty-plugin-XXXXXX")
@@ -3832,8 +3833,8 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/tmp" && touch "$REPO/.accelerator/tmp/.gitignore"
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 LINE_COUNT=$(echo "$OUTPUT" | grep -c '| `' || true)
-assert_eq "8 template rows" "8" "$LINE_COUNT"
-for KEY in plan research adr validation pr-description work-item; do
+assert_eq "9 template rows" "9" "$LINE_COUNT"
+for KEY in plan research adr validation pr-description work-item rca; do
   if echo "$OUTPUT" | grep "\`$KEY\`" | grep -q "plugin default"; then
     echo "  PASS: $KEY shows plugin default"
     PASS=$((PASS + 1))
