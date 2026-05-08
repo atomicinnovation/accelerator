@@ -18,7 +18,7 @@
 .brandName {
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: var(--size-sm);
+  font-size: var(--size-xs);
   color: var(--ac-fg);
 }
 

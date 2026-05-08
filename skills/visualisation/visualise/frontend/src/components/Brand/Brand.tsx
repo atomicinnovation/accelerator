@@ -4,8 +4,8 @@ export function Brand() {
   return (
     <div className={styles.brand}>
       <svg
-        width="32"
-        height="32"
+        width="28"
+        height="28"
         viewBox="0 0 40 40"
         aria-hidden="true"
         className={styles.mark}
