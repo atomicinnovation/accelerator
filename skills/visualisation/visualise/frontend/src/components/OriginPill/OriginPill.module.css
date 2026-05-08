@@ -3,7 +3,7 @@
   align-items: center;
   gap: var(--sp-2);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xs);
+  font-size: var(--size-xxs);
   color: var(--ac-fg-muted);
 }
 

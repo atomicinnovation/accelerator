@@ -106,7 +106,7 @@ export const DARK_SHADOW_TOKENS = {
 } as const
 
 export const LAYOUT_TOKENS = {
-  'ac-topbar-h': '56px',
+  'ac-topbar-h': '48px',
 } as const
 
 export type ColorTokenLight = keyof typeof LIGHT_COLOR_TOKENS

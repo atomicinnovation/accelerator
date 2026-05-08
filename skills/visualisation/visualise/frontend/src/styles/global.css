@@ -132,7 +132,7 @@ body { margin: 0; }
   --ac-shadow-lift: 0 2px 4px rgba(10,17,27,0.06), 0 20px 60px rgba(10,17,27,0.10);
 
   /* Layout */
-  --ac-topbar-h: 56px;
+  --ac-topbar-h: 48px;
 
 }
 
