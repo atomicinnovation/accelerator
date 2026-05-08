@@ -187,3 +187,38 @@ describe('readCssVar truncation guard', () => {
     expect(readCssVar('ac-shadow-lift', 'dark')).not.toBeNull()
   })
 })
+
+function findBlockBodyForSelector(css: string, selector: string): string | null {
+  const idx = css.indexOf(selector + ' ')
+  if (idx === -1) return null
+  return extractBlockBody(css, idx) ?? null
+}
+
+function countTopLevelBodyRules(css: string): number {
+  const stripped = css.replace(/@[^{]+\{(?:[^{}]|\{[^}]*\})*\}/g, '')
+  return (stripped.match(/(^|\s|,)body\s*\{/g) ?? []).length
+}
+
+describe('global body/html token consumption', () => {
+  it('there is exactly one top-level body rule', () => {
+    expect(countTopLevelBodyRules(globalCss)).toBe(1)
+  })
+
+  it('body declares background-color: var(--ac-bg)', () => {
+    const body = findBlockBodyForSelector(globalCss, 'body')
+    expect(body).not.toBeNull()
+    expect(body!).toMatch(/background-color:\s*var\(--ac-bg\)/)
+  })
+
+  it('body declares color: var(--ac-fg)', () => {
+    const body = findBlockBodyForSelector(globalCss, 'body')
+    expect(body).not.toBeNull()
+    expect(body!).toMatch(/(?<!background-)color:\s*var\(--ac-fg\)/)
+  })
+
+  it(':root declares color-scheme: light dark', () => {
+    const root = findBlockBodyForSelector(globalCss, ':root')
+    expect(root).not.toBeNull()
+    expect(root!).toMatch(/color-scheme:\s*light\s+dark/)
+  })
+})

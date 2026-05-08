@@ -331,3 +331,37 @@ describe('EXCEPTIONS hygiene', () => {
 // Suppress unused-variable warning — escapeRegExp is available for future
 // use by harness extensions that need to escape literal strings in regexes.
 void escapeRegExp
+
+function extractBlockBody(css: string, startIdx: number): string | null {
+  const open = css.indexOf('{', startIdx)
+  if (open === -1) return null
+  let depth = 1
+  let i = open + 1
+  while (i < css.length && depth > 0) {
+    const ch = css[i]
+    if (ch === '{') depth++
+    else if (ch === '}') depth--
+    i++
+  }
+  return depth === 0 ? css.slice(open + 1, i - 1) : null
+}
+
+describe('Phase 1 (0034): route titles consume --ac-fg-strong', () => {
+  const REQUIRED = [
+    { file: 'routes/library/LibraryDocView.module.css', selector: '.title' },
+    { file: 'routes/library/LibraryTemplatesView.module.css', selector: '.title' },
+    { file: 'routes/library/LibraryTemplatesIndex.module.css', selector: '.title' },
+  ] as const
+
+  for (const { file, selector } of REQUIRED) {
+    it(`${file} ${selector} declares color: var(--ac-fg-strong)`, () => {
+      const css = cssBySrcRelative.get(file)
+      expect(css, `missing ${file}`).toBeDefined()
+      const idx = css!.indexOf(selector)
+      expect(idx, `selector ${selector} not found in ${file}`).toBeGreaterThanOrEqual(0)
+      const body = extractBlockBody(css!, idx)
+      expect(body, `body for ${selector} in ${file}`).not.toBeNull()
+      expect(body!).toMatch(/(?<!background-)color:\s*var\(--ac-fg-strong\)/)
+    })
+  }
+})

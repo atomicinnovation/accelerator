@@ -6,7 +6,7 @@
   max-width: 1100px;
 }
 .header { grid-area: header; }
-.title { font-size: 1.6rem; font-weight: 700; margin: 0 0 var(--sp-2); }
+.title { font-size: 1.6rem; font-weight: 700; color: var(--ac-fg-strong); margin: 0 0 var(--sp-2); }
 .body { grid-area: body; }
 .aside { grid-area: aside; font-size: var(--size-xs); color: var(--ac-fg-muted); }
 .aside h3 { font-size: var(--size-xxs); font-weight: 600; text-transform: uppercase; color: var(--ac-fg-faint); margin: 0 0 0.4rem; }

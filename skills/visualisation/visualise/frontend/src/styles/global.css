@@ -1,5 +1,10 @@
 *, ::before, ::after { box-sizing: border-box; }
-body { margin: 0; }
+body {
+  margin: 0;
+  background-color: var(--ac-bg);
+  color: var(--ac-fg);
+  font-family: var(--ac-font-body);
+}
 
 @font-face {
   font-family: "Sora";
@@ -134,6 +139,7 @@ body { margin: 0; }
   /* Layout */
   --ac-topbar-h: 48px;
 
+  color-scheme: light dark;
 }
 
 /* MIRROR-A: explicit [data-theme="dark"] block — the canonical source of
@@ -163,6 +169,7 @@ body { margin: 0; }
   --ac-accent-faint:   rgba(138, 144, 232, 0.08);
   --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
   --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
+  color-scheme: dark;
 }
 
 /* MIRROR-B: honour OS dark-mode preference until 0034 ships the toggle UI;
@@ -193,6 +200,7 @@ body { margin: 0; }
     --ac-accent-faint:   rgba(138, 144, 232, 0.08);
     --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
     --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
+    color-scheme: dark;
   }
 }
 

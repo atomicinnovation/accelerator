@@ -28,7 +28,7 @@ export function LibraryTemplatesIndex() {
 
   return (
     <div className={styles.container}>
-      <h1>Templates</h1>
+      <h1 className={styles.title}>Templates</h1>
       <ul className={styles.list}>
         {data.templates.map((t: TemplateSummary) => (
           <li key={t.name}>
