@@ -1,38 +1,22 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
-import {
-  RouterProvider, createRouter, createMemoryHistory,
-} from '@tanstack/react-router'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { routeTree } from './router'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { RouterProvider } from '@tanstack/react-router'
+import { QueryClientProvider } from '@tanstack/react-query'
 import * as fetchModule from './api/fetch'
+import {
+  setupRouterFixtures, buildRouter, waitForPath,
+} from './test/router-fixtures'
+
+setupRouterFixtures()
 
 function renderAt(url: string) {
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
-  })
-  const qc = new QueryClient()
+  const { router, queryClient } = buildRouter(url)
   render(
-    <QueryClientProvider client={qc}>
+    <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   )
   return router
-}
-
-/** Wait for the router to settle at a specific pathname. Multi-hop
- *  redirect chains (e.g. `/` → `/library` → `/library/decisions`) require
- *  multiple re-evaluation passes that `router.load()` does not
- *  single-shot resolve; `waitFor` polls the router state until the
- *  expected destination is reached. */
-async function waitForPath(
-  router: { state: { location: { pathname: string } } },
-  expected: string,
-): Promise<void> {
-  await waitFor(() => {
-    expect(router.state.location.pathname).toBe(expected)
-  })
 }
 
 function stubKanbanConfigFetch(columns = [
@@ -49,16 +33,6 @@ function stubKanbanConfigFetch(columns = [
 }
 
 describe('router', () => {
-  // RootLayout fetches /api/types and useDocEvents opens EventSource; stub
-  // network calls so routing logic is what's actually tested.
-  beforeEach(() => {
-    vi.spyOn(fetchModule, 'fetchTypes').mockResolvedValue([])
-    vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: [] })
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue({
-      name: 'adr', activeTier: 'plugin-default', tiers: [],
-    })
-  })
-
   afterEach(() => {
     vi.unstubAllGlobals()
   })
@@ -151,14 +125,6 @@ describe('router', () => {
 })
 
 describe('loader crumbs', () => {
-  beforeEach(() => {
-    vi.spyOn(fetchModule, 'fetchTypes').mockResolvedValue([])
-    vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: [] })
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue({
-      name: 'adr', activeTier: 'plugin-default', tiers: [],
-    })
-  })
-
   afterEach(() => {
     vi.unstubAllGlobals()
   })
