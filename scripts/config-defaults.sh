@@ -34,6 +34,10 @@ PATH_KEYS=(
   "paths.templates"
   "paths.work"
   "paths.notes"
+  "paths.tmp"
+  "paths.integrations"
+  "paths.design_inventories"
+  "paths.design_gaps"
 )
 
 PATH_DEFAULTS=(
@@ -48,6 +52,10 @@ PATH_DEFAULTS=(
   ".accelerator/templates"
   "meta/work"
   "meta/notes"
+  ".accelerator/tmp"
+  ".accelerator/state/integrations"
+  "meta/design-inventories"
+  "meta/design-gaps"
 )
 
 TEMPLATE_KEYS=(

@@ -2439,16 +2439,16 @@ else
 fi
 
 echo "Test: PATH_KEYS has expected length and order"
-EXPECTED_PATH_KEYS="paths.plans paths.research paths.decisions paths.prs paths.validations paths.review_plans paths.review_prs paths.review_work paths.templates paths.work paths.notes"
+EXPECTED_PATH_KEYS="paths.plans paths.research paths.decisions paths.prs paths.validations paths.review_plans paths.review_prs paths.review_work paths.templates paths.work paths.notes paths.tmp paths.integrations paths.design_inventories paths.design_gaps"
 ACTUAL_PATH_KEYS_LEN=$( source "$DEFAULTS_FILE" && echo "${#PATH_KEYS[@]}" )
-assert_eq "PATH_KEYS length" "11" "$ACTUAL_PATH_KEYS_LEN"
+assert_eq "PATH_KEYS length" "15" "$ACTUAL_PATH_KEYS_LEN"
 ACTUAL_PATH_KEYS=$( source "$DEFAULTS_FILE" && echo "${PATH_KEYS[*]}" )
 assert_eq "PATH_KEYS contents" "$EXPECTED_PATH_KEYS" "$ACTUAL_PATH_KEYS"
 
 echo "Test: PATH_DEFAULTS has expected length and order"
-EXPECTED_PATH_DEFAULTS="meta/plans meta/research meta/decisions meta/prs meta/validations meta/reviews/plans meta/reviews/prs meta/reviews/work .accelerator/templates meta/work meta/notes"
+EXPECTED_PATH_DEFAULTS="meta/plans meta/research meta/decisions meta/prs meta/validations meta/reviews/plans meta/reviews/prs meta/reviews/work .accelerator/templates meta/work meta/notes .accelerator/tmp .accelerator/state/integrations meta/design-inventories meta/design-gaps"
 ACTUAL_PATH_DEFAULTS_LEN=$( source "$DEFAULTS_FILE" && echo "${#PATH_DEFAULTS[@]}" )
-assert_eq "PATH_DEFAULTS length" "11" "$ACTUAL_PATH_DEFAULTS_LEN"
+assert_eq "PATH_DEFAULTS length" "15" "$ACTUAL_PATH_DEFAULTS_LEN"
 ACTUAL_PATH_DEFAULTS=$( source "$DEFAULTS_FILE" && echo "${PATH_DEFAULTS[*]}" )
 assert_eq "PATH_DEFAULTS contents" "$EXPECTED_PATH_DEFAULTS" "$ACTUAL_PATH_DEFAULTS"
 
