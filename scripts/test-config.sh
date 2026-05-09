@@ -4707,4 +4707,3 @@ assert_eq "design_gaps default" "meta/design-gaps" "$ACTUAL"
 echo ""
 
 test_summary
-

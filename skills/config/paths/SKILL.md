@@ -4,6 +4,7 @@ description: Resolves all configured document-discovery paths for the current
   project. Preloaded by agent definitions that need config-driven directory
   locations; not intended for direct user invocation.
 user-invocable: false
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*) 
 ---
 
 # Configured Paths
