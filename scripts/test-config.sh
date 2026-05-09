@@ -4643,12 +4643,14 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: paths skill does NOT contain disable-model-invocation: true"
-if ! grep -q 'disable-model-invocation' "$PATHS_SKILL"; then
-  echo "  PASS: disable-model-invocation absent"
+echo "Test: paths skill does NOT set disable-model-invocation: true in frontmatter"
+# Only match the actual frontmatter key at the start of a line, not prose
+# mentions (e.g. a maintainer note explaining why we use user-invocable instead).
+if ! grep -qE '^disable-model-invocation:[[:space:]]*true' "$PATHS_SKILL"; then
+  echo "  PASS: disable-model-invocation: true frontmatter absent"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: disable-model-invocation present — harness preload pipeline skips such skills"
+  echo "  FAIL: disable-model-invocation: true frontmatter present — preload pipeline skips such skills"
   FAIL=$((FAIL + 1))
 fi
 
