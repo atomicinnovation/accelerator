@@ -4,7 +4,7 @@ title: "Theme and Font-Mode Toggles"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 type: story
-status: ready
+status: done
 priority: medium
 parent: ""
 tags: [design, frontend, theming]
