@@ -173,11 +173,7 @@ _jira_create() {
     local repo_root
     repo_root=$(find_repo_root 2>/dev/null) || repo_root=""
     if [[ -n "$repo_root" ]]; then
-      local default_project
-      default_project=$(cd "$repo_root" && \
-        "$_JIRA_CREATE_SCRIPT_DIR/../../../../scripts/config-read-value.sh" \
-        "work.default_project_code" "" 2>/dev/null) || default_project=""
-      project="$default_project"
+      project=$(cd "$repo_root" && work_resolve_default_project)
     fi
   fi
 

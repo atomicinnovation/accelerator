@@ -3394,6 +3394,303 @@ fi
 echo ""
 
 # ============================================================
+echo "=== work_resolve_default_project ==="
+echo ""
+
+WORK_COMMON="$SCRIPT_DIR/work-common.sh"
+
+_run_resolve() {
+  local repo="$1"
+  local stdout stderr exit_code
+  stderr=$(cd "$repo" && { stdout=$(source "$WORK_COMMON" && work_resolve_default_project); exit_code=$?; } 2>&1 1>&3; echo "$exit_code") 3>&1
+  printf '%s\n' "$stdout" "$stderr"
+}
+
+echo "Test: integration unset, project unset -> no warning, returns empty"
+REPO=$(setup_repo)
+STDOUT=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>/dev/null)
+STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
+if [ -z "$STDOUT" ] && [ -z "$STDERR" ]; then
+  echo "  PASS: no warning, empty project"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: no warning, empty project"
+  echo "    stdout: $(printf '%q' "$STDOUT")"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: integration unset, project = PROJ -> no warning, returns PROJ"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  default_project_code: PROJ
+---
+FIXTURE
+STDOUT=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>/dev/null)
+STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
+if [ "$STDOUT" = "PROJ" ] && [ -z "$STDERR" ]; then
+  echo "  PASS: returns PROJ, no warning"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: returns PROJ, no warning"
+  echo "    stdout: $(printf '%q' "$STDOUT")"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: integration = jira, project = PROJ -> no warning, returns PROJ"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jira
+  default_project_code: PROJ
+---
+FIXTURE
+STDOUT=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>/dev/null)
+STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
+if [ "$STDOUT" = "PROJ" ] && [ -z "$STDERR" ]; then
+  echo "  PASS: returns PROJ, no warning"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: returns PROJ, no warning"
+  echo "    stdout: $(printf '%q' "$STDOUT")"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: integration = jira, project unset -> warning to stderr, returns empty"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jira
+---
+FIXTURE
+STDOUT=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>/dev/null)
+STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
+if [ -z "$STDOUT" ] && [ -n "$STDERR" ]; then
+  echo "  PASS: empty project, warning present"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: empty project, warning present"
+  echo "    stdout: $(printf '%q' "$STDOUT")"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: integration = jira, project unset -> warning names 'jira'"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jira
+---
+FIXTURE
+STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
+if echo "$STDERR" | grep -q "jira"; then
+  echo "  PASS: warning names jira"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: warning names jira"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: integration = linear, project unset -> warning names 'linear'"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: linear
+---
+FIXTURE
+STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
+if echo "$STDERR" | grep -q "linear"; then
+  echo "  PASS: warning names linear"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: warning names linear"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: integration = trello, project unset -> warning names 'trello'"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: trello
+---
+FIXTURE
+STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
+if echo "$STDERR" | grep -q "trello"; then
+  echo "  PASS: warning names trello"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: warning names trello"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: integration = github-issues, project unset -> warning names 'github-issues'"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: github-issues
+---
+FIXTURE
+STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
+if echo "$STDERR" | grep -q "github-issues"; then
+  echo "  PASS: warning names github-issues"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: warning names github-issues"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: warning includes 'pass --project' and references default_project_code"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jira
+---
+FIXTURE
+STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
+if echo "$STDERR" | grep -q "pass --project" && echo "$STDERR" | grep -q "default_project_code"; then
+  echo "  PASS: warning guides user to fix"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: warning guides user to fix"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: warning includes '.accelerator/config.md'"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jira
+---
+FIXTURE
+STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
+if echo "$STDERR" | grep -q "\.accelerator/config\.md"; then
+  echo "  PASS: warning references config file"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: warning references config file"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: integration = 'jura' (invalid), project unset -> exits non-zero and stderr names valid values"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jura
+---
+FIXTURE
+EXIT_CODE=0
+STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null) || EXIT_CODE=$?
+if [ "$EXIT_CODE" -ne 0 ] && echo "$STDERR" | grep -q "jira"; then
+  echo "  PASS: AC4 surfaces through helper: exits non-zero, names valid values"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: AC4 surfaces through helper: exits non-zero, names valid values"
+  echo "    exit: $EXIT_CODE"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: integration = 'jura' (invalid), project = PROJ -> still exits non-zero"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jura
+  default_project_code: PROJ
+---
+FIXTURE
+EXIT_CODE=0
+(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>/dev/null) || EXIT_CODE=$?
+if [ "$EXIT_CODE" -ne 0 ]; then
+  echo "  PASS: validation fires before project check"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: validation fires before project check"
+  echo "    exit: $EXIT_CODE"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: jira-search-flow.sh contains no inline config-read-value.sh work.default_project_code"
+SEARCH_FLOW="$PLUGIN_ROOT/skills/integrations/jira/scripts/jira-search-flow.sh"
+if grep -qE 'config-read-value\.sh.*work\.default_project_code' "$SEARCH_FLOW" 2>/dev/null; then
+  echo "  FAIL: stale config-read-value.sh invocation still in jira-search-flow.sh"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: no stale config-read-value.sh invocation in jira-search-flow.sh"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: jira-create-flow.sh contains no inline config-read-value.sh work.default_project_code"
+CREATE_FLOW="$PLUGIN_ROOT/skills/integrations/jira/scripts/jira-create-flow.sh"
+if grep -qE 'config-read-value\.sh.*work\.default_project_code' "$CREATE_FLOW" 2>/dev/null; then
+  echo "  FAIL: stale config-read-value.sh invocation still in jira-create-flow.sh"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: no stale config-read-value.sh invocation in jira-create-flow.sh"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: jira-search-flow.sh contains 'work_resolve_default_project'"
+if grep -q "work_resolve_default_project" "$SEARCH_FLOW" 2>/dev/null; then
+  echo "  PASS: jira-search-flow.sh uses work_resolve_default_project"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: jira-search-flow.sh uses work_resolve_default_project"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: jira-create-flow.sh contains 'work_resolve_default_project'"
+if grep -q "work_resolve_default_project" "$CREATE_FLOW" 2>/dev/null; then
+  echo "  PASS: jira-create-flow.sh uses work_resolve_default_project"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: jira-create-flow.sh uses work_resolve_default_project"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: jira-common.sh sources scripts/work-common.sh"
+JIRA_COMMON="$PLUGIN_ROOT/skills/integrations/jira/scripts/jira-common.sh"
+if grep -qE 'source.*scripts/work-common\.sh' "$JIRA_COMMON" 2>/dev/null; then
+  echo "  PASS: jira-common.sh sources work-common.sh"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: jira-common.sh sources work-common.sh"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
 echo "=== config-read-all-paths.sh ==="
 echo ""
 

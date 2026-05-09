@@ -56,6 +56,8 @@ JIRA_INNER_GITIGNORE_RULES=(
 )
 source "$_JIRA_PLUGIN_ROOT/scripts/vcs-common.sh"
 source "$_JIRA_PLUGIN_ROOT/scripts/log-common.sh"
+# shellcheck source=../../../../scripts/work-common.sh
+source "$_JIRA_PLUGIN_ROOT/scripts/work-common.sh"
 
 jira_die()  { log_die  "$1"; }
 jira_warn() { log_warn "$1"; }
