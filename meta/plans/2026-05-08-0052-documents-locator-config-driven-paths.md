@@ -514,9 +514,33 @@ If a path key is not listed above, use the plugin default for that key.
 
 ---
 
-## Phase 4: Extend Harness for `skills:` Frontmatter in Agent Definitions
+## Phase 4: ~~Extend Harness for `skills:` Frontmatter in Agent Definitions~~ — REMOVED
 
-### Overview
+### Status: removed after empirical verification
+
+Phase 4 was implemented (commit `2c490f3c`, "Add skills-detect SessionStart hook")
+and then reverted. Background:
+
+- The plan assumed `skills:` was a custom frontmatter key invented by this plugin
+  and that a SessionStart hook was needed to give it semantics.
+- In fact, `skills:` is a documented native subagent frontmatter field
+  (see https://code.claude.com/docs/en/sub-agents#preload-skills-into-subagents):
+  Claude Code natively preloads the listed skills into the subagent's context
+  at startup, including running bang-line preprocessing on the skill body.
+- Empirical verification: a fresh `claude --plugin-dir <repo> -p` session
+  spawned `accelerator:documents-locator` and the subagent reported a fully
+  rendered `## Configured Paths` block with resolved values (`plans: meta/plans`,
+  etc.) — confirming both that the bare-name lookup `skills: [paths]` resolves
+  inside a plugin and that bang lines are processed during preload.
+- The SessionStart hook was therefore redundant. Worse, SessionStart fires for
+  the main session, not the subagent, so the hook wasn't even delivering content
+  to the right context — only Claude Code's native preload mechanism does that.
+
+The hook (`hooks/skills-detect.sh`), its test file (`hooks/test-skills-detect.sh`),
+and the `hooks.json` registration have all been removed. Phases 1, 2, 3, and 5
+remain valid.
+
+### Original Overview (kept for context)
 
 New `hooks/skills-detect.sh` fires at SessionStart. It scans all agent definitions
 in `${CLAUDE_PLUGIN_ROOT}/agents/*.md`, collects `skills:` frontmatter entries,
