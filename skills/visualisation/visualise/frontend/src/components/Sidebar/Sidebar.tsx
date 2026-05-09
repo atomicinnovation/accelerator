@@ -21,7 +21,7 @@ export function Sidebar({ docTypes }: Props) {
   const metaTypes = docTypes.filter(t => t.virtual)
 
   return (
-    <nav className={styles.sidebar}>
+    <nav className={styles.sidebar} aria-label="Site navigation">
       <section className={styles.section}>
         <h2 className={styles.sectionHeading}>Documents</h2>
         <ul className={styles.list}>
