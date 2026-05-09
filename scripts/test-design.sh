@@ -14,8 +14,12 @@ assert_contains "init lists design_inventories path key" \
   "$(cat "$INIT")" "design_inventories"
 assert_contains "init lists design_gaps path key" \
   "$(cat "$INIT")" "design_gaps"
+# Derive the expected count from the Path Resolution list rather than
+# hardcoding it (the marker's correctness is invariant-tested in
+# test-config.sh; here we just need a value that auto-tracks the file).
+EXPECTED_DIR_COUNT=$(grep -cE '^\*\*[A-Za-z][^*]* directory\*\*:' "$INIT")
 assert_contains "init declares directory count via marker" \
-  "$(cat "$INIT")" "<!-- DIR_COUNT:12 -->"
+  "$(cat "$INIT")" "<!-- DIR_COUNT:${EXPECTED_DIR_COUNT} -->"
 assert_contains "init summary lists design inventories directory" \
   "$(cat "$INIT")" "{design inventories directory}"
 assert_contains "init summary lists design gaps directory" \
