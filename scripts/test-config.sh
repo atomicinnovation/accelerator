@@ -3691,6 +3691,117 @@ fi
 echo ""
 
 # ============================================================
+echo "=== consumer migration: config-read-work.sh ==="
+echo ""
+
+echo "Test: no consumer passes a hardcoded inline default to config-read-work.sh"
+# Matches both same-line and line-continuation forms. The awk pre-pass joins
+# trailing \ continuations so multiline invocations appear on one logical line.
+_check_inline_default_work() {
+  local file="$1"
+  local joined
+  joined=$(awk 'BEGIN{p=""} { if (sub(/\\$/, "")) { p=p$0; next } print p$0; p="" }' "$file")
+  local INLINE_WORK_PATTERN='config-read-work\.sh"?[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]+[^$"\n[:space:]]'
+  echo "$joined" | grep -E "$INLINE_WORK_PATTERN" || true
+}
+WORK_INLINE_MATCHES=""
+while IFS= read -r -d '' f; do
+  WORK_INLINE_MATCHES+=$(_check_inline_default_work "$f")
+done < <(cd "$PLUGIN_ROOT" && find . \( -name '*.sh' -o -name 'SKILL.md' \) \
+  -not -path './workspaces/*' \
+  -not -name 'test-config.sh' \
+  -print0)
+if [ -z "$WORK_INLINE_MATCHES" ]; then
+  echo "  PASS: no inline defaults passed to config-read-work.sh"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: inline defaults passed to config-read-work.sh:"
+  echo "$WORK_INLINE_MATCHES" | sed 's/^/    /'
+  FAIL=$((FAIL + 1))
+fi
+unset -f _check_inline_default_work
+
+echo "Test: no file outside the config-* family contains config-read-value.sh work. invocation"
+# awk pre-pass joins line-continuation multiline calls before grepping
+_check_stale_work_read() {
+  local file="$1"
+  local joined
+  joined=$(awk 'BEGIN{p=""} { if (sub(/\\$/, "")) { p=p$0; next } print p$0; p="" }' "$file")
+  local STALE_PATTERN='config-read-value\.sh[^"]*"?[[:space:]]+"?work\.'
+  echo "$joined" | grep -E "$STALE_PATTERN" || true
+}
+STALE_MATCHES=""
+while IFS= read -r -d '' f; do
+  hits=$(_check_stale_work_read "$f")
+  [ -n "$hits" ] && STALE_MATCHES+="$f: $hits"$'\n'
+done < <(cd "$PLUGIN_ROOT" && find . \( -name '*.sh' -o -name 'SKILL.md' \) \
+  -not -path './workspaces/*' \
+  -not -path './scripts/config-*.sh' \
+  -not -path '*/migrations/*' \
+  -not -name 'test-config.sh' \
+  -print0)
+if [ -z "$STALE_MATCHES" ]; then
+  echo "  PASS: no stale config-read-value.sh work.* invocations found"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: stale config-read-value.sh work.* invocations remain:"
+  echo "$STALE_MATCHES" | sed 's/^/    /'
+  FAIL=$((FAIL + 1))
+fi
+unset -f _check_stale_work_read
+
+echo "Test: every known work.* consumer file references config-read-work.sh"
+CONSUMER_FAIL=0
+declare -a _CONSUMER_FILES=(
+  "skills/work/scripts/work-item-next-number.sh"
+  "skills/work/scripts/work-item-resolve-id.sh"
+  "skills/visualisation/visualise/scripts/write-visualiser-config.sh"
+  "skills/integrations/jira/scripts/jira-init-flow.sh"
+  "skills/work/extract-work-items/SKILL.md"
+  "skills/work/list-work-items/SKILL.md"
+  "skills/integrations/jira/create-jira-issue/SKILL.md"
+)
+for f in "${_CONSUMER_FILES[@]}"; do
+  full_path="$PLUGIN_ROOT/$f"
+  if [ ! -f "$full_path" ]; then
+    echo "  FAIL: $f not found"
+    CONSUMER_FAIL=$((CONSUMER_FAIL + 1))
+  elif ! grep -q "config-read-work" "$full_path"; then
+    echo "  FAIL: $f does not reference config-read-work.sh"
+    CONSUMER_FAIL=$((CONSUMER_FAIL + 1))
+  fi
+done
+if [ "$CONSUMER_FAIL" -eq 0 ]; then
+  echo "  PASS: all known consumer files reference config-read-work.sh"
+  PASS=$((PASS + 1))
+else
+  FAIL=$((FAIL + 1))
+fi
+unset _CONSUMER_FILES
+
+echo "Test: every SKILL.md that invokes config-read-work.sh has an allowed-tools entry permitting it"
+SKILL_TOOL_FAIL=0
+while IFS= read -r -d '' skill_file; do
+  if grep -q "config-read-work" "$skill_file" 2>/dev/null; then
+    if ! grep -qE 'Bash\(.*scripts[/*]|\bBash\b' "$skill_file" 2>/dev/null; then
+      rel="${skill_file#$PLUGIN_ROOT/}"
+      echo "  FAIL: $rel uses config-read-work.sh but has no matching allowed-tools entry"
+      SKILL_TOOL_FAIL=$((SKILL_TOOL_FAIL + 1))
+    fi
+  fi
+done < <(cd "$PLUGIN_ROOT" && find . -name 'SKILL.md' \
+  -not -path './workspaces/*' \
+  -print0)
+if [ "$SKILL_TOOL_FAIL" -eq 0 ]; then
+  echo "  PASS: all SKILL.md files with config-read-work.sh have allowed-tools entry"
+  PASS=$((PASS + 1))
+else
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
 echo "=== config-read-all-paths.sh ==="
 echo ""
 

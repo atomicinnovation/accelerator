@@ -51,7 +51,7 @@ Read the argument string and note each flag:
 If `--project` was not supplied, read the default from config:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/scripts/config-read-value.sh work.default_project_code ""
+${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh default_project_code
 ```
 
 If the config also returns empty, warn the user: "No project key supplied and

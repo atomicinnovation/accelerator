@@ -166,8 +166,8 @@ _jira_prompt_default() {
 
   # Check if work.default_project_code is already set
   local current
-  current=$(cd "$repo_root" && "$_JIRA_INIT_SCRIPT_DIR/../../../../scripts/config-read-value.sh" \
-    "work.default_project_code" "" 2>/dev/null) || current=""
+  current=$(cd "$repo_root" && "$_JIRA_INIT_SCRIPT_DIR/../../../../scripts/config-read-work.sh" \
+    "default_project_code" 2>/dev/null) || current=""
 
   if [[ -n "$current" ]]; then
     return 0

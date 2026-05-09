@@ -346,8 +346,8 @@ in Step 4 after all approvals — enriched and thin — are collected.
 
    b. **Read configuration**:
       ```
-      PATTERN=$(${CLAUDE_PLUGIN_ROOT}/scripts/config-read-value.sh work.id_pattern "{number:04d}")
-      DEFAULT_PROJECT=$(${CLAUDE_PLUGIN_ROOT}/scripts/config-read-value.sh work.default_project_code "")
+      PATTERN=$(${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh id_pattern)
+      DEFAULT_PROJECT=$(${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh default_project_code)
       ```
 
    c. **Suggest projected IDs**: if `PATTERN` contains `{project}`, the

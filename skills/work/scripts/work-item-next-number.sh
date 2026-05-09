@@ -55,8 +55,8 @@ else
   WORK_DIR="$REPO_ROOT/$WORK_PATH"
 fi
 
-PATTERN=$("$PLUGIN_ROOT/scripts/config-read-value.sh" work.id_pattern "{number:04d}")
-DEFAULT_PROJECT=$("$PLUGIN_ROOT/scripts/config-read-value.sh" work.default_project_code "")
+PATTERN=$("$PLUGIN_ROOT/scripts/config-read-work.sh" id_pattern)
+DEFAULT_PROJECT=$("$PLUGIN_ROOT/scripts/config-read-work.sh" default_project_code)
 
 # Validate pattern
 if ! wip_validate_pattern "$PATTERN"; then

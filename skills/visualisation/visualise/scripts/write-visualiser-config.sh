@@ -92,8 +92,8 @@ DINV="$(template_tier design-inventory)"
 # Work-item ID pattern config. Read from `work.id_pattern` / `work.default_project_code`;
 # compile the scan regex via the work-item-pattern skill's --compile-scan subcommand.
 WORK_SCRIPT="$PLUGIN_ROOT/skills/work/scripts/work-item-pattern.sh"
-ID_PATTERN="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "work.id_pattern" "{number:04d}" 2>/dev/null || echo "{number:04d}")"
-PROJECT_CODE="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "work.default_project_code" "" 2>/dev/null || true)"
+ID_PATTERN="$("$PLUGIN_ROOT/scripts/config-read-work.sh" id_pattern)"
+PROJECT_CODE="$("$PLUGIN_ROOT/scripts/config-read-work.sh" default_project_code)"
 SCAN_REGEX="$("$WORK_SCRIPT" --compile-scan "$ID_PATTERN" "$PROJECT_CODE")"
 
 # Build the work_item JSON block. If PROJECT_CODE is empty, omit default_project_code.
