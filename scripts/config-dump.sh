@@ -190,3 +190,31 @@ for key in "${TEMPLATE_KEYS[@]}"; do
     echo "| \`$key\` | *(not set)* | default |"
   fi
 done
+
+# Work keys (defined in config-defaults.sh)
+for i in "${!WORK_KEYS[@]}"; do
+  key="${WORK_KEYS[$i]}"
+  default="${WORK_DEFAULTS[$i]}"
+  value=$("$READ_VALUE" "$key" "$default")
+  source=$(get_source "$key")
+  display="$value"
+  # Non-fatal enum annotation for work.integration: surfaces typos at the
+  # diagnostic surface without hard-failing the dump. Iterates
+  # WORK_INTEGRATION_VALUES so the allowed-values list stays in sync with
+  # config-read-work.sh automatically. Empty value is valid (unset state).
+  if [ "$key" = "work.integration" ] && [ -n "$value" ]; then
+    valid=false
+    for allowed in "${WORK_INTEGRATION_VALUES[@]}"; do
+      if [ "$value" = "$allowed" ]; then valid=true; break; fi
+    done
+    if [ "$valid" = false ]; then
+      allowed_list="${WORK_INTEGRATION_VALUES[*]}"
+      display="$value (invalid: must be ${allowed_list// /, })"
+    fi
+  fi
+  if [ -n "$value" ]; then
+    echo "| \`$key\` | \`$display\` | $source |"
+  else
+    echo "| \`$key\` | *(not set)* | $source |"
+  fi
+done

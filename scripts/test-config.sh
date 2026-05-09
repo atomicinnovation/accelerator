@@ -2654,6 +2654,215 @@ fi
 echo ""
 
 # ============================================================
+echo "=== config-dump.sh: work.* keys ==="
+echo ""
+
+echo "Test: work.integration appears in dump as *(not set)* with default source when unconfigured"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' > "$REPO/.accelerator/config.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+if echo "$OUTPUT" | grep -qF '`work.integration`' && echo "$OUTPUT" | grep 'work\.integration' | grep -q '*(not set)*'; then
+  echo "  PASS: work.integration shows as not set"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: work.integration shows as not set"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: work.id_pattern appears in dump with default {number:04d}"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' > "$REPO/.accelerator/config.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+if echo "$OUTPUT" | grep 'work\.id_pattern' | grep -q '{number:04d}'; then
+  echo "  PASS: work.id_pattern shows default"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: work.id_pattern shows default"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: work.default_project_code appears in dump as *(not set)* by default"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' > "$REPO/.accelerator/config.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+if echo "$OUTPUT" | grep 'work\.default_project_code' | grep -q '*(not set)*'; then
+  echo "  PASS: work.default_project_code shows as not set"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: work.default_project_code shows as not set"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: configured work.integration: jira shows 'jira' with team source"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jira
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+if echo "$OUTPUT" | grep 'work\.integration' | grep -q 'jira' && \
+   echo "$OUTPUT" | grep 'work\.integration' | grep -q 'team' && \
+   ! echo "$OUTPUT" | grep 'work\.integration' | grep -q 'invalid'; then
+  echo "  PASS: jira integration shown correctly with team source, no invalid annotation"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: jira integration shown correctly with team source, no invalid annotation"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: local override of work.integration shows 'local' source"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jira
+---
+FIXTURE
+cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+---
+work:
+  integration: linear
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+if echo "$OUTPUT" | grep 'work\.integration' | grep -q 'linear' && \
+   echo "$OUTPUT" | grep 'work\.integration' | grep -q 'local'; then
+  echo "  PASS: local override shows linear with local source"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: local override shows linear with local source"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: invalid work.integration value appears with (invalid: ...) annotation"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jura
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+if echo "$OUTPUT" | grep 'work\.integration' | grep -q 'invalid'; then
+  echo "  PASS: invalid integration annotated as invalid"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: invalid integration annotated as invalid"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: invalid work.integration value does not cause dump to exit non-zero"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jura
+---
+FIXTURE
+EXIT_CODE=0
+(cd "$REPO" && bash "$CONFIG_DUMP" > /dev/null) || EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 0 ]; then
+  echo "  PASS: dump exits 0 with invalid integration"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: dump exits 0 with invalid integration"
+  echo "    exit: $EXIT_CODE"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: completeness — all three work.* keys appear in dump output"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' > "$REPO/.accelerator/config.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+COMPLETENESS_FAIL=0
+for key in work.integration work.id_pattern work.default_project_code; do
+  if ! echo "$OUTPUT" | grep -qF "\`$key\`"; then
+    echo "  FAIL: $key missing from dump output"
+    COMPLETENESS_FAIL=$((COMPLETENESS_FAIL + 1))
+  fi
+done
+if [ "$COMPLETENESS_FAIL" -eq 0 ]; then
+  echo "  PASS: all three work.* keys present in dump output"
+  PASS=$((PASS + 1))
+else
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: work.* rows appear in WORK_KEYS declaration order in dump output"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' > "$REPO/.accelerator/config.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+INTEGRATION_LINE=$(echo "$OUTPUT" | grep -n 'work\.integration' | head -1 | cut -d: -f1)
+IDPATTERN_LINE=$(echo "$OUTPUT" | grep -n 'work\.id_pattern' | head -1 | cut -d: -f1)
+PROJECT_LINE=$(echo "$OUTPUT" | grep -n 'work\.default_project_code' | head -1 | cut -d: -f1)
+if [ -n "$INTEGRATION_LINE" ] && [ -n "$IDPATTERN_LINE" ] && [ -n "$PROJECT_LINE" ] && \
+   [ "$INTEGRATION_LINE" -lt "$IDPATTERN_LINE" ] && [ "$IDPATTERN_LINE" -lt "$PROJECT_LINE" ]; then
+  echo "  PASS: work.* rows in declaration order (integration < id_pattern < default_project_code)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: work.* rows in declaration order"
+  echo "    integration=$INTEGRATION_LINE id_pattern=$IDPATTERN_LINE project=$PROJECT_LINE"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: mixed source attribution — each row shows its own provenance"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jira
+  id_pattern: "{project}-{number:04d}"
+---
+FIXTURE
+cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+---
+work:
+  integration: linear
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+MIXED_FAIL=0
+if ! echo "$OUTPUT" | grep 'work\.integration' | grep -q 'local'; then
+  echo "  FAIL: work.integration should show local source"
+  MIXED_FAIL=1
+fi
+if ! echo "$OUTPUT" | grep 'work\.id_pattern' | grep -q 'team'; then
+  echo "  FAIL: work.id_pattern should show team source"
+  MIXED_FAIL=1
+fi
+if ! echo "$OUTPUT" | grep 'work\.default_project_code' | grep -q 'default'; then
+  echo "  FAIL: work.default_project_code should show default source"
+  MIXED_FAIL=1
+fi
+if [ "$MIXED_FAIL" -eq 0 ]; then
+  echo "  PASS: mixed source attribution correct per row"
+  PASS=$((PASS + 1))
+else
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
 echo "=== Preprocessor placement: config-read-review.sh ==="
 echo ""
 
