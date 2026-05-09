@@ -3,7 +3,7 @@ date: "2026-05-08T22:30:00+01:00"
 type: plan
 skill: create-plan
 work-item: "0046"
-status: draft
+status: done
 ---
 
 # 0046 Work Management System Configuration — Implementation Plan
@@ -371,14 +371,14 @@ Add structural assertions about the new arrays (mirroring
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-config.sh` passes all new and existing tests
-- [ ] `bash scripts/config-read-work.sh integration` outputs empty
-- [ ] `bash scripts/config-read-work.sh id_pattern` outputs `{number:04d}`
-- [ ] `bash scripts/config-read-work.sh default_project_code` outputs empty
-- [ ] `bash scripts/config-read-work.sh nonexistent` writes a warning to
+- [x] `bash scripts/test-config.sh` passes all new and existing tests
+- [x] `bash scripts/config-read-work.sh integration` outputs empty
+- [x] `bash scripts/config-read-work.sh id_pattern` outputs `{number:04d}`
+- [x] `bash scripts/config-read-work.sh default_project_code` outputs empty
+- [x] `bash scripts/config-read-work.sh nonexistent` writes a warning to
       stderr and delegates with empty default (exit code reflects
       `config-read-value.sh`'s normal behaviour, not a hard exit)
-- [ ] Single-definition-site test rejects a duplicate definition of any
+- [x] Single-definition-site test rejects a duplicate definition of any
       of the six registry array names (`PATH_KEYS`, `PATH_DEFAULTS`,
       `TEMPLATE_KEYS`, `WORK_KEYS`, `WORK_DEFAULTS`,
       `WORK_INTEGRATION_VALUES`)

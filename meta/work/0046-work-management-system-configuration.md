@@ -4,7 +4,7 @@ title: "Work Management System Configuration"
 date: "2026-05-06T17:49:44+00:00"
 author: Toby Clemson
 type: story
-status: ready
+status: done
 priority: high
 parent: "0045"
 tags: [work-management, integrations, configuration]
