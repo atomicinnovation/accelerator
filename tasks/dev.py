@@ -24,6 +24,17 @@ def server(context: Context):
     """
     _TMP_DIR.mkdir(parents=True, exist_ok=True)
     version = json.loads(PLUGIN_JSON.read_text())["version"]
+
+    def doc_path(rel: str) -> str:
+        return str(REPO_ROOT / rel)
+
+    def template_tier(name: str) -> dict:
+        return {
+            "config_override": None,
+            "user_override": str(REPO_ROOT / f".accelerator/templates/{name}.md"),
+            "plugin_default": str(REPO_ROOT / f"templates/{name}.md"),
+        }
+
     config = {
         "plugin_root": str(REPO_ROOT),
         "plugin_version": version,
@@ -32,8 +43,30 @@ def server(context: Context):
         "host": "127.0.0.1",
         "owner_pid": 0,
         "log_path": str(_TMP_DIR / "server.log"),
-        "doc_paths": {},
-        "templates": {},
+        "doc_paths": {
+            "decisions": doc_path("meta/decisions"),
+            "work": doc_path("meta/work"),
+            "review_work": doc_path("meta/reviews/work"),
+            "plans": doc_path("meta/plans"),
+            "research": doc_path("meta/research"),
+            "review_plans": doc_path("meta/reviews/plans"),
+            "review_prs": doc_path("meta/reviews/prs"),
+            "validations": doc_path("meta/validations"),
+            "notes": doc_path("meta/notes"),
+            "prs": doc_path("meta/prs"),
+            "design_gaps": doc_path("meta/design-gaps"),
+            "design_inventories": doc_path("meta/design-inventories"),
+        },
+        "templates": {
+            "adr": template_tier("adr"),
+            "plan": template_tier("plan"),
+            "research": template_tier("research"),
+            "validation": template_tier("validation"),
+            "pr-description": template_tier("pr-description"),
+            "work-item": template_tier("work-item"),
+            "design-gap": template_tier("design-gap"),
+            "design-inventory": template_tier("design-inventory"),
+        },
     }
     _CONFIG_PATH.write_text(json.dumps(config, indent=2))
     context.run(f"{_SERVER_BIN} --config {_CONFIG_PATH}", pty=True)
