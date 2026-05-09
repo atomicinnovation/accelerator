@@ -11,6 +11,7 @@ import tasks.version as tv
 import tasks.build as tb
 import tasks.github as gh
 import tasks.git as tgit
+import tasks.marketplace as tm
 from tasks.release import (
     _refuse_under_ci,
     prerelease,
@@ -72,6 +73,10 @@ class TestPrereleasePrepare:
         mocker.patch.object(tv, "bump")
         mock_read = mocker.patch.object(tv, "read", return_value=MagicMock())
         mock_read.return_value.__str__ = lambda _: "1.21.0-pre.1"
+        # update_prerelease_version writes to the real
+        # .claude-plugin/marketplace-prerelease.json — must be mocked or every
+        # test run mutates the repo file.
+        mocker.patch.object(tm, "update_prerelease_version")
         mocker.patch.object(tb, "frontend")
         mocker.patch.object(tb, "server_cross_compile")
         mocker.patch.object(tb, "create_debug_archives")
@@ -107,6 +112,7 @@ class TestPrereleasePrepare:
         mocker.patch.object(tv, "bump", side_effect=lambda *a, **kw: call_log.append("bump"))
         mock_read = mocker.patch.object(tv, "read", return_value=MagicMock())
         mock_read.return_value.__str__ = lambda _: "1.21.0-pre.1"
+        mocker.patch.object(tm, "update_prerelease_version")
         mocker.patch.object(tb, "frontend", side_effect=lambda *a, **kw: call_log.append("frontend"))
         mocker.patch.object(tb, "server_cross_compile", side_effect=lambda *a, **kw: call_log.append("cross_compile"))
         mocker.patch.object(tb, "create_debug_archives", side_effect=lambda *a, **kw: call_log.append("debug_archives"))
