@@ -2459,6 +2459,41 @@ assert_eq "TEMPLATE_KEYS length" "6" "$ACTUAL_TEMPLATE_KEYS_LEN"
 ACTUAL_TEMPLATE_KEYS=$( source "$DEFAULTS_FILE" && echo "${TEMPLATE_KEYS[*]}" )
 assert_eq "TEMPLATE_KEYS contents" "$EXPECTED_TEMPLATE_KEYS" "$ACTUAL_TEMPLATE_KEYS"
 
+echo "Test: WORK_KEYS has expected length and order"
+EXPECTED_WORK_KEYS="work.integration work.id_pattern work.default_project_code"
+ACTUAL_WORK_KEYS_LEN=$( source "$DEFAULTS_FILE" && echo "${#WORK_KEYS[@]}" )
+assert_eq "WORK_KEYS length" "3" "$ACTUAL_WORK_KEYS_LEN"
+ACTUAL_WORK_KEYS=$( source "$DEFAULTS_FILE" && echo "${WORK_KEYS[*]}" )
+assert_eq "WORK_KEYS contents" "$EXPECTED_WORK_KEYS" "$ACTUAL_WORK_KEYS"
+
+echo "Test: WORK_DEFAULTS has expected length and matches WORK_KEYS"
+ACTUAL_WORK_DEFAULTS_LEN=$( source "$DEFAULTS_FILE" && echo "${#WORK_DEFAULTS[@]}" )
+assert_eq "WORK_DEFAULTS length" "3" "$ACTUAL_WORK_DEFAULTS_LEN"
+ACTUAL_WORK_DEFAULTS=$( source "$DEFAULTS_FILE" && echo "${WORK_DEFAULTS[*]}" )
+assert_eq "WORK_DEFAULTS contents" " {number:04d} " "$ACTUAL_WORK_DEFAULTS"
+
+echo "Test: WORK_INTEGRATION_VALUES has expected length and contains exactly jira, linear, trello, github-issues"
+ACTUAL_WORK_INTEGRATION_VALUES_LEN=$( source "$DEFAULTS_FILE" && echo "${#WORK_INTEGRATION_VALUES[@]}" )
+assert_eq "WORK_INTEGRATION_VALUES length" "4" "$ACTUAL_WORK_INTEGRATION_VALUES_LEN"
+ACTUAL_WORK_INTEGRATION_VALUES=$( source "$DEFAULTS_FILE" && echo "${WORK_INTEGRATION_VALUES[*]}" )
+assert_eq "WORK_INTEGRATION_VALUES contents" "jira linear trello github-issues" "$ACTUAL_WORK_INTEGRATION_VALUES"
+
+echo "Test: no file outside config-defaults.sh contains a literal jira|linear|trello|github-issues alternation"
+ENUM_PATTERN='jira[[:space:]]*\|[[:space:]]*linear[[:space:]]*\|[[:space:]]*trello[[:space:]]*\|[[:space:]]*github-issues'
+ENUM_MATCHES=$(cd "$PLUGIN_ROOT" && grep -rInE \
+  --include='*.sh' --include='SKILL.md' \
+  --exclude-dir=workspaces \
+  --exclude='test-config.sh' \
+  "$ENUM_PATTERN" . | grep -v 'scripts/config-defaults.sh' | grep -v ':[[:space:]]*#' | sort -u || true)
+if [ -z "$ENUM_MATCHES" ]; then
+  echo "  PASS: no hardcoded enum alternation outside config-defaults.sh"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: hardcoded enum alternation found outside config-defaults.sh:"
+  echo "$ENUM_MATCHES" | sed 's/^/    /'
+  FAIL=$((FAIL + 1))
+fi
+
 echo "Test: config-dump.sh renders at least one paths.* and one templates.* row"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
@@ -2474,12 +2509,12 @@ else
 fi
 
 echo "Test: config-defaults.sh is the only definition site for the arrays"
-DEFINITION_PATTERN='^[[:space:]]*((declare|typeset)[[:space:]]+(-[a-zA-Z]+[[:space:]]+)?|readonly[[:space:]]+|export[[:space:]]+|local[[:space:]]+)?(PATH_KEYS|PATH_DEFAULTS|TEMPLATE_KEYS)(\+)?='
+DEFINITION_PATTERN='^[[:space:]]*((declare|typeset)[[:space:]]+(-[a-zA-Z]+[[:space:]]+)?|readonly[[:space:]]+|export[[:space:]]+|local[[:space:]]+)?(PATH_KEYS|PATH_DEFAULTS|TEMPLATE_KEYS|WORK_KEYS|WORK_DEFAULTS|WORK_INTEGRATION_VALUES)(\+)?='
 MATCHES=$(cd "$PLUGIN_ROOT" && grep -rlnE --include='*.sh' \
   --exclude-dir=workspaces \
   "$DEFINITION_PATTERN" . | sort -u)
 EXPECTED="./scripts/config-defaults.sh"
-assert_eq "only config-defaults.sh defines PATH_KEYS/PATH_DEFAULTS/TEMPLATE_KEYS" \
+assert_eq "only config-defaults.sh defines PATH_KEYS/PATH_DEFAULTS/TEMPLATE_KEYS/WORK_KEYS/WORK_DEFAULTS/WORK_INTEGRATION_VALUES" \
   "$EXPECTED" "$MATCHES"
 
 echo ""
@@ -2942,6 +2977,417 @@ if [ -z "$ALL_MATCHES" ]; then
 else
   echo "  FAIL: inline defaults remain at:"
   echo "$ALL_MATCHES" | sed 's/^/    /'
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
+echo "=== config-read-work.sh ==="
+echo ""
+
+READ_WORK="$SCRIPT_DIR/config-read-work.sh"
+
+echo "Test: No argument -> exits with error"
+REPO=$(setup_repo)
+EXIT_CODE=0
+(cd "$REPO" && bash "$READ_WORK" 2>/dev/null) || EXIT_CODE=$?
+if [ "$EXIT_CODE" -ne 0 ]; then
+  echo "  PASS: exits non-zero with no argument"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: exits non-zero with no argument"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: integration key -> empty when unset"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" integration)
+assert_eq "integration default empty" "" "$OUTPUT"
+
+echo "Test: id_pattern key -> {number:04d} when unset"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" id_pattern)
+assert_eq "id_pattern default" "{number:04d}" "$OUTPUT"
+
+echo "Test: default_project_code key -> empty when unset"
+REPO=$(setup_repo)
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" default_project_code)
+assert_eq "default_project_code default empty" "" "$OUTPUT"
+
+echo "Test: integration -> reads team config value (jira)"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jira
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" integration)
+assert_eq "reads jira from team config" "jira" "$OUTPUT"
+
+echo "Test: id_pattern -> reads team config value"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  id_pattern: "{project}-{number:04d}"
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" id_pattern)
+assert_eq "reads id_pattern from team config" "{project}-{number:04d}" "$OUTPUT"
+
+echo "Test: default_project_code -> reads team config value"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  default_project_code: PROJ
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" default_project_code)
+assert_eq "reads default_project_code from team config" "PROJ" "$OUTPUT"
+
+echo "Test: local override of work.integration wins over team"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jira
+---
+FIXTURE
+cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+---
+work:
+  integration: linear
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" integration)
+assert_eq "local override wins for integration" "linear" "$OUTPUT"
+
+echo "Test: local override of work.id_pattern wins over team"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  id_pattern: "{number:04d}"
+---
+FIXTURE
+cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+---
+work:
+  id_pattern: "{project}-{number:06d}"
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" id_pattern)
+assert_eq "local override wins for id_pattern" "{project}-{number:06d}" "$OUTPUT"
+
+echo "Test: local override of work.default_project_code wins over team"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  default_project_code: TEAM
+---
+FIXTURE
+cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+---
+work:
+  default_project_code: LOCAL
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" default_project_code)
+assert_eq "local override wins for default_project_code" "LOCAL" "$OUTPUT"
+
+echo "Test: work.integration explicitly set to empty string -> empty value, no error, no warning"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: ""
+---
+FIXTURE
+STDERR=$(cd "$REPO" && bash "$READ_WORK" integration 2>&1 1>/dev/null || true)
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" integration 2>/dev/null)
+if [ -z "$OUTPUT" ] && [ -z "$STDERR" ]; then
+  echo "  PASS: empty string integration is valid, no output, no warning"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: empty string integration is valid, no output, no warning"
+  echo "    stdout: $(printf '%q' "$OUTPUT")"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: work.default_project_code set to empty string in team config -> empty value"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  default_project_code: ""
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" default_project_code 2>/dev/null)
+assert_eq "empty string default_project_code" "" "$OUTPUT"
+
+echo "Test: unknown work.* key -> warning to stderr, delegates with empty default"
+REPO=$(setup_repo)
+STDERR_OUT=$(cd "$REPO" && bash "$READ_WORK" unknown_key 2>&1 1>/dev/null || true)
+STDOUT_OUT=$(cd "$REPO" && bash "$READ_WORK" unknown_key 2>/dev/null || true)
+if echo "$STDERR_OUT" | grep -q "warning" && [ -z "$STDOUT_OUT" ]; then
+  echo "  PASS: unknown key produces warning to stderr and empty stdout"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: unknown key produces warning to stderr and empty stdout"
+  echo "    stderr: $(printf '%q' "$STDERR_OUT")"
+  echo "    stdout: $(printf '%q' "$STDOUT_OUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: unknown work.* key with value set in config -> warning + value returned"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  unknown_key: somevalue
+---
+FIXTURE
+STDERR_OUT=$(cd "$REPO" && bash "$READ_WORK" unknown_key 2>&1 1>/dev/null || true)
+STDOUT_OUT=$(cd "$REPO" && bash "$READ_WORK" unknown_key 2>/dev/null || true)
+if echo "$STDERR_OUT" | grep -q "warning" && [ "$STDOUT_OUT" = "somevalue" ]; then
+  echo "  PASS: unknown key with value set: warning + value returned"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: unknown key with value set: warning + value returned"
+  echo "    stderr: $(printf '%q' "$STDERR_OUT")"
+  echo "    stdout: $(printf '%q' "$STDOUT_OUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: WORK_KEYS/WORK_DEFAULTS index alignment — each key returns its documented default when unset"
+REPO=$(setup_repo)
+ALIGNMENT_FAIL=0
+declare -a _EXPECTED_DEFAULTS=("" "{number:04d}" "")
+declare -a _KEY_NAMES=("integration" "id_pattern" "default_project_code")
+for i in "${!_KEY_NAMES[@]}"; do
+  _key="${_KEY_NAMES[$i]}"
+  _expected="${_EXPECTED_DEFAULTS[$i]}"
+  _actual=$(cd "$REPO" && bash "$READ_WORK" "$_key" 2>/dev/null || true)
+  if [ "$_actual" != "$_expected" ]; then
+    echo "  FAIL: WORK_KEYS[$i] ($_key) returned '$_actual', expected '$_expected'"
+    ALIGNMENT_FAIL=$((ALIGNMENT_FAIL + 1))
+  fi
+done
+if [ "$ALIGNMENT_FAIL" -eq 0 ]; then
+  echo "  PASS: WORK_KEYS/WORK_DEFAULTS index alignment correct"
+  PASS=$((PASS + 1))
+else
+  FAIL=$((FAIL + 1))
+fi
+unset _EXPECTED_DEFAULTS _KEY_NAMES _key _expected _actual
+
+echo "Test: work.integration: jira -> reads jira"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: jira
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" integration)
+assert_eq "jira is valid" "jira" "$OUTPUT"
+
+echo "Test: work.integration: linear -> reads linear"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: linear
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" integration)
+assert_eq "linear is valid" "linear" "$OUTPUT"
+
+echo "Test: work.integration: trello -> reads trello"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: trello
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" integration)
+assert_eq "trello is valid" "trello" "$OUTPUT"
+
+echo "Test: work.integration: github-issues -> reads github-issues"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: github-issues
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" integration)
+assert_eq "github-issues is valid" "github-issues" "$OUTPUT"
+
+echo "Test: work.integration: garbage -> exits non-zero"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: garbage
+---
+FIXTURE
+EXIT_CODE=0
+(cd "$REPO" && bash "$READ_WORK" integration 2>/dev/null) || EXIT_CODE=$?
+if [ "$EXIT_CODE" -ne 0 ]; then
+  echo "  PASS: invalid integration exits non-zero"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: invalid integration exits non-zero"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: work.integration: garbage -> stderr contains all valid values"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: garbage
+---
+FIXTURE
+STDERR=$(cd "$REPO" && bash "$READ_WORK" integration 2>&1 1>/dev/null || true)
+VALIDATION_FAIL=0
+for val in jira linear trello github-issues; do
+  if ! echo "$STDERR" | grep -q "$val"; then
+    echo "  FAIL: stderr does not mention '$val'"
+    VALIDATION_FAIL=$((VALIDATION_FAIL + 1))
+  fi
+done
+if [ "$VALIDATION_FAIL" -eq 0 ]; then
+  echo "  PASS: stderr contains all four valid integration values"
+  PASS=$((PASS + 1))
+else
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: work.integration: garbage -> stderr contains the input value"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: garbage
+---
+FIXTURE
+STDERR=$(cd "$REPO" && bash "$READ_WORK" integration 2>&1 1>/dev/null || true)
+if echo "$STDERR" | grep -q "garbage"; then
+  echo "  PASS: stderr contains the invalid input value"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: stderr contains the invalid input value"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: work.integration: garbage -> stderr names .accelerator/config.md and /accelerator:configure view"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: garbage
+---
+FIXTURE
+STDERR=$(cd "$REPO" && bash "$READ_WORK" integration 2>&1 1>/dev/null || true)
+if echo "$STDERR" | grep -q "\.accelerator/config\.md" && echo "$STDERR" | grep -q "/accelerator:configure view"; then
+  echo "  PASS: stderr names remediation pointers"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: stderr names remediation pointers"
+  echo "    stderr: $(printf '%q' "$STDERR")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: work.integration unset -> empty value, no error"
+REPO=$(setup_repo)
+EXIT_CODE=0
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" integration 2>/dev/null) || EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 0 ] && [ -z "$OUTPUT" ]; then
+  echo "  PASS: unset integration returns empty, no error"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: unset integration returns empty, no error"
+  echo "    exit: $EXIT_CODE, output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: work.integration: garbage but reading id_pattern -> id_pattern read succeeds"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: garbage
+---
+FIXTURE
+EXIT_CODE=0
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" id_pattern 2>/dev/null) || EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 0 ] && [ "$OUTPUT" = "{number:04d}" ]; then
+  echo "  PASS: validation scoped to integration key only"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: validation scoped to integration key only"
+  echo "    exit: $EXIT_CODE, output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: work.integration: garbage but reading default_project_code -> read succeeds"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+---
+work:
+  integration: garbage
+---
+FIXTURE
+EXIT_CODE=0
+OUTPUT=$(cd "$REPO" && bash "$READ_WORK" default_project_code 2>/dev/null) || EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 0 ]; then
+  echo "  PASS: validation does not bleed to other keys"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: validation does not bleed to other keys"
+  echo "    exit: $EXIT_CODE"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: capture+echo form propagates exit when config-read-value.sh itself returns normally"
+EMPTY_DIR=$(mktemp -d "$TMPDIR_BASE/empty-XXXXXX")
+EXIT_CODE=0
+( cd "$EMPTY_DIR" && bash "$READ_WORK" id_pattern 2>/dev/null ) || EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 0 ]; then
+  echo "  PASS: wrapper exits 0 when config-read-value.sh returns normally"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: wrapper exits 0 when config-read-value.sh returns normally"
+  echo "    exit: $EXIT_CODE"
   FAIL=$((FAIL + 1))
 fi
 
