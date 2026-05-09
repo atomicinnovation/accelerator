@@ -1082,13 +1082,13 @@ SKILLS_DIR="$SCRIPT_DIR/../skills"
 # Add new artefact directories here rather than at each call site.
 SKILLS_GREP=(grep -r --include='SKILL.md' --exclude-dir=node_modules --exclude-dir=target)
 
-echo "Test: config-read-context.sh appears in exactly 31 skills"
+echo "Test: config-read-context.sh appears in exactly 32 skills"
 CONTEXT_COUNT=$("${SKILLS_GREP[@]}" 'config-read-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "31 skills have context injection" "31" "$CONTEXT_COUNT"
+assert_eq "32 skills have context injection" "32" "$CONTEXT_COUNT"
 
-echo "Test: config-read-agents.sh appears in exactly 19 skills"
+echo "Test: config-read-agents.sh appears in exactly 20 skills"
 AGENTS_COUNT=$("${SKILLS_GREP[@]}" 'config-read-agents.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "19 skills have agent override injection" "19" "$AGENTS_COUNT"
+assert_eq "20 skills have agent override injection" "20" "$AGENTS_COUNT"
 
 echo "Test: context injection is within a few lines of first # heading"
 CONTEXT_SKILLS=(
@@ -1098,6 +1098,7 @@ CONTEXT_SKILLS=(
   "planning/validate-plan"
   "planning/stress-test-plan"
   "research/research-codebase"
+  "research/research-issue"
   "github/review-pr"
   "github/describe-pr"
   "github/respond-to-pr"
@@ -1133,6 +1134,7 @@ AGENT_SKILLS=(
   "planning/implement-plan"
   "planning/validate-plan"
   "research/research-codebase"
+  "research/research-issue"
   "github/review-pr"
   "decisions/create-adr"
   "decisions/extract-adrs"
@@ -4373,6 +4375,24 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+echo "Test: research-issue uses config-read-path.sh"
+if grep -q 'config-read-path.sh research' "$SKILLS_DIR/research/research-issue/SKILL.md"; then
+  echo "  PASS: research-issue has research path injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: research-issue has research path injection"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: research-issue uses config-read-template.sh rca"
+if grep -q 'config-read-template.sh rca' "$SKILLS_DIR/research/research-issue/SKILL.md"; then
+  echo "  PASS: research-issue has rca template injection"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: research-issue has rca template injection"
+  FAIL=$((FAIL + 1))
+fi
+
 echo "Test: create-adr uses config-read-path.sh"
 if grep -q 'config-read-path.sh decisions' "$SKILLS_DIR/decisions/create-adr/SKILL.md"; then
   echo "  PASS: create-adr has decisions path injection"
@@ -4805,13 +4825,13 @@ echo ""
 echo "=== Preprocessor placement (per-skill) ==="
 echo ""
 
-echo "Test: config-read-skill-context.sh appears in exactly 31 skills"
+echo "Test: config-read-skill-context.sh appears in exactly 32 skills"
 SKILL_CONTEXT_COUNT=$("${SKILLS_GREP[@]}" 'config-read-skill-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "31 skills have skill-context injection" "31" "$SKILL_CONTEXT_COUNT"
+assert_eq "32 skills have skill-context injection" "32" "$SKILL_CONTEXT_COUNT"
 
-echo "Test: config-read-skill-instructions.sh appears in exactly 31 skills"
+echo "Test: config-read-skill-instructions.sh appears in exactly 32 skills"
 SKILL_INSTRUCTIONS_COUNT=$("${SKILLS_GREP[@]}" 'config-read-skill-instructions.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "31 skills have skill-instructions injection" "31" "$SKILL_INSTRUCTIONS_COUNT"
+assert_eq "32 skills have skill-instructions injection" "32" "$SKILL_INSTRUCTIONS_COUNT"
 
 echo "Test: config-read-skill-context.sh appears immediately after config-read-context.sh in each skill"
 ALL_SKILLS=(
@@ -4821,6 +4841,7 @@ ALL_SKILLS=(
   "planning/implement-plan"
   "planning/validate-plan"
   "research/research-codebase"
+  "research/research-issue"
   "github/review-pr"
   "github/describe-pr"
   "github/respond-to-pr"
@@ -4943,8 +4964,9 @@ assert_contains "contains adr" "$OUTPUT" "adr"
 assert_contains "contains validation" "$OUTPUT" "validation"
 assert_contains "contains pr-description" "$OUTPUT" "pr-description"
 assert_contains "contains work-item" "$OUTPUT" "work-item"
+assert_contains "contains rca" "$OUTPUT" "rca"
 LINE_COUNT=$(echo "$OUTPUT" | wc -l | tr -d ' ')
-assert_eq "outputs 8 keys" "8" "$LINE_COUNT"
+assert_eq "outputs 9 keys" "9" "$LINE_COUNT"
 
 echo "Test: Returns nothing if templates directory is empty"
 EMPTY_ROOT=$(mktemp -d "$TMPDIR_BASE/empty-plugin-XXXXXX")
@@ -5112,8 +5134,8 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/tmp" && touch "$REPO/.accelerator/tmp/.gitignore"
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 LINE_COUNT=$(echo "$OUTPUT" | grep -c '| `' || true)
-assert_eq "8 template rows" "8" "$LINE_COUNT"
-for KEY in plan research adr validation pr-description work-item; do
+assert_eq "9 template rows" "9" "$LINE_COUNT"
+for KEY in plan research adr validation pr-description work-item rca; do
   if echo "$OUTPUT" | grep "\`$KEY\`" | grep -q "plugin default"; then
     echo "  PASS: $KEY shows plugin default"
     PASS=$((PASS + 1))
