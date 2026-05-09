@@ -279,9 +279,12 @@ as structured documents that feed into planning. The filename prefix
 defaults to a 4-digit number (`meta/work/0042-add-search.md`) but is
 configurable via `work.id_pattern` and `work.default_project_code` —
 e.g. `{project}-{number:04d}` with `default_project_code: PROJ` produces
-`meta/work/PROJ-0042-add-search.md`. See
-`skills/config/configure/SKILL.md > work` for the full pattern DSL and
-type contract.
+`meta/work/PROJ-0042-add-search.md`. The `work.integration` key (allowed
+values `jira`, `linear`, `trello`, `github-issues`; empty by default)
+selects the active remote tracker. When unset, all work-management skills
+operate purely against `meta/work/` with no external API calls. See
+[`skills/config/configure/SKILL.md`](skills/config/configure/SKILL.md#work)
+for the full reference.
 
 ```
 existing docs (specs, PRDs, notes)
@@ -339,7 +342,8 @@ jira:
 ---
 ```
 
-The default project key reuses `work.default_project_code`. See
+The default project key reuses `work.default_project_code`; set
+`work.integration: jira` to enable auto-scoping. See
 `/accelerator:configure help` for the full credential resolution chain and
 `token_cmd` examples (1Password, `pass`, macOS Keychain, AWS Secrets Manager).
 

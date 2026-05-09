@@ -5771,4 +5771,114 @@ assert_eq "design_gaps default" "meta/design-gaps" "$ACTUAL"
 
 echo ""
 
+# ============================================================
+echo "=== regression guard: local work skills don't reach into integrations ==="
+echo ""
+
+LOCAL_WORK_SKILLS=(
+  skills/work/create-work-item
+  skills/work/update-work-item
+  skills/work/list-work-items
+  skills/work/extract-work-items
+  skills/work/refine-work-item
+  skills/work/review-work-item
+  skills/work/stress-test-work-item
+)
+
+INTEGRATION_REF_PATTERN='skills/integrations/|/[a-z][a-z-]*-(api|auth)\.sh\b'
+
+for skill in "${LOCAL_WORK_SKILLS[@]}"; do
+  echo "Test: $skill does not depend on any integrations/ path"
+  hits=$(cd "$PLUGIN_ROOT" && grep -RIEn \
+    --include='*.sh' --include='*.md' \
+    --exclude-dir=workspaces \
+    "$INTEGRATION_REF_PATTERN" "$skill" 2>/dev/null || true)
+  assert_eq "no integration references in $skill" "" "$hits"
+done
+
+HTTP_TOOL_PATTERN='\b(curl|wget)\b'
+for skill in "${LOCAL_WORK_SKILLS[@]}"; do
+  echo "Test: $skill makes no direct HTTP calls"
+  hits=$(cd "$PLUGIN_ROOT" && grep -RIEn \
+    --include='*.sh' --include='*.md' \
+    --exclude-dir=workspaces \
+    "$HTTP_TOOL_PATTERN" "$skill" 2>/dev/null || true)
+  assert_eq "no curl/wget in $skill" "" "$hits"
+done
+
+echo ""
+
+# ============================================================
+echo "=== Phase 6 documentation assertions ==="
+echo ""
+
+CONFIGURE_SKILL="$PLUGIN_ROOT/skills/config/configure/SKILL.md"
+
+echo "Test: configure/SKILL.md mentions work.integration at least three times"
+COUNT=$(grep -c "work\.integration" "$CONFIGURE_SKILL" 2>/dev/null || echo 0)
+if [ "$COUNT" -ge 3 ]; then
+  echo "  PASS: work.integration appears $COUNT times"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: work.integration appears only $COUNT times (expected >=3)"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: configure/SKILL.md contains 'Three keys are recognised'"
+if grep -q "Three keys are recognised" "$CONFIGURE_SKILL"; then
+  echo "  PASS: lead-in updated to three keys"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: lead-in updated to three keys"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: configure/SKILL.md contains 'Local-first storage' heading"
+if grep -q "Local-first storage" "$CONFIGURE_SKILL"; then
+  echo "  PASS: local-first storage section present"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: local-first storage section present"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: configure/SKILL.md recognised-keys paragraph lists work.integration"
+if grep -q "work\.integration" "$CONFIGURE_SKILL" && \
+   grep -A2 "Recognised keys" "$CONFIGURE_SKILL" | grep -q "work\.integration"; then
+  echo "  PASS: recognised-keys paragraph mentions work.integration"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: recognised-keys paragraph mentions work.integration"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: README.md mentions work.integration"
+if grep -q "work\.integration" "$PLUGIN_ROOT/README.md"; then
+  echo "  PASS: README.md mentions work.integration"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: README.md mentions work.integration"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: all three Jira integration SKILL.md files mention work.integration"
+JIRA_SKILL_FAIL=0
+for skill_file in \
+  "$PLUGIN_ROOT/skills/integrations/jira/init-jira/SKILL.md" \
+  "$PLUGIN_ROOT/skills/integrations/jira/create-jira-issue/SKILL.md" \
+  "$PLUGIN_ROOT/skills/integrations/jira/search-jira-issues/SKILL.md"; do
+  if ! grep -q "work\.integration" "$skill_file" 2>/dev/null; then
+    echo "  FAIL: $skill_file missing work.integration reference"
+    JIRA_SKILL_FAIL=$((JIRA_SKILL_FAIL + 1))
+  fi
+done
+if [ "$JIRA_SKILL_FAIL" -eq 0 ]; then
+  echo "  PASS: all three Jira SKILL.md files reference work.integration"
+  PASS=$((PASS + 1))
+else
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
 test_summary

@@ -426,10 +426,11 @@ add inline comments to config values.
 
 ### work
 
-Customise work-item identifier filenames. Two keys are recognised:
+Configure work-item identifiers and the active remote tracker. Three keys are recognised:
 
 | Key                          | Default          | Description                                |
 |------------------------------|------------------|--------------------------------------------|
+| `integration`                | (empty)          | Active remote tracker. Allowed values: `jira`, `linear`, `trello`, `github-issues`. When set, integration skills auto-scope to `default_project_code`. Team→local override precedence applies; use `/accelerator:configure view` to confirm which source is active. |
 | `id_pattern`                 | `{number:04d}`   | DSL controlling work-item ID shape         |
 | `default_project_code`       | (empty)          | Project code substituted into `{project}`  |
 
@@ -439,6 +440,7 @@ IDs (matching Jira/Linear conventions):
 \```yaml
 ---
 work:
+  integration: jira
   id_pattern: "{project}-{number:04d}"
   default_project_code: "PROJ"
 ---
@@ -447,6 +449,22 @@ work:
 This produces work-item filenames such as `meta/work/PROJ-0042-add-foo.md`,
 H1 headings like `# PROJ-0042: add foo`, and a `work_item_id: "PROJ-0042"`
 frontmatter field.
+
+#### Local-first storage
+
+Work items are always written to `meta/work/` as local files, regardless
+of whether `work.integration` is configured. The remote integration is an
+additional layer on top of local storage, not a replacement. A skill that
+pushes a work item to a remote tracker must still write the work item
+to `meta/work/` first.
+
+This invariant applies to every skill under `skills/work/`
+(`create-work-item`, `update-work-item`, `list-work-items`,
+`extract-work-items`, `refine-work-item`, `review-work-item`,
+`stress-test-work-item`). Integration skills under `skills/integrations/`
+add remote behaviour on top — they read from and write to the same
+local store. When `work.integration` is unset, every work-management
+skill operates purely against `meta/work/` with no external API calls.
 
 #### Pattern DSL Reference
 
@@ -516,8 +534,9 @@ neither applies, you can opt out via `bash run-migrations.sh --skip
 
 #### Recognised keys
 
-Only `work.id_pattern` and `work.default_project_code` are recognised.
-Other `work.*` keys are not consumed by any plugin script.
+Only `work.integration`, `work.id_pattern`, and
+`work.default_project_code` are recognised. Other `work.*` keys are not
+consumed by any plugin script.
 
 ### visualiser
 

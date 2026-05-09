@@ -21,6 +21,12 @@ allowed-tools: >
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh init-jira`
 
+> **Configuration**: Set `work.integration: jira` and
+> `work.default_project_code: <KEY>` in `.accelerator/config.md` to
+> enable auto-scoping. See the
+> [`### work` section of `configure/SKILL.md`](../../config/configure/SKILL.md#work)
+> for the full reference.
+
 You are setting up the Jira Cloud integration for this project. Work through
 the steps below in order, stopping to prompt the user only when a value is
 missing and cannot be derived from existing configuration.

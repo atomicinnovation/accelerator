@@ -23,6 +23,12 @@ allowed-tools: >
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh search-jira-issues`
 
+> **Configuration**: Set `work.integration: jira` and
+> `work.default_project_code: <KEY>` in `.accelerator/config.md` to
+> enable auto-scoping. See the
+> [`### work` section of `configure/SKILL.md`](../../config/configure/SKILL.md#work)
+> for the full reference.
+
 Search a Jira Cloud tenant using structured flags that compose into safe JQL.
 Work through the steps below in order.
 

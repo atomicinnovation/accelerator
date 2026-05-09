@@ -18,6 +18,12 @@ allowed-tools: Bash, Read, Write
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh create-jira-issue`
 
+> **Configuration**: Set `work.integration: jira` and
+> `work.default_project_code: <KEY>` in `.accelerator/config.md` to
+> enable auto-scoping. See the
+> [`### work` section of `configure/SKILL.md`](../../config/configure/SKILL.md#work)
+> for the full reference.
+
 Create a new Jira issue via `POST /rest/api/3/issue`. Work through the steps
 below in order. This skill never auto-invokes — it only runs when the user
 explicitly types `/create-jira-issue`.
