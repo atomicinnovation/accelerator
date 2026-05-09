@@ -11,8 +11,8 @@
     {
       "name": "accelerator",
       "source": {
-        "source": "github",
-        "repo": "atomicinnovation/accelerator",
+        "source": "url",
+        "url": "https://github.com/atomicinnovation/accelerator.git",
         "ref": "v1.20.0"
       }
     }
