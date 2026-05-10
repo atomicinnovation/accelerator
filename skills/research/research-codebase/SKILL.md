@@ -5,7 +5,9 @@ description: Conduct comprehensive codebase research by spawning parallel
   user needs to deeply understand a codebase area or answer technical questions.
 argument-hint: "[research question]"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/research/research-codebase/scripts/*)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
 ---
 
 # Research Codebase
@@ -108,7 +110,7 @@ The key is to use these agents intelligently:
 
 5. **Gather metadata for the research document:**
 
-- Run the `${CLAUDE_PLUGIN_ROOT}/skills/research/research-codebase/scripts/research-metadata.sh`
+- Run the `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
   script to generate all relevant metadata
 - Filename: write to the configured research directory (shown above) using
   - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:

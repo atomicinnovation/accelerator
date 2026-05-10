@@ -11,11 +11,11 @@ description: >
   skill over raw JQL whenever the user's intent maps to a structured flag.
 argument-hint: "[--project KEY] [--status NAME]... [--assignee NAME|@me]... [--type NAME]... [--label NAME]... [--component NAME]... [--reporter NAME] [--parent KEY] [--watching] [--jql 'raw'] [--limit 1..100] [--page-token TOK] [--fields a,b,c|--fields a]... [--render-adf] [--quiet] [free-text]"
 disable-model-invocation: false
-allowed-tools: >
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*),
-  Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*),
-  Bash(jq),
-  Bash(curl)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(jq)
+  - Bash(curl)
 ---
 
 # Search Jira Issues

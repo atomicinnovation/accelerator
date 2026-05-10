@@ -1,7 +1,11 @@
 ---
 name: migrate
 description: Apply pending Accelerator meta-directory migrations to bring a repo into line with the latest plugin schema. Destructive by default but guarded — refuses to run on a dirty working tree and prints a one-line preview per pending migration before applying.
-allowed-tools: [Read, Write, Edit, Bash]
+allowed-tools: 
+  - Read
+  - Write
+  - Edit
+  - Bash
 ---
 
 > **Warning: this skill rewrites files in `meta/` and `.claude/accelerator*.md`.** Recovery is via VCS revert. Before running, ensure your repo is committed and you understand what each pending migration does. The safety guards (clean-tree check, preview) exist to give you a moment to stop — they are not a substitute for understanding the changes.

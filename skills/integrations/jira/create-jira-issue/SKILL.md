@@ -10,7 +10,10 @@ description: >
   POSTs to Jira and returns the new issue key.
 argument-hint: "[--project KEY] --type NAME --summary TEXT [--body TEXT | --body-file PATH] [--assignee @me|ACCTID] [--reporter @me|ACCTID] [--priority NAME] [--label NAME]... [--component NAME]... [--parent KEY] [--custom SLUG=VALUE]... [--issuetype-id ID] [--quiet]"
 disable-model-invocation: true
-allowed-tools: Bash, Read, Write
+allowed-tools:
+  - Bash
+  - Read
+  - Write
 ---
 
 # Create Jira Issue

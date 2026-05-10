@@ -6,7 +6,9 @@ description: Interactively refine a work item by decomposing it into children,
   drafted and before planning begins.
 argument-hint: "[work item number or path]"
 disable-model-invocation: false
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # Refine Work Item

@@ -4,7 +4,8 @@ description: Prepare a repository with the directories and gitignore entries
   that Accelerator skills expect. Safe to run repeatedly.
 argument-hint: "(no arguments — safe to run repeatedly)"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*) 
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*) 
 ---
 
 # Initialise Accelerator

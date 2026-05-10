@@ -8,12 +8,9 @@ description: Generate a structured design inventory for a frontend source —
   for the same source-id supersedes the prior snapshot without losing it.
 argument-hint: "[source-id] [location] [--crawler code|runtime|hybrid] [--allow-internal] [--allow-insecure-scheme]"
 disable-model-invocation: true
-allowed-tools: >
-  Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*),
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*),
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *),
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/ensure-playwright.sh *),
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/notify-downgrade.sh *)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*)
 ---
 
 # Inventory Design

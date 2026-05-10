@@ -4,7 +4,9 @@ description: Interactively create a well-formed work item. Use when capturing a
   feature, bug, task, spike, or epic as a structured work item in meta/work/.
 argument-hint: "[topic or existing work item path/number]"
 disable-model-invocation: false
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # Create Work Item

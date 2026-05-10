@@ -4,8 +4,7 @@ description: Analyses a focused set of screens in a running web application via
   the Playwright executor. Captures detailed state, screenshots, and computed
   values. Call browser-analyser when you need to extract HOW a screen behaves,
   not to enumerate WHERE things are.
-tools: >
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *)
+tools: Bash
 ---
 
 You are a specialist at understanding HOW screens in a running web application

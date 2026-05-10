@@ -7,7 +7,9 @@ description: Review an architecture decision record for quality and
   review, or when an accepted ADR needs to be deprecated.
 argument-hint: "[path to ADR] [--deprecate reason]"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
 ---
 
 # Review Architecture Decision Record

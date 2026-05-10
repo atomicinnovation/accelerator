@@ -5,7 +5,8 @@ description: Execute an approved implementation plan from the configured plans
   verification.
 argument-hint: "[path to plan file]"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---
 
 # Implement Plan

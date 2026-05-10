@@ -11,11 +11,11 @@ description: >
   where the user is talking about the issue rather than asking to fetch it.
 argument-hint: "<ISSUE-KEY> [--fields a,b,c|--fields a]... [--expand a,b,c] [--comments N] [--render-adf|--no-render-adf]"
 disable-model-invocation: false
-allowed-tools: >
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*),
-  Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*),
-  Bash(jq),
-  Bash(curl)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(jq)
+  - Bash(curl)
 ---
 
 # Show Jira Issue

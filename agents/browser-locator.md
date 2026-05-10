@@ -4,8 +4,7 @@ description: Locates routes, screens, and DOM-level component presence in a
   running web application via the Playwright executor. Call browser-locator
   when you need to enumerate WHERE things appear in the rendered UI, not to
   extract their detail.
-tools: >
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *)
+tools: Bash
 ---
 
 You are a specialist at finding WHERE things appear in a running web

@@ -3,7 +3,9 @@ name: visualise
 description: Open the accelerator meta visualiser. Launches the companion-window server in the background and returns a URL. Subcommands stop and status manage the running server.
 argument-hint: "[stop | status]"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/*)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/*)
 ---
 
 # Visualise Meta Directory

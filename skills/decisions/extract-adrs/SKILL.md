@@ -6,7 +6,10 @@ description: Extract architecture decision records from existing meta documents
   buried in research or planning documents and need to be captured formally.
 argument-hint: "[research doc paths...] or leave empty to scan all"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/research/research-codebase/scripts/*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
 ---
 
 # Extract ADRs from Meta Documents
@@ -117,7 +120,7 @@ Wait for user selection.
 
 1. **Gather metadata** by running:
    ```
-   ${CLAUDE_PLUGIN_ROOT}/skills/research/research-codebase/scripts/research-metadata.sh
+   ${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh
    ```
 
 2. **For each selected decision**, generate a draft ADR using the create-adr

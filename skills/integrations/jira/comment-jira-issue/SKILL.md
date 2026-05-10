@@ -10,7 +10,10 @@ description: >
   and require explicit confirmation before calling the API.
 argument-hint: "add ISSUE-KEY [--body TEXT | --body-file PATH] [--visibility role:NAME | group:NAME] [--no-notify] [--render-adf | --no-render-adf] | list ISSUE-KEY [--page-size N] [--first-page-only] [--render-adf | --no-render-adf] | edit ISSUE-KEY COMMENT-ID [--body TEXT | --body-file PATH] [--visibility role:NAME | group:NAME] [--no-notify] [--render-adf | --no-render-adf] | delete ISSUE-KEY COMMENT-ID [--no-notify]"
 disable-model-invocation: true
-allowed-tools: Bash, Read, Write
+allowed-tools:
+  - Bash
+  - Read
+  - Write
 ---
 
 # Comment Jira Issue

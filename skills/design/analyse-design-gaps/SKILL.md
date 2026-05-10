@@ -7,9 +7,9 @@ description: Compare two design inventories produced by inventory-design and emi
   directly into /accelerator:extract-work-items to produce actionable work items.
 argument-hint: "[current-source-id] [target-source-id]"
 disable-model-invocation: true
-allowed-tools: >
-  Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*),
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/analyse-design-gaps/scripts/*)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/analyse-design-gaps/scripts/*)
 ---
 
 # Analyse Design Gaps

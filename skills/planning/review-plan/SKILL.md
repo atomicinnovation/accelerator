@@ -5,7 +5,8 @@ description: Review an implementation plan through multiple quality lenses and
   a plan before implementation.
 argument-hint: "[path to plan file]"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---
 
 # Review Plan

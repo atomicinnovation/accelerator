@@ -9,7 +9,10 @@ description: >
   confirmation before posting.
 argument-hint: "ISSUE-KEY (STATE-NAME | --transition-id ID) [--resolution NAME] [--comment TEXT | --comment-file PATH] [--no-notify] [--quiet]"
 disable-model-invocation: true
-allowed-tools: Bash, Read, Write
+allowed-tools:
+  - Bash
+  - Read
+  - Write
 ---
 
 # Transition Jira Issue

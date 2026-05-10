@@ -9,11 +9,11 @@ description: >
   after credential or project changes.
 argument-hint: "[--site <subdomain>] [--email <addr>] [--refresh-fields] [--list-projects] [--list-fields]"
 disable-model-invocation: true
-allowed-tools: >
-  Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*),
-  Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*),
-  Bash(jq),
-  Bash(curl)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(jq)
+  - Bash(curl)
 ---
 
 # Init Jira

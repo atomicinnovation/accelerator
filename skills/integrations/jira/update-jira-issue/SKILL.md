@@ -10,7 +10,10 @@ description: >
   PUTs to Jira.
 argument-hint: "ISSUE-KEY [--summary TEXT] [--body TEXT | --body-file PATH] [--priority NAME] [--assignee @me|ACCTID|\"\"] [--reporter @me|ACCTID] [--parent KEY|\"\"] [--label NAME]... [--add-label NAME]... [--remove-label NAME]... [--component NAME]... [--add-component NAME]... [--remove-component NAME]... [--custom SLUG=VALUE]... [--no-notify] [--quiet]"
 disable-model-invocation: true
-allowed-tools: Bash, Read, Write
+allowed-tools:
+  - Bash
+  - Read
+  - Write
 ---
 
 # Update Jira Issue

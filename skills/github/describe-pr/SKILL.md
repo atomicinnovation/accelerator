@@ -5,7 +5,8 @@ description: Generate a comprehensive pull request description following the
   PR description.
 argument-hint: "[PR number or URL]"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---
 
 # Generate PR Description

@@ -6,7 +6,9 @@ description: Update fields (status, priority, tags, parent, etc.) of an
   changes are allowed.
 argument-hint: "[work-item-ref] [field-op...]"
 disable-model-invocation: false
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # Update Work Item

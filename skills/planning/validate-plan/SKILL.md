@@ -5,7 +5,8 @@ description: Validate that an implementation plan was correctly executed by
   a plan to verify correctness.
 argument-hint: "[path to plan file]"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+allowed-tools:
+   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---
 
 # Validate Plan

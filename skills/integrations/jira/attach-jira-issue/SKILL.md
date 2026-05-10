@@ -8,7 +8,10 @@ description: >
   requires explicit confirmation before POSTing.
 argument-hint: "ISSUE-KEY FILE [FILE...] [--quiet]"
 disable-model-invocation: true
-allowed-tools: Bash, Read, Write
+allowed-tools:
+  - Bash
+  - Read
+  - Write
 ---
 
 # Attach files to a Jira Issue

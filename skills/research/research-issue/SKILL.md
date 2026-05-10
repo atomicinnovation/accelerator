@@ -5,7 +5,9 @@ description: Investigate production issues and bugs through hypothesis-driven
   descriptions and produces a root cause analysis.
 argument-hint: "[issue description, stacktrace, or error message]"
 disable-model-invocation: true
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*), Bash(${CLAUDE_PLUGIN_ROOT}/skills/research/research-codebase/scripts/*)
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
 ---
 
 # Research Issue
@@ -90,7 +92,7 @@ Then wait for the user's issue description.
 - Construct the causal chain from trigger to failure
 - Propose fix options with risk/effort assessment
 - Gather metadata using
-  `${CLAUDE_PLUGIN_ROOT}/skills/research/research-codebase/scripts/research-metadata.sh`
+  `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
 - Write the RCA document to the configured research directory using this
   template:
 
