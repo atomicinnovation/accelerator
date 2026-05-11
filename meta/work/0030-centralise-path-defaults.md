@@ -4,7 +4,7 @@ title: "Centralise PATH and TEMPLATE config arrays to scripts/config-defaults.sh
 date: "2026-04-26T00:00:00+00:00"
 author: Toby Clemson
 type: task
-status: ready
+status: done
 priority: low
 parent: ""
 tags: [config, refactoring]
@@ -13,7 +13,7 @@ tags: [config, refactoring]
 # 0030: Centralise PATH and TEMPLATE config arrays to scripts/config-defaults.sh
 
 **Type**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 
