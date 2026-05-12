@@ -77,16 +77,18 @@ Structure your findings like this:
 ### Work Items
 - `{work}/0001-implement-rate-limiting.md` - Implement rate limiting for API
 
-### Research (codebase)
+### Research
+
+#### Codebase
 - `{research_codebase}/2024-01-15_rate_limiting_approaches.md` - Research on different rate limiting strategies
 
-### Research (issues)
+#### Issues
 - `{research_issues}/2024-02-08_outage_rca.md` - RCA for the rate-limit outage
 
-### Research (design-inventories)
+#### Design inventories
 - `{research_design_inventories}/2024-03-01-rate-limit-ui/inventory.md` - Snapshot of rate-limit UI surfaces
 
-### Research (design-gaps)
+#### Design gaps
 - `{research_design_gaps}/2024-03-02-rate-limit-gaps.md` - Gap analysis for rate-limit design
 
 ### Implementation Plans
@@ -111,8 +113,8 @@ Total: 8 relevant documents found
 Where `{research_codebase}`, `{research_issues}`,
 `{research_design_inventories}`, `{research_design_gaps}`, `{plans}`,
 etc. are the resolved paths from the Configured Paths block. Omit any
-`### Research (…)` group that contains zero findings; prefer rendering
-only the subcategories with actual hits.
+`#### …` subcategory that contains zero findings; omit the `### Research`
+parent header entirely if no subcategory has any hits.
 
 ## Search Tips
 

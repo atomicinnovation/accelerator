@@ -74,7 +74,7 @@ fn write_visualiser_config_produces_valid_config_json() {
         "expected 8 templates, got {:?}",
         cfg.templates.keys().collect::<Vec<_>>()
     );
-    for name in ["adr", "plan", "research", "validation", "pr-description", "work-item", "design-gap", "design-inventory"] {
+    for name in ["adr", "plan", "codebase-research", "validation", "pr-description", "work-item", "design-gap", "design-inventory"] {
         assert!(
             cfg.templates.contains_key(name),
             "templates missing: {name}"

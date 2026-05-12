@@ -83,7 +83,7 @@ template_tier() {
 
 ADR="$(template_tier adr)"
 PLAN="$(template_tier plan)"
-RES="$(template_tier research)"
+RES="$(template_tier codebase-research)"
 VAL="$(template_tier validation)"
 PRD="$(template_tier pr-description)"
 WI="$(template_tier work-item)"
@@ -186,7 +186,7 @@ jq -n \
       research_design_inventories: $research_design_inventories
     },
     templates: {
-      adr: $adr, plan: $plan, research: $research_t,
+      adr: $adr, plan: $plan, "codebase-research": $research_t,
       validation: $validation, "pr-description": $pr_description,
       "work-item": $work_item_template,
       "design-gap": $design_gap,
