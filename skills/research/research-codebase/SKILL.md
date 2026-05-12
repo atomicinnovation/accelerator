@@ -20,7 +20,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research`
+**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_codebase`
 **Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
 **Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh decisions`
 
@@ -125,7 +125,7 @@ The key is to use these agents intelligently:
 - Structure the document with YAML frontmatter followed by content using this
   template:
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh research`
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh codebase-research`
 
 7. **Add GitHub permalinks (if applicable):**
 

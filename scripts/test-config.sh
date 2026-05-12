@@ -4360,30 +4360,30 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: research-codebase uses config-read-path.sh"
-if grep -q 'config-read-path.sh research' "$SKILLS_DIR/research/research-codebase/SKILL.md"; then
-  echo "  PASS: research-codebase has research path injection"
+echo "Test: research-codebase uses config-read-path.sh research_codebase"
+if grep -q 'config-read-path.sh research_codebase' "$SKILLS_DIR/research/research-codebase/SKILL.md"; then
+  echo "  PASS: research-codebase has research_codebase path injection"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: research-codebase has research path injection"
+  echo "  FAIL: research-codebase has research_codebase path injection"
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: research-codebase uses config-read-template.sh"
-if grep -q 'config-read-template.sh research' "$SKILLS_DIR/research/research-codebase/SKILL.md"; then
-  echo "  PASS: research-codebase has template injection"
+echo "Test: research-codebase uses config-read-template.sh codebase-research"
+if grep -q 'config-read-template.sh codebase-research' "$SKILLS_DIR/research/research-codebase/SKILL.md"; then
+  echo "  PASS: research-codebase has codebase-research template injection"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: research-codebase has template injection"
+  echo "  FAIL: research-codebase has codebase-research template injection"
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: research-issue uses config-read-path.sh"
-if grep -q 'config-read-path.sh research' "$SKILLS_DIR/research/research-issue/SKILL.md"; then
-  echo "  PASS: research-issue has research path injection"
+echo "Test: research-issue uses config-read-path.sh research_issues"
+if grep -q 'config-read-path.sh research_issues' "$SKILLS_DIR/research/research-issue/SKILL.md"; then
+  echo "  PASS: research-issue has research_issues path injection"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: research-issue has research path injection"
+  echo "  FAIL: research-issue has research_issues path injection"
   FAIL=$((FAIL + 1))
 fi
 

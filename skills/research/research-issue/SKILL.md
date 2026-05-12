@@ -19,7 +19,7 @@ accelerator:reviewer, accelerator:codebase-locator,
 accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser.
 
-**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research`
+**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_issues`
 
 You are tasked with investigating production issues and bugs through
 hypothesis-driven debugging. You accept structured input (stacktraces, logs,
