@@ -1,0 +1,4 @@
+---
+paths:
+  research: docs/research
+---

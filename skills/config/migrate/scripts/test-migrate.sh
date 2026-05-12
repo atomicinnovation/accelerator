@@ -510,8 +510,12 @@ setup_0002_repo() {
   repo=$(mktemp -d "$TMPDIR_BASE/m0002-XXXXXX")
   cp -R "$FIXTURE_0002/." "$repo/"
   mkdir -p "$repo/.git" "$repo/meta" "$repo/.accelerator/state"
-  # Mark 0001 as applied so only 0002 runs
-  printf '0001-rename-tickets-to-work\n' > "$repo/.accelerator/state/migrations-applied"
+  # Mark 0001 + 0004 as applied. 0004's no-op short-circuit handles the
+  # absence of legacy research dirs, but 0002 fixtures DO populate
+  # meta/research/, so we explicitly gate 0004 out to keep those files
+  # at their legacy locations for 0002's assertions.
+  printf '0001-rename-tickets-to-work\n0004-restructure-meta-research-into-subject-subcategories\n' \
+    > "$repo/.accelerator/state/migrations-applied"
   printf '%s\n' "$repo"
 }
 
@@ -972,6 +976,136 @@ OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) ||
 assert_eq "exit 0" "0" "$RC"
 assert_not_contains "no templates warning" "$OUTPUT" "paths.templates"
 assert_not_contains "no integrations warning" "$OUTPUT" "paths.integrations"
+
+echo ""
+
+# ════════════════════════════════════════════════════════════════════════════
+echo "=== Migration 0004: restructure meta/research/ into subject subcategories ==="
+echo ""
+
+FIXTURE_0004="$SCRIPT_DIR/test-fixtures/0004"
+MIGRATION_0004="$MIGRATIONS_DIR/0004-restructure-meta-research-into-subject-subcategories.sh"
+
+# Stand up a temp repo seeded from one of the 0004 fixture trees.
+# Marks 0001-0003 applied so the driver runs only 0004.
+setup_0004_repo() {
+  local fixture="$1"
+  local repo
+  repo=$(mktemp -d "$TMPDIR_BASE/m0004-XXXXXX")
+  cp -R "$FIXTURE_0004/$fixture/." "$repo/"
+  mkdir -p "$repo/.accelerator/state"
+  printf '0001-rename-tickets-to-work\n0002-rename-work-items-with-project-prefix\n0003-relocate-accelerator-state\n' \
+    > "$repo/.accelerator/state/migrations-applied"
+  printf '%s\n' "$repo"
+}
+
+# Run 0004 directly (no framework dirty-tree check). Sets the no-VCS
+# bypass so fixtures without .jj/.git proceed.
+run_0004() {
+  local repo="$1"
+  shift || true
+  PROJECT_ROOT="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    ACCELERATOR_MIGRATE_FORCE_NO_VCS=1 \
+    bash "$MIGRATION_0004" "$@"
+}
+
+# ── default-layout: files move from meta/research/ to meta/research/codebase/
+echo "Test: default-layout — flat research files move to meta/research/codebase/"
+REPO=$(setup_0004_repo default-layout)
+run_0004 "$REPO" >/dev/null 2>&1
+assert_file_exists "research file moved" "$REPO/meta/research/codebase/2026-01-01-example.md"
+assert_file_not_exists "legacy flat research absent" "$REPO/meta/research/2026-01-01-example.md"
+
+echo "Test: default-layout — meta/research/.gitkeep stays in place (parent marker preserved)"
+REPO=$(setup_0004_repo default-layout)
+run_0004 "$REPO" >/dev/null 2>&1
+assert_file_exists "parent .gitkeep preserved" "$REPO/meta/research/.gitkeep"
+
+echo "Test: default-layout — .gitkeep created in every destination subdir"
+REPO=$(setup_0004_repo default-layout)
+run_0004 "$REPO" >/dev/null 2>&1
+assert_file_exists "codebase .gitkeep" "$REPO/meta/research/codebase/.gitkeep"
+assert_file_exists "issues .gitkeep" "$REPO/meta/research/issues/.gitkeep"
+assert_file_exists "design-inventories .gitkeep" "$REPO/meta/research/design-inventories/.gitkeep"
+assert_file_exists "design-gaps .gitkeep" "$REPO/meta/research/design-gaps/.gitkeep"
+
+echo "Test: default-layout — design-inventories directory moves to meta/research/design-inventories/"
+REPO=$(setup_0004_repo default-layout)
+run_0004 "$REPO" >/dev/null 2>&1
+assert_file_exists "inventory moved" "$REPO/meta/research/design-inventories/2026-05-06-x/inventory.md"
+assert_file_exists "screenshot moved" "$REPO/meta/research/design-inventories/2026-05-06-x/screenshots/01.png"
+assert_dir_not_exists "legacy meta/design-inventories removed" "$REPO/meta/design-inventories"
+
+echo "Test: default-layout — design-gaps file moves to meta/research/design-gaps/"
+REPO=$(setup_0004_repo default-layout)
+run_0004 "$REPO" >/dev/null 2>&1
+assert_file_exists "gap file moved" "$REPO/meta/research/design-gaps/2026-05-06-x.md"
+assert_dir_not_exists "legacy meta/design-gaps removed" "$REPO/meta/design-gaps"
+
+echo "Test: default-layout — .DS_Store is swept (not preserved into new layout)"
+REPO=$(setup_0004_repo default-layout)
+run_0004 "$REPO" >/dev/null 2>&1
+assert_file_not_exists ".DS_Store swept" "$REPO/meta/design-inventories/.DS_Store"
+
+echo "Test: research-override-only — files move from docs/research/ to docs/research/codebase/"
+REPO=$(setup_0004_repo research-override-only)
+run_0004 "$REPO" >/dev/null 2>&1
+assert_file_exists "override research moved" "$REPO/docs/research/codebase/2026-01-01-example.md"
+assert_file_not_exists "override flat absent" "$REPO/docs/research/2026-01-01-example.md"
+
+echo "Test: all-overridden — design-inventories DO NOT MOVE (override honored)"
+REPO=$(setup_0004_repo all-overridden)
+run_0004 "$REPO" >/dev/null 2>&1
+assert_file_exists "inv override preserved" "$REPO/assets/inv/2026-05-06-x/inventory.md"
+assert_dir_not_exists "no nested inv created at default" "$REPO/meta/research/design-inventories"
+
+echo "Test: all-overridden — design-gaps DO NOT MOVE (override honored)"
+REPO=$(setup_0004_repo all-overridden)
+run_0004 "$REPO" >/dev/null 2>&1
+assert_file_exists "gaps override preserved" "$REPO/gaps/2026-05-06-x.md"
+
+echo "Test: mixed-config — refuses to proceed (legacy + renamed both present)"
+REPO=$(setup_0004_repo mixed-config)
+RC=0
+OUTPUT=$(run_0004 "$REPO" 2>&1) || RC=$?
+assert_neq "non-zero exit on mixed state" "0" "$RC"
+assert_contains "diagnostic names paths.research" "$OUTPUT" "paths.research"
+assert_contains "diagnostic names paths.research_codebase" "$OUTPUT" "paths.research_codebase"
+assert_file_exists "no files moved on refusal" "$REPO/meta/research/foo.md"
+assert_dir_not_exists "no codebase dir created" "$REPO/meta/research/codebase"
+
+echo "Test: collision at destination halts migration with zero filesystem mutation"
+REPO=$(setup_0004_repo default-layout)
+mkdir -p "$REPO/meta/research/codebase"
+printf 'pre-existing\n' > "$REPO/meta/research/codebase/2026-01-01-example.md"
+RC=0
+OUTPUT=$(run_0004 "$REPO" 2>&1) || RC=$?
+assert_neq "non-zero exit on collision" "0" "$RC"
+assert_contains "diagnostic mentions collision" "$OUTPUT" "collision"
+assert_file_exists "source still in legacy location" "$REPO/meta/research/2026-01-01-example.md"
+PRE_CONTENT=$(cat "$REPO/meta/research/codebase/2026-01-01-example.md")
+assert_eq "pre-existing destination preserved" "pre-existing" "$PRE_CONTENT"
+
+echo "Test: idempotent — re-running default-layout yields no further changes"
+REPO=$(setup_0004_repo default-layout)
+run_0004 "$REPO" >/dev/null 2>&1
+BEFORE=$(find "$REPO" -type f -print0 | sort -z | xargs -0 md5sum 2>/dev/null | md5sum)
+run_0004 "$REPO" >/dev/null 2>&1
+AFTER=$(find "$REPO" -type f -print0 | sort -z | xargs -0 md5sum 2>/dev/null | md5sum)
+assert_eq "second-run filesystem hash equals first-run" "$BEFORE" "$AFTER"
+
+echo "Test: local-config-only — override read from config.local.md, files move accordingly"
+REPO=$(setup_0004_repo local-config-only)
+run_0004 "$REPO" >/dev/null 2>&1
+assert_file_exists "local-overridden research moved" "$REPO/docs/research/codebase/foo.md"
+assert_file_not_exists "local-overridden flat absent" "$REPO/docs/research/foo.md"
+
+echo "Test: no-VCS refusal — without ACCELERATOR_MIGRATE_FORCE_NO_VCS, migration refuses"
+REPO=$(setup_0004_repo default-layout)
+RC=0
+OUTPUT=$(PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$MIGRATION_0004" 2>&1) || RC=$?
+assert_neq "non-zero exit on no-VCS without bypass" "0" "$RC"
+assert_contains "diagnostic mentions no VCS" "$OUTPUT" "no VCS detected"
 
 echo ""
 
