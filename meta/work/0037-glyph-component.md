@@ -112,6 +112,16 @@ The following consumer surfaces thread Glyph through their views; integration is
 - **Token organisation** (resolved during planning): the 12 new `--ac-doc-<key>` tokens are added directly to the existing `LIGHT_COLOR_TOKENS` and `DARK_COLOR_TOKENS` exports in `tokens.ts` (not into dedicated `LIGHT_DOC_COLOR_TOKENS` / `DARK_DOC_COLOR_TOKENS` exports), preserving the flat-record convention.
 - **Frontend README** (resolved during planning): the README file does not exist today; this work item creates `skills/visualisation/visualise/frontend/README.md` from scratch with Overview / Development / Testing / Building / Developer Routes sections, listing `/glyph-showcase` under Developer Routes.
 
+### Consumer Contract
+
+Downstream consumers of Glyph (0036/0040/0041/0042/0043/0053/0054/0055) MUST adhere to these invariants. The same list lives as a TSDoc block on `Glyph` in `src/components/Glyph/Glyph.tsx` so it travels with the import.
+
+1. Do not override `fill` on Glyph or any ancestor that targets it via CSS. Glyph drives colour through `color: var(--ac-doc-<key>)` on the `<svg>` and `fill="currentColor"` on children.
+2. Provide an adjacent text label OR pass `ariaLabel` for any Glyph used as a standalone visual without nearby text. The default render is `aria-hidden` and assumes a sibling text label is present.
+3. Do not wrap Glyph in another `<svg>`. Glyph owns the `<svg>` boundary.
+4. Sizes are restricted to 16/24/32. Off-grid sizes require a PR widening the union with a documented specimen — do not cast.
+5. Narrow `DocTypeKey` to `GlyphDocTypeKey` via `isGlyphDocTypeKey()` or `GLYPH_DOC_TYPE_KEYS` — never via `as` casts.
+
 ## Dependencies
 
 - Blocked by: none. Builds on 0033 (token layer landed); this work item extends it with the per-doc-type `--ac-doc-<key>` colour sub-namespace.

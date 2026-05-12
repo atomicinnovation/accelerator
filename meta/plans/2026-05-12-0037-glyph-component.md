@@ -217,16 +217,16 @@ Mirror the same 12 keys in `DARK_COLOR_TOKENS` with the dark hex values. The fla
 
 #### Automated Verification:
 
-- [ ] Token parity passes: `cd skills/visualisation/visualise/frontend && npx vitest run src/styles/global.test.ts`
-- [ ] WCAG 1.4.11 contrast tests pass: same command picks up the new contrast block automatically
-- [ ] Full unit-test suite still green: `npm test`
-- [ ] Type check: `npx tsc --noEmit` (the `typecheck` script lands in Phase 2 but `tsc --noEmit` is invokable now)
+- [x] Token parity passes: `cd skills/visualisation/visualise/frontend && npx vitest run src/styles/global.test.ts`
+- [x] WCAG 1.4.11 contrast tests pass: same command picks up the new contrast block automatically
+- [x] Full unit-test suite still green: `npm test`
+- [x] Type check: `npx tsc --noEmit` (the `typecheck` script lands in Phase 2 but `tsc --noEmit` is invokable now)
 
 #### Manual Verification:
 
 - [ ] Visual sanity-check: open a browser dev-tools inspector on any existing page, query `getComputedStyle(document.documentElement).getPropertyValue('--ac-doc-decisions')`, confirm it returns the light hex.
 - [ ] Toggle `document.documentElement.dataset.theme = 'dark'`, re-query, confirm the value switches to the dark hex.
-- [ ] Confirm the Colour Token Table in the work item file has been updated with sampled hex values, (x, y) coordinates, and the measured viewBox grid (no `TBD` cells remain).
+- [x] Confirm the Colour Token Table in the work item file has been updated with sampled hex values, (x, y) coordinates, and the measured viewBox grid (no `TBD` cells remain).
 
 ---
 
@@ -427,11 +427,11 @@ This surfaces the showcase from the import surface, not just from the README.
 
 #### Automated Verification:
 
-- [ ] Type contract: `npm run typecheck` confirms `@ts-expect-error` directives fire correctly
-- [ ] Glyph unit tests pass: `npx vitest run src/components/Glyph/Glyph.test.tsx`
-- [ ] Dispatch exhaustiveness: `GLYPH_DOC_TYPE_KEYS.length === Object.keys(ICON_COMPONENTS).length === 12`
-- [ ] Every child element under each rendered Glyph SVG has `fill="currentColor"` or no `fill` attribute (no hex literals)
-- [ ] Full unit-test suite green: `npm test`
+- [x] Type contract: `npm run typecheck` confirms `@ts-expect-error` directives fire correctly
+- [x] Glyph unit tests pass: `npx vitest run src/components/Glyph/Glyph.test.tsx`
+- [x] Dispatch exhaustiveness: `GLYPH_DOC_TYPE_KEYS.length === Object.keys(ICON_COMPONENTS).length === 12`
+- [x] Every child element under each rendered Glyph SVG has `fill="currentColor"` or no `fill` attribute (no hex literals; `fill="none"` for stroke-only shapes permitted)
+- [x] Full unit-test suite green: `npm test`
 
 #### Manual Verification:
 
@@ -502,14 +502,14 @@ This is intentionally ugly but durable: a future refactor introducing a hook mus
 
 #### Automated Verification:
 
-- [ ] All 36 cases pass: `npx vitest run src/components/Glyph/Glyph.test.tsx`
-- [ ] Test count includes 36 parametrised cases plus the a11y, runtime-guard, and source-grep tests from Phase 2
-- [ ] `npm run typecheck` still passes
-- [ ] Full unit-test suite green: `npm test`
+- [x] All 36 cases pass: `npx vitest run src/components/Glyph/Glyph.test.tsx`
+- [x] Test count includes 36 parametrised cases plus the a11y, runtime-guard, and source-grep tests from Phase 2 (54 tests total)
+- [x] `npm run typecheck` still passes
+- [x] Full unit-test suite green: `npm test`
 
 #### Manual Verification:
 
-- [ ] Reviewing the test output, confirm each `(docType, size)` case names both the doc type and the size in its title
+- [x] Reviewing the test output, confirm each `(docType, size)` case names both the doc type and the size in its title
 
 ---
 
@@ -702,19 +702,19 @@ docker run --rm -v "$(pwd):/work" -w /work --ipc=host \
 
 #### Automated Verification:
 
-- [ ] Showcase component test passes: `npx vitest run src/routes/glyph-showcase`
-- [ ] Route is reachable: `cd skills/visualisation/visualise/frontend && npm run dev`, then `curl -I http://localhost:5173/glyph-showcase` returns 200
-- [ ] Playwright per-cell spec passes against fresh baselines: `npm run test:e2e -- glyph-showcase`
-- [ ] Playwright resolved-fill spec passes for both themes: `npm run test:e2e -- glyph-resolved-fill`
-- [ ] `npm run typecheck` still passes
-- [ ] Full unit-test suite green: `npm test`
+- [x] Showcase component test passes: `npx vitest run src/routes/glyph-showcase`
+- [x] Route is reachable: `cd skills/visualisation/visualise/frontend && npm run dev`, then `curl -I http://localhost:5173/glyph-showcase` returns 200
+- [x] Playwright per-cell spec passes against fresh baselines: `npm run test:e2e -- glyph-showcase`
+- [x] Playwright resolved-fill spec passes for both themes: `npm run test:e2e -- glyph-resolved-fill`
+- [x] `npm run typecheck` still passes
+- [x] Full unit-test suite green: `npm test`
 
 #### Manual Verification:
 
 - [ ] Open `http://localhost:5173/glyph-showcase` in browser, confirm 12-row × 3-column grid renders with kebab keys + friendly labels
 - [ ] Toggle `document.documentElement.dataset.theme` between `light` and `dark` via dev tools console; confirm icons re-fill smoothly without a page reload
 - [ ] Visually compare each row of the showcase against the corresponding glyph in `library-view-updated-{light,dark}.png` — shapes and colours match
-- [ ] Confirm both `-darwin.png` and `-linux.png` baselines are committed under `tests/visual-regression/__screenshots__/glyph-showcase.spec.ts-snapshots/` (72 per platform)
+- [ ] Confirm both `-darwin.png` and `-linux.png` baselines are committed under `tests/visual-regression/__screenshots__/glyph-showcase.spec.ts-snapshots/` (72 per platform — darwin landed; linux pending CI/Docker)
 
 ---
 
@@ -821,9 +821,9 @@ Downstream consumers of Glyph MUST adhere to these invariants. The same list liv
 
 #### Automated Verification:
 
-- [ ] README exists: `test -f skills/visualisation/visualise/frontend/README.md`
-- [ ] README mentions `/glyph-showcase` under a Developer Routes heading: `grep -E "Developer [Rr]outes" skills/visualisation/visualise/frontend/README.md && grep "/glyph-showcase" skills/visualisation/visualise/frontend/README.md`
-- [ ] Work item Resolved Decisions contains the Consumer Contract: `grep "Consumer Contract" meta/work/0037-glyph-component.md`
+- [x] README exists: `test -f skills/visualisation/visualise/frontend/README.md`
+- [x] README mentions `/glyph-showcase` under a Developer Routes heading: `grep -E "Developer [Rr]outes" skills/visualisation/visualise/frontend/README.md && grep "/glyph-showcase" skills/visualisation/visualise/frontend/README.md`
+- [x] Work item Resolved Decisions contains the Consumer Contract: `grep "Consumer Contract" meta/work/0037-glyph-component.md`
 
 #### Manual Verification:
 
