@@ -2441,21 +2441,21 @@ else
 fi
 
 echo "Test: PATH_KEYS has expected length and order"
-EXPECTED_PATH_KEYS="paths.plans paths.research paths.decisions paths.prs paths.validations paths.review_plans paths.review_prs paths.review_work paths.templates paths.work paths.notes paths.tmp paths.integrations paths.design_inventories paths.design_gaps paths.global"
+EXPECTED_PATH_KEYS="paths.plans paths.research_codebase paths.decisions paths.prs paths.validations paths.review_plans paths.review_prs paths.review_work paths.templates paths.work paths.notes paths.tmp paths.integrations paths.research_design_inventories paths.research_design_gaps paths.global paths.research_issues"
 ACTUAL_PATH_KEYS_LEN=$( source "$DEFAULTS_FILE" && echo "${#PATH_KEYS[@]}" )
-assert_eq "PATH_KEYS length" "16" "$ACTUAL_PATH_KEYS_LEN"
+assert_eq "PATH_KEYS length" "17" "$ACTUAL_PATH_KEYS_LEN"
 ACTUAL_PATH_KEYS=$( source "$DEFAULTS_FILE" && echo "${PATH_KEYS[*]}" )
 assert_eq "PATH_KEYS contents" "$EXPECTED_PATH_KEYS" "$ACTUAL_PATH_KEYS"
 
 echo "Test: PATH_DEFAULTS has expected length and order"
-EXPECTED_PATH_DEFAULTS="meta/plans meta/research meta/decisions meta/prs meta/validations meta/reviews/plans meta/reviews/prs meta/reviews/work .accelerator/templates meta/work meta/notes .accelerator/tmp .accelerator/state/integrations meta/design-inventories meta/design-gaps meta/global"
+EXPECTED_PATH_DEFAULTS="meta/plans meta/research/codebase meta/decisions meta/prs meta/validations meta/reviews/plans meta/reviews/prs meta/reviews/work .accelerator/templates meta/work meta/notes .accelerator/tmp .accelerator/state/integrations meta/research/design-inventories meta/research/design-gaps meta/global meta/research/issues"
 ACTUAL_PATH_DEFAULTS_LEN=$( source "$DEFAULTS_FILE" && echo "${#PATH_DEFAULTS[@]}" )
-assert_eq "PATH_DEFAULTS length" "16" "$ACTUAL_PATH_DEFAULTS_LEN"
+assert_eq "PATH_DEFAULTS length" "17" "$ACTUAL_PATH_DEFAULTS_LEN"
 ACTUAL_PATH_DEFAULTS=$( source "$DEFAULTS_FILE" && echo "${PATH_DEFAULTS[*]}" )
 assert_eq "PATH_DEFAULTS contents" "$EXPECTED_PATH_DEFAULTS" "$ACTUAL_PATH_DEFAULTS"
 
 echo "Test: TEMPLATE_KEYS has expected length and order"
-EXPECTED_TEMPLATE_KEYS="templates.plan templates.research templates.adr templates.validation templates.pr-description templates.work-item"
+EXPECTED_TEMPLATE_KEYS="templates.plan templates.codebase-research templates.adr templates.validation templates.pr-description templates.work-item"
 ACTUAL_TEMPLATE_KEYS_LEN=$( source "$DEFAULTS_FILE" && echo "${#TEMPLATE_KEYS[@]}" )
 assert_eq "TEMPLATE_KEYS length" "6" "$ACTUAL_TEMPLATE_KEYS_LEN"
 ACTUAL_TEMPLATE_KEYS=$( source "$DEFAULTS_FILE" && echo "${TEMPLATE_KEYS[*]}" )
@@ -3089,15 +3089,15 @@ REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_PATH" integrations)
 assert_eq "integrations default" ".accelerator/state/integrations" "$OUTPUT"
 
-echo "Test: design_inventories key → meta/design-inventories with no \$2"
+echo "Test: research_design_inventories key → meta/research/design-inventories with no \$2"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" design_inventories)
-assert_eq "design_inventories default" "meta/design-inventories" "$OUTPUT"
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" research_design_inventories)
+assert_eq "research_design_inventories default" "meta/research/design-inventories" "$OUTPUT"
 
-echo "Test: design_gaps key → meta/design-gaps with no \$2"
+echo "Test: research_design_gaps key → meta/research/design-gaps with no \$2"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" design_gaps)
-assert_eq "design_gaps default" "meta/design-gaps" "$OUTPUT"
+OUTPUT=$(cd "$REPO" && bash "$READ_PATH" research_design_gaps)
+assert_eq "research_design_gaps default" "meta/research/design-gaps" "$OUTPUT"
 
 echo "Test: global key → meta/global with no \$2"
 REPO=$(setup_repo)
@@ -4023,12 +4023,15 @@ REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_ALL_PATHS")
 assert_contains "has Configured Paths header" "$OUTPUT" "## Configured Paths"
 
-echo "Test: all 11 document-discovery keys present with defaults"
+echo "Test: all 14 document-discovery keys present with defaults"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_ALL_PATHS")
 for key_default in \
   "plans: meta/plans" \
-  "research: meta/research" \
+  "research_codebase: meta/research/codebase" \
+  "research_issues: meta/research/issues" \
+  "research_design_inventories: meta/research/design-inventories" \
+  "research_design_gaps: meta/research/design-gaps" \
   "decisions: meta/decisions" \
   "prs: meta/prs" \
   "validations: meta/validations" \
@@ -4044,7 +4047,7 @@ done
 echo "Test: excluded keys not in output"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_ALL_PATHS")
-for excl in tmp templates integrations design_inventories design_gaps; do
+for excl in tmp templates integrations; do
   assert_not_contains "excluded key ${excl} absent" "$OUTPUT" "- ${excl}:"
 done
 
@@ -5117,7 +5120,7 @@ echo "Test: Unknown template lists all 6 template names including pr-description
 REPO=$(setup_repo)
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "nonexistent" 2>&1 1>/dev/null || true)
 assert_contains "error lists plan" "$STDERR_OUTPUT" "plan"
-assert_contains "error lists research" "$STDERR_OUTPUT" "research"
+assert_contains "error lists codebase-research" "$STDERR_OUTPUT" "codebase-research"
 assert_contains "error lists adr" "$STDERR_OUTPUT" "adr"
 assert_contains "error lists validation" "$STDERR_OUTPUT" "validation"
 assert_contains "error lists pr-description" "$STDERR_OUTPUT" "pr-description"
@@ -5135,7 +5138,7 @@ mkdir -p "$REPO/.accelerator/tmp" && touch "$REPO/.accelerator/tmp/.gitignore"
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 LINE_COUNT=$(echo "$OUTPUT" | grep -c '| `' || true)
 assert_eq "9 template rows" "9" "$LINE_COUNT"
-for KEY in plan research adr validation pr-description work-item rca; do
+for KEY in plan codebase-research adr validation pr-description work-item rca; do
   if echo "$OUTPUT" | grep "\`$KEY\`" | grep -q "plugin default"; then
     echo "  PASS: $KEY shows plugin default"
     PASS=$((PASS + 1))
@@ -5185,7 +5188,7 @@ echo "Test: Custom paths.templates -> finds override in custom directory"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/docs/tpl"
-echo "# Custom" > "$REPO/docs/tpl/research.md"
+echo "# Custom" > "$REPO/docs/tpl/codebase-research.md"
 cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
 ---
 paths:
@@ -5193,12 +5196,12 @@ paths:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
-if echo "$OUTPUT" | grep '`research`' | grep -q "user override"; then
-  echo "  PASS: research shows user override via custom paths.templates"
+if echo "$OUTPUT" | grep '`codebase-research`' | grep -q "user override"; then
+  echo "  PASS: codebase-research shows user override via custom paths.templates"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: research shows user override via custom paths.templates"
-  echo "    Output: $(echo "$OUTPUT" | grep 'research' || echo "(not found)")"
+  echo "  FAIL: codebase-research shows user override via custom paths.templates"
+  echo "    Output: $(echo "$OUTPUT" | grep 'codebase-research' || echo "(not found)")"
   FAIL=$((FAIL + 1))
 fi
 
@@ -5216,7 +5219,7 @@ mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/custom"
 mkdir -p "$REPO/.accelerator/templates"
 echo "# Config" > "$REPO/custom/my-plan.md"
-echo "# Override" > "$REPO/.accelerator/templates/research.md"
+echo "# Override" > "$REPO/.accelerator/templates/codebase-research.md"
 cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
 ---
 templates:
@@ -5225,7 +5228,7 @@ templates:
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 if echo "$OUTPUT" | grep '`plan`' | grep -q "config path" && \
-   echo "$OUTPUT" | grep '`research`' | grep -q "user override" && \
+   echo "$OUTPUT" | grep '`codebase-research`' | grep -q "user override" && \
    echo "$OUTPUT" | grep '`adr`' | grep -q "plugin default"; then
   echo "  PASS: mixed sources correctly labelled"
   PASS=$((PASS + 1))
@@ -5354,7 +5357,7 @@ assert_file_content_eq "content replaced with plugin default" "$REPO/.accelerato
 echo "Test: --all ejects all 6 templates"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --all)
-for KEY in plan research adr validation pr-description work-item; do
+for KEY in plan codebase-research adr validation pr-description work-item; do
   assert_file_exists "$KEY ejected" "$REPO/.accelerator/templates/${KEY}.md"
 done
 
@@ -5362,7 +5365,7 @@ echo "Test: --all --force overwrites all existing"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
 echo "# Old" > "$REPO/.accelerator/templates/plan.md"
-echo "# Old" > "$REPO/.accelerator/templates/research.md"
+echo "# Old" > "$REPO/.accelerator/templates/codebase-research.md"
 RC=0
 OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --all --force) || RC=$?
 assert_eq "exit code 0" "0" "$RC"
@@ -5377,7 +5380,7 @@ RC=0
 cd "$REPO" && bash "$EJECT_TEMPLATE" --all >/dev/null 2>&1 || RC=$?
 assert_eq "exit code 2" "2" "$RC"
 # Non-conflicting templates should still be written
-assert_file_exists "research still ejected" "$REPO/.accelerator/templates/research.md"
+assert_file_exists "codebase-research still ejected" "$REPO/.accelerator/templates/codebase-research.md"
 
 echo "Test: --dry-run outputs what would happen without writing files"
 REPO=$(setup_repo)
@@ -5786,10 +5789,10 @@ echo ""
 echo "=== design path keys: defaults work ==="
 echo ""
 
-ACTUAL=$("$READ_VALUE" paths.design_inventories meta/design-inventories)
-assert_eq "design_inventories default" "meta/design-inventories" "$ACTUAL"
-ACTUAL=$("$READ_VALUE" paths.design_gaps meta/design-gaps)
-assert_eq "design_gaps default" "meta/design-gaps" "$ACTUAL"
+ACTUAL=$("$READ_VALUE" paths.research_design_inventories meta/research/design-inventories)
+assert_eq "research_design_inventories default" "meta/research/design-inventories" "$ACTUAL"
+ACTUAL=$("$READ_VALUE" paths.research_design_gaps meta/research/design-gaps)
+assert_eq "research_design_gaps default" "meta/research/design-gaps" "$ACTUAL"
 
 echo ""
 

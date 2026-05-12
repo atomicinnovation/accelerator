@@ -11,7 +11,7 @@ source "$SCRIPT_DIR/config-common.sh"
 # Non-document keys excluded from the document-discovery output.
 # All PATH_KEYS not in this exclusion list are emitted automatically, so new document
 # path keys added to config-defaults.sh appear here without editing this script.
-EXCLUDED_KEYS=(tmp templates integrations design_inventories design_gaps)
+EXCLUDED_KEYS=(tmp templates integrations)
 
 _is_excluded() {
   local key="$1"

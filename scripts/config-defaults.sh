@@ -25,7 +25,7 @@
 
 PATH_KEYS=(
   "paths.plans"
-  "paths.research"
+  "paths.research_codebase"
   "paths.decisions"
   "paths.prs"
   "paths.validations"
@@ -37,14 +37,15 @@ PATH_KEYS=(
   "paths.notes"
   "paths.tmp"
   "paths.integrations"
-  "paths.design_inventories"
-  "paths.design_gaps"
+  "paths.research_design_inventories"
+  "paths.research_design_gaps"
   "paths.global"
+  "paths.research_issues"
 )
 
 PATH_DEFAULTS=(
   "meta/plans"
-  "meta/research"
+  "meta/research/codebase"
   "meta/decisions"
   "meta/prs"
   "meta/validations"
@@ -56,14 +57,15 @@ PATH_DEFAULTS=(
   "meta/notes"
   ".accelerator/tmp"
   ".accelerator/state/integrations"
-  "meta/design-inventories"
-  "meta/design-gaps"
+  "meta/research/design-inventories"
+  "meta/research/design-gaps"
   "meta/global"
+  "meta/research/issues"
 )
 
 TEMPLATE_KEYS=(
   "templates.plan"
-  "templates.research"
+  "templates.codebase-research"
   "templates.adr"
   "templates.validation"
   "templates.pr-description"

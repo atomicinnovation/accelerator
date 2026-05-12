@@ -25,7 +25,10 @@ disabled or failed), fall back to the plugin default shown in the legend.
 What lives at each path key, with the plugin default if no override is set:
 
 - `plans` — implementation plans for specific work items (default: `meta/plans`)
-- `research` — research documents on specific work items (default: `meta/research`)
+- `research_codebase` — codebase research outputs on specific work items (default: `meta/research/codebase`)
+- `research_issues` — issue / RCA research outputs (default: `meta/research/issues`)
+- `research_design_inventories` — design-inventory artifacts, one directory per snapshot (default: `meta/research/design-inventories`)
+- `research_design_gaps` — design-gap analysis artifacts (default: `meta/research/design-gaps`)
 - `decisions` — architectural decision records for the codebase (default: `meta/decisions`)
 - `prs` — PR descriptions for landed changes (default: `meta/prs`)
 - `validations` — plan validation reports (default: `meta/validations`)

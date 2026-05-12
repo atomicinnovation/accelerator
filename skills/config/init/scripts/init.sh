@@ -14,20 +14,20 @@ source "$PLUGIN_ROOT/scripts/vcs-common.sh"
 PROJECT_ROOT="${PROJECT_ROOT:-$(find_repo_root || echo "$PWD")}"
 cd "$PROJECT_ROOT"
 
-# Step 1: project-content directories under meta/ (13 items)
+# Step 1: project-content directories under meta/ (14 items)
 DIR_KEYS=(
-  plans research decisions prs validations
+  plans research_codebase decisions prs validations
   review_plans review_prs review_work
   work notes
-  design_inventories design_gaps
-  global
+  research_design_inventories research_design_gaps
+  global research_issues
 )
 DIR_DEFAULTS=(
-  meta/plans meta/research meta/decisions meta/prs meta/validations
+  meta/plans meta/research/codebase meta/decisions meta/prs meta/validations
   meta/reviews/plans meta/reviews/prs meta/reviews/work
   meta/work meta/notes
-  meta/design-inventories meta/design-gaps
-  meta/global
+  meta/research/design-inventories meta/research/design-gaps
+  meta/global meta/research/issues
 )
 
 for i in "${!DIR_KEYS[@]}"; do
