@@ -58,6 +58,7 @@ export interface DocType {
   // and any future virtual/derived types set `virtual: true`; real
   // document types set `virtual: false`. Sidebar partitions on this flag.
   virtual: boolean
+  count?: number
 }
 
 export interface IndexEntry {

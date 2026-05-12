@@ -21,6 +21,7 @@ export interface DocEventsHandle {
 function queryKeysForEvent(event: SseEvent): ReadonlyArray<readonly unknown[]> {
   if (event.type !== 'doc-changed' && event.type !== 'doc-invalid') return []
   const keys: Array<readonly unknown[]> = [
+    queryKeys.types(),
     queryKeys.docs(event.docType),
     queryKeys.docContent(event.path),
     queryKeys.lifecycle(),
@@ -54,6 +55,7 @@ export function dispatchSseEvent(
     return
   }
   if (event.type === 'doc-changed' || event.type === 'doc-invalid') {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.types() })
     void queryClient.invalidateQueries({ queryKey: queryKeys.docs(event.docType) })
     void queryClient.invalidateQueries({ queryKey: queryKeys.docContent(event.path) })
     void queryClient.invalidateQueries({ queryKey: queryKeys.lifecycle() })

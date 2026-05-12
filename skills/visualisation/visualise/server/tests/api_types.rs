@@ -44,4 +44,13 @@ async fn types_returns_thirteen_entries_with_virtual_flag_on_templates() {
     assert_eq!(design_inventories["virtual"], false);
     assert_eq!(design_inventories["inLifecycle"], true);
     assert!(design_inventories["dirPath"].is_string());
+
+    assert_eq!(decisions["count"].as_u64().unwrap(), 1);
+    let plans = arr.iter().find(|t| t["key"] == "plans").unwrap();
+    assert_eq!(plans["count"].as_u64().unwrap(), 1);
+    let plan_reviews = arr.iter().find(|t| t["key"] == "plan-reviews").unwrap();
+    assert_eq!(plan_reviews["count"].as_u64().unwrap(), 1);
+    let work_items = arr.iter().find(|t| t["key"] == "work-items").unwrap();
+    assert_eq!(work_items["count"].as_u64().unwrap(), 0);
+    assert_eq!(templates["count"].as_u64().unwrap(), 0);
 }

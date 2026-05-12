@@ -323,6 +323,14 @@ impl Indexer {
             .collect()
     }
 
+    pub async fn counts_by_type(&self) -> HashMap<DocTypeKey, usize> {
+        let mut out: HashMap<DocTypeKey, usize> = HashMap::new();
+        for entry in self.entries.read().await.values() {
+            *out.entry(entry.r#type).or_insert(0) += 1;
+        }
+        out
+    }
+
     pub async fn all(&self) -> Vec<IndexEntry> {
         self.entries.read().await.values().cloned().collect()
     }
@@ -1006,6 +1014,18 @@ mod tests {
         assert_eq!(reviews.len(), 2);
         let notes = idx.all_by_type(DocTypeKey::Notes).await;
         assert_eq!(notes.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn counts_by_type_returns_entry_count_per_configured_type() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = build_indexer(tmp.path()).await;
+        let counts = idx.counts_by_type().await;
+        assert_eq!(counts.get(&DocTypeKey::Plans).copied().unwrap_or(0), 3);
+        assert_eq!(counts.get(&DocTypeKey::Decisions).copied().unwrap_or(0), 1);
+        assert_eq!(counts.get(&DocTypeKey::PlanReviews).copied().unwrap_or(0), 2);
+        assert_eq!(counts.get(&DocTypeKey::Notes).copied().unwrap_or(0), 1);
+        assert!(!counts.contains_key(&DocTypeKey::Templates));
     }
 
     #[tokio::test]

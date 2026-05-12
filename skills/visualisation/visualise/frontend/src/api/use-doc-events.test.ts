@@ -27,6 +27,26 @@ describe('dispatchSseEvent', () => {
     )
   })
 
+  it('invalidates the types query on doc-changed event', () => {
+    dispatchSseEvent(
+      { type: 'doc-changed', docType: 'decisions', path: 'meta/decisions/0001.md', etag: 'sha256-abc' },
+      queryClient,
+    )
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: queryKeys.types() }),
+    )
+  })
+
+  it('invalidates the types query on doc-invalid event', () => {
+    dispatchSseEvent(
+      { type: 'doc-invalid', docType: 'decisions', path: 'meta/decisions/0001.md' },
+      queryClient,
+    )
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: queryKeys.types() }),
+    )
+  })
+
   it('invalidates doc content for the changed file', () => {
     dispatchSseEvent(
       { type: 'doc-changed', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-abc' },

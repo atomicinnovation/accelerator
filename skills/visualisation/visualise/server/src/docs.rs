@@ -96,6 +96,20 @@ pub struct DocType {
     pub in_lifecycle: bool,
     pub in_kanban: bool,
     pub r#virtual: bool,
+    /// Number of indexed entries of this doc type as of the API call.
+    ///
+    /// On the JSON wire, this field is always populated by the
+    /// `api::types::types` handler from the live indexer state. Templates
+    /// is excluded from the index and so observes `count = 0` via
+    /// `unwrap_or(0)` in the handler.
+    ///
+    /// In-process, `describe_types` constructs `DocType` values with
+    /// `count: 0` as a placeholder — the API handler MUST overwrite this
+    /// before serialisation. A non-handler consumer of `describe_types`
+    /// (e.g., a future CLI introspector) would observe the placeholder
+    /// directly and SHOULD NOT trust this field; consider splitting the
+    /// type if a second consumer appears.
+    pub count: usize,
 }
 
 pub fn describe_types(cfg: &crate::config::Config) -> Vec<DocType> {
@@ -111,6 +125,7 @@ pub fn describe_types(cfg: &crate::config::Config) -> Vec<DocType> {
             in_lifecycle: key.in_lifecycle(),
             in_kanban: key.in_kanban(),
             r#virtual: key.is_virtual(),
+            count: 0,
         });
     }
     out
