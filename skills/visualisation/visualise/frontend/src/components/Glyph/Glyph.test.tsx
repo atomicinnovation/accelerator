@@ -157,3 +157,38 @@ describe('Glyph: source-level no-state-hooks guard', () => {
 // by Playwright (tests/visual-regression/glyph-resolved-fill.spec.ts). JSDOM
 // does not reliably substitute `var()` in SVG presentation attributes — see
 // the Resolved Decision in meta/work/0037-glyph-component.md.
+
+// AC line 74: explicit 12 × 3 = 36 combination matrix. Each (docType, size)
+// case is named so a regression points directly at the failing combination.
+const SIZES = [16, 24, 32] as const
+
+describe.each(GLYPH_DOC_TYPE_KEYS)('Glyph: %s', (docType) => {
+  describe.each(SIZES)('size %s', (size) => {
+    it('renders an <svg> with correct dimensions, viewBox, and color var', () => {
+      const { container } = render(<Glyph docType={docType} size={size} />)
+      const svg = container.querySelector('svg') as SVGElement | null
+      expect(svg).not.toBeNull()
+      expect(svg!.getAttribute('width')).toBe(String(size))
+      expect(svg!.getAttribute('height')).toBe(String(size))
+      expect(svg!.getAttribute('viewBox')).toBeTruthy()
+      expect(svg!.style.color).toBe(`var(--ac-doc-${docType})`)
+    })
+  })
+})
+
+// Replace attribute-literal a11y assertions with Testing Library's
+// accessible-name resolution so the test reflects what assistive tech
+// actually sees, not the raw attribute spelling.
+describe('Glyph: accessible-name semantics', () => {
+  it('default render is not exposed as an image to assistive tech', () => {
+    const { queryByRole } = render(<Glyph docType="decisions" size={24} />)
+    expect(queryByRole('img')).toBeNull()
+  })
+
+  it('with ariaLabel, render exposes role=img with the given name', () => {
+    const { getByRole } = render(
+      <Glyph docType="decisions" size={24} ariaLabel="Decision" />,
+    )
+    expect(getByRole('img', { name: 'Decision' })).toBeTruthy()
+  })
+})
