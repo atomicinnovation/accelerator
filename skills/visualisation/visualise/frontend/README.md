@@ -64,6 +64,18 @@ Each visual-regression spec commits two PNG baselines per case: `<name>-<project
 
 If a Playwright test fails locally with a baseline mismatch on the opposite platform, do not regenerate that platform's baseline locally — let CI regenerate it under a known environment.
 
+### Glyph showcase specs
+
+`tests/visual-regression/glyph-showcase.spec.ts` and `glyph-resolved-fill.spec.ts` are frontend-only — they don't need the Rust visualiser server. A standalone config at `playwright.glyph.config.ts` serves the built `dist/` via `vite preview`, so they can be regenerated inside a vanilla Playwright Linux image without any Rust toolchain:
+
+```sh
+docker run --rm -v "$(pwd):/work" -w /work --ipc=host -e CI=1 \
+  mcr.microsoft.com/playwright:v1.59.1-noble \
+  bash -c "npm ci && npm run build && npx playwright test --config playwright.glyph.config.ts --update-snapshots"
+```
+
+Restore your host `node_modules` with `npm ci` afterwards — the container build leaves Linux-native binaries (esbuild, @rollup/rollup-*) in place that the host platform can't load.
+
 ## Troubleshooting
 
 - **`tsc -b` fails after editing a token**: ensure the new entry appears in BOTH `tokens.ts` and all three theme blocks in `global.css`; run `npx vitest run src/styles/global.test.ts` to surface parity violations.
