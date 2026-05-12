@@ -320,3 +320,161 @@ _ensure_gitkeep "$NEW_RESEARCH_CODEBASE"
 _ensure_gitkeep "$NEW_RESEARCH_ISSUES"
 [ "$INV_HAD_OVERRIDE" = "1" ]  || _ensure_gitkeep "$NEW_INV"
 [ "$GAPS_HAD_OVERRIDE" = "1" ] || _ensure_gitkeep "$NEW_GAPS"
+
+# ── Step 2: per-key config rewrites with informational notifications ─────────
+
+_backup_config_once() {
+  local cfg="$1"
+  [ -f "$cfg" ] || return 0
+  local bak="$cfg.0004.bak"
+  [ -e "$bak" ] && return 0
+  cp "$cfg" "$bak"
+  echo "0004: backed up $(basename "$cfg") → $(basename "$bak") (remove after verifying migration)"
+}
+
+detect_form() {
+  local cfg="$1" prefix="$2"
+  [ -f "$cfg" ] || { printf 'absent'; return 0; }
+  if grep -qE "^${prefix}:[[:space:]]*$" "$cfg"; then printf 'nested'; return; fi
+  if grep -qE "^${prefix}\\." "$cfg"; then printf 'flat'; return; fi
+  printf 'absent'
+}
+
+rewrite_one_key() {
+  local cfg="$1" prefix="$2" old_key="$3" new_key="$4" new_val="$5"
+  local form
+  form=$(detect_form "$cfg" "$prefix")
+  case "$form" in
+    nested)
+      awk -v prefix="$prefix" -v old="$old_key" -v new="$new_key" -v val="$new_val" '
+        BEGIN {
+          nested_block_re="^" prefix ":[[:space:]]*$"
+          old_re="^([[:space:]]+)" old ":"
+          in_block=0
+        }
+        $0 ~ nested_block_re { in_block=1; print; next }
+        in_block && /^[^[:space:]]/ { in_block=0 }
+        in_block && $0 ~ old_re {
+          line=$0
+          sub(old ":.*", "", line)
+          print line new ": " val
+          next
+        }
+        { print }
+      ' "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
+      ;;
+    flat)
+      awk -v prefix="$prefix" -v old="$old_key" -v new="$new_key" -v val="$new_val" '
+        BEGIN { old_re="^" prefix "\\." old ":" }
+        $0 ~ old_re { print prefix "." new ": " val; next }
+        { print }
+      ' "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
+      ;;
+    absent)
+      return 0
+      ;;
+  esac
+}
+
+_xform_identity() { cat; }
+_xform_append_codebase() { printf '%s/codebase' "$(cat)"; }
+
+emit_rename_notice() {
+  local prefix="$1" old="$2" new="$3" oldval="$4" newval="$5"
+  if [ "$oldval" = "$newval" ]; then
+    echo "0004: renamed ${prefix}.${old} → ${prefix}.${new} (value: ${oldval})"
+  else
+    echo "0004: renamed ${prefix}.${old} → ${prefix}.${new} (value: ${oldval} → ${newval})"
+  fi
+}
+
+_rewrite_pair() {
+  local prefix="$1" old="$2" new="$3" xform="$4"
+  local cfg
+  for cfg in "$PROJECT_ROOT/.accelerator/config.md" \
+             "$PROJECT_ROOT/.accelerator/config.local.md"; do
+    [ -f "$cfg" ] || continue
+    local probe
+    probe=$(probe_key_in_file "$cfg" "$prefix" "$old")
+    local present="${probe%%$'\t'*}"
+    local oldval="${probe#*$'\t'}"
+    [ "$present" = "1" ] || continue
+    _backup_config_once "$cfg"
+    local newval
+    newval=$(printf '%s' "$oldval" | "$xform")
+    rewrite_one_key "$cfg" "$prefix" "$old" "$new" "$newval"
+    emit_rename_notice "$prefix" "$old" "$new" "$oldval" "$newval"
+  done
+}
+
+_rewrite_pair "paths" "research" "research_codebase" _xform_append_codebase
+_rewrite_pair "paths" "design_inventories" "research_design_inventories" _xform_identity
+_rewrite_pair "paths" "design_gaps" "research_design_gaps" _xform_identity
+_rewrite_pair "templates" "research" "codebase-research" _xform_identity
+
+# D4: rename user-overridden template file if present at <paths.templates>/research.md.
+_rename_user_template_file_if_present() {
+  local templates_dir
+  templates_dir=$(bash "$PLUGIN_ROOT/scripts/config-read-path.sh" templates 2>/dev/null || echo "")
+  [ -n "$templates_dir" ] || return 0
+  local src="$PROJECT_ROOT/$templates_dir/research.md"
+  local dst="$PROJECT_ROOT/$templates_dir/codebase-research.md"
+  [ -f "$src" ] || return 0
+  [ -e "$dst" ] && log_die "0004: destination $dst already exists — cannot rename user template."
+  mv "$src" "$dst"
+  echo "0004: renamed $templates_dir/research.md → $templates_dir/codebase-research.md"
+}
+_rename_user_template_file_if_present
+
+# Inject paths.research_issues only when the user explicitly overrode paths.research.
+# Default-layout users get the new default via PATH_DEFAULTS — no explicit key needed.
+_inject_research_issues() {
+  local cfg="$1"
+  [ -f "$cfg" ] || return 0
+  local form
+  form=$(detect_form "$cfg" "paths")
+  case "$form" in
+    absent) return 0 ;;
+    nested)
+      grep -qE '^[[:space:]]+research_issues:' "$cfg" && return 0
+      awk -v val="${OLD_RESEARCH}/issues" '
+        BEGIN { in_block=0; n=0; last_sib=0; sib_indent="" }
+        /^paths:[[:space:]]*$/ { in_block=1; lines[++n]=$0; next }
+        in_block && /^[^[:space:]]/ { in_block=0 }
+        in_block && match($0, /^[[:space:]]+[^[:space:]]/) {
+          last_sib=NR
+          sib_indent=substr($0, 1, RLENGTH-1)
+        }
+        { lines[++n]=$0 }
+        END {
+          for (i=1; i<=n; i++) {
+            print lines[i]
+            if (i==last_sib) print sib_indent "research_issues: " val
+          }
+        }
+      ' "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
+      ;;
+    flat)
+      grep -qE '^paths\.research_issues:' "$cfg" && return 0
+      awk -v val="${OLD_RESEARCH}/issues" '
+        /^paths\./ { last=NR }
+        { lines[NR]=$0; n=NR }
+        END {
+          for (i=1; i<=n; i++) {
+            print lines[i]
+            if (i==last) print "paths.research_issues: " val
+          }
+        }
+      ' "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
+      ;;
+  esac
+}
+
+if [ "$RESEARCH_HAD_OVERRIDE" = "1" ]; then
+  for cfg in "$PROJECT_ROOT/.accelerator/config.md" \
+             "$PROJECT_ROOT/.accelerator/config.local.md"; do
+    [ -f "$cfg" ] || continue
+    _backup_config_once "$cfg"
+    _inject_research_issues "$cfg"
+  done
+fi

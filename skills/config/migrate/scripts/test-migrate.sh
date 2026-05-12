@@ -1109,4 +1109,84 @@ assert_contains "diagnostic mentions no VCS" "$OUTPUT" "no VCS detected"
 
 echo ""
 
+# ── Phase 4 — config-key rewrites & notifications ───────────────────────────
+
+echo "Test: research-override-only — paths.research_codebase value is OLD/codebase"
+REPO=$(setup_0004_repo research-override-only)
+run_0004 "$REPO" >/dev/null 2>&1
+CFG=$(cat "$REPO/.accelerator/config.md")
+assert_contains "research_codebase value rewritten" "$CFG" "research_codebase: docs/research/codebase"
+assert_not_contains "legacy paths.research removed" "$CFG" "research: docs/research$(printf '\n')"
+
+echo "Test: research-override-only — paths.research_issues injected with OLD/issues"
+REPO=$(setup_0004_repo research-override-only)
+run_0004 "$REPO" >/dev/null 2>&1
+CFG=$(cat "$REPO/.accelerator/config.md")
+assert_contains "research_issues injected" "$CFG" "research_issues: docs/research/issues"
+
+echo "Test: all-overridden — design-inv/design-gaps preserved verbatim"
+REPO=$(setup_0004_repo all-overridden)
+run_0004 "$REPO" >/dev/null 2>&1
+CFG=$(cat "$REPO/.accelerator/config.md")
+assert_contains "research_design_inventories verbatim" "$CFG" "research_design_inventories: assets/inv"
+assert_contains "research_design_gaps verbatim" "$CFG" "research_design_gaps: gaps"
+
+echo "Test: default-layout — config.md byte-identical (no paths-block injection)"
+REPO=$(setup_0004_repo default-layout)
+BEFORE=$(cat "$REPO/.accelerator/config.md")
+run_0004 "$REPO" >/dev/null 2>&1
+AFTER=$(cat "$REPO/.accelerator/config.md")
+assert_eq "config unchanged when no overrides" "$BEFORE" "$AFTER"
+assert_not_contains "no research_issues injected" "$AFTER" "research_issues"
+
+echo "Test: rename notification line emitted for each rewritten key"
+REPO=$(setup_0004_repo all-overridden)
+OUTPUT=$(run_0004 "$REPO" 2>&1)
+assert_contains "research rename notice" "$OUTPUT" "renamed paths.research → paths.research_codebase"
+assert_contains "design_inventories rename notice" "$OUTPUT" "renamed paths.design_inventories → paths.research_design_inventories"
+assert_contains "design_gaps rename notice" "$OUTPUT" "renamed paths.design_gaps → paths.research_design_gaps"
+
+echo "Test: default-layout — no rename notifications emitted (no overrides)"
+REPO=$(setup_0004_repo default-layout)
+OUTPUT=$(run_0004 "$REPO" 2>&1)
+assert_not_contains "no rename notice" "$OUTPUT" "renamed paths.research"
+
+echo "Test: local-config-only — rewrite applies only to config.local.md"
+REPO=$(setup_0004_repo local-config-only)
+BEFORE_TEAM=$(cat "$REPO/.accelerator/config.md")
+run_0004 "$REPO" >/dev/null 2>&1
+AFTER_TEAM=$(cat "$REPO/.accelerator/config.md")
+LOCAL=$(cat "$REPO/.accelerator/config.local.md")
+assert_eq "team config unchanged" "$BEFORE_TEAM" "$AFTER_TEAM"
+assert_contains "local config rewritten" "$LOCAL" "research_codebase: docs/research/codebase"
+
+echo "Test: config backup .bak file created before first rewrite"
+REPO=$(setup_0004_repo research-override-only)
+run_0004 "$REPO" >/dev/null 2>&1
+assert_file_exists "config.md.0004.bak created" "$REPO/.accelerator/config.md.0004.bak"
+
+echo "Test: config rewrite is idempotent — second run yields no change"
+REPO=$(setup_0004_repo research-override-only)
+run_0004 "$REPO" >/dev/null 2>&1
+BEFORE=$(cat "$REPO/.accelerator/config.md")
+run_0004 "$REPO" >/dev/null 2>&1
+AFTER=$(cat "$REPO/.accelerator/config.md")
+assert_eq "config byte-identical on re-run" "$BEFORE" "$AFTER"
+
+echo "Test: templates.research → templates.codebase-research rename when overridden"
+REPO=$(setup_0004_repo default-layout)
+# Add templates.research override after fixture copy
+cat > "$REPO/.accelerator/config.md" <<'EOF'
+---
+templates:
+  research: custom/templates/my-research.md
+---
+EOF
+run_0004 "$REPO" >/dev/null 2>&1
+CFG=$(cat "$REPO/.accelerator/config.md")
+assert_contains "templates.codebase-research key" "$CFG" "codebase-research: custom/templates/my-research.md"
+assert_not_contains "legacy templates.research key absent" "$CFG" "  research:"
+
+echo ""
+
 test_summary
