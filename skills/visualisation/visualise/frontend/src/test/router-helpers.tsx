@@ -12,12 +12,17 @@ function buildTestRouter(ui: React.ReactNode, atUrl = '/') {
     path: '/',
     component: () => <>{ui}</>,
   })
+  const libraryTypeRoute = createRoute({
+    getParentRoute: () => root,
+    path: '/library/$type',
+    component: () => <>{ui}</>,
+  })
   const libraryDocRoute = createRoute({
     getParentRoute: () => root,
     path: '/library/$type/$fileSlug',
-    component: () => null,
+    component: () => <>{ui}</>,
   })
-  const tree = root.addChildren([indexRoute, libraryDocRoute])
+  const tree = root.addChildren([indexRoute, libraryTypeRoute, libraryDocRoute])
   return createRouter({
     routeTree: tree,
     history: createMemoryHistory({ initialEntries: [atUrl] }),

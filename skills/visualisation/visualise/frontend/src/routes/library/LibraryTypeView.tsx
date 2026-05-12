@@ -6,6 +6,7 @@ import { formatMtime } from '../../api/format'
 import { queryKeys } from '../../api/query-keys'
 import type { IndexEntry, DocTypeKey } from '../../api/types'
 import { isDocTypeKey } from '../../api/types'
+import { useMarkDocTypeSeen } from '../../api/use-unseen-doc-types'
 import { fileSlugFromRelPath } from '../../api/path-utils'
 import styles from './LibraryTypeView.module.css'
 
@@ -52,6 +53,11 @@ export function LibraryTypeView({ type: propType }: Props) {
   // Narrowed only when rawType passes the type guard; undefined otherwise.
   const type: DocTypeKey | undefined =
     rawType && isDocTypeKey(rawType) ? rawType : undefined
+  const hasFileSlug = Boolean(params.fileSlug)
+
+  // Pass undefined on child-doc paths so the unseen dot on the parent
+  // type persists — the user has not actually seen the list view.
+  useMarkDocTypeSeen(hasFileSlug ? undefined : type)
 
   // Call useQuery unconditionally (Rules of Hooks). When `type` is invalid
   // we disable the query and render an error; the key uses a sentinel so

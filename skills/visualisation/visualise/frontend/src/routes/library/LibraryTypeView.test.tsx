@@ -1,9 +1,13 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { MemoryRouter } from '../../test/router-helpers'
+import { MemoryRouter, renderWithRouterAt } from '../../test/router-helpers'
 import { LibraryTypeView } from './LibraryTypeView'
 import * as fetchModule from '../../api/fetch'
 import type { IndexEntry } from '../../api/types'
+import {
+  UnseenDocTypesContext,
+  type UnseenDocTypesHandle,
+} from '../../api/use-unseen-doc-types'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 
@@ -102,5 +106,71 @@ describe('LibraryTypeView', () => {
     vi.spyOn(fetchModule, 'fetchDocs').mockRejectedValue(new Error('boom'))
     render(<LibraryTypeView type="plans" />, { wrapper: Wrapper })
     expect(await screen.findByRole('alert')).toHaveTextContent(/Failed to load documents/i)
+  })
+})
+
+describe('LibraryTypeView markSeen wiring', () => {
+  function mockHandle(): UnseenDocTypesHandle & { markSeen: ReturnType<typeof vi.fn> } {
+    return {
+      unseenSet: new Set(),
+      markSeen: vi.fn(),
+      onEvent: vi.fn(),
+      onReconnect: vi.fn(),
+    }
+  }
+
+  function renderAt(url: string, handle: UnseenDocTypesHandle, strict = false) {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const tree = (
+      <QueryClientProvider client={qc}>
+        <UnseenDocTypesContext.Provider value={handle}>
+          <LibraryTypeView />
+        </UnseenDocTypesContext.Provider>
+      </QueryClientProvider>
+    )
+    return renderWithRouterAt(strict ? <React.StrictMode>{tree}</React.StrictMode> : tree, url)
+  }
+
+  it('list view bumps T for the matched type', async () => {
+    const handle = mockHandle()
+    renderAt('/library/work-items', handle)
+    await screen.findByText(/No documents found/i)
+    expect(handle.markSeen).toHaveBeenCalledWith('work-items')
+  })
+
+  it('child-doc URL does NOT bump T', async () => {
+    const handle = mockHandle()
+    renderAt('/library/work-items/some-slug', handle)
+    // The component returns <Outlet/> on child-doc paths; give the router a
+    // tick to settle by waiting on a microtask.
+    await Promise.resolve()
+    expect(handle.markSeen).not.toHaveBeenCalled()
+  })
+
+  it('invalid type via router does not bump T', async () => {
+    const handle = mockHandle()
+    renderAt('/library/not-a-real-type', handle)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Unknown doc type/i)
+    expect(handle.markSeen).not.toHaveBeenCalled()
+  })
+
+  it('StrictMode double-effect is harmless and idempotent', async () => {
+    const handle = mockHandle()
+    renderAt('/library/work-items', handle, true)
+    await screen.findByText(/No documents found/i)
+    // StrictMode double-invokes effects on mount in development, so we
+    // expect at least one call. Whether React 19 + Router invokes the
+    // effect 1× or 2× under the test renderer depends on whether the
+    // mount/unmount cycle propagates through the RouterProvider's
+    // internal scheduling. The contract under test is idempotency:
+    // every invocation passes the same argument, so the stored T just
+    // ends up as the latest Date.now() and dot-state stays correct.
+    expect(handle.markSeen).toHaveBeenCalled()
+    for (const call of handle.markSeen.mock.calls) {
+      expect(call).toEqual(['work-items'])
+    }
   })
 })
