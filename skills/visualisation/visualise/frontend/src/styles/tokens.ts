@@ -22,6 +22,22 @@ export const LIGHT_COLOR_TOKENS = {
   'ac-warn':           '#d98f2e',
   'ac-err':            '#cb4647',
   'ac-violet':         '#7b5cd9',
+  // Per-doc-type glyph foreground (light theme). Light values were eyedroppered
+  // from library-view-updated-light.png; values that failed WCAG 1.4.11 against
+  // --ac-bg (#fbfcfe) were darkened within the same hue family so all 12 keys
+  // clear 3:1 contrast (see global.test.ts contrast block).
+  'ac-doc-decisions':           '#ad3437',
+  'ac-doc-work-items':          '#af4b2f',
+  'ac-doc-plans':               '#3256b6',
+  'ac-doc-research':            '#b26f35',
+  'ac-doc-plan-reviews':        '#5127b5',
+  'ac-doc-pr-reviews':          '#7f2cb6',
+  'ac-doc-work-item-reviews':   '#ad3458',
+  'ac-doc-validations':         '#2e8b57',
+  'ac-doc-notes':               '#8e7b22',
+  'ac-doc-prs':                 '#4588b8',
+  'ac-doc-design-gaps':         '#5c9132',
+  'ac-doc-design-inventories':  '#2e7e8a',
 } as const
 
 export const DARK_COLOR_TOKENS = {
@@ -44,6 +60,22 @@ export const DARK_COLOR_TOKENS = {
   'ac-accent-2':       '#e86a6b',
   'ac-accent-tint':    'rgba(138, 144, 232, 0.18)',
   'ac-accent-faint':   'rgba(138, 144, 232, 0.08)',
+  // Per-doc-type glyph foreground (dark theme). The canonical dark screenshot
+  // renders all icons in a monochrome neutral, so dark values are derived (not
+  // eyedroppered) — lighter hue-preserving variants of the light tokens that
+  // clear WCAG 1.4.11 ≥3:1 against --ac-bg (#0a111b).
+  'ac-doc-decisions':           '#e26b6d',
+  'ac-doc-work-items':          '#e27357',
+  'ac-doc-plans':               '#7a95e0',
+  'ac-doc-research':            '#e1985e',
+  'ac-doc-plan-reviews':        '#9678e0',
+  'ac-doc-pr-reviews':          '#b070dd',
+  'ac-doc-work-item-reviews':   '#e26a88',
+  'ac-doc-validations':         '#85ddb3',
+  'ac-doc-notes':               '#dcc764',
+  'ac-doc-prs':                 '#79b5dd',
+  'ac-doc-design-gaps':         '#a8dd70',
+  'ac-doc-design-inventories':  '#7dd3e0',
 } as const
 
 export const TYPOGRAPHY_TOKENS = {

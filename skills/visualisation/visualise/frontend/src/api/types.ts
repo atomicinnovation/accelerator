@@ -23,6 +23,31 @@ export function isDocTypeKey(s: string): s is DocTypeKey {
   return (DOC_TYPE_KEYS as readonly string[]).includes(s)
 }
 
+/** Doc-type keys that are virtual (not backed by on-disk documents). Static
+ *  mirror of the server's `virtual: true` flag on `DocType`. Keep in lock-step
+ *  with the server-side `DocType.virtual` flag (see `RootLayout.tsx` useQuery).
+ *  Used by `Glyph` to filter `DocTypeKey` down to the renderable subset. */
+export const VIRTUAL_DOC_TYPE_KEYS: readonly DocTypeKey[] = ['templates'] as const
+
+/** Static, human-friendly labels for each `DocTypeKey`. Mirrors the
+ *  server-emitted `DocType.label` field; used in dev-only routes (e.g.
+ *  `/glyph-showcase`) and tests where a runtime `useQuery` is undesirable. */
+export const DOC_TYPE_LABELS: Readonly<Record<DocTypeKey, string>> = {
+  'decisions': 'Decision',
+  'work-items': 'Work item',
+  'plans': 'Plan',
+  'research': 'Research',
+  'plan-reviews': 'Plan review',
+  'pr-reviews': 'PR review',
+  'work-item-reviews': 'Work item review',
+  'validations': 'Validation',
+  'notes': 'Notes',
+  'prs': 'PR',
+  'design-gaps': 'Design gap',
+  'design-inventories': 'Design inventory',
+  'templates': 'Template',
+}
+
 export interface DocType {
   key: DocTypeKey
   label: string

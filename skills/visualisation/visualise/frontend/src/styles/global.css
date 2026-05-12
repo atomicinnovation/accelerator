@@ -89,6 +89,22 @@ body {
   --ac-err:            #cb4647;
   --ac-violet:         #7b5cd9;
 
+  /* Per-doc-type glyph foreground (light). Light values eyedroppered from
+     library-view-updated-light.png and remapped within hue family where the
+     raw sample fell below WCAG 1.4.11 ≥3:1 against --ac-bg. */
+  --ac-doc-decisions:           #ad3437;
+  --ac-doc-work-items:          #af4b2f;
+  --ac-doc-plans:               #3256b6;
+  --ac-doc-research:            #b26f35;
+  --ac-doc-plan-reviews:        #5127b5;
+  --ac-doc-pr-reviews:          #7f2cb6;
+  --ac-doc-work-item-reviews:   #ad3458;
+  --ac-doc-validations:         #2e8b57;
+  --ac-doc-notes:               #8e7b22;
+  --ac-doc-prs:                 #4588b8;
+  --ac-doc-design-gaps:         #5c9132;
+  --ac-doc-design-inventories:  #2e7e8a;
+
   /* Typography */
   --ac-font-display:  "Sora", system-ui, sans-serif;
   --ac-font-body:     "Inter", system-ui, sans-serif;
@@ -167,6 +183,21 @@ body {
   --ac-accent-2:       #e86a6b;
   --ac-accent-tint:    rgba(138, 144, 232, 0.18);
   --ac-accent-faint:   rgba(138, 144, 232, 0.08);
+  /* Per-doc-type glyph foreground (dark). The canonical dark screenshot renders
+     icons monochrome, so dark values are derived (not eyedroppered) — hue-
+     preserving lifts of the light tokens that clear ≥3:1 against --ac-bg. */
+  --ac-doc-decisions:           #e26b6d;
+  --ac-doc-work-items:          #e27357;
+  --ac-doc-plans:               #7a95e0;
+  --ac-doc-research:            #e1985e;
+  --ac-doc-plan-reviews:        #9678e0;
+  --ac-doc-pr-reviews:          #b070dd;
+  --ac-doc-work-item-reviews:   #e26a88;
+  --ac-doc-validations:         #85ddb3;
+  --ac-doc-notes:               #dcc764;
+  --ac-doc-prs:                 #79b5dd;
+  --ac-doc-design-gaps:         #a8dd70;
+  --ac-doc-design-inventories:  #7dd3e0;
   --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
   --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
   color-scheme: dark;
@@ -198,6 +229,18 @@ body {
     --ac-accent-2:       #e86a6b;
     --ac-accent-tint:    rgba(138, 144, 232, 0.18);
     --ac-accent-faint:   rgba(138, 144, 232, 0.08);
+    --ac-doc-decisions:           #e26b6d;
+    --ac-doc-work-items:          #e27357;
+    --ac-doc-plans:               #7a95e0;
+    --ac-doc-research:            #e1985e;
+    --ac-doc-plan-reviews:        #9678e0;
+    --ac-doc-pr-reviews:          #b070dd;
+    --ac-doc-work-item-reviews:   #e26a88;
+    --ac-doc-validations:         #85ddb3;
+    --ac-doc-notes:               #dcc764;
+    --ac-doc-prs:                 #79b5dd;
+    --ac-doc-design-gaps:         #a8dd70;
+    --ac-doc-design-inventories:  #7dd3e0;
     --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
     --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
     color-scheme: dark;

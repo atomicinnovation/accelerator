@@ -11,6 +11,8 @@ import {
   LAYOUT_TOKENS,
   MONO_FONT_TOKENS,
 } from './tokens'
+import { contrastRatio } from './contrast'
+import { DOC_TYPE_KEYS, DOC_TYPE_LABELS, VIRTUAL_DOC_TYPE_KEYS, type DocTypeKey } from '../api/types'
 
 type Scope = 'root' | 'dark'
 
@@ -212,6 +214,33 @@ describe('tokens.ts ↔ global.css [data-font="mono"] parity', () => {
   for (const [name, value] of Object.entries(MONO_FONT_TOKENS)) {
     it(`--${name} matches MONO_FONT_TOKENS.${name}`, () => {
       expectMatches(readMonoVar(name), value)
+    })
+  }
+})
+
+describe('DOC_TYPE_LABELS ↔ DOC_TYPE_KEYS parity', () => {
+  it('every DocTypeKey has a label', () => {
+    expect(Object.keys(DOC_TYPE_LABELS).sort()).toEqual([...DOC_TYPE_KEYS].sort())
+  })
+})
+
+describe('--ac-doc-* tokens meet WCAG 1.4.11 ≥3:1 contrast vs --ac-bg', () => {
+  const BG_LIGHT = LIGHT_COLOR_TOKENS['ac-bg']
+  const BG_DARK = DARK_COLOR_TOKENS['ac-bg']
+  const glyphKeys = DOC_TYPE_KEYS.filter(
+    (k): k is DocTypeKey => !VIRTUAL_DOC_TYPE_KEYS.includes(k),
+  )
+  for (const key of glyphKeys) {
+    const tokenName = `ac-doc-${key}` as const
+    it(`light: ${key} contrast >= 3:1 vs --ac-bg`, () => {
+      const fg = (LIGHT_COLOR_TOKENS as Record<string, string>)[tokenName]
+      expect(fg, `LIGHT_COLOR_TOKENS missing ${tokenName}`).toBeTruthy()
+      expect(contrastRatio(fg, BG_LIGHT)).toBeGreaterThanOrEqual(3)
+    })
+    it(`dark: ${key} contrast >= 3:1 vs --ac-bg`, () => {
+      const fg = (DARK_COLOR_TOKENS as Record<string, string>)[tokenName]
+      expect(fg, `DARK_COLOR_TOKENS missing ${tokenName}`).toBeTruthy()
+      expect(contrastRatio(fg, BG_DARK)).toBeGreaterThanOrEqual(3)
     })
   }
 })

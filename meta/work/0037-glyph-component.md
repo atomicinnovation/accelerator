@@ -44,22 +44,28 @@ The prototype embeds Glyph inside nav items, page eyebrows, kanban cards, timeli
 
 ### Colour Token Table
 
-| `DocTypeKey` | Token name | Light hex | Dark hex |
-|---|---|---|---|
-| `decisions` | `--ac-doc-decisions` | TBD | TBD |
-| `research` | `--ac-doc-research` | TBD | TBD |
-| `plans` | `--ac-doc-plans` | TBD | TBD |
-| `plan-reviews` | `--ac-doc-plan-reviews` | TBD | TBD |
-| `validations` | `--ac-doc-validations` | TBD | TBD |
-| `prs` | `--ac-doc-prs` | TBD | TBD |
-| `pr-reviews` | `--ac-doc-pr-reviews` | TBD | TBD |
-| `notes` | `--ac-doc-notes` | TBD | TBD |
-| `work-items` | `--ac-doc-work-items` | TBD | TBD |
-| `work-item-reviews` | `--ac-doc-work-item-reviews` | TBD | TBD |
-| `design-gaps` | `--ac-doc-design-gaps` | TBD | TBD |
-| `design-inventories` | `--ac-doc-design-inventories` | TBD | TBD |
+Measured glyph grid: the canonical screenshot's icon tiles are ≈ 96 × 96 px; the inner glyphs occupy ≈ 50–60 px centred. The Glyph component uses a `viewBox="0 0 24 24"` coordinate system (the project default) and renders the icon path geometry hand-fitted to that box.
 
-Hex values are derived from `library-view-updated-light.png` and `library-view-updated-dark.png` during implementation. The token names are normative; the hex columns are filled in as part of this work item and become the contractual source of truth alongside the screenshots.
+Light-hex values were eyedroppered from `library-view-updated-light.png` using `magick identify -format "%[hex:p{x,y}]"` and a histogram-driven dominant-stroke sample over an 80×80 window centred on each icon. Sample colours that fell below WCAG 1.4.11 ≥3:1 contrast against `--ac-bg` (#fbfcfe) were remapped within the same hue family with a note (marked ⚠️ below).
+
+Dark-hex values are **derived** rather than eyedroppered: the canonical `library-view-updated-dark.png` renders all 12 icons in a monochrome neutral, so per-doc-type distinction would be lost. Each dark value is a hue-preserving brighter variant of the light token that clears ≥3:1 contrast against `--ac-bg` (#0a111b).
+
+| `DocTypeKey` | Token name | (x,y) sample | Light hex | Dark hex |
+|---|---|---|---|---|
+| `decisions` | `--ac-doc-decisions` | (127, 1500) | `#ad3437` | `#e26b6d` |
+| `research` | `--ac-doc-research` | (1392, 665) | `#b26f35` | `#e1985e` |
+| `plans` | `--ac-doc-plans` | (127, 935) | `#3256b6` | `#7a95e0` |
+| `plan-reviews` | `--ac-doc-plan-reviews` | (727, 935) | `#5127b5` | `#9678e0` |
+| `validations` | `--ac-doc-validations` | (1425, 935) | `#2e8b57` ⚠️ | `#85ddb3` |
+| `prs` | `--ac-doc-prs` | (127, 1207) | `#4588b8` | `#79b5dd` |
+| `pr-reviews` | `--ac-doc-pr-reviews` | (727, 1207) | `#7f2cb6` | `#b070dd` |
+| `notes` | `--ac-doc-notes` | (727, 1500) | `#8e7b22` ⚠️ | `#dcc764` |
+| `work-items` | `--ac-doc-work-items` | (127, 395) | `#af4b2f` | `#e27357` |
+| `work-item-reviews` | `--ac-doc-work-item-reviews` | (727, 395) | `#ad3458` | `#e26a88` |
+| `design-gaps` | `--ac-doc-design-gaps` | (727, 665) | `#5c9132` ⚠️ | `#a8dd70` |
+| `design-inventories` | `--ac-doc-design-inventories` | (127, 665) | `#2e7e8a` ⚠️ | `#7dd3e0` |
+
+⚠️ = remapped within hue family because the raw eyedropper sample (`#5bba8d` validations, `#b9a440` notes, `#7abb42` design-gaps, `#55adba` design-inventories) fell below WCAG 1.4.11 ≥3:1 against `--ac-bg` (#fbfcfe). The remap preserves hue and keeps the icon distinguishable from its neighbours in the table.
 
 ## Acceptance Criteria
 
