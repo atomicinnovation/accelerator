@@ -1,37 +1,173 @@
 .sidebar {
-  width: 220px;
+  width: 240px;
   min-height: 100vh;
-  padding: var(--sp-4) 0;
-  border-right: 1px solid var(--ac-stroke-soft);
-  background: var(--ac-bg-sunken);
+  padding: var(--sp-4) var(--sp-3);
+  border-right: 1px solid var(--ac-stroke);
+  background: var(--ac-bg-sidebar);
   display: flex;
   flex-direction: column;
-  gap: var(--sp-5);
+  gap: var(--sp-4);
 }
 
-.section { padding: 0 var(--sp-3); }
+.section {
+  display: flex;
+  flex-direction: column;
+}
+
+/* TEMPORARY: search row visible for design review (work item 0054 wires
+   the actual behaviour). Tokens already-in-place mirror the design. */
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 10px;
+  height: 36px;
+  background: var(--ac-bg-raised);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--sp-2);
+}
+
+.searchIcon {
+  color: var(--ac-fg-faint);
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  font: 400 13px/1.5 var(--ac-font-body);
+  color: var(--ac-fg);
+  appearance: none;
+  -webkit-appearance: none;
+}
+.searchInput::placeholder { color: var(--ac-fg-faint); }
+/* Hide the native macOS/Chrome search-clear "×" button so the input
+   matches the design — wire a real clear control in 0054 if needed. */
+.searchInput::-webkit-search-cancel-button,
+.searchInput::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: var(--ac-bg-sunken);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-sm);
+  font: 400 11px/1 var(--ac-font-mono);
+  color: var(--ac-fg-muted);
+  flex-shrink: 0;
+}
+
+/* Per-design: sidebar headings use a fixed mid-grey in both themes
+   rather than the theme-aware --ac-fg-faint/--ac-fg-muted tokens. The
+   value reads as faint against the light bg and as faint against the
+   dark bg, giving a consistent visual treatment across themes. */
+.libraryHeading {
+  font: 500 10.5px/1 var(--ac-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #6c7088;
+  padding: 6px 10px;
+  margin: 0;
+}
 
 .sectionHeading {
-  font-size: var(--size-xxs);
-  font-weight: 600;
+  font: 500 10.5px/1 var(--ac-font-mono);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--ac-fg-muted);
-  margin: 0 0 0.4rem;
+  letter-spacing: 0.12em;
+  color: #6c7088;
+  padding: 6px 10px;
+  margin: 0;
 }
 
-.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.phase {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--sp-2);
+}
+
+.phaseHeading {
+  font: 400 9.5px/1 var(--ac-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #6c7088;
+  padding: 6px 10px 4px;
+  margin: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
 
 .link {
-  display: block;
-  padding: var(--sp-1) var(--sp-2);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px 10px;
   border-radius: var(--radius-sm);
-  font-size: var(--size-xs);
-  color: var(--ac-fg);
+  font: 400 13px/1.5 var(--ac-font-body);
+  color: var(--ac-fg-muted);
   text-decoration: none;
 }
-.link:hover { background: var(--ac-stroke-soft); }
-.active { background: var(--ac-accent-tint); color: var(--ac-accent); font-weight: 500; }
 
-.meta .sectionHeading { color: var(--ac-fg-muted); }
-.muted { color: var(--ac-fg-muted); }
+.link:hover {
+  background: var(--ac-bg-hover);
+  color: var(--ac-fg-strong);
+}
+
+.active {
+  background: var(--ac-accent-faint);
+  color: var(--ac-accent);
+  font-weight: 500;
+}
+[data-theme="dark"] .active {
+  background: var(--ac-accent-tint);
+}
+.active:hover {
+  background: var(--ac-accent-faint);
+  color: var(--ac-accent);
+}
+[data-theme="dark"] .active:hover {
+  background: var(--ac-accent-tint);
+}
+
+.label { flex: 1; min-width: 0; }
+
+.dot {
+  width: var(--sp-2);
+  height: var(--sp-2);
+  background: var(--ac-accent);
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.count {
+  color: var(--ac-fg-faint);
+  font: 400 var(--size-xxs)/1 var(--ac-font-body);
+  flex-shrink: 0;
+}
+.active .count { color: var(--ac-accent); }
+
+.viewIcon {
+  color: var(--ac-fg-muted);
+  flex-shrink: 0;
+}
+.active .viewIcon { color: var(--ac-accent); }

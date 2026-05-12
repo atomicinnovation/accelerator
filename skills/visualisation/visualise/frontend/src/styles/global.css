@@ -4,6 +4,9 @@ body {
   background-color: var(--ac-bg);
   color: var(--ac-fg);
   font-family: var(--ac-font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 @font-face {

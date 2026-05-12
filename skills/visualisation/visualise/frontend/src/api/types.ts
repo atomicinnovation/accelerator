@@ -202,6 +202,42 @@ export const LONG_TAIL_PIPELINE_STEPS = LIFECYCLE_PIPELINE_STEPS.filter(
   s => s.longTail,
 )
 
+/**
+ * Canonical mapping from lifecycle phase to doc types, used by the
+ * Sidebar to partition LIBRARY into Define / Discover / Build / Ship /
+ * Remember. The nested shape (`phase → docTypes[]`) expresses the
+ * one-to-many phase→types relation. Owned by work item 0036; promote
+ * to a server-side definition only when a second consumer appears.
+ * Templates is intentionally omitted.
+ */
+export const PHASE_DOC_TYPES = [
+  {
+    phase: 'define',
+    label: 'Define',
+    docTypes: ['work-items', 'work-item-reviews'] as const,
+  },
+  {
+    phase: 'discover',
+    label: 'Discover',
+    docTypes: ['design-inventories', 'design-gaps', 'research'] as const,
+  },
+  {
+    phase: 'build',
+    label: 'Build',
+    docTypes: ['plans', 'plan-reviews', 'validations'] as const,
+  },
+  {
+    phase: 'ship',
+    label: 'Ship',
+    docTypes: ['prs', 'pr-reviews'] as const,
+  },
+  {
+    phase: 'remember',
+    label: 'Remember',
+    docTypes: ['decisions', 'notes'] as const,
+  },
+] as const
+
 export interface KanbanColumn {
   key: string
   label: string
