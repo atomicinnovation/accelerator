@@ -415,3 +415,145 @@ describe('makeUseDocEvents self-cause + drag-suppress', () => {
     expect(queryClient.invalidateQueries).toHaveBeenCalled()
   })
 })
+
+// ── Consumer callbacks: onEvent / onReconnect ────────────────────────────
+describe('makeUseDocEvents consumer callbacks', () => {
+  let queryClient: QueryClient
+
+  class FakeEventSource {
+    onmessage: ((e: MessageEvent) => void) | null = null
+    onerror: ((e: Event) => void) | null = null
+    onopen: ((e: Event) => void) | null = null
+    close = vi.fn()
+    constructor(public url: string) {}
+  }
+
+  function makeFactory() {
+    const fakes: FakeEventSource[] = []
+    const factory = vi.fn((url: string) => {
+      const fake = new FakeEventSource(url)
+      fakes.push(fake)
+      return fake as unknown as EventSource
+    })
+    return { factory, get source() { return fakes[fakes.length - 1]! }, fakes }
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    queryClient = new QueryClient()
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  function wrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client: queryClient }, children)
+  }
+
+  it('fires onEvent for doc-changed events', () => {
+    const onEvent = vi.fn()
+    const ctx = makeFactory()
+    const useDocEvents = makeUseDocEvents(ctx.factory)
+    renderHook(() => useDocEvents({ onEvent }), { wrapper })
+    act(() => { ctx.source.onopen?.(new Event('open')) })
+
+    ctx.source.onmessage?.(new MessageEvent('message', {
+      data: JSON.stringify({ type: 'doc-changed', docType: 'decisions', path: '/x', etag: 'sha256-abc' }),
+    }))
+
+    expect(onEvent).toHaveBeenCalledTimes(1)
+    expect(onEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'doc-changed', docType: 'decisions' }),
+    )
+  })
+
+  it('fires onEvent for doc-invalid events', () => {
+    const onEvent = vi.fn()
+    const ctx = makeFactory()
+    const useDocEvents = makeUseDocEvents(ctx.factory)
+    renderHook(() => useDocEvents({ onEvent }), { wrapper })
+    act(() => { ctx.source.onopen?.(new Event('open')) })
+
+    ctx.source.onmessage?.(new MessageEvent('message', {
+      data: JSON.stringify({ type: 'doc-invalid', docType: 'plans', path: '/x' }),
+    }))
+
+    expect(onEvent).toHaveBeenCalledTimes(1)
+    expect(onEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'doc-invalid', docType: 'plans' }),
+    )
+  })
+
+  it('does NOT fire onEvent for self-cause doc-changed echo', () => {
+    const onEvent = vi.fn()
+    const registry = createSelfCauseRegistry()
+    const ctx = makeFactory()
+    const useDocEvents = makeUseDocEvents(ctx.factory, registry)
+    renderHook(() => useDocEvents({ onEvent }), { wrapper })
+    act(() => { ctx.source.onopen?.(new Event('open')) })
+
+    registry.register('sha256-SELF')
+    ctx.source.onmessage?.(new MessageEvent('message', {
+      data: JSON.stringify({ type: 'doc-changed', docType: 'decisions', path: '/x', etag: 'sha256-SELF' }),
+    }))
+
+    expect(onEvent).not.toHaveBeenCalled()
+  })
+
+  it('forwards events with unknown docType verbatim, exactly once', () => {
+    const onEvent = vi.fn()
+    const ctx = makeFactory()
+    const useDocEvents = makeUseDocEvents(ctx.factory)
+    renderHook(() => useDocEvents({ onEvent }), { wrapper })
+    act(() => { ctx.source.onopen?.(new Event('open')) })
+
+    ctx.source.onmessage?.(new MessageEvent('message', {
+      data: JSON.stringify({ type: 'doc-changed', docType: 'made-up-type', path: '/x', etag: 'sha256-Y' }),
+    }))
+
+    expect(onEvent).toHaveBeenCalledTimes(1)
+    expect(onEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ docType: 'made-up-type' }),
+    )
+  })
+
+  it('fires onReconnect exactly once on reconnect, no synthesised reset event', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const onEvent = vi.fn()
+    const onReconnect = vi.fn()
+    const ctx = makeFactory()
+    const useDocEvents = makeUseDocEvents(ctx.factory)
+    renderHook(() => useDocEvents({ onEvent, onReconnect }), { wrapper })
+
+    act(() => { ctx.source.onopen?.(new Event('open')) })
+    expect(onReconnect).not.toHaveBeenCalled()
+
+    act(() => { ctx.source.onerror?.(new Event('error')) })
+    act(() => { vi.advanceTimersByTime(1500) })
+    act(() => { ctx.fakes[1].onopen?.(new Event('open')) })
+
+    expect(onReconnect).toHaveBeenCalledTimes(1)
+    expect(onEvent).not.toHaveBeenCalled()
+  })
+
+  it('EventSource is created once across re-renders; latest onEvent receives the event', () => {
+    const cb1 = vi.fn()
+    const cb2 = vi.fn()
+    const ctx = makeFactory()
+    const useDocEvents = makeUseDocEvents(ctx.factory)
+    const { rerender } = renderHook(
+      ({ onEvent }: { onEvent: (e: unknown) => void }) =>
+        useDocEvents({ onEvent: onEvent as (e: import('./types').SseEvent) => void }),
+      { wrapper, initialProps: { onEvent: cb1 } },
+    )
+    act(() => { ctx.source.onopen?.(new Event('open')) })
+
+    rerender({ onEvent: cb2 })
+
+    ctx.source.onmessage?.(new MessageEvent('message', {
+      data: JSON.stringify({ type: 'doc-changed', docType: 'decisions', path: '/x', etag: 'sha256-Z' }),
+    }))
+
+    expect(ctx.factory).toHaveBeenCalledTimes(1)
+    expect(cb1).not.toHaveBeenCalled()
+    expect(cb2).toHaveBeenCalledTimes(1)
+  })
+})

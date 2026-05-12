@@ -18,6 +18,11 @@ export interface DocEventsHandle {
   justReconnected: boolean
 }
 
+export interface UseDocEventsOptions {
+  onEvent?: (event: SseEvent) => void
+  onReconnect?: () => void
+}
+
 function queryKeysForEvent(event: SseEvent): ReadonlyArray<readonly unknown[]> {
   if (event.type !== 'doc-changed' && event.type !== 'doc-invalid') return []
   const keys: Array<readonly unknown[]> = [
@@ -89,12 +94,20 @@ export function makeUseDocEvents(
   createSource: EventSourceFactory,
   registry: SelfCauseRegistry = defaultSelfCauseRegistry,
 ) {
-  return function useDocEvents(): DocEventsHandle {
+  return function useDocEvents(options?: UseDocEventsOptions): DocEventsHandle {
     const queryClient = useQueryClient()
     const isDraggingRef = useRef(false)
     const pendingRef = useRef(new Set<string>())
     const [connectionState, setConnectionState] = useState<ConnectionState>('connecting')
     const [justReconnected, setJustReconnected] = useState(false)
+    // Refs ensure the long-lived onmessage / onReconnect closures always
+    // read the latest consumer callbacks WITHOUT extending the useEffect
+    // deps array. Consumers MAY pass freshly-allocated objects on every
+    // render; the EventSource stays singleton across re-renders.
+    const onEventRef = useRef(options?.onEvent)
+    const onReconnectRef = useRef(options?.onReconnect)
+    onEventRef.current = options?.onEvent
+    onReconnectRef.current = options?.onReconnect
 
     const setDragInProgress = useCallback(
       (v: boolean) => {
@@ -132,6 +145,7 @@ export function makeUseDocEvents(
             setJustReconnected(false)
             reconnectedTimer = null
           }, 3_000)
+          onReconnectRef.current?.()
         },
       })
 
@@ -139,6 +153,7 @@ export function makeUseDocEvents(
         try {
           const event = JSON.parse(e.data as string) as SseEvent
           if (event.type === 'doc-changed' && registry.has(event.etag)) return
+          onEventRef.current?.(event)
           if (isDraggingRef.current) {
             for (const k of queryKeysForEvent(event)) {
               pendingRef.current.add(JSON.stringify(k))
