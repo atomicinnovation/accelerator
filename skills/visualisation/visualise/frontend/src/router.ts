@@ -48,6 +48,7 @@ import { LifecycleLayout } from './routes/lifecycle/LifecycleLayout'
 import { LifecycleIndex } from './routes/lifecycle/LifecycleIndex'
 import { LifecycleClusterView } from './routes/lifecycle/LifecycleClusterView'
 import { KanbanBoard } from './routes/kanban/KanbanBoard'
+import { GlyphShowcase } from './routes/glyph-showcase/GlyphShowcase'
 import { isDocTypeKey, type DocTypeKey } from './api/types'
 
 const rootRoute = createRootRoute({ component: RootLayout })
@@ -135,6 +136,15 @@ const kanbanRoute = withCrumb('Kanban', {
   component: KanbanBoard,
 })
 
+// Developer-only preview route — uncrumbed (does not appear in the breadcrumb
+// trail). Renders all 12 doc-type Glyphs × 3 sizes for visual review and as
+// the page under test for the Playwright visual-regression spec.
+const glyphShowcaseRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/glyph-showcase',
+  component: GlyphShowcase,
+})
+
 // Exported so tests can construct an isolated router with memory history.
 export const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -148,6 +158,7 @@ export const routeTree = rootRoute.addChildren([
   ]),
   lifecycleRoute.addChildren([lifecycleIndexRoute, lifecycleClusterRoute]),
   kanbanRoute,
+  glyphShowcaseRoute,
 ])
 
 export const router = createRouter({ routeTree })
