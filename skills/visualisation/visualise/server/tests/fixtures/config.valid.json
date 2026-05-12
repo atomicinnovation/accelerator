@@ -11,14 +11,15 @@
     "decisions": "/abs/path/to/project/meta/decisions",
     "work": "/abs/path/to/project/meta/work",
     "plans": "/abs/path/to/project/meta/plans",
-    "research": "/abs/path/to/project/meta/research",
+    "research_codebase": "/abs/path/to/project/meta/research/codebase",
+    "research_issues": "/abs/path/to/project/meta/research/issues",
     "review_plans": "/abs/path/to/project/meta/reviews/plans",
     "review_prs": "/abs/path/to/project/meta/reviews/prs",
     "validations": "/abs/path/to/project/meta/validations",
     "notes": "/abs/path/to/project/meta/notes",
     "prs": "/abs/path/to/project/meta/prs",
-    "design_gaps": "/abs/path/to/project/meta/design-gaps",
-    "design_inventories": "/abs/path/to/project/meta/design-inventories"
+    "research_design_gaps": "/abs/path/to/project/meta/research/design-gaps",
+    "research_design_inventories": "/abs/path/to/project/meta/research/design-inventories"
   },
   "templates": {
     "adr": {

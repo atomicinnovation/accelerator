@@ -43,15 +43,15 @@ impl DocTypeKey {
             DocTypeKey::Decisions => Some("decisions"),
             DocTypeKey::WorkItems => Some("work"),
             DocTypeKey::Plans => Some("plans"),
-            DocTypeKey::Research => Some("research"),
+            DocTypeKey::Research => Some("research_codebase"),
             DocTypeKey::PlanReviews => Some("review_plans"),
             DocTypeKey::PrReviews => Some("review_prs"),
             DocTypeKey::WorkItemReviews => Some("review_work"),
             DocTypeKey::Validations => Some("validations"),
             DocTypeKey::Notes => Some("notes"),
             DocTypeKey::Prs => Some("prs"),
-            DocTypeKey::DesignGaps => Some("design_gaps"),
-            DocTypeKey::DesignInventories => Some("design_inventories"),
+            DocTypeKey::DesignGaps => Some("research_design_gaps"),
+            DocTypeKey::DesignInventories => Some("research_design_inventories"),
             DocTypeKey::Templates => None,
         }
     }

@@ -49,14 +49,15 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
     doc_paths.insert("decisions".into(), decisions);
     doc_paths.insert("work".into(), meta.join("work"));
     doc_paths.insert("plans".into(), plans);
-    doc_paths.insert("research".into(), meta.join("research"));
+    doc_paths.insert("research_codebase".into(), meta.join("research/codebase"));
+    doc_paths.insert("research_issues".into(), meta.join("research/issues"));
     doc_paths.insert("review_plans".into(), reviews);
     doc_paths.insert("review_prs".into(), meta.join("reviews/prs"));
     doc_paths.insert("validations".into(), meta.join("validations"));
     doc_paths.insert("notes".into(), meta.join("notes"));
     doc_paths.insert("prs".into(), meta.join("prs"));
-    doc_paths.insert("design_gaps".into(), meta.join("design-gaps"));
-    doc_paths.insert("design_inventories".into(), meta.join("design-inventories"));
+    doc_paths.insert("research_design_gaps".into(), meta.join("research/design-gaps"));
+    doc_paths.insert("research_design_inventories".into(), meta.join("research/design-inventories"));
 
     Config {
         plugin_root: tmp.to_path_buf(),

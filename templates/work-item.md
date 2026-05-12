@@ -68,4 +68,4 @@ Link to source documents if extracted.]
 
 - Source: `path/to/source-document.md`
 - Related: NNNN, NNNN
-- Research: `meta/research/YYYY-MM-DD-topic.md`
+- Research: `meta/research/codebase/YYYY-MM-DD-topic.md`

@@ -11,23 +11,25 @@ allowed-tools: [Read, Write, Edit, Bash]
 Run `/accelerator:migrate` after upgrading the Accelerator plugin to a version that bundles new migrations. The SessionStart hook will tell you when this is needed:
 
 ```
-[accelerator] meta/.migrations-applied is behind the plugin
+[accelerator] .accelerator/state/migrations-applied is behind the plugin
 (highest applied: 0001-rename-tickets-to-work; highest available: 0002-...).
 Run /accelerator:migrate to bring it up to date.
 ```
 
 You can also run it proactively — if no migrations are pending, it prints `No pending migrations.` and exits cleanly.
 
+**Upgrade sequence.** After pulling a new plugin version, run `/accelerator:migrate` before invoking any skill that reads or writes paths affected by pending migrations. Skills do not gate themselves on pending migrations; the SessionStart hook only warns when migrations are pending. Running write-side skills (e.g., `/accelerator:research-codebase`) between the plugin upgrade and the migration may produce results written to or read from new-default paths that do not yet exist on disk.
+
 ## How it works
 
 The driver script `skills/config/migrate/scripts/run-migrations.sh` orchestrates the migration lifecycle:
 
-1. **Clean-tree pre-flight.** Checks `meta/` and `.claude/accelerator*.md` for uncommitted changes. Aborts if any are found. Set `ACCELERATOR_MIGRATE_FORCE=1` to bypass (advanced users only).
-2. **Read state.** Loads `meta/.migrations-applied` and `meta/.migrations-skipped` — newline-delimited lists of migration IDs. If either file is absent, its set is empty. Unknown IDs (from a newer plugin version) are preserved verbatim and warned about. An ID appearing in both files triggers a warning; applied takes precedence.
+1. **Clean-tree pre-flight.** Checks `meta/`, `.claude/accelerator*.md`, and `.accelerator/` for uncommitted changes. Aborts if any are found. Set `ACCELERATOR_MIGRATE_FORCE=1` to bypass (advanced users only).
+2. **Read state.** Loads `.accelerator/state/migrations-applied` and `.accelerator/state/migrations-skipped` — newline-delimited lists of migration IDs. If either file is absent, its set is empty. Unknown IDs (from a newer plugin version) are preserved verbatim and warned about. An ID appearing in both files triggers a warning; applied takes precedence.
 3. **Discover migrations.** Globs `skills/config/migrate/migrations/[0-9][0-9][0-9][0-9]-*.sh` in sorted order. The directory can be overridden via `ACCELERATOR_MIGRATIONS_DIR` (used in tests).
 4. **Compute pending.** A migration is pending if its ID is in neither the applied nor the skipped set.
 5. **Preview banner.** Prints one line per pending migration — `<ID> — <description>` — with a per-migration skip hint (`--skip <id>`). If nothing is pending, prints `No pending migrations.` (plus any skipped names) and exits 0 immediately.
-6. **Apply in order.** For each pending migration: runs it with `PROJECT_ROOT` exported; on success atomically appends its ID to `meta/.migrations-applied`; on failure prints the migration's output to stderr, exits 1, and leaves the state file at the last successful migration. If the migration emits `MIGRATION_RESULT: no_op_pending` on stdout, it is treated as a soft skip — the migration stays pending and will be retried on future runs.
+6. **Apply in order.** For each pending migration: runs it with `PROJECT_ROOT` exported; on success atomically appends its ID to `.accelerator/state/migrations-applied`; on failure prints the migration's output to stderr, exits 1, and leaves the state file at the last successful migration. If the migration emits `MIGRATION_RESULT: no_op_pending` on stdout, it is treated as a soft skip — the migration stays pending and will be retried on future runs.
 7. **Summary.** Prints counts of applied, skipped, and pending (no-op) migrations.
 
 ## Per-migration contract
@@ -43,14 +45,14 @@ Each migration script under `migrations/` must:
 
 ## State file format
 
-`meta/.migrations-applied` contains one migration ID per line, in the order migrations were applied:
+`.accelerator/state/migrations-applied` contains one migration ID per line, in the order migrations were applied:
 
 ```
 0001-rename-tickets-to-work
 0002-some-future-migration
 ```
 
-`meta/.migrations-skipped` contains one migration ID per line for migrations the user has chosen to defer:
+`.accelerator/state/migrations-skipped` contains one migration ID per line for migrations the user has chosen to defer:
 
 ```
 0002-some-future-migration

@@ -37,15 +37,15 @@ keeping the planner focused and accurate.
 The primary workflow is a three-phase loop:
 
 ```
-research-codebase  →  create-plan  →  implement-plan
-       ↓                   ↓                 ↓
-  meta/research/      meta/plans/     checked-off plan
+research-codebase    →  create-plan  →  implement-plan
+        ↓                    ↓                 ↓
+meta/research/codebase/ meta/plans/    checked-off plan
 ```
 
 1. **Research** (`/accelerator:research-codebase "how does auth work?"`):
    Investigate the codebase using parallel subagents. Produces a structured
-   research document in `meta/research/` with findings, file references, and
-   architectural context.
+   research document in `meta/research/codebase/` with findings, file
+   references, and architectural context.
 
 2. **Plan** (`/accelerator:create-plan ENG-1234`): Build a phased
    implementation plan informed by research. Produces a plan document in
@@ -61,7 +61,7 @@ A companion skill handles issue investigation:
 - `/accelerator:research-issue "auth timeout on token refresh"` — Investigate
   production issues through hypothesis-driven debugging. Accepts stacktraces,
   logs, or behavioral descriptions and produces an RCA document in
-  `meta/research/`.
+  `meta/research/issues/`.
 
 Three complementary skills support this loop:
 
@@ -81,18 +81,23 @@ and writes to predictable paths within it. Run `/accelerator:init` to
 create all directories up front, or let skills create them on first use.
 These paths can be overridden via the `paths` configuration section:
 
-| Directory             | Purpose                                                        | Written by                                                   |
-|-----------------------|----------------------------------------------------------------|--------------------------------------------------------------|
-| `research/`           | Research findings with YAML frontmatter                        | `research-codebase`, `research-issue`                        |
-| `plans/`              | Implementation plans with phased changes                       | `create-plan`                                                |
-| `decisions/`          | Architecture decision records (ADRs)                           | `create-adr`, `extract-adrs`, `review-adr`                   |
-| `reviews/`            | Review summaries and per-lens results                          | `review-pr`, `review-plan`                                   |
-| `validations/`        | Plan validation reports                                        | `validate-plan`                                              |
-| `prs/`                | PR descriptions                                                | `describe-pr`                                                |
-| `work/`               | Work item files referenced by planning                         | `create-work-item`, `extract-work-items`, `update-work-item` |
-| `notes/`              | Notes and working documents                                    | manual                                                       |
-| `design-inventories/` | Per-source design inventory snapshots (markdown + screenshots) | `inventory-design`                                           |
-| `design-gaps/`        | Design-gap analysis artifacts                                  | `analyse-design-gaps`                                        |
+`research/` is itself subdivided into four subcategories — codebase
+research, issue/RCA research, design inventories, and design gaps:
+
+| Directory                       | Purpose                                                        | Written by                                                   |
+|---------------------------------|----------------------------------------------------------------|--------------------------------------------------------------|
+| `research/`                     | (parent — see subcategories below)                             | —                                                            |
+| `  ├─ codebase/`                | Codebase research findings with YAML frontmatter               | `research-codebase`                                          |
+| `  ├─ issues/`                  | Issue / RCA research findings                                  | `research-issue`                                             |
+| `  ├─ design-inventories/`      | Per-source design inventory snapshots (markdown + screenshots) | `inventory-design`                                           |
+| `  └─ design-gaps/`             | Design-gap analysis artifacts                                  | `analyse-design-gaps`                                        |
+| `plans/`                        | Implementation plans with phased changes                       | `create-plan`                                                |
+| `decisions/`                    | Architecture decision records (ADRs)                           | `create-adr`, `extract-adrs`, `review-adr`                   |
+| `reviews/`                      | Review summaries and per-lens results                          | `review-pr`, `review-plan`                                   |
+| `validations/`                  | Plan validation reports                                        | `validate-plan`                                              |
+| `prs/`                          | PR descriptions                                                | `describe-pr`                                                |
+| `work/`                         | Work item files referenced by planning                         | `create-work-item`, `extract-work-items`, `update-work-item` |
+| `notes/`                        | Notes and working documents                                    | manual                                                       |
 
 This approach means:
 
@@ -404,11 +409,11 @@ ADR skills capture architectural decisions that emerge from research and
 planning:
 
 ```
-research-codebase → create-plan → implement-plan
-       ↓                ↓
-  meta/research/    meta/plans/
-       ↓                ↓
-  extract-adrs ←────────┘
+research-codebase  → create-plan → implement-plan
+       ↓                  ↓
+meta/research/codebase/ meta/plans/
+       ↓                  ↓
+  extract-adrs ←──────────┘
        ↓
   meta/decisions/
        ↓
@@ -576,7 +581,7 @@ Three-step example:
 /accelerator:analyse-design-gaps current prototype
 ```
 
-The resulting gap artifact under `meta/design-gaps/` feeds straight into
+The resulting gap artifact under `meta/research/design-gaps/` feeds straight into
 `/accelerator:extract-work-items <gap-file>`.
 
 `inventory-design` supports three crawler modes: `code` (static analysis only,

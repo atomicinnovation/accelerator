@@ -726,8 +726,8 @@ directory (`paths.templates`) → plugin default. Use the plugin's
 
 **Note on cross-references**: Default templates contain hardcoded references
 to other skills' output paths (e.g., the plan template references
-`meta/research/` in its References section). If you override output paths
-(e.g., `paths.research: docs/research`), you should also provide custom
+`meta/research/codebase/` in its References section). If you override output paths
+(e.g., `paths.research_codebase: docs/research/codebase`), you should also provide custom
 templates with updated cross-references.
 
 #### Template Management Commands

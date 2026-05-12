@@ -51,14 +51,15 @@ DECISIONS="$(abs_path decisions)"
 WORK="$(abs_path work)"
 REVIEW_WORK="$(abs_path review_work)"
 PLANS="$(abs_path plans)"
-RESEARCH="$(abs_path research)"
+RESEARCH_CODEBASE="$(abs_path research_codebase)"
+RESEARCH_ISSUES="$(abs_path research_issues)"
 REVIEW_PLANS="$(abs_path review_plans)"
 REVIEW_PRS="$(abs_path review_prs)"
 VALIDATIONS="$(abs_path validations)"
 NOTES="$(abs_path notes)"
 PRS="$(abs_path prs)"
-DESIGN_GAPS="$(abs_path design_gaps)"
-DESIGN_INVENTORIES="$(abs_path design_inventories)"
+RESEARCH_DESIGN_GAPS="$(abs_path research_design_gaps)"
+RESEARCH_DESIGN_INVENTORIES="$(abs_path research_design_inventories)"
 
 TEMPLATES_USER_ROOT="$(abs_path templates)"
 TEMPLATES_PLUGIN_ROOT="$PLUGIN_ROOT/templates"
@@ -150,11 +151,13 @@ jq -n \
   --argjson owner_start_time "$OWNER_START_TIME_JSON" \
   --arg log_path "$LOG_FILE" \
   --arg decisions "$DECISIONS" --arg work "$WORK" --arg review_work "$REVIEW_WORK" \
-  --arg plans "$PLANS" --arg research "$RESEARCH" \
+  --arg plans "$PLANS" \
+  --arg research_codebase "$RESEARCH_CODEBASE" \
+  --arg research_issues "$RESEARCH_ISSUES" \
   --arg review_plans "$REVIEW_PLANS" --arg review_prs "$REVIEW_PRS" \
   --arg validations "$VALIDATIONS" --arg notes "$NOTES" --arg prs "$PRS" \
-  --arg design_gaps "$DESIGN_GAPS" \
-  --arg design_inventories "$DESIGN_INVENTORIES" \
+  --arg research_design_gaps "$RESEARCH_DESIGN_GAPS" \
+  --arg research_design_inventories "$RESEARCH_DESIGN_INVENTORIES" \
   --argjson adr "$ADR" --argjson plan "$PLAN" --argjson research_t "$RES" \
   --argjson validation "$VAL" --argjson pr_description "$PRD" \
   --argjson work_item_template "$WI" \
@@ -173,11 +176,14 @@ jq -n \
     log_path: $log_path,
     doc_paths: {
       decisions: $decisions, work: $work, review_work: $review_work,
-      plans: $plans, research: $research, review_plans: $review_plans,
+      plans: $plans,
+      research_codebase: $research_codebase,
+      research_issues: $research_issues,
+      review_plans: $review_plans,
       review_prs: $review_prs, validations: $validations,
       notes: $notes, prs: $prs,
-      design_gaps: $design_gaps,
-      design_inventories: $design_inventories
+      research_design_gaps: $research_design_gaps,
+      research_design_inventories: $research_design_inventories
     },
     templates: {
       adr: $adr, plan: $plan, research: $research_t,

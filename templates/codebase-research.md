@@ -45,7 +45,7 @@ last_updated_by: [Researcher name]
 ## Historical Context
 [Relevant insights from research, plans, and decisions directories]
 - `meta/decisions/some-decision.md` - Historical decision about X
-- `meta/research/past-exploration.md` - Past exploration of Y
+- `meta/research/codebase/past-exploration.md` - Past exploration of Y
 
 ## Related Research
 [Links to other research documents in the research directory]

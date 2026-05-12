@@ -4,6 +4,43 @@
 
 ### Breaking
 
+- **Research-directory restructure**. `meta/research/` now has four
+  subcategories — `codebase/` (codebase research outputs from
+  `/accelerator:research-codebase`), `issues/` (issue / RCA research
+  outputs from `/accelerator:research-issue`), `design-inventories/`,
+  and `design-gaps/`. The new `paths.research_issues` key gives
+  issue-research artifacts their own bucket, separable from codebase
+  research in `documents-locator` output and the visualiser. The
+  legacy `paths.research`, `paths.design_inventories`, and
+  `paths.design_gaps` keys are renamed to `paths.research_codebase`,
+  `paths.research_design_inventories`, and `paths.research_design_gaps`;
+  `templates.research` is renamed to `templates.codebase-research`.
+
+  **Upgrade sequence**: pull the new plugin version, then run
+  `/accelerator:migrate` to bring your repo in line. Skills that read
+  or write research paths will resolve to new defaults — and may
+  write to non-existent directories — between the plugin upgrade and
+  the migration run. Run `/accelerator:migrate` before your next
+  `/accelerator:research-codebase`, `/accelerator:research-issue`,
+  `/accelerator:extract-adrs`, `/accelerator:extract-work-items`,
+  `/accelerator:visualise`, or `/accelerator:init` invocation.
+
+  The migration is config-driven: user overrides on
+  `paths.design_inventories` and `paths.design_gaps` are honored
+  (files stay where the user placed them; only the key is renamed),
+  and the inbound-link rewriter scans every directory surfaced by
+  `accelerator:paths`. Content imported into your repo after the
+  migration runs (branch merges, sibling-repo copies, pasted legacy
+  paths) is not rewritten. To rescan: remove the
+  `0004-restructure-meta-research-into-subject-subcategories` line
+  from `.accelerator/state/migrations-applied` and re-run
+  `/accelerator:migrate`.
+
+  > **Note**: historical CHANGELOG entries below pre-date this change
+  > and reference the legacy paths verbatim. The path references in
+  > those entries describe what shipped at the time of each release.
+
+
 - **Node ≥ 20 required for `/inventory-design --crawler runtime|hybrid`**.
   The Playwright MCP integration has been replaced by a Bash-invoked Node.js
   executor (`run.sh`). The executor requires Node.js 20 or later, macOS or

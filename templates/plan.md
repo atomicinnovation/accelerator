@@ -104,5 +104,5 @@ status: draft
 ## References
 
 - Original work item: `meta/work/NNNN-title.md`
-- Related research: `meta/research/[relevant].md`
+- Related research: `meta/research/codebase/[relevant].md`
 - Similar implementation: `[file:line]`
