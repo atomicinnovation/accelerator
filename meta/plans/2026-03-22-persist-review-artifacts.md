@@ -627,7 +627,7 @@ manual:
 
 ## References
 
-- Research document: `meta/research/2026-03-18-meta-management-strategy.md`
+- Research document: `meta/research/codebase/2026-03-18-meta-management-strategy.md`
 - review-plan skill: `skills/planning/review-plan/SKILL.md`
 - review-pr skill: `skills/github/review-pr/SKILL.md`
 - Plan review output format:

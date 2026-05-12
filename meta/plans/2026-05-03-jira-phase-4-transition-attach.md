@@ -1179,7 +1179,7 @@ purely additive. No existing files change except:
 
 ## References
 
-- Research: `meta/research/2026-04-29-jira-cloud-integration-skills.md` §§2.5,
+- Research: `meta/research/codebase/2026-04-29-jira-cloud-integration-skills.md` §§2.5,
   2.7, 4.1 (Phase 4), 4.10 (per-skill design notes)
 - Exit code namespace: `skills/integrations/jira/scripts/EXIT_CODES.md`
 - Multipart test reference: `skills/integrations/jira/scripts/test-jira-request.sh:134–142`

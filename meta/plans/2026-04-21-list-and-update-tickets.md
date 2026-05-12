@@ -1392,7 +1392,7 @@ happy-path flow and confirming no "tool not permitted" errors occur.
 
 ## References
 
-- Research: `meta/research/2026-04-08-ticket-management-skills.md`
+- Research: `meta/research/codebase/2026-04-08-ticket-management-skills.md`
   (§5.6 list-tickets, §5.7 update-ticket, §6 template, §10 phasing)
 - Phase 1 foundation plan:
   `meta/plans/2026-04-08-ticket-management-phase-1-foundation.md`

@@ -52,7 +52,7 @@ redesign — until the tokens exist, no component re-skin can land without
 immediately diverging from the target.
 
 Reference screenshots:
-`meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
+`meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
 `main-dark.png` (token system in both theme states).
 
 ## Requirements
@@ -78,7 +78,7 @@ is extended to assert CSS↔TS parity over the full set.
   `--shadow-crisp`, plus per-theme `--ac-shadow-soft` and `--ac-shadow-lift`).
 - Define the complete `--ac-*` colour palette as enumerated in the prototype
   inventory's token table at
-  `meta/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`.
+  `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`.
   Both layers ship in this story: the light values under `:root` and the
   full dark override block under `[data-theme="dark"]`. The user-facing
   toggle UI and `data-theme` preference persistence are deferred to 0034.
@@ -99,7 +99,7 @@ is extended to assert CSS↔TS parity over the full set.
 - [ ] (AC1) `src/styles/tokens.ts` and `src/styles/global.css` define every
   token from the following subsections of the prototype inventory's token
   table at
-  `meta/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`
+  `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`
   (subsection headings as they appear in the inventory):
   - "Active semantic layer — `--ac-*` (light)"
   - "Active semantic layer — `--ac-*` (dark, overrides under `[data-theme="dark"]`)"
@@ -138,7 +138,7 @@ is extended to assert CSS↔TS parity over the full set.
   migrations that would pass AC3/AC4 without actually consuming the new
   tokens.
 - [ ] (AC6) For each route captured in
-  `meta/design-inventories/2026-05-06-135214-current-app/screenshots/`
+  `meta/research/design-inventories/2026-05-06-135214-current-app/screenshots/`
   (kanban, library, library-type, library-decisions, templates,
   lifecycle-cluster-detail, lifecycle-cluster-after-click), the implementer
   captures a fresh screenshot at the same viewport dimensions used for the
@@ -167,7 +167,7 @@ is extended to assert CSS↔TS parity over the full set.
   must accommodate these origins; ops/security review should be aware of the
   third-party coupling.
 - Depends on (artefact): the prototype inventory at
-  `meta/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`
+  `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`
   is the canonical source of token names and values; revisions to the
   inventory may invalidate tokens shipped by this story.
 - Blocks: 0034 (Theming & FontMode toggle UI — immediate successor),
@@ -194,7 +194,7 @@ is extended to assert CSS↔TS parity over the full set.
   bypassing it.
 - The prototype has no source code in this repo. Only the runtime-derived
   inventory at
-  `meta/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`
+  `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`
   (see `inventory.md:22-23`) and screenshots exist. Token values must be
   reconstructed from the inventory's tables, not copied from a prototype
   `tokens.ts` / `global.css`.
@@ -250,11 +250,11 @@ is extended to assert CSS↔TS parity over the full set.
 ## References
 
 - Source:
-  `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+  `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
 - Current inventory:
-  `meta/design-inventories/2026-05-06-135214-current-app/inventory.md`
+  `meta/research/design-inventories/2026-05-06-135214-current-app/inventory.md`
 - Target inventory:
-  `meta/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`
+  `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`
 - Screenshots:
-  `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
+  `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
   `main-dark.png`

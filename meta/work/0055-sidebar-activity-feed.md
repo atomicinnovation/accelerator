@@ -199,5 +199,5 @@ Resolved: pagination/expand to history beyond the initial five events is out of 
 ## References
 
 - Parent: `meta/work/0036-sidebar-redesign.md`
-- Source: `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+- Source: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
 - Related: 0037, 0053, 0054

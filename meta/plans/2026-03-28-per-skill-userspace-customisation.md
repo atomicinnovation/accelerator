@@ -714,9 +714,9 @@ at most ~10ms per file.
 ## References
 
 - Original customisation research:
-  `meta/research/2026-03-22-skill-customisation-and-override-patterns.md`
+  `meta/research/codebase/2026-03-22-skill-customisation-and-override-patterns.md`
 - Implementation status research:
-  `meta/research/2026-03-27-skill-customisation-implementation-status.md`
+  `meta/research/codebase/2026-03-27-skill-customisation-implementation-status.md`
 - Custom lens discovery pattern: `scripts/config-read-review.sh:124-202`
 - Global context reader: `scripts/config-read-context.sh`
 - Session summary: `scripts/config-summary.sh`

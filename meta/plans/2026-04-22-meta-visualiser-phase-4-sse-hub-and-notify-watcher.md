@@ -1219,7 +1219,7 @@ Stop after each step to verify the new tests pass before proceeding.
 
 - Spec: `meta/specs/2026-04-17-meta-visualisation-design.md` §§ Server
   components, SSE hub, watcher, Live updates, Failure modes.
-- Research: `meta/research/2026-04-17-meta-visualiser-implementation-context.md`
+- Research: `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md`
   §§ Phase 4, D3, D5.
 - Canonical background-task pattern: `src/lifecycle.rs` (`spawn` + `Settings`).
 - `AppState` construction: `src/server.rs:50-75`.

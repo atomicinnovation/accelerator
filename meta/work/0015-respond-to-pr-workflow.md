@@ -78,7 +78,7 @@ back when feedback is technically incorrect.
 
 ## Source References
 
-- `meta/research/2026-02-23-respond-to-pr-feedback-skill.md` —
+- `meta/research/codebase/2026-02-23-respond-to-pr-feedback-skill.md` —
   Verify-before-implement pattern and philosophical rationale
 - `meta/plans/2026-02-23-respond-to-pr-skill.md` — GraphQL data source design
   and workflow implementation

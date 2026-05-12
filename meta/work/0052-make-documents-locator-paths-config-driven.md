@@ -23,7 +23,7 @@ As an operator with remapped artifact directories, I want the documents-locator
 agent to search the paths I have configured rather than the plugin defaults, so
 that agent invocations in my project find documents in the correct locations.
 
-The agent currently embeds hardcoded paths (`meta/research/`, `meta/plans/`,
+The agent currently embeds hardcoded paths (`meta/research/codebase/`, `meta/plans/`,
 `meta/work/`, etc.) in its definition. These match the plugin defaults but
 ignore any `paths.*` overrides set in `.accelerator/config.md` or
 `.accelerator/config.local.md`. The fix is to preload a bang-command-processed
@@ -186,7 +186,7 @@ The tech debt was first documented in
   rather than maintaining its own key list.
 
 **Codebase survey — hardcoded path locations in `agents/documents-locator.md`:**
-- Lines 15–21: search instructions (`meta/research/`, `meta/plans/`, `meta/decisions/`, `meta/reviews/`, `meta/validations/`, `meta/global/`)
+- Lines 15–21: search instructions (`meta/research/codebase/`, `meta/plans/`, `meta/decisions/`, `meta/reviews/`, `meta/validations/`, `meta/global/`)
 - Lines 49–59: directory tree diagram (all paths as literals)
 - Lines 75–100: example output block (all paths as literals)
 - No other `agents/*.md` file contains hardcoded `meta/` paths — survey complete.

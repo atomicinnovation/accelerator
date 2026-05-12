@@ -488,6 +488,6 @@ surface immediately.
 
 ## References
 
-- Research: `meta/research/2026-04-26-remaining-ticket-references-post-migration.md`
+- Research: `meta/research/codebase/2026-04-26-remaining-ticket-references-post-migration.md`
 - Original rename plan: `meta/plans/2026-04-25-rename-tickets-to-work-items.md`
 - Canonical term decision: `meta/decisions/ADR-0022-work-item-terminology.md`

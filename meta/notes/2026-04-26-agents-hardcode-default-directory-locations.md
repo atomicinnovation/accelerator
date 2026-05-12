@@ -6,7 +6,7 @@ Agent definition files (e.g. `agents/documents-locator.md`) embed hardcoded
 directory paths in their instructions and example output blocks:
 
 ```
-meta/research/
+meta/research/codebase/
 meta/plans/
 meta/work/
 meta/decisions/

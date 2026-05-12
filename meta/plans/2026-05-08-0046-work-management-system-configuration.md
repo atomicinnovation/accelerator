@@ -1262,7 +1262,7 @@ the two existing keys.
 ## References
 
 - Source: `meta/work/0046-work-management-system-configuration.md`
-- Research: `meta/research/2026-05-08-0046-work-management-system-configuration.md`
+- Research: `meta/research/codebase/2026-05-08-0046-work-management-system-configuration.md`
 - Parent epic: `meta/work/0045-work-management-integration.md`
 - Centralisation precedent: `scripts/config-defaults.sh` (post-0030 state),
   `scripts/config-read-path.sh:17-42` (thin-wrapper pattern)

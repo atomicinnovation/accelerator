@@ -139,7 +139,7 @@ not been run.
 
 ## References
 
-- `meta/research/2026-03-28-initialise-skill-requirements.md` —
+- `meta/research/codebase/2026-03-28-initialise-skill-requirements.md` —
   Initialisation skill requirements, idempotency rules, taxonomy placement
 - `meta/plans/2026-03-28-initialise-skill-and-review-pr-ephemeral-migration.md`
   — Implementation plan: skill spec, gitignore dedup rules, `tmp` as

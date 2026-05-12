@@ -11,7 +11,7 @@ review_pass: 2
 status: complete
 ---
 
-## Work Item Review: Restructure meta/research/ into Subject Subcategories
+## Work Item Review: Restructure meta/research/codebase/ into Subject Subcategories
 
 **Verdict:** REVISE
 
@@ -107,7 +107,7 @@ in-tree plugin migration and the userspace migration shipping.
   **Location**: Dependencies: Blocks
   `Blocks: forthcoming idea/concept research skill` has no work item ID — the link is one-way and a search for what depends on 0056 will miss it.
 
-- 🔵 **Scope**: `paths.research_ideas` and `meta/research/ideas/` prepared for explicitly out-of-scope skill
+- 🔵 **Scope**: `paths.research_ideas` and `meta/research/codebase/ideas/` prepared for explicitly out-of-scope skill
   **Location**: Requirements: Directory restructure
   A small slice of the work has no consumer until a future work item lands, weakening the atomicity argument for those specific lines. Either tighten the rationale in Context or defer to the idea/concept skill's own work item.
 
@@ -117,7 +117,7 @@ in-tree plugin migration and the userspace migration shipping.
 
 - 🔵 **Testability**: Unresolved open question affects a verifiable outcome
   **Location**: Open Questions
-  Whether `meta/research/ideas/` is default-created post-migration is observable behaviour that cannot currently be tested against the spec.
+  Whether `meta/research/codebase/ideas/` is default-created post-migration is observable behaviour that cannot currently be tested against the spec.
 
 - 🔵 **Testability**: Idempotency criterion uses "reports no pending changes" without defining the signal
   **Location**: Acceptance Criteria (idempotency)
@@ -178,7 +178,7 @@ in-tree plugin migration and the userspace migration shipping.
    - State explicitly whether the plugin's `meta/` restructure is hand-applied in the same commit or run via the migration script
 
 6. **Resolve the Open Question and rationalise `paths.research_ideas`** (addresses: out-of-scope-skill pre-staging; unresolved open question)
-   Confirm whether `meta/research/ideas/` is default-created; add the corresponding AC if yes; either tighten the Context to justify pre-staging the ideas key, or defer it to the idea/concept skill's own work item.
+   Confirm whether `meta/research/codebase/ideas/` is default-created; add the corresponding AC if yes; either tighten the Context to justify pre-staging the ideas key, or defer it to the idea/concept skill's own work item.
 
 7. **Minor clarity polish** (addresses: jj/git move semantics; design-convergence term; three-phase rewriter)
    Link or name-drop the move helper; gloss "design-convergence outputs" on first use; align the rewriter phase/shape terminology between Requirements, AC, and Technical Notes.
@@ -242,7 +242,7 @@ in-tree plugin migration and the userspace migration shipping.
 
 ### Scope
 
-**Summary**: Work item 0056 describes a tightly-coupled directory restructure plus migration that must ship as one unit to avoid leaving userspace repos in a broken state. The Summary, Requirements, and Acceptance Criteria all describe the same scope — a single coherent restructuring of meta/research/ — and the Drafting Notes explicitly justify the story-over-epic choice on atomicity grounds. The work item is large (L) and crosses several files, but the parts are genuinely indivisible; the main scope risk is a single Requirements bullet that overlaps with explicitly out-of-scope future work.
+**Summary**: Work item 0056 describes a tightly-coupled directory restructure plus migration that must ship as one unit to avoid leaving userspace repos in a broken state. The Summary, Requirements, and Acceptance Criteria all describe the same scope — a single coherent restructuring of meta/research/codebase/ — and the Drafting Notes explicitly justify the story-over-epic choice on atomicity grounds. The work item is large (L) and crosses several files, but the parts are genuinely indivisible; the main scope risk is a single Requirements bullet that overlaps with explicitly out-of-scope future work.
 
 **Strengths**:
 - Summary, Requirements, Acceptance Criteria, and Drafting Notes consistently describe one unified restructure — no section drift
@@ -251,7 +251,7 @@ in-tree plugin migration and the userspace migration shipping.
 - Dependencies block lists prerequisite work (0030, 0052) as already done
 
 **Findings**:
-- 🔵 minor / medium confidence — `paths.research_ideas` key and `meta/research/ideas/` directory prepared for explicitly out-of-scope skill (Requirements: Directory restructure)
+- 🔵 minor / medium confidence — `paths.research_ideas` key and `meta/research/codebase/ideas/` directory prepared for explicitly out-of-scope skill (Requirements: Directory restructure)
 - 🔵 suggestion / low confidence — Size L work item touching 9+ files plus the most complex migration shipped — verify this is the right unit (Technical Notes: Size)
 
 ### Testability

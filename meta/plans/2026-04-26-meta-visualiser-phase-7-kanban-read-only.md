@@ -2201,7 +2201,7 @@ pass before proceeding.
 ## References
 
 - Spec: `meta/specs/2026-04-17-meta-visualisation-design.md` (Kanban section, lines 492–505; Writes and conflict handling, lines 516–540 — Phase 7 deliberately defers the write half).
-- Research: `meta/research/2026-04-17-meta-visualiser-implementation-context.md` (Phase 7 entry at lines 1069–1080; phasing rationale at lines 1196–1214).
+- Research: `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md` (Phase 7 entry at lines 1069–1080; phasing rationale at lines 1196–1214).
 - Phase 6 plan (template for structure, TDD discipline, `FetchError`, and `makeIndexEntry` patterns): `meta/plans/2026-04-25-meta-visualiser-phase-6-lifecycle-clusters-and-view.md`.
 - Phase 5 plan (frontend testing patterns origin, `MemoryRouter` helper, CSS module conventions): `meta/plans/2026-04-22-meta-visualiser-phase-5-frontend-scaffold-and-library-view.md`.
 - dnd-kit `useSortable` `disabled` argument: <https://docs.dndkit.com/presets/sortable/usesortable>.

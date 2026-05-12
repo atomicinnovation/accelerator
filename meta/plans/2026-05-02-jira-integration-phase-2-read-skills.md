@@ -34,7 +34,7 @@ skill rather than written by hand. No ADRs are introduced — all
 load-bearing decisions (orchestrator-in-bash convention, JSON-first output,
 `@me` resolution from cached `site.json`, paged-search semantics, comments
 folded into `show` rather than a separate `list-jira-comments` skill) are
-captured in `meta/research/2026-04-29-jira-cloud-integration-skills.md`
+captured in `meta/research/codebase/2026-04-29-jira-cloud-integration-skills.md`
 (§§2.3, 2.6, 4.6, 5.3, 5.4) and inlined below where the phase consumes
 them.
 
@@ -2026,7 +2026,7 @@ the Phase 2 latency is acceptable.
 ## References
 
 - Original research:
-  `meta/research/2026-04-29-jira-cloud-integration-skills.md` (Phase 2
+  `meta/research/codebase/2026-04-29-jira-cloud-integration-skills.md` (Phase 2
   scope at lines 1048–1066; design details for search/show at
   §§4.1, 4.10; ADF render-fields walker at §4.4; `@me` resolution
   via cached `site.json` at §5.3 and §4.5; output convention at
@@ -2036,13 +2036,13 @@ the Phase 2 latency is acceptable.
   (status `complete`; defines the helper conventions and exit-code
   ranges this phase extends).
 - Atlassian REST v3 search endpoint:
-  `meta/research/2026-04-29-jira-cloud-integration-skills.md:194-231`
+  `meta/research/codebase/2026-04-29-jira-cloud-integration-skills.md:194-231`
   (request/response shape, token-based pagination).
 - Atlassian REST v3 issue + comments:
-  `meta/research/2026-04-29-jira-cloud-integration-skills.md:234-295`
+  `meta/research/codebase/2026-04-29-jira-cloud-integration-skills.md:234-295`
   (issue endpoint and the offset-paginated comments endpoint).
 - ADF round-trip strategy:
-  `meta/research/2026-04-29-jira-cloud-integration-skills.md:518-642`
+  `meta/research/codebase/2026-04-29-jira-cloud-integration-skills.md:518-642`
   (Markdown subset, render walker design).
 - skill-creator authoring path:
   `skills/integrations/jira/init-jira/SKILL.md` (Phase 1 model);

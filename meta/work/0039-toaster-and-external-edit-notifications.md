@@ -27,7 +27,7 @@ The current app has no toast / notification component. The prototype includes a 
 
 The first-class consumer is the external-edit toast — demonstrated on initial load of the prototype with the message "External edit detected · A reviewer agent updated `WORK-0007` while you were looking at it. Query invalidated." This subscribes to the existing SSE event stream, correlates incoming change events against the active document route, and surfaces a Toaster notification with the affected ID and a "Query invalidated" message when a match is found.
 
-Reference screenshot: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png` (toast visible on initial load).
+Reference screenshot: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png` (toast visible on initial load).
 
 ## Requirements
 
@@ -74,6 +74,6 @@ Reference screenshot: `meta/design-inventories/2026-05-06-140608-claude-design-p
 
 ## References
 
-- Source: `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
-- Screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`
+- Source: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+- Screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`
 - Related: 0033

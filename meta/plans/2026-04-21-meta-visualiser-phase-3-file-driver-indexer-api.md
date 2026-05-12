@@ -4181,7 +4181,7 @@ edge cases):
   (Absent state).
 - `meta/plans/2026-01-03-malformed-plan.md` — malformed YAML
   (unclosed quoted string).
-- `meta/research/2026-01-01-first-research.md` — full frontmatter.
+- `meta/research/codebase/2026-01-01-first-research.md` — full frontmatter.
 - `meta/reviews/plans/2026-01-01-first-plan-review-1.md` — first
   review, `target:` populated.
 - `meta/reviews/plans/2026-01-04-example-and-review-some-topic-review-1.md` —
@@ -4544,7 +4544,7 @@ Known Phase 4+ churn points introduced by this phase:
 
 ## References
 
-- Research: `meta/research/2026-04-17-meta-visualiser-implementation-context.md`
+- Research: `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md`
   (Phase 3 ownership: Gaps 1, 3, 6, 7, 10, 12; resolved decisions D5, D6,
   D7, D9).
 - Design spec: `meta/specs/2026-04-17-meta-visualisation-design.md`

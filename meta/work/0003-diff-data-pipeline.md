@@ -85,9 +85,9 @@ rather than failing.
 
 ## Source References
 
-- `meta/research/2026-02-22-pr-review-agents-design.md` — Shared temp directory
+- `meta/research/codebase/2026-02-22-pr-review-agents-design.md` — Shared temp directory
   design and hybrid diff access strategy
-- `meta/research/2026-02-22-pr-review-inline-comments.md` — Diff-line
+- `meta/research/codebase/2026-02-22-pr-review-inline-comments.md` — Diff-line
   validation problem and hybrid validation approach
 - `meta/plans/2026-02-22-pr-review-inline-comments.md` — Validation
   implementation details

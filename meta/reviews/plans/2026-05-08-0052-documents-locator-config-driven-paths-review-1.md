@@ -94,7 +94,7 @@ Phases 1–3 are mechanically sound additions to a well-designed config infrastr
 
 - 🟡 **Test Coverage**: Phase 5 has no automated tests for the agent body rewrite
   **Location**: Phase 5: Success Criteria — Automated Verification
-  The four verification steps are all `grep` presence/absence checks. None verify which `meta/` references in the fallback-default list are acceptable vs. forbidden; a residual hardcoded `meta/research/` in the instructions section would pass all four checks if it appears inside the fallback block.
+  The four verification steps are all `grep` presence/absence checks. None verify which `meta/` references in the fallback-default list are acceptable vs. forbidden; a residual hardcoded `meta/research/codebase/` in the instructions section would pass all four checks if it appears inside the fallback block.
 
 #### Minor
 

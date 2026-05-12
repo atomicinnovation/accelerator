@@ -2130,7 +2130,7 @@ all M6 verifications pass.
 
 ## References
 
-- Research: `meta/research/2026-04-29-jira-cloud-integration-skills.md`
+- Research: `meta/research/codebase/2026-04-29-jira-cloud-integration-skills.md`
   (§§2.4, 2.6, 2.8, 2.9, 2.11, 2.13, 4.10, 5.4)
 - Phase 1 plan (complete): `meta/plans/2026-04-29-jira-integration-phase-1-foundation.md`
 - Phase 2 plan: `meta/plans/2026-05-02-jira-integration-phase-2-read-skills.md`

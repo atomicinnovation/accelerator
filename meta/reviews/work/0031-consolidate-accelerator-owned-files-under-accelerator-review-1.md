@@ -359,7 +359,7 @@ Pass 4 addressed all four confirmed major findings. The open question is now exp
 
 ### Open Question Resolution
 
-The blocking open question has been investigated and resolved. The 2026-03-14 plugin-extraction work (`meta/research/2026-03-14-plugin-extraction.md`, `meta/plans/2026-03-14-plugin-extraction.md`) addressed only the plugin's internal structure — extracting skills and agents from `~/.claude/` into `${CLAUDE_PLUGIN_ROOT}/`. It placed no constraints on the `.accelerator/` root name or file placement in user repos; the `meta/` convention was explicitly noted in that work as a project working-directory artifact separate from the plugin. The userspace directory model was established independently by ADR-0016 through ADR-0020.
+The blocking open question has been investigated and resolved. The 2026-03-14 plugin-extraction work (`meta/research/codebase/2026-03-14-plugin-extraction.md`, `meta/plans/2026-03-14-plugin-extraction.md`) addressed only the plugin's internal structure — extracting skills and agents from `~/.claude/` into `${CLAUDE_PLUGIN_ROOT}/`. It placed no constraints on the `.accelerator/` root name or file placement in user repos; the `meta/` convention was explicitly noted in that work as a project working-directory artifact separate from the plugin. The userspace directory model was established independently by ADR-0016 through ADR-0020.
 
 ### Previously Identified Issues (Pass 4)
 

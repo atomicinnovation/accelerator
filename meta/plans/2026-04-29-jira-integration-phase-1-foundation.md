@@ -30,7 +30,7 @@ the `skill-creator:skill-creator` skill rather than written by hand. ADRs
 are out of scope: the load-bearing decisions (transport, skill location,
 auth model, state location, default-project-key reuse, output convention,
 Markdown subset) are captured in
-`meta/research/2026-04-29-jira-cloud-integration-skills.md` and inlined
+`meta/research/codebase/2026-04-29-jira-cloud-integration-skills.md` and inlined
 below where the phase consumes them. ADR-0017 (configuration extension
 points) frames the new `jira.*` config section. The longer-term
 `meta/integrations/` → `.accelerator/state/integrations/` reorg captured
@@ -2650,7 +2650,7 @@ After all milestones land:
 ## References
 
 - Original research:
-  `meta/research/2026-04-29-jira-cloud-integration-skills.md` (Phase 1
+  `meta/research/codebase/2026-04-29-jira-cloud-integration-skills.md` (Phase 1
   scope at lines 1014–1046; design details inlined above for phase
   self-sufficiency).
 - Related notes:
@@ -2659,5 +2659,5 @@ After all milestones land:
 - Configuration framework:
   `meta/decisions/ADR-0017-configuration-extension-points.md`.
 - Default-project-key reuse:
-  `meta/research/2026-04-28-configurable-work-item-id-pattern.md`,
+  `meta/research/codebase/2026-04-28-configurable-work-item-id-pattern.md`,
   `meta/plans/2026-04-28-configurable-work-item-id-pattern.md`.

@@ -309,7 +309,7 @@ the two-hop resolution failure occurs.
 
 ## References
 
-- Research: `meta/research/2026-04-07-pr-review-tmp-directory-usage.md`
+- Research: `meta/research/codebase/2026-04-07-pr-review-tmp-directory-usage.md`
 - Precedent: `skills/config/init/SKILL.md:125` — "Use the actual resolved
   paths in the output (not the variable names)"
 - Precedent: `skills/config/init/SKILL.md:18-30` — Path Resolution section

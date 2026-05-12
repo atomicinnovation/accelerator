@@ -126,7 +126,7 @@ dropped.
 
 ## References
 
-- `meta/research/2026-02-22-pr-review-inline-comments.md` — API constraints,
+- `meta/research/codebase/2026-02-22-pr-review-inline-comments.md` — API constraints,
   inline comment design, and severity prioritisation
 - `meta/plans/2026-02-22-pr-review-inline-comments.md` — Implementation plan
   for atomic posting and comment capping

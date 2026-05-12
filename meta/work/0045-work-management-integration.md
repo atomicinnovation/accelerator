@@ -48,12 +48,12 @@ skills handle individual API operations; and `sync-work-items` orchestrates
 bidirectional sync across the configured system.
 
 Background research:
-- `meta/research/2026-04-08-ticket-management-skills.md` — original skill design
-- `meta/research/2026-04-25-rename-tickets-to-work-items.md` — terminology rename
-- `meta/research/2026-04-26-remaining-ticket-references-post-migration.md` — post-rename cleanup
-- `meta/research/2026-04-27-create-work-item-open-from-existing.md` — enrich-existing mode
-- `meta/research/2026-04-28-configurable-work-item-id-pattern.md` — ID pattern DSL
-- `meta/research/2026-04-29-jira-cloud-integration-skills.md` — Jira integration design
+- `meta/research/codebase/2026-04-08-ticket-management-skills.md` — original skill design
+- `meta/research/codebase/2026-04-25-rename-tickets-to-work-items.md` — terminology rename
+- `meta/research/codebase/2026-04-26-remaining-ticket-references-post-migration.md` — post-rename cleanup
+- `meta/research/codebase/2026-04-27-create-work-item-open-from-existing.md` — enrich-existing mode
+- `meta/research/codebase/2026-04-28-configurable-work-item-id-pattern.md` — ID pattern DSL
+- `meta/research/codebase/2026-04-29-jira-cloud-integration-skills.md` — Jira integration design
 
 ## Requirements
 
@@ -192,9 +192,9 @@ side-by-side diff and must confirm or override before any local write occurs.
 
 ## References
 
-- Source: `meta/research/2026-04-08-ticket-management-skills.md`
-- Source: `meta/research/2026-04-25-rename-tickets-to-work-items.md`
-- Source: `meta/research/2026-04-26-remaining-ticket-references-post-migration.md`
-- Source: `meta/research/2026-04-27-create-work-item-open-from-existing.md`
-- Source: `meta/research/2026-04-28-configurable-work-item-id-pattern.md`
-- Source: `meta/research/2026-04-29-jira-cloud-integration-skills.md`
+- Source: `meta/research/codebase/2026-04-08-ticket-management-skills.md`
+- Source: `meta/research/codebase/2026-04-25-rename-tickets-to-work-items.md`
+- Source: `meta/research/codebase/2026-04-26-remaining-ticket-references-post-migration.md`
+- Source: `meta/research/codebase/2026-04-27-create-work-item-open-from-existing.md`
+- Source: `meta/research/codebase/2026-04-28-configurable-work-item-id-pattern.md`
+- Source: `meta/research/codebase/2026-04-29-jira-cloud-integration-skills.md`

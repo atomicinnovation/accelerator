@@ -79,7 +79,7 @@ appropriate; performance assesses whether the *implementation* is efficient.
 
 ## Source References
 
-- `meta/research/2026-02-22-review-lens-gap-analysis.md` — Gap analysis
+- `meta/research/codebase/2026-02-22-review-lens-gap-analysis.md` — Gap analysis
   identifying performance as primary gap and resilience as secondary
 - `meta/plans/2026-02-23-performance-lens-and-resilience-extension.md` —
   Implementation plan with boundary definitions

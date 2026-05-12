@@ -11,7 +11,7 @@ status: accepted
 ## Overview
 
 `/inventory-design` UAT exposed two production blockers (research:
-`meta/research/2026-05-06-design-skill-localhost-and-mcp-issues.md`):
+`meta/research/codebase/2026-05-06-design-skill-localhost-and-mcp-issues.md`):
 
 1. The URL validator rejects `http://localhost`, the most common dev-server
    case, with no way to override.
@@ -2477,7 +2477,7 @@ Run the full eval suite at the configured run-count tiers and write
    `/inventory-design demo ./examples/design-test-app --crawler hybrid`.
    Expect the bootstrap preamble (visible npm progress, no `--silent`),
    Chromium download (1–3 min), then a successful crawl of the fixture
-   app. Inspect `meta/design-inventories/<dir>/`.
+   app. Inspect `meta/research/design-inventories/<dir>/`.
 2. Re-run the same command. Expect no bootstrap output (sentinel hit
    under the lock), daemon reuse from the earlier session, fast crawl.
 3. Start a local dev server on `http://localhost:3000`. Run
@@ -2530,7 +2530,7 @@ Run the full eval suite at the configured run-count tiers and write
 
 ## Migration Notes
 
-- Existing `meta/design-inventories/` artifacts are unaffected (no schema
+- Existing `meta/research/design-inventories/` artifacts are unaffected (no schema
   change).
 - Users with the Playwright MCP already installed locally are unaffected
   by `.claude-plugin/.mcp.json` removal — the MCP server stays in their
@@ -2552,7 +2552,7 @@ Run the full eval suite at the configured run-count tiers and write
 
 ## References
 
-- Original research: `meta/research/2026-05-06-design-skill-localhost-and-mcp-issues.md`
+- Original research: `meta/research/codebase/2026-05-06-design-skill-localhost-and-mcp-issues.md`
 - Initial review: `meta/reviews/plans/2026-05-06-design-skill-localhost-and-mcp-issues-review-1.md`
 - Visualiser daemon-management pattern adopted:
   `skills/visualisation/visualise/scripts/launch-server.sh`,

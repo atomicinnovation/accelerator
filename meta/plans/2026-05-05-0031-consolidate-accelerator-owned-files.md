@@ -1710,7 +1710,7 @@ source of upgrade information.
 
 - [x] Every test suite still passes
 - [x] No prose under `README.md`, `skills/`, or `hooks/` (excluding
-  `meta/notes/`, `meta/research/`, `meta/plans/`, `meta/decisions/`,
+  `meta/notes/`, `meta/research/codebase/`, `meta/plans/`, `meta/decisions/`,
   `meta/work/`, `meta/reviews/`, `CHANGELOG.md`, and migration scripts
   `0001`/`0002`) references the legacy paths
 - [x] CHANGELOG entry renders correctly in markdown preview
@@ -1821,7 +1821,7 @@ gain or lose work. Driver state-file location change is one syscall.
 ## References
 
 - Original work item: `meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md`
-- Research: `meta/research/2026-05-05-0031-consolidate-accelerator-owned-files.md`
+- Research: `meta/research/codebase/2026-05-05-0031-consolidate-accelerator-owned-files.md`
 - Source proposal: `meta/notes/2026-04-29-accelerator-config-state-reorg.md`
 - Related: ADR-0016 (`meta/decisions/ADR-0016-userspace-configuration-model.md`)
 - Related: ADR-0017 (`meta/decisions/ADR-0017-configuration-extension-points.md`)

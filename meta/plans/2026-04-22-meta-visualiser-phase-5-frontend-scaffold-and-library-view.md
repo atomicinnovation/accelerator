@@ -3695,7 +3695,7 @@ Stop after each numbered step and verify tests pass before proceeding.
 
 - Spec: `meta/specs/2026-04-17-meta-visualisation-design.md` §§ Frontend, Views,
   Data model, Distribution (D10).
-- Research: `meta/research/2026-04-17-meta-visualiser-implementation-context.md`
+- Research: `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md`
   §§ Phase 5, D9, D10.
 - Phase 4 plan: `meta/plans/2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher.md`
   (SSE event shapes, AppState pattern).

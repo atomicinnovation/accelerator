@@ -80,7 +80,7 @@ explicitly relinquish them.
 
 ## Source References
 
-- `meta/research/2026-03-15-review-lens-optimal-structure.md` — PBR foundation,
+- `meta/research/codebase/2026-03-15-review-lens-optimal-structure.md` — PBR foundation,
   boundary statements, structural invariants
 - `meta/plans/2026-03-15-new-review-lenses.md` — Concern ownership transfer
   principle and practice

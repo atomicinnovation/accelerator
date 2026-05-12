@@ -439,4 +439,4 @@ accelerator:web-search-researcher.
 
 ## References
 
-- Research: `meta/research/2026-04-07-bare-agent-name-references.md`
+- Research: `meta/research/codebase/2026-04-07-bare-agent-name-references.md`

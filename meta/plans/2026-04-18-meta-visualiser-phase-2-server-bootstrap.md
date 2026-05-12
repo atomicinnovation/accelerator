@@ -589,7 +589,7 @@ changes yet — the binary parses the config, logs it, and exits.
     "decisions": "/abs/path/to/project/meta/decisions",
     "tickets": "/abs/path/to/project/meta/tickets",
     "plans": "/abs/path/to/project/meta/plans",
-    "research": "/abs/path/to/project/meta/research",
+    "research": "/abs/path/to/project/meta/research/codebase",
     "review_plans": "/abs/path/to/project/meta/reviews/plans",
     "review_prs": "/abs/path/to/project/meta/reviews/prs",
     "validations": "/abs/path/to/project/meta/validations",
@@ -2608,7 +2608,7 @@ abs_path() {
 DECISIONS="$(abs_path decisions meta/decisions)"
 TICKETS="$(abs_path tickets meta/tickets)"
 PLANS="$(abs_path plans meta/plans)"
-RESEARCH="$(abs_path research meta/research)"
+RESEARCH="$(abs_path research meta/research/codebase)"
 REVIEW_PLANS="$(abs_path review_plans meta/reviews/plans)"
 REVIEW_PRS="$(abs_path review_prs meta/reviews/prs)"
 VALIDATIONS="$(abs_path validations meta/validations)"
@@ -3837,7 +3837,7 @@ Known Phase 3+ churn points introduced by this phase:
 
 ## References
 
-- Research: `meta/research/2026-04-17-meta-visualiser-implementation-context.md`
+- Research: `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md`
   (Phase 2 ownership: Gaps 2, 5, 6; resolved decisions D3, D4, D8)
 - Design spec: `meta/specs/2026-04-17-meta-visualisation-design.md` (
   Architecture § Runtime, Launch and lifecycle, Preprocessor responsibilities)

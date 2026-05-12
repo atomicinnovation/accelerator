@@ -177,7 +177,7 @@ names.
 
 ## References
 
-- `meta/research/2026-04-25-rename-tickets-to-work-items.md` — migration
+- `meta/research/codebase/2026-04-25-rename-tickets-to-work-items.md` — migration
   framework design exploration, pinned-path semantics, dry-run alternatives
 - `meta/decisions/ADR-0022-work-item-terminology.md` — the rename that
   necessitates the first migration
@@ -187,5 +187,5 @@ names.
   migration implementing the tickets→work rename
 - `hooks/migrate-discoverability.sh` — SessionStart hook for migration lag
   detection
-- `meta/research/2026-03-28-initialise-skill-requirements.md` — `init` skill's
+- `meta/research/codebase/2026-03-28-initialise-skill-requirements.md` — `init` skill's
   report-then-act idiom (precedent for preview-before-apply)

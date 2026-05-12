@@ -26,7 +26,7 @@ be discoverable by `documents-locator`.
 
 A user asking the agent "what design work has been done on X?" or
 "do we have a design inventory for Y?" should get a hit if the relevant
-file exists under `meta/design-inventories/` or `meta/design-gaps/`. With
+file exists under `meta/research/design-inventories/` or `meta/research/design-gaps/`. With
 the current exclusion list, the agent does not even know those directories
 exist — they are absent from the preloaded **Configured Paths** block and
 from the legend in `skills/config/paths/SKILL.md`.

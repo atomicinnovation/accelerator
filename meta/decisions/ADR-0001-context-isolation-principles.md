@@ -146,10 +146,10 @@ not a fixed number.
 
 ## References
 
-- `meta/research/2026-03-15-context-management-approaches.md` -- Token budget
+- `meta/research/codebase/2026-03-15-context-management-approaches.md` -- Token budget
   analysis, locator/analyser pattern, filesystem communication design, and
   combined strategy prioritisation
-- `meta/research/2026-03-18-meta-management-strategy.md` --
+- `meta/research/codebase/2026-03-18-meta-management-strategy.md` --
   Filesystem-as-shared-memory principle, meta/ directory as inter-phase
   communication channel, and artifact persistence gaps
 - `meta/plans/2026-03-15-readme-restructure.md` -- Documents the filesystem

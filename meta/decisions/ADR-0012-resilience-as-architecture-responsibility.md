@@ -148,7 +148,7 @@ loss of coverage.
 
 ## References
 
-- `meta/research/2026-02-22-review-lens-gap-analysis.md` — Gap analysis
+- `meta/research/codebase/2026-02-22-review-lens-gap-analysis.md` — Gap analysis
   identifying resilience as a secondary coverage gap and recommending
   extension over a standalone lens
 - `meta/plans/2026-02-23-performance-lens-and-resilience-extension.md` —

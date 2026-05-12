@@ -143,7 +143,7 @@ they remain self-sufficient when init has not been run.
 
 ## Source References
 
-- `meta/research/2026-03-28-initialise-skill-requirements.md` — init skill
+- `meta/research/codebase/2026-03-28-initialise-skill-requirements.md` — init skill
   requirements, idempotency rules, `.gitkeep` policy, skill-taxonomy placement
 - `meta/plans/2026-03-28-initialise-skill-and-review-pr-ephemeral-migration.md`
   — init-skill spec, gitignore dedup rules, `tmp` as configurable path,

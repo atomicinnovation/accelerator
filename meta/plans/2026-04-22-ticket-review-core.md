@@ -1158,7 +1158,7 @@ Claude Code session.
 ## References
 
 - Research document:
-  `meta/research/2026-04-08-ticket-management-skills.md`
+  `meta/research/codebase/2026-04-08-ticket-management-skills.md`
 - Prior phase plans:
   - `meta/plans/2026-04-08-ticket-management-phase-1-foundation.md`
   - `meta/plans/2026-04-19-ticket-creation-skills.md`

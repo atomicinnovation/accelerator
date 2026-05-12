@@ -138,9 +138,9 @@ group to ensure it produces findings regardless of the specific change pattern.
 
 ## References
 
-- `meta/research/2026-02-22-review-lens-gap-analysis.md` — ISO 25010 gap
+- `meta/research/codebase/2026-02-22-review-lens-gap-analysis.md` — ISO 25010 gap
   analysis identifying coverage holes in the original seven lenses
-- `meta/research/2026-03-15-review-lens-optimal-structure.md` — Research into
+- `meta/research/codebase/2026-03-15-review-lens-optimal-structure.md` — Research into
   optimal lens structure, conditional sub-groups, and catalogue sizing
 - `meta/plans/2026-03-15-new-review-lenses.md` — Implementation plan for the
   six new lenses and selection cap

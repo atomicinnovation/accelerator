@@ -47,7 +47,7 @@ variant except `Templates`, which is the only `is_virtual: true` type
 `/library/templates` route.
 
 Reference screenshots:
-`meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
+`meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
 `main-dark.png`, `library-view.png` (sidebar visible across all main views).
 
 ## Goals
@@ -167,9 +167,9 @@ each.
 ## References
 
 - Source:
-  `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+  `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
 - Screenshots:
-  `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
+  `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
   `main-dark.png`, `library-view.png`
 - Children: 0053, 0054, 0055
 - Reviews: `meta/reviews/work/0036-sidebar-redesign-review-1.md`

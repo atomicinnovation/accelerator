@@ -3,7 +3,7 @@
 ## Overview
 
 This plan covers the remaining meta/ enhancements identified in the research
-at `meta/research/2026-03-18-meta-management-strategy.md`. It depends on Plan
+at `meta/research/codebase/2026-03-18-meta-management-strategy.md`. It depends on Plan
 1 (`meta/plans/2026-03-22-persist-review-artifacts.md`) being complete, since
 the cross-referencing phases require review artifacts to exist at
 `meta/reviews/`.
@@ -616,7 +616,7 @@ manual:
 
 ## References
 
-- Research document: `meta/research/2026-03-18-meta-management-strategy.md`
+- Research document: `meta/research/codebase/2026-03-18-meta-management-strategy.md`
 - Plan 1 (prerequisite): `meta/plans/2026-03-22-persist-review-artifacts.md`
 - validate-plan skill: `skills/planning/validate-plan/SKILL.md`
 - respond-to-pr skill: `skills/github/respond-to-pr/SKILL.md`

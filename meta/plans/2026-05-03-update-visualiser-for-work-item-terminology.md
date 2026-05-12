@@ -26,7 +26,7 @@ wherever the change shape allows.
 ## Current State Analysis
 
 The full surface analysis is in
-`meta/research/2026-05-03-update-visualiser-for-work-item-terminology.md`
+`meta/research/codebase/2026-05-03-update-visualiser-for-work-item-terminology.md`
 (917 lines). In summary:
 
 - **Launcher** (`skills/visualisation/visualise/scripts/write-visualiser-config.sh:39,89,105`)
@@ -78,7 +78,7 @@ The full surface analysis is in
 - **Stragglers from the 2026-04-26 audit are clean.**
   `agents/documents-locator.md`, `templates/pr-description.md`, the
   `test-lens-structure.sh`, `test-work-item-scripts.sh`, and other files
-  flagged in `meta/research/2026-04-26-remaining-ticket-references-post-migration.md`
+  flagged in `meta/research/codebase/2026-04-26-remaining-ticket-references-post-migration.md`
   no longer contain ticket references. No straggler bundle is needed.
 
 ## Desired End State
@@ -2089,12 +2089,12 @@ its own scope; this plan's tolerance contract is permanent.
 
 ## References
 
-- Research: `meta/research/2026-05-03-update-visualiser-for-work-item-terminology.md`
+- Research: `meta/research/codebase/2026-05-03-update-visualiser-for-work-item-terminology.md`
 - Related research:
-  - `meta/research/2026-04-17-meta-visualiser-implementation-context.md` (visualiser design)
-  - `meta/research/2026-04-25-rename-tickets-to-work-items.md` (full rename surface)
-  - `meta/research/2026-04-26-remaining-ticket-references-post-migration.md` (post-migration cleanup; stragglers since cleaned)
-  - `meta/research/2026-04-28-configurable-work-item-id-pattern.md` (pattern compiler)
+  - `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md` (visualiser design)
+  - `meta/research/codebase/2026-04-25-rename-tickets-to-work-items.md` (full rename surface)
+  - `meta/research/codebase/2026-04-26-remaining-ticket-references-post-migration.md` (post-migration cleanup; stragglers since cleaned)
+  - `meta/research/codebase/2026-04-28-configurable-work-item-id-pattern.md` (pattern compiler)
 - Decisions:
   - `meta/decisions/ADR-0022-work-item-terminology.md` (terminology rename — visualiser conformance is downstream)
   - `meta/decisions/ADR-0023-meta-directory-migration-framework.md`

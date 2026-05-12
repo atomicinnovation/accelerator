@@ -20,7 +20,7 @@ engineering practices, OWASP, ISO 25010 — flagged **functional correctness**
 as a recognised review dimension but deliberately excluded it from the lens
 catalogue, recommending it be "left implicit" as a cross-cutting concern that
 every reviewer checks by default
-(`meta/research/2026-02-22-review-lens-gap-analysis.md`). The reasoning: making
+(`meta/research/codebase/2026-02-22-review-lens-gap-analysis.md`). The reasoning: making
 correctness an explicit lens risked overlap with test coverage (edge cases) and
 code quality (error handling).
 
@@ -177,7 +177,7 @@ We draw explicit boundaries with adjacent lenses:
 ### Negative
 
 - Reverses a prior deliberate exclusion
-  (`meta/research/2026-02-22-review-lens-gap-analysis.md`). The original
+  (`meta/research/codebase/2026-02-22-review-lens-gap-analysis.md`). The original
   concerns — overlap with test coverage on edge cases and with code quality
   on error handling — must be actively managed through the boundary
   statements, and the boundaries must be maintained as adjacent lenses
@@ -214,10 +214,10 @@ We draw explicit boundaries with adjacent lenses:
 
 ## References
 
-- `meta/research/2026-02-22-review-lens-gap-analysis.md` — Original gap
+- `meta/research/codebase/2026-02-22-review-lens-gap-analysis.md` — Original gap
   analysis that excluded correctness as "a cross-cutting concern best left
   implicit" (the exclusion this ADR reverses)
-- `meta/research/2026-03-15-review-lens-optimal-structure.md` — Open
+- `meta/research/codebase/2026-03-15-review-lens-optimal-structure.md` — Open
   Questions noting correctness as a deliberately excluded coverage gap
 - `meta/plans/2026-03-15-new-review-lenses.md` — Implementation plan
   (Phase 3) defining the correctness lens scope, formal-verifier persona,

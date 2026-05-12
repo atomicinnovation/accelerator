@@ -971,8 +971,8 @@ Each plan that adds configuration keys must:
 
 ## References
 
-- Research: `meta/research/2026-03-22-skill-customisation-and-override-patterns.md`
-- Plugin extraction research: `meta/research/2026-03-14-plugin-extraction.md`
+- Research: `meta/research/codebase/2026-03-22-skill-customisation-and-override-patterns.md`
+- Plugin extraction research: `meta/research/codebase/2026-03-14-plugin-extraction.md`
 - Existing YAML parsing pattern: `skills/decisions/scripts/adr-read-status.sh`
 - Existing test pattern: `skills/decisions/scripts/test-adr-scripts.sh`
 - Existing preprocessor usage: `skills/vcs/commit/SKILL.md:11-12`

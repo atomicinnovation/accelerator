@@ -18,7 +18,7 @@ The plugin shipped a `tickets` skill category (v1.18.0 Unreleased) without a
 documented alternatives review. The term "ticket" carries a service-desk
 connotation (Jira, Zendesk, Help Scout) that does not match the plugin's actual
 use case: managing product-development work items within a software project.
-The research document `meta/research/2026-04-25-rename-tickets-to-work-items.md`
+The research document `meta/research/codebase/2026-04-25-rename-tickets-to-work-items.md`
 examined the vocabulary in depth and identified the conflict.
 
 The surface is pre-release (the `tickets` category has never appeared in a
@@ -115,9 +115,9 @@ Pluralisation follows existing precedent: plural for bulk operations
 
 ## References
 
-- `meta/research/2026-04-25-rename-tickets-to-work-items.md` — alternatives
+- `meta/research/codebase/2026-04-25-rename-tickets-to-work-items.md` — alternatives
   review and naming rationale
-- `meta/research/2026-04-08-ticket-management-skills.md` — original ticket
+- `meta/research/codebase/2026-04-08-ticket-management-skills.md` — original ticket
   category design (uses "ticket" without documented alternatives review)
 - `meta/decisions/ADR-0023-meta-directory-migration-framework.md` — migration
   framework that automates the rename for existing repos

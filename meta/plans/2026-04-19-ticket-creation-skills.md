@@ -383,7 +383,7 @@ Expected: Skill offers to scan all documents in configured directories OR
 asks the user to specify files. Waits for choice before doing anything.
 
 **Scenario 2 — Provided paths are read in full immediately**
-Input: `/extract-tickets meta/research/2026-04-08-ticket-management-skills.md`
+Input: `/extract-tickets meta/research/codebase/2026-04-08-ticket-management-skills.md`
 Expected: Skill reads the provided document completely and proceeds to
 analysis without asking the user to supply it.
 
@@ -531,8 +531,8 @@ entries, navigation headings, and the bare agenda line are not surfaced
 as candidate tickets.
 
 **Scenario 23 — Non-existent file path is reported, not silently skipped**
-Input: `/extract-tickets meta/research/2026-04-08-real.md meta/research/does-not-exist.md`
-Expected: Skill reports that `meta/research/does-not-exist.md` does not
+Input: `/extract-tickets meta/research/codebase/2026-04-08-real.md meta/research/codebase/does-not-exist.md`
+Expected: Skill reports that `meta/research/codebase/does-not-exist.md` does not
 exist and asks the user to correct or remove the path. It does not
 silently proceed with only the first file, and does not produce an empty
 candidate list with no explanation.
@@ -891,7 +891,7 @@ flow and confirming no "tool not permitted" errors occur.
 
 ## References
 
-- Research: `meta/research/2026-04-08-ticket-management-skills.md` (§2, §3,
+- Research: `meta/research/codebase/2026-04-08-ticket-management-skills.md` (§2, §3,
   §5.1, §5.2, §6, §10)
 - Pattern for interactive creation: `skills/decisions/create-adr/SKILL.md`
 - Pattern for batch extraction: `skills/decisions/extract-adrs/SKILL.md`

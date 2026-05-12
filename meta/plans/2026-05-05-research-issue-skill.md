@@ -18,7 +18,7 @@ Create a dedicated `research-issue` skill that provides hypothesis-driven debugg
 - The template system (`config-read-template.sh`) resolves templates from `templates/<key>.md` — adding a new template just requires adding the file
 - The metadata script (`research-metadata.sh`) is generic and reusable
 - Test registration requires adding the skill to 3 arrays in `test-config.sh` plus adding specific path/template assertions
-- All research skills output to the configured `research` path (default: `meta/research/`)
+- All research skills output to the configured `research` path (default: `meta/research/codebase/`)
 
 ### Key Discoveries:
 
@@ -31,7 +31,7 @@ Create a dedicated `research-issue` skill that provides hypothesis-driven debugg
 A working `/research-issue` skill that:
 1. Accepts structured (stacktrace/logs) or vague ("sometimes X causes Y") input
 2. Follows a hypothesis-driven investigation flow
-3. Outputs an RCA document to `meta/research/` using a dedicated `rca` template
+3. Outputs an RCA document to `meta/research/codebase/` using a dedicated `rca` template
 4. Passes all existing `test-config.sh` assertions
 
 ### Verification:
@@ -287,7 +287,7 @@ fi
 
 ## References
 
-- Research document: `meta/research/2026-05-05-debug-issue-skill-design.md`
+- Research document: `meta/research/codebase/2026-05-05-debug-issue-skill-design.md`
 - Model skill: `skills/research/research-codebase/SKILL.md`
 - Template infrastructure: `scripts/config-read-template.sh`, `scripts/config-common.sh`
 - Test suite: `scripts/test-config.sh`

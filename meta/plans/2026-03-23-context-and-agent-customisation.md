@@ -748,7 +748,7 @@ In `test-config.sh`, add end-to-end tests that exercise the full config → scri
 ## References
 
 - Plan 1: `meta/plans/2026-03-23-config-infrastructure.md`
-- Research: `meta/research/2026-03-22-skill-customisation-and-override-patterns.md`
+- Research: `meta/research/codebase/2026-03-22-skill-customisation-and-override-patterns.md`
 - Agent spawning patterns: `review-pr/SKILL.md:257-258`,
   `create-plan/SKILL.md:64-69`, `research-codebase/SKILL.md:54-68`
 - Preprocessor usage: `commit/SKILL.md:11-12`

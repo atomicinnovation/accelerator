@@ -163,7 +163,7 @@ We will introduce per-skill userspace customisation at
   lenses convention this ADR mirrors
 - `meta/plans/2026-03-28-per-skill-userspace-customisation.md` — full
   implementation plan
-- `meta/research/2026-03-22-skill-customisation-and-override-patterns.md` —
+- `meta/research/codebase/2026-03-22-skill-customisation-and-override-patterns.md` —
   foundational research
-- `meta/research/2026-03-27-skill-customisation-implementation-status.md` —
+- `meta/research/codebase/2026-03-27-skill-customisation-implementation-status.md` —
   gap analysis identifying the deferred per-skill mechanism

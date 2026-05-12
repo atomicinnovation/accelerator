@@ -189,7 +189,7 @@ subcommand group:
 
 ## Source References
 
-- `meta/research/2026-03-29-template-management-subcommands.md` — subcommand
+- `meta/research/codebase/2026-03-29-template-management-subcommands.md` — subcommand
   vocabulary analysis, nesting-vs-flat-vs-separate-skill tradeoff, hybrid
   architecture exploration, raw-vs-fenced output options, enumeration
   strategy

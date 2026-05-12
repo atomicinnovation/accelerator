@@ -1858,7 +1858,7 @@ review infrastructure.
 ## References
 
 - Research document:
-  `meta/research/2026-04-08-ticket-management-skills.md`
+  `meta/research/codebase/2026-04-08-ticket-management-skills.md`
   (section `#### Phase 6: Interactive Quality`)
 - Phase 2 plan (create-ticket + extract-tickets TDD pattern):
   `meta/plans/2026-04-19-ticket-creation-skills.md`

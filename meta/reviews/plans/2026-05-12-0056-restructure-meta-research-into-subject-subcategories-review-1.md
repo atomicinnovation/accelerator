@@ -10,7 +10,7 @@ review_pass: 3
 status: complete
 ---
 
-## Plan Review: 0056 — Restructure `meta/research/` into Subject Subcategories
+## Plan Review: 0056 — Restructure `meta/research/codebase/` into Subject Subcategories
 
 **Verdict:** REVISE
 
@@ -101,7 +101,7 @@ revision:
   **Location**: Phase 5 — config-driven inbound-link rewriting
   The frontmatter/scalar/markdown-link prefix matcher as specified will
   incorrectly rewrite `meta/research-templates/foo.md` to
-  `meta/research/codebase-templates/foo.md`. The non-matching fixture
+  `meta/research/codebase/codebase-templates/foo.md`. The non-matching fixture
   lists this exact shape as required to remain byte-identical.
 
 - 🔴 **Correctness**: `NEW_*` paths derived from `OLD_RESEARCH` even when user already has new keys in config — mixed-state runs corrupt placement
@@ -157,7 +157,7 @@ revision:
 
 #### Major
 
-- 🟡 **Correctness**: `rmdir … || true` leaves legacy parent directories behind when `.DS_Store`, `.gitkeep`, or non-`.md` files remain — `meta/design-inventories/` (with `.DS_Store`) on Mac userspaces will persist post-migration.
+- 🟡 **Correctness**: `rmdir … || true` leaves legacy parent directories behind when `.DS_Store`, `.gitkeep`, or non-`.md` files remain — `meta/research/design-inventories/` (with `.DS_Store`) on Mac userspaces will persist post-migration.
 
 - 🟡 **Correctness**: Step 1/Step 2/Step 3 partial-failure recovery semantics undocumented — cross-step idempotency invariants only implicit.
 
@@ -205,9 +205,9 @@ revision:
 
 - 🟡 **Test Coverage**: AC #11/#12 (research-codebase/research-issue write to new paths) verified by grep + manual run only, not by automated path-resolution assertion.
 
-- 🟡 **Documentation**: `configure/SKILL.md` line 724 narrative hardcodes `meta/research/` and `paths.research:` example — not enumerated in Phase 6 or Phase 8.
+- 🟡 **Documentation**: `configure/SKILL.md` line 724 narrative hardcodes `meta/research/codebase/` and `paths.research:` example — not enumerated in Phase 6 or Phase 8.
 
-- 🟡 **Documentation**: Four template files (`templates/{adr,work-item,plan,research}.md`) contain legacy `meta/research/` body references; plugin `templates/` is outside the default scan corpus (`paths.templates: .accelerator/templates`).
+- 🟡 **Documentation**: Four template files (`templates/{adr,work-item,plan,research}.md`) contain legacy `meta/research/codebase/` body references; plugin `templates/` is outside the default scan corpus (`paths.templates: .accelerator/templates`).
 
 - 🟡 **Documentation**: `paths.research_issues` introduction buried in CHANGELOG — no narrative explaining the new bucket's purpose.
 
@@ -269,7 +269,7 @@ revision:
 
 - 🔵 **Documentation**: documents-locator legend bullet ordering not aligned to PATH_KEYS as other surfaces are.
 
-- 🔵 **Documentation**: Phase 8 final-verification grep regex `meta/research/[0-9]` only catches date-prefixed references.
+- 🔵 **Documentation**: Phase 8 final-verification grep regex `meta/research/codebase/[0-9]` only catches date-prefixed references.
 
 ### Strengths
 
@@ -591,7 +591,7 @@ later.
 **Summary**: Phase 8 narrative-surface coverage is thoughtful and
 tracks the README's seven cited locations, but several documentation
 surfaces are unaddressed: `configure/SKILL.md` line 724 hardcodes
-`meta/research/`, four `templates/*.md` reference legacy paths in
+`meta/research/codebase/`, four `templates/*.md` reference legacy paths in
 their bodies, and the new `paths.research_issues` key has no
 narrative introduction telling users what it is for. CHANGELOG
 approach risks leaving historical entries with broken-looking path

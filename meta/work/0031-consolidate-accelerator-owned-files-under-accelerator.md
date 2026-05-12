@@ -401,7 +401,7 @@ None.
   superseding ADR (forthcoming) that updates ADR-0016's userspace
   configuration model. The plugin-dev ecosystem-alignment rationale at
   ADR-0016:170-172 no longer applies once the file lives outside `.claude/`.
-- The 2026-03-14 plugin-extraction work (`meta/research/2026-03-14-plugin-extraction.md`,
+- The 2026-03-14 plugin-extraction work (`meta/research/codebase/2026-03-14-plugin-extraction.md`,
   `meta/plans/2026-03-14-plugin-extraction.md`) is confirmed irrelevant to this
   story as of 2026-05-05. That work addressed only the plugin's internal
   structure — moving skills and agents from `~/.claude/` to `${CLAUDE_PLUGIN_ROOT}/`
@@ -450,7 +450,7 @@ themselves rather than relying on `accelerator:init`.
 ## References
 
 - Source: `meta/notes/2026-04-29-accelerator-config-state-reorg.md`
-- Research: `meta/research/2026-04-29-jira-cloud-integration-skills.md`
+- Research: `meta/research/codebase/2026-04-29-jira-cloud-integration-skills.md`
 - Related: ADR-0016 (`meta/decisions/ADR-0016-userspace-configuration-model.md`)
 - Related: ADR-0017 (`meta/decisions/ADR-0017-configuration-extension-points.md`)
 - Related: ADR-0019 (`meta/decisions/ADR-0019-ephemeral-file-separation-via-paths-tmp.md`)

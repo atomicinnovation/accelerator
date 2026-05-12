@@ -184,7 +184,7 @@ PATH_KEYS=(
 
 PATH_DEFAULTS=(
   "meta/plans"
-  "meta/research"
+  "meta/research/codebase"
   "meta/decisions"
   "meta/prs"
   "meta/validations"
@@ -196,8 +196,8 @@ PATH_DEFAULTS=(
   "meta/notes"
   ".accelerator/tmp"
   ".accelerator/state/integrations"
-  "meta/design-inventories"
-  "meta/design-gaps"
+  "meta/research/design-inventories"
+  "meta/research/design-gaps"
 )
 ```
 
@@ -256,15 +256,15 @@ REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_PATH" integrations)
 assert_eq "integrations default" ".accelerator/state/integrations" "$OUTPUT"
 
-echo "Test: design_inventories key → meta/design-inventories with no $2"
+echo "Test: design_inventories key → meta/research/design-inventories with no $2"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_PATH" design_inventories)
-assert_eq "design_inventories default" "meta/design-inventories" "$OUTPUT"
+assert_eq "design_inventories default" "meta/research/design-inventories" "$OUTPUT"
 
-echo "Test: design_gaps key → meta/design-gaps with no $2"
+echo "Test: design_gaps key → meta/research/design-gaps with no $2"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_PATH" design_gaps)
-assert_eq "design_gaps default" "meta/design-gaps" "$OUTPUT"
+assert_eq "design_gaps default" "meta/research/design-gaps" "$OUTPUT"
 
 echo "Test: templates key → .accelerator/templates with no \$2"
 REPO=$(setup_repo)
@@ -619,7 +619,7 @@ unchanged.
 
 - Originating work item: `meta/work/0030-centralise-path-defaults.md`
 - Implementation research:
-  `meta/research/2026-05-08-0030-centralise-path-defaults-implementation.md`
+  `meta/research/codebase/2026-05-08-0030-centralise-path-defaults-implementation.md`
 - Dependent work item: `meta/work/0052-make-documents-locator-paths-config-driven.md`
   (will source `config-defaults.sh` once this plan lands)
 - Definition site: `scripts/config-defaults.sh`

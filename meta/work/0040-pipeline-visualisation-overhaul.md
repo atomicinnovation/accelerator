@@ -33,7 +33,7 @@ The lifecycle cluster detail screen also gets a hexchain header strip *above* th
 
 The current app's `WorkItemCard` (the draggable kanban card) shows the work-item ID, mtime, title, and an optional `frontmatter.type` field. The prototype's `.ac-kcard` adds an embedded `.ac-stagedots` micro-pipeline showing each card's lifecycle completeness, an `.ac-kcard__links` "N linked" relation count, and richer ID prefixing (e.g. `PROJ-NNNN`, `ENG-NNNN`, `META-NNNN`).
 
-Reference screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/lifecycle-cluster-detail.png` (hexchain header), `kanban-view.png` (micro stagedots on cards), `main-light.png` / `library-view.png` (compact strip on lifecycle cards in the index).
+Reference screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/lifecycle-cluster-detail.png` (hexchain header), `kanban-view.png` (micro stagedots on cards), `main-light.png` / `library-view.png` (compact strip on lifecycle cards in the index).
 
 ## Requirements
 
@@ -86,6 +86,6 @@ Reference screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-
 
 ## References
 
-- Source: `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
-- Screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/lifecycle-cluster-detail.png`, `kanban-view.png`, `main-light.png`, `library-view.png`
+- Source: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+- Screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/lifecycle-cluster-detail.png`, `kanban-view.png`, `main-light.png`, `library-view.png`
 - Related: 0033, 0037, 0038

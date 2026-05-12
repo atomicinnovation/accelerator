@@ -206,10 +206,10 @@ DIR_KEYS=(
 Add `meta/global` to `DIR_DEFAULTS` (lines 24–29 array, after `meta/design-gaps`):
 ```bash
 DIR_DEFAULTS=(
-  meta/plans meta/research meta/decisions meta/prs meta/validations
+  meta/plans meta/research/codebase meta/decisions meta/prs meta/validations
   meta/reviews/plans meta/reviews/prs meta/reviews/work
   meta/work meta/notes
-  meta/design-inventories meta/design-gaps
+  meta/research/design-inventories meta/research/design-gaps
   meta/global
 )
 ```
@@ -296,7 +296,7 @@ REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_ALL_PATHS")
 for key_default in \
   "plans: meta/plans" \
-  "research: meta/research" \
+  "research: meta/research/codebase" \
   "decisions: meta/decisions" \
   "prs: meta/prs" \
   "validations: meta/validations" \
@@ -1001,7 +1001,7 @@ with a reference to the preloaded path block. Replace:
 ```markdown
 1. **Search meta/ directory structure**
 
-- Check meta/research/ for research on specific work items
+- Check meta/research/codebase/ for research on specific work items
 - Check meta/plans/ for implementation plans for specific work items
 - Check meta/decisions/ for documents about architectural decision for the
   codebase
@@ -1016,7 +1016,7 @@ With:
 Use the paths from the **Configured Paths** block injected into your context
 (provided by the preloaded `paths` skill). If a path key is not present in
 the block, fall back to the plugin default for that key:
-- `research` → `meta/research/`
+- `research` → `meta/research/codebase/`
 - `plans` → `meta/plans/`
 - `decisions` → `meta/decisions/`
 - `reviews` (review_plans, review_prs, review_work) → `meta/reviews/`
@@ -1154,7 +1154,7 @@ No migrations needed — new files only, no schema changes to existing documents
 ## References
 
 - Work item: `meta/work/0052-make-documents-locator-paths-config-driven.md`
-- Research: `meta/research/2026-05-08-0052-documents-locator-config-driven-paths.md`
+- Research: `meta/research/codebase/2026-05-08-0052-documents-locator-config-driven-paths.md`
 - Related work item: `meta/work/0030-centralise-path-defaults.md` (landed as
   commit `da6c42901`)
 - Historical note: `meta/notes/2026-04-26-agents-hardcode-default-directory-locations.md`

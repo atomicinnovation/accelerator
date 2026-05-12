@@ -193,7 +193,7 @@ configured-pattern flow on a fresh repo with
 ## Implementation Approach
 
 The phasing follows the dependency chain identified in the research
-(`meta/research/2026-04-28-configurable-work-item-id-pattern.md:469-660`):
+(`meta/research/codebase/2026-04-28-configurable-work-item-id-pattern.md:469-660`):
 
 ```
 Phase 1 (work-item-common.sh + compiler + config)
@@ -1780,10 +1780,10 @@ that the migration is safe to re-run after a VCS revert.
 - `meta/plans/2026-04-01-some-plan.md` containing a markdown link
   `[the foo work item](../work/0001-add-foo.md)` and a bare ID
   reference `#0042` in a heading.
-- `meta/research/2026-04-02-research.md` containing both a frontmatter
+- `meta/research/codebase/2026-04-02-research.md` containing both a frontmatter
   `related: ["0001", "0042"]` field and a fenced-code-block reference
   to `meta/work/0042-add-bar.md` (in a ```bash``` block — eligible).
-- `meta/research/2026-04-03-history.md` — a "negative-case" fixture
+- `meta/research/codebase/2026-04-03-history.md` — a "negative-case" fixture
   with content that must NOT be rewritten:
   - Plain prose mentioning `0042` (no leading `#`, not in a path).
   - A timestamp-shaped string `2026-04-15`.
@@ -1991,16 +1991,16 @@ End-to-end migration smoke after Phase 6:
 
 ## References
 
-- Original research: `meta/research/2026-04-28-configurable-work-item-id-pattern.md`.
+- Original research: `meta/research/codebase/2026-04-28-configurable-work-item-id-pattern.md`.
   This plan is intended to be self-sufficient — the load-bearing
   decisions (validation rules, resolver classification order,
   migration behaviour) are inlined here as the canonical source.
   The research doc remains useful as supplementary reading for
   alternatives considered and prior-art notes.
-- Related research: `meta/research/2026-04-08-ticket-management-skills.md`
+- Related research: `meta/research/codebase/2026-04-08-ticket-management-skills.md`
   (the "Resolved Questions" section flagged this as a future
   enhancement)
-- Config-system foundations: `meta/research/2026-03-22-skill-customisation-and-override-patterns.md`
+- Config-system foundations: `meta/research/codebase/2026-03-22-skill-customisation-and-override-patterns.md`
 - Migration framework decision: `meta/decisions/ADR-0023-meta-directory-migration-framework.md`
 - Configuration extension points: `meta/decisions/ADR-0017-configuration-extension-points.md`
 - Work-item terminology: `meta/decisions/ADR-0022-work-item-terminology.md`

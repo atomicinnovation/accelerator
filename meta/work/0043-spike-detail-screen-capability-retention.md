@@ -76,5 +76,5 @@ Time-box: ~1 day to gather stakeholder confirmation and document outcomes.
 
 ## References
 
-- Source: `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+- Source: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
 - Related: 0033, 0037, 0038, 0041

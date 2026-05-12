@@ -78,5 +78,5 @@ at least one "always applicable" group per lens.
   selection cap design
 - `meta/plans/2026-03-15-review-lens-improvements.md` — Conditional
   applicability sub-groups
-- `meta/research/2026-03-15-review-lens-optimal-structure.md` — Structural
+- `meta/research/codebase/2026-03-15-review-lens-optimal-structure.md` — Structural
   invariants supporting conditional groups

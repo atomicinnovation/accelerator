@@ -123,11 +123,11 @@ definition changes.
 
 ## References
 
-- `meta/research/2026-02-22-skills-agents-commands-refactoring.md` — Path
+- `meta/research/codebase/2026-02-22-skills-agents-commands-refactoring.md` — Path
   passing vs. content injection analysis
 - `meta/plans/2026-02-22-skills-agents-commands-refactoring.md` —
   Implementation of generic reviewer with three-way separation
-- `meta/research/2026-03-15-review-lens-optimal-structure.md` — Architecture
+- `meta/research/codebase/2026-03-15-review-lens-optimal-structure.md` — Architecture
   insight confirming lenses as passive skills read at runtime
 - `meta/decisions/ADR-0002-three-layer-review-architecture.md` — Three-layer
   architecture that this ADR operates within

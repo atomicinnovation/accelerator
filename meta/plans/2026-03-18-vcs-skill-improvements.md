@@ -919,7 +919,7 @@ Test with various command inputs and directory configurations:
 ## References
 
 - Research:
-  `meta/research/2026-03-16-jujutsu-integration-and-vcs-autodetection.md`
+  `meta/research/codebase/2026-03-16-jujutsu-integration-and-vcs-autodetection.md`
 - Plugin manifest: `.claude-plugin/plugin.json`
 - Commit skill: `skills/git/commit/SKILL.md` (pre-move)
 - respond-to-pr skill: `skills/git/respond-to-pr/SKILL.md` (pre-move) —

@@ -161,7 +161,7 @@ We draw explicit boundaries with adjacent lenses:
 
 ## References
 
-- `meta/research/2026-02-22-review-lens-gap-analysis.md` — ISO 25010 gap
+- `meta/research/codebase/2026-02-22-review-lens-gap-analysis.md` — ISO 25010 gap
   analysis identifying Safety as an uncovered quality characteristic
 - `meta/plans/2026-03-15-new-review-lenses.md` — Implementation plan (Phase 6)
   defining the safety lens scope, three Core Responsibilities, and boundary

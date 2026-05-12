@@ -125,7 +125,7 @@ We draw explicit boundaries with adjacent lenses:
 
 ## References
 
-- `meta/research/2026-02-22-review-lens-gap-analysis.md` — Gap analysis
+- `meta/research/codebase/2026-02-22-review-lens-gap-analysis.md` — Gap analysis
   against Google, OWASP, and ISO 25010 frameworks; identifies performance as
   the primary coverage gap
 - `meta/plans/2026-02-23-performance-lens-and-resilience-extension.md` —

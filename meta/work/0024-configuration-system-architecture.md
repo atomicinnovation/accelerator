@@ -95,7 +95,7 @@ external YAML parser dependency; parsing uses awk-based extraction.
 
 ## Source References
 
-- `meta/research/2026-03-22-skill-customisation-and-override-patterns.md` —
+- `meta/research/codebase/2026-03-22-skill-customisation-and-override-patterns.md` —
   Customisation strategy analysis and preprocessor selection
 - `meta/plans/2026-03-23-config-infrastructure.md` — Two-tier config files,
   YAML nesting constraints, and global scope decision

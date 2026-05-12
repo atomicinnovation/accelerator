@@ -9,7 +9,7 @@ documentation changes. ADRs are stored in `meta/decisions/` using sequential
 `ADR-NNNN` numbering with YAML frontmatter, and follow an append-only lifecycle
 where only `proposed` ADRs may have their content edited.
 
-Based on: `meta/research/2026-03-18-adr-support-strategy.md`
+Based on: `meta/research/codebase/2026-03-18-adr-support-strategy.md`
 
 ## Current State Analysis
 
@@ -475,7 +475,7 @@ Value-neutral language describing facts, not advocating.]
 
 ## References
 
-- `meta/research/YYYY-MM-DD-topic.md` — Related research
+- `meta/research/codebase/YYYY-MM-DD-topic.md` — Related research
 - `meta/decisions/ADR-NNNN.md` — Related/superseded ADR
 ```
 
@@ -562,7 +562,7 @@ description: Extract architecture decision records from existing meta documents
   (research, plans). Scans documents for implicit or explicit architectural
   decisions and converts selected ones into formal ADRs. Use when decisions are
   buried in research or planning documents and need to be captured formally.
-argument-hint: "[@meta/research/doc.md ...] or leave empty to scan all"
+argument-hint: "[@meta/research/codebase/doc.md ...] or leave empty to scan all"
 disable-model-invocation: true
 ---
 
@@ -584,7 +584,7 @@ When this command is invoked:
 I'll help you extract architectural decisions from existing documents.
 
 You can:
-1. Specify documents to scan: `/accelerator:extract-adrs @meta/research/2026-03-18-auth-flow.md`
+1. Specify documents to scan: `/accelerator:extract-adrs @meta/research/codebase/2026-03-18-auth-flow.md`
 2. Let me scan all meta documents for decisions (this may take a moment)
 
 Which would you prefer?
@@ -605,7 +605,7 @@ Wait for user input.
      I found the following documents in meta/:
 
      **Research:**
-     - `meta/research/2026-03-18-auth-flow.md` — Authentication flow research
+     - `meta/research/codebase/2026-03-18-auth-flow.md` — Authentication flow research
      - ...
 
      **Plans:**
@@ -642,7 +642,7 @@ I found the following architectural decisions in the scanned documents:
 
 1. **[Short title]** — In the context of [X], facing [Y], we decided for [Z]
    to achieve [Q], accepting [D].
-   Source: `meta/research/2026-03-18-topic.md`
+   Source: `meta/research/codebase/2026-03-18-topic.md`
 
 2. **[Short title]** — In the context of [X], facing [Y], we decided for [Z]
    to achieve [Q], accepting [D].
@@ -753,7 +753,7 @@ When populating the template from extracted decisions:
 
 #### Manual Verification:
 
-- [ ] Invoke `/accelerator:extract-adrs @meta/research/2026-03-18-adr-support-strategy.md`
+- [ ] Invoke `/accelerator:extract-adrs @meta/research/codebase/2026-03-18-adr-support-strategy.md`
   and verify decisions are identified
 - [ ] Verify Y-statement summaries are presented for selection
 - [ ] Verify generated ADRs contain context from source documents
@@ -1124,7 +1124,7 @@ planning:
 ```
 research-codebase → create-plan → implement-plan
        ↓                ↓
-  meta/research/    meta/plans/
+  meta/research/codebase/    meta/plans/
        ↓                ↓
   extract-adrs ←────────┘
        ↓
@@ -1168,7 +1168,7 @@ immutable. To revise a decision, create a new ADR that supersedes the original.
    → review, accept → verify immutability
 3. **Supersede**: `/accelerator:create-adr "use git instead" --supersedes ADR-0001`
    → verify ADR-0002 created, ADR-0001 status changed to superseded
-4. **Extract**: `/accelerator:extract-adrs @meta/research/2026-03-18-adr-support-strategy.md`
+4. **Extract**: `/accelerator:extract-adrs @meta/research/codebase/2026-03-18-adr-support-strategy.md`
    → verify decisions are identified and ADRs generated
 5. **Deprecate**: `/accelerator:review-adr @meta/decisions/ADR-0002.md --deprecate "no longer relevant"`
    → verify deprecation
@@ -1202,7 +1202,7 @@ immutable. To revise a decision, create a new ADR that supersedes the original.
 
 ## References
 
-- `meta/research/2026-03-18-adr-support-strategy.md` — Full research on ADR
+- `meta/research/codebase/2026-03-18-adr-support-strategy.md` — Full research on ADR
   strategy
 - `skills/research/research-codebase/SKILL.md` — Pattern for skill with
   companion scripts and interactive workflow

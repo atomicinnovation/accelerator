@@ -33,7 +33,7 @@ The current app's chip vocabulary is limited to `FrontmatterChips` (definition-l
 
 These are used across kanban cards, lifecycle cards, library tables, and templates tier indicators.
 
-Reference screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/kanban-view.png`, `library-decisions.png`, `library-type-view.png`, `lifecycle-cluster-detail.png`, `templates-view.png`.
+Reference screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/kanban-view.png`, `library-decisions.png`, `library-type-view.png`, `lifecycle-cluster-detail.png`, `templates-view.png`.
 
 ## Requirements
 
@@ -76,6 +76,6 @@ Reference screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-
 
 ## References
 
-- Source: `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
-- Screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/kanban-view.png`, `library-decisions.png`, `library-type-view.png`, `lifecycle-cluster-detail.png`, `templates-view.png`
+- Source: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+- Screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/kanban-view.png`, `library-decisions.png`, `library-type-view.png`, `lifecycle-cluster-detail.png`, `templates-view.png`
 - Related: 0033, 0040, 0041, 0042

@@ -650,11 +650,11 @@ Each phase can be tested independently:
 
 ## References
 
-- Research: `meta/research/2026-02-22-skills-agents-commands-refactoring.md`
+- Research: `meta/research/codebase/2026-02-22-skills-agents-commands-refactoring.md`
 - Review alignment research:
-  `meta/research/2026-02-22-review-plan-pr-alignment.md`
+  `meta/research/codebase/2026-02-22-review-plan-pr-alignment.md`
 - PR review agents design:
-  `meta/research/2026-02-22-pr-review-agents-design.md`
+  `meta/research/codebase/2026-02-22-pr-review-agents-design.md`
 - Current agents: `agents/*.md` (18 files)
 - Current commands: `commands/*.md` (8 files)
 - Claude Code skills docs: https://code.claude.com/docs/en/skills

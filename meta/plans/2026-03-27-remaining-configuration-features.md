@@ -91,7 +91,7 @@ After this plan is complete:
   preprocessor default arguments)
 - `grep -rn 'meta/decisions/' skills/` returns zero results (except in
   preprocessor default arguments)
-- `grep -rn 'meta/research/' skills/` returns zero results (except in
+- `grep -rn 'meta/research/codebase/' skills/` returns zero results (except in
   preprocessor default arguments)
 - `grep -rn 'meta/tickets/' skills/` returns zero results (except in
   preprocessor default arguments)
@@ -855,7 +855,7 @@ consistent with other skills' argument-hint style:
 **File**: `skills/decisions/extract-adrs/SKILL.md`
 
 - Line 7:
-  `argument-hint: "[@meta/research/doc.md ...] or leave empty to scan all"`
+  `argument-hint: "[@meta/research/codebase/doc.md ...] or leave empty to scan all"`
 
 Same limitation — use a generic description:
 
@@ -885,7 +885,7 @@ Same limitation — use a generic description:
   returns zero results
 - [x] `grep -rn 'meta/decisions/' skills/ | grep -v 'config-read-path\|test-\|configure/'`
   returns zero results
-- [x] `grep -rn 'meta/research/' skills/ | grep -v 'config-read-path\|test-\|configure/'`
+- [x] `grep -rn 'meta/research/codebase/' skills/ | grep -v 'config-read-path\|test-\|configure/'`
   returns zero results
 - [x] `scripts/test-config.sh` passes
 
@@ -955,9 +955,9 @@ reliability.
 ## References
 
 - Original research:
-  `meta/research/2026-03-22-skill-customisation-and-override-patterns.md`
+  `meta/research/codebase/2026-03-22-skill-customisation-and-override-patterns.md`
 - Implementation status review:
-  `meta/research/2026-03-27-skill-customisation-implementation-status.md`
+  `meta/research/codebase/2026-03-27-skill-customisation-implementation-status.md`
 - Plan 1 (config infrastructure):
   `meta/plans/2026-03-23-config-infrastructure.md`
 - Plan 2 (context and agent customisation):

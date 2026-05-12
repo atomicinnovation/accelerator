@@ -4,7 +4,7 @@
 
 Improve all 7 existing review lens skills to align with the optimal structure
 identified in
-`meta/research/2026-03-15-review-lens-optimal-structure.md`. Three
+`meta/research/codebase/2026-03-15-review-lens-optimal-structure.md`. Three
 categories of improvement apply across lenses: adding perspective preambles
 (PBR principle), strengthening evaluation questions to be generative rather than
 checklist-style, and adding conditional applicability sub-groups to evaluation
@@ -623,8 +623,8 @@ After all phases:
 
 ## References
 
-- Research: `meta/research/2026-03-15-review-lens-optimal-structure.md`
-- Gap analysis: `meta/research/2026-02-22-review-lens-gap-analysis.md`
+- Research: `meta/research/codebase/2026-03-15-review-lens-optimal-structure.md`
+- Gap analysis: `meta/research/codebase/2026-02-22-review-lens-gap-analysis.md`
 - Performance lens plan:
   `meta/plans/2026-02-23-performance-lens-and-resilience-extension.md`
 - PR review orchestrator: `skills/git/review-pr/SKILL.md`

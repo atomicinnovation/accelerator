@@ -6,13 +6,13 @@ work-item: "0056"
 status: accepted
 ---
 
-# 0056 — Restructure `meta/research/` into Subject Subcategories — Implementation Plan
+# 0056 — Restructure `meta/research/codebase/` into Subject Subcategories — Implementation Plan
 
 ## Overview
 
-Restructure the flat `meta/research/` directory into four subject subcategories
+Restructure the flat `meta/research/codebase/` directory into four subject subcategories
 (`codebase/`, `issues/`, `design-inventories/`, `design-gaps/`), absorbing the
-top-level `meta/design-inventories/` and `meta/design-gaps/` directories into
+top-level `meta/research/design-inventories/` and `meta/research/design-gaps/` directories into
 the research umbrella. Rename the corresponding `paths.*` keys, ship an
 `accelerator:migrate` migration that rewrites userspace repos atomically, and
 update every plugin surface (skills, agent, README, visualiser frontend,
@@ -31,11 +31,11 @@ visualiser JSON wire-key surface, and template-key migration handling.
 
 ## Current State Analysis
 
-- `meta/research/` is flat — 37 `*.md` files plus `.gitkeep`. Mixes codebase
+- `meta/research/codebase/` is flat — 37 `*.md` files plus `.gitkeep`. Mixes codebase
   research outputs, idea/strategy notes, and historical design work.
-- `meta/design-inventories/` is two directories-per-investigation (each with
+- `meta/research/design-inventories/` is two directories-per-investigation (each with
   `inventory.md` + `screenshots/`) plus a stray `.DS_Store`.
-- `meta/design-gaps/` contains a single `*.md` plus `.gitkeep`.
+- `meta/research/design-gaps/` contains a single `*.md` plus `.gitkeep`.
 - `scripts/config-defaults.sh:26-62` defines `paths.research`,
   `paths.design_inventories`, `paths.design_gaps` via index-paired
   `PATH_KEYS`/`PATH_DEFAULTS` arrays. A parallel `DIR_KEYS`/`DIR_DEFAULTS` in
@@ -63,7 +63,7 @@ visualiser JSON wire-key surface, and template-key migration handling.
 - `README.md` references the legacy paths in seven places: line 42 (ASCII
   development-loop diagram), 47 (`research-codebase` narrative), 64
   (`research-issue` narrative), 84-95 (`meta/` table — three rows), 408-415
-  (ASCII ADR-flow diagram), 579 (`meta/design-gaps/` narrative).
+  (ASCII ADR-flow diagram), 579 (`meta/research/design-gaps/` narrative).
 - `CHANGELOG.md:98,155,165,170` references the legacy paths in historical
   release notes.
 - `skills/visualisation/visualise/frontend/src/api/types.ts:7,17,157,164`
@@ -108,7 +108,7 @@ After all phases land in a single atomic commit:
   `meta/research/codebase/` (37 ex-flat files), `meta/research/issues/`
   (empty + `.gitkeep`), `meta/research/design-inventories/` (two
   inventory directories), `meta/research/design-gaps/` (one gap file).
-- No top-level `meta/design-inventories/` or `meta/design-gaps/`
+- No top-level `meta/research/design-inventories/` or `meta/research/design-gaps/`
   directories remain.
 - `paths.research_codebase`, `paths.research_issues`,
   `paths.research_design_inventories`, `paths.research_design_gaps`
@@ -179,7 +179,7 @@ After all phases land in a single atomic commit:
 - `bash scripts/test-config.sh` exits 0 with updated assertions green.
 - `jj log --follow meta/research/codebase/<any-file>.md` shows history
   pre-dating the move.
-- `grep -rn 'meta/research/[0-9]\|meta/design-inventories\|meta/design-gaps' README.md CHANGELOG.md` returns only entries
+- `grep -rn 'meta/research/codebase/[0-9]\|meta/design-inventories\|meta/research/design-gaps' README.md CHANGELOG.md` returns only entries
   under the new layout (or, for CHANGELOG, only historical entries
   intentionally left verbatim).
 
@@ -191,7 +191,7 @@ After all phases land in a single atomic commit:
   out-of-scope per the work item).
 - Introducing a `meta/strategy/` home for external research.
 - Building the forthcoming idea/concept research skill. The
-  `paths.research_ideas` key and `meta/research/ideas/` directory
+  `paths.research_ideas` key and `meta/research/codebase/ideas/` directory
   are not part of 0056.
 - Per-investigation directory promotion (a file growing into a
   directory mid-life).
@@ -253,13 +253,13 @@ trace the decisions back to their rationale.
   (suffix appended to honor the user's intent that codebase research
   lives under their chosen `docs/research/`). When the user is on
   defaults, no explicit key is written and the new default
-  (`meta/research/codebase`) resolves.
+  (`meta/research/codebase/codebase`) resolves.
 - **`paths.design_inventories` → `paths.research_design_inventories`**
   and **`paths.design_gaps` → `paths.research_design_gaps`**: If the
   user has an explicit override, value is preserved verbatim and files
   are **not moved** (just key renamed; the user's intentional placement
   is respected). If no override, files move from the legacy default
-  (`meta/design-inventories/`, `meta/design-gaps/`) into the new
+  (`meta/research/design-inventories/`, `meta/research/design-gaps/`) into the new
   default location (`meta/research/design-inventories/`,
   `meta/research/design-gaps/`), with no explicit key written.
 - **Rationale**: research_codebase carries a structural transformation
@@ -276,7 +276,7 @@ trace the decisions back to their rationale.
 - The existing SessionStart migrate-discoverability hook continues to
   warn users that migrations are pending.
 - The CHANGELOG entry (Phase 8) explicitly calls out the hazard: skills
-  that previously wrote to `meta/research/` will produce different
+  that previously wrote to `meta/research/codebase/` will produce different
   results until `accelerator:migrate` runs.
 - `migrate/SKILL.md` is amended (Phase 8) to document the upgrade
   sequence: pull plugin → run `/accelerator:migrate` → resume normal
@@ -368,11 +368,11 @@ PATH_KEYS=(
 
 PATH_DEFAULTS=(
   "meta/plans"
-  "meta/research/codebase"                # was: meta/research
+  "meta/research/codebase"                # was: meta/research/codebase
   "meta/decisions"
   …
-  "meta/research/design-inventories"      # was: meta/design-inventories
-  "meta/research/design-gaps"             # was: meta/design-gaps
+  "meta/research/design-inventories"      # was: meta/research/design-inventories
+  "meta/research/design-gaps"             # was: meta/research/design-gaps
   "meta/global"
   "meta/research/issues"                  # new — appended
 )
@@ -437,7 +437,7 @@ preserved.
   - [ ] `PATH_KEYS` does not contain `paths.research`,
     `paths.design_inventories`, `paths.design_gaps`.
   - [ ] `PATH_DEFAULTS` for the four new keys are
-    `meta/research/{codebase,issues,design-inventories,design-gaps}`.
+    `meta/research/codebase/{codebase,issues,design-inventories,design-gaps}`.
   - [ ] `TEMPLATE_KEYS` contains `templates.codebase-research`, not
     `templates.research`.
   - [ ] `EXCLUDED_KEYS` in `config-read-all-paths.sh` is
@@ -446,7 +446,7 @@ preserved.
 - [ ] `bash scripts/config-read-all-paths.sh` (in a fresh-config repo)
   emits bullet lines for the four new keys.
 - [ ] `bash scripts/config-read-path.sh research_codebase` returns
-  `meta/research/codebase`.
+  `meta/research/codebase/codebase`.
 - [ ] `bash scripts/config-read-template.sh codebase-research`
   resolves to the renamed template file.
 
@@ -514,7 +514,7 @@ the new key names and defaults.
   key is semantically correct for the surrounding instruction.
 - [ ] Manually run `bash skills/research/research-codebase/SKILL.md`
   preprocessor (or invoke the skill) and confirm the resolved path
-  resolves to `meta/research/codebase`.
+  resolves to `meta/research/codebase/codebase`.
 
 ---
 
@@ -556,8 +556,8 @@ test-fixtures/0004/
 │
 ├── research-override-only/        # only paths.research overridden
 │   ├── docs/research/2026-01-01-example.md
-│   ├── meta/design-inventories/2026-05-06-x/inventory.md
-│   ├── meta/design-gaps/2026-05-06-x.md
+│   ├── meta/research/design-inventories/2026-05-06-x/inventory.md
+│   ├── meta/research/design-gaps/2026-05-06-x.md
 │   └── .accelerator/config.md     # paths.research: docs/research
 │
 ├── all-overridden/                # all three keys overridden
@@ -570,13 +570,13 @@ test-fixtures/0004/
 │
 ├── partial-state/                 # half-migrated state
 │   ├── meta/research/codebase/already-moved.md
-│   ├── meta/research/2026-01-01-still-flat.md
+│   ├── meta/research/codebase/2026-01-01-still-flat.md
 │   └── .accelerator/config.md     # paths.research absent
 │                                  # paths.research_codebase: meta/research/codebase
 │
 ├── mixed-config/                  # both legacy and renamed key present
-│   ├── meta/research/foo.md
-│   └── .accelerator/config.md     # paths.research: meta/research
+│   ├── meta/research/codebase/foo.md
+│   └── .accelerator/config.md     # paths.research: meta/research/codebase
 │                                  # paths.research_codebase: meta/research/codebase
 │
 ├── local-config-only/             # override lives in config.local.md only
@@ -600,7 +600,7 @@ mixed-state refusal, and per-VCS rename detection:
 **D1 value semantics — research_codebase always nests:**
 
 - "0004: default-layout — flat research files move to meta/research/codebase/"
-- "0004: default-layout — meta/research/.gitkeep stays in place (NOT moved into codebase/)"
+- "0004: default-layout — meta/research/codebase/.gitkeep stays in place (NOT moved into codebase/)"
 - "0004: default-layout — meta/research/codebase/.gitkeep created post-move"
 - "0004: default-layout — meta/research/design-inventories/.gitkeep created post-move"
 - "0004: default-layout — meta/research/design-gaps/.gitkeep created post-move"
@@ -620,9 +620,9 @@ mixed-state refusal, and per-VCS rename detection:
 **Dotfile / non-md handling:**
 
 - "0004: default-layout — .DS_Store is swept (not preserved into new layout)"
-- "0004: default-layout — legacy meta/design-gaps/.gitkeep is swept so empty parent can be removed"
-- "0004: default-layout — empty legacy parent meta/design-inventories/ is removed"
-- "0004: default-layout — empty legacy parent meta/design-gaps/ is removed"
+- "0004: default-layout — legacy meta/research/design-gaps/.gitkeep is swept so empty parent can be removed"
+- "0004: default-layout — empty legacy parent meta/research/design-inventories/ is removed"
+- "0004: default-layout — empty legacy parent meta/research/design-gaps/ is removed"
 - "0004: default-layout — legacy parent with unexpected file residue emits diagnostic and is preserved"
 - "0004: idempotent — re-running does not touch existing .gitkeep files (no mtime churn)"
 
@@ -679,7 +679,7 @@ Key design decisions in this phase:
    (`codebase/`, `design-inventories/`, `design-gaps/`, `issues/`),
    creating it via `touch` if absent. The legacy `${OLD_RESEARCH}/.gitkeep`
    remains in place because `${OLD_RESEARCH}` IS the new parent of those
-   subdirs (e.g. `meta/research/.gitkeep` stays). Legacy directories
+   subdirs (e.g. `meta/research/codebase/.gitkeep` stays). Legacy directories
    that are fully removed after the move (`${OLD_INV}`, `${OLD_GAPS}`)
    have any pre-existing `.gitkeep` swept along with `.DS_Store` so
    `rmdir` can succeed. `.DS_Store` is removed (it's macOS junk, not
@@ -713,7 +713,7 @@ separate names so they cannot be confused:
 
 ```bash
 #!/usr/bin/env bash
-# DESCRIPTION: Restructure meta/research/ into subject subcategories
+# DESCRIPTION: Restructure meta/research/codebase/ into subject subcategories
 set -euo pipefail
 
 source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
@@ -807,9 +807,9 @@ OLD_INV="${_probe_inv#*$'\t'}"
 OLD_GAPS="${_probe_gaps#*$'\t'}"
 
 # Legacy defaults when no override present
-[ "$RESEARCH_HAD_OVERRIDE" = "1" ] || OLD_RESEARCH="meta/research"
-[ "$INV_HAD_OVERRIDE" = "1" ] || OLD_INV="meta/design-inventories"
-[ "$GAPS_HAD_OVERRIDE" = "1" ] || OLD_GAPS="meta/design-gaps"
+[ "$RESEARCH_HAD_OVERRIDE" = "1" ] || OLD_RESEARCH="meta/research/codebase"
+[ "$INV_HAD_OVERRIDE" = "1" ] || OLD_INV="meta/research/design-inventories"
+[ "$GAPS_HAD_OVERRIDE" = "1" ] || OLD_GAPS="meta/research/design-gaps"
 
 # D1: research_codebase always nests; design-inv/gaps honor overrides.
 NEW_RESEARCH_CODEBASE="${OLD_RESEARCH}/codebase"
@@ -1447,9 +1447,9 @@ test-fixtures/0004/inbound-corpus/
 │   ├── frontmatter-list-multiline.md
 │   ├── markdown-link.md
 │   ├── prose-fenced-code.md       # inside ```…``` blocks
-│   ├── prose-backtick-inline.md   # `meta/research/foo.md` inline
-│   ├── prose-bullet-bare.md       # - meta/research/foo.md — …
-│   ├── prose-narrative.md         # … as described in meta/research/…
+│   ├── prose-backtick-inline.md   # `meta/research/codebase/foo.md` inline
+│   ├── prose-bullet-bare.md       # - meta/research/codebase/foo.md — …
+│   ├── prose-narrative.md         # … as described in meta/research/codebase/…
 │   └── moved-file-internal-link.md # file that itself moves AND links to a sibling
 └── non-matching/
     ├── frontmatter-scalar.md       # unrelated key with similar value
@@ -1459,12 +1459,12 @@ test-fixtures/0004/inbound-corpus/
 ```
 
 Each `matching/` fixture contains a reference to each of the three
-legacy paths (`meta/research/foo.md`, `meta/design-inventories/bar/`,
-`meta/design-gaps/baz.md`). Each `non-matching/` fixture contains
+legacy paths (`meta/research/codebase/foo.md`, `meta/research/design-inventories/bar/`,
+`meta/research/design-gaps/baz.md`). Each `non-matching/` fixture contains
 look-alike but distinct content that must remain byte-identical.
 
 The `moved-file-internal-link.md` fixture is placed under
-`meta/research/` (so Step 1 moves it to `meta/research/codebase/`)
+`meta/research/codebase/` (so Step 1 moves it to `meta/research/codebase/`)
 and contains an inbound link to a sibling that also moves. Asserts
 that internal cross-links between moved files are rewritten correctly
 post-move.
@@ -1768,7 +1768,7 @@ Take a named jj operation snapshot at entry so rollback is a single
 ### Changes required
 
 1. **Pre-rehearsal cleanup** of plugin-specific residue:
-   - Delete `meta/design-inventories/.DS_Store` (stray macOS metadata).
+   - Delete `meta/research/design-inventories/.DS_Store` (stray macOS metadata).
    - (Phase 1 already created the empty `meta/research/issues/` via
      init-scaffold updates; no manual `.gitkeep` required because the
      restructure migration ensures `.gitkeep` is present in every
@@ -1821,13 +1821,13 @@ Take a named jj operation snapshot at entry so rollback is a single
 - [ ] `bash skills/config/migrate/scripts/run-migrations.sh` exits 0
   on the plugin repo (first run, after rehearsal).
 - [ ] Re-run exits 0 with `No pending migrations.`
-- [ ] `find meta/design-inventories meta/design-gaps -maxdepth 0 -type d 2>/dev/null` — empty.
+- [ ] `find meta/research/design-inventories meta/research/design-gaps -maxdepth 0 -type d 2>/dev/null` — empty.
 - [ ] `find meta/research/codebase -name '*.md' | wc -l` — 37.
 - [ ] `find meta/research/design-inventories -name 'inventory.md' | wc -l` — 2.
 - [ ] `find meta/research/design-gaps -name '*.md' | wc -l` — 1.
 - [ ] `.gitkeep` invariant — all four destination subdirs plus the
   parent retain a marker file:
-  - [ ] `test -f meta/research/.gitkeep`
+  - [ ] `test -f meta/research/codebase/.gitkeep`
   - [ ] `test -f meta/research/codebase/.gitkeep`
   - [ ] `test -f meta/research/design-inventories/.gitkeep`
   - [ ] `test -f meta/research/design-gaps/.gitkeep`
@@ -1835,9 +1835,9 @@ Take a named jj operation snapshot at entry so rollback is a single
 - [ ] **Rewrite-correctness spot checks** (not just count/absence):
   - [ ] `grep -F 'meta/research/codebase/2026-05-08-0052' meta/work/0052-make-documents-locator-paths-config-driven.md` returns at least one rewritten reference.
   - [ ] `grep -F 'meta/research/codebase/2026-05-11-0056' meta/plans/2026-05-12-0056-restructure-meta-research-into-subject-subcategories.md` returns the rewritten reference (this very plan's References section).
-  - [ ] No file under `meta/` contains the bare prefix `meta/research/[0-9]` (every legacy file ref rewritten).
+  - [ ] No file under `meta/` contains the bare prefix `meta/research/codebase/[0-9]` (every legacy file ref rewritten).
 - [ ] Broadened residue check:
-  `grep -rnE '\bmeta/research/(?!codebase|issues|design-)|\bmeta/design-inventories\b|\bmeta/design-gaps\b' meta/ --include='*.md'` — empty.
+  `grep -rnE '\bmeta/research/codebase/(?!codebase|issues|design-)|\bmeta/design-inventories\b|\bmeta/design-gaps\b' meta/ --include='*.md'` — empty.
 - [ ] `bash skills/config/migrate/scripts/test-migrate.sh` — still passes.
 - [ ] Plugin's `meta/.accelerator/config.md` (if it has no `paths:`
   block) is byte-identical pre/post-migration — no `paths:` block
@@ -1869,11 +1869,11 @@ text in `migrate/SKILL.md`.
 
 #### 1. `README.md`
 
-- Line 42 (ASCII development-loop diagram): `meta/research/` →
+- Line 42 (ASCII development-loop diagram): `meta/research/codebase/` →
   `meta/research/codebase/`.
-- Line 47 (`research-codebase` narrative): `in \`meta/research/\` with`
+- Line 47 (`research-codebase` narrative): `in \`meta/research/codebase/\` with`
   → `in \`meta/research/codebase/\` with`.
-- Line 64 (`research-issue` narrative): `in \`meta/research/\``
+- Line 64 (`research-issue` narrative): `in \`meta/research/codebase/\``
   → `in \`meta/research/issues/\``.
 - Lines 84-95 (`meta/` table): replace the three rows
   (`research/`, `design-inventories/`, `design-gaps/`) with four
@@ -1885,10 +1885,10 @@ text in `migrate/SKILL.md`.
   prelude above the table: *"`research/` is itself subdivided into
   four subcategories — codebase research, issue/RCA research,
   design inventories, and design gaps."*
-- Lines 408-415 (ADR-flow diagram): `meta/research/` →
+- Lines 408-415 (ADR-flow diagram): `meta/research/codebase/` →
   `meta/research/codebase/`.
 - Line 579 (`The resulting gap artifact under
-  \`meta/design-gaps/\``): → `\`meta/research/design-gaps/\``.
+  \`meta/research/design-gaps/\``): → `\`meta/research/design-gaps/\``.
 
 #### 2. Visualiser bash → Rust JSON contract (D3)
 
@@ -1939,12 +1939,12 @@ should regenerate without hand-editing.
 
 #### 3. Plugin-internal template body references
 
-The plugin's `templates/*.md` files contain legacy `meta/research/`
+The plugin's `templates/*.md` files contain legacy `meta/research/codebase/`
 references in their bodies (they live at the plugin root, not under
 the user's `paths.templates`, so the migration's Step 3 scan corpus
 does not cover them). Hand-edit:
 
-- `templates/adr.md` (~line 52): `meta/research/<file>.md` → `meta/research/codebase/<file>.md`.
+- `templates/adr.md` (~line 52): `meta/research/codebase/<file>.md` → `meta/research/codebase/<file>.md`.
 - `templates/work-item.md` (~line 71): same shape.
 - `templates/plan.md` (~line 107): same shape.
 - `templates/research.md` → `templates/codebase-research.md` (renamed
@@ -1952,10 +1952,10 @@ does not cover them). Hand-edit:
 
 #### 4. `configure/SKILL.md` line 724 narrative
 
-The narrative paragraph (~line 724) hardcodes both `meta/research/`
+The narrative paragraph (~line 724) hardcodes both `meta/research/codebase/`
 as an example and `paths.research: docs/research` as the override
 demonstration. Update both:
-- `meta/research/` → `meta/research/codebase/`
+- `meta/research/codebase/` → `meta/research/codebase/`
 - `paths.research: docs/research` → `paths.research_codebase: docs/research/codebase`
 
 #### 5. `CHANGELOG.md`
@@ -1966,7 +1966,7 @@ upgrade hazard explicit and the new `paths.research_issues` key's
 purpose narrative:
 
 ```markdown
-- **research-directory restructure**: `meta/research/` now has four
+- **research-directory restructure**: `meta/research/codebase/` now has four
   subcategories — `codebase/` (codebase research outputs from
   `/accelerator:research-codebase`), `issues/` (issue/RCA research
   outputs from `/accelerator:research-issue`), `design-inventories/`,
@@ -2027,7 +2027,7 @@ Historical entries at lines 98, 155, 165, 170 are not modified.
 
 Run all tests; broadened residue grep:
 ```bash
-grep -rnE '\bmeta/research/(?!codebase|issues|design-)|\bmeta/design-inventories\b|\bmeta/design-gaps\b' \
+grep -rnE '\bmeta/research/codebase/(?!codebase|issues|design-)|\bmeta/design-inventories\b|\bmeta/design-gaps\b' \
   README.md CHANGELOG.md templates/ \
   skills/visualisation/visualise/scripts/ \
   skills/visualisation/visualise/server/ \
@@ -2040,7 +2040,7 @@ should return only entries in historical CHANGELOG sections.
 #### Automated verification
 
 - [ ] Broadened README residue check:
-  `grep -nE '\bmeta/research/(?!codebase|issues|design-)|\bmeta/design-inventories\b|\bmeta/design-gaps\b' README.md` —
+  `grep -nE '\bmeta/research/codebase/(?!codebase|issues|design-)|\bmeta/design-inventories\b|\bmeta/design-gaps\b' README.md` —
   no matches.
 - [ ] `grep -n 'meta/\.migrations-' skills/config/migrate/SKILL.md` —
   no matches.
@@ -2049,7 +2049,7 @@ should return only entries in historical CHANGELOG sections.
 - [ ] Visualiser server tests pass (`cargo test` or equivalent) after
   D3's JSON wire-key rename across both bash writer, Rust resolver,
   and JSON fixtures.
-- [ ] `grep -rnE '\bmeta/research/(?!codebase|issues|design-)|\bmeta/design-inventories\b|\bmeta/design-gaps\b' templates/` —
+- [ ] `grep -rnE '\bmeta/research/codebase/(?!codebase|issues|design-)|\bmeta/design-inventories\b|\bmeta/design-gaps\b' templates/` —
   no matches (template body references rewritten).
 - [ ] `grep -nE 'doc_paths\.(research|design_gaps|design_inventories)[^_]' skills/visualisation/visualise/` —
   no matches with legacy bare keys (post-D3 rename complete).
@@ -2181,7 +2181,7 @@ mutation phases are each individually idempotent:
   legacy key is removed after a successful rewrite; second-run probe
   returns empty.
 - Step 3 (inbound rewriting): negative-lookbehind regex prevents
-  double-substitution; rewriting `meta/research/foo.md` to
+  double-substitution; rewriting `meta/research/codebase/foo.md` to
   `meta/research/codebase/foo.md` does not match on a second pass.
 
 **Environment variables.** Two distinct safety bypasses with
@@ -2208,7 +2208,7 @@ separate names:
   overridden, Step 1 honors the override (no file move) and Step 3
   excludes the design pair from inbound rewriting. If the user's
   corpus contains references to the *legacy default* path
-  (`meta/design-inventories/...`) — for example because the
+  (`meta/research/design-inventories/...`) — for example because the
   override was added recently while older content still uses the
   default literal — those references are not rewritten and may
   not resolve. The closing diagnostic recommends `grep -rn
@@ -2245,7 +2245,7 @@ recommended sequence (pull → migrate → resume).
 ## References
 
 - Original work item: `meta/work/0056-restructure-meta-research-into-subject-subcategories.md`
-- Source research: `meta/research/2026-05-11-0056-restructure-meta-research-into-subject-subcategories.md`
+- Source research: `meta/research/codebase/2026-05-11-0056-restructure-meta-research-into-subject-subcategories.md`
 - Source note: `meta/notes/2026-05-02-research-directory-subcategory-restructure.md`
 - Builds on: `meta/work/0030-centralise-path-defaults.md`,
   `meta/work/0052-make-documents-locator-paths-config-driven.md`

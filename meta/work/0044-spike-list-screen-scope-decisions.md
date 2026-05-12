@@ -27,7 +27,7 @@ The current app's lifecycle-index sort affordance is a three-mode toggle (Recent
 
 The current app's kanban columns are derived dynamically from the server-side `kanban-config` endpoint (configurable per-workspace), while the prototype's `kanban-view` shows a fixed three-column board (Todo / In progress / Done) with a `live` chip and `N total` count in the page subtitle. ADR-0024 *Configurable Kanban Column Set* mandates configurable columns, so the prototype's three-column board cannot be taken as prescriptive — but the gap analysis still requires confirmation that we preserve dynamic columns while adopting the prototype's `live` / `N total` page-subtitle treatment.
 
-Reference screenshot: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/kanban-view.png`.
+Reference screenshot: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/kanban-view.png`.
 
 ## Requirements
 
@@ -71,6 +71,6 @@ Time-box: ~0.5 day to gather stakeholder confirmation and document outcomes.
 
 ## References
 
-- Source: `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+- Source: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
 - ADR-0024 Configurable Kanban Column Set
-- Screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/kanban-view.png`
+- Screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/kanban-view.png`

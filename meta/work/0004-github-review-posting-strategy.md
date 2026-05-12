@@ -77,7 +77,7 @@ body.
 
 ## Source References
 
-- `meta/research/2026-02-22-pr-review-inline-comments.md` — API constraints,
+- `meta/research/codebase/2026-02-22-pr-review-inline-comments.md` — API constraints,
   inline comment design, and severity prioritization
 - `meta/plans/2026-02-22-pr-review-inline-comments.md` — Implementation of
   atomic posting and comment cap

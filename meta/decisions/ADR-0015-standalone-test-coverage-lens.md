@@ -169,7 +169,7 @@ a plan's prose alone.
   standalone lens alongside test coverage and code quality
 - `meta/plans/2026-02-22-review-plan-alignment.md` — Implementation plan that
   extracted testing strategy from `plan-code-quality-reviewer`
-- `meta/research/2026-02-22-review-plan-pr-alignment.md` — Earlier alignment
+- `meta/research/codebase/2026-02-22-review-plan-pr-alignment.md` — Earlier alignment
   research whose PR-only conclusion this ADR reframes
 - `skills/review/lenses/test-coverage-lens/SKILL.md` — Current lens skill
 - `skills/review/lenses/code-quality-lens/SKILL.md` — Reciprocal

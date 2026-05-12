@@ -1037,7 +1037,7 @@ finding synthesis.
 
 ## References
 
-- Research document: `~/.claude/meta/research/2026-02-22-pr-review-agents-design.md`
+- Research document: `~/.claude/meta/research/codebase/2026-02-22-pr-review-agents-design.md`
 - Plan review agents: `~/.claude/agents/plan-{architecture,security,code-quality,standards,usability}-reviewer.md`
 - Review plan command: `~/.claude/commands/review-plan.md`
 - Describe PR command: `~/.claude/commands/describe-pr.md`

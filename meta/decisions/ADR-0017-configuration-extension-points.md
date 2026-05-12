@@ -216,7 +216,7 @@ directory in suffices.
   and lens override design
 - `meta/plans/2026-03-27-remaining-configuration-features.md` — Dual
   agent-name strategy and custom-lens auto-discovery
-- `meta/research/2026-03-22-skill-customisation-and-override-patterns.md` —
+- `meta/research/codebase/2026-03-22-skill-customisation-and-override-patterns.md` —
   Ecosystem survey informing file-level replacement
-- `meta/research/2026-04-07-bare-agent-name-references.md` — Evidence for
+- `meta/research/codebase/2026-04-07-bare-agent-name-references.md` — Evidence for
   the `subagent_type` determinism constraint

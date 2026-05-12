@@ -21,7 +21,7 @@ and reversal of earlier "don't write to file" guidelines.
 - Review skills (`review-pr`, `review-plan`) discarded structured outputs to
   conversation only — lost after session ends
 - Other skills already write persistent artifacts: `research-codebase` writes
-  to `meta/research/`, `create-plan` writes to `meta/plans/`
+  to `meta/research/codebase/`, `create-plan` writes to `meta/plans/`
 - Skills cannot access another skill's conversation history
 - Cross-team collaboration requires artifacts that persist beyond a single
   session
@@ -77,5 +77,5 @@ to file" guidelines in both review skills.
 
 ## Source References
 
-- `meta/research/2026-03-18-meta-management-strategy.md` — Filesystem-as-
+- `meta/research/codebase/2026-03-18-meta-management-strategy.md` — Filesystem-as-
   shared-memory principle and review persistence strategy

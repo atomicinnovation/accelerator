@@ -2,7 +2,7 @@
 date: "2026-04-29T17:00:00+01:00"
 type: plan-review
 skill: review-plan
-target: "meta/research/2026-04-17-meta-visualiser-implementation-context.md"
+target: "meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, security, correctness, compatibility, portability, safety, usability]

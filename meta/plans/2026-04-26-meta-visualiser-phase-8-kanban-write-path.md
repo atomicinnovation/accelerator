@@ -1957,7 +1957,7 @@ swimlane.
 - Original ticket: none (driven by spec).
 - Spec: `meta/specs/2026-04-17-meta-visualisation-design.md`
   — § "Writes and conflict handling", § "Kanban".
-- Research: `meta/research/2026-04-17-meta-visualiser-implementation-context.md`
+- Research: `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md`
   — Phase 8 outline at line 1082.
 - Phase 7 plan (for TDD step style and read-only kanban
   context):

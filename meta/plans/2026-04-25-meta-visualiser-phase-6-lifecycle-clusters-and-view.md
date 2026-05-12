@@ -2554,7 +2554,7 @@ Stop after each step and verify the named tests pass before proceeding.
 
 - Spec: `meta/specs/2026-04-17-meta-visualisation-design.md` §§ Views
   (Lifecycle), Data model (LifecycleCluster), Cross-cutting UX, Live updates.
-- Research: `meta/research/2026-04-17-meta-visualiser-implementation-context.md`
+- Research: `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md`
   §§ Phase 6, D5 (reviews modelling), G3 (review-N suffix strip).
 - Phase 4 plan: `meta/plans/2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher.md`
   (SSE event shapes, watcher cluster recompute).

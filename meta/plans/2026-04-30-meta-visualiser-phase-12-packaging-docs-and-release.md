@@ -3498,7 +3498,7 @@ For users on the last pre-Phase-12 plugin version or earlier:
 
 - Spec: `meta/specs/2026-04-17-meta-visualisation-design.md` —
   Distribution section (lines 651-680), GitHub-Releases mechanics.
-- Research: `meta/research/2026-04-17-meta-visualiser-implementation-context.md`
+- Research: `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md`
   — D8 (binary distribution), D10 (rust-embed frontend), Phase 12
   description (lines 1230-1273), Gap 7 (pre-release burden, line 1552).
 - Existing infrastructure to honour:

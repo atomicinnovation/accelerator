@@ -59,7 +59,7 @@ Risks the current lens does not systematically flag include:
 
 ## References
 
-- `meta/research/2026-02-22-review-lens-gap-analysis.md` — flagged AI           
+- `meta/research/codebase/2026-02-22-review-lens-gap-analysis.md` — flagged AI           
   governance as an emerging concern partially covered by security
 - OWASP Top 10 for LLM Applications:                                            
   https://owasp.org/www-project-top-10-for-large-language-model-applications/

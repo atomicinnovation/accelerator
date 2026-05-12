@@ -75,5 +75,5 @@ set.
 
 - `meta/plans/2026-03-15-new-review-lenses.md` — Correctness lens design and
   core four designation
-- `meta/research/2026-03-15-review-lens-optimal-structure.md` — Earlier
+- `meta/research/codebase/2026-03-15-review-lens-optimal-structure.md` — Earlier
   exclusion noted in Open Questions

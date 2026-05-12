@@ -1264,7 +1264,7 @@ release that ships this skill.
 
 ## References
 
-- Research: `meta/research/2026-04-27-create-work-item-open-from-existing.md`
+- Research: `meta/research/codebase/2026-04-27-create-work-item-open-from-existing.md`
 - Skill being extended: `skills/work/create-work-item/SKILL.md`
 - Existing evals: `skills/work/create-work-item/evals/evals.json`
 - Existing benchmark: `skills/work/create-work-item/evals/benchmark.json`

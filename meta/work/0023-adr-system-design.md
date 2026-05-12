@@ -108,7 +108,7 @@ allow content edits. Three skills handle distinct intents: `create-adr`,
 
 ## Source References
 
-- `meta/research/2026-03-18-adr-support-strategy.md` — ADR strategy research
+- `meta/research/codebase/2026-03-18-adr-support-strategy.md` — ADR strategy research
   covering numbering, templates, lifecycle, and enforcement
 - `meta/plans/2026-03-18-adr-skills.md` — Implementation plan for three ADR
   skills with companion scripts

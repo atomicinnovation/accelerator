@@ -85,7 +85,7 @@ and cap CLAUDE.md at ~150 instructions.
 
 ## Source References
 
-- `meta/research/2026-03-15-context-management-approaches.md` — Token budget
+- `meta/research/codebase/2026-03-15-context-management-approaches.md` — Token budget
   analysis, locator/analyser pattern, and filesystem communication design
 - `meta/plans/2026-03-15-readme-restructure.md` — Documents the filesystem
   communication principle as core to the plugin's architecture

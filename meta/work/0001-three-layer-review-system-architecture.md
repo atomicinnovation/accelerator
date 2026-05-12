@@ -76,7 +76,7 @@ in parallel as background tasks; the orchestrator waits for the slowest lens.
 
 ## Source References
 
-- `meta/research/2026-02-22-pr-review-agents-design.md` — Original design
+- `meta/research/codebase/2026-02-22-pr-review-agents-design.md` — Original design
   research establishing the three-layer pattern
 - `meta/plans/2026-02-23-performance-lens-and-resilience-extension.md` —
   Confirms parallel execution model is preserved when adding lenses

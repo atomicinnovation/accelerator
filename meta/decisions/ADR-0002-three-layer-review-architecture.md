@@ -22,7 +22,7 @@ findings.
 
 The three-layer separation emerged organically from the plan review system before
 PR review was designed. The original design research
-(`meta/research/2026-02-22-pr-review-agents-design.md`) identified this as an
+(`meta/research/codebase/2026-02-22-pr-review-agents-design.md`) identified this as an
 existing architectural pattern worth formalising: specialist agents at the
 bottom, orchestrating commands in the middle, shared conventions binding them
 together. PR review was built to follow the same pattern.
@@ -146,10 +146,10 @@ lens skill; the orchestrator and conventions remain unchanged.
 
 ## References
 
-- `meta/research/2026-02-22-pr-review-agents-design.md` — Original design
+- `meta/research/codebase/2026-02-22-pr-review-agents-design.md` — Original design
   research that identified the three-layer pattern in the existing plan review
   system
-- `meta/research/2026-02-22-skills-agents-commands-refactoring.md` — Detailed
+- `meta/research/codebase/2026-02-22-skills-agents-commands-refactoring.md` — Detailed
   design of the generic reviewer agent with pluggable lens skills pattern
 - `meta/plans/2026-02-22-pr-review-agents.md` — Original implementation plan
   establishing the orchestrator and parallel agent spawning pattern

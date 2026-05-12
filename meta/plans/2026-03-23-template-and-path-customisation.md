@@ -17,7 +17,7 @@ Skills write documents to hardcoded paths under `meta/`:
 | Skill | Output Path | Template |
 |-------|-------------|----------|
 | `create-plan` | `meta/plans/YYYY-MM-DD-*.md` | Embedded (lines 209-310) |
-| `research-codebase` | `meta/research/YYYY-MM-DD-*.md` | Embedded (lines 110-166) |
+| `research-codebase` | `meta/research/codebase/YYYY-MM-DD-*.md` | Embedded (lines 110-166) |
 | `create-adr` | `meta/decisions/ADR-NNNN-*.md` | Embedded (lines 161-215) |
 | `extract-adrs` | `meta/decisions/ADR-NNNN-*.md` | Delegates to `create-adr` template |
 | `review-adr` | Edits existing ADRs | N/A |
@@ -43,7 +43,7 @@ Additional `meta/` paths referenced but not as skill outputs:
 - `adr-next-number.sh:32` hardcodes `$REPO_ROOT/meta/decisions` — this must
   also be updated for path overrides.
 - Several skills cross-reference each other's paths:
-  - `create-plan:308` references `meta/research/` in its template
+  - `create-plan:308` references `meta/research/codebase/` in its template
   - `validate-plan:160` derives its output path from the plan's path
   - `review-plan:362-364` derives review path from plan stem
   - `extract-adrs:105` uses `research-metadata.sh` for metadata
@@ -111,7 +111,7 @@ set -euo pipefail
 #
 # Path keys:
 #   plans         → where plans are written (default: meta/plans)
-#   research      → where research docs are written (default: meta/research)
+#   research      → where research docs are written (default: meta/research/codebase)
 #   decisions     → where ADRs are written (default: meta/decisions)
 #   prs           → where PR descriptions are written (default: meta/prs)
 #   validations   → where validation reports are written (default: meta/validations)
@@ -207,7 +207,7 @@ line, the script detects this and outputs it as-is (no double-wrapping).
 
 **Cross-reference limitation**: Default templates contain hardcoded
 cross-references to other skills' paths (e.g., the plan template references
-`meta/research/` in its References section, the validation template references
+`meta/research/codebase/` in its References section, the validation template references
 `meta/plans/` in its frontmatter `target` field). These cross-references are
 NOT dynamically resolved when paths are overridden. Users who override paths
 should also provide custom templates with updated cross-references. This
@@ -407,7 +407,7 @@ Modify the instruction that says "Write the plan to
 
 Apply the same inline replacement to all other `meta/plans/` references in
 the skill (line 325, and any other occurrences). For references inside the
-template itself (e.g., line 316 `meta/research/`), these are covered by the
+template itself (e.g., line 316 `meta/research/codebase/`), these are covered by the
 cross-reference limitation — users who override paths should provide custom
 templates.
 
@@ -423,7 +423,7 @@ Replace the entire template code block with:
 
 #### 2. `research-codebase/SKILL.md`
 
-**Path changes**: Replace hardcoded `meta/research/` references for the output
+**Path changes**: Replace hardcoded `meta/research/codebase/` references for the output
 path using inline preprocessor placement. Update the filename instruction to
 reference the configured path.
 
@@ -475,12 +475,12 @@ the scan instruction to reference the three configured paths individually:
 Replace the instruction "find all documents in `meta/`" with:
 ```markdown
 find all documents in the configured research, plans, and decisions
-directories (shown above, or `meta/research/`, `meta/plans/`, and
+directories (shown above, or `meta/research/codebase/`, `meta/plans/`, and
 `meta/decisions/` by default)
 ```
 
 Also update the example output listing (lines 47-55) to use the configured
-paths rather than hardcoded `meta/research/` and `meta/plans/` references.
+paths rather than hardcoded `meta/research/codebase/` and `meta/plans/` references.
 
 Update the instruction that says "Write to `meta/decisions/`" to reference the
 configured decisions path.
@@ -633,7 +633,7 @@ available for future skills and for `config-dump.sh` completeness.
 #### Automated Verification:
 
 - [x] No hardcoded `meta/plans/` in `create-plan/SKILL.md` (except in examples)
-- [x] No hardcoded `meta/research/` in `research-codebase/SKILL.md` (except
+- [x] No hardcoded `meta/research/codebase/` in `research-codebase/SKILL.md` (except
   in examples)
 - [x] No generic `meta/` scan references in `research-codebase/SKILL.md`
   (replaced with configured path references)
@@ -776,7 +776,7 @@ directory (`paths.templates`) → plugin default. Use the plugin's
 
 **Note on cross-references**: Default templates contain hardcoded references
 to other skills' output paths (e.g., the plan template references
-`meta/research/` in its References section). If you override output paths
+`meta/research/codebase/` in its References section). If you override output paths
 (e.g., `paths.research: docs/research`), you should also provide custom
 templates with updated cross-references.
 ```
@@ -865,7 +865,7 @@ documentation to each plan that introduces keys. This plan must:
 ## References
 
 - Plan 1: `meta/plans/2026-03-23-config-infrastructure.md`
-- Research: `meta/research/2026-03-22-skill-customisation-and-override-patterns.md`
+- Research: `meta/research/codebase/2026-03-22-skill-customisation-and-override-patterns.md`
 - Existing user template pattern: `skills/github/describe-pr/SKILL.md:18-21`
 - Embedded templates:
   - Plan: `skills/planning/create-plan/SKILL.md:209-310`

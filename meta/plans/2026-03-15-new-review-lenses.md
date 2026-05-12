@@ -36,7 +36,7 @@ The bold items indicate concerns that will transfer to new lenses:
   the new compatibility lens
 
 Each lens follows the optimal structure defined in
-`meta/research/2026-03-15-review-lens-optimal-structure.md`:
+`meta/research/codebase/2026-03-15-review-lens-optimal-structure.md`:
 
 - YAML frontmatter (`name`, `description`, `user-invocable: false`,
   `disable-model-invocation: true`)
@@ -1487,7 +1487,7 @@ No file changes — this is a read-only verification phase.
 After each of Phases 1-6, verify the new lens file:
 - Has all required sections
 - Follows the template from
-  `meta/research/2026-03-15-review-lens-optimal-structure.md`
+  `meta/research/codebase/2026-03-15-review-lens-optimal-structure.md`
 - Has no overlapping concerns with existing lenses (check boundary notes)
 
 After Phase 7, verify integration:
@@ -1508,11 +1508,11 @@ After Phase 7, verify integration:
 ## References
 
 - Optimal lens structure:
-  `meta/research/2026-03-15-review-lens-optimal-structure.md`
+  `meta/research/codebase/2026-03-15-review-lens-optimal-structure.md`
 - Original gap analysis:
-  `meta/research/2026-02-22-review-lens-gap-analysis.md`
+  `meta/research/codebase/2026-02-22-review-lens-gap-analysis.md`
 - Context management research:
-  `meta/research/2026-03-15-context-management-approaches.md`
+  `meta/research/codebase/2026-03-15-context-management-approaches.md`
 - Performance lens plan:
   `meta/plans/2026-02-23-performance-lens-and-resilience-extension.md`
 - Lens improvement plan:

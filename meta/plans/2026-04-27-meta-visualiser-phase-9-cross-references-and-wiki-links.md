@@ -2263,7 +2263,7 @@ No data migration required. All new code is additive:
 
 - Original spec: `meta/specs/2026-04-17-meta-visualisation-design.md`
   (§ "Cross-references", D6, D7).
-- Research doc: `meta/research/2026-04-17-meta-visualiser-implementation-context.md`
+- Research doc: `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md`
   (Phase 9 in the implementation phasing).
 - Phase 8 plan as TDD template: `meta/plans/2026-04-26-meta-visualiser-phase-8-kanban-write-path.md`.
 - Existing indexer secondary-map precedent: `skills/visualisation/visualise/server/src/indexer.rs:36-37, 87-91, 220-228, 282-310`.

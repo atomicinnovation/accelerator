@@ -93,7 +93,7 @@ Hooks are registered via `hooks/hooks.json` using `${CLAUDE_PLUGIN_ROOT}`.
 
 ## Source References
 
-- `meta/research/2026-03-16-jujutsu-integration-and-vcs-autodetection.md` —
+- `meta/research/codebase/2026-03-16-jujutsu-integration-and-vcs-autodetection.md` —
   VCS detection research, hook approach analysis, skill adaptation strategy
 - `meta/plans/2026-03-18-vcs-skill-improvements.md` — Implementation plan
   including skill split, hooks, and guard logic

@@ -2624,7 +2624,7 @@ item Drafting Notes:
 ```
 - Attribute value `data-font="display"` adopted (not `default`) to
   align with the prototype design inventory's canonical naming
-  (`meta/design-inventories/2026-05-06-140608-claude-design-prototype/
+  (`meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/
   inventory.md:227`). The plan
   (`meta/plans/2026-05-08-0034-theme-and-font-mode-toggles.md`)
   records this decision.
@@ -2753,11 +2753,11 @@ instead of `display`) will fall through the type-guard and revert to
 ## References
 
 - Original work item: `meta/work/0034-theme-and-font-mode-toggles.md`
-- Research: `meta/research/2026-05-08-0034-theme-and-font-mode-toggles.md`
+- Research: `meta/research/codebase/2026-05-08-0034-theme-and-font-mode-toggles.md`
 - Prerequisite plans: `meta/plans/2026-05-06-0033-design-token-system.md`,
   `meta/plans/2026-05-08-0035-topbar-component.md`
 - Prior art (FOUC prevention pattern): pacocoursey/next-themes
-  (`meta/research/2026-05-08-0034-theme-and-font-mode-toggles.md:132`)
+  (`meta/research/codebase/2026-05-08-0034-theme-and-font-mode-toggles.md:132`)
 - Canonical context pattern: `src/api/use-doc-events.ts:15-175`
 - Topbar slot contract: `src/components/Topbar/Topbar.tsx:7-20`,
   `Topbar.module.css:20-24`

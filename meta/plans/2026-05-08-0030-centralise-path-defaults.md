@@ -192,7 +192,7 @@ ACTUAL_PATH_KEYS=$( source "$DEFAULTS_FILE" && echo "${PATH_KEYS[*]}" )
 assert_eq "PATH_KEYS contents" "$EXPECTED_PATH_KEYS" "$ACTUAL_PATH_KEYS"
 
 echo "Test: PATH_DEFAULTS has expected length and order"
-EXPECTED_PATH_DEFAULTS="meta/plans meta/research meta/decisions meta/prs meta/validations meta/reviews/plans meta/reviews/prs meta/reviews/work .accelerator/templates meta/work meta/notes"
+EXPECTED_PATH_DEFAULTS="meta/plans meta/research/codebase meta/decisions meta/prs meta/validations meta/reviews/plans meta/reviews/prs meta/reviews/work .accelerator/templates meta/work meta/notes"
 ACTUAL_PATH_DEFAULTS_LEN=$( source "$DEFAULTS_FILE" && echo "${#PATH_DEFAULTS[@]}" )
 assert_eq "PATH_DEFAULTS length" "11" "$ACTUAL_PATH_DEFAULTS_LEN"
 ACTUAL_PATH_DEFAULTS=$( source "$DEFAULTS_FILE" && echo "${PATH_DEFAULTS[*]}" )
@@ -297,7 +297,7 @@ PATH_KEYS=(
 
 PATH_DEFAULTS=(
   "meta/plans"
-  "meta/research"
+  "meta/research/codebase"
   "meta/decisions"
   "meta/prs"
   "meta/validations"
@@ -532,7 +532,7 @@ No data migration. No behavioural change. Pure refactor. Rollback is
 
 - Work item: `meta/work/0030-centralise-path-defaults.md`
 - Implementation research:
-  `meta/research/2026-05-08-0030-centralise-path-defaults-implementation.md`
+  `meta/research/codebase/2026-05-08-0030-centralise-path-defaults-implementation.md`
 - Related ADR:
   `meta/decisions/ADR-0023-meta-directory-migration-framework.md`
 - Originating migration:

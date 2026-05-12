@@ -33,7 +33,7 @@ shadow token under `[data-theme="dark"]` — but remain inert until a
 `data-theme` attribute is present. 0033 was intended to also ship a `[data-font="mono"]` font-mode swap, but that
 CSS block was not delivered; authoring it is in scope for this story.
 
-Reference screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
+Reference screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
 `main-dark.png` show the same layout under both themes.
 
 ## Requirements
@@ -180,14 +180,14 @@ Reference screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-
   not delivered by 0033 and is authored by this story.
 - Attribute value `data-font="display"` adopted (not `default`) to align with
   the prototype design inventory's canonical naming
-  (`meta/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md:227`).
+  (`meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md:227`).
   The plan (`meta/plans/2026-05-08-0034-theme-and-font-mode-toggles.md`) records
   this decision.
 
 ## References
 
-- Source: `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
-- Screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
+- Source: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+- Screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
   `main-dark.png`
 - Related: 0033, 0035
 - Prior art: https://github.com/pacocoursey/next-themes

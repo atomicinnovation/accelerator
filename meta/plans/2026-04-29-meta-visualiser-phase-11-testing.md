@@ -927,7 +927,7 @@ New in this phase:
 
 ## References
 
-- Research document: `meta/research/2026-04-17-meta-visualiser-implementation-context.md` — Phase 11 spec
+- Research document: `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md` — Phase 11 spec
 - Design spec: `meta/specs/2026-04-17-meta-visualisation-design.md` — Testing strategy section
 - Existing test patterns: `server/tests/common/mod.rs` — fixture seeding
 - Existing frontend tests: `frontend/src/test/setup.ts` — test setup

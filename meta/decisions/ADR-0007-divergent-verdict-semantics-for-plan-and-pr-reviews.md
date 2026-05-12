@@ -131,7 +131,7 @@ thresholds diverge.
 
 - `meta/plans/2026-02-22-review-plan-alignment.md` — Verdict logic definition
   and threshold rationale in the "What We're NOT Doing" section
-- `meta/research/2026-02-22-review-plan-pr-alignment.md` — Research comparing
+- `meta/research/codebase/2026-02-22-review-plan-pr-alignment.md` — Research comparing
   PR and plan review patterns, including output format and verdict divergence
 - `meta/decisions/ADR-0002-three-layer-review-architecture.md` — Three-layer
   architecture that both review contexts operate within

@@ -126,7 +126,7 @@ We will:
 
 ## Source References
 
-- `meta/research/2026-04-07-pr-review-tmp-directory-usage.md` — evidence for
+- `meta/research/codebase/2026-04-07-pr-review-tmp-directory-usage.md` — evidence for
   the hardcoded-tmp bug and analysis of the conflict with ADR-0008
 - `meta/plans/2026-03-28-initialise-skill-and-review-pr-ephemeral-migration.md`
   — migration strategy, inner-`.gitignore` mechanism, `tmp` as the 11th

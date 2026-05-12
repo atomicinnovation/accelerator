@@ -159,9 +159,9 @@ We will introduce per-skill userspace customisation at
   covering directory layout, reader scripts, injection positions, dynamic
   `KNOWN_SKILLS` derivation, advisory warning behaviour, configure
   exclusion, sharing model
-- `meta/research/2026-03-22-skill-customisation-and-override-patterns.md` —
+- `meta/research/codebase/2026-03-22-skill-customisation-and-override-patterns.md` —
   foundational research informing the convention-based approach
-- `meta/research/2026-03-27-skill-customisation-implementation-status.md` —
+- `meta/research/codebase/2026-03-27-skill-customisation-implementation-status.md` —
   gap analysis identifying the deferred per-skill mechanism
 - `meta/decisions/ADR-0016-userspace-configuration-model.md` — prior
   decision that explicitly deferred this mechanism

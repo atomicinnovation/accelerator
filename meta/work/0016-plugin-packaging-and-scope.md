@@ -80,7 +80,7 @@ clarity and discoverability, accepting the verbosity of
 
 ## Source References
 
-- `meta/research/2026-03-14-plugin-extraction.md` — Extraction analysis,
+- `meta/research/codebase/2026-03-14-plugin-extraction.md` — Extraction analysis,
   scope boundary, and `${CLAUDE_PLUGIN_ROOT}` decision
 - `meta/plans/2026-03-14-plugin-extraction.md` — Implementation plan with
   phased extraction approach

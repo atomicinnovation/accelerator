@@ -685,7 +685,7 @@ architectural considerations discovered during refinement]
 
 - Source: `path/to/source-document.md`
 - Related: NNNN, NNNN
-- Research: `meta/research/YYYY-MM-DD-topic.md`
+- Research: `meta/research/codebase/YYYY-MM-DD-topic.md`
 ```
 
 #### 2. Plugin registration
@@ -1019,7 +1019,7 @@ for the sed-ordering invariant).
 
 ## References
 
-- Research: `meta/research/2026-04-08-ticket-management-skills.md` — Section
+- Research: `meta/research/codebase/2026-04-08-ticket-management-skills.md` — Section
   1 (Conventions), Section 6 (Template Design), Section 10 (Implementation
   Phasing, Phase 1)
 - Pattern source: `skills/decisions/scripts/adr-next-number.sh` — numbering

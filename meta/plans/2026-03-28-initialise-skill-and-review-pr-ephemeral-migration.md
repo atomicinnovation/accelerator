@@ -126,7 +126,7 @@ Current (lines 7-17):
 ```bash
 # Path keys:
 #   plans         → where plans are written (default: meta/plans)
-#   research      → where research docs are written (default: meta/research)
+#   research      → where research docs are written (default: meta/research/codebase)
 #   decisions     → where ADRs are written (default: meta/decisions)
 #   prs           → where PR descriptions are written (default: meta/prs)
 #   validations   → where validation reports are written (default: meta/validations)
@@ -142,7 +142,7 @@ Updated:
 ```bash
 # Path keys:
 #   plans         → where plans are written (default: meta/plans)
-#   research      → where research docs are written (default: meta/research)
+#   research      → where research docs are written (default: meta/research/codebase)
 #   decisions     → where ADRs are written (default: meta/decisions)
 #   prs           → where PR descriptions are written (default: meta/prs)
 #   validations   → where validation reports are written (default: meta/validations)
@@ -233,7 +233,7 @@ The skill should:
 
    Directories:
      ✓ meta/plans (created)
-     ✓ meta/research (already exists)
+     ✓ meta/research/codebase (already exists)
      ...
 
    Gitignore entries:
@@ -741,7 +741,7 @@ Test the full flow in a clean consumer repository:
 
 ## References
 
-- Research: `meta/research/2026-03-28-initialise-skill-requirements.md`
+- Research: `meta/research/codebase/2026-03-28-initialise-skill-requirements.md`
 - Configure skill (pattern to follow): `skills/config/configure/SKILL.md`
 - Path resolution: `scripts/config-read-path.sh`
 - Review-pr skill (migration target): `skills/github/review-pr/SKILL.md`

@@ -621,7 +621,7 @@ does not affect the orchestrator's context window.
 
 ## References
 
-- Gap analysis research: `meta/research/2026-02-22-review-lens-gap-analysis.md`
+- Gap analysis research: `meta/research/codebase/2026-02-22-review-lens-gap-analysis.md`
 - Existing lens pattern: `~/.claude/skills/architecture-lens/SKILL.md`
 - PR review orchestrator: `~/.claude/skills/review-pr/SKILL.md`
 - Plan review orchestrator: `~/.claude/skills/review-plan/SKILL.md`

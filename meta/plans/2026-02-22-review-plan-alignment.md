@@ -1260,8 +1260,8 @@ Also update the re-review presentation to use the structured format:
 
 ## References
 
-- Alignment research: `meta/research/2026-02-22-review-plan-pr-alignment.md`
-- Original PR agent design: `meta/research/2026-02-22-pr-review-agents-design.md`
+- Alignment research: `meta/research/codebase/2026-02-22-review-plan-pr-alignment.md`
+- Original PR agent design: `meta/research/codebase/2026-02-22-pr-review-agents-design.md`
 - PR inline comments plan: `meta/plans/2026-02-22-pr-review-inline-comments.md`
 - Current plan agents: `agents/plan-architecture-reviewer.md`,
   `agents/plan-code-quality-reviewer.md`, `agents/plan-security-reviewer.md`,

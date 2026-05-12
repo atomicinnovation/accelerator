@@ -165,12 +165,12 @@ Downstream consumers of Glyph (0036/0040/0041/0042/0043/0053/0054/0055) MUST adh
 
 ## References
 
-- Source: `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+- Source: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
 - Screenshots (canonical, twelve-doc-type, light + dark):
-  - `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-light.png`
-  - `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-dark.png`
+  - `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-light.png`
+  - `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-dark.png`
 - Screenshots (additional consumer context):
-  - `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`
-  - `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/kanban-view.png`
-  - `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/lifecycle-cluster-detail.png`
+  - `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`
+  - `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/kanban-view.png`
+  - `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/lifecycle-cluster-detail.png`
 - Related: 0033, 0036, 0038, 0040, 0041, 0042, 0043, 0053, 0054, 0055

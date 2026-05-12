@@ -1313,7 +1313,7 @@ All in `scripts/test-config.sh`:
 
 ## References
 
-- Research: `meta/research/2026-03-29-template-management-subcommands.md`
+- Research: `meta/research/codebase/2026-03-29-template-management-subcommands.md`
 - Template resolution: `scripts/config-read-template.sh`
 - Config dump: `scripts/config-dump.sh:209-224`
 - Configure skill: `skills/config/configure/SKILL.md`

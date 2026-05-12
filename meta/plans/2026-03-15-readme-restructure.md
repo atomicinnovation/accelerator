@@ -140,12 +140,12 @@ The primary workflow is a three-phase loop:
 ```
 research-codebase  →  create-plan  →  implement-plan
        ↓                   ↓                 ↓
-  meta/research/      meta/plans/     checked-off plan
+  meta/research/codebase/      meta/plans/     checked-off plan
 ```
 
 1. **Research** (`/accelerator:research-codebase "how does auth work?"`):
    Investigate the codebase using parallel subagents. Produces a structured
-   research document in `meta/research/` with findings, file references, and
+   research document in `meta/research/codebase/` with findings, file references, and
    architectural context.
 
 2. **Plan** (`/accelerator:create-plan ENG-1234`): Build a phased
@@ -298,4 +298,4 @@ criteria. No unit, integration, or runtime testing is applicable.
 ## References
 
 - Current README: `README.md`
-- Context management research: `meta/research/2026-03-15-context-management-approaches.md`
+- Context management research: `meta/research/codebase/2026-03-15-context-management-approaches.md`

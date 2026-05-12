@@ -36,7 +36,7 @@ The server-origin pill replaces today's text-only sidebar-footer status with a
 topbar pill that surfaces the live server origin from `window.location.host` alongside
 a connectivity-pulse animation.
 
-Reference screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
+Reference screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
 `main-dark.png` (topbar visible at the top of every page).
 
 ## Requirements
@@ -179,7 +179,7 @@ Reference screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-
 
 ## References
 
-- Source: `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
-- Screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
+- Source: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+- Screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
   `main-dark.png`
 - Related: 0033, 0034, 0036, 0039, 0041

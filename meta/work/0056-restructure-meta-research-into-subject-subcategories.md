@@ -1,6 +1,6 @@
 ---
 work_item_id: "0056"
-title: "Restructure meta/research/ into Subject Subcategories"
+title: "Restructure meta/research/codebase/ into Subject Subcategories"
 date: "2026-05-11T16:39:44+00:00"
 author: Toby Clemson
 type: story
@@ -10,7 +10,7 @@ parent: ""
 tags: [meta, paths, migration, research, configuration]
 ---
 
-# 0056: Restructure meta/research/ into Subject Subcategories
+# 0056: Restructure meta/research/codebase/ into Subject Subcategories
 
 **Type**: Story
 **Status**: Ready
@@ -19,7 +19,7 @@ tags: [meta, paths, migration, research, configuration]
 
 ## Summary
 
-As an Accelerator plugin author, I want `meta/research/` subcategorised by
+As an Accelerator plugin author, I want `meta/research/codebase/` subcategorised by
 subject — codebase, issues, design-inventories, design-gaps — so that
 research artifacts of different shapes have predictable homes, the
 subcategory pattern is established for the forthcoming idea/concept
@@ -30,16 +30,16 @@ under the research umbrella where they conceptually belong.
 
 ## Context
 
-`meta/research/` is currently a flat directory holding ~36 single-document
+`meta/research/codebase/` is currently a flat directory holding ~36 single-document
 artifacts that mix codebase analyses, issue research, strategy notes, and
-historical design work. `meta/design-inventories/` and `meta/design-gaps/`
+historical design work. `meta/research/design-inventories/` and `meta/research/design-gaps/`
 sit at the top of `meta/` as a deliberate, temporary deferral from the
-design-convergence workflow rollout — they were kept out of `meta/research/`
+design-convergence workflow rollout — they were kept out of `meta/research/codebase/`
 because the flat layout would have been the worst of both worlds.
 
 The forcing function is a forthcoming idea/concept research skill that will
 produce multi-document research per topic. Shipping it into the current flat
-layout would either further overload `meta/research/`'s mixed bag or commit
+layout would either further overload `meta/research/codebase/`'s mixed bag or commit
 to a structural decision under time pressure. This work resolves the
 structural question first so the skill can land cleanly.
 
@@ -55,12 +55,12 @@ renamed, and consumed by agents via `accelerator:paths`.
 
 - Create `meta/research/codebase/`, `meta/research/issues/`,
   `meta/research/design-inventories/`, and `meta/research/design-gaps/`.
-- Move existing flat `meta/research/*.md` wholesale into
+- Move existing flat `meta/research/codebase/*.md` wholesale into
   `meta/research/codebase/`.
-- Move `meta/design-inventories/*` into `meta/research/design-inventories/`.
-- Move `meta/design-gaps/*` into `meta/research/design-gaps/`.
-- Remove the now-empty top-level `meta/design-inventories/` and
-  `meta/design-gaps/`.
+- Move `meta/research/design-inventories/*` into `meta/research/design-inventories/`.
+- Move `meta/research/design-gaps/*` into `meta/research/design-gaps/`.
+- Remove the now-empty top-level `meta/research/design-inventories/` and
+  `meta/research/design-gaps/`.
 - Preserve VCS rename history on all moves (use the `_move_if_pending`
   helper pattern from
   `skills/config/migrate/migrations/0003-relocate-accelerator-state.sh:32-64`,
@@ -90,15 +90,15 @@ renamed, and consumed by agents via `accelerator:paths`.
 - Add a migration that performs:
   - Filesystem moves for all three directory groups (flat research, design
     inventories, design gaps) with VCS rename history preserved.
-  - Removal of obsolete top-level `meta/design-inventories/` and
-    `meta/design-gaps/`.
+  - Removal of obsolete top-level `meta/research/design-inventories/` and
+    `meta/research/design-gaps/`.
   - Config key rewrites for the three renamed keys, preserving any
     user-customised values (non-interactive rewrite (no prompt) with a
     per-key one-line stdout notification).
   - Addition of the new key `paths.research_issues` with its default
     value.
-  - Rewriting of inbound `meta/research/*.md`, `meta/design-inventories/*`,
-    and `meta/design-gaps/*` references inside `meta/**/*.md` files to point
+  - Rewriting of inbound `meta/research/codebase/*.md`, `meta/research/design-inventories/*`,
+    and `meta/research/design-gaps/*` references inside `meta/**/*.md` files to point
     at the new subcategory paths.
 - The migration must be idempotent and inherit the framework's
   dirty-working-tree guard.
@@ -131,7 +131,7 @@ renamed, and consumed by agents via `accelerator:paths`.
 - Splitting top-level `research/` and `analysis/`.
 - Introducing a `meta/strategy/` home for external research.
 - Building the forthcoming idea/concept research skill. The
-  `paths.research_ideas` key and `meta/research/ideas/` directory are
+  `paths.research_ideas` key and `meta/research/codebase/ideas/` directory are
   also out of scope and will land with that skill's own work item — this
   work establishes the subcategory pattern so the skill can extend it
   without re-litigating structure.
@@ -146,9 +146,9 @@ renamed, and consumed by agents via `accelerator:paths`.
   and no `paths.research`, `paths.design_inventories`, or
   `paths.design_gaps`.
 - [ ] Given a userspace repo on the legacy layout, when I run
-  `accelerator:migrate`, then all flat-laid `meta/research/*.md` files move
-  to `meta/research/codebase/`, `meta/design-inventories/*` moves to
-  `meta/research/design-inventories/`, `meta/design-gaps/*` moves to
+  `accelerator:migrate`, then all flat-laid `meta/research/codebase/*.md` files move
+  to `meta/research/codebase/`, `meta/research/design-inventories/*` moves to
+  `meta/research/design-inventories/`, `meta/research/design-gaps/*` moves to
   `meta/research/design-gaps/`, and the obsolete top-level directories are
   removed.
 - [ ] Given a userspace repo where `paths.research`,
@@ -198,7 +198,7 @@ renamed, and consumed by agents via `accelerator:paths`.
   "Research (design-inventories)", "Research (design-gaps)") rather
   than a flat "Research" group.
 - [ ] Given the `documents-locator` agent definition is inspected, then
-  it contains no inline directory map hardcoding `meta/research/` or
+  it contains no inline directory map hardcoding `meta/research/codebase/` or
   similar paths, and its frontmatter declares `skills: [accelerator:paths]`
   for path discovery.
 - [ ] Given `research-codebase` runs in a migrated repo, when it writes an
@@ -209,10 +209,10 @@ renamed, and consumed by agents via `accelerator:paths`.
   research artifacts, then all four subcategories are listed with their
   purposes.
 - [ ] Given a fresh repo, when I run `accelerator:configure`, then
-  `paths.research_codebase` defaults to `meta/research/codebase`,
-  `paths.research_issues` to `meta/research/issues`,
-  `paths.research_design_inventories` to `meta/research/design-inventories`,
-  and `paths.research_design_gaps` to `meta/research/design-gaps`.
+  `paths.research_codebase` defaults to `meta/research/codebase/codebase`,
+  `paths.research_issues` to `meta/research/codebase/issues`,
+  `paths.research_design_inventories` to `meta/research/codebase/design-inventories`,
+  and `paths.research_design_gaps` to `meta/research/codebase/design-gaps`.
 - [ ] Given the migration has run, when `jj log --follow <new-path>` (or
   `git log --follow`) is invoked on any migrated file, then the history
   shows the file's pre-migration commits, confirming move-semantics
@@ -231,13 +231,13 @@ renamed, and consumed by agents via `accelerator:paths`.
   tree is inspected, then `meta/research/codebase/`,
   `meta/research/design-inventories/`, and `meta/research/design-gaps/`
   contain the previously-flat or previously-top-level content, and no
-  legacy top-level `meta/design-inventories/` or `meta/design-gaps/`
+  legacy top-level `meta/research/design-inventories/` or `meta/research/design-gaps/`
   directories remain.
 - [ ] Given `scripts/research-metadata.sh` is inspected after the work
   lands, then it contains no hardcoded `meta/research` literal that
   would bypass the configured path resolution.
 - [ ] Given a developer reads the README, when they look for references
-  to `meta/research/`, `meta/design-inventories/`, or `meta/design-gaps/`,
+  to `meta/research/codebase/`, `meta/research/design-inventories/`, or `meta/research/design-gaps/`,
   then all narrative prose, tables, and ASCII diagrams reference the new
   subcategory paths.
 - [ ] Given a userspace repo where none of `paths.research`,
@@ -288,7 +288,7 @@ renamed, and consumed by agents via `accelerator:paths`.
 
 ## Technical Notes
 
-**Size**: L — ~38 file moves in `meta/research/` plus design-inventories
+**Size**: L — ~38 file moves in `meta/research/codebase/` plus design-inventories
 and design-gaps moves; in-tree plugin application plus the userspace
 migration; lockstep edits to 9+ files (`config-defaults.sh`, `init.sh`,
 `config-read-all-paths.sh`, `paths/SKILL.md`, `research-codebase/SKILL.md`,
@@ -377,7 +377,7 @@ both scan corpus and old/new path values.
 - README `meta/` table at `README.md:84-95` lists `research/`,
   `design-inventories/`, and `design-gaps/` rows that need replacing.
   Additionally, narrative prose at lines 42, 47, 64, 409, and 413
-  references `meta/research/` literally — including the ASCII flow
+  references `meta/research/codebase/` literally — including the ASCII flow
   diagram at lines 408-415 — and must be revised in lockstep.
 
 ## Drafting Notes
@@ -396,11 +396,11 @@ both scan corpus and old/new path values.
   skill or a separate forcing function.
 - Forthcoming idea/concept research skill is *not* in scope; its
   directory and path key (`paths.research_ideas`,
-  `meta/research/ideas/`) will land with its own work item, extending
+  `meta/research/codebase/ideas/`) will land with its own work item, extending
   the subcategory pattern established here.
 - `documents-locator` updates routed via `accelerator:paths` rather than
   inline directory-map edits, matching the direction established by 0052.
-- Existing flat `meta/research/*.md` files are dropped wholesale into
+- Existing flat `meta/research/codebase/*.md` files are dropped wholesale into
   `meta/research/codebase/` rather than hand-categorised, accepting some
   legacy strategy/idea notes will live under `codebase/` until anyone cares
   to re-categorise.
@@ -408,7 +408,7 @@ both scan corpus and old/new path values.
 ## References
 
 - Source note: `meta/notes/2026-05-02-research-directory-subcategory-restructure.md`
-- `meta/research/2026-05-02-design-convergence-workflow.md` — §9.8 discusses
+- `meta/research/codebase/2026-05-02-design-convergence-workflow.md` — §9.8 discusses
   why nested layout was deferred at the time.
 - `meta/work/0030-centralise-path-defaults.md` — path defaults centralisation
   this work builds on.

@@ -142,7 +142,7 @@ the database lens absorbed query performance from the performance lens.
 
 ## References
 
-- `meta/research/2026-03-15-review-lens-optimal-structure.md` — PBR foundation,
+- `meta/research/codebase/2026-03-15-review-lens-optimal-structure.md` — PBR foundation,
   boundary statement design, structural invariants, and optimal lens template
 - `meta/plans/2026-03-15-new-review-lenses.md` — Concern ownership transfers in
   practice (documentation from standards, query performance from performance,

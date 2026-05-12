@@ -110,7 +110,7 @@ the review completes.
 
 ## References
 
-- `meta/research/2026-02-22-pr-review-agents-design.md` — Shared temp directory
+- `meta/research/codebase/2026-02-22-pr-review-agents-design.md` — Shared temp directory
   design and hybrid diff access strategy
 - `meta/decisions/ADR-0002-three-layer-review-architecture.md` — Three-layer
   architecture that this pipeline serves

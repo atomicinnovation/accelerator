@@ -3569,7 +3569,7 @@ explicitly.
 - `meta/specs/2026-04-17-meta-visualisation-design.md` — spec, esp.
   "Failure modes" matrix and "Non-functional > Observability,
   Accessibility, Versioning."
-- `meta/research/2026-04-17-meta-visualiser-implementation-context.md` —
+- `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md` —
   Phase 10 description (lines 1128–1138), §3 init sentinel, D8/D10
   release pipeline.
 

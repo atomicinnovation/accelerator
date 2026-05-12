@@ -825,7 +825,7 @@ documentation to each plan that introduces keys. This plan must:
 
 - Plan 1: `meta/plans/2026-03-23-config-infrastructure.md`
 - Plan 2: `meta/plans/2026-03-23-context-and-agent-customisation.md`
-- Research: `meta/research/2026-03-22-skill-customisation-and-override-patterns.md`
+- Research: `meta/research/codebase/2026-03-22-skill-customisation-and-override-patterns.md`
 - Review PR skill: `skills/github/review-pr/SKILL.md`
 - Review plan skill: `skills/planning/review-plan/SKILL.md`
 - Lens structure analysis: (see research agents output in this session)

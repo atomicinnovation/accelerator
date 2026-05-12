@@ -1340,11 +1340,11 @@ five lenses for Phase 5D to close.
 
 #### 4. Narrative cross-lens boundary record (relocated)
 
-**File**: `meta/research/2026-04-24-cross-lens-boundary-check.md`
+**File**: `meta/research/codebase/2026-04-24-cross-lens-boundary-check.md`
 (relocated from `skills/tickets/review-ticket/evals/` per the
 standards review — `evals/` is reserved for the canonical
 `evals.json` + `benchmark.json` + `files/` structure; narrative
-one-shot records belong in `meta/research/`).
+one-shot records belong in `meta/research/codebase/`).
 
 **Contents**: Markdown file with the following structure:
 
@@ -1468,7 +1468,7 @@ automated check rather than manual inspection.
       reads as a concrete peer reference.
 - [ ] Open `completeness-lens/SKILL.md` and confirm Core
       Responsibility 3 has been narrowed per Changes #2.
-- [ ] Open `meta/research/2026-04-24-cross-lens-boundary-check.md`
+- [ ] Open `meta/research/codebase/2026-04-24-cross-lens-boundary-check.md`
       and confirm every row's "Respected boundary?" column is
       `yes`. Any `no` row is a bug filed against the offending
       lens.
@@ -1541,7 +1541,7 @@ scope-boundary invariant on every future prose edit — they are
 a *recurring regression suite*, not a one-shot milestone.
 
 A narrative summary of the 5D boundary-eval run is also
-captured in `meta/research/2026-04-24-cross-lens-boundary-check.md`
+captured in `meta/research/codebase/2026-04-24-cross-lens-boundary-check.md`
 for plan-reviewer convenience (relocated from the
 `skills/tickets/review-ticket/evals/` path in earlier plan
 drafts — `evals/` is reserved for the canonical evals structure).
@@ -1588,7 +1588,7 @@ across all five lenses.
    Confirm the three updated lens SKILL.md files no longer
    contain "(Phase 5)" and all references to the lens identifier
    use `dependency` (singular). Inspect
-   `meta/research/2026-04-24-cross-lens-boundary-check.md` and
+   `meta/research/codebase/2026-04-24-cross-lens-boundary-check.md` and
    confirm every row's "Respected boundary?" column is `yes`.
 
 ## Performance Considerations
@@ -1647,7 +1647,7 @@ across all five lenses.
 ## References
 
 - Research document:
-  `meta/research/2026-04-08-ticket-management-skills.md`
+  `meta/research/codebase/2026-04-08-ticket-management-skills.md`
   (Phase 5 section).
 - Prior phase plan (direct dependency):
   `meta/plans/2026-04-22-ticket-review-core.md` — especially

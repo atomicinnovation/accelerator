@@ -129,9 +129,9 @@ always has something to work with.
 
 ## References
 
-- `meta/research/2026-02-22-pr-review-inline-comments.md` — PR output schema
+- `meta/research/codebase/2026-02-22-pr-review-inline-comments.md` — PR output schema
   design, JSON format definition, and malformed output extraction strategy
-- `meta/research/2026-02-22-review-plan-pr-alignment.md` — Plan vs PR schema
+- `meta/research/codebase/2026-02-22-review-plan-pr-alignment.md` — Plan vs PR schema
   comparison and intentional divergence rationale
 - `meta/plans/2026-02-22-review-plan-alignment.md` — Plan schema definition
   with `location` field and single `findings` array

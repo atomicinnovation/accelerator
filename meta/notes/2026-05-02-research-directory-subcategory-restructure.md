@@ -1,12 +1,12 @@
-# Future Work: Restructure `meta/research/` into subcategories
+# Future Work: Restructure `meta/research/codebase/` into subcategories
 
 ## Problem
 
-`meta/research/` is currently a flat directory holding research documents of
+`meta/research/codebase/` is currently a flat directory holding research documents of
 heterogeneous types — codebase investigations (the bulk, produced by
 `research-codebase`), technical-spike write-ups, idea explorations, and now
 prospectively design-convergence research (`design-inventories`,
-`design-gaps` — see `meta/research/2026-05-02-design-convergence-workflow.md`).
+`design-gaps` — see `meta/research/codebase/2026-05-02-design-convergence-workflow.md`).
 
 As the research corpus grows, the flat layout starts to obscure rather than
 help — finding "the codebase research about X" requires scanning past unrelated
@@ -14,7 +14,7 @@ exploratory notes; future tooling that wants to operate on a specific kind of
 research (e.g. enumerate all codebase investigations) has no structural
 affordance to do so.
 
-A nested layout — e.g. `meta/research/codebase/`, `meta/research/ideas/`,
+A nested layout — e.g. `meta/research/codebase/`, `meta/research/codebase/ideas/`,
 `meta/research/design-inventories/`, `meta/research/design-gaps/` — would
 group research by kind, mirror the `documents-locator` agent's existing
 mental model of "categories of research", and create a natural home for new
@@ -25,7 +25,7 @@ research types as they emerge.
 It is a bigger structural change than its surface suggests:
 
 1. **Migration of existing files.** Every existing flat-laid file in
-   `meta/research/` needs a target subdirectory. The categorisation is mostly
+   `meta/research/codebase/` needs a target subdirectory. The categorisation is mostly
    obvious for the codebase-research files but ambiguous for one-off notes
    that don't fit a clean bucket.
 2. **`research-codebase` skill path resolution.** The skill's filename
@@ -57,13 +57,13 @@ ADR, its own implementation plan, and its own migration commit.
 
 The introduction of the design-convergence workflow (`design-inventories` and
 `design-gaps`, captured in
-`meta/research/2026-05-02-design-convergence-workflow.md`) was the first
+`meta/research/codebase/2026-05-02-design-convergence-workflow.md`) was the first
 moment the flat layout felt actively wrong — design inventories are
 distinctly not codebase research, and pluralising a flat directory with
 artifacts of a different shape would be the worst of both worlds.
 
 The choice taken in that work was to keep the inventories at top-level
-(`meta/design-inventories/`, `meta/design-gaps/`) rather than nest them under
+(`meta/research/design-inventories/`, `meta/research/design-gaps/`) rather than nest them under
 research. That keeps the design-convergence work clean but defers — does
 not resolve — the question of how research itself should be organised.
 
@@ -79,7 +79,7 @@ also surface useful prior art: its `paths.design_inventories` /
 1. Write an ADR (`Research directory subcategorisation`) capturing the
    subcategories chosen, the rule for when a new subcategory is added, and
    the migration approach (rename existing files; preserve git history).
-2. Survey all existing inbound references to `meta/research/*.md` from plans,
+2. Survey all existing inbound references to `meta/research/codebase/*.md` from plans,
    ADRs, work items, and READMEs; plan the rename so git tracks moves
    cleanly.
 3. Update `research-codebase` to write into the appropriate subdirectory
@@ -90,9 +90,9 @@ also surface useful prior art: its `paths.design_inventories` /
 
 ## References
 
-- `meta/research/2026-05-02-design-convergence-workflow.md` — the work that
+- `meta/research/codebase/2026-05-02-design-convergence-workflow.md` — the work that
   surfaced this; see §9.8 (rejected alternative: nested layout under
-  `meta/research/`) for the discussion at the time.
+  `meta/research/codebase/`) for the discussion at the time.
 - `agents/documents-locator.md` — agent whose directory map would need
   restructuring.
 - `skills/research/research-codebase/SKILL.md` — skill whose path

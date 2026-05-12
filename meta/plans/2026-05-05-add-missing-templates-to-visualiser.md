@@ -46,7 +46,7 @@ A secondary finding: the test infrastructure lags behind the live config script 
 ## Desired End State
 
 - The visualiser sidebar shows "Design gaps" and "Design inventories" as document sections.
-- Documents in `meta/design-gaps/` and `meta/design-inventories/` are indexed, browsable, and appear in lifecycle clusters.
+- Documents in `meta/research/design-gaps/` and `meta/research/design-inventories/` are indexed, browsable, and appear in lifecycle clusters.
 - The visualiser templates page lists all 8 templates including `design-gap` and `design-inventory`.
 - All tests pass; count assertions reflect 13 doc types and 8 templates.
 
@@ -182,8 +182,8 @@ Both types are added to `Completeness` with `longTail: true` in the frontend pip
 
 After line 59 (after `PRS="$(abs_path prs meta/prs)"`), add:
 ```bash
-DESIGN_GAPS="$(abs_path design_gaps meta/design-gaps)"
-DESIGN_INVENTORIES="$(abs_path design_inventories meta/design-inventories)"
+DESIGN_GAPS="$(abs_path design_gaps meta/research/design-gaps)"
+DESIGN_INVENTORIES="$(abs_path design_inventories meta/research/design-inventories)"
 ```
 
 Add two `--arg` flags to the `jq -n` call (after `--arg prs "$PRS"`):
@@ -349,8 +349,8 @@ doc_paths.insert("design_inventories".into(), meta.join("design-inventories"));
 
 After `"prs": "/abs/path/to/project/meta/prs"`, add:
 ```json
-"design_gaps": "/abs/path/to/project/meta/design-gaps",
-"design_inventories": "/abs/path/to/project/meta/design-inventories"
+"design_gaps": "/abs/path/to/project/meta/research/design-gaps",
+"design_inventories": "/abs/path/to/project/meta/research/design-inventories"
 ```
 
 > **Note on `review_work`**: The live config script also produces a `review_work` doc path key, but both JSON fixtures already omit it (a pre-existing gap). Adding `review_work` to the fixtures is out of scope for this plan; the static fixture and live script will continue to diverge on that key. The `config.rs` inline test (`parses_valid_config`) counts fixture entries only, so the assertion updating from 9 → 11 is correct for these two fixtures as they stand.
@@ -448,8 +448,8 @@ The exact rendering implementation depends on how the existing long-tail section
 #### Manual Verification
 
 - [ ] "Design gaps" and "Design inventories" appear in the visualiser sidebar
-- [ ] Creating a `.md` file in `meta/design-gaps/` causes it to appear in the library under "Design gaps"
-- [ ] Creating a `.md` file in `meta/design-inventories/` causes it to appear under "Design inventories"
+- [ ] Creating a `.md` file in `meta/research/design-gaps/` causes it to appear in the library under "Design gaps"
+- [ ] Creating a `.md` file in `meta/research/design-inventories/` causes it to appear under "Design inventories"
 - [ ] Both doc types appear in lifecycle clusters when their filenames share a slug with other docs
 - [ ] No regressions on existing doc types, kanban, or lifecycle views
 

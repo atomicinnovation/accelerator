@@ -76,5 +76,5 @@ body is its task prompt.
 
 ## Source References
 
-- `meta/research/2026-02-22-skills-agents-commands-refactoring.md` — Full
+- `meta/research/codebase/2026-02-22-skills-agents-commands-refactoring.md` — Full
   analysis of commands, skills, and agents

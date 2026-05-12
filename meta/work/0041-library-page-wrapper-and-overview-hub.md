@@ -27,7 +27,7 @@ The current app's `LibraryTypeView` renders a sortable table where sort is drive
 
 The current app's `/library` route redirects straight to `/library/decisions`, so there is no library-overview hub. The prototype provides a `library-overview` screen that groups the twelve doc types by lifecycle phase (Define / Build / Ship / Remember), with each group containing per-doc-type cards that show an icon, the doc-type label, the doc count, and a "latest · {title}" preview.
 
-Reference screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view.png` (overview hub), `library-decisions.png`, `library-type-view.png` (page wrapper on type views).
+Reference screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view.png` (overview hub), `library-decisions.png`, `library-type-view.png` (page wrapper on type views).
 
 ## Requirements
 
@@ -82,6 +82,6 @@ Reference screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-
 
 ## References
 
-- Source: `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
-- Screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view.png`, `library-decisions.png`, `library-type-view.png`
+- Source: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+- Screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view.png`, `library-decisions.png`, `library-type-view.png`
 - Related: 0033, 0037, 0038, 0042

@@ -823,7 +823,7 @@ are still relevant and add the new items. The merged list should be:
 
 ## References
 
-- Research document: `meta/research/2026-02-22-pr-review-inline-comments.md`
+- Research document: `meta/research/codebase/2026-02-22-pr-review-inline-comments.md`
 - Reference command patterns: `~/.claude/temp-review-gh.md` (ephemeral
   reference that informed the design; not required for implementation)
 - GitHub Reviews API: `POST /repos/{owner}/{repo}/pulls/{number}/reviews`

@@ -726,7 +726,7 @@ The respond-to-pr skill fills a gap in the development lifecycle:
 ## References
 
 - Research document:
-  `~/.claude/meta/research/2026-02-23-respond-to-pr-feedback-skill.md`
+  `~/.claude/meta/research/codebase/2026-02-23-respond-to-pr-feedback-skill.md`
 - Primary pattern (PR API interaction):
   `~/.claude/skills/review-pr/SKILL.md`
 - Pattern (GitHub write operations):

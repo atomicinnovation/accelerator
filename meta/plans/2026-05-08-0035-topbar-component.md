@@ -1785,7 +1785,7 @@ for shipping its own `prefers-reduced-motion: reduce` override.
 ## References
 
 - Original work item: `meta/work/0035-topbar-component.md`
-- Research: `meta/research/2026-05-07-0035-topbar-component.md`
+- Research: `meta/research/codebase/2026-05-07-0035-topbar-component.md`
 - Related work items: `meta/work/0033-design-token-system.md`
   (shipped foundation), `meta/work/0034-theme-and-font-mode-toggles.md`
   (consumes our slots), `meta/work/0036-sidebar-redesign.md`,
@@ -1793,10 +1793,10 @@ for shipping its own `prefers-reduced-motion: reduce` override.
 - Pass-2 review of 0035:
   `meta/reviews/work/0035-topbar-component-review-1.md`
 - Design inventories:
-  - `meta/design-inventories/2026-05-06-140608-claude-design-prototype/`
-  - `meta/design-inventories/2026-05-06-135214-current-app/`
+  - `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/`
+  - `meta/research/design-inventories/2026-05-06-135214-current-app/`
 - Design gap source:
-  `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+  `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
 - Anchoring code:
   - `skills/visualisation/visualise/frontend/src/components/RootLayout/RootLayout.tsx:17-26`
   - `skills/visualisation/visualise/frontend/src/components/Sidebar/Sidebar.tsx:3,82`

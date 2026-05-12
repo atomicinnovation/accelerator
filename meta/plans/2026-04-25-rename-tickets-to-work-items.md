@@ -194,7 +194,7 @@ After this plan completes:
   This is a clean break (v1.9.0 precedent applies — surface is
   unreleased per CHANGELOG).
 - **No retroactive edits to historical research/plan/decision/review
-  documents** under `meta/research/`, `meta/plans/`, `meta/decisions/`,
+  documents** under `meta/research/codebase/`, `meta/plans/`, `meta/decisions/`,
   `meta/reviews/`, except where their cross-references are now broken
   paths and only to fix those broken paths. Prose stays as-written.
 - **No retroactive renames in CHANGELOG entries for already-released
@@ -279,7 +279,7 @@ sequential number; check `meta/decisions/` to determine)
 
 **Content**:
 - Context: original ticket research
-  (`meta/research/2026-04-08-ticket-management-skills.md`) introduced
+  (`meta/research/codebase/2026-04-08-ticket-management-skills.md`) introduced
   `ticket` without a documented alternatives review.
 - Decision: rename to `work` (category) and `work-item` (item type).
 - Consequences: removes service-desk connotation; aligns with
@@ -1024,7 +1024,7 @@ target file is now at `@meta/work/0007-foo.md` after Phase 5; or
 `skills/tickets/...` in code references):
 
 ```bash
-rg -l 'meta/tickets/|skills/tickets/' meta/ | grep -v 'meta/research/2026-04-25-rename-tickets-to-work-items.md'
+rg -l 'meta/tickets/|skills/tickets/' meta/ | grep -v 'meta/research/codebase/2026-04-25-rename-tickets-to-work-items.md'
 ```
 
 For each match, only update broken cross-references — do NOT rewrite
@@ -1819,7 +1819,7 @@ rewrite prose:
 
 ```bash
 rg -l 'meta/tickets/' meta/ \
-  | grep -v 'meta/research/2026-04-25-rename-tickets-to-work-items.md' \
+  | grep -v 'meta/research/codebase/2026-04-25-rename-tickets-to-work-items.md' \
   | grep -v 'meta/plans/2026-04-25-rename-tickets-to-work-items.md'
 ```
 
@@ -2101,10 +2101,10 @@ For users without VCS:
 
 ## References
 
-- Original research: `meta/research/2026-04-25-rename-tickets-to-work-items.md`
-- Foundational research: `meta/research/2026-04-08-ticket-management-skills.md`
-- Meta-directory philosophy: `meta/research/2026-03-18-meta-management-strategy.md`
-- Init-skill precedent: `meta/research/2026-03-28-initialise-skill-requirements.md`
+- Original research: `meta/research/codebase/2026-04-25-rename-tickets-to-work-items.md`
+- Foundational research: `meta/research/codebase/2026-04-08-ticket-management-skills.md`
+- Meta-directory philosophy: `meta/research/codebase/2026-03-18-meta-management-strategy.md`
+- Init-skill precedent: `meta/research/codebase/2026-03-28-initialise-skill-requirements.md`
 - Userspace config ADR: `meta/decisions/ADR-0016-userspace-configuration-model.md`
 - Init-skill ADR: `meta/decisions/ADR-0018-init-skill-for-repository-bootstrap.md`
 - v1.9.0 unreleased-rename precedent: `CHANGELOG.md:198-204`

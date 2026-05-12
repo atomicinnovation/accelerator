@@ -1069,7 +1069,7 @@ Known Phase 2 churn points introduced by this phase:
 
 ## References
 
-- Research: `meta/research/2026-04-17-meta-visualiser-implementation-context.md`
+- Research: `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md`
 - Design spec: `meta/specs/2026-04-17-meta-visualisation-design.md`
 - Plan review: `meta/reviews/plans/2026-04-18-meta-visualiser-phase-1-skill-scaffolding-review-1.md`
 - Canonical SKILL.md preamble: `skills/github/review-pr/SKILL.md:1-36`

@@ -25,7 +25,7 @@ Redesign the templates index to surface per-tier presence inline on each row (wi
 
 The current app's templates view (`/library/templates/{name}`) renders three stacked tier panels with an active-tier marker plus the rendered template body. The prototype's `templates-view` adds an inline tier-presence row on the index list (each tier shown with a `present`-state colour and a "winning" highlight), expands a chosen template into a stacked tier card alongside a separate right pane that renders the template body with a `sha256-…` etag header.
 
-Reference screenshot: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/templates-view.png`.
+Reference screenshot: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/templates-view.png`.
 
 ## Requirements
 
@@ -68,6 +68,6 @@ Reference screenshot: `meta/design-inventories/2026-05-06-140608-claude-design-p
 
 ## References
 
-- Source: `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
-- Screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/templates-view.png`
+- Source: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+- Screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/templates-view.png`
 - Related: 0033, 0037, 0038, 0041

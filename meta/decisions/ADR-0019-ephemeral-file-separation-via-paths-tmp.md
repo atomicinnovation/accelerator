@@ -134,7 +134,7 @@ clones.
 
 - `meta/work/0027-ephemeral-file-separation-via-paths-tmp.md` — Work item
   driving this ADR
-- `meta/research/2026-04-07-pr-review-tmp-directory-usage.md` — Research
+- `meta/research/codebase/2026-04-07-pr-review-tmp-directory-usage.md` — Research
   identifying the co-location problem and the conflict between root-level
   gitignore patterns and `.gitkeep` persistence
 - `meta/plans/2026-03-28-initialise-skill-and-review-pr-ephemeral-migration.md`

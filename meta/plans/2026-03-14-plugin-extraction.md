@@ -225,7 +225,7 @@ cp -r ~/.claude/meta/* ~/Code/organisations/atomic/company/accelerator/meta/
   `ls ~/Code/organisations/atomic/company/accelerator/meta/plans/*.md | wc -l`
   returns 6
 - [ ] Meta research copied:
-  `ls ~/Code/organisations/atomic/company/accelerator/meta/research/*.md | wc -l`
+  `ls ~/Code/organisations/atomic/company/accelerator/meta/research/codebase/*.md | wc -l`
   returns 7
 
 ---
@@ -828,6 +828,6 @@ implications.
 
 ## References
 
-- Research: `~/.claude/meta/research/2026-03-14-plugin-extraction.md`
+- Research: `~/.claude/meta/research/codebase/2026-03-14-plugin-extraction.md`
 - Plugin spec: https://code.claude.com/docs/en/plugins-reference
 - Plugin tutorial: https://code.claude.com/docs/en/plugins

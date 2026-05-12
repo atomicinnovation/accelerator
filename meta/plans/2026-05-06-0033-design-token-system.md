@@ -478,7 +478,7 @@ describe('readCssVar truncation guard', () => {
 named exports (light/dark colour, typography, spacing, radius,
 light/dark shadow). Token names and values come from the inventory
 at
-`meta/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`
+`meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`
 (sections "Active semantic layer — `--ac-*` (light)", "Active
 semantic layer — `--ac-*` (dark)", "Typography", "Spacing", "Radius",
 "Shadow"). Keep the `COLOR_TOKENS` export in place — annotated
@@ -2163,15 +2163,15 @@ the percentage ladder (8% / 18% / 30%), the composition surface
 ## References
 
 - Work item: `meta/work/0033-design-token-system.md`
-- Research: `meta/research/2026-05-06-0033-design-token-system.md`
-- Token source: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`
+- Research: `meta/research/codebase/2026-05-06-0033-design-token-system.md`
+- Token source: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`
   (sections "Active semantic layer — `--ac-*` (light)", "Active
   semantic layer — `--ac-*` (dark, overrides under `[data-theme="dark"]`)" —
   inventory lines 154–155 specify per-theme `--ac-shadow-*` overrides;
   "Typography", "Spacing", "Radius", "Shadow")
 - Baseline screenshots (informational; Playwright captures its own baselines
-  in Phase 1): `meta/design-inventories/2026-05-06-135214-current-app/screenshots/`
-- Target screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
+  in Phase 1): `meta/research/design-inventories/2026-05-06-135214-current-app/screenshots/`
+- Target screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
   `main-dark.png`
 - Existing parity-test idiom: `skills/visualisation/visualise/frontend/src/styles/contrast.test.ts:6-18`
 - Vitest + Vite setup: `skills/visualisation/visualise/frontend/vite.config.ts`,

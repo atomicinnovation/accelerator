@@ -11,7 +11,7 @@ status: approved
 ## Overview
 
 Implement the inventory-and-diff design convergence workflow described in
-`meta/research/2026-05-02-design-convergence-workflow.md`: two new skills
+`meta/research/codebase/2026-05-02-design-convergence-workflow.md`: two new skills
 (`inventory-design`, `analyse-design-gaps`) under a new `skills/design/`
 category, two new agents (`browser-locator`, `browser-analyser`), two new
 artifact templates, a new MCP server dependency on Playwright, and the
@@ -109,7 +109,7 @@ Verification of end state:
 - `mise run test` passes (all bash and pytest suites green, eval
   benchmarks ≥ 0.9).
 - `/accelerator:init` creates 14 directories including
-  `meta/design-inventories/` and `meta/design-gaps/`, each with
+  `meta/research/design-inventories/` and `meta/research/design-gaps/`, each with
   `.gitkeep`.
 - `/accelerator:configure paths help` lists `design_inventories` and
   `design_gaps` with their defaults.
@@ -171,7 +171,7 @@ Verification of end state:
 
 The following items are explicitly out of scope:
 
-- **Restructuring `meta/research/` into subcategories** (research §9.8).
+- **Restructuring `meta/research/codebase/` into subcategories** (research §9.8).
   A separate ADR is the right home for that change.
 - **Multi-viewport inventories** (research §OQ #5). The first cut treats
   each viewport as a separate `source` (e.g. `prototype-desktop`,
@@ -495,10 +495,10 @@ assert_contains "design-gap resolves to plugin templates dir" \
   "$RESOLVED" "templates/design-gap.md"
 
 echo "=== design path keys: defaults work ==="
-ACTUAL=$("$READ_VALUE" paths.design_inventories meta/design-inventories)
-assert_eq "design_inventories default" "meta/design-inventories" "$ACTUAL"
-ACTUAL=$("$READ_VALUE" paths.design_gaps meta/design-gaps)
-assert_eq "design_gaps default" "meta/design-gaps" "$ACTUAL"
+ACTUAL=$("$READ_VALUE" paths.design_inventories meta/research/design-inventories)
+assert_eq "design_inventories default" "meta/research/design-inventories" "$ACTUAL"
+ACTUAL=$("$READ_VALUE" paths.design_gaps meta/research/design-gaps)
+assert_eq "design_gaps default" "meta/research/design-gaps" "$ACTUAL"
 ```
 
 Add a structural test file at `scripts/test-design.sh` (new — see
@@ -518,9 +518,9 @@ README="$PLUGIN_ROOT/README.md"
 
 echo "=== Foundation: init SKILL.md ==="
 assert_contains "init lists design_inventories path key" \
-  "$(cat "$INIT")" "design_inventories meta/design-inventories"
+  "$(cat "$INIT")" "design_inventories meta/research/design-inventories"
 assert_contains "init lists design_gaps path key" \
-  "$(cat "$INIT")" "design_gaps meta/design-gaps"
+  "$(cat "$INIT")" "design_gaps meta/research/design-gaps"
 # Use a structured marker, not a literal count, so the assertion
 # does not couple to the directory-count number.
 # The init SKILL.md edit also adds:
@@ -1865,9 +1865,9 @@ Three-step example:
 /accelerator:analyse-design-gaps current prototype
 ```
 
-The resulting gap artifact under `meta/design-gaps/` feeds straight
+The resulting gap artifact under `meta/research/design-gaps/` feeds straight
 into `/accelerator:extract-work-items <gap-file>`. See
-[`meta/research/2026-05-02-design-convergence-workflow.md`](meta/research/2026-05-02-design-convergence-workflow.md)
+[`meta/research/codebase/2026-05-02-design-convergence-workflow.md`](meta/research/codebase/2026-05-02-design-convergence-workflow.md)
 for the full design rationale.
 
 `inventory-design` supports three crawler modes — `code` (static
@@ -2067,7 +2067,7 @@ keys.
 ## References
 
 - Original research:
-  `meta/research/2026-05-02-design-convergence-workflow.md`
+  `meta/research/codebase/2026-05-02-design-convergence-workflow.md`
 - Related note (out of scope):
   `meta/notes/2026-05-02-research-directory-subcategory-restructure.md`
 - ADR informing agent split:
