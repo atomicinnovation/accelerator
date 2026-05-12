@@ -1,5 +1,6 @@
 export const THEME_STORAGE_KEY = 'ac-theme'
 export const FONT_MODE_STORAGE_KEY = 'ac-font-mode'
+export const SEEN_DOC_TYPES_STORAGE_KEY = 'ac-seen-doc-types'
 
 /**
  * Inlined boot script sourced by the Vite bootThemePlugin. A classic
