@@ -31,7 +31,10 @@ Group findings by the path key they came from. Each key has a single
 document type (see the **Path legend** in the preloaded skill block):
 
 - `work` — work items
-- `research` — research documents
+- `research_codebase` — codebase research documents
+- `research_issues` — issue / RCA research documents
+- `research_design_inventories` — design-inventory artifacts (one directory per snapshot, with screenshots/)
+- `research_design_gaps` — design-gap analysis artifacts
 - `plans` — implementation plans
 - `decisions` — architectural decisions
 - `validations` — plan validation reports
@@ -74,8 +77,17 @@ Structure your findings like this:
 ### Work Items
 - `{work}/0001-implement-rate-limiting.md` - Implement rate limiting for API
 
-### Research Documents
-- `{research}/2024-01-15_rate_limiting_approaches.md` - Research on different rate limiting strategies
+### Research (codebase)
+- `{research_codebase}/2024-01-15_rate_limiting_approaches.md` - Research on different rate limiting strategies
+
+### Research (issues)
+- `{research_issues}/2024-02-08_outage_rca.md` - RCA for the rate-limit outage
+
+### Research (design-inventories)
+- `{research_design_inventories}/2024-03-01-rate-limit-ui/inventory.md` - Snapshot of rate-limit UI surfaces
+
+### Research (design-gaps)
+- `{research_design_gaps}/2024-03-02-rate-limit-gaps.md` - Gap analysis for rate-limit design
 
 ### Implementation Plans
 - `{plans}/api-rate-limiting.md` - Detailed implementation plan for rate limits
@@ -96,8 +108,11 @@ Structure your findings like this:
 Total: 8 relevant documents found
 ```
 
-Where `{research}`, `{plans}`, etc. are the resolved paths from the Configured
-Paths block.
+Where `{research_codebase}`, `{research_issues}`,
+`{research_design_inventories}`, `{research_design_gaps}`, `{plans}`,
+etc. are the resolved paths from the Configured Paths block. Omit any
+`### Research (…)` group that contains zero findings; prefer rendering
+only the subcategories with actual hits.
 
 ## Search Tips
 
@@ -109,7 +124,7 @@ Paths block.
 
 2. **Check multiple locations** — different queries call for different paths:
 
-- Historic intent and context: `research`, `plans`, `decisions`
+- Historic intent and context: `research_codebase`, `research_issues`, `research_design_inventories`, `research_design_gaps`, `plans`, `decisions`
 - Recent activity: `prs`, `review_prs`, `review_plans`, `review_work`
 - Quality / risk signals: `validations`, `review_*`
 - Active in-flight work: `work`, `plans`
