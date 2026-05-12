@@ -161,8 +161,11 @@ build_scan_corpus() {
         }
       ' \
     | while IFS= read -r v; do
-        [ -d "$PROJECT_ROOT/$v" ] && printf '%s\n' "$PROJECT_ROOT/$v"
+        if [ -d "$PROJECT_ROOT/$v" ]; then
+          printf '%s\n' "$PROJECT_ROOT/$v"
+        fi
       done
+  return 0
 }
 
 _preflight_scan_corpus_clean() {
@@ -478,3 +481,80 @@ if [ "$RESEARCH_HAD_OVERRIDE" = "1" ]; then
     _inject_research_issues "$cfg"
   done
 fi
+
+# ── Step 3: inbound-link rewriting ───────────────────────────────────────────
+# Walk every directory surfaced by accelerator:paths and rewrite each
+# (old, new) prefix pair using an awk script that anchors matches on a
+# path-segment boundary character class. Pair 1 (research → research/codebase)
+# is excluded from re-matching paths whose next segment names a known
+# sibling subcategory (codebase, issues, design-inventories, design-gaps),
+# which makes the rewrite idempotent under re-runs.
+
+PAIRS=()
+PAIRS+=("$OLD_RESEARCH"$'\t'"$NEW_RESEARCH_CODEBASE")
+[ "$INV_HAD_OVERRIDE" = "1" ]  || PAIRS+=("$OLD_INV"$'\t'"$NEW_INV")
+[ "$GAPS_HAD_OVERRIDE" = "1" ] || PAIRS+=("$OLD_GAPS"$'\t'"$NEW_GAPS")
+
+_corpus_count=$(build_scan_corpus | wc -l | tr -d ' ')
+echo "0004 Step 3: scanning ${_corpus_count} configured paths for inbound references…"
+
+rewrite_file_with_pairs() {
+  local file="$1"
+  local entry old new
+  local research_subcat_exclusion="codebase|issues|design-inventories|design-gaps"
+  for entry in "${PAIRS[@]+"${PAIRS[@]}"}"; do
+    old="${entry%$'\t'*}"; new="${entry#*$'\t'}"
+    awk -v old="$old" -v new="$new" -v exclusion="$research_subcat_exclusion" '
+      function build_excl(s,    parts, i, n) {
+        delete excl
+        if (s == "") return
+        n = split(s, parts, "|")
+        for (i = 1; i <= n; i++) if (parts[i] != "") excl[parts[i]] = 1
+      }
+      function is_boundary(c) {
+        return (c == "" || c == "/" || c == "\"" || c == "\x27" \
+                || c == " " || c == "\t" || c == ")" \
+                || c == "]" || c == "#")
+      }
+      function rewrite_line(line,    out, idx, after, ch, j, sch, segment, skip) {
+        out = ""
+        while ((idx = index(line, old)) > 0) {
+          out = out substr(line, 1, idx - 1)
+          after = idx + length(old)
+          ch = substr(line, after, 1)
+          skip = 1
+          if (is_boundary(ch)) {
+            skip = 0
+            if (ch == "/" && length(excl) > 0) {
+              segment = ""
+              for (j = after + 1; j <= length(line); j++) {
+                sch = substr(line, j, 1)
+                if (is_boundary(sch)) break
+                segment = segment sch
+              }
+              if (segment in excl) skip = 1
+            }
+          }
+          if (!skip) {
+            out = out new
+            line = substr(line, after)
+          } else {
+            # Boundary failed or sibling-subcategory match — advance one
+            # char of OLD and keep scanning from the next position.
+            out = out substr(line, idx, 1)
+            line = substr(line, idx + 1)
+          }
+        }
+        return out line
+      }
+      BEGIN { build_excl(exclusion) }
+      { print rewrite_line($0) }
+    ' "$file" > "$file.0004.tmp" && mv "$file.0004.tmp" "$file"
+  done
+}
+
+while IFS= read -r dir; do
+  while IFS= read -r -d '' file; do
+    rewrite_file_with_pairs "$file"
+  done < <(find "$dir" -type f -name '*.md' -print0 2>/dev/null)
+done < <(build_scan_corpus)

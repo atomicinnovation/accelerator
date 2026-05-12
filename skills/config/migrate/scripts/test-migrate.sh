@@ -1189,4 +1189,66 @@ assert_not_contains "legacy templates.research key absent" "$CFG" "  research:"
 
 echo ""
 
+# ── Phase 5 — inbound-link rewriting ────────────────────────────────────────
+
+echo "Test: inbound — markdown link rewritten to research/codebase"
+REPO=$(setup_0004_repo inbound-corpus)
+run_0004 "$REPO" >/dev/null 2>&1
+CONTENT=$(cat "$REPO/meta/work/0050.md")
+assert_contains "markdown link rewritten" "$CONTENT" "[research](meta/research/codebase/2026-05-08-foo.md)"
+
+echo "Test: inbound — frontmatter scalar rewritten"
+REPO=$(setup_0004_repo inbound-corpus)
+run_0004 "$REPO" >/dev/null 2>&1
+CONTENT=$(cat "$REPO/meta/work/0050.md")
+assert_contains "frontmatter scalar rewritten" "$CONTENT" "research: meta/research/codebase/2026-05-08-foo.md"
+
+echo "Test: inbound — inline backtick reference rewritten"
+REPO=$(setup_0004_repo inbound-corpus)
+run_0004 "$REPO" >/dev/null 2>&1
+CONTENT=$(cat "$REPO/meta/work/0050.md")
+assert_contains "inline backtick rewritten" "$CONTENT" '`meta/research/design-inventories/2026-05-06-x/inventory.md`'
+
+echo "Test: inbound — bare narrative reference rewritten"
+REPO=$(setup_0004_repo inbound-corpus)
+run_0004 "$REPO" >/dev/null 2>&1
+CONTENT=$(cat "$REPO/meta/work/0050.md")
+assert_contains "narrative gap rewritten" "$CONTENT" "meta/research/design-gaps/2026-05-06-x.md"
+
+echo "Test: inbound — fenced code-block paths rewritten"
+REPO=$(setup_0004_repo inbound-corpus)
+run_0004 "$REPO" >/dev/null 2>&1
+CONTENT=$(cat "$REPO/meta/plans/2026-05-09-p.md")
+assert_contains "code-block research path" "$CONTENT" "meta/research/codebase/2026-05-08-foo.md"
+assert_contains "code-block gap path" "$CONTENT" "meta/research/design-gaps/2026-05-06-x.md"
+
+echo "Test: inbound — boundary anchor prevents meta/research-templates/ rewrite"
+REPO=$(setup_0004_repo inbound-corpus)
+run_0004 "$REPO" >/dev/null 2>&1
+CONTENT=$(cat "$REPO/meta/work/0050.md")
+assert_contains "research-templates untouched" "$CONTENT" "meta/research-templates/foo.md"
+assert_contains "researchers.md untouched" "$CONTENT" "meta/researchers.md"
+
+echo "Test: inbound — moved-file internal cross-link rewritten"
+REPO=$(setup_0004_repo inbound-corpus)
+run_0004 "$REPO" >/dev/null 2>&1
+assert_file_exists "moved research file" "$REPO/meta/research/codebase/2026-05-08-foo.md"
+CONTENT=$(cat "$REPO/meta/research/codebase/2026-05-08-foo.md")
+assert_contains "internal cross-link rewritten" "$CONTENT" "meta/research/codebase/2026-05-08-bar.md"
+
+echo "Test: inbound — Step 3 banner reports scan corpus size"
+REPO=$(setup_0004_repo inbound-corpus)
+OUTPUT=$(run_0004 "$REPO" 2>&1)
+assert_contains "scan banner emitted" "$OUTPUT" "Step 3: scanning"
+
+echo "Test: inbound — idempotent (second run yields no further changes)"
+REPO=$(setup_0004_repo inbound-corpus)
+run_0004 "$REPO" >/dev/null 2>&1
+BEFORE=$(find "$REPO" -type f -print0 | sort -z | xargs -0 md5sum 2>/dev/null | md5sum)
+run_0004 "$REPO" >/dev/null 2>&1
+AFTER=$(find "$REPO" -type f -print0 | sort -z | xargs -0 md5sum 2>/dev/null | md5sum)
+assert_eq "inbound rewrite idempotent" "$BEFORE" "$AFTER"
+
+echo ""
+
 test_summary
