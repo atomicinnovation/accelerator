@@ -67,10 +67,16 @@ describe('Glyph: runtime DOM shape', () => {
     expect(svg.getAttribute('data-doc-type')).toBe('plans')
   })
 
-  it('every descendant fill is "currentColor" or "none" — never a hex (deep walk)', () => {
-    // `"none"` is permitted for stroke-only shapes; only hex literals would
-    // break the theme contract. Walk via querySelectorAll('*') (not children)
-    // so paths nested inside <g> groups are inspected too.
+  it('every descendant fill is currentColor / none / var(--ac-*) — never a hex (deep walk)', () => {
+    // Permitted fills:
+    //   - `currentColor` — inherits the cascade `color` driven by --ac-doc-<key>
+    //   - `none`         — stroke-only shapes
+    //   - `var(--ac-*)`  — surface tokens used to punch through a stacked
+    //                      glyph (e.g. the review-check circle on plan-reviews
+    //                      and work-item-reviews; matches --ac-bg-raised).
+    // Walk via querySelectorAll('*') (not children) so paths nested inside
+    // <g> groups are inspected too.
+    const allowedFill = /^(currentColor|none|var\(--ac-[a-z0-9-]+\))$/
     for (const docType of GLYPH_DOC_TYPE_KEYS) {
       const { container, unmount } = render(<Glyph docType={docType} size={24} />)
       const svg = container.querySelector('svg')!
@@ -78,7 +84,7 @@ describe('Glyph: runtime DOM shape', () => {
         const fill = node.getAttribute('fill')
         if (fill !== null) {
           expect(
-            fill === 'currentColor' || fill === 'none',
+            allowedFill.test(fill),
             `${docType}: descendant <${node.tagName}> has fill="${fill}"`,
           ).toBe(true)
         }
@@ -87,14 +93,19 @@ describe('Glyph: runtime DOM shape', () => {
     }
   })
 
-  it('every descendant stroke is "currentColor" when present (deep walk)', () => {
+  it('every descendant stroke is currentColor or none — never a hex (deep walk)', () => {
+    // `stroke="none"` is used on filled-only primitives (e.g. dot accents).
+    // Only hex literals would break the theme contract.
     for (const docType of GLYPH_DOC_TYPE_KEYS) {
       const { container, unmount } = render(<Glyph docType={docType} size={24} />)
       const svg = container.querySelector('svg')!
       for (const node of Array.from(svg.querySelectorAll('*'))) {
         const stroke = node.getAttribute('stroke')
         if (stroke !== null) {
-          expect(stroke, `${docType}: descendant <${node.tagName}> has stroke="${stroke}"`).toBe('currentColor')
+          expect(
+            stroke === 'currentColor' || stroke === 'none',
+            `${docType}: descendant <${node.tagName}> has stroke="${stroke}"`,
+          ).toBe(true)
         }
       }
       unmount()

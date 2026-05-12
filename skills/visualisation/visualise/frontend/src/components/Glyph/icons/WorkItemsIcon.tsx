@@ -2,22 +2,13 @@ import type { ReactElement } from 'react'
 
 export function WorkItemsIcon(): ReactElement {
   return (
-    <>
-      <rect
-        x="2.5"
-        y="6.5"
-        width="14"
-        height="11"
-        rx="2"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <line x1="5" y1="10" x2="12" y2="10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="5" y1="13" x2="10" y2="13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="19.5" cy="9" r="1" fill="currentColor" />
-      <circle cx="19.5" cy="12" r="1" fill="currentColor" />
-      <circle cx="19.5" cy="15" r="1" fill="currentColor" />
-    </>
+    <g fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.5 7.5h11l2 2v5l-2 2h-11z" />
+      <path d="M14.5 7.5v9" strokeDasharray="1.2 1.4" />
+      <path d="M6 11h5.5M6 13.5h4" />
+      <circle cx="18.5" cy="9" r="0.55" fill="currentColor" stroke="none" />
+      <circle cx="18.5" cy="12" r="0.55" fill="currentColor" stroke="none" />
+      <circle cx="18.5" cy="15" r="0.55" fill="currentColor" stroke="none" />
+    </g>
   )
 }

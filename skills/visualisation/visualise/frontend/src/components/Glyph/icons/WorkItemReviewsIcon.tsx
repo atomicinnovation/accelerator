@@ -2,35 +2,11 @@ import type { ReactElement } from 'react'
 
 export function WorkItemReviewsIcon(): ReactElement {
   return (
-    <>
-      <rect
-        x="2.5"
-        y="6.5"
-        width="12"
-        height="11"
-        rx="2"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <line x1="5" y1="10" x2="11" y2="10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="5" y1="13" x2="9" y2="13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <circle
-        cx="17"
-        cy="15"
-        r="5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <path
-        d="M14.5 15 L16.2 16.7 L19.5 13.4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </>
+    <g fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.5 7.5h10l2 2v5l-2 2h-10z" />
+      <path d="M6 11h5M6 13.5h3.5" />
+      <circle cx="17.5" cy="16.5" r="3.8" fill="var(--ac-bg-raised)" stroke="currentColor" />
+      <path d="m15.8 16.6 1.3 1.3 2.2-2.5" strokeWidth="1.4" />
+    </g>
   )
 }

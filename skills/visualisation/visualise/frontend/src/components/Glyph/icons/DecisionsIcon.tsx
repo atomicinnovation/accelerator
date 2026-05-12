@@ -2,25 +2,11 @@ import type { ReactElement } from 'react'
 
 export function DecisionsIcon(): ReactElement {
   return (
-    <>
-      <line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path
-        d="M12 6 L7 9 L12 12"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M12 12 L17 15 L12 18"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="21" r="1.2" fill="currentColor" />
-    </>
+    <g fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3.5v17" />
+      <path d="M12 8 6.5 6.5v4L12 12" strokeOpacity="0.5" />
+      <path d="M12 11 18 9v4.5L12 15" strokeWidth="1.5" />
+      <circle cx="12" cy="20.5" r="1" fill="currentColor" stroke="none" />
+    </g>
   )
 }

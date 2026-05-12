@@ -1,0 +1,16 @@
+<svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true"
+     data-om-id="jsx:/https:/64bfef0a-f5fb-4b90-81e4-229d1ebc705c.claudeusercontent.com/v1/design/projects/64bfef0a-f5fb-4b90-81e4-229d1ebc705c/serve/src/ui.jsx:19219:392:9">
+    <g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"
+       data-om-id="jsx:/https:/64bfef0a-f5fb-4b90-81e4-229d1ebc705c.claudeusercontent.com/v1/design/projects/64bfef0a-f5fb-4b90-81e4-229d1ebc705c/serve/src/ui.jsx:14122:283:5">
+        <rect x="3.5" y="4.5" width="17" height="15" rx="1.4"
+              data-om-id="jsx:/https:/64bfef0a-f5fb-4b90-81e4-229d1ebc705c.claudeusercontent.com/v1/design/projects/64bfef0a-f5fb-4b90-81e4-229d1ebc705c/serve/src/ui.jsx:14230:284:7"></rect>
+        <path d="M3.5 9.5h17M3.5 14.5h17M8.5 4.5v15M13.5 4.5v15" stroke-opacity="0.3"
+              data-om-id="jsx:/https:/64bfef0a-f5fb-4b90-81e4-229d1ebc705c.claudeusercontent.com/v1/design/projects/64bfef0a-f5fb-4b90-81e4-229d1ebc705c/serve/src/ui.jsx:14292:285:7"></path>
+        <path d="M6 17 10.5 12 13 14 17.5 7" stroke-width="1.5"
+              data-om-id="jsx:/https:/64bfef0a-f5fb-4b90-81e4-229d1ebc705c.claudeusercontent.com/v1/design/projects/64bfef0a-f5fb-4b90-81e4-229d1ebc705c/serve/src/ui.jsx:14377:286:7"></path>
+        <circle cx="6" cy="17" r="1.1" fill="currentColor" stroke="none"
+                data-om-id="jsx:/https:/64bfef0a-f5fb-4b90-81e4-229d1ebc705c.claudeusercontent.com/v1/design/projects/64bfef0a-f5fb-4b90-81e4-229d1ebc705c/serve/src/ui.jsx:14440:287:7"></circle>
+        <circle cx="17.5" cy="7" r="1.1" fill="currentColor" stroke="none"
+                data-om-id="jsx:/https:/64bfef0a-f5fb-4b90-81e4-229d1ebc705c.claudeusercontent.com/v1/design/projects/64bfef0a-f5fb-4b90-81e4-229d1ebc705c/serve/src/ui.jsx:14516:288:7"></circle>
+    </g>
+</svg>
