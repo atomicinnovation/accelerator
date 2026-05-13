@@ -13,7 +13,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/atomicinnovation/accelerator.git",
-        "ref": "v1.21.0-pre.30"
+        "ref": "v1.21.0-pre.31"
       }
     }
   ]
