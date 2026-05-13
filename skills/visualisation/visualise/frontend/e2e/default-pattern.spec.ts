@@ -37,8 +37,11 @@ test.describe('Scenario A — default ID pattern, default columns', () => {
   }) => {
     await page.goto('/library/work-item-reviews')
 
-    await expect(page.locator('body')).not.toContainText('Internal Server Error')
-    await expect(page.locator('body')).not.toContainText('404')
+    // Scope to <main> so the topbar's OriginPill (which renders host:port and
+    // may incidentally contain "404" as part of a port number) cannot trip the
+    // assertion.
+    await expect(page.locator('main')).not.toContainText('Internal Server Error')
+    await expect(page.locator('main')).not.toContainText('Not Found')
   })
 
   test('PATCH to a valid default status returns 200', async ({ request }) => {
