@@ -7,6 +7,7 @@
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod activity;
+pub mod activity_feed;
 pub mod api;
 pub mod assets;
 pub mod clusters;
