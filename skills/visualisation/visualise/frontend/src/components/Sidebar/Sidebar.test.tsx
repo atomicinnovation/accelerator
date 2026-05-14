@@ -287,19 +287,23 @@ describe('Sidebar', () => {
   })
 
   describe('Activity slot', () => {
-    it('renders the Activity heading inside the Sidebar', async () => {
+    it('renders the ACTIVITY heading inside the Sidebar', async () => {
       renderSidebar()
       await screen.findByText('LIBRARY')
-      expect(screen.getByText('Activity')).toBeInTheDocument()
+      expect(screen.getByText('ACTIVITY')).toBeInTheDocument()
     })
 
-    it('renders the Activity section AFTER META in DOM order', async () => {
+    it('renders the ACTIVITY section between VIEWS and META in DOM order', async () => {
       renderSidebar()
       await screen.findByText('LIBRARY')
+      const views = screen.getByText('VIEWS')
+      const activity = screen.getByText('ACTIVITY')
       const meta = screen.getByText('META')
-      const activity = screen.getByText('Activity')
       expect(
-        meta.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING,
+        views.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+      expect(
+        activity.compareDocumentPosition(meta) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy()
     })
 

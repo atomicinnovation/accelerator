@@ -479,19 +479,19 @@ Key meta-directory documents:
 - `meta/work/0055-sidebar-activity-feed.md` (`ready`)
 - `meta/reviews/work/0053-sidebar-nav-and-unseen-tracker-review-1.md` — three-pass review, all majors closed
 - `meta/reviews/work/0036-sidebar-redesign-review-1.md` — parent epic review
-- `meta/research/2026-05-12-0037-glyph-component.md` — Glyph research (companion)
-- `meta/research/2026-05-08-0034-theme-and-font-mode-toggles.md` — owning-hook pattern research
-- `meta/research/2026-05-06-0033-design-token-system.md` — token vocabulary
+- `meta/research/codebase/2026-05-12-0037-glyph-component.md` — Glyph research (companion)
+- `meta/research/codebase/2026-05-08-0034-theme-and-font-mode-toggles.md` — owning-hook pattern research
+- `meta/research/codebase/2026-05-06-0033-design-token-system.md` — token vocabulary
 - `meta/decisions/ADR-0026-css-design-token-application-conventions.md` — `--ac-*` conventions
-- `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md` — source design-gap doc
-- `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`, `main-dark.png`, `library-view.png` — reference screenshots
+- `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md` — source design-gap doc
+- `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`, `main-dark.png`, `library-view.png` — reference screenshots
 
 ## Related Research
 
-- `meta/research/2026-05-12-0037-glyph-component.md` — Glyph component (consumed by this work item; first real consumer)
-- `meta/research/2026-05-08-0034-theme-and-font-mode-toggles.md` — owning-hook + Context pattern (template for `useUnseenDocTypes`)
-- `meta/research/2026-05-07-0035-topbar-component.md` — chrome restructure history; documents the SseIndicator relocation
-- `meta/research/2026-05-06-0033-design-token-system.md` — `--ac-*` token vocabulary the redesign consumes
+- `meta/research/codebase/2026-05-12-0037-glyph-component.md` — Glyph component (consumed by this work item; first real consumer)
+- `meta/research/codebase/2026-05-08-0034-theme-and-font-mode-toggles.md` — owning-hook + Context pattern (template for `useUnseenDocTypes`)
+- `meta/research/codebase/2026-05-07-0035-topbar-component.md` — chrome restructure history; documents the SseIndicator relocation
+- `meta/research/codebase/2026-05-06-0033-design-token-system.md` — `--ac-*` token vocabulary the redesign consumes
 
 ## Open Questions
 

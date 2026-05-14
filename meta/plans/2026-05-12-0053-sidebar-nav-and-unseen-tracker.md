@@ -1248,12 +1248,12 @@ way `/library/$type/$fileSlug` is registered today.
 ## References
 
 - Work item: `meta/work/0053-sidebar-nav-and-unseen-tracker.md`
-- Research: `meta/research/2026-05-12-0053-sidebar-nav-and-unseen-tracker.md`
+- Research: `meta/research/codebase/2026-05-12-0053-sidebar-nav-and-unseen-tracker.md`
 - Parent epic: `meta/work/0036-sidebar-redesign.md`
 - Related work items: `0033`, `0034`, `0035`, `0037`, `0054`, `0055`
 - Review: `meta/reviews/work/0053-sidebar-nav-and-unseen-tracker-review-1.md`
-- Source design gap: `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
-- Screenshots: `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`, `main-dark.png`, `library-view.png`
+- Source design gap: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+- Screenshots: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`, `main-dark.png`, `library-view.png`
 - Owning-hook pattern: `frontend/src/api/use-font-mode.ts`, `use-theme.ts`
 - SSE plumbing: `frontend/src/api/use-doc-events.ts:86-160`
 - LibraryTypeView insertion point: `frontend/src/routes/library/LibraryTypeView.tsx:52-54`

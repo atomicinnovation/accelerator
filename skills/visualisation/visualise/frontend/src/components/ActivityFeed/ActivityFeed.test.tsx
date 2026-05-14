@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from '../../test/router-helpers'
 import { ActivityFeed } from './ActivityFeed'
 import * as fetchModule from '../../api/fetch'
 import * as docEventsModule from '../../api/use-doc-events'
@@ -68,7 +69,7 @@ function mountWith({
   })
   render(
     <QueryClientProvider client={queryClient}>
-      <ActivityFeed />
+      <MemoryRouter><ActivityFeed /></MemoryRouter>
     </QueryClientProvider>,
   )
   return { getListener: () => captured, queryClient }

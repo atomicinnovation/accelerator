@@ -129,7 +129,7 @@ Downstream consumers of Glyph (0036/0040/0041/0042/0043/0053/0054/0055) MUST adh
 - Coordinates with: 0038 (Generic Chip Component) — Chip's icon-slot decision affects whether Glyph composes inside Chip; resolved in 0038.
 - Reads from (artefact couplings):
   - Canonical `DocTypeKey` union in `skills/visualisation/visualise/frontend/src/api/types.ts` — any rename or relocation breaks `GlyphDocTypeKey`.
-  - Canonical screenshots `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-{light,dark}.png` — source of truth for icon shape and per-doc-type fill colour; any edit to these assets requires re-deriving Glyph's SVG paths and hex values.
+  - Canonical screenshots `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-{light,dark}.png` — source of truth for icon shape and per-doc-type fill colour; any edit to these assets requires re-deriving Glyph's SVG paths and hex values.
 
 ## Assumptions
 

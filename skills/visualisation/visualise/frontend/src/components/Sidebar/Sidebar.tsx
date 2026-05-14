@@ -105,6 +105,8 @@ export function Sidebar({ docTypes }: Props) {
         </ul>
       </section>
 
+      <ActivityFeed />
+
       {templates && (
         <section aria-labelledby="meta-heading" className={styles.section}>
           <h2 id="meta-heading" className={styles.sectionHeading}>META</h2>
@@ -126,8 +128,6 @@ export function Sidebar({ docTypes }: Props) {
           </ul>
         </section>
       )}
-
-      <ActivityFeed />
     </nav>
   )
 }

@@ -449,15 +449,15 @@ Reviews and prior plans relevant to this work:
 - `meta/work/0037-glyph-component.md` — already complete (component shipped at `Glyph.tsx`).
 - `meta/plans/2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher.md` — original SSE hub + notify watcher plan; design rationale for the `pre`/`post` comparison and the broadcast channel.
 - `meta/plans/2026-04-26-meta-visualiser-phase-8-kanban-write-path.md` — introduced `WriteCoordinator` and `self-cause.ts`; the basis for the AC11 self-cause behaviour.
-- `meta/research/2026-05-12-0053-sidebar-nav-and-unseen-tracker.md` — research backing 0053; covers the existing `DocEventsContext` consumption surface.
-- `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/sidebar-{light,dark}.png` — visual targets for the Activity feed in the redesigned sidebar.
-- `meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md` — gap analysis; flags activity feed as a missing surface.
+- `meta/research/codebase/2026-05-12-0053-sidebar-nav-and-unseen-tracker.md` — research backing 0053; covers the existing `DocEventsContext` consumption surface.
+- `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/sidebar-{light,dark}.png` — visual targets for the Activity feed in the redesigned sidebar.
+- `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md` — gap analysis; flags activity feed as a missing surface.
 
 ## Related Research
 
-- `meta/research/2026-05-12-0053-sidebar-nav-and-unseen-tracker.md` — sibling research on the Sidebar / DocEventsContext surface 0055 plugs into.
-- `meta/research/2026-05-12-0037-glyph-component.md` — Glyph internals (already shipped).
-- `meta/research/2026-04-17-meta-visualiser-implementation-context.md` — cross-phase implementation context covering SSE/notify/index design.
+- `meta/research/codebase/2026-05-12-0053-sidebar-nav-and-unseen-tracker.md` — sibling research on the Sidebar / DocEventsContext surface 0055 plugs into.
+- `meta/research/codebase/2026-05-12-0037-glyph-component.md` — Glyph internals (already shipped).
+- `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md` — cross-phase implementation context covering SSE/notify/index design.
 
 ## Open Questions
 

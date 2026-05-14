@@ -3,25 +3,26 @@
   flex-direction: column;
 }
 
+/* Heading matches the .sectionHeading rules in Sidebar.module.css so the
+   ACTIVITY caption sits visually alongside LIBRARY/VIEWS/META. The
+   hex/sub-pixel literals are registered in migration.test.ts. */
 .heading {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
-  font: 500 var(--size-xxs)/1 var(--ac-font-mono);
+  font: 500 10.5px/1 var(--ac-font-mono);
   text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  color: var(--ac-fg-faint);
-  padding: var(--sp-1) var(--sp-3);
+  letter-spacing: 0.12em;
+  color: #6c7088;
+  padding: 6px 10px;
   margin: 0;
 }
 
 .liveBadge {
-  font: 500 var(--size-xxs)/1 var(--ac-font-mono);
-  letter-spacing: var(--tracking-caps);
-  color: var(--ac-accent);
-  padding: var(--sp-1) var(--sp-2);
-  border: 1px solid var(--ac-accent);
-  border-radius: var(--radius-sm);
+  margin-left: auto;
+  font: 500 10.5px/1 var(--ac-font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6c7088;
 }
 
 .empty {
@@ -37,28 +38,79 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-1);
+}
+
+/* Dashed separator lives on the <li> (not the inner link) so the
+   :has(+ li) sibling selector below can suppress the dashed line on
+   either side of a hovered row in one pass. */
+.list li {
+  border-bottom: 1px dashed var(--ac-stroke-soft);
+}
+.list li:last-child {
+  border-bottom-color: transparent;
+}
+.list li:has(.row:hover),
+.list li:has(+ li .row:hover) {
+  border-bottom-color: transparent;
 }
 
 .row {
   display: grid;
-  grid-template-columns: var(--sp-4) auto 1fr;
-  align-items: center;
+  grid-template-columns: var(--sp-4) 1fr;
+  align-items: flex-start;
   gap: var(--sp-2);
-  padding: var(--sp-1) var(--sp-3);
-  font: 400 var(--size-xxs)/1.4 var(--ac-font-body);
-  color: var(--ac-fg-muted);
+  padding: var(--sp-2) var(--sp-3);
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--radius-sm);
+}
+.row:hover {
+  background: var(--ac-bg-hover);
+}
+
+/* Glyph rows in the activity feed render monochrome rather than per-type.
+   Glyph drives colour via inline `style="color: var(--ac-doc-<key>)"` on
+   the <svg>, so we must override with !important; this is explicitly
+   allowed by the Glyph contract (overriding `color` tints, it does not
+   break the theme contract). Targets the data-doc-type attribute so the
+   override is local to ActivityFeed and does not leak. */
+.row [data-doc-type] {
+  color: var(--ac-fg-faint) !important;
+  margin-top: 1px;
+}
+
+.glyphSlot {
+  display: inline-block;
+  width: var(--sp-4);
+  height: var(--sp-4);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.line1 {
+  font: 500 var(--size-xxs)/1.4 var(--ac-font-body);
+  color: var(--ac-fg-strong);
+}
+
+.docType {
+  color: var(--ac-fg-strong);
 }
 
 .action {
-  color: var(--ac-fg-strong);
+  color: var(--ac-fg-muted);
   text-transform: lowercase;
 }
 
-.meta {
+.separator {
   color: var(--ac-fg-faint);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
+}
+
+.line2 {
+  font: 400 var(--size-xxs)/1.4 var(--ac-font-body);
+  color: var(--ac-fg-muted);
+  word-break: break-all;
 }

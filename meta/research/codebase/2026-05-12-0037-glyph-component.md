@@ -155,8 +155,8 @@ No `react-router-dom` — TanStack is the only router. No standalone `vitest.con
 
 ### Canonical screenshots (verified present)
 
-- `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-light.png` ✓
-- `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-dark.png` ✓
+- `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-light.png` ✓
+- `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-dark.png` ✓
 
 These are the source of truth for icon shape and per-doc-type fill colour. The work item names `magick identify -format "%[hex:p{x,y}]" file.png` for sampling — `magick` (ImageMagick) is the expected tool; no internal helper exists.
 
@@ -193,8 +193,8 @@ Additional consumer-context screenshots in the same directory (`main-{light,dark
 - `skills/visualisation/visualise/frontend/tests/visual-regression/tokens.spec.ts:9-39` — visual-regression spec template
 - `skills/visualisation/visualise/frontend/tests/visual-regression/__screenshots__/` — baseline snapshot directory (darwin + linux per route)
 - `skills/visualisation/visualise/frontend/package.json:9-46` — scripts + dependencies
-- `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-light.png` — canonical light reference
-- `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-dark.png` — canonical dark reference
+- `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-light.png` — canonical light reference
+- `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-dark.png` — canonical dark reference
 
 ## Architecture Insights
 
@@ -217,7 +217,7 @@ Additional consumer-context screenshots in the same directory (`main-{light,dark
 - Irreducible categories table allows fixed component icon pixels (`14px`, `5px`) — confirms 16/24/32 px Glyph sizes are appropriate as literal numbers, not tokens.
 
 ### 0033 Design Token System
-`meta/plans/2026-05-06-0033-design-token-system.md`, `meta/research/2026-05-06-0033-design-token-system.md`
+`meta/plans/2026-05-06-0033-design-token-system.md`, `meta/research/codebase/2026-05-06-0033-design-token-system.md`
 
 - Established the MIRROR-A/MIRROR-B byte-equivalent duplication pattern and the parity-test approach 0037 must extend.
 - Locked the seven `tokens.ts` exports (`LIGHT_COLOR_TOKENS`, `DARK_COLOR_TOKENS`, etc.) — adding new exports for doc-type colours is allowed; modifying the export list requires a parity-test update.
@@ -226,29 +226,29 @@ Additional consumer-context screenshots in the same directory (`main-{light,dark
 - WCAG AA contrast considerations were applied to the existing palette. Per-doc-type colours used as icon foregrounds against `--ac-bg` / `--ac-bg-card` should pass equivalent AA — this isn't a 0037 Acceptance Criterion but is implicitly required.
 
 ### Design gap analysis
-`meta/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
+`meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
 
 - Original gap entry described **9** colour-coded doc types ("red Decision, orange Research, blue Plan, purple Plan review, green Validation, teal PR, mauve PR review, red-pin Note, dark-red Work item"). The updated library-view screenshots and 0037 expanded scope to **12** non-virtual types.
 - "Per-document detail screen redesign and the screen-level drift items… should come last, since they depend on Glyph, Chip, and the Page wrapper being available" — confirms Glyph as a load-bearing dependency for 0036, 0040, 0041, 0042, 0043, 0053, 0054, 0055.
 
 ### Theme + font-mode toggles (0034) and Topbar (0035)
-`meta/research/2026-05-08-0034-theme-and-font-mode-toggles.md`, `meta/research/2026-05-07-0035-topbar-component.md`
+`meta/research/codebase/2026-05-08-0034-theme-and-font-mode-toggles.md`, `meta/research/codebase/2026-05-07-0035-topbar-component.md`
 
 - Sibling component-pattern blueprints. The `TopbarIconButton` exported-Props convention with JSDoc came out of 0035 and is the closest match for Glyph's external-facing atom shape.
 - 0034 confirmed the theme-attribute → CSS-cascade pattern that Glyph relies on for zero-state theme switching.
 
 ### Visualiser implementation context
-`meta/research/2026-04-17-meta-visualiser-implementation-context.md`
+`meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md`
 
 - General visualiser frontend architecture (TanStack Router, Vite, Vitest, the components-folder convention).
 
 ## Related Research
 
-- `meta/research/2026-05-06-0033-design-token-system.md` — Design token system foundation
-- `meta/research/2026-05-07-0035-topbar-component.md` — Sibling component-pattern blueprint
-- `meta/research/2026-05-08-0034-theme-and-font-mode-toggles.md` — Theme-attribute cascade
-- `meta/research/2026-04-17-meta-visualiser-implementation-context.md` — Visualiser frontend architecture
-- `meta/research/2026-05-02-design-convergence-workflow.md` — How design-gap and design-inventory docs feed work items
+- `meta/research/codebase/2026-05-06-0033-design-token-system.md` — Design token system foundation
+- `meta/research/codebase/2026-05-07-0035-topbar-component.md` — Sibling component-pattern blueprint
+- `meta/research/codebase/2026-05-08-0034-theme-and-font-mode-toggles.md` — Theme-attribute cascade
+- `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md` — Visualiser frontend architecture
+- `meta/research/codebase/2026-05-02-design-convergence-workflow.md` — How design-gap and design-inventory docs feed work items
 
 ## Open Questions
 

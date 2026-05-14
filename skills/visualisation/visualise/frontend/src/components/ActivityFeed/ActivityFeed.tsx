@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchActivity } from '../../api/fetch'
+import { Link } from '@tanstack/react-router'
+import { fetchActivity, fetchTypes } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
 import { formatRelative } from '../../api/format'
+import { fileSlugFromRelPath } from '../../api/path-utils'
 import { useDocEventsContext } from '../../api/use-doc-events'
-import type { ActivityEvent, SseEvent } from '../../api/types'
+import {
+  DOC_TYPE_LABELS,
+  type ActivityEvent,
+  type DocTypeKey,
+  type SseEvent,
+} from '../../api/types'
 import { Glyph, isGlyphDocTypeKey } from '../Glyph/Glyph'
 import styles from './ActivityFeed.module.css'
 
@@ -38,6 +45,17 @@ export function ActivityFeed() {
     queryKey: queryKeys.activity(LIMIT),
     queryFn: () => fetchActivity(LIMIT),
   })
+  // Reuse the cached /api/types result that Sidebar/RootLayout already
+  // primed, so doc-type labels match the rest of the UI (plural, server-
+  // provided). Falls back to DOC_TYPE_LABELS if the cache is cold or the
+  // key is unknown.
+  const { data: docTypes } = useQuery({
+    queryKey: queryKeys.types(),
+    queryFn: fetchTypes,
+  })
+  const labelFor = (key: DocTypeKey): string =>
+    docTypes?.find(t => t.key === key)?.label ?? DOC_TYPE_LABELS[key] ?? key
+
   const { connectionState, subscribe } = useDocEventsContext()
   const [live, setLive] = useState<ActivityEvent[]>([])
   const [, setTick] = useState(0)
@@ -80,7 +98,7 @@ export function ActivityFeed() {
   return (
     <section aria-labelledby="activity-heading" className={styles.section}>
       <h2 id="activity-heading" className={styles.heading}>
-        <span>Activity</span>
+        <span>ACTIVITY</span>
         {isLive && (
           <span data-testid="activity-live-badge" className={styles.liveBadge}>LIVE</span>
         )}
@@ -89,19 +107,39 @@ export function ActivityFeed() {
         <p data-testid="activity-empty" className={styles.empty}>No recent activity</p>
       ) : (
         <ul className={styles.list}>
-          {rows.map(r => (
-            <li key={activityRowId(r)} className={styles.row}>
-              {isGlyphDocTypeKey(r.docType) ? (
-                <Glyph docType={r.docType} size={16} />
-              ) : (
-                <span />
-              )}
-              <span className={styles.action}>{r.action}</span>
-              <span className={styles.meta}>
-                {formatRelative(Date.parse(r.timestamp))} · {basename(r.path)}
-              </span>
-            </li>
-          ))}
+          {rows.map(r => {
+            const fileSlug = fileSlugFromRelPath(r.path)
+            const label = labelFor(r.docType)
+            const file = basename(r.path)
+            return (
+              <li key={activityRowId(r)}>
+                <Link
+                  to="/library/$type/$fileSlug"
+                  params={{ type: r.docType, fileSlug }}
+                  className={styles.row}
+                  aria-label={`${label}, ${r.action}, ${file}`}
+                >
+                  {isGlyphDocTypeKey(r.docType) ? (
+                    <Glyph docType={r.docType} size={16} />
+                  ) : (
+                    <span className={styles.glyphSlot} />
+                  )}
+                  <div className={styles.body}>
+                    <div className={styles.line1}>
+                      <span className={styles.docType}>{label}</span>
+                      <span className={styles.separator}> · </span>
+                      <span className={styles.action}>{r.action}</span>
+                    </div>
+                    <div className={styles.line2}>
+                      {file}
+                      <span className={styles.separator}> · </span>
+                      {formatRelative(Date.parse(r.timestamp))}
+                    </div>
+                  </div>
+                </Link>
+              </li>
+            )
+          })}
         </ul>
       )}
     </section>

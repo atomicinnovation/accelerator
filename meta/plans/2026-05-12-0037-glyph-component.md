@@ -35,7 +35,7 @@ The infrastructure 0037 builds on is already in place:
 - **Component conventions** — Co-located `<Name>/<Name>.tsx` + `.module.css` + `.test.tsx`, named exports, no barrels, inline JSX SVGs. `Brand.tsx:15-31` is the canonical example of writing `fill="var(--ac-accent-2)"` and `stroke="var(--ac-accent)"` directly as SVG attribute literals; `Brand.test.tsx:11-19` shows the matching attribute-assertion pattern. ARIA prop naming convention is `ariaLabel` per `TopbarIconButton.tsx:6`.
 - **Routing** — TanStack Router, imperative `createRoute(...)` style; tree assembled at `src/router.ts:139-151`. `kanbanRoute` (line 132) is the closest precedent for a top-level non-crumbed route.
 - **Visual regression** — `tests/visual-regression/tokens.spec.ts:9-39` is the project template: a `ROUTES` array, a theme loop, `maxDiffPixelRatio: 0.05`, theme swap via `document.documentElement.dataset.theme = 'dark'` + `requestAnimationFrame` yield. Per-platform baselines (`-darwin.png` + `-linux.png`) live under `tests/visual-regression/__screenshots__/<spec>.ts-snapshots/`. The current spec captures one screenshot per route × theme; this plan extends with per-cell clipped screenshots so individual icon regressions can't hide under a viewport-wide diff budget.
-- **Canonical screenshots** — `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-{light,dark}.png` exist and are the source of truth for icon shape and per-doc-type fill colour.
+- **Canonical screenshots** — `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-{light,dark}.png` exist and are the source of truth for icon shape and per-doc-type fill colour.
 
 The pieces **missing** that this plan creates:
 
@@ -892,12 +892,12 @@ No data migration. No existing consumer of `--ac-doc-*` tokens (this plan introd
 ## References
 
 - Work item: `meta/work/0037-glyph-component.md` (Resolved Decisions section captures: `maxDiffPixelRatio: 0.05` per cell, `ariaLabel` prop name, per-cell clip strategy, `currentColor` fill pattern, viewBox measured grid)
-- Research: `meta/research/2026-05-12-0037-glyph-component.md`
+- Research: `meta/research/codebase/2026-05-12-0037-glyph-component.md`
 - Canonical screenshots:
-  - `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-light.png`
-  - `meta/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-dark.png`
+  - `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-light.png`
+  - `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-dark.png`
 - Token-layer foundation: `meta/plans/2026-05-06-0033-design-token-system.md`
-- Sibling component plans: `meta/research/2026-05-07-0035-topbar-component.md`, `meta/research/2026-05-08-0034-theme-and-font-mode-toggles.md`
+- Sibling component plans: `meta/research/codebase/2026-05-07-0035-topbar-component.md`, `meta/research/codebase/2026-05-08-0034-theme-and-font-mode-toggles.md`
 - Sibling ARIA prop convention: `skills/visualisation/visualise/frontend/src/components/TopbarIconButton/TopbarIconButton.tsx`
 - Related: 0033, 0036, 0038, 0040, 0041, 0042, 0043, 0053, 0054, 0055
 - ADR-0026 (CSS design-token application conventions): `meta/decisions/ADR-0026-css-design-token-application-conventions.md`

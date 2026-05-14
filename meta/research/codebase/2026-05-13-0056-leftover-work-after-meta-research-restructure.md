@@ -36,7 +36,7 @@ in `cca787aee`.
 the literal plan spec:
 
 1. **STRAY FILE — needs fixing.** A glyph-component research file slipped
-   past the migration and still sits at the bare `meta/research/` level
+   past the migration and still sits at the bare `meta/research/codebase/` level
    (rather than under `meta/research/codebase/`), along with 9 broken
    inbound references to other research files that the migration *did*
    move.
@@ -52,15 +52,15 @@ the literal plan spec:
 
 ### 1. Stray glyph-component research file (real leftover work)
 
-**File**: `meta/research/2026-05-12-0037-glyph-component.md`
+**File**: `meta/research/codebase/2026-05-12-0037-glyph-component.md`
 
 This file should have been moved by migration 0004 to
 `meta/research/codebase/2026-05-12-0037-glyph-component.md` along with
 the other ~37 files. It is the only file still living directly under
-`meta/research/`. Verified via:
+`meta/research/codebase/`. Verified via:
 
 ```
-$ git ls-tree --name-only cca787aee:meta/research
+$ git ls-tree --name-only cca787aee:meta/research/codebase
 .gitkeep
 2026-05-12-0037-glyph-component.md      ← stayed put
 codebase
@@ -70,7 +70,7 @@ issues
 ```
 
 Migration commit `cca787aee` shows **R100/R099/R098** rename entries
-for every other dated `meta/research/<file>.md` → `meta/research/codebase/<file>.md`
+for every other dated `meta/research/codebase/<file>.md` → `meta/research/codebase/<file>.md`
 but **no** rename for the glyph component file.
 
 **Likely cause**: jj branching/rebasing. The glyph file was committed
@@ -87,7 +87,7 @@ is itself correct — re-running the same glob today picks up the
 glyph file:
 
 ```
-$ cd meta/research && shopt -s nullglob dotglob; for f in *; do [ -f "$f" ] && echo "$f"; done
+$ cd meta/research/codebase && shopt -s nullglob dotglob; for f in *; do [ -f "$f" ] && echo "$f"; done
 2026-05-12-0037-glyph-component.md
 ```
 
@@ -97,12 +97,12 @@ so it will not re-run.
 
 #### Stale inbound references in the same file
 
-`meta/research/2026-05-12-0037-glyph-component.md` contains 7 stale
+`meta/research/codebase/2026-05-12-0037-glyph-component.md` contains 7 stale
 references to peer research files that *did* move into `codebase/`:
 
-- Line 220: `meta/research/2026-05-06-0033-design-token-system.md`
-- Line 235: `meta/research/2026-05-08-0034-theme-and-font-mode-toggles.md`, `meta/research/2026-05-07-0035-topbar-component.md`
-- Line 241: `meta/research/2026-04-17-meta-visualiser-implementation-context.md`
+- Line 220: `meta/research/codebase/2026-05-06-0033-design-token-system.md`
+- Line 235: `meta/research/codebase/2026-05-08-0034-theme-and-font-mode-toggles.md`, `meta/research/codebase/2026-05-07-0035-topbar-component.md`
+- Line 241: `meta/research/codebase/2026-04-17-meta-visualiser-implementation-context.md`
 - Lines 247-251: five bullet-list references with the same legacy prefix
 
 All targets now live at `meta/research/codebase/<file>.md`. The links
@@ -113,8 +113,8 @@ are broken at the markdown-renderer level.
 `meta/plans/2026-05-12-0037-glyph-component.md` contains 2 stale
 references at lines 895 and 900:
 
-- `Research: meta/research/2026-05-12-0037-glyph-component.md` (line 895) — points to the file *itself* at its current bare-research location; if/when the file moves, this will need updating to `meta/research/codebase/…`
-- `Sibling component plans: meta/research/2026-05-07-0035-topbar-component.md, meta/research/2026-05-08-0034-theme-and-font-mode-toggles.md` (line 900) — both targets live under `codebase/` now
+- `Research: meta/research/codebase/2026-05-12-0037-glyph-component.md` (line 895) — points to the file *itself* at its current bare-research location; if/when the file moves, this will need updating to `meta/research/codebase/…`
+- `Sibling component plans: meta/research/codebase/2026-05-07-0035-topbar-component.md, meta/research/codebase/2026-05-08-0034-theme-and-font-mode-toggles.md` (line 900) — both targets live under `codebase/` now
 
 #### Recommended fix
 
@@ -122,7 +122,7 @@ Three options, in order of preference:
 
 1. **Manual `jj mv` + sed** — fastest and preserves rename history:
    ```bash
-   jj mv meta/research/2026-05-12-0037-glyph-component.md \
+   jj mv meta/research/codebase/2026-05-12-0037-glyph-component.md \
          meta/research/codebase/2026-05-12-0037-glyph-component.md
    # Then sed-rewrite the 9 stale references across both files.
    ```
@@ -220,7 +220,7 @@ verified PASS aside from the leftover above:
 - `skills/config/migrate/migrations/0004-restructure-meta-research-into-subject-subcategories.sh:213-225` — `_plan_research_moves` (correct logic; should pick up the stray glyph file)
 - `skills/config/migrate/migrations/0004-restructure-meta-research-into-subject-subcategories.sh:501-554` — Step 3 awk implementation (deviation from Perl plan)
 - `agents/documents-locator.md:80-92` — nested Research heading structure (deviation from flat plan)
-- `meta/research/2026-05-12-0037-glyph-component.md` — the stray file (rows 220, 235, 241, 247-251 contain stale references)
+- `meta/research/codebase/2026-05-12-0037-glyph-component.md` — the stray file (rows 220, 235, 241, 247-251 contain stale references)
 - `meta/plans/2026-05-12-0037-glyph-component.md:895,900` — sibling stale references
 - `.accelerator/state/migrations-applied` — line 3 records 0004 as applied
 
