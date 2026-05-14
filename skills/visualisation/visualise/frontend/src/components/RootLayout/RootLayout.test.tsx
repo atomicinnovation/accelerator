@@ -9,11 +9,13 @@ vi.mock('../../api/use-doc-events', () => ({
     connectionState: 'open',
     justReconnected: false,
     setDragInProgress: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
   })),
   useDocEventsContext: vi.fn(() => ({
     connectionState: 'open',
     justReconnected: false,
     setDragInProgress: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
   })),
   DocEventsContext: { Provider: ({ children }: any) => children },
 }))

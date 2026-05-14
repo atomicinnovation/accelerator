@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, renderWithRouterAt } from '../../test/router-helpers'
 import { Sidebar } from './Sidebar'
 import type { DocType, DocTypeKey } from '../../api/types'
@@ -7,7 +8,19 @@ import {
   UnseenDocTypesContext,
   type UnseenDocTypesHandle,
 } from '../../api/use-unseen-doc-types'
-import React from 'react'
+import * as fetchModule from '../../api/fetch'
+
+vi.mock('../../api/fetch', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../api/fetch')>()
+  return {
+    ...actual,
+    fetchActivity: vi.fn(),
+  }
+})
+
+beforeEach(() => {
+  vi.mocked(fetchModule.fetchActivity).mockResolvedValue([])
+})
 
 function makeUnseenHandle(unseenSet: Set<DocTypeKey> = new Set()): UnseenDocTypesHandle {
   return {
@@ -38,10 +51,13 @@ function renderSidebar(
   docTypes: DocType[] = allDocTypes,
   unseen: UnseenDocTypesHandle = makeUnseenHandle(),
 ) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <UnseenDocTypesContext.Provider value={unseen}>
-      <MemoryRouter><Sidebar docTypes={docTypes} /></MemoryRouter>
-    </UnseenDocTypesContext.Provider>,
+    <QueryClientProvider client={qc}>
+      <UnseenDocTypesContext.Provider value={unseen}>
+        <MemoryRouter><Sidebar docTypes={docTypes} /></MemoryRouter>
+      </UnseenDocTypesContext.Provider>
+    </QueryClientProvider>,
   )
 }
 
@@ -183,10 +199,13 @@ describe('Sidebar', () => {
   })
 
   it('active state for /library/<type>', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     renderWithRouterAt(
-      <UnseenDocTypesContext.Provider value={makeUnseenHandle()}>
-        <Sidebar docTypes={allDocTypes} />
-      </UnseenDocTypesContext.Provider>,
+      <QueryClientProvider client={qc}>
+        <UnseenDocTypesContext.Provider value={makeUnseenHandle()}>
+          <Sidebar docTypes={allDocTypes} />
+        </UnseenDocTypesContext.Provider>
+      </QueryClientProvider>,
       '/library/work-items',
     )
     await waitFor(() => {
@@ -196,10 +215,13 @@ describe('Sidebar', () => {
   })
 
   it('active state for child-doc URL /library/<type>/<slug>', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     renderWithRouterAt(
-      <UnseenDocTypesContext.Provider value={makeUnseenHandle()}>
-        <Sidebar docTypes={allDocTypes} />
-      </UnseenDocTypesContext.Provider>,
+      <QueryClientProvider client={qc}>
+        <UnseenDocTypesContext.Provider value={makeUnseenHandle()}>
+          <Sidebar docTypes={allDocTypes} />
+        </UnseenDocTypesContext.Provider>
+      </QueryClientProvider>,
       '/library/work-items/0099',
     )
     await waitFor(() => {
@@ -209,10 +231,13 @@ describe('Sidebar', () => {
   })
 
   it('active state does NOT collide across prefix-sharing keys', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     renderWithRouterAt(
-      <UnseenDocTypesContext.Provider value={makeUnseenHandle()}>
-        <Sidebar docTypes={allDocTypes} />
-      </UnseenDocTypesContext.Provider>,
+      <QueryClientProvider client={qc}>
+        <UnseenDocTypesContext.Provider value={makeUnseenHandle()}>
+          <Sidebar docTypes={allDocTypes} />
+        </UnseenDocTypesContext.Provider>
+      </QueryClientProvider>,
       '/library/plan-reviews',
     )
     await waitFor(() => {
@@ -259,5 +284,31 @@ describe('Sidebar', () => {
     renderSidebar(docs)
     await screen.findByText('LIBRARY')
     expect(screen.queryByText('Orphan')).toBeNull()
+  })
+
+  describe('Activity slot', () => {
+    it('renders the Activity heading inside the Sidebar', async () => {
+      renderSidebar()
+      await screen.findByText('LIBRARY')
+      expect(screen.getByText('Activity')).toBeInTheDocument()
+    })
+
+    it('renders the Activity section AFTER META in DOM order', async () => {
+      renderSidebar()
+      await screen.findByText('LIBRARY')
+      const meta = screen.getByText('META')
+      const activity = screen.getByText('Activity')
+      expect(
+        meta.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    })
+
+    it('existing LIBRARY / VIEWS / META headings still render unchanged', async () => {
+      renderSidebar()
+      await screen.findByText('LIBRARY')
+      expect(screen.getByText('LIBRARY')).toBeInTheDocument()
+      expect(screen.getByText('VIEWS')).toBeInTheDocument()
+      expect(screen.getByText('META')).toBeInTheDocument()
+    })
   })
 })

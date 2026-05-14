@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { PHASE_DOC_TYPES, type DocType, type DocTypeKey } from '../../api/types'
 import { useUnseenDocTypesContext } from '../../api/use-unseen-doc-types'
+import { ActivityFeed } from '../ActivityFeed/ActivityFeed'
 import styles from './Sidebar.module.css'
 
 interface Props {
@@ -125,6 +126,8 @@ export function Sidebar({ docTypes }: Props) {
           </ul>
         </section>
       )}
+
+      <ActivityFeed />
     </nav>
   )
 }
