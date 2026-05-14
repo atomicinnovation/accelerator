@@ -71,6 +71,8 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '0.4rem', count: 2, kind: 'irreducible', reason: 'off-scale spacing (6.4px) — between --sp-1 and --sp-2' },
   { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '0.15rem', count: 1, kind: 'irreducible', reason: 'item vertical padding (2.4px) — below --sp-1 floor' },
   { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
+  // components/ActivityFeed/ActivityFeed.module.css
+  { file: 'components/ActivityFeed/ActivityFeed.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'LIVE badge border width — below --sp-1 floor' },
   // components/Sidebar/Sidebar.module.css
   { file: 'components/Sidebar/Sidebar.module.css', literal: '#6c7088', count: 3, kind: 'irreducible', reason: 'theme-invariant heading colour per design — same hex in light and dark mode' },
   { file: 'components/Sidebar/Sidebar.module.css', literal: '0.12em', count: 2, kind: 'irreducible', reason: 'library and section heading caps letter-spacing — between --tracking-caps and 2×' },
