@@ -12,10 +12,36 @@ export type { ConnectionState } from './reconnecting-event-source'
 
 export type EventSourceFactory = (url: string) => EventSource
 
+/**
+ * Handle returned by `useDocEvents` / `useDocEventsContext`.
+ *
+ * Two fan-out paths exist on this handle with **different** ordering and
+ * cardinality semantics — keep both contracts in mind when adding a new
+ * consumer:
+ *
+ * - `subscribe(listener)` — multi-consumer; listeners fire **before** the
+ *   self-cause registry check, so they observe ALL incoming events
+ *   including events the application's own writes produced. The
+ *   ActivityFeed uses this path to surface self-caused activity.
+ *
+ * - `options.onEvent` (passed to `useDocEvents`) — single-consumer; fires
+ *   **after** the self-cause drop, so it never sees self-caused events.
+ *   `useUnseenDocTypes` is the only current consumer.
+ */
 export interface DocEventsHandle {
   setDragInProgress(v: boolean): void
   connectionState: ConnectionState
   justReconnected: boolean
+  /**
+   * Subscribe to incoming SSE events. The listener fires for every event,
+   * including self-caused ones (this is the load-bearing difference from
+   * `onEvent`). The callback should be cheap and non-blocking — it runs
+   * synchronously inside the EventSource onmessage handler, so a slow
+   * listener delays subsequent listeners and the downstream dispatch.
+   *
+   * Returns an unsubscribe function. Safe to call multiple times.
+   */
+  subscribe(listener: (event: SseEvent) => void): () => void
 }
 
 export interface UseDocEventsOptions {
@@ -109,6 +135,15 @@ export function makeUseDocEvents(
     onEventRef.current = options?.onEvent
     onReconnectRef.current = options?.onReconnect
 
+    const listenersRef = useRef(new Set<(e: SseEvent) => void>())
+
+    const subscribe = useCallback((listener: (e: SseEvent) => void) => {
+      listenersRef.current.add(listener)
+      return () => {
+        listenersRef.current.delete(listener)
+      }
+    }, [])
+
     const setDragInProgress = useCallback(
       (v: boolean) => {
         isDraggingRef.current = v
@@ -152,6 +187,21 @@ export function makeUseDocEvents(
       reconnecting.onmessage = (e: MessageEvent) => {
         try {
           const event = JSON.parse(e.data as string) as SseEvent
+          // Fan out to subscribers BEFORE the self-cause drop so they
+          // observe events the dispatcher chooses to ignore. Listener
+          // errors are isolated (one bad listener does not break others)
+          // but escalated to console.error so they surface in production
+          // diagnostics.
+          for (const listener of listenersRef.current) {
+            try {
+              listener(event)
+            } catch (listenerErr) {
+              console.error(
+                '[doc-events] subscriber threw — listener faulted, others continue',
+                listenerErr,
+              )
+            }
+          }
           if (event.type === 'doc-changed' && registry.has(event.etag)) return
           onEventRef.current?.(event)
           if (isDraggingRef.current) {
@@ -172,7 +222,7 @@ export function makeUseDocEvents(
       }
     }, [queryClient, createSource, registry])
 
-    return { setDragInProgress, connectionState, justReconnected }
+    return { setDragInProgress, connectionState, justReconnected, subscribe }
   }
 }
 
@@ -183,6 +233,7 @@ const _defaultHandle: DocEventsHandle = {
   setDragInProgress: () => {},
   connectionState: 'connecting',
   justReconnected: false,
+  subscribe: () => () => {},
 }
 
 export const DocEventsContext = createContext<DocEventsHandle>(_defaultHandle)

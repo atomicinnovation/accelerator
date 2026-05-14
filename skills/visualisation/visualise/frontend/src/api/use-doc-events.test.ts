@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
-import { dispatchSseEvent, makeUseDocEvents } from './use-doc-events'
+import { dispatchSseEvent, makeUseDocEvents, useDocEventsContext } from './use-doc-events'
 import { createSelfCauseRegistry } from './self-cause'
 import { queryKeys } from './query-keys'
 
@@ -555,5 +555,143 @@ describe('makeUseDocEvents consumer callbacks', () => {
     expect(ctx.factory).toHaveBeenCalledTimes(1)
     expect(cb1).not.toHaveBeenCalled()
     expect(cb2).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('makeUseDocEvents subscribe', () => {
+  let queryClient: QueryClient
+
+  class FakeEventSource {
+    onmessage: ((e: MessageEvent) => void) | null = null
+    onerror: ((e: Event) => void) | null = null
+    onopen: ((e: Event) => void) | null = null
+    close = vi.fn()
+    constructor(public url: string) {}
+  }
+
+  function makeFactory() {
+    const fakes: FakeEventSource[] = []
+    const factory = (url: string) => {
+      const fake = new FakeEventSource(url)
+      fakes.push(fake)
+      return fake as unknown as EventSource
+    }
+    return { factory, get source() { return fakes[fakes.length - 1]! } }
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    queryClient = new QueryClient()
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  function wrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client: queryClient }, children)
+  }
+
+  const sample = {
+    type: 'doc-changed',
+    action: 'edited',
+    docType: 'plans',
+    path: 'meta/plans/foo.md',
+    etag: 'sha256-S',
+    timestamp: '2026-05-13T00:00:00Z',
+  }
+
+  it('delivers parsed events to a subscribed listener', () => {
+    const ctx = makeFactory()
+    const useDocEvents = makeUseDocEvents(ctx.factory)
+    const { result } = renderHook(() => useDocEvents(), { wrapper })
+    act(() => { ctx.source.onopen?.(new Event('open')) })
+
+    const listener = vi.fn()
+    act(() => { result.current.subscribe(listener) })
+
+    ctx.source.onmessage?.(new MessageEvent('message', {
+      data: JSON.stringify(sample),
+    }))
+
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'doc-changed',
+      action: 'edited',
+      path: 'meta/plans/foo.md',
+    }))
+  })
+
+  it('stops delivering after unsubscribe', () => {
+    const ctx = makeFactory()
+    const useDocEvents = makeUseDocEvents(ctx.factory)
+    const { result } = renderHook(() => useDocEvents(), { wrapper })
+    act(() => { ctx.source.onopen?.(new Event('open')) })
+
+    const listener = vi.fn()
+    let unsub!: () => void
+    act(() => { unsub = result.current.subscribe(listener) })
+    unsub()
+
+    ctx.source.onmessage?.(new MessageEvent('message', {
+      data: JSON.stringify(sample),
+    }))
+
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('invokes every subscriber for the same event', () => {
+    const ctx = makeFactory()
+    const useDocEvents = makeUseDocEvents(ctx.factory)
+    const { result } = renderHook(() => useDocEvents(), { wrapper })
+    act(() => { ctx.source.onopen?.(new Event('open')) })
+
+    const l1 = vi.fn()
+    const l2 = vi.fn()
+    act(() => {
+      result.current.subscribe(l1)
+      result.current.subscribe(l2)
+    })
+
+    ctx.source.onmessage?.(new MessageEvent('message', {
+      data: JSON.stringify(sample),
+    }))
+
+    expect(l1).toHaveBeenCalledTimes(1)
+    expect(l2).toHaveBeenCalledTimes(1)
+  })
+
+  it('delivers self-caused events to subscribers (pre-self-cause-drop)', () => {
+    vi.spyOn(queryClient, 'invalidateQueries')
+    const registry = createSelfCauseRegistry()
+    const ctx = makeFactory()
+    const useDocEvents = makeUseDocEvents(ctx.factory, registry)
+    const onEvent = vi.fn()
+    const { result } = renderHook(
+      () => useDocEvents({ onEvent }),
+      { wrapper },
+    )
+    act(() => { ctx.source.onopen?.(new Event('open')) })
+
+    const listener = vi.fn()
+    act(() => { result.current.subscribe(listener) })
+
+    registry.register('sha256-SELF')
+    ctx.source.onmessage?.(new MessageEvent('message', {
+      data: JSON.stringify({ ...sample, etag: 'sha256-SELF' }),
+    }))
+
+    // Subscriber observed the self-caused event …
+    expect(listener).toHaveBeenCalledTimes(1)
+    // … while onEvent and dispatchSseEvent stayed silent.
+    expect(onEvent).not.toHaveBeenCalled()
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
+  })
+
+  it('_defaultHandle.subscribe is a no-op returning a no-op unsubscribe', () => {
+    // Render outside any DocEventsContext.Provider — picks up the default.
+    const { result } = renderHook(() => useDocEventsContext())
+    const fn = vi.fn()
+    const unsub = result.current.subscribe(fn)
+    expect(typeof unsub).toBe('function')
+    expect(() => unsub()).not.toThrow()
+    expect(fn).not.toHaveBeenCalled()
   })
 })
