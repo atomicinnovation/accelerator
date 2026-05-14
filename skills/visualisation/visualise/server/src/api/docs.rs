@@ -240,9 +240,11 @@ pub(crate) async fn doc_patch_frontmatter(
         state
             .sse_hub
             .broadcast(crate::sse_hub::SsePayload::DocChanged {
+                action: crate::sse_hub::ActionKind::Edited,
                 doc_type: entry.r#type,
                 path: doc_rel.to_string(),
                 etag: Some(content.etag.clone()),
+                timestamp: chrono::Utc::now(),
             });
     }
 

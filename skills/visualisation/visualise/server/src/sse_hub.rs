@@ -1,17 +1,28 @@
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 use tokio::sync::broadcast;
 
 use crate::docs::DocTypeKey;
 
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ActionKind {
+    Created,
+    Edited,
+    Deleted,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum SsePayload {
     DocChanged {
+        action: ActionKind,
         #[serde(rename = "docType")]
         doc_type: DocTypeKey,
         path: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         etag: Option<String>,
+        timestamp: DateTime<Utc>,
     },
     DocInvalid {
         #[serde(rename = "docType")]
@@ -42,13 +53,16 @@ impl SseHub {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::TimeZone;
     use tokio::sync::broadcast::error::RecvError;
 
     fn make_event(path: &str) -> SsePayload {
         SsePayload::DocChanged {
+            action: ActionKind::Edited,
             doc_type: crate::docs::DocTypeKey::Plans,
             path: path.to_string(),
             etag: Some("sha256-abc".to_string()),
+            timestamp: Utc::now(),
         }
     }
 
@@ -83,9 +97,11 @@ mod tests {
         let mut rx = hub.subscribe();
         for i in 0..10u32 {
             hub.broadcast(SsePayload::DocChanged {
+                action: ActionKind::Edited,
                 doc_type: crate::docs::DocTypeKey::Plans,
                 path: format!("meta/plans/{i}.md"),
                 etag: Some("sha256-x".into()),
+                timestamp: Utc::now(),
             });
         }
         assert!(matches!(rx.recv().await, Err(RecvError::Lagged(_))));
@@ -94,22 +110,33 @@ mod tests {
 
     #[test]
     fn sse_payload_json_wire_format() {
+        let ts = Utc.with_ymd_and_hms(2026, 5, 13, 12, 0, 0).unwrap();
         let changed = SsePayload::DocChanged {
+            action: ActionKind::Edited,
             doc_type: crate::docs::DocTypeKey::Plans,
             path: "meta/plans/foo.md".into(),
             etag: Some("sha256-abc".into()),
+            timestamp: ts,
         };
         let json = serde_json::to_string(&changed).unwrap();
         assert!(json.contains("\"type\":\"doc-changed\""), "json: {json}");
+        assert!(json.contains("\"action\":\"edited\""), "json: {json}");
         assert!(json.contains("\"docType\":"), "json: {json}");
         assert!(json.contains("\"etag\":\"sha256-abc\""), "json: {json}");
+        assert!(
+            json.contains("\"timestamp\":\"2026-05-13T12:00:00Z\""),
+            "json: {json}"
+        );
 
         let deleted = SsePayload::DocChanged {
+            action: ActionKind::Deleted,
             doc_type: crate::docs::DocTypeKey::Plans,
             path: "meta/plans/foo.md".into(),
             etag: None,
+            timestamp: ts,
         };
         let json = serde_json::to_string(&deleted).unwrap();
+        assert!(json.contains("\"action\":\"deleted\""), "json: {json}");
         assert!(
             !json.contains("etag"),
             "etag must be absent for deletions: {json}"

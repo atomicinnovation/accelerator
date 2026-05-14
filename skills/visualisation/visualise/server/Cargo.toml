@@ -48,6 +48,7 @@ hex = "0.4"
 notify = "6"
 tokio-stream = { version = "0.1", features = ["sync"] }
 regex = "1"
+chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
 
 [dev-dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }

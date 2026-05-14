@@ -111,9 +111,11 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         hub.broadcast(SsePayload::DocChanged {
+            action: crate::sse_hub::ActionKind::Edited,
             doc_type: DocTypeKey::Plans,
             path: "meta/plans/foo.md".into(),
             etag: Some("sha256-abc".into()),
+            timestamp: chrono::Utc::now(),
         });
 
         let frame = tokio::time::timeout(

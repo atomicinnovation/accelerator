@@ -3,13 +3,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use chrono::{DateTime, Utc};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
 use crate::clusters::{compute_clusters, LifecycleCluster};
 use crate::indexer::{IndexEntry, Indexer, FRONTMATTER_MALFORMED};
-use crate::sse_hub::{SseHub, SsePayload};
+use crate::sse_hub::{ActionKind, SseHub, SsePayload};
 use crate::write_coordinator::WriteCoordinator;
 
 #[derive(Debug, Clone, Copy)]
@@ -134,17 +135,21 @@ pub async fn on_path_changed_debounced(
         .to_string_lossy()
         .replace('\\', "/");
 
+    let now = Utc::now();
+
     match indexer.get(&path).await {
         Some(entry) => {
-            hub.broadcast(payload_for_entry(&entry, rel));
+            hub.broadcast(payload_for_entry(&entry, rel, pre.as_ref(), now));
             tracing::debug!(file = %path.display(), "SSE event broadcast");
         }
         None => {
             if let Some(pre_entry) = pre {
                 hub.broadcast(SsePayload::DocChanged {
+                    action: ActionKind::Deleted,
                     doc_type: pre_entry.r#type,
                     path: rel,
                     etag: None,
+                    timestamp: now,
                 });
                 tracing::debug!(file = %path.display(), "SSE doc-changed broadcast for deleted file");
             }
@@ -152,17 +157,35 @@ pub async fn on_path_changed_debounced(
     }
 }
 
-fn payload_for_entry(entry: &IndexEntry, rel: String) -> SsePayload {
+/// Map an `IndexEntry` (post-rescan) plus optional `pre` (pre-rescan) plus a
+/// captured `now` into the SSE wire-format envelope to broadcast.
+///
+/// - Malformed entries produce `DocInvalid` (no action; not surfaced in the
+///   Activity feed).
+/// - `pre.is_some()` -> `Edited`; `pre.is_none()` -> `Created`.
+fn payload_for_entry(
+    entry: &IndexEntry,
+    rel: String,
+    pre: Option<&IndexEntry>,
+    now: DateTime<Utc>,
+) -> SsePayload {
     if entry.frontmatter_state == FRONTMATTER_MALFORMED {
         SsePayload::DocInvalid {
             doc_type: entry.r#type,
             path: rel,
         }
     } else {
+        let action = if pre.is_some() {
+            ActionKind::Edited
+        } else {
+            ActionKind::Created
+        };
         SsePayload::DocChanged {
+            action,
             doc_type: entry.r#type,
             path: rel,
             etag: Some(entry.etag.clone()),
+            timestamp: now,
         }
     }
 }
@@ -268,10 +291,14 @@ mod tests {
             .expect("timed out waiting for SSE event")
             .expect("channel closed");
 
-        assert!(
-            matches!(event, SsePayload::DocChanged { .. }),
-            "expected DocChanged, got {event:?}",
-        );
+        match event {
+            SsePayload::DocChanged { action, .. } => {
+                // Setup wrote the file before the indexer was built, so `pre`
+                // is populated when the modify event fires -> Edited.
+                assert_eq!(action, ActionKind::Edited);
+            }
+            other => panic!("expected DocChanged, got {other:?}"),
+        }
     }
 
     #[tokio::test]
@@ -314,7 +341,12 @@ mod tests {
             .await
             .expect("timed out")
             .expect("channel closed");
-        assert!(matches!(event, SsePayload::DocChanged { .. }));
+        match event {
+            SsePayload::DocChanged { action, .. } => {
+                assert_eq!(action, ActionKind::Edited);
+            }
+            other => panic!("expected DocChanged, got {other:?}"),
+        }
 
         assert!(
             tokio::time::timeout(Duration::from_millis(300), rx.recv())
@@ -389,6 +421,7 @@ mod tests {
 
         tokio::time::sleep(Duration::from_millis(50)).await;
 
+        let before = Utc::now();
         std::fs::write(
             tmp.path().join("meta/plans/2026-05-01-new.md"),
             "---\ntitle: New\n---\n",
@@ -399,8 +432,27 @@ mod tests {
             .await
             .expect("timed out")
             .expect("channel closed");
+        let after = Utc::now();
 
-        assert!(matches!(event, SsePayload::DocChanged { .. }));
+        match event {
+            SsePayload::DocChanged {
+                action, timestamp, ..
+            } => {
+                assert_eq!(action, ActionKind::Created);
+                // Tighter-than-AC bound: timestamp is captured between `before`
+                // and `after` from the test's perspective.
+                assert!(
+                    timestamp >= before && timestamp <= after,
+                    "timestamp {timestamp} not within [{before}, {after}]"
+                );
+                // AC6 verbatim — 1-second tolerance against broadcast wall-clock.
+                assert!(
+                    (after - timestamp).num_milliseconds().abs() < 1_000,
+                    "AC6: timestamp {timestamp} not within 1s of broadcast time {after}"
+                );
+            }
+            other => panic!("expected DocChanged, got {other:?}"),
+        }
     }
 
     #[tokio::test]
@@ -435,14 +487,91 @@ mod tests {
             .expect("timed out waiting for deletion SSE event")
             .expect("channel closed");
 
-        assert!(
-            matches!(event, SsePayload::DocChanged { .. }),
-            "expected DocChanged for deletion, got {event:?}",
-        );
+        match &event {
+            SsePayload::DocChanged { action, .. } => {
+                assert_eq!(*action, ActionKind::Deleted);
+            }
+            other => panic!("expected DocChanged for deletion, got {other:?}"),
+        }
         let json = serde_json::to_string(&event).unwrap();
         assert!(
             !json.contains("etag"),
             "etag must be absent for deleted files: {json}",
         );
+    }
+
+    #[tokio::test]
+    async fn create_edit_delete_chain_emits_three_distinct_events() {
+        if !watcher_fires_in_this_env().await {
+            eprintln!("SKIP: notify watcher not firing in this environment");
+            return;
+        }
+        let tmp = tempfile::tempdir().unwrap();
+        let (doc_paths, indexer, hub, clusters) = setup(tmp.path()).await;
+        let mut rx = hub.subscribe();
+
+        spawn(
+            doc_paths.values().cloned().collect(),
+            tmp.path().to_path_buf(),
+            indexer,
+            clusters,
+            hub,
+            Arc::new(WriteCoordinator::new()),
+            Settings {
+                debounce: Duration::from_millis(20),
+            },
+        );
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let chain_path = tmp.path().join("meta/plans/2026-05-13-chain.md");
+
+        // 1. Create.
+        std::fs::write(&chain_path, "---\ntitle: Chain v1\n---\n").unwrap();
+        let created = tokio::time::timeout(Duration::from_millis(800), rx.recv())
+            .await
+            .expect("timed out waiting for created event")
+            .expect("channel closed");
+
+        // 2. Edit. Pause longer than debounce so the events do not coalesce.
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        std::fs::write(&chain_path, "---\ntitle: Chain v2\n---\n").unwrap();
+        let edited = tokio::time::timeout(Duration::from_millis(800), rx.recv())
+            .await
+            .expect("timed out waiting for edited event")
+            .expect("channel closed");
+
+        // 3. Delete.
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        std::fs::remove_file(&chain_path).unwrap();
+        let deleted = tokio::time::timeout(Duration::from_millis(800), rx.recv())
+            .await
+            .expect("timed out waiting for deleted event")
+            .expect("channel closed");
+
+        let (a0, t0) = match &created {
+            SsePayload::DocChanged {
+                action, timestamp, ..
+            } => (*action, *timestamp),
+            other => panic!("expected DocChanged for created, got {other:?}"),
+        };
+        let (a1, t1) = match &edited {
+            SsePayload::DocChanged {
+                action, timestamp, ..
+            } => (*action, *timestamp),
+            other => panic!("expected DocChanged for edited, got {other:?}"),
+        };
+        let (a2, t2) = match &deleted {
+            SsePayload::DocChanged {
+                action, timestamp, ..
+            } => (*action, *timestamp),
+            other => panic!("expected DocChanged for deleted, got {other:?}"),
+        };
+
+        assert_eq!(a0, ActionKind::Created);
+        assert_eq!(a1, ActionKind::Edited);
+        assert_eq!(a2, ActionKind::Deleted);
+        assert!(t0 < t1, "timestamp ordering created < edited");
+        assert!(t1 < t2, "timestamp ordering edited < deleted");
     }
 }
