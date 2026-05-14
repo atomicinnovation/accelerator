@@ -3,7 +3,7 @@ date: "2026-05-13T10:30:00+01:00"
 type: plan
 skill: create-plan
 work-item: "0055"
-status: draft
+status: implemented
 ---
 
 # 0055 — Sidebar Activity Feed and SSE Action Discriminator: Implementation Plan
