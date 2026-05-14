@@ -44,7 +44,8 @@ pub struct AppState {
     pub indexer: Arc<crate::indexer::Indexer>,
     pub templates: Arc<crate::templates::TemplateResolver>,
     pub clusters: Arc<RwLock<Vec<crate::clusters::LifecycleCluster>>>,
-    pub activity: Arc<crate::activity::Activity>,
+    pub http_activity: Arc<crate::activity::Activity>,
+    pub activity_feed: Arc<crate::activity_feed::ActivityRingBuffer>,
     pub sse_hub: Arc<crate::sse_hub::SseHub>,
     pub write_coordinator: Arc<crate::write_coordinator::WriteCoordinator>,
 }
@@ -52,7 +53,7 @@ pub struct AppState {
 impl AppState {
     pub async fn build(
         cfg: Config,
-        activity: Arc<crate::activity::Activity>,
+        http_activity: Arc<crate::activity::Activity>,
     ) -> Result<Arc<Self>, AppStateError> {
         let kanban_columns = Arc::new(cfg.resolve_kanban_columns()?);
         let cfg = Arc::new(cfg);
@@ -81,6 +82,7 @@ impl AppState {
         let cluster_seed = crate::clusters::compute_clusters(&indexer.all().await);
         let clusters = Arc::new(RwLock::new(cluster_seed));
         let sse_hub = Arc::new(crate::sse_hub::SseHub::new(256));
+        let activity_feed = Arc::new(crate::activity_feed::ActivityRingBuffer::new());
         let write_coordinator = Arc::new(crate::write_coordinator::WriteCoordinator::new());
         Ok(Arc::new(Self {
             cfg,
@@ -89,7 +91,8 @@ impl AppState {
             indexer,
             templates,
             clusters,
-            activity,
+            http_activity,
+            activity_feed,
             sse_hub,
             write_coordinator,
         }))
@@ -182,7 +185,7 @@ fn build_router_with_spa<F: FnOnce(Router) -> Router>(
                 ),
         )
         .layer(axum::middleware::from_fn_with_state(
-            state.activity.clone(),
+            state.http_activity.clone(),
             crate::activity::middleware,
         ))
         .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
@@ -287,6 +290,7 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
         state.indexer.clone(),
         state.clusters.clone(),
         state.sse_hub.clone(),
+        state.activity_feed.clone(),
         state.write_coordinator.clone(),
         crate::watcher::Settings::DEFAULT,
     );
@@ -766,7 +770,7 @@ mod tests {
         let dist = tempfile::tempdir().unwrap();
         seed_stub_dist(dist.path());
         let state = build_minimal_state(dir.path()).await;
-        let before = state.activity.last_millis();
+        let before = state.http_activity.last_millis();
         tokio::time::sleep(std::time::Duration::from_millis(5)).await;
         let app = build_router_with_dist(state.clone(), dist.path().to_path_buf());
 
@@ -781,7 +785,7 @@ mod tests {
             .await
             .unwrap();
 
-        let after = state.activity.last_millis();
+        let after = state.http_activity.last_millis();
         assert!(
             after > before,
             "expected activity to update (before={before}, after={after})"

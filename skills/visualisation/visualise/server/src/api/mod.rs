@@ -1,3 +1,4 @@
+mod activity;
 mod docs;
 mod events;
 pub(crate) mod info;
@@ -22,6 +23,7 @@ use crate::server::AppState;
 pub fn mount(_state: Arc<AppState>) -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/events", get(events::events))
+        .route("/api/activity", get(activity::activity))
         .route("/api/types", get(types::types))
         .route("/api/docs", get(docs::docs_list))
         // PATCH URL exposed to clients is /api/docs/{path}/frontmatter, but matchit 0.7

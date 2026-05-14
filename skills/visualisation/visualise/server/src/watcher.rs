@@ -8,6 +8,7 @@ use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
+use crate::activity_feed::{ActivityEvent, ActivityRingBuffer};
 use crate::clusters::{compute_clusters, LifecycleCluster};
 use crate::indexer::{IndexEntry, Indexer, FRONTMATTER_MALFORMED};
 use crate::sse_hub::{ActionKind, SseHub, SsePayload};
@@ -30,6 +31,7 @@ pub fn spawn(
     indexer: Arc<Indexer>,
     clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
     hub: Arc<SseHub>,
+    activity_feed: Arc<ActivityRingBuffer>,
     write_coordinator: Arc<WriteCoordinator>,
     settings: Settings,
 ) -> JoinHandle<()> {
@@ -79,6 +81,7 @@ pub fn spawn(
                             indexer.clone(),
                             clusters.clone(),
                             hub.clone(),
+                            activity_feed.clone(),
                             write_coordinator.clone(),
                             settings.debounce,
                             pre,
@@ -101,6 +104,7 @@ pub async fn on_path_changed_debounced(
     indexer: Arc<Indexer>,
     clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
     hub: Arc<SseHub>,
+    activity_feed: Arc<ActivityRingBuffer>,
     write_coordinator: Arc<WriteCoordinator>,
     debounce: Duration,
     pre: Option<IndexEntry>,
@@ -139,22 +143,42 @@ pub async fn on_path_changed_debounced(
 
     match indexer.get(&path).await {
         Some(entry) => {
-            hub.broadcast(payload_for_entry(&entry, rel, pre.as_ref(), now));
+            emit(
+                payload_for_entry(&entry, rel, pre.as_ref(), now),
+                hub.as_ref(),
+                activity_feed.as_ref(),
+            );
             tracing::debug!(file = %path.display(), "SSE event broadcast");
         }
         None => {
             if let Some(pre_entry) = pre {
-                hub.broadcast(SsePayload::DocChanged {
-                    action: ActionKind::Deleted,
-                    doc_type: pre_entry.r#type,
-                    path: rel,
-                    etag: None,
-                    timestamp: now,
-                });
+                emit(
+                    SsePayload::DocChanged {
+                        action: ActionKind::Deleted,
+                        doc_type: pre_entry.r#type,
+                        path: rel,
+                        etag: None,
+                        timestamp: now,
+                    },
+                    hub.as_ref(),
+                    activity_feed.as_ref(),
+                );
                 tracing::debug!(file = %path.display(), "SSE doc-changed broadcast for deleted file");
             }
         }
     }
+}
+
+/// Single fan-out point for SSE events: pushes a derived `ActivityEvent`
+/// into the ring buffer (if applicable — `DocInvalid` does not surface),
+/// then broadcasts the payload. Ring-buffer push is **synchronous and
+/// before** the broadcast, so a buffered event is always available via
+/// `/api/activity` once a subscriber sees it on the live stream.
+fn emit(payload: SsePayload, hub: &SseHub, activity_feed: &ActivityRingBuffer) {
+    if let Some(activity_event) = ActivityEvent::from_payload(&payload) {
+        activity_feed.push(activity_event);
+    }
+    hub.broadcast(payload);
 }
 
 /// Map an `IndexEntry` (post-rescan) plus optional `pre` (pre-rescan) plus a
@@ -234,6 +258,7 @@ mod tests {
         HashMap<String, std::path::PathBuf>,
         Arc<Indexer>,
         Arc<SseHub>,
+        Arc<ActivityRingBuffer>,
         Arc<RwLock<Vec<crate::clusters::LifecycleCluster>>>,
     ) {
         let plans = tmp.join("meta/plans");
@@ -250,10 +275,11 @@ mod tests {
         let work_item_cfg = Arc::new(crate::config::WorkItemConfig::default_numeric());
         let indexer = Arc::new(Indexer::build(driver, tmp.to_path_buf(), work_item_cfg).await.unwrap());
         let hub = Arc::new(SseHub::new(64));
+        let activity_feed = Arc::new(ActivityRingBuffer::new());
         let clusters = Arc::new(RwLock::new(crate::clusters::compute_clusters(
             &indexer.all().await,
         )));
-        (doc_paths, indexer, hub, clusters)
+        (doc_paths, indexer, hub, activity_feed, clusters)
     }
 
     #[tokio::test]
@@ -263,7 +289,7 @@ mod tests {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, clusters) = setup(tmp.path()).await;
+        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
         let mut rx = hub.subscribe();
 
         spawn(
@@ -272,6 +298,7 @@ mod tests {
             indexer,
             clusters,
             hub,
+            activity_feed.clone(),
             Arc::new(WriteCoordinator::new()),
             Settings {
                 debounce: Duration::from_millis(5),
@@ -308,7 +335,7 @@ mod tests {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, clusters) = setup(tmp.path()).await;
+        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
         let mut rx = hub.subscribe();
 
         // Use a generous debounce so the coalescing assertion is robust to
@@ -322,6 +349,7 @@ mod tests {
             indexer,
             clusters,
             hub,
+            activity_feed.clone(),
             Arc::new(WriteCoordinator::new()),
             Settings { debounce },
         );
@@ -363,7 +391,7 @@ mod tests {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, clusters) = setup(tmp.path()).await;
+        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
         let mut rx = hub.subscribe();
 
         spawn(
@@ -372,6 +400,7 @@ mod tests {
             indexer,
             clusters,
             hub,
+            activity_feed.clone(),
             Arc::new(WriteCoordinator::new()),
             Settings {
                 debounce: Duration::from_millis(5),
@@ -404,7 +433,7 @@ mod tests {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, clusters) = setup(tmp.path()).await;
+        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
         let mut rx = hub.subscribe();
 
         spawn(
@@ -413,6 +442,7 @@ mod tests {
             indexer,
             clusters,
             hub,
+            activity_feed.clone(),
             Arc::new(WriteCoordinator::new()),
             Settings {
                 debounce: Duration::from_millis(5),
@@ -453,6 +483,21 @@ mod tests {
             }
             other => panic!("expected DocChanged, got {other:?}"),
         }
+
+        // Ring-buffer push: the emit helper pushes synchronously before the
+        // broadcast, so by the time the subscriber observed the event the
+        // ActivityEvent must already be readable from the feed.
+        let recent = activity_feed.recent(5);
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].action, ActionKind::Created);
+        // On macOS the notify-delivered path may live under /private/var
+        // while project_root points at /var/folders, breaking strip_prefix;
+        // assert the suffix rather than the full rel so the test is robust.
+        assert!(
+            recent[0].path.ends_with("meta/plans/2026-05-01-new.md"),
+            "ring-buffer path mismatch: {}",
+            recent[0].path,
+        );
     }
 
     #[tokio::test]
@@ -462,7 +507,7 @@ mod tests {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, clusters) = setup(tmp.path()).await;
+        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
         let mut rx = hub.subscribe();
         let path = tmp.path().join("meta/plans/2026-01-01-foo.md");
 
@@ -472,6 +517,7 @@ mod tests {
             indexer,
             clusters,
             hub,
+            activity_feed.clone(),
             Arc::new(WriteCoordinator::new()),
             Settings {
                 debounce: Duration::from_millis(5),
@@ -498,6 +544,15 @@ mod tests {
             !json.contains("etag"),
             "etag must be absent for deleted files: {json}",
         );
+
+        let recent = activity_feed.recent(5);
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].action, ActionKind::Deleted);
+        assert!(
+            recent[0].path.ends_with("meta/plans/2026-01-01-foo.md"),
+            "ring-buffer path mismatch: {}",
+            recent[0].path,
+        );
     }
 
     #[tokio::test]
@@ -507,7 +562,7 @@ mod tests {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, clusters) = setup(tmp.path()).await;
+        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
         let mut rx = hub.subscribe();
 
         spawn(
@@ -516,6 +571,7 @@ mod tests {
             indexer,
             clusters,
             hub,
+            activity_feed.clone(),
             Arc::new(WriteCoordinator::new()),
             Settings {
                 debounce: Duration::from_millis(20),
@@ -573,5 +629,12 @@ mod tests {
         assert_eq!(a2, ActionKind::Deleted);
         assert!(t0 < t1, "timestamp ordering created < edited");
         assert!(t1 < t2, "timestamp ordering edited < deleted");
+
+        // Ring buffer captured all three events (newest-first).
+        let recent = activity_feed.recent(10);
+        assert_eq!(recent.len(), 3);
+        assert_eq!(recent[0].action, ActionKind::Deleted);
+        assert_eq!(recent[1].action, ActionKind::Edited);
+        assert_eq!(recent[2].action, ActionKind::Created);
     }
 }
