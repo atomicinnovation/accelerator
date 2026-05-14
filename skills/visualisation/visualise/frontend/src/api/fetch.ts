@@ -1,4 +1,5 @@
 import type {
+  ActivityEvent, ActivityResponse,
   DocType, DocTypeKey, DocsListResponse, IndexEntry,
   TemplateSummaryListResponse, TemplateDetail,
   LifecycleCluster, LifecycleListResponse,
@@ -102,6 +103,13 @@ export async function fetchLifecycleCluster(slug: string): Promise<LifecycleClus
   const r = await fetch(`/api/lifecycle/${encodeURIComponent(slug)}`)
   if (!r.ok) throw new FetchError(r.status, `GET /api/lifecycle/${slug}: ${r.status}`)
   return r.json()
+}
+
+export async function fetchActivity(limit: number): Promise<ActivityEvent[]> {
+  const r = await fetch(`/api/activity?limit=${encodeURIComponent(String(limit))}`)
+  if (!r.ok) throw new FetchError(r.status, `GET /api/activity?limit=${limit}: ${r.status}`)
+  const body: ActivityResponse = await r.json()
+  return body.events
 }
 
 export async function fetchRelated(relPath: string): Promise<RelatedArtifactsResponse> {

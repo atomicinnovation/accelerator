@@ -19,7 +19,7 @@ describe('dispatchSseEvent', () => {
 
   it('invalidates docs query on doc-changed event', () => {
     dispatchSseEvent(
-      { type: 'doc-changed', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-abc' },
+      { type: 'doc-changed', action: 'edited', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-abc', timestamp: '2026-05-13T00:00:00Z' },
       queryClient,
     )
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
@@ -29,7 +29,7 @@ describe('dispatchSseEvent', () => {
 
   it('invalidates the types query on doc-changed event', () => {
     dispatchSseEvent(
-      { type: 'doc-changed', docType: 'decisions', path: 'meta/decisions/0001.md', etag: 'sha256-abc' },
+      { type: 'doc-changed', action: 'edited', docType: 'decisions', path: 'meta/decisions/0001.md', etag: 'sha256-abc', timestamp: '2026-05-13T00:00:00Z' },
       queryClient,
     )
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
@@ -49,7 +49,7 @@ describe('dispatchSseEvent', () => {
 
   it('invalidates doc content for the changed file', () => {
     dispatchSseEvent(
-      { type: 'doc-changed', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-abc' },
+      { type: 'doc-changed', action: 'edited', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-abc', timestamp: '2026-05-13T00:00:00Z' },
       queryClient,
     )
     // Refreshes the markdown body when the open detail view's file changes.
@@ -60,7 +60,7 @@ describe('dispatchSseEvent', () => {
 
   it('invalidates kanban on work-item doc-changed event', () => {
     dispatchSseEvent(
-      { type: 'doc-changed', docType: 'work-items', path: 'meta/work/0001-foo.md', etag: 'sha256-abc' },
+      { type: 'doc-changed', action: 'edited', docType: 'work-items', path: 'meta/work/0001-foo.md', etag: 'sha256-abc', timestamp: '2026-05-13T00:00:00Z' },
       queryClient,
     )
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
@@ -73,7 +73,7 @@ describe('dispatchSseEvent', () => {
     queryClient.setQueryData(queryKeys.lifecycleCluster('bar'), null)
 
     dispatchSseEvent(
-      { type: 'doc-changed', docType: 'plans', path: 'meta/plans/x.md', etag: 'sha256-x' },
+      { type: 'doc-changed', action: 'edited', docType: 'plans', path: 'meta/plans/x.md', etag: 'sha256-x', timestamp: '2026-05-13T00:00:00Z' },
       queryClient,
     )
 
@@ -97,7 +97,7 @@ describe('dispatchSseEvent', () => {
   // ── Step 5.5 ────────────────────────────────────────────────────────
   it('invalidates the related prefix with refetchType: "all" on doc-changed', () => {
     dispatchSseEvent(
-      { type: 'doc-changed', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-x' },
+      { type: 'doc-changed', action: 'edited', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-x', timestamp: '2026-05-13T00:00:00Z' },
       queryClient,
     )
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
@@ -112,7 +112,7 @@ describe('dispatchSseEvent', () => {
     queryClient.setQueryData(queryKeys.related('meta/plans/a.md'), null)
     queryClient.setQueryData(queryKeys.related('meta/plans/b.md'), null)
     dispatchSseEvent(
-      { type: 'doc-changed', docType: 'plans', path: 'meta/plans/x.md', etag: 'sha256-x' },
+      { type: 'doc-changed', action: 'edited', docType: 'plans', path: 'meta/plans/x.md', etag: 'sha256-x', timestamp: '2026-05-13T00:00:00Z' },
       queryClient,
     )
     expect(queryClient.getQueryState(queryKeys.related('meta/plans/a.md'))?.isInvalidated).toBe(true)

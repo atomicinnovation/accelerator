@@ -110,11 +110,26 @@ export interface TemplateDetail {
   activeTier: TemplateTierSource
 }
 
+export type ActionKind = 'created' | 'edited' | 'deleted'
+
 export interface SseDocChangedEvent {
   type: 'doc-changed'
+  action: ActionKind
   docType: DocTypeKey
   path: string
   etag?: string
+  timestamp: string
+}
+
+export interface ActivityEvent {
+  action: ActionKind
+  docType: DocTypeKey
+  path: string
+  timestamp: string
+}
+
+export interface ActivityResponse {
+  events: ActivityEvent[]
 }
 
 export interface SseDocInvalidEvent {

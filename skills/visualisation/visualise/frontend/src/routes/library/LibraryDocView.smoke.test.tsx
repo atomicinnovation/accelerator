@@ -85,9 +85,11 @@ describe('LibraryDocView smoke', () => {
     dispatchSseEvent(
       {
         type: 'doc-changed',
+        action: 'edited',
         docType: 'plan-reviews',
         path: 'meta/reviews/plans/2026-01-01-foo-review-1.md',
         etag: 'sha256-new',
+        timestamp: '2026-05-13T00:00:00Z',
       },
       qc,
     )
@@ -140,9 +142,11 @@ describe('LibraryDocView smoke', () => {
     dispatchSseEvent(
       {
         type: 'doc-changed',
+        action: 'edited',
         docType: 'plan-reviews',
         path: 'meta/reviews/plans/2026-01-01-foo-review-1.md',
         etag: 'sha256-new',
+        timestamp: '2026-05-13T00:00:00Z',
       },
       qc,
     )

@@ -14,6 +14,7 @@ export const queryKeys = {
   kanban: () => ['kanban'] as const,
   related: (relPath: string) => ['related', relPath] as const,
   relatedPrefix: () => ['related'] as const,
+  activity: (limit: number) => ['activity', limit] as const,
   /** Sentinel for queries gated on a still-undefined dependency. The
    *  `__disabled__` token cannot collide with any real value-keyed
    *  query because the real keys take a typed parameter (e.g. a

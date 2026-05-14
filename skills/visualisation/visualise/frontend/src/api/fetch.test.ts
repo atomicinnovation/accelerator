@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   FetchError, ConflictError,
+  fetchActivity,
   fetchTypes, fetchDocs, fetchDocContent,
   fetchTemplates, fetchTemplateDetail,
   fetchLifecycleClusters, fetchLifecycleCluster,
@@ -355,5 +356,25 @@ describe('fetchLifecycleCluster', () => {
   it('throws on 404', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 404 })
     await expect(fetchLifecycleCluster('missing')).rejects.toThrow('404')
+  })
+})
+
+describe('fetchActivity', () => {
+  it('GETs /api/activity?limit=N and returns events array', async () => {
+    const events = [
+      { action: 'created', docType: 'plans', path: 'a', timestamp: '2026-05-13T00:00:00Z' },
+    ]
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ events }),
+    })
+    const out = await fetchActivity(5)
+    expect(out).toEqual(events)
+    expect(mockFetch).toHaveBeenCalledWith('/api/activity?limit=5')
+  })
+
+  it('throws FetchError on non-2xx', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 })
+    await expect(fetchActivity(5)).rejects.toBeInstanceOf(FetchError)
   })
 })
