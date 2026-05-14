@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "accelerator-visualiser"
-version = "1.21.0-pre.31"
+version = "1.21.0-pre.32"
 dependencies = [
  "anyhow",
  "assert_cmd",
