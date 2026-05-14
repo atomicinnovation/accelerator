@@ -4,7 +4,7 @@ title: "Glyph Component"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 type: story
-status: draft
+status: done
 priority: high
 parent: ""
 tags: [design, frontend, components]
@@ -13,7 +13,7 @@ tags: [design, frontend, components]
 # 0037: Glyph Component
 
 **Type**: Story
-**Status**: Draft
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

@@ -4,7 +4,7 @@ title: "Restructure meta/research/codebase/ into Subject Subcategories"
 date: "2026-05-11T16:39:44+00:00"
 author: Toby Clemson
 type: story
-status: in-progress
+status: done
 priority: high
 parent: ""
 tags: [meta, paths, migration, research, configuration]
@@ -13,7 +13,7 @@ tags: [meta, paths, migration, research, configuration]
 # 0056: Restructure meta/research/codebase/ into Subject Subcategories
 
 **Type**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
