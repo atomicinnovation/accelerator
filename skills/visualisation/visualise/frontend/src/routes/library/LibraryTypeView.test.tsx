@@ -10,6 +10,7 @@ import {
 } from '../../api/use-unseen-doc-types'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
+import typeViewCss from './LibraryTypeView.module.css?raw'
 
 const mockEntries: IndexEntry[] = [
   {
@@ -106,6 +107,75 @@ describe('LibraryTypeView', () => {
     vi.spyOn(fetchModule, 'fetchDocs').mockRejectedValue(new Error('boom'))
     render(<LibraryTypeView type="plans" />, { wrapper: Wrapper })
     expect(await screen.findByRole('alert')).toHaveTextContent(/Failed to load documents/i)
+  })
+
+  it('renders status cells as a coloured Chip when status is present', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([
+      {
+        ...mockEntries[0],
+        frontmatter: { status: 'accepted', date: '2026-01-01' },
+      },
+    ])
+    const { container } = render(<LibraryTypeView type="plans" />, { wrapper: Wrapper })
+    await screen.findByText('Foo Plan')
+    expect(container.querySelector('[data-variant="green"]')).not.toBeNull()
+  })
+
+  it('falls back to a neutral Chip when statusCellValue returns a date string', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([
+      {
+        ...mockEntries[0],
+        frontmatter: { date: '2026-04-05' },
+      },
+    ])
+    const { container } = render(<LibraryTypeView type="plans" />, { wrapper: Wrapper })
+    await screen.findByText('Foo Plan')
+    expect(container.querySelector('[data-variant="neutral"]')).not.toBeNull()
+  })
+
+  it('renders a plain em-dash (no chip) when statusCellValue is empty', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([
+      {
+        ...mockEntries[0],
+        frontmatter: {},
+      },
+    ])
+    const { container } = render(<LibraryTypeView type="plans" />, { wrapper: Wrapper })
+    await screen.findByText('Foo Plan')
+    expect(screen.getByText('—')).toBeInTheDocument()
+    expect(container.querySelectorAll('[data-variant]').length).toBe(0)
+  })
+
+  it('case (a): with status present, variant derives from frontmatter.status', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([
+      {
+        ...mockEntries[0],
+        frontmatter: { status: 'accepted', date: '2026-04-05' },
+      },
+    ])
+    const { container } = render(<LibraryTypeView type="plans" />, { wrapper: Wrapper })
+    await screen.findByText('Foo Plan')
+    const chip = container.querySelector('[data-variant="green"]')
+    expect(chip).not.toBeNull()
+    expect(chip!.textContent).toBe('accepted')
+  })
+
+  it('case (b): with only a date, variant is neutral and label is the date', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([
+      {
+        ...mockEntries[0],
+        frontmatter: { date: '2026-04-05' },
+      },
+    ])
+    const { container } = render(<LibraryTypeView type="plans" />, { wrapper: Wrapper })
+    await screen.findByText('Foo Plan')
+    const chip = container.querySelector('[data-variant="neutral"]')
+    expect(chip).not.toBeNull()
+    expect(chip!.textContent).toBe('2026-04-05')
+  })
+
+  it('CSS module no longer defines the legacy .badge rule', () => {
+    expect(typeViewCss).not.toMatch(/\.badge\b/)
   })
 })
 

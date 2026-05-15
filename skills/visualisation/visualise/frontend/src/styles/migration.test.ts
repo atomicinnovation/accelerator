@@ -126,20 +126,17 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '600px', count: 1, kind: 'irreducible', reason: 'container max-width — no token equivalent' },
   // routes/library/LibraryTemplatesView.module.css
   { file: 'routes/library/LibraryTemplatesView.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
-  { file: 'routes/library/LibraryTemplatesView.module.css', literal: '0.1rem', count: 1, kind: 'irreducible', reason: 'badge padding (1.6px) — below --sp-1 floor' },
   { file: 'routes/library/LibraryTemplatesView.module.css', literal: '900px', count: 1, kind: 'irreducible', reason: 'container max-width — no token equivalent' },
   // routes/library/LibraryTypeView.module.css
   { file: 'routes/library/LibraryTypeView.module.css', literal: '2px', count: 3, kind: 'irreducible', reason: 'border and outline widths — below --sp-1 floor' },
   { file: 'routes/library/LibraryTypeView.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   { file: 'routes/library/LibraryTypeView.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'off-scale cell padding (6.4px) — between --sp-1 and --sp-2' },
-  { file: 'routes/library/LibraryTypeView.module.css', literal: '0.1rem', count: 1, kind: 'irreducible', reason: 'badge padding (1.6px) — below --sp-1 floor' },
   { file: 'routes/library/LibraryTypeView.module.css', literal: '900px', count: 1, kind: 'irreducible', reason: 'container max-width — no token equivalent' },
   // routes/lifecycle/LifecycleClusterView.module.css
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1.5px', count: 2, kind: 'irreducible', reason: 'coloured ring widths — below --radius-sm/--sp-1 floor' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'border/ring widths — below --sp-1 floor' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.4rem', count: 3, kind: 'irreducible', reason: 'off-scale spacing (6.4px) — between --sp-1 and --sp-2' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.05rem', count: 1, kind: 'irreducible', reason: 'sub-pixel badge padding — below --sp-1 floor' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.4rem', count: 2, kind: 'irreducible', reason: 'off-scale spacing (6.4px) — between --sp-1 and --sp-2' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.06em', count: 1, kind: 'irreducible', reason: 'letter-spacing — off-scale, half of --tracking-caps' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.08em', count: 1, kind: 'irreducible', reason: 'letter-spacing — off-scale, half of --tracking-caps' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1.4em', count: 1, kind: 'irreducible', reason: 'calc(line-height × 3) for text-clamp — derived value' },

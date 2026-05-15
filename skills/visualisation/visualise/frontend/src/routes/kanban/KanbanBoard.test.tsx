@@ -82,6 +82,21 @@ describe('KanbanBoard', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /^kanban$/i })).toBeInTheDocument()
   })
 
+  it('renders a "live" Chip with indigo variant in the page subtitle when loaded', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
+    const { container } = renderKanbanAt()
+    // The "live" chip only renders once the kanban config + entries have loaded.
+    await screen.findByText('live')
+    expect(container.querySelector('[data-variant="indigo"]')).not.toBeNull()
+  })
+
+  it('does not render the "live" chip in the loading branch', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockImplementation(() => new Promise(() => {}))
+    const { container } = renderKanbanAt()
+    await screen.findByText(/loading/i)
+    expect(container.querySelector('[data-variant="indigo"]')).toBeNull()
+  })
+
   it('shows a loading state while the work items list is pending', async () => {
     vi.spyOn(fetchModule, 'fetchDocs').mockImplementation(() => new Promise(() => {}))
     renderKanbanAt()

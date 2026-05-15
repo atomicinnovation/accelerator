@@ -6,6 +6,7 @@ import { LibraryTemplatesIndex } from './LibraryTemplatesIndex'
 import * as fetchModule from '../../api/fetch'
 import type { TemplateSummary } from '../../api/types'
 import { MemoryRouter } from '../../test/router-helpers'
+import indexCss from './LibraryTemplatesIndex.module.css?raw'
 
 const mockTemplates: TemplateSummary[] = [
   { name: 'adr',    activeTier: 'plugin-default', tiers: [] },
@@ -55,5 +56,19 @@ describe('LibraryTemplatesIndex', () => {
     vi.spyOn(fetchModule, 'fetchTemplates').mockRejectedValue(new Error('boom'))
     render(<LibraryTemplatesIndex />, { wrapper: Wrapper })
     expect(await screen.findByRole('alert')).toHaveTextContent(/Failed to load templates/i)
+  })
+
+  it('renders the active-tier label as a neutral Chip per row', async () => {
+    vi.spyOn(fetchModule, 'fetchTemplates')
+      .mockResolvedValue({ templates: mockTemplates })
+    const { container } = render(<LibraryTemplatesIndex />, { wrapper: Wrapper })
+    await screen.findByRole('link', { name: 'adr' })
+    const chip = screen.getByText('Plugin default').closest('[data-variant="neutral"]')
+    expect(chip).not.toBeNull()
+    expect(container.querySelectorAll('[data-variant="neutral"]').length).toBe(2)
+  })
+
+  it('CSS module no longer defines the legacy .active text rule', () => {
+    expect(indexCss).not.toMatch(/\.active\b/)
   })
 })

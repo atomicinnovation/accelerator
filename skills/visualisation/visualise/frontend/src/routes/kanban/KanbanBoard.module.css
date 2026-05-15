@@ -4,12 +4,6 @@
   gap: var(--sp-4);
   padding: var(--sp-4);
 }
-.title {
-  margin: 0;
-  font-family: var(--ac-font-display);
-  font-size: var(--size-lg);
-  color: var(--ac-fg-strong);
-}
 .columns {
   display: flex;
   gap: var(--sp-4);

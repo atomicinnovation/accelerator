@@ -17,6 +17,8 @@ import { useMoveWorkItem } from '../../api/use-move-work-item'
 import { resolveDropOutcome } from './resolve-drop-outcome'
 import { buildKanbanAnnouncements } from './announcements'
 import { KanbanColumn } from './KanbanColumn'
+import { PageSubtitle } from '../../components/PageSubtitle/PageSubtitle'
+import { Chip } from '../../components/Chip/Chip'
 import styles from './KanbanBoard.module.css'
 
 function errorMessageFor(error: unknown): string {
@@ -138,7 +140,7 @@ export function KanbanBoard() {
   if (entriesPending || configPending) {
     return (
       <div className={styles.board}>
-        <h1 className={styles.title}>Kanban</h1>
+        <PageSubtitle title="Kanban" />
         <p role="status" className={styles.status}>Loading…</p>
       </div>
     )
@@ -147,7 +149,7 @@ export function KanbanBoard() {
   if (isError) {
     return (
       <div className={styles.board}>
-        <h1 className={styles.title}>Kanban</h1>
+        <PageSubtitle title="Kanban" />
         <div role="alert" className={styles.alert}>
           <p className={styles.alertMessage}>{errorMessageFor(error)}</p>
           <button
@@ -178,7 +180,9 @@ export function KanbanBoard() {
       accessibility={{ announcements }}
     >
       <div className={styles.board} data-sse-state={docEvents.connectionState}>
-        <h1 className={styles.title}>Kanban</h1>
+        <PageSubtitle title="Kanban">
+          <Chip variant="indigo">live</Chip>
+        </PageSubtitle>
         {conflict !== null && (
           <div role="alert" aria-atomic="true" className={styles.conflictBanner}>
             <span className={styles.conflictMessage}>{conflict}</span>

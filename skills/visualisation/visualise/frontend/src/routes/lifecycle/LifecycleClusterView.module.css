@@ -92,14 +92,6 @@
   margin-top: var(--sp-1);
 }
 
-.statusBadge {
-  display: inline-block;
-  padding: 0.05rem 0.4rem;
-  border-radius: var(--radius-pill);
-  background: var(--ac-stroke-soft);
-  color: var(--ac-fg);
-}
-
 .bodyPreview {
   margin: 0.4rem 0 0;
   font-size: var(--size-xs);

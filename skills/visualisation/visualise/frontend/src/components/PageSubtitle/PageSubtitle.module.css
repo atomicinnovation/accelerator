@@ -1,0 +1,22 @@
+.pagehead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--ac-font-display);
+  font-size: var(--size-h2);
+  font-weight: 600;
+  color: var(--ac-fg);
+}
+
+.subtitle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--size-sm);
+  color: var(--ac-fg-muted);
+}

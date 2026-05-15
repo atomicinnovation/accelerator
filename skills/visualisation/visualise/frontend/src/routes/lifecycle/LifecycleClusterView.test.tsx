@@ -7,6 +7,7 @@ import { LifecycleClusterContent } from './LifecycleClusterView'
 import * as fetchModule from '../../api/fetch'
 import { makeIndexEntry } from '../../api/test-fixtures'
 import type { LifecycleCluster, Completeness, IndexEntry } from '../../api/types'
+import lifecycleCss from './LifecycleClusterView.module.css?raw'
 
 const empty: Completeness = {
   hasWorkItem: false, hasResearch: false, hasPlan: false,
@@ -178,6 +179,50 @@ describe('LifecycleClusterContent', () => {
     await screen.findByText('The Foo Plan')
     expect(screen.queryByRole('region', { name: /other artifacts/i }))
       .not.toBeInTheDocument()
+  })
+
+  it('renders the status as a Chip with the variant from statusToChipVariant', async () => {
+    const withStatus: LifecycleCluster = {
+      ...cluster,
+      entries: [
+        makeIndexEntry({
+          type: 'plans',
+          path: '/x/p.md',
+          relPath: 'meta/plans/2026-04-18-p.md',
+          title: 'P',
+          frontmatter: { status: 'done' },
+          mtimeMs: 100,
+        }),
+      ],
+    }
+    vi.spyOn(fetchModule, 'fetchLifecycleCluster').mockResolvedValue(withStatus)
+    const { container } = render(<LifecycleClusterContent slug="foo" />, { wrapper: Wrapper })
+    await screen.findByText('P')
+    expect(container.querySelector('[data-variant="green"]')).not.toBeNull()
+  })
+
+  it('renders neutral chip for unknown status', async () => {
+    const withStatus: LifecycleCluster = {
+      ...cluster,
+      entries: [
+        makeIndexEntry({
+          type: 'plans',
+          path: '/x/p.md',
+          relPath: 'meta/plans/2026-04-18-p.md',
+          title: 'P',
+          frontmatter: { status: 'mystery' },
+          mtimeMs: 100,
+        }),
+      ],
+    }
+    vi.spyOn(fetchModule, 'fetchLifecycleCluster').mockResolvedValue(withStatus)
+    const { container } = render(<LifecycleClusterContent slug="foo" />, { wrapper: Wrapper })
+    await screen.findByText('P')
+    expect(container.querySelector('[data-variant="neutral"]')).not.toBeNull()
+  })
+
+  it('CSS module no longer defines the legacy .statusBadge rule', () => {
+    expect(lifecycleCss).not.toMatch(/\.statusBadge\b/)
   })
 
   it('renders multiple entries within a single stage', async () => {

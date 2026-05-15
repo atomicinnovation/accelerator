@@ -8,6 +8,8 @@ import {
   WORKFLOW_PIPELINE_STEPS, LONG_TAIL_PIPELINE_STEPS,
   type IndexEntry,
 } from '../../api/types'
+import { Chip } from '../../components/Chip/Chip'
+import { statusToChipVariant } from '../../api/status-variant'
 import styles from './LifecycleClusterView.module.css'
 
 /** Pure renderer. Tests render this directly with a literal slug. */
@@ -122,7 +124,7 @@ function EntryCard({ entry }: { entry: IndexEntry }) {
       <div className={styles.entryMeta}>
         {typeof date === 'string' && <span>{date}</span>}
         {typeof status === 'string' && (
-          <span className={styles.statusBadge}>{status}</span>
+          <Chip variant={statusToChipVariant(status)}>{status}</Chip>
         )}
       </div>
       {entry.bodyPreview && (

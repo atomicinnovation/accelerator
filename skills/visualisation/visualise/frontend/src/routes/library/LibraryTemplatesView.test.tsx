@@ -6,6 +6,7 @@ import { LibraryTemplatesView } from './LibraryTemplatesView'
 import * as fetchModule from '../../api/fetch'
 import type { TemplateDetail } from '../../api/types'
 import { MemoryRouter } from '../../test/router-helpers'
+import templatesCss from './LibraryTemplatesView.module.css?raw'
 
 const mockDetail: TemplateDetail = {
   name: 'adr',
@@ -63,5 +64,24 @@ describe('LibraryTemplatesView', () => {
     vi.spyOn(fetchModule, 'fetchTemplateDetail').mockRejectedValue(new Error('boom'))
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
     expect(await screen.findByRole('alert')).toHaveTextContent(/Failed to load template/i)
+  })
+
+  it('renders an indigo "active" Chip on the active tier panel', async () => {
+    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
+    const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
+    await screen.findByText('active')
+    expect(container.querySelector('[data-variant="indigo"]')).not.toBeNull()
+  })
+
+  it('renders neutral "absent" Chips on absent tier panels', async () => {
+    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
+    const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
+    await screen.findByText('active')
+    const neutralChips = container.querySelectorAll('[data-variant="neutral"]')
+    expect(neutralChips.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('CSS module no longer defines the legacy .activeBadge rule', () => {
+    expect(templatesCss).not.toMatch(/\.activeBadge\b/)
   })
 })

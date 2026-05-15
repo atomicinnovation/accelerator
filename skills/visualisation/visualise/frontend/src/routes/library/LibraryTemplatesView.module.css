@@ -5,10 +5,6 @@
 .panel.absent { opacity: 0.55; background: var(--ac-bg-sunken); }
 .panelHeader { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
 .tierLabel { font-weight: 600; font-size: var(--size-xs); color: var(--ac-fg); }
-.activeBadge {
-  font-size: var(--size-xxs); background: var(--ac-accent-tint); color: var(--ac-accent);
-  border-radius: var(--radius-pill); padding: 0.1rem var(--sp-2); font-weight: 600;
-}
 .path { font-size: var(--size-xxs); color: var(--ac-fg-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .absentNote { font-style: italic; color: var(--ac-fg-muted); margin: 0; }
 .error {

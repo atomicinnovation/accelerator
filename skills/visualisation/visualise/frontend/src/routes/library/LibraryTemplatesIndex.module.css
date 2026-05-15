@@ -2,7 +2,6 @@
 .title { font-size: var(--size-lg); font-weight: 700; color: var(--ac-fg-strong); margin: 0 0 var(--sp-5); }
 .list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
 .list li { display: flex; align-items: center; gap: var(--sp-4); }
-.active { font-size: var(--size-xxs); color: var(--ac-fg-muted); }
 .error {
   color: var(--ac-err); background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg)); border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
   border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); margin-top: var(--sp-4);

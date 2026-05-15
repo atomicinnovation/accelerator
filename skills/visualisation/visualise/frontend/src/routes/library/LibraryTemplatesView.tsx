@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchTemplateDetail } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
 import { MarkdownRenderer } from '../../components/MarkdownRenderer/MarkdownRenderer'
+import { Chip } from '../../components/Chip/Chip'
 import type { TemplateTier } from '../../api/types'
 import styles from './LibraryTemplatesView.module.css'
 
@@ -57,7 +58,8 @@ function TierPanel({ tier, isActive }: { tier: TemplateTier; isActive: boolean }
     <section className={`${styles.panel} ${!tier.present ? styles.absent : ''}`}>
       <header className={styles.panelHeader}>
         <span className={styles.tierLabel}>{TIER_LABELS[tier.source] ?? tier.source}</span>
-        {isActive && <span className={styles.activeBadge}>active</span>}
+        {isActive && <Chip variant="indigo">active</Chip>}
+        {!tier.present && <Chip variant="neutral">absent</Chip>}
         <code className={styles.path}>{tier.path}</code>
       </header>
       {tier.present && tier.content != null ? (

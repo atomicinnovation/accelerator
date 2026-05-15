@@ -23,11 +23,6 @@
 }
 .table td { padding: 0.4rem var(--sp-3); border-bottom: 1px solid var(--ac-bg-sunken); }
 .table tr:hover td { background: var(--ac-bg-sunken); }
-.badge {
-  display: inline-block; padding: 0.1rem var(--sp-2);
-  font-size: var(--size-xxs); border-radius: var(--radius-pill);
-  background: var(--ac-stroke-soft); color: var(--ac-fg);
-}
 .slug { color: var(--ac-fg-muted); font-size: var(--size-xxs); font-family: var(--ac-font-mono); }
 .mtime { color: var(--ac-fg-faint); font-size: var(--size-xxs); white-space: nowrap; }
 .empty { color: var(--ac-fg-muted); margin-top: var(--sp-6); }

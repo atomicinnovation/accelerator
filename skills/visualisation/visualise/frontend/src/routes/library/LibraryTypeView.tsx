@@ -8,6 +8,8 @@ import type { IndexEntry, DocTypeKey } from '../../api/types'
 import { isDocTypeKey } from '../../api/types'
 import { useMarkDocTypeSeen } from '../../api/use-unseen-doc-types'
 import { fileSlugFromRelPath } from '../../api/path-utils'
+import { Chip } from '../../components/Chip/Chip'
+import { statusToChipVariant } from '../../api/status-variant'
 import styles from './LibraryTypeView.module.css'
 
 type SortKey = 'title' | 'slug' | 'status' | 'mtime'
@@ -120,9 +122,14 @@ export function LibraryTypeView({ type: propType }: Props) {
                 </Link>
               </td>
               <td>
-                <span className={styles.badge}>
-                  {statusCellValue(entry) || '—'}
-                </span>
+                {(() => {
+                  const label = statusCellValue(entry)
+                  if (!label) return '—'
+                  const fm = entry.frontmatter as Record<string, unknown> | null
+                  return (
+                    <Chip variant={statusToChipVariant(fm?.status)}>{label}</Chip>
+                  )
+                })()}
               </td>
               <td className={styles.slug}>{entry.slug ?? '—'}</td>
               <td className={styles.mtime}>

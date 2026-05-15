@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchTemplates } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
 import type { TemplateSummary, TemplateTierSource } from '../../api/types'
+import { Chip } from '../../components/Chip/Chip'
 import styles from './LibraryTemplatesIndex.module.css'
 
 const TIER_LABELS: Record<TemplateTierSource, string> = {
@@ -35,7 +36,7 @@ export function LibraryTemplatesIndex() {
             <Link to="/library/templates/$name" params={{ name: t.name }}>
               {t.name}
             </Link>
-            <span className={styles.active}>{TIER_LABELS[t.activeTier]}</span>
+            <Chip variant="neutral">{TIER_LABELS[t.activeTier]}</Chip>
           </li>
         ))}
       </ul>
