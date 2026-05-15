@@ -397,5 +397,36 @@ assert_eq "jj secondary" "$FIXTURE_SECONDARY" "$RESULT"
 # the result is implementation-detail. Leaving the assertion off keeps room
 # for a future fix without breaking this regression guard.)
 
+echo "=== boundary block: jj secondary and git linked worktree ==="
+
+# Extract additionalContext from the hook's JSON envelope.
+extract_context() {
+  jq -r '.hookSpecificOutput.additionalContext' <<< "$1"
+}
+
+# ── AC1: jj secondary workspace boundary block ────────────────────────────────
+echo "Test [AC1]: jj secondary workspace emits boundary block"
+make_jj_secondary_workspace
+OUTPUT=$(run_hook "$FIXTURE_SECONDARY")
+CTX=$(extract_context "$OUTPUT")
+assert_contains "boundary header" "$CTX" "WORKSPACE BOUNDARY DETECTED"
+assert_contains "workspace path present" "$CTX" "Boundary (active workspace): $FIXTURE_SECONDARY"
+assert_contains "jj parent labelled" "$CTX" "Parent repository (jj): $FIXTURE_PARENT"
+assert_contains "edit prohibition" "$CTX" "do not edit files in $FIXTURE_PARENT"
+assert_contains "vcs prohibition" "$CTX" "do not run VCS commands against $FIXTURE_PARENT"
+assert_contains "research prohibition" "$CTX" "do not grep, find, or research files in $FIXTURE_PARENT"
+
+# ── AC2: git linked worktree boundary block ───────────────────────────────────
+echo "Test [AC2]: git linked worktree emits boundary block"
+make_git_linked_worktree
+OUTPUT=$(run_hook "$FIXTURE_WORKTREE")
+CTX=$(extract_context "$OUTPUT")
+assert_contains "boundary header" "$CTX" "WORKSPACE BOUNDARY DETECTED"
+assert_contains "worktree path present" "$CTX" "Boundary (active workspace): $FIXTURE_WORKTREE"
+assert_contains "git parent labelled" "$CTX" "Parent repository (git): $FIXTURE_PARENT"
+assert_contains "edit prohibition" "$CTX" "do not edit files in $FIXTURE_PARENT"
+assert_contains "vcs prohibition" "$CTX" "do not run VCS commands against $FIXTURE_PARENT"
+assert_contains "research prohibition" "$CTX" "do not grep, find, or research files in $FIXTURE_PARENT"
+
 echo ""
 test_summary

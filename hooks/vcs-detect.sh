@@ -72,11 +72,86 @@ Key conventions:
     ;;
 esac
 
-# Output as SessionStart hook response
-# Use jq to safely encode the context string as JSON
-jq -n --arg context "$CONTEXT" '{
-  "hookSpecificOutput": {
-    "hookEventName": "SessionStart",
-    "additionalContext": $context
-  }
-}'
+# Locally realpath-normalise REPO_ROOT inside this hook only (we do NOT
+# touch find_repo_root, which has many external callers). After this line,
+# every path in the emitted additionalContext message shares one
+# normalisation regime — REPO_ROOT and the new boundary paths.
+if [ -n "$REPO_ROOT" ]; then
+  REPO_ROOT=$(realpath "$REPO_ROOT" 2>/dev/null || printf '%s' "$REPO_ROOT")
+fi
+
+# Single source of truth for AC1 prohibition wording. Used by every kind
+# that emits one or more parent blocks.
+_emit_parent_block() {
+  local label="$1" parent="$2"
+  printf 'Parent repository (%s): %s\n' "$label" "$parent"
+  printf 'do not edit files in %s\n' "$parent"
+  printf 'do not run VCS commands against %s\n' "$parent"
+  printf 'do not grep, find, or research files in %s\n' "$parent"
+}
+
+# Build the boundary block. The kind_suffix is "" for single-VCS kinds
+# and " (colocated)" / " (nested)" for dual-parent kinds.
+build_boundary_block() {
+  local kind_suffix="$1" boundary="$2" jj_parent="$3" git_parent="$4"
+  printf '\n\nWORKSPACE BOUNDARY DETECTED%s\n' "$kind_suffix"
+  printf 'You are inside a checkout that is NOT the main repository.\n'
+  printf 'Boundary (active workspace): %s\n' "$boundary"
+  printf '\n'
+  if [ -n "$jj_parent" ]; then
+    _emit_parent_block "jj" "$jj_parent"
+    [ -n "$git_parent" ] && printf '\n'
+  fi
+  if [ -n "$git_parent" ]; then
+    _emit_parent_block "git" "$git_parent"
+  fi
+}
+
+# Probe once, parse once. C_JJ_MISSING / C_GIT_MISSING default to "0"
+# so the diagnostic branch never fires for older classify_checkout
+# implementations that did not emit those fields (forward-compat).
+CHECKOUT_RECORD=$(classify_checkout .)
+C_KIND=""; C_BOUNDARY=""; C_JJ_PARENT=""; C_GIT_PARENT=""
+C_JJ_MISSING="0"; C_GIT_MISSING="0"
+while IFS='=' read -r k v; do
+  case "$k" in
+    KIND) C_KIND=$v ;;
+    BOUNDARY) C_BOUNDARY=$v ;;
+    JJ_PARENT) C_JJ_PARENT=$v ;;
+    GIT_PARENT) C_GIT_PARENT=$v ;;
+    JJ_MISSING) C_JJ_MISSING=$v ;;
+    GIT_MISSING) C_GIT_MISSING=$v ;;
+  esac
+done <<< "$CHECKOUT_RECORD"
+
+# Missing-binary diagnostic. Fires based on the classifier's
+# JJ_MISSING / GIT_MISSING fields rather than KIND, because a missing
+# binary collapses KIND toward `none` or single-VCS — gating on KIND
+# would silently fail to diagnose the most common scenario (jj missing
+# inside a lone jj secondary workspace, where KIND=none). Mirrors the
+# existing jq-missing pattern in this hook.
+SYSTEM_MESSAGE=""
+if [ "$C_JJ_MISSING" = "1" ]; then
+  SYSTEM_MESSAGE="vcs-detect.sh: jj binary not on PATH; jj-side boundary detection was skipped (ancestor .jj marker present)."
+elif [ "$C_GIT_MISSING" = "1" ]; then
+  SYSTEM_MESSAGE="vcs-detect.sh: git binary not on PATH; git-side boundary detection was skipped (ancestor .git marker present)."
+fi
+
+case "$C_KIND" in
+  jj-secondary|git-worktree)
+    BOUNDARY_OUT=$(build_boundary_block "" "$C_BOUNDARY" "$C_JJ_PARENT" "$C_GIT_PARENT")
+    # $() strips trailing newlines; explicitly restore one so future
+    # appended content is not run-on with the prohibition lines.
+    CONTEXT="${CONTEXT}${BOUNDARY_OUT}"$'\n'
+    ;;
+esac
+
+# Output as SessionStart hook response.
+# Use jq to safely encode the context string as JSON. The systemMessage
+# field is added only when SYSTEM_MESSAGE is non-empty, preserving the
+# AC5 byte-identity contract for main-checkout sessions.
+jq -n \
+  --arg context "$CONTEXT" \
+  --arg sys "$SYSTEM_MESSAGE" \
+  '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $context}}
+   + (if $sys == "" then {} else {systemMessage: $sys} end)'
