@@ -60,6 +60,9 @@ export const DARK_COLOR_TOKENS = {
   'ac-accent-2':       '#e86a6b',
   'ac-accent-tint':    'rgba(138, 144, 232, 0.18)',
   'ac-accent-faint':   'rgba(138, 144, 232, 0.08)',
+  'ac-ok':             '#79d9a6',
+  'ac-warn':           '#e4b76e',
+  'ac-err':            '#e86a6b',
   // Per-doc-type glyph foreground (dark theme). The canonical dark screenshot
   // renders all icons in a monochrome neutral, so dark values are derived (not
   // eyedroppered) — lighter hue-preserving variants of the light tokens that
@@ -93,6 +96,8 @@ export const TYPOGRAPHY_TOKENS = {
   'size-sm':          '16px',
   'size-xs':          '14px',
   'size-xxs':         '12px',
+  'size-chip':        '10.5px',
+  'size-chip-md':     '11.5px',
   'lh-tight':         '1.05',
   'lh-snug':          '1.2',
   'lh-normal':        '1.5',

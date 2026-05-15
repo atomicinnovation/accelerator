@@ -182,6 +182,18 @@ describe('global.css @keyframes ac-pulse', () => {
  * one known-last token from each block, the truncation produces a hard
  * failure rather than passing on a partial extraction.
  */
+describe('--ac-violet theme invariance', () => {
+  it('--ac-violet has no dark-theme override (intentionally theme-invariant per prototype)', () => {
+    expect(DARK_COLOR_TOKENS).not.toHaveProperty('ac-violet')
+    const darkMatch = /\[data-theme="dark"\]\s*\{/.exec(globalCss)
+    const darkBody = darkMatch
+      ? extractBlockBody(globalCss, darkMatch.index)
+      : undefined
+    expect(darkBody, 'failed to extract [data-theme="dark"] body').toBeDefined()
+    expect(darkBody!).not.toMatch(/--ac-violet\s*:/)
+  })
+})
+
 describe('readCssVar truncation guard', () => {
   it(':root block extends past --ac-topbar-h', () => {
     expect(readCssVar('ac-topbar-h', 'root')).not.toBeNull()

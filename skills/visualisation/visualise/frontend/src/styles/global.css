@@ -123,6 +123,8 @@ body {
   --size-sm:          16px;
   --size-xs:          14px;
   --size-xxs:         12px;
+  --size-chip:        10.5px;
+  --size-chip-md:     11.5px;
   --lh-tight:         1.05;
   --lh-snug:          1.2;
   --lh-normal:        1.5;
@@ -186,6 +188,9 @@ body {
   --ac-accent-2:       #e86a6b;
   --ac-accent-tint:    rgba(138, 144, 232, 0.18);
   --ac-accent-faint:   rgba(138, 144, 232, 0.08);
+  --ac-ok:             #79d9a6;
+  --ac-warn:           #e4b76e;
+  --ac-err:            #e86a6b;
   /* Per-doc-type glyph foreground (dark). The canonical dark screenshot renders
      icons monochrome, so dark values are derived (not eyedroppered) — hue-
      preserving lifts of the light tokens that clear ≥3:1 against --ac-bg. */
@@ -232,6 +237,9 @@ body {
     --ac-accent-2:       #e86a6b;
     --ac-accent-tint:    rgba(138, 144, 232, 0.18);
     --ac-accent-faint:   rgba(138, 144, 232, 0.08);
+    --ac-ok:             #79d9a6;
+    --ac-warn:           #e4b76e;
+    --ac-err:            #e86a6b;
     --ac-doc-decisions:           #e26b6d;
     --ac-doc-work-items:          #e27357;
     --ac-doc-plans:               #7a95e0;
