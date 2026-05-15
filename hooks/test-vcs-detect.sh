@@ -528,5 +528,92 @@ assert_eq "BOUNDARY=target" "$FIXTURE_TARGET" "$C_BOUNDARY"
 assert_eq "JJ_PARENT=jj" "$FIXTURE_JJ_PARENT" "$C_JJ_PARENT"
 assert_eq "GIT_PARENT=git" "$FIXTURE_GIT_PARENT" "$C_GIT_PARENT"
 
+echo "=== AC8 / AC9 / missing-binary final guards ==="
+
+# ── AC8: hooks/hooks.json SessionStart vcs-detect entry intact ────────────────
+# Three structural assertions, not a string-equality check. Survives
+# harmless reformatting and any future optional-field additions to the
+# entry while still enforcing AC8's intent: the hook fires on every
+# SessionStart with the same matcher/command.
+echo "Test [AC8]: hooks.json SessionStart entry has matcher='', one hook, expected command"
+HOOKS_JSON="$PLUGIN_ROOT/hooks/hooks.json"
+assert_eq "matcher empty" \
+  "" \
+  "$(jq -r '.hooks.SessionStart[0].matcher' "$HOOKS_JSON")"
+assert_eq "one hook entry" \
+  "1" \
+  "$(jq '.hooks.SessionStart[0].hooks | length' "$HOOKS_JSON")"
+assert_eq "command points at vcs-detect.sh" \
+  '${CLAUDE_PLUGIN_ROOT}/hooks/vcs-detect.sh' \
+  "$(jq -r '.hooks.SessionStart[0].hooks[0].command' "$HOOKS_JSON")"
+assert_eq "type command" \
+  "command" \
+  "$(jq -r '.hooks.SessionStart[0].hooks[0].type' "$HOOKS_JSON")"
+
+# ── AC9: top-of-file placement comment present (canonical phrases) ────────────
+# Scan the leading contiguous comment block (rather than head -n N) so a
+# future contributor can grow the file header without breaking AC9.
+# Canonical phrases are asserted as full contiguous substrings, not loose
+# keywords like "workspace-detect.sh" or "REPO_ROOT" that could appear in
+# any unrelated comment.
+echo "Test [AC9]: vcs-detect.sh top-of-file comment names alternative + rationale"
+# Extract the leading comment block: shebang line, optional blank line,
+# then contiguous `#`-prefixed lines. awk emits up to the first non-comment
+# non-blank line.
+LEADING_BLOCK=$(awk '
+  NR==1 && /^#!/ { print; next }
+  /^[[:space:]]*$/ { print; next }
+  /^[[:space:]]*#/ { print; next }
+  { exit }
+' "$PLUGIN_ROOT/hooks/vcs-detect.sh")
+assert_contains "names alternative considered" \
+  "$LEADING_BLOCK" \
+  "alternative considered: split into a sibling workspace-detect.sh"
+assert_contains "names shared-computation rationale" \
+  "$LEADING_BLOCK" \
+  "shared REPO_ROOT and VCS_MODE computation"
+assert_contains "names coherent-message rationale" \
+  "$LEADING_BLOCK" \
+  "one coherent SessionStart message"
+# Provenance link so the rationale is traceable.
+assert_contains "links to work item" \
+  "$LEADING_BLOCK" \
+  "meta/work/0058"
+
+# ── Missing-binary graceful degradation ──────────────────────────────────────
+# When jj is missing from PATH but we're inside a jj secondary workspace,
+# the hook must (a) exit 0, (b) emit a systemMessage explaining the skip,
+# (c) NOT crash with a partial boundary block.
+echo "Test [missing-binary]: jj absent — hook exits 0 with systemMessage"
+make_jj_secondary_workspace
+ORIG_PATH=$PATH
+NEW_PATH=$(strip_binary_from_path jj)
+# Capture hook output and exit code with PATH scoped to the substitution's
+# subshell.
+RC=0
+OUTPUT=$(PATH="$NEW_PATH" run_hook "$FIXTURE_SECONDARY") || RC=$?
+assert_eq "PATH not leaked" "$ORIG_PATH" "$PATH"
+assert_eq "exits 0 with jj missing" "0" "$RC"
+SYS_MSG=$(jq -r '.systemMessage // ""' <<< "$OUTPUT")
+assert_contains "systemMessage names jj" "$SYS_MSG" "jj binary not on PATH"
+# Stdout must be valid JSON regardless.
+jq -e . >/dev/null <<< "$OUTPUT" \
+  || { echo "FAIL: hook stdout not valid JSON with jj missing" >&2; exit 1; }
+# Defence-in-depth: the boundary block must not name the jj parent in
+# the degraded case (jj-side detection was skipped, so the field has no
+# trustworthy value).
+CTX=$(jq -r '.hookSpecificOutput.additionalContext // ""' <<< "$OUTPUT")
+assert_not_contains "no jj-parent line with jj absent" "$CTX" "Parent repository (jj):"
+
+# Same drill for jq missing — the EXISTING jq-missing path is unchanged
+# (hook exits 0 with systemMessage warning). Regression-test it. Use a
+# subshell wrapper for PATH scoping.
+echo "Test [missing-binary]: jq absent — hook exits 0 with systemMessage (existing behaviour)"
+NEW_PATH=$(strip_binary_from_path jq)
+RC=0
+( PATH="$NEW_PATH"; cd "$FIXTURE_SECONDARY" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" ) >/dev/null 2>&1 || RC=$?
+assert_eq "PATH not leaked" "$ORIG_PATH" "$PATH"
+assert_eq "exits 0 with jq missing" "0" "$RC"
+
 echo ""
 test_summary

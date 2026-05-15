@@ -3,7 +3,7 @@ date: "2026-05-15T15:30:00+01:00"
 type: plan
 skill: create-plan
 work-item: "0058"
-status: accepted
+status: implemented
 ---
 
 # Workspace and Worktree Boundary Detection Implementation Plan
@@ -656,22 +656,22 @@ dedicated JSON-validity helper.)
 
 #### Automated Verification
 
-- [ ] `mise tasks ls` lists `test:integration:hooks`.
-- [ ] `mise run test:integration:hooks` discovers and runs
+- [x] `mise tasks ls` lists `test:integration:hooks`.
+- [x] `mise run test:integration:hooks` discovers and runs
       `hooks/test-vcs-detect.sh`.
-- [ ] All four tests in `hooks/test-vcs-detect.sh` pass against
+- [x] All four tests in `hooks/test-vcs-detect.sh` pass against
       *unchanged* `vcs-detect.sh` and `vcs-common.sh`:
       `mise run test:integration:hooks`.
-- [ ] Full CI suite still green: `mise run test`.
-- [ ] Shellcheck clean on the new test file:
+- [x] Full CI suite still green: `mise run test`.
+- [x] Shellcheck clean on the new test file:
       `shellcheck hooks/test-vcs-detect.sh`.
-- [ ] Fixture files exist and are non-empty:
+- [x] Fixture files exist and are non-empty:
       `test -s hooks/test-fixtures/vcs-detect/main-jj-workspace.json &&
        test -s hooks/test-fixtures/vcs-detect/main-git-checkout.json`.
-- [ ] `CAPTURE-SOURCE.txt` records the source commit of
+- [x] `CAPTURE-SOURCE.txt` records the source commit of
       `hooks/vcs-detect.sh` and `scripts/vcs-common.sh` the snapshots
       were captured from.
-- [ ] `regenerate.sh` is executable and reproduces byte-identical
+- [x] `regenerate.sh` is executable and reproduces byte-identical
       output when re-run against the same source commits.
 
 #### Manual Verification
@@ -1184,17 +1184,17 @@ minimum.
 
 #### Automated Verification
 
-- [ ] All helper tests pass: `mise run test:integration:hooks`.
-- [ ] AC5 and AC6 tests from Phase 1 still pass (additive change only).
-- [ ] Full test suite green: `mise run test`.
-- [ ] Shellcheck clean on `scripts/vcs-common.sh`:
+- [x] All helper tests pass: `mise run test:integration:hooks`.
+- [x] AC5 and AC6 tests from Phase 1 still pass (additive change only).
+- [x] Full test suite green: `mise run test`.
+- [x] Shellcheck clean on `scripts/vcs-common.sh`:
       `shellcheck scripts/vcs-common.sh`.
-- [ ] Each helper invocable from a bare shell. The structured-record
+- [x] Each helper invocable from a bare shell. The structured-record
       contract is also verifiable directly:
       `bash -c 'source scripts/vcs-common.sh; classify_checkout .' \
         | grep -E '^(KIND|BOUNDARY|JJ_PARENT|GIT_PARENT)='`
       produces exactly four lines.
-- [ ] `find_repo_root` unchanged-behaviour regression tests pass
+- [x] `find_repo_root` unchanged-behaviour regression tests pass
       (locked into the Phase 2 helper-test block).
 
 #### Manual Verification
@@ -1384,18 +1384,18 @@ the AC5 golden-snapshot byte-identity contract.
 
 #### Automated Verification
 
-- [ ] AC1 and AC2 tests pass: `mise run test:integration:hooks`.
-- [ ] AC5 byte-identity tests still pass — `classify_checkout` returns
+- [x] AC1 and AC2 tests pass: `mise run test:integration:hooks`.
+- [x] AC5 byte-identity tests still pass — `classify_checkout` returns
       `KIND=main` for main checkouts and the case statement has no
       `main` arm, so `CONTEXT` is unchanged before the jq invocation.
       (The local `realpath` of `REPO_ROOT` is a no-op on a canonical
       Linux path; on macOS it normalises but the AC5 fixtures are
       captured on Linux as the canonical form, so byte-identity holds
       when replayed on macOS via realpath-resolved TMPDIR.)
-- [ ] AC6 (no boundary phrasing in non-repo) still passes with the
+- [x] AC6 (no boundary phrasing in non-repo) still passes with the
       strengthened assertions from Phase 1 §5.
-- [ ] Full suite green: `mise run test`.
-- [ ] Shellcheck clean: `shellcheck hooks/vcs-detect.sh`.
+- [x] Full suite green: `mise run test`.
+- [x] Shellcheck clean: `shellcheck hooks/vcs-detect.sh`.
 
 #### Manual Verification
 
@@ -1578,13 +1578,13 @@ esac
 
 #### Automated Verification
 
-- [ ] AC3 and AC4 (both directions) tests pass:
+- [x] AC3 and AC4 (both directions) tests pass:
       `mise run test:integration:hooks`.
-- [ ] `classify_checkout` KIND=nested-jj-in-git and KIND=nested-git-in-jj
+- [x] `classify_checkout` KIND=nested-jj-in-git and KIND=nested-git-in-jj
       tests pass.
-- [ ] All prior tests still pass.
-- [ ] Full suite green: `mise run test`.
-- [ ] Shellcheck clean: `shellcheck hooks/vcs-detect.sh`.
+- [x] All prior tests still pass.
+- [x] Full suite green: `mise run test`.
+- [x] Shellcheck clean: `shellcheck hooks/vcs-detect.sh`.
 
 #### Manual Verification
 
@@ -1751,11 +1751,11 @@ comment block of any length" rather than line-count-bound.
 
 #### Automated Verification
 
-- [ ] AC8 (structural), AC9 (canonical phrasing), and the missing-binary
+- [x] AC8 (structural), AC9 (canonical phrasing), and the missing-binary
       tests all pass: `mise run test:integration:hooks`.
-- [ ] All previous tests still pass.
-- [ ] Full CI suite green: `mise run test`.
-- [ ] `jj diff --name-only -r <merge-base>..@` (or
+- [x] All previous tests still pass.
+- [x] Full CI suite green: `mise run test`.
+- [x] `jj diff --name-only -r <merge-base>..@` (or
       `git diff --name-only main...HEAD`) omits `hooks/hooks.json`.
 
 #### Manual Verification

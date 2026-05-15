@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 
+# Placement decision (AC9, meta/work/0058):
+# VCS-mode detection and workspace/worktree boundary detection live in
+# this single hook.
+#   alternative considered: split into a sibling workspace-detect.sh
+# We extend rather than split because:
+#   (a) one coherent SessionStart message reads better than two stacked
+#       additionalContext blocks;
+#   (b) shared REPO_ROOT and VCS_MODE computation avoids redundant probes.
+
 # Check for jq dependency
 if ! command -v jq &>/dev/null; then
   echo '{"systemMessage":"WARNING: jq is not installed. VCS detection could not run. Install jq for full VCS support. Defaulting to git commands."}'
