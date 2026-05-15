@@ -49,6 +49,7 @@ import { LifecycleIndex } from './routes/lifecycle/LifecycleIndex'
 import { LifecycleClusterView } from './routes/lifecycle/LifecycleClusterView'
 import { KanbanBoard } from './routes/kanban/KanbanBoard'
 import { GlyphShowcase } from './routes/glyph-showcase/GlyphShowcase'
+import { ChipShowcase } from './routes/chip-showcase/ChipShowcase'
 import { isDocTypeKey, type DocTypeKey } from './api/types'
 
 const rootRoute = createRootRoute({ component: RootLayout })
@@ -145,6 +146,15 @@ const glyphShowcaseRoute = createRoute({
   component: GlyphShowcase,
 })
 
+// Developer-only preview route for the Chip primitive. Mirrors the
+// glyphShowcaseRoute: uncrumbed, renders all 6 variants × 2 sizes for
+// visual review and visual-regression coverage.
+const chipShowcaseRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/chip-showcase',
+  component: ChipShowcase,
+})
+
 // Exported so tests can construct an isolated router with memory history.
 export const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -159,6 +169,7 @@ export const routeTree = rootRoute.addChildren([
   lifecycleRoute.addChildren([lifecycleIndexRoute, lifecycleClusterRoute]),
   kanbanRoute,
   glyphShowcaseRoute,
+  chipShowcaseRoute,
 ])
 
 export const router = createRouter({ routeTree })
