@@ -1,14 +1,21 @@
+import { Chip } from '../Chip/Chip'
+import { statusToChipVariant, isStatusKey } from '../../api/status-variant'
 import styles from './FrontmatterChips.module.css'
 
-interface Props {
-  frontmatter: Record<string, unknown>
-  state: 'parsed' | 'absent' | 'malformed'
+type FrontmatterChipsProps =
+  | { state: 'absent' }
+  | { state: 'malformed' }
+  | { state: 'parsed'; frontmatter: Record<string, unknown> }
+
+function formatChipValue(value: unknown): string {
+  if (Array.isArray(value)) return value.join(', ')
+  if (typeof value === 'object' && value !== null) return JSON.stringify(value)
+  return String(value)
 }
 
-export function FrontmatterChips({ frontmatter, state }: Props) {
-  if (state === 'absent') return null
-
-  if (state === 'malformed') {
+export function FrontmatterChips(props: FrontmatterChipsProps) {
+  if (props.state === 'absent') return null
+  if (props.state === 'malformed') {
     return (
       <div role="alert" className={styles.banner}>
         Frontmatter unparseable — showing raw content.
@@ -16,29 +23,25 @@ export function FrontmatterChips({ frontmatter, state }: Props) {
     )
   }
 
-  const entries = Object.entries(frontmatter).filter(
-    ([, v]) => v !== null && v !== undefined,
-  )
+  const entries = Object.entries(props.frontmatter).filter(([, v]) => {
+    if (v === null || v === undefined) return false
+    if (typeof v === 'string' && v === '') return false
+    return true
+  })
 
   if (entries.length === 0) return null
 
   return (
-    <dl className={styles.chips}>
-      {entries.map(([k, v]) => (
-        <div key={k} className={styles.chip}>
-          <dt className={styles.key}>{k}</dt>
-          <dd className={styles.value}>{formatChipValue(v)}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className={styles.chips}>
+      {entries.map(([key, value]) => {
+        const text = formatChipValue(value)
+        const variant = isStatusKey(key) ? statusToChipVariant(value) : 'neutral'
+        return (
+          <Chip key={key} variant={variant} aria-label={`${key}: ${text}`}>
+            {text}
+          </Chip>
+        )
+      })}
+    </div>
   )
-}
-
-/** Render arbitrary YAML frontmatter values as readable text. Arrays
- *  join with commas; nested objects JSON-stringify rather than showing
- *  the useless "[object Object]" default from `String(obj)`. */
-function formatChipValue(v: unknown): string {
-  if (Array.isArray(v)) return v.join(', ')
-  if (v !== null && typeof v === 'object') return JSON.stringify(v)
-  return String(v)
 }
