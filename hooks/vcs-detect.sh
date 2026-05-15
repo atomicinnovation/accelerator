@@ -139,9 +139,20 @@ fi
 
 case "$C_KIND" in
   jj-secondary|git-worktree)
-    BOUNDARY_OUT=$(build_boundary_block "" "$C_BOUNDARY" "$C_JJ_PARENT" "$C_GIT_PARENT")
+    BOUNDARY_OUT=$(build_boundary_block "" \
+      "$C_BOUNDARY" "$C_JJ_PARENT" "$C_GIT_PARENT")
     # $() strips trailing newlines; explicitly restore one so future
     # appended content is not run-on with the prohibition lines.
+    CONTEXT="${CONTEXT}${BOUNDARY_OUT}"$'\n'
+    ;;
+  colocated)
+    BOUNDARY_OUT=$(build_boundary_block " (colocated)" \
+      "$C_BOUNDARY" "$C_JJ_PARENT" "$C_GIT_PARENT")
+    CONTEXT="${CONTEXT}${BOUNDARY_OUT}"$'\n'
+    ;;
+  nested-jj-in-git|nested-git-in-jj)
+    BOUNDARY_OUT=$(build_boundary_block " (nested)" \
+      "$C_BOUNDARY" "$C_JJ_PARENT" "$C_GIT_PARENT")
     CONTEXT="${CONTEXT}${BOUNDARY_OUT}"$'\n'
     ;;
 esac

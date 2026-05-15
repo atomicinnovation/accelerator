@@ -428,5 +428,105 @@ assert_contains "edit prohibition" "$CTX" "do not edit files in $FIXTURE_PARENT"
 assert_contains "vcs prohibition" "$CTX" "do not run VCS commands against $FIXTURE_PARENT"
 assert_contains "research prohibition" "$CTX" "do not grep, find, or research files in $FIXTURE_PARENT"
 
+echo "=== boundary block: colocated and cross-VCS ==="
+
+# Cross-VCS fixture: a jj secondary workspace whose target sits inside
+# a pure-git parent (AC4).
+make_jj_secondary_in_git_parent() {
+  FIXTURE_JJ_PARENT="" FIXTURE_GIT_PARENT="" FIXTURE_TARGET=""
+  FIXTURE_GIT_PARENT=$(make_main_git_checkout)
+  FIXTURE_JJ_PARENT=$(make_main_jj_workspace)
+  local target="$FIXTURE_GIT_PARENT/sub"
+  (cd "$FIXTURE_JJ_PARENT" && jj workspace add --quiet "$target")
+  FIXTURE_TARGET=$(realpath "$target")
+}
+
+# Symmetric cross-VCS fixture: a git linked worktree whose target sits
+# inside a pure-jj parent. Exercises the nested-git-in-jj KIND.
+make_git_worktree_in_jj_parent() {
+  FIXTURE_JJ_PARENT="" FIXTURE_GIT_PARENT="" FIXTURE_TARGET=""
+  FIXTURE_JJ_PARENT=$(make_main_jj_workspace)
+  FIXTURE_GIT_PARENT=$(make_main_git_checkout)
+  local target="$FIXTURE_JJ_PARENT/sub"
+  # git worktree add requires a non-existent target.
+  (cd "$FIXTURE_GIT_PARENT" && git worktree add -q "$target")
+  FIXTURE_TARGET=$(realpath "$target")
+}
+
+# ── AC3: colocated — single block, both parents named separately ──────────────
+echo "Test [AC3]: colocated checkout emits single block with both parents"
+make_colocated_secondary
+OUTPUT=$(run_hook "$FIXTURE_TARGET")
+CTX=$(extract_context "$OUTPUT")
+# Exactly one boundary line, with the shared target path as its value.
+COUNT=$(grep -c "Boundary (active workspace): $FIXTURE_TARGET" <<< "$CTX" || true)
+assert_eq "exactly one boundary line" "1" "$COUNT"
+assert_contains "jj parent labelled" "$CTX" "Parent repository (jj): $FIXTURE_JJ_PARENT"
+assert_contains "git parent labelled" "$CTX" "Parent repository (git): $FIXTURE_GIT_PARENT"
+# Both sets of canonical prohibitions present (full phrases, not just keywords).
+assert_contains "jj edit"      "$CTX" "do not edit files in $FIXTURE_JJ_PARENT"
+assert_contains "git edit"     "$CTX" "do not edit files in $FIXTURE_GIT_PARENT"
+assert_contains "jj vcs"       "$CTX" "do not run VCS commands against $FIXTURE_JJ_PARENT"
+assert_contains "git vcs"      "$CTX" "do not run VCS commands against $FIXTURE_GIT_PARENT"
+assert_contains "jj research"  "$CTX" "do not grep, find, or research files in $FIXTURE_JJ_PARENT"
+assert_contains "git research" "$CTX" "do not grep, find, or research files in $FIXTURE_GIT_PARENT"
+
+# ── AC4: jj secondary nested inside a pure-git parent ─────────────────────────
+echo "Test [AC4]: jj-in-git nesting names BOTH parents (jj inner, git outer)"
+make_jj_secondary_in_git_parent
+OUTPUT=$(run_hook "$FIXTURE_TARGET")
+CTX=$(extract_context "$OUTPUT")
+# Classification must distinguish nested-jj-in-git from plain jj-secondary
+# (the previous design returned jj-secondary and dropped the git parent).
+assert_contains "boundary header" "$CTX" "WORKSPACE BOUNDARY DETECTED"
+assert_contains "boundary path"  "$CTX" "Boundary (active workspace): $FIXTURE_TARGET"
+assert_contains "jj parent labelled" "$CTX" "Parent repository (jj): $FIXTURE_JJ_PARENT"
+assert_contains "git parent labelled" "$CTX" "Parent repository (git): $FIXTURE_GIT_PARENT"
+# BOTH parents must carry the full prohibition triplet.
+assert_contains "jj edit"      "$CTX" "do not edit files in $FIXTURE_JJ_PARENT"
+assert_contains "jj vcs"       "$CTX" "do not run VCS commands against $FIXTURE_JJ_PARENT"
+assert_contains "jj research"  "$CTX" "do not grep, find, or research files in $FIXTURE_JJ_PARENT"
+assert_contains "git edit"     "$CTX" "do not edit files in $FIXTURE_GIT_PARENT"
+assert_contains "git vcs"      "$CTX" "do not run VCS commands against $FIXTURE_GIT_PARENT"
+assert_contains "git research" "$CTX" "do not grep, find, or research files in $FIXTURE_GIT_PARENT"
+# Anchor on the helper outputs the work item names explicitly.
+JJ_WS_REAL=$( (cd "$FIXTURE_TARGET" && realpath "$(jj workspace root)") )
+GIT_COMMON_REAL=$( (cd "$FIXTURE_TARGET" && realpath "$(dirname "$(git rev-parse --git-common-dir)")") )
+assert_eq "inner boundary == jj workspace root" "$JJ_WS_REAL" "$FIXTURE_TARGET"
+assert_eq "outer parent == git common-dir parent" "$GIT_COMMON_REAL" "$FIXTURE_GIT_PARENT"
+
+# ── AC4 (symmetric): git linked worktree nested inside a pure-jj parent ──────
+echo "Test [AC4]: git-in-jj nesting names BOTH parents (git inner, jj outer)"
+make_git_worktree_in_jj_parent
+OUTPUT=$(run_hook "$FIXTURE_TARGET")
+CTX=$(extract_context "$OUTPUT")
+assert_contains "boundary header" "$CTX" "WORKSPACE BOUNDARY DETECTED"
+assert_contains "boundary path"   "$CTX" "Boundary (active workspace): $FIXTURE_TARGET"
+assert_contains "git parent labelled" "$CTX" "Parent repository (git): $FIXTURE_GIT_PARENT"
+assert_contains "jj parent labelled"  "$CTX" "Parent repository (jj): $FIXTURE_JJ_PARENT"
+assert_contains "git edit"     "$CTX" "do not edit files in $FIXTURE_GIT_PARENT"
+assert_contains "git vcs"      "$CTX" "do not run VCS commands against $FIXTURE_GIT_PARENT"
+assert_contains "git research" "$CTX" "do not grep, find, or research files in $FIXTURE_GIT_PARENT"
+assert_contains "jj edit"      "$CTX" "do not edit files in $FIXTURE_JJ_PARENT"
+assert_contains "jj vcs"       "$CTX" "do not run VCS commands against $FIXTURE_JJ_PARENT"
+assert_contains "jj research"  "$CTX" "do not grep, find, or research files in $FIXTURE_JJ_PARENT"
+
+# ── classify_checkout coverage for the new nested KIND values ────────────────
+echo "Test [AC7]: classify_checkout KIND=nested-jj-in-git"
+make_jj_secondary_in_git_parent
+parse_classification "$( (cd "$FIXTURE_TARGET" && classify_checkout .) )"
+assert_eq "KIND=nested-jj-in-git" "nested-jj-in-git" "$C_KIND"
+assert_eq "BOUNDARY=target" "$FIXTURE_TARGET" "$C_BOUNDARY"
+assert_eq "JJ_PARENT=jj" "$FIXTURE_JJ_PARENT" "$C_JJ_PARENT"
+assert_eq "GIT_PARENT=git" "$FIXTURE_GIT_PARENT" "$C_GIT_PARENT"
+
+echo "Test [AC7]: classify_checkout KIND=nested-git-in-jj"
+make_git_worktree_in_jj_parent
+parse_classification "$( (cd "$FIXTURE_TARGET" && classify_checkout .) )"
+assert_eq "KIND=nested-git-in-jj" "nested-git-in-jj" "$C_KIND"
+assert_eq "BOUNDARY=target" "$FIXTURE_TARGET" "$C_BOUNDARY"
+assert_eq "JJ_PARENT=jj" "$FIXTURE_JJ_PARENT" "$C_JJ_PARENT"
+assert_eq "GIT_PARENT=git" "$FIXTURE_GIT_PARENT" "$C_GIT_PARENT"
+
 echo ""
 test_summary
