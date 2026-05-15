@@ -366,6 +366,31 @@ function extractBlockBody(css: string, startIdx: number): string | null {
   return depth === 0 ? css.slice(open + 1, i - 1) : null
 }
 
+describe('0038: --radius-pill is reserved for non-status surfaces', () => {
+  // Files that legitimately use --radius-pill. Every other consumer in
+  // src/ would be an open-coded status pill regression and must be
+  // migrated to <Chip>. Adding a new entry to this list requires a
+  // brief reason recorded alongside the path.
+  const PILL_RADIUS_ALLOW_LIST = new Set([
+    'components/Chip/Chip.module.css',
+    'components/OriginPill/OriginPill.module.css',
+    'components/Sidebar/Sidebar.module.css',
+    'routes/kanban/KanbanColumn.module.css',
+    'routes/lifecycle/LifecycleIndex.module.css',
+  ])
+
+  it('no module outside the allow-list defines a pill-radius element', () => {
+    const offenders: string[] = []
+    for (const [file, css] of cssBySrcRelative) {
+      if (PILL_RADIUS_ALLOW_LIST.has(file)) continue
+      if (/border-radius:\s*var\(--radius-pill\)/.test(css)) {
+        offenders.push(file)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+})
+
 describe('Phase 1 (0034): route titles consume --ac-fg-strong', () => {
   const REQUIRED = [
     { file: 'routes/library/LibraryDocView.module.css', selector: '.title' },
