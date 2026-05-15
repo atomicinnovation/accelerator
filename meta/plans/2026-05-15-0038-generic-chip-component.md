@@ -3,7 +3,7 @@ date: "2026-05-15T00:00:00+01:00"
 type: plan
 skill: create-plan
 work-item: "0038"
-status: draft
+status: implemented
 ---
 
 # 0038 — Generic Chip Component Implementation Plan
