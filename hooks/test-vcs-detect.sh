@@ -119,7 +119,12 @@ make_colocated_secondary() {
   # writes a relative path, but absolute paths are accepted by the
   # `cd $(cat ...)` algorithm and are portable across BSD/GNU realpath
   # (no `--relative-to` flag needed).
-  printf '%s\n' "$FIXTURE_JJ_PARENT/.jj/repo" > "$target/.jj/repo"
+  #
+  # NOTE: jj reads `.jj/repo` verbatim and does NOT trim trailing
+  # whitespace — a trailing newline turns the resolved path into a
+  # nonexistent "<path>\n" and breaks `jj workspace root`. Use `%s` with
+  # no newline.
+  printf '%s' "$FIXTURE_JJ_PARENT/.jj/repo" > "$target/.jj/repo"
   rm -rf "$jj_tmp"
   FIXTURE_TARGET=$(realpath "$target")
   # Smoke-checks (pure filesystem assertions — do NOT invoke vcs-common.sh
@@ -136,6 +141,26 @@ make_colocated_secondary() {
 run_hook() {
   local cwd="$1"
   (cd "$cwd" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK")
+}
+
+# Strip from PATH every directory that resolves <binary> via `type -p`,
+# returning the resulting PATH on stdout. macOS commonly provides git in
+# both /opt/homebrew/bin AND /usr/bin, so stripping a single dirname (as
+# the original plan sketch did) leaves the binary still resolvable.
+#
+# Iterates until no more occurrences are found, then prints the cleaned
+# PATH. Used by the missing-binary tests to make `command -v $binary`
+# actually fail inside a subshell.
+strip_binary_from_path() {
+  local binary="$1"
+  local path="$PATH"
+  local found
+  while found=$(PATH="$path" type -p "$binary" 2>/dev/null) && [ -n "$found" ]; do
+    local dir
+    dir=$(dirname "$found")
+    path=$(printf '%s' "$path" | tr ':' '\n' | grep -vxF "$dir" | paste -sd: -)
+  done
+  printf '%s' "$path"
 }
 
 echo "=== vcs-detect.sh ==="
@@ -196,6 +221,181 @@ assert_not_contains "no edit prohibition" "$STDOUT" "do not edit files in"
 assert_not_contains "no vcs prohibition" "$STDOUT" "do not run VCS commands against"
 assert_not_contains "no research prohibition" "$STDOUT" "do not grep, find, or research files in"
 assert_not_contains "no boundary header" "$STDOUT" "WORKSPACE BOUNDARY DETECTED"
+
+source "$PLUGIN_ROOT/scripts/vcs-common.sh"
+
+echo "=== vcs-common.sh helpers ==="
+
+# ── _jj_workspace_is_secondary (jj internal-marker isolation function) ────────
+echo "Test [AC7]: _jj_workspace_is_secondary returns 1 in a main workspace"
+d=$(make_main_jj_workspace)
+RC=0; _jj_workspace_is_secondary "$d" || RC=$?
+assert_eq "main workspace returns 1" "1" "$RC"
+
+echo "Test [AC7]: _jj_workspace_is_secondary returns 0 in a secondary workspace"
+make_jj_secondary_workspace
+RC=0; _jj_workspace_is_secondary "$FIXTURE_SECONDARY" || RC=$?
+assert_eq "secondary workspace returns 0" "0" "$RC"
+
+# ── find_jj_main_workspace_root ───────────────────────────────────────────────
+echo "Test [AC7]: find_jj_main_workspace_root in a main jj workspace"
+d=$(make_main_jj_workspace)
+RESULT=$( (cd "$d" && find_jj_main_workspace_root .) )
+assert_eq "returns the workspace root" "$d" "$RESULT"
+
+echo "Test [AC7]: find_jj_main_workspace_root in a jj secondary workspace"
+make_jj_secondary_workspace
+RESULT=$( (cd "$FIXTURE_SECONDARY" && find_jj_main_workspace_root .) )
+assert_eq "returns the parent main workspace" "$FIXTURE_PARENT" "$RESULT"
+
+# Failure-mode contract: plain non-repo dir must return exit 1, empty stdout.
+echo "Test [AC7]: find_jj_main_workspace_root failure in a plain directory"
+d=$(new_workdir)
+RC=0; RESULT=$( (cd "$d" && find_jj_main_workspace_root .) ) || RC=$?
+assert_eq "exits 1 (plain)" "1" "$RC"
+assert_eq "empty stdout (plain)" "" "$RESULT"
+
+# ── find_git_main_worktree_root ───────────────────────────────────────────────
+echo "Test [AC7]: find_git_main_worktree_root in a main git checkout"
+d=$(make_main_git_checkout)
+RESULT=$( (cd "$d" && find_git_main_worktree_root .) )
+assert_eq "returns the checkout root" "$d" "$RESULT"
+
+echo "Test [AC7]: find_git_main_worktree_root in a git linked worktree"
+make_git_linked_worktree
+RESULT=$( (cd "$FIXTURE_WORKTREE" && find_git_main_worktree_root .) )
+assert_eq "returns the parent main checkout" "$FIXTURE_PARENT" "$RESULT"
+
+# Failure-mode contracts: plain non-repo and bare-repo → exit 1, empty stdout.
+echo "Test [AC7]: find_git_main_worktree_root failure in a plain directory"
+d=$(new_workdir)
+RC=0; RESULT=$( (cd "$d" && find_git_main_worktree_root .) ) || RC=$?
+assert_eq "exits 1 (plain)" "1" "$RC"
+assert_eq "empty stdout (plain)" "" "$RESULT"
+
+echo "Test [AC7]: find_git_main_worktree_root failure in a bare git repo"
+d=$(make_bare_git_repo)
+RC=0; RESULT=$( (cd "$d" && find_git_main_worktree_root .) ) || RC=$?
+assert_eq "exits 1 (bare)" "1" "$RC"
+assert_eq "empty stdout (bare)" "" "$RESULT"
+
+# ── classify_checkout — structured KEY=VALUE record ──────────────────────────
+# Parser sets globals C_KIND, C_BOUNDARY, C_JJ_PARENT, C_GIT_PARENT,
+# C_JJ_MISSING, C_GIT_MISSING.
+parse_classification() {
+  C_KIND=""; C_BOUNDARY=""; C_JJ_PARENT=""; C_GIT_PARENT=""
+  C_JJ_MISSING="0"; C_GIT_MISSING="0"
+  while IFS='=' read -r k v; do
+    case "$k" in
+      KIND) C_KIND=$v ;;
+      BOUNDARY) C_BOUNDARY=$v ;;
+      JJ_PARENT) C_JJ_PARENT=$v ;;
+      GIT_PARENT) C_GIT_PARENT=$v ;;
+      JJ_MISSING) C_JJ_MISSING=$v ;;
+      GIT_MISSING) C_GIT_MISSING=$v ;;
+    esac
+  done <<< "$1"
+}
+
+echo "Test [AC7]: classify_checkout KIND=main (jj)"
+d=$(make_main_jj_workspace)
+parse_classification "$( (cd "$d" && classify_checkout .) )"
+assert_eq "KIND=main" "main" "$C_KIND"
+assert_eq "BOUNDARY empty" "" "$C_BOUNDARY"
+assert_eq "JJ_PARENT empty" "" "$C_JJ_PARENT"
+assert_eq "GIT_PARENT empty" "" "$C_GIT_PARENT"
+
+echo "Test [AC7]: classify_checkout KIND=main (git)"
+d=$(make_main_git_checkout)
+parse_classification "$( (cd "$d" && classify_checkout .) )"
+assert_eq "KIND=main" "main" "$C_KIND"
+assert_eq "BOUNDARY empty" "" "$C_BOUNDARY"
+
+echo "Test [AC7]: classify_checkout KIND=jj-secondary"
+make_jj_secondary_workspace
+parse_classification "$( (cd "$FIXTURE_SECONDARY" && classify_checkout .) )"
+assert_eq "KIND=jj-secondary" "jj-secondary" "$C_KIND"
+assert_eq "BOUNDARY=secondary" "$FIXTURE_SECONDARY" "$C_BOUNDARY"
+assert_eq "JJ_PARENT=parent" "$FIXTURE_PARENT" "$C_JJ_PARENT"
+assert_eq "GIT_PARENT empty" "" "$C_GIT_PARENT"
+
+echo "Test [AC7]: classify_checkout KIND=git-worktree"
+make_git_linked_worktree
+parse_classification "$( (cd "$FIXTURE_WORKTREE" && classify_checkout .) )"
+assert_eq "KIND=git-worktree" "git-worktree" "$C_KIND"
+assert_eq "BOUNDARY=worktree" "$FIXTURE_WORKTREE" "$C_BOUNDARY"
+assert_eq "GIT_PARENT=parent" "$FIXTURE_PARENT" "$C_GIT_PARENT"
+assert_eq "JJ_PARENT empty" "" "$C_JJ_PARENT"
+
+echo "Test [AC7]: classify_checkout KIND=colocated"
+make_colocated_secondary
+parse_classification "$( (cd "$FIXTURE_TARGET" && classify_checkout .) )"
+assert_eq "KIND=colocated" "colocated" "$C_KIND"
+assert_eq "BOUNDARY=target" "$FIXTURE_TARGET" "$C_BOUNDARY"
+assert_eq "JJ_PARENT=jj_parent" "$FIXTURE_JJ_PARENT" "$C_JJ_PARENT"
+assert_eq "GIT_PARENT=git_parent" "$FIXTURE_GIT_PARENT" "$C_GIT_PARENT"
+
+echo "Test [AC7]: classify_checkout KIND=none in a plain directory"
+d=$(new_workdir)
+parse_classification "$( (cd "$d" && classify_checkout .) )"
+assert_eq "KIND=none" "none" "$C_KIND"
+assert_eq "BOUNDARY empty" "" "$C_BOUNDARY"
+
+echo "Test [AC7]: classify_checkout KIND=none in a bare git repo"
+d=$(make_bare_git_repo)
+parse_classification "$( (cd "$d" && classify_checkout .) )"
+assert_eq "KIND=none (bare)" "none" "$C_KIND"
+
+# ── classify_checkout missing-binary diagnostic fields ────────────────────────
+# When a VCS binary is absent AND the directory is inside that VCS's
+# checkout tree, JJ_MISSING / GIT_MISSING should be set. We mask the
+# binary by stripping its directory from PATH, scoped to a subshell
+# wrapper (`( PATH=...; cd ...; ... )`) so the modified PATH applies to
+# BOTH `cd` AND `classify_checkout`. The plain `VAR=val cmd1 && cmd2`
+# form only scopes VAR to cmd1, which would defeat the test.
+echo "Test [AC7]: classify_checkout JJ_MISSING=1 in jj secondary with jj absent"
+make_jj_secondary_workspace
+NEW_PATH=$(strip_binary_from_path jj)
+parse_classification "$( ( PATH="$NEW_PATH"; cd "$FIXTURE_SECONDARY" && classify_checkout . ) )"
+# (With jj absent the structured record collapses KIND toward `none`
+# or `git-worktree`, but JJ_MISSING is 1 because an ancestor has a
+# .jj marker — exactly the signal the hook's diagnostic needs.)
+assert_eq "JJ_MISSING=1" "1" "$C_JJ_MISSING"
+
+echo "Test [AC7]: classify_checkout JJ_MISSING=0 in a plain dir even when jj absent"
+d=$(new_workdir)
+parse_classification "$( ( PATH="$NEW_PATH"; cd "$d" && classify_checkout . ) )"
+assert_eq "JJ_MISSING=0 (no ancestor marker)" "0" "$C_JJ_MISSING"
+
+echo "Test [AC7]: classify_checkout GIT_MISSING=1 in git checkout with git absent"
+d=$(make_main_git_checkout)
+NEW_PATH=$(strip_binary_from_path git)
+parse_classification "$( ( PATH="$NEW_PATH"; cd "$d" && classify_checkout . ) )"
+assert_eq "GIT_MISSING=1" "1" "$C_GIT_MISSING"
+
+# ── find_repo_root unchanged-behaviour regression guard ───────────────────────
+# find_repo_root is deliberately not refactored by this work. Lock in its
+# current behaviour across the well-defined fixture cases so a future
+# accidental edit to vcs-common.sh is caught immediately.
+echo "Test [AC7]: find_repo_root unchanged in main jj workspace"
+d=$(make_main_jj_workspace)
+RESULT=$( (cd "$d" && find_repo_root) )
+assert_eq "main jj" "$d" "$RESULT"
+
+echo "Test [AC7]: find_repo_root unchanged in main git checkout"
+d=$(make_main_git_checkout)
+RESULT=$( (cd "$d" && find_repo_root) )
+assert_eq "main git" "$d" "$RESULT"
+
+echo "Test [AC7]: find_repo_root unchanged in jj secondary workspace"
+make_jj_secondary_workspace
+RESULT=$( (cd "$FIXTURE_SECONDARY" && find_repo_root) )
+# .jj is a directory in a jj secondary workspace, so find_repo_root finds it.
+assert_eq "jj secondary" "$FIXTURE_SECONDARY" "$RESULT"
+# (We deliberately do NOT lock in find_repo_root's behaviour for git linked
+# worktrees: .git is a file there, find_repo_root's -d test skips it, and
+# the result is implementation-detail. Leaving the assertion off keeps room
+# for a future fix without breaking this regression guard.)
 
 echo ""
 test_summary
