@@ -86,11 +86,11 @@ extract_tools() {
 LOC_TOOLS="$(extract_tools "$LOC")"
 ANA_TOOLS="$(extract_tools "$ANA")"
 
-assert_eq "browser-locator declares exactly the run.sh executor tool" \
-  "Bash(\${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *)" \
+assert_eq "browser-locator declares exactly Bash as its tool" \
+  "Bash" \
   "$LOC_TOOLS"
-assert_eq "browser-analyser declares exactly the run.sh executor tool" \
-  "Bash(\${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *)" \
+assert_eq "browser-analyser declares exactly Bash as its tool" \
+  "Bash" \
   "$ANA_TOOLS"
 assert_not_contains "browser-locator declares no mcp__playwright__ tools" \
   "$LOC_TOOLS" "mcp__playwright__"
@@ -143,12 +143,8 @@ assert_contains "argument-hint includes --allow-insecure-scheme flag" \
   "$(cat "$SKILL")" "--allow-insecure-scheme"
 assert_not_contains "allowed-tools contains no mcp__playwright__ entries" \
   "$(cat "$SKILL")" "mcp__playwright__"
-assert_contains "allowed-tools enumerates playwright run.sh Bash" \
-  "$(cat "$SKILL")" 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh *)'
-assert_contains "allowed-tools enumerates ensure-playwright.sh Bash" \
-  "$(cat "$SKILL")" 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/ensure-playwright.sh *)'
-assert_contains "allowed-tools enumerates notify-downgrade.sh Bash" \
-  "$(cat "$SKILL")" 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/notify-downgrade.sh *)'
+assert_contains "allowed-tools enumerates inventory-design scripts glob" \
+  "$(cat "$SKILL")" 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*)'
 assert_contains "loads config context" \
   "$(cat "$SKILL")" "config-read-context.sh"
 assert_contains "loads agent names" \
