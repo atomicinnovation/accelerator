@@ -1,0 +1,6 @@
+{
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "This repository uses git as its version control system.\n\nVCS Command Reference:\n- Use `git status` to see current changes\n- Use `git diff` to see modifications (use `--cached` for staged changes)\n- Use `git log --oneline` to see recent commit history\n- Use `git add <files>` to stage changes — NEVER use `-A` or `.` (always add specific files by name)\n- Use `git commit -m \"message\"` to commit staged changes\n- Use `git branch --show-current` to check the current branch\n- Use `git push` to push to remote\n\nKey conventions:\n- Always stage specific files by name, never bulk-add\n- Use `--cached` with `git diff` to see what is staged\n- Prefer atomic, focused commits over large multi-concern commits"
+  }
+}

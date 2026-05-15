@@ -1,0 +1,6 @@
+{
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "This repository uses jujutsu (jj) as its version control system (mode: jj-colocated).\n\nVCS Command Reference:\n- Use `jj status` instead of `git status`\n- Use `jj diff` instead of `git diff`\n- Use `jj log` instead of `git log`\n- Use `jj commit -m \"message\"` instead of `git add + git commit` (there is no staging area; all tracked changes are included)\n- Use `jj squash` instead of `git commit --amend`\n- Use `jj describe -m \"message\"` to edit a commit message\n- Use `jj git push` instead of `git push`\n- Use `jj bookmark list` instead of `git branch`\n- Use `jj new` to start a new change after the current one\n- Use `jj bookmark list` or `jj status` instead of `git branch --show-current`\n\nKey conceptual differences from git:\n- No staging area: all tracked changes are automatically part of the working-copy commit\n- The working copy is always a commit — there is no \"uncommitted\" state\n- `jj new` creates a new empty change (like finishing current work and starting fresh)\n- `jj describe` edits any commit's message without `--amend` semantics\n\nIMPORTANT: Do NOT use raw git commands for VCS operations. Always use jj.\nThe `gh` CLI for GitHub operations remains unchanged."
+  }
+}

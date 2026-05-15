@@ -1,0 +1,6 @@
+hooks/vcs-detect.sh: 6199cfeb7df59adc5d5d52e801f52ce2b197eb15
+
+scripts/vcs-common.sh: d2faa277ee241eef0c73f4fbe40b28b3144a27dd
+
+Captured: 2026-05-15T16:35:24Z
+Host: Darwin

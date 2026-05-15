@@ -8,6 +8,7 @@ gh = "2.89.0"
 rust = "1.90.0"
 node = "22"
 shellcheck = "0.11.0"
+jj = "0.36.0"
 
 [settings]
 experimental = true
@@ -111,6 +112,10 @@ run = "invoke test.integration.decisions"
 description = "Test launch-server.sh binary acquisition paths (sentinel rejection, SHA mismatch, 404)"
 run = "invoke test.integration.binary-acquisition"
 
+[tasks."test:integration:hooks"]
+description = "Run hooks integration tests"
+run = "invoke test.integration.hooks"
+
 [tasks."test:integration"]
 description = "Run all integration tests in parallel"
 depends = [
@@ -119,6 +124,7 @@ depends = [
     "test:integration:decisions",
     "test:integration:tasks",
     "test:integration:binary-acquisition",
+    "test:integration:hooks",
 ]
 
 [tasks."test:e2e:visualiser"]
