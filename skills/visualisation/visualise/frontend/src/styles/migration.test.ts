@@ -47,6 +47,11 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   // components/Brand/Brand.module.css
   { file: 'components/Brand/Brand.module.css', literal: '10px', count: 1, kind: 'irreducible', reason: 'VISUALISER sub-label — below --size-xxs (12px) floor' },
   { file: 'components/Brand/Brand.module.css', literal: '2px', count: 1, kind: 'irreducible', reason: 'text stack gap — below --sp-1 (4px) floor' },
+  // components/Chip/Chip.module.css
+  { file: 'components/Chip/Chip.module.css', literal: '0.125rem', count: 1, kind: 'irreducible', reason: 'chip base vertical padding — 2px, below --sp-1 (4px) floor; prototype-derived' },
+  { file: 'components/Chip/Chip.module.css', literal: '0.1875rem', count: 1, kind: 'irreducible', reason: 'chip md vertical padding — 3px, below --sp-1 (4px) floor; prototype-derived' },
+  { file: 'components/Chip/Chip.module.css', literal: '0.02em', count: 1, kind: 'irreducible', reason: 'chip letter-spacing — prototype-derived typography refinement' },
+  { file: 'components/Chip/Chip.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   // components/FrontmatterChips/FrontmatterChips.module.css
   { file: 'components/FrontmatterChips/FrontmatterChips.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'off-scale gap (6.4px) — between --sp-1 and --sp-2' },
   { file: 'components/FrontmatterChips/FrontmatterChips.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
