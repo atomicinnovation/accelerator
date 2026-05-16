@@ -15,6 +15,7 @@
 
 PASS=0
 FAIL=0
+SKIP=0
 
 assert_eq() {
   local test_name="$1" expected="$2" actual="$3"
@@ -300,10 +301,54 @@ assert_json_eq() {
   fi
 }
 
+skip_test() {
+  local test_name="$1"
+  local reason="$2"
+  printf '  SKIP: %s (%s)\n' "$test_name" "$reason"
+  SKIP=$((SKIP + 1))
+}
+
+assert_grep_empty() {
+  local test_name="$1"
+  local path="$2"
+  local pattern="$3"
+  shift 3
+  if [ ! -e "$path" ]; then
+    printf '  FAIL: %s — path does not exist: %q\n' "$test_name" "$path"
+    FAIL=$((FAIL + 1))
+    return 1
+  fi
+  local matches rc
+  matches=$(grep -rn "$@" "$pattern" "$path" 2>&1)
+  rc=$?
+  case "$rc" in
+    0)
+      printf '  FAIL: %s — found unexpected matches for %q under %q\n' \
+        "$test_name" "$pattern" "$path"
+      printf '%s\n' "$matches" | sed 's/^/    /'
+      FAIL=$((FAIL + 1))
+      return 1
+      ;;
+    1)
+      printf '  PASS: %s — no matches for %q under %q\n' \
+        "$test_name" "$pattern" "$path"
+      PASS=$((PASS + 1))
+      ;;
+    *)
+      printf '  FAIL: %s — grep error (exit %d) searching %q under %q:\n' \
+        "$test_name" "$rc" "$pattern" "$path"
+      printf '%s\n' "$matches" | sed 's/^/    /'
+      FAIL=$((FAIL + 1))
+      return 1
+      ;;
+  esac
+}
+
 test_summary() {
   echo ""
   echo "=== Results ==="
   echo "Passed: $PASS"
+  echo "Skipped: $SKIP"
   echo "Failed: $FAIL"
   if [ "$FAIL" -gt 0 ]; then
     return 1

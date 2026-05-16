@@ -9,6 +9,7 @@ rust = "1.90.0"
 node = "22"
 shellcheck = "0.11.0"
 jj = "0.36.0"
+jq = "1.7.1"
 
 [settings]
 experimental = true
@@ -115,6 +116,11 @@ run = "invoke test.integration.binary-acquisition"
 [tasks."test:integration:hooks"]
 description = "Run hooks integration tests"
 run = "invoke test.integration.hooks"
+
+[tasks."test:integration:github"]
+description = "Run github skills integration tests (shell harnesses)"
+run = "invoke test.integration.github"
+env = { PHASE = "{{ env.PHASE | default(value=\"final\") }}" }
 
 [tasks."test:integration"]
 description = "Run all integration tests in parallel"

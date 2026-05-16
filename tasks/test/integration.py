@@ -41,3 +41,9 @@ def binary_acquisition(context: Context):
 def hooks(context: Context):
     """Integration tests for the hooks/ subtree."""
     run_shell_suites(context, "hooks")
+
+
+@task
+def github(context: Context):
+    """Integration tests for the github skills (shell harnesses)."""
+    run_shell_suites(context, "skills/github")
