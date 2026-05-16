@@ -19,6 +19,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 HOOK="$SCRIPT_DIR/vcs-detect.sh"
 FIXTURE_ROOT="$PLUGIN_ROOT/hooks/test-fixtures/vcs-detect"
+# Resolve bash to an absolute path so the missing-binary tests can run the
+# hook with PATH stripped without losing the interpreter. On Linux runners
+# /usr/bin commonly holds both `jq` and `bash`; stripping it would leave a
+# bare `bash` lookup failing with exit 127.
+BASH_BIN=$(command -v bash)
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
 # Note: test harness uses `set -euo pipefail` (matches
@@ -140,7 +145,7 @@ make_colocated_secondary() {
 
 run_hook() {
   local cwd="$1"
-  (cd "$cwd" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK")
+  (cd "$cwd" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" "$BASH_BIN" "$HOOK")
 }
 
 # Strip from PATH every directory that resolves <binary> via `type -p`,
@@ -611,7 +616,7 @@ assert_not_contains "no jj-parent line with jj absent" "$CTX" "Parent repository
 echo "Test [missing-binary]: jq absent — hook exits 0 with systemMessage (existing behaviour)"
 NEW_PATH=$(strip_binary_from_path jq)
 RC=0
-( PATH="$NEW_PATH"; cd "$FIXTURE_SECONDARY" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" ) >/dev/null 2>&1 || RC=$?
+( PATH="$NEW_PATH"; cd "$FIXTURE_SECONDARY" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" "$BASH_BIN" "$HOOK" ) >/dev/null 2>&1 || RC=$?
 assert_eq "PATH not leaked" "$ORIG_PATH" "$PATH"
 assert_eq "exits 0 with jq missing" "0" "$RC"
 
