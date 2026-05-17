@@ -8,50 +8,55 @@
   max-width: var(--ac-content-max-width-narrow);
 }
 
+/* Header — mirrors prototype `.ac-pagehead`: actions sit at the bottom
+   edge alongside the title, separated from content by a thin stroke. */
 .header {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
-  padding-block: var(--sp-4);
+  padding-block: var(--sp-5) var(--sp-4);
 }
 
 .headerTopRow {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--sp-4);
+  gap: var(--sp-5);
 }
 
 .eyebrow {
-  font-size: var(--size-xxs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  color: var(--ac-fg-muted);
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
+  font-family: var(--ac-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ac-fg-faint);
+  margin-bottom: 6px;
 }
 
 .title {
   color: var(--ac-fg-strong);
   margin: 0;
   font-family: var(--ac-font-display);
-  font-size: var(--size-lg);
+  font-size: var(--size-h3);
   font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
 .subtitle {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  font-size: var(--size-xs);
+  font-size: 13px;
   color: var(--ac-fg-muted);
-  margin-top: var(--sp-1);
+  margin-top: 4px;
 }
 
 .actions {
   display: inline-flex;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
   align-items: center;
 }
 

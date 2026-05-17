@@ -14,17 +14,20 @@ export function EmptyState({ docType, dirPath }: EmptyStateProps) {
   return (
     <div className={styles.card} role="status">
       {isGlyphDocTypeKey(docType) && (
-        <div className={styles.glyph}>
-          <Glyph docType={docType} size={32} />
+        <div className={styles.glyphWrap}>
+          <Glyph docType={docType} size={32} framed />
         </div>
       )}
-      <p className={styles.path}>{dirPath}</p>
-      <h2 className={styles.headline}>no {plural} yet.</h2>
-      <p className={styles.description}>{description}</p>
-      <p className={styles.footer}>
-        New files added to {dirPath} are picked up live — this view will populate
-        as soon as the indexer sees them.
-      </p>
+      <div className={styles.body}>
+        <p className={styles.path}>{dirPath}</p>
+        <h2 className={styles.headline}>no {plural} yet.</h2>
+        <p className={styles.description}>{description}</p>
+        <p className={styles.footer}>
+          New files added to <span className={styles.pathInline}>{dirPath}</span>{' '}
+          are picked up live — this view will populate as soon as the indexer
+          sees them.
+        </p>
+      </div>
     </div>
   )
 }

@@ -9,24 +9,26 @@
   grid-template-columns: 120px minmax(0, 2fr) 120px minmax(0, 1fr) 110px;
   gap: var(--sp-3);
   align-items: center;
-  padding: var(--sp-3) var(--sp-3);
-  font-size: var(--size-xs);
 }
 
 .headerRow {
+  padding: 10px 12px;
   font-family: var(--ac-font-mono);
-  color: var(--ac-fg-faint);
-  font-size: var(--size-xxs);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
+  color: var(--ac-fg-faint);
   font-weight: 500;
   border-bottom: 1px solid var(--ac-stroke);
 }
 
 .row {
+  padding: 12px;
+  font-size: 13px;
   text-decoration: none;
   color: var(--ac-fg);
   border-bottom: 1px solid var(--ac-stroke-soft);
+  transition: background 120ms;
 }
 
 .row:hover {
@@ -40,13 +42,13 @@
 
 .firstCol {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: 12px;
   color: var(--ac-fg-muted);
 }
 
 .slug {
   color: var(--ac-fg-muted);
-  font-size: var(--size-xxs);
+  font-size: 11.5px;
   font-family: var(--ac-font-mono);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -55,7 +57,7 @@
 
 .mtime {
   color: var(--ac-fg-faint);
-  font-size: var(--size-xxs);
+  font-size: 11.5px;
   font-family: var(--ac-font-mono);
   white-space: nowrap;
 }

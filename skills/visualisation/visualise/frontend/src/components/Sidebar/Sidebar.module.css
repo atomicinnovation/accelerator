@@ -76,18 +76,20 @@
    value reads as faint against the light bg and as faint against the
    dark bg, giving a consistent visual treatment across themes. */
 .libraryHeading {
-  font: 500 10.5px/1 var(--ac-font-mono);
-  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--ac-font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
   letter-spacing: 0.12em;
-  color: #6c7088;
+  text-transform: uppercase;
+  color: var(--ac-fg-faint);
   padding: 6px 10px;
   margin: 0;
 }
 
 .libraryHeadingClickable {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   text-decoration: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -104,6 +106,9 @@
   transition: opacity 120ms ease, transform 120ms ease, color 120ms ease;
 }
 
+/* Specificity-equal to .libraryHeadingActive so the cascade (declaration
+   order) resolves to the active rule when both apply, mirroring the
+   prototype `.ac-nav__label--clickable.is-active` pattern. */
 .libraryHeadingClickable:hover {
   background: var(--ac-bg-hover);
   color: var(--ac-fg);
@@ -114,22 +119,26 @@
   transform: translateX(0);
 }
 
-.libraryHeadingActive {
+.libraryHeadingClickable.libraryHeadingActive,
+.libraryHeadingClickable.libraryHeadingActive:hover {
   background: var(--ac-accent-faint);
   color: var(--ac-accent);
 }
 
-.libraryHeadingActive .libraryHeadingHint {
+.libraryHeadingClickable.libraryHeadingActive .libraryHeadingHint,
+.libraryHeadingClickable.libraryHeadingActive:hover .libraryHeadingHint {
   opacity: 1;
   color: var(--ac-accent);
   transform: translateX(0);
 }
 
 .sectionHeading {
-  font: 500 10.5px/1 var(--ac-font-mono);
-  text-transform: uppercase;
+  font-family: var(--ac-font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
   letter-spacing: 0.12em;
-  color: #6c7088;
+  text-transform: uppercase;
+  color: var(--ac-fg-faint);
   padding: 6px 10px;
   margin: 0;
 }
@@ -141,10 +150,13 @@
 }
 
 .phaseHeading {
-  font: 400 9.5px/1 var(--ac-font-mono);
-  text-transform: uppercase;
+  font-family: var(--ac-font-mono);
+  font-size: 9.5px;
+  font-weight: 400;
   letter-spacing: 0.14em;
-  color: #6c7088;
+  text-transform: uppercase;
+  color: var(--ac-fg-faint);
+  opacity: 0.75;
   padding: 6px 10px 4px;
   margin: 0;
 }
@@ -162,7 +174,7 @@
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
+  padding: 6px 10px;
   border-radius: var(--radius-sm);
   font: 400 13px/1.5 var(--ac-font-body);
   color: var(--ac-fg-muted);

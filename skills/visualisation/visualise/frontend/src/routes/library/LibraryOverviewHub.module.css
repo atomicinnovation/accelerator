@@ -4,22 +4,22 @@
 }
 
 .phaseSection {
-  margin-bottom: var(--sp-6);
+  margin-bottom: var(--sp-5);
 }
 
 .phaseHeading {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: 11px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
+  letter-spacing: 0.12em;
   color: var(--ac-fg-faint);
-  margin: 0 0 var(--sp-3) 0;
+  margin: 0 0 10px 0;
 }
 
 .hubGrid {
   display: grid;
-  gap: var(--sp-3);
+  gap: 12px;
   grid-template-columns: 1fr;
 }
 
@@ -35,21 +35,18 @@
   }
 }
 
-/* Card: glyph + body, fixed height (icon + ~2 body lines). Layout matches
-   the prototype's `.ac-lcard` — 2-column grid so text left-aligns with the
-   card's body column rather than the glyph. */
+/* Card: glyph + body in a 2-column grid. Matches prototype `.ac-lcard`. */
 .card {
   background: var(--ac-bg-card);
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-md);
-  padding: var(--sp-4);
+  border-radius: 6px;
+  padding: 14px 16px;
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: start;
-  gap: var(--sp-3);
+  gap: 10px 16px;
   text-decoration: none;
   color: inherit;
-  height: 96px;
   transition: border-color 160ms, background 160ms;
 }
 
@@ -58,41 +55,55 @@
   background: var(--ac-bg-hover);
 }
 
-.cardDisabled {
-  opacity: 0.55;
-  pointer-events: none;
+/* Empty cards: subtle diagonal pinstripe overlay signals "no docs yet"
+   without removing the card chrome; hover still works. Light/dark
+   stripes alternate transparent + a very low-opacity stroke colour. */
+.cardEmpty {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0,
+    transparent 6px,
+    var(--ac-stroke-soft) 6px,
+    var(--ac-stroke-soft) 7px
+  );
+  background-color: var(--ac-bg-card);
+}
+
+.cardEmpty:hover {
+  border-color: var(--ac-stroke);
+  background-color: var(--ac-bg-sunken);
 }
 
 .cardBody {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-1);
+  gap: 4px;
 }
 
 .cardTopRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-3);
+  gap: 12px;
 }
 
 .cardLabel {
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: var(--size-sm);
+  font-size: 14px;
   color: var(--ac-fg-strong);
 }
 
 .cardCount {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: 11px;
   color: var(--ac-fg-faint);
 }
 
 .cardLatest {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: 11.5px;
   color: var(--ac-fg-muted);
   margin: 0;
   display: -webkit-box;

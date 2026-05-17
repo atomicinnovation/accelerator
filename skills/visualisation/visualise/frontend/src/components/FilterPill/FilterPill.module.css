@@ -2,13 +2,14 @@
   all: unset;
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-1) var(--sp-2);
+  gap: 6px;
+  padding: 6px 10px;
   border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-sm);
   background: var(--ac-bg-card);
-  font-size: var(--size-xxs);
   color: var(--ac-fg-muted);
+  font-size: 12px;
+  line-height: 1.5;
   cursor: pointer;
   position: relative;
 }
@@ -37,7 +38,7 @@
   min-width: 16px;
   height: 16px;
   padding: 0 5px;
-  border-radius: var(--radius-pill);
+  border-radius: 8px;
   background: var(--ac-accent);
   color: #ffffff;
   font-family: var(--ac-font-mono);
@@ -63,25 +64,24 @@
   align-items: center;
   justify-content: space-between;
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
+  letter-spacing: 0.12em;
   color: var(--ac-fg-faint);
-  padding: var(--sp-1) var(--sp-2) var(--sp-2);
+  padding: 6px 10px 8px;
   border-bottom: 1px dashed var(--ac-stroke);
-  margin-bottom: var(--sp-1);
 }
 
 .clearButton {
   all: unset;
   cursor: pointer;
   font-family: var(--ac-font-body);
-  font-size: var(--size-xxs);
+  font-size: 11px;
   text-transform: none;
   letter-spacing: 0;
   color: var(--ac-accent);
   padding: 2px 4px;
-  border-radius: var(--radius-sm);
+  border-radius: 3px;
 }
 
 .clearButton:hover {
@@ -89,7 +89,7 @@
 }
 
 .facetSection {
-  padding: var(--sp-2) var(--sp-1);
+  padding: 6px 4px;
 }
 
 .facetSection + .facetSection {
@@ -98,19 +98,19 @@
 
 .facetHeading {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
+  letter-spacing: 0.1em;
   color: var(--ac-fg-faint);
-  padding: var(--sp-1) var(--sp-2);
+  padding: 4px 8px 6px;
 }
 
 .search {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
-  margin: var(--sp-1) var(--sp-2) var(--sp-2);
-  padding: var(--sp-1) var(--sp-2);
+  gap: 6px;
+  margin: 2px 6px 6px;
+  padding: 4px 8px;
   border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-sm);
   color: var(--ac-fg-faint);
@@ -128,7 +128,7 @@
   outline: none;
   background: transparent;
   font-family: var(--ac-font-body);
-  font-size: var(--size-xxs);
+  font-size: 12px;
   color: var(--ac-fg);
   -webkit-appearance: none;
   appearance: none;
@@ -148,6 +148,7 @@
 .optionListScroll {
   max-height: 200px;
   overflow-y: auto;
+  padding-right: 2px;
 }
 
 .optionListScroll::-webkit-scrollbar {
@@ -156,7 +157,7 @@
 
 .optionListScroll::-webkit-scrollbar-thumb {
   background: var(--ac-stroke-strong);
-  border-radius: var(--radius-sm);
+  border-radius: 3px;
 }
 
 .optionListScroll::-webkit-scrollbar-track {
@@ -167,19 +168,18 @@
   display: grid;
   grid-template-columns: 14px 1fr auto;
   align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-1) var(--sp-2);
+  gap: 8px;
+  padding: 5px 8px;
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: 3px;
   outline: none;
-  font-size: var(--size-xs);
-  color: var(--ac-fg-muted);
+  font-size: 12.5px;
+  color: var(--ac-fg);
 }
 
 .option:hover,
 .option:focus {
   background: var(--ac-bg-hover);
-  color: var(--ac-fg);
 }
 
 .checkbox {
@@ -200,17 +200,17 @@
 
 .checkboxChecked::after {
   content: '';
-  width: 6px;
-  height: 3px;
+  width: 7px;
+  height: 4px;
   border-left: 1.5px solid #ffffff;
   border-bottom: 1.5px solid #ffffff;
-  transform: rotate(-45deg) translateY(-1px);
+  transform: rotate(-45deg) translate(0, -1px);
 }
 
 .optionLabel {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: 8px;
   min-width: 0;
 }
 
@@ -224,13 +224,13 @@
 .optionCount {
   color: var(--ac-fg-faint);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: 11px;
 }
 
 .noMatches {
-  padding: var(--sp-1) var(--sp-2);
+  padding: 6px 8px;
   color: var(--ac-fg-faint);
-  font-size: var(--size-xxs);
+  font-size: 11.5px;
   font-style: italic;
   list-style: none;
 }

@@ -57,10 +57,20 @@ export function LibraryOverviewHub() {
 
 function HubCard({ docType }: { docType: LibraryDocType }) {
   const isEmpty = docType.count === 0
-  const inner = (
-    <>
+  const className = `${styles.card} ${isEmpty ? styles.cardEmpty : ''}`
+  return (
+    <Link
+      to="/library/$type"
+      params={{ type: docType.id }}
+      className={className}
+      aria-label={
+        isEmpty
+          ? `${docType.label} (no documents yet)`
+          : docType.label
+      }
+    >
       {isGlyphDocTypeKey(docType.id) && (
-        <Glyph docType={docType.id} size={32} framed />
+        <Glyph docType={docType.id} size={24} framed />
       )}
       <div className={styles.cardBody}>
         <div className={styles.cardTopRow}>
@@ -73,25 +83,6 @@ function HubCard({ docType }: { docType: LibraryDocType }) {
             : 'no docs yet'}
         </p>
       </div>
-    </>
-  )
-  if (isEmpty) {
-    return (
-      <div
-        className={`${styles.card} ${styles.cardDisabled}`}
-        aria-disabled="true"
-      >
-        {inner}
-      </div>
-    )
-  }
-  return (
-    <Link
-      to="/library/$type"
-      params={{ type: docType.id }}
-      className={styles.card}
-    >
-      {inner}
     </Link>
   )
 }

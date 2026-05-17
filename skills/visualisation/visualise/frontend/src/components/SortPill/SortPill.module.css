@@ -2,13 +2,14 @@
   all: unset;
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-1) var(--sp-2);
+  gap: 6px;
+  padding: 6px 10px;
   border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-sm);
   background: var(--ac-bg-card);
-  font-size: var(--size-xxs);
   color: var(--ac-fg-muted);
+  font-size: 12px;
+  line-height: 1.5;
   cursor: pointer;
 }
 
@@ -29,13 +30,13 @@
 
 .menuHeader {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
+  letter-spacing: 0.12em;
   color: var(--ac-fg-faint);
-  padding: var(--sp-1) var(--sp-2) var(--sp-2);
+  padding: 6px 10px 8px;
   border-bottom: 1px dashed var(--ac-stroke);
-  margin-bottom: var(--sp-1);
+  margin-bottom: 4px;
 }
 
 .menuList {
@@ -48,26 +49,21 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-2);
-  padding: var(--sp-1) var(--sp-2);
+  gap: 8px;
+  padding: 7px 10px;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  font-size: var(--size-xs);
-  color: var(--ac-fg-muted);
+  font-size: 12.5px;
+  color: var(--ac-fg);
   outline: none;
 }
 
 .menuItem:hover,
 .menuItem:focus {
   background: var(--ac-bg-hover);
-  color: var(--ac-fg);
 }
 
-.menuItemActive {
-  color: var(--ac-accent);
-  background: var(--ac-accent-faint);
-}
-
+.menuItemActive,
 .menuItemActive:hover,
 .menuItemActive:focus {
   color: var(--ac-accent);

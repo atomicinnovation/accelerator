@@ -1,41 +1,64 @@
+/* Horizontal layout: framed glyph on the left, content column on the
+   right. Mirrors prototype no-documents card. */
 .card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: var(--sp-3);
-  padding: var(--sp-7) var(--sp-5);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 24px;
+  padding: 32px 28px;
   background: var(--ac-bg-card);
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-md);
+  border-radius: 6px;
+  max-width: 720px;
+  margin: 32px auto;
 }
 
-.glyph {
-  margin-bottom: var(--sp-2);
+.glyphWrap {
+  display: flex;
+  align-items: flex-start;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 
 .path {
   font-family: var(--ac-font-mono);
-  color: var(--ac-fg-muted);
+  font-size: 11.5px;
+  color: var(--ac-fg-faint);
   margin: 0;
 }
 
 .headline {
-  font-size: var(--size-lg);
+  font-family: var(--ac-font-display);
   font-weight: 600;
-  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
   color: var(--ac-fg-strong);
+  margin: 0;
 }
 
 .description {
   color: var(--ac-fg-muted);
-  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 4px 0 0;
   max-width: 60ch;
 }
 
 .footer {
-  font-size: var(--size-xs);
+  font-size: 12px;
   color: var(--ac-fg-faint);
-  margin: 0;
+  margin: 8px 0 0;
+  line-height: 1.55;
   max-width: 60ch;
+}
+
+.pathInline {
+  font-family: var(--ac-font-mono);
+  color: var(--ac-fg-muted);
 }

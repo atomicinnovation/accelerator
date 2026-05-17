@@ -7,7 +7,9 @@ import { DOC_TYPE_KEYS } from '../../api/types'
 describe('EmptyState', () => {
   it('renders the path heading from dirPath', () => {
     render(<EmptyState docType="pr-descriptions" dirPath="meta/prs/" />)
-    expect(screen.getByText('meta/prs/')).toBeInTheDocument()
+    // dirPath appears twice (standalone path + inline inside footer); just
+    // assert at least one occurrence exists.
+    expect(screen.getAllByText('meta/prs/').length).toBeGreaterThan(0)
   })
 
   it('renders the no-{plural}-yet headline', () => {
@@ -23,10 +25,14 @@ describe('EmptyState', () => {
   })
 
   it('renders the indexer-aware footer with the dirPath inline', () => {
-    render(<EmptyState docType="plans" dirPath="meta/plans" />)
-    expect(
-      screen.getByText(/new files added to meta\/plans are picked up live/i),
-    ).toBeInTheDocument()
+    const { container } = render(<EmptyState docType="plans" dirPath="meta/plans" />)
+    // The dirPath is wrapped in a span inside the footer, so we can't match
+    // the full text via a single literal. Look up the footer paragraph and
+    // assert its concatenated text content contains the expected phrase.
+    const footer = container.querySelector('p:last-of-type')
+    expect(footer?.textContent ?? '').toMatch(
+      /new files added to meta\/plans are picked up live/i,
+    )
   })
 })
 

@@ -95,14 +95,14 @@ describe('LibraryOverviewHub', () => {
     expect(link).toHaveAttribute('href', '/library/decisions')
   })
 
-  it('renders a zero-count card as aria-disabled (not a link)', async () => {
+  it('renders a zero-count card as a link with "no docs yet" subtitle', async () => {
     vi.spyOn(fetchModule, 'fetchLibraryStructure').mockResolvedValue(baseStructure)
     render(<LibraryOverviewHub />, { wrapper: makeWrapper() })
     await screen.findByText('Research')
-    expect(screen.queryByRole('link', { name: /research/i })).toBeNull()
-    expect(
-      screen.getByText('Research').closest('[aria-disabled="true"]'),
-    ).not.toBeNull()
+    // Empty cards remain clickable (navigating to the list-view empty state)
+    // but get a pinstripe pattern + altered hover via the `cardEmpty` class.
+    const link = screen.getByRole('link', { name: /research \(no documents yet\)/i })
+    expect(link).toHaveAttribute('href', '/library/research')
     expect(screen.getByText('no docs yet')).toBeInTheDocument()
   })
 
