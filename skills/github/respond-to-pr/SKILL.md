@@ -7,6 +7,7 @@ argument-hint: "[PR number or URL]"
 disable-model-invocation: true
 allowed-tools:
    - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/*)
 ---
 
 # Respond to PR
@@ -64,7 +65,7 @@ the user's input.
 
 3. **Get repo info and current user**:
    ```bash
-   gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"'
+   ${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/pr-base-repo.sh {number}
    gh api user --jq '.login'
    ```
 
