@@ -44,22 +44,29 @@ export function Popover({
     triggerRef.current = el
   }, [])
   const wasOpenRef = useRef<boolean>(false)
+  // Our most recently registered dismiss closure — used to identify
+  // ourselves in the module-level singleton check so we don't dismiss
+  // our own previous closure when `onOpenChange` re-references and the
+  // effect re-runs while still open.
+  const ourDismissRef = useRef<(() => void) | null>(null)
   const panelId = useId()
 
   useDismiss(open, shellRef, useCallback(() => onOpenChange(false), [onOpenChange]))
 
   // Manage module-level active singleton: when open transitions to true,
-  // dismiss any previously-active popover and register self.
+  // dismiss any previously-active popover (but not our own previous
+  // closure) and register self.
   useEffect(() => {
     if (open) {
-      if (activeDismiss && activeDismiss !== (() => onOpenChange(false))) {
-        const previous = activeDismiss
-        if (previous) previous()
-      }
       const dismiss = () => onOpenChange(false)
+      if (activeDismiss && activeDismiss !== ourDismissRef.current) {
+        activeDismiss()
+      }
       activeDismiss = dismiss
+      ourDismissRef.current = dismiss
       return () => {
         if (activeDismiss === dismiss) activeDismiss = null
+        if (ourDismissRef.current === dismiss) ourDismissRef.current = null
       }
     }
     return undefined
