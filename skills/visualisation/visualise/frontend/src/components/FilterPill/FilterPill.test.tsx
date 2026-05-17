@@ -108,7 +108,7 @@ describe('FilterPill', () => {
       />,
     )
     await user.click(screen.getByRole('button', { name: /filter/i }))
-    const clear = screen.getByRole('button', { name: /clear filters/i })
+    const clear = screen.getByRole('button', { name: /clear all/i })
     await user.click(clear)
     expect(onChange).toHaveBeenLastCalledWith({})
   })

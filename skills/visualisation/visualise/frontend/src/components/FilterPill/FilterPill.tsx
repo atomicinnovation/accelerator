@@ -24,8 +24,9 @@ export function FilterPill({
   isFetching,
 }: FilterPillProps) {
   const [open, setOpen] = useState(false)
-  const hasSelection = Object.values(selection).some(
-    (arr) => arr && arr.length > 0,
+  const activeCount = Object.values(selection).reduce(
+    (n, arr) => n + (arr ? arr.length : 0),
+    0,
   )
 
   function toggleOption(facetId: string, optionId: string) {
@@ -47,9 +48,13 @@ export function FilterPill({
         <button
           {...triggerProps}
           ref={triggerProps.ref as React.Ref<HTMLButtonElement>}
-          className={styles.trigger}
+          className={`${styles.trigger} ${open ? styles.triggerOpen : ''} ${activeCount > 0 ? styles.triggerActive : ''}`}
         >
-          <span>▽ Filter</span>
+          <FilterIcon />
+          <span>Filter</span>
+          {activeCount > 0 && (
+            <span className={styles.badge}>{activeCount}</span>
+          )}
           {isFetching && (
             <span
               className={styles.fetchingDot}
@@ -61,7 +66,18 @@ export function FilterPill({
       )}
     >
       <div className={styles.menu}>
-        <div className={styles.facetHeading}>FILTER</div>
+        <div className={styles.menuHeader}>
+          <span>Filter</span>
+          {activeCount > 0 && (
+            <button
+              type="button"
+              className={styles.clearButton}
+              onClick={() => onChange({})}
+            >
+              Clear all
+            </button>
+          )}
+        </div>
         {facets.map((facet) => (
           <FacetSection
             key={facet.id}
@@ -70,17 +86,6 @@ export function FilterPill({
             onToggle={(optionId) => toggleOption(facet.id, optionId)}
           />
         ))}
-        {hasSelection && (
-          <div className={styles.footer}>
-            <button
-              type="button"
-              className={styles.clearButton}
-              onClick={() => onChange({})}
-            >
-              Clear filters
-            </button>
-          </div>
-        )}
       </div>
     </Popover>
   )
@@ -103,24 +108,29 @@ function FacetSection({
       )
     : facet.options
 
+  // Only the cluster-slug facet gets a scrolling, search-augmented list. The
+  // status/project facets stay short and fit the panel height comfortably.
+  const isLongFacet = showSearch
+
   return (
     <section className={styles.facetSection}>
       <div className={styles.facetHeading}>{facet.label}</div>
       {showSearch && (
-        <input
-          type="search"
-          className={styles.search}
-          placeholder={`Filter ${facet.label}…`}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            // Prevent printable characters bubbling up to the popover menu
-            // key handler (which would trigger focus moves).
-            e.stopPropagation()
-          }}
-        />
+        <div className={styles.search}>
+          <SearchIcon />
+          <input
+            type="search"
+            placeholder={`Filter ${facet.label.toLowerCase()}…`}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // Prevent printable chars bubbling up to the menu key handler.
+              e.stopPropagation()
+            }}
+          />
+        </div>
       )}
-      <ul className={styles.optionList}>
+      <ul className={`${styles.optionList} ${isLongFacet ? styles.optionListScroll : ''}`}>
         {filtered.map((option) => {
           const isSelected = selected.includes(option.id)
           return (
@@ -149,7 +159,47 @@ function FacetSection({
             </li>
           )
         })}
+        {filtered.length === 0 && (
+          <li className={styles.noMatches}>No matches.</li>
+        )}
       </ul>
     </section>
+  )
+}
+
+function FilterIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 4h16l-6 8v6l-4 2v-8z" />
+    </svg>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
   )
 }

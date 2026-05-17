@@ -235,7 +235,7 @@ describe('LibraryTypeView', () => {
     // toggle BOTH draft and complete off the rendered facet to produce an
     // impossible state. Easier: toggle draft + use clear filters to revert.
     await user.click(screen.getByRole('menuitemcheckbox', { name: /Draft/ }))
-    const clear = screen.getByRole('button', { name: /clear filters/i })
+    const clear = screen.getByRole('button', { name: /clear all/i })
     await user.click(clear)
     expect(screen.getByText('Bar Plan')).toBeInTheDocument()
     expect(screen.getByText('Foo Plan')).toBeInTheDocument()

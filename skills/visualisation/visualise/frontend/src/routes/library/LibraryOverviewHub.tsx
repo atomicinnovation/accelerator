@@ -31,19 +31,17 @@ export function LibraryOverviewHub() {
             </div>
           </section>
         ))}
-        <section className={styles.phaseSection}>
-          <h2 className={styles.phaseHeading}>META</h2>
-          <div className={styles.hubGrid}>
-            <HubCard docType={data.templates} />
-          </div>
-        </section>
       </>
     )
   }
 
   return (
     <Page
-      eyebrow={<>LIBRARY</>}
+      eyebrow={
+        <>
+          <LibraryIcon /> LIBRARY
+        </>
+      }
       title={
         <>
           All artifacts in{' '}
@@ -61,25 +59,28 @@ function HubCard({ docType }: { docType: LibraryDocType }) {
   const isEmpty = docType.count === 0
   const inner = (
     <>
-      <div className={styles.cardTopRow}>
-        <span className={styles.cardLabel}>
-          {isGlyphDocTypeKey(docType.id) && (
-            <Glyph docType={docType.id} size={24} framed />
-          )}
-          {docType.label}
-        </span>
-        <span className={styles.cardCount}>{docType.count}</span>
-      </div>
-      {docType.latest ? (
-        <span className={styles.cardLatest}>latest · {docType.latest.title}</span>
-      ) : (
-        <span className={styles.cardEmpty}>no documents yet</span>
+      {isGlyphDocTypeKey(docType.id) && (
+        <Glyph docType={docType.id} size={32} framed />
       )}
+      <div className={styles.cardBody}>
+        <div className={styles.cardTopRow}>
+          <span className={styles.cardLabel}>{docType.label}</span>
+          <span className={styles.cardCount}>{docType.count}</span>
+        </div>
+        <p className={styles.cardLatest}>
+          {docType.latest
+            ? `latest · ${docType.latest.title}`
+            : 'no docs yet'}
+        </p>
+      </div>
     </>
   )
   if (isEmpty) {
     return (
-      <div className={`${styles.card} ${styles.cardDisabled}`} aria-disabled="true">
+      <div
+        className={`${styles.card} ${styles.cardDisabled}`}
+        aria-disabled="true"
+      >
         {inner}
       </div>
     )
@@ -92,5 +93,25 @@ function HubCard({ docType }: { docType: LibraryDocType }) {
     >
       {inner}
     </Link>
+  )
+}
+
+function LibraryIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 4h4v16H4z" />
+      <path d="M10 4h4v16h-4z" />
+      <path d="m17 5 3 1-4 14-3-1z" />
+    </svg>
   )
 }

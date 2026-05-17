@@ -79,12 +79,12 @@ describe('LibraryOverviewHub', () => {
     expect(screen.getByText('DISCOVER')).toBeInTheDocument()
   })
 
-  it('renders the templates section under META', async () => {
+  it('does NOT render a META/Templates section on the hub', async () => {
     vi.spyOn(fetchModule, 'fetchLibraryStructure').mockResolvedValue(baseStructure)
     render(<LibraryOverviewHub />, { wrapper: makeWrapper() })
     await screen.findByText('DEFINE')
-    expect(screen.getByText('META')).toBeInTheDocument()
-    expect(screen.getByText('Templates')).toBeInTheDocument()
+    expect(screen.queryByText('META')).toBeNull()
+    expect(screen.queryByText('Templates')).toBeNull()
   })
 
   it('renders a non-zero card as a link', async () => {
@@ -103,7 +103,7 @@ describe('LibraryOverviewHub', () => {
     expect(
       screen.getByText('Research').closest('[aria-disabled="true"]'),
     ).not.toBeNull()
-    expect(screen.getByText('no documents yet')).toBeInTheDocument()
+    expect(screen.getByText('no docs yet')).toBeInTheDocument()
   })
 
   it('renders the latest preview line for non-empty cards', async () => {

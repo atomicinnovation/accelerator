@@ -242,13 +242,7 @@ export function LibraryTypeView({ type: propType }: Props) {
                 className={styles.row}
               >
                 <span role="cell" className={styles.firstCol}>
-                  {first.kind === 'id' ? (
-                    <span className={styles.idPill}>{first.value}</span>
-                  ) : first.kind === 'date' ? (
-                    <span>{first.value}</span>
-                  ) : (
-                    <span>—</span>
-                  )}
+                  {first.kind === 'empty' ? '—' : first.value}
                 </span>
                 <span role="cell" className={styles.titleCell}>
                   {entry.title}

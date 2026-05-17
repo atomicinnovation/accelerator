@@ -85,12 +85,25 @@ impl LocalFileDriver {
         extra_roots: Vec<PathBuf>,
         writable_roots: Vec<PathBuf>,
     ) -> Self {
+        Self::new_with_project_root(doc_paths, None, extra_roots, writable_roots)
+    }
+
+    /// Construct a driver that also consults `project_root` for the
+    /// canonical-default fallback when a configured path is absent or
+    /// missing on disk. Prefer this over `new` when the caller knows
+    /// the project root.
+    pub fn new_with_project_root(
+        doc_paths: &HashMap<String, PathBuf>,
+        project_root: Option<&Path>,
+        extra_roots: Vec<PathBuf>,
+        writable_roots: Vec<PathBuf>,
+    ) -> Self {
         let mut roots = HashMap::new();
         for kind in DocTypeKey::all() {
-            let Some(raw) = kind.resolve_doc_path(doc_paths) else {
+            let Some(raw) = kind.resolve_doc_path(doc_paths, project_root) else {
                 continue;
             };
-            let canonical = std::fs::canonicalize(raw).unwrap_or_else(|_| raw.clone());
+            let canonical = std::fs::canonicalize(&raw).unwrap_or_else(|_| raw.clone());
             roots.insert(kind, canonical);
         }
         let extra_roots = extra_roots

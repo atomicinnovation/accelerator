@@ -43,7 +43,7 @@ describe('SortPill', () => {
     const user = userEvent.setup()
     render(<ControlledPill />)
     await user.click(screen.getByRole('button'))
-    expect(screen.getByText('SORT BY')).toBeInTheDocument()
+    expect(screen.getByText(/sort by/i)).toBeInTheDocument()
     expect(screen.getAllByRole('menuitem')).toHaveLength(5)
     expect(screen.getByText('Title (A → Z)')).toBeInTheDocument()
   })

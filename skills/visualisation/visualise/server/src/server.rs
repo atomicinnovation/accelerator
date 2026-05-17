@@ -64,8 +64,9 @@ impl AppState {
             .cloned()
             .map(|p| vec![p])
             .unwrap_or_default();
-        let driver = Arc::new(crate::file_driver::LocalFileDriver::new(
+        let driver = Arc::new(crate::file_driver::LocalFileDriver::new_with_project_root(
             &cfg.doc_paths,
+            Some(&cfg.project_root),
             template_roots,
             work_root,
         ));

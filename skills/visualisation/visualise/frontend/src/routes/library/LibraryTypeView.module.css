@@ -9,27 +9,28 @@
   grid-template-columns: 120px minmax(0, 2fr) 120px minmax(0, 1fr) 110px;
   gap: var(--sp-3);
   align-items: center;
-  padding: var(--sp-2) var(--sp-3);
+  padding: var(--sp-3) var(--sp-3);
   font-size: var(--size-xs);
 }
 
 .headerRow {
+  font-family: var(--ac-font-mono);
   color: var(--ac-fg-faint);
   font-size: var(--size-xxs);
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps);
   font-weight: 500;
-  border-bottom: 1px solid var(--ac-stroke-soft);
+  border-bottom: 1px solid var(--ac-stroke);
 }
 
 .row {
   text-decoration: none;
   color: var(--ac-fg);
-  border-bottom: 1px solid var(--ac-bg-sunken);
+  border-bottom: 1px solid var(--ac-stroke-soft);
 }
 
 .row:hover {
-  background: var(--ac-bg-sunken);
+  background: var(--ac-bg-hover);
 }
 
 .titleCell {
@@ -39,17 +40,8 @@
 
 .firstCol {
   font-family: var(--ac-font-mono);
-  color: var(--ac-fg-muted);
-}
-
-.idPill {
-  display: inline-block;
-  padding: var(--sp-1) var(--sp-2);
-  background: var(--ac-bg-sunken);
-  border-radius: var(--radius-sm);
-  font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
-  color: var(--ac-fg);
+  color: var(--ac-fg-muted);
 }
 
 .slug {
@@ -64,6 +56,7 @@
 .mtime {
   color: var(--ac-fg-faint);
   font-size: var(--size-xxs);
+  font-family: var(--ac-font-mono);
   white-space: nowrap;
 }
 
