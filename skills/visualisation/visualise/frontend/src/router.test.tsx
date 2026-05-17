@@ -90,7 +90,7 @@ describe('router', () => {
       slug: 'foo', title: 'Foo Cluster', entries: [],
       completeness: {
         hasWorkItem: false, hasResearch: false, hasPlan: false,
-        hasPlanReview: false, hasValidation: false, hasPr: false,
+        hasPlanReview: false, hasValidation: false, hasPrDescription: false,
         hasPrReview: false, hasDecision: false, hasNotes: false,
         hasDesignInventory: false, hasDesignGap: false,
       },
@@ -187,7 +187,7 @@ describe('loader crumbs', () => {
       slug: 'some-cluster', title: 'Some Cluster', entries: [],
       completeness: {
         hasWorkItem: false, hasResearch: false, hasPlan: false,
-        hasPlanReview: false, hasValidation: false, hasPr: false,
+        hasPlanReview: false, hasValidation: false, hasPrDescription: false,
         hasPrReview: false, hasDecision: false, hasNotes: false,
         hasDesignInventory: false, hasDesignGap: false,
       },

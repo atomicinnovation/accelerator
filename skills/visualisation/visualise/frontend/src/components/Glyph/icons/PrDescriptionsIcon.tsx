@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
 
-export function PrsIcon(): ReactElement {
+export function PrDescriptionsIcon(): ReactElement {
   return (
     <g fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="6" cy="5.5" r="2" />

@@ -4,7 +4,7 @@
 export type DocTypeKey =
   | 'decisions' | 'work-items' | 'plans' | 'research'
   | 'plan-reviews' | 'pr-reviews' | 'work-item-reviews'
-  | 'validations' | 'notes' | 'prs' | 'design-gaps' | 'design-inventories'
+  | 'validations' | 'notes' | 'pr-descriptions' | 'design-gaps' | 'design-inventories'
   | 'templates'
 
 /** Single source of truth for the DocTypeKey union at runtime. Drives both
@@ -14,7 +14,7 @@ export type DocTypeKey =
 export const DOC_TYPE_KEYS: readonly DocTypeKey[] = [
   'decisions', 'work-items', 'plans', 'research',
   'plan-reviews', 'pr-reviews', 'work-item-reviews',
-  'validations', 'notes', 'prs', 'design-gaps', 'design-inventories',
+  'validations', 'notes', 'pr-descriptions', 'design-gaps', 'design-inventories',
   'templates',
 ] as const
 
@@ -42,7 +42,7 @@ export const DOC_TYPE_LABELS: Readonly<Record<DocTypeKey, string>> = {
   'work-item-reviews': 'Work item review',
   'validations': 'Validation',
   'notes': 'Notes',
-  'prs': 'PR',
+  'pr-descriptions': 'PR descriptions',
   'design-gaps': 'Design gap',
   'design-inventories': 'Design inventory',
   'templates': 'Template',
@@ -146,7 +146,7 @@ export interface Completeness {
   hasPlan: boolean
   hasPlanReview: boolean
   hasValidation: boolean
-  hasPr: boolean
+  hasPrDescription: boolean
   hasPrReview: boolean
   hasDecision: boolean
   hasNotes: boolean
@@ -174,7 +174,7 @@ export interface RelatedArtifactsResponse {
 
 type PipelineStepKey =
   | 'hasWorkItem' | 'hasResearch' | 'hasPlan' | 'hasPlanReview'
-  | 'hasValidation' | 'hasPr' | 'hasPrReview' | 'hasDecision'
+  | 'hasValidation' | 'hasPrDescription' | 'hasPrReview' | 'hasDecision'
   | 'hasNotes' | 'hasDesignInventory' | 'hasDesignGap'
 
 export const LIFECYCLE_PIPELINE_STEPS: ReadonlyArray<{
@@ -189,7 +189,7 @@ export const LIFECYCLE_PIPELINE_STEPS: ReadonlyArray<{
   { key: 'hasPlan', docType: 'plans', label: 'Plan', placeholder: 'no plan yet' },
   { key: 'hasPlanReview', docType: 'plan-reviews', label: 'Plan review', placeholder: 'no plan review yet' },
   { key: 'hasValidation', docType: 'validations', label: 'Validation', placeholder: 'no validation yet' },
-  { key: 'hasPr', docType: 'prs', label: 'PR', placeholder: 'no PR yet' },
+  { key: 'hasPrDescription', docType: 'pr-descriptions', label: 'PR descriptions', placeholder: 'no PR description yet' },
   { key: 'hasPrReview', docType: 'pr-reviews', label: 'PR review', placeholder: 'no PR review yet' },
   { key: 'hasDecision', docType: 'decisions', label: 'Decision', placeholder: 'no decision yet' },
   { key: 'hasNotes', docType: 'notes', label: 'Notes', placeholder: 'no notes yet', longTail: true },
@@ -244,7 +244,7 @@ export const PHASE_DOC_TYPES = [
   {
     phase: 'ship',
     label: 'Ship',
-    docTypes: ['prs', 'pr-reviews'] as const,
+    docTypes: ['pr-descriptions', 'pr-reviews'] as const,
   },
   {
     phase: 'remember',

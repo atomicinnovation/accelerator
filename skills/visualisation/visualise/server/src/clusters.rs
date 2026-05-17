@@ -13,7 +13,7 @@ pub struct Completeness {
     pub has_plan: bool,
     pub has_plan_review: bool,
     pub has_validation: bool,
-    pub has_pr: bool,
+    pub has_pr_description: bool,
     pub has_pr_review: bool,
     pub has_decision: bool,
     pub has_notes: bool,
@@ -73,7 +73,7 @@ fn canonical_rank(kind: DocTypeKey) -> u8 {
         DocTypeKey::Plans => 2,
         DocTypeKey::PlanReviews => 3,
         DocTypeKey::Validations => 4,
-        DocTypeKey::Prs => 5,
+        DocTypeKey::PrDescriptions => 5,
         DocTypeKey::PrReviews => 6,
         DocTypeKey::WorkItemReviews => 6,
         DocTypeKey::Decisions => 7,
@@ -105,7 +105,7 @@ fn derive_completeness(entries: &[IndexEntry]) -> Completeness {
         has_plan: false,
         has_plan_review: false,
         has_validation: false,
-        has_pr: false,
+        has_pr_description: false,
         has_pr_review: false,
         has_decision: false,
         has_notes: false,
@@ -120,7 +120,7 @@ fn derive_completeness(entries: &[IndexEntry]) -> Completeness {
             DocTypeKey::PlanReviews => c.has_plan_review = true,
             DocTypeKey::WorkItemReviews => {}
             DocTypeKey::Validations => c.has_validation = true,
-            DocTypeKey::Prs => c.has_pr = true,
+            DocTypeKey::PrDescriptions => c.has_pr_description = true,
             DocTypeKey::PrReviews => c.has_pr_review = true,
             DocTypeKey::Decisions => c.has_decision = true,
             DocTypeKey::Notes => c.has_notes = true,
@@ -205,7 +205,7 @@ mod tests {
         assert!(!c.has_research);
         assert!(!c.has_plan_review);
         assert!(!c.has_validation);
-        assert!(!c.has_pr);
+        assert!(!c.has_pr_description);
         assert!(!c.has_pr_review);
         assert!(!c.has_notes);
         assert!(!c.has_design_gap);

@@ -24,7 +24,7 @@ pub fn derive(kind: DocTypeKey, filename: &str) -> Option<String> {
         | DocTypeKey::Research
         | DocTypeKey::Validations
         | DocTypeKey::Notes
-        | DocTypeKey::Prs
+        | DocTypeKey::PrDescriptions
         | DocTypeKey::DesignGaps
         | DocTypeKey::DesignInventories => strip_prefix_date(stem),
         DocTypeKey::PlanReviews | DocTypeKey::PrReviews | DocTypeKey::WorkItemReviews => {
@@ -139,7 +139,7 @@ mod tests {
             DocTypeKey::Plans,
             DocTypeKey::Research,
             DocTypeKey::Notes,
-            DocTypeKey::Prs,
+            DocTypeKey::PrDescriptions,
             DocTypeKey::Validations,
         ] {
             let cases = &[

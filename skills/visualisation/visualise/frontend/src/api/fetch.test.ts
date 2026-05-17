@@ -137,7 +137,7 @@ describe('fetchLifecycleClusters', () => {
             entries: [],
             completeness: {
               hasWorkItem: false, hasResearch: false, hasPlan: true,
-              hasPlanReview: false, hasValidation: false, hasPr: false,
+              hasPlanReview: false, hasValidation: false, hasPrDescription: false,
               hasPrReview: false, hasDecision: false, hasNotes: false,
             },
             lastChangedMs: 1_700_000_000_000,
@@ -326,7 +326,7 @@ describe('fetchLifecycleCluster', () => {
         slug: 'foo', title: 'Foo', entries: [],
         completeness: {
           hasWorkItem: false, hasResearch: false, hasPlan: false,
-          hasPlanReview: false, hasValidation: false, hasPr: false,
+          hasPlanReview: false, hasValidation: false, hasPrDescription: false,
           hasPrReview: false, hasDecision: false, hasNotes: false,
         },
         lastChangedMs: 0,
@@ -343,7 +343,7 @@ describe('fetchLifecycleCluster', () => {
         slug: 'foo bar', title: '', entries: [],
         completeness: {
           hasWorkItem: false, hasResearch: false, hasPlan: false,
-          hasPlanReview: false, hasValidation: false, hasPr: false,
+          hasPlanReview: false, hasValidation: false, hasPrDescription: false,
           hasPrReview: false, hasDecision: false, hasNotes: false,
         },
         lastChangedMs: 0,

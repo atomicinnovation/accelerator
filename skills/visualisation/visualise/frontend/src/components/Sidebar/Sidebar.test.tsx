@@ -41,7 +41,7 @@ const allDocTypes: DocType[] = [
   { key: 'work-item-reviews',  label: 'Work item reviews',  dirPath: '/p', inLifecycle: true,  inKanban: false, virtual: false },
   { key: 'validations',        label: 'Validations',        dirPath: '/p', inLifecycle: true,  inKanban: false, virtual: false },
   { key: 'notes',              label: 'Notes',              dirPath: '/p', inLifecycle: true,  inKanban: false, virtual: false },
-  { key: 'prs',                label: 'PRs',                dirPath: '/p', inLifecycle: true,  inKanban: false, virtual: false },
+  { key: 'pr-descriptions',    label: 'PR descriptions',    dirPath: '/p', inLifecycle: true,  inKanban: false, virtual: false },
   { key: 'design-gaps',        label: 'Design gaps',        dirPath: '/p', inLifecycle: true,  inKanban: false, virtual: false },
   { key: 'design-inventories', label: 'Design inventories', dirPath: '/p', inLifecycle: true,  inKanban: false, virtual: false },
   { key: 'templates',          label: 'Templates',          dirPath: null, inLifecycle: false, inKanban: false, virtual: true  },

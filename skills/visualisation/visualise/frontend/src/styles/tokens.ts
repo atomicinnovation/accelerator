@@ -35,7 +35,7 @@ export const LIGHT_COLOR_TOKENS = {
   'ac-doc-work-item-reviews':   '#ad3458',
   'ac-doc-validations':         '#2e8b57',
   'ac-doc-notes':               '#8e7b22',
-  'ac-doc-prs':                 '#4588b8',
+  'ac-doc-pr-descriptions':                 '#4588b8',
   'ac-doc-design-gaps':         '#5c9132',
   'ac-doc-design-inventories':  '#2e7e8a',
 } as const
@@ -76,7 +76,7 @@ export const DARK_COLOR_TOKENS = {
   'ac-doc-work-item-reviews':   '#e26a88',
   'ac-doc-validations':         '#85ddb3',
   'ac-doc-notes':               '#dcc764',
-  'ac-doc-prs':                 '#79b5dd',
+  'ac-doc-pr-descriptions':                 '#79b5dd',
   'ac-doc-design-gaps':         '#a8dd70',
   'ac-doc-design-inventories':  '#7dd3e0',
 } as const

@@ -99,7 +99,7 @@ const PHASES: &[(&str, &str, &[DocTypeKey])] = &[
     (
         "ship",
         "Ship",
-        &[DocTypeKey::Prs, DocTypeKey::PrReviews],
+        &[DocTypeKey::PrDescriptions, DocTypeKey::PrReviews],
     ),
     (
         "remember",

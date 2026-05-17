@@ -253,3 +253,23 @@ describe('useUnseenDocTypes', () => {
     expect(result.current.unseenSet.has('decisions')).toBe(true)
   })
 })
+
+describe('parseStored migration', () => {
+  it('renames legacy "prs" key to "pr-descriptions" on read', () => {
+    // Mimics work-item-0041 rename — pre-upgrade storage entries with the
+    // old key are migrated in place so the user's last-seen timestamp
+    // survives.
+    localStorage.setItem(
+      SEEN_DOC_TYPES_STORAGE_KEY,
+      JSON.stringify({ prs: 12345, decisions: 67890 }),
+    )
+    const { result } = renderHook(() => useUnseenDocTypes())
+    // Trigger a write-path so we can observe what was loaded.
+    act(() => result.current.markSeen('decisions'))
+    const stored = JSON.parse(
+      localStorage.getItem(SEEN_DOC_TYPES_STORAGE_KEY) || '{}',
+    )
+    expect(stored['pr-descriptions']).toBe(12345)
+    expect(stored['prs']).toBeUndefined()
+  })
+})

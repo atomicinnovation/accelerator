@@ -11,7 +11,7 @@ import lifecycleCss from './LifecycleClusterView.module.css?raw'
 
 const empty: Completeness = {
   hasWorkItem: false, hasResearch: false, hasPlan: false,
-  hasPlanReview: false, hasValidation: false, hasPr: false,
+  hasPlanReview: false, hasValidation: false, hasPrDescription: false,
   hasPrReview: false, hasDecision: false, hasNotes: false,
   hasDesignInventory: false, hasDesignGap: false,
 }
@@ -88,7 +88,7 @@ describe('LifecycleClusterContent', () => {
     expect(screen.getByText(/no research yet/i)).toBeInTheDocument()
     expect(screen.getByText(/no plan review yet/i)).toBeInTheDocument()
     expect(screen.getByText(/no validation yet/i)).toBeInTheDocument()
-    expect(screen.getByText(/no pr yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/no pr description yet/i)).toBeInTheDocument()
     expect(screen.getByText(/no pr review yet/i)).toBeInTheDocument()
   })
 

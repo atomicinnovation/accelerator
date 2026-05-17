@@ -9,7 +9,7 @@ import type { LifecycleCluster, Completeness } from '../../api/types'
 
 const empty: Completeness = {
   hasWorkItem: false, hasResearch: false, hasPlan: false,
-  hasPlanReview: false, hasValidation: false, hasPr: false,
+  hasPlanReview: false, hasValidation: false, hasPrDescription: false,
   hasPrReview: false, hasDecision: false, hasNotes: false,
   hasDesignInventory: false, hasDesignGap: false,
 }

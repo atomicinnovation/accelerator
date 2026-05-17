@@ -8,7 +8,7 @@ import { NotesIcon } from './icons/NotesIcon'
 import { PlanReviewsIcon } from './icons/PlanReviewsIcon'
 import { PlansIcon } from './icons/PlansIcon'
 import { PrReviewsIcon } from './icons/PrReviewsIcon'
-import { PrsIcon } from './icons/PrsIcon'
+import { PrDescriptionsIcon } from './icons/PrDescriptionsIcon'
 import { ResearchIcon } from './icons/ResearchIcon'
 import { ValidationsIcon } from './icons/ValidationsIcon'
 import { WorkItemReviewsIcon } from './icons/WorkItemReviewsIcon'
@@ -52,7 +52,7 @@ const ICON_COMPONENTS: Record<GlyphDocTypeKey, ComponentType> = {
   'work-item-reviews': WorkItemReviewsIcon,
   'validations': ValidationsIcon,
   'notes': NotesIcon,
-  'prs': PrsIcon,
+  'pr-descriptions': PrDescriptionsIcon,
   'design-gaps': DesignGapsIcon,
   'design-inventories': DesignInventoriesIcon,
 }

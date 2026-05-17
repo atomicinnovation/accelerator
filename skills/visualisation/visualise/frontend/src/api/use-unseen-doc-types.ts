@@ -36,6 +36,15 @@ export function parseStored(): SeenMap {
   ) {
     return {}
   }
+  // One-shot migration: the wire token `prs` was renamed to `pr-descriptions`
+  // in work item 0041. Rewrite any pre-upgrade key in place so existing users
+  // do not lose their last-seen timestamp (which would resurface the card as
+  // unseen).
+  const parsedObj = parsed as Record<string, unknown>
+  if ('prs' in parsedObj && !('pr-descriptions' in parsedObj)) {
+    parsedObj['pr-descriptions'] = parsedObj.prs
+    delete parsedObj.prs
+  }
   const out: SeenMap = {}
   for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
     if (!isDocTypeKey(key)) continue
