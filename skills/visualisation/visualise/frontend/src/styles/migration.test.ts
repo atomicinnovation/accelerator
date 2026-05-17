@@ -158,20 +158,21 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '7px', count: 1, kind: 'irreducible', reason: 'pinstripe stride end from design — between --sp-1 and --sp-2' },
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'card body row gap — equals --sp-1 but co-located' },
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '0.12em', count: 1, kind: 'irreducible', reason: 'phase-heading caps letter-spacing' },
-  // routes/library/EmptyState.module.css
-  { file: 'routes/library/EmptyState.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'card border width — below --sp-1 floor' },
-  { file: 'routes/library/EmptyState.module.css', literal: '720px', count: 1, kind: 'irreducible', reason: 'card max-width — no token equivalent' },
-  { file: 'routes/library/EmptyState.module.css', literal: '32px', count: 2, kind: 'irreducible', reason: 'card padding + outer margin from design — equals --sp-6 but co-located' },
-  { file: 'routes/library/EmptyState.module.css', literal: '28px', count: 1, kind: 'irreducible', reason: 'card horizontal padding from design — between --sp-5 and --sp-6' },
-  { file: 'routes/library/EmptyState.module.css', literal: '24px', count: 1, kind: 'irreducible', reason: 'glyph/body gap from design — equals --sp-5 but co-located' },
-  { file: 'routes/library/EmptyState.module.css', literal: '22px', count: 1, kind: 'irreducible', reason: 'headline font-size — equals --size-lg but co-located' },
-  { file: 'routes/library/EmptyState.module.css', literal: '13px', count: 1, kind: 'irreducible', reason: 'description font-size from design — 1px under --size-xs' },
-  { file: 'routes/library/EmptyState.module.css', literal: '12px', count: 1, kind: 'irreducible', reason: 'footer font-size from design — equals --size-xxs but co-located' },
-  { file: 'routes/library/EmptyState.module.css', literal: '11.5px', count: 1, kind: 'irreducible', reason: 'path font-size from design — sub-pixel' },
-  { file: 'routes/library/EmptyState.module.css', literal: '8px', count: 1, kind: 'irreducible', reason: 'footer margin-top from design — equals --sp-2 but co-located' },
-  { file: 'routes/library/EmptyState.module.css', literal: '6px', count: 2, kind: 'irreducible', reason: 'body row gap + card border-radius from design — between --sp-1 and --sp-2' },
-  { file: 'routes/library/EmptyState.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'description margin-top — equals --sp-1 but co-located' },
-  { file: 'routes/library/EmptyState.module.css', literal: '0.005em', count: 1, kind: 'irreducible', reason: 'headline letter-spacing — design-font tightening' },
+  // routes/library/EmptyState.module.css — full-page list-view empty state
+  { file: 'routes/library/EmptyState.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'dashed card outline + dashed foot top border — below --sp-1 floor' },
+  { file: 'routes/library/EmptyState.module.css', literal: '96px', count: 1, kind: 'irreducible', reason: 'PaperFold hero column track from design — no token equivalent' },
+  { file: 'routes/library/EmptyState.module.css', literal: '28px', count: 3, kind: 'irreducible', reason: 'card grid gap + horizontal padding + top padding from design — between --sp-5 and --sp-6' },
+  { file: 'routes/library/EmptyState.module.css', literal: '26px', count: 1, kind: 'irreducible', reason: 'card bottom padding from design — between --sp-5 and --sp-6' },
+  { file: 'routes/library/EmptyState.module.css', literal: '22px', count: 2, kind: 'irreducible', reason: 'card responsive padding + title font-size — equals --size-lg but co-located' },
+  { file: 'routes/library/EmptyState.module.css', literal: '14px', count: 2, kind: 'irreducible', reason: 'lede font-size + foot padding-top from design — 1px under --size-xs / co-located' },
+  { file: 'routes/library/EmptyState.module.css', literal: '12px', count: 2, kind: 'irreducible', reason: 'card border-radius + foot font-size — equals --size-xxs / --radius-lg but co-located' },
+  { file: 'routes/library/EmptyState.module.css', literal: '11.5px', count: 2, kind: 'irreducible', reason: 'eyebrow + path-inline font-size from design — sub-pixel' },
+  { file: 'routes/library/EmptyState.module.css', literal: '16px', count: 2, kind: 'irreducible', reason: 'lede margin-bottom + responsive grid gap — equals --sp-4 but co-located' },
+  { file: 'routes/library/EmptyState.module.css', literal: '8px', count: 1, kind: 'irreducible', reason: 'title margin-bottom from design — equals --sp-2 but co-located' },
+  { file: 'routes/library/EmptyState.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'eyebrow margin-bottom — equals --sp-1 but co-located' },
+  { file: 'routes/library/EmptyState.module.css', literal: '2px', count: 1, kind: 'irreducible', reason: 'hero top padding — below --sp-1 floor' },
+  { file: 'routes/library/EmptyState.module.css', literal: '820px', count: 1, kind: 'irreducible', reason: 'responsive collapse breakpoint — no token equivalent' },
+  { file: 'routes/library/EmptyState.module.css', literal: '0.04em', count: 1, kind: 'irreducible', reason: 'eyebrow letter-spacing from design — between --tracking-caps and 0' },
   // routes/library/NoResultsPanel.module.css
   { file: 'routes/library/NoResultsPanel.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'panel border widths — below --sp-1 floor' },
   // components/SortPill/SortPill.module.css
@@ -339,10 +340,18 @@ describe('var(--NAME) references resolve to declared tokens', () => {
     ...Object.keys(DARK_SHADOW_TOKENS),
     ...Object.keys(LAYOUT_TOKENS),
   ])
+  // File-scoped local custom properties — declared at the top of the
+  // module's own stylesheet and consumed only within that file. These
+  // never make it into the global token set but still need to pass the
+  // "var(--*) resolves to something" guard.
+  const LOCAL_CUSTOM_PROPS: Record<string, ReadonlySet<string>> = {
+    'routes/library/EmptyState.module.css': new Set(['ac-empty-page-hue']),
+  }
   for (const [path, css] of Object.entries(allCss)) {
     it(`${path} references only declared tokens`, () => {
       const refs = [...css.matchAll(VAR_REF_RE)].map((m) => m[1])
-      const unknown = refs.filter((name) => !declared.has(name))
+      const local = LOCAL_CUSTOM_PROPS[srcRelative(path)] ?? new Set<string>()
+      const unknown = refs.filter((name) => !declared.has(name) && !local.has(name))
       expect(unknown).toEqual([])
     })
   }

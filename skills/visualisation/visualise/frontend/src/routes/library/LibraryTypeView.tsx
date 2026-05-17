@@ -189,7 +189,7 @@ export function LibraryTypeView({ type: propType }: Props) {
         eyebrow={<EyebrowLabel type={type} />}
         title={DOC_TYPE_LABELS[type]}
       >
-        <EmptyState docType={type} dirPath={`meta/${type}`} />
+        <EmptyState docType={type} />
       </Page>
     )
   }
