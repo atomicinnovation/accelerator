@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   FetchError, ConflictError,
   fetchActivity,
-  fetchTypes, fetchDocs, fetchDocContent,
+  fetchTypes, fetchDocs, fetchDocContent, fetchLibraryStructure,
   fetchTemplates, fetchTemplateDetail,
   fetchLifecycleClusters, fetchLifecycleCluster,
   fetchRelated,
@@ -376,5 +376,59 @@ describe('fetchActivity', () => {
   it('throws FetchError on non-2xx', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500 })
     await expect(fetchActivity(5)).rejects.toBeInstanceOf(FetchError)
+  })
+})
+
+describe('fetchLibraryStructure', () => {
+  it('GETs /api/library/structure with no query string when no selection', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
+    await fetchLibraryStructure()
+    expect(mockFetch).toHaveBeenCalledWith('/api/library/structure')
+  })
+
+  it('appends a single selection key when one option is set', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
+    await fetchLibraryStructure({ decisions: { status: ['open'] } })
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const url = mockFetch.mock.calls[0][0]
+    expect(url).toContain('selection%5Bdecisions%5D%5Bstatus%5D=open')
+  })
+
+  it('uses repeated keys (not commas) for multiple options', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
+    await fetchLibraryStructure({ decisions: { status: ['open', 'blocked'] } })
+    const url = mockFetch.mock.calls[0][0] as string
+    const matches = url.match(/selection%5Bdecisions%5D%5Bstatus%5D=/g) ?? []
+    expect(matches.length).toBe(2)
+    expect(url).not.toContain('open%2Cblocked')
+  })
+
+  it('omits empty option arrays from the URL', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
+    await fetchLibraryStructure({ decisions: { status: [] } })
+    expect(mockFetch).toHaveBeenCalledWith('/api/library/structure')
+  })
+
+  it('omits empty per-type objects', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
+    await fetchLibraryStructure({ decisions: {} })
+    expect(mockFetch).toHaveBeenCalledWith('/api/library/structure')
+  })
+
+  it('percent-encodes reserved characters in option ids', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
+    await fetchLibraryStructure({ decisions: { clusterSlug: ['a,b'] } })
+    const url = mockFetch.mock.calls[0][0] as string
+    expect(url).toContain('clusterSlug%5D=a%2Cb')
+  })
+
+  it('produces the same URL for empty-array selections and empty selection', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
+    await fetchLibraryStructure({ decisions: { status: [] } })
+    const first = mockFetch.mock.calls[0][0]
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
+    await fetchLibraryStructure({})
+    const second = mockFetch.mock.calls[1][0]
+    expect(first).toBe(second)
   })
 })

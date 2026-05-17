@@ -253,6 +253,56 @@ export const PHASE_DOC_TYPES = [
   },
 ] as const
 
+export interface LibraryStructureResponse {
+  phases: LibraryPhase[]
+  templates: LibraryDocType
+}
+
+export interface LibraryPhase {
+  id: string
+  label: string
+  docTypes: LibraryDocType[]
+}
+
+export interface LibraryDocType {
+  id: DocTypeKey
+  label: string
+  /** Total entries (selection-unaware). */
+  count: number
+  /** Entries matching the active selection. */
+  filteredCount: number
+  latest: LatestPreview | null
+  filterFacets: LibraryFacet[]
+}
+
+export interface LatestPreview {
+  title: string
+  slug: string | null
+  modifiedAt: number
+}
+
+export interface LibraryFacet {
+  /** camelCase facet id: "status" | "clusterSlug" | "project". */
+  id: string
+  label: string
+  options: LibraryFacetOption[]
+}
+
+export interface LibraryFacetOption {
+  id: string
+  label: string
+  count: number
+}
+
+/** Selection state for one or more doc types. Keyed by doc type, then by
+ *  facet id; values are arrays of selected option ids (OR within a facet,
+ *  AND across facets). Empty arrays / missing keys ⇒ no filter for that
+ *  facet. */
+export type LibrarySelection = Partial<Record<DocTypeKey, LibrarySelectionPerType>>
+
+/** Per-doc-type selection slice — what `FilterPill` consumes. */
+export type LibrarySelectionPerType = Record<string, string[]>
+
 export interface KanbanColumn {
   key: string
   label: string

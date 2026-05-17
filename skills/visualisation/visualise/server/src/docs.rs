@@ -85,6 +85,33 @@ impl DocTypeKey {
     pub fn is_virtual(self) -> bool {
         matches!(self, DocTypeKey::Templates)
     }
+
+    /// Returns the kebab-case wire token for this variant. Pinned by the
+    /// per-variant `wire_str_round_trips_for_every_variant` test below.
+    pub fn wire_str(self) -> &'static str {
+        match self {
+            DocTypeKey::Decisions => "decisions",
+            DocTypeKey::WorkItems => "work-items",
+            DocTypeKey::Plans => "plans",
+            DocTypeKey::Research => "research",
+            DocTypeKey::PlanReviews => "plan-reviews",
+            DocTypeKey::PrReviews => "pr-reviews",
+            DocTypeKey::WorkItemReviews => "work-item-reviews",
+            DocTypeKey::Validations => "validations",
+            DocTypeKey::Notes => "notes",
+            DocTypeKey::Prs => "prs",
+            DocTypeKey::DesignGaps => "design-gaps",
+            DocTypeKey::DesignInventories => "design-inventories",
+            DocTypeKey::Templates => "templates",
+        }
+    }
+
+    /// Parses a kebab-case wire token back to its variant. Returns `None`
+    /// for unknown strings (no panic, no Err — silent drop is the documented
+    /// contract for `parse_selection_query` consumers).
+    pub fn from_wire_str(s: &str) -> Option<Self> {
+        Self::all().iter().copied().find(|dt| dt.wire_str() == s)
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -170,6 +197,25 @@ mod tests {
             13,
             "DocTypeKey::all must return 13 distinct variants"
         );
+    }
+
+    #[test]
+    fn wire_str_round_trips_for_every_variant() {
+        for variant in DocTypeKey::all() {
+            assert_eq!(
+                DocTypeKey::from_wire_str(variant.wire_str()),
+                Some(variant),
+            );
+        }
+        assert_eq!(DocTypeKey::from_wire_str("bogus"), None);
+    }
+
+    #[test]
+    fn wire_str_matches_serde_serialisation_for_every_variant() {
+        for variant in DocTypeKey::all() {
+            let ser = serde_json::to_string(&variant).unwrap();
+            assert_eq!(ser, format!("\"{}\"", variant.wire_str()));
+        }
     }
 
     #[test]

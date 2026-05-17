@@ -12,6 +12,7 @@ dependencies = [
  "chrono",
  "clap",
  "file-rotate",
+ "form_urlencoded",
  "gray_matter",
  "hex",
  "http-body-util",

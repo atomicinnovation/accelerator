@@ -3,8 +3,10 @@ import type {
   DocType, DocTypeKey, DocsListResponse, IndexEntry,
   TemplateSummaryListResponse, TemplateDetail,
   LifecycleCluster, LifecycleListResponse,
+  LibrarySelection, LibraryStructureResponse,
   RelatedArtifactsResponse,
 } from './types'
+import { normaliseSelection } from './query-keys'
 
 /** Typed error thrown by fetch helpers on non-2xx responses, so
  *  callers can branch on `err instanceof FetchError && err.status === 404`
@@ -78,6 +80,25 @@ export async function fetchDocContent(relPath: string): Promise<{ content: strin
   const content = await r.text()
   const etag = r.headers.get('etag') ?? ''
   return { content, etag }
+}
+
+export async function fetchLibraryStructure(
+  selection?: LibrarySelection,
+): Promise<LibraryStructureResponse> {
+  const normalised = normaliseSelection(selection)
+  const params = new URLSearchParams()
+  for (const [docType, perType] of Object.entries(normalised)) {
+    for (const [facetId, options] of Object.entries(perType)) {
+      for (const option of options) {
+        params.append(`selection[${docType}][${facetId}]`, option)
+      }
+    }
+  }
+  const qs = params.toString()
+  const url = qs ? `/api/library/structure?${qs}` : '/api/library/structure'
+  const r = await fetch(url)
+  if (!r.ok) throw new FetchError(r.status, `GET ${url}: ${r.status}`)
+  return r.json()
 }
 
 export async function fetchTemplates(): Promise<TemplateSummaryListResponse> {

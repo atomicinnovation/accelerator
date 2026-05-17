@@ -1,9 +1,48 @@
-import type { DocTypeKey } from './types'
+import type { DocTypeKey, LibrarySelection, LibrarySelectionPerType } from './types'
+
+/**
+ * Produces a canonical form of a `LibrarySelection`:
+ *   - drops facets with empty / undefined option arrays;
+ *   - drops empty / undefined per-type slices;
+ *   - sorts option arrays ascending (since the server treats them as a set);
+ *   - sorts facet keys and doc-type keys ascending so the cache key is
+ *     order-independent.
+ * Returns `{}` when nothing remains. Two semantically-equivalent selections
+ * normalise to deep-equal objects, so they hash to identical cache keys.
+ */
+export function normaliseSelection(
+  selection?: LibrarySelection,
+): Record<string, LibrarySelectionPerType> {
+  if (!selection) return {}
+  const docTypeKeys = (Object.keys(selection) as DocTypeKey[]).filter(
+    (k) => selection[k] !== undefined,
+  )
+  const result: Record<string, LibrarySelectionPerType> = {}
+  for (const docType of [...docTypeKeys].sort()) {
+    const perType = selection[docType]
+    if (!perType) continue
+    const facetEntries: [string, string[]][] = []
+    for (const facetId of Object.keys(perType).sort()) {
+      const options = perType[facetId]
+      if (!options || options.length === 0) continue
+      facetEntries.push([facetId, [...options].sort()])
+    }
+    if (facetEntries.length === 0) continue
+    const sortedPerType: LibrarySelectionPerType = {}
+    for (const [facetId, options] of facetEntries) {
+      sortedPerType[facetId] = options
+    }
+    result[docType] = sortedPerType
+  }
+  return result
+}
 
 export const queryKeys = {
   serverInfo: () => ['server-info'] as const,
   workItemConfig: () => ['work-item-config'] as const,
   types: () => ['types'] as const,
+  libraryStructure: (selection?: LibrarySelection) =>
+    ['library-structure', normaliseSelection(selection)] as const,
   docs: (type: DocTypeKey) => ['docs', type] as const,
   docContent: (relPath: string) => ['doc-content', relPath] as const,
   templates: () => ['templates'] as const,

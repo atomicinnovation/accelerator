@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
@@ -11,6 +11,151 @@ use crate::frontmatter::{self, FrontmatterState};
 use crate::slug;
 
 pub const FRONTMATTER_MALFORMED: &str = "malformed";
+
+/// Active facet selection, scoped per doc type. Empty selection ⇒ no filtering.
+/// Keyed by doc type, then by facet id (e.g. "status", "clusterSlug", "project").
+/// Values are the selected option ids for that facet (OR within a facet, AND
+/// across facets).
+pub type Selection = HashMap<DocTypeKey, HashMap<String, Vec<String>>>;
+
+/// Aggregated per-doc-type library data used by `/api/library/structure`.
+#[derive(Default, Debug)]
+pub struct LibraryAggregates {
+    pub per_type: HashMap<DocTypeKey, PerTypeAggregate>,
+}
+
+#[derive(Default, Debug)]
+pub struct PerTypeAggregate {
+    /// Total entries (selection-unaware; for hub/overview).
+    pub count: usize,
+    /// Entries matching this type's selection (used for list-view "N documents").
+    pub filtered_count: usize,
+    /// Selection-unaware: hub card always shows the absolute latest.
+    pub latest: Option<LatestPreview>,
+    /// facet_options[facet_id] => sorted map of option-id → count.
+    /// Counts are computed with post-other-facet, pre-own-facet scoping.
+    pub facet_options: HashMap<String, BTreeMap<String, usize>>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct LatestPreview {
+    pub title: String,
+    pub slug: Option<String>,
+    /// Used as deterministic tie-break key.
+    pub rel_path: String,
+    pub modified_at: i64,
+}
+
+impl LatestPreview {
+    fn from_entry(entry: &IndexEntry) -> Self {
+        Self {
+            title: entry.title.clone(),
+            slug: entry.slug.clone(),
+            rel_path: entry.rel_path.to_string_lossy().into_owned(),
+            modified_at: entry.mtime_ms,
+        }
+    }
+}
+
+/// Facet ids declared for a given doc type.
+pub fn facets_for(doc_type: DocTypeKey) -> &'static [&'static str] {
+    match doc_type {
+        DocTypeKey::WorkItems => &["status", "project", "clusterSlug"],
+        DocTypeKey::Templates => &[],
+        _ => &["status", "clusterSlug"],
+    }
+}
+
+/// Extracts the value an entry contributes to the given facet, or `None` when
+/// the entry does not contribute to that facet at all.
+pub fn extract_facet_value(
+    entry: &IndexEntry,
+    cfg: &crate::config::Config,
+    facet_id: &str,
+) -> Option<String> {
+    match facet_id {
+        "status" => {
+            if entry.frontmatter_state != "parsed" {
+                return None;
+            }
+            entry
+                .frontmatter
+                .get("status")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        }
+        "clusterSlug" => entry.slug.clone(),
+        "project" => {
+            let raw = entry.work_item_id.as_deref()?;
+            if let Some((prefix, _)) = raw.split_once('-') {
+                if prefix.is_empty() {
+                    None
+                } else {
+                    Some(prefix.to_string())
+                }
+            } else {
+                cfg.work_item
+                    .as_ref()
+                    .and_then(|w| w.default_project_code.clone())
+            }
+        }
+        _ => None,
+    }
+}
+
+/// True iff every facet in `type_selection` has a non-empty selected-options
+/// list that includes the entry's value for that facet. An empty selected-
+/// options list for a facet acts as a no-op (matches every entry).
+pub fn entry_matches_all(
+    entry: &IndexEntry,
+    cfg: &crate::config::Config,
+    type_selection: Option<&HashMap<String, Vec<String>>>,
+) -> bool {
+    let Some(sel) = type_selection else {
+        return true;
+    };
+    for (facet_id, options) in sel {
+        if options.is_empty() {
+            continue;
+        }
+        let value = match extract_facet_value(entry, cfg, facet_id) {
+            Some(v) => v,
+            None => return false,
+        };
+        if !options.iter().any(|o| o == &value) {
+            return false;
+        }
+    }
+    true
+}
+
+/// Like `entry_matches_all` but skips the facet equal to `except_facet`.
+pub fn entry_matches_all_except(
+    entry: &IndexEntry,
+    cfg: &crate::config::Config,
+    type_selection: Option<&HashMap<String, Vec<String>>>,
+    except_facet: &str,
+) -> bool {
+    let Some(sel) = type_selection else {
+        return true;
+    };
+    for (facet_id, options) in sel {
+        if facet_id == except_facet {
+            continue;
+        }
+        if options.is_empty() {
+            continue;
+        }
+        let value = match extract_facet_value(entry, cfg, facet_id) {
+            Some(v) => v,
+            None => return false,
+        };
+        if !options.iter().any(|o| o == &value) {
+            return false;
+        }
+    }
+    true
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -329,6 +474,73 @@ impl Indexer {
             *out.entry(entry.r#type).or_insert(0) += 1;
         }
         out
+    }
+
+    /// Computes counts, the latest entry, and facet-option counts per doc type.
+    /// Facet counts use post-other-facet, pre-own-facet scoping: for each facet,
+    /// count over the set of entries matching every OTHER facet's selection
+    /// (so toggling a value in facet B updates facet A's counts but does not
+    /// hide facet A's own currently-selected option).
+    // PERF: Recompute per request — same complexity class as counts_by_type
+    // × the number of facets per doc type. At v1 scale (low thousands of
+    // entries, ≤3 facets per type), cold runs are well under 10ms. Migrate to
+    // the `state.clusters` cached pattern (see server.rs:46,82) when p95
+    // handler latency exceeds ~50ms or the entry count exceeds ~10k.
+    pub async fn library_aggregates(
+        &self,
+        cfg: &crate::config::Config,
+        selection: &Selection,
+    ) -> LibraryAggregates {
+        let entries = self.entries.read().await;
+        let mut agg = LibraryAggregates::default();
+
+        // First pass: counts and latest preview (selection-unaware).
+        for entry in entries.values() {
+            let per = agg.per_type.entry(entry.r#type).or_default();
+            per.count += 1;
+
+            let preview = LatestPreview::from_entry(entry);
+            per.latest = Some(match per.latest.take() {
+                None => preview,
+                Some(existing) => {
+                    if preview.modified_at > existing.modified_at
+                        || (preview.modified_at == existing.modified_at
+                            && preview.rel_path < existing.rel_path)
+                    {
+                        preview
+                    } else {
+                        existing
+                    }
+                }
+            });
+        }
+
+        // Second pass: facet scoping per doc type, under the same lock.
+        for (doc_type, per) in agg.per_type.iter_mut() {
+            let type_selection = selection.get(doc_type);
+            let type_entries: Vec<&IndexEntry> =
+                entries.values().filter(|e| e.r#type == *doc_type).collect();
+
+            per.filtered_count = type_entries
+                .iter()
+                .filter(|e| entry_matches_all(e, cfg, type_selection))
+                .count();
+
+            for facet_id in facets_for(*doc_type) {
+                let mut option_counts: BTreeMap<String, usize> = BTreeMap::new();
+                for entry in &type_entries {
+                    if !entry_matches_all_except(entry, cfg, type_selection, facet_id) {
+                        continue;
+                    }
+                    if let Some(option_id) = extract_facet_value(entry, cfg, facet_id) {
+                        *option_counts.entry(option_id).or_insert(0) += 1;
+                    }
+                }
+                per.facet_options.insert((*facet_id).to_string(), option_counts);
+            }
+        }
+
+        agg
     }
 
     pub async fn all(&self) -> Vec<IndexEntry> {
@@ -1135,6 +1347,228 @@ mod tests {
         let entries = idx.all().await;
         let foo = entries.iter().find(|e| e.title == "Foo").unwrap();
         assert_eq!(foo.body_preview, "First paragraph of the body.");
+    }
+
+    fn make_cfg(doc_paths: HashMap<String, PathBuf>) -> crate::config::Config {
+        crate::config::Config {
+            plugin_root: "/p".into(),
+            plugin_version: "test".into(),
+            project_root: "/p".into(),
+            tmp_path: "/t".into(),
+            host: "127.0.0.1".into(),
+            owner_pid: 0,
+            owner_start_time: None,
+            log_path: "/l".into(),
+            doc_paths,
+            templates: Default::default(),
+            work_item: None,
+            kanban_columns: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn library_aggregates_returns_counts_and_latest_per_type() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = build_indexer(tmp.path()).await;
+        let cfg = make_cfg(HashMap::new());
+        let agg = idx.library_aggregates(&cfg, &Selection::new()).await;
+        let plans = agg
+            .per_type
+            .get(&DocTypeKey::Plans)
+            .expect("plans present");
+        assert_eq!(plans.count, 3);
+        assert_eq!(plans.filtered_count, 3);
+        assert!(plans.latest.is_some());
+        let decisions = agg.per_type.get(&DocTypeKey::Decisions).unwrap();
+        assert_eq!(decisions.count, 1);
+        assert!(decisions.latest.is_some());
+    }
+
+    #[tokio::test]
+    async fn library_aggregates_returns_empty_map_for_empty_index() {
+        let tmp = tempfile::tempdir().unwrap();
+        let map = HashMap::new();
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), default_work_item_cfg())
+            .await
+            .unwrap();
+        let cfg = make_cfg(HashMap::new());
+        let agg = idx.library_aggregates(&cfg, &Selection::new()).await;
+        assert!(agg.per_type.is_empty());
+    }
+
+#[tokio::test]
+    async fn library_aggregates_status_facet_skips_non_parsed_frontmatter() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = build_indexer(tmp.path()).await;
+        let cfg = make_cfg(HashMap::new());
+        let agg = idx.library_aggregates(&cfg, &Selection::new()).await;
+        let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
+        let status_options = plans.facet_options.get("status").unwrap();
+        // Only the "draft" plan has parsed frontmatter with a status — the
+        // malformed and absent plans contribute nothing.
+        assert_eq!(status_options.get("draft").copied(), Some(1));
+        assert_eq!(status_options.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn library_aggregates_filtered_count_reflects_selection() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = build_indexer(tmp.path()).await;
+        let cfg = make_cfg(HashMap::new());
+        let mut sel: Selection = HashMap::new();
+        sel.insert(
+            DocTypeKey::Plans,
+            HashMap::from([("status".to_string(), vec!["draft".to_string()])]),
+        );
+        let agg = idx.library_aggregates(&cfg, &sel).await;
+        let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
+        assert_eq!(plans.count, 3);
+        assert_eq!(plans.filtered_count, 1);
+    }
+
+    #[tokio::test]
+    async fn library_aggregates_empty_options_array_disables_facet_filter() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = build_indexer(tmp.path()).await;
+        let cfg = make_cfg(HashMap::new());
+        let mut sel: Selection = HashMap::new();
+        sel.insert(
+            DocTypeKey::Plans,
+            HashMap::from([("status".to_string(), vec![])]),
+        );
+        let agg = idx.library_aggregates(&cfg, &sel).await;
+        let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
+        assert_eq!(plans.filtered_count, plans.count);
+    }
+
+    #[test]
+    fn facets_for_returns_expected_facets() {
+        assert_eq!(facets_for(DocTypeKey::Decisions), &["status", "clusterSlug"]);
+        assert_eq!(
+            facets_for(DocTypeKey::WorkItems),
+            &["status", "project", "clusterSlug"]
+        );
+        assert!(facets_for(DocTypeKey::Templates).is_empty());
+    }
+
+    #[test]
+    fn extract_facet_value_project_derives_from_work_item_id() {
+        let entry = sample_entry_with_work_item("PROJ-0042");
+        let cfg = make_cfg(HashMap::new());
+        assert_eq!(
+            extract_facet_value(&entry, &cfg, "project"),
+            Some("PROJ".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_facet_value_project_falls_back_to_default_for_prefixless_ids() {
+        let entry = sample_entry_with_work_item("0042");
+        let cfg = make_cfg_with_default_project_code("FALLBACK");
+        assert_eq!(
+            extract_facet_value(&entry, &cfg, "project"),
+            Some("FALLBACK".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_facet_value_project_returns_none_for_empty_prefix() {
+        let entry = sample_entry_with_work_item("-0042");
+        let cfg = make_cfg(HashMap::new());
+        assert_eq!(extract_facet_value(&entry, &cfg, "project"), None);
+    }
+
+    #[test]
+    fn extract_facet_value_project_returns_none_when_work_item_id_is_none() {
+        let entry = sample_entry_without_work_item();
+        let cfg = make_cfg_with_default_project_code("FALLBACK");
+        assert_eq!(extract_facet_value(&entry, &cfg, "project"), None);
+    }
+
+    #[test]
+    fn entry_matches_all_returns_true_when_selection_absent() {
+        let entry = sample_entry_without_work_item();
+        let cfg = make_cfg(HashMap::new());
+        assert!(entry_matches_all(&entry, &cfg, None));
+    }
+
+    #[test]
+    fn entry_matches_all_empty_options_is_no_filter() {
+        let entry = sample_entry_without_work_item();
+        let cfg = make_cfg(HashMap::new());
+        let sel: HashMap<String, Vec<String>> =
+            HashMap::from([("status".to_string(), vec![])]);
+        assert!(entry_matches_all(&entry, &cfg, Some(&sel)));
+    }
+
+    #[test]
+    fn entry_matches_all_except_skips_named_facet() {
+        let entry = sample_entry_without_work_item();
+        let cfg = make_cfg(HashMap::new());
+        let sel: HashMap<String, Vec<String>> =
+            HashMap::from([("status".to_string(), vec!["does-not-match".to_string()])]);
+        // entry_matches_all would reject it
+        assert!(!entry_matches_all(&entry, &cfg, Some(&sel)));
+        // entry_matches_all_except("status") skips the rejecting facet
+        assert!(entry_matches_all_except(&entry, &cfg, Some(&sel), "status"));
+    }
+
+    fn make_cfg_with_default_project_code(code: &str) -> crate::config::Config {
+        crate::config::Config {
+            plugin_root: "/p".into(),
+            plugin_version: "test".into(),
+            project_root: "/p".into(),
+            tmp_path: "/t".into(),
+            host: "127.0.0.1".into(),
+            owner_pid: 0,
+            owner_start_time: None,
+            log_path: "/l".into(),
+            doc_paths: HashMap::new(),
+            templates: Default::default(),
+            work_item: Some(crate::config::RawWorkItemConfig {
+                scan_regex: r"^(?<id>\d+)".to_string(),
+                id_pattern: "{number:04d}".to_string(),
+                default_project_code: Some(code.to_string()),
+            }),
+            kanban_columns: None,
+        }
+    }
+
+    fn sample_entry_with_work_item(work_item_id: &str) -> IndexEntry {
+        IndexEntry {
+            r#type: DocTypeKey::WorkItems,
+            path: PathBuf::from("/tmp/x.md"),
+            rel_path: PathBuf::from("x.md"),
+            slug: None,
+            work_item_id: Some(work_item_id.to_string()),
+            title: "Sample".into(),
+            frontmatter: serde_json::Value::Null,
+            frontmatter_state: "absent".into(),
+            work_item_refs: vec![],
+            mtime_ms: 0,
+            size: 0,
+            etag: String::new(),
+            body_preview: String::new(),
+        }
+    }
+
+    fn sample_entry_without_work_item() -> IndexEntry {
+        IndexEntry {
+            r#type: DocTypeKey::Decisions,
+            path: PathBuf::from("/tmp/x.md"),
+            rel_path: PathBuf::from("x.md"),
+            slug: None,
+            work_item_id: None,
+            title: "Sample".into(),
+            frontmatter: serde_json::Value::Null,
+            frontmatter_state: "absent".into(),
+            work_item_refs: vec![],
+            mtime_ms: 0,
+            size: 0,
+            etag: String::new(),
+            body_preview: String::new(),
+        }
     }
 
     #[tokio::test]

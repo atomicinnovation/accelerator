@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { queryKeys } from './query-keys'
+import { queryKeys, normaliseSelection } from './query-keys'
 
 describe('queryKeys', () => {
   it('returns stable arrays for the same inputs', () => {
@@ -18,6 +18,53 @@ describe('queryKeys', () => {
   it('related and relatedPrefix have stable shapes that nest under the prefix', () => {
     expect(queryKeys.related('meta/plans/foo.md')).toEqual(['related', 'meta/plans/foo.md'])
     expect(queryKeys.relatedPrefix()).toEqual(['related'])
+  })
+
+  it('libraryStructure with no selection produces the canonical empty key', () => {
+    expect(queryKeys.libraryStructure()).toEqual(['library-structure', {}])
+    expect(queryKeys.libraryStructure({})).toEqual(['library-structure', {}])
+  })
+
+  it('libraryStructure normalises empty option arrays to the canonical empty key', () => {
+    expect(queryKeys.libraryStructure({ decisions: { status: [] } })).toEqual([
+      'library-structure',
+      {},
+    ])
+    expect(queryKeys.libraryStructure({ decisions: {} })).toEqual([
+      'library-structure',
+      {},
+    ])
+    expect(queryKeys.libraryStructure({ decisions: undefined })).toEqual([
+      'library-structure',
+      {},
+    ])
+  })
+
+  it('libraryStructure produces a distinct key for non-empty selection', () => {
+    const empty = queryKeys.libraryStructure()
+    const populated = queryKeys.libraryStructure({ decisions: { status: ['open'] } })
+    expect(empty).not.toEqual(populated)
+  })
+
+  it('libraryStructure canonicalises option order (set semantics)', () => {
+    const a = queryKeys.libraryStructure({ decisions: { status: ['open', 'blocked'] } })
+    const b = queryKeys.libraryStructure({ decisions: { status: ['blocked', 'open'] } })
+    expect(a).toEqual(b)
+  })
+
+  it('libraryStructure canonicalises facet-key order', () => {
+    const a = queryKeys.libraryStructure({
+      decisions: { status: ['open'], clusterSlug: ['foo'] },
+    })
+    const b = queryKeys.libraryStructure({
+      decisions: { clusterSlug: ['foo'], status: ['open'] },
+    })
+    expect(a).toEqual(b)
+  })
+
+  it('normaliseSelection returns {} on undefined and {}', () => {
+    expect(normaliseSelection(undefined)).toEqual({})
+    expect(normaliseSelection({})).toEqual({})
   })
 
   it('disabled(prefix) cannot collide with related(<relPath>)', () => {

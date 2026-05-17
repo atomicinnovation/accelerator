@@ -3,6 +3,7 @@ mod docs;
 mod events;
 pub(crate) mod info;
 mod kanban_config;
+mod library;
 mod lifecycle;
 mod related;
 mod templates;
@@ -25,6 +26,7 @@ pub fn mount(_state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/api/events", get(events::events))
         .route("/api/activity", get(activity::activity))
         .route("/api/types", get(types::types))
+        .route("/api/library/structure", get(library::library_structure))
         .route("/api/docs", get(docs::docs_list))
         // PATCH URL exposed to clients is /api/docs/{path}/frontmatter, but matchit 0.7
         // forbids catch-all + literal suffix (https://github.com/ibraheemdev/matchit/issues/39).
