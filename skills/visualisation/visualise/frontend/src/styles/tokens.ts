@@ -175,7 +175,7 @@ export const DARK_SHADOW_TOKENS = {
 
 export const LAYOUT_TOKENS = {
   'ac-topbar-h': '48px',
-  'ac-content-max-width': '1100px',
+  'ac-content-max-width': '1200px',
   'ac-content-max-width-narrow': '600px',
 } as const
 

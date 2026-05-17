@@ -57,8 +57,8 @@ describe('Page', () => {
     expect(pageCss).toMatch(/\.page\.narrow\s*\{[^}]*max-width:\s*var\(--ac-content-max-width-narrow\)/)
   })
 
-  it('applies horizontal padding via --sp-6', () => {
-    expect(pageCss).toMatch(/\.page\s*\{[^}]*padding:\s*0\s+var\(--sp-6\)/)
+  it('applies horizontal padding via --sp-7 (40px) — gives 1120px content at 1200px max-width', () => {
+    expect(pageCss).toMatch(/\.page\s*\{[^}]*padding:\s*0\s+var\(--sp-7\)/)
   })
 
   it('applies the narrow class only when maxWidth="narrow"', () => {

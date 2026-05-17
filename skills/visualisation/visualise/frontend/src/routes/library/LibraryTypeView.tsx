@@ -270,9 +270,7 @@ export function LibraryTypeView({ type: propType }: Props) {
 function EyebrowLabel({ type }: { type: DocTypeKey }) {
   return (
     <>
-      {isGlyphDocTypeKey(type) && (
-        <Glyph docType={type} size={16} framed />
-      )}
+      {isGlyphDocTypeKey(type) && <Glyph docType={type} size={16} />}
       {DOC_TYPE_LABELS[type].toUpperCase()}
     </>
   )
