@@ -131,6 +131,7 @@ depends = [
     "test:integration:tasks",
     "test:integration:binary-acquisition",
     "test:integration:hooks",
+    "test:integration:github",
 ]
 
 [tasks."test:e2e:visualiser"]

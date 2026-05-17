@@ -192,20 +192,32 @@ unset GH_PR_VIEW_OUT
 
 # ---------------------------------------------------------------
 # Round-trip body-encoding helper.
-# Encodes the input file the same way the helper does, by sending it
-# through pr-update-body.sh and re-extracting `.body` from the JSON
-# captured in $GH_STDIN_LOG. Asserts byte-for-byte equality.
+# Writes <input> verbatim to a body file, runs pr-update-body.sh, then
+# extracts `.body` from the captured PATCH payload using `jq -j` (no
+# trailing newline) to a file and `cmp -s` against the original body
+# file. File-based comparison avoids the trailing-newline truncation
+# inherent to `$(jq -r .body ...)` command-substitution capture.
 assert_body_round_trip() {
-  local test_name="$1" input="$2" expected="$3"
+  local test_name="$1" input="$2"
   GH_PR_VIEW_OUT="$T/pr-view.json"
   write_file "$GH_PR_VIEW_OUT" "$(default_payload)"
   export GH_PR_VIEW_OUT
   local body_file="$T/body.md"
   write_file "$body_file" "$input"
   "$SCRIPT" 119 "$body_file" >/dev/null 2>"$T/stderr" || true
-  local extracted
-  extracted=$(jq -r .body "$GH_STDIN_LOG")
-  assert_eq "$test_name" "$expected" "$extracted"
+  local extracted="$T/extracted"
+  jq -j .body "$GH_STDIN_LOG" > "$extracted"
+  if cmp -s "$extracted" "$body_file"; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name"
+    echo "    Expected (hex of body file):"
+    xxd "$body_file" | sed 's/^/      /'
+    echo "    Actual (hex of round-trip):"
+    xxd "$extracted" | sed 's/^/      /'
+    FAIL=$((FAIL + 1))
+  fi
   unset GH_PR_VIEW_OUT
 }
 
@@ -215,7 +227,7 @@ echo ""
 echo "--- test 9: empty body round-trip ---"
 new_case; T=$CASE_DIR
 setup_gh_stub "$T"
-assert_body_round_trip "test 9: empty body round-trip" "" ""
+assert_body_round_trip "test 9: empty body round-trip" ""
 
 # ---------------------------------------------------------------
 # Test 10: JSON body encoding — multi-line.
@@ -224,7 +236,7 @@ echo "--- test 10: multi-line body round-trip ---"
 new_case; T=$CASE_DIR
 setup_gh_stub "$T"
 multi=$'Hello\n\nWorld\n'
-assert_body_round_trip "test 10: multi-line round-trip" "$multi" "$multi"
+assert_body_round_trip "test 10: multi-line round-trip" "$multi"
 
 # ---------------------------------------------------------------
 # Test 11: JSON body encoding — shell metacharacters.
@@ -236,7 +248,7 @@ setup_gh_stub "$T"
 # Intentional literal: shell metacharacters must reach the body verbatim
 # (the encoder is jq, not the shell). Single quotes are correct here.
 meta='`echo bad` $(echo bad) "quote" '\''apos'\'' back\\slash'
-assert_body_round_trip "test 11: shell-meta round-trip" "$meta" "$meta"
+assert_body_round_trip "test 11: shell-meta round-trip" "$meta"
 
 # ---------------------------------------------------------------
 # Test 12: JSON body encoding — unicode.
@@ -245,7 +257,7 @@ echo "--- test 12: unicode round-trip ---"
 new_case; T=$CASE_DIR
 setup_gh_stub "$T"
 uni="hello 🎉 café"
-assert_body_round_trip "test 12: unicode round-trip" "$uni" "$uni"
+assert_body_round_trip "test 12: unicode round-trip" "$uni"
 
 # ---------------------------------------------------------------
 # Test 13: JSON body encoding — no trailing newline.
@@ -255,7 +267,7 @@ new_case; T=$CASE_DIR
 setup_gh_stub "$T"
 notail="single line no newline"
 assert_body_round_trip "test 13: no-trailing-newline round-trip" \
-  "$notail" "$notail"
+  "$notail"
 
 # ---------------------------------------------------------------
 # Test 14: Stdin pipe via --input <file>.
