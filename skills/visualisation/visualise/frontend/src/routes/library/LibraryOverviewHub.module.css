@@ -1,12 +1,19 @@
+.metaToken {
+  font-family: var(--ac-font-mono);
+  font-weight: 500;
+}
+
 .phaseSection {
-  margin-bottom: var(--sp-6);
+  margin-bottom: var(--sp-5);
 }
 
 .phaseHeading {
+  font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps);
-  color: var(--ac-fg-muted);
+  color: var(--ac-fg-faint);
   margin: 0 0 var(--sp-3) 0;
 }
 
@@ -56,21 +63,25 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
+  font-family: var(--ac-font-display);
   font-weight: 600;
+  font-size: var(--size-sm);
   color: var(--ac-fg-strong);
 }
 
 .cardCount {
   color: var(--ac-fg-muted);
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xxs);
 }
 
 .cardLatest {
   color: var(--ac-fg-muted);
-  font-size: var(--size-xs);
+  font-size: var(--size-xxs);
 }
 
 .cardEmpty {
   color: var(--ac-fg-faint);
   font-style: italic;
-  font-size: var(--size-xs);
+  font-size: var(--size-xxs);
 }

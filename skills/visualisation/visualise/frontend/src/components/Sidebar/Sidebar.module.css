@@ -84,6 +84,47 @@
   margin: 0;
 }
 
+.libraryHeadingClickable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.libraryHeadingHint {
+  font-family: var(--ac-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ac-fg-faint);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 120ms ease, transform 120ms ease, color 120ms ease;
+}
+
+.libraryHeadingClickable:hover {
+  background: var(--ac-bg-hover);
+  color: var(--ac-fg);
+}
+
+.libraryHeadingClickable:hover .libraryHeadingHint {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.libraryHeadingActive {
+  background: var(--ac-accent-faint);
+  color: var(--ac-accent);
+}
+
+.libraryHeadingActive .libraryHeadingHint {
+  opacity: 1;
+  color: var(--ac-accent);
+  transform: translateX(0);
+}
+
 .sectionHeading {
   font: 500 10.5px/1 var(--ac-font-mono);
   text-transform: uppercase;

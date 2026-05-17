@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { useState } from 'react'
 import { Popover, type PopoverTriggerProps } from './Popover'
+import popoverCss from './Popover.module.css?raw'
 
 function ControlledPopover({
   onOpenChange,
@@ -100,14 +101,11 @@ describe('Popover', () => {
     expect(document.querySelector('[role="menu"]')!.hasAttribute('hidden')).toBe(true)
   })
 
-  it('positions the panel below the trigger using getBoundingClientRect', async () => {
-    const user = userEvent.setup()
-    render(<ControlledPopover />)
-    await user.click(screen.getByRole('button', { name: 'Open' }))
-    const panel = document.querySelector('[role="menu"]') as HTMLElement
-    // Trigger bottom: 30, left: 20 from beforeEach stub. Panel top = 30 + 4 = 34.
-    expect(panel.style.top).toBe('34px')
-    expect(panel.style.left).toBe('20px')
+  it('positions the panel via CSS (top below trigger, right-aligned)', () => {
+    // Positioning is in Popover.module.css; we assert the source string so
+    // a future regression that re-introduces JS positioning fails loudly.
+    expect(popoverCss).toMatch(/\.panel\s*\{[^}]*top:\s*calc\(100%\s*\+\s*var\(--sp-1\)\)/)
+    expect(popoverCss).toMatch(/\.panel\s*\{[^}]*right:\s*0/)
   })
 
   it('moves focus to the first menuitem on open', async () => {

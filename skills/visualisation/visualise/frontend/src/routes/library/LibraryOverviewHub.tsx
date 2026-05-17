@@ -44,7 +44,12 @@ export function LibraryOverviewHub() {
   return (
     <Page
       eyebrow={<>LIBRARY</>}
-      title="All artifacts in meta/"
+      title={
+        <>
+          All artifacts in{' '}
+          <span className={styles.metaToken}>meta/</span>
+        </>
+      }
       subtitle="Every document grouped by lifecycle phase."
     >
       {body}

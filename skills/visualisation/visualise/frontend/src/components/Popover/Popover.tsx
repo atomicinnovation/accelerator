@@ -65,14 +65,12 @@ export function Popover({
     return undefined
   }, [open, onOpenChange])
 
-  // Position panel + manage focus on open/close transition.
+  // Focus the first menu item on open. Panel positioning is handled in CSS
+  // (top: calc(100% + 4px); right: 0) relative to the popover shell — no
+  // JS positioning needed.
   useLayoutEffect(() => {
     const panel = panelRef.current
-    const triggerEl = triggerRef.current
-    if (open && panel && triggerEl) {
-      const rect = triggerEl.getBoundingClientRect()
-      panel.style.top = `${rect.bottom + 4}px`
-      panel.style.left = `${rect.left}px`
+    if (open && panel) {
       const firstItem = panel.querySelector<HTMLElement>(FOCUSABLE_ITEM)
       if (firstItem) firstItem.focus()
     }

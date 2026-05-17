@@ -38,6 +38,21 @@ export const LIGHT_COLOR_TOKENS = {
   'ac-doc-pr-descriptions':                 '#4588b8',
   'ac-doc-design-gaps':         '#5c9132',
   'ac-doc-design-inventories':  '#2e7e8a',
+  // Per-doc-type glyph BACKGROUND tints (light theme). Each value is a
+  // very-light, low-saturation hue matching the corresponding foreground
+  // token, used as the framed-glyph background in eyebrows and hub cards.
+  'ac-doc-bg-decisions':           '#fbe5e6',
+  'ac-doc-bg-work-items':          '#fbe9e2',
+  'ac-doc-bg-plans':               '#e3ecf6',
+  'ac-doc-bg-research':            '#f7ece0',
+  'ac-doc-bg-plan-reviews':        '#ebe3f5',
+  'ac-doc-bg-pr-reviews':          '#efe2f6',
+  'ac-doc-bg-work-item-reviews':   '#f9e3ec',
+  'ac-doc-bg-validations':         '#def0e7',
+  'ac-doc-bg-notes':               '#f5f0d6',
+  'ac-doc-bg-pr-descriptions':     '#e2eff7',
+  'ac-doc-bg-design-gaps':         '#e7f1d8',
+  'ac-doc-bg-design-inventories':  '#dceaec',
 } as const
 
 export const DARK_COLOR_TOKENS = {
@@ -80,6 +95,21 @@ export const DARK_COLOR_TOKENS = {
   'ac-doc-pr-descriptions':     '#ffffff',
   'ac-doc-design-gaps':         '#ffffff',
   'ac-doc-design-inventories':  '#ffffff',
+  // Glyph BACKGROUND tints (dark theme). Design intent: uniform monochrome
+  // background regardless of doc type — all twelve collapse to a single
+  // lighter-than-bg-sunken neutral grey.
+  'ac-doc-bg-decisions':           '#1d2030',
+  'ac-doc-bg-work-items':          '#1d2030',
+  'ac-doc-bg-plans':               '#1d2030',
+  'ac-doc-bg-research':            '#1d2030',
+  'ac-doc-bg-plan-reviews':        '#1d2030',
+  'ac-doc-bg-pr-reviews':          '#1d2030',
+  'ac-doc-bg-work-item-reviews':   '#1d2030',
+  'ac-doc-bg-validations':         '#1d2030',
+  'ac-doc-bg-notes':               '#1d2030',
+  'ac-doc-bg-pr-descriptions':     '#1d2030',
+  'ac-doc-bg-design-gaps':         '#1d2030',
+  'ac-doc-bg-design-inventories':  '#1d2030',
 } as const
 
 export const TYPOGRAPHY_TOKENS = {

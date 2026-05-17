@@ -34,7 +34,14 @@ export function Sidebar({ docTypes, phases, templates }: Props) {
       </div>
 
       <section aria-labelledby="library-heading" className={styles.section}>
-        <h2 id="library-heading" className={styles.libraryHeading}>LIBRARY</h2>
+        <Link
+          to="/library"
+          id="library-heading"
+          className={`${styles.libraryHeading} ${styles.libraryHeadingClickable} ${pathname === '/library' ? styles.libraryHeadingActive : ''}`}
+        >
+          <span>LIBRARY</span>
+          <span className={styles.libraryHeadingHint} aria-hidden="true">All</span>
+        </Link>
         {phases.map(phase => (
           <section key={phase.id} className={styles.phase}>
             <h3 className={styles.phaseHeading}>{phase.label.toUpperCase()}</h3>

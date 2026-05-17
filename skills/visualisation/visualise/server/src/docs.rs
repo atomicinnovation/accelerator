@@ -59,6 +59,36 @@ impl DocTypeKey {
         }
     }
 
+    /// Legacy config keys to try if the canonical `config_path_key()` is
+    /// absent from `doc_paths`. Lets the server accept dev configs that
+    /// predate the `research_` namespacing of design inventories/gaps.
+    pub fn config_path_key_aliases(self) -> &'static [&'static str] {
+        match self {
+            DocTypeKey::DesignGaps => &["design_gaps"],
+            DocTypeKey::DesignInventories => &["design_inventories"],
+            _ => &[],
+        }
+    }
+
+    /// Resolves the configured path for this doc type, preferring the
+    /// canonical key and falling back to each alias in declaration order.
+    pub fn resolve_doc_path<'a>(
+        self,
+        doc_paths: &'a std::collections::HashMap<String, std::path::PathBuf>,
+    ) -> Option<&'a std::path::PathBuf> {
+        if let Some(k) = self.config_path_key() {
+            if let Some(p) = doc_paths.get(k) {
+                return Some(p);
+            }
+        }
+        for alias in self.config_path_key_aliases() {
+            if let Some(p) = doc_paths.get(*alias) {
+                return Some(p);
+            }
+        }
+        None
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             DocTypeKey::Decisions => "Decisions",
@@ -145,9 +175,7 @@ pub struct DocType {
 pub fn describe_types(cfg: &crate::config::Config) -> Vec<DocType> {
     let mut out = Vec::with_capacity(DocTypeKey::all().len());
     for key in DocTypeKey::all() {
-        let dir_path = key
-            .config_path_key()
-            .and_then(|k| cfg.doc_paths.get(k).cloned());
+        let dir_path = key.resolve_doc_path(&cfg.doc_paths).cloned();
         out.push(DocType {
             key,
             label: key.label().to_string(),
@@ -219,6 +247,41 @@ mod tests {
             let ser = serde_json::to_string(&variant).unwrap();
             assert_eq!(ser, format!("\"{}\"", variant.wire_str()));
         }
+    }
+
+    #[test]
+    fn resolve_doc_path_prefers_canonical_key() {
+        let mut paths = std::collections::HashMap::new();
+        paths.insert(
+            "research_design_inventories".to_string(),
+            PathBuf::from("/a"),
+        );
+        paths.insert("design_inventories".to_string(), PathBuf::from("/b"));
+        assert_eq!(
+            DocTypeKey::DesignInventories.resolve_doc_path(&paths),
+            Some(&PathBuf::from("/a")),
+        );
+    }
+
+    #[test]
+    fn resolve_doc_path_falls_back_to_alias_when_canonical_absent() {
+        let mut paths = std::collections::HashMap::new();
+        paths.insert("design_inventories".to_string(), PathBuf::from("/b"));
+        paths.insert("design_gaps".to_string(), PathBuf::from("/c"));
+        assert_eq!(
+            DocTypeKey::DesignInventories.resolve_doc_path(&paths),
+            Some(&PathBuf::from("/b")),
+        );
+        assert_eq!(
+            DocTypeKey::DesignGaps.resolve_doc_path(&paths),
+            Some(&PathBuf::from("/c")),
+        );
+    }
+
+    #[test]
+    fn resolve_doc_path_returns_none_when_no_key_matches() {
+        let paths = std::collections::HashMap::new();
+        assert!(DocTypeKey::DesignInventories.resolve_doc_path(&paths).is_none());
     }
 
     #[test]

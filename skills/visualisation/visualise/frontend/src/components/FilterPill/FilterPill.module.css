@@ -5,7 +5,7 @@
   gap: var(--sp-2);
   padding: var(--sp-1) var(--sp-3);
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--ac-bg-card);
   font-size: var(--size-xs);
   color: var(--ac-fg);
@@ -49,18 +49,45 @@
 }
 
 .option {
-  display: flex;
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--sp-2) var(--sp-3);
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
   cursor: pointer;
   border-radius: var(--radius-sm);
   outline: none;
+  font-size: var(--size-xs);
 }
 
 .option:hover,
 .option:focus {
   background: var(--ac-bg-hover);
+}
+
+.checkbox {
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--ac-stroke-strong);
+  border-radius: 2px;
+  background: var(--ac-bg-card);
+  display: inline-grid;
+  place-items: center;
+  position: relative;
+}
+
+.checkboxChecked {
+  background: var(--ac-accent);
+  border-color: var(--ac-accent);
+}
+
+.checkboxChecked::after {
+  content: '';
+  width: 6px;
+  height: 3px;
+  border-left: 1.5px solid #ffffff;
+  border-bottom: 1.5px solid #ffffff;
+  transform: rotate(-45deg) translateY(-1px);
 }
 
 .optionLabel {

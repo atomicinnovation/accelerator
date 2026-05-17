@@ -5,7 +5,7 @@
   gap: var(--sp-2);
   padding: var(--sp-1) var(--sp-3);
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--ac-bg-card);
   font-size: var(--size-xs);
   color: var(--ac-fg);

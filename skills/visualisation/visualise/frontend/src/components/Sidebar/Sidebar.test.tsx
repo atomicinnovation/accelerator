@@ -323,8 +323,10 @@ describe('Sidebar', () => {
     renderSidebar([])
     await screen.findByText('LIBRARY')
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(5)
+    // Exclude the LIBRARY heading itself (now a link to /library); count
+    // only the doc-type nav links inside phase subsections.
     const libraryLinks = document.querySelectorAll(
-      'section[aria-labelledby="library-heading"] a',
+      'section[aria-labelledby="library-heading"] section a',
     )
     expect(libraryLinks.length).toBe(0)
     expect(screen.queryByText('META')).toBeNull()

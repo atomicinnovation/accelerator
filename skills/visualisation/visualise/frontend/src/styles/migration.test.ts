@@ -95,9 +95,10 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/Sidebar/Sidebar.module.css', literal: '22px', count: 2, kind: 'irreducible', reason: 'temporary kbd chip min-width and height — no token equivalent (0054 will revisit)' },
   { file: 'components/Sidebar/Sidebar.module.css', literal: '36px', count: 1, kind: 'irreducible', reason: 'temporary search row height — no token equivalent (0054 will revisit)' },
   { file: 'components/Sidebar/Sidebar.module.css', literal: '240px', count: 1, kind: 'irreducible', reason: 'fixed sidebar width — no token equivalent' },
-  { file: 'components/Sidebar/Sidebar.module.css', literal: '10px', count: 5, kind: 'irreducible', reason: 'heading, nav-link, and search-row horizontal padding from design — between --sp-2 (8px) and --sp-3 (12px)' },
+  { file: 'components/Sidebar/Sidebar.module.css', literal: '10px', count: 6, kind: 'irreducible', reason: 'heading, nav-link, search-row, and library-heading-hint horizontal padding / font-size from design — between --sp-2 (8px) and --sp-3 (12px)' },
   { file: 'components/Sidebar/Sidebar.module.css', literal: '6px', count: 5, kind: 'irreducible', reason: 'heading and nav-link vertical padding plus kbd horizontal padding from design — between --sp-1 (4px) and --sp-2 (8px)' },
-  { file: 'components/Sidebar/Sidebar.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'phase heading bottom padding from design — equals --sp-1 but co-located with non-token siblings for clarity' },
+  { file: 'components/Sidebar/Sidebar.module.css', literal: '4px', count: 2, kind: 'irreducible', reason: 'phase heading bottom padding + library-heading-hint translateX — equals --sp-1 but co-located with non-token siblings' },
+  { file: 'components/Sidebar/Sidebar.module.css', literal: '0.08em', count: 1, kind: 'irreducible', reason: 'library-heading-hint caps letter-spacing — between --tracking-caps and 0.12em' },
   // components/Breadcrumbs/Breadcrumbs.module.css
   { file: 'components/Breadcrumbs/Breadcrumbs.module.css', literal: '2px', count: 3, kind: 'irreducible', reason: 'outline width/offset, border-radius — below --sp-1 floor' },
   // components/OriginPill/OriginPill.module.css
@@ -144,8 +145,15 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/SortPill/SortPill.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'trigger border width — below --sp-1 floor' },
   { file: 'components/SortPill/SortPill.module.css', literal: '220px', count: 1, kind: 'irreducible', reason: 'menu min-width — no token equivalent' },
   // components/FilterPill/FilterPill.module.css
-  { file: 'components/FilterPill/FilterPill.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'trigger / search / footer border widths — below --sp-1 floor' },
+  { file: 'components/FilterPill/FilterPill.module.css', literal: '1px', count: 5, kind: 'irreducible', reason: 'trigger / checkbox / footer / search borders + checkmark translateY — below --sp-1 floor' },
   { file: 'components/FilterPill/FilterPill.module.css', literal: '280px', count: 1, kind: 'irreducible', reason: 'menu min-width — no token equivalent' },
+  { file: 'components/FilterPill/FilterPill.module.css', literal: '14px', count: 1, kind: 'irreducible', reason: 'checkbox column track — fixed pixel; no token equivalent' },
+  { file: 'components/FilterPill/FilterPill.module.css', literal: '13px', count: 2, kind: 'irreducible', reason: 'checkbox width/height — fixed pixel; no token equivalent' },
+  { file: 'components/FilterPill/FilterPill.module.css', literal: '2px', count: 1, kind: 'irreducible', reason: 'checkbox border-radius — below --radius-sm' },
+  { file: 'components/FilterPill/FilterPill.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'checkmark width — fixed pixel' },
+  { file: 'components/FilterPill/FilterPill.module.css', literal: '3px', count: 1, kind: 'irreducible', reason: 'checkmark height — fixed pixel' },
+  { file: 'components/FilterPill/FilterPill.module.css', literal: '1.5px', count: 2, kind: 'irreducible', reason: 'checkmark stroke widths — below --sp-1 floor' },
+  { file: 'components/FilterPill/FilterPill.module.css', literal: '#ffffff', count: 2, kind: 'irreducible', reason: 'checkmark stroke on --ac-accent — theme-invariant white' },
   // routes/lifecycle/LifecycleClusterView.module.css
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1.5px', count: 2, kind: 'irreducible', reason: 'coloured ring widths — below --radius-sm/--sp-1 floor' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'border/ring widths — below --sp-1 floor' },

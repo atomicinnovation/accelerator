@@ -108,6 +108,21 @@ body {
   --ac-doc-design-gaps:         #5c9132;
   --ac-doc-design-inventories:  #2e7e8a;
 
+  /* Per-doc-type glyph BACKGROUND tints (light theme). Light pastel hues
+     used as the framed-glyph background in eyebrows and hub cards. */
+  --ac-doc-bg-decisions:           #fbe5e6;
+  --ac-doc-bg-work-items:          #fbe9e2;
+  --ac-doc-bg-plans:               #e3ecf6;
+  --ac-doc-bg-research:            #f7ece0;
+  --ac-doc-bg-plan-reviews:        #ebe3f5;
+  --ac-doc-bg-pr-reviews:          #efe2f6;
+  --ac-doc-bg-work-item-reviews:   #f9e3ec;
+  --ac-doc-bg-validations:         #def0e7;
+  --ac-doc-bg-notes:               #f5f0d6;
+  --ac-doc-bg-pr-descriptions:     #e2eff7;
+  --ac-doc-bg-design-gaps:         #e7f1d8;
+  --ac-doc-bg-design-inventories:  #dceaec;
+
   /* Typography */
   --ac-font-display:  "Sora", system-ui, sans-serif;
   --ac-font-body:     "Inter", system-ui, sans-serif;
@@ -207,6 +222,20 @@ body {
   --ac-doc-pr-descriptions:     #ffffff;
   --ac-doc-design-gaps:         #ffffff;
   --ac-doc-design-inventories:  #ffffff;
+  /* Glyph BACKGROUND tints (dark theme). Uniform monochrome grey across
+     all twelve doc types — slightly lighter than --ac-bg-sunken. */
+  --ac-doc-bg-decisions:           #1d2030;
+  --ac-doc-bg-work-items:          #1d2030;
+  --ac-doc-bg-plans:               #1d2030;
+  --ac-doc-bg-research:            #1d2030;
+  --ac-doc-bg-plan-reviews:        #1d2030;
+  --ac-doc-bg-pr-reviews:          #1d2030;
+  --ac-doc-bg-work-item-reviews:   #1d2030;
+  --ac-doc-bg-validations:         #1d2030;
+  --ac-doc-bg-notes:               #1d2030;
+  --ac-doc-bg-pr-descriptions:     #1d2030;
+  --ac-doc-bg-design-gaps:         #1d2030;
+  --ac-doc-bg-design-inventories:  #1d2030;
   --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
   --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
   color-scheme: dark;
@@ -253,6 +282,18 @@ body {
     --ac-doc-pr-descriptions:     #ffffff;
     --ac-doc-design-gaps:         #ffffff;
     --ac-doc-design-inventories:  #ffffff;
+    --ac-doc-bg-decisions:           #1d2030;
+    --ac-doc-bg-work-items:          #1d2030;
+    --ac-doc-bg-plans:               #1d2030;
+    --ac-doc-bg-research:            #1d2030;
+    --ac-doc-bg-plan-reviews:        #1d2030;
+    --ac-doc-bg-pr-reviews:          #1d2030;
+    --ac-doc-bg-work-item-reviews:   #1d2030;
+    --ac-doc-bg-validations:         #1d2030;
+    --ac-doc-bg-notes:               #1d2030;
+    --ac-doc-bg-pr-descriptions:     #1d2030;
+    --ac-doc-bg-design-gaps:         #1d2030;
+    --ac-doc-bg-design-inventories:  #1d2030;
     --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
     --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
     color-scheme: dark;

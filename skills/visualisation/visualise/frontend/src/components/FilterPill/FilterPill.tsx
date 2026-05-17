@@ -132,6 +132,10 @@ function FacetSection({
               className={styles.option}
               onClick={() => onToggle(option.id)}
             >
+              <span
+                className={`${styles.checkbox} ${isSelected ? styles.checkboxChecked : ''}`}
+                aria-hidden="true"
+              />
               <span className={styles.optionLabel}>
                 {facet.id === 'status' ? (
                   <Chip variant={statusToChipVariant(option.id)}>

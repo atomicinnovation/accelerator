@@ -87,10 +87,7 @@ impl LocalFileDriver {
     ) -> Self {
         let mut roots = HashMap::new();
         for kind in DocTypeKey::all() {
-            let Some(cfg_key) = kind.config_path_key() else {
-                continue;
-            };
-            let Some(raw) = doc_paths.get(cfg_key) else {
+            let Some(raw) = kind.resolve_doc_path(doc_paths) else {
                 continue;
             };
             let canonical = std::fs::canonicalize(raw).unwrap_or_else(|_| raw.clone());
