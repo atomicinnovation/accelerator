@@ -25,6 +25,10 @@ esac
 
 TMPDIR_BASE=$(mktemp -d)
 ORIG_PATH="$PATH"
+# Snapshot the absolute path to bash before any test scopes PATH down,
+# so the missing-jq test can invoke bash without leaning on PATH lookup
+# (a prefix-env-var assignment also gates command resolution).
+BASH_BIN="$(command -v bash)"
 # Restore PATH inside the trap because some tests strip PATH down to
 # isolate missing-tool preflight checks; without restoring it here
 # `rm` itself can be unreachable when the trap fires.
@@ -436,12 +440,14 @@ echo ""
 echo "--- test 21: missing jq preflight ---"
 new_case; T=$CASE_DIR
 setup_gh_stub "$T"
-export PATH="$T/bin"
 body_file="$T/body.md"
 write_file "$body_file" "x"
 stderr_capture="$T/stderr"
 rc=0
-"$SCRIPT" 119 "$body_file" 2>"$stderr_capture" >/dev/null || rc=$?
+# Invoke bash directly so the script's shebang doesn't depend on the
+# stripped PATH being able to locate bash; only the fake-gh bin-dir is
+# on PATH for the subshell, so the script's jq preflight fails.
+PATH="$T/bin" "$BASH_BIN" "$SCRIPT" 119 "$body_file" 2>"$stderr_capture" >/dev/null || rc=$?
 assert_eq "test 21: missing jq exits 2" 2 "$rc"
 assert_contains "test 21: stderr names jq" \
   "$(cat "$stderr_capture")" "jq is required"
