@@ -107,6 +107,11 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/Topbar/Topbar.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'border-bottom and divider widths — below --sp-1 floor' },
   // components/TopbarIconButton/TopbarIconButton.module.css
   { file: 'components/TopbarIconButton/TopbarIconButton.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
+  // components/Page/Page.module.css
+  { file: 'components/Page/Page.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'header/content divider border-top width — below --sp-1 floor' },
+  // components/Popover/Popover.module.css
+  { file: 'components/Popover/Popover.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'panel border width — below --sp-1 floor' },
+  { file: 'components/Popover/Popover.module.css', literal: '240px', count: 1, kind: 'irreducible', reason: 'panel min-width — no token equivalent' },
   // routes/kanban/KanbanBoard.module.css
   { file: 'routes/kanban/KanbanBoard.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   // routes/kanban/KanbanColumn.module.css
