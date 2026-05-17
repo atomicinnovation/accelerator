@@ -178,6 +178,20 @@ impl DocTypeKey {
         matches!(self, DocTypeKey::Templates)
     }
 
+    /// Some doc types are stored as `<root>/<slug-dir>/<manifest>.md` rather
+    /// than flat `<root>/<slug>.md`. This returns the manifest filename to
+    /// look for in each direct subdirectory of the doc-type root.
+    ///
+    /// Design inventories follow this pattern — each inventory is a dated
+    /// `<root>/YYYY-MM-DD-HHMMSS-{source-id}/inventory.md` artifact alongside
+    /// its `screenshots/` and `assets/`.
+    pub fn nested_manifest_filename(self) -> Option<&'static str> {
+        match self {
+            DocTypeKey::DesignInventories => Some("inventory.md"),
+            _ => None,
+        }
+    }
+
     /// Returns the kebab-case wire token for this variant. Pinned by the
     /// per-variant `wire_str_round_trips_for_every_variant` test below.
     pub fn wire_str(self) -> &'static str {

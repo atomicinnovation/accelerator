@@ -251,6 +251,7 @@ impl FileDriver for LocalFileDriver {
             Ok(r) => r.to_path_buf(),
             Err(e) => return Box::pin(std::future::ready(Err(e))),
         };
+        let nested_manifest = kind.nested_manifest_filename();
         Box::pin(async move {
             let read = match tokio::fs::read_dir(&root).await {
                 Ok(r) => r,
@@ -273,19 +274,42 @@ impl FileDriver for LocalFileDriver {
                     }
                 };
                 let path = entry.path();
-                if path.extension().and_then(|s| s.to_str()) != Some("md") {
-                    continue;
-                }
                 let file_type = match entry.file_type().await {
                     Ok(ft) => ft,
                     Err(source) => {
                         return Err(FileDriverError::Io { path, source });
                     }
                 };
-                if !file_type.is_file() {
-                    continue;
+
+                if let Some(manifest_name) = nested_manifest {
+                    // Nested-manifest doc type (e.g. design inventories):
+                    // each artifact lives at `<root>/<slug-dir>/<manifest>.md`.
+                    if !file_type.is_dir() {
+                        continue;
+                    }
+                    // Skip dot-prefixed in-flight directories (e.g.
+                    // `.YYYY-MM-DD-HHMMSS-{source-id}.tmp/`).
+                    if path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .is_some_and(|n| n.starts_with('.'))
+                    {
+                        continue;
+                    }
+                    let candidate = path.join(manifest_name);
+                    match tokio::fs::metadata(&candidate).await {
+                        Ok(meta) if meta.is_file() => entries.push(candidate),
+                        _ => continue,
+                    }
+                } else {
+                    if path.extension().and_then(|s| s.to_str()) != Some("md") {
+                        continue;
+                    }
+                    if !file_type.is_file() {
+                        continue;
+                    }
+                    entries.push(path);
                 }
-                entries.push(path);
             }
             Ok(entries)
         })

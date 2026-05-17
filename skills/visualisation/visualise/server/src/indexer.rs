@@ -992,6 +992,19 @@ fn build_entry(
     let parsed = frontmatter::parse(&content.bytes);
     let filename = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
     let filename_stem = filename.strip_suffix(".md").unwrap_or(filename);
+
+    // For nested-manifest doc types (e.g. design inventories) the slug
+    // source is the parent directory name, not the manifest filename.
+    let slug_filename: String = if kind.nested_manifest_filename().is_some() {
+        path.parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .map(|n| format!("{n}.md"))
+            .unwrap_or_else(|| filename.to_string())
+    } else {
+        filename.to_string()
+    };
+
     let (slug_val, work_item_id) = if kind == DocTypeKey::WorkItems {
         let regex_slug = slug::derive_work_item_with_regex(&work_item_cfg.scan_regex, filename);
         // Fall back to the default numeric slug derivation when the primary
@@ -1000,9 +1013,14 @@ fn build_entry(
         let slug = regex_slug.or_else(|| slug::derive(kind, filename));
         (slug, work_item_cfg.extract_id(filename))
     } else {
-        (slug::derive(kind, filename), None)
+        (slug::derive(kind, &slug_filename), None)
     };
-    let title = frontmatter::title_from(&parsed.state, &parsed.body, filename_stem);
+    // Title fallback uses the slug-source stem so nested kinds (where the
+    // manifest filename is just "inventory") get a meaningful default.
+    let title_fallback_stem = slug_filename
+        .strip_suffix(".md")
+        .unwrap_or(filename_stem);
+    let title = frontmatter::title_from(&parsed.state, &parsed.body, title_fallback_stem);
     let body_preview = frontmatter::body_preview_from(&parsed.body);
     let work_item_refs = frontmatter::read_ref_keys(&parsed.state);
 
@@ -1569,6 +1587,58 @@ mod tests {
             etag: String::new(),
             body_preview: String::new(),
         }
+    }
+
+    #[tokio::test]
+    async fn design_inventories_indexed_from_nested_directories() {
+        // Design inventories live as `<root>/YYYY-MM-DD-HHMMSS-{source}/inventory.md`
+        // rather than flat `.md` files. The indexer must descend one level.
+        let tmp = tempfile::tempdir().unwrap();
+        let inv_root = tmp.path().join("meta/research/design-inventories");
+        let inv1 = inv_root.join("2026-05-06-140608-foo");
+        let inv2 = inv_root.join("2026-05-06-135214-bar");
+        let skip_tmp = inv_root.join(".2026-05-06-200000-inflight.tmp");
+        for d in [&inv1, &inv2, &skip_tmp] {
+            std::fs::create_dir_all(d).unwrap();
+        }
+        std::fs::write(
+            inv1.join("inventory.md"),
+            "---\ntitle: Foo Inventory\nstatus: accepted\n---\n# body\n",
+        )
+        .unwrap();
+        std::fs::write(
+            inv2.join("inventory.md"),
+            "---\ntitle: Bar Inventory\n---\n# body\n",
+        )
+        .unwrap();
+        // Dot-prefixed in-flight dir should be ignored even with an inventory.md.
+        std::fs::write(skip_tmp.join("inventory.md"), "---\n---\n").unwrap();
+        // A subdirectory missing inventory.md should be ignored.
+        std::fs::create_dir_all(inv_root.join("2026-05-06-empty")).unwrap();
+
+        let mut map = HashMap::new();
+        map.insert("research_design_inventories".to_string(), inv_root);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), default_work_item_cfg())
+            .await
+            .unwrap();
+
+        let entries = idx.all_by_type(DocTypeKey::DesignInventories).await;
+        let titles: Vec<&str> = entries.iter().map(|e| e.title.as_str()).collect();
+        assert!(titles.contains(&"Foo Inventory"), "got {titles:?}");
+        assert!(titles.contains(&"Bar Inventory"), "got {titles:?}");
+        assert_eq!(entries.len(), 2);
+
+        // Slug derived from the parent directory name, not the manifest stem.
+        let slugs: Vec<String> = entries.iter().filter_map(|e| e.slug.clone()).collect();
+        assert!(
+            slugs.iter().any(|s| s == "140608-foo"),
+            "expected slug derived from parent dir; got {slugs:?}",
+        );
+        assert!(
+            slugs.iter().any(|s| s == "135214-bar"),
+            "expected slug derived from parent dir; got {slugs:?}",
+        );
     }
 
     #[tokio::test]
