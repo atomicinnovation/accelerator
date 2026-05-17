@@ -59,95 +59,6 @@ impl DocTypeKey {
         }
     }
 
-    /// Legacy config keys to try if the canonical `config_path_key()` is
-    /// absent from `doc_paths`. Lets the server accept dev configs that
-    /// predate the `research_` namespacing of design inventories/gaps.
-    pub fn config_path_key_aliases(self) -> &'static [&'static str] {
-        match self {
-            DocTypeKey::DesignGaps => &["design_gaps"],
-            DocTypeKey::DesignInventories => &["design_inventories"],
-            _ => &[],
-        }
-    }
-
-    /// Canonical project-relative default path. Used as a final fallback
-    /// when the configured path doesn't exist on disk — covers dev configs
-    /// that point at legacy / wrong paths.
-    pub fn canonical_default_path(self) -> Option<&'static str> {
-        match self {
-            DocTypeKey::Decisions => Some("meta/decisions"),
-            DocTypeKey::WorkItems => Some("meta/work"),
-            DocTypeKey::Plans => Some("meta/plans"),
-            DocTypeKey::Research => Some("meta/research/codebase"),
-            DocTypeKey::PlanReviews => Some("meta/reviews/plans"),
-            DocTypeKey::PrReviews => Some("meta/reviews/prs"),
-            DocTypeKey::WorkItemReviews => Some("meta/reviews/work"),
-            DocTypeKey::Validations => Some("meta/validations"),
-            DocTypeKey::Notes => Some("meta/notes"),
-            DocTypeKey::PrDescriptions => Some("meta/prs"),
-            DocTypeKey::DesignGaps => Some("meta/research/design-gaps"),
-            DocTypeKey::DesignInventories => Some("meta/research/design-inventories"),
-            DocTypeKey::Templates => None,
-        }
-    }
-
-    /// Resolves the configured path for this doc type. Resolution order:
-    /// 1. canonical key in `doc_paths`, if its path exists on disk;
-    /// 2. each alias key in `doc_paths`, if its path exists on disk;
-    /// 3. `project_root.join(canonical_default_path())`, if it exists;
-    /// 4. canonical key value (even if non-existent — preserves prior
-    ///    behaviour for tests that pre-date the on-disk check);
-    /// 5. first alias value (same justification);
-    /// 6. `project_root.join(canonical_default_path())` (last-resort).
-    ///
-    /// Steps 4–6 ensure we still register a root for the doc type even
-    /// when nothing exists yet (so `list()` can return `[]` cleanly when
-    /// the user later creates files).
-    pub fn resolve_doc_path(
-        self,
-        doc_paths: &std::collections::HashMap<String, std::path::PathBuf>,
-        project_root: Option<&std::path::Path>,
-    ) -> Option<std::path::PathBuf> {
-        // First pass: prefer existing on-disk paths.
-        if let Some(k) = self.config_path_key() {
-            if let Some(p) = doc_paths.get(k) {
-                if p.exists() {
-                    return Some(p.clone());
-                }
-            }
-        }
-        for alias in self.config_path_key_aliases() {
-            if let Some(p) = doc_paths.get(*alias) {
-                if p.exists() {
-                    return Some(p.clone());
-                }
-            }
-        }
-        if let (Some(root), Some(default_rel)) = (project_root, self.canonical_default_path()) {
-            let p = root.join(default_rel);
-            if p.exists() {
-                return Some(p);
-            }
-        }
-        // Second pass: return any configured/derived path even if it
-        // doesn't exist yet. Keeps the root registered so future creations
-        // surface without a server restart.
-        if let Some(k) = self.config_path_key() {
-            if let Some(p) = doc_paths.get(k) {
-                return Some(p.clone());
-            }
-        }
-        for alias in self.config_path_key_aliases() {
-            if let Some(p) = doc_paths.get(*alias) {
-                return Some(p.clone());
-            }
-        }
-        if let (Some(root), Some(default_rel)) = (project_root, self.canonical_default_path()) {
-            return Some(root.join(default_rel));
-        }
-        None
-    }
-
     pub fn label(self) -> &'static str {
         match self {
             DocTypeKey::Decisions => "Decisions",
@@ -248,7 +159,9 @@ pub struct DocType {
 pub fn describe_types(cfg: &crate::config::Config) -> Vec<DocType> {
     let mut out = Vec::with_capacity(DocTypeKey::all().len());
     for key in DocTypeKey::all() {
-        let dir_path = key.resolve_doc_path(&cfg.doc_paths, Some(&cfg.project_root));
+        let dir_path = key
+            .config_path_key()
+            .and_then(|k| cfg.doc_paths.get(k).cloned());
         out.push(DocType {
             key,
             label: key.label().to_string(),
@@ -320,82 +233,6 @@ mod tests {
             let ser = serde_json::to_string(&variant).unwrap();
             assert_eq!(ser, format!("\"{}\"", variant.wire_str()));
         }
-    }
-
-    #[test]
-    fn resolve_doc_path_prefers_canonical_key() {
-        let mut paths = std::collections::HashMap::new();
-        paths.insert(
-            "research_design_inventories".to_string(),
-            PathBuf::from("/nonexistent/a"),
-        );
-        paths.insert("design_inventories".to_string(), PathBuf::from("/nonexistent/b"));
-        // Neither path exists on disk, so the second-pass canonical key
-        // value wins (preserves prior behaviour).
-        assert_eq!(
-            DocTypeKey::DesignInventories.resolve_doc_path(&paths, None),
-            Some(PathBuf::from("/nonexistent/a")),
-        );
-    }
-
-    #[test]
-    fn resolve_doc_path_falls_back_to_alias_when_canonical_absent() {
-        let mut paths = std::collections::HashMap::new();
-        paths.insert("design_inventories".to_string(), PathBuf::from("/nonexistent/b"));
-        paths.insert("design_gaps".to_string(), PathBuf::from("/nonexistent/c"));
-        assert_eq!(
-            DocTypeKey::DesignInventories.resolve_doc_path(&paths, None),
-            Some(PathBuf::from("/nonexistent/b")),
-        );
-        assert_eq!(
-            DocTypeKey::DesignGaps.resolve_doc_path(&paths, None),
-            Some(PathBuf::from("/nonexistent/c")),
-        );
-    }
-
-    #[test]
-    fn resolve_doc_path_returns_none_when_no_key_matches_and_no_project_root() {
-        let paths = std::collections::HashMap::new();
-        assert!(DocTypeKey::DesignInventories
-            .resolve_doc_path(&paths, None)
-            .is_none());
-    }
-
-    #[test]
-    fn resolve_doc_path_falls_back_to_project_root_default_when_disk_path_exists() {
-        // Configured path is a non-existent dir; project_root points to a
-        // location where the canonical default exists.
-        let tmp = tempfile::tempdir().unwrap();
-        let real_dir = tmp.path().join("meta/research/design-inventories");
-        std::fs::create_dir_all(&real_dir).unwrap();
-
-        let mut paths = std::collections::HashMap::new();
-        paths.insert(
-            "design_inventories".to_string(),
-            tmp.path().join("meta/design-inventories"), // doesn't exist
-        );
-
-        let resolved = DocTypeKey::DesignInventories
-            .resolve_doc_path(&paths, Some(tmp.path()))
-            .unwrap();
-        assert_eq!(resolved, real_dir);
-    }
-
-    #[test]
-    fn resolve_doc_path_returns_first_pass_when_existing_path_present() {
-        let tmp = tempfile::tempdir().unwrap();
-        let configured = tmp.path().join("meta/design-inventories");
-        std::fs::create_dir_all(&configured).unwrap();
-
-        let mut paths = std::collections::HashMap::new();
-        paths.insert("design_inventories".to_string(), configured.clone());
-
-        let resolved = DocTypeKey::DesignInventories
-            .resolve_doc_path(&paths, Some(tmp.path()))
-            .unwrap();
-        // Configured path wins over the canonical default (canonical
-        // default isn't checked because alias path already existed).
-        assert_eq!(resolved, configured);
     }
 
     #[test]
