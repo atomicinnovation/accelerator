@@ -1,22 +1,22 @@
 import { useMemo } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
-import { PHASE_DOC_TYPES, type DocType, type DocTypeKey } from '../../api/types'
+import type { DocType, LibraryDocType, LibraryPhase } from '../../api/types'
 import { useUnseenDocTypesContext } from '../../api/use-unseen-doc-types'
 import { ActivityFeed } from '../ActivityFeed/ActivityFeed'
 import styles from './Sidebar.module.css'
 
 interface Props {
   docTypes: DocType[]
+  phases: LibraryPhase[]
+  templates: LibraryDocType | null
 }
 
-export function Sidebar({ docTypes }: Props) {
+export function Sidebar({ docTypes, phases, templates }: Props) {
   const pathname = useRouterState({ select: s => s.location.pathname })
   const { unseenSet } = useUnseenDocTypesContext()
-  const byKey = useMemo(
-    () => new Map(docTypes.map(t => [t.key, t])),
-    [docTypes],
-  )
-  const templates = byKey.get('templates')
+  // docTypes is kept around for affordances that need dirPath / inLifecycle,
+  // but phase grouping comes from the server-driven `phases` prop.
+  void docTypes
 
   return (
     <nav className={styles.sidebar} aria-label="Site navigation">
@@ -35,42 +35,33 @@ export function Sidebar({ docTypes }: Props) {
 
       <section aria-labelledby="library-heading" className={styles.section}>
         <h2 id="library-heading" className={styles.libraryHeading}>LIBRARY</h2>
-        {PHASE_DOC_TYPES.map(phase => (
-          <section key={phase.phase} className={styles.phase}>
+        {phases.map(phase => (
+          <section key={phase.id} className={styles.phase}>
             <h3 className={styles.phaseHeading}>{phase.label.toUpperCase()}</h3>
             <ul className={styles.list}>
-              {phase.docTypes.map((key: DocTypeKey) => {
-                const t = byKey.get(key)
-                if (!t) {
-                  if (import.meta.env.DEV) {
-                    console.warn(
-                      `[Sidebar] PHASE_DOC_TYPES key '${key}' missing from /api/types payload — nav item will not render.`,
-                    )
-                  }
-                  return null
-                }
+              {phase.docTypes.map(dt => {
                 const active =
-                  pathname === `/library/${key}` ||
-                  pathname.startsWith(`/library/${key}/`)
-                const hasUnseen = unseenSet.has(key)
+                  pathname === `/library/${dt.id}` ||
+                  pathname.startsWith(`/library/${dt.id}/`)
+                const hasUnseen = unseenSet.has(dt.id)
                 const linkLabel = hasUnseen
-                  ? `${t.label} (unseen changes)`
-                  : t.label
+                  ? `${dt.label} (unseen changes)`
+                  : dt.label
                 return (
-                  <li key={key}>
+                  <li key={dt.id}>
                     <Link
                       to="/library/$type"
-                      params={{ type: key }}
+                      params={{ type: dt.id }}
                       aria-label={linkLabel}
                       title={hasUnseen ? 'Unseen changes since your last visit' : undefined}
                       className={`${styles.link} ${active ? styles.active : ''}`}
                     >
-                      <span className={styles.label}>{t.label}</span>
+                      <span className={styles.label}>{dt.label}</span>
                       {hasUnseen && (
                         <span className={styles.dot} aria-hidden="true" />
                       )}
-                      {t.count !== undefined && t.count > 0 && (
-                        <span className={styles.count}>{t.count}</span>
+                      {dt.count > 0 && (
+                        <span className={styles.count}>{dt.count}</span>
                       )}
                     </Link>
                   </li>

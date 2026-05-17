@@ -37,15 +37,14 @@ describe('router', () => {
     vi.unstubAllGlobals()
   })
 
-  it('redirects / to /library/decisions (via /library)', async () => {
-    // Chain: / → /library → /library/decisions
+  it('redirects / to /library (the overview hub)', async () => {
     const router = renderAt('/')
-    await waitForPath(router, '/library/decisions')
+    await waitForPath(router, '/library')
   })
 
-  it('redirects bare /library to /library/decisions', async () => {
+  it('serves the overview hub at bare /library', async () => {
     const router = renderAt('/library')
-    await waitForPath(router, '/library/decisions')
+    await waitForPath(router, '/library')
   })
 
   it('routes /library/templates to the templates index', async () => {
@@ -68,12 +67,11 @@ describe('router', () => {
     ).toBeInTheDocument()
   })
 
-  it('redirects /library/bogus to /library/decisions when the type is unknown', async () => {
+  it('redirects /library/bogus to /library when the type is unknown', async () => {
     // parseParams on libraryTypeRoute throws redirect({ to: '/library' })
-    // for any string that is not a DocTypeKey; /library then chains to
-    // /library/decisions.
+    // for any string that is not a DocTypeKey; /library renders the hub.
     const router = renderAt('/library/bogus')
-    await waitForPath(router, '/library/decisions')
+    await waitForPath(router, '/library')
   })
 
   it('routes /lifecycle to the index view', async () => {

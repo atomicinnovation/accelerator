@@ -8,6 +8,17 @@ import * as fetchModule from '../api/fetch'
 export function setupRouterFixtures() {
   beforeEach(() => {
     vi.spyOn(fetchModule, 'fetchTypes').mockResolvedValue([])
+    vi.spyOn(fetchModule, 'fetchLibraryStructure').mockResolvedValue({
+      phases: [],
+      templates: {
+        id: 'templates',
+        label: 'Templates',
+        count: 0,
+        filteredCount: 0,
+        latest: null,
+        filterFacets: [],
+      },
+    })
     vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: [] })
     vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue({
       name: 'adr', activeTier: 'plugin-default', tiers: [],

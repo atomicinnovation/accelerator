@@ -3,7 +3,12 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, renderWithRouterAt } from '../../test/router-helpers'
 import { Sidebar } from './Sidebar'
-import type { DocType, DocTypeKey } from '../../api/types'
+import type {
+  DocType,
+  DocTypeKey,
+  LibraryDocType,
+  LibraryPhase,
+} from '../../api/types'
 import {
   UnseenDocTypesContext,
   type UnseenDocTypesHandle,
@@ -47,15 +52,69 @@ const allDocTypes: DocType[] = [
   { key: 'templates',          label: 'Templates',          dirPath: null, inLifecycle: false, inKanban: false, virtual: true  },
 ]
 
+function makeLibraryDocType(
+  id: DocTypeKey,
+  label: string,
+  count?: number,
+): LibraryDocType {
+  return {
+    id,
+    label,
+    count: count ?? 0,
+    filteredCount: count ?? 0,
+    latest: null,
+    filterFacets: [],
+  }
+}
+
+function defaultPhases(docTypes: DocType[]): LibraryPhase[] {
+  const byKey = new Map(docTypes.map(t => [t.key, t]))
+  const phases: { id: string; label: string; ids: DocTypeKey[] }[] = [
+    { id: 'define', label: 'Define', ids: ['work-items', 'work-item-reviews'] },
+    { id: 'discover', label: 'Discover', ids: ['design-inventories', 'design-gaps', 'research'] },
+    { id: 'build', label: 'Build', ids: ['plans', 'plan-reviews', 'validations'] },
+    { id: 'ship', label: 'Ship', ids: ['pr-descriptions', 'pr-reviews'] },
+    { id: 'remember', label: 'Remember', ids: ['decisions', 'notes'] },
+  ]
+  return phases.map(p => ({
+    id: p.id,
+    label: p.label,
+    docTypes: p.ids
+      .map(id => {
+        const t = byKey.get(id)
+        if (!t) return null
+        return makeLibraryDocType(id, t.label, t.count)
+      })
+      .filter((x): x is LibraryDocType => x !== null),
+  }))
+}
+
+function defaultTemplates(docTypes: DocType[]): LibraryDocType | null {
+  const t = docTypes.find(d => d.key === 'templates')
+  if (!t) return null
+  return makeLibraryDocType('templates', t.label, t.count)
+}
+
 function renderSidebar(
   docTypes: DocType[] = allDocTypes,
   unseen: UnseenDocTypesHandle = makeUnseenHandle(),
+  phases: LibraryPhase[] | null = null,
+  templates: LibraryDocType | null | undefined = undefined,
 ) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const resolvedPhases = phases ?? defaultPhases(docTypes)
+  const resolvedTemplates =
+    templates === undefined ? defaultTemplates(docTypes) : templates
   return render(
     <QueryClientProvider client={qc}>
       <UnseenDocTypesContext.Provider value={unseen}>
-        <MemoryRouter><Sidebar docTypes={docTypes} /></MemoryRouter>
+        <MemoryRouter>
+          <Sidebar
+            docTypes={docTypes}
+            phases={resolvedPhases}
+            templates={resolvedTemplates}
+          />
+        </MemoryRouter>
       </UnseenDocTypesContext.Provider>
     </QueryClientProvider>,
   )
@@ -203,7 +262,11 @@ describe('Sidebar', () => {
     renderWithRouterAt(
       <QueryClientProvider client={qc}>
         <UnseenDocTypesContext.Provider value={makeUnseenHandle()}>
-          <Sidebar docTypes={allDocTypes} />
+          <Sidebar
+            docTypes={allDocTypes}
+            phases={defaultPhases(allDocTypes)}
+            templates={defaultTemplates(allDocTypes)}
+          />
         </UnseenDocTypesContext.Provider>
       </QueryClientProvider>,
       '/library/work-items',
@@ -219,7 +282,11 @@ describe('Sidebar', () => {
     renderWithRouterAt(
       <QueryClientProvider client={qc}>
         <UnseenDocTypesContext.Provider value={makeUnseenHandle()}>
-          <Sidebar docTypes={allDocTypes} />
+          <Sidebar
+            docTypes={allDocTypes}
+            phases={defaultPhases(allDocTypes)}
+            templates={defaultTemplates(allDocTypes)}
+          />
         </UnseenDocTypesContext.Provider>
       </QueryClientProvider>,
       '/library/work-items/0099',
@@ -235,7 +302,11 @@ describe('Sidebar', () => {
     renderWithRouterAt(
       <QueryClientProvider client={qc}>
         <UnseenDocTypesContext.Provider value={makeUnseenHandle()}>
-          <Sidebar docTypes={allDocTypes} />
+          <Sidebar
+            docTypes={allDocTypes}
+            phases={defaultPhases(allDocTypes)}
+            templates={defaultTemplates(allDocTypes)}
+          />
         </UnseenDocTypesContext.Provider>
       </QueryClientProvider>,
       '/library/plan-reviews',
@@ -249,41 +320,43 @@ describe('Sidebar', () => {
   })
 
   it('empty docTypes still renders headings and empty LIBRARY lists', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     renderSidebar([])
     await screen.findByText('LIBRARY')
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(5)
-    // Library section has no doc-type links when docTypes is empty.
-    // VIEWS section still renders Kanban + Lifecycle (those don't depend
-    // on docTypes); META is hidden when templates is missing.
     const libraryLinks = document.querySelectorAll(
       'section[aria-labelledby="library-heading"] a',
     )
     expect(libraryLinks.length).toBe(0)
     expect(screen.queryByText('META')).toBeNull()
-    warn.mockRestore()
   })
 
-  it('warns and skips when a PHASE_DOC_TYPES key is missing from payload', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it('renders only the doc types the server emits for each phase', async () => {
+    // Server omits Plans from the BUILD phase response — Sidebar should
+    // render the phase heading but no Plans link.
     const withoutPlans = allDocTypes.filter(t => t.key !== 'plans')
     renderSidebar(withoutPlans)
     await screen.findByText('LIBRARY')
     expect(screen.queryByRole('link', { name: /^Plans$/i })).toBeNull()
     expect(screen.getByText('BUILD')).toBeInTheDocument()
-    expect(warn).toHaveBeenCalled()
-    expect(warn.mock.calls.some(call => String(call[0]).includes('plans'))).toBe(true)
-    warn.mockRestore()
   })
 
-  it('orphan DocTypeKey not in PHASE_DOC_TYPES does not appear', async () => {
-    const docs: DocType[] = [
-      ...allDocTypes,
-      { key: 'orphan-type' as DocTypeKey, label: 'Orphan', dirPath: '/p', inLifecycle: false, inKanban: false, virtual: false },
+  it('phase order is driven by the server-provided phases prop', async () => {
+    const reversed: LibraryPhase[] = [
+      {
+        id: 'remember',
+        label: 'Remember',
+        docTypes: [makeLibraryDocType('decisions', 'Decisions', 1)],
+      },
+      {
+        id: 'define',
+        label: 'Define',
+        docTypes: [makeLibraryDocType('work-items', 'Work items', 1)],
+      },
     ]
-    renderSidebar(docs)
+    renderSidebar(allDocTypes, makeUnseenHandle(), reversed)
     await screen.findByText('LIBRARY')
-    expect(screen.queryByText('Orphan')).toBeNull()
+    const headings = screen.getAllByRole('heading', { level: 3 })
+    expect(headings.map(h => h.textContent)).toEqual(['REMEMBER', 'DEFINE'])
   })
 
   describe('Activity slot', () => {

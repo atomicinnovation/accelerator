@@ -137,6 +137,10 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'routes/library/LibraryTypeView.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   { file: 'routes/library/LibraryTypeView.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'off-scale cell padding (6.4px) — between --sp-1 and --sp-2' },
   { file: 'routes/library/LibraryTypeView.module.css', literal: '900px', count: 1, kind: 'irreducible', reason: 'container max-width — no token equivalent' },
+  // routes/library/LibraryOverviewHub.module.css
+  { file: 'routes/library/LibraryOverviewHub.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'card border width — below --sp-1 floor' },
+  { file: 'routes/library/LibraryOverviewHub.module.css', literal: '640px', count: 1, kind: 'irreducible', reason: 'responsive grid breakpoint — no token equivalent' },
+  { file: 'routes/library/LibraryOverviewHub.module.css', literal: '1024px', count: 1, kind: 'irreducible', reason: 'responsive grid breakpoint — no token equivalent' },
   // routes/lifecycle/LifecycleClusterView.module.css
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1.5px', count: 2, kind: 'irreducible', reason: 'coloured ring widths — below --radius-sm/--sp-1 floor' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'border/ring widths — below --sp-1 floor' },

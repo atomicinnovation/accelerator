@@ -1,0 +1,76 @@
+.phaseSection {
+  margin-bottom: var(--sp-6);
+}
+
+.phaseHeading {
+  font-size: var(--size-xxs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--ac-fg-muted);
+  margin: 0 0 var(--sp-3) 0;
+}
+
+.hubGrid {
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .hubGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .hubGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.card {
+  background: var(--ac-bg-card);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  text-decoration: none;
+  color: inherit;
+}
+
+.cardDisabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.cardTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.cardLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-weight: 600;
+  color: var(--ac-fg-strong);
+}
+
+.cardCount {
+  color: var(--ac-fg-muted);
+}
+
+.cardLatest {
+  color: var(--ac-fg-muted);
+  font-size: var(--size-xs);
+}
+
+.cardEmpty {
+  color: var(--ac-fg-faint);
+  font-style: italic;
+  font-size: var(--size-xs);
+}

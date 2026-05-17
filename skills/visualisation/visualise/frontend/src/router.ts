@@ -40,6 +40,7 @@ export function withCrumb<
 }
 import { RootLayout } from './components/RootLayout/RootLayout'
 import { LibraryLayout } from './routes/library/LibraryLayout'
+import { LibraryOverviewHub } from './routes/library/LibraryOverviewHub'
 import { LibraryTypeView } from './routes/library/LibraryTypeView'
 import { LibraryDocView } from './routes/library/LibraryDocView'
 import { LibraryTemplatesIndex } from './routes/library/LibraryTemplatesIndex'
@@ -66,14 +67,11 @@ const libraryRoute = withCrumb('Library', {
   component: LibraryLayout,
 })
 
-// Landing at /library redirects to the Decisions index so users see
-// content rather than an empty main pane.
+// Landing at /library renders the overview hub.
 const libraryIndexRoute = createRoute({
   getParentRoute: () => libraryRoute,
   path: '/',
-  beforeLoad: () => {
-    throw redirect({ to: '/library/$type', params: { type: 'decisions' } })
-  },
+  component: LibraryOverviewHub,
 })
 
 // Dedicated Templates routes — literal paths beat the `/$type` param
