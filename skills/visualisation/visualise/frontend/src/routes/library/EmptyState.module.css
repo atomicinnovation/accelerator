@@ -1,0 +1,41 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-3);
+  padding: var(--sp-7) var(--sp-5);
+  background: var(--ac-bg-card);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-md);
+}
+
+.glyph {
+  margin-bottom: var(--sp-2);
+}
+
+.path {
+  font-family: var(--ac-font-mono);
+  color: var(--ac-fg-muted);
+  margin: 0;
+}
+
+.headline {
+  font-size: var(--size-lg);
+  font-weight: 600;
+  margin: 0;
+  color: var(--ac-fg-strong);
+}
+
+.description {
+  color: var(--ac-fg-muted);
+  margin: 0;
+  max-width: 60ch;
+}
+
+.footer {
+  font-size: var(--size-xs);
+  color: var(--ac-fg-faint);
+  margin: 0;
+  max-width: 60ch;
+}

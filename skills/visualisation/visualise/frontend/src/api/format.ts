@@ -31,6 +31,18 @@ export function formatMtime(ms: number, now: number = Date.now()): string {
  * at both ends: clamps negative elapsed to '0s ago' (vs 'just now') and
  * keeps `<n>d ago` indefinitely (vs weeks/locale flip at 7d).
  */
+/** Renders a frontmatter `date:` string in `YYYY-MM-DD` form when valid,
+ *  or returns the raw input untouched when not parseable. */
+export function formatDate(raw: string): string {
+  const parsed = Date.parse(raw)
+  if (Number.isNaN(parsed)) return raw
+  const d = new Date(parsed)
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export function formatRelative(ms: number, now: number = Date.now()): string {
   const diffSec = Math.floor((now - ms) / 1000)
   if (diffSec < 0) return '0s ago'

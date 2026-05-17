@@ -1,0 +1,100 @@
+.trigger {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-pill);
+  background: var(--ac-bg-card);
+  font-size: var(--size-xs);
+  color: var(--ac-fg);
+  cursor: pointer;
+  position: relative;
+}
+
+.trigger:hover,
+.trigger:focus-visible {
+  border-color: var(--ac-stroke-strong);
+}
+
+.fetchingDot {
+  width: var(--sp-2);
+  height: var(--sp-2);
+  border-radius: var(--radius-pill);
+  background: var(--ac-accent);
+  animation: ac-pulse 1.2s ease-in-out infinite;
+}
+
+.menu {
+  min-width: 280px;
+}
+
+.facetSection {
+  margin-bottom: var(--sp-3);
+}
+
+.facetHeading {
+  font-size: var(--size-xxs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--ac-fg-muted);
+  padding: var(--sp-1) var(--sp-2);
+}
+
+.optionList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-2) var(--sp-3);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.option:hover,
+.option:focus {
+  background: var(--ac-bg-hover);
+}
+
+.optionLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.optionCount {
+  color: var(--ac-fg-muted);
+  font-size: var(--size-xxs);
+}
+
+.search {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-sm);
+  background: var(--ac-bg);
+  font-size: var(--size-xs);
+  margin-bottom: var(--sp-2);
+}
+
+.footer {
+  border-top: 1px solid var(--ac-stroke-soft);
+  padding-top: var(--sp-2);
+  margin-top: var(--sp-2);
+  text-align: right;
+}
+
+.clearButton {
+  all: unset;
+  cursor: pointer;
+  color: var(--ac-accent);
+  font-size: var(--size-xs);
+  padding: var(--sp-1) var(--sp-2);
+}

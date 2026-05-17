@@ -133,14 +133,21 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'routes/library/LibraryTemplatesView.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   { file: 'routes/library/LibraryTemplatesView.module.css', literal: '900px', count: 1, kind: 'irreducible', reason: 'container max-width — no token equivalent' },
   // routes/library/LibraryTypeView.module.css
-  { file: 'routes/library/LibraryTypeView.module.css', literal: '2px', count: 3, kind: 'irreducible', reason: 'border and outline widths — below --sp-1 floor' },
-  { file: 'routes/library/LibraryTypeView.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
-  { file: 'routes/library/LibraryTypeView.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'off-scale cell padding (6.4px) — between --sp-1 and --sp-2' },
-  { file: 'routes/library/LibraryTypeView.module.css', literal: '900px', count: 1, kind: 'irreducible', reason: 'container max-width — no token equivalent' },
+  { file: 'routes/library/LibraryTypeView.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'th border-bottom, td border-bottom, error border widths — below --sp-1 floor' },
   // routes/library/LibraryOverviewHub.module.css
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'card border width — below --sp-1 floor' },
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '640px', count: 1, kind: 'irreducible', reason: 'responsive grid breakpoint — no token equivalent' },
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '1024px', count: 1, kind: 'irreducible', reason: 'responsive grid breakpoint — no token equivalent' },
+  // routes/library/EmptyState.module.css
+  { file: 'routes/library/EmptyState.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'card border width — below --sp-1 floor' },
+  // routes/library/NoResultsPanel.module.css
+  { file: 'routes/library/NoResultsPanel.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'panel border widths — below --sp-1 floor' },
+  // components/SortPill/SortPill.module.css
+  { file: 'components/SortPill/SortPill.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'trigger border width — below --sp-1 floor' },
+  { file: 'components/SortPill/SortPill.module.css', literal: '220px', count: 1, kind: 'irreducible', reason: 'menu min-width — no token equivalent' },
+  // components/FilterPill/FilterPill.module.css
+  { file: 'components/FilterPill/FilterPill.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'trigger / search / footer border widths — below --sp-1 floor' },
+  { file: 'components/FilterPill/FilterPill.module.css', literal: '280px', count: 1, kind: 'irreducible', reason: 'menu min-width — no token equivalent' },
   // routes/lifecycle/LifecycleClusterView.module.css
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1.5px', count: 2, kind: 'irreducible', reason: 'coloured ring widths — below --radius-sm/--sp-1 floor' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'border/ring widths — below --sp-1 floor' },
@@ -384,6 +391,8 @@ describe('0038: --radius-pill is reserved for non-status surfaces', () => {
     'components/Chip/Chip.module.css',
     'components/OriginPill/OriginPill.module.css',
     'components/Sidebar/Sidebar.module.css',
+    'components/SortPill/SortPill.module.css',
+    'components/FilterPill/FilterPill.module.css',
     'routes/kanban/KanbanColumn.module.css',
     'routes/lifecycle/LifecycleIndex.module.css',
   ])

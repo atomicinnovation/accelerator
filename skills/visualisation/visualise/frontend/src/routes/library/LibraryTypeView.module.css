@@ -1,32 +1,39 @@
-.container { max-width: 900px; }
 .table { width: 100%; border-collapse: collapse; font-size: var(--size-xs); }
 .table th {
-  text-align: left; padding: 0;
-  border-bottom: 2px solid var(--ac-stroke-soft);
-}
-.sortButton {
-  all: unset;
-  display: block;
-  width: 100%;
+  text-align: left;
   padding: var(--sp-2) var(--sp-3);
-  font: inherit;
+  border-bottom: 1px solid var(--ac-stroke-soft);
   font-weight: 600;
-  color: var(--ac-fg);
-  cursor: pointer;
-  user-select: none;
+  color: var(--ac-fg-muted);
+  font-size: var(--size-xxs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
 }
-.sortButton:hover,
-.sortButton:focus-visible {
-  color: var(--ac-accent);
-  outline: 2px solid var(--ac-accent);
-  outline-offset: -2px;
+.table td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--ac-bg-sunken);
 }
-.table td { padding: 0.4rem var(--sp-3); border-bottom: 1px solid var(--ac-bg-sunken); }
 .table tr:hover td { background: var(--ac-bg-sunken); }
+.firstCol {
+  font-family: var(--ac-font-mono);
+  color: var(--ac-fg-muted);
+}
+.idPill {
+  display: inline-block;
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--ac-bg-sunken);
+  border-radius: var(--radius-sm);
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xxs);
+  color: var(--ac-fg);
+}
 .slug { color: var(--ac-fg-muted); font-size: var(--size-xxs); font-family: var(--ac-font-mono); }
 .mtime { color: var(--ac-fg-faint); font-size: var(--size-xxs); white-space: nowrap; }
-.empty { color: var(--ac-fg-muted); margin-top: var(--sp-6); }
 .error {
-  color: var(--ac-err); background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg)); border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
-  border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); margin-top: var(--sp-4);
+  color: var(--ac-err);
+  background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg));
+  border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-4);
 }

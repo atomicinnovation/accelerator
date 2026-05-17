@@ -1,174 +1,286 @@
 import { useMemo, useState } from 'react'
 import { Link, Outlet, useParams } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
-import { fetchDocs } from '../../api/fetch'
-import { formatMtime } from '../../api/format'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { fetchDocs, fetchLibraryStructure } from '../../api/fetch'
+import { formatMtime, formatDate } from '../../api/format'
 import { queryKeys } from '../../api/query-keys'
-import type { IndexEntry, DocTypeKey } from '../../api/types'
-import { isDocTypeKey } from '../../api/types'
+import type {
+  IndexEntry,
+  DocTypeKey,
+  LibrarySelectionPerType,
+  LibraryDocType,
+} from '../../api/types'
+import { isDocTypeKey, DOC_TYPE_LABELS } from '../../api/types'
 import { useMarkDocTypeSeen } from '../../api/use-unseen-doc-types'
 import { fileSlugFromRelPath } from '../../api/path-utils'
 import { Chip } from '../../components/Chip/Chip'
+import { Glyph, isGlyphDocTypeKey } from '../../components/Glyph/Glyph'
+import { Page } from '../../components/Page/Page'
+import { SortPill, type SortOption } from '../../components/SortPill/SortPill'
+import { FilterPill } from '../../components/FilterPill/FilterPill'
 import { statusToChipVariant } from '../../api/status-variant'
+import { formatDocId } from './doc-type-id'
+import { EmptyState } from './EmptyState'
+import { NoResultsPanel } from './NoResultsPanel'
 import styles from './LibraryTypeView.module.css'
 
-type SortKey = 'title' | 'slug' | 'status' | 'mtime'
-type SortDir = 'asc' | 'desc'
-
-/** Extract the status-cell's displayed value, matching the fallback
- *  chain in the rendered cell. Sort contract: clicking a column header
- *  orders rows by what the user sees in that column. */
-function statusCellValue(entry: IndexEntry): string {
+function statusValue(entry: IndexEntry): string {
   const fm = entry.frontmatter as Record<string, unknown> | null
-  return String(fm?.status ?? fm?.date ?? '')
+  const status = fm?.status
+  return typeof status === 'string' ? status : ''
 }
 
-function sortEntries(entries: IndexEntry[], key: SortKey, dir: SortDir): IndexEntry[] {
-  return [...entries].sort((a, b) => {
-    let av: string | number, bv: string | number
-    if (key === 'title') { av = a.title; bv = b.title }
-    else if (key === 'slug') { av = a.slug ?? ''; bv = b.slug ?? '' }
-    else if (key === 'status') {
-      av = statusCellValue(a)
-      bv = statusCellValue(b)
+function firstColumnContent(
+  entry: IndexEntry,
+): { kind: 'id'; value: string } | { kind: 'date'; value: string } | { kind: 'empty' } {
+  if (entry.workItemId) {
+    return { kind: 'id', value: formatDocId(entry.workItemId) }
+  }
+  const dateRaw = entry.frontmatter?.['date']
+  if (typeof dateRaw === 'string' && !Number.isNaN(Date.parse(dateRaw))) {
+    return { kind: 'date', value: formatDate(dateRaw) }
+  }
+  return { kind: 'empty' }
+}
+
+function compareEntries(a: IndexEntry, b: IndexEntry, option: SortOption): number {
+  function tieBreak(): number {
+    const ai = a.workItemId ?? ''
+    const bi = b.workItemId ?? ''
+    if (ai !== bi) return ai < bi ? -1 : 1
+    return a.relPath < b.relPath ? -1 : a.relPath > b.relPath ? 1 : 0
+  }
+  switch (option) {
+    case 'recently-modified': {
+      if (a.mtimeMs !== b.mtimeMs) return b.mtimeMs - a.mtimeMs
+      return tieBreak()
     }
-    else { av = a.mtimeMs; bv = b.mtimeMs }
-    if (av < bv) return dir === 'asc' ? -1 : 1
-    if (av > bv) return dir === 'asc' ? 1 : -1
-    return 0
-  })
+    case 'oldest-first': {
+      if (a.mtimeMs !== b.mtimeMs) return a.mtimeMs - b.mtimeMs
+      return tieBreak()
+    }
+    case 'title-asc': {
+      if (a.title !== b.title) return a.title < b.title ? -1 : 1
+      return tieBreak()
+    }
+    case 'title-desc': {
+      if (a.title !== b.title) return a.title < b.title ? 1 : -1
+      return tieBreak()
+    }
+    case 'id-asc': {
+      const ai = a.workItemId ?? ''
+      const bi = b.workItemId ?? ''
+      if (ai !== bi) return ai < bi ? -1 : 1
+      return a.relPath < b.relPath ? -1 : a.relPath > b.relPath ? 1 : 0
+    }
+  }
+}
+
+function matchesSelection(
+  entry: IndexEntry,
+  selection: LibrarySelectionPerType,
+): boolean {
+  for (const [facetId, options] of Object.entries(selection)) {
+    if (!options || options.length === 0) continue
+    let entryValue: string | null = null
+    if (facetId === 'status') entryValue = statusValue(entry) || null
+    else if (facetId === 'clusterSlug') entryValue = entry.slug
+    else if (facetId === 'project') {
+      if (entry.workItemId) {
+        const idx = entry.workItemId.indexOf('-')
+        entryValue = idx > 0 ? entry.workItemId.slice(0, idx) : null
+      }
+    }
+    if (entryValue === null) return false
+    if (!options.includes(entryValue)) return false
+  }
+  return true
 }
 
 interface Props { type?: DocTypeKey }
 
 export function LibraryTypeView({ type: propType }: Props) {
-  // Prop takes precedence (for tests that render the component directly);
-  // otherwise read from the router. The route's `parseParams` (see
-  // router.ts) has already narrowed the URL param to DocTypeKey — the
-  // `isDocTypeKey` check below is belt-and-braces for the prop path.
   const params = useParams({ strict: false }) as { type?: string; fileSlug?: string }
   const rawType = propType ?? params.type
-
-  const [sortKey, setSortKey] = useState<SortKey>('mtime')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
-
-  // Narrowed only when rawType passes the type guard; undefined otherwise.
   const type: DocTypeKey | undefined =
     rawType && isDocTypeKey(rawType) ? rawType : undefined
   const hasFileSlug = Boolean(params.fileSlug)
 
-  // Pass undefined on child-doc paths so the unseen dot on the parent
-  // type persists — the user has not actually seen the list view.
   useMarkDocTypeSeen(hasFileSlug ? undefined : type)
 
-  // Call useQuery unconditionally (Rules of Hooks). When `type` is invalid
-  // we disable the query and render an error; the key uses a sentinel so
-  // the invalid case does not share a cache entry with a real type.
+  const [sortOption, setSortOption] = useState<SortOption>('recently-modified')
+  const [selection, setSelection] = useState<LibrarySelectionPerType>({})
+
   const { data: entries = [], isLoading, isError, error } = useQuery({
     queryKey: type ? queryKeys.docs(type) : ['docs', '__invalid__'] as const,
     queryFn: () => fetchDocs(type!),
     enabled: type !== undefined,
   })
 
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDir('asc') }
-  }
+  const structureSelection = useMemo(
+    () => (type ? { [type]: selection } : undefined),
+    [type, selection],
+  )
+  const structureQuery = useQuery({
+    queryKey: queryKeys.libraryStructure(structureSelection),
+    queryFn: () => fetchLibraryStructure(structureSelection),
+    enabled: type !== undefined,
+    placeholderData: keepPreviousData,
+  })
 
-  // Memoise BEFORE any conditional early returns — Rules of Hooks require
-  // every hook to run in the same order on every render.
+  const currentTypeData: LibraryDocType | undefined = useMemo(() => {
+    const data = structureQuery.data
+    if (!data || !type) return undefined
+    for (const phase of data.phases) {
+      const found = phase.docTypes.find((dt) => dt.id === type)
+      if (found) return found
+    }
+    if (data.templates.id === type) return data.templates
+    return undefined
+  }, [structureQuery.data, type])
+
+  const filteredEntries = useMemo(
+    () => entries.filter((e) => matchesSelection(e, selection)),
+    [entries, selection],
+  )
   const sorted = useMemo(
-    () => sortEntries(entries, sortKey, sortDir),
-    [entries, sortKey, sortDir],
+    () => [...filteredEntries].sort((a, b) => compareEntries(a, b, sortOption)),
+    [filteredEntries, sortOption],
   )
 
-  const ariaSortFor = (key: SortKey): 'ascending' | 'descending' | 'none' =>
-    sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'
-
-  // When a child route (document detail) is active, delegate rendering to it.
-  // LibraryDocView is a child of this route in the route tree, so it only
-  // renders if we provide <Outlet />.
   if (params.fileSlug) return <Outlet />
 
   if (type === undefined) {
     return <p role="alert">Unknown doc type: {String(rawType)}</p>
   }
-  if (isLoading) return <p>Loading…</p>
+  if (isLoading) {
+    return (
+      <Page
+        eyebrow={<EyebrowLabel type={type} />}
+        title={DOC_TYPE_LABELS[type]}
+        subtitle="Loading…"
+      >
+        <p>Loading…</p>
+      </Page>
+    )
+  }
   if (isError) {
     return (
-      <p role="alert" className={styles.error}>
-        Failed to load documents: {error instanceof Error ? error.message : String(error)}
-      </p>
+      <Page
+        eyebrow={<EyebrowLabel type={type} />}
+        title={DOC_TYPE_LABELS[type]}
+      >
+        <p role="alert" className={styles.error}>
+          Failed to load documents:{' '}
+          {error instanceof Error ? error.message : String(error)}
+        </p>
+      </Page>
     )
   }
 
-  return (
-    <div className={styles.container}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <SortHeader label="Title"    skey="title"  ariaSort={ariaSortFor('title')}  onToggle={toggleSort} current={sortKey} dir={sortDir} />
-            <SortHeader label="Status"   skey="status" ariaSort={ariaSortFor('status')} onToggle={toggleSort} current={sortKey} dir={sortDir} />
-            <SortHeader label="Slug"     skey="slug"   ariaSort={ariaSortFor('slug')}   onToggle={toggleSort} current={sortKey} dir={sortDir} />
-            <SortHeader label="Modified" skey="mtime"  ariaSort={ariaSortFor('mtime')}  onToggle={toggleSort} current={sortKey} dir={sortDir} />
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map(entry => (
-            <tr key={entry.relPath}>
-              <td>
-                <Link to="/library/$type/$fileSlug" params={{ type, fileSlug: entry.slug ?? fileSlugFromRelPath(entry.relPath) }}>
-                  {entry.title}
-                </Link>
-              </td>
-              <td>
-                {(() => {
-                  const label = statusCellValue(entry)
-                  if (!label) return '—'
-                  const fm = entry.frontmatter as Record<string, unknown> | null
-                  return (
-                    <Chip variant={statusToChipVariant(fm?.status)}>{label}</Chip>
-                  )
-                })()}
-              </td>
-              <td className={styles.slug}>{entry.slug ?? '—'}</td>
-              <td className={styles.mtime}>
-                {formatMtime(entry.mtimeMs)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {entries.length === 0 && <p className={styles.empty}>No documents found.</p>}
-    </div>
-  )
-}
+  const totalCount = entries.length
+  const filteredCount = filteredEntries.length
+  const isDocTypeEmpty = totalCount === 0
+  const isFilterEmpty = filteredCount === 0 && totalCount > 0
 
-/** Sortable column header. `<button>` semantics give keyboard users
- *  Enter/Space to toggle; `aria-sort` communicates current state to
- *  assistive technologies. */
-function SortHeader({
-  label, skey, ariaSort, current, dir, onToggle,
-}: {
-  label: string
-  skey: SortKey
-  ariaSort: 'ascending' | 'descending' | 'none'
-  current: SortKey
-  dir: SortDir
-  onToggle: (k: SortKey) => void
-}) {
-  const isActive = current === skey
-  const arrow = isActive ? (dir === 'asc' ? ' ▲' : ' ▼') : ''
-  return (
-    <th aria-sort={ariaSort}>
-      <button
-        type="button"
-        className={styles.sortButton}
-        onClick={() => onToggle(skey)}
+  if (isDocTypeEmpty) {
+    return (
+      <Page
+        eyebrow={<EyebrowLabel type={type} />}
+        title={DOC_TYPE_LABELS[type]}
       >
-        {label}{arrow}
-      </button>
-    </th>
+        <EmptyState docType={type} dirPath={`meta/${type}`} />
+      </Page>
+    )
+  }
+
+  const facets = currentTypeData?.filterFacets ?? []
+
+  return (
+    <Page
+      eyebrow={<EyebrowLabel type={type} />}
+      title={DOC_TYPE_LABELS[type]}
+      subtitle={`${filteredCount} ${filteredCount === 1 ? 'document' : 'documents'}`}
+      actions={
+        <>
+          <SortPill value={sortOption} onChange={setSortOption} />
+          <FilterPill
+            facets={facets}
+            selection={selection}
+            onChange={setSelection}
+            isFetching={structureQuery.isFetching}
+          />
+        </>
+      }
+    >
+      {isFilterEmpty ? (
+        <NoResultsPanel
+          selection={selection}
+          facets={facets}
+          onClear={() => setSelection({})}
+        />
+      ) : (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>ID / DATE</th>
+              <th>TITLE</th>
+              <th>STATUS</th>
+              <th>SLUG</th>
+              <th>MODIFIED</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((entry) => {
+              const first = firstColumnContent(entry)
+              return (
+                <tr key={entry.relPath}>
+                  <td className={styles.firstCol}>
+                    {first.kind === 'id' ? (
+                      <span className={styles.idPill}>{first.value}</span>
+                    ) : first.kind === 'date' ? (
+                      <span>{first.value}</span>
+                    ) : (
+                      <span>—</span>
+                    )}
+                  </td>
+                  <td>
+                    <Link
+                      to="/library/$type/$fileSlug"
+                      params={{
+                        type,
+                        fileSlug: entry.slug ?? fileSlugFromRelPath(entry.relPath),
+                      }}
+                    >
+                      {entry.title}
+                    </Link>
+                  </td>
+                  <td>
+                    {statusValue(entry) ? (
+                      <Chip variant={statusToChipVariant(statusValue(entry))}>
+                        {statusValue(entry)}
+                      </Chip>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td className={styles.slug}>{entry.slug ?? '—'}</td>
+                  <td className={styles.mtime}>{formatMtime(entry.mtimeMs)}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
+    </Page>
   )
 }
 
+function EyebrowLabel({ type }: { type: DocTypeKey }) {
+  return (
+    <>
+      {isGlyphDocTypeKey(type) && <Glyph docType={type} size={16} />}
+      {DOC_TYPE_LABELS[type].toUpperCase()}
+    </>
+  )
+}
