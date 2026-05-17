@@ -7,6 +7,7 @@ argument-hint: "[PR number or URL]"
 disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/*)
 ---
 
 # Review PR
@@ -114,7 +115,7 @@ the user's input.
 5. **Fetch additional metadata for the Reviews API**:
    ```bash
    gh api repos/{owner}/{repo}/pulls/{number} --jq '.head.sha' > {tmp directory}/pr-review-{number}/head-sha.txt
-   gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"' > {tmp directory}/pr-review-{number}/repo-info.txt
+   ${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/pr-base-repo.sh {number} > {tmp directory}/pr-review-{number}/repo-info.txt
    ```
 
    Where `{owner}` and `{repo}` are extracted from the PR metadata already
@@ -127,8 +128,10 @@ the user's input.
 - **No default remote repository**: Instruct the user to run
   `gh repo set-default` and select the appropriate repository (mirrors the
   pattern in `/describe-pr`).
-- **Cannot determine repo owner/name**: If `gh repo view` fails, instruct the
-  user to run `gh repo set-default` and select the appropriate repository.
+- **Cannot determine base repo owner/name**: If `pr-base-repo.sh` exits
+  non-zero, surface its stderr verbatim — it preserves the underlying
+  `gh` error and includes a `gh repo set-default` remediation hint when
+  applicable.
 - **Invalid PR number or PR not found**: Inform the user that the PR could not
   be found and suggest checking the number. If on a branch with no PR, list
   open PRs with `gh pr list --limit 10` and ask the user to select one.
