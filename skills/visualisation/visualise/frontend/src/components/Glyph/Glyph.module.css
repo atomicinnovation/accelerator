@@ -1,11 +1,15 @@
+/* Outer dimensions (width/height) and padding are applied inline by the
+   Glyph component so the framed total matches the `size` prop. The
+   background tint is per-doc-type via the attribute selectors below. */
 .frame {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  padding: var(--sp-1);
+  box-sizing: border-box;
   border-radius: var(--radius-sm);
   background: var(--ac-bg-sunken);
+  flex-shrink: 0;
 }
 
 .frame[data-doc-type="decisions"]           { background: var(--ac-doc-bg-decisions); }

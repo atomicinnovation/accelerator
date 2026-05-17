@@ -102,11 +102,40 @@ export function Glyph({ docType, size, ariaLabel, framed }: GlyphProps): ReactEl
       ? ({ role: 'img' as const, 'aria-label': ariaLabel })
       : ({ 'aria-hidden': true as const })
 
+  // Framed mode: `size` denotes the OUTER tile dimension (matches the
+  // prototype's `.ac-glyph` convention). Padding scales at ~14% so a
+  // size-16 tile gets 2px pad with a 12px icon inside, size-24 → 3/18,
+  // size-32 → 4/24. The wrapper carries the tinted background; the SVG
+  // fills the remaining inner area and inherits its `--ac-doc-{type}`
+  // colour from the inline style below.
+  if (framed) {
+    const pad = Math.round(size * 0.14)
+    const inner = size - 2 * pad
+    return (
+      <span
+        className={styles.frame}
+        data-doc-type={docType}
+        style={{ width: `${size}px`, height: `${size}px`, padding: `${pad}px` }}
+      >
+        <svg
+          width={inner}
+          height={inner}
+          viewBox="0 0 24 24"
+          style={{ color: `var(--ac-doc-${docType})` }}
+          data-doc-type={docType}
+          {...a11y}
+        >
+          <Icon />
+        </svg>
+      </span>
+    )
+  }
+
   // viewBox 0 0 24 24 — see meta/work/0037-glyph-component.md (Colour Token
   // Table). Theme contract: `color: var(--ac-doc-<key>)` on this <svg> +
   // `fill="currentColor"` on children. Any child overriding `fill` fails
   // loudly visually rather than silently breaking the theme contract.
-  const svg = (
+  return (
     <svg
       width={size}
       height={size}
@@ -118,9 +147,4 @@ export function Glyph({ docType, size, ariaLabel, framed }: GlyphProps): ReactEl
       <Icon />
     </svg>
   )
-
-  if (framed) {
-    return <span className={styles.frame} data-doc-type={docType}>{svg}</span>
-  }
-  return svg
 }
