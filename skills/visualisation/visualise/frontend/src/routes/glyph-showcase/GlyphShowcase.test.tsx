@@ -27,7 +27,7 @@ describe('GlyphShowcase', () => {
       expect(text, `missing kebab key ${docType}`).toContain(docType)
     }
     // Sample two friendly labels — full set covered by DOC_TYPE_LABELS parity.
-    expect(text).toContain('Decision')
-    expect(text).toContain('Design inventory')
+    expect(text).toContain('Decisions')
+    expect(text).toContain('Design inventories')
   })
 })

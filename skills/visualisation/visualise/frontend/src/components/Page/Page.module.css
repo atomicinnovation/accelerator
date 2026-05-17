@@ -12,7 +12,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  padding-block: var(--sp-5);
+  padding-block: var(--sp-4);
 }
 
 .headerTopRow {
@@ -36,7 +36,7 @@
   color: var(--ac-fg-strong);
   margin: 0;
   font-family: var(--ac-font-display);
-  font-size: var(--size-h2);
+  font-size: var(--size-lg);
   font-weight: 600;
 }
 

@@ -33,19 +33,19 @@ export const VIRTUAL_DOC_TYPE_KEYS: readonly DocTypeKey[] = ['templates'] as con
  *  server-emitted `DocType.label` field; used in dev-only routes (e.g.
  *  `/glyph-showcase`) and tests where a runtime `useQuery` is undesirable. */
 export const DOC_TYPE_LABELS: Readonly<Record<DocTypeKey, string>> = {
-  'decisions': 'Decision',
-  'work-items': 'Work item',
-  'plans': 'Plan',
+  'decisions': 'Decisions',
+  'work-items': 'Work items',
+  'plans': 'Plans',
   'research': 'Research',
-  'plan-reviews': 'Plan review',
-  'pr-reviews': 'PR review',
-  'work-item-reviews': 'Work item review',
-  'validations': 'Validation',
+  'plan-reviews': 'Plan reviews',
+  'pr-reviews': 'PR reviews',
+  'work-item-reviews': 'Work item reviews',
+  'validations': 'Validations',
   'notes': 'Notes',
   'pr-descriptions': 'PR descriptions',
-  'design-gaps': 'Design gap',
-  'design-inventories': 'Design inventory',
-  'templates': 'Template',
+  'design-gaps': 'Design gaps',
+  'design-inventories': 'Design inventories',
+  'templates': 'Templates',
 }
 
 export interface DocType {

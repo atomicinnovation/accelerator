@@ -106,7 +106,7 @@ describe('LibraryTypeView', () => {
     // Wait for the data branch by waiting on a row, then assert chrome.
     await screen.findByText('Foo Plan')
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Plan' }),
+      screen.getByRole('heading', { level: 1, name: 'Plans' }),
     ).toBeInTheDocument()
     expect(screen.getByText(/2 documents/i)).toBeInTheDocument()
   })

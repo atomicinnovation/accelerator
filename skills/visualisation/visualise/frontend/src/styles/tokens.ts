@@ -63,22 +63,23 @@ export const DARK_COLOR_TOKENS = {
   'ac-ok':             '#79d9a6',
   'ac-warn':           '#e4b76e',
   'ac-err':            '#e86a6b',
-  // Per-doc-type glyph foreground (dark theme). The canonical dark screenshot
-  // renders all icons in a monochrome neutral, so dark values are derived (not
-  // eyedroppered) — lighter hue-preserving variants of the light tokens that
-  // clear WCAG 1.4.11 ≥3:1 against --ac-bg (#0a111b).
-  'ac-doc-decisions':           '#e26b6d',
-  'ac-doc-work-items':          '#e27357',
-  'ac-doc-plans':               '#7a95e0',
-  'ac-doc-research':            '#e1985e',
-  'ac-doc-plan-reviews':        '#9678e0',
-  'ac-doc-pr-reviews':          '#b070dd',
-  'ac-doc-work-item-reviews':   '#e26a88',
-  'ac-doc-validations':         '#85ddb3',
-  'ac-doc-notes':               '#dcc764',
-  'ac-doc-pr-descriptions':                 '#79b5dd',
-  'ac-doc-design-gaps':         '#a8dd70',
-  'ac-doc-design-inventories':  '#7dd3e0',
+  // Per-doc-type glyph foreground (dark theme). Design intent: monochrome
+  // glyphs in dark mode regardless of doc type — all twelve tokens resolve
+  // to --ac-fg-strong (#ffffff). Keeping the per-key tokens preserves the
+  // light/dark parity contract; the values just collapse to a single hue
+  // in dark.
+  'ac-doc-decisions':           '#ffffff',
+  'ac-doc-work-items':          '#ffffff',
+  'ac-doc-plans':               '#ffffff',
+  'ac-doc-research':            '#ffffff',
+  'ac-doc-plan-reviews':        '#ffffff',
+  'ac-doc-pr-reviews':          '#ffffff',
+  'ac-doc-work-item-reviews':   '#ffffff',
+  'ac-doc-validations':         '#ffffff',
+  'ac-doc-notes':               '#ffffff',
+  'ac-doc-pr-descriptions':     '#ffffff',
+  'ac-doc-design-gaps':         '#ffffff',
+  'ac-doc-design-inventories':  '#ffffff',
 } as const
 
 export const TYPOGRAPHY_TOKENS = {

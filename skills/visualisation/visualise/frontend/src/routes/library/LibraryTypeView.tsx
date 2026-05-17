@@ -220,57 +220,54 @@ export function LibraryTypeView({ type: propType }: Props) {
           onClear={() => setSelection({})}
         />
       ) : (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>ID / DATE</th>
-              <th>TITLE</th>
-              <th>STATUS</th>
-              <th>SLUG</th>
-              <th>MODIFIED</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((entry) => {
-              const first = firstColumnContent(entry)
-              return (
-                <tr key={entry.relPath}>
-                  <td className={styles.firstCol}>
-                    {first.kind === 'id' ? (
-                      <span className={styles.idPill}>{first.value}</span>
-                    ) : first.kind === 'date' ? (
-                      <span>{first.value}</span>
-                    ) : (
-                      <span>—</span>
-                    )}
-                  </td>
-                  <td>
-                    <Link
-                      to="/library/$type/$fileSlug"
-                      params={{
-                        type,
-                        fileSlug: entry.slug ?? fileSlugFromRelPath(entry.relPath),
-                      }}
-                    >
-                      {entry.title}
-                    </Link>
-                  </td>
-                  <td>
-                    {statusValue(entry) ? (
-                      <Chip variant={statusToChipVariant(statusValue(entry))}>
-                        {statusValue(entry)}
-                      </Chip>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td className={styles.slug}>{entry.slug ?? '—'}</td>
-                  <td className={styles.mtime}>{formatMtime(entry.mtimeMs)}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <div className={styles.rows} role="table">
+          <div className={styles.headerRow} role="row">
+            <span role="columnheader">ID / DATE</span>
+            <span role="columnheader">TITLE</span>
+            <span role="columnheader">STATUS</span>
+            <span role="columnheader">SLUG</span>
+            <span role="columnheader">MODIFIED</span>
+          </div>
+          {sorted.map((entry) => {
+            const first = firstColumnContent(entry)
+            return (
+              <Link
+                key={entry.relPath}
+                to="/library/$type/$fileSlug"
+                params={{
+                  type,
+                  fileSlug: entry.slug ?? fileSlugFromRelPath(entry.relPath),
+                }}
+                role="row"
+                className={styles.row}
+              >
+                <span role="cell" className={styles.firstCol}>
+                  {first.kind === 'id' ? (
+                    <span className={styles.idPill}>{first.value}</span>
+                  ) : first.kind === 'date' ? (
+                    <span>{first.value}</span>
+                  ) : (
+                    <span>—</span>
+                  )}
+                </span>
+                <span role="cell" className={styles.titleCell}>
+                  {entry.title}
+                </span>
+                <span role="cell">
+                  {statusValue(entry) ? (
+                    <Chip variant={statusToChipVariant(statusValue(entry))}>
+                      {statusValue(entry)}
+                    </Chip>
+                  ) : (
+                    '—'
+                  )}
+                </span>
+                <span role="cell" className={styles.slug}>{entry.slug ?? '—'}</span>
+                <span role="cell" className={styles.mtime}>{formatMtime(entry.mtimeMs)}</span>
+              </Link>
+            )
+          })}
+        </div>
       )}
     </Page>
   )
@@ -279,7 +276,9 @@ export function LibraryTypeView({ type: propType }: Props) {
 function EyebrowLabel({ type }: { type: DocTypeKey }) {
   return (
     <>
-      {isGlyphDocTypeKey(type) && <Glyph docType={type} size={16} />}
+      {isGlyphDocTypeKey(type) && (
+        <Glyph docType={type} size={16} framed />
+      )}
       {DOC_TYPE_LABELS[type].toUpperCase()}
     </>
   )

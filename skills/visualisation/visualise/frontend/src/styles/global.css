@@ -193,21 +193,20 @@ body {
   --ac-ok:             #79d9a6;
   --ac-warn:           #e4b76e;
   --ac-err:            #e86a6b;
-  /* Per-doc-type glyph foreground (dark). The canonical dark screenshot renders
-     icons monochrome, so dark values are derived (not eyedroppered) — hue-
-     preserving lifts of the light tokens that clear ≥3:1 against --ac-bg. */
-  --ac-doc-decisions:           #e26b6d;
-  --ac-doc-work-items:          #e27357;
-  --ac-doc-plans:               #7a95e0;
-  --ac-doc-research:            #e1985e;
-  --ac-doc-plan-reviews:        #9678e0;
-  --ac-doc-pr-reviews:          #b070dd;
-  --ac-doc-work-item-reviews:   #e26a88;
-  --ac-doc-validations:         #85ddb3;
-  --ac-doc-notes:               #dcc764;
-  --ac-doc-pr-descriptions:                 #79b5dd;
-  --ac-doc-design-gaps:         #a8dd70;
-  --ac-doc-design-inventories:  #7dd3e0;
+  /* Per-doc-type glyph foreground (dark). Design intent: monochrome glyphs
+     in dark mode — all twelve tokens collapse to --ac-fg-strong (#ffffff). */
+  --ac-doc-decisions:           #ffffff;
+  --ac-doc-work-items:          #ffffff;
+  --ac-doc-plans:               #ffffff;
+  --ac-doc-research:            #ffffff;
+  --ac-doc-plan-reviews:        #ffffff;
+  --ac-doc-pr-reviews:          #ffffff;
+  --ac-doc-work-item-reviews:   #ffffff;
+  --ac-doc-validations:         #ffffff;
+  --ac-doc-notes:               #ffffff;
+  --ac-doc-pr-descriptions:     #ffffff;
+  --ac-doc-design-gaps:         #ffffff;
+  --ac-doc-design-inventories:  #ffffff;
   --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
   --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
   color-scheme: dark;
@@ -242,18 +241,18 @@ body {
     --ac-ok:             #79d9a6;
     --ac-warn:           #e4b76e;
     --ac-err:            #e86a6b;
-    --ac-doc-decisions:           #e26b6d;
-    --ac-doc-work-items:          #e27357;
-    --ac-doc-plans:               #7a95e0;
-    --ac-doc-research:            #e1985e;
-    --ac-doc-plan-reviews:        #9678e0;
-    --ac-doc-pr-reviews:          #b070dd;
-    --ac-doc-work-item-reviews:   #e26a88;
-    --ac-doc-validations:         #85ddb3;
-    --ac-doc-notes:               #dcc764;
-    --ac-doc-pr-descriptions:                 #79b5dd;
-    --ac-doc-design-gaps:         #a8dd70;
-    --ac-doc-design-inventories:  #7dd3e0;
+    --ac-doc-decisions:           #ffffff;
+    --ac-doc-work-items:          #ffffff;
+    --ac-doc-plans:               #ffffff;
+    --ac-doc-research:            #ffffff;
+    --ac-doc-plan-reviews:        #ffffff;
+    --ac-doc-pr-reviews:          #ffffff;
+    --ac-doc-work-item-reviews:   #ffffff;
+    --ac-doc-validations:         #ffffff;
+    --ac-doc-notes:               #ffffff;
+    --ac-doc-pr-descriptions:     #ffffff;
+    --ac-doc-design-gaps:         #ffffff;
+    --ac-doc-design-inventories:  #ffffff;
     --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
     --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
     color-scheme: dark;

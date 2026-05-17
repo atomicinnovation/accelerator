@@ -58,7 +58,9 @@ function HubCard({ docType }: { docType: LibraryDocType }) {
     <>
       <div className={styles.cardTopRow}>
         <span className={styles.cardLabel}>
-          {isGlyphDocTypeKey(docType.id) && <Glyph docType={docType.id} size={24} />}
+          {isGlyphDocTypeKey(docType.id) && (
+            <Glyph docType={docType.id} size={24} framed />
+          )}
           {docType.label}
         </span>
         <span className={styles.cardCount}>{docType.count}</span>

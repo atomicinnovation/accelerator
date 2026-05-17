@@ -129,7 +129,9 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   // routes/library/LibraryTemplatesView.module.css
   { file: 'routes/library/LibraryTemplatesView.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   // routes/library/LibraryTypeView.module.css
-  { file: 'routes/library/LibraryTypeView.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'th border-bottom, td border-bottom, error border widths — below --sp-1 floor' },
+  { file: 'routes/library/LibraryTypeView.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'header-row, row, and error border widths — below --sp-1 floor' },
+  { file: 'routes/library/LibraryTypeView.module.css', literal: '120px', count: 2, kind: 'irreducible', reason: 'grid column tracks (first column + status) — no token equivalent' },
+  { file: 'routes/library/LibraryTypeView.module.css', literal: '110px', count: 1, kind: 'irreducible', reason: 'grid column track (modified) — no token equivalent' },
   // routes/library/LibraryOverviewHub.module.css
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'card border width — below --sp-1 floor' },
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '640px', count: 1, kind: 'irreducible', reason: 'responsive grid breakpoint — no token equivalent' },
@@ -386,7 +388,6 @@ describe('0038: --radius-pill is reserved for non-status surfaces', () => {
     'components/Chip/Chip.module.css',
     'components/OriginPill/OriginPill.module.css',
     'components/Sidebar/Sidebar.module.css',
-    'components/SortPill/SortPill.module.css',
     'components/FilterPill/FilterPill.module.css',
     'routes/kanban/KanbanColumn.module.css',
     'routes/lifecycle/LifecycleIndex.module.css',

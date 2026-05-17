@@ -1,6 +1,7 @@
 // Preview all 12 doc types × 3 sizes in both themes at /glyph-showcase (see frontend README).
 import type { ComponentType, ReactElement } from 'react'
 import { type DocTypeKey, DOC_TYPE_KEYS, VIRTUAL_DOC_TYPE_KEYS } from '../../api/types'
+import styles from './Glyph.module.css'
 import { DecisionsIcon } from './icons/DecisionsIcon'
 import { DesignGapsIcon } from './icons/DesignGapsIcon'
 import { DesignInventoriesIcon } from './icons/DesignInventoriesIcon'
@@ -64,6 +65,9 @@ export interface GlyphProps {
    *  with `role="img"` + `aria-label`. If omitted (undefined), Glyph is
    *  decorative (`aria-hidden`). */
   ariaLabel?: string
+  /** When true, the glyph is wrapped in a tinted square frame. Used in the
+   *  library list view eyebrow and overview hub cards. */
+  framed?: boolean
 }
 
 /**
@@ -83,7 +87,7 @@ export interface GlyphProps {
  * 5. Narrow `DocTypeKey` to `GlyphDocTypeKey` via `isGlyphDocTypeKey()` or
  *    `GLYPH_DOC_TYPE_KEYS`. Do not reinvent the filter; do not use `as` casts.
  */
-export function Glyph({ docType, size, ariaLabel }: GlyphProps): ReactElement | null {
+export function Glyph({ docType, size, ariaLabel, framed }: GlyphProps): ReactElement | null {
   const Icon = ICON_COMPONENTS[docType]
   if (!Icon) {
     if (import.meta.env.DEV) {
@@ -97,11 +101,12 @@ export function Glyph({ docType, size, ariaLabel }: GlyphProps): ReactElement | 
     ariaLabel !== undefined
       ? ({ role: 'img' as const, 'aria-label': ariaLabel })
       : ({ 'aria-hidden': true as const })
-  return (
-    // viewBox 0 0 24 24 — see meta/work/0037-glyph-component.md (Colour Token
-    // Table). Theme contract: `color: var(--ac-doc-<key>)` on this <svg> +
-    // `fill="currentColor"` on children. Any child overriding `fill` fails
-    // loudly visually rather than silently breaking the theme contract.
+
+  // viewBox 0 0 24 24 — see meta/work/0037-glyph-component.md (Colour Token
+  // Table). Theme contract: `color: var(--ac-doc-<key>)` on this <svg> +
+  // `fill="currentColor"` on children. Any child overriding `fill` fails
+  // loudly visually rather than silently breaking the theme contract.
+  const svg = (
     <svg
       width={size}
       height={size}
@@ -113,4 +118,9 @@ export function Glyph({ docType, size, ariaLabel }: GlyphProps): ReactElement | 
       <Icon />
     </svg>
   )
+
+  if (framed) {
+    return <span className={styles.frame} data-doc-type={docType}>{svg}</span>
+  }
+  return svg
 }
