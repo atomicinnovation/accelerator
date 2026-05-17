@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -6,6 +7,7 @@ import { formatMtime } from '../../api/format'
 import { queryKeys } from '../../api/query-keys'
 import { WORKFLOW_PIPELINE_STEPS, type LifecycleCluster } from '../../api/types'
 import { PipelineDots } from '../../components/PipelineDots/PipelineDots'
+import { Page } from '../../components/Page/Page'
 import styles from './LifecycleIndex.module.css'
 
 type SortMode = 'recent' | 'oldest' | 'completeness'
@@ -55,68 +57,80 @@ export function LifecycleIndex() {
     [clusters, filter, sortMode],
   )
 
-  if (isPending) return <p>Loading…</p>
-  if (isError) {
-    return (
+  const toolbar = (
+    <div className={styles.toolbar}>
+      <input
+        type="search"
+        aria-label="Filter clusters"
+        placeholder="Filter…"
+        className={styles.filterInput}
+        value={filter}
+        onChange={e => setFilter(e.target.value)}
+      />
+      <span className={styles.toolbarLabel}>Sort:</span>
+      <SortButton current={sortMode} value="recent"       label="Recent"       onChange={setSortMode} />
+      <SortButton current={sortMode} value="oldest"       label="Oldest"       onChange={setSortMode} />
+      <SortButton current={sortMode} value="completeness" label="Completeness" onChange={setSortMode} />
+    </div>
+  )
+
+  let content: ReactNode
+  if (isPending) {
+    content = <p>Loading…</p>
+  } else if (isError) {
+    content = (
       <p role="alert" className={styles.error}>
         {error instanceof FetchError
           ? 'Could not load lifecycle clusters. Try again later.'
           : 'Something went wrong loading lifecycle clusters. Try again later.'}
       </p>
     )
-  }
-  if (clusters.length === 0) {
-    return <p className={styles.empty}>No lifecycle clusters found.</p>
+  } else if (clusters.length === 0) {
+    content = <p className={styles.empty}>No lifecycle clusters found.</p>
+  } else {
+    content = (
+      <>
+        {visible.length === 0 && (
+          <p role="status" className={styles.empty}>
+            No clusters match &quot;{filter}&quot;.
+          </p>
+        )}
+        <ul className={styles.cardList}>
+          {visible.map(cluster => {
+            const score = completenessScore(cluster)
+            return (
+              <li key={cluster.slug} className={styles.card}>
+                <Link
+                  to="/lifecycle/$slug"
+                  params={{ slug: cluster.slug }}
+                  className={styles.cardLink}
+                >
+                  <div className={styles.cardHeader}>
+                    <h3 className={styles.cardTitle}>{cluster.title}</h3>
+                    <span className={styles.cardSlug}>{cluster.slug}</span>
+                  </div>
+                  <PipelineDots completeness={cluster.completeness} />
+                  <div className={styles.cardMeta}>
+                    <span>{score} of {WORKFLOW_PIPELINE_STEPS.length} stages</span>
+                    <span>{formatMtime(cluster.lastChangedMs)}</span>
+                  </div>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </>
+    )
   }
 
+  const showToolbar = !isPending && !isError && clusters.length > 0
   return (
-    <div className={styles.container}>
-      <div className={styles.toolbar}>
-        <input
-          type="search"
-          aria-label="Filter clusters"
-          placeholder="Filter…"
-          className={styles.filterInput}
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-        />
-        <span className={styles.toolbarLabel}>Sort:</span>
-        <SortButton current={sortMode} value="recent"       label="Recent"       onChange={setSortMode} />
-        <SortButton current={sortMode} value="oldest"       label="Oldest"       onChange={setSortMode} />
-        <SortButton current={sortMode} value="completeness" label="Completeness" onChange={setSortMode} />
+    <Page title="Lifecycle">
+      <div className={styles.container}>
+        {showToolbar && toolbar}
+        {content}
       </div>
-
-      {visible.length === 0 && (
-        <p role="status" className={styles.empty}>
-          No clusters match &quot;{filter}&quot;.
-        </p>
-      )}
-
-      <ul className={styles.cardList}>
-        {visible.map(cluster => {
-          const score = completenessScore(cluster)
-          return (
-            <li key={cluster.slug} className={styles.card}>
-              <Link
-                to="/lifecycle/$slug"
-                params={{ slug: cluster.slug }}
-                className={styles.cardLink}
-              >
-                <div className={styles.cardHeader}>
-                  <h3 className={styles.cardTitle}>{cluster.title}</h3>
-                  <span className={styles.cardSlug}>{cluster.slug}</span>
-                </div>
-                <PipelineDots completeness={cluster.completeness} />
-                <div className={styles.cardMeta}>
-                  <span>{score} of {WORKFLOW_PIPELINE_STEPS.length} stages</span>
-                  <span>{formatMtime(cluster.lastChangedMs)}</span>
-                </div>
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
+    </Page>
   )
 }
 

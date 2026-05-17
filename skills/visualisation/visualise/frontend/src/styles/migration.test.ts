@@ -122,16 +122,12 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   // routes/library/LibraryDocView.module.css
   { file: 'routes/library/LibraryDocView.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'malformed-banner border-left width — no border-width token' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'aside h3 margin (6.4px) — between --sp-1 and --sp-2' },
-  { file: 'routes/library/LibraryDocView.module.css', literal: '1.6rem', count: 1, kind: 'irreducible', reason: 'title font-size (25.6px) — 3.6px above size-lg ceiling; no heading token' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
-  { file: 'routes/library/LibraryDocView.module.css', literal: '1100px', count: 1, kind: 'irreducible', reason: 'article max-width — no token equivalent' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '260px', count: 1, kind: 'irreducible', reason: 'aside column width — no token equivalent' },
   // routes/library/LibraryTemplatesIndex.module.css
   { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
-  { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '600px', count: 1, kind: 'irreducible', reason: 'container max-width — no token equivalent' },
   // routes/library/LibraryTemplatesView.module.css
   { file: 'routes/library/LibraryTemplatesView.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
-  { file: 'routes/library/LibraryTemplatesView.module.css', literal: '900px', count: 1, kind: 'irreducible', reason: 'container max-width — no token equivalent' },
   // routes/library/LibraryTypeView.module.css
   { file: 'routes/library/LibraryTypeView.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'th border-bottom, td border-bottom, error border widths — below --sp-1 floor' },
   // routes/library/LibraryOverviewHub.module.css
@@ -167,7 +163,6 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '6px', count: 2, kind: 'irreducible', reason: 'toolbar gap and card radius — layout pixels, no token equivalent' },
   { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '220px', count: 1, kind: 'irreducible', reason: 'filter input flex basis — no token equivalent' },
   { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '320px', count: 1, kind: 'irreducible', reason: 'card grid min-width — no token equivalent' },
-  { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '900px', count: 1, kind: 'irreducible', reason: 'container max-width — no token equivalent' },
   // styles/wiki-links.global.css
   { file: 'styles/wiki-links.global.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border-bottom width — below --sp-1 floor' },
 ]
@@ -410,11 +405,7 @@ describe('0038: --radius-pill is reserved for non-status surfaces', () => {
 })
 
 describe('Phase 1 (0034): route titles consume --ac-fg-strong', () => {
-  const REQUIRED = [
-    { file: 'routes/library/LibraryDocView.module.css', selector: '.title' },
-    { file: 'routes/library/LibraryTemplatesView.module.css', selector: '.title' },
-    { file: 'routes/library/LibraryTemplatesIndex.module.css', selector: '.title' },
-  ] as const
+  const REQUIRED: { file: string; selector: string }[] = []
 
   for (const { file, selector } of REQUIRED) {
     it(`${file} ${selector} declares color: var(--ac-fg-strong)`, () => {

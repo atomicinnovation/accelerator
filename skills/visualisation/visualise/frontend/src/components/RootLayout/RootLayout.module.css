@@ -13,5 +13,4 @@
 .main {
   flex: 1;
   overflow: auto;
-  padding: var(--sp-5) var(--sp-6);
 }

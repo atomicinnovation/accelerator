@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react'
 import { useParams } from '@tanstack/react-router'
+import { Page } from '../../components/Page/Page'
 import { useQuery } from '@tanstack/react-query'
 import { fetchTemplateDetail } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
@@ -28,18 +30,20 @@ export function LibraryTemplatesView({ name: propName }: Props) {
   if (!name) {
     return <p role="alert">Missing template name.</p>
   }
+
+  let title: ReactNode = 'Loading…'
+  let content: ReactNode = <p>Loading…</p>
+
   if (isError) {
-    return (
+    title = 'Template not found'
+    content = (
       <p role="alert" className={styles.error}>
         Failed to load template: {error instanceof Error ? error.message : String(error)}
       </p>
     )
-  }
-  if (isLoading || !data) return <p>Loading…</p>
-
-  return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>{name}</h1>
+  } else if (!isLoading && data) {
+    title = name
+    content = (
       <div className={styles.tiers}>
         {data.tiers.map(tier => (
           <TierPanel
@@ -49,8 +53,10 @@ export function LibraryTemplatesView({ name: propName }: Props) {
           />
         ))}
       </div>
-    </div>
-  )
+    )
+  }
+
+  return <Page title={title}>{content}</Page>
 }
 
 function TierPanel({ tier, isActive }: { tier: TemplateTier; isActive: boolean }) {

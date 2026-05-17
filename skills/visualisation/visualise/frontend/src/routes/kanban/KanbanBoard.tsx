@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -17,7 +18,7 @@ import { useMoveWorkItem } from '../../api/use-move-work-item'
 import { resolveDropOutcome } from './resolve-drop-outcome'
 import { buildKanbanAnnouncements } from './announcements'
 import { KanbanColumn } from './KanbanColumn'
-import { PageSubtitle } from '../../components/PageSubtitle/PageSubtitle'
+import { Page } from '../../components/Page/Page'
 import { Chip } from '../../components/Chip/Chip'
 import styles from './KanbanBoard.module.css'
 
@@ -137,89 +138,89 @@ export function KanbanBoard() {
     }
   }
 
+  let content: ReactNode
+  let isSuccess = false
   if (entriesPending || configPending) {
-    return (
-      <div className={styles.board}>
-        <PageSubtitle title="Kanban" />
-        <p role="status" className={styles.status}>Loading…</p>
+    content = (
+      <p role="status" className={styles.status}>Loading…</p>
+    )
+  } else if (isError) {
+    content = (
+      <div role="alert" className={styles.alert}>
+        <p className={styles.alertMessage}>{errorMessageFor(error)}</p>
+        <button
+          type="button"
+          className={styles.retry}
+          onClick={() => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.docs('work-items') })
+          }}
+        >
+          Retry
+        </button>
       </div>
     )
-  }
-
-  if (isError) {
-    return (
-      <div className={styles.board}>
-        <PageSubtitle title="Kanban" />
-        <div role="alert" className={styles.alert}>
-          <p className={styles.alertMessage}>{errorMessageFor(error)}</p>
-          <button
-            type="button"
-            className={styles.retry}
-            onClick={() => {
-              queryClient.invalidateQueries({ queryKey: queryKeys.docs('work-items') })
-            }}
-          >
-            Retry
-          </button>
+  } else {
+    isSuccess = true
+    const otherDescription =
+      columns.length > 0
+        ? `Work items whose status is missing or not one of: ${columns.map(c => c.key).join(', ')}.`
+        : 'Work items whose status is missing or does not match any configured column.'
+    content = (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        accessibility={{ announcements }}
+      >
+        <div className={styles.board} data-sse-state={docEvents.connectionState}>
+          {conflict !== null && (
+            <div role="alert" aria-atomic="true" className={styles.conflictBanner}>
+              <span className={styles.conflictMessage}>{conflict}</span>
+              <button
+                type="button"
+                aria-label="Dismiss conflict notice"
+                className={styles.conflictDismiss}
+                onClick={() => setConflict(null)}
+              >
+                ×
+              </button>
+            </div>
+          )}
+          <div role="status" aria-live="polite" className={styles.announcement}>
+            {announcement}
+          </div>
+          <div className={styles.columns}>
+            {columns.map(col => (
+              <KanbanColumn
+                key={col.key}
+                columnKey={col.key}
+                label={col.label}
+                entries={groups.get(col.key) ?? []}
+              />
+            ))}
+          </div>
+          {otherEntries.length > 0 && (
+            <div className={styles.otherSwimlane}>
+              <KanbanColumn
+                columnKey={OTHER_COLUMN.key}
+                label={OTHER_COLUMN.label}
+                entries={otherEntries}
+                description={otherDescription}
+              />
+            </div>
+          )}
         </div>
-      </div>
+      </DndContext>
     )
   }
-
-  const otherDescription =
-    columns.length > 0
-      ? `Work items whose status is missing or not one of: ${columns.map(c => c.key).join(', ')}.`
-      : 'Work items whose status is missing or does not match any configured column.'
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      accessibility={{ announcements }}
+    <Page
+      title="Kanban"
+      actions={isSuccess ? <Chip variant="indigo">live</Chip> : undefined}
     >
-      <div className={styles.board} data-sse-state={docEvents.connectionState}>
-        <PageSubtitle title="Kanban">
-          <Chip variant="indigo">live</Chip>
-        </PageSubtitle>
-        {conflict !== null && (
-          <div role="alert" aria-atomic="true" className={styles.conflictBanner}>
-            <span className={styles.conflictMessage}>{conflict}</span>
-            <button
-              type="button"
-              aria-label="Dismiss conflict notice"
-              className={styles.conflictDismiss}
-              onClick={() => setConflict(null)}
-            >
-              ×
-            </button>
-          </div>
-        )}
-        <div role="status" aria-live="polite" className={styles.announcement}>
-          {announcement}
-        </div>
-        <div className={styles.columns}>
-          {columns.map(col => (
-            <KanbanColumn
-              key={col.key}
-              columnKey={col.key}
-              label={col.label}
-              entries={groups.get(col.key) ?? []}
-            />
-          ))}
-        </div>
-        {otherEntries.length > 0 && (
-          <div className={styles.otherSwimlane}>
-            <KanbanColumn
-              columnKey={OTHER_COLUMN.key}
-              label={OTHER_COLUMN.label}
-              entries={otherEntries}
-              description={otherDescription}
-            />
-          </div>
-        )}
-      </div>
-    </DndContext>
+      {content}
+    </Page>
   )
 }

@@ -63,7 +63,9 @@ describe('LibraryDocView', () => {
   it('shows Document not found when the slug does not match any entry', async () => {
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
     render(<LibraryDocView type="plans" fileSlug="nonexistent" />, { wrapper: Wrapper })
-    expect(await screen.findByText(/Document not found/i)).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /Document not found/i }),
+    ).toBeInTheDocument()
   })
 
   it('renders Loading while the content fetch is pending', async () => {
@@ -74,8 +76,9 @@ describe('LibraryDocView', () => {
       () => new Promise(() => { /* pending forever */ }),
     )
     render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
-    // findByText waits for RouterProvider to settle and fetchDocs to resolve
-    expect(await screen.findByText(/Loading…/i)).toBeInTheDocument()
+    expect(
+      (await screen.findAllByText(/Loading…/i)).length,
+    ).toBeGreaterThan(0)
   })
 
   it('renders an error alert when fetchDocs rejects', async () => {

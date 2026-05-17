@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
+import { Page } from '../../components/Page/Page'
 import { useQuery } from '@tanstack/react-query'
 import { fetchTemplates } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
@@ -18,18 +20,15 @@ export function LibraryTemplatesIndex() {
     queryFn: fetchTemplates,
   })
 
+  let content: ReactNode = <p>Loading…</p>
   if (isError) {
-    return (
+    content = (
       <p role="alert" className={styles.error}>
         Failed to load templates: {error instanceof Error ? error.message : String(error)}
       </p>
     )
-  }
-  if (isLoading || !data) return <p>Loading…</p>
-
-  return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>Templates</h1>
+  } else if (!isLoading && data) {
+    content = (
       <ul className={styles.list}>
         {data.templates.map((t: TemplateSummary) => (
           <li key={t.name}>
@@ -40,6 +39,12 @@ export function LibraryTemplatesIndex() {
           </li>
         ))}
       </ul>
-    </div>
+    )
+  }
+
+  return (
+    <Page title="Templates" maxWidth="narrow">
+      {content}
+    </Page>
   )
 }

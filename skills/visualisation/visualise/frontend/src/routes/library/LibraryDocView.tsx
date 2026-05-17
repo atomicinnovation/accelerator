@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react'
 import { useParams } from '@tanstack/react-router'
+import { Page } from '../../components/Page/Page'
 import { useQuery } from '@tanstack/react-query'
 import { fetchDocs } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
@@ -50,68 +52,80 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
   if (!fileSlug) {
     return <p role="alert">Missing file slug.</p>
   }
+
+  let title: ReactNode = 'Loading…'
+  let subtitle: ReactNode | undefined = undefined
+  let body: ReactNode = <p>Loading…</p>
+
   if (listError) {
-    return (
+    title = 'Document not found'
+    body = (
       <p role="alert" className={styles.error}>
         Failed to load document list: {listErr instanceof Error ? listErr.message : String(listErr)}
       </p>
     )
-  }
-  if (content.isError) {
-    return (
+  } else if (content.isError) {
+    title = 'Document not found'
+    body = (
       <p role="alert" className={styles.error}>
         Failed to load document content: {content.error instanceof Error ? content.error.message : String(content.error)}
       </p>
     )
+  } else if (!entry && entries.length > 0) {
+    title = 'Document not found'
+    body = <p>Document not found.</p>
+  } else if (entry && content.data) {
+    title = entry.title
+    subtitle = (
+      <FrontmatterChips
+        frontmatter={entry.frontmatter as Record<string, unknown>}
+        state={entry.frontmatterState}
+      />
+    )
+    body = (
+      <article className={styles.article}>
+        <div className={styles.aside}>
+          <section>
+            <h3>Related artifacts</h3>
+            {related.isError && (
+              <p role="alert" className={styles.error}>
+                Failed to load related artifacts:{' '}
+                {related.error instanceof Error ? related.error.message : String(related.error)}
+              </p>
+            )}
+            {related.isPending && !related.isError && (
+              <p>Loading…</p>
+            )}
+            {related.data && (
+              <RelatedArtifacts
+                related={related.data}
+                showUpdatingHint={showUpdatingHint}
+              />
+            )}
+          </section>
+          <section>
+            <h3>File</h3>
+            <p className={styles.meta}>{entry.relPath}</p>
+          </section>
+        </div>
+
+        {entry.frontmatterState === 'malformed' && (
+          <div className={styles.malformedBanner} aria-label="Document metadata header notice">
+            <strong className={styles.malformedPrefix}>Warning:</strong>{' '}
+            We couldn&rsquo;t read this document&rsquo;s metadata header; showing the file as-is.
+          </div>
+        )}
+
+        <div className={styles.body}>
+          <MarkdownRenderer content={content.data.content} resolveWikiLink={resolveWikiLink} wikiLinkPattern={wikiLinkPattern} />
+        </div>
+      </article>
+    )
   }
-  if (!entry && entries.length > 0) return <p>Document not found.</p>
-  if (content.isPending || !content.data) return <p>Loading…</p>
 
   return (
-    <article className={styles.article}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>{entry!.title}</h1>
-        <FrontmatterChips
-          frontmatter={entry!.frontmatter as Record<string, unknown>}
-          state={entry!.frontmatterState}
-        />
-      </header>
-
-      <div className={styles.aside}>
-        <section>
-          <h3>Related artifacts</h3>
-          {related.isError && (
-            <p role="alert" className={styles.error}>
-              Failed to load related artifacts:{' '}
-              {related.error instanceof Error ? related.error.message : String(related.error)}
-            </p>
-          )}
-          {related.isPending && !related.isError && (
-            <p>Loading…</p>
-          )}
-          {related.data && (
-            <RelatedArtifacts
-              related={related.data}
-              showUpdatingHint={showUpdatingHint}
-            />
-          )}
-        </section>
-        <section>
-          <h3>File</h3>
-          <p className={styles.meta}>{entry!.relPath}</p>
-        </section>
-      </div>
-
-      {entry!.frontmatterState === 'malformed' && (
-        <div className={styles.malformedBanner} aria-label="Document metadata header notice">
-          <strong className={styles.malformedPrefix}>Warning:</strong>{' '}
-          We couldn&rsquo;t read this document&rsquo;s metadata header; showing the file as-is.
-        </div>
-      )}
-
-      <div className={styles.body}>
-        <MarkdownRenderer content={content.data.content} resolveWikiLink={resolveWikiLink} wikiLinkPattern={wikiLinkPattern} />
-      </div>
-    </article>
+    <Page title={title} subtitle={subtitle}>
+      {body}
+    </Page>
   )
 }
