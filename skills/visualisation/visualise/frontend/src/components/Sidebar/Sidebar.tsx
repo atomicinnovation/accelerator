@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import type { DocType, LibraryDocType, LibraryPhase } from '../../api/types'
 import { useUnseenDocTypesContext } from '../../api/use-unseen-doc-types'
