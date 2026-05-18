@@ -1,7 +1,7 @@
 ---
 title: "ADR system design"
 type: adr-creation-task
-status: ready
+status: done
 ---
 
 # ADR Ticket: ADR system design
