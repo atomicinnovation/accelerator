@@ -4,7 +4,7 @@ title: "Workspace and Worktree Boundary Detection at Session Start"
 date: "2026-05-15T09:53:35+00:00"
 author: Toby Clemson
 type: story
-status: ready
+status: done
 priority: medium
 parent: ""
 tags: [hooks, vcs, jj, git, session-start]

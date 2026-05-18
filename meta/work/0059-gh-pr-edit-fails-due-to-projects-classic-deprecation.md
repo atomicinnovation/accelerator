@@ -4,7 +4,7 @@ title: "gh pr edit Fails Due to GitHub Projects Classic Deprecation"
 date: "2026-05-15T11:26:39+00:00"
 author: Toby Clemson
 type: bug
-status: ready
+status: done
 priority: medium
 parent: ""
 tags: [github, skills, describe-pr, review-pr, respond-to-pr]
