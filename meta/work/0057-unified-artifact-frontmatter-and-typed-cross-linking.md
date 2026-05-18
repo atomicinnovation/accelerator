@@ -4,7 +4,7 @@ title: "Unified Artifact Frontmatter and Typed Cross-Linking"
 date: "2026-05-14T17:41:22+00:00"
 author: Toby Clemson
 type: epic
-status: ready
+status: in-progress
 priority: high
 parent: ""
 tags: [frontmatter, knowledge-graph, migration, schema, accelerator-plugin]

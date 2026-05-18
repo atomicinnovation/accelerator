@@ -4,7 +4,7 @@ title: "Sidebar Redesign"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 type: epic
-status: draft
+status: in-progress
 priority: high
 parent: ""
 tags: [ design, frontend, chrome, navigation ]
