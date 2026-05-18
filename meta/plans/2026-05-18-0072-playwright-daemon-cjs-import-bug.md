@@ -605,11 +605,11 @@ No code changes. This phase is execution-only:
 
 #### Manual Verification
 
-- [ ] The `ping` step succeeds with `"ok":true`.
-- [ ] An inventory artifact is written for the supplied source-id.
-- [ ] No `Cannot read properties of undefined (reading 'executablePath')`
+- [x] The `ping` step succeeds with `"ok":true`.
+- [x] An inventory artifact is written for the supplied source-id.
+- [x] No `Cannot read properties of undefined (reading 'executablePath')`
       error appears in the session log.
-- [ ] The crawl exercises and completes the following daemon commands
+- [x] The crawl exercises and completes the following daemon commands
       without error (verify via the session diagnostic log):
       - `navigate` (page load + `waitUntil: 'domcontentloaded'`)
       - `snapshot` (accessibility snapshot; verify the structure is
@@ -620,7 +620,7 @@ No code changes. This phase is execution-only:
       - `click` on a ref captured from the snapshot
       - `type` on an input ref
       - `wait_for` against a text or element selector
-- [ ] Repeating the run against a second local URL on the same server
+- [x] Repeating the run against a second local URL on the same server
       reuses the (already-bootstrapped) namespaced cache without
       re-installing chromium.
 
