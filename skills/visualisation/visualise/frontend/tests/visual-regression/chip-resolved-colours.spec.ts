@@ -10,9 +10,23 @@ function hexToRgb(hex: string): string {
 }
 
 function parseRgb(rgb: string): [number, number, number] {
-  const m = rgb.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
-  if (!m) throw new Error(`Cannot parse colour: ${rgb}`)
-  return [Number(m[1]), Number(m[2]), Number(m[3])]
+  // Legacy form: `rgb(r, g, b)` / `rgba(r, g, b, a)` with 0..255 integer
+  // channels.
+  const legacy = rgb.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
+  if (legacy) return [Number(legacy[1]), Number(legacy[2]), Number(legacy[3])]
+
+  // CSS Color Level 4: `color(srgb r g b [/ a])` with 0..1 float channels.
+  // Chromium serialises `color-mix(in srgb, …)` results in this form. Round
+  // to 0..255 so we can range-compare against `hexToRgb` output.
+  const modern = rgb.match(
+    /color\(\s*srgb\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)/,
+  )
+  if (modern) {
+    const to255 = (s: string) => Math.round(Number(s) * 255)
+    return [to255(modern[1]), to255(modern[2]), to255(modern[3])]
+  }
+
+  throw new Error(`Cannot parse colour: ${rgb}`)
 }
 
 function expectChannelsBetween(actual: string, a: string, b: string) {

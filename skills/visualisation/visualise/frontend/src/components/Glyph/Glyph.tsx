@@ -1,7 +1,7 @@
 // Preview all 12 doc types × 3 sizes in both themes at /glyph-showcase (see frontend README).
 import type { ComponentType, ReactElement } from 'react'
-import { type DocTypeKey, DOC_TYPE_KEYS, VIRTUAL_DOC_TYPE_KEYS } from '../../api/types'
 import styles from './Glyph.module.css'
+import { GLYPH_DOC_TYPE_KEYS, type GlyphDocTypeKey } from './Glyph.constants'
 import { DecisionsIcon } from './icons/DecisionsIcon'
 import { DesignGapsIcon } from './icons/DesignGapsIcon'
 import { DesignInventoriesIcon } from './icons/DesignInventoriesIcon'
@@ -15,29 +15,15 @@ import { ValidationsIcon } from './icons/ValidationsIcon'
 import { WorkItemReviewsIcon } from './icons/WorkItemReviewsIcon'
 import { WorkItemsIcon } from './icons/WorkItemsIcon'
 
-/**
- * The 12 non-virtual `DocTypeKey` values Glyph renders.
- *
- * INVARIANT: Glyph is for real document types only. Virtual keys (currently
- * `templates`) are excluded by construction. The exclusion is data-driven: the
- * runtime `GLYPH_DOC_TYPE_KEYS` below filters by `VIRTUAL_DOC_TYPE_KEYS`, so
- * adding a future virtual key in `api/types.ts` automatically removes it from
- * Glyph's set. The type alias must be updated in lock-step (extend the
- * `Exclude` to cover the new virtual key) — caught at unit-test time by the
- * exhaustiveness assertion on `ICON_COMPONENTS`.
- */
-export type GlyphDocTypeKey = Exclude<DocTypeKey, 'templates'>
-
-/** Runtime mirror of `GlyphDocTypeKey`. Derived from `VIRTUAL_DOC_TYPE_KEYS`
- *  at module load — assumes the virtual-keys list is statically resolvable. */
-export const GLYPH_DOC_TYPE_KEYS: readonly GlyphDocTypeKey[] = DOC_TYPE_KEYS.filter(
-  (k): k is GlyphDocTypeKey => !VIRTUAL_DOC_TYPE_KEYS.includes(k),
-)
-
-/** Narrow `DocTypeKey` to `GlyphDocTypeKey`. Use in data-driven consumers. */
-export function isGlyphDocTypeKey(k: DocTypeKey): k is GlyphDocTypeKey {
-  return GLYPH_DOC_TYPE_KEYS.includes(k as GlyphDocTypeKey)
-}
+// Re-export the CSS-free constants module's public surface so existing
+// app-side imports from `'./Glyph'` keep working. CSS-free callers (e.g.
+// the Playwright spec, whose TS transformer cannot parse CSS modules)
+// should import directly from `'./Glyph.constants'`.
+export {
+  GLYPH_DOC_TYPE_KEYS,
+  isGlyphDocTypeKey,
+  type GlyphDocTypeKey,
+} from './Glyph.constants'
 
 // Ordering mirrors the Colour Token Table in meta/work/0037-glyph-component.md.
 // `Record<GlyphDocTypeKey, ...>` constraint enforces exhaustiveness at compile

@@ -1,9 +1,11 @@
 import { test, expect } from './fixtures.js'
 
 test('library → lifecycle → library deep-link round trip', async ({ page }) => {
-  // Start at the plans list
+  // Start at the plans list. The list view used to be a `<table>` but is
+  // now a CSS grid with `role="table"` (the entire row is a single Link),
+  // so we wait on the ARIA role rather than the element name.
   await page.goto('/library/plans')
-  await expect(page.locator('table')).toBeVisible()
+  await expect(page.locator('[role="table"]')).toBeVisible()
 
   // Click into first-plan
   await page.locator('a').filter({ hasText: 'First Plan' }).first().click()

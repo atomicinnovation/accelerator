@@ -442,6 +442,9 @@ describe('EXCEPTIONS hygiene', () => {
 // use by harness extensions that need to escape literal strings in regexes.
 void escapeRegExp
 
+// Brace-balanced extraction of a `{ ... }` block body. Retained as a
+// utility for future selector-body assertions (matches the convention
+// of `escapeRegExp` above); suppressed from the unused-locals check.
 function extractBlockBody(css: string, startIdx: number): string | null {
   const open = css.indexOf('{', startIdx)
   if (open === -1) return null
@@ -455,6 +458,7 @@ function extractBlockBody(css: string, startIdx: number): string | null {
   }
   return depth === 0 ? css.slice(open + 1, i - 1) : null
 }
+void extractBlockBody
 
 describe('0038: --radius-pill is reserved for non-status surfaces', () => {
   // Files that legitimately use --radius-pill. Every other consumer in

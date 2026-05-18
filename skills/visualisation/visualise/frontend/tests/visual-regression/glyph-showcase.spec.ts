@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { GLYPH_DOC_TYPE_KEYS } from '../../src/components/Glyph/Glyph'
+// Import from the CSS-free constants module; Playwright's TS transformer
+// cannot parse the `Glyph.module.css` that the main `Glyph` re-exports.
+import { GLYPH_DOC_TYPE_KEYS } from '../../src/components/Glyph/Glyph.constants'
 import { DARK_COLOR_TOKENS } from '../../src/styles/tokens'
 
 const SIZES = [16, 24, 32] as const
