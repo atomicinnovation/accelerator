@@ -420,25 +420,25 @@ failure behaviour so a future change that silently re-introduces
 
 #### Automated Verification
 
-- [ ] Loader module exists: `test -f skills/design/inventory-design/scripts/playwright/lib/playwright-loader.js`
-- [ ] All three fixtures exist with their files:
+- [x] Loader module exists: `test -f skills/design/inventory-design/scripts/playwright/lib/playwright-loader.js`
+- [x] All three fixtures exist with their files:
       `test -f skills/design/inventory-design/scripts/playwright/lib/__fixtures__/fake-playwright/node_modules/playwright/{package.json,index.mjs,index.js}`
       and equivalents for `fake-playwright-distinct-entries/` and
       `fake-playwright-nested-conditions/`.
-- [ ] `lib/daemon.js` no longer declares `importPlaywright` locally:
+- [x] `lib/daemon.js` no longer declares `importPlaywright` locally:
       `! grep -q 'function importPlaywright' skills/design/inventory-design/scripts/playwright/lib/daemon.js`
-- [ ] `lib/daemon.js` imports the loader (fixed-string match to avoid
+- [x] `lib/daemon.js` imports the loader (fixed-string match to avoid
       regex pitfalls):
       `grep -qF "from './playwright-loader.js'" skills/design/inventory-design/scripts/playwright/lib/daemon.js`
-- [ ] Loader prefers the ESM entry (fixed-string match for the literal
+- [x] Loader prefers the ESM entry (fixed-string match for the literal
       optional-chaining operator):
       `grep -qF "pkg.exports?.['.']" skills/design/inventory-design/scripts/playwright/lib/playwright-loader.js`
-- [ ] All three new tests pass:
+- [x] All three new tests pass:
       `node --test skills/design/inventory-design/scripts/playwright/lib/playwright-loader.test.js`
       exits 0 with 3 tests passing.
-- [ ] All other lib tests pass or skip identically to pre-change baseline:
+- [x] All other lib tests pass or skip identically to pre-change baseline:
       `node --test skills/design/inventory-design/scripts/playwright/lib/*.test.js`.
-- [ ] Shell-level structural harness still passes:
+- [x] Shell-level structural harness still passes:
       `bash skills/design/inventory-design/scripts/playwright/test-run.sh`
       (skipping playwright-dependent checks gracefully if the cache is
       absent — matches pre-change behaviour).

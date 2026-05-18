@@ -12,6 +12,7 @@ import { makeAuthHeaderHandler } from './auth-header.js';
 import { mergeMaskSelectors } from './mask.js';
 import { guardScreenshotPath } from './path-guard.js';
 import { makeError, protocolMismatch, PROTOCOL } from './errors.js';
+import { importPlaywright, resolvePlaywrightPkgPath } from './playwright-loader.js';
 
 const IDLE_MS = parseInt(process.env.ACCELERATOR_PLAYWRIGHT_IDLE_MS || '1800000', 10);     // 30 min
 const WALL_CLOCK_RAW = parseInt(process.env.ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS || '300000', 10);
@@ -20,23 +21,6 @@ const WALL_CLOCK_MS = Math.min(WALL_CLOCK_RAW, WALL_CLOCK_CEILING);
 const OWNER_POLL_MS = parseInt(process.env.ACCELERATOR_PLAYWRIGHT_OWNER_POLL_MS || '60000', 10);
 
 const BLOCKING_OPS = new Set(['navigate', 'snapshot', 'screenshot', 'evaluate', 'click', 'type', 'wait_for']);
-
-// ESM import() does not honour NODE_PATH. When run via run.sh the daemon
-// receives ACCELERATOR_PLAYWRIGHT_NS_ROOT (the namespaced cache dir) and we
-// construct a file:// URL so the import resolver can find playwright.
-async function importPlaywright() {
-  const nsRoot = process.env.ACCELERATOR_PLAYWRIGHT_NS_ROOT;
-  if (!nsRoot) return import('playwright');
-  const { resolve } = await import('node:path');
-  const { pathToFileURL } = await import('node:url');
-  let entryFile = 'index.js';
-  try {
-    const { readFileSync } = await import('node:fs');
-    const pkg = JSON.parse(readFileSync(resolve(nsRoot, 'node_modules/playwright/package.json'), 'utf8'));
-    if (typeof pkg.main === 'string') entryFile = pkg.main;
-  } catch {}
-  return import(pathToFileURL(resolve(nsRoot, 'node_modules/playwright', entryFile)).href);
-}
 
 export async function startDaemon({ stateDir, ownerPid }) {
   ensureStateDir(stateDir);
@@ -116,7 +100,9 @@ export async function startDaemon({ stateDir, ownerPid }) {
 
   async function ensureBrowser() {
     if (browser) return;
-    const { chromium } = await importPlaywright();
+    const { chromium } = await importPlaywright({
+      nsRoot: process.env.ACCELERATOR_PLAYWRIGHT_NS_ROOT,
+    });
     browser = await chromium.launch({ headless: true });
     const ctx = await browser.newContext();
     page = await ctx.newPage();
@@ -130,20 +116,19 @@ export async function startDaemon({ stateDir, ownerPid }) {
     const cmd = req.command;
 
     if (cmd === 'ping') {
-      const { chromium: cr } = await importPlaywright();
+      const nsRoot = process.env.ACCELERATOR_PLAYWRIGHT_NS_ROOT;
+      const { chromium: cr } = await importPlaywright({ nsRoot });
       const execPath = cr.executablePath();
       try {
         await import('node:fs').then(({ promises }) => promises.access(execPath));
       } catch {
         return makeError({ error: 'chromium-not-found', message: `Chromium binary not found at ${execPath}. Run ensure-playwright.sh to reinstall.`, category: 'bootstrap', retryable: false, details: { execPath } });
       }
-      const nsRoot = process.env.ACCELERATOR_PLAYWRIGHT_NS_ROOT;
       let pv = 'unknown';
       try {
-        const { resolve } = await import('node:path');
         const { readFile } = await import('node:fs/promises');
         const pkgFile = nsRoot
-          ? resolve(nsRoot, 'node_modules/playwright/package.json')
+          ? resolvePlaywrightPkgPath(nsRoot)
           : new URL('../node_modules/playwright/package.json', import.meta.url).pathname;
         const raw = JSON.parse(await readFile(pkgFile, 'utf8'));
         pv = raw.version;
