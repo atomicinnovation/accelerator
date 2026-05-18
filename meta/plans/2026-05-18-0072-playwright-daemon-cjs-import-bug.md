@@ -526,9 +526,9 @@ before running the acceptance step in Phase 3.
 
 #### Automated Verification
 
-- [ ] `package.json` carries the new range:
+- [x] `package.json` carries the new range:
       `grep -qF '"playwright": "~1.55.1"' skills/design/inventory-design/scripts/playwright/package.json`
-- [ ] Lockfile resolves `playwright` `>= 1.55.1` (numeric semver
+- [x] Lockfile resolves `playwright` `>= 1.55.1` (numeric semver
       compare, not lexicographic):
       ```bash
       node -e '
@@ -544,14 +544,14 @@ before running the acceptance step in Phase 3.
         }
       '
       ```
-- [ ] Audit reports no `playwright` / `playwright-core` advisories:
+- [x] Audit reports no `playwright` / `playwright-core` advisories:
       `cd skills/design/inventory-design/scripts/playwright && npm audit --omit=dev` (no
       high-severity GHSA-7mvr-c777-76hp; other dev-only advisories
       acceptable).
-- [ ] Loader unit tests still pass against the fixtures (fixtures are
+- [x] Loader unit tests still pass against the fixtures (fixtures are
       version-agnostic):
       `node --test skills/design/inventory-design/scripts/playwright/lib/playwright-loader.test.js`.
-- [ ] **Gating** — after rebootstrap, the daemon test passes against
+- [x] **Gating** — after rebootstrap, the daemon test passes against
       the new cache:
       `node --test skills/design/inventory-design/scripts/playwright/lib/daemon.test.js`.
       This is a hard gate, not descriptive: Phase 2 is not complete
@@ -559,18 +559,18 @@ before running the acceptance step in Phase 3.
 
 #### Manual Verification
 
-- [ ] Lockfile diff review: only `playwright`, `playwright-core`, and
+- [x] Lockfile diff review: only `playwright`, `playwright-core`, and
       their transitive deps change; no unexpected dependency churn.
-- [ ] Spot-check `package-lock.json` for the updated entries: `resolved`
+- [x] Spot-check `package-lock.json` for the updated entries: `resolved`
       URLs point at the configured registry (typically
       `https://registry.npmjs.org/`) and `integrity` fields are present
       for both `playwright` and `playwright-core`. Cross-reference one
       hash against the registry's published value via
       `npm view playwright@<resolved-version> dist.integrity`.
-- [ ] Installed `node_modules/playwright/package.json` `exports['.']`
+- [x] Installed `node_modules/playwright/package.json` `exports['.']`
       shape matches the primary fixture (Step 3 above). If divergent,
       reconcile before continuing.
-- [ ] Bootstrap log shows a fresh `npm ci` and `npx playwright install
+- [x] Bootstrap log shows a fresh `npm ci` and `npx playwright install
       chromium` succeeding for the new lockhash.
 
 ---
