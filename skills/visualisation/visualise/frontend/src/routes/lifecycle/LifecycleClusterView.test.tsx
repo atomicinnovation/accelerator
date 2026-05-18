@@ -114,7 +114,8 @@ describe('LifecycleClusterContent', () => {
       () => new Promise(() => { /* pending forever */ }),
     )
     render(<LifecycleClusterContent slug="foo" />, { wrapper: Wrapper })
-    expect(await screen.findByText(/loading/i)).toBeInTheDocument()
+    // Loading text appears in two places (Page title + body placeholder).
+    expect((await screen.findAllByText(/loading/i)).length).toBeGreaterThan(0)
   })
 
   it('shows a "no such cluster" message and a back-link on 404', async () => {

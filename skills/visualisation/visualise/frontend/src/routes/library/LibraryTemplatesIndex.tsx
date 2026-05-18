@@ -43,7 +43,7 @@ export function LibraryTemplatesIndex() {
   }
 
   return (
-    <Page title="Templates" maxWidth="narrow">
+    <Page title="Templates">
       {content}
     </Page>
   )

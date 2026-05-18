@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Link, useParams } from '@tanstack/react-router'
 import { lifecycleClusterRoute } from '../../router'
 import { useQuery } from '@tanstack/react-query'
@@ -9,6 +10,7 @@ import {
   type IndexEntry,
 } from '../../api/types'
 import { Chip } from '../../components/Chip/Chip'
+import { Page } from '../../components/Page/Page'
 import { statusToChipVariant } from '../../api/status-variant'
 import styles from './LifecycleClusterView.module.css'
 
@@ -19,11 +21,18 @@ export function LifecycleClusterContent({ slug }: { slug: string }) {
     queryFn: () => fetchLifecycleCluster(slug),
   })
 
-  if (isPending) return <p>Loading…</p>
-  if (isError || !cluster) {
+  let title: ReactNode = 'Loading…'
+  let subtitle: ReactNode | undefined = undefined
+  let body: ReactNode = <p>Loading…</p>
+
+  if (isPending) {
+    // defaults above
+  } else if (isError || !cluster) {
     const isNotFound = error instanceof FetchError && error.status === 404
-    return (
-      <div className={styles.container}>
+    title = isNotFound ? 'Cluster not found' : 'Cluster unavailable'
+    subtitle = slug
+    body = (
+      <>
         <Link to="/lifecycle" className={styles.backLink}>
           ← All clusters
         </Link>
@@ -32,44 +41,47 @@ export function LifecycleClusterContent({ slug }: { slug: string }) {
             ? <>No cluster called <code>{slug}</code> exists.</>
             : 'Something went wrong loading this cluster. Try again later.'}
         </p>
-      </div>
+      </>
+    )
+  } else {
+    title = cluster.title
+    subtitle = cluster.slug
+    body = (
+      <>
+        <Link to="/lifecycle" className={styles.backLink}>
+          ← All clusters
+        </Link>
+
+        <ol className={styles.timeline}>
+          {WORKFLOW_PIPELINE_STEPS.map(step => renderStage(step, cluster.entries))}
+        </ol>
+
+        {LONG_TAIL_PIPELINE_STEPS.some(
+          step => cluster.entries.some(e => e.type === step.docType),
+        ) && (
+          <section
+            className={styles.longTail}
+            aria-labelledby="lifecycle-other-artifacts"
+          >
+            <h3
+              id="lifecycle-other-artifacts"
+              className={styles.longTailHeading}
+            >
+              Other artifacts
+            </h3>
+            <ol className={styles.timeline}>
+              {LONG_TAIL_PIPELINE_STEPS.map(step => renderStage(step, cluster.entries))}
+            </ol>
+          </section>
+        )}
+      </>
     )
   }
 
   return (
-    <div className={styles.container}>
-      <Link to="/lifecycle" className={styles.backLink}>
-        ← All clusters
-      </Link>
-
-      <header className={styles.header}>
-        <h2 className={styles.title}>{cluster.title}</h2>
-        <span className={styles.slug}>{cluster.slug}</span>
-      </header>
-
-      <ol className={styles.timeline}>
-        {WORKFLOW_PIPELINE_STEPS.map(step => renderStage(step, cluster.entries))}
-      </ol>
-
-      {LONG_TAIL_PIPELINE_STEPS.some(
-        step => cluster.entries.some(e => e.type === step.docType),
-      ) && (
-        <section
-          className={styles.longTail}
-          aria-labelledby="lifecycle-other-artifacts"
-        >
-          <h3
-            id="lifecycle-other-artifacts"
-            className={styles.longTailHeading}
-          >
-            Other artifacts
-          </h3>
-          <ol className={styles.timeline}>
-            {LONG_TAIL_PIPELINE_STEPS.map(step => renderStage(step, cluster.entries))}
-          </ol>
-        </section>
-      )}
-    </div>
+    <Page eyebrow={<>LIFECYCLE</>} title={title} subtitle={subtitle}>
+      {body}
+    </Page>
   )
 }
 

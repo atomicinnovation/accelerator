@@ -213,17 +213,17 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/FilterPill/FilterPill.module.css', literal: '#ffffff', count: 3, kind: 'irreducible', reason: 'checkmark stroke + badge text on --ac-accent — theme-invariant white' },
   // routes/lifecycle/LifecycleClusterView.module.css
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1.5px', count: 2, kind: 'irreducible', reason: 'coloured ring widths — below --radius-sm/--sp-1 floor' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'border/ring widths — below --sp-1 floor' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'timeline-spine width + stage-dot border width — below --sp-1 floor' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'entry/error/long-tail border widths + 1px spine half-offset margin — below --sp-1 floor' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.4rem', count: 2, kind: 'irreducible', reason: 'off-scale spacing (6.4px) — between --sp-1 and --sp-2' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.06em', count: 1, kind: 'irreducible', reason: 'letter-spacing — off-scale, half of --tracking-caps' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.08em', count: 1, kind: 'irreducible', reason: 'letter-spacing — off-scale, half of --tracking-caps' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1.4em', count: 1, kind: 'irreducible', reason: 'calc(line-height × 3) for text-clamp — derived value' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1.75rem', count: 1, kind: 'irreducible', reason: 'off-scale spacing (28px) — between --sp-5 and --sp-6' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'timeline dot margin-left — layout pixel, no sp-* equivalent' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '7px', count: 1, kind: 'irreducible', reason: 'absolute dot position — layout pixel, no sp-* equivalent' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'timeline spine x-coordinate — layout pixel, no sp-* equivalent' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '7px', count: 1, kind: 'irreducible', reason: 'stage dot top offset — layout pixel, no sp-* equivalent' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '10px', count: 1, kind: 'irreducible', reason: 'stage dot diameter — layout pixel, no sp-* equivalent' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1.25rem', count: 1, kind: 'irreducible', reason: 'off-scale padding (20px) — nearest --sp-4/--sp-5 are 4px off' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '800px', count: 1, kind: 'irreducible', reason: 'max-width — no spacing-scale equivalent' },
   // routes/lifecycle/LifecycleIndex.module.css
   { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '1px', count: 5, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '2px', count: 3, kind: 'irreducible', reason: 'outline width — below --sp-1 floor' },
@@ -346,6 +346,10 @@ describe('var(--NAME) references resolve to declared tokens', () => {
   // "var(--*) resolves to something" guard.
   const LOCAL_CUSTOM_PROPS: Record<string, ReadonlySet<string>> = {
     'routes/library/EmptyState.module.css': new Set(['ac-empty-page-hue']),
+    'routes/lifecycle/LifecycleClusterView.module.css': new Set([
+      'spine-x',
+      'dot-size',
+    ]),
   }
   for (const [path, css] of Object.entries(allCss)) {
     it(`${path} references only declared tokens`, () => {
