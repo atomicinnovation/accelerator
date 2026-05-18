@@ -482,18 +482,7 @@ describe('0038: --radius-pill is reserved for non-status surfaces', () => {
   })
 })
 
-describe('Phase 1 (0034): route titles consume --ac-fg-strong', () => {
-  const REQUIRED: { file: string; selector: string }[] = []
-
-  for (const { file, selector } of REQUIRED) {
-    it(`${file} ${selector} declares color: var(--ac-fg-strong)`, () => {
-      const css = cssBySrcRelative.get(file)
-      expect(css, `missing ${file}`).toBeDefined()
-      const idx = css!.indexOf(selector)
-      expect(idx, `selector ${selector} not found in ${file}`).toBeGreaterThanOrEqual(0)
-      const body = extractBlockBody(css!, idx)
-      expect(body, `body for ${selector} in ${file}`).not.toBeNull()
-      expect(body!).toMatch(/(?<!background-)color:\s*var\(--ac-fg-strong\)/)
-    })
-  }
-})
+// Phase 1 (0034)'s per-route `.title { color: var(--ac-fg-strong) }`
+// guard has been retired: every consumer route now renders its title
+// through the shared `<Page>` wrapper, which owns the title styling
+// centrally. The Page test suite asserts the colour binding.
