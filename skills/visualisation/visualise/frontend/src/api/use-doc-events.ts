@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { queryKeys, SESSION_STABLE_QUERY_ROOTS } from './query-keys'
-import type { SseEvent } from './types'
+import type { SseEvent, SseTemplateChangedEvent } from './types'
 import { type SelfCauseRegistry, defaultSelfCauseRegistry } from './self-cause'
 import {
   ReconnectingEventSource,
@@ -49,7 +49,16 @@ export interface UseDocEventsOptions {
   onReconnect?: () => void
 }
 
+function templateKeysForEvent(
+  event: SseTemplateChangedEvent,
+): ReadonlyArray<readonly unknown[]> {
+  return [queryKeys.templateDetail(event.template), queryKeys.templates()] as const
+}
+
 function queryKeysForEvent(event: SseEvent): ReadonlyArray<readonly unknown[]> {
+  if (event.type === 'template-changed') {
+    return [...templateKeysForEvent(event)]
+  }
   if (event.type !== 'doc-changed' && event.type !== 'doc-invalid') return []
   const keys: Array<readonly unknown[]> = [
     queryKeys.types(),
@@ -83,6 +92,12 @@ export function dispatchSseEvent(
   registry?: SelfCauseRegistry,
 ): void {
   if (event.type === 'doc-changed' && registry?.has(event.etag)) {
+    return
+  }
+  if (event.type === 'template-changed') {
+    for (const queryKey of templateKeysForEvent(event)) {
+      void queryClient.invalidateQueries({ queryKey })
+    }
     return
   }
   if (event.type === 'doc-changed' || event.type === 'doc-invalid') {

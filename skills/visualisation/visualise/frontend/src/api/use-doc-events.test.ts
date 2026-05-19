@@ -131,6 +131,35 @@ describe('dispatchSseEvent', () => {
     )
     expect(queryClient.getQueryState(queryKeys.related('meta/plans/a.md'))?.isInvalidated).toBe(false)
   })
+
+  it('invalidates exactly templateDetail(name) and templates() on template-changed', () => {
+    dispatchSseEvent(
+      {
+        type: 'template-changed',
+        template: 'adr',
+        sha256: `sha256-${'a'.repeat(64)}`,
+        timestamp: '2026-05-18T00:00:00Z',
+      },
+      queryClient,
+    )
+    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(2)
+    const spy = queryClient.invalidateQueries as unknown as ReturnType<typeof vi.fn>
+    const keys = spy.mock.calls.map((c: unknown[]) => (c[0] as { queryKey: unknown }).queryKey)
+    expect(keys).toContainEqual(queryKeys.templateDetail('adr'))
+    expect(keys).toContainEqual(queryKeys.templates())
+  })
+
+  it('invalidates the same template keys when sha256 is absent', () => {
+    dispatchSseEvent(
+      {
+        type: 'template-changed',
+        template: 'adr',
+        timestamp: '2026-05-18T00:00:00Z',
+      },
+      queryClient,
+    )
+    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(2)
+  })
 })
 
 // ── Wiring tests via the factory ─────────────────────────────────────────

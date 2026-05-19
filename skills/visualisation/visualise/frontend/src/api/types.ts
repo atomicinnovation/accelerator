@@ -108,6 +108,7 @@ export interface TemplateDetail {
   name: string
   tiers: TemplateTier[]
   activeTier: TemplateTierSource
+  sha256?: string
 }
 
 export type ActionKind = 'created' | 'edited' | 'deleted'
@@ -138,7 +139,17 @@ export interface SseDocInvalidEvent {
   path: string
 }
 
-export type SseEvent = SseDocChangedEvent | SseDocInvalidEvent
+export interface SseTemplateChangedEvent {
+  type: 'template-changed'
+  template: string
+  sha256?: string
+  timestamp: string
+}
+
+export type SseEvent =
+  | SseDocChangedEvent
+  | SseDocInvalidEvent
+  | SseTemplateChangedEvent
 
 export interface Completeness {
   hasWorkItem: boolean
