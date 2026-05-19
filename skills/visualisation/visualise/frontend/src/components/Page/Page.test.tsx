@@ -68,4 +68,12 @@ describe('Page', () => {
     rerender(<Page title="t" maxWidth="narrow">x</Page>)
     expect(container.querySelector('section')!.className).toMatch(/narrow/)
   })
+
+  it('has bottom padding so page content does not touch the viewport edge', () => {
+    // CSS regression: the .page rule must declare a non-zero bottom
+    // padding so the last content block has breathing room. Anchored to
+    // the .page selector specifically — a future refactor that moves
+    // the padding into a wrapper must also keep this guard happy.
+    expect(pageCss).toMatch(/\.page\s*\{[^}]*padding:[^;}]*var\(--sp-[0-9]+\)\s*;?\s*\}/m)
+  })
 })

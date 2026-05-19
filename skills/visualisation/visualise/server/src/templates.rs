@@ -65,25 +65,41 @@ pub struct TemplateResolver {
 }
 
 /// Convert an absolute path into the display form used by the
-/// templates view:
+/// templates view. The strip-order depends on the tier:
 ///
-/// - paths under `project_root` are rendered project-root-relative
-///   (e.g. `.accelerator/templates/adr.md`);
-/// - paths under `plugin_root` (but outside the project root) are
-///   rendered with a synthetic `<plugin-root>` prefix
-///   (e.g. `<plugin-root>/templates/adr.md`) so users see the same
-///   semantic location regardless of where the plugin is installed;
-/// - everything else is passed through verbatim (covers external
-///   override paths configured outside both roots, which is unusual
-///   but supported).
-fn display_path(path: &Path, project_root: &Path, plugin_root: &Path) -> PathBuf {
-    if let Ok(rel) = path.strip_prefix(project_root) {
-        return rel.to_path_buf();
-    }
-    if let Ok(rel) = path.strip_prefix(plugin_root) {
-        return PathBuf::from("<plugin-root>").join(rel);
-    }
-    path.to_path_buf()
+/// - **Plugin-default tier:** always prefer the `plugin_root` strip
+///   first. The plugin default lives semantically under the plugin
+///   root, and rendering it with a synthetic `<plugin-root>` prefix is
+///   load-bearing for the tier-3 card and the preview-pane header.
+///   This matters when the plugin happens to live inside the project
+///   root (e.g. during local development of the plugin itself), where
+///   a naive project-root strip would otherwise hide the prefix.
+///
+/// - **Other tiers:** prefer the `project_root` strip first (so
+///   `<project>/.accelerator/templates/adr.md` becomes
+///   `.accelerator/templates/adr.md`), falling through to the
+///   `<plugin-root>` form for paths that sit outside the project.
+///
+/// - **Neither match:** the absolute path is passed through verbatim.
+fn display_path(
+    path: &Path,
+    project_root: &Path,
+    plugin_root: &Path,
+    tier: TemplateTierSource,
+) -> PathBuf {
+    let strip_plugin = |p: &Path| {
+        p.strip_prefix(plugin_root)
+            .ok()
+            .map(|rel| PathBuf::from("<plugin-root>").join(rel))
+    };
+    let strip_project = |p: &Path| {
+        p.strip_prefix(project_root).ok().map(Path::to_path_buf)
+    };
+    let (first, second) = match tier {
+        TemplateTierSource::PluginDefault => (strip_plugin(path), strip_project(path)),
+        _ => (strip_project(path), strip_plugin(path)),
+    };
+    first.or(second).unwrap_or_else(|| path.to_path_buf())
 }
 
 /// `sha256-<64-hex>` form, matching the per-tier etag shape.
@@ -114,7 +130,12 @@ impl TemplateResolver {
             let (present, content, etag) = load_via_driver(&tiers.config_override, driver).await;
             ordered.push(TemplateTier {
                 source: TemplateTierSource::ConfigOverride,
-                path: display_path(&config_path, project_root, plugin_root),
+                path: display_path(
+                    &config_path,
+                    project_root,
+                    plugin_root,
+                    TemplateTierSource::ConfigOverride,
+                ),
                 present,
                 active: false,
                 content,
@@ -126,7 +147,12 @@ impl TemplateResolver {
                 load_via_driver(&Some(tiers.user_override.clone()), driver).await;
             ordered.push(TemplateTier {
                 source: TemplateTierSource::UserOverride,
-                path: display_path(&tiers.user_override, project_root, plugin_root),
+                path: display_path(
+                    &tiers.user_override,
+                    project_root,
+                    plugin_root,
+                    TemplateTierSource::UserOverride,
+                ),
                 present,
                 active: false,
                 content,
@@ -138,7 +164,12 @@ impl TemplateResolver {
                 load_via_driver(&Some(tiers.plugin_default.clone()), driver).await;
             ordered.push(TemplateTier {
                 source: TemplateTierSource::PluginDefault,
-                path: display_path(&tiers.plugin_default, project_root, plugin_root),
+                path: display_path(
+                    &tiers.plugin_default,
+                    project_root,
+                    plugin_root,
+                    TemplateTierSource::PluginDefault,
+                ),
                 present,
                 active: false,
                 content,
@@ -230,6 +261,60 @@ async fn load_via_driver(
             (true, content, Some(fc.etag))
         }
         Err(_) => (false, None, None),
+    }
+}
+
+#[cfg(test)]
+mod display_path_tests {
+    use super::*;
+
+    #[test]
+    fn project_root_strip_wins_for_user_override_tier() {
+        let project = std::path::Path::new("/work/repo");
+        let plugin = std::path::Path::new("/elsewhere/plugin");
+        let path = std::path::Path::new("/work/repo/.accelerator/templates/adr.md");
+        let got = display_path(path, project, plugin, TemplateTierSource::UserOverride);
+        assert_eq!(got, std::path::Path::new(".accelerator/templates/adr.md"));
+    }
+
+    #[test]
+    fn plugin_root_prefix_wins_for_plugin_default_tier_even_when_path_is_under_project_root() {
+        // Local plugin-dev scenario: the plugin lives inside the project
+        // root. Naive ordering would strip project_root first and lose the
+        // `<plugin-root>` prefix; the tier-aware logic must keep it.
+        let project = std::path::Path::new("/work/repo");
+        let plugin = std::path::Path::new("/work/repo");
+        let path = std::path::Path::new("/work/repo/templates/adr.md");
+        let got = display_path(path, project, plugin, TemplateTierSource::PluginDefault);
+        assert_eq!(got, std::path::Path::new("<plugin-root>/templates/adr.md"));
+    }
+
+    #[test]
+    fn plugin_root_prefix_used_for_plugin_default_outside_project_root() {
+        let project = std::path::Path::new("/work/repo");
+        let plugin = std::path::Path::new("/elsewhere/plugin");
+        let path = std::path::Path::new("/elsewhere/plugin/templates/adr.md");
+        let got = display_path(path, project, plugin, TemplateTierSource::PluginDefault);
+        assert_eq!(got, std::path::Path::new("<plugin-root>/templates/adr.md"));
+    }
+
+    #[test]
+    fn plugin_default_falls_back_to_project_root_strip_when_outside_plugin_root() {
+        let project = std::path::Path::new("/work/repo");
+        let plugin = std::path::Path::new("/elsewhere/plugin");
+        let path = std::path::Path::new("/work/repo/local/templates/adr.md");
+        let got = display_path(path, project, plugin, TemplateTierSource::PluginDefault);
+        // Plugin-root strip fails → falls through to project-root strip.
+        assert_eq!(got, std::path::Path::new("local/templates/adr.md"));
+    }
+
+    #[test]
+    fn path_outside_both_roots_passes_through_verbatim() {
+        let project = std::path::Path::new("/work/repo");
+        let plugin = std::path::Path::new("/elsewhere/plugin");
+        let path = std::path::Path::new("/somewhere/else/templates/adr.md");
+        let got = display_path(path, project, plugin, TemplateTierSource::UserOverride);
+        assert_eq!(got, path);
     }
 }
 

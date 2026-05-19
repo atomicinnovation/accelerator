@@ -208,6 +208,17 @@ describe('LibraryTemplatesIndex', () => {
     expect(indexCss).not.toMatch(/\.list\s*\{[^}]*gap:/m)
   })
 
+  it('tier pills column-align across rows via subgrid (.list owns the column tracks)', () => {
+    // Cross-row alignment requires the column tracks to live on the
+    // outer container so all rows share them. Anchor a CSS regression
+    // so a future refactor that moves the tracks back onto per-row
+    // grids (which would let the name column drift) fails loudly.
+    expect(indexCss).toMatch(/\.list\s*\{[^}]*display:\s*grid/m)
+    expect(indexCss).toMatch(/\.list\s*\{[^}]*grid-template-columns:/m)
+    expect(indexCss).toMatch(/\.row\s*\{[^}]*grid-template-columns:\s*subgrid/m)
+    expect(indexCss).toMatch(/\.rowLink\s*\{[^}]*grid-template-columns:\s*subgrid/m)
+  })
+
   it('CSS module no longer defines legacy .winning or .active rules', () => {
     expect(indexCss).not.toMatch(/\.winning\b/)
     expect(indexCss).not.toMatch(/\.active\b/)

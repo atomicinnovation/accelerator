@@ -1,9 +1,17 @@
 /* Templates index — connected rows in one table-like container, modelled
-   on the prototype's `.ac-tpl-list / .ac-tpl-row` styling. */
+   on the prototype's `.ac-tpl-list / .ac-tpl-row` styling.
+
+   To keep the tier-pill chain column-aligned across rows while still
+   letting each row's name column expand to fit its content, the column
+   tracks live on `.list` and individual rows participate via subgrid.
+   That way the name track grows to the widest row's `<name>.md` and
+   every row's tier chain starts at the same x-offset. */
 .list {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
   border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-md);
   background: var(--ac-bg-card);
@@ -11,7 +19,9 @@
 }
 
 .row {
-  display: block;
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   border-top: 1px solid var(--ac-stroke-soft);
 }
 
@@ -21,10 +31,8 @@
 
 .rowLink {
   display: grid;
-  /* Name column expands to fit `<name>.md` without wrapping; tier
-     chain claims the remaining horizontal space, disclosure chevron
-     sits at the row end. */
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   gap: var(--sp-4);
   align-items: center;
   padding: var(--sp-3) var(--sp-4);
@@ -68,7 +76,9 @@
   background: var(--ac-bg-sunken);
 }
 
-/* Tier-pill chain, left-aligned in the middle grid column. */
+/* Tier-pill chain. The list-level subgrid pins this to the second
+   column track, which is `1fr` — so every row's chain starts at the
+   same x-offset regardless of name length. */
 .tierChain {
   display: inline-flex;
   align-items: center;

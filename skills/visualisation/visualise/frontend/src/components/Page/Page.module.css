@@ -1,7 +1,11 @@
 .page {
   max-width: var(--ac-content-max-width);
   margin: 0 auto;
-  padding: 0 var(--sp-7);
+  /* Vertical padding: 0 at the top because the page header carries its
+     own `padding-block: sp-5 sp-4`; sp-8 at the bottom so the last
+     content block has breathing room from the viewport edge / browser
+     chrome (matches the prototype's `.ac-page` bottom margin). */
+  padding: 0 var(--sp-7) var(--sp-8);
 }
 
 .page.narrow {
