@@ -65,7 +65,7 @@ function spawnDaemon(stateDir, extraEnv = {}) {
     ACCELERATOR_PLAYWRIGHT_KEEP_STDIO: '1',
     ...extraEnv,
   };
-  const child = fork(RUN_JS, ['daemon', '--state-dir', stateDir, '--owner-pid', '0'], {
+  const child = fork(RUN_JS, ['daemon', '--state-dir', stateDir], {
     env, detached: false, stdio: 'pipe',
   });
   child.stderr?.on('data', d => process.stderr.write('[daemon] ' + d));

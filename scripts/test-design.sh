@@ -442,6 +442,16 @@ bash "$PLUGIN_ROOT/skills/design/inventory-design/scripts/test-ensure-playwright
 
 echo ""
 
+echo "=== daemon: owner-PID watcher removed ==="
+PLAYWRIGHT_DIR="$PLUGIN_ROOT/skills/design/inventory-design/scripts/playwright"
+# Repo-wide sweep: no source file under the playwright/ tree references
+# any part of the watcher mechanism. Catches future regressions
+# regardless of which file (or new test) reintroduces the symbol.
+assert_exit_code "no watcher identifier references under playwright/ tree" 1 \
+  grep -rnE '\bownerPid\b|--owner-pid|\bOWNER_POLL_MS\b' "$PLAYWRIGHT_DIR"
+
+echo ""
+
 echo "=== inventory-design: playwright executor ==="
 bash "$PLUGIN_ROOT/skills/design/inventory-design/scripts/playwright/test-run.sh"
 

@@ -101,4 +101,41 @@ else
   echo "  SKIP: daemon-stop returned empty"
 fi
 
+echo ""
+echo "=== run.sh: daemon survives launcher shell exit (smoke test) ==="
+# Smoke test: confirms the end-to-end happy path (daemon comes up, the
+# sub-shell launcher exits cleanly, daemon survives, daemon-stop produces
+# the expected reason). The actual regression guard against re-introducing
+# an owner-PID watcher lives in test-design.sh as source-level grep
+# assertions over the playwright/ tree — those are stronger because they
+# fire regardless of timing.
+
+PROJECT_TMP="$(mktemp -d)"
+trap 'rm -rf "$PROJECT_TMP"' EXIT
+mkdir -p "$PROJECT_TMP/.git"
+export ACCELERATOR_PLAYWRIGHT_CACHE="${ACCELERATOR_PLAYWRIGHT_CACHE:-$HOME/.cache/accelerator/playwright}"
+
+# Launch the daemon via run.sh ping; the sub-shell exits after ping returns.
+(cd "$PROJECT_TMP" && bash "$RUN_SH" ping >/dev/null 2>&1 || true)
+
+STATE_DIR="$PROJECT_TMP/.accelerator/tmp/inventory-design-playwright"
+if [[ -f "$STATE_DIR/server.pid" ]]; then
+  SERVER_PID="$(tr -cd '0-9' < "$STATE_DIR/server.pid")"
+  assert_neq "daemon wrote server.pid" "" "$SERVER_PID"
+
+  sleep 2
+  assert_exit_code "daemon process is still alive after launcher shell exited" 0 \
+    kill -0 "$SERVER_PID"
+
+  # Clean stop and check the reason. `daemon-stop` is the expected reason;
+  # `owner-exited` would indicate the watcher had been silently restored.
+  (cd "$PROJECT_TMP" && bash "$RUN_SH" daemon-stop >/dev/null 2>&1 || true)
+  sleep 1
+  STOPPED_REASON="$(jq -r '.reason' "$STATE_DIR/server-stopped.json" 2>/dev/null || echo "")"
+  assert_eq "daemon stopped with reason daemon-stop (not owner-exited)" \
+    "daemon-stop" "$STOPPED_REASON"
+else
+  echo "  SKIP: server.pid not written (Playwright likely not bootstrapped for this lockhash)"
+fi
+
 test_summary

@@ -74,7 +74,7 @@ test('ping returns ok: true without launching browser', { timeout: 5000 }, async
     const daemonEnv = { ...process.env, ACCELERATOR_PLAYWRIGHT_IDLE_MS: '5000', ACCELERATOR_PLAYWRIGHT_NS_ROOT: nsRoot };
     const child = (await import('node:child_process')).fork(
       pathResolve(import.meta.dirname, '../run.js'),
-      ['daemon', '--state-dir', dir, '--owner-pid', '0'],
+      ['daemon', '--state-dir', dir],
       { env: daemonEnv, detached: false },
     );
     try {
@@ -96,7 +96,7 @@ test('protocol mismatch returns protocol-mismatch error', { timeout: 5000 }, asy
     const daemonEnv = { ...process.env, ACCELERATOR_PLAYWRIGHT_IDLE_MS: '5000' };
     const child = (await import('node:child_process')).fork(
       pathResolve(import.meta.dirname, '../run.js'),
-      ['daemon', '--state-dir', dir, '--owner-pid', '0'],
+      ['daemon', '--state-dir', dir],
       { env: daemonEnv, detached: false },
     );
     try {
@@ -117,7 +117,7 @@ test('daemon-status returns state: running', { timeout: 5000 }, async () => {
     const daemonEnv = { ...process.env, ACCELERATOR_PLAYWRIGHT_IDLE_MS: '5000' };
     const child = (await import('node:child_process')).fork(
       pathResolve(import.meta.dirname, '../run.js'),
-      ['daemon', '--state-dir', dir, '--owner-pid', '0'],
+      ['daemon', '--state-dir', dir],
       { env: daemonEnv, detached: false },
     );
     try {
@@ -138,7 +138,7 @@ test('daemon-stop writes server-stopped.json and removes state files', { timeout
     const daemonEnv = { ...process.env, ACCELERATOR_PLAYWRIGHT_IDLE_MS: '30000' };
     const child = (await import('node:child_process')).fork(
       pathResolve(import.meta.dirname, '../run.js'),
-      ['daemon', '--state-dir', dir, '--owner-pid', '0'],
+      ['daemon', '--state-dir', dir],
       { env: daemonEnv, detached: false },
     );
     try {
@@ -154,6 +154,16 @@ test('daemon-stop writes server-stopped.json and removes state files', { timeout
   });
 });
 
+// -- IDLE_MS default ---------------------------------------------------
+
+test('daemon module declares IDLE_MS default of 10 minutes', async () => {
+  const src = readFileSync(
+    new URL('./daemon.js', import.meta.url).pathname, 'utf8');
+  // Pin the default value at the source level (avoid runtime probe
+  // requiring a 10-minute wait).
+  assert.match(src, /IDLE_MS\s*=\s*parseInt\(process\.env\.ACCELERATOR_PLAYWRIGHT_IDLE_MS\s*\|\|\s*'600000'/);
+});
+
 // -- idle timer ---------------------------------------------------------
 
 test('idle timer shuts down daemon and writes server-stopped.json', { timeout: 5000 }, async () => {
@@ -161,7 +171,7 @@ test('idle timer shuts down daemon and writes server-stopped.json', { timeout: 5
     const daemonEnv = { ...process.env, ACCELERATOR_PLAYWRIGHT_IDLE_MS: '300' };
     const child = (await import('node:child_process')).fork(
       pathResolve(import.meta.dirname, '../run.js'),
-      ['daemon', '--state-dir', dir, '--owner-pid', '0'],
+      ['daemon', '--state-dir', dir],
       { env: daemonEnv, detached: false },
     );
     try {

@@ -584,13 +584,13 @@ assert_exit_code "no watcher identifier references under playwright/ tree" 1 \
 
 #### Automated Verification:
 
-- [ ] `node --test skills/design/inventory-design/scripts/playwright/lib/daemon.test.js`
+- [x] `node --test skills/design/inventory-design/scripts/playwright/lib/daemon.test.js`
       passes, including the new `IDLE_MS default of 10 minutes` test
-- [ ] `bash skills/design/inventory-design/scripts/playwright/test-run.sh`
+- [x] `bash skills/design/inventory-design/scripts/playwright/test-run.sh`
       passes, including the new launcher-shell-exit survival test
-- [ ] `bash scripts/test-design.sh` passes, including the new
+- [x] `bash scripts/test-design.sh` passes, including the new
       watcher-removed assertion (repo-wide grep over the playwright/ tree)
-- [ ] `grep -rnE '\bownerPid\b|--owner-pid|\bOWNER_POLL_MS\b' skills/design/inventory-design/scripts/playwright/`
+- [x] `grep -rnE '\bownerPid\b|--owner-pid|\bOWNER_POLL_MS\b' skills/design/inventory-design/scripts/playwright/`
       returns no matches (covers daemon.js, run.js, run.sh, daemon.test.js,
       test-run.js, and any future files). Note: the literal string
       `owner-exited` is deliberately NOT in the pattern — see the

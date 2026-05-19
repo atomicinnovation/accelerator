@@ -1,10 +1,10 @@
 // Playwright browser-context daemon server.
-// Launched via: node run.js daemon --state-dir <dir> --owner-pid <pid>
+// Launched via: node run.js daemon --state-dir <dir>
 //
 // Listens on 127.0.0.1:0 (OS-assigned port). Writes server-info.json and
 // server.pid atomically once ready. Handles a single sequential JSON
 // request per TCP connection. Shuts down on SIGTERM, SIGINT, idle timeout,
-// owner-PID exit, or per-op wall-clock timeout.
+// or per-op wall-clock timeout.
 
 import { createServer } from 'node:http';
 import { writeServerInfo, writeServerStopped, removeServerFiles, ensureStateDir } from './state.js';
@@ -14,15 +14,18 @@ import { guardScreenshotPath } from './path-guard.js';
 import { makeError, protocolMismatch, PROTOCOL } from './errors.js';
 import { importPlaywright, resolvePlaywrightPkgPath } from './playwright-loader.js';
 
-const IDLE_MS = parseInt(process.env.ACCELERATOR_PLAYWRIGHT_IDLE_MS || '1800000', 10);     // 30 min
+// 10-min default balances cross-turn daemon reuse (Claude Code sessions
+// typically span minutes) against bounding the lifetime of an
+// auth-bearing browser context held in memory. Override via
+// ACCELERATOR_PLAYWRIGHT_IDLE_MS.
+const IDLE_MS = parseInt(process.env.ACCELERATOR_PLAYWRIGHT_IDLE_MS || '600000', 10);
 const WALL_CLOCK_RAW = parseInt(process.env.ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS || '300000', 10);
 const WALL_CLOCK_CEILING = 1800000; // 30 min hard ceiling
 const WALL_CLOCK_MS = Math.min(WALL_CLOCK_RAW, WALL_CLOCK_CEILING);
-const OWNER_POLL_MS = parseInt(process.env.ACCELERATOR_PLAYWRIGHT_OWNER_POLL_MS || '60000', 10);
 
 const BLOCKING_OPS = new Set(['navigate', 'snapshot', 'screenshot', 'evaluate', 'click', 'type', 'wait_for']);
 
-export async function startDaemon({ stateDir, ownerPid }) {
+export async function startDaemon({ stateDir }) {
   ensureStateDir(stateDir);
 
   let browser = null;
@@ -40,7 +43,6 @@ export async function startDaemon({ stateDir, ownerPid }) {
 
     clearTimeout(idleTimer);
     clearTimeout(wallClockTimer);
-    clearInterval(ownerWatcher);
 
     try { writeServerStopped(stateDir, reason, extra); } catch {}
 
@@ -84,17 +86,6 @@ export async function startDaemon({ stateDir, ownerPid }) {
     clearTimeout(wallClockTimer);
     wallClockTimer = null;
   }
-
-  // ------ Owner PID watcher -----------------------------------------------
-
-  const ownerWatcher = ownerPid > 0 ? setInterval(() => {
-    try {
-      process.kill(ownerPid, 0);
-    } catch {
-      shutdown('owner-exited', { owner_pid: ownerPid });
-    }
-  }, OWNER_POLL_MS) : null;
-  if (ownerWatcher) ownerWatcher.unref();
 
   // ------ Browser / page --------------------------------------------------
 

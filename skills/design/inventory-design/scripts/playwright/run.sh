@@ -107,7 +107,6 @@ export NODE_PATH="$NS_ROOT/node_modules"
 export ACCELERATOR_PLAYWRIGHT_NS_ROOT="$NS_ROOT"
 nohup node "$SCRIPT_DIR/run.js" daemon \
   --state-dir "$STATE_DIR" \
-  --owner-pid "$$" \
   >> "$BOOTSTRAP_LOG" 2>&1 &
 DAEMON_PID=$!
 disown "$DAEMON_PID" 2>/dev/null || true
