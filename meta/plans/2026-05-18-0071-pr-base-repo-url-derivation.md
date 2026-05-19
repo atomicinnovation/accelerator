@@ -1032,17 +1032,17 @@ up.
 
 #### Automated Verification:
 
-- [ ] `bash skills/github/scripts/test-pr-base-repo-real-gh.sh` exits
+- [x] `bash skills/github/scripts/test-pr-base-repo-real-gh.sh` exits
   0 on the workspace's pinned `gh 2.89.0` and reports a PASS for the
   `url` field.
-- [ ] `mise run test:integration:github` includes the new harness in
+- [x] `mise run test:integration:github` includes the new harness in
   its output (autodiscovery).
-- [ ] When `gh` is not on `PATH`, the harness reports "skipped" and
-  still exits 0. Reproduce by temporarily masking `gh` with
-  `PATH=/usr/bin bash skills/github/scripts/test-pr-base-repo-real-gh.sh`
-  (assumes `gh` is not in `/usr/bin`; otherwise use a tmpdir-only
-  PATH).
-- [ ] `shellcheck skills/github/scripts/test-pr-base-repo-real-gh.sh`
+- [x] When `gh` is not on `PATH`, the harness reports "skipped" and
+  still exits 0. Reproduced via
+  `env -i PATH=/usr/bin /bin/bash skills/github/scripts/test-pr-base-repo-real-gh.sh`
+  (using `env -i` because the workspace's pinned gh is on the mise
+  shim PATH that `PATH=...` alone doesn't displace under zsh).
+- [x] `shellcheck skills/github/scripts/test-pr-base-repo-real-gh.sh`
   exits 0.
 #### Manual Verification:
 
