@@ -45,7 +45,7 @@ pr_number="$1"
 err_file=$(mktemp)
 trap 'rm -f "$err_file"' EXIT
 
-if ! payload=$(gh pr view "$pr_number" --json baseRepository 2>"$err_file"); then
+if ! payload=$(gh pr view "$pr_number" --json url 2>"$err_file"); then
   if [ -s "$err_file" ]; then
     cat "$err_file" >&2
   fi
@@ -66,13 +66,31 @@ if ! jq -e . >/dev/null 2>&1 <<<"$payload"; then
   exit 1
 fi
 
-owner=$(jq -r '.baseRepository.owner.login // ""' <<<"$payload")
-name=$(jq -r '.baseRepository.name // ""' <<<"$payload")
+url=$(jq -r '.url // ""' <<<"$payload")
 
-if [ -z "$owner" ] || [ -z "$name" ]; then
-  echo "pr-base-repo.sh: baseRepository.owner.login or .name was empty/null in gh response." >&2
+if [ -z "$url" ]; then
+  echo "pr-base-repo.sh: url was empty/null in gh response." >&2
   echo "  Raw payload: $payload" >&2
   exit 1
 fi
+
+# Derive owner/name from the upstream PR URL. The PR url field always
+# points at the base (upstream) repo, even when the PR was opened from
+# a fork — this is the cross-fork-safety property the resolver
+# guarantees. URL shape: https://<host>/<owner>/<repo>/pull/<n>.
+# Charsets match GitHub's actual rules:
+#   - Owner (user/org): must start with [A-Za-z0-9], may contain
+#     hyphens. No dots, no underscores.
+#   - Repo: any combination of [A-Za-z0-9._-], may start with `.` or
+#     `_` (e.g. the widely-used `.github` repo). Cannot be empty.
+# Characters outside these sets (notably `%` for percent-encoded
+# smuggling) are rejected at parse time rather than passed through to
+# `gh api` interpolation downstream.
+if ! [[ "$url" =~ ^https://[^/]+/([A-Za-z0-9][A-Za-z0-9-]*)/([A-Za-z0-9._-]+)/pull/[0-9]+$ ]]; then
+  echo "pr-base-repo.sh: could not extract owner/repo from url: $url" >&2
+  exit 1
+fi
+owner="${BASH_REMATCH[1]}"
+name="${BASH_REMATCH[2]}"
 
 printf '%s/%s\n' "$owner" "$name"

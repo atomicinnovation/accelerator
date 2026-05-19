@@ -56,12 +56,12 @@ write_file() {
 
 # Standard same-repo base-repo payload reused across many tests.
 default_payload() {
-  echo '{"baseRepository":{"owner":{"login":"acme"},"name":"app"}}'
+  echo '{"url":"https://github.com/acme/app/pull/119"}'
 }
 
 # Standard upstream payload reused by the cross-fork tests.
 upstream_payload() {
-  echo '{"baseRepository":{"owner":{"login":"upstream-org"},"name":"upstream-repo"}}'
+  echo '{"url":"https://github.com/upstream-org/upstream-repo/pull/119"}'
 }
 
 echo "=== pr-update-body.sh tests (PHASE=$phase) ==="
@@ -141,7 +141,7 @@ write_file "$body_file" "hello world"
 # Pull the pr-view line out of the recorded argv log.
 pr_view_line=$(grep "^pr view" "$GH_ARGV_LOG" || true)
 assert_eq "test 6: pr view argv shape" \
-  "pr view 119 --json baseRepository" "$pr_view_line"
+  "pr view 119 --json url" "$pr_view_line"
 unset GH_PR_VIEW_OUT
 
 # ---------------------------------------------------------------

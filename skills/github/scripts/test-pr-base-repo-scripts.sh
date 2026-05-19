@@ -89,22 +89,85 @@ echo "--- test 3: same-repo resolves ---"
 new_case; T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
-write_file "$payload" '{"baseRepository":{"owner":{"login":"acme"},"name":"app"}}'
+write_file "$payload" '{"url":"https://github.com/acme/app/pull/119"}'
 out=$(GH_PR_VIEW_OUT="$payload" "$SCRIPT" 119 2>"$T/stderr") || true
 assert_eq "test 3: stdout is acme/app" "acme/app" "$out"
 
 # ---------------------------------------------------------------
-# Test 4: Cross-fork PR resolves to upstream.
+# Test 4: Upstream URL parses to upstream coords. Renamed from
+# "cross-fork resolves to upstream" — the stubbed harness cannot model
+# real cross-fork behaviour (the stub dispatches only on `$1 $2`), so
+# this test only verifies the URL-parsing branch with an
+# upstream-shaped payload. The real cross-fork-safety property is
+# covered by a manual-verification step in the plan.
 echo ""
-echo "--- test 4: cross-fork resolves to upstream ---"
+echo "--- test 4: upstream URL parses to upstream coords ---"
 new_case; T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
 write_file "$payload" \
-  '{"baseRepository":{"owner":{"login":"upstream-org"},"name":"upstream-repo"}}'
+  '{"url":"https://github.com/upstream-org/upstream-repo/pull/119"}'
 out=$(GH_PR_VIEW_OUT="$payload" "$SCRIPT" 119 2>"$T/stderr") || true
-assert_eq "test 4: stdout targets upstream coords" \
+assert_eq "test 4: stdout matches the URL's upstream coords" \
   "upstream-org/upstream-repo" "$out"
+
+# ---------------------------------------------------------------
+# Test 4b: GHE host parses correctly — locks the host-agnostic
+# property the regex permits.
+echo ""
+echo "--- test 4b: GHE host parses correctly ---"
+new_case; T=$CASE_DIR
+setup_gh_stub "$T"
+payload="$T/pr-view.json"
+write_file "$payload" \
+  '{"url":"https://github.acme.corp/team-a/repo/pull/119"}'
+out=$(GH_PR_VIEW_OUT="$payload" "$SCRIPT" 119 2>"$T/stderr") || true
+assert_eq "test 4b: GHE host extracts owner/repo correctly" \
+  "team-a/repo" "$out"
+
+# ---------------------------------------------------------------
+# Test 4c: percent-encoded chars in owner rejected — locks the
+# tightened charset against percent-encoded smuggling.
+echo ""
+echo "--- test 4c: percent-encoded chars in owner rejected ---"
+new_case; T=$CASE_DIR
+setup_gh_stub "$T"
+payload="$T/pr-view.json"
+write_file "$payload" '{"url":"https://github.com/ac%2fme/app/pull/119"}'
+stderr_capture="$T/stderr"
+rc=0
+GH_PR_VIEW_OUT="$payload" "$SCRIPT" 119 2>"$stderr_capture" >/dev/null || rc=$?
+assert_eq "test 4c: percent-encoded owner rejected with exit 1" 1 "$rc"
+assert_contains "test 4c: stderr names URL-extraction failure" \
+  "$(cat "$stderr_capture")" "could not extract owner/repo from url"
+
+# ---------------------------------------------------------------
+# Test 4d: leading-dot repo (.github) accepted.
+echo ""
+echo "--- test 4d: leading-dot repo (.github) accepted ---"
+new_case; T=$CASE_DIR
+setup_gh_stub "$T"
+payload="$T/pr-view.json"
+write_file "$payload" '{"url":"https://github.com/acme/.github/pull/119"}'
+out=$(GH_PR_VIEW_OUT="$payload" "$SCRIPT" 119 2>"$T/stderr") || true
+assert_eq "test 4d: leading-dot repo accepted" \
+  "acme/.github" "$out"
+
+# ---------------------------------------------------------------
+# Test 4e: percent-encoded chars in repo rejected — locks the charset
+# on the repo side (test 4c only covered the owner side).
+echo ""
+echo "--- test 4e: percent-encoded chars in repo rejected ---"
+new_case; T=$CASE_DIR
+setup_gh_stub "$T"
+payload="$T/pr-view.json"
+write_file "$payload" '{"url":"https://github.com/acme/app%2fevil/pull/119"}'
+stderr_capture="$T/stderr"
+rc=0
+GH_PR_VIEW_OUT="$payload" "$SCRIPT" 119 2>"$stderr_capture" >/dev/null || rc=$?
+assert_eq "test 4e: percent-encoded repo rejected with exit 1" 1 "$rc"
+assert_contains "test 4e: stderr names URL-extraction failure" \
+  "$(cat "$stderr_capture")" "could not extract owner/repo from url"
 
 # ---------------------------------------------------------------
 # Test 5: Recorded argv shape (exact full-line match).
@@ -113,11 +176,11 @@ echo "--- test 5: argv shape ---"
 new_case; T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
-write_file "$payload" '{"baseRepository":{"owner":{"login":"acme"},"name":"app"}}'
+write_file "$payload" '{"url":"https://github.com/acme/app/pull/119"}'
 GH_PR_VIEW_OUT="$payload" "$SCRIPT" 119 >/dev/null 2>"$T/stderr" || true
 argv=$(cat "$GH_ARGV_LOG")
-assert_eq "test 5: argv is exactly 'pr view 119 --json baseRepository'" \
-  "pr view 119 --json baseRepository" "$argv"
+assert_eq "test 5: argv is exactly 'pr view 119 --json url'" \
+  "pr view 119 --json url" "$argv"
 
 # ---------------------------------------------------------------
 # Test 6: Resolver failure — stderr preserved, conditional hint fires.
@@ -162,52 +225,54 @@ else
 fi
 
 # ---------------------------------------------------------------
-# Test 8: Null owner guard.
+# Test 8: Malformed URL guard — missing owner segment.
 echo ""
-echo "--- test 8: null owner guard ---"
+echo "--- test 8: malformed URL guard ---"
 new_case; T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
-write_file "$payload" '{"baseRepository":{"owner":{"login":null},"name":"app"}}'
+# Missing the owner segment — extraction must yield empty owner and exit 1.
+write_file "$payload" '{"url":"https://github.com//app/pull/119"}'
 stderr_capture="$T/stderr"
 stdout_capture="$T/stdout"
 rc=0
 GH_PR_VIEW_OUT="$payload" \
   "$SCRIPT" 119 >"$stdout_capture" 2>"$stderr_capture" || rc=$?
-assert_eq "test 8: null owner exits 1" 1 "$rc"
-if grep -qF "null/app" "$stdout_capture"; then
-  echo "  FAIL: test 8: must NOT print null/app to stdout"
+assert_eq "test 8: malformed-URL exits 1" 1 "$rc"
+if grep -qE "^/" "$stdout_capture"; then
+  echo "  FAIL: test 8: must NOT print '/app' to stdout"
   FAIL=$((FAIL + 1))
 else
-  echo "  PASS: test 8: stdout does not smuggle null/app"
+  echo "  PASS: test 8: stdout does not smuggle malformed coords"
   PASS=$((PASS + 1))
 fi
-assert_contains "test 8: stderr explains the missing field" \
-  "$(cat "$stderr_capture")" "owner"
+assert_contains "test 8: stderr names URL-extraction failure" \
+  "$(cat "$stderr_capture")" "could not extract owner/repo from url"
 
 # ---------------------------------------------------------------
-# Test 9: Null name guard.
+# Test 9: Truncated URL guard — missing repo segment.
 echo ""
-echo "--- test 9: null name guard ---"
+echo "--- test 9: truncated URL guard ---"
 new_case; T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
-write_file "$payload" '{"baseRepository":{"owner":{"login":"acme"},"name":null}}'
+# Missing the repo segment — extraction must yield empty name and exit 1.
+write_file "$payload" '{"url":"https://github.com/acme/pull/119"}'
 stderr_capture="$T/stderr"
 stdout_capture="$T/stdout"
 rc=0
 GH_PR_VIEW_OUT="$payload" \
   "$SCRIPT" 119 >"$stdout_capture" 2>"$stderr_capture" || rc=$?
-assert_eq "test 9: null name exits 1" 1 "$rc"
-if grep -qF "acme/null" "$stdout_capture"; then
-  echo "  FAIL: test 9: must NOT print acme/null to stdout"
+assert_eq "test 9: truncated-URL exits 1" 1 "$rc"
+if grep -qE "/$" "$stdout_capture"; then
+  echo "  FAIL: test 9: must NOT print 'acme/' to stdout"
   FAIL=$((FAIL + 1))
 else
-  echo "  PASS: test 9: stdout does not smuggle acme/null"
+  echo "  PASS: test 9: stdout does not smuggle truncated coords"
   PASS=$((PASS + 1))
 fi
-assert_contains "test 9: stderr mentions name field" \
-  "$(cat "$stderr_capture")" "name"
+assert_contains "test 9: stderr names URL-extraction failure" \
+  "$(cat "$stderr_capture")" "could not extract owner/repo from url"
 
 # ---------------------------------------------------------------
 # Test 10: Missing jq preflight — exit 2 with remediation.
@@ -227,9 +292,9 @@ assert_contains "test 10: stderr names jq" \
   "$(cat "$stderr_capture")" "jq is required"
 
 # ---------------------------------------------------------------
-# Test 11: Missing baseRepository field → exit 1.
+# Test 11: Missing url field → exit 1.
 echo ""
-echo "--- test 11: missing baseRepository field ---"
+echo "--- test 11: missing url field ---"
 new_case; T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
@@ -238,7 +303,9 @@ stderr_capture="$T/stderr"
 rc=0
 GH_PR_VIEW_OUT="$payload" \
   "$SCRIPT" 119 2>"$stderr_capture" >/dev/null || rc=$?
-assert_eq "test 11: missing baseRepository exits 1" 1 "$rc"
+assert_eq "test 11: missing url exits 1" 1 "$rc"
+assert_contains "test 11: stderr names empty/null url" \
+  "$(cat "$stderr_capture")" "url was empty/null"
 
 # ---------------------------------------------------------------
 # Test 12: Non-JSON stdout → clear error rather than opaque jq parse.
