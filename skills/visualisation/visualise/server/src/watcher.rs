@@ -853,6 +853,7 @@ mod tier_path_index_tests {
                 config_override: None,
                 user_override: tmp.path().join("user-a.md"),
                 plugin_default: shared.clone(),
+                config_override_source: None,
             },
         );
         map.insert(
@@ -861,6 +862,7 @@ mod tier_path_index_tests {
                 config_override: None,
                 user_override: tmp.path().join("user-b.md"),
                 plugin_default: shared.clone(),
+                config_override_source: None,
             },
         );
         let idx = TierPathIndex::build(&map).await;
@@ -882,6 +884,7 @@ mod tier_path_index_tests {
                 config_override: None,
                 user_override: tmp.path().join("u.md"),
                 plugin_default: plugin,
+                config_override_source: None,
             },
         );
         let idx = TierPathIndex::build(&map).await;
@@ -904,6 +907,7 @@ mod tier_path_index_tests {
                 config_override: None,
                 user_override: user_path.clone(),
                 plugin_default: plugin,
+                config_override_source: None,
             },
         );
         let idx = TierPathIndex::build(&map).await;
@@ -964,6 +968,7 @@ mod template_change_handler_tests {
                 config_override: None,
                 user_override: tmp.path().join("user-missing.md"),
                 plugin_default: plugin.clone(),
+                config_override_source: None,
             },
         );
         let (handler, _resolver, hub) = build_handler(tmp.path(), map).await;
@@ -1004,6 +1009,7 @@ mod template_change_handler_tests {
                 config_override: None,
                 user_override: tmp.path().join("user-missing.md"),
                 plugin_default: plugin.clone(),
+                config_override_source: None,
             },
         );
         let (handler, _resolver, hub) = build_handler(tmp.path(), map).await;
@@ -1040,6 +1046,7 @@ mod template_change_handler_tests {
                 config_override: None,
                 user_override: tmp.path().join("user-missing.md"),
                 plugin_default: plugin.clone(),
+                config_override_source: None,
             },
         );
         let (handler, _resolver, hub) = build_handler(tmp.path(), map).await;
@@ -1070,6 +1077,7 @@ mod template_change_handler_tests {
                 config_override: None,
                 user_override: tmp.path().join("user-missing.md"),
                 plugin_default: plugin.clone(),
+                config_override_source: None,
             },
         );
         let (handler, _resolver, _hub) = build_handler(tmp.path(), map).await;
@@ -1089,6 +1097,7 @@ mod template_change_handler_tests {
                 config_override: None,
                 user_override: tmp.path().join("u-a.md"),
                 plugin_default: shared.clone(),
+                config_override_source: None,
             },
         );
         map.insert(
@@ -1097,6 +1106,7 @@ mod template_change_handler_tests {
                 config_override: None,
                 user_override: tmp.path().join("u-b.md"),
                 plugin_default: shared.clone(),
+                config_override_source: None,
             },
         );
         let (handler, _resolver, hub) = build_handler(tmp.path(), map).await;

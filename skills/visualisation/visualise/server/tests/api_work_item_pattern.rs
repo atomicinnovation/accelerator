@@ -43,6 +43,7 @@ fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
                 config_override: None,
                 user_override: tmp.join(format!("meta/templates/{name}.md")),
                 plugin_default: pd,
+                config_override_source: None,
             },
         );
     }
@@ -172,6 +173,7 @@ async fn default_numeric_pattern_indexes_bare_numeric_files() {
                 config_override: None,
                 user_override: tmp.join(format!("meta/templates/{name}.md")),
                 plugin_default: pd,
+                config_override_source: None,
             },
         );
     }

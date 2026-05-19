@@ -17,6 +17,50 @@ function tierStateFor(t: TemplateTier | undefined): TierState {
   return 'present'
 }
 
+/** Inline layers SVG (Feather "layers" path), used as the page eyebrow
+ *  glyph for the Templates view. Sourced from the design prototype's
+ *  Icon component (ui.jsx). */
+export function LayersIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m12 3 9 5-9 5-9-5z" />
+      <path d="m3 13 9 5 9-5" />
+      <path d="m3 18 9 5 9-5" />
+    </svg>
+  )
+}
+
+/** Inline chevron-right SVG. Used as the inter-pill separator and as
+ *  the row disclosure marker. */
+export function ChevronRightIcon({ size = 10, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  )
+}
+
 interface TierPillsProps {
   tiers: TemplateTier[]
 }
@@ -33,14 +77,10 @@ export function TierPills({ tiers }: TierPillsProps) {
         return (
           <span key={source} className={styles.tierChainItem}>
             {idx > 0 ? (
-              <span className={styles.tierSeparator} aria-hidden="true">
-                ›
-              </span>
+              <ChevronRightIcon size={10} className={styles.tierSeparator} />
             ) : null}
             <span className={styles.tierPill} data-state={state}>
-              <span className={styles.tierPillBullet} aria-hidden="true">
-                •
-              </span>
+              <span className={styles.tierPillBullet} aria-hidden="true" />
               <span className={styles.tierPillLabel}>{TIER_SHORT_LABELS[source]}</span>
             </span>
           </span>
@@ -70,18 +110,18 @@ export function TemplatesIndexList({ templates, selectedName }: TemplatesIndexLi
               data-selected={isSelected ? 'true' : undefined}
               aria-current={isSelected ? 'page' : undefined}
             >
-              <span className={styles.rowGlyph} aria-hidden="true">
-                {glyphKey ? (
-                  <Glyph docType={glyphKey} size={24} framed />
-                ) : (
-                  <span className={styles.rowGlyphFallback} />
-                )}
+              <span className={styles.rowName}>
+                <span className={styles.rowGlyph} aria-hidden="true">
+                  {glyphKey ? (
+                    <Glyph docType={glyphKey} size={24} framed />
+                  ) : (
+                    <span className={styles.rowGlyphFallback} />
+                  )}
+                </span>
+                {t.name}.md
               </span>
-              <span className={styles.rowName}>{t.name}.md</span>
               <TierPills tiers={t.tiers} />
-              <span className={styles.rowChevron} aria-hidden="true">
-                ›
-              </span>
+              <ChevronRightIcon size={14} className={styles.rowChevron} />
             </Link>
           </li>
         )
@@ -116,9 +156,14 @@ export function TemplatesPage({ selectedName, extraContent }: PageProps) {
 
   return (
     <Page
-      eyebrow={<>TEMPLATES · VIRTUAL</>}
-      title="Authoring templates"
-      subtitle="Resolved across three tiers. The highest-priority present tier wins at authoring time — but every tier is inspectable here, regardless of current config."
+      eyebrow={
+        <>
+          <LayersIcon size={12} />
+          TEMPLATES
+        </>
+      }
+      title="Templates"
+      subtitle="The starting shape for every new doc. Pick a template to see which version is active and what the other tiers look like."
     >
       {listContent}
       {extraContent}

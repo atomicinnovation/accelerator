@@ -92,10 +92,22 @@ describe('glyphKeyForTemplate', () => {
 })
 
 describe('LibraryTemplatesIndex', () => {
-  it('renders an "Authoring templates" page title', async () => {
+  it('renders the page title "Templates" with a "TEMPLATES" eyebrow', async () => {
     vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: mockTemplates })
     render(<LibraryTemplatesIndex />, { wrapper: Wrapper })
-    expect(await screen.findByRole('heading', { name: /Authoring templates/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /^Templates$/i })).toBeInTheDocument()
+    expect(screen.getByText(/^TEMPLATES$/)).toBeInTheDocument()
+    // VIRTUAL marker has been dropped — make sure it doesn't reappear.
+    expect(screen.queryByText(/VIRTUAL/i)).toBeNull()
+  })
+
+  it('renders the long-form subtitle below the title', async () => {
+    vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: mockTemplates })
+    render(<LibraryTemplatesIndex />, { wrapper: Wrapper })
+    await screen.findByRole('heading', { name: /Templates/i })
+    expect(
+      screen.getByText(/The starting shape for every new doc\./i),
+    ).toBeInTheDocument()
   })
 
   it('renders a clickable row for each template, with the filename in monospace', async () => {
@@ -143,23 +155,29 @@ describe('LibraryTemplatesIndex', () => {
     }
   })
 
-  it('uses right-chevron "›" separators between adjacent tier pills', async () => {
+  it('renders the inter-pill separator and row disclosure as right-chevron SVGs', async () => {
     vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: mockTemplates })
     render(<LibraryTemplatesIndex />, { wrapper: Wrapper })
     const row = await screen.findByRole('link', { name: /adr\.md/i })
-    // Three pills produce two inter-pill separators + one trailing row chevron.
-    const chevrons = within(row).getAllByText('›')
-    expect(chevrons.length).toBeGreaterThanOrEqual(3)
-    // No "→" arrow remnants from the prior iteration.
+    // Three pills → two inter-pill separators; +1 disclosure chevron on the row.
+    // All four chevrons are SVG <path d="m9 6 6 6-6 6"/>.
+    const chevronPaths = row.querySelectorAll('svg path[d="m9 6 6 6-6 6"]')
+    expect(chevronPaths.length).toBe(3)
+    // No legacy text-based "→"/"›" remnants.
     expect(within(row).queryAllByText('→')).toEqual([])
+    expect(within(row).queryAllByText('›')).toEqual([])
   })
 
-  it('uses "•" as the leading icon on each tier pill', async () => {
+  it('renders a bullet shape (no plus sign) as the leading icon on each tier pill', async () => {
     vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: mockTemplates })
-    render(<LibraryTemplatesIndex />, { wrapper: Wrapper })
-    const row = await screen.findByRole('link', { name: /adr\.md/i })
-    expect(within(row).getAllByText('•').length).toBe(3)
-    expect(within(row).queryAllByText('+')).toEqual([])
+    const { container } = render(<LibraryTemplatesIndex />, { wrapper: Wrapper })
+    await screen.findByRole('link', { name: /adr\.md/i })
+    // Bullet is a styled <span/> per pill — three pills × two rows.
+    // Use a class-presence check rather than a glyph-text match because
+    // the bullet is now a CSS circle rather than a literal "•".
+    expect(container.querySelectorAll(`[class*="tierPillBullet"]`).length).toBe(6)
+    // The legacy "+" leading is gone.
+    expect(screen.queryAllByText('+')).toEqual([])
   })
 
   it('maps tier (active, present, absent) state to data-state on the pill', async () => {

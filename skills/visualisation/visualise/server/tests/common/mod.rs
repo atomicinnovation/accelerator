@@ -41,6 +41,7 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
                 config_override: None,
                 user_override: meta.join(format!("templates/{name}.md")),
                 plugin_default: pd,
+                config_override_source: None,
             },
         );
     }

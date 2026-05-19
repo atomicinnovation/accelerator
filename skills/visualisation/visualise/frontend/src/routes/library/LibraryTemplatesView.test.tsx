@@ -70,13 +70,51 @@ describe('LibraryTemplatesView', () => {
     expect(row.getAttribute('aria-current')).toBe('page')
   })
 
-  it('renders a TIER 1 / TIER 2 / TIER 3 numbered card per tier', async () => {
+  it('renders a TIER 1 / TIER 2 / TIER 3 numbered card per tier in priority order', async () => {
     mockListAndDetail()
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
     await screen.findByRole('heading', { name: /THREE TIERS/i })
+    // Tier 1 is highest priority (config-override), Tier 3 lowest (plugin-default).
     expect(screen.getByText(/^TIER 1$/)).toBeInTheDocument()
     expect(screen.getByText(/^TIER 2$/)).toBeInTheDocument()
     expect(screen.getByText(/^TIER 3$/)).toBeInTheDocument()
+  })
+
+  it('labels Tier 1 as "highest priority" and Tier 3 as "plugin-default"', async () => {
+    mockListAndDetail()
+    render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
+    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    expect(screen.getByText(/highest priority/i)).toBeInTheDocument()
+    expect(screen.getByText(/plugin-default · always present/i)).toBeInTheDocument()
+  })
+
+  it('uses the active user-override path as the Tier 2 description copy', async () => {
+    mockListAndDetail()
+    render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
+    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    expect(screen.getByText(/\/meta\/templates\/adr\.md in this repo/i)).toBeInTheDocument()
+  })
+
+  it('includes the configSource path in the Tier 1 description when present', async () => {
+    const detailWithSource: TemplateDetail = {
+      ...mockDetail,
+      activeTier: 'config-override',
+      tiers: [
+        { source: 'config-override', path: '.accelerator/templates/adr.md',
+          present: true, active: true, configSource: '.accelerator/config.md',
+          content: '# from config', etag: 'sha256-x' },
+        { source: 'user-override',   path: '/meta/templates/adr.md',
+          present: false, active: false },
+        { source: 'plugin-default',  path: '/plugin/templates/adr.md',
+          present: true, active: false, content: '# plugin', etag: 'sha256-y' },
+      ],
+    }
+    mockListAndDetail(detailWithSource)
+    render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
+    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    expect(
+      screen.getByText(/highest priority · \.accelerator\/config\.md/),
+    ).toBeInTheDocument()
   })
 
   it('renders an indigo "active" Chip on the winning tier card', async () => {
@@ -92,7 +130,9 @@ describe('LibraryTemplatesView', () => {
     await screen.findByRole('heading', { name: /THREE TIERS/i })
     const ringed = container.querySelectorAll('[data-active="true"]')
     expect(ringed.length).toBe(1)
-    expect(templatesCss).toMatch(/\.panel\[data-active="true"\]\s*\{[^}]*outline:/m)
+    // Active ring is implemented as border + box-shadow halo on
+    // `.panel[data-active="true"]`, matching the prototype.
+    expect(templatesCss).toMatch(/\.panel\[data-active="true"\]\s*\{[^}]*box-shadow:/m)
   })
 
   it('renders an error alert when fetchTemplateDetail rejects', async () => {
@@ -113,19 +153,43 @@ describe('LibraryTemplatesView', () => {
     expect(templatesCss).toMatch(/\.twoColumn\s*\{[^}]*grid-template-columns:\s*minmax/m)
   })
 
-  it('renders the winning-tier template source in a <pre><code> code block, not a rendered markdown body', async () => {
+  it('renders the winning-tier template source verbatim (no markdown rendering)', async () => {
     mockListAndDetail()
     const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
     await screen.findByRole('heading', { name: /THREE TIERS/i })
-    // Inside the preview pane, the body is rendered as <pre><code> not as a <h1>.
     const pane = screen.getByTestId('template-preview-pane')
-    expect(pane.querySelector('pre code')).not.toBeNull()
+    // The preview body must NOT render the markdown into <h1>/<p>. The
+    // entire source is emitted as plain text (with token spans) line by
+    // line inside the preview body container.
     expect(pane.querySelector('h1')).toBeNull()
-    // The code element contains the literal markdown source text (verbatim).
-    expect(pane.querySelector('pre code')?.textContent ?? '').toContain('# ADR')
-    // Cover all matches at the document level too — there should not be a rendered <h1>
-    // anywhere just from the preview pane's body.
-    expect(container.querySelectorAll('h1').length).toBeLessThanOrEqual(1)  // Only the page title.
+    expect(pane.textContent ?? '').toContain('# ADR')
+    expect(pane.textContent ?? '').toContain('Body.')
+    // Only the page title <h1> should exist at the document level.
+    expect(container.querySelectorAll('h1').length).toBe(1)
+  })
+
+  it('applies prototype-derived token classes to highlighted frontmatter and {{vars}}', async () => {
+    // The custom highlighter wraps frontmatter keys / delimiters / `{{vars}}`
+    // in `fm-key` / `fm-delim` / `tpl-var` spans. The CSS module then
+    // theme-colours these via `:global(.fm-key) { color: var(--ac-accent); }`.
+    const detailWithFm: TemplateDetail = {
+      ...mockDetail,
+      tiers: [
+        { source: 'config-override', path: '/no-config', present: false, active: false },
+        { source: 'user-override',   path: '/meta/templates/adr.md', present: false, active: false },
+        { source: 'plugin-default',  path: '/plugin/templates/adr.md', present: true, active: true,
+          content: '---\ntitle: "{{title}}"\n---\n\n# Body {{author}}', etag: 'sha256-x' },
+      ],
+    }
+    mockListAndDetail(detailWithFm)
+    const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
+    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    expect(container.querySelector('.fm-key')).not.toBeNull()
+    expect(container.querySelector('.fm-delim')).not.toBeNull()
+    expect(container.querySelectorAll('.tpl-var').length).toBeGreaterThanOrEqual(2)
+    // The CSS module assigns accent / accent-2 colours to these spans.
+    expect(templatesCss).toMatch(/\.previewBody\s*:global\(\.fm-key\)\s*\{[^}]*color:/m)
+    expect(templatesCss).toMatch(/\.previewBody\s*:global\(\.tpl-var\)\s*\{[^}]*color:/m)
   })
 
   it('renders the content-hash label truncated (~12 chars + ellipsis), with the full digest in a title attribute', async () => {

@@ -40,6 +40,7 @@ fn cfg_with_only(tmp: &std::path::Path, doc_paths: HashMap<String, std::path::Pa
                 config_override: None,
                 user_override: tmp.join(format!("meta/templates/{name}.md")),
                 plugin_default: pd,
+                config_override_source: None,
             },
         );
     }

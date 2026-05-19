@@ -3,18 +3,18 @@
 }
 
 .detailHeading {
-  margin: 0 0 var(--sp-4) 0;
+  margin: 0 0 var(--sp-3) 0;
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0.12em;
-  color: var(--ac-fg-muted);
+  color: var(--ac-fg-faint);
   text-transform: uppercase;
 }
 
 .twoColumn {
   display: grid;
-  grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 19rem) minmax(0, 1fr);
   gap: var(--sp-5);
   align-items: start;
 }
@@ -22,47 +22,53 @@
 .tiers {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
 }
 
 .panel {
-  border: 1px solid var(--ac-stroke-soft);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-sm);
   padding: var(--sp-3) var(--sp-4);
   background: var(--ac-bg-card);
+  position: relative;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.panel:hover {
+  border-color: var(--ac-stroke-strong);
 }
 
 .panel.absent {
-  opacity: 0.7;
-  background: var(--ac-bg-sunken);
+  opacity: 0.55;
 }
 
 .panel[data-active="true"] {
-  outline: 2px solid var(--ac-accent);
-  outline-offset: 2px;
+  border-color: var(--ac-accent);
+  box-shadow: 0 0 0 3px var(--ac-accent-faint);
 }
 
 .tierEyebrow {
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0.12em;
-  color: var(--ac-fg-muted);
+  color: var(--ac-fg-faint);
   text-transform: uppercase;
-  margin-bottom: var(--sp-1);
 }
 
 .panelHeader {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
+  margin-top: 0.125rem;
   margin-bottom: var(--sp-2);
 }
 
 .tierLabel {
-  font-weight: 500;
+  font-family: var(--ac-font-display);
+  font-weight: 600;
   font-size: var(--size-xs);
-  color: var(--ac-fg);
+  color: var(--ac-fg-strong);
 }
 
 .tierPaths {
@@ -76,37 +82,36 @@
   font-size: var(--size-xxs);
   font-weight: 400;
   color: var(--ac-fg-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-all;
 }
 
 .tierNote {
+  font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
-  color: var(--ac-fg-muted);
-  font-style: italic;
+  color: var(--ac-fg-faint);
 }
 
 .absentNote {
   font-style: italic;
-  color: var(--ac-fg-muted);
+  color: var(--ac-fg-faint);
   margin: 0;
 }
 
 .previewPane {
-  border: 1px solid var(--ac-stroke-soft);
-  border-radius: var(--radius-md);
-  background: var(--ac-bg-card);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-sm);
+  background: var(--ac-bg-sunken);
   overflow: hidden;
 }
 
 .previewHeader {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--sp-4);
-  padding: var(--sp-3) var(--sp-4);
-  border-bottom: 1px solid var(--ac-stroke-soft);
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--ac-stroke);
+  background: var(--ac-bg-card);
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
   font-weight: 400;
@@ -125,21 +130,31 @@
   white-space: nowrap;
 }
 
-.previewCodeBlock {
-  margin: 0;
-  padding: var(--sp-4);
+/* Template body — prototype-derived monospace pre with token-coloured
+   spans emitted by `highlightTemplate()`:
+   - `.fm-key`   — frontmatter key in accent colour
+   - `.fm-delim` — frontmatter `---` and `:` in faint foreground
+   - `.tpl-var`  — `{{variable}}` placeholders in accent-2 colour */
+.previewBody {
+  padding: var(--sp-3) var(--sp-4);
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
-  font-weight: 400;
-  line-height: 1.5;
-  background: var(--ac-bg-sunken);
-  color: var(--ac-fg);
+  line-height: 1.6;
+  white-space: pre;
   overflow-x: auto;
+  color: var(--ac-fg);
 }
 
-.previewCode {
-  font-family: inherit;
-  white-space: pre;
+.previewBody :global(.fm-key) {
+  color: var(--ac-accent);
+}
+
+.previewBody :global(.fm-delim) {
+  color: var(--ac-fg-faint);
+}
+
+.previewBody :global(.tpl-var) {
+  color: var(--ac-accent-2);
 }
 
 .error {

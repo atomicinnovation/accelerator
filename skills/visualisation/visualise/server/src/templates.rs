@@ -26,6 +26,14 @@ pub struct TemplateTier {
     pub content: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub etag: Option<String>,
+    /// Project-root-relative path of the config file in which the
+    /// `config_override` entry for this template is declared (e.g.
+    /// `.accelerator/config.md` or `.accelerator/config.local.md`).
+    /// Only meaningful for the `ConfigOverride` tier; `None` for the
+    /// user-override and plugin-default tiers, and for config-override
+    /// tiers whose source file is unknown to the launcher.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub config_source: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -100,6 +108,7 @@ impl TemplateResolver {
                 active: false,
                 content,
                 etag,
+                config_source: tiers.config_override_source.clone(),
             });
 
             let (present, content, etag) =
@@ -111,6 +120,7 @@ impl TemplateResolver {
                 active: false,
                 content,
                 etag,
+                config_source: None,
             });
 
             let (present, content, etag) =
@@ -122,6 +132,7 @@ impl TemplateResolver {
                 active: false,
                 content,
                 etag,
+                config_source: None,
             });
 
             let active_source = ordered
@@ -168,6 +179,7 @@ impl TemplateResolver {
                         active: t.active,
                         content: None,
                         etag: t.etag.clone(),
+                        config_source: t.config_source.clone(),
                     })
                     .collect(),
                 active_tier: entry.active_tier,
@@ -226,6 +238,7 @@ mod tests {
             config_override: Some(tier(dir, "cfg-adr.md", "from config")),
             user_override: tier(dir, "user-adr.md", "from user"),
             plugin_default: tier(dir, "plugin-adr.md", "from plugin"),
+            config_override_source: None,
         }
     }
 
@@ -255,6 +268,7 @@ mod tests {
             config_override: None,
             user_override: tmp.path().join("missing-user.md"),
             plugin_default: tier(tmp.path(), "plugin-adr.md", "from plugin"),
+            config_override_source: None,
         };
         let mut map = HashMap::new();
         map.insert("adr".to_string(), t);
@@ -276,6 +290,7 @@ mod tests {
             config_override: None,
             user_override: tier(tmp.path(), "user-adr.md", "from user"),
             plugin_default: tier(tmp.path(), "plugin-adr.md", "from plugin"),
+            config_override_source: None,
         };
         let mut map = HashMap::new();
         map.insert("adr".to_string(), t);
@@ -351,6 +366,7 @@ mod tests {
             config_override: None,
             user_override: tmp.path().join("missing-user.md"),
             plugin_default: empty_plugin,
+            config_override_source: None,
         };
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();

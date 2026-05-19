@@ -92,6 +92,13 @@ export interface TemplateTier {
   active: boolean
   content?: string
   etag?: string
+  /** Project-root-relative path of the config file (e.g.
+   *  `.accelerator/config.md` or `.accelerator/config.local.md`) in which
+   *  the config-override for this template is declared. Only meaningful
+   *  for the `config-override` tier; absent for the user-override /
+   *  plugin-default tiers and for config-override tiers whose source
+   *  file is unknown to the launcher. */
+  configSource?: string
 }
 
 export interface TemplateSummary {

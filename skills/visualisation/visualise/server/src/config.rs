@@ -127,12 +127,19 @@ impl WorkItemConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TemplateTiers {
     pub config_override: Option<PathBuf>,
     pub user_override: PathBuf,
     pub plugin_default: PathBuf,
+    /// Path of the config file (relative to the project root) in which
+    /// `config_override` is declared, when known to the launcher. Used
+    /// by the templates view's Tier 1 description text. `None` when
+    /// there is no config-override or the launcher does not surface
+    /// this information.
+    #[serde(default)]
+    pub config_override_source: Option<String>,
 }
 
 impl TemplateTiers {

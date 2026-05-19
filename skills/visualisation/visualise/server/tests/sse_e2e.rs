@@ -161,6 +161,7 @@ fn make_template_cfg(
                 .unwrap()
                 .join("missing-user.md"),
             plugin_default: tier_file,
+            config_override_source: None,
         },
     );
     let doc_paths = HashMap::new();

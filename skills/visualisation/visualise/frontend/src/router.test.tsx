@@ -53,7 +53,7 @@ describe('router', () => {
     // Heading from LibraryTemplatesIndex — matched via the literal
     // /library/templates route, not the generic /library/$type.
     expect(
-      await screen.findByRole('heading', { name: /Authoring templates/i }),
+      await screen.findByRole('heading', { name: /^Templates$/i }),
     ).toBeInTheDocument()
   })
 

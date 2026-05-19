@@ -69,16 +69,32 @@ template_tier() {
   local override
   override="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "templates.$name" 2>/dev/null || true)"
   local override_json
+  local override_source_json="null"
   if [ -z "$override" ]; then
     override_json="null"
   else
     override_json="$(jq -nc --arg p "$override" '$p')"
+    # Determine which config file declared the override. config.local.md
+    # has higher precedence than config.md, so check the local file first.
+    local key_re="^[[:space:]]*${name}:"
+    local team_file="$PROJECT_ROOT/.accelerator/config.md"
+    local local_file="$PROJECT_ROOT/.accelerator/config.local.md"
+    if [ -f "$local_file" ] \
+      && awk '/^---[[:space:]]*$/{c++; next} c==1{print}' "$local_file" 2>/dev/null \
+         | grep -qE "$key_re" 2>/dev/null; then
+      override_source_json='".accelerator/config.local.md"'
+    elif [ -f "$team_file" ] \
+      && awk '/^---[[:space:]]*$/{c++; next} c==1{print}' "$team_file" 2>/dev/null \
+         | grep -qE "$key_re" 2>/dev/null; then
+      override_source_json='".accelerator/config.md"'
+    fi
   fi
   jq -nc \
     --argjson config_override "$override_json" \
     --arg user_override "$TEMPLATES_USER_ROOT/$name.md" \
     --arg plugin_default "$TEMPLATES_PLUGIN_ROOT/$name.md" \
-    '{config_override:$config_override, user_override:$user_override, plugin_default:$plugin_default}'
+    --argjson config_override_source "$override_source_json" \
+    '{config_override:$config_override, user_override:$user_override, plugin_default:$plugin_default, config_override_source:$config_override_source}'
 }
 
 ADR="$(template_tier adr)"

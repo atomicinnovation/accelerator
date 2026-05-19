@@ -1,11 +1,10 @@
-/* Templates index — connected rows in one table-like container. The
-   outer .list owns the outer border + radius; rows share borders
-   between them, no per-row gap. */
+/* Templates index — connected rows in one table-like container, modelled
+   on the prototype's `.ac-tpl-list / .ac-tpl-row` styling. */
 .list {
   list-style: none;
   padding: 0;
   margin: 0;
-  border: 1px solid var(--ac-stroke-soft);
+  border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-md);
   background: var(--ac-bg-card);
   overflow: hidden;
@@ -21,12 +20,14 @@
 }
 
 .rowLink {
-  display: flex;
+  display: grid;
+  grid-template-columns: 180px 1fr auto;
+  gap: var(--sp-4);
   align-items: center;
-  gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
   color: var(--ac-fg);
   text-decoration: none;
+  cursor: pointer;
   transition: background-color 0.12s ease-in-out;
 }
 
@@ -35,7 +36,17 @@
 }
 
 .rowLink[data-selected="true"] {
-  background: var(--ac-accent-faint);
+  background: var(--ac-bg-active);
+}
+
+.rowName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xs);
+  font-weight: 400;
+  color: var(--ac-fg-strong);
 }
 
 .rowGlyph {
@@ -53,76 +64,78 @@
   background: var(--ac-bg-sunken);
 }
 
-.rowName {
-  font-family: var(--ac-font-mono);
-  font-size: var(--size-xs);
-  font-weight: 400;
-  color: var(--ac-fg);
-  flex: 0 1 auto;
-}
-
+/* Tier-pill chain, left-aligned in the middle grid column. */
 .tierChain {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-1);
-  margin-left: auto;
+  gap: var(--sp-2);
+  justify-self: start;
 }
 
 .tierChainItem {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-1);
+  gap: var(--sp-2);
 }
 
 .tierSeparator {
-  font-size: var(--size-xs);
-  color: var(--ac-fg-muted);
-  opacity: 0.55;
-  line-height: 1;
-  padding: 0 var(--sp-1);
+  color: var(--ac-fg-faint);
+  opacity: 0.6;
 }
 
-/* Rounded-rectangle tier pills, modelled on the sort/filter buttons:
-   muted by default, accent for the winning tier, transparent for
-   absent slots. */
+/* Tier pill — rounded rectangle, prototype-matched padding and typography.
+   Three states, each with a distinct visual treatment:
+   - active:  accent foreground + accent-faint background + accent-tint border
+   - present: muted foreground + sunken background + neutral border
+   - absent:  faint foreground + dashed transparent border, dimmed */
 .tierPill {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
-  padding: var(--sp-1) var(--sp-2);
+  padding: 0.1875rem var(--sp-2);
   border-radius: var(--radius-sm);
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  border: 1px solid transparent;
-  background: var(--ac-bg-sunken);
+  border: 1px solid var(--ac-stroke);
   color: var(--ac-fg-muted);
+  background: var(--ac-bg-sunken);
 }
 
 .tierPill[data-state="absent"] {
   background: transparent;
-  border-color: var(--ac-stroke-soft);
-  color: var(--ac-fg-muted);
-  opacity: 0.7;
+  border-color: var(--ac-stroke);
+  border-style: dashed;
+  color: var(--ac-fg-faint);
+  opacity: 0.55;
 }
 
 .tierPill[data-state="present"] {
   background: var(--ac-bg-sunken);
-  border-color: var(--ac-stroke-soft);
-  color: var(--ac-fg-muted);
+  border-color: var(--ac-stroke);
+  color: var(--ac-fg);
 }
 
 .tierPill[data-state="active"] {
-  background: var(--ac-accent-tint);
+  background: var(--ac-accent-faint);
   border-color: var(--ac-accent-tint);
   color: var(--ac-accent);
+  font-weight: 500;
 }
 
 .tierPillBullet {
-  font-size: var(--size-xxs);
-  line-height: 1;
+  display: inline-block;
+  width: 0.3125rem;
+  height: 0.3125rem;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+.tierPill[data-state="absent"] .tierPillBullet {
+  opacity: 0.35;
 }
 
 .tierPillLabel {
@@ -130,10 +143,7 @@
 }
 
 .rowChevron {
-  font-size: var(--size-md);
-  color: var(--ac-fg-muted);
-  line-height: 1;
-  margin-left: var(--sp-2);
+  color: var(--ac-fg-faint);
 }
 
 .error {

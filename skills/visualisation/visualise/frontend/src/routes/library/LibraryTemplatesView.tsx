@@ -1,7 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
 import { useParams } from '@tanstack/react-router'
-import hljs from 'highlight.js/lib/core'
-import markdownLang from 'highlight.js/lib/languages/markdown'
 import { useQuery } from '@tanstack/react-query'
 import { fetchTemplateDetail } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
@@ -9,9 +6,8 @@ import { Chip } from '../../components/Chip/Chip'
 import type { TemplateDetail, TemplateTier } from '../../api/types'
 import { TIER_LABELS } from './template-tier'
 import { TemplatesPage } from './LibraryTemplatesIndex'
+import { highlightTemplate } from './template-highlight'
 import styles from './LibraryTemplatesView.module.css'
-
-hljs.registerLanguage('markdown', markdownLang)
 
 interface Props {
   name?: string
@@ -75,6 +71,30 @@ function TemplateDetailSection({ name }: { name: string }) {
   )
 }
 
+/** Description text shown under the tier path, modelled on the prototype's
+ *  `tierDesc()` function (view-templates.jsx). */
+function tierDescription(tier: TemplateTier): string {
+  switch (tier.source) {
+    case 'config-override':
+      // Tier 1 is the highest-priority slot. When the launcher knows which
+      // config file declared the override we add it, mirroring the prototype:
+      //   highest priority · .accelerator/config.md
+      // For the absent case we still surface "highest priority" so the
+      // semantic order of the tier stack is unambiguous.
+      return tier.configSource
+        ? `highest priority · ${tier.configSource}`
+        : 'highest priority'
+    case 'user-override':
+      // Tier 2 — the active-when-no-config-override tier. Mirrors the
+      // prototype copy: "<tier-2-path> in this repo".
+      return `${tier.path} in this repo`
+    case 'plugin-default':
+      return 'plugin-default · always present'
+    default:
+      return ''
+  }
+}
+
 function TierCard({
   tier,
   tierIndex,
@@ -97,13 +117,7 @@ function TierCard({
       </header>
       <div className={styles.tierPaths}>
         <code className={styles.tierPath}>{tier.path}</code>
-        {tier.present ? (
-          <span className={styles.tierNote}>
-            {isActive ? 'highest priority — present' : 'present in this repo'}
-          </span>
-        ) : (
-          <span className={styles.tierNote}>not currently configured</span>
-        )}
+        <span className={styles.tierNote}>{tierDescription(tier)}</span>
       </div>
     </section>
   )
@@ -114,9 +128,8 @@ function findWinningTier(data: TemplateDetail): TemplateTier | undefined {
 }
 
 /** Truncate a `sha256-<hex>` etag for compact display: keeps the
- *  full `sha256-` prefix + 5 hex characters (total 12 chars) followed
- *  by an ellipsis. The untruncated value is surfaced via a `title`
- *  attribute on the surrounding element for hover inspection. */
+ *  `sha256-` prefix + 5 hex characters (total 12 chars) followed by an
+ *  ellipsis. The untruncated value is surfaced via a `title` attribute. */
 function truncateSha256(sha: string): string {
   if (sha.length <= 13) return sha
   return `${sha.slice(0, 12)}…`
@@ -124,28 +137,6 @@ function truncateSha256(sha: string): string {
 
 function TemplatePreviewPane({ data }: { data: TemplateDetail }) {
   const winning = findWinningTier(data)
-  const content = winning?.content ?? ''
-  const codeRef = useRef<HTMLElement | null>(null)
-
-  const highlightedHtml = useMemo<string | null>(() => {
-    if (!content) return null
-    try {
-      return hljs.highlight(content, { language: 'markdown' }).value
-    } catch {
-      return null
-    }
-  }, [content])
-
-  useEffect(() => {
-    // hljs.highlight returns HTML; if highlight failed (returns null), we
-    // fall back to textContent below — no effect needed.
-    if (!codeRef.current) return
-    if (highlightedHtml == null) {
-      codeRef.current.textContent = content
-    } else {
-      codeRef.current.innerHTML = highlightedHtml
-    }
-  }, [highlightedHtml, content])
 
   if (!winning) {
     return (
@@ -170,13 +161,11 @@ function TemplatePreviewPane({ data }: { data: TemplateDetail }) {
           </span>
         ) : null}
       </div>
-      <pre className={styles.previewCodeBlock}>
-        <code
-          ref={codeRef}
-          className={`language-markdown ${styles.previewCode} hljs`}
-        />
-      </pre>
+      <div className={styles.previewBody}>
+        {winning.content != null
+          ? highlightTemplate(winning.content)
+          : <span className={styles.absentNote}>tier not present</span>}
+      </div>
     </div>
   )
 }
-

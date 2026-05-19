@@ -116,6 +116,7 @@ async fn template_detail_omits_sha256_when_winning_content_empty() {
             config_override: None,
             user_override: tmp.path().join("meta/templates/adr.md"),
             plugin_default: empty,
+            config_override_source: None,
         },
     );
     cfg.templates = templates;
@@ -152,6 +153,7 @@ async fn template_detail_omits_sha256_when_winning_tier_absent() {
             config_override: None,
             user_override: tmp.path().join("missing-user.md"),
             plugin_default: tmp.path().join("missing-plugin.md"),
+            config_override_source: None,
         },
     );
     cfg.templates = templates;
@@ -186,6 +188,7 @@ async fn template_detail_omits_sha256_when_winning_content_not_utf8() {
             config_override: None,
             user_override: tmp.path().join("meta/templates/adr.md"),
             plugin_default: non_utf8,
+            config_override_source: None,
         },
     );
     cfg.templates = templates;
