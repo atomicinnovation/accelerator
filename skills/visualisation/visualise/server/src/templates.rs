@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 
 use crate::config::TemplateTiers;
 use crate::file_driver::FileDriver;
@@ -41,10 +42,28 @@ pub struct TemplateDetail {
     pub name: String,
     pub tiers: Vec<TemplateTier>,
     pub active_tier: TemplateTierSource,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
+}
+
+struct TemplateEntry {
+    tiers: Vec<TemplateTier>,
+    active_tier: TemplateTierSource,
+    sha256: Option<String>,
 }
 
 pub struct TemplateResolver {
-    by_name: HashMap<String, Vec<TemplateTier>>,
+    by_name: HashMap<String, TemplateEntry>,
+}
+
+/// `sha256-<64-hex>` form, matching the per-tier etag shape.
+/// `None` for empty content (empty-string digest is suppressed so an
+/// empty winning file produces no displayable hash) and for absent
+/// content.
+pub(crate) fn content_sha256(content: Option<&str>) -> Option<String> {
+    content
+        .filter(|s| !s.is_empty())
+        .map(|s| format!("sha256-{}", hex::encode(Sha256::digest(s.as_bytes()))))
 }
 
 impl TemplateResolver {
@@ -101,7 +120,21 @@ impl TemplateResolver {
                 t.active = t.source == active_source;
             }
 
-            by_name.insert(name.clone(), ordered);
+            let sha256 = content_sha256(
+                ordered
+                    .iter()
+                    .find(|t| t.active && t.present)
+                    .and_then(|t| t.content.as_deref()),
+            );
+
+            by_name.insert(
+                name.clone(),
+                TemplateEntry {
+                    tiers: ordered,
+                    active_tier: active_source,
+                    sha256,
+                },
+            );
         }
         Self { by_name }
     }
@@ -110,9 +143,10 @@ impl TemplateResolver {
         let mut out: Vec<TemplateSummary> = self
             .by_name
             .iter()
-            .map(|(name, tiers)| TemplateSummary {
+            .map(|(name, entry)| TemplateSummary {
                 name: name.clone(),
-                tiers: tiers
+                tiers: entry
+                    .tiers
                     .iter()
                     .map(|t| TemplateTier {
                         source: t.source,
@@ -123,11 +157,7 @@ impl TemplateResolver {
                         etag: t.etag.clone(),
                     })
                     .collect(),
-                active_tier: tiers
-                    .iter()
-                    .find(|t| t.active)
-                    .map(|t| t.source)
-                    .unwrap_or(TemplateTierSource::PluginDefault),
+                active_tier: entry.active_tier,
             })
             .collect();
         out.sort_by(|a, b| a.name.cmp(&b.name));
@@ -135,16 +165,12 @@ impl TemplateResolver {
     }
 
     pub fn detail(&self, name: &str) -> Option<TemplateDetail> {
-        let tiers = self.by_name.get(name)?;
-        let active_tier = tiers
-            .iter()
-            .find(|t| t.active)
-            .map(|t| t.source)
-            .unwrap_or(TemplateTierSource::PluginDefault);
+        let entry = self.by_name.get(name)?;
         Some(TemplateDetail {
             name: name.to_string(),
-            tiers: tiers.clone(),
-            active_tier,
+            tiers: entry.tiers.clone(),
+            active_tier: entry.active_tier,
+            sha256: entry.sha256.clone(),
         })
     }
 
@@ -284,6 +310,54 @@ mod tests {
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
         let r = TemplateResolver::build(&map, &driver).await;
         assert!(r.detail("missing").is_none());
+    }
+
+    #[tokio::test]
+    async fn detail_sha256_matches_winning_tier_content_prefixed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let driver = test_driver(tmp.path());
+        let mut map = HashMap::new();
+        map.insert("adr".to_string(), tiers_all_three(tmp.path()));
+        let r = TemplateResolver::build(&map, &driver).await;
+        let d = r.detail("adr").unwrap();
+        let active = d.tiers.iter().find(|t| t.active).unwrap();
+        let expected = format!(
+            "sha256-{}",
+            hex::encode(sha2::Sha256::digest(
+                active.content.as_ref().unwrap().as_bytes(),
+            )),
+        );
+        assert_eq!(d.sha256.as_deref(), Some(expected.as_str()));
+    }
+
+    #[tokio::test]
+    async fn detail_sha256_omitted_when_winning_content_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let empty_plugin = tier(tmp.path(), "plugin-empty.md", "");
+        let t = TemplateTiers {
+            config_override: None,
+            user_override: tmp.path().join("missing-user.md"),
+            plugin_default: empty_plugin,
+        };
+        let driver = test_driver(tmp.path());
+        let mut map = HashMap::new();
+        map.insert("e".to_string(), t);
+        let r = TemplateResolver::build(&map, &driver).await;
+        let d = r.detail("e").unwrap();
+        assert!(d.sha256.is_none(), "empty winning content -> no sha256");
+    }
+
+    #[tokio::test]
+    async fn detail_sha256_cached_at_build_time() {
+        let tmp = tempfile::tempdir().unwrap();
+        let driver = test_driver(tmp.path());
+        let mut map = HashMap::new();
+        map.insert("adr".to_string(), tiers_all_three(tmp.path()));
+        let r = TemplateResolver::build(&map, &driver).await;
+        let s1 = r.detail("adr").unwrap().sha256.clone();
+        let s2 = r.detail("adr").unwrap().sha256.clone();
+        assert_eq!(s1, s2);
+        assert!(s1.is_some());
     }
 
     #[tokio::test]
