@@ -348,4 +348,28 @@ case "$phase" in
     ;;
 esac
 
+# Test 24 — regression guard against the broken `--json` field that
+# work item 0071 fixed.
+#
+# Background: gh 2.65.0 does not allowlist the legacy field in
+# `gh pr view --json`, so any reappearance of that flag combination
+# under skills/github/ would re-break the describe-pr / review-pr /
+# respond-to-pr post-step on gh 2.65.0. URL derivation is the
+# replacement (see pr-base-repo.sh's header and meta/work/0071-*.md).
+#
+# Unconditional (no PHASE gate): Phases 1+2 land atomically, so the
+# staged-landing rationale that motivated PHASE gating for tests 22
+# and 23 does not apply here. The `-F --` extras force fixed-string
+# matching and terminate option processing before grep parses the
+# pattern's leading `--json` as a long option.
+#
+# The legacy field name is bound to a variable and the pattern
+# constructed at runtime so the literal flag+field pair never appears
+# verbatim in this file (otherwise the guard would self-match).
+LEGACY_FIELD="baseRepository"
+LEGACY_PATTERN="--json $LEGACY_FIELD"
+assert_grep_empty "test 24 (regression guard for 0071 — see pr-base-repo.sh header)" \
+  "$PLUGIN_ROOT/skills/github/" "$LEGACY_PATTERN" \
+  -F --
+
 test_summary

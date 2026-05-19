@@ -4,8 +4,9 @@ set -euo pipefail
 # Usage: pr-base-repo.sh <pr-number>
 # Prints "<owner>/<name>" of the base (upstream) repository for the given
 # pull request to stdout. Cross-fork-safe: resolves via
-# `gh pr view --json baseRepository`, not `gh repo view`. Used by
-# describe-pr (for PATCHing the body), review-pr, and respond-to-pr.
+# `gh pr view --json url`, parsing the upstream owner/repo out of the
+# PR URL path. Used by describe-pr (for PATCHing the body), review-pr,
+# and respond-to-pr.
 #
 # Exit codes:
 #   0  success
@@ -13,14 +14,25 @@ set -euo pipefail
 #   2  usage error (wrong arg count, missing jq, ...)
 #
 # Conventions:
-# - Cross-fork-safe: resolves via `gh pr view --json baseRepository`.
-#   `gh repo view` returns the local checkout's repo (the fork, for
-#   contributors), which is wrong for cross-fork PR operations.
+# - Cross-fork-safe: the PR URL field reflects the base (upstream) repo
+#   even when the PR was opened from a fork — extracting owner/repo
+#   from that URL guarantees PATCHes target the right resource. The
+#   alternative `gh repo view` would return the local checkout's repo
+#   (the fork, for contributors), which is wrong for cross-fork PR
+#   operations.
+# - The Phase 4 smoke check at scripts/test-pr-base-repo-real-gh.sh is
+#   the source of truth for which `--json` fields the installed `gh`
+#   accepts. The resolver makes no static claim about a minimum `gh`
+#   version; the smoke check fails loudly on an installed `gh` whose
+#   allowlist omits `url`, with an actionable error pointing at work
+#   item 0071.
 # - Preserves the underlying gh stderr on failure so callers see the
 #   real cause; emits a conditional `gh repo set-default` remediation
 #   only when the captured stderr matches the known phrase.
-# - Validates that owner.login and name are non-empty so a degenerate
-#   gh response can't smuggle "null/null" downstream.
+# - The URL extraction regex restricts owner/repo to GitHub's actual
+#   repo-name charset ([A-Za-z0-9._-]); URLs containing percent-encoded
+#   or otherwise unusual characters are rejected at parse time, so
+#   nothing smuggles into the downstream `gh api` URL interpolation.
 #
 # Invocation: must be run as a subprocess (e.g. via command
 # substitution or direct execution). The EXIT trap on the internal

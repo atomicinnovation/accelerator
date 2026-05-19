@@ -520,23 +520,23 @@ shape.
 
 #### Automated Verification:
 
-- [ ] At `PHASE=1`, tests 3, 4, 4b, 4c, 4d, 4e, 5, 8, 9, 11 in
+- [x] At `PHASE=1`, tests 3, 4, 4b, 4c, 4d, 4e, 5, 8, 9, 11 in
   `test-pr-base-repo-scripts.sh` fail: `PHASE=1 mise run test:integration:github`.
   Tests 8, 9, and 11 fail on the **stderr text assertion** (the post-fix-
   specific message `could not extract owner/repo from url` / `url was
   empty/null` is not present in the unchanged production's null-guard
   output) — not on the exit-code assertion, which is satisfied by the
   legacy null-guard branch.
-- [ ] At `PHASE=1`, test 6 in `test-pr-update-body-scripts.sh` fails
+- [x] At `PHASE=1`, test 6 in `test-pr-update-body-scripts.sh` fails
   (the resolver's argv assertion).
-- [ ] At `PHASE=1`, tests 1, 2, 6, 7, 10, 12 in
+- [x] At `PHASE=1`, tests 1, 2, 6, 7, 10, 12 in
   `test-pr-base-repo-scripts.sh` still pass (orthogonal concerns).
-- [ ] At `PHASE=1`, `shellcheck skills/github/scripts/test-pr-base-repo-scripts.sh
+- [x] At `PHASE=1`, `shellcheck skills/github/scripts/test-pr-base-repo-scripts.sh
   skills/github/describe-pr/scripts/test-pr-update-body-scripts.sh` exits 0.
 
 #### Manual Verification:
 
-- [ ] Run `PHASE=1 bash skills/github/scripts/test-pr-base-repo-scripts.sh`
+- [x] Run `PHASE=1 bash skills/github/scripts/test-pr-base-repo-scripts.sh`
   and visually confirm the failing tests fail for the *intended*
   reason (argv mismatch, payload-shape mismatch, or stderr-text
   mismatch), not an incidental harness issue.
@@ -636,13 +636,13 @@ strategy is required.
 
 #### Automated Verification:
 
-- [ ] At `PHASE=2`, all tests in `test-pr-base-repo-scripts.sh` pass
+- [x] At `PHASE=2`, all tests in `test-pr-base-repo-scripts.sh` pass
   (including reshaped tests 3, 4, 4b, 4c, 4d, 4e, 5, 8, 9, 11):
   `PHASE=2 mise run test:integration:github`
-- [ ] At `PHASE=2`, all tests in `test-pr-update-body-scripts.sh`
+- [x] At `PHASE=2`, all tests in `test-pr-update-body-scripts.sh`
   pass (including the reshaped test 6).
-- [ ] `shellcheck skills/github/scripts/pr-base-repo.sh` exits 0.
-- [ ] `mise run test:integration:github` (default `PHASE=final`) is
+- [x] `shellcheck skills/github/scripts/pr-base-repo.sh` exits 0.
+- [x] `mise run test:integration:github` (default `PHASE=final`) is
   fully green. Test 24 has not yet been added (Phase 3) and the
   real-`gh` smoke harness has not yet been added (Phase 4), so the
   test count is the existing total plus four new tests (4b GHE host,
@@ -798,22 +798,32 @@ header so a future operator hitting this FAIL has a recovery path.
 
 #### Automated Verification:
 
-- [ ] At every `PHASE` value, test 24 fires (it has no PHASE gate).
+- [x] At every `PHASE` value, test 24 fires (it has no PHASE gate).
   Confirm at `PHASE=1`, `PHASE=2`, `PHASE=3`, and `PHASE=final` that
   test 24 reports PASS once Phase 2's `--json url` swap is in tree.
-- [ ] At `PHASE=final`, all of `test-pr-base-repo-scripts.sh` is
+- [x] At `PHASE=final`, all of `test-pr-base-repo-scripts.sh` is
   green, including tests 22, 23, and 24.
-- [ ] `grep -rF -- "--json baseRepository" skills/github/` returns
+- [x] `grep -rF -- "--json baseRepository" skills/github/` returns
   no matches.
-- [ ] `shellcheck skills/github/scripts/test-pr-base-repo-scripts.sh`
+- [x] `shellcheck skills/github/scripts/test-pr-base-repo-scripts.sh`
   and `shellcheck skills/github/scripts/pr-base-repo.sh` both exit 0.
 
 #### Manual Verification:
 
-- [ ] Visually read the updated header comment in
+- [x] Visually read the updated header comment in
   `pr-base-repo.sh` (the replaced lines 4-28 block) and confirm it
   accurately describes the new data-source behaviour and the
   cross-fork-safety property.
+
+#### Implementation Notes:
+
+- Test 24 self-matches if the literal string `--json baseRepository`
+  appears anywhere in its own source (the file lives under the search
+  root `skills/github/`). The pattern is built at runtime by
+  concatenating a `LEGACY_FIELD="baseRepository"` variable with the
+  `--json` flag prefix, and the surrounding comments avoid the literal
+  pair. The plan's `assert_grep_empty ... "--json baseRepository"`
+  literal would have self-matched.
 
 ---
 
