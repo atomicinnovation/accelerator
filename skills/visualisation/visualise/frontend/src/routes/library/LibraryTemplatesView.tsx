@@ -44,14 +44,16 @@ export function LibraryTemplatesView({ name: propName }: Props) {
   } else if (!isLoading && data) {
     title = name
     content = (
-      <div className={styles.tiers}>
-        {data.tiers.map(tier => (
-          <TierPanel
-            key={tier.source}
-            tier={tier}
-            isActive={tier.source === data.activeTier}
-          />
-        ))}
+      <div className={styles.twoColumn} data-testid="templates-detail-layout">
+        <div className={styles.tiers}>
+          {data.tiers.map(tier => (
+            <TierPanel
+              key={tier.source}
+              tier={tier}
+              isActive={tier.source === data.activeTier}
+            />
+          ))}
+        </div>
       </div>
     )
   }
@@ -61,7 +63,10 @@ export function LibraryTemplatesView({ name: propName }: Props) {
 
 function TierPanel({ tier, isActive }: { tier: TemplateTier; isActive: boolean }) {
   return (
-    <section className={`${styles.panel} ${!tier.present ? styles.absent : ''}`}>
+    <section
+      className={`${styles.panel} ${!tier.present ? styles.absent : ''}`}
+      data-active={isActive ? 'true' : undefined}
+    >
       <header className={styles.panelHeader}>
         <span className={styles.tierLabel}>{TIER_LABELS[tier.source] ?? tier.source}</span>
         {isActive && <Chip variant="indigo">active</Chip>}

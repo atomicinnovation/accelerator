@@ -1,5 +1,15 @@
+.twoColumn {
+  display: grid;
+  grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
+  gap: var(--sp-5);
+  align-items: start;
+}
 .tiers { display: flex; flex-direction: column; gap: var(--sp-5); }
 .panel { border: 1px solid var(--ac-stroke-soft); border-radius: var(--radius-md); padding: var(--sp-4); }
+.panel[data-active="true"] {
+  outline: 2px solid var(--ac-accent);
+  outline-offset: 2px;
+}
 .panel.absent { opacity: 0.55; background: var(--ac-bg-sunken); }
 .panelHeader { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
 .tierLabel { font-weight: 600; font-size: var(--size-xs); color: var(--ac-fg); }

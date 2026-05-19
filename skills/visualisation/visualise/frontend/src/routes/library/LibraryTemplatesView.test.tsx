@@ -84,4 +84,31 @@ describe('LibraryTemplatesView', () => {
   it('CSS module no longer defines the legacy .activeBadge rule', () => {
     expect(templatesCss).not.toMatch(/\.activeBadge\b/)
   })
+
+  it('renders a two-column grid container for the detail layout', async () => {
+    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
+    render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
+    await screen.findByText('active')
+    expect(screen.getByTestId('templates-detail-layout')).toBeInTheDocument()
+  })
+
+  it('CSS module declares a two-column grid for the layout container', () => {
+    expect(templatesCss).toMatch(/\.twoColumn\s*\{[^}]*grid-template-columns:\s*minmax/m)
+  })
+
+  it('applies the accent-ring class to the winning tier card only', async () => {
+    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
+    const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
+    await screen.findByText('active')
+    const ringed = container.querySelectorAll('[data-active="true"]')
+    expect(ringed.length).toBe(1)
+    expect(templatesCss).toMatch(/\.panel\[data-active="true"\]\s*\{[^}]*outline:/m)
+  })
+
+  it('retains the indigo "active" Chip alongside the ring', async () => {
+    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
+    const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
+    await screen.findByText('active')
+    expect(container.querySelector('[data-variant="indigo"]')).not.toBeNull()
+  })
 })
