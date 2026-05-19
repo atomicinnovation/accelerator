@@ -1,6 +1,12 @@
 .sidebar {
   width: 240px;
-  min-height: 100vh;
+  /* The sidebar lives inside RootLayout's `.body` row, which is itself
+     bounded to the viewport. Scroll independently of `.main` when the
+     nav list overflows. `min-height: 0` is unnecessary here because
+     the sidebar IS a direct flex child of `.body` and `.body` already
+     allows shrink. */
+  height: 100%;
+  overflow-y: auto;
   padding: var(--sp-4) var(--sp-3);
   border-right: 1px solid var(--ac-stroke);
   background: var(--ac-bg-sidebar);

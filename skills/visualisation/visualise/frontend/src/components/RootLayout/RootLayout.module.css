@@ -1,16 +1,30 @@
 .root {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  /* Pin the shell to the viewport so the Topbar (fixed at the top) and
+     the body row (sidebar + main, sharing the remaining viewport) each
+     scroll independently. `min-height: 100vh` would let content push
+     the whole page taller than the viewport and break the fixed-shell
+     contract. */
+  height: 100vh;
   font-family: var(--ac-font-body);
 }
 
 .body {
   display: flex;
   flex: 1;
+  /* `min-height: 0` lets the body row shrink below its content size
+     inside the column flex parent, which is what lets the sidebar and
+     main children opt into their own `overflow-y: auto` scrolling.
+     Without this, the body would stretch to fit content and the whole
+     shell would scroll. */
+  min-height: 0;
 }
 
 .main {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
+  /* min-height: 0 mirrors the body row — main is itself a flex child
+     and needs the same allow-shrink rule to scroll independently. */
+  min-height: 0;
 }
