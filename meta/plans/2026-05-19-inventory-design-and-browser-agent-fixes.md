@@ -834,15 +834,15 @@ where the executor lived; this mirrors the work-item-0052 fix that gave
 
 #### Automated Verification:
 
-- [ ] `bash scripts/config-read-browser-executor.sh` prints a
+- [x] `bash scripts/config-read-browser-executor.sh` prints a
       `## Browser Executor` block with an absolute path to `run.sh`
-- [ ] `ACCELERATOR_BROWSER_EXECUTOR_OVERRIDE=/tmp/missing bash scripts/config-read-browser-executor.sh`
+- [x] `ACCELERATOR_BROWSER_EXECUTOR_OVERRIDE=/tmp/missing bash scripts/config-read-browser-executor.sh`
       exits non-zero with a clear error
-- [ ] `bash scripts/test-design.sh` passes the new browser-executor section
-- [ ] `bash scripts/test-config.sh` passes
-- [ ] `grep -A2 "^skills:" agents/browser-locator.md agents/browser-analyser.md`
+- [x] `bash scripts/test-design.sh` passes the new browser-executor section
+- [x] `bash scripts/test-config.sh` passes
+- [x] `grep -A2 "^skills:" agents/browser-locator.md agents/browser-analyser.md`
       shows `accelerator:browser-executor` in both
-- [ ] `grep "## run.sh evaluate Payload Allowlist" agents/browser-analyser.md`
+- [x] `grep "## run.sh evaluate Payload Allowlist" agents/browser-analyser.md`
       still finds the section (regression guard for the analyser rewrite)
 
 #### Manual Verification:

@@ -437,6 +437,50 @@ assert_eq "benchmark.json is valid JSON" "$(jq empty "$BENCH" 2>&1)" ""
 
 echo ""
 
+echo "=== browser-executor preloaded skill ==="
+
+EXEC_SCRIPT="$PLUGIN_ROOT/scripts/config-read-browser-executor.sh"
+assert_file_exists "config-read-browser-executor.sh exists" "$EXEC_SCRIPT"
+assert_file_executable "config-read-browser-executor.sh is executable" "$EXEC_SCRIPT"
+
+EXEC_OUT="$("$EXEC_SCRIPT" 2>&1)"
+EXPECTED_PATH="$PLUGIN_ROOT/skills/design/inventory-design/scripts/playwright/run.sh"
+assert_contains "browser-executor output begins with ## Browser Executor header" \
+  "$EXEC_OUT" "## Browser Executor"
+assert_contains "browser-executor output names browser-executor-script key" \
+  "$EXEC_OUT" "- browser-executor-script:"
+assert_contains "browser-executor output contains absolute run.sh path" \
+  "$EXEC_OUT" "$EXPECTED_PATH"
+
+# The resolver must fail loudly rather than emit a stale path if the
+# target moves. Simulate by pointing the resolver at a non-existent path
+# (override via env var).
+NONEXISTENT_OUT="$(ACCELERATOR_BROWSER_EXECUTOR_OVERRIDE=/tmp/does-not-exist/run.sh "$EXEC_SCRIPT" 2>&1 || true)"
+assert_contains "resolver refuses missing run.sh" \
+  "$NONEXISTENT_OUT" "run.sh not found"
+
+EXEC_SKILL="$PLUGIN_ROOT/skills/config/browser-executor/SKILL.md"
+assert_file_exists "browser-executor SKILL.md exists" "$EXEC_SKILL"
+assert_contains "browser-executor SKILL.md sets user-invocable: false" \
+  "$(cat "$EXEC_SKILL")" "user-invocable: false"
+EXEC_FRONTMATTER="$(awk '/^---$/{f++; next} f==1' "$EXEC_SKILL")"
+assert_not_contains "browser-executor SKILL.md frontmatter does not set disable-model-invocation: true" \
+  "$EXEC_FRONTMATTER" "disable-model-invocation: true"
+assert_contains "browser-executor SKILL.md invokes config-read-browser-executor.sh" \
+  "$(cat "$EXEC_SKILL")" "config-read-browser-executor.sh"
+
+for agent in agents/browser-locator.md agents/browser-analyser.md; do
+  body="$(cat "$PLUGIN_ROOT/$agent")"
+  assert_contains "$agent declares accelerator:browser-executor skill" \
+    "$body" "accelerator:browser-executor"
+  assert_contains "$agent has preload guard checking for Browser Executor block" \
+    "$body" "Preload guard"
+  assert_contains "$agent guard names the expected key" \
+    "$body" "browser-executor-script:"
+done
+
+echo ""
+
 echo "=== inventory-design: ensure-playwright.sh ==="
 bash "$PLUGIN_ROOT/skills/design/inventory-design/scripts/test-ensure-playwright.sh"
 
