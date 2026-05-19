@@ -61,9 +61,9 @@ describe('router', () => {
     const router = renderAt('/library/templates/adr')
     await waitForPath(router, '/library/templates/adr')
     // The detail route shows the same index page header plus an additional
-    // "THREE TIERS · ADR.MD" section heading for the selected template.
+    // "TIERS · adr.md" section heading for the selected template.
     expect(
-      await screen.findByRole('heading', { name: /THREE TIERS · ADR\.MD/i }),
+      await screen.findByRole('heading', { name: /TIERS · adr\.md/i }),
     ).toBeInTheDocument()
   })
 

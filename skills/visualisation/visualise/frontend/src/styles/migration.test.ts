@@ -133,15 +133,17 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   // routes/library/LibraryTemplatesIndex.module.css
   { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'connected-table outer border + per-row border-top + tier-pill borders — below --sp-1 floor' },
   { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '0.02em', count: 1, kind: 'irreducible', reason: 'tier-pill letter-spacing — prototype-derived typography refinement (mirrors Chip)' },
-  { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '180px', count: 1, kind: 'irreducible', reason: 'row name-column width — prototype-derived (.ac-tpl-row grid template)' },
   { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '0.1875rem', count: 1, kind: 'irreducible', reason: 'tier-pill vertical padding (3px) — below --sp-1 floor; prototype-derived' },
   { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '0.3125rem', count: 2, kind: 'irreducible', reason: 'tier-pill bullet width/height (5px) — below --sp-1 floor; prototype-derived (.ac-tier-pill .dot)' },
   // routes/library/LibraryTemplatesView.module.css
   { file: 'routes/library/LibraryTemplatesView.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'tier card + preview-pane + preview-header border-bottom hairlines — below --sp-1 floor' },
-  { file: 'routes/library/LibraryTemplatesView.module.css', literal: '3px', count: 1, kind: 'irreducible', reason: 'active-tier box-shadow halo spread (3px ring) — prototype-derived; below --sp-1 floor' },
+  { file: 'routes/library/LibraryTemplatesView.module.css', literal: '3px', count: 1, kind: 'irreducible', reason: 'active-tier box-shadow halo spread — prototype-derived; below --sp-1 floor' },
   { file: 'routes/library/LibraryTemplatesView.module.css', literal: '19rem', count: 1, kind: 'irreducible', reason: 'tier-card column width in the detail two-column grid — no token equivalent' },
-  { file: 'routes/library/LibraryTemplatesView.module.css', literal: '0.12em', count: 2, kind: 'irreducible', reason: 'detail/tier eyebrow caps letter-spacing — mirrors Sidebar section-heading' },
+  { file: 'routes/library/LibraryTemplatesView.module.css', literal: '0.12em', count: 1, kind: 'irreducible', reason: 'detail heading caps letter-spacing — mirrors Sidebar section-heading' },
+  { file: 'routes/library/LibraryTemplatesView.module.css', literal: '0.1em', count: 1, kind: 'irreducible', reason: 'tier eyebrow caps letter-spacing — prototype-derived (.ac-tpl-tier__num)' },
   { file: 'routes/library/LibraryTemplatesView.module.css', literal: '0.125rem', count: 1, kind: 'irreducible', reason: 'panel-header top margin to align with eyebrow — sub-pixel offset, prototype-derived' },
+  { file: 'routes/library/LibraryTemplatesView.module.css', literal: '0.375rem', count: 2, kind: 'irreducible', reason: 'tier card path/note top margin (6px) — sub-sp-2, prototype-derived' },
+  { file: 'routes/library/LibraryTemplatesView.module.css', literal: '1em', count: 1, kind: 'irreducible', reason: 'tpl-line min-height — relative-em line preservation, no token equivalent' },
   // routes/library/LibraryTypeView.module.css
   { file: 'routes/library/LibraryTypeView.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'header-row, row, and error border widths — below --sp-1 floor' },
   { file: 'routes/library/LibraryTypeView.module.css', literal: '120px', count: 2, kind: 'irreducible', reason: 'grid column tracks (first column + status) — no token equivalent' },

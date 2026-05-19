@@ -6,7 +6,7 @@ import { Chip } from '../../components/Chip/Chip'
 import type { TemplateDetail, TemplateTier } from '../../api/types'
 import { TIER_LABELS } from './template-tier'
 import { TemplatesPage } from './LibraryTemplatesIndex'
-import { highlightTemplate } from './template-highlight'
+import { TemplateHighlight } from './template-highlight'
 import styles from './LibraryTemplatesView.module.css'
 
 interface Props {
@@ -52,7 +52,7 @@ function TemplateDetailSection({ name }: { name: string }) {
   return (
     <section className={styles.detail} aria-labelledby="template-detail-heading">
       <h2 id="template-detail-heading" className={styles.detailHeading}>
-        THREE TIERS · {name.toUpperCase()}.MD
+        TIERS · {name.toLowerCase()}.md
       </h2>
       <div className={styles.twoColumn} data-testid="templates-detail-layout">
         <div className={styles.tiers}>
@@ -71,23 +71,28 @@ function TemplateDetailSection({ name }: { name: string }) {
   )
 }
 
-/** Description text shown under the tier path, modelled on the prototype's
- *  `tierDesc()` function (view-templates.jsx). */
+/** Derive a parent-directory display string from a tier path, with a
+ *  trailing `/`. Falls back to the path itself if it has no parent
+ *  (a single-segment relative path is treated as living at the
+ *  project root → "./"). */
+function parentDirOf(path: string): string {
+  const idx = path.lastIndexOf('/')
+  if (idx < 0) return './'
+  return `${path.slice(0, idx)}/`
+}
+
+/** Description text shown under the tier path. Mirrors the prototype's
+ *  `tierDesc()` in view-templates.jsx — tier 1 is highest priority,
+ *  tier 2 is "<override-dir> in this repo", tier 3 is the always-present
+ *  plugin default. */
 function tierDescription(tier: TemplateTier): string {
   switch (tier.source) {
     case 'config-override':
-      // Tier 1 is the highest-priority slot. When the launcher knows which
-      // config file declared the override we add it, mirroring the prototype:
-      //   highest priority · .accelerator/config.md
-      // For the absent case we still surface "highest priority" so the
-      // semantic order of the tier stack is unambiguous.
       return tier.configSource
         ? `highest priority · ${tier.configSource}`
         : 'highest priority'
     case 'user-override':
-      // Tier 2 — the active-when-no-config-override tier. Mirrors the
-      // prototype copy: "<tier-2-path> in this repo".
-      return `${tier.path} in this repo`
+      return `${parentDirOf(tier.path)} in this repo`
     case 'plugin-default':
       return 'plugin-default · always present'
     default:
@@ -115,10 +120,8 @@ function TierCard({
         {isActive && <Chip variant="indigo">active</Chip>}
         {!tier.present && <Chip variant="neutral">absent</Chip>}
       </header>
-      <div className={styles.tierPaths}>
-        <code className={styles.tierPath}>{tier.path}</code>
-        <span className={styles.tierNote}>{tierDescription(tier)}</span>
-      </div>
+      <code className={styles.tierPath}>{tier.path}</code>
+      <span className={styles.tierNote}>{tierDescription(tier)}</span>
     </section>
   )
 }
@@ -163,7 +166,7 @@ function TemplatePreviewPane({ data }: { data: TemplateDetail }) {
       </div>
       <div className={styles.previewBody}>
         {winning.content != null
-          ? highlightTemplate(winning.content)
+          ? <TemplateHighlight content={winning.content} />
           : <span className={styles.absentNote}>tier not present</span>}
       </div>
     </div>

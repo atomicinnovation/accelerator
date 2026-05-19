@@ -25,6 +25,11 @@
   gap: var(--sp-2);
 }
 
+/* Tier card — prototype `.ac-tpl-tier`. The vertical rhythm is:
+   eyebrow (top), then name+chips, path and description each on the
+   next baseline (small sub-sp-2 offsets). Replicates the prototype's
+   .ac-tpl-tier__num / __name / __path stack and the mono-faint
+   description span. */
 .panel {
   border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-sm);
@@ -51,7 +56,7 @@
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
   font-weight: 400;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   color: var(--ac-fg-faint);
   text-transform: uppercase;
 }
@@ -61,7 +66,6 @@
   align-items: center;
   gap: var(--sp-2);
   margin-top: 0.125rem;
-  margin-bottom: var(--sp-2);
 }
 
 .tierLabel {
@@ -71,13 +75,9 @@
   color: var(--ac-fg-strong);
 }
 
-.tierPaths {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-}
-
 .tierPath {
+  display: block;
+  margin-top: 0.375rem;
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
   font-weight: 400;
@@ -86,6 +86,8 @@
 }
 
 .tierNote {
+  display: block;
+  margin-top: 0.375rem;
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
   color: var(--ac-fg-faint);
@@ -97,6 +99,8 @@
   margin: 0;
 }
 
+/* Preview pane — prototype `.ac-tpl-preview`. The header sits on a
+   card-tinted band; the body is sunken with `white-space: pre`. */
 .previewPane {
   border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-sm);
@@ -130,30 +134,83 @@
   white-space: nowrap;
 }
 
-/* Template body — prototype-derived monospace pre with token-coloured
-   spans emitted by `highlightTemplate()`:
-   - `.fm-key`   — frontmatter key in accent colour
-   - `.fm-delim` — frontmatter `---` and `:` in faint foreground
-   - `.tpl-var`  — `{{variable}}` placeholders in accent-2 colour */
+/* Template body container — sized + spaced like the prototype's
+   `.ac-tpl-preview__body`. Each line is wrapped in `.tpl-line` by the
+   highlighter so empty lines preserve height. */
 .previewBody {
   padding: var(--sp-3) var(--sp-4);
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
   line-height: 1.6;
-  white-space: pre;
-  overflow-x: auto;
   color: var(--ac-fg);
 }
 
-.previewBody :global(.fm-key) {
+.previewBody :global(.tpl-line) {
+  min-height: 1em;
+  white-space: pre-wrap;
+}
+
+/* Token theme. highlight.js emits `.hljs-*` class names; we map them
+   to project-token colours via :global selectors so the same theme is
+   reusable wherever hljs is rendered (this view and future markdown
+   code blocks).
+
+   The mapping reuses the prototype's intent:
+   - hljs-attr (yaml key)       → accent
+   - hljs-meta (frontmatter `---`, fences) → faint
+   - hljs-string                → green ish ok colour
+   - hljs-number                → warn
+   - hljs-literal               → accent-2 (yes/no/null/true/false)
+   - hljs-section (markdown #)  → fg-strong, bold
+   - hljs-bullet (list markers) → faint
+   - hljs-emphasis              → fg-muted, italic
+   - hljs-strong                → fg-strong, bold
+   - hljs-code                  → accent-2
+   - hljs-link / hljs-symbol    → accent
+   - hljs-template-variable     → accent-2 (our own custom token) */
+.previewBody :global(.hljs) {
+  background: transparent;
+  color: inherit;
+}
+.previewBody :global(.hljs-attr) {
   color: var(--ac-accent);
 }
-
-.previewBody :global(.fm-delim) {
+.previewBody :global(.hljs-meta) {
   color: var(--ac-fg-faint);
 }
-
-.previewBody :global(.tpl-var) {
+.previewBody :global(.hljs-string) {
+  color: var(--ac-ok);
+}
+.previewBody :global(.hljs-number) {
+  color: var(--ac-warn);
+}
+.previewBody :global(.hljs-literal) {
+  color: var(--ac-accent-2);
+}
+.previewBody :global(.hljs-section) {
+  color: var(--ac-fg-strong);
+  font-weight: 600;
+}
+.previewBody :global(.hljs-bullet) {
+  color: var(--ac-fg-faint);
+}
+.previewBody :global(.hljs-emphasis) {
+  color: var(--ac-fg-muted);
+  font-style: italic;
+}
+.previewBody :global(.hljs-strong) {
+  color: var(--ac-fg-strong);
+  font-weight: 600;
+}
+.previewBody :global(.hljs-code),
+.previewBody :global(.hljs-quote) {
+  color: var(--ac-accent-2);
+}
+.previewBody :global(.hljs-link),
+.previewBody :global(.hljs-symbol) {
+  color: var(--ac-accent);
+}
+.previewBody :global(.hljs-template-variable) {
   color: var(--ac-accent-2);
 }
 

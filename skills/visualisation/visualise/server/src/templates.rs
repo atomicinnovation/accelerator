@@ -64,16 +64,26 @@ pub struct TemplateResolver {
     by_name: HashMap<String, TemplateEntry>,
 }
 
-/// Convert an absolute path to a project-root-relative display path
-/// where possible, leaving paths outside the project root unchanged.
-/// Used by the templates resolver so the wire format shows
-/// `meta/templates/adr.md` rather than the full filesystem path.
-/// Paths that are not under the project root (e.g. plugin defaults
-/// under `~/.claude/plugins/...`) are passed through verbatim.
-fn display_path(path: &Path, project_root: &Path) -> PathBuf {
-    path.strip_prefix(project_root)
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|_| path.to_path_buf())
+/// Convert an absolute path into the display form used by the
+/// templates view:
+///
+/// - paths under `project_root` are rendered project-root-relative
+///   (e.g. `.accelerator/templates/adr.md`);
+/// - paths under `plugin_root` (but outside the project root) are
+///   rendered with a synthetic `<plugin-root>` prefix
+///   (e.g. `<plugin-root>/templates/adr.md`) so users see the same
+///   semantic location regardless of where the plugin is installed;
+/// - everything else is passed through verbatim (covers external
+///   override paths configured outside both roots, which is unusual
+///   but supported).
+fn display_path(path: &Path, project_root: &Path, plugin_root: &Path) -> PathBuf {
+    if let Ok(rel) = path.strip_prefix(project_root) {
+        return rel.to_path_buf();
+    }
+    if let Ok(rel) = path.strip_prefix(plugin_root) {
+        return PathBuf::from("<plugin-root>").join(rel);
+    }
+    path.to_path_buf()
 }
 
 /// `sha256-<64-hex>` form, matching the per-tier etag shape.
@@ -91,6 +101,7 @@ impl TemplateResolver {
         templates: &HashMap<String, TemplateTiers>,
         driver: &dyn FileDriver,
         project_root: &Path,
+        plugin_root: &Path,
     ) -> Self {
         let mut by_name = HashMap::new();
         for (name, tiers) in templates {
@@ -103,7 +114,7 @@ impl TemplateResolver {
             let (present, content, etag) = load_via_driver(&tiers.config_override, driver).await;
             ordered.push(TemplateTier {
                 source: TemplateTierSource::ConfigOverride,
-                path: display_path(&config_path, project_root),
+                path: display_path(&config_path, project_root, plugin_root),
                 present,
                 active: false,
                 content,
@@ -115,7 +126,7 @@ impl TemplateResolver {
                 load_via_driver(&Some(tiers.user_override.clone()), driver).await;
             ordered.push(TemplateTier {
                 source: TemplateTierSource::UserOverride,
-                path: display_path(&tiers.user_override, project_root),
+                path: display_path(&tiers.user_override, project_root, plugin_root),
                 present,
                 active: false,
                 content,
@@ -127,7 +138,7 @@ impl TemplateResolver {
                 load_via_driver(&Some(tiers.plugin_default.clone()), driver).await;
             ordered.push(TemplateTier {
                 source: TemplateTierSource::PluginDefault,
-                path: display_path(&tiers.plugin_default, project_root),
+                path: display_path(&tiers.plugin_default, project_root, plugin_root),
                 present,
                 active: false,
                 content,
@@ -252,7 +263,7 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
-        let r = TemplateResolver::build(&map, &driver, tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
         let summaries = r.list();
         assert_eq!(summaries.len(), 1);
         assert_eq!(summaries[0].active_tier, TemplateTierSource::ConfigOverride);
@@ -272,7 +283,7 @@ mod tests {
         };
         let mut map = HashMap::new();
         map.insert("adr".to_string(), t);
-        let r = TemplateResolver::build(&map, &driver, tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
         let d = r.detail("adr").unwrap();
         assert_eq!(d.active_tier, TemplateTierSource::PluginDefault);
         assert_eq!(
@@ -294,7 +305,7 @@ mod tests {
         };
         let mut map = HashMap::new();
         map.insert("adr".to_string(), t);
-        let r = TemplateResolver::build(&map, &driver, tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
         let d = r.detail("adr").unwrap();
         assert_eq!(d.active_tier, TemplateTierSource::UserOverride);
     }
@@ -307,7 +318,7 @@ mod tests {
         map.insert("plan".to_string(), tiers_all_three(tmp.path()));
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
         map.insert("research".to_string(), tiers_all_three(tmp.path()));
-        let r = TemplateResolver::build(&map, &driver, tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
         let names: Vec<String> = r.list().into_iter().map(|s| s.name).collect();
         assert_eq!(names, vec!["adr", "plan", "research"]);
     }
@@ -318,7 +329,7 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
-        let r = TemplateResolver::build(&map, &driver, tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
         let s = &r.list()[0];
         assert!(s.tiers.iter().all(|t| t.content.is_none()));
         let d = r.detail("adr").unwrap();
@@ -336,7 +347,7 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
-        let r = TemplateResolver::build(&map, &driver, tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
         assert!(r.detail("missing").is_none());
     }
 
@@ -346,7 +357,7 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
-        let r = TemplateResolver::build(&map, &driver, tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
         let d = r.detail("adr").unwrap();
         let active = d.tiers.iter().find(|t| t.active).unwrap();
         let expected = format!(
@@ -371,7 +382,7 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("e".to_string(), t);
-        let r = TemplateResolver::build(&map, &driver, tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
         let d = r.detail("e").unwrap();
         assert!(d.sha256.is_none(), "empty winning content -> no sha256");
     }
@@ -382,7 +393,7 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
-        let r = TemplateResolver::build(&map, &driver, tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
         let s1 = r.detail("adr").unwrap().sha256.clone();
         let s2 = r.detail("adr").unwrap().sha256.clone();
         assert_eq!(s1, s2);
@@ -395,8 +406,8 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
-        let r1 = TemplateResolver::build(&map, &driver, tmp.path()).await;
-        let r2 = TemplateResolver::build(&map, &driver, tmp.path()).await;
+        let r1 = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
+        let r2 = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
         let a = r1.detail("adr").unwrap();
         let b = r2.detail("adr").unwrap();
         for (ta, tb) in a.tiers.iter().zip(b.tiers.iter()) {

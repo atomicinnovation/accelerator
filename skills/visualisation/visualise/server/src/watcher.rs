@@ -314,6 +314,7 @@ pub struct TemplateChangeHandler {
 }
 
 impl TemplateChangeHandler {
+    #[allow(clippy::too_many_arguments)]
     pub fn spawn(
         templates: Arc<ArcSwap<TemplateResolver>>,
         cfg_templates: Arc<HashMap<String, TemplateTiers>>,
@@ -321,6 +322,7 @@ impl TemplateChangeHandler {
         index: TierPathIndex,
         hub: Arc<SseHub>,
         project_root: Arc<PathBuf>,
+        plugin_root: Arc<PathBuf>,
     ) -> Self {
         let index = Arc::new(index);
         let notify = Arc::new(Notify::new());
@@ -351,11 +353,13 @@ impl TemplateChangeHandler {
                 let cfg_for_build = cfg_templates.clone();
                 let driver_for_build = driver.clone();
                 let project_root_for_build = project_root.clone();
+                let plugin_root_for_build = plugin_root.clone();
                 let build_result = tokio::spawn(async move {
                     TemplateResolver::build(
                         &cfg_for_build,
                         driver_for_build.as_ref(),
                         project_root_for_build.as_ref(),
+                        plugin_root_for_build.as_ref(),
                     )
                     .await
                 })
@@ -941,7 +945,7 @@ mod template_change_handler_tests {
             vec![],
         ));
         let resolver =
-            TemplateResolver::build(&templates_map, driver.as_ref(), tmp).await;
+            TemplateResolver::build(&templates_map, driver.as_ref(), tmp, tmp).await;
         let templates = Arc::new(ArcSwap::from_pointee(resolver));
         let hub = Arc::new(SseHub::new(64));
         let index = TierPathIndex::build(&templates_map).await;
@@ -951,6 +955,7 @@ mod template_change_handler_tests {
             driver,
             index,
             hub.clone(),
+            Arc::new(tmp.to_path_buf()),
             Arc::new(tmp.to_path_buf()),
         ));
         (handler, templates, hub)

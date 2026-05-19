@@ -60,7 +60,7 @@ describe('LibraryTemplatesView', () => {
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
     // Index row is rendered alongside the detail.
     expect(await screen.findByRole('link', { name: /adr\.md/i })).toBeInTheDocument()
-    expect(await screen.findByRole('heading', { name: /THREE TIERS · ADR\.MD/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /TIERS · ADR\.MD/i })).toBeInTheDocument()
   })
 
   it('marks the selected row with aria-current="page"', async () => {
@@ -73,7 +73,7 @@ describe('LibraryTemplatesView', () => {
   it('renders a TIER 1 / TIER 2 / TIER 3 numbered card per tier in priority order', async () => {
     mockListAndDetail()
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    await screen.findByRole('heading', { name: /TIERS · /i })
     // Tier 1 is highest priority (config-override), Tier 3 lowest (plugin-default).
     expect(screen.getByText(/^TIER 1$/)).toBeInTheDocument()
     expect(screen.getByText(/^TIER 2$/)).toBeInTheDocument()
@@ -83,16 +83,19 @@ describe('LibraryTemplatesView', () => {
   it('labels Tier 1 as "highest priority" and Tier 3 as "plugin-default"', async () => {
     mockListAndDetail()
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    await screen.findByRole('heading', { name: /TIERS · /i })
     expect(screen.getByText(/highest priority/i)).toBeInTheDocument()
     expect(screen.getByText(/plugin-default · always present/i)).toBeInTheDocument()
   })
 
-  it('uses the active user-override path as the Tier 2 description copy', async () => {
+  it('uses the user-override parent directory (not the file) as the Tier 2 description copy', async () => {
     mockListAndDetail()
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByRole('heading', { name: /THREE TIERS/i })
-    expect(screen.getByText(/\/meta\/templates\/adr\.md in this repo/i)).toBeInTheDocument()
+    await screen.findByRole('heading', { name: /TIERS · /i })
+    // Path: /meta/templates/adr.md → description: "/meta/templates/ in this repo".
+    expect(screen.getByText(/\/meta\/templates\/ in this repo/i)).toBeInTheDocument()
+    // And the prior "file in this repo" copy must be gone.
+    expect(screen.queryByText(/\/meta\/templates\/adr\.md in this repo/i)).toBeNull()
   })
 
   it('includes the configSource path in the Tier 1 description when present', async () => {
@@ -111,7 +114,7 @@ describe('LibraryTemplatesView', () => {
     }
     mockListAndDetail(detailWithSource)
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    await screen.findByRole('heading', { name: /TIERS · /i })
     expect(
       screen.getByText(/highest priority · \.accelerator\/config\.md/),
     ).toBeInTheDocument()
@@ -120,14 +123,14 @@ describe('LibraryTemplatesView', () => {
   it('renders an indigo "active" Chip on the winning tier card', async () => {
     mockListAndDetail()
     const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    await screen.findByRole('heading', { name: /TIERS · /i })
     expect(container.querySelector('[data-variant="indigo"]')).not.toBeNull()
   })
 
   it('applies the accent-ring data-active attribute to the winning tier card only', async () => {
     mockListAndDetail()
     const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    await screen.findByRole('heading', { name: /TIERS · /i })
     const ringed = container.querySelectorAll('[data-active="true"]')
     expect(ringed.length).toBe(1)
     // Active ring is implemented as border + box-shadow halo on
@@ -145,7 +148,7 @@ describe('LibraryTemplatesView', () => {
   it('renders a two-column grid container for the detail layout', async () => {
     mockListAndDetail()
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    await screen.findByRole('heading', { name: /TIERS · /i })
     expect(screen.getByTestId('templates-detail-layout')).toBeInTheDocument()
   })
 
@@ -156,7 +159,7 @@ describe('LibraryTemplatesView', () => {
   it('renders the winning-tier template source verbatim (no markdown rendering)', async () => {
     mockListAndDetail()
     const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    await screen.findByRole('heading', { name: /TIERS · /i })
     const pane = screen.getByTestId('template-preview-pane')
     // The preview body must NOT render the markdown into <h1>/<p>. The
     // entire source is emitted as plain text (with token spans) line by
@@ -168,10 +171,11 @@ describe('LibraryTemplatesView', () => {
     expect(container.querySelectorAll('h1').length).toBe(1)
   })
 
-  it('applies prototype-derived token classes to highlighted frontmatter and {{vars}}', async () => {
-    // The custom highlighter wraps frontmatter keys / delimiters / `{{vars}}`
-    // in `fm-key` / `fm-delim` / `tpl-var` spans. The CSS module then
-    // theme-colours these via `:global(.fm-key) { color: var(--ac-accent); }`.
+  it('emits highlight.js token classes for frontmatter YAML, markdown body, and template variables', async () => {
+    // The highlighter uses highlight.js (already a project dep) with YAML
+    // and markdown sub-grammars, and wraps `{{var}}` in a custom
+    // `hljs-template-variable` span. The CSS module theme-colours these
+    // via `:global(.hljs-*)` rules, reusable wherever hljs renders.
     const detailWithFm: TemplateDetail = {
       ...mockDetail,
       tiers: [
@@ -183,20 +187,47 @@ describe('LibraryTemplatesView', () => {
     }
     mockListAndDetail(detailWithFm)
     const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByRole('heading', { name: /THREE TIERS/i })
-    expect(container.querySelector('.fm-key')).not.toBeNull()
-    expect(container.querySelector('.fm-delim')).not.toBeNull()
-    expect(container.querySelectorAll('.tpl-var').length).toBeGreaterThanOrEqual(2)
-    // The CSS module assigns accent / accent-2 colours to these spans.
-    expect(templatesCss).toMatch(/\.previewBody\s*:global\(\.fm-key\)\s*\{[^}]*color:/m)
-    expect(templatesCss).toMatch(/\.previewBody\s*:global\(\.tpl-var\)\s*\{[^}]*color:/m)
+    await screen.findByRole('heading', { name: /TIERS · /i })
+    // YAML frontmatter delimiter `---` is wrapped in `.hljs-meta`.
+    expect(container.querySelector('.hljs-meta')).not.toBeNull()
+    // Markdown heading marker → `.hljs-section`.
+    expect(container.querySelector('.hljs-section')).not.toBeNull()
+    // Both `{{title}}` and `{{author}}` are wrapped in `.hljs-template-variable`.
+    expect(container.querySelectorAll('.hljs-template-variable').length).toBeGreaterThanOrEqual(2)
+    // The CSS module assigns colours to these spans via global selectors.
+    expect(templatesCss).toMatch(/\.previewBody\s*:global\(\.hljs-meta\)\s*\{[^}]*color:/m)
+    expect(templatesCss).toMatch(/\.previewBody\s*:global\(\.hljs-template-variable\)\s*\{[^}]*color:/m)
+  })
+
+  it('preserves empty lines in the template body via .tpl-line wrappers', async () => {
+    const detailWithBlank: TemplateDetail = {
+      ...mockDetail,
+      tiers: [
+        { source: 'config-override', path: '/no-config', present: false, active: false },
+        { source: 'user-override',   path: '/meta/templates/adr.md', present: false, active: false },
+        { source: 'plugin-default',  path: '/plugin/templates/adr.md', present: true, active: true,
+          // Two blank lines between the heading and the body — the
+          // prototype renders these as min-height: 1em rows so the
+          // visual spacing is preserved.
+          content: '# Title\n\n\nBody after two blanks.', etag: 'sha256-x' },
+      ],
+    }
+    mockListAndDetail(detailWithBlank)
+    const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
+    await screen.findByRole('heading', { name: /TIERS · /i })
+    const lines = container.querySelectorAll('.tpl-line')
+    // 4 source lines → 4 tpl-line wrappers (no collapse).
+    expect(lines.length).toBe(4)
+    // Empty lines get a &nbsp; placeholder so they preserve height.
+    expect(lines[1]?.textContent ?? '').toMatch(/ |^\s*$/)
+    expect(lines[2]?.textContent ?? '').toMatch(/ |^\s*$/)
   })
 
   it('renders the content-hash label truncated (~12 chars + ellipsis), with the full digest in a title attribute', async () => {
     const expectedDigest = digestForContent('# ADR\nBody.')
     mockListAndDetail({ ...mockDetail, sha256: expectedDigest })
     const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    await screen.findByRole('heading', { name: /TIERS · /i })
     // The visible label is the truncated form.
     const truncated = `${expectedDigest.slice(0, 12)}…`
     expect(await screen.findByText(truncated)).toBeInTheDocument()
@@ -212,7 +243,7 @@ describe('LibraryTemplatesView', () => {
     const expectedDigest = digestForContent('# ADR\nBody.')
     mockListAndDetail({ ...mockDetail, sha256: expectedDigest })
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    await screen.findByRole('heading', { name: /TIERS · /i })
     // The path is rendered both in the tier card and in the preview header,
     // so use getAllByText.
     expect(screen.getAllByText('/plugin/templates/adr.md').length).toBeGreaterThanOrEqual(1)
@@ -221,7 +252,7 @@ describe('LibraryTemplatesView', () => {
   it('omits the content-hash label when sha256 is absent', async () => {
     mockListAndDetail()
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    await screen.findByRole('heading', { name: /TIERS · /i })
     expect(screen.queryByText(/^sha256-/)).toBeNull()
   })
 

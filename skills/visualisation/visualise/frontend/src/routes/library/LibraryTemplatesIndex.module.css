@@ -21,7 +21,10 @@
 
 .rowLink {
   display: grid;
-  grid-template-columns: 180px 1fr auto;
+  /* Name column expands to fit `<name>.md` without wrapping; tier
+     chain claims the remaining horizontal space, disclosure chevron
+     sits at the row end. */
+  grid-template-columns: auto 1fr auto;
   gap: var(--sp-4);
   align-items: center;
   padding: var(--sp-3) var(--sp-4);
@@ -47,6 +50,7 @@
   font-size: var(--size-xs);
   font-weight: 400;
   color: var(--ac-fg-strong);
+  white-space: nowrap;
 }
 
 .rowGlyph {

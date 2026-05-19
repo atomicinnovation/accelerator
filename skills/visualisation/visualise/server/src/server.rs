@@ -82,6 +82,7 @@ impl AppState {
                 &cfg.templates,
                 driver.as_ref(),
                 &cfg.project_root,
+                &cfg.plugin_root,
             )
             .await,
         ));
@@ -99,6 +100,7 @@ impl AppState {
             tier_index,
             sse_hub.clone(),
             Arc::new(cfg.project_root.clone()),
+            Arc::new(cfg.plugin_root.clone()),
         ));
         Ok(Arc::new(Self {
             cfg,
