@@ -4,7 +4,7 @@ title: "ADR: Unified Base Frontmatter Schema"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
 type: task
-status: draft
+status: done
 priority: high
 parent: "0057"
 tags: [adr, frontmatter, schema, accelerator-plugin]
@@ -13,7 +13,7 @@ tags: [adr, frontmatter, schema, accelerator-plugin]
 # 0060: ADR: Unified Base Frontmatter Schema
 
 **Type**: Task
-**Status**: Draft
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
