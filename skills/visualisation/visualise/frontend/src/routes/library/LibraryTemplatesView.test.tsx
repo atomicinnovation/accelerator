@@ -128,18 +128,27 @@ describe('LibraryTemplatesView', () => {
     expect(container.querySelectorAll('h1').length).toBeLessThanOrEqual(1)  // Only the page title.
   })
 
-  it('renders the content-hash label with the digest computed from the winning content (AC11)', async () => {
+  it('renders the content-hash label truncated (~12 chars + ellipsis), with the full digest in a title attribute', async () => {
     const expectedDigest = digestForContent('# ADR\nBody.')
     mockListAndDetail({ ...mockDetail, sha256: expectedDigest })
-    render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    expect(await screen.findByText(expectedDigest)).toBeInTheDocument()
+    const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
+    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    // The visible label is the truncated form.
+    const truncated = `${expectedDigest.slice(0, 12)}…`
+    expect(await screen.findByText(truncated)).toBeInTheDocument()
+    // The full hash is recoverable via the title attribute on hover and via
+    // a data-* attribute, so the AC11 contract (UI value == backend value)
+    // still holds without dumping a 70-character string into the layout.
+    const label = container.querySelector('[data-full-sha]')
+    expect(label?.getAttribute('data-full-sha')).toBe(expectedDigest)
+    expect(label?.getAttribute('title')).toBe(expectedDigest)
   })
 
   it('renders the winning-tier path alongside the content-hash label', async () => {
     const expectedDigest = digestForContent('# ADR\nBody.')
     mockListAndDetail({ ...mockDetail, sha256: expectedDigest })
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByText(expectedDigest)
+    await screen.findByRole('heading', { name: /THREE TIERS/i })
     // The path is rendered both in the tier card and in the preview header,
     // so use getAllByText.
     expect(screen.getAllByText('/plugin/templates/adr.md').length).toBeGreaterThanOrEqual(1)
@@ -156,10 +165,14 @@ describe('LibraryTemplatesView', () => {
     const expectedDigest = digestForContent('# ADR\nBody.')
     mockListAndDetail({ ...mockDetail, sha256: expectedDigest })
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    const label = await screen.findByText(expectedDigest)
+    const truncated = `${expectedDigest.slice(0, 12)}…`
+    const label = await screen.findByText(truncated)
     expect(label.getAttribute('role')).toBeNull()
     expect(label.getAttribute('tabindex')).toBeNull()
-    expect(label.getAttribute('title')).toBeNull()
+    // `title` is intentionally set to surface the full digest on hover —
+    // that's a static tooltip, not interactivity. Click still has no
+    // observable side-effect.
+    expect(label.getAttribute('title')).toBe(expectedDigest)
     await userEvent.click(label)
     expect(templatesCss).not.toMatch(/\.contentHashLabel\s*\{[^}]*cursor:\s*pointer/m)
     expect(templatesCss).not.toMatch(/\.contentHashLabel\s*\{[^}]*cursor:\s*copy/m)
@@ -169,6 +182,8 @@ describe('LibraryTemplatesView', () => {
   it('updates the content-hash label end-to-end via dispatchSseEvent (AC12)', async () => {
     const firstDigest = digestForContent('# ADR\nBody.')
     const secondDigest = digestForContent('# ADR\nBody. v2.')
+    const truncatedFirst = `${firstDigest.slice(0, 12)}…`
+    const truncatedSecond = `${secondDigest.slice(0, 12)}…`
     vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: mockTemplates })
     const spy = vi
       .spyOn(fetchModule, 'fetchTemplateDetail')
@@ -182,7 +197,7 @@ describe('LibraryTemplatesView', () => {
       </QueryClientProvider>
     )
     render(<LibraryTemplatesView name="adr" />, { wrapper })
-    await screen.findByText(firstDigest)
+    await screen.findByText(truncatedFirst)
 
     dispatchSseEvent(
       {
@@ -194,12 +209,13 @@ describe('LibraryTemplatesView', () => {
       qc,
     )
 
-    await waitFor(() => expect(screen.queryByText(secondDigest)).not.toBeNull(), { timeout: 1_000 })
+    await waitFor(() => expect(screen.queryByText(truncatedSecond)).not.toBeNull(), { timeout: 1_000 })
     expect(spy).toHaveBeenCalledTimes(2)
   })
 
   it('omits the content-hash label when an SSE event clears sha256 (AC10 live path)', async () => {
     const firstDigest = digestForContent('# ADR\nBody.')
+    const truncated = `${firstDigest.slice(0, 12)}…`
     vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: mockTemplates })
     vi.spyOn(fetchModule, 'fetchTemplateDetail')
       .mockResolvedValueOnce({ ...mockDetail, sha256: firstDigest })
@@ -212,14 +228,15 @@ describe('LibraryTemplatesView', () => {
       </QueryClientProvider>
     )
     render(<LibraryTemplatesView name="adr" />, { wrapper })
-    await screen.findByText(firstDigest)
+    await screen.findByText(truncated)
 
     dispatchSseEvent(
       { type: 'template-changed', template: 'adr', timestamp: '2026-05-18T00:00:00Z' },
       qc,
     )
 
-    await waitFor(() => expect(screen.queryByText(/^sha256-/)).toBeNull(), { timeout: 1_000 })
+    await waitFor(() => expect(screen.queryByText(truncated)).toBeNull(), { timeout: 1_000 })
+    expect(screen.queryByText(/sha256-/)).toBeNull()
   })
 
   it('CSS module no longer defines the legacy .activeBadge rule', () => {

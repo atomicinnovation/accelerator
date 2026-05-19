@@ -4,43 +4,45 @@ import { Page } from '../../components/Page/Page'
 import { useQuery } from '@tanstack/react-query'
 import { fetchTemplates } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
-import type { TemplateSummary, TemplateTier } from '../../api/types'
-import { Chip, type ChipVariant } from '../../components/Chip/Chip'
+import type { TemplateSummary, TemplateTier, TemplateTierSource } from '../../api/types'
 import { Glyph } from '../../components/Glyph/Glyph'
 import { TIER_ORDER, TIER_SHORT_LABELS, glyphKeyForTemplate } from './template-tier'
 import styles from './LibraryTemplatesIndex.module.css'
 
-function chipVariantForTier(present: boolean, active: boolean): ChipVariant {
-  if (!present) return 'neutral'
-  if (active) return 'green'
-  return 'indigo'
+type TierState = 'absent' | 'present' | 'active'
+
+function tierStateFor(t: TemplateTier | undefined): TierState {
+  if (!t || !t.present) return 'absent'
+  if (t.active) return 'active'
+  return 'present'
 }
 
-interface TierChipsProps {
+interface TierPillsProps {
   tiers: TemplateTier[]
 }
 
-export function TierChips({ tiers }: TierChipsProps) {
-  const byKey = new Map(tiers.map((t) => [t.source, t]))
+export function TierPills({ tiers }: TierPillsProps) {
+  const byKey = new Map<TemplateTierSource, TemplateTier>(
+    tiers.map((t) => [t.source, t]),
+  )
   return (
     <span className={styles.tierChain}>
       {TIER_ORDER.map((source, idx) => {
         const t = byKey.get(source)
-        const present = t?.present ?? false
-        const active = t?.active ?? false
+        const state = tierStateFor(t)
         return (
           <span key={source} className={styles.tierChainItem}>
             {idx > 0 ? (
-              <span className={styles.tierArrow} aria-hidden="true">
-                →
+              <span className={styles.tierSeparator} aria-hidden="true">
+                ›
               </span>
             ) : null}
-            <Chip
-              variant={chipVariantForTier(present, active)}
-              leading={<span className={styles.tierAdd} aria-hidden="true">+</span>}
-            >
-              {TIER_SHORT_LABELS[source]}
-            </Chip>
+            <span className={styles.tierPill} data-state={state}>
+              <span className={styles.tierPillBullet} aria-hidden="true">
+                •
+              </span>
+              <span className={styles.tierPillLabel}>{TIER_SHORT_LABELS[source]}</span>
+            </span>
           </span>
         )
       })}
@@ -60,23 +62,23 @@ export function TemplatesIndexList({ templates, selectedName }: TemplatesIndexLi
         const glyphKey = glyphKeyForTemplate(t.name)
         const isSelected = selectedName === t.name
         return (
-          <li key={t.name}>
+          <li key={t.name} className={styles.row}>
             <Link
               to="/library/templates/$name"
               params={{ name: t.name }}
-              className={styles.row}
+              className={styles.rowLink}
               data-selected={isSelected ? 'true' : undefined}
               aria-current={isSelected ? 'page' : undefined}
             >
               <span className={styles.rowGlyph} aria-hidden="true">
                 {glyphKey ? (
-                  <Glyph docType={glyphKey} size={16} />
+                  <Glyph docType={glyphKey} size={24} framed />
                 ) : (
                   <span className={styles.rowGlyphFallback} />
                 )}
               </span>
               <span className={styles.rowName}>{t.name}.md</span>
-              <TierChips tiers={t.tiers} />
+              <TierPills tiers={t.tiers} />
               <span className={styles.rowChevron} aria-hidden="true">
                 ›
               </span>
@@ -114,6 +116,7 @@ export function TemplatesPage({ selectedName, extraContent }: PageProps) {
 
   return (
     <Page
+      eyebrow={<>TEMPLATES · VIRTUAL</>}
       title="Authoring templates"
       subtitle="Resolved across three tiers. The highest-priority present tier wins at authoring time — but every tier is inspectable here, regardless of current config."
     >

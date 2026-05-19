@@ -78,7 +78,12 @@ impl AppState {
             crate::indexer::Indexer::build(driver.clone(), cfg.project_root.clone(), work_item_cfg).await?,
         );
         let templates = Arc::new(arc_swap::ArcSwap::from_pointee(
-            crate::templates::TemplateResolver::build(&cfg.templates, driver.as_ref()).await,
+            crate::templates::TemplateResolver::build(
+                &cfg.templates,
+                driver.as_ref(),
+                &cfg.project_root,
+            )
+            .await,
         ));
         let cluster_seed = crate::clusters::compute_clusters(&indexer.all().await);
         let clusters = Arc::new(RwLock::new(cluster_seed));
@@ -93,6 +98,7 @@ impl AppState {
             driver_dyn,
             tier_index,
             sse_hub.clone(),
+            Arc::new(cfg.project_root.clone()),
         ));
         Ok(Arc::new(Self {
             cfg,

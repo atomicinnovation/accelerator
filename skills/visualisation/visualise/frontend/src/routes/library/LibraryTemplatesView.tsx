@@ -113,6 +113,15 @@ function findWinningTier(data: TemplateDetail): TemplateTier | undefined {
   return data.tiers.find((t) => t.source === data.activeTier && t.present)
 }
 
+/** Truncate a `sha256-<hex>` etag for compact display: keeps the
+ *  full `sha256-` prefix + 5 hex characters (total 12 chars) followed
+ *  by an ellipsis. The untruncated value is surfaced via a `title`
+ *  attribute on the surrounding element for hover inspection. */
+function truncateSha256(sha: string): string {
+  if (sha.length <= 13) return sha
+  return `${sha.slice(0, 12)}…`
+}
+
 function TemplatePreviewPane({ data }: { data: TemplateDetail }) {
   const winning = findWinningTier(data)
   const content = winning?.content ?? ''
@@ -151,8 +160,13 @@ function TemplatePreviewPane({ data }: { data: TemplateDetail }) {
       <div className={styles.previewHeader} data-testid="template-preview-header">
         <span className={styles.previewPath}>{winning.path}</span>
         {data.sha256 ? (
-          <span className={styles.contentHashLabel} aria-label="Content hash">
-            {data.sha256}
+          <span
+            className={styles.contentHashLabel}
+            aria-label="Content hash"
+            title={data.sha256}
+            data-full-sha={data.sha256}
+          >
+            {truncateSha256(data.sha256)}
           </span>
         ) : null}
       </div>

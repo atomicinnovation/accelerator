@@ -1,36 +1,40 @@
+/* Templates index — connected rows in one table-like container. The
+   outer .list owns the outer border + radius; rows share borders
+   between them, no per-row gap. */
 .list {
   list-style: none;
   padding: 0;
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-
-.list li {
-  display: block;
+  border: 1px solid var(--ac-stroke-soft);
+  border-radius: var(--radius-md);
+  background: var(--ac-bg-card);
+  overflow: hidden;
 }
 
 .row {
+  display: block;
+  border-top: 1px solid var(--ac-stroke-soft);
+}
+
+.row:first-child {
+  border-top: none;
+}
+
+.rowLink {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
-  border: 1px solid var(--ac-stroke-soft);
-  border-radius: var(--radius-md);
-  background: var(--ac-bg-card);
   color: var(--ac-fg);
   text-decoration: none;
-  transition: background-color 0.12s ease-in-out, border-color 0.12s ease-in-out;
+  transition: background-color 0.12s ease-in-out;
 }
 
-.row:hover {
-  background: var(--ac-bg-raised);
-  border-color: var(--ac-stroke);
+.rowLink:hover {
+  background: var(--ac-bg-hover);
 }
 
-.row[data-selected="true"] {
-  border-color: var(--ac-accent-tint);
+.rowLink[data-selected="true"] {
   background: var(--ac-accent-faint);
 }
 
@@ -38,23 +42,21 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
   flex: 0 0 auto;
 }
 
 .rowGlyphFallback {
   display: inline-block;
-  width: var(--sp-3);
-  height: var(--sp-3);
+  width: var(--sp-5);
+  height: var(--sp-5);
   border-radius: var(--radius-sm);
-  background: var(--ac-fg-muted);
-  opacity: 0.4;
+  background: var(--ac-bg-sunken);
 }
 
 .rowName {
   font-family: var(--ac-font-mono);
   font-size: var(--size-xs);
+  font-weight: 400;
   color: var(--ac-fg);
   flex: 0 1 auto;
 }
@@ -62,26 +64,69 @@
 .tierChain {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--sp-1);
   margin-left: auto;
 }
 
 .tierChainItem {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--sp-1);
 }
 
-.tierArrow {
+.tierSeparator {
+  font-size: var(--size-xs);
+  color: var(--ac-fg-muted);
+  opacity: 0.55;
+  line-height: 1;
+  padding: 0 var(--sp-1);
+}
+
+/* Rounded-rectangle tier pills, modelled on the sort/filter buttons:
+   muted by default, accent for the winning tier, transparent for
+   absent slots. */
+.tierPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  background: var(--ac-bg-sunken);
+  color: var(--ac-fg-muted);
+}
+
+.tierPill[data-state="absent"] {
+  background: transparent;
+  border-color: var(--ac-stroke-soft);
   color: var(--ac-fg-muted);
   opacity: 0.7;
 }
 
-.tierAdd {
-  font-family: var(--ac-font-mono);
+.tierPill[data-state="present"] {
+  background: var(--ac-bg-sunken);
+  border-color: var(--ac-stroke-soft);
+  color: var(--ac-fg-muted);
+}
+
+.tierPill[data-state="active"] {
+  background: var(--ac-accent-tint);
+  border-color: var(--ac-accent-tint);
+  color: var(--ac-accent);
+}
+
+.tierPillBullet {
   font-size: var(--size-xxs);
-  opacity: 0.85;
+  line-height: 1;
+}
+
+.tierPillLabel {
+  display: inline;
 }
 
 .rowChevron {

@@ -3,10 +3,10 @@
 }
 
 .detailHeading {
-  margin: 0 0 var(--sp-3) 0;
+  margin: 0 0 var(--sp-4) 0;
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.12em;
   color: var(--ac-fg-muted);
   text-transform: uppercase;
@@ -33,7 +33,7 @@
 }
 
 .panel.absent {
-  opacity: 0.65;
+  opacity: 0.7;
   background: var(--ac-bg-sunken);
 }
 
@@ -45,7 +45,7 @@
 .tierEyebrow {
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.12em;
   color: var(--ac-fg-muted);
   text-transform: uppercase;
@@ -60,7 +60,7 @@
 }
 
 .tierLabel {
-  font-weight: 600;
+  font-weight: 500;
   font-size: var(--size-xs);
   color: var(--ac-fg);
 }
@@ -74,6 +74,7 @@
 .tierPath {
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
+  font-weight: 400;
   color: var(--ac-fg-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -108,6 +109,7 @@
   border-bottom: 1px solid var(--ac-stroke-soft);
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
+  font-weight: 400;
   color: var(--ac-fg-muted);
 }
 
@@ -120,6 +122,7 @@
 .contentHashLabel {
   cursor: default;
   user-select: text;
+  white-space: nowrap;
 }
 
 .previewCodeBlock {
@@ -127,6 +130,7 @@
   padding: var(--sp-4);
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
+  font-weight: 400;
   line-height: 1.5;
   background: var(--ac-bg-sunken);
   color: var(--ac-fg);

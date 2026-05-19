@@ -131,8 +131,8 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'routes/library/LibraryDocView.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '260px', count: 1, kind: 'irreducible', reason: 'aside column width — no token equivalent' },
   // routes/library/LibraryTemplatesIndex.module.css
-  { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'row + chip-leading hairline borders — below --sp-1 floor' },
-  { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '1.25rem', count: 2, kind: 'irreducible', reason: 'rowGlyph width/height (20px) — matches Glyph size-16 + visual padding, no sp-* equivalent' },
+  { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'connected-table outer border + per-row border-top + tier-pill borders — below --sp-1 floor' },
+  { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '0.02em', count: 1, kind: 'irreducible', reason: 'tier-pill letter-spacing — prototype-derived typography refinement (mirrors Chip)' },
   // routes/library/LibraryTemplatesView.module.css
   { file: 'routes/library/LibraryTemplatesView.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'tier card + preview-pane + preview-header border-bottom hairlines — below --sp-1 floor' },
   { file: 'routes/library/LibraryTemplatesView.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'active-tier outline width + outline-offset — below --sp-1 floor' },
