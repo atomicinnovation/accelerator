@@ -53,17 +53,17 @@ describe('router', () => {
     // Heading from LibraryTemplatesIndex — matched via the literal
     // /library/templates route, not the generic /library/$type.
     expect(
-      await screen.findByRole('heading', { name: 'Templates' }),
+      await screen.findByRole('heading', { name: /Authoring templates/i }),
     ).toBeInTheDocument()
   })
 
   it('routes /library/templates/adr to the templates detail view', async () => {
     const router = renderAt('/library/templates/adr')
     await waitForPath(router, '/library/templates/adr')
-    // LibraryTemplatesView heading is the template name; matched via the
-    // literal /library/templates/$name route.
+    // The detail route shows the same index page header plus an additional
+    // "THREE TIERS · ADR.MD" section heading for the selected template.
     expect(
-      await screen.findByRole('heading', { name: 'adr' }),
+      await screen.findByRole('heading', { name: /THREE TIERS · ADR\.MD/i }),
     ).toBeInTheDocument()
   })
 

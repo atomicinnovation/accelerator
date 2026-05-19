@@ -1,12 +1,101 @@
-.list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
-.list li { display: flex; align-items: center; gap: var(--sp-4); }
-.tierPresenceRow {
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.list li {
+  display: block;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--ac-stroke-soft);
+  border-radius: var(--radius-md);
+  background: var(--ac-bg-card);
+  color: var(--ac-fg);
+  text-decoration: none;
+  transition: background-color 0.12s ease-in-out, border-color 0.12s ease-in-out;
+}
+
+.row:hover {
+  background: var(--ac-bg-raised);
+  border-color: var(--ac-stroke);
+}
+
+.row[data-selected="true"] {
+  border-color: var(--ac-accent-tint);
+  background: var(--ac-accent-faint);
+}
+
+.rowGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 auto;
+}
+
+.rowGlyphFallback {
+  display: inline-block;
+  width: var(--sp-3);
+  height: var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--ac-fg-muted);
+  opacity: 0.4;
+}
+
+.rowName {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xs);
+  color: var(--ac-fg);
+  flex: 0 1 auto;
+}
+
+.tierChain {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
   margin-left: auto;
 }
+
+.tierChainItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.tierArrow {
+  font-size: var(--size-xxs);
+  color: var(--ac-fg-muted);
+  opacity: 0.7;
+}
+
+.tierAdd {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xxs);
+  opacity: 0.85;
+}
+
+.rowChevron {
+  font-size: var(--size-md);
+  color: var(--ac-fg-muted);
+  line-height: 1;
+  margin-left: var(--sp-2);
+}
+
 .error {
-  color: var(--ac-err); background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg)); border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
-  border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); margin-top: var(--sp-4);
+  color: var(--ac-err);
+  background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg));
+  border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-4);
 }

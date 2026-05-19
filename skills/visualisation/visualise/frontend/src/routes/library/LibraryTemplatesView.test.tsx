@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto'
 import React from 'react'
 import { LibraryTemplatesView } from './LibraryTemplatesView'
 import * as fetchModule from '../../api/fetch'
-import type { TemplateDetail } from '../../api/types'
+import type { TemplateDetail, TemplateSummary } from '../../api/types'
 import { dispatchSseEvent } from '../../api/use-doc-events'
 import { MemoryRouter } from '../../test/router-helpers'
 import templatesCss from './LibraryTemplatesView.module.css?raw'
@@ -14,6 +14,18 @@ import templatesCss from './LibraryTemplatesView.module.css?raw'
 function digestForContent(content: string): string {
   return `sha256-${createHash('sha256').update(content).digest('hex')}`
 }
+
+const mockTemplates: TemplateSummary[] = [
+  {
+    name: 'adr',
+    activeTier: 'plugin-default',
+    tiers: [
+      { source: 'config-override', path: '/no-config', present: false, active: false },
+      { source: 'user-override',   path: '/meta/templates/adr.md', present: false, active: false },
+      { source: 'plugin-default',  path: '/plugin/templates/adr.md', present: true, active: true },
+    ],
+  },
+]
 
 const mockDetail: TemplateDetail = {
   name: 'adr',
@@ -27,8 +39,6 @@ const mockDetail: TemplateDetail = {
 }
 
 function Wrapper({ children }: { children: React.ReactNode }) {
-  // Disable retries in tests so rejected fetches surface as error state
-  // immediately instead of re-firing the mock and slowing the suite.
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -39,63 +49,63 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   )
 }
 
+function mockListAndDetail(detail: TemplateDetail = mockDetail) {
+  vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: mockTemplates })
+  return vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(detail)
+}
+
 describe('LibraryTemplatesView', () => {
-  it('renders a panel for each tier', async () => {
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
+  it('renders the index list above the detail section', async () => {
+    mockListAndDetail()
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    expect(await screen.findByText(/plugin.default/i)).toBeInTheDocument()
-    expect(screen.getByText(/config.override/i)).toBeInTheDocument()
-    expect(screen.getByText(/user.override/i)).toBeInTheDocument()
+    // Index row is rendered alongside the detail.
+    expect(await screen.findByRole('link', { name: /adr\.md/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /THREE TIERS · ADR\.MD/i })).toBeInTheDocument()
   })
 
-  it('marks the active tier', async () => {
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
+  it('marks the selected row with aria-current="page"', async () => {
+    mockListAndDetail()
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    expect(await screen.findByText('active')).toBeInTheDocument()
+    const row = await screen.findByRole('link', { name: /adr\.md/i })
+    expect(row.getAttribute('aria-current')).toBe('page')
   })
 
-  it('renders absent tiers as greyed-out cards with a note', async () => {
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
+  it('renders a TIER 1 / TIER 2 / TIER 3 numbered card per tier', async () => {
+    mockListAndDetail()
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByText(/plugin.default/i)
-    expect(screen.getAllByText(/not currently configured/i).length).toBeGreaterThanOrEqual(1)
+    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    expect(screen.getByText(/^TIER 1$/)).toBeInTheDocument()
+    expect(screen.getByText(/^TIER 2$/)).toBeInTheDocument()
+    expect(screen.getByText(/^TIER 3$/)).toBeInTheDocument()
   })
 
-  it('renders the markdown content of the active tier', async () => {
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
-    render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    expect(await screen.findByText('Body.')).toBeInTheDocument()
+  it('renders an indigo "active" Chip on the winning tier card', async () => {
+    mockListAndDetail()
+    const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
+    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    expect(container.querySelector('[data-variant="indigo"]')).not.toBeNull()
+  })
+
+  it('applies the accent-ring data-active attribute to the winning tier card only', async () => {
+    mockListAndDetail()
+    const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
+    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    const ringed = container.querySelectorAll('[data-active="true"]')
+    expect(ringed.length).toBe(1)
+    expect(templatesCss).toMatch(/\.panel\[data-active="true"\]\s*\{[^}]*outline:/m)
   })
 
   it('renders an error alert when fetchTemplateDetail rejects', async () => {
+    vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: mockTemplates })
     vi.spyOn(fetchModule, 'fetchTemplateDetail').mockRejectedValue(new Error('boom'))
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
     expect(await screen.findByRole('alert')).toHaveTextContent(/Failed to load template/i)
   })
 
-  it('renders an indigo "active" Chip on the active tier panel', async () => {
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
-    const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByText('active')
-    expect(container.querySelector('[data-variant="indigo"]')).not.toBeNull()
-  })
-
-  it('renders neutral "absent" Chips on absent tier panels', async () => {
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
-    const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByText('active')
-    const neutralChips = container.querySelectorAll('[data-variant="neutral"]')
-    expect(neutralChips.length).toBeGreaterThanOrEqual(2)
-  })
-
-  it('CSS module no longer defines the legacy .activeBadge rule', () => {
-    expect(templatesCss).not.toMatch(/\.activeBadge\b/)
-  })
-
   it('renders a two-column grid container for the detail layout', async () => {
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
+    mockListAndDetail()
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByText('active')
+    await screen.findByRole('heading', { name: /THREE TIERS/i })
     expect(screen.getByTestId('templates-detail-layout')).toBeInTheDocument()
   })
 
@@ -103,71 +113,54 @@ describe('LibraryTemplatesView', () => {
     expect(templatesCss).toMatch(/\.twoColumn\s*\{[^}]*grid-template-columns:\s*minmax/m)
   })
 
-  it('applies the accent-ring class to the winning tier card only', async () => {
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
+  it('renders the winning-tier template source in a <pre><code> code block, not a rendered markdown body', async () => {
+    mockListAndDetail()
     const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByText('active')
-    const ringed = container.querySelectorAll('[data-active="true"]')
-    expect(ringed.length).toBe(1)
-    expect(templatesCss).toMatch(/\.panel\[data-active="true"\]\s*\{[^}]*outline:/m)
-  })
-
-  it('retains the indigo "active" Chip alongside the ring', async () => {
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
-    const { container } = render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByText('active')
-    expect(container.querySelector('[data-variant="indigo"]')).not.toBeNull()
+    await screen.findByRole('heading', { name: /THREE TIERS/i })
+    // Inside the preview pane, the body is rendered as <pre><code> not as a <h1>.
+    const pane = screen.getByTestId('template-preview-pane')
+    expect(pane.querySelector('pre code')).not.toBeNull()
+    expect(pane.querySelector('h1')).toBeNull()
+    // The code element contains the literal markdown source text (verbatim).
+    expect(pane.querySelector('pre code')?.textContent ?? '').toContain('# ADR')
+    // Cover all matches at the document level too — there should not be a rendered <h1>
+    // anywhere just from the preview pane's body.
+    expect(container.querySelectorAll('h1').length).toBeLessThanOrEqual(1)  // Only the page title.
   })
 
   it('renders the content-hash label with the digest computed from the winning content (AC11)', async () => {
-    const winningContent = '# ADR\nBody.'
-    const expectedDigest = digestForContent(winningContent)
-    const mockWithSha: TemplateDetail = { ...mockDetail, sha256: expectedDigest }
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockWithSha)
+    const expectedDigest = digestForContent('# ADR\nBody.')
+    mockListAndDetail({ ...mockDetail, sha256: expectedDigest })
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
     expect(await screen.findByText(expectedDigest)).toBeInTheDocument()
   })
 
-  it('renders the content-hash label as the first row of the preview pane', async () => {
-    const expectedDigest = digestForContent('# ADR\nBody.')
-    const mockWithSha: TemplateDetail = { ...mockDetail, sha256: expectedDigest }
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockWithSha)
-    render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    const label = await screen.findByText(expectedDigest)
-    const body = await screen.findByText('Body.')
-    // eslint-disable-next-line no-bitwise
-    expect(
-      label.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-  })
-
   it('renders the winning-tier path alongside the content-hash label', async () => {
     const expectedDigest = digestForContent('# ADR\nBody.')
-    const mockWithSha: TemplateDetail = { ...mockDetail, sha256: expectedDigest }
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockWithSha)
+    mockListAndDetail({ ...mockDetail, sha256: expectedDigest })
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
     await screen.findByText(expectedDigest)
+    // The path is rendered both in the tier card and in the preview header,
+    // so use getAllByText.
     expect(screen.getAllByText('/plugin/templates/adr.md').length).toBeGreaterThanOrEqual(1)
   })
 
   it('omits the content-hash label when sha256 is absent', async () => {
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockDetail)
+    mockListAndDetail()
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
-    await screen.findByText('active')
+    await screen.findByRole('heading', { name: /THREE TIERS/i })
     expect(screen.queryByText(/^sha256-/)).toBeNull()
   })
 
   it('content-hash label is non-interactive (AC13)', async () => {
     const expectedDigest = digestForContent('# ADR\nBody.')
-    const mockWithSha: TemplateDetail = { ...mockDetail, sha256: expectedDigest }
-    vi.spyOn(fetchModule, 'fetchTemplateDetail').mockResolvedValue(mockWithSha)
+    mockListAndDetail({ ...mockDetail, sha256: expectedDigest })
     render(<LibraryTemplatesView name="adr" />, { wrapper: Wrapper })
     const label = await screen.findByText(expectedDigest)
     expect(label.getAttribute('role')).toBeNull()
     expect(label.getAttribute('tabindex')).toBeNull()
     expect(label.getAttribute('title')).toBeNull()
     await userEvent.click(label)
-    // No side-effects observable.
     expect(templatesCss).not.toMatch(/\.contentHashLabel\s*\{[^}]*cursor:\s*pointer/m)
     expect(templatesCss).not.toMatch(/\.contentHashLabel\s*\{[^}]*cursor:\s*copy/m)
     expect(templatesCss).not.toMatch(/\.contentHashLabel:hover/)
@@ -176,12 +169,11 @@ describe('LibraryTemplatesView', () => {
   it('updates the content-hash label end-to-end via dispatchSseEvent (AC12)', async () => {
     const firstDigest = digestForContent('# ADR\nBody.')
     const secondDigest = digestForContent('# ADR\nBody. v2.')
-    const first: TemplateDetail = { ...mockDetail, sha256: firstDigest }
-    const second: TemplateDetail = { ...mockDetail, sha256: secondDigest }
+    vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: mockTemplates })
     const spy = vi
       .spyOn(fetchModule, 'fetchTemplateDetail')
-      .mockResolvedValueOnce(first)
-      .mockResolvedValueOnce(second)
+      .mockResolvedValueOnce({ ...mockDetail, sha256: firstDigest })
+      .mockResolvedValueOnce({ ...mockDetail, sha256: secondDigest })
 
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -202,19 +194,16 @@ describe('LibraryTemplatesView', () => {
       qc,
     )
 
-    await waitFor(() => expect(screen.queryByText(secondDigest)).not.toBeNull(), {
-      timeout: 1_000,
-    })
+    await waitFor(() => expect(screen.queryByText(secondDigest)).not.toBeNull(), { timeout: 1_000 })
     expect(spy).toHaveBeenCalledTimes(2)
   })
 
   it('omits the content-hash label when an SSE event clears sha256 (AC10 live path)', async () => {
     const firstDigest = digestForContent('# ADR\nBody.')
-    const first: TemplateDetail = { ...mockDetail, sha256: firstDigest }
-    const cleared: TemplateDetail = { ...mockDetail, sha256: undefined }
+    vi.spyOn(fetchModule, 'fetchTemplates').mockResolvedValue({ templates: mockTemplates })
     vi.spyOn(fetchModule, 'fetchTemplateDetail')
-      .mockResolvedValueOnce(first)
-      .mockResolvedValueOnce(cleared)
+      .mockResolvedValueOnce({ ...mockDetail, sha256: firstDigest })
+      .mockResolvedValueOnce({ ...mockDetail, sha256: undefined })
 
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -230,8 +219,10 @@ describe('LibraryTemplatesView', () => {
       qc,
     )
 
-    await waitFor(() => expect(screen.queryByText(/^sha256-/)).toBeNull(), {
-      timeout: 1_000,
-    })
+    await waitFor(() => expect(screen.queryByText(/^sha256-/)).toBeNull(), { timeout: 1_000 })
+  })
+
+  it('CSS module no longer defines the legacy .activeBadge rule', () => {
+    expect(templatesCss).not.toMatch(/\.activeBadge\b/)
   })
 })
