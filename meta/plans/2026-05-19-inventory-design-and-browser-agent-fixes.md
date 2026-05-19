@@ -349,11 +349,11 @@ assert_not_contains "no legacy-warning noise when user config is clean" "$ERR" "
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-design.sh` passes, including the new
+- [x] `bash scripts/test-design.sh` passes, including the new
       repo-wide assertion
-- [ ] `bash scripts/test-config.sh` passes, including the new
+- [x] `bash scripts/test-config.sh` passes, including the new
       migration-aware warning test
-- [ ] `grep -rE 'config-read-path\.sh[[:space:]]+design_(inventories|gaps)\b' skills/ agents/`
+- [x] `grep -rE 'config-read-path\.sh[[:space:]]+design_(inventories|gaps)\b' skills/ agents/`
       returns no matches
 
 #### Manual Verification:

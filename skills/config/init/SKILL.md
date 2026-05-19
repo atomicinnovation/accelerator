@@ -28,8 +28,8 @@ Resolve each output directory using the plugin's path configuration:
 **Review work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_work`
 **Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
 **Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh notes`
-**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh design_inventories`
-**Design gaps directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh design_gaps`
+**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_design_inventories`
+**Design gaps directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_design_gaps`
 **Global directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh global`
 
 ## Steps

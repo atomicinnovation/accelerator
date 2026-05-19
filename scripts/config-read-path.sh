@@ -17,6 +17,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=config-defaults.sh
 source "$SCRIPT_DIR/config-defaults.sh"
+# shellcheck source=vcs-common.sh
+# Sourced for find_repo_root, used by the migration-aware warning's
+# cheap-gate below.
+source "$SCRIPT_DIR/vcs-common.sh"
 
 key="${1:-}"
 if [ -z "$key" ]; then
@@ -35,8 +39,37 @@ else
     fi
   done
   if [ -z "$default" ]; then
-    echo "config-read-path.sh: warning: unknown key '${key}' — no centralized default" >&2
+    case "$key" in
+      design_inventories|design_gaps)
+        # Defensive: a caller (skill author, external script) is still
+        # invoking the legacy bare key. The in-tree call sites were
+        # renamed; this only fires for out-of-tree callers.
+        echo "config-read-path.sh: warning: key '${key}' was renamed by migration 0004 to 'research_${key}'; run /accelerator:migrate" >&2
+        ;;
+      *)
+        echo "config-read-path.sh: warning: unknown key '${key}' — no centralized default" >&2
+        ;;
+    esac
   fi
 fi
+
+# Pre-migration user check: when the canonical key is requested, probe
+# the user's config for the legacy alias. If present, their override is
+# silently being ignored — emit a warning naming the ignored key.
+case "$key" in
+  research_design_inventories|research_design_gaps)
+    legacy="${key#research_}"
+    project_root="$(find_repo_root 2>/dev/null || true)"
+    if [ -n "$project_root" ] && \
+       grep -qF "$legacy" \
+         "$project_root/.accelerator/config.md" \
+         "$project_root/.accelerator/config.local.md" 2>/dev/null; then
+      legacy_value=$(bash "$SCRIPT_DIR/config-read-value.sh" "paths.${legacy}" "" 2>/dev/null || true)
+      if [ -n "$legacy_value" ]; then
+        echo "config-read-path.sh: warning: your config sets 'paths.${legacy}' (renamed by migration 0004 to 'paths.${key}'); the legacy override is being ignored. Run /accelerator:migrate" >&2
+      fi
+    fi
+    ;;
+esac
 
 exec "$SCRIPT_DIR/config-read-value.sh" "paths.${key}" "${default}"

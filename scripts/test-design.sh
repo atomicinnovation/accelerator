@@ -10,10 +10,10 @@ README="$PLUGIN_ROOT/README.md"
 
 echo "=== Foundation: init SKILL.md ==="
 
-assert_contains "init lists design_inventories path key" \
-  "$(cat "$INIT")" "design_inventories"
-assert_contains "init lists design_gaps path key" \
-  "$(cat "$INIT")" "design_gaps"
+assert_contains "init lists research_design_inventories path key" \
+  "$(cat "$INIT")" "research_design_inventories"
+assert_contains "init lists research_design_gaps path key" \
+  "$(cat "$INIT")" "research_design_gaps"
 # Derive the expected count from the Path Resolution list rather than
 # hardcoding it (the marker's correctness is invariant-tested in
 # test-config.sh; here we just need a value that auto-tracks the file).
@@ -29,10 +29,16 @@ echo ""
 
 echo "=== Foundation: configure SKILL.md ==="
 
-assert_contains "configure paths table includes design_inventories" \
-  "$(cat "$CONFIGURE")" "design_inventories"
-assert_contains "configure paths table includes design_gaps" \
-  "$(cat "$CONFIGURE")" "design_gaps"
+assert_contains "configure paths table includes research_design_inventories" \
+  "$(cat "$CONFIGURE")" "research_design_inventories"
+assert_contains "configure paths table includes research_design_gaps" \
+  "$(cat "$CONFIGURE")" "research_design_gaps"
+
+echo ""
+
+echo "=== Design key call sites use canonical research_design_* form ==="
+assert_exit_code "no SKILL.md or agent uses bare design_(inventories|gaps)" 1 \
+  bash -c "grep -rE 'config-read-path\\.sh[[:space:]]+design_(inventories|gaps)\\b' \"$PLUGIN_ROOT/skills\" \"$PLUGIN_ROOT/agents\""
 
 echo ""
 

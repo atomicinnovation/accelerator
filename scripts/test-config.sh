@@ -3194,6 +3194,37 @@ fi
 echo ""
 
 # ============================================================
+echo "=== config-read-path.sh (migration-aware warning) ==="
+echo ""
+
+CONFIG_READ_PATH="$READ_PATH"
+
+echo "Test: config-read-path.sh emits migration-aware warning for bare design_inventories (defensive)"
+REPO=$(setup_repo)
+ERR=$(cd "$REPO" && bash "$CONFIG_READ_PATH" design_inventories 2>&1 >/dev/null || true)
+assert_contains "bare-key warning names migration 0004" "$ERR" "migration 0004"
+assert_contains "bare-key warning names the canonical key" "$ERR" "research_design_inventories"
+
+echo "Test: config-read-path.sh warns when canonical key called but legacy alias is in user config"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+printf -- '---\npaths:\n  design_inventories: my-custom-path\n  design_gaps: my-other-path\n---\n' > "$REPO/.accelerator/config.md"
+ERR=$(cd "$REPO" && bash "$CONFIG_READ_PATH" research_design_inventories 2>&1 >/dev/null || true)
+assert_contains "legacy-in-config warning names migration 0004" "$ERR" "migration 0004"
+assert_contains "legacy-in-config warning names the ignored key" "$ERR" "paths.design_inventories"
+assert_contains "legacy-in-config warning says override is ignored" "$ERR" "ignored"
+
+ERR=$(cd "$REPO" && bash "$CONFIG_READ_PATH" research_design_gaps 2>&1 >/dev/null || true)
+assert_contains "legacy-in-config warning fires for design_gaps too" "$ERR" "paths.design_gaps"
+
+echo "Test: config-read-path.sh does NOT warn when no legacy alias is set"
+REPO=$(setup_repo)
+ERR=$(cd "$REPO" && bash "$CONFIG_READ_PATH" research_design_inventories 2>&1 >/dev/null || true)
+assert_not_contains "no legacy-warning noise when user config is clean" "$ERR" "ignored"
+
+echo ""
+
+# ============================================================
 echo "=== config-read-work.sh ==="
 echo ""
 
