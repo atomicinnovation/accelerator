@@ -4,14 +4,33 @@ import { Page } from '../../components/Page/Page'
 import { useQuery } from '@tanstack/react-query'
 import { fetchTemplates } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
-import type { TemplateSummary, TemplateTierSource } from '../../api/types'
-import { Chip } from '../../components/Chip/Chip'
+import type { TemplateSummary, TemplateTier } from '../../api/types'
+import { Chip, type ChipVariant } from '../../components/Chip/Chip'
+import { TIER_ORDER, TIER_SHORT_LABELS } from './template-tier'
 import styles from './LibraryTemplatesIndex.module.css'
 
-const TIER_LABELS: Record<TemplateTierSource, string> = {
-  'plugin-default':  'Plugin default',
-  'user-override':   'User override',
-  'config-override': 'Config override',
+function chipVariantForTier(present: boolean, active: boolean): ChipVariant {
+  if (!present) return 'neutral'
+  if (active) return 'green'
+  return 'indigo'
+}
+
+function TierPresenceRow({ tiers }: { tiers: TemplateTier[] }) {
+  const byKey = new Map(tiers.map((t) => [t.source, t]))
+  return (
+    <span className={styles.tierPresenceRow}>
+      {TIER_ORDER.map((source) => {
+        const t = byKey.get(source)
+        const present = t?.present ?? false
+        const active = t?.active ?? false
+        return (
+          <Chip key={source} variant={chipVariantForTier(present, active)}>
+            {TIER_SHORT_LABELS[source]}
+          </Chip>
+        )
+      })}
+    </span>
+  )
 }
 
 export function LibraryTemplatesIndex() {
@@ -35,7 +54,7 @@ export function LibraryTemplatesIndex() {
             <Link to="/library/templates/$name" params={{ name: t.name }}>
               {t.name}
             </Link>
-            <Chip variant="neutral">{TIER_LABELS[t.activeTier]}</Chip>
+            <TierPresenceRow tiers={t.tiers} />
           </li>
         ))}
       </ul>
