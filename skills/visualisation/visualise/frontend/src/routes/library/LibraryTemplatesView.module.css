@@ -19,3 +19,28 @@
   color: var(--ac-err); background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg)); border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
   border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); margin-top: var(--sp-4);
 }
+.previewPane {
+  border: 1px solid var(--ac-stroke-soft);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  background: var(--ac-bg-card);
+}
+.previewHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xxs);
+  color: var(--ac-fg-muted);
+}
+.previewPath {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.contentHashLabel {
+  cursor: default;
+  user-select: text;
+}

@@ -6,7 +6,7 @@ import { fetchTemplateDetail } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
 import { MarkdownRenderer } from '../../components/MarkdownRenderer/MarkdownRenderer'
 import { Chip } from '../../components/Chip/Chip'
-import type { TemplateTier } from '../../api/types'
+import type { TemplateDetail, TemplateTier } from '../../api/types'
 import styles from './LibraryTemplatesView.module.css'
 
 const TIER_LABELS: Record<string, string> = {
@@ -54,11 +54,39 @@ export function LibraryTemplatesView({ name: propName }: Props) {
             />
           ))}
         </div>
+        <TemplatePreviewPane data={data} />
       </div>
     )
   }
 
   return <Page title={title}>{content}</Page>
+}
+
+function getWinningTier(data: TemplateDetail): TemplateTier | undefined {
+  return data.tiers.find(t => t.source === data.activeTier && t.present)
+}
+
+function TemplatePreviewPane({ data }: { data: TemplateDetail }) {
+  const winning = getWinningTier(data)
+  if (!winning) return null
+  return (
+    <div className={styles.previewPane} data-testid="template-preview-pane">
+      <div className={styles.previewHeader} data-testid="template-preview-header">
+        <span className={styles.previewPath}>{winning.path}</span>
+        {data.sha256 ? (
+          <span
+            className={styles.contentHashLabel}
+            aria-label="Content hash"
+          >
+            {data.sha256}
+          </span>
+        ) : null}
+      </div>
+      {winning.content != null ? (
+        <MarkdownRenderer content={winning.content} />
+      ) : null}
+    </div>
+  )
 }
 
 function TierPanel({ tier, isActive }: { tier: TemplateTier; isActive: boolean }) {
@@ -73,11 +101,9 @@ function TierPanel({ tier, isActive }: { tier: TemplateTier; isActive: boolean }
         {!tier.present && <Chip variant="neutral">absent</Chip>}
         <code className={styles.path}>{tier.path}</code>
       </header>
-      {tier.present && tier.content != null ? (
-        <MarkdownRenderer content={tier.content} />
-      ) : (
+      {!tier.present ? (
         <p className={styles.absentNote}>Not currently configured.</p>
-      )}
+      ) : null}
     </section>
   )
 }

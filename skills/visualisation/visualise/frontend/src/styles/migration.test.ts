@@ -133,7 +133,9 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   // routes/library/LibraryTemplatesIndex.module.css
   { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   // routes/library/LibraryTemplatesView.module.css
-  { file: 'routes/library/LibraryTemplatesView.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
+  { file: 'routes/library/LibraryTemplatesView.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'panel + preview-pane border widths — below --sp-1 floor' },
+  { file: 'routes/library/LibraryTemplatesView.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'active-tier outline width + outline-offset — below --sp-1 floor' },
+  { file: 'routes/library/LibraryTemplatesView.module.css', literal: '24rem', count: 1, kind: 'irreducible', reason: 'tier-card column width in the detail two-column grid — no token equivalent' },
   // routes/library/LibraryTypeView.module.css
   { file: 'routes/library/LibraryTypeView.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'header-row, row, and error border widths — below --sp-1 floor' },
   { file: 'routes/library/LibraryTypeView.module.css', literal: '120px', count: 2, kind: 'irreducible', reason: 'grid column tracks (first column + status) — no token equivalent' },
