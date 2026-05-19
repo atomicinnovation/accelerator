@@ -486,6 +486,27 @@ bash "$PLUGIN_ROOT/skills/design/inventory-design/scripts/test-ensure-playwright
 
 echo ""
 
+echo "=== daemon: links is in BLOCKING_OPS ==="
+DAEMON_SRC="$PLUGIN_ROOT/skills/design/inventory-design/scripts/playwright/lib/daemon.js"
+assert_contains "BLOCKING_OPS includes 'links'" \
+  "$(grep -E '^const BLOCKING_OPS' "$DAEMON_SRC")" "'links'"
+
+echo ""
+
+echo "=== browser-locator links contract ==="
+assert_contains "browser-locator body documents the links command" \
+  "$(cat "$LOC")" "{browser-executor-script} links"
+assert_contains "browser-locator body uses pathname as route identifier" \
+  "$(cat "$LOC")" "Use \`pathname\`"
+assert_contains "browser-locator body restricts route names to links output" \
+  "$(cat "$LOC")" "Routes come from"
+assert_contains "browser-locator body requires same_origin filter" \
+  "$(cat "$LOC")" "same_origin: true"
+assert_not_contains "browser-analyser body does NOT advertise the links command" \
+  "$(cat "$ANA")" "{browser-executor-script} links"
+
+echo ""
+
 echo "=== daemon: owner-PID watcher removed ==="
 PLAYWRIGHT_DIR="$PLUGIN_ROOT/skills/design/inventory-design/scripts/playwright"
 # Repo-wide sweep: no source file under the playwright/ tree references

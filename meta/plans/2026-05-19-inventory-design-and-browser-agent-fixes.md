@@ -1147,15 +1147,15 @@ assert_not_contains "browser-analyser body does NOT advertise the links command"
 
 #### Automated Verification:
 
-- [ ] `bash skills/design/inventory-design/scripts/playwright/test-run.sh`
+- [x] `bash skills/design/inventory-design/scripts/playwright/test-run.sh`
       passes the new `links` test (all enriched-shape assertions)
-- [ ] `node --test skills/design/inventory-design/scripts/playwright/lib/daemon.test.js`
+- [x] `node --test skills/design/inventory-design/scripts/playwright/lib/daemon.test.js`
       passes (no regressions to existing tests)
-- [ ] `bash scripts/test-design.sh` passes the new `links` contract
+- [x] `bash scripts/test-design.sh` passes the new `links` contract
       assertions (including the negative assertion on browser-analyser)
-- [ ] `grep -n "case 'links'" skills/design/inventory-design/scripts/playwright/lib/daemon.js`
+- [x] `grep -n "case 'links'" skills/design/inventory-design/scripts/playwright/lib/daemon.js`
       shows the new switch case
-- [ ] `grep -E "^const BLOCKING_OPS" skills/design/inventory-design/scripts/playwright/lib/daemon.js`
+- [x] `grep -E "^const BLOCKING_OPS" skills/design/inventory-design/scripts/playwright/lib/daemon.js`
       shows `'links'` in the set
 
 #### Manual Verification:

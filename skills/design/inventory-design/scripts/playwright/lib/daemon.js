@@ -23,7 +23,11 @@ const WALL_CLOCK_RAW = parseInt(process.env.ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS
 const WALL_CLOCK_CEILING = 1800000; // 30 min hard ceiling
 const WALL_CLOCK_MS = Math.min(WALL_CLOCK_RAW, WALL_CLOCK_CEILING);
 
-const BLOCKING_OPS = new Set(['navigate', 'snapshot', 'screenshot', 'evaluate', 'click', 'type', 'wait_for']);
+// BLOCKING_OPS membership: operations that perform browser I/O and must
+// be wall-clock bounded. `links` joins the set because page.evaluate()
+// can hang on a hostile page, mirroring the existing `evaluate` and
+// `snapshot` entries.
+const BLOCKING_OPS = new Set(['navigate', 'snapshot', 'links', 'screenshot', 'evaluate', 'click', 'type', 'wait_for']);
 
 export async function startDaemon({ stateDir }) {
   ensureStateDir(stateDir);
@@ -149,6 +153,51 @@ export async function startDaemon({ stateDir }) {
       case 'snapshot': {
         const snap = await page.accessibility.snapshot();
         return { protocol: PROTOCOL, snapshot: snap };
+      }
+
+      case 'links': {
+        const pageUrl = page.url();
+        const links = await page.evaluate(() => {
+          const pageOrigin = location.origin;
+          const pageProtocol = location.protocol;
+          // Opaque-origin schemes per HTML spec: file:, data:, javascript:,
+          // blob:. Chromium reports varying origin strings for these
+          // (e.g. 'null', 'file://') depending on the build, so use the
+          // scheme directly as the opaque-origin signal rather than
+          // relying on origin-string equality.
+          const OPAQUE = new Set(['file:', 'data:', 'javascript:', 'blob:']);
+          return Array.from(document.querySelectorAll('a[href]')).map(a => {
+            let pathname = null;
+            let sameOrigin = false;
+            let scheme = null;
+            try {
+              const u = new URL(a.href);
+              pathname = u.pathname;
+              scheme = u.protocol.replace(':', '');
+              // Same-origin check: both origins must match AND neither
+              // side may be an opaque-origin scheme. Without the opaque
+              // guard a `mailto:` or `javascript:void(0)` anchor on a
+              // file:// page would be marked as same-origin, which is
+              // wrong both semantically and as a security signal (the
+              // locator's route-following rule trusts same_origin).
+              sameOrigin = u.origin === pageOrigin
+                && u.origin !== 'null'
+                && !OPAQUE.has(u.protocol)
+                && !OPAQUE.has(pageProtocol);
+            } catch {
+              // href could not be resolved against the current document
+              // (e.g. malformed). Leave the derived fields null.
+            }
+            return {
+              text: (a.textContent || '').replace(/\s+/g, ' ').trim(),
+              pathname,
+              same_origin: sameOrigin,
+              scheme,
+              role: a.getAttribute('role'),
+            };
+          });
+        });
+        return { protocol: PROTOCOL, url: pageUrl, links };
       }
 
       case 'screenshot': {

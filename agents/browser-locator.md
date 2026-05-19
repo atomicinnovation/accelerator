@@ -71,6 +71,7 @@ references to preloaded `paths` values like `{work}` and `{plans}`.)
 ```
 {browser-executor-script} navigate '{"url":"<url>"}'
 {browser-executor-script} snapshot
+{browser-executor-script} links
 ```
 
 If `{browser-executor-script} navigate` returns an error JSON, surface it to the caller without retrying. Inspect
@@ -80,10 +81,17 @@ diagnose; `protocol` means a contract mismatch (file as a bug).
 ## Search Strategy
 
 1. Navigate to the application root using `{browser-executor-script} navigate '{"url":"<url>"}'`
-2. Take an accessibility snapshot using `{browser-executor-script} snapshot` to identify the initial screen
-3. Find navigation elements and follow each link
-4. For each new route, snapshot the structure
-5. Repeat until all discoverable routes are enumerated or the page cap is reached
+2. Invoke `{browser-executor-script} links` to enumerate anchors on the
+   current screen. Each entry has
+   `{text, pathname, same_origin, scheme, role}` — note that raw `href`
+   and full resolved URL are deliberately omitted so query strings and
+   fragments (which may contain auth tokens) never reach you.
+   Use `pathname` as the route identifier and filter to `same_origin: true`.
+3. Take an accessibility snapshot using `{browser-executor-script} snapshot`
+   to record the component structure of the current screen
+4. For each newly-discovered same-origin pathname, navigate to it and
+   repeat steps 2–3 (depth-first, deduplicated by pathname)
+5. Stop when no new pathnames are discovered, or the page cap is reached
 
 ## Output Format
 
@@ -113,10 +121,18 @@ Structure your findings like this:
 
 ## Important Guidelines
 
-- **Use only navigate and snapshot** — no screenshots, no evaluate, no clicking
+- **Use only navigate, snapshot, and links** — no screenshots, no evaluate, no clicking
 - **Record what you observe** — do not infer or assume component names not visible in the snapshot
 - **Note auth walls** — if a route redirects to a login page, record it as auth-gated
 - **Stop at the page cap** — do not attempt to follow infinite or cyclical links
+- **Routes come from `links`** — never invent a URL that did not appear in
+  a `links` response with `same_origin: true`. If the SPA renders the
+  same shell for every URL, trust the anchor list, not navigation
+  success.
+- **`pathname` is the route identifier** — the executor returns it
+  already resolved against the current URL and stripped of query strings
+  and fragments. The raw `href` is intentionally NOT in the response
+  (to avoid leaking secrets in URL params).
 
 ## What NOT to Do
 
