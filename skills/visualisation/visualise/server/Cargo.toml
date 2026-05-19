@@ -46,6 +46,7 @@ gray_matter = { version = "0.3", default-features = false, features = ["yaml"] }
 serde_yml = "0.0.12"
 hex = "0.4"
 notify = "6"
+arc-swap = "1"
 tokio-stream = { version = "0.1", features = ["sync"] }
 regex = "1"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }

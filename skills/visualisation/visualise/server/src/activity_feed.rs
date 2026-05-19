@@ -55,6 +55,7 @@ impl ActivityEvent {
                 timestamp: *timestamp,
             }),
             SsePayload::DocInvalid { .. } => None,
+            SsePayload::TemplateChanged { .. } => None,
         }
     }
 }

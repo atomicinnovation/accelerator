@@ -29,6 +29,13 @@ pub enum SsePayload {
         doc_type: DocTypeKey,
         path: String,
     },
+    #[serde(rename_all = "camelCase")]
+    TemplateChanged {
+        template: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        sha256: Option<String>,
+        timestamp: DateTime<Utc>,
+    },
 }
 
 pub struct SseHub {
@@ -148,5 +155,35 @@ mod tests {
         };
         let json = serde_json::to_string(&invalid).unwrap();
         assert!(json.contains("\"type\":\"doc-invalid\""), "json: {json}");
+
+        let with_hash = SsePayload::TemplateChanged {
+            template: "adr".into(),
+            sha256: Some("sha256-abc123".into()),
+            timestamp: ts,
+        };
+        let json = serde_json::to_string(&with_hash).unwrap();
+        assert!(
+            json.contains("\"type\":\"template-changed\""),
+            "json: {json}"
+        );
+        assert!(json.contains("\"template\":\"adr\""), "json: {json}");
+        assert!(
+            json.contains("\"sha256\":\"sha256-abc123\""),
+            "json: {json}"
+        );
+
+        let without_hash = SsePayload::TemplateChanged {
+            template: "adr".into(),
+            sha256: None,
+            timestamp: ts,
+        };
+        let json = serde_json::to_string(&without_hash).unwrap();
+        assert!(!json.contains("\"sha256\":null"), "json: {json}");
+        assert!(!json.contains("\"sha256\":\"\""), "json: {json}");
+        assert!(
+            json.contains("\"type\":\"template-changed\""),
+            "json: {json}"
+        );
+        assert!(json.contains("\"template\":\"adr\""), "json: {json}");
     }
 }

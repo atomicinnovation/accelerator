@@ -756,6 +756,7 @@ async fn patch_emits_exactly_one_doc_changed_event() {
         state.sse_hub.clone(),
         state.activity_feed.clone(),
         state.write_coordinator.clone(),
+        None,
         Duration::ZERO,
         None,
     )
@@ -828,6 +829,7 @@ async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
         state.sse_hub.clone(),
         state.activity_feed.clone(),
         state.write_coordinator.clone(),
+        None,
         Duration::ZERO,
         None,
     )

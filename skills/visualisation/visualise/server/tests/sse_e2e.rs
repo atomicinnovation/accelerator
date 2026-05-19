@@ -3,6 +3,8 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use sha2::Digest;
+
 #[tokio::test]
 async fn file_mutation_arrives_as_sse_event() {
     let tmp = tempfile::tempdir().unwrap();
@@ -95,4 +97,166 @@ async fn file_mutation_arrives_as_sse_event() {
         }
     }
     assert!(found, "expected doc-changed SSE event within 2000ms");
+}
+
+async fn start_server_with_template(
+    cfg: accelerator_visualiser::config::Config,
+    info_path: std::path::PathBuf,
+) -> u16 {
+    let info_path_clone = info_path.clone();
+    let _handle = tokio::spawn(async move {
+        accelerator_visualiser::server::run(cfg, &info_path_clone)
+            .await
+            .unwrap();
+    });
+    let start = std::time::Instant::now();
+    loop {
+        if let Ok(bytes) = std::fs::read(&info_path) {
+            let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            break v["port"].as_u64().unwrap() as u16;
+        }
+        if start.elapsed().as_secs() > 5 {
+            panic!("server-info.json did not appear in 5s");
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+async fn read_until_substring(
+    sse_response: &mut reqwest::Response,
+    needle: &str,
+    deadline_ms: u64,
+) -> Option<String> {
+    let deadline = tokio::time::Instant::now() + Duration::from_millis(deadline_ms);
+    let mut accumulated = String::new();
+    while tokio::time::Instant::now() < deadline {
+        match tokio::time::timeout(Duration::from_millis(300), sse_response.chunk()).await {
+            Ok(Ok(Some(chunk))) => {
+                if let Ok(text) = std::str::from_utf8(&chunk) {
+                    accumulated.push_str(text);
+                    if accumulated.contains(needle) {
+                        return Some(accumulated);
+                    }
+                }
+            }
+            Ok(Ok(None)) => return None,
+            Ok(Err(_)) => return None,
+            Err(_) => continue,
+        }
+    }
+    None
+}
+
+fn make_template_cfg(
+    tmp: &std::path::Path,
+    tier_file: std::path::PathBuf,
+) -> accelerator_visualiser::config::Config {
+    let mut templates = HashMap::new();
+    templates.insert(
+        "adr".to_string(),
+        accelerator_visualiser::config::TemplateTiers {
+            config_override: None,
+            user_override: tier_file
+                .parent()
+                .unwrap()
+                .join("missing-user.md"),
+            plugin_default: tier_file,
+        },
+    );
+    let doc_paths = HashMap::new();
+    accelerator_visualiser::config::Config {
+        plugin_root: tmp.to_path_buf(),
+        plugin_version: "test".into(),
+        project_root: tmp.to_path_buf(),
+        tmp_path: tmp.to_path_buf(),
+        host: "127.0.0.1".into(),
+        owner_pid: 0,
+        owner_start_time: None,
+        log_path: tmp.join("server.log"),
+        doc_paths,
+        templates,
+        work_item: None,
+        kanban_columns: None,
+    }
+}
+
+#[tokio::test]
+async fn template_file_mutation_arrives_as_template_changed_sse_event() {
+    let tmp = tempfile::tempdir().unwrap();
+    let tier_dir = tmp.path().join("templates");
+    std::fs::create_dir_all(&tier_dir).unwrap();
+    let tier_file = tier_dir.join("adr.md");
+    std::fs::write(&tier_file, "v1").unwrap();
+
+    let cfg = make_template_cfg(tmp.path(), tier_file.clone());
+    let info_path = tmp.path().join("server-info.json");
+    let port = start_server_with_template(cfg, info_path).await;
+
+    let url = format!("http://127.0.0.1:{port}/api/events");
+    let client = reqwest::Client::new();
+    let mut sse_response = client.get(&url).send().await.expect("GET /api/events");
+    assert_eq!(sse_response.status(), 200);
+
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    std::fs::write(&tier_file, "v2").unwrap();
+
+    let chunk = read_until_substring(
+        &mut sse_response,
+        "\"type\":\"template-changed\"",
+        3_000,
+    )
+    .await
+    .expect("expected template-changed SSE event");
+
+    // The chunk is an SSE frame: "data: {json}\n\n". Find and parse.
+    let json_str = chunk
+        .lines()
+        .find(|l| l.contains("\"type\":\"template-changed\""))
+        .and_then(|l| l.strip_prefix("data: "))
+        .expect("expected data: line with template-changed payload");
+    let payload: serde_json::Value = serde_json::from_str(json_str).unwrap();
+    assert_eq!(payload["template"], "adr");
+    let expected = format!("sha256-{}", hex::encode(sha2::Sha256::digest(b"v2")));
+    assert_eq!(payload["sha256"], expected);
+}
+
+#[tokio::test]
+async fn template_file_emptied_arrives_as_template_changed_with_no_sha256() {
+    let tmp = tempfile::tempdir().unwrap();
+    let tier_dir = tmp.path().join("templates");
+    std::fs::create_dir_all(&tier_dir).unwrap();
+    let tier_file = tier_dir.join("adr.md");
+    std::fs::write(&tier_file, "initial").unwrap();
+
+    let cfg = make_template_cfg(tmp.path(), tier_file.clone());
+    let info_path = tmp.path().join("server-info.json");
+    let port = start_server_with_template(cfg, info_path).await;
+
+    let url = format!("http://127.0.0.1:{port}/api/events");
+    let client = reqwest::Client::new();
+    let mut sse_response = client.get(&url).send().await.expect("GET /api/events");
+    assert_eq!(sse_response.status(), 200);
+
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    std::fs::write(&tier_file, "").unwrap();
+
+    let chunk = read_until_substring(
+        &mut sse_response,
+        "\"type\":\"template-changed\"",
+        3_000,
+    )
+    .await
+    .expect("expected template-changed SSE event");
+
+    let json_str = chunk
+        .lines()
+        .find(|l| l.contains("\"type\":\"template-changed\""))
+        .and_then(|l| l.strip_prefix("data: "))
+        .expect("expected data: line with template-changed payload");
+    let payload: serde_json::Value = serde_json::from_str(json_str).unwrap();
+    assert_eq!(payload["template"], "adr");
+    assert!(
+        payload.get("sha256").is_none(),
+        "expected no sha256 key on empty-content transition, got: {payload}",
+    );
 }

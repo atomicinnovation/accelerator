@@ -42,7 +42,8 @@ pub struct AppState {
     pub kanban_columns: Arc<Vec<crate::config::KanbanColumn>>,
     pub file_driver: Arc<crate::file_driver::LocalFileDriver>,
     pub indexer: Arc<crate::indexer::Indexer>,
-    pub templates: Arc<crate::templates::TemplateResolver>,
+    pub templates: Arc<arc_swap::ArcSwap<crate::templates::TemplateResolver>>,
+    pub template_change_handler: Arc<crate::watcher::TemplateChangeHandler>,
     pub clusters: Arc<RwLock<Vec<crate::clusters::LifecycleCluster>>>,
     pub http_activity: Arc<crate::activity::Activity>,
     pub activity_feed: Arc<crate::activity_feed::ActivityRingBuffer>,
@@ -76,20 +77,30 @@ impl AppState {
         let indexer = Arc::new(
             crate::indexer::Indexer::build(driver.clone(), cfg.project_root.clone(), work_item_cfg).await?,
         );
-        let templates = Arc::new(
+        let templates = Arc::new(arc_swap::ArcSwap::from_pointee(
             crate::templates::TemplateResolver::build(&cfg.templates, driver.as_ref()).await,
-        );
+        ));
         let cluster_seed = crate::clusters::compute_clusters(&indexer.all().await);
         let clusters = Arc::new(RwLock::new(cluster_seed));
         let sse_hub = Arc::new(crate::sse_hub::SseHub::new(256));
         let activity_feed = Arc::new(crate::activity_feed::ActivityRingBuffer::new());
         let write_coordinator = Arc::new(crate::write_coordinator::WriteCoordinator::new());
+        let tier_index = crate::watcher::TierPathIndex::build(&cfg.templates).await;
+        let driver_dyn: Arc<dyn crate::file_driver::FileDriver> = driver.clone();
+        let template_change_handler = Arc::new(crate::watcher::TemplateChangeHandler::spawn(
+            templates.clone(),
+            Arc::new(cfg.templates.clone()),
+            driver_dyn,
+            tier_index,
+            sse_hub.clone(),
+        ));
         Ok(Arc::new(Self {
             cfg,
             kanban_columns,
             file_driver: driver,
             indexer,
             templates,
+            template_change_handler,
             clusters,
             http_activity,
             activity_feed,
@@ -97,6 +108,10 @@ impl AppState {
             write_coordinator,
         }))
     }
+}
+
+async fn canonical_or_self(p: PathBuf) -> PathBuf {
+    tokio::fs::canonicalize(&p).await.unwrap_or(p)
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -283,7 +298,15 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
         tx.clone(),
     );
 
-    let watch_dirs: Vec<std::path::PathBuf> = state.cfg.doc_paths.values().cloned().collect();
+    let mut watch_dirs: Vec<std::path::PathBuf> = Vec::new();
+    for p in state.cfg.doc_paths.values() {
+        watch_dirs.push(canonical_or_self(p.clone()).await);
+    }
+    for p in crate::file_driver::template_extra_roots(&state.cfg.templates) {
+        watch_dirs.push(canonical_or_self(p).await);
+    }
+    watch_dirs.sort();
+    watch_dirs.dedup();
     let watcher_handle = crate::watcher::spawn(
         watch_dirs,
         state.cfg.project_root.clone(),
@@ -292,6 +315,7 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
         state.sse_hub.clone(),
         state.activity_feed.clone(),
         state.write_coordinator.clone(),
+        Some(state.template_change_handler.clone()),
         crate::watcher::Settings::DEFAULT,
     );
     tokio::spawn(async move {

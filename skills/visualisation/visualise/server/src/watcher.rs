@@ -3,15 +3,19 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use arc_swap::ArcSwap;
 use chrono::{DateTime, Utc};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
-use tokio::sync::RwLock;
+use tokio::sync::{Notify, RwLock};
 use tokio::task::JoinHandle;
 
 use crate::activity_feed::{ActivityEvent, ActivityRingBuffer};
 use crate::clusters::{compute_clusters, LifecycleCluster};
+use crate::config::TemplateTiers;
+use crate::file_driver::FileDriver;
 use crate::indexer::{IndexEntry, Indexer, FRONTMATTER_MALFORMED};
 use crate::sse_hub::{ActionKind, SseHub, SsePayload};
+use crate::templates::TemplateResolver;
 use crate::write_coordinator::WriteCoordinator;
 
 #[derive(Debug, Clone, Copy)]
@@ -25,6 +29,7 @@ impl Settings {
     };
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn spawn(
     dirs: Vec<PathBuf>,
     project_root: PathBuf,
@@ -33,6 +38,7 @@ pub fn spawn(
     hub: Arc<SseHub>,
     activity_feed: Arc<ActivityRingBuffer>,
     write_coordinator: Arc<WriteCoordinator>,
+    template_change_handler: Option<Arc<TemplateChangeHandler>>,
     settings: Settings,
 ) -> JoinHandle<()> {
     let (tx, mut rx) = tokio::sync::mpsc::channel::<notify::Result<Event>>(1024);
@@ -47,9 +53,12 @@ pub fn spawn(
     )
     .expect("failed to create filesystem watcher");
 
+    // Use recursive watches so editor atomic-rename patterns and nested
+    // tier layouts produce events. Scope is preserved by the is_markdown
+    // filter and the canonical-path index inside the handler.
     for dir in &dirs {
         if dir.exists() {
-            if let Err(e) = watcher.watch(dir, RecursiveMode::NonRecursive) {
+            if let Err(e) = watcher.watch(dir, RecursiveMode::Recursive) {
                 tracing::warn!(dir = %dir.display(), error = %e, "failed to watch dir");
             } else {
                 tracing::debug!(dir = %dir.display(), "watching");
@@ -83,6 +92,7 @@ pub fn spawn(
                             hub.clone(),
                             activity_feed.clone(),
                             write_coordinator.clone(),
+                            template_change_handler.clone(),
                             settings.debounce,
                             pre,
                         ));
@@ -106,19 +116,29 @@ pub async fn on_path_changed_debounced(
     hub: Arc<SseHub>,
     activity_feed: Arc<ActivityRingBuffer>,
     write_coordinator: Arc<WriteCoordinator>,
+    template_change_handler: Option<Arc<TemplateChangeHandler>>,
     debounce: Duration,
     pre: Option<IndexEntry>,
 ) {
     tokio::time::sleep(debounce).await;
 
-    // Canonicalize the event path so it matches the canonical paths stored by
-    // the WriteCoordinator (the notifier may deliver symlink or /var vs
-    // /private/var variants on macOS). If canonicalization fails (file deleted
-    // between event and debounce), fall back to the original path — the lookup
-    // will miss and the watcher proceeds with its normal rescan.
-    let canonical = tokio::fs::canonicalize(&path)
-        .await
-        .unwrap_or_else(|_| path.clone());
+    // Walk-up canonicalisation so that delete events (where canonicalize
+    // fails because the inode is gone) still match the canonical paths
+    // stored by the WriteCoordinator and the TierPathIndex.
+    let canonical = canonicalise_path_or_ancestor(&path).await;
+
+    // Additive: a tier-file change is signalled for rebuild + broadcast
+    // independently of the doc-changed flow. Templates have no frontend
+    // write path today, so we skip WriteCoordinator suppression here.
+    let is_template = template_change_handler
+        .as_ref()
+        .map(|h| h.try_handle(&canonical))
+        .unwrap_or(false);
+    tracing::debug!(
+        file = %canonical.display(),
+        is_template,
+        "watcher dispatched fs event",
+    );
 
     if write_coordinator.should_suppress(&canonical) {
         tracing::debug!(file = %path.display(), "watcher suppressed self-write broadcast");
@@ -218,6 +238,170 @@ fn is_markdown(path: &Path) -> bool {
     path.extension().is_some_and(|e| e == "md")
 }
 
+/// Canonicalise a path that may not exist yet by walking up to the
+/// nearest existing ancestor, canonicalising it, and re-appending the
+/// descendant components. Used by both `TierPathIndex::build` (to
+/// canonicalise absent-at-startup tier paths) and by the watcher's
+/// per-event path resolution (so delete events — where canonicalize
+/// fails because the inode is gone — still match the index).
+pub(crate) async fn canonicalise_path_or_ancestor(raw: &Path) -> PathBuf {
+    if let Ok(c) = tokio::fs::canonicalize(raw).await {
+        return c;
+    }
+    let mut tail: Vec<std::ffi::OsString> = Vec::new();
+    let mut cursor = raw.to_path_buf();
+    while let Some(parent) = cursor.parent().map(Path::to_path_buf) {
+        if let Some(name) = cursor.file_name() {
+            tail.push(name.to_os_string());
+        }
+        cursor = parent;
+        if let Ok(canonical_ancestor) = tokio::fs::canonicalize(&cursor).await {
+            let mut out = canonical_ancestor;
+            for name in tail.iter().rev() {
+                out.push(name);
+            }
+            return out;
+        }
+        if cursor.as_os_str().is_empty() {
+            break;
+        }
+    }
+    raw.to_path_buf()
+}
+
+/// O(1) lookup from canonical tier-file path → list of template names
+/// that reference it. Built once at startup. Multiple templates may
+/// share a tier file (e.g. a common plugin-default), so the value is
+/// `Vec<String>`.
+pub struct TierPathIndex {
+    by_canonical_path: HashMap<PathBuf, Vec<String>>,
+}
+
+impl TierPathIndex {
+    pub async fn build(templates: &HashMap<String, TemplateTiers>) -> Self {
+        let mut by_canonical_path: HashMap<PathBuf, Vec<String>> = HashMap::new();
+        for (name, t) in templates {
+            for raw in t.iter_paths() {
+                let canon = canonicalise_path_or_ancestor(&raw).await;
+                by_canonical_path
+                    .entry(canon)
+                    .or_default()
+                    .push(name.clone());
+            }
+        }
+        Self { by_canonical_path }
+    }
+
+    pub fn names_for(&self, canonical: &Path) -> &[String] {
+        self.by_canonical_path
+            .get(canonical)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    pub fn has_any(&self, canonical: &Path) -> bool {
+        self.by_canonical_path.contains_key(canonical)
+    }
+}
+
+/// Owns the resolver `ArcSwap` and the canonical-path index. All
+/// template-tier change handling goes through `try_handle`. A single
+/// background task coalesces all pending changes into one rebuild via
+/// `tokio::sync::Notify`.
+pub struct TemplateChangeHandler {
+    notify: Arc<Notify>,
+    index: Arc<TierPathIndex>,
+}
+
+impl TemplateChangeHandler {
+    pub fn spawn(
+        templates: Arc<ArcSwap<TemplateResolver>>,
+        cfg_templates: Arc<HashMap<String, TemplateTiers>>,
+        driver: Arc<dyn FileDriver>,
+        index: TierPathIndex,
+        hub: Arc<SseHub>,
+    ) -> Self {
+        let index = Arc::new(index);
+        let notify = Arc::new(Notify::new());
+        let consumer_notify = notify.clone();
+
+        // Initial sha256 snapshot per template — used to suppress no-op
+        // broadcasts and to dedup across-tier multiplicity.
+        let mut previous: HashMap<String, Option<String>> = cfg_templates
+            .keys()
+            .map(|name| {
+                (
+                    name.clone(),
+                    templates.load().detail(name).and_then(|d| d.sha256),
+                )
+            })
+            .collect();
+
+        let cfg_keys: Vec<String> = cfg_templates.keys().cloned().collect();
+
+        tokio::spawn(async move {
+            loop {
+                consumer_notify.notified().await;
+
+                // Isolate build from the loop: a panic inside build
+                // surfaces as a JoinError so the consumer logs and
+                // continues rather than silently disabling all future
+                // broadcasts.
+                let cfg_for_build = cfg_templates.clone();
+                let driver_for_build = driver.clone();
+                let build_result = tokio::spawn(async move {
+                    TemplateResolver::build(&cfg_for_build, driver_for_build.as_ref()).await
+                })
+                .await;
+
+                let new_resolver = match build_result {
+                    Ok(r) => Arc::new(r),
+                    Err(join_err) => {
+                        tracing::error!(
+                            error = ?join_err,
+                            "TemplateResolver::build panicked or was cancelled; \
+                             consumer skipping this rebuild and remaining alive",
+                        );
+                        continue;
+                    }
+                };
+
+                let mut to_broadcast: Vec<(String, Option<String>)> = Vec::new();
+                for name in &cfg_keys {
+                    let new_sha = new_resolver.detail(name).and_then(|d| d.sha256);
+                    let prev = previous.get(name).cloned().flatten();
+                    if new_sha != prev {
+                        previous.insert(name.clone(), new_sha.clone());
+                        to_broadcast.push((name.clone(), new_sha));
+                    }
+                }
+
+                templates.store(new_resolver);
+
+                for (template, sha256) in to_broadcast {
+                    hub.broadcast(SsePayload::TemplateChanged {
+                        template,
+                        sha256,
+                        timestamp: Utc::now(),
+                    });
+                }
+            }
+        });
+
+        Self { notify, index }
+    }
+
+    /// Returns `true` when the path was claimed as a template-tier
+    /// change.
+    pub fn try_handle(&self, canonical_path: &Path) -> bool {
+        if !self.index.has_any(canonical_path) {
+            return false;
+        }
+        self.notify.notify_one();
+        true
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -300,6 +484,7 @@ mod tests {
             hub,
             activity_feed.clone(),
             Arc::new(WriteCoordinator::new()),
+            None,
             Settings {
                 debounce: Duration::from_millis(5),
             },
@@ -351,6 +536,7 @@ mod tests {
             hub,
             activity_feed.clone(),
             Arc::new(WriteCoordinator::new()),
+            None,
             Settings { debounce },
         );
 
@@ -402,6 +588,7 @@ mod tests {
             hub,
             activity_feed.clone(),
             Arc::new(WriteCoordinator::new()),
+            None,
             Settings {
                 debounce: Duration::from_millis(5),
             },
@@ -444,6 +631,7 @@ mod tests {
             hub,
             activity_feed.clone(),
             Arc::new(WriteCoordinator::new()),
+            None,
             Settings {
                 debounce: Duration::from_millis(5),
             },
@@ -519,6 +707,7 @@ mod tests {
             hub,
             activity_feed.clone(),
             Arc::new(WriteCoordinator::new()),
+            None,
             Settings {
                 debounce: Duration::from_millis(5),
             },
@@ -573,6 +762,7 @@ mod tests {
             hub,
             activity_feed.clone(),
             Arc::new(WriteCoordinator::new()),
+            None,
             Settings {
                 debounce: Duration::from_millis(20),
             },
@@ -636,5 +826,288 @@ mod tests {
         assert_eq!(recent[0].action, ActionKind::Deleted);
         assert_eq!(recent[1].action, ActionKind::Edited);
         assert_eq!(recent[2].action, ActionKind::Created);
+    }
+}
+
+#[cfg(test)]
+mod tier_path_index_tests {
+    use super::*;
+    use crate::config::TemplateTiers;
+
+    #[tokio::test]
+    async fn path_referenced_by_two_templates_returns_both_names() {
+        let tmp = tempfile::tempdir().unwrap();
+        let shared = tmp.path().join("shared.md");
+        std::fs::write(&shared, "x").unwrap();
+        let mut map: HashMap<String, TemplateTiers> = HashMap::new();
+        map.insert(
+            "a".into(),
+            TemplateTiers {
+                config_override: None,
+                user_override: tmp.path().join("user-a.md"),
+                plugin_default: shared.clone(),
+            },
+        );
+        map.insert(
+            "b".into(),
+            TemplateTiers {
+                config_override: None,
+                user_override: tmp.path().join("user-b.md"),
+                plugin_default: shared.clone(),
+            },
+        );
+        let idx = TierPathIndex::build(&map).await;
+        let canon = canonicalise_path_or_ancestor(&shared).await;
+        let mut names = idx.names_for(&canon).to_vec();
+        names.sort();
+        assert_eq!(names, vec!["a".to_string(), "b".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn unrelated_path_returns_empty_slice() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin = tmp.path().join("p.md");
+        std::fs::write(&plugin, "x").unwrap();
+        let mut map: HashMap<String, TemplateTiers> = HashMap::new();
+        map.insert(
+            "a".into(),
+            TemplateTiers {
+                config_override: None,
+                user_override: tmp.path().join("u.md"),
+                plugin_default: plugin,
+            },
+        );
+        let idx = TierPathIndex::build(&map).await;
+        let unrelated = canonicalise_path_or_ancestor(&tmp.path().join("nope.md")).await;
+        assert!(idx.names_for(&unrelated).is_empty());
+        assert!(!idx.has_any(&unrelated));
+    }
+
+    #[tokio::test]
+    async fn absent_at_startup_tier_file_is_keyed_by_canonical_ancestor() {
+        let tmp = tempfile::tempdir().unwrap();
+        // user-override path does not exist
+        let user_path = tmp.path().join("user-future.md");
+        let plugin = tmp.path().join("p.md");
+        std::fs::write(&plugin, "x").unwrap();
+        let mut map: HashMap<String, TemplateTiers> = HashMap::new();
+        map.insert(
+            "a".into(),
+            TemplateTiers {
+                config_override: None,
+                user_override: user_path.clone(),
+                plugin_default: plugin,
+            },
+        );
+        let idx = TierPathIndex::build(&map).await;
+        // Look up via what event-time canonicalisation would produce.
+        let canon_at_lookup = canonicalise_path_or_ancestor(&user_path).await;
+        let names = idx.names_for(&canon_at_lookup);
+        assert_eq!(names, &["a".to_string()]);
+    }
+}
+
+#[cfg(test)]
+mod template_change_handler_tests {
+    use super::*;
+    use crate::config::TemplateTiers;
+    use crate::file_driver::LocalFileDriver;
+    use crate::sse_hub::SseHub;
+    use sha2::Digest as _;
+    use std::time::Duration;
+
+    async fn build_handler(
+        tmp: &std::path::Path,
+        templates_map: HashMap<String, TemplateTiers>,
+    ) -> (
+        Arc<TemplateChangeHandler>,
+        Arc<ArcSwap<TemplateResolver>>,
+        Arc<SseHub>,
+    ) {
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &HashMap::new(),
+            vec![tmp.to_path_buf()],
+            vec![],
+        ));
+        let resolver = TemplateResolver::build(&templates_map, driver.as_ref()).await;
+        let templates = Arc::new(ArcSwap::from_pointee(resolver));
+        let hub = Arc::new(SseHub::new(64));
+        let index = TierPathIndex::build(&templates_map).await;
+        let handler = Arc::new(TemplateChangeHandler::spawn(
+            templates.clone(),
+            Arc::new(templates_map),
+            driver,
+            index,
+            hub.clone(),
+        ));
+        (handler, templates, hub)
+    }
+
+    #[tokio::test]
+    async fn winning_tier_change_broadcasts_with_new_sha() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin = tmp.path().join("p.md");
+        std::fs::write(&plugin, "v1").unwrap();
+        let mut map: HashMap<String, TemplateTiers> = HashMap::new();
+        map.insert(
+            "a".into(),
+            TemplateTiers {
+                config_override: None,
+                user_override: tmp.path().join("user-missing.md"),
+                plugin_default: plugin.clone(),
+            },
+        );
+        let (handler, _resolver, hub) = build_handler(tmp.path(), map).await;
+        let mut rx = hub.subscribe();
+
+        std::fs::write(&plugin, "v2").unwrap();
+        let canon = canonicalise_path_or_ancestor(&plugin).await;
+        assert!(handler.try_handle(&canon));
+
+        let event = tokio::time::timeout(Duration::from_millis(500), rx.recv())
+            .await
+            .expect("timed out")
+            .expect("channel closed");
+        match event {
+            SsePayload::TemplateChanged {
+                template, sha256, ..
+            } => {
+                assert_eq!(template, "a");
+                let expected = format!(
+                    "sha256-{}",
+                    hex::encode(sha2::Sha256::digest(b"v2"))
+                );
+                assert_eq!(sha256.as_deref(), Some(expected.as_str()));
+            }
+            other => panic!("expected TemplateChanged, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn empty_content_transition_broadcasts_without_sha256() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin = tmp.path().join("p.md");
+        std::fs::write(&plugin, "v1").unwrap();
+        let mut map: HashMap<String, TemplateTiers> = HashMap::new();
+        map.insert(
+            "a".into(),
+            TemplateTiers {
+                config_override: None,
+                user_override: tmp.path().join("user-missing.md"),
+                plugin_default: plugin.clone(),
+            },
+        );
+        let (handler, _resolver, hub) = build_handler(tmp.path(), map).await;
+        let mut rx = hub.subscribe();
+
+        std::fs::write(&plugin, "").unwrap();
+        let canon = canonicalise_path_or_ancestor(&plugin).await;
+        assert!(handler.try_handle(&canon));
+
+        let event = tokio::time::timeout(Duration::from_millis(500), rx.recv())
+            .await
+            .expect("timed out")
+            .expect("channel closed");
+        match event {
+            SsePayload::TemplateChanged {
+                template, sha256, ..
+            } => {
+                assert_eq!(template, "a");
+                assert!(sha256.is_none());
+            }
+            other => panic!("expected TemplateChanged, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn unchanged_winning_content_produces_no_broadcast() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin = tmp.path().join("p.md");
+        std::fs::write(&plugin, "v1").unwrap();
+        let mut map: HashMap<String, TemplateTiers> = HashMap::new();
+        map.insert(
+            "a".into(),
+            TemplateTiers {
+                config_override: None,
+                user_override: tmp.path().join("user-missing.md"),
+                plugin_default: plugin.clone(),
+            },
+        );
+        let (handler, _resolver, hub) = build_handler(tmp.path(), map).await;
+        let mut rx = hub.subscribe();
+
+        // Re-write identical bytes — should produce no broadcast.
+        std::fs::write(&plugin, "v1").unwrap();
+        let canon = canonicalise_path_or_ancestor(&plugin).await;
+        assert!(handler.try_handle(&canon));
+
+        assert!(
+            tokio::time::timeout(Duration::from_millis(200), rx.recv())
+                .await
+                .is_err(),
+            "expected no broadcast for unchanged winning content",
+        );
+    }
+
+    #[tokio::test]
+    async fn unrelated_path_is_not_handled() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin = tmp.path().join("p.md");
+        std::fs::write(&plugin, "v1").unwrap();
+        let mut map: HashMap<String, TemplateTiers> = HashMap::new();
+        map.insert(
+            "a".into(),
+            TemplateTiers {
+                config_override: None,
+                user_override: tmp.path().join("user-missing.md"),
+                plugin_default: plugin.clone(),
+            },
+        );
+        let (handler, _resolver, _hub) = build_handler(tmp.path(), map).await;
+        let unrelated = canonicalise_path_or_ancestor(&tmp.path().join("other.md")).await;
+        assert!(!handler.try_handle(&unrelated));
+    }
+
+    #[tokio::test]
+    async fn shared_tier_file_broadcasts_per_template() {
+        let tmp = tempfile::tempdir().unwrap();
+        let shared = tmp.path().join("shared.md");
+        std::fs::write(&shared, "v1").unwrap();
+        let mut map: HashMap<String, TemplateTiers> = HashMap::new();
+        map.insert(
+            "a".into(),
+            TemplateTiers {
+                config_override: None,
+                user_override: tmp.path().join("u-a.md"),
+                plugin_default: shared.clone(),
+            },
+        );
+        map.insert(
+            "b".into(),
+            TemplateTiers {
+                config_override: None,
+                user_override: tmp.path().join("u-b.md"),
+                plugin_default: shared.clone(),
+            },
+        );
+        let (handler, _resolver, hub) = build_handler(tmp.path(), map).await;
+        let mut rx = hub.subscribe();
+
+        std::fs::write(&shared, "v2").unwrap();
+        let canon = canonicalise_path_or_ancestor(&shared).await;
+        assert!(handler.try_handle(&canon));
+
+        let mut got: Vec<String> = Vec::new();
+        for _ in 0..2 {
+            let event = tokio::time::timeout(Duration::from_millis(500), rx.recv())
+                .await
+                .expect("timed out")
+                .expect("channel closed");
+            if let SsePayload::TemplateChanged { template, .. } = event {
+                got.push(template);
+            }
+        }
+        got.sort();
+        assert_eq!(got, vec!["a".to_string(), "b".to_string()]);
     }
 }

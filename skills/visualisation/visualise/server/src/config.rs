@@ -127,12 +127,24 @@ impl WorkItemConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TemplateTiers {
     pub config_override: Option<PathBuf>,
     pub user_override: PathBuf,
     pub plugin_default: PathBuf,
+}
+
+impl TemplateTiers {
+    /// Iterate over the three tier paths (config-override, user-override,
+    /// plugin-default). Skips the config-override slot when it is `None`.
+    pub fn iter_paths(&self) -> impl Iterator<Item = PathBuf> + '_ {
+        self.config_override
+            .iter()
+            .cloned()
+            .chain(std::iter::once(self.user_override.clone()))
+            .chain(std::iter::once(self.plugin_default.clone()))
+    }
 }
 
 impl Config {

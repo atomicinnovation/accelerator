@@ -17,8 +17,9 @@ pub(crate) struct TemplatesListResponse {
 pub(crate) async fn templates_list(
     State(state): State<Arc<AppState>>,
 ) -> Json<TemplatesListResponse> {
+    let resolver = state.templates.load();
     Json(TemplatesListResponse {
-        templates: state.templates.list(),
+        templates: resolver.list(),
     })
 }
 
@@ -28,6 +29,7 @@ pub(crate) async fn template_detail(
 ) -> Result<Json<crate::templates::TemplateDetail>, ApiError> {
     state
         .templates
+        .load()
         .detail(&name)
         .map(Json)
         .ok_or(ApiError::NotFound(name))
