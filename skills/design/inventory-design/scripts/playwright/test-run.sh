@@ -38,20 +38,31 @@ HELPERS_CONTENT="$(cat "$LAUNCHER_HELPERS")"
 assert_contains "launcher-helpers.sh contains start_time_of function" \
   "$HELPERS_CONTENT" "start_time_of"
 
-# Locale fragility regression guard: start_time_of same output under LANG=de_DE.UTF-8 vs LANG=C
+# Locale fragility regression guard: start_time_of must return the same
+# epoch under LANG=de_DE.UTF-8 as under LANG=C. The previous form treated
+# an empty de_DE result as "locale unavailable" and SKIPped — but on macOS
+# de_DE.UTF-8 is installed by default, so an empty result means the bug
+# is back, not that the locale is missing. We probe locale availability
+# explicitly via `locale -a` and only SKIP when it's truly absent.
 PID=$$
 RESULT_C="$(LANG=C LC_ALL=C TZ=UTC bash -c "source '$LAUNCHER_HELPERS'; start_time_of $PID" 2>/dev/null || true)"
-RESULT_DE="$(LANG=de_DE.UTF-8 TZ=UTC bash -c "source '$LAUNCHER_HELPERS'; start_time_of $PID" 2>/dev/null || true)"
-if [[ -n "$RESULT_C" ]] && [[ -n "$RESULT_DE" ]]; then
+# Capture `locale -a` into a variable rather than piping into `grep -q`:
+# under `set -o pipefail`, grep's early-exit can leave locale with SIGPIPE
+# (exit 141), which falsely fails the locale-availability probe.
+LOCALES_AVAILABLE="$(command -v locale >/dev/null 2>&1 && locale -a 2>/dev/null || true)"
+if [[ -z "$RESULT_C" ]]; then
+  echo "  SKIP: start_time_of locale test (start_time_of unavailable under C — likely no proc, no ps)"
+elif [[ $'\n'"$LOCALES_AVAILABLE"$'\n' != *$'\n'"de_DE.UTF-8"$'\n'* ]]; then
+  echo "  SKIP: start_time_of locale test (de_DE.UTF-8 not installed)"
+else
+  RESULT_DE="$(LANG=de_DE.UTF-8 TZ=UTC bash -c "source '$LAUNCHER_HELPERS'; start_time_of $PID" 2>/dev/null || true)"
   if [[ "$RESULT_C" == "$RESULT_DE" ]]; then
     echo "  PASS: start_time_of locale-safe (C=$RESULT_C, de_DE=$RESULT_DE)"
     PASS=$((PASS + 1))
   else
-    echo "  FAIL: start_time_of locale fragility: LANG=C=$RESULT_C LANG=de_DE=$RESULT_DE"
+    echo "  FAIL: start_time_of locale fragility: LANG=C='$RESULT_C' LANG=de_DE='$RESULT_DE'"
     FAIL=$((FAIL + 1))
   fi
-else
-  echo "  SKIP: start_time_of locale test (locale unavailable or proc not readable)"
 fi
 
 if [[ "$SKIP_REAL" == "1" ]]; then
@@ -110,7 +121,7 @@ LINKS_PROJECT_TMP="$(mktemp -d)"
 mkdir -p "$LINKS_PROJECT_TMP/.git"
 export ACCELERATOR_PLAYWRIGHT_CACHE="${ACCELERATOR_PLAYWRIGHT_CACHE:-$HOME/.cache/accelerator/playwright}"
 
-(cd "$LINKS_PROJECT_TMP" && bash "$RUN_SH" navigate "{\"url\":\"$FIXTURE_URL\"}" >/dev/null 2>&1 || true)
+(cd "$LINKS_PROJECT_TMP" && bash "$RUN_SH" navigate "{\"url\":\"$FIXTURE_URL\"}" || true)
 LINKS_OUT="$(cd "$LINKS_PROJECT_TMP" && bash "$RUN_SH" links 2>/dev/null || true)"
 
 if [[ -n "$LINKS_OUT" ]] && echo "$LINKS_OUT" | grep -q '"links"'; then

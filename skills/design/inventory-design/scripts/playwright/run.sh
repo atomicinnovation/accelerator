@@ -51,7 +51,7 @@ if [[ -f "$INFO" ]] && [[ -f "$PID_FILE" ]]; then
   EXPECTED_START="$(jq -r '.start_time // empty' "$INFO" 2>/dev/null || true)"
   if [[ -n "$EXISTING_PID" ]] && kill -0 "$EXISTING_PID" 2>/dev/null; then
     ACTUAL_START="$(start_time_of "$EXISTING_PID" 2>/dev/null || true)"
-    if [[ -z "$EXPECTED_START" ]] || [[ "$ACTUAL_START" == "$EXPECTED_START" ]]; then
+    if start_time_matches "$EXPECTED_START" "$ACTUAL_START"; then
       # Daemon is alive — run the command directly
       export ACCELERATOR_PLAYWRIGHT_STATE_DIR="$STATE_DIR"
       export NODE_PATH="$NS_ROOT/node_modules"
@@ -85,10 +85,14 @@ if [[ -f "$INFO" ]] && [[ -f "$PID_FILE" ]]; then
   EXPECTED_START="$(jq -r '.start_time // empty' "$INFO" 2>/dev/null || true)"
   if [[ -n "$EXISTING_PID" ]] && kill -0 "$EXISTING_PID" 2>/dev/null; then
     ACTUAL_START="$(start_time_of "$EXISTING_PID" 2>/dev/null || true)"
-    if [[ -z "$EXPECTED_START" ]] || [[ "$ACTUAL_START" == "$EXPECTED_START" ]]; then
+    if start_time_matches "$EXPECTED_START" "$ACTUAL_START"; then
       export ACCELERATOR_PLAYWRIGHT_STATE_DIR="$STATE_DIR"
       export NODE_PATH="$NS_ROOT/node_modules"
       export ACCELERATOR_PLAYWRIGHT_NS_ROOT="$NS_ROOT"
+      # The EXIT trap is dropped by exec, so release the mkdir-fallback
+      # lock dir explicitly. With flock the FD is closed automatically on
+      # process exit, so this is a no-op there.
+      rmdir "${LOCK}.d" 2>/dev/null || true
       exec node "$SCRIPT_DIR/run.js" "$@"
     fi
   fi
@@ -113,13 +117,22 @@ disown "$DAEMON_PID" 2>/dev/null || true
 
 # -- Poll for server-info.json ------------------------------------------
 
-for _ in $(seq 1 50); do
+# 30-second wait covers parallel-test load: node startup + a few module
+# imports normally take well under a second, but when many integration
+# suites run concurrently (mise's parallel test task) the daemon's
+# server.listen callback can slip well past 5s.
+for _ in $(seq 1 300); do
   [[ -f "$INFO" ]] && [[ -f "$PID_FILE" ]] && break
   sleep 0.1
 done
 
 if [[ ! -f "$INFO" ]]; then
-  echo "{\"error\":\"daemon-start-timeout\",\"message\":\"Daemon did not start within 5s. Check $BOOTSTRAP_LOG for details.\",\"category\":\"bootstrap\"}" >&2
+  # Kill the still-bootstrapping daemon. Leaving it would mean a later
+  # launcher reuses it (info file appears eventually) but on a page that
+  # never received this launcher's command, surfacing as e.g. about:blank
+  # for a follow-up `links` call.
+  kill -TERM "$DAEMON_PID" 2>/dev/null || true
+  echo "{\"error\":\"daemon-start-timeout\",\"message\":\"Daemon did not start within 30s. Check $BOOTSTRAP_LOG for details.\",\"category\":\"bootstrap\"}" >&2
   exit 1
 fi
 
@@ -127,4 +140,7 @@ fi
 
 export ACCELERATOR_PLAYWRIGHT_STATE_DIR="$STATE_DIR"
 export ACCELERATOR_PLAYWRIGHT_NS_ROOT="$NS_ROOT"
+# The EXIT trap is dropped by exec, so release the mkdir-fallback lock dir
+# explicitly. With flock the FD is closed automatically on process exit.
+rmdir "${LOCK}.d" 2>/dev/null || true
 exec node "$SCRIPT_DIR/run.js" "$@"

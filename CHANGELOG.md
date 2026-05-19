@@ -4,6 +4,17 @@
 
 ### Breaking
 
+- Playwright daemon owner-PID watcher removed: the `--owner-pid` CLI
+  argument on `node run.js daemon`, the
+  `ACCELERATOR_PLAYWRIGHT_OWNER_POLL_MS` environment variable, and the
+  watcher's polling logic are all removed. The daemon is now bounded
+  only by its idle timer, per-op wall-clock budget, explicit
+  `daemon-stop`, and process signals. External tooling that invoked
+  `node run.js daemon --owner-pid <pid>` directly must drop the flag
+  (unknown flags are silently ignored). If you wrap `node run.js
+  daemon` directly and relied on `--owner-pid` for cleanup, replace
+  with explicit `daemon-stop` or rely on the idle timer.
+
 - **Research-directory restructure**. `meta/research/` now has four
   subcategories — `codebase/` (codebase research outputs from
   `/accelerator:research-codebase`), `issues/` (issue / RCA research
@@ -58,6 +69,23 @@
 
 ### Added
 
+- `links` command for the Playwright executor: enumerates anchors on the
+  current page with server-resolved `pathname`, `same_origin`, `scheme`,
+  and normalised `text`. Raw `href` and fully-resolved URLs are
+  deliberately omitted so query strings and fragments (which may carry
+  auth tokens) never reach agent context. Used by `browser-locator` to
+  discover routes on client-side SPAs. See PROTOCOL.md `### links` for
+  the wire schema and rationale.
+- `accelerator:browser-executor` preloaded skill that injects the
+  resolved absolute path of `run.sh` into browser-agent context, mirroring
+  the `accelerator:paths` precedent from work item 0052. Browser agents
+  now include an explicit preload guard that fails loudly if the
+  injected block is missing.
+- Migration-aware warning in `config-read-path.sh`: fires when the
+  canonical `research_design_*` key is requested but the user's config
+  still has the legacy `paths.design_*` alias (silently being ignored),
+  pointing the user at `/accelerator:migrate`.
+
 - **`/inventory-design` — `--allow-internal` flag**. Permits crawling
   RFC1918, link-local, and loopback-variant hosts. `http://localhost` and
   `http://127.0.0.1` are now default-allowed without any flag.
@@ -79,6 +107,16 @@
   codes, the downgrade-reason enum mapping, and the v1 stability commitment.
 
 ### Changed
+
+- Playwright daemon idle timeout default lowered from 30 min to 10 min
+  (override via `ACCELERATOR_PLAYWRIGHT_IDLE_MS`). Bounds the in-memory
+  lifetime of an auth-bearing browser context held across Claude Code
+  turns; better fit for the inventory-design lifecycle. Override path
+  unchanged: callers needing the previous 30-min behaviour can set
+  `ACCELERATOR_PLAYWRIGHT_IDLE_MS=1800000`.
+- Internal: five SKILL.md preambles that called the bare `design_*` path
+  keys now call the canonical `research_design_*` keys introduced by
+  migration 0004.
 
 - **BREAKING**: All Accelerator-owned config, customisation, and state files
   now live under `.accelerator/` rather than `.claude/` and `meta/`. Run
@@ -127,6 +165,24 @@
   `git reset`) followed by a re-run. The migration is idempotent — every
   step is safe to re-run from any partial state. The migration refuses to run
   on a dirty working tree, so a committed baseline is always available.
+
+### Fixed
+
+- `inventory-design` browser agents no longer self-discover the
+  Playwright executor with `which run.sh` / `find / -name run.sh`. The
+  executor's absolute path is now injected via the
+  `accelerator:browser-executor` preloaded skill.
+- `browser-locator` no longer fabricates SPA routes by treating
+  navigation success as evidence a route exists. Route truth now comes
+  from the new `links` command's anchor enumeration filtered by
+  `same_origin: true`.
+- Skills calling `design_inventories` / `design_gaps` no longer emit
+  `config-read-path.sh: warning: unknown key` noise in their rendered
+  preambles (call sites renamed to canonical `research_design_*` form).
+- Playwright daemon no longer dies between Claude Code Bash-tool
+  invocations. The owner-PID watcher (whose first tick fired at most
+  ~60 s after the ephemeral launcher shell exited, destroying the
+  daemon) has been removed; see Breaking above for the consumer impact.
 
 ### Added
 

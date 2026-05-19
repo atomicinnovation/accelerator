@@ -1459,22 +1459,22 @@ asserted by Phase 5 Success Criteria.
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-design.sh` passes the new PROTOCOL.md
+- [x] `bash scripts/test-design.sh` passes the new PROTOCOL.md
       in-sync assertion
-- [ ] `grep -F '### links' skills/design/inventory-design/PROTOCOL.md` finds
+- [x] `grep -F '### links' skills/design/inventory-design/PROTOCOL.md` finds
       the new section
-- [ ] `grep -F '## Environment Variables' skills/design/inventory-design/PROTOCOL.md`
+- [x] `grep -F '## Environment Variables' skills/design/inventory-design/PROTOCOL.md`
       finds the new section
-- [ ] `grep -F 'browser-executor' CHANGELOG.md` finds the new entry
-- [ ] `grep -F 'owner-PID watcher removed' CHANGELOG.md` finds the
+- [x] `grep -F 'browser-executor' CHANGELOG.md` finds the new entry
+- [x] `grep -F 'owner-PID watcher removed' CHANGELOG.md` finds the
       Breaking-section entry
-- [ ] `grep -F 'browser-executor verified baseline' README.md` finds the
+- [x] `grep -F 'browser-executor verified baseline' README.md` finds the
       Claude Code version baseline note (see Step 4 below)
-- [ ] `grep -F 'vX.Y.Z' README.md` returns no match — guards against
+- [x] `grep -F 'vX.Y.Z' README.md` returns no match — guards against
       shipping the unfilled placeholder. The implementer MUST substitute
       a real Claude Code version observed during their end-to-end
       verification run.
-- [ ] Both the `### Breaking` (line 5) and `### Fixed` headings exist
+- [x] Both the `### Breaking` (line 5) and `### Fixed` headings exist
       under `[Unreleased]` in CHANGELOG.md (verify by inspection or
       `awk '/^## \[Unreleased\]/{p=1} p && /^## \[/{if(seen) exit; seen=1} p' CHANGELOG.md | grep -E '^### (Breaking|Fixed)'`)
 

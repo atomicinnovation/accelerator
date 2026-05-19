@@ -178,6 +178,99 @@ Capture the accessibility tree of the current page.
 
 ---
 
+### `links`
+
+Enumerate same-origin and cross-origin anchors on the current page,
+with URLs server-resolved and scrubbed (query strings and fragments
+removed). Used by `browser-locator` for SPA route discovery without
+requiring JavaScript execution at the agent layer.
+
+**Request**
+
+```json
+{
+  "protocol": 1,
+  "command": "links"
+}
+```
+
+**Success response**
+
+```json
+{
+  "protocol": 1,
+  "url": "https://example.com/page",
+  "links": [
+    {
+      "text": "Work items",
+      "pathname": "/work-items",
+      "same_origin": true,
+      "scheme": "https",
+      "role": null
+    },
+    {
+      "text": "External",
+      "pathname": "/external",
+      "same_origin": false,
+      "scheme": "https",
+      "role": "button"
+    }
+  ]
+}
+```
+
+The `url` envelope field is the current `page.url()` at the moment
+the command was dispatched; callers can use it to verify context.
+
+Per-entry fields:
+
+| Field         | Type            | Notes                                                        |
+|---------------|-----------------|--------------------------------------------------------------|
+| `text`        | string          | Anchor `textContent`, whitespace collapsed with `/\s+/g → ' '` then trimmed |
+| `pathname`    | string \| null  | URL pathname only; query strings and fragments stripped. `null` if href is unparseable |
+| `same_origin` | boolean         | True iff resolved origin matches the page origin             |
+| `scheme`      | string \| null  | URL scheme without the trailing colon (`https`, `mailto`, `file`, etc.). `null` if unparseable |
+| `role`        | string \| null  | `getAttribute('role')` verbatim; `null` if the attribute is absent |
+
+**Why no `href` or `resolved` URL?** Raw and fully-resolved URLs are
+deliberately omitted so query strings and fragments — which may carry
+auth tokens, OAuth codes, session IDs, or signed-URL signatures — never
+reach agent context. Callers that need route identity work off
+`pathname` + `same_origin`. If a future caller requires the raw URL,
+add an explicit opt-in flag rather than relaxing the default.
+
+**Blocking**: yes (member of `BLOCKING_OPS`); the per-op wall-clock
+timer arms during execution.
+
+**Error codes**
+
+| Code                  | Category  | Retryable | Condition                            |
+|-----------------------|-----------|-----------|--------------------------------------|
+| `wall-clock-exceeded` | `browser` | false     | Op exceeded per-op wall-clock budget |
+| `internal-error`      | `browser` | false     | Unexpected Playwright exception      |
+
+**Notes**
+
+- Invoking `links` before any `navigate` returns
+  `{ url: "about:blank", links: [] }` rather than an error. Callers
+  should ensure they have navigated first.
+- `mailto:`, `javascript:`, `data:`, and other non-HTTP schemes appear
+  in the response with their `scheme` field set; callers are
+  responsible for filtering.
+- **Same-origin semantics (security-relevant)**: `same_origin` is
+  true only when both origins match AND neither side uses an
+  opaque-origin scheme (`file:`, `data:`, `javascript:`, `blob:`).
+  Browsers vary in how they expose `location.origin` for opaque-origin
+  pages — some return the literal string `"null"`, others return a
+  scheme-like prefix (e.g. Chromium returns `"file://"` for `file:`
+  pages) — so the guard checks the protocol set rather than relying on
+  the origin string alone. With the guard, every anchor on an
+  opaque-origin page reports `same_origin: false`, which correctly
+  yields zero same-origin candidates for the locator's route-following
+  rule.
+
+---
+
 ### `screenshot`
 
 Save a screenshot of the current page to an absolute path.
@@ -490,6 +583,28 @@ inventory-design: browser: Operation exceeded the 300000ms wall-clock budget. (w
 ```
 
 The `<error>` code in parentheses aids support diagnostics and log searches.
+
+---
+
+## Environment Variables
+
+The Playwright daemon reads the following environment variables. All
+are optional; defaults apply when unset. Variables are read once at
+daemon startup and cannot be changed at runtime without restarting
+the daemon.
+
+| Variable                                | Default       | Set by    | Meaning |
+|-----------------------------------------|---------------|-----------|---------|
+| `ACCELERATOR_PLAYWRIGHT_IDLE_MS`        | `600000`      | caller    | Idle shutdown timeout (ms). Bounds the in-memory lifetime of an auth-bearing browser context; do not raise without considering auth-context exposure. Lowered from `1800000` in this release. |
+| `ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS`  | `300000`      | caller    | Per-op wall-clock budget (ms) for any `BLOCKING_OPS` command. Hard-capped at 1800000 (30 min) regardless of override. |
+| `ACCELERATOR_PLAYWRIGHT_CACHE`          | `${HOME}/.cache/accelerator/playwright` | environment | Root directory for the Playwright browser cache (versioned by package-lock hash). |
+| `ACCELERATOR_PLAYWRIGHT_NS_ROOT`        | derived       | run.sh    | Namespace root for the active Playwright install (cache root + lockhash). Set by `run.sh` when invoking the daemon or client; callers should not set it directly. |
+| `ACCELERATOR_PLAYWRIGHT_STATE_DIR`      | derived       | run.sh    | Per-project state directory. Set by `run.sh`; callers should not set it directly. |
+| `ACCELERATOR_PLAYWRIGHT_KEEP_STDIO`     | unset         | debug     | When non-empty, retains the daemon's stdout/stderr instead of redirecting to `/dev/null`. Useful for daemon debugging. |
+
+**Removed in this release**: `ACCELERATOR_PLAYWRIGHT_OWNER_POLL_MS` is
+no longer read — the owner-PID watcher was removed (see the Breaking
+section in CHANGELOG.md `[Unreleased]`).
 
 ---
 

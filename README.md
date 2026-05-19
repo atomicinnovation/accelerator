@@ -749,6 +749,16 @@ To load from a local checkout:
 claude --plugin-dir /path/to/accelerator
 ```
 
+### Claude Code compatibility
+
+This plugin relies on Claude Code's subagent `skills:` preload mechanism
+to inject configuration context into agents (e.g. `accelerator:paths`
+into the `documents-*` agents, `accelerator:browser-executor` into the
+`browser-*` agents). **Minimum supported Claude Code: v2.1.144.**
+Earlier releases may not support the mechanism; later releases that
+change subagent skill-preloading semantics will surface the failure via
+the agents' Preload guards.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

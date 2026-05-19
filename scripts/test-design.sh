@@ -38,7 +38,7 @@ echo ""
 
 echo "=== Design key call sites use canonical research_design_* form ==="
 assert_exit_code "no SKILL.md or agent uses bare design_(inventories|gaps)" 1 \
-  bash -c "grep -rE 'config-read-path\\.sh[[:space:]]+design_(inventories|gaps)\\b' \"$PLUGIN_ROOT/skills\" \"$PLUGIN_ROOT/agents\""
+  bash -c "grep -rE --exclude-dir=node_modules --exclude-dir=target 'config-read-path\\.sh[[:space:]]+design_(inventories|gaps)\\b' \"$PLUGIN_ROOT/skills\" \"$PLUGIN_ROOT/agents\""
 
 echo ""
 
@@ -483,6 +483,26 @@ echo ""
 
 echo "=== inventory-design: ensure-playwright.sh ==="
 bash "$PLUGIN_ROOT/skills/design/inventory-design/scripts/test-ensure-playwright.sh"
+
+echo ""
+
+echo "=== PROTOCOL.md is in sync with daemon dispatch ==="
+PROTOCOL_MD="$PLUGIN_ROOT/skills/design/inventory-design/PROTOCOL.md"
+DAEMON_SRC_FOR_SYNC="$PLUGIN_ROOT/skills/design/inventory-design/scripts/playwright/lib/daemon.js"
+assert_file_exists "PROTOCOL.md exists" "$PROTOCOL_MD"
+
+for cmd in ping daemon-status daemon-stop navigate snapshot links screenshot evaluate click type wait_for; do
+  assert_contains "PROTOCOL.md documents the $cmd command" \
+    "$(cat "$PROTOCOL_MD")" "### \`$cmd\`"
+done
+
+assert_contains "PROTOCOL.md has Environment Variables section" \
+  "$(cat "$PROTOCOL_MD")" "## Environment Variables"
+DAEMON_ENV_VARS=$(grep -oE 'ACCELERATOR_PLAYWRIGHT_[A-Z_]+' "$DAEMON_SRC_FOR_SYNC" | sort -u)
+for var in $DAEMON_ENV_VARS; do
+  assert_contains "PROTOCOL.md Environment Variables section names $var" \
+    "$(cat "$PROTOCOL_MD")" "$var"
+done
 
 echo ""
 

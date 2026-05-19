@@ -52,12 +52,37 @@ start_time_of() {
     local btime; btime="$(awk '/^btime / {print $2}' /proc/stat)"
     echo $(( btime + starttime_ticks / hz ))
   elif command -v ps >/dev/null 2>&1 && [ "$(uname -s)" = "Darwin" ]; then
-    local out; out="$(ps -p "$pid" -o lstart= 2>/dev/null | tr -s ' ' ' ' | sed 's/^ //;s/ $//')"
+    # Force C locale on both sides: `ps lstart` and `date -j -f` both
+    # localise day/month names (and on de_DE even the field order),
+    # which makes the fixed `%a %b %d %H:%M:%S %Y` pattern unparseable
+    # under non-English locales. The daemon writes its start-time under
+    # LANG=C (see lib/state.js processStartSeconds); without matching
+    # here, every reuse check fails and the launcher respawns the
+    # daemon between commands — losing page state (e.g. a prior
+    # `navigate`) on the way through.
+    local out; out="$(LANG=C LC_ALL=C ps -p "$pid" -o lstart= 2>/dev/null | tr -s ' ' ' ' | sed 's/^ //;s/ $//')"
     [ -n "$out" ] || return 1
-    date -j -f "%a %b %d %H:%M:%S %Y" "$out" +%s 2>/dev/null
+    LANG=C LC_ALL=C date -j -f "%a %b %d %H:%M:%S %Y" "$out" +%s 2>/dev/null
   else
     return 1
   fi
+}
+
+# Compare an expected start-time (recorded by the daemon) against the
+# observed start-time (from start_time_of). Tolerates a 1-second drift
+# because the daemon captures `Math.floor(Date.now()/1000)` after a few
+# milliseconds of module-loading, which can cross a whole-second boundary
+# relative to the kernel fork time that ps lstart / /proc reports. A
+# 1-second drift cannot be a PID recycle, so the looser check still
+# detects stale PIDs.
+# Args: expected actual. Returns 0 if expected is empty or within ±1s.
+start_time_matches() {
+  local expected="$1" actual="$2" diff
+  [ -z "$expected" ] && return 0
+  [ -z "$actual" ] && return 1
+  diff=$(( actual - expected ))
+  [ "$diff" -lt 0 ] && diff=$(( -diff ))
+  [ "$diff" -le 1 ]
 }
 
 # Atomically write server-stopped.json to $path with the given $reason.

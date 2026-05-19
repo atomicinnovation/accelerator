@@ -7,7 +7,7 @@
 // or per-op wall-clock timeout.
 
 import { createServer } from 'node:http';
-import { writeServerInfo, writeServerStopped, removeServerFiles, ensureStateDir } from './state.js';
+import { writeServerInfo, writeServerStopped, removeServerFiles, ensureStateDir, processStartSeconds } from './state.js';
 import { makeAuthHeaderHandler } from './auth-header.js';
 import { mergeMaskSelectors } from './mask.js';
 import { guardScreenshotPath } from './path-guard.js';
@@ -303,7 +303,7 @@ export async function startDaemon({ stateDir }) {
     server.listen(0, '127.0.0.1', () => {
       const { port } = server.address();
       const url = `http://127.0.0.1:${port}/`;
-      const startTime = Math.floor(Date.now() / 1000);
+      const startTime = processStartSeconds();
       writeServerInfo(stateDir, {
         protocol: PROTOCOL,
         pid: process.pid,
