@@ -32,7 +32,10 @@ The migration is numbered after the latest applied (current head determined at i
 - Author a new numbered migration under the migration framework that:
   - Renames `work-item:` → `work_item_id:` on plans.
   - Renames `researcher:` → `author:` on research and RCA artifacts.
-  - Renames work-item `type:` → `kind:`.
+  - (Work-item `type:` → `kind:` rename is **owned by migration
+    0005**, authored under story 0063. This migration must not
+    duplicate that rewrite — 0005 has already migrated the corpus by
+    the time this migration runs in any repo.)
   - Adds the unified base fields (`type`, identity, `title`, `date`, `author`, `status`, `tags`, `last_updated`, `last_updated_by`, `schema_version`) with sensible defaults where missing.
   - Adds the provenance bundle (`revision`, `repository`) to code-state-anchored artifacts and removes `git_commit` / `branch`.
   - Adds per-artifact extras per 0057.
@@ -45,7 +48,7 @@ The migration is numbered after the latest applied (current head determined at i
 ## Acceptance Criteria
 
 - [ ] The migration applies cleanly to this repo's `meta/` corpus, leaving every artifact conforming to the unified schema.
-- [ ] Existing plan files have `work_item_id` (quoted); research/RCA files have `author`; work-item files have `kind:`.
+- [ ] Existing plan files have `work_item_id` (quoted); research/RCA files have `author`. (Work-item files already have `kind:` — guaranteed by migration 0005 from story 0063.)
 - [ ] Code-state-anchored artifacts have `revision` + `repository`; no `git_commit` or `branch` remains.
 - [ ] `schema_version` is set per artifact type.
 - [ ] Typed linkage frontmatter is populated from body sections where the migration was confident; uncertain cases are surfaced either via interactive prompts or a post-run report.
