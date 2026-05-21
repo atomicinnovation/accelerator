@@ -7,13 +7,12 @@
   border-radius: var(--radius-sm);
   font-family: var(--ac-font-mono);
   font-size: var(--size-chip-md);
-  max-width: 720px;
 }
 
 .row {
   display: grid;
-  grid-template-columns: minmax(auto, 12rem) 1fr;
-  column-gap: var(--sp-3);
+  grid-template-columns: auto 1fr;
+  column-gap: var(--sp-2);
   align-items: baseline;
 }
 

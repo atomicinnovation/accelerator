@@ -4,8 +4,8 @@
   grid-template-columns: 1fr 260px;
   gap: var(--sp-5) var(--sp-6);
 }
-.body { grid-area: body; }
-.frontmatter { grid-area: body; }
+.bodyColumn { grid-area: body; min-width: 0; }
+.body { margin-top: var(--sp-4); }
 .aside { grid-area: aside; font-size: var(--size-xs); color: var(--ac-fg-muted); }
 .aside h3 { font-size: var(--size-xxs); font-weight: 600; text-transform: uppercase; color: var(--ac-fg-faint); margin: 0 0 0.4rem; }
 .aside section { margin-bottom: var(--sp-5); }
@@ -16,8 +16,7 @@
   border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); margin-top: var(--sp-4);
 }
 .malformedBanner {
-  grid-column: 1 / -1;
-  margin: var(--sp-4) 0;
+  margin: 0 0 var(--sp-4);
   padding: var(--sp-3) var(--sp-4);
   background: color-mix(in srgb, var(--ac-warn) 8%, var(--ac-bg));
   border-left: 4px solid var(--ac-warn);

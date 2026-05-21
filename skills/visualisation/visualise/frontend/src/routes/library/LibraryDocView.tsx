@@ -125,25 +125,25 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
           </section>
         </div>
 
-        {entry.frontmatterState === 'malformed' && (
-          <div className={styles.malformedBanner} aria-label="Document metadata header notice">
-            <strong className={styles.malformedPrefix}>Warning:</strong>{' '}
-            We couldn&rsquo;t read this document&rsquo;s metadata header; showing the file as-is.
-          </div>
-        )}
+        <div className={styles.bodyColumn}>
+          {entry.frontmatterState === 'malformed' && (
+            <div className={styles.malformedBanner} aria-label="Document metadata header notice">
+              <strong className={styles.malformedPrefix}>Warning:</strong>{' '}
+              We couldn&rsquo;t read this document&rsquo;s metadata header; showing the file as-is.
+            </div>
+          )}
 
-        {entry.frontmatterState === 'parsed' && (
-          <div className={styles.frontmatter}>
+          {entry.frontmatterState === 'parsed' && (
             <FrontmatterTable
               frontmatter={entry.frontmatter as Record<string, unknown>}
               resolveWikiLink={resolveWikiLink}
               bareIdPattern={bareIdPattern}
             />
-          </div>
-        )}
+          )}
 
-        <div className={styles.body}>
-          <MarkdownRenderer content={stripFrontmatter(content.data.content)} resolveWikiLink={resolveWikiLink} wikiLinkPattern={wikiLinkPattern} />
+          <div className={styles.body}>
+            <MarkdownRenderer content={stripFrontmatter(content.data.content)} resolveWikiLink={resolveWikiLink} wikiLinkPattern={wikiLinkPattern} />
+          </div>
         </div>
       </article>
     )
