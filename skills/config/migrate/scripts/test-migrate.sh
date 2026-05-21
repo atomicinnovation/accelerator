@@ -1251,4 +1251,204 @@ assert_eq "inbound rewrite idempotent" "$BEFORE" "$AFTER"
 
 echo ""
 
+# ════════════════════════════════════════════════════════════════════════════
+echo "=== Migration 0005: rename work-item type field to kind ==="
+echo ""
+
+FIXTURE_0005="$SCRIPT_DIR/test-fixtures/0005"
+MIGRATION_0005="$MIGRATIONS_DIR/0005-rename-work-item-type-to-kind.sh"
+
+ONLY_0005_DIR="$TMPDIR_BASE/only-0005-migrations"
+mkdir -p "$ONLY_0005_DIR"
+cp "$MIGRATION_0005" "$ONLY_0005_DIR/"
+
+# setup_0005_repo: copies a fixture from test-fixtures/0005/ into mktemp.
+# Fixtures contain no `.jj` or `.git` dir.
+setup_0005_repo() {
+  local scenario="$1"
+  local repo_dir
+  repo_dir=$(mktemp -d "$TMPDIR_BASE/repo-0005-XXXXXX")
+  cp -R "$FIXTURE_0005/$scenario/." "$repo_dir/"
+  echo "$repo_dir"
+}
+
+# Run 0005 via the driver (with no-VCS bypass) so the state file is updated.
+run_0005_driver() {
+  local repo="$1"
+  cd "$repo" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    ACCELERATOR_MIGRATIONS_DIR="$ONLY_0005_DIR" \
+    ACCELERATOR_MIGRATE_FORCE=1 \
+    bash "$DRIVER" "$@"
+}
+
+# ── default-layout ───────────────────────────────────────────────────────────
+echo "Test: default-layout — type: renamed to kind:, **Type**: renamed to **Kind**:"
+REPO=$(setup_0005_repo default-layout)
+RC=0
+OUTPUT=$(run_0005_driver "$REPO" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+WI="$REPO/meta/work/0001-foo.md"
+CONTENT=$(cat "$WI")
+assert_contains "kind: story present" "$CONTENT" "kind: story"
+assert_not_contains "no type: line" "$CONTENT" "type:"
+assert_contains "**Kind**: Story present" "$CONTENT" "**Kind**: Story"
+assert_not_contains "no **Type**: line" "$CONTENT" "**Type**:"
+APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_contains "state file has 0005" "$APPLIED" "0005-rename-work-item-type-to-kind"
+
+echo ""
+
+# ── legacy-adr-task ──────────────────────────────────────────────────────────
+echo "Test: legacy-adr-task — frontmatter renamed, no body label before or after"
+REPO=$(setup_0005_repo legacy-adr-task)
+RC=0
+run_0005_driver "$REPO" >/dev/null 2>&1 || RC=$?
+assert_eq "exit 0" "0" "$RC"
+WI="$REPO/meta/work/0001-adr-creation.md"
+CONTENT=$(cat "$WI")
+assert_contains "kind: adr-creation-task" "$CONTENT" "kind: adr-creation-task"
+assert_not_contains "no type: line" "$CONTENT" "type:"
+assert_not_contains "no **Kind**: body label" "$CONTENT" "**Kind**:"
+assert_not_contains "no **Type**: body label" "$CONTENT" "**Type**:"
+
+echo ""
+
+# ── partial-prior-run (matching values) ──────────────────────────────────────
+echo "Test: partial-prior-run — stale type: removed; no divergence warning"
+REPO=$(setup_0005_repo partial-prior-run)
+RC=0
+STDERR_FILE=$(mktemp)
+run_0005_driver "$REPO" 2>"$STDERR_FILE" >/dev/null || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+WI="$REPO/meta/work/0001-foo.md"
+CONTENT=$(cat "$WI")
+KIND_LINES=$(grep -c '^kind:' "$WI" || true)
+assert_eq "exactly one kind: line" "1" "$KIND_LINES"
+assert_not_contains "no type: line" "$CONTENT" "type:"
+assert_not_contains "no divergence warning on match" "$STDERR" "divergent type/kind"
+
+echo ""
+
+# ── partial-prior-run-divergent ──────────────────────────────────────────────
+echo "Test: partial-prior-run-divergent — kind: wins; stderr warning emitted"
+REPO=$(setup_0005_repo partial-prior-run-divergent)
+RC=0
+STDERR_FILE=$(mktemp)
+run_0005_driver "$REPO" 2>"$STDERR_FILE" >/dev/null || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+WI="$REPO/meta/work/0001-foo.md"
+CONTENT=$(cat "$WI")
+assert_contains "kind: story remains" "$CONTENT" "kind: story"
+assert_not_contains "kind: bug not present" "$CONTENT" "kind: bug"
+assert_not_contains "no type: line" "$CONTENT" "type:"
+assert_contains "divergence warning fired" "$STDERR" "divergent type/kind"
+
+echo ""
+
+# ── partial-prior-run-body-label (matching) ──────────────────────────────────
+echo "Test: partial-prior-run-body-label — stale **Type**: removed; no divergence warning"
+REPO=$(setup_0005_repo partial-prior-run-body-label)
+RC=0
+STDERR_FILE=$(mktemp)
+run_0005_driver "$REPO" 2>"$STDERR_FILE" >/dev/null || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+WI="$REPO/meta/work/0001-foo.md"
+CONTENT=$(cat "$WI")
+assert_contains "**Kind**: Story present" "$CONTENT" "**Kind**: Story"
+assert_not_contains "no **Type**: line" "$CONTENT" "**Type**:"
+assert_contains "frontmatter kind: unchanged" "$CONTENT" "kind: story"
+assert_not_contains "no body-label divergence warning" "$STDERR" "divergent **Type**/**Kind**"
+
+echo ""
+
+# ── partial-prior-run-body-label-divergent ───────────────────────────────────
+echo "Test: partial-prior-run-body-label-divergent — **Kind**: wins; stderr warning emitted"
+REPO=$(setup_0005_repo partial-prior-run-body-label-divergent)
+RC=0
+STDERR_FILE=$(mktemp)
+run_0005_driver "$REPO" 2>"$STDERR_FILE" >/dev/null || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+WI="$REPO/meta/work/0001-foo.md"
+CONTENT=$(cat "$WI")
+assert_contains "**Kind**: Story remains" "$CONTENT" "**Kind**: Story"
+assert_not_contains "**Kind**: Bug not present" "$CONTENT" "**Kind**: Bug"
+assert_not_contains "no **Type**: line" "$CONTENT" "**Type**:"
+assert_contains "body-label divergence warning fired" "$STDERR" "divergent **Type**/**Kind**"
+
+echo ""
+
+# ── paths-override ───────────────────────────────────────────────────────────
+echo "Test: paths-override — docs/work file renamed; meta/work not created"
+REPO=$(setup_0005_repo paths-override)
+RC=0
+run_0005_driver "$REPO" >/dev/null 2>&1 || RC=$?
+assert_eq "exit 0" "0" "$RC"
+WI="$REPO/docs/work/0001-foo.md"
+CONTENT=$(cat "$WI")
+assert_contains "kind: story present" "$CONTENT" "kind: story"
+assert_not_contains "no type: line" "$CONTENT" "type:"
+assert_contains "**Kind**: Story present" "$CONTENT" "**Kind**: Story"
+assert_dir_not_exists "meta/work not created" "$REPO/meta/work"
+
+echo ""
+
+# ── paths-override-missing ───────────────────────────────────────────────────
+echo "Test: paths-override-missing — warning emitted; exit 0; migration recorded"
+REPO=$(setup_0005_repo paths-override-missing)
+RC=0
+STDERR_FILE=$(mktemp)
+run_0005_driver "$REPO" 2>"$STDERR_FILE" >/dev/null || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+assert_contains "missing-dir warning" "$STDERR" "work directory does not exist"
+APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_contains "0005 recorded" "$APPLIED" "0005-rename-work-item-type-to-kind"
+
+echo ""
+
+# ── body-label-only ──────────────────────────────────────────────────────────
+echo "Test: body-label-only — stale **Type**: rewritten; frontmatter unchanged"
+REPO=$(setup_0005_repo body-label-only)
+RC=0
+run_0005_driver "$REPO" >/dev/null 2>&1 || RC=$?
+assert_eq "exit 0" "0" "$RC"
+WI="$REPO/meta/work/0001-foo.md"
+CONTENT=$(cat "$WI")
+assert_contains "**Kind**: Story present" "$CONTENT" "**Kind**: Story"
+assert_not_contains "no **Type**: line" "$CONTENT" "**Type**:"
+assert_contains "frontmatter kind: unchanged" "$CONTENT" "kind: story"
+
+echo ""
+
+# ── empty-work-dir ───────────────────────────────────────────────────────────
+echo "Test: empty-work-dir — exit 0; no .md files created"
+REPO=$(setup_0005_repo empty-work-dir)
+RC=0
+STDOUT_FILE=$(mktemp)
+run_0005_driver "$REPO" >"$STDOUT_FILE" 2>&1 || RC=$?
+STDOUT=$(cat "$STDOUT_FILE"); rm -f "$STDOUT_FILE"
+assert_eq "exit 0" "0" "$RC"
+MD_COUNT=$(find "$REPO/docs/work" -name '*.md' -type f 2>/dev/null | wc -l | tr -d ' ')
+assert_eq "no .md files created" "0" "$MD_COUNT"
+assert_contains "0005 reports 0 rewrites under docs/work" "$STDOUT" "0005: rewrote 0 file(s) under docs/work"
+
+echo ""
+
+# ── idempotent ───────────────────────────────────────────────────────────────
+echo "Test: idempotent — second run is byte-identical no-op"
+REPO=$(setup_0005_repo default-layout)
+run_0005_driver "$REPO" >/dev/null 2>&1
+HASH1=$(tree_hash "$REPO/meta")
+RC=0
+run_0005_driver "$REPO" >/dev/null 2>&1 || RC=$?
+HASH2=$(tree_hash "$REPO/meta")
+assert_eq "exit 0 second run" "0" "$RC"
+assert_eq "byte-identical" "$HASH1" "$HASH2"
+
+echo ""
+
 test_summary

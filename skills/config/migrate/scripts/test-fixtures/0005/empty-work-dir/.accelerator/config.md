@@ -1,0 +1,4 @@
+---
+paths:
+  work: docs/work
+---

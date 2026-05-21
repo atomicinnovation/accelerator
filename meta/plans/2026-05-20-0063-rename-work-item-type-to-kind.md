@@ -431,22 +431,22 @@ echo "0005: rewrote $rewrote file(s) under $work_dir_rel"
 
 #### Automated Verification
 
-- [ ] All new 0005 tests pass:
+- [x] All new 0005 tests pass:
   `bash skills/config/migrate/scripts/test-migrate.sh` exits 0 and
   prints each new test as `PASS`.
-- [ ] Migration file is executable and bash-syntax-clean:
+- [x] Migration file is executable and bash-syntax-clean:
   `bash -n skills/config/migrate/migrations/0005-rename-work-item-type-to-kind.sh`.
-- [ ] Driver discovers 0005 in preview banner:
+- [x] Driver discovers 0005 in preview banner:
   `cd /tmp && CLAUDE_PLUGIN_ROOT=<repo> bash skills/config/migrate/scripts/run-migrations.sh --dry-run` (or equivalent) lists `0005` in the pending preview.
 
 #### Manual Verification
 
-- [ ] Reading the migration against
+- [x] Reading the migration against
   `0001-rename-tickets-to-work.sh:53-69` confirms the same dual-presence
   shape is applied independently in two sequential passes — one for the
   frontmatter key, one for the body label, each gated by its own
   `grep -q` outer guard and `grep -q` dual-presence sub-check.
-- [ ] Reading the tests confirms each branch is exercised at least
+- [x] Reading the tests confirms each branch is exercised at least
   once: clean rename, legacy-no-body-label, partial prior run (matching
   values), partial prior run (divergent values → `kind:` wins +
   stderr warning), partial prior run on body label (matching values),
