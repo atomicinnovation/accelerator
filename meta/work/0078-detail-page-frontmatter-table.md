@@ -4,7 +4,7 @@ title: "Detail-Page Frontmatter Table"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
-status: draft
+status: ready
 priority: medium
 parent: ""
 tags: [design, frontend, detail-page, markdown]
@@ -13,17 +13,18 @@ tags: [design, frontend, detail-page, markdown]
 # 0078: Detail-Page Frontmatter Table
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Ready
 **Priority**: Medium
 **Author**: Toby Clemson
 
 ## Summary
 
-Render every non-null frontmatter key/value pair as a CSS-grid table
-above the markdown body on each detail page, with `WORK*` values
-auto-linkified. The table complements (does not replace) the chip strip
-in the subtitle slot — chip strip carries the headline signal, table
-carries the full frontmatter.
+Render every frontmatter key/value pair (with dimmed dashes for empty
+values) as a CSS-grid table above the markdown body on each detail
+page, with work-item ID values (per the configured `work.id_pattern`,
+including project-prefixed forms) auto-linkified. The table complements
+(does not replace) the chip strip in the subtitle slot — chip strip
+carries the headline signal, table carries the full frontmatter.
 
 ## Context
 
@@ -72,7 +73,10 @@ both are needed. Chip-strip rebalancing is a separate item (0084).
 - [ ] On each detail-page route, a frontmatter table component is
   rendered above the markdown body and below the page header.
 - [ ] Every frontmatter key declared in the source file is rendered as
-  a row, in source order, one row per key.
+  a row, in source order, one row per key. Verified against a canonical
+  work-item fixture containing the standard story frontmatter keys
+  (`work_item_id, title, date, author, kind, status, priority, parent,
+  tags`) in that order: the table renders nine rows in that order.
 - [ ] Keys with null, undefined, empty-string, or empty-array values
   render with a dimmed em-dash in the value column rather than being
   omitted.
@@ -83,25 +87,40 @@ both are needed. Chip-strip rebalancing is a separate item (0084).
 - [ ] Array values render as a comma-separated list in the value
   column; each array element matching a work-item pattern renders as
   its own anchor, with commas between anchors as plain text.
+- [ ] Values containing both free text and a work-item token render
+  the matching substring as an anchor and the surrounding text as
+  plain text (e.g., `see WORK-0041 for context` renders `WORK-0041`
+  as a link with the rest of the value as plain text).
 - [ ] Object values render as a JSON-serialised string (matching
   `FrontmatterChips` behaviour for parity).
-- [ ] Visual rendering matches the prototype `.ac-fm` styling: CSS grid
-  `auto 1fr`, Fira Code 11.5px, `--ac-bg-sunken` background,
-  `--ac-stroke` border, padding `12px 14px`, table width capped to the
-  same max-width as the markdown body (per 0088).
+- [ ] Table uses CSS grid with template `auto 1fr` (key column auto
+  width, value column `1fr`).
+- [ ] Text in the table is rendered in Fira Code at 11.5px.
+- [ ] Container background uses the `--ac-bg-sunken` CSS variable.
+- [ ] Container border uses the `--ac-stroke` CSS variable.
+- [ ] Container padding is `12px 14px`.
+- [ ] The table's computed `max-width` equals the markdown body's
+  computed `max-width` at the same viewport width (per 0088 — if 0088
+  has not yet shipped, the table uses the body's pre-0088 width).
 - [ ] The chip strip (`FrontmatterChips`) continues to render in the
   subtitle slot unchanged; chip-strip rebalancing is handled by 0084.
 - [ ] The table is always expanded — no toggle, no collapse affordance.
 
 ## Open Questions
 
+None — all decisions captured in Assumptions and Drafting Notes.
+
 ## Dependencies
 
 - Blocked by: 0041 (page wrapper provides the layout slot).
-- Related: 0084 (chip-strip cap — paired delivery on the detail page).
+- Related: 0084 (chip-strip cap — can ship independently in either
+  order; paired delivery on the detail page is preferred but not
+  required, so 0078 neither blocks nor is blocked by 0084).
 - Related: 0088 (markdown body width harmonisation — table width must
   match body width cap).
 - Related: 0085 (H1 humanisation — sits directly above the table).
+- Builds on: 0043 (spike establishing wiki-link resolver pattern
+  coverage — informational only, no scheduling dependency).
 - Reuses: existing `useWikiLinkResolver` and `wiki-links` resolver
   (no new infrastructure).
 
@@ -114,10 +133,9 @@ both are needed. Chip-strip rebalancing is a separate item (0084).
   body, not a separate regex. If the resolver's pattern coverage is
   narrower than expected, the table's linkification matches the
   markdown body's exactly (consistent, even if incomplete).
-- "Non-null" in the user-facing sense means "present and meaningful" —
-  null, undefined, empty string, and empty array all render as dimmed
-  dash. Numbers `0` and boolean `false` are valid values and render as
-  `0` / `false`.
+- Numbers `0` and boolean `false` are valid values and render as
+  `0` / `false` (not as the dimmed em-dash used for null/undefined/
+  empty-string/empty-array values).
 - The table renders below the page header and above the markdown body,
   inside the same width-capped column as the body — not in the aside
   region (0079).
