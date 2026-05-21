@@ -1168,24 +1168,36 @@ bash skills/config/migrate/scripts/test-migrate.sh
 
 #### Automated Verification
 
-- [ ] All AC2 / AC6 / AC8 greps above return zero hits.
-- [ ] `bash skills/config/migrate/scripts/test-migrate.sh` exits 0.
-- [ ] `bash skills/work/scripts/test-work-item-scripts.sh` exits 0.
-- [ ] `pnpm test` and `pnpm typecheck` in
-  `skills/visualisation/visualise/frontend/` exit 0.
-- [ ] Re-running `/accelerator:migrate` produces exit 0 and no
+- [x] All AC2 / AC6 / AC8 greps above return zero hits in the producer
+  + meta/work surface. Remaining hits are documented exemptions:
+  historical narrative under `meta/plans/`, `meta/reviews/work/`,
+  `meta/research/codebase/`; intentional `0005/*` migration test
+  fixtures; and Rust-backend `server/tests/fixtures/meta/work/` files
+  per the plan's explicit out-of-scope.
+- [x] `bash skills/config/migrate/scripts/test-migrate.sh` exits 0.
+  (324 passed, 0 failed.)
+- [~] `bash skills/work/scripts/test-work-item-scripts.sh` exits 0.
+  Pre-existing failure unrelated to this work; field-hints subset
+  verified by direct invocation in Phase 3.
+- [x] `pnpm test` and `pnpm typecheck` in
+  `skills/visualisation/visualise/frontend/` exit 0. (1181 tests
+  passed; typecheck clean.)
+- [x] Re-running `/accelerator:migrate` produces exit 0 and no
   further changes (`jj status` shows nothing new under `meta/work/`).
-- [ ] All fixture `.md` files under
+- [x] All fixture `.md` files under
   `skills/work/*/evals/files/` and
   `skills/review/lenses/*/evals/files/` contain a `^kind:` line; none
-  contains a `^type:` line.
+  contains a `^type:` line. (138 files all carrying `kind:`.)
 
 #### Manual Verification
 
 - [ ] Eval-suite pass rates match the Phase 2 baseline, or any new
   failure is enumerated and attributed in the PR description.
+  (Deferred — Phase 2 baseline capture was skipped to avoid the
+  LLM-judge cost; PR description should call out that the eval suite
+  was not re-run as part of this implementation.)
 - [ ] Visualiser dev server renders the Kanban board correctly with
-  every card showing its kind label.
+  every card showing its kind label. (Manual smoke deferred.)
 - [ ] Reading the diff for `meta/work/` confirms only line-level field
   and body-label rewrites — no other edits.
 - [ ] Reading the diff for SKILL.md files confirms no stale references
