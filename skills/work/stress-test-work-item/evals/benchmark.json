@@ -180,9 +180,9 @@
           "evidence": "The 'Sections I am NOT touching' list includes '**Summary** \u2014 no changes' and '**Requirements** \u2014 no changes'."
         },
         {
-          "text": "Skill confirms it is NOT modifying the body **Type**/**Status**/**Priority**/**Author** labels",
+          "text": "Skill confirms it is NOT modifying the body **Kind**/**Status**/**Priority**/**Author** labels",
           "passed": true,
-          "evidence": "Response lists 'Body metadata labels (**Type**:, **Status**:, **Priority**:, **Author**:) \u2014 no changes' in the sections not being touched."
+          "evidence": "Response lists 'Body metadata labels (**Kind**:, **Status**:, **Priority**:, **Author**:) \u2014 no changes' in the sections not being touched."
         }
       ],
       "notes": []
@@ -294,9 +294,9 @@
           "evidence": "work item.md frontmatter contains all nine fields with their original values: work_item_id='0042', title='User Authentication Refactor', date='2026-04-01T10:00:00+00:00', author='Test Author', type=story, status=draft, priority=high, parent='', tags=[auth, backend]. These match expected-target.md exactly."
         },
         {
-          "text": "Body **Type**/**Status**/**Priority**/**Author** labels are unchanged after the edit",
+          "text": "Body **Kind**/**Status**/**Priority**/**Author** labels are unchanged after the edit",
           "passed": true,
-          "evidence": "work item.md lines 15-18 show '**Type**: Story', '**Status**: Draft', '**Priority**: High', '**Author**: Test Author', matching expected-target.md lines 15-18 exactly."
+          "evidence": "work item.md lines 15-18 show '**Kind**: Story', '**Status**: Draft', '**Priority**: High', '**Author**: Test Author', matching expected-target.md lines 15-18 exactly."
         },
         {
           "text": "Summary and Requirements sections are unchanged after the edit",

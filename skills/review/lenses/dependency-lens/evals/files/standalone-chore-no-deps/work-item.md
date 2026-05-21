@@ -1,6 +1,6 @@
 ---
 title: "Bump eslint to latest minor version"
-type: chore
+kind: chore
 status: ready
 priority: low
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Validate JWT on protected routes"
-type: story
+kind: story
 status: ready
 priority: high
 ---

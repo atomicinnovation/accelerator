@@ -1,6 +1,6 @@
 ---
 title: "Introduce versioned API schema file"
-type: story
+kind: story
 status: ready
 priority: high
 ---

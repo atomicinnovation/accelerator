@@ -1,6 +1,6 @@
 ---
 title: "Rename legacy config variables to use snake_case"
-type: epic
+kind: epic
 status: ready
 priority: low
 ---

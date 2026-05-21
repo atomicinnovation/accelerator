@@ -1,6 +1,6 @@
 ---
 title: "Rename user_email column to user_email_address"
-type: story
+kind: story
 status: ready
 priority: low
 ---

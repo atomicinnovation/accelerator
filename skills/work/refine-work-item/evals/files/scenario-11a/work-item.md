@@ -3,7 +3,7 @@ work_item_id: "0060"
 title: "Add Email Notifications for Order Status"
 date: "2026-04-01T10:00:00+00:00"
 author: "Test Author"
-type: story
+kind: story
 status: draft
 priority: medium
 parent: ""
@@ -12,7 +12,7 @@ tags: [notifications, orders]
 
 # 0060: Add Email Notifications for Order Status
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: Medium
 **Author**: Test Author

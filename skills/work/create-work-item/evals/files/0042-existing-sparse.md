@@ -3,7 +3,7 @@ work_item_id: "0042"
 title: "Add Full-Text Search to Documentation Index"
 date: "2026-01-15T09:00:00+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: draft
 priority: medium
 parent: ""
@@ -12,7 +12,7 @@ tags: []
 
 # 0042: Add Full-Text Search to Documentation Index
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: Medium
 **Author**: Toby Clemson

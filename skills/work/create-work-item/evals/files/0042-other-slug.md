@@ -3,7 +3,7 @@ work_item_id: "0042"
 title: "Add Full-Text Search to API Reference"
 date: "2026-01-16T11:00:00+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: draft
 priority: medium
 parent: ""
@@ -12,7 +12,7 @@ tags: [search, api]
 
 # 0042: Add Full-Text Search to API Reference
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: Medium
 **Author**: Toby Clemson

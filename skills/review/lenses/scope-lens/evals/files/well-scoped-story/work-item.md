@@ -1,6 +1,6 @@
 ---
 title: "Add copy-to-clipboard button to code blocks in documentation site"
-type: story
+kind: story
 status: ready
 priority: medium
 ---

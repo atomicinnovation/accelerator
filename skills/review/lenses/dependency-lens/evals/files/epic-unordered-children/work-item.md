@@ -1,6 +1,6 @@
 ---
 title: "Migrate authentication from session cookies to JWT tokens"
-type: epic
+kind: epic
 status: ready
 priority: high
 ---

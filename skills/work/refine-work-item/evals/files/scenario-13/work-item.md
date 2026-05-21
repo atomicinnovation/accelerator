@@ -3,7 +3,7 @@ work_item_id: "0042"
 title: "User Auth Rework"
 date: "2026-04-01T10:00:00+00:00"
 author: "Test Author"
-type: epic
+kind: epic
 status: draft
 priority: high
 parent: ""
@@ -12,7 +12,7 @@ tags: [auth, backend]
 
 # 0042: User Auth Rework
 
-**Type**: Epic
+**Kind**: Epic
 **Status**: Draft
 **Priority**: High
 **Author**: Test Author

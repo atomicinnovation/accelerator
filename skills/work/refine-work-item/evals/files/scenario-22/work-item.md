@@ -3,7 +3,7 @@ work_item_id: "0075"
 title: "Add Dark Mode Support"
 date: "2026-04-01T10:00:00+00:00"
 author: "Test Author"
-type: story
+kind: story
 status: draft
 priority: low
 parent: ""
@@ -12,7 +12,7 @@ tags: [ui, frontend]
 
 # 0075: Add Dark Mode Support
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: Low
 **Author**: Test Author

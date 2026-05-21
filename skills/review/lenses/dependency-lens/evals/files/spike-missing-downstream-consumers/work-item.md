@@ -1,6 +1,6 @@
 ---
 title: "Choose a message queue vendor for async job processing"
-type: spike
+kind: spike
 status: ready
 priority: high
 ---

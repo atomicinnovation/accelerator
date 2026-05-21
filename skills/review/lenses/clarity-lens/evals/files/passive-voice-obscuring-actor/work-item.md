@@ -1,6 +1,6 @@
 ---
 title: "Export report as PDF"
-type: story
+kind: story
 status: ready
 ---
 

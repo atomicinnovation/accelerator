@@ -1,6 +1,6 @@
 ---
 title: "Search bar on the documentation site"
-type: epic
+kind: epic
 status: ready
 priority: high
 ---

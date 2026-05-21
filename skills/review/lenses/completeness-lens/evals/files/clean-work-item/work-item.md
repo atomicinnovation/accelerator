@@ -1,6 +1,6 @@
 ---
 title: "Add audit logging for administrative actions"
-type: story
+kind: story
 status: ready
 priority: medium
 ---

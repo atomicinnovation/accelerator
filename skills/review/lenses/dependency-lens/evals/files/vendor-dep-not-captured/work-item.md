@@ -1,6 +1,6 @@
 ---
 title: "Fix broken CRM contact export"
-type: bug
+kind: bug
 status: ready
 priority: high
 ---

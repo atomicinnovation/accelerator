@@ -1,6 +1,6 @@
 ---
 title: "Integrate Stripe for payment processing"
-type: story
+kind: story
 status: ready
 priority: high
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Add OAuth 2.0 login via Google"
-type: story
+kind: story
 status: ready
 priority: medium
 ---

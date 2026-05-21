@@ -1,5 +1,5 @@
 ---
-type: story
+kind: story
 status: ready
 priority: high
 ---

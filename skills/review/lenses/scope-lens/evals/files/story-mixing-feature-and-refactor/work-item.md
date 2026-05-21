@@ -1,6 +1,6 @@
 ---
 title: "Add CSV export to reports dashboard and migrate to new grid framework"
-type: story
+kind: story
 status: ready
 priority: medium
 ---

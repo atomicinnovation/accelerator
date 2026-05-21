@@ -3,7 +3,7 @@ work_item_id: "0099"
 title: "Broken Frontmatter Example"
 date: "2026-01-20T10:00:00+00:00"
 author: Toby Clemson
-type: task
+kind: task
 status: draft
 priority: low
 parent: ""

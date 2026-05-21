@@ -1,6 +1,6 @@
 ---
 title: "Handle charge.refunded webhook from Stripe"
-type: story
+kind: story
 status: ready
 priority: high
 ---

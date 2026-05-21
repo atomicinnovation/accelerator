@@ -1,6 +1,6 @@
 ---
 title: "Implement order placement flow end-to-end"
-type: story
+kind: story
 status: ready
 priority: high
 ---

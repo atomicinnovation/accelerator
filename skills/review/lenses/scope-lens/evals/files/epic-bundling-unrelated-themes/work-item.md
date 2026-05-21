@@ -1,6 +1,6 @@
 ---
 title: "Platform improvements Q2"
-type: epic
+kind: epic
 status: ready
 priority: high
 ---

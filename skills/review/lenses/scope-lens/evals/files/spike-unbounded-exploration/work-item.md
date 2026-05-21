@@ -1,6 +1,6 @@
 ---
 title: "Understand our microservices architecture"
-type: spike
+kind: spike
 status: ready
 priority: high
 ---

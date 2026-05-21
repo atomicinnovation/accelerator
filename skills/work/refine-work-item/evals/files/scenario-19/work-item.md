@@ -3,7 +3,7 @@ work_item_id: "0099"
 title: "Fix Null Pointer in Session Cleanup"
 date: "2026-04-01T10:00:00+00:00"
 author: "Test Author"
-type: bug
+kind: bug
 status: draft
 priority: high
 parent: ""
@@ -12,7 +12,7 @@ tags: [auth, backend]
 
 # 0099: Fix Null Pointer in Session Cleanup
 
-**Type**: Bug
+**Kind**: Bug
 **Status**: Draft
 **Priority**: High
 **Author**: Test Author

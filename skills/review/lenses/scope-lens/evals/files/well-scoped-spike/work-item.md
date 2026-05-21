@@ -1,6 +1,6 @@
 ---
 title: "Evaluate rate-limiter libraries for the public API"
-type: spike
+kind: spike
 status: ready
 priority: high
 ---

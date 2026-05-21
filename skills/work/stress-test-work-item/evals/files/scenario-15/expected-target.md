@@ -3,7 +3,7 @@ work_item_id: "0042"
 title: "User Authentication Refactor"
 date: "2026-04-01T10:00:00+00:00"
 author: "Test Author"
-type: story
+kind: story
 status: draft
 priority: high
 parent: ""
@@ -12,7 +12,7 @@ tags: [auth, backend]
 
 # 0042: User Authentication Refactor
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: High
 **Author**: Test Author

@@ -1,6 +1,6 @@
 ---
 title: "Fix password validation error message"
-type: bug
+kind: bug
 status: ready
 ---
 

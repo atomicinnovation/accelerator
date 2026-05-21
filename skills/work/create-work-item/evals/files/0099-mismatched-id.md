@@ -3,7 +3,7 @@ work_item_id: "0099"
 title: "Mismatched Identity Example"
 date: "2026-01-20T10:00:00+00:00"
 author: Toby Clemson
-type: task
+kind: task
 status: draft
 priority: low
 parent: ""
@@ -12,7 +12,7 @@ tags: []
 
 # 0099: Mismatched Identity Example
 
-**Type**: Task
+**Kind**: Task
 **Status**: Draft
 **Priority**: Low
 **Author**: Toby Clemson

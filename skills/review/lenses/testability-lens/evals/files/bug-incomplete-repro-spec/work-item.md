@@ -1,5 +1,5 @@
 ---
-type: bug
+kind: bug
 status: ready
 priority: high
 ---

@@ -549,7 +549,7 @@
         {
           "text": "Output includes per-field lines for Title, Type, Priority, Parent, Tags each marked 'keep' or 'propose change'",
           "passed": true,
-          "evidence": "The response ends with explicit per-field lines: '**Title**: keep', '**Type**: keep existing `story`', '**Priority**: keep `medium`', '**Parent**: keep empty', '**Tags**: propose adding `[\"documentation\", \"search\"]`'. All five required fields are present and each is marked keep or propose."
+          "evidence": "The response ends with explicit per-field lines: '**Title**: keep', '**Kind**: keep existing `story`', '**Priority**: keep `medium`', '**Parent**: keep empty', '**Tags**: propose adding `[\"documentation\", \"search\"]`'. All five required fields are present and each is marked keep or propose."
         },
         {
           "text": "Output does not include the from-scratch 'Suggested type' / 'Requirements I'd suggest' framing from the topic-string flow",

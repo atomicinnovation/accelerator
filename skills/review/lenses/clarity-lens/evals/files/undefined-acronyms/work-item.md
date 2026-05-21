@@ -1,6 +1,6 @@
 ---
 title: "Enforce RBAC on API endpoints using OIDC tokens"
-type: story
+kind: story
 status: ready
 ---
 

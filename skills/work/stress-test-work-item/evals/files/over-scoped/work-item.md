@@ -3,7 +3,7 @@ work_item_id: "0043"
 title: "Improve System Quality"
 date: "2026-04-01T10:00:00+00:00"
 author: "Test Author"
-type: story
+kind: story
 status: draft
 priority: medium
 parent: ""
@@ -12,7 +12,7 @@ tags: [quality, backend, frontend, database]
 
 # 0043: Improve System Quality
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: Medium
 **Author**: Test Author

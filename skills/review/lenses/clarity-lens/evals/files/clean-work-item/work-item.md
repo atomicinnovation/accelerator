@@ -1,6 +1,6 @@
 ---
 title: "Add per-client rate limiting to the public API"
-type: story
+kind: story
 status: ready
 priority: high
 ---

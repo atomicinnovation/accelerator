@@ -1,5 +1,5 @@
 ---
-type: spike
+kind: spike
 status: ready
 priority: medium
 ---

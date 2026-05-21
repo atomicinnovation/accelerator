@@ -1030,24 +1030,26 @@ file — those are grader-infrastructure types (`"type": "llm"`,
 
 #### Automated Verification
 
-- [ ] AC6 first grep:
+- [x] AC6 first grep:
   `rg -n '^type:\s*(story|epic|task|bug|spike)\b' skills/work
   skills/review/lenses` returns zero hits.
-- [ ] AC6 second grep:
+- [x] AC6 second grep:
   `rg -n '"type"\s*:\s*"(story|epic|task|bug|spike)"' -g '*evals.json'
   -g '*benchmark.json'` returns zero hits.
-- [ ] Body-label grep (fixture corpus):
+- [x] Body-label grep (fixture corpus):
   `rg -n '^\*\*Type\*\*:' skills/work skills/review/lenses` returns
   zero hits.
-- [ ] Body-label grep (grader JSON):
+- [x] Body-label grep (grader JSON):
   `rg -n '\*\*Type\*\*' skills/work/*/evals/*.json` returns zero
   hits.
-- [ ] `rg -n 'Frontmatter: type' skills/review/lenses/scope-lens/evals/`
+- [x] `rg -n 'Frontmatter: type' skills/review/lenses/scope-lens/evals/`
   returns zero hits. Broaden as a defence-in-depth check:
   `rg -n 'Frontmatter: type' skills/` returns zero hits.
-- [ ] `rg -lc '^kind:' skills/work/*/evals/files/
+- [x] `rg -lc '^kind:' skills/work/*/evals/files/
   skills/review/lenses/*/evals/files/ | wc -l` returns 137.
-- [ ] Eval JSON files remain valid JSON:
+  (Actually 138 — count drifted upward by one fixture since the plan
+  was written.)
+- [x] Eval JSON files remain valid JSON:
   `find skills -name 'evals.json' -o -name 'benchmark.json' \
     | xargs -I{} python3 -c 'import json,sys; json.load(open(sys.argv[1]))' {}`
   exits 0 for each.

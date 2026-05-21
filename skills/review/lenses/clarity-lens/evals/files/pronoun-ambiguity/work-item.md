@@ -1,6 +1,6 @@
 ---
 title: "Cache invalidation on config updates"
-type: story
+kind: story
 status: ready
 ---
 

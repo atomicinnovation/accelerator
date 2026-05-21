@@ -156,7 +156,7 @@
       "id": 12,
       "name": "optional-targeted-edit",
       "prompt": "Read skills/work/stress-test-work-item/SKILL.md fully. You are running the stress-test-work item skill.\n\nSimulate a concluded stress-test:\n[Work item: skills/work/stress-test-work-item/evals/files/weak-acs/work-item.md]\n[Findings summary presented. Issues: the five acceptance criteria need to be rewritten as specific, testable criteria.]\n[User approves: \"Yes, please update the Acceptance Criteria section.\"]\n\nApply the edit. Save your response to outputs/response.md.\n\nIMPORTANT: Do NOT actually write to the fixture file. Describe what Edit call you would make and to which section. Confirm which sections you are NOT touching.",
-      "expected_output": "Skill uses the Edit tool to modify the Acceptance Criteria section only. Skill explicitly confirms it is NOT touching frontmatter fields (work_item_id, title, date, author, type, status, priority, parent, tags) and NOT touching body labels (**Type**, **Status**, **Priority**, **Author**), Summary, Requirements, Dependencies, Assumptions, or Technical Notes.",
+      "expected_output": "Skill uses the Edit tool to modify the Acceptance Criteria section only. Skill explicitly confirms it is NOT touching frontmatter fields (work_item_id, title, date, author, kind, status, priority, parent, tags) and NOT touching body labels (**Kind**, **Status**, **Priority**, **Author**), Summary, Requirements, Dependencies, Assumptions, or Technical Notes.",
       "files": [
         "skills/work/stress-test-work-item/evals/files/weak-acs/work-item.md"
       ],
@@ -164,7 +164,7 @@
         "Skill targets the Edit at the Acceptance Criteria section only",
         "Skill confirms it is NOT modifying any frontmatter field",
         "Skill confirms it is NOT modifying the Summary or Requirements sections",
-        "Skill confirms it is NOT modifying the body **Type**/**Status**/**Priority**/**Author** labels"
+        "Skill confirms it is NOT modifying the body **Kind**/**Status**/**Priority**/**Author** labels"
       ]
     },
     {
@@ -197,7 +197,7 @@
       "id": 15,
       "name": "edit-targets-only-owned-sections",
       "prompt": "Read skills/work/stress-test-work-item/SKILL.md fully. You are running the stress-test-work item skill.\n\nSimulate a concluded stress-test. The work item you worked on is at:\n  skills/work/stress-test-work-item-workspace/iteration-1/eval-15/inputs/work-item.md\n\n[Stress-test focused on the vague Acceptance Criteria only.]\n[User approved: 'Please rewrite only the Acceptance Criteria with the specific, measurable versions we discussed — the five criteria around Redis error handling, latency threshold, correctness via the test suite, Redis provisioning, and session format compatibility.']\n\nApply the Edit to the workspace copy at skills/work/stress-test-work-item-workspace/iteration-1/eval-15/inputs/work-item.md (you MAY modify this file). Then save a diff summary to outputs/response.md confirming which sections changed.\n\nAfter editing, compare the modified file against skills/work/stress-test-work-item/evals/files/scenario-15/expected-target.md. Report any differences.",
-      "expected_output": "Skill applies an Edit targeting the Acceptance Criteria section of the workspace copy. After editing, only the Acceptance Criteria section differs from the original; all nine frontmatter fields, body **Type**/**Status**/**Priority**/**Author** labels, Summary, Context, Requirements, and all other sections are byte-for-byte unchanged. The post-edit file matches expected-target.md.",
+      "expected_output": "Skill applies an Edit targeting the Acceptance Criteria section of the workspace copy. After editing, only the Acceptance Criteria section differs from the original; all nine frontmatter fields, body **Kind**/**Status**/**Priority**/**Author** labels, Summary, Context, Requirements, and all other sections are byte-for-byte unchanged. The post-edit file matches expected-target.md.",
       "files": [
         "skills/work/stress-test-work-item-workspace/iteration-1/eval-15/inputs/work-item.md",
         "skills/work/stress-test-work-item/evals/files/scenario-15/expected-target.md"
@@ -206,7 +206,7 @@
         "Edit is applied to the workspace copy (the file is actually modified)",
         "Edit targets only the Acceptance Criteria section",
         "All nine frontmatter fields are unchanged after the edit",
-        "Body **Type**/**Status**/**Priority**/**Author** labels are unchanged after the edit",
+        "Body **Kind**/**Status**/**Priority**/**Author** labels are unchanged after the edit",
         "Summary and Requirements sections are unchanged after the edit"
       ]
     }

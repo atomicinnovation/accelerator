@@ -1,6 +1,6 @@
 ---
 title: "Multi-tenancy support"
-type: epic
+kind: epic
 status: draft
 priority: high
 ---

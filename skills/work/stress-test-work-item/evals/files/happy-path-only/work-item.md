@@ -3,7 +3,7 @@ work_item_id: "0044"
 title: "Add OAuth Login"
 date: "2026-04-01T10:00:00+00:00"
 author: "Test Author"
-type: story
+kind: story
 status: draft
 priority: high
 parent: ""
@@ -12,7 +12,7 @@ tags: [auth, oauth, frontend, backend]
 
 # 0044: Add OAuth Login
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: High
 **Author**: Test Author

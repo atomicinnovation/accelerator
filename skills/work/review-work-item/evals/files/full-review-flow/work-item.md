@@ -1,6 +1,6 @@
 ---
 title: "Add feature flag support for the payment refund flow"
-type: story
+kind: story
 status: draft
 priority: high
 ---

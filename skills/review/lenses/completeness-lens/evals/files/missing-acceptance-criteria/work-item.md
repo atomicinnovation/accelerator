@@ -1,6 +1,6 @@
 ---
 title: "Add notification preferences to user settings"
-type: story
+kind: story
 status: ready
 priority: medium
 ---

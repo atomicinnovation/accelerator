@@ -1,6 +1,6 @@
 ---
 title: "Payment confirmation email not sent after successful checkout"
-type: bug
+kind: bug
 status: ready
 priority: high
 ---

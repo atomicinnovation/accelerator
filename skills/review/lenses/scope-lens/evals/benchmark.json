@@ -59,7 +59,7 @@
         {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
         {"text": "No finding at 'critical' or 'major' severity", "passed": true, "evidence": "1 finding at 'minor' severity only."},
         {"text": "At least one finding at 'minor' or 'suggestion' severity", "passed": true, "evidence": "1 minor finding present."},
-        {"text": "Finding is located in Summary or Frontmatter: type", "passed": true, "evidence": "Location: 'Frontmatter: type'."},
+        {"text": "Finding is located in Summary or Frontmatter: kind", "passed": true, "evidence": "Location: 'Frontmatter: kind'."},
         {"text": "Finding confidence is 'medium'", "passed": true, "evidence": "confidence: 'medium'."},
         {"text": "No finding about missing required sections", "passed": true, "evidence": "Only 1 finding, a proportional type-mislabel observation. No completeness bleed."}
       ],
@@ -89,7 +89,7 @@
         {"text": "Output contains a valid JSON code block with lens='scope'", "passed": true, "evidence": "\"lens\": \"scope\"."},
         {"text": "At least one finding at 'minor' or higher severity", "passed": true, "evidence": "1 major + 1 minor finding."},
         {"text": "Finding addresses over-decomposition — twelve micro-tasks that could be one story, not an epic with twelve children", "passed": true, "evidence": "Major: 'Epic type is inappropriate for trivially small, atomic refactor' — notes twelve renames deliverable in one commit. Minor: child stories are not independently releasable."},
-        {"text": "Finding is in Frontmatter: type, Requirements, or Stories", "passed": true, "evidence": "Major finding in Frontmatter: type; minor finding in Stories."},
+        {"text": "Finding is in Frontmatter: kind, Requirements, or Stories", "passed": true, "evidence": "Major finding in Frontmatter: kind; minor finding in Stories."},
         {"text": "No finding about missing context or unclear acceptance criteria", "passed": true, "evidence": "Both findings are structural scope observations. No completeness or clarity bleed."}
       ],
       "notes": []
