@@ -24,4 +24,4 @@
 .cardSlug   { font-family: var(--ac-font-mono); color: var(--ac-fg-faint); font-size: var(--size-xxs); }
 .cardMtime  { color: var(--ac-fg-muted); }
 .cardTitle  { margin: var(--sp-1) 0; font-weight: 600; color: var(--ac-fg-strong); }
-.cardType   { margin: 0; font-size: var(--size-xs); color: var(--ac-fg-muted); }
+.cardKind   { margin: 0; font-size: var(--size-xs); color: var(--ac-fg-muted); }

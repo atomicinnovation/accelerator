@@ -5,6 +5,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { WorkItemCard } from './WorkItemCard'
 import { makeIndexEntry } from '../../api/test-fixtures'
 import { renderWithRouterAt } from '../../test/router-helpers'
+import styles from './WorkItemCard.module.css'
 
 const FROZEN_NOW = 1_700_000_000_000
 
@@ -24,7 +25,7 @@ describe('WorkItemCard', () => {
       type: 'work-items',
       relPath: 'meta/work/0001-three-layer.md',
       title: 'Three-layer review system architecture',
-      frontmatter: { type: 'adr-creation-task', status: 'done' },
+      frontmatter: { kind: 'adr-creation-task', status: 'done' },
       mtimeMs: FROZEN_NOW - 90_000,
     })
     renderCard(entry)
@@ -39,7 +40,7 @@ describe('WorkItemCard', () => {
       type: 'work-items',
       relPath: 'meta/work/0029-template-management.md',
       title: 'Template management',
-      frontmatter: { type: 'adr-creation-task', status: 'done' },
+      frontmatter: { kind: 'adr-creation-task', status: 'done' },
       mtimeMs: FROZEN_NOW - 90_000,
     })
     renderCard(entry)
@@ -51,7 +52,7 @@ describe('WorkItemCard', () => {
       type: 'work-items',
       relPath: 'meta/work/0001-three-layer-review-system-architecture.md',
       title: 'Three-layer review system architecture',
-      frontmatter: { type: 'adr-creation-task', status: 'todo' },
+      frontmatter: { kind: 'adr-creation-task', status: 'todo' },
     })
     renderCard(entry)
     const link = await screen.findByRole('link', {
@@ -62,17 +63,19 @@ describe('WorkItemCard', () => {
     )
   })
 
-  it('renders gracefully when frontmatter.type is missing', async () => {
-    const entry = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/0042-no-type.md',
-      title: 'No type',
-      frontmatter: { status: 'todo' },
-    })
-    renderCard(entry)
+  it('renders gracefully when frontmatter.kind is missing', async () => {
+    const { container } = renderCard(
+      makeIndexEntry({
+        type: 'work-items',
+        relPath: 'meta/work/0042-no-kind.md',
+        title: 'No kind',
+        frontmatter: { status: 'todo' },
+      }),
+    )
     expect(await screen.findByText('#0042')).toBeInTheDocument()
-    expect(screen.getByText('No type')).toBeInTheDocument()
+    expect(screen.getByText('No kind')).toBeInTheDocument()
     expect(screen.queryByText(/undefined/)).toBeNull()
+    expect(container.querySelector(`.${styles.cardKind}`)).toBeNull()
   })
 
   it('falls back to the file slug when the relPath has no numeric prefix', async () => {
@@ -80,7 +83,7 @@ describe('WorkItemCard', () => {
       type: 'work-items',
       relPath: 'meta/work/foo-without-number.md',
       title: 'No number',
-      frontmatter: { type: 'adr-creation-task', status: 'todo' },
+      frontmatter: { kind: 'adr-creation-task', status: 'todo' },
     })
     renderCard(entry)
     expect(await screen.findByText('No number')).toBeInTheDocument()
@@ -93,7 +96,7 @@ describe('WorkItemCard', () => {
       type: 'work-items',
       relPath: 'meta/work/0001-a.md',
       title: 'Some work item',
-      frontmatter: { type: 'adr-creation-task', status: 'todo' },
+      frontmatter: { kind: 'adr-creation-task', status: 'todo' },
     })
     renderCard(entry)
     const link = await screen.findByRole('link', { name: /some work item/i })
@@ -105,7 +108,7 @@ describe('WorkItemCard', () => {
       type: 'work-items',
       relPath: 'meta/work/0001-a.md',
       title: 'Some work item',
-      frontmatter: { type: 'adr-creation-task', status: 'todo' },
+      frontmatter: { kind: 'adr-creation-task', status: 'todo' },
     })
     renderCard(entry)
     await screen.findByRole('link', { name: /some work item/i })

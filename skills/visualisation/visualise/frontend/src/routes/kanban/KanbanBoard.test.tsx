@@ -146,15 +146,15 @@ describe('KanbanBoard', () => {
   it('places work items in the column matching their frontmatter.status', async () => {
     const todo = makeIndexEntry({
       type: 'work-items', relPath: 'meta/work/0001-todo.md', title: 'Todo work item',
-      frontmatter: { type: 'adr-creation-task', status: 'todo' },
+      frontmatter: { kind: 'adr-creation-task', status: 'todo' },
     })
     const inProgress = makeIndexEntry({
       type: 'work-items', relPath: 'meta/work/0002-wip.md', title: 'WIP work item',
-      frontmatter: { type: 'adr-creation-task', status: 'in-progress' },
+      frontmatter: { kind: 'adr-creation-task', status: 'in-progress' },
     })
     const done = makeIndexEntry({
       type: 'work-items', relPath: 'meta/work/0003-done.md', title: 'Done work item',
-      frontmatter: { type: 'adr-creation-task', status: 'done' },
+      frontmatter: { kind: 'adr-creation-task', status: 'done' },
     })
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([todo, inProgress, done])
     renderKanbanAt()
@@ -167,7 +167,7 @@ describe('KanbanBoard', () => {
   it('renders the Other swimlane with non-canonical statuses', async () => {
     const blocked = makeIndexEntry({
       type: 'work-items', relPath: 'meta/work/0007-blocked.md', title: 'Blocked work item',
-      frontmatter: { type: 'adr-creation-task', status: 'blocked' },
+      frontmatter: { kind: 'adr-creation-task', status: 'blocked' },
     })
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([blocked])
     renderKanbanAt()
@@ -178,11 +178,11 @@ describe('KanbanBoard', () => {
   it('sorts cards within a column by mtimeMs descending', async () => {
     const old = makeIndexEntry({
       type: 'work-items', relPath: 'meta/work/0001-old.md', title: 'Old',
-      frontmatter: { type: 'adr-creation-task', status: 'todo' }, mtimeMs: 100,
+      frontmatter: { kind: 'adr-creation-task', status: 'todo' }, mtimeMs: 100,
     })
     const newest = makeIndexEntry({
       type: 'work-items', relPath: 'meta/work/0002-new.md', title: 'Newest',
-      frontmatter: { type: 'adr-creation-task', status: 'todo' }, mtimeMs: 300,
+      frontmatter: { kind: 'adr-creation-task', status: 'todo' }, mtimeMs: 300,
     })
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([old, newest])
     renderKanbanAt()
@@ -232,7 +232,7 @@ describe('KanbanBoard', () => {
       type: 'work-items',
       relPath: 'meta/work/0029-template-management-subcommand-surface.md',
       title: 'Template management',
-      frontmatter: { type: 'adr-creation-task', status: 'done' },
+      frontmatter: { kind: 'adr-creation-task', status: 'done' },
     })
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([entry])
     renderKanbanAt()
@@ -258,11 +258,11 @@ describe('KanbanBoard', () => {
   it('moves a card between columns when the work items query is invalidated (SSE-driven update)', async () => {
     const before = makeIndexEntry({
       type: 'work-items', relPath: 'meta/work/0001-x.md', title: 'Movable',
-      frontmatter: { type: 'adr-creation-task', status: 'todo' },
+      frontmatter: { kind: 'adr-creation-task', status: 'todo' },
     })
     const after = makeIndexEntry({
       type: 'work-items', relPath: 'meta/work/0001-x.md', title: 'Movable',
-      frontmatter: { type: 'adr-creation-task', status: 'done' },
+      frontmatter: { kind: 'adr-creation-task', status: 'done' },
     })
     const fetchSpy = vi.spyOn(fetchModule, 'fetchDocs')
       .mockResolvedValueOnce([before])

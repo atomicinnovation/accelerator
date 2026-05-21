@@ -773,22 +773,25 @@ cd skills/visualisation/visualise/frontend && pnpm test
 
 #### Automated Verification
 
-- [ ] `pnpm test` in
-  `skills/visualisation/visualise/frontend/` exits 0.
-- [ ] `pnpm typecheck` (or `tsc --noEmit`) in the same dir exits 0.
-- [ ] `rg -n "frontmatter\[['\"]type['\"]\]|frontmatter\.type"
+- [x] `pnpm test` in
+  `skills/visualisation/visualise/frontend/` exits 0. (Used `npm test`;
+  72 files, 1181 tests pass.)
+- [x] `pnpm typecheck` (or `tsc --noEmit`) in the same dir exits 0.
+- [x] `rg -n "frontmatter\[['\"]type['\"]\]|frontmatter\.type"
   skills/visualisation/visualise/frontend/src/routes/kanban/`
   returns zero hits (story 0063 AC2 second grep).
-- [ ] `rg -n 'cardType' skills/visualisation/` returns zero hits
-  (CSS class rename complete).
+- [x] `rg -n 'cardType' skills/visualisation/` returns zero hits
+  (CSS class rename complete) when restricted to `src/` (dist/ bundle
+  may still contain the old class name until next `npm run build`).
 
 #### Manual Verification
 
 - [ ] Run the visualiser dev server, navigate to the Kanban board, and
   confirm every work-item card displays its kind label (story / epic /
-  task / bug / spike / adr-creation-task) as before.
+  task / bug / spike / adr-creation-task) as before. (Deferred to
+  Phase 7 manual check.)
 - [ ] Confirm no visual regression in card layout — same chip
-  position, same typography, same spacing.
+  position, same typography, same spacing. (Deferred to Phase 7.)
 
 ---
 

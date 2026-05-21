@@ -24,8 +24,8 @@ export function WorkItemCard({ entry, now }: WorkItemCardProps) {
   const { role: _role, ...sortableAttributes } = attributes
 
   const number = parseWorkItemId(entry.relPath)
-  const fmType = entry.frontmatter['type']
-  const typeLabel = typeof fmType === 'string' && fmType.length > 0 ? fmType : null
+  const fmKind = entry.frontmatter['kind']
+  const kindLabel = typeof fmKind === 'string' && fmKind.length > 0 ? fmKind : null
   const fileSlug = fileSlugFromRelPath(entry.relPath)
   const idChip = number !== null
     ? `#${String(number).padStart(4, '0')}`
@@ -52,7 +52,7 @@ export function WorkItemCard({ entry, now }: WorkItemCardProps) {
           <span className={styles.cardMtime}>{formatMtime(entry.mtimeMs, now)}</span>
         </div>
         <p className={styles.cardTitle}>{entry.title}</p>
-        {typeLabel !== null && <p className={styles.cardType}>{typeLabel}</p>}
+        {kindLabel !== null && <p className={styles.cardKind}>{kindLabel}</p>}
       </Link>
     </li>
   )
