@@ -1,6 +1,6 @@
 ---
 date: [Current date and time with timezone in ISO format]
-researcher: [Git author]
+author: [VCS author]
 git_commit: [Current commit hash]
 branch: [Current branch name]
 repository: [Repository name]
@@ -14,7 +14,7 @@ last_updated_by: [Researcher name]
 # Research: [User's Question/Topic]
 
 **Date**: [Current date and time with timezone from step 4]
-**Researcher**: [Researcher name from thoughts status]
+**Author**: [Author name from VCS]
 **Git Commit**: [Current commit hash from step 4]
 **Branch**: [Current branch name from step 4]
 **Repository**: [Repository name]

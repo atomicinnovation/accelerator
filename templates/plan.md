@@ -2,7 +2,7 @@
 date: "{ISO timestamp}"
 type: plan
 skill: create-plan
-work-item: "{work-item reference, if any}"
+work_item_id: "{work-item reference, if any}"
 status: draft
 ---
 
