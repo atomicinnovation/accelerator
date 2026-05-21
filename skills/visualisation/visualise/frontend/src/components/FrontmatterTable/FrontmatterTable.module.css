@@ -1,5 +1,9 @@
 .table {
-  display: block;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: var(--sp-4);
+  row-gap: var(--sp-1);
+  align-items: baseline;
   margin: 0 0 var(--sp-4);
   padding: var(--sp-3) 14px;
   background: var(--ac-bg-sunken);
@@ -7,17 +11,6 @@
   border-radius: var(--radius-sm);
   font-family: var(--ac-font-mono);
   font-size: var(--size-chip-md);
-}
-
-.row {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: var(--sp-2);
-  align-items: baseline;
-}
-
-.row + .row {
-  margin-top: var(--sp-1);
 }
 
 .key {

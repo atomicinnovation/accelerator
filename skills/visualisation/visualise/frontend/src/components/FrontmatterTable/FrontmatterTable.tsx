@@ -96,23 +96,24 @@ export function FrontmatterTable({
 
   return (
     <dl className={styles.table} aria-label="Document metadata">
-      {entries.map(([key, value]) => (
-        <div key={key} className={styles.row}>
-          <dt className={styles.key}>{key}</dt>
-          <dd
-            className={styles.value}
-            data-empty={isEmpty(value) || undefined}
-          >
-            {isEmpty(value) ? (
-              <span className={styles.empty} aria-hidden="true">
-                —
-              </span>
-            ) : (
-              renderValue(value, resolveWikiLink, bareIdPattern)
-            )}
-          </dd>
-        </div>
-      ))}
+      {entries.flatMap(([key, value]) => [
+        <dt key={`${key}-k`} className={styles.key}>
+          {key}
+        </dt>,
+        <dd
+          key={`${key}-v`}
+          className={styles.value}
+          data-empty={isEmpty(value) || undefined}
+        >
+          {isEmpty(value) ? (
+            <span className={styles.empty} aria-hidden="true">
+              —
+            </span>
+          ) : (
+            renderValue(value, resolveWikiLink, bareIdPattern)
+          )}
+        </dd>,
+      ])}
     </dl>
   )
 }
