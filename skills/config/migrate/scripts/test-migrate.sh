@@ -1451,4 +1451,571 @@ assert_eq "byte-identical" "$HASH1" "$HASH2"
 
 echo ""
 
+# ════════════════════════════════════════════════════════════════════════════
+echo "=== Migration 0006: canonicalise work-item -> work_item_id; researcher -> author ==="
+echo ""
+
+FIXTURE_0006="$SCRIPT_DIR/test-fixtures/0006"
+MIGRATION_0006="$MIGRATIONS_DIR/0006-canonicalise-work-item-id-and-author.sh"
+
+ONLY_0006_DIR="$TMPDIR_BASE/only-0006-migrations"
+mkdir -p "$ONLY_0006_DIR"
+cp "$MIGRATION_0006" "$ONLY_0006_DIR/"
+
+setup_0006_repo() {
+  local scenario="$1"
+  local repo_dir
+  repo_dir=$(mktemp -d "$TMPDIR_BASE/repo-0006-XXXXXX")
+  cp -R "$FIXTURE_0006/$scenario/." "$repo_dir/"
+  echo "$repo_dir"
+}
+
+run_0006_driver() {
+  local repo="$1"; shift
+  (
+    cd "$repo" && \
+    CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    ACCELERATOR_MIGRATIONS_DIR="$ONLY_0006_DIR" \
+    ACCELERATOR_MIGRATE_FORCE=1 \
+      bash "$DRIVER" "$@" 2>&1
+  )
+}
+
+# Convenience: split combined stdout+stderr by capturing them separately.
+run_0006_driver_split() {
+  local repo="$1"; shift
+  local stdout_file="$1"; shift
+  local stderr_file="$1"; shift
+  (
+    cd "$repo" && \
+    CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    ACCELERATOR_MIGRATIONS_DIR="$ONLY_0006_DIR" \
+    ACCELERATOR_MIGRATE_FORCE=1 \
+      bash "$DRIVER" "$@" >"$stdout_file" 2>"$stderr_file"
+  )
+}
+
+# ── default-layout ────────────────────────────────────────────────────────
+echo "Test: default-layout — clean rename across all three corpora"
+REPO=$(setup_0006_repo default-layout)
+RC=0
+OUTPUT=$(run_0006_driver "$REPO") || RC=$?
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+RESEARCH="$REPO/meta/research/codebase/2026-01-01-foo.md"
+RCA="$REPO/meta/research/issues/2026-01-02-bar.md"
+assert_contains "plan has work_item_id" "$(cat "$PLAN")" 'work_item_id: "0042"'
+assert_not_contains "plan no work-item:" "$(cat "$PLAN")" 'work-item:'
+assert_contains "research has author:" "$(cat "$RESEARCH")" "author: Toby Clemson"
+assert_contains "research has **Author**:" "$(cat "$RESEARCH")" "**Author**: Toby Clemson"
+assert_not_contains "research no researcher:" "$(cat "$RESEARCH")" "researcher:"
+assert_not_contains "research no **Researcher**:" "$(cat "$RESEARCH")" "**Researcher**:"
+assert_contains "RCA has author:" "$(cat "$RCA")" "author: Toby Clemson"
+assert_contains "RCA has **Author**:" "$(cat "$RCA")" "**Author**: Toby Clemson"
+assert_not_contains "RCA no researcher:" "$(cat "$RCA")" "researcher:"
+assert_contains "stdout reports plans rewrite" "$OUTPUT" "0006: rewrote 1 file(s) under meta/plans"
+assert_contains "stdout reports research_codebase rewrite" "$OUTPUT" "0006: rewrote 1 file(s) under meta/research/codebase"
+assert_contains "stdout reports research_issues rewrite" "$OUTPUT" "0006: rewrote 1 file(s) under meta/research/issues"
+
+echo ""
+
+# ── unquoted-work-item ────────────────────────────────────────────────────
+echo "Test: unquoted-work-item — value normalised to double-quoted"
+REPO=$(setup_0006_repo unquoted-work-item)
+RC=0
+OUTPUT=$(run_0006_driver "$REPO") || RC=$?
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+assert_contains "value quoted" "$(cat "$PLAN")" 'work_item_id: "0042"'
+assert_contains "stdout reports 1 rewrite" "$OUTPUT" "0006: rewrote 1 file(s) under meta/plans"
+
+echo ""
+
+# ── single-quoted-work-item ───────────────────────────────────────────────
+echo "Test: single-quoted-work-item — re-wrapped as double-quoted"
+REPO=$(setup_0006_repo single-quoted-work-item)
+RC=0
+run_0006_driver "$REPO" >/dev/null || RC=$?
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+assert_contains "double-quoted value" "$(cat "$PLAN")" 'work_item_id: "0042"'
+
+echo ""
+
+# ── no-whitespace-work-item ───────────────────────────────────────────────
+echo "Test: no-whitespace-work-item — colon-no-space handled"
+REPO=$(setup_0006_repo no-whitespace-work-item)
+RC=0
+run_0006_driver "$REPO" >/dev/null || RC=$?
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+assert_contains "canonical form" "$(cat "$PLAN")" 'work_item_id: "0042"'
+
+echo ""
+
+# ── inline-comment-work-item ──────────────────────────────────────────────
+echo "Test: inline-comment-work-item — REFUSED, line preserved, stderr warns"
+REPO=$(setup_0006_repo inline-comment-work-item)
+RC=0
+STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
+STDOUT=$(cat "$STDOUT_FILE"); STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDOUT_FILE" "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+assert_contains "legacy line preserved" "$(cat "$PLAN")" "work-item: 0042 # see TRELLO-91"
+assert_contains "stderr REFUSE warning" "$STDERR" "0006-REFUSE"
+
+# Three-run idempotence
+HASH1=$(tree_hash "$REPO/meta")
+run_0006_driver "$REPO" >/dev/null 2>&1 || true
+HASH2=$(tree_hash "$REPO/meta")
+run_0006_driver "$REPO" >/dev/null 2>&1 || true
+HASH3=$(tree_hash "$REPO/meta")
+assert_eq "refused idempotent run 2" "$HASH1" "$HASH2"
+assert_eq "refused idempotent run 3" "$HASH2" "$HASH3"
+
+echo ""
+
+# ── embedded-quote-work-item ──────────────────────────────────────────────
+echo "Test: embedded-quote-work-item — REFUSED, line preserved, stderr warns"
+REPO=$(setup_0006_repo embedded-quote-work-item)
+RC=0
+STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+assert_contains "legacy line preserved" "$(cat "$PLAN")" 'work-item: foo"bar'
+assert_contains "stderr REFUSE warning" "$STDERR" "0006-REFUSE"
+HASH1=$(tree_hash "$REPO/meta")
+run_0006_driver "$REPO" >/dev/null 2>&1 || true
+HASH2=$(tree_hash "$REPO/meta")
+assert_eq "refused idempotent" "$HASH1" "$HASH2"
+
+echo ""
+
+# ── trailing-whitespace-work-item ─────────────────────────────────────────
+echo "Test: trailing-whitespace-work-item — whitespace stripped, no false refuse"
+REPO=$(setup_0006_repo trailing-whitespace-work-item)
+RC=0
+STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+PLAN_LINE=$(grep '^work_item_id:' "$PLAN" || true)
+assert_eq "exact canonical line" 'work_item_id: "0042"' "$PLAN_LINE"
+assert_not_contains "no REFUSE for quoted-with-trailing-ws" "$STDERR" "0006-REFUSE"
+
+echo ""
+
+# ── empty-work-item-value ─────────────────────────────────────────────────
+echo "Test: empty-work-item-value — empty preserved as 'work_item_id:'"
+REPO=$(setup_0006_repo empty-work-item-value)
+RC=0
+run_0006_driver "$REPO" >/dev/null || RC=$?
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+PLAN_LINE=$(grep -E '^work_item_id:' "$PLAN" || true)
+assert_eq "empty preserved verbatim" "work_item_id:" "$PLAN_LINE"
+
+echo ""
+
+# ── empty-work-item-value-trailing-ws ─────────────────────────────────────
+echo "Test: empty-work-item-value-trailing-ws — trailing ws stripped"
+REPO=$(setup_0006_repo empty-work-item-value-trailing-ws)
+RC=0
+run_0006_driver "$REPO" >/dev/null || RC=$?
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+PLAN_LINE=$(grep -E '^work_item_id:' "$PLAN" || true)
+assert_eq "empty no trailing ws" "work_item_id:" "$PLAN_LINE"
+
+echo ""
+
+# ── mixed-plan-shapes ─────────────────────────────────────────────────────
+echo "Test: mixed-plan-shapes — AC #6 invariant across directory"
+REPO=$(setup_0006_repo mixed-plan-shapes)
+RC=0
+OUTPUT=$(run_0006_driver "$REPO") || RC=$?
+assert_eq "exit 0" "0" "$RC"
+NON_QUOTED=$(grep -rE '^work_item_id: [^"]' "$REPO/meta/plans" | grep -v '^[^:]*:work_item_id:$' || true)
+# Filter: only count those where value is non-quoted AND non-empty
+NON_QUOTED_FILTERED=$(grep -rE '^work_item_id: [^"]' "$REPO/meta/plans" || true)
+assert_eq "no unquoted non-empty work_item_id values" "" "$NON_QUOTED_FILTERED"
+assert_contains "stdout reports 3 rewrites" "$OUTPUT" "0006: rewrote 3 file(s) under meta/plans"
+
+echo ""
+
+# ── partial-prior-run-plan (matching) ─────────────────────────────────────
+echo "Test: partial-prior-run-plan — stale work-item dropped, no warn"
+REPO=$(setup_0006_repo partial-prior-run-plan)
+RC=0
+STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+WIID_LINES=$(grep -c '^work_item_id:' "$PLAN" || true)
+assert_eq "exactly one work_item_id" "1" "$WIID_LINES"
+assert_not_contains "no work-item line" "$(cat "$PLAN")" "work-item:"
+assert_not_contains "no DIVERGE warning" "$STDERR" "0006-DIVERGE"
+
+echo ""
+
+# ── partial-prior-run-plan-unquoted ───────────────────────────────────────
+echo "Test: partial-prior-run-plan-unquoted — survivor normalised to quoted"
+REPO=$(setup_0006_repo partial-prior-run-plan-unquoted)
+RC=0
+STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+PLAN_LINE=$(grep '^work_item_id:' "$PLAN" || true)
+assert_eq "canonical quoted form" 'work_item_id: "0042"' "$PLAN_LINE"
+assert_not_contains "no DIVERGE warning" "$STDERR" "0006-DIVERGE"
+
+echo ""
+
+# ── partial-prior-run-plan-divergent ──────────────────────────────────────
+echo "Test: partial-prior-run-plan-divergent — work_item_id wins; stderr warns"
+REPO=$(setup_0006_repo partial-prior-run-plan-divergent)
+RC=0
+STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+assert_contains "work_item_id 0099 remains" "$(cat "$PLAN")" 'work_item_id: "0099"'
+assert_not_contains "no work-item line" "$(cat "$PLAN")" "work-item:"
+assert_contains "DIVERGE warning fired" "$STDERR" "0006-DIVERGE"
+
+echo ""
+
+# ── partial-prior-run-plan-refused-shape ──────────────────────────────────
+echo "Test: partial-prior-run-plan-refused-shape — refused legacy preserved"
+REPO=$(setup_0006_repo partial-prior-run-plan-refused-shape)
+RC=0
+STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+assert_contains "refused legacy line preserved" "$(cat "$PLAN")" "work-item: 0042 # note"
+assert_contains "canonical line preserved" "$(cat "$PLAN")" 'work_item_id: "0042"'
+assert_contains "stderr REFUSE warning" "$STDERR" "0006-REFUSE"
+
+echo ""
+
+# ── partial-prior-run-research ────────────────────────────────────────────
+echo "Test: partial-prior-run-research — stale researcher dropped, no warn"
+REPO=$(setup_0006_repo partial-prior-run-research)
+RC=0
+STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+R="$REPO/meta/research/codebase/2026-01-01-foo.md"
+A_LINES=$(grep -c '^author:' "$R" || true)
+assert_eq "exactly one author" "1" "$A_LINES"
+assert_not_contains "no researcher line" "$(cat "$R")" "researcher:"
+assert_not_contains "no DIVERGE warning" "$STDERR" "0006-DIVERGE"
+
+echo ""
+
+# ── partial-prior-run-research-divergent ──────────────────────────────────
+echo "Test: partial-prior-run-research-divergent — author wins; stderr warns"
+REPO=$(setup_0006_repo partial-prior-run-research-divergent)
+RC=0
+STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+R="$REPO/meta/research/codebase/2026-01-01-foo.md"
+assert_contains "author B remains" "$(cat "$R")" "author: B"
+assert_not_contains "no researcher line" "$(cat "$R")" "researcher:"
+assert_contains "stderr DIVERGE warning" "$STDERR" "0006-DIVERGE"
+
+echo ""
+
+# ── partial-prior-run-body-label (matching) ───────────────────────────────
+echo "Test: partial-prior-run-body-label — stale **Researcher** dropped"
+REPO=$(setup_0006_repo partial-prior-run-body-label)
+RC=0
+STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+R="$REPO/meta/research/codebase/2026-01-01-foo.md"
+assert_not_contains "no **Researcher** line" "$(cat "$R")" "**Researcher**:"
+assert_contains "**Author** line" "$(cat "$R")" "**Author**: Toby"
+assert_not_contains "no DIVERGE warning" "$STDERR" "0006-DIVERGE"
+
+echo ""
+
+# ── partial-prior-run-body-label-divergent ────────────────────────────────
+echo "Test: partial-prior-run-body-label-divergent — **Author** wins, warns"
+REPO=$(setup_0006_repo partial-prior-run-body-label-divergent)
+RC=0
+STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+R="$REPO/meta/research/codebase/2026-01-01-foo.md"
+assert_contains "**Author** B remains" "$(cat "$R")" "**Author**: B"
+assert_not_contains "no **Researcher** line" "$(cat "$R")" "**Researcher**:"
+assert_contains "stderr DIVERGE warning" "$STDERR" "0006-DIVERGE"
+
+echo ""
+
+# ── body-label-multiple ───────────────────────────────────────────────────
+echo "Test: body-label-multiple — only pre-H2 occurrence rewritten"
+REPO=$(setup_0006_repo body-label-multiple)
+RC=0
+run_0006_driver "$REPO" >/dev/null || RC=$?
+assert_eq "exit 0" "0" "$RC"
+R="$REPO/meta/research/codebase/2026-01-01-foo.md"
+AUTHOR_LINES=$(grep -c '^\*\*Author\*\*:' "$R" || true)
+RESEARCHER_LINES=$(grep -c '^\*\*Researcher\*\*:' "$R" || true)
+assert_eq "exactly one **Author**" "1" "$AUTHOR_LINES"
+assert_eq "exactly one **Researcher** preserved (in code block)" "1" "$RESEARCHER_LINES"
+
+echo ""
+
+# ── body-label-anchored-no-h2 ─────────────────────────────────────────────
+echo "Test: body-label-anchored-no-h2 — rewrite happens with no H2"
+REPO=$(setup_0006_repo body-label-anchored-no-h2)
+RC=0
+run_0006_driver "$REPO" >/dev/null || RC=$?
+assert_eq "exit 0" "0" "$RC"
+R="$REPO/meta/research/codebase/2026-01-01-foo.md"
+assert_contains "**Author** present" "$(cat "$R")" "**Author**: Toby"
+assert_not_contains "no **Researcher**" "$(cat "$R")" "**Researcher**:"
+
+echo ""
+
+# ── body-label-quoted-prose-pre-h2 ────────────────────────────────────────
+echo "Test: body-label-quoted-prose-pre-h2 — both pre-H2 occurrences rewritten"
+REPO=$(setup_0006_repo body-label-quoted-prose-pre-h2)
+RC=0
+run_0006_driver "$REPO" >/dev/null || RC=$?
+assert_eq "exit 0" "0" "$RC"
+R="$REPO/meta/research/codebase/2026-01-01-foo.md"
+AUTHOR_LINES=$(grep -c '^\*\*Author\*\*:' "$R" || true)
+assert_eq "both occurrences rewritten" "2" "$AUTHOR_LINES"
+assert_not_contains "no **Researcher** line" "$(cat "$R")" "**Researcher**:"
+
+echo ""
+
+# ── frontmatter-missing-fence ─────────────────────────────────────────────
+echo "Test: frontmatter-missing-fence — no rewrite, MALFORMED warning"
+REPO=$(setup_0006_repo frontmatter-missing-fence)
+RC=0
+OUTPUT=$(run_0006_driver "$REPO") || RC=$?
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/meta/plans/0001-foo.md"
+assert_contains "legacy line preserved" "$(cat "$PLAN")" "work-item: \"0001\""
+assert_contains "MALFORMED warning" "$OUTPUT" "0006-MALFORMED"
+assert_contains "reports 0 rewrites" "$OUTPUT" "0006: rewrote 0 file(s) under meta/plans"
+
+echo ""
+
+# ── paths-override-plans ──────────────────────────────────────────────────
+echo "Test: paths-override-plans — docs/plans honoured"
+REPO=$(setup_0006_repo paths-override-plans)
+RC=0
+OUTPUT=$(run_0006_driver "$REPO") || RC=$?
+assert_eq "exit 0" "0" "$RC"
+PLAN="$REPO/docs/plans/0001-foo.md"
+assert_contains "rewrite at override path" "$(cat "$PLAN")" 'work_item_id: "0001"'
+assert_dir_not_exists "meta/plans not created" "$REPO/meta/plans"
+assert_contains "stdout reports docs/plans" "$OUTPUT" "0006: rewrote 1 file(s) under docs/plans"
+
+echo ""
+
+# ── paths-override-research-codebase ──────────────────────────────────────
+echo "Test: paths-override-research-codebase — docs/research honoured"
+REPO=$(setup_0006_repo paths-override-research-codebase)
+RC=0
+OUTPUT=$(run_0006_driver "$REPO") || RC=$?
+assert_eq "exit 0" "0" "$RC"
+R="$REPO/docs/research/2026-01-01.md"
+assert_contains "author at override" "$(cat "$R")" "author: Toby"
+assert_contains "stdout reports docs/research" "$OUTPUT" "0006: rewrote 1 file(s) under docs/research"
+
+echo ""
+
+# ── paths-override-research-issues ────────────────────────────────────────
+echo "Test: paths-override-research-issues — docs/rca honoured"
+REPO=$(setup_0006_repo paths-override-research-issues)
+RC=0
+OUTPUT=$(run_0006_driver "$REPO") || RC=$?
+assert_eq "exit 0" "0" "$RC"
+R="$REPO/docs/rca/2026-01-02.md"
+assert_contains "author at override" "$(cat "$R")" "author: Toby"
+assert_contains "stdout reports docs/rca" "$OUTPUT" "0006: rewrote 1 file(s) under docs/rca"
+
+echo ""
+
+# ── paths-missing-plans ───────────────────────────────────────────────────
+echo "Test: paths-missing-plans — missing dir warns; exit 0"
+REPO=$(setup_0006_repo paths-missing-plans)
+RC=0
+OUTPUT=$(run_0006_driver "$REPO") || RC=$?
+assert_eq "exit 0" "0" "$RC"
+assert_contains "missing-dir warning" "$OUTPUT" "plans directory does not exist"
+assert_contains "reports 0 rewrites" "$OUTPUT" "0006: rewrote 0 file(s) under docs/typo-plans"
+APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_contains "migration recorded" "$APPLIED" "0006-canonicalise-work-item-id-and-author"
+
+echo ""
+
+# ── empty-research-issues ─────────────────────────────────────────────────
+echo "Test: empty-research-issues — exit 0; zero rewrites; no changes"
+REPO=$(setup_0006_repo empty-research-issues)
+RC=0
+OUTPUT=$(run_0006_driver "$REPO") || RC=$?
+assert_eq "exit 0" "0" "$RC"
+assert_contains "research_issues 0 rewrites" "$OUTPUT" "0006: rewrote 0 file(s) under meta/research/issues"
+
+echo ""
+
+# ── template-override-tier2-plan ──────────────────────────────────────────
+echo "Test: template-override-tier2-plan — tier-2 plan template rewritten"
+REPO=$(setup_0006_repo template-override-tier2-plan)
+RC=0
+run_0006_driver "$REPO" >/dev/null || RC=$?
+assert_eq "exit 0" "0" "$RC"
+T="$REPO/.accelerator/templates/plan.md"
+assert_contains "tier-2 plan rewritten" "$(cat "$T")" 'work_item_id: "{work-item reference, if any}"'
+assert_not_contains "no work-item: key" "$(cat "$T")" "^work-item:"
+
+echo ""
+
+# ── template-override-tier2-research ──────────────────────────────────────
+echo "Test: template-override-tier2-research — tier-2 research template rewritten"
+REPO=$(setup_0006_repo template-override-tier2-research)
+RC=0
+run_0006_driver "$REPO" >/dev/null || RC=$?
+assert_eq "exit 0" "0" "$RC"
+T="$REPO/.accelerator/templates/codebase-research.md"
+assert_contains "author key" "$(cat "$T")" "author: [Git author]"
+assert_contains "**Author** label" "$(cat "$T")" "**Author**: [Researcher name]"
+assert_not_contains "no researcher key" "$(cat "$T")" "researcher:"
+
+echo ""
+
+# ── template-override-tier2-rca ───────────────────────────────────────────
+echo "Test: template-override-tier2-rca — tier-2 rca template rewritten"
+REPO=$(setup_0006_repo template-override-tier2-rca)
+RC=0
+run_0006_driver "$REPO" >/dev/null || RC=$?
+assert_eq "exit 0" "0" "$RC"
+T="$REPO/.accelerator/templates/rca.md"
+assert_contains "author key" "$(cat "$T")" "author: [Git author]"
+assert_contains "**Author** label" "$(cat "$T")" "**Author**: [Researcher name]"
+assert_not_contains "no researcher key" "$(cat "$T")" "researcher:"
+
+echo ""
+
+# ── template-override-tier1 ───────────────────────────────────────────────
+echo "Test: template-override-tier1 — tier-1 template at custom path rewritten"
+REPO=$(setup_0006_repo template-override-tier1)
+RC=0
+run_0006_driver "$REPO" >/dev/null || RC=$?
+assert_eq "exit 0" "0" "$RC"
+T="$REPO/custom/templates/my-plan.md"
+assert_contains "tier-1 rewritten" "$(cat "$T")" "work_item_id:"
+
+echo ""
+
+# ── template-override-both-tiers ──────────────────────────────────────────
+echo "Test: template-override-both-tiers — only tier-1 rewritten"
+REPO=$(setup_0006_repo template-override-both-tiers)
+RC=0
+run_0006_driver "$REPO" >/dev/null || RC=$?
+assert_eq "exit 0" "0" "$RC"
+T1="$REPO/custom/templates/my-plan.md"
+T2="$REPO/.accelerator/templates/plan.md"
+assert_contains "tier-1 rewritten" "$(cat "$T1")" "work_item_id:"
+assert_contains "tier-2 untouched" "$(cat "$T2")" 'work-item: "{ref}"'
+
+echo ""
+
+# ── template-override-tier1-missing-file ──────────────────────────────────
+echo "Test: template-override-tier1-missing-file — warn + no fallthrough"
+REPO=$(setup_0006_repo template-override-tier1-missing-file)
+RC=0
+OUTPUT=$(run_0006_driver "$REPO") || RC=$?
+assert_eq "exit 0" "0" "$RC"
+assert_contains "missing-file warning" "$OUTPUT" "templates.plan points at missing file"
+T2="$REPO/.accelerator/templates/plan.md"
+assert_contains "tier-2 NOT rewritten" "$(cat "$T2")" 'work-item: "{ref}"'
+
+echo ""
+
+# ── template-override-missing ─────────────────────────────────────────────
+echo "Test: template-override-missing — exit 0, no error, no warning"
+REPO=$(setup_0006_repo template-override-missing)
+RC=0
+STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+# Stderr may contain other framework messages, but no 0006 warnings about templates
+assert_not_contains "no templates.plan warning" "$STDERR" "templates.plan"
+
+echo ""
+
+# ── paths-alias-research ──────────────────────────────────────────────────
+echo "Test: paths-alias-research — dedup; rewrite once"
+REPO=$(setup_0006_repo paths-alias-research)
+RC=0
+OUTPUT=$(run_0006_driver "$REPO") || RC=$?
+assert_eq "exit 0" "0" "$RC"
+R="$REPO/docs/research/2026-01-01.md"
+A_LINES=$(grep -c '^author:' "$R" || true)
+assert_eq "exactly one author line" "1" "$A_LINES"
+assert_contains "alias warning" "$OUTPUT" "aliases paths."
+assert_contains "reports skip" "$OUTPUT" "skipping duplicate walk"
+
+echo ""
+
+# ── template-alias ────────────────────────────────────────────────────────
+echo "Test: template-alias — dedup; rewrite once; warn"
+REPO=$(setup_0006_repo template-alias)
+RC=0
+STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
+STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+assert_eq "exit 0" "0" "$RC"
+T="$REPO/.accelerator/templates/shared.md"
+WIID=$(grep -c '^work_item_id:' "$T" || true)
+AUTHOR=$(grep -c '^author:' "$T" || true)
+assert_eq "exactly one work_item_id" "1" "$WIID"
+assert_eq "exactly one author" "1" "$AUTHOR"
+assert_contains "template alias warning" "$STDERR" "resolve to the same file"
+
+echo ""
+
+# ── idempotent ────────────────────────────────────────────────────────────
+echo "Test: idempotent — three runs byte-identical"
+REPO=$(setup_0006_repo default-layout)
+run_0006_driver "$REPO" >/dev/null 2>&1
+HASH1=$(tree_hash "$REPO/meta")
+RC=0
+run_0006_driver "$REPO" >/dev/null 2>&1 || RC=$?
+HASH2=$(tree_hash "$REPO/meta")
+assert_eq "second-run exit 0" "0" "$RC"
+assert_eq "second-run byte-identical" "$HASH1" "$HASH2"
+RC=0
+run_0006_driver "$REPO" >/dev/null 2>&1 || RC=$?
+HASH3=$(tree_hash "$REPO/meta")
+assert_eq "third-run exit 0" "0" "$RC"
+assert_eq "third-run byte-identical" "$HASH2" "$HASH3"
+
+echo ""
+
 test_summary

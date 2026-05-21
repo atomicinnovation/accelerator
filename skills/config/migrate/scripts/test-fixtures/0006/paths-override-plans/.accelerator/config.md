@@ -1,0 +1,4 @@
+---
+paths:
+  plans: docs/plans
+---
