@@ -24,7 +24,7 @@
 }
 
 .value {
-  color: var(--ac-fg-strong);
+  color: var(--ac-fg);
   margin: 0;
   overflow-wrap: break-word;
 }
