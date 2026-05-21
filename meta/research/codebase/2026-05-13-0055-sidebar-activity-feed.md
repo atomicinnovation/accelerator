@@ -1,6 +1,6 @@
 ---
 date: "2026-05-13T09:15:21+01:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 99c29ca35498adbe72fafec97a68216d6ebf6fde
 branch: yptuuowrwpqzxxzrvvzmqpxwsnrtpkkt
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Educate implementation of 0055 — Sidebar Activity Feed and SSE Action Discriminator
 
 **Date**: 2026-05-13 09:15:21 BST
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: `99c29ca35498adbe72fafec97a68216d6ebf6fde`
 **Branch**: anonymous change `yptuuowrwpqzxxzrvvzmqpxwsnrtpkkt` (on top of `main`)
 **Repository**: accelerator (workspace `visualisation-system`)

@@ -2,7 +2,7 @@
 date: "2026-05-18T18:30:00+01:00"
 type: plan
 skill: create-plan
-work-item: "meta/work/0072-playwright-daemon-cjs-import-bug.md"
+work_item_id: "meta/work/0072-playwright-daemon-cjs-import-bug.md"
 status: approved
 ---
 

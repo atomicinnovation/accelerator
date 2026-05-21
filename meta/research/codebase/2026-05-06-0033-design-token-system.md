@@ -1,6 +1,6 @@
 ---
 date: "2026-05-06T17:19:01+01:00"
-researcher: "Toby Clemson"
+author: "Toby Clemson"
 git_commit: "bf60483a3af7e1519824704cb04cdca995bc2a70"
 branch: "HEAD"
 repository: "accelerator"
@@ -14,7 +14,7 @@ last_updated_by: "Toby Clemson"
 # Research: Implementation of work item 0033 — Design Token System
 
 **Date**: 2026-05-06T17:19:01+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: bf60483a3af7e1519824704cb04cdca995bc2a70
 **Branch**: HEAD
 **Repository**: accelerator (workspaces/visualisation-system)

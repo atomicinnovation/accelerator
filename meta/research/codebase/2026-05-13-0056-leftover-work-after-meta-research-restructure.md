@@ -1,6 +1,6 @@
 ---
 date: "2026-05-13T09:29:26+01:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 99c29ca35498adbe72fafec97a68216d6ebf6fde
 branch: main
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Leftover work / issues after meta directory restructure (0056)
 
 **Date**: 2026-05-13 09:29:26 BST
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 99c29ca35498adbe72fafec97a68216d6ebf6fde
 **Branch**: main
 **Repository**: accelerator

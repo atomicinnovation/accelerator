@@ -2,7 +2,7 @@
 date: "2026-05-05T07:17:16+00:00"
 type: plan
 skill: create-plan
-work-item: "meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md"
+work_item_id: "meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md"
 status: complete
 ---
 

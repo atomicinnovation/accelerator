@@ -1,6 +1,6 @@
 ---
 date: "2026-04-08T01:21:36+01:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 508ca24b973d8c742e52e829c557f0c62f81076d
 branch: ticket-management
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Product Management and Requirements Gathering Skills
 
 **Date**: 2026-04-08T01:21:36+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 508ca24b973d8c742e52e829c557f0c62f81076d
 **Branch**: ticket-management
 **Repository**: accelerator

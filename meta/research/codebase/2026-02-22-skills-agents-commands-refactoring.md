@@ -1,6 +1,6 @@
 ---
 date: 2026-02-22T19:05:56+0000
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: N/A
 branch: N/A
 repository: ~/.claude (Claude Code configuration)
@@ -15,7 +15,7 @@ last_updated_note: "Revised to path-passing pattern; added skills vs agents capa
 # Research: Skills, Agents, and Commands Refactoring
 
 **Date**: 2026-02-22T19:05:56+0000
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Repository**: ~/.claude (Claude Code configuration)
 
 ## Research Question

@@ -1,6 +1,6 @@
 ---
 date: "2026-04-27T09:44:53+01:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 6947ac9f1b3d2429623df1d008cc38578bbde52f
 branch: ticket-management
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Extending `create-work-item` to Accept an Existing Work Item
 
 **Date**: 2026-04-27T09:44:53+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 6947ac9f1b3d2429623df1d008cc38578bbde52f
 **Branch**: ticket-management
 **Repository**: accelerator

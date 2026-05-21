@@ -1,6 +1,6 @@
 ---
 date: "2026-05-08T01:08:36+01:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 7dab2df48e6016dd4fe9b3a807193000432ea002
 branch: HEAD
 repository: accelerator
@@ -15,7 +15,7 @@ last_updated_note: "Corrected: workspaces/ is jj workspace checkouts, not source
 # Research: Implementation of work item 0030 — centralise PATH and TEMPLATE config arrays
 
 **Date**: 2026-05-08 01:08 BST
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 7dab2df48e6016dd4fe9b3a807193000432ea002
 **Branch**: HEAD
 **Repository**: accelerator

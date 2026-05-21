@@ -2,7 +2,7 @@
 date: "2026-05-06T18:00:00+01:00"
 type: plan
 skill: create-plan
-work-item: "meta/work/0033-design-token-system.md"
+work_item_id: "meta/work/0033-design-token-system.md"
 status: draft
 ---
 

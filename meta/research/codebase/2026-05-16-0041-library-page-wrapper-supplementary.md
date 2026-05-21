@@ -1,6 +1,6 @@
 ---
 date: 2026-05-16T08:44:14+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 60812eb5fda5696e4b71499da7f36545027ae2fb
 branch: HEAD (jj change stlzowrnoslm; main at f5c54374)
 repository: accelerator
@@ -16,7 +16,7 @@ extends: "meta/research/codebase/2026-05-15-0041-library-page-wrapper-and-overvi
 # Research: Work Item 0041 — Supplementary Findings
 
 **Date**: 2026-05-16T08:44:14+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 60812eb5fda5696e4b71499da7f36545027ae2fb
 **Branch**: HEAD (jj change `stlzowrnoslm`; `main` at `f5c54374`)
 **Repository**: accelerator (visualisation-system workspace)

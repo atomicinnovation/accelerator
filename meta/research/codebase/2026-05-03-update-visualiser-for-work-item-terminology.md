@@ -1,6 +1,6 @@
 ---
 date: "2026-05-03T14:44:01+01:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 4c47a7a65115d4991f1b8886036d864593973a61
 branch: visualisation-system (jj workspace, change pwzplnxyxyok)
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Updating the visualiser to support work-item terminology
 
 **Date**: 2026-05-03 14:44 BST
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: `4c47a7a65115d4991f1b8886036d864593973a61`
 **Branch**: `visualisation-system` jj workspace (change `pwzplnxyxyok`)
 **Repository**: `accelerator` (workspaces/visualisation-system)

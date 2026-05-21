@@ -2,7 +2,7 @@
 date: "2026-05-21T20:30:00+01:00"
 type: plan
 skill: create-plan
-work-item: "meta/work/0064-canonicalise-work-item-id-and-author-fields.md"
+work_item_id: "meta/work/0064-canonicalise-work-item-id-and-author-fields.md"
 status: accepted
 ---
 

@@ -1,6 +1,6 @@
 ---
 date: "2026-03-28T21:49:56+0000"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 508ca24b973d8c742e52e829c557f0c62f81076d
 branch: main
 repository: accelerator
@@ -15,7 +15,7 @@ last_updated_note: "Added analysis of review-pr ephemeral file placement problem
 # Research: Initialise Skill — Codebase Analysis and Requirements
 
 **Date**: 2026-03-28T21:49:56+0000
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 508ca24b973d8c742e52e829c557f0c62f81076d
 **Branch**: main
 **Repository**: accelerator

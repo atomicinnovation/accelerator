@@ -2,7 +2,7 @@
 date: "2026-05-08T19:00:00+01:00"
 type: plan
 skill: create-plan
-work-item: "meta/work/0034-theme-and-font-mode-toggles.md"
+work_item_id: "meta/work/0034-theme-and-font-mode-toggles.md"
 status: draft
 ---
 

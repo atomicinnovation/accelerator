@@ -1,6 +1,6 @@
 ---
 date: 2026-05-02T23:37:50+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: ae21ddf823b5777728ae649e038feab98d88d5ae
 branch: main
 repository: accelerator
@@ -15,7 +15,7 @@ last_updated_note: "Revised inventory storage to directory-per-inventory so scre
 # Research: Design Convergence Workflow — Inventory-and-Diff Approach
 
 **Date**: 2026-05-02T23:37:50+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: ae21ddf823b5777728ae649e038feab98d88d5ae
 **Branch**: main
 **Repository**: accelerator

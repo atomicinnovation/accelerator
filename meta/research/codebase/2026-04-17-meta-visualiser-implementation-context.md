@@ -1,6 +1,6 @@
 ---
 date: "2026-04-17T17:15:00+01:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 9f076a60
 branch: visualisation-system
 repository: accelerator (visualisation-system workspace)
@@ -15,7 +15,7 @@ last_updated_note: "Later on 2026-04-18: revised the 'Major gaps' framing — ga
 # Research: Meta visualiser v1 — implementation context and phasing
 
 **Date**: 2026-04-17 17:15 BST
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: `9f076a60` (working copy, atop `17f65bf main — 1.19.0-pre.2`)
 **Branch**: `visualisation-system` (jj bookmark)
 **Repository**: `accelerator` plugin (working inside the
@@ -1421,7 +1421,7 @@ No remaining blockers for implementation planning.
 ## Follow-up research 2026-04-18 — consistency and gap analysis
 
 **Date**: 2026-04-18 09:52 BST
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: `17f65bff` (working copy atop `17f65bf main — 1.19.0-pre.2`)
 **Trigger**: After several rounds of heavy edits — re-assess whether the document still hangs together against the spec at `meta/specs/2026-04-17-meta-visualisation-design.md` and flag any major gaps.
 

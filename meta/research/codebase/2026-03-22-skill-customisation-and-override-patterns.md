@@ -1,6 +1,6 @@
 ---
 date: "2026-03-22T21:09:57+0000"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 662188f6f566501718337baf446305a48783f69c
 branch: main
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Skill Customisation and Override Patterns for Claude Code Plugins
 
 **Date**: 2026-03-22T21:09:57+0000
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 662188f6f566501718337baf446305a48783f69c
 **Branch**: main
 **Repository**: accelerator

@@ -1,6 +1,6 @@
 ---
 date: 2026-05-06T14:41:55+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: bf60483a3af7e1519824704cb04cdca995bc2a70
 branch: (detached HEAD; main = 45bb6b46 "Bump version to 1.21.0-pre.15")
 repository: accelerator
@@ -15,7 +15,7 @@ last_updated_note: "Added Decisions section recording approach for both issues a
 # Research: inventory-design UAT issues — http://localhost rejection and Playwright MCP sub-agent hallucination
 
 **Date**: 2026-05-06T14:41:55+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: bf60483a3af7e1519824704cb04cdca995bc2a70
 **Branch**: detached HEAD (main at 45bb6b46)
 **Repository**: accelerator

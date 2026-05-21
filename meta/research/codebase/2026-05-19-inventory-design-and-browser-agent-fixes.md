@@ -1,6 +1,6 @@
 ---
 date: 2026-05-19T08:56:33+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: ee201256c147a4f4e8b8f7427f9292fd79925767
 branch: nsvsowxkytlr (unnamed jj change, parent of main)
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Fixes for the inventory-design skill and the browser-locator / browser-analyser agents
 
 **Date**: 2026-05-19T08:56:33+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: ee201256c147a4f4e8b8f7427f9292fd79925767
 **Branch**: nsvsowxkytlr (unnamed jj change)
 **Repository**: accelerator

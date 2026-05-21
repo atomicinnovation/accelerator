@@ -1,6 +1,6 @@
 ---
 date: "2026-04-25T21:03:16+01:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 6947ac9f1b3d2429623df1d008cc38578bbde52f
 branch: ticket-management
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Rename `tickets` → `work`, `ticket` → `work-item`, and consider `/accelerator:migrate`
 
 **Date**: 2026-04-25T21:03:16+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 6947ac9f1b3d2429623df1d008cc38578bbde52f
 **Branch**: ticket-management
 **Repository**: accelerator

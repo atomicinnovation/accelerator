@@ -1,6 +1,6 @@
 ---
 date: 2026-05-08T21:53:59+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: bfd6098c7c35911633de3ecd790632bcf5ce0c96
 branch: HEAD
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Implementation of 0052 — documents-locator Config-Driven Paths
 
 **Date**: 2026-05-08T21:53:59+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: bfd6098c7c35911633de3ecd790632bcf5ce0c96
 **Branch**: HEAD
 **Repository**: accelerator

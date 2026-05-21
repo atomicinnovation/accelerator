@@ -1,6 +1,6 @@
 ---
 date: 2026-05-08T20:42:32+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 8f03965c736cef0f31a56eefa0852e50be23f513
 branch: omvluvulyxnmuwpvplrykkwronryozuv (jj change)
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Work Management System Configuration (0046)
 
 **Date**: 2026-05-08T20:42:32+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 8f03965c736cef0f31a56eefa0852e50be23f513
 **Branch**: omvluvulyxnmuwpvplrykkwronryozuv
 **Repository**: accelerator

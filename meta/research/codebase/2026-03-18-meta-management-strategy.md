@@ -1,6 +1,6 @@
 ---
 date: "2026-03-18T02:46:16+00:00"
-researcher: Toby Clemson (via Claude)
+author: Toby Clemson (via Claude)
 git_commit: 2bfac71efe3c5cd83ea1fa3b48b69fa805c4919f
 branch: improve-meta
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson (via Claude)
 # Research: Meta Directory Management Strategy
 
 **Date**: 2026-03-18T02:46:16+00:00
-**Researcher**: Toby Clemson (via Claude)
+**Author**: Toby Clemson (via Claude)
 **Git Commit**: 2bfac71efe3c5cd83ea1fa3b48b69fa805c4919f
 **Branch**: improve-meta
 **Repository**: accelerator

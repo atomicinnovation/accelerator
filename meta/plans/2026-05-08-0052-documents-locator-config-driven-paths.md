@@ -2,7 +2,7 @@
 date: "2026-05-08T23:00:00+01:00"
 type: plan
 skill: create-plan
-work-item: "meta/work/0052-make-documents-locator-paths-config-driven.md"
+work_item_id: "meta/work/0052-make-documents-locator-paths-config-driven.md"
 status: complete
 ---
 

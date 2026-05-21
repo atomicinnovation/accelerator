@@ -2,7 +2,7 @@
 date: "2026-05-16T09:00:00+01:00"
 type: plan
 skill: create-plan
-work-item: "0041"
+work_item_id: "0041"
 status: accepted
 ---
 

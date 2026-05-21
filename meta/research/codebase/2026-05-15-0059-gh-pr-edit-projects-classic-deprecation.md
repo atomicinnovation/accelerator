@@ -1,6 +1,6 @@
 ---
 date: 2026-05-15T15:29:17+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 08a7f5e3cdca3fb84bae5b5ce3a98c909ad2cbb7
 branch: HEAD
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: `gh pr edit` Fails Due to GitHub Projects Classic Deprecation — Fix Scope and Reference Patterns
 
 **Date**: 2026-05-15T15:29:17+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 08a7f5e3cdca3fb84bae5b5ce3a98c909ad2cbb7
 **Branch**: HEAD
 **Repository**: accelerator

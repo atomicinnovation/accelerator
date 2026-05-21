@@ -1,6 +1,6 @@
 ---
 date: "2026-04-29T22:31:35+01:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 77cbbb0e4288c49347d3258fffbcf3d83b396999
 branch: (no bookmark — change lwoqvyopkmsu)
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Jira Cloud Integration Skills
 
 **Date**: 2026-04-29 22:31:35 BST
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 77cbbb0e4288c49347d3258fffbcf3d83b396999
 **Branch**: (no bookmark — change lwoqvyopkmsu)
 **Repository**: accelerator

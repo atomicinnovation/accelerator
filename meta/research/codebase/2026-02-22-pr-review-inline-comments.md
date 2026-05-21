@@ -1,6 +1,6 @@
 ---
 date: 2026-02-22T15:04:46+00:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: N/A
 branch: N/A
 repository: ~/.claude (Claude Code configuration)
@@ -15,7 +15,7 @@ last_updated_note: "Incorporated formatting patterns from temp-review-gh.md refe
 # Research: Modifying review-pr to Suggest Inline PR Comments
 
 **Date**: 2026-02-22T15:04:46+00:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Repository**: ~/.claude (Claude Code configuration)
 
 ## Research Question

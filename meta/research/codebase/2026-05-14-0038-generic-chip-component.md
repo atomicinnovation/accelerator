@@ -1,6 +1,6 @@
 ---
 date: 2026-05-14T20:08:27+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 08a7f5e3cdca3fb84bae5b5ce3a98c909ad2cbb7
 branch: main
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Generic Chip Component (work item 0038)
 
 **Date**: 2026-05-14T20:08:27+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 08a7f5e3cdca3fb84bae5b5ce3a98c909ad2cbb7
 **Branch**: main
 **Repository**: accelerator

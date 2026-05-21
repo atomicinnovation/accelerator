@@ -1,6 +1,6 @@
 ---
 date: 2026-05-08T17:30:00+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: ee509027f295c920a2e6ac97327cf182aa87a69e
 branch: visualisation-system (jj workspace; no bookmark on @-)
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Implementation of work item 0034 — Theme and Font-Mode Toggles
 
 **Date**: 2026-05-08T17:30:00+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: ee509027f295c920a2e6ac97327cf182aa87a69e (workspace parent)
 **Branch**: visualisation-system jj workspace, no bookmark on `@-`
 **Repository**: accelerator

@@ -1,6 +1,6 @@
 ---
 date: "2026-02-22T23:01:34+00:00"
-researcher: Toby Clemson
+author: Toby Clemson
 topic: "Gap analysis of review lenses used by review-pr and review-plan skills"
 tags: [research, review-lenses, review-pr, review-plan, gap-analysis]
 status: complete
@@ -11,7 +11,7 @@ last_updated_by: Toby Clemson
 # Research: Review Lens Gap Analysis
 
 **Date**: 2026-02-22T23:01:34+00:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 
 ## Research Question
 

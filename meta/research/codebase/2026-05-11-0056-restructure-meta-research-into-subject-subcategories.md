@@ -1,6 +1,6 @@
 ---
 date: 2026-05-11T23:54:00+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 81461f75df95cb56e25bda8a6503c4d873691b16
 branch: main
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Restructure `meta/research/codebase/` into Subject Subcategories — Work Item 0056
 
 **Date**: 2026-05-11T23:54:00+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 81461f75df95cb56e25bda8a6503c4d873691b16
 **Branch**: main
 **Repository**: accelerator

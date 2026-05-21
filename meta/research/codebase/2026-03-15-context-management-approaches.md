@@ -1,6 +1,6 @@
 ---
 date: 2026-03-15 14:39:41 GMT
-researcher: accelerator
+author: accelerator
 git_commit: a0ffa8d28db952004a8ae84556e433e49415f48c
 branch: main
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: accelerator
 # Research: Context Management Approaches for Claude Code
 
 **Date**: 2026-03-15 14:39:41 GMT
-**Researcher**: accelerator
+**Author**: accelerator
 **Git Commit**: a0ffa8d28db952004a8ae84556e433e49415f48c
 **Branch**: main
 **Repository**: accelerator

@@ -15,7 +15,7 @@ last_updated_by: Toby Clemson
 # Research: Canonicalise `work_item_id` and `author` Frontmatter Field Names
 
 **Date**: 2026-05-21T18:47:09+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 64eca1bf99c3b311862da9df1baf1095b43ca4a7
 **Branch**: main
 **Repository**: accelerator

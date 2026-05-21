@@ -1,6 +1,6 @@
 ---
 date: 2026-04-07T11:41:20+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 508ca24b973d8c742e52e829c557f0c62f81076d
 branch: (detached HEAD / working copy)
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Bare Agent Name References Requiring Plugin Prefix
 
 **Date**: 2026-04-07T11:41:20+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 508ca24b973d
 **Repository**: accelerator
 

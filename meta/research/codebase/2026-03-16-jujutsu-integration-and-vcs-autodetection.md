@@ -1,6 +1,6 @@
 ---
 date: "2026-03-16T12:24:27+00:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 4a96a19d86bd224b45d7e97f39bbd2079141eb80
 branch: main
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Jujutsu Integration, VCS Auto-Detection, and Git/GitHub Skill Restructuring
 
 **Date**: 2026-03-16T12:24:27+00:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 4a96a19d86bd224b45d7e97f39bbd2079141eb80
 **Branch**: main
 **Repository**: accelerator

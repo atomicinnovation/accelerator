@@ -1,6 +1,6 @@
 ---
 date: 2026-04-28T09:40:31+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 6947ac9f1b3d2429623df1d008cc38578bbde52f
 branch: (no bookmark — change qkn)
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Configurable work-item ID prefix pattern
 
 **Date**: 2026-04-28 09:40:31 BST
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 6947ac9f1b3d2429623df1d008cc38578bbde52f
 **Branch**: (no bookmark — change qkn)
 **Repository**: accelerator

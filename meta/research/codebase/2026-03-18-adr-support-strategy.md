@@ -1,6 +1,6 @@
 ---
 date: "2026-03-18T02:43:24+00:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 2bfac71efe3c5cd83ea1fa3b48b69fa805c4919f
 branch: add-adrs
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: ADR Support Strategy
 
 **Date**: 2026-03-18T02:43:24+00:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 2bfac71efe3c5cd83ea1fa3b48b69fa805c4919f
 **Branch**: add-adrs
 **Repository**: accelerator

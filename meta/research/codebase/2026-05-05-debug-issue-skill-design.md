@@ -1,6 +1,6 @@
 ---
 date: "2026-05-05 16:16:48 CEST"
-researcher: jonassvalin
+author: jonassvalin
 git_commit: a2d9c593ca9950596e4a6d53d3089245487372ba
 branch: main
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: jonassvalin
 # Research: Design for a Dedicated Debug-Issue Skill
 
 **Date**: 2026-05-05 16:16:48 CEST
-**Researcher**: jonassvalin
+**Author**: jonassvalin
 **Git Commit**: a2d9c593ca9950596e4a6d53d3089245487372ba
 **Branch**: main
 **Repository**: accelerator

@@ -1,6 +1,6 @@
 ---
 date: "2026-05-12T20:55:11+01:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 4396ef3e3300789e6ecb80c36bac17ec2f2ac2d2
 branch: main
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Sidebar Nav with Per-Type Change Indicators (work item 0053)
 
 **Date**: 2026-05-12T20:55:11+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 4396ef3e3300789e6ecb80c36bac17ec2f2ac2d2
 **Branch**: main
 **Repository**: accelerator

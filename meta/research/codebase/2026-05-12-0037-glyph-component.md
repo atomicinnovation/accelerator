@@ -1,6 +1,6 @@
 ---
 date: 2026-05-12T10:40:16+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 6c0e429bfbbc6b4541906fe5cbdf1b04d5f4ef9c
 branch: (jj working copy — no bookmark; ancestor bookmark `main` at 81461f75)
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Glyph Component (work item 0037)
 
 **Date**: 2026-05-12 10:40:16 BST
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 6c0e429bfbbc6b4541906fe5cbdf1b04d5f4ef9c
 **Branch**: jj working copy (no bookmark); ancestor bookmark `main` at 81461f75
 **Repository**: accelerator

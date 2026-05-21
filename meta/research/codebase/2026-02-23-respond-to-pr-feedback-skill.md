@@ -1,6 +1,6 @@
 ---
 date: "2026-02-23T01:30:00+00:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: N/A
 branch: N/A
 repository: .claude
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: New Skill for Responding to Pull Request Feedback
 
 **Date**: 2026-02-23T01:30:00+00:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Repository**: .claude (Claude Code configuration)
 
 ## Research Question

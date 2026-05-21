@@ -2,7 +2,7 @@
 date: "2026-05-20T22:45:00+01:00"
 type: plan
 skill: create-plan
-work-item: "meta/work/0063-rename-work-item-type-to-kind.md"
+work_item_id: "meta/work/0063-rename-work-item-type-to-kind.md"
 status: reviewed
 ---
 

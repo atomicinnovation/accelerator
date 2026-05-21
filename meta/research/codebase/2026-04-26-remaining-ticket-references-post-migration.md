@@ -1,6 +1,6 @@
 ---
 date: "2026-04-26T19:01:48+01:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: f03a7dfe
 branch: ticket-management
 repository: accelerator
@@ -15,7 +15,7 @@ last_updated_note: "Added follow-up research for agents/ directory"
 # Research: Remaining 'ticket' References After Rename Migration
 
 **Date**: 2026-04-26T19:01:48+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: f03a7dfe (zryszqxl)
 **Branch**: ticket-management
 **Repository**: accelerator

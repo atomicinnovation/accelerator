@@ -1,6 +1,6 @@
 ---
 date: 2026-05-18T21:28:41+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: ee201256c147a4f4e8b8f7427f9292fd79925767
 branch: HEAD
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: `pr-base-repo.sh` `--json baseRepository` Defect on `gh 2.65.0` — Fix Scope and Test Strategy
 
 **Date**: 2026-05-18T21:28:41+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: ee201256c147a4f4e8b8f7427f9292fd79925767
 **Branch**: HEAD
 **Repository**: accelerator

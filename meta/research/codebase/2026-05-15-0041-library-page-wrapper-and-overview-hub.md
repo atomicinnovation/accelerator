@@ -1,6 +1,6 @@
 ---
 date: 2026-05-15T18:41:25+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 77c4cfe1aa718e2ca1d381780dc170b1b3db9334
 branch: HEAD (jj change stlzowrnoslm; main at f5c54374)
 repository: accelerator
@@ -15,7 +15,7 @@ last_updated_note: "Resolved all eight open questions via Q&A with work-item aut
 # Research: Work Item 0041 — Library Page Wrapper, Overview Hub, and List Views
 
 **Date**: 2026-05-15T18:41:25+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 77c4cfe1aa718e2ca1d381780dc170b1b3db9334
 **Branch**: HEAD (jj change `stlzowrnoslm`; `main` at `f5c54374`)
 **Repository**: accelerator (visualisation-system workspace)

@@ -1,6 +1,6 @@
 ---
 date: "2026-03-15T15:46:31+00:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 54bf3e8f4bf2f289b9ecc6f68c5f4b06859023ad
 branch: main
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Optimal Structure for Review Lenses
 
 **Date**: 2026-03-15T15:46:31+00:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 54bf3e8f4bf2f289b9ecc6f68c5f4b06859023ad
 **Branch**: main
 **Repository**: accelerator

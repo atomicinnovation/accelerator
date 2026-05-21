@@ -1,6 +1,6 @@
 ---
 date: 2026-05-15T12:35:58+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 08a7f5e3cdca3fb84bae5b5ce3a98c909ad2cbb7
 branch: (detached / jj change xrmuuuzntsly)
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Workspace and worktree boundary detection at session start (work item 0058)
 
 **Date**: 2026-05-15T12:35:58+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 08a7f5e3cdca3fb84bae5b5ce3a98c909ad2cbb7
 **Branch**: (detached, jj change `xrmuuuzntsly`)
 **Repository**: accelerator

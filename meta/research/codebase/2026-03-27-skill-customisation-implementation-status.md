@@ -1,6 +1,6 @@
 ---
 date: "2026-03-27T22:15:25+0000"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 28643b69b3e8785dac181a9b36b779b4efb0cc76
 branch: main
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Skill Customisation Implementation Status and Remaining Improvements
 
 **Date**: 2026-03-27T22:15:25+0000
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 28643b69b3e8785dac181a9b36b779b4efb0cc76
 **Branch**: main
 **Repository**: accelerator

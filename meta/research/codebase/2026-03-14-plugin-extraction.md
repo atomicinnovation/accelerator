@@ -1,6 +1,6 @@
 ---
 date: "2026-03-14T22:18:33+0000"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: N/A
 branch: N/A
 repository: .claude (user config directory)
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Extracting Skills and Agents into a Claude Code Plugin
 
 **Date**: 2026-03-14T22:18:33+0000
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Repository**: ~/.claude (user config directory)
 **Target**: ~/Code/organisations/atomic/company/accelerator
 

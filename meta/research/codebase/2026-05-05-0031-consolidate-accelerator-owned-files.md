@@ -1,6 +1,6 @@
 ---
 date: 2026-05-05T00:46:40+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: 3e96e9c5e616a93f42a7b1496c8c6e0b72092b9b
 branch: HEAD (work item drafting)
 repository: accelerator
@@ -15,7 +15,7 @@ last_updated_note: "Resolved all seven open questions via Q1-Q7 review."
 # Research: Consolidating Accelerator-Owned Files Under `.accelerator/` (Work Item 0031)
 
 **Date**: 2026-05-05 00:46:40 BST
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 3e96e9c5e616a93f42a7b1496c8c6e0b72092b9b
 **Branch**: HEAD (detached, work item drafting branch)
 **Repository**: accelerator

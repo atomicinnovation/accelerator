@@ -1,6 +1,6 @@
 ---
 date: "2026-05-07T18:10:33+02:00"
-researcher: jonassvalin
+author: jonassvalin
 git_commit: 986954db59e2eb6d9c9a7426c4f52852d00f1afb
 branch: research-issue-skill
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: jonassvalin
 # Research: Documentation and Registration Gaps for research-issue Skill
 
 **Date**: 2026-05-07T18:10:33+02:00
-**Researcher**: jonassvalin
+**Author**: jonassvalin
 **Git Commit**: 986954db59e2eb6d9c9a7426c4f52852d00f1afb
 **Branch**: research-issue-skill
 **Repository**: accelerator

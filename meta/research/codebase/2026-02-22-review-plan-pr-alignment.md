@@ -1,6 +1,6 @@
 ---
 date: 2026-02-22T17:06:11+00:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: n/a
 branch: n/a
 repository: .claude
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Differences Between review-pr and review-plan for Alignment Upgrade
 
 **Date**: 2026-02-22T17:06:11+00:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Repository**: .claude
 
 ## Research Question

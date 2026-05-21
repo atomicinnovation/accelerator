@@ -1,6 +1,6 @@
 ---
 date: "2026-05-20T22:23:30+01:00"
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: a1c1c10e25f7a789ab955fcd5d1cecfa883d677e
 branch: HEAD
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Rename work-item `type:` Field to `kind:` (story 0063)
 
 **Date**: 2026-05-20T22:23:30+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: a1c1c10e25f7a789ab955fcd5d1cecfa883d677e
 **Branch**: HEAD
 **Repository**: accelerator

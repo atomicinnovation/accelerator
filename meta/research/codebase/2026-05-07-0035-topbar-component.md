@@ -1,6 +1,6 @@
 ---
 date: 2026-05-07T23:33:16+01:00
-researcher: Toby Clemson
+author: Toby Clemson
 git_commit: e5f283acf73ac13bc9806e9d8ab6055aba929dca
 branch: main
 repository: accelerator
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # Research: Implementation of work item 0035 — Topbar Component
 
 **Date**: 2026-05-07T23:33:16+01:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: e5f283acf73ac13bc9806e9d8ab6055aba929dca (jj change `mrklkwwumpywomzqvlmooqlwkwkrtvyr`)
 **Branch**: main
 **Repository**: accelerator (workspace: `workspaces/visualisation-system`)
