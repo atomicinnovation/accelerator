@@ -215,8 +215,14 @@ describe('FrontmatterTable', () => {
     it('uses --size-chip-md for table font-size (not a literal)', () => {
       expect(css).toMatch(/font-size:\s*var\(--size-chip-md\)/)
     })
-    it('uses --ac-fg-muted for keys and the empty dash', () => {
+    it('uses --ac-fg-faint for keys (design: fainter than body text)', () => {
+      expect(css).toMatch(/\.key\s*\{[^}]*color:\s*var\(--ac-fg-faint\)/)
+    })
+    it('uses --ac-fg-muted for the empty-value dash and pending span', () => {
       expect(css).toMatch(/color:\s*var\(--ac-fg-muted\)/)
+    })
+    it('appends a colon after each key via ::after (decorative, not in DOM)', () => {
+      expect(css).toMatch(/\.key::after\s*\{[^}]*content:\s*['"]:['"]/)
     })
     it('styles anchor children with an accent colour (not the inherited body colour)', () => {
       expect(css).toMatch(/\.value a\s*\{[^}]*color:\s*var\(--ac-accent\)/)

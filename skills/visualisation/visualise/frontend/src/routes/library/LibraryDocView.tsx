@@ -16,6 +16,17 @@ import { isDocTypeKey } from '../../api/types'
 import { fileSlugFromRelPath } from '../../api/path-utils'
 import styles from './LibraryDocView.module.css'
 
+/** Strip a leading YAML frontmatter block (`---\n…\n---\n`) from the
+ *  raw document content. The server returns the file verbatim, so
+ *  markdown parsers would otherwise render the closing `---` as a
+ *  horizontal rule and the title line as a setext heading. The
+ *  frontmatter is already surfaced via the FrontmatterTable above the
+ *  body. */
+const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/
+function stripFrontmatter(content: string): string {
+  return content.replace(FRONTMATTER_RE, '')
+}
+
 interface Props {
   type?: DocTypeKey
   fileSlug?: string
@@ -132,7 +143,7 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
         )}
 
         <div className={styles.body}>
-          <MarkdownRenderer content={content.data.content} resolveWikiLink={resolveWikiLink} wikiLinkPattern={wikiLinkPattern} />
+          <MarkdownRenderer content={stripFrontmatter(content.data.content)} resolveWikiLink={resolveWikiLink} wikiLinkPattern={wikiLinkPattern} />
         </div>
       </article>
     )

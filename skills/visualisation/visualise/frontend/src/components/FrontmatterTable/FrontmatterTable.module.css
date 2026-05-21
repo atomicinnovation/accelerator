@@ -22,9 +22,13 @@
 }
 
 .key {
-  color: var(--ac-fg-muted);
+  color: var(--ac-fg-faint);
   margin: 0;
   white-space: nowrap;
+}
+
+.key::after {
+  content: ':';
 }
 
 .value {

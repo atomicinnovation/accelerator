@@ -279,6 +279,27 @@ describe('LibraryDocView', () => {
     expect(screen.queryByLabelText('Document metadata')).toBeNull()
   })
 
+  it('strips a leading YAML frontmatter block before rendering the markdown body', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: '---\ntitle: Foo\nstatus: draft\n---\n\n# Body heading\n\nBody text here.',
+      etag: '"sha256-a"',
+    })
+    const { container } = render(
+      <LibraryDocView type="plans" fileSlug="2026-01-01-foo" />,
+      { wrapper: Wrapper },
+    )
+    // Body still renders.
+    expect(await screen.findByText('Body text here.')).toBeInTheDocument()
+    // No HR from the trailing `---` of the frontmatter block.
+    expect(container.querySelector('article hr')).toBeNull()
+    // The setext-H1 collision (title line followed by `---`) is gone — the
+    // body markdown contains exactly one h1, sourced from `# Body heading`.
+    const h1s = container.querySelectorAll('article h1')
+    expect(h1s.length).toBe(1)
+    expect(h1s[0].textContent).toBe('Body heading')
+  })
+
   it('linkifies a WORK-ITEM scalar value via the shared resolver (end-to-end)', async () => {
     const referenced: IndexEntry = {
       ...mockEntry,
