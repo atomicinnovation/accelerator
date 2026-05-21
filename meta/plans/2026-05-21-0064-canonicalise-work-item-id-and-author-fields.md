@@ -1266,24 +1266,24 @@ Notes on the migration:
 
 #### Automated Verification
 
-- [ ] All new 0006 tests pass:
+- [x] All new 0006 tests pass:
   `bash skills/config/migrate/scripts/test-migrate.sh` exits 0 and
   prints each new test as `PASS`.
-- [ ] Migration file is bash-syntax-clean:
+- [x] Migration file is bash-syntax-clean:
   `bash -n skills/config/migrate/migrations/0006-canonicalise-work-item-id-and-author.sh`.
-- [ ] Driver discovers 0006 in preview banner: from a clean
+- [x] Driver discovers 0006 in preview banner: from a clean
   repository, the dry-run preview lists 0006 in pending migrations.
-- [ ] Migration only rewrites the targeted keys: a fixture containing
+- [x] Migration only rewrites the targeted keys: a fixture containing
   unrelated frontmatter (e.g. `parent: "0042"`, `tags: [foo]`,
   `last_updated_by: Toby`) is byte-identical post-run except for the
   two renamed keys (and their body label, for research).
 
 #### Manual Verification
 
-- [ ] Reading the migration confirms the dual-presence shape from
+- [x] Reading the migration confirms the dual-presence shape from
   0005 is applied per pass (plan frontmatter; research frontmatter;
   research body label) — each gated by its own outer `grep -q` guard.
-- [ ] Reading the tests confirms each branch is exercised at least
+- [x] Reading the tests confirms each branch is exercised at least
   once: clean rename across all three corpora; unquoted-value
   normalisation; empty-value preservation; partial-prior-run
   (matching + divergent) for plan/research/body-label; `paths.*`
@@ -1392,26 +1392,26 @@ fi
 
 #### Automated Verification
 
-- [ ] `rg -n '^work-item:' meta/plans/` returns zero hits.
-- [ ] `rg -n '^researcher:' meta/research/` returns zero hits.
-- [ ] `rg -n '^\*\*Researcher\*\*:' meta/research/` returns zero hits.
-- [ ] All 86 plan files contain a `^work_item_id:` line with a quoted
+- [x] `rg -n '^work-item:' meta/plans/` returns zero hits.
+- [x] `rg -n '^researcher:' meta/research/` returns zero hits.
+- [x] `rg -n '^\*\*Researcher\*\*:' meta/research/` returns zero hits.
+- [x] All 86 plan files contain a `^work_item_id:` line with a quoted
   string value.
-- [ ] All 52 codebase-research files contain a `^author:` line and a
+- [x] All 52 codebase-research files contain a `^author:` line and a
   `^\*\*Author\*\*:` body label.
-- [ ] `.accelerator/state/migrations-applied` contains
+- [x] `.accelerator/state/migrations-applied` contains
   `0006-canonicalise-work-item-id-and-author`.
-- [ ] Re-running `/accelerator:migrate` produces exit 0 and zero
+- [x] Re-running `/accelerator:migrate` produces exit 0 and zero
   further changes under `meta/`.
 
 #### Manual Verification
 
-- [ ] Spot-check three representative files:
+- [x] Spot-check three representative files:
   `meta/plans/2026-05-20-0063-rename-work-item-type-to-kind.md`,
   `meta/research/codebase/2026-05-20-0063-rename-work-item-type-to-kind.md`,
   `meta/research/codebase/2026-05-21-0064-canonicalise-work-item-id-and-author-fields.md`.
   Confirm canonical key names and that no other content changed.
-- [ ] `jj diff meta/` review shows only line-level frontmatter / body
+- [x] `jj diff meta/` review shows only line-level frontmatter / body
   label rewrites — no other content changes.
 
 ---
@@ -1479,10 +1479,10 @@ rg -n '^work_item_id:|^author:|^\*\*Author\*\*:' templates/
 
 #### Automated Verification
 
-- [ ] `rg -n 'work-item:' templates/` returns zero hits.
-- [ ] `rg -n 'researcher:' templates/` returns zero hits.
-- [ ] `rg -n '\*\*Researcher\*\*:' templates/` returns zero hits.
-- [ ] Each updated template still has well-formed YAML frontmatter
+- [x] `rg -n 'work-item:' templates/` returns zero hits.
+- [x] `rg -n 'researcher:' templates/` returns zero hits.
+- [x] `rg -n '\*\*Researcher\*\*:' templates/` returns zero hits.
+- [x] Each updated template still has well-formed YAML frontmatter
   delimited by `---` lines (visual inspection or a simple `awk`
   check).
 
@@ -1491,8 +1491,9 @@ rg -n '^work_item_id:|^author:|^\*\*Author\*\*:' templates/
 - [ ] Run `/accelerator:create-plan` end-to-end (without applying
   the produced plan); confirm the generated file emits
   `work_item_id:` and no `work-item:`. (Spot-check via `jj diff`
-  before discarding.)
-- [ ] Read each of the three templates end-to-end. Confirm body
+  before discarding. Not exercised in this automated run; template
+  was inspected and shown to emit canonical names.)
+- [x] Read each of the three templates end-to-end. Confirm body
   labels, placeholder text, and trailing comments are consistent.
   No incidental edits.
 
@@ -1635,21 +1636,24 @@ cd skills/visualisation/visualise/server && cargo fmt --check
 
 #### Automated Verification
 
-- [ ] `cargo test` in
+- [x] `cargo test` in
   `skills/visualisation/visualise/server/` exits 0.
-- [ ] `cargo clippy --all-targets -- -D warnings` exits 0.
-- [ ] `cargo fmt --check` exits 0.
-- [ ] `rg -n '"work-item"' skills/visualisation/visualise/server/src/`
+- [ ] `cargo clippy --all-targets -- -D warnings` exits 0. (Pre-existing
+  warnings at `frontmatter.rs:319` and `indexer.rs:1099` unrelated to
+  this rename; deferred to a separate cleanup.)
+- [ ] `cargo fmt --check` exits 0. (Pre-existing fmt issues in
+  `patcher.rs` unrelated to this rename; deferred to a separate cleanup.)
+- [x] `rg -n '"work-item"' skills/visualisation/visualise/server/src/`
   returns zero hits.
-- [ ] `rg -n '^work-item:' skills/visualisation/visualise/server/`
+- [x] `rg -n '^work-item:' skills/visualisation/visualise/server/`
   returns zero hits (covers inline + on-disk fixtures).
 
 #### Manual Verification
 
-- [ ] Read the updated `frontmatter.rs:326` and confirm only the
+- [x] Read the updated `frontmatter.rs:326` and confirm only the
   string literal changed; the surrounding ref-aggregation logic is
   byte-identical.
-- [ ] Confirm the Rust identifier `work_item_refs` (and friends)
+- [x] Confirm the Rust identifier `work_item_refs` (and friends)
   remain unchanged — research §"Architecture Insights" point 3
   rationale.
 
@@ -1725,15 +1729,15 @@ rg -n 'work-item:|researcher:' meta/decisions/ \
 
 #### Automated Verification
 
-- [ ] `rg -n '^- Renames .*(work-item:|researcher:)' meta/work/0070-*.md`
+- [x] `rg -n '^- Renames .*(work-item:|researcher:)' meta/work/0070-*.md`
   returns zero hits.
 
 #### Manual Verification
 
-- [ ] Read the updated 0070 work item; confirm its Requirements and
+- [x] Read the updated 0070 work item; confirm its Requirements and
   AC sections still scope coherently to "the rest of the unified-schema
   migration" without the two now-redundant lines.
-- [ ] Confirm the dependency reference to 0064 reads naturally.
+- [x] Confirm the dependency reference to 0064 reads naturally.
 
 ---
 
@@ -1872,35 +1876,38 @@ rg -n 'work-item|researcher' skills/work/*/evals/ skills/review/lenses/*/evals/
 
 #### Automated Verification
 
-- [ ] AC #1 grep returns zero hits in the producer + consumer surface
+- [x] AC #1 grep returns zero hits in the producer + consumer surface
   (modulo the 0006 test-fixture exclusion).
-- [ ] AC #2 grep returns zero hits in the producer + consumer surface
+- [x] AC #2 grep returns zero hits in the producer + consumer surface
   (modulo `web-search-researcher` and the 0006 test-fixture exclusion).
-- [ ] Whole-repo `**Researcher**:` body-label sweep returns zero hits
+- [x] Whole-repo `**Researcher**:` body-label sweep returns zero hits
   outside test fixtures.
-- [ ] AC #3 corpus grep returns zero hits for legacy keys; canonical
+- [x] AC #3 corpus grep returns zero hits for legacy keys; canonical
   keys are present in the expected counts (86 plans, 52 research).
-- [ ] AC #6 quoted-value check: zero unquoted `work_item_id:` values
+- [x] AC #6 quoted-value check: zero unquoted `work_item_id:` values
   in `meta/plans/`.
-- [ ] `bash skills/config/migrate/scripts/test-migrate.sh` exits 0.
-- [ ] `cargo test`, `cargo clippy`, `cargo fmt --check` in
-  `skills/visualisation/visualise/server/` all exit 0.
-- [ ] `npm test` and `npm run typecheck` in
+- [x] `bash skills/config/migrate/scripts/test-migrate.sh` exits 0.
+- [x] `cargo test` in `skills/visualisation/visualise/server/` exits 0.
+- [ ] `cargo clippy` / `cargo fmt --check` clean — pre-existing warnings
+  unrelated to this rename; deferred to a separate cleanup.
+- [x] `npm test` and `npm run typecheck` in
   `skills/visualisation/visualise/frontend/` exit 0.
-- [ ] Re-running `/accelerator:migrate` produces exit 0 and no further
+- [x] Re-running `/accelerator:migrate` produces exit 0 and no further
   changes.
-- [ ] AC #7 upgrade-path fixture sequence runs end-to-end without
+- [x] AC #7 upgrade-path fixture sequence runs end-to-end without
   manual intervention; final state matches the post-rename canonical
   shape.
 
 #### Manual Verification
 
-- [ ] AC #6 visualiser smoke test passes per the steps above.
-- [ ] Reading `jj diff` for `meta/plans/`, `meta/research/codebase/`,
+- [ ] AC #6 visualiser smoke test passes per the steps above. (Requires
+  running the visualiser dev server and visually inspecting the kanban
+  + plan detail pages — not exercised in this automated run.)
+- [x] Reading `jj diff` for `meta/plans/`, `meta/research/codebase/`,
   `templates/`, and `skills/visualisation/visualise/server/src/`
   confirms only the targeted line-level rewrites — no incidental
   edits.
-- [ ] The 0070 work item reads coherently after the two now-redundant
+- [x] The 0070 work item reads coherently after the two now-redundant
   lines have been removed.
 
 ---
