@@ -1,7 +1,7 @@
 ---
 title: Conflict Test Work Item
 status: draft
-work-item: 6
+work_item_id: 6
 ---
 
 # Conflict Test Work Item

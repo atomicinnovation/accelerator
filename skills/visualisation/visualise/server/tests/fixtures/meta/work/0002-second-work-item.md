@@ -1,7 +1,7 @@
 ---
 title: Second Work Item
 status: done
-work-item: 2
+work_item_id: 2
 ---
 
 # Second Work Item

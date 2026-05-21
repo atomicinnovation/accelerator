@@ -75,7 +75,7 @@ pub(crate) async fn related_get(
     let declared_outbound = state.indexer.declared_outbound(&entry).await;
 
     // Declared inbound: plan-reviews targeting self + entries that cross-ref
-    // self as a work-item (via work-item:, parent:, related:).
+    // self as a work-item (via work_item_id:, parent:, related:).
     let mut declared_inbound = state.indexer.reviews_by_target(&entry.path).await;
     if let Some(ref id) = entry.work_item_id {
         let ref_entries = state.indexer.work_item_refs_by_id(id).await;

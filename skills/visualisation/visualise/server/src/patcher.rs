@@ -256,15 +256,15 @@ mod tests {
 
     #[test]
     fn preserves_other_frontmatter_keys_and_order() {
-        let input = b("---\ntitle: Foo\nstatus: todo\nwork-item: bar\n---\nbody\n");
+        let input = b("---\ntitle: Foo\nstatus: todo\nwork_item_id: bar\n---\nbody\n");
         let out = patch_status(&input, "done").unwrap();
         let out_str = std::str::from_utf8(&out).unwrap();
         assert!(out_str.contains("title: Foo\n"));
         assert!(out_str.contains("status: done\n"));
-        assert!(out_str.contains("work-item: bar\n"));
+        assert!(out_str.contains("work_item_id: bar\n"));
         let title_pos = out_str.find("title:").unwrap();
         let status_pos = out_str.find("status:").unwrap();
-        let wi_pos = out_str.find("work-item:").unwrap();
+        let wi_pos = out_str.find("work_item_id:").unwrap();
         assert!(title_pos < status_pos && status_pos < wi_pos);
     }
 
@@ -404,7 +404,7 @@ mod tests {
 
     #[test]
     fn preserves_line_specific_line_ending() {
-        let input = b"---\ntitle: foo\nstatus: todo\r\nwork-item: bar\n---\nbody\n";
+        let input = b"---\ntitle: foo\nstatus: todo\r\nwork_item_id: bar\n---\nbody\n";
         let out = patch_status(input, "done").unwrap();
         let out_str = std::str::from_utf8(&out).unwrap();
         assert!(
@@ -412,6 +412,6 @@ mod tests {
             "expected CRLF on status line"
         );
         assert!(out_str.contains("title: foo\n"));
-        assert!(out_str.contains("work-item: bar\n"));
+        assert!(out_str.contains("work_item_id: bar\n"));
     }
 }

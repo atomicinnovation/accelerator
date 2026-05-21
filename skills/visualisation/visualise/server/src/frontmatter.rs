@@ -296,10 +296,12 @@ pub fn title_from(parsed: &FrontmatterState, body: &str, filename_stem: &str) ->
 
 /// Reads cross-reference keys from frontmatter for work-item aggregation.
 ///
-/// Reads `work-item:` (preferred) or `ticket:` (legacy fallback) as a scalar,
-/// plus `parent:` and `related:` which may each be a scalar or an array.
-/// All non-empty string/numeric values are aggregated into a single `Vec<String>`.
-/// Returns an empty Vec when no recognised key is present or all values are empty.
+/// Reads `work_item_id:` (preferred), `work-item:` (transitional legacy
+/// fallback — removed in the release that closes story 0070), or `ticket:`
+/// (older legacy fallback) as a scalar, plus `parent:` and `related:` which
+/// may each be a scalar or an array. All non-empty string/numeric values
+/// are aggregated into a single `Vec<String>`. Returns an empty Vec when
+/// no recognised key is present or all values are empty.
 pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
     let FrontmatterState::Parsed(m) = parsed else {
         return Vec::new();
@@ -322,8 +324,18 @@ pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
 
     let mut refs: Vec<String> = Vec::new();
 
-    // `work-item:` wins over legacy `ticket:` when both are present (scalar only).
-    if let Some(v) = m.get("work-item") {
+    // `work_item_id:` wins over the transitional `work-item:` fallback and
+    // the older `ticket:` legacy fallback when multiple are present
+    // (scalar only).
+    if let Some(v) = m.get("work_item_id") {
+        if let Some(s) = extract_scalar(v) {
+            refs.push(s);
+        }
+    } else if let Some(v) = m.get("work-item") {
+        // Transitional fallback: pre-migration repos still emit the legacy
+        // `work-item:` key. Remove in the release that closes story 0070 —
+        // by then all userspace repos should have run `/accelerator:migrate`
+        // at least once.
         if let Some(s) = extract_scalar(v) {
             refs.push(s);
         }
@@ -437,7 +449,17 @@ mod tests {
     }
 
     #[test]
-    fn read_ref_keys_reads_work_item_key() {
+    fn read_ref_keys_reads_work_item_id_key() {
+        let raw = b("---\nwork_item_id: \"0042\"\n---\nbody\n");
+        let p = parse(&raw);
+        assert_eq!(read_ref_keys(&p.state), vec!["0042".to_string()]);
+    }
+
+    #[test]
+    fn read_ref_keys_reads_legacy_work_item_key_via_transitional_fallback() {
+        // Pre-migration plans still carry `work-item:` until the user runs
+        // /accelerator:migrate. The transitional fallback keeps them
+        // readable for one release cycle.
         let raw = b("---\nwork-item: \"0042\"\n---\nbody\n");
         let p = parse(&raw);
         assert_eq!(read_ref_keys(&p.state), vec!["0042".to_string()]);
@@ -452,7 +474,14 @@ mod tests {
 
     #[test]
     fn read_ref_keys_with_both_legacy_and_current_keys_prefers_current() {
-        let raw = b("---\nwork-item: \"0007\"\nticket: 0042\n---\nbody\n");
+        let raw = b("---\nwork_item_id: \"0007\"\nticket: 0042\n---\nbody\n");
+        let p = parse(&raw);
+        assert_eq!(read_ref_keys(&p.state), vec!["0007".to_string()]);
+    }
+
+    #[test]
+    fn read_ref_keys_prefers_work_item_id_over_transitional_work_item() {
+        let raw = b("---\nwork_item_id: \"0007\"\nwork-item: \"0099\"\n---\nbody\n");
         let p = parse(&raw);
         assert_eq!(read_ref_keys(&p.state), vec!["0007".to_string()]);
     }
@@ -519,8 +548,8 @@ mod tests {
     }
 
     #[test]
-    fn read_ref_keys_aggregates_work_item_and_parent_and_related() {
-        let raw = b("---\nwork-item: \"0042\"\nparent: 0007\nrelated: [0011]\n---\nbody\n");
+    fn read_ref_keys_aggregates_work_item_id_and_parent_and_related() {
+        let raw = b("---\nwork_item_id: \"0042\"\nparent: 0007\nrelated: [0011]\n---\nbody\n");
         let p = parse(&raw);
         let refs = read_ref_keys(&p.state);
         assert_eq!(refs.len(), 3);

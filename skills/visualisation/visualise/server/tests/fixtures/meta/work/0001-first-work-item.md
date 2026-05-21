@@ -1,7 +1,7 @@
 ---
 title: First Work Item
 status: draft
-work-item: 1
+work_item_id: 1
 ---
 
 # First Work Item

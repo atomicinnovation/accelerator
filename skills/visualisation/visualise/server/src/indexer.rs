@@ -211,7 +211,7 @@ pub struct Indexer {
     reviews_by_target: Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
     /// Reverse work-item cross-ref index. Keys are canonical work-item IDs
     /// (as produced by `canonicalise_refs`); values are sets of canonicalised
-    /// paths of entries that reference that work-item via `work-item:`,
+    /// paths of entries that reference that work-item via `work_item_id:`,
     /// `parent:`, or `related:` frontmatter keys.
     work_item_refs_by_target: Arc<RwLock<HashMap<String, BTreeSet<PathBuf>>>>,
     // Serialises rescan() against refresh_one() so they cannot interleave.
@@ -593,7 +593,7 @@ impl Indexer {
             .collect()
     }
 
-    /// Returns entries whose `work-item:`, `parent:`, or `related:` frontmatter
+    /// Returns entries whose `work_item_id:`, `parent:`, or `related:` frontmatter
     /// canonicalises to the given work-item ID.
     pub async fn work_item_refs_by_id(&self, id: &str) -> Vec<IndexEntry> {
         let entries = self.entries.read().await;
@@ -609,7 +609,7 @@ impl Indexer {
 
     /// Returns the resolved declared-outbound entries for the given entry:
     /// - the plan-review `target:` (if this entry is a plan-review), and
-    /// - the work-items referenced via `work-item:`, `parent:`, `related:`.
+    /// - the work-items referenced via `work_item_id:`, `parent:`, `related:`.
     pub async fn declared_outbound(&self, entry: &IndexEntry) -> Vec<IndexEntry> {
         let entries = self.entries.read().await;
         let by_id = self.work_item_by_id.read().await;
@@ -625,7 +625,7 @@ impl Indexer {
             }
         }
 
-        // Work-item cross-refs from `work-item:`, `parent:`, `related:`.
+        // Work-item cross-refs from `work_item_id:`, `parent:`, `related:`.
         let canon_refs = canonicalise_refs(entry.work_item_refs.clone(), &self.work_item_cfg);
         for id in &canon_refs {
             if let Some(path) = by_id.get(id) {
@@ -2582,7 +2582,7 @@ mod reverse_index_tests {
             &[("0001-epic.md", "---\ntitle: Epic\n---\n")],
             &[(
                 "meta/plans/2026-05-01-plan.md",
-                "---\ntitle: A Plan\nwork-item: \"0001\"\n---\n",
+                "---\ntitle: A Plan\nwork_item_id: \"0001\"\n---\n",
             )],
         )
         .await;
@@ -2638,7 +2638,7 @@ mod reverse_index_tests {
             &[("0001-real.md", "---\ntitle: Real\n---\n")],
             &[(
                 "meta/plans/2026-05-01-plan.md",
-                "---\ntitle: Orphan Plan\nwork-item: \"9999\"\n---\n",
+                "---\ntitle: Orphan Plan\nwork_item_id: \"9999\"\n---\n",
             )],
         )
         .await;
@@ -2651,18 +2651,18 @@ mod reverse_index_tests {
     #[tokio::test]
     async fn reverse_cross_ref_dedups_within_same_source_doc() {
         let tmp = tempfile::tempdir().unwrap();
-        // Plan has work-item: 0001, parent: 0001 — two refs to same ID.
+        // Plan has work_item_id: 0001, parent: 0001 — two refs to same ID.
         let idx = build_indexer_with_work_items(
             tmp.path(),
             &[("0001-epic.md", "---\ntitle: Epic\n---\n")],
             &[(
                 "meta/plans/2026-05-01-plan.md",
-                "---\ntitle: Dup Plan\nwork-item: \"0001\"\nparent: 0001\n---\n",
+                "---\ntitle: Dup Plan\nwork_item_id: \"0001\"\nparent: 0001\n---\n",
             )],
         )
         .await;
         let refs = idx.work_item_refs_by_id("0001").await;
-        // work-item: wins over ticket:, so work_item_refs = ["0001", "0001"]
+        // work_item_id: wins over ticket:, so work_item_refs = ["0001", "0001"]
         // after canonicalisation and dedup, only one entry is added for the plan.
         assert_eq!(refs.len(), 1, "same source doc should appear at most once");
     }
@@ -2681,10 +2681,10 @@ mod reverse_index_tests {
         std::fs::create_dir_all(&review_dir).unwrap();
 
         std::fs::write(work_dir.join("0001-epic.md"), "---\ntitle: Epic\n---\n").unwrap();
-        // A plan that references the work item via work-item:
+        // A plan that references the work item via work_item_id:
         std::fs::write(
             plan_dir.join("2026-05-01-plan.md"),
-            "---\ntitle: A Plan\nwork-item: \"0001\"\n---\n",
+            "---\ntitle: A Plan\nwork_item_id: \"0001\"\n---\n",
         )
         .unwrap();
         // A plan-review whose `target:` points at the work item directly
