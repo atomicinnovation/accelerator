@@ -3,6 +3,8 @@ import {
   buildWikiLinkPattern,
   buildWikiLinkIndex,
   resolveWikiLink,
+  buildBareIdPattern,
+  splitByBareIds,
 } from './wiki-links'
 import { makeIndexEntry } from './test-fixtures'
 
@@ -246,5 +248,115 @@ describe('resolveWikiLink', () => {
       href: '/library/work-items/PROJ-0042-foo',
       title: 'Foo work item',
     })
+  })
+})
+
+describe('buildBareIdPattern', () => {
+  it('matches bare ADR and WORK-ITEM tokens when projectCode is null', () => {
+    const re = buildBareIdPattern(null)
+    expect('ADR-0001'.match(re)).not.toBeNull()
+    expect('WORK-ITEM-0042'.match(re)).not.toBeNull()
+  })
+
+  it('captures the inner token even when wrapped in brackets', () => {
+    const re = buildBareIdPattern(null)
+    const matches = [...'[[WORK-ITEM-0042]]'.matchAll(re)]
+    expect(matches.length).toBe(1)
+    expect(matches[0][1]).toBe('WORK-ITEM')
+    expect(matches[0][2]).toBe('0042')
+  })
+
+  it('matches project-prefixed forms when projectCode is set', () => {
+    const re = buildBareIdPattern('PROJ')
+    expect('WORK-ITEM-PROJ-0042'.match(re)).not.toBeNull()
+    expect('WORK-ITEM-0042'.match(re)).not.toBeNull()
+  })
+
+  it('does not match non-token text', () => {
+    const re = buildBareIdPattern(null)
+    expect('see issue 0042 for context'.match(re)).toBeNull()
+    expect('WORKBOOK-0042'.match(re)).toBeNull()
+  })
+
+  describe('word-boundary collision cases', () => {
+    it('matches ADR-NNNN embedded inside a longer hyphen-joined token', () => {
+      const re = buildBareIdPattern(null)
+      const matches = [...'MY-ADR-0017'.matchAll(re)]
+      expect(matches.length).toBe(1)
+      expect(matches[0][0]).toBe('ADR-0017')
+    })
+
+    it('matches WORK-ITEM-NNNN even when followed by an extra hyphenated suffix', () => {
+      const re = buildBareIdPattern(null)
+      const matches = [...'WORK-ITEM-0042-suffix'.matchAll(re)]
+      expect(matches.length).toBe(1)
+      expect(matches[0][0]).toBe('WORK-ITEM-0042')
+    })
+
+    it('matches a token inside a path-shaped string', () => {
+      const re = buildBareIdPattern(null)
+      const matches = [...'notes/WORK-ITEM-0042.md'.matchAll(re)]
+      expect(matches.length).toBe(1)
+      expect(matches[0][0]).toBe('WORK-ITEM-0042')
+    })
+
+    it('does not match a token immediately followed by a word character', () => {
+      const re = buildBareIdPattern(null)
+      expect('WORK-ITEM-0042a'.match(re)).toBeNull()
+    })
+  })
+})
+
+describe('splitByBareIds', () => {
+  it('returns a single text segment when no matches are present', () => {
+    const segs = splitByBareIds('plain value', buildBareIdPattern(null))
+    expect(segs).toEqual([{ kind: 'text', text: 'plain value' }])
+  })
+
+  it('returns a single match segment when the whole string is one token', () => {
+    const segs = splitByBareIds('WORK-ITEM-0042', buildBareIdPattern(null))
+    expect(segs).toEqual([
+      { kind: 'match', text: 'WORK-ITEM-0042', prefix: 'WORK-ITEM', id: '0042' },
+    ])
+  })
+
+  it('interleaves text and matches in source order', () => {
+    const segs = splitByBareIds(
+      'see WORK-ITEM-0041 for context',
+      buildBareIdPattern(null),
+    )
+    expect(segs).toEqual([
+      { kind: 'text', text: 'see ' },
+      { kind: 'match', text: 'WORK-ITEM-0041', prefix: 'WORK-ITEM', id: '0041' },
+      { kind: 'text', text: ' for context' },
+    ])
+  })
+
+  it('handles consecutive matches with no separator text', () => {
+    const segs = splitByBareIds(
+      'WORK-ITEM-0001 WORK-ITEM-0002',
+      buildBareIdPattern(null),
+    )
+    expect(segs.filter((s) => s.kind === 'match').length).toBe(2)
+  })
+
+  it('returns one empty text segment for empty input', () => {
+    const segs = splitByBareIds('', buildBareIdPattern(null))
+    expect(segs).toEqual([{ kind: 'text', text: '' }])
+  })
+
+  it('captures project-prefixed IDs when the pattern includes them', () => {
+    const segs = splitByBareIds(
+      'WORK-ITEM-PROJ-0099',
+      buildBareIdPattern('PROJ'),
+    )
+    expect(segs).toEqual([
+      {
+        kind: 'match',
+        text: 'WORK-ITEM-PROJ-0099',
+        prefix: 'WORK-ITEM',
+        id: 'PROJ-0099',
+      },
+    ])
   })
 })

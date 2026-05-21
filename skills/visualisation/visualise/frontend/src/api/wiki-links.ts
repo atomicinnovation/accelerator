@@ -32,6 +32,71 @@ export function buildWikiLinkPattern(projectCode: string | null): RegExp {
   return new RegExp(`\\[\\[(ADR|WORK-ITEM)-(${innerWorkItem})\\]\\]`, 'g')
 }
 
+export type BareIdSegment =
+  | { kind: 'text'; text: string }
+  | {
+      kind: 'match'
+      text: string
+      prefix: 'ADR' | 'WORK-ITEM'
+      id: string
+    }
+
+/** Build a bare-token regex that matches the wiki-link grammar without
+ *  the surrounding `[[ … ]]`. Used by surfaces that linkify scalar
+ *  values (e.g. frontmatter cells) rather than markdown text.
+ *
+ *  Word-boundary anchored, so embedded matches inside hyphen-joined or
+ *  path-shaped strings (`MY-ADR-0017`, `notes/WORK-ITEM-0042.md`) do
+ *  match — the surrounding `-`, `/`, `.`, and whitespace are non-word.
+ *  Always returned with the `g` flag set so callers can iterate
+ *  matches; `splitByBareIds` clones to avoid `lastIndex` bleed across
+ *  calls. */
+export function buildBareIdPattern(projectCode: string | null): RegExp {
+  const innerWorkItem = projectCode
+    ? `${escapeRegExp(projectCode)}-\\d+|\\d+`
+    : `\\d+`
+  return new RegExp(`\\b(ADR|WORK-ITEM)-(${innerWorkItem})\\b`, 'g')
+}
+
+/** Split a string into ordered segments alternating between plain text
+ *  and bare-ID matches. Empty leading/trailing text segments around
+ *  matches are elided. Returns a single empty-text segment for an
+ *  empty input.
+ *
+ *  Forces the `g` flag on the cloned regex so a caller that hands in
+ *  a non-global pattern does not hang the loop. */
+export function splitByBareIds(
+  text: string,
+  pattern: RegExp,
+): BareIdSegment[] {
+  const flags = pattern.flags.includes('g')
+    ? pattern.flags
+    : pattern.flags + 'g'
+  const re = new RegExp(pattern.source, flags)
+  const segments: BareIdSegment[] = []
+  let lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > lastIndex) {
+      segments.push({ kind: 'text', text: text.slice(lastIndex, m.index) })
+    }
+    segments.push({
+      kind: 'match',
+      text: m[0],
+      prefix: m[1] as 'ADR' | 'WORK-ITEM',
+      id: m[2],
+    })
+    lastIndex = m.index + m[0].length
+  }
+  if (lastIndex < text.length) {
+    segments.push({ kind: 'text', text: text.slice(lastIndex) })
+  }
+  if (segments.length === 0) {
+    segments.push({ kind: 'text', text })
+  }
+  return segments
+}
+
 /** Parse an ADR id that may live on `frontmatter.adr_id` (e.g. `"ADR-0017"`)
  *  or in the filename prefix (`ADR-0017-foo.md`). Frontmatter wins over
  *  filename — mirrors the server's `parse_adr_id` precedence. */

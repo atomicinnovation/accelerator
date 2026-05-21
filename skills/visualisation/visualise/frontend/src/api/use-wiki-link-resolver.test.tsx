@@ -117,6 +117,21 @@ describe('useWikiLinkResolver', () => {
     expect(result.current.resolver).toBe(settledFirst)
   })
 
+  it('exposes a bareIdPattern that matches bare WORK-ITEM tokens', async () => {
+    const qc = new QueryClient()
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
+
+    const { result } = renderHook(() => useWikiLinkResolver(), {
+      wrapper: makeWrapper(qc),
+    })
+
+    await waitFor(() => {
+      expect(
+        'WORK-ITEM-0042'.match(result.current.bareIdPattern),
+      ).not.toBeNull()
+    })
+  })
+
   // ── Step 5.8c ───────────────────────────────────────────────────────
   it('refetch with cached data does NOT return resolver to pending', async () => {
     const qc = new QueryClient()

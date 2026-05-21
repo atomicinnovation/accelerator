@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchDocs } from './fetch'
 import { queryKeys } from './query-keys'
 import {
+  buildBareIdPattern,
   buildWikiLinkIndex,
   buildWikiLinkPattern,
   resolveWikiLink,
@@ -26,6 +27,7 @@ async function fetchWorkItemConfig(): Promise<WorkItemConfig> {
 export interface UseWikiLinkResolverResult {
   resolver: Resolver
   pattern: RegExp
+  bareIdPattern: RegExp
 }
 
 /** Combine the ADR + work item caches into a memoised `Resolver` suitable
@@ -62,6 +64,11 @@ export function useWikiLinkResolver(): UseWikiLinkResolverResult {
     [workItemConfig.data?.defaultProjectCode],
   )
 
+  const bareIdPattern = useMemo<RegExp>(
+    () => buildBareIdPattern(workItemConfig.data?.defaultProjectCode ?? null),
+    [workItemConfig.data?.defaultProjectCode],
+  )
+
   const wikiIndex = useMemo<WikiLinkIndex>(
     () => buildWikiLinkIndex(adrs.data ?? [], workItems.data ?? []),
     [adrs.data, workItems.data],
@@ -76,5 +83,5 @@ export function useWikiLinkResolver(): UseWikiLinkResolverResult {
     [isWarming, wikiIndex],
   )
 
-  return { resolver, pattern }
+  return { resolver, pattern, bareIdPattern }
 }

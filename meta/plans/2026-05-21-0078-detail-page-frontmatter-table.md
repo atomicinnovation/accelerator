@@ -478,14 +478,14 @@ it('exposes a bareIdPattern that matches bare WORK-ITEM tokens', async () => {
 
 #### Automated Verification:
 
-- [ ] All new `wiki-links.test.ts` cases pass:
+- [x] All new `wiki-links.test.ts` cases pass:
       `cd skills/visualisation/visualise/frontend && npm test -- wiki-links.test`
-- [ ] The new `use-wiki-link-resolver.test.tsx` case passes:
+- [x] The new `use-wiki-link-resolver.test.tsx` case passes:
       `npm test -- use-wiki-link-resolver.test`
-- [ ] Existing wiki-link-related tests are untouched and still green:
+- [x] Existing wiki-link-related tests are untouched and still green:
       `npm test -- wiki-link`
-- [ ] Type checking passes: `npm run typecheck`
-- [ ] Full test suite remains green: `npm test`
+- [x] Type checking passes: `npm run typecheck`
+- [x] Full test suite remains green: `npm test`
 
 #### Manual Verification:
 
