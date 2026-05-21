@@ -1,10 +1,10 @@
 .table {
   display: grid;
   grid-template-columns: max-content 1fr;
-  column-gap: var(--sp-4);
-  row-gap: var(--sp-1);
+  column-gap: var(--sp-3);
+  row-gap: 6px;
   align-items: baseline;
-  margin: 0 0 var(--sp-4);
+  margin: 0 0 var(--sp-5);
   padding: var(--sp-3) 14px;
   background: var(--ac-bg-sunken);
   border: 1px solid var(--ac-stroke);
@@ -31,8 +31,8 @@
 
 .value a {
   color: var(--ac-accent);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
+  border-bottom: 1px dashed currentColor;
 }
 
 .value a:hover {

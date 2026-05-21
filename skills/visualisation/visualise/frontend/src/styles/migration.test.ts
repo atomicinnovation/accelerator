@@ -57,8 +57,9 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/FrontmatterChips/FrontmatterChips.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   // components/FrontmatterTable/FrontmatterTable.module.css
   { file: 'components/FrontmatterTable/FrontmatterTable.module.css', literal: '14px', count: 1, kind: 'irreducible', reason: 'container horizontal padding from design — between --sp-3 (12px) and --sp-4 (16px); not aliased to a token' },
-  { file: 'components/FrontmatterTable/FrontmatterTable.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
-  { file: 'components/FrontmatterTable/FrontmatterTable.module.css', literal: '2px', count: 3, kind: 'irreducible', reason: 'focus-ring outline width, outline-offset, text-underline-offset — below --sp-1 floor' },
+  { file: 'components/FrontmatterTable/FrontmatterTable.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'row-gap from design — between --sp-1 (4px) and --sp-2 (8px); matches prototype .ac-fm gap' },
+  { file: 'components/FrontmatterTable/FrontmatterTable.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'container border + anchor dashed border-bottom — below --sp-1 floor' },
+  { file: 'components/FrontmatterTable/FrontmatterTable.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'focus-ring outline width + outline-offset — below --sp-1 floor' },
   // components/MarkdownRenderer/MarkdownRenderer.module.css
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '#1e1e1e', count: 1, kind: 'irreducible', reason: 'code block background — editor-dark, no surface token' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '#d4d4d4', count: 1, kind: 'irreducible', reason: 'code block text colour — editor-light-fg, no token' },
