@@ -5,6 +5,7 @@
   gap: var(--sp-5) var(--sp-6);
 }
 .body { grid-area: body; }
+.frontmatter { grid-area: body; }
 .aside { grid-area: aside; font-size: var(--size-xs); color: var(--ac-fg-muted); }
 .aside h3 { font-size: var(--size-xxs); font-weight: 600; text-transform: uppercase; color: var(--ac-fg-faint); margin: 0 0 0.4rem; }
 .aside section { margin-bottom: var(--sp-5); }

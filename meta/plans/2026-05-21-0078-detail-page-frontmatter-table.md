@@ -3,7 +3,7 @@ date: "2026-05-21T00:00:00+01:00"
 type: plan
 skill: create-plan
 work-item: "0078"
-status: draft
+status: done
 ---
 
 # Detail-Page Frontmatter Table Implementation Plan
@@ -1221,13 +1221,13 @@ final href shape.
 
 #### Automated Verification:
 
-- [ ] Integration test passes:
+- [x] Integration test passes:
       `cd skills/visualisation/visualise/frontend && npm test -- LibraryDocView.test`
-- [ ] Phase 1 and Phase 2 tests remain green:
+- [x] Phase 1 and Phase 2 tests remain green:
       `npm test -- 'wiki-link|FrontmatterTable|migration|use-wiki-link-resolver'`
-- [ ] Type checking passes: `npm run typecheck`
-- [ ] Full test suite remains green: `npm test`
-- [ ] `npm run build` succeeds (Vite + TS compile):
+- [x] Type checking passes: `npm run typecheck`
+- [x] Full test suite remains green: `npm test`
+- [x] `npm run build` succeeds (Vite + TS compile):
       `npm run build`
 
 #### Manual Verification:

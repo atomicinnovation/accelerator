@@ -48,7 +48,8 @@ describe('LibraryDocView', () => {
       content: '# Title', etag: '"sha256-a"',
     })
     render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
-    expect(await screen.findByText('draft')).toBeInTheDocument()
+    // 'draft' appears both in the chip strip and in the FrontmatterTable.
+    expect((await screen.findAllByText('draft')).length).toBeGreaterThan(0)
   })
 
   it('renders the markdown body', async () => {
@@ -229,6 +230,100 @@ describe('LibraryDocView', () => {
       expect(screen.queryByLabelText(/metadata header/i)).toBeNull()
       unmount()
     }
+  })
+
+  // ── Phase 0078: FrontmatterTable integration ─────────────────────────
+  it('renders the FrontmatterTable when frontmatterState is parsed', async () => {
+    const entry: IndexEntry = {
+      ...mockEntry,
+      frontmatter: { kind: 'story', status: 'ready', parent: '' },
+      frontmatterState: 'parsed',
+    }
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([entry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: '# Body', etag: '"sha256-a"',
+    })
+    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
+    expect(
+      await screen.findByLabelText('Document metadata'),
+    ).toBeInTheDocument()
+  })
+
+  it('does NOT render the FrontmatterTable when frontmatterState is malformed', async () => {
+    const entry: IndexEntry = {
+      ...mockEntry,
+      frontmatter: {},
+      frontmatterState: 'malformed',
+    }
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([entry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: '# Body', etag: '"sha256-a"',
+    })
+    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
+    await screen.findByLabelText(/metadata header/i)
+    expect(screen.queryByLabelText('Document metadata')).toBeNull()
+  })
+
+  it('does NOT render the FrontmatterTable when frontmatterState is absent', async () => {
+    const entry: IndexEntry = {
+      ...mockEntry,
+      frontmatter: {},
+      frontmatterState: 'absent',
+    }
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([entry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: '# Body', etag: '"sha256-a"',
+    })
+    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
+    await screen.findByRole('article')
+    expect(screen.queryByLabelText('Document metadata')).toBeNull()
+  })
+
+  it('linkifies a WORK-ITEM scalar value via the shared resolver (end-to-end)', async () => {
+    const referenced: IndexEntry = {
+      ...mockEntry,
+      type: 'work-items',
+      relPath: 'meta/work/0041-page-wrapper.md',
+      slug: '0041-page-wrapper',
+      workItemId: '0041',
+      title: 'Page wrapper',
+    }
+    const subject: IndexEntry = {
+      ...mockEntry,
+      type: 'work-items',
+      relPath: 'meta/work/0078-detail-page-frontmatter-table.md',
+      slug: '0078-detail-page-frontmatter-table',
+      workItemId: '0078',
+      frontmatter: { parent: 'WORK-ITEM-0041' },
+      frontmatterState: 'parsed',
+    }
+    vi.spyOn(fetchModule, 'fetchDocs').mockImplementation((type) => {
+      if (type === 'work-items') return Promise.resolve([subject, referenced])
+      return Promise.resolve([])
+    })
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: '# Body', etag: '"sha256-a"',
+    })
+    vi.spyOn(fetchModule, 'fetchRelated').mockResolvedValue({
+      inferredCluster: [],
+      declaredOutbound: [],
+      declaredInbound: [],
+    })
+
+    const { container } = render(
+      <LibraryDocView type="work-items" fileSlug="0078-detail-page-frontmatter-table" />,
+      { wrapper: Wrapper },
+    )
+
+    await screen.findByLabelText('Document metadata')
+    const link = await waitFor(() => {
+      const el = container.querySelector(
+        'a[href$="/library/work-items/0041-page-wrapper"]',
+      )
+      if (!el) throw new Error('not yet')
+      return el
+    })
+    expect(link.textContent).toBe('WORK-ITEM-0041')
   })
 
   it('shows the malformed banner mid-session when docs query refetches with malformed state', async () => {

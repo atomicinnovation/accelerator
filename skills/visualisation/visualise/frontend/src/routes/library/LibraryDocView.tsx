@@ -8,6 +8,7 @@ import { useDocPageData } from '../../api/use-doc-page-data'
 import { useWikiLinkResolver } from '../../api/use-wiki-link-resolver'
 import { useDeferredFetchingHint } from '../../api/use-deferred-fetching-hint'
 import { FrontmatterChips } from '../../components/FrontmatterChips/FrontmatterChips'
+import { FrontmatterTable } from '../../components/FrontmatterTable/FrontmatterTable'
 import { MarkdownRenderer } from '../../components/MarkdownRenderer/MarkdownRenderer'
 import { RelatedArtifacts } from '../../components/RelatedArtifacts/RelatedArtifacts'
 import type { DocTypeKey } from '../../api/types'
@@ -43,7 +44,11 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
   // `entry?.relPath`. Body rendering is *not* gated on the wiki-link
   // resolver — pending markers handle the cache-warming window.
   const { content, related } = useDocPageData(entry?.relPath)
-  const { resolver: resolveWikiLink, pattern: wikiLinkPattern } = useWikiLinkResolver()
+  const {
+    resolver: resolveWikiLink,
+    pattern: wikiLinkPattern,
+    bareIdPattern,
+  } = useWikiLinkResolver()
   const showUpdatingHint = useDeferredFetchingHint(related)
 
   if (type === undefined) {
@@ -113,6 +118,16 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
           <div className={styles.malformedBanner} aria-label="Document metadata header notice">
             <strong className={styles.malformedPrefix}>Warning:</strong>{' '}
             We couldn&rsquo;t read this document&rsquo;s metadata header; showing the file as-is.
+          </div>
+        )}
+
+        {entry.frontmatterState === 'parsed' && (
+          <div className={styles.frontmatter}>
+            <FrontmatterTable
+              frontmatter={entry.frontmatter as Record<string, unknown>}
+              resolveWikiLink={resolveWikiLink}
+              bareIdPattern={bareIdPattern}
+            />
           </div>
         )}
 
