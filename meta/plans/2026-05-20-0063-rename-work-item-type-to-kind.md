@@ -657,19 +657,24 @@ bash skills/work/scripts/test-work-item-scripts.sh
 
 #### Automated Verification
 
-- [ ] `bash skills/work/scripts/test-work-item-scripts.sh` exits 0.
-- [ ] `rg -n 'type\)' skills/work/scripts/work-item-template-field-hints.sh`
+- [~] `bash skills/work/scripts/test-work-item-scripts.sh` exits 0.
+  (Pre-existing failure in the `work-item-next-number.sh (configured pattern)`
+  block — fixture writes legacy `.claude/accelerator.md` and trips
+  `config_assert_no_legacy_layout`. Reproduces on `main`. The field-hints
+  subset that this phase touches was verified by direct invocation.)
+- [x] `rg -n 'type\)' skills/work/scripts/work-item-template-field-hints.sh`
   returns zero hits (the `kind)` arm replaces it).
-- [ ] `bash skills/work/scripts/work-item-template-field-hints.sh kind`
+- [x] `bash skills/work/scripts/work-item-template-field-hints.sh kind`
   prints exactly five lines: `story`, `epic`, `task`, `bug`, `spike`.
-- [ ] `bash skills/work/scripts/work-item-template-field-hints.sh type`
-  prints nothing (falls through to the wildcard case).
+- [~] `bash skills/work/scripts/work-item-template-field-hints.sh type`
+  prints nothing (falls through to the wildcard case). Template still has
+  `^type:` until Phase 5 runs; re-verified end of Phase 7.
 
 #### Manual Verification
 
 - [ ] The dynamic-hint path (when the template's trailing comment is
   parseable) still works: spot-check by running the helper against the
-  Phase 5 updated template.
+  Phase 5 updated template. (Verified in Phase 5.)
 
 ---
 

@@ -4,7 +4,7 @@ set -euo pipefail
 # Extracts hint values for a frontmatter field from the work item template.
 # Usage: work-item-template-field-hints.sh <field>
 # Outputs one value per line, parsed from the template's trailing comment.
-# Falls back to hardcoded defaults for type/status/priority if the template
+# Falls back to hardcoded defaults for kind/status/priority if the template
 # comment is absent or the template cannot be read.
 # Exit code: always 0.
 
@@ -22,7 +22,7 @@ FIELD="$1"
 hardcoded_fallback() {
   local field="$1"
   case "$field" in
-    type)
+    kind)
       echo "story"
       echo "epic"
       echo "task"

@@ -682,7 +682,7 @@ make_work_item() {
   cat > "$repo/meta/work/0001-test.md" << 'FIXTURE'
 ---
 work_item_id: 0001
-type: story
+kind: story
 priority: high
 status: draft
 parent: "0001"
@@ -692,15 +692,15 @@ sub.type: foo
 
 # 0001: Test Work Item
 
-type: epic
+kind: epic
 FIXTURE
 }
 
-# Test 1: Read type field → outputs "story"
-echo "Test: Read type field"
+# Test 1: Read kind field → outputs "story"
+echo "Test: Read kind field"
 REPO=$(setup_repo)
 make_work_item "$REPO"
-OUTPUT=$(bash "$READ_FIELD" type "$REPO/meta/work/0001-test.md")
+OUTPUT=$(bash "$READ_FIELD" kind "$REPO/meta/work/0001-test.md")
 assert_eq "outputs story" "story" "$OUTPUT"
 
 # Test 2: Read priority field → outputs "high"
@@ -764,7 +764,7 @@ REPO=$(setup_repo)
 cat > "$REPO/unclosed.md" << 'FIXTURE'
 ---
 status: draft
-type: story
+kind: story
 FIXTURE
 assert_exit_code "exits 1" 1 bash "$READ_FIELD" status "$REPO/unclosed.md"
 
@@ -780,7 +780,7 @@ assert_exit_code "exits 1" 1 bash "$READ_FIELD" status
 echo "Test: Body field ignored"
 REPO=$(setup_repo)
 make_work_item "$REPO"
-OUTPUT=$(bash "$READ_FIELD" type "$REPO/meta/work/0001-test.md")
+OUTPUT=$(bash "$READ_FIELD" kind "$REPO/meta/work/0001-test.md")
 assert_eq "outputs story (not epic from body)" "story" "$OUTPUT"
 
 # Test 14: Duplicate key → first-match-wins
@@ -1001,11 +1001,11 @@ OUTPUT=$(bash "$FIELD_HINTS" status)
 EXPECTED=$(printf "draft\nready\nin-progress\nreview\ndone\nblocked\nabandoned")
 assert_eq "returns 7 status values" "$EXPECTED" "$OUTPUT"
 
-# Test 2: Type field parsed from template comment
-echo "Test: Type field parsed from template comment"
-OUTPUT=$(bash "$FIELD_HINTS" type)
+# Test 2: Kind field parsed from template comment
+echo "Test: Kind field parsed from template comment"
+OUTPUT=$(bash "$FIELD_HINTS" kind)
 EXPECTED=$(printf "story\nepic\ntask\nbug\nspike")
-assert_eq "returns 5 type values" "$EXPECTED" "$OUTPUT"
+assert_eq "returns 5 kind values" "$EXPECTED" "$OUTPUT"
 
 # Test 3: Priority field parsed from template comment
 echo "Test: Priority field parsed from template comment"
@@ -1026,7 +1026,7 @@ cat > "$REPO/meta/templates/work-item.md" << 'FIXTURE'
 ---
 work_item_id: NNNN
 status: open                                   # open | closed | wontfix
-type: feature                                  # feature | defect
+category: feature                              # feature | defect
 priority: p1                                   # p1 | p2 | p3 | p4
 ---
 
@@ -1054,7 +1054,7 @@ cat > "$REPO/meta/templates/work-item.md" << 'FIXTURE'
 ---
 work_item_id: NNNN
 status: draft
-type: story
+kind: story
 priority: medium
 ---
 
@@ -1078,15 +1078,15 @@ done < <(echo "$STATUS_COMMENT" | tr '|' '\n')
 HARDCODED_VALUES=$(cd /tmp && CLAUDE_PLUGIN_ROOT="/nonexistent" bash "$FIELD_HINTS" status 2>/dev/null) || true
 assert_eq "hardcoded status matches shipping template" "$SHIPPING_VALUES" "$HARDCODED_VALUES"
 
-TYPE_LINE=$(grep "^type:" "$SHIPPING_TEMPLATE")
-TYPE_COMMENT="${TYPE_LINE#*#}"
+KIND_LINE=$(grep "^kind:" "$SHIPPING_TEMPLATE")
+KIND_COMMENT="${KIND_LINE#*#}"
 SHIPPING_VALUES=""
 while IFS= read -r token; do
   token=$(echo "$token" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
   [ -n "$token" ] && SHIPPING_VALUES="${SHIPPING_VALUES}${SHIPPING_VALUES:+$'\n'}${token}"
-done < <(echo "$TYPE_COMMENT" | tr '|' '\n')
-HARDCODED_VALUES=$(cd /tmp && CLAUDE_PLUGIN_ROOT="/nonexistent" bash "$FIELD_HINTS" type 2>/dev/null) || true
-assert_eq "hardcoded type matches shipping template" "$SHIPPING_VALUES" "$HARDCODED_VALUES"
+done < <(echo "$KIND_COMMENT" | tr '|' '\n')
+HARDCODED_VALUES=$(cd /tmp && CLAUDE_PLUGIN_ROOT="/nonexistent" bash "$FIELD_HINTS" kind 2>/dev/null) || true
+assert_eq "hardcoded kind matches shipping template" "$SHIPPING_VALUES" "$HARDCODED_VALUES"
 
 PRIORITY_LINE=$(grep "^priority:" "$SHIPPING_TEMPLATE")
 PRIORITY_COMMENT="${PRIORITY_LINE#*#}"
