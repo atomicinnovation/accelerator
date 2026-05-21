@@ -3,7 +3,7 @@ work_item_id: "0058"
 title: "Workspace and Worktree Boundary Detection at Session Start"
 date: "2026-05-15T09:53:35+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: done
 priority: medium
 parent: ""
@@ -12,7 +12,7 @@ tags: [hooks, vcs, jj, git, session-start]
 
 # 0058: Workspace and Worktree Boundary Detection at Session Start
 
-**Type**: Story
+**Kind**: Story
 **Status**: Ready
 **Priority**: Medium
 **Author**: Toby Clemson

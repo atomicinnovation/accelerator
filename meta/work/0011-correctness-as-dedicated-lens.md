@@ -1,6 +1,6 @@
 ---
 title: "Correctness as a dedicated lens"
-type: adr-creation-task
+kind: adr-creation-task
 status: done
 ---
 

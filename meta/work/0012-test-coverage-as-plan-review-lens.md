@@ -1,6 +1,6 @@
 ---
 title: "Test coverage as a plan review lens"
-type: adr-creation-task
+kind: adr-creation-task
 status: done
 ---
 

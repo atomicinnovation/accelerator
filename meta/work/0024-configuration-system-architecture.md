@@ -1,6 +1,6 @@
 ---
 title: "Configuration system architecture"
-type: adr-creation-task
+kind: adr-creation-task
 status: done
 ---
 

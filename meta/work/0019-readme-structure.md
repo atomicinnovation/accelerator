@@ -1,6 +1,6 @@
 ---
 title: "README structured around philosophy and development loop"
-type: adr-creation-task
+kind: adr-creation-task
 status: ready
 ---
 

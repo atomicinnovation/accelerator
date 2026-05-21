@@ -3,7 +3,7 @@ work_item_id: "0041"
 title: "Library Page Wrapper, Overview Hub, and List Views"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: done
 priority: medium
 parent: ""
@@ -12,7 +12,7 @@ tags: [design, frontend, library]
 
 # 0041: Library Page Wrapper, Overview Hub, and List Views
 
-**Type**: Story
+**Kind**: Story
 **Status**: Ready
 **Priority**: Medium
 **Author**: Toby Clemson

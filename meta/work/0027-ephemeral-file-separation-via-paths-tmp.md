@@ -1,6 +1,6 @@
 ---
 title: "Ephemeral file separation via paths.tmp"
-type: adr-creation-task
+kind: adr-creation-task
 status: done
 ---
 

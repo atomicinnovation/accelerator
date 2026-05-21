@@ -3,7 +3,7 @@ work_item_id: "0052"
 title: "Make documents-locator Agent Paths Config-Driven via Preloaded Skill"
 date: "2026-05-07T21:50:34+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: done
 priority: medium
 parent: ""
@@ -12,7 +12,7 @@ tags: [agents, configuration, documents-locator]
 
 # 0052: Make documents-locator Agent Paths Config-Driven via Preloaded Skill
 
-**Type**: Story
+**Kind**: Story
 **Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson

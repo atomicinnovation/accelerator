@@ -3,7 +3,7 @@ work_item_id: "0044"
 title: "Spike: Confirm List-Screen Scope Decisions"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
-type: spike
+kind: spike
 status: draft
 priority: high
 parent: ""
@@ -12,7 +12,7 @@ tags: [design, spike, scope, kanban, lifecycle]
 
 # 0044: Spike: Confirm List-Screen Scope Decisions
 
-**Type**: Spike
+**Kind**: Spike
 **Status**: Draft
 **Priority**: High
 **Author**: Toby Clemson

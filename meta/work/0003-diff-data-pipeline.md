@@ -1,6 +1,6 @@
 ---
 title: "Diff data pipeline: shared storage, hybrid access, and validation"
-type: adr-creation-task
+kind: adr-creation-task
 status: done
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: "Template management subcommand surface"
-type: adr-creation-task
+kind: adr-creation-task
 status: done
 ---
 

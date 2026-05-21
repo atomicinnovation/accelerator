@@ -1,6 +1,6 @@
 ---
 title: "Skills and agents as complementary abstractions"
-type: adr-creation-task
+kind: adr-creation-task
 status: ready
 ---
 

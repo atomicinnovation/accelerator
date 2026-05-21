@@ -1,6 +1,6 @@
 ---
 title: "Plugin packaging and scope boundary"
-type: adr-creation-task
+kind: adr-creation-task
 status: ready
 ---
 

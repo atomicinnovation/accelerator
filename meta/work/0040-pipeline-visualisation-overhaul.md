@@ -3,7 +3,7 @@ work_item_id: "0040"
 title: "Pipeline Visualisation Overhaul"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: draft
 priority: medium
 parent: ""
@@ -12,7 +12,7 @@ tags: [design, frontend, lifecycle, kanban]
 
 # 0040: Pipeline Visualisation Overhaul
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: Medium
 **Author**: Toby Clemson

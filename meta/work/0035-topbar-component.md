@@ -3,7 +3,7 @@ work_item_id: "0035"
 title: "Topbar Component"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: done
 priority: high
 parent: ""
@@ -12,7 +12,7 @@ tags: [design, frontend, chrome]
 
 # 0035: Topbar Component
 
-**Type**: Story
+**Kind**: Story
 **Status**: Ready
 **Priority**: High
 **Author**: Toby Clemson

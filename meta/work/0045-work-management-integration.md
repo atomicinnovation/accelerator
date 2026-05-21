@@ -3,7 +3,7 @@ work_item_id: "0045"
 title: "Work Management Integration"
 date: "2026-05-04T23:56:41+00:00"
 author: Toby Clemson
-type: epic
+kind: epic
 status: in-progress
 priority: high
 parent: ""
@@ -12,7 +12,7 @@ tags: [work-management, integrations, jira, linear, trello, github-issues, sync]
 
 # 0045: Work Management Integration
 
-**Type**: Epic
+**Kind**: Epic
 **Status**: In-Progress
 **Priority**: High
 **Author**: Toby Clemson

@@ -1,6 +1,6 @@
 ---
 title: "Generic reviewer agent with path passing and three-way separation"
-type: adr-creation-task
+kind: adr-creation-task
 status: done
 ---
 

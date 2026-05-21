@@ -3,7 +3,7 @@ work_item_id: "0030"
 title: "Centralise PATH and TEMPLATE config arrays to scripts/config-defaults.sh"
 date: "2026-04-26T00:00:00+00:00"
 author: Toby Clemson
-type: task
+kind: task
 status: done
 priority: low
 parent: ""
@@ -12,7 +12,7 @@ tags: [config, refactoring]
 
 # 0030: Centralise PATH and TEMPLATE config arrays to scripts/config-defaults.sh
 
-**Type**: Task
+**Kind**: Task
 **Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson

@@ -3,7 +3,7 @@ work_item_id: "0047"
 title: "Core Skills Sync Integration"
 date: "2026-05-06T17:49:44+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: draft
 priority: high
 parent: "0045"
@@ -12,7 +12,7 @@ tags: [work-management, integrations, sync, list-work-items, create-work-item]
 
 # 0047: Core Skills Sync Integration
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: High
 **Author**: Toby Clemson

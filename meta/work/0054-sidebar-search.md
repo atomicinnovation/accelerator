@@ -3,7 +3,7 @@ work_item_id: "0054"
 title: "Sidebar Search Input and API Search Endpoint"
 date: "2026-05-11T12:11:50+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: ready
 priority: high
 parent: "0036"
@@ -12,7 +12,7 @@ tags: [design, frontend, chrome, navigation]
 
 # 0054: Sidebar Search Input and API Search Endpoint
 
-**Type**: Story
+**Kind**: Story
 **Status**: Ready
 **Priority**: High
 **Author**: Toby Clemson

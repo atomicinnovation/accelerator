@@ -1,6 +1,6 @@
 ---
 title: "GitHub review posting strategy"
-type: adr-creation-task
+kind: adr-creation-task
 status: done
 ---
 

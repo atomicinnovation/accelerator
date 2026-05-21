@@ -554,24 +554,24 @@ jj status | grep 'meta/work/' && echo "FAIL: post-rerun changes" || echo "PASS: 
 
 #### Automated Verification
 
-- [ ] `rg -n '^type:' meta/work/` returns zero hits.
-- [ ] `rg -n '^\*\*Type\*\*:' meta/work/` returns zero hits.
-- [ ] All 72 `.md` files under `meta/work/` contain a `^kind:` line.
-- [ ] `.accelerator/state/migrations-applied` contains
+- [x] `rg -n '^type:' meta/work/` returns zero hits.
+- [x] `rg -n '^\*\*Type\*\*:' meta/work/` returns zero hits.
+- [x] All 72 `.md` files under `meta/work/` contain a `^kind:` line.
+- [x] `.accelerator/state/migrations-applied` contains
   `0005-rename-work-item-type-to-kind`.
-- [ ] Re-running `/accelerator:migrate` produces exit 0 and zero
+- [x] Re-running `/accelerator:migrate` produces exit 0 and zero
   further changes under `meta/work/`.
 
 #### Manual Verification
 
-- [ ] Spot-check three representative files:
+- [x] Spot-check three representative files:
   `meta/work/0063-rename-work-item-type-to-kind.md`,
   `meta/work/0001-three-layer-review-system-architecture.md` (legacy
   adr-creation-task shape), `meta/work/0072-playwright-daemon-cjs-import-bug.md`.
   All three have `^kind:` instead of `^type:`; the modern shapes also
   have `^\*\*Kind\*\*:` instead of `^\*\*Type\*\*:`; the legacy shape
   has no body label.
-- [ ] `jj diff meta/work/` review shows only the expected line-level
+- [x] `jj diff meta/work/` review shows only the expected line-level
   rewrites — no other content changes.
 
 ---

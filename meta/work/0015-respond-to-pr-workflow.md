@@ -1,6 +1,6 @@
 ---
 title: "Respond-to-PR as sequential workflow with verify-before-implement"
-type: adr-creation-task
+kind: adr-creation-task
 status: ready
 ---
 

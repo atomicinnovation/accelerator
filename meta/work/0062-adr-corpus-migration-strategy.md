@@ -3,7 +3,7 @@ work_item_id: "0062"
 title: "ADR: Corpus Migration Strategy"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
-type: task
+kind: task
 status: draft
 priority: high
 parent: "0057"
@@ -12,7 +12,7 @@ tags: [adr, migration, frontmatter, accelerator-plugin]
 
 # 0062: ADR: Corpus Migration Strategy
 
-**Type**: Task
+**Kind**: Task
 **Status**: Draft
 **Priority**: High
 **Author**: Toby Clemson

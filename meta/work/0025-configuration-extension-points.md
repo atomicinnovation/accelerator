@@ -1,6 +1,6 @@
 ---
 title: "Configuration extension points: templates, agents, and custom lenses"
-type: adr-creation-task
+kind: adr-creation-task
 status: done
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: "VCS abstraction layer"
-type: adr-creation-task
+kind: adr-creation-task
 status: ready
 ---
 

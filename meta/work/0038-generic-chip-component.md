@@ -3,7 +3,7 @@ work_item_id: "0038"
 title: "Generic Chip Component"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: done
 priority: medium
 parent: ""
@@ -12,7 +12,7 @@ tags: [design, frontend, components]
 
 # 0038: Generic Chip Component
 
-**Type**: Story
+**Kind**: Story
 **Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson

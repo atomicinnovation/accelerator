@@ -3,7 +3,7 @@ work_item_id: "0056"
 title: "Restructure meta/research/codebase/ into Subject Subcategories"
 date: "2026-05-11T16:39:44+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: done
 priority: high
 parent: ""
@@ -12,7 +12,7 @@ tags: [meta, paths, migration, research, configuration]
 
 # 0056: Restructure meta/research/codebase/ into Subject Subcategories
 
-**Type**: Story
+**Kind**: Story
 **Status**: Done
 **Priority**: High
 **Author**: Toby Clemson

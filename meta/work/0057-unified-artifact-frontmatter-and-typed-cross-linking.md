@@ -3,7 +3,7 @@ work_item_id: "0057"
 title: "Unified Artifact Frontmatter and Typed Cross-Linking"
 date: "2026-05-14T17:41:22+00:00"
 author: Toby Clemson
-type: epic
+kind: epic
 status: in-progress
 priority: high
 parent: ""
@@ -12,7 +12,7 @@ tags: [frontmatter, knowledge-graph, migration, schema, accelerator-plugin]
 
 # 0057: Unified Artifact Frontmatter and Typed Cross-Linking
 
-**Type**: Epic
+**Kind**: Epic
 **Status**: Draft
 **Priority**: High
 **Author**: Toby Clemson

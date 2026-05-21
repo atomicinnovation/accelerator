@@ -3,7 +3,7 @@ work_item_id: "0070"
 title: "Ship `meta/` Corpus Unified-Schema Migration"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: draft
 priority: high
 parent: "0057"
@@ -12,7 +12,7 @@ tags: [migration, frontmatter, schema, dogfood]
 
 # 0070: Ship `meta/` Corpus Unified-Schema Migration
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: High
 **Author**: Toby Clemson

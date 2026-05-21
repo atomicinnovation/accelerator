@@ -3,7 +3,7 @@ work_item_id: "0048"
 title: "Linear Integration"
 date: "2026-05-06T17:49:44+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: draft
 priority: medium
 parent: "0045"
@@ -12,7 +12,7 @@ tags: [work-management, integrations, linear]
 
 # 0048: Linear Integration
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: Medium
 **Author**: Toby Clemson

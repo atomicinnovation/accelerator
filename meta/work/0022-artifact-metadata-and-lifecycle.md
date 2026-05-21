@@ -1,6 +1,6 @@
 ---
 title: "Artifact metadata, cross-referencing, and lifecycle transitions"
-type: adr-creation-task
+kind: adr-creation-task
 status: ready
 ---
 

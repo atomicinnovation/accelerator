@@ -3,7 +3,7 @@ work_item_id: "0063"
 title: "Rename work-item `type:` Field to `kind:`"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: ready
 priority: high
 parent: "0057"
@@ -12,7 +12,7 @@ tags: [refactor, work-item, schema, breaking-change]
 
 # 0063: Rename work-item `type:` Field to `kind:`
 
-**Type**: Story
+**Kind**: Story
 **Status**: Ready
 **Priority**: High
 **Author**: Toby Clemson

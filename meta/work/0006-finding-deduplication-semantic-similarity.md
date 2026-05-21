@@ -1,6 +1,6 @@
 ---
 title: "Finding deduplication requires semantic similarity"
-type: adr-creation-task
+kind: adr-creation-task
 status: done
 ---
 

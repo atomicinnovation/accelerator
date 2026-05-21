@@ -3,7 +3,7 @@ work_item_id: "0055"
 title: "Sidebar Activity Feed and SSE Action Discriminator"
 date: "2026-05-11T12:11:50+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: done
 priority: high
 parent: "0036"
@@ -12,7 +12,7 @@ tags: [design, frontend, chrome, navigation]
 
 # 0055: Sidebar Activity Feed and SSE Action Discriminator
 
-**Type**: Story
+**Kind**: Story
 **Status**: Done
 **Priority**: High
 **Author**: Toby Clemson

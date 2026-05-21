@@ -1,6 +1,6 @@
 ---
 title: "ADR system design"
-type: adr-creation-task
+kind: adr-creation-task
 status: done
 ---
 

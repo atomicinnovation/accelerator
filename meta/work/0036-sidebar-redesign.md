@@ -3,7 +3,7 @@ work_item_id: "0036"
 title: "Sidebar Redesign"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
-type: epic
+kind: epic
 status: in-progress
 priority: high
 parent: ""
@@ -12,7 +12,7 @@ tags: [ design, frontend, chrome, navigation ]
 
 # 0036: Sidebar Redesign
 
-**Type**: Epic
+**Kind**: Epic
 **Status**: Draft
 **Priority**: High
 **Author**: Toby Clemson

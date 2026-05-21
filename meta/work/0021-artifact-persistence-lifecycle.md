@@ -1,6 +1,6 @@
 ---
 title: "Artifact persistence lifecycle"
-type: adr-creation-task
+kind: adr-creation-task
 status: done
 ---
 

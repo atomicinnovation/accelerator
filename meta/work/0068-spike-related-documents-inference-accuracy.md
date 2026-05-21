@@ -3,7 +3,7 @@ work_item_id: "0068"
 title: "Spike: Evaluate `Related Documents` Body-Section Inference Accuracy"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
-type: spike
+kind: spike
 status: draft
 priority: medium
 parent: "0057"
@@ -12,7 +12,7 @@ tags: [spike, migration, frontmatter]
 
 # 0068: Spike: Evaluate `Related Documents` Body-Section Inference Accuracy
 
-**Type**: Spike
+**Kind**: Spike
 **Status**: Draft
 **Priority**: Medium
 **Author**: Toby Clemson

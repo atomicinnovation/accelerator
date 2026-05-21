@@ -1,6 +1,6 @@
 ---
 title: "Plugin organisation: two-commit strategy and four skill groups"
-type: adr-creation-task
+kind: adr-creation-task
 status: ready
 ---
 

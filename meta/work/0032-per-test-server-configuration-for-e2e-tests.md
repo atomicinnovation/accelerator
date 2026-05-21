@@ -3,7 +3,7 @@ work_item_id: "0031"
 title: "Per-test server configuration and fixtures for E2E tests"
 date: "2026-05-05T00:00:00+01:00"
 author: Toby Clemson
-type: task
+kind: task
 status: draft
 priority: medium
 parent: ""
@@ -12,7 +12,7 @@ tags: [visualiser, testing, playwright, e2e]
 
 # 0031: Per-test server configuration and fixtures for E2E tests
 
-**Type**: Task
+**Kind**: Task
 **Status**: Draft
 **Priority**: Medium
 **Author**: Toby Clemson

@@ -1,6 +1,6 @@
 ---
 title: "Init skill for repo bootstrap"
-type: adr-creation-task
+kind: adr-creation-task
 status: done
 ---
 

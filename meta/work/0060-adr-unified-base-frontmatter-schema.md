@@ -3,7 +3,7 @@ work_item_id: "0060"
 title: "ADR: Unified Base Frontmatter Schema"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
-type: task
+kind: task
 status: done
 priority: high
 parent: "0057"
@@ -12,7 +12,7 @@ tags: [adr, frontmatter, schema, accelerator-plugin]
 
 # 0060: ADR: Unified Base Frontmatter Schema
 
-**Type**: Task
+**Kind**: Task
 **Status**: Done
 **Priority**: High
 **Author**: Toby Clemson

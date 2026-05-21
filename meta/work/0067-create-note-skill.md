@@ -3,7 +3,7 @@ work_item_id: "0067"
 title: "Create `create-note` Skill"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: draft
 priority: medium
 parent: "0057"
@@ -12,7 +12,7 @@ tags: [skills, notes, accelerator-plugin]
 
 # 0067: Create `create-note` Skill
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: Medium
 **Author**: Toby Clemson

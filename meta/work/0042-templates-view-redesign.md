@@ -3,7 +3,7 @@ work_item_id: "0042"
 title: "Templates View Redesign"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: ready
 priority: low
 parent: ""
@@ -12,7 +12,7 @@ tags: [design, frontend, templates, backend]
 
 # 0042: Templates View Redesign
 
-**Type**: Story
+**Kind**: Story
 **Status**: Ready
 **Priority**: Low
 **Author**: Toby Clemson

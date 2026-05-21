@@ -3,7 +3,7 @@ work_item_id: "0066"
 title: "Update Review Skills' Inline Frontmatter Generators to Unified Schema"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: draft
 priority: medium
 parent: "0057"
@@ -12,7 +12,7 @@ tags: [review-skills, frontmatter, schema]
 
 # 0066: Update Review Skills' Inline Frontmatter Generators to Unified Schema
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: Medium
 **Author**: Toby Clemson
