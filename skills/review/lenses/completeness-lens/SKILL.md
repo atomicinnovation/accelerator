@@ -1,7 +1,7 @@
 ---
 name: completeness
 description: Work-item review lens for evaluating structural and informational
-  completeness — section presence, content density, type-appropriate content,
+  completeness — section presence, content density, kind-appropriate content,
   and frontmatter integrity. Used by review orchestrators — not invoked directly.
 user-invocable: false
 disable-model-invocation: true
@@ -23,9 +23,9 @@ follow-up questions.
 - Check that the Summary provides a clear, unambiguous statement of intent
 - Verify Acceptance Criteria exist and contain at least one specific criterion
 
-2. **Evaluate Type-Appropriate Content**
+2. **Evaluate Kind-Appropriate Content**
 
-- Confirm the work item contains the content its `type` demands:
+- Confirm the work item contains the content its `kind` demands:
   - **Bug**: reproduction steps (input, action, expected outcome, actual outcome)
   - **Story**: context explaining why the feature is wanted, plus criteria that
     define when the story is done
@@ -33,7 +33,7 @@ follow-up questions.
     exit criteria (deliverables or decisions to be made)
   - **Epic**: a list of constituent child stories or a decomposition strategy
   - **Chore / Task**: clear definition of the work to be done
-- For unknown or absent `type`, treat the work item as a generic work item and
+- For unknown or absent `kind`, treat the work item as a generic work item and
   assess based on available fields
 
 3. **Check Context, Assumptions, and Section Population**
@@ -43,7 +43,7 @@ follow-up questions.
   where relevant (empty sections are acceptable only when the content is
   genuinely not applicable)
 - Note missing *sections* whose absence makes the work item under-specified for
-  its type (e.g., a story with no Context section, an epic with no Stories
+  its kind (e.g., a story with no Context section, an epic with no Stories
   list). Do not reason about *content* within a present section —
   implied-but-uncaptured couplings (blockers, consumers, external systems,
   ordering) are the `dependency` lens's domain; unmeasurable criteria within
@@ -51,7 +51,7 @@ follow-up questions.
 
 4. **Verify Frontmatter Integrity**
 
-- Confirm `type` is present and set to a recognised value
+- Confirm `kind` is present and set to a recognised value
 - Check `status`, `priority`, and other required frontmatter fields are present
 - Flag absent or clearly incorrect frontmatter values
 
@@ -73,7 +73,7 @@ follow-up questions.
   that describe desired outcomes but not the actual work, requirements that
   duplicate acceptance criteria without adding detail.)
 
-**Type-specific content** (based on work item type):
+**Kind-specific content** (based on work item kind):
 
 - **Bug**: Are reproduction steps present — does the work item include the specific
   input, the action taken, the expected outcome, and the actual outcome? (Watch
@@ -93,8 +93,8 @@ follow-up questions.
 
 **Frontmatter integrity** (always applicable):
 
-- **Type field**: Is `type` present and set to a recognised value? (Watch for:
-  absent `type`, values like `unknown` or `tbd`.)
+- **Kind field**: Is `kind` present and set to a recognised value? (Watch for:
+  absent `kind`, values like `unknown` or `tbd`.)
 - **Status field**: Is `status` present and appropriate for a work item in its
   current state?
 
@@ -105,7 +105,7 @@ follow-up questions.
 - **Rate confidence** on each finding — distinguish definite gaps (section
   absent) from judgement calls (context deemed insufficient)
 - **Be proportional** — a spike requires less detail than an epic; a chore
-  requires less than a story; flag missing content relative to the work item type
+  requires less than a story; flag missing content relative to the work item kind
 - **Treat empty-but-optional sections fairly** — an empty Dependencies section
   on a standalone chore is not a finding; an empty Dependencies section on a
   feature with obvious external coupling may be flagged as potentially sparse.
@@ -131,9 +131,9 @@ follow-up questions.
 - Don't read source code, run codebase exploration agents, or make inferences
   about the implementation beyond what the work item explicitly states
 - Don't penalise a work item for lacking content that is genuinely not applicable
-  to its type or context
-- Don't apply a rigid checklist regardless of work item type — assess what the
-  type requires
+  to its kind or context
+- Don't apply a rigid checklist regardless of work item kind — assess what the
+  kind requires
 
 Remember: You're evaluating whether the work item gives a reader everything they
 need to understand the work and take action without asking the author follow-up

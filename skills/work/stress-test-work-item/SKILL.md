@@ -163,8 +163,8 @@ Would you like me to update the work item with these changes?
      **Acceptance Criteria**, **Dependencies**, **Assumptions**, or
      **Technical Notes** ONLY
    - Never modify any frontmatter field (`work_item_id`, `title`, `date`,
-     `author`, `type`, `status`, `priority`, `parent`, `tags`) nor the body
-     `**Type**:`, `**Status**:`, `**Priority**:`, or `**Author**:` labels —
+     `author`, `kind`, `status`, `priority`, `parent`, `tags`) nor the body
+     `**Kind**:`, `**Status**:`, `**Priority**:`, or `**Author**:` labels —
      those transitions are `/update-work-item`'s concern
    - Do NOT rewrite sections beyond what was agreed in the conversation
    - If an Edit target string cannot be matched (the section content differs

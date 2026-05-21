@@ -2,7 +2,7 @@
 name: list-work-items
 description: List and filter work items from the configured work directory.
   Use when discovering what work items exist, filtering by
-  status/type/priority/parent/tag, or viewing the work item hierarchy.
+  status/kind/priority/parent/tag, or viewing the work item hierarchy.
 argument-hint: "[filter description]"
 disable-model-invocation: false
 allowed-tools:
@@ -45,17 +45,17 @@ If an argument was provided, parse it as a filter expression using the
 following precedence rules. The first rule that matches wins.
 
 Before applying rules 3–4, call `work-item-template-field-hints.sh` for
-each of `type`, `status`, and `priority` to populate the known
+each of `kind`, `status`, and `priority` to populate the known
 template-comment values:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh type
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh kind
 ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh status
 ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh priority
 ```
 
 Each call outputs one value per line. Collect these into three sets:
-known types, known statuses, and known priorities. These hints inform
+known kinds, known statuses, and known priorities. These hints inform
 the shorthand rules below but do not restrict what values may appear on
 work items — legacy values like `todo`, `done`, or `adr-creation-task` are
 matchable only via the explicit structured form (rule 2).
@@ -71,20 +71,20 @@ argument and continue parsing the remainder, if any, through rules 2–5.
 - `tagged <value>` or `with tag <value>` → filter by tag
 - `under <value>` or `children of <value>` → filter by parent
 - `status <value>` → filter by status (matches any value on any work item)
-- `type <value>` → filter by type (matches any value on any work item)
+- `kind <value>` → filter by kind (matches any value on any work item)
 - `priority <value>` → filter by priority
 - `about <text>` → free-text title search (case-insensitive substring)
 
 **Rule 3 — Multi-token template-value shorthand**: two or more tokens
 that each match a known template-comment value in different fields.
-For example, `bugs in review` → `type: bug AND status: review` (after
+For example, `bugs in review` → `kind: bug AND status: review` (after
 singularising `bugs` to `bug` and recognising `in-progress`, `review`,
 etc. as status values with filler words like `in`, `only`, `all`
 stripped). Both tokens must match values from distinct fields. If either
 token is ambiguous across fields, fall through to rule 5.
 
 **Rule 4 — Single-token template-value shorthand**: one token matching a
-known type, status, or priority value from the template comments. Map
+known kind, status, or priority value from the template comments. Map
 common plurals (`bugs`→`bug`, `epics`→`epic`, `stories`→`story`,
 `tasks`→`task`, `spikes`→`spike`) and common synonyms
 (`drafts`→`draft`). If the token matches values in more than one field,
@@ -181,7 +181,7 @@ If no argument was provided: filter is "all work items, no filter".
    work item (all optional — missing fields are recorded as absent, not
    as errors):
    - `title` — the human-readable title
-   - `type` — the work item type
+   - `kind` — the work item kind
    - `status` — the current status
    - `priority` — the priority level
    - `tags` — a YAML inline array (e.g. `[backend, api]`)
@@ -192,7 +192,7 @@ If no argument was provided: filter is "all work items, no filter".
 Apply the parsed filter from Step 1 to the scanned work items.
 
 - **"All, no filter"**: keep every work item.
-- **Status/type/priority filter**: match the field value exactly
+- **Status/kind/priority filter**: match the field value exactly
   (case-sensitive, matching the raw frontmatter value). Work items missing
   the filtered field are excluded from the result (not errors).
 - **Tag filter**: parse the raw `tags` value (e.g. `[backend, api]`)
@@ -222,7 +222,7 @@ Apply the parsed filter from Step 1 to the scanned work items.
 
 Present the filtered work items as a markdown table with these columns:
 
-| ID | Title | Type | Status | Priority |
+| ID | Title | Kind | Status | Priority |
 
 - Sort rows by work item number ascending.
 - Render missing fields as `—`.
@@ -243,10 +243,10 @@ If a hierarchy presentation keyword was detected in Step 1:
   `└── `. Indent two spaces per depth level. Example:
 
 <!-- canonical-tree-fence -->
-NNNN — parent title (type: <type>, status: <status>)
-  ├── NNNN — child 1 title (type: <type>, status: <status>)
-  ├── NNNN — child 2 title (type: <type>, status: <status>)
-  └── NNNN — last child title (type: <type>, status: <status>)
+NNNN — parent title (kind: <kind>, status: <status>)
+  ├── NNNN — child 1 title (kind: <kind>, status: <status>)
+  ├── NNNN — child 2 title (kind: <kind>, status: <status>)
+  └── NNNN — last child title (kind: <kind>, status: <status>)
 <!-- /canonical-tree-fence -->
 
   No ASCII fallback is attempted; terminals without Unicode
@@ -269,7 +269,7 @@ NNNN — parent title (type: <type>, status: <status>)
   Do not render an empty table. If the active filter was a free-text
   title search (rule 5), append:
   ```
-  Tip: to filter by field value, use `status <value>`, `type <value>`,
+  Tip: to filter by field value, use `status <value>`, `kind <value>`,
   or `tagged <value>`.
   ```
 
@@ -295,11 +295,11 @@ All work items (29 total)
 - **No sub-agents**: never spawn sub-agents. All work is done via
   filesystem reads and companion scripts.
 - **No hardcoded field values**: never assume a specific set of status,
-  type, or priority values. The template's comments list shipping
+  kind, or priority values. The template's comments list shipping
   defaults, not a closed set. Users may override the template with
   custom values.
 - **Explicit structured filters are universal**: `status <value>`,
-  `type <value>`, etc. match any value present on any work item, not just
+  `kind <value>`, etc. match any value present on any work item, not just
   template defaults. This is how legacy values like `todo` or
   `adr-creation-task` are reachable.
 - **Resilient to malformed work items**: missing or unclosed frontmatter

@@ -885,21 +885,21 @@ rg -n '(?:^|[^.\w])type:\s*(story|epic|task|bug|spike)\b' \
 
 #### Automated Verification
 
-- [ ] AC2 first grep returns zero hits in the producer surface:
+- [x] AC2 first grep returns zero hits in the producer surface:
   `rg -n '(?:^|[^.\w])type:\s*(story|epic|task|bug|spike)\b'
   templates/ skills/work/*/SKILL.md
   skills/review/lenses/{completeness,scope,dependency,testability}-lens/SKILL.md
   | rg -v 'work-item-review|subagent_type'` — zero hits.
-- [ ] Template body label updated:
+- [x] Template body label updated:
   `rg -n '^\*\*Kind\*\*:' templates/work-item.md` returns exactly
   one hit (line 15); `rg -n '^\*\*Type\*\*:' templates/work-item.md`
   returns zero hits.
-- [ ] `list-work-items/SKILL.md` invokes the helper with the new
+- [x] `list-work-items/SKILL.md` invokes the helper with the new
   argument: `grep -n 'work-item-template-field-hints.sh kind'
   skills/work/list-work-items/SKILL.md` returns at least one hit;
   `grep -n 'work-item-template-field-hints.sh type'` returns zero
   hits.
-- [ ] `update-work-item/SKILL.md:191` field ↔ body-label table maps
+- [x] `update-work-item/SKILL.md:191` field ↔ body-label table maps
   `` `kind` `` to `` `**Kind**: ` ``: verified by
   `rg -n '\`kind\`\s*↔\s*\`\*\*Kind\*\*:' skills/work/update-work-item/SKILL.md`.
 

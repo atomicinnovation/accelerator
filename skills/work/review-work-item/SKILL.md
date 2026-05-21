@@ -74,7 +74,7 @@ Then wait for the user's input.
 | Lens             | Lens Skill          | Focus                                                                   |
 |------------------|---------------------|-------------------------------------------------------------------------|
 | **Clarity**      | `clarity-lens`      | Unambiguous referents, internal consistency, jargon handling            |
-| **Completeness** | `completeness-lens` | Section presence, content density, type-appropriate content             |
+| **Completeness** | `completeness-lens` | Section presence, content density, kind-appropriate content             |
 | **Dependency**   | `dependency-lens`   | Implied couplings not captured — blockers, consumers, external systems  |
 | **Scope**        | `scope-lens`        | Right-sized, single coherent unit of work; decomposition; orthogonality |
 | **Testability**  | `testability-lens`  | Measurable criteria, verifiable outcomes, verification framing          |
@@ -88,7 +88,7 @@ Then wait for the user's input.
 ### Step 1: Read and Understand the Work Item
 
 1. **Read the work item file FULLY** — never use limit/offset
-2. **Parse the frontmatter** to note `type` (bug, story, spike, epic, etc.)
+2. **Parse the frontmatter** to note `kind` (bug, story, spike, epic, etc.)
    and `status`
 3. **Read any documents referenced in the References section** — these provide
    context the lenses may need; do not read source code
@@ -170,7 +170,7 @@ Also read any source documents listed in the work item's References section.
 3. Read referenced documents from the work item's References section if present
 4. Evaluate the work item through your lens, applying each key question
 5. Reference specific work item sections in your findings using the `location`
-   field (e.g., "Acceptance Criteria", "Requirements", "Frontmatter: type")
+   field (e.g., "Acceptance Criteria", "Requirements", "Frontmatter: kind")
 
 IMPORTANT: Do not evaluate the codebase — work item content (and any documents
 it explicitly references) is the sole artefact under review. Do not run

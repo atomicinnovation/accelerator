@@ -29,9 +29,9 @@ one coherent unit of work at the right level of granularity.
 
 2. **Evaluate Sizing Appropriateness**
 
-- Assess whether the work item is appropriately sized for its declared type and
+- Assess whether the work item is appropriately sized for its declared kind and
   the scope it describes — a trivial one-line change may warrant a chore or
-  task type rather than a story; a story that would take multiple weeks may
+  task kind rather than a story; a story that would take multiple weeks may
   warrant decomposition
 - Avoid penalising size itself: large work is fine when it is genuinely
   indivisible; small work is fine when it is genuinely atomic. The question is
@@ -78,11 +78,11 @@ one coherent unit of work at the right level of granularity.
   boundaries or team ownership domains? (Watch for: Requirements listing
   actions to be performed by three different services with no owning team
   identified, no orchestration work item referenced.)
-- **Sizing fit**: Is the declared work item type appropriate for the scope of the
+- **Sizing fit**: Is the declared work item kind appropriate for the scope of the
   work described? (Watch for: a "story" for a one-line rename; a "story" for a
   multi-week infrastructure overhaul that warrants an epic.)
 
-**Type-specific sizing** (based on work item type):
+**Kind-specific sizing** (based on work item kind):
 
 - **Story**: Does the story describe a single increment of user-visible or
   system value that a single team can own end-to-end? (Watch for: stories that
@@ -111,7 +111,7 @@ one coherent unit of work at the right level of granularity.
   finding; reserve major and critical severity for cases where the scope
   problem would cause meaningful delivery risk (e.g., two unrelated
   multi-sprint efforts merged into one story, or a spike with no research
-  question at all). A well-scoped, atomic work item whose declared type is
+  question at all). A well-scoped, atomic work item whose declared kind is
   slightly wrong (a chore filed as a story; a task filed as a chore) does
   not cause delivery risk — that is a housekeeping mislabel, not a scope
   problem. Flag it at `minor` or `suggestion` severity with `medium`
@@ -141,7 +141,7 @@ one coherent unit of work at the right level of granularity.
 - Don't read source code, run codebase exploration agents, or make inferences
   about the implementation beyond what the work item explicitly states
 - Don't penalise a well-scoped work item for being small — atomicity is a virtue;
-  only flag size when the declared type is inappropriate or when the scope is
+  only flag size when the declared kind is inappropriate or when the scope is
   so trivially small that it suggests the work item was broken out of a larger
   effort and has no standalone value
 

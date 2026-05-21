@@ -31,7 +31,7 @@ accelerator:web-search-researcher.
 ## Work Item Template
 
 The template below defines the sections and frontmatter fields that every
-work item must contain. Read it now — the valid work item types live in the `type`
+work item must contain. Read it now — the valid work item kinds live in the `kind`
 field (not a hardcoded list elsewhere in this skill), and every written file
 must populate every frontmatter field.
 
@@ -67,8 +67,8 @@ Extraction therefore proceeds in two layers:
     are, what a vague term means, what the scope boundary is, or which
     technical approach the source implies, write it down.
     Examples: *"Treated this as a spike because no acceptance criteria are 
-    defined — if implementation is already expected, type and scope both 
-    change."* Routine field selections (type, priority, tags) don't need an 
+    defined — if implementation is already expected, kind and scope both 
+    change."* Routine field selections (kind, priority, tags) don't need an 
     entry unless the choice reflects a substantive scope or meaning 
     interpretation that a reviewer should be aware of.
 
@@ -178,17 +178,17 @@ happens per candidate inside this loop.
 
 For the current candidate:
 
-- Infer the work item type from its content using types read from the
-  work item template's `type` field:
+- Infer the work item kind from its content using kinds read from the
+  work item template's `kind` field:
   - clear bug reports with symptoms and expected/actual behaviour → `bug`
   - open-ended investigations with specific questions → `spike`
   - broad multi-deliverable themes → `epic`
   - specific single deliverables → `story`
   - one-off technical or operational tasks → `task`
-  - Default to `story` for items where the type is genuinely ambiguous.
+  - Default to `story` for items where the kind is genuinely ambiguous.
 - Draft a complete work item from the source content alone, using `XXXX`
   as the placeholder work item number.
-- Type-specific content placement:
+- Kind-specific content placement:
   - bug: reproduction steps, expected/actual behaviour → `Requirements` section
   - spike: research questions, time-box, exit criteria → `Requirements` section
   - epic: initial story decomposition → `Requirements` section as a list
@@ -207,7 +207,7 @@ For the current candidate:
 
 ```
 Candidate #N of M: [title]
-Type (proposed): [type]
+Kind (proposed): [kind]
 Source: [paths]
 
 [work item content with XXXX placeholder, including Drafting Notes section]
@@ -254,7 +254,7 @@ flow, seeded with the skeleton above:
 3. **Update the draft** combining source content, user answers, model
    knowledge, and research findings. Re-present it as a structured
    proposal that:
-   - Confirms or revises the type
+   - Confirms or revises the kind
    - Lists requirements drawn from source + enrichment
    - Proposes specific, testable acceptance criteria — prefer
      Given/When/Then for story/task; draw on domain knowledge and
@@ -306,7 +306,7 @@ following note **verbatim** (so future tooling like `/refine-work-item`
 and human reviewers can detect thin drafts deterministically):
 
 > Extracted from source documents without interactive enrichment.
-> Acceptance criteria, dependencies, and type may need refinement before
+> Acceptance criteria, dependencies, and kind may need refinement before
 > promoting from `draft` to `ready`.
 
 If the candidate already has source-derived drafting notes, keep them
@@ -499,12 +499,12 @@ Under the default `{number:04d}` pattern the ID column shows
   entries, section headings with no requirements content, agenda items
   with no actionable outcome) as candidate work items. If a heading just
   organises content rather than describing work, skip it.
-- Work item type inference must use types read from the work item template
+- Work item kind inference must use kinds read from the work item template
   frontmatter (loaded at the top of this skill), not a hardcoded list.
-  Default to `story` for items where the type is genuinely ambiguous.
+  Default to `story` for items where the kind is genuinely ambiguous.
 - All frontmatter fields defined in the work item template must be populated
   in every written work item — `work_item_id` matching the assigned NNNN, `title`
-  matching the work item's title, `date`, `author`, `type`, `status` (draft),
+  matching the work item's title, `date`, `author`, `kind`, `status` (draft),
   `priority` (medium unless the source implies otherwise), `parent` (empty
   string unless the source establishes a parent), and `tags` (a YAML
   array, possibly empty). No field may contain unfilled placeholder text

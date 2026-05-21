@@ -26,7 +26,7 @@ defined check that would conclusively confirm each criterion is met?
   outcomes — the criterion should be "the API responds within 200ms", not
   "use a cache"
 
-2. **Evaluate Type-Appropriate Verification Framing**
+2. **Evaluate Kind-Appropriate Verification Framing**
 
 - **Story**: Criteria should be verifiable behaviours, preferably framed as
   Given/When/Then or equivalent observable input-output pairs
@@ -64,7 +64,7 @@ defined check that would conclusively confirm each criterion is met?
   Summary, or are there implied requirements not captured in any criterion?
   (Watch for: Summary describing three behaviours but only one criterion.)
 
-**Type-specific verification** (based on work item type):
+**Kind-specific verification** (based on work item kind):
 
 - **Story framing**: Are criteria expressed as observable behaviours rather than
   implementation instructions? (Watch for: "use a database index" instead of
@@ -100,9 +100,9 @@ defined check that would conclusively confirm each criterion is met?
 - **Do not require Given/When/Then format explicitly** — any unambiguous
   specification of precondition, action, and expected outcome is acceptable;
   flag the missing component, not the missing keyword
-- **Consider the work item type** — a spike with "produce a 1-page decision memo"
+- **Consider the work item kind** — a spike with "produce a 1-page decision memo"
   as exit criteria is adequately testable; do not over-apply story criteria to
-  other types
+  other kinds
 
 ## What NOT to Do
 

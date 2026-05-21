@@ -28,7 +28,7 @@ accelerator:web-search-researcher.
 ## Work Item Template
 
 The template below defines the sections and frontmatter fields that every
-work item must contain. Read it now — use it to know valid types, statuses,
+work item must contain. Read it now — use it to know valid kinds, statuses,
 priorities, and section names without re-reading the file at runtime.
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh work-item`
@@ -80,7 +80,7 @@ and exit without editing the file or spawning agents.
 
 Read the target work item fully. If the `parent` field is non-empty, also read
 the parent work item. The work item template (loaded above) tells you the valid
-types, statuses, and priorities — do not re-read it at runtime.
+kinds, statuses, and priorities — do not re-read it at runtime.
 
 ## Step 2 — Analyse (mandatory parallel agents)
 
@@ -127,7 +127,7 @@ any link operation references them.
 Propose 2–5 candidate children (2–4 for story decomposing to tasks) with
 draft titles and one-line Summaries derived from the Requirements section.
 
-**Bug/spike challenge**: if the work item type is `bug` or `spike`, first ask:
+**Bug/spike challenge**: if the work item kind is `bug` or `spike`, first ask:
 ```
 bug/spike work items don't typically decompose — are you sure? (y/n)
 ```
@@ -186,9 +186,9 @@ Wait for explicit `y`. On `n`, cancel without writing.
    - `author` — first match in chain: parent work item's `author` field → configured
      `author` value (from context config) → `jj config get user.name` →
      `git config user.name` → ask the user once and apply to all children
-   - `type` — derived: `epic → story`, `story → task`, `bug`/`spike` → ask
+   - `kind` — derived: `epic → story`, `story → task`, `bug`/`spike` → ask
      user to confirm before proceeding (already done in the challenge step),
-     any other type → `story` with a one-line notice
+     any other kind → `story` with a one-line notice
    - `status` — literal `draft`
    - `priority` — inherit from parent; if parent has none, ask once and
      apply to every child written in this session
@@ -360,14 +360,14 @@ below MUST appear verbatim in this step's prose so
 fence in `list-work-items/SKILL.md`:
 
 <!-- canonical-tree-fence -->
-NNNN — parent title (type: <type>, status: <status>)
-  ├── NNNN — child 1 title (type: <type>, status: <status>)
-  ├── NNNN — child 2 title (type: <type>, status: <status>)
-  └── NNNN — last child title (type: <type>, status: <status>)
+NNNN — parent title (kind: <kind>, status: <status>)
+  ├── NNNN — child 1 title (kind: <kind>, status: <status>)
+  ├── NNNN — child 2 title (kind: <kind>, status: <status>)
+  └── NNNN — last child title (kind: <kind>, status: <status>)
 <!-- /canonical-tree-fence -->
 
 Concrete work item IDs and titles replace the placeholders in the actual
-output (e.g. `0042 — User Auth Rework (type: epic)`). The status field
+output (e.g. `0042 — User Auth Rework (kind: epic)`). The status field
 of the parent is omitted only if blank; all present fields are shown.
 
 Step 5 runs inline after decompose completes, before enrich, sharpen, size,
@@ -399,7 +399,7 @@ The skill exits after this offer regardless of the user's response.
     the FIRST line of Technical Notes; replace in place on re-run
   - link: owns Dependencies
 - **Never modify any frontmatter field** of the target work item (`work_item_id`,
-  `title`, `date`, `author`, `type`, `status`, `priority`, `parent`,
+  `title`, `date`, `author`, `kind`, `status`, `priority`, `parent`,
   `tags`) — those transitions are `/update-work-item`'s concern. Children of
   decompose are new work items getting their initial frontmatter.
 - **Destructive paths require two-step confirmation**: replace mode for

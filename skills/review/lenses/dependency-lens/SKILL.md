@@ -84,7 +84,7 @@ the work item implies is explicitly captured.
   as a blocker? (Watch for: "the X team will need to…", "assumes Y is
   configured by the platform team".)
 
-**Type-specific dependencies** (based on work item type):
+**Kind-specific dependencies** (based on work item kind):
 
 - **Story**: Are all upstream blockers and downstream consumers named? If the
   story introduces a shared artefact (a schema, a contract, a public API),
@@ -136,7 +136,7 @@ the work item implies is explicitly captured.
   under-decomposed — that is the scope lens; ordering constraints between
   existing children are a dependency concern, but whether those children
   should exist at all is the scope lens's domain
-- Don't flag whether a work item is the right size or type — that is the scope
+- Don't flag whether a work item is the right size or kind — that is the scope
   lens
 - Don't read source code, run codebase exploration agents, or make
   inferences about the implementation beyond what the work item explicitly

@@ -3,7 +3,7 @@ work_item_id: "NNNN"                         # from work-item-next-number.sh; al
 title: "Title as Short Noun Phrase"          # human-readable title; kept in sync with body H1
 date: "YYYY-MM-DDTHH:MM:SS+00:00"            # date -u +%Y-%m-%dT%H:%M:%S+00:00
 author: Author Name                          # your name or GitHub handle
-type: story                                  # story | epic | task | bug | spike
+kind: story                                  # story | epic | task | bug | spike
 status: draft                                # draft | ready | in-progress | review | done | blocked | abandoned
 priority: medium                             # high | medium | low
 parent: ""                                   # work-item number of the parent epic/story, or empty
@@ -12,7 +12,7 @@ tags: []                                     # YAML array, e.g. [backend, perfor
 
 # NNNN: Title as Short Noun Phrase
 
-**Type**: Story | Epic | Task | Bug | Spike
+**Kind**: Story | Epic | Task | Bug | Spike
 **Status**: Draft
 **Priority**: High | Medium | Low
 **Author**: Author Name

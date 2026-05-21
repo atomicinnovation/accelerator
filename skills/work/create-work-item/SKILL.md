@@ -54,7 +54,7 @@ different things — populate each deliberately:
   that someone should review if they turn out to be wrong. Actively
   populate this section. If you inferred who the stakeholders are, what a
   vague term means, where the scope boundary sits, or which technical
-  approach is implied, write it down. Routine field selections (type,
+  approach is implied, write it down. Routine field selections (kind,
   priority, tags) don't need an entry unless the choice reflects a
   substantive scope or meaning interpretation a reviewer should be aware
   of.
@@ -112,7 +112,7 @@ When this command is invoked:
 
    If validation passes, read the file fully (frontmatter and body) and
    cache the identity fields in conversation state:
-   `work_item_id`, `date`, `author`, `status`, `title`, `type`,
+   `work_item_id`, `date`, `author`, `status`, `title`, `kind`,
    `priority`, `parent`, `tags`. For any missing optional field, use the
    template default — do not abort. Set the conversation into
    **enrich-existing mode** with `existing_work_item_path` cached, and
@@ -235,7 +235,7 @@ what research turned up, what prior work items exist — as the foundation for S
      available; for now, update it manually)
   3. Continue creating a new work item linked to the existing one as a parent
 
-  Adapt the options to what makes sense given the work item's type and status.
+  Adapt the options to what makes sense given the work item's kind and status.
   Do not silently continue or modify the existing work item inline. Wait for
   the user's choice before proceeding.
 
@@ -251,9 +251,9 @@ Using the business context and investigation synthesis, the model leads with
 a structured proposal. Do not ask the user to generate requirements or
 acceptance criteria from scratch — propose them and invite challenge.
 
-1. **Recommend a work item type** with a brief rationale. Valid types come from
-   the work item template's `type` field (loaded at the top of this skill) — do
-   not hardcode the list. Default to `story` when the type is genuinely
+1. **Recommend a work item kind** with a brief rationale. Valid kinds come from
+   the work item template's `kind` field (loaded at the top of this skill) — do
+   not hardcode the list. Default to `story` when the kind is genuinely
    ambiguous.
 2. **Draft requirements** drawn from the business context and research.
 3. **Draft acceptance criteria** — specific and testable; prefer Given/When/Then
@@ -272,7 +272,7 @@ Present as a structured proposal:
 ```
 Based on what you've told me and my research, here's what I think this work item needs:
 
-**Suggested type**: [type]
+**Suggested kind**: [kind]
 **Rationale**: [one sentence]
 
 **Requirements I'd suggest**:
@@ -319,7 +319,7 @@ additions for the gaps:
 [repeat per section]
 
 **Title**: [keep / propose new title with rationale]
-**Type**: [keep existing <type> / propose change to <type> with rationale]
+**Kind**: [keep existing <kind> / propose change to <kind> with rationale]
 **Priority**: [keep / propose change with rationale]
 **Parent**: [keep / propose change]
 **Tags**: [keep / propose additions]
@@ -341,7 +341,7 @@ requirements, etc.) applies equally to existing and proposed content.
    structure loaded at the top of this skill. Use `XXXX` as the placeholder
    work item number throughout. Do NOT call `work-item-next-number.sh` at this step.
 
-2. **Type-specific content placement**:
+2. **Kind-specific content placement**:
    - story/epic: open the `Summary` section with a user story statement —
      "As a [role], I want [goal], so that [benefit]." — before the
      descriptive sentences
@@ -518,13 +518,13 @@ Work item created: `{work_dir}/<full-id>-kebab-slug.md`
 - Never write a file without explicit user approval.
 - Never call `work-item-next-number.sh` before the user approves the draft.
 - The slug must be a meaningful kebab-case title, not raw input text.
-- Work item type must come from the work item template's `type` field (loaded at
+- Work item kind must come from the work item template's `kind` field (loaded at
   the top of this skill), not a hardcoded list. Default to `story` when the
-  type is genuinely ambiguous.
+  kind is genuinely ambiguous.
 - All frontmatter fields defined in the work item template must be populated
   in every written work item: `work_item_id` matching the assigned full ID
   (a quoted YAML string — see contract below), `title` matching the
-  user-approved title, `date`, `author`, `type`, `status` (draft),
+  user-approved title, `date`, `author`, `kind`, `status` (draft),
   `priority` (medium unless the user specified otherwise), `parent`
   (empty string unless a parent was established), and `tags` (a YAML
   array, possibly empty). No field may contain unfilled placeholder
@@ -559,7 +559,7 @@ Work item created: `{work_dir}/<full-id>-kebab-slug.md`
   explicitly (e.g. "draft → in-progress") and requires confirmation in Step 3
   before acceptance. The `status: draft` default applies only to
   newly-created work items, not to enrichment.
-- **Proposable in Step 3** — `title`, `type`, `priority`, `parent`, `tags`.
+- **Proposable in Step 3** — `title`, `kind`, `priority`, `parent`, `tags`.
   Default to the cached values; can be replaced after explicit user agreement
   in Step 3's augmentation review.
 

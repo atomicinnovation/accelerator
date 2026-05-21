@@ -188,7 +188,7 @@ one.
 
 Field-to-label mapping:
 - `status` ↔ `**Status**: `
-- `type` ↔ `**Type**: `
+- `kind` ↔ `**Kind**: `
 - `priority` ↔ `**Priority**: `
 - `author` ↔ `**Author**: `
 
@@ -270,14 +270,14 @@ Updated <filename>:
   print stderr and exit. If it prints `no-change`, report "No change
   needed" and exit.
 - **Body label sync scope**: only update the first non-code-fence
-  occurrence of `**Status**:`, `**Type**:`, `**Priority**:`, or
+  occurrence of `**Status**:`, `**Kind**:`, `**Priority**:`, or
   `**Author**:`. Do not inject labels into work items that lack them.
   Do not update occurrences inside code fences.
 - **Resilient to malformed frontmatter**: abort cleanly on missing or
   unclosed frontmatter. Error messages use the resolved filename and
   match `work-item-read-field.sh` phrasing.
-- **Legacy work items supported**: work items with unusual type or status
-  values (e.g. `type: adr-creation-task`, `status: todo`) are fully
+- **Legacy work items supported**: work items with unusual kind or status
+  values (e.g. `kind: adr-creation-task`, `status: todo`) are fully
   updatable. No migration is offered or required.
 - **Ambiguous globs**: if multiple work items match a number glob, list
   them and ask the user to choose. Never silently pick one.
