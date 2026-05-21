@@ -1007,13 +1007,13 @@ to be allowlisted.
 
 #### Automated Verification:
 
-- [ ] `FrontmatterTable.test.tsx` passes:
+- [x] `FrontmatterTable.test.tsx` passes:
       `cd skills/visualisation/visualise/frontend && npm test -- FrontmatterTable.test`
-- [ ] `migration.test.ts` passes after EXCEPTIONS additions:
+- [x] `migration.test.ts` passes after EXCEPTIONS additions:
       `npm test -- migration.test`
-- [ ] Phase 1's tests remain green: `npm test -- wiki-link`
-- [ ] Type checking passes: `npm run typecheck`
-- [ ] Full test suite remains green: `npm test`
+- [x] Phase 1's tests remain green: `npm test -- wiki-link`
+- [x] Type checking passes: `npm run typecheck`
+- [x] Full test suite remains green: `npm test`
 
 #### Manual Verification:
 
