@@ -15,7 +15,8 @@ tags: [visualiser, cross-references, indexer]
 ## Context
 
 Work-item documents are interrelated: plans reference the work item they
-implement (`work-item:`), child stories declare their parent epic
+implement (`work_item_id:`, renamed from `work-item:` by migration 0006 —
+see ADR-0033 §Field-name conflicts), child stories declare their parent epic
 (`parent:`), and related work is cross-referenced (`related:`). The
 visualiser needs to surface these relationships in both directions — from a
 work item to the documents that reference it, and from a document to the
@@ -29,7 +30,7 @@ cross-references and generalises the `referencedBy` composition in the
 
 ## Decision Drivers
 
-- `work-item:`, `parent:`, and `related:` all carry the same semantic weight:
+- `work_item_id:`, `parent:`, and `related:` all carry the same semantic weight:
   they are cross-references to work items. Treating them as separate
   aggregation problems would duplicate logic and diverge over time.
 - Frontmatter is user-authored YAML; each field may be absent, a scalar,
@@ -62,8 +63,10 @@ We will use **Option 1**: aggregate all three fields into a single
 ### Field aggregation rules
 
 `frontmatter::read_ref_keys` reads, in order:
-1. `work-item:` wins over `ticket:` for the primary reference (scalar only;
-   `ticket:` is the legacy form, kept for backwards compatibility).
+1. `work_item_id:` wins over the transitional `work-item:` fallback (kept
+   for one release cycle by migration 0006) and the older `ticket:` legacy
+   form (kept indefinitely for backwards compatibility) for the primary
+   reference (scalar only).
 2. `parent:` — scalar or array; all values collected.
 3. `related:` — scalar or array; all values collected.
 
@@ -85,7 +88,7 @@ Each value is extracted as a raw string regardless of its YAML type: integer
 4. **Everything else** (non-numeric without a project prefix, malformed,
    empty): silently dropped. The function never panics.
 
-Deduplication is applied after canonicalisation so `work-item: 0007` and
+Deduplication is applied after canonicalisation so `work_item_id: 0007` and
 `parent: 7` under a `{number:04d}` pattern produce one entry, not two.
 
 ### Self-reference filter
@@ -110,7 +113,7 @@ preventing deadlock.
 1. `reviews_by_target(entry.path)` — plan-reviews whose `target:` resolves
    to this document (ADR-0017 path-keyed index).
 2. `work_item_refs_by_id(entry.work_item_id)` — documents whose
-   `work-item:`/`parent:`/`related:` canonicalises to this work item's ID.
+   `work_item_id:`/`parent:`/`related:` canonicalises to this work item's ID.
 
 Deduplication by path prevents an entry appearing twice when both conditions
 are true. The two indexes remain separate in memory — merging is a query-time
@@ -119,7 +122,7 @@ independently testable.
 
 ### Permanent dual-schema tolerance
 
-Legacy work-item files without `work-item:`, `parent:`, or `related:` make
+Legacy work-item files without `work_item_id:`, `parent:`, or `related:` make
 no contribution to the reverse index and are not affected by this change.
 Files with `status: proposed` (outside any configured column set) remain
 visible in the "Other" swimlane; their `IndexEntry.workItemId` is derived
