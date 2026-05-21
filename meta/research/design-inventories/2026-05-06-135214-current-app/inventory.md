@@ -8,7 +8,7 @@ git_commit: "94a0ed6be593686b773b1b2e617dcc311a2673dc"
 branch: "main"
 crawler: "hybrid"
 author: "Toby Clemson"
-status: draft
+status: superseded
 sequence: 1
 screenshots_incomplete: false
 tags: [design, inventory, "current-app"]

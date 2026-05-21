@@ -6,7 +6,7 @@ source_kind: "prototype"
 source_location: "https://64bfef0a-f5fb-4b90-81e4-229d1ebc705c.claudeusercontent.com/v1/design/projects/64bfef0a-f5fb-4b90-81e4-229d1ebc705c/serve/Accelerator%20Visualiser.html"
 crawler: "runtime"
 author: "Toby Clemson"
-status: draft
+status: superseded
 sequence: 1
 screenshots_incomplete: false
 tags: [design, inventory, "claude-design-prototype"]
