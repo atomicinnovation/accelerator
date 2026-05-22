@@ -51,6 +51,7 @@ import { LifecycleClusterView } from './routes/lifecycle/LifecycleClusterView'
 import { KanbanBoard } from './routes/kanban/KanbanBoard'
 import { GlyphShowcase } from './routes/glyph-showcase/GlyphShowcase'
 import { ChipShowcase } from './routes/chip-showcase/ChipShowcase'
+import { CodeSyntaxShowcase } from './routes/code-syntax-showcase/CodeSyntaxShowcase'
 import { isDocTypeKey, type DocTypeKey } from './api/types'
 
 const rootRoute = createRootRoute({ component: RootLayout })
@@ -153,6 +154,16 @@ const chipShowcaseRoute = createRoute({
   component: ChipShowcase,
 })
 
+// Developer-only Playwright fixture surface for the code-block
+// syntax-highlight palette (story 0076). Renders one fenced code
+// block per language; used by
+// tests/visual-regression/code-block-resolved-colours.spec.ts.
+const codeSyntaxShowcaseRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/code-syntax-showcase',
+  component: CodeSyntaxShowcase,
+})
+
 // Exported so tests can construct an isolated router with memory history.
 export const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -168,6 +179,7 @@ export const routeTree = rootRoute.addChildren([
   kanbanRoute,
   glyphShowcaseRoute,
   chipShowcaseRoute,
+  codeSyntaxShowcaseRoute,
 ])
 
 export const router = createRouter({ routeTree })

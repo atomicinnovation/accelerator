@@ -6,6 +6,7 @@ import { router } from './router'
 import { queryClient } from './api/query-client'
 import 'highlight.js/styles/github.css'
 import './styles/global.css'
+import './styles/code-syntax.global.css'
 import './styles/wiki-links.global.css'
 
 createRoot(document.getElementById('root')!).render(

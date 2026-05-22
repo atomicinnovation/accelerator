@@ -1370,22 +1370,22 @@ comment in `CodeSyntaxShowcase.tsx` records this rationale.)
 
 #### Automated Verification:
 
-- [ ] `code-syntax.test.ts` passes for all required-mapping rows
+- [x] `code-syntax.test.ts` passes for all required-mapping rows
   including diff: `npm --prefix skills/visualisation/visualise/frontend run test -- code-syntax.test.ts`
-- [ ] `CodeSyntaxShowcase.test.tsx` smoke test passes.
-- [ ] `MarkdownRenderer.test.tsx` (unchanged in this phase) still
+- [x] `CodeSyntaxShowcase.test.tsx` smoke test passes.
+- [x] `MarkdownRenderer.test.tsx` (unchanged in this phase) still
   passes — github.css coexists harmlessly.
-- [ ] `LibraryTemplatesView.test.tsx` (unchanged in this phase) still
+- [x] `LibraryTemplatesView.test.tsx` (unchanged in this phase) still
   passes — `.previewBody :global(.hljs-*)` rules still present,
   shared layer's selectors lose to the templates-preview module's
   higher specificity (`.previewBody :global(.hljs-attr)` beats
   `.hljs-attr` on specificity).
-- [ ] Playwright resolved-colour spec passes in both light and dark:
-  `npm --prefix skills/visualisation/visualise/frontend run test:visual -- code-block-resolved-colours.spec.ts`
-- [ ] `migration.test.ts` still passes — `code-syntax.global.css`
+- [x] Playwright resolved-colour spec passes in both light and dark
+  (50/50): `npm exec playwright test -- code-block-resolved-colours --project visual-regression`
+- [x] `migration.test.ts` still passes — `code-syntax.global.css`
   contains `var(--tk-*)` references that all resolve to declared
   tokens (per phase 1's tokens.ts additions).
-- [ ] Type-check + lint pass.
+- [x] Type-check passes. (No `lint` script in `frontend/package.json`.)
 
 #### Manual Verification:
 

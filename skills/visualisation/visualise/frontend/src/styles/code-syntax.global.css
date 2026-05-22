@@ -1,0 +1,81 @@
+/* Code-syntax layer — single source of truth for hljs class
+   colouring across the visualiser.
+
+   WHY GLOBAL (not a CSS module): rehype-highlight emits literal
+   `hljs-*` strings at AST-build time. CSS-module hashing would
+   break the selector match because the rendered DOM never carries
+   the hashed class. This file is one of a narrow set of deliberate
+   globals (see also wiki-links.global.css) and should NOT be moved
+   into a per-component .module.css.
+
+   WHY ONE LAYER, NOT TWO: both consumers (MarkdownRenderer and
+   LibraryTemplatesView templates preview) emit the same `hljs-*`
+   class names via rehype-highlight / template-highlight. Diverging
+   their colours would produce inconsistent reader experience for
+   the same content type.
+
+   SPECIFICITY CONTRACT: rules below are flat single-class
+   specificity (0,1,0) plus two descendant overrides for
+   `.language-diff`. Any future consumer adding a more-specific
+   rule (e.g. `.previewBody :global(.hljs-*)`, specificity 0,2,0)
+   will silently win over this layer and break the
+   single-source-of-truth contract — don't.
+
+   Imported from src/main.tsx after global.css. See ADR-0026 §5 and
+   story meta/work/0076-code-block-syntax-highlight-palette.md. */
+
+.hljs {
+  background: transparent;
+  color: inherit;
+}
+
+.hljs-comment,
+.hljs-quote,
+.hljs-code,
+.hljs-bullet {
+  color: var(--tk-com);
+}
+.hljs-string         { color: var(--tk-str); }
+.hljs-number         { color: var(--tk-num); }
+.hljs-keyword        { color: var(--tk-kw); }
+.hljs-literal        { color: var(--tk-lit); }
+.hljs-type,
+.hljs-class          { color: var(--tk-typ); }
+.hljs-function,
+.hljs-title.function_ { color: var(--tk-fn); }
+.hljs-attr,
+.hljs-attribute      { color: var(--tk-attr); }
+.hljs-meta           { color: var(--tk-deco); }
+.hljs-built_in       { color: var(--tk-bn); }
+.hljs-variable,
+.hljs-template-variable { color: var(--tk-var); }
+.hljs-property       { color: var(--tk-prop); }
+.hljs-selector-class,
+.hljs-selector-id,
+.hljs-selector-tag,
+.hljs-selector-pseudo { color: var(--tk-sel); }
+.hljs-tag,
+.hljs-name           { color: var(--tk-tag); }
+.hljs-section        { color: var(--tk-header); font-weight: 600; }
+.hljs-link,
+.hljs-symbol         { color: var(--tk-anchor); }
+.hljs-punctuation    { color: var(--tk-pun); }
+.hljs-addition,
+.hljs-diff-added     { color: var(--tk-dadd); }
+.hljs-deletion,
+.hljs-diff-deleted   { color: var(--tk-ddel); }
+
+/* Diff-context overrides — higher specificity (.language-diff
+   .hljs-meta = 0,2,0) overrides the bare .hljs-meta rule (0,1,0).
+   Source order is also `after` for defence in depth; the
+   code-syntax.test.ts source-order assertions guard the ordering
+   in case a future refactor flattens specificity. */
+.language-diff .hljs-meta    { color: var(--tk-dhdr); }
+.language-diff .hljs-comment { color: var(--tk-dhunk); }
+
+/* Inline emphasis: italic-only, colour inherited from surrounding
+   prose. The templates-preview module previously coloured these to
+   var(--ac-fg-muted) / var(--ac-fg-strong); that pairing is
+   deliberately dropped in 0076 — see ADR-0026 §5. */
+.hljs-emphasis { font-style: italic; }
+.hljs-strong   { font-weight: 600; }
