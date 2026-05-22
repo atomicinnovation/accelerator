@@ -11,9 +11,13 @@
 .markdown h3 { font-size: var(--size-sm); }
 .markdown p { margin: var(--sp-3) 0; }
 .markdown pre {
-  background: #1e1e1e; color: #d4d4d4;
-  border-radius: 6px; padding: var(--sp-4);
-  overflow-x: auto; font-size: var(--size-xs);
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border: 1px solid var(--code-stroke);
+  border-radius: 6px;
+  padding: var(--sp-4);
+  overflow-x: auto;
+  font-size: var(--size-xs);
 }
 .markdown code:not(pre code) {
   background: var(--ac-bg-sunken); border-radius: var(--radius-sm);

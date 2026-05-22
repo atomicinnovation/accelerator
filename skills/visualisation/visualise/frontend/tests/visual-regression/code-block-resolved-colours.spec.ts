@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
-import { CODE_SYNTAX_TOKENS } from '../../src/styles/tokens'
-import { hexToRgbString } from '../../src/styles/contrast'
+import { CODE_SYNTAX_TOKENS, CODE_SURFACE_TOKENS } from '../../src/styles/tokens'
+import { hexToRgbString, formatRgba } from '../../src/styles/contrast'
 
 // Story 0076 AC2/AC3 — live-cascade verification that the shared
 // `code-syntax.global.css` layer resolves every required mapping to
@@ -151,6 +151,38 @@ for (const theme of THEMES) {
         (el) => getComputedStyle(el).color,
       )
       expect(colour).toBe(hexToRgbString(CODE_SYNTAX_TOKENS['tk-deco']))
+    })
+  })
+
+  test.describe(`<pre> chrome (${theme.name} theme)`, () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto('/code-syntax-showcase')
+      await theme.setup(page)
+    })
+
+    test('<pre> background resolves to --code-bg', async ({ page }) => {
+      const locator = page
+        .locator('[data-testid="code-syntax-cell-python"] pre')
+        .first()
+      await expect(locator).toBeVisible()
+      const bg = await locator.evaluate(
+        (el) => getComputedStyle(el).backgroundColor,
+      )
+      expect(bg).toBe(hexToRgbString(CODE_SURFACE_TOKENS['code-bg']))
+    })
+
+    test('<pre> border-color resolves to --code-stroke (rgba canonical)', async ({
+      page,
+    }) => {
+      const locator = page
+        .locator('[data-testid="code-syntax-cell-python"] pre')
+        .first()
+      await expect(locator).toBeVisible()
+      const border = await locator.evaluate(
+        (el) => getComputedStyle(el).borderTopColor,
+      )
+      // --code-stroke = rgba(255, 255, 255, 0.07)
+      expect(border).toBe(formatRgba(255, 255, 255, 0.07))
     })
   })
 }

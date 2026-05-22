@@ -63,9 +63,7 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/FrontmatterTable/FrontmatterTable.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'container border + anchor dashed border-bottom — below --sp-1 floor' },
   { file: 'components/FrontmatterTable/FrontmatterTable.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'focus-ring outline width + outline-offset — below --sp-1 floor' },
   // components/MarkdownRenderer/MarkdownRenderer.module.css
-  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '#1e1e1e', count: 1, kind: 'irreducible', reason: 'code block background — editor-dark, no surface token' },
-  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '#d4d4d4', count: 1, kind: 'irreducible', reason: 'code block text colour — editor-light-fg, no token' },
-  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
+  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'hairline borders: <pre> stroke, h1 underline, table cell — below --sp-1 floor' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '1.75rem', count: 1, kind: 'irreducible', reason: 'h1 font-size (28px) — 6px above size-lg ceiling; no heading token' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '0.88em', count: 1, kind: 'irreducible', reason: 'relative em font-size on inline code — not a rem scale value' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'off-scale cell padding (6.4px) — between --sp-1 and --sp-2' },
@@ -387,7 +385,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 423 // 0034: FontModeToggle switched to SVG icon (-2)
+const AC5_FLOOR = 426 // 0076: MarkdownRenderer <pre> chrome → var(--code-bg)/--code-fg/--code-stroke (+3)
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 

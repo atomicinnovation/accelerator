@@ -1735,34 +1735,33 @@ describe('main.tsx import hygiene', () => {
 
 #### Automated Verification:
 
-- [ ] AC4 describe block (eight cases — six original AC4 + inline-
+- [x] AC4 describe block (eight cases — six original AC4 + inline-
   code-passthrough + unknown-language) passes:
   `npm --prefix skills/visualisation/visualise/frontend run test -- MarkdownRenderer.test.tsx`
-- [ ] `migration.test.ts` AC3 (hex literals) test for
+- [x] `migration.test.ts` AC3 (hex literals) test for
   `components/MarkdownRenderer/MarkdownRenderer.module.css` passes
   with `#1e1e1e`/`#d4d4d4` removed from EXCEPTIONS (their absence
   from the module body now satisfies the rule).
-- [ ] `migration.test.ts` `EXCEPTIONS hygiene` test passes — declared
+- [x] `migration.test.ts` `EXCEPTIONS hygiene` test passes — declared
   count for `1px` is 3, observed count is 3; reason text enumerates
   the three sites.
-- [ ] `migration.test.ts` `var(--NAME) references resolve to declared
+- [x] `migration.test.ts` `var(--NAME) references resolve to declared
   tokens` test passes for the new `var(--code-bg)`,
   `var(--code-fg)`, `var(--code-stroke)` references (declared Set
   extended in Phase 1).
-- [ ] `migration.test.ts` `AC5_FLOOR` ratchet passes — floor bumped
-  to match observed count after migration.
-- [ ] `main.import-hygiene.test.ts` passes — github.css absent;
+- [x] `migration.test.ts` `AC5_FLOOR` ratchet passes — floor bumped
+  from 423 → 426 to match observed count after migration.
+- [x] `main.import-hygiene.test.ts` passes — github.css absent;
   load-order assertion holds.
-- [ ] Playwright spec from phase 2 still passes (cascade-resolved
+- [x] Playwright spec from phase 2 still passes (cascade-resolved
   colour is unchanged; only chrome background/foreground tokens
   shifted).
-- [ ] Playwright `<pre>` chrome describe block passes — `<pre>`
+- [x] Playwright `<pre>` chrome describe block passes — `<pre>`
   border-color resolves to `formatRgba(255, 255, 255, 0.07)` (i.e.
-  `--code-stroke`). This block was deferred from Phase 2 because the
-  border declaration lands in Phase 3.
-- [ ] `LibraryTemplatesView.test.tsx` still passes (templates preview
+  `--code-stroke`), and `<pre>` background resolves to `--code-bg`.
+- [x] `LibraryTemplatesView.test.tsx` still passes (templates preview
   is untouched in this phase — phase 4 owns it).
-- [ ] Type-check + lint pass.
+- [x] Type-check passes. (No `lint` script in `frontend/package.json`.)
 
 #### Manual Verification:
 

@@ -132,7 +132,6 @@ The following categories of literal always land in `EXCEPTIONS` with
 | Heading font-sizes above `size-lg` | `1.6rem`, `1.75rem`         | No heading-scale token in 0033                      |
 | Fixed layout dimensions            | `220px`, `260px`, `1100px`  | Grid/sidebar dimensions, no token                   |
 | Fixed component dimensions         | `14px` dot, `5px` inner dot | Icon pixels, no sp-* equivalent                     |
-| Editor palette colours             | `#1e1e1e`, `#d4d4d4`        | Code-block dark colours, no surface token           |
 | In-between border radii            | `6px`                       | Between `--radius-sm` (4px) and `--radius-md` (8px) |
 
 ### 4. Two-blue collapse
@@ -142,6 +141,128 @@ the pre-0033 codebase) both map to `var(--ac-accent)`. The visual delta
 between them is within the AC6 5%-pixel-ratio tolerance. This is a
 **conscious drift** documented in the 0033 PR description, not an oversight.
 Future CSS must use `var(--ac-accent)` rather than either hex value.
+
+## 5. Code-block surface and syntax palette
+
+### Context
+
+The visualiser renders source code in two pathways: `MarkdownRenderer`
+(rehype-highlight emits `hljs-*` spans) and `LibraryTemplatesView`
+templates preview (template-highlight emits `hljs-template-variable`
+plus the same hljs class names). Prior to story 0076 the two
+pathways had different colour sources: `MarkdownRenderer` consumed
+`highlight.js/styles/github.css` (whatever that ships), and the
+templates preview declared a parallel locally-scoped hljs theme
+mapped to generic `--ac-*` tokens. There was no single source of
+truth.
+
+### Decision
+
+The visualiser ships a theme-independent code-block palette via two
+new token families, declared once under `:root` only:
+
+- `--code-*` (5 tokens): code-block surface chrome
+  (background, fg, head, stroke, fg-faint)
+- `--tk-*` (27 tokens): syntax-highlight roles (the `tk-` prefix
+  preserves the prototype source's naming so the
+  `prototype-tokens.fixture.test.ts` drift detector matches
+  byte-for-byte — `tk` = "syntax token")
+
+A single shared CSS layer at `src/styles/code-syntax.global.css`
+maps each required `.hljs-*` class to one `var(--tk-*)` reference.
+`MarkdownRenderer.module.css` consumes the surface tokens for
+`<pre>` chrome.
+
+The palette is **theme-invariant**: declared only under `:root`,
+absent from both `[data-theme="dark"]` and
+`@media (prefers-color-scheme: dark)` blocks. The `global.test.ts`
+MIRROR-A/B parity machinery correctly treats `:root`-only families
+as expected.
+
+### Why theme-invariant
+
+The prototype renders this palette identically against both light
+and dark page chrome (visible in the two fullpage screenshots at
+`meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/screenshots/doc-detail-plan-meta-visualisation-fullpage.png`
+and `…-fullpage-dark.png`). The deep navy `--code-bg` (`#0e1320`)
+provides sufficient contrast against both surfaces; tuning the
+palette per theme would diverge from the prototype's visual ground
+truth.
+
+### Theme-invariant token families — eligibility criteria
+
+A future token family is eligible to be `:root`-only (skipping both
+dark mirrors) if all of:
+
+1. The values are adopted from an external authoritative source
+   (prototype, brand palette) where the source itself does not vary
+   by theme;
+2. No accessibility differential between light and dark surfaces is
+   intended;
+3. The family ships with a drift-detection test against its
+   authoritative source so the asymmetry cannot regress silently.
+
+Future contributors adding a `:root`-only family should add a
+declaration to this list and document the source.
+
+### Operational guidance
+
+- **Adding a new hljs class to the shared layer**: prefer reusing an
+  existing `--tk-*` token by semantic match before introducing a
+  new one. Six tokens (`--tk-macro`, `--tk-key`, `--tk-flag`,
+  `--tk-heredoc`, `--tk-lifet`, `--tk-atrule`) ship without active
+  consumers and are reserved for future grammar support — consult
+  the inline comments in `tokens.ts` and `global.css` before adding.
+- **Adding a new `--tk-*` token**: must (a) appear in
+  `prototype-standalone.html` (drift fixture will fail otherwise)
+  or be deliberately introduced as an in-repo extension with the
+  fixture updated in lock-step; (b) be declared in `global.css`
+  under `:root` only; (c) be added to `CODE_SYNTAX_TOKENS` in
+  `tokens.ts`.
+- **Adding a more-specific rule that overrides the shared layer**:
+  don't. The whole point of the shared layer is single-source-of-
+  truth. If a consumer truly needs a per-context override, propose
+  an ADR amendment.
+
+### `src/styles/fixtures/` directory
+
+This story also introduces `src/styles/fixtures/` as the home for
+committed snapshots of external authoritative sources (e.g.
+`prototype-tokens.json`). The directory scope: committed JSON
+captures of an external file, kept adjacent to the consuming test.
+Not for general test data or in-repo fixtures that have no external
+source.
+
+### `src/styles/testing/` directory
+
+This story also introduces `src/styles/testing/` as the home for
+test-only helpers shared across multiple Vitest specs in
+`src/styles/` and its descendants (e.g. `cssRules.ts` with
+`assertSelectorColorIs`/`parseFlatCssRules`/`selectorOffset`).
+Helpers in this directory must (a) be import-only from `*.test.ts`
+files (never from production code), (b) be co-located with their
+unit tests, and (c) carry a file-header comment naming their known
+consumers so a future test author can find them. Single-consumer
+helpers stay alongside their test; promote to `testing/` only when
+a second consumer arrives.
+
+### Consequences
+
+- Code-block colours that were classified irreducible in §3
+  (`#1e1e1e`, `#d4d4d4`) are now reducible to `var(--code-bg)` and
+  `var(--code-fg)` respectively. The §3 table row is removed.
+- The `highlight.js/styles/github.css` import is removed from
+  `main.tsx` — the shared layer covers every class the visualiser
+  emits. The `main.import-hygiene.test.ts` spec guards against
+  reintroduction.
+
+### References
+
+- Story: `meta/work/0076-code-block-syntax-highlight-palette.md`
+- Shared layer: `src/styles/code-syntax.global.css`
+- Drift fixture: `src/styles/fixtures/prototype-tokens.json` +
+  `src/styles/prototype-tokens.fixture.test.ts`
+- Foundation: story 0033 (design token system)
 
 ## Consequences
 
@@ -199,4 +320,4 @@ mappings applied in 0033; future edits should follow the same table.
 | `#fef2f2`            | `color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg))`  | bg tint                    |
 | `#fee2e2`            | `color-mix(in srgb, var(--ac-err) 18%, var(--ac-bg))` | hover                      |
 | `#fecaca`            | `color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg))` | border                     |
-| `#1e1e1e`, `#d4d4d4` | irreducible                                           | Editor palette — no token  |
+| `#1e1e1e`, `#d4d4d4` | `var(--code-bg)` / `var(--code-fg)` (see §5)          | Code-block surface (0076)  |

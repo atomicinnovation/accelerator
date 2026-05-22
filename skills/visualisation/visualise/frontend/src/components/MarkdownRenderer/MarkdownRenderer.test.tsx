@@ -111,6 +111,111 @@ describe('MarkdownRenderer', () => {
     expect(anchor?.getAttribute('href') ?? '').not.toMatch(/^\s*javascript:/i)
   })
 
+  describe('Story 0076 AC4 — markdown pipeline behaviours', () => {
+    it('renders a GFM task list with interactive checkboxes', () => {
+      const { container } = render(
+        <MarkdownRenderer content={'- [x] done\n- [ ] todo\n'} />,
+      )
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]')
+      expect(checkboxes.length).toBe(2)
+      expect((checkboxes[0] as HTMLInputElement).checked).toBe(true)
+      expect((checkboxes[1] as HTMLInputElement).checked).toBe(false)
+    })
+
+    it('renders a GFM table with thead/tbody/tr/td structure', () => {
+      const { container } = render(
+        <MarkdownRenderer
+          content={'| H1 | H2 |\n|----|----|\n| a  | b  |\n'}
+        />,
+      )
+      expect(container.querySelector('table thead tr th')?.textContent).toBe(
+        'H1',
+      )
+      expect(container.querySelector('table tbody tr td')?.textContent).toBe(
+        'a',
+      )
+    })
+
+    it('routes a [[WORK-ITEM-NNNN]] wiki-link in body prose through the resolver', () => {
+      const resolver: Resolver = (_prefix, id) => ({
+        kind: 'resolved',
+        href: `/library/work-items/${id}`,
+        title: `Work item ${id}`,
+      })
+      const { container } = render(
+        <MarkdownRenderer
+          content={'See [[WORK-ITEM-0042]] for context.'}
+          resolveWikiLink={resolver}
+        />,
+      )
+      const anchor = container.querySelector('a')
+      expect(anchor?.getAttribute('href')).toBe('/library/work-items/0042')
+    })
+
+    it('emits .hljs-keyword spans for an explicit language-python fenced code block', () => {
+      const { container } = render(
+        <MarkdownRenderer content={'```python\ndef foo():\n    return 1\n```'} />,
+      )
+      expect(
+        container.querySelectorAll('.hljs-keyword').length,
+      ).toBeGreaterThanOrEqual(1)
+    })
+
+    it('emits .hljs-keyword spans for an explicit language-typescript fenced code block', () => {
+      const { container } = render(
+        <MarkdownRenderer content={'```typescript\nconst x: number = 1\n```'} />,
+      )
+      expect(
+        container.querySelectorAll('.hljs-keyword').length,
+      ).toBeGreaterThanOrEqual(1)
+    })
+
+    it('renders a fenced code block and a [[WORK-ITEM-NNNN]] wiki-link in the same document without regression', () => {
+      const resolver: Resolver = (_prefix, id) => ({
+        kind: 'resolved',
+        href: `/library/work-items/${id}`,
+        title: `Work item ${id}`,
+      })
+      const { container } = render(
+        <MarkdownRenderer
+          content={'See [[WORK-ITEM-0042]].\n\n```python\nx = 1\n```\n'}
+          resolveWikiLink={resolver}
+        />,
+      )
+      expect(
+        container.querySelector('a[href="/library/work-items/0042"]'),
+      ).not.toBeNull()
+      expect(container.querySelector('pre code')).not.toBeNull()
+    })
+
+    it('does NOT resolve [[WORK-ITEM-NNNN]] inside an inline code span (verbatim pass-through)', () => {
+      const resolver: Resolver = () => ({
+        kind: 'resolved',
+        href: '/x',
+        title: 'x',
+      })
+      const { container } = render(
+        <MarkdownRenderer
+          content={'inline `[[WORK-ITEM-0042]]` should not resolve'}
+          resolveWikiLink={resolver}
+        />,
+      )
+      expect(container.querySelector('a[href="/x"]')).toBeNull()
+      expect(container.textContent).toContain('[[WORK-ITEM-0042]]')
+    })
+
+    it('renders an unknown-language fence with the base .hljs class (no thrown error)', () => {
+      const { container } = render(
+        <MarkdownRenderer
+          content={"```klingon\nbatlh Daqawlu'taH\n```"}
+        />,
+      )
+      const code = container.querySelector('pre code')
+      expect(code).not.toBeNull()
+      expect(code!.className).toMatch(/\bhljs\b/)
+    })
+  })
+
   // ── Step 4.9 ───────────────────────────────────────────────────────────
   describe('XSS regression guards still pass with plugin enabled', () => {
     const resolver: Resolver = () => ({
