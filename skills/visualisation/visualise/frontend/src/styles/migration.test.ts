@@ -8,6 +8,8 @@ import {
   LIGHT_SHADOW_TOKENS,
   DARK_SHADOW_TOKENS,
   LAYOUT_TOKENS,
+  CODE_SURFACE_TOKENS,
+  CODE_SYNTAX_TOKENS,
 } from './tokens'
 
 const cssModules = import.meta.glob('../**/*.module.css', {
@@ -354,6 +356,8 @@ describe('var(--NAME) references resolve to declared tokens', () => {
     ...Object.keys(LIGHT_SHADOW_TOKENS),
     ...Object.keys(DARK_SHADOW_TOKENS),
     ...Object.keys(LAYOUT_TOKENS),
+    ...Object.keys(CODE_SURFACE_TOKENS),
+    ...Object.keys(CODE_SYNTAX_TOKENS),
   ])
   // File-scoped local custom properties — declared at the top of the
   // module's own stylesheet and consumed only within that file. These

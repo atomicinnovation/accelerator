@@ -5,6 +5,8 @@ import {
   composeOverSurface,
   parseHex,
   parseRgba,
+  hexToRgbString,
+  formatRgba,
 } from './contrast'
 import { LIGHT_COLOR_TOKENS, DARK_COLOR_TOKENS } from './tokens'
 
@@ -73,6 +75,40 @@ describe('contrastRatioComposed', () => {
   it('opaque hex foreground passes through composeOverSurface unchanged', () => {
     expect(contrastRatioComposed('#000000', '#ffffff', '#ffffff'))
       .toBeCloseTo(21, 1)
+  })
+})
+
+describe('hexToRgbString', () => {
+  it('lowercase 6-digit hex → rgb(R, G, B) with Chromium-style spacing', () => {
+    expect(hexToRgbString('#0e1320')).toBe('rgb(14, 19, 32)')
+  })
+  it('uppercase 6-digit hex normalises identically', () => {
+    expect(hexToRgbString('#0E1320')).toBe('rgb(14, 19, 32)')
+  })
+  it('white and black edges', () => {
+    expect(hexToRgbString('#ffffff')).toBe('rgb(255, 255, 255)')
+    expect(hexToRgbString('#000000')).toBe('rgb(0, 0, 0)')
+  })
+  it('throws with "not 6 hex digits" diagnostic on 3-digit hex', () => {
+    expect(() => hexToRgbString('#abc')).toThrow(/not 6 hex digits/)
+  })
+  it('throws with "missing #" diagnostic on bare hex', () => {
+    expect(() => hexToRgbString('0e1320')).toThrow(/missing leading #/)
+  })
+  it('throws with "non-hex characters" diagnostic on invalid characters', () => {
+    expect(() => hexToRgbString('#ZZZZZZ')).toThrow(/non-hex characters/)
+  })
+  it('throws on 8-digit hex with alpha', () => {
+    expect(() => hexToRgbString('#0e1320ff')).toThrow(/not 6 hex digits/)
+  })
+})
+
+describe('formatRgba', () => {
+  it('formats with Chromium canonical spacing', () => {
+    expect(formatRgba(255, 255, 255, 0.07)).toBe('rgba(255, 255, 255, 0.07)')
+  })
+  it('preserves integer alpha', () => {
+    expect(formatRgba(0, 0, 0, 1)).toBe('rgba(0, 0, 0, 1)')
   })
 })
 

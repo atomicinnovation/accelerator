@@ -179,6 +179,61 @@ export const LAYOUT_TOKENS = {
   'ac-content-max-width-narrow': '600px',
 } as const
 
+// Code-block surface tokens — theme-independent palette adopted from
+// the design prototype's .ac-codeblock block (meta/research/
+// design-inventories/2026-05-21-015231-claude-design-prototype/
+// prototype-standalone.html). Same values resolve in both light and
+// dark themes (declared only in `:root`). See ADR-0026 §5 and story
+// meta/work/0076-code-block-syntax-highlight-palette.md.
+export const CODE_SURFACE_TOKENS = {
+  'code-bg':        '#0e1320',
+  'code-bg-head':   '#161b2c',
+  'code-stroke':    'rgba(255, 255, 255, 0.07)',
+  'code-fg':        '#d7dcec',
+  'code-fg-faint':  '#6f7796',
+} as const
+
+// Syntax-highlight tokens. The `tk-` prefix means "syntax token" and
+// is preserved from the prototype source so the drift fixture matches
+// byte-for-byte. Theme-invariant. Six tokens marked "reserved" below
+// ship with the prototype palette but have no current hljs selector
+// in code-syntax.global.css — they are kept to preserve the
+// prototype-parity contract; do not delete without coordinating with
+// prototype-tokens.fixture.test.ts.
+export const CODE_SYNTAX_TOKENS = {
+  'tk-com':      '#6f7796', // comment
+  'tk-str':      '#6be58b', // string literal
+  'tk-num':      '#f9de6f', // number literal
+  'tk-kw':       '#c1c5ff', // keyword
+  'tk-lit':      '#f9a66b', // boolean/null literal
+  'tk-typ':      '#73e4e2', // type / class name
+  'tk-fn':       '#ffc1a8', // function name
+  'tk-attr':     '#c18cf0', // attribute / yaml key
+  'tk-deco':     '#c18cf0', // @decorator / hljs-meta
+  'tk-macro':    '#df9ce6', // reserved — C/Rust macros
+  'tk-var':      '#72cbf5', // variable / template-variable
+  'tk-key':      '#c1c5ff', // reserved — key-value key
+  'tk-flag':     '#f9de6f', // reserved — CLI/option flags
+  'tk-heredoc':  '#c18cf0', // reserved — heredoc bodies
+  'tk-pun':      '#8990b0', // punctuation
+  'tk-lifet':    '#f9a66b', // reserved — Rust lifetimes
+  'tk-header':   '#c18cf0', // markdown section heading
+  'tk-anchor':   '#df9ce6', // link / symbol
+  'tk-tag':      '#df5758', // HTML/XML tag
+  'tk-doctype':  '#c18cf0', // HTML doctype
+  'tk-bn':       '#72cbf5', // built-in
+  'tk-prop':     '#72cbf5', // object property
+  'tk-sel':      '#ffc1a8', // CSS selector
+  'tk-atrule':   '#c18cf0', // reserved — CSS @-rule
+  'tk-dhdr':     '#c18cf0', // diff file header
+  'tk-dhunk':    '#72cbf5', // diff hunk header
+  'tk-dadd':     '#6be58b', // diff addition
+  'tk-ddel':     '#e56b7e', // diff deletion
+} as const
+
+export type CodeSurfaceToken = keyof typeof CODE_SURFACE_TOKENS
+export type CodeSyntaxToken = keyof typeof CODE_SYNTAX_TOKENS
+
 export const MONO_FONT_TOKENS = {
   'ac-font-display': 'var(--ac-font-mono)',
   'ac-font-body':    'var(--ac-font-mono)',

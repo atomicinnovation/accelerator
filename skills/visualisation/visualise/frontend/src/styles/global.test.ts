@@ -10,7 +10,10 @@ import {
   DARK_SHADOW_TOKENS,
   LAYOUT_TOKENS,
   MONO_FONT_TOKENS,
+  CODE_SURFACE_TOKENS,
+  CODE_SYNTAX_TOKENS,
 } from './tokens'
+import prototypeTokens from './fixtures/prototype-tokens.json'
 import { contrastRatio } from './contrast'
 import { DOC_TYPE_KEYS, DOC_TYPE_LABELS, VIRTUAL_DOC_TYPE_KEYS, type DocTypeKey } from '../api/types'
 
@@ -88,6 +91,8 @@ describe.each([
   ['radius', RADIUS_TOKENS],
   ['light shadow', LIGHT_SHADOW_TOKENS],
   ['layout', LAYOUT_TOKENS],
+  ['code surface', CODE_SURFACE_TOKENS],
+  ['syntax', CODE_SYNTAX_TOKENS],
 ])('tokens.ts ↔ global.css :root parity (%s)', (_label, tokens) => {
   for (const [name, value] of Object.entries(tokens)) {
     it(`--${name} matches`, () => {
@@ -198,9 +203,35 @@ describe('readCssVar truncation guard', () => {
   it(':root block extends past --ac-topbar-h', () => {
     expect(readCssVar('ac-topbar-h', 'root')).not.toBeNull()
   })
+  it(':root block extends past --tk-ddel', () => {
+    expect(readCssVar('tk-ddel', 'root')).not.toBeNull()
+  })
   it('[data-theme="dark"] block extends past --ac-shadow-lift', () => {
     expect(readCssVar('ac-shadow-lift', 'dark')).not.toBeNull()
   })
+})
+
+// Normalise BOTH sides identically — strip all whitespace so
+// `rgba(255,255,255,0.07)` (prototype source) and
+// `rgba(255, 255, 255, 0.07)` (tokens.ts) compare equal. Lowercase
+// on both sides to absorb prototype's uppercase hex.
+const canonicaliseTokenValue = (v: string): string =>
+  v.toLowerCase().replace(/\s+/g, '')
+
+describe('prototype fixture ↔ tokens.ts parity (theme-invariant families)', () => {
+  for (const [rawName, rawValue] of Object.entries(
+    prototypeTokens as Record<string, string>,
+  )) {
+    const name = rawName.replace(/^--/, '')
+    const expectedValue = canonicaliseTokenValue(rawValue)
+    it(`--${name} matches the combined token map`, () => {
+      const actual =
+        (CODE_SURFACE_TOKENS as Record<string, string>)[name] ??
+        (CODE_SYNTAX_TOKENS as Record<string, string>)[name]
+      expect(actual).toBeDefined()
+      expect(canonicaliseTokenValue(actual!)).toBe(expectedValue)
+    })
+  }
 })
 
 function findBlockBodyForSelector(css: string, selector: string): string | null {

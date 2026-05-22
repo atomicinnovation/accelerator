@@ -65,3 +65,33 @@ export function contrastRatioComposed(
 ): number {
   return contrastRatio(composeOverSurface(fgRgbaOrHex, surfaceHex), bgHex)
 }
+
+// hexToRgbString deliberately rejects 3-digit shorthand — the
+// prototype palette uses 6-digit hex exclusively, and accepting
+// shorthand silently here would mask typos. parseHex (the older
+// sibling) accepts shorthand for backwards-compatibility; it is
+// intentionally not reused here.
+export function hexToRgbString(hex: string): string {
+  if (!hex.startsWith('#')) {
+    throw new Error(`hexToRgbString: missing leading # — got "${hex}"`)
+  }
+  const body = hex.slice(1)
+  if (body.length !== 6) {
+    throw new Error(
+      `hexToRgbString: not 6 hex digits — got "${hex}" (${body.length} chars after #)`,
+    )
+  }
+  if (!/^[0-9a-f]{6}$/i.test(body)) {
+    throw new Error(`hexToRgbString: non-hex characters in body — got "${hex}"`)
+  }
+  const { r, g, b } = parseHex(hex)
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+// formatRgba returns the Chromium canonical rgba() form so
+// resolved-colour assertions on rgba-valued tokens (e.g.
+// --code-stroke) canonicalise once instead of inlining the format
+// string per Playwright spec.
+export function formatRgba(r: number, g: number, b: number, a: number): string {
+  return `rgba(${r}, ${g}, ${b}, ${a})`
+}

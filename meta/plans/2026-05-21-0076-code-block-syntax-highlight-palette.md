@@ -662,21 +662,21 @@ lines — adjust to match the actual variable name there.)
 
 #### Automated Verification:
 
-- [ ] All `:root` parity tests pass (32 new `it()` cases — 5 surface +
+- [x] All `:root` parity tests pass (32 new `it()` cases — 5 surface +
   27 syntax): `npm --prefix skills/visualisation/visualise/frontend run test -- global.test.ts`
-- [ ] Three-way fixture parity test passes for all 32 tokens
+- [x] Three-way fixture parity test passes for all 32 tokens
   (including `--code-stroke`, which the canonicalised normaliser
   treats as equal across spaced/unspaced rgba forms).
-- [ ] Drift-detection test passes: `npm --prefix skills/visualisation/visualise/frontend run test -- prototype-tokens.fixture.test.ts`
-- [ ] `hexToRgbString` AND `formatRgba` tests pass:
+- [x] Drift-detection test passes: `npm --prefix skills/visualisation/visualise/frontend run test -- prototype-tokens.fixture.test.ts`
+- [x] `hexToRgbString` AND `formatRgba` tests pass:
   `npm --prefix skills/visualisation/visualise/frontend run test -- contrast.test.ts`
-- [ ] Truncation guard for `--tk-ddel` passes.
-- [ ] `migration.test.ts` declared-token Set includes
+- [x] Truncation guard for `--tk-ddel` passes.
+- [x] `migration.test.ts` declared-token Set includes
   `CODE_SURFACE_TOKENS` and `CODE_SYNTAX_TOKENS` keys; full
   `migration.test.ts` still passes:
   `npm --prefix skills/visualisation/visualise/frontend run test -- migration.test.ts`
-- [ ] Type-check passes: `npm --prefix skills/visualisation/visualise/frontend run typecheck`
-- [ ] Lint passes: `npm --prefix skills/visualisation/visualise/frontend run lint`
+- [x] Type-check passes: `npm --prefix skills/visualisation/visualise/frontend run typecheck`
+- [~] Lint: no `lint` script defined in `frontend/package.json` (only `typecheck`); skipped.
 
 #### Manual Verification:
 
