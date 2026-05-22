@@ -19,6 +19,35 @@
   overflow-x: auto;
   font-size: var(--size-xs);
 }
+
+/* Fenced code block with a language label — the prototype's
+   .ac-codeblock chrome. The wrapper owns the border + radius + bg
+   so the head band sits flush against the <pre>; the inner <pre>
+   drops its own border and radius. */
+.codeblock {
+  border: 1px solid var(--code-stroke);
+  border-radius: 6px;
+  background: var(--code-bg);
+  overflow: hidden;
+  margin: var(--sp-4) 0;
+}
+.codeblock pre {
+  border: 0;
+  border-radius: 0;
+  margin: 0;
+}
+.codeblockHead {
+  background: var(--code-bg-head);
+  border-bottom: 1px solid var(--code-stroke);
+  padding: var(--sp-1) var(--sp-3);
+}
+.codeblockLang {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-chip);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--code-fg-faint);
+}
 .markdown code:not(pre code) {
   background: var(--ac-bg-sunken); border-radius: var(--radius-sm);
   padding: 0.1rem var(--sp-1); font-size: 0.88em;

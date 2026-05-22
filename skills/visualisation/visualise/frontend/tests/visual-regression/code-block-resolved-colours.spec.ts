@@ -171,11 +171,14 @@ for (const theme of THEMES) {
       expect(bg).toBe(hexToRgbString(CODE_SURFACE_TOKENS['code-bg']))
     })
 
-    test('<pre> border-color resolves to --code-stroke (rgba canonical)', async ({
+    test('labelled-fence wrapper border-color resolves to --code-stroke (rgba canonical)', async ({
       page,
     }) => {
+      // The hairline border lives on the `.codeblock` wrapper now that
+      // labelled fences render with a language-header band; the inner
+      // <pre> has border: 0.
       const locator = page
-        .locator('[data-testid="code-syntax-cell-python"] pre')
+        .locator('[data-testid="code-syntax-cell-python"] [data-language="python"]')
         .first()
       await expect(locator).toBeVisible()
       const border = await locator.evaluate(
@@ -183,6 +186,21 @@ for (const theme of THEMES) {
       )
       // --code-stroke = rgba(255, 255, 255, 0.07)
       expect(border).toBe(formatRgba(255, 255, 255, 0.07))
+    })
+
+    test('labelled-fence header band background resolves to --code-bg-head', async ({
+      page,
+    }) => {
+      const locator = page
+        .locator(
+          '[data-testid="code-syntax-cell-python"] [data-language="python"] > div',
+        )
+        .first()
+      await expect(locator).toBeVisible()
+      const bg = await locator.evaluate(
+        (el) => getComputedStyle(el).backgroundColor,
+      )
+      expect(bg).toBe(hexToRgbString(CODE_SURFACE_TOKENS['code-bg-head']))
     })
   })
 }

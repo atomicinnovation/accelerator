@@ -204,6 +204,26 @@ describe('MarkdownRenderer', () => {
       expect(container.textContent).toContain('[[WORK-ITEM-0042]]')
     })
 
+    it('renders a header band with the language label for a labelled fence', () => {
+      const { container } = render(
+        <MarkdownRenderer content={'```python\nprint(1)\n```'} />,
+      )
+      const wrapper = container.querySelector('[data-language="python"]')
+      expect(wrapper).not.toBeNull()
+      // The label text is the verbatim fence label; CSS uppercases it.
+      expect(wrapper!.textContent).toContain('python')
+      // The <pre> still exists inside the wrapper.
+      expect(wrapper!.querySelector('pre')).not.toBeNull()
+    })
+
+    it('renders a bare <pre> (no header) for an unlabelled fence', () => {
+      const { container } = render(
+        <MarkdownRenderer content={'```\nplain text\n```'} />,
+      )
+      expect(container.querySelector('[data-language]')).toBeNull()
+      expect(container.querySelector('pre')).not.toBeNull()
+    })
+
     it('renders an unknown-language fence with the base .hljs class (no thrown error)', () => {
       const { container } = render(
         <MarkdownRenderer
