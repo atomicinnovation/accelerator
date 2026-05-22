@@ -4,7 +4,7 @@ title: "describe-pr cannot post PR body — pr-base-repo.sh uses unsupported gh 
 date: "2026-05-18T19:23:06+00:00"
 author: Toby Clemson
 kind: bug
-status: draft
+status: done
 priority: medium
 parent: ""
 tags: [accelerator, github, tooling]

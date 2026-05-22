@@ -4,7 +4,7 @@ title: "Canonicalise `work_item_id` and `author` Field Names"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
 kind: story
-status: ready
+status: in-progress
 priority: high
 parent: "0057"
 tags: [refactor, frontmatter, schema, migration]

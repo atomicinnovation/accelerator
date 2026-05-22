@@ -4,7 +4,7 @@ title: "Playwright daemon imports CJS entry, hiding chromium named export"
 date: "2026-05-18T17:56:43+00:00"
 author: Toby Clemson
 kind: bug
-status: draft
+status: done
 priority: high
 parent: ""
 tags: [bug, inventory-design, playwright, daemon, esm, security]

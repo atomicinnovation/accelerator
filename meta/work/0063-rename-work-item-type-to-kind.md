@@ -4,7 +4,7 @@ title: "Rename work-item `type:` Field to `kind:`"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
 kind: story
-status: ready
+status: done
 priority: high
 parent: "0057"
 tags: [refactor, work-item, schema, breaking-change]
