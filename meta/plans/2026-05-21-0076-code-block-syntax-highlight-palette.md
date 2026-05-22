@@ -1926,21 +1926,25 @@ seed or omitted; the Vitest CSS-structural assertion is the floor.)
 
 #### Automated Verification:
 
-- [ ] Inverted CSS-text assertion in
+- [x] Inverted CSS-text assertion in
   `LibraryTemplatesView.test.tsx` (line ~199) passes — local rules
   are absent: `npm --prefix skills/visualisation/visualise/frontend run test -- LibraryTemplatesView.test.tsx`
-- [ ] All 12 `PREVIOUSLY_LOCAL_MAPPINGS` assertions pass.
-- [ ] `.hljs-emphasis` / `.hljs-strong` shared-layer assertions pass.
-- [ ] Rest of `LibraryTemplatesView.test.tsx` (TIER cards, content
+- [x] All 12 `PREVIOUSLY_LOCAL_MAPPINGS` assertions pass.
+- [x] `.hljs-emphasis` / `.hljs-strong` shared-layer assertions pass.
+- [x] Rest of `LibraryTemplatesView.test.tsx` (TIER cards, content
   hash, SSE end-to-end, `.tpl-line` empty-line preservation, etc.)
   continues to pass — no regression in templates preview functionality.
-- [ ] `migration.test.ts` continues to pass — removing rules can only
+- [x] `migration.test.ts` continues to pass — removing rules can only
   reduce literal counts in this file, and the removed rules
   consumed `var(--ac-*)` tokens, not literals. All EXCEPTIONS for
-  `routes/library/LibraryTemplatesView.module.css` (lines 138-146)
-  are retained — those cover non-hljs literals.
-- [ ] Type-check + lint pass.
-- [ ] Playwright templates-preview block passes (if included).
+  `routes/library/LibraryTemplatesView.module.css` are retained.
+- [x] Type-check passes. (No `lint` script in `frontend/package.json`.)
+- [~] Optional Playwright templates-preview block not added — the
+  Vitest CSS-structural assertions plus the existing
+  `code-block-resolved-colours.spec.ts` showcase coverage are the
+  floor; no stable templates fixture is loaded by the dev server.
+  The full visual-regression suite (187/187) passes against the
+  templates preview after migration.
 
 #### Manual Verification:
 

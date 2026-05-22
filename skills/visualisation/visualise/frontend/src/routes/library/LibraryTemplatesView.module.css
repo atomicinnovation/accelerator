@@ -150,69 +150,9 @@
   white-space: pre-wrap;
 }
 
-/* Token theme. highlight.js emits `.hljs-*` class names; we map them
-   to project-token colours via :global selectors so the same theme is
-   reusable wherever hljs is rendered (this view and future markdown
-   code blocks).
-
-   The mapping reuses the prototype's intent:
-   - hljs-attr (yaml key)       → accent
-   - hljs-meta (frontmatter `---`, fences) → faint
-   - hljs-string                → green ish ok colour
-   - hljs-number                → warn
-   - hljs-literal               → accent-2 (yes/no/null/true/false)
-   - hljs-section (markdown #)  → fg-strong, bold
-   - hljs-bullet (list markers) → faint
-   - hljs-emphasis              → fg-muted, italic
-   - hljs-strong                → fg-strong, bold
-   - hljs-code                  → accent-2
-   - hljs-link / hljs-symbol    → accent
-   - hljs-template-variable     → accent-2 (our own custom token) */
-.previewBody :global(.hljs) {
-  background: transparent;
-  color: inherit;
-}
-.previewBody :global(.hljs-attr) {
-  color: var(--ac-accent);
-}
-.previewBody :global(.hljs-meta) {
-  color: var(--ac-fg-faint);
-}
-.previewBody :global(.hljs-string) {
-  color: var(--ac-ok);
-}
-.previewBody :global(.hljs-number) {
-  color: var(--ac-warn);
-}
-.previewBody :global(.hljs-literal) {
-  color: var(--ac-accent-2);
-}
-.previewBody :global(.hljs-section) {
-  color: var(--ac-fg-strong);
-  font-weight: 600;
-}
-.previewBody :global(.hljs-bullet) {
-  color: var(--ac-fg-faint);
-}
-.previewBody :global(.hljs-emphasis) {
-  color: var(--ac-fg-muted);
-  font-style: italic;
-}
-.previewBody :global(.hljs-strong) {
-  color: var(--ac-fg-strong);
-  font-weight: 600;
-}
-.previewBody :global(.hljs-code),
-.previewBody :global(.hljs-quote) {
-  color: var(--ac-accent-2);
-}
-.previewBody :global(.hljs-link),
-.previewBody :global(.hljs-symbol) {
-  color: var(--ac-accent);
-}
-.previewBody :global(.hljs-template-variable) {
-  color: var(--ac-accent-2);
-}
+/* hljs class colouring now lives in src/styles/code-syntax.global.css
+   (story 0076). Do not re-declare .hljs-* colour rules here — the
+   shared layer is the single source of truth. */
 
 .error {
   color: var(--ac-err);

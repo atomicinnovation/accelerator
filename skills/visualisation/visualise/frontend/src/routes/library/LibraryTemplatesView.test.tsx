@@ -10,6 +10,8 @@ import type { TemplateDetail, TemplateSummary } from '../../api/types'
 import { dispatchSseEvent } from '../../api/use-doc-events'
 import { MemoryRouter } from '../../test/router-helpers'
 import templatesCss from './LibraryTemplatesView.module.css?raw'
+import codeSyntaxCss from '../../styles/code-syntax.global.css?raw'
+import { assertSelectorColorIs } from '../../styles/testing/cssRules'
 
 function digestForContent(content: string): string {
   return `sha256-${createHash('sha256').update(content).digest('hex')}`
@@ -194,9 +196,12 @@ describe('LibraryTemplatesView', () => {
     expect(container.querySelector('.hljs-section')).not.toBeNull()
     // Both `{{title}}` and `{{author}}` are wrapped in `.hljs-template-variable`.
     expect(container.querySelectorAll('.hljs-template-variable').length).toBeGreaterThanOrEqual(2)
-    // The CSS module assigns colours to these spans via global selectors.
-    expect(templatesCss).toMatch(/\.previewBody\s*:global\(\.hljs-meta\)\s*\{[^}]*color:/m)
-    expect(templatesCss).toMatch(/\.previewBody\s*:global\(\.hljs-template-variable\)\s*\{[^}]*color:/m)
+    // After 0076: hljs class colours come exclusively from the shared
+    // `code-syntax.global.css` layer; the templates preview module must
+    // not declare any `:global(.hljs-` colour rule. Broader than the
+    // prior `.previewBody :global(.hljs-` check — catches selector
+    // renames, @media wraps, and nested re-introductions.
+    expect(templatesCss).not.toMatch(/:global\(\.hljs-/)
   })
 
   it('preserves empty lines in the template body via .tpl-line wrappers', async () => {
@@ -336,5 +341,55 @@ describe('LibraryTemplatesView', () => {
 
   it('CSS module no longer defines the legacy .activeBadge rule', () => {
     expect(templatesCss).not.toMatch(/\.activeBadge\b/)
+  })
+})
+
+describe('LibraryTemplatesView: hljs class colouring delegated to shared layer', () => {
+  // Subset of REQUIRED_MAPPINGS in src/styles/code-syntax.test.ts
+  // covering classes previously declared locally in
+  // LibraryTemplatesView.module.css prior to 0076. If the shared
+  // layer mapping changes, update BOTH this array and
+  // REQUIRED_MAPPINGS in lock-step.
+  const PREVIOUSLY_LOCAL_MAPPINGS: ReadonlyArray<[selector: string, token: string]> = [
+    ['.hljs-attr',              'tk-attr'],
+    ['.hljs-meta',              'tk-deco'],
+    ['.hljs-string',            'tk-str'],
+    ['.hljs-number',            'tk-num'],
+    ['.hljs-literal',           'tk-lit'],
+    ['.hljs-section',           'tk-header'],
+    ['.hljs-bullet',            'tk-com'],
+    ['.hljs-code',              'tk-com'],
+    ['.hljs-quote',             'tk-com'],
+    ['.hljs-link',              'tk-anchor'],
+    ['.hljs-symbol',            'tk-anchor'],
+    ['.hljs-template-variable', 'tk-var'],
+  ]
+
+  for (const [selector, token] of PREVIOUSLY_LOCAL_MAPPINGS) {
+    it(`shared layer maps ${selector} → var(--${token})`, () => {
+      assertSelectorColorIs(codeSyntaxCss, selector, token)
+    })
+  }
+
+  it('shared layer preserves font-weight: 600 on .hljs-section (was local)', () => {
+    expect(codeSyntaxCss).toMatch(
+      /\.hljs-section[^{]*\{[^}]*font-weight:\s*600/,
+    )
+  })
+
+  it('shared layer carries emphasis/strong styling for markdown emphasis', () => {
+    expect(codeSyntaxCss).toMatch(
+      /\.hljs-emphasis\s*\{[^}]*font-style:\s*italic/,
+    )
+    expect(codeSyntaxCss).toMatch(
+      /\.hljs-strong\s*\{[^}]*font-weight:\s*600/,
+    )
+  })
+
+  it('templates preview module no longer declares any local hljs colour rules', () => {
+    // Broader than the prior `.previewBody :global(.hljs-` check —
+    // catches @media wraps, selector renames, and any nested
+    // re-introduction.
+    expect(templatesCss).not.toMatch(/:global\(\.hljs-/)
   })
 })
