@@ -47,7 +47,13 @@
   outline: none;
   padding: 0;
   margin: 0;
-  font: 400 13px/1.5 var(--ac-font-body);
+  font-family: var(--ac-font-body);
+  font-style: normal;
+  font-variant: normal;
+  font-stretch: normal;
+  font-weight: 400;
+  font-size: var(--size-subtitle);
+  line-height: var(--lh-normal);
   color: var(--ac-fg);
   appearance: none;
   -webkit-appearance: none;
@@ -72,7 +78,13 @@
   background: var(--ac-bg-sunken);
   border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-sm);
-  font: 400 11px/1 var(--ac-font-mono);
+  font-family: var(--ac-font-mono);
+  font-style: normal;
+  font-variant: normal;
+  font-stretch: normal;
+  font-weight: 400;
+  font-size: var(--size-eyebrow);
+  line-height: 1;
   color: var(--ac-fg-muted);
   flex-shrink: 0;
 }
@@ -86,7 +98,7 @@
   align-items: center;
   justify-content: space-between;
   font-family: var(--ac-font-mono);
-  font-size: 10.5px;
+  font-size: var(--size-3xs-lg);
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -104,7 +116,7 @@
 
 .libraryHeadingHint {
   font-family: var(--ac-font-mono);
-  font-size: 10px;
+  font-size: var(--size-3xs);
   letter-spacing: 0.08em;
   color: var(--ac-fg-faint);
   opacity: 0;
@@ -140,7 +152,7 @@
 
 .sectionHeading {
   font-family: var(--ac-font-mono);
-  font-size: 10.5px;
+  font-size: var(--size-3xs-lg);
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -157,7 +169,7 @@
 
 .phaseHeading {
   font-family: var(--ac-font-mono);
-  font-size: 9.5px;
+  font-size: var(--size-4xs);
   font-weight: 400;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -182,7 +194,13 @@
   gap: var(--sp-2);
   padding: 6px 10px;
   border-radius: var(--radius-sm);
-  font: 400 13px/1.5 var(--ac-font-body);
+  font-family: var(--ac-font-body);
+  font-style: normal;
+  font-variant: normal;
+  font-stretch: normal;
+  font-weight: 400;
+  font-size: var(--size-subtitle);
+  line-height: var(--lh-normal);
   color: var(--ac-fg-muted);
   text-decoration: none;
 }
