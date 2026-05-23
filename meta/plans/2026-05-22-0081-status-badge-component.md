@@ -1160,10 +1160,10 @@ export function ResultBadge({ value }: ResultBadgeProps) {
 
 #### Automated Verification
 
-- [ ] resultToVariant tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- result-variant`
-- [ ] ResultBadge tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- ResultBadge`
-- [ ] Type checking passes
-- [ ] Full suite green
+- [x] resultToVariant tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- result-variant`
+- [x] ResultBadge tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- ResultBadge`
+- [x] Type checking passes
+- [x] Full suite green
 
 #### Manual Verification
 
