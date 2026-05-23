@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { statusToVariant, isStatusKey, __SETS_FOR_TEST } from './status-variant'
+import { statusToVariant, __SETS_FOR_TEST } from './status-variant'
 import { normaliseValue } from './normalise-value'
 
 describe('statusToVariant', () => {
@@ -85,11 +85,3 @@ describe('statusToVariant', () => {
   })
 })
 
-describe('isStatusKey', () => {
-  it.each(['status', 'Status', 'STATUS', '  status  '])('returns true for %s', (k) => {
-    expect(isStatusKey(k)).toBe(true)
-  })
-  it.each(['state', 'lifecycle-status', 'StatusX', ''])('returns false for %s', (k) => {
-    expect(isStatusKey(k)).toBe(false)
-  })
-})

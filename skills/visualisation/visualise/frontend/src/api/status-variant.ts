@@ -16,7 +16,3 @@ export function statusToVariant(value: unknown): ChipVariant {
   if (RED.has(key)) return 'red'
   return 'neutral'
 }
-
-export function isStatusKey(key: string): boolean {
-  return key.trim().toLowerCase() === 'status'
-}

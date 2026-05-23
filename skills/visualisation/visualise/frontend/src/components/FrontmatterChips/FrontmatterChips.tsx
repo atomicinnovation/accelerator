@@ -1,5 +1,8 @@
-import { Chip } from '../Chip/Chip'
-import { statusToVariant, isStatusKey } from '../../api/status-variant'
+import type { ComponentType } from 'react'
+import { FrontmatterChip } from '../FrontmatterChip/FrontmatterChip'
+import { StatusBadge } from '../StatusBadge/StatusBadge'
+import { VerdictBadge } from '../VerdictBadge/VerdictBadge'
+import { ResultBadge } from '../ResultBadge/ResultBadge'
 import styles from './FrontmatterChips.module.css'
 
 type FrontmatterChipsProps =
@@ -7,10 +10,21 @@ type FrontmatterChipsProps =
   | { state: 'malformed' }
   | { state: 'parsed'; frontmatter: Record<string, unknown> }
 
-function formatChipValue(value: unknown): string {
-  if (Array.isArray(value)) return value.join(', ')
-  if (typeof value === 'object' && value !== null) return JSON.stringify(value)
-  return String(value)
+interface BadgeProps {
+  value: unknown
+}
+
+// Keys MUST be lowercase: `badgeFor` lowercases the lookup key so any
+// case variant in frontmatter (`status` / `Status` / `STATUS`) routes
+// to the same badge.
+const BADGE_FOR_KEY: Record<string, ComponentType<BadgeProps>> = {
+  status: StatusBadge,
+  verdict: VerdictBadge,
+  result: ResultBadge,
+}
+
+function badgeFor(key: string): ComponentType<BadgeProps> | null {
+  return BADGE_FOR_KEY[key.trim().toLowerCase()] ?? null
 }
 
 export function FrontmatterChips(props: FrontmatterChipsProps) {
@@ -34,13 +48,9 @@ export function FrontmatterChips(props: FrontmatterChipsProps) {
   return (
     <div className={styles.chips}>
       {entries.map(([key, value]) => {
-        const text = formatChipValue(value)
-        const variant = isStatusKey(key) ? statusToVariant(value) : 'neutral'
-        return (
-          <Chip key={key} variant={variant} aria-label={`${key}: ${text}`}>
-            {text}
-          </Chip>
-        )
+        const Badge = badgeFor(key)
+        if (Badge) return <Badge key={key} value={value} />
+        return <FrontmatterChip key={key} name={key} value={value} />
       })}
     </div>
   )

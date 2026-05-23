@@ -5,60 +5,15 @@ import css from './FrontmatterChips.module.css?raw'
 
 describe('FrontmatterChips', () => {
   describe('parsed state', () => {
-    it('renders a Chip for each non-null frontmatter value', () => {
+    it('renders a chip for each non-null frontmatter value', () => {
       const { container } = render(
         <FrontmatterChips
           state="parsed"
           frontmatter={{ status: 'accepted', date: '2026-04-05', author: 'Toby Clemson' }}
         />,
       )
-      const chips = container.querySelectorAll('[data-variant]')
+      const chips = container.querySelectorAll('[data-testid]')
       expect(chips.length).toBe(3)
-    })
-
-    it('renders the status field with the colour-coded variant', () => {
-      const { container } = render(
-        <FrontmatterChips state="parsed" frontmatter={{ status: 'accepted' }} />,
-      )
-      expect(container.querySelector('[data-variant="green"]')).not.toBeNull()
-    })
-
-    it('colour-codes status case-insensitively (Status, STATUS)', () => {
-      const { container } = render(
-        <FrontmatterChips state="parsed" frontmatter={{ Status: 'accepted' }} />,
-      )
-      expect(container.querySelector('[data-variant="green"]')).not.toBeNull()
-    })
-
-    it('renders non-status fields with variant="neutral"', () => {
-      const { container } = render(
-        <FrontmatterChips state="parsed" frontmatter={{ date: '2026-04-05' }} />,
-      )
-      expect(container.querySelector('[data-variant="neutral"]')).not.toBeNull()
-    })
-
-    it('does not render keys (e.g. the literal text "status:") in visible content', () => {
-      render(
-        <FrontmatterChips state="parsed" frontmatter={{ status: 'accepted' }} />,
-      )
-      expect(screen.getByText('accepted')).toBeInTheDocument()
-      expect(screen.queryByText(/^status:/i)).toBeNull()
-    })
-
-    it('attaches an aria-label of "${key}: ${value}" to each chip', () => {
-      const { container } = render(
-        <FrontmatterChips
-          state="parsed"
-          frontmatter={{ status: 'accepted', date: '2026-04-05' }}
-        />,
-      )
-      expect(container.querySelector('[aria-label="status: accepted"]')).not.toBeNull()
-      expect(container.querySelector('[aria-label="date: 2026-04-05"]')).not.toBeNull()
-    })
-
-    it('renders the value text', () => {
-      render(<FrontmatterChips state="parsed" frontmatter={{ status: 'draft' }} />)
-      expect(screen.getByText('draft')).toBeInTheDocument()
     })
 
     it('skips null and undefined values', () => {
@@ -68,7 +23,7 @@ describe('FrontmatterChips', () => {
           frontmatter={{ status: 'draft', author: null, date: undefined } as Record<string, unknown>}
         />,
       )
-      const chips = container.querySelectorAll('[data-variant]')
+      const chips = container.querySelectorAll('[data-testid]')
       expect(chips.length).toBe(1)
     })
 
@@ -76,27 +31,8 @@ describe('FrontmatterChips', () => {
       const { container } = render(
         <FrontmatterChips state="parsed" frontmatter={{ status: 'draft', author: '' }} />,
       )
-      const chips = container.querySelectorAll('[data-variant]')
+      const chips = container.querySelectorAll('[data-testid]')
       expect(chips.length).toBe(1)
-    })
-
-    it('renders boolean and numeric values as strings', () => {
-      render(
-        <FrontmatterChips state="parsed" frontmatter={{ archived: false, version: 0 }} />,
-      )
-      expect(screen.getByText('false')).toBeInTheDocument()
-      expect(screen.getByText('0')).toBeInTheDocument()
-    })
-
-    it('joins array values with ", " and reflects the joined text in the aria-label', () => {
-      const { container } = render(
-        <FrontmatterChips
-          state="parsed"
-          frontmatter={{ tags: ['design', 'frontend'] }}
-        />,
-      )
-      expect(screen.getByText('design, frontend')).toBeInTheDocument()
-      expect(container.querySelector('[aria-label="tags: design, frontend"]')).not.toBeNull()
     })
   })
 
@@ -125,6 +61,115 @@ describe('FrontmatterChips', () => {
     })
     it('still defines the .banner class for the malformed state', () => {
       expect(css).toMatch(/\.banner\s*\{/)
+    })
+  })
+
+  describe('dispatch', () => {
+    it('dispatches the status key to StatusBadge', () => {
+      const { container } = render(
+        <FrontmatterChips state="parsed" frontmatter={{ status: 'Accepted' }} />,
+      )
+      expect(container.querySelector('[data-testid="status-badge"]')).not.toBeNull()
+    })
+
+    it('dispatches the verdict key to VerdictBadge', () => {
+      const { container } = render(
+        <FrontmatterChips state="parsed" frontmatter={{ verdict: 'APPROVE' }} />,
+      )
+      expect(container.querySelector('[data-testid="verdict-badge"]')).not.toBeNull()
+    })
+
+    it('dispatches the result key to ResultBadge', () => {
+      const { container } = render(
+        <FrontmatterChips state="parsed" frontmatter={{ result: 'pass' }} />,
+      )
+      expect(container.querySelector('[data-testid="result-badge"]')).not.toBeNull()
+    })
+
+    it('dispatches non-tone keys to FrontmatterChip', () => {
+      const { container } = render(
+        <FrontmatterChips
+          state="parsed"
+          frontmatter={{ priority: 'medium', date: '2026-05-22' }}
+        />,
+      )
+      expect(container.querySelectorAll('[data-testid="frontmatter-chip"]').length).toBe(2)
+      expect(container.querySelector('[data-testid="status-badge"]')).toBeNull()
+      expect(container.querySelector('[data-testid="verdict-badge"]')).toBeNull()
+      expect(container.querySelector('[data-testid="result-badge"]')).toBeNull()
+    })
+
+    it.each([
+      ['Status', 'status-badge'], ['STATUS', 'status-badge'],
+      ['Verdict', 'verdict-badge'], ['VERDICT', 'verdict-badge'],
+      ['Result', 'result-badge'], ['RESULT', 'result-badge'],
+    ])('dispatches case-folded key "%s" to %s', (key, expectedComponent) => {
+      const { container } = render(
+        <FrontmatterChips state="parsed" frontmatter={{ [key]: 'pass' }} />,
+      )
+      expect(container.querySelector(`[data-testid="${expectedComponent}"]`)).not.toBeNull()
+    })
+  })
+
+  describe('source order', () => {
+    it('preserves frontmatter source order in rendered output', () => {
+      const { container } = render(
+        <FrontmatterChips
+          state="parsed"
+          frontmatter={{ verdict: 'APPROVE', status: 'Accepted', priority: 'medium' }}
+        />,
+      )
+      const labels = Array.from(container.querySelectorAll('[aria-label]'))
+        .map((el) => el.getAttribute('aria-label'))
+      expect(labels).toEqual([
+        'verdict: APPROVE', 'status: Accepted', 'priority: medium',
+      ])
+    })
+  })
+
+  describe('AC integration fixtures', () => {
+    it('plan-review-shaped document: source order, components, variants', () => {
+      const { container } = render(
+        <FrontmatterChips
+          state="parsed"
+          frontmatter={{
+            status: 'Accepted',
+            verdict: 'APPROVE',
+            priority: 'medium',
+            tags: ['design', 'frontend'],
+          }}
+        />,
+      )
+      const chips = Array.from(container.querySelectorAll('[data-testid]'))
+      expect(chips).toHaveLength(4)
+      expect(chips.map((el) => el.getAttribute('data-testid'))).toEqual([
+        'status-badge', 'verdict-badge', 'frontmatter-chip', 'frontmatter-chip',
+      ])
+      expect(chips.map((el) => el.getAttribute('data-variant'))).toEqual([
+        'green', 'green', 'neutral', 'neutral',
+      ])
+    })
+
+    it('validation-shaped document: source order, components, variants', () => {
+      const { container } = render(
+        <FrontmatterChips
+          state="parsed"
+          frontmatter={{
+            status: 'complete',
+            result: 'pass',
+            priority: 'medium',
+            tags: ['validation'],
+          }}
+        />,
+      )
+      const chips = Array.from(container.querySelectorAll('[data-testid]'))
+      expect(chips).toHaveLength(4)
+      expect(chips.map((el) => el.getAttribute('data-testid'))).toEqual([
+        'status-badge', 'result-badge', 'frontmatter-chip', 'frontmatter-chip',
+      ])
+      expect(chips.map((el) => el.getAttribute('data-variant'))).toEqual([
+        'green', 'green', 'neutral', 'neutral',
+      ])
     })
   })
 })
