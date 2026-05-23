@@ -32,7 +32,7 @@
   align-items: center;
   gap: var(--sp-2);
   font-family: var(--ac-font-mono);
-  font-size: 11px;
+  font-size: var(--size-eyebrow);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ac-fg-faint);
@@ -53,7 +53,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  font-size: 13px;
+  font-size: var(--size-subtitle);
   line-height: 1.5;
   color: var(--ac-fg-muted);
   margin-top: 4px;

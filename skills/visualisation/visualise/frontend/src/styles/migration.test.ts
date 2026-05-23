@@ -47,7 +47,6 @@ type Exception = { file: string; literal: string; count: number; reason: string 
 
 const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible' }> = [
   // components/Brand/Brand.module.css
-  { file: 'components/Brand/Brand.module.css', literal: '10px', count: 1, kind: 'irreducible', reason: 'VISUALISER sub-label — below --size-xxs (12px) floor' },
   { file: 'components/Brand/Brand.module.css', literal: '2px', count: 1, kind: 'irreducible', reason: 'text stack gap — below --sp-1 (4px) floor' },
   // components/Chip/Chip.module.css
   { file: 'components/Chip/Chip.module.css', literal: '0.125rem', count: 1, kind: 'irreducible', reason: 'chip base vertical padding — 2px, below --sp-1 (4px) floor; prototype-derived' },
@@ -112,8 +111,6 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/TopbarIconButton/TopbarIconButton.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   // components/Page/Page.module.css
   { file: 'components/Page/Page.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'header/content divider border-top width — below --sp-1 floor' },
-  { file: 'components/Page/Page.module.css', literal: '11px', count: 1, kind: 'irreducible', reason: 'eyebrow font-size from design — 1px under --size-xxs (12px)' },
-  { file: 'components/Page/Page.module.css', literal: '13px', count: 1, kind: 'irreducible', reason: 'subtitle font-size from design — 1px under --size-xs (14px)' },
   { file: 'components/Page/Page.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'eyebrow margin-bottom from design — between --sp-1 and --sp-2' },
   { file: 'components/Page/Page.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'subtitle margin-top from design — equals --sp-1 but co-located with non-token siblings' },
   { file: 'components/Page/Page.module.css', literal: '0.12em', count: 1, kind: 'irreducible', reason: 'eyebrow caps letter-spacing — matches sidebar headings' },
