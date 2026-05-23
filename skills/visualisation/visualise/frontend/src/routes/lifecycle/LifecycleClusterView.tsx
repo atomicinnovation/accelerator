@@ -11,7 +11,7 @@ import {
 } from '../../api/types'
 import { Chip } from '../../components/Chip/Chip'
 import { Page } from '../../components/Page/Page'
-import { statusToChipVariant } from '../../api/status-variant'
+import { statusToVariant } from '../../api/status-variant'
 import styles from './LifecycleClusterView.module.css'
 
 /** Pure renderer. Tests render this directly with a literal slug. */
@@ -136,7 +136,7 @@ function EntryCard({ entry }: { entry: IndexEntry }) {
       <div className={styles.entryMeta}>
         {typeof date === 'string' && <span>{date}</span>}
         {typeof status === 'string' && (
-          <Chip variant={statusToChipVariant(status)}>{status}</Chip>
+          <Chip variant={statusToVariant(status)}>{status}</Chip>
         )}
       </div>
       {entry.bodyPreview && (

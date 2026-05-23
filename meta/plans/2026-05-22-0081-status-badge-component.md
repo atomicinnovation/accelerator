@@ -415,11 +415,11 @@ export function isStatusKey(key: string): boolean {
 
 #### Automated Verification
 
-- [ ] `normaliseValue` tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- normalise-value`
-- [ ] Renamed status-variant tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- status-variant`
-- [ ] LibraryTypeView / LifecycleClusterView / FilterPill / FrontmatterChips tests still pass
-- [ ] Type checking passes
-- [ ] Full suite green
+- [x] `normaliseValue` tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- normalise-value`
+- [x] Renamed status-variant tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- status-variant`
+- [x] LibraryTypeView / LifecycleClusterView / FilterPill / FrontmatterChips tests still pass
+- [x] Type checking passes
+- [x] Full suite green
 
 #### Manual Verification
 

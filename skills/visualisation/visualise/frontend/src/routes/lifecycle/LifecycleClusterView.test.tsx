@@ -182,7 +182,7 @@ describe('LifecycleClusterContent', () => {
       .not.toBeInTheDocument()
   })
 
-  it('renders the status as a Chip with the variant from statusToChipVariant', async () => {
+  it('renders the status as a Chip with the variant from statusToVariant', async () => {
     const withStatus: LifecycleCluster = {
       ...cluster,
       entries: [

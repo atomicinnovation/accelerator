@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Popover } from '../Popover/Popover'
 import { Chip } from '../Chip/Chip'
-import { statusToChipVariant } from '../../api/status-variant'
+import { statusToVariant } from '../../api/status-variant'
 import type {
   LibraryFacet,
   LibrarySelectionPerType,
@@ -148,7 +148,7 @@ function FacetSection({
               />
               <span className={styles.optionLabel}>
                 {facet.id === 'status' ? (
-                  <Chip variant={statusToChipVariant(option.id)}>
+                  <Chip variant={statusToVariant(option.id)}>
                     {option.label}
                   </Chip>
                 ) : (

@@ -18,7 +18,7 @@ import { Glyph, isGlyphDocTypeKey } from '../../components/Glyph/Glyph'
 import { Page } from '../../components/Page/Page'
 import { SortPill, type SortOption } from '../../components/SortPill/SortPill'
 import { FilterPill } from '../../components/FilterPill/FilterPill'
-import { statusToChipVariant } from '../../api/status-variant'
+import { statusToVariant } from '../../api/status-variant'
 import { formatDocId } from './doc-type-id'
 import { EmptyState } from './EmptyState'
 import { NoResultsPanel } from './NoResultsPanel'
@@ -249,7 +249,7 @@ export function LibraryTypeView({ type: propType }: Props) {
                 </span>
                 <span role="cell">
                   {statusValue(entry) ? (
-                    <Chip variant={statusToChipVariant(statusValue(entry))}>
+                    <Chip variant={statusToVariant(statusValue(entry))}>
                       {statusValue(entry)}
                     </Chip>
                   ) : (

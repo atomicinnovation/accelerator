@@ -1,5 +1,5 @@
 import { Chip } from '../Chip/Chip'
-import { statusToChipVariant, isStatusKey } from '../../api/status-variant'
+import { statusToVariant, isStatusKey } from '../../api/status-variant'
 import styles from './FrontmatterChips.module.css'
 
 type FrontmatterChipsProps =
@@ -35,7 +35,7 @@ export function FrontmatterChips(props: FrontmatterChipsProps) {
     <div className={styles.chips}>
       {entries.map(([key, value]) => {
         const text = formatChipValue(value)
-        const variant = isStatusKey(key) ? statusToChipVariant(value) : 'neutral'
+        const variant = isStatusKey(key) ? statusToVariant(value) : 'neutral'
         return (
           <Chip key={key} variant={variant} aria-label={`${key}: ${text}`}>
             {text}
