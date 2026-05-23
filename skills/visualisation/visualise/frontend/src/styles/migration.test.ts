@@ -64,8 +64,6 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/FrontmatterTable/FrontmatterTable.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'focus-ring outline width + outline-offset — below --sp-1 floor' },
   // components/MarkdownRenderer/MarkdownRenderer.module.css
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '1px', count: 5, kind: 'irreducible', reason: 'hairline borders: <pre> stroke, h1 underline, table cell, codeblock wrapper, codeblockHead bottom — below --sp-1 floor' },
-  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '1.75rem', count: 1, kind: 'irreducible', reason: 'h1 font-size (28px) — 6px above size-lg ceiling; no heading token' },
-  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '0.88em', count: 1, kind: 'irreducible', reason: 'relative em font-size on inline code — not a rem scale value' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'off-scale cell padding (6.4px) — between --sp-1 and --sp-2' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '0.1rem', count: 1, kind: 'irreducible', reason: 'sub-pixel code padding — below --sp-1 floor' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'blockquote border-left width — no border-width token' },

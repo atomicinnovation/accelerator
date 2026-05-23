@@ -6,7 +6,7 @@
 .markdown h1, .markdown h2, .markdown h3 {
   margin-top: var(--sp-5); margin-bottom: var(--sp-2); font-weight: 600; font-family: var(--ac-font-display);
 }
-.markdown h1 { font-size: 1.75rem; border-bottom: 1px solid var(--ac-stroke-soft); padding-bottom: var(--sp-1); }
+.markdown h1 { font-size: var(--size-h3); border-bottom: 1px solid var(--ac-stroke-soft); padding-bottom: var(--sp-1); }
 .markdown h2 { font-size: var(--size-lg); }
 .markdown h3 { font-size: var(--size-sm); }
 .markdown p { margin: var(--sp-3) 0; }
@@ -50,7 +50,7 @@
 }
 .markdown code:not(pre code) {
   background: var(--ac-bg-sunken); border-radius: var(--radius-sm);
-  padding: 0.1rem var(--sp-1); font-size: 0.88em;
+  padding: 0.1rem var(--sp-1); font-size: var(--size-xs);
 }
 .markdown table { border-collapse: collapse; width: 100%; margin: var(--sp-4) 0; }
 .markdown th, .markdown td { border: 1px solid var(--ac-stroke-soft); padding: 0.4rem var(--sp-3); }
