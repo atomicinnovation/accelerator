@@ -704,9 +704,9 @@ export function StatusBadge({ value }: StatusBadgeProps) {
 
 #### Automated Verification
 
-- [ ] New StatusBadge tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- StatusBadge`
-- [ ] Type checking passes
-- [ ] Full suite green
+- [x] New StatusBadge tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- StatusBadge`
+- [x] Type checking passes
+- [x] Full suite green
 
 #### Manual Verification
 
