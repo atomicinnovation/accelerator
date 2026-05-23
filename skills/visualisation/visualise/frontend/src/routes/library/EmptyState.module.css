@@ -59,7 +59,7 @@
 
 .eyebrow {
   font-family: var(--ac-font-mono);
-  font-size: 11.5px;
+  font-size: var(--size-xxs-sm);
   letter-spacing: 0.04em;
   color: hsl(var(--ac-empty-page-hue) 50% 42%);
   margin-bottom: 4px;
@@ -78,7 +78,7 @@
 .title {
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: 22px;
+  font-size: var(--size-lg);
   line-height: 1.25;
   margin: 0 0 8px;
   color: var(--ac-fg-strong);
@@ -86,7 +86,7 @@
 }
 
 .lede {
-  font-size: 14px;
+  font-size: var(--size-xs);
   line-height: 1.55;
   color: var(--ac-fg);
   margin: 0 0 16px;
@@ -98,7 +98,7 @@
   margin: 0;
   padding-top: 14px;
   border-top: 1px dashed var(--ac-stroke);
-  font-size: 12px;
+  font-size: var(--size-xxs);
   color: var(--ac-fg-muted);
   line-height: 1.55;
   max-width: 60ch;
@@ -107,7 +107,7 @@
 .pathInline {
   font-family: var(--ac-font-mono);
   color: var(--ac-fg);
-  font-size: 11.5px;
+  font-size: var(--size-xxs-sm);
 }
 
 @media (max-width: 820px) {
