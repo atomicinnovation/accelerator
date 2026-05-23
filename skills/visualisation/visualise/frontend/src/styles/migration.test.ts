@@ -483,3 +483,145 @@ describe('0038: --radius-pill is reserved for non-status surfaces', () => {
 // guard has been retired: every consumer route now renders its title
 // through the shared `<Page>` wrapper, which owns the title styling
 // centrally. The Page test suite asserts the colour binding.
+
+// AUTHORITATIVE IMPLEMENTATION of ADR-0036's font-size consumption
+// rule. The FONT_SIZE_LITERAL_RE and FONT_SHORTHAND_RE regexes here
+// are the load-bearing CI guard. The three AC2 ripgrep sweeps below
+// are coarser approximations used at the review-time grep gate; the
+// regexes above are the authoritative test of compliance. The AC2
+// sweeps may flag additional candidates (e.g. unit-bearing
+// line-heights inside `font:` shorthand) that this test correctly
+// excludes via the negated character class on the shorthand regex;
+// any such grep hit must be inspected and dismissed only if confirmed
+// to be the line-height slot. Any structural edit to the regexes here
+// requires re-deriving the AC2 sweep guidance in the same commit.
+//
+// AC2 sweeps (review-time grep gate):
+//   rg --glob '**/*.module.css' 'font-size:\s*[.0-9]' src
+//   rg --glob '**/*.css' --glob '!**/global.css' 'font-size:\s*[.0-9]' src
+//   rg --glob '**/*.module.css' 'font:\s*[^;]*\s[.0-9]+(px|rem|em)' src
+
+const globalCssModules = import.meta.glob('../styles/global.css', {
+  eager: true,
+  query: '?raw',
+  import: 'default',
+}) as Record<string, string>
+
+if (Object.keys(globalCssModules).length !== 1) {
+  throw new Error(
+    `Expected exactly one match for global.css glob, got ${Object.keys(globalCssModules).length}: ` +
+    `${Object.keys(globalCssModules).join(', ')}. ` +
+    `Update Phase 8.1's glob path if styles/global.css was moved.`,
+  )
+}
+
+const FONT_SIZE_LITERAL_EXCEPTIONS: ReadonlyArray<{
+  file: string
+  literal: string
+  count: number
+  reason: string
+  reference: string
+}> = []
+
+describe('AC2 / 0075: no font-size literals in module or global CSS', () => {
+  const FONT_SIZE_LITERAL_RE = /(?<![\w-])font-size:\s*(\d+(?:\.\d+)?|\.\d+)\s*(px|rem|em)\b/g
+  const FONT_SHORTHAND_RE = /(?<![\w-])font:[^;/]*?(\d+(?:\.\d+)?|\.\d+)(px|rem|em)\b/g
+
+  const allCssWithRoot = {
+    ...allCss,
+    ...Object.fromEntries(
+      Object.entries(globalCssModules).map(([, css]) => ['styles/global.css', css]),
+    ),
+  }
+
+  const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '')
+
+  for (const [path, css] of Object.entries(allCssWithRoot)) {
+    it(`${path}: no font-size literal or shorthand with embedded size`, () => {
+      const cssNoComments = stripComments(css)
+      const fontSizeHits = [...cssNoComments.matchAll(FONT_SIZE_LITERAL_RE)].map((m) => `${m[1]}${m[2]}`)
+      const shorthandHits = [...cssNoComments.matchAll(FONT_SHORTHAND_RE)].map((m) => `${m[1]}${m[2]}`)
+
+      const exemptForFile = new Map<string, number>()
+      for (const e of FONT_SIZE_LITERAL_EXCEPTIONS) {
+        if (e.file === path) {
+          exemptForFile.set(e.literal, (exemptForFile.get(e.literal) ?? 0) + e.count)
+        }
+      }
+
+      const consumed = new Map<string, number>()
+      function subtractExemptions(hits: string[]): string[] {
+        const remaining: string[] = []
+        for (const hit of hits) {
+          const budget = exemptForFile.get(hit) ?? 0
+          const used = consumed.get(hit) ?? 0
+          if (used < budget) {
+            consumed.set(hit, used + 1)
+          } else {
+            remaining.push(hit)
+          }
+        }
+        return remaining
+      }
+
+      expect({
+        fontSize: subtractExemptions(fontSizeHits),
+        shorthand: subtractExemptions(shorthandHits),
+      }).toEqual({ fontSize: [], shorthand: [] })
+    })
+  }
+})
+
+describe('AC2 / 0075: font-size literal regex fixtures', () => {
+  const FONT_SIZE_LITERAL_RE = /(?<![\w-])font-size:\s*(\d+(?:\.\d+)?|\.\d+)\s*(px|rem|em)\b/g
+  const FONT_SHORTHAND_RE = /(?<![\w-])font:[^;/]*?(\d+(?:\.\d+)?|\.\d+)(px|rem|em)\b/g
+
+  const POSITIVE_LITERAL = [
+    'font-size: 0.88em;',
+    'font-size: .5px;',
+    'font-size:14px;',
+  ]
+  const POSITIVE_SHORTHAND = [
+    'font: 400 12px/1.5 var(--ac-font-body);',
+    'font:12px/1 sans;',
+    'font: italic 400 .9em/1 sans;',
+    'font:.5px/1 sans;',
+    'font: bold 14px sans;',
+  ]
+  const NEGATIVE_LITERAL = [
+    '--size-foo: 11px;',
+    '--my-font-size: 12px;',
+    '--ac-font-size-base: 14px;',
+    'border-radius: 12px;',
+    'transform: scale(1.2em);',
+  ]
+  const NEGATIVE_SHORTHAND = [
+    '--ac-font: bold 14px sans;',
+    '--my-line-height: 1.5rem;',
+    'font-family: "Inter", sans-serif;',
+    'font: 400 var(--size-xxs)/1 var(--ac-font-mono);',
+    'font: 400 var(--size-xxs)/1.5rem var(--ac-font-body);',
+    'font: 14pxsans;',
+  ]
+
+  for (const css of POSITIVE_LITERAL) {
+    it(`literal regex flags: ${css}`, () => {
+      expect([...css.matchAll(FONT_SIZE_LITERAL_RE)].length).toBeGreaterThan(0)
+    })
+  }
+  for (const css of POSITIVE_SHORTHAND) {
+    it(`shorthand regex flags: ${css}`, () => {
+      expect([...css.matchAll(FONT_SHORTHAND_RE)].length).toBeGreaterThan(0)
+    })
+  }
+  for (const css of NEGATIVE_LITERAL) {
+    it(`literal regex skips: ${css}`, () => {
+      expect([...css.matchAll(FONT_SIZE_LITERAL_RE)].length).toBe(0)
+    })
+  }
+  for (const css of NEGATIVE_SHORTHAND) {
+    it(`shorthand regex skips: ${css}`, () => {
+      expect([...css.matchAll(FONT_SHORTHAND_RE)].length).toBe(0)
+    })
+  }
+})

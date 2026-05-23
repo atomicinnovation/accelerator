@@ -129,48 +129,48 @@ values are `9.5px`, `10px`, `11px`, `12.5px`, `13px`, and the relative
 
 ## Acceptance Criteria
 
-- [ ] **AC1.** Five new tokens are present in `src/styles/global.css`
+- [x] **AC1.** Five new tokens are present in `src/styles/global.css`
   slotted into the `--size-*` block by px ordering:
   - `--size-4xs: 9.5px`
   - `--size-3xs: 10px`
   - `--size-eyebrow: 11px`
   - `--size-row: 12.5px`
   - `--size-subtitle: 13px`
-- [ ] **AC2.** All three of the following ripgrep sweeps return zero
+- [x] **AC2.** All three of the following ripgrep sweeps return zero
   matches when run from `skills/visualisation/visualise/frontend/`:
   - `rg --glob '**/*.module.css' 'font-size:\s*[.0-9]' src`
   - `rg --glob '**/*.css' --glob '!**/global.css' 'font-size:\s*[.0-9]' src`
   - `rg --glob '**/*.module.css' 'font:\s*[^;]*\s[.0-9]+(px|rem|em)' src`
   (The third sweep catches `font:` shorthand sites with embedded size
   literals.)
-- [ ] **AC3.** Every outlier enumerated in Context consumes a
+- [x] **AC3.** Every outlier enumerated in Context consumes a
   `var(--size-*)` token in the migrated file.
-- [ ] **AC4.** `src/styles/migration.test.ts` EXCEPTIONS cleanup:
-  - [ ] **AC4a.** Every `EXCEPTIONS` entry whose `literal` appears in
+- [x] **AC4.** `src/styles/migration.test.ts` EXCEPTIONS cleanup:
+  - [x] **AC4a.** Every `EXCEPTIONS` entry whose `literal` appears in
     a `font-size:` declaration of one of the migrated files is deleted.
-  - [ ] **AC4b.** No remaining `EXCEPTIONS` entry's `reason` field
+  - [x] **AC4b.** No remaining `EXCEPTIONS` entry's `reason` field
     contains the substring `font-size` (grep-able pass condition).
-- [ ] **AC5.** ADR-0036 is created with the canonical font-size
+- [x] **AC5.** ADR-0036 is created with the canonical font-size
   consumption rule, and ADR-0026 is updated to record the typography
   portion's supersession per ADR-0031:
-  - [ ] **AC5a.** The consume-tokens-everywhere rule for `font-size` is
+  - [x] **AC5a.** The consume-tokens-everywhere rule for `font-size` is
     codified in ADR-0036 §Decision.
-  - [ ] **AC5b.** The §3 "em-relative font-sizes" and "Heading
+  - [x] **AC5b.** The §3 "em-relative font-sizes" and "Heading
     font-sizes above `size-lg`" rows in ADR-0026 are removed or marked
     superseded, and ADR-0036 supersedes them.
-  - [ ] **AC5c.** ADR-0026's Consequences "heading font-size gap"
+  - [x] **AC5c.** ADR-0026's Consequences "heading font-size gap"
     deferral is updated to record resolution by ADR-0036.
-- [ ] **AC6.** Documentation deliverables:
-  - [ ] **AC6a.** `src/styles/global.css` carries a comment block above
+- [x] **AC6.** Documentation deliverables:
+  - [x] **AC6a.** `src/styles/global.css` carries a comment block above
     the `--size-*` tokens whose lead sentence is
     `/* font-size consumers: use these tokens — see ADR-0036 */`,
     followed by a naming-convention paragraph (numeric tiers, semantic
     single-purpose tokens, `-sm`/`-lg` sub-pixel suffixes).
-  - [ ] **AC6b.** The PR description contains both (i) the canonical
+  - [x] **AC6b.** The PR description contains both (i) the canonical
     rule statement *"every `font-size` declaration in current-app CSS
     must resolve to a `var(--size-*)` token"* and (ii) a one-paragraph
     rationale that references `ADR-0036` by ID.
-- [ ] **AC7.** Computed `font-size` regression check via a Playwright
+- [x] **AC7.** Computed `font-size` regression check via a Playwright
   `getComputedStyle` spec at
   `tests/visual-regression/typography-resolved-sizes.spec.ts`. For each
   selector below, the spec asserts the post-migration computed

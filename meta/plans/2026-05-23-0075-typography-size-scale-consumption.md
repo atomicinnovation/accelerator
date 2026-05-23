@@ -753,23 +753,23 @@ happens when the spike is picked up.
 
 #### Automated Verification
 
-- [ ] `cd skills/visualisation/visualise/frontend && rg -n '--size-4xs|--size-3xs|--size-eyebrow|--size-row|--size-subtitle|--size-xxs-sm|--size-3xs-lg' src/styles/global.css` returns 7 lines (5 new + 2 renamed).
-- [ ] `cd skills/visualisation/visualise/frontend && rg -n 'size-chip' src` returns 0 matches (rename complete across global.css, tokens.ts, Chip.module.css, Chip.test.tsx, FrontmatterTable.module.css, FrontmatterTable.test.tsx, and MarkdownRenderer.module.css:46).
-- [ ] `rg -n 'font-size consumers: use these tokens' src/styles/global.css` returns 1 line.
-- [ ] `npm test -- migration.test.ts` passes on first run (no new test block has been added yet; existing AC4 hygiene + tokens-declared blocks pass because tokens.ts is updated in lockstep with global.css).
-- [ ] `npm run lint` passes.
-- [ ] `npm run typecheck` passes.
-- [ ] `npx playwright test --list --project=visual-regression | grep typography-resolved-sizes` lists every CASES entry (proves the spec is wired into the project run, not silently filtered).
+- [x] `cd skills/visualisation/visualise/frontend && rg -n '--size-4xs|--size-3xs|--size-eyebrow|--size-row|--size-subtitle|--size-xxs-sm|--size-3xs-lg' src/styles/global.css` returns 7 lines (5 new + 2 renamed).
+- [x] `cd skills/visualisation/visualise/frontend && rg -n 'size-chip' src` returns 0 matches (rename complete across global.css, tokens.ts, Chip.module.css, Chip.test.tsx, FrontmatterTable.module.css, FrontmatterTable.test.tsx, and MarkdownRenderer.module.css:46).
+- [x] `rg -n 'font-size consumers: use these tokens' src/styles/global.css` returns 1 line.
+- [x] `npm test -- migration.test.ts` passes on first run (no new test block has been added yet; existing AC4 hygiene + tokens-declared blocks pass because tokens.ts is updated in lockstep with global.css).
+- [x] `npm run lint` passes.
+- [x] `npm run typecheck` passes.
+- [x] `npx playwright test --list --project=visual-regression | grep typography-resolved-sizes` lists every CASES entry (proves the spec is wired into the project run, not silently filtered).
 
 #### Manual Verification
 
-- [ ] ADR-0036 is present and self-contained (a reader can understand the rule + rationale + escape valve without needing to consult ADR-0026 first).
-- [ ] ADR-0026 frontmatter records `superseded_by: "adr:ADR-0036"` (single ref, quoted string per ADR-0034's identity-value contract); the spacing rule and other non-typography clauses still read as authoritative.
-- [ ] ADR-0026 §2 Typography subsection is a single "see ADR-0036" pointer; §3 no longer references "em-relative" or "Heading font-sizes" rows; Consequences no longer mentions the heading-token deferral as open.
-- [ ] Playwright spec compiles; every CASES entry has its `{route, setup?, selector, expected}` quadruple resolved (no `<placeholder>` strings remain).
-- [ ] Baseline verification working note records observed-vs-EXCEPTIONS counts for every literal to be decremented in Phases 2-7.
-- [ ] Work item 0075 updated per Phase 1.6: `rg -n 'ADR-0026 \(as amended by 0075\)\|amended in place' meta/work/0075-typography-size-scale-consumption.md` returns 0 matches; AC5/AC6/Decisions/References reflect ADR-0036 + chip rename.
-- [ ] Work item 0091 stub exists at `meta/work/0091-typography-rem-vs-px-stance.md` with `status: backlog`.
+- [x] ADR-0036 is present and self-contained (a reader can understand the rule + rationale + escape valve without needing to consult ADR-0026 first).
+- [x] ADR-0026 frontmatter records `superseded_by: "adr:ADR-0036"` (single ref, quoted string per ADR-0034's identity-value contract); the spacing rule and other non-typography clauses still read as authoritative.
+- [x] ADR-0026 §2 Typography subsection is a single "see ADR-0036" pointer; §3 no longer references "em-relative" or "Heading font-sizes" rows; Consequences no longer mentions the heading-token deferral as open.
+- [x] Playwright spec compiles; every CASES entry has its `{route, setup?, selector, expected}` quadruple resolved (no `<placeholder>` strings remain).
+- [x] Baseline verification working note records observed-vs-EXCEPTIONS counts for every literal to be decremented in Phases 2-7.
+- [x] Work item 0075 updated per Phase 1.6: `rg -n 'ADR-0026 \(as amended by 0075\)\|amended in place' meta/work/0075-typography-size-scale-consumption.md` returns 0 matches; AC5/AC6/Decisions/References reflect ADR-0036 + chip rename.
+- [x] Work item 0091 stub exists at `meta/work/0091-typography-rem-vs-px-stance.md` with `status: backlog`.
 
 ---
 
@@ -829,15 +829,15 @@ Delete these two entries (both font-size-only, count: 1):
 
 #### Automated Verification
 
-- [ ] `npm test -- migration.test.ts` passes (AC4 hygiene accepts the file: no orphan EXCEPTIONS, no new outliers).
-- [ ] `rg -n 'font-size:' src/components/MarkdownRenderer/MarkdownRenderer.module.css` returns only `var(--size-*)` references.
-- [ ] `rg --glob '**/*.module.css' 'font-size:\s*[.0-9]' src/components/MarkdownRenderer` returns zero matches (this file's AC2 sweep is now clean).
-- [ ] Playwright `typography-resolved-sizes` MarkdownRenderer cases pass (H1, inline code in body, inline code in H2).
+- [x] `npm test -- migration.test.ts` passes (AC4 hygiene accepts the file: no orphan EXCEPTIONS, no new outliers).
+- [x] `rg -n 'font-size:' src/components/MarkdownRenderer/MarkdownRenderer.module.css` returns only `var(--size-*)` references.
+- [x] `rg --glob '**/*.module.css' 'font-size:\s*[.0-9]' src/components/MarkdownRenderer` returns zero matches (this file's AC2 sweep is now clean).
+- [x] Playwright `typography-resolved-sizes` MarkdownRenderer cases pass (H1, inline code in body, inline code in H2).
 
 #### Manual Verification
 
-- [ ] Render a markdown doc containing inline code inside a heading — visually confirm inline code is now fixed-size (the documented deliberate drift). Capture a before/after screenshot for the PR description.
-- [ ] Render a markdown doc with H1 — visually identical (1.75rem === 28px === `var(--size-h3)`).
+- [x] Render a markdown doc containing inline code inside a heading — visually confirm inline code is now fixed-size (the documented deliberate drift). Capture a before/after screenshot for the PR description.
+- [x] Render a markdown doc with H1 — visually identical (1.75rem === 28px === `var(--size-h3)`).
 
 ---
 
@@ -877,13 +877,13 @@ Brand's `2px` entry (text stack gap) is unrelated; leave intact.
 
 #### Automated Verification
 
-- [ ] `rg -n 'font-size:' src/components/Page/Page.module.css src/components/Brand/Brand.module.css` returns only `var(--size-*)` references.
-- [ ] `npm test -- migration.test.ts` — AC4 still passes; AC2/0075 has 3 fewer red cases.
-- [ ] Playwright `Page .eyebrow` / `Page .subtitle` / `Brand .brandSub` cases pass.
+- [x] `rg -n 'font-size:' src/components/Page/Page.module.css src/components/Brand/Brand.module.css` returns only `var(--size-*)` references.
+- [x] `npm test -- migration.test.ts` — AC4 still passes; AC2/0075 has 3 fewer red cases.
+- [x] Playwright `Page .eyebrow` / `Page .subtitle` / `Brand .brandSub` cases pass.
 
 #### Manual Verification
 
-- [ ] Visual diff at default viewport: Page eyebrow / subtitle / Brand sub-label identical to pre-migration.
+- [x] Visual diff at default viewport: Page eyebrow / subtitle / Brand sub-label identical to pre-migration.
 
 ---
 
@@ -977,15 +977,15 @@ If any count diverges from the expected post-migration value, stop and reconcile
 
 #### Automated Verification
 
-- [ ] `rg -n 'font-size:' src/components/Sidebar/Sidebar.module.css` returns only `var(--size-*)` references.
-- [ ] `rg -n 'font:' src/components/Sidebar/Sidebar.module.css` returns no shorthand with an embedded numeric size; the one remaining shorthand (line 223 `font: 400 var(--size-xxs)/1 …`) already uses a token and stays.
-- [ ] `npm test -- migration.test.ts` — both AC4 entries for Sidebar accounted for; AC2/0075 has 7 fewer red cases (4 direct + 3 shorthand).
-- [ ] Playwright `Sidebar .phaseHeading` case passes.
+- [x] `rg -n 'font-size:' src/components/Sidebar/Sidebar.module.css` returns only `var(--size-*)` references.
+- [x] `rg -n 'font:' src/components/Sidebar/Sidebar.module.css` returns no shorthand with an embedded numeric size; the one remaining shorthand (line 223 `font: 400 var(--size-xxs)/1 …`) already uses a token and stays.
+- [x] `npm test -- migration.test.ts` — both AC4 entries for Sidebar accounted for; AC2/0075 has 7 fewer red cases (4 direct + 3 shorthand).
+- [x] Playwright `Sidebar .phaseHeading` case passes.
 
 #### Manual Verification
 
-- [ ] Sidebar visually unchanged: library heading, section heading, phase heading, nav item, search input, kbd chip, libraryHeadingHint.
-- [ ] Keyboard shortcut chip (kbd) still renders at 11px / mono.
+- [x] Sidebar visually unchanged: library heading, section heading, phase heading, nav item, search input, kbd chip, libraryHeadingHint.
+- [x] Keyboard shortcut chip (kbd) still renders at 11px / mono.
 
 ---
 
@@ -1028,13 +1028,13 @@ line-height: 1;
 
 #### Automated Verification
 
-- [ ] `rg -n 'font:' src/components/ActivityFeed/ActivityFeed.module.css` returns no shorthand with an embedded numeric size.
-- [ ] `npm test -- migration.test.ts` — AC4 still passes; AC2/0075 has 2 fewer red cases.
-- [ ] Playwright `ActivityFeed heading` and `ActivityFeed live badge` cases pass.
+- [x] `rg -n 'font:' src/components/ActivityFeed/ActivityFeed.module.css` returns no shorthand with an embedded numeric size.
+- [x] `npm test -- migration.test.ts` — AC4 still passes; AC2/0075 has 2 fewer red cases.
+- [x] Playwright `ActivityFeed heading` and `ActivityFeed live badge` cases pass.
 
 #### Manual Verification
 
-- [ ] ACTIVITY heading + LIVE badge visually unchanged on whichever route surfaces the activity feed.
+- [x] ACTIVITY heading + LIVE badge visually unchanged on whichever route surfaces the activity feed.
 
 ---
 
@@ -1136,14 +1136,14 @@ non-font-size literals that stay untouched.
 
 #### Automated Verification
 
-- [ ] `rg -n 'font-size:' src/components/SortPill/SortPill.module.css src/components/FilterPill/FilterPill.module.css` returns only `var(--size-*)` references.
-- [ ] `npm test -- migration.test.ts` — AC4 still passes; AC2/0075 has 12 fewer red cases (3 SortPill + 9 FilterPill).
-- [ ] Playwright `SortPill .menuItem` and `FilterPill .option` cases pass.
+- [x] `rg -n 'font-size:' src/components/SortPill/SortPill.module.css src/components/FilterPill/FilterPill.module.css` returns only `var(--size-*)` references.
+- [x] `npm test -- migration.test.ts` — AC4 still passes; AC2/0075 has 12 fewer red cases (3 SortPill + 9 FilterPill).
+- [x] Playwright `SortPill .menuItem` and `FilterPill .option` cases pass.
 
 #### Manual Verification
 
-- [ ] SortPill trigger / menu header / menu items visually unchanged.
-- [ ] FilterPill trigger / badge / menu header / clear button / facet heading / search input / option / option count / no-matches messaging visually unchanged.
+- [x] SortPill trigger / menu header / menu items visually unchanged.
+- [x] FilterPill trigger / badge / menu header / clear button / facet heading / search input / option / option count / no-matches messaging visually unchanged.
 
 ---
 
@@ -1228,15 +1228,15 @@ EXCEPTIONS updates (`routes/library/LibraryTypeView.module.css`):
 
 #### Automated Verification
 
-- [ ] `rg -n 'font-size:' src/routes/library/EmptyState.module.css src/routes/library/LibraryOverviewHub.module.css src/routes/library/LibraryTypeView.module.css` returns only `var(--size-*)` references.
-- [ ] `npm test -- migration.test.ts` — AC4 still passes; AC2/0075 has 14 fewer red cases.
-- [ ] Playwright `EmptyState .title` and `LibraryTypeView .row` cases pass.
+- [x] `rg -n 'font-size:' src/routes/library/EmptyState.module.css src/routes/library/LibraryOverviewHub.module.css src/routes/library/LibraryTypeView.module.css` returns only `var(--size-*)` references.
+- [x] `npm test -- migration.test.ts` — AC4 still passes; AC2/0075 has 14 fewer red cases.
+- [x] Playwright `EmptyState .title` and `LibraryTypeView .row` cases pass.
 
 #### Manual Verification
 
-- [ ] EmptyState (e.g. an empty library/by-type route) visually unchanged.
-- [ ] LibraryOverviewHub `/library` index visually unchanged.
-- [ ] LibraryTypeView (any `/library/<type>` route) visually unchanged.
+- [x] EmptyState (e.g. an empty library/by-type route) visually unchanged.
+- [x] LibraryOverviewHub `/library` index visually unchanged.
+- [x] LibraryTypeView (any `/library/<type>` route) visually unchanged.
 
 ---
 
@@ -1691,17 +1691,17 @@ Compose the PR description body. Must contain:
 
 #### Automated Verification
 
-- [ ] All three AC2 ripgrep sweeps return zero matches.
-- [ ] `rg -n 'font-size' src/styles/migration.test.ts` — no hits inside `reason:` strings (matches in comments / test-name strings are acceptable).
-- [ ] `npm test` — full vitest suite green, including the new AC2/0075 describe block (green on first run because migration is complete).
-- [ ] `npm run e2e -- --project=visual-regression` — full visual-regression suite green, including `typography-resolved-sizes.spec.ts`.
-- [ ] `npm run lint` and `npm run typecheck` green.
+- [x] All three AC2 ripgrep sweeps return zero matches.
+- [x] `rg -n 'font-size' src/styles/migration.test.ts` — no hits inside `reason:` strings (matches in comments / test-name strings are acceptable).
+- [x] `npm test` — full vitest suite green, including the new AC2/0075 describe block (green on first run because migration is complete).
+- [x] `npm run e2e -- --project=visual-regression` — full visual-regression suite green, including `typography-resolved-sizes.spec.ts`.
+- [x] `npm run lint` and `npm run typecheck` green.
 
 #### Manual Verification
 
-- [ ] Visual smoke-test of each migrated component / route at default viewport — no surprises beyond the documented deliberate drift on inline `<code>`.
-- [ ] PR description contains verbatim rule statement, ADR-0036 reference, before/after screenshots in H1 and H2, phases summary, and rollback strategy.
-- [ ] ADR-0036 reads coherently end-to-end; ADR-0026's surviving content (spacing, etc.) is still authoritative and clearly scoped.
+- [x] Visual smoke-test of each migrated component / route at default viewport — no surprises beyond the documented deliberate drift on inline `<code>`.
+- [x] PR description contains verbatim rule statement, ADR-0036 reference, before/after screenshots in H1 and H2, phases summary, and rollback strategy.
+- [x] ADR-0036 reads coherently end-to-end; ADR-0026's surviving content (spacing, etc.) is still authoritative and clearly scoped.
 
 ---
 
