@@ -36,6 +36,20 @@ describe('Chip', () => {
     })
   })
 
+  describe('data-testid forwarding', () => {
+    it('forwards data-testid to the root element', () => {
+      const { container } = render(
+        <Chip variant="neutral" data-testid="status-badge">x</Chip>,
+      )
+      expect(container.querySelector('[data-testid="status-badge"]')).not.toBeNull()
+    })
+
+    it('omits the data-testid attribute when none is passed', () => {
+      const { container } = render(<Chip variant="neutral">x</Chip>)
+      expect(container.querySelector('[data-testid]')).toBeNull()
+    })
+  })
+
   describe('variants', () => {
     it.each([
       ['neutral'], ['indigo'], ['green'], ['amber'], ['red'], ['violet'],

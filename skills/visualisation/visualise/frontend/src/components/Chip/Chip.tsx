@@ -10,6 +10,7 @@ export interface ChipProps {
   size?: ChipSize
   leading?: ReactNode
   'aria-label'?: string
+  'data-testid'?: string
   children: ReactNode
 }
 
@@ -21,6 +22,7 @@ export function Chip({ variant, size = 'sm', leading, children, ...rest }: ChipP
       data-variant={variant}
       data-size={size}
       aria-label={rest['aria-label']}
+      data-testid={rest['data-testid']}
     >
       {hasLeading && (
         <span className={styles.leading} data-slot="leading">{leading}</span>

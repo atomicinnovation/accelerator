@@ -240,10 +240,10 @@ export function Chip({ variant, size = 'sm', leading, children, ...rest }: ChipP
 
 #### Automated Verification
 
-- [ ] New Chip `data-testid` forwarding tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- Chip`
-- [ ] Existing Chip variant / size / aria-label / CSS tests still pass
-- [ ] Type checking passes: `npm --prefix skills/visualisation/visualise/frontend run typecheck`
-- [ ] Full suite green: `npm --prefix skills/visualisation/visualise/frontend run test`
+- [x] New Chip `data-testid` forwarding tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- Chip`
+- [x] Existing Chip variant / size / aria-label / CSS tests still pass
+- [x] Type checking passes: `npm --prefix skills/visualisation/visualise/frontend run typecheck`
+- [x] Full suite green: `npm --prefix skills/visualisation/visualise/frontend run test`
 
 #### Manual Verification
 
