@@ -78,8 +78,8 @@ describe('Chip', () => {
     it('binds base border-radius to --radius-pill', () => {
       expect(chipCss).toMatch(/\.chip\s*\{[^}]*border-radius:\s*var\(--radius-pill\)/)
     })
-    it('binds base font-size to --size-chip', () => {
-      expect(chipCss).toMatch(/\.chip\s*\{[^}]*font-size:\s*var\(--size-chip\)/)
+    it('binds base font-size to --size-3xs-lg', () => {
+      expect(chipCss).toMatch(/\.chip\s*\{[^}]*font-size:\s*var\(--size-3xs-lg\)/)
     })
 
     it(`[data-variant=…neutral…] binds color to --ac-fg-muted`, () => {
@@ -125,7 +125,7 @@ describe('Chip', () => {
 
     it('[data-size=md] overrides padding and font-size', () => {
       expect(chipCss).toMatch(new RegExp(`\\[data-size=${Q}md${Q}\\][^{]*\\{[^}]*padding:`))
-      expect(chipCss).toMatch(new RegExp(`\\[data-size=${Q}md${Q}\\][^{]*\\{[^}]*font-size:\\s*var\\(--size-chip-md\\)`))
+      expect(chipCss).toMatch(new RegExp(`\\[data-size=${Q}md${Q}\\][^{]*\\{[^}]*font-size:\\s*var\\(--size-xxs-sm\\)`))
     })
   })
 })

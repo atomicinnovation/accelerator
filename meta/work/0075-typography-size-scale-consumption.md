@@ -150,23 +150,26 @@ values are `9.5px`, `10px`, `11px`, `12.5px`, `13px`, and the relative
     a `font-size:` declaration of one of the migrated files is deleted.
   - [ ] **AC4b.** No remaining `EXCEPTIONS` entry's `reason` field
     contains the substring `font-size` (grep-able pass condition).
-- [ ] **AC5.** ADR-0026 is amended in place to address each of:
+- [ ] **AC5.** ADR-0036 is created with the canonical font-size
+  consumption rule, and ADR-0026 is updated to record the typography
+  portion's supersession per ADR-0031:
   - [ ] **AC5a.** The consume-tokens-everywhere rule for `font-size` is
-    documented as the canonical rule (replacing §2's tolerance band for
-    typography).
-  - [ ] **AC5b.** The "em-relative font-sizes" and "Heading font-sizes
-    above `size-lg`" rows in §3 are removed (or marked superseded).
-  - [ ] **AC5c.** The Consequences section's "heading font-size gap"
-    deferral note is marked resolved by 0075 (locate by content, not by
-    line number — line numbers shift as part of the same amendment).
+    codified in ADR-0036 §Decision.
+  - [ ] **AC5b.** The §3 "em-relative font-sizes" and "Heading
+    font-sizes above `size-lg`" rows in ADR-0026 are removed or marked
+    superseded, and ADR-0036 supersedes them.
+  - [ ] **AC5c.** ADR-0026's Consequences "heading font-size gap"
+    deferral is updated to record resolution by ADR-0036.
 - [ ] **AC6.** Documentation deliverables:
-  - [ ] **AC6a.** `src/styles/global.css` carries the verbatim comment
-    `/* font-size consumers: use these tokens — see ADR-0026 (as
-    amended by 0075) */` above the `--size-*` block.
+  - [ ] **AC6a.** `src/styles/global.css` carries a comment block above
+    the `--size-*` tokens whose lead sentence is
+    `/* font-size consumers: use these tokens — see ADR-0036 */`,
+    followed by a naming-convention paragraph (numeric tiers, semantic
+    single-purpose tokens, `-sm`/`-lg` sub-pixel suffixes).
   - [ ] **AC6b.** The PR description contains both (i) the canonical
     rule statement *"every `font-size` declaration in current-app CSS
     must resolve to a `var(--size-*)` token"* and (ii) a one-paragraph
-    rationale that references `ADR-0026` by ID.
+    rationale that references `ADR-0036` by ID.
 - [ ] **AC7.** Computed `font-size` regression check via a Playwright
   `getComputedStyle` spec at
   `tests/visual-regression/typography-resolved-sizes.spec.ts`. For each
@@ -201,14 +204,15 @@ values are `9.5px`, `10px`, `11px`, `12.5px`, `13px`, and the relative
   `--size-xs` freezes it at one size. The trade-off is accepted to
   eliminate the em-relative outlier; deliberate-drift screenshots
   documenting `<code>` in headings are part of the PR description.
-- **Existing `--size-chip` (10.5px) and `--size-chip-md` (11.5px) are
-  reused outside chip components.** Sidebar `.libraryHeading` /
-  `.sectionHeading`, SortPill `.menuHeader`, FilterPill `.menuHeader` /
-  `.facetHeading`, LibraryTypeView `.headerRow` consume `--size-chip`;
-  EmptyState `.eyebrow` / `.pathInline`, LibraryOverviewHub `.cardLatest`,
-  LibraryTypeView `.slug` / `.mtime`, FilterPill `.noMatches` consume
-  `--size-chip-md`. Renaming the chip tokens is out of scope — they are
-  re-conceptualised as "small-text" tokens that chips happen to consume.
+- **The chip-prefixed tokens are renamed to numeric-ladder names in
+  this PR** (`--size-chip` → `--size-3xs-lg`; `--size-chip-md` →
+  `--size-xxs-sm`). The rename is mechanical and same-PR per the
+  consumer enumeration in Phase 1.1b of the plan. Sidebar
+  `.libraryHeading` / `.sectionHeading`, SortPill `.menuHeader`,
+  FilterPill `.menuHeader` / `.facetHeading`, LibraryTypeView
+  `.headerRow` consume `--size-3xs-lg`; EmptyState `.eyebrow` /
+  `.pathInline`, LibraryOverviewHub `.cardLatest`, LibraryTypeView
+  `.slug` / `.mtime`, FilterPill `.noMatches` consume `--size-xxs-sm`.
 - **Dead heading tokens (`--size-hero`, `--size-h1`, `--size-h2`,
   `--size-h4`) are kept** even though no `font-size` consumer references
   them after migration. They remain available for future component work;
@@ -332,5 +336,7 @@ values are `9.5px`, `10px`, `11px`, `12.5px`, `13px`, and the relative
 
 - Source gap analysis: `meta/research/design-gaps/2026-05-21-current-app-vs-claude-design-prototype.md`
 - Codebase audit: `meta/research/codebase/2026-05-23-0075-typography-size-scale-consumption.md`
-- Convention to amend: `meta/decisions/ADR-0026-css-design-token-application-conventions.md`
-- Related work items: 0033, 0073, 0074, 0076, 0077, 0090
+- New ADR (created by this PR): `meta/decisions/ADR-0036-typography-font-size-consumption-rule.md`
+- Convention with typography clauses superseded by ADR-0036: `meta/decisions/ADR-0026-css-design-token-application-conventions.md`
+- Follow-up: `meta/work/0091-typography-rem-vs-px-stance.md`
+- Related work items: 0033, 0073, 0074, 0076, 0077, 0090, 0091

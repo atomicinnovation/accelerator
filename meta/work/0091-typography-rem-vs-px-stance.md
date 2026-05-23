@@ -19,7 +19,7 @@ tags: [design, frontend, tokens, typography, accessibility]
 
 ## Summary
 
-Revisit ADR-0035's px-anchored stance for `--size-*` tokens. The 0075
+Revisit ADR-0036's px-anchored stance for `--size-*` tokens. The 0075
 migration anchors every typography token to px values for token-value
 determinism, trading user-controllable root-font-size scaling.
 Investigate whether the accessibility trade-off matters in practice
@@ -29,7 +29,7 @@ should be reintroduced as rem.
 ## Context
 
 Created alongside the 0075 migration plan as the durable tracker for
-the accessibility regression that ADR-0035 documents as a known
+the accessibility regression that ADR-0036 documents as a known
 consequence. Specifically:
 
 - The `MarkdownRenderer` H1 migration (Phase 2 of 0075) changes
@@ -42,7 +42,7 @@ consequence. Specifically:
 - Browser-level zoom is unaffected; only font-size-only scaling is
   lost.
 
-ADR-0035 §Decision documents the px-anchored stance as deliberate,
+ADR-0036 §Decision documents the px-anchored stance as deliberate,
 and §Consequences flags the accessibility trade-off as the principal
 known cost. This work item exists so the trade-off is not "shipped
 and forgotten".
@@ -55,7 +55,7 @@ and forgotten".
   research artefact under `meta/research/`.
 - [ ] **AC2.** Decide one of:
   - **Keep px-anchored** — document the decision in a new ADR
-    (supersession or amendment of ADR-0035 §Decision) with the
+    (supersession or amendment of ADR-0036 §Decision) with the
     user-impact evidence from AC1.
   - **Reintroduce rem for headings** — propose a token-shape change
     (e.g. `--size-h*` tokens become rem; `--size-body` and below stay
@@ -83,7 +83,7 @@ and forgotten".
 
 ## References
 
-- `meta/decisions/ADR-0035-typography-font-size-consumption-rule.md`
+- `meta/decisions/ADR-0036-typography-font-size-consumption-rule.md`
   — origin of the px-anchored stance.
 - `meta/work/0075-typography-size-scale-consumption.md` — landed the
   migration this work item evaluates.

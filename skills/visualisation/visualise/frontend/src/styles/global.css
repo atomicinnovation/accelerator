@@ -125,10 +125,23 @@ body {
   --ac-doc-bg-design-gaps:         #e7f1d8;
   --ac-doc-bg-design-inventories:  #dceaec;
 
-  /* Typography */
+  /* Typography fonts */
   --ac-font-display:  "Sora", system-ui, sans-serif;
   --ac-font-body:     "Inter", system-ui, sans-serif;
   --ac-font-mono:     "Fira Code", ui-monospace, monospace;
+
+  /*
+   * font-size consumers: use these tokens — see ADR-0036.
+   *
+   * Naming: tier names (e.g. `--size-xxs`, `--size-xs`, `--size-sm`,
+   * `--size-md`, `--size-body`, `--size-lg`, `--size-h1`, `--size-hero`)
+   * form the integer-px scale. `--size-eyebrow`, `--size-row`, and
+   * `--size-subtitle` are semantic single-purpose tokens (each has one
+   * conceptual consumer in current designs). The `-sm` / `-lg` suffixes
+   * mark sub-pixel tweens between integer tiers
+   * (e.g. `--size-xxs-sm` = 11.5px sits between `--size-xxs` 12 and
+   * `--size-eyebrow` 11).
+   */
   --size-hero:        68px;
   --size-h1:          48px;
   --size-h2:          36px;
@@ -139,9 +152,14 @@ body {
   --size-md:          18px;
   --size-sm:          16px;
   --size-xs:          14px;
+  --size-subtitle:    13px;
+  --size-row:         12.5px;
   --size-xxs:         12px;
-  --size-chip:        10.5px;
-  --size-chip-md:     11.5px;
+  --size-xxs-sm:      11.5px;
+  --size-eyebrow:     11px;
+  --size-3xs-lg:      10.5px;
+  --size-3xs:         10px;
+  --size-4xs:         9.5px;
   --lh-tight:         1.05;
   --lh-snug:          1.2;
   --lh-normal:        1.5;

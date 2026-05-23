@@ -10,7 +10,7 @@
   border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-sm);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-chip-md);
+  font-size: var(--size-xxs-sm);
 }
 
 .key {

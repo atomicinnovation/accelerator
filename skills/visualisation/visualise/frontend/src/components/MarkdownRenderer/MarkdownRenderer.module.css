@@ -43,7 +43,7 @@
 }
 .codeblockLang {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-chip);
+  font-size: var(--size-3xs-lg);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--code-fg-faint);

@@ -3,6 +3,7 @@ adr_id: ADR-0026
 date: "2026-05-07T00:00:00+01:00"
 author: Toby Clemson
 status: accepted
+superseded_by: "adr:ADR-0036"
 tags: [visualiser, frontend, css, design-tokens]
 ---
 
@@ -11,6 +12,10 @@ tags: [visualiser, frontend, css, design-tokens]
 **Date**: 2026-05-07
 **Status**: Accepted
 **Author**: Toby Clemson
+
+> The typography portion of this ADR (§2's Typography subsection and §3's
+> typography rows) is superseded by ADR-0036. The spacing rule in §2 and
+> all other clauses remain in force.
 
 ## Context
 
@@ -104,18 +109,7 @@ the ±2px band covers up to a 50% step size for the smallest tokens.
 | `0.7rem` (11.2px) | `--sp-3` (12px)                 | 0.8px | substitute  |
 | `0.4rem` (6.4px)  | `--sp-1` (4px) / `--sp-2` (8px) | 2.4px | irreducible |
 
-**Typography**: substitute with the nearest `--size-*` token when pixel drift
-is within ±2px. The scale steps are 12 / 14 / 16 / 20 / 22px.
-
-| Example literal    | Nearest token       | Drift | Decision    |
-|--------------------|---------------------|-------|-------------|
-| `0.8rem` (12.8px)  | `--size-xxs` (12px) | 0.8px | substitute  |
-| `0.85rem` (13.6px) | `--size-xs` (14px)  | 0.4px | substitute  |
-| `1.6rem` (25.6px)  | `--size-lg` (22px)  | 3.6px | irreducible |
-
-**em-based values** (e.g. `0.88em` for inline code, `1.4em` for line-clamp)
-are structurally irreducible regardless of drift — they are relative to the
-current font size, not the rem scale.
+Typography (`font-size`) consumption is governed by ADR-0036.
 
 ### 3. Irreducible literal categories
 
@@ -128,11 +122,11 @@ The following categories of literal always land in `EXCEPTIONS` with
 | Coloured ring widths               | `1.5px`                     | Sub-pixel; no token equivalent                      |
 | Off-scale spacings                 | `0.4rem`, `0.05rem`         | Exceed ±2px drift band                              |
 | Off-scale letter-spacing           | `0.06em`, `0.08em`          | Off-scale; standard caps is `0.12em`                |
-| em-relative font-sizes             | `0.88em`, `1.4em`           | Relative to font-size, not rem scale                |
-| Heading font-sizes above `size-lg` | `1.6rem`, `1.75rem`         | No heading-scale token in 0033                      |
 | Fixed layout dimensions            | `220px`, `260px`, `1100px`  | Grid/sidebar dimensions, no token                   |
 | Fixed component dimensions         | `14px` dot, `5px` inner dot | Icon pixels, no sp-* equivalent                     |
 | In-between border radii            | `6px`                       | Between `--radius-sm` (4px) and `--radius-md` (8px) |
+
+`font-size` literals (any unit) are not irreducible — see ADR-0036.
 
 ### 4. Two-blue collapse
 
@@ -284,9 +278,9 @@ a second consumer arrives.
 
 ### Neutral
 
-- The heading font-size gap (no token above `--size-lg`) is deferred to a
-  future type-scale extension; irreducible heading sizes accumulate in
-  EXCEPTIONS until then.
+- The heading font-size gap (originally deferred to a future type-scale
+  extension) is resolved by ADR-0036: heading sizes consume `--size-h3` /
+  `--size-h4` and irreducible heading EXCEPTIONS no longer exist.
 
 ## References
 
