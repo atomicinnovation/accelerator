@@ -948,10 +948,10 @@ export function VerdictBadge({ value }: VerdictBadgeProps) {
 
 #### Automated Verification
 
-- [ ] verdictToVariant tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- verdict-variant`
-- [ ] VerdictBadge tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- VerdictBadge`
-- [ ] Type checking passes
-- [ ] Full suite green
+- [x] verdictToVariant tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- verdict-variant`
+- [x] VerdictBadge tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- VerdictBadge`
+- [x] Type checking passes
+- [x] Full suite green
 
 #### Manual Verification
 
