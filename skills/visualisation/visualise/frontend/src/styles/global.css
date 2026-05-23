@@ -67,29 +67,31 @@ body {
 }
 
 :root {
-  /* Light --ac-* colour layer */
-  --ac-bg:             #fbfcfe;
-  --ac-bg-raised:      #ffffff;
+  /* Light --ac-* colour layer. Tokens whose resolved hex matches a
+     brand value reference --atomic-X via var() (ADR-0026 §6); the
+     residual hex literals are near-misses or have no brand match. */
+  --ac-bg:             var(--atomic-bone);
+  --ac-bg-raised:      var(--atomic-white);
   --ac-bg-sunken:      #f4f6fa;
-  --ac-bg-chrome:      #ffffff;
+  --ac-bg-chrome:      var(--atomic-white);
   --ac-bg-sidebar:     #f7f8fb;
-  --ac-bg-card:        #ffffff;
+  --ac-bg-card:        var(--atomic-white);
   --ac-bg-hover:       rgba(32, 34, 49, 0.04);
   --ac-bg-active:      rgba(89, 95, 200, 0.09);
   --ac-fg:             #14161f;
-  --ac-fg-strong:      #0a111b;
-  --ac-fg-muted:       #5f6378;
+  --ac-fg-strong:      var(--atomic-night-2);
+  --ac-fg-muted:       var(--atomic-slate);
   --ac-fg-faint:       #8b90a3;
   --ac-stroke:         rgba(32, 34, 49, 0.10);
   --ac-stroke-soft:    rgba(32, 34, 49, 0.06);
   --ac-stroke-strong:  rgba(32, 34, 49, 0.18);
-  --ac-accent:         #595fc8;
-  --ac-accent-2:       #cb4647;
+  --ac-accent:         var(--atomic-indigo);
+  --ac-accent-2:       var(--atomic-red);
   --ac-accent-tint:    rgba(89, 95, 200, 0.12);
   --ac-accent-faint:   rgba(89, 95, 200, 0.06);
   --ac-ok:             #2e8b57;
   --ac-warn:           #d98f2e;
-  --ac-err:            #cb4647;
+  --ac-err:            var(--atomic-red);
   --ac-violet:         #7b5cd9;
 
   /* Per-doc-type glyph foreground (light). Light values eyedroppered from
@@ -281,16 +283,16 @@ body {
    test time by the parity describe in global.test.ts (search for
    "[data-theme=\"dark\"] ↔ @media (prefers-color-scheme: dark) parity"). */
 [data-theme="dark"] {
-  --ac-bg:             #0a111b;
-  --ac-bg-raised:      #0e0f19;
+  --ac-bg:             var(--atomic-night-2);
+  --ac-bg-raised:      var(--atomic-night);
   --ac-bg-sunken:      #070b12;
-  --ac-bg-chrome:      #0e0f19;
+  --ac-bg-chrome:      var(--atomic-night);
   --ac-bg-sidebar:     #0b121c;
   --ac-bg-card:        #131524;
   --ac-bg-hover:       rgba(255, 255, 255, 0.04);
   --ac-bg-active:      rgba(89, 95, 200, 0.22);
   --ac-fg:             #e7e9f2;
-  --ac-fg-strong:      #ffffff;
+  --ac-fg-strong:      var(--atomic-white);
   --ac-fg-muted:       #a0a5b8;
   --ac-fg-faint:       #6c7088;
   --ac-stroke:         rgba(255, 255, 255, 0.08);
@@ -304,19 +306,19 @@ body {
   --ac-warn:           #e4b76e;
   --ac-err:            #e86a6b;
   /* Per-doc-type glyph foreground (dark). Design intent: monochrome glyphs
-     in dark mode — all twelve tokens collapse to --ac-fg-strong (#ffffff). */
-  --ac-doc-decisions:           #ffffff;
-  --ac-doc-work-items:          #ffffff;
-  --ac-doc-plans:               #ffffff;
-  --ac-doc-research:            #ffffff;
-  --ac-doc-plan-reviews:        #ffffff;
-  --ac-doc-pr-reviews:          #ffffff;
-  --ac-doc-work-item-reviews:   #ffffff;
-  --ac-doc-validations:         #ffffff;
-  --ac-doc-notes:               #ffffff;
-  --ac-doc-pr-descriptions:     #ffffff;
-  --ac-doc-design-gaps:         #ffffff;
-  --ac-doc-design-inventories:  #ffffff;
+     in dark mode — all twelve tokens collapse to --ac-fg-strong (atomic-white). */
+  --ac-doc-decisions:           var(--atomic-white);
+  --ac-doc-work-items:          var(--atomic-white);
+  --ac-doc-plans:               var(--atomic-white);
+  --ac-doc-research:            var(--atomic-white);
+  --ac-doc-plan-reviews:        var(--atomic-white);
+  --ac-doc-pr-reviews:          var(--atomic-white);
+  --ac-doc-work-item-reviews:   var(--atomic-white);
+  --ac-doc-validations:         var(--atomic-white);
+  --ac-doc-notes:               var(--atomic-white);
+  --ac-doc-pr-descriptions:     var(--atomic-white);
+  --ac-doc-design-gaps:         var(--atomic-white);
+  --ac-doc-design-inventories:  var(--atomic-white);
   /* Glyph BACKGROUND tints (dark theme). Uniform monochrome grey across
      all twelve doc types — slightly lighter than --ac-bg-sunken. */
   --ac-doc-bg-decisions:           #1d2030;
@@ -343,16 +345,16 @@ body {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     /* MUST stay byte-equivalent (modulo whitespace) to MIRROR-A. */
-    --ac-bg:             #0a111b;
-    --ac-bg-raised:      #0e0f19;
+    --ac-bg:             var(--atomic-night-2);
+    --ac-bg-raised:      var(--atomic-night);
     --ac-bg-sunken:      #070b12;
-    --ac-bg-chrome:      #0e0f19;
+    --ac-bg-chrome:      var(--atomic-night);
     --ac-bg-sidebar:     #0b121c;
     --ac-bg-card:        #131524;
     --ac-bg-hover:       rgba(255, 255, 255, 0.04);
     --ac-bg-active:      rgba(89, 95, 200, 0.22);
     --ac-fg:             #e7e9f2;
-    --ac-fg-strong:      #ffffff;
+    --ac-fg-strong:      var(--atomic-white);
     --ac-fg-muted:       #a0a5b8;
     --ac-fg-faint:       #6c7088;
     --ac-stroke:         rgba(255, 255, 255, 0.08);
@@ -365,18 +367,18 @@ body {
     --ac-ok:             #79d9a6;
     --ac-warn:           #e4b76e;
     --ac-err:            #e86a6b;
-    --ac-doc-decisions:           #ffffff;
-    --ac-doc-work-items:          #ffffff;
-    --ac-doc-plans:               #ffffff;
-    --ac-doc-research:            #ffffff;
-    --ac-doc-plan-reviews:        #ffffff;
-    --ac-doc-pr-reviews:          #ffffff;
-    --ac-doc-work-item-reviews:   #ffffff;
-    --ac-doc-validations:         #ffffff;
-    --ac-doc-notes:               #ffffff;
-    --ac-doc-pr-descriptions:     #ffffff;
-    --ac-doc-design-gaps:         #ffffff;
-    --ac-doc-design-inventories:  #ffffff;
+    --ac-doc-decisions:           var(--atomic-white);
+    --ac-doc-work-items:          var(--atomic-white);
+    --ac-doc-plans:               var(--atomic-white);
+    --ac-doc-research:            var(--atomic-white);
+    --ac-doc-plan-reviews:        var(--atomic-white);
+    --ac-doc-pr-reviews:          var(--atomic-white);
+    --ac-doc-work-item-reviews:   var(--atomic-white);
+    --ac-doc-validations:         var(--atomic-white);
+    --ac-doc-notes:               var(--atomic-white);
+    --ac-doc-pr-descriptions:     var(--atomic-white);
+    --ac-doc-design-gaps:         var(--atomic-white);
+    --ac-doc-design-inventories:  var(--atomic-white);
     --ac-doc-bg-decisions:           #1d2030;
     --ac-doc-bg-work-items:          #1d2030;
     --ac-doc-bg-plans:               #1d2030;

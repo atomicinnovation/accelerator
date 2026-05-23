@@ -1,3 +1,9 @@
+// Resolved-hex semantic palette. Values are stored as resolved hex (or
+// rgba) even where the corresponding global.css declaration uses
+// var(--atomic-X) brand-layer indirection — see ADR-0026 §6. The
+// CSS↔TS parity comparator resolves var() refs via BRAND_COLOR_TOKENS,
+// preserving "TS knows the resolved hex of every semantic token" as a
+// load-bearing invariant.
 export const LIGHT_COLOR_TOKENS = {
   'ac-bg':             '#fbfcfe',
   'ac-bg-raised':      '#ffffff',
@@ -55,6 +61,8 @@ export const LIGHT_COLOR_TOKENS = {
   'ac-doc-bg-design-inventories':  '#dceaec',
 } as const
 
+// Dark-theme overrides — same resolved-hex invariant as LIGHT_COLOR_TOKENS
+// above; the CSS-side var(--atomic-X) indirection is invisible to TS.
 export const DARK_COLOR_TOKENS = {
   'ac-bg':             '#0a111b',
   'ac-bg-raised':      '#0e0f19',

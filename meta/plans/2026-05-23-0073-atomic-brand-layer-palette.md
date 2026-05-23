@@ -1081,21 +1081,21 @@ export const DARK_COLOR_TOKENS  = { /* ... */ } as const
 
 #### Automated Verification
 
-- [ ] `npm test -- src/styles/testing/canonicaliseBrand.test.ts`
+- [x] `npm test -- src/styles/testing/canonicaliseBrand.test.ts`
   passes (7 unit tests covering rgb→hex, hex lowercasing,
   brand var() resolution, alias resolution, rgba pass-through,
   unknown-ref throws, non-brand var() pass-through)
-- [ ] `npm test -- src/styles/global.test.ts` passes
+- [x] `npm test -- src/styles/global.test.ts` passes
   (existing 53+ light + 41+ dark parity assertions, brand-layer
   parity from Phase 1, AC2-invariant guard test, format-guard
   test on LIGHT_COLOR_TOKENS / DARK_COLOR_TOKENS)
-- [ ] `npm test -- src/styles/prototype-tokens.fixture.test.ts`
+- [x] `npm test -- src/styles/prototype-tokens.fixture.test.ts`
   passes
-- [ ] `npm test` (full suite) passes with zero regressions
-- [ ] `[data-theme="dark"] ↔ @media` parity test
+- [x] `npm test` (full suite) passes with zero regressions
+- [x] `[data-theme="dark"] ↔ @media` parity test
   (`global.test.ts:132-170`) passes — confirms MIRROR-A and
   MIRROR-B were rewritten symmetrically
-- [ ] `npm run build` passes (no TS errors)
+- [x] `npm run build` passes (no TS errors)
 
 #### Manual Verification
 

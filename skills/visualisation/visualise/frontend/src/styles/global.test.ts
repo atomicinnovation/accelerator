@@ -19,6 +19,7 @@ import prototypeTokens from './fixtures/prototype-tokens.json'
 import { contrastRatio } from './contrast'
 import { extractBlockBody } from './testing/cssBlocks'
 import { canonicaliseBrand } from './testing/canonicaliseBrand'
+import { extractAllAcDeclarations } from './testing/extractAcDeclarations'
 import { DOC_TYPE_KEYS, DOC_TYPE_LABELS, VIRTUAL_DOC_TYPE_KEYS, type DocTypeKey } from '../api/types'
 
 type Scope = 'root' | 'dark'
@@ -246,6 +247,54 @@ describe('BRAND_COLOR_TOKENS alias-target equality', () => {
       expect(BRAND_COLOR_TOKENS[alias]).toBe(BRAND_COLOR_TOKENS[target])
     },
   )
+})
+
+describe('LIGHT_COLOR_TOKENS / DARK_COLOR_TOKENS contain no indirection', () => {
+  // TS-side stores resolved hex (or rgba/shadow). Bare rgb() would compare
+  // equal to a CSS hex through the comparator and silently relax parity;
+  // var() would obviously break the "TS knows the resolved hex" invariant.
+  // See ADR-0026 §6.
+  it.each(Object.entries({ ...LIGHT_COLOR_TOKENS, ...DARK_COLOR_TOKENS }))(
+    '%s contains no var(--atomic-*) or bare rgb(...) indirection',
+    (_name, value) => {
+      expect(value).not.toMatch(/var\(--atomic-/)
+      expect(value).not.toMatch(/^\s*rgb\(/i)
+    },
+  )
+})
+
+describe('AC2 invariant: --ac-* hex literals must reference brand when possible', () => {
+  // Tokens intentionally left as hex literals despite a brand-value
+  // match — typically near-misses or theme-specific overrides. Adding
+  // to this list requires a code-review reason recorded in the PR.
+  const ALLOW_LIST_LITERALS: ReadonlyArray<string> = []
+
+  it('every --ac-* hex literal that matches a BRAND_COLOR_TOKENS entry is in the allow-list', () => {
+    const decls = extractAllAcDeclarations(globalCss)
+    const brandValues = new Set(
+      Object.values(BRAND_COLOR_TOKENS).map((v) => v.toLowerCase()),
+    )
+    const offenders = decls.filter((d) => {
+      if (d.value.startsWith('var(')) return false
+      // rgba() is out of scope per ADR-0026 §6 (six-digit hex only).
+      if (d.value.toLowerCase().startsWith('rgba(')) return false
+      const hex = canonicaliseBrand(d.value)
+      const brandMatches = brandValues.has(hex)
+      return brandMatches && !ALLOW_LIST_LITERALS.includes(`${d.block}:${d.name}`)
+    })
+    expect(offenders).toEqual([])
+  })
+
+  it.each([
+    ['root',       9],
+    ['data-dark',  16],
+    ['media-dark', 16],
+  ] as const)('block %s contains exactly %d var(--atomic-X) refs', (block, expected) => {
+    const refs = extractAllAcDeclarations(globalCss).filter(
+      (d) => d.block === block && d.value.startsWith('var(--atomic-'),
+    )
+    expect(refs).toHaveLength(expected)
+  })
 })
 
 function findBlockBodyForSelector(css: string, selector: string): string | null {
