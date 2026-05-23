@@ -3,7 +3,7 @@ date: "2026-05-23T09:30:00+01:00"
 type: plan
 skill: create-plan
 work-item: "meta/work/0081-status-badge-component.md"
-status: accepted
+status: implemented
 ---
 
 # 0081 — StatusBadge / VerdictBadge / ResultBadge Implementation Plan
@@ -1536,15 +1536,15 @@ that drops `verdict` / `result` from frontmatter before reaching
 
 #### Automated Verification
 
-- [ ] Rewritten FrontmatterChips tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- FrontmatterChips`
-- [ ] FrontmatterChip / StatusBadge / VerdictBadge / ResultBadge tests still pass
-- [ ] status-variant / verdict-variant / result-variant / normalise-value tests still pass
-- [ ] LibraryTypeView / LifecycleClusterView / FilterPill tests still pass
-- [ ] New route-level integration tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- LibraryDocView.dispatch`
-- [ ] Existing LibraryDocView tests still pass: `npm --prefix skills/visualisation/visualise/frontend run test -- LibraryDocView`
-- [ ] Type checking passes
-- [ ] Full suite green: `npm --prefix skills/visualisation/visualise/frontend run test`
-- [ ] Production build succeeds: `npm --prefix skills/visualisation/visualise/frontend run build`
+- [x] Rewritten FrontmatterChips tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- FrontmatterChips`
+- [x] FrontmatterChip / StatusBadge / VerdictBadge / ResultBadge tests still pass
+- [x] status-variant / verdict-variant / result-variant / normalise-value tests still pass
+- [x] LibraryTypeView / LifecycleClusterView / FilterPill tests still pass
+- [x] New route-level integration tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- LibraryDocView.dispatch`
+- [x] Existing LibraryDocView tests still pass: `npm --prefix skills/visualisation/visualise/frontend run test -- LibraryDocView`
+- [x] Type checking passes
+- [x] Full suite green: `npm --prefix skills/visualisation/visualise/frontend run test`
+- [x] Production build succeeds: `npm --prefix skills/visualisation/visualise/frontend run build`
 
 #### Manual Verification
 
