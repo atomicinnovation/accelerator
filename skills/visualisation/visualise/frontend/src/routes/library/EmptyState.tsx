@@ -33,7 +33,7 @@ export function EmptyState({ docType, dirPath }: EmptyStateProps) {
       </div>
       <div className={styles.body}>
         <div className={styles.eyebrow}>{path}</div>
-        <h2 className={styles.title}>No {plural} yet.</h2>
+        <h2 className={styles.title} data-testid="empty-state-title">No {plural} yet.</h2>
         <p className={styles.lede}>{copy.purpose}</p>
         <p className={styles.foot}>
           New files added to{' '}

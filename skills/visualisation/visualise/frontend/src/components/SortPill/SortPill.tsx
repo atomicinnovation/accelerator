@@ -41,6 +41,7 @@ export function SortPill({ value, onChange }: SortPillProps) {
           {...triggerProps}
           ref={triggerProps.ref as React.Ref<HTMLButtonElement>}
           className={`${styles.trigger} ${open ? styles.triggerOpen : ''}`}
+          data-testid="sort-trigger"
         >
           <SortIcon />
           <span>{current.label}</span>

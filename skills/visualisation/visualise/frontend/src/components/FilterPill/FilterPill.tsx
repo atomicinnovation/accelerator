@@ -49,6 +49,7 @@ export function FilterPill({
           {...triggerProps}
           ref={triggerProps.ref as React.Ref<HTMLButtonElement>}
           className={`${styles.trigger} ${open ? styles.triggerOpen : ''} ${activeCount > 0 ? styles.triggerActive : ''}`}
+          data-testid="filter-trigger"
         >
           <FilterIcon />
           <span>Filter</span>

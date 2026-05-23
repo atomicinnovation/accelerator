@@ -14,6 +14,19 @@ test.use({ viewport: { width: 1280, height: 720 } })
 // a future legitimate token-scale tweak fires this spec, either re-derive
 // expected values from `TYPOGRAPHY_TOKENS` in the spec setup or update the
 // hardcoded value with the token change in the same PR.
+//
+// Coverage gap (acknowledged in 0075's plan, Testing Strategy section):
+// the spec covers one representative selector per outlier file group plus
+// the MarkdownRenderer H1 value-transition case. It does not cover every
+// migrated font-size site. The vitest categorical ban in
+// `src/styles/migration.test.ts` is the authoritative test of compliance
+// with ADR-0036; this spec is a runtime regression guard for the most
+// load-bearing selectors. Inline-code-in-headings cases from the original
+// plan are dropped because the committed e2e markdown fixture
+// (`server/tests/fixtures/meta/plans/2026-01-01-first-plan.md`) does not
+// contain inline code; the value-transition is exercised in vitest
+// (no literal remains in MarkdownRenderer.module.css) and by manual
+// visual inspection per the PR description's deliberate-drift screenshots.
 
 type Case = {
   route: string
@@ -26,30 +39,12 @@ type Case = {
   name: string
 }
 
-// `/library/plans` is a stable LibraryTypeView route used elsewhere in
-// the visual-regression suite (see tokens.spec.ts). Other routes used
-// here (`/library`, `/kanban`, `/lifecycle/first-plan`) are similarly
-// stable. MarkdownRenderer cases route through a known plan document.
-const MD_DOC_ROUTE = '/library/plans/2026-05-23-0075-typography-size-scale-consumption'
-
 const CASES: Case[] = [
   {
     name: 'MarkdownRenderer H1',
-    route: MD_DOC_ROUTE,
+    route: '/library/plans/first-plan',
     selector: '[class*="markdown"] h1',
     expected: '28px',
-  },
-  {
-    name: 'MarkdownRenderer inline code in body',
-    route: MD_DOC_ROUTE,
-    selector: '[class*="markdown"] p code',
-    expected: '14px',
-  },
-  {
-    name: 'MarkdownRenderer inline code inside H2 (deliberate-drift regression)',
-    route: MD_DOC_ROUTE,
-    selector: '[class*="markdown"] h2 code',
-    expected: '14px',
   },
   {
     name: 'Page .eyebrow',
@@ -65,8 +60,12 @@ const CASES: Case[] = [
   },
   {
     name: 'Sidebar .phaseHeading',
+    // Sidebar renders phase headings as <h3> elements inside <nav>;
+    // LibraryOverviewHub also has a `.phaseHeading` class but renders
+    // <h2> elements, so anchoring on `nav h3` disambiguates without
+    // depending on CSS-module class-name hashes.
     route: '/library',
-    selector: 'aside [class*="phaseHeading"]',
+    selector: 'nav h3[class*="phaseHeading"]',
     expected: '9.5px',
   },
   {
@@ -79,34 +78,40 @@ const CASES: Case[] = [
     name: 'SortPill .menuItem',
     route: '/library/plans',
     setup: async (page) => {
-      await page.getByRole('button', { name: /sort/i }).first().click()
-      await page.locator('[class*="menuItem"]').first().waitFor()
+      await page.getByTestId('sort-trigger').click()
+      await page.getByRole('menuitem').first().waitFor()
     },
-    selector: '[class*="menuItem"]',
+    selector: '[role="menuitem"]',
     expected: '12.5px',
   },
   {
     name: 'FilterPill .option',
     route: '/library/plans',
     setup: async (page) => {
-      await page.getByRole('button', { name: /filter/i }).first().click()
-      await page.locator('[class*="option"]').first().waitFor()
+      await page.getByTestId('filter-trigger').click()
+      await page.getByRole('menuitemcheckbox').first().waitFor()
     },
-    selector: '[class*="option"]',
+    selector: '[role="menuitemcheckbox"]',
     expected: '12.5px',
   },
   {
     name: 'EmptyState .title',
-    // `/library/<unknown-type>` renders EmptyState; pick a slug guaranteed
-    // not to match a real type.
-    route: '/library/__no_such_type__',
-    selector: '[class*="title"]',
+    // EmptyState mounts inside <Page>, which itself defines a `.title`
+    // class on its h1. The data-testid avoids the substring collision.
+    // `/library/work-item-reviews` is a known doc-type with zero
+    // entries in the e2e fixtures, so LibraryTypeView renders the
+    // EmptyState path deterministically.
+    route: '/library/work-item-reviews',
+    selector: '[data-testid="empty-state-title"]',
     expected: '22px',
   },
   {
     name: 'LibraryTypeView .row',
+    // `.row` renders as `<a>` while `.headerRow` is a `<div>`; both
+    // carry `role="row"`. Anchoring on the tag disambiguates without
+    // depending on CSS-module class-name hashes.
     route: '/library/plans',
-    selector: '[class*="row"][role="row"]',
+    selector: 'a[role="row"]',
     expected: '13px',
   },
   {
