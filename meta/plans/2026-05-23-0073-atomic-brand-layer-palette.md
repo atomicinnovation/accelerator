@@ -689,19 +689,19 @@ export { rgbToHex }
 
 #### Automated Verification
 
-- [ ] `npm test -- src/styles/global.test.ts` passes (brand-layer
+- [x] `npm test -- src/styles/global.test.ts` passes (brand-layer
   CSS↔TS parity, fixture↔BRAND_COLOR_TOKENS parity, theme-invariance
   guards, alias-target equality)
-- [ ] `npm test -- src/styles/prototype-tokens.fixture.test.ts` passes
+- [x] `npm test -- src/styles/prototype-tokens.fixture.test.ts` passes
   (all 37 `--atomic-*` entries drift-check green; 0 missing, 0 extra;
   `extractRootBlockBody` unit tests green)
-- [ ] `npm test -- src/styles/testing/canonicaliseBrand.test.ts`
+- [x] `npm test -- src/styles/testing/canonicaliseBrand.test.ts`
   passes (Phase 2 §2.1 introduces this file; placeholder during
   Phase 1 if the helper-only edit lands first)
-- [ ] `npm run build` passes (TS compile + Vite build)
+- [x] `npm run build` passes (TS compile + Vite build)
 - [ ] `npm run lint` passes (if a lint script exists; otherwise N/A)
-- [ ] `npm test` (full suite) passes with zero regressions
-- [ ] Existing tests at `global.test.ts:64-102` and `:132-170` still
+- [x] `npm test` (full suite) passes with zero regressions
+- [x] Existing tests at `global.test.ts:64-102` and `:132-170` still
   pass byte-identically (sanity: `--ac-*` not yet touched)
 
 #### Manual Verification

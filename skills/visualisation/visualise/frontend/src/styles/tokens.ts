@@ -179,6 +179,63 @@ export const LAYOUT_TOKENS = {
   'ac-content-max-width-narrow': '600px',
 } as const
 
+// Atomic brand palette — see global.css :root header for the canonical
+// rationale. Theme-invariant (ADR-0026 §5). Aliases store their RESOLVED
+// hex (not a 'var(...)' string) so this map is a pure name→value lookup
+// for the parity comparator; the alias-target equality is asserted in
+// global.test.ts. Named by what it contains (brand colours), not by the
+// CSS-side `--atomic-` prefix.
+export const BRAND_COLOR_TOKENS = {
+  'atomic-night':         '#0e0f19',
+  'atomic-night-2':       '#0a111b',
+  'atomic-night-3':       '#171925',
+  'atomic-night-4':       '#1d2131',
+  'atomic-ink':           '#202231',
+  'atomic-ink-2':         '#2c2e41',
+  'atomic-red':           '#cb4647',
+  'atomic-red-2':         '#df5758',
+  'atomic-red-3':         '#e24e53',
+  'atomic-indigo':        '#595fc8',
+  'atomic-indigo-2':      '#323062',
+  'atomic-indigo-tint':   '#c1c5ff',
+  'atomic-medium-purple': '#965dd9',
+  'atomic-cream-can':     '#f5c25f',
+  'atomic-steel-blue':    '#4295a5',
+  'atomic-pastel-green':  '#6be58b',
+  'atomic-river-bed':     '#4a545f',
+  'atomic-aquamarine':    '#73e4e2',
+  'atomic-tradewind':     '#52b0aa',
+  'atomic-geyser':        '#d3dbe0',
+  'atomic-malibu':        '#72cbf5',
+  'atomic-link-water':    '#ddecf4',
+  'atomic-marigold':      '#f9de6f',
+  'atomic-violet':        '#965dd9', // resolved alias of atomic-medium-purple
+  'atomic-teal':          '#52b0aa', // resolved alias of atomic-tradewind
+  'atomic-sky':           '#72cbf5', // resolved alias of atomic-malibu
+  'atomic-sky-2':         '#72cbf5', // resolved alias of atomic-malibu
+  'atomic-white':         '#ffffff',
+  'atomic-bone':          '#fbfcfe',
+  'atomic-mist':          '#d9d9d9',
+  'atomic-ash':           '#d3dbe0',
+  'atomic-smoke':         '#c7c9d8',
+  'atomic-slate':         '#5f6378',
+  'atomic-slate-2':       '#4a545f',
+  'atomic-overlay-ink':   'rgba(23, 25, 37, 0.56)',
+  'atomic-stroke-light':  'rgba(255, 255, 255, 0.35)',
+  'atomic-shadow-soft':   'rgba(0, 0, 0, 0.08)',
+} as const
+
+export type BrandColorToken = keyof typeof BRAND_COLOR_TOKENS
+
+// Documented alias pairs — keep in sync with the comments above. The
+// alias-target equality test in global.test.ts iterates this list.
+export const BRAND_ALIAS_PAIRS: ReadonlyArray<readonly [BrandColorToken, BrandColorToken]> = [
+  ['atomic-violet', 'atomic-medium-purple'],
+  ['atomic-teal',   'atomic-tradewind'],
+  ['atomic-sky',    'atomic-malibu'],
+  ['atomic-sky-2',  'atomic-malibu'],
+] as const
+
 // Code-block surface tokens — theme-independent palette adopted from
 // the design prototype's .ac-codeblock block (meta/research/
 // design-inventories/2026-05-21-015231-claude-design-prototype/

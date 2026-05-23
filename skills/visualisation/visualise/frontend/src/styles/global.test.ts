@@ -12,9 +12,13 @@ import {
   MONO_FONT_TOKENS,
   CODE_SURFACE_TOKENS,
   CODE_SYNTAX_TOKENS,
+  BRAND_COLOR_TOKENS,
+  BRAND_ALIAS_PAIRS,
 } from './tokens'
 import prototypeTokens from './fixtures/prototype-tokens.json'
 import { contrastRatio } from './contrast'
+import { extractBlockBody } from './testing/cssBlocks'
+import { canonicaliseBrand } from './testing/canonicaliseBrand'
 import { DOC_TYPE_KEYS, DOC_TYPE_LABELS, VIRTUAL_DOC_TYPE_KEYS, type DocTypeKey } from '../api/types'
 
 type Scope = 'root' | 'dark'
@@ -43,8 +47,14 @@ function readCssVar(name: string, scope: Scope = 'root'): string | null {
   return re.exec(block)?.[1].trim().toLowerCase() ?? null
 }
 
+// Parity comparator. Both sides are passed through canonicaliseBrand so
+// that CSS-side `rgb(...)` and `var(--atomic-X)` references compare equal
+// to TS-side resolved hex. `canonicaliseBrand` folds the previous
+// lowercase + whitespace-strip behaviour as a strict superset, so all
+// existing rgba/shadow parity assertions continue to hold.
 function expectMatches(actual: string | null, expected: string): void {
-  expect(actual).toBe(expected.toLowerCase())
+  expect(actual).not.toBeNull()
+  expect(canonicaliseBrand(actual!)).toBe(canonicaliseBrand(expected))
 }
 
 describe('global focus rings', () => {
@@ -93,6 +103,7 @@ describe.each([
   ['layout', LAYOUT_TOKENS],
   ['code surface', CODE_SURFACE_TOKENS],
   ['syntax', CODE_SYNTAX_TOKENS],
+  ['brand', BRAND_COLOR_TOKENS],
 ])('tokens.ts ↔ global.css :root parity (%s)', (_label, tokens) => {
   for (const [name, value] of Object.entries(tokens)) {
     it(`--${name} matches`, () => {
@@ -110,25 +121,6 @@ describe.each([
  * `:root:not([data-theme="light"])` block, and compare its declarations
  * against the explicit `[data-theme="dark"]` block.
  */
-/** Extract a `{ ... }` block body starting at the first `{` after `index`,
- *  using brace-balanced scanning so nested rules don't truncate. Returns
- *  the body (without the enclosing braces) or `undefined` if no balanced
- *  block exists at that position. Resilient to formatter changes (no
- *  column-0 anchor required). */
-function extractBlockBody(source: string, index: number): string | undefined {
-  const open = source.indexOf('{', index)
-  if (open === -1) return undefined
-  let depth = 1
-  for (let i = open + 1; i < source.length; i++) {
-    if (source[i] === '{') depth++
-    else if (source[i] === '}') {
-      depth--
-      if (depth === 0) return source.slice(open + 1, i)
-    }
-  }
-  return undefined
-}
-
 describe('global.css [data-theme="dark"] ↔ @media (prefers-color-scheme: dark) parity', () => {
   it('the two dark blocks declare the same tokens with the same values', () => {
     const explicitMatch = /\[data-theme="dark"\]\s*\{/.exec(globalCss)
@@ -211,27 +203,49 @@ describe('readCssVar truncation guard', () => {
   })
 })
 
-// Normalise BOTH sides identically — strip all whitespace so
-// `rgba(255,255,255,0.07)` (prototype source) and
-// `rgba(255, 255, 255, 0.07)` (tokens.ts) compare equal. Lowercase
-// on both sides to absorb prototype's uppercase hex.
-const canonicaliseTokenValue = (v: string): string =>
-  v.toLowerCase().replace(/\s+/g, '')
-
 describe('prototype fixture ↔ tokens.ts parity (theme-invariant families)', () => {
   for (const [rawName, rawValue] of Object.entries(
     prototypeTokens as Record<string, string>,
   )) {
     const name = rawName.replace(/^--/, '')
-    const expectedValue = canonicaliseTokenValue(rawValue)
+    const expectedValue = canonicaliseBrand(rawValue)
     it(`--${name} matches the combined token map`, () => {
       const actual =
         (CODE_SURFACE_TOKENS as Record<string, string>)[name] ??
-        (CODE_SYNTAX_TOKENS as Record<string, string>)[name]
+        (CODE_SYNTAX_TOKENS as Record<string, string>)[name] ??
+        (BRAND_COLOR_TOKENS as Record<string, string>)[name]
       expect(actual).toBeDefined()
-      expect(canonicaliseTokenValue(actual!)).toBe(expectedValue)
+      expect(canonicaliseBrand(actual!)).toBe(expectedValue)
     })
   }
+})
+
+describe('--atomic-* theme invariance', () => {
+  it('no --atomic-* declaration appears in [data-theme="dark"] block', () => {
+    const darkMatch = /\[data-theme="dark"\]\s*\{/.exec(globalCss)
+    const darkBody = darkMatch
+      ? extractBlockBody(globalCss, darkMatch.index)
+      : undefined
+    expect(darkBody).toBeDefined()
+    expect(darkBody!).not.toMatch(/--atomic-[\w-]+\s*:/)
+  })
+  it('no --atomic-* declaration appears in @media (prefers-color-scheme: dark)', () => {
+    const mediaMatch = /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{/.exec(globalCss)
+    const mediaBody = mediaMatch
+      ? extractBlockBody(globalCss, mediaMatch.index)
+      : undefined
+    expect(mediaBody).toBeDefined()
+    expect(mediaBody!).not.toMatch(/--atomic-[\w-]+\s*:/)
+  })
+})
+
+describe('BRAND_COLOR_TOKENS alias-target equality', () => {
+  it.each(BRAND_ALIAS_PAIRS)(
+    '%s resolves to the same hex as its target %s',
+    (alias, target) => {
+      expect(BRAND_COLOR_TOKENS[alias]).toBe(BRAND_COLOR_TOKENS[target])
+    },
+  )
 })
 
 function findBlockBodyForSelector(css: string, selector: string): string | null {
