@@ -1,6 +1,6 @@
 // Resolved-hex semantic palette. Values are stored as resolved hex (or
 // rgba) even where the corresponding global.css declaration uses
-// var(--atomic-X) brand-layer indirection — see ADR-0026 §6. The
+// var(--atomic-X) brand-layer indirection — see ADR-0035 §3. The
 // CSS↔TS parity comparator resolves var() refs via BRAND_COLOR_TOKENS,
 // preserving "TS knows the resolved hex of every semantic token" as a
 // load-bearing invariant.

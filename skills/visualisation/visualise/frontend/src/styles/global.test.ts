@@ -253,7 +253,7 @@ describe('LIGHT_COLOR_TOKENS / DARK_COLOR_TOKENS contain no indirection', () => 
   // TS-side stores resolved hex (or rgba/shadow). Bare rgb() would compare
   // equal to a CSS hex through the comparator and silently relax parity;
   // var() would obviously break the "TS knows the resolved hex" invariant.
-  // See ADR-0026 §6.
+  // See ADR-0035 §3.
   it.each(Object.entries({ ...LIGHT_COLOR_TOKENS, ...DARK_COLOR_TOKENS }))(
     '%s contains no var(--atomic-*) or bare rgb(...) indirection',
     (_name, value) => {
@@ -276,7 +276,7 @@ describe('AC2 invariant: --ac-* hex literals must reference brand when possible'
     )
     const offenders = decls.filter((d) => {
       if (d.value.startsWith('var(')) return false
-      // rgba() is out of scope per ADR-0026 §6 (six-digit hex only).
+      // rgba() is out of scope per ADR-0035 §2 (six-digit hex only).
       if (d.value.toLowerCase().startsWith('rgba(')) return false
       const hex = canonicaliseBrand(d.value)
       const brandMatches = brandValues.has(hex)

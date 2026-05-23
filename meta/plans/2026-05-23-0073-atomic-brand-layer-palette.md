@@ -98,10 +98,12 @@ After all four phases land:
    the PR description includes ΔE2000 evidence from a small in-repo
    script using `culori`'s `differenceCiede2000`.
 
-6. **ADR-0026 §5 documents the brand layer.** The brand palette is
-   added to the §5 `:root`-only families list with rationale, and a
-   short "brand → semantic" indirection rule is added describing
-   when an `--ac-*` token references `var(--atomic-X)`.
+6. **ADR-0035 documents the brand layer.** A new supplementary ADR
+   adds the brand palette as a `:root`-only family extending ADR-0026
+   §5's framework, and documents the "brand → semantic" indirection
+   rule describing when an `--ac-*` token references
+   `var(--atomic-X)`. ADR-0026 itself stays untouched (immutable per
+   ADR-0031).
 
 ### Verification end-to-end
 
@@ -1276,13 +1278,26 @@ resolved colour, so these should all pass without regeneration.
 
 ## Phase 4: ADR-0026 amendment
 
+### Implementation deviation
+
+ADR-0026 is `status: accepted`; per ADR-0031 (skill-level ADR
+immutability) `accepted` ADRs are immutable. Implementation therefore
+ships the §5 list extension, the brand → semantic indirection rule,
+and the appendix note as a **new ADR-0035** ("Brand-layer indirection
+— supplement to ADR-0026") rather than as edits to ADR-0026. The
+content below describes the original intent; section numbers in
+ADR-0035 are §1 (theme-invariant family entry), §2 (indirection rule),
+§3 (TS-side resolved-hex invariant), §4 (operational guidance).
+Code/test comments that originally referenced "ADR-0026 §6" now
+reference "ADR-0035 §2".
+
 ### Overview
 
 Document the brand layer in the canonical decision record so future
 contributors find a clear precedent for the brand → semantic
 indirection rule. This phase has no code, no tests, and no runtime
 impact — it's a documentation update — but it carries the same
-review weight because ADR-0026 governs all future token work.
+review weight because the ADR governs all future token work.
 
 ### Changes Required
 
@@ -1445,17 +1460,18 @@ Add this single sentence at the top of the appendix:
 
 #### Automated Verification
 
-- [ ] `npm test` (full suite) passes — no test depends on ADR text,
+- [x] `npm test` (full suite) passes — no test depends on ADR text,
   so this is just a sanity check
 - [ ] ADR markdown lints clean (if `markdownlint` is wired; else
   N/A)
 
 #### Manual Verification
 
-- [ ] ADR-0026 §5 lists `--atomic-*` alongside `--code-*` /
-  `--tk-*` with source and drift-test references
-- [ ] ADR-0026 §6 documents the brand → semantic indirection rule
-- [ ] A reviewer reading ADR-0026 fresh can infer:
+- [x] ADR-0035 §1 lists `--atomic-*` alongside `--code-*` /
+  `--tk-*` with source and drift-test references (ADR-0026 §5 is
+  immutable; supplement is in ADR-0035 per the deviation note above)
+- [x] ADR-0035 §2 documents the brand → semantic indirection rule
+- [x] A reviewer reading ADR-0026 plus ADR-0035 can infer:
   - which families are `:root`-only and why
   - how to add a new brand-layer token
   - the rule for rewriting `--ac-*` to `var(--atomic-X)`
@@ -1547,8 +1563,9 @@ reviewer should mechanically check off.
   ~5 of a brand value but doesn't satisfy AC2's exact-match rule
   (currently `--ac-violet` vs `--atomic-medium-purple` and the
   `--ac-doc-bg-*` block above).
-- **ADR-0026 §6 cross-reference**: link to the new §6 from the PR
-  description so reviewers can read the rule alongside the rewrite.
+- **ADR-0035 cross-reference**: link to the new ADR-0035 (supplement
+  to ADR-0026) from the PR description so reviewers can read the rule
+  alongside the rewrite. ADR-0026 stays unmodified.
 - **Guardrail tests included and passing**: AC2-invariant guard,
   rewrite-count guard, format-guard on `LIGHT_COLOR_TOKENS` /
   `DARK_COLOR_TOKENS`, alias-target equality, theme-invariance

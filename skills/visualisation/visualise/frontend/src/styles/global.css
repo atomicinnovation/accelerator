@@ -68,7 +68,7 @@ body {
 
 :root {
   /* Light --ac-* colour layer. Tokens whose resolved hex matches a
-     brand value reference --atomic-X via var() (ADR-0026 §6); the
+     brand value reference --atomic-X via var() (ADR-0035 §2); the
      residual hex literals are near-misses or have no brand match. */
   --ac-bg:             var(--atomic-bone);
   --ac-bg-raised:      var(--atomic-white);
@@ -183,9 +183,9 @@ body {
      neutrals, aliases, and overlays. Mirrored to BRAND_COLOR_TOKENS in
      tokens.ts and snapshotted in src/styles/fixtures/prototype-tokens.json
      (drift-tested in prototype-tokens.fixture.test.ts). The palette is
-     theme-invariant (ADR-0026 §5); semantic --ac-* tokens whose resolved
-     hex matches a brand value reference it via var() (ADR-0026 §6 — brand
-     → semantic indirection rule). Declared verbatim from
+     theme-invariant (ADR-0026 §5, ADR-0035 §1); semantic --ac-* tokens
+     whose resolved hex matches a brand value reference it via var()
+     (ADR-0035 §2 — brand → semantic indirection rule). Declared verbatim from
      meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/
      prototype-standalone.html. */
   --atomic-night:          rgb(14, 15, 25);
