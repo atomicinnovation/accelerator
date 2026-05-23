@@ -1255,13 +1255,14 @@ resolved colour, so these should all pass without regeneration.
 
 #### Automated Verification
 
-- [ ] `npm run test:e2e -- tokens.spec.ts` passes without
+- [x] `npm run test:e2e -- tokens.spec.ts` passes without
   `--update-snapshots`
-- [ ] `npm run test:e2e` (full Playwright suite) passes without
+- [x] `npm run test:e2e` (full Playwright suite) passes without
   `--update-snapshots`
 - [ ] `npx tsx scripts/visual-diff-ciede2000.ts` exits 0 for any
-  regenerated baseline (max ΔE2000 < 5)
-- [ ] `npm test -- scripts/visual-diff-ciede2000.test.ts` passes
+  regenerated baseline (max ΔE2000 < 5) — N/A, no baselines
+  regenerated
+- [x] `npm test -- scripts/visual-diff-ciede2000.test.ts` passes
   (script unit tests against synthetic PNG fixtures)
 
 #### Manual Verification
@@ -1270,7 +1271,7 @@ resolved colour, so these should all pass without regeneration.
   per-baseline ΔE2000 report (max / mean / 95th percentile / pixel
   count) and an inline side-by-side image so a reviewer can sanity
   check
-- [ ] If no baseline was regenerated: PR description states
+- [x] If no baseline was regenerated: PR description states
   "0 baselines regenerated; Playwright sweep clean against `main`
   baselines"
 

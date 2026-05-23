@@ -87,11 +87,20 @@ for (const theme of ['light', 'dark'] as const) {
           `[data-testid="chip-cell-${variant}-sm"] [data-variant="${variant}"]`,
         )
         const bg = await chip.evaluate((el) => getComputedStyle(el).backgroundColor)
-        const acBg = await page.evaluate(() =>
-          getComputedStyle(document.documentElement).getPropertyValue('--ac-bg').trim(),
-        )
+        // Resolve --ac-bg through the cascade (it may indirect through the
+        // brand layer as var(--atomic-X)) by setting it as a color on a
+        // throwaway element and reading the computed value. Returns an
+        // `rgb(...)` string directly, which parseRgb handles.
+        const acBg = await page.evaluate(() => {
+          const tmp = document.createElement('div')
+          tmp.style.color = 'var(--ac-bg)'
+          document.body.appendChild(tmp)
+          const resolved = getComputedStyle(tmp).color
+          tmp.remove()
+          return resolved
+        })
         const expectedFg = theme === 'light' ? EXPECTED_FG_LIGHT[variant] : EXPECTED_FG_DARK[variant]
-        expectChannelsBetween(bg, expectedFg, hexToRgb(acBg))
+        expectChannelsBetween(bg, expectedFg, acBg)
       })
     }
   })
