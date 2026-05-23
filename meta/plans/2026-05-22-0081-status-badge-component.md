@@ -572,9 +572,9 @@ export function FrontmatterChip({
 
 #### Automated Verification
 
-- [ ] New FrontmatterChip tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- FrontmatterChip`
-- [ ] Type checking passes
-- [ ] Full suite green
+- [x] New FrontmatterChip tests pass: `npm --prefix skills/visualisation/visualise/frontend run test -- FrontmatterChip`
+- [x] Type checking passes
+- [x] Full suite green
 
 #### Manual Verification
 
