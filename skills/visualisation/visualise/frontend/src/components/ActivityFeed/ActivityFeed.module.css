@@ -9,7 +9,13 @@
 .heading {
   display: flex;
   align-items: center;
-  font: 500 10.5px/1 var(--ac-font-mono);
+  font-family: var(--ac-font-mono);
+  font-style: normal;
+  font-variant: normal;
+  font-stretch: normal;
+  font-weight: 500;
+  font-size: var(--size-3xs-lg);
+  line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: #6c7088;
@@ -19,7 +25,13 @@
 
 .liveBadge {
   margin-left: auto;
-  font: 500 10.5px/1 var(--ac-font-mono);
+  font-family: var(--ac-font-mono);
+  font-style: normal;
+  font-variant: normal;
+  font-stretch: normal;
+  font-weight: 500;
+  font-size: var(--size-3xs-lg);
+  line-height: 1;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #6c7088;

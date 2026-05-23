@@ -80,7 +80,6 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   // components/ActivityFeed/ActivityFeed.module.css
   { file: 'components/ActivityFeed/ActivityFeed.module.css', literal: '#6c7088', count: 2, kind: 'irreducible', reason: 'ACTIVITY heading + LIVE badge colour — mirrors Sidebar section-heading hex' },
-  { file: 'components/ActivityFeed/ActivityFeed.module.css', literal: '10.5px', count: 2, kind: 'irreducible', reason: 'ACTIVITY heading + LIVE badge font-size — mirrors Sidebar section-heading sub-pixel value' },
   { file: 'components/ActivityFeed/ActivityFeed.module.css', literal: '0.12em', count: 2, kind: 'irreducible', reason: 'ACTIVITY heading + LIVE badge caps letter-spacing — mirrors Sidebar section-heading' },
   { file: 'components/ActivityFeed/ActivityFeed.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'ACTIVITY heading vertical padding — mirrors Sidebar section-heading' },
   { file: 'components/ActivityFeed/ActivityFeed.module.css', literal: '10px', count: 1, kind: 'irreducible', reason: 'ACTIVITY heading horizontal padding — mirrors Sidebar section-heading' },
