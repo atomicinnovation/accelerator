@@ -4,7 +4,7 @@ title: "Spike: Evaluate `Related Documents` Body-Section Inference Accuracy"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
 kind: spike
-status: ready
+status: done
 priority: medium
 parent: "0057"
 tags: [spike, migration, frontmatter]
@@ -80,7 +80,29 @@ _None outstanding. Earlier questions on findings-location and prototype-fate are
 
 Extracted from source documents without interactive enrichment. Acceptance criteria, dependencies, and type may need refinement before promoting from `draft` to `ready`.
 
+## Findings
+
+Prototype parser run against the full `meta/` corpus on 2026-05-24 produced **1,231 candidate typed linkages** across the five qualifying section types (`## References`, `## Related Research`, `## Dependencies`, `## Historical Context`, `## Source References`). A stratified random sample of 150 candidates (50 per `high`/`medium`/`low` confidence band) was manually classified.
+
+- **Total: 84.0% correct / 11.3% wrong / 4.7% uncertain**
+- Per-band: high 88% correct, medium 90% correct, low 74% correct
+- Top failure patterns: `template-path` (7), `source-note-vs-relates` (4), `plan-target-ambiguous` (3), `plan-source-vs-target` (2)
+
+**Rubric application:** wrong-rate 11.3% **fails** the ≤5% threshold (uncertain-rate 4.7% passes). Per the pre-committed binding rubric, **recommend interactive hooks**.
+
+The recommendation is robust to plausible parser improvements: even resolving every "cheap to fix" failure pattern only brings the wrong-rate to ~5.3%, still over threshold.
+
+Full findings, parser design, per-band breakdown, failure-pattern catalogue with cheap-fix counterfactual, and rubric-calibration observation:
+
+- `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`
+
+**Downstream impact:**
+- Work item 0062 (migration-strategy ADR creation) should cite this finding and decide on the interactive-hooks branch.
+- Work item 0069 (migration-framework interactive validation hooks) is **no longer conditional** — this spike's recommendation activates it.
+- Work item 0070 (unified-schema migration) consumes the recommendation regardless of branch.
+
 ## References
 
 - Source: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`
+- Findings: `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`
 - Related: 0057, 0062, 0069, 0070
