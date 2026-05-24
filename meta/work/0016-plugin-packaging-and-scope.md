@@ -1,7 +1,7 @@
 ---
 title: "Plugin packaging and scope boundary"
 kind: adr-creation-task
-status: ready
+status: draft
 ---
 
 # ADR Ticket: Plugin packaging and scope boundary

@@ -1,7 +1,7 @@
 ---
 title: "README structured around philosophy and development loop"
 kind: adr-creation-task
-status: ready
+status: draft
 ---
 
 # ADR Ticket: README structured around philosophy and development loop

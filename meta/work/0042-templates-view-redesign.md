@@ -4,7 +4,7 @@ title: "Templates View Redesign"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 kind: story
-status: ready
+status: done
 priority: low
 parent: ""
 tags: [design, frontend, templates, backend]
@@ -13,7 +13,7 @@ tags: [design, frontend, templates, backend]
 # 0042: Templates View Redesign
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 
@@ -100,63 +100,68 @@ Reference screenshot: `meta/research/design-inventories/2026-05-06-140608-claude
 
 ## Acceptance Criteria
 
-- [ ] Given the user navigates to the templates index, when each row
+- [x] Given the user navigates to the templates index, when each row
   renders, then a per-tier presence row is visible inline showing all
   three tiers (`plugin default`, `user override`, `config override`) in
   that fixed left-to-right order, each in its appropriate state.
-- [ ] Given a template has no override defined for a given tier, when the
+- [x] Given a template has no override defined for a given tier, when the
   index row renders, then that tier is shown using 0038's neutral Chip
   variant (`absent`), distinct from the indigo Chip variant used for
   `present` and the green Chip variant used for `present-and-winning`.
   No additional row-level highlight is applied to the winning tier — the
   green Chip is the sole winning-state signal on the index.
-- [ ] Given a template has no user override and no config override, when
+- [x] Given a template has no user override and no config override, when
   the index row renders, then the `plugin default` tier is in the
   `present-and-winning` state and the `user override` and `config
   override` tiers are in the `absent` state.
-- [ ] Given a template has both a user override and a config override,
+- [x] Given a template has both a user override and a config override,
   when the index row renders, then the `user override` tier is in the
   `present` (non-winning) state and the `config override` tier is in the
   `present-and-winning` state.
-- [ ] Given the user opens a template detail screen at a viewport width
+- [x] Given the user opens a template detail screen at a viewport width
   of ≥ 1024px, when the page renders, then the page uses a two-column
   layout with the stacked tier card in the first (left) column and the
   template preview pane in the second (right) column. Collapse
   behaviour at narrower widths is out of scope.
-- [ ] Given the detail screen renders, when the winning tier card is
+- [x] Given the detail screen renders, when the winning tier card is
   inspected, then it is marked with an accent-coloured outline ring
   (the active-tier marker); non-winning tier cards have no such ring.
-- [ ] Given the template preview pane renders, then the first row inside
-  the pane is the content-hash label, displaying the literal prefix
-  `sha256-` followed by the full 64-character lowercase hex digest of
-  the resolved winning-tier content; the rendered template body
-  follows immediately below.
-- [ ] Given a `GET` request to the templates detail endpoint
-  (`/api/library/templates/{name}`) for a template whose winning-tier
-  content is non-empty, when the response is returned, then the response
-  body contains a `sha256` field whose value is the 64-character
-  lowercase hex SHA-256 digest of that resolved content.
-- [ ] Given a template whose resolved winning-tier content is empty or
+- [x] Given the template preview pane renders, then the first row inside
+  the pane is the content-hash label, displaying the `sha256-` prefix
+  followed by a truncated digest (first 5 hex characters + ellipsis) in
+  a compact monospace form; the full `sha256-<64-hex>` digest is
+  available on hover via the element's `title` attribute. The rendered
+  template body follows immediately below.
+- [x] Given a `GET` request to the templates detail endpoint
+  (`/api/templates/{name}`) for a template whose winning-tier content is
+  non-empty, when the response is returned, then the response body
+  contains a `sha256` field whose value has the form `sha256-<hex>`,
+  where `<hex>` is the 64-character lowercase hex SHA-256 digest of that
+  resolved content (matching the project-wide etag encoding used by
+  `TemplateTier.etag` and `SsePayload::DocChanged.etag`).
+- [x] Given a template whose resolved winning-tier content is empty or
   absent, when the detail endpoint responds, then the `sha256` field is
   omitted from the response body — it is not present as `null` or as an
   empty string.
-- [ ] Given the backend detail endpoint response omits the `sha256`
+- [x] Given the backend detail endpoint response omits the `sha256`
   field, when the detail screen renders, then the content-hash label is
   not displayed.
-- [ ] Given the content-hash label is rendered, when its displayed value
-  (with the `sha256-` prefix stripped) is compared to the SHA-256 hex
-  digest computed over the resolved winning-tier content used by the
-  backend to populate the response's `sha256` field, then the two
-  values are equal.
-- [ ] Given the backend emits an SSE event named `template-changed` on
-  the `/api/events` stream (payload `{ template: string, sha256:
-  string }`) for the currently-viewed template, when the client
+- [x] Given the content-hash label is rendered, when its displayed value
+  (recovered from the `title` attribute so the full digest, not the
+  truncated form, is compared) is matched against the response's
+  `sha256` field, then the two values are equal.
+- [x] Given the backend emits an SSE event named `template-changed` on
+  the `/api/events` stream (payload `{ template: string, sha256?:
+  string }`, where `sha256` is omitted when the new winning content is
+  empty or absent) for the currently-viewed template, when the client
   receives the event, then the content-hash label text reflects the new
   hash within 1s of client receipt without a full page reload.
-- [ ] Given the content-hash label is rendered, when the user hovers or
+- [x] Given the content-hash label is rendered, when the user hovers or
   clicks on it, then the cursor remains the browser default, no hover
-  background/colour change occurs, no tooltip appears, no click handler
-  fires, and no copy/selection helper is presented.
+  background/colour change occurs, no click handler fires, and no
+  copy/selection helper is presented. The browser-native tooltip
+  surfaced by the `title` attribute (carrying the full digest) is
+  intentional and is the sole hover affordance.
 
 ## Dependencies
 

@@ -1,7 +1,7 @@
 ---
 title: "Plugin organisation: two-commit strategy and four skill groups"
 kind: adr-creation-task
-status: ready
+status: draft
 ---
 
 # ADR Ticket: Plugin organisation: two-commit strategy and four skill groups

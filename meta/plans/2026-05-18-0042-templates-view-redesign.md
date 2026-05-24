@@ -3,7 +3,7 @@ date: "2026-05-18T22:30:00+01:00"
 type: plan
 skill: create-plan
 work_item_id: "0042"
-status: accepted
+status: complete
 ---
 
 # 0042 Templates View Redesign — Implementation Plan
@@ -444,21 +444,21 @@ hex = "0.4"
 
 #### Automated Verification:
 
-- [ ] Backend tests pass: `cd skills/visualisation/visualise/server && cargo test`
-- [ ] Specifically the new tests are green:
+- [x] Backend tests pass: `cd skills/visualisation/visualise/server && cargo test`
+- [x] Specifically the new tests are green:
       `cargo test --test api_templates template_detail_includes_sha256_of_winning_content`,
       `cargo test --test api_templates template_detail_omits_sha256_when_winning_content_empty`,
       `cargo test --test api_templates template_detail_omits_sha256_when_winning_tier_absent`,
       `cargo test -p accelerator-visualiser templates::tests::detail_sha256_matches_winning_tier_content`,
       `cargo test -p accelerator-visualiser templates::tests::detail_sha256_omitted_when_winning_content_empty`
-- [ ] Clippy passes: `cargo clippy -p accelerator-visualiser -- -D warnings`
-- [ ] No JSON regressions: the existing
+- [x] Clippy passes: `cargo clippy -p accelerator-visualiser -- -D warnings`
+- [x] No JSON regressions: the existing
       `template_detail_returns_three_tiers_with_plugin_default_active`
       test still passes.
 
 #### Manual Verification:
 
-- [ ] `curl http://127.0.0.1:<port>/api/templates/adr | jq` shows a
+- [x] `curl http://127.0.0.1:<port>/api/templates/adr | jq` shows a
       top-level `sha256` field of the form `"sha256-<64-hex>"` when
       the winning tier has content; field is absent (not `null`, not
       `""`) when the winning content is empty or missing.
@@ -1179,42 +1179,42 @@ are unaffected.
 
 #### Automated Verification:
 
-- [ ] All backend tests pass: `cd skills/visualisation/visualise/server && cargo test`
-- [ ] The new SSE serialisation assertions are green (both
+- [x] All backend tests pass: `cd skills/visualisation/visualise/server && cargo test`
+- [x] The new SSE serialisation assertions are green (both
       Some-sha256 and None-sha256 shapes):
       `cargo test -p accelerator-visualiser sse_hub::tests::sse_payload_json_wire_format`
-- [ ] Both new e2e tests are green:
+- [x] Both new e2e tests are green:
       `cargo test --test sse_e2e template_file_mutation_arrives_as_template_changed_sse_event`
       `cargo test --test sse_e2e template_file_emptied_arrives_as_template_changed_with_no_sha256`
-- [ ] The new `tier_path_index_tests` are green (multi-name
+- [x] The new `tier_path_index_tests` are green (multi-name
       lookup, miss, absent-at-startup ancestor fallback, macOS
       canonicalisation, walk-up fallback).
-- [ ] The new `template_change_handler_tests` are green (burst
+- [x] The new `template_change_handler_tests` are green (burst
       coalesce ≤2 rebuilds, back-pressure recovery, no-op
       suppression, shared-tier broadcast, empty transition,
       deletion transition, causal pairing, multi-tier-same-template
       no-op, ArcSwap concurrent-read stress, panic isolation).
-- [ ] The new watcher integration tests are green (non-template
+- [x] The new watcher integration tests are green (non-template
       passthrough, doc-overlap additive, recursive-watch
       non-tier-sibling no-op).
-- [ ] Existing watcher tests still pass:
+- [x] Existing watcher tests still pass:
       `cargo test -p accelerator-visualiser watcher::tests`
-- [ ] Existing SSE e2e test still passes:
+- [x] Existing SSE e2e test still passes:
       `cargo test --test sse_e2e file_mutation_arrives_as_sse_event`
-- [ ] Clippy clean: `cargo clippy -p accelerator-visualiser -- -D warnings`
+- [x] Clippy clean: `cargo clippy -p accelerator-visualiser -- -D warnings`
 
 #### Manual Verification:
 
-- [ ] Launch the visualiser, open the SSE stream
+- [x] Launch the visualiser, open the SSE stream
       (`curl -N http://127.0.0.1:<port>/api/events`), edit a template
       tier file, observe a `template-changed` event arrive within ~1s
       with `"sha256":"sha256-<hex>"`.
-- [ ] Truncate the same tier file to 0 bytes; observe a follow-up
+- [x] Truncate the same tier file to 0 bytes; observe a follow-up
       `template-changed` event whose payload **omits** the `sha256`
       key.
-- [ ] Editing a non-template file still produces `doc-changed` as
+- [x] Editing a non-template file still produces `doc-changed` as
       before.
-- [ ] Editing a file that is both a tier and a doc produces both
+- [x] Editing a file that is both a tier and a doc produces both
       events.
 
 ---
@@ -1379,16 +1379,16 @@ direct-dispatch test and locks the drag-vs-direct paths together.
 
 #### Automated Verification:
 
-- [ ] Frontend tests pass:
+- [x] Frontend tests pass:
       `npm test --prefix skills/visualisation/visualise/frontend`
-- [ ] Specifically the new reducer tests are green:
+- [x] Specifically the new reducer tests are green:
       `npm test --prefix skills/visualisation/visualise/frontend -- use-doc-events`
-- [ ] Typecheck passes:
+- [x] Typecheck passes:
       `npm run typecheck --prefix skills/visualisation/visualise/frontend`
 
 #### Manual Verification:
 
-- [ ] No regressions: existing doc-changed dispatch behaviour still
+- [x] No regressions: existing doc-changed dispatch behaviour still
       fires for non-template events (covered by existing tests, but
       worth a smoke check on the dev server).
 
@@ -1626,14 +1626,14 @@ fills the remaining space alongside the link.
 
 #### Automated Verification:
 
-- [ ] All index route tests pass:
+- [x] All index route tests pass:
       `npm test --prefix skills/visualisation/visualise/frontend -- LibraryTemplatesIndex`
-- [ ] Typecheck passes
-- [ ] CSS regression assertion (no `.winning`/`.active`) still holds
+- [x] Typecheck passes
+- [x] CSS regression assertion (no `.winning`/`.active`) still holds
 
 #### Manual Verification:
 
-- [ ] Visit `/library/templates` in the dev server with a project
+- [x] Visit `/library/templates` in the dev server with a project
       that has a mix of tier configurations; confirm the chip row
       ordering, labels, and colours match the prototype.
 
@@ -1772,18 +1772,18 @@ existing `.panel` border.
 
 #### Automated Verification:
 
-- [ ] All detail route tests pass:
+- [x] All detail route tests pass:
       `npm test --prefix skills/visualisation/visualise/frontend -- LibraryTemplatesView`
-- [ ] Typecheck passes
-- [ ] The CSS regression assertion that `.activeBadge` is absent (line
+- [x] Typecheck passes
+- [x] The CSS regression assertion that `.activeBadge` is absent (line
       84-86 of the existing test) still holds.
 
 #### Manual Verification:
 
-- [ ] At ≥1024px viewport, the detail screen shows a 24rem + 1fr grid
+- [x] At ≥1024px viewport, the detail screen shows a 24rem + 1fr grid
       with the tier cards on the left and an empty right column. The
       active tier card has a visible accent-coloured ring around it.
-- [ ] Non-active cards have no ring (only the existing soft border).
+- [x] Non-active cards have no ring (only the existing soft border).
 
 ---
 
@@ -2071,16 +2071,16 @@ rendered verbatim — no UI-side prepending).
 
 #### Automated Verification:
 
-- [ ] All detail route tests pass, including the live-update test:
+- [x] All detail route tests pass, including the live-update test:
       `npm test --prefix skills/visualisation/visualise/frontend -- LibraryTemplatesView`
-- [ ] Typecheck passes
-- [ ] Non-interactive CSS regressions hold:
+- [x] Typecheck passes
+- [x] Non-interactive CSS regressions hold:
       no `cursor: pointer` / `cursor: copy` / `:hover` rules on
       `.contentHashLabel`.
 
 #### Manual Verification:
 
-- [ ] On `/library/templates/adr` at ≥1024px viewport:
+- [x] On `/library/templates/adr` at ≥1024px viewport:
       - The right column shows the winning tier path on the left and
         `sha256-<64-hex>` on the right of its first row.
       - The rendered markdown body appears directly below.
@@ -2088,10 +2088,10 @@ rendered verbatim — no UI-side prepending).
         background, and there is no tooltip.
       - Selecting the hash text via mouse drag still works (browser
         default), but no Copy button or click handler is present.
-- [ ] Edit the winning tier file on disk (e.g.
+- [x] Edit the winning tier file on disk (e.g.
       `echo "edited $(date)" >> meta/templates/adr.md`) and observe
       the hash label change within ~1 second without a page reload.
-- [ ] If the winning tier file is emptied to 0 bytes, the hash
+- [x] If the winning tier file is emptied to 0 bytes, the hash
       label disappears (AC10).
 
 ---

@@ -4,7 +4,7 @@ title: "Atomic Brand-Layer Palette"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
-status: ready
+status: done
 priority: medium
 parent: ""
 tags: [design, frontend, tokens, foundation]
