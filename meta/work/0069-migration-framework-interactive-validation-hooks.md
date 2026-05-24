@@ -54,9 +54,9 @@ If either outcome is "deterministic + post-run report", this story is closed wit
 
 ## Dependencies
 
-- Blocked by: 0062 (migration-strategy ADR — decides whether this story is even built), 0068 (spike — informs whether interactive hooks are needed).
+- Blocked by: 0092 (framework-level optional interactive contract — defines the contract this story implements), 0062 (linkage-application ADR — decides whether and how this migration uses the contract), 0068 (spike — informs whether interactive hooks are needed).
 - Blocks: 0070 (corpus migration consumes this extension if it's built).
-- Related: 0057 (parent epic), 0023 (mechanical-contract ADR being amended).
+- Related: 0057 (parent epic), 0023 (mechanical-contract ADR being amended by 0092).
 
 ## Assumptions
 
@@ -77,4 +77,4 @@ Extracted from source documents without interactive enrichment. Acceptance crite
 ## References
 
 - Source: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`
-- Related: 0023, 0057, 0062, 0068, 0070
+- Related: 0023, 0057, 0062, 0068, 0070, 0092
