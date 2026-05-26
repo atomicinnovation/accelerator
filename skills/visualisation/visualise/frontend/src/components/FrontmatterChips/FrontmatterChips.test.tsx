@@ -223,7 +223,7 @@ describe('FrontmatterChips', () => {
       const labels = Array.from(container.querySelectorAll('[aria-label]'))
         .map((el) => el.getAttribute('aria-label'))
       expect(labels).toEqual([
-        'status: draft', 'date: 3d ago', 'author: Toby Clemson',
+        'status: Draft', 'date: 3d ago', 'author: Toby Clemson',
       ])
     })
 
@@ -237,7 +237,7 @@ describe('FrontmatterChips', () => {
       const labels = Array.from(container.querySelectorAll('[aria-label]'))
         .map((el) => el.getAttribute('aria-label'))
       expect(labels).toEqual([
-        'status: draft', 'date: 3d ago', 'author: Toby Clemson',
+        'status: Draft', 'date: 3d ago', 'author: Toby Clemson',
       ])
     })
   })
@@ -268,11 +268,11 @@ describe('FrontmatterChips', () => {
 
   describe('subset ordering', () => {
     it.each([
-      [{ status: 'draft', date: '2026-04-05' }, ['status: draft', 'date: 3d ago']],
-      [{ status: 'draft', author: 'Toby Clemson' }, ['status: draft', 'author: Toby Clemson']],
+      [{ status: 'draft', date: '2026-04-05' }, ['status: Draft', 'date: 3d ago']],
+      [{ status: 'draft', author: 'Toby Clemson' }, ['status: Draft', 'author: Toby Clemson']],
       [{ date: '2026-04-05', author: 'Toby Clemson' }, ['date: 3d ago', 'author: Toby Clemson']],
       [{ author: 'Toby Clemson', date: '2026-04-05' }, ['date: 3d ago', 'author: Toby Clemson']],
-      [{ status: 'draft' }, ['status: draft']],
+      [{ status: 'draft' }, ['status: Draft']],
     ])('renders subset %# in canonical order', (frontmatter, expectedLabels) => {
       const { container } = render(
         <FrontmatterChips state="parsed" frontmatter={frontmatter} />,
@@ -293,7 +293,7 @@ describe('FrontmatterChips', () => {
       )
       const labels = Array.from(container.querySelectorAll('[aria-label]'))
         .map((el) => el.getAttribute('aria-label'))
-      expect(labels).toEqual(['status: draft'])
+      expect(labels).toEqual(['status: Draft'])
     })
 
     it('first non-skipped value wins among case-variant duplicates', () => {
@@ -305,7 +305,7 @@ describe('FrontmatterChips', () => {
       )
       const labels = Array.from(container.querySelectorAll('[aria-label]'))
         .map((el) => el.getAttribute('aria-label'))
-      expect(labels).toEqual(['status: first'])
+      expect(labels).toEqual(['status: First'])
     })
   })
 
@@ -379,7 +379,7 @@ describe('12-doc-kind corpus verification', () => {
       .map((el) => el.getAttribute('aria-label'))
     // Exactly three canonical chips, no chip carrying the extra key.
     expect(labels).toEqual([
-      'status: draft', 'date: 3d ago', 'author: Toby Clemson',
+      'status: Draft', 'date: 3d ago', 'author: Toby Clemson',
     ])
     expect(labels.some((l) => l?.startsWith(`${extraKey}:`))).toBe(false)
   })

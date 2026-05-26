@@ -21,6 +21,25 @@ describe('StatusBadge', () => {
     })
   })
 
+  describe('sentence-cased label', () => {
+    it.each([
+      ['accepted', 'Accepted'],
+      ['draft', 'Draft'],
+      ['DONE', 'Done'],
+      ['in progress', 'In progress'],
+      ['Merged', 'Merged'],
+    ])('renders status %s as sentence-cased "%s"', (value, expected) => {
+      const { container } = render(<StatusBadge value={value} />)
+      expect(container.querySelector('[data-testid="status-badge"]')?.textContent).toBe(expected)
+      expect(container.querySelector(`[aria-label="status: ${expected}"]`)).not.toBeNull()
+    })
+
+    it('leaves non-string values to the default formatting', () => {
+      const { container } = render(<StatusBadge value={42} />)
+      expect(container.querySelector('[data-testid="status-badge"]')?.textContent).toBe('42')
+    })
+  })
+
   describe('status vocabulary — full live mapping preserved', () => {
     it.each([
       ['Accepted', 'green'], ['Done', 'green'], ['complete', 'green'],
