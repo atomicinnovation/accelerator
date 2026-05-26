@@ -20,6 +20,7 @@ const fontFiles = readdirSync(fontsDir)
 const EXPECTED_FONT_FILES = [
   'Sora-SemiBold.woff2',
   'Sora-Bold.woff2',
+  'Inter-Light.woff2',
   'Inter-Regular.woff2',
   'Inter-Medium.woff2',
   'Inter-SemiBold.woff2',

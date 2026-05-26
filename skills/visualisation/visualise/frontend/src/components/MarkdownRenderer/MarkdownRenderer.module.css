@@ -4,6 +4,7 @@
 .markdown {
   max-width: min(var(--ac-content-max-width-prose), 100%);
   font-size: var(--size-prose);
+  font-weight: 300;
   line-height: var(--lh-prose);
   color: var(--ac-fg);
 }

@@ -12,7 +12,7 @@ all of which permit redistribution.
 
 ## Inter
 
-- Files: `Inter-Regular.woff2`, `Inter-Medium.woff2`, `Inter-SemiBold.woff2`, `Inter-Bold.woff2`
+- Files: `Inter-Light.woff2`, `Inter-Regular.woff2`, `Inter-Medium.woff2`, `Inter-SemiBold.woff2`, `Inter-Bold.woff2`
 - Author: The Inter Project Authors (Rasmus Andersson)
 - Licence: SIL Open Font Licence 1.1 (OFL-1.1)
 - Source: https://fonts.google.com/specimen/Inter
