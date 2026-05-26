@@ -48,6 +48,7 @@ hex = "0.4"
 notify = "6"
 arc-swap = "1"
 tokio-stream = { version = "0.1", features = ["sync"] }
+futures = { version = "0.3", default-features = false, features = ["std"] }
 regex = "1"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
 form_urlencoded = "1"

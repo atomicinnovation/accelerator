@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
+use futures::stream::{self, StreamExt};
 use serde::Serialize;
 use tokio::sync::{RwLock, Semaphore};
 
@@ -268,48 +269,71 @@ impl Indexer {
         let mut reviews_by_target: HashMap<PathBuf, BTreeSet<PathBuf>> = HashMap::new();
         let mut work_item_refs_by_target: HashMap<String, BTreeSet<PathBuf>> = HashMap::new();
 
+        // Phase 1: enumerate every (kind, path) up front, preserving doc-type
+        // and per-type listing order so the dedup folds below stay deterministic.
+        let mut targets: Vec<(DocTypeKey, PathBuf)> = Vec::new();
         for kind in DocTypeKey::all() {
             if kind == DocTypeKey::Templates {
                 continue;
             }
-            let paths = match self.driver.list(kind).await {
-                Ok(p) => p,
+            match self.driver.list(kind).await {
+                Ok(paths) => targets.extend(paths.into_iter().map(|p| (kind, p))),
                 Err(FileDriverError::TypeNotConfigured { .. }) => continue,
                 Err(e) => return Err(e),
-            };
-            for path in paths {
-                let content = match self.driver.read(&path).await {
-                    Ok(c) => c,
-                    Err(FileDriverError::NotFound { .. }) => continue,
-                    Err(e) => return Err(e),
-                };
-                let entry = build_entry(kind, path.clone(), &content, &self.project_root, &self.work_item_cfg);
-
-                if let Some(id) = adr_id_from_entry(&entry) {
-                    adr_by_id.insert(id, path.clone());
-                }
-                if let Some(id) = work_item_id_from_entry(&entry) {
-                    work_item_by_id.insert(id, path.clone());
-                }
-                if let Some(target_key) = target_path_from_entry(&entry, &self.project_root) {
-                    reviews_by_target
-                        .entry(target_key)
-                        .or_default()
-                        .insert(path.clone());
-                }
-                for id in canonicalise_refs(entry.work_item_refs.clone(), &self.work_item_cfg) {
-                    // Skip self-references: a doc must not appear in its own index.
-                    if entry.work_item_id.as_deref() == Some(id.as_str()) {
-                        continue;
-                    }
-                    work_item_refs_by_target
-                        .entry(id)
-                        .or_default()
-                        .insert(path.clone());
-                }
-
-                entries.insert(path, entry);
             }
+        }
+
+        // Phase 2: read files concurrently. Each read issues several `tokio::fs`
+        // calls that block; overlapping them lets the runtime's blocking pool
+        // service many at once instead of one round-trip at a time. `buffered`
+        // preserves input order, so the serial fold below remains deterministic.
+        const READ_CONCURRENCY: usize = 64;
+        let read_results: Vec<(DocTypeKey, PathBuf, Result<FileContent, FileDriverError>)> =
+            stream::iter(targets)
+                .map(|(kind, path)| {
+                    let driver = &self.driver;
+                    async move {
+                        let content = driver.read(&path).await;
+                        (kind, path, content)
+                    }
+                })
+                .buffered(READ_CONCURRENCY)
+                .collect()
+                .await;
+
+        // Phase 3: parse and fold serially, in original order.
+        for (kind, path, content) in read_results {
+            let content = match content {
+                Ok(c) => c,
+                Err(FileDriverError::NotFound { .. }) => continue,
+                Err(e) => return Err(e),
+            };
+            let entry = build_entry(kind, path.clone(), &content, &self.project_root, &self.work_item_cfg);
+
+            if let Some(id) = adr_id_from_entry(&entry) {
+                adr_by_id.insert(id, path.clone());
+            }
+            if let Some(id) = work_item_id_from_entry(&entry) {
+                work_item_by_id.insert(id, path.clone());
+            }
+            if let Some(target_key) = target_path_from_entry(&entry, &self.project_root) {
+                reviews_by_target
+                    .entry(target_key)
+                    .or_default()
+                    .insert(path.clone());
+            }
+            for id in canonicalise_refs(entry.work_item_refs.clone(), &self.work_item_cfg) {
+                // Skip self-references: a doc must not appear in its own index.
+                if entry.work_item_id.as_deref() == Some(id.as_str()) {
+                    continue;
+                }
+                work_item_refs_by_target
+                    .entry(id)
+                    .or_default()
+                    .insert(path.clone());
+            }
+
+            entries.insert(path, entry);
         }
 
         // Hold all five write locks simultaneously and replace contents
