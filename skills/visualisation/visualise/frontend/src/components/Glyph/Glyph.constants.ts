@@ -1,30 +1,44 @@
 // CSS-free constants for `Glyph`. Kept in a separate module so consumers
-// that only need the type/runtime list (notably the Playwright visual-
+// that only need the type/runtime tables (notably the Playwright visual-
 // regression spec, whose TS transformer can't parse CSS modules) can
 // import them without pulling `Glyph.module.css` into the import graph.
 
-import { type DocTypeKey, DOC_TYPE_KEYS, VIRTUAL_DOC_TYPE_KEYS } from '../../api/types'
+import { type DocTypeKey } from '../../api/types'
+import { type ColorTokenKey } from '../../styles/tokens'
 
-/**
- * The 12 non-virtual `DocTypeKey` values Glyph renders.
- *
- * INVARIANT: Glyph is for real document types only. Virtual keys (currently
- * `templates`) are excluded by construction. The exclusion is data-driven: the
- * runtime `GLYPH_DOC_TYPE_KEYS` below filters by `VIRTUAL_DOC_TYPE_KEYS`, so
- * adding a future virtual key in `api/types.ts` automatically removes it from
- * Glyph's set. The type alias must be updated in lock-step (extend the
- * `Exclude` to cover the new virtual key) — caught at unit-test time by the
- * exhaustiveness assertion on `ICON_COMPONENTS`.
- */
-export type GlyphDocTypeKey = Exclude<DocTypeKey, 'templates'>
+// Per-doc-type colour token key. Templates is a virtual doc-type with
+// no dedicated colour token — it borrows --ac-fg-muted (a neutral text
+// token) for visual consistency with its --ac-fg-faint neighbours.
+export const DOC_TYPE_TOKEN_KEY: Record<DocTypeKey, ColorTokenKey> = {
+  decisions: 'ac-doc-decisions',
+  'work-items': 'ac-doc-work-items',
+  plans: 'ac-doc-plans',
+  research: 'ac-doc-research',
+  'plan-reviews': 'ac-doc-plan-reviews',
+  'pr-reviews': 'ac-doc-pr-reviews',
+  'work-item-reviews': 'ac-doc-work-item-reviews',
+  validations: 'ac-doc-validations',
+  notes: 'ac-doc-notes',
+  'pr-descriptions': 'ac-doc-pr-descriptions',
+  'design-gaps': 'ac-doc-design-gaps',
+  'design-inventories': 'ac-doc-design-inventories',
+  templates: 'ac-fg-muted',
+}
 
-/** Runtime mirror of `GlyphDocTypeKey`. Derived from `VIRTUAL_DOC_TYPE_KEYS`
- *  at module load — assumes the virtual-keys list is statically resolvable. */
-export const GLYPH_DOC_TYPE_KEYS: readonly GlyphDocTypeKey[] = DOC_TYPE_KEYS.filter(
-  (k): k is GlyphDocTypeKey => !VIRTUAL_DOC_TYPE_KEYS.includes(k),
-)
-
-/** Narrow `DocTypeKey` to `GlyphDocTypeKey`. Use in data-driven consumers. */
-export function isGlyphDocTypeKey(k: DocTypeKey): k is GlyphDocTypeKey {
-  return GLYPH_DOC_TYPE_KEYS.includes(k as GlyphDocTypeKey)
+// Direct literal (no Object.fromEntries cast) so the Record<…,…>
+// constraint is enforced at definition rather than via post-hoc `as`.
+export const DOC_TYPE_COLOR_VAR: Record<DocTypeKey, string> = {
+  decisions: `var(--${DOC_TYPE_TOKEN_KEY.decisions})`,
+  'work-items': `var(--${DOC_TYPE_TOKEN_KEY['work-items']})`,
+  plans: `var(--${DOC_TYPE_TOKEN_KEY.plans})`,
+  research: `var(--${DOC_TYPE_TOKEN_KEY.research})`,
+  'plan-reviews': `var(--${DOC_TYPE_TOKEN_KEY['plan-reviews']})`,
+  'pr-reviews': `var(--${DOC_TYPE_TOKEN_KEY['pr-reviews']})`,
+  'work-item-reviews': `var(--${DOC_TYPE_TOKEN_KEY['work-item-reviews']})`,
+  validations: `var(--${DOC_TYPE_TOKEN_KEY.validations})`,
+  notes: `var(--${DOC_TYPE_TOKEN_KEY.notes})`,
+  'pr-descriptions': `var(--${DOC_TYPE_TOKEN_KEY['pr-descriptions']})`,
+  'design-gaps': `var(--${DOC_TYPE_TOKEN_KEY['design-gaps']})`,
+  'design-inventories': `var(--${DOC_TYPE_TOKEN_KEY['design-inventories']})`,
+  templates: `var(--${DOC_TYPE_TOKEN_KEY.templates})`,
 }

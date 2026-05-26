@@ -316,6 +316,13 @@ export type MonoFontToken = keyof typeof MONO_FONT_TOKENS
 
 export type ColorTokenLight = keyof typeof LIGHT_COLOR_TOKENS
 export type ColorTokenDark = keyof typeof DARK_COLOR_TOKENS
+
+// Intersection of light/dark token key sets — names tokens defined
+// in BOTH themes. The CSS↔TS parity test in global.test.ts:185
+// codifies a deliberate exclusion (e.g. `ac-violet` is light-only),
+// so this intersection drops any one-side-only tokens by design. Use
+// this alias when a token key must resolve in both themes.
+export type ColorTokenKey = ColorTokenLight & ColorTokenDark
 export type TypographyToken = keyof typeof TYPOGRAPHY_TOKENS
 export type SpacingToken = keyof typeof SPACING_TOKENS
 export type RadiusToken = keyof typeof RADIUS_TOKENS

@@ -8,11 +8,12 @@ import { fileSlugFromRelPath } from '../../api/path-utils'
 import { useDocEventsContext } from '../../api/use-doc-events'
 import {
   DOC_TYPE_LABELS,
+  isPhysicalDocTypeKey,
   type ActivityEvent,
   type DocTypeKey,
   type SseEvent,
 } from '../../api/types'
-import { Glyph, isGlyphDocTypeKey } from '../Glyph/Glyph'
+import { Glyph } from '../Glyph/Glyph'
 import styles from './ActivityFeed.module.css'
 
 const LIMIT = 5
@@ -119,7 +120,7 @@ export function ActivityFeed() {
                   className={styles.row}
                   aria-label={`${label}, ${r.action}, ${file}`}
                 >
-                  {isGlyphDocTypeKey(r.docType) ? (
+                  {isPhysicalDocTypeKey(r.docType) ? (
                     <Glyph docType={r.docType} size={16} />
                   ) : (
                     <span className={styles.glyphSlot} />

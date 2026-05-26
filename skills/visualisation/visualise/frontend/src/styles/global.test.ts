@@ -20,7 +20,7 @@ import { contrastRatio } from './contrast'
 import { extractBlockBody } from './testing/cssBlocks'
 import { canonicaliseBrand } from './testing/canonicaliseBrand'
 import { extractAllAcDeclarations } from './testing/extractAcDeclarations'
-import { DOC_TYPE_KEYS, DOC_TYPE_LABELS, VIRTUAL_DOC_TYPE_KEYS, type DocTypeKey } from '../api/types'
+import { DOC_TYPE_KEYS, DOC_TYPE_LABELS, isPhysicalDocTypeKey } from '../api/types'
 
 type Scope = 'root' | 'dark'
 
@@ -333,9 +333,7 @@ describe('DOC_TYPE_LABELS ↔ DOC_TYPE_KEYS parity', () => {
 describe('--ac-doc-* tokens meet WCAG 1.4.11 ≥3:1 contrast vs --ac-bg', () => {
   const BG_LIGHT = LIGHT_COLOR_TOKENS['ac-bg']
   const BG_DARK = DARK_COLOR_TOKENS['ac-bg']
-  const glyphKeys = DOC_TYPE_KEYS.filter(
-    (k): k is DocTypeKey => !VIRTUAL_DOC_TYPE_KEYS.includes(k),
-  )
+  const glyphKeys = DOC_TYPE_KEYS.filter(isPhysicalDocTypeKey)
   for (const key of glyphKeys) {
     const tokenName = `ac-doc-${key}` as const
     it(`light: ${key} contrast >= 3:1 vs --ac-bg`, () => {

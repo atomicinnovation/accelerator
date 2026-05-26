@@ -1,7 +1,8 @@
-// Preview all 12 doc types × 3 sizes in both themes at /glyph-showcase (see frontend README).
+// Preview all 13 doc types × 3 sizes in both themes at /glyph-showcase (see frontend README).
 import type { ComponentType, ReactElement } from 'react'
 import styles from './Glyph.module.css'
-import { GLYPH_DOC_TYPE_KEYS, type GlyphDocTypeKey } from './Glyph.constants'
+import { DOC_TYPE_KEYS, type DocTypeKey } from '../../api/types'
+import { DOC_TYPE_COLOR_VAR } from './Glyph.constants'
 import { DecisionsIcon } from './icons/DecisionsIcon'
 import { DesignGapsIcon } from './icons/DesignGapsIcon'
 import { DesignInventoriesIcon } from './icons/DesignInventoriesIcon'
@@ -14,22 +15,12 @@ import { ResearchIcon } from './icons/ResearchIcon'
 import { ValidationsIcon } from './icons/ValidationsIcon'
 import { WorkItemReviewsIcon } from './icons/WorkItemReviewsIcon'
 import { WorkItemsIcon } from './icons/WorkItemsIcon'
-
-// Re-export the CSS-free constants module's public surface so existing
-// app-side imports from `'./Glyph'` keep working. CSS-free callers (e.g.
-// the Playwright spec, whose TS transformer cannot parse CSS modules)
-// should import directly from `'./Glyph.constants'`.
-export {
-  GLYPH_DOC_TYPE_KEYS,
-  isGlyphDocTypeKey,
-  type GlyphDocTypeKey,
-} from './Glyph.constants'
+import { TemplatesIcon } from './icons/TemplatesIcon'
 
 // Ordering mirrors the Colour Token Table in meta/work/0037-glyph-component.md.
-// `Record<GlyphDocTypeKey, ...>` constraint enforces exhaustiveness at compile
-// time; the unit test that compares its keys to GLYPH_DOC_TYPE_KEYS catches a
-// future virtual key being filtered out automatically.
-const ICON_COMPONENTS: Record<GlyphDocTypeKey, ComponentType> = {
+// `Record<DocTypeKey, ...>` constraint enforces exhaustiveness at compile time
+// across all 13 keys (including the virtual `templates` key).
+const ICON_COMPONENTS: Record<DocTypeKey, ComponentType> = {
   'decisions': DecisionsIcon,
   'work-items': WorkItemsIcon,
   'plans': PlansIcon,
@@ -42,10 +33,11 @@ const ICON_COMPONENTS: Record<GlyphDocTypeKey, ComponentType> = {
   'pr-descriptions': PrDescriptionsIcon,
   'design-gaps': DesignGapsIcon,
   'design-inventories': DesignInventoriesIcon,
+  'templates': TemplatesIcon,
 }
 
 export interface GlyphProps {
-  docType: GlyphDocTypeKey
+  docType: DocTypeKey
   size: 16 | 24 | 32
   /** Accessible label. If provided (including empty string), Glyph renders
    *  with `role="img"` + `aria-label`. If omitted (undefined), Glyph is
@@ -70,15 +62,15 @@ export interface GlyphProps {
  * 3. Do not wrap Glyph in another `<svg>`. Glyph owns the `<svg>` boundary.
  * 4. Sizes are restricted to 16/24/32. For off-grid sizes, widen the union
  *    with a documented specimen — do not cast.
- * 5. Narrow `DocTypeKey` to `GlyphDocTypeKey` via `isGlyphDocTypeKey()` or
- *    `GLYPH_DOC_TYPE_KEYS`. Do not reinvent the filter; do not use `as` casts.
+ * 5. `docType` accepts any `DocTypeKey` (all 13, including the virtual
+ *    `templates` key). Colour resolves via `DOC_TYPE_COLOR_VAR`.
  */
 export function Glyph({ docType, size, ariaLabel, framed }: GlyphProps): ReactElement | null {
   const Icon = ICON_COMPONENTS[docType]
   if (!Icon) {
     if (import.meta.env.DEV) {
       console.warn(
-        `[Glyph] Unknown docType: ${String(docType)}. Expected one of: ${GLYPH_DOC_TYPE_KEYS.join(', ')}.`,
+        `[Glyph] Unknown docType: ${String(docType)}. Expected one of: ${DOC_TYPE_KEYS.join(', ')}.`,
       )
     }
     return null
@@ -107,7 +99,7 @@ export function Glyph({ docType, size, ariaLabel, framed }: GlyphProps): ReactEl
           width={inner}
           height={inner}
           viewBox="0 0 24 24"
-          style={{ color: `var(--ac-doc-${docType})` }}
+          style={{ color: DOC_TYPE_COLOR_VAR[docType] }}
           data-doc-type={docType}
           {...a11y}
         >
@@ -126,7 +118,7 @@ export function Glyph({ docType, size, ariaLabel, framed }: GlyphProps): ReactEl
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      style={{ color: `var(--ac-doc-${docType})` }}
+      style={{ color: DOC_TYPE_COLOR_VAR[docType] }}
       data-doc-type={docType}
       {...a11y}
     >

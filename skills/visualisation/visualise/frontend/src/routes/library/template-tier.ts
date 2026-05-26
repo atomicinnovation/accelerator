@@ -1,5 +1,4 @@
-import type { TemplateTierSource } from '../../api/types'
-import type { GlyphDocTypeKey } from '../../components/Glyph/Glyph.constants'
+import type { TemplateTierSource, DocTypeKey } from '../../api/types'
 
 export const TIER_LABELS: Record<TemplateTierSource, string> = {
   'plugin-default': 'Plugin default',
@@ -27,7 +26,9 @@ export const TIER_ORDER: readonly TemplateTierSource[] = [
  *  `research` is a known stem). Looked up first-to-last in token order,
  *  so the rightmost matching stem wins for names like
  *  `something-plan-review` → `plan-reviews`. */
-const STEM_TO_GLYPH: Readonly<Record<string, GlyphDocTypeKey>> = {
+// Stems map to physical doc-type keys only — templates is the umbrella,
+// not a target.
+const STEM_TO_GLYPH: Readonly<Record<string, DocTypeKey>> = {
   // Exact-template-name shortcuts.
   adr: 'decisions',
   plan: 'plans',
@@ -60,9 +61,9 @@ const STEM_TO_GLYPH: Readonly<Record<string, GlyphDocTypeKey>> = {
 /** Back-compat: kept for callers that expect a single-shot map. The
  *  preferred lookup is `glyphKeyForTemplate`, which also handles
  *  compound names. */
-export const TEMPLATE_NAME_TO_GLYPH_KEY: Readonly<Record<string, GlyphDocTypeKey>> = STEM_TO_GLYPH
+export const TEMPLATE_NAME_TO_GLYPH_KEY: Readonly<Record<string, DocTypeKey>> = STEM_TO_GLYPH
 
-export function glyphKeyForTemplate(name: string): GlyphDocTypeKey | null {
+export function glyphKeyForTemplate(name: string): DocTypeKey | null {
   // Exact-name match wins first.
   if (STEM_TO_GLYPH[name]) return STEM_TO_GLYPH[name]
   // Multi-token compound names: try the rightmost token first (the

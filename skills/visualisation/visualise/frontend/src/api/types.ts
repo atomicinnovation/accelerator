@@ -27,7 +27,21 @@ export function isDocTypeKey(s: string): s is DocTypeKey {
  *  mirror of the server's `virtual: true` flag on `DocType`. Keep in lock-step
  *  with the server-side `DocType.virtual` flag (see `RootLayout.tsx` useQuery).
  *  Used by `Glyph` to filter `DocTypeKey` down to the renderable subset. */
-export const VIRTUAL_DOC_TYPE_KEYS: readonly DocTypeKey[] = ['templates'] as const
+export const VIRTUAL_DOC_TYPE_KEYS = ['templates'] as const satisfies
+  readonly DocTypeKey[]
+
+/** The virtual `DocTypeKey` literal union — `'templates'` today, broadening
+ *  automatically if `VIRTUAL_DOC_TYPE_KEYS` grows. */
+export type VirtualDocTypeKey = (typeof VIRTUAL_DOC_TYPE_KEYS)[number]
+
+/** Type guard: true for doc types backed by on-disk documents (i.e. not
+ *  virtual). Narrows away the virtual keys so callers can rely on a real
+ *  per-doc colour palette and fixture existing. */
+export function isPhysicalDocTypeKey(
+  key: DocTypeKey,
+): key is Exclude<DocTypeKey, VirtualDocTypeKey> {
+  return !(VIRTUAL_DOC_TYPE_KEYS as readonly DocTypeKey[]).includes(key)
+}
 
 /** Static, human-friendly labels for each `DocTypeKey`. Mirrors the
  *  server-emitted `DocType.label` field; used in dev-only routes (e.g.

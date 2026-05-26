@@ -24,3 +24,7 @@
 .frame[data-doc-type="pr-descriptions"]     { background: var(--ac-doc-bg-pr-descriptions); }
 .frame[data-doc-type="design-gaps"]         { background: var(--ac-doc-bg-design-gaps); }
 .frame[data-doc-type="design-inventories"]  { background: var(--ac-doc-bg-design-inventories); }
+
+/* templates intentionally has no [data-doc-type="templates"] rule —
+   the default .frame background (--ac-bg-sunken) is correct for the
+   neutral muted-text glyph. See meta/work/0074. */

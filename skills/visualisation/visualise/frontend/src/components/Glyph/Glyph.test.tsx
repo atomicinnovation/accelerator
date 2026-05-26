@@ -1,42 +1,44 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render } from '@testing-library/react'
-import { Glyph, GLYPH_DOC_TYPE_KEYS, isGlyphDocTypeKey, type GlyphDocTypeKey } from './Glyph'
+import { Glyph } from './Glyph'
+import { DOC_TYPE_COLOR_VAR } from './Glyph.constants'
 import GlyphSource from './Glyph.tsx?raw'
-import { DOC_TYPE_KEYS } from '../../api/types'
+import { DOC_TYPE_KEYS, type DocTypeKey } from '../../api/types'
 
-// Compile-time type-rejection guards. The @ts-expect-error directives fire
+// Compile-time type-rejection guard. The @ts-expect-error directive fires
 // when `typecheck` (tsc --noEmit) runs; `npm test` alone does not enforce
-// them. Exported so `noUnusedLocals` doesn't elide the function — never
+// it. Exported so `noUnusedLocals` doesn't elide the function — never
 // called at runtime.
 export function _typeContractGuards(): void {
-  // @ts-expect-error — 'templates' is excluded from GlyphDocTypeKey.
-  void (<Glyph docType="templates" size={24} />)
   // @ts-expect-error — size 20 is not 16 | 24 | 32.
   void (<Glyph docType="decisions" size={20} />)
 }
 
-describe('Glyph: type-level helpers', () => {
-  it('GLYPH_DOC_TYPE_KEYS has 12 entries', () => {
-    expect(GLYPH_DOC_TYPE_KEYS.length).toBe(12)
+describe('Glyph: colour-var lookup', () => {
+  it('resolves the virtual templates key to var(--ac-fg-muted)', () => {
+    expect(DOC_TYPE_COLOR_VAR['templates']).toBe('var(--ac-fg-muted)')
   })
 
-  it('GLYPH_DOC_TYPE_KEYS excludes the virtual templates key', () => {
-    expect(GLYPH_DOC_TYPE_KEYS).not.toContain('templates' as GlyphDocTypeKey)
+  it('resolves a non-virtual key to its var(--ac-doc-<key>)', () => {
+    expect(DOC_TYPE_COLOR_VAR['decisions']).toBe('var(--ac-doc-decisions)')
+  })
+})
+
+describe('Glyph: templates rendering', () => {
+  it('unframed templates Glyph sets color var(--ac-fg-muted) and data-doc-type', () => {
+    const { container } = render(<Glyph docType="templates" size={16} />)
+    const svg = container.querySelector('svg') as SVGElement
+    expect(svg.style.color).toBe('var(--ac-fg-muted)')
+    expect(svg.getAttribute('data-doc-type')).toBe('templates')
   })
 
-  it('isGlyphDocTypeKey accepts every non-virtual key', () => {
-    for (const k of GLYPH_DOC_TYPE_KEYS) {
-      expect(isGlyphDocTypeKey(k)).toBe(true)
-    }
-  })
-
-  it('isGlyphDocTypeKey rejects the virtual templates key', () => {
-    expect(isGlyphDocTypeKey('templates')).toBe(false)
-  })
-
-  it('GLYPH_DOC_TYPE_KEYS is the set of DOC_TYPE_KEYS minus virtuals', () => {
-    const expected = DOC_TYPE_KEYS.filter(k => k !== 'templates')
-    expect([...GLYPH_DOC_TYPE_KEYS].sort()).toEqual([...expected].sort())
+  it('framed templates Glyph sets inner-svg color and data-doc-type on span + svg', () => {
+    const { container } = render(<Glyph docType="templates" size={16} framed />)
+    const span = container.querySelector('span')!
+    const svg = container.querySelector('svg') as SVGElement
+    expect(span.getAttribute('data-doc-type')).toBe('templates')
+    expect(svg.getAttribute('data-doc-type')).toBe('templates')
+    expect(svg.style.color).toBe('var(--ac-fg-muted)')
   })
 })
 
@@ -77,7 +79,7 @@ describe('Glyph: runtime DOM shape', () => {
     // Walk via querySelectorAll('*') (not children) so paths nested inside
     // <g> groups are inspected too.
     const allowedFill = /^(currentColor|none|var\(--ac-[a-z0-9-]+\))$/
-    for (const docType of GLYPH_DOC_TYPE_KEYS) {
+    for (const docType of DOC_TYPE_KEYS) {
       const { container, unmount } = render(<Glyph docType={docType} size={24} />)
       const svg = container.querySelector('svg')!
       for (const node of Array.from(svg.querySelectorAll('*'))) {
@@ -96,7 +98,7 @@ describe('Glyph: runtime DOM shape', () => {
   it('every descendant stroke is currentColor or none — never a hex (deep walk)', () => {
     // `stroke="none"` is used on filled-only primitives (e.g. dot accents).
     // Only hex literals would break the theme contract.
-    for (const docType of GLYPH_DOC_TYPE_KEYS) {
+    for (const docType of DOC_TYPE_KEYS) {
       const { container, unmount } = render(<Glyph docType={docType} size={24} />)
       const svg = container.querySelector('svg')!
       for (const node of Array.from(svg.querySelectorAll('*'))) {
@@ -147,7 +149,7 @@ describe('Glyph: runtime guard', () => {
   it('renders null and warns once for an unknown docType in dev', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     // Force an unknown key past the type system to exercise the dev guard.
-    const docType = 'banana' as unknown as GlyphDocTypeKey
+    const docType = 'banana' as unknown as DocTypeKey
     const { container } = render(<Glyph docType={docType} size={24} />)
     expect(container.querySelector('svg')).toBeNull()
     expect(warn).toHaveBeenCalledTimes(1)
@@ -169,11 +171,11 @@ describe('Glyph: source-level no-state-hooks guard', () => {
 // does not reliably substitute `var()` in SVG presentation attributes — see
 // the Resolved Decision in meta/work/0037-glyph-component.md.
 
-// AC line 74: explicit 12 × 3 = 36 combination matrix. Each (docType, size)
+// Explicit 13 × 3 = 39 combination matrix. Each (docType, size)
 // case is named so a regression points directly at the failing combination.
 const SIZES = [16, 24, 32] as const
 
-describe.each(GLYPH_DOC_TYPE_KEYS)('Glyph: %s', (docType) => {
+describe.each(DOC_TYPE_KEYS)('Glyph: %s', (docType) => {
   describe.each(SIZES)('size %s', (size) => {
     it('renders an <svg> with correct dimensions, viewBox, and color var', () => {
       const { container } = render(<Glyph docType={docType} size={size} />)
@@ -182,7 +184,7 @@ describe.each(GLYPH_DOC_TYPE_KEYS)('Glyph: %s', (docType) => {
       expect(svg!.getAttribute('width')).toBe(String(size))
       expect(svg!.getAttribute('height')).toBe(String(size))
       expect(svg!.getAttribute('viewBox')).toBeTruthy()
-      expect(svg!.style.color).toBe(`var(--ac-doc-${docType})`)
+      expect(svg!.style.color).toBe(DOC_TYPE_COLOR_VAR[docType])
     })
   })
 })

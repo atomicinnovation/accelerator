@@ -557,12 +557,12 @@ templates cell appears automatically — no route changes needed.
 
 #### Automated Verification
 
-- [ ] Typecheck passes: `cd skills/visualisation/visualise/frontend && npm run typecheck`
-- [ ] Lint passes: `cd skills/visualisation/visualise/frontend && npm run lint`
-- [ ] Vitest passes including the rewritten Glyph test: `cd skills/visualisation/visualise/frontend && npm run test`
-- [ ] `glyph-resolved-fill.spec.ts` passes for all 13 keys × 2 themes: `cd skills/visualisation/visualise/frontend && npx playwright test --project=visual-regression glyph-resolved-fill`
-- [ ] `glyph-showcase.spec.ts` still passes; if it carries pixel-snapshot baselines under `tests/visual-regression/__screenshots__/`, regenerate them once the templates cell appears (`npx playwright test glyph-showcase --update-snapshots` then commit).
-- [ ] CSS ↔ TS token parity test still passes (no new tokens added): `cd skills/visualisation/visualise/frontend && npm run test -- global.test`
+- [x] Typecheck passes: `cd skills/visualisation/visualise/frontend && npm run typecheck`
+- [~] Lint passes: no `lint` script exists in this project; `tsc -b` (build) acts as the static check and passes.
+- [x] Vitest passes including the rewritten Glyph test: `cd skills/visualisation/visualise/frontend && npm run test` (only pre-existing unrelated `scripts/visual-diff-ciede2000.test.ts` pngjs-resolve failure remains)
+- [x] `glyph-resolved-fill.spec.ts` passes for all 13 keys × 2 themes
+- [x] `glyph-showcase.spec.ts` passes; new templates cell pixel baselines regenerated (darwin via host, linux via Docker) and committed.
+- [x] CSS ↔ TS token parity test still passes (no new tokens added): `global.test` green within the vitest run
 
 #### Manual Verification
 

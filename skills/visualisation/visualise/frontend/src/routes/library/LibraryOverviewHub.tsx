@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Page } from '../../components/Page/Page'
-import { Glyph, isGlyphDocTypeKey } from '../../components/Glyph/Glyph'
+import { Glyph } from '../../components/Glyph/Glyph'
 import { fetchLibraryStructure } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
-import type { LibraryDocType } from '../../api/types'
+import { isPhysicalDocTypeKey, type LibraryDocType } from '../../api/types'
 import styles from './LibraryOverviewHub.module.css'
 
 export function LibraryOverviewHub() {
@@ -69,7 +69,8 @@ function HubCard({ docType }: { docType: LibraryDocType }) {
           : docType.label
       }
     >
-      {isGlyphDocTypeKey(docType.id) && (
+      {/* templates excluded — see meta/work/0074 */}
+      {isPhysicalDocTypeKey(docType.id) && (
         <Glyph docType={docType.id} size={24} framed />
       )}
       <div className={styles.cardBody}>

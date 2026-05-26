@@ -1,7 +1,5 @@
 import { test, expect } from '@playwright/test'
-// Import from the CSS-free constants module; Playwright's TS transformer
-// cannot parse the `Glyph.module.css` that the main `Glyph` re-exports.
-import { GLYPH_DOC_TYPE_KEYS } from '../../src/components/Glyph/Glyph.constants'
+import { DOC_TYPE_KEYS } from '../../src/api/types'
 import { DARK_COLOR_TOKENS } from '../../src/styles/tokens'
 
 const SIZES = [16, 24, 32] as const
@@ -38,7 +36,7 @@ for (const theme of ['light', 'dark'] as const) {
       }
     })
 
-    for (const docType of GLYPH_DOC_TYPE_KEYS) {
+    for (const docType of DOC_TYPE_KEYS) {
       for (const size of SIZES) {
         test(`${docType} @ ${size}px`, async ({ page }) => {
           const cell = page.locator(`[data-testid="glyph-cell-${docType}-${size}"]`)

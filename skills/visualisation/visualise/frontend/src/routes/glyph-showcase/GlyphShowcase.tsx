@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
-import { Glyph, GLYPH_DOC_TYPE_KEYS } from '../../components/Glyph/Glyph'
-import { DOC_TYPE_LABELS } from '../../api/types'
+import { Glyph } from '../../components/Glyph/Glyph'
+import { DOC_TYPE_KEYS, DOC_TYPE_LABELS } from '../../api/types'
 import styles from './GlyphShowcase.module.css'
 
 const SIZES = [16, 24, 32] as const
@@ -23,7 +23,7 @@ export function GlyphShowcase(): ReactElement {
             <span key={s} className={styles.headerCell}>{s}px</span>
           ))}
         </div>
-        {GLYPH_DOC_TYPE_KEYS.map((docType) => (
+        {DOC_TYPE_KEYS.map((docType) => (
           <div key={docType} className={styles.row}>
             <span className={styles.label}>
               <code>{docType}</code>
