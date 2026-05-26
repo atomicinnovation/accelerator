@@ -100,17 +100,12 @@ const CASES: Case[] = [
     selector: '[role="menuitemcheckbox"]',
     expected: '12.5px',
   },
-  {
-    name: 'EmptyState .title',
-    // EmptyState mounts inside <Page>, which itself defines a `.title`
-    // class on its h1. The data-testid avoids the substring collision.
-    // `/library/work-item-reviews` is a known doc-type with zero
-    // entries in the e2e fixtures, so LibraryTypeView renders the
-    // EmptyState path deterministically.
-    route: '/library/work-item-reviews',
-    selector: '[data-testid="empty-state-title"]',
-    expected: '22px',
-  },
+  // EmptyState .title was previously exercised at /library/work-item-reviews,
+  // which had zero fixtures. 0074 Phase 3 added fixtures for every doc type
+  // (so AC #1 can iterate all 12 non-virtual types' detail pages), leaving no
+  // doc type with an empty listing — the only e2e-reachable EmptyState path.
+  // EmptyState .title font-size compliance remains enforced structurally by
+  // the categorical px-literal ban in src/styles/migration.test.ts.
   {
     name: 'LibraryTypeView .row',
     // `.row` renders as `<a>` while `.headerRow` is a `<div>`; both

@@ -61,12 +61,15 @@ const docPaths = {
   decisions: join(fixturesDir, 'decisions'),
   work: join(fixturesDir, 'work'),
   plans: join(fixturesDir, 'plans'),
-  research: join(fixturesDir, 'research'),
+  research_codebase: join(fixturesDir, 'research'),
   review_plans: join(fixturesDir, 'reviews/plans'),
   review_prs: join(fixturesDir, 'reviews/prs'),
   validations: join(fixturesDir, 'validations'),
   notes: join(fixturesDir, 'notes'),
   prs: join(fixturesDir, 'prs'),
+  review_work: join(fixturesDir, 'reviews/work'),
+  research_design_gaps: join(fixturesDir, 'research/design-gaps'),
+  research_design_inventories: join(fixturesDir, 'research/design-inventories'),
 }
 
 const templates = {}

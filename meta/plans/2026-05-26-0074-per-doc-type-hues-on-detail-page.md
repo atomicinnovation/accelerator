@@ -834,9 +834,9 @@ fixture and start-server changes.
 
 #### Automated Verification
 
-- [ ] `cd skills/visualisation/visualise/frontend && npm run build` — Rust binary builds with the new doc_paths
-- [ ] `fixture-coverage.spec.ts` passes for all 13 doc types: `npx playwright test --project=visual-regression fixture-coverage`
-- [ ] No regressions in existing e2e specs: `cd skills/visualisation/visualise/frontend && npx playwright test`
+- [x] Frontend build passes; server binary rebuilds via start-server with the new doc_paths
+- [x] `fixture-coverage.spec.ts` passes for all 13 doc types (templates detail asserts the tiers layout, not `<article>`, since it is served by LibraryTemplatesView)
+- [x] No regressions in existing e2e specs (full `npx playwright test` green). Notes: (1) start-server's `research` doc_paths key was corrected to `research_codebase` to match `config_path_key` so research fixtures load; (2) the EmptyState `.title` case in `typography-resolved-sizes.spec.ts` was removed — populating every doc type leaves no empty listing to reach EmptyState; its font-size compliance stays enforced by `migration.test.ts`.
 
 #### Manual Verification
 
