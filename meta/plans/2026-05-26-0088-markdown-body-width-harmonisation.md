@@ -27,6 +27,18 @@ internally-independent phases driven test-first: Phase 1
 introduces and verifies the token; Phase 2 consumes it, removes
 the exception, and lands the screenshot baselines.
 
+> **Post-implementation deviations (2026-05-26).** This plan was
+> implemented as written for the width token and the
+> exception/baseline machinery, but the prose *typography* shipped
+> differently from the phase steps below after a visual review
+> against the design prototype. The phase steps reference
+> `font-size: var(--size-body)` (20px) and `line-height: 1.6`;
+> what actually shipped is prototype-aligned and is the canonical
+> state. See **Post-Implementation Deviations** at the end of this
+> document for the full diff. The work item
+> (`meta/work/0088-markdown-body-width-harmonisation.md`) carries
+> the updated requirements and acceptance criteria.
+
 ## Current State Analysis
 
 - **Hard-coded literal**:
@@ -843,3 +855,52 @@ canonicalise the 20px body size as the new baseline.
   - `meta/work/0033-design-token-system.md` (status: done) — established the size scale and layout-token family.
   - `meta/plans/2026-05-23-0075-typography-size-scale-consumption.md` (status: accepted) — established the `font-size` consumption rule the new declaration adheres to.
   - `meta/work/0076-code-block-syntax-highlight-palette.md` (status: done) — recent neighbour edit on the same `MarkdownRenderer.module.css` file; no rebase risk against the current commit.
+
+## Post-Implementation Deviations
+
+The width token, the `EXCEPTIONS` retirement, the
+`migration.test.ts` presence block, the helper extraction, and
+the two new Playwright specs landed as planned. The prose
+*typography* shipped differently after a visual review against
+the design prototype (`.ac-md` in
+`meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-standalone.html`).
+The values below are the canonical state; the Phase 2 steps above
+are retained for their TDD narrative but are superseded on these
+points.
+
+### What changed vs the plan
+
+| Aspect | Plan (Phase 2) | Shipped |
+| --- | --- | --- |
+| Body `font-size` | `var(--size-body)` (20px) | `var(--size-prose)` (14.5px) |
+| Body `line-height` | literal `1.6` | `var(--lh-prose)` (1.65) |
+| Body `color` | `var(--ac-fg-strong)` | `var(--ac-fg)` |
+| Body `font-weight` | (unset → inherits 400) | `300` |
+| `h2` `font-size` | `var(--size-lg)` (22px) | `var(--size-md)` (18px) |
+| Headings `color` | (inherited) | explicit `var(--ac-fg-strong)` |
+
+### New tokens (not in the plan)
+
+- `--size-prose: 14.5px` and `--lh-prose: 1.65` added to
+  `TYPOGRAPHY_TOKENS` (`tokens.ts`) and mirrored in `global.css`.
+  Off-scale prototype-derived values, consistent with existing
+  precedent (`--size-xxs-sm: 11.5px`, `--size-row: 12.5px`).
+- The `migration.test.ts` `.markdown` presence block asserts
+  `var(--size-prose)` (not `var(--size-body)` as the plan's §1
+  draft stated), and the
+  `typography-resolved-sizes.spec.ts MarkdownRenderer body p`
+  case expects `'14.5px'` (not `'20px'`).
+
+### New font asset (not in the plan)
+
+- `font-weight: 300` requires a real 300-weight Inter face
+  (browsers don't synthesise lighter weights). Added
+  `public/fonts/Inter-Light.woff2` (Google Fonts Inter v20 latin
+  subset, OFL-1.1) plus its `@font-face` block in `global.css`,
+  and updated `public/fonts/SHA256SUMS`,
+  `public/fonts/LICENSE-fonts.md`, and `EXPECTED_FONT_FILES` in
+  `src/styles/fonts.test.ts`.
+- Observed during this work: the pre-existing
+  `Inter-{Regular,Medium,SemiBold,Bold}.woff2` are byte-identical
+  placeholders (shared SHA256). Replacing them with genuinely
+  distinct weights is out of scope here — candidate follow-up.
