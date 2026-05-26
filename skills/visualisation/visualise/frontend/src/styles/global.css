@@ -149,6 +149,7 @@ body {
   --size-h4:          26px;
   --size-lg:          22px;
   --size-body:        20px;
+  --size-prose:       14.5px;
   --size-md:          18px;
   --size-sm:          16px;
   --size-xs:          14px;
@@ -164,6 +165,7 @@ body {
   --lh-snug:          1.2;
   --lh-normal:        1.5;
   --lh-loose:         1.6;
+  --lh-prose:         1.65;
   --tracking-caps:    0.12em;
 
   /* Spacing */

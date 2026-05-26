@@ -3,15 +3,16 @@
    only when both declarations live on the same rule. */
 .markdown {
   max-width: min(var(--ac-content-max-width-prose), 100%);
-  font-size: var(--size-body);
-  line-height: 1.6;
-  color: var(--ac-fg-strong);
+  font-size: var(--size-prose);
+  line-height: var(--lh-prose);
+  color: var(--ac-fg);
 }
 .markdown h1, .markdown h2, .markdown h3 {
   margin-top: var(--sp-5); margin-bottom: var(--sp-2); font-weight: 600; font-family: var(--ac-font-display);
+  color: var(--ac-fg-strong);
 }
 .markdown h1 { font-size: var(--size-h3); border-bottom: 1px solid var(--ac-stroke-soft); padding-bottom: var(--sp-1); }
-.markdown h2 { font-size: var(--size-lg); }
+.markdown h2 { font-size: var(--size-md); }
 .markdown h3 { font-size: var(--size-sm); }
 .markdown p { margin: var(--sp-3) 0; }
 .markdown pre {

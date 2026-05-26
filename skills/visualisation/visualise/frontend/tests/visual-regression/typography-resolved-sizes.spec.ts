@@ -50,7 +50,7 @@ const CASES: Case[] = [
     name: 'MarkdownRenderer body p',
     route: '/library/plans/first-plan',
     selector: '[class*="markdown"] p',
-    expected: '20px',
+    expected: '14.5px',
   },
   {
     name: 'Page .eyebrow',

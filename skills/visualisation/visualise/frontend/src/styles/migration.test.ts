@@ -443,8 +443,8 @@ describe('MarkdownRenderer .markdown rule consumes prose-width and body-size tok
     expect(css!).toContain('var(--ac-content-max-width-prose)')
   })
 
-  itIfPresent('references var(--size-body) for the body font-size', () => {
-    expect(css!).toContain('var(--size-body)')
+  itIfPresent('references var(--size-prose) for the body font-size', () => {
+    expect(css!).toContain('var(--size-prose)')
   })
 })
 
