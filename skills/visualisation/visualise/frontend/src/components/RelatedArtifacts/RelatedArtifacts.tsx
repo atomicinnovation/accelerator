@@ -92,7 +92,7 @@ function RelatedGroup({ label, entries, kind, testId }: GroupProps) {
       <ul className={styles.groupList}>
         {entries.map((entry) => (
           <li key={entry.path} className={styles.groupItem}>
-            <Glyph docType={entry.type} size={16} />
+            <Glyph docType={entry.type} size={16} framed />
             <a href={`/library/${entry.type}/${fileSlugFromRelPath(entry.relPath)}`}>
               {entry.title || entry.relPath}
             </a>

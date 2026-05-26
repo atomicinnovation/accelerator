@@ -1,0 +1,9 @@
+/* The wrapping span is the single child of Page's .eyebrow flex row, so the
+   container's gap/alignment no longer apply between the glyph and the label.
+   Re-establish them here: center the glyph against the uppercase label and
+   space them by --sp-2 (matching the pre-extraction listing eyebrow). */
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
