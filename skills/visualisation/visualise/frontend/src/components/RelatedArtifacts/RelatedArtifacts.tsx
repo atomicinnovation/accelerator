@@ -1,5 +1,6 @@
 import type { IndexEntry, RelatedArtifactsResponse } from '../../api/types'
 import { fileSlugFromRelPath } from '../../api/path-utils'
+import { Glyph } from '../Glyph/Glyph'
 import styles from './RelatedArtifacts.module.css'
 
 interface Props {
@@ -39,6 +40,7 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
           label="Targets"
           entries={related.declaredOutbound}
           kind="declared"
+          testId="related-group-declared-outbound"
         />
       )}
       {related.declaredInbound.length > 0 && (
@@ -46,6 +48,7 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
           label="Referenced by"
           entries={related.declaredInbound}
           kind="declared"
+          testId="related-group-declared-inbound"
         />
       )}
       {related.inferredCluster.length > 0 && (
@@ -53,6 +56,7 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
           label="Same lifecycle"
           entries={related.inferredCluster}
           kind="inferred"
+          testId="related-group-inferred"
         />
       )}
     </>
@@ -74,19 +78,21 @@ interface GroupProps {
   label: string
   entries: IndexEntry[]
   kind: 'declared' | 'inferred'
+  testId?: string
 }
 
-function RelatedGroup({ label, entries, kind }: GroupProps) {
+function RelatedGroup({ label, entries, kind, testId }: GroupProps) {
   const groupClass =
     kind === 'declared' ? styles.groupDeclared : styles.groupInferred
   const badgeClass =
     kind === 'declared' ? styles.badgeDeclared : styles.badgeInferred
   return (
-    <div className={`${styles.group} ${groupClass}`}>
+    <div className={`${styles.group} ${groupClass}`} data-testid={testId}>
       <h4 className={styles.groupHeading}>{label}</h4>
       <ul className={styles.groupList}>
         {entries.map((entry) => (
           <li key={entry.path} className={styles.groupItem}>
+            <Glyph docType={entry.type} size={16} />
             <a href={`/library/${entry.type}/${fileSlugFromRelPath(entry.relPath)}`}>
               {entry.title || entry.relPath}
             </a>

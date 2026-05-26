@@ -27,7 +27,9 @@
   padding: 0.15rem 0;
   display: flex;
   gap: 0.4rem;
-  align-items: baseline;
+  /* Aligns Glyph (16×16 SVG, no text baseline) with anchor text — see
+     meta/work/0074. */
+  align-items: center;
 }
 .groupItem a {
   flex: 1;

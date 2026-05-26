@@ -97,12 +97,10 @@ test time (so the spec is insulated from later 0073 brand-layer churn).
 - [ ] For each of the 12 non-virtual `DocTypeKey` values, at least one
   detail-page fixture must include a `RelatedArtifacts` row linking to
   a document of that type; that row's icon has computed `color` equal
-  to the literal RGB string captured for `--ac-doc-<key>`. At least
-  one fixture must include a related row of virtual `templates` type;
-  that row's icon has computed `color` equal to the literal RGB string
-  captured for `--ac-text-muted`. The row container's computed
-  `background-color`, `border-color`, and `border-width` are identical
-  pre- and post-change.
+  to the literal RGB string captured for `--ac-doc-<key>`. The row
+  container's computed `background-color`, `border-color`, and
+  `border-width` are identical pre- and post-change. (Templates is
+  descoped from this criterion — see Drafting Notes.)
 - [ ] For each of the 12 non-virtual doc types, the elements in the
   sidebar (`TypeGlyph`) and library hub (`StageTile`) that consume
   `--ac-doc-<key>` resolve to the same literal RGB strings as captured
@@ -200,6 +198,13 @@ test time (so the spec is insulated from later 0073 brand-layer churn).
 - `data-doc-type` attribute approach kept as suggested technical
   approach rather than acceptance criterion — implementer's choice.
 - Frontmatter `type:` field renamed to `kind:` per 0063 (done).
+- AC #2 templates row descoped during implementation: the backend never
+  emits a `templates` row in any `RelatedArtifacts` response — templates
+  are excluded from indexing (`indexer.rs`) and inferred clustering
+  (`clusters.rs`) by design (no on-disk fixtures). AC #2 therefore covers
+  the 12 non-virtual doc types only; templates Glyph rendering is verified
+  indirectly by the detail-page eyebrow spec (templates detail route) and
+  the listing-route eyebrow spec (`/library/templates`).
 
 ## References
 

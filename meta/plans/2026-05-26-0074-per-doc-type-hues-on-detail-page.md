@@ -1510,16 +1510,13 @@ fixtures) are infrastructure that §2 depends on.
 
 #### Automated Verification
 
-- [ ] `aside-row-resolved-colours.spec.ts` passes for all 12
-  non-virtual target types × 2 themes (24 colour assertions +
-  aria-hidden assertions). One of the 12 navigates to a sibling
-  anchor to surface `work-items` in its cluster.
-- [ ] Up-front `toHaveCount(11)` coverage assertion passes (one
-  row per other non-virtual sibling when navigating to
-  `/library/work-items/0099-ac2-coverage`).
-- [ ] Container-invariance assertions pass (inferred group border,
+- [x] `aside-row-resolved-colours.spec.ts` passes for all 12
+  non-virtual target types × 2 themes (incl. work-items via a sibling
+  anchor) plus aria-hidden assertions.
+- [x] Up-front `toHaveCount(11)` coverage assertion passes.
+- [x] Container-invariance assertions pass (inferred group border,
   row background, row border-width, row align-items).
-- [ ] Typecheck + lint pass.
+- [x] Typecheck passes (no `lint` script); full Playwright suite + vitest green.
 
 #### Manual Verification
 
@@ -1534,7 +1531,7 @@ fixtures) are infrastructure that §2 depends on.
 
 ### Out-of-band followups
 
-- [ ] Update `meta/work/0074-per-doc-type-hues-on-detail-page.md`
+- [x] Update `meta/work/0074-per-doc-type-hues-on-detail-page.md`
   AC #2 wording to scope to "12 non-virtual doc types" and add a
   Drafting Note explaining the templates descope (backend never
   emits a templates row in any RelatedArtifacts response;

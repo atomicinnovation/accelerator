@@ -121,4 +121,51 @@ describe('RelatedArtifacts', () => {
     rerender(<RelatedArtifacts related={populated} showUpdatingHint={false} />)
     expect(screen.queryByText('Updating…')).toBeNull()
   })
+
+  // ── Phase 5 (AC #2): per-row doc-type icon ──────────────────────────
+  it('each row renders a decorative Glyph matching the row doc type', () => {
+    const { container } = render(
+      <RelatedArtifacts
+        related={{
+          inferredCluster: [exampleAdr],
+          declaredOutbound: [examplePlan],
+          declaredInbound: [],
+        }}
+      />,
+    )
+    for (const [group, docType] of [
+      ['related-group-declared-outbound', 'plans'],
+      ['related-group-inferred', 'decisions'],
+    ] as const) {
+      const svg = container.querySelector(
+        `[data-testid="${group}"] li svg`,
+      ) as SVGElement | null
+      expect(svg, `missing row icon in ${group}`).not.toBeNull()
+      expect(svg!.getAttribute('data-doc-type')).toBe(docType)
+      expect(svg!.getAttribute('aria-hidden')).toBe('true')
+      expect(svg!.getAttribute('role')).toBeNull()
+    }
+  })
+
+  it('the three RelatedGroup wrappers carry distinct testids', () => {
+    const { container } = render(
+      <RelatedArtifacts
+        related={{
+          inferredCluster: [exampleAdr],
+          declaredOutbound: [examplePlan],
+          declaredInbound: [exampleReview],
+        }}
+      />,
+    )
+    for (const id of [
+      'related-group-declared-outbound',
+      'related-group-declared-inbound',
+      'related-group-inferred',
+    ]) {
+      expect(
+        container.querySelectorAll(`[data-testid="${id}"]`),
+        `expected exactly one ${id}`,
+      ).toHaveLength(1)
+    }
+  })
 })
