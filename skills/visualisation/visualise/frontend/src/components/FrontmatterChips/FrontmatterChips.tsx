@@ -1,5 +1,6 @@
 import { FrontmatterChip } from '../FrontmatterChip/FrontmatterChip'
 import { StatusBadge } from '../StatusBadge/StatusBadge'
+import { formatChipDate } from '../../api/format'
 import styles from './FrontmatterChips.module.css'
 
 type FrontmatterChipsProps =
@@ -63,7 +64,9 @@ export function FrontmatterChips(props: FrontmatterChipsProps) {
       {entries.map(([key, value]) =>
         key === 'status'
           ? <StatusBadge key={key} value={value} />
-          : <FrontmatterChip key={key} name={key} value={value} />
+          : key === 'date'
+            ? <FrontmatterChip key={key} name={key} value={formatChipDate(value)} />
+            : <FrontmatterChip key={key} name={key} value={value} />
       )}
     </div>
   )

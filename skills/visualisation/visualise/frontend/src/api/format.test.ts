@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatMtime, formatRelative } from './format'
+import { formatMtime, formatRelative, formatChipDate } from './format'
 
 describe('formatMtime', () => {
   const NOW = 1_700_000_000_000
@@ -62,5 +62,35 @@ describe('formatRelative', () => {
     expect(formatRelative(now - 60_000, now)).toBe('1m ago')
     expect(formatRelative(now - 3_600_000, now)).toBe('1h ago')
     expect(formatRelative(now - 86_400_000, now)).toBe('1d ago')
+  })
+})
+
+describe('formatChipDate', () => {
+  const NOW = Date.parse('2026-04-08T00:00:00Z')
+
+  it('formats a date-only string as short-form relative time', () => {
+    expect(formatChipDate('2026-04-05', NOW)).toBe('3d ago')
+  })
+
+  it('formats an ISO datetime string as short-form relative time', () => {
+    expect(formatChipDate('2026-04-08T00:00:00Z', NOW)).toBe('0s ago')
+    expect(formatChipDate('2026-04-07T21:00:00Z', NOW)).toBe('3h ago')
+  })
+
+  it('formats a Date object as short-form relative time', () => {
+    expect(formatChipDate(new Date('2026-04-05T00:00:00Z'), NOW)).toBe('3d ago')
+  })
+
+  it('flips to a locale date string past 30 days', () => {
+    const result = formatChipDate('2026-01-01', NOW)
+    expect(result).not.toMatch(/ago$/)
+  })
+
+  it('returns the raw string when unparseable', () => {
+    expect(formatChipDate('not a date', NOW)).toBe('not a date')
+  })
+
+  it('stringifies non-string, non-Date values', () => {
+    expect(formatChipDate(2026, NOW)).toBe('2026')
   })
 })

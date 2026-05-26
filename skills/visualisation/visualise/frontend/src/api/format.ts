@@ -48,3 +48,18 @@ export function formatRelative(ms: number, now: number = Date.now()): string {
   if (diffSec < 0) return '0s ago'
   return formatElapsedShort(diffSec) ?? `${Math.floor(diffSec / 86400)}d ago`
 }
+
+/** Renders a frontmatter `date:` value as short-form relative time
+ *  (`3h ago` / `2d ago`), flipping to a locale date past 30 days via
+ *  `formatMtime`. Accepts the string or `Date` shapes a YAML parser may
+ *  emit; returns the raw text untouched when the value is not a parseable
+ *  date so a malformed `date:` still surfaces rather than vanishing. */
+export function formatChipDate(value: unknown, now: number = Date.now()): string {
+  const ms = value instanceof Date
+    ? value.getTime()
+    : typeof value === 'string'
+      ? Date.parse(value)
+      : NaN
+  if (Number.isNaN(ms)) return typeof value === 'string' ? value : String(value)
+  return formatMtime(ms, now)
+}

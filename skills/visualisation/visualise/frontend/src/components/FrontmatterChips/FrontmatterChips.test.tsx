@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { FrontmatterChips } from './FrontmatterChips'
 import css from './FrontmatterChips.module.css?raw'
@@ -6,6 +6,20 @@ import styles from './FrontmatterChips.module.css'
 import { DOC_TYPE_KEYS, type DocTypeKey } from '../../api/types'
 
 const CHIP_SELECTOR = '[data-testid="status-badge"],[data-testid="frontmatter-chip"]'
+
+// Fixed clock so the `date` chip's relative-time output is deterministic.
+// Fixtures use `date: '2026-04-05'`, three days before this instant, which
+// `formatChipDate` renders as `3d ago`.
+const NOW = new Date('2026-04-08T00:00:00Z')
+
+beforeEach(() => {
+  vi.useFakeTimers()
+  vi.setSystemTime(NOW)
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('FrontmatterChips', () => {
   describe('parsed state', () => {
@@ -54,10 +68,10 @@ describe('FrontmatterChips', () => {
     it('renders a chip for a non-string canonical value (smoke test)', () => {
       // YAML parsers may emit Date objects for ISO dates; co-authored
       // documents may use array `author`. These are realistic shapes for
-      // `Record<string, unknown>` frontmatter — pin the current
-      // `FrontmatterChip.formatChipValue` rules (JSON.stringify for
-      // non-array objects including Date, `, ` join for arrays) so
-      // future changes there don't regress chip rendering silently.
+      // `Record<string, unknown>` frontmatter. The `date` chip routes
+      // through `formatChipDate` (relative time); `author` routes through
+      // `FrontmatterChip.formatChipValue`'s `, ` join for arrays — pin
+      // both so future changes don't regress chip rendering silently.
       const { container } = render(
         <FrontmatterChips
           state="parsed"
@@ -70,11 +84,7 @@ describe('FrontmatterChips', () => {
       const labels = Array.from(container.querySelectorAll('[aria-label]'))
         .map((el) => el.getAttribute('aria-label'))
       expect(labels).toEqual([
-        // JSON.stringify(Date) yields a quoted ISO string — the literal
-        // quotes are part of the rendered chip text. This is surprising
-        // but accurate; if FrontmatterChip ever special-cases Date, this
-        // assertion catches the change.
-        'date: "2026-04-05T00:00:00.000Z"',
+        'date: 3d ago',
         'author: Alice, Bob',
       ])
     })
@@ -213,7 +223,7 @@ describe('FrontmatterChips', () => {
       const labels = Array.from(container.querySelectorAll('[aria-label]'))
         .map((el) => el.getAttribute('aria-label'))
       expect(labels).toEqual([
-        'status: draft', 'date: 2026-04-05', 'author: Toby Clemson',
+        'status: draft', 'date: 3d ago', 'author: Toby Clemson',
       ])
     })
 
@@ -227,7 +237,7 @@ describe('FrontmatterChips', () => {
       const labels = Array.from(container.querySelectorAll('[aria-label]'))
         .map((el) => el.getAttribute('aria-label'))
       expect(labels).toEqual([
-        'status: draft', 'date: 2026-04-05', 'author: Toby Clemson',
+        'status: draft', 'date: 3d ago', 'author: Toby Clemson',
       ])
     })
   })
@@ -258,10 +268,10 @@ describe('FrontmatterChips', () => {
 
   describe('subset ordering', () => {
     it.each([
-      [{ status: 'draft', date: '2026-04-05' }, ['status: draft', 'date: 2026-04-05']],
+      [{ status: 'draft', date: '2026-04-05' }, ['status: draft', 'date: 3d ago']],
       [{ status: 'draft', author: 'Toby Clemson' }, ['status: draft', 'author: Toby Clemson']],
-      [{ date: '2026-04-05', author: 'Toby Clemson' }, ['date: 2026-04-05', 'author: Toby Clemson']],
-      [{ author: 'Toby Clemson', date: '2026-04-05' }, ['date: 2026-04-05', 'author: Toby Clemson']],
+      [{ date: '2026-04-05', author: 'Toby Clemson' }, ['date: 3d ago', 'author: Toby Clemson']],
+      [{ author: 'Toby Clemson', date: '2026-04-05' }, ['date: 3d ago', 'author: Toby Clemson']],
       [{ status: 'draft' }, ['status: draft']],
     ])('renders subset %# in canonical order', (frontmatter, expectedLabels) => {
       const { container } = render(
@@ -309,7 +319,7 @@ describe('FrontmatterChips', () => {
       )
       const labels = Array.from(container.querySelectorAll('[aria-label]'))
         .map((el) => el.getAttribute('aria-label'))
-      expect(labels).toEqual(['date: 2026-04-05'])
+      expect(labels).toEqual(['date: 3d ago'])
     })
 
     it('uses author, ignoring last_updated_by', () => {
@@ -369,7 +379,7 @@ describe('12-doc-kind corpus verification', () => {
       .map((el) => el.getAttribute('aria-label'))
     // Exactly three canonical chips, no chip carrying the extra key.
     expect(labels).toEqual([
-      'status: draft', 'date: 2026-04-05', 'author: Toby Clemson',
+      'status: draft', 'date: 3d ago', 'author: Toby Clemson',
     ])
     expect(labels.some((l) => l?.startsWith(`${extraKey}:`))).toBe(false)
   })
