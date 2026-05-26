@@ -665,14 +665,14 @@ Notes:
 
 #### Automated Verification
 
-- [ ] Typecheck passes
-- [ ] Lint passes
-- [ ] Vitest passes including new EyebrowLabel test
-- [ ] Existing route tests still pass (no `LibraryTypeView` /
-  `LibraryTemplatesIndex` test regressions; the templates index test
-  may need its `LayersIcon`-based assertions updated to reference Glyph)
-- [ ] Playwright `navigation.spec.ts` and any spec asserting the
-  listing-route eyebrow still passes: `cd skills/visualisation/visualise/frontend && npx playwright test`
+- [x] Typecheck passes
+- [~] Lint: no `lint` script; typecheck/build green
+- [x] Vitest passes including new EyebrowLabel test
+- [x] Existing route tests still pass (no `LibraryTypeView` /
+  `LibraryTemplatesIndex` regressions; the `TEMPLATES` eyebrow text
+  assertion still passes via EyebrowLabel)
+- [x] Full Playwright suite passes (tokens `library-templates` full-page
+  screenshot stays within tolerance; no baseline regen needed)
 
 #### Manual Verification
 

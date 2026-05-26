@@ -14,7 +14,7 @@ import { isDocTypeKey, DOC_TYPE_LABELS } from '../../api/types'
 import { useMarkDocTypeSeen } from '../../api/use-unseen-doc-types'
 import { fileSlugFromRelPath } from '../../api/path-utils'
 import { Chip } from '../../components/Chip/Chip'
-import { Glyph } from '../../components/Glyph/Glyph'
+import { EyebrowLabel } from '../../components/EyebrowLabel/EyebrowLabel'
 import { Page } from '../../components/Page/Page'
 import { SortPill, type SortOption } from '../../components/SortPill/SortPill'
 import { FilterPill } from '../../components/FilterPill/FilterPill'
@@ -264,14 +264,5 @@ export function LibraryTypeView({ type: propType }: Props) {
         </div>
       )}
     </Page>
-  )
-}
-
-function EyebrowLabel({ type }: { type: DocTypeKey }) {
-  return (
-    <>
-      <Glyph docType={type} size={16} framed />
-      {DOC_TYPE_LABELS[type].toUpperCase()}
-    </>
   )
 }

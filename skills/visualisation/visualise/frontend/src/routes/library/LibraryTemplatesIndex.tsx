@@ -6,6 +6,7 @@ import { fetchTemplates } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
 import type { TemplateSummary, TemplateTier, TemplateTierSource } from '../../api/types'
 import { Glyph } from '../../components/Glyph/Glyph'
+import { EyebrowLabel } from '../../components/EyebrowLabel/EyebrowLabel'
 import { TIER_ORDER, TIER_SHORT_LABELS, glyphKeyForTemplate } from './template-tier'
 import styles from './LibraryTemplatesIndex.module.css'
 
@@ -15,29 +16,6 @@ function tierStateFor(t: TemplateTier | undefined): TierState {
   if (!t || !t.present) return 'absent'
   if (t.active) return 'active'
   return 'present'
-}
-
-/** Inline layers SVG (Feather "layers" path), used as the page eyebrow
- *  glyph for the Templates view. Sourced from the design prototype's
- *  Icon component (ui.jsx). */
-export function LayersIcon({ size = 12 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m12 3 9 5-9 5-9-5z" />
-      <path d="m3 13 9 5 9-5" />
-      <path d="m3 18 9 5 9-5" />
-    </svg>
-  )
 }
 
 /** Inline chevron-right SVG. Used as the inter-pill separator and as
@@ -156,12 +134,7 @@ export function TemplatesPage({ selectedName, extraContent }: PageProps) {
 
   return (
     <Page
-      eyebrow={
-        <>
-          <LayersIcon size={12} />
-          TEMPLATES
-        </>
-      }
+      eyebrow={<EyebrowLabel type="templates" />}
       title="Templates"
       subtitle="The starting shape for every new doc. Pick a template to see which version is active and what the other tiers look like."
     >
