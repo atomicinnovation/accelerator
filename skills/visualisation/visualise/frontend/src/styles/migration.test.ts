@@ -67,7 +67,6 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '0.1rem', count: 1, kind: 'irreducible', reason: 'sub-pixel code padding — below --sp-1 floor' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'blockquote border-left width — no border-width token' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '6px', count: 2, kind: 'irreducible', reason: 'code block border-radius (bare <pre> + labelled-fence wrapper) — between radius-sm and radius-md' },
-  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '720px', count: 1, kind: 'irreducible', reason: 'prose max-width — no token equivalent' },
   // components/PipelineDots/PipelineDots.module.css
   { file: 'components/PipelineDots/PipelineDots.module.css', literal: '14px', count: 2, kind: 'irreducible', reason: 'dot width/height — fixed icon pixel, no sp-* equivalent' },
   { file: 'components/PipelineDots/PipelineDots.module.css', literal: '5px', count: 2, kind: 'irreducible', reason: 'inner dot size — fixed icon pixel, no sp-* equivalent' },
@@ -428,6 +427,24 @@ describe('EXCEPTIONS hygiene', () => {
       }
     }
     expect(mismatches).toEqual([])
+  })
+})
+
+describe('MarkdownRenderer .markdown rule consumes prose-width and body-size tokens', () => {
+  const path = 'components/MarkdownRenderer/MarkdownRenderer.module.css'
+  const css = cssBySrcRelative.get(path)
+  const itIfPresent = css ? it : it.skip
+
+  it('the file is discoverable', () => {
+    expect(css, `expected ${path} to be globbed by cssModules`).toBeDefined()
+  })
+
+  itIfPresent('references var(--ac-content-max-width-prose) for the prose cap', () => {
+    expect(css!).toContain('var(--ac-content-max-width-prose)')
+  })
+
+  itIfPresent('references var(--size-body) for the body font-size', () => {
+    expect(css!).toContain('var(--size-body)')
   })
 })
 

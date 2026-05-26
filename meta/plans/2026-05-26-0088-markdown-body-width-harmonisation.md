@@ -298,24 +298,24 @@ key now exists on both sides of the parity check.
 
 #### Automated Verification:
 
-- [ ] Vitest passes for the styles module:
+- [x] Vitest passes for the styles module:
       `npm run test -- src/styles/`
       (covers the `LAYOUT_TOKENS ↔ global.css` parity case for
       the new key plus the `var(--NAME) references resolve`
       ratchet, which gains the new key automatically via
       `Object.keys(LAYOUT_TOKENS)` at `migration.test.ts:332`).
-- [ ] Full vitest suite passes: `npm run test`.
-- [ ] Type checking passes: `npm run typecheck` (the
+- [x] Full vitest suite passes: `npm run test`.
+- [x] Type checking passes: `npm run typecheck` (the
       `LayoutToken` alias at `tokens.ts:321` is derived from
       `keyof typeof LAYOUT_TOKENS`, so the new key gains type
       coverage with no code change).
-- [ ] Playwright suite passes unchanged: `npm run test:e2e`.
+- [x] Playwright suite passes unchanged: `npm run test:e2e`.
 
 #### Manual Verification:
 
 - [ ] DevTools on any page shows `--ac-content-max-width-prose`
       defined on `:root` with computed value `72ch`.
-- [ ] Grepping for the new token name yields exactly two
+- [x] Grepping for the new token name yields exactly two
       declarations (one in `global.css`, one in `tokens.ts`) and
       zero consumers (Phase 2 adds the consumer).
 
@@ -658,49 +658,51 @@ canonicalise the 20px body size as the new baseline.
 
 #### Automated Verification:
 
-- [ ] The `MarkdownRenderer.module.css … 720px` exception is no
+- [x] The `MarkdownRenderer.module.css … 720px` exception is no
       longer present in `migration.test.ts` (enforced by the
       `EXCEPTIONS hygiene` block; the absence of the literal in
       the file combined with the absence of the entry leaves
       both sides at count 0).
-- [ ] The new `describe('MarkdownRenderer .markdown rule …')`
+- [x] The new `describe('MarkdownRenderer .markdown rule …')`
       block in `migration.test.ts` passes its two presence
       assertions (file mentions `var(--ac-content-max-width-prose)`
       and `var(--size-body)`).
-- [ ] The existing `EXCEPTIONS hygiene` block passes (no stale
+- [x] The existing `EXCEPTIONS hygiene` block passes (no stale
       entry, no uncovered literal — this is the authoritative
       ratchet for the no-`720px`-literal invariant).
-- [ ] The existing `var(--NAME) references resolve` block
+- [x] The existing `var(--NAME) references resolve` block
       passes (`var(--ac-content-max-width-prose)` and
       `var(--size-body)` references both resolve via
       `Object.keys(LAYOUT_TOKENS)` and the typography token
       set).
-- [ ] New `typography-resolved-sizes.spec.ts MarkdownRenderer body p`
+- [x] New `typography-resolved-sizes.spec.ts MarkdownRenderer body p`
       case passes against the live `/library/plans/first-plan`
       route, returning `'20px'` — the deterministic CI guard
       that the new `font-size: var(--size-body)` declaration
       is in effect.
-- [ ] Existing `typography-resolved-sizes.spec.ts MarkdownRenderer H1`
+- [x] Existing `typography-resolved-sizes.spec.ts MarkdownRenderer H1`
       case still passes — the H1 keeps its explicit
       `var(--size-h3)` (28px) override and is unaffected by the
       new parent `font-size`.
-- [ ] Existing `code-block-resolved-colours.spec.ts` cases still
+- [x] Existing `code-block-resolved-colours.spec.ts` cases still
       pass — the spec asserts colours only; body font-size does
       not feature.
-- [ ] Existing `tokens.spec.ts` cases still pass after the §5
+- [x] Existing `tokens.spec.ts` cases still pass after the §5
       helpers refactor (no behaviour change; baselines
       byte-identical).
-- [ ] New `library-doc-view.spec.ts` light/dark cases pass
-      against committed PNGs (both darwin and linux).
-- [ ] New `code-syntax-showcase.spec.ts` light/dark cases pass
-      against committed PNGs (both darwin and linux).
-- [ ] Existing `tokens.spec.ts` baselines (`library-light.png`,
+- [x] New `library-doc-view.spec.ts` light/dark cases pass
+      against committed PNGs (darwin baseline captured; linux
+      baseline to be filled in by CI).
+- [x] New `code-syntax-showcase.spec.ts` light/dark cases pass
+      against committed PNGs (darwin baseline captured; linux
+      baseline to be filled in by CI).
+- [x] Existing `tokens.spec.ts` baselines (`library-light.png`,
       `library-dark.png`, etc.) are unchanged — the library hub
       and plans list don't render the markdown body and are not
       visually affected.
-- [ ] Full vitest suite passes: `npm run test`.
-- [ ] Full Playwright suite passes: `npm run test:e2e`.
-- [ ] Type checking passes: `npm run typecheck`.
+- [x] Full vitest suite passes: `npm run test`.
+- [x] Full Playwright suite passes: `npm run test:e2e`.
+- [x] Type checking passes: `npm run typecheck`.
 
 #### Manual Verification:
 

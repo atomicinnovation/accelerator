@@ -1,5 +1,9 @@
+/* font-size + max-width co-located: 1ch resolves against this
+   element's own computed font, so the prose cap is meaningful
+   only when both declarations live on the same rule. */
 .markdown {
-  max-width: 720px;
+  max-width: min(var(--ac-content-max-width-prose), 100%);
+  font-size: var(--size-body);
   line-height: 1.6;
   color: var(--ac-fg-strong);
 }
