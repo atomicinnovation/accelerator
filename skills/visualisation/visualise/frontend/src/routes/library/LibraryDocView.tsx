@@ -11,6 +11,7 @@ import { FrontmatterChips } from '../../components/FrontmatterChips/FrontmatterC
 import { FrontmatterTable } from '../../components/FrontmatterTable/FrontmatterTable'
 import { MarkdownRenderer } from '../../components/MarkdownRenderer/MarkdownRenderer'
 import { RelatedArtifacts } from '../../components/RelatedArtifacts/RelatedArtifacts'
+import { EyebrowLabel } from '../../components/EyebrowLabel/EyebrowLabel'
 import type { DocTypeKey } from '../../api/types'
 import { isDocTypeKey } from '../../api/types'
 import { fileSlugFromRelPath } from '../../api/path-utils'
@@ -149,8 +150,16 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
     )
   }
 
+  // Only show the per-doc-type eyebrow once the document has resolved —
+  // not on the loading or "Document not found" branches.
+  const hasResolvedDocument = Boolean(entry && content.data)
+
   return (
-    <Page title={title} subtitle={subtitle}>
+    <Page
+      eyebrow={hasResolvedDocument ? <EyebrowLabel type={type} /> : undefined}
+      title={title}
+      subtitle={subtitle}
+    >
       {body}
     </Page>
   )

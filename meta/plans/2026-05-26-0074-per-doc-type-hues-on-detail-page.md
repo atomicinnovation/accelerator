@@ -1055,15 +1055,14 @@ gate ensures the eyebrow only appears once the document has resolved.
 
 #### Automated Verification
 
-- [ ] `detail-eyebrow-resolved-colours.spec.ts` passes for all 26
-  combinations (13 keys × 2 themes) plus 2 label-text assertions:
-  `npx playwright test --project=visual-regression detail-eyebrow`
-- [ ] Migrated `chip-resolved-colours.spec.ts` and
+- [x] `detail-eyebrow-resolved-colours.spec.ts` passes for all 26
+  combinations (13 keys × 2 themes) plus 2 label-text assertions
+- [x] Migrated `chip-resolved-colours.spec.ts` and
   `glyph-resolved-fill.spec.ts` still pass (helper extraction is a
-  no-op refactor): `npx playwright test --project=visual-regression chip glyph`
-- [ ] Typecheck + lint pass.
-- [ ] Existing `e2e/cross-refs.spec.ts`, `wiki-links.spec.ts`,
-  `mermaid.spec.ts`, `navigation.spec.ts` still pass.
+  no-op refactor)
+- [x] Typecheck passes (no `lint` script in this project)
+- [x] Full Playwright suite green (cross-refs, wiki-links, mermaid,
+  navigation included)
 
 #### Manual Verification
 
