@@ -24,7 +24,7 @@ export function LibraryOverviewHub() {
         {data.phases.map((phase) => (
           <section key={phase.id} className={styles.phaseSection}>
             <h2 className={styles.phaseHeading}>{phase.label.toUpperCase()}</h2>
-            <div className={styles.hubGrid}>
+            <div className={styles.hubGrid} data-testid="hub-grid">
               {phase.docTypes.map((dt) => (
                 <HubCard key={dt.id} docType={dt} />
               ))}

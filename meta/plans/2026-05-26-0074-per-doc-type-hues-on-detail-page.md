@@ -1657,11 +1657,11 @@ Selector notes:
 
 #### Automated Verification
 
-- [ ] `non-regression-glyph-consumers.spec.ts` passes for all
+- [x] `non-regression-glyph-consumers.spec.ts` passes for all
   hub-card cases (12 non-virtual × 2 themes + 2 templates-has-no-glyph
   checks) and all eyebrow cases (13 × 2 themes).
-- [ ] All other visual-regression specs (chip, glyph, code-block,
-  fixture-coverage, detail-eyebrow, aside-row) pass.
+- [x] All other visual-regression specs (chip, glyph, code-block,
+  fixture-coverage, detail-eyebrow, aside-row) pass — full suite green.
 
 #### Manual Verification
 
