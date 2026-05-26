@@ -4,7 +4,7 @@ title: "Detail-Page Chip Strip Cap (Max Four Chips)"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 type: story
-status: draft
+status: in-progress
 priority: medium
 parent: ""
 tags: [design, frontend, detail-page, chips]

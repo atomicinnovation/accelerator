@@ -4,7 +4,7 @@ title: "ADR: Optional Interactive Contract for the Migration Framework"
 date: "2026-05-26T10:00:00+00:00"
 author: Toby Clemson
 kind: task
-status: ready
+status: done
 priority: high
 parent: "0057"
 tags: [adr, migration, framework, accelerator-plugin]

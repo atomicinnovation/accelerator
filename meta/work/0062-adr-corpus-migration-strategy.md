@@ -4,7 +4,7 @@ title: "ADR: Interactive Validation for Corpus Migration"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
 kind: task
-status: ready
+status: done
 priority: high
 parent: "0057"
 tags: [adr, migration, frontmatter, accelerator-plugin]
