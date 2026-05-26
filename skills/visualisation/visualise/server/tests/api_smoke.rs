@@ -99,7 +99,7 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         .unwrap();
     assert_eq!(t["types"].as_array().unwrap().len(), 13);
 
-    // /api/docs?type=decisions -> 2 entries.
+    // /api/docs?type=decisions -> 3 entries.
     let d: serde_json::Value = client
         .get(format!("{base}/api/docs?type=decisions"))
         .send()
@@ -108,7 +108,7 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         .json()
         .await
         .unwrap();
-    assert_eq!(d["docs"].as_array().unwrap().len(), 2);
+    assert_eq!(d["docs"].as_array().unwrap().len(), 3);
 
     // /api/docs?type=plan-reviews -> 2 entries with expected slugs.
     let pr: serde_json::Value = client
