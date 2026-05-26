@@ -3,6 +3,13 @@
   flex-wrap: wrap;
   gap: 0.4rem;
   margin: 0 0 var(--sp-4);
+  /* Reserve one inherited line-height so the subtitle slot keeps
+     its height when zero canonical chips qualify (line-height is
+     inherited from Page.module.css `.subtitle`: 1.5). This is an
+     approximation of a populated chip's height, not an exact match:
+     a chip's box is governed by its own font-size + padding + border,
+     which differ from the subtitle cascade. */
+  min-height: 1lh;
 }
 
 .banner {

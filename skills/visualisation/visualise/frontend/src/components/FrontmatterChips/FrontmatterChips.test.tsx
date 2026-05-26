@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { FrontmatterChips } from './FrontmatterChips'
 import css from './FrontmatterChips.module.css?raw'
+import styles from './FrontmatterChips.module.css'
 
 const CHIP_SELECTOR = '[data-testid="status-badge"],[data-testid="frontmatter-chip"]'
 
@@ -79,9 +80,46 @@ describe('FrontmatterChips', () => {
   })
 
   describe('absent state', () => {
-    it('renders nothing', () => {
+    it('renders the empty chip-strip container so the subtitle slot keeps its height', () => {
       const { container } = render(<FrontmatterChips state="absent" />)
-      expect(container.firstChild).toBeNull()
+      const strip = container.querySelector('[data-testid="frontmatter-chips"]')
+      expect(strip).not.toBeNull()
+      expect(strip).toBeInstanceOf(HTMLElement)
+      expect((strip as HTMLElement).children.length).toBe(0)
+      expect(strip).toHaveClass(styles.chips)
+      expect(strip).toHaveAttribute('aria-hidden', 'true')
+    })
+  })
+
+  describe('zero qualifying keys (parsed state)', () => {
+    it('renders the empty chip-strip container when no canonical keys qualify', () => {
+      const { container } = render(
+        <FrontmatterChips state="parsed" frontmatter={{ priority: 'medium', tags: ['x'] }} />,
+      )
+      expect(container.querySelectorAll('[data-testid]').length).toBe(1)
+      const strip = container.querySelector('[data-testid="frontmatter-chips"]')
+      expect(strip).not.toBeNull()
+      expect((strip as HTMLElement).children.length).toBe(0)
+      expect(strip).toHaveAttribute('aria-hidden', 'true')
+    })
+
+    it('renders the empty chip-strip container when frontmatter is entirely empty', () => {
+      const { container } = render(
+        <FrontmatterChips state="parsed" frontmatter={{}} />,
+      )
+      const strip = container.querySelector('[data-testid="frontmatter-chips"]')
+      expect(strip).not.toBeNull()
+      expect((strip as HTMLElement).children.length).toBe(0)
+      expect(strip).toHaveAttribute('aria-hidden', 'true')
+    })
+
+    it('omits aria-hidden when at least one chip qualifies', () => {
+      const { container } = render(
+        <FrontmatterChips state="parsed" frontmatter={{ status: 'draft' }} />,
+      )
+      const strip = container.querySelector('[data-testid="frontmatter-chips"]')
+      expect(strip).not.toBeNull()
+      expect(strip).not.toHaveAttribute('aria-hidden')
     })
   })
 
@@ -103,6 +141,9 @@ describe('FrontmatterChips', () => {
     })
     it('still defines the .banner class for the malformed state', () => {
       expect(css).toMatch(/\.banner\s*\{/)
+    })
+    it('declares a min-height on .chips so the empty container preserves one-chip height', () => {
+      expect(css).toMatch(/\.chips\s*\{[^}]*min-height:\s*1lh/)
     })
   })
 

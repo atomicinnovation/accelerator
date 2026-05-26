@@ -826,11 +826,11 @@ padding + border.
 
 #### Automated Verification
 
-- [ ] All `FrontmatterChips.test.tsx` tests pass:
+- [x] All `FrontmatterChips.test.tsx` tests pass:
   `cd skills/visualisation/visualise/frontend && npm run test -- FrontmatterChips`
-- [ ] TypeScript compiles:
+- [x] TypeScript compiles:
   `cd skills/visualisation/visualise/frontend && npm run typecheck`
-- [ ] Production build succeeds:
+- [x] Production build succeeds:
   `cd skills/visualisation/visualise/frontend && npm run build`
 
 #### Manual Verification

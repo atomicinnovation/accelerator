@@ -36,7 +36,6 @@ function pickCanonical(
 }
 
 export function FrontmatterChips(props: FrontmatterChipsProps) {
-  if (props.state === 'absent') return null
   if (props.state === 'malformed') {
     return (
       <div role="alert" className={styles.banner}>
@@ -45,12 +44,22 @@ export function FrontmatterChips(props: FrontmatterChipsProps) {
     )
   }
 
-  const entries = pickCanonical(props.frontmatter)
+  const entries = props.state === 'parsed'
+    ? pickCanonical(props.frontmatter)
+    : []
 
-  if (entries.length === 0) return null
+  // The empty container is a deliberate spacer reserving subtitle
+  // height when no canonical chips qualify (see .chips min-height in
+  // the module CSS). Mark it aria-hidden so screen readers don't
+  // announce an undifferentiated landmark inside the subtitle slot.
+  const isEmpty = entries.length === 0
 
   return (
-    <div className={styles.chips} data-testid="frontmatter-chips">
+    <div
+      className={styles.chips}
+      data-testid="frontmatter-chips"
+      aria-hidden={isEmpty ? true : undefined}
+    >
       {entries.map(([key, value]) =>
         key === 'status'
           ? <StatusBadge key={key} value={value} />
