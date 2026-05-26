@@ -956,14 +956,14 @@ None. Phase 3 is test-only.
 
 #### Automated Verification
 
-- [ ] All `FrontmatterChips.test.tsx` tests pass including the
+- [x] All `FrontmatterChips.test.tsx` tests pass including the
   parameterised 13-kind matrix:
   `cd skills/visualisation/visualise/frontend && npm run test -- FrontmatterChips`
-- [ ] TypeScript compiles:
+- [x] TypeScript compiles:
   `cd skills/visualisation/visualise/frontend && npm run typecheck`
-- [ ] Production build succeeds:
+- [x] Production build succeeds:
   `cd skills/visualisation/visualise/frontend && npm run build`
-- [ ] Full frontend test suite still passes:
+- [x] Full frontend test suite still passes:
   `cd skills/visualisation/visualise/frontend && npm run test`
 
 #### Manual Verification

@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { FrontmatterChips } from './FrontmatterChips'
 import css from './FrontmatterChips.module.css?raw'
 import styles from './FrontmatterChips.module.css'
+import { DOC_TYPE_KEYS, type DocTypeKey } from '../../api/types'
 
 const CHIP_SELECTOR = '[data-testid="status-badge"],[data-testid="frontmatter-chip"]'
 
@@ -322,5 +323,54 @@ describe('FrontmatterChips', () => {
         .map((el) => el.getAttribute('aria-label'))
       expect(labels).toEqual(['author: Toby Clemson'])
     })
+  })
+})
+
+describe('12-doc-kind corpus verification', () => {
+  // One extra non-canonical key per kind, plus the three canonical
+  // keys, ensures the whitelist excludes anything outside the set
+  // regardless of which kind's fixture shape is used. Per-kind
+  // extras are deliberately illustrative — they need not match
+  // ADR-0033's per-artifact-type extras list exactly; the contract
+  // being verified is "any non-canonical key is excluded", not "this
+  // specific key shape per kind". Typed as Record<DocTypeKey, ...>
+  // so a future doc-kind addition fails typecheck rather than
+  // runtime-destructuring undefined.
+  const NON_CANONICAL_PER_KIND: Record<DocTypeKey, [string, unknown]> = {
+    'decisions':           ['adr', '0033'],
+    'work-items':          ['priority', 'medium'],
+    'plans':               ['type', 'plan'],
+    'research':            ['git_commit', 'abc123def456'],
+    'plan-reviews':        ['verdict', 'APPROVE'],
+    'pr-reviews':          ['verdict', 'APPROVE'],
+    'work-item-reviews':   ['verdict', 'APPROVE'],
+    'validations':         ['result', 'pass'],
+    'notes':               ['tags', ['note']],
+    'pr-descriptions':     ['pr_number', 123],
+    'design-gaps':         ['file_path', 'some/path.md'],
+    'design-inventories':  ['last_updated_by', 'Someone'],
+    'templates':           ['template_for', 'work-items'],
+  }
+
+  it.each(DOC_TYPE_KEYS)('kind "%s" never renders the extra non-canonical key as a chip', (kind) => {
+    const [extraKey, extraValue] = NON_CANONICAL_PER_KIND[kind]
+    const { container } = render(
+      <FrontmatterChips
+        state="parsed"
+        frontmatter={{
+          status: 'draft',
+          date: '2026-04-05',
+          author: 'Toby Clemson',
+          [extraKey]: extraValue,
+        } as Record<string, unknown>}
+      />,
+    )
+    const labels = Array.from(container.querySelectorAll('[aria-label]'))
+      .map((el) => el.getAttribute('aria-label'))
+    // Exactly three canonical chips, no chip carrying the extra key.
+    expect(labels).toEqual([
+      'status: draft', 'date: 2026-04-05', 'author: Toby Clemson',
+    ])
+    expect(labels.some((l) => l?.startsWith(`${extraKey}:`))).toBe(false)
   })
 })
