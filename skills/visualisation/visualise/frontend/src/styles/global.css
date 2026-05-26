@@ -196,6 +196,7 @@ body {
   --ac-topbar-h: 48px;
   --ac-content-max-width:        1200px;
   --ac-content-max-width-narrow: 600px;
+  --ac-content-max-width-prose:  72ch;
 
   /* Atomic brand palette — canonical source for named brand colours,
      neutrals, aliases, and overlays. Mirrored to BRAND_COLOR_TOKENS in
