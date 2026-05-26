@@ -1,8 +1,5 @@
-import type { ComponentType } from 'react'
 import { FrontmatterChip } from '../FrontmatterChip/FrontmatterChip'
 import { StatusBadge } from '../StatusBadge/StatusBadge'
-import { VerdictBadge } from '../VerdictBadge/VerdictBadge'
-import { ResultBadge } from '../ResultBadge/ResultBadge'
 import styles from './FrontmatterChips.module.css'
 
 type FrontmatterChipsProps =
@@ -10,21 +7,32 @@ type FrontmatterChipsProps =
   | { state: 'malformed' }
   | { state: 'parsed'; frontmatter: Record<string, unknown> }
 
-interface BadgeProps {
-  value: unknown
-}
+// The chip whitelist. Drawn from ADR-0033's unified base frontmatter
+// schema (status / date / author are base fields shared across all
+// doc kinds). If the base schema gains or loses a chip-worthy field,
+// update this list and the ADR together.
+const CANONICAL_KEYS = ['status', 'date', 'author'] as const
 
-// Keys MUST be lowercase: `badgeFor` lowercases the lookup key so any
-// case variant in frontmatter (`status` / `Status` / `STATUS`) routes
-// to the same badge.
-const BADGE_FOR_KEY: Record<string, ComponentType<BadgeProps>> = {
-  status: StatusBadge,
-  verdict: VerdictBadge,
-  result: ResultBadge,
-}
-
-function badgeFor(key: string): ComponentType<BadgeProps> | null {
-  return BADGE_FOR_KEY[key.trim().toLowerCase()] ?? null
+function pickCanonical(
+  frontmatter: Record<string, unknown>,
+): Array<[string, unknown]> {
+  // Build a case-folded view, ignoring null / undefined / empty /
+  // whitespace-only values during the fold. A skipped value never
+  // claims the canonical slot, so `{ Status: null, status: 'draft' }`
+  // correctly resolves to `'draft'` rather than being silently dropped
+  // by a first-match-wins collision.
+  const folded = new Map<string, unknown>()
+  for (const [k, v] of Object.entries(frontmatter)) {
+    if (v === null || v === undefined) continue
+    if (typeof v === 'string' && v.trim() === '') continue
+    const lk = k.trim().toLowerCase()
+    if (!folded.has(lk)) folded.set(lk, v)
+  }
+  const picked: Array<[string, unknown]> = []
+  for (const key of CANONICAL_KEYS) {
+    if (folded.has(key)) picked.push([key, folded.get(key)])
+  }
+  return picked
 }
 
 export function FrontmatterChips(props: FrontmatterChipsProps) {
@@ -37,21 +45,17 @@ export function FrontmatterChips(props: FrontmatterChipsProps) {
     )
   }
 
-  const entries = Object.entries(props.frontmatter).filter(([, v]) => {
-    if (v === null || v === undefined) return false
-    if (typeof v === 'string' && v === '') return false
-    return true
-  })
+  const entries = pickCanonical(props.frontmatter)
 
   if (entries.length === 0) return null
 
   return (
-    <div className={styles.chips}>
-      {entries.map(([key, value]) => {
-        const Badge = badgeFor(key)
-        if (Badge) return <Badge key={key} value={value} />
-        return <FrontmatterChip key={key} name={key} value={value} />
-      })}
+    <div className={styles.chips} data-testid="frontmatter-chips">
+      {entries.map(([key, value]) =>
+        key === 'status'
+          ? <StatusBadge key={key} value={value} />
+          : <FrontmatterChip key={key} name={key} value={value} />
+      )}
     </div>
   )
 }
