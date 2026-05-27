@@ -2,7 +2,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  margin: 0 0 var(--sp-4);
+  /* Page's .subtitle slot already contributes --sp-1 above; this adds
+     another --sp-1 so the title→chips gap totals --sp-2 (the design
+     value). No bottom margin: the page header's own padding-block-end
+     (--sp-4) is the sole gap to the divider — a bottom margin here
+     previously double-spaced that gap. */
+  margin: var(--sp-1) 0 0;
   /* Reserve one inherited line-height so the subtitle slot keeps
      its height when zero canonical chips qualify (line-height is
      inherited from Page.module.css `.subtitle`: 1.5). This is an
