@@ -69,6 +69,7 @@ Both are pure renames at the schema level. To stay releasable, this story bundle
 - The shape contract for `work_item_id` (quoted YAML string) is already documented in `skills/config/configure/SKILL.md`. This story extends consistent use across the plan template and any inline frontmatter generators.
 - Migration precedent: `skills/config/migrate/migrations/0005-rename-work-item-type-to-kind.sh` is the direct template — same shape (frontmatter key rename across a directory of markdown files), with `paths-override` fixture for ejected userspace templates.
 - Visualiser hardcoded reads to update: `frontmatter.rs:297-326`, `indexer.rs` (around the `work-item:` reverse cross-ref index, ~line 1008), plus TS in `frontend/src/api/types.ts`, `api/work-item.ts`, `routes/kanban/WorkItemCard.tsx`.
+- Under the refined unified identity convention (own key `id`; foreign references `<snake_case_type>_id`), the `work-item:` → `work_item_id:` rename in plan frontmatter is correct as-is: the plan's reference to its work-item is a *foreign* reference, so `work_item_id` is the right key. The `researcher:` → `author:` rename is likewise unaffected. What this convention adds — out of scope for this story — is migrating a work-item's *own* identity field `work_item_id` → `id` in the work-item template and corpus; that lands via 0065 (templates) and the corpus migration (0070).
 
 ## Open Questions
 
@@ -79,6 +80,7 @@ None remain at the time of writing. Earlier ambiguities (visualiser scope, bundl
 - Bundled the two renames into one story because they are pure mechanical renames with the same risk profile. If you'd rather split them — e.g. because `work_item_id` and `author` touch different reviewer surfaces — splitting is low-cost.
 - Treated the migration of existing files as in-scope (corpus migration ships with the story) so the change is releasable on its own. 0070's broader normalisation remains a separate, larger workstream.
 - Visualiser consumer updates are included in this story; previously the work item left this ambiguous via an open question.
+- Reviewed against the refined own-`id` / foreign-`<type>_id` identity convention (set after this story was marked `done`): this story's renames remain valid (the plan's `work_item_id` is a foreign reference, and `researcher:` → `author:` is orthogonal), so no requirement or acceptance-criterion change was needed. Added a Technical Note clarifying the boundary with the separate work-item own-identity migration (0065 + 0070).
 
 ## References
 

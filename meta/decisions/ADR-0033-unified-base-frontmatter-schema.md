@@ -113,7 +113,7 @@ Every artifact carries the following frontmatter fields:
 | Field             | Shape                                 | Notes |
 |-------------------|---------------------------------------|-------|
 | `type`            | kebab-case string                     | Artifact-type discriminator — one of `work-item`, `plan`, `plan-review`, `plan-validation`, `work-item-review`, `pr-review`, `pr-description`, `adr`, `codebase-research`, `issue-research`, `design-inventory`, `design-gap`, `note` |
-| `id`              | quoted YAML string                    | Identity field — unified across all artifact types. Value is the artifact's natural ID where it has one (e.g. `"0042"`, `"ADR-0033"`), or a slug/path-derived value otherwise. Always quoted. |
+| `id`              | quoted YAML string                    | The artifact's **own** identity — unified key across all artifact types. Value is the natural ID where it has one (e.g. `"0042"`, `"ADR-0033"`), or a slug/path-derived value otherwise. Always quoted. A reference to a **foreign** artifact, where keyed by artifact type rather than by relationship, uses `<snake_case_type>_id` instead — see §Identity-value shape contract. |
 | `title`           | string                                | Kept in sync with body H1 where applicable |
 | `date`            | quoted ISO UTC timestamp              | Creation timestamp, `"YYYY-MM-DDTHH:MM:SS+00:00"` |
 | `author`          | string                                | Human identity of the artifact's creator. Replaces `researcher`. |
@@ -146,6 +146,24 @@ generalises the contract already enforced for `work_item_id` per
 `skills/config/configure/SKILL.md` to every artifact's identity.
 Consumers can locate the identity at a single, predictable key
 without per-type parsing.
+
+Two distinct identity-key roles follow from this:
+
+- **Own identity** — the artifact's own ID is always keyed `id`.
+  This is the single, type-independent key consumers read to
+  identify the document in front of them.
+- **Foreign reference** — a frontmatter key that references another
+  artifact by its ID, where the key is named after the referenced
+  artifact's *type* rather than a relationship, is keyed by that
+  type's snake_case name suffixed with `_id` (e.g. a pr-description
+  referencing its work-item uses `work_item_id`; a reference to an
+  ADR uses `adr_id`). Foreign-reference values follow the same
+  quoted-string contract as `id`.
+
+Relationship-named cross-linkage keys (`parent`, `supersedes`,
+`target`, `derived_from`, etc.) are a separate vocabulary decided in
+the sibling typed-linkage ADR; they are named by relationship, not
+by `<type>_id`, and are out of scope for this contract.
 
 ### Schema versioning
 

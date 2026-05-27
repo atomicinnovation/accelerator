@@ -31,7 +31,7 @@ Three prior ADR-creation tasks — 0021 (artifact persistence lifecycle), 0022 (
 
 - Decide and document the unified base frontmatter fields present on every artifact:
   - `type` (kebab-case artifact discriminator)
-  - identity field (`<type>_id`, quoted YAML string, slug/path-derived where no natural ID exists)
+  - identity field — each artifact's **own** identity key is `id` (quoted YAML string; slug/path-derived where no natural ID exists). References to a **foreign** artifact are keyed by the referenced artifact's snake_case type plus `_id` (e.g. `work_item_id`, `adr_id`).
   - `title`, `date` (ISO UTC, quoted), `author`, `status`, `tags`, `last_updated`, `last_updated_by`, `schema_version` (per-artifact-type integer)
 - Decide and document the provenance bundle (`revision`, `repository`) for code-state-anchored artifacts (plans, codebase-research, issue-research/RCA, design-inventory, pr-description). Confirm `git_commit` and `branch` are removed.
 - Document the per-artifact-type extras for each of the twelve artifact types plus `note`.
@@ -43,7 +43,7 @@ Three prior ADR-creation tasks — 0021 (artifact persistence lifecycle), 0022 (
 - [ ] A new ADR exists under the configured ADR directory that defines the unified base frontmatter schema, the provenance bundle, the `schema_version` contract, and the per-artifact-type extras.
 - [ ] The ADR explicitly references 0021/0022/0023 and acknowledges them as supplemented.
 - [ ] The ADR records the decision on whether a separate machine-readable schema file accompanies it; if yes, that file is produced.
-- [ ] Identity-value shape contract (all identity values are quoted YAML strings) is documented as part of the ADR.
+- [ ] Identity-value shape contract is documented as part of the ADR: an artifact's own identity key is `id`; references to a foreign artifact are keyed `<snake_case_type>_id`; all identity values (own and foreign) are quoted YAML strings.
 
 ## Open Questions
 
@@ -71,6 +71,7 @@ Three prior ADR-creation tasks — 0021 (artifact persistence lifecycle), 0022 (
 - Treated this as a `task` rather than `story` because the deliverable is a documentation artifact (the ADR), matching the framing of 0021/0022/0023 which are also ADR-creation tasks.
 - Set `parent` to "0057" since 0057 is the parent epic. If 0057 is preferred as `relates_to` rather than `parent`, the field is easily moved.
 - Split the schema ADR (this) from the typed-linkage-vocabulary ADR (0061) per the epic's hint that the two are conceptually distinct.
+- Identity-key convention corrected per user after this task was marked `done`: own identity = `id`, foreign references = `<snake_case_type>_id` (was `<type>_id` for own identity, e.g. `adr_id`). Because this task is already `done`, the produced ADR document under the decisions directory still records the old shape and must be revised to match; this work item's requirements/AC have been updated to reflect the corrected decision.
 
 Extracted from source documents without interactive enrichment. Acceptance criteria, dependencies, and type may need refinement before promoting from `draft` to `ready`.
 

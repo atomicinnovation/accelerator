@@ -47,7 +47,7 @@ These three remain valid ADR-creation tasks and will be referenced as `derived_f
 
 - Define and document a **unified base frontmatter schema** present on every artifact type:
   - `type` — kebab-case artifact discriminator (`work-item`, `plan`, `plan-review`, `plan-validation`, `work-item-review`, `pr-review`, `pr-description`, `adr`, `codebase-research`, `issue-research`, `design-inventory`, `design-gap`, `note`)
-  - identity field — `<type>_id` where the artifact has a natural ID (`work_item_id`, `adr_id`); a slug or path-derived value otherwise. All identity values are **quoted YAML strings**.
+  - identity field — every artifact's **own** identity key is `id` (a slug or path-derived value where no natural ID exists). References to a **foreign** artifact are keyed by that artifact's snake_case type suffixed with `_id` (e.g. `work_item_id`, `adr_id`). All identity values — own and foreign — are **quoted YAML strings**.
   - `title` (kept in sync with body H1 where applicable)
   - `date` (ISO timestamp UTC, `YYYY-MM-DDTHH:MM:SS+00:00`, **always quoted**)
   - `author` (canonical identity field — replaces `researcher`)
@@ -67,7 +67,7 @@ These three remain valid ADR-creation tasks and will be referenced as `derived_f
   - `relates_to` (list — loose linkage)
   - `source` (single ref — external origin for extracted artifacts)
 
-- **Resolve field-name conflicts**: `work_item_id` becomes the canonical work-item reference key (eliminate hyphenated `work-item`); `author` replaces `researcher`.
+- **Resolve field-name conflicts**: `work_item_id` becomes the canonical key for *references to* a work-item (eliminate hyphenated `work-item`); a work-item's *own* identity key is `id` per the convention above. `author` replaces `researcher`.
 
 - **Resolve the work-item discriminator collision**: rename work-item's current semantic-kind `type:` field to `kind:` (`story | epic | task | bug | spike`) so `type:` can carry the artifact-type uniformly. Update templates, resolver scripts, agent prompts, and any helpers that read this field.
 
@@ -77,8 +77,8 @@ These three remain valid ADR-creation tasks and will be referenced as `derived_f
 - **plan**: `target` (work-item ref) replacing hyphenated `work-item`, `derived_from` (research refs), provenance bundle, `reviewer` once reviewed.
 - **plan-validation**: `target` (plan ref), `result`, baseline fields.
 - **plan-review / work-item-review / pr-review**: `target`, `reviewer`, `verdict`, `lenses`, `review_number`, `review_pass` where applicable. Verdict enum alignment (`REVISE` vs `REQUEST_CHANGES`) is out of scope unless trivial.
-- **pr-description**: `work_item_id` (promote from body to frontmatter), `pr_url`, `pr_number`, provenance bundle, `merge_commit` once merged.
-- **adr**: `adr_id` (quoted YAML string), `status`, `supersedes` / `superseded_by`, `decision_makers`, `derived_from`.
+- **pr-description**: `work_item_id` (foreign reference to the work-item, promoted from body to frontmatter), `pr_url`, `pr_number`, provenance bundle, `merge_commit` once merged.
+- **adr**: `id` (own identity, quoted YAML string — replaces `adr_id`), `status`, `supersedes` / `superseded_by`, `decision_makers`, `derived_from`.
 - **codebase-research / issue-research**: `author` replacing `researcher`, provenance bundle, `topic`, `derived_from`.
 - **design-inventory**: existing schema is already rich; align field-name conventions only.
 - **design-gap**: keep `current_inventory` / `target_inventory` as specific keys (they add value over a generic `targets:` list).
@@ -106,7 +106,7 @@ These three remain valid ADR-creation tasks and will be referenced as `derived_f
 ## Acceptance Criteria
 
 - [ ] A single source-of-truth document (ADR or schema file) defines the unified base frontmatter, the provenance bundle, the typed linkage vocabulary, and the per-artifact-type extras.
-- [ ] `work_item_id` is the canonical work-item reference key across every template and producing skill (hyphenated `work-item` eliminated).
+- [ ] Each artifact's own identity key is `id`; references to a foreign artifact are keyed `<snake_case_type>_id`. `work_item_id` is the canonical key for *references to* a work-item across every template and producing skill (hyphenated `work-item` eliminated).
 - [ ] `author` is the canonical identity field; `researcher` is eliminated from research and RCA templates.
 - [ ] Every artifact template and inline frontmatter generator emits the unified base fields (`type`, identity, `title`, `date`, `author`, `status`, `tags`, `last_updated`, `last_updated_by`, `schema_version`).
 - [ ] Code-state-anchored artifacts emit the provenance bundle (`revision`, `repository`); `git_commit` and `branch` are removed.
@@ -143,7 +143,8 @@ These three remain valid ADR-creation tasks and will be referenced as `derived_f
 ## Technical Notes
 
 - The migration framework (`skills/config/migrate/`) today is purely mechanical (no prompts, no dry-run, VCS-as-rollback). Extending it with optional interactive validation hooks is a deliberate departure from the contract documented in ADR-0023. The extension is conditional — if best-effort deterministic inference produces high-confidence results across the dogfood corpus, the framework stays mechanical and a post-run report surfaces ambiguities.
-- Identity-value shape contract: all identity values (`work_item_id`, `adr_id`, etc.) are quoted YAML strings for uniform consumer parsing — already the contract for `work_item_id` per `skills/config/configure/SKILL.md`; this epic extends the contract to `adr_id` and any new identity fields.
+- Identity-value shape contract: all identity values — each artifact's own `id` and every foreign `<type>_id` reference — are quoted YAML strings for uniform consumer parsing. Already the contract for the work-item identity per `skills/config/configure/SKILL.md`; this epic extends it to every artifact's `id` and to foreign references.
+- Identity-key naming convention (refined after initial drafting): an artifact's **own** identity key is always `id`; a reference to a **foreign** artifact is keyed by the referenced artifact's snake_case type plus `_id` (`work_item_id`, `adr_id`). This supersedes the original `<type>_id`-for-own-identity wording. Work-item's own identity migrates `work_item_id` → `id` (template change via 0065, corpus via the migration); ADR's own identity migrates `adr_id` → `id`. Foreign references already named `<type>_id` (e.g. a plan's `work_item_id`, a pr-description's `work_item_id`) are unaffected.
 - The work-item `type:` → `kind:` rename is the single most disruptive change. Files affected include `templates/work-item.md`, every `skills/work/*/SKILL.md`, `skills/work/scripts/work-item-read-field.sh`, `skills/work/scripts/work-item-resolve-id.sh`, agent prompts that read the field, and every work-item in `meta/work/` (handled by the migration). Coordinate this rename in a single story.
 - Inline frontmatter generators in review skills currently bake field shapes into SKILL.md prose. Extracting them into shared template files is not mandated by this epic but would simplify future schema changes — left as an option for the implementing story.
 - `meta/notes/` files today are hand-written and frontmatter-free. The migration must either skip them or add baseline frontmatter with conservative defaults (e.g. `author: <unknown>` if not inferable from VCS history). Decision deferred to the migration-story scope.
@@ -160,6 +161,7 @@ These three remain valid ADR-creation tasks and will be referenced as `derived_f
 - Per-artifact-type `schema_version` chosen over single global version per user.
 - `derived_from` as list (not single ref) per user — accommodates plans derived from multiple research docs.
 - Work-item `type:` → `kind:` rename committed per user — chose disruption-now over collision-forever.
+- Identity-key convention refined per user after initial drafting: own identity = `id`, foreign references = `<snake_case_type>_id`. The earlier draft used `<type>_id` for own identity (`work_item_id`, `adr_id`). Threaded the correction through Requirements, Acceptance Criteria, and Technical Notes here, and into 0060 and 0064. Note 0060 and 0064 are already `status: done`, so the correction is retroactive — the shipped ADR document and any migrated frontmatter predate this convention and need a follow-up pass.
 
 ## References
 
