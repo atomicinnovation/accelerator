@@ -24,3 +24,4 @@ skills/visualisation/visualise/frontend/dist/
 skills/visualisation/visualise/frontend/node_modules/
 skills/visualisation/visualise/server/target/
 workspaces/
+node_modules/
