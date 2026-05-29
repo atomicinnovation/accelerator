@@ -4,7 +4,6 @@ description: Review a pull request through multiple quality lenses and present a
   compiled analysis with inline comments. Use when the user wants a thorough PR
   review.
 argument-hint: "[PR number or URL]"
-disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/*)

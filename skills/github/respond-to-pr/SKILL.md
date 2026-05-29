@@ -4,7 +4,6 @@ description: Respond to pull request review feedback interactively, working
   through each item with verification and code changes. Use when the user wants
   to address PR review comments.
 argument-hint: "[PR number or URL]"
-disable-model-invocation: true
 allowed-tools:
    - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
    - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/*)

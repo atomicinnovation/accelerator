@@ -6,7 +6,6 @@ description: Review an architecture decision record for quality and
   transition to superseded or deprecated. Use when a proposed ADR is ready for
   review, or when an accepted ADR needs to be deprecated.
 argument-hint: "[path to ADR] [--deprecate reason]"
-disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)

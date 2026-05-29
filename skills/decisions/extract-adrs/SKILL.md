@@ -5,7 +5,6 @@ description: Extract architecture decision records from existing meta documents
   decisions and converts selected ones into formal ADRs. Use when decisions are
   buried in research or planning documents and need to be captured formally.
 argument-hint: "[research doc paths...] or leave empty to scan all"
-disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)

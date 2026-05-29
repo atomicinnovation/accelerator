@@ -4,7 +4,6 @@ description: Interactively stress-test an implementation plan by grilling the us
   on decisions, edge cases, and assumptions to find issues, inconsistencies, and gaps
   before implementation begins.
 argument-hint: "[path to plan file]"
-disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---

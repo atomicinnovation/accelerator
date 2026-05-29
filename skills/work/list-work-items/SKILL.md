@@ -4,7 +4,6 @@ description: List and filter work items from the configured work directory.
   Use when discovering what work items exist, filtering by
   status/kind/priority/parent/tag, or viewing the work item hierarchy.
 argument-hint: "[filter description]"
-disable-model-invocation: false
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)

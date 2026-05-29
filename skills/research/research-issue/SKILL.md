@@ -4,7 +4,6 @@ description: Investigate production issues and bugs through hypothesis-driven
   debugging. Accepts stacktraces, logs, error messages, or vague behavioral
   descriptions and produces a root cause analysis.
 argument-hint: "[issue description, stacktrace, or error message]"
-disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)

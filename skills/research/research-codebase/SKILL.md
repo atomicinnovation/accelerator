@@ -4,7 +4,6 @@ description: Conduct comprehensive codebase research by spawning parallel
   sub-agents and synthesising findings into a research document. Use when the
   user needs to deeply understand a codebase area or answer technical questions.
 argument-hint: "[research question]"
-disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)

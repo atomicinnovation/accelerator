@@ -5,7 +5,6 @@ description: Interactively create an architecture decision record (ADR). Use
   or significant design decision. Guides through context gathering, options
   analysis, and consequence documentation.
 argument-hint: "[topic or description] [--supersedes ADR-NNNN]"
-disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)

@@ -4,7 +4,6 @@ description: Execute an approved implementation plan from the configured plans
   directory. Use when the user wants to implement a plan phase by phase with
   verification.
 argument-hint: "[path to plan file]"
-disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---

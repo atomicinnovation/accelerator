@@ -4,7 +4,6 @@ description: Review an implementation plan through multiple quality lenses and
   collaboratively iterate based on findings. Use when the user wants to evaluate
   a plan before implementation.
 argument-hint: "[path to plan file]"
-disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---

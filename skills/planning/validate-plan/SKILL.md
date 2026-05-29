@@ -4,7 +4,6 @@ description: Validate that an implementation plan was correctly executed by
   verifying success criteria and identifying deviations. Use after implementing
   a plan to verify correctness.
 argument-hint: "[path to plan file]"
-disable-model-invocation: true
 allowed-tools:
    - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---

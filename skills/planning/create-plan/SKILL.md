@@ -3,7 +3,6 @@ name: create-plan
 description: Create detailed implementation plans through interactive, iterative
   collaboration. Use when the user needs to plan a feature, refactoring, or task.
 argument-hint: "[work item reference or description]"
-disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
 ---

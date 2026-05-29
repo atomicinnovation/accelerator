@@ -4,7 +4,6 @@ description: Generate a comprehensive pull request description following the
   repository's standard template. Use when the user wants to create or update a
   PR description.
 argument-hint: "[PR number or URL]"
-disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/describe-pr/scripts/*)
