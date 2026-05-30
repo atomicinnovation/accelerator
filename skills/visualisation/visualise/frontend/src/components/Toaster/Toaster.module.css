@@ -1,34 +1,39 @@
 .viewport {
   position: fixed;
   bottom: var(--sp-5);
-  right: var(--sp-5);
-  z-index: 1000;
+  /* `right` is bumped one step beyond `bottom` to compensate for the
+     vertical scrollbar gutter on <main>, which visually narrows the
+     right gap. */
+  right: var(--sp-6);
+  z-index: 50;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
+  gap: var(--sp-3);
   pointer-events: none;
-  max-width: 360px;
+  min-width: 320px;
+  max-width: 420px;
 }
 
 .toast {
   pointer-events: auto;
   display: grid;
   grid-template-columns: auto 1fr auto;
-  align-items: start;
+  align-items: flex-start;
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
   background: var(--ac-bg-card);
-  border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--ac-stroke-strong);
+  border-left: 3px solid var(--ac-accent);
+  border-radius: var(--radius-md);
   box-shadow: var(--ac-shadow-lift);
   color: var(--ac-fg);
   font-family: var(--ac-font-body);
-  font-size: var(--size-xs);
+  font-size: var(--size-subtitle);
   line-height: var(--lh-normal);
 }
 
 .icon {
-  color: var(--ac-fg-muted);
+  color: var(--ac-accent);
   flex: none;
   margin-top: 2px;
 }
@@ -42,15 +47,22 @@
 
 .heading {
   margin: 0;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--ac-fg-strong);
-  font-size: var(--size-xs);
 }
 
 .message {
   margin: 0;
   color: var(--ac-fg-muted);
   word-break: break-word;
+}
+
+.code {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xxs);
+  background: var(--ac-bg-sunken);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem var(--sp-1);
 }
 
 .close {
@@ -60,7 +72,7 @@
   padding: var(--sp-1);
   margin: -4px -4px 0 0;
   border-radius: var(--radius-sm);
-  color: var(--ac-fg-muted);
+  color: var(--ac-fg-faint);
   cursor: pointer;
 }
 

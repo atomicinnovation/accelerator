@@ -31,6 +31,25 @@ describe('Toaster', () => {
 
     expect(screen.getByText('External edit detected')).toBeInTheDocument()
     expect(screen.getByText('hello')).toBeInTheDocument()
+  })
+
+  it('renders backtick-delimited segments inside the message as inline <code>', () => {
+    mockToastState({
+      toasts: [
+        {
+          id: 1,
+          heading: 'External edit detected',
+          message: '`meta/work/0007-foo.md` was updated while you were looking at it.',
+        },
+      ],
+    })
+    render(<Toaster />)
+    const viewport = screen.getByTestId('toaster-viewport')
+    const code = viewport.querySelector('code')
+    expect(code).not.toBeNull()
+    expect(code!.textContent).toBe('meta/work/0007-foo.md')
+    // The literal backticks must not appear in the rendered DOM.
+    expect(viewport.textContent).not.toContain('`')
 
     const icon = screen.getByTestId('toaster-icon')
     expect(icon.tagName.toLowerCase()).toBe('svg')
@@ -146,9 +165,14 @@ describe('Toaster', () => {
       expect(toasterCss).toMatch(/\.viewport[^{]*\{[^}]*position:\s*fixed/)
     })
 
-    it('.icon binds var(--ac-fg-muted) and NOT --ac-ok', () => {
-      expect(toasterCss).toMatch(/\.icon[^{]*\{[^}]*color:\s*var\(--ac-fg-muted\)/)
+    it('.icon binds var(--ac-accent) and NOT --ac-ok / --ac-warn', () => {
+      expect(toasterCss).toMatch(/\.icon[^{]*\{[^}]*color:\s*var\(--ac-accent\)/)
       expect(toasterCss).not.toMatch(/\.icon[^{]*\{[^}]*color:\s*var\(--ac-ok\)/)
+      expect(toasterCss).not.toMatch(/\.icon[^{]*\{[^}]*color:\s*var\(--ac-warn\)/)
+    })
+
+    it('.toast binds an accent border-left (prototype "category bar")', () => {
+      expect(toasterCss).toMatch(/\.toast[^{]*\{[^}]*border-left[^;]*var\(--ac-accent\)/)
     })
   })
 })

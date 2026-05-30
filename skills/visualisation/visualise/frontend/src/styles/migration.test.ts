@@ -222,6 +222,14 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '320px', count: 1, kind: 'irreducible', reason: 'card grid min-width — no token equivalent' },
   // styles/wiki-links.global.css
   { file: 'styles/wiki-links.global.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border-bottom width — below --sp-1 floor' },
+  // components/Toaster/Toaster.module.css
+  { file: 'components/Toaster/Toaster.module.css', literal: '320px', count: 1, kind: 'irreducible', reason: 'viewport min-width per prototype — no token equivalent' },
+  { file: 'components/Toaster/Toaster.module.css', literal: '420px', count: 1, kind: 'irreducible', reason: 'viewport max-width per prototype — no token equivalent' },
+  { file: 'components/Toaster/Toaster.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'toast card border width — below --sp-1 floor' },
+  { file: 'components/Toaster/Toaster.module.css', literal: '3px', count: 1, kind: 'irreducible', reason: 'toast border-left accent bar per prototype — below --sp-1 floor' },
+  { file: 'components/Toaster/Toaster.module.css', literal: '2px', count: 3, kind: 'irreducible', reason: 'icon margin-top optical alignment + close focus outline width + outline-offset — below --sp-1 floor' },
+  { file: 'components/Toaster/Toaster.module.css', literal: '4px', count: 2, kind: 'irreducible', reason: 'close button negative top/right margin to recover card padding — equals --sp-1 but co-located with sign' },
+  { file: 'components/Toaster/Toaster.module.css', literal: '0.1rem', count: 1, kind: 'irreducible', reason: 'inline code vertical padding — mirrors MarkdownRenderer `.markdown code:not(pre code)`' },
 ]
 
 // Build O(1) lookup maps once at module load

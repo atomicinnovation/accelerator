@@ -1,7 +1,24 @@
-import { useEffect } from 'react'
+import { Fragment, useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useToast } from '../../api/use-toast'
 import styles from './Toaster.module.css'
+
+/** Render `text`, replacing paired-backtick runs with inline <code> spans.
+ *  Mirrors the markdown body's `inline code` convention so a notification
+ *  saying ``\`path/to/file.md\` was updated`` renders the path as monospace.
+ *  Lone (unpaired) backticks are passed through as literal characters. */
+function renderMessage(text: string): ReactNode {
+  const parts = text.split('`')
+  // An even number of segments => unpaired backtick; render literally.
+  if (parts.length % 2 === 0) return text
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <code key={i} className={styles.code}>{part}</code>
+    ) : (
+      <Fragment key={i}>{part}</Fragment>
+    ),
+  )
+}
 
 export function Toaster() {
   const { toasts, dismissToast, pauseToast, resumeToast } = useToast()
@@ -53,7 +70,7 @@ export function Toaster() {
           </svg>
           <div className={styles.text}>
             <p className={styles.heading}>{t.heading}</p>
-            <p className={styles.message}>{t.message}</p>
+            <p className={styles.message}>{renderMessage(t.message)}</p>
           </div>
           <button
             type="button"
