@@ -1,11 +1,17 @@
 ---
+type: design-gap                             # artifact-type discriminator
+id: "{filename-stem}"                        # filename without .md
+title: "Design Gap Analysis: {current-source} → {target-source}"
 date: "{ISO timestamp}"
-type: design-gap
+author: "{author name}"
+producer: analyse-design-gaps
+status: draft                                # draft
 current_inventory: "{path to current inventory.md}"
 target_inventory: "{path to target inventory.md}"
-author: "{author name}"
-status: draft
 tags: [design, gap-analysis]
+last_updated: "{ISO timestamp}"
+last_updated_by: "{author name}"
+schema_version: 1
 ---
 
 # Design Gap Analysis: {current-source} → {target-source}

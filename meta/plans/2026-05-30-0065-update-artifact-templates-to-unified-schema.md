@@ -1413,9 +1413,9 @@ helper change required beyond Phase 2.)
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-template-frontmatter.sh` PASS row for `design-gap.md`.
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `analyse-design-gaps`.
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-template-frontmatter.sh` PASS row for `design-gap.md`.
+- [x] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `analyse-design-gaps`.
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 

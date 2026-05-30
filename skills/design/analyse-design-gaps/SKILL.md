@@ -142,12 +142,37 @@ Run:
 ${CLAUDE_PLUGIN_ROOT}/skills/design/analyse-design-gaps/scripts/gap-metadata.sh
 ```
 
-### 7. Write Artifact
+### 7. Populate frontmatter and write artifact
 
 Use the `design-gap` template:
 ```
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh design-gap`
 ```
+
+Before writing the artifact file, **substitute** every field below
+with the indicated value, using the helper output captured in
+Step 6 (`Current Date/Time (UTC):`):
+
+- `type:` ← `design-gap`
+- `id:` ← the filename stem (the file path computed below without
+  `.md`), always quoted as a YAML string
+- `title:` ← `Design Gap Analysis: {current-source} → {target-source}`
+- `date:` ← the `Current Date/Time (UTC):` value
+- `author:` ← the author resolved per the standard chain (config →
+  VCS user → prompt)
+- `producer:` ← `analyse-design-gaps`
+- `status:` ← `draft`
+- `current_inventory:` ← the resolved absolute path to the current
+  inventory's `inventory.md`
+- `target_inventory:` ← the resolved absolute path to the target
+  inventory's `inventory.md`
+- `last_updated:` ← the same `Current Date/Time (UTC):` value
+- `last_updated_by:` ← the same value resolved for `author`
+- `schema_version:` ← `1` (bare integer)
+
+The design-gap artifact is not code-state-anchored — the helper's
+`Current Revision:` and `Repository Name:` output is ignored here
+even when present.
 
 Write to:
 ```
