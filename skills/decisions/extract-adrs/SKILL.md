@@ -156,10 +156,36 @@ Wait for user selection.
 
 1. Create the configured decisions directory if it doesn't exist
 
-2. Write each approved ADR to:
+2. **Populate frontmatter** for each approved ADR. Before writing the
+   file, capture metadata and substitute the unified base fields into
+   the template's frontmatter block:
+
+   1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+      once for the batch to obtain `Current Date/Time (UTC):`.
+   2. For each approved ADR, **substitute** every field below with the
+      indicated value:
+      - `type:` ← `adr`
+      - `id:` ← the ADR identifier `ADR-NNNN`, always quoted as a
+        YAML string
+      - `title:` ← the ADR title (without the `ADR-NNNN:` prefix)
+      - `date:` ← the `Current Date/Time (UTC):` value
+      - `author:` ← the author resolved per the standard chain
+        (config → VCS user → prompt)
+      - `producer:` ← `extract-adrs`
+      - `status:` ← `proposed`
+      - `decision_makers:` ← `[]` unless the source document names
+        the people who agreed
+      - `supersedes:` ← `[]` unless the source records that this
+        decision replaces another (then a YAML list of typed-linkage
+        refs of the form `"adr:ADR-NNNN"`)
+      - `last_updated:` ← the same `Current Date/Time (UTC):` value
+      - `last_updated_by:` ← the same value resolved for `author`
+      - `schema_version:` ← `1` (bare integer)
+
+3. Write each approved ADR to:
    `{decisions directory}/ADR-NNNN-description.md`
 
-3. Present summary:
+4. Present summary:
    ```
    Created the following ADRs:
    - `{decisions directory}/ADR-0001-description.md` — [title]
@@ -172,9 +198,10 @@ Wait for user selection.
 
 ## ADR Template
 
-Use the template exactly as defined in the `create-adr` skill
-(`skills/decisions/create-adr/SKILL.md`, under the "ADR Template" section).
-The single authoritative template lives there to avoid duplication and drift.
+The ADR template is loaded directly via the template loader so the
+shape stays in sync with `create-adr`:
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh adr`
 
 When populating the template from extracted decisions:
 

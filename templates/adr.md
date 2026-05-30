@@ -1,10 +1,17 @@
 ---
-adr_id: ADR-NNNN
+type: adr                                    # artifact-type discriminator
+id: "ADR-NNNN"                               # always a quoted string
+title: "Title as Short Noun Phrase"
 date: "YYYY-MM-DDTHH:MM:SS+00:00"
 author: Author Name
-status: proposed
-supersedes: ADR-NNNN     # only include if this ADR replaces another
+producer: create-adr
+status: proposed                             # proposed | accepted | superseded | deprecated
+decision_makers: []
+supersedes: []                               # typed-linkage list: ["adr:ADR-NNNN", ...] or []
 tags: [tag1, tag2]
+last_updated: "YYYY-MM-DDTHH:MM:SS+00:00"
+last_updated_by: Author Name
+schema_version: 1
 ---
 
 # ADR-NNNN: Title as Short Noun Phrase

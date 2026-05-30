@@ -145,18 +145,47 @@ Wait for user approval or revision requests before writing.
 
 1. Create the configured decisions directory if it doesn't exist
 
-2. Write the ADR to:
+2. **Populate frontmatter**: before writing the artifact file,
+   substitute the unified base fields into the template's frontmatter
+   block, using the metadata captured in Step 3.
+
+   1. The `Current Date/Time (UTC):` value from
+      `artifact-derive-metadata.sh` is the source for `date:` and
+      `last_updated:`. Repository identity is not part of the ADR
+      provenance bundle (ADRs are not code-state-anchored).
+   2. **Substitute** every field below with the indicated value:
+      - `type:` ← `adr`
+      - `id:` ← the ADR identifier `ADR-NNNN` from Step 1, always
+        quoted as a YAML string (e.g. `id: "ADR-0042"`)
+      - `title:` ← the ADR title (without the `ADR-NNNN:` prefix)
+      - `date:` ← the `Current Date/Time (UTC):` value
+      - `author:` ← the author resolved per the standard chain
+        (config → VCS user → prompt)
+      - `producer:` ← `create-adr`
+      - `status:` ← `proposed`
+      - `decision_makers:` ← a YAML list of the people who agreed to
+        the decision (empty array `[]` if not yet captured)
+      - `supersedes:` ← a YAML list of typed-linkage refs of the
+        form `"adr:ADR-NNNN"` (empty `[]` when this ADR does not
+        supersede anything)
+      - `last_updated:` ← the same `Current Date/Time (UTC):` value
+      - `last_updated_by:` ← the same value resolved for `author`
+      - `schema_version:` ← `1` (bare integer)
+
+3. Write the ADR to:
    `{decisions directory}/ADR-NNNN-description.md`
    where NNNN is the number from Step 1 and description is a kebab-case summary
 
-3. If this supersedes an existing ADR:
+4. If this supersedes an existing ADR:
    - Read the superseded ADR's current status to confirm it's `accepted`
    - Update ONLY the superseded ADR's frontmatter:
      - Change `status: accepted` to `status: superseded`
      - Add `superseded_by: ADR-MMMM` (where MMMM is the new ADR number)
    - Do NOT modify any other content in the superseded ADR
+   - Append the new ADR's typed-linkage ref to the new ADR's
+     `supersedes:` list (e.g. `["adr:ADR-0017"]`)
 
-4. Present the result:
+5. Present the result:
 
 ```
 ADR created: `{decisions directory}/ADR-NNNN-description.md`

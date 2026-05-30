@@ -947,11 +947,11 @@ no script change expected.)
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-template-frontmatter.sh` PASS row for `adr.md`.
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` PASS rows for `create-adr` and `extract-adrs`.
-- [ ] `rg -n "^adr_id:" templates/adr.md` returns no matches.
-- [ ] `rg -n "config-read-template\.sh adr" skills/decisions/extract-adrs/SKILL.md` returns at least one match.
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-template-frontmatter.sh` PASS row for `adr.md`.
+- [x] `bash scripts/test-skill-frontmatter-population.sh` PASS rows for `create-adr` and `extract-adrs`.
+- [x] `rg -n "^adr_id:" templates/adr.md` returns no matches.
+- [x] `rg -n "config-read-template\.sh adr" skills/decisions/extract-adrs/SKILL.md` returns at least one match.
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 
