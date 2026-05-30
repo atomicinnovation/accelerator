@@ -30,12 +30,12 @@ following the repository's standard template.
 
 ## Steps to follow:
 
-1. **Use the PR description template:**
+### Step 1: Use the PR description template
 
 - The template is shown above under "PR description template"
 - Read the template carefully to understand all sections and requirements
 
-2. **Identify the PR to describe:**
+### Step 2: Identify the PR to describe
 
 - Check if the current branch has an associated PR:
   `gh pr view --json url,number,title,state 2>/dev/null`
@@ -43,13 +43,13 @@ following the repository's standard template.
   `gh pr list --limit 10 --json number,title,headRefName,author`
 - Ask the user which PR they want to describe
 
-3. **Check for existing description:**
+### Step 3: Check for existing description
 
 - Check if `{prs directory}/{number}-description.md` already exists
 - If it exists, read it and inform the user you'll be updating it
 - Consider what has changed since the last description was written
 
-4. **Gather comprehensive PR information:**
+### Step 4: Gather comprehensive PR information
 
 - Get the full PR diff: `gh pr diff {number}`
 - If you get an error about no default remote repository, instruct the user to
@@ -58,8 +58,10 @@ following the repository's standard template.
 - Review the base branch: `gh pr view {number} --json baseRefName`
 - Get PR metadata: `gh pr view {number} --json url,title,number,state`
 
-5. **Analyze the changes thoroughly:** (ultrathink about the code changes, their
-   architectural implications, and potential impacts)
+### Step 5: Analyze the changes thoroughly
+
+(ultrathink about the code changes, their architectural implications, and
+potential impacts)
 
 - Read through the entire diff carefully
 - For context, read any files that are referenced but not shown in the diff
@@ -67,7 +69,7 @@ following the repository's standard template.
 - Identify user-facing changes vs internal implementation details
 - Look for breaking changes or migration requirements
 
-6. **Handle verification requirements:**
+### Step 6: Handle verification requirements
 
 - Look for any checklist items in the "How to verify it" section of the template
 - For each verification step:
@@ -80,7 +82,7 @@ following the repository's standard template.
     unchecked and note for user
 - Document any verification steps you couldn't complete
 
-7. **Generate the description:**
+### Step 7: Generate the description
 
 - Fill out each section from the template thoroughly:
   - Answer each question/section based on your analysis
@@ -90,32 +92,56 @@ following the repository's standard template.
   - Write a concise changelog entry
 - Ensure all checklist items are addressed (checked or explained)
 
-8. **Save and show the description:**
+### Step 8: Populate frontmatter and save the description
 
-- Write the completed description to `{prs directory}/{number}-description.md`
-  with YAML frontmatter:
+  Use the unified pr-description template as the source of the
+  frontmatter block:
 
-  ```markdown
-  ---
-  date: "{ISO timestamp}"
-  type: pr-description
-  skill: describe-pr
-  pr_number: {number}
-  pr_title: "{title}"
-  status: complete
-  ---
+  !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh pr-description`
 
-  {The generated PR description}
-  ```
+  Before writing the artifact file, capture metadata and substitute
+  the unified base fields into the template's frontmatter block:
+
+  1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+     to obtain `Current Date/Time (UTC):`, `Current Revision:`, and
+     `Repository Name:`. Also capture PR-specific extras via
+     `gh pr view <number> --json url,number,title,mergeCommit` to
+     fill `pr_url:`, `pr_number:`, `title:`, and (when the PR is
+     merged) `merge_commit:`.
+  2. **Substitute** every field below with the indicated value:
+     - `type:` ← `pr-description`
+     - `id:` ← the PR number as a quoted YAML string (e.g. `"42"`)
+     - `title:` ← the PR title from `gh pr view`
+     - `date:` ← the `Current Date/Time (UTC):` value
+     - `author:` ← the author resolved per the standard chain
+       (config → VCS user → prompt)
+     - `producer:` ← `describe-pr`
+     - `status:` ← `complete`
+     - `pr_url:` ← the URL from `gh pr view`
+     - `pr_number:` ← the PR number as a bare integer
+     - `merge_commit:` ← the merge commit SHA if merged, otherwise
+       empty string `""`
+     - `revision:` ← the `Current Revision:` value
+     - `repository:` ← the `Repository Name:` value
+     - `last_updated:` ← the same `Current Date/Time (UTC):` value
+     - `last_updated_by:` ← the same value resolved for `author`
+     - `schema_version:` ← `1` (bare integer)
+  3. Write the completed description with the substituted frontmatter
+     block to `{prs directory}/{number}-description.md`.
 
 - Show the user the generated description (without frontmatter — they'll
-  see what gets posted to GitHub)
-- On re-run (when `{prs directory}/{number}-description.md` already exists),
-  regenerate the frontmatter with an updated `date` timestamp. The
-  existing step 3 already handles reading the prior description for
-  context; the frontmatter is simply regenerated fresh.
+  see what gets posted to GitHub).
+- On re-run (when `{prs directory}/{number}-description.md` already
+  exists), regenerate the unified frontmatter rather than only updating
+  `date:`. Creation-time fields are immutable on re-run: `date:`,
+  `author:`, `id:`, `pr_number:`, and `pr_url:` are preserved verbatim
+  from the existing on-disk file. `last_updated:` is refreshed to the
+  new `Current Date/Time (UTC):` value; `last_updated_by:` is
+  rewritten to the current author per the standard resolution chain;
+  `merge_commit:` is filled if the PR is now merged. Step 3 already
+  handles reading the prior description for context.
 
-9. **Update the PR:**
+### Step 9: Update the PR
 
 - The `{prs directory}/{number}-description.md` file contains YAML frontmatter
   that should not appear on GitHub. Before posting, strip the frontmatter

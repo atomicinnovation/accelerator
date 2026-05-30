@@ -1186,11 +1186,11 @@ creates. Coordinate the release ordering so 0066 ships close behind 0065.
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-template-frontmatter.sh` PASS row for `pr-description.md`.
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `describe-pr`.
-- [ ] `rg -n "^skill:\s*describe-pr" templates/pr-description.md skills/github/describe-pr/SKILL.md` returns no matches (rename complete).
-- [ ] `rg -n "^pr_title:" templates/pr-description.md` returns no matches (migrated to `title`).
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-template-frontmatter.sh` PASS row for `pr-description.md`.
+- [x] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `describe-pr`.
+- [x] `rg -n "^skill:\s*describe-pr" templates/pr-description.md skills/github/describe-pr/SKILL.md` returns no matches (rename complete).
+- [x] `rg -n "^pr_title:" templates/pr-description.md` returns no matches (migrated to `title`).
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 

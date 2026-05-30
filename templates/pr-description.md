@@ -1,10 +1,21 @@
 ---
+type: pr-description                         # artifact-type discriminator
+id: "{pr_number}"                            # PR number as a quoted YAML string
+title: "{PR Title}"
 date: "{ISO timestamp}"
-type: pr-description
-skill: describe-pr
-pr_number: {number}
-pr_title: "{title}"
-status: complete
+author: "{author from VCS}"
+producer: describe-pr
+status: complete                             # complete
+work_item_id: ""                             # foreign reference (optional)
+pr_url: ""                                   # populated from `gh pr view`
+pr_number: {number}                          # bare integer
+merge_commit: ""                             # present-but-empty until merged
+tags: []
+revision: "{commit hash from artifact-derive-metadata.sh}"
+repository: "{repo name from artifact-derive-metadata.sh}"
+last_updated: "{ISO timestamp}"
+last_updated_by: "{author from VCS}"
+schema_version: 1
 ---
 
 # {PR Title}
