@@ -1342,10 +1342,10 @@ parameters:
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-template-frontmatter.sh` PASS row for `design-inventory.md`.
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `inventory-design`.
-- [ ] `rg -n "^git_commit:|^branch:" templates/design-inventory.md` returns no matches.
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-template-frontmatter.sh` PASS row for `design-inventory.md`.
+- [x] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `inventory-design`.
+- [x] `rg -n "^git_commit:|^branch:" templates/design-inventory.md` returns no matches.
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 

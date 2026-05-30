@@ -217,7 +217,7 @@ Run:
 ${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/inventory-metadata.sh
 ```
 
-### 11. Write Artifact (Atomic)
+### 11. Populate frontmatter and write artifact (atomic)
 
 Build the inventory under a sibling temporary directory:
 ```
@@ -230,6 +230,31 @@ Use the `design-inventory` template:
 ```
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh design-inventory`
 ```
+
+Before writing `inventory.md`, **substitute** every field below with
+the indicated value, using the helper output captured in Step 10
+(`Current Date/Time (UTC):`, `Current Revision:`, `Repository Name:`):
+
+- `type:` ← `design-inventory`
+- `id:` ← the inventory directory name (e.g.
+  `YYYY-MM-DD-HHMMSS-{source-id}`), always quoted as a YAML string
+- `title:` ← `Design Inventory: {source-id}`
+- `date:` ← the `Current Date/Time (UTC):` value
+- `author:` ← the author resolved per the standard chain (config →
+  VCS user → prompt)
+- `producer:` ← `inventory-design`
+- `status:` ← `draft`
+- `revision:` ← the `Current Revision:` value (omit when the source
+  is not a code repository — the helper omits the line itself in
+  that case)
+- `repository:` ← the `Repository Name:` value (same omission rule)
+- `last_updated:` ← the same `Current Date/Time (UTC):` value
+- `last_updated_by:` ← the same value resolved for `author`
+- `schema_version:` ← `1` (bare integer)
+
+The domain fields (`source`, `source_kind`, `source_location`,
+`crawler`, `sequence`, `screenshots_incomplete`) are filled from
+the values resolved in earlier steps.
 
 **Pre-write secret scrubber**: before moving the tmp directory to its final name,
 run:

@@ -1,19 +1,23 @@
 ---
+type: design-inventory                       # artifact-type discriminator
+id: "{filename-stem}"                        # filename without .md
+title: "Design Inventory: {source-id}"
 date: "{ISO timestamp}"
-type: design-inventory
+author: "{author name}"
+producer: inventory-design
+status: draft                                # draft
 source: "{source-id}"
 source_kind: "{code-repo | prototype | running-app}"
 source_location: "{path or URL}"
-git_commit: "{commit hash — omit if not a code repo}"
-branch: "{branch — omit if not a code repo}"
 crawler: "{code | runtime | hybrid}"
-author: "{author name}"
-status: draft
 sequence: 1
 screenshots_incomplete: false
 tags: [design, inventory, "{source-id}"]
+revision: "{commit hash — omit if not a code repo}"
+repository: "{repo name — omit if not a code repo}"
 last_updated: "{ISO timestamp}"
 last_updated_by: "{author name}"
+schema_version: 1
 ---
 
 # Design Inventory: {source-id}
