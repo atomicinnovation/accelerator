@@ -9,6 +9,9 @@ import {
   useUnseenDocTypes,
   UnseenDocTypesContext,
 } from '../../api/use-unseen-doc-types'
+import { useToastDispatcher, ToastContext } from '../../api/use-toast'
+import { Toaster } from '../Toaster/Toaster'
+import { ExternalEditToast } from '../Toaster/ExternalEditToast'
 import { fetchTypes, fetchLibraryStructure } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
 import styles from './RootLayout.module.css'
@@ -21,6 +24,7 @@ export function RootLayout() {
   })
   const theme = useTheme()
   const fontMode = useFontMode()
+  const toast = useToastDispatcher()
 
   const { data: docTypes = [] } = useQuery({
     queryKey: queryKeys.types(),
@@ -41,6 +45,7 @@ export function RootLayout() {
       <FontModeContext.Provider value={fontMode}>
       <DocEventsContext.Provider value={docEvents}>
         <UnseenDocTypesContext.Provider value={unseen}>
+        <ToastContext.Provider value={toast}>
         <div className={styles.root}>
           <Topbar />
           <div className={styles.body}>
@@ -54,6 +59,14 @@ export function RootLayout() {
             </main>
           </div>
         </div>
+        {/* INVARIANT: <ExternalEditToast/> and <Toaster/> must stay inside
+            <ToastContext.Provider>. Toaster portals to document.body, so its DOM
+            position is irrelevant, but if it falls outside this provider it
+            silently reads the no-op handle and all toasts vanish with no type
+            error. Keep these two adjacent and inside the provider. */}
+        <ExternalEditToast />
+        <Toaster />
+        </ToastContext.Provider>
         </UnseenDocTypesContext.Provider>
       </DocEventsContext.Provider>
       </FontModeContext.Provider>

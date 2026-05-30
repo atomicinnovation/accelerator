@@ -944,10 +944,10 @@ Cases:
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] Integration suite passes: `npm test src/components/RootLayout`
-- [ ] Full suite passes: `npm test` (from `frontend/`)
-- [ ] Type checking passes: `npm run typecheck`
-- [ ] Production build succeeds: `npm run build`
+- [x] Integration suite passes: `npm test src/components/RootLayout`
+- [x] Full suite passes: `npm test` (from `frontend/`)
+- [x] Type checking passes: `npm run typecheck`
+- [x] Production build succeeds: `npm run build`
 
 #### Manual Verification:
 - [ ] `npm run dev`, open a document detail page; from another process/tab edit
