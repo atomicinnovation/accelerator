@@ -657,12 +657,12 @@ wrapper) and `router-helpers.tsx`.
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] New suite passes: `npm test src/api/use-active-doc-relpath.test.tsx`
-- [ ] `LibraryDocView` untouched: `npm test src/routes/library` still green
-- [ ] Type checking passes: `npm run typecheck`
+- [x] New suite passes: `npm test src/api/use-active-doc-relpath.test.tsx`
+- [x] `LibraryDocView` untouched: `npm test src/routes/library` still green
+- [x] Type checking passes: `npm run typecheck`
 
 #### Manual Verification:
-- [ ] None.
+- [x] None.
 
 ---
 
