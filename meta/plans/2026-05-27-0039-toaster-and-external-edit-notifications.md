@@ -398,11 +398,11 @@ Notes:
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] New unit suite passes: `npm test src/api/use-toast.test.tsx` (run from `frontend/`)
-- [ ] Type checking passes: `npm run typecheck`
+- [x] New unit suite passes: `npm test src/api/use-toast.test.tsx` (run from `frontend/`)
+- [x] Type checking passes: `npm run typecheck`
 
 #### Manual Verification:
-- [ ] None (no UI in this phase).
+- [x] None (no UI in this phase).
 
 ---
 
