@@ -501,20 +501,20 @@ The `jsonl_json_escape` helper is a small (10–20 line) bash function in a new 
 
 #### Automated Verification
 
-- [ ] `bash scripts/test-atomic-common.sh` exits 0; the existing tests for `atomic_write` / `atomic_append_unique` / `atomic_remove_line` continue to pass alongside the new JSONL helper tests.
-- [ ] `flock(1)` precondition fires with the documented install message when invoked on a `PATH` without `flock`; restore `flock` and the test then passes.
-- [ ] Concurrent-write test passes for all parametrised line sizes (100 B through 64 KiB). Per-line JSON-parse precondition uses `mise exec -- python3 -m json.tool` (consistent with the pinned shellcheck invocation pattern) — falling back to an awk-based brace/quote-balance smoke check if `mise` is unavailable.
+- [x] `bash scripts/test-atomic-common.sh` exits 0; the existing tests for `atomic_write` / `atomic_append_unique` / `atomic_remove_line` continue to pass alongside the new JSONL helper tests.
+- [ ] `flock(1)` precondition fires with the documented install message when invoked on a `PATH` without `flock`; restore `flock` and the test then passes. *(N/A — implementation uses an mkdir-based lock primitive for portability on stock macOS; no flock dependency.)*
+- [x] Concurrent-write test passes for all parametrised line sizes (100 B through 64 KiB). Per-line JSON-parse precondition uses `mise exec -- python3 -m json.tool` (consistent with the pinned shellcheck invocation pattern) — falling back to an awk-based brace/quote-balance smoke check if `mise` is unavailable.
 - [ ] Race-the-crash durability test passes: every line on disk after every kill is parseable as JSON.
-- [ ] Prefix-collision and substring-in-other-field removal tests pass.
-- [ ] Escape round-trip test passes (writer → remover with `"`, `\`, tab, newline in the key) — including the explicit awk-`-v`-vs-ENVIRON regression guard.
-- [ ] `jsonl_json_escape` round-trips every escape-significant character.
-- [ ] Existing migration suite still passes.
+- [x] Prefix-collision and substring-in-other-field removal tests pass.
+- [x] Escape round-trip test passes (writer → remover with `"`, `\`, tab, newline in the key) — including the explicit awk-`-v`-vs-ENVIRON regression guard.
+- [x] `jsonl_json_escape` round-trips every escape-significant character.
+- [x] Existing migration suite still passes.
 - [ ] `mise exec -- shellcheck -x scripts/atomic-common.sh` produces no new warnings.
 
 #### Manual Verification
 
-- [ ] Inspect a session-log file written via these helpers: one JSON object per line, trailing `\n`, no orphan temp or lockfile artefacts in the parent dir after a clean run.
-- [ ] Add `flock` to `mise.toml` (alongside the existing pins for python, shellcheck, etc.) so contributors get the dependency automatically.
+- [x] Inspect a session-log file written via these helpers: one JSON object per line, trailing `\n`, no orphan temp or lockfile artefacts in the parent dir after a clean run.
+- [ ] Add `flock` to `mise.toml` (alongside the existing pins for python, shellcheck, etc.) so contributors get the dependency automatically. *(N/A — implementation uses an mkdir-based lock primitive, no flock dependency.)*
 
 ---
 
