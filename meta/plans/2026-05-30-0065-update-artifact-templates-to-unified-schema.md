@@ -610,11 +610,11 @@ depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "tes
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-template-frontmatter.sh; [ $? -ne 0 ]` — exits non-zero (RED baseline, as expected before Phases 3–10).
-- [ ] `bash scripts/test-skill-frontmatter-population.sh; [ $? -ne 0 ]` — exits non-zero (RED baseline).
-- [ ] `bash scripts/test-metadata-helpers.sh; [ $? -ne 0 ]` — exits non-zero (RED baseline).
-- [ ] `mise run test:unit:templates` is a recognised task (`mise tasks ls | grep test:unit:templates`).
-- [ ] `bash scripts/test-format.sh` still passes (no regressions in existing checks).
+- [x] `bash scripts/test-template-frontmatter.sh; [ $? -ne 0 ]` — exits non-zero (RED baseline, as expected before Phases 3–10).
+- [x] `bash scripts/test-skill-frontmatter-population.sh; [ $? -ne 0 ]` — exits non-zero (RED baseline).
+- [x] `bash scripts/test-metadata-helpers.sh; [ $? -ne 0 ]` — exits non-zero (RED baseline).
+- [x] `mise run test:unit:templates` is a recognised task (`mise tasks ls | grep test:unit:templates`).
+- [x] `bash scripts/test-format.sh` still passes (no regressions in existing checks).
 
 #### Manual Verification:
 
@@ -711,9 +711,9 @@ Filename-timestamp format (`%Y-%m-%d-%H%M%S`) preserved unchanged.
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-metadata-helpers.sh` passes (GREEN).
-- [ ] `rg -n "GIT_COMMIT|GIT_BRANCH" scripts/artifact-derive-metadata.sh skills/design/inventory-design/scripts/inventory-metadata.sh skills/design/analyse-design-gaps/scripts/gap-metadata.sh` returns no matches.
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-metadata-helpers.sh` passes (GREEN).
+- [x] `rg -n "GIT_COMMIT|GIT_BRANCH" scripts/artifact-derive-metadata.sh skills/design/inventory-design/scripts/inventory-metadata.sh skills/design/analyse-design-gaps/scripts/gap-metadata.sh` returns no matches.
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 
