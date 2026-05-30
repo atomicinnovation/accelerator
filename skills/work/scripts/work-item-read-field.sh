@@ -7,6 +7,13 @@ set -euo pipefail
 # Exits with code 1 if the file is missing, frontmatter is missing or
 # unclosed, or the field is not present.
 #
+# Own-identity alias: when the caller asks for `work_item_id` against a
+# unified-shape file that only carries `id:`, the value of `id:` is
+# returned. Symmetrically, when the caller asks for `id` against a
+# legacy file that only carries `work_item_id:`, the legacy value is
+# returned. This bridges the unified schema with work items written
+# under the older shape until a corpus migration normalises them.
+#
 # Duplicate keys: first-match-wins (consistent with config-read-value.sh;
 # diverges from adr-read-status.sh which currently returns last-match).
 # Array values (e.g., `tags: [a, b]`) are returned verbatim — callers are
@@ -43,28 +50,53 @@ FRONTMATTER=$(config_extract_frontmatter "$WORK_ITEM_FILE") || {
   exit 1
 }
 
-PREFIX="${FIELD_NAME}:"
-FIELD_VALUE=""
-FOUND_FIELD=false
-while IFS= read -r line; do
-  if [[ "$line" == "${PREFIX}"* ]]; then
-    FIELD_VALUE="${line#"$PREFIX"}"
-    # Order matters: strip both ends of whitespace BEFORE stripping quotes,
-    # so trailing whitespace after a closing quote does not leave the quote
-    # orphaned. Each command gets its own -e for readability.
-    FIELD_VALUE=$(echo "$FIELD_VALUE" \
-      | sed -e 's/^[[:space:]]*//' \
-            -e 's/[[:space:]]*$//' \
-            -e 's/^["'"'"']//' \
-            -e 's/["'"'"']$//')
-    FOUND_FIELD=true
-    break
+read_field() {
+  local name="$1"
+  local prefix="${name}:"
+  local value=""
+  local found=false
+  while IFS= read -r line; do
+    if [[ "$line" == "${prefix}"* ]]; then
+      value="${line#"$prefix"}"
+      # Order matters: strip both ends of whitespace BEFORE stripping
+      # quotes, so trailing whitespace after a closing quote does not
+      # leave the quote orphaned. Each command gets its own -e for
+      # readability.
+      value=$(echo "$value" \
+        | sed -e 's/^[[:space:]]*//' \
+              -e 's/[[:space:]]*$//' \
+              -e 's/^["'"'"']//' \
+              -e 's/["'"'"']$//')
+      found=true
+      break
+    fi
+  done <<< "$FRONTMATTER"
+  if [ "$found" = true ]; then
+    printf '%s' "$value"
+    return 0
   fi
-done <<< "$FRONTMATTER"
+  return 1
+}
 
-if [ "$FOUND_FIELD" = true ]; then
-  echo "$FIELD_VALUE"
+if value=$(read_field "$FIELD_NAME"); then
+  echo "$value"
   exit 0
+fi
+
+# Own-identity fallback: if the caller asked for `id` against a legacy
+# file, try `work_item_id`. If the caller asked for `work_item_id`
+# against a unified file, try `id`. See the header comment for the full
+# rationale.
+if [ "$FIELD_NAME" = "id" ]; then
+  if value=$(read_field "work_item_id"); then
+    echo "$value"
+    exit 0
+  fi
+elif [ "$FIELD_NAME" = "work_item_id" ]; then
+  if value=$(read_field "id"); then
+    echo "$value"
+    exit 0
+  fi
 fi
 
 echo "Error: No '$FIELD_NAME' field found in frontmatter of $(basename "$WORK_ITEM_FILE")." >&2

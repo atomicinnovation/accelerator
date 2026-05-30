@@ -95,8 +95,13 @@ When this command is invoked:
    resolved). Run:
 
    ```
-   bash ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh work_item_id <path>
+   bash ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh id <path>
    ```
+
+   The own-identity field is `id` on unified-shape files and
+   `work_item_id` on legacy files; `work-item-read-field.sh` resolves
+   both transparently, so either key name passed here would return the
+   same value.
 
    If it exits non-zero (frontmatter missing or unclosed), print:
 
@@ -111,9 +116,9 @@ When this command is invoked:
 
    If validation passes, read the file fully (frontmatter and body) and
    cache the identity fields in conversation state:
-   `work_item_id`, `date`, `author`, `status`, `title`, `kind`,
-   `priority`, `parent`, `tags`. For any missing optional field, use the
-   template default — do not abort. Set the conversation into
+   `id` (or `work_item_id` on legacy files), `date`, `author`, `status`,
+   `title`, `kind`, `priority`, `parent`, `tags`. For any missing
+   optional field, use the template default — do not abort. Set the conversation into
    **enrich-existing mode** with `existing_work_item_path` cached, and
    skip directly to Step 1 in that mode — do not run the vagueness check.
 
@@ -428,11 +433,30 @@ concurrently. Please re-run /create-work-item.
 
 4. **Create the work items directory** if it does not exist.
 
-5. **Substitute `XXXX` with the full ID** throughout the draft (in both
-   the H1 line and `work_item_id` frontmatter) and write the file. The
-   `work_item_id` value must be **quoted as a YAML string**:
-   `work_item_id: "0001"` or `work_item_id: "PROJ-0001"`. The H1 line
-   reads `# <full-id>: <title>`.
+5. **Populate frontmatter**: before writing the artifact file, capture
+   metadata and substitute the unified base fields into the template's
+   frontmatter block.
+
+   1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+      to obtain `Current Date/Time (UTC):`, `Current Revision:`, and
+      `Repository Name:`.
+   2. **Substitute** every field below with the indicated value:
+      - `type:` ← `work-item`
+      - `id:` ← the full ID produced by `work-item-next-number.sh`,
+        always quoted as a YAML string (e.g. `id: "0001"` or
+        `id: "PROJ-0001"`)
+      - `title:` ← the body H1 title
+      - `date:` ← the `Current Date/Time (UTC):` value
+      - `author:` ← the author value resolved per the rules below
+        (config → VCS user → prompt)
+      - `producer:` ← `create-work-item`
+      - `status:` ← `draft`
+      - `last_updated:` ← the same `Current Date/Time (UTC):` value
+      - `last_updated_by:` ← the same value resolved for `author`
+      - `schema_version:` ← `1` (bare integer, not quoted)
+   3. Substitute `XXXX` with the full ID throughout the draft body (in
+      the H1 line). The H1 line reads `# <full-id>: <title>`.
+   4. Write the file with the substituted frontmatter block.
 
 6. **Print a confirmation**:
 
@@ -446,19 +470,22 @@ Work item created: `{work_dir}/<full-id>-kebab-slug.md`
    `existing_work_item_path` cached in Step 0.
 
 2. **At-write identity-swap check** (best-effort guard): immediately before
-   the confirmation prompt, re-read the target file's `work_item_id` from
+   the confirmation prompt, re-read the target file's own identity from
    disk via:
 
    ```
-   bash ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh work_item_id <existing_work_item_path>
+   bash ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh id <existing_work_item_path>
    ```
+
+   (The script returns the value of `id:` on unified-shape files and falls
+   back to `work_item_id:` on legacy files.)
 
    - If the script exits non-zero (file gone or frontmatter unparseable since
      Step 0), abort with:
      `"Error: <path> is no longer present or its frontmatter is unparseable.
      Your proposed draft is below — copy it before re-running
      /create-work-item: <draft>"`
-   - If the on-disk `work_item_id` differs from the value cached in Step 0,
+   - If the on-disk identity differs from the value cached in Step 0,
      abort with:
      `"Error: <path> changed identity since Step 0 (was <cached>, now
      <current>). Your proposed draft is below — copy it before re-running
@@ -479,7 +506,7 @@ Work item created: `{work_dir}/<full-id>-kebab-slug.md`
      (status: <cached> unchanged)  # always show status explicitly
 
    Sections preserved verbatim: <count> (<terse list or "none">)
-   Frontmatter fields preserved verbatim: work_item_id, date, author
+   Frontmatter fields preserved verbatim: id, date, author
      [+ any unmodified proposable fields]
 
    Proceed? (y/n)
@@ -495,10 +522,12 @@ Work item created: `{work_dir}/<full-id>-kebab-slug.md`
 
 5. **On `y` — substitute cached immutable fields, then write**: immediately
    before invoking the Write tool, re-read the cached immutable identity fields
-   (`work_item_id`, `date`, `author`) from conversation state and overwrite the
+   (`id`, `date`, `author`) from conversation state and overwrite the
    corresponding frontmatter lines in the draft text with those exact values,
-   even if they appear unchanged. This textual substitution defends against
-   drift during Step 4 iteration.
+   even if they appear unchanged. Also write `last_updated:` to the current
+   `Current Date/Time (UTC):` value and `last_updated_by:` to the resolved
+   author. This textual substitution defends against drift during Step 4
+   iteration.
 
 6. Write the file to `existing_work_item_path`. The path-existence guard from
    the normal flow does not apply — overwrite is the intended behaviour.
@@ -521,34 +550,39 @@ Work item created: `{work_dir}/<full-id>-kebab-slug.md`
   the top of this skill), not a hardcoded list. Default to `story` when the
   kind is genuinely ambiguous.
 - All frontmatter fields defined in the work item template must be populated
-  in every written work item: `work_item_id` matching the assigned full ID
-  (a quoted YAML string — see contract below), `title` matching the
-  user-approved title, `date`, `author`, `kind`, `status` (draft),
-  `priority` (medium unless the user specified otherwise), `parent`
-  (empty string unless a parent was established), and `tags` (a YAML
-  array, possibly empty). No field may contain unfilled placeholder
-  text like `[author]` or `NNNN`. The body H1 format is
-  `# <full-id>: <title>` where `<full-id>` is whatever the configured
-  `work.id_pattern` produces — kept in sync with the frontmatter
-  `title:` field.
+  in every written work item: `type` (`work-item`), `id` matching the
+  assigned full ID (a quoted YAML string — see contract below), `title`
+  matching the user-approved title, `date`, `author`, `producer`
+  (`create-work-item`), `status` (`draft`), `kind`, `priority` (medium
+  unless the user specified otherwise), `parent` (empty string unless a
+  parent was established), `external_id` (empty unless set), `tags` (a
+  YAML array, possibly empty), `last_updated`, `last_updated_by`, and
+  `schema_version: 1`. No field may contain unfilled placeholder text
+  like `[author]` or `NNNN`. The body H1 format is `# <full-id>: <title>`
+  where `<full-id>` is whatever the configured `work.id_pattern`
+  produces — kept in sync with the frontmatter `title:` field.
 
-- **`work_item_id` frontmatter type contract**: the field is **always a
-  quoted YAML string**, regardless of the configured pattern. Files
-  created under default `{number:04d}` write `work_item_id: "0001"`;
-  files created under `{project}-{number:04d}` write
-  `work_item_id: "PROJ-0001"`. This contract is uniform so consumers
-  can read the field as a string without coercion. See
+- **`id` frontmatter type contract**: the own-identity field is
+  **always a quoted YAML string**, regardless of the configured
+  pattern. Files created under default `{number:04d}` write
+  `id: "0001"`; files created under `{project}-{number:04d}` write
+  `id: "PROJ-0001"`. This contract is uniform so consumers can read
+  the field as a string without coercion. See
   `skills/config/configure/SKILL.md > work` for the full contract.
+  Legacy files carry the same value under `work_item_id:`;
+  `work-item-read-field.sh` returns either key transparently so
+  consumers do not need to know which shape is on disk.
 
 **Identity Field Rules** (apply in enrich-existing mode):
 
-- **Immutable** — `work_item_id`, `date`, `author`. Cached from the source
-  file in Step 0; never proposed for change; the model substitutes the cached
-  values back into the draft frontmatter at write time (Step 5 step 5) as a
-  defence against drift during Step 4 iteration. This is a textual
-  substitution the model performs — the eval suite verifies the written file's
-  values match the cached values, which is the strongest guarantee the
-  grader-mediated harness can provide.
+- **Immutable** — `id` (or `work_item_id` on legacy files), `date`,
+  `author`. Cached from the source file in Step 0; never proposed for
+  change; the model substitutes the cached values back into the draft
+  frontmatter at write time (Step 5 step 5) as a defence against drift
+  during Step 4 iteration. This is a textual substitution the model
+  performs — the eval suite verifies the written file's values match
+  the cached values, which is the strongest guarantee the grader-
+  mediated harness can provide.
 - **Preserved unless explicitly changed** — `status`. Defaults to the cached
   value. May only change if the user makes an explicit, direct request during
   the conversation (e.g. "set status to in-progress"). The model must not
@@ -562,10 +596,10 @@ Work item created: `{work_dir}/<full-id>-kebab-slug.md`
   Default to the cached values; can be replaced after explicit user agreement
   in Step 3's augmentation review.
 
-**H1 sync** (enrich-existing mode): the body H1 is `# <work_item_id>: <title>`,
-using the cached immutable `work_item_id` (the full ID produced by
-the configured pattern, never a placeholder) and the title as
-confirmed or replaced in Step 3.
+**H1 sync** (enrich-existing mode): the body H1 is `# <id>: <title>`,
+using the cached immutable `id` (the full ID produced by the configured
+pattern, never a placeholder; sourced from `work_item_id` on legacy
+files) and the title as confirmed or replaced in Step 3.
 
 **Script avoidance** (enrich-existing mode): `work-item-next-number.sh` is
 never called. The number is already cached. The path-existence guard in Step 5

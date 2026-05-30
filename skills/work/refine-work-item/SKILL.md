@@ -177,24 +177,32 @@ Wait for explicit `y`. On `n`, cancel without writing.
 1. Call `work-item-next-number.sh --count N` exactly once to allocate N
    consecutive numbers.
 
-2. For each child, write `NNNN-kebab-slug.md` with all nine frontmatter
-   fields:
-   - `work_item_id` — from the script, zero-padded four-digit string
+2. For each child, write `NNNN-kebab-slug.md` with all unified
+   frontmatter fields populated:
+   - `type` — `work-item`
+   - `id` — from the script, zero-padded four-digit string
+     (own-identity; legacy files use `work_item_id`)
    - `title` — per-child proposal title; body H1 matches exactly
    - `date` — current UTC timestamp via `date -u +%Y-%m-%dT%H:%M:%S+00:00`
    - `author` — first match in chain: parent work item's `author` field → configured
      `author` value (from context config) → `jj config get user.name` →
      `git config user.name` → ask the user once and apply to all children
+   - `producer` — `refine-work-item`
    - `kind` — derived: `epic → story`, `story → task`, `bug`/`spike` → ask
      user to confirm before proceeding (already done in the challenge step),
      any other kind → `story` with a one-line notice
    - `status` — literal `draft`
    - `priority` — inherit from parent; if parent has none, ask once and
      apply to every child written in this session
-   - `parent` — the target work item's `work_item_id`, canonicalised to a
-     zero-padded four-digit string (e.g. `"1"` → `"0001"`)
+   - `parent` — the target work item's own identity (from `id` on
+     unified files, or `work_item_id` on legacy files), canonicalised
+     to the configured pattern's full-ID shape (e.g. `"1"` → `"0001"`)
+   - `external_id` — empty string unless propagated from the parent
    - `tags` — verbatim copy of the parent's `tags` array (empty array `[]`
      if the parent has none)
+   - `last_updated` — same UTC timestamp as `date`
+   - `last_updated_by` — same author value resolved above
+   - `schema_version` — `1`
 
    Immediately before writing each child, verify the computed filename does
    not already exist. If it does, abort with:
@@ -397,10 +405,13 @@ The skill exits after this offer regardless of the user's response.
   - size: owns the single `**Size**: <value> — <rationale>` line, always as
     the FIRST line of Technical Notes; replace in place on re-run
   - link: owns Dependencies
-- **Never modify any frontmatter field** of the target work item (`work_item_id`,
-  `title`, `date`, `author`, `kind`, `status`, `priority`, `parent`,
-  `tags`) — those transitions are `/update-work-item`'s concern. Children of
-  decompose are new work items getting their initial frontmatter.
+- **Never modify any frontmatter field** of the target work item
+  (`type`, `id` (or `work_item_id` on legacy files), `title`, `date`,
+  `author`, `producer`, `kind`, `status`, `priority`, `parent`,
+  `external_id`, `tags`, `last_updated`, `last_updated_by`,
+  `schema_version`) — those transitions are `/update-work-item`'s
+  concern. Children of decompose are new work items getting their
+  initial frontmatter.
 - **Destructive paths require two-step confirmation**: replace mode for
   enrich, replace mode for link, clobbering an existing `**Size**:` line —
   each must show a unified diff and require a second `y/n` confirmation.

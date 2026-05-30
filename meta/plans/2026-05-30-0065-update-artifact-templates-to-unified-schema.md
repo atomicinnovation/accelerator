@@ -851,13 +851,13 @@ fallback can be removed in a follow-up cleanup story.
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-template-frontmatter.sh` PASS row for `work-item.md`.
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` PASS rows for `create-work-item` and `extract-work-items`.
-- [ ] `bash scripts/test-format.sh` passes.
-- [ ] `rg -n "^work_item_id:" templates/work-item.md` returns no matches (own-identity rename complete).
-- [ ] `bash skills/work/scripts/work-item-read-field.sh work_item_id <fixture-with-id-only>` returns the `id` value (fallback works in legacy→new direction).
-- [ ] `bash skills/work/scripts/work-item-read-field.sh id <fixture-with-work_item_id-only>` returns the `work_item_id` value (fallback works in new→legacy direction).
-- [ ] `bash -c "source skills/work/scripts/work-item-common.sh && wip_is_work_item_file <fixture-with-id-only>"` exits 0.
+- [x] `bash scripts/test-template-frontmatter.sh` PASS row for `work-item.md`.
+- [x] `bash scripts/test-skill-frontmatter-population.sh` PASS rows for `create-work-item` and `extract-work-items`.
+- [x] `bash scripts/test-format.sh` passes.
+- [x] `rg -n "^work_item_id:" templates/work-item.md` returns no matches (own-identity rename complete).
+- [x] `bash skills/work/scripts/work-item-read-field.sh work_item_id <fixture-with-id-only>` returns the `id` value (fallback works in legacy→new direction).
+- [x] `bash skills/work/scripts/work-item-read-field.sh id <fixture-with-work_item_id-only>` returns the `work_item_id` value (fallback works in new→legacy direction).
+- [x] `bash -c "source skills/work/scripts/work-item-common.sh && wip_is_work_item_file <fixture-with-id-only>"` exits 0.
 
 #### Manual Verification:
 

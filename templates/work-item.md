@@ -1,13 +1,19 @@
 ---
-work_item_id: "NNNN"                         # from work-item-next-number.sh; always a quoted string
-title: "Title as Short Noun Phrase"          # human-readable title; kept in sync with body H1
-date: "YYYY-MM-DDTHH:MM:SS+00:00"            # date -u +%Y-%m-%dT%H:%M:%S+00:00
-author: Author Name                          # your name or GitHub handle
-kind: story                                  # story | epic | task | bug | spike
+type: work-item                              # artifact-type discriminator
+id: "NNNN"                                   # from work-item-next-number.sh; always a quoted string
+title: "Title as Short Noun Phrase"
+date: "YYYY-MM-DDTHH:MM:SS+00:00"
+author: Author Name
+producer: create-work-item
 status: draft                                # draft | ready | in-progress | review | done | blocked | abandoned
+kind: story                                  # story | epic | task | bug | spike
 priority: medium                             # high | medium | low
-parent: ""                                   # work-item number of the parent epic/story, or empty
-tags: []                                     # YAML array, e.g. [backend, performance]
+parent: ""                                   # typed-linkage key: "work-item:NNNN" or empty
+external_id: ""                              # cross-system pointer (e.g. Jira/Linear key); empty when not linked
+tags: []
+last_updated: "YYYY-MM-DDTHH:MM:SS+00:00"
+last_updated_by: Author Name
+schema_version: 1
 ---
 
 # NNNN: Title as Short Noun Phrase

@@ -86,14 +86,23 @@ in_fenced_block() {
   ' "$file"
 }
 
-# Check imperative-instruction context: the field appears in a line that
-# contains a substitute/populate/etc verb, inside a section whose heading
-# matches the allowed list.
+# Check imperative-instruction context: inside a section whose heading
+# matches the persistence-related allowed list, both an imperative verb
+# (Substitute|Populate|Set|Write|Emit) and a colon-anchored field
+# reference must appear. The verb and the field do not need to be on the
+# same line — the canonical persistence-step snippet introduces the verb
+# on a leading "Substitute every field below" line and lists the fields
+# as bullets beneath.
 in_imperative_section() {
   local file="$1" field="$2"
   awk -v field="$field" '
-    BEGIN { IGNORECASE = 1 }
+    function flush() {
+      if (in_section && has_verb && has_field) { found = 1 }
+      has_verb = 0
+      has_field = 0
+    }
     /^#/ {
+      flush()
       heading = tolower($0)
       if (heading ~ /persistence|metadata|frontmatter|populate|capture metadata|step [0-9]/) {
         in_section = 1
@@ -103,13 +112,15 @@ in_imperative_section() {
       next
     }
     in_section {
-      # Look for a line that mentions the field by colon-suffix anchor and
-      # contains an imperative verb.
-      pat = "(^| |`|\\*)" field ":"
+      pat = "(^|[ \t]|`|\\*)" field ":"
       verbs = "[Ss]ubstitute|[Pp]opulate|[Ss]et|[Ww]rite|[Ee]mit"
-      if ($0 ~ pat && match($0, verbs)) { found=1; exit }
+      if ($0 ~ pat) has_field = 1
+      if (match($0, verbs)) has_verb = 1
     }
-    END { exit (found ? 0 : 1) }
+    END {
+      flush()
+      exit (found ? 0 : 1)
+    }
   ' "$file"
 }
 

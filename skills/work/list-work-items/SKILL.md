@@ -115,7 +115,8 @@ If no argument was provided: filter is "all work items, no filter".
    files may coexist with project-coded files (`PROJ-NNNN-*.md`) during
    a pattern transition. A file is treated as a work item iff
    `work-item-common.sh:wip_is_work_item_file` returns success — that is,
-   the file has YAML frontmatter and a non-empty `work_item_id` field.
+   the file has YAML frontmatter and a non-empty `id` field (or
+   `work_item_id` on legacy files).
    Files lacking either are silently excluded; files with malformed
    frontmatter emit a one-line warning to stderr and are skipped.
 
@@ -161,7 +162,8 @@ If no argument was provided: filter is "all work items, no filter".
      under a `{project}-{number:04d}` pattern is matched by a
      legacy-fallback path so the file remains visible in the listing.
      The filename prefix remains the authoritative work item ID, even
-     if `work_item_id` in frontmatter differs.
+     if the `id` field (or `work_item_id` on legacy files) in frontmatter
+     differs.
 
 5. **Mixed-prefix discoverability hint**: when the listing detects both
    files matching the legacy `[0-9]{4}-` shape AND files matching the
@@ -307,8 +309,9 @@ All work items (29 total)
   "no frontmatter" / "unclosed frontmatter".
 - **Filename is authoritative**: the ID extracted from the filename
   (via `wip_extract_id_from_filename`) is the work item ID, even if
-  `work_item_id` in frontmatter differs. This applies to both legacy
-  bare-number filenames and project-coded filenames.
+  the `id` field (or `work_item_id` on legacy files) in frontmatter
+  differs. This applies to both legacy bare-number filenames and
+  project-coded filenames.
 - **Hierarchy safety**: hierarchy rendering must terminate in bounded
   time even if parent cycles exist. Detect cycles and render affected
   work items flat with a marker.

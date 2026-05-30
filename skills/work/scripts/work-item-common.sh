@@ -444,8 +444,11 @@ wip_extract_id_from_filename() {
 }
 
 # wip_is_work_item_file <path>
-# Predicate: exit 0 iff the file has YAML frontmatter and a
-# work_item_id field with a non-empty string value. No stdout.
+# Predicate: exit 0 iff the file has YAML frontmatter and an own-identity
+# field (`id` or, on legacy files, `work_item_id`) with a non-empty
+# string value. The legacy fallback supports work items written before
+# the unified schema landed and can be dropped once a corpus migration
+# normalises every work item to `id:`.
 wip_is_work_item_file() {
   local path="${1-}"
   [ -f "$path" ] || return 1
@@ -453,9 +456,9 @@ wip_is_work_item_file() {
     NR == 1 && /^---[[:space:]]*$/ { in_fm = 1; next }
     in_fm && /^---[[:space:]]*$/ { exit }
     in_fm {
-      if ($0 ~ /^[[:space:]]*work_item_id[[:space:]]*:[[:space:]]*/) {
+      if ($0 ~ /^[[:space:]]*(id|work_item_id)[[:space:]]*:[[:space:]]*/) {
         val = $0
-        sub(/^[[:space:]]*work_item_id[[:space:]]*:[[:space:]]*/, "", val)
+        sub(/^[[:space:]]*(id|work_item_id)[[:space:]]*:[[:space:]]*/, "", val)
         sub(/[[:space:]]+$/, "", val)
         # Strip surrounding quotes
         if (val ~ /^".*"$/ || val ~ /^'\''.*'\''$/) {

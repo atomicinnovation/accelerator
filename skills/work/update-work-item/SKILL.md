@@ -131,11 +131,14 @@ user choose.
 
 ### Special field rules
 
-**`work_item_id` — hard-blocked**: print `"Error: work_item_id cannot be
-changed — the filename prefix is the authoritative work item ID. To
-renumber a work item, rename the file (e.g. jj mv) and update
-work_item_id to match. The work_item_id field is always a quoted
-string."` No diff, no write, no confirmation prompt.
+**`id` (own-identity) — hard-blocked**: print `"Error: own-identity
+(id) cannot be changed — the filename prefix is the authoritative
+work item ID. To renumber a work item, rename the file (e.g. jj mv)
+and update the id field to match. The id field is always a quoted
+string."` No diff, no write, no confirmation prompt. The same hard
+block applies if the user names the field as `work_item_id` (the
+legacy alias accepted on read for files predating the unified
+schema).
 
 **`date` — warned**: print `"date records the work item's creation time and
 is typically not edited. Proceed anyway? (y/n)"`. If the user confirms,
@@ -259,8 +262,9 @@ Updated <filename>:
 - **Hint values are suggestions, not constraints**: when surfacing
   field hints via `work-item-template-field-hints.sh`, present them as
   examples. Accept any value the user provides.
-- **`work_item_id` is immutable**: hard-block edits with an error pointing
-  to file rename (`jj mv`) as the correct approach.
+- **Own-identity is immutable**: hard-block edits to `id` (or to
+  `work_item_id` on legacy files) with an error pointing to file
+  rename (`jj mv`) as the correct approach.
 - **`date` is guarded**: warn before editing the creation timestamp;
   allow if the user confirms.
 - **Tags via script**: delegate all tag operations to
@@ -280,7 +284,8 @@ Updated <filename>:
   updatable. No migration is offered or required.
 - **Ambiguous globs**: if multiple work items match a number glob, list
   them and ask the user to choose. Never silently pick one.
-- **No file renaming**: `work_item_id` edits are hard-blocked. Point the
-  user to `jj mv` + manual frontmatter edit for renumbering.
+- **No file renaming**: own-identity edits (`id`, or `work_item_id` on
+  legacy files) are hard-blocked. Point the user to `jj mv` + manual
+  frontmatter edit for renumbering.
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh update-work-item`

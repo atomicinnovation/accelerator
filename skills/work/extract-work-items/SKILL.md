@@ -438,15 +438,39 @@ in Step 4 after all approvals — enriched and thin — are collected.
       their original presented order. Within a single project, the
       first row in presentation order takes the first allocated
       number; multiple projects each preserve their own ordering. The
-      `work_item_id` frontmatter is **always quoted** (`"PROJ-0001"`).
+      `id` frontmatter is **always quoted** (`"PROJ-0001"`).
 
-   h. **Write all N work item files**. Each work item's `References`
+   h. **Populate frontmatter** for every approved draft. Before writing
+      each file, capture metadata and substitute the unified base
+      fields into the template's frontmatter block:
+
+      1. Invoke
+         `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+         once for the batch to obtain `Current Date/Time (UTC):`,
+         `Current Revision:`, and `Repository Name:`.
+      2. For each approved draft, **substitute** every field below
+         with the indicated value:
+         - `type:` ← `work-item`
+         - `id:` ← the allocated full ID, always quoted as a YAML
+           string (e.g. `id: "PROJ-0001"`)
+         - `title:` ← the draft's H1 title
+         - `date:` ← the `Current Date/Time (UTC):` value
+         - `author:` ← the author value resolved per the rules in
+           `create-work-item/SKILL.md > author` (config → VCS user →
+           prompt)
+         - `producer:` ← `extract-work-items`
+         - `status:` ← `draft`
+         - `last_updated:` ← the same `Current Date/Time (UTC):` value
+         - `last_updated_by:` ← the same value resolved for `author`
+         - `schema_version:` ← `1` (bare integer, not quoted)
+
+   i. **Write all N work item files**. Each work item's `References`
       section must include all source document paths the item was
       extracted from. For deduplicated items that appeared in multiple
       documents, list every contributing source under `References`,
       one per line.
 
-   i. If a write error occurs mid-batch: report which numbers were
+   j. If a write error occurs mid-batch: report which numbers were
       allocated, which files were written successfully, and which were
       not — so the user can manually write the missing files with
       their pre-assigned IDs. Do not retry writes silently and do not
@@ -502,13 +526,16 @@ Under the default `{number:04d}` pattern the ID column shows
   frontmatter (loaded at the top of this skill), not a hardcoded list.
   Default to `story` for items where the kind is genuinely ambiguous.
 - All frontmatter fields defined in the work item template must be populated
-  in every written work item — `work_item_id` matching the assigned NNNN, `title`
-  matching the work item's title, `date`, `author`, `kind`, `status` (draft),
-  `priority` (medium unless the source implies otherwise), `parent` (empty
-  string unless the source establishes a parent), and `tags` (a YAML
-  array, possibly empty). No field may contain unfilled placeholder text
-  like `[author]` or `NNNN`. The body H1 format is `# NNNN: <title>` —
-  kept in sync with the frontmatter `title:` field.
+  in every written work item — `type` (`work-item`), `id` matching the
+  assigned full ID, `title` matching the work item's title, `date`,
+  `author`, `producer` (`extract-work-items`), `status` (`draft`),
+  `kind`, `priority` (medium unless the source implies otherwise),
+  `parent` (empty string unless the source establishes a parent),
+  `external_id` (empty unless set), `tags` (a YAML array, possibly
+  empty), `last_updated`, `last_updated_by`, and `schema_version: 1`.
+  No field may contain unfilled placeholder text like `[author]` or
+  `NNNN`. The body H1 format is `# <full-id>: <title>` — kept in sync
+  with the frontmatter `title:` field.
 - `date` must use the work item template's `YYYY-MM-DDTHH:MM:SS+00:00`
   format in UTC (e.g. obtained via `date -u +%Y-%m-%dT%H:%M:%S+00:00`).
 - `author` is sourced in this order: configuration if present, then the
