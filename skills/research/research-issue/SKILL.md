@@ -39,7 +39,7 @@ Then wait for the user's issue description.
 
 ## Steps to follow after receiving the issue description:
 
-1. **Extract and classify input:**
+### Step 1: Extract and classify input
 
 - Determine input type: Structured (stacktrace/logs), Vague (behavioral
   description), or Mixed
@@ -50,7 +50,7 @@ Then wait for the user's issue description.
 - For intermittent/vague issues: specifically look for race conditions, state
   variance, non-deterministic code paths
 
-2. **Map to code:**
+### Step 2: Map to code
 
 - For structured input: resolve stacktrace frames to actual source files, check
   if referenced lines still match (code may have changed since the error)
@@ -58,14 +58,14 @@ Then wait for the user's issue description.
 - Read the relevant source files FULLY (no limit/offset) to understand context
 - Note any error handling, state management, or concurrency patterns
 
-3. **Check recent changes:**
+### Step 3: Check recent changes
 
 - Run `git log --oneline -20 -- <affected-files>` on each affected file
 - Look for recent modifications that correlate with when the issue started
 - Check if any recent refactoring touched the affected code paths
 - Use `git diff` on suspicious commits if needed
 
-4. **Form hypotheses (2-3 theories):**
+### Step 4: Form hypotheses (2-3 theories)
 
 - Based on the evidence gathered, formulate 2-3 plausible root causes
 - Each hypothesis should be testable through code inspection
@@ -73,7 +73,7 @@ Then wait for the user's issue description.
 - For vague/intermittent issues: always consider timing, ordering, and state
   as hypothesis categories
 
-5. **Investigate in parallel:**
+### Step 5: Investigate in parallel
 
 - Spawn sub-agent tasks to investigate each hypothesis concurrently
 - Use the **{codebase analyser agent}** to trace specific code paths
@@ -83,7 +83,7 @@ Then wait for the user's issue description.
 - Each agent should look for evidence FOR and AGAINST its assigned hypothesis
 - Collect specific file paths and line numbers as evidence
 
-6. **Synthesise into RCA document:**
+### Step 6: Synthesise into RCA document and populate frontmatter
 
 - Wait for ALL sub-agents to complete
 - Evaluate each hypothesis: Confirmed, Eliminated, or Inconclusive
@@ -91,16 +91,34 @@ Then wait for the user's issue description.
 - Construct the causal chain from trigger to failure
 - Propose fix options with risk/effort assessment
 - Gather metadata using
-  `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+  `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh` to obtain
+  `Current Date/Time (UTC):`, `Current Revision:`, and
+  `Repository Name:`.
 - Write the RCA document to the configured research directory using this
   template:
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh rca`
 
+  Before writing the artifact file, **substitute** every field below
+  with the indicated value:
+  - `type:` ← `issue-research`
+  - `id:` ← the filename stem, always quoted as a YAML string
+  - `title:` ← `Investigation: {Brief Issue Description}`
+  - `date:` ← the `Current Date/Time (UTC):` value
+  - `author:` ← the author resolved per the standard chain
+    (config → VCS user → prompt)
+  - `producer:` ← `research-issue`
+  - `status:` ← `complete`
+  - `revision:` ← the `Current Revision:` value
+  - `repository:` ← the `Repository Name:` value
+  - `last_updated:` ← the same `Current Date/Time (UTC):` value
+  - `last_updated_by:` ← the same value resolved for `author`
+  - `schema_version:` ← `1` (bare integer)
+
 - Filename format: `YYYY-MM-DD-description.md` where description is a brief
   kebab-case summary of the issue (e.g., `2025-01-08-auth-timeout-on-refresh.md`)
 
-7. **Present findings (ONLY after the file has been written):**
+### Step 7: Present findings (ONLY after the file has been written)
 
 - Confirm the file path where the RCA document was saved
 - Summarise the root cause concisely

@@ -1,14 +1,19 @@
 ---
-date: [Current date and time with timezone in ISO format]
-author: [VCS author]
-git_commit: [Current commit hash]
-branch: [Current branch name]
-repository: [Repository name]
-topic: "[User's Question/Topic]"
+type: codebase-research                      # artifact-type discriminator
+id: "{filename-stem}"                        # filename without .md
+title: "Research: {User's Question/Topic}"
+date: "{ISO timestamp from artifact-derive-metadata.sh}"
+author: "{author from VCS}"
+producer: research-codebase
+status: complete                             # complete
+work_item_id: ""                             # foreign reference (optional)
+topic: "{User's Question/Topic}"
 tags: [research, codebase, relevant-component-names]
-status: complete
-last_updated: [Current date in YYYY-MM-DD format]
-last_updated_by: [Researcher name]
+revision: "{commit hash from artifact-derive-metadata.sh}"
+repository: "{repo name from artifact-derive-metadata.sh}"
+last_updated: "{ISO timestamp}"
+last_updated_by: "{Researcher name}"
+schema_version: 1
 ---
 
 # Research: [User's Question/Topic]

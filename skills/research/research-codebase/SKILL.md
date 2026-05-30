@@ -41,7 +41,7 @@ Then wait for the user's research query.
 
 ## Steps to follow after receiving the research query:
 
-1. **Read any directly mentioned files first:**
+### Step 1: Read any directly mentioned files first
 
 - If the user mentions specific files (work items, docs, JSON), read them FULLY
   first
@@ -51,7 +51,7 @@ Then wait for the user's research query.
   any sub-tasks
 - This ensures you have full context before decomposing the research
 
-2. **Analyse and decompose the research question:**
+### Step 2: Analyse and decompose the research question
 
 - Break down the user's query into composable research areas
 - Take time to ultrathink about the underlying patterns, connections, and
@@ -60,7 +60,7 @@ Then wait for the user's research query.
 - Create a research plan using TodoWrite to track all subtasks
 - Consider which directories, files, or architectural patterns are relevant
 
-3. **Spawn parallel sub-agent tasks for comprehensive research:**
+### Step 3: Spawn parallel sub-agent tasks for comprehensive research
 
 - Create multiple Task agents to research different aspects concurrently
 - We now have specialised agents that know how to do specific research tasks:
@@ -95,7 +95,7 @@ The key is to use these agents intelligently:
 - Each agent knows its job - just tell it what you're looking for
 - Don't write detailed prompts about HOW to search - the agents already know
 
-4. **Wait for all sub-agents to complete and synthesise findings:**
+### Step 4: Wait for all sub-agents to complete and synthesise findings
 
 - IMPORTANT: Wait for ALL sub-agent tasks to complete before proceeding
 - Compile all sub-agent results (both codebase and document findings)
@@ -107,7 +107,7 @@ The key is to use these agents intelligently:
 - Highlight patterns, connections, and architectural decisions
 - Answer the user's specific questions with concrete evidence
 
-5. **Gather metadata for the research document:**
+### Step 5: Gather metadata for the research document
 
 - Run the `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
   script to generate all relevant metadata
@@ -120,15 +120,33 @@ The key is to use these agents intelligently:
     - With work item: `2025-01-08-ENG-1478-parent-child-tracking.md`
     - Without work item: `2025-01-08-authentication-flow.md`
 
-6. **Generate research document:**
+### Step 6: Populate frontmatter and generate the research document
 
-- Use the metadata gathered in step 4
-- Structure the document with YAML frontmatter followed by content using this
-  template:
+- Use the metadata gathered in step 5
+- Structure the document with YAML frontmatter followed by content using
+  this template:
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh codebase-research`
 
-7. **Add GitHub permalinks (if applicable):**
+  Before writing the artifact file, **substitute** every field below
+  with the indicated value, using the helper output captured in
+  step 5:
+  - `type:` ← `codebase-research`
+  - `id:` ← the filename stem (the file path computed above without
+    `.md`), always quoted as a YAML string
+  - `title:` ← `Research: {User's Question/Topic}`
+  - `date:` ← the `Current Date/Time (UTC):` value
+  - `author:` ← the author resolved per the standard chain
+    (config → VCS user → prompt)
+  - `producer:` ← `research-codebase`
+  - `status:` ← `complete`
+  - `revision:` ← the `Current Revision:` value
+  - `repository:` ← the `Repository Name:` value
+  - `last_updated:` ← the same `Current Date/Time (UTC):` value
+  - `last_updated_by:` ← the same value resolved for `author`
+  - `schema_version:` ← `1` (bare integer)
+
+### Step 7: Add GitHub permalinks (if applicable)
 
 - Check if on main branch or if commit is pushed: `git branch --show-current`
   and `git status`
@@ -138,13 +156,13 @@ The key is to use these agents intelligently:
     `https://github.com/{owner}/{repo}/blob/{commit}/{file}#L{line}`
 - Replace local file references with permalinks in the document
 
-8. **Present findings:**
+### Step 8: Present findings
 
 - Present a concise summary of findings to the user
 - Include key file references for easy navigation
 - Ask if they have follow-up questions or need clarification
 
-9. **Handle follow-up questions:**
+### Step 9: Handle follow-up questions
 
 - If the user has follow-up questions, append to the same research document
 - Update the frontmatter fields `last_updated` and `last_updated_by` to reflect

@@ -1269,10 +1269,10 @@ and `{producer-name}` = `research-issue`.
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-template-frontmatter.sh` PASS rows for `codebase-research.md` and `rca.md`.
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` PASS rows for `research-codebase` and `research-issue`.
-- [ ] `rg -n "^git_commit:|^branch:" templates/codebase-research.md templates/rca.md` returns no matches.
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-template-frontmatter.sh` PASS rows for `codebase-research.md` and `rca.md`.
+- [x] `bash scripts/test-skill-frontmatter-population.sh` PASS rows for `research-codebase` and `research-issue`.
+- [x] `rg -n "^git_commit:|^branch:" templates/codebase-research.md templates/rca.md` returns no matches.
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 
