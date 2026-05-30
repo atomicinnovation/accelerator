@@ -10,6 +10,31 @@ source "$PLUGIN_ROOT/scripts/atomic-common.sh"
 # ── 1. Resolve PROJECT_ROOT ──────────────────────────────────────────────────
 PROJECT_ROOT="${PROJECT_ROOT:-$(config_project_root)}"
 
+# ── 1a. Optional: decisions-file env var (test-only, unused until Phase 4) ──
+# Test-only mechanism: scripted decisions for interactive migrations. Never
+# documented in --help or any user-facing banner. The runner validates the
+# file when set so failures land here with a clear message rather than deep
+# inside the prompt loop.
+ACCELERATOR_MIGRATE_DECISIONS_FILE="${ACCELERATOR_MIGRATE_DECISIONS_FILE:-}"
+export ACCELERATOR_MIGRATE_DECISIONS_FILE
+if [ -n "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
+  if [ -d "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
+    echo "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE is a directory:" \
+         "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
+    exit 1
+  fi
+  if [ ! -e "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
+    echo "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE does not exist:" \
+         "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
+    exit 1
+  fi
+  if [ ! -r "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
+    echo "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE is not readable:" \
+         "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
+    exit 1
+  fi
+fi
+
 STATE_FILE="$PROJECT_ROOT/.accelerator/state/migrations-applied"
 SKIP_FILE="$PROJECT_ROOT/.accelerator/state/migrations-skipped"
 
@@ -61,6 +86,51 @@ if [ -z "${ACCELERATOR_MIGRATE_FORCE:-}" ]; then
   fi
 
   if [ -n "$dirty" ]; then
+    # Detect any in-flight interactive session logs among the dirty paths
+    # and emit a distinct, named message that names the resume command and
+    # the explicit discard command. Prevents jj-abandon-in-confusion.
+    dirty_session_logs=$(printf '%s\n' "$dirty" \
+      | grep -E '\.accelerator/state/migrations-[0-9a-z-]+-session\.jsonl' \
+      | sed 's/^[[:space:]]*//; s/^[A-Z?][[:space:]]*//' \
+      || true)
+    if [ -n "$dirty_session_logs" ]; then
+      echo "Found in-flight interactive migration session(s):" >&2
+      while IFS= read -r path; do
+        [ -z "$path" ] && continue
+        # Resolve the absolute path so the user can copy/paste rm commands.
+        abs="$path"
+        case "$abs" in /*) ;; *) abs="$PROJECT_ROOT/$path" ;; esac
+        decision_count=0
+        if [ -f "$abs" ]; then
+          decision_count=$(wc -l < "$abs" 2>/dev/null | tr -d ' ' || echo 0)
+        fi
+        echo "  $path  ($decision_count decisions recorded)" >&2
+      done <<< "$dirty_session_logs"
+      echo "" >&2
+      echo "To resume: re-run /accelerator:migrate (the session log is read on entry;" >&2
+      echo "you will be prompted only for un-decided transformations)." >&2
+      while IFS= read -r path; do
+        [ -z "$path" ] && continue
+        abs="$path"
+        case "$abs" in /*) ;; *) abs="$PROJECT_ROOT/$path" ;; esac
+        decision_count=0
+        if [ -f "$abs" ]; then
+          decision_count=$(wc -l < "$abs" 2>/dev/null | tr -d ' ' || echo 0)
+        fi
+        echo "To discard: rm $path  (loses $decision_count decisions)" >&2
+      done <<< "$dirty_session_logs"
+      echo "" >&2
+      # Pick the right status command for the detected VCS. git is the
+      # fallback when no VCS is detected (or the binary is missing) — it
+      # is the more widely-installed of the two.
+      case "$vcs" in
+        jj) status_cmd='jj status' ;;
+        *)  status_cmd='git status' ;;
+      esac
+      echo "If the above does not match what you expected, run \`$status_cmd\`" >&2
+      echo "to see all uncommitted changes before proceeding." >&2
+      exit 1
+    fi
     echo "Error: dirty working tree — uncommitted changes detected in meta/," \
          ".claude/accelerator*.md, or .accelerator/." >&2
     echo "Commit or discard those changes first, or set" \

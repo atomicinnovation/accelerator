@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- Migration framework: new optional interactive contract (work item 0069).
+  Migrations may now opt in to per-transformation accept/edit/skip prompts by
+  declaring `# INTERACTIVE: yes` in their header; mechanical migrations are
+  unchanged. Both paths run on bash 3.2+.
+
 ### Breaking
 
 - Playwright daemon owner-PID watcher removed: the `--owner-pid` CLI

@@ -346,18 +346,18 @@ The pre-flight still refuses to run until the tree is clean (committing the sess
 
 #### Automated Verification
 
-- [ ] Existing suite passes: `bash skills/config/migrate/scripts/test-migrate.sh` exits 0.
-- [ ] **Byte-identical snapshot test passes**: `bash skills/config/migrate/scripts/test-migrate-snapshot.sh` exits 0 against the unmodified runner; will re-run as a regression gate in every subsequent phase.
-- [ ] Interactive harness skeleton passes: `bash skills/config/migrate/scripts/test-migrate-interactive.sh` exits 0.
-- [ ] `ACCELERATOR_MIGRATE_DECISIONS_FILE=/dev/null bash skills/config/migrate/scripts/run-migrations.sh` on a no-pending-migrations repo is byte-identical to the same invocation without the env var.
-- [ ] Env-var robustness tests pass (non-existent, unreadable, directory, empty, CRLF).
-- [ ] Session-log-aware pre-flight emits the distinct message when a `migrations-<id>-session.jsonl` is dirty; emits the generic message when only other paths are dirty.
+- [x] Existing suite passes: `bash skills/config/migrate/scripts/test-migrate.sh` exits 0.
+- [x] **Byte-identical snapshot test passes**: `bash skills/config/migrate/scripts/test-migrate-snapshot.sh` exits 0 against the unmodified runner; will re-run as a regression gate in every subsequent phase.
+- [x] Interactive harness skeleton passes: `bash skills/config/migrate/scripts/test-migrate-interactive.sh` exits 0.
+- [x] `ACCELERATOR_MIGRATE_DECISIONS_FILE=/dev/null bash skills/config/migrate/scripts/run-migrations.sh` on a no-pending-migrations repo is byte-identical to the same invocation without the env var.
+- [x] Env-var robustness tests pass (non-existent, unreadable, directory, empty, CRLF).
+- [x] Session-log-aware pre-flight emits the distinct message when a `migrations-<id>-session.jsonl` is dirty; emits the generic message when only other paths are dirty.
 - [ ] `shellcheck skills/config/migrate/scripts/run-migrations.sh` produces no new warnings against a pinned `shellcheck` invocation: `mise exec -- shellcheck -x skills/config/migrate/scripts/run-migrations.sh` (shellcheck downgraded from per-phase Success Criterion to project-wide precondition — see Code Quality finding; the pinned invocation is now part of the test harness).
 
 #### Manual Verification
 
-- [ ] `ACCELERATOR_MIGRATE_DECISIONS_FILE` is invisible in user-facing CLI output (no `--help` mention, no banner).
-- [ ] Session-log-aware pre-flight message is readable and actionable to a user encountering it for the first time.
+- [x] `ACCELERATOR_MIGRATE_DECISIONS_FILE` is invisible in user-facing CLI output (no `--help` mention, no banner).
+- [x] Session-log-aware pre-flight message is readable and actionable to a user encountering it for the first time.
 
 ---
 
