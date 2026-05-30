@@ -1,0 +1,10 @@
+template	type	code_state_anchored	extras	status_vocab	forbidden_own_id_key
+work-item.md	work-item	no	kind priority external_id	draft | ready | in-progress | review | done | blocked | abandoned	work_item_id
+plan.md	plan	yes	reviewer	draft | ready | in-progress | done	-
+validation.md	plan-validation	no	result	complete	-
+pr-description.md	pr-description	yes	pr_url pr_number merge_commit	complete	pr_title
+adr.md	adr	no	decision_makers	proposed | accepted | superseded | deprecated	adr_id
+codebase-research.md	codebase-research	yes	topic	complete	-
+rca.md	issue-research	yes	topic	complete	-
+design-inventory.md	design-inventory	yes	source source_kind source_location crawler sequence screenshots_incomplete	draft	-
+design-gap.md	design-gap	no	current_inventory target_inventory	draft	-

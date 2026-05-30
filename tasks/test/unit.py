@@ -1,4 +1,4 @@
-from invoke import Context, task
+from invoke import Context, Exit, task
 
 from .helpers import repo_root
 
@@ -29,3 +29,22 @@ def frontend(context: Context):
     """Unit tests for the visualiser frontend (Vitest)."""
     frontend_root = repo_root() / "skills/visualisation/visualise/frontend"
     context.run(f"npm --prefix {frontend_root} run test")
+
+
+@task
+def templates(context: Context):
+    """Run template / SKILL / metadata-helper schema tests."""
+    drivers = [
+        "scripts/test-template-frontmatter.sh",
+        "scripts/test-skill-frontmatter-population.sh",
+        "scripts/test-metadata-helpers.sh",
+    ]
+    failures = []
+    for driver in drivers:
+        result = context.run(f"bash {driver}", warn=True, pty=False)
+        if result.exited != 0:
+            failures.append(driver)
+    if failures:
+        raise Exit(
+            f"Template schema tests failed: {', '.join(failures)}", code=1
+        )

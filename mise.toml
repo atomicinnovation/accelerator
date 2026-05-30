@@ -87,6 +87,10 @@ description = "Run pytest unit tests for invoke tasks"
 depends = ["deps:install:python"]
 run = "uv run pytest tests/tasks/shared/ tests/tasks/test_build.py tests/tasks/test_version.py -v"
 
+[tasks."test:unit:templates"]
+description = "Run template / SKILL / metadata-helper schema tests"
+run = "invoke test.unit.templates"
+
 [tasks."test:integration:tasks"]
 description = "Run pytest integration tests for invoke tasks"
 depends = ["deps:install:python"]
@@ -94,7 +98,7 @@ run = "uv run pytest tests/tasks/test_github.py tests/tasks/test_release.py -v"
 
 [tasks."test:unit"]
 description = "Run all unit tests in parallel"
-depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks"]
+depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "test:unit:templates"]
 
 [tasks."test:integration:visualiser"]
 description = "Run visualiser integration tests"
