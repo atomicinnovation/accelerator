@@ -806,11 +806,11 @@ Notes:
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] New suite passes: `npm test src/api/use-external-edit-toast.test.tsx`
-- [ ] Type checking passes: `npm run typecheck`
+- [x] New suite passes: `npm test src/api/use-external-edit-toast.test.tsx`
+- [x] Type checking passes: `npm run typecheck`
 
 #### Manual Verification:
-- [ ] None yet (mounted in Phase 5).
+- [x] None yet (mounted in Phase 5).
 
 ---
 
