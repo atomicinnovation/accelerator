@@ -567,11 +567,11 @@ import toasterCss from './Toaster.module.css?raw'
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] New component suite passes: `npm test src/components/Toaster/Toaster.test.tsx`
-- [ ] Type checking passes: `npm run typecheck`
+- [x] New component suite passes: `npm test src/components/Toaster/Toaster.test.tsx`
+- [x] Type checking passes: `npm run typecheck`
 
 #### Manual Verification:
-- [ ] None yet (component not mounted until Phase 5).
+- [x] None yet (component not mounted until Phase 5).
 
 ---
 
