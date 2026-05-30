@@ -108,6 +108,84 @@ Reconciliation against the Context's twelve types: twelve artifact types plus `n
 - Identity-key convention set per user: own identity = `id`; foreign-artifact references = `<snake_case_type>_id`. Threaded into the 0057 epic and 0060 work item, and into the source-of-truth ADR-0033 (own-`id` was already present; the foreign-`<type>_id` rule was added to its shape contract). 0064 was reviewed and needed no spec change. With ADR-0033 now authoritative, this story's prior open question (waiting on the schema source-of-truth) is resolved.
 - `templates/note.md` was removed from this story's scope per user decision and moved to 0067 (create-note), so the note template ships alongside the skill that consumes it. This story therefore touches only templates that already exist under `templates/`.
 
+## Discovery Pass Record
+
+Commands executed (run from repo root, after Phases 3–10 have landed):
+
+```
+# Pass A — template-using and unified-schema-emitting producers
+rg -n "config-read-template\.sh|^[[:space:]]*producer:|^[[:space:]]*schema_version:" skills --glob '**/SKILL.md'
+
+# Pass B — legacy inline-frontmatter emitters that have NOT yet been moved
+# to templates
+rg -n "^[[:space:]]*verdict:|^[[:space:]]*review_pass:|^[[:space:]]*review_target:|^[[:space:]]*target:|^[[:space:]]*result:|^[[:space:]]*pr_number:" skills --glob '**/SKILL.md'
+```
+
+Pass A surfaces every skill that reads a template via the canonical
+loader or directly names a unified base field. Pass B surfaces the
+remaining inline emitters — specifically the four 0066-owned skills
+(their `verdict:`, `review_pass:`, `target:`, `result:` literals)
+plus describe-pr's `pr_number:` extra (for cross-reference).
+
+Producer split:
+
+- **Template-based emitters (updated by 0065)**: create-work-item,
+  extract-work-items, create-plan, create-adr, extract-adrs,
+  research-codebase, research-issue, inventory-design,
+  analyse-design-gaps.
+- **Hybrid emitter brought into compliance by 0065**: describe-pr.
+- **Inline-only emitters owned by 0066 (excluded from this story)**:
+  review-plan, review-work-item, review-pr, validate-plan.
+- **Non-emitter template consumers (no action on frontmatter; read-path
+  fallback handled in Phase 3 §4)**: refine-work-item, update-work-item,
+  list-work-items.
+
+Other non-review inline producers found: NONE.
+
+### Consumer-side sweep
+
+A second sweep checks read-path consumers of the renamed/removed keys
+so the compatibility surface is recorded:
+
+```
+rg -n "work_item_id|adr_id|pr_title|^skill:|supersedes:|GIT_COMMIT|Current Git Commit Hash" skills scripts --glob '**/SKILL.md' --glob '**/*.sh'
+```
+
+Expected hits and resolution per hit:
+
+- `work_item_id` in `work-item-common.sh` and `work-item-read-field.sh`
+  → handled by Phase 3 §4 read-path fallback (both keys accepted on
+  read during the 0065→0070 transition).
+- `work_item_id` in the four work-item consuming SKILL.md files
+  (`list-work-items`, `update-work-item`, `refine-work-item`, plus
+  `create-work-item`'s enrich-existing self-check) → prose-updated
+  by Phase 3 §4 to name both keys.
+- `work_item_id` in `skills/config/configure/SKILL.md` →
+  documentation-only; the legacy field-shape contract is preserved
+  for the alias and rewritten by 0070.
+- `work_item_id` in `skills/config/migrate/migrations/0001…0006` and
+  in `skills/config/migrate/scripts/test-migrate.sh` → migration
+  history and their fixtures; intentionally frozen at the legacy
+  shape (the migrations target legacy files).
+- `adr_id` in visualiser `indexer.rs` and `wiki-links.ts` → protected
+  by filename-prefix fallback (`indexer.rs:1098`,
+  `wiki-links.ts:103-115`); no change required.
+- `adr_id` in `skills/decisions/scripts/test-adr-scripts.sh` and
+  fixture ADRs under `skills/visualisation/visualise/server/tests/
+  fixtures/` → fixture data exercising the read-path that already
+  tolerates either shape.
+- `pr_title` in `review-pr/SKILL.md` → owned by 0066; coordinated
+  via the plan's Migration Notes.
+- `Current Git Commit Hash` in `scripts/test-metadata-helpers.sh` →
+  negative assertion ("no Current Git Commit Hash line"), expected.
+- `GIT_COMMIT` matches in `skills/config/migrate/migrations/` →
+  migration fixtures, frozen.
+
+The Phase 11 SKILL-prose test's discovery assertion encodes the same
+allowlists (`IN_SCOPE_PRODUCERS`, `OWNED_BY_0066`,
+`NON_EMITTER_TEMPLATE_CONSUMERS`) and fails if any SKILL.md drifts
+out of those three buckets.
+
 ## References
 
 - Source: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`

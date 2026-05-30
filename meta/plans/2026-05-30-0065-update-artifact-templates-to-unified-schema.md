@@ -1533,10 +1533,10 @@ work-item Discovery Pass Record, so the two cannot drift.
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` passes including the new discovery assertion.
-- [ ] The two `rg` commands in the work-item's Discovery Pass Record section produce output equivalent to the recorded split (re-runnable).
-- [ ] `mise run test:unit:templates` passes (all three sub-drivers GREEN).
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-skill-frontmatter-population.sh` passes including the new discovery assertion.
+- [x] The two `rg` commands in the work-item's Discovery Pass Record section produce output equivalent to the recorded split (re-runnable).
+- [x] `mise run test:unit:templates` passes (all three sub-drivers GREEN).
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 
