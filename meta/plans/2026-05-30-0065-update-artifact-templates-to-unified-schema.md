@@ -1092,9 +1092,9 @@ alone.
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-template-frontmatter.sh` PASS row for `validation.md`.
-- [ ] `validate-plan` is NOT in `scripts/test-skill-frontmatter-population.sh`'s table (verified by row count or comment in the script).
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-template-frontmatter.sh` PASS row for `validation.md`.
+- [x] `validate-plan` is NOT in `scripts/test-skill-frontmatter-population.sh`'s table (verified by row count or comment in the script).
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 

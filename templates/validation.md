@@ -1,3 +1,19 @@
+---
+type: plan-validation                        # artifact-type discriminator
+id: "{filename-stem}"                        # e.g. "2026-05-18-0042-some-plan-validation"
+title: "Validation Report: {Plan Name}"
+date: "{ISO timestamp}"
+author: "{author from VCS}"
+producer: validate-plan
+status: complete                             # complete
+result: ""                                   # pass | partial | fail (filled by validate-plan)
+target: ""                                   # typed-linkage key: "plan:..." (filled by validate-plan)
+tags: []
+last_updated: "{ISO timestamp}"
+last_updated_by: "{author from VCS}"
+schema_version: 1
+---
+
 ## Validation Report: [Plan Name]
 
 ### Implementation Status
