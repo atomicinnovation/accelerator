@@ -222,7 +222,34 @@ After structure approval:
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh plan`
 
-### Step 5: Sync and Review
+### Step 5: Populate frontmatter
+
+Before writing the plan file, capture metadata and substitute the
+unified base fields into the template's frontmatter block:
+
+1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+   to obtain `Current Date/Time (UTC):`, `Current Revision:`, and
+   `Repository Name:`.
+2. **Substitute** every field below with the indicated value:
+   - `type:` ← `plan`
+   - `id:` ← the filename stem (the file path computed above without
+     `.md`), always quoted as a YAML string
+   - `title:` ← the H1 title `{Feature/Task Name} Implementation Plan`
+   - `date:` ← the `Current Date/Time (UTC):` value
+   - `author:` ← the author resolved per the standard chain
+     (config → VCS user → prompt)
+   - `producer:` ← `create-plan`
+   - `status:` ← `draft`
+   - `work_item_id:` ← the linked work item's full ID (quoted) or
+     empty string `""` when there is no linked work item
+   - `revision:` ← the `Current Revision:` value
+   - `repository:` ← the `Repository Name:` value
+   - `last_updated:` ← the same `Current Date/Time (UTC):` value
+   - `last_updated_by:` ← the same value resolved for `author`
+   - `schema_version:` ← `1` (bare integer)
+3. Write the file with the substituted frontmatter block.
+
+### Step 6: Sync and Review
 
 1. **Present the draft plan location**:
    ```

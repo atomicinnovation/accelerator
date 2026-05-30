@@ -1023,10 +1023,10 @@ parameters:
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-template-frontmatter.sh` PASS row for `plan.md`.
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `create-plan`.
-- [ ] `rg -n "^skill:" templates/plan.md` returns no matches (renamed to `producer:`).
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-template-frontmatter.sh` PASS row for `plan.md`.
+- [x] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `create-plan`.
+- [x] `rg -n "^skill:" templates/plan.md` returns no matches (renamed to `producer:`).
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 

@@ -1,9 +1,20 @@
 ---
+type: plan                                   # artifact-type discriminator
+id: "{filename-stem}"                        # filename without .md (e.g. "2026-05-30-0042-some-feature")
+title: "{Feature/Task Name} Implementation Plan"
 date: "{ISO timestamp}"
-type: plan
-skill: create-plan
-work_item_id: "{work-item reference, if any}"
-status: draft
+author: "{author from VCS}"
+producer: create-plan
+status: draft                                # draft | ready | in-progress | done
+work_item_id: ""                             # foreign reference; empty string when no linked work item
+parent: ""                                   # typed-linkage key (optional)
+reviewer: ""                                 # present-but-empty until reviewed
+tags: []
+revision: "{commit hash from artifact-derive-metadata.sh}"
+repository: "{repo name from artifact-derive-metadata.sh}"
+last_updated: "{ISO timestamp}"
+last_updated_by: "{author from VCS}"
+schema_version: 1
 ---
 
 # [Feature/Task Name] Implementation Plan
