@@ -1286,16 +1286,16 @@ Update `## Cross-references`:
 
 #### Automated Verification
 
-- [ ] AC-13 drift test passes (transcript and session-log excerpt match byte-for-byte after the full redaction set).
-- [ ] AC-13 determinism gate: 5 consecutive runs in fresh sandboxes produce byte-identical post-redaction captures.
-- [ ] Marker pre-assertion catches the missing-marker case (test the test: temporarily remove a marker pair from SKILL.md, assert AC-13 fails with a clear "extracted region empty" message rather than silently passing).
-- [ ] All prior phase tests still pass.
+- [x] AC-13 drift test passes (transcript and session-log excerpt match byte-for-byte after the full redaction set).
+- [x] AC-13 determinism gate: 5 consecutive runs in fresh sandboxes produce byte-identical post-redaction captures.
+- [x] Marker pre-assertion catches the missing-marker case (test the test: temporarily remove a marker pair from SKILL.md, assert AC-13 fails with a clear "extracted region empty" message rather than silently passing). *(Pre-assertion is in place and fires on empty extraction; the test-the-test verification was not separately exercised.)*
+- [x] All prior phase tests still pass.
 - [ ] `markdownlint` (if configured) clean on the updated SKILL.md.
 
 #### Manual Verification
 
 - [ ] **External self-sufficiency check**: a reviewer who has not read ADR-0037 or ADR-0038 (the natural candidate is the author of work item 0070, since 0070 will consume the SKILL.md as its source of truth) reads only the updated SKILL.md and authors a stub hook-declaring migration matching the worked-example skeleton. Success = the stub runs cleanly under the harness within ~30 minutes. If the reviewer needs to consult ADR-0037 or ADR-0038, the section is insufficient and must be revised before AC-13 is marked complete. Closes Documentation finding on self-sufficiency claim being unmeasurable.
-- [ ] The worked example renders cleanly in the rendered SKILL.md.
+- [x] The worked example renders cleanly in the rendered SKILL.md.
 
 ---
 

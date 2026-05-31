@@ -440,8 +440,14 @@ run_interactive_migration() {
         fi
         ;;
       VALIDATE_ERR)
-        printf '%s\n' "[interactive] ${fields[0]:-}" >&"$USER_OUT_FD"
+        # The validator's message already carries a `[interactive] `
+        # prefix if it used harness_reject; do not double-prefix.
+        printf '%s\n' "${fields[0]:-}" >&"$USER_OUT_FD"
         LAST_PROMPT_HAD_VALIDATE_ERR=1
+        # Re-render the same transformation — do NOT increment
+        # PROMPT_INDEX, otherwise the "Transformation N" counter
+        # double-counts validation re-prompts.
+        PROMPT_INDEX=$((PROMPT_INDEX - 1))
         render_prompt "$LAST_PROMPT_KEY" "$LAST_PROMPT_PATH" \
           "$LAST_PROMPT_ANCHOR" "$LAST_PROMPT_PROPOSED" \
           "$LAST_PROMPT_PREDICATE" "$LAST_PROMPT_EXTRAS" \

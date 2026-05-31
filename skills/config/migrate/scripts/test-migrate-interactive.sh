@@ -956,4 +956,147 @@ assert_eq "0 RESUMED_APPLIED"          "0" "$RESUMED_COUNT"
 assert_file_exists "marker mutated"    "$SBX/marker"
 
 echo ""
+echo "=== Phase 7: doc-example drift test (AC-13) ==="
+echo ""
+
+# Extract the worked-example transcript and session-log excerpt from
+# SKILL.md, drive the doc-example fixture with the scripted decisions
+# that produced them, and diff the redacted captures against the
+# extracted regions. Catches doc-vs-implementation drift in CI.
+
+SKILL_MD="$PLUGIN_ROOT/skills/config/migrate/SKILL.md"
+
+extract_block() {
+  local start="$1" end="$2" file="$3"
+  awk -v s="$start" -v e="$end" '
+    $0 ~ s {capture=1; next}
+    $0 ~ e {capture=0; next}
+    capture
+  ' "$file"
+}
+
+TRANSCRIPT_DOC=$(extract_block 'transcript-start' 'transcript-end' "$SKILL_MD")
+SESSION_LOG_DOC=$(extract_block 'session-log-start' 'session-log-end' "$SKILL_MD")
+
+# Pre-assertion: extracted regions must be non-empty and contain a
+# sentinel substring (guards against marker-typo silent passes).
+if [ -z "$TRANSCRIPT_DOC" ]; then
+  echo "  FAIL: SKILL.md transcript region empty (missing @transcript-start / @transcript-end markers)"
+  FAIL=$((FAIL + 1))
+elif ! grep -qF "Proposed:" <<< "$TRANSCRIPT_DOC"; then
+  echo "  FAIL: SKILL.md transcript region missing 'Proposed:' sentinel"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: transcript region non-empty and sentinel present"
+  PASS=$((PASS + 1))
+fi
+if [ -z "$SESSION_LOG_DOC" ]; then
+  echo "  FAIL: SKILL.md session-log region empty"
+  FAIL=$((FAIL + 1))
+elif ! grep -qF '"transformation_key"' <<< "$SESSION_LOG_DOC"; then
+  echo "  FAIL: SKILL.md session-log region missing '\"transformation_key\"' sentinel"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: session-log region non-empty and sentinel present"
+  PASS=$((PASS + 1))
+fi
+
+# Strip markdown code fences from the extracted regions.
+strip_fence() {
+  awk '/^```/ {capture = !capture; next} capture' <<< "$1"
+}
+TRANSCRIPT_DOC_RAW=$(strip_fence "$TRANSCRIPT_DOC")
+SESSION_LOG_DOC_RAW=$(strip_fence "$SESSION_LOG_DOC")
+
+# Drive the fixture in a fresh sandbox with the documented decisions
+# and capture user-facing output + on-disk session log.
+run_doc_example() {
+  local sandbox="$1"
+  mkdir -p "$sandbox/.git" "$sandbox/.accelerator/state"
+  local dec
+  dec=$(mktemp "$TMPDIR_BASE/doc-decisions-XXXXXX")
+  printf 'edit \nedit 0123-renamed\nskip\n' > "$dec"
+  ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/doc-example/migrations" \
+  PROJECT_ROOT="$sandbox" \
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATE_FORCE=1 \
+  ACCELERATOR_MIGRATE_DECISIONS_FILE="$dec" \
+    bash "$DRIVER"
+}
+
+# Redaction: replace volatile bytes with stable placeholders.
+redact() {
+  local sandbox="$1"
+  sed \
+    -e "s|$sandbox|<SANDBOX>|g" \
+    -e 's/"timestamp":"[^"]*"/"timestamp":"<REDACTED>"/g' \
+    -e 's|/var/folders/[^/]*/[^/]*/T/[^/[:space:]]*|<TMPDIR>|g' \
+    -e 's|/tmp/[^/[:space:]]*|<TMPDIR>|g'
+}
+
+# Strip noisy lines and inline-`[decisions] consumed line N: VERB`
+# annotations that aren't part of the user-facing transcript.
+strip_runner_noise() {
+  awk '
+    /^About to apply/ {next}
+    /^Migrations rewrite/ {next}
+    /^your working tree/ {next}
+    /^rollback/ {next}
+    /^unless ACCELERATOR_MIGRATE_FORCE/ {next}
+    /^  0099-doc-example/ {next}
+    /^    To skip:/ {next}
+    /^\[0099-doc-example\] running/ {next}
+    /^\[0099-doc-example\] applied/ {next}
+    /^Migration complete\./ {next}
+    /^\[decisions\] consumed line/ {next}
+    {print}
+  ' | sed -E 's/ \[decisions\] consumed line [0-9]+: [a-z]+$//' \
+    | awk 'NF || prev {print; prev=NF}'
+}
+
+# AC-13 determinism gate: run 5 times in fresh sandboxes, assert all
+# captures are byte-identical post-redaction-and-noise-strip.
+PREV_TRANSCRIPT=""
+PREV_LOG=""
+DETERMINISTIC=1
+for run in 1 2 3 4 5; do
+  SBX=$(mktemp -d "$TMPDIR_BASE/doc-run$run-XXXXXX")
+  OUT=$(run_doc_example "$SBX" 2>&1)
+  LOG=$(cat "$SBX/.accelerator/state/migrations-0099-doc-example-session.jsonl")
+  OUT_CLEAN=$(redact "$SBX" <<< "$OUT" | strip_runner_noise)
+  LOG_CLEAN=$(redact "$SBX" <<< "$LOG")
+  if [ "$run" -gt 1 ]; then
+    if [ "$OUT_CLEAN" != "$PREV_TRANSCRIPT" ] || [ "$LOG_CLEAN" != "$PREV_LOG" ]; then
+      DETERMINISTIC=0
+    fi
+  fi
+  PREV_TRANSCRIPT="$OUT_CLEAN"
+  PREV_LOG="$LOG_CLEAN"
+  rm -rf "$SBX"
+done
+assert_eq "5 runs are byte-identical post-redaction" "1" "$DETERMINISTIC"
+
+# Final comparison against doc-extracted regions.
+diff_transcript=$(diff <(printf '%s\n' "$TRANSCRIPT_DOC_RAW") <(printf '%s\n' "$PREV_TRANSCRIPT") || true)
+diff_log=$(diff <(printf '%s\n' "$SESSION_LOG_DOC_RAW") <(printf '%s\n' "$PREV_LOG") || true)
+
+if [ -z "$diff_transcript" ]; then
+  echo "  PASS: transcript matches SKILL.md byte-for-byte"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: transcript drift between SKILL.md and live fixture"
+  echo "$diff_transcript" | head -40 | sed 's/^/    /'
+  FAIL=$((FAIL + 1))
+fi
+
+if [ -z "$diff_log" ]; then
+  echo "  PASS: session log matches SKILL.md byte-for-byte"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: session log drift between SKILL.md and live fixture"
+  echo "$diff_log" | head -40 | sed 's/^/    /'
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
 test_summary
