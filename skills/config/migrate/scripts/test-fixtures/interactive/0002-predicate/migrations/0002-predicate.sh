@@ -33,7 +33,10 @@ migration_evaluate_predicate() {
 
 migration_validate_edit() {
   local key="$1" path="$2" anchor="$3" proposed="$4" user_value="$5"
-  [ -z "$user_value" ] && harness_reject "empty value not allowed"
+  if [ -z "$user_value" ]; then
+    harness_reject "empty value not allowed"
+    return 1
+  fi
   return 0
 }
 

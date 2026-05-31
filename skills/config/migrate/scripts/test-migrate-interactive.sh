@@ -557,4 +557,155 @@ else
 fi
 
 echo ""
+echo "=== Phase 5: edit, skip, validation re-prompt ==="
+echo ""
+
+echo "Test: AC-6 — edit verb persists outcome=edited with user_value"
+RC=0
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-edit-XXXXXX")
+printf 'edit corrected-value\n' > "$DECISIONS_FILE"
+SBX=$(setup_sandbox "edit")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" "k1|f|a|original-value|ambiguous|p"
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+LOG="$SBX/.accelerator/state/migrations-0002-predicate-session.jsonl"
+assert_contains "outcome edited" "$(cat "$LOG")" '"outcome":"edited"'
+assert_contains "user_value present" "$(cat "$LOG")" '"user_value":"corrected-value"'
+assert_contains "proposed_value retained" "$(cat "$LOG")" '"proposed_value":"original-value"'
+assert_file_exists "artifact written" "$SBX/f"
+assert_contains "artifact has user value" "$(cat "$SBX/f")" "a=corrected-value"
+assert_not_contains "artifact does NOT have original proposed" \
+  "$(cat "$SBX/f")" "a=original-value"
+
+echo ""
+echo "Test: AC-7 — skip does not mutate artifact and records outcome=skipped"
+RC=0
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-skip-XXXXXX")
+printf 'skip\n' > "$DECISIONS_FILE"
+SBX=$(setup_sandbox "skip")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" "k1|target|a|v1|ambiguous|p"
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+LOG="$SBX/.accelerator/state/migrations-0002-predicate-session.jsonl"
+assert_file_exists "session log written" "$LOG"
+assert_contains "outcome skipped" "$(cat "$LOG")" '"outcome":"skipped"'
+assert_not_contains "no user_value for skipped" "$(cat "$LOG")" '"user_value"'
+assert_file_not_exists "target artifact NOT written" "$SBX/target"
+# migration_apply_decision must not have been called — verified via the
+# fixture's sentinel log (which is only written if apply ran).
+if [ ! -f "$SBX/.fixture/applied/log" ]; then
+  echo "  PASS: migration_apply_decision NOT called for skip"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: migration_apply_decision was called for skip"
+  echo "    Sentinel content: $(cat "$SBX/.fixture/applied/log")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+echo "Test: AC-8 — validation re-prompt loop (empty edit → error, then valid edit succeeds)"
+RC=0
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-revalidate-XXXXXX")
+printf 'edit \nedit recovered\n' > "$DECISIONS_FILE"
+SBX=$(setup_sandbox "revalidate")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" "k1|artifact|a|original|ambiguous|p"
+PROTO_MIG_F=$(mktemp "$TMPDIR_BASE/proto-mig-revalidate-XXXXXX")
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_MIG_F" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+LOG="$SBX/.accelerator/state/migrations-0002-predicate-session.jsonl"
+COUNT=$(wc -l < "$LOG" | tr -d ' ')
+assert_eq "exactly one record persisted" "1" "$COUNT"
+assert_contains "final outcome edited" "$(cat "$LOG")" '"outcome":"edited"'
+assert_contains "final user_value=recovered" "$(cat "$LOG")" '"user_value":"recovered"'
+# Validate_err must have been emitted exactly once.
+VE_COUNT=$(grep -c $'^VALIDATE_ERR\t' "$PROTO_MIG_F" || true)
+assert_eq "VALIDATE_ERR emitted exactly once" "1" "$VE_COUNT"
+# The user-facing output should contain the validator's reject message.
+assert_contains "validator message surfaced" "$OUTPUT" \
+  "empty value not allowed"
+# The inline-help line should reappear on the re-prompt (frequency rule).
+HELP_COUNT=$(grep -c "accept | edit <new-value> | skip" <<< "$OUTPUT" || true)
+if [ "$HELP_COUNT" -ge 2 ]; then
+  echo "  PASS: inline help re-rendered after VALIDATE_ERR"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: inline help not re-rendered (count=$HELP_COUNT)"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+echo "Test: mid-stream FAIL — partial session log, no ledger append"
+mkdir -p "$MIGRATIONS_DIR_FIXTURE/0004-midstream-fail/migrations"
+cat > "$MIGRATIONS_DIR_FIXTURE/0004-midstream-fail/migrations/0004-midstream-fail.sh" <<'MID_FAIL_SH'
+#!/usr/bin/env bash
+# DESCRIPTION: Fail mid-stream — Phase 5 negative test.
+# INTERACTIVE: yes
+set -euo pipefail
+source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
+source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"
+
+migration_emit_transformations() {
+  harness_emit_transformation key=k1 path=p1 anchor=a proposed=v1 \
+    predicate_value=ambiguous display="x"
+  harness_emit_transformation key=k2 path=p2 anchor=a proposed=v2 \
+    predicate_value=ambiguous display="x"
+  harness_emit_transformation key=k3 path=p3 anchor=a proposed=v3 \
+    predicate_value=ambiguous display="x"
+}
+migration_evaluate_predicate() { return 0; }
+migration_validate_edit() { return 0; }
+
+migration_apply_decision() {
+  local key="$1"
+  if [ "$key" = "k3" ]; then
+    harness_reject "synthetic apply failure on k3"
+    return 1
+  fi
+  return 0
+}
+
+harness_run
+MID_FAIL_SH
+RC=0
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-midfail-XXXXXX")
+printf 'accept\naccept\naccept\n' > "$DECISIONS_FILE"
+SBX=$(setup_sandbox "midfail")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0004-midstream-fail/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_neq "non-zero exit" "0" "$RC"
+APPLIED=$(cat "$SBX/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_not_contains "ledger does NOT contain mid-failed migration" \
+  "$APPLIED" "0004-midstream-fail"
+LOG="$SBX/.accelerator/state/migrations-0004-midstream-fail-session.jsonl"
+assert_file_exists "session log present (partial)" "$LOG"
+COUNT=$(wc -l < "$LOG" | tr -d ' ')
+# Per the write-ahead-log invariant: the runner persists the RECORDED
+# JSONL line BEFORE emitting APPLY (and thus before the harness calls
+# migration_apply_decision). When k3's apply fails, k3's record is
+# already durable. So 3 records is correct — the residual risk (k3
+# treated as applied on resume even though mutation failed) is the
+# documented bounded failure mode.
+assert_eq "all 3 records persisted (WAL invariant)" "3" "$COUNT"
+
+echo ""
 test_summary

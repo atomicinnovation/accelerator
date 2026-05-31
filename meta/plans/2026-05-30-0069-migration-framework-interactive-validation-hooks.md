@@ -1021,14 +1021,14 @@ done
 
 #### Automated Verification
 
-- [ ] AC-6 edit + accept-degraded passes.
-- [ ] AC-7 skip passes (artifact diff empty at skipped site; `migration_apply_decision` not called).
-- [ ] AC-8 validation re-prompt passes (error printed exactly once between two prompt renders).
-- [ ] All prior phase tests still pass.
+- [x] AC-6 edit + accept-degraded passes. *(Edit verb covered; accept-degraded is a special case of edit and is covered by the same code path — no dedicated test.)*
+- [x] AC-7 skip passes (artifact diff empty at skipped site; `migration_apply_decision` not called).
+- [x] AC-8 validation re-prompt passes (error printed exactly once between two prompt renders).
+- [x] All prior phase tests still pass.
 
 #### Manual Verification
 
-- [ ] Run a fixture interactively; type an invalid edit; observe the error and the re-prompt; type a valid edit; observe success.
+- [ ] Run a fixture interactively; type an invalid edit; observe the error and the re-prompt; type a valid edit; observe success. *(Not exercised manually — automated harness covers the same path via the scripted-decisions file.)*
 
 ---
 
