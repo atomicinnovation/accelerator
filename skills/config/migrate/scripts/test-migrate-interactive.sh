@@ -212,4 +212,131 @@ fi
 mkdir -p "$MIGRATIONS_DIR_FIXTURE"
 
 echo ""
+echo "=== Phase 3: header detection + handshake ==="
+echo ""
+
+# Helper: run a migration from a fixture's migrations/ directory inside
+# a freshly-prepared sandbox. The sandbox path is exported to the caller
+# via a side-channel file (the test wraps each call in $(...) so any
+# in-process variable assignment is lost on subshell exit).
+INTERACTIVE_FIXTURE_SANDBOX_FILE="$TMPDIR_BASE/.last-sandbox"
+run_interactive_fixture() {
+  local fixture_name="$1"
+  local sandbox
+  sandbox=$(setup_sandbox "$fixture_name")
+  printf '%s' "$sandbox" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+  local mig_dir="$MIGRATIONS_DIR_FIXTURE/$fixture_name/migrations"
+  ACCELERATOR_MIGRATIONS_DIR="$mig_dir" \
+  PROJECT_ROOT="$sandbox" \
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATE_FORCE=1 \
+    bash "$DRIVER"
+}
+last_sandbox() { cat "$INTERACTIVE_FIXTURE_SANDBOX_FILE"; }
+
+echo "Test: existing mechanical migrations (0001-0006) classified mechanical"
+# Source the lib so we can call is_interactive_migration directly.
+PLUGIN_ROOT_TEST="$PLUGIN_ROOT" bash -c '
+  PROJECT_ROOT=/tmp PLUGIN_ROOT="'"$PLUGIN_ROOT"'" CLAUDE_PLUGIN_ROOT="'"$PLUGIN_ROOT"'"
+  source "'"$PLUGIN_ROOT"'/scripts/atomic-common.sh"
+  source "'"$PLUGIN_ROOT"'/skills/config/migrate/scripts/interactive-lib.sh"
+  fail=0
+  for f in "'"$PLUGIN_ROOT"'/skills/config/migrate/migrations"/[0-9][0-9][0-9][0-9]-*.sh; do
+    if is_interactive_migration "$f"; then
+      echo "ERROR: $f classified as interactive" >&2
+      fail=1
+    fi
+  done
+  exit $fail
+' && {
+  echo "  PASS: 0001-0006 are mechanical"
+  PASS=$((PASS + 1))
+} || {
+  echo "  FAIL: at least one of 0001-0006 misclassified"
+  FAIL=$((FAIL + 1))
+}
+
+echo ""
+echo "Test: empty interactive fixture completes and is appended to migrations-applied"
+RC=0
+OUTPUT=$(run_interactive_fixture 0001-empty-interactive 2>&1) || RC=$?
+SANDBOX=$(last_sandbox)
+RC=${RC:-0}
+assert_eq "exit 0" "0" "$RC"
+APPLIED=$(cat "$SANDBOX/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_contains "ledger contains the migration" "$APPLIED" "0001-empty-interactive"
+
+echo ""
+echo "Test: handshake exchange captured in protocol log"
+PROTO_RUNNER=$(mktemp "$TMPDIR_BASE/proto-runner-XXXXXX")
+PROTO_MIG=$(mktemp "$TMPDIR_BASE/proto-mig-XXXXXX")
+RC=0
+OUTPUT=$(MIGRATION_PROTOCOL_LOG_RUNNER="$PROTO_RUNNER" \
+         MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_MIG" \
+         run_interactive_fixture 0001-empty-interactive 2>&1) || RC=$?
+SANDBOX=$(last_sandbox)
+assert_eq "exit 0 with proto logs" "0" "$RC"
+RUNNER_LOG=$(cat "$PROTO_RUNNER")
+MIG_LOG=$(cat "$PROTO_MIG")
+assert_contains "runner log has INIT"   "$RUNNER_LOG" "INIT"
+assert_contains "migration log has READY" "$MIG_LOG"  "READY"
+assert_contains "migration log has DONE"  "$MIG_LOG"  "DONE"
+
+echo ""
+echo "Test: migration that emits FAIL — runner exits non-zero, no ledger append"
+mkdir -p "$MIGRATIONS_DIR_FIXTURE/0002-fail-frame/migrations"
+cat > "$MIGRATIONS_DIR_FIXTURE/0002-fail-frame/migrations/0002-fail-frame.sh" <<'FAIL_SH'
+#!/usr/bin/env bash
+# DESCRIPTION: Emit FAIL after READY — Phase 3 negative test.
+# INTERACTIVE: yes
+set -euo pipefail
+source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
+source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"
+migration_emit_transformations() { :; }
+migration_evaluate_predicate() { return 0; }
+migration_validate_edit() { return 0; }
+migration_apply_decision() { return 0; }
+
+# Override harness_run to emit FAIL right after handshake.
+harness_run_fail() {
+  read_frame
+  emit_frame READY ".accelerator/state/migrations-0002-fail-frame-session.jsonl"
+  emit_frame FAIL "synthetic failure for testing"
+  exit 1
+}
+harness_run_fail
+FAIL_SH
+RC=0
+OUTPUT=$(run_interactive_fixture 0002-fail-frame 2>&1) || RC=$?
+SANDBOX=$(last_sandbox)
+assert_neq "non-zero exit" "0" "$RC"
+assert_contains "FAIL message surfaced" "$OUTPUT" "synthetic failure for testing"
+APPLIED=$(cat "$SANDBOX/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_not_contains "ledger does NOT contain failed migration" "$APPLIED" \
+  "0002-fail-frame"
+
+echo ""
+echo "Test: pre-handshake MIGRATION_RESULT: no_op_pending is honoured (soft-defer)"
+mkdir -p "$MIGRATIONS_DIR_FIXTURE/0003-soft-defer/migrations"
+cat > "$MIGRATIONS_DIR_FIXTURE/0003-soft-defer/migrations/0003-soft-defer.sh" <<'NOP_SH'
+#!/usr/bin/env bash
+# DESCRIPTION: Soft-defer before harness handshake — Phase 3 mechanical-contract test.
+# INTERACTIVE: yes
+set -euo pipefail
+# Emit the sentinel BEFORE sourcing the harness. The runner detects it
+# via exact-prefix match on stdout.
+printf 'MIGRATION_RESULT: no_op_pending\n'
+exit 0
+NOP_SH
+RC=0
+OUTPUT=$(run_interactive_fixture 0003-soft-defer 2>&1) || RC=$?
+SANDBOX=$(last_sandbox)
+assert_eq "exit 0 on soft-defer" "0" "$RC"
+APPLIED=$(cat "$SANDBOX/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_not_contains "ledger does NOT contain soft-deferred migration" \
+  "$APPLIED" "0003-soft-defer"
+assert_contains "user-facing 'no-op (stays pending)' message" "$OUTPUT" \
+  "no-op (stays pending)"
+
+echo ""
 test_summary

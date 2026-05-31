@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RUNNER_SCRIPT_DIR="$SCRIPT_DIR"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$SCRIPT_DIR/../../../.." && pwd)}"
 source "$PLUGIN_ROOT/scripts/config-common.sh"
 # shellcheck source=../../../../scripts/atomic-common.sh
@@ -244,12 +245,30 @@ echo "rollback. The pre-flight will refuse to run on a dirty tree"
 echo "unless ACCELERATOR_MIGRATE_FORCE=1 is set."
 echo ""
 
+# Source the interactive library. Both paths run on bash 3.2+.
+# shellcheck source=interactive-lib.sh
+source "$RUNNER_SCRIPT_DIR/interactive-lib.sh"
+
 # ── 8. Apply each pending migration ─────────────────────────────────────────
 applied_count=0
 for f in "${pending_files[@]}"; do
   id="$(basename "$f" .sh)"
   echo "[${id}] running" >&2
   export PROJECT_ROOT
+
+  # Dispatch on the # INTERACTIVE: yes header marker.
+  if head -5 "$f" | grep -qE '^# INTERACTIVE:[[:space:]]*yes$'; then
+    INTERACTIVE_APPLIED=0
+    if ! run_interactive_migration "$f" "$id"; then
+      echo "[${id}] failed" >&2
+      exit 1
+    fi
+    if [ "${INTERACTIVE_APPLIED:-0}" -eq 1 ]; then
+      applied_count=$((applied_count + 1))
+    fi
+    continue
+  fi
+
   STDOUT_FILE=$(mktemp)
   if ! PROJECT_ROOT="$PROJECT_ROOT" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATION_MODE=1 bash "$f" >"$STDOUT_FILE" 2>&1; then
     cat "$STDOUT_FILE" >&2
