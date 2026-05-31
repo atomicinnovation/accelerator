@@ -4,7 +4,7 @@ title: "Per-Doc-Type Hues on Detail Page"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
-status: in-progress
+status: done
 priority: medium
 parent: ""
 tags: [design, frontend, detail-page, tokens]

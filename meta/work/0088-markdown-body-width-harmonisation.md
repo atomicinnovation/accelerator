@@ -4,7 +4,7 @@ title: "Markdown Body Width Harmonisation"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
-status: in-progress
+status: done
 priority: low
 parent: ""
 tags: [design, frontend, markdown, tokens]

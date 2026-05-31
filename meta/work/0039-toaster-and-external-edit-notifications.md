@@ -4,7 +4,7 @@ title: "Toaster and External-Edit Notifications"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 kind: story
-status: ready
+status: done
 priority: medium
 parent: ""
 tags: [design, frontend, components, notifications]
