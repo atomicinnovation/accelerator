@@ -4,7 +4,7 @@ title: "Spike: Confirm List-Screen Scope Decisions"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 kind: spike
-status: draft
+status: abandoned
 priority: high
 parent: ""
 tags: [design, spike, scope, kanban, lifecycle]
@@ -13,7 +13,7 @@ tags: [design, spike, scope, kanban, lifecycle]
 # 0044: Spike: Confirm List-Screen Scope Decisions
 
 **Kind**: Spike
-**Status**: Draft
+**Status**: Abandoned
 **Priority**: High
 **Author**: Toby Clemson
 

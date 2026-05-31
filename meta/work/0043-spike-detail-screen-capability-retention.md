@@ -4,7 +4,7 @@ title: "Spike: Confirm Detail-Screen Capability Retention"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 kind: spike
-status: draft
+status: abandoned
 priority: high
 parent: ""
 tags: [design, spike, scope]
@@ -13,7 +13,7 @@ tags: [design, spike, scope]
 # 0043: Spike: Confirm Detail-Screen Capability Retention
 
 **Kind**: Spike
-**Status**: Draft
+**Status**: Abandoned
 **Priority**: High
 **Author**: Toby Clemson
 
