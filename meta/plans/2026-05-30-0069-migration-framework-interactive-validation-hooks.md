@@ -896,17 +896,17 @@ The canonical first-field-is-`transformation_key` rule is enforced here; `atomic
 
 #### Automated Verification
 
-- [ ] AC-2 predicate routing passes (uniform, hybrid, predicate=true-only, predicate=false-only).
-- [ ] AC-3 display elements pass — three mandatory elements + inline help + session-log banner verbatim in captured user-facing output.
-- [ ] AC-4 declared display extras pass — fixture-declared `Prose:` line verbatim.
-- [ ] AC-5 accept passes — artifact mutation, every line of session log JSON-parses, canonical first-field invariant holds, no `user_value` for accepted.
-- [ ] Write-ahead-log ordering invariant verified: every `APPLY` frame appears in the protocol log after the corresponding `RECORDED` and before any artefact mutation observable by the harness fixture.
+- [x] AC-2 predicate routing passes (uniform, hybrid, predicate=true-only, predicate=false-only).
+- [x] AC-3 display elements pass — three mandatory elements + inline help + session-log banner verbatim in captured user-facing output.
+- [x] AC-4 declared display extras pass — fixture-declared `Prose:` line verbatim.
+- [x] AC-5 accept passes — artifact mutation, every line of session log JSON-parses, canonical first-field invariant holds, no `user_value` for accepted.
+- [x] Write-ahead-log ordering invariant verified: every `APPLY` frame appears in the protocol log after the corresponding `RECORDED` and before any artefact mutation observable by the harness fixture.
 - [ ] Per-callback contract violation tests pass: malformed TSV emission (wrong field count via direct stdout write bypassing helpers), `migration_evaluate_predicate` writing to stdout, `migration_validate_edit` writing error to stdout, `migration_apply_decision` failing with non-zero exit — each surfaces a clear error and aborts the migration without ledger append. Closes Test Coverage finding on contract violations untested.
-- [ ] Existing mechanical-path and Phase 1-3 tests still pass.
+- [x] Existing mechanical-path and Phase 1-3 tests still pass.
 
 #### Manual Verification
 
-- [ ] Run the predicate fixture interactively (no `--decisions`); type `accept` at each prompt; verify display and artifact by eye.
+- [ ] Run the predicate fixture interactively (no `--decisions`); type `accept` at each prompt; verify display and artifact by eye. *(Not exercised manually — the automated harness covers the same display + persistence paths via scripted decisions.)*
 
 ---
 

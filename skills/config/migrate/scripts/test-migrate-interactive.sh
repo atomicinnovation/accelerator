@@ -339,4 +339,222 @@ assert_contains "user-facing 'no-op (stays pending)' message" "$OUTPUT" \
   "no-op (stays pending)"
 
 echo ""
+echo "=== Phase 4: predicate routing + display + accept ==="
+echo ""
+
+# Helper: seed a 0002-predicate sandbox with a transformations file.
+seed_predicate_sandbox() {
+  local sandbox="$1"
+  shift
+  mkdir -p "$sandbox/.fixture"
+  : > "$sandbox/.fixture/transformations"
+  local line
+  for line in "$@"; do
+    printf '%s\n' "$line" >> "$sandbox/.fixture/transformations"
+  done
+}
+
+# Helper: count occurrences of a frame type in a protocol log.
+count_frames() {
+  local log="$1" frame_type="$2"
+  grep -c "^${frame_type}"$'\t' "$log" 2>/dev/null || \
+    grep -c "^${frame_type}$" "$log" 2>/dev/null || echo 0
+}
+
+echo "Test: AC-2 — uniform predicate=true (all rows ambiguous → all PROMPT)"
+RC=0
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-uniform-XXXXXX")
+printf 'accept\naccept\naccept\n' > "$DECISIONS_FILE"
+PROTO_RUN=$(mktemp "$TMPDIR_BASE/proto-run-XXXXXX")
+PROTO_MIG=$(mktemp "$TMPDIR_BASE/proto-mig-XXXXXX")
+# Pre-create the sandbox so we can populate the fixture *before* the
+# runner starts. run_interactive_fixture uses setup_sandbox so we can't
+# pre-seed via that path; instead we seed inline.
+SBX=$(setup_sandbox "uniform")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" \
+  "k1|f1|a1|v1|ambiguous|prose1" \
+  "k2|f2|a2|v2|ambiguous|prose2" \
+  "k3|f3|a3|v3|ambiguous|prose3"
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         MIGRATION_PROTOCOL_LOG_RUNNER="$PROTO_RUN" \
+         MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_MIG" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+PROMPT_COUNT=$(grep -c $'^PROMPT\t' "$PROTO_MIG" || true)
+MECH_COUNT=$(grep -c $'^MECHANICAL_APPLIED\t' "$PROTO_MIG" || true)
+assert_eq "3 PROMPTs" "3" "$PROMPT_COUNT"
+assert_eq "0 MECHANICAL_APPLIED" "0" "$MECH_COUNT"
+
+echo ""
+echo "Test: AC-2 — uniform predicate=false (all resolved → all MECHANICAL_APPLIED)"
+RC=0
+PROTO_MIG=$(mktemp "$TMPDIR_BASE/proto-mig-XXXXXX")
+SBX=$(setup_sandbox "uniform-resolved")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" \
+  "k1|f1|a1|v1|resolved|prose1" \
+  "k2|f2|a2|v2|resolved|prose2"
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_MIG" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+PROMPT_COUNT=$(grep -c $'^PROMPT\t' "$PROTO_MIG" || true)
+MECH_COUNT=$(grep -c $'^MECHANICAL_APPLIED\t' "$PROTO_MIG" || true)
+assert_eq "0 PROMPTs" "0" "$PROMPT_COUNT"
+assert_eq "2 MECHANICAL_APPLIED" "2" "$MECH_COUNT"
+
+echo ""
+echo "Test: AC-2 — mixed (k1 ambiguous, k2 resolved, k3 ambiguous)"
+RC=0
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-mixed-XXXXXX")
+printf 'accept\naccept\n' > "$DECISIONS_FILE"
+PROTO_MIG=$(mktemp "$TMPDIR_BASE/proto-mig-XXXXXX")
+SBX=$(setup_sandbox "mixed")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" \
+  "k1|f1|a1|v1|ambiguous|p1" \
+  "k2|f2|a2|v2|resolved|p2" \
+  "k3|f3|a3|v3|ambiguous|p3"
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_MIG" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+PROMPT_COUNT=$(grep -c $'^PROMPT\t' "$PROTO_MIG" || true)
+MECH_COUNT=$(grep -c $'^MECHANICAL_APPLIED\t' "$PROTO_MIG" || true)
+assert_eq "2 PROMPTs" "2" "$PROMPT_COUNT"
+assert_eq "1 MECHANICAL_APPLIED" "1" "$MECH_COUNT"
+
+echo ""
+echo "Test: AC-3 — display elements (proposed, source, predicate) + inline help + session-log banner"
+RC=0
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-display-XXXXXX")
+printf 'accept\n' > "$DECISIONS_FILE"
+SBX=$(setup_sandbox "display")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" \
+  "k1|meta/work/0070-X.md|23|0034-foo|ambiguous|the linkage paragraph"
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+assert_contains "proposed value rendered"   "$OUTPUT" "0034-foo"
+assert_contains "source path:anchor rendered" "$OUTPUT" "meta/work/0070-X.md:23"
+assert_contains "predicate value rendered"  "$OUTPUT" "ambiguous"
+assert_contains "inline help on first prompt" "$OUTPUT" \
+  "[accept | edit <new-value> | skip]"
+assert_contains "session-log banner"        "$OUTPUT" \
+  "Session log: $SBX/.accelerator/state/migrations-0002-predicate-session.jsonl"
+
+echo ""
+echo "Test: AC-4 — declared display extras (prose line) visible"
+assert_contains "prose line visible" "$OUTPUT" "Surrounding prose: the linkage paragraph"
+
+echo ""
+echo "Test: AC-5 — accept persists records to JSONL with canonical schema"
+RC=0
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-accept-XXXXXX")
+printf 'accept\naccept\n' > "$DECISIONS_FILE"
+SBX=$(setup_sandbox "accept-persists")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" \
+  "k1|art1|a1|v1|ambiguous|p1" \
+  "k2|art2|a2|v2|ambiguous|p2"
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+
+LOG="$SBX/.accelerator/state/migrations-0002-predicate-session.jsonl"
+assert_file_exists "session log written" "$LOG"
+COUNT=$(wc -l < "$LOG" | tr -d ' ')
+assert_eq "2 records persisted" "2" "$COUNT"
+if command -v python3 >/dev/null 2>&1; then
+  BAD=$(python3 - "$LOG" <<'PY'
+import json, sys
+bad = 0
+for ln in open(sys.argv[1]):
+    ln = ln.rstrip('\n')
+    if not ln: continue
+    try: json.loads(ln)
+    except Exception: bad += 1
+print(bad)
+PY
+)
+  assert_eq "every record is valid JSON" "0" "$BAD"
+fi
+FIRST=$(head -1 "$LOG")
+case "$FIRST" in
+  '{"transformation_key":'*)
+    echo "  PASS: canonical first field"
+    PASS=$((PASS + 1)) ;;
+  *)
+    echo "  FAIL: first field is not transformation_key"
+    echo "    Got: $FIRST"
+    FAIL=$((FAIL + 1)) ;;
+esac
+assert_contains "outcome is accepted" "$(cat "$LOG")" '"outcome":"accepted"'
+assert_not_contains "no user_value for accepted" "$(cat "$LOG")" '"user_value"'
+
+echo ""
+echo "Test: artifacts mutated for accepted keys"
+assert_file_exists "art1 mutated" "$SBX/art1"
+assert_file_exists "art2 mutated" "$SBX/art2"
+assert_contains "art1 content" "$(cat "$SBX/art1")" "a1=v1"
+assert_contains "art2 content" "$(cat "$SBX/art2")" "a2=v2"
+
+echo ""
+echo "Test: write-ahead-log ordering — APPLY appears after RECORDED in protocol log"
+RC=0
+PROTO_MERGED=$(mktemp "$TMPDIR_BASE/proto-merged-XXXXXX")
+PROTO_RUN_F=$(mktemp "$TMPDIR_BASE/proto-run-wal-XXXXXX")
+PROTO_MIG_F=$(mktemp "$TMPDIR_BASE/proto-mig-wal-XXXXXX")
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-wal-XXXXXX")
+printf 'accept\n' > "$DECISIONS_FILE"
+SBX=$(setup_sandbox "wal-ordering")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" "k1|f|a|v|ambiguous|p"
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         MIGRATION_PROTOCOL_LOG_RUNNER="$PROTO_RUN_F" \
+         MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_MIG_F" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+# In the migration-side log: RECORDED must appear before APPLIED_CONFIRM,
+# and the runner's APPLY must appear in the runner log AFTER the
+# migration emitted RECORDED.
+RECORDED_LINE=$(grep -n $'^RECORDED\t' "$PROTO_MIG_F" | head -1 | cut -d: -f1)
+APPLIEDCONF_LINE=$(grep -n $'^APPLIED_CONFIRM\t' "$PROTO_MIG_F" | head -1 | cut -d: -f1)
+if [ -n "$RECORDED_LINE" ] && [ -n "$APPLIEDCONF_LINE" ] \
+   && [ "$RECORDED_LINE" -lt "$APPLIEDCONF_LINE" ]; then
+  echo "  PASS: RECORDED before APPLIED_CONFIRM"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: RECORDED/APPLIED_CONFIRM order wrong"
+  FAIL=$((FAIL + 1))
+fi
+APPLY_LINE=$(grep -n $'^APPLY\t' "$PROTO_RUN_F" | head -1 | cut -d: -f1)
+if [ -n "$APPLY_LINE" ]; then
+  echo "  PASS: APPLY frame present in runner log"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: no APPLY frame in runner log"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
 test_summary

@@ -391,6 +391,14 @@ run_interactive_migration() {
       READY)
         saw_ready=1
         SESSION_LOG="${fields[0]:-$default_session_log}"
+        # Resolve relative session-log paths against PROJECT_ROOT — the
+        # migration runs with PROJECT_ROOT exported but its cwd may be
+        # the original shell's cwd. Humans naturally write relative
+        # paths in migration_session_log_path.
+        case "$SESSION_LOG" in
+          /*) ;;
+          *)  SESSION_LOG="$PROJECT_ROOT/$SESSION_LOG" ;;
+        esac
         # Re-derive the resume state if the migration declared a custom
         # session-log path.
         if [ "$SESSION_LOG" != "$default_session_log" ]; then
