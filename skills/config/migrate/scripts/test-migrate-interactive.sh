@@ -708,4 +708,252 @@ COUNT=$(wc -l < "$LOG" | tr -d ' ')
 assert_eq "all 3 records persisted (WAL invariant)" "3" "$COUNT"
 
 echo ""
+echo "=== Phase 6: resumability + source-drift ==="
+echo ""
+
+echo "Test: AC-10 — partial-run resume skips already-decided keys"
+RC=0
+SBX=$(setup_sandbox "resume-partial")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" \
+  "k1|f1|a|v1|ambiguous|p" \
+  "k2|f2|a|v2|ambiguous|p" \
+  "k3|f3|a|v3|ambiguous|p" \
+  "k4|f4|a|v4|ambiguous|p" \
+  "k5|f5|a|v5|ambiguous|p"
+# Pre-create a session log: k1 accepted, k2 edited, k3 skipped.
+mkdir -p "$SBX/.accelerator/state"
+LOG="$SBX/.accelerator/state/migrations-0002-predicate-session.jsonl"
+cat > "$LOG" <<'EOF'
+{"transformation_key":"k1","schema_version":1,"outcome":"accepted","proposed_value":"v1","timestamp":"2026-05-30T12:00:00Z","band":"ambiguous","prose":"p"}
+{"transformation_key":"k2","schema_version":1,"outcome":"edited","proposed_value":"v2","user_value":"custom","timestamp":"2026-05-30T12:00:00Z","band":"ambiguous","prose":"p"}
+{"transformation_key":"k3","schema_version":1,"outcome":"skipped","proposed_value":"v3","timestamp":"2026-05-30T12:00:00Z","band":"ambiguous","prose":"p"}
+EOF
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-resume-XXXXXX")
+printf 'accept\naccept\n' > "$DECISIONS_FILE"
+PROTO_MIG_F=$(mktemp "$TMPDIR_BASE/proto-mig-resume-XXXXXX")
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_MIG_F" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+RESUMED_APPLIED_COUNT=$(grep -c $'^RESUMED_APPLIED\t' "$PROTO_MIG_F" || true)
+RESUMED_SKIPPED_COUNT=$(grep -c $'^RESUMED_SKIPPED\t' "$PROTO_MIG_F" || true)
+PROMPT_COUNT=$(grep -c $'^PROMPT\t' "$PROTO_MIG_F" || true)
+assert_eq "2 RESUMED_APPLIED (k1+k2)" "2" "$RESUMED_APPLIED_COUNT"
+assert_eq "1 RESUMED_SKIPPED (k3)"   "1" "$RESUMED_SKIPPED_COUNT"
+assert_eq "2 PROMPTs (k4+k5)"        "2" "$PROMPT_COUNT"
+# Final log: 5 records total.
+FINAL_COUNT=$(wc -l < "$LOG" | tr -d ' ')
+assert_eq "5 records in final log" "5" "$FINAL_COUNT"
+
+echo ""
+echo "Test: AC-11 — full-run idempotency (re-run with empty decisions)"
+RC=0
+# Second run with NO decisions — should resume everything and emit 0 PROMPTs.
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-empty-XXXXXX")
+: > "$DECISIONS_FILE"
+PROTO_MIG_F=$(mktemp "$TMPDIR_BASE/proto-mig-idem-XXXXXX")
+# Snapshot artifact dir state.
+ARTIFACT_HASH1=$(find "$SBX" -type f -not -path "*/.fixture/applied/*" \
+  -not -path "*/migrations-applied" -not -path "*/migrations-skipped" \
+  -not -name "*-stderr.log" -not -name "*-resume-state.tmp" \
+  -not -name ".gitkeep" \
+  | sort | xargs cat | shasum)
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_MIG_F" \
+         bash "$DRIVER" 2>&1) || RC=$?
+# Already-applied migration: runner sees no pending, exits.
+assert_eq "second run exit 0" "0" "$RC"
+APPLIED=$(cat "$SBX/.accelerator/state/migrations-applied")
+LEDGER_COUNT=$(grep -c "^0002-predicate$" <<< "$APPLIED" || true)
+assert_eq "ledger contains migration exactly once" "1" "$LEDGER_COUNT"
+
+echo ""
+echo "Test: AC-12 — source-drift detected, stale record removed, re-prompt"
+RC=0
+SBX=$(setup_sandbox "drift")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" "k1|f1|a|v_new|ambiguous|p"
+# Pre-create a session log marking k1 as accepted but with proposed=v_old
+# (differs from the live emission's v_new).
+mkdir -p "$SBX/.accelerator/state"
+LOG="$SBX/.accelerator/state/migrations-0002-predicate-session.jsonl"
+cat > "$LOG" <<'EOF'
+{"transformation_key":"k1","schema_version":1,"outcome":"accepted","proposed_value":"v_old","timestamp":"2026-05-30T12:00:00Z","band":"ambiguous","prose":"p"}
+EOF
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-drift-XXXXXX")
+printf 'accept\n' > "$DECISIONS_FILE"
+PROTO_MIG_F=$(mktemp "$TMPDIR_BASE/proto-mig-drift-XXXXXX")
+PROTO_RUN_F=$(mktemp "$TMPDIR_BASE/proto-run-drift-XXXXXX")
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_MIG_F" \
+         MIGRATION_PROTOCOL_LOG_RUNNER="$PROTO_RUN_F" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+DRIFT_COUNT=$(grep -c $'^DRIFT\t' "$PROTO_MIG_F" || true)
+CLEARED_COUNT=$(grep -c $'^DRIFT_CLEARED\t' "$PROTO_RUN_F" || true)
+PROMPT_COUNT=$(grep -c $'^PROMPT\t' "$PROTO_MIG_F" || true)
+assert_eq "1 DRIFT emitted" "1" "$DRIFT_COUNT"
+assert_eq "1 DRIFT_CLEARED emitted" "1" "$CLEARED_COUNT"
+assert_eq "1 PROMPT (after drift clear)" "1" "$PROMPT_COUNT"
+# Final log: v_old record gone, v_new record present.
+LOG_CONTENT=$(cat "$LOG")
+assert_not_contains "v_old removed" "$LOG_CONTENT" '"proposed_value":"v_old"'
+assert_contains "v_new persisted" "$LOG_CONTENT" '"proposed_value":"v_new"'
+
+echo ""
+echo "Test: resume — unknown outcome in session log → fail-fast"
+RC=0
+SBX=$(setup_sandbox "bad-outcome")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" "k1|f|a|v|ambiguous|p"
+mkdir -p "$SBX/.accelerator/state"
+LOG="$SBX/.accelerator/state/migrations-0002-predicate-session.jsonl"
+cat > "$LOG" <<'EOF'
+{"transformation_key":"k1","schema_version":1,"outcome":"banana","proposed_value":"v","timestamp":"2026-05-30T12:00:00Z"}
+EOF
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_neq "non-zero exit on unknown outcome" "0" "$RC"
+assert_contains "error mentions unknown outcome" "$OUTPUT" "unknown outcome"
+
+echo ""
+echo "Test: resume — unknown schema_version → fail-fast with discard hint"
+RC=0
+SBX=$(setup_sandbox "bad-schema")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" "k1|f|a|v|ambiguous|p"
+mkdir -p "$SBX/.accelerator/state"
+LOG="$SBX/.accelerator/state/migrations-0002-predicate-session.jsonl"
+cat > "$LOG" <<'EOF'
+{"transformation_key":"k1","schema_version":99,"outcome":"accepted","proposed_value":"v","timestamp":"2026-05-30T12:00:00Z"}
+EOF
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_neq "non-zero exit on unknown schema_version" "0" "$RC"
+assert_contains "error mentions unknown schema_version" "$OUTPUT" \
+  "unknown schema_version"
+assert_contains "error suggests rm of session log" "$OUTPUT" \
+  "rm $LOG"
+
+echo ""
+echo "Test: resume — user_value with TSV/JSON-escape-significant characters round-trips"
+RC=0
+SBX=$(setup_sandbox "user-value-escapes")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" "k1|f|a|v|ambiguous|p"
+mkdir -p "$SBX/.accelerator/state"
+LOG="$SBX/.accelerator/state/migrations-0002-predicate-session.jsonl"
+# Edited record with user_value containing tab/newline/backslash/quote.
+cat > "$LOG" <<'EOF'
+{"transformation_key":"k1","schema_version":1,"outcome":"edited","proposed_value":"v","user_value":"weird \"quote\" and\\backslash and\ttab","timestamp":"2026-05-30T12:00:00Z"}
+EOF
+PROTO_MIG_F=$(mktemp "$TMPDIR_BASE/proto-mig-escape-XXXXXX")
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_MIG_F" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+RESUMED_COUNT=$(grep -c $'^RESUMED_APPLIED\t' "$PROTO_MIG_F" || true)
+PROMPT_COUNT=$(grep -c $'^PROMPT\t' "$PROTO_MIG_F" || true)
+assert_eq "1 RESUMED_APPLIED" "1" "$RESUMED_COUNT"
+assert_eq "0 PROMPTs (no drift)" "0" "$PROMPT_COUNT"
+
+echo ""
+echo "Test: orphan resume record (key no longer emitted) is preserved + completes"
+RC=0
+SBX=$(setup_sandbox "orphan-record")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+# Migration emits only k1; session log has a record for k_orphan.
+seed_predicate_sandbox "$SBX" "k1|f|a|v|ambiguous|p"
+mkdir -p "$SBX/.accelerator/state"
+LOG="$SBX/.accelerator/state/migrations-0002-predicate-session.jsonl"
+cat > "$LOG" <<'EOF'
+{"transformation_key":"k_orphan","schema_version":1,"outcome":"accepted","proposed_value":"v","timestamp":"2026-05-30T12:00:00Z"}
+EOF
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-orphan-XXXXXX")
+printf 'accept\n' > "$DECISIONS_FILE"
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0 (orphan does not block)" "0" "$RC"
+# Orphan record should still be in the log (we don't garbage-collect).
+assert_contains "k_orphan record preserved" "$(cat "$LOG")" '"transformation_key":"k_orphan"'
+assert_contains "k1 record added"           "$(cat "$LOG")" '"transformation_key":"k1"'
+
+echo ""
+echo "Test: migration_verify_applied — detects missing mutation, triggers re-prompt"
+mkdir -p "$MIGRATIONS_DIR_FIXTURE/0005-verify-applied/migrations"
+cat > "$MIGRATIONS_DIR_FIXTURE/0005-verify-applied/migrations/0005-verify-applied.sh" <<'VERIFY_SH'
+#!/usr/bin/env bash
+# DESCRIPTION: Resume-integrity check fixture — Phase 6.
+# INTERACTIVE: yes
+set -euo pipefail
+source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
+source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"
+
+migration_emit_transformations() {
+  harness_emit_transformation key=k1 path=marker anchor=a proposed=v \
+    predicate_value=ambiguous display="x"
+}
+migration_evaluate_predicate() { return 0; }
+migration_validate_edit() { return 0; }
+
+migration_apply_decision() {
+  printf 'mutated\n' > "$PROJECT_ROOT/marker"
+}
+
+# Verifies the mutation actually landed. Returns non-zero if marker
+# file is missing or empty.
+migration_verify_applied() {
+  [ -s "$PROJECT_ROOT/marker" ]
+}
+
+harness_run
+VERIFY_SH
+RC=0
+SBX=$(setup_sandbox "verify-applied")
+echo "$SBX" > "$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+# Pre-create the resume record but do NOT create the marker file —
+# simulates crash between record-persist and mutation.
+mkdir -p "$SBX/.accelerator/state"
+LOG="$SBX/.accelerator/state/migrations-0005-verify-applied-session.jsonl"
+cat > "$LOG" <<'EOF'
+{"transformation_key":"k1","schema_version":1,"outcome":"accepted","proposed_value":"v","timestamp":"2026-05-30T12:00:00Z"}
+EOF
+DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-verify-XXXXXX")
+printf 'accept\n' > "$DECISIONS_FILE"
+PROTO_MIG_F=$(mktemp "$TMPDIR_BASE/proto-mig-verify-XXXXXX")
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0005-verify-applied/migrations" \
+         PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+         ACCELERATOR_MIGRATE_FORCE=1 \
+         ACCELERATOR_MIGRATE_DECISIONS_FILE="$DECISIONS_FILE" \
+         MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_MIG_F" \
+         bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0" "0" "$RC"
+DRIFT_COUNT=$(grep -c $'^DRIFT\t' "$PROTO_MIG_F" || true)
+PROMPT_COUNT=$(grep -c $'^PROMPT\t' "$PROTO_MIG_F" || true)
+RESUMED_COUNT=$(grep -c $'^RESUMED_APPLIED\t' "$PROTO_MIG_F" || true)
+assert_eq "1 DRIFT (mutation absent)" "1" "$DRIFT_COUNT"
+assert_eq "1 PROMPT (after drift)"     "1" "$PROMPT_COUNT"
+assert_eq "0 RESUMED_APPLIED"          "0" "$RESUMED_COUNT"
+assert_file_exists "marker mutated"    "$SBX/marker"
+
+echo ""
 test_summary
