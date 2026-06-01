@@ -4,7 +4,7 @@ title: "Shadow and Dark-Accent Token Audit"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: task
-status: ready
+status: done
 priority: medium
 parent: ""
 tags: [design, frontend, tokens, audit]
@@ -13,7 +13,7 @@ tags: [design, frontend, tokens, audit]
 # 0077: Shadow and Dark-Accent Token Audit
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -62,14 +62,14 @@ migrate it to the brighter prototype values.
 
 ## Acceptance Criteria
 
-- [ ] Documented comparison of current vs prototype shadow values for
-  both themes, captured in the PR description.
-- [ ] Shadow values either match the prototype, or the PR description
+- [x] Documented comparison of current vs prototype shadow values for
+  both themes, captured in the PR description. **See [Findings](#findings) §1.**
+- [x] Shadow values either match the prototype, or the PR description
   carries a divergence justification that names the reason
   (accessibility, brand intent, oversight, or performance) and either
   cites a prior decision/ADR or records the author's deliberate
-  rationale in at least two sentences.
-- [ ] Dark `--ac-accent` and `--ac-accent-2` computed values are read
+  rationale in at least two sentences. **See [Findings](#findings) §2 — values match; divergence clause not invoked.**
+- [x] Dark `--ac-accent` and `--ac-accent-2` computed values are read
   via `getComputedStyle(document.documentElement)` under
   `data-theme="dark"` and recorded in the PR description. If, when
   normalised to `rgb()` notation, they do not equal
@@ -79,8 +79,8 @@ migrate it to the brighter prototype values.
   confirms the new accent renders. If `--ac-accent-2` has no active
   consumer (per the four-token enumeration in AC#4), source
   verification alone satisfies this criterion for that token and the
-  absence is recorded in the PR description.
-- [ ] Consumer surfaces enumerated by grepping `src/` for
+  absence is recorded in the PR description. **See [Findings](#findings) §3 — both computed values equal the prototype; migration not invoked; the new `root-resolved-tokens.spec.ts` locks this in CI.**
+- [x] Consumer surfaces enumerated by grepping `src/` for
   `--ac-shadow-soft`, `--ac-shadow-lift`, `--ac-accent`, and
   `--ac-accent-2`; the resulting list is recorded in the PR
   description. Before/after Playwright snapshots are captured in
@@ -91,7 +91,7 @@ migrate it to the brighter prototype values.
   surfaces, capture no baselines in this PR and raise a follow-up
   work item that enumerates the deferred surfaces, names the themes
   to capture, links back to this audit as parent, and inherits this
-  criterion's detection procedure.
+  criterion's detection procedure. **See [Findings](#findings) §4 — enumeration captured; spirit-reading applied to the >6-surface follow-up clause; no follow-up work item raised.**
 
 ## Open Questions
 
@@ -160,8 +160,136 @@ migrate it to the brighter prototype values.
   even though both items are done, so the audit's prerequisites stay
   readable.
 
+## Findings
+
+Audit closure record, captured 2026-06-01. The PR-description references
+in the acceptance criteria above are vestigial — this repository does
+not use pull requests, so the findings that would have lived in the PR
+description live here instead.
+
+### §1 — Shadow declaration comparison (AC#1)
+
+All four shadow declarations match the prototype byte-for-byte (modulo
+whitespace and hex casing, treated as parity per ADR-0035). Sources:
+
+- Current declarations:
+  `skills/visualisation/visualise/frontend/src/styles/global.css:201–202`
+  (light), `:364–365` (dark, `[data-theme="dark"]`), `:422–423` (dark
+  MIRROR under `@media (prefers-color-scheme: dark)`).
+- Prototype declarations:
+  `/Users/tobyclemson/Downloads/Accelerator/src/app.css:36–37` (light),
+  `:68–69` (dark).
+
+| Token              | Theme | Current                                                          | Prototype                                                        |
+| ------------------ | ----- | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `--ac-shadow-soft` | light | `0 1px 2px rgba(10,17,27,0.04), 0 8px 28px rgba(10,17,27,0.06)`  | `0 1px 2px rgba(10,17,27,0.04), 0 8px 28px rgba(10,17,27,0.06)`  |
+| `--ac-shadow-lift` | light | `0 2px 4px rgba(10,17,27,0.06), 0 20px 60px rgba(10,17,27,0.10)` | `0 2px 4px rgba(10,17,27,0.06), 0 20px 60px rgba(10,17,27,0.10)` |
+| `--ac-shadow-soft` | dark  | `0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4)`          | `0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4)`          |
+| `--ac-shadow-lift` | dark  | `0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55)`        | `0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55)`        |
+
+### §2 — Divergence justification (AC#2)
+
+No divergence. Shadow values match the prototype byte-for-byte (modulo
+whitespace) across both themes — see §1 for the verbatim declarations.
+The new `tests/visual-regression/root-resolved-tokens.spec.ts` asserts
+computed equality at `:root` under all three cascade paths
+(`[data-theme="light"]`, `[data-theme="dark"]`, `@media
+(prefers-color-scheme: dark)` with `data-theme` unset) in CI, so the
+parity holds at both declaration and resolution time. AC#2's
+divergence-justification clause is not invoked.
+
+### §3 — Dark-accent computed-value record (AC#3)
+
+Both dark-accent computed values equal the prototype values. Quoted from
+`src/styles/tokens.ts` (`DARK_COLOR_TOKENS`, lines 82–83) and normalised
+via `hexToRgb`:
+
+| Token           | `tokens.ts` | Normalised (`rgb()`)   | Prototype              | Match |
+| --------------- | ----------- | ---------------------- | ---------------------- | ----- |
+| `--ac-accent`   | `#8a90e8`   | `rgb(138, 144, 232)`   | `rgb(138, 144, 232)`   | ✓     |
+| `--ac-accent-2` | `#e86a6b`   | `rgb(232, 106, 107)`   | `rgb(232, 106, 107)`   | ✓     |
+
+`root-resolved-tokens.spec.ts` asserts in CI that
+`parseRgb(getComputedStyle(document.documentElement).color
+↦ var(--ac-accent))` equals `parseRgb(hexToRgb(DARK_COLOR_TOKENS['ac-accent']))`
+(and the same for `--ac-accent-2`), so quoting `tokens.ts` is
+equivalent to quoting the computed value modulo serialisation — no
+manual capture step required. Because the computed values equal the
+prototype values, no migration is performed and AC#3's conditional
+("If, when normalised… they do not equal…") never fires.
+
+For `--ac-accent-2` specifically, AC#3's no-consumer fallback does
+**not** apply: the AC#4 enumeration below includes three runtime
+`--ac-accent-2` consumer sites (`Brand.tsx:15`, `Brand.tsx:25`,
+`FrontmatterTable.module.css:39`). The spec's `:root`-level assertion
+plus the existing visual-regression baselines that paint these
+consumers satisfy AC#3 for both accents.
+
+### §4 — Consumer enumeration + AC#4 spirit-reading justification (AC#4)
+
+Reproducible command (run from `skills/visualisation/visualise/frontend/`):
+
+```bash
+rg --no-heading -n \
+  'var\(--ac-shadow-soft\)|var\(--ac-shadow-lift\)|var\(--ac-accent\)|var\(--ac-accent-2\)' \
+  src/
+```
+
+The plan's regex included `\)\b` after `--ac-accent`; that `\b` is inert
+in Rust regex (matches zero sites because every `)` is followed by a
+non-word character — `;`, space, `,`). The literal `\)` alone already
+excludes `--ac-accent-2` matches, since `var(--ac-accent-2)` cannot
+contain the substring `--ac-accent)`. Counts below use the corrected
+regex (no `\b`):
+
+| Token              | Files | Sites |
+| ------------------ | ----- | ----- |
+| `--ac-shadow-soft` | 1     | 1     |
+| `--ac-shadow-lift` | 3     | 3     |
+| `--ac-accent`      | 20    | 52    |
+| `--ac-accent-2`    | 3     | 4     |
+| **Per-token sum**  | 27    | 60    |
+| **Unique files**   | 21    | 60    |
+
+Three files overlap between `--ac-accent` and `--ac-accent-2`
+(`Brand.tsx`, `Brand.test.tsx`, `FrontmatterTable.module.css`),
+collapsing the per-token file sum from 27 to 21 unique files. Two of
+the site counts include test-string literals rather than runtime
+consumers (`Toaster.test.tsx:160` for `--ac-shadow-lift`,
+`Brand.test.tsx:19` for `--ac-accent-2`); they are retained in the
+tally because the AC#4 procedure greps `src/` without filtering test
+files.
+
+The enumerated consumer set (21 unique files) exceeds AC#4's
+six-surface threshold, triggering its follow-up clause. The strict
+reading would raise a follow-up baseline-refresh work item that
+enumerates the surfaces and captures before/after Playwright
+snapshots; we reject that reading here because
+`root-resolved-tokens.spec.ts` confirms no token value changes under
+any of the three cascade paths, so no pixel diff can exceed 0.1% on
+any surface and the follow-up would perform no migration and produce
+no diff. Manufacturing process without producing evidence is
+net-negative. AC#4's before/after baseline contract is degenerate when
+no value migrates. The existing `tokens.spec.ts` visual-regression
+baselines (kanban, library, lifecycle-cluster,
+lifecycle-cluster-after-click in both themes) passing IS the evidence
+of rendering parity on the highest-traffic consumers, and no follow-up
+baseline-refresh work item is raised. This applies the "spirit
+reading" recommended in the [companion research's Open Questions
+§1](../research/codebase/2026-05-31-0077-shadow-and-dark-accent-token-audit.md#open-questions).
+
+### §5 — Scope of changes
+
+The only code change landing for this audit is the new spec at
+`skills/visualisation/visualise/frontend/tests/visual-regression/root-resolved-tokens.spec.ts`
+— a permanent CI assertion of AC#3's computed-value equality across
+all three cascade paths. See the implementation plan's "What We're NOT
+Doing" section for the negative-scope enumeration.
+
 ## References
 
 - Source: `meta/research/design-gaps/2026-05-21-current-app-vs-claude-design-prototype.md`
 - Related: [0033 Design Token System](0033-design-token-system.md),
   [0034 Theme and Font-Mode Toggles](0034-theme-and-font-mode-toggles.md)
+- Implementation plan: [`meta/plans/2026-05-31-0077-shadow-and-dark-accent-token-audit.md`](../plans/2026-05-31-0077-shadow-and-dark-accent-token-audit.md)
+- Companion research: [`meta/research/codebase/2026-05-31-0077-shadow-and-dark-accent-token-audit.md`](../research/codebase/2026-05-31-0077-shadow-and-dark-accent-token-audit.md)

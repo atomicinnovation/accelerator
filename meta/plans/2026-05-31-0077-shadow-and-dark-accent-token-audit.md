@@ -5,7 +5,7 @@ title: "Shadow and Dark-Accent Token Audit Implementation Plan"
 date: "2026-05-31T22:42:34+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: approved
+status: implemented
 work_item_id: "0077"
 parent: ""
 reviewer: "Toby Clemson"
@@ -552,12 +552,18 @@ section for the negative-scope enumeration rather than restating it.
 
 #### Manual Verification:
 
-- [ ] PR description contains all four shadow declarations (light and dark, current and prototype) quoted verbatim with file:line references.
-- [ ] PR description explicitly states "no divergence — values match exactly" for shadows (AC#2).
-- [ ] PR description records the dark `--ac-accent` and `--ac-accent-2` computed values harvested from Phase 1's spec output, normalised to `rgb()`, with the expected-equality confirmation (AC#3).
-- [ ] PR description includes the consumer enumeration table plus the AC#4 spirit-reading paragraph naming the no-follow-up outcome (AC#4).
-- [ ] PR description notes that the only code change is `root-resolved-tokens.spec.ts`.
-- [ ] All four acceptance-criteria checkboxes in `meta/work/0077-shadow-and-dark-accent-token-audit.md` are tickable from the PR description content.
+> **Vehicle change.** This repository does not use pull requests, so the
+> "PR description" wording below was discharged by appending a
+> `## Findings` section to the work item itself
+> ([`meta/work/0077-shadow-and-dark-accent-token-audit.md`](../work/0077-shadow-and-dark-accent-token-audit.md#findings)).
+> The success criteria below are ticked against that section.
+
+- [x] Work item §1 contains all four shadow declarations (light and dark, current and prototype) quoted verbatim with file:line references.
+- [x] Work item §2 explicitly states "No divergence" for shadows (AC#2).
+- [x] Work item §3 records the dark `--ac-accent` and `--ac-accent-2` computed values harvested from `tokens.ts` (equivalent to Phase 1's spec output by the spec's own assertion), normalised to `rgb()`, with the expected-equality confirmation (AC#3).
+- [x] Work item §4 includes the consumer enumeration table plus the AC#4 spirit-reading paragraph naming the no-follow-up outcome (AC#4).
+- [x] Work item §5 notes that the only code change is `root-resolved-tokens.spec.ts`.
+- [x] All four acceptance-criteria checkboxes in `meta/work/0077-shadow-and-dark-accent-token-audit.md` are ticked, each cross-linking to the §-numbered Findings subsection that discharges it.
 
 ---
 
