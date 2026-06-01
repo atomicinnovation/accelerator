@@ -1,14 +1,6 @@
 import type { IndexEntry, KanbanColumn } from './types'
 import { OTHER_COLUMN_KEY } from './types'
 
-export function parseWorkItemId(relPath: string): number | null {
-  const filename = relPath.split('/').at(-1) ?? ''
-  const match = filename.match(/^(\d+)-/)
-  if (!match) return null
-  const n = Number.parseInt(match[1], 10)
-  return Number.isFinite(n) ? n : null
-}
-
 export function groupWorkItemsByStatus(
   entries: IndexEntry[],
   columns: ReadonlyArray<KanbanColumn>,

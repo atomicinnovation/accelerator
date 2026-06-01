@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseWorkItemId, groupWorkItemsByStatus } from './work-item'
+import { groupWorkItemsByStatus } from './work-item'
 import { makeIndexEntry } from './test-fixtures'
 import { OTHER_COLUMN_KEY } from './types'
 
@@ -8,35 +8,6 @@ const COLS = [
   { key: 'in-progress', label: 'In progress' },
   { key: 'done', label: 'Done' },
 ]
-
-describe('parseWorkItemId', () => {
-  it('returns the integer parsed from a four-digit prefix', () => {
-    expect(parseWorkItemId('meta/work/0001-foo.md')).toBe(1)
-    expect(parseWorkItemId('meta/work/0029-bar-baz.md')).toBe(29)
-  })
-
-  it('returns the integer when the path has no directory component', () => {
-    expect(parseWorkItemId('0042-bare.md')).toBe(42)
-  })
-
-  it('returns null when the leading segment is non-numeric', () => {
-    expect(parseWorkItemId('meta/work/foo-bar.md')).toBeNull()
-    expect(parseWorkItemId('meta/work/ADR-0001-foo.md')).toBeNull()
-  })
-
-  it('returns null when there is no leading digit run', () => {
-    expect(parseWorkItemId('meta/work/-foo.md')).toBeNull()
-    expect(parseWorkItemId('')).toBeNull()
-  })
-
-  it('returns null when the dash separator is missing', () => {
-    expect(parseWorkItemId('meta/work/0001.md')).toBeNull()
-  })
-
-  it('parses work item ids with arbitrary digit count (no upper bound)', () => {
-    expect(parseWorkItemId('meta/work/12345-foo.md')).toBe(12345)
-  })
-})
 
 describe('groupWorkItemsByStatus', () => {
   it('groups by canonical status values', () => {

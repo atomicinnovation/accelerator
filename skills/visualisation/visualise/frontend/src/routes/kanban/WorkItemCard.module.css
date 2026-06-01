@@ -13,15 +13,23 @@
 }
 .cardLink:hover { background: var(--ac-bg-sunken); }
 .cardLink:hover .cardTitle { color: var(--ac-accent); }
-.cardHeader {
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--size-xs);
+}
+.cardId     { font-family: var(--ac-font-mono); color: var(--ac-fg-muted); font-size: var(--size-xxs); }
+.cardTitle  { margin: var(--sp-1) 0; font-weight: 600; color: var(--ac-fg-strong); }
+.cardKind   { margin: 0; font-size: var(--size-xs); color: var(--ac-fg-muted); }
+.cardFoot {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: var(--sp-2);
-  font-size: var(--size-xs);
+  margin-top: var(--sp-1);
+  font-size: var(--size-xxs);
 }
-.cardNumber { font-family: var(--ac-font-mono); color: var(--ac-fg-muted); }
-.cardSlug   { font-family: var(--ac-font-mono); color: var(--ac-fg-faint); font-size: var(--size-xxs); }
-.cardMtime  { color: var(--ac-fg-muted); }
-.cardTitle  { margin: var(--sp-1) 0; font-weight: 600; color: var(--ac-fg-strong); }
-.cardKind   { margin: 0; font-size: var(--size-xs); color: var(--ac-fg-muted); }
+.cardMtime  { font-family: var(--ac-font-mono); color: var(--ac-fg-muted); }
+.cardLinks  { font-family: var(--ac-font-mono); color: var(--ac-fg-faint); }
