@@ -77,6 +77,19 @@ The epic's technical notes raised extracting these into shared template files as
 - `pr-review` emits `target: "pr:<pr-number>"`, which uses a `pr` doc-type prefix that is not in ADR-0034's published vocabulary today (the listed discriminators come from ADR-0033 and cover meta-artifact types only; external PRs are not meta). Using `pr:` keeps the `target` data model uniform across all four review/validation types — important for the future visualiser-graph epic — but should be formalised by a small ADR-0034 follow-up that adds `pr` (and any other external-entity prefixes the corpus needs) to the vocabulary. Log this as a follow-up under 0057 rather than blocking this story.
 - Originally extracted from source documents without interactive enrichment; refined during 0065's review when the `templates/validation.md` boundary surfaced.
 
+## Schema Reference
+
+The three new template files created by this story emit the unified base
+schema plus per-type extras per ADR-0033 and a `target` typed-linkage key
+per ADR-0034. Authoritative source: ADR-0033 and ADR-0034. On any
+discrepancy the ADRs win and this table should be re-synced.
+
+| Template file         | Artifact `type`    | `schema_version` | Provenance bundle? | Per-type extras (beyond base)                                                                                                                                                                                                                                                                                                                                                                   |
+|-----------------------|--------------------|------------------|--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `plan-review.md`      | `plan-review`      | 1                | no                 | `reviewer`, `verdict`, `lenses`, `review_number`, `review_pass`, `target` (= `"plan:<id>"`)                                                                                                                                                                                                                                                                                                     |
+| `work-item-review.md` | `work-item-review` | 1                | no                 | `reviewer`, `verdict`, `lenses`, `review_number`, `review_pass`, `target` (= `"work-item:<id>"`), `work_item_id` (transitional alias — see plan §Design Decisions #2; consumed by visualiser frontmatter.rs:330 until Phase 7)                                                                                                                                                                  |
+| `pr-review.md`        | `pr-review`        | 1                | no                 | `reviewer`, `verdict`, `lenses`, `review_number`, `target` (= `"pr:<pr-number>"`; the `pr` prefix is queued for inclusion in ADR-0034's vocabulary via supplementary ADR — see follow-up under `meta/work/0057-...md`), `pr_number` (bare integer; foreign reference to the external PR per ADR-0033 §Identity-value shape contract). `review_pass` is omitted — see plan §Design Decisions #1. |
+
 ## References
 
 - Source: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`

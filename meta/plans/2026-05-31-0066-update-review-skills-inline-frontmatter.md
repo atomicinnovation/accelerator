@@ -660,19 +660,19 @@ bash scripts/test-skill-frontmatter-population.sh
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-template-frontmatter.sh; [ $? -ne 0 ]` — exits non-zero (RED baseline; 3 new template rows fail because the files do not exist yet).
-- [ ] `bash scripts/test-skill-frontmatter-population.sh; [ $? -ne 0 ]` — exits non-zero (RED baseline; 16 per-field assertions fail across the 4 not-yet-rewired skills).
-- [ ] `awk -F$'\t' 'NR>1 {print $1}' scripts/templates-schema.tsv | sort | uniq -d` — no duplicates (no template listed twice).
-- [ ] `awk -F$'\t' 'NF != 6 {exit 1}' scripts/templates-schema.tsv` — every row has 6 tab-separated fields (self-check inside the test driver also asserts this).
-- [ ] `awk -F$'\t' 'NF != 3 {exit 1}' scripts/skills-schema.tsv` — every row has 3 tab-separated fields.
-- [ ] `grep -n "^## Schema Reference$" meta/work/0066-update-review-skills-inline-frontmatter.md` returns exactly 1 line.
-- [ ] The test-template cross-check's union read produces exactly 12 unique template filenames matching the 12 TSV rows.
-- [ ] `bash scripts/test-format.sh` passes (no regressions).
+- [x] `bash scripts/test-template-frontmatter.sh; [ $? -ne 0 ]` — exits non-zero (RED baseline; 3 new template rows fail because the files do not exist yet).
+- [x] `bash scripts/test-skill-frontmatter-population.sh; [ $? -ne 0 ]` — exits non-zero (RED baseline; 16 per-field assertions fail across the 4 not-yet-rewired skills).
+- [x] `awk -F$'\t' 'NR>1 {print $1}' scripts/templates-schema.tsv | sort | uniq -d` — no duplicates (no template listed twice).
+- [x] `awk -F$'\t' 'NF != 6 {exit 1}' scripts/templates-schema.tsv` — every row has 6 tab-separated fields (self-check inside the test driver also asserts this).
+- [x] `awk -F$'\t' 'NF != 3 {exit 1}' scripts/skills-schema.tsv` — every row has 3 tab-separated fields.
+- [x] `grep -n "^## Schema Reference$" meta/work/0066-update-review-skills-inline-frontmatter.md` returns exactly 1 line.
+- [x] The test-template cross-check's union read produces exactly 12 unique template filenames matching the 12 TSV rows.
+- [x] `bash scripts/test-format.sh` passes (no regressions).
 
 #### Manual Verification:
 
-- [ ] Failure messages from the two test drivers point an implementer at the right file (e.g. "FAIL: plan-review.md — template file not found at templates/plan-review.md").
-- [ ] The work-item Schema Reference table in 0066 visually matches the TSV row data for the three new templates.
+- [x] Failure messages from the two test drivers point an implementer at the right file (e.g. "FAIL: plan-review.md — template file not found at templates/plan-review.md").
+- [x] The work-item Schema Reference table in 0066 visually matches the TSV row data for the three new templates.
 
 ---
 

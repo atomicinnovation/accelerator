@@ -16,7 +16,12 @@ cd "$ROOT"
 echo "=== Template frontmatter shape ==="
 
 SCHEMA_TSV="$SCRIPT_DIR/templates-schema.tsv"
-WORK_ITEM_MD="meta/work/0065-update-artifact-templates-to-unified-schema.md"
+# Cross-check inputs (both 0065 and 0066 carry Schema Reference tables;
+# the union must match the TSV exactly).
+WORK_ITEM_MDS=(
+  "meta/work/0065-update-artifact-templates-to-unified-schema.md"
+  "meta/work/0066-update-review-skills-inline-frontmatter.md"
+)
 
 BASE_FIELDS=(type id title date author producer status tags last_updated last_updated_by schema_version)
 PROVENANCE_FIELDS=(revision repository)
@@ -105,9 +110,13 @@ while IFS=$'\t' read -r template_file expected_type anchored extras status_vocab
   # `id:` value is a quoted YAML string.
   assert_in_block "$template_file: id value is quoted string" "$block" '^id:[[:space:]]+"[^"]*"([[:space:]]+#.*)?$'
 
-  # Forbidden legacy own-identity key absent (when applicable).
+  # Forbidden legacy own-identity key(s) absent (when applicable). The column
+  # accepts a space-separated list of keys or the `-` sentinel for "no
+  # forbidden key".
   if [ "$forbidden_own_id_key" != "-" ]; then
-    assert_not_in_block "$template_file: legacy own-id key '$forbidden_own_id_key' absent" "$block" "^${forbidden_own_id_key}:[[:space:]]"
+    for fkey in $forbidden_own_id_key; do
+      assert_not_in_block "$template_file: legacy own-id key '$fkey' absent" "$block" "^${fkey}:[[:space:]]"
+    done
   fi
 
   # Provenance bundle handling.
@@ -142,30 +151,41 @@ while IFS=$'\t' read -r template_file expected_type anchored extras status_vocab
 
 done < <(tail -n +2 "$SCHEMA_TSV")
 
-# Cross-check: parse the work-item Schema Reference markdown table and assert
-# its row count and template-filename column match the TSV exactly.
+# Cross-check: parse the work-item Schema Reference markdown table(s) and
+# assert the union of templates matches the TSV exactly. Both 0065 and 0066
+# carry Schema Reference tables; their union is the authoritative source.
 echo "--- Cross-check: work-item Schema Reference vs templates-schema.tsv ---"
-if [ -f "$WORK_ITEM_MD" ]; then
-  wi_templates=$(awk '
-    /^## Schema Reference/ { in_section=1; next }
-    in_section && /^## / { exit }
-    in_section && /^\| `[a-z0-9-]+\.md` \| / { print $0 }
-  ' "$WORK_ITEM_MD" | sed -E 's/^\| `([a-z0-9-]+\.md)` \|.*$/\1/' | sort)
+existing_count=0
+for wi in "${WORK_ITEM_MDS[@]}"; do
+  [ -f "$wi" ] && existing_count=$((existing_count + 1))
+done
+if [ "$existing_count" -eq 0 ]; then
+  echo "  SKIP: no work-item Schema Reference file present"
+  SKIP=$((SKIP + 1))
+else
+  wi_templates=$(
+    for wi in "${WORK_ITEM_MDS[@]}"; do
+      if [ -f "$wi" ]; then
+        awk '
+          /^## Schema Reference/ { in_section=1; next }
+          in_section && /^## / { in_section=0 }
+          in_section && /^\| `[a-z0-9-]+\.md` \| / { print $0 }
+        ' "$wi" | sed -E 's/^\| `([a-z0-9-]+\.md)` \|.*$/\1/'
+      fi
+    done | sort
+  )
   tsv_templates=$(awk -F'\t' 'NR > 1 {print $1}' "$SCHEMA_TSV" | sort)
   if [ "$wi_templates" = "$tsv_templates" ]; then
     echo "  PASS: work-item Schema Reference templates match TSV"
     PASS=$((PASS + 1))
   else
     echo "  FAIL: work-item Schema Reference templates differ from TSV"
-    echo "    Work-item:"
+    echo "    Work-item (union):"
     echo "$wi_templates" | sed 's/^/      /'
     echo "    TSV:"
     echo "$tsv_templates" | sed 's/^/      /'
     FAIL=$((FAIL + 1))
   fi
-else
-  echo "  SKIP: work-item Schema Reference cross-check ($WORK_ITEM_MD not found)"
-  SKIP=$((SKIP + 1))
 fi
 
 test_summary
