@@ -1,0 +1,71 @@
+.chain {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tile-size);
+  height: var(--tile-size);
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: color-mix(in oklab, currentColor 12%, transparent);
+  color: var(--ac-stroke);
+  z-index: 1;
+}
+
+.chain[data-variant='card'] .tile {
+  --tile-size: 26px;
+}
+
+.chain[data-variant='panel'] .tile {
+  --tile-size: 34px;
+}
+
+.stage[data-active='false'] .tile {
+  background: var(--ac-bg-card);
+  border-color: var(--ac-stroke);
+  color: var(--ac-fg-faint);
+}
+
+.label {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-eyebrow);
+  letter-spacing: 0.04em;
+  color: var(--ac-fg-faint);
+  margin-top: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.stage[data-active='true'] .label {
+  color: var(--ac-fg);
+}
+
+.connector {
+  position: absolute;
+  top: calc(var(--tile-size) / 2);
+  left: 50%;
+  right: -50%;
+  height: 2px;
+  background: var(--ac-stroke);
+  transform: translateY(-1px);
+  z-index: 0;
+}
