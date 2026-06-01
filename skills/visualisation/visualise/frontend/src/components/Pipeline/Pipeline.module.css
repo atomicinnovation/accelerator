@@ -14,6 +14,7 @@
   align-items: center;
   flex: 1 1 0;
   min-width: 0;
+  gap: 5px;
 }
 
 .tile {
@@ -22,8 +23,9 @@
   justify-content: center;
   border: 1px solid currentColor;
   border-radius: 6px;
-  color: var(--ac-stroke);
   z-index: 1;
+  box-sizing: border-box;
+  transition: transform 120ms ease;
 }
 
 .chain[data-variant='card'] .tile {
@@ -36,18 +38,34 @@
   height: 34px;
 }
 
+/* Active tile: filled solid in the stage colour. The glyph is rendered
+   in white (via Pipeline's `colorVar` prop), so the tile + icon read as
+   a single chip even on a busy card. */
+.stage[data-active='true'] .tile {
+  background: currentColor;
+}
+
+/* Inactive tile: light mode renders an opaque pale-stage background
+   with a muted border so the chain reads as a quiet container;
+   dark mode keeps a faint translucent tint so the dark canvas shows
+   through. `currentColor` resolves to the stage's --ac-stage-* hue
+   (set on the <li> in JSX) for both branches. */
 .stage[data-active='false'] .tile {
-  background: var(--ac-bg-card);
-  border-color: var(--ac-stroke);
-  color: var(--ac-fg-faint);
+  background: color-mix(in srgb, currentColor 14%, var(--ac-bg-card));
+  border-color: color-mix(in srgb, currentColor 30%, var(--ac-bg-card));
+}
+
+:global([data-theme='dark']) .stage[data-active='false'] .tile,
+:global(:root:not([data-theme='light'])) .stage[data-active='false'] .tile {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  border-color: color-mix(in srgb, currentColor 22%, transparent);
 }
 
 .label {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-4xs);
   letter-spacing: 0.04em;
   color: var(--ac-fg-faint);
-  margin-top: var(--sp-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -58,6 +76,10 @@
   color: var(--ac-fg);
 }
 
+/* Connector line sits behind the tiles, centred on the tile mid-line.
+   Each stage's connector extends to the right of its own tile so the
+   gradient (when both adjacent stages are active) blends from this
+   stage's colour into the next stage's colour. */
 .connector {
   position: absolute;
   top: 13px;
@@ -70,4 +92,13 @@
 
 .chain[data-variant='panel'] .connector {
   top: 17px;
+}
+
+/* The connector only takes a coloured fill when BOTH the originating
+   stage and the next stage are active — a partially-complete chain
+   stops the colour at the last active tile. `data-active="true"` on
+   the connector tracks that both-active state; `--next-accent` is
+   set on each <li> in JSX. */
+.connector[data-active='true'] {
+  background: linear-gradient(to right, currentColor, var(--next-accent));
 }

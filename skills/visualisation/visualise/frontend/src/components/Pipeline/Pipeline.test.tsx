@@ -135,6 +135,31 @@ describe('Pipeline', () => {
     expect(cssText).not.toMatch(/hsl\(/)
   })
 
+  it('renders the active stage glyph in white on the filled stage-coloured tile', () => {
+    const { container } = render(
+      <Pipeline
+        completeness={makeCompleteness({
+          hasWorkItem: true,
+          hasResearch: true,
+          present: ['work-items', 'research'],
+        })}
+      />,
+    )
+    const activeSvg = container.querySelector(
+      '[data-stage="work-items"] svg',
+    ) as SVGElement
+    expect(activeSvg.style.color).toContain('--atomic-white')
+
+    // Inactive stages render the glyph in the same --ac-stage-<key>
+    // bright hue (not --ac-doc-<key>, which collapses to white in
+    // dark mode and decouples the inactive tile from its stage
+    // identity).
+    const inactiveSvg = container.querySelector(
+      '[data-stage="plans"] svg',
+    ) as SVGElement
+    expect(inactiveSvg.style.color).toContain('--ac-stage-plans')
+  })
+
   it('renders panel variant with data-variant="panel" and 24px glyph', () => {
     const { container } = render(
       <Pipeline

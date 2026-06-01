@@ -1,121 +1,145 @@
-.container { /* Page now owns max-width via --ac-content-max-width */ }
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: var(--sp-4);
-  flex-wrap: wrap;
-}
-
-.filterInput {
-  flex: 0 1 220px;
-  font: inherit;
-  font-size: var(--size-xs);
-  padding: var(--sp-1) var(--sp-2);
-  border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-sm);
-  margin-right: var(--sp-2);
-}
-
-.filterInput:focus {
-  outline: 2px solid var(--ac-accent);
-  outline-offset: -1px;
-  border-color: var(--ac-accent);
-}
-
-.toolbarLabel {
-  font-size: var(--size-xxs);
-  color: var(--ac-fg-muted);
-  margin-right: var(--sp-1);
-}
-
-.sortButton {
-  all: unset;
-  font: inherit;
-  font-size: var(--size-xs);
-  padding: var(--sp-1) var(--sp-3);
-  border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-pill);
-  background: var(--ac-bg-card);
-  color: var(--ac-fg);
-  cursor: pointer;
-}
-
-.sortButton:hover,
-.sortButton:focus-visible {
-  border-color: var(--ac-accent);
-  color: var(--ac-accent);
-  outline: 2px solid var(--ac-accent);
-  outline-offset: -2px;
-}
-
-.sortButtonActive {
-  background: var(--ac-accent-tint);
-  border-color: var(--ac-accent);
-  color: var(--ac-accent);
-  font-weight: 500;
-}
-
 .cardList {
   list-style: none;
   padding: 0;
   margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
 }
 
+/* Card layout mirrors the prototype's `.ac-lcard`:
+   - two-column grid with title block on the left, meta on the right
+   - pipeline strip spans both columns and is separated by a dashed
+     top border */
 .card {
-  border: 1px solid var(--ac-stroke-soft);
-  border-radius: 6px;
   background: var(--ac-bg-card);
-  transition: border-color 120ms, box-shadow 120ms;
+  border: 1px solid var(--ac-stroke);
+  border-radius: 6px;
+  transition: border-color 160ms, background 160ms;
 }
 
 .card:hover,
 .card:focus-within {
-  border-color: var(--ac-accent);
-  box-shadow: var(--ac-shadow-soft);
+  border-color: var(--ac-stroke-strong);
+  background: var(--ac-bg-hover);
 }
 
-.card:hover .cardTitle,
-.card:focus-within .cardTitle { color: var(--ac-accent); }
-
 .cardLink {
-  display: block;
-  padding: var(--sp-4);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-2) var(--sp-5);
+  padding: 18px 20px;
   text-decoration: none;
   color: inherit;
 }
 
-.cardHeader { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--sp-2); }
-.cardTitle { font-size: var(--size-sm); font-weight: 600; margin: 0; color: var(--ac-fg-strong); }
-.cardSlug { font-size: var(--size-xxs); color: var(--ac-fg-faint); font-family: var(--ac-font-mono); }
-
-.cardMeta {
+.cardHeading {
   display: flex;
-  justify-content: space-between;
-  margin-top: var(--sp-2);
-  font-size: var(--size-xxs);
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardTitle {
+  font-family: var(--ac-font-display);
+  font-size: var(--size-sm);
+  font-weight: 600;
+  margin: 0;
+  color: var(--ac-fg-strong);
+  line-height: 1.2;
+}
+
+.cardSlug {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xxs-sm);
   color: var(--ac-fg-muted);
 }
 
-.empty { color: var(--ac-fg-muted); }
-.error {
-  color: var(--ac-err); background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg)); border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
-  border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3);
-}
-
-.cardPipe {
-  display: flex;
+.cardMeta {
+  display: inline-flex;
   align-items: center;
   gap: var(--sp-3);
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-eyebrow);
+  color: var(--ac-fg-muted);
+  flex-shrink: 0;
+}
+
+.cardMetaTime {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.cardMetaArtifacts {
+  /* inherits mono + muted from .cardMeta */
+}
+
+/* Pipeline strip spans the full width, sits below a dashed divider
+   (prototype `.ac-lcard__pipe`). */
+.cardPipe {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--ac-stroke);
+}
+
+.cardPipe > ol {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .cardPipeCount {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-3xs-lg);
   color: var(--ac-fg-faint);
+  white-space: nowrap;
   flex-shrink: 0;
+}
+
+/* Segmented sort control — mirrors prototype `.ac-tweaks__seg`:
+   thin rectangle with radius-sm corners, inline-flex, with two flat
+   buttons inside. The active button takes the accent-faint tint and
+   accent text. */
+.sortSegment {
+  display: inline-flex;
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.sortPill {
+  all: unset;
+  font: inherit;
+  font-size: var(--size-xxs);
+  padding: var(--sp-1) var(--sp-2);
+  color: var(--ac-fg-muted);
+  cursor: pointer;
+}
+
+.sortPill:hover,
+.sortPill:focus-visible {
+  color: var(--ac-fg);
+}
+
+.sortPill:focus-visible {
+  outline: 2px solid var(--ac-accent);
+  outline-offset: -2px;
+}
+
+.sortPillActive {
+  background: var(--ac-accent-faint);
+  color: var(--ac-accent);
+}
+
+.empty { color: var(--ac-fg-muted); }
+.error {
+  color: var(--ac-err);
+  background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg));
+  border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
 }

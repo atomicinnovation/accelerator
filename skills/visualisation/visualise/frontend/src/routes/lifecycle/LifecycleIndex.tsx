@@ -5,12 +5,19 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchLifecycleClusters, FetchError } from '../../api/fetch'
 import { formatMtime } from '../../api/format'
 import { queryKeys } from '../../api/query-keys'
-import { WORKFLOW_PIPELINE_STEPS, type LifecycleCluster } from '../../api/types'
+import {
+  WORKFLOW_PIPELINE_STEPS,
+  type IndexEntry,
+  type LifecycleCluster,
+} from '../../api/types'
 import { Pipeline } from '../../components/Pipeline/Pipeline'
 import { Page } from '../../components/Page/Page'
+import { Chip } from '../../components/Chip/Chip'
+import { statusToVariant } from '../../api/status-variant'
+import { ClockIcon, LifecycleEyebrowIcon } from './icons'
 import styles from './LifecycleIndex.module.css'
 
-type SortMode = 'recent' | 'oldest' | 'completeness'
+type SortMode = 'recent' | 'completeness'
 
 function completenessScore(c: LifecycleCluster): number {
   return WORKFLOW_PIPELINE_STEPS.reduce(
@@ -23,8 +30,6 @@ function sortClusters(clusters: LifecycleCluster[], mode: SortMode): LifecycleCl
   const sorted = [...clusters]
   if (mode === 'recent') {
     sorted.sort((a, b) => b.lastChangedMs - a.lastChangedMs)
-  } else if (mode === 'oldest') {
-    sorted.sort((a, b) => a.lastChangedMs - b.lastChangedMs)
   } else {
     sorted.sort((a, b) => {
       const diff = completenessScore(b) - completenessScore(a)
@@ -34,18 +39,23 @@ function sortClusters(clusters: LifecycleCluster[], mode: SortMode): LifecycleCl
   return sorted
 }
 
-function filterClusters(clusters: LifecycleCluster[], filter: string): LifecycleCluster[] {
-  const needle = filter.trim().toLowerCase()
-  if (!needle) return clusters
-  return clusters.filter(c =>
-    c.title.toLowerCase().includes(needle) ||
-    c.slug.toLowerCase().includes(needle),
-  )
+function workItemEntry(cluster: LifecycleCluster): IndexEntry | undefined {
+  return cluster.entries.find(e => e.type === 'work-items')
+}
+
+function statusOf(cluster: LifecycleCluster): string | null {
+  const entry = workItemEntry(cluster)
+  if (!entry || entry.frontmatterState !== 'parsed') return null
+  const raw = entry.frontmatter['status']
+  return typeof raw === 'string' && raw.length > 0 ? raw : null
+}
+
+function pluralise(n: number, singular: string, plural = `${singular}s`): string {
+  return `${n} ${n === 1 ? singular : plural}`
 }
 
 export function LifecycleIndex() {
   const [sortMode, setSortMode] = useState<SortMode>('recent')
-  const [filter, setFilter] = useState<string>('')
 
   const { data: clusters = [], isPending, isError, error } = useQuery({
     queryKey: queryKeys.lifecycle(),
@@ -53,25 +63,8 @@ export function LifecycleIndex() {
   })
 
   const visible = useMemo(
-    () => sortClusters(filterClusters(clusters, filter), sortMode),
-    [clusters, filter, sortMode],
-  )
-
-  const toolbar = (
-    <div className={styles.toolbar}>
-      <input
-        type="search"
-        aria-label="Filter clusters"
-        placeholder="Filter…"
-        className={styles.filterInput}
-        value={filter}
-        onChange={e => setFilter(e.target.value)}
-      />
-      <span className={styles.toolbarLabel}>Sort:</span>
-      <SortButton current={sortMode} value="recent"       label="Recent"       onChange={setSortMode} />
-      <SortButton current={sortMode} value="oldest"       label="Oldest"       onChange={setSortMode} />
-      <SortButton current={sortMode} value="completeness" label="Completeness" onChange={setSortMode} />
-    </div>
+    () => sortClusters(clusters, sortMode),
+    [clusters, sortMode],
   )
 
   let content: ReactNode
@@ -89,59 +82,80 @@ export function LifecycleIndex() {
     content = <p className={styles.empty}>No lifecycle clusters found.</p>
   } else {
     content = (
-      <>
-        {visible.length === 0 && (
-          <p role="status" className={styles.empty}>
-            No clusters match &quot;{filter}&quot;.
-          </p>
-        )}
-        <ul className={styles.cardList}>
-          {visible.map(cluster => {
-            const score = completenessScore(cluster)
-            return (
-              <li key={cluster.slug} className={styles.card}>
-                <Link
-                  to="/lifecycle/$slug"
-                  params={{ slug: cluster.slug }}
-                  className={styles.cardLink}
-                >
-                  <div className={styles.cardHeader}>
-                    <h3 className={styles.cardTitle}>{cluster.title}</h3>
-                    <span className={styles.cardSlug}>{cluster.slug}</span>
-                  </div>
-                  <div className={`${styles.cardPipe} ac-lcard__pipe`}>
-                    <Pipeline completeness={cluster.completeness} variant="card" />
-                    <span className={styles.cardPipeCount}>
-                      {cluster.completeness.present.filter(p =>
-                        WORKFLOW_PIPELINE_STEPS.some(s => s.docType === p),
-                      ).length}/8
-                    </span>
-                  </div>
-                  <div className={styles.cardMeta}>
-                    <span>{score} of {WORKFLOW_PIPELINE_STEPS.length} stages</span>
-                    <span>{formatMtime(cluster.lastChangedMs)}</span>
-                  </div>
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
-      </>
+      <ul className={styles.cardList}>
+        {visible.map(cluster => {
+          const status = statusOf(cluster)
+          const artifactCount = cluster.entries.length
+          const stagesComplete = cluster.completeness.present.filter(p =>
+            WORKFLOW_PIPELINE_STEPS.some(s => s.docType === p),
+          ).length
+          return (
+            <li key={cluster.slug} className={styles.card}>
+              <Link
+                to="/lifecycle/$slug"
+                params={{ slug: cluster.slug }}
+                className={styles.cardLink}
+              >
+                <div className={styles.cardHeading}>
+                  <h3 className={styles.cardTitle}>{cluster.title}</h3>
+                  <span className={styles.cardSlug}>{cluster.slug}</span>
+                </div>
+                <div className={styles.cardMeta}>
+                  {status !== null && (
+                    <Chip variant={statusToVariant(status)} size="sm">
+                      {status}
+                    </Chip>
+                  )}
+                  <span className={styles.cardMetaTime}>
+                    <ClockIcon size={11} />
+                    {formatMtime(cluster.lastChangedMs)}
+                  </span>
+                  <span className={styles.cardMetaArtifacts}>
+                    {pluralise(artifactCount, 'artifact')}
+                  </span>
+                </div>
+                <div className={`${styles.cardPipe} ac-lcard__pipe`}>
+                  <Pipeline completeness={cluster.completeness} variant="card" />
+                  <span className={styles.cardPipeCount}>{stagesComplete}/8</span>
+                </div>
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
     )
   }
 
-  const showToolbar = !isPending && !isError && clusters.length > 0
+  const showSort = !isPending && !isError && clusters.length > 0
   return (
-    <Page title="Lifecycle">
-      <div className={styles.container}>
-        {showToolbar && toolbar}
-        {content}
-      </div>
+    <Page
+      eyebrow={<><LifecycleEyebrowIcon /> Lifecycle</>}
+      title="Work units, from idea to shipped"
+      subtitle="Each row is a slug-clustered work unit. Filled tiles mark the stages present on disk. Missing stages are where the workflow has gaps."
+      actions={showSort
+        ? <SortSegment value={sortMode} onChange={setSortMode} />
+        : undefined}
+    >
+      {content}
     </Page>
   )
 }
 
-function SortButton({
+interface SortSegmentProps {
+  value: SortMode
+  onChange: (m: SortMode) => void
+}
+
+function SortSegment({ value, onChange }: SortSegmentProps) {
+  return (
+    <div className={styles.sortSegment} role="group" aria-label="Sort clusters">
+      <SortPill current={value} value="recent" label="Updated" onChange={onChange} />
+      <SortPill current={value} value="completeness" label="Completeness" onChange={onChange} />
+    </div>
+  )
+}
+
+function SortPill({
   current, value, label, onChange,
 }: {
   current: SortMode
@@ -153,7 +167,7 @@ function SortButton({
   return (
     <button
       type="button"
-      className={`${styles.sortButton} ${active ? styles.sortButtonActive : ''}`}
+      className={`${styles.sortPill} ${active ? styles.sortPillActive : ''}`}
       aria-pressed={active}
       onClick={() => onChange(value)}
     >
@@ -161,3 +175,4 @@ function SortButton({
     </button>
   )
 }
+

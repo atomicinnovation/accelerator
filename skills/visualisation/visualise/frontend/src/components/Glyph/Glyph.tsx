@@ -46,6 +46,12 @@ export interface GlyphProps {
   /** When true, the glyph is wrapped in a tinted square frame. Used in the
    *  library list view eyebrow and overview hub cards. */
   framed?: boolean
+  /** Override the inline `color` driving the glyph's fill. Pass a CSS
+   *  custom-property reference (e.g. `var(--ac-stage-plans)`) when a
+   *  consumer surface needs a different hue family than the default
+   *  per-doc-type `--ac-doc-<key>` token (Pipeline uses this to render
+   *  active stages in the bright `--ac-stage-*` chain palette). */
+  colorVar?: string
 }
 
 /**
@@ -65,7 +71,7 @@ export interface GlyphProps {
  * 5. `docType` accepts any `DocTypeKey` (all 13, including the virtual
  *    `templates` key). Colour resolves via `DOC_TYPE_COLOR_VAR`.
  */
-export function Glyph({ docType, size, ariaLabel, framed }: GlyphProps): ReactElement | null {
+export function Glyph({ docType, size, ariaLabel, framed, colorVar }: GlyphProps): ReactElement | null {
   const Icon = ICON_COMPONENTS[docType]
   if (!Icon) {
     if (import.meta.env.DEV) {
@@ -75,6 +81,7 @@ export function Glyph({ docType, size, ariaLabel, framed }: GlyphProps): ReactEl
     }
     return null
   }
+  const resolvedColor = colorVar ?? DOC_TYPE_COLOR_VAR[docType]
   const a11y =
     ariaLabel !== undefined
       ? ({ role: 'img' as const, 'aria-label': ariaLabel })
@@ -99,7 +106,7 @@ export function Glyph({ docType, size, ariaLabel, framed }: GlyphProps): ReactEl
           width={inner}
           height={inner}
           viewBox="0 0 24 24"
-          style={{ color: DOC_TYPE_COLOR_VAR[docType] }}
+          style={{ color: resolvedColor }}
           data-doc-type={docType}
           {...a11y}
         >
@@ -118,7 +125,7 @@ export function Glyph({ docType, size, ariaLabel, framed }: GlyphProps): ReactEl
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      style={{ color: DOC_TYPE_COLOR_VAR[docType] }}
+      style={{ color: resolvedColor }}
       data-doc-type={docType}
       {...a11y}
     >

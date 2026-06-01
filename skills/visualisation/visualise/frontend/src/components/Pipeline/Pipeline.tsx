@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { Completeness } from '../../api/types'
 import { WORKFLOW_PIPELINE_STEPS } from '../../api/types'
 import { Glyph } from '../Glyph/Glyph'
@@ -15,6 +16,10 @@ const GLYPH_SIZE: Record<PipelineVariant, 16 | 24> = {
   panel: 24,
 }
 
+interface StageStyle extends CSSProperties {
+  '--next-accent'?: string
+}
+
 export function Pipeline({ completeness, variant = 'card' }: Props) {
   const present = new Set(completeness.present)
   return (
@@ -25,27 +30,42 @@ export function Pipeline({ completeness, variant = 'card' }: Props) {
     >
       {WORKFLOW_PIPELINE_STEPS.map((step, i) => {
         const active = present.has(step.docType)
-        const nextActive =
-          i < WORKFLOW_PIPELINE_STEPS.length - 1 &&
-          present.has(WORKFLOW_PIPELINE_STEPS[i + 1].docType)
+        const nextStep =
+          i < WORKFLOW_PIPELINE_STEPS.length - 1
+            ? WORKFLOW_PIPELINE_STEPS[i + 1]
+            : null
+        const nextActive = nextStep !== null && present.has(nextStep.docType)
         const accent = `var(--ac-stage-${step.docType})`
+        const nextAccent =
+          nextStep !== null ? `var(--ac-stage-${nextStep.docType})` : undefined
+        // `color` is always set to the stage's accent so the tile
+        // styling (active fill, inactive pastel/translucent via
+        // `currentColor` color-mix in CSS) and the connector gradient
+        // both resolve to the same hue. `--next-accent` (when present)
+        // supplies the gradient end so a both-active connector blends
+        // this stage → next stage.
+        const stageStyle: StageStyle = { color: accent }
+        if (nextAccent) stageStyle['--next-accent'] = nextAccent
         return (
           <li
             key={step.docType}
             className={`${styles.stage} ac-stagechain__stage`}
             data-stage={step.docType}
             data-active={String(active)}
-            style={active ? { color: accent } : undefined}
+            style={stageStyle}
           >
             <span className={styles.tile} aria-hidden="true">
-              <Glyph docType={step.docType} size={GLYPH_SIZE[variant]} />
+              <Glyph
+                docType={step.docType}
+                size={GLYPH_SIZE[variant]}
+                colorVar={active ? 'var(--atomic-white)' : accent}
+              />
             </span>
             <span className={styles.label}>{step.label}</span>
-            {i < WORKFLOW_PIPELINE_STEPS.length - 1 && (
+            {nextStep !== null && (
               <span
                 className={styles.connector}
                 data-active={String(active && nextActive)}
-                style={active && nextActive ? { background: accent } : undefined}
                 aria-hidden="true"
               />
             )}

@@ -6,25 +6,60 @@ import { MemoryRouter } from '../../test/router-helpers'
 import { LifecycleIndex } from './LifecycleIndex'
 import * as fetchModule from '../../api/fetch'
 import type { LifecycleCluster } from '../../api/types'
-import { makeCompleteness } from '../../api/test-fixtures'
+import { makeCompleteness, makeIndexEntry } from '../../api/test-fixtures'
 
 const clusters: LifecycleCluster[] = [
   {
     slug: 'older',
     title: 'Older Cluster',
-    entries: [],
+    entries: [
+      makeIndexEntry({
+        type: 'plans',
+        relPath: 'meta/plans/older.md',
+        slug: 'older',
+        title: 'Older plan',
+      }),
+    ],
     completeness: makeCompleteness({ hasPlan: true, present: ['plans'] }),
     lastChangedMs: 1_700_000_000_000,
   },
   {
     slug: 'newer',
     title: 'Newer Cluster',
-    entries: [],
+    entries: [
+      makeIndexEntry({
+        type: 'work-items',
+        relPath: 'meta/work/0001-newer.md',
+        slug: 'newer',
+        title: 'Newer work item',
+        workItemId: '0001',
+        frontmatter: { status: 'in-progress' },
+      }),
+      makeIndexEntry({
+        type: 'plans',
+        relPath: 'meta/plans/newer.md',
+        slug: 'newer',
+        title: 'Newer plan',
+      }),
+      makeIndexEntry({
+        type: 'plan-reviews',
+        relPath: 'meta/reviews/plans/newer-review-1.md',
+        slug: 'newer',
+        title: 'Newer plan review',
+      }),
+      makeIndexEntry({
+        type: 'decisions',
+        relPath: 'meta/decisions/ADR-0001-newer.md',
+        slug: 'newer',
+        title: 'Newer ADR',
+      }),
+    ],
     completeness: makeCompleteness({
+      hasWorkItem: true,
       hasPlan: true,
       hasPlanReview: true,
       hasDecision: true,
-      present: ['plans', 'plan-reviews', 'decisions'],
+      present: ['work-items', 'plans', 'plan-reviews', 'decisions'],
     }),
     lastChangedMs: 1_700_500_000_000,
   },
@@ -42,6 +77,19 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe('LifecycleIndex', () => {
+  it('renders the prototype-spec page header (eyebrow, title, subtitle)', async () => {
+    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(clusters)
+    render(<LifecycleIndex />, { wrapper: Wrapper })
+    await screen.findByText('Older Cluster')
+    expect(screen.getByText(/^Lifecycle$/i)).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /work units, from idea to shipped/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/each row is a slug-clustered work unit/i),
+    ).toBeInTheDocument()
+  })
+
   it('renders a card per cluster with title and slug', async () => {
     vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(clusters)
     render(<LifecycleIndex />, { wrapper: Wrapper })
@@ -57,19 +105,18 @@ describe('LifecycleIndex', () => {
     const pipes = container.querySelectorAll('.ac-lcard__pipe')
     expect(pipes.length).toBe(clusters.length)
 
-    // Older cluster: present = ['plans'] → 1/8
+    // Older cluster (after default 'recent' sort, sits second): present = ['plans'] → 1/8
     const older = within(pipes[1] as HTMLElement)
     expect(older.getByText('1/8')).toBeInTheDocument()
-    // Plan tile is active
     expect(
       (pipes[1] as HTMLElement)
         .querySelector('[data-stage="plans"]')!
         .getAttribute('data-active'),
     ).toBe('true')
 
-    // Newer cluster: present = ['plans', 'plan-reviews', 'decisions'] → 3/8
+    // Newer cluster: present has 4 entries, 4 of which are workflow → 4/8
     const newer = within(pipes[0] as HTMLElement)
-    expect(newer.getByText('3/8')).toBeInTheDocument()
+    expect(newer.getByText('4/8')).toBeInTheDocument()
     expect(
       (pipes[0] as HTMLElement)
         .querySelector('[data-stage="decisions"]')!
@@ -77,7 +124,36 @@ describe('LifecycleIndex', () => {
     ).toBe('true')
   })
 
-  it('orders by most-recently-changed by default', async () => {
+  it('renders a status chip when the cluster has a work-item with a status', async () => {
+    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(clusters)
+    render(<LifecycleIndex />, { wrapper: Wrapper })
+    await screen.findByText('Newer Cluster')
+    // 'in-progress' from the newer cluster's work-item frontmatter.
+    expect(screen.getByText('in-progress')).toBeInTheDocument()
+  })
+
+  it('omits the status chip when the cluster has no work-item entry', async () => {
+    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(clusters)
+    const { container } = render(<LifecycleIndex />, { wrapper: Wrapper })
+    await screen.findByText('Older Cluster')
+    // Find the older card by title and assert it has no Chip (Chips render
+    // a <span data-variant=...> with neutral/indigo/green/.. values).
+    const cards = container.querySelectorAll('li')
+    const olderCard = Array.from(cards).find(
+      c => c.querySelector('h3')?.textContent === 'Older Cluster',
+    )!
+    expect(olderCard.querySelector('span[data-variant]')).toBeNull()
+  })
+
+  it('renders the per-cluster artifact count with correct pluralisation', async () => {
+    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(clusters)
+    render(<LifecycleIndex />, { wrapper: Wrapper })
+    await screen.findByText('Older Cluster')
+    expect(screen.getByText('1 artifact')).toBeInTheDocument()
+    expect(screen.getByText('4 artifacts')).toBeInTheDocument()
+  })
+
+  it('orders by most-recently-changed by default (Updated)', async () => {
     vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(clusters)
     render(<LifecycleIndex />, { wrapper: Wrapper })
     await screen.findByText('Newer Cluster')
@@ -86,7 +162,7 @@ describe('LifecycleIndex', () => {
     expect(titles[1]).toBe('Older Cluster')
   })
 
-  it('sorts by completeness when "Completeness" sort is chosen', async () => {
+  it('sorts by completeness when the Completeness pill is pressed', async () => {
     vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(clusters)
     render(<LifecycleIndex />, { wrapper: Wrapper })
     await screen.findByText('Newer Cluster')
@@ -96,51 +172,22 @@ describe('LifecycleIndex', () => {
     expect(titles[1]).toBe('Older Cluster')
   })
 
-  it('breaks completeness ties by most-recently-changed', async () => {
-    const tied: LifecycleCluster[] = [
-      {
-        slug: 'older-equal',
-        title: 'Older Equal',
-        entries: [],
-        completeness: makeCompleteness({
-          hasPlan: true,
-          hasDecision: true,
-          present: ['plans', 'decisions'],
-        }),
-        lastChangedMs: 1_700_000_000_000,
-      },
-      {
-        slug: 'newer-equal',
-        title: 'Newer Equal',
-        entries: [],
-        completeness: makeCompleteness({
-          hasPlan: true,
-          hasDecision: true,
-          present: ['plans', 'decisions'],
-        }),
-        lastChangedMs: 1_700_500_000_000,
-      },
-    ]
-    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(tied)
-    render(<LifecycleIndex />, { wrapper: Wrapper })
-    await screen.findByText('Newer Equal')
-    fireEvent.click(screen.getByRole('button', { name: /completeness/i }))
-    const titles = screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent)
-    expect(titles[0]).toBe('Newer Equal')
-    expect(titles[1]).toBe('Older Equal')
-  })
-
-  it('sorts by oldest when "Oldest" sort is chosen', async () => {
+  it('exposes the sort group as a segmented control (Updated + Completeness)', async () => {
     vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(clusters)
     render(<LifecycleIndex />, { wrapper: Wrapper })
-    await screen.findByText('Newer Cluster')
-    fireEvent.click(screen.getByRole('button', { name: /oldest/i }))
-    const titles = screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent)
-    expect(titles[0]).toBe('Older Cluster')
-    expect(titles[1]).toBe('Newer Cluster')
+    await screen.findByText('Older Cluster')
+    const group = screen.getByRole('group', { name: /sort clusters/i })
+    expect(within(group).getByRole('button', { name: /updated/i })).toBeInTheDocument()
+    expect(
+      within(group).getByRole('button', { name: /completeness/i }),
+    ).toBeInTheDocument()
+    // No "Oldest" button — dropped to match the prototype.
+    expect(
+      within(group).queryByRole('button', { name: /oldest/i }),
+    ).toBeNull()
   })
 
-  it('renders 8 pipeline dots per card', async () => {
+  it('renders 8 pipeline tiles per card', async () => {
     vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(clusters)
     render(<LifecycleIndex />, { wrapper: Wrapper })
     await screen.findByText('Newer Cluster')
@@ -158,8 +205,6 @@ describe('LifecycleIndex', () => {
   })
 
   it('shows loading state while fetching', async () => {
-    // RouterProvider initialises asynchronously, so we wait for the loading
-    // text to appear rather than asserting synchronously.
     vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockImplementation(
       () => new Promise(() => { /* pending forever */ }),
     )
@@ -183,36 +228,5 @@ describe('LifecycleIndex', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(/something went wrong/i)
     expect(alert.textContent).not.toMatch(/boom/)
-  })
-
-  it('filters clusters by title or slug substring (case-insensitive)', async () => {
-    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(clusters)
-    render(<LifecycleIndex />, { wrapper: Wrapper })
-    await screen.findByText('Newer Cluster')
-
-    const input = screen.getByRole('searchbox', { name: /filter clusters/i })
-
-    fireEvent.change(input, { target: { value: 'NEWER' } })
-    expect(screen.getByText('Newer Cluster')).toBeInTheDocument()
-    expect(screen.queryByText('Older Cluster')).not.toBeInTheDocument()
-
-    fireEvent.change(input, { target: { value: 'older' } })
-    expect(screen.getByText('Older Cluster')).toBeInTheDocument()
-    expect(screen.queryByText('Newer Cluster')).not.toBeInTheDocument()
-
-    fireEvent.change(input, { target: { value: '' } })
-    expect(screen.getByText('Newer Cluster')).toBeInTheDocument()
-    expect(screen.getByText('Older Cluster')).toBeInTheDocument()
-  })
-
-  it('shows a no-match message when the filter excludes every cluster', async () => {
-    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(clusters)
-    render(<LifecycleIndex />, { wrapper: Wrapper })
-    await screen.findByText('Newer Cluster')
-    fireEvent.change(
-      screen.getByRole('searchbox', { name: /filter clusters/i }),
-      { target: { value: 'zzz-no-match' } },
-    )
-    expect(screen.getByText(/no clusters match "zzz-no-match"/i)).toBeInTheDocument()
   })
 })

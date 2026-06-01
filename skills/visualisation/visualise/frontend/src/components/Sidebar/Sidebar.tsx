@@ -160,6 +160,11 @@ function KanbanIcon() {
   )
 }
 
+/* Lifecycle nav icon — mirrors the prototype's `lifecycle` Icon (four
+   dots in a square frame with cross-bars). Shared with the lifecycle
+   pages' eyebrow icon (`routes/lifecycle/icons.tsx`); the SVG is
+   inlined here too so the sidebar doesn't reach across route folders
+   for a chrome-level glyph. */
 function LifecycleIcon() {
   return (
     <svg
@@ -167,12 +172,18 @@ function LifecycleIcon() {
       width="16"
       height="16"
       viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       aria-hidden="true"
     >
-      <circle cx="12" cy="6" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="6" cy="18" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="18" cy="18" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M11 8 L7 16 M13 8 L17 16 M8 18 L16 18" stroke="currentColor" strokeWidth="1.6" fill="none" />
+      <circle cx="6" cy="6" r="2" />
+      <circle cx="18" cy="6" r="2" />
+      <circle cx="6" cy="18" r="2" />
+      <circle cx="18" cy="18" r="2" />
+      <path d="M8 6h8M6 8v8M18 8v8M8 18h8" />
     </svg>
   )
 }

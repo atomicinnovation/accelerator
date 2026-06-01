@@ -67,21 +67,32 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '0.1rem', count: 1, kind: 'irreducible', reason: 'sub-pixel code padding — below --sp-1 floor' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'blockquote border-left width — no border-width token' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '6px', count: 2, kind: 'irreducible', reason: 'code block border-radius (bare <pre> + labelled-fence wrapper) — between radius-sm and radius-md' },
-  // routes/lifecycle/LifecycleClusterView.module.css (pipelinePanel + pipelineEyebrow)
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'pipeline panel border-radius — between radius-sm (4) and radius-md (8)' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'pipeline panel border-width — below --sp-1 floor' },
+  // routes/lifecycle/LifecycleClusterView.module.css — pipeline panel,
+  // timeline spine, stage tile, and tcard literals. Numbers track the
+  // prototype's `.ac-tcard` / `.ac-tstep` measurements verbatim so the
+  // detail page reads as a port rather than a reinterpretation.
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1px', count: 5, kind: 'irreducible', reason: 'pipeline panel + tile + tcard + spine half-offset + error border-widths — below --sp-1 floor' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '2px', count: 1, kind: 'irreducible', reason: 'timeline spine width — below --sp-1 floor' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '6px', count: 3, kind: 'irreducible', reason: 'panel + tile border-radius + tcard head→body gap — between radius-sm (4) and radius-md (8)' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '10px', count: 3, kind: 'irreducible', reason: 'tcard head gaps + missing-card padding — prototype-spec literal, between --sp-2 (8) and --sp-3 (12)' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '14px', count: 4, kind: 'irreducible', reason: 'pipeline eyebrow margin-bottom + tstep padding-top/node-top + tcard padding-y — prototype-spec literal, between --sp-3 (12) and --sp-4 (16)' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '16px', count: 1, kind: 'irreducible', reason: 'tcard horizontal padding — prototype-spec literal, equals --sp-4 but kept inline to mirror prototype tcard `14px 16px`' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '20px', count: 1, kind: 'irreducible', reason: 'pipeline panel horizontal padding — between --sp-4 (16) and --sp-5 (24)' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '22px', count: 2, kind: 'irreducible', reason: 'timeline spine x-coordinate + tstep padding-bottom — layout pixel, no sp-* equivalent' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '52px', count: 1, kind: 'irreducible', reason: 'stage tile left offset from card (negative; matches 56px content gutter minus half tile) — layout pixel, no sp-* equivalent' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '56px', count: 1, kind: 'irreducible', reason: 'timeline left padding to clear stage tiles — layout pixel, no sp-* equivalent' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.1em', count: 1, kind: 'irreducible', reason: 'pipeline eyebrow letter-spacing — sub-pixel rhythm, no token' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '14px', count: 1, kind: 'irreducible', reason: 'pipeline eyebrow margin-bottom — between --sp-3 (12) and --sp-4 (16)' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.04em', count: 1, kind: 'irreducible', reason: 'tcard stage label letter-spacing — sub-pixel rhythm, no token' },
   // components/Pipeline/Pipeline.module.css
   { file: 'components/Pipeline/Pipeline.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'tile border-width — below --sp-1 floor' },
+  { file: 'components/Pipeline/Pipeline.module.css', literal: '2px', count: 1, kind: 'irreducible', reason: 'connector height — below --sp-1 floor' },
+  { file: 'components/Pipeline/Pipeline.module.css', literal: '5px', count: 1, kind: 'irreducible', reason: 'stage column gap (tile→label) — between --sp-1 (4) and --sp-2 (8)' },
   { file: 'components/Pipeline/Pipeline.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'tile border-radius — between radius-sm (4) and radius-md (8)' },
+  { file: 'components/Pipeline/Pipeline.module.css', literal: '13px', count: 1, kind: 'irreducible', reason: 'connector vertical offset (half card-variant tile) — derived from tile size, no token' },
+  { file: 'components/Pipeline/Pipeline.module.css', literal: '17px', count: 1, kind: 'irreducible', reason: 'connector vertical offset (half panel-variant tile) — derived from tile size, no token' },
   { file: 'components/Pipeline/Pipeline.module.css', literal: '26px', count: 2, kind: 'irreducible', reason: 'card-variant tile size — fixed pixel for the chain visual rhythm, no sp-* equivalent' },
   { file: 'components/Pipeline/Pipeline.module.css', literal: '34px', count: 2, kind: 'irreducible', reason: 'panel-variant tile size — fixed pixel for the chain visual rhythm, no sp-* equivalent' },
   { file: 'components/Pipeline/Pipeline.module.css', literal: '0.04em', count: 1, kind: 'irreducible', reason: 'letter-spacing — sub-pixel rhythm, no token' },
-  { file: 'components/Pipeline/Pipeline.module.css', literal: '13px', count: 1, kind: 'irreducible', reason: 'connector vertical offset (half card-variant tile) — derived from tile size, no token' },
-  { file: 'components/Pipeline/Pipeline.module.css', literal: '17px', count: 1, kind: 'irreducible', reason: 'connector vertical offset (half panel-variant tile) — derived from tile size, no token' },
-  { file: 'components/Pipeline/Pipeline.module.css', literal: '2px', count: 1, kind: 'irreducible', reason: 'connector height — below --sp-1 floor' },
   // components/PipelineMini/PipelineMini.module.css
   { file: 'components/PipelineMini/PipelineMini.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'dot row gap — between --sp-1 and --sp-2' },
   { file: 'components/PipelineMini/PipelineMini.module.css', literal: '8px', count: 2, kind: 'irreducible', reason: 'dot diameter — fixed pixel for visual rhythm with kanban card chrome' },
@@ -215,25 +226,17 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/FilterPill/FilterPill.module.css', literal: '0.12em', count: 1, kind: 'irreducible', reason: 'menu-header caps letter-spacing' },
   { file: 'components/FilterPill/FilterPill.module.css', literal: '0.1em', count: 1, kind: 'irreducible', reason: 'facet-heading caps letter-spacing' },
   { file: 'components/FilterPill/FilterPill.module.css', literal: '#ffffff', count: 3, kind: 'irreducible', reason: 'checkmark stroke + badge text on --ac-accent — theme-invariant white' },
-  // routes/lifecycle/LifecycleClusterView.module.css
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1.5px', count: 2, kind: 'irreducible', reason: 'coloured ring widths — below --radius-sm/--sp-1 floor' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'timeline-spine width + stage-dot border width — below --sp-1 floor' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'entry/error/long-tail border widths + 1px spine half-offset margin — below --sp-1 floor' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.4rem', count: 2, kind: 'irreducible', reason: 'off-scale spacing (6.4px) — between --sp-1 and --sp-2' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.06em', count: 1, kind: 'irreducible', reason: 'letter-spacing — off-scale, half of --tracking-caps' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.08em', count: 1, kind: 'irreducible', reason: 'letter-spacing — off-scale, half of --tracking-caps' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1.4em', count: 1, kind: 'irreducible', reason: 'calc(line-height × 3) for text-clamp — derived value' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1.75rem', count: 1, kind: 'irreducible', reason: 'off-scale spacing (28px) — between --sp-5 and --sp-6' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'timeline spine x-coordinate — layout pixel, no sp-* equivalent' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '7px', count: 1, kind: 'irreducible', reason: 'stage dot top offset — layout pixel, no sp-* equivalent' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '10px', count: 1, kind: 'irreducible', reason: 'stage dot diameter — layout pixel, no sp-* equivalent' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1.25rem', count: 1, kind: 'irreducible', reason: 'off-scale padding (20px) — nearest --sp-4/--sp-5 are 4px off' },
+  // routes/lifecycle/LifecycleClusterView.module.css — see top of file
+  // for the consolidated entry; this section is intentionally empty
+  // (the previous timeline implementation had a different shape and
+  // those entries are obsolete).
   // routes/lifecycle/LifecycleIndex.module.css
-  { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '1px', count: 5, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
-  { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '2px', count: 3, kind: 'irreducible', reason: 'outline width — below --sp-1 floor' },
-  { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '6px', count: 2, kind: 'irreducible', reason: 'toolbar gap and card radius — layout pixels, no token equivalent' },
-  { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '220px', count: 1, kind: 'irreducible', reason: 'filter input flex basis — no token equivalent' },
-  { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '320px', count: 1, kind: 'irreducible', reason: 'card grid min-width — no token equivalent' },
+  { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'card, sort-segment, error-state, and dashed pipe border-width — below --sp-1 floor' },
+  { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '2px', count: 3, kind: 'irreducible', reason: 'cardHeading gap and focus outline — below --sp-1 floor' },
+  { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'card border-radius — between radius-sm (4) and radius-md (8)' },
+  { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '10px', count: 2, kind: 'irreducible', reason: 'pipeline strip gap and top spacing — prototype-spec literal, between --sp-2 (8) and --sp-3 (12)' },
+  { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '18px', count: 1, kind: 'irreducible', reason: 'cardLink vertical padding — prototype-spec literal, between --sp-4 (16) and --sp-5 (24)' },
+  { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '20px', count: 1, kind: 'irreducible', reason: 'cardLink horizontal padding — prototype-spec literal, between --sp-4 (16) and --sp-5 (24)' },
   // styles/wiki-links.global.css
   { file: 'styles/wiki-links.global.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border-bottom width — below --sp-1 floor' },
   // components/Toaster/Toaster.module.css
@@ -323,19 +326,31 @@ describe('var(--token, fallback) two-arg form is retired', () => {
 })
 
 describe('color-mix() convention (Phase 4 special conventions)', () => {
-  // Locked-in percentage ladder: 8 (default tinted bg), 18 (hover state),
-  // 30 (stroke/border tint). Composition surface always var(--ac-bg).
-  const COLOR_MIX_RE = /color-mix\(\s*in\s+srgb\s*,\s*var\(--ac-(err|warn|ok|violet)\)\s+(\d+)%\s*,\s*var\(--ac-bg\)\s*\)/g
+  // Status-tint family: percentage ladder 8 / 18 / 30, composition
+  // surface always var(--ac-bg). Used for `err`/`warn`/`ok`/`violet`
+  // status surfaces.
+  const STATUS_COLOR_MIX_RE = /color-mix\(\s*in\s+srgb\s*,\s*var\(--ac-(err|warn|ok|violet)\)\s+(\d+)%\s*,\s*var\(--ac-bg\)\s*\)/g
+  const STATUS_ALLOWED_PERCENTAGES = new Set([8, 18, 30])
+  // Pipeline-tile family: opaque pale (over var(--ac-bg-card)) for
+  // light mode and translucent (over transparent) for dark mode.
+  // Mixed with `currentColor` so the tint inherits whichever
+  // `--ac-stage-*` accent the surrounding context set. Percentages
+  // intentionally cover both bg fills (14%) and borders (22% / 30%).
+  const PIPELINE_COLOR_MIX_RE = /color-mix\(\s*in\s+srgb\s*,\s*currentColor\s+(\d+)%\s*,\s*(var\(--ac-bg-card\)|transparent)\s*\)/g
+  const PIPELINE_ALLOWED_PERCENTAGES = new Set([14, 22, 30])
   const COLOR_MIX_ANY_RE = /color-mix\(/g
-  const ALLOWED_PERCENTAGES = new Set([8, 18, 30])
 
   for (const [path, css] of Object.entries(allCss)) {
     it(`${path} color-mix sites use the locked-in convention`, () => {
       const totalSites = (css.match(COLOR_MIX_ANY_RE) ?? []).length
-      const conventionalSites = [...css.matchAll(COLOR_MIX_RE)]
-      expect(conventionalSites.length).toBe(totalSites)
-      for (const m of conventionalSites) {
-        expect(ALLOWED_PERCENTAGES.has(parseInt(m[2], 10))).toBe(true)
+      const statusSites = [...css.matchAll(STATUS_COLOR_MIX_RE)]
+      const pipelineSites = [...css.matchAll(PIPELINE_COLOR_MIX_RE)]
+      expect(statusSites.length + pipelineSites.length).toBe(totalSites)
+      for (const m of statusSites) {
+        expect(STATUS_ALLOWED_PERCENTAGES.has(parseInt(m[2], 10))).toBe(true)
+      }
+      for (const m of pipelineSites) {
+        expect(PIPELINE_ALLOWED_PERCENTAGES.has(parseInt(m[1], 10))).toBe(true)
       }
     })
   }
@@ -364,6 +379,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
       'spine-x',
       'dot-size',
     ]),
+    'components/Pipeline/Pipeline.module.css': new Set(['next-accent']),
   }
   for (const [path, css] of Object.entries(allCss)) {
     it(`${path} references only declared tokens`, () => {

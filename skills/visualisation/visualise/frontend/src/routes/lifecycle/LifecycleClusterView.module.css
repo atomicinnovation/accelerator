@@ -1,135 +1,34 @@
-.backLink {
-  display: inline-block;
-  margin-bottom: var(--sp-3);
-  font-size: var(--size-xs);
-  color: var(--ac-fg-muted);
+/* Eyebrow breadcrumb: lifecycle icon + 'Lifecycle' link + chevron + slug
+   (mono uppercase). Inherits the eyebrow font + sizing from the Page
+   component; this module only styles the inner link + slug. */
+.eyebrowLink {
+  color: inherit;
   text-decoration: none;
 }
 
-.backLink:hover,
-.backLink:focus-visible {
-  color: var(--ac-accent);
+.eyebrowLink:hover,
+.eyebrowLink:focus-visible {
+  color: var(--ac-fg);
   text-decoration: underline;
 }
 
-/* Timeline with a vertical "spine" that runs through the centre of each
-   stage dot. The spine is a pseudo-element on `.timeline`; each `.stage`
-   draws its own dot via a pseudo-element positioned at the same x
-   coordinate (`--spine-x`) so the dot is centred on the line. */
-.timeline {
-  --spine-x: 6px;
-  --dot-size: 10px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  position: relative;
-}
-
-.timeline::before {
-  content: '';
-  position: absolute;
-  left: var(--spine-x);
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  margin-left: -1px;
-  background: var(--ac-stroke-soft);
-}
-
-.stage {
-  position: relative;
-  padding: 0 0 1.25rem calc(var(--spine-x) + var(--sp-4));
-}
-
-.stage::before {
-  content: '';
-  position: absolute;
-  left: var(--spine-x);
-  top: 7px;
-  width: var(--dot-size);
-  height: var(--dot-size);
-  margin-left: calc(var(--dot-size) / -2);
-  border-radius: 50%;
-  background: var(--ac-accent);
-  border: 2px solid var(--ac-bg-card);
-  box-shadow: 0 0 0 1.5px var(--ac-accent);
-}
-
-.absent::before {
-  background: var(--ac-bg-sunken);
-  box-shadow: 0 0 0 1.5px var(--ac-stroke);
-}
-
-.stageLabel {
-  display: block;
-  font-size: var(--size-xxs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ac-fg-muted);
-  margin-bottom: 0.4rem;
-}
-
-.placeholder {
-  color: var(--ac-fg-faint);
-  font-style: italic;
-  font-size: var(--size-xs);
-}
-
-.entryList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
-
-.entryCard {
-  border: 1px solid var(--ac-stroke-soft);
-  border-radius: var(--radius-sm);
-  padding: var(--sp-2) var(--sp-3);
-  background: var(--ac-bg-card);
-}
-
-.entryLink { text-decoration: none; color: inherit; }
-.entryLink:hover .entryTitle { color: var(--ac-accent); }
-.entryTitle { font-weight: 500; color: var(--ac-fg-strong); }
-
-.entryMeta {
-  display: flex;
-  gap: var(--sp-2);
+/* Sub-row under the title: status chip + updated-time meta. */
+.subRow {
+  display: inline-flex;
   align-items: center;
-  font-size: var(--size-xxs);
-  color: var(--ac-fg-muted);
-  margin-top: var(--sp-1);
+  gap: var(--sp-3);
 }
 
-.bodyPreview {
-  margin: 0.4rem 0 0;
-  font-size: var(--size-xs);
-  color: var(--ac-fg-muted);
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  max-height: calc(1.4em * 3);
-}
-
-.error {
-  color: var(--ac-err); background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg)); border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
-  border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3);
-}
-
-.longTail {
-  margin-top: 1.75rem;
-  padding-top: var(--sp-4);
-  border-top: 1px dashed var(--ac-stroke-soft);
-}
-
-.longTailHeading {
-  margin: 0 0 var(--sp-2);
-  font-size: var(--size-xxs);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.subMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-eyebrow);
   color: var(--ac-fg-faint);
-  font-weight: 600;
 }
 
+/* Pipeline panel — bordered container with the panel-variant Pipeline. */
 .pipelinePanel {
   padding: var(--sp-4) 20px;
   background: var(--ac-bg-sunken);
@@ -145,4 +44,176 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   margin-bottom: 14px;
+}
+
+/* Timeline — vertical spine on the left with stage tiles overlapping it,
+   each followed by a card describing the entry. Mirrors prototype
+   `.ac-timeline`. */
+.timeline {
+  list-style: none;
+  margin: var(--sp-5) 0 0;
+  padding: 0 0 0 56px;
+  position: relative;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 22px;
+  top: var(--sp-2);
+  bottom: var(--sp-2);
+  width: 2px;
+  background: var(--ac-stroke);
+  border-radius: 1px;
+}
+
+.step {
+  position: relative;
+  padding: 14px 0 22px;
+}
+
+.stepNode {
+  position: absolute;
+  left: -52px;
+  top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Stage tile — square tile with rounded corners, filled active or
+   translucent inactive (same recipe as Pipeline component's tiles, but
+   sized for the timeline node). */
+.timelineTile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.timelineTile[data-active='true'] {
+  background: currentColor;
+}
+
+.timelineTile[data-active='false'] {
+  background: color-mix(in srgb, currentColor 14%, var(--ac-bg-card));
+  border-color: color-mix(in srgb, currentColor 30%, var(--ac-bg-card));
+}
+
+:global([data-theme='dark']) .timelineTile[data-active='false'],
+:global(:root:not([data-theme='light'])) .timelineTile[data-active='false'] {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  border-color: color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.timelineTile[data-dashed='true'] {
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+/* Entry card — head row (stage label + title + badges + date) and body
+   row (id + modified). Prototype `.ac-tcard`. */
+.tcard {
+  display: block;
+  background: var(--ac-bg-card);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 160ms, background 160ms;
+}
+
+.tcard:hover,
+.tcard:focus-visible {
+  border-color: var(--ac-stroke-strong);
+  background: var(--ac-bg-hover);
+}
+
+.tcardHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  min-width: 0;
+}
+
+.tcardHeadLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.tcardHeadRight {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.tcardStage {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs-lg);
+  color: var(--ac-fg-muted);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.tcardTitle {
+  font-family: var(--ac-font-display);
+  font-weight: 600;
+  font-size: var(--size-xs);
+  color: var(--ac-fg-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.tcardDate {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs-lg);
+  color: var(--ac-fg-muted);
+}
+
+.tcardBody {
+  font-size: var(--size-xxs-sm);
+  color: var(--ac-fg-muted);
+}
+
+.tcardId {
+  font-family: var(--ac-font-mono);
+  color: var(--ac-fg-faint);
+}
+
+/* Missing-step card — dashed border, transparent bg, centred mono copy
+   "No <stage> yet". Prototype `.ac-tcard--missing`. */
+.tcardMissing {
+  background: transparent;
+  border-style: dashed;
+  color: var(--ac-fg-faint);
+  text-align: center;
+  padding: 10px;
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xxs);
+  box-shadow: none;
+}
+
+.tcardMissing:hover {
+  /* No hover affordance for missing — they're not navigable. */
+  border-color: var(--ac-stroke);
+  background: transparent;
+}
+
+.error {
+  color: var(--ac-err);
+  background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg));
+  border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
 }
