@@ -63,11 +63,22 @@ export async function fetchTypes(): Promise<DocType[]> {
   return body.types
 }
 
+/** Normalises an `IndexEntry` shape from the wire. Servers older than the
+ *  per-entry-completeness deployment omit `completeness` entirely (JSON
+ *  `undefined`); newer servers emit `null` for orphans. Collapsing both to
+ *  `null` here means consumers see a single shape. */
+function normaliseEntry(raw: IndexEntry): IndexEntry {
+  return {
+    ...raw,
+    completeness: raw.completeness ?? null,
+  }
+}
+
 export async function fetchDocs(type: DocTypeKey): Promise<IndexEntry[]> {
   const r = await fetch(`/api/docs?type=${encodeURIComponent(type)}`)
   if (!r.ok) throw new FetchError(r.status, `GET /api/docs?type=${type}: ${r.status}`)
   const body: DocsListResponse = await r.json()
-  return body.docs
+  return body.docs.map(normaliseEntry)
 }
 
 export async function fetchDocContent(relPath: string): Promise<{ content: string; etag: string }> {
@@ -113,17 +124,25 @@ export async function fetchTemplateDetail(name: string): Promise<TemplateDetail>
   return r.json()
 }
 
+function normaliseCluster(raw: LifecycleCluster): LifecycleCluster {
+  return {
+    ...raw,
+    entries: raw.entries.map(normaliseEntry),
+  }
+}
+
 export async function fetchLifecycleClusters(): Promise<LifecycleCluster[]> {
   const r = await fetch('/api/lifecycle')
   if (!r.ok) throw new FetchError(r.status, `GET /api/lifecycle: ${r.status}`)
   const body: LifecycleListResponse = await r.json()
-  return body.clusters
+  return body.clusters.map(normaliseCluster)
 }
 
 export async function fetchLifecycleCluster(slug: string): Promise<LifecycleCluster> {
   const r = await fetch(`/api/lifecycle/${encodeURIComponent(slug)}`)
   if (!r.ok) throw new FetchError(r.status, `GET /api/lifecycle/${slug}: ${r.status}`)
-  return r.json()
+  const body: LifecycleCluster = await r.json()
+  return normaliseCluster(body)
 }
 
 export async function fetchActivity(limit: number): Promise<ActivityEvent[]> {

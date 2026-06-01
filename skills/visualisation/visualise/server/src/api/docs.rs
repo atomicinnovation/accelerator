@@ -234,6 +234,14 @@ pub(crate) async fn doc_patch_frontmatter(
         // Refresh index first so subscribers that refetch on the broadcast see fresh data.
         let _ = state.indexer.refresh_one(&canonical).await;
 
+        // Re-cluster + back-fill per-entry Completeness so /api/lifecycle and
+        // /api/docs/work-items agree on the same slug after a kanban status edit
+        // changes cluster membership.
+        let (new_clusters, backfill) =
+            crate::clusters::compute_clusters_with_backfill(&state.indexer.all().await);
+        state.indexer.apply_completeness_backfill(backfill).await;
+        *state.clusters.write().await = new_clusters;
+
         // Use the etag from FileContent, not from the index after refresh. A concurrent
         // external edit between persist and refresh would change the on-disk etag, which
         // would break the self-cause filter for this tab.

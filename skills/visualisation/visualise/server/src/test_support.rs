@@ -19,5 +19,6 @@ pub fn entry_for_test(doc_type: DocTypeKey, slug: &str, mtime_ms: i64, title: &s
         size: 0,
         etag: "sha256-x".to_string(),
         body_preview: String::new(),
+        completeness: None,
     }
 }

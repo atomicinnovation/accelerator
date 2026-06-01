@@ -6,6 +6,7 @@ use futures::stream::{self, StreamExt};
 use serde::Serialize;
 use tokio::sync::{RwLock, Semaphore};
 
+use crate::clusters::Completeness;
 use crate::docs::DocTypeKey;
 use crate::file_driver::{FileContent, FileDriver, FileDriverError};
 use crate::frontmatter::{self, FrontmatterState};
@@ -177,6 +178,11 @@ pub struct IndexEntry {
     pub size: u64,
     pub etag: String,
     pub body_preview: String,
+    /// Cluster-level Completeness back-filled by `compute_clusters_with_backfill`.
+    /// Serialises as JSON `null` for orphan entries (no slug) and for entries
+    /// that have not yet been through a cluster pass — kanban cards read this
+    /// signal to switch to orphan rendering.
+    pub completeness: Option<Completeness>,
 }
 
 /// Test rendezvous point used by Phase 9 concurrency tests to inspect
@@ -569,6 +575,23 @@ impl Indexer {
 
     pub async fn all(&self) -> Vec<IndexEntry> {
         self.entries.read().await.values().cloned().collect()
+    }
+
+    /// Applies a per-path `Completeness` map onto `IndexEntry.completeness`
+    /// under a single `entries.write()` lock. Paths absent from `entries`
+    /// (because the file was deleted between Pass 1 snapshot and Pass 2
+    /// apply) are silently skipped. Paths in `entries` but absent from
+    /// `backfill` (orphan entries) have their `completeness` cleared to
+    /// `None`, so a slug-derivation regression flips an entry to orphan
+    /// rendering rather than leaving a stale cluster snapshot behind.
+    pub async fn apply_completeness_backfill(
+        &self,
+        backfill: HashMap<PathBuf, Completeness>,
+    ) {
+        let mut entries = self.entries.write().await;
+        for (path, entry) in entries.iter_mut() {
+            entry.completeness = backfill.get(path).cloned();
+        }
     }
 
     pub async fn get(&self, path: &Path) -> Option<IndexEntry> {
@@ -1079,6 +1102,7 @@ fn build_entry(
         size: content.size,
         etag: content.etag.clone(),
         body_preview,
+        completeness: None,
     }
 }
 
@@ -1592,6 +1616,7 @@ mod tests {
             size: 0,
             etag: String::new(),
             body_preview: String::new(),
+            completeness: None,
         }
     }
 
@@ -1610,6 +1635,7 @@ mod tests {
             size: 0,
             etag: String::new(),
             body_preview: String::new(),
+            completeness: None,
         }
     }
 

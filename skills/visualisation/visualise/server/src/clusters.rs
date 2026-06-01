@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use serde::Serialize;
 
@@ -50,6 +51,18 @@ pub struct LifecycleCluster {
 }
 
 pub fn compute_clusters(entries: &[IndexEntry]) -> Vec<LifecycleCluster> {
+    compute_clusters_with_backfill(entries).0
+}
+
+/// Like `compute_clusters`, but also returns a `HashMap` keyed by every
+/// clustered entry's canonical path with the cluster's `Completeness`.
+/// Callers apply the map to `Indexer::entries` so per-entry
+/// `IndexEntry.completeness` mirrors the cluster's view of the same slug.
+/// The cluster-clone entries already carry the backfilled completeness;
+/// this map exists so the canonical entries map stays in lockstep.
+pub fn compute_clusters_with_backfill(
+    entries: &[IndexEntry],
+) -> (Vec<LifecycleCluster>, HashMap<PathBuf, Completeness>) {
     let mut buckets: HashMap<String, Vec<IndexEntry>> = HashMap::new();
     for e in entries {
         if matches!(e.r#type, DocTypeKey::Templates) {
@@ -59,6 +72,7 @@ pub fn compute_clusters(entries: &[IndexEntry]) -> Vec<LifecycleCluster> {
         buckets.entry(slug).or_default().push(e.clone());
     }
 
+    let mut backfill: HashMap<PathBuf, Completeness> = HashMap::new();
     let mut clusters: Vec<LifecycleCluster> = buckets
         .into_iter()
         .map(|(slug, mut entries)| {
@@ -70,6 +84,10 @@ pub fn compute_clusters(entries: &[IndexEntry]) -> Vec<LifecycleCluster> {
             let last_changed_ms = entries.iter().map(|e| e.mtime_ms).max().unwrap_or(0);
             let title = derive_title(&slug, &entries);
             let completeness = derive_completeness(&entries);
+            for e in entries.iter_mut() {
+                e.completeness = Some(completeness.clone());
+                backfill.insert(e.path.clone(), completeness.clone());
+            }
             LifecycleCluster {
                 slug,
                 title,
@@ -81,7 +99,7 @@ pub fn compute_clusters(entries: &[IndexEntry]) -> Vec<LifecycleCluster> {
         .collect();
 
     clusters.sort_by(|a, b| a.slug.cmp(&b.slug));
-    clusters
+    (clusters, backfill)
 }
 
 fn canonical_rank(kind: DocTypeKey) -> u8 {
@@ -270,6 +288,82 @@ mod tests {
             clusters[0].completeness.present,
             vec!["notes".to_string(), "design-gaps".to_string()]
         );
+    }
+
+    #[test]
+    fn backfill_map_carries_cluster_completeness_for_every_clustered_entry() {
+        let entries = vec![
+            entry(DocTypeKey::WorkItems, "foo", 10, "T"),
+            entry(DocTypeKey::Plans, "foo", 20, "P"),
+        ];
+        let (clusters, backfill) = compute_clusters_with_backfill(&entries);
+        assert_eq!(clusters.len(), 1);
+        assert_eq!(clusters[0].entries.len(), 2);
+        for e in &clusters[0].entries {
+            let c = e
+                .completeness
+                .as_ref()
+                .expect("clustered entry should have completeness");
+            assert!(c.has_work_item);
+            assert!(c.has_plan);
+            assert_eq!(c.present, clusters[0].completeness.present);
+            let bf = backfill
+                .get(&e.path)
+                .expect("backfill map should contain every clustered entry path");
+            assert_eq!(bf.present, clusters[0].completeness.present);
+        }
+    }
+
+    #[test]
+    fn orphan_entries_are_absent_from_backfill_map() {
+        let mut orphan = entry(DocTypeKey::Plans, "x", 10, "P");
+        orphan.slug = None;
+        let (clusters, backfill) = compute_clusters_with_backfill(&[orphan]);
+        assert!(clusters.is_empty());
+        assert!(backfill.is_empty());
+    }
+
+    #[test]
+    fn entries_in_distinct_clusters_get_distinct_completeness() {
+        let entries = vec![
+            entry(DocTypeKey::WorkItems, "foo", 10, "WI-foo"),
+            entry(DocTypeKey::Plans, "foo", 20, "P-foo"),
+            entry(DocTypeKey::WorkItems, "bar", 30, "WI-bar"),
+        ];
+        let (clusters, backfill) = compute_clusters_with_backfill(&entries);
+        assert_eq!(clusters.len(), 2);
+        let foo = clusters.iter().find(|c| c.slug == "foo").unwrap();
+        let bar = clusters.iter().find(|c| c.slug == "bar").unwrap();
+        assert!(foo.completeness.has_plan);
+        assert!(!bar.completeness.has_plan);
+        for e in &foo.entries {
+            assert!(backfill[&e.path].has_plan);
+        }
+        for e in &bar.entries {
+            assert!(!backfill[&e.path].has_plan);
+        }
+    }
+
+    #[test]
+    fn cluster_entries_completeness_matches_backfill_for_same_path() {
+        let entries = vec![
+            entry(DocTypeKey::WorkItems, "foo", 10, "T"),
+            entry(DocTypeKey::Plans, "foo", 20, "P"),
+            entry(DocTypeKey::Decisions, "foo", 30, "D"),
+        ];
+        let (clusters, backfill) = compute_clusters_with_backfill(&entries);
+        for cluster in &clusters {
+            for e in &cluster.entries {
+                let entry_completeness = e
+                    .completeness
+                    .as_ref()
+                    .expect("clustered entry should have completeness");
+                let backfill_completeness = backfill
+                    .get(&e.path)
+                    .expect("backfill must contain every clustered entry");
+                assert_eq!(entry_completeness.present, backfill_completeness.present);
+            }
+        }
     }
 
     #[test]

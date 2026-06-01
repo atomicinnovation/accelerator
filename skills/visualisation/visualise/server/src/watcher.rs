@@ -10,7 +10,7 @@ use tokio::sync::{Notify, RwLock};
 use tokio::task::JoinHandle;
 
 use crate::activity_feed::{ActivityEvent, ActivityRingBuffer};
-use crate::clusters::{compute_clusters, LifecycleCluster};
+use crate::clusters::{compute_clusters_with_backfill, LifecycleCluster};
 use crate::config::TemplateTiers;
 use crate::file_driver::FileDriver;
 use crate::indexer::{IndexEntry, Indexer, FRONTMATTER_MALFORMED};
@@ -150,7 +150,8 @@ pub async fn on_path_changed_debounced(
         return;
     }
 
-    let new_clusters = compute_clusters(&indexer.all().await);
+    let (new_clusters, backfill) = compute_clusters_with_backfill(&indexer.all().await);
+    indexer.apply_completeness_backfill(backfill).await;
     *clusters.write().await = new_clusters;
 
     let rel = path

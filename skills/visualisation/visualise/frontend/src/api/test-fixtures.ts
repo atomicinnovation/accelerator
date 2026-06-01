@@ -41,6 +41,7 @@ export function makeIndexEntry(overrides: Partial<IndexEntry> = {}): IndexEntry 
     size: 0,
     etag: 'sha256-x',
     bodyPreview: '',
+    completeness: null,
     ...overrides,
   }
 }

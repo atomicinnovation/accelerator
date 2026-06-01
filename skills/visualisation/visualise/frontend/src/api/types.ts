@@ -91,6 +91,11 @@ export interface IndexEntry {
   size: number
   etag: string
   bodyPreview: string
+  /** Cluster-level Completeness back-filled by the server. `null` for orphan
+   *  entries (no cluster slug) — kanban cards switch to orphan rendering on
+   *  this signal. Older servers that omit the field are normalised to `null`
+   *  at the API client boundary. */
+  completeness: Completeness | null
 }
 
 export interface DocsListResponse {
