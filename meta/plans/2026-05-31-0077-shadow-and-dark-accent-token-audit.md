@@ -540,7 +540,15 @@ section for the negative-scope enumeration rather than restating it.
 
 #### Automated Verification:
 
-- [ ] `rg --no-heading -n 'var\(--ac-shadow-soft\)|var\(--ac-shadow-lift\)|var\(--ac-accent\)\b|var\(--ac-accent-2\)' src/` (run from `skills/visualisation/visualise/frontend/`) produces output that matches the file-and-site counts quoted in the PR description; any drift between the quoted enumeration and the actual command output is corrected before PR open.
+- [x] `rg --no-heading -n 'var\(--ac-shadow-soft\)|var\(--ac-shadow-lift\)|var\(--ac-accent\)\b|var\(--ac-accent-2\)' src/` (run from `skills/visualisation/visualise/frontend/`) produces output that matches the file-and-site counts quoted in the PR description; any drift between the quoted enumeration and the actual command output is corrected before PR open.
+  - **NOTE on the regex.** Rust's `\b` requires `\w`-to-`\W` (or vice versa) transition; `\)\b` matches zero sites because every `--ac-accent)` is followed by `;`, space, `,`, etc. (non-word). The `\b` is therefore inert — the plan's intent to "exclude `--ac-accent-2` matches" is already satisfied by `var\(--ac-accent\)` alone because the literal `)` in the regex requires a `)` immediately after `--ac-accent`, which cannot match `--ac-accent-2)`. When composing the PR description, run `var\(--ac-accent\)` (no `\b`) to get the true count.
+  - **Live enumeration captured 2026-06-01** (from `skills/visualisation/visualise/frontend`):
+    - `var(--ac-shadow-soft)` — 1 file / 1 site (`src/routes/lifecycle/LifecycleIndex.module.css:79`).
+    - `var(--ac-shadow-lift)` — 3 files / 3 sites (`Toaster.module.css:28`, `Popover.module.css:15`, `Toaster.test.tsx:160` — the last is a test-string literal, not a runtime consumer).
+    - `var(--ac-accent)` — 20 files / 52 sites.
+    - `var(--ac-accent-2)` — 3 files / 4 sites (`FrontmatterTable.module.css:39`, `Brand.tsx:15`, `Brand.tsx:25`, `Brand.test.tsx:19` — the last is a test-string literal).
+    - Per-token sum: **27 files / 60 sites**. Unique files after collapsing the 3-file overlap between `--ac-accent` and `--ac-accent-2` (`Brand.tsx`, `Brand.test.tsx`, `FrontmatterTable.module.css`): **21 unique files / 60 sites**.
+  - When composing the PR description, update the consumer-enumeration figures to **21 unique files / 60 sites** (and ensure the AC#4 spirit-reading block-quote names "21 unique files" rather than "26").
 
 #### Manual Verification:
 
