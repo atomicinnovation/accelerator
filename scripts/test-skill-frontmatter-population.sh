@@ -45,7 +45,6 @@ IN_SCOPE_PRODUCERS=(
   skills/github/review-pr/SKILL.md
   skills/planning/validate-plan/SKILL.md
 )
-OWNED_BY_0066=()
 NON_EMITTER_TEMPLATE_CONSUMERS=(
   skills/work/refine-work-item/SKILL.md
   skills/work/update-work-item/SKILL.md
@@ -178,7 +177,6 @@ discovered=$(
 allowlist=$(
   printf '%s\n' \
     "${IN_SCOPE_PRODUCERS[@]}" \
-    "${OWNED_BY_0066[@]}" \
     "${NON_EMITTER_TEMPLATE_CONSUMERS[@]}" \
   | sort -u
 )

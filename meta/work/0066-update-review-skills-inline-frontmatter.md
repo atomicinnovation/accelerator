@@ -42,11 +42,11 @@ The epic's technical notes raised extracting these into shared template files as
 - [ ] `review-plan`, `review-work-item`, and `review-pr` read their frontmatter from the corresponding new template under `templates/` via the canonical template-reading helper (`config-read-template.sh`); verified by grep returning zero matches for `^type:`, `^schema_version:`, `^verdict:` in each SKILL.md outside fenced template-example blocks.
 - [ ] `validate-plan` reads its frontmatter from `templates/validation.md` (whose frontmatter block is added by 0065) via the canonical template-reading helper rather than emitting it inline; verified by grep returning zero matches for `^type:`, `^schema_version:`, `^result:` in `validate-plan`'s SKILL.md outside fenced template-example blocks.
 - [ ] SKILL.md for each of the four affected skills contains no inline YAML frontmatter block enumerating the unified base or extra fields as `key: value` pairs outside fenced template-example blocks; narrative references to individual field names when discussing population logic are permitted. Adding a new base field requires editing only the template(s), not SKILL.md prose.
-- [ ] Each review template emits the extras per ADR-0033 on all three review types (`plan-review`, `work-item-review`, `pr-review`): `reviewer`, `verdict`, `lenses`, `review_number`, `review_pass`. Each review/validation template additionally emits `target` (per ADR-0034's typed-linkage vocabulary) as a single quoted YAML string in `"doc-type:id"` form — `"plan:<id>"` for `plan-review` and `plan-validation`, `"work-item:<id>"` for `work-item-review`, `"pr:<pr-number>"` for `pr-review`.
+- [ ] Each review template emits the per-ADR-0033 review extras: `reviewer`, `verdict`, `lenses`, `review_number` on all three review types (`plan-review`, `work-item-review`, `pr-review`); `review_pass` on `plan-review` and `work-item-review` only (`pr-review` omits `review_pass` — see plan §Design Decisions #1 — until a future story introduces a re-review lifecycle for the skill). Each review/validation template additionally emits `target` (per ADR-0034's typed-linkage vocabulary) as a single quoted YAML string in `"doc-type:id"` form — `"plan:<id>"` for `plan-review` and `plan-validation`, `"work-item:<id>"` for `work-item-review`, `"pr:<pr-number>"` for `pr-review` (regex: `^"pr:[0-9]+"$`).
 - [ ] Plan-validation artifacts carry the `result` extra per ADR-0033.
 - [ ] Identity values (`id` and any foreign references) in emitted frontmatter are quoted YAML strings.
 - [ ] Generating one review/validation artifact via each of the four rewired skills yields non-empty values containing no unsubstituted template tokens for `producer`, `schema_version` (=1), `last_updated`, `last_updated_by`, `target`, `reviewer`, `verdict`, `lenses`, `review_number`, and `review_pass` (and `result` for `validate-plan`); both ISO-UTC timestamps parse.
-- [ ] A reproducible discovery pass (recorded grep command and matched files) confirms the four named skills are the only inline producers of `plan-review`, `work-item-review`, `pr-review`, and `plan-validation` frontmatter, or any additional producer found is folded into scope.
+- [ ] A reproducible discovery pass (recorded grep command and matched files) confirms the four named skills are the only inline producers of `plan-review`, `work-item-review`, `pr-review`, and `plan-validation` frontmatter, or any additional producer found is folded into scope. The exact grep recipe and producer split are captured in §"Discovery Pass Record" below.
 
 ## Open Questions
 
@@ -89,6 +89,51 @@ discrepancy the ADRs win and this table should be re-synced.
 | `plan-review.md`      | `plan-review`      | 1                | no                 | `reviewer`, `verdict`, `lenses`, `review_number`, `review_pass`, `target` (= `"plan:<id>"`)                                                                                                                                                                                                                                                                                                     |
 | `work-item-review.md` | `work-item-review` | 1                | no                 | `reviewer`, `verdict`, `lenses`, `review_number`, `review_pass`, `target` (= `"work-item:<id>"`), `work_item_id` (transitional alias — see plan §Design Decisions #2; consumed by visualiser frontmatter.rs:330 until Phase 7)                                                                                                                                                                  |
 | `pr-review.md`        | `pr-review`        | 1                | no                 | `reviewer`, `verdict`, `lenses`, `review_number`, `target` (= `"pr:<pr-number>"`; the `pr` prefix is queued for inclusion in ADR-0034's vocabulary via supplementary ADR — see follow-up under `meta/work/0057-...md`), `pr_number` (bare integer; foreign reference to the external PR per ADR-0033 §Identity-value shape contract). `review_pass` is omitted — see plan §Design Decisions #1. |
+
+## Discovery Pass Record
+
+Commands executed (run from the workspace root, after Phases 1-5 have landed):
+
+```
+# Pass A — template-using and unified-schema-emitting producers
+rg -n "config-read-template\.sh|^[[:space:]]*producer:|^[[:space:]]*schema_version:" skills --glob '**/SKILL.md'
+
+# Pass B — legacy inline-frontmatter emitters (now empty for 0066 scope)
+rg -n "verdict:|review_pass:|review_target:|^[[:space:]]*target:|^[[:space:]]*result:|pr_number:" skills --glob '**/SKILL.md'
+```
+
+Pass A surfaces every skill that reads a template via the canonical
+loader or directly emits a unified base field. Pass B surfaces every
+SKILL.md that mentions a review/validation extra literal — post-0066,
+those literals appear only inside fenced template-example blocks, but
+the discovery patterns still match them; every Pass-B hit must resolve
+to a SKILL.md in `IN_SCOPE_PRODUCERS`.
+
+Producer split (post-0066):
+
+- **Unified template-based emitters (10 from 0065 + 4 from 0066 = 14
+  total)**: create-work-item, extract-work-items, create-plan,
+  describe-pr, create-adr, extract-adrs, research-codebase,
+  research-issue, inventory-design, analyse-design-gaps, **review-plan,
+  review-work-item, review-pr, validate-plan**.
+- **Inline-only emitters owned by 0066**: NONE (formerly:
+  review-plan, review-work-item, review-pr, validate-plan).
+- **Non-emitter template consumers**: refine-work-item, update-work-item,
+  list-work-items.
+
+Other inline producers found: NONE. The Phase-6 grep recipe and the
+existing test driver's discovery assertion together form the
+reproducible verification of work item AC #9.
+
+For the `pr-review.target` regex shape pinned by Design Decision #3:
+
+```
+rg -n "^target:[[:space:]]+\"pr:[0-9]+\"" templates/pr-review.md
+# Expected: zero matches (the template carries `target: ""` empty slot).
+
+# Manual: against an artifact produced by `review-pr`, the same regex
+# should match exactly once in the frontmatter block.
+```
 
 ## References
 

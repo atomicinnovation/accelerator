@@ -149,6 +149,25 @@ These three remain valid ADR-creation tasks and will be referenced as `derived_f
 - Inline frontmatter generators in review skills currently bake field shapes into SKILL.md prose. Extracting them into shared template files is not mandated by this epic but would simplify future schema changes — left as an option for the implementing story.
 - `meta/notes/` files today are hand-written and frontmatter-free. The migration must either skip them or add baseline frontmatter with conservative defaults (e.g. `author: <unknown>` if not inferable from VCS history). Decision deferred to the migration-story scope.
 
+### Follow-ups surfaced during 0066
+
+- **Supplementary ADR to extend ADR-0034's vocabulary with external-entity
+  prefixes** (e.g. `pr`, possibly others). Surfaced by 0066, which
+  emits `target: "pr:<pr-number>"` on `pr-review` artifacts; ADR-0034's
+  currently-published vocabulary covers only meta-artifact types. The
+  ADR should sit alongside ADR-0034 rather than amend it (the existing
+  meta-artifact vocabulary is unchanged).
+- **Retire the transitional `work_item_id:` alias on `work-item-review`
+  artifacts.** Surfaced by 0066 Design Decision #2; the alias is
+  kept alongside `target: "work-item:<id>"` because the visualiser's
+  `read_ref_keys` (frontmatter.rs:330) reads `work_item_id:` as the
+  primary scalar. Once the visualiser consumer-update ships and the
+  corpus migration 0070 has run across userspace repos, drop
+  `work_item_id:` from `templates/work-item-review.md` and the
+  work-item-review skill prose. Mirrors the `work-item:` →
+  `work_item_id:` retirement pattern 0070 closes for older
+  work-item artifacts.
+
 ## Drafting Notes
 
 - Treated "everything" as the twelve artifact types the codebase research identified plus notes; specs and global excluded per user direction.

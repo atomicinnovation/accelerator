@@ -1422,13 +1422,13 @@ phase makes. It is one additive bullet in the parent epic.
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` passes including the discovery assertion ("PASS: every discovered SKILL.md is allowlisted").
-- [ ] `mise run test:unit:templates` passes (all three sub-drivers GREEN).
-- [ ] `grep -n "^## Discovery Pass Record$" meta/work/0066-update-review-skills-inline-frontmatter.md` returns exactly 1 line.
-- [ ] The Pass-A and Pass-B greps recorded in the work item, run fresh from the workspace root, produce a producer set that matches the recorded split exactly (every hit resolves to a SKILL.md named in `IN_SCOPE_PRODUCERS` or `NON_EMITTER_TEMPLATE_CONSUMERS`).
-- [ ] `grep -n "review_pass" meta/work/0066-update-review-skills-inline-frontmatter.md` — AC #5 now distinguishes the three review types per Design Decision #1.
-- [ ] `grep -n "Supplementary ADR" meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` returns at least 1 match (the queued follow-up).
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-skill-frontmatter-population.sh` passes including the discovery assertion ("PASS: every discovered SKILL.md is allowlisted").
+- [x] `mise run test:unit:templates` passes (all three sub-drivers GREEN).
+- [x] `grep -n "^## Discovery Pass Record$" meta/work/0066-update-review-skills-inline-frontmatter.md` returns exactly 1 line.
+- [x] The Pass-A and Pass-B greps recorded in the work item, run fresh from the workspace root, produce a producer set that matches the recorded split exactly (every hit resolves to a SKILL.md named in `IN_SCOPE_PRODUCERS` or `NON_EMITTER_TEMPLATE_CONSUMERS`).
+- [x] `grep -n "review_pass" meta/work/0066-update-review-skills-inline-frontmatter.md` — AC #5 now distinguishes the three review types per Design Decision #1.
+- [x] `grep -n "Supplementary ADR" meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` returns at least 1 match (the queued follow-up).
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 
