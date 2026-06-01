@@ -18,6 +18,8 @@ function makeEntry(relPath: string, status: string): IndexEntry {
     size: 100,
     etag: 'sha256-abc',
     bodyPreview: '',
+    completeness: null,
+    linkedCount: 0,
   }
 }
 

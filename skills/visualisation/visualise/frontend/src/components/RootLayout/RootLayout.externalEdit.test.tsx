@@ -51,6 +51,8 @@ function entry(overrides: Partial<IndexEntry> = {}): IndexEntry {
     size: 0,
     etag: 'etag-v1',
     bodyPreview: '',
+    completeness: null,
+    linkedCount: 0,
     ...overrides,
   }
 }

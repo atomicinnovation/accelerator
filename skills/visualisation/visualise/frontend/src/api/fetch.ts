@@ -1,8 +1,8 @@
 import type {
   ActivityEvent, ActivityResponse,
-  DocType, DocTypeKey, DocsListResponse, IndexEntry,
+  DocType, DocTypeKey, IndexEntry,
   TemplateSummaryListResponse, TemplateDetail,
-  LifecycleCluster, LifecycleListResponse,
+  LifecycleCluster,
   LibrarySelection, LibraryStructureResponse,
   RelatedArtifactsResponse,
 } from './types'
@@ -63,11 +63,20 @@ export async function fetchTypes(): Promise<DocType[]> {
   return body.types
 }
 
+/** Wire-shape variant of `IndexEntry` — older servers may omit the
+ *  `completeness` and `linkedCount` fields. The exported `IndexEntry`
+ *  type requires both; we accept the broader shape here and narrow at
+ *  the boundary. */
+type WireIndexEntry = Omit<IndexEntry, 'completeness' | 'linkedCount'> & {
+  completeness?: IndexEntry['completeness']
+  linkedCount?: number
+}
+
 /** Normalises an `IndexEntry` shape from the wire. Servers older than the
  *  per-entry-completeness deployment omit `completeness` entirely (JSON
  *  `undefined`); newer servers emit `null` for orphans. Collapsing both to
  *  `null` here means consumers see a single shape. */
-function normaliseEntry(raw: IndexEntry): IndexEntry {
+function normaliseEntry(raw: WireIndexEntry): IndexEntry {
   return {
     ...raw,
     completeness: raw.completeness ?? null,
@@ -78,7 +87,7 @@ function normaliseEntry(raw: IndexEntry): IndexEntry {
 export async function fetchDocs(type: DocTypeKey): Promise<IndexEntry[]> {
   const r = await fetch(`/api/docs?type=${encodeURIComponent(type)}`)
   if (!r.ok) throw new FetchError(r.status, `GET /api/docs?type=${type}: ${r.status}`)
-  const body: DocsListResponse = await r.json()
+  const body: { docs: WireIndexEntry[] } = await r.json()
   return body.docs.map(normaliseEntry)
 }
 
@@ -125,7 +134,11 @@ export async function fetchTemplateDetail(name: string): Promise<TemplateDetail>
   return r.json()
 }
 
-function normaliseCluster(raw: LifecycleCluster): LifecycleCluster {
+type WireLifecycleCluster = Omit<LifecycleCluster, 'entries'> & {
+  entries: WireIndexEntry[]
+}
+
+function normaliseCluster(raw: WireLifecycleCluster): LifecycleCluster {
   return {
     ...raw,
     entries: raw.entries.map(normaliseEntry),
@@ -135,14 +148,14 @@ function normaliseCluster(raw: LifecycleCluster): LifecycleCluster {
 export async function fetchLifecycleClusters(): Promise<LifecycleCluster[]> {
   const r = await fetch('/api/lifecycle')
   if (!r.ok) throw new FetchError(r.status, `GET /api/lifecycle: ${r.status}`)
-  const body: LifecycleListResponse = await r.json()
+  const body: { clusters: WireLifecycleCluster[] } = await r.json()
   return body.clusters.map(normaliseCluster)
 }
 
 export async function fetchLifecycleCluster(slug: string): Promise<LifecycleCluster> {
   const r = await fetch(`/api/lifecycle/${encodeURIComponent(slug)}`)
   if (!r.ok) throw new FetchError(r.status, `GET /api/lifecycle/${slug}: ${r.status}`)
-  const body: LifecycleCluster = await r.json()
+  const body: WireLifecycleCluster = await r.json()
   return normaliseCluster(body)
 }
 

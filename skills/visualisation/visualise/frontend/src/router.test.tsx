@@ -91,6 +91,7 @@ describe('router', () => {
         hasPlanReview: false, hasValidation: false, hasPrDescription: false,
         hasPrReview: false, hasDecision: false, hasNotes: false,
         hasDesignInventory: false, hasDesignGap: false,
+        present: [],
       },
       lastChangedMs: 0,
     })
@@ -188,6 +189,7 @@ describe('loader crumbs', () => {
         hasPlanReview: false, hasValidation: false, hasPrDescription: false,
         hasPrReview: false, hasDecision: false, hasNotes: false,
         hasDesignInventory: false, hasDesignGap: false,
+        present: [],
       },
       lastChangedMs: 0,
     })

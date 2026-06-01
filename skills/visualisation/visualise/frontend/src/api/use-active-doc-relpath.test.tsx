@@ -25,6 +25,8 @@ function entry(overrides: Partial<IndexEntry>): IndexEntry {
     size: 0,
     etag: 'e',
     bodyPreview: '',
+    completeness: null,
+    linkedCount: 0,
     ...overrides,
   }
 }

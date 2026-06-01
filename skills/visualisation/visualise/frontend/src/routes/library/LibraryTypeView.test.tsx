@@ -63,6 +63,8 @@ const mockEntries: IndexEntry[] = [
     size: 100,
     etag: 'sha256-a',
     bodyPreview: '',
+    completeness: null,
+    linkedCount: 0,
   },
   {
     type: 'plans',
@@ -78,6 +80,8 @@ const mockEntries: IndexEntry[] = [
     size: 200,
     etag: 'sha256-b',
     bodyPreview: '',
+    completeness: null,
+    linkedCount: 0,
   },
 ]
 

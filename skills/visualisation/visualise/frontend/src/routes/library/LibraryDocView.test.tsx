@@ -15,6 +15,7 @@ const mockEntry: IndexEntry = {
   frontmatter: { status: 'draft' }, frontmatterState: 'parsed', workItemRefs: [],
   mtimeMs: 1_700_000_000_000, size: 100, etag: 'sha256-a',
   bodyPreview: '',
+  completeness: null, linkedCount: 0,
 }
 
 function Wrapper({ children }: { children: React.ReactNode }) {

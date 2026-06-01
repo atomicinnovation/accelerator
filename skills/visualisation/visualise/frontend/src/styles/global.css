@@ -132,6 +132,23 @@ body {
   --ac-doc-bg-design-gaps:         #e7f1d8;
   --ac-doc-bg-design-inventories:  #dceaec;
 
+  /* Per-stage lifecycle pipeline accents (light).
+     Used by `Pipeline` and `PipelineMini` to colour active stage tiles
+     and connectors. Intentionally distinct from `--ac-doc-*` (the badge
+     hues): the stage palette is the chain colour, not the per-type
+     glyph colour. Do not unify the two families without a design intent
+     review. Long-tail stages (notes, design-inventories, design-gaps)
+     are NOT rendered inside Pipeline/PipelineMini and therefore have
+     no `--ac-stage-*` token. */
+  --ac-stage-work-items:        #c52828;
+  --ac-stage-research:          #c56327;
+  --ac-stage-plans:             #2762c5;
+  --ac-stage-plan-reviews:      #662cc5;
+  --ac-stage-validations:       #208a52;
+  --ac-stage-pr-descriptions:   #2796c5;
+  --ac-stage-pr-reviews:        #952cc5;
+  --ac-stage-decisions:         #c5273f;
+
   /* Typography fonts */
   --ac-font-display:  "Sora", system-ui, sans-serif;
   --ac-font-body:     "Inter", system-ui, sans-serif;
@@ -361,6 +378,17 @@ body {
   --ac-doc-bg-pr-descriptions:     #1d2030;
   --ac-doc-bg-design-gaps:         #1d2030;
   --ac-doc-bg-design-inventories:  #1d2030;
+  /* Per-stage lifecycle pipeline accents (dark). Stay coloured (unlike
+     --ac-doc-* which collapses to white in dark) — the stage chain's
+     whole purpose is per-stage differentiation. */
+  --ac-stage-work-items:        #e26060;
+  --ac-stage-research:          #e29560;
+  --ac-stage-plans:             #6094e2;
+  --ac-stage-plan-reviews:      #9560e2;
+  --ac-stage-validations:       #60e2a3;
+  --ac-stage-pr-descriptions:   #60c2e2;
+  --ac-stage-pr-reviews:        #c060e2;
+  --ac-stage-decisions:         #e26077;
   --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
   --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
   color-scheme: dark;
@@ -419,6 +447,14 @@ body {
     --ac-doc-bg-pr-descriptions:     #1d2030;
     --ac-doc-bg-design-gaps:         #1d2030;
     --ac-doc-bg-design-inventories:  #1d2030;
+    --ac-stage-work-items:        #e26060;
+    --ac-stage-research:          #e29560;
+    --ac-stage-plans:             #6094e2;
+    --ac-stage-plan-reviews:      #9560e2;
+    --ac-stage-validations:       #60e2a3;
+    --ac-stage-pr-descriptions:   #60c2e2;
+    --ac-stage-pr-reviews:        #c060e2;
+    --ac-stage-decisions:         #e26077;
     --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
     --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
     color-scheme: dark;

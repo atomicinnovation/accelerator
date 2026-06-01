@@ -22,6 +22,8 @@ const planEntry: IndexEntry = {
   size: 0,
   etag: 'sha256-a',
   bodyPreview: '',
+  completeness: null,
+  linkedCount: 0,
 }
 
 const reviewEntry: IndexEntry = {

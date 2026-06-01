@@ -59,6 +59,18 @@ export const LIGHT_COLOR_TOKENS = {
   'ac-doc-bg-pr-descriptions':     '#e2eff7',
   'ac-doc-bg-design-gaps':         '#e7f1d8',
   'ac-doc-bg-design-inventories':  '#dceaec',
+  // Per-stage lifecycle pipeline accents (light). Distinct family from
+  // --ac-doc-* — see global.css inline comment. Long-tail stages
+  // (notes, design-inventories, design-gaps) are not rendered inside
+  // Pipeline/PipelineMini and have no token.
+  'ac-stage-work-items':        '#c52828',
+  'ac-stage-research':          '#c56327',
+  'ac-stage-plans':             '#2762c5',
+  'ac-stage-plan-reviews':      '#662cc5',
+  'ac-stage-validations':       '#208a52',
+  'ac-stage-pr-descriptions':   '#2796c5',
+  'ac-stage-pr-reviews':        '#952cc5',
+  'ac-stage-decisions':         '#c5273f',
 } as const
 
 // Dark-theme overrides — same resolved-hex invariant as LIGHT_COLOR_TOKENS
@@ -118,6 +130,17 @@ export const DARK_COLOR_TOKENS = {
   'ac-doc-bg-pr-descriptions':     '#1d2030',
   'ac-doc-bg-design-gaps':         '#1d2030',
   'ac-doc-bg-design-inventories':  '#1d2030',
+  // Per-stage lifecycle pipeline accents (dark). Stay coloured (unlike
+  // --ac-doc-* which collapses to white in dark) — the stage chain's
+  // whole purpose is per-stage differentiation.
+  'ac-stage-work-items':        '#e26060',
+  'ac-stage-research':          '#e29560',
+  'ac-stage-plans':             '#6094e2',
+  'ac-stage-plan-reviews':      '#9560e2',
+  'ac-stage-validations':       '#60e2a3',
+  'ac-stage-pr-descriptions':   '#60c2e2',
+  'ac-stage-pr-reviews':        '#c060e2',
+  'ac-stage-decisions':         '#e26077',
 } as const
 
 export const TYPOGRAPHY_TOKENS = {

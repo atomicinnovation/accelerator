@@ -349,6 +349,35 @@ describe('--ac-doc-* tokens meet WCAG 1.4.11 ≥3:1 contrast vs --ac-bg', () => 
   }
 })
 
+describe('--ac-stage-* tokens meet WCAG 1.4.11 ≥3:1 contrast vs --ac-bg', () => {
+  const BG_LIGHT = LIGHT_COLOR_TOKENS['ac-bg']
+  const BG_DARK = DARK_COLOR_TOKENS['ac-bg']
+  // Workflow-only — long-tail stages do not get tokens.
+  const stageKeys = [
+    'work-items',
+    'research',
+    'plans',
+    'plan-reviews',
+    'validations',
+    'pr-descriptions',
+    'pr-reviews',
+    'decisions',
+  ] as const
+  for (const key of stageKeys) {
+    const tokenName = `ac-stage-${key}` as const
+    it(`light: ${key} contrast >= 3:1 vs --ac-bg`, () => {
+      const fg = (LIGHT_COLOR_TOKENS as Record<string, string>)[tokenName]
+      expect(fg, `LIGHT_COLOR_TOKENS missing ${tokenName}`).toBeTruthy()
+      expect(contrastRatio(fg, BG_LIGHT)).toBeGreaterThanOrEqual(3)
+    })
+    it(`dark: ${key} contrast >= 3:1 vs --ac-bg`, () => {
+      const fg = (DARK_COLOR_TOKENS as Record<string, string>)[tokenName]
+      expect(fg, `DARK_COLOR_TOKENS missing ${tokenName}`).toBeTruthy()
+      expect(contrastRatio(fg, BG_DARK)).toBeGreaterThanOrEqual(3)
+    })
+  }
+})
+
 describe('global body/html token consumption', () => {
   it('there is exactly one top-level body rule', () => {
     expect(countTopLevelBodyRules(globalCss)).toBe(1)
