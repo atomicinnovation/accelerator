@@ -1,0 +1,21 @@
+.row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ac-stroke);
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.dot[data-active='true'] {
+  box-shadow: 0 0 0 2px color-mix(in oklab, currentColor 20%, transparent);
+}
