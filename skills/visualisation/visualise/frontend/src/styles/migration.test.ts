@@ -67,11 +67,25 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '0.1rem', count: 1, kind: 'irreducible', reason: 'sub-pixel code padding — below --sp-1 floor' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'blockquote border-left width — no border-width token' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '6px', count: 2, kind: 'irreducible', reason: 'code block border-radius (bare <pre> + labelled-fence wrapper) — between radius-sm and radius-md' },
-  // components/PipelineDots/PipelineDots.module.css
-  { file: 'components/PipelineDots/PipelineDots.module.css', literal: '14px', count: 2, kind: 'irreducible', reason: 'dot width/height — fixed icon pixel, no sp-* equivalent' },
-  { file: 'components/PipelineDots/PipelineDots.module.css', literal: '5px', count: 2, kind: 'irreducible', reason: 'inner dot size — fixed icon pixel, no sp-* equivalent' },
-  { file: 'components/PipelineDots/PipelineDots.module.css', literal: '1.5px', count: 1, kind: 'irreducible', reason: 'dot ring width — below --sp-1 floor' },
-  { file: 'components/PipelineDots/PipelineDots.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'pipeline gap — layout pixel, no sp-* equivalent' },
+  // routes/lifecycle/LifecycleClusterView.module.css (pipelinePanel + pipelineEyebrow)
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'pipeline panel border-radius — between radius-sm (4) and radius-md (8)' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'pipeline panel border-width — below --sp-1 floor' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '20px', count: 1, kind: 'irreducible', reason: 'pipeline panel horizontal padding — between --sp-4 (16) and --sp-5 (24)' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '0.1em', count: 1, kind: 'irreducible', reason: 'pipeline eyebrow letter-spacing — sub-pixel rhythm, no token' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '14px', count: 1, kind: 'irreducible', reason: 'pipeline eyebrow margin-bottom — between --sp-3 (12) and --sp-4 (16)' },
+  // components/Pipeline/Pipeline.module.css
+  { file: 'components/Pipeline/Pipeline.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'tile border-width — below --sp-1 floor' },
+  { file: 'components/Pipeline/Pipeline.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'tile border-radius — between radius-sm (4) and radius-md (8)' },
+  { file: 'components/Pipeline/Pipeline.module.css', literal: '26px', count: 2, kind: 'irreducible', reason: 'card-variant tile size — fixed pixel for the chain visual rhythm, no sp-* equivalent' },
+  { file: 'components/Pipeline/Pipeline.module.css', literal: '34px', count: 2, kind: 'irreducible', reason: 'panel-variant tile size — fixed pixel for the chain visual rhythm, no sp-* equivalent' },
+  { file: 'components/Pipeline/Pipeline.module.css', literal: '0.04em', count: 1, kind: 'irreducible', reason: 'letter-spacing — sub-pixel rhythm, no token' },
+  { file: 'components/Pipeline/Pipeline.module.css', literal: '13px', count: 1, kind: 'irreducible', reason: 'connector vertical offset (half card-variant tile) — derived from tile size, no token' },
+  { file: 'components/Pipeline/Pipeline.module.css', literal: '17px', count: 1, kind: 'irreducible', reason: 'connector vertical offset (half panel-variant tile) — derived from tile size, no token' },
+  { file: 'components/Pipeline/Pipeline.module.css', literal: '2px', count: 1, kind: 'irreducible', reason: 'connector height — below --sp-1 floor' },
+  // components/PipelineMini/PipelineMini.module.css
+  { file: 'components/PipelineMini/PipelineMini.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'dot row gap — between --sp-1 and --sp-2' },
+  { file: 'components/PipelineMini/PipelineMini.module.css', literal: '8px', count: 2, kind: 'irreducible', reason: 'dot diameter — fixed pixel for visual rhythm with kanban card chrome' },
+  { file: 'components/PipelineMini/PipelineMini.module.css', literal: '1.5px', count: 1, kind: 'irreducible', reason: 'dot border-width — below --sp-1 floor' },
   // components/RelatedArtifacts/RelatedArtifacts.module.css
   { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '2px', count: 3, kind: 'irreducible', reason: 'border-left widths and badge border-radius — below --sp-1 floor' },
   { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '0.4rem', count: 2, kind: 'irreducible', reason: 'off-scale spacing (6.4px) — between --sp-1 and --sp-2' },

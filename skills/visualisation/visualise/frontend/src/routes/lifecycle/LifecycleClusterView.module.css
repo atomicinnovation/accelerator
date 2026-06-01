@@ -131,16 +131,16 @@
 }
 
 .pipelinePanel {
-  padding: 16px 20px;
+  padding: var(--sp-4) 20px;
   background: var(--ac-bg-sunken);
   border: 1px solid var(--ac-stroke);
   border-radius: 6px;
-  margin-bottom: 8px;
+  margin-bottom: var(--sp-2);
 }
 
 .pipelineEyebrow {
   font-family: var(--ac-font-mono);
-  font-size: 10.5px;
+  font-size: var(--size-3xs-lg);
   color: var(--ac-fg-faint);
   letter-spacing: 0.1em;
   text-transform: uppercase;

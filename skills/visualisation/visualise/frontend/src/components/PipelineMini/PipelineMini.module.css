@@ -15,7 +15,3 @@
   background: transparent;
   flex-shrink: 0;
 }
-
-.dot[data-active='true'] {
-  box-shadow: 0 0 0 2px color-mix(in oklab, currentColor 20%, transparent);
-}

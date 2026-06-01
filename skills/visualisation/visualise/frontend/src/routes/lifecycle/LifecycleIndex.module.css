@@ -106,3 +106,16 @@
   color: var(--ac-err); background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg)); border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
   border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3);
 }
+
+.cardPipe {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.cardPipeCount {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-eyebrow);
+  color: var(--ac-fg-faint);
+  flex-shrink: 0;
+}

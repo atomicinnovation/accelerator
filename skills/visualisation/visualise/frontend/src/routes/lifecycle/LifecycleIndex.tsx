@@ -6,7 +6,7 @@ import { fetchLifecycleClusters, FetchError } from '../../api/fetch'
 import { formatMtime } from '../../api/format'
 import { queryKeys } from '../../api/query-keys'
 import { WORKFLOW_PIPELINE_STEPS, type LifecycleCluster } from '../../api/types'
-import { PipelineDots } from '../../components/PipelineDots/PipelineDots'
+import { Pipeline } from '../../components/Pipeline/Pipeline'
 import { Page } from '../../components/Page/Page'
 import styles from './LifecycleIndex.module.css'
 
@@ -109,7 +109,14 @@ export function LifecycleIndex() {
                     <h3 className={styles.cardTitle}>{cluster.title}</h3>
                     <span className={styles.cardSlug}>{cluster.slug}</span>
                   </div>
-                  <PipelineDots completeness={cluster.completeness} />
+                  <div className={`${styles.cardPipe} ac-lcard__pipe`}>
+                    <Pipeline completeness={cluster.completeness} variant="card" />
+                    <span className={styles.cardPipeCount}>
+                      {cluster.completeness.present.filter(p =>
+                        WORKFLOW_PIPELINE_STEPS.some(s => s.docType === p),
+                      ).length}/8
+                    </span>
+                  </div>
                   <div className={styles.cardMeta}>
                     <span>{score} of {WORKFLOW_PIPELINE_STEPS.length} stages</span>
                     <span>{formatMtime(cluster.lastChangedMs)}</span>

@@ -49,6 +49,34 @@ describe('LifecycleIndex', () => {
     expect(screen.getByText('Newer Cluster')).toBeInTheDocument()
   })
 
+  it('renders a Pipeline + N/8 counter inside .ac-lcard__pipe per cluster', async () => {
+    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(clusters)
+    const { container } = render(<LifecycleIndex />, { wrapper: Wrapper })
+    await screen.findByText('Older Cluster')
+
+    const pipes = container.querySelectorAll('.ac-lcard__pipe')
+    expect(pipes.length).toBe(clusters.length)
+
+    // Older cluster: present = ['plans'] → 1/8
+    const older = within(pipes[1] as HTMLElement)
+    expect(older.getByText('1/8')).toBeInTheDocument()
+    // Plan tile is active
+    expect(
+      (pipes[1] as HTMLElement)
+        .querySelector('[data-stage="plans"]')!
+        .getAttribute('data-active'),
+    ).toBe('true')
+
+    // Newer cluster: present = ['plans', 'plan-reviews', 'decisions'] → 3/8
+    const newer = within(pipes[0] as HTMLElement)
+    expect(newer.getByText('3/8')).toBeInTheDocument()
+    expect(
+      (pipes[0] as HTMLElement)
+        .querySelector('[data-stage="decisions"]')!
+        .getAttribute('data-active'),
+    ).toBe('true')
+  })
+
   it('orders by most-recently-changed by default', async () => {
     vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue(clusters)
     render(<LifecycleIndex />, { wrapper: Wrapper })

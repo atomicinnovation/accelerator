@@ -20,21 +20,20 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--tile-size);
-  height: var(--tile-size);
   border: 1px solid currentColor;
   border-radius: 6px;
-  background: color-mix(in oklab, currentColor 12%, transparent);
   color: var(--ac-stroke);
   z-index: 1;
 }
 
 .chain[data-variant='card'] .tile {
-  --tile-size: 26px;
+  width: 26px;
+  height: 26px;
 }
 
 .chain[data-variant='panel'] .tile {
-  --tile-size: 34px;
+  width: 34px;
+  height: 34px;
 }
 
 .stage[data-active='false'] .tile {
@@ -48,7 +47,7 @@
   font-size: var(--size-eyebrow);
   letter-spacing: 0.04em;
   color: var(--ac-fg-faint);
-  margin-top: 6px;
+  margin-top: var(--sp-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -61,11 +60,14 @@
 
 .connector {
   position: absolute;
-  top: calc(var(--tile-size) / 2);
+  top: 13px;
   left: 50%;
   right: -50%;
   height: 2px;
   background: var(--ac-stroke);
-  transform: translateY(-1px);
   z-index: 0;
+}
+
+.chain[data-variant='panel'] .connector {
+  top: 17px;
 }
