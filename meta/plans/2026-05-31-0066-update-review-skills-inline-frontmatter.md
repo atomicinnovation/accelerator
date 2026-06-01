@@ -1260,13 +1260,13 @@ bash scripts/test-skill-frontmatter-population.sh
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `validate-plan`. All 14 skill rows GREEN. Discovery assertion PASS.
-- [ ] `bash scripts/test-template-frontmatter.sh` — all 12 template rows PASS, cross-check PASS.
-- [ ] `rg -n "config-read-template\.sh validation" skills/planning/validate-plan/SKILL.md` returns exactly one match (the new top-level inclusion; the old line-116 occurrence is removed).
-- [ ] `rg -nE "^[[:space:]]*type:[[:space:]]+plan-validation" skills/planning/validate-plan/SKILL.md` returns matches ONLY inside ` ``` `-fenced blocks (or zero matches outside fences).
-- [ ] `rg -nE "^[[:space:]]*skill:[[:space:]]+validate-plan" skills/planning/validate-plan/SKILL.md` returns zero matches (the legacy `skill:` key is fully retired in favour of `producer:`).
-- [ ] `mise run test:unit:templates` passes (all three sub-drivers GREEN).
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `validate-plan`. All 14 skill rows GREEN. Discovery assertion PASS.
+- [x] `bash scripts/test-template-frontmatter.sh` — all 12 template rows PASS, cross-check PASS.
+- [x] `rg -n "config-read-template\.sh validation" skills/planning/validate-plan/SKILL.md` returns exactly one match (the new top-level inclusion; the old line-116 occurrence is removed).
+- [x] `rg -nE "^[[:space:]]*type:[[:space:]]+plan-validation" skills/planning/validate-plan/SKILL.md` returns matches ONLY inside ` ``` `-fenced blocks (or zero matches outside fences).
+- [x] `rg -nE "^[[:space:]]*skill:[[:space:]]+validate-plan" skills/planning/validate-plan/SKILL.md` returns zero matches (the legacy `skill:` key is fully retired in favour of `producer:`).
+- [x] `mise run test:unit:templates` passes (all three sub-drivers GREEN).
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 

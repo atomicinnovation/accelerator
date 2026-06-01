@@ -23,6 +23,15 @@ accelerator:web-search-researcher.
 **Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
 **Validations directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh validations`
 
+## Plan Validation Template
+
+The template below defines the frontmatter and body structure that
+every plan validation report must carry. Read it now — use it to guide
+what information you record in the validation process and what shape
+you persist in Step 4.
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh validation`
+
 You are tasked with validating that an implementation plan was correctly
 executed, verifying all success criteria and identifying any deviations or
 issues.
@@ -111,9 +120,10 @@ For each phase in the plan:
 
 ### Step 3: Generate Validation Report
 
-Create comprehensive validation summary using this template:
-
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh validation`
+Compose the validation report body following the structure defined in
+the Plan Validation Template at the top of this skill (Implementation
+Status, Automated Verification Results, Code Review Findings, Manual
+Testing Required, Recommendations).
 
 ### Step 4: Persist the Validation Report
 
@@ -127,21 +137,34 @@ Write the validation report to the configured validations directory:
 
 2. Create the configured validations directory if it doesn't exist.
 
-3. Write the validation document with YAML frontmatter followed by the
-   report from Step 3:
+3. Before writing the validation file, capture metadata and substitute the
+   unified base fields and per-type extras into the template's frontmatter
+   block:
 
-   ```markdown
-   ---
-   date: "{ISO timestamp}"
-   type: plan-validation
-   skill: validate-plan
-   target: "{plans directory}/{plan-filename}.md"
-   result: {pass | partial | fail}
-   status: complete
-   ---
-
-   {The full validation report from Step 3}
-   ```
+   1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+      to obtain `Current Date/Time (UTC):`.
+   2. **Substitute** every field below with the indicated value:
+      - `type:` ← `plan-validation`
+      - `id:` ← the validation filename stem (e.g.
+        `2026-05-30-0065-update-artifact-templates-to-unified-schema-validation`),
+        always quoted as a YAML string
+      - `title:` ← `Validation Report: {plan title}`
+      - `date:` ← the `Current Date/Time (UTC):` value
+      - `author:` ← the author value resolved per `create-work-item/SKILL.md:578-580`
+      - `producer:` ← `validate-plan`
+      - `status:` ← `complete`
+      - `last_updated:` ← the same `Current Date/Time (UTC):` value
+      - `last_updated_by:` ← the same value resolved for `author`
+      - `schema_version:` ← `1` (bare integer, not quoted)
+      - `target:` ← `"plan:<plan-id>"` (e.g.
+        `"plan:2026-05-30-0065-update-artifact-templates-to-unified-schema"`);
+        typed-linkage key per ADR-0034, always emitted as a single
+        quoted YAML string in `"doc-type:id"` form pointing at the
+        plan being validated
+      - `result:` ← `pass | partial | fail` per the Implementation
+        Status of the report (see derivation rule below)
+   3. Write the file with the substituted frontmatter block followed by
+      the validation report body from Step 3.
 
    Determine the `result` field from the report:
 
