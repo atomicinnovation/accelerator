@@ -42,9 +42,9 @@ IN_SCOPE_PRODUCERS=(
   skills/design/analyse-design-gaps/SKILL.md
   skills/planning/review-plan/SKILL.md
   skills/work/review-work-item/SKILL.md
+  skills/github/review-pr/SKILL.md
 )
 OWNED_BY_0066=(
-  skills/github/review-pr/SKILL.md
   skills/planning/validate-plan/SKILL.md
 )
 NON_EMITTER_TEMPLATE_CONSUMERS=(

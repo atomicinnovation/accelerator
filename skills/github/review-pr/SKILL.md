@@ -35,6 +35,14 @@ path placeholders to their actual values before passing the prompt —
 sub-agents cannot see the bold-label definitions above and have no way to
 resolve the placeholders themselves.
 
+## PR Review Template
+
+The template below defines the frontmatter and body structure that every
+PR review must carry. Read it now — use it to guide what information
+you record in Steps 3-4 and what shape you persist in Step 4.10.
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh pr-review`
+
 You are tasked with reviewing a pull request through multiple quality lenses
 and then presenting a compiled analysis of the code changes.
 
@@ -445,22 +453,49 @@ Once all reviews are complete:
     # Extract the highest number, increment by 1. If none exist, use 1.
     ```
 
-    Write the review document to `{pr reviews directory}/{number}-review-{N}.md`:
+    Write the review document to `{pr reviews directory}/{number}-review-{N}.md`.
+
+    Before writing the PR review file, capture metadata and substitute the
+    unified base fields and per-type extras into the template's frontmatter
+    block:
+
+    1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+       to obtain `Current Date/Time (UTC):`.
+    2. **Substitute** every field below with the indicated value:
+       - `type:` ← `pr-review`
+       - `id:` ← `{number}-review-{N}` (the review filename stem, where
+         `{number}` is the PR number and `{N}` is the next review
+         number), always quoted as a YAML string
+       - `title:` ← the PR title from `gh pr view --json title`
+       - `date:` ← the `Current Date/Time (UTC):` value
+       - `author:` ← the author value resolved per `create-work-item/SKILL.md:578-580`
+       - `producer:` ← `review-pr`
+       - `status:` ← `complete`
+       - `last_updated:` ← the same `Current Date/Time (UTC):` value
+       - `last_updated_by:` ← the same value resolved for `author`
+       - `schema_version:` ← `1` (bare integer, not quoted)
+       - `target:` ← `"pr:<pr-number>"` (e.g. `"pr:123"`); typed-linkage
+         key per ADR-0034, must match the regex `^"pr:[0-9]+"$`
+       - `reviewer:` ← the reviewer value resolved per `create-work-item/SKILL.md:578-580`
+       - `verdict:` ← the verdict from Step 4.6 (`APPROVE | REQUEST_CHANGES | COMMENT`)
+       - `lenses:` ← the list of lens names used
+       - `review_number:` ← `N` (the next available review number from the
+         glob above)
+       - `pr_number:` ← the PR number from `gh pr view --json number`
+         (bare integer; foreign reference to the external PR per
+         ADR-0033 §Identity-value shape contract)
+
+       The PR title is recorded in the base `title:` field; no separate
+       `pr_title:` field is emitted (the unified schema uses the base
+       `title:` for all artifact titles per ADR-0033). The `review_pass:`
+       field is intentionally absent — `review-pr` has no in-place
+       re-review update flow today; re-running it produces a fresh
+       `-review-{N+1}.md`.
+    3. Write the file with the substituted frontmatter block, followed by
+       the review summary composed in Step 4.8 and the inline comments
+       and per-lens results sections:
 
     ```markdown
-    ---
-    date: "{ISO timestamp}"
-    type: pr-review
-    skill: review-pr
-    target: "PR #{number}"
-    pr_number: {number}
-    pr_title: "{title}"
-    review_number: {N}
-    verdict: {APPROVE | REQUEST_CHANGES | COMMENT}
-    lenses: [{list of lenses used}]
-    status: complete
-    ---
-
     {The full review summary from Step 4.8}
 
     ## Inline Comments

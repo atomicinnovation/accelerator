@@ -1139,13 +1139,13 @@ bash scripts/test-skill-frontmatter-population.sh
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-template-frontmatter.sh` PASS row for `pr-review.md`. All 12 template rows GREEN.
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `review-pr`.
-- [ ] `rg -n "^pr_title:" templates/pr-review.md` returns no matches.
-- [ ] `rg -n "^review_pass:" templates/pr-review.md` returns no matches.
-- [ ] `rg -n "config-read-template\.sh pr-review" skills/github/review-pr/SKILL.md` returns at least one match.
-- [ ] `rg -nE "^[[:space:]]*pr_title:" skills/github/review-pr/SKILL.md` returns matches ONLY inside ` ``` `-fenced blocks (or zero matches outside fences).
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-template-frontmatter.sh` PASS row for `pr-review.md`. All 12 template rows GREEN.
+- [x] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `review-pr`.
+- [x] `rg -n "^pr_title:" templates/pr-review.md` returns no matches.
+- [x] `rg -n "^review_pass:" templates/pr-review.md` returns no matches.
+- [x] `rg -n "config-read-template\.sh pr-review" skills/github/review-pr/SKILL.md` returns at least one match.
+- [x] `rg -nE "^[[:space:]]*pr_title:" skills/github/review-pr/SKILL.md` returns matches ONLY inside ` ``` `-fenced blocks (or zero matches outside fences).
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 
