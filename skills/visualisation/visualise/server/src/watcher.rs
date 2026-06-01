@@ -150,8 +150,12 @@ pub async fn on_path_changed_debounced(
         return;
     }
 
-    let (new_clusters, backfill) = compute_clusters_with_backfill(&indexer.all().await);
-    indexer.apply_completeness_backfill(backfill).await;
+    let snapshot = indexer.all().await;
+    let (new_clusters, completeness_backfill) = compute_clusters_with_backfill(&snapshot);
+    let linked_counts =
+        crate::related::collect_linked_counts(&indexer, &new_clusters, &snapshot).await;
+    indexer.apply_completeness_backfill(completeness_backfill).await;
+    indexer.apply_linked_count_backfill(linked_counts).await;
     *clusters.write().await = new_clusters;
 
     let rel = path

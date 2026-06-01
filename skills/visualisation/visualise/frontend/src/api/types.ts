@@ -96,6 +96,12 @@ export interface IndexEntry {
    *  this signal. Older servers that omit the field are normalised to `null`
    *  at the API client boundary. */
   completeness: Completeness | null
+  /** Total related-artifact count from `count_from_resolution`. Equals the
+   *  sum of the three array lengths returned by `/api/related/{path}` for
+   *  the same entry, by construction. `0` when the entry has no
+   *  cross-links. Older servers omitting the field are normalised to `0`
+   *  at the API client boundary. */
+  linkedCount: number
 }
 
 export interface DocsListResponse {

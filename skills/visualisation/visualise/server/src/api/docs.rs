@@ -234,12 +234,20 @@ pub(crate) async fn doc_patch_frontmatter(
         // Refresh index first so subscribers that refetch on the broadcast see fresh data.
         let _ = state.indexer.refresh_one(&canonical).await;
 
-        // Re-cluster + back-fill per-entry Completeness so /api/lifecycle and
-        // /api/docs/work-items agree on the same slug after a kanban status edit
-        // changes cluster membership.
-        let (new_clusters, backfill) =
-            crate::clusters::compute_clusters_with_backfill(&state.indexer.all().await);
-        state.indexer.apply_completeness_backfill(backfill).await;
+        // Re-cluster + back-fill per-entry Completeness and linked_count so
+        // /api/lifecycle, /api/docs/work-items, and /api/related agree on
+        // the same slug after a kanban status edit changes cluster
+        // membership or cross-reference shape.
+        let snapshot = state.indexer.all().await;
+        let (new_clusters, completeness_backfill) =
+            crate::clusters::compute_clusters_with_backfill(&snapshot);
+        let linked_counts =
+            crate::related::collect_linked_counts(&state.indexer, &new_clusters, &snapshot).await;
+        state
+            .indexer
+            .apply_completeness_backfill(completeness_backfill)
+            .await;
+        state.indexer.apply_linked_count_backfill(linked_counts).await;
         *state.clusters.write().await = new_clusters;
 
         // Use the etag from FileContent, not from the index after refresh. A concurrent

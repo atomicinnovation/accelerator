@@ -71,6 +71,7 @@ function normaliseEntry(raw: IndexEntry): IndexEntry {
   return {
     ...raw,
     completeness: raw.completeness ?? null,
+    linkedCount: raw.linkedCount ?? 0,
   }
 }
 

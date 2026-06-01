@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::{
@@ -11,6 +9,7 @@ use serde::Serialize;
 
 use super::ApiError;
 use crate::indexer::IndexEntry;
+use crate::related::resolve_related;
 use crate::server::AppState;
 
 #[derive(Serialize)]
@@ -52,59 +51,14 @@ pub(crate) async fn related_get(
         .await
         .ok_or_else(|| ApiError::NotFound(decoded.clone()))?;
 
-    // Inferred cluster: same-slug siblings, self excluded.
-    let inferred_cluster: Vec<IndexEntry> = if let Some(slug) = &entry.slug {
-        let clusters = state.clusters.read().await;
-        clusters
-            .iter()
-            .find(|c| &c.slug == slug)
-            .map(|c| {
-                c.entries
-                    .iter()
-                    .filter(|e| e.path != entry.path)
-                    .cloned()
-                    .collect()
-            })
-            .unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-
-    // Declared outbound: resolved targets of self.frontmatter.target
-    // (Phase 9: plan-reviews only).
-    let declared_outbound = state.indexer.declared_outbound(&entry).await;
-
-    // Declared inbound: plan-reviews targeting self + entries that cross-ref
-    // self as a work-item (via work_item_id:, parent:, related:).
-    let mut declared_inbound = state.indexer.reviews_by_target(&entry.path).await;
-    if let Some(ref id) = entry.work_item_id {
-        let ref_entries = state.indexer.work_item_refs_by_id(id).await;
-        let existing_paths: HashSet<PathBuf> =
-            declared_inbound.iter().map(|e| e.path.clone()).collect();
-        for ref_entry in ref_entries {
-            if !existing_paths.contains(&ref_entry.path) {
-                declared_inbound.push(ref_entry);
-            }
-        }
-    }
-
-    // Dedup overlap: an entry that appears in both inferred and any
-    // declared list is dropped from inferred. The declared relation
-    // is the more specific signal and the UI groups them separately.
-    let declared_paths: HashSet<PathBuf> = declared_outbound
-        .iter()
-        .chain(declared_inbound.iter())
-        .map(|e| e.path.clone())
-        .collect();
-    let inferred_cluster: Vec<IndexEntry> = inferred_cluster
-        .into_iter()
-        .filter(|e| !declared_paths.contains(&e.path))
-        .collect();
+    let clusters = state.clusters.read().await;
+    let resolution = resolve_related(&state.indexer, &clusters, &entry).await;
+    drop(clusters);
 
     Ok(Json(RelatedArtifactsResponse {
-        inferred_cluster,
-        declared_outbound,
-        declared_inbound,
+        inferred_cluster: resolution.inferred_cluster,
+        declared_outbound: resolution.declared_outbound,
+        declared_inbound: resolution.declared_inbound,
     })
     .into_response())
 }

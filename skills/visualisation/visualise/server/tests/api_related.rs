@@ -513,6 +513,124 @@ async fn related_endpoint_returns_multiple_inbound_reviews() {
     assert_eq!(inbound.len(), 2, "both reviews must appear in declaredInbound");
 }
 
+// ── linkedCount: agreement with /api/related sum ───────────────────────────
+#[tokio::test]
+async fn linked_count_equals_sum_of_related_lists_for_clustered_plan() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = common::seeded_cfg(tmp.path());
+    let (_state, app) = build_app(cfg).await;
+
+    // Fetch /api/related for the seeded plan to compute the sum.
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/related/meta/plans/2026-04-18-foo.md")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = json_body(res).await;
+    let sum = body["inferredCluster"].as_array().unwrap().len()
+        + body["declaredOutbound"].as_array().unwrap().len()
+        + body["declaredInbound"].as_array().unwrap().len();
+    assert!(sum > 0, "seeded fixture has at least one cross-link");
+
+    // Fetch /api/docs?type=plans and find the same entry.
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/docs?type=plans")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = json_body(res).await;
+    let plan = body["docs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["relPath"] == "meta/plans/2026-04-18-foo.md")
+        .expect("seeded plan must appear in /api/docs");
+    assert_eq!(
+        plan["linkedCount"].as_u64().unwrap() as usize,
+        sum,
+        "entry.linkedCount must equal the related endpoint's three-list sum",
+    );
+}
+
+#[tokio::test]
+async fn linked_count_reflects_inbound_merge_dedup() {
+    // Single target appearing in both reviews_by_target and
+    // work_item_refs_by_id deduplicates to 1, so linkedCount == 1
+    // (not 2). The seeded fixture has reviews_by_target alone, so we
+    // construct a minimal scenario: a work-item plus a review that
+    // targets the work-item AND references the same work-item via
+    // work_item_id frontmatter.
+    let tmp = tempfile::tempdir().unwrap();
+    let work = tmp.path().join("meta/work");
+    let reviews = tmp.path().join("meta/reviews/work");
+    std::fs::create_dir_all(&work).unwrap();
+    std::fs::create_dir_all(&reviews).unwrap();
+    std::fs::write(
+        work.join("0001-target.md"),
+        "---\ntitle: T\n---\n",
+    )
+    .unwrap();
+    // Review file targets the work-item AND declares work_item_id pointing
+    // back at the same work-item. Both inbound channels reach the same
+    // review path → dedup must collapse to 1.
+    std::fs::write(
+        reviews.join("0001-target-review-1.md"),
+        "---\ntarget: \"meta/work/0001-target.md\"\nwork_item_id: \"0001\"\n---\n",
+    )
+    .unwrap();
+    let mut paths = HashMap::new();
+    paths.insert("work".into(), work);
+    paths.insert("review_work".into(), reviews);
+    let cfg = cfg_with_only(tmp.path(), paths);
+    let (_state, app) = build_app(cfg).await;
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/related/meta/work/0001-target.md")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = json_body(res).await;
+    let inbound = body["declaredInbound"].as_array().unwrap();
+    assert_eq!(inbound.len(), 1, "inbound merge must dedupe duplicate sources");
+
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/docs?type=work-items")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = json_body(res).await;
+    let work_item = body["docs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["relPath"] == "meta/work/0001-target.md")
+        .expect("work item must appear in /api/docs");
+    assert_eq!(
+        work_item["linkedCount"].as_u64().unwrap(),
+        1,
+        "linkedCount mirrors the deduped count, not 2",
+    );
+}
+
 // ── Step 2.14 ──────────────────────────────────────────────────────────────
 #[tokio::test]
 async fn related_endpoint_validates_decoded_path_segments() {

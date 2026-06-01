@@ -42,6 +42,7 @@ export function makeIndexEntry(overrides: Partial<IndexEntry> = {}): IndexEntry 
     etag: 'sha256-x',
     bodyPreview: '',
     completeness: null,
+    linkedCount: 0,
     ...overrides,
   }
 }

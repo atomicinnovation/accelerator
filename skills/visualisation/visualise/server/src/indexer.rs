@@ -183,6 +183,12 @@ pub struct IndexEntry {
     /// that have not yet been through a cluster pass — kanban cards read this
     /// signal to switch to orphan rendering.
     pub completeness: Option<Completeness>,
+    /// Total related-artifact count, back-filled from
+    /// `count_from_resolution(resolve_related(...))`. Equals the sum of the
+    /// three array lengths returned by `/api/related/{path}` for the same
+    /// entry, by construction. Defaults to `0` until a cluster pass
+    /// populates it.
+    pub linked_count: usize,
 }
 
 /// Test rendezvous point used by Phase 9 concurrency tests to inspect
@@ -591,6 +597,17 @@ impl Indexer {
         let mut entries = self.entries.write().await;
         for (path, entry) in entries.iter_mut() {
             entry.completeness = backfill.get(path).cloned();
+        }
+    }
+
+    /// Applies a per-path `linked_count` map onto `IndexEntry.linked_count`
+    /// under a single `entries.write()` lock. Paths absent from `backfill`
+    /// fall back to `0`, so an entry that no longer has any cross-links
+    /// drops its count rather than retaining a stale value.
+    pub async fn apply_linked_count_backfill(&self, backfill: HashMap<PathBuf, usize>) {
+        let mut entries = self.entries.write().await;
+        for (path, entry) in entries.iter_mut() {
+            entry.linked_count = backfill.get(path).copied().unwrap_or(0);
         }
     }
 
@@ -1103,6 +1120,7 @@ fn build_entry(
         etag: content.etag.clone(),
         body_preview,
         completeness: None,
+        linked_count: 0,
     }
 }
 
@@ -1617,6 +1635,7 @@ mod tests {
             etag: String::new(),
             body_preview: String::new(),
             completeness: None,
+            linked_count: 0,
         }
     }
 
@@ -1636,6 +1655,7 @@ mod tests {
             etag: String::new(),
             body_preview: String::new(),
             completeness: None,
+            linked_count: 0,
         }
     }
 
