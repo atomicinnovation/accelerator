@@ -176,9 +176,16 @@ whitespace and hex casing, treated as parity per ADR-0035). Sources:
   `skills/visualisation/visualise/frontend/src/styles/global.css:201–202`
   (light), `:364–365` (dark, `[data-theme="dark"]`), `:422–423` (dark
   MIRROR under `@media (prefers-color-scheme: dark)`).
-- Prototype declarations:
-  `/Users/tobyclemson/Downloads/Accelerator/src/app.css:36–37` (light),
-  `:68–69` (dark).
+- Prototype declarations: tabulated in
+  `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/inventory.md:293–294`
+  (light values), with the original prototype source noted at
+  `inventory.md:289` as `src/app.css:36–37` (light) and `:68–69` (dark
+  override). The full committed prototype source lives at
+  `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-standalone.html`
+  (CSS is inlined as a JSON string on a single line, so it is cited
+  by file only — searching for `--ac-shadow-soft` /
+  `--ac-shadow-lift` inside the file yields the light and dark
+  declarations directly).
 
 | Token              | Theme | Current                                                          | Prototype                                                        |
 | ------------------ | ----- | ---------------------------------------------------------------- | ---------------------------------------------------------------- |

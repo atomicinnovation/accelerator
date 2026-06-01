@@ -414,7 +414,7 @@ source (lowercase current, uppercase prototype). Sources:
 | Source side | Light shadows | Dark shadows |
 | --- | --- | --- |
 | Current | `global.css:201–202` | `global.css:364–365` |
-| Prototype | `/Users/tobyclemson/Downloads/Accelerator/src/app.css:36–37` | `/Users/tobyclemson/Downloads/Accelerator/src/app.css:68–69` |
+| Prototype | `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/inventory.md:293–294` (tabulated) / `prototype-standalone.html` (canonical, single-line embedded CSS) | `prototype-standalone.html` (canonical embedded CSS — dark values not tabulated in `inventory.md`; recover by searching for `--ac-shadow-soft` / `--ac-shadow-lift` inside the file) |
 
 Layout template (paste into the PR description verbatim — cells
 already contain the full multi-layer declarations, with hex casing
@@ -431,8 +431,10 @@ matching each source):
 
 Before opening the PR, spot-check each Current cell against the
 file:line reference (`global.css:201–202` / `:364–365`) and each
-Prototype cell against `app.css:36–37` / `:68–69`, in case an
-intervening edit has shifted any value.
+Prototype cell against `inventory.md:293–294` (light values) and
+`prototype-standalone.html` (search for the token name inside the
+single-line embedded CSS), in case an intervening edit has shifted
+any value.
 
 #### 2. PR description: divergence justification (AC#2)
 
@@ -604,4 +606,4 @@ migration. Existing baselines (light and dark) remain untouched.
   - [`meta/work/0034-theme-and-font-mode-toggles.md`](../work/0034-theme-and-font-mode-toggles.md) — established the `setTheme`/`applyTheme` Playwright helpers this plan reuses.
 - Source-of-truth declarations: `skills/visualisation/visualise/frontend/src/styles/global.css:201–202, 329–330, 364–365, 391–392, 422–423` and `skills/visualisation/visualise/frontend/src/styles/tokens.ts:82–83, 177–189`.
 - Reusable test primitives: `skills/visualisation/visualise/frontend/tests/visual-regression/lib/expected-colours.ts:73` (`setTheme(page, theme)`), `:11` (`hexToRgb(hex)`).
-- Prototype declarations (for verbatim PR-description quotation): `/Users/tobyclemson/Downloads/Accelerator/src/app.css:36–37, 63–64, 68–69`.
+- Prototype declarations (for verbatim quotation): `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/inventory.md:101–102, 129–130, 293–294` (tabulated light/dark accents and light shadows) and `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-standalone.html` (canonical embedded CSS — dark shadow values recoverable by in-file search).
