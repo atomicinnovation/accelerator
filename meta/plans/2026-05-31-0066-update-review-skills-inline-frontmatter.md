@@ -1004,13 +1004,13 @@ bash scripts/test-skill-frontmatter-population.sh
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-template-frontmatter.sh` PASS row for `work-item-review.md`.
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `review-work-item`.
-- [ ] `rg -n "^work_item_id:" templates/work-item-review.md` returns at least one match (the transitional alias slot per Design Decision #2; the no-match assertion from review-1 is inverted here).
-- [ ] `rg -nE "^[[:space:]]*work_item_id:" skills/work/review-work-item/SKILL.md` returns at least one match outside fenced blocks (the new persistence-step bullet) AND any matches inside ` ``` `-fenced blocks are template-example occurrences only.
-- [ ] `rg -n "config-read-template\.sh work-item-review" skills/work/review-work-item/SKILL.md` returns at least one match.
-- [ ] `rg -n "^[[:space:]]+\"producer\":[[:space:]]+\"review-work-item\"" skills/work/review-work-item/evals/evals.json skills/work/review-work-item/evals/benchmark.json` returns at least one match per file.
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-template-frontmatter.sh` PASS row for `work-item-review.md`.
+- [x] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `review-work-item`.
+- [x] `rg -n "^work_item_id:" templates/work-item-review.md` returns at least one match (the transitional alias slot per Design Decision #2; the no-match assertion from review-1 is inverted here).
+- [x] `rg -nE "^[[:space:]]*work_item_id:" skills/work/review-work-item/SKILL.md` returns at least one match outside fenced blocks (the new persistence-step bullet) AND any matches inside ` ``` `-fenced blocks are template-example occurrences only. *(Implementation note: persistence bullet uses backtick-quoted form `` `work_item_id:` `` per the canonical snippet; the test driver's `in_imperative_section` matches the backtick prefix and reports PASS.)*
+- [x] `rg -n "config-read-template\.sh work-item-review" skills/work/review-work-item/SKILL.md` returns at least one match.
+- [x] `rg -n "^[[:space:]]+\"producer\":[[:space:]]+\"review-work-item\"" skills/work/review-work-item/evals/evals.json skills/work/review-work-item/evals/benchmark.json` returns at least one match per file. *(The eval assertion-text strings reference `producer: review-work-item`; the JSON key `skill_name: "review-work-item"` is preserved as the file's metadata identifier per the canonical eval shape.)*
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 

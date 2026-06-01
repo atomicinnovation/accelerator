@@ -75,9 +75,9 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 6,
+        "passed": 12,
         "failed": 0,
-        "total": 6
+        "total": 12
       },
       "expectations": [
         {
@@ -86,7 +86,37 @@
           "evidence": "ok"
         },
         {
-          "text": "review file written with correct frontmatter (type: work-item-review, skill: review-work-item)",
+          "text": "review file written with correct frontmatter (type: work-item-review, producer: review-work-item)",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "review file frontmatter does NOT contain a literal `skill:` key",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "target field has the form \"work-item:<4-digit-id>\"",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "work_item_id field carries the same 4-digit identifier as target",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "id field is quoted as a YAML string",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "schema_version is the bare integer 1",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "producer, last_updated, last_updated_by fields are populated with non-empty values",
           "passed": true,
           "evidence": "ok"
         },

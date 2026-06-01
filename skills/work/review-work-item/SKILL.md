@@ -26,6 +26,14 @@ accelerator:web-search-researcher.
 **Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
 **Work item reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_work`
 
+## Work Item Review Template
+
+The template below defines the frontmatter and body structure that every
+work item review must carry. Read it now — use it to guide what information
+you record in Steps 3-4 and what shape you persist in Step 4.8.
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh work-item-review`
+
 You are tasked with reviewing a work item through quality lenses and then
 collaboratively iterating the work item based on findings.
 
@@ -340,27 +348,45 @@ Once all reviews are complete:
    ```
 
    Extract the work item's stable 4-digit identifier from its filename using
-   `${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh {path} number`
+   `${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh id {path}`
    (or parse the 4-digit prefix from the filename directly).
 
-   Write the review document with YAML frontmatter followed by the review
-   summary composed in Step 4.7. Include the per-lens results as a final
-   section:
+   Before writing the work item review file, capture metadata and substitute
+   the unified base fields and per-type extras into the template's
+   frontmatter block:
+
+   1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+      to obtain `Current Date/Time (UTC):`.
+   2. **Substitute** every field below with the indicated value:
+      - `type:` ← `work-item-review`
+      - `id:` ← the review filename stem (without `.md`), always quoted
+        as a YAML string
+      - `title:` ← `Work Item Review: {work item title}`
+      - `date:` ← the `Current Date/Time (UTC):` value
+      - `author:` ← the author value resolved per `create-work-item/SKILL.md:578-580`
+      - `producer:` ← `review-work-item`
+      - `status:` ← `complete`
+      - `last_updated:` ← the same `Current Date/Time (UTC):` value
+      - `last_updated_by:` ← the same value resolved for `author`
+      - `schema_version:` ← `1` (bare integer, not quoted)
+      - `target:` ← `"work-item:<4-digit-id>"` (e.g. `"work-item:0042"`),
+        typed-linkage key per ADR-0034, always emitted as a single
+        quoted YAML string in `"doc-type:id"` form
+      - `work_item_id:` ← the same 4-digit identifier as the `target`
+        payload's id portion (transitional alias — see Migration Notes;
+        the visualiser's `read_ref_keys` consumes this scalar today)
+      - `reviewer:` ← the reviewer value resolved per `create-work-item/SKILL.md:578-580`
+      - `verdict:` ← the verdict from Step 4.5 (`APPROVE | REVISE | COMMENT`)
+      - `lenses:` ← the list of work-item lens names used
+      - `review_number:` ← `N` (the next available review number from the
+        glob above)
+      - `review_pass:` ← `1` (initial-write pass count; re-reviews bump
+        per the Step 7 flow)
+   3. Write the file with the substituted frontmatter block, followed by
+      the review summary composed in Step 4.7 and the per-lens results as
+      a final section:
 
    ```markdown
-   ---
-   date: "{ISO timestamp}"
-   type: work-item-review
-   skill: review-work-item
-   target: "{work_dir}/{work-item-stem}.md"
-   work_item_id: "{4-digit number, e.g. 0042}"
-   review_number: {N}
-   verdict: {APPROVE | REVISE | COMMENT}
-   lenses: [{list of lenses used}]
-   review_pass: 1
-   status: complete
-   ---
-
    {The full review summary from Step 4.7}
 
    ## Per-Lens Results
@@ -380,9 +406,14 @@ Once all reviews are complete:
    ...
    ```
 
-   The `work_item_id` field stores the work item's stable 4-digit identifier,
-   providing resilience against work item renames. `target` remains as the path
-   used at review time.
+   The `target:` field stores the work item's stable 4-digit identifier
+   as a typed-linkage key (e.g. `"work-item:0042"`) per ADR-0034,
+   providing resilience against work item renames. A `work_item_id:`
+   field is also emitted as a transitional alias carrying the same
+   4-digit identifier — the visualiser's `read_ref_keys` consumes it
+   as the primary work-item cross-reference key today. Both fields
+   encode the same edge; the duplication is bounded by the visualiser
+   consumer update.
 
 ### Step 5: Present the Review
 
@@ -459,12 +490,21 @@ as a single write operation:
 
 1. Read the full content of the existing review document at
    `{work_reviews_dir}/{work-item-stem}-review-{N}.md`
-2. If the existing review file's frontmatter cannot be parsed (malformed),
-   warn the user and write a fresh `-review-{N+1}.md` file instead of
-   appending in place
-3. In memory, update exactly three frontmatter fields — `verdict`,
-   `review_pass`, and `date` — preserving all other fields and body
-   content verbatim
+2. If the existing review file's frontmatter cannot be parsed (malformed
+   YAML or missing `---` delimiters), warn the user and write a fresh
+   `-review-{N+1}.md` file instead of appending in place
+3. In memory, update exactly four frontmatter fields — `verdict`,
+   `review_pass`, `last_updated`, and `last_updated_by` — preserving
+   all other fields and body content verbatim. The `date` field retains
+   the original-review timestamp; only `last_updated` advances on
+   re-review. (`last_updated_by` may match `reviewer` if the
+   re-reviewer is the same person, but is computed independently.)
+
+   **Pre-0066-artifact handling**: when the re-reviewed artifact lacks
+   `last_updated:` and/or `last_updated_by:` (it was written pre-0066),
+   insert those fields rather than treating their absence as
+   malformed-frontmatter. Only an unparseable YAML block or missing
+   `---` delimiters triggers the fresh-`-review-{N+1}.md` fallback.
 4. Append the re-review section at the end of the content
 5. Write the complete modified content back to the same file in one
    operation
