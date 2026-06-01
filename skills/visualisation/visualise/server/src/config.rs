@@ -125,6 +125,40 @@ impl WorkItemConfig {
         }
         Some(format!("{code}-{prefix}"))
     }
+
+    /// Validate and normalise a work-item ID from any source (frontmatter,
+    /// API input, etc.). Accepts:
+    /// - Bare digits (`"42"` or `"0042"`): when `default_project_code` is
+    ///   set, prefixes with the code (`"ENG-42"`); otherwise returns the
+    ///   digits unchanged.
+    /// - Prefixed form (`"ENG-0042"`, `"OPS-7"`): returns the value
+    ///   verbatim — the workspace's `default_project_code` is NOT
+    ///   re-applied, so multi-prefix coexistence under remote sync works.
+    /// Returns `None` for any other shape (`"ENG0042"`, `"PROJ-1.2"`,
+    /// `""`, whitespace).
+    pub fn normalise_id(&self, raw: &str) -> Option<String> {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        if let Some((prefix, digits)) = trimmed.split_once('-') {
+            if prefix.is_empty()
+                || !prefix.chars().all(|c| c.is_ascii_alphabetic())
+                || digits.is_empty()
+                || !digits.chars().all(|c| c.is_ascii_digit())
+            {
+                return None;
+            }
+            return Some(trimmed.to_string());
+        }
+        if !trimmed.chars().all(|c| c.is_ascii_digit()) {
+            return None;
+        }
+        Some(match &self.default_project_code {
+            Some(code) => format!("{code}-{trimmed}"),
+            None => trimmed.to_string(),
+        })
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -377,6 +411,69 @@ mod tests {
         // Default pattern: bare-numeric files go through primary, not fallback.
         // Non-numeric prefixes are rejected.
         assert_eq!(cfg.extract_id("ADR-0001-foo.md"), None);
+    }
+
+    #[test]
+    fn normalise_id_passes_prefixed_form_through_unchanged() {
+        let cfg = WorkItemConfig::default_numeric();
+        assert_eq!(cfg.normalise_id("ENG-0042").as_deref(), Some("ENG-0042"));
+        assert_eq!(cfg.normalise_id("OPS-7").as_deref(), Some("OPS-7"));
+    }
+
+    #[test]
+    fn normalise_id_applies_project_code_to_bare_digits() {
+        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
+            scan_regex: "^ENG-([0-9]+)-".to_string(),
+            id_pattern: "{project}-{number:04d}".to_string(),
+            default_project_code: Some("ENG".to_string()),
+        })
+        .unwrap();
+        assert_eq!(cfg.normalise_id("42").as_deref(), Some("ENG-42"));
+        assert_eq!(cfg.normalise_id("0042").as_deref(), Some("ENG-0042"));
+    }
+
+    #[test]
+    fn normalise_id_preserves_foreign_prefix_when_default_code_is_set() {
+        // Multi-prefix coexistence: a frontmatter `work_item_id: "OPS-7"`
+        // in a workspace whose `default_project_code` is "ENG" passes
+        // through verbatim — the workspace's code is NOT re-applied.
+        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
+            scan_regex: "^ENG-([0-9]+)-".to_string(),
+            id_pattern: "{project}-{number:04d}".to_string(),
+            default_project_code: Some("ENG".to_string()),
+        })
+        .unwrap();
+        assert_eq!(cfg.normalise_id("OPS-7").as_deref(), Some("OPS-7"));
+    }
+
+    #[test]
+    fn normalise_id_returns_bare_digits_when_no_default_code() {
+        let cfg = WorkItemConfig::default_numeric();
+        assert_eq!(cfg.normalise_id("42").as_deref(), Some("42"));
+        assert_eq!(cfg.normalise_id("0042").as_deref(), Some("0042"));
+    }
+
+    #[test]
+    fn normalise_id_rejects_shape_invalid_values() {
+        let cfg = WorkItemConfig::default_numeric();
+        // Prefix without dash:
+        assert_eq!(cfg.normalise_id("ENG0042"), None);
+        // Dotted suffix:
+        assert_eq!(cfg.normalise_id("PROJ-1.2"), None);
+        // Empty / whitespace:
+        assert_eq!(cfg.normalise_id(""), None);
+        assert_eq!(cfg.normalise_id("   "), None);
+        // Non-alphabetic prefix:
+        assert_eq!(cfg.normalise_id("123-456"), None);
+        // Trailing letters:
+        assert_eq!(cfg.normalise_id("ENG-42abc"), None);
+    }
+
+    #[test]
+    fn normalise_id_trims_surrounding_whitespace() {
+        let cfg = WorkItemConfig::default_numeric();
+        assert_eq!(cfg.normalise_id("  0042  ").as_deref(), Some("0042"));
+        assert_eq!(cfg.normalise_id(" ENG-7 ").as_deref(), Some("ENG-7"));
     }
 
     fn bare_config_json() -> &'static str {

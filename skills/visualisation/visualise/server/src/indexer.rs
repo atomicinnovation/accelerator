@@ -1075,7 +1075,29 @@ fn build_entry(
         // regex doesn't match (e.g., legacy bare-numeric files in a
         // project-prefixed workspace during a pattern-config rollout).
         let slug = regex_slug.or_else(|| slug::derive(kind, filename));
-        (slug, work_item_cfg.extract_id(filename))
+        // Frontmatter-first: a synced work-item may carry `work_item_id:` even
+        // when the filename doesn't start with the namespaced prefix. Trim,
+        // route through `normalise_id`, and fall back to filename extraction
+        // only if the frontmatter value is missing or shape-invalid.
+        let fm_id = match &parsed.state {
+            FrontmatterState::Parsed(map) => map
+                .get("work_item_id")
+                .and_then(|v| v.as_str())
+                .and_then(|raw| {
+                    let normalised = work_item_cfg.normalise_id(raw);
+                    if normalised.is_none() && !raw.trim().is_empty() {
+                        tracing::warn!(
+                            file = %path.display(),
+                            value = raw,
+                            "work_item_id frontmatter value failed shape validation; falling back to filename extraction",
+                        );
+                    }
+                    normalised
+                }),
+            _ => None,
+        };
+        let id = fm_id.or_else(|| work_item_cfg.extract_id(filename));
+        (slug, id)
     } else {
         (slug::derive(kind, &slug_filename), None)
     };
@@ -2789,5 +2811,156 @@ mod reverse_index_tests {
             via_ref[0].rel_path.to_string_lossy().contains("2026-05-01-plan.md"),
             "ref entry path must match"
         );
+    }
+
+    // ── Frontmatter-first work_item_id resolution ───────────────────────────
+    #[tokio::test]
+    async fn work_item_id_uses_frontmatter_when_present() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work_dir = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work_dir).unwrap();
+        // Filename is bare-numeric (matches default scan_regex) but
+        // frontmatter declares a prefixed ID — frontmatter wins.
+        std::fs::write(
+            work_dir.join("0001-foo.md"),
+            "---\ntitle: F\nwork_item_id: \"ENG-0042\"\n---\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("work".into(), work_dir.clone());
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let cfg = Arc::new(WorkItemConfig::default_numeric());
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg).await.unwrap();
+        let entry = idx
+            .get(&work_dir.join("0001-foo.md"))
+            .await
+            .expect("indexed");
+        assert_eq!(entry.work_item_id.as_deref(), Some("ENG-0042"));
+    }
+
+    #[tokio::test]
+    async fn work_item_id_falls_back_to_filename_when_frontmatter_absent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work_dir = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work_dir).unwrap();
+        std::fs::write(work_dir.join("0042-foo.md"), "---\ntitle: F\n---\n").unwrap();
+        let mut map = HashMap::new();
+        map.insert("work".into(), work_dir.clone());
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let cfg = Arc::new(WorkItemConfig::default_numeric());
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg).await.unwrap();
+        let entry = idx
+            .get(&work_dir.join("0042-foo.md"))
+            .await
+            .expect("indexed");
+        assert_eq!(entry.work_item_id.as_deref(), Some("0042"));
+    }
+
+    #[tokio::test]
+    async fn work_item_id_frontmatter_bare_digits_applies_project_code() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work_dir = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work_dir).unwrap();
+        std::fs::write(
+            work_dir.join("0001-foo.md"),
+            "---\ntitle: F\nwork_item_id: \"42\"\n---\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("work".into(), work_dir.clone());
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let cfg = Arc::new(
+            WorkItemConfig::from_raw(crate::config::RawWorkItemConfig {
+                scan_regex: "^ENG-([0-9]+)-".to_string(),
+                id_pattern: "{project}-{number:04d}".to_string(),
+                default_project_code: Some("ENG".to_string()),
+            })
+            .unwrap(),
+        );
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg).await.unwrap();
+        let entry = idx
+            .get(&work_dir.join("0001-foo.md"))
+            .await
+            .expect("indexed");
+        assert_eq!(entry.work_item_id.as_deref(), Some("ENG-42"));
+    }
+
+    #[tokio::test]
+    async fn work_item_id_frontmatter_foreign_prefix_passes_through() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work_dir = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work_dir).unwrap();
+        // Workspace's default_project_code is ENG, but the file declares
+        // a foreign prefix — must passthrough verbatim.
+        std::fs::write(
+            work_dir.join("0001-foo.md"),
+            "---\ntitle: F\nwork_item_id: \"OPS-7\"\n---\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("work".into(), work_dir.clone());
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let cfg = Arc::new(
+            WorkItemConfig::from_raw(crate::config::RawWorkItemConfig {
+                scan_regex: "^ENG-([0-9]+)-".to_string(),
+                id_pattern: "{project}-{number:04d}".to_string(),
+                default_project_code: Some("ENG".to_string()),
+            })
+            .unwrap(),
+        );
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg).await.unwrap();
+        let entry = idx
+            .get(&work_dir.join("0001-foo.md"))
+            .await
+            .expect("indexed");
+        assert_eq!(entry.work_item_id.as_deref(), Some("OPS-7"));
+    }
+
+    #[tokio::test]
+    async fn work_item_id_frontmatter_shape_invalid_falls_back_to_filename() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work_dir = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work_dir).unwrap();
+        std::fs::write(
+            work_dir.join("0001-foo.md"),
+            "---\ntitle: F\nwork_item_id: \"PROJ-1.2\"\n---\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("work".into(), work_dir.clone());
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let cfg = Arc::new(WorkItemConfig::default_numeric());
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg).await.unwrap();
+        let entry = idx
+            .get(&work_dir.join("0001-foo.md"))
+            .await
+            .expect("indexed");
+        assert_eq!(
+            entry.work_item_id.as_deref(),
+            Some("0001"),
+            "shape-invalid frontmatter falls back to filename",
+        );
+    }
+
+    #[tokio::test]
+    async fn work_item_id_none_when_neither_frontmatter_nor_filename_matches() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work_dir = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work_dir).unwrap();
+        std::fs::write(
+            work_dir.join("foo-without-number.md"),
+            "---\ntitle: F\n---\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("work".into(), work_dir.clone());
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let cfg = Arc::new(WorkItemConfig::default_numeric());
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg).await.unwrap();
+        let entry = idx
+            .get(&work_dir.join("foo-without-number.md"))
+            .await
+            .expect("indexed");
+        assert_eq!(entry.work_item_id, None);
     }
 }
