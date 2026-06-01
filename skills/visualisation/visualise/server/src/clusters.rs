@@ -19,7 +19,25 @@ pub struct Completeness {
     pub has_notes: bool,
     pub has_design_inventory: bool,
     pub has_design_gap: bool,
+    pub present: Vec<String>,
 }
+
+// Single source of truth for stage push order. MUST match the frontend's
+// LIFECYCLE_PIPELINE_STEPS (in `frontend/src/api/types.ts`) followed by
+// LONG_TAIL_PIPELINE_STEPS. Cross-reference any reordering on both sides.
+const STAGE_PUSH_ORDER: &[(fn(&Completeness) -> bool, &str)] = &[
+    (|c| c.has_work_item, "work-items"),
+    (|c| c.has_research, "research"),
+    (|c| c.has_plan, "plans"),
+    (|c| c.has_plan_review, "plan-reviews"),
+    (|c| c.has_validation, "validations"),
+    (|c| c.has_pr_description, "pr-descriptions"),
+    (|c| c.has_pr_review, "pr-reviews"),
+    (|c| c.has_decision, "decisions"),
+    (|c| c.has_notes, "notes"),
+    (|c| c.has_design_inventory, "design-inventories"),
+    (|c| c.has_design_gap, "design-gaps"),
+];
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -111,6 +129,7 @@ fn derive_completeness(entries: &[IndexEntry]) -> Completeness {
         has_notes: false,
         has_design_inventory: false,
         has_design_gap: false,
+        present: Vec::new(),
     };
     for e in entries {
         match e.r#type {
@@ -127,6 +146,11 @@ fn derive_completeness(entries: &[IndexEntry]) -> Completeness {
             DocTypeKey::DesignGaps => c.has_design_gap = true,
             DocTypeKey::DesignInventories => c.has_design_inventory = true,
             DocTypeKey::Templates => {}
+        }
+    }
+    for (test, key) in STAGE_PUSH_ORDER {
+        if test(&c) {
+            c.present.push((*key).into());
         }
     }
     c
@@ -210,6 +234,76 @@ mod tests {
         assert!(!c.has_notes);
         assert!(!c.has_design_gap);
         assert!(!c.has_design_inventory);
+    }
+
+    #[test]
+    fn present_contains_workflow_keys_in_canonical_order() {
+        let entries = vec![
+            entry(DocTypeKey::Plans, "foo", 10, "P"),
+            entry(DocTypeKey::WorkItems, "foo", 5, "T"),
+        ];
+        let clusters = compute_clusters(&entries);
+        assert_eq!(
+            clusters[0].completeness.present,
+            vec!["work-items".to_string(), "plans".to_string()]
+        );
+    }
+
+    #[test]
+    fn present_for_solitary_work_item_is_single_entry() {
+        let entries = vec![entry(DocTypeKey::WorkItems, "foo", 5, "T")];
+        let clusters = compute_clusters(&entries);
+        assert_eq!(
+            clusters[0].completeness.present,
+            vec!["work-items".to_string()]
+        );
+    }
+
+    #[test]
+    fn present_includes_long_tail_keys_after_workflow_keys() {
+        let entries = vec![
+            entry(DocTypeKey::Notes, "foo", 10, "N"),
+            entry(DocTypeKey::DesignGaps, "foo", 20, "G"),
+        ];
+        let clusters = compute_clusters(&entries);
+        assert_eq!(
+            clusters[0].completeness.present,
+            vec!["notes".to_string(), "design-gaps".to_string()]
+        );
+    }
+
+    #[test]
+    fn present_canonical_ordering_for_all_flags_true() {
+        let entries = vec![
+            entry(DocTypeKey::WorkItems, "foo", 1, "T"),
+            entry(DocTypeKey::Research, "foo", 2, "R"),
+            entry(DocTypeKey::Plans, "foo", 3, "P"),
+            entry(DocTypeKey::PlanReviews, "foo", 4, "PR"),
+            entry(DocTypeKey::Validations, "foo", 5, "V"),
+            entry(DocTypeKey::PrDescriptions, "foo", 6, "PD"),
+            entry(DocTypeKey::PrReviews, "foo", 7, "PrR"),
+            entry(DocTypeKey::Decisions, "foo", 8, "D"),
+            entry(DocTypeKey::Notes, "foo", 9, "N"),
+            entry(DocTypeKey::DesignInventories, "foo", 10, "DI"),
+            entry(DocTypeKey::DesignGaps, "foo", 11, "DG"),
+        ];
+        let clusters = compute_clusters(&entries);
+        assert_eq!(
+            clusters[0].completeness.present,
+            vec![
+                "work-items".to_string(),
+                "research".to_string(),
+                "plans".to_string(),
+                "plan-reviews".to_string(),
+                "validations".to_string(),
+                "pr-descriptions".to_string(),
+                "pr-reviews".to_string(),
+                "decisions".to_string(),
+                "notes".to_string(),
+                "design-inventories".to_string(),
+                "design-gaps".to_string(),
+            ]
+        );
     }
 
     #[test]

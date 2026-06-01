@@ -5,28 +5,27 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from '../../test/router-helpers'
 import { LifecycleIndex } from './LifecycleIndex'
 import * as fetchModule from '../../api/fetch'
-import type { LifecycleCluster, Completeness } from '../../api/types'
-
-const empty: Completeness = {
-  hasWorkItem: false, hasResearch: false, hasPlan: false,
-  hasPlanReview: false, hasValidation: false, hasPrDescription: false,
-  hasPrReview: false, hasDecision: false, hasNotes: false,
-  hasDesignInventory: false, hasDesignGap: false,
-}
+import type { LifecycleCluster } from '../../api/types'
+import { makeCompleteness } from '../../api/test-fixtures'
 
 const clusters: LifecycleCluster[] = [
   {
     slug: 'older',
     title: 'Older Cluster',
     entries: [],
-    completeness: { ...empty, hasPlan: true },
+    completeness: makeCompleteness({ hasPlan: true, present: ['plans'] }),
     lastChangedMs: 1_700_000_000_000,
   },
   {
     slug: 'newer',
     title: 'Newer Cluster',
     entries: [],
-    completeness: { ...empty, hasPlan: true, hasPlanReview: true, hasDecision: true },
+    completeness: makeCompleteness({
+      hasPlan: true,
+      hasPlanReview: true,
+      hasDecision: true,
+      present: ['plans', 'plan-reviews', 'decisions'],
+    }),
     lastChangedMs: 1_700_500_000_000,
   },
 ]
@@ -75,14 +74,22 @@ describe('LifecycleIndex', () => {
         slug: 'older-equal',
         title: 'Older Equal',
         entries: [],
-        completeness: { ...empty, hasPlan: true, hasDecision: true },
+        completeness: makeCompleteness({
+          hasPlan: true,
+          hasDecision: true,
+          present: ['plans', 'decisions'],
+        }),
         lastChangedMs: 1_700_000_000_000,
       },
       {
         slug: 'newer-equal',
         title: 'Newer Equal',
         entries: [],
-        completeness: { ...empty, hasPlan: true, hasDecision: true },
+        completeness: makeCompleteness({
+          hasPlan: true,
+          hasDecision: true,
+          present: ['plans', 'decisions'],
+        }),
         lastChangedMs: 1_700_500_000_000,
       },
     ]

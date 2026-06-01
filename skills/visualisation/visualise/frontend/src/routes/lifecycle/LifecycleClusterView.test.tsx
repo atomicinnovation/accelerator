@@ -5,16 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from '../../test/router-helpers'
 import { LifecycleClusterContent } from './LifecycleClusterView'
 import * as fetchModule from '../../api/fetch'
-import { makeIndexEntry } from '../../api/test-fixtures'
-import type { LifecycleCluster, Completeness, IndexEntry } from '../../api/types'
+import { makeCompleteness, makeIndexEntry } from '../../api/test-fixtures'
+import type { LifecycleCluster, IndexEntry } from '../../api/types'
 import lifecycleCss from './LifecycleClusterView.module.css?raw'
-
-const empty: Completeness = {
-  hasWorkItem: false, hasResearch: false, hasPlan: false,
-  hasPlanReview: false, hasValidation: false, hasPrDescription: false,
-  hasPrReview: false, hasDecision: false, hasNotes: false,
-  hasDesignInventory: false, hasDesignGap: false,
-}
 
 function entry(
   type: IndexEntry['type'],
@@ -43,7 +36,11 @@ const cluster: LifecycleCluster = {
     ),
     entry('decisions', 'meta/decisions/ADR-0007-foo.md', 'ADR Foo', 200),
   ],
-  completeness: { ...empty, hasPlan: true, hasDecision: true },
+  completeness: makeCompleteness({
+    hasPlan: true,
+    hasDecision: true,
+    present: ['plans', 'decisions'],
+  }),
   lastChangedMs: 200,
 }
 

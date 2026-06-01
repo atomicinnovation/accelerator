@@ -184,6 +184,10 @@ export interface Completeness {
   hasNotes: boolean
   hasDesignInventory: boolean
   hasDesignGap: boolean
+  /** Kebab-case `DocTypeKey` strings for every stage whose corresponding
+   *  `has*` flag is true, in canonical order (workflow then long-tail).
+   *  See `LIFECYCLE_PIPELINE_STEPS` for the canonical ordering. */
+  present: string[]
 }
 
 export interface LifecycleCluster {
