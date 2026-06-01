@@ -63,6 +63,45 @@ describe('LifecycleClusterContent', () => {
     expect(screen.getByText('foo')).toBeInTheDocument()
   })
 
+  it('renders a Pipeline panel above the timeline with cluster completeness', async () => {
+    vi.spyOn(fetchModule, 'fetchLifecycleCluster').mockResolvedValue(cluster)
+    const { container } = render(<LifecycleClusterContent slug="foo" />, {
+      wrapper: Wrapper,
+    })
+    await screen.findByRole('heading', { name: 'Foo Cluster' })
+
+    // Eyebrow text reads "Pipeline" inside .ac-lcluster__pipeline
+    const panel = container.querySelector('.ac-lcluster__pipeline')!
+    expect(panel).toBeInTheDocument()
+    expect(panel.querySelector('.ac-lcluster__pipeline-eyebrow')!.textContent)
+      .toMatch(/^Pipeline$/i)
+
+    // Eight stage tiles with data-stage
+    const tiles = panel.querySelectorAll('[data-stage]')
+    expect(tiles).toHaveLength(8)
+
+    // The cluster has hasPlan + hasDecision in present
+    expect(
+      panel.querySelector('[data-stage="plans"]')!.getAttribute('data-active'),
+    ).toBe('true')
+    expect(
+      panel.querySelector('[data-stage="decisions"]')!.getAttribute('data-active'),
+    ).toBe('true')
+    expect(
+      panel.querySelector('[data-stage="work-items"]')!.getAttribute('data-active'),
+    ).toBe('false')
+
+    // The inner <ol> carries data-variant="panel"
+    expect(panel.querySelector('ol.ac-stagechain')!.getAttribute('data-variant'))
+      .toBe('panel')
+
+    // The panel sits before the timeline <ol> in document order
+    const timeline = container.querySelector('ol:not(.ac-stagechain)')!
+    expect(
+      panel.compareDocumentPosition(timeline) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
   it('renders a back-link to the lifecycle index', async () => {
     vi.spyOn(fetchModule, 'fetchLifecycleCluster').mockResolvedValue(cluster)
     render(<LifecycleClusterContent slug="foo" />, { wrapper: Wrapper })

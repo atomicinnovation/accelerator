@@ -11,6 +11,7 @@ import {
 } from '../../api/types'
 import { Chip } from '../../components/Chip/Chip'
 import { Page } from '../../components/Page/Page'
+import { Pipeline } from '../../components/Pipeline/Pipeline'
 import { statusToVariant } from '../../api/status-variant'
 import styles from './LifecycleClusterView.module.css'
 
@@ -51,6 +52,13 @@ export function LifecycleClusterContent({ slug }: { slug: string }) {
         <Link to="/lifecycle" className={styles.backLink}>
           ← All clusters
         </Link>
+
+        <section className={`${styles.pipelinePanel} ac-lcluster__pipeline`}>
+          <div className={`${styles.pipelineEyebrow} ac-lcluster__pipeline-eyebrow`}>
+            Pipeline
+          </div>
+          <Pipeline completeness={cluster.completeness} variant="panel" />
+        </section>
 
         <ol className={styles.timeline}>
           {WORKFLOW_PIPELINE_STEPS.map(step => renderStage(step, cluster.entries))}

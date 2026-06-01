@@ -129,3 +129,20 @@
   color: var(--ac-fg-faint);
   font-weight: 600;
 }
+
+.pipelinePanel {
+  padding: 16px 20px;
+  background: var(--ac-bg-sunken);
+  border: 1px solid var(--ac-stroke);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.pipelineEyebrow {
+  font-family: var(--ac-font-mono);
+  font-size: 10.5px;
+  color: var(--ac-fg-faint);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
