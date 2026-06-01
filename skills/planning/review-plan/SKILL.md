@@ -25,6 +25,14 @@ accelerator:web-search-researcher.
 **Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
 **Plan reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_plans`
 
+## Plan Review Template
+
+The template below defines the frontmatter and body structure that every
+plan review must carry. Read it now — use it to guide what information
+you record in Steps 3-4 and what shape you persist in Step 4.8.
+
+!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh plan-review`
+
 You are tasked with reviewing an implementation plan through multiple quality
 lenses and then collaboratively iterating the plan based on findings.
 
@@ -409,23 +417,40 @@ Once all reviews are complete:
    # Extract the highest number, increment by 1. If none exist, use 1.
    ```
 
-   Write the review document with YAML frontmatter followed by the review
-   summary composed in Step 4.7. Include the per-lens results as a final
-   section:
+   Before writing the plan review file, capture metadata and substitute the
+   unified base fields and per-type extras into the template's frontmatter
+   block:
+
+   1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+      to obtain `Current Date/Time (UTC):`.
+   2. **Substitute** every field below with the indicated value:
+      - `type:` ← `plan-review`
+      - `id:` ← the review filename stem (without `.md`), always quoted
+        as a YAML string
+      - `title:` ← `Plan Review: {plan title}`
+      - `date:` ← the `Current Date/Time (UTC):` value
+      - `author:` ← the author value resolved per `create-work-item/SKILL.md:578-580`
+      - `producer:` ← `review-plan`
+      - `status:` ← `complete`
+      - `last_updated:` ← the same `Current Date/Time (UTC):` value
+      - `last_updated_by:` ← the same value resolved for `author`
+      - `schema_version:` ← `1` (bare integer, not quoted)
+      - `target:` ← `"plan:<plan-id>"` where `<plan-id>` is the plan
+        filename stem (e.g. `"plan:2026-05-30-0065-update-artifact-templates-to-unified-schema"`);
+        typed-linkage key per ADR-0034, always emitted as a single
+        quoted YAML string in `"doc-type:id"` form
+      - `reviewer:` ← the reviewer value resolved per `create-work-item/SKILL.md:578-580`
+      - `verdict:` ← the verdict from Step 4.5 (`APPROVE | REVISE | COMMENT`)
+      - `lenses:` ← the list of lens names used (from Step 2)
+      - `review_number:` ← `N` (the next available review number from the
+        glob above)
+      - `review_pass:` ← `1` (initial-write pass count; re-reviews bump
+        per the Step 7 flow)
+   3. Write the file with the substituted frontmatter block, followed by
+      the review summary composed in Step 4.7 and the per-lens results as
+      a final section:
 
    ```markdown
-   ---
-   date: "{ISO timestamp}"
-   type: plan-review
-   skill: review-plan
-   target: "{plans directory}/{plan-stem}.md"
-   review_number: {N}
-   verdict: {APPROVE | REVISE | COMMENT}
-   lenses: [{list of lenses used}]
-   review_pass: 1
-   status: complete
-   ---
-
    {The full review summary from Step 4.7}
 
    ## Per-Lens Results
@@ -528,9 +553,20 @@ as a single write operation:
 
 1. Read the full content of the existing review document at
    `{plan reviews directory}/{plan-stem}-review-{N}.md`
-2. In memory, update exactly three frontmatter fields — `verdict`,
-   `review_pass`, and `date` — preserving all other fields and body
-   content verbatim
+2. In memory, update exactly four frontmatter fields — `verdict`,
+   `review_pass`, `last_updated`, and `last_updated_by` — preserving
+   all other fields and body content verbatim. The `date` field
+   retains the original-review timestamp; only `last_updated`
+   advances on re-review. (`last_updated_by` may match `reviewer` if
+   the re-reviewer is the same person, but is computed independently
+   to handle the cross-reviewer case.)
+
+   **Pre-0066-artifact handling**: when the re-reviewed artifact
+   lacks `last_updated:` and/or `last_updated_by:` (it was written
+   pre-0066), insert those fields rather than treating their absence
+   as malformed-frontmatter. Only an unparseable YAML block or
+   missing `---` delimiters triggers the fresh-`-review-{N+1}.md`
+   fallback.
 3. Append the re-review section at the end of the content (after the
    Per-Lens Results section)
 4. Write the complete modified content back to the same file in one

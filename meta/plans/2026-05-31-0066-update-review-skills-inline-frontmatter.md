@@ -818,12 +818,12 @@ bash scripts/test-skill-frontmatter-population.sh
 
 #### Automated Verification:
 
-- [ ] `bash scripts/test-template-frontmatter.sh` PASS row for `plan-review.md`.
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `review-plan` (all 4 mandatory fields).
-- [ ] `grep -c "^type:\|^schema_version:\|^verdict:" skills/planning/review-plan/SKILL.md` — count matches the number of inline YAML key occurrences inside fenced template-example blocks only (manually verify zero matches outside fenced blocks).
-- [ ] `rg -nE "^type:[[:space:]]" skills/planning/review-plan/SKILL.md` — only matches inside ` ``` `-fenced blocks.
-- [ ] `rg -n "config-read-template\.sh plan-review" skills/planning/review-plan/SKILL.md` returns at least one match.
-- [ ] `bash scripts/test-format.sh` passes.
+- [x] `bash scripts/test-template-frontmatter.sh` PASS row for `plan-review.md`.
+- [x] `bash scripts/test-skill-frontmatter-population.sh` PASS row for `review-plan` (all 4 mandatory fields).
+- [x] `grep -c "^type:\|^schema_version:\|^verdict:" skills/planning/review-plan/SKILL.md` — count matches the number of inline YAML key occurrences inside fenced template-example blocks only (manually verify zero matches outside fenced blocks).
+- [x] `rg -nE "^type:[[:space:]]" skills/planning/review-plan/SKILL.md` — only matches inside ` ``` `-fenced blocks.
+- [x] `rg -n "config-read-template\.sh plan-review" skills/planning/review-plan/SKILL.md` returns at least one match.
+- [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
 
