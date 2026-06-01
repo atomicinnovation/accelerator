@@ -379,16 +379,16 @@ test.describe('root resolved tokens', () => {
 
 #### Automated Verification:
 
-- [ ] Spec file exists at `skills/visualisation/visualise/frontend/tests/visual-regression/root-resolved-tokens.spec.ts`.
-- [ ] New spec passes for all three cascade paths: `cd skills/visualisation/visualise/frontend && npx playwright test tests/visual-regression/root-resolved-tokens.spec.ts` reports three passing tests (`[data-theme="light"]`, `[data-theme="dark"]`, `prefers-color-scheme: dark`). The MIRROR-B test's `hasAttribute('data-theme')` invariant guard asserts absence before reading tokens.
-- [ ] Full Playwright suite still passes (no regressions in existing baselines): `cd skills/visualisation/visualise/frontend && npx playwright test`.
-- [ ] Unit tests pass: `cd skills/visualisation/visualise/frontend && npm test`.
-- [ ] Type checking passes: `cd skills/visualisation/visualise/frontend && npm run typecheck`.
-- [ ] Linting passes: `cd skills/visualisation/visualise/frontend && npm run lint`.
+- [x] Spec file exists at `skills/visualisation/visualise/frontend/tests/visual-regression/root-resolved-tokens.spec.ts`.
+- [x] New spec passes for all three cascade paths: `cd skills/visualisation/visualise/frontend && npx playwright test tests/visual-regression/root-resolved-tokens.spec.ts` reports three passing tests (`[data-theme="light"]`, `[data-theme="dark"]`, `prefers-color-scheme: dark`). The MIRROR-B test's `hasAttribute('data-theme')` invariant guard asserts absence before reading tokens.
+- [x] Full Playwright suite still passes (no regressions in existing baselines): `cd skills/visualisation/visualise/frontend && npx playwright test`.
+- [x] Unit tests pass: `cd skills/visualisation/visualise/frontend && npm test`.
+- [x] Type checking passes: `cd skills/visualisation/visualise/frontend && npm run typecheck`.
+- [ ] Linting passes: `cd skills/visualisation/visualise/frontend && npm run lint`. **N/A — no `lint` script defined in `frontend/package.json`.**
 
 #### Manual Verification:
 
-- [ ] On the first green run, confirm the spec exercises the three cascade paths — the Playwright reporter should list `root resolved tokens › values resolve under [data-theme="light"]`, `… [data-theme="dark"]`, and `… prefers-color-scheme: dark (no data-theme)`. No source mutation or `console.log` insertion is required: the spec's `hexToRgb` and `normaliseShadow` assertions are themselves the recorded-equality evidence for AC#3, and the PR description quotes `tokens.ts` literals (which the spec proves equal to the computed values).
+- [x] On the first green run, confirm the spec exercises the three cascade paths — the Playwright reporter should list `root resolved tokens › values resolve under [data-theme="light"]`, `… [data-theme="dark"]`, and `… prefers-color-scheme: dark (no data-theme)`. No source mutation or `console.log` insertion is required: the spec's `hexToRgb` and `normaliseShadow` assertions are themselves the recorded-equality evidence for AC#3, and the PR description quotes `tokens.ts` literals (which the spec proves equal to the computed values).
 
 ---
 
