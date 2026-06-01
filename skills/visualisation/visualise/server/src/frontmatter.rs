@@ -343,6 +343,17 @@ pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
         if let Some(s) = extract_scalar(v) {
             refs.push(s);
         }
+    } else if let Some(v) = m.get("target") {
+        // Final fallback per ADR-0034 §"Forms": typed-linkage `doc-type:id`
+        // form. Currently only `work-item:` is extracted here; other
+        // prefixes are not aggregated into work-item refs.
+        if let Some(s) = extract_scalar(v) {
+            if let Some(id) = s.strip_prefix("work-item:") {
+                if !id.is_empty() {
+                    refs.push(id.to_string());
+                }
+            }
+        }
     }
 
     // `parent:` and `related:` always aggregate (scalar or array).
@@ -484,6 +495,48 @@ mod tests {
         let raw = b("---\nwork_item_id: \"0007\"\nwork-item: \"0099\"\n---\nbody\n");
         let p = parse(&raw);
         assert_eq!(read_ref_keys(&p.state), vec!["0007".to_string()]);
+    }
+
+    #[test]
+    fn read_ref_keys_extracts_work_item_id_from_target_when_no_alias() {
+        let raw = b("---\ntype: work-item-review\ntarget: \"work-item:0042\"\n---\nbody\n");
+        let p = parse(&raw);
+        assert_eq!(read_ref_keys(&p.state), vec!["0042".to_string()]);
+    }
+
+    #[test]
+    fn read_ref_keys_prefers_work_item_id_alias_over_target() {
+        let raw = b("---\ntype: work-item-review\nwork_item_id: \"0007\"\ntarget: \"work-item:0042\"\n---\nbody\n");
+        let p = parse(&raw);
+        assert_eq!(read_ref_keys(&p.state), vec!["0007".to_string()]);
+    }
+
+    #[test]
+    fn read_ref_keys_target_and_alias_same_value_no_double_counting() {
+        let raw = b("---\nwork_item_id: \"0042\"\ntarget: \"work-item:0042\"\n---\nbody\n");
+        let p = parse(&raw);
+        assert_eq!(read_ref_keys(&p.state), vec!["0042".to_string()]);
+    }
+
+    #[test]
+    fn read_ref_keys_ignores_non_work_item_target_prefix() {
+        let raw = b("---\ntype: plan-review\ntarget: \"plan:2026-01-01-foo\"\n---\nbody\n");
+        let p = parse(&raw);
+        assert!(read_ref_keys(&p.state).is_empty());
+    }
+
+    #[test]
+    fn read_ref_keys_ignores_pr_target_prefix() {
+        let raw = b("---\ntype: pr-review\ntarget: \"pr:123\"\n---\nbody\n");
+        let p = parse(&raw);
+        assert!(read_ref_keys(&p.state).is_empty());
+    }
+
+    #[test]
+    fn read_ref_keys_empty_work_item_prefix_id_returns_empty() {
+        let raw = b("---\ntarget: \"work-item:\"\n---\nbody\n");
+        let p = parse(&raw);
+        assert!(read_ref_keys(&p.state).is_empty());
     }
 
     #[test]

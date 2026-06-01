@@ -216,6 +216,11 @@ pub struct Indexer {
     entries: Arc<RwLock<HashMap<PathBuf, IndexEntry>>>,
     adr_by_id: Arc<RwLock<HashMap<u32, PathBuf>>>,
     work_item_by_id: Arc<RwLock<HashMap<String, PathBuf>>>,
+    /// Secondary index mapping plan `id:` (filename stem) to plan path.
+    /// Used to resolve `target: "plan:<id>"` typed-linkage references per
+    /// ADR-0034. Lock-ordering invariant: acquire after `work_item_by_id`
+    /// and before `reviews_by_target`.
+    plans_by_id: Arc<RwLock<HashMap<String, PathBuf>>>,
     /// Reverse declared-link index. Keys are lexically-clean absolute
     /// paths of target plans (or any future target type); values are
     /// sets of canonicalised paths of reviews referencing the target.
@@ -258,6 +263,7 @@ impl Indexer {
             entries: Arc::new(RwLock::new(HashMap::new())),
             adr_by_id: Arc::new(RwLock::new(HashMap::new())),
             work_item_by_id: Arc::new(RwLock::new(HashMap::new())),
+            plans_by_id: Arc::new(RwLock::new(HashMap::new())),
             reviews_by_target: Arc::new(RwLock::new(HashMap::new())),
             work_item_refs_by_target: Arc::new(RwLock::new(HashMap::new())),
             rescan_lock: Arc::new(Semaphore::new(1)),
@@ -278,6 +284,7 @@ impl Indexer {
         let mut entries: HashMap<PathBuf, IndexEntry> = HashMap::new();
         let mut adr_by_id: HashMap<u32, PathBuf> = HashMap::new();
         let mut work_item_by_id: HashMap<String, PathBuf> = HashMap::new();
+        let mut plans_by_id: HashMap<String, PathBuf> = HashMap::new();
         let mut reviews_by_target: HashMap<PathBuf, BTreeSet<PathBuf>> = HashMap::new();
         let mut work_item_refs_by_target: HashMap<String, BTreeSet<PathBuf>> = HashMap::new();
 
@@ -313,7 +320,10 @@ impl Indexer {
                 .collect()
                 .await;
 
-        // Phase 3: parse and fold serially, in original order.
+        // Phase 3 Pass A: parse and fold serially, in original order.
+        // Build entries and every primary-id map. Defer reviews_by_target
+        // until Pass B because resolving `target: "plan:<id>"` requires
+        // the fully-populated `plans_by_id`.
         for (kind, path, content) in read_results {
             let content = match content {
                 Ok(c) => c,
@@ -328,11 +338,8 @@ impl Indexer {
             if let Some(id) = work_item_id_from_entry(&entry) {
                 work_item_by_id.insert(id, path.clone());
             }
-            if let Some(target_key) = target_path_from_entry(&entry, &self.project_root) {
-                reviews_by_target
-                    .entry(target_key)
-                    .or_default()
-                    .insert(path.clone());
+            if let Some(id) = plan_id_from_entry(&entry) {
+                plans_by_id.insert(id, path.clone());
             }
             for id in canonicalise_refs(entry.work_item_refs.clone(), &self.work_item_cfg) {
                 // Skip self-references: a doc must not appear in its own index.
@@ -348,18 +355,34 @@ impl Indexer {
             entries.insert(path, entry);
         }
 
-        // Hold all five write locks simultaneously and replace contents
+        // Phase 3 Pass B: resolve reviews_by_target with the fully-
+        // populated `plans_by_id` so typed-linkage `target: "plan:<id>"`
+        // references resolve regardless of file-driver iteration order.
+        for entry in entries.values() {
+            if let Some(target_key) =
+                target_path_from_entry(entry, &plans_by_id, &self.project_root)
+            {
+                reviews_by_target
+                    .entry(target_key)
+                    .or_default()
+                    .insert(entry.path.clone());
+            }
+        }
+
+        // Hold all six write locks simultaneously and replace contents
         // so readers never observe a partial (entries, secondary)
         // snapshot. Always acquire in the same order: entries → adr →
-        // work_item → reviews_by_target → work_item_refs_by_target.
+        // work_item → plans → reviews_by_target → work_item_refs_by_target.
         let mut entries_w = self.entries.write().await;
         let mut adr_w = self.adr_by_id.write().await;
         let mut work_item_w = self.work_item_by_id.write().await;
+        let mut plans_w = self.plans_by_id.write().await;
         let mut reviews_w = self.reviews_by_target.write().await;
         let mut refs_w = self.work_item_refs_by_target.write().await;
         *entries_w = entries;
         *adr_w = adr_by_id;
         *work_item_w = work_item_by_id;
+        *plans_w = plans_by_id;
         *reviews_w = reviews_by_target;
         *refs_w = work_item_refs_by_target;
         Ok(())
@@ -396,8 +419,11 @@ impl Indexer {
                         if let Some(previous) = entries.get(&canonical).cloned() {
                             remove_from_adr_by_id(&self.adr_by_id, &previous).await;
                             remove_from_work_item_by_id(&self.work_item_by_id, &previous).await;
+                            remove_from_plans_by_id(&self.plans_by_id, &previous).await;
+                            let plans_snapshot = self.plans_by_id.read().await.clone();
                             remove_from_reviews_by_target(
                                 &self.reviews_by_target,
+                                &plans_snapshot,
                                 &self.project_root,
                                 &previous,
                             )
@@ -424,8 +450,14 @@ impl Indexer {
 
                 update_adr_by_id(&self.adr_by_id, &entry, previous.as_ref()).await;
                 update_work_item_by_id(&self.work_item_by_id, &entry, previous.as_ref()).await;
+                update_plans_by_id(&self.plans_by_id, &entry, previous.as_ref()).await;
+                // Acquire a snapshot of plans_by_id AFTER the plans-by-id
+                // helper has folded the new entry in, so the
+                // reviews_by_target update sees a consistent view.
+                let plans_snapshot = self.plans_by_id.read().await.clone();
                 update_reviews_by_target(
                     &self.reviews_by_target,
+                    &plans_snapshot,
                     &self.project_root,
                     &entry,
                     previous.as_ref(),
@@ -461,8 +493,11 @@ impl Indexer {
                 if let Some(previous) = previous {
                     remove_from_adr_by_id(&self.adr_by_id, &previous).await;
                     remove_from_work_item_by_id(&self.work_item_by_id, &previous).await;
+                    remove_from_plans_by_id(&self.plans_by_id, &previous).await;
+                    let plans_snapshot = self.plans_by_id.read().await.clone();
                     remove_from_reviews_by_target(
                         &self.reviews_by_target,
+                        &plans_snapshot,
                         &self.project_root,
                         &previous,
                     )
@@ -677,11 +712,12 @@ impl Indexer {
     pub async fn declared_outbound(&self, entry: &IndexEntry) -> Vec<IndexEntry> {
         let entries = self.entries.read().await;
         let by_id = self.work_item_by_id.read().await;
+        let plans = self.plans_by_id.read().await;
         let mut result: Vec<IndexEntry> = Vec::new();
         let mut seen: HashSet<PathBuf> = HashSet::new();
 
         // Existing: plan-review `target:` field.
-        if let Some(target_key) = target_path_from_entry(entry, &self.project_root) {
+        if let Some(target_key) = target_path_from_entry(entry, &plans, &self.project_root) {
             if let Some(e) = entries.get(&target_key) {
                 if seen.insert(e.path.clone()) {
                     result.push(e.clone());
@@ -779,13 +815,32 @@ fn normalize_target_key(raw: &str, project_root: &Path) -> Option<PathBuf> {
     Some(normalized)
 }
 
-/// Phase 9 scope: `target:` is populated only on plan-reviews. Activation
-/// for other declared-link fields (e.g., PR-reviews) is a follow-up.
-fn target_path_from_entry(entry: &IndexEntry, project_root: &Path) -> Option<PathBuf> {
+/// Resolves a plan-review's `target:` value to the target plan's path.
+///
+/// Accepts two forms per ADR-0034 §"Forms":
+///   - Path form: `target: "meta/plans/2026-...md"` — resolved via
+///     `normalize_target_key` against `project_root`.
+///   - Typed-linkage form: `target: "plan:<plan-id>"` — resolved via
+///     the `plans_by_id` index (the plan's `id:` field; usually the
+///     filename stem).
+///
+/// Returns `None` for non-plan-review entries or unrecognised target
+/// shapes.
+fn target_path_from_entry(
+    entry: &IndexEntry,
+    plans_by_id: &HashMap<String, PathBuf>,
+    project_root: &Path,
+) -> Option<PathBuf> {
     if entry.r#type != DocTypeKey::PlanReviews {
         return None;
     }
     let raw = entry.frontmatter.get("target")?.as_str()?;
+    if let Some(id) = raw.strip_prefix("plan:") {
+        if id.is_empty() {
+            return None;
+        }
+        return plans_by_id.get(id).cloned();
+    }
     normalize_target_key(raw, project_root)
 }
 
@@ -859,8 +914,27 @@ async fn update_work_item_by_id(
     }
 }
 
+async fn update_plans_by_id(
+    map: &Arc<RwLock<HashMap<String, PathBuf>>>,
+    new_entry: &IndexEntry,
+    previous: Option<&IndexEntry>,
+) {
+    let prev_id = previous.and_then(plan_id_from_entry);
+    let next_id = plan_id_from_entry(new_entry);
+    let mut m = map.write().await;
+    if let Some(ref prev_id) = prev_id {
+        if Some(prev_id.as_str()) != next_id.as_deref() {
+            m.remove(prev_id);
+        }
+    }
+    if let Some(id) = next_id {
+        m.insert(id, new_entry.path.clone());
+    }
+}
+
 async fn update_reviews_by_target(
     map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
+    plans_by_id: &HashMap<String, PathBuf>,
     project_root: &Path,
     new_entry: &IndexEntry,
     previous: Option<&IndexEntry>,
@@ -873,8 +947,8 @@ async fn update_reviews_by_target(
     // removing `previous.path` and inserting `new_entry.path` keeps the
     // contract correct on rename. BTreeSet ops are O(log n) so the
     // redundant work is negligible at v1 scale.
-    let prev_target = previous.and_then(|p| target_path_from_entry(p, project_root));
-    let next_target = target_path_from_entry(new_entry, project_root);
+    let prev_target = previous.and_then(|p| target_path_from_entry(p, plans_by_id, project_root));
+    let next_target = target_path_from_entry(new_entry, plans_by_id, project_root);
     let mut m = map.write().await;
     if let (Some(t), Some(prev)) = (&prev_target, previous) {
         if let Some(set) = m.get_mut(t) {
@@ -904,12 +978,22 @@ async fn remove_from_work_item_by_id(
     }
 }
 
+async fn remove_from_plans_by_id(
+    map: &Arc<RwLock<HashMap<String, PathBuf>>>,
+    previous: &IndexEntry,
+) {
+    if let Some(id) = plan_id_from_entry(previous) {
+        map.write().await.remove(&id);
+    }
+}
+
 async fn remove_from_reviews_by_target(
     map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
+    plans_by_id: &HashMap<String, PathBuf>,
     project_root: &Path,
     previous: &IndexEntry,
 ) {
-    if let Some(target_key) = target_path_from_entry(previous, project_root) {
+    if let Some(target_key) = target_path_from_entry(previous, plans_by_id, project_root) {
         let mut m = map.write().await;
         if let Some(set) = m.get_mut(&target_key) {
             set.remove(&previous.path);
@@ -1156,6 +1240,20 @@ fn adr_id_from_entry(entry: &IndexEntry) -> Option<u32> {
 
 fn work_item_id_from_entry(entry: &IndexEntry) -> Option<String> {
     entry.work_item_id.clone()
+}
+
+/// Extracts a plan's `id:` value (typically the filename stem). Used to
+/// populate `plans_by_id` for resolving `target: "plan:<id>"`
+/// typed-linkage references per ADR-0034.
+fn plan_id_from_entry(entry: &IndexEntry) -> Option<String> {
+    if entry.r#type != DocTypeKey::Plans {
+        return None;
+    }
+    let id = entry.frontmatter.get("id")?.as_str()?;
+    if id.is_empty() {
+        return None;
+    }
+    Some(id.to_string())
 }
 
 fn parse_adr_id(fm: &serde_json::Value, filename: &str) -> Option<u32> {
@@ -2962,5 +3060,224 @@ mod reverse_index_tests {
             .await
             .expect("indexed");
         assert_eq!(entry.work_item_id, None);
+    }
+
+    // ── Typed-linkage `target:` resolution ───────────────────────────────────
+    //
+    // Introduces a `plans_by_id` secondary index and teaches
+    // `target_path_from_entry` to resolve `target: "plan:<id>"` against it.
+
+    #[tokio::test]
+    async fn target_path_resolves_typed_linkage_plan_form() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        std::fs::write(
+            plans.join("2026-04-18-foo.md"),
+            "---\nid: \"2026-04-18-foo\"\ntitle: Foo\n---\nbody\n",
+        )
+        .unwrap();
+        std::fs::write(
+            reviews.join("2026-04-18-foo-review-1.md"),
+            "---\ntype: plan-review\ntarget: \"plan:2026-04-18-foo\"\n---\nbody\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans.clone());
+        map.insert("review_plans".into(), reviews);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
+
+        let plan_path = std::fs::canonicalize(plans.join("2026-04-18-foo.md")).unwrap();
+        let inbound = idx.reviews_by_target(&plan_path).await;
+        assert_eq!(
+            inbound.len(),
+            1,
+            "typed-linkage target should resolve via plans_by_id"
+        );
+    }
+
+    #[tokio::test]
+    async fn target_path_legacy_path_form_still_resolves() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (idx, plan_path, _) = build_with_plan_and_review(tmp.path()).await;
+        let inbound = idx.reviews_by_target(&plan_path).await;
+        assert_eq!(inbound.len(), 1, "path-form target must still resolve");
+    }
+
+    #[tokio::test]
+    async fn target_path_typed_linkage_unknown_id_resolves_to_none() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        std::fs::write(
+            reviews.join("review-1.md"),
+            "---\ntype: plan-review\ntarget: \"plan:no-such-id\"\n---\nbody\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans);
+        map.insert("review_plans".into(), reviews);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
+
+        let map_guard = idx.reviews_by_target.read().await;
+        assert!(
+            map_guard.is_empty(),
+            "unresolved typed-linkage target must not produce a reverse-index key"
+        );
+    }
+
+    #[tokio::test]
+    async fn target_path_typed_linkage_empty_id_resolves_to_none() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        std::fs::write(
+            reviews.join("review-empty.md"),
+            "---\ntype: plan-review\ntarget: \"plan:\"\n---\nbody\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans);
+        map.insert("review_plans".into(), reviews);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
+
+        let map_guard = idx.reviews_by_target.read().await;
+        assert!(
+            map_guard.is_empty(),
+            "empty typed-linkage id must not produce a reverse-index key"
+        );
+    }
+
+    #[tokio::test]
+    async fn target_path_typed_linkage_resolves_regardless_of_iteration_order() {
+        // Validates the two-pass build approach: a plan-review whose
+        // source plan happens to be enumerated after it must still
+        // resolve once Pass A has populated plans_by_id.
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        // Filenames are alphabetic; the review sorts before the plan in
+        // most file-driver enumerations. Pass A folds both before Pass B
+        // resolves reviews_by_target, so the order is irrelevant.
+        std::fs::write(
+            reviews.join("aaa-review-1.md"),
+            "---\ntype: plan-review\ntarget: \"plan:zzz-target-plan\"\n---\nbody\n",
+        )
+        .unwrap();
+        std::fs::write(
+            plans.join("zzz-target-plan.md"),
+            "---\nid: \"zzz-target-plan\"\ntitle: Target\n---\nbody\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans.clone());
+        map.insert("review_plans".into(), reviews);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
+
+        let plan_path = std::fs::canonicalize(plans.join("zzz-target-plan.md")).unwrap();
+        let inbound = idx.reviews_by_target(&plan_path).await;
+        assert_eq!(
+            inbound.len(),
+            1,
+            "two-pass build must resolve typed linkage regardless of enumeration order"
+        );
+    }
+
+    #[tokio::test]
+    async fn plans_by_id_lifecycle_on_refresh_one() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plans = tmp.path().join("meta/plans");
+        let reviews = tmp.path().join("meta/reviews/plans");
+        std::fs::create_dir_all(&plans).unwrap();
+        std::fs::create_dir_all(&reviews).unwrap();
+        let plan = plans.join("2026-04-18-foo.md");
+        std::fs::write(
+            &plan,
+            "---\nid: \"2026-04-18-foo\"\ntitle: Foo\n---\nbody\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("plans".into(), plans.clone());
+        map.insert("review_plans".into(), reviews);
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
+
+        // After initial build, plans_by_id contains the plan.
+        {
+            let m = idx.plans_by_id.read().await;
+            assert!(m.contains_key("2026-04-18-foo"), "plan should be indexed");
+        }
+
+        // Mutate the plan's id and refresh.
+        std::fs::write(
+            &plan,
+            "---\nid: \"2026-04-18-foo-renamed\"\ntitle: Foo\n---\nbody\n",
+        )
+        .unwrap();
+        idx.refresh_one(&plan).await.unwrap();
+        {
+            let m = idx.plans_by_id.read().await;
+            assert!(
+                !m.contains_key("2026-04-18-foo"),
+                "old id should be removed after refresh"
+            );
+            assert!(
+                m.contains_key("2026-04-18-foo-renamed"),
+                "new id should be inserted after refresh"
+            );
+        }
+
+        // Delete the plan and confirm plans_by_id no longer contains it.
+        std::fs::remove_file(&plan).unwrap();
+        idx.refresh_one(&plan).await.unwrap();
+        {
+            let m = idx.plans_by_id.read().await;
+            assert!(
+                !m.contains_key("2026-04-18-foo-renamed"),
+                "deleted plan should be removed from plans_by_id"
+            );
+        }
     }
 }

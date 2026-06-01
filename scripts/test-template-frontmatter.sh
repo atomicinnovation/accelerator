@@ -169,8 +169,8 @@ else
         awk '
           /^## Schema Reference/ { in_section=1; next }
           in_section && /^## / { in_section=0 }
-          in_section && /^\| `[a-z0-9-]+\.md` \| / { print $0 }
-        ' "$wi" | sed -E 's/^\| `([a-z0-9-]+\.md)` \|.*$/\1/'
+          in_section && /^\|[[:space:]]+`[a-z0-9-]+\.md`[[:space:]]+\|/ { print $0 }
+        ' "$wi" | sed -E 's/^\|[[:space:]]+`([a-z0-9-]+\.md)`[[:space:]]+\|.*$/\1/'
       fi
     done | sort
   )

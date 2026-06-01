@@ -4999,8 +4999,11 @@ assert_contains "contains validation" "$OUTPUT" "validation"
 assert_contains "contains pr-description" "$OUTPUT" "pr-description"
 assert_contains "contains work-item" "$OUTPUT" "work-item"
 assert_contains "contains rca" "$OUTPUT" "rca"
+assert_contains "contains plan-review" "$OUTPUT" "plan-review"
+assert_contains "contains work-item-review" "$OUTPUT" "work-item-review"
+assert_contains "contains pr-review" "$OUTPUT" "pr-review"
 LINE_COUNT=$(echo "$OUTPUT" | wc -l | tr -d ' ')
-assert_eq "outputs 9 keys" "9" "$LINE_COUNT"
+assert_eq "outputs 12 keys" "12" "$LINE_COUNT"
 
 echo "Test: Returns nothing if templates directory is empty"
 EMPTY_ROOT=$(mktemp -d "$TMPDIR_BASE/empty-plugin-XXXXXX")
@@ -5163,13 +5166,13 @@ echo ""
 echo "=== config-list-template.sh ==="
 echo ""
 
-echo "Test: No config -> all 5 templates show plugin default source"
+echo "Test: No config -> all templates show plugin default source"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/tmp" && touch "$REPO/.accelerator/tmp/.gitignore"
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 LINE_COUNT=$(echo "$OUTPUT" | grep -c '| `' || true)
-assert_eq "9 template rows" "9" "$LINE_COUNT"
-for KEY in plan codebase-research adr validation pr-description work-item rca; do
+assert_eq "12 template rows" "12" "$LINE_COUNT"
+for KEY in plan codebase-research adr validation pr-description work-item rca plan-review work-item-review pr-review; do
   if echo "$OUTPUT" | grep "\`$KEY\`" | grep -q "plugin default"; then
     echo "  PASS: $KEY shows plugin default"
     PASS=$((PASS + 1))

@@ -1670,12 +1670,12 @@ cd skills/visualisation/visualise/server && cargo test --lib
 
 #### Automated Verification:
 
-- [ ] `cargo test --lib` passes inside `skills/visualisation/visualise/server/`.
-- [ ] `rg -n "plans_by_id" skills/visualisation/visualise/server/src/indexer.rs` returns hits for the new field declaration (line ~206), constructor init, rescan accumulator, lock acquisition, refresh_one helpers (update_plans_by_id / remove_from_plans_by_id), and `plan_id_from_entry` helper.
-- [ ] `rg -n "target_path_from_entry\(" skills/visualisation/visualise/server/src/indexer.rs` shows the refactored 3-arg signature (`entry`, `plans_by_id`, `project_root`) at every call site.
-- [ ] New unit tests asserting `plan:<id>` resolution via `plans_by_id` exist and pass; build-loop ordering independence test passes.
-- [ ] New unit tests asserting `work-item:` prefix extraction in `read_ref_keys` exist and pass (including the alias-precedence and same-value-no-double-counting cases).
-- [ ] `bash scripts/test-format.sh` passes (no regressions).
+- [x] `cargo test --lib` passes inside `skills/visualisation/visualise/server/`.
+- [x] `rg -n "plans_by_id" skills/visualisation/visualise/server/src/indexer.rs` returns hits for the new field declaration (line ~206), constructor init, rescan accumulator, lock acquisition, refresh_one helpers (update_plans_by_id / remove_from_plans_by_id), and `plan_id_from_entry` helper.
+- [x] `rg -n "target_path_from_entry\(" skills/visualisation/visualise/server/src/indexer.rs` shows the refactored 3-arg signature (`entry`, `plans_by_id`, `project_root`) at every call site.
+- [x] New unit tests asserting `plan:<id>` resolution via `plans_by_id` exist and pass; build-loop ordering independence test passes.
+- [x] New unit tests asserting `work-item:` prefix extraction in `read_ref_keys` exist and pass (including the alias-precedence and same-value-no-double-counting cases).
+- [x] `bash scripts/test-format.sh` passes (no regressions).
 
 #### Manual Verification:
 
