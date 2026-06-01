@@ -4,7 +4,7 @@ title: "Humanise Detail-Page H1 Across All Doc Kinds"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 type: story
-status: draft
+status: ready
 priority: low
 parent: ""
 tags: [design, frontend, detail-page]

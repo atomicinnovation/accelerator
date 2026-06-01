@@ -4,7 +4,7 @@ title: "Pipeline Visualisation Overhaul"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 kind: story
-status: ready
+status: in-progress
 priority: high
 parent: ""
 tags: [design, frontend, lifecycle, kanban]

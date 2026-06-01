@@ -4,7 +4,7 @@ title: "Extend Migration Framework with Interactive Validation Hooks"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
 kind: story
-status: draft
+status: done
 priority: medium
 parent: "0057"
 tags: [migration, framework, accelerator-plugin]

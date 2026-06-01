@@ -4,7 +4,7 @@ title: "Move Review/Validation Skills' Frontmatter into Templates on Unified Sch
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
 kind: story
-status: ready
+status: done
 priority: medium
 parent: "0057"
 tags: [review-skills, frontmatter, schema]
