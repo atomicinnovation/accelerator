@@ -87,11 +87,21 @@ impl AppState {
             .await,
         ));
         let snapshot = indexer.all().await;
-        let (cluster_seed, completeness_backfill) =
-            crate::clusters::compute_clusters_with_backfill(&snapshot);
+        let work_item_by_id = indexer.work_item_by_id_snapshot().await;
+        let plans_by_id = indexer.plans_by_id_snapshot().await;
+        let cluster_ctx = crate::clusters::ClusterContext::from_entries(
+            &snapshot,
+            &work_item_by_id,
+            &plans_by_id,
+            indexer.project_root(),
+            indexer.work_item_cfg(),
+        );
+        let (cluster_seed, completeness_backfill, cluster_key_backfill) =
+            crate::clusters::compute_clusters_with_backfill(&snapshot, &cluster_ctx);
         let linked_counts =
             crate::related::collect_linked_counts(&indexer, &cluster_seed, &snapshot).await;
         indexer.apply_completeness_backfill(completeness_backfill).await;
+        indexer.apply_cluster_key_backfill(cluster_key_backfill).await;
         indexer.apply_linked_count_backfill(linked_counts).await;
         let clusters = Arc::new(RwLock::new(cluster_seed));
         let sse_hub = Arc::new(crate::sse_hub::SseHub::new(256));

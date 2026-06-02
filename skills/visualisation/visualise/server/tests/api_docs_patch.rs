@@ -719,9 +719,19 @@ async fn patch_emits_exactly_one_doc_changed_event() {
     let etag = fetch_etag(state.clone(), WORK_ITEM_PATH).await;
 
     let mut rx = state.sse_hub.subscribe();
-    let clusters = Arc::new(RwLock::new(
-        accelerator_visualiser::clusters::compute_clusters(&state.indexer.all().await),
-    ));
+    let clusters = Arc::new(RwLock::new({
+        let snapshot = state.indexer.all().await;
+        let wbi = state.indexer.work_item_by_id_snapshot().await;
+        let pbi = state.indexer.plans_by_id_snapshot().await;
+        let ctx = accelerator_visualiser::clusters::ClusterContext::from_entries(
+            &snapshot,
+            &wbi,
+            &pbi,
+            state.indexer.project_root(),
+            state.indexer.work_item_cfg(),
+        );
+        accelerator_visualiser::clusters::compute_clusters(&snapshot, &ctx)
+    }));
 
     let app = build_router(state.clone());
     let res = app
@@ -798,9 +808,19 @@ async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
     let work_item_via_link = "meta/work_link/0001-todo-fixture.md";
     let etag = fetch_etag(state.clone(), work_item_via_link).await;
     let mut rx = state.sse_hub.subscribe();
-    let clusters = Arc::new(RwLock::new(
-        accelerator_visualiser::clusters::compute_clusters(&state.indexer.all().await),
-    ));
+    let clusters = Arc::new(RwLock::new({
+        let snapshot = state.indexer.all().await;
+        let wbi = state.indexer.work_item_by_id_snapshot().await;
+        let pbi = state.indexer.plans_by_id_snapshot().await;
+        let ctx = accelerator_visualiser::clusters::ClusterContext::from_entries(
+            &snapshot,
+            &wbi,
+            &pbi,
+            state.indexer.project_root(),
+            state.indexer.work_item_cfg(),
+        );
+        accelerator_visualiser::clusters::compute_clusters(&snapshot, &ctx)
+    }));
 
     let app = build_router(state.clone());
     let res = app

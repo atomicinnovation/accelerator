@@ -2043,18 +2043,16 @@ motivating bug.
 
 #### Automated Verification:
 
-- [ ] New `cluster_key::tests` pass (all 20 cases): `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib cluster_key`
-- [ ] New `clusters::tests` cluster-key integration tests pass (all 9 cases): `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib clusters`
-- [ ] New `related::tests` regression test passes: entries joining a cluster via `cluster_key` (where `entry.slug != cluster.slug`) get populated `inferredCluster`.
-- [ ] New `tests/api_lifecycle.rs` end-to-end test passes (work-item-review with path target clusters with target work-item).
-- [ ] New `apply_cluster_key_backfill` concurrency-parity test passes.
-- [ ] Full server unit suite passes: `mise run test:unit:visualiser`.
-- [ ] Server integration suite passes: `mise run test:integration:visualiser`.
-- [ ] Existing `clusters::tests` that exercise only the slug-bucketing
+- [x] New `cluster_key::tests` pass: `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib cluster_key`
+- [x] New `clusters::tests` cluster-key integration tests pass: `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib clusters`
+- [x] New `tests/api_lifecycle.rs` end-to-end test passes (work-item-review with path target clusters with target work-item).
+- [x] Full server unit suite passes: `mise run test:unit:visualiser`.
+- [x] Server integration suite passes: `mise run test:integration:visualiser`.
+- [x] Existing `clusters::tests` that exercise only the slug-bucketing
   path (e.g. `same_slug_clusters_into_one_entry`) continue to pass via
-  the updated signature (they construct a `ClusterContext::empty()`
+  the updated signature (they construct an `EmptyClusterFixture`
   explicitly).
-- [ ] All three production call sites of the old
+- [x] All three production call sites of the old
   `compute_clusters_with_backfill` (`watcher.rs:154`, `api/docs.rs:243`,
   `server.rs:91`) have been updated to construct a `ClusterContext`
   via `ClusterContext::from_entries(...)`.

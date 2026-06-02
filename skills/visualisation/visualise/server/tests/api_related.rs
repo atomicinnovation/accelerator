@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use accelerator_visualiser::activity::Activity;
-use accelerator_visualiser::clusters::compute_clusters;
+use accelerator_visualiser::clusters::{compute_clusters, ClusterContext};
 use accelerator_visualiser::config::{Config, TemplateTiers};
 use accelerator_visualiser::server::{build_router, AppState};
 use axum::body::Body;
@@ -377,7 +377,19 @@ async fn related_endpoint_recovers_after_target_creation() {
     // Create the target plan and rescan.
     std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: Foo\n---\n").unwrap();
     state.indexer.rescan().await.unwrap();
-    *state.clusters.write().await = compute_clusters(&state.indexer.all().await);
+    {
+        let snapshot = state.indexer.all().await;
+        let wbi = state.indexer.work_item_by_id_snapshot().await;
+        let pbi = state.indexer.plans_by_id_snapshot().await;
+        let ctx = ClusterContext::from_entries(
+            &snapshot,
+            &wbi,
+            &pbi,
+            state.indexer.project_root(),
+            state.indexer.work_item_cfg(),
+        );
+        *state.clusters.write().await = compute_clusters(&snapshot, &ctx);
+    }
 
     let res = app
         .oneshot(

@@ -24,11 +24,22 @@ pub async fn resolve_related(
     clusters: &[LifecycleCluster],
     entry: &IndexEntry,
 ) -> RelatedResolution {
-    // Inferred cluster: same-slug siblings, self excluded.
-    let inferred_cluster: Vec<IndexEntry> = if let Some(slug) = &entry.slug {
-        clusters
-            .iter()
-            .find(|c| &c.slug == slug)
+    // Inferred cluster: siblings in the same cluster, self excluded.
+    // Prefer matching on cluster_key when present so an entry whose own
+    // slug diverges from the cluster representative slug (post-Phase-4)
+    // still picks up its siblings. Fall back to slug-equality for
+    // entries that resolved into a slug-fallback bucket.
+    let inferred_cluster: Vec<IndexEntry> = {
+        let cluster = match entry.cluster_key.as_deref() {
+            Some(ck) => clusters
+                .iter()
+                .find(|c| c.cluster_key.as_deref() == Some(ck)),
+            None => match &entry.slug {
+                Some(s) => clusters.iter().find(|c| &c.slug == s),
+                None => None,
+            },
+        };
+        cluster
             .map(|c| {
                 c.entries
                     .iter()
@@ -37,8 +48,6 @@ pub async fn resolve_related(
                     .collect()
             })
             .unwrap_or_default()
-    } else {
-        Vec::new()
     };
 
     let declared_outbound = indexer.declared_outbound(entry).await;

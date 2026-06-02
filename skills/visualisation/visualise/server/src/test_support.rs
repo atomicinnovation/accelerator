@@ -22,6 +22,7 @@ pub fn entry_for_test(doc_type: DocTypeKey, slug: &str, mtime_ms: i64, title: &s
         body_preview: String::new(),
         completeness: None,
         linked_count: 0,
+        cluster_key: None,
     }
 }
 
@@ -55,5 +56,6 @@ pub fn entry_for_test_with_filename(
         body_preview: String::new(),
         completeness: None,
         linked_count: 0,
+        cluster_key: None,
     }
 }

@@ -239,13 +239,26 @@ pub(crate) async fn doc_patch_frontmatter(
         // the same slug after a kanban status edit changes cluster
         // membership or cross-reference shape.
         let snapshot = state.indexer.all().await;
-        let (new_clusters, completeness_backfill) =
-            crate::clusters::compute_clusters_with_backfill(&snapshot);
+        let work_item_by_id = state.indexer.work_item_by_id_snapshot().await;
+        let plans_by_id = state.indexer.plans_by_id_snapshot().await;
+        let cluster_ctx = crate::clusters::ClusterContext::from_entries(
+            &snapshot,
+            &work_item_by_id,
+            &plans_by_id,
+            state.indexer.project_root(),
+            state.indexer.work_item_cfg(),
+        );
+        let (new_clusters, completeness_backfill, cluster_key_backfill) =
+            crate::clusters::compute_clusters_with_backfill(&snapshot, &cluster_ctx);
         let linked_counts =
             crate::related::collect_linked_counts(&state.indexer, &new_clusters, &snapshot).await;
         state
             .indexer
             .apply_completeness_backfill(completeness_backfill)
+            .await;
+        state
+            .indexer
+            .apply_cluster_key_backfill(cluster_key_backfill)
             .await;
         state.indexer.apply_linked_count_backfill(linked_counts).await;
         *state.clusters.write().await = new_clusters;

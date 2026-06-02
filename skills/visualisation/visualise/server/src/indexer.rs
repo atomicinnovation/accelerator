@@ -189,6 +189,12 @@ pub struct IndexEntry {
     /// entry, by construction. Defaults to `0` until a cluster pass
     /// populates it.
     pub linked_count: usize,
+    /// Composite cluster key resolved by walking typed-linkage frontmatter
+    /// (per ADR-0034) back to a canonical work-item id. `None` when no
+    /// chain reaches a work item — such entries fall back to the slug
+    /// bucket (lifecycle-participating types) or a per-path orphan bucket
+    /// (orphan-by-design types). Serialises on the wire as `clusterKey`.
+    pub cluster_key: Option<String>,
 }
 
 /// Test rendezvous point used by Phase 9 concurrency tests to inspect
@@ -618,6 +624,40 @@ impl Indexer {
         self.entries.read().await.values().cloned().collect()
     }
 
+    /// Returns a cloned snapshot of `work_item_by_id` for callers
+    /// constructing a `ClusterContext`.
+    pub async fn work_item_by_id_snapshot(&self) -> HashMap<String, PathBuf> {
+        self.work_item_by_id.read().await.clone()
+    }
+
+    /// Returns a cloned snapshot of `plans_by_id` for callers
+    /// constructing a `ClusterContext`.
+    pub async fn plans_by_id_snapshot(&self) -> HashMap<String, PathBuf> {
+        self.plans_by_id.read().await.clone()
+    }
+
+    /// Returns the work-item config used by the indexer. Cluster-key
+    /// resolution reuses it to canonicalise frontmatter values.
+    pub fn work_item_cfg(&self) -> &crate::config::WorkItemConfig {
+        &self.work_item_cfg
+    }
+
+    /// Applies a per-path cluster_key map onto `IndexEntry.cluster_key`
+    /// under a single `entries.write()` lock. Paths absent from
+    /// `backfill` have their cluster_key cleared to `None`, mirroring
+    /// the apply_completeness_backfill contract so a slug-derivation
+    /// regression or removal of typed-linkage frontmatter flips the
+    /// entry back to slug-bucket rendering.
+    pub async fn apply_cluster_key_backfill(
+        &self,
+        backfill: HashMap<PathBuf, Option<String>>,
+    ) {
+        let mut entries = self.entries.write().await;
+        for (path, entry) in entries.iter_mut() {
+            entry.cluster_key = backfill.get(path).cloned().unwrap_or(None);
+        }
+    }
+
     /// Applies a per-path `Completeness` map onto `IndexEntry.completeness`
     /// under a single `entries.write()` lock. Paths absent from `entries`
     /// (because the file was deleted between Pass 1 snapshot and Pass 2
@@ -1021,6 +1061,48 @@ fn number_width_from_id_pattern(pattern: &str) -> usize {
         .unwrap_or(4)
 }
 
+/// Canonicalises a single raw cross-reference string to match
+/// `work_item_by_id` keys. Returns `None` for malformed values
+/// (anything not in one of the three accepted shapes). The
+/// allocation-light counterpart to `canonicalise_refs`.
+pub fn canonicalise_one_id(
+    raw: &str,
+    cfg: &crate::config::WorkItemConfig,
+) -> Option<String> {
+    use std::sync::OnceLock;
+    static PROJECT_RE: OnceLock<regex::Regex> = OnceLock::new();
+    let project_re = PROJECT_RE
+        .get_or_init(|| regex::Regex::new(r"^[A-Za-z][A-Za-z0-9]*-\d+$").unwrap());
+    static NUMERIC_RE: OnceLock<regex::Regex> = OnceLock::new();
+    let numeric_re = NUMERIC_RE
+        .get_or_init(|| regex::Regex::new(r"^\d+$").unwrap());
+
+    if raw.is_empty() {
+        return None;
+    }
+    let has_project = cfg.id_pattern.contains("{project}");
+    let width = number_width_from_id_pattern(&cfg.id_pattern);
+
+    if numeric_re.is_match(raw) {
+        let n_str = raw
+            .parse::<u64>()
+            .map(|n| n.to_string())
+            .unwrap_or_else(|_| raw.to_string());
+        let padded = format!("{:0>width$}", n_str, width = width);
+        if has_project {
+            return Some(match &cfg.default_project_code {
+                Some(code) => format!("{code}-{padded}"),
+                None => padded,
+            });
+        }
+        return Some(padded);
+    }
+    if project_re.is_match(raw) {
+        return Some(raw.to_string());
+    }
+    None
+}
+
 /// Canonicalises raw cross-reference strings to match `work_item_by_id` keys.
 ///
 /// Four cases (applied in order):
@@ -1034,50 +1116,16 @@ pub fn canonicalise_refs(
     raw: Vec<String>,
     cfg: &crate::config::WorkItemConfig,
 ) -> Vec<String> {
-    use std::sync::OnceLock;
-
-    static PROJECT_RE: OnceLock<regex::Regex> = OnceLock::new();
-    let project_re = PROJECT_RE
-        .get_or_init(|| regex::Regex::new(r"^[A-Za-z][A-Za-z0-9]*-\d+$").unwrap());
-
-    static NUMERIC_RE: OnceLock<regex::Regex> = OnceLock::new();
-    let numeric_re = NUMERIC_RE
-        .get_or_init(|| regex::Regex::new(r"^\d+$").unwrap());
-
-    let has_project = cfg.id_pattern.contains("{project}");
-    let width = number_width_from_id_pattern(&cfg.id_pattern);
-
     let mut seen: HashSet<String> = HashSet::new();
     let mut result: Vec<String> = Vec::new();
-
     for r in raw {
-        if r.is_empty() {
-            continue;
-        }
-        let canonical = if numeric_re.is_match(&r) {
-            let n_str = r.parse::<u64>()
-                .map(|n| n.to_string())
-                .unwrap_or(r.clone());
-            let padded = format!("{:0>width$}", n_str, width = width);
-            if has_project {
-                match &cfg.default_project_code {
-                    Some(code) => format!("{code}-{padded}"),
-                    None => padded,
-                }
-            } else {
-                padded
-            }
-        } else if project_re.is_match(&r) {
-            r.clone()
-        } else {
+        let Some(canonical) = canonicalise_one_id(&r, cfg) else {
             continue;
         };
-
         if seen.insert(canonical.clone()) {
             result.push(canonical);
         }
     }
-
     result
 }
 
@@ -1229,6 +1277,7 @@ fn build_entry(
         body_preview,
         completeness: None,
         linked_count: 0,
+        cluster_key: None,
     }
 }
 
@@ -1758,6 +1807,7 @@ mod tests {
             body_preview: String::new(),
             completeness: None,
             linked_count: 0,
+            cluster_key: None,
         }
     }
 
@@ -1778,6 +1828,7 @@ mod tests {
             body_preview: String::new(),
             completeness: None,
             linked_count: 0,
+            cluster_key: None,
         }
     }
 

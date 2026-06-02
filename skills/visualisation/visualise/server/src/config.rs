@@ -219,7 +219,9 @@ impl WorkItemConfig {
         Self {
             scan_regex: regex::Regex::new(&raw).unwrap(),
             scan_regex_raw: raw,
-            id_pattern: format!("{}-{{number:0{}d}}", prefix, width),
+            // Use the literal `{project}` placeholder so `id_pattern.contains
+            // ("{project}")` lookups behave like production configs.
+            id_pattern: format!("{{project}}-{{number:0{}d}}", width),
             default_project_code: Some(prefix.to_string()),
         }
     }

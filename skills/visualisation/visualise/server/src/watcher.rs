@@ -151,10 +151,21 @@ pub async fn on_path_changed_debounced(
     }
 
     let snapshot = indexer.all().await;
-    let (new_clusters, completeness_backfill) = compute_clusters_with_backfill(&snapshot);
+    let work_item_by_id = indexer.work_item_by_id_snapshot().await;
+    let plans_by_id = indexer.plans_by_id_snapshot().await;
+    let cluster_ctx = crate::clusters::ClusterContext::from_entries(
+        &snapshot,
+        &work_item_by_id,
+        &plans_by_id,
+        indexer.project_root(),
+        indexer.work_item_cfg(),
+    );
+    let (new_clusters, completeness_backfill, cluster_key_backfill) =
+        compute_clusters_with_backfill(&snapshot, &cluster_ctx);
     let linked_counts =
         crate::related::collect_linked_counts(&indexer, &new_clusters, &snapshot).await;
     indexer.apply_completeness_backfill(completeness_backfill).await;
+    indexer.apply_cluster_key_backfill(cluster_key_backfill).await;
     indexer.apply_linked_count_backfill(linked_counts).await;
     *clusters.write().await = new_clusters;
 
@@ -476,8 +487,18 @@ mod tests {
         let indexer = Arc::new(Indexer::build(driver, tmp.to_path_buf(), work_item_cfg).await.unwrap());
         let hub = Arc::new(SseHub::new(64));
         let activity_feed = Arc::new(ActivityRingBuffer::new());
+        let snapshot = indexer.all().await;
+        let work_item_by_id = indexer.work_item_by_id_snapshot().await;
+        let plans_by_id = indexer.plans_by_id_snapshot().await;
+        let ctx = crate::clusters::ClusterContext::from_entries(
+            &snapshot,
+            &work_item_by_id,
+            &plans_by_id,
+            indexer.project_root(),
+            indexer.work_item_cfg(),
+        );
         let clusters = Arc::new(RwLock::new(crate::clusters::compute_clusters(
-            &indexer.all().await,
+            &snapshot, &ctx,
         )));
         (doc_paths, indexer, hub, activity_feed, clusters)
     }

@@ -54,6 +54,7 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
     doc_paths.insert("research_issues".into(), meta.join("research/issues"));
     doc_paths.insert("review_plans".into(), reviews);
     doc_paths.insert("review_prs".into(), meta.join("reviews/prs"));
+    doc_paths.insert("review_work".into(), meta.join("reviews/work"));
     doc_paths.insert("validations".into(), meta.join("validations"));
     doc_paths.insert("notes".into(), meta.join("notes"));
     doc_paths.insert("prs".into(), meta.join("prs"));
