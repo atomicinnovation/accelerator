@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Outlet } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Sidebar } from '../Sidebar/Sidebar'
@@ -16,6 +17,27 @@ import { fetchTypes, fetchLibraryStructure } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
 import styles from './RootLayout.module.css'
 
+function isPlainSlashKey(event: KeyboardEvent): boolean {
+  return (
+    event.key === '/' &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    !event.shiftKey
+  )
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  if (target instanceof HTMLInputElement) return true
+  if (target instanceof HTMLTextAreaElement) return true
+  if (target.isContentEditable) return true
+  // JSDOM doesn't always set isContentEditable from the attribute. Fall back
+  // to the attribute so the test environment matches browser behaviour.
+  const attr = target.getAttribute('contenteditable')
+  return attr !== null && attr !== 'false'
+}
+
 export function RootLayout() {
   const unseen = useUnseenDocTypes()
   const docEvents = useDocEvents({
@@ -25,6 +47,20 @@ export function RootLayout() {
   const theme = useTheme()
   const fontMode = useFontMode()
   const toast = useToastDispatcher()
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!isPlainSlashKey(e)) return
+      if (isEditableTarget(e.target)) return
+      const input = searchInputRef.current
+      if (!input) return
+      e.preventDefault()
+      input.focus()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   const { data: docTypes = [] } = useQuery({
     queryKey: queryKeys.types(),
@@ -53,6 +89,7 @@ export function RootLayout() {
               docTypes={docTypes}
               phases={libraryStructure?.phases ?? []}
               templates={libraryStructure?.templates ?? null}
+              searchInputRef={searchInputRef}
             />
             <main className={styles.main}>
               <Outlet />

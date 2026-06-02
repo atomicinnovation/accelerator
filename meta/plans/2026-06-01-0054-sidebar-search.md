@@ -735,10 +735,10 @@ from research §"Testing patterns" is the right fit — mock
 
 #### Automated Verification
 
-- [ ] All RootLayout keybind tests pass: `cd skills/visualisation/visualise/frontend && npm test -- RootLayout`
-- [ ] Existing Sidebar tests still pass (ref is optional prop): `cd skills/visualisation/visualise/frontend && npm test -- Sidebar`
-- [ ] Typecheck passes: `cd skills/visualisation/visualise/frontend && npm run typecheck`
-- [ ] Lint passes: `cd skills/visualisation/visualise/frontend && npm run lint`
+- [x] All RootLayout keybind tests pass: `cd skills/visualisation/visualise/frontend && npm test -- RootLayout`
+- [x] Existing Sidebar tests still pass (ref is optional prop): `cd skills/visualisation/visualise/frontend && npm test -- Sidebar`
+- [x] Typecheck passes: `cd skills/visualisation/visualise/frontend && npm run typecheck`
+- [x] Lint passes: no lint script in workspace; skipped
 
 #### Manual Verification
 

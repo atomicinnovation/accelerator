@@ -1,3 +1,4 @@
+import type { RefObject } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import type { DocType, LibraryDocType, LibraryPhase } from '../../api/types'
 import { useUnseenDocTypesContext } from '../../api/use-unseen-doc-types'
@@ -8,9 +9,10 @@ interface Props {
   docTypes: DocType[]
   phases: LibraryPhase[]
   templates: LibraryDocType | null
+  searchInputRef?: RefObject<HTMLInputElement>
 }
 
-export function Sidebar({ docTypes, phases, templates }: Props) {
+export function Sidebar({ docTypes, phases, templates, searchInputRef }: Props) {
   const pathname = useRouterState({ select: s => s.location.pathname })
   const { unseenSet } = useUnseenDocTypesContext()
   // docTypes is kept around for affordances that need dirPath / inLifecycle,
@@ -24,6 +26,7 @@ export function Sidebar({ docTypes, phases, templates }: Props) {
       <div className={styles.searchRow}>
         <SearchIcon />
         <input
+          ref={searchInputRef}
           type="search"
           aria-label="Search"
           placeholder="Search meta/..."
