@@ -98,9 +98,19 @@ source "$_ATOMIC_COMMON_DIR/jsonl-common.sh"
 #   Spin until mkdir succeeds. Each subshell re-seeds bash's RANDOM
 #   from PID + EPOCHREALTIME (so concurrent appenders don't share the
 #   inherited RANDOM state) and then uses jittered back-off bounded by
-#   a 60 s ceiling.
+#   a 300 s ceiling — generous enough to absorb CI scheduler starvation
+#   when many parallel tasks compete for cores.
 _atomic_lock_acquire() {
   local lockdir="$1"
+  # Fail fast if the parent dir isn't writable. Without this check the
+  # spin-loop would burn the full timeout on an error mkdir can never
+  # recover from (e.g., chmod 555 on the parent).
+  local parent_dir
+  parent_dir=$(dirname "$lockdir")
+  if [ ! -w "$parent_dir" ]; then
+    echo "atomic_jsonl: cannot create lock under $parent_dir (not writable)" >&2
+    return 1
+  fi
   local waited_ms=0
   local base_ms=4
   # Re-seed RANDOM per call: concurrent subshells inherit the parent's
@@ -109,7 +119,7 @@ _atomic_lock_acquire() {
   RANDOM=$(( ($$ * 31 + ${RANDOM:-0}) ^ \
     $(date +%N 2>/dev/null | sed 's/^0*//' || echo 0) ))
   while ! mkdir "$lockdir" 2>/dev/null; do
-    if [ "$waited_ms" -gt 60000 ]; then
+    if [ "$waited_ms" -gt 300000 ]; then
       echo "atomic_jsonl: lock acquisition timed out on $lockdir" >&2
       return 1
     fi
@@ -153,16 +163,21 @@ atomic_jsonl_append() {
     return 1
   fi
   local lockdir="${target}.lockdir"
-  _atomic_lock_acquire "$lockdir" || return 1
-  local rc=0
-  {
-    if [ -f "$target" ] && [ -s "$target" ]; then
-      cat "$target"
-    fi
-    printf '%s\n' "$line"
-  } | atomic_write "$target" || rc=$?
-  _atomic_lock_release "$lockdir"
-  return "$rc"
+  # Run the critical section inside a subshell that owns its EXIT trap.
+  # If the subshell is killed (e.g., OOM, parent signal) between acquire
+  # and the explicit release, the trap still releases the lock — and
+  # because the subshell scope owns the trap, the caller's own EXIT
+  # trap is left untouched.
+  (
+    _atomic_lock_acquire "$lockdir" || exit 1
+    trap '_atomic_lock_release "'"$lockdir"'"' EXIT
+    {
+      if [ -f "$target" ] && [ -s "$target" ]; then
+        cat "$target"
+      fi
+      printf '%s\n' "$line"
+    } | atomic_write "$target"
+  )
 }
 
 # atomic_jsonl_remove_by_key <target_path> <transformation_key>
@@ -185,17 +200,19 @@ atomic_jsonl_remove_by_key() {
     return 0
   fi
   local lockdir="${target}.lockdir"
-  _atomic_lock_acquire "$lockdir" || return 1
-  local escaped_key prefix rc=0
-  escaped_key=$(jsonl_json_escape "$key")
-  prefix=$(printf '{"transformation_key":"%s",' "$escaped_key")
-  # Pass the prefix via ENVIRON (NOT -v): awk's -v processes backslash
-  # escapes in the assigned value, which would re-interpret \" and \\
-  # inside the JSON-escaped key and silently break the match. ENVIRON
-  # values are passed through unmodified.
-  JSONL_REMOVE_PREFIX="$prefix" \
-    awk 'BEGIN{p=ENVIRON["JSONL_REMOVE_PREFIX"]} index($0,p)!=1{print}' "$target" \
-    | atomic_write "$target" || rc=$?
-  _atomic_lock_release "$lockdir"
-  return "$rc"
+  # Critical section in a subshell (see atomic_jsonl_append for rationale).
+  (
+    _atomic_lock_acquire "$lockdir" || exit 1
+    trap '_atomic_lock_release "'"$lockdir"'"' EXIT
+    local escaped_key prefix
+    escaped_key=$(jsonl_json_escape "$key")
+    prefix=$(printf '{"transformation_key":"%s",' "$escaped_key")
+    # Pass the prefix via ENVIRON (NOT -v): awk's -v processes backslash
+    # escapes in the assigned value, which would re-interpret \" and \\
+    # inside the JSON-escaped key and silently break the match. ENVIRON
+    # values are passed through unmodified.
+    JSONL_REMOVE_PREFIX="$prefix" \
+      awk 'BEGIN{p=ENVIRON["JSONL_REMOVE_PREFIX"]} index($0,p)!=1{print}' "$target" \
+      | atomic_write "$target"
+  )
 }
