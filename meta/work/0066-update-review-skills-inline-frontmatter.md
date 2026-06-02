@@ -13,7 +13,7 @@ tags: [review-skills, frontmatter, schema]
 # 0066: Move Review/Validation Skills' Frontmatter into Templates on Unified Schema
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
