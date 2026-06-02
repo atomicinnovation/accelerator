@@ -132,7 +132,7 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/Sidebar/Sidebar.module.css', literal: '26px', count: 1, kind: 'irreducible', reason: 'result-row Glyph column width — design-pinned tile size between Glyph 24/32' },
   { file: 'components/Sidebar/Sidebar.module.css', literal: '28px', count: 1, kind: 'irreducible', reason: 'search input right padding to clear the trailing kbd / clear button — no token equivalent' },
   { file: 'components/Sidebar/Sidebar.module.css', literal: '32px', count: 1, kind: 'irreducible', reason: 'search input left padding to clear the leading magnifying-glass icon — no token equivalent' },
-  { file: 'components/Sidebar/Sidebar.module.css', literal: '255px', count: 1, kind: 'irreducible', reason: 'sidebar base width matches prototype — no token equivalent' },
+  { file: 'components/Sidebar/Sidebar.module.css', literal: '256px', count: 1, kind: 'irreducible', reason: 'sidebar base width (256 = prototype 255 + 1px border under border-box) — no token equivalent' },
   { file: 'components/Sidebar/Sidebar.module.css', literal: '290px', count: 1, kind: 'irreducible', reason: 'sidebar widened width above 1400px viewport — no token equivalent' },
   { file: 'components/Sidebar/Sidebar.module.css', literal: '1400px', count: 1, kind: 'irreducible', reason: 'media-query breakpoint for sidebar widen — no token equivalent' },
   { file: 'components/Sidebar/Sidebar.module.css', literal: '320px', count: 1, kind: 'irreducible', reason: 'result list max-height before scroll — no token equivalent' },

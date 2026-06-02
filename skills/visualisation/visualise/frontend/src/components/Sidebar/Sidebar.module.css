@@ -1,5 +1,5 @@
 .sidebar {
-  width: 255px;
+  width: 256px;
   /* The sidebar lives inside RootLayout's `.body` row, which is itself
      bounded to the viewport. Scroll independently of `.main` when the
      nav list overflows. `min-height: 0` is unnecessary here because
