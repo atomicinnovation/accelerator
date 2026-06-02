@@ -20,6 +20,7 @@ import { Glyph } from '../../components/Glyph/Glyph'
 import { statusToVariant } from '../../api/status-variant'
 import { formatDocId } from '../library/doc-type-id'
 import { ClockIcon, LifecycleEyebrowIcon } from './icons'
+import { clusterViaLabel } from './cluster-via-label'
 import styles from './LifecycleClusterView.module.css'
 
 type Step = (typeof LIFECYCLE_PIPELINE_STEPS)[number]
@@ -94,7 +95,12 @@ export function LifecycleClusterContent({ slug }: { slug: string }) {
       <ol className={styles.timeline}>
         {buildTimeline(cluster).map((slot, i) =>
           slot.entry ? (
-            <TimelineStep key={`${slot.step.docType}-${slot.entry.relPath}`} step={slot.step} entry={slot.entry} />
+            <TimelineStep
+              key={`${slot.step.docType}-${slot.entry.relPath}`}
+              step={slot.step}
+              entry={slot.entry}
+              cluster={cluster}
+            />
           ) : (
             <MissingStep key={`missing-${slot.step.docType}-${i}`} step={slot.step} />
           ),
@@ -169,9 +175,10 @@ function StageTile({ step, active, dashed = false, size = 36 }: StageTileProps) 
 interface TimelineStepProps {
   step: Step
   entry: IndexEntry
+  cluster: LifecycleCluster
 }
 
-function TimelineStep({ step, entry }: TimelineStepProps): ReactNode {
+function TimelineStep({ step, entry, cluster }: TimelineStepProps): ReactNode {
   const fileSlug = fileSlugFromRelPath(entry.relPath)
   const fmStatus = entry.frontmatterState === 'parsed'
     ? entry.frontmatter['status']
@@ -216,6 +223,12 @@ function TimelineStep({ step, entry }: TimelineStepProps): ReactNode {
           <span className={styles.tcardId}>{id}</span>
           {' · modified '}
           <time>{formatMtime(entry.mtimeMs)}</time>
+        </div>
+        <div className={styles.clusteredVia}>
+          {clusterViaLabel(
+            { type: entry.type, clusterKey: entry.clusterKey },
+            { clusterKey: cluster.clusterKey },
+          )}
         </div>
       </Link>
     </li>

@@ -47,9 +47,14 @@ export const queryKeys = {
   docContent: (relPath: string) => ['doc-content', relPath] as const,
   templates: () => ['templates'] as const,
   templateDetail: (name: string) => ['template-detail', name] as const,
-  lifecycle: () => ['lifecycle'] as const,
-  lifecycleClusterPrefix: () => ['lifecycle-cluster'] as const,
-  lifecycleCluster: (slug: string) => ['lifecycle-cluster', slug] as const,
+  // v2 marker: cluster representative slugs change after the lifecycle
+  // composite-key migration (Phase 4). Bumping the segment forces a
+  // cache miss for any developer with a long-running tab open across
+  // the deploy, sidestepping the slug-stale window described in the
+  // plan's Migration Notes.
+  lifecycle: () => ['lifecycle', 'v2'] as const,
+  lifecycleClusterPrefix: () => ['lifecycle-cluster', 'v2'] as const,
+  lifecycleCluster: (slug: string) => ['lifecycle-cluster', 'v2', slug] as const,
   kanban: () => ['kanban'] as const,
   related: (relPath: string) => ['related', relPath] as const,
   relatedPrefix: () => ['related'] as const,

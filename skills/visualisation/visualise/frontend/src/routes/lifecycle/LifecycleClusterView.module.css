@@ -217,3 +217,14 @@
   border-radius: var(--radius-sm);
   padding: var(--sp-2) var(--sp-3);
 }
+
+/* Debug "clustered via" tag — small muted eyebrow under each entry on
+   the cluster detail view, explaining why this entry joined this
+   cluster. Authored as a transient affordance during the epic-0057
+   typed-linkage migration window. */
+.clusteredVia {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs-lg);
+  color: var(--ac-fg-faint);
+  margin-top: var(--sp-1);
+}

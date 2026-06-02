@@ -102,6 +102,11 @@ export interface IndexEntry {
    *  cross-links. Older servers omitting the field are normalised to `0`
    *  at the API client boundary. */
   linkedCount: number
+  /** Composite cluster key — the canonical work-item id this entry's
+   *  typed-linkage chain resolves to (e.g. `"0040"` or `"PROJ-0040"`).
+   *  `null` for entries that fall back to slug-bucket clustering or to
+   *  per-path orphan buckets. */
+  clusterKey: string | null
 }
 
 export interface DocsListResponse {
@@ -207,6 +212,9 @@ export interface LifecycleCluster {
   entries: IndexEntry[]
   completeness: Completeness
   lastChangedMs: number
+  /** Canonical cluster identity — the resolved work-item id when present,
+   *  else `null` for slug-fallback / orphan-by-design clusters. */
+  clusterKey: string | null
 }
 
 export interface LifecycleListResponse {

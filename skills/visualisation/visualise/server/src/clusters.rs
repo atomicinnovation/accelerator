@@ -159,13 +159,55 @@ pub fn compute_clusters_with_backfill(
         cluster_key_by_path.insert(e.path.clone(), key);
     }
 
-    // 2. Bucketing. Bucket key is cluster_key when present; otherwise
+    // 2. Build a slug → cluster_key bridge so lifecycle-participating
+    //    entries that lack typed-linkage frontmatter still merge with
+    //    their cluster_key-carrying siblings via slug equivalence.
+    //    Without this, a research-with-no-parent whose filename slug
+    //    matches the work-item's slug lands in its own slug-only bucket
+    //    and produces a second cluster sharing the same representative
+    //    slug — breaking the /lifecycle/<slug> URL invariant. WorkItems
+    //    win the slug → cluster_key mapping (they are the canonical
+    //    source of the slug); other typed entries are inserted only
+    //    when WorkItems hasn't already claimed the slug.
+    let mut slug_to_cluster_key: HashMap<String, String> = HashMap::new();
+    for e in entries {
+        if e.r#type != DocTypeKey::WorkItems {
+            continue;
+        }
+        if let (Some(slug), Some(ck)) = (
+            e.slug.as_deref(),
+            cluster_key_by_path
+                .get(&e.path)
+                .and_then(|o| o.as_deref()),
+        ) {
+            slug_to_cluster_key.insert(slug.to_string(), ck.to_string());
+        }
+    }
+    for e in entries {
+        if e.r#type == DocTypeKey::WorkItems {
+            continue;
+        }
+        if let (Some(slug), Some(ck)) = (
+            e.slug.as_deref(),
+            cluster_key_by_path
+                .get(&e.path)
+                .and_then(|o| o.as_deref()),
+        ) {
+            slug_to_cluster_key
+                .entry(slug.to_string())
+                .or_insert_with(|| ck.to_string());
+        }
+    }
+
+    // 3. Bucketing. Bucket key is cluster_key when present; otherwise
     //    slug — but only for types that participate in the lifecycle
-    //    pipeline. Orphan-by-design types (Notes, Decisions,
-    //    DesignGaps, DesignInventories) get their own per-path bucket
-    //    so they cannot accidentally collision-merge with unrelated
-    //    entries that share a slug derivation. Templates are filtered
-    //    out earlier.
+    //    pipeline. Lifecycle-participating slug-fallback entries first
+    //    check `slug_to_cluster_key` so they merge with any typed
+    //    cluster sharing their slug. Orphan-by-design types (Notes,
+    //    Decisions, DesignGaps, DesignInventories) get their own
+    //    per-path bucket so they cannot accidentally collision-merge
+    //    with unrelated entries that share a slug derivation.
+    //    Templates are filtered out earlier.
     let mut buckets: HashMap<String, Vec<IndexEntry>> = HashMap::new();
     for e in entries {
         if matches!(e.r#type, DocTypeKey::Templates) {
@@ -176,7 +218,21 @@ pub fn compute_clusters_with_backfill(
             .and_then(|o| o.as_deref());
         let bucket_key = match key {
             Some(k) => Some(k.to_string()),
-            None if e.r#type.participates_in_lifecycle() => e.slug.clone(),
+            None if e.r#type.participates_in_lifecycle() => {
+                match e
+                    .slug
+                    .as_deref()
+                    .and_then(|s| slug_to_cluster_key.get(s))
+                {
+                    Some(ck) => {
+                        // Adopt the cluster's key for this entry so the
+                        // backfill / wire shape reflects the merge.
+                        cluster_key_by_path.insert(e.path.clone(), Some(ck.clone()));
+                        Some(ck.clone())
+                    }
+                    None => e.slug.clone(),
+                }
+            }
             None => Some(format!("__orphan__::{}", e.path.display())),
         };
         let Some(k) = bucket_key else { continue };
@@ -826,6 +882,51 @@ mod tests {
     }
 
     #[test]
+    fn research_with_no_parent_merges_with_work_item_via_slug_match() {
+        // Regression test for the "templates-view-redesign" split-cluster
+        // bug: a research file whose filename slug matches the work-item's
+        // slug, but which carries no parent/work_item_id frontmatter, used
+        // to land in a separate slug-only bucket. Both clusters then took
+        // the same representative slug, so `/lifecycle/<slug>` would
+        // return whichever ended up first in the sort — typically the
+        // smaller, research-only one.
+        let cfg = WorkItemConfig::default();
+        let mut wi = entry_for_test(DocTypeKey::WorkItems, "templates-view-redesign", 1, "WI");
+        wi.work_item_id = Some("0042".into());
+        wi.path = PathBuf::from("/repo/meta/work/0042-templates-view-redesign.md");
+        let mut plan = entry_for_test(DocTypeKey::Plans, "templates-view-redesign", 2, "Plan");
+        plan.path = PathBuf::from(
+            "/repo/meta/plans/2026-05-18-0042-templates-view-redesign.md",
+        );
+        plan.frontmatter = json!({ "parent": "work-item:0042" });
+        let mut research = entry_for_test(
+            DocTypeKey::Research,
+            "templates-view-redesign",
+            3,
+            "Research",
+        );
+        research.path = PathBuf::from(
+            "/repo/meta/research/codebase/2026-05-18-0042-templates-view-redesign.md",
+        );
+        // Deliberately no parent / work_item_id — the failure mode.
+        let (clusters, _, cluster_key_by_path) =
+            run_clusters(&[wi.clone(), plan.clone(), research.clone()], &cfg);
+        assert_eq!(clusters.len(), 1, "research must merge with WI bucket");
+        assert_eq!(clusters[0].cluster_key.as_deref(), Some("0042"));
+        assert!(clusters[0]
+            .entries
+            .iter()
+            .any(|e| e.r#type == DocTypeKey::Research));
+        // The research's cluster_key is back-filled with the merged key
+        // so /api/related and the wire shape agree.
+        assert_eq!(
+            cluster_key_by_path[&research.path].as_deref(),
+            Some("0042"),
+            "slug-merged research must adopt the cluster's key",
+        );
+    }
+
+    #[test]
     fn lifecycle_type_with_no_linkage_still_slug_merges_with_work_item() {
         let cfg = WorkItemConfig::default();
         let mut wi = entry_for_test(DocTypeKey::WorkItems, "shared-slug", 1, "WI");
@@ -846,6 +947,33 @@ mod tests {
             run_clusters(&[wi.clone(), plan.clone()], &cfg);
         assert_eq!(cluster_key_by_path[&wi.path].as_deref(), Some("0040"));
         assert_eq!(cluster_key_by_path[&plan.path].as_deref(), Some("0040"));
+    }
+
+    #[test]
+    fn cluster_key_field_serialises_as_camelcase_on_wire() {
+        let cfg = WorkItemConfig::default();
+        let mut wi = entry_for_test(DocTypeKey::WorkItems, "pipeline", 1, "WI");
+        wi.work_item_id = Some("0042".into());
+        let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
+        plan.frontmatter = json!({ "parent": "work-item:0042" });
+        let (clusters, _, _) = run_clusters(&[wi, plan], &cfg);
+        let cluster = clusters.into_iter().next().expect("one cluster");
+        let json = serde_json::to_value(&cluster).unwrap();
+        assert_eq!(json["clusterKey"], "0042");
+        for entry_json in json["entries"].as_array().expect("entries array") {
+            assert_eq!(entry_json["clusterKey"], "0042");
+        }
+    }
+
+    #[test]
+    fn cluster_key_serialises_as_null_when_absent() {
+        let cfg = WorkItemConfig::default();
+        let plan = entry_for_test(DocTypeKey::Plans, "orphan-plan", 1, "Plan");
+        let (clusters, _, _) = run_clusters(&[plan], &cfg);
+        let cluster = clusters.into_iter().next().expect("one cluster");
+        let json = serde_json::to_value(&cluster).unwrap();
+        assert_eq!(json["clusterKey"], serde_json::Value::Null);
+        assert!(json.as_object().unwrap().contains_key("clusterKey"));
     }
 
     #[test]

@@ -2284,11 +2284,11 @@ test('TimelineStep renders the clusterVia debug tag from clusterViaLabel', () =>
 
 #### Automated Verification:
 
-- [ ] Server wire-shape tests pass: `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib cluster_key_field_serialises`
-- [ ] Frontend type / fetch tests pass: `mise run test:unit:frontend`
-- [ ] Cluster view debug-tag tests pass: included in the frontend
+- [x] Server wire-shape tests pass: `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib cluster_key_field_serialises`
+- [x] Frontend type / fetch tests pass: `mise run test:unit:frontend`
+- [x] Cluster view debug-tag tests pass: included in the frontend
   unit run above.
-- [ ] Full CI graph passes: `mise run test`.
+- [x] Full CI graph passes: `mise run test`.
 
 #### Manual Verification:
 
