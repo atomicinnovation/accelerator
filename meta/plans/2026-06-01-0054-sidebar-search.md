@@ -583,9 +583,9 @@ Tests:
 
 #### Automated Verification
 
-- [ ] All 5 `useDebouncedValue` tests pass: `cd skills/visualisation/visualise/frontend && npm test -- use-debounced-value`
-- [ ] Typecheck passes: `cd skills/visualisation/visualise/frontend && npm run typecheck`
-- [ ] Lint passes: `cd skills/visualisation/visualise/frontend && npm run lint`
+- [x] All 5 `useDebouncedValue` tests pass: `cd skills/visualisation/visualise/frontend && npm test -- use-debounced-value`
+- [x] Typecheck passes: `cd skills/visualisation/visualise/frontend && npm run typecheck`
+- [x] Lint passes: `cd skills/visualisation/visualise/frontend && npm run lint` (no lint script in this workspace; skipped)
 
 #### Manual Verification
 
