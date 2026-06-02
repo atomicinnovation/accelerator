@@ -1,38 +1,64 @@
-import type { RefObject } from 'react'
+import { useState, type RefObject } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import type { DocType, LibraryDocType, LibraryPhase } from '../../api/types'
 import { useUnseenDocTypesContext } from '../../api/use-unseen-doc-types'
 import { ActivityFeed } from '../ActivityFeed/ActivityFeed'
+import { SearchResultsPanel } from './SearchResultsPanel'
 import styles from './Sidebar.module.css'
 
 interface Props {
   docTypes: DocType[]
   phases: LibraryPhase[]
   templates: LibraryDocType | null
-  searchInputRef?: RefObject<HTMLInputElement>
+  searchInputRef: RefObject<HTMLInputElement | null>
 }
 
 export function Sidebar({ docTypes, phases, templates, searchInputRef }: Props) {
   const pathname = useRouterState({ select: s => s.location.pathname })
   const { unseenSet } = useUnseenDocTypesContext()
+  const [query, setQuery] = useState('')
   // docTypes is kept around for affordances that need dirPath / inLifecycle,
   // but phase grouping comes from the server-driven `phases` prop.
   void docTypes
 
   return (
     <nav className={styles.sidebar} aria-label="Site navigation">
-      {/* TEMPORARY: search row visible for design review. Wire behaviour
-          in work item 0054 (search submission, `/` keybind focus). */}
-      <div className={styles.searchRow}>
-        <SearchIcon />
-        <input
-          ref={searchInputRef}
-          type="search"
-          aria-label="Search"
-          placeholder="Search meta/..."
-          className={styles.searchInput}
-        />
-        <kbd className={styles.kbd}>/</kbd>
+      <div className={styles.search}>
+        <div className={styles.searchInputWrap}>
+          <SearchIcon />
+          <input
+            ref={searchInputRef}
+            type="search"
+            aria-label="Search"
+            placeholder="Search meta/…"
+            className={styles.searchInput}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Escape') {
+                setQuery('')
+                e.currentTarget.blur()
+              }
+            }}
+          />
+          {query ? (
+            <button
+              type="button"
+              className={styles.searchClear}
+              aria-label="Clear search"
+              title="Clear (Esc)"
+              onClick={() => {
+                setQuery('')
+                searchInputRef.current?.focus()
+              }}
+            >
+              <CloseIcon />
+            </button>
+          ) : (
+            <kbd className={styles.kbd}>/</kbd>
+          )}
+        </div>
+        <SearchResultsPanel query={query} />
       </div>
 
       <section aria-labelledby="library-heading" className={styles.section}>
@@ -136,13 +162,31 @@ function SearchIcon() {
   return (
     <svg
       className={styles.searchIcon}
-      width="16"
-      height="16"
+      width="14"
+      height="14"
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
       <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
       <path d="M15.2 15.2 L20 20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        d="M6 6 L18 18 M18 6 L6 18"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   )
 }

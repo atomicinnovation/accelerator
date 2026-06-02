@@ -1267,11 +1267,11 @@ Test on `Sidebar.test.tsx`:
 
 #### Automated Verification
 
-- [ ] All new Sidebar tests pass: `cd skills/visualisation/visualise/frontend && npm test -- Sidebar`
-- [ ] Full frontend test suite passes: `cd skills/visualisation/visualise/frontend && npm test`
-- [ ] Typecheck passes: `cd skills/visualisation/visualise/frontend && npm run typecheck`
-- [ ] Lint passes: `cd skills/visualisation/visualise/frontend && npm run lint`
-- [ ] Build passes: `cd skills/visualisation/visualise/frontend && npm run build`
+- [x] All new Sidebar tests pass: `cd skills/visualisation/visualise/frontend && npm test -- Sidebar`
+- [x] Full frontend test suite passes: `cd skills/visualisation/visualise/frontend && npm test`
+- [x] Typecheck passes: `cd skills/visualisation/visualise/frontend && npm run typecheck`
+- [x] Lint passes: no lint script in workspace; skipped
+- [x] Build passes: `cd skills/visualisation/visualise/frontend && npm run build`
 
 #### Manual Verification
 

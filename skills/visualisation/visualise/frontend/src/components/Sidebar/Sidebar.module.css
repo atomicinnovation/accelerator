@@ -1,5 +1,5 @@
 .sidebar {
-  width: 240px;
+  width: 255px;
   /* The sidebar lives inside RootLayout's `.body` row, which is itself
      bounded to the viewport. Scroll independently of `.main` when the
      nav list overflows. `min-height: 0` is unnecessary here because
@@ -7,12 +7,28 @@
      allows shrink. */
   height: 100%;
   overflow-y: auto;
+  flex-shrink: 0;
   padding: var(--sp-4) var(--sp-3);
   border-right: 1px solid var(--ac-stroke);
   background: var(--ac-bg-sidebar);
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
+  /* Hide the scrollbar but keep scrolling enabled — long nav lists and
+     the inline search results panel are scrollable, but the visible
+     scrollbar chrome competes with the sidebar's chrome and is design-
+     vetoed. */
+  scrollbar-width: none;
+}
+.sidebar::-webkit-scrollbar { display: none; }
+
+/* On wider monitors, give the sidebar more breathing room so result-row
+   titles and paths have somewhere to go. The widen breakpoint matches
+   the visualiser's main-content max-width — at viewports where the
+   main column has stopped growing, the extra horizontal space goes to
+   the sidebar instead of empty margin. */
+@media (min-width: 1400px) {
+  .sidebar { width: 290px; }
 }
 
 .section {
@@ -20,47 +36,52 @@
   flex-direction: column;
 }
 
-/* TEMPORARY: search row visible for design review (work item 0054 wires
-   the actual behaviour). Tokens already-in-place mirror the design. */
-.searchRow {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: 0 10px;
-  height: 36px;
-  background: var(--ac-bg-raised);
-  border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-md);
+/* Search block — input row + inline results panel rendered as a single
+   stacked unit beneath the sidebar's top edge. The wrap is the
+   positioning context for the leading magnifying-glass and the trailing
+   kbd / clear button, both absolutely positioned over the input. */
+.search {
   margin-bottom: var(--sp-2);
+  position: relative;
+}
+
+.searchInputWrap {
+  position: relative;
 }
 
 .searchIcon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--ac-fg-faint);
-  flex-shrink: 0;
+  pointer-events: none;
 }
 
 .searchInput {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  padding: 0;
-  margin: 0;
+  width: 100%;
+  padding: 7px 28px 7px 32px;
+  background: var(--ac-bg-raised);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-sm);
+  color: var(--ac-fg);
   font-family: var(--ac-font-body);
   font-style: normal;
   font-variant: normal;
   font-stretch: normal;
   font-weight: 400;
-  font-size: var(--size-subtitle);
+  font-size: var(--size-row);
   line-height: var(--lh-normal);
-  color: var(--ac-fg);
   appearance: none;
   -webkit-appearance: none;
 }
 .searchInput::placeholder { color: var(--ac-fg-faint); }
-/* Hide the native macOS/Chrome search-clear "×" button so the input
-   matches the design — wire a real clear control in 0054 if needed. */
+.searchInput:focus {
+  outline: none;
+  border-color: var(--ac-accent);
+  box-shadow: 0 0 0 3px var(--ac-accent-faint);
+}
+/* Hide the native macOS/Chrome search-clear "×" — we render our own. */
 .searchInput::-webkit-search-cancel-button,
 .searchInput::-webkit-search-decoration {
   -webkit-appearance: none;
@@ -69,15 +90,10 @@
 }
 
 .kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  background: var(--ac-bg-sunken);
-  border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-sm);
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   font-family: var(--ac-font-mono);
   font-style: normal;
   font-variant: normal;
@@ -86,7 +102,34 @@
   font-size: var(--size-eyebrow);
   line-height: 1;
   color: var(--ac-fg-muted);
-  flex-shrink: 0;
+  padding: 2px 5px;
+  border: 1px solid var(--ac-stroke);
+  border-radius: 3px;
+  background: var(--ac-bg-sunken);
+}
+
+.searchClear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ac-fg-faint);
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  line-height: 0;
+}
+.searchClear:hover {
+  background: var(--ac-bg-hover);
+  color: var(--ac-fg);
 }
 
 /* Per-design: sidebar headings use a fixed mid-grey in both themes
@@ -248,3 +291,195 @@
   flex-shrink: 0;
 }
 .active .viewIcon { color: var(--ac-accent); }
+
+/* ─── Search results panel ─── */
+.searchPanel {
+  margin-top: 8px;
+  background: var(--ac-bg-raised);
+  border: 1px solid var(--ac-stroke);
+  border-radius: 6px;
+  box-shadow: var(--ac-shadow-soft);
+  overflow: hidden;
+  animation: searchPop 140ms ease-out;
+}
+
+@keyframes searchPop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.mono {
+  font-family: var(--ac-font-mono);
+}
+
+.searchMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: 7px 10px;
+  font-size: var(--size-eyebrow);
+  line-height: 1.4;
+  color: var(--ac-fg-muted);
+  background: var(--ac-bg-sunken);
+  border-bottom: 1px solid var(--ac-stroke-soft);
+  white-space: nowrap;
+}
+.searchMeta > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.searchMeta .mono {
+  color: var(--ac-fg);
+}
+
+.searchHint {
+  display: inline-flex;
+  gap: var(--sp-1);
+  align-items: center;
+  color: var(--ac-fg-faint);
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.searchHintKbd {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-4xs);
+  color: var(--ac-fg-muted);
+  padding: 1px 4px;
+  border: 1px solid var(--ac-stroke);
+  border-radius: 3px;
+  background: var(--ac-bg-raised);
+  line-height: 1;
+}
+
+.searchList {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: var(--sp-1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.searchList::-webkit-scrollbar { width: 8px; }
+.searchList::-webkit-scrollbar-thumb {
+  background: var(--ac-stroke);
+  border-radius: var(--radius-sm);
+}
+
+.searchRowLink {
+  display: grid;
+  grid-template-columns: 26px 1fr 12px;
+  gap: var(--sp-2);
+  align-items: center;
+  padding: 6px var(--sp-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--ac-fg);
+  text-decoration: none;
+}
+.searchRowLink:hover,
+.searchRowLink:focus-visible {
+  background: var(--ac-bg-active);
+  outline: none;
+}
+
+.searchRowBody { min-width: 0; }
+
+.searchRowTitle {
+  font-size: var(--size-row);
+  font-weight: 500;
+  color: var(--ac-fg-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.searchRowSub {
+  font-size: var(--size-3xs-lg);
+  color: var(--ac-fg-muted);
+  display: flex;
+  gap: var(--sp-1);
+  align-items: center;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.searchRowType { font-weight: 500; }
+.searchRowSep { color: var(--ac-fg-faint); }
+.searchRowPath {
+  color: var(--ac-fg-faint);
+  font-size: var(--size-3xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.searchRowChev {
+  color: var(--ac-fg-faint);
+}
+.searchRowLink:hover .searchRowChev { color: var(--ac-fg-muted); }
+
+.searchMark {
+  background: var(--ac-accent-tint);
+  color: var(--ac-fg-strong);
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+/* ─── Empty state ─── */
+.searchEmpty {
+  padding: 18px 14px 16px;
+  text-align: left;
+}
+.searchEmptyTitle {
+  font-size: var(--size-subtitle);
+  font-weight: 600;
+  color: var(--ac-fg-strong);
+  margin-bottom: var(--sp-1);
+}
+.searchEmptyBody {
+  font-size: var(--size-xxs-sm);
+  color: var(--ac-fg-muted);
+  line-height: 1.5;
+}
+.searchEmptyBody .mono {
+  color: var(--ac-fg);
+  font-size: var(--size-eyebrow);
+}
+
+/* ─── Loading state ─── */
+.searchLoading {
+  padding: 10px var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.searchLoadbar {
+  height: 2px;
+  background: var(--ac-stroke-soft);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+.searchLoadbar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 38%;
+  background: var(--ac-accent);
+  border-radius: 2px;
+  animation: searchLoadbar 1s ease-in-out infinite;
+}
+@keyframes searchLoadbar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(280%); }
+}
+.searchLoadhint {
+  font-size: var(--size-3xs-lg);
+  color: var(--ac-fg-faint);
+}
+.searchLoadhint .mono {
+  color: var(--ac-fg-muted);
+}

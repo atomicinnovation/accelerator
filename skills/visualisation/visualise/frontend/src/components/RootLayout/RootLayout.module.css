@@ -23,8 +23,36 @@
 
 .main {
   flex: 1;
-  overflow-y: auto;
+  /* `scroll` (not `auto`) keeps the scrollbar gutter reserved on every
+     page so the main-column width doesn't jitter between short routes
+     (no overflow) and long routes (overflow). */
+  overflow-y: scroll;
   /* min-height: 0 mirrors the body row — main is itself a flex child
      and needs the same allow-shrink rule to scroll independently. */
   min-height: 0;
+  /* Firefox scrollbar styling — uses the semantic bg/stroke tokens so
+     light mode renders a faint light scrollbar (matching the surface)
+     and dark mode renders a faint light scrollbar against the dark
+     surface. */
+  scrollbar-color: var(--ac-stroke-strong) var(--ac-bg);
+  scrollbar-width: thin;
+}
+
+/* WebKit scrollbar styling — mirrors the Firefox declarations above so
+   light mode no longer ships the default dark macOS scrollbar against
+   our light surface. */
+.main::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+.main::-webkit-scrollbar-track {
+  background: var(--ac-bg);
+}
+.main::-webkit-scrollbar-thumb {
+  background: var(--ac-stroke-strong);
+  border: 3px solid var(--ac-bg);
+  border-radius: var(--radius-md);
+}
+.main::-webkit-scrollbar-thumb:hover {
+  background: var(--ac-fg-faint);
 }

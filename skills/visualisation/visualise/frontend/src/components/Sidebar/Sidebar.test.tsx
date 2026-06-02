@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createRef } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, renderWithRouterAt } from '../../test/router-helpers'
 import { Sidebar } from './Sidebar'
@@ -105,6 +107,7 @@ function renderSidebar(
   const resolvedPhases = phases ?? defaultPhases(docTypes)
   const resolvedTemplates =
     templates === undefined ? defaultTemplates(docTypes) : templates
+  const ref = createRef<HTMLInputElement>()
   return render(
     <QueryClientProvider client={qc}>
       <UnseenDocTypesContext.Provider value={unseen}>
@@ -113,6 +116,7 @@ function renderSidebar(
             docTypes={docTypes}
             phases={resolvedPhases}
             templates={resolvedTemplates}
+            searchInputRef={ref}
           />
         </MemoryRouter>
       </UnseenDocTypesContext.Provider>
@@ -250,11 +254,41 @@ describe('Sidebar', () => {
     }
   })
 
-  it('search row is rendered (temporary; 0054 will wire behaviour)', async () => {
+  it('search row is rendered', async () => {
     const { container } = renderSidebar()
     await screen.findByText('LIBRARY')
     expect(container.querySelector('input[type="search"]')).not.toBeNull()
     expect(container.querySelector('kbd')?.textContent).toBe('/')
+  })
+
+  it('Escape clears the query and blurs the input', async () => {
+    const user = userEvent.setup()
+    renderSidebar()
+    const input = await screen.findByRole('searchbox', { name: /search/i }) as HTMLInputElement
+    input.focus()
+    await user.type(input, 'ab')
+    expect(input.value).toBe('ab')
+    await user.keyboard('{Escape}')
+    expect(input.value).toBe('')
+    expect(document.activeElement).not.toBe(input)
+  })
+
+  it('clear button appears when the input has a value and resets it on click', async () => {
+    const user = userEvent.setup()
+    renderSidebar()
+    const input = await screen.findByRole('searchbox', { name: /search/i }) as HTMLInputElement
+    // No value → kbd is shown, clear button is absent.
+    expect(screen.queryByRole('button', { name: /clear search/i })).toBeNull()
+    input.focus()
+    await user.type(input, 'a')
+    // Value present → kbd is gone, clear button is shown.
+    const clear = await screen.findByRole('button', { name: /clear search/i })
+    expect(input.value).toBe('a')
+    await user.click(clear)
+    expect(input.value).toBe('')
+    expect(document.activeElement).toBe(input)
+    // Clearing flips back to the kbd hint.
+    expect(screen.queryByRole('button', { name: /clear search/i })).toBeNull()
   })
 
   it('active state for /library/<type>', async () => {
@@ -266,6 +300,7 @@ describe('Sidebar', () => {
             docTypes={allDocTypes}
             phases={defaultPhases(allDocTypes)}
             templates={defaultTemplates(allDocTypes)}
+            searchInputRef={createRef<HTMLInputElement>()}
           />
         </UnseenDocTypesContext.Provider>
       </QueryClientProvider>,
@@ -286,6 +321,7 @@ describe('Sidebar', () => {
             docTypes={allDocTypes}
             phases={defaultPhases(allDocTypes)}
             templates={defaultTemplates(allDocTypes)}
+            searchInputRef={createRef<HTMLInputElement>()}
           />
         </UnseenDocTypesContext.Provider>
       </QueryClientProvider>,
@@ -306,6 +342,7 @@ describe('Sidebar', () => {
             docTypes={allDocTypes}
             phases={defaultPhases(allDocTypes)}
             templates={defaultTemplates(allDocTypes)}
+            searchInputRef={createRef<HTMLInputElement>()}
           />
         </UnseenDocTypesContext.Provider>
       </QueryClientProvider>,
