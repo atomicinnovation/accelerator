@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-06-02
+
 ### Added
 
 - Migration framework: new optional interactive contract (work item 0069).
