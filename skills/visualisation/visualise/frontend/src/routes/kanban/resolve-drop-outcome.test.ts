@@ -20,6 +20,7 @@ function makeEntry(relPath: string, status: string): IndexEntry {
     bodyPreview: '',
     completeness: null,
     linkedCount: 0,
+    clusterKey: null,
   }
 }
 

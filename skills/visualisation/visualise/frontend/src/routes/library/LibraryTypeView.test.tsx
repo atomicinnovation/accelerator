@@ -65,6 +65,7 @@ const mockEntries: IndexEntry[] = [
     bodyPreview: '',
     completeness: null,
     linkedCount: 0,
+    clusterKey: null,
   },
   {
     type: 'plans',
@@ -82,6 +83,7 @@ const mockEntries: IndexEntry[] = [
     bodyPreview: '',
     completeness: null,
     linkedCount: 0,
+    clusterKey: null,
   },
 ]
 

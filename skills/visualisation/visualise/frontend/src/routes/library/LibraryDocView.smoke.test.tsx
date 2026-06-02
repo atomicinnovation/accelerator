@@ -24,6 +24,7 @@ const planEntry: IndexEntry = {
   bodyPreview: '',
   completeness: null,
   linkedCount: 0,
+  clusterKey: null,
 }
 
 const reviewEntry: IndexEntry = {

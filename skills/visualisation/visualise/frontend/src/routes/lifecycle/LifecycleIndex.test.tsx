@@ -22,6 +22,7 @@ const clusters: LifecycleCluster[] = [
     ],
     completeness: makeCompleteness({ hasPlan: true, present: ['plans'] }),
     lastChangedMs: 1_700_000_000_000,
+    clusterKey: null,
   },
   {
     slug: 'newer',
@@ -62,6 +63,7 @@ const clusters: LifecycleCluster[] = [
       present: ['work-items', 'plans', 'plan-reviews', 'decisions'],
     }),
     lastChangedMs: 1_700_500_000_000,
+    clusterKey: null,
   },
 ]
 

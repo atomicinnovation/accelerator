@@ -94,6 +94,7 @@ describe('router', () => {
         present: [],
       },
       lastChangedMs: 0,
+      clusterKey: null,
     })
     const router = renderAt('/lifecycle/foo')
     await waitForPath(router, '/lifecycle/foo')
@@ -192,6 +193,7 @@ describe('loader crumbs', () => {
         present: [],
       },
       lastChangedMs: 0,
+      clusterKey: null,
     })
     const router = renderAt('/lifecycle/some-cluster')
     await waitForPath(router, '/lifecycle/some-cluster')

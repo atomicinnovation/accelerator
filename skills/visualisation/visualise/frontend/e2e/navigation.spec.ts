@@ -19,14 +19,17 @@ test('library → lifecycle → library deep-link round trip', async ({ page }) 
   await page.locator('a[href="/lifecycle/first-plan"]').click()
   await expect(page).toHaveURL(/\/lifecycle\/first-plan/)
 
-  // The cluster view should show the plans stage as present
+  // The cluster view's timeline carries one <li data-stage="<doc-type>">
+  // per present (or missing) stage. Scope to the timeline (top-level <ol>)
+  // to avoid matching the pipeline-panel tiles, which also carry
+  // data-stage attributes but live inside the panel's nested markup.
   await expect(
-    page.locator('li[data-stage="hasPlan"][data-present="true"]'),
+    page.locator('ol > li[data-stage="plans"]').first(),
   ).toBeVisible()
 
   // Click the plan entry link to return to the library
   await page
-    .locator('li[data-stage="hasPlan"] a[href*="/library/plans/"]')
+    .locator('ol > li[data-stage="plans"] a[href*="/library/plans/"]')
     .first()
     .click()
   await expect(page).toHaveURL(/\/library\/plans\//)

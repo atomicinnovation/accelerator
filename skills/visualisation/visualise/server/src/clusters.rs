@@ -233,7 +233,28 @@ pub fn compute_clusters_with_backfill(
                     None => e.slug.clone(),
                 }
             }
-            None => Some(format!("__orphan__::{}", e.path.display())),
+            None => {
+                // Orphan-by-design (Notes, Decisions, DesignGaps,
+                // DesignInventories): consult the slug → cluster_key
+                // bridge so a note/decision/etc. whose slug matches a
+                // typed cluster joins that cluster. Falls back to a
+                // per-path bucket only when no typed cluster shares
+                // the slug — which preserves the "two orphan-type
+                // entries with colliding slugs must not merge"
+                // invariant pinned by
+                // `orphan_types_with_colliding_slugs_do_not_merge`.
+                match e
+                    .slug
+                    .as_deref()
+                    .and_then(|s| slug_to_cluster_key.get(s))
+                {
+                    Some(ck) => {
+                        cluster_key_by_path.insert(e.path.clone(), Some(ck.clone()));
+                        Some(ck.clone())
+                    }
+                    None => Some(format!("__orphan__::{}", e.path.display())),
+                }
+            }
         };
         let Some(k) = bucket_key else { continue };
         buckets.entry(k).or_default().push(e.clone());
@@ -947,6 +968,38 @@ mod tests {
             run_clusters(&[wi.clone(), plan.clone()], &cfg);
         assert_eq!(cluster_key_by_path[&wi.path].as_deref(), Some("0040"));
         assert_eq!(cluster_key_by_path[&plan.path].as_deref(), Some("0040"));
+    }
+
+    #[test]
+    fn orphan_by_design_type_joins_typed_cluster_when_slug_matches() {
+        // A Decision whose slug matches a work-item's slug joins the
+        // work-item's cluster via the slug → cluster_key bridge, even
+        // though Decisions are orphan-by-design. This is the path the
+        // ac2-coverage e2e fixture relies on. The orphan-vs-orphan
+        // slug-collision guard is unchanged (see
+        // `orphan_types_with_colliding_slugs_do_not_merge`).
+        let cfg = WorkItemConfig::default();
+        let mut wi = entry_for_test(DocTypeKey::WorkItems, "ac2-coverage", 1, "WI");
+        wi.work_item_id = Some("0099".into());
+        wi.path = PathBuf::from("/repo/meta/work/0099-ac2-coverage.md");
+        for orphan_kind in [
+            DocTypeKey::Decisions,
+            DocTypeKey::Notes,
+            DocTypeKey::DesignGaps,
+            DocTypeKey::DesignInventories,
+        ] {
+            let mut orphan = entry_for_test(orphan_kind, "ac2-coverage", 2, "O");
+            orphan.path = PathBuf::from(format!("/repo/meta/{:?}/ac2-coverage.md", orphan_kind));
+            let (clusters, _, cluster_key_by_path) =
+                run_clusters(&[wi.clone(), orphan.clone()], &cfg);
+            assert_eq!(clusters.len(), 1, "{orphan_kind:?} must merge via bridge");
+            assert_eq!(clusters[0].cluster_key.as_deref(), Some("0099"), "{orphan_kind:?}");
+            assert_eq!(
+                cluster_key_by_path[&orphan.path].as_deref(),
+                Some("0099"),
+                "{orphan_kind:?}: bridged entry must adopt cluster's key",
+            );
+        }
     }
 
     #[test]

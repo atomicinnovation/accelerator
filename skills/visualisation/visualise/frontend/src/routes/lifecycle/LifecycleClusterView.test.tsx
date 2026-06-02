@@ -42,6 +42,7 @@ const cluster: LifecycleCluster = {
     present: ['plans', 'decisions'],
   }),
   lastChangedMs: 200,
+  clusterKey: null,
 }
 
 function Wrapper({ children }: { children: React.ReactNode }) {

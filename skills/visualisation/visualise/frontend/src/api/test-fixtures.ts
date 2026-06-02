@@ -43,6 +43,7 @@ export function makeIndexEntry(overrides: Partial<IndexEntry> = {}): IndexEntry 
     bodyPreview: '',
     completeness: null,
     linkedCount: 0,
+    clusterKey: null,
     ...overrides,
   }
 }
