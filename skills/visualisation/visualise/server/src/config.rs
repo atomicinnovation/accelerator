@@ -98,6 +98,51 @@ impl WorkItemConfig {
         }
     }
 
+    /// True iff `token` is exactly a canonical work-item id under this
+    /// configuration. The width is parsed from `id_pattern`'s
+    /// `{number:0Nd}` segment; tokens with the wrong digit count
+    /// (or a missing/incorrect project prefix) are rejected.
+    ///
+    /// This is distinct from `extract_id` (which uses the more permissive
+    /// `scan_regex` and requires a trailing `-`) and from `normalise_id`
+    /// (which pads bare digits to the canonical width). The token
+    /// predicate admits only canonical-form strings, with no padding and
+    /// no surrounding context — the right tool for slug-prefix stripping.
+    pub fn is_canonical_id_token(&self, token: &str) -> bool {
+        let width = self.canonical_digit_width();
+        let digits = match &self.default_project_code {
+            Some(code) => match token.strip_prefix(&format!("{code}-")) {
+                Some(rest) => rest,
+                None => return false,
+            },
+            None => token,
+        };
+        if width == 0 {
+            // No width specifier: admit any non-empty digit run.
+            !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit())
+        } else {
+            digits.len() == width && digits.chars().all(|c| c.is_ascii_digit())
+        }
+    }
+
+    fn canonical_digit_width(&self) -> usize {
+        let s = &self.id_pattern;
+        let Some(i) = s.find("{number") else { return 0; };
+        let rest = &s[i + "{number".len()..];
+        let Some(end) = rest.find('}') else { return 0; };
+        let spec = &rest[..end];
+        let trimmed = spec.trim_start_matches(':').trim_end_matches('d');
+        if trimmed.is_empty() {
+            return 0;
+        }
+        let digits = trimmed.trim_start_matches('0');
+        if digits.is_empty() {
+            // Was "0" or "00…" — admit any digit count.
+            return 0;
+        }
+        digits.parse::<usize>().ok().unwrap_or(0)
+    }
+
     /// Extract the full-string work-item ID from a filename.
     ///
     /// Two-pass admission:
@@ -158,6 +203,25 @@ impl WorkItemConfig {
             Some(code) => format!("{code}-{trimmed}"),
             None => trimmed.to_string(),
         })
+    }
+}
+
+impl Default for WorkItemConfig {
+    fn default() -> Self {
+        Self::default_numeric()
+    }
+}
+
+#[cfg(test)]
+impl WorkItemConfig {
+    pub fn with_pattern_for_test(prefix: &str, width: usize) -> Self {
+        let raw = format!("^({}-[0-9]{{{}}})-", regex::escape(prefix), width);
+        Self {
+            scan_regex: regex::Regex::new(&raw).unwrap(),
+            scan_regex_raw: raw,
+            id_pattern: format!("{}-{{number:0{}d}}", prefix, width),
+            default_project_code: Some(prefix.to_string()),
+        }
     }
 }
 
@@ -467,6 +531,35 @@ mod tests {
         assert_eq!(cfg.normalise_id("123-456"), None);
         // Trailing letters:
         assert_eq!(cfg.normalise_id("ENG-42abc"), None);
+    }
+
+    #[test]
+    fn is_canonical_id_token_under_default_numeric() {
+        let cfg = WorkItemConfig::default_numeric();
+        assert!(cfg.is_canonical_id_token("0040"));
+        assert!(!cfg.is_canonical_id_token("40"));
+        assert!(!cfg.is_canonical_id_token("00040"));
+        assert!(!cfg.is_canonical_id_token("100"));
+        assert!(!cfg.is_canonical_id_token("004A"));
+        assert!(!cfg.is_canonical_id_token(""));
+    }
+
+    #[test]
+    fn is_canonical_id_token_under_project_prefixed_pattern() {
+        let cfg = WorkItemConfig::with_pattern_for_test("PROJ", 4);
+        assert!(cfg.is_canonical_id_token("PROJ-0040"));
+        assert!(!cfg.is_canonical_id_token("0040"));
+        assert!(!cfg.is_canonical_id_token("PROJ-40"));
+        assert!(!cfg.is_canonical_id_token("OTHER-0040"));
+    }
+
+    #[test]
+    fn default_impl_matches_default_numeric() {
+        let a: WorkItemConfig = Default::default();
+        let b = WorkItemConfig::default_numeric();
+        assert_eq!(a.scan_regex_raw, b.scan_regex_raw);
+        assert_eq!(a.id_pattern, b.id_pattern);
+        assert_eq!(a.default_project_code, b.default_project_code);
     }
 
     #[test]

@@ -1158,7 +1158,7 @@ fn build_entry(
         // Fall back to the default numeric slug derivation when the primary
         // regex doesn't match (e.g., legacy bare-numeric files in a
         // project-prefixed workspace during a pattern-config rollout).
-        let slug = regex_slug.or_else(|| slug::derive(kind, filename));
+        let slug = regex_slug.or_else(|| slug::derive(kind, filename, work_item_cfg));
         // Frontmatter-first: a synced work-item may carry `work_item_id:` even
         // when the filename doesn't start with the namespaced prefix. Trim,
         // route through `normalise_id`, and fall back to filename extraction
@@ -1183,7 +1183,7 @@ fn build_entry(
         let id = fm_id.or_else(|| work_item_cfg.extract_id(filename));
         (slug, id)
     } else {
-        (slug::derive(kind, &slug_filename), None)
+        (slug::derive(kind, &slug_filename, work_item_cfg), None)
     };
     // Title fallback uses the slug-source stem so nested kinds (where the
     // manifest filename is just "inventory") get a meaningful default.

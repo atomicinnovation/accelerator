@@ -593,10 +593,10 @@ pub fn entry_for_test_with_filename(
 
 #### Automated Verification:
 
-- [ ] New slug tests pass: `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib slug::tests`
-- [ ] Full server unit suite passes: `mise run test:unit:visualiser`
-- [ ] Server integration suite passes: `mise run test:integration:visualiser`
-- [ ] No existing slug test regresses (the prior `dated_types_strip_iso_date`, `plan_reviews_strip_date_and_review_n_suffix`, `work_item_reviews_strip_date_and_review_n_suffix` etc. all still pass).
+- [x] New slug tests pass: `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib slug::tests`
+- [x] Full server unit suite passes: `mise run test:unit:visualiser`
+- [x] Server integration suite passes: `mise run test:integration:visualiser`
+- [x] No existing slug test regresses (the prior `dated_types_strip_iso_date`, `plan_reviews_strip_date_and_review_n_suffix`, `work_item_reviews_strip_date_and_review_n_suffix` etc. all still pass).
 
 #### Manual Verification:
 

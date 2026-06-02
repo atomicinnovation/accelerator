@@ -177,10 +177,30 @@ fn derive_completeness(entries: &[IndexEntry]) -> Completeness {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::entry_for_test;
+    use crate::config::WorkItemConfig;
+    use crate::test_support::{entry_for_test, entry_for_test_with_filename};
 
     fn entry(kind: DocTypeKey, slug: &str, mtime_ms: i64, title: &str) -> IndexEntry {
         entry_for_test(kind, slug, mtime_ms, title)
+    }
+
+    #[test]
+    fn phase_1_id_prefixed_and_bare_slugs_now_cluster_into_one_bucket() {
+        // Two filenames that produced disjoint slugs on `main` and produce
+        // the same slug after Phase 1.
+        let cfg = WorkItemConfig::default();
+        let plan = entry_for_test_with_filename(
+            DocTypeKey::Plans,
+            "2026-05-31-0040-pipeline-visualisation-overhaul.md",
+            &cfg,
+        );
+        let wi = entry_for_test_with_filename(
+            DocTypeKey::WorkItems,
+            "0040-pipeline-visualisation-overhaul.md",
+            &cfg,
+        );
+        let (clusters, _) = compute_clusters_with_backfill(&[plan, wi]);
+        assert_eq!(clusters.len(), 1);
     }
 
     #[test]
