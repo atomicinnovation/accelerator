@@ -81,6 +81,39 @@ impl DocTypeKey {
         !matches!(self, DocTypeKey::Templates)
     }
 
+    /// True iff this doc type carries a `target:` frontmatter key per
+    /// ADR-0034's type-pair table. Review/validation artifacts declare
+    /// their target via `target:`; everything else uses `parent:` /
+    /// `work_item_id:` / no linkage.
+    pub fn carries_target_frontmatter(self) -> bool {
+        matches!(
+            self,
+            Self::PlanReviews
+                | Self::WorkItemReviews
+                | Self::PrReviews
+                | Self::Validations,
+        )
+    }
+
+    /// True iff this doc type is part of the work-item lifecycle
+    /// pipeline. These types fall back to slug-bucketing when their
+    /// typed-linkage walk returns no cluster_key (legacy filename
+    /// shapes). Orphan-by-design types return `false` and are kept
+    /// in per-path buckets to prevent slug-collision merges.
+    pub fn participates_in_lifecycle(self) -> bool {
+        matches!(
+            self,
+            Self::Plans
+                | Self::Research
+                | Self::WorkItems
+                | Self::PlanReviews
+                | Self::WorkItemReviews
+                | Self::PrReviews
+                | Self::PrDescriptions
+                | Self::Validations,
+        )
+    }
+
     pub fn in_kanban(self) -> bool {
         matches!(self, DocTypeKey::WorkItems)
     }
@@ -257,6 +290,38 @@ mod tests {
     #[test]
     fn doc_type_key_all_returns_thirteen_variants() {
         assert_eq!(DocTypeKey::all().len(), 13);
+    }
+
+    #[test]
+    fn carries_target_frontmatter_covers_only_review_and_validation_types() {
+        for k in DocTypeKey::all() {
+            let expected = matches!(
+                k,
+                DocTypeKey::PlanReviews
+                    | DocTypeKey::WorkItemReviews
+                    | DocTypeKey::PrReviews
+                    | DocTypeKey::Validations,
+            );
+            assert_eq!(k.carries_target_frontmatter(), expected, "{k:?}");
+        }
+    }
+
+    #[test]
+    fn participates_in_lifecycle_excludes_orphan_and_template_types() {
+        for k in DocTypeKey::all() {
+            let expected = matches!(
+                k,
+                DocTypeKey::Plans
+                    | DocTypeKey::Research
+                    | DocTypeKey::WorkItems
+                    | DocTypeKey::PlanReviews
+                    | DocTypeKey::WorkItemReviews
+                    | DocTypeKey::PrReviews
+                    | DocTypeKey::PrDescriptions
+                    | DocTypeKey::Validations,
+            );
+            assert_eq!(k.participates_in_lifecycle(), expected, "{k:?}");
+        }
     }
 
     #[test]

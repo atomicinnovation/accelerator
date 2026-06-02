@@ -1148,10 +1148,10 @@ diffs are *expected* and become the affirmative success criterion.
 
 #### Automated Verification:
 
-- [ ] New target-resolution tests pass: `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib target_path_resolution_tests`
-- [ ] Full server unit suite passes: `mise run test:unit:visualiser`.
-- [ ] Server integration suite passes: `mise run test:integration:visualiser` (this is where the `reviews_by_target` integration tests live and where the broader effect on `/api/related/*` shows up).
-- [ ] Frontend test suite passes: `mise run test:unit:frontend` (no frontend change in this phase; this is a regression guard).
+- [x] New target-resolution tests pass: `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib target_path_resolution_tests`
+- [x] Full server unit suite passes: `mise run test:unit:visualiser`.
+- [x] Server integration suite passes: `mise run test:integration:visualiser` (this is where the `reviews_by_target` integration tests live and where the broader effect on `/api/related/*` shows up).
+- [x] Frontend test suite passes: `mise run test:unit:frontend` (no frontend change in this phase; this is a regression guard).
 
 #### Manual Verification:
 

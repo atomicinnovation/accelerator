@@ -826,13 +826,13 @@ fn normalize_target_key(raw: &str, project_root: &Path) -> Option<PathBuf> {
 ///
 /// Returns `None` for non-plan-review entries or unrecognised target
 /// shapes.
-fn target_path_from_entry(
+pub(crate) fn target_path_from_entry(
     entry: &IndexEntry,
     plans_by_id: &HashMap<String, PathBuf>,
     project_root: &Path,
 ) -> Option<PathBuf> {
     use crate::typed_ref::{parse_typed_ref, TypedRef};
-    if entry.r#type != DocTypeKey::PlanReviews {
+    if !entry.r#type.carries_target_frontmatter() {
         return None;
     }
     let raw = entry.frontmatter.get("target")?.as_str()?;
@@ -2552,14 +2552,17 @@ mod reverse_index_tests {
 
     // ── Step 1.10 ────────────────────────────────────────────────────────────
     #[tokio::test]
-    async fn reviews_by_target_only_admits_plan_reviews() {
+    async fn reviews_by_target_admits_every_target_carrying_doc_type() {
+        // Phase 3 widens target resolution to every doc type that carries
+        // a `target:` frontmatter key (PlanReviews, WorkItemReviews,
+        // PrReviews, Validations). A PR review pointing at a plan-shaped
+        // path is admitted; the parser is intentionally type-agnostic.
         let tmp = tempfile::tempdir().unwrap();
         let plans = tmp.path().join("meta/plans");
         let pr_reviews = tmp.path().join("meta/reviews/prs");
         std::fs::create_dir_all(&plans).unwrap();
         std::fs::create_dir_all(&pr_reviews).unwrap();
         std::fs::write(plans.join("a.md"), "---\ntitle: A\n---\n").unwrap();
-        // PR review with a synthetic target — should NOT be admitted.
         std::fs::write(
             pr_reviews.join("pr-rev.md"),
             "---\ntarget: \"meta/plans/a.md\"\n---\n",
@@ -2575,7 +2578,7 @@ mod reverse_index_tests {
 
         let plan_a = std::fs::canonicalize(plans.join("a.md")).unwrap();
         let inbound = idx.reviews_by_target(&plan_a).await;
-        assert!(inbound.is_empty(), "PR-reviews are out of Phase 9 scope");
+        assert_eq!(inbound.len(), 1, "PR-review with path target is admitted");
     }
 
     // ── Step 1.11 ────────────────────────────────────────────────────────────
@@ -3281,5 +3284,156 @@ mod reverse_index_tests {
                 "deleted plan should be removed from plans_by_id"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod target_path_resolution_tests {
+    use super::*;
+    use crate::test_support::entry_for_test;
+
+    fn plans_by_id_with(id: &str, path: PathBuf) -> HashMap<String, PathBuf> {
+        let mut m = HashMap::new();
+        m.insert(id.to_string(), path);
+        m
+    }
+
+    #[test]
+    fn work_item_review_with_path_target_resolves_to_work_item_path() {
+        let mut entry = entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
+        entry.frontmatter = serde_json::json!({
+            "target": "meta/work/0033-design-token-system.md"
+        });
+        let root = PathBuf::from("/repo");
+        let resolved = target_path_from_entry(
+            &entry,
+            &plans_by_id_with("ignored", PathBuf::from("/repo/meta/plans/x.md")),
+            &root,
+        );
+        assert_eq!(
+            resolved,
+            Some(PathBuf::from("/repo/meta/work/0033-design-token-system.md"))
+        );
+    }
+
+    #[test]
+    fn validation_with_path_target_resolves_to_plan_path() {
+        let mut entry = entry_for_test(DocTypeKey::Validations, "x", 0, "V");
+        entry.frontmatter = serde_json::json!({
+            "target": "meta/plans/2026-04-21-foo.md"
+        });
+        let root = PathBuf::from("/repo");
+        let resolved = target_path_from_entry(&entry, &HashMap::new(), &root);
+        assert_eq!(
+            resolved,
+            Some(PathBuf::from("/repo/meta/plans/2026-04-21-foo.md"))
+        );
+    }
+
+    #[test]
+    fn plan_review_with_typed_plan_id_resolves_via_plans_by_id() {
+        let mut entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
+        entry.frontmatter = serde_json::json!({
+            "target": "plan:2026-05-31-0040-pipeline"
+        });
+        let plans = plans_by_id_with(
+            "2026-05-31-0040-pipeline",
+            PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md"),
+        );
+        let resolved = target_path_from_entry(&entry, &plans, &PathBuf::from("/repo"));
+        assert_eq!(
+            resolved,
+            Some(PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md"))
+        );
+    }
+
+    #[test]
+    fn pr_review_with_path_target_resolves_to_target_path() {
+        let mut entry = entry_for_test(DocTypeKey::PrReviews, "x", 0, "PRR");
+        entry.frontmatter = serde_json::json!({
+            "target": "meta/prs/42-foo.md"
+        });
+        let resolved = target_path_from_entry(
+            &entry,
+            &HashMap::new(),
+            &PathBuf::from("/repo"),
+        );
+        assert_eq!(resolved, Some(PathBuf::from("/repo/meta/prs/42-foo.md")));
+    }
+
+    #[test]
+    fn entry_without_target_field_resolves_to_none() {
+        let entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
+        let resolved = target_path_from_entry(
+            &entry,
+            &HashMap::new(),
+            &PathBuf::from("/repo"),
+        );
+        assert_eq!(resolved, None);
+    }
+
+    #[test]
+    fn non_target_carrying_doc_types_return_none() {
+        for kind in [
+            DocTypeKey::Plans,
+            DocTypeKey::Research,
+            DocTypeKey::WorkItems,
+        ] {
+            let mut entry = entry_for_test(kind, "x", 0, "T");
+            entry.frontmatter = serde_json::json!({ "target": "meta/plans/foo.md" });
+            assert_eq!(
+                target_path_from_entry(&entry, &HashMap::new(), &PathBuf::from("/repo")),
+                None,
+                "{kind:?} should not resolve target:",
+            );
+        }
+    }
+
+    #[test]
+    fn typed_work_item_target_returns_none_resolved_by_cluster_key_resolver() {
+        // Phase 3 deliberately leaves work-item:/adr:/pr: target
+        // resolution to the cluster-key resolver. Pin this contract so
+        // the Phase 3/Phase 4 division of labour can't drift silently.
+        let mut entry = entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
+        entry.frontmatter = serde_json::json!({ "target": "work-item:0042" });
+        assert_eq!(
+            target_path_from_entry(&entry, &HashMap::new(), &PathBuf::from("/repo")),
+            None,
+        );
+    }
+
+    #[test]
+    fn typed_adr_and_pr_targets_return_none() {
+        for raw in ["adr:0034", "pr:42"] {
+            let mut entry = entry_for_test(DocTypeKey::PrReviews, "x", 0, "PRR");
+            entry.frontmatter = serde_json::json!({ "target": raw });
+            assert_eq!(
+                target_path_from_entry(&entry, &HashMap::new(), &PathBuf::from("/repo")),
+                None,
+                "raw={raw}",
+            );
+        }
+    }
+
+    #[test]
+    fn path_target_with_traversal_is_rejected_by_normalize_target_key() {
+        let mut entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
+        entry.frontmatter = serde_json::json!({ "target": "../../etc/passwd" });
+        assert_eq!(
+            target_path_from_entry(&entry, &HashMap::new(), &PathBuf::from("/repo")),
+            None,
+        );
+    }
+
+    #[test]
+    fn path_target_resolves_against_supplied_project_root() {
+        let mut entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
+        entry.frontmatter = serde_json::json!({ "target": "meta/plans/foo.md" });
+        let resolved = target_path_from_entry(
+            &entry,
+            &HashMap::new(),
+            &PathBuf::from("/repo/alt"),
+        );
+        assert_eq!(resolved, Some(PathBuf::from("/repo/alt/meta/plans/foo.md")));
     }
 }
