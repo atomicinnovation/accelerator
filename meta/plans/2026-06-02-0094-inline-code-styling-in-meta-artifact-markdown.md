@@ -502,10 +502,10 @@ inline-code pill are separated by the table-layout rules:
 
 #### Automated Verification:
 
-- [ ] Vitest passes — incl. the td CSS-as-text guard and the
+- [x] Vitest passes — incl. the td CSS-as-text guard and the
   `var()`-resolves-to-declared-token test (`migration.test.ts:344-376`): `mise run test:unit:frontend`
-- [ ] Playwright e2e passes incl. td=11px / th=11.5px cases and `fixture-coverage`: `mise run test:e2e:visualiser`
-- [ ] Type-checking clean: `npm --prefix skills/visualisation/visualise/frontend run typecheck`
+- [x] Playwright e2e passes incl. td=11px / th=11.5px cases and `fixture-coverage`: `mise run test:e2e:visualiser`
+- [x] Type-checking clean: `npm --prefix skills/visualisation/visualise/frontend run typecheck`
 
 #### Manual Verification:
 

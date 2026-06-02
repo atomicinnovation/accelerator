@@ -65,6 +65,9 @@
 .markdown table { border-collapse: collapse; width: 100%; margin: var(--sp-4) 0; }
 .markdown th, .markdown td { border: 1px solid var(--ac-stroke-soft); padding: 0.4rem var(--sp-3); }
 .markdown th { background: var(--ac-bg-sunken); font-weight: 600; }
+/* table-body size override for the inline-code pill defined above —
+   :not(pre code) lifts specificity to (0,1,4) to beat the base (0,1,3). */
+.markdown td code:not(pre code) { font-size: var(--size-eyebrow); }
 .markdown blockquote {
   border-left: 4px solid var(--ac-stroke); margin: var(--sp-4) 0;
   padding: var(--sp-2) var(--sp-4); color: var(--ac-fg-muted);

@@ -399,7 +399,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 426 // 0076: MarkdownRenderer <pre> chrome → var(--code-bg)/--code-fg/--code-stroke (+3)
+const AC5_FLOOR = 427 // 0094: MarkdownRenderer table-body inline-code → var(--size-eyebrow) (+1)
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 
@@ -511,6 +511,10 @@ describe('MarkdownRenderer inline-code rule (0094)', () => {
     const body = i >= 0 ? extractBlockBody(css!, i) : null
     expect(body).not.toBeNull()
     expect(body!).not.toContain('var(--size-xs)')
+  })
+  itIfPresent('table-body inline code uses the 11px token, out-specifying the base rule', () => {
+    expect(css!).toContain('td code:not(pre code)')
+    expect(css!).toContain('var(--size-eyebrow)')
   })
 })
 

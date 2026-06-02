@@ -15,3 +15,7 @@ graph LR
 ```
 
 Inline configuration like `--ac-font-mono` should render as a monospace pill.
+
+| `tok` | Usage |
+|---|---|
+| `--ac-font-mono` | applied via `code` spans |

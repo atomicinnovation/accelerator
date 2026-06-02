@@ -55,6 +55,26 @@ for (const theme of ['light', 'dark'] as const) {
   })
 }
 
+const sizeOf = (page: import('@playwright/test').Page, sel: string) =>
+  page.locator(sel).first().evaluate((n) => getComputedStyle(n).fontSize)
+
+test('table-body inline code is 11px, header + prose stay at the 11.5px base', async ({ page }) => {
+  await page.goto('/library/plans/first-plan')
+  // `th code` requires the GFM delimiter row (|---|) so the first table row
+  // renders as <thead><th>; without it the header collapses to <td>.
+  const [td, th, prose] = await Promise.all([
+    sizeOf(page, '[class*="markdown"] td code'),
+    sizeOf(page, '[class*="markdown"] th code'),
+    sizeOf(page, '[class*="markdown"] p > code'),
+  ])
+  expect(td).toBe('11px')   // fails first if the (0,1,4) specificity is wrong
+  // Assert the *intent* (header code == prose code, strictly above body code),
+  // not just the bare 11.5px literal, so a future base-size change can't
+  // silently void the td-only scoping.
+  expect(th).toBe('11.5px')
+  expect(th).toBe(prose)
+})
+
 // AC5 divergence: the pill colours must actually change between themes, not
 // merely resolve to *a* token value — otherwise a theme-invariant token would
 // pass both per-theme branches above trivially.
