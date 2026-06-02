@@ -3,6 +3,14 @@ use std::path::Path;
 
 use accelerator_visualiser::config::{Config, TemplateTiers};
 
+#[allow(dead_code)]
+pub fn set_mtime_ms(path: &Path, ms: i64) -> std::io::Result<()> {
+    use std::fs::OpenOptions;
+    use std::time::{Duration, SystemTime};
+    let f = OpenOptions::new().write(true).open(path)?;
+    f.set_modified(SystemTime::UNIX_EPOCH + Duration::from_millis(ms as u64))
+}
+
 pub fn seeded_cfg(tmp: &Path) -> Config {
     let meta = tmp.join("meta");
     let decisions = meta.join("decisions");

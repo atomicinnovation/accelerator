@@ -505,10 +505,10 @@ first and signals the regression before (a) silently leaks.
 
 #### Automated Verification
 
-- [ ] All `api_search` tests pass: `cd skills/visualisation/visualise/server && cargo test --test api_search`
-- [ ] Full server test suite passes: `cd skills/visualisation/visualise/server && cargo test`
-- [ ] No clippy warnings: `cd skills/visualisation/visualise/server && cargo clippy --tests -- -D warnings`
-- [ ] Server builds: `cd skills/visualisation/visualise/server && cargo build`
+- [x] All `api_search` tests pass: `cd skills/visualisation/visualise/server && cargo test --test api_search`
+- [x] Full server test suite passes: `cd skills/visualisation/visualise/server && cargo test`
+- [x] No clippy warnings: `cd skills/visualisation/visualise/server && cargo clippy --tests -- -D warnings`
+- [x] Server builds: `cd skills/visualisation/visualise/server && cargo build`
 
 #### Manual Verification
 

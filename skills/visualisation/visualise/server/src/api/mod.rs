@@ -6,6 +6,7 @@ mod kanban_config;
 mod library;
 mod lifecycle;
 mod related;
+mod search;
 mod templates;
 mod types;
 mod work_item_config;
@@ -41,6 +42,7 @@ pub fn mount(_state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/api/lifecycle", get(lifecycle::lifecycle_list))
         .route("/api/lifecycle/:slug", get(lifecycle::lifecycle_one))
         .route("/api/related/*path", get(related::related_get))
+        .route("/api/search", get(search::search))
         .route("/api/work-item/config", get(work_item_config::get_work_item_config))
         .route("/api/kanban/config", get(kanban_config::get_kanban_config))
 }
