@@ -62,9 +62,10 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/FrontmatterTable/FrontmatterTable.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'container border + anchor dashed border-bottom — below --sp-1 floor' },
   { file: 'components/FrontmatterTable/FrontmatterTable.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'focus-ring outline width + outline-offset — below --sp-1 floor' },
   // components/MarkdownRenderer/MarkdownRenderer.module.css
-  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '1px', count: 5, kind: 'irreducible', reason: 'hairline borders: <pre> stroke, h1 underline, table cell, codeblock wrapper, codeblockHead bottom — below --sp-1 floor' },
+  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '1px', count: 7, kind: 'irreducible', reason: 'hairline borders + sub-px padding: <pre> stroke, h1 underline, table cell, codeblock wrapper, codeblockHead bottom, inline-code pill border, inline-code pill vertical padding — below --sp-1 floor' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'off-scale cell padding (6.4px) — between --sp-1 and --sp-2' },
-  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '0.1rem', count: 1, kind: 'irreducible', reason: 'sub-pixel code padding — below --sp-1 floor' },
+  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '3px', count: 1, kind: 'irreducible', reason: 'inline-code pill radius — below --radius-sm (4px)' },
+  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '5px', count: 1, kind: 'irreducible', reason: 'inline-code pill horizontal padding — off-scale, between --sp-1 (4px) and --sp-2 (8px)' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'blockquote border-left width — no border-width token' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '6px', count: 2, kind: 'irreducible', reason: 'code block border-radius (bare <pre> + labelled-fence wrapper) — between radius-sm and radius-md' },
   // routes/lifecycle/LifecycleClusterView.module.css — pipeline panel,
@@ -483,6 +484,33 @@ describe('MarkdownRenderer .markdown rule consumes prose-width and body-size tok
 
   itIfPresent('references var(--size-prose) for the body font-size', () => {
     expect(css!).toContain('var(--size-prose)')
+  })
+})
+
+describe('MarkdownRenderer inline-code rule (0094)', () => {
+  const path = 'components/MarkdownRenderer/MarkdownRenderer.module.css'
+  const css = cssBySrcRelative.get(path)
+  const itIfPresent = css ? it : it.skip
+  itIfPresent('inline code uses the monospace face', () => {
+    expect(css!).toContain('font-family: var(--ac-font-mono)')
+  })
+  itIfPresent('inline code uses the 11.5px token, not --size-xs', () => {
+    expect(css!).toContain('var(--size-xxs-sm)')
+  })
+  itIfPresent('inline code has the soft pill border', () => {
+    expect(css!).toContain('1px solid var(--ac-stroke-soft)')
+  })
+  itIfPresent('inline code retains the :not(pre code) scoping', () => {
+    expect(css!).toContain('code:not(pre code)')
+  })
+  itIfPresent('inline code no longer sizes off --size-xs', () => {
+    // indexOf finds the base rule `.markdown code:not(pre code)` first (the
+    // td override shares the substring); scope the negative check to its body
+    // so it does not trip on `.markdown pre`'s legitimate var(--size-xs).
+    const i = css!.indexOf('code:not(pre code)')
+    const body = i >= 0 ? extractBlockBody(css!, i) : null
+    expect(body).not.toBeNull()
+    expect(body!).not.toContain('var(--size-xs)')
   })
 })
 

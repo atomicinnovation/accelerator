@@ -13,3 +13,5 @@ Also references a non-existent [[ADR-9999]] for testing.
 graph LR
   A[Start] --> B[End]
 ```
+
+Inline configuration like `--ac-font-mono` should render as a monospace pill.

@@ -70,6 +70,23 @@ export const EXPECTED_COLOR: Record<DocTypeKey, Record<Theme, string>> =
     }),
   ) as Record<DocTypeKey, Record<Theme, string>>
 
+// Resolve a CSS custom property to its concrete computed value by setting
+// it as `color` on a throwaway element and reading the serialised rgb/rgba.
+// Mirrors the inline pattern in chip-resolved-colours.spec.ts:56-63 and
+// root-resolved-tokens.spec.ts:71-78 — works for `var()`-indirected tokens
+// (light colours route through the brand layer) and for `rgba(...)` tokens
+// like `--ac-stroke-soft` that `hexToRgb` could not handle.
+export async function resolveToken(page: Page, token: string): Promise<string> {
+  return page.evaluate((t) => {
+    const tmp = document.createElement('div')
+    tmp.style.color = `var(${t})`
+    document.body.appendChild(tmp)
+    const resolved = getComputedStyle(tmp).color
+    tmp.remove()
+    return resolved
+  }, token)
+}
+
 export async function setTheme(page: Page, theme: Theme): Promise<void> {
   // Matches the convention used by chip-resolved-colours.spec.ts and
   // glyph-resolved-fill.spec.ts.
