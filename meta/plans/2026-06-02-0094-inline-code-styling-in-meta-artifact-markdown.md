@@ -580,9 +580,9 @@ that the negation is retained. No further production change.
 
 #### Automated Verification:
 
-- [ ] Playwright e2e passes incl. the fenced-code case and the unchanged
+- [x] Playwright e2e passes incl. the fenced-code case and the unchanged
   fenced-block palette spec (`code-block-resolved-colours`): `mise run test:e2e:visualiser`
-- [ ] Vitest stays green: `mise run test:unit:frontend`
+- [x] Vitest stays green: `mise run test:unit:frontend`
 
 #### Manual Verification:
 

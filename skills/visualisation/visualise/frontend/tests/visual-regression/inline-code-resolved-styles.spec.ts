@@ -75,6 +75,25 @@ test('table-body inline code is 11px, header + prose stay at the 11.5px base', a
   expect(th).toBe(prose)
 })
 
+test('fenced code is not pill-styled', async ({ page }) => {
+  await page.goto('/library/plans/first-plan')
+  const s = await page.locator('[class*="markdown"] pre code').first()
+    .evaluate((n) => {
+      const c = getComputedStyle(n)
+      return {
+        fontSize: c.fontSize,
+        borderTopWidth: c.borderTopWidth,
+        backgroundColor: c.backgroundColor,
+      }
+    })
+  expect(s.fontSize).toBe('14px')             // inherits .markdown pre var(--size-xs), not 11.5px
+  expect(s.borderTopWidth).toBe('0px')        // no inline pill border leaked in
+  // Anchor 'unchanged' on a second, independent property: the inner <code> has
+  // no pill background of its own (the .markdown pre wrapper owns the surface),
+  // so the sunken pill background must NOT have leaked onto it.
+  expect(s.backgroundColor).toBe('rgba(0, 0, 0, 0)')
+})
+
 // AC5 divergence: the pill colours must actually change between themes, not
 // merely resolve to *a* token value — otherwise a theme-invariant token would
 // pass both per-theme branches above trivially.
