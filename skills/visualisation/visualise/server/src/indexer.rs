@@ -831,17 +831,19 @@ fn target_path_from_entry(
     plans_by_id: &HashMap<String, PathBuf>,
     project_root: &Path,
 ) -> Option<PathBuf> {
+    use crate::typed_ref::{parse_typed_ref, TypedRef};
     if entry.r#type != DocTypeKey::PlanReviews {
         return None;
     }
     let raw = entry.frontmatter.get("target")?.as_str()?;
-    if let Some(id) = raw.strip_prefix("plan:") {
-        if id.is_empty() {
-            return None;
+    match parse_typed_ref(raw)? {
+        TypedRef::Plan(id) => plans_by_id.get(&id).cloned(),
+        TypedRef::Path(p) => {
+            let raw_str = p.to_str()?;
+            normalize_target_key(raw_str, project_root)
         }
-        return plans_by_id.get(id).cloned();
+        _ => None,
     }
-    normalize_target_key(raw, project_root)
 }
 
 /// Pure function over a held entries snapshot — direct map lookup first,

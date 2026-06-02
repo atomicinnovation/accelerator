@@ -348,10 +348,10 @@ pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
         // form. Currently only `work-item:` is extracted here; other
         // prefixes are not aggregated into work-item refs.
         if let Some(s) = extract_scalar(v) {
-            if let Some(id) = s.strip_prefix("work-item:") {
-                if !id.is_empty() {
-                    refs.push(id.to_string());
-                }
+            if let Some(crate::typed_ref::TypedRef::WorkItem(id)) =
+                crate::typed_ref::parse_typed_ref(&s)
+            {
+                refs.push(id);
             }
         }
     }

@@ -804,11 +804,11 @@ shows the explicit call.
 
 #### Automated Verification:
 
-- [ ] New parser tests pass: `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib typed_ref::tests`
-- [ ] `read_ref_keys` existing tests pass unchanged: `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib read_ref_keys`
-- [ ] `target_path_from_entry` existing tests pass unchanged.
-- [ ] Full server unit suite passes: `mise run test:unit:visualiser`.
-- [ ] Server integration suite passes: `mise run test:integration:visualiser`.
+- [x] New parser tests pass: `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib typed_ref::tests`
+- [x] `read_ref_keys` existing tests pass unchanged: `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --lib read_ref_keys`
+- [x] `target_path_from_entry` existing tests pass unchanged.
+- [x] Full server unit suite passes: `mise run test:unit:visualiser`.
+- [x] Server integration suite passes: `mise run test:integration:visualiser`.
 
 #### Manual Verification:
 

@@ -25,6 +25,7 @@ pub mod shutdown;
 pub mod slug;
 pub mod sse_hub;
 pub mod templates;
+pub mod typed_ref;
 pub mod watcher;
 pub mod write_coordinator;
 
