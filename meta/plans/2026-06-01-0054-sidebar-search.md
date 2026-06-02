@@ -959,11 +959,11 @@ Tests:
 
 #### Automated Verification
 
-- [ ] `queryKeys.search` test passes: `cd skills/visualisation/visualise/frontend && npm test -- query-keys`
-- [ ] All `fetchSearch` tests pass: `cd skills/visualisation/visualise/frontend && npm test -- fetch.test`
-- [ ] All `useSearch` tests pass: `cd skills/visualisation/visualise/frontend && npm test -- use-search`
-- [ ] Typecheck passes: `cd skills/visualisation/visualise/frontend && npm run typecheck`
-- [ ] Lint passes: `cd skills/visualisation/visualise/frontend && npm run lint`
+- [x] `queryKeys.search` test passes: `cd skills/visualisation/visualise/frontend && npm test -- query-keys`
+- [x] All `fetchSearch` tests pass: `cd skills/visualisation/visualise/frontend && npm test -- fetch.test`
+- [x] All `useSearch` tests pass: `cd skills/visualisation/visualise/frontend && npm test -- use-search`
+- [x] Typecheck passes: `cd skills/visualisation/visualise/frontend && npm run typecheck`
+- [x] Lint passes: no lint script in workspace; skipped
 
 #### Manual Verification
 

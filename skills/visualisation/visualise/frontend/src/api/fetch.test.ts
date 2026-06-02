@@ -6,6 +6,7 @@ import {
   fetchTemplates, fetchTemplateDetail,
   fetchLifecycleClusters, fetchLifecycleCluster,
   fetchRelated,
+  fetchSearch,
   patchWorkItemFrontmatter,
 } from './fetch'
 
@@ -430,5 +431,73 @@ describe('fetchLibraryStructure', () => {
     await fetchLibraryStructure({})
     const second = mockFetch.mock.calls[1][0]
     expect(first).toBe(second)
+  })
+})
+
+describe('fetchSearch', () => {
+  it('returns results on 2xx', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        results: [
+          { docType: 'plans', title: 'Foo', slug: 'foo', mtimeMs: 1 },
+        ],
+      }),
+    })
+    const out = await fetchSearch('foo')
+    expect(out).toHaveLength(1)
+    expect(out[0]).toEqual({ docType: 'plans', title: 'Foo', slug: 'foo', mtimeMs: 1 })
+  })
+
+  it('throws FetchError on non-2xx with /api/search in message but not raw q', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 })
+    let err: unknown
+    try {
+      await fetchSearch('secret-token')
+    } catch (e) {
+      err = e
+    }
+    expect(err).toBeInstanceOf(FetchError)
+    expect((err as FetchError).status).toBe(500)
+    expect((err as FetchError).message).toContain('/api/search')
+    expect((err as FetchError).message).not.toContain('secret-token')
+    expect(consoleSpy).toHaveBeenCalled()
+    consoleSpy.mockRestore()
+  })
+
+  it('url-encodes the query', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ results: [] }) })
+    await fetchSearch('foo bar/baz')
+    const url = mockFetch.mock.calls[0][0] as string
+    expect(url).toContain('q=foo%20bar%2Fbaz')
+  })
+
+  it('forwards an AbortSignal and propagates AbortError without console.error', async () => {
+    const controller = new AbortController()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFetch.mockImplementationOnce(async (_url: string, init: RequestInit) => {
+      // Simulate a fetch that aborts when the signal aborts.
+      return await new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => {
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+        controller.abort()
+      })
+    })
+    let err: unknown
+    try {
+      await fetchSearch('q', controller.signal)
+    } catch (e) {
+      err = e
+    }
+    expect(err).toBeInstanceOf(DOMException)
+    expect((err as DOMException).name).toBe('AbortError')
+    // Verify fetch received the signal.
+    const init = mockFetch.mock.calls[0][1] as RequestInit
+    expect(init.signal).toBe(controller.signal)
+    // Abort must NOT have been logged via console.error.
+    expect(consoleSpy).not.toHaveBeenCalled()
+    consoleSpy.mockRestore()
   })
 })

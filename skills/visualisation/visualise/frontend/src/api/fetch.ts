@@ -166,6 +166,29 @@ export async function fetchActivity(limit: number): Promise<ActivityEvent[]> {
   return body.events
 }
 
+export interface SearchResult {
+  docType: DocTypeKey
+  title: string
+  slug: string
+  mtimeMs: number
+}
+
+export async function fetchSearch(
+  q: string,
+  signal?: AbortSignal,
+): Promise<SearchResult[]> {
+  try {
+    const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal })
+    if (!r.ok) throw new FetchError(r.status, `GET /api/search: ${r.status}`)
+    const body: { results: SearchResult[] } = await r.json()
+    return body.results
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err
+    console.error(err)
+    throw err
+  }
+}
+
 export async function fetchRelated(relPath: string): Promise<RelatedArtifactsResponse> {
   const encodedPath = relPath.split('/').map(encodeURIComponent).join('/')
   const r = await fetch(`/api/related/${encodedPath}`)

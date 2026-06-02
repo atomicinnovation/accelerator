@@ -67,6 +67,11 @@ describe('queryKeys', () => {
     expect(normaliseSelection({})).toEqual({})
   })
 
+  it('search(q) returns ["search", q] and distinct queries produce distinct tuples', () => {
+    expect(queryKeys.search('foo')).toEqual(['search', 'foo'])
+    expect(queryKeys.search('foo')).not.toEqual(queryKeys.search('bar'))
+  })
+
   it('disabled(prefix) cannot collide with related(<relPath>)', () => {
     // The sentinel uses a doubled-underscore token that cannot appear
     // as a relPath. Even if a relPath equalled '__disabled__' the keys
