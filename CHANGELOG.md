@@ -4,411 +4,180 @@
 
 ## [1.21.0] - 2026-06-02
 
-### Added
-
-- Migration framework: new optional interactive contract (work item 0069).
-  Migrations may now opt in to per-transformation accept/edit/skip prompts by
-  declaring `# INTERACTIVE: yes` in their header; mechanical migrations are
-  unchanged. Both paths run on bash 3.2+.
+> **Upgrading from 1.20.0 requires running `/accelerator:migrate`.** After
+> updating the plugin, **restart your Claude Code session**, then run
+> `/accelerator:migrate` before your next Accelerator skill invocation. This
+> release introduces migrations 0003–0006; the **Migrations** section at the end
+> of this entry describes what each one does. See **Breaking** below for the
+> environment changes (Node.js, Playwright MCP) that running the migrations does
+> not cover — these apply only if you use `--crawler runtime|hybrid` design
+> crawls or previously relied on the project-scoped MCP server.
 
 ### Breaking
 
-- Playwright daemon owner-PID watcher removed: the `--owner-pid` CLI
-  argument on `node run.js daemon`, the
-  `ACCELERATOR_PLAYWRIGHT_OWNER_POLL_MS` environment variable, and the
-  watcher's polling logic are all removed. The daemon is now bounded
-  only by its idle timer, per-op wall-clock budget, explicit
-  `daemon-stop`, and process signals. External tooling that invoked
-  `node run.js daemon --owner-pid <pid>` directly must drop the flag
-  (unknown flags are silently ignored). If you wrap `node run.js
-  daemon` directly and relied on `--owner-pid` for cleanup, replace
-  with explicit `daemon-stop` or rely on the idle timer.
-
-- **Research-directory restructure**. `meta/research/` now has four
-  subcategories — `codebase/` (codebase research outputs from
-  `/accelerator:research-codebase`), `issues/` (issue / RCA research
-  outputs from `/accelerator:research-issue`), `design-inventories/`,
-  and `design-gaps/`. The new `paths.research_issues` key gives
-  issue-research artifacts their own bucket, separable from codebase
-  research in `documents-locator` output and the visualiser. The
-  legacy `paths.research`, `paths.design_inventories`, and
-  `paths.design_gaps` keys are renamed to `paths.research_codebase`,
-  `paths.research_design_inventories`, and `paths.research_design_gaps`;
-  `templates.research` is renamed to `templates.codebase-research`.
-
-  **Upgrade sequence**: pull the new plugin version, then run
-  `/accelerator:migrate` to bring your repo in line. Skills that read
-  or write research paths will resolve to new defaults — and may
-  write to non-existent directories — between the plugin upgrade and
-  the migration run. Run `/accelerator:migrate` before your next
-  `/accelerator:research-codebase`, `/accelerator:research-issue`,
-  `/accelerator:extract-adrs`, `/accelerator:extract-work-items`,
-  `/accelerator:visualise`, or `/accelerator:init` invocation.
-
-  The migration is config-driven: user overrides on
-  `paths.design_inventories` and `paths.design_gaps` are honored
-  (files stay where the user placed them; only the key is renamed),
-  and the inbound-link rewriter scans every directory surfaced by
-  `accelerator:paths`. Content imported into your repo after the
-  migration runs (branch merges, sibling-repo copies, pasted legacy
-  paths) is not rewritten. To rescan: remove the
-  `0004-restructure-meta-research-into-subject-subcategories` line
-  from `.accelerator/state/migrations-applied` and re-run
-  `/accelerator:migrate`.
-
-  > **Note**: historical CHANGELOG entries below pre-date this change
-  > and reference the legacy paths verbatim. The path references in
-  > those entries describe what shipped at the time of each release.
-
-
-- **Node ≥ 20 required for `/inventory-design --crawler runtime|hybrid`**.
-  The Playwright MCP integration has been replaced by a Bash-invoked Node.js
-  executor (`run.sh`). The executor requires Node.js 20 or later, macOS or
-  Linux, and ~500 MB free disk for the first-run Chromium install. `--crawler
-  code` (static analysis) has no Node dependency and is unaffected.
-- **`.claude-plugin/.mcp.json` removed**. The project-scoped Playwright MCP
-  registration has been deleted. Users who relied on the project-scoped
-  `@playwright/mcp` server must register it in their own MCP configuration if
-  still needed.
-- **Eval id 3 retired; eval ids 18–21 added**. Eval id 3 (`mcp-toolset-check`)
-  is marked deprecated. New evals: 18 (`localhost-default-allow`), 19
-  (`allow-internal-flag`), 20 (`executor-bootstrap-failure-fallback`), 21
-  (`executor-ping-no-browser`). Eval id 14 updated from
-  `browser_evaluate payload pattern` to `run.sh evaluate payload pattern`.
+- **`/accelerator:inventory-design --crawler runtime|hybrid` now requires
+  Node.js ≥ 20** (macOS or Linux). With the Playwright MCP integration replaced
+  by a Bash-invoked Node.js executor, the first runtime crawl installs Chromium
+  (~150 MB) into `~/.cache/accelerator/playwright/`, and the bootstrap requires
+  ~500 MB of free disk to proceed; `hybrid` auto-downgrades to `code` if the
+  install fails. `--crawler code` (static analysis) has no Node dependency and is
+  unaffected.
+- **The project-scoped Playwright MCP server has been removed.** Anyone who
+  relied on it (formerly registered via `.claude-plugin/.mcp.json`) must now
+  register the Playwright MCP server in their own MCP configuration.
 
 ### Added
 
-- `links` command for the Playwright executor: enumerates anchors on the
-  current page with server-resolved `pathname`, `same_origin`, `scheme`,
-  and normalised `text`. Raw `href` and fully-resolved URLs are
-  deliberately omitted so query strings and fragments (which may carry
-  auth tokens) never reach agent context. Used by `browser-locator` to
-  discover routes on client-side SPAs. See PROTOCOL.md `### links` for
-  the wire schema and rationale.
-- `accelerator:browser-executor` preloaded skill that injects the
-  resolved absolute path of `run.sh` into browser-agent context, mirroring
-  the `accelerator:paths` precedent from work item 0052. Browser agents
-  now include an explicit preload guard that fails loudly if the
-  injected block is missing.
-- Migration-aware warning in `config-read-path.sh`: fires when the
-  canonical `research_design_*` key is requested but the user's config
-  still has the legacy `paths.design_*` alias (silently being ignored),
-  pointing the user at `/accelerator:migrate`.
+- **Jira Cloud integration** — eight verb-decomposed skills for working with a
+  Jira Cloud tenant directly over the REST API v3 (no external CLI dependency).
+  Run `/accelerator:init-jira` once to verify credentials and cache the project
+  and custom-field catalogue, then use:
+  - `search-jira-issues` — search by structured flags or a raw `--jql` query
+  - `show-jira-issue` — read a single issue with ADF rendered to Markdown
+  - `create-jira-issue` — create an issue (payload preview, then confirm)
+  - `update-jira-issue` — edit fields, labels, components, and custom fields
+  - `comment-jira-issue` — add, list, edit, or delete comments
+  - `transition-jira-issue` — move an issue through its workflow by state name
+  - `attach-jira-issue` — upload one or more file attachments
 
-- **`/inventory-design` — `--allow-internal` flag**. Permits crawling
-  RFC1918, link-local, and loopback-variant hosts. `http://localhost` and
-  `http://127.0.0.1` are now default-allowed without any flag.
-- **`/inventory-design` — `--allow-insecure-scheme` flag**. Permits plain
-  `http://` to non-localhost public hosts. Separate from `--allow-internal`
-  so the risk surface is explicit at the call site.
-- **`/inventory-design` — Playwright executor** (`run.sh`). Replaces the MCP
-  path with a Bash-invoked Node.js TCP daemon that drives Playwright's
-  Chromium. Sub-agents use `Bash(run.sh <op>)` instead of `mcp__playwright__*`
-  tools, eliminating the sub-agent MCP-inheritance hallucination class (Claude
-  Code issues #13605, #13898).
-- **`/inventory-design` — lazy Chromium bootstrap** (`ensure-playwright.sh`).
-  First use with `--crawler runtime|hybrid` installs Playwright + Chromium
-  (~150 MB) into `~/.cache/accelerator/playwright/`. Subsequent runs reuse the
-  cache without a network round-trip. `hybrid` mode auto-downgrades to `code`
-  if bootstrap fails, with a printed notice.
-- **`skills/design/inventory-design/PROTOCOL.md`** — executor wire protocol
-  reference. Documents request/response envelopes, per-op args and error
-  codes, the downgrade-reason enum mapping, and the v1 stability commitment.
+  Configure `jira.site` in the team-shared `.accelerator/config.md` and your
+  personal `jira.email` / `jira.token` (or `jira.token_cmd`) in the gitignored
+  `.accelerator/config.local.md`; `work.default_project_code` doubles as the
+  default Jira project key. `init-jira` caches the field catalogue, project
+  list, and site metadata under `.accelerator/state/integrations/jira/`
+  (version-controlled and team-shared). See the
+  [Jira Integration section of the README](README.md#jira-integration).
+
+- **Meta visualiser** — a browser-based companion view of your `meta/`
+  directory, launched with `/accelerator:visualise` or the
+  `accelerator-visualiser` CLI. Three views: **library** (a Markdown reader for
+  every doc type with cross-reference rendering and `[[WORK-ITEM-NNNN]]` /
+  `[[ADR-NNNN]]` wiki-link resolution), **lifecycle** (slug-clustered
+  timelines), and **kanban** (drag-and-drop work-item status updates with
+  columns configurable via `visualiser.kanban_columns`). Distributed as per-arch
+  native binaries through GitHub Releases; first run downloads ~8 MB over HTTPS
+  and verifies it against a committed SHA-256 manifest. `visualise stop` and
+  `visualise status` subcommands manage the running server, which also auto-exits
+  after 30 minutes idle or when its launching process exits. See the
+  [Visualiser section of the README](README.md#visualiser).
+
+- **`/accelerator:research-issue`** — hypothesis-driven root-cause analysis for
+  production issues and bugs. Accepts stacktraces, logs, error messages, or
+  vague behavioural descriptions, investigates multiple hypotheses with parallel
+  sub-agents, and writes an RCA document to `meta/research/issues/`. Adds a new
+  `rca` template.
+
+- **Design-convergence workflow** — `/accelerator:inventory-design` and
+  `/accelerator:analyse-design-gaps` (a new `skills/design/` category) compare a
+  current frontend against a target prototype. `inventory-design` crawls a
+  design source — by static code analysis (`--crawler code`, no runtime
+  dependency) or by driving a real browser (`--crawler runtime|hybrid`) — and
+  writes a dated inventory of screenshots and design-token observations.
+  `analyse-design-gaps` diffs two inventories across five drift categories
+  (token, component, screen, net-new, removed) and produces a gap report whose
+  prose feeds straight into `/accelerator:extract-work-items`. Two browser
+  agents (`browser-locator`, `browser-analyser`) and two artifact templates
+  (`design-inventory`, `design-gap`) support the workflow. `--allow-internal`
+  permits crawling RFC1918 / loopback-variant hosts and `--allow-insecure-scheme`
+  permits plain `http://` to non-localhost hosts (`http://localhost` and
+  `http://127.0.0.1` are allowed by default). Authenticated crawls read
+  `ACCELERATOR_BROWSER_AUTH_HEADER` or the
+  `ACCELERATOR_BROWSER_USERNAME` / `…_PASSWORD` / `…_LOGIN_URL` trio; the auth
+  header is stripped on cross-origin navigations and secrets are masked in
+  screenshots.
+
+- **Migration framework — optional interactive contract.** Migrations may now
+  opt in to per-transformation accept / edit / skip prompts by declaring
+  `# INTERACTIVE: yes` in their header; mechanical migrations are unchanged. No
+  bundled migration uses the contract yet. Both paths run on bash 3.2+.
 
 ### Changed
 
-- Playwright daemon idle timeout default lowered from 30 min to 10 min
-  (override via `ACCELERATOR_PLAYWRIGHT_IDLE_MS`). Bounds the in-memory
-  lifetime of an auth-bearing browser context held across Claude Code
-  turns; better fit for the inventory-design lifecycle. Override path
-  unchanged: callers needing the previous 30-min behaviour can set
-  `ACCELERATOR_PLAYWRIGHT_IDLE_MS=1800000`.
-- Internal: five SKILL.md preambles that called the bare `design_*` path
-  keys now call the canonical `research_design_*` keys introduced by
-  migration 0004.
+- **Accelerator config and state are consolidated under `.accelerator/`**
+  (migration 0003). Team config (`.accelerator/config.md`), personal config
+  (`.accelerator/config.local.md`), per-skill customisations, custom lenses,
+  templates, integration state, migration tracking, and tmp now live in a single
+  `.accelerator/` tree instead of being scattered across `.claude/` and `meta/`.
+  User-facing document directories (`meta/work/`, `meta/plans/`, …) are
+  unchanged. (See the upgrade callout above for the restart-then-migrate
+  sequence.)
 
-- **BREAKING**: All Accelerator-owned config, customisation, and state files
-  now live under `.accelerator/` rather than `.claude/` and `meta/`. Run
-  `/accelerator:migrate` to apply migration `0003-relocate-accelerator-state`,
-  which moves existing files into the new layout. Specifically:
-    - `.claude/accelerator.md` → `.accelerator/config.md`
-    - `.claude/accelerator.local.md` → `.accelerator/config.local.md`
-    - `.claude/accelerator/skills/` → `.accelerator/skills/`
-    - `.claude/accelerator/lenses/` → `.accelerator/lenses/`
-    - `meta/templates/` → `.accelerator/templates/`
-    - `meta/integrations/` → `.accelerator/state/integrations/`
-    - `meta/.migrations-*` → `.accelerator/state/migrations-*`
-    - `meta/tmp/` → `.accelerator/tmp/` (only if `paths.tmp` is unset;
-      explicit overrides — including `paths.tmp: meta/tmp` literal —
-      are preserved untouched)
-- **Restart your Claude Code session** after the plugin update before invoking
-  any accelerator skill on an un-migrated repo. The SessionStart
-  discoverability hook prompts you to run the migration; invoking a skill
-  mid-session before running migrate exits with the same directive thanks to a
-  complementary check in `config-common.sh`, but a clean session start gives
-  the cleanest UX.
-- **Pinned `paths.templates` or `paths.integrations` overrides are not
-  preserved**. If you have either of these keys set to a `meta/<dir>` value
-  (or any custom path), the migration moves the legacy `meta/<dir>` contents
-  to the new default location unconditionally and emits a stderr notice naming
-  the pinned key. Update your config to point at the new default
-  (`.accelerator/templates` / `.accelerator/state/integrations`) or reconcile
-  manually post-migration. `paths.tmp` is the one path key whose pinned value
-  the migration leaves untouched.
-- **Project root `.gitignore` is rewritten** by the migration:
-    - `.claude/accelerator.local.md` (anchored or unanchored whole-line forms)
-      is replaced with the anchored `.accelerator/config.local.md` rule.
-    - Legacy `meta/integrations/jira/.lock` and
-      `meta/integrations/jira/.refresh-meta.json` rules are removed (their
-      replacements are covered by the inner
-      `.accelerator/state/integrations/jira/.gitignore`).
-    - The migration refuses to rewrite a line with trailing content (e.g. an
-      inline comment) and prints a reconciliation message; reconcile manually
-      and re-run.
-- **`init-jira` no longer mutates the project root `.gitignore`**. Each
-  integration init skill now owns its own state subdirectory under
-  `.accelerator/state/integrations/<tool>/` — including the inner
-  `.gitignore`. This is the forward convention for all future integration
-  init skills.
-- **Recovery from a failed migration is via VCS revert** (`jj op restore` /
-  `git reset`) followed by a re-run. The migration is idempotent — every
-  step is safe to re-run from any partial state. The migration refuses to run
-  on a dirty working tree, so a committed baseline is always available.
+- **`meta/research/` is restructured into subcategories** (migration 0004).
+  Research now splits into `codebase/` (outputs from
+  `/accelerator:research-codebase`) and `issues/` (outputs from
+  `/accelerator:research-issue`), with design inventories and gaps nested under
+  `meta/research/` as well. The config keys `paths.research`,
+  `paths.design_inventories`, and `paths.design_gaps` are renamed to
+  `paths.research_codebase`, `paths.research_design_inventories`, and
+  `paths.research_design_gaps`; `templates.research` becomes
+  `templates.codebase-research`; and a new `paths.research_issues` key is added.
+  Existing overrides on these keys are renamed in place by the migration (their
+  values are preserved), so no manual config edit is required.
+
+- **Work-item documents use `kind`, not `type`** (migration 0005). New work
+  items are written with a `kind:` frontmatter field and a `**Kind**:` body
+  label; migration 0005 renames the field in existing work items.
+
+- **Research, plan, and RCA documents use `author` and a quoted `work_item_id`**
+  (migration 0006). New documents in these corpora use `author:` (replacing
+  `researcher:`) and a string-quoted `work_item_id:` (replacing the unquoted
+  legacy `work-item:` key); migration 0006 canonicalises existing documents.
+
+- **The Playwright daemon idle timeout is lowered from 30 to 10 minutes** for
+  `inventory-design` runtime crawls, bounding how long an auth-bearing browser
+  context is held in memory across Claude Code turns. Override with
+  `ACCELERATOR_PLAYWRIGHT_IDLE_MS` (e.g. `1800000` for the previous 30 minutes).
+
+### Removed
+
+- **Playwright MCP integration**, including the project-scoped
+  `.claude-plugin/.mcp.json` registration. `inventory-design` now drives Chromium
+  through a Bash-invoked Node.js executor (`run.sh`) instead of the Playwright
+  MCP tools, removing the unreliable browser automation the MCP path exhibited
+  inside sub-agents. See **Breaking** above for the Node.js requirement and the
+  MCP re-registration this implies.
 
 ### Fixed
 
-- `inventory-design` browser agents no longer self-discover the
-  Playwright executor with `which run.sh` / `find / -name run.sh`. The
-  executor's absolute path is now injected via the
-  `accelerator:browser-executor` preloaded skill.
-- `browser-locator` no longer fabricates SPA routes by treating
-  navigation success as evidence a route exists. Route truth now comes
-  from the new `links` command's anchor enumeration filtered by
-  `same_origin: true`.
-- Skills calling `design_inventories` / `design_gaps` no longer emit
-  `config-read-path.sh: warning: unknown key` noise in their rendered
-  preambles (call sites renamed to canonical `research_design_*` form).
-- Playwright daemon no longer dies between Claude Code Bash-tool
-  invocations. The owner-PID watcher (whose first tick fired at most
-  ~60 s after the ephemeral launcher shell exited, destroying the
-  daemon) has been removed; see Breaking above for the consumer impact.
+- `browser-locator` no longer fabricates SPA routes by treating navigation
+  success as proof a route exists; route truth now comes from server-resolved
+  anchor enumeration.
+- The Playwright daemon no longer dies between Claude Code Bash-tool
+  invocations.
+- `inventory-design` browser agents no longer self-discover the executor with
+  `which run.sh` / `find`; its absolute path is injected by a preloaded skill.
+- Skills referencing the renamed design-path config keys no longer emit
+  `unknown key` warning noise.
 
-### Added
+### Migrations
 
-- **`/accelerator:research-issue` skill**: Hypothesis-driven root cause analysis
-  for production issues and bugs. Accepts stacktraces, logs, error messages, or
-  vague behavioral descriptions and produces an RCA document in `meta/research/`.
-  Uses parallel sub-agents to investigate multiple hypotheses concurrently.
-  New `rca` template added for structured output.
+This release adds migrations **0003–0006**. After updating the plugin, run
+`/accelerator:migrate`: the runner applies pending migrations in numeric order,
+refuses to run on a dirty working tree, prints a preview of each one before
+applying, and records results in `.accelerator/state/migrations-applied`.
+Recover from a failed migration with a VCS revert (`jj op restore` /
+`git reset`) and re-run — every migration is idempotent.
 
-- **Meta visualiser** — a new browser-based companion view of the `meta/`
-  directory. Launches via `/accelerator:visualise` or the
-  `accelerator-visualiser` CLI. Three views: library (markdown reader for all
-  doc types), lifecycle (slug-clustered timelines), kanban (drag-and-drop
-  work-item status updates). Distributed as per-arch native binaries via GitHub
-  Releases — every plugin version, pre-release and stable, ships its own
-  four-platform binaries; first run downloads ~8 MB over HTTPS and verifies
-  against a committed SHA-256 manifest. See the
-  [Visualiser section of the README](#visualiser) for details.
+- **0003 — Relocate Accelerator state into `.accelerator/`.** Moves team and
+  personal config out of `.claude/`, and templates, integration state, migration
+  tracking, and tmp out of `meta/`, into the single `.accelerator/` tree, and
+  rewrites the root `.gitignore` rule. Self-defers when there is nothing to move.
+- **0004 — Restructure `meta/research/` into subcategories.** Moves existing
+  research into `meta/research/codebase/`, creates `meta/research/issues/`, nests
+  design inventories and gaps under `meta/research/`, renames the
+  `paths.research*` and `templates.research` config keys (see Changed above), and
+  rewrites inbound path references across your documents.
+- **0005 — Rename work-item `type` to `kind`.** Renames the `type:` frontmatter
+  field and the `**Type**:` body label to `kind` / `**Kind**:` in every document
+  under `paths.work`. Idempotent.
+- **0006 — Canonicalise `work_item_id` and `author`.** Across the plan,
+  codebase-research, and issue-research corpora, renames `work-item:` →
+  `work_item_id:` (quoting its value) and `researcher:` → `author:` (with the
+  matching body label). ID values themselves are unchanged.
 
-  - Library reader for all currently-surfaced doc types with cross-reference 
-    rendering
-  - Lifecycle clusters and slug-based timeline view
-  - Read-only kanban
-  - Kanban write-back via `PATCH /api/docs/{path}/frontmatter` with `If-Match`
-    optimistic concurrency; SSE invalidations queued during drag, flushed on
-    drop to prevent mid-gesture remounts
-  - Wiki-link resolution `[[ADR-NNNN]]`, `[[WORK-ITEM-NNNN]]`
-  - Error handling, accessibility polish, and observability
-  - `/accelerator:visualise stop` and `/accelerator:visualise status`
-    subcommands for managing the running server. Both also work via the
-    `accelerator-visualiser` CLI wrapper. The server still auto-exits after
-    30 minutes idle or when the launching process exits
-
-- **Visualiser — work-item terminology** (follow-on to the initial prerelease):
-
-  - Pre-migration repos must run `/accelerator:migrate` (migration
-    `0001-rename-tickets-to-work`) before launching the visualiser. The
-    launcher now exits with a clear message pointing at the migrate command
-    rather than starting in a broken silent-broken-kanban state.
-  - New `work-item-reviews` doc type appears in the sidebar and
-    lifecycle view (`meta/reviews/work/` directory).
-  - Pattern-aware work-item IDs. Projects configured with
-    `work.id_pattern: "{project}-{number:04d}"` and
-    `work.default_project_code` see project-prefixed IDs in the kanban,
-    lifecycle, and library views; wiki-links of the form
-    `[[WORK-ITEM-PROJ-0042]]` resolve.
-  - Configurable kanban columns via `visualiser.kanban_columns` in
-    `.claude/accelerator.md`. Defaults to the seven template statuses
-    (`draft | ready | in-progress | review | done | blocked | abandoned`).
-    See `skills/config/configure/SKILL.md` for the schema and ADR-0024
-    for rationale.
-  - Multi-field cross-references in the library view's "Related artifacts"
-    aside. The `work-item:`, `parent:`, and `related:` frontmatter keys
-    are all aggregated into the reverse index; a work item's page shows
-    all documents that reference it regardless of which field was used.
-    See ADR-0025 for the canonicalisation and self-reference-filter rules.
-  - Wiki-link prefix is now `[[WORK-ITEM-NNNN]]` (was `[[TICKET-NNNN]]`
-    in the prerelease). Existing `[[TICKET-NNNN]]` references in
-    user-authored docs stop resolving after this update.
-
-- **Design convergence workflow** — inventory-and-diff pipeline for comparing
-  a current frontend to a target prototype. Two new skills (`inventory-design`,
-  `analyse-design-gaps`) under a new `skills/design/` category, two new
-  browser-inspection agents, and two new artifact templates. The gap artifact's
-  prose paragraphs satisfy the `extract-work-items` cue-phrase contract so the
-  workflow feeds straight into the existing work-item lifecycle.
-
-  - Added `inventory-design` skill: crawls a design source (code repo, dev
-    server, or hosted prototype) via static analysis, Playwright MCP, or both,
-    producing a dated `design-inventory` directory with screenshots and token
-    observations. Supersedes prior snapshots for the same source-id without
-    deleting them.
-  - Added `analyse-design-gaps` skill: compares two inventories across five
-    drift categories (token, component, screen, net-new, removed); enforces
-    cue-phrase compliance via a post-write audit script.
-  - Added `browser-locator` and `browser-analyser` agents (Playwright MCP).
-  - Added `design-inventory` and `design-gap` artifact templates.
-  - Added `paths.design_inventories` and `paths.design_gaps` config keys.
-  - Added Playwright MCP server dependency (`.claude-plugin/.mcp.json`, pinned
-    to a specific `@playwright/mcp` version).
-
-- **Jira integration helper scripts**: Sourceable and executable bash
-  libraries shared across all eight skills
-  - `jira-common.sh` — `jira_die`, `jira_warn`, `jira_state_dir` (honours
-    `paths.integrations`), `jira_with_lock`, `_jira_uuid_v4`, and JSON
-    utility wrappers
-  - `jira-auth.sh` / `jira-auth-cli.sh` — Token resolution chain:
-    `ACCELERATOR_JIRA_TOKEN` env → `ACCELERATOR_JIRA_TOKEN_CMD` env →
-    `accelerator.local.md` `jira.token` → `accelerator.local.md`
-    `jira.token_cmd` → `accelerator.md` `jira.token`. `token_cmd` from the
-    team-shared `accelerator.md` is rejected with
-    `E_TOKEN_CMD_FROM_SHARED_CONFIG` (supply-chain injection guard). Token is
-    redacted from all debug output
-  - `jira-request.sh` — Signed curl wrapper. Composes the URL from configured
-    site; sets `Authorization: Basic`; handles JSON and multipart bodies;
-    honours `Retry-After` on HTTP 429 with capped exponential backoff (4
-    retries, ±30% jitter); maps HTTP status to stable exit codes
-    (`E_JIRA_UNAUTHORIZED`, `E_JIRA_FORBIDDEN`, `E_JIRA_NOT_FOUND`,
-    `E_JIRA_RATE_LIMITED`, `E_JIRA_SERVER_ERROR`); surfaces non-2xx response
-    bodies to stderr
-  - `jira-jql.sh` / `jira-jql-cli.sh` — JQL builder with `jql_filter`,
-    `jql_in`, `jql_not_in`, `jql_split_neg`; wraps values in single quotes
-    and doubles embedded single quotes; rejects unsafe characters. Default
-    scope prepends `project = "…" AND` when a project is configured;
-    `--all-projects` disables it
-  - `jira-fields.sh` — Custom-field discovery and slug-based name resolution.
-    `resolve <name>` returns the `customfield_NNNNN` ID; `list` prints the
-    cached catalogue; `refresh` re-fetches from `/rest/api/3/field`. Slug
-    generated client-side (lowercase + non-alphanumeric → dash collapse)
-  - `jira-custom-fields.sh` — Helpers for building `fields`/`update` payload
-    fragments from `--custom slug=value` arguments, resolving slugs to field
-    IDs via `jira-fields.sh`
-  - `jira-md-to-adf.sh` — Markdown → ADF compiler (awk block tokeniser +
-    jq record-stream compiler). Rejects unsupported constructs (tables,
-    blockquotes, nested lists, HTML) with a named-feature error before
-    generating any output
-  - `jira-adf-to-md.sh` — ADF → Markdown renderer (single-pass recursive jq).
-    Unsupported ADF node types emit `[unsupported ADF node: <type>]`
-    placeholders so data is never silently dropped
-  - `jira-render-adf-fields.sh` — Post-processes an API JSON response,
-    replacing ADF subtrees at known field paths (`fields.description`,
-    `fields.environment`, each comment body, multi-line custom fields) with
-    rendered Markdown strings via `setpath`; used by the `--render-adf` flag
-    on all read-side helpers
-  - `jira-body-input.sh` — Shared body-input precedence chain:
-    `--body <inline>` → `--body-file <path>` → stdin (when not a TTY) →
-    `$EDITOR` on a tempfile (interactive fallback). Used by create, update,
-    comment, and transition
-  - `jira-init-flow.sh`, `jira-search-flow.sh`, `jira-show-flow.sh`,
-    `jira-create-flow.sh`, `jira-update-flow.sh`, `jira-comment-flow.sh`,
-    `jira-transition-flow.sh`, `jira-attach-flow.sh` — Per-skill orchestration
-    helpers with `--describe` dry-run support on all write flows
-- **Jira config section**: New `jira` YAML section in
-  `.accelerator/config.md` / `.accelerator/config.local.md`. `site` goes in
-  team-shared `config.md`; `email`, `token`, and `token_cmd` are personal and
-  belong in the gitignored `config.local.md`. Documented in
-  `skills/config/configure/SKILL.md`.
-  `work.default_project_code` doubles as the default Jira project key — no
-  separate `jira.default_project_key` is introduced
-- **`.accelerator/state/integrations/jira/` state directory**:
-  Version-controlled team-shared cache for the field catalogue, project list,
-  and site metadata. Owned by `init-jira` (which writes the inner `.gitignore`
-  covering `site.json`, `.refresh-meta.json`, and `.lock/`). Path honours the
-  `paths.integrations` config key (default: `.accelerator/state/integrations`)
-
-### Notes
-
-- `inventory-design` reads `ACCELERATOR_BROWSER_AUTH_HEADER` (or the trio
-  `ACCELERATOR_BROWSER_USERNAME` / `ACCELERATOR_BROWSER_PASSWORD` /
-  `ACCELERATOR_BROWSER_LOGIN_URL`) when crawling authenticated prototypes.
-  Header takes precedence; partial form-login sets fail fast with a named error.
-  The auth header is stripped on cross-origin navigations. Screenshots mask
-  password and token fields; the skill refuses to write if any env-var literal
-  appears in the generated body.
-- The Playwright MCP server is pinned in `.claude-plugin/.mcp.json` and Claude
-  Code prompts to enable it on first use of any skill that needs it.
-  `inventory-design --crawler code` works without the MCP.
-- First-time runtime crawls may require browser-binary installation:
-  `mise run deps:install:playwright`.
-- Work items are written in place. If a write produces unexpected output, recover
-  with `git checkout meta/work/<file>`.
-- Air-gapped installs: point `ACCELERATOR_VISUALISER_RELEASES_URL` at an
-  internal HTTPS mirror, or set `ACCELERATOR_VISUALISER_BIN` to a
-  locally-built binary for offline use.
-- Pre-release plugin versions ship matching pre-release binaries — dogfooding
-  the visualiser does not require a local cargo build.
-- The visualiser respects `paths.*` configuration: changing `paths.work`
-  routes the visualiser at the updated location.
-- **Jira Cloud integration**: Eight verb-decomposed skills for interacting
-  with a Jira Cloud tenant, backed by the Jira Cloud REST API v3 directly
-  (no external CLI dependency) and a shared set of bash helper scripts under
-  `skills/integrations/jira/scripts/`
-  - `init-jira` — Verify credentials against `/rest/api/3/myself`; discover
-    and persist the project list (`meta/integrations/jira/projects.json`),
-    custom-field catalogue (`meta/integrations/jira/fields.json`), and site
-    metadata (`meta/integrations/jira/site.json`). Re-running re-verifies and
-    refreshes the caches. `--refresh-fields` re-fetches only the field
-    catalogue; `--list-projects` and `--list-fields` are fast read-only
-    inspection modes
-  - `search-jira-issues` — Search via structured flags (`--assignee`,
-    `--status`, `--label`, `--type`, `--component`, `--reporter`, `--parent`,
-    `--watching`, `--project`) with `~`-prefix negation, free-text positional
-    argument, `--jql` escape hatch, and token-based pagination
-    (`--page-token`). JQL is composed by `jira-jql.sh` with safe quoting and
-    logged to stderr for auditability. Returns the API's `{issues,
-    nextPageToken}` JSON verbatim; `--render-adf` replaces ADF description
-    subtrees with rendered Markdown strings in-place
-  - `show-jira-issue` — Fetch a single issue (`GET /rest/api/3/issue/{key}`);
-    optional `--comments N` appends the N most recent comments; ADF fields
-    rendered to Markdown by default (pass `--no-render-adf` for raw JSON).
-    `@me` in filter arguments resolves to the cached `accountId` from
-    `site.json` without an extra round-trip
-  - `create-jira-issue` — Create an issue with required `--project`,
-    `--type`, `--summary`; optional body (inline/file/stdin/`$EDITOR` chain),
-    `--assignee`, `--priority`, `--label`, `--component`, `--parent`,
-    `--custom <slug>=<value>`. Markdown body converted to ADF before POST.
-    Displays a payload preview and requires `y` confirmation before writing
-  - `update-jira-issue` — Edit summary, description, assignee, priority,
-    labels, components, parent, and custom fields. Multi-value fields support
-    `--add-label`/`--remove-label` for additive operations alongside `--label`
-    set semantics. PUT body converted to ADF for rich-text fields.
-    `--no-notify` maps to `?notifyUsers=false`. Confirmation gated as for
-    create
-  - `comment-jira-issue` — Four sub-actions: `add KEY [body]`, `list KEY`,
-    `edit KEY COMMENT_ID [body]`, `delete KEY COMMENT_ID`. Body chain
-    (inline/file/stdin/`$EDITOR`) shared with create/update. ADF rendered on
-    `list` and `add`/`edit` responses by default. `--no-notify` suppresses
-    email on `add`/`edit`. `--describe` dry-run emits a JSON preview without
-    making any API call
-  - `transition-jira-issue` — Accept a state name (case-insensitive); look up
-    available transitions from the current state, match by `to.name`,
-    POST with the resolved transition ID. Optional `--resolution` and
-    `--comment` (Markdown body converted to ADF). Disambiguates when multiple
-    transitions lead to the same state name. Confirmation gated
-  - `attach-jira-issue` — Upload one or more files via multipart/form-data
-    (`POST .../attachments`) with automatic `X-Atlassian-Token: no-check`
-    injection. Confirmation gated before upload
+> **Note**: CHANGELOG entries for earlier releases (below) pre-date the
+> `.accelerator/` and `meta/research/` restructures and reference the legacy
+> paths verbatim — each describes what shipped at the time of that release.
 
 ## [1.20.0] - 2026-04-28
 
