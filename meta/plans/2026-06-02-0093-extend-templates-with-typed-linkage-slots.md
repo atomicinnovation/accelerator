@@ -5,7 +5,7 @@ title: "Extend Templates With Typed-Linkage Slots Implementation Plan"
 date: "2026-06-02T18:00:37+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: complete
 work_item_id: "0093"
 parent: "work-item:0093"
 reviewer: "review-plan (3 passes, APPROVE)"

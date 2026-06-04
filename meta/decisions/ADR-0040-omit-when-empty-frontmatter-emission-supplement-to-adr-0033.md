@@ -30,8 +30,8 @@ frontmatter: a freshly drafted work item carries a stack of empty
 encode no information.
 
 ADR-0034 (Typed-Linkage Vocabulary) adds the linkage keys but governs
-their *value shape*, not whether a key must be present when it has no
-value. Crucially, every consumer already reads an empty optional key and
+their *value shape and semantics*, not whether a key must be present
+when it has no value. Crucially, every consumer already reads an empty optional key and
 an absent optional key identically as "no value" — the visualiser's
 typed-ref parser returns `None` on empty, `read_ref_keys` treats absent
 keys as absent edges, and `cluster_key` tolerates both the typed
@@ -182,7 +182,7 @@ elements they define), never as an in-place edit to this record.
 ## References
 
 - `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` — foundation record this supplement extends (base-field presence)
-- `meta/decisions/ADR-0034-typed-linkage-vocabulary.md` — governs linkage value-shape, not slot presence
+- `meta/decisions/ADR-0034-typed-linkage-vocabulary.md` — governs linkage value-shape and semantics, not slot presence
 - `meta/decisions/ADR-0031-skill-level-adr-immutability.md` — immutability rule that motivates the supplement-vs-edit choice
 - `meta/decisions/ADR-0035-brand-layer-indirection-supplement-to-adr-0026.md` — prior precedent for the supplement filename convention
 - `meta/decisions/ADR-0037-optional-interactive-contract-supplement-to-adr-0023.md` — prior precedent for the supplement pattern
