@@ -662,17 +662,22 @@ still mentions `border-radius`.
 
 #### Automated Verification:
 
-- [ ] `mise run test:unit:frontend` green; no `observed !== declared`
-      mismatches.
-- [ ] No remaining `kind: 'irreducible'` entry has a `reason` referencing
-      `border-radius` for these files (AC5 backstop).
-- [ ] `mise run test:e2e:visualiser` green (Sidebar/FilterPill/Breadcrumbs/
-      RelatedArtifacts assertions, incl. search-UI `setup` steps).
+- [x] `mise run test:unit:frontend` green; no `observed !== declared`
+      mismatches (counts driven off the hygiene report).
+- [x] No remaining `kind: 'irreducible'` entry has a `reason` referencing
+      `border-radius` for these files (also enforced by Phase 7 §4).
+- [x] `mise run test:e2e:visualiser` green (radius + aside-row specs;
+      Breadcrumbs/FilterPill assertions incl. trigger-click `setup`).
 
 #### Manual Verification:
 
-- [ ] Search highlight/loadbar, kbd chips, facet options, checkbox, count
-      badge, focus ring, and provenance badge render unchanged.
+- [x] Search highlight/loadbar, kbd chips, facet options, checkbox, focus
+      ring, and provenance badge render unchanged (computed-radius spec +
+      aside-row spec). **Gate correction:** Sidebar `2px` decremented 6→3 (the
+      gate reported 3 migrated radii — searchMark, loadbar track, loadbar fill
+      — not the plan's predicted 2); FilterPill `3px` deleted; the stale
+      "scrollbar thumb radius" clause on the retained Sidebar `4px` row was
+      removed (no `4px` border-radius exists; the four `4px` are non-radius).
 
 ---
 

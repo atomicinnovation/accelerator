@@ -46,7 +46,7 @@
   font-size: var(--size-xxs);
   text-transform: uppercase;
   padding: 0 var(--sp-1);
-  border-radius: 2px;
+  border-radius: var(--radius-2);
   border: 1px solid currentColor;
   color: var(--ac-fg-muted);
   flex-shrink: 0;

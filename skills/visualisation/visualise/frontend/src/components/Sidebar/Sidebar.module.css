@@ -104,7 +104,7 @@
   color: var(--ac-fg-muted);
   padding: 2px 5px;
   border: 1px solid var(--ac-stroke);
-  border-radius: 3px;
+  border-radius: var(--radius-3);
   background: var(--ac-bg-sunken);
 }
 
@@ -123,7 +123,7 @@
   color: var(--ac-fg-faint);
   background: transparent;
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--radius-3);
   cursor: pointer;
   line-height: 0;
 }
@@ -297,7 +297,7 @@
   margin-top: 8px;
   background: var(--ac-bg-raised);
   border: 1px solid var(--ac-stroke);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   box-shadow: var(--ac-shadow-soft);
   overflow: hidden;
   animation: searchPop 140ms ease-out;
@@ -348,7 +348,7 @@
   color: var(--ac-fg-muted);
   padding: 1px 4px;
   border: 1px solid var(--ac-stroke);
-  border-radius: 3px;
+  border-radius: var(--radius-3);
   background: var(--ac-bg-raised);
   line-height: 1;
 }
@@ -425,7 +425,7 @@
   background: var(--ac-accent-tint);
   color: var(--ac-fg-strong);
   padding: 0 1px;
-  border-radius: 2px;
+  border-radius: var(--radius-2);
 }
 
 /* ─── Empty state ─── */
@@ -459,7 +459,7 @@
 .searchLoadbar {
   height: 2px;
   background: var(--ac-stroke-soft);
-  border-radius: 2px;
+  border-radius: var(--radius-2);
   position: relative;
   overflow: hidden;
 }
@@ -469,7 +469,7 @@
   inset: 0;
   width: 38%;
   background: var(--ac-accent);
-  border-radius: 2px;
+  border-radius: var(--radius-2);
   animation: searchLoadbar 1s ease-in-out infinite;
 }
 @keyframes searchLoadbar {

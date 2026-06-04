@@ -38,7 +38,7 @@
   min-width: 16px;
   height: 16px;
   padding: 0 5px;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: var(--ac-accent);
   color: #ffffff;
   font-family: var(--ac-font-mono);
@@ -81,7 +81,7 @@
   letter-spacing: 0;
   color: var(--ac-accent);
   padding: 2px 4px;
-  border-radius: 3px;
+  border-radius: var(--radius-3);
 }
 
 .clearButton:hover {
@@ -157,7 +157,7 @@
 
 .optionListScroll::-webkit-scrollbar-thumb {
   background: var(--ac-stroke-strong);
-  border-radius: 3px;
+  border-radius: var(--radius-3);
 }
 
 .optionListScroll::-webkit-scrollbar-track {
@@ -171,7 +171,7 @@
   gap: 8px;
   padding: 5px 8px;
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: var(--radius-3);
   outline: none;
   font-size: var(--size-row);
   color: var(--ac-fg);
@@ -186,7 +186,7 @@
   width: 13px;
   height: 13px;
   border: 1px solid var(--ac-stroke-strong);
-  border-radius: 2px;
+  border-radius: var(--radius-2);
   background: var(--ac-bg-card);
   display: inline-grid;
   place-items: center;
