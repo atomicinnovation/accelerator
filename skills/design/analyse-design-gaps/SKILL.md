@@ -170,6 +170,19 @@ Step 6 (`Current Date/Time (UTC):`):
 - `last_updated_by:` ← the same value resolved for `author`
 - `schema_version:` ← `1` (bare integer)
 
+Optional linkage keys are omit-by-default (ADR-0040): the template shows
+each as `""`/`[]`, but write a key into the artifact **only** when it has
+a value, and omit it entirely otherwise (do not carry the empty
+placeholder through). The `current_inventory:` / `target_inventory:`
+keys above are always-valued and not subject to this rule.
+
+- `parent:` ← the work item this gap analysis supports, as a
+  typed-linkage ref (`"work-item:NNNN"`). Fill when the analysis has an
+  owning work item; otherwise omit the key.
+- `relates_to:` ← list of typed-linkage refs to related artifacts
+  (`["design-inventory:NNNN", ...]`). Fill when relationships are
+  explicit; otherwise omit the key.
+
 The design-gap artifact is not code-state-anchored — the helper's
 `Current Revision:` and `Repository Name:` output is ignored here
 even when present.

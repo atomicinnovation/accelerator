@@ -1370,12 +1370,12 @@ type-pair table).
 
 #### Automated Verification
 
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` reports PASS for `parent` and `relates_to` on `inventory-design` and `analyse-design-gaps`
-- [ ] The `current_inventory` and `target_inventory` bullets in `analyse-design-gaps/SKILL.md` are byte-identical to before (verify via `jj diff`)
+- [x] `bash scripts/test-skill-frontmatter-population.sh` reports PASS for `parent` and `relates_to` on `inventory-design` and `analyse-design-gaps`
+- [x] The `current_inventory` and `target_inventory` bullets in `analyse-design-gaps/SKILL.md` are byte-identical to before (verify via `jj diff`)
 
 #### Manual Verification
 
-- [ ] The new linkage-slot bullets sit naturally alongside the existing inventory-key bullets without confusing the reader about which set is which
+- [x] The new linkage-slot bullets sit naturally alongside the existing inventory-key bullets without confusing the reader about which set is which
 
 ---
 

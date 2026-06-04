@@ -252,6 +252,18 @@ the indicated value, using the helper output captured in Step 10
 - `last_updated_by:` ← the same value resolved for `author`
 - `schema_version:` ← `1` (bare integer)
 
+Optional linkage keys are omit-by-default (ADR-0040): the template shows
+each as `""`/`[]`, but write a key into the artifact **only** when it has
+a value, and omit it entirely otherwise (do not carry the empty
+placeholder through).
+
+- `parent:` ← the work item this inventory supports, as a typed-linkage
+  ref (`"work-item:NNNN"`). Fill when the inventory has an owning work
+  item; otherwise omit the key.
+- `relates_to:` ← list of typed-linkage refs to related artifacts
+  (`["design-inventory:NNNN", ...]`). Fill when relationships are
+  explicit; otherwise omit the key.
+
 The domain fields (`source`, `source_kind`, `source_location`,
 `crawler`, `sequence`, `screenshots_incomplete`) are filled from
 the values resolved in earlier steps.
