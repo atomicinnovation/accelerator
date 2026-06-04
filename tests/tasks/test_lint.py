@@ -1,0 +1,97 @@
+import subprocess
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
+from invoke import Context, Exit
+
+from tasks.lint import scripts as lint
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+LINT_BASHISMS = REPO_ROOT / "scripts/lint-bashisms.sh"
+
+
+@pytest.fixture
+def ctx():
+    m = MagicMock(spec=Context)
+    m.run.return_value = MagicMock(exited=0, stdout="")
+    return m
+
+
+def _command(ctx) -> str:
+    return ctx.run.call_args.args[0]
+
+
+class TestShellcheckTask:
+    def test_command(self, ctx, mocker):
+        mocker.patch.object(lint, "shell_sources", return_value=["a.sh", "b.sh"])
+        lint.shellcheck(ctx)
+        cmd = _command(ctx)
+        assert cmd.startswith("shellcheck -x --severity=warning ")
+        assert "a.sh" in cmd and "b.sh" in cmd
+
+    def test_raises_on_findings(self, ctx, mocker):
+        mocker.patch.object(lint, "shell_sources", return_value=["a.sh"])
+        ctx.run.return_value = MagicMock(exited=1)
+        with pytest.raises(Exit):
+            lint.shellcheck(ctx)
+
+
+class TestBashismsTask:
+    def test_command(self, ctx, mocker):
+        mocker.patch.object(lint, "shell_sources", return_value=["a.sh"])
+        lint.bashisms(ctx)
+        assert _command(ctx).startswith("bash scripts/lint-bashisms.sh ")
+
+    def test_raises_on_findings(self, ctx, mocker):
+        mocker.patch.object(lint, "shell_sources", return_value=["a.sh"])
+        ctx.run.return_value = MagicMock(exited=1)
+        with pytest.raises(Exit):
+            lint.bashisms(ctx)
+
+
+def _run_lint(path: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["bash", str(LINT_BASHISMS), str(path)],
+        capture_output=True,
+        text=True,
+    )
+
+
+class TestBashismsScript:
+    """Behavioural coverage of scripts/lint-bashisms.sh itself."""
+
+    def test_flags_associative_array(self, tmp_path: Path):
+        f = tmp_path / "x.sh"
+        f.write_text("#!/usr/bin/env bash\ndeclare -A MAP\n")
+        result = _run_lint(f)
+        assert result.returncode != 0
+        assert "associative array" in result.stdout
+
+    def test_comment_naming_a_construct_is_not_flagged(self, tmp_path: Path):
+        # A comment that mentions a forbidden construct must not trip the lint.
+        f = tmp_path / "x.sh"
+        f.write_text("#!/usr/bin/env bash\n# do not use declare -A here\necho ok\n")
+        result = _run_lint(f)
+        assert result.returncode == 0, result.stdout
+
+    def test_inline_opt_out_marker(self, tmp_path: Path):
+        f = tmp_path / "x.sh"
+        f.write_text(
+            "#!/usr/bin/env bash\ndeclare -A MAP # lint-bashisms: ignore\n"
+        )
+        result = _run_lint(f)
+        assert result.returncode == 0, result.stdout
+
+    def test_parameter_expansion_strip_is_not_a_case_mod(self, tmp_path: Path):
+        # ${x#prefix} is a bash-3.2 prefix strip, not a ${x^^} case modification.
+        f = tmp_path / "x.sh"
+        f.write_text('#!/usr/bin/env bash\necho "${x#prefix}"\n')
+        result = _run_lint(f)
+        assert result.returncode == 0, result.stdout
+
+    def test_clean_file_passes(self, tmp_path: Path):
+        f = tmp_path / "x.sh"
+        f.write_text("#!/usr/bin/env bash\nfor i in 1 2 3; do echo \"$i\"; done\n")
+        result = _run_lint(f)
+        assert result.returncode == 0, result.stdout

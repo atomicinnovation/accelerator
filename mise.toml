@@ -8,6 +8,7 @@ gh = "2.89.0"
 rust = "1.90.0"
 node = "22"
 shellcheck = "0.11.0"
+shfmt = "3.13.1"
 jj = "0.36.0"
 jq = "1.7.1"
 
@@ -85,7 +86,7 @@ run = "invoke test.unit.frontend"
 [tasks."test:unit:tasks"]
 description = "Run pytest unit tests for invoke tasks"
 depends = ["deps:install:python"]
-run = "uv run pytest tests/tasks/shared/ tests/tasks/test_build.py tests/tasks/test_version.py -v"
+run = "uv run pytest tests/tasks/shared/ tests/tasks/test_build.py tests/tasks/test_version.py tests/tasks/test_format.py tests/tasks/test_lint.py -v"
 
 [tasks."test:unit:templates"]
 description = "Run template / SKILL / metadata-helper schema tests"
@@ -156,9 +157,45 @@ depends = ["test:e2e:visualiser"]
 description = "Run all tests in parallel"
 depends = ["test:unit", "test:integration", "test:e2e"]
 
+[tasks."format:scripts:check"]
+description = "Check shell formatting with shfmt (read-only; fails on drift)"
+run = "invoke format.scripts.check"
+
+[tasks."format:scripts:fix"]
+description = "Format shell scripts in place with shfmt"
+run = "invoke format.scripts.fix"
+
+[tasks."format:check"]
+description = "Run all format checks (read-only)"
+depends = ["format:scripts:check"]
+
+[tasks."format:fix"]
+description = "Apply all formatters in place"
+depends = ["format:scripts:fix"]
+
+[tasks."lint:scripts:shellcheck:check"]
+description = "Lint shell scripts with ShellCheck (-x, --severity=warning)"
+run = "invoke lint.scripts.shellcheck"
+
+[tasks."lint:scripts:bashisms:check"]
+description = "Guard the bash-3.2 floor (denylist of bash-4 constructs)"
+run = "invoke lint.scripts.bashisms"
+
+[tasks."lint:scripts:check"]
+description = "Run all shell lint checks"
+depends = ["lint:scripts:shellcheck:check", "lint:scripts:bashisms:check"]
+
+[tasks."lint:check"]
+description = "Run all lint checks"
+depends = ["lint:scripts:check"]
+
+[tasks.check]
+description = "Run all read-only format and lint checks (what CI runs)"
+depends = ["format:check", "lint:check"]
+
 [tasks.default]
-description = "Build all artifacts and run all tests"
-depends = ["build:frontend", "build:server:dev", "test"]
+description = "Build all artifacts, format, lint, and run all tests"
+depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "test"]
 
 [tasks."version:read"]
 description = "Read plugin version"

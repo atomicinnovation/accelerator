@@ -3,3 +3,11 @@ root = true
 [*.tsv]
 indent_style = tab
 trim_trailing_whitespace = false
+
+# shfmt reads these when invoked with no formatting flags (single source of
+# truth shared by editors and CI). switch_case_indent is the .editorconfig
+# equivalent of shfmt's -ci.
+[*.sh]
+indent_style = space
+indent_size = 2
+switch_case_indent = true
