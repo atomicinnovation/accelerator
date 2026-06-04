@@ -337,18 +337,18 @@ Deviation 6 for why this supersedes work-item AC6.
 
 #### Automated Verification:
 
-- [ ] ADR-0039 markdown lints/parses (frontmatter valid): `mise run test` does
+- [x] ADR-0039 markdown lints/parses (frontmatter valid): `mise run test` does
       not regress; manual frontmatter check.
-- [ ] `jj diff --stat` shows ADR-0039 added and **no change to
+- [x] `jj diff --stat` shows ADR-0039 added and **no change to
       `ADR-0026-*.md`** (immutability respected). The
       `rg 'In-between border radii'` row is *expected to remain* in ADR-0026 —
       it is not removed (Authorised Deviation 6).
 
 #### Manual Verification:
 
-- [ ] ADR-0039 reads as a tight single-rule ADR consistent with ADR-0036, and
+- [x] ADR-0039 reads as a tight single-rule ADR consistent with ADR-0036, and
       its Decision Drivers *argue* the px-encoded naming choice.
-- [ ] ADR-0039 carries `supersedes: ["adr:ADR-0026"]`; ADR-0026 is untouched
+- [x] ADR-0039 carries `supersedes: ["adr:ADR-0026"]`; ADR-0026 is untouched
       (body and frontmatter — its `superseded_by: "adr:ADR-0036"` unchanged).
 
 ---
