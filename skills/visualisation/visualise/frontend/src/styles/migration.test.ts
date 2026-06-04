@@ -410,7 +410,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 427 // 0094: MarkdownRenderer table-body inline-code → var(--size-eyebrow) (+1)
+const AC5_FLOOR = 951 // 0090: 27 radius literals → var(--radius-*); re-synced floor to observed (was stale-low at 427)
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 
@@ -621,6 +621,11 @@ const FONT_SIZE_LITERAL_EXCEPTIONS: ReadonlyArray<{
   reference: string
 }> = []
 
+// Shared by both literal-ban gates (font-size + border-radius). Hoisted to
+// module scope so the AC4 / 0090 radius gate reuses one definition rather than
+// re-inlining the comment-strip regex.
+const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '')
+
 describe('AC2 / 0075: no font-size literals in module or global CSS', () => {
   const FONT_SIZE_LITERAL_RE = /(?<![\w-])font-size:\s*(\d+(?:\.\d+)?|\.\d+)\s*(px|rem|em)\b/g
   const FONT_SHORTHAND_RE = /(?<![\w-])font:[^;/]*?(\d+(?:\.\d+)?|\.\d+)(px|rem|em)\b/g
@@ -631,8 +636,6 @@ describe('AC2 / 0075: no font-size literals in module or global CSS', () => {
       Object.entries(globalCssModules).map(([, css]) => ['styles/global.css', css]),
     ),
   }
-
-  const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '')
 
   for (const [path, css] of Object.entries(allCssWithRoot)) {
     it(`${path}: no font-size literal or shorthand with embedded size`, () => {
@@ -722,4 +725,96 @@ describe('AC2 / 0075: font-size literal regex fixtures', () => {
       expect([...css.matchAll(FONT_SHORTHAND_RE)].length).toBe(0)
     })
   }
+})
+
+// AUTHORITATIVE IMPLEMENTATION of ADR-0039's border-radius consumption
+// rule. BORDER_RADIUS_LITERAL_RE is the load-bearing CI guard; the three
+// AC3 ripgrep sweeps below are coarser review-time approximations.
+//
+// AC3 sweeps (review-time grep gate, run from frontend/src):
+//   rg --glob '**/*.module.css' 'border-radius:\s*[.0-9]' src
+//   rg --glob '**/*.css' --glob '!**/global.css' 'border-radius:\s*[.0-9]' src
+//   rg --glob '**/*.css' --glob '!**/global.css' 'border-(top|bottom)-(left|right)-radius:\s*[.0-9]' src
+
+describe('AC4 / 0090: no border-radius literals in module or global CSS', () => {
+  // The (?<![\w-]) lookbehind exists to avoid matching custom-property
+  // *names* like `--my-radius:` (the `-` before `radius` would otherwise let
+  // the property-name fragment match). A side effect is that vendor-prefixed
+  // forms (`-webkit-border-radius: 6px`) are NOT matched — see the negative
+  // fixture below. Current-app CSS uses no vendor-prefixed radius, so this is
+  // an accepted, recorded limitation; the AC3 sweeps share it in practice.
+  //
+  // CSS logical-property longhands (`border-start-start-radius`, etc.) are
+  // intentionally out of scope — current-app CSS uses none, and the regex
+  // matches only the physical shorthand + four physical corners. If a logical
+  // form is ever introduced it must be added to both the regex and a fixture.
+  const BORDER_RADIUS_LITERAL_RE =
+    /(?<![\w-])border-(?:(?:top|bottom)-(?:left|right)-)?radius:\s*[.0-9]/g
+  // allCss = component module CSS + any *.global.css files. The root
+  // styles/global.css token file is NOT in allCss (it is not named
+  // *.global.css) and is intentionally out of scope — matching the AC3
+  // `!**/global.css` exclusion; its `--radius-*:` defs would not match this
+  // border-radius property regex anyway.
+  for (const [path, css] of Object.entries(allCss)) {
+    it(`${path}: no literal border-radius value`, () => {
+      const stripped = stripComments(css)
+      const hits = [...stripped.matchAll(BORDER_RADIUS_LITERAL_RE)].map((m) => m[0])
+      expect(
+        hits,
+        `${path}: border-radius must use a var(--radius-*) token per ADR-0039; ` +
+          `off-scale values need a new ladder step (with sign-off), not a literal`,
+      ).toEqual([])
+    })
+  }
+})
+
+describe('AC4 / 0090: border-radius literal regex fixtures', () => {
+  const BORDER_RADIUS_LITERAL_RE =
+    /(?<![\w-])border-(?:(?:top|bottom)-(?:left|right)-)?radius:\s*[.0-9]/g
+
+  const POSITIVE = [
+    'border-radius: 6px;',
+    'border-top-left-radius: 2px;',
+    'border-bottom-right-radius:.5rem;',
+    'border-radius: 0;',
+    'border-radius: 50%;',
+  ]
+  const NEGATIVE = [
+    'border-radius: var(--radius-6);',
+    '--radius-6: 6px;',
+    '--radius-0: 0;', // the bare-0 token definition must not trip the gate
+    '--my-radius: 0;',
+    // Vendor-prefixed *literal*: NOT matched (the lookbehind admits prefixed
+    // forms). This proves the documented limitation — a var() form would be
+    // skipped by the [.0-9] class regardless and so would prove nothing.
+    '-webkit-border-radius: 6px;',
+  ]
+
+  for (const css of POSITIVE) {
+    it(`gate regex flags: ${css}`, () => {
+      expect([...css.matchAll(BORDER_RADIUS_LITERAL_RE)].length).toBeGreaterThan(0)
+    })
+  }
+  for (const css of NEGATIVE) {
+    it(`gate regex skips: ${css}`, () => {
+      expect([...css.matchAll(BORDER_RADIUS_LITERAL_RE)].length).toBe(0)
+    })
+  }
+})
+
+describe('AC5 / 0090: no irreducible reason references a migrated radius', () => {
+  // The EXCEPTIONS `reason` strings are human-maintained prose the hygiene
+  // gate never validates, so a decrement that left a stale radius mention
+  // would pass silently. Match the bare word `radius` (not just
+  // `border-radius`): the original reasons phrase radius uses both ways
+  // ("scrollbar thumb radius", "mark border-radius, loadbar … radius"). After
+  // 0090 migrated every border-radius to a token, no surviving irreducible
+  // reason should mention radius at all.
+  const RADIUS_REASON_RE = /border-radius|\bradius\b/i
+  it('no surviving irreducible reason mentions a radius', () => {
+    const offenders = EXCEPTIONS.filter(
+      (e) => e.kind === 'irreducible' && RADIUS_REASON_RE.test(e.reason),
+    ).map((e) => `${e.file} '${e.literal}': ${e.reason}`)
+    expect(offenders).toEqual([])
+  })
 })

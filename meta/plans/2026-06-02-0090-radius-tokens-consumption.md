@@ -844,15 +844,21 @@ non-migrated `radius` word, whitelist it explicitly.)
 
 #### Automated Verification:
 
-- [ ] `mise run test:unit:frontend` green (gate passes — zero literals;
-      fixtures pass; ratchet satisfied).
-- [ ] Inserting `border-radius: 7px` into any `.module.css` makes the gate exit
-      non-zero (verify once, then revert).
-- [ ] Three AC3 sweeps return zero matches from `frontend/src`.
+- [x] `mise run test:unit:frontend` green (gate passes — zero literals;
+      fixtures pass; ratchet satisfied) — 2176 passed.
+- [x] Inserting `border-radius: 7px` into a `.module.css` makes the gate exit
+      non-zero (verified, then reverted).
+- [x] Three AC3 sweeps return zero matches from `frontend/src`.
 
 #### Manual Verification:
 
-- [ ] Gate regex fixtures cover shorthand, all four corners, `0`, and `%`.
+- [x] Gate regex fixtures cover shorthand, all four corners, `0`, and `%`.
+      **Deviation:** `AC5_FLOOR` was re-synced 427→**951** (the true observed
+      `var(--*)` count), not the plan's expected ~452 — the floor had drifted
+      stale-low long before 0090 (a pre-existing harness-discipline lapse);
+      0090 itself added +27. `stripComments` hoisted to module scope; the new
+      reason-hygiene `it` (AC5 / 0090) proves no surviving irreducible reason
+      mentions a radius.
 
 ---
 
