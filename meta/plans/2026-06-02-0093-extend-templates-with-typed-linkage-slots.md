@@ -1026,16 +1026,16 @@ f. **Migrate `in_imperative_section` to the shared predicate.** The
 
 #### Automated Verification
 
-- [ ] Field-count self-check passes: `bash scripts/test-skill-frontmatter-population.sh` reports `PASS: skills-schema.tsv field-count self-check`
-- [ ] No-op when all `omit_when_empty` columns empty: every PASS line from before the change still appears; no new FAIL lines introduced
-- [ ] **Helper liveness self-test passes** (§2e): exactly **5** self-test PASS lines — the without-guidance, cross-field-guidance, buried-substring, and bold-lead-in fixtures are all rejected (helper returns 1); the with-guidance fixture passes (returns 0). Self-test runs in-script under `mise run test:unit:templates` (not a hand-run sibling)
-- [ ] `export LC_ALL=C` is set at the top of `test-skill-frontmatter-population.sh` (parity with the template script), pinning `tolower()`/`[[:alpha:]]` behaviour regardless of host locale
-- [ ] Whole test suite: `mise run test:unit:templates` exits 0
+- [x] Field-count self-check passes: `bash scripts/test-skill-frontmatter-population.sh` reports `PASS: skills-schema.tsv field-count self-check`
+- [x] No-op when all `omit_when_empty` columns empty: every PASS line from before the change still appears; no new FAIL lines introduced
+- [x] **Helper liveness self-test passes** (§2e): exactly **5** self-test PASS lines — the without-guidance, cross-field-guidance, buried-substring, and bold-lead-in fixtures are all rejected (helper returns 1); the with-guidance fixture passes (returns 0). Self-test runs in-script under `mise run test:unit:templates` (not a hand-run sibling)
+- [x] `export LC_ALL=C` is set at the top of `test-skill-frontmatter-population.sh` (parity with the template script), pinning `tolower()`/`[[:alpha:]]` behaviour regardless of host locale
+- [x] Whole test suite: `mise run test:unit:templates` exits 0
 
 #### Manual Verification
 
-- [ ] Diff of the TSV shows only the new fourth column on every row (use a `-` sentinel rather than a bare trailing tab if the repo's tooling strips trailing whitespace, mirroring the `forbidden_own_id_key` convention)
-- [ ] Diff of the script shows the new helper, the new loop, the loop-signature change, and the liveness self-test — no incidental edits
+- [x] Diff of the TSV shows only the new fourth column on every row (use a `-` sentinel rather than a bare trailing tab if the repo's tooling strips trailing whitespace, mirroring the `forbidden_own_id_key` convention)
+- [x] Diff of the script shows the new helper, the new loop, the loop-signature change, and the liveness self-test — no incidental edits
 
 ---
 

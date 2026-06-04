@@ -1,15 +1,15 @@
-skill_path	producer_name	fields_to_assert
-skills/work/create-work-item/SKILL.md	create-work-item	producer schema_version last_updated last_updated_by
-skills/work/extract-work-items/SKILL.md	extract-work-items	producer schema_version last_updated last_updated_by
-skills/planning/create-plan/SKILL.md	create-plan	producer schema_version last_updated last_updated_by revision repository
-skills/github/describe-pr/SKILL.md	describe-pr	producer schema_version last_updated last_updated_by revision repository
-skills/decisions/create-adr/SKILL.md	create-adr	producer schema_version last_updated last_updated_by
-skills/decisions/extract-adrs/SKILL.md	extract-adrs	producer schema_version last_updated last_updated_by
-skills/research/research-codebase/SKILL.md	research-codebase	producer schema_version last_updated last_updated_by revision repository
-skills/research/research-issue/SKILL.md	research-issue	producer schema_version last_updated last_updated_by revision repository
-skills/design/inventory-design/SKILL.md	inventory-design	producer schema_version last_updated last_updated_by revision repository
-skills/design/analyse-design-gaps/SKILL.md	analyse-design-gaps	producer schema_version last_updated last_updated_by
-skills/planning/review-plan/SKILL.md	review-plan	producer schema_version last_updated last_updated_by target reviewer verdict lenses review_number review_pass
-skills/work/review-work-item/SKILL.md	review-work-item	producer schema_version last_updated last_updated_by target reviewer verdict lenses review_number review_pass work_item_id
-skills/github/review-pr/SKILL.md	review-pr	producer schema_version last_updated last_updated_by target reviewer verdict lenses review_number pr_number
-skills/planning/validate-plan/SKILL.md	validate-plan	producer schema_version last_updated last_updated_by target result
+skill_path	producer_name	fields_to_assert	omit_when_empty
+skills/work/create-work-item/SKILL.md	create-work-item	producer schema_version last_updated last_updated_by	-
+skills/work/extract-work-items/SKILL.md	extract-work-items	producer schema_version last_updated last_updated_by	-
+skills/planning/create-plan/SKILL.md	create-plan	producer schema_version last_updated last_updated_by revision repository	-
+skills/github/describe-pr/SKILL.md	describe-pr	producer schema_version last_updated last_updated_by revision repository	-
+skills/decisions/create-adr/SKILL.md	create-adr	producer schema_version last_updated last_updated_by	-
+skills/decisions/extract-adrs/SKILL.md	extract-adrs	producer schema_version last_updated last_updated_by	-
+skills/research/research-codebase/SKILL.md	research-codebase	producer schema_version last_updated last_updated_by revision repository	-
+skills/research/research-issue/SKILL.md	research-issue	producer schema_version last_updated last_updated_by revision repository	-
+skills/design/inventory-design/SKILL.md	inventory-design	producer schema_version last_updated last_updated_by revision repository	-
+skills/design/analyse-design-gaps/SKILL.md	analyse-design-gaps	producer schema_version last_updated last_updated_by	-
+skills/planning/review-plan/SKILL.md	review-plan	producer schema_version last_updated last_updated_by target reviewer verdict lenses review_number review_pass	-
+skills/work/review-work-item/SKILL.md	review-work-item	producer schema_version last_updated last_updated_by target reviewer verdict lenses review_number review_pass work_item_id	-
+skills/github/review-pr/SKILL.md	review-pr	producer schema_version last_updated last_updated_by target reviewer verdict lenses review_number pr_number	-
+skills/planning/validate-plan/SKILL.md	validate-plan	producer schema_version last_updated last_updated_by target result	-
