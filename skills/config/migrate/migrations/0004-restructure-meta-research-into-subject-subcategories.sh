@@ -144,70 +144,15 @@ _assert_no_mixed_state() {
 _assert_no_mixed_state
 
 # Short-circuit when there is genuinely nothing to migrate: neither the legacy
-# research dir nor the legacy design-inv/design-gaps dirs exist. Avoids
-# tripping the no-VCS safety net on fresh repos / unrelated test fixtures.
+# research dir nor the legacy design-inv/design-gaps dirs exist. Keeps fresh
+# repos / unrelated test fixtures a clean no-op.
 if [ ! -d "$PROJECT_ROOT/$OLD_RESEARCH" ] \
    && [ ! -d "$PROJECT_ROOT/$OLD_INV" ] \
    && [ ! -d "$PROJECT_ROOT/$OLD_GAPS" ]; then
   exit 0
 fi
 
-# ── Step 0c: scan-corpus dirty-tree pre-flight ───────────────────────────────
-build_scan_corpus() {
-  bash "$PLUGIN_ROOT/scripts/config-read-all-paths.sh" 2>/dev/null \
-    | awk '
-        /^- [^[:space:]]+: / {
-          sub(/^- [^[:space:]]+: /, "")
-          print
-        }
-      ' \
-    | while IFS= read -r v; do
-        if [ -d "$PROJECT_ROOT/$v" ]; then
-          printf '%s\n' "$PROJECT_ROOT/$v"
-        fi
-      done
-  return 0
-}
-
-_preflight_scan_corpus_clean() {
-  # No-VCS detection runs unconditionally — even with an empty scan corpus the
-  # migration mutates the filesystem (moves, .gitkeep, legacy-dir cleanup),
-  # so VCS-based rollback is the safety net.
-  local has_vcs=0
-  if command -v jj >/dev/null 2>&1 && [ -d "$PROJECT_ROOT/.jj" ]; then
-    has_vcs=1
-  elif [ -d "$PROJECT_ROOT/.git" ]; then
-    has_vcs=1
-  fi
-  if [ "$has_vcs" = "0" ]; then
-    if [ "${ACCELERATOR_MIGRATE_FORCE_NO_VCS:-}" = "1" ]; then
-      log_warn "0004: no VCS detected — proceeding because ACCELERATOR_MIGRATE_FORCE_NO_VCS=1. Recovery from a botched migration is not possible without VCS."
-    else
-      log_die "0004: no VCS detected (.jj or .git absent). Recovery via VCS rollback is unavailable. Set ACCELERATOR_MIGRATE_FORCE_NO_VCS=1 to proceed anyway."
-    fi
-  fi
-
-  local dirs=()
-  while IFS= read -r d; do dirs+=("$d"); done < <(build_scan_corpus)
-  [ "${#dirs[@]}" -eq 0 ] && return 0
-  [ "$has_vcs" = "0" ] && return 0   # bypass already warned
-
-  local dirty=""
-  if [ -d "$PROJECT_ROOT/.jj" ] && command -v jj >/dev/null 2>&1; then
-    dirty=$(jj --no-pager diff --name-only -r @ -- "${dirs[@]}" 2>/dev/null || true)
-  elif [ -d "$PROJECT_ROOT/.git" ]; then
-    dirty=$(git -C "$PROJECT_ROOT" status --porcelain -- "${dirs[@]}" 2>/dev/null \
-              | grep -v '^??' || true)
-  fi
-  if [ -n "$dirty" ]; then
-    echo "0004: scan corpus has uncommitted changes — commit or stash first:" >&2
-    printf '%s\n' "$dirty" | sed 's/^/  /' >&2
-    exit 1
-  fi
-}
-_preflight_scan_corpus_clean
-
-# ── Step 1: plan moves, check collisions, then execute ───────────────────────
+# ── Step 1: plan moves, then execute ─────────────────────────────────────────
 PLANNED_MOVES=()  # entries are "src<TAB>dst"
 _plan_move() { PLANNED_MOVES+=("$1"$'\t'"$2"); }
 
@@ -476,6 +421,25 @@ fi
 # is excluded from re-matching paths whose next segment names a known
 # sibling subcategory (codebase, issues, design-inventories, design-gaps),
 # which makes the rewrite idempotent under re-runs.
+
+# build_scan_corpus: enumerate the configured document directories that exist,
+# one absolute path per line. Sole consumer is Step 3's inbound-link scan below
+# (both the corpus-size banner and the per-file walk).
+build_scan_corpus() {
+  bash "$PLUGIN_ROOT/scripts/config-read-all-paths.sh" 2>/dev/null \
+    | awk '
+        /^- [^[:space:]]+: / {
+          sub(/^- [^[:space:]]+: /, "")
+          print
+        }
+      ' \
+    | while IFS= read -r v; do
+        if [ -d "$PROJECT_ROOT/$v" ]; then
+          printf '%s\n' "$PROJECT_ROOT/$v"
+        fi
+      done
+  return 0
+}
 
 PAIRS=()
 PAIRS+=("$OLD_RESEARCH"$'\t'"$NEW_RESEARCH_CODEBASE")

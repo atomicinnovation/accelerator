@@ -1053,13 +1053,12 @@ setup_0004_repo() {
   printf '%s\n' "$repo"
 }
 
-# Run 0004 directly (no framework dirty-tree check). Sets the no-VCS
-# bypass so fixtures without .jj/.git proceed.
+# Run 0004 directly. 0004 no longer has an internal dirty-tree / no-VCS
+# pre-flight, so no bypass env var is needed — fixtures without .jj/.git proceed.
 run_0004() {
   local repo="$1"
   shift || true
   PROJECT_ROOT="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
-    ACCELERATOR_MIGRATE_FORCE_NO_VCS=1 \
     bash "$MIGRATION_0004" "$@"
 }
 
@@ -1156,12 +1155,49 @@ run_0004 "$REPO" >/dev/null 2>&1
 assert_file_exists "local-overridden research moved" "$REPO/docs/research/codebase/foo.md"
 assert_file_not_exists "local-overridden flat absent" "$REPO/docs/research/foo.md"
 
-echo "Test: no-VCS refusal — without ACCELERATOR_MIGRATE_FORCE_NO_VCS, migration refuses"
+echo "Test: no-VCS success — 0004 runs without any VCS dir or force env var"
 REPO=$(setup_0004_repo default-layout)
 RC=0
 OUTPUT=$(PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$MIGRATION_0004" 2>&1) || RC=$?
-assert_neq "non-zero exit on no-VCS without bypass" "0" "$RC"
-assert_contains "diagnostic mentions no VCS" "$OUTPUT" "no VCS detected"
+assert_eq "exit 0 with no VCS and no force env" "0" "$RC"
+assert_file_exists "research files relocated into codebase/" \
+  "$REPO/meta/research/codebase/2026-01-01-example.md"
+
+echo "Test: VCS-present clean tree — 0004 moves files and Step 3 inbound-link rewrite runs"
+REPO=$(setup_0004_repo default-layout)
+git -C "$REPO" init -q
+git -C "$REPO" -c user.email="t@t.com" -c user.name="T" add -A
+git -C "$REPO" -c user.email="t@t.com" -c user.name="T" commit -qm "init"
+RC=0
+run_0004 "$REPO" >/dev/null 2>&1 || RC=$?
+assert_eq "exit 0 in committed-clean git repo" "0" "$RC"
+assert_file_exists "research moved into codebase/" "$REPO/meta/research/codebase/2026-01-01-example.md"
+MOVED=$(cat "$REPO/meta/research/codebase/2026-01-01-example.md")
+assert_contains "Step 3 rewrote inbound research link (build_scan_corpus walked)" \
+  "$MOVED" "meta/research/codebase/2026-01-02-sibling.md"
+
+echo "Test: mid-batch sibling-dirty — 0004 converges after 0001/0003 dirty the tree"
+# Through the orchestrator: a committed-clean repo needing 0001+0003+0004. The
+# single per-invocation clean-tree gate passes at the start; 0001/0003 then
+# dirty the tree before 0004 runs. 0004 must no longer re-police the tree.
+REPO=$(mktemp -d "$TMPDIR_BASE/m0004-batch-XXXXXX")
+mkdir -p "$REPO/meta/tickets" "$REPO/meta/research" "$REPO/.claude"
+printf -- '---\nticket_id: 0001\n---\n\n# t\n' > "$REPO/meta/tickets/0001-foo.md"
+printf -- '---\nwork-item: "0001"\n---\n\n# Example research\n' \
+  > "$REPO/meta/research/2026-01-01-example.md"
+printf -- '---\n---\n' > "$REPO/.claude/accelerator.md"
+git -C "$REPO" init -q
+git -C "$REPO" -c user.email="t@t.com" -c user.name="T" add -A
+git -C "$REPO" -c user.email="t@t.com" -c user.name="T" commit -qm "init"
+RC=0
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0 — full batch converges in one pass" "0" "$RC"
+assert_not_contains "no mid-batch dirty-tree abort" "$OUTPUT" "scan corpus has uncommitted changes"
+# Positive postcondition: 0004 actually relocated the research file after the
+# sibling-dirtied batch (proves convergence, not merely absence of one error).
+assert_file_exists "research relocated into codebase/" \
+  "$REPO/meta/research/codebase/2026-01-01-example.md"
+assert_dir_not_exists "0001 renamed legacy tickets dir" "$REPO/meta/tickets"
 
 echo ""
 
