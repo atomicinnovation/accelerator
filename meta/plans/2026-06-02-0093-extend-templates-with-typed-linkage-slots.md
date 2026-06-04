@@ -830,23 +830,23 @@ choices, and existing-slot rewrites:
 
 #### Automated Verification
 
-- [ ] Field-count self-check passes: `bash scripts/test-template-frontmatter.sh` reports `PASS: templates-schema.tsv field-count self-check`
-- [ ] **Exact PASS count, not just absence of FAIL.** The run reports exactly **36** `PASS: ... linkage slot ... shape+comment` lines (the sum of the per-template slot counts: 6+5+3+2+2+2+2+2+3+3+3+3) — assert with `[ "$(… | grep -c 'PASS:.*linkage slot.*shape+comment')" -eq 36 ]` — AND zero `FAIL:` lines. Gating on the exact count catches a silently-inert assertion (zero PASS + zero FAIL would otherwise read as success).
-- [ ] Closed-set check exercised: exactly **12** closed-set PASS lines (one per template) and no `FAIL: ... closed-set ...` lines; in particular `design-inventory.md` passes (its extra `source:` is exempted, not flagged). Assert with `[ "$(… | grep -c 'PASS:.*closed-set')" -eq 12 ]`.
-- [ ] Inverse-guidance coverage: `work-item.md`'s and `plan.md`'s `blocked_by` slots pass their `check_linkage_slot` shape+comment check (the inverse-line presence is folded into that check — a missing standalone line makes the slot FAIL). These two are part of the 36 above; the §2e "missing inverse line" fixture proves the rejection path works.
-- [ ] **Negative-fixture self-test passes**: exactly **6** self-test PASS lines (one per §2e fixture), each proving a specific assertion rejects bad input; the suite is red if any bad fixture stops being rejected
-- [ ] **Vocabulary-drift guard passes**: exactly **9** PASS lines (one per `LINKAGE_VOCABULARY` entry, each returning a non-empty `linkage_cardinality`); assert with `-eq 9`
-- [ ] **Counts are derived, not hard-coded.** Compute the expected slot total from the TSV at runtime — `expected=$(awk -F'\t' 'NR>1{n=split($7,a," ");t+=n}END{print t}' scripts/templates-schema.tsv)` — and assert the shape+comment PASS count equals `$expected`, so adding a template/slot does not require editing a magic number (36 is the value today).
-- [ ] Runs on bash 3.2: `bash --version` 3.2 (or `/bin/bash` on stock macOS) executes the script without `declare: -A: invalid option`
-- [ ] Whole test suite: `mise run test:unit:templates` exits 0
-- [ ] CI green: `mise run test` exits 0
+- [x] Field-count self-check passes: `bash scripts/test-template-frontmatter.sh` reports `PASS: templates-schema.tsv field-count self-check`
+- [x] **Exact PASS count, not just absence of FAIL.** The run reports exactly **36** `PASS: ... linkage slot ... shape+comment` lines (the sum of the per-template slot counts: 6+5+3+2+2+2+2+2+3+3+3+3) — assert with `[ "$(… | grep -c 'PASS:.*linkage slot.*shape+comment')" -eq 36 ]` — AND zero `FAIL:` lines. Gating on the exact count catches a silently-inert assertion (zero PASS + zero FAIL would otherwise read as success).
+- [x] Closed-set check exercised: exactly **12** closed-set PASS lines (one per template) and no `FAIL: ... closed-set ...` lines; in particular `design-inventory.md` passes (its extra `source:` is exempted, not flagged). Assert with `[ "$(… | grep -c 'PASS:.*closed-set')" -eq 12 ]`.
+- [x] Inverse-guidance coverage: `work-item.md`'s and `plan.md`'s `blocked_by` slots pass their `check_linkage_slot` shape+comment check (the inverse-line presence is folded into that check — a missing standalone line makes the slot FAIL). These two are part of the 36 above; the §2e "missing inverse line" fixture proves the rejection path works.
+- [x] **Negative-fixture self-test passes**: exactly **6** self-test PASS lines (one per §2e fixture), each proving a specific assertion rejects bad input; the suite is red if any bad fixture stops being rejected
+- [x] **Vocabulary-drift guard passes**: exactly **9** PASS lines (one per `LINKAGE_VOCABULARY` entry, each returning a non-empty `linkage_cardinality`); assert with `-eq 9`
+- [x] **Counts are derived, not hard-coded.** Compute the expected slot total from the TSV at runtime — `expected=$(awk -F'\t' 'NR>1{n=split($7,a," ");t+=n}END{print t}' scripts/templates-schema.tsv)` — and assert the shape+comment PASS count equals `$expected`, so adding a template/slot does not require editing a magic number (36 is the value today).
+- [x] Runs on bash 3.2: `bash --version` 3.2 (or `/bin/bash` on stock macOS) executes the script without `declare: -A: invalid option`
+- [x] Whole test suite: `mise run test:unit:templates` exits 0
+- [x] CI green: `mise run test` exits 0
 
 #### Manual Verification
 
-- [ ] Visual diff of each of the twelve templates shows only the new linkage slots, the standalone block-header comment, and the rewritten comments — no incidental edits
-- [ ] Standalone full-line `#` comment inside the frontmatter block is tolerated: `mise run test:unit:templates` stays green AND the visualiser frontmatter parser still resolves a template carrying it (the standalone comment is a new in-`---` convention — confirm `test-metadata-helpers.sh` and the YAML parser ignore it)
-- [ ] `design-gap.md`'s `current_inventory` and `target_inventory` lines are byte-identical to before
-- [ ] `design-inventory.md`'s existing `source:` line is byte-identical to before
+- [x] Visual diff of each of the twelve templates shows only the new linkage slots, the standalone block-header comment, and the rewritten comments — no incidental edits
+- [x] Standalone full-line `#` comment inside the frontmatter block is tolerated: `mise run test:unit:templates` stays green AND the visualiser frontmatter parser still resolves a template carrying it (the standalone comment is a new in-`---` convention — confirm `test-metadata-helpers.sh` and the YAML parser ignore it)
+- [x] `design-gap.md`'s `current_inventory` and `target_inventory` lines are byte-identical to before
+- [x] `design-inventory.md`'s existing `source:` line is byte-identical to before
 
 ---
 

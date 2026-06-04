@@ -7,7 +7,10 @@ author: "{author from VCS}"
 producer: validate-plan
 status: complete                             # complete
 result: ""                                   # pass | partial | fail (filled by validate-plan)
-target: ""                                   # typed-linkage key: "plan:..." (filled by validate-plan)
+# typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
+parent: ""                                   # typed-linkage ref: "plan:NNNN" or ""
+target: ""                                   # typed-linkage ref: "plan:NNNN" or ""
+relates_to: []                               # typed-linkage list: ["plan-validation:NNNN", ...] or []
 tags: []
 last_updated: "{ISO timestamp}"
 last_updated_by: "{author from VCS}"

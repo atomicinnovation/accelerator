@@ -8,8 +8,15 @@ producer: create-work-item
 status: draft                                # draft | ready | in-progress | review | done | blocked | abandoned
 kind: story                                  # story | epic | task | bug | spike
 priority: medium                             # high | medium | low
-parent: ""                                   # typed-linkage key: "work-item:NNNN" or empty
-external_id: ""                              # cross-system pointer (e.g. Jira/Linear key); empty when not linked
+# typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
+parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
+blocks: []                                   # typed-linkage list: ["work-item:NNNN", ...] or []
+blocked_by: []                               # typed-linkage list: ["work-item:NNNN", ...] or []
+# inverse of blocks — producers SHOULD prefer writing blocks: on the canonical side
+derived_from: []                             # typed-linkage list: ["plan:NNNN", ...] or []
+relates_to: []                               # typed-linkage list: ["work-item:NNNN", ...] or []
+source: ""                                   # typed-linkage ref: "issue-research:NNNN" or ""
+external_id: ""                              # cross-system pointer (e.g. Jira/Linear key); omitted when not linked
 tags: []
 last_updated: "YYYY-MM-DDTHH:MM:SS+00:00"
 last_updated_by: Author Name

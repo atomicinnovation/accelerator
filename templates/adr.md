@@ -6,8 +6,11 @@ date: "YYYY-MM-DDTHH:MM:SS+00:00"
 author: Author Name
 producer: create-adr
 status: proposed                             # proposed | accepted | superseded | deprecated
-decision_makers: []
+decision_makers: []                          # omitted when empty
+# typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
+parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
 supersedes: []                               # typed-linkage list: ["adr:ADR-NNNN", ...] or []
+relates_to: []                               # typed-linkage list: ["adr:ADR-NNNN", ...] or []
 tags: [tag1, tag2]
 last_updated: "YYYY-MM-DDTHH:MM:SS+00:00"
 last_updated_by: Author Name

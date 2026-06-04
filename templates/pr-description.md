@@ -6,10 +6,13 @@ date: "{ISO timestamp}"
 author: "{author from VCS}"
 producer: describe-pr
 status: complete                             # complete
-work_item_id: ""                             # foreign reference (optional)
-pr_url: ""                                   # populated from `gh pr view`
+work_item_id: ""                             # foreign reference; omitted when no linked work item
+# typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
+parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
+relates_to: []                               # typed-linkage list: ["work-item:NNNN", ...] or []
+pr_url: ""                                   # omitted until populated from `gh pr view`
 pr_number: {number}                          # bare integer
-merge_commit: ""                             # present-but-empty until merged
+merge_commit: ""                             # omitted until merged
 tags: []
 revision: "{commit hash from artifact-derive-metadata.sh}"
 repository: "{repo name from artifact-derive-metadata.sh}"

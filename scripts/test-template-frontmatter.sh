@@ -13,6 +13,11 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/test-helpers.sh"
 cd "$ROOT"
 
+# Pin locale so the [A-Za-z0-9-] ranges, tolower/sort, and regex matching
+# behave deterministically regardless of the host locale (parity with the
+# project's existing LANG=C discipline).
+export LC_ALL=C
+
 echo "=== Template frontmatter shape ==="
 
 SCHEMA_TSV="$SCRIPT_DIR/templates-schema.tsv"
@@ -27,10 +32,71 @@ BASE_FIELDS=(type id title date author producer status tags last_updated last_up
 PROVENANCE_FIELDS=(revision repository)
 FORBIDDEN_PROVENANCE_FIELDS=(git_commit branch)
 
-# Self-check: every TSV row (including the header) must have exactly six
+# Cardinality lookup by linkage-key name. case-based (not `declare -A`)
+# so the script keeps running on bash 3.2, the macOS default (a `declare -A`
+# aborts the whole script under `set -euo pipefail` there). Echoes `single`,
+# `list`, or empty (unknown key).
+linkage_cardinality() {
+  case "$1" in
+    parent|superseded_by|target|source)                   echo single ;;
+    supersedes|blocks|blocked_by|derived_from|relates_to) echo list ;;
+    *)                                                    echo "" ;;
+  esac
+}
+
+# Curated source-type set used inside the comment regex. Kept as a
+# pipe-joined string so it can be interpolated into ERE patterns.
+SOURCE_TYPE_RE='work-item|plan|adr|pr|codebase-research|issue-research|pr-description|design-inventory|design-gap|plan-validation|plan-review|work-item-review|pr-review'
+
+# The blocked_by inverse-key guidance line. It lives on its own full-line
+# comment beneath the slot, so it never breaks the list regex's `\[\]$`
+# end-anchor; the post-check greps for it across the whole block.
+INVERSE_GUIDANCE_LINE='# inverse of blocks — producers SHOULD prefer writing blocks: on the canonical side'
+
+# Union of all linkage-vocabulary key names (used by the closed-set check).
+# Keep aligned with linkage_cardinality(). superseded_by is listed as a guard
+# even though no template carries it, so the closed-set check rejects any
+# template that adds it.
+LINKAGE_VOCABULARY=(parent superseded_by target source supersedes blocks blocked_by derived_from relates_to)
+
+# rc 0 = slot shape+comment valid (and, for blocked_by, the standalone
+# inverse-guidance line is present); 1 = rejected; 2 = unknown key. The
+# inverse-guidance check lives HERE (not in the live loop) so the
+# negative-fixture self-test exercises the same code path.
+check_linkage_slot() {
+  local block="$1" key="$2" regex
+  case "$(linkage_cardinality "$key")" in
+    single) regex="^${key}:[[:space:]]+\"\"[[:space:]]+#[[:space:]]+typed-linkage[[:space:]]+ref:[[:space:]]+\"(${SOURCE_TYPE_RE}):[A-Za-z0-9-]+\"[[:space:]]+or[[:space:]]+\"\"$" ;;
+    list)   regex="^${key}:[[:space:]]+\\[\\][[:space:]]+#[[:space:]]+typed-linkage[[:space:]]+list:[[:space:]]+\\[\"(${SOURCE_TYPE_RE}):[A-Za-z0-9-]+\",[[:space:]]+\\.\\.\\.\\][[:space:]]+or[[:space:]]+\\[\\]$" ;;
+    *)      return 2 ;;
+  esac
+  grep -qE "$regex" <<< "$block" || return 1
+  if [ "$key" = blocked_by ]; then
+    grep -qF -- "$INVERSE_GUIDANCE_LINE" <<< "$block" || return 1
+  fi
+  return 0
+}
+
+# rc 0 = no spurious linkage key; 1 = a vocabulary key is present in the
+# block but absent from $keys and not exempt via $extras. The extras
+# exemption: design-inventory carries a foreign-source `source:` (an extra,
+# not a typed-linkage edge); without it the name-based walk would misclassify
+# it and FAIL a template the plan leaves untouched.
+check_closed_set() {
+  local block="$1" extras="$2" keys="$3" vkey
+  for vkey in "${LINKAGE_VOCABULARY[@]}"; do
+    grep -qE "^${vkey}:[[:space:]]" <<< "$block" || continue
+    case " $extras " in *" $vkey "*) continue ;; esac   # declared extra
+    case " $keys "   in *" $vkey "*) continue ;; esac   # declared slot
+    return 1                                            # spurious
+  done
+  return 0
+}
+
+# Self-check: every TSV row (including the header) must have exactly seven
 # tab-separated fields. Header is row 1 and is skipped by the data loop
 # below.
-if ! awk -F'\t' 'NF != 6 { print "ERROR: " FILENAME ":" NR " has " NF " fields, expected 6"; bad=1 } END { exit (bad ? 1 : 0) }' "$SCHEMA_TSV"; then
+if ! awk -F'\t' 'NF != 7 { print "ERROR: " FILENAME ":" NR " has " NF " fields, expected 7"; bad=1 } END { exit (bad ? 1 : 0) }' "$SCHEMA_TSV"; then
   echo "  FAIL: templates-schema.tsv field-count self-check"
   FAIL=$((FAIL + 1))
   test_summary
@@ -79,7 +145,7 @@ assert_not_in_block() {
 # Iterate TSV rows, skipping the header (row 1). Process substitution
 # (rather than a pipe) keeps the loop in the parent shell so PASS/FAIL
 # counter increments persist.
-while IFS=$'\t' read -r template_file expected_type anchored extras status_vocab forbidden_own_id_key; do
+while IFS=$'\t' read -r template_file expected_type anchored extras status_vocab forbidden_own_id_key typed_linkage_keys; do
   template_path="templates/$template_file"
   if [ ! -f "$template_path" ]; then
     echo "  FAIL: $template_file — template file not found at $template_path"
@@ -134,6 +200,29 @@ while IFS=$'\t' read -r template_file expected_type anchored extras status_vocab
     assert_in_block "$template_file: extra '$extra' present" "$block" "^${extra}:[[:space:]]"
   done
 
+  # Typed-linkage slots: shape + comment grammar per cardinality (and, for
+  # blocked_by, the standalone inverse-guidance line). check_linkage_slot is
+  # rc-returning (no counter mutation); this loop is the ONLY place the live
+  # run mutates PASS/FAIL for it. `rc=0; ... || rc=$?` keeps the non-zero
+  # paths from tripping `set -e`.
+  for lkey in $typed_linkage_keys; do
+    rc=0; check_linkage_slot "$block" "$lkey" || rc=$?
+    case "$rc" in
+      0) echo "  PASS: $template_file: linkage slot '$lkey' shape+comment"; PASS=$((PASS + 1)) ;;
+      2) echo "  FAIL: $template_file — unknown linkage key '$lkey'; add it to linkage_cardinality() (and LINKAGE_VOCABULARY) or correct the row"; FAIL=$((FAIL + 1)) ;;
+      *) echo "  FAIL: $template_file: linkage slot '$lkey' bad shape/comment (or missing inverse-guidance line)"; FAIL=$((FAIL + 1)) ;;
+    esac
+  done
+
+  # Closed-set: no linkage-vocabulary key may appear in the block unless it is
+  # a declared slot (typed_linkage_keys) or a declared extra (the
+  # design-inventory `source:` exemption).
+  if check_closed_set "$block" "$extras" "$typed_linkage_keys"; then
+    echo "  PASS: $template_file: closed-set (no spurious linkage keys)"; PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $template_file: closed-set violated (a linkage key not in the TSV row)"; FAIL=$((FAIL + 1))
+  fi
+
   # Status vocabulary verbatim on `status:` line (grep -F against the line).
   status_line=$(grep -E '^status:[[:space:]]' <<<"$block" || true)
   if [ -z "$status_line" ]; then
@@ -186,6 +275,91 @@ else
     echo "$tsv_templates" | sed 's/^/      /'
     FAIL=$((FAIL + 1))
   fi
+fi
+
+# ---------------------------------------------------------------------------
+# Negative-fixture self-test. Because this script's deliverable IS assertions,
+# a green run against only-valid templates does not prove they can reject bad
+# input (an inert regex produces zero FAIL, indistinguishable from success).
+# Feed known-bad blocks through the SAME pure functions the live loop wraps
+# and assert each is rejected. Runs on every invocation (guarded inline, not a
+# sibling file, so CI always exercises it). Gated on the exact PASS count.
+# ---------------------------------------------------------------------------
+echo "--- Self-test: negative fixtures (each new assertion must reject bad input) ---"
+selftest_pass=0
+st_reject() {
+  # $1 = description, $2 = rc from a check (non-zero = rejected, as expected).
+  local desc="$1" rc="$2"
+  if [ "$rc" -ne 0 ]; then
+    echo "  PASS: self-test rejects $desc"
+    selftest_pass=$((selftest_pass + 1))
+  else
+    echo "  FAIL: self-test did NOT reject $desc (assertion is inert)"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+# 1. list slot carrying a single-ref value — wrong cardinality.
+fixture=$'blocks: ""                                   # typed-linkage list: ["work-item:NNNN", ...] or []'
+rc=0; check_linkage_slot "$fixture" blocks || rc=$?
+st_reject "a list slot with a single-ref value" "$rc"
+
+# 2. slot with a malformed comment.
+fixture=$'parent: ""                                   # see ADR-0034'
+rc=0; check_linkage_slot "$fixture" parent || rc=$?
+st_reject "a slot with a malformed comment" "$rc"
+
+# 3. blocked_by slot missing its standalone inverse-guidance line.
+fixture=$'blocked_by: []                               # typed-linkage list: ["work-item:NNNN", ...] or []'
+rc=0; check_linkage_slot "$fixture" blocked_by || rc=$?
+st_reject "a blocked_by slot missing the inverse-guidance line" "$rc"
+
+# 4. block carrying a vocabulary key absent from its TSV row (spurious slot).
+fixture=$'relates_to: []                               # typed-linkage list: ["work-item:NNNN", ...] or []'
+rc=0; check_closed_set "$fixture" "" "parent" || rc=$?
+st_reject "a block carrying a linkage key absent from its TSV row" "$rc"
+
+# 5. declared slot absent from the frontmatter (no matching line).
+fixture=$'title: "x"'
+rc=0; check_linkage_slot "$fixture" parent || rc=$?
+st_reject "a declared slot absent from the frontmatter" "$rc"
+
+# 6. comment whose source-type token is outside the curated set.
+fixture=$'parent: ""                                   # typed-linkage ref: "ticket:NNNN" or ""'
+rc=0; check_linkage_slot "$fixture" parent || rc=$?
+st_reject "a comment with an out-of-vocabulary source-type token" "$rc"
+
+if [ "$selftest_pass" -eq 6 ]; then
+  echo "  PASS: negative-fixture self-test count (6)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: negative-fixture self-test count is $selftest_pass, expected 6"
+  FAIL=$((FAIL + 1))
+fi
+
+# ---------------------------------------------------------------------------
+# Vocabulary-drift structural guard: every LINKAGE_VOCABULARY entry must have
+# a non-empty cardinality. Catches the two hand-maintained lists drifting (a
+# key in one but not the other turns the suite red immediately). Gated on the
+# exact count.
+# ---------------------------------------------------------------------------
+echo "--- Self-test: vocabulary-drift guard (every vocabulary key has a cardinality) ---"
+vocab_pass=0
+for vkey in "${LINKAGE_VOCABULARY[@]}"; do
+  if [ -n "$(linkage_cardinality "$vkey")" ]; then
+    echo "  PASS: vocabulary key '$vkey' has a cardinality"
+    vocab_pass=$((vocab_pass + 1))
+  else
+    echo "  FAIL: vocabulary key '$vkey' has no cardinality (LINKAGE_VOCABULARY and linkage_cardinality drifted)"
+    FAIL=$((FAIL + 1))
+  fi
+done
+if [ "$vocab_pass" -eq 9 ]; then
+  echo "  PASS: vocabulary-drift guard count (9)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: vocabulary-drift guard count is $vocab_pass, expected 9"
+  FAIL=$((FAIL + 1))
 fi
 
 test_summary

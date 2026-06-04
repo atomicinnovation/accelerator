@@ -6,7 +6,10 @@ date: "{ISO timestamp}"
 author: "{author from VCS}"
 producer: review-pr
 status: complete                             # complete
-target: ""                                   # typed-linkage key per ADR-0034: "pr:<pr-number>" (filled by review-pr); see plan §Design Decisions #3 for the pr: prefix follow-up
+# typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
+parent: ""                                   # typed-linkage ref: "pr:NNNN" or ""
+target: ""                                   # typed-linkage ref: "pr:NNNN" or ""
+relates_to: []                               # typed-linkage list: ["pr-review:NNNN", ...] or []
 reviewer: ""                                 # name/email of reviewer (filled by review-pr)
 verdict: ""                                  # APPROVE | REQUEST_CHANGES | COMMENT (filled by review-pr; enum matches GitHub Reviews API event values)
 lenses: []                                   # list of lens names used in this review (filled by review-pr)

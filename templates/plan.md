@@ -6,9 +6,15 @@ date: "{ISO timestamp}"
 author: "{author from VCS}"
 producer: create-plan
 status: draft                                # draft | ready | in-progress | done
-work_item_id: ""                             # foreign reference; empty string when no linked work item
-parent: ""                                   # typed-linkage key (optional)
-reviewer: ""                                 # present-but-empty until reviewed
+work_item_id: ""                             # foreign reference; omitted when no linked work item
+# typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
+parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
+blocks: []                                   # typed-linkage list: ["plan:NNNN", ...] or []
+blocked_by: []                               # typed-linkage list: ["plan:NNNN", ...] or []
+# inverse of blocks — producers SHOULD prefer writing blocks: on the canonical side
+derived_from: []                             # typed-linkage list: ["codebase-research:NNNN", ...] or []
+relates_to: []                               # typed-linkage list: ["plan:NNNN", ...] or []
+reviewer: ""                                 # omitted until reviewed
 tags: []
 revision: "{commit hash from artifact-derive-metadata.sh}"
 repository: "{repo name from artifact-derive-metadata.sh}"

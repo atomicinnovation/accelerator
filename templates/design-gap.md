@@ -6,6 +6,9 @@ date: "{ISO timestamp}"
 author: "{author name}"
 producer: analyse-design-gaps
 status: draft                                # draft
+# typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
+parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
+relates_to: []                               # typed-linkage list: ["design-inventory:NNNN", ...] or []
 current_inventory: "{path to current inventory.md}"
 target_inventory: "{path to target inventory.md}"
 tags: [design, gap-analysis]

@@ -6,7 +6,10 @@ date: "{ISO timestamp from artifact-derive-metadata.sh}"
 author: "{author from VCS}"
 producer: research-issue
 status: complete                             # complete
-work_item_id: ""                             # foreign reference (optional)
+work_item_id: ""                             # foreign reference; omitted when no linked work item
+# typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
+parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
+relates_to: []                               # typed-linkage list: ["issue-research:NNNN", ...] or []
 topic: "{Brief description of the issue}"
 tags: [research, debugging, affected-component-names]
 revision: "{commit hash from artifact-derive-metadata.sh}"

@@ -6,7 +6,10 @@ date: "{ISO timestamp}"
 author: "{author from VCS}"
 producer: review-plan
 status: complete                             # complete
-target: ""                                   # typed-linkage key per ADR-0034: "plan:<plan-id>" (filled by review-plan)
+# typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
+parent: ""                                   # typed-linkage ref: "plan:NNNN" or ""
+target: ""                                   # typed-linkage ref: "plan:NNNN" or ""
+relates_to: []                               # typed-linkage list: ["plan-review:NNNN", ...] or []
 reviewer: ""                                 # name/email of reviewer (filled by review-plan)
 verdict: ""                                  # APPROVE | REVISE | COMMENT (filled by review-plan)
 lenses: []                                   # list of lens names used in this review (filled by review-plan)
