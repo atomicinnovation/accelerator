@@ -1,6 +1,12 @@
-from invoke import Context, task
+from invoke import Context, Exit, task
 
 from .helpers import repo_root, run_shell_suites
+
+# The migrate subtree ships exactly these three shell suites. The count is
+# asserted in `migrate` below so a dropped exec bit (e.g. on an exec-bit-lossy
+# filesystem) fails the build loudly instead of silently shrinking the
+# regression net.
+_EXPECTED_MIGRATE_SUITES = 3
 
 
 @task
@@ -47,3 +53,16 @@ def hooks(context: Context):
 def github(context: Context):
     """Integration tests for the github skills (shell harnesses)."""
     run_shell_suites(context, "skills/github")
+
+
+@task
+def migrate(context: Context):
+    """Integration tests for the meta-directory migration framework."""
+    suites = run_shell_suites(context, "skills/config/migrate")
+    if len(suites) < _EXPECTED_MIGRATE_SUITES:
+        raise Exit(
+            f"Expected at least {_EXPECTED_MIGRATE_SUITES} migrate shell "
+            f"suites, found {len(suites)}: {suites}. An exec bit may have "
+            f"been dropped — the migrate regression net is incomplete.",
+            code=1,
+        )
