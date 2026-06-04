@@ -32,7 +32,7 @@
    description span. */
 .panel {
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   padding: var(--sp-3) var(--sp-4);
   background: var(--ac-bg-card);
   position: relative;
@@ -103,7 +103,7 @@
    card-tinted band; the body is sunken with `white-space: pre`. */
 .previewPane {
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   background: var(--ac-bg-sunken);
   overflow: hidden;
 }
@@ -158,7 +158,7 @@
   color: var(--ac-err);
   background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg));
   border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   padding: var(--sp-2) var(--sp-3);
   margin-top: var(--sp-4);
 }

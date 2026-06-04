@@ -4,7 +4,7 @@
   min-width: 16rem;
   flex: 1 1 16rem;
   background: var(--ac-bg-sunken);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   padding: var(--sp-3);
 }
 .columnHeader {

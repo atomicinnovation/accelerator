@@ -8,7 +8,7 @@
   padding: var(--sp-3) 14px;
   background: var(--ac-bg-sunken);
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs-sm);
 }
@@ -42,7 +42,7 @@
 .value a:focus-visible {
   outline: 2px solid var(--ac-accent);
   outline-offset: 2px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
 }
 
 .empty {

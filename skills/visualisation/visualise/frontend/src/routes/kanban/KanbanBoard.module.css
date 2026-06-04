@@ -25,14 +25,14 @@
   padding: var(--sp-3) var(--sp-4);
   border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
   background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg));
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   color: var(--ac-err);
 }
 .alertMessage { margin: 0; flex: 1; }
 .retry {
   background: var(--ac-bg-card);
   border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   padding: var(--sp-1) var(--sp-3);
   cursor: pointer;
   color: var(--ac-err);
@@ -45,7 +45,7 @@
   padding: var(--sp-3) var(--sp-4);
   border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
   background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg));
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   color: var(--ac-err);
 }
 .conflictMessage { flex: 1; }

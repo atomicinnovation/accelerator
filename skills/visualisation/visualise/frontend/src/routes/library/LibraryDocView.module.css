@@ -13,7 +13,7 @@
 .meta { word-break: break-all; font-family: var(--ac-font-mono); font-size: var(--size-xxs); }
 .error {
   color: var(--ac-err); background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg)); border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
-  border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); margin-top: var(--sp-4);
+  border-radius: var(--radius-4); padding: var(--sp-2) var(--sp-3); margin-top: var(--sp-4);
 }
 .malformedBanner {
   margin: 0 0 var(--sp-4);

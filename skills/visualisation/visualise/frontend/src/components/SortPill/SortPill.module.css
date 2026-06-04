@@ -5,7 +5,7 @@
   gap: 6px;
   padding: 6px 10px;
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   background: var(--ac-bg-card);
   color: var(--ac-fg-muted);
   font-size: var(--size-xxs);
@@ -52,7 +52,7 @@
   gap: 8px;
   padding: 7px 10px;
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   font-size: var(--size-row);
   color: var(--ac-fg);
   outline: none;

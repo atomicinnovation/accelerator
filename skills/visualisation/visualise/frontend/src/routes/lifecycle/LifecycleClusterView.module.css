@@ -119,7 +119,7 @@
   display: block;
   background: var(--ac-bg-card);
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   padding: 14px 16px;
   text-decoration: none;
   color: inherit;
@@ -214,7 +214,7 @@
   color: var(--ac-err);
   background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg));
   border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   padding: var(--sp-2) var(--sp-3);
 }
 

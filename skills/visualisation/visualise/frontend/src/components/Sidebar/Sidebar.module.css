@@ -63,7 +63,7 @@
   padding: 7px 28px 7px 32px;
   background: var(--ac-bg-raised);
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   color: var(--ac-fg);
   font-family: var(--ac-font-body);
   font-style: normal;
@@ -152,7 +152,7 @@
 
 .libraryHeadingClickable {
   text-decoration: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease;
 }
@@ -236,7 +236,7 @@
   align-items: center;
   gap: var(--sp-2);
   padding: 6px 10px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   font-family: var(--ac-font-body);
   font-style: normal;
   font-variant: normal;
@@ -364,7 +364,7 @@
 .searchList::-webkit-scrollbar { width: 8px; }
 .searchList::-webkit-scrollbar-thumb {
   background: var(--ac-stroke);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
 }
 
 .searchRowLink {
@@ -373,7 +373,7 @@
   gap: var(--sp-2);
   align-items: center;
   padding: 6px var(--sp-2);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   cursor: pointer;
   color: var(--ac-fg);
   text-decoration: none;

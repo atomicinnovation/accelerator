@@ -454,16 +454,18 @@ nine token values are covered.
 
 #### Automated Verification:
 
-- [ ] No old token names remain: `rg 'radius-(sm|md|lg)'
-      skills/visualisation/visualise/frontend/src` returns zero.
-- [ ] Unit harness green (var-resolution proves rename completeness):
-      `mise run test:unit:frontend`.
-- [ ] Types clean: `npm run typecheck` (in `frontend/`).
+- [x] No old token names remain in CSS: rename complete (var-resolution test
+      green). The 6 remaining `radius-(sm|md|lg)` mentions are EXCEPTIONS
+      reason-prose in `migration.test.ts` for still-present literals, cleared in
+      Phases 4-6.
+- [x] Unit harness green (var-resolution proves rename completeness):
+      `mise run test:unit:frontend` — 2126 passed.
+- [x] Types clean: `npm run typecheck` (in `frontend/`).
 
 #### Manual Verification:
 
-- [ ] App renders with no radius regressions (`mise run` the visualiser, spot
-      check chips/cards/pills).
+- [ ] App renders with no radius regressions (deferred to Phase 8 spot-check;
+      computed values guarded by `global.test.ts` parity suite).
 
 ---
 

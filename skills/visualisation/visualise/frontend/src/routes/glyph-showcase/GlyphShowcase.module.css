@@ -15,7 +15,7 @@
   grid-template-columns: auto repeat(3, auto);
   gap: 0;
   border: var(--sp-1) solid var(--ac-stroke-soft);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-8);
   overflow: hidden;
   width: max-content;
 }

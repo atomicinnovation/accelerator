@@ -20,7 +20,7 @@
 .banner {
   background: color-mix(in srgb, var(--ac-warn) 8%, var(--ac-bg));
   border: 1px solid var(--ac-warn);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   padding: var(--sp-2) var(--sp-3);
   font-size: var(--size-xs);
   margin-bottom: var(--sp-4);

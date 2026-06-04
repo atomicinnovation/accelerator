@@ -7,7 +7,7 @@
   justify-content: center;
   position: relative;
   box-sizing: border-box;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   background: var(--ac-bg-sunken);
   flex-shrink: 0;
 }

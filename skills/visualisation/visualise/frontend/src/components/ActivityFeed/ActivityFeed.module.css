@@ -74,7 +74,7 @@
   padding: var(--sp-2) var(--sp-3);
   text-decoration: none;
   color: inherit;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
 }
 .row:hover {
   background: var(--ac-bg-hover);

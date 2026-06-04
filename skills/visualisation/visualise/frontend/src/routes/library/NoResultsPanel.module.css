@@ -7,7 +7,7 @@
   padding: var(--sp-6) var(--sp-5);
   background: var(--ac-bg-sunken);
   border: 1px dashed var(--ac-stroke);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-8);
 }
 
 .headline {
@@ -36,5 +36,5 @@
   font-weight: 600;
   padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--ac-accent);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
 }

@@ -205,11 +205,22 @@ body {
   --sp-10:  80px;
   --sp-11:  124px;
 
-  /* Radius */
-  --radius-sm:   4px;
-  --radius-md:   8px;
-  --radius-lg:   12px;
+  /* Radius — consume-tokens-everywhere per ADR-0039: every border-radius in
+     current-app CSS must use a var(--radius-*); no literals.
+     Naming: measurement tokens are px-encoded (--radius-<px>, suffix = px
+     value — NOT an ordinal step like --sp-N); --radius-pill (999px capsule)
+     and --radius-full (50% circle) are the two shape-intent semantic tokens.
+     New values extend the ladder with sign-off (ADR-0039), never a literal. */
+  --radius-0:    0;
+  --radius-1:    1px;
+  --radius-2:    2px;
+  --radius-3:    3px;
+  --radius-4:    4px;
+  --radius-6:    6px;
+  --radius-8:    8px;
+  --radius-12:   12px;
   --radius-pill: 999px;
+  --radius-full: 50%;
 
   /* Shadow (light + theme-invariant) */
   --shadow-card:    6px 12px 85px 0px rgba(0, 0, 0, 0.08);

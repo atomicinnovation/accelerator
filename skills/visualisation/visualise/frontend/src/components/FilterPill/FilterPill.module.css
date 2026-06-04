@@ -5,7 +5,7 @@
   gap: 6px;
   padding: 6px 10px;
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   background: var(--ac-bg-card);
   color: var(--ac-fg-muted);
   font-size: var(--size-xxs);
@@ -112,7 +112,7 @@
   margin: 2px 6px 6px;
   padding: 4px 8px;
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   color: var(--ac-fg-faint);
 }
 

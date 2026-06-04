@@ -51,7 +51,7 @@
 .main::-webkit-scrollbar-thumb {
   background: var(--ac-stroke-strong);
   border: 3px solid var(--ac-bg);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-8);
 }
 .main::-webkit-scrollbar-thumb:hover {
   background: var(--ac-fg-faint);

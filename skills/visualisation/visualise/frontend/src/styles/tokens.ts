@@ -189,10 +189,16 @@ export const SPACING_TOKENS = {
 } as const
 
 export const RADIUS_TOKENS = {
-  'radius-sm':   '4px',
-  'radius-md':   '8px',
-  'radius-lg':   '12px',
+  'radius-0':    '0',
+  'radius-1':    '1px',
+  'radius-2':    '2px',
+  'radius-3':    '3px',
+  'radius-4':    '4px',
+  'radius-6':    '6px',
+  'radius-8':    '8px',
+  'radius-12':   '12px',
   'radius-pill': '999px',
+  'radius-full': '50%',
 } as const
 
 // Theme-invariant shadows (--shadow-card / --shadow-card-lg / --shadow-crisp)

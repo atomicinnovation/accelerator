@@ -24,7 +24,7 @@
   background: var(--ac-bg-card);
   border: 1px solid var(--ac-stroke-strong);
   border-left: 3px solid var(--ac-accent);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-8);
   box-shadow: var(--ac-shadow-lift);
   color: var(--ac-fg);
   font-family: var(--ac-font-body);
@@ -61,7 +61,7 @@
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
   background: var(--ac-bg-sunken);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   padding: 0.1rem var(--sp-1);
 }
 
@@ -71,7 +71,7 @@
   border: 0;
   padding: var(--sp-1);
   margin: -4px -4px 0 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   color: var(--ac-fg-faint);
   cursor: pointer;
 }

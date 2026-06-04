@@ -101,13 +101,13 @@
 }
 
 /* Segmented sort control — mirrors prototype `.ac-tweaks__seg`:
-   thin rectangle with radius-sm corners, inline-flex, with two flat
+   thin rectangle with radius-4 corners, inline-flex, with two flat
    buttons inside. The active button takes the accent-faint tint and
    accent text. */
 .sortSegment {
   display: inline-flex;
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   overflow: hidden;
 }
 
@@ -140,6 +140,6 @@
   color: var(--ac-err);
   background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg));
   border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   padding: var(--sp-2) var(--sp-3);
 }

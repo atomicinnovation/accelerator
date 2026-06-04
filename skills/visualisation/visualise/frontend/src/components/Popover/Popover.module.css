@@ -10,7 +10,7 @@
   z-index: 50;
   background: var(--ac-bg-card);
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-4);
   padding: var(--sp-2);
   box-shadow: var(--ac-shadow-lift);
   min-width: 240px;
