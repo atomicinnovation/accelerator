@@ -320,6 +320,24 @@ PY
   fi
 done
 
+echo "Test: reclaims a lock orphaned by a dead owner"
+TARGET_STALE="$TMPDIR_BASE/stale-lock.jsonl"
+LOCKDIR_STALE="${TARGET_STALE}.lockdir"
+mkdir -p "$LOCKDIR_STALE"
+# Forge an owner sentinel referencing a process that has already exited,
+# simulating a holder OOM-killed mid critical section.
+sh -c 'exit 0' & DEAD_PID=$!
+wait "$DEAD_PID" 2>/dev/null || true
+printf '%s\n' "$DEAD_PID" >"$LOCKDIR_STALE/owner"
+# Acquisition must reclaim the orphaned lock promptly rather than spin to
+# the timeout, so the append succeeds and writes its line.
+RC=0
+atomic_jsonl_append "$TARGET_STALE" \
+  '{"transformation_key":"reclaimed","schema_version":1}' || RC=$?
+assert_eq "stale lock reclaimed (exit 0)" "0" "$RC"
+assert_eq "stale lock reclaim wrote one line" "1" \
+  "$(wc -l < "$TARGET_STALE" | tr -d ' ')"
+
 echo "Test: unwritable target directory surfaces error (no silent fail)"
 TARGET5="$TMPDIR_BASE/nope/file.jsonl"
 mkdir -p "$TMPDIR_BASE/nope"

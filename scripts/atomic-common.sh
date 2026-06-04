@@ -99,7 +99,9 @@ source "$_ATOMIC_COMMON_DIR/jsonl-common.sh"
 #   from PID + EPOCHREALTIME (so concurrent appenders don't share the
 #   inherited RANDOM state) and then uses jittered back-off bounded by
 #   a 300 s ceiling — generous enough to absorb CI scheduler starvation
-#   when many parallel tasks compete for cores.
+#   when many parallel tasks compete for cores. On acquisition it records
+#   the holder PID so a later waiter can reclaim the lock if the holder
+#   dies mid-critical-section instead of spinning to the timeout.
 _atomic_lock_acquire() {
   local lockdir="$1"
   # Fail fast if the parent dir isn't writable. Without this check the
@@ -119,6 +121,11 @@ _atomic_lock_acquire() {
   RANDOM=$(( ($$ * 31 + ${RANDOM:-0}) ^ \
     $(date +%N 2>/dev/null | sed 's/^0*//' || echo 0) ))
   while ! mkdir "$lockdir" 2>/dev/null; do
+    # A lockdir whose recorded owner has died (e.g. OOM-killed mid
+    # critical section, common under parallel CI load) would otherwise
+    # stall every waiter for the full timeout. Reclaim it once the owner
+    # is confirmed gone.
+    _atomic_lock_reclaim_if_stale "$lockdir"
     if [ "$waited_ms" -gt 300000 ]; then
       echo "atomic_jsonl: lock acquisition timed out on $lockdir" >&2
       return 1
@@ -128,11 +135,31 @@ _atomic_lock_acquire() {
     waited_ms=$((waited_ms + jitter_ms))
     [ "$base_ms" -lt 200 ] && base_ms=$((base_ms * 2))
   done
+  # Record ownership so a waiter can detect us dying and reclaim the lock.
+  # $BASHPID is the critical-section subshell's own PID (bash 4+); on bash
+  # 3.2 it is unset, so we skip ownership and fall back to spin-only.
+  [ -n "${BASHPID:-}" ] && printf '%s\n' "$BASHPID" >"$lockdir/owner" \
+    2>/dev/null || true
 }
 
 _atomic_lock_release() {
   local lockdir="$1"
-  rmdir "$lockdir" 2>/dev/null || true
+  # rm -rf, not rmdir: the lockdir also holds the owner sentinel file.
+  rm -rf "$lockdir" 2>/dev/null || true
+}
+
+# _atomic_lock_reclaim_if_stale <lockdir>
+#   Remove a lockdir whose recorded owner process is gone. Safe because a
+#   dead process cannot be inside the critical section; PID reuse only
+#   yields a false "still alive" reading, degrading to the spin-and-wait
+#   path rather than ever breaking a live lock. A lockdir with no owner
+#   file yet (holder still mid-acquisition) is treated as live.
+_atomic_lock_reclaim_if_stale() {
+  local lockdir="$1" owner
+  owner=$(cat "$lockdir/owner" 2>/dev/null) || return 0
+  [ -n "$owner" ] || return 0
+  kill -0 "$owner" 2>/dev/null && return 0
+  rm -rf "$lockdir" 2>/dev/null || true
 }
 
 # atomic_jsonl_append <target_path> <json_line>
