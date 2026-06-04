@@ -1310,15 +1310,15 @@ The `<source-type>` token per reviewer:
 
 #### Automated Verification
 
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` reports PASS for `parent`, `target`, `relates_to` on each of the four reviewer skills
-- [ ] The contract test reports exactly **4** literal-heading PASS lines — one per reviewer producer row (the new `^#+ Populate frontmatter$` assertion, keyed on rows declaring `target`) — assert with `-eq 4`. AC #3 is gated by the test, not just by the grep below
-- [ ] No FAIL lines reference any of the four reviewer SKILL.md files
-- [ ] `grep -l '^### Populate frontmatter' skills/planning/validate-plan/SKILL.md skills/planning/review-plan/SKILL.md skills/work/review-work-item/SKILL.md skills/github/review-pr/SKILL.md` lists all four
+- [x] `bash scripts/test-skill-frontmatter-population.sh` reports PASS for `parent`, `target`, `relates_to` on each of the four reviewer skills
+- [x] The contract test reports exactly **4** literal-heading PASS lines — one per reviewer producer row (the new `^#+ Populate frontmatter$` assertion, keyed on rows declaring `target`) — assert with `-eq 4`. AC #3 is gated by the test, not just by the grep below
+- [x] No FAIL lines reference any of the four reviewer SKILL.md files
+- [x] `grep -l '^### Populate frontmatter' skills/planning/validate-plan/SKILL.md skills/planning/review-plan/SKILL.md skills/work/review-work-item/SKILL.md skills/github/review-pr/SKILL.md` lists all four
 
 #### Manual Verification
 
-- [ ] Each reviewer SKILL.md reads cleanly with the new heading — the population step is no longer folded into prose
-- [ ] The lifecycle-annotation prose (previously in template comments) appears in each reviewer SKILL.md and reads naturally — verify **per skill** (validate-plan, review-plan, review-work-item, review-pr) that the specific annotation its template comment carried now lives in that skill's body, so none is dropped in the template→SKILL.md move
+- [x] Each reviewer SKILL.md reads cleanly with the new heading — the population step is no longer folded into prose
+- [x] The lifecycle-annotation prose (previously in template comments) appears in each reviewer SKILL.md and reads naturally — verify **per skill** (validate-plan, review-plan, review-work-item, review-pr) that the specific annotation its template comment carried now lives in that skill's body, so none is dropped in the template→SKILL.md move
 
 ---
 

@@ -137,49 +137,60 @@ Write the validation report to the configured validations directory:
 
 2. Create the configured validations directory if it doesn't exist.
 
-3. Before writing the validation file, capture metadata and substitute the
-   unified base fields and per-type extras into the template's frontmatter
-   block:
+#### Populate frontmatter
 
-   1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
-      to obtain `Current Date/Time (UTC):`.
-   2. **Substitute** every field below with the indicated value:
-      - `type:` ← `plan-validation`
-      - `id:` ← the validation filename stem (e.g.
-        `2026-05-30-0065-update-artifact-templates-to-unified-schema-validation`),
-        always quoted as a YAML string
-      - `title:` ← `Validation Report: {plan title}`
-      - `date:` ← the `Current Date/Time (UTC):` value
-      - `author:` ← the author value resolved per `create-work-item/SKILL.md:578-580`
-      - `producer:` ← `validate-plan`
-      - `status:` ← `complete`
-      - `last_updated:` ← the same `Current Date/Time (UTC):` value
-      - `last_updated_by:` ← the same value resolved for `author`
-      - `schema_version:` ← `1` (bare integer, not quoted)
-      - `target:` ← `"plan:<plan-id>"` (e.g.
-        `"plan:2026-05-30-0065-update-artifact-templates-to-unified-schema"`);
-        typed-linkage key per ADR-0034, always emitted as a single
-        quoted YAML string in `"doc-type:id"` form pointing at the
-        plan being validated
-      - `result:` ← `pass | partial | fail` per the Implementation
-        Status of the report (see derivation rule below)
-   3. Write the file with the substituted frontmatter block followed by
-      the validation report body from Step 3.
+The `target:` field is filled automatically from the plan reference under
+validation — this is what makes the report traceable back to the plan it
+covers. Per ADR-0034, the typed-linkage form is `"plan:<plan-id>"`.
 
-   Determine the `result` field from the report:
+Before writing the validation file, capture metadata and substitute the
+unified base fields and per-type extras into the template's frontmatter
+block:
+
+1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+   to obtain `Current Date/Time (UTC):`.
+2. **Substitute** every field below with the indicated value:
+   - `type:` ← `plan-validation`
+   - `id:` ← the validation filename stem (e.g.
+     `2026-05-30-0065-update-artifact-templates-to-unified-schema-validation`),
+     always quoted as a YAML string
+   - `title:` ← `Validation Report: {plan title}`
+   - `date:` ← the `Current Date/Time (UTC):` value
+   - `author:` ← the author value resolved per `create-work-item/SKILL.md:578-580`
+   - `producer:` ← `validate-plan`
+   - `status:` ← `complete`
+   - `last_updated:` ← the same `Current Date/Time (UTC):` value
+   - `last_updated_by:` ← the same value resolved for `author`
+   - `schema_version:` ← `1` (bare integer, not quoted)
+   - `parent:` ← typed-linkage ref to the parent plan (`"plan:NNNN"`).
+     Fill when the validation names a parent plan; otherwise omit the
+     key.
+   - `target:` ← `"plan:<plan-id>"` (e.g.
+     `"plan:2026-05-30-0065-update-artifact-templates-to-unified-schema"`);
+     the typed-linkage ref to the plan being validated, per ADR-0034.
+     Always fill — every validation has a target.
+   - `relates_to:` ← list of typed-linkage refs to related artifacts
+     (`["plan-validation:NNNN", ...]`). Fill when related validations
+     are explicit; otherwise omit the key.
+   - `result:` ← `pass | partial | fail` per the Implementation
+     Status of the report (see derivation rule below)
+3. Write the file with the substituted frontmatter block followed by
+   the validation report body from Step 3.
+
+Determine the `result` field from the report:
 
 - `pass`: all phases fully implemented, all automated checks pass
 - `partial`: some phases implemented or some checks failing
 - `fail`: major deviations or critical failures
 
 4. If the validation result is `pass`, update the plan's frontmatter
-   `status` field to `complete` (if the plan has YAML frontmatter with a
-   `status` field). This closes the plan lifecycle.
+`status` field to `complete` (if the plan has YAML frontmatter with a
+`status` field). This closes the plan lifecycle.
 
 5. Inform the user where the report was saved:
-   ```
-   Validation report saved to {validations directory}/{filename}.md
-   ```
+```
+Validation report saved to {validations directory}/{filename}.md
+```
 
 ## Working with Existing Context
 

@@ -166,6 +166,12 @@ in_populate_section_with_guidance() {
   ' "$file"
 }
 
+# Counts reviewer producers that carry a literal "Populate frontmatter"
+# heading. Reviewer rows are discriminated from the TSV (they declare
+# `target` in fields_to_assert), not a hardcoded path list; gated on == 4
+# after the loop so the assertion cannot go inert.
+reviewer_heading_pass=0
+
 # Iterate each skill row, skipping the header (row 1). Process
 # substitution (rather than a pipe) keeps the loop in the parent shell
 # so PASS/FAIL counter increments persist.
@@ -205,8 +211,32 @@ while IFS=$'\t' read -r skill_path producer_name fields omit_when_empty; do
     fi
   done
 
+  # Reviewer producers (rows declaring `target` in fields_to_assert) must
+  # carry a literal `#`-prefixed "Populate frontmatter" heading — enforces
+  # AC #3 in the test itself, not just via the awk detector's broad predicate.
+  case " $fields " in
+    *" target "*)
+      if grep -qE '^#+[[:space:]]+Populate frontmatter[[:space:]]*$' "$skill_path"; then
+        echo "  PASS: $skill_path: carries a literal 'Populate frontmatter' heading"
+        reviewer_heading_pass=$((reviewer_heading_pass + 1))
+        PASS=$((PASS + 1))
+      else
+        echo "  FAIL: $skill_path: reviewer producer lacks a literal 'Populate frontmatter' heading"
+        FAIL=$((FAIL + 1))
+      fi
+      ;;
+  esac
+
   rm -f "$stripped"
 done < <(tail -n +2 "$SKILLS_TSV")
+
+if [ "$reviewer_heading_pass" -eq 4 ]; then
+  echo "  PASS: reviewer literal-heading count (4)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: reviewer literal-heading count is $reviewer_heading_pass, expected 4"
+  FAIL=$((FAIL + 1))
+fi
 
 # Phase 11 discovery assertion: every SKILL.md surfaced by Pass A or Pass B
 # must appear in one of the three allowlists. The patterns are kept here

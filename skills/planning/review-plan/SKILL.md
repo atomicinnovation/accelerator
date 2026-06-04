@@ -417,62 +417,73 @@ Once all reviews are complete:
    # Extract the highest number, increment by 1. If none exist, use 1.
    ```
 
-   Before writing the plan review file, capture metadata and substitute the
-   unified base fields and per-type extras into the template's frontmatter
-   block:
+#### Populate frontmatter
 
-   1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
-      to obtain `Current Date/Time (UTC):`.
-   2. **Substitute** every field below with the indicated value:
-      - `type:` ← `plan-review`
-      - `id:` ← the review filename stem (without `.md`), always quoted
-        as a YAML string
-      - `title:` ← `Plan Review: {plan title}`
-      - `date:` ← the `Current Date/Time (UTC):` value
-      - `author:` ← the author value resolved per `create-work-item/SKILL.md:578-580`
-      - `producer:` ← `review-plan`
-      - `status:` ← `complete`
-      - `last_updated:` ← the same `Current Date/Time (UTC):` value
-      - `last_updated_by:` ← the same value resolved for `author`
-      - `schema_version:` ← `1` (bare integer, not quoted)
-      - `target:` ← `"plan:<plan-id>"` where `<plan-id>` is the plan
-        filename stem (e.g. `"plan:2026-05-30-0065-update-artifact-templates-to-unified-schema"`);
-        typed-linkage key per ADR-0034, always emitted as a single
-        quoted YAML string in `"doc-type:id"` form
-      - `reviewer:` ← the reviewer value resolved per `create-work-item/SKILL.md:578-580`
-      - `verdict:` ← the verdict from Step 4.5 (`APPROVE | REVISE | COMMENT`)
-      - `lenses:` ← the list of lens names used (from Step 2)
-      - `review_number:` ← `N` (the next available review number from the
-        glob above)
-      - `review_pass:` ← `1` (initial-write pass count; re-reviews bump
-        per the Step 7 flow)
-   3. Write the file with the substituted frontmatter block, followed by
-      the review summary composed in Step 4.7 and the per-lens results as
-      a final section:
+The `target:` field is filled automatically from the `$ARGUMENTS` plan
+reference — this is what makes the review traceable back to the plan it
+covers. Per ADR-0034, the typed-linkage form is `"plan:<plan-id>"`.
 
-   ```markdown
-   {The full review summary from Step 4.7}
+Before writing the plan review file, capture metadata and substitute the
+unified base fields and per-type extras into the template's frontmatter
+block:
 
-   ## Per-Lens Results
+1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+   to obtain `Current Date/Time (UTC):`.
+2. **Substitute** every field below with the indicated value:
+   - `type:` ← `plan-review`
+   - `id:` ← the review filename stem (without `.md`), always quoted
+     as a YAML string
+   - `title:` ← `Plan Review: {plan title}`
+   - `date:` ← the `Current Date/Time (UTC):` value
+   - `author:` ← the author value resolved per `create-work-item/SKILL.md:578-580`
+   - `producer:` ← `review-plan`
+   - `status:` ← `complete`
+   - `last_updated:` ← the same `Current Date/Time (UTC):` value
+   - `last_updated_by:` ← the same value resolved for `author`
+   - `schema_version:` ← `1` (bare integer, not quoted)
+   - `parent:` ← typed-linkage ref to the parent plan (`"plan:NNNN"`).
+     Fill when the review names a parent plan; otherwise omit the key.
+   - `target:` ← `"plan:<plan-id>"` where `<plan-id>` is the plan
+     filename stem (e.g. `"plan:2026-05-30-0065-update-artifact-templates-to-unified-schema"`);
+     the typed-linkage ref to the plan under review, per ADR-0034.
+     Always fill — every review has a target.
+   - `relates_to:` ← list of typed-linkage refs to related reviews or
+     artifacts (`["plan-review:NNNN", ...]`). Fill when prior reviews
+     are explicit; otherwise omit the key.
+   - `reviewer:` ← the reviewer value resolved per `create-work-item/SKILL.md:578-580`
+   - `verdict:` ← the verdict from Step 4.5 (`APPROVE | REVISE | COMMENT`)
+   - `lenses:` ← the list of lens names used (from Step 2)
+   - `review_number:` ← `N` (the next available review number from the
+     glob above)
+   - `review_pass:` ← `1` (initial-write pass count; re-reviews bump
+     per the Step 7 flow)
+3. Write the file with the substituted frontmatter block, followed by
+   the review summary composed in Step 4.7 and the per-lens results as
+   a final section:
 
-   ### {Lens 1 Name}
+```markdown
+{The full review summary from Step 4.7}
 
-   **Summary**: {agent summary}
+## Per-Lens Results
 
-   **Strengths**:
-   {agent strengths}
+### {Lens 1 Name}
 
-   **Findings**:
-   {agent findings — each with severity, confidence, location, and body}
+**Summary**: {agent summary}
 
-   ### {Lens 2 Name}
+**Strengths**:
+{agent strengths}
 
-   ...
-   ```
+**Findings**:
+{agent findings — each with severity, confidence, location, and body}
 
-   The per-lens results section contains the full content from each agent's
-   JSON output, converted to readable markdown. This preserves the complete
-   analysis for future reference while keeping it human-readable.
+### {Lens 2 Name}
+
+...
+```
+
+The per-lens results section contains the full content from each agent's
+JSON output, converted to readable markdown. This preserves the complete
+analysis for future reference while keeping it human-readable.
 
 ### Step 5: Present the Review
 

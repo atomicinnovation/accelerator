@@ -455,84 +455,97 @@ Once all reviews are complete:
 
     Write the review document to `{pr reviews directory}/{number}-review-{N}.md`.
 
-    Before writing the PR review file, capture metadata and substitute the
-    unified base fields and per-type extras into the template's frontmatter
-    block:
+#### Populate frontmatter
 
-    1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
-       to obtain `Current Date/Time (UTC):`.
-    2. **Substitute** every field below with the indicated value:
-       - `type:` ← `pr-review`
-       - `id:` ← `{number}-review-{N}` (the review filename stem, where
-         `{number}` is the PR number and `{N}` is the next review
-         number), always quoted as a YAML string
-       - `title:` ← the PR title from `gh pr view --json title`
-       - `date:` ← the `Current Date/Time (UTC):` value
-       - `author:` ← the author value resolved per `create-work-item/SKILL.md:578-580`
-       - `producer:` ← `review-pr`
-       - `status:` ← `complete`
-       - `last_updated:` ← the same `Current Date/Time (UTC):` value
-       - `last_updated_by:` ← the same value resolved for `author`
-       - `schema_version:` ← `1` (bare integer, not quoted)
-       - `target:` ← `"pr:<pr-number>"` (e.g. `"pr:123"`); typed-linkage
-         key per ADR-0034, must match the regex `^"pr:[0-9]+"$`
-       - `reviewer:` ← the reviewer value resolved per `create-work-item/SKILL.md:578-580`
-       - `verdict:` ← the verdict from Step 4.6 (`APPROVE | REQUEST_CHANGES | COMMENT`)
-       - `lenses:` ← the list of lens names used
-       - `review_number:` ← `N` (the next available review number from the
-         glob above)
-       - `pr_number:` ← the PR number from `gh pr view --json number`
-         (bare integer; foreign reference to the external PR per
-         ADR-0033 §Identity-value shape contract)
+The `target:` field is filled automatically from the PR number — this is
+what makes the review traceable back to the PR it covers. Per ADR-0034,
+the typed-linkage form is `"pr:<pr-number>"`.
 
-       The PR title is recorded in the base `title:` field; no separate
-       `pr_title:` field is emitted (the unified schema uses the base
-       `title:` for all artifact titles per ADR-0033). The `review_pass:`
-       field is intentionally absent — `review-pr` has no in-place
-       re-review update flow today; re-running it produces a fresh
-       `-review-{N+1}.md`.
-    3. Write the file with the substituted frontmatter block, followed by
-       the review summary composed in Step 4.8 and the inline comments
-       and per-lens results sections:
+Before writing the PR review file, capture metadata and substitute the
+unified base fields and per-type extras into the template's frontmatter
+block:
 
-    ```markdown
-    {The full review summary from Step 4.8}
+1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+   to obtain `Current Date/Time (UTC):`.
+2. **Substitute** every field below with the indicated value:
+   - `type:` ← `pr-review`
+   - `id:` ← `{number}-review-{N}` (the review filename stem, where
+     `{number}` is the PR number and `{N}` is the next review
+     number), always quoted as a YAML string
+   - `title:` ← the PR title from `gh pr view --json title`
+   - `date:` ← the `Current Date/Time (UTC):` value
+   - `author:` ← the author value resolved per `create-work-item/SKILL.md:578-580`
+   - `producer:` ← `review-pr`
+   - `status:` ← `complete`
+   - `last_updated:` ← the same `Current Date/Time (UTC):` value
+   - `last_updated_by:` ← the same value resolved for `author`
+   - `schema_version:` ← `1` (bare integer, not quoted)
+   - `parent:` ← typed-linkage ref to the parent PR (`"pr:NNNN"`).
+     Fill when the review names a parent; otherwise omit the key.
+   - `target:` ← `"pr:<pr-number>"` (e.g. `"pr:123"`); the
+     typed-linkage ref to the PR under review per ADR-0034, must
+     match the regex `^"pr:[0-9]+"$`. Always fill — every review has
+     a target.
+   - `relates_to:` ← list of typed-linkage refs to related reviews or
+     artifacts (`["pr-review:NNNN", ...]`). Fill when prior reviews
+     are explicit; otherwise omit the key.
+   - `reviewer:` ← the reviewer value resolved per `create-work-item/SKILL.md:578-580`
+   - `verdict:` ← the verdict from Step 4.6 (`APPROVE | REQUEST_CHANGES | COMMENT`)
+   - `lenses:` ← the list of lens names used
+   - `review_number:` ← `N` (the next available review number from the
+     glob above)
+   - `pr_number:` ← the PR number from `gh pr view --json number`
+     (bare integer; foreign reference to the external PR per
+     ADR-0033 §Identity-value shape contract)
 
-    ## Inline Comments
+   The PR title is recorded in the base `title:` field; no separate
+   `pr_title:` field is emitted (the unified schema uses the base
+   `title:` for all artifact titles per ADR-0033). The `review_pass:`
+   field is intentionally absent — `review-pr` has no in-place
+   re-review update flow today; re-running it produces a fresh
+   `-review-{N+1}.md`.
+3. Write the file with the substituted frontmatter block, followed by
+   the review summary composed in Step 4.8 and the inline comments
+   and per-lens results sections:
 
-    ### `{path}:{line}` — {title}
-    **Severity**: {severity} | **Confidence**: {confidence} | **Lens**: {lens}
+```markdown
+{The full review summary from Step 4.8}
 
-    {comment body}
+## Inline Comments
 
-    ---
+### `{path}:{line}` — {title}
+**Severity**: {severity} | **Confidence**: {confidence} | **Lens**: {lens}
 
-    ### `{path}:{line}` — {title}
-    ...
+{comment body}
 
-    ## Per-Lens Results
+---
 
-    ### {Lens 1 Name}
+### `{path}:{line}` — {title}
+...
 
-    **Summary**: {agent summary}
+## Per-Lens Results
 
-    **Strengths**:
-    {agent strengths}
+### {Lens 1 Name}
 
-    **Comments**:
-    {agent comments — each with path, line, severity, confidence, and body}
+**Summary**: {agent summary}
 
-    **General Findings**:
-    {agent general findings}
+**Strengths**:
+{agent strengths}
 
-    ### {Lens 2 Name}
+**Comments**:
+{agent comments — each with path, line, severity, confidence, and body}
 
-    ...
-    ```
+**General Findings**:
+{agent general findings}
 
-    This review artifact captures the complete analysis. The GitHub review
-    (posted in Step 6) may be a curated subset (capped at ~{max inline comments}
-    inline comments), but the persistent artifact retains everything.
+### {Lens 2 Name}
+
+...
+```
+
+This review artifact captures the complete analysis. The GitHub review
+(posted in Step 6) may be a curated subset (capped at ~{max inline comments}
+inline comments), but the persistent artifact retains everything.
 
 ### Step 5: Present the Review
 

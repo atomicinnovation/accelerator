@@ -351,69 +351,77 @@ Once all reviews are complete:
    `${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh id {path}`
    (or parse the 4-digit prefix from the filename directly).
 
-   Before writing the work item review file, capture metadata and substitute
-   the unified base fields and per-type extras into the template's
-   frontmatter block:
+#### Populate frontmatter
 
-   1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
-      to obtain `Current Date/Time (UTC):`.
-   2. **Substitute** every field below with the indicated value:
-      - `type:` ← `work-item-review`
-      - `id:` ← the review filename stem (without `.md`), always quoted
-        as a YAML string
-      - `title:` ← `Work Item Review: {work item title}`
-      - `date:` ← the `Current Date/Time (UTC):` value
-      - `author:` ← the author value resolved per `create-work-item/SKILL.md:578-580`
-      - `producer:` ← `review-work-item`
-      - `status:` ← `complete`
-      - `last_updated:` ← the same `Current Date/Time (UTC):` value
-      - `last_updated_by:` ← the same value resolved for `author`
-      - `schema_version:` ← `1` (bare integer, not quoted)
-      - `target:` ← `"work-item:<4-digit-id>"` (e.g. `"work-item:0042"`),
-        typed-linkage key per ADR-0034, always emitted as a single
-        quoted YAML string in `"doc-type:id"` form
-      - `work_item_id:` ← the same 4-digit identifier as the `target`
-        payload's id portion (transitional alias — see Migration Notes;
-        the visualiser's `read_ref_keys` consumes this scalar today)
-      - `reviewer:` ← the reviewer value resolved per `create-work-item/SKILL.md:578-580`
-      - `verdict:` ← the verdict from Step 4.5 (`APPROVE | REVISE | COMMENT`)
-      - `lenses:` ← the list of work-item lens names used
-      - `review_number:` ← `N` (the next available review number from the
-        glob above)
-      - `review_pass:` ← `1` (initial-write pass count; re-reviews bump
-        per the Step 7 flow)
-   3. Write the file with the substituted frontmatter block, followed by
-      the review summary composed in Step 4.7 and the per-lens results as
-      a final section:
+Before writing the work item review file, capture metadata and substitute
+the unified base fields and per-type extras into the template's
+frontmatter block:
 
-   ```markdown
-   {The full review summary from Step 4.7}
+1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+   to obtain `Current Date/Time (UTC):`.
+2. **Substitute** every field below with the indicated value:
+   - `type:` ← `work-item-review`
+   - `id:` ← the review filename stem (without `.md`), always quoted
+     as a YAML string
+   - `title:` ← `Work Item Review: {work item title}`
+   - `date:` ← the `Current Date/Time (UTC):` value
+   - `author:` ← the author value resolved per `create-work-item/SKILL.md:578-580`
+   - `producer:` ← `review-work-item`
+   - `status:` ← `complete`
+   - `last_updated:` ← the same `Current Date/Time (UTC):` value
+   - `last_updated_by:` ← the same value resolved for `author`
+   - `schema_version:` ← `1` (bare integer, not quoted)
+   - `parent:` ← typed-linkage ref to the parent work item
+     (`"work-item:NNNN"`). Fill when the review names a parent;
+     otherwise omit the key.
+   - `target:` ← `"work-item:<4-digit-id>"` (e.g. `"work-item:0042"`),
+     the typed-linkage ref to the work item under review, per
+     ADR-0034. Always fill — every review has a target.
+   - `relates_to:` ← list of typed-linkage refs to related reviews or
+     artifacts (`["work-item-review:NNNN", ...]`). Fill when prior
+     reviews are explicit; otherwise omit the key.
+   - `work_item_id:` ← the same 4-digit identifier as the `target`
+     payload's id portion (transitional alias — see Migration Notes;
+     the visualiser's `read_ref_keys` consumes this scalar today)
+   - `reviewer:` ← the reviewer value resolved per `create-work-item/SKILL.md:578-580`
+   - `verdict:` ← the verdict from Step 4.5 (`APPROVE | REVISE | COMMENT`)
+   - `lenses:` ← the list of work-item lens names used
+   - `review_number:` ← `N` (the next available review number from the
+     glob above)
+   - `review_pass:` ← `1` (initial-write pass count; re-reviews bump
+     per the Step 7 flow)
+3. Write the file with the substituted frontmatter block, followed by
+   the review summary composed in Step 4.7 and the per-lens results as
+   a final section:
 
-   ## Per-Lens Results
+```markdown
+{The full review summary from Step 4.7}
 
-   ### {Lens 1 Name}
+## Per-Lens Results
 
-   **Summary**: {agent summary}
+### {Lens 1 Name}
 
-   **Strengths**:
-   {agent strengths}
+**Summary**: {agent summary}
 
-   **Findings**:
-   {agent findings — each with severity, confidence, location, and body}
+**Strengths**:
+{agent strengths}
 
-   ### {Lens 2 Name}
+**Findings**:
+{agent findings — each with severity, confidence, location, and body}
 
-   ...
-   ```
+### {Lens 2 Name}
 
-   The `target:` field stores the work item's stable 4-digit identifier
-   as a typed-linkage key (e.g. `"work-item:0042"`) per ADR-0034,
-   providing resilience against work item renames. A `work_item_id:`
-   field is also emitted as a transitional alias carrying the same
-   4-digit identifier — the visualiser's `read_ref_keys` consumes it
-   as the primary work-item cross-reference key today. Both fields
-   encode the same edge; the duplication is bounded by the visualiser
-   consumer update.
+...
+```
+
+The `target:` field stores the work item's stable 4-digit identifier
+as a typed-linkage key (e.g. `"work-item:0042"`) per ADR-0034,
+providing resilience against work item renames. A `work_item_id:`
+field is also emitted as a transitional alias carrying the same
+4-digit identifier — the visualiser's `read_ref_keys` consumes it
+as the primary work-item cross-reference key today. Both fields
+encode the same edge; the duplication is bounded by the visualiser
+consumer update.
 
 ### Step 5: Present the Review
 
