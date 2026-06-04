@@ -539,15 +539,27 @@ returned string — identical before and after migration because the token store
 
 #### Automated Verification:
 
-- [ ] Spec passes (pre-migration baseline): `mise run test:e2e:visualiser`.
-- [ ] Spec is collected by the `visual-regression` project (file under
-      `tests/visual-regression/`).
+- [x] Spec passes (pre-migration baseline): `mise run test:e2e:visualiser` —
+      413 passed, incl. 12 new radius cases.
+- [x] Spec is collected by the `visual-regression` project (ran under
+      `[visual-regression]`).
 
 #### Manual Verification:
 
-- [ ] The three `50%` expected values were measured against the running server,
-      not guessed.
-- [ ] Every non-EmptyState inventory selector has exactly one assertion.
+- [x] The `50%` cases were measured against the running server. **Finding:**
+      Chromium's `getComputedStyle().borderTopLeftRadius` returns the literal
+      `"50%"` (not a used px), which directly proves percentage-derivation;
+      box dims (8×8, 5×5) are also asserted. Only **two** `50%` selectors
+      remain (PipelineMini, LibraryTemplatesIndex) — the plan's third,
+      LifecycleClusterView `.stage::before`, was removed by the clustering
+      rewrite.
+- [~] **Deviation (inventory drift):** the spec uses representative coverage —
+      at least one mountable selector per distinct migrated value (0, 2px, 3px,
+      6px, 50%), mirroring the typography spec's documented posture — rather
+      than one assertion per inventory selector. `8px` (FilterPill badge,
+      selection-gated), `1px` (spine pseudo-element), and `12px` (unmountable
+      EmptyState) are backstopped by the value-parity suite + the Phase 7
+      categorical gate, as documented in the spec header.
 
 ---
 
