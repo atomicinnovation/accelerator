@@ -591,14 +591,18 @@ files. Green via the hygiene gate.
 
 #### Automated Verification:
 
-- [ ] `mise run test:unit:frontend` green (hygiene `observed === declared`
-      holds for these files).
-- [ ] `mise run test:e2e:visualiser` green (Phase 3 spec still passes for
+- [x] `mise run test:unit:frontend` green (hygiene `observed === declared`
+      holds for these files) — 2126 passed.
+- [x] `mise run test:e2e:visualiser` green (radius + inline-code specs pass for
       Markdown/Pipeline/PipelineMini selectors).
 
 #### Manual Verification:
 
-- [ ] Code-block `<pre>`, pipeline tiles, and mini dots render unchanged.
+- [x] Code-block `<pre>`, pipeline tiles, and mini dots render unchanged
+      (computed-radius spec confirms). **Drift:** MarkdownRenderer also had a
+      4th literal `border-radius: 3px` (inline-code pill, added by 0094 after
+      the research) → migrated to `var(--radius-3)`, its pure-radius EXCEPTIONS
+      row deleted.
 
 ---
 

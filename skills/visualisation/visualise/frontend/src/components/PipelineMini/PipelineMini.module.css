@@ -10,7 +10,7 @@
 .dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   border: 1.5px solid var(--ac-stroke);
   background: transparent;
   flex-shrink: 0;

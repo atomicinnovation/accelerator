@@ -20,7 +20,7 @@
   background: var(--code-bg);
   color: var(--code-fg);
   border: 1px solid var(--code-stroke);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   padding: var(--sp-4);
   overflow-x: auto;
   font-size: var(--size-xs);
@@ -32,14 +32,14 @@
    drops its own border and radius. */
 .codeblock {
   border: 1px solid var(--code-stroke);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   background: var(--code-bg);
   overflow: hidden;
   margin: var(--sp-4) 0;
 }
 .codeblock pre {
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-0);
   margin: 0;
 }
 .codeblockHead {
@@ -57,7 +57,7 @@
 .markdown code:not(pre code) {
   background: var(--ac-bg-sunken);
   border: 1px solid var(--ac-stroke-soft);
-  border-radius: 3px;
+  border-radius: var(--radius-3);
   padding: 1px 5px;
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs-sm);

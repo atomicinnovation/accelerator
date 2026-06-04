@@ -64,10 +64,8 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   // components/MarkdownRenderer/MarkdownRenderer.module.css
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '1px', count: 7, kind: 'irreducible', reason: 'hairline borders + sub-px padding: <pre> stroke, h1 underline, table cell, codeblock wrapper, codeblockHead bottom, inline-code pill border, inline-code pill vertical padding — below --sp-1 floor' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'off-scale cell padding (6.4px) — between --sp-1 and --sp-2' },
-  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '3px', count: 1, kind: 'irreducible', reason: 'inline-code pill radius — below --radius-sm (4px)' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '5px', count: 1, kind: 'irreducible', reason: 'inline-code pill horizontal padding — off-scale, between --sp-1 (4px) and --sp-2 (8px)' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'blockquote border-left width — no border-width token' },
-  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '6px', count: 2, kind: 'irreducible', reason: 'code block border-radius (bare <pre> + labelled-fence wrapper) — between radius-sm and radius-md' },
   // routes/lifecycle/LifecycleClusterView.module.css — pipeline panel,
   // timeline spine, stage tile, and tcard literals. Numbers track the
   // prototype's `.ac-tcard` / `.ac-tstep` measurements verbatim so the
@@ -88,7 +86,6 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/Pipeline/Pipeline.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'tile border-width — below --sp-1 floor' },
   { file: 'components/Pipeline/Pipeline.module.css', literal: '2px', count: 1, kind: 'irreducible', reason: 'connector height — below --sp-1 floor' },
   { file: 'components/Pipeline/Pipeline.module.css', literal: '5px', count: 1, kind: 'irreducible', reason: 'stage column gap (tile→label) — between --sp-1 (4) and --sp-2 (8)' },
-  { file: 'components/Pipeline/Pipeline.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'tile border-radius — between radius-sm (4) and radius-md (8)' },
   { file: 'components/Pipeline/Pipeline.module.css', literal: '13px', count: 1, kind: 'irreducible', reason: 'connector vertical offset (half card-variant tile) — derived from tile size, no token' },
   { file: 'components/Pipeline/Pipeline.module.css', literal: '17px', count: 1, kind: 'irreducible', reason: 'connector vertical offset (half panel-variant tile) — derived from tile size, no token' },
   { file: 'components/Pipeline/Pipeline.module.css', literal: '26px', count: 2, kind: 'irreducible', reason: 'card-variant tile size — fixed pixel for the chain visual rhythm, no sp-* equivalent' },
