@@ -5,7 +5,7 @@ title: "Radius Tokens Consumption Implementation Plan"
 date: "2026-06-02T16:02:57+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: accepted
+status: complete
 work_item_id: "0090"
 parent: ""
 reviewer: "Toby Clemson"

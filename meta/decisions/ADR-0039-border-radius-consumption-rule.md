@@ -2,7 +2,7 @@
 adr_id: ADR-0039
 date: "2026-06-04T00:00:00+01:00"
 author: Toby Clemson
-status: proposed
+status: accepted
 supersedes: ["adr:ADR-0026"]
 tags: [visualiser, frontend, css, design-tokens, radius]
 ---
@@ -10,7 +10,7 @@ tags: [visualiser, frontend, css, design-tokens, radius]
 # ADR-0039: Border-radius consumption rule
 
 **Date**: 2026-06-04
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context
