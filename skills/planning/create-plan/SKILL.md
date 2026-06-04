@@ -240,13 +240,38 @@ unified base fields into the template's frontmatter block:
      (config → VCS user → prompt)
    - `producer:` ← `create-plan`
    - `status:` ← `draft`
-   - `work_item_id:` ← the linked work item's full ID (quoted) or
-     empty string `""` when there is no linked work item
+   - `work_item_id:` ← the linked work item's full ID (quoted). Fill
+     when invoked with a work item argument; otherwise omit the key
+     entirely (do not carry an empty placeholder).
    - `revision:` ← the `Current Revision:` value
    - `repository:` ← the `Repository Name:` value
    - `last_updated:` ← the same `Current Date/Time (UTC):` value
    - `last_updated_by:` ← the same value resolved for `author`
    - `schema_version:` ← `1` (bare integer)
+
+   Optional linkage/lifecycle keys are omit-by-default: the
+   template shows each as `""`/`[]`, but write a key into the artifact
+   **only** when it has a value, and omit it entirely otherwise (do not
+   carry the empty placeholder through). By default a new plan draft
+   names none of them.
+
+   - `parent:` ← the owning work item as a typed-linkage ref
+     (`"work-item:NNNN"`). Fill when the plan is owned by a work item;
+     otherwise omit the key.
+   - `blocks:` ← list of typed-linkage refs to plans this plan blocks
+     (`["plan:NNNN", ...]`). Fill when blocking edges are explicit;
+     otherwise omit the key.
+   - `blocked_by:` ← list of typed-linkage refs to plans that block this
+     one. Prefer writing the canonical `blocks:` on the other side; emit
+     `blocked_by:` only when the canonical side cannot be written, and
+     omit it otherwise.
+   - `derived_from:` ← list of typed-linkage refs to research this plan
+     was informed by (`["codebase-research:NNNN", ...]`). Fill when the
+     plan derives from research; otherwise omit the key.
+   - `relates_to:` ← list of typed-linkage refs to related artifacts.
+     Fill when relationships are explicit; otherwise omit the key.
+   - `reviewer:` ← name/email of the plan reviewer. Leave for review-plan
+     to fill; omit the key on a fresh draft until the plan is reviewed.
 3. Write the file with the substituted frontmatter block.
 
 ### Step 6: Sync and Review

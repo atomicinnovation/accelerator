@@ -454,6 +454,34 @@ concurrently. Please re-run /create-work-item.
       - `last_updated:` ← the same `Current Date/Time (UTC):` value
       - `last_updated_by:` ← the same value resolved for `author`
       - `schema_version:` ← `1` (bare integer, not quoted)
+
+      Optional linkage/foreign-ref keys are omit-by-default:
+      the template shows each as `""`/`[]`, but write a key into the
+      artifact **only** when it has a value, and omit it entirely
+      otherwise (do not carry the empty placeholder through). By default
+      a new draft names none of them.
+
+      - `parent:` ← the parent work item's ID as a typed-linkage ref
+        (`"work-item:NNNN"`). Fill when the user names a parent at draft
+        time; otherwise omit the key entirely.
+      - `blocks:` ← list of typed-linkage refs to work items this work
+        item blocks (`["work-item:NNNN", ...]`). Fill when blocking edges
+        are explicit at draft time; otherwise omit the key.
+      - `blocked_by:` ← list of typed-linkage refs to work items that
+        block this one. Prefer writing the canonical `blocks:` on the
+        other side; emit `blocked_by:` only when the canonical side
+        cannot be written, and omit it otherwise.
+      - `derived_from:` ← list of typed-linkage refs to artifacts this
+        work item is derived from (`["plan:NNNN", ...]`). Fill when
+        derivation is explicit; otherwise omit the key.
+      - `relates_to:` ← list of typed-linkage refs to related artifacts.
+        Fill when relationships are explicit; otherwise omit the key.
+      - `source:` ← typed-linkage ref to the originating source artifact
+        (`"issue-research:NNNN"`). Fill when the source is explicit;
+        otherwise omit the key.
+      - `external_id:` ← cross-system pointer (e.g. a Jira/Linear key).
+        Fill when the work item is linked to an external tracker;
+        otherwise omit the key.
    3. Substitute `XXXX` with the full ID throughout the draft body (in
       the H1 line). The H1 line reads `# <full-id>: <title>`.
    4. Write the file with the substituted frontmatter block.

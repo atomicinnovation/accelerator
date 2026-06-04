@@ -1175,17 +1175,17 @@ Phase 4.
 
 #### Automated Verification
 
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` reports PASS for every omit-when-empty field on each of the eight writer skills
-- [ ] No FAIL lines reference any of the eight writer SKILL.md files
-- [ ] `mise run test:unit:templates` exits 0
+- [x] `bash scripts/test-skill-frontmatter-population.sh` reports PASS for every omit-when-empty field on each of the eight writer skills
+- [x] No FAIL lines reference any of the eight writer SKILL.md files
+- [x] `mise run test:unit:templates` exits 0
 
 #### Manual Verification
 
-- [ ] Each of the eight SKILL.md files retains the canonical
+- [x] Each of the eight SKILL.md files retains the canonical
   Populate-frontmatter snippet shape (substitution list with `←`
   arrows, nested `1. Invoke / 2. Substitute / 3. Write` numbering
   preserved where present)
-- [ ] The "fill"/"omit" guidance is one short line per bullet,
+- [x] The "fill"/"omit" guidance is one short line per bullet,
   not multi-paragraph prose
 
 ---

@@ -115,6 +115,20 @@ Then wait for the user's issue description.
   - `last_updated_by:` ← the same value resolved for `author`
   - `schema_version:` ← `1` (bare integer)
 
+  Optional linkage/foreign-ref keys are omit-by-default: the
+  template shows each as `""`/`[]`, but write a key into the artifact
+  **only** when it has a value, and omit it entirely otherwise (do not
+  carry the empty placeholder through).
+
+  - `parent:` ← the work item this investigation supports, as a
+    typed-linkage ref (`"work-item:NNNN"`). Fill when the RCA has an
+    owning work item; otherwise omit the key.
+  - `relates_to:` ← list of typed-linkage refs to related research
+    (`["issue-research:NNNN", ...]`). Fill when related artifacts are
+    explicit; otherwise omit the key.
+  - `work_item_id:` ← the linked work item's full ID (quoted). Fill when
+    the RCA is linked to a work item; otherwise omit the key.
+
 - Filename format: `YYYY-MM-DD-description.md` where description is a brief
   kebab-case summary of the issue (e.g., `2025-01-08-auth-timeout-on-refresh.md`)
 

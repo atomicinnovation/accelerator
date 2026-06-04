@@ -163,14 +163,27 @@ Wait for user approval or revision requests before writing.
         (config → VCS user → prompt)
       - `producer:` ← `create-adr`
       - `status:` ← `proposed`
-      - `decision_makers:` ← a YAML list of the people who agreed to
-        the decision (empty array `[]` if not yet captured)
-      - `supersedes:` ← a YAML list of typed-linkage refs of the
-        form `"adr:ADR-NNNN"` (empty `[]` when this ADR does not
-        supersede anything)
       - `last_updated:` ← the same `Current Date/Time (UTC):` value
       - `last_updated_by:` ← the same value resolved for `author`
       - `schema_version:` ← `1` (bare integer)
+
+      Optional linkage / decision-maker keys are omit-by-default:
+      the template shows each as `""`/`[]`, but write a key
+      into the artifact **only** when it has a value, and omit it
+      entirely otherwise (do not carry the empty placeholder through).
+
+      - `parent:` ← the owning work item as a typed-linkage ref
+        (`"work-item:NNNN"`). Fill when the ADR is owned by a work item;
+        otherwise omit the key.
+      - `supersedes:` ← a YAML list of typed-linkage refs of the form
+        `"adr:ADR-NNNN"` to the ADR(s) this one replaces. Fill when this
+        ADR supersedes another; otherwise omit the key.
+      - `relates_to:` ← list of typed-linkage refs to loosely related
+        ADRs (`["adr:ADR-NNNN", ...]`). Fill when related decisions are
+        explicit; otherwise omit the key.
+      - `decision_makers:` ← a YAML list of the people who agreed to the
+        decision. Fill when decision-makers are captured; otherwise omit
+        the key.
 
 3. Write the ADR to:
    `{decisions directory}/ADR-NNNN-description.md`

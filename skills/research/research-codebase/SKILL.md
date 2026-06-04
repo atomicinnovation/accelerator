@@ -146,6 +146,20 @@ The key is to use these agents intelligently:
   - `last_updated_by:` ← the same value resolved for `author`
   - `schema_version:` ← `1` (bare integer)
 
+  Optional linkage/foreign-ref keys are omit-by-default: the
+  template shows each as `""`/`[]`, but write a key into the artifact
+  **only** when it has a value, and omit it entirely otherwise (do not
+  carry the empty placeholder through).
+
+  - `parent:` ← the work item this research supports, as a typed-linkage
+    ref (`"work-item:NNNN"`). Fill when the research has an owning work
+    item; otherwise omit the key.
+  - `relates_to:` ← list of typed-linkage refs to related research
+    (`["codebase-research:NNNN", ...]`). Fill when related artifacts are
+    explicit; otherwise omit the key.
+  - `work_item_id:` ← the linked work item's full ID (quoted). Fill when
+    the research is linked to a work item; otherwise omit the key.
+
 ### Step 7: Add GitHub permalinks (if applicable)
 
 - Check if on main branch or if commit is pushed: `git branch --show-current`

@@ -119,13 +119,27 @@ potential impacts)
      - `status:` ← `complete`
      - `pr_url:` ← the URL from `gh pr view`
      - `pr_number:` ← the PR number as a bare integer
-     - `merge_commit:` ← the merge commit SHA if merged, otherwise
-       empty string `""`
+     - `merge_commit:` ← the merge commit SHA. Fill when the PR is
+       merged; otherwise omit the key entirely.
      - `revision:` ← the `Current Revision:` value
      - `repository:` ← the `Repository Name:` value
      - `last_updated:` ← the same `Current Date/Time (UTC):` value
      - `last_updated_by:` ← the same value resolved for `author`
      - `schema_version:` ← `1` (bare integer)
+
+     Optional linkage/foreign-ref keys are omit-by-default:
+     the template shows each as `""`/`[]`, but write a key into the
+     artifact **only** when it has a value, and omit it entirely
+     otherwise (do not carry the empty placeholder through).
+
+     - `parent:` ← the work item this PR implements, as a typed-linkage
+       ref (`"work-item:NNNN"`). Fill when the PR has an owning work
+       item; otherwise omit the key.
+     - `relates_to:` ← list of typed-linkage refs to related artifacts
+       (`["work-item:NNNN", ...]`). Fill when relationships are explicit;
+       otherwise omit the key.
+     - `work_item_id:` ← the linked work item's full ID (quoted). Fill
+       when the PR is linked to a work item; otherwise omit the key.
   3. Write the completed description with the substituted frontmatter
      block to `{prs directory}/{number}-description.md`.
 

@@ -464,6 +464,36 @@ in Step 4 after all approvals — enriched and thin — are collected.
          - `last_updated_by:` ← the same value resolved for `author`
          - `schema_version:` ← `1` (bare integer, not quoted)
 
+         Optional linkage/foreign-ref keys are omit-by-default:
+         the template shows each as `""`/`[]`, but write a
+         key into the artifact **only** when it has a value, and omit it
+         entirely otherwise (do not carry the empty placeholder
+         through). By default a freshly extracted draft names none of
+         them.
+
+         - `parent:` ← the parent work item's ID as a typed-linkage ref
+           (`"work-item:NNNN"`). Fill when the source names a parent;
+           otherwise omit the key entirely.
+         - `blocks:` ← list of typed-linkage refs to work items this
+           item blocks (`["work-item:NNNN", ...]`). Fill when blocking
+           edges are explicit in the source; otherwise omit the key.
+         - `blocked_by:` ← list of typed-linkage refs to work items that
+           block this one. Prefer writing the canonical `blocks:` on the
+           other side; emit `blocked_by:` only when the canonical side
+           cannot be written, and omit it otherwise.
+         - `derived_from:` ← list of typed-linkage refs to artifacts this
+           item is derived from (`["plan:NNNN", ...]`). Fill when
+           derivation is explicit; otherwise omit the key.
+         - `relates_to:` ← list of typed-linkage refs to related
+           artifacts. Fill when relationships are explicit; otherwise
+           omit the key.
+         - `source:` ← typed-linkage ref to the originating source
+           artifact (`"issue-research:NNNN"`). Fill when the source is a
+           meta artifact with an id; otherwise omit the key.
+         - `external_id:` ← cross-system pointer (e.g. a Jira/Linear
+           key). Fill when the item is linked to an external tracker;
+           otherwise omit the key.
+
    i. **Write all N work item files**. Each work item's `References`
       section must include all source document paths the item was
       extracted from. For deduplicated items that appeared in multiple

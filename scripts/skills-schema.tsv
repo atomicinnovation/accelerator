@@ -1,12 +1,12 @@
 skill_path	producer_name	fields_to_assert	omit_when_empty
-skills/work/create-work-item/SKILL.md	create-work-item	producer schema_version last_updated last_updated_by	-
-skills/work/extract-work-items/SKILL.md	extract-work-items	producer schema_version last_updated last_updated_by	-
-skills/planning/create-plan/SKILL.md	create-plan	producer schema_version last_updated last_updated_by revision repository	-
-skills/github/describe-pr/SKILL.md	describe-pr	producer schema_version last_updated last_updated_by revision repository	-
-skills/decisions/create-adr/SKILL.md	create-adr	producer schema_version last_updated last_updated_by	-
-skills/decisions/extract-adrs/SKILL.md	extract-adrs	producer schema_version last_updated last_updated_by	-
-skills/research/research-codebase/SKILL.md	research-codebase	producer schema_version last_updated last_updated_by revision repository	-
-skills/research/research-issue/SKILL.md	research-issue	producer schema_version last_updated last_updated_by revision repository	-
+skills/work/create-work-item/SKILL.md	create-work-item	producer schema_version last_updated last_updated_by	parent blocks blocked_by derived_from relates_to source external_id
+skills/work/extract-work-items/SKILL.md	extract-work-items	producer schema_version last_updated last_updated_by	parent blocks blocked_by derived_from relates_to source external_id
+skills/planning/create-plan/SKILL.md	create-plan	producer schema_version last_updated last_updated_by revision repository	parent blocks blocked_by derived_from relates_to work_item_id reviewer
+skills/github/describe-pr/SKILL.md	describe-pr	producer schema_version last_updated last_updated_by revision repository	parent relates_to work_item_id pr_url merge_commit
+skills/decisions/create-adr/SKILL.md	create-adr	producer schema_version last_updated last_updated_by	parent supersedes relates_to decision_makers
+skills/decisions/extract-adrs/SKILL.md	extract-adrs	producer schema_version last_updated last_updated_by	parent supersedes relates_to decision_makers
+skills/research/research-codebase/SKILL.md	research-codebase	producer schema_version last_updated last_updated_by revision repository	parent relates_to work_item_id
+skills/research/research-issue/SKILL.md	research-issue	producer schema_version last_updated last_updated_by revision repository	parent relates_to work_item_id
 skills/design/inventory-design/SKILL.md	inventory-design	producer schema_version last_updated last_updated_by revision repository	-
 skills/design/analyse-design-gaps/SKILL.md	analyse-design-gaps	producer schema_version last_updated last_updated_by	-
 skills/planning/review-plan/SKILL.md	review-plan	producer schema_version last_updated last_updated_by target reviewer verdict lenses review_number review_pass	-
