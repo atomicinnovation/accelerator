@@ -79,9 +79,19 @@ def bump(_context: Context, bump_type=None):
             case BumpType.PATCH:
                 new_version = new_version.bump_patch()
             case BumpType.PRE:
-                new_version = new_version.bump_prerelease(
-                    token=prerelease_token
-                )
+                # A finalised release has no prerelease component. Bumping its
+                # prerelease directly would re-cut <x.y.z>-pre.1, colliding with
+                # the prerelease tags that led up to that release. Advance to the
+                # next minor's first prerelease so the post-stable cut opens a
+                # fresh line; an in-progress prerelease just increments.
+                if new_version.prerelease is None:
+                    new_version = new_version.bump_minor().bump_prerelease(
+                        token=prerelease_token
+                    )
+                else:
+                    new_version = new_version.bump_prerelease(
+                        token=prerelease_token
+                    )
             case BumpType.FINALISE:
                 new_version = new_version.finalize_version()
             case BumpType.NEXT_MINOR:

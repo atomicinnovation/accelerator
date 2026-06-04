@@ -92,3 +92,53 @@ class TestWrite:
         mocker.patch.object(tb, "REPO_ROOT", fake_repo_tree)
         tv.write(ctx, "1.21.0")
         validate_version_coherence("1.21.0", repo_root=fake_repo_tree)
+
+
+# ── bump() ────────────────────────────────────────────────────────────
+
+
+class TestBump:
+    def _bump(self, ctx, mocker, fake_repo_tree, start, bump_types):
+        _patch_paths(mocker, fake_repo_tree)
+        tv.write(ctx, start)
+        return str(tv.bump(ctx, bump_type=bump_types))
+
+    def test_pre_from_stable_cuts_next_minor_prerelease(
+        self, ctx, mocker, fake_repo_tree
+    ):
+        # Post-stable cut must open a fresh line, not re-cut 1.21.0-pre.1
+        # (which collides with the tags that led up to the 1.21.0 release).
+        result = self._bump(
+            ctx, mocker, fake_repo_tree, "1.21.0", [tv.BumpType.PRE]
+        )
+        assert result == "1.22.0-pre.1"
+
+    def test_pre_from_prerelease_increments_prerelease(
+        self, ctx, mocker, fake_repo_tree
+    ):
+        result = self._bump(
+            ctx, mocker, fake_repo_tree, "1.22.0-pre.1", [tv.BumpType.PRE]
+        )
+        assert result == "1.22.0-pre.2"
+
+    def test_pre_is_the_default_bump_type(self, ctx, mocker, fake_repo_tree):
+        _patch_paths(mocker, fake_repo_tree)
+        tv.write(ctx, "1.22.0-pre.1")
+        assert str(tv.bump(ctx)) == "1.22.0-pre.2"
+
+    def test_finalise_drops_prerelease_component(
+        self, ctx, mocker, fake_repo_tree
+    ):
+        result = self._bump(
+            ctx, mocker, fake_repo_tree, "1.21.0-pre.56", [tv.BumpType.FINALISE]
+        )
+        assert result == "1.21.0"
+
+    def test_bump_persists_new_version_to_plugin_json(
+        self, ctx, mocker, fake_repo_tree
+    ):
+        self._bump(ctx, mocker, fake_repo_tree, "1.21.0", [tv.BumpType.PRE])
+        plugin_json = json.loads(
+            (fake_repo_tree / ".claude-plugin/plugin.json").read_text()
+        )
+        assert plugin_json["version"] == "1.22.0-pre.1"
