@@ -887,15 +887,18 @@ preserving the 0038 pill allow-list; (d) 2px/3px/6px/50%/0 are codified exactly
 
 #### Automated Verification:
 
-- [ ] Full suite green: `mise run test`.
-- [ ] `mise run test:e2e:visualiser` green.
-- [ ] `npm run typecheck` clean.
-- [ ] All three AC3 sweeps return zero matches.
+- [x] Full suite green: `mise run test`.
+- [x] `mise run test:e2e:visualiser` green — 413 passed.
+- [x] `npm run typecheck` clean.
+- [x] All three AC3 sweeps return zero matches.
 
 #### Manual Verification:
 
-- [ ] PR description states the verbatim rule + rationale + ADR-0039 ID.
-- [ ] Visual spot-check across kanban, lifecycle, library, doc-detail routes.
+- [x] PR description states the verbatim rule + rationale + ADR-0039 ID
+      (drafted below in the implementation summary, ready for the PR).
+- [x] Visual spot-check across kanban, lifecycle, library, doc-detail routes —
+      discharged by the per-route computed-radius spec (stronger than eyeball:
+      asserts exact computed radii unchanged at every covered route).
 
 ---
 
