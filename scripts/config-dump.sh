@@ -103,21 +103,9 @@ get_source() {
   fi
 }
 
-# All known config keys with their defaults
-declare -A DEFAULTS
-DEFAULTS=(
-  ["review.max_inline_comments"]="10"
-  ["review.min_lenses"]="4"
-  ["review.max_lenses"]="8"
-  ["review.dedup_proximity"]="3"
-  ["review.core_lenses"]="[architecture, code-quality, test-coverage, correctness]"
-  ["review.disabled_lenses"]="[]"
-  ["review.pr_request_changes_severity"]="critical"
-  ["review.plan_revise_severity"]="critical"
-  ["review.plan_revise_major_count"]="3"
-)
-
-# Ordered key list for consistent output
+# Ordered key list for consistent output, with a parallel defaults array
+# (bash-3.2 has no associative arrays; REVIEW_DEFAULTS must stay index-aligned
+# with REVIEW_KEYS).
 REVIEW_KEYS=(
   "review.max_inline_comments"
   "review.min_lenses"
@@ -128,6 +116,18 @@ REVIEW_KEYS=(
   "review.pr_request_changes_severity"
   "review.plan_revise_severity"
   "review.plan_revise_major_count"
+)
+
+REVIEW_DEFAULTS=(
+  "10"
+  "4"
+  "8"
+  "3"
+  "[architecture, code-quality, test-coverage, correctness]"
+  "[]"
+  "critical"
+  "critical"
+  "3"
 )
 
 # Agent keys
@@ -156,8 +156,9 @@ echo ""
 echo "| Key | Value | Source |"
 echo "|-----|-------|--------|"
 
-for key in "${REVIEW_KEYS[@]}"; do
-  default="${DEFAULTS[$key]}"
+for i in "${!REVIEW_KEYS[@]}"; do
+  key="${REVIEW_KEYS[$i]}"
+  default="${REVIEW_DEFAULTS[$i]}"
   value=$("$READ_VALUE" "$key" "$default")
   source=$(get_source "$key")
   echo "| \`$key\` | \`$value\` | $source |"

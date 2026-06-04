@@ -2614,6 +2614,20 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+echo "Test: REVIEW_DEFAULTS stays index-aligned with REVIEW_KEYS (first + last)"
+# A config file must exist (else config-dump emits nothing) but must not override
+# the first or last review key, so both fall to their defaults. Asserting the
+# emitted default at BOTH ends of the array catches a one-position slip between
+# REVIEW_DEFAULTS and REVIEW_KEYS that the single-key checks above would miss.
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+printf -- '---\nreview:\n  min_lenses: 5\n---\n' > "$REPO/.accelerator/config.md"
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+assert_contains "first key default value/source aligned" "$OUTPUT" \
+  '`review.max_inline_comments` | `10` | default'
+assert_contains "last key default value/source aligned" "$OUTPUT" \
+  '`review.plan_revise_major_count` | `3` | default'
+
 echo "Test: All review config keys appear in output (completeness check)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"

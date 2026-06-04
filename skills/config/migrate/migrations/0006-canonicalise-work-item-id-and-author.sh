@@ -312,17 +312,32 @@ walk_corpus() {
   echo "0006: rewrote $rewrote file(s) under $rel"
 }
 
-declare -A WALKED
+# bash-3.2 has no associative arrays: track walked canons with parallel indexed
+# arrays + a linear-search owner lookup (canon -> first key that recorded it).
+WALKED_CANONS=()
+WALKED_KEYS=()
+_walked_owner() { # echoes the recorded key for a canon, empty if unseen
+  local needle="$1" i
+  for ((i = 0; i < ${#WALKED_CANONS[@]}; i++)); do
+    if [ "${WALKED_CANONS[$i]}" = "$needle" ]; then
+      printf '%s' "${WALKED_KEYS[$i]}"
+      return 0
+    fi
+  done
+  return 0 # not found: echo nothing, succeed (a failing match must not abort set -e)
+}
 for key in plans research_codebase research_issues; do
   raw_rel="$(cd "$PROJECT_ROOT" && bash "$PLUGIN_ROOT/scripts/config-read-path.sh" "$key" 2>/dev/null || true)"
   if [ -z "$raw_rel" ]; then continue; fi
   canon="$(canonicalise_rel "$raw_rel")"
-  if [ -n "${WALKED[$canon]:-}" ]; then
-    log_warn "0006: paths.$key aliases paths.${WALKED[$canon]} ($raw_rel -> $canon) — skipping duplicate walk"
+  owner="$(_walked_owner "$canon")"
+  if [ -n "$owner" ]; then
+    log_warn "0006: paths.$key aliases paths.$owner ($raw_rel -> $canon) — skipping duplicate walk"
     echo "0006: skipping duplicate walk for paths.$key"
     continue
   fi
-  WALKED[$canon]="$key"
+  WALKED_CANONS+=("$canon")
+  WALKED_KEYS+=("$key")
   walk_corpus "$key"
 done
 
@@ -358,15 +373,30 @@ resolve_user_template_path() {
   fi
 }
 
-declare -A TEMPLATE_PATHS
+# bash-3.2: parallel indexed arrays + linear search in place of an associative
+# array keyed by resolved path (path -> first template name that recorded it).
+TEMPLATE_PATHS=()
+TEMPLATE_NAMES=()
+_template_owner() { # echoes the recorded name for a resolved path, empty if unseen
+  local needle="$1" i
+  for ((i = 0; i < ${#TEMPLATE_PATHS[@]}; i++)); do
+    if [ "${TEMPLATE_PATHS[$i]}" = "$needle" ]; then
+      printf '%s' "${TEMPLATE_NAMES[$i]}"
+      return 0
+    fi
+  done
+  return 0 # not found: echo nothing, succeed (a failing match must not abort set -e)
+}
 for name in plan codebase-research rca; do
   path=$(resolve_user_template_path "$name")
   if [ -n "$path" ]; then
-    if [ -n "${TEMPLATE_PATHS[$path]:-}" ]; then
-      log_warn "0006: templates.$name and templates.${TEMPLATE_PATHS[$path]} resolve to the same file ($path) — skipping duplicate rewrite"
+    owner="$(_template_owner "$path")"
+    if [ -n "$owner" ]; then
+      log_warn "0006: templates.$name and templates.$owner resolve to the same file ($path) — skipping duplicate rewrite"
       continue
     fi
-    TEMPLATE_PATHS[$path]="$name"
+    TEMPLATE_PATHS+=("$path")
+    TEMPLATE_NAMES+=("$name")
     touched=$(rewrite_file "$path")
     echo "0006: template $name (tier-resolved $path): touched=$touched"
   fi

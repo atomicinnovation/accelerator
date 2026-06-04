@@ -2070,7 +2070,9 @@ assert_eq "exit 0" "0" "$RC"
 R="$REPO/docs/research/2026-01-01.md"
 A_LINES=$(grep -c '^author:' "$R" || true)
 assert_eq "exactly one author line" "1" "$A_LINES"
-assert_contains "alias warning" "$OUTPUT" "aliases paths."
+# Pin the recorded owner key, not just the "aliases paths." prefix — guards the
+# parallel-array owner lookup against returning the wrong recorded entry.
+assert_contains "alias warning names correct owner key" "$OUTPUT" "aliases paths.research_codebase"
 assert_contains "reports skip" "$OUTPUT" "skipping duplicate walk"
 
 echo ""
