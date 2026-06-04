@@ -6,6 +6,7 @@ MIGRATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$MIGRATION_DIR/../../../.." && pwd)}"
 source "$PLUGIN_ROOT/scripts/config-common.sh"
 source "$PLUGIN_ROOT/scripts/atomic-common.sh"
+source "$PLUGIN_ROOT/scripts/fs-common.sh"
 source "$PLUGIN_ROOT/scripts/log-common.sh"
 source "$PLUGIN_ROOT/scripts/accelerator-scaffold.sh"
 
@@ -26,40 +27,16 @@ JIRA_INNER_GITIGNORE_RULES=(
 )
 
 # ── _move_if_pending <rel-src> <rel-dst> ─────────────────────────────────────
-# Moves $PROJECT_ROOT/<rel-src> to $PROJECT_ROOT/<rel-dst> when the source
-# exists and the destination does not. Idempotent for all other states.
-# Exits non-zero with a reconciliation message when both paths exist and differ.
+# Relocates $PROJECT_ROOT/<rel-src> onto $PROJECT_ROOT/<rel-dst> via merge_move:
+# a both-present state merges (source-wins on same-named leaf collisions) rather
+# than aborting, then the empty source is removed (see scripts/fs-common.sh).
+# A missing source is a no-op; the `[ -e ]` guard below also gates the move
+# bookkeeping so a no-op source is not falsely recorded as moved.
 _move_if_pending() {
   local rel_src="$1" rel_dst="$2"
-  local src="$PROJECT_ROOT/$rel_src"
-  local dst="$PROJECT_ROOT/$rel_dst"
-
-  # Both absent — nothing to do
-  [ ! -e "$src" ] && [ ! -e "$dst" ] && return 0
-
-  # Source absent, dest present — already moved on a prior run
-  [ ! -e "$src" ] && [ -e "$dst" ] && return 0
-
-  # Both present — conflict
-  if [ -e "$src" ] && [ -e "$dst" ]; then
-    printf '%s\n' \
-      "accelerator migrate: conflict — both '$rel_src' and '$rel_dst' exist." \
-      "Prior moves in this run: ${MOVED_THIS_RUN[*]:-(none)}" >&2
-    if [ -d "$src" ] && [ -d "$dst" ]; then
-      diff -r "$src" "$dst" >&2 || true
-    else
-      diff "$src" "$dst" >&2 || true
-    fi
-    printf '%s\n' \
-      "Recover with: jj op restore / git reset, reconcile manually, then re-run." >&2
-    exit 1
-  fi
-
-  # Source present, dest absent — move it
-  local dst_parent
-  dst_parent="$(dirname "$dst")"
-  mkdir -p "$dst_parent"
-  mv "$src" "$dst"
+  local src="$PROJECT_ROOT/$rel_src" dst="$PROJECT_ROOT/$rel_dst"
+  [ -e "$src" ] || return 0
+  merge_move "$src" "$dst"
   MOVED_THIS_RUN+=("$rel_src → $rel_dst")
 }
 

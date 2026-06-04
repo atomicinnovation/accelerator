@@ -5,6 +5,7 @@ set -euo pipefail
 MIGRATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$MIGRATION_DIR/../../../.." && pwd)}"
 source "$PLUGIN_ROOT/scripts/config-common.sh"
+source "$PLUGIN_ROOT/scripts/fs-common.sh"
 
 if [ -z "${PROJECT_ROOT:-}" ]; then
   PROJECT_ROOT="$(config_project_root)"
@@ -68,45 +69,22 @@ if [ -d "$tickets_dir" ]; then
   done < <(find "$tickets_dir" -name '*.md' -print0)
 fi
 
-# ── Step 3: Collision check ──────────────────────────────────────────────────
+# ── Step 3: Directory renames (default paths only) ───────────────────────────
+# Both-present states merge instead of aborting: merge_move folds the legacy
+# source into an existing target, source-wins on same-named leaf collisions,
+# then removes the empty source (see scripts/fs-common.sh). A regular-file
+# destination is overwritten by the source directory (source-wins), consistent
+# with 0003/0004.
 
-if [ "$tickets_is_default" -eq 1 ] \
-    && [ -d "$tickets_dir" ] \
-    && [ -d "$work_dir" ]; then
-  echo "Error: Both $tickets_dir and $work_dir exist — cannot proceed." >&2
-  echo "Manually merge or remove one of them, then re-run /accelerator:migrate." >&2
-  exit 1
+if [ "$tickets_is_default" -eq 1 ] && [ -d "$tickets_dir" ]; then
+  merge_move "$tickets_dir" "$work_dir"
 fi
 
-if [ "$review_tickets_is_default" -eq 1 ] \
-    && [ -d "$review_tickets_dir" ] \
-    && [ -d "$review_work_dir" ]; then
-  echo "Error: Both $review_tickets_dir and $review_work_dir exist — cannot proceed." >&2
-  echo "Manually merge or remove one of them, then re-run /accelerator:migrate." >&2
-  exit 1
+if [ "$review_tickets_is_default" -eq 1 ] && [ -d "$review_tickets_dir" ]; then
+  merge_move "$review_tickets_dir" "$review_work_dir"
 fi
 
-# ── Step 4: Directory renames (default paths only) ───────────────────────────
-
-if [ "$tickets_is_default" -eq 1 ]; then
-  if [ -d "$tickets_dir" ]; then
-    # source exists: attempt mv.
-    # If target is already a directory, the collision check (step 3) already aborted.
-    # If target is a regular file, mv fails here → script exits non-zero (retry-safe).
-    # If target is absent, mv succeeds normally.
-    mv "$tickets_dir" "$work_dir"
-  fi
-  # source absent: already migrated or fresh repo — no-op
-fi
-
-if [ "$review_tickets_is_default" -eq 1 ]; then
-  if [ -d "$review_tickets_dir" ]; then
-    mkdir -p "$(dirname "$review_work_dir")"
-    mv "$review_tickets_dir" "$review_work_dir"
-  fi
-fi
-
-# ── Step 5: Config-key rewrites ──────────────────────────────────────────────
+# ── Step 4: Config-key rewrites ──────────────────────────────────────────────
 
 rewrite_config() {
   local cfg="$1"

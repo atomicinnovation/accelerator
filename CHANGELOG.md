@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Migration framework: directory relocations in migrations 0001, 0003, and
+  0004 now **merge** into an existing target instead of aborting. Previously a
+  both-present state (e.g. a stale `meta/tmp/` alongside a fresh
+  `.accelerator/tmp/`, or `meta/tickets/` alongside `meta/work/`) failed the
+  migration and required manual reconciliation. The relocation now folds the
+  source into the target and **overwrites same-named leaf files source-wins**,
+  then removes the empty source — so a re-run after a partial or aborted
+  migration converges in a single pass. On a genuine leaf collision the target's
+  copy of that file is replaced by the source's; `jj op restore` / `git reset`
+  remains the recovery path.
+
 ## [1.21.0] - 2026-06-02
 
 > **Upgrading from 1.20.0 requires running `/accelerator:migrate`.** After

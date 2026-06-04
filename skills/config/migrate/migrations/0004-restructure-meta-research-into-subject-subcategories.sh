@@ -6,6 +6,7 @@ MIGRATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$MIGRATION_DIR/../../../.." && pwd)}"
 source "$PLUGIN_ROOT/scripts/config-common.sh"
 source "$PLUGIN_ROOT/scripts/atomic-common.sh"
+source "$PLUGIN_ROOT/scripts/fs-common.sh"
 source "$PLUGIN_ROOT/scripts/log-common.sh"
 
 if [ -z "${PROJECT_ROOT:-}" ]; then
@@ -256,30 +257,16 @@ _plan_research_moves
 _plan_inv_moves
 _plan_gaps_moves
 
-_check_collisions() {
-  local conflicts=() entry dst
-  for entry in "${PLANNED_MOVES[@]+"${PLANNED_MOVES[@]}"}"; do
-    dst="${entry#*$'\t'}"
-    [ -e "$PROJECT_ROOT/$dst" ] && conflicts+=("$dst")
-  done
-  if [ "${#conflicts[@]}" -gt 0 ]; then
-    echo "0004: destination collision(s) detected. Migration aborted with no filesystem changes." >&2
-    local c
-    for c in "${conflicts[@]}"; do
-      echo "  conflict: $c already exists" >&2
-    done
-    exit 1
-  fi
-}
-_check_collisions
-
 _move_if_pending() {
-  local src_rel="$1" dst_rel="$2"
-  local src="$PROJECT_ROOT/$src_rel" dst="$PROJECT_ROOT/$dst_rel"
+  local rel_src="$1" rel_dst="$2"
+  local src="$PROJECT_ROOT/$rel_src" dst="$PROJECT_ROOT/$rel_dst"
+  # A missing source is a no-op; the guard also gates the move-record below so a
+  # no-op source is not falsely logged as moved.
   [ -e "$src" ] || return 0
-  mkdir -p "$(dirname "$dst")"
-  mv "$src" "$dst"
-  echo "0004: moved $src_rel → $dst_rel"
+  # Both-present states merge (source-wins on same-named leaf collisions) rather
+  # than aborting, then the empty source is removed (see scripts/fs-common.sh).
+  merge_move "$src" "$dst"
+  echo "0004: moved $rel_src → $rel_dst"
 }
 
 for entry in "${PLANNED_MOVES[@]+"${PLANNED_MOVES[@]}"}"; do

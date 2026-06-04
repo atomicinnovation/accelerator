@@ -114,19 +114,27 @@ assert_contains "no pending output" "$OUTPUT" "No pending migrations"
 echo ""
 
 # ── Test 4: Failed migration aborts without updating state file ───────────────
+# Uses a stub migration that exits non-zero to induce the failure — the
+# relocation migrations no longer abort on collision (they merge), so a failing
+# stub is the stable way to exercise the orchestrator's "failure → state not
+# updated" contract.
 echo "Test: Failed migration aborts without updating state file"
-REPO=$(setup_old_repo)
-# Pre-create meta/work as a regular file — mv meta/tickets/ meta/work will fail
-printf 'blocking file\n' > "$REPO/meta/work"
+REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
+mkdir -p "$REPO/.git" "$REPO/meta"
+FAIL_DIR=$(mktemp -d "$TMPDIR_BASE/failmigs-XXXXXX")
+cat > "$FAIL_DIR/9003-stub-fail.sh" << 'STUB'
+#!/usr/bin/env bash
+# DESCRIPTION: stub migration that fails
+echo "boom" >&2
+exit 1
+STUB
+chmod +x "$FAIL_DIR/9003-stub-fail.sh"
 RC=0
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$FAIL_DIR" \
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
 assert_neq "non-zero exit" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_not_contains "state file missing migration ID" "$APPLIED" "0001-rename-tickets-to-work"
-# Step 2 (frontmatter rewrite) ran before step 4 failed — file has work_item_id: in meta/tickets/
-assert_file_exists "meta/tickets/0001-foo.md still present" "$REPO/meta/tickets/0001-foo.md"
-CONTENT=$(cat "$REPO/meta/tickets/0001-foo.md")
-assert_contains "file has work_item_id (step 2 ran)" "$CONTENT" "work_item_id: 0001"
+assert_not_contains "failed migration NOT recorded as applied" "$APPLIED" "9003-stub-fail"
 
 echo ""
 
@@ -180,23 +188,50 @@ assert_dir_not_exists "meta/work not spuriously created" "$REPO/meta/work"
 
 echo ""
 
-# ── Test 8: Both default dirs exist — collision aborts cleanly ───────────────
-echo "Test: Collision between meta/tickets/ and meta/work/ aborts cleanly"
+# ── Test 8: Both default dirs exist — merge, source wins, no abort ───────────
+# Runs through the orchestrator (with the 0001-only migrations dir) so the real
+# dispatch-context `source fs-common.sh` path under PATH `bash` is exercised,
+# and 0006 does NOT run — so a destination-resident file keeps its ticket_id,
+# pinning that 0001's merge leaves destination content for 0006 to canonicalise.
+echo "Test: Both meta/tickets/ and meta/work/ exist — merge with source-wins, no abort"
 REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO/meta/tickets" "$REPO/meta/work"
-printf -- '---\nticket_id: 0001\n---\n' > "$REPO/meta/tickets/0001-foo.md"
-printf -- '---\nwork_item_id: 0002\n---\n' > "$REPO/meta/work/0002-bar.md"
+mkdir -p "$REPO/meta/reviews/tickets" "$REPO/meta/reviews/work"
+# tickets-side (source) files: 0001-foo unique; shared overlaps meta/work.
+printf -- '---\nticket_id: 0001\n---\n\nSRC-FOO\n' > "$REPO/meta/tickets/0001-foo.md"
+printf -- '---\nticket_id: 0003\n---\n\nSRC-SHARED\n' > "$REPO/meta/tickets/shared.md"
+# work-side (destination) files: shared overlaps (differing); dest-only resident.
+printf -- '---\nwork_item_id: 0003\n---\n\nDEST-SHARED\n' > "$REPO/meta/work/shared.md"
+printf -- '---\nticket_id: 0009\n---\n\nDEST-ONLY\n' > "$REPO/meta/work/dest-only.md"
+# review pair: r-shared overlaps (differing); r-dest resident.
+printf -- 'SRC-RSHARED\n' > "$REPO/meta/reviews/tickets/r-shared.md"
+printf -- 'DEST-RSHARED\n' > "$REPO/meta/reviews/work/r-shared.md"
+printf -- 'DEST-RONLY\n' > "$REPO/meta/reviews/work/r-dest.md"
 mkdir -p "$REPO/.claude"
 printf -- '---\n---\n' > "$REPO/.claude/accelerator.md"
 RC=0
-OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
-assert_neq "non-zero exit" "0" "$RC"
-assert_contains "error mentions meta/tickets" "$OUTPUT" "meta/tickets"
-assert_contains "error mentions meta/work" "$OUTPUT" "meta/work"
-assert_dir_exists "meta/tickets still present" "$REPO/meta/tickets"
-assert_dir_exists "meta/work still present" "$REPO/meta/work"
-APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
-assert_not_contains "state file has no migration ID" "$APPLIED" "0001-rename-tickets-to-work"
+OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "exit 0 — merge, no abort" "0" "$RC"
+# Legacy sources removed after the merge.
+assert_dir_not_exists "meta/tickets removed" "$REPO/meta/tickets"
+assert_dir_not_exists "meta/reviews/tickets removed" "$REPO/meta/reviews/tickets"
+# tickets→work pair merged; Step 2 rewrote ticket_id→work_item_id in the source.
+FOO=$(cat "$REPO/meta/work/0001-foo.md")
+assert_contains "unique source file moved" "$FOO" "SRC-FOO"
+assert_contains "source frontmatter canonicalised by Step 2" "$FOO" "work_item_id: 0001"
+SHARED=$(cat "$REPO/meta/work/shared.md")
+assert_contains "leaf collision: source content wins" "$SHARED" "SRC-SHARED"
+assert_not_contains "destination content overwritten" "$SHARED" "DEST-SHARED"
+assert_contains "source frontmatter canonicalised" "$SHARED" "work_item_id: 0003"
+# Destination-resident file untouched by 0001 — left for 0006 (which did not run
+# here), so it still carries the legacy ticket_id.
+DEST_ONLY=$(cat "$REPO/meta/work/dest-only.md")
+assert_contains "destination-resident file preserved" "$DEST_ONLY" "DEST-ONLY"
+assert_contains "destination-resident ticket_id left for 0006" "$DEST_ONLY" "ticket_id: 0009"
+# review pair merged with source-wins on the overlap.
+assert_file_content_eq "review overlap: source wins" "$REPO/meta/reviews/work/r-shared.md" "SRC-RSHARED"
+assert_file_content_eq "review dest-resident preserved" "$REPO/meta/reviews/work/r-dest.md" "DEST-RONLY"
 
 echo ""
 
@@ -909,18 +944,37 @@ assert_file_not_exists "meta/.migrations-applied removed" "$REPO/meta/.migration
 
 echo ""
 
-# ── Test 11a: conflict detection ──────────────────────────────────────────────
-echo "Test: conflict detection — both .claude/accelerator.md and .accelerator/config.md exist with differing content"
+# ── Test 11a: both-present file → merge with source-wins (no abort) ──────────
+echo "Test: both .claude/accelerator.md and .accelerator/config.md exist — source wins, no abort"
 REPO=$(setup_0003_repo)
 mkdir -p "$REPO/.accelerator"
 printf 'different content\n' > "$REPO/.accelerator/config.md"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
-assert_neq "non-zero exit on conflict" "0" "$RC"
-assert_contains "error names both paths" "$OUTPUT" "accelerator.md"
-assert_contains "error names both paths (dest)" "$OUTPUT" "config.md"
-assert_file_exists ".claude/accelerator.md still present" "$REPO/.claude/accelerator.md"
-assert_file_exists ".accelerator/config.md still present (not wiped)" "$REPO/.accelerator/config.md"
+assert_eq "exit 0 — merge, no abort" "0" "$RC"
+assert_file_not_exists ".claude/accelerator.md removed after move" "$REPO/.claude/accelerator.md"
+CFG=$(cat "$REPO/.accelerator/config.md")
+assert_contains "destination holds source content (source wins)" "$CFG" "default_project_code: PROJ"
+assert_not_contains "pre-existing destination overwritten by source" "$CFG" "different content"
+
+echo ""
+
+# ── Test 11b: both-present directory → recursive merge, source-wins on leaf ──
+echo "Test: meta/tmp/ merges into existing .accelerator/tmp/ (dir merge, source-wins on overlap)"
+REPO=$(setup_0003_repo)
+printf 'SRC-KEEP\n' > "$REPO/meta/tmp/keep.md"
+printf 'SRC-NEW\n' > "$REPO/meta/tmp/new.md"
+mkdir -p "$REPO/.accelerator/tmp"
+printf 'DEST-KEEP\n' > "$REPO/.accelerator/tmp/keep.md"
+printf 'DEST-ONLY\n' > "$REPO/.accelerator/tmp/dest-only.md"
+RC=0
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+assert_eq "exit 0 — dir merge, no abort" "0" "$RC"
+assert_dir_not_exists "meta/tmp removed after merge" "$REPO/meta/tmp"
+assert_file_content_eq "new source file merged in" "$REPO/.accelerator/tmp/new.md" "SRC-NEW"
+assert_file_content_eq "leaf collision: source content wins" "$REPO/.accelerator/tmp/keep.md" "SRC-KEEP"
+assert_file_content_eq "destination-only file preserved" "$REPO/.accelerator/tmp/dest-only.md" "DEST-ONLY"
+assert_file_exists "fixture session.json merged in" "$REPO/.accelerator/tmp/session.json"
 
 echo ""
 
@@ -1074,17 +1128,19 @@ assert_contains "diagnostic names paths.research_codebase" "$OUTPUT" "paths.rese
 assert_file_exists "no files moved on refusal" "$REPO/meta/research/foo.md"
 assert_dir_not_exists "no codebase dir created" "$REPO/meta/research/codebase"
 
-echo "Test: collision at destination halts migration with zero filesystem mutation"
+echo "Test: destination collision — source overwrites target (merge, source-wins)"
 REPO=$(setup_0004_repo default-layout)
 mkdir -p "$REPO/meta/research/codebase"
 printf 'pre-existing\n' > "$REPO/meta/research/codebase/2026-01-01-example.md"
 RC=0
 OUTPUT=$(run_0004 "$REPO" 2>&1) || RC=$?
-assert_neq "non-zero exit on collision" "0" "$RC"
-assert_contains "diagnostic mentions collision" "$OUTPUT" "collision"
-assert_file_exists "source still in legacy location" "$REPO/meta/research/2026-01-01-example.md"
-PRE_CONTENT=$(cat "$REPO/meta/research/codebase/2026-01-01-example.md")
-assert_eq "pre-existing destination preserved" "pre-existing" "$PRE_CONTENT"
+assert_eq "exit 0 — merge, no abort" "0" "$RC"
+assert_file_not_exists "source removed after move" "$REPO/meta/research/2026-01-01-example.md"
+# The moved file is also inbound-link rewritten by Step 3, so assert source-wins
+# by distinctive markers rather than a byte-compare against the pre-move source.
+MOVED_CONTENT=$(cat "$REPO/meta/research/codebase/2026-01-01-example.md")
+assert_contains "destination holds moved source content" "$MOVED_CONTENT" "# Example research"
+assert_not_contains "pre-existing destination overwritten by source" "$MOVED_CONTENT" "pre-existing"
 
 echo "Test: idempotent — re-running default-layout yields no further changes"
 REPO=$(setup_0004_repo default-layout)
