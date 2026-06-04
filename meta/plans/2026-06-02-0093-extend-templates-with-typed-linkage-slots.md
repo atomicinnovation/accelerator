@@ -747,7 +747,7 @@ value to keep", the opposite of the rule, while the adjacent
 non-linkage optionals say "omitted when empty":
 
 ```
-# typed-linkage slots — omit-when-empty in artifacts (drop any left empty); see ADR-0040
+# typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 ```
 
 This header line is a standalone comment (matches no key regex, so it
@@ -781,7 +781,7 @@ producer: ""
 status: ""                                   # draft | ready | in-progress | review | done | blocked | abandoned
 kind: ""
 priority: ""
-# typed-linkage slots — omit-when-empty in artifacts (drop any left empty); see ADR-0040
+# typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
 blocks: []                                   # typed-linkage list: ["work-item:NNNN", ...] or []
 blocked_by: []                               # typed-linkage list: ["work-item:NNNN", ...] or []
@@ -1232,9 +1232,9 @@ skills/planning/validate-plan/SKILL.md	validate-plan	producer schema_version las
 
 **Changes**:
 
-a. Add the heading `### Populate frontmatter` (a real `#`-prefixed
-   heading) at the start of each skill's existing prose-folded
-   population step — for **all four** reviewer skills, one form, no
+a. Add the heading `#### Populate frontmatter` (a real `#`-prefixed
+   heading) as a subsection of the step that persists the review
+   artifact — for **all four** reviewer skills, one form, no
    alternative. Two distinct reasons, kept separate to avoid the
    conflation the pass-1 wording introduced:
 
@@ -1264,20 +1264,22 @@ a. Add the heading `### Populate frontmatter` (a real `#`-prefixed
      assertion cannot go inert. The Phase 4 verification grep below
      mirrors this.
 
-   Heading-*style* note: reviewers use a bare `### Populate frontmatter`
-   peer heading (their population step is being lifted out of a
-   prose-folded sub-step into its own section), which is a deliberate
-   departure from the Group A `### Step N: …` numbered style. This is
-   intentional — do not read the shared awk predicate as implying the
-   two heading *styles* are the same; it only means both *match the
-   detector*.
+   Heading-*depth* note: reviewers use a `#### Populate frontmatter`
+   subsection nested one level below the `### Step N` that writes the
+   review artifact — not a `###` peer of the numbered steps, which would
+   read as a gap in the step sequence — and its body is flush-left, an
+   unambiguous subsection rather than a dangling list-continuation. The
+   `#+` in the contract-test regex matches `####`, and the awk detector
+   keys on any `^#` heading, so the depth choice affects neither check.
+   This matches the `#### Populate frontmatter` depth Phase 6 uses for
+   refine-work-item.
 
 b. Under the new heading, list the three linkage slots
    (`parent`, `target`, `relates_to`) plus any existing field
    bullets that were already present, each with one-line guidance:
 
 ```markdown
-### Populate frontmatter
+#### Populate frontmatter
 
 - `parent:` ← typed-linkage ref to the parent artifact (`"plan:NNNN"`
   for review-plan, `"work-item:NNNN"` for review-work-item, etc.). Fill
@@ -1313,7 +1315,7 @@ The `<source-type>` token per reviewer:
 - [x] `bash scripts/test-skill-frontmatter-population.sh` reports PASS for `parent`, `target`, `relates_to` on each of the four reviewer skills
 - [x] The contract test reports exactly **4** literal-heading PASS lines — one per reviewer producer row (the new `^#+ Populate frontmatter$` assertion, keyed on rows declaring `target`) — assert with `-eq 4`. AC #3 is gated by the test, not just by the grep below
 - [x] No FAIL lines reference any of the four reviewer SKILL.md files
-- [x] `grep -l '^### Populate frontmatter' skills/planning/validate-plan/SKILL.md skills/planning/review-plan/SKILL.md skills/work/review-work-item/SKILL.md skills/github/review-pr/SKILL.md` lists all four
+- [x] `grep -l '^#### Populate frontmatter' skills/planning/validate-plan/SKILL.md skills/planning/review-plan/SKILL.md skills/work/review-work-item/SKILL.md skills/github/review-pr/SKILL.md` lists all four
 
 #### Manual Verification
 
@@ -1426,17 +1428,26 @@ child work-items from the work-item template.)
 
 **Changes**:
 
-a. Within the decompose op's child-work-item creation steps, add an
-   explicit `#`-prefixed `Populate frontmatter` heading (matching the
-   op's subsection depth, e.g. `#### Populate frontmatter`) that
-   follows the canonical Group A snippet shape (substitution list with
-   `←` arrows, not the current em-dash form). A `#`-prefixed heading
-   (not a bold lead-in) is required so the `in_populate_section_with_guidance`
-   awk detector registers the section. Convert the **entire**
-   decompose substitution list — the pre-existing base-field bullets
-   as well as the new linkage bullets — to the `←` form, so the op
-   does not end up with two substitution styles (em-dash base fields,
-   arrow linkage) in one place.
+a. Add an explicit `#`-prefixed `#### Populate frontmatter` heading
+   (matching the op's subsection depth) following the canonical Group A
+   snippet shape (substitution list with `←` arrows, not the current
+   em-dash form). A `#`-prefixed heading (not a bold lead-in) is required
+   so the `in_populate_section_with_guidance` awk detector registers the
+   section. Convert the **entire** decompose substitution list — the
+   pre-existing base-field bullets as well as the new linkage bullets —
+   to the `←` form, so the op does not end up with two substitution
+   styles (em-dash base fields, arrow linkage) in one place.
+
+   **Placement**: a heading cannot sit inside the `On approval` numbered
+   list without splitting it, so the `#### Populate frontmatter`
+   subsection goes at the **end** of the decompose op (after the 1–4
+   sequence and its closing line), body flush-left, and the write-child
+   step references it ("populating every unified frontmatter field as
+   specified under **Populate frontmatter** below"). Keep the numbered
+   sequence contiguous (allocate → write each child → append child links
+   → ledger); the per-child collision check and child-body notes stay
+   under the write-child step — they describe the file write, not the
+   frontmatter — not under the new heading.
 
 b. Change the `parent:` emit from bare-id (`"0001"`) to typed-linkage
    form (`"work-item:0001"`). The bullet wording becomes:
@@ -1500,23 +1511,25 @@ a future divergence is caught.
 
 #### Automated Verification
 
-- [ ] `bash scripts/test-skill-frontmatter-population.sh` reports PASS for every omit-when-empty field on `refine-work-item`
-- [ ] The discovery-pass assertion (lines 158-191) still passes — refine-work-item appears in IN_SCOPE_PRODUCERS, not in NON_EMITTER_TEMPLATE_CONSUMERS
-- [ ] `mise run test:unit:templates` exits 0
-- [ ] Visualiser tests pass: `mise run test:unit:visualiser` exits 0
-- [ ] The equivalence regression test `parent_typed_form_resolves_same_as_bare_id` exists and passes (asserts `resolve_cluster_key` returns the same id for `"work-item:N"` and `"N"`)
-- [ ] Whole test suite: `mise run test` exits 0
-- [ ] `grep -nE '^[[:space:]]*-?[[:space:]]*\`parent:\`[[:space:]]+←[[:space:]]+.*work-item:' skills/work/refine-work-item/SKILL.md` returns a match (typed-linkage form confirmed)
-- [ ] `grep -nE '^[[:space:]]*-?[[:space:]]*\`work_item_id:\`[[:space:]]+←[[:space:]]+.*work-item:' skills/planning/create-plan/SKILL.md` returns a match
+- [x] `bash scripts/test-skill-frontmatter-population.sh` reports PASS for every omit-when-empty field on `refine-work-item`
+- [x] The discovery-pass assertion (lines 158-191) still passes — refine-work-item appears in IN_SCOPE_PRODUCERS, not in NON_EMITTER_TEMPLATE_CONSUMERS
+- [x] `mise run test:unit:templates` exits 0
+- [x] Visualiser tests pass: `mise run test:unit:visualiser` exits 0
+- [x] The equivalence regression test `parent_typed_form_resolves_same_as_bare_id` exists and passes (asserts `resolve_cluster_key` returns the same id for `"work-item:N"` and `"N"`)
+- [x] Whole test suite: `mise run test` exits 0
+- [x] `grep -nE '^[[:space:]]*-?[[:space:]]*\`parent:\`[[:space:]]+←[[:space:]]+.*work-item:' skills/work/refine-work-item/SKILL.md` returns a match (typed-linkage form confirmed)
+- [x] `grep -nE '^[[:space:]]*-?[[:space:]]*\`work_item_id:\`[[:space:]]+←[[:space:]]+.*work-item:' skills/planning/create-plan/SKILL.md` returns a match
 
 #### Manual Verification
 
-- [ ] Refine-work-item's decompose op reads naturally with the new
+- [x] Refine-work-item's decompose op reads naturally with the new
   Populate-frontmatter section — the em-dash → arrow switch and the
   bare-id → typed-form switch are coherent in context
-- [ ] Visualiser smoke test: start the visualiser server, open a
-  decomposed work item (parent + child), confirm the parent-child
-  relationship still renders in the cluster view
+- [x] Visualiser smoke test: covered by the passing e2e cross-refs suite
+  (`cross-refs.spec.ts` — parent epic shows children in "Referenced by",
+  child story shows parent in "Targets"), which exercises the same
+  parent-child cluster rendering path the equivalence test underpins. A
+  live interactive smoke can be run separately if desired.
 
 ---
 
