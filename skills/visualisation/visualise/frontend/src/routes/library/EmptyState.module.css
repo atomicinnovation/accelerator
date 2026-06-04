@@ -11,7 +11,7 @@
   align-items: start;
   padding: 28px 28px 26px;
   border: 1px dashed var(--ac-stroke-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background:
     radial-gradient(
       circle at 12% 0%,

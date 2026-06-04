@@ -70,9 +70,9 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   // timeline spine, stage tile, and tcard literals. Numbers track the
   // prototype's `.ac-tcard` / `.ac-tstep` measurements verbatim so the
   // detail page reads as a port rather than a reinterpretation.
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1px', count: 5, kind: 'irreducible', reason: 'pipeline panel + tile + tcard + spine half-offset + error border-widths — below --sp-1 floor' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'pipeline panel + timeline tile + entry card + error-state border-widths — below --sp-1 floor' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '2px', count: 1, kind: 'irreducible', reason: 'timeline spine width — below --sp-1 floor' },
-  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '6px', count: 3, kind: 'irreducible', reason: 'panel + tile border-radius + tcard head→body gap — between radius-sm (4) and radius-md (8)' },
+  { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'entry-card head→body row margin-bottom — between --sp-1 (4) and --sp-2 (8)' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '10px', count: 3, kind: 'irreducible', reason: 'tcard head gaps + missing-card padding — prototype-spec literal, between --sp-2 (8) and --sp-3 (12)' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '14px', count: 4, kind: 'irreducible', reason: 'pipeline eyebrow margin-bottom + tstep padding-top/node-top + tcard padding-y — prototype-spec literal, between --sp-3 (12) and --sp-4 (16)' },
   { file: 'routes/lifecycle/LifecycleClusterView.module.css', literal: '16px', count: 1, kind: 'irreducible', reason: 'tcard horizontal padding — prototype-spec literal, equals --sp-4 but kept inline to mirror prototype tcard `14px 16px`' },
@@ -193,7 +193,7 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '12px', count: 2, kind: 'irreducible', reason: 'grid gap + card top-row gap from design — equals --sp-3 but co-located' },
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '14px', count: 1, kind: 'irreducible', reason: 'card padding-block at .card — between --sp-3 and --sp-4' },
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '16px', count: 2, kind: 'irreducible', reason: 'card padding-left/-right + card column gap from design — equals --sp-4 but co-located' },
-  { file: 'routes/library/LibraryOverviewHub.module.css', literal: '6px', count: 3, kind: 'irreducible', reason: 'card border-radius + pinstripe stride from design — between --sp-1 and --sp-2' },
+  { file: 'routes/library/LibraryOverviewHub.module.css', literal: '6px', count: 2, kind: 'irreducible', reason: 'card pinstripe stride stops from design — between --sp-1 and --sp-2' },
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '7px', count: 1, kind: 'irreducible', reason: 'pinstripe stride end from design — between --sp-1 and --sp-2' },
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'card body row gap — equals --sp-1 but co-located' },
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '0.12em', count: 1, kind: 'irreducible', reason: 'phase-heading caps letter-spacing' },
@@ -204,7 +204,6 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'routes/library/EmptyState.module.css', literal: '26px', count: 1, kind: 'irreducible', reason: 'card bottom padding from design — between --sp-5 and --sp-6' },
   { file: 'routes/library/EmptyState.module.css', literal: '22px', count: 1, kind: 'irreducible', reason: 'card responsive padding-block at .card — equals --size-lg but co-located' },
   { file: 'routes/library/EmptyState.module.css', literal: '14px', count: 1, kind: 'irreducible', reason: 'foot padding-top at .foot — between --sp-3 and --sp-4' },
-  { file: 'routes/library/EmptyState.module.css', literal: '12px', count: 1, kind: 'irreducible', reason: 'card border-radius at .card — equals --radius-lg but co-located' },
   { file: 'routes/library/EmptyState.module.css', literal: '16px', count: 2, kind: 'irreducible', reason: 'lede margin-bottom + responsive grid gap — equals --sp-4 but co-located' },
   { file: 'routes/library/EmptyState.module.css', literal: '8px', count: 1, kind: 'irreducible', reason: 'title margin-bottom from design — equals --sp-2 but co-located' },
   { file: 'routes/library/EmptyState.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'eyebrow margin-bottom — equals --sp-1 but co-located' },
@@ -247,7 +246,6 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   // routes/lifecycle/LifecycleIndex.module.css
   { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'card, sort-segment, error-state, and dashed pipe border-width — below --sp-1 floor' },
   { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '2px', count: 3, kind: 'irreducible', reason: 'cardHeading gap and focus outline — below --sp-1 floor' },
-  { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'card border-radius — between radius-sm (4) and radius-md (8)' },
   { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '10px', count: 2, kind: 'irreducible', reason: 'pipeline strip gap and top spacing — prototype-spec literal, between --sp-2 (8) and --sp-3 (12)' },
   { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '18px', count: 1, kind: 'irreducible', reason: 'cardLink vertical padding — prototype-spec literal, between --sp-4 (16) and --sp-5 (24)' },
   { file: 'routes/lifecycle/LifecycleIndex.module.css', literal: '20px', count: 1, kind: 'irreducible', reason: 'cardLink horizontal padding — prototype-spec literal, between --sp-4 (16) and --sp-5 (24)' },

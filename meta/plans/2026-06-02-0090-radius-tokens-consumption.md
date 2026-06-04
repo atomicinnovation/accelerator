@@ -716,14 +716,20 @@ Phase 5 §2 worked example and are enforced by the Phase 7 §4 assertion.
 
 #### Automated Verification:
 
-- [ ] `mise run test:unit:frontend` green.
-- [ ] `mise run test:e2e:visualiser` green (lifecycle/library/templates
-      selectors; EmptyState omitted by design).
+- [x] `mise run test:unit:frontend` green — 2126 passed.
+- [x] `mise run test:e2e:visualiser` green (radius spec: lifecycle index card,
+      cluster panel + timeline tile, overview-hub card, templates tier-bullet;
+      EmptyState omitted by design).
 
 #### Manual Verification:
 
-- [ ] Lifecycle index/cluster cards & panels, overview-hub cards, template
-      tier-bullets render unchanged.
+- [x] Lifecycle index/cluster cards & panels, overview-hub cards, template
+      tier-bullets render unchanged (computed-radius spec). **Gate corrections
+      (clustering-rewrite drift):** LifecycleClusterView migrated two `6px`
+      (panel + timeline tile) + one `1px` (spine → `--radius-1`), no `50%`;
+      its `1px` row decremented 5→4 and `6px` row 3→1. LifecycleIndex `6px`
+      and EmptyState `12px` rows **deleted** (gate showed each was pure-radius;
+      the plan's "keep toolbar-gap 6px" was stale — no such literal exists).
 
 ---
 

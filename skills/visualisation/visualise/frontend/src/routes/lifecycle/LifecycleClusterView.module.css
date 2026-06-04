@@ -33,7 +33,7 @@
   padding: var(--sp-4) 20px;
   background: var(--ac-bg-sunken);
   border: 1px solid var(--ac-stroke);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   margin-bottom: var(--sp-2);
 }
 
@@ -64,7 +64,7 @@
   bottom: var(--sp-2);
   width: 2px;
   background: var(--ac-stroke);
-  border-radius: 1px;
+  border-radius: var(--radius-1);
 }
 
 .step {
@@ -89,7 +89,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid currentColor;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   box-sizing: border-box;
 }
 
