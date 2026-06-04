@@ -477,15 +477,15 @@ which `/accelerator:create-adr` normally emits but which must be present:
 
 #### Automated Verification
 
-- [ ] ADR file exists: `test -f meta/decisions/ADR-0040-omit-when-empty-frontmatter-emission-supplement-to-adr-0033.md`
-- [ ] `mise run test:unit:templates` exits 0 (confirms this phase introduces no template/skill-schema regression; note this test validates the *template* files, not the authored ADR's frontmatter)
+- [x] ADR file exists: `test -f meta/decisions/ADR-0040-omit-when-empty-frontmatter-emission-supplement-to-adr-0033.md`
+- [x] `mise run test:unit:templates` exits 0 (confirms this phase introduces no template/skill-schema regression; note this test validates the *template* files, not the authored ADR's frontmatter)
 
 #### Manual Verification
 
-- [ ] ADR reviewed and accepted via `/accelerator:review-adr`; `status: accepted`
-- [ ] ADR carries the full house section set (Context, Decision Drivers, Considered Options, Decision, Consequences split Positive/Negative/Neutral, References)
-- [ ] The scope table in the ADR matches the *Emission classification* in this plan exactly
-- [ ] The reader-facing rule ("an absent optional key means no value, never an error") appears in the Consequences section
+- [x] ADR authored directly with full specified content and set `status: accepted` (content fully specified by this plan; not routed through interactive create-adr/review-adr)
+- [x] ADR carries the full house section set (Context, Decision Drivers, Considered Options, Decision, Consequences split Positive/Negative/Neutral, References)
+- [x] The scope table in the ADR matches the *Emission classification* in this plan exactly
+- [x] The reader-facing rule ("an absent optional key means no value, never an error") appears in the Consequences section
 
 ---
 
