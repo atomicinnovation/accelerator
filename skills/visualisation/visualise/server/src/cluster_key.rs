@@ -214,6 +214,41 @@ mod tests {
     }
 
     #[test]
+    fn parent_typed_form_resolves_same_as_bare_id() {
+        // Phase 6's producer change (refine-work-item and create-plan now emit
+        // the typed "work-item:NNNN" form) relies on the typed and bare-id
+        // shapes resolving to the SAME canonical cluster id. The two shapes are
+        // covered separately above; this asserts their equivalence directly so
+        // a future divergence is caught.
+        let cfg = WorkItemConfig::default();
+
+        let mut typed = entry_for_test(DocTypeKey::Plans, "pipeline", 1, "P");
+        typed.frontmatter = json!({ "parent": "work-item:0042" });
+        let typed_key = resolve_cluster_key(
+            &typed,
+            &empty_entries(),
+            &HashMap::new(),
+            &HashMap::new(),
+            &project_root(),
+            &cfg,
+        );
+
+        let mut bare = entry_for_test(DocTypeKey::Plans, "pipeline", 1, "P");
+        bare.frontmatter = json!({ "parent": "0042" });
+        let bare_key = resolve_cluster_key(
+            &bare,
+            &empty_entries(),
+            &HashMap::new(),
+            &HashMap::new(),
+            &project_root(),
+            &cfg,
+        );
+
+        assert_eq!(typed_key, bare_key);
+        assert_eq!(typed_key.as_deref(), Some("0042"));
+    }
+
+    #[test]
     fn plan_with_work_item_id_frontmatter_resolves() {
         let cfg = WorkItemConfig::default();
         let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 1, "P");

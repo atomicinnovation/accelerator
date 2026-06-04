@@ -36,6 +36,7 @@ SKILLS_TSV="$SCRIPT_DIR/skills-schema.tsv"
 IN_SCOPE_PRODUCERS=(
   skills/work/create-work-item/SKILL.md
   skills/work/extract-work-items/SKILL.md
+  skills/work/refine-work-item/SKILL.md
   skills/planning/create-plan/SKILL.md
   skills/github/describe-pr/SKILL.md
   skills/decisions/create-adr/SKILL.md
@@ -50,7 +51,6 @@ IN_SCOPE_PRODUCERS=(
   skills/planning/validate-plan/SKILL.md
 )
 NON_EMITTER_TEMPLATE_CONSUMERS=(
-  skills/work/refine-work-item/SKILL.md
   skills/work/update-work-item/SKILL.md
   skills/work/list-work-items/SKILL.md
 )

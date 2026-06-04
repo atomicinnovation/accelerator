@@ -240,9 +240,9 @@ unified base fields into the template's frontmatter block:
      (config → VCS user → prompt)
    - `producer:` ← `create-plan`
    - `status:` ← `draft`
-   - `work_item_id:` ← the linked work item's full ID (quoted). Fill
-     when invoked with a work item argument; otherwise omit the key
-     entirely (do not carry an empty placeholder).
+   - `work_item_id:` ← the linked work item as a typed-linkage ref `"work-item:NNNN"`.
+     Fill in this form when invoked with a work item argument; otherwise
+     omit the key entirely (do not carry an empty placeholder).
    - `revision:` ← the `Current Revision:` value
    - `repository:` ← the `Repository Name:` value
    - `last_updated:` ← the same `Current Date/Time (UTC):` value

@@ -177,32 +177,8 @@ Wait for explicit `y`. On `n`, cancel without writing.
 1. Call `work-item-next-number.sh --count N` exactly once to allocate N
    consecutive numbers.
 
-2. For each child, write `NNNN-kebab-slug.md` with all unified
-   frontmatter fields populated:
-   - `type` — `work-item`
-   - `id` — from the script, zero-padded four-digit string
-     (own-identity; legacy files use `work_item_id`)
-   - `title` — per-child proposal title; body H1 matches exactly
-   - `date` — current UTC timestamp via `date -u +%Y-%m-%dT%H:%M:%S+00:00`
-   - `author` — first match in chain: parent work item's `author` field → configured
-     `author` value (from context config) → `jj config get user.name` →
-     `git config user.name` → ask the user once and apply to all children
-   - `producer` — `refine-work-item`
-   - `kind` — derived: `epic → story`, `story → task`, `bug`/`spike` → ask
-     user to confirm before proceeding (already done in the challenge step),
-     any other kind → `story` with a one-line notice
-   - `status` — literal `draft`
-   - `priority` — inherit from parent; if parent has none, ask once and
-     apply to every child written in this session
-   - `parent` — the target work item's own identity (from `id` on
-     unified files, or `work_item_id` on legacy files), canonicalised
-     to the configured pattern's full-ID shape (e.g. `"1"` → `"0001"`)
-   - `external_id` — empty string unless propagated from the parent
-   - `tags` — verbatim copy of the parent's `tags` array (empty array `[]`
-     if the parent has none)
-   - `last_updated` — same UTC timestamp as `date`
-   - `last_updated_by` — same author value resolved above
-   - `schema_version` — `1`
+2. For each child, write `NNNN-kebab-slug.md`, populating every unified
+   frontmatter field as specified under **Populate frontmatter** below.
 
    Immediately before writing each child, verify the computed filename does
    not already exist. If it does, abort with:
@@ -258,6 +234,61 @@ Wait for explicit `y`. On `n`, cancel without writing.
 
 After a successful decompose, proceed to Step 5 (hierarchy display) before
 running any remaining operations.
+
+#### Populate frontmatter
+
+When writing each child (step 2 above), **substitute** every field below
+with the indicated value:
+
+- `type:` ← `work-item`
+- `id:` ← from the script, zero-padded four-digit string
+  (own-identity; legacy files use `work_item_id`)
+- `title:` ← per-child proposal title; body H1 matches exactly
+- `date:` ← current UTC timestamp via `date -u +%Y-%m-%dT%H:%M:%S+00:00`
+- `author:` ← first match in chain: parent work item's `author` field → configured
+  `author` value (from context config) → `jj config get user.name` →
+  `git config user.name` → ask the user once and apply to all children
+- `producer:` ← `refine-work-item`
+- `kind:` ← derived: `epic → story`, `story → task`, `bug`/`spike` → ask
+  user to confirm before proceeding (already done in the challenge step),
+  any other kind → `story` with a one-line notice
+- `status:` ← literal `draft`
+- `priority:` ← inherit from parent; if parent has none, ask once and
+  apply to every child written in this session
+- `tags:` ← verbatim copy of the parent's `tags` array (empty array `[]`
+  if the parent has none)
+- `last_updated:` ← same UTC timestamp as `date`
+- `last_updated_by:` ← same author value resolved above
+- `schema_version:` ← `1`
+
+Optional linkage/foreign-ref keys are omit-by-default: the template shows
+each as `""`/`[]`, but write a key into the artifact **only** when it has a
+value, and omit it entirely otherwise (do not carry the empty placeholder
+through).
+
+- `parent:` ← the parent work item's ID as a typed-linkage ref `"work-item:NNNN"`,
+  where NNNN is the parent's `id` field — from `id` on unified files,
+  or `work_item_id` on legacy files — canonicalised to the configured
+  pattern's full-ID shape, e.g. `"1"` → `"work-item:0001"`. Always
+  fill — every decomposed child has a parent.
+- `blocks:` ← list of typed-linkage refs to work items this child
+  blocks (`["work-item:NNNN", ...]`). Fill when blocking edges are
+  explicit; otherwise omit the key.
+- `blocked_by:` ← list of typed-linkage refs to work items that block
+  this child. Prefer writing the canonical `blocks:` on the other
+  side; emit `blocked_by:` only when the canonical side cannot be
+  written, and omit it otherwise.
+- `derived_from:` ← list of typed-linkage refs to artifacts this child
+  is derived from (`["plan:NNNN", ...]`). Fill when derivation is
+  explicit; otherwise omit the key.
+- `relates_to:` ← list of typed-linkage refs to related artifacts.
+  Fill when relationships are explicit; otherwise omit the key.
+- `source:` ← typed-linkage ref to the originating source artifact
+  (`"issue-research:NNNN"`). Fill when the source is explicit;
+  otherwise omit the key.
+- `external_id:` ← cross-system pointer (e.g. a Jira/Linear key). Fill
+  when propagated from the parent or linked to an external tracker;
+  otherwise omit the key.
 
 ### 4b. Enrich
 
