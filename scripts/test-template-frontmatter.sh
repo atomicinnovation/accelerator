@@ -38,9 +38,9 @@ FORBIDDEN_PROVENANCE_FIELDS=(git_commit branch)
 # `list`, or empty (unknown key).
 linkage_cardinality() {
   case "$1" in
-    parent|superseded_by|target|source)                   echo single ;;
-    supersedes|blocks|blocked_by|derived_from|relates_to) echo list ;;
-    *)                                                    echo "" ;;
+    parent | superseded_by | target | source) echo single ;;
+    supersedes | blocks | blocked_by | derived_from | relates_to) echo list ;;
+    *) echo "" ;;
   esac
 }
 
@@ -67,12 +67,12 @@ check_linkage_slot() {
   local block="$1" key="$2" regex
   case "$(linkage_cardinality "$key")" in
     single) regex="^${key}:[[:space:]]+\"\"[[:space:]]+#[[:space:]]+typed-linkage[[:space:]]+ref:[[:space:]]+\"(${SOURCE_TYPE_RE}):[A-Za-z0-9-]+\"[[:space:]]+or[[:space:]]+\"\"$" ;;
-    list)   regex="^${key}:[[:space:]]+\\[\\][[:space:]]+#[[:space:]]+typed-linkage[[:space:]]+list:[[:space:]]+\\[\"(${SOURCE_TYPE_RE}):[A-Za-z0-9-]+\",[[:space:]]+\\.\\.\\.\\][[:space:]]+or[[:space:]]+\\[\\]$" ;;
-    *)      return 2 ;;
+    list) regex="^${key}:[[:space:]]+\\[\\][[:space:]]+#[[:space:]]+typed-linkage[[:space:]]+list:[[:space:]]+\\[\"(${SOURCE_TYPE_RE}):[A-Za-z0-9-]+\",[[:space:]]+\\.\\.\\.\\][[:space:]]+or[[:space:]]+\\[\\]$" ;;
+    *) return 2 ;;
   esac
-  grep -qE "$regex" <<< "$block" || return 1
+  grep -qE "$regex" <<<"$block" || return 1
   if [ "$key" = blocked_by ]; then
-    grep -qF -- "$INVERSE_GUIDANCE_LINE" <<< "$block" || return 1
+    grep -qF -- "$INVERSE_GUIDANCE_LINE" <<<"$block" || return 1
   fi
   return 0
 }
@@ -85,10 +85,10 @@ check_linkage_slot() {
 check_closed_set() {
   local block="$1" extras="$2" keys="$3" vkey
   for vkey in "${LINKAGE_VOCABULARY[@]}"; do
-    grep -qE "^${vkey}:[[:space:]]" <<< "$block" || continue
-    case " $extras " in *" $vkey "*) continue ;; esac   # declared extra
-    case " $keys "   in *" $vkey "*) continue ;; esac   # declared slot
-    return 1                                            # spurious
+    grep -qE "^${vkey}:[[:space:]]" <<<"$block" || continue
+    case " $extras " in *" $vkey "*) continue ;; esac # declared extra
+    case " $keys " in *" $vkey "*) continue ;; esac   # declared slot
+    return 1                                          # spurious
   done
   return 0
 }
@@ -206,11 +206,21 @@ while IFS=$'\t' read -r template_file expected_type anchored extras status_vocab
   # run mutates PASS/FAIL for it. `rc=0; ... || rc=$?` keeps the non-zero
   # paths from tripping `set -e`.
   for lkey in $typed_linkage_keys; do
-    rc=0; check_linkage_slot "$block" "$lkey" || rc=$?
+    rc=0
+    check_linkage_slot "$block" "$lkey" || rc=$?
     case "$rc" in
-      0) echo "  PASS: $template_file: linkage slot '$lkey' shape+comment"; PASS=$((PASS + 1)) ;;
-      2) echo "  FAIL: $template_file — unknown linkage key '$lkey'; add it to linkage_cardinality() (and LINKAGE_VOCABULARY) or correct the row"; FAIL=$((FAIL + 1)) ;;
-      *) echo "  FAIL: $template_file: linkage slot '$lkey' bad shape/comment (or missing inverse-guidance line)"; FAIL=$((FAIL + 1)) ;;
+      0)
+        echo "  PASS: $template_file: linkage slot '$lkey' shape+comment"
+        PASS=$((PASS + 1))
+        ;;
+      2)
+        echo "  FAIL: $template_file — unknown linkage key '$lkey'; add it to linkage_cardinality() (and LINKAGE_VOCABULARY) or correct the row"
+        FAIL=$((FAIL + 1))
+        ;;
+      *)
+        echo "  FAIL: $template_file: linkage slot '$lkey' bad shape/comment (or missing inverse-guidance line)"
+        FAIL=$((FAIL + 1))
+        ;;
     esac
   done
 
@@ -218,9 +228,11 @@ while IFS=$'\t' read -r template_file expected_type anchored extras status_vocab
   # a declared slot (typed_linkage_keys) or a declared extra (the
   # design-inventory `source:` exemption).
   if check_closed_set "$block" "$extras" "$typed_linkage_keys"; then
-    echo "  PASS: $template_file: closed-set (no spurious linkage keys)"; PASS=$((PASS + 1))
+    echo "  PASS: $template_file: closed-set (no spurious linkage keys)"
+    PASS=$((PASS + 1))
   else
-    echo "  FAIL: $template_file: closed-set violated (a linkage key not in the TSV row)"; FAIL=$((FAIL + 1))
+    echo "  FAIL: $template_file: closed-set violated (a linkage key not in the TSV row)"
+    FAIL=$((FAIL + 1))
   fi
 
   # Status vocabulary verbatim on `status:` line (grep -F against the line).
@@ -301,32 +313,38 @@ st_reject() {
 
 # 1. list slot carrying a single-ref value — wrong cardinality.
 fixture=$'blocks: ""                                   # typed-linkage list: ["work-item:NNNN", ...] or []'
-rc=0; check_linkage_slot "$fixture" blocks || rc=$?
+rc=0
+check_linkage_slot "$fixture" blocks || rc=$?
 st_reject "a list slot with a single-ref value" "$rc"
 
 # 2. slot with a malformed comment.
 fixture=$'parent: ""                                   # see ADR-0034'
-rc=0; check_linkage_slot "$fixture" parent || rc=$?
+rc=0
+check_linkage_slot "$fixture" parent || rc=$?
 st_reject "a slot with a malformed comment" "$rc"
 
 # 3. blocked_by slot missing its standalone inverse-guidance line.
 fixture=$'blocked_by: []                               # typed-linkage list: ["work-item:NNNN", ...] or []'
-rc=0; check_linkage_slot "$fixture" blocked_by || rc=$?
+rc=0
+check_linkage_slot "$fixture" blocked_by || rc=$?
 st_reject "a blocked_by slot missing the inverse-guidance line" "$rc"
 
 # 4. block carrying a vocabulary key absent from its TSV row (spurious slot).
 fixture=$'relates_to: []                               # typed-linkage list: ["work-item:NNNN", ...] or []'
-rc=0; check_closed_set "$fixture" "" "parent" || rc=$?
+rc=0
+check_closed_set "$fixture" "" "parent" || rc=$?
 st_reject "a block carrying a linkage key absent from its TSV row" "$rc"
 
 # 5. declared slot absent from the frontmatter (no matching line).
 fixture=$'title: "x"'
-rc=0; check_linkage_slot "$fixture" parent || rc=$?
+rc=0
+check_linkage_slot "$fixture" parent || rc=$?
 st_reject "a declared slot absent from the frontmatter" "$rc"
 
 # 6. comment whose source-type token is outside the curated set.
 fixture=$'parent: ""                                   # typed-linkage ref: "ticket:NNNN" or ""'
-rc=0; check_linkage_slot "$fixture" parent || rc=$?
+rc=0
+check_linkage_slot "$fixture" parent || rc=$?
 st_reject "a comment with an out-of-vocabulary source-type token" "$rc"
 
 if [ "$selftest_pass" -eq 6 ]; then

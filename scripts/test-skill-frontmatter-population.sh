@@ -304,7 +304,7 @@ st_guidance() {
 st_dir=$(mktemp -d)
 
 # 1. field WITH its own fill/omit bullet → accepted (0).
-cat > "$st_dir/with.md" <<'STEOF'
+cat >"$st_dir/with.md" <<'STEOF'
 ### Populate frontmatter
 
 - `parent:` ← the parent ref. Fill when named; otherwise omit the key.
@@ -312,7 +312,7 @@ STEOF
 st_guidance "a field with a fill/omit bullet is accepted" parent 0 "$st_dir/with.md"
 
 # 2. field named WITHOUT any fill/omit note → rejected (1).
-cat > "$st_dir/without.md" <<'STEOF'
+cat >"$st_dir/without.md" <<'STEOF'
 ### Populate frontmatter
 
 - `parent:` ← the parent ref. Set it to the parent work item id.
@@ -320,7 +320,7 @@ STEOF
 st_guidance "a field without a fill/omit note is rejected" parent 1 "$st_dir/without.md"
 
 # 3. fill/omit note on a DIFFERENT field's bullet → rejected (per-field binding).
-cat > "$st_dir/crossfield.md" <<'STEOF'
+cat >"$st_dir/crossfield.md" <<'STEOF'
 ### Populate frontmatter
 
 - `parent:` ← the parent ref. Set it to the parent work item id.
@@ -329,7 +329,7 @@ STEOF
 st_guidance "a fill/omit note on a different field's bullet is rejected" parent 1 "$st_dir/crossfield.md"
 
 # 4. fill/omit only as a buried substring (backfill) → rejected (whole-word).
-cat > "$st_dir/buried.md" <<'STEOF'
+cat >"$st_dir/buried.md" <<'STEOF'
 ### Populate frontmatter
 
 - `parent:` ← the parent ref. We backfill this during reconciliation.
@@ -337,7 +337,7 @@ STEOF
 st_guidance "a buried fill/omit substring (backfill) is rejected" parent 1 "$st_dir/buried.md"
 
 # 5. proper guidance under a bold lead-in (no `#` heading) → rejected.
-cat > "$st_dir/bold.md" <<'STEOF'
+cat >"$st_dir/bold.md" <<'STEOF'
 **Populate frontmatter**:
 
 - `parent:` ← the parent ref. Fill when named; otherwise omit the key.
