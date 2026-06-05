@@ -19,7 +19,7 @@ CONFIG_LOCAL="$PROJECT_ROOT/.claude/accelerator.local.md"
 # Check for malformed frontmatter BEFORE any mutations
 for cfg in "$CONFIG_TEAM" "$CONFIG_LOCAL"; do
   [ -f "$cfg" ] || continue
-  if ! config_extract_frontmatter "$cfg" > /dev/null 2>&1; then
+  if ! config_extract_frontmatter "$cfg" >/dev/null 2>&1; then
     echo "Error: malformed frontmatter in $cfg — cannot proceed." >&2
     echo "Fix the config file and re-run /accelerator:migrate." >&2
     exit 1
@@ -27,10 +27,10 @@ for cfg in "$CONFIG_TEAM" "$CONFIG_LOCAL"; do
 done
 
 # Read old paths.tickets / paths.review_tickets from user config (old key names)
-pinned_tickets="$(cd "$PROJECT_ROOT" \
-  && bash "$PLUGIN_ROOT/scripts/config-read-value.sh" paths.tickets "" 2>/dev/null || true)"
-pinned_review_tickets="$(cd "$PROJECT_ROOT" \
-  && bash "$PLUGIN_ROOT/scripts/config-read-value.sh" paths.review_tickets "" 2>/dev/null || true)"
+pinned_tickets="$(cd "$PROJECT_ROOT" &&
+  bash "$PLUGIN_ROOT/scripts/config-read-value.sh" paths.tickets "" 2>/dev/null || true)"
+pinned_review_tickets="$(cd "$PROJECT_ROOT" &&
+  bash "$PLUGIN_ROOT/scripts/config-read-value.sh" paths.review_tickets "" 2>/dev/null || true)"
 
 if [ -z "$pinned_tickets" ] || [ "$pinned_tickets" = "meta/tickets" ]; then
   tickets_dir="$PROJECT_ROOT/meta/tickets"
@@ -58,11 +58,11 @@ if [ -d "$tickets_dir" ]; then
     if grep -q '^ticket_id:' "$file" 2>/dev/null; then
       if grep -q '^work_item_id:' "$file" 2>/dev/null; then
         # Both keys present (partial prior rewrite) — remove ticket_id: line
-        grep -v '^ticket_id:' "$file" > "$file.tmp"
+        grep -v '^ticket_id:' "$file" >"$file.tmp"
         mv "$file.tmp" "$file"
       else
         # Only ticket_id: — rename it
-        sed 's/^ticket_id:/work_item_id:/' "$file" > "$file.tmp"
+        sed 's/^ticket_id:/work_item_id:/' "$file" >"$file.tmp"
         mv "$file.tmp" "$file"
       fi
     fi
@@ -108,7 +108,7 @@ rewrite_config() {
     -e 's/^review\.ticket_revise_severity:/review.work_item_revise_severity:/' \
     -e 's/^review\.ticket_revise_major_count:/review.work_item_revise_major_count:/' \
     -e 's/^review\.min_lenses_ticket:/review.min_lenses_work_item:/' \
-    "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
+    "$cfg" >"$cfg.tmp" && mv "$cfg.tmp" "$cfg"
 }
 
 rewrite_config "$CONFIG_TEAM"

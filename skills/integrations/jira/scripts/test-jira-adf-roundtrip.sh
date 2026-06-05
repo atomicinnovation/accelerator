@@ -44,13 +44,13 @@ echo ""
 for md_file in "$FIXTURES"/*.md; do
   name=$(basename "$md_file" .md)
   [[ "$name" == reject-* ]] && continue
-  [[ "$name" == crlf-input ]] && continue  # CRLF-specific, not a round-trip fixture
+  [[ "$name" == crlf-input ]] && continue # CRLF-specific, not a round-trip fixture
 
   adf_file="$FIXTURES/$name.adf.json"
-  [[ -f "$adf_file" ]] || continue  # skip compile-only fixtures
+  [[ -f "$adf_file" ]] || continue # skip compile-only fixtures
 
-  expected=$(canonicalise < "$md_file")
-  actual=$(bash "$COMPILER" < "$md_file" 2>/dev/null | bash "$RENDERER")
+  expected=$(canonicalise <"$md_file")
+  actual=$(bash "$COMPILER" <"$md_file" 2>/dev/null | bash "$RENDERER")
   assert_eq "roundtrip $name" "$expected" "$actual"
 done
 
@@ -68,8 +68,8 @@ for md_file in "$FIXTURES"/*.md; do
   adf_file="$FIXTURES/$name.adf.json"
   [[ -f "$adf_file" ]] || continue
 
-  out1=$(bash "$COMPILER" < "$md_file" 2>/dev/null | jq -S . | mask_local_ids)
-  out2=$(bash "$COMPILER" < "$md_file" 2>/dev/null | bash "$RENDERER" | bash "$COMPILER" 2>/dev/null | jq -S . | mask_local_ids)
+  out1=$(bash "$COMPILER" <"$md_file" 2>/dev/null | jq -S . | mask_local_ids)
+  out2=$(bash "$COMPILER" <"$md_file" 2>/dev/null | bash "$RENDERER" | bash "$COMPILER" 2>/dev/null | jq -S . | mask_local_ids)
   assert_eq "fixed-point $name" "$out1" "$out2"
 done
 
@@ -86,7 +86,7 @@ markers=(
 )
 
 md_file="$FIXTURES/mixed-everything.md"
-rendered=$(bash "$COMPILER" < "$md_file" 2>/dev/null | bash "$RENDERER")
+rendered=$(bash "$COMPILER" <"$md_file" 2>/dev/null | bash "$RENDERER")
 
 for marker in "${markers[@]}"; do
   expected_count=$(grep -c "$marker" "$md_file" || true)

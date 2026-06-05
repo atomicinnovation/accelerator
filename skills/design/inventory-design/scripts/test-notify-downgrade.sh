@@ -53,14 +53,14 @@ PATCHED_JSON="$TMPDIR_TEST/messages.json"
 
 # ANSI CSI escape — should be stripped
 PATCHED_NOTIFY="$TMPDIR_TEST/notify-patched.sh"
-sed "s|$MESSAGES_JSON|$PATCHED_JSON|g" "$NOTIFY" > "$PATCHED_NOTIFY"
+sed "s|$MESSAGES_JSON|$PATCHED_JSON|g" "$NOTIFY" >"$PATCHED_NOTIFY"
 chmod +x "$PATCHED_NOTIFY"
-printf '{"node-missing":"hello\033[31mworld\033[0m"}' > "$PATCHED_JSON"
+printf '{"node-missing":"hello\033[31mworld\033[0m"}' >"$PATCHED_JSON"
 ACTUAL_ESC="$(bash "$PATCHED_NOTIFY" --reason node-missing 2>/dev/null || true)"
 assert_not_contains "ANSI escape stripped from output" "$ACTUAL_ESC" $'\033'
 
 # CR (carriage return) — should be stripped
-printf '{"node-missing":"hello\rworld"}' > "$PATCHED_JSON"
+printf '{"node-missing":"hello\rworld"}' >"$PATCHED_JSON"
 ACTUAL_CR="$(bash "$PATCHED_NOTIFY" --reason node-missing 2>/dev/null || true)"
 assert_not_contains "CR stripped from output" "$ACTUAL_CR" $'\r'
 

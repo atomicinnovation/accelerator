@@ -85,9 +85,10 @@ harness_extras_set() {
     return 1
   fi
   case "$k" in
-    transformation_key|schema_version|outcome|proposed_value|user_value|timestamp)
+    transformation_key | schema_version | outcome | proposed_value | user_value | timestamp)
       echo "harness_extras_set: reserved key '$k'" >&2
-      return 1 ;;
+      return 1
+      ;;
   esac
   # Repeated set on the same key overwrites the value in place.
   for ((i = 0; i < ${#_HARNESS_EXTRAS_KEYS[@]}; i++)); do
@@ -115,21 +116,26 @@ harness_emit_transformation() {
   local pair k v
   for pair in "$@"; do
     case "$pair" in
-      *=*) k="${pair%%=*}"; v="${pair#*=}" ;;
+      *=*)
+        k="${pair%%=*}"
+        v="${pair#*=}"
+        ;;
       *)
         echo "harness_emit_transformation: malformed pair '$pair'" >&2
-        return 1 ;;
+        return 1
+        ;;
     esac
     case "$k" in
-      key)             key="$v" ;;
-      path)            path="$v" ;;
-      anchor)          anchor="$v" ;;
-      proposed)        proposed="$v" ;;
+      key) key="$v" ;;
+      path) path="$v" ;;
+      anchor) anchor="$v" ;;
+      proposed) proposed="$v" ;;
       predicate_value) predicate_value="$v" ;;
-      display)         display="$v" ;;
+      display) display="$v" ;;
       *)
         echo "harness_emit_transformation: unknown arg '$k'" >&2
-        return 1 ;;
+        return 1
+        ;;
     esac
   done
   if [ -z "$key" ] || [ -z "$path" ]; then
@@ -181,10 +187,10 @@ harness_field() {
   local -a parts=($_HARNESS_CURRENT_TSV)
   IFS="$IFS_save"
   case "$fname" in
-    key)             unescape_field "${parts[1]:-}" ;;
-    path)            unescape_field "${parts[2]:-}" ;;
-    anchor)          unescape_field "${parts[3]:-}" ;;
-    proposed)        unescape_field "${parts[4]:-}" ;;
+    key) unescape_field "${parts[1]:-}" ;;
+    path) unescape_field "${parts[2]:-}" ;;
+    anchor) unescape_field "${parts[3]:-}" ;;
+    proposed) unescape_field "${parts[4]:-}" ;;
     predicate_value) unescape_field "${parts[5]:-}" ;;
     *)
       # Extract from the extras_tsv field by key.
@@ -231,13 +237,16 @@ _harness_load_resume_state() {
     else
       RESUME_USERS+=("")
     fi
-  done < "$path"
+  done <"$path"
 }
 
 # ── harness_run: drives the per-transformation loop ──────────────────────
 harness_run() {
   # Handshake. Expect INIT first.
-  read_frame || { echo "interactive-harness: failed to read INIT" >&2; return 1; }
+  read_frame || {
+    echo "interactive-harness: failed to read INIT" >&2
+    return 1
+  }
   if [ "$FRAME_TYPE" != "INIT" ]; then
     emit_frame FAIL "expected INIT, got $FRAME_TYPE"
     return 1
@@ -262,13 +271,16 @@ harness_run() {
   # (story-promoted runner-level decision).
   local -a TX_LINES=()
   local emit_output
-  emit_output=$(migration_emit_transformations; printf X)
+  emit_output=$(
+    migration_emit_transformations
+    printf X
+  )
   emit_output=${emit_output%X}
   if [ -n "$emit_output" ]; then
     while IFS= read -r line; do
       [ -z "$line" ] && continue
       TX_LINES+=("$line")
-    done <<< "$emit_output"
+    done <<<"$emit_output"
   fi
 
   local tx i key path anchor proposed predicate_value extras_tsv display_b64
@@ -307,8 +319,8 @@ harness_run() {
     # declared, default to "always prompt" (predicate=true).
     local predicate_rc=0
     if declare -F migration_evaluate_predicate >/dev/null; then
-      printf '%s\n' "$tx" | migration_evaluate_predicate >/dev/null 2>&1 \
-        || predicate_rc=$?
+      printf '%s\n' "$tx" | migration_evaluate_predicate >/dev/null 2>&1 ||
+        predicate_rc=$?
     fi
     case "$predicate_rc" in
       0)
@@ -343,7 +355,10 @@ _harness_run_prompt() {
   emit_frame PROMPT "$key" "$path" "$anchor" "$proposed" \
     "$predicate_value" "$extras_tsv" "$display_b64"
   while true; do
-    read_frame || { emit_frame FAIL "EOF awaiting DECIDE for $key"; return 1; }
+    read_frame || {
+      emit_frame FAIL "EOF awaiting DECIDE for $key"
+      return 1
+    }
     if [ "$FRAME_TYPE" != "DECIDE" ]; then
       emit_frame FAIL "expected DECIDE for $key, got $FRAME_TYPE"
       return 1
@@ -353,7 +368,10 @@ _harness_run_prompt() {
     case "$outcome" in
       accept)
         emit_frame RECORDED "$key" accepted "$proposed" "" "$extras_tsv"
-        read_frame || { emit_frame FAIL "EOF awaiting APPLY for $key"; return 1; }
+        read_frame || {
+          emit_frame FAIL "EOF awaiting APPLY for $key"
+          return 1
+        }
         if [ "$FRAME_TYPE" != "APPLY" ]; then
           emit_frame FAIL "expected APPLY for $key, got $FRAME_TYPE"
           return 1
@@ -367,7 +385,10 @@ _harness_run_prompt() {
         ;;
       skip)
         emit_frame RECORDED "$key" skipped "$proposed" "" "$extras_tsv"
-        read_frame || { emit_frame FAIL "EOF awaiting APPLY for $key"; return 1; }
+        read_frame || {
+          emit_frame FAIL "EOF awaiting APPLY for $key"
+          return 1
+        }
         if [ "$FRAME_TYPE" != "APPLY" ]; then
           emit_frame FAIL "expected APPLY for $key, got $FRAME_TYPE"
           return 1
@@ -386,7 +407,10 @@ _harness_run_prompt() {
           }
         fi
         emit_frame RECORDED "$key" edited "$proposed" "$value" "$extras_tsv"
-        read_frame || { emit_frame FAIL "EOF awaiting APPLY for $key"; return 1; }
+        read_frame || {
+          emit_frame FAIL "EOF awaiting APPLY for $key"
+          return 1
+        }
         if [ "$FRAME_TYPE" != "APPLY" ]; then
           emit_frame FAIL "expected APPLY for $key, got $FRAME_TYPE"
           return 1
@@ -422,13 +446,16 @@ _harness_handle_resume() {
     local verify_failed=0
     if [ "$r_outcome" = "accepted" ] || [ "$r_outcome" = "edited" ]; then
       if declare -F migration_verify_applied >/dev/null; then
-        migration_verify_applied "$key" "$path" "$anchor" "$r_outcome" "$r_proposed" "$r_user" \
-          || verify_failed=1
+        migration_verify_applied "$key" "$path" "$anchor" "$r_outcome" "$r_proposed" "$r_user" ||
+          verify_failed=1
       fi
     fi
     if [ "$verify_failed" -eq 1 ]; then
       emit_frame DRIFT "$key"
-      read_frame || { emit_frame FAIL "EOF awaiting DRIFT_CLEARED for $key"; return 1; }
+      read_frame || {
+        emit_frame FAIL "EOF awaiting DRIFT_CLEARED for $key"
+        return 1
+      }
       if [ "$FRAME_TYPE" != "DRIFT_CLEARED" ]; then
         emit_frame FAIL "expected DRIFT_CLEARED for $key, got $FRAME_TYPE"
         return 1
@@ -439,17 +466,21 @@ _harness_handle_resume() {
       return $?
     fi
     case "$r_outcome" in
-      accepted|edited) emit_frame RESUMED_APPLIED "$key" ;;
-      skipped)         emit_frame RESUMED_SKIPPED "$key" ;;
+      accepted | edited) emit_frame RESUMED_APPLIED "$key" ;;
+      skipped) emit_frame RESUMED_SKIPPED "$key" ;;
       *)
         emit_frame FAIL "unknown resume outcome '$r_outcome' for key $key"
-        return 1 ;;
+        return 1
+        ;;
     esac
     return 0
   fi
   # Drift: live proposed_value differs from recorded.
   emit_frame DRIFT "$key"
-  read_frame || { emit_frame FAIL "EOF awaiting DRIFT_CLEARED for $key"; return 1; }
+  read_frame || {
+    emit_frame FAIL "EOF awaiting DRIFT_CLEARED for $key"
+    return 1
+  }
   if [ "$FRAME_TYPE" != "DRIFT_CLEARED" ]; then
     emit_frame FAIL "expected DRIFT_CLEARED for $key, got $FRAME_TYPE"
     return 1

@@ -151,7 +151,7 @@ write_project_config() {
   local repo="$1" project_default="${2-}"
   mkdir -p "$repo/.claude"
   if [ -n "$project_default" ]; then
-    cat > "$repo/.claude/accelerator.md" << FIXTURE
+    cat >"$repo/.claude/accelerator.md" <<FIXTURE
 ---
 work:
   id_pattern: "{project}-{number:04d}"
@@ -159,7 +159,7 @@ work:
 ---
 FIXTURE
   else
-    cat > "$repo/.claude/accelerator.md" << 'FIXTURE'
+    cat >"$repo/.claude/accelerator.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{project}-{number:04d}"
@@ -223,7 +223,7 @@ assert_contains "stderr names rule" "E_PATTERN_PROJECT_UNUSED" "$ERR"
 echo "Test: width change {number:05d} over 0001 corpus → 00002"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
-cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+cat >"$REPO/.claude/accelerator.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{number:05d}"
@@ -255,7 +255,7 @@ assert_contains "stderr names highest" "highest=9999" "$ERR"
 echo "Test: overflow boundary under {number:05d}, 99998 corpus, --count 1 succeeds"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
-cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+cat >"$REPO/.claude/accelerator.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{number:05d}"
@@ -348,7 +348,7 @@ assert_contains "lists project-prepended candidate" "[project-prepended]" "$ERR"
 echo "Test: ambiguity — cross-project, no default project code"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
-cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+cat >"$REPO/.claude/accelerator.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{project}-{number:04d}"
@@ -381,7 +381,7 @@ assert_eq "PROJ-0042-x.md listed once" "1" "$PROJ_OCCURRENCES"
 echo "Test: single cross-project match resolves"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
-cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+cat >"$REPO/.claude/accelerator.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{project}-{number:04d}"
@@ -402,7 +402,7 @@ assert_eq "exit code 1" "1" "$RC"
 echo "Test: legacy 42 under {project} pattern, no default — finds legacy file"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
-cat > "$REPO/.claude/accelerator.md" << 'FIXTURE'
+cat >"$REPO/.claude/accelerator.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{project}-{number:04d}"
@@ -425,7 +425,7 @@ GOLDEN_FILE="$GOLDEN_FIXTURE_DIR/work-item-next-number.golden"
 if [ -f "$GOLDEN_FILE" ]; then
   while IFS= read -r line; do
     case "$line" in
-      ''|'#'*) continue ;;
+      '' | '#'*) continue ;;
     esac
     SETUP="${line%%|*}"
     REST="${line#*|}"
@@ -437,7 +437,7 @@ if [ -f "$GOLDEN_FILE" ]; then
     REPO=$(setup_repo)
     mkdir -p "$REPO/meta/work"
     if [ -n "$SETUP" ]; then
-      IFS=',' read -ra FILES <<< "$SETUP"
+      IFS=',' read -ra FILES <<<"$SETUP"
       for fname in "${FILES[@]}"; do
         touch "$REPO/meta/work/$fname"
       done
@@ -449,7 +449,7 @@ if [ -f "$GOLDEN_FILE" ]; then
       OUTPUT=$(cd "$REPO" && bash "$NEXT_NUMBER" $ARGS 2>/dev/null)
     fi
     assert_eq "golden: setup='$SETUP' args='$ARGS'" "$EXPECTED" "$OUTPUT"
-  done < "$GOLDEN_FILE"
+  done <"$GOLDEN_FILE"
 else
   echo "  SKIP: golden file not found at $GOLDEN_FILE"
 fi
@@ -467,7 +467,7 @@ source "$SCRIPT_DIR/work-item-common.sh"
 echo "Test: read-field tolerates quoted work_item_id under default config"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
-cat > "$REPO/meta/work/0001-foo.md" << 'FIXTURE'
+cat >"$REPO/meta/work/0001-foo.md" <<'FIXTURE'
 ---
 work_item_id: "0001"
 title: "Foo"
@@ -483,7 +483,7 @@ echo "Test: read-field tolerates quoted full ID under {project} pattern"
 REPO=$(setup_repo)
 write_project_config "$REPO" "PROJ"
 mkdir -p "$REPO/meta/work"
-cat > "$REPO/meta/work/PROJ-0001-foo.md" << 'FIXTURE'
+cat >"$REPO/meta/work/PROJ-0001-foo.md" <<'FIXTURE'
 ---
 work_item_id: "PROJ-0001"
 title: "Foo"
@@ -506,7 +506,7 @@ fi
 
 echo "Test: wip_is_work_item_file rejects file without work_item_id"
 NOWI=$(mktemp "$TMPDIR_BASE/no-wid-XXXXXX.md")
-cat > "$NOWI" << 'FIXTURE'
+cat >"$NOWI" <<'FIXTURE'
 ---
 title: "Foo"
 ---
@@ -550,7 +550,7 @@ echo ""
 echo "Test: Valid frontmatter status: draft"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
-cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
+cat >"$REPO/meta/work/0001-test.md" <<'FIXTURE'
 ---
 work_item_id: 0001
 status: draft
@@ -565,7 +565,7 @@ assert_eq "outputs draft" "draft" "$OUTPUT"
 echo "Test: Valid frontmatter status: ready"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
-cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
+cat >"$REPO/meta/work/0001-test.md" <<'FIXTURE'
 ---
 work_item_id: 0001
 status: ready
@@ -580,7 +580,7 @@ assert_eq "outputs ready" "ready" "$OUTPUT"
 echo "Test: Quoted value status: \"draft\""
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
-cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
+cat >"$REPO/meta/work/0001-test.md" <<'FIXTURE'
 ---
 work_item_id: 0001
 status: "draft"
@@ -595,7 +595,7 @@ assert_eq "outputs draft (strips quotes)" "draft" "$OUTPUT"
 echo "Test: No space after colon"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
-cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
+cat >"$REPO/meta/work/0001-test.md" <<'FIXTURE'
 ---
 work_item_id: 0001
 status:draft
@@ -611,7 +611,7 @@ echo "Test: Trailing whitespace"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
 printf -- '---\nwork_item_id: 0001\nstatus: draft  \n---\n\n# 0001: Test\n' \
-  > "$REPO/meta/work/0001-test.md"
+  >"$REPO/meta/work/0001-test.md"
 OUTPUT=$(bash "$READ_STATUS" "$REPO/meta/work/0001-test.md")
 assert_eq "outputs draft (stripped)" "draft" "$OUTPUT"
 
@@ -622,7 +622,7 @@ assert_exit_code "exits 1" 1 bash "$READ_STATUS" "/nonexistent/file.md"
 # Test 7: File with no frontmatter → exits 1
 echo "Test: File with no frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/no-frontmatter.md" << 'FIXTURE'
+cat >"$REPO/no-frontmatter.md" <<'FIXTURE'
 # Just a regular file
 
 No frontmatter here.
@@ -632,7 +632,7 @@ assert_exit_code "exits 1" 1 bash "$READ_STATUS" "$REPO/no-frontmatter.md"
 # Test 8: Unclosed frontmatter → exits 1
 echo "Test: Unclosed frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/unclosed.md" << 'FIXTURE'
+cat >"$REPO/unclosed.md" <<'FIXTURE'
 ---
 work_item_id: 0001
 status: draft
@@ -643,7 +643,7 @@ assert_exit_code "exits 1" 1 bash "$READ_STATUS" "$REPO/unclosed.md"
 echo "Test: Status in body ignored, frontmatter value returned"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
-cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
+cat >"$REPO/meta/work/0001-test.md" <<'FIXTURE'
 ---
 work_item_id: 0001
 status: draft
@@ -661,7 +661,7 @@ echo "Test: Empty status value"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
 printf -- '---\nwork_item_id: 0001\nstatus: \n---\n\n# 0001: Test\n' \
-  > "$REPO/meta/work/0001-test.md"
+  >"$REPO/meta/work/0001-test.md"
 OUTPUT=$(bash "$READ_STATUS" "$REPO/meta/work/0001-test.md")
 assert_eq "outputs empty string" "" "$OUTPUT"
 
@@ -679,7 +679,7 @@ echo ""
 make_work_item() {
   local repo="$1"
   mkdir -p "$repo/meta/work"
-  cat > "$repo/meta/work/0001-test.md" << 'FIXTURE'
+  cat >"$repo/meta/work/0001-test.md" <<'FIXTURE'
 ---
 work_item_id: 0001
 kind: story
@@ -751,7 +751,7 @@ assert_exit_code "exits 1" 1 bash "$READ_FIELD" status "/nonexistent/file.md"
 # Test 9: No frontmatter (first line is not ---) → exits 1 with error
 echo "Test: No frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/no-fm.md" << 'FIXTURE'
+cat >"$REPO/no-fm.md" <<'FIXTURE'
 # Just markdown
 
 status: draft
@@ -761,7 +761,7 @@ assert_exit_code "exits 1" 1 bash "$READ_FIELD" status "$REPO/no-fm.md"
 # Test 10: Unclosed frontmatter → exits 1
 echo "Test: Unclosed frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/unclosed.md" << 'FIXTURE'
+cat >"$REPO/unclosed.md" <<'FIXTURE'
 ---
 status: draft
 kind: story
@@ -787,7 +787,7 @@ assert_eq "outputs story (not epic from body)" "story" "$OUTPUT"
 echo "Test: Duplicate key first-match-wins"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
-cat > "$REPO/meta/work/0001-dup.md" << 'FIXTURE'
+cat >"$REPO/meta/work/0001-dup.md" <<'FIXTURE'
 ---
 status: first
 status: second
@@ -813,7 +813,7 @@ assert_eq "outputs foo" "foo" "$OUTPUT"
 echo "Test: Dots not treated as regex wildcard (negative)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
-cat > "$REPO/meta/work/0001-nodot.md" << 'FIXTURE'
+cat >"$REPO/meta/work/0001-nodot.md" <<'FIXTURE'
 ---
 subXtype: foo
 ---
@@ -824,7 +824,7 @@ assert_exit_code "exits 1" 1 bash "$READ_FIELD" "sub.type" "$REPO/meta/work/0001
 echo "Test: Trailing whitespace after closing quote"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
-printf -- '---\nstatus: "draft"  \n---\n' > "$REPO/meta/work/0001-trailing.md"
+printf -- '---\nstatus: "draft"  \n---\n' >"$REPO/meta/work/0001-trailing.md"
 OUTPUT=$(bash "$READ_FIELD" status "$REPO/meta/work/0001-trailing.md")
 assert_eq "outputs draft (no orphan quote)" "draft" "$OUTPUT"
 
@@ -841,7 +841,7 @@ make_tagged_work_item() {
   local repo="$1"
   local tags_line="$2"
   mkdir -p "$repo/meta/work"
-  cat > "$repo/meta/work/0001-test.md" << FIXTURE
+  cat >"$repo/meta/work/0001-test.md" <<FIXTURE
 ---
 work_item_id: 0001
 status: draft
@@ -898,7 +898,7 @@ assert_eq "outputs no-change" "no-change" "$OUTPUT"
 echo "Test: Add to absent tags field"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
-cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
+cat >"$REPO/meta/work/0001-test.md" <<'FIXTURE'
 ---
 work_item_id: 0001
 status: draft
@@ -920,7 +920,7 @@ assert_eq "outputs single-element array" "[backend]" "$OUTPUT"
 echo "Test: Block-style tags rejected"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/work"
-cat > "$REPO/meta/work/0001-test.md" << 'FIXTURE'
+cat >"$REPO/meta/work/0001-test.md" <<'FIXTURE'
 ---
 work_item_id: 0001
 tags:
@@ -933,19 +933,25 @@ FIXTURE
 RC=0
 STDERR=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" add backend 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-echo "$STDERR" | grep -q "block format" && echo "  PASS: stderr mentions block format" || { echo "  FAIL: stderr missing block format message"; FAIL=$((FAIL + 1)); }
+echo "$STDERR" | grep -q "block format" && echo "  PASS: stderr mentions block format" || {
+  echo "  FAIL: stderr missing block format message"
+  FAIL=$((FAIL + 1))
+}
 
 # Test 10: Non-existent file → exit 1
 echo "Test: Non-existent file"
 RC=0
 STDERR=$(bash "$UPDATE_TAGS" "/nonexistent/file.md" add backend 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-echo "$STDERR" | grep -q "file not found" && echo "  PASS: stderr mentions file not found" || { echo "  FAIL: stderr missing file not found message"; FAIL=$((FAIL + 1)); }
+echo "$STDERR" | grep -q "file not found" && echo "  PASS: stderr mentions file not found" || {
+  echo "  FAIL: stderr missing file not found message"
+  FAIL=$((FAIL + 1))
+}
 
 # Test 11: Missing frontmatter → exit 1
 echo "Test: Missing frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/no-fm.md" << 'FIXTURE'
+cat >"$REPO/no-fm.md" <<'FIXTURE'
 # Just markdown
 
 No frontmatter here.
@@ -957,7 +963,7 @@ assert_eq "exit code 1" "1" "$RC"
 # Test 12: Unclosed frontmatter → exit 1
 echo "Test: Unclosed frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/unclosed.md" << 'FIXTURE'
+cat >"$REPO/unclosed.md" <<'FIXTURE'
 ---
 work_item_id: 0001
 tags: [api]
@@ -1022,7 +1028,7 @@ assert_eq "returns empty string" "" "$OUTPUT"
 echo "Test: User-overridden template with custom values"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/templates"
-cat > "$REPO/meta/templates/work-item.md" << 'FIXTURE'
+cat >"$REPO/meta/templates/work-item.md" <<'FIXTURE'
 ---
 work_item_id: NNNN
 status: open                                   # open | closed | wontfix
@@ -1050,7 +1056,7 @@ assert_eq "returns hardcoded status values" "$EXPECTED" "$OUTPUT"
 echo "Test: Field with no comment falls back to hardcoded"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/templates"
-cat > "$REPO/meta/templates/work-item.md" << 'FIXTURE'
+cat >"$REPO/meta/templates/work-item.md" <<'FIXTURE'
 ---
 work_item_id: NNNN
 status: draft

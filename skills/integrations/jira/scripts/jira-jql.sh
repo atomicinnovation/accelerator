@@ -23,18 +23,18 @@
 # _jql_find_control_char <value>
 # Prints "0xHH (NAME)" for the first control char found; exits 0 if found, 1 if not.
 _jql_ctrl_names=(NUL SOH STX ETX EOT ENQ ACK BEL BS HT LF VT FF CR SO SI
-                  DLE DC1 DC2 DC3 DC4 NAK SYN ETB CAN EM SUB ESC FS GS RS US)
+  DLE DC1 DC2 DC3 DC4 NAK SYN ETB CAN EM SUB ESC FS GS RS US)
 _jql_find_control_char() {
   local val="$1"
   local i code char
-  for (( i = 0; i < ${#val}; i++ )); do
+  for ((i = 0; i < ${#val}; i++)); do
     char="${val:$i:1}"
     # bash printf trick: 'X prints the numeric value of X
     code=$(printf '%d' "'$char" 2>/dev/null) || continue
-    if (( code >= 0 && code <= 31 )); then
+    if ((code >= 0 && code <= 31)); then
       printf '0x%02X (%s)\n' "$code" "${_jql_ctrl_names[$code]}"
       return 0
-    elif (( code == 127 )); then
+    elif ((code == 127)); then
       printf '0x7F (DEL)\n'
       return 0
     fi
@@ -104,7 +104,10 @@ jql_in() {
     parts+=("$quoted")
   done
   local list
-  list=$(IFS=','; printf '%s' "${parts[*]}")
+  list=$(
+    IFS=','
+    printf '%s' "${parts[*]}"
+  )
   printf '%s IN (%s)' "$field" "$list"
 }
 
@@ -121,7 +124,10 @@ jql_not_in() {
     parts+=("$quoted")
   done
   local list
-  list=$(IFS=','; printf '%s' "${parts[*]}")
+  list=$(
+    IFS=','
+    printf '%s' "${parts[*]}"
+  )
   printf '%s NOT IN (%s)' "$field" "$list"
 }
 
@@ -193,20 +199,62 @@ jql_compose() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --project)      project="$2";           shift 2 ;;
-      --all-projects) all_projects=1;         shift ;;
-      --status)       status_vals+=("$2");    shift 2 ;;
-      --label)        label_vals+=("$2");     shift 2 ;;
-      --assignee)     assignee_vals+=("$2");  shift 2 ;;
-      --type)         type_vals+=("$2");      shift 2 ;;
-      --component)    component_vals+=("$2"); shift 2 ;;
-      --reporter)     reporter_vals+=("$2");  shift 2 ;;
-      --parent)       parent_vals+=("$2");    shift 2 ;;
-      --watching)     watching=1;             shift ;;
-      --text)         text_vals+=("$2");      shift 2 ;;
-      --empty)        empty_fields+=("$2");   shift 2 ;;
-      --not-empty)    not_empty_fields+=("$2"); shift 2 ;;
-      --jql)          raw_jql="$2";           shift 2 ;;
+      --project)
+        project="$2"
+        shift 2
+        ;;
+      --all-projects)
+        all_projects=1
+        shift
+        ;;
+      --status)
+        status_vals+=("$2")
+        shift 2
+        ;;
+      --label)
+        label_vals+=("$2")
+        shift 2
+        ;;
+      --assignee)
+        assignee_vals+=("$2")
+        shift 2
+        ;;
+      --type)
+        type_vals+=("$2")
+        shift 2
+        ;;
+      --component)
+        component_vals+=("$2")
+        shift 2
+        ;;
+      --reporter)
+        reporter_vals+=("$2")
+        shift 2
+        ;;
+      --parent)
+        parent_vals+=("$2")
+        shift 2
+        ;;
+      --watching)
+        watching=1
+        shift
+        ;;
+      --text)
+        text_vals+=("$2")
+        shift 2
+        ;;
+      --empty)
+        empty_fields+=("$2")
+        shift 2
+        ;;
+      --not-empty)
+        not_empty_fields+=("$2")
+        shift 2
+        ;;
+      --jql)
+        raw_jql="$2"
+        shift 2
+        ;;
       *)
         echo "E_JQL_BAD_FLAG: unrecognised flag: $1" >&2
         return 32
@@ -238,16 +286,16 @@ jql_compose() {
   done
 
   # Multi-value fields: status, labels, assignee, issuetype, component, reporter, parent
-  _jql_compose_field clauses status    status_vals    || return $?
-  _jql_compose_field clauses labels    label_vals     || return $?
-  _jql_compose_field clauses assignee  assignee_vals  || return $?
-  _jql_compose_field clauses issuetype type_vals      || return $?
+  _jql_compose_field clauses status status_vals || return $?
+  _jql_compose_field clauses labels label_vals || return $?
+  _jql_compose_field clauses assignee assignee_vals || return $?
+  _jql_compose_field clauses issuetype type_vals || return $?
   _jql_compose_field clauses component component_vals || return $?
-  _jql_compose_field clauses reporter  reporter_vals  || return $?
-  _jql_compose_field clauses parent    parent_vals    || return $?
+  _jql_compose_field clauses reporter reporter_vals || return $?
+  _jql_compose_field clauses parent parent_vals || return $?
 
   # Watching (singleton — no value, no negation)
-  (( watching )) && clauses+=("watcher = currentUser()")
+  ((watching)) && clauses+=("watcher = currentUser()")
 
   # Text contains-match (one clause per value)
   local v clause

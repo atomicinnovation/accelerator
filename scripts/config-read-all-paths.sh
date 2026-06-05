@@ -24,8 +24,8 @@ _is_excluded() {
 echo "## Configured Paths"
 echo ""
 for i in "${!PATH_KEYS[@]}"; do
-  full_key="${PATH_KEYS[$i]}"   # e.g. paths.global
-  key="${full_key#paths.}"      # strip prefix → global
+  full_key="${PATH_KEYS[$i]}" # e.g. paths.global
+  key="${full_key#paths.}"    # strip prefix → global
   _is_excluded "$key" && continue
   default="${PATH_DEFAULTS[$i]}"
   value=$("$SCRIPT_DIR/config-read-value.sh" "paths.${key}" "${default}")

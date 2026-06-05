@@ -36,21 +36,27 @@ _req_test_mode() { [ "${ACCELERATOR_TEST_MODE:-}" = "1" ]; }
 
 _req_resolve_sleep_fn() {
   local fn="${JIRA_RETRY_SLEEP_FN:-}"
-  if [ -z "$fn" ]; then echo "sleep"; return 0; fi
+  if [ -z "$fn" ]; then
+    echo "sleep"
+    return 0
+  fi
 
   if ! _req_test_mode; then
     echo "E_TEST_HOOK_REJECTED: JIRA_RETRY_SLEEP_FN ignored — not in test mode" >&2
-    echo "sleep"; return 0
+    echo "sleep"
+    return 0
   fi
 
   if ! [[ "$fn" =~ ^_?test_[a-z_]+$ ]]; then
     echo "E_TEST_HOOK_REJECTED: JIRA_RETRY_SLEEP_FN ignored — name '$fn' is not an allowed test hook" >&2
-    echo "sleep"; return 0
+    echo "sleep"
+    return 0
   fi
 
-  if ! declare -F "$fn" > /dev/null 2>&1; then
+  if ! declare -F "$fn" >/dev/null 2>&1; then
     echo "E_TEST_HOOK_REJECTED: JIRA_RETRY_SLEEP_FN ignored — '$fn' is not defined" >&2
-    echo "sleep"; return 0
+    echo "sleep"
+    return 0
   fi
 
   echo "$fn"
@@ -128,13 +134,16 @@ _req_validate_path() {
   case "$result" in
     TRAVERSAL)
       echo "E_REQ_BAD_PATH: '$raw' rejected — path traversal sequence" >&2
-      return 17 ;;
+      return 17
+      ;;
     CONTROL)
       echo "E_REQ_BAD_PATH: '$raw' rejected — control character" >&2
-      return 17 ;;
+      return 17
+      ;;
     ITERATIONS)
       echo "E_REQ_BAD_PATH: '$raw' rejected — URL-decode iteration cap exceeded" >&2
-      return 17 ;;
+      return 17
+      ;;
   esac
   return 0
 }
@@ -160,15 +169,18 @@ _jira_parse_http_date() {
   local epoch
   # GNU date (Linux)
   if epoch=$(LC_ALL=C date -d "$datestr" +%s 2>/dev/null); then
-    echo "$epoch"; return 0
+    echo "$epoch"
+    return 0
   fi
   # BSD date RFC-1123 (macOS)
   if epoch=$(LC_ALL=C date -j -f "%a, %d %b %Y %H:%M:%S %Z" "$datestr" +%s 2>/dev/null); then
-    echo "$epoch"; return 0
+    echo "$epoch"
+    return 0
   fi
   # BSD date RFC-850
   if epoch=$(LC_ALL=C date -j -f "%A, %d-%b-%y %H:%M:%S %Z" "$datestr" +%s 2>/dev/null); then
-    echo "$epoch"; return 0
+    echo "$epoch"
+    return 0
   fi
   return 1
 }
@@ -237,11 +249,26 @@ query_parts=()
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --json)      json_body="$2"; shift 2 ;;
-    --multipart) multipart_args+=("$2"); shift 2 ;;
-    --query)     query_parts+=("$2"); shift 2 ;;
-    --debug)     debug_mode=true; shift ;;
-    *) echo "Unknown option: $1" >&2; exit 1 ;;
+    --json)
+      json_body="$2"
+      shift 2
+      ;;
+    --multipart)
+      multipart_args+=("$2")
+      shift 2
+      ;;
+    --query)
+      query_parts+=("$2")
+      shift 2
+      ;;
+    --debug)
+      debug_mode=true
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      exit 1
+      ;;
   esac
 done
 
@@ -261,10 +288,10 @@ URL="${BASE_URL}${PATH_ARG}${query_string}"
 curl_flags=(-sS --max-time 30)
 
 case "$METHOD" in
-  GET)    curl_flags+=(-X GET) ;;
+  GET) curl_flags+=(-X GET) ;;
   DELETE) curl_flags+=(-X DELETE) ;;
-  POST)   curl_flags+=(-X POST) ;;
-  PUT)    curl_flags+=(-X PUT) ;;
+  POST) curl_flags+=(-X POST) ;;
+  PUT) curl_flags+=(-X PUT) ;;
   *)
     echo "E_REQ_BAD_PATH: unsupported method '$METHOD'" >&2
     exit 17
@@ -297,13 +324,13 @@ attempt=0
 
 while [ $attempt -lt $max_attempts ]; do
   attempt=$((attempt + 1))
-  : > "$hdr_file"
-  : > "$body_file"
+  : >"$hdr_file"
+  : >"$body_file"
 
   curl_ok=true
-  printf 'user = "%s:%s"\n' "$JIRA_EMAIL" "$JIRA_TOKEN" \
-    | curl --config - "${curl_flags[@]}" -D "$hdr_file" -o "$body_file" "$URL" 2>/dev/null \
-    || curl_ok=false
+  printf 'user = "%s:%s"\n' "$JIRA_EMAIL" "$JIRA_TOKEN" |
+    curl --config - "${curl_flags[@]}" -D "$hdr_file" -o "$body_file" "$URL" 2>/dev/null ||
+    curl_ok=false
 
   if ! $curl_ok || [ ! -s "$hdr_file" ]; then
     echo "E_REQ_CONNECT: curl failed to connect" >&2
@@ -321,39 +348,54 @@ while [ $attempt -lt $max_attempts ]; do
   case "$status_code" in
     2*)
       body=$(cat "$body_file")
-      if [ -n "$body" ] && ! printf '%s' "$body" | jq -e . > /dev/null 2>&1; then
+      if [ -n "$body" ] && ! printf '%s' "$body" | jq -e . >/dev/null 2>&1; then
         printf '%s' "$body" >&2
         exit 16
       fi
       printf '%s' "$body"
       exit 0
       ;;
-    400) cat "$body_file" >&2; exit 34 ;;
-    401) cat "$body_file" >&2; exit 11 ;;
-    403) cat "$body_file" >&2; exit 12 ;;
-    404) cat "$body_file" >&2; exit 13 ;;
-    410) cat "$body_file" >&2; exit 14 ;;
-    429|5*)
+    400)
+      cat "$body_file" >&2
+      exit 34
+      ;;
+    401)
+      cat "$body_file" >&2
+      exit 11
+      ;;
+    403)
+      cat "$body_file" >&2
+      exit 12
+      ;;
+    404)
+      cat "$body_file" >&2
+      exit 13
+      ;;
+    410)
+      cat "$body_file" >&2
+      exit 14
+      ;;
+    429 | 5*)
       if [ $attempt -ge $max_attempts ]; then
         cat "$body_file" >&2
         [ "$status_code" = "429" ] && exit 19 || exit 20
       fi
 
       # Compute sleep duration from Retry-After header
-      retry_after=$(grep -i "^Retry-After:" "$hdr_file" | head -1 \
-        | sed 's/^[Rr][Ee][Tt][Rr][Yy]-[Aa][Ff][Tt][Ee][Rr]:[[:space:]]*//' \
-        | tr -d '\r\n') || retry_after=""
+      retry_after=$(grep -i "^Retry-After:" "$hdr_file" | head -1 |
+        sed 's/^[Rr][Ee][Tt][Rr][Yy]-[Aa][Ff][Tt][Ee][Rr]:[[:space:]]*//' |
+        tr -d '\r\n') || retry_after=""
 
       sleep_secs=""
       if [ -n "$retry_after" ]; then
         if [[ "$retry_after" =~ ^[0-9]+$ ]]; then
           delta="$retry_after"
-          sleep_secs=$(( delta < 1 ? 1 : delta > 60 ? 60 : delta ))
+          sleep_secs=$((delta < 1 ? 1 : delta > 60 ? 60 : delta))
         else
           if parsed_epoch=$(_jira_parse_http_date "$retry_after" 2>/dev/null); then
             now=$(date +%s)
-            delta=$(( parsed_epoch - now ))
-            sleep_secs=$(( delta < 1 ? 1 : delta > 60 ? 60 : delta ))
+            delta=$((parsed_epoch - now))
+            sleep_secs=$((delta < 1 ? 1 : delta > 60 ? 60 : delta))
           else
             echo "Warning: malformed Retry-After header; falling back to exponential backoff" >&2
           fi
@@ -362,16 +404,16 @@ while [ $attempt -lt $max_attempts ]; do
 
       if [ -z "$sleep_secs" ]; then
         # Exponential backoff with ±30% jitter
-        base=$(( 1 << (attempt - 1) ))
+        base=$((1 << (attempt - 1)))
         [ $base -gt 60 ] && base=60
-        seed=$(( (RANDOM ^ $(date +%s)) % 1000 ))
-        jitter=$(( base * 30 / 100 ))
-        sign=$(( seed % 2 ))
-        rand=$(( (seed % (jitter + 1)) ))
+        seed=$(((RANDOM ^ $(date +%s)) % 1000))
+        jitter=$((base * 30 / 100))
+        sign=$((seed % 2))
+        rand=$(((seed % (jitter + 1))))
         if [ $sign -eq 0 ]; then
-          sleep_secs=$(( base + rand ))
+          sleep_secs=$((base + rand))
         else
-          sleep_secs=$(( base - rand ))
+          sleep_secs=$((base - rand))
         fi
         [ $sleep_secs -lt 1 ] && sleep_secs=1
         [ $sleep_secs -gt 60 ] && sleep_secs=60

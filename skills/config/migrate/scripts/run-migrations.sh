@@ -21,17 +21,17 @@ export ACCELERATOR_MIGRATE_DECISIONS_FILE
 if [ -n "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
   if [ -d "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
     echo "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE is a directory:" \
-         "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
+      "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
     exit 1
   fi
   if [ ! -e "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
     echo "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE does not exist:" \
-         "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
+      "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
     exit 1
   fi
   if [ ! -r "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
     echo "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE is not readable:" \
-         "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
+      "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
     exit 1
   fi
 fi
@@ -76,24 +76,24 @@ if [ -z "${ACCELERATOR_MIGRATE_FORCE:-}" ]; then
   dirty=""
   if [ "$vcs" = "jj" ]; then
     if command -v jj &>/dev/null; then
-      dirty=$(jj --no-pager diff --name-only 2>/dev/null \
-        | grep -E '^(meta/|\.claude/accelerator|\.accelerator/)' || true)
+      dirty=$(jj --no-pager diff --name-only 2>/dev/null |
+        grep -E '^(meta/|\.claude/accelerator|\.accelerator/)' || true)
     fi
   elif [ "$vcs" = "git" ]; then
     dirty=$(git -C "$PROJECT_ROOT" status --porcelain \
-        "meta/" ".claude/accelerator.md" ".claude/accelerator.local.md" \
-        ".accelerator/" \
-        2>/dev/null | grep -v '^??' || true)
+      "meta/" ".claude/accelerator.md" ".claude/accelerator.local.md" \
+      ".accelerator/" \
+      2>/dev/null | grep -v '^??' || true)
   fi
 
   if [ -n "$dirty" ]; then
     # Detect any in-flight interactive session logs among the dirty paths
     # and emit a distinct, named message that names the resume command and
     # the explicit discard command. Prevents jj-abandon-in-confusion.
-    dirty_session_logs=$(printf '%s\n' "$dirty" \
-      | grep -E '\.accelerator/state/migrations-[0-9a-z-]+-session\.jsonl' \
-      | sed 's/^[[:space:]]*//; s/^[A-Z?][[:space:]]*//' \
-      || true)
+    dirty_session_logs=$(printf '%s\n' "$dirty" |
+      grep -E '\.accelerator/state/migrations-[0-9a-z-]+-session\.jsonl' |
+      sed 's/^[[:space:]]*//; s/^[A-Z?][[:space:]]*//' ||
+      true)
     if [ -n "$dirty_session_logs" ]; then
       echo "Found in-flight interactive migration session(s):" >&2
       while IFS= read -r path; do
@@ -103,10 +103,10 @@ if [ -z "${ACCELERATOR_MIGRATE_FORCE:-}" ]; then
         case "$abs" in /*) ;; *) abs="$PROJECT_ROOT/$path" ;; esac
         decision_count=0
         if [ -f "$abs" ]; then
-          decision_count=$(wc -l < "$abs" 2>/dev/null | tr -d ' ' || echo 0)
+          decision_count=$(wc -l <"$abs" 2>/dev/null | tr -d ' ' || echo 0)
         fi
         echo "  $path  ($decision_count decisions recorded)" >&2
-      done <<< "$dirty_session_logs"
+      done <<<"$dirty_session_logs"
       echo "" >&2
       echo "To resume: re-run /accelerator:migrate (the session log is read on entry;" >&2
       echo "you will be prompted only for un-decided transformations)." >&2
@@ -116,26 +116,26 @@ if [ -z "${ACCELERATOR_MIGRATE_FORCE:-}" ]; then
         case "$abs" in /*) ;; *) abs="$PROJECT_ROOT/$path" ;; esac
         decision_count=0
         if [ -f "$abs" ]; then
-          decision_count=$(wc -l < "$abs" 2>/dev/null | tr -d ' ' || echo 0)
+          decision_count=$(wc -l <"$abs" 2>/dev/null | tr -d ' ' || echo 0)
         fi
         echo "To discard: rm $path  (loses $decision_count decisions)" >&2
-      done <<< "$dirty_session_logs"
+      done <<<"$dirty_session_logs"
       echo "" >&2
       # Pick the right status command for the detected VCS. git is the
       # fallback when no VCS is detected (or the binary is missing) — it
       # is the more widely-installed of the two.
       case "$vcs" in
         jj) status_cmd='jj status' ;;
-        *)  status_cmd='git status' ;;
+        *) status_cmd='git status' ;;
       esac
       echo "If the above does not match what you expected, run \`$status_cmd\`" >&2
       echo "to see all uncommitted changes before proceeding." >&2
       exit 1
     fi
     echo "Error: dirty working tree — uncommitted changes detected in meta/," \
-         ".claude/accelerator*.md, or .accelerator/." >&2
+      ".claude/accelerator*.md, or .accelerator/." >&2
     echo "Commit or discard those changes first, or set" \
-         "ACCELERATOR_MIGRATE_FORCE=1 to skip this check." >&2
+      "ACCELERATOR_MIGRATE_FORCE=1 to skip this check." >&2
     exit 1
   fi
 fi
@@ -145,14 +145,14 @@ applied_ids=()
 if [ -f "$STATE_FILE" ]; then
   while IFS= read -r line; do
     [ -n "$line" ] && applied_ids+=("$line")
-  done < "$STATE_FILE"
+  done <"$STATE_FILE"
 fi
 
 skipped_ids=()
 if [ -f "$SKIP_FILE" ]; then
   while IFS= read -r line; do
     [ -n "$line" ] && skipped_ids+=("$line")
-  done < "$SKIP_FILE"
+  done <"$SKIP_FILE"
 fi
 
 # ── 4. Glob bundled migrations ───────────────────────────────────────────────
@@ -176,7 +176,7 @@ for applied_id in "${applied_ids[@]+"${applied_ids[@]}"}"; do
   done
   if [ "$found" -eq 0 ]; then
     echo "[warning] migrations-applied references unknown migration" \
-         "$applied_id — preserved on rewrite" >&2
+      "$applied_id — preserved on rewrite" >&2
   fi
 done
 
@@ -187,7 +187,7 @@ for skipped_id in "${skipped_ids[@]+"${skipped_ids[@]}"}"; do
   done
   if [ "$found" -eq 0 ]; then
     echo "[warning] migrations-skipped references unknown migration" \
-         "$skipped_id — preserved on rewrite" >&2
+      "$skipped_id — preserved on rewrite" >&2
   fi
 done
 
@@ -196,7 +196,7 @@ for applied_id in "${applied_ids[@]+"${applied_ids[@]}"}"; do
   for skipped_id in "${skipped_ids[@]+"${skipped_ids[@]}"}"; do
     if [ "$applied_id" = "$skipped_id" ]; then
       echo "[warning] migration $applied_id appears in BOTH .migrations-applied" \
-           "and .migrations-skipped — applied takes precedence" >&2
+        "and .migrations-skipped — applied takes precedence" >&2
     fi
   done
 done
@@ -233,8 +233,8 @@ fi
 echo "About to apply ${#pending_files[@]} migration(s):"
 for f in "${pending_files[@]}"; do
   id="$(basename "$f" .sh)"
-  description=$(grep '^# DESCRIPTION:' "$f" | head -1 \
-    | sed 's/^# DESCRIPTION:[[:space:]]*//')
+  description=$(grep '^# DESCRIPTION:' "$f" | head -1 |
+    sed 's/^# DESCRIPTION:[[:space:]]*//')
   echo "  $id — $description"
   echo "    To skip: bash $0 --skip $id"
 done
@@ -302,7 +302,7 @@ SUMMARY="applied: $applied_count"
 if [ "${#skipped_ids[@]}" -gt 0 ]; then
   SUMMARY="$SUMMARY; skipped: $(printf '%s ' "${skipped_ids[@]}" | sed 's/ $//')"
 fi
-PENDING_REMAINING=$(( ${#pending_files[@]} - applied_count ))
+PENDING_REMAINING=$((${#pending_files[@]} - applied_count))
 if [ "$PENDING_REMAINING" -gt 0 ]; then
   SUMMARY="$SUMMARY; pending (no-op): $PENDING_REMAINING"
 fi

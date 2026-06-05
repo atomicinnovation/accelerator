@@ -32,8 +32,8 @@ source "$_JIRA_FIELDS_SCRIPT_DIR/jira-auth.sh"
 jira_field_slugify() {
   local s
   s=$(LC_ALL=C printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
-  s=$(LC_ALL=C printf '%s' "$s" \
-    | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
+  s=$(LC_ALL=C printf '%s' "$s" |
+    sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
   printf '%s\n' "$s"
 }
 
@@ -76,8 +76,8 @@ _fields_do_refresh() {
 
   local ts
   ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  printf '{"lastRefreshed":"%s"}\n' "$ts" \
-    | jira_atomic_write_json "$state_dir/.refresh-meta.json"
+  printf '{"lastRefreshed":"%s"}\n' "$ts" |
+    jira_atomic_write_json "$state_dir/.refresh-meta.json"
 }
 
 _fields_refresh() {
@@ -95,7 +95,7 @@ _fields_resolve() {
     return 51
   fi
 
-  if ! jq empty < "$cache" 2>/dev/null; then
+  if ! jq empty <"$cache" 2>/dev/null; then
     echo "E_FIELD_CACHE_CORRUPT: fields.json is not valid JSON" >&2
     return 52
   fi

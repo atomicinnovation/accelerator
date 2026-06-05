@@ -31,7 +31,7 @@ set -euo pipefail
 # -- Platform guard -----------------------------------------------------------
 
 case "${OSTYPE:-unknown}" in
-  darwin*|linux*) ;;
+  darwin* | linux*) ;;
   *)
     echo "error: ensure-playwright.sh supports macOS and Linux only (OSTYPE=${OSTYPE:-unknown})" >&2
     exit 2
@@ -84,7 +84,7 @@ LOCK_FD=9
 LOCK_DIR_HELD=""
 
 acquire_lock() {
-  local max_wait=300  # 5 minutes
+  local max_wait=300 # 5 minutes
   local waited=0
 
   if [[ "${ACCELERATOR_LOCK_FORCE_MKDIR:-0}" != "1" ]] && command -v flock >/dev/null 2>&1; then
@@ -92,23 +92,23 @@ acquire_lock() {
     mkdir -p "$(dirname "$LOCKFILE")"
     eval "exec $LOCK_FD>>\"$LOCKFILE\""
     while ! flock -n "$LOCK_FD" 2>/dev/null; do
-      if (( waited >= max_wait )); then
+      if ((waited >= max_wait)); then
         echo "error: ensure-playwright.sh: timed out waiting for bootstrap lock ($max_wait s)" >&2
         exit 1
       fi
       sleep 1
-      (( waited++ ))
+      ((waited++))
     done
   else
     # mkdir-based fallback (atomic on POSIX, works without flock)
     mkdir -p "$CACHE_ROOT"
     while ! mkdir "${LOCKFILE}.d" 2>/dev/null; do
-      if (( waited >= max_wait )); then
+      if ((waited >= max_wait)); then
         echo "error: ensure-playwright.sh: timed out waiting for bootstrap lock ($max_wait s)" >&2
         exit 1
       fi
       sleep 1
-      (( waited++ ))
+      ((waited++))
     done
     LOCK_DIR_HELD=1
   fi
@@ -133,7 +133,7 @@ check_node() {
   fi
   local node_major
   node_major="$(node -e 'process.stdout.write(String(process.versions.node.split(".")[0]))')"
-  if (( node_major < NODE_FLOOR_MAJOR )); then
+  if ((node_major < NODE_FLOOR_MAJOR)); then
     echo "error: Node >= $NODE_FLOOR_MAJOR required; detected Node $node_major.x" >&2
     echo "       Install from https://nodejs.org/ (OSTYPE=${OSTYPE:-unknown})" >&2
     echo "ACCELERATOR_DOWNGRADE_REASON=node-too-old" >&2
@@ -148,8 +148,8 @@ check_disk() {
   mkdir -p "$target_dir"
   local avail_kb
   avail_kb="$(df -k "$target_dir" 2>/dev/null | awk 'NR==2{print $4}')" || avail_kb=0
-  local avail_mb=$(( avail_kb / 1024 ))
-  if (( avail_mb < DISK_FLOOR_MB )); then
+  local avail_mb=$((avail_kb / 1024))
+  if ((avail_mb < DISK_FLOOR_MB)); then
     echo "error: ensure-playwright.sh: cache filesystem has ${avail_mb} MB free; >= ${DISK_FLOOR_MB} MB required." >&2
     echo "       Cache root: $target_dir" >&2
     echo "ACCELERATOR_DOWNGRADE_REASON=disk-floor-not-met" >&2
@@ -182,12 +182,12 @@ run_sweep() {
     fi
     local now_epoch
     now_epoch="$(date -u +%s)"
-    local delta_days=$(( (now_epoch - sdir_epoch) / 86400 ))
-    if (( delta_days < 0 )); then
+    local delta_days=$(((now_epoch - sdir_epoch) / 86400))
+    if ((delta_days < 0)); then
       echo "warning: ensure-playwright.sh: skipping sweep of $sdir_hash (completed_at in future: $sdir_completed_at)" >&2
       continue
     fi
-    if (( delta_days > 90 )); then
+    if ((delta_days > 90)); then
       local sdir_pv=""
       sdir_pv="$(jq -r '.playwright_version // "unknown"' "$sdir_sentinel" 2>/dev/null || echo "unknown")"
       echo "inventory-design: pruning stale Playwright cache $sdir_hash (playwright=$sdir_pv, last bootstrap $sdir_completed_at, $delta_days days old)" >&2
@@ -224,7 +224,7 @@ write_sentinel() {
     --arg pv "$playwright_version" \
     --arg ts "$completed_at" \
     '{lockhash: $lh, node_version: $nv, playwright_version: $pv, completed_at: $ts}' \
-    > "${SENTINEL}.tmp"
+    >"${SENTINEL}.tmp"
   mv "${SENTINEL}.tmp" "$SENTINEL"
 
   # Update top-level pointer
@@ -234,8 +234,8 @@ write_sentinel() {
 
 # -- Mock fast path (both OK flags set) ---------------------------------------
 
-if [[ "${ACCELERATOR_PLAYWRIGHT_MOCK_NPM_OK:-0}" == "1" ]] && \
-   [[ "${ACCELERATOR_PLAYWRIGHT_MOCK_PLAYWRIGHT_OK:-0}" == "1" ]]; then
+if [[ "${ACCELERATOR_PLAYWRIGHT_MOCK_NPM_OK:-0}" == "1" ]] &&
+  [[ "${ACCELERATOR_PLAYWRIGHT_MOCK_PLAYWRIGHT_OK:-0}" == "1" ]]; then
   # Fast mock: create expected directory structure and write sentinel
 
   check_node
@@ -259,7 +259,7 @@ if [[ "${ACCELERATOR_PLAYWRIGHT_MOCK_NPM_OK:-0}" == "1" ]] && \
 
   # Write a minimal playwright package.json to satisfy sentinel_valid
   printf '{"name":"playwright","version":"1.49.1"}' \
-    > "$NS_ROOT/node_modules/playwright/package.json"
+    >"$NS_ROOT/node_modules/playwright/package.json"
 
   write_sentinel
   release_lock
@@ -287,7 +287,7 @@ if [[ -n "${ACCELERATOR_PLAYWRIGHT_MOCK_PLAYWRIGHT_EXIT:-}" ]]; then
   acquire_lock
   mkdir -p "$NS_ROOT/node_modules/playwright"
   printf '{"name":"playwright","version":"1.49.1"}' \
-    > "$NS_ROOT/node_modules/playwright/package.json"
+    >"$NS_ROOT/node_modules/playwright/package.json"
   echo "error: playwright install chromium failed with exit ${ACCELERATOR_PLAYWRIGHT_MOCK_PLAYWRIGHT_EXIT} (simulated)" >&2
   echo "       Check: PLAYWRIGHT_DOWNLOAD_HOST" >&2
   echo "ACCELERATOR_DOWNGRADE_REASON=bootstrap-failed" >&2
@@ -342,7 +342,7 @@ if ! npm ci --ignore-scripts --no-fund; then
 fi
 
 # 7a. Non-failing audit (surface advisory warnings)
-npm audit --omit=dev --audit-level=high 2>&1 || \
+npm audit --omit=dev --audit-level=high 2>&1 ||
   echo "inventory-design: npm audit reported advisories; review with \`npm audit\` in $NS_ROOT" >&2
 
 # 8. Install Chromium browser binary

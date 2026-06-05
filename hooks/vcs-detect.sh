@@ -38,7 +38,7 @@ fi
 
 # Build context based on VCS mode
 case "$VCS_MODE" in
-  jj|jj-colocated)
+  jj | jj-colocated)
     CONTEXT="This repository uses jujutsu (jj) as its version control system (mode: ${VCS_MODE}).
 
 VCS Command Reference:
@@ -120,8 +120,12 @@ build_boundary_block() {
 # so the diagnostic branch never fires for older classify_checkout
 # implementations that did not emit those fields (forward-compat).
 CHECKOUT_RECORD=$(classify_checkout .)
-C_KIND=""; C_BOUNDARY=""; C_JJ_PARENT=""; C_GIT_PARENT=""
-C_JJ_MISSING="0"; C_GIT_MISSING="0"
+C_KIND=""
+C_BOUNDARY=""
+C_JJ_PARENT=""
+C_GIT_PARENT=""
+C_JJ_MISSING="0"
+C_GIT_MISSING="0"
 while IFS='=' read -r k v; do
   case "$k" in
     KIND) C_KIND=$v ;;
@@ -131,7 +135,7 @@ while IFS='=' read -r k v; do
     JJ_MISSING) C_JJ_MISSING=$v ;;
     GIT_MISSING) C_GIT_MISSING=$v ;;
   esac
-done <<< "$CHECKOUT_RECORD"
+done <<<"$CHECKOUT_RECORD"
 
 # Missing-binary diagnostic. Fires based on the classifier's
 # JJ_MISSING / GIT_MISSING fields rather than KIND, because a missing
@@ -147,7 +151,7 @@ elif [ "$C_GIT_MISSING" = "1" ]; then
 fi
 
 case "$C_KIND" in
-  jj-secondary|git-worktree)
+  jj-secondary | git-worktree)
     BOUNDARY_OUT=$(build_boundary_block "" \
       "$C_BOUNDARY" "$C_JJ_PARENT" "$C_GIT_PARENT")
     # $() strips trailing newlines; explicitly restore one so future
@@ -159,7 +163,7 @@ case "$C_KIND" in
       "$C_BOUNDARY" "$C_JJ_PARENT" "$C_GIT_PARENT")
     CONTEXT="${CONTEXT}${BOUNDARY_OUT}"$'\n'
     ;;
-  nested-jj-in-git|nested-git-in-jj)
+  nested-jj-in-git | nested-git-in-jj)
     BOUNDARY_OUT=$(build_boundary_block " (nested)" \
       "$C_BOUNDARY" "$C_JJ_PARENT" "$C_GIT_PARENT")
     CONTEXT="${CONTEXT}${BOUNDARY_OUT}"$'\n'

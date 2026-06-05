@@ -73,7 +73,10 @@ jsonl_compose_record() {
   local pair key value
   for pair in "$@"; do
     case "$pair" in
-      *=*) key="${pair%%=*}"; value="${pair#*=}" ;;
+      *=*)
+        key="${pair%%=*}"
+        value="${pair#*=}"
+        ;;
       *)
         echo "jsonl_compose_record: malformed pair '$pair'" >&2
         return 1
@@ -81,16 +84,19 @@ jsonl_compose_record() {
     esac
     case "$key" in
       transformation_key) transformation_key="$value" ;;
-      schema_version)     schema_version="$value" ;;
-      outcome)            outcome="$value" ;;
-      proposed_value)     proposed_value="$value" ;;
-      user_value)         user_value="$value"; has_user_value=1 ;;
-      timestamp)          timestamp="$value" ;;
+      schema_version) schema_version="$value" ;;
+      outcome) outcome="$value" ;;
+      proposed_value) proposed_value="$value" ;;
+      user_value)
+        user_value="$value"
+        has_user_value=1
+        ;;
+      timestamp) timestamp="$value" ;;
       *)
         # Reject framework-mandatory names appearing in the extras slot
         # (collision with internal naming would corrupt round-trips).
         case "$key" in
-          transformation_key|schema_version|outcome|proposed_value|user_value|timestamp)
+          transformation_key | schema_version | outcome | proposed_value | user_value | timestamp)
             echo "jsonl_compose_record: reserved key '$key' in extras position" >&2
             return 1
             ;;
@@ -106,14 +112,14 @@ jsonl_compose_record() {
     esac
   done
 
-  if [ -z "$transformation_key" ] || [ -z "$schema_version" ] \
-     || [ -z "$outcome" ] || [ -z "$timestamp" ]; then
+  if [ -z "$transformation_key" ] || [ -z "$schema_version" ] ||
+    [ -z "$outcome" ] || [ -z "$timestamp" ]; then
     echo "jsonl_compose_record: missing required field(s)" >&2
     return 1
   fi
 
   case "$outcome" in
-    accepted|edited|skipped) ;;
+    accepted | edited | skipped) ;;
     *)
       echo "jsonl_compose_record: invalid outcome '$outcome'" >&2
       return 1

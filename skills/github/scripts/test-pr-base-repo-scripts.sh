@@ -24,8 +24,11 @@ SCRIPT="$SCRIPT_DIR/pr-base-repo.sh"
 
 phase="${PHASE:-final}"
 case "$phase" in
-  1|2|3|4|5|6|final) : ;;
-  *) echo "unknown PHASE: $phase (expected 1-6 or final)" >&2; exit 2 ;;
+  1 | 2 | 3 | 4 | 5 | 6 | final) : ;;
+  *)
+    echo "unknown PHASE: $phase (expected 1-6 or final)" >&2
+    exit 2
+    ;;
 esac
 
 TMPDIR_BASE=$(mktemp -d)
@@ -58,7 +61,7 @@ new_case() {
 }
 
 write_file() {
-  printf '%s' "$2" > "$1"
+  printf '%s' "$2" >"$1"
 }
 
 echo "=== pr-base-repo.sh tests (PHASE=$phase) ==="
@@ -73,7 +76,8 @@ assert_file_executable "pr-base-repo.sh is executable" "$SCRIPT"
 # Test 2: Usage at 0 args → exit 2 with `Usage:` on stderr.
 echo ""
 echo "--- test 2: usage at zero args ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 stderr_file="$T/stderr"
 rc=0
@@ -86,7 +90,8 @@ assert_contains "test 2: usage stderr mentions Usage:" \
 # Test 3: Same-repo PR resolves.
 echo ""
 echo "--- test 3: same-repo resolves ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
 write_file "$payload" '{"url":"https://github.com/acme/app/pull/119"}'
@@ -102,7 +107,8 @@ assert_eq "test 3: stdout is acme/app" "acme/app" "$out"
 # covered by a manual-verification step in the plan.
 echo ""
 echo "--- test 4: upstream URL parses to upstream coords ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
 write_file "$payload" \
@@ -116,7 +122,8 @@ assert_eq "test 4: stdout matches the URL's upstream coords" \
 # property the regex permits.
 echo ""
 echo "--- test 4b: GHE host parses correctly ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
 write_file "$payload" \
@@ -130,7 +137,8 @@ assert_eq "test 4b: GHE host extracts owner/repo correctly" \
 # tightened charset against percent-encoded smuggling.
 echo ""
 echo "--- test 4c: percent-encoded chars in owner rejected ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
 write_file "$payload" '{"url":"https://github.com/ac%2fme/app/pull/119"}'
@@ -145,7 +153,8 @@ assert_contains "test 4c: stderr names URL-extraction failure" \
 # Test 4d: leading-dot repo (.github) accepted.
 echo ""
 echo "--- test 4d: leading-dot repo (.github) accepted ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
 write_file "$payload" '{"url":"https://github.com/acme/.github/pull/119"}'
@@ -158,7 +167,8 @@ assert_eq "test 4d: leading-dot repo accepted" \
 # on the repo side (test 4c only covered the owner side).
 echo ""
 echo "--- test 4e: percent-encoded chars in repo rejected ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
 write_file "$payload" '{"url":"https://github.com/acme/app%2fevil/pull/119"}'
@@ -173,7 +183,8 @@ assert_contains "test 4e: stderr names URL-extraction failure" \
 # Test 5: Recorded argv shape (exact full-line match).
 echo ""
 echo "--- test 5: argv shape ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
 write_file "$payload" '{"url":"https://github.com/acme/app/pull/119"}'
@@ -186,7 +197,8 @@ assert_eq "test 5: argv is exactly 'pr view 119 --json url'" \
 # Test 6: Resolver failure — stderr preserved, conditional hint fires.
 echo ""
 echo "--- test 6: failure with no-default-remote replay+hint ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 stderr_payload="$T/pr-view-err"
 write_file "$stderr_payload" "no default remote repository"
@@ -204,7 +216,8 @@ assert_contains "test 6: set-default hint is emitted" \
 # Test 7: Resolver failure — non-matching stderr, no false hint.
 echo ""
 echo "--- test 7: failure without false hint ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 stderr_payload="$T/pr-view-err"
 write_file "$stderr_payload" "HTTP 403: SSO required"
@@ -228,7 +241,8 @@ fi
 # Test 8: Malformed URL guard — missing owner segment.
 echo ""
 echo "--- test 8: malformed URL guard ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
 # Missing the owner segment — extraction must yield empty owner and exit 1.
@@ -253,7 +267,8 @@ assert_contains "test 8: stderr names URL-extraction failure" \
 # Test 9: Truncated URL guard — missing repo segment.
 echo ""
 echo "--- test 9: truncated URL guard ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
 # Missing the repo segment — extraction must yield empty name and exit 1.
@@ -278,7 +293,8 @@ assert_contains "test 9: stderr names URL-extraction failure" \
 # Test 10: Missing jq preflight — exit 2 with remediation.
 echo ""
 echo "--- test 10: missing jq preflight ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 # Invoke bash directly with a scoped PATH so the script's #!/usr/bin/env
 # shebang isn't required to find bash on the stripped PATH. The PATH
@@ -295,7 +311,8 @@ assert_contains "test 10: stderr names jq" \
 # Test 11: Missing url field → exit 1.
 echo ""
 echo "--- test 11: missing url field ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
 write_file "$payload" '{}'
@@ -311,7 +328,8 @@ assert_contains "test 11: stderr names empty/null url" \
 # Test 12: Non-JSON stdout → clear error rather than opaque jq parse.
 echo ""
 echo "--- test 12: non-JSON output ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 payload="$T/pr-view.json"
 write_file "$payload" '<html><body>Sign in</body></html>'
@@ -330,8 +348,8 @@ echo "=== Tree-state regression guards ==="
 
 # Test 22 — regression guard against gh pr edit.
 case "$phase" in
-  1|2|3) skip_test "test 22" "deferred — guards Phase 4" ;;
-  4|5|6|final)
+  1 | 2 | 3) skip_test "test 22" "deferred — guards Phase 4" ;;
+  4 | 5 | 6 | final)
     assert_grep_empty "test 22" \
       "$PLUGIN_ROOT/skills/" "gh pr edit" \
       --include='*.md'
@@ -340,8 +358,8 @@ esac
 
 # Test 23 — regression guard against cross-fork-unsafe resolver.
 case "$phase" in
-  1|2|3|4|5) skip_test "test 23" "deferred — guards Phase 6" ;;
-  6|final)
+  1 | 2 | 3 | 4 | 5) skip_test "test 23" "deferred — guards Phase 6" ;;
+  6 | final)
     assert_grep_empty "test 23" \
       "$PLUGIN_ROOT/skills/github/" "gh repo view --json owner,name" \
       --include='*.md'

@@ -40,7 +40,7 @@ else
   done
   if [ -z "$default" ]; then
     case "$key" in
-      design_inventories|design_gaps)
+      design_inventories | design_gaps)
         # Defensive: a caller (skill author, external script) is still
         # invoking the legacy bare key. The in-tree call sites were
         # renamed; this only fires for out-of-tree callers.
@@ -57,13 +57,13 @@ fi
 # the user's config for the legacy alias. If present, their override is
 # silently being ignored — emit a warning naming the ignored key.
 case "$key" in
-  research_design_inventories|research_design_gaps)
+  research_design_inventories | research_design_gaps)
     legacy="${key#research_}"
     project_root="$(find_repo_root 2>/dev/null || true)"
-    if [ -n "$project_root" ] && \
-       grep -qF "$legacy" \
-         "$project_root/.accelerator/config.md" \
-         "$project_root/.accelerator/config.local.md" 2>/dev/null; then
+    if [ -n "$project_root" ] &&
+      grep -qF "$legacy" \
+        "$project_root/.accelerator/config.md" \
+        "$project_root/.accelerator/config.local.md" 2>/dev/null; then
       legacy_value=$(bash "$SCRIPT_DIR/config-read-value.sh" "paths.${legacy}" "" 2>/dev/null || true)
       if [ -n "$legacy_value" ]; then
         echo "config-read-path.sh: warning: your config sets 'paths.${legacy}' (renamed by migration 0004 to 'paths.${key}'); the legacy override is being ignored. Run /accelerator:migrate" >&2

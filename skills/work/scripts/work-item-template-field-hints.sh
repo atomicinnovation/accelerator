@@ -64,7 +64,7 @@ while IFS= read -r line; do
     FIELD_LINE="$line"
     break
   fi
-done <<< "$TEMPLATE_OUTPUT"
+done <<<"$TEMPLATE_OUTPUT"
 
 if [ -z "$FIELD_LINE" ]; then
   hardcoded_fallback "$FIELD"

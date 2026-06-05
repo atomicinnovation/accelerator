@@ -70,19 +70,19 @@ run_snapshot() {
     bash "$RUNNER" >"$stdout_file" 2>"$stderr_file" || rc=$?
 
   local files_list="$TMPDIR_BASE/$id.files"
-  ( cd "$sandbox" && find . -type f | sort \
-      | xargs -I{} sh -c 'printf "%s  %s\n" "$(sha256sum < "{}" | cut -d" " -f1)" "{}"' ) \
-      > "$files_list"
+  (cd "$sandbox" && find . -type f | sort |
+    xargs -I{} sh -c 'printf "%s  %s\n" "$(sha256sum < "{}" | cut -d" " -f1)" "{}"') \
+    >"$files_list"
 
-  redact_stream "$sandbox" < "$stdout_file" > "$TMPDIR_BASE/$id.stdout.redacted"
-  redact_stream "$sandbox" < "$stderr_file" > "$TMPDIR_BASE/$id.stderr.redacted"
+  redact_stream "$sandbox" <"$stdout_file" >"$TMPDIR_BASE/$id.stdout.redacted"
+  redact_stream "$sandbox" <"$stderr_file" >"$TMPDIR_BASE/$id.stderr.redacted"
 
   if [ "$REGEN" = "1" ]; then
     mkdir -p "$snap_dir"
     cp "$files_list" "$snap_dir/files.sha256"
     cp "$TMPDIR_BASE/$id.stdout.redacted" "$snap_dir/stdout"
     cp "$TMPDIR_BASE/$id.stderr.redacted" "$snap_dir/stderr"
-    printf '%s\n' "$rc" > "$snap_dir/exit-code"
+    printf '%s\n' "$rc" >"$snap_dir/exit-code"
     echo "  REGEN: snapshot $id captured"
     return 0
   fi

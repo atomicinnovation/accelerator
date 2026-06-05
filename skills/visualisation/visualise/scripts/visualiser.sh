@@ -15,9 +15,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 subcommand="${1:-start}"
 case "$subcommand" in
-  ""|start) exec "$SCRIPT_DIR/launch-server.sh" ;;
-  stop)     exec "$SCRIPT_DIR/stop-server.sh" ;;
-  status)   exec "$SCRIPT_DIR/status-server.sh" ;;
+  "" | start) exec "$SCRIPT_DIR/launch-server.sh" ;;
+  stop) exec "$SCRIPT_DIR/stop-server.sh" ;;
+  status) exec "$SCRIPT_DIR/status-server.sh" ;;
   *)
     echo '{"error":"unknown subcommand","hint":"use start (default), stop, or status"}' >&2
     exit 2

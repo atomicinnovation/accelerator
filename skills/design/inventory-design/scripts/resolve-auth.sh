@@ -27,7 +27,10 @@ if [ -n "$AUTH_HEADER" ]; then
   [ -n "$LOGIN_URL" ] && IGNORED+=("ACCELERATOR_BROWSER_LOGIN_URL")
 
   if [ "${#IGNORED[@]}" -gt 0 ]; then
-    IGNORED_LIST=$(IFS=", "; echo "${IGNORED[*]}")
+    IGNORED_LIST=$(
+      IFS=", "
+      echo "${IGNORED[*]}"
+    )
     echo "warning: ACCELERATOR_BROWSER_AUTH_HEADER is set; form-login vars ignored: ${IGNORED_LIST}" >&2
   fi
 
@@ -53,7 +56,10 @@ if [ "$SET_COUNT" -gt 0 ]; then
   [ -z "$PASSWORD" ] && MISSING+=("ACCELERATOR_BROWSER_PASSWORD")
   [ -z "$LOGIN_URL" ] && MISSING+=("ACCELERATOR_BROWSER_LOGIN_URL")
 
-  MISSING_LIST=$(IFS=", "; echo "${MISSING[*]}")
+  MISSING_LIST=$(
+    IFS=", "
+    echo "${MISSING[*]}"
+  )
   echo "error: partial form-login configuration — missing: ${MISSING_LIST}. Set all three of ACCELERATOR_BROWSER_USERNAME, ACCELERATOR_BROWSER_PASSWORD, and ACCELERATOR_BROWSER_LOGIN_URL together, or use ACCELERATOR_BROWSER_AUTH_HEADER instead." >&2
   exit 1
 fi

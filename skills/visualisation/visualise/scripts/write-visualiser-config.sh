@@ -14,13 +14,34 @@ OWNER_START_TIME=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --plugin-version)    PLUGIN_VERSION="$2";    shift 2 ;;
-    --project-root)      PROJECT_ROOT="$2";       shift 2 ;;
-    --tmp-dir)           TMP_DIR="$2";            shift 2 ;;
-    --log-file)          LOG_FILE="$2";           shift 2 ;;
-    --owner-pid)         OWNER_PID="$2";          shift 2 ;;
-    --owner-start-time)  OWNER_START_TIME="$2";   shift 2 ;;
-    *) echo "unknown arg: $1" >&2; exit 2 ;;
+    --plugin-version)
+      PLUGIN_VERSION="$2"
+      shift 2
+      ;;
+    --project-root)
+      PROJECT_ROOT="$2"
+      shift 2
+      ;;
+    --tmp-dir)
+      TMP_DIR="$2"
+      shift 2
+      ;;
+    --log-file)
+      LOG_FILE="$2"
+      shift 2
+      ;;
+    --owner-pid)
+      OWNER_PID="$2"
+      shift 2
+      ;;
+    --owner-start-time)
+      OWNER_START_TIME="$2"
+      shift 2
+      ;;
+    *)
+      echo "unknown arg: $1" >&2
+      exit 2
+      ;;
   esac
 done
 
@@ -79,13 +100,13 @@ template_tier() {
     local key_re="^[[:space:]]*${name}:"
     local team_file="$PROJECT_ROOT/.accelerator/config.md"
     local local_file="$PROJECT_ROOT/.accelerator/config.local.md"
-    if [ -f "$local_file" ] \
-      && awk '/^---[[:space:]]*$/{c++; next} c==1{print}' "$local_file" 2>/dev/null \
-         | grep -qE "$key_re" 2>/dev/null; then
+    if [ -f "$local_file" ] &&
+      awk '/^---[[:space:]]*$/{c++; next} c==1{print}' "$local_file" 2>/dev/null |
+      grep -qE "$key_re" 2>/dev/null; then
       override_source_json='".accelerator/config.local.md"'
-    elif [ -f "$team_file" ] \
-      && awk '/^---[[:space:]]*$/{c++; next} c==1{print}' "$team_file" 2>/dev/null \
-         | grep -qE "$key_re" 2>/dev/null; then
+    elif [ -f "$team_file" ] &&
+      awk '/^---[[:space:]]*$/{c++; next} c==1{print}' "$team_file" 2>/dev/null |
+      grep -qE "$key_re" 2>/dev/null; then
       override_source_json='".accelerator/config.md"'
     fi
   fi

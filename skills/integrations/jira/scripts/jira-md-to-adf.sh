@@ -11,5 +11,5 @@ ASSEMBLER="$SCRIPT_DIR/jira-md-assemble.jq"
 tmpfile=$(mktemp)
 trap 'rm -f "$tmpfile"' EXIT
 
-awk -f "$TOKENISER" > "$tmpfile" || exit $?
-jq -R -s -f "$ASSEMBLER" < "$tmpfile"
+awk -f "$TOKENISER" >"$tmpfile" || exit $?
+jq -R -s -f "$ASSEMBLER" <"$tmpfile"

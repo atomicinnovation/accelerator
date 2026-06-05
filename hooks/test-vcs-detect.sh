@@ -11,7 +11,7 @@ fi
 for tool in jj git realpath jq; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "hooks/test-vcs-detect.sh requires $tool on PATH (run via 'mise run test:integration:hooks' or install $tool)" >&2
-    exit 77   # autotools 'skip' convention; harness reports as skipped
+    exit 77 # autotools 'skip' convention; harness reports as skipped
   fi
 done
 
@@ -46,13 +46,15 @@ new_workdir() {
 }
 
 make_main_jj_workspace() {
-  local d; d=$(new_workdir)
+  local d
+  d=$(new_workdir)
   (cd "$d" && jj git init --quiet)
   printf '%s\n' "$d"
 }
 
 make_main_git_checkout() {
-  local d; d=$(new_workdir)
+  local d
+  d=$(new_workdir)
   (cd "$d" && git init -q && git config user.email t@e.x && git config user.name T)
   # Create one commit so `git worktree add` later works.
   (cd "$d" && git commit --allow-empty -q -m "init")
@@ -62,7 +64,8 @@ make_main_git_checkout() {
 # Bare repo fixture: exercises find_git_main_worktree_root's bare-repo
 # guard. Bare repos have no main worktree, so the helper must return 1.
 make_bare_git_repo() {
-  local d; d=$(new_workdir)
+  local d
+  d=$(new_workdir)
   (cd "$d" && git init --bare -q)
   printf '%s\n' "$d"
 }
@@ -73,7 +76,8 @@ make_bare_git_repo() {
 make_jj_secondary_workspace() {
   FIXTURE_PARENT="" FIXTURE_SECONDARY=""
   FIXTURE_PARENT=$(make_main_jj_workspace)
-  local secondary; secondary=$(new_workdir)
+  local secondary
+  secondary=$(new_workdir)
   rm -rf "$secondary"
   (cd "$FIXTURE_PARENT" && jj workspace add --quiet "$secondary")
   FIXTURE_SECONDARY=$(realpath "$secondary")
@@ -82,7 +86,8 @@ make_jj_secondary_workspace() {
 make_git_linked_worktree() {
   FIXTURE_PARENT="" FIXTURE_WORKTREE=""
   FIXTURE_PARENT=$(make_main_git_checkout)
-  local worktree; worktree=$(new_workdir)
+  local worktree
+  worktree=$(new_workdir)
   rm -rf "$worktree"
   (cd "$FIXTURE_PARENT" && git worktree add -q "$worktree")
   FIXTURE_WORKTREE=$(realpath "$worktree")
@@ -113,11 +118,13 @@ make_colocated_secondary() {
   FIXTURE_JJ_PARENT=$(make_main_jj_workspace)
   FIXTURE_GIT_PARENT=$(make_main_git_checkout)
   local target jj_tmp
-  target=$(new_workdir); rm -rf "$target"
+  target=$(new_workdir)
+  rm -rf "$target"
   # Step 1: git worktree at the target (creates target with .git file).
   (cd "$FIXTURE_GIT_PARENT" && git worktree add -q "$target")
   # Step 2: jj workspace at a tmp path, then graft .jj/ into target.
-  jj_tmp=$(new_workdir); rm -rf "$jj_tmp"
+  jj_tmp=$(new_workdir)
+  rm -rf "$jj_tmp"
   (cd "$FIXTURE_JJ_PARENT" && jj workspace add --quiet "$jj_tmp")
   mv "$jj_tmp/.jj" "$target/.jj"
   # Rewrite .jj/repo with an absolute path back to jj_parent. Standard jj
@@ -129,14 +136,20 @@ make_colocated_secondary() {
   # whitespace — a trailing newline turns the resolved path into a
   # nonexistent "<path>\n" and breaks `jj workspace root`. Use `%s` with
   # no newline.
-  printf '%s' "$FIXTURE_JJ_PARENT/.jj/repo" > "$target/.jj/repo"
+  printf '%s' "$FIXTURE_JJ_PARENT/.jj/repo" >"$target/.jj/repo"
   rm -rf "$jj_tmp"
   FIXTURE_TARGET=$(realpath "$target")
   # Smoke-checks (pure filesystem assertions — do NOT invoke vcs-common.sh
   # helpers here, because fixture builders are defined before the `source`
   # line and we want them callable in any order).
-  [ -f "$FIXTURE_TARGET/.jj/repo" ] || { echo "colocated fixture missing .jj/repo file" >&2; exit 1; }
-  [ -e "$FIXTURE_TARGET/.git" ] || { echo "colocated fixture missing .git marker" >&2; exit 1; }
+  [ -f "$FIXTURE_TARGET/.jj/repo" ] || {
+    echo "colocated fixture missing .jj/repo file" >&2
+    exit 1
+  }
+  [ -e "$FIXTURE_TARGET/.git" ] || {
+    echo "colocated fixture missing .git marker" >&2
+    exit 1
+  }
   [ "$(cat "$FIXTURE_TARGET/.jj/repo")" = "$FIXTURE_JJ_PARENT/.jj/repo" ] || {
     echo "colocated fixture: .jj/repo content does not point at jj_parent" >&2
     exit 1
@@ -208,18 +221,23 @@ assert_not_contains "no parent field (main git)" "$OUTPUT" "Parent repository"
 #        no boundary content for any of the three prohibition phrases. ─────────
 echo "Test [AC6]: plain non-repo directory exits 0 with no boundary content"
 d=$(new_workdir)
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 RC=0
 (cd "$d" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK") \
-  > "$STDOUT_FILE" 2> "$STDERR_FILE" || RC=$?
-STDOUT=$(cat "$STDOUT_FILE"); STDERR=$(cat "$STDERR_FILE")
+  >"$STDOUT_FILE" 2>"$STDERR_FILE" || RC=$?
+STDOUT=$(cat "$STDOUT_FILE")
+STDERR=$(cat "$STDERR_FILE")
 rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 assert_eq "empty stderr" "" "$STDERR"
 # Stdout, if non-empty, must be valid JSON parseable by jq.
 if [ -n "$STDOUT" ]; then
-  echo "$STDOUT" | jq -e . >/dev/null \
-    || { echo "FAIL: AC6 stdout is not valid JSON" >&2; exit 1; }
+  echo "$STDOUT" | jq -e . >/dev/null ||
+    {
+      echo "FAIL: AC6 stdout is not valid JSON" >&2
+      exit 1
+    }
 fi
 # All three AC1 prohibition phrases must be absent — not just `edit`.
 assert_not_contains "no edit prohibition" "$STDOUT" "do not edit files in"
@@ -234,53 +252,58 @@ echo "=== vcs-common.sh helpers ==="
 # ── _jj_workspace_is_secondary (jj internal-marker isolation function) ────────
 echo "Test [AC7]: _jj_workspace_is_secondary returns 1 in a main workspace"
 d=$(make_main_jj_workspace)
-RC=0; _jj_workspace_is_secondary "$d" || RC=$?
+RC=0
+_jj_workspace_is_secondary "$d" || RC=$?
 assert_eq "main workspace returns 1" "1" "$RC"
 
 echo "Test [AC7]: _jj_workspace_is_secondary returns 0 in a secondary workspace"
 make_jj_secondary_workspace
-RC=0; _jj_workspace_is_secondary "$FIXTURE_SECONDARY" || RC=$?
+RC=0
+_jj_workspace_is_secondary "$FIXTURE_SECONDARY" || RC=$?
 assert_eq "secondary workspace returns 0" "0" "$RC"
 
 # ── find_jj_main_workspace_root ───────────────────────────────────────────────
 echo "Test [AC7]: find_jj_main_workspace_root in a main jj workspace"
 d=$(make_main_jj_workspace)
-RESULT=$( (cd "$d" && find_jj_main_workspace_root .) )
+RESULT=$( (cd "$d" && find_jj_main_workspace_root .))
 assert_eq "returns the workspace root" "$d" "$RESULT"
 
 echo "Test [AC7]: find_jj_main_workspace_root in a jj secondary workspace"
 make_jj_secondary_workspace
-RESULT=$( (cd "$FIXTURE_SECONDARY" && find_jj_main_workspace_root .) )
+RESULT=$( (cd "$FIXTURE_SECONDARY" && find_jj_main_workspace_root .))
 assert_eq "returns the parent main workspace" "$FIXTURE_PARENT" "$RESULT"
 
 # Failure-mode contract: plain non-repo dir must return exit 1, empty stdout.
 echo "Test [AC7]: find_jj_main_workspace_root failure in a plain directory"
 d=$(new_workdir)
-RC=0; RESULT=$( (cd "$d" && find_jj_main_workspace_root .) ) || RC=$?
+RC=0
+RESULT=$( (cd "$d" && find_jj_main_workspace_root .)) || RC=$?
 assert_eq "exits 1 (plain)" "1" "$RC"
 assert_eq "empty stdout (plain)" "" "$RESULT"
 
 # ── find_git_main_worktree_root ───────────────────────────────────────────────
 echo "Test [AC7]: find_git_main_worktree_root in a main git checkout"
 d=$(make_main_git_checkout)
-RESULT=$( (cd "$d" && find_git_main_worktree_root .) )
+RESULT=$( (cd "$d" && find_git_main_worktree_root .))
 assert_eq "returns the checkout root" "$d" "$RESULT"
 
 echo "Test [AC7]: find_git_main_worktree_root in a git linked worktree"
 make_git_linked_worktree
-RESULT=$( (cd "$FIXTURE_WORKTREE" && find_git_main_worktree_root .) )
+RESULT=$( (cd "$FIXTURE_WORKTREE" && find_git_main_worktree_root .))
 assert_eq "returns the parent main checkout" "$FIXTURE_PARENT" "$RESULT"
 
 # Failure-mode contracts: plain non-repo and bare-repo → exit 1, empty stdout.
 echo "Test [AC7]: find_git_main_worktree_root failure in a plain directory"
 d=$(new_workdir)
-RC=0; RESULT=$( (cd "$d" && find_git_main_worktree_root .) ) || RC=$?
+RC=0
+RESULT=$( (cd "$d" && find_git_main_worktree_root .)) || RC=$?
 assert_eq "exits 1 (plain)" "1" "$RC"
 assert_eq "empty stdout (plain)" "" "$RESULT"
 
 echo "Test [AC7]: find_git_main_worktree_root failure in a bare git repo"
 d=$(make_bare_git_repo)
-RC=0; RESULT=$( (cd "$d" && find_git_main_worktree_root .) ) || RC=$?
+RC=0
+RESULT=$( (cd "$d" && find_git_main_worktree_root .)) || RC=$?
 assert_eq "exits 1 (bare)" "1" "$RC"
 assert_eq "empty stdout (bare)" "" "$RESULT"
 
@@ -288,8 +311,12 @@ assert_eq "empty stdout (bare)" "" "$RESULT"
 # Parser sets globals C_KIND, C_BOUNDARY, C_JJ_PARENT, C_GIT_PARENT,
 # C_JJ_MISSING, C_GIT_MISSING.
 parse_classification() {
-  C_KIND=""; C_BOUNDARY=""; C_JJ_PARENT=""; C_GIT_PARENT=""
-  C_JJ_MISSING="0"; C_GIT_MISSING="0"
+  C_KIND=""
+  C_BOUNDARY=""
+  C_JJ_PARENT=""
+  C_GIT_PARENT=""
+  C_JJ_MISSING="0"
+  C_GIT_MISSING="0"
   while IFS='=' read -r k v; do
     case "$k" in
       KIND) C_KIND=$v ;;
@@ -299,12 +326,12 @@ parse_classification() {
       JJ_MISSING) C_JJ_MISSING=$v ;;
       GIT_MISSING) C_GIT_MISSING=$v ;;
     esac
-  done <<< "$1"
+  done <<<"$1"
 }
 
 echo "Test [AC7]: classify_checkout KIND=main (jj)"
 d=$(make_main_jj_workspace)
-parse_classification "$( (cd "$d" && classify_checkout .) )"
+parse_classification "$( (cd "$d" && classify_checkout .))"
 assert_eq "KIND=main" "main" "$C_KIND"
 assert_eq "BOUNDARY empty" "" "$C_BOUNDARY"
 assert_eq "JJ_PARENT empty" "" "$C_JJ_PARENT"
@@ -312,13 +339,13 @@ assert_eq "GIT_PARENT empty" "" "$C_GIT_PARENT"
 
 echo "Test [AC7]: classify_checkout KIND=main (git)"
 d=$(make_main_git_checkout)
-parse_classification "$( (cd "$d" && classify_checkout .) )"
+parse_classification "$( (cd "$d" && classify_checkout .))"
 assert_eq "KIND=main" "main" "$C_KIND"
 assert_eq "BOUNDARY empty" "" "$C_BOUNDARY"
 
 echo "Test [AC7]: classify_checkout KIND=jj-secondary"
 make_jj_secondary_workspace
-parse_classification "$( (cd "$FIXTURE_SECONDARY" && classify_checkout .) )"
+parse_classification "$( (cd "$FIXTURE_SECONDARY" && classify_checkout .))"
 assert_eq "KIND=jj-secondary" "jj-secondary" "$C_KIND"
 assert_eq "BOUNDARY=secondary" "$FIXTURE_SECONDARY" "$C_BOUNDARY"
 assert_eq "JJ_PARENT=parent" "$FIXTURE_PARENT" "$C_JJ_PARENT"
@@ -326,7 +353,7 @@ assert_eq "GIT_PARENT empty" "" "$C_GIT_PARENT"
 
 echo "Test [AC7]: classify_checkout KIND=git-worktree"
 make_git_linked_worktree
-parse_classification "$( (cd "$FIXTURE_WORKTREE" && classify_checkout .) )"
+parse_classification "$( (cd "$FIXTURE_WORKTREE" && classify_checkout .))"
 assert_eq "KIND=git-worktree" "git-worktree" "$C_KIND"
 assert_eq "BOUNDARY=worktree" "$FIXTURE_WORKTREE" "$C_BOUNDARY"
 assert_eq "GIT_PARENT=parent" "$FIXTURE_PARENT" "$C_GIT_PARENT"
@@ -334,7 +361,7 @@ assert_eq "JJ_PARENT empty" "" "$C_JJ_PARENT"
 
 echo "Test [AC7]: classify_checkout KIND=colocated"
 make_colocated_secondary
-parse_classification "$( (cd "$FIXTURE_TARGET" && classify_checkout .) )"
+parse_classification "$( (cd "$FIXTURE_TARGET" && classify_checkout .))"
 assert_eq "KIND=colocated" "colocated" "$C_KIND"
 assert_eq "BOUNDARY=target" "$FIXTURE_TARGET" "$C_BOUNDARY"
 assert_eq "JJ_PARENT=jj_parent" "$FIXTURE_JJ_PARENT" "$C_JJ_PARENT"
@@ -342,13 +369,13 @@ assert_eq "GIT_PARENT=git_parent" "$FIXTURE_GIT_PARENT" "$C_GIT_PARENT"
 
 echo "Test [AC7]: classify_checkout KIND=none in a plain directory"
 d=$(new_workdir)
-parse_classification "$( (cd "$d" && classify_checkout .) )"
+parse_classification "$( (cd "$d" && classify_checkout .))"
 assert_eq "KIND=none" "none" "$C_KIND"
 assert_eq "BOUNDARY empty" "" "$C_BOUNDARY"
 
 echo "Test [AC7]: classify_checkout KIND=none in a bare git repo"
 d=$(make_bare_git_repo)
-parse_classification "$( (cd "$d" && classify_checkout .) )"
+parse_classification "$( (cd "$d" && classify_checkout .))"
 assert_eq "KIND=none (bare)" "none" "$C_KIND"
 
 # ── classify_checkout missing-binary diagnostic fields ────────────────────────
@@ -361,7 +388,10 @@ assert_eq "KIND=none (bare)" "none" "$C_KIND"
 echo "Test [AC7]: classify_checkout JJ_MISSING=1 in jj secondary with jj absent"
 make_jj_secondary_workspace
 NEW_PATH=$(strip_binary_from_path jj)
-parse_classification "$( ( PATH="$NEW_PATH"; cd "$FIXTURE_SECONDARY" && classify_checkout . ) )"
+parse_classification "$( (
+  PATH="$NEW_PATH"
+  cd "$FIXTURE_SECONDARY" && classify_checkout .
+))"
 # (With jj absent the structured record collapses KIND toward `none`
 # or `git-worktree`, but JJ_MISSING is 1 because an ancestor has a
 # .jj marker — exactly the signal the hook's diagnostic needs.)
@@ -369,13 +399,19 @@ assert_eq "JJ_MISSING=1" "1" "$C_JJ_MISSING"
 
 echo "Test [AC7]: classify_checkout JJ_MISSING=0 in a plain dir even when jj absent"
 d=$(new_workdir)
-parse_classification "$( ( PATH="$NEW_PATH"; cd "$d" && classify_checkout . ) )"
+parse_classification "$( (
+  PATH="$NEW_PATH"
+  cd "$d" && classify_checkout .
+))"
 assert_eq "JJ_MISSING=0 (no ancestor marker)" "0" "$C_JJ_MISSING"
 
 echo "Test [AC7]: classify_checkout GIT_MISSING=1 in git checkout with git absent"
 d=$(make_main_git_checkout)
 NEW_PATH=$(strip_binary_from_path git)
-parse_classification "$( ( PATH="$NEW_PATH"; cd "$d" && classify_checkout . ) )"
+parse_classification "$( (
+  PATH="$NEW_PATH"
+  cd "$d" && classify_checkout .
+))"
 assert_eq "GIT_MISSING=1" "1" "$C_GIT_MISSING"
 
 # ── find_repo_root unchanged-behaviour regression guard ───────────────────────
@@ -384,17 +420,17 @@ assert_eq "GIT_MISSING=1" "1" "$C_GIT_MISSING"
 # accidental edit to vcs-common.sh is caught immediately.
 echo "Test [AC7]: find_repo_root unchanged in main jj workspace"
 d=$(make_main_jj_workspace)
-RESULT=$( (cd "$d" && find_repo_root) )
+RESULT=$( (cd "$d" && find_repo_root))
 assert_eq "main jj" "$d" "$RESULT"
 
 echo "Test [AC7]: find_repo_root unchanged in main git checkout"
 d=$(make_main_git_checkout)
-RESULT=$( (cd "$d" && find_repo_root) )
+RESULT=$( (cd "$d" && find_repo_root))
 assert_eq "main git" "$d" "$RESULT"
 
 echo "Test [AC7]: find_repo_root unchanged in jj secondary workspace"
 make_jj_secondary_workspace
-RESULT=$( (cd "$FIXTURE_SECONDARY" && find_repo_root) )
+RESULT=$( (cd "$FIXTURE_SECONDARY" && find_repo_root))
 # .jj is a directory in a jj secondary workspace, so find_repo_root finds it.
 assert_eq "jj secondary" "$FIXTURE_SECONDARY" "$RESULT"
 # (We deliberately do NOT lock in find_repo_root's behaviour for git linked
@@ -406,7 +442,7 @@ echo "=== boundary block: jj secondary and git linked worktree ==="
 
 # Extract additionalContext from the hook's JSON envelope.
 extract_context() {
-  jq -r '.hookSpecificOutput.additionalContext' <<< "$1"
+  jq -r '.hookSpecificOutput.additionalContext' <<<"$1"
 }
 
 # ── AC1: jj secondary workspace boundary block ────────────────────────────────
@@ -464,16 +500,16 @@ make_colocated_secondary
 OUTPUT=$(run_hook "$FIXTURE_TARGET")
 CTX=$(extract_context "$OUTPUT")
 # Exactly one boundary line, with the shared target path as its value.
-COUNT=$(grep -c "Boundary (active workspace): $FIXTURE_TARGET" <<< "$CTX" || true)
+COUNT=$(grep -c "Boundary (active workspace): $FIXTURE_TARGET" <<<"$CTX" || true)
 assert_eq "exactly one boundary line" "1" "$COUNT"
 assert_contains "jj parent labelled" "$CTX" "Parent repository (jj): $FIXTURE_JJ_PARENT"
 assert_contains "git parent labelled" "$CTX" "Parent repository (git): $FIXTURE_GIT_PARENT"
 # Both sets of canonical prohibitions present (full phrases, not just keywords).
-assert_contains "jj edit"      "$CTX" "do not edit files in $FIXTURE_JJ_PARENT"
-assert_contains "git edit"     "$CTX" "do not edit files in $FIXTURE_GIT_PARENT"
-assert_contains "jj vcs"       "$CTX" "do not run VCS commands against $FIXTURE_JJ_PARENT"
-assert_contains "git vcs"      "$CTX" "do not run VCS commands against $FIXTURE_GIT_PARENT"
-assert_contains "jj research"  "$CTX" "do not grep, find, or research files in $FIXTURE_JJ_PARENT"
+assert_contains "jj edit" "$CTX" "do not edit files in $FIXTURE_JJ_PARENT"
+assert_contains "git edit" "$CTX" "do not edit files in $FIXTURE_GIT_PARENT"
+assert_contains "jj vcs" "$CTX" "do not run VCS commands against $FIXTURE_JJ_PARENT"
+assert_contains "git vcs" "$CTX" "do not run VCS commands against $FIXTURE_GIT_PARENT"
+assert_contains "jj research" "$CTX" "do not grep, find, or research files in $FIXTURE_JJ_PARENT"
 assert_contains "git research" "$CTX" "do not grep, find, or research files in $FIXTURE_GIT_PARENT"
 
 # ── AC4: jj secondary nested inside a pure-git parent ─────────────────────────
@@ -484,19 +520,19 @@ CTX=$(extract_context "$OUTPUT")
 # Classification must distinguish nested-jj-in-git from plain jj-secondary
 # (the previous design returned jj-secondary and dropped the git parent).
 assert_contains "boundary header" "$CTX" "WORKSPACE BOUNDARY DETECTED"
-assert_contains "boundary path"  "$CTX" "Boundary (active workspace): $FIXTURE_TARGET"
+assert_contains "boundary path" "$CTX" "Boundary (active workspace): $FIXTURE_TARGET"
 assert_contains "jj parent labelled" "$CTX" "Parent repository (jj): $FIXTURE_JJ_PARENT"
 assert_contains "git parent labelled" "$CTX" "Parent repository (git): $FIXTURE_GIT_PARENT"
 # BOTH parents must carry the full prohibition triplet.
-assert_contains "jj edit"      "$CTX" "do not edit files in $FIXTURE_JJ_PARENT"
-assert_contains "jj vcs"       "$CTX" "do not run VCS commands against $FIXTURE_JJ_PARENT"
-assert_contains "jj research"  "$CTX" "do not grep, find, or research files in $FIXTURE_JJ_PARENT"
-assert_contains "git edit"     "$CTX" "do not edit files in $FIXTURE_GIT_PARENT"
-assert_contains "git vcs"      "$CTX" "do not run VCS commands against $FIXTURE_GIT_PARENT"
+assert_contains "jj edit" "$CTX" "do not edit files in $FIXTURE_JJ_PARENT"
+assert_contains "jj vcs" "$CTX" "do not run VCS commands against $FIXTURE_JJ_PARENT"
+assert_contains "jj research" "$CTX" "do not grep, find, or research files in $FIXTURE_JJ_PARENT"
+assert_contains "git edit" "$CTX" "do not edit files in $FIXTURE_GIT_PARENT"
+assert_contains "git vcs" "$CTX" "do not run VCS commands against $FIXTURE_GIT_PARENT"
 assert_contains "git research" "$CTX" "do not grep, find, or research files in $FIXTURE_GIT_PARENT"
 # Anchor on the helper outputs the work item names explicitly.
-JJ_WS_REAL=$( (cd "$FIXTURE_TARGET" && realpath "$(jj workspace root)") )
-GIT_COMMON_REAL=$( (cd "$FIXTURE_TARGET" && realpath "$(dirname "$(git rev-parse --git-common-dir)")") )
+JJ_WS_REAL=$( (cd "$FIXTURE_TARGET" && realpath "$(jj workspace root)"))
+GIT_COMMON_REAL=$( (cd "$FIXTURE_TARGET" && realpath "$(dirname "$(git rev-parse --git-common-dir)")"))
 assert_eq "inner boundary == jj workspace root" "$JJ_WS_REAL" "$FIXTURE_TARGET"
 assert_eq "outer parent == git common-dir parent" "$GIT_COMMON_REAL" "$FIXTURE_GIT_PARENT"
 
@@ -506,20 +542,20 @@ make_git_worktree_in_jj_parent
 OUTPUT=$(run_hook "$FIXTURE_TARGET")
 CTX=$(extract_context "$OUTPUT")
 assert_contains "boundary header" "$CTX" "WORKSPACE BOUNDARY DETECTED"
-assert_contains "boundary path"   "$CTX" "Boundary (active workspace): $FIXTURE_TARGET"
+assert_contains "boundary path" "$CTX" "Boundary (active workspace): $FIXTURE_TARGET"
 assert_contains "git parent labelled" "$CTX" "Parent repository (git): $FIXTURE_GIT_PARENT"
-assert_contains "jj parent labelled"  "$CTX" "Parent repository (jj): $FIXTURE_JJ_PARENT"
-assert_contains "git edit"     "$CTX" "do not edit files in $FIXTURE_GIT_PARENT"
-assert_contains "git vcs"      "$CTX" "do not run VCS commands against $FIXTURE_GIT_PARENT"
+assert_contains "jj parent labelled" "$CTX" "Parent repository (jj): $FIXTURE_JJ_PARENT"
+assert_contains "git edit" "$CTX" "do not edit files in $FIXTURE_GIT_PARENT"
+assert_contains "git vcs" "$CTX" "do not run VCS commands against $FIXTURE_GIT_PARENT"
 assert_contains "git research" "$CTX" "do not grep, find, or research files in $FIXTURE_GIT_PARENT"
-assert_contains "jj edit"      "$CTX" "do not edit files in $FIXTURE_JJ_PARENT"
-assert_contains "jj vcs"       "$CTX" "do not run VCS commands against $FIXTURE_JJ_PARENT"
-assert_contains "jj research"  "$CTX" "do not grep, find, or research files in $FIXTURE_JJ_PARENT"
+assert_contains "jj edit" "$CTX" "do not edit files in $FIXTURE_JJ_PARENT"
+assert_contains "jj vcs" "$CTX" "do not run VCS commands against $FIXTURE_JJ_PARENT"
+assert_contains "jj research" "$CTX" "do not grep, find, or research files in $FIXTURE_JJ_PARENT"
 
 # ── classify_checkout coverage for the new nested KIND values ────────────────
 echo "Test [AC7]: classify_checkout KIND=nested-jj-in-git"
 make_jj_secondary_in_git_parent
-parse_classification "$( (cd "$FIXTURE_TARGET" && classify_checkout .) )"
+parse_classification "$( (cd "$FIXTURE_TARGET" && classify_checkout .))"
 assert_eq "KIND=nested-jj-in-git" "nested-jj-in-git" "$C_KIND"
 assert_eq "BOUNDARY=target" "$FIXTURE_TARGET" "$C_BOUNDARY"
 assert_eq "JJ_PARENT=jj" "$FIXTURE_JJ_PARENT" "$C_JJ_PARENT"
@@ -527,7 +563,7 @@ assert_eq "GIT_PARENT=git" "$FIXTURE_GIT_PARENT" "$C_GIT_PARENT"
 
 echo "Test [AC7]: classify_checkout KIND=nested-git-in-jj"
 make_git_worktree_in_jj_parent
-parse_classification "$( (cd "$FIXTURE_TARGET" && classify_checkout .) )"
+parse_classification "$( (cd "$FIXTURE_TARGET" && classify_checkout .))"
 assert_eq "KIND=nested-git-in-jj" "nested-git-in-jj" "$C_KIND"
 assert_eq "BOUNDARY=target" "$FIXTURE_TARGET" "$C_BOUNDARY"
 assert_eq "JJ_PARENT=jj" "$FIXTURE_JJ_PARENT" "$C_JJ_PARENT"
@@ -599,15 +635,18 @@ RC=0
 OUTPUT=$(PATH="$NEW_PATH" run_hook "$FIXTURE_SECONDARY") || RC=$?
 assert_eq "PATH not leaked" "$ORIG_PATH" "$PATH"
 assert_eq "exits 0 with jj missing" "0" "$RC"
-SYS_MSG=$(jq -r '.systemMessage // ""' <<< "$OUTPUT")
+SYS_MSG=$(jq -r '.systemMessage // ""' <<<"$OUTPUT")
 assert_contains "systemMessage names jj" "$SYS_MSG" "jj binary not on PATH"
 # Stdout must be valid JSON regardless.
-jq -e . >/dev/null <<< "$OUTPUT" \
-  || { echo "FAIL: hook stdout not valid JSON with jj missing" >&2; exit 1; }
+jq -e . >/dev/null <<<"$OUTPUT" ||
+  {
+    echo "FAIL: hook stdout not valid JSON with jj missing" >&2
+    exit 1
+  }
 # Defence-in-depth: the boundary block must not name the jj parent in
 # the degraded case (jj-side detection was skipped, so the field has no
 # trustworthy value).
-CTX=$(jq -r '.hookSpecificOutput.additionalContext // ""' <<< "$OUTPUT")
+CTX=$(jq -r '.hookSpecificOutput.additionalContext // ""' <<<"$OUTPUT")
 assert_not_contains "no jj-parent line with jj absent" "$CTX" "Parent repository (jj):"
 
 # Same drill for jq missing — the EXISTING jq-missing path is unchanged
@@ -616,7 +655,10 @@ assert_not_contains "no jj-parent line with jj absent" "$CTX" "Parent repository
 echo "Test [missing-binary]: jq absent — hook exits 0 with systemMessage (existing behaviour)"
 NEW_PATH=$(strip_binary_from_path jq)
 RC=0
-( PATH="$NEW_PATH"; cd "$FIXTURE_SECONDARY" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" "$BASH_BIN" "$HOOK" ) >/dev/null 2>&1 || RC=$?
+(
+  PATH="$NEW_PATH"
+  cd "$FIXTURE_SECONDARY" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" "$BASH_BIN" "$HOOK"
+) >/dev/null 2>&1 || RC=$?
 assert_eq "PATH not leaked" "$ORIG_PATH" "$PATH"
 assert_eq "exits 0 with jq missing" "0" "$RC"
 

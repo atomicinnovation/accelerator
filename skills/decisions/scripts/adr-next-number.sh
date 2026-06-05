@@ -17,8 +17,14 @@ source "$PLUGIN_ROOT/scripts/vcs-common.sh"
 COUNT=1
 while [ $# -gt 0 ]; do
   case "$1" in
-    --count) COUNT="$2"; shift 2 ;;
-    *) echo "Usage: adr-next-number.sh [--count N]" >&2; exit 1 ;;
+    --count)
+      COUNT="$2"
+      shift 2
+      ;;
+    *)
+      echo "Usage: adr-next-number.sh [--count N]" >&2
+      exit 1
+      ;;
   esac
 done
 

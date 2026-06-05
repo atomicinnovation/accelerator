@@ -98,10 +98,11 @@ echo ""
 echo "=== Case 4: comment bodies rendered ==="
 echo ""
 
-COMMENT_ISSUE=$(jq -cn \
-  --argjson adf1 "$SIMPLE_ADF" \
-  --argjson adf2 "$SIMPLE_ADF" \
-  '{"key":"ENG-4","id":"10004","fields":{"summary":"Comments","comment":{"comments":[
+COMMENT_ISSUE=$(
+  jq -cn \
+    --argjson adf1 "$SIMPLE_ADF" \
+    --argjson adf2 "$SIMPLE_ADF" \
+    '{"key":"ENG-4","id":"10004","fields":{"summary":"Comments","comment":{"comments":[
     {"id":"1","body":$adf1,"created":"2026-01-01T00:00:00.000+0000"},
     {"id":"2","body":$adf2,"created":"2026-01-02T00:00:00.000+0000"}
   ]}}}'
@@ -117,10 +118,11 @@ echo ""
 echo "=== Case 5: search response — descriptions rendered ==="
 echo ""
 
-SEARCH=$(jq -cn \
-  --argjson adf1 "$SIMPLE_ADF" \
-  --argjson adf2 "$SIMPLE_ADF" \
-  '{"issues":[
+SEARCH=$(
+  jq -cn \
+    --argjson adf1 "$SIMPLE_ADF" \
+    --argjson adf2 "$SIMPLE_ADF" \
+    '{"issues":[
     {"key":"ENG-1","fields":{"description":$adf1}},
     {"key":"ENG-2","fields":{"description":$adf2}}
   ]}'
@@ -144,14 +146,14 @@ jq -cn '{
     {"id":"customfield_10100","key":"customfield_10100","name":"Design Notes",
      "slug":"design-notes","schema":{"custom":"com.atlassian.jira.plugin.system.customfieldtypes:textarea"}}
   ]
-}' > "$FIELDS_CACHE"
+}' >"$FIELDS_CACHE"
 
 CF_ISSUE=$(jq -cn --argjson adf "$SIMPLE_ADF" \
   '{"key":"ENG-5","id":"10005","fields":{"summary":"CF test","customfield_10100":$adf}}')
-OUT=$(printf '%s' "$CF_ISSUE" | \
+OUT=$(printf '%s' "$CF_ISSUE" |
   ACCELERATOR_TEST_MODE=1 \
-  ACCELERATOR_JIRA_FIELDS_CACHE_PATH_TEST="$FIELDS_CACHE" \
-  bash "$RENDER")
+    ACCELERATOR_JIRA_FIELDS_CACHE_PATH_TEST="$FIELDS_CACHE" \
+    bash "$RENDER")
 CF_VAL=$(printf '%s' "$OUT" | jq -r '.fields.customfield_10100')
 assert_eq "custom textarea field rendered" "hello world" "$CF_VAL"
 echo ""
@@ -168,14 +170,14 @@ jq -cn '{
     {"id":"customfield_10200","key":"customfield_10200","name":"Short Text",
      "slug":"short-text","schema":{"custom":"com.atlassian.jira.plugin.system.customfieldtypes:textfield"}}
   ]
-}' > "$FIELDS_CACHE7"
+}' >"$FIELDS_CACHE7"
 
 CF_ISSUE7=$(jq -cn --argjson adf "$SIMPLE_ADF" \
   '{"key":"ENG-6","id":"10006","fields":{"summary":"Non-CF","customfield_10200":$adf}}')
-OUT7=$(printf '%s' "$CF_ISSUE7" | \
+OUT7=$(printf '%s' "$CF_ISSUE7" |
   ACCELERATOR_TEST_MODE=1 \
-  ACCELERATOR_JIRA_FIELDS_CACHE_PATH_TEST="$FIELDS_CACHE7" \
-  bash "$RENDER")
+    ACCELERATOR_JIRA_FIELDS_CACHE_PATH_TEST="$FIELDS_CACHE7" \
+    bash "$RENDER")
 CF_TYPE=$(printf '%s' "$OUT7" | jq -r '.fields.customfield_10200 | type')
 assert_eq "non-textarea field not rendered (still object)" "object" "$CF_TYPE"
 echo ""
@@ -219,7 +221,7 @@ echo ""
 
 ISSUE11=$(make_issue "$SIMPLE_ADF")
 PASS1=$(printf '%s' "$ISSUE11" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
-PASS2=$(printf '%s' "$PASS1"   | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
+PASS2=$(printf '%s' "$PASS1" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
 assert_eq "second pass byte-identical" "$PASS1" "$PASS2"
 echo ""
 
@@ -234,7 +236,7 @@ echo ""
 STUB_DIR=$(mktemp -d "$TMPDIR_BASE/stub-XXXXXX")
 COUNTER_FILE=$(mktemp "$TMPDIR_BASE/counter-XXXXXX")
 
-cat > "$STUB_DIR/jira-adf-to-md.sh" <<'STUBEOF'
+cat >"$STUB_DIR/jira-adf-to-md.sh" <<'STUBEOF'
 #!/usr/bin/env bash
 if [[ -n "${STUB_COUNTER_FILE:-}" ]]; then
   _c=$(cat "${STUB_COUNTER_FILE}" 2>/dev/null || echo 0)
@@ -245,24 +247,24 @@ STUBEOF
 chmod +x "$STUB_DIR/jira-adf-to-md.sh"
 
 # First pass on ADF issue: renderer should be called once (description)
-echo 0 > "$COUNTER_FILE"
+echo 0 >"$COUNTER_FILE"
 ISSUE11B=$(make_issue "$SIMPLE_ADF")
-PASS1_OUT=$(printf '%s' "$ISSUE11B" | \
+PASS1_OUT=$(printf '%s' "$ISSUE11B" |
   ACCELERATOR_TEST_MODE=1 \
-  ACCELERATOR_JIRA_ADF_RENDERER_TEST="$STUB_DIR/jira-adf-to-md.sh" \
-  STUB_COUNTER_FILE="$COUNTER_FILE" \
-  bash "$RENDER")
+    ACCELERATOR_JIRA_ADF_RENDERER_TEST="$STUB_DIR/jira-adf-to-md.sh" \
+    STUB_COUNTER_FILE="$COUNTER_FILE" \
+    bash "$RENDER")
 COUNT_AFTER_PASS1=$(cat "$COUNTER_FILE")
 assert_eq "renderer called once on first pass" "1" "$COUNT_AFTER_PASS1"
 
 # Second pass on already-rendered output: type-predicate gate must
 # short-circuit before spawning the renderer (strings are not ADF docs)
-echo 0 > "$COUNTER_FILE"
-printf '%s' "$PASS1_OUT" | \
+echo 0 >"$COUNTER_FILE"
+printf '%s' "$PASS1_OUT" |
   ACCELERATOR_TEST_MODE=1 \
-  ACCELERATOR_JIRA_ADF_RENDERER_TEST="$STUB_DIR/jira-adf-to-md.sh" \
-  STUB_COUNTER_FILE="$COUNTER_FILE" \
-  bash "$RENDER" > /dev/null
+    ACCELERATOR_JIRA_ADF_RENDERER_TEST="$STUB_DIR/jira-adf-to-md.sh" \
+    STUB_COUNTER_FILE="$COUNTER_FILE" \
+    bash "$RENDER" >/dev/null
 COUNT_AFTER_PASS2=$(cat "$COUNTER_FILE")
 assert_eq "renderer not called on second pass" "0" "$COUNT_AFTER_PASS2"
 echo ""
@@ -289,16 +291,16 @@ jq -cn '{
     {"id":"customfield_10100","key":"customfield_10100","name":"Design Notes",
      "slug":"design-notes","schema":{"custom":"com.atlassian.jira.plugin.system.customfieldtypes:textarea"}}
   ]
-}' > "$FIELDS_CACHE13"
+}' >"$FIELDS_CACHE13"
 
 CF_ISSUE13=$(jq -cn --argjson adf "$SIMPLE_ADF" \
   '{"key":"ENG-9","id":"10009","fields":{"summary":"Gate test","customfield_10100":$adf}}')
 
 # ACCELERATOR_TEST_MODE=true (not "1") — gate should NOT activate the cache override
-OUT13=$(printf '%s' "$CF_ISSUE13" | \
+OUT13=$(printf '%s' "$CF_ISSUE13" |
   ACCELERATOR_TEST_MODE=true \
-  ACCELERATOR_JIRA_FIELDS_CACHE_PATH_TEST="$FIELDS_CACHE13" \
-  bash "$RENDER" 2>/dev/null || true)
+    ACCELERATOR_JIRA_FIELDS_CACHE_PATH_TEST="$FIELDS_CACHE13" \
+    bash "$RENDER" 2>/dev/null || true)
 
 # When gate is inactive, the walker has no fields.json to read, so the
 # custom field should NOT be rendered (ADF object remains untouched)
@@ -319,10 +321,10 @@ COMMENT_LIST=$(jq -cn \
       {"id":"2","body":$adf2,"author":{"accountId":"u2","displayName":"Bob"},"created":"2026-01-02T00:00:00.000+0000"}
     ]}')
 OUT14=$(printf '%s' "$COMMENT_LIST" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
-assert_eq "comment-list: first body rendered"  "hello world" "$(printf '%s' "$OUT14" | jq -r '.comments[0].body')"
+assert_eq "comment-list: first body rendered" "hello world" "$(printf '%s' "$OUT14" | jq -r '.comments[0].body')"
 assert_eq "comment-list: second body rendered" "hello world" "$(printf '%s' "$OUT14" | jq -r '.comments[1].body')"
-assert_eq "comment-list: startAt preserved"    "0"           "$(printf '%s' "$OUT14" | jq -r '.startAt')"
-assert_eq "comment-list: total preserved"      "2"           "$(printf '%s' "$OUT14" | jq -r '.total')"
+assert_eq "comment-list: startAt preserved" "0" "$(printf '%s' "$OUT14" | jq -r '.startAt')"
+assert_eq "comment-list: total preserved" "2" "$(printf '%s' "$OUT14" | jq -r '.total')"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -334,7 +336,7 @@ SINGLE_COMMENT=$(jq -cn \
   '{id:"42", body:$adf, author:{"accountId":"u1","displayName":"Alice"}, created:"2026-01-01T00:00:00.000+0000"}')
 OUT15=$(printf '%s' "$SINGLE_COMMENT" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
 assert_eq "single-comment: body rendered" "hello world" "$(printf '%s' "$OUT15" | jq -r '.body')"
-assert_eq "single-comment: id preserved"  "42"          "$(printf '%s' "$OUT15" | jq -r '.id')"
+assert_eq "single-comment: id preserved" "42" "$(printf '%s' "$OUT15" | jq -r '.id')"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -342,7 +344,7 @@ echo "=== Case 16: already-rendered comment-list is idempotent ==="
 echo ""
 
 PASS1_16=$(printf '%s' "$COMMENT_LIST" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
-PASS2_16=$(printf '%s' "$PASS1_16"     | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
+PASS2_16=$(printf '%s' "$PASS1_16" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
 assert_eq "comment-list idempotent" "$PASS1_16" "$PASS2_16"
 echo ""
 

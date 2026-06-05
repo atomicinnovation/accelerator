@@ -62,15 +62,15 @@ read_field() {
       # quotes, so trailing whitespace after a closing quote does not
       # leave the quote orphaned. Each command gets its own -e for
       # readability.
-      value=$(echo "$value" \
-        | sed -e 's/^[[:space:]]*//' \
-              -e 's/[[:space:]]*$//' \
-              -e 's/^["'"'"']//' \
-              -e 's/["'"'"']$//')
+      value=$(echo "$value" |
+        sed -e 's/^[[:space:]]*//' \
+          -e 's/[[:space:]]*$//' \
+          -e 's/^["'"'"']//' \
+          -e 's/["'"'"']$//')
       found=true
       break
     fi
-  done <<< "$FRONTMATTER"
+  done <<<"$FRONTMATTER"
   if [ "$found" = true ]; then
     printf '%s' "$value"
     return 0

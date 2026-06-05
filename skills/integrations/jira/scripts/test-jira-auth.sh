@@ -9,7 +9,6 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
-
 AUTH_CLI="$SCRIPT_DIR/jira-auth-cli.sh"
 
 TMPDIR_BASE=$(mktemp -d)
@@ -42,7 +41,7 @@ write_team_config() {
     echo "  email: $email"
     [ -n "$extra_field" ] && printf '%s\n' "$extra_field"
     echo "---"
-  } > "$repo/.accelerator/config.md"
+  } >"$repo/.accelerator/config.md"
 }
 
 # extra_line should be indented (e.g. "  token: tok")
@@ -55,7 +54,7 @@ write_local_config() {
       printf '%s\n' "$extra_line"
     fi
     echo "---"
-  } > "$repo/.accelerator/config.local.md"
+  } >"$repo/.accelerator/config.local.md"
   chmod 600 "$repo/.accelerator/config.local.md"
 }
 
@@ -99,7 +98,7 @@ assert_contains "shared token" "$OUTPUT" "token=shared-token"
 echo "Test 5a: accelerator.md jira.token blocked when accelerator.local.md exists but has no token"
 REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  token: shared-token"
-write_local_config "$REPO"  # local.md exists but contains no jira.token entry
+write_local_config "$REPO" # local.md exists but contains no jira.token entry
 EXIT_CODE=0
 STDOUT=$(cd "$REPO" && bash "$AUTH_CLI" 2>/dev/null) || EXIT_CODE=$?
 STDERR=$(cd "$REPO" && bash "$AUTH_CLI" 2>&1 1>/dev/null) || true
@@ -130,7 +129,7 @@ fi
 
 echo "Test 7: empty resolution exits non-zero with E_NO_TOKEN, nothing on stdout"
 REPO=$(setup_repo)
-write_team_config "$REPO"  # no token fields
+write_team_config "$REPO" # no token fields
 EXIT_CODE=0
 STDOUT=$(cd "$REPO" && bash "$AUTH_CLI" 2>/dev/null) || EXIT_CODE=$?
 STDERR=$(cd "$REPO" && bash "$AUTH_CLI" 2>&1 1>/dev/null) || true
@@ -254,7 +253,7 @@ REPO=$(setup_git_repo)
 write_team_config "$REPO"
 write_local_config "$REPO" "  token: tok"
 chmod 644 "$REPO/.accelerator/config.local.md"
-touch "$REPO/.claude/insecure-local-ok"  # exists but NOT git-added
+touch "$REPO/.claude/insecure-local-ok" # exists but NOT git-added
 EXIT_CODE=0
 (cd "$REPO" && ACCELERATOR_ALLOW_INSECURE_LOCAL=1 bash "$AUTH_CLI" 2>/dev/null 1>/dev/null) || EXIT_CODE=$?
 assert_eq "14d: exits 29 with untracked marker" "29" "$EXIT_CODE"

@@ -14,9 +14,9 @@ if [ -z "$PROJECT_ROOT" ]; then
 fi
 
 # Only fire for repos that appear to use Accelerator
-if [ ! -d "$PROJECT_ROOT/.accelerator" ] \
-    && [ ! -f "$PROJECT_ROOT/.claude/accelerator.md" ] \
-    && [ ! -d "$PROJECT_ROOT/meta" ]; then
+if [ ! -d "$PROJECT_ROOT/.accelerator" ] &&
+  [ ! -f "$PROJECT_ROOT/.claude/accelerator.md" ] &&
+  [ ! -d "$PROJECT_ROOT/meta" ]; then
   exit 0
 fi
 
@@ -59,15 +59,15 @@ if [ -f "$STATE_FILE" ]; then
     if [ -z "$highest_applied" ] || [ "$line" \> "$highest_applied" ]; then
       highest_applied="$line"
     fi
-  done < "$STATE_FILE"
+  done <"$STATE_FILE"
 fi
 
 # Warn if applied < available (or state file absent while migrations exist)
 if [ -z "$highest_applied" ] || [ "$highest_applied" \< "$highest_available" ]; then
   applied_label="${highest_applied:-(none)}"
   echo "[accelerator] $STATE_FILE is behind the plugin" \
-       "(highest applied: $applied_label; highest available: $highest_available)." \
-       "Run /accelerator:migrate to bring it up to date." >&2
+    "(highest applied: $applied_label; highest available: $highest_available)." \
+    "Run /accelerator:migrate to bring it up to date." >&2
 fi
 
 exit 0

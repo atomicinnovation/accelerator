@@ -68,10 +68,10 @@ probe_paths_key() {
   local team_file="$PROJECT_ROOT/.claude/accelerator.md"
   local local_file="$PROJECT_ROOT/.claude/accelerator.local.md"
   local raw=""
-  [ -f "$team_file" ] && raw=$(_awk_probe_paths_key "$key" < "$team_file")
+  [ -f "$team_file" ] && raw=$(_awk_probe_paths_key "$key" <"$team_file")
   if [ -f "$local_file" ]; then
     local local_raw
-    local_raw=$(_awk_probe_paths_key "$key" < "$local_file")
+    local_raw=$(_awk_probe_paths_key "$key" <"$local_file")
     [ -n "$local_raw" ] && raw="$local_raw"
   fi
   # Strip trailing comment and whitespace before returning.
@@ -110,7 +110,7 @@ _step_preflight() {
   fi
 
   if [ "$has_source" -eq 1 ]; then
-    return 1  # proceed
+    return 1 # proceed
   fi
 
   # No sources — check whether .accelerator/ has content beyond the minimal scaffold.
@@ -119,10 +119,10 @@ _step_preflight() {
     while IFS= read -r -d '' path; do
       local rel="${path#"$PROJECT_ROOT/.accelerator/"}"
       case "$rel" in
-        .gitignore|state|state/.gitkeep)
+        .gitignore | state | state/.gitkeep)
           ;;
         *)
-          return 1  # extra content beyond scaffold — proceed
+          return 1 # extra content beyond scaffold — proceed
           ;;
       esac
     done < <(find "$PROJECT_ROOT/.accelerator" -mindepth 1 \( -type f -o -type d \) -print0 2>/dev/null)
@@ -171,12 +171,12 @@ _step_move_sources() {
   local tmp_val
   tmp_val=$(probe_paths_key tmp)
 
-  _move_if_pending .claude/accelerator.md          .accelerator/config.md
-  _move_if_pending .claude/accelerator.local.md    .accelerator/config.local.md
-  _move_if_pending .claude/accelerator/skills      .accelerator/skills
-  _move_if_pending .claude/accelerator/lenses      .accelerator/lenses
-  _move_if_pending meta/templates                  .accelerator/templates
-  _move_if_pending meta/integrations/jira          .accelerator/state/integrations/jira
+  _move_if_pending .claude/accelerator.md .accelerator/config.md
+  _move_if_pending .claude/accelerator.local.md .accelerator/config.local.md
+  _move_if_pending .claude/accelerator/skills .accelerator/skills
+  _move_if_pending .claude/accelerator/lenses .accelerator/lenses
+  _move_if_pending meta/templates .accelerator/templates
+  _move_if_pending meta/integrations/jira .accelerator/state/integrations/jira
 
   if [ -z "$tmp_val" ]; then
     _move_if_pending meta/tmp .accelerator/tmp
@@ -198,11 +198,11 @@ _merge_state_file() {
   if [ -f "$dst" ]; then
     while IFS= read -r line; do
       [ -n "$line" ] && all_lines+=("$line")
-    done < "$dst"
+    done <"$dst"
   fi
   while IFS= read -r line; do
     [ -n "$line" ] && all_lines+=("$line")
-  done < "$src"
+  done <"$src"
 
   # Deduplicate preserving order.
   local seen=() unique=()
@@ -228,8 +228,8 @@ _merge_state_file() {
 }
 
 _step_relocate_state_files() {
-  _merge_state_file meta/.migrations-applied  migrations-applied
-  _merge_state_file meta/.migrations-skipped  migrations-skipped
+  _merge_state_file meta/.migrations-applied migrations-applied
+  _merge_state_file meta/.migrations-skipped migrations-skipped
 }
 
 # ── _step_inner_jira_gitignore ────────────────────────────────────────────────
@@ -240,7 +240,7 @@ _step_inner_jira_gitignore() {
   local gi="$jira_dir/.gitignore"
   touch "$gi"
   for rule in "${JIRA_INNER_GITIGNORE_RULES[@]}"; do
-    grep -qFx "$rule" "$gi" 2>/dev/null || printf '%s\n' "$rule" >> "$gi"
+    grep -qFx "$rule" "$gi" 2>/dev/null || printf '%s\n' "$rule" >>"$gi"
   done
   [ -e "$jira_dir/.gitkeep" ] || touch "$jira_dir/.gitkeep"
 }

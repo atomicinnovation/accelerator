@@ -62,7 +62,7 @@ jq -cn '{
       "schema": {"type": "user"}
     }
   ]
-}' > "$FIELDS_JSON"
+}' >"$FIELDS_JSON"
 
 # Helper: call _jira_coerce_custom_value in a subprocess
 coerce() {
@@ -93,7 +93,7 @@ echo "=== Case 3: @json: array literal ==="
 echo ""
 
 RESULT_3=$(coerce "customfield_10020" "@json:[42]" "$FIELDS_JSON" "E_BAD_FIELD")
-PARSED_3=$(jq -e '. == [42]' <<< "$RESULT_3")
+PARSED_3=$(jq -e '. == [42]' <<<"$RESULT_3")
 assert_eq "@json: array parsed correctly" "true" "$PARSED_3"
 echo ""
 
@@ -136,7 +136,7 @@ echo "=== Case 8: schema.type=option, raw value ==="
 echo ""
 
 RESULT_8=$(coerce "customfield_10300" "High" "$FIELDS_JSON" "E_BAD_FIELD")
-PARSED_8=$(jq -e '.value == "High"' <<< "$RESULT_8")
+PARSED_8=$(jq -e '.value == "High"' <<<"$RESULT_8")
 assert_eq "option coercion produces {value: ...}" "true" "$PARSED_8"
 echo ""
 
@@ -145,7 +145,7 @@ echo "=== Case 9: schema.type=user, accountId ==="
 echo ""
 
 RESULT_9=$(coerce "customfield_10400" "5b10a2844c20165700ede21g" "$FIELDS_JSON" "E_BAD_FIELD")
-PARSED_9=$(jq -e '.accountId == "5b10a2844c20165700ede21g"' <<< "$RESULT_9")
+PARSED_9=$(jq -e '.accountId == "5b10a2844c20165700ede21g"' <<<"$RESULT_9")
 assert_eq "user coercion produces {accountId: ...}" "true" "$PARSED_9"
 echo ""
 
@@ -154,7 +154,7 @@ echo "=== Case 10: field not in cache — no schema.type ==="
 echo ""
 
 EMPTY_FIELDS="$TMPDIR_BASE/empty-fields.json"
-jq -cn '{"site":"example","fields":[]}' > "$EMPTY_FIELDS"
+jq -cn '{"site":"example","fields":[]}' >"$EMPTY_FIELDS"
 
 ERR_10=$(coerce "customfield_99999" "value" "$EMPTY_FIELDS" "E_BAD_FIELD" 2>&1 >/dev/null || true)
 assert_contains "missing field: error on stderr" "$ERR_10" "E_BAD_FIELD"

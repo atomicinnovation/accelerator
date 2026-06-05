@@ -24,7 +24,7 @@ CONTEXT_FILE="$PROJECT_ROOT/.accelerator/skills/$SKILL_NAME/context.md"
 
 [ -f "$CONTEXT_FILE" ] || exit 0
 
-CONTENT=$(config_trim_body < "$CONTEXT_FILE")
+CONTENT=$(config_trim_body <"$CONTEXT_FILE")
 [ -z "$CONTENT" ] && exit 0
 
 echo "## Skill-Specific Context"

@@ -42,7 +42,7 @@ PASS=$((PASS + 1))
 extract_frontmatter() {
   local file="$1"
   # Read everything between the first two `---` lines, normalising CRLF.
-  tr -d '\r' < "$file" | awk '
+  tr -d '\r' <"$file" | awk '
     BEGIN { state=0 }
     /^---[[:space:]]*$/ {
       if (state == 0) { state=1; next }
@@ -54,7 +54,7 @@ extract_frontmatter() {
 
 assert_in_block() {
   local test_name="$1" block="$2" regex="$3"
-  if grep -qE "$regex" <<< "$block"; then
+  if grep -qE "$regex" <<<"$block"; then
     echo "  PASS: $test_name"
     PASS=$((PASS + 1))
   else
@@ -66,7 +66,7 @@ assert_in_block() {
 
 assert_not_in_block() {
   local test_name="$1" block="$2" regex="$3"
-  if grep -qE "$regex" <<< "$block"; then
+  if grep -qE "$regex" <<<"$block"; then
     echo "  FAIL: $test_name"
     echo "    Regex: $regex (should not match)"
     FAIL=$((FAIL + 1))
@@ -135,11 +135,11 @@ while IFS=$'\t' read -r template_file expected_type anchored extras status_vocab
   done
 
   # Status vocabulary verbatim on `status:` line (grep -F against the line).
-  status_line=$(grep -E '^status:[[:space:]]' <<< "$block" || true)
+  status_line=$(grep -E '^status:[[:space:]]' <<<"$block" || true)
   if [ -z "$status_line" ]; then
     echo "  FAIL: $template_file — no status: line"
     FAIL=$((FAIL + 1))
-  elif grep -qF -- "$status_vocab" <<< "$status_line"; then
+  elif grep -qF -- "$status_vocab" <<<"$status_line"; then
     echo "  PASS: $template_file: status vocabulary verbatim ($status_vocab)"
     PASS=$((PASS + 1))
   else

@@ -58,10 +58,10 @@ fi
 # character class [A-Za-z][A-Za-z0-9_,]* is safe to interpolate into
 # the ERE allowlist regex below without escaping.
 fields=$(
-  grep -oE -- "--json [A-Za-z][A-Za-z0-9_,]*" "$SCRIPT" \
-    | awk '{print $2}' \
-    | tr ',' '\n' \
-    | sort -u
+  grep -oE -- "--json [A-Za-z][A-Za-z0-9_,]*" "$SCRIPT" |
+    awk '{print $2}' |
+    tr ',' '\n' |
+    sort -u
 )
 
 if [ -z "$fields" ]; then
@@ -121,12 +121,12 @@ fi
 # bullet-per-line list (awk strips any non-token prefix). The first
 # token per line after comma-splitting is the field identifier.
 allowlist_tokens=$(
-  printf '%s\n' "$probe_stderr" \
-    | grep -v "Unknown JSON field" \
-    | tr ',' '\n' \
-    | awk '{print $1}' \
-    | grep -E '^[A-Za-z][A-Za-z0-9_]*$' \
-    | sort -u
+  printf '%s\n' "$probe_stderr" |
+    grep -v "Unknown JSON field" |
+    tr ',' '\n' |
+    awk '{print $1}' |
+    grep -E '^[A-Za-z][A-Za-z0-9_]*$' |
+    sort -u
 )
 
 # Control-field check: assert a known-stable gh field is in the parsed

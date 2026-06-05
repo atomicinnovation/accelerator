@@ -136,56 +136,101 @@ _jira_update() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --help|-h)
-        _jira_update_usage; exit 0 ;;
+      --help | -h)
+        _jira_update_usage
+        exit 0
+        ;;
       --summary)
-        summary="$2"; shift 2 ;;
+        summary="$2"
+        shift 2
+        ;;
       --body)
-        body_inline="$2"; body_inline_set=1; shift 2 ;;
+        body_inline="$2"
+        body_inline_set=1
+        shift 2
+        ;;
       --body-file)
-        body_file="$2"; body_file_set=1; shift 2 ;;
+        body_file="$2"
+        body_file_set=1
+        shift 2
+        ;;
       --assignee)
-        assignee="$2"; assignee_set=1; shift 2 ;;
+        assignee="$2"
+        assignee_set=1
+        shift 2
+        ;;
       --reporter)
-        reporter="$2"; reporter_set=1; shift 2 ;;
+        reporter="$2"
+        reporter_set=1
+        shift 2
+        ;;
       --priority)
-        priority="$2"; shift 2 ;;
+        priority="$2"
+        shift 2
+        ;;
       --parent)
-        parent="$2"; parent_set=1; shift 2 ;;
+        parent="$2"
+        parent_set=1
+        shift 2
+        ;;
       --label)
-        set_labels+=("$2"); shift 2 ;;
+        set_labels+=("$2")
+        shift 2
+        ;;
       --add-label)
-        add_labels+=("$2"); shift 2 ;;
+        add_labels+=("$2")
+        shift 2
+        ;;
       --remove-label)
-        remove_labels+=("$2"); shift 2 ;;
+        remove_labels+=("$2")
+        shift 2
+        ;;
       --component)
-        set_components+=("$2"); shift 2 ;;
+        set_components+=("$2")
+        shift 2
+        ;;
       --add-component)
-        add_components+=("$2"); shift 2 ;;
+        add_components+=("$2")
+        shift 2
+        ;;
       --remove-component)
-        remove_components+=("$2"); shift 2 ;;
+        remove_components+=("$2")
+        shift 2
+        ;;
       --custom)
-        customs+=("$2"); shift 2 ;;
+        customs+=("$2")
+        shift 2
+        ;;
       --no-notify)
-        no_notify=1; shift ;;
-      --render-adf|--no-render-adf)
-        shift ;;
+        no_notify=1
+        shift
+        ;;
+      --render-adf | --no-render-adf)
+        shift
+        ;;
       --print-payload)
-        print_payload=1; shift ;;
-      --quiet|-q)
-        quiet=1; shift ;;
+        print_payload=1
+        shift
+        ;;
+      --quiet | -q)
+        quiet=1
+        shift
+        ;;
       -*)
         printf 'E_UPDATE_BAD_FLAG: unrecognised flag: %s\n' "$1" >&2
         _jira_update_usage >&2
-        return 113 ;;
+        return 113
+        ;;
       *)
         if [[ -z "$key" ]]; then
-          key="$1"; shift
+          key="$1"
+          shift
         else
           printf 'E_UPDATE_BAD_FLAG: unexpected positional argument: %s\n' "$1" >&2
           _jira_update_usage >&2
           return 113
-        fi ;;
+        fi
+        ;;
     esac
   done
 
@@ -196,37 +241,37 @@ _jira_update() {
   fi
 
   # Validate label-mode exclusivity
-  if (( ${#set_labels[@]} > 0 )) && \
-     (( ${#add_labels[@]} + ${#remove_labels[@]} > 0 )); then
+  if ((${#set_labels[@]} > 0)) &&
+    ((${#add_labels[@]} + ${#remove_labels[@]} > 0)); then
     printf 'E_UPDATE_LABEL_MODE_CONFLICT: --label and --add-label/--remove-label are mutually exclusive. Use --label to replace all labels at once, or --add-label/--remove-label to add and remove individually.\n' >&2
     return 111
   fi
 
   # Validate component-mode exclusivity
-  if (( ${#set_components[@]} > 0 )) && \
-     (( ${#add_components[@]} + ${#remove_components[@]} > 0 )); then
+  if ((${#set_components[@]} > 0)) &&
+    ((${#add_components[@]} + ${#remove_components[@]} > 0)); then
     printf 'E_UPDATE_LABEL_MODE_CONFLICT: --component and --add-component/--remove-component are mutually exclusive.\n' >&2
     return 111
   fi
 
   # Resolve assignee / reporter
-  if (( assignee_set )) && [[ -n "$assignee" ]]; then
+  if ((assignee_set)) && [[ -n "$assignee" ]]; then
     assignee=$(_jira_update_resolve_principal "$assignee" "--assignee" 117) || return $?
   fi
-  if (( reporter_set )) && [[ -n "$reporter" ]]; then
+  if ((reporter_set)) && [[ -n "$reporter" ]]; then
     reporter=$(_jira_update_resolve_principal "$reporter" "--reporter" 117) || return $?
   fi
 
   # Resolve body if provided
   local body_md=""
-  if (( body_inline_set || body_file_set )); then
+  if ((body_inline_set || body_file_set)); then
     local body_src_args=()
-    if (( body_inline_set )); then body_src_args+=(--body "$body_inline"); fi
-    if (( body_file_set ));   then body_src_args+=(--body-file "$body_file"); fi
+    if ((body_inline_set)); then body_src_args+=(--body "$body_inline"); fi
+    if ((body_file_set)); then body_src_args+=(--body-file "$body_file"); fi
 
     local body_rc=0
     body_md=$(jira_resolve_body "${body_src_args[@]}") || body_rc=$?
-    if (( body_rc != 0 )); then
+    if ((body_rc != 0)); then
       printf 'E_UPDATE_NO_BODY: body resolution failed\n' >&2
       return 116
     fi
@@ -237,7 +282,7 @@ _jira_update() {
   if [[ -n "$body_md" ]]; then
     local adf_rc=0
     adf_doc=$(printf '%s' "$body_md" | bash "$_JIRA_UPDATE_SCRIPT_DIR/jira-md-to-adf.sh") || adf_rc=$?
-    if (( adf_rc != 0 )); then
+    if ((adf_rc != 0)); then
       printf 'Warning: body Markdown could not be converted to ADF (exit %d); description unchanged\n' \
         "$adf_rc" >&2
       adf_doc=""
@@ -255,9 +300,9 @@ _jira_update() {
     fi
     local cf_slug="${cf%%=*}" cf_raw="${cf#*=}"
     local cf_id cf_id_rc=0
-    cf_id=$(bash "$_JIRA_UPDATE_SCRIPT_DIR/jira-fields.sh" resolve "$cf_slug" 2>/tmp/update-fields-err.tmp) \
-      || cf_id_rc=$?
-    if (( cf_id_rc != 0 )); then
+    cf_id=$(bash "$_JIRA_UPDATE_SCRIPT_DIR/jira-fields.sh" resolve "$cf_slug" 2>/tmp/update-fields-err.tmp) ||
+      cf_id_rc=$?
+    if ((cf_id_rc != 0)); then
       cat /tmp/update-fields-err.tmp >&2
       printf 'E_UPDATE_BAD_FIELD: field slug "%s" not found; run /init-jira --refresh-fields to update field cache\n' \
         "$cf_slug" >&2
@@ -266,7 +311,7 @@ _jira_update() {
 
     local cv cv_rc=0
     cv=$(_jira_coerce_custom_value "$cf_id" "$cf_raw" "$fields_json" "E_UPDATE_BAD_FIELD") || cv_rc=$?
-    if (( cv_rc != 0 )); then
+    if ((cv_rc != 0)); then
       return 114
     fi
 
@@ -292,7 +337,7 @@ _jira_update() {
     fields_obj=$(jq -n --argjson o "$fields_obj" --arg v "$priority" '$o + {priority: {name: $v}}')
   fi
 
-  if (( assignee_set )); then
+  if ((assignee_set)); then
     if [[ -z "$assignee" ]]; then
       fields_obj=$(jq -n --argjson o "$fields_obj" '$o + {assignee: {accountId: null}}')
     else
@@ -300,11 +345,11 @@ _jira_update() {
     fi
   fi
 
-  if (( reporter_set )) && [[ -n "$reporter" ]]; then
+  if ((reporter_set)) && [[ -n "$reporter" ]]; then
     fields_obj=$(jq -n --argjson o "$fields_obj" --arg v "$reporter" '$o + {reporter: {accountId: $v}}')
   fi
 
-  if (( parent_set )); then
+  if ((parent_set)); then
     if [[ -z "$parent" ]]; then
       fields_obj=$(jq -n --argjson o "$fields_obj" '$o + {parent: null}')
     else
@@ -312,13 +357,13 @@ _jira_update() {
     fi
   fi
 
-  if (( ${#set_labels[@]} > 0 )); then
+  if ((${#set_labels[@]} > 0)); then
     local labels_arr
     labels_arr=$(printf '%s\n' "${set_labels[@]}" | jq -R . | jq -s .)
     fields_obj=$(jq -n --argjson o "$fields_obj" --argjson v "$labels_arr" '$o + {labels: $v}')
   fi
 
-  if (( ${#set_components[@]} > 0 )); then
+  if ((${#set_components[@]} > 0)); then
     local comps_arr
     comps_arr=$(printf '%s\n' "${set_components[@]}" | jq -R '{name: .}' | jq -s .)
     fields_obj=$(jq -n --argjson o "$fields_obj" --argjson v "$comps_arr" '$o + {components: $v}')
@@ -332,7 +377,7 @@ _jira_update() {
   # Build update_obj (op-list semantics)
   local update_obj="{}"
 
-  if (( ${#add_labels[@]} + ${#remove_labels[@]} > 0 )); then
+  if ((${#add_labels[@]} + ${#remove_labels[@]} > 0)); then
     local labels_ops="[]"
     local lbl
     for lbl in "${add_labels[@]+"${add_labels[@]}"}"; do
@@ -344,7 +389,7 @@ _jira_update() {
     update_obj=$(jq -n --argjson o "$update_obj" --argjson v "$labels_ops" '$o + {labels: $v}')
   fi
 
-  if (( ${#add_components[@]} + ${#remove_components[@]} > 0 )); then
+  if ((${#add_components[@]} + ${#remove_components[@]} > 0)); then
     local comps_ops="[]"
     local comp
     for comp in "${add_components[@]+"${add_components[@]}"}"; do
@@ -372,33 +417,34 @@ _jira_update() {
 
   # Build query params
   local -a query_params=()
-  if (( no_notify )); then
+  if ((no_notify)); then
     query_params+=(--query "notifyUsers=false")
   fi
 
   # --print-payload dry-run
-  if (( print_payload )); then
+  if ((print_payload)); then
     local qp_obj="{}"
-    if (( no_notify )); then
+    if ((no_notify)); then
       qp_obj='{"notifyUsers":"false"}'
     fi
     jq -n \
-      --arg     method "PUT" \
-      --arg     path   "/rest/api/3/issue/$key" \
-      --argjson qp     "$qp_obj" \
-      --argjson body   "$payload" \
+      --arg method "PUT" \
+      --arg path "/rest/api/3/issue/$key" \
+      --argjson qp "$qp_obj" \
+      --argjson body "$payload" \
       '{method: $method, path: $path, queryParams: $qp, body: $body}'
     return 0
   fi
 
-  if ! (( quiet )); then
+  if ! ((quiet)); then
     printf 'INFO: updating issue %s\n' "$key" >&2
   fi
 
   # Write payload to tmpfile and PUT
-  local tmpfile; tmpfile=$(mktemp)
+  local tmpfile
+  tmpfile=$(mktemp)
   trap 'rm -f "$tmpfile"' RETURN
-  printf '%s' "$payload" > "$tmpfile"
+  printf '%s' "$payload" >"$tmpfile"
 
   local req_exit=0
   bash "$_JIRA_UPDATE_SCRIPT_DIR/jira-request.sh" \
@@ -406,7 +452,7 @@ _jira_update() {
     --json "@$tmpfile" \
     "${query_params[@]+"${query_params[@]}"}" || req_exit=$?
 
-  if (( req_exit != 0 )); then
+  if ((req_exit != 0)); then
     if ! _jira_emit_generic_hint "$req_exit"; then
       case "$req_exit" in
         13) printf 'Hint: issue not found or you do not have edit permission.\n' >&2 ;;

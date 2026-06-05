@@ -77,16 +77,16 @@ extract_tools() {
     fm == 1 && in_tools { in_tools = 0 }
     fm == 2 { exit }
     END { print line }
-  ' "$file" \
-  | sed 's/^tools:[[:space:]]*//' \
-  | sed 's/^>[[:space:]]*//' \
-  | tr ',' '\n' \
-  | sed 's/^[[:space:]]*//' \
-  | sed 's/[[:space:]]*$//' \
-  | grep -v '^$' \
-  | sort \
-  | tr '\n' ',' \
-  | sed 's/,$//'
+  ' "$file" |
+    sed 's/^tools:[[:space:]]*//' |
+    sed 's/^>[[:space:]]*//' |
+    tr ',' '\n' |
+    sed 's/^[[:space:]]*//' |
+    sed 's/[[:space:]]*$//' |
+    grep -v '^$' |
+    sort |
+    tr '\n' ',' |
+    sed 's/,$//'
 }
 
 LOC_TOOLS="$(extract_tools "$LOC")"
@@ -109,8 +109,8 @@ echo "=== run.sh evaluate payload allowlist ==="
 
 ANA_BODY="$(cat "$ANA")"
 for forbidden in "fetch" "XMLHttpRequest" "document.cookie" \
-                 "localStorage" "sessionStorage" "indexedDB" \
-                 "eval" "innerHTML" "window.open"; do
+  "localStorage" "sessionStorage" "indexedDB" \
+  "eval" "innerHTML" "window.open"; do
   assert_contains "browser-analyser body forbids $forbidden in run.sh evaluate" \
     "$ANA_BODY" "$forbidden"
 done
@@ -318,12 +318,12 @@ assert_file_exists "scrub-secrets.sh exists" "$SCRUB"
 assert_file_executable "scrub-secrets.sh is executable" "$SCRUB"
 
 CLEAN="$(mktemp)"
-echo "An ordinary inventory body with no secrets." > "$CLEAN"
+echo "An ordinary inventory body with no secrets." >"$CLEAN"
 assert_exit_code "clean body passes scrubber" 0 \
   env -i ACCELERATOR_BROWSER_PASSWORD=hunter2_uniq "$SCRUB" "$CLEAN"
 
 LEAKY="$(mktemp)"
-echo "The reset link contains hunter2_uniq somewhere." > "$LEAKY"
+echo "The reset link contains hunter2_uniq somewhere." >"$LEAKY"
 assert_exit_code "literal env-var value triggers scrubber" 1 \
   env -i ACCELERATOR_BROWSER_PASSWORD=hunter2_uniq "$SCRUB" "$LEAKY"
 assert_stderr_contains "scrubber names the env var by name (not value)" \
@@ -368,7 +368,7 @@ echo "=== analyse-design-gaps: audit-cue-phrases.sh behavioural ==="
 AUDIT="$PLUGIN_ROOT/skills/design/analyse-design-gaps/scripts/audit-cue-phrases.sh"
 
 COMPLIANT="$(mktemp)"
-cat > "$COMPLIANT" <<'EOF'
+cat >"$COMPLIANT" <<'EOF'
 # Gap
 
 ## Token Drift
@@ -386,7 +386,7 @@ EOF
 assert_exit_code "audit passes on compliant fixture (all four cue patterns, capitalised)" 0 "$AUDIT" "$COMPLIANT"
 
 NONCOMPLIANT="$(mktemp)"
-cat > "$NONCOMPLIANT" <<'EOF'
+cat >"$NONCOMPLIANT" <<'EOF'
 # Gap
 
 ## Token Drift
@@ -398,7 +398,7 @@ EOF
 assert_exit_code "audit fails on non-compliant fixture" 1 "$AUDIT" "$NONCOMPLIANT"
 
 LOWER_IMPL="$(mktemp)"
-cat > "$LOWER_IMPL" <<'EOF'
+cat >"$LOWER_IMPL" <<'EOF'
 # Gap
 
 ## Token Drift
@@ -407,7 +407,7 @@ EOF
 assert_exit_code "audit fails when 'implement' is followed by lowercase" 1 "$AUDIT" "$LOWER_IMPL"
 
 EMPTY_H2="$(mktemp)"
-cat > "$EMPTY_H2" <<'EOF'
+cat >"$EMPTY_H2" <<'EOF'
 # Gap
 
 ## Token Drift

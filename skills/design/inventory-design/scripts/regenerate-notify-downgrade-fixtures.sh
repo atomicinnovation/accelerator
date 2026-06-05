@@ -11,7 +11,7 @@ mkdir -p "$FIXTURES_DIR"
 
 jq -r 'keys[]' "$MESSAGES_JSON" | while read -r key; do
   bash "$SCRIPT_DIR/notify-downgrade.sh" --reason "$key" \
-    > "$FIXTURES_DIR/${key}.expected.txt"
+    >"$FIXTURES_DIR/${key}.expected.txt"
   echo "Written: ${key}.expected.txt"
 done
 

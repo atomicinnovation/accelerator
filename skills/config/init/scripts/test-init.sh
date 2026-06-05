@@ -104,7 +104,7 @@ assert_eq "rule appears exactly once" "1" "$COUNT"
 # ── Test 7: old .claude/accelerator.local.md rule preserved by init ──────────
 echo "Test: re-running on repo with old unanchored rule .claude/accelerator.local.md leaves old rule in place"
 REPO=$(setup_repo)
-printf '.claude/accelerator.local.md\n' > "$REPO/.gitignore"
+printf '.claude/accelerator.local.md\n' >"$REPO/.gitignore"
 PROJECT_ROOT="$REPO" bash "$INIT_SCRIPT"
 if grep -qFx '.claude/accelerator.local.md' "$REPO/.gitignore"; then
   echo "  PASS: old rule preserved (init does not migrate)"
@@ -134,7 +134,7 @@ assert_dir_not_exists "meta/plans NOT created inside subdir" "$SUBDIR/meta/plans
 echo "Test: respects paths.tmp override via paths.tmp config key"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   tmp: custom-tmp

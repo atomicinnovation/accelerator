@@ -24,9 +24,10 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 # Repo / mock setup helpers
 
 setup_repo() {
-  local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
+  local d
+  d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
   mkdir -p "$d/.git" "$d/.accelerator"
-  cat > "$d/.accelerator/config.md" <<ENDCONFIG
+  cat >"$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -55,16 +56,18 @@ start_mock() {
   MOCK_URL_FILE=$(mktemp "$TMPDIR_BASE/url-XXXXXX")
   local mock_args=("--scenario" "$scenario" "--url-file" "$MOCK_URL_FILE")
   [[ -n "$captured_bodies_file" ]] && mock_args+=("--captured-bodies-file" "$captured_bodies_file")
-  [[ -n "$captured_urls_file" ]]   && mock_args+=("--captured-urls-file"   "$captured_urls_file")
+  [[ -n "$captured_urls_file" ]] && mock_args+=("--captured-urls-file" "$captured_urls_file")
   python3 "$MOCK_SERVER" "${mock_args[@]}" &
   MOCK_PID=$!
   local i=0
   while [ ! -s "$MOCK_URL_FILE" ] && [ $i -lt 50 ]; do
-    sleep 0.1; i=$((i + 1))
+    sleep 0.1
+    i=$((i + 1))
   done
   if [ ! -s "$MOCK_URL_FILE" ]; then
     echo "ERROR: mock server did not start within 5s" >&2
-    kill "$MOCK_PID" 2>/dev/null || true; exit 1
+    kill "$MOCK_PID" 2>/dev/null || true
+    exit 1
   fi
   MOCK_URL=$(cat "$MOCK_URL_FILE")
 }
@@ -75,7 +78,10 @@ stop_mock() {
     wait "$MOCK_PID" 2>/dev/null || true
     MOCK_PID=""
   fi
-  [ -n "$MOCK_URL_FILE" ] && { rm -f "$MOCK_URL_FILE"; MOCK_URL_FILE=""; }
+  [ -n "$MOCK_URL_FILE" ] && {
+    rm -f "$MOCK_URL_FILE"
+    MOCK_URL_FILE=""
+  }
   MOCK_URL=""
 }
 
@@ -100,9 +106,9 @@ echo "=== Case 1: --help exits 0 with subcommand listing ==="
 echo ""
 
 OUT_1=$(comment --help 2>/dev/null)
-assert_contains "help lists add"    "$OUT_1" "add"
-assert_contains "help lists list"   "$OUT_1" "list"
-assert_contains "help lists edit"   "$OUT_1" "edit"
+assert_contains "help lists add" "$OUT_1" "add"
+assert_contains "help lists list" "$OUT_1" "list"
+assert_contains "help lists edit" "$OUT_1" "edit"
 assert_contains "help lists delete" "$OUT_1" "delete"
 echo ""
 
@@ -162,9 +168,9 @@ OUT_6=$(comment add ENG-1 --body "Test comment body" 2>/dev/null)
 stop_mock
 
 CAPTURED_6=$(jq -r '.[0]' "$BODIES_6")
-assert_eq "add: body is ADF doc in POST"   "doc" "$(jq -r '.body.type' <<< "$CAPTURED_6")"
-assert_eq "add: response body rendered to string" "string" "$(jq -r '.body | type' <<< "$OUT_6")"
-assert_eq "add: response id present"       "100" "$(jq -r '.id' <<< "$OUT_6")"
+assert_eq "add: body is ADF doc in POST" "doc" "$(jq -r '.body.type' <<<"$CAPTURED_6")"
+assert_eq "add: response body rendered to string" "string" "$(jq -r '.body | type' <<<"$OUT_6")"
+assert_eq "add: response id present" "100" "$(jq -r '.id' <<<"$OUT_6")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -172,14 +178,14 @@ echo "=== Case 7: add KEY --body-file uses file content ==="
 echo ""
 
 BODY_FILE_7=$(mktemp "$TMPDIR_BASE/bodyfile-XXXXXX")
-printf 'from file content\n' > "$BODY_FILE_7"
+printf 'from file content\n' >"$BODY_FILE_7"
 BODIES_7=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/comment-add-201.json" "$BODIES_7"
 comment add ENG-1 --body-file "$BODY_FILE_7" >/dev/null 2>/dev/null
 stop_mock
 
 CAPTURED_7=$(jq -r '.[0]' "$BODIES_7")
-BODY_7_STR=$(jq -c '.body' <<< "$CAPTURED_7")
+BODY_7_STR=$(jq -c '.body' <<<"$CAPTURED_7")
 assert_contains "add: body from file is ADF" "$BODY_7_STR" "from file content"
 echo ""
 
@@ -191,7 +197,7 @@ start_mock "$SCENARIOS/comment-add-201.json"
 OUT_8=$(comment add ENG-1 --body "x" --no-render-adf 2>/dev/null)
 stop_mock
 
-assert_eq "add --no-render-adf: body type is object" "object" "$(jq -r '.body | type' <<< "$OUT_8")"
+assert_eq "add --no-render-adf: body type is object" "object" "$(jq -r '.body | type' <<<"$OUT_8")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -217,8 +223,8 @@ comment add ENG-1 --body "x" --visibility "role:Administrators" 2>/dev/null
 stop_mock
 
 CAPTURED_10=$(jq -r '.[0]' "$BODIES_10")
-assert_eq "add --visibility: type is role"            "role"           "$(jq -r '.visibility.type'  <<< "$CAPTURED_10")"
-assert_eq "add --visibility: value is Administrators" "Administrators" "$(jq -r '.visibility.value' <<< "$CAPTURED_10")"
+assert_eq "add --visibility: type is role" "role" "$(jq -r '.visibility.type' <<<"$CAPTURED_10")"
+assert_eq "add --visibility: value is Administrators" "Administrators" "$(jq -r '.visibility.value' <<<"$CAPTURED_10")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -242,10 +248,10 @@ OUT_12=$(comment list ENG-1 2>/dev/null)
 stop_mock
 
 CAPTURED_URL_12=$(jq -r '.[0]' "$URLS_12")
-assert_contains "list: URL has startAt=0"     "$CAPTURED_URL_12" "startAt=0"
+assert_contains "list: URL has startAt=0" "$CAPTURED_URL_12" "startAt=0"
 assert_contains "list: URL has maxResults=50" "$CAPTURED_URL_12" "maxResults=50"
-assert_eq "list: first body rendered to string" "string" "$(jq -r '.comments[0].body | type' <<< "$OUT_12")"
-assert_eq "list: comment count"                 "2"      "$(jq '.comments | length' <<< "$OUT_12")"
+assert_eq "list: first body rendered to string" "string" "$(jq -r '.comments[0].body | type' <<<"$OUT_12")"
+assert_eq "list: comment count" "2" "$(jq '.comments | length' <<<"$OUT_12")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -256,7 +262,7 @@ start_mock "$SCENARIOS/comment-list-200.json"
 OUT_13=$(comment list ENG-1 --no-render-adf 2>/dev/null)
 stop_mock
 
-assert_eq "list --no-render-adf: body type is object" "object" "$(jq -r '.comments[0].body | type' <<< "$OUT_13")"
+assert_eq "list --no-render-adf: body type is object" "object" "$(jq -r '.comments[0].body | type' <<<"$OUT_13")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -282,10 +288,10 @@ OUT_15=$(comment list ENG-1 --no-render-adf 2>/dev/null)
 stop_mock
 
 URL_COUNT_15=$(jq 'length' "$URLS_15")
-assert_eq "paginated: 3 requests made"      "3" "$URL_COUNT_15"
-assert_eq "paginated: 5 comments total"     "5" "$(jq '.comments | length' <<< "$OUT_15")"
-assert_eq "paginated: total field"          "5" "$(jq '.total' <<< "$OUT_15")"
-assert_eq "paginated: truncated false"      "false" "$(jq '.truncated' <<< "$OUT_15")"
+assert_eq "paginated: 3 requests made" "3" "$URL_COUNT_15"
+assert_eq "paginated: 5 comments total" "5" "$(jq '.comments | length' <<<"$OUT_15")"
+assert_eq "paginated: total field" "5" "$(jq '.total' <<<"$OUT_15")"
+assert_eq "paginated: truncated false" "false" "$(jq '.truncated' <<<"$OUT_15")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -299,7 +305,7 @@ stop_mock
 
 FIRST_URL_16=$(jq -r '.[0]' "$URLS_16")
 assert_contains "list --page-size 2: URL has maxResults=2" "$FIRST_URL_16" "maxResults=2"
-assert_eq "list --page-size 2: 5 comments accumulated"    "5" "$(jq '.comments | length' <<< "$OUT_16")"
+assert_eq "list --page-size 2: 5 comments accumulated" "5" "$(jq '.comments | length' <<<"$OUT_16")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -312,8 +318,8 @@ OUT_17=$(comment list ENG-1 --first-page-only --no-render-adf 2>/dev/null)
 stop_mock
 
 URL_COUNT_17=$(jq 'length' "$URLS_17")
-assert_eq "first-page-only: exactly 1 request" "1"  "$URL_COUNT_17"
-assert_eq "first-page-only: 2 comments (page 1 only)" "2" "$(jq '.comments | length' <<< "$OUT_17")"
+assert_eq "first-page-only: exactly 1 request" "1" "$URL_COUNT_17"
+assert_eq "first-page-only: 2 comments (page 1 only)" "2" "$(jq '.comments | length' <<<"$OUT_17")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -348,9 +354,9 @@ OUT_20=$(comment edit ENG-1 100 --body "fix" 2>/dev/null)
 stop_mock
 
 CAPTURED_20=$(jq -r '.[0]' "$BODIES_20")
-assert_eq "edit: body is ADF doc in PUT"     "doc"    "$(jq -r '.body.type' <<< "$CAPTURED_20")"
-assert_eq "edit: response body rendered"     "string" "$(jq -r '.body | type' <<< "$OUT_20")"
-assert_eq "edit: response id present"        "100"    "$(jq -r '.id' <<< "$OUT_20")"
+assert_eq "edit: body is ADF doc in PUT" "doc" "$(jq -r '.body.type' <<<"$CAPTURED_20")"
+assert_eq "edit: response body rendered" "string" "$(jq -r '.body | type' <<<"$OUT_20")"
+assert_eq "edit: response id present" "100" "$(jq -r '.id' <<<"$OUT_20")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -398,8 +404,8 @@ RC_24=0
 OUT_24=$(comment delete ENG-1 100 2>/dev/null) || RC_24=$?
 stop_mock
 
-assert_eq "delete: exits 0"          "0"  "$RC_24"
-assert_empty "delete: stdout empty"  "$OUT_24"
+assert_eq "delete: exits 0" "0" "$RC_24"
+assert_empty "delete: stdout empty" "$OUT_24"
 CAPTURED_URL_24=$(jq -r '.[0]' "$URLS_24")
 assert_contains "delete: correct URL" "$CAPTURED_URL_24" "/rest/api/3/issue/ENG-1/comment/100"
 echo ""
@@ -427,14 +433,14 @@ RC_25A=0
 OUT_25A=$(comment delete ENG-1 100 --describe 2>/dev/null) || RC_25A=$?
 stop_mock
 
-assert_eq "describe: exits 0"           "0"       "$RC_25A"
-assert_eq "describe: no API calls"      "[]"      "$(jq -c '.' "$URLS_25A")"
-assert_eq "describe: method is DELETE"  "DELETE"  "$(jq -r '.method'          <<< "$OUT_25A")"
-assert_eq "describe: correct path"      "/rest/api/3/issue/ENG-1/comment/100" \
-  "$(jq -r '.path' <<< "$OUT_25A")"
-assert_eq "describe: queryParams empty" "{}"      "$(jq -c '.queryParams'     <<< "$OUT_25A")"
-assert_eq "describe: body is null"      "null"    "$(jq -r '.body'            <<< "$OUT_25A")"
-assert_eq "describe: irreversible true" "true"    "$(jq -r '.irreversible'    <<< "$OUT_25A")"
+assert_eq "describe: exits 0" "0" "$RC_25A"
+assert_eq "describe: no API calls" "[]" "$(jq -c '.' "$URLS_25A")"
+assert_eq "describe: method is DELETE" "DELETE" "$(jq -r '.method' <<<"$OUT_25A")"
+assert_eq "describe: correct path" "/rest/api/3/issue/ENG-1/comment/100" \
+  "$(jq -r '.path' <<<"$OUT_25A")"
+assert_eq "describe: queryParams empty" "{}" "$(jq -c '.queryParams' <<<"$OUT_25A")"
+assert_eq "describe: body is null" "null" "$(jq -r '.body' <<<"$OUT_25A")"
+assert_eq "describe: irreversible true" "true" "$(jq -r '.irreversible' <<<"$OUT_25A")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -448,7 +454,7 @@ stop_mock
 
 assert_eq "describe --no-notify: no API calls" "[]" "$(jq -c '.' "$URLS_25B")"
 assert_eq "describe --no-notify: queryParams.notifyUsers" "false" \
-  "$(jq -r '.queryParams.notifyUsers' <<< "$OUT_25B")"
+  "$(jq -r '.queryParams.notifyUsers' <<<"$OUT_25B")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -482,9 +488,9 @@ RC_26=0
 comment list ENG-999 2>/tmp/comment-err26.tmp || RC_26=$?
 stop_mock
 ERR_26=$(cat /tmp/comment-err26.tmp)
-assert_eq "404 exits 13"             "13"     "$RC_26"
-assert_contains "hint for 404"       "$ERR_26" "Hint:"
-assert_contains "not found in hint"  "$ERR_26" "not found"
+assert_eq "404 exits 13" "13" "$RC_26"
+assert_contains "hint for 404" "$ERR_26" "Hint:"
+assert_contains "not found in hint" "$ERR_26" "not found"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -497,11 +503,11 @@ RC_27=0
 OUT_27=$(comment_no_stdin add ENG-1 --body "x" --print-payload 2>/dev/null) || RC_27=$?
 stop_mock
 
-assert_eq "add --print-payload: exits 0"         "0"                                  "$RC_27"
-assert_eq "add --print-payload: no API calls"    "[]"                                 "$(jq -c '.' "$URLS_27")"
-assert_eq "add --print-payload: method is POST"  "POST"                               "$(jq -r '.method' <<< "$OUT_27")"
-assert_eq "add --print-payload: correct path"    "/rest/api/3/issue/ENG-1/comment"   "$(jq -r '.path'   <<< "$OUT_27")"
-assert_eq "add --print-payload: body is object"  "object"                             "$(jq -r '.body | type' <<< "$OUT_27")"
+assert_eq "add --print-payload: exits 0" "0" "$RC_27"
+assert_eq "add --print-payload: no API calls" "[]" "$(jq -c '.' "$URLS_27")"
+assert_eq "add --print-payload: method is POST" "POST" "$(jq -r '.method' <<<"$OUT_27")"
+assert_eq "add --print-payload: correct path" "/rest/api/3/issue/ENG-1/comment" "$(jq -r '.path' <<<"$OUT_27")"
+assert_eq "add --print-payload: body is object" "object" "$(jq -r '.body | type' <<<"$OUT_27")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -514,11 +520,11 @@ RC_28=0
 OUT_28=$(comment_no_stdin edit ENG-1 100 --body "x" --print-payload 2>/dev/null) || RC_28=$?
 stop_mock
 
-assert_eq "edit --print-payload: exits 0"         "0"                                         "$RC_28"
-assert_eq "edit --print-payload: no API calls"    "[]"                                        "$(jq -c '.' "$URLS_28")"
-assert_eq "edit --print-payload: method is PUT"   "PUT"                                       "$(jq -r '.method' <<< "$OUT_28")"
-assert_eq "edit --print-payload: correct path"    "/rest/api/3/issue/ENG-1/comment/100"      "$(jq -r '.path'   <<< "$OUT_28")"
-assert_eq "edit --print-payload: body is object"  "object"                                    "$(jq -r '.body | type' <<< "$OUT_28")"
+assert_eq "edit --print-payload: exits 0" "0" "$RC_28"
+assert_eq "edit --print-payload: no API calls" "[]" "$(jq -c '.' "$URLS_28")"
+assert_eq "edit --print-payload: method is PUT" "PUT" "$(jq -r '.method' <<<"$OUT_28")"
+assert_eq "edit --print-payload: correct path" "/rest/api/3/issue/ENG-1/comment/100" "$(jq -r '.path' <<<"$OUT_28")"
+assert_eq "edit --print-payload: body is object" "object" "$(jq -r '.body | type' <<<"$OUT_28")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -530,10 +536,10 @@ start_mock "$SCENARIOS/comment-list-empty-200.json" "" "$URLS_29"
 OUT_29=$(comment list ENG-1 --no-render-adf 2>/dev/null)
 stop_mock
 
-assert_eq "empty: one request"       "1"     "$(jq 'length' "$URLS_29")"
-assert_eq "empty: 0 comments"        "0"     "$(jq '.comments | length' <<< "$OUT_29")"
-assert_eq "empty: total 0"           "0"     "$(jq '.total' <<< "$OUT_29")"
-assert_eq "empty: truncated false"   "false" "$(jq '.truncated' <<< "$OUT_29")"
+assert_eq "empty: one request" "1" "$(jq 'length' "$URLS_29")"
+assert_eq "empty: 0 comments" "0" "$(jq '.comments | length' <<<"$OUT_29")"
+assert_eq "empty: total 0" "0" "$(jq '.total' <<<"$OUT_29")"
+assert_eq "empty: truncated false" "false" "$(jq '.truncated' <<<"$OUT_29")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -545,9 +551,9 @@ start_mock "$SCENARIOS/comment-list-exact-page-200.json" "" "$URLS_30"
 OUT_30=$(comment list ENG-1 --page-size 2 --no-render-adf 2>/dev/null)
 stop_mock
 
-assert_eq "exact-page: 1 request"  "1"     "$(jq 'length' "$URLS_30")"
-assert_eq "exact-page: 2 comments" "2"     "$(jq '.comments | length' <<< "$OUT_30")"
-assert_eq "exact-page: truncated false" "false" "$(jq '.truncated' <<< "$OUT_30")"
+assert_eq "exact-page: 1 request" "1" "$(jq 'length' "$URLS_30")"
+assert_eq "exact-page: 2 comments" "2" "$(jq '.comments | length' <<<"$OUT_30")"
+assert_eq "exact-page: truncated false" "false" "$(jq '.truncated' <<<"$OUT_30")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -558,8 +564,8 @@ start_mock "$SCENARIOS/comment-list-shrinking-total.json"
 OUT_31=$(comment list ENG-1 --page-size 2 --no-render-adf 2>/dev/null)
 stop_mock
 
-assert_eq "shrinking: 3 comments accumulated" "3" "$(jq '.comments | length' <<< "$OUT_31")"
-assert_eq "shrinking: truncated false"         "false" "$(jq '.truncated' <<< "$OUT_31")"
+assert_eq "shrinking: 3 comments accumulated" "3" "$(jq '.comments | length' <<<"$OUT_31")"
+assert_eq "shrinking: truncated false" "false" "$(jq '.truncated' <<<"$OUT_31")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -573,9 +579,9 @@ OUT_32=$(comment list ENG-1 --no-render-adf 2>/tmp/comment-err32.tmp) || RC_32=$
 stop_mock
 ERR_32=$(cat /tmp/comment-err32.tmp)
 
-assert_eq "runaway: exits 0"            "0"    "$RC_32"
-assert_eq "runaway: exactly 20 GETs"    "20"   "$(jq 'length' "$URLS_32")"
-assert_eq "runaway: truncated true"     "true" "$(jq '.truncated' <<< "$OUT_32")"
+assert_eq "runaway: exits 0" "0" "$RC_32"
+assert_eq "runaway: exactly 20 GETs" "20" "$(jq 'length' "$URLS_32")"
+assert_eq "runaway: truncated true" "true" "$(jq '.truncated' <<<"$OUT_32")"
 assert_contains "runaway: Warning on stderr" "$ERR_32" "Warning:"
 echo ""
 
@@ -590,9 +596,9 @@ OUT_32A=$(comment list ENG-1 --page-size 2 --no-render-adf 2>/tmp/comment-err32a
 stop_mock
 ERR_32A=$(cat /tmp/comment-err32a.tmp)
 
-assert_eq "natural-end: exits 0"            "0"    "$RC_32A"
-assert_eq "natural-end: exactly 20 GETs"    "20"   "$(jq 'length' "$URLS_32A")"
-assert_eq "natural-end: truncated false"    "false" "$(jq '.truncated' <<< "$OUT_32A")"
+assert_eq "natural-end: exits 0" "0" "$RC_32A"
+assert_eq "natural-end: exactly 20 GETs" "20" "$(jq 'length' "$URLS_32A")"
+assert_eq "natural-end: truncated false" "false" "$(jq '.truncated' <<<"$OUT_32A")"
 WARN_32A=$(printf '%s\n' "$ERR_32A" | grep "^Warning:" || true)
 assert_empty "natural-end: no Warning on stderr" "$WARN_32A"
 echo ""
@@ -606,7 +612,7 @@ RC_33=0
 comment list ENG-1 2>/tmp/comment-err33.tmp || RC_33=$?
 stop_mock
 ERR_33=$(cat /tmp/comment-err33.tmp)
-assert_eq "bad total exits 99"              "99"                      "$RC_33"
+assert_eq "bad total exits 99" "99" "$RC_33"
 assert_contains "E_COMMENT_BAD_RESPONSE on stderr" "$ERR_33" "E_COMMENT_BAD_RESPONSE"
 echo ""
 
@@ -619,9 +625,9 @@ RC_33A=0
 OUT_33A=$(comment list ENG-1 --no-render-adf 2>/dev/null) || RC_33A=$?
 stop_mock
 
-assert_eq "empty-mid-page: exits 0"                  "0"     "$RC_33A"
-assert_eq "empty-mid-page: 2 comments from page 1"   "2"     "$(jq '.comments | length' <<< "$OUT_33A")"
-assert_eq "empty-mid-page: truncated false"           "false" "$(jq '.truncated' <<< "$OUT_33A")"
+assert_eq "empty-mid-page: exits 0" "0" "$RC_33A"
+assert_eq "empty-mid-page: 2 comments from page 1" "2" "$(jq '.comments | length' <<<"$OUT_33A")"
+assert_eq "empty-mid-page: truncated false" "false" "$(jq '.truncated' <<<"$OUT_33A")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -638,8 +644,8 @@ RC_34=0
   2>/tmp/comment-err34.tmp) || RC_34=$?
 stop_mock
 ERR_34=$(cat /tmp/comment-err34.tmp)
-assert_eq "list 5xx exits 20"        "20"    "$RC_34"
-assert_contains "5xx hint emitted"   "$ERR_34" "Hint:"
+assert_eq "list 5xx exits 20" "20" "$RC_34"
+assert_contains "5xx hint emitted" "$ERR_34" "Hint:"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -648,7 +654,7 @@ echo ""
 
 BODY_MD_35="Hello **comment** from _test_"
 BODY_FILE_35=$(mktemp "$TMPDIR_BASE/body-XXXXXX")
-printf '%s\n' "$BODY_MD_35" > "$BODY_FILE_35"
+printf '%s\n' "$BODY_MD_35" >"$BODY_FILE_35"
 EXPECTED_ADF_35=$(printf '%s\n' "$BODY_MD_35" | bash "$SCRIPT_DIR/jira-md-to-adf.sh")
 
 BODIES_35=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
@@ -658,8 +664,8 @@ stop_mock
 
 CAPTURED_35=$(jq -r '.[0]' "$BODIES_35")
 ADF_RC_35=0
-jq -e --argjson exp "$EXPECTED_ADF_35" '.body == $exp' <<< "$CAPTURED_35" >/dev/null 2>&1 \
-  || ADF_RC_35=$?
+jq -e --argjson exp "$EXPECTED_ADF_35" '.body == $exp' <<<"$CAPTURED_35" >/dev/null 2>&1 ||
+  ADF_RC_35=$?
 assert_eq "ADF round-trip matches expected output" "0" "$ADF_RC_35"
 echo ""
 

@@ -53,9 +53,9 @@ check_git_vcs_command() {
   local vcs_pattern='^\s*git\s+(status|diff|add|commit|log|branch|checkout|switch|merge|rebase|reset|stash|show)(\s|$)'
 
   if echo "$cmd" | grep -qE "$vcs_pattern"; then
-    return 0  # Blocked/warned
+    return 0 # Blocked/warned
   fi
-  return 1  # Not a git VCS command (including allowed git commands like push)
+  return 1 # Not a git VCS command (including allowed git commands like push)
 }
 
 # Extract first matching git VCS subcommand from compound command
@@ -67,7 +67,7 @@ while IFS= read -r subcmd; do
     FOUND_SUBCMD=$(echo "$subcmd" | grep -oE 'git\s+(status|diff|add|commit|log|branch|checkout|switch|merge|rebase|reset|stash|show)' | head -1 | awk '{print $2}')
     break
   fi
-done <<< "$(echo "$COMMAND" | sed 's/&&/\n/g; s/||/\n/g; s/;/\n/g; s/|/\n/g')"
+done <<<"$(echo "$COMMAND" | sed 's/&&/\n/g; s/||/\n/g; s/;/\n/g; s/|/\n/g')"
 
 if [ -z "$FOUND_SUBCMD" ]; then
   exit 0
@@ -82,14 +82,14 @@ fi
 
 # Build jj equivalent suggestion
 case "$FOUND_SUBCMD" in
-  status)  JJ_ALT="jj status" ;;
-  diff)    JJ_ALT="jj diff" ;;
-  add)     JJ_ALT="(not needed — jj has no staging area; use jj commit directly)" ;;
-  commit)  JJ_ALT="jj commit -m \"message\"" ;;
-  log)     JJ_ALT="jj log" ;;
-  branch)  JJ_ALT="jj bookmark list" ;;
-  show)    JJ_ALT="jj show" ;;
-  *)       JJ_ALT="check jj documentation for equivalent" ;;
+  status) JJ_ALT="jj status" ;;
+  diff) JJ_ALT="jj diff" ;;
+  add) JJ_ALT="(not needed — jj has no staging area; use jj commit directly)" ;;
+  commit) JJ_ALT="jj commit -m \"message\"" ;;
+  log) JJ_ALT="jj log" ;;
+  branch) JJ_ALT="jj bookmark list" ;;
+  show) JJ_ALT="jj show" ;;
+  *) JJ_ALT="check jj documentation for equivalent" ;;
 esac
 
 if [ "$MODE" = "pure-jj" ]; then

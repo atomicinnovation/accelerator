@@ -45,7 +45,7 @@ _jira_ensure_inner_gitignore() {
   local gi="$state_dir/.gitignore"
   touch "$gi"
   for rule in "${JIRA_INNER_GITIGNORE_RULES[@]}"; do
-    grep -qFx "$rule" "$gi" 2>/dev/null || printf '%s\n' "$rule" >> "$gi"
+    grep -qFx "$rule" "$gi" 2>/dev/null || printf '%s\n' "$rule" >>"$gi"
   done
 }
 
@@ -113,8 +113,8 @@ _jira_verify() {
   # Persist site.json with exactly {site, accountId} — no timestamps
   printf '{"site":%s,"accountId":%s}\n' \
     "$(printf '%s' "$JIRA_SITE" | jq -R '.')" \
-    "$(printf '%s' "$account_id" | jq -R '.')" \
-    | jira_atomic_write_json "$state_dir/site.json"
+    "$(printf '%s' "$account_id" | jq -R '.')" |
+    jira_atomic_write_json "$state_dir/site.json"
 
   _jira_ensure_inner_gitignore
   _jira_ensure_gitkeep
@@ -221,13 +221,30 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   CMD=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --non-interactive|-y) _JIRA_NON_INTERACTIVE=true; shift ;;
-      --refresh-fields)     CMD="refresh-fields"; shift ;;
-      --list-projects)      CMD="list-projects";  shift ;;
-      --list-fields)        CMD="list-fields";    shift ;;
-      verify|discover|prompt-default|refresh-fields|list-projects|list-fields)
-        CMD="$1"; shift ;;
-      *) echo "Unknown option: $1" >&2; exit 2 ;;
+      --non-interactive | -y)
+        _JIRA_NON_INTERACTIVE=true
+        shift
+        ;;
+      --refresh-fields)
+        CMD="refresh-fields"
+        shift
+        ;;
+      --list-projects)
+        CMD="list-projects"
+        shift
+        ;;
+      --list-fields)
+        CMD="list-fields"
+        shift
+        ;;
+      verify | discover | prompt-default | refresh-fields | list-projects | list-fields)
+        CMD="$1"
+        shift
+        ;;
+      *)
+        echo "Unknown option: $1" >&2
+        exit 2
+        ;;
     esac
   done
 

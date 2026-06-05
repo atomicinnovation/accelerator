@@ -125,46 +125,84 @@ _jira_create() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --help|-h)
-        _jira_create_usage; exit 0 ;;
+      --help | -h)
+        _jira_create_usage
+        exit 0
+        ;;
       --project)
-        project="$2"; shift 2 ;;
+        project="$2"
+        shift 2
+        ;;
       --type)
-        type_name="$2"; shift 2 ;;
+        type_name="$2"
+        shift 2
+        ;;
       --issuetype-id)
-        type_id="$2"; shift 2 ;;
+        type_id="$2"
+        shift 2
+        ;;
       --summary)
-        summary="$2"; shift 2 ;;
+        summary="$2"
+        shift 2
+        ;;
       --body)
-        body_inline="$2"; body_inline_set=1; shift 2 ;;
+        body_inline="$2"
+        body_inline_set=1
+        shift 2
+        ;;
       --body-file)
-        body_file="$2"; body_file_set=1; shift 2 ;;
+        body_file="$2"
+        body_file_set=1
+        shift 2
+        ;;
       --assignee)
-        assignee="$2"; shift 2 ;;
+        assignee="$2"
+        shift 2
+        ;;
       --reporter)
-        reporter="$2"; shift 2 ;;
+        reporter="$2"
+        shift 2
+        ;;
       --priority)
-        priority="$2"; shift 2 ;;
+        priority="$2"
+        shift 2
+        ;;
       --label)
-        labels+=("$2"); shift 2 ;;
+        labels+=("$2")
+        shift 2
+        ;;
       --component)
-        components+=("$2"); shift 2 ;;
+        components+=("$2")
+        shift 2
+        ;;
       --parent)
-        parent="$2"; shift 2 ;;
+        parent="$2"
+        shift 2
+        ;;
       --custom)
-        customs+=("$2"); shift 2 ;;
-      --render-adf|--no-render-adf)
-        shift ;;
+        customs+=("$2")
+        shift 2
+        ;;
+      --render-adf | --no-render-adf)
+        shift
+        ;;
       --print-payload)
-        print_payload=1; shift ;;
-      --quiet|-q)
-        quiet=1; shift ;;
+        print_payload=1
+        shift
+        ;;
+      --quiet | -q)
+        quiet=1
+        shift
+        ;;
       --no-editor)
-        no_editor=1; shift ;;
+        no_editor=1
+        shift
+        ;;
       *)
         printf 'E_CREATE_BAD_FLAG: unrecognised flag: %s\n' "$1" >&2
         _jira_create_usage >&2
-        return 104 ;;
+        return 104
+        ;;
     esac
   done
 
@@ -203,9 +241,9 @@ _jira_create() {
 
   # Resolve body via jira_resolve_body
   local body_src_args=()
-  if (( body_inline_set )); then body_src_args+=(--body "$body_inline"); fi
-  if (( body_file_set ));   then body_src_args+=(--body-file "$body_file"); fi
-  if (( no_editor )); then
+  if ((body_inline_set)); then body_src_args+=(--body "$body_inline"); fi
+  if ((body_file_set)); then body_src_args+=(--body-file "$body_file"); fi
+  if ((no_editor)); then
     body_src_args+=(--allow-stdin)
   else
     body_src_args+=(--allow-stdin --allow-editor)
@@ -214,7 +252,7 @@ _jira_create() {
   local body_md=""
   local body_rc=0
   body_md=$(jira_resolve_body "${body_src_args[@]}") || body_rc=$?
-  if (( body_rc != 0 )); then
+  if ((body_rc != 0)); then
     printf 'E_CREATE_NO_BODY: no body source available (use --body, --body-file, stdin, or $EDITOR)\n' >&2
     return 105
   fi
@@ -224,7 +262,7 @@ _jira_create() {
   if [[ -n "$body_md" ]]; then
     local adf_rc=0
     adf_doc=$(printf '%s' "$body_md" | bash "$_JIRA_CREATE_SCRIPT_DIR/jira-md-to-adf.sh") || adf_rc=$?
-    if (( adf_rc != 0 )); then
+    if ((adf_rc != 0)); then
       printf 'Warning: body Markdown could not be converted to ADF (exit %d); description will be empty\n' \
         "$adf_rc" >&2
       adf_doc="{}"
@@ -242,9 +280,9 @@ _jira_create() {
     fi
     local cf_slug="${cf%%=*}" cf_raw="${cf#*=}"
     local cf_id cf_id_rc=0
-    cf_id=$(bash "$_JIRA_CREATE_SCRIPT_DIR/jira-fields.sh" resolve "$cf_slug" 2>/tmp/create-fields-err.tmp) \
-      || cf_id_rc=$?
-    if (( cf_id_rc != 0 )); then
+    cf_id=$(bash "$_JIRA_CREATE_SCRIPT_DIR/jira-fields.sh" resolve "$cf_slug" 2>/tmp/create-fields-err.tmp) ||
+      cf_id_rc=$?
+    if ((cf_id_rc != 0)); then
       cat /tmp/create-fields-err.tmp >&2
       printf 'E_CREATE_BAD_FIELD: field slug "%s" not found; run /init-jira --refresh-fields to update field cache\n' \
         "$cf_slug" >&2
@@ -253,7 +291,7 @@ _jira_create() {
 
     local cv cv_rc=0
     cv=$(_jira_coerce_custom_value "$cf_id" "$cf_raw" "$fields_json" "E_CREATE_BAD_FIELD") || cv_rc=$?
-    if (( cv_rc != 0 )); then
+    if ((cv_rc != 0)); then
       return 103
     fi
 
@@ -266,13 +304,13 @@ _jira_create() {
 
   # Build labels JSON array
   local labels_json="[]"
-  if (( ${#labels[@]} > 0 )); then
+  if ((${#labels[@]} > 0)); then
     labels_json=$(printf '%s\n' "${labels[@]}" | jq -R . | jq -s .)
   fi
 
   # Build components JSON array
   local components_json="[]"
-  if (( ${#components[@]} > 0 )); then
+  if ((${#components[@]} > 0)); then
     components_json=$(printf '%s\n' "${components[@]}" | jq -R '{name: .}' | jq -s .)
   fi
 
@@ -287,17 +325,17 @@ _jira_create() {
   # Assemble payload via jq
   local payload
   payload=$(jq -n \
-    --arg     project        "$project" \
-    --arg     summary        "$summary" \
-    --argjson issuetype      "$issuetype_json" \
-    --argjson description    "$adf_doc" \
-    --argjson labels         "$labels_json" \
-    --argjson components     "$components_json" \
-    --argjson custom_fields  "$custom_fields_obj" \
-    --arg     assignee       "$assignee" \
-    --arg     reporter       "$reporter" \
-    --arg     priority       "$priority" \
-    --arg     parent         "$parent" \
+    --arg project "$project" \
+    --arg summary "$summary" \
+    --argjson issuetype "$issuetype_json" \
+    --argjson description "$adf_doc" \
+    --argjson labels "$labels_json" \
+    --argjson components "$components_json" \
+    --argjson custom_fields "$custom_fields_obj" \
+    --arg assignee "$assignee" \
+    --arg reporter "$reporter" \
+    --arg priority "$priority" \
+    --arg parent "$parent" \
     '{
       fields: (
         {
@@ -317,31 +355,32 @@ _jira_create() {
     }')
 
   # --print-payload: emit dry-run shape and exit without calling the API
-  if (( print_payload )); then
+  if ((print_payload)); then
     jq -n \
-      --arg     method "POST" \
-      --arg     path   "/rest/api/3/issue" \
-      --argjson qp     '{}' \
-      --argjson body   "$payload" \
+      --arg method "POST" \
+      --arg path "/rest/api/3/issue" \
+      --argjson qp '{}' \
+      --argjson body "$payload" \
       '{method: $method, path: $path, queryParams: $qp, body: $body}'
     return 0
   fi
 
-  if ! (( quiet )); then
+  if ! ((quiet)); then
     printf 'INFO: creating issue in project %s (type: %s)\n' \
       "$project" "${type_id:-$type_name}" >&2
   fi
 
   # Write payload to tmpfile and POST
-  local tmpfile; tmpfile=$(mktemp)
+  local tmpfile
+  tmpfile=$(mktemp)
   trap 'rm -f "$tmpfile"' RETURN
-  printf '%s' "$payload" > "$tmpfile"
+  printf '%s' "$payload" >"$tmpfile"
 
   local req_exit=0 response
   response=$(bash "$_JIRA_CREATE_SCRIPT_DIR/jira-request.sh" \
     POST /rest/api/3/issue --json "@$tmpfile") || req_exit=$?
 
-  if (( req_exit != 0 )); then
+  if ((req_exit != 0)); then
     if ! _jira_emit_generic_hint "$req_exit"; then
       case "$req_exit" in
         13) printf 'Hint: check the project key is correct and you have create-issue permission.\n' >&2 ;;

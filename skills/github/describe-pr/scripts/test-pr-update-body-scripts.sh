@@ -19,8 +19,11 @@ SCRIPT="$SCRIPT_DIR/pr-update-body.sh"
 
 phase="${PHASE:-final}"
 case "$phase" in
-  1|2|3|4|5|6|final) : ;;
-  *) echo "unknown PHASE: $phase (expected 1-6 or final)" >&2; exit 2 ;;
+  1 | 2 | 3 | 4 | 5 | 6 | final) : ;;
+  *)
+    echo "unknown PHASE: $phase (expected 1-6 or final)" >&2
+    exit 2
+    ;;
 esac
 
 TMPDIR_BASE=$(mktemp -d)
@@ -51,7 +54,7 @@ new_case() {
 }
 
 write_file() {
-  printf '%s' "$2" > "$1"
+  printf '%s' "$2" >"$1"
 }
 
 # Standard same-repo base-repo payload reused across many tests.
@@ -76,7 +79,8 @@ assert_file_executable "pr-update-body.sh is executable" "$SCRIPT"
 # Test 2: Usage at 0 args.
 echo ""
 echo "--- test 2: usage at zero args ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 stderr_file="$T/stderr"
 rc=0
@@ -89,7 +93,8 @@ assert_contains "test 2: stderr says Usage:" \
 # Test 3: Usage at 1 arg.
 echo ""
 echo "--- test 3: usage at one arg ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 stderr_file="$T/stderr"
 rc=0
@@ -102,7 +107,8 @@ assert_contains "test 3: stderr says Usage:" \
 # Test 4: Usage at 3 args.
 echo ""
 echo "--- test 4: usage at three args ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 body_file="$T/body.md"
 write_file "$body_file" "hello"
@@ -117,7 +123,8 @@ assert_contains "test 4: stderr says Usage:" \
 # Test 5: Missing body file.
 echo ""
 echo "--- test 5: missing body file ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 stderr_file="$T/stderr"
 rc=0
@@ -130,7 +137,8 @@ assert_contains "test 5: stderr names the missing file" \
 # Test 6: Same-repo PR — resolver argv.
 echo ""
 echo "--- test 6: resolver argv shape ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 GH_PR_VIEW_OUT="$T/pr-view.json"
 write_file "$GH_PR_VIEW_OUT" "$(default_payload)"
@@ -148,7 +156,8 @@ unset GH_PR_VIEW_OUT
 # Test 7: Cross-fork PR — PATCH URL targets upstream.
 echo ""
 echo "--- test 7: PATCH URL targets upstream coords ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 GH_PR_VIEW_OUT="$T/pr-view.json"
 write_file "$GH_PR_VIEW_OUT" "$(upstream_payload)"
@@ -177,7 +186,8 @@ unset GH_PR_VIEW_OUT
 # Test 8: PATCH method explicit.
 echo ""
 echo "--- test 8: PATCH method explicit ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 GH_PR_VIEW_OUT="$T/pr-view.json"
 write_file "$GH_PR_VIEW_OUT" "$(default_payload)"
@@ -206,7 +216,7 @@ assert_body_round_trip() {
   write_file "$body_file" "$input"
   "$SCRIPT" 119 "$body_file" >/dev/null 2>"$T/stderr" || true
   local extracted="$T/extracted"
-  jq -j .body "$GH_STDIN_LOG" > "$extracted"
+  jq -j .body "$GH_STDIN_LOG" >"$extracted"
   if cmp -s "$extracted" "$body_file"; then
     echo "  PASS: $test_name"
     PASS=$((PASS + 1))
@@ -225,7 +235,8 @@ assert_body_round_trip() {
 # Test 9: JSON body encoding — empty body.
 echo ""
 echo "--- test 9: empty body round-trip ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 assert_body_round_trip "test 9: empty body round-trip" ""
 
@@ -233,7 +244,8 @@ assert_body_round_trip "test 9: empty body round-trip" ""
 # Test 10: JSON body encoding — multi-line.
 echo ""
 echo "--- test 10: multi-line body round-trip ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 multi=$'Hello\n\nWorld\n'
 assert_body_round_trip "test 10: multi-line round-trip" "$multi"
@@ -242,7 +254,8 @@ assert_body_round_trip "test 10: multi-line round-trip" "$multi"
 # Test 11: JSON body encoding — shell metacharacters.
 echo ""
 echo "--- test 11: shell metacharacters round-trip ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 # shellcheck disable=SC2016
 # Intentional literal: shell metacharacters must reach the body verbatim
@@ -254,7 +267,8 @@ assert_body_round_trip "test 11: shell-meta round-trip" "$meta"
 # Test 12: JSON body encoding — unicode.
 echo ""
 echo "--- test 12: unicode round-trip ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 uni="hello 🎉 café"
 assert_body_round_trip "test 12: unicode round-trip" "$uni"
@@ -263,7 +277,8 @@ assert_body_round_trip "test 12: unicode round-trip" "$uni"
 # Test 13: JSON body encoding — no trailing newline.
 echo ""
 echo "--- test 13: no trailing newline round-trip ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 notail="single line no newline"
 assert_body_round_trip "test 13: no-trailing-newline round-trip" \
@@ -273,7 +288,8 @@ assert_body_round_trip "test 13: no-trailing-newline round-trip" \
 # Test 14: Stdin pipe via --input <file>.
 echo ""
 echo "--- test 14: --input <file> ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 GH_PR_VIEW_OUT="$T/pr-view.json"
 write_file "$GH_PR_VIEW_OUT" "$(default_payload)"
@@ -304,7 +320,8 @@ unset GH_PR_VIEW_OUT
 # Test 15: Tempfile cleanup on success.
 echo ""
 echo "--- test 15: tempfile cleanup on success ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 GH_PR_VIEW_OUT="$T/pr-view.json"
 write_file "$GH_PR_VIEW_OUT" "$(default_payload)"
@@ -325,7 +342,8 @@ unset GH_PR_VIEW_OUT
 # Test 16: Tempfile cleanup on PATCH failure.
 echo ""
 echo "--- test 16: tempfile cleanup on PATCH failure ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 GH_PR_VIEW_OUT="$T/pr-view.json"
 write_file "$GH_PR_VIEW_OUT" "$(default_payload)"
@@ -346,7 +364,8 @@ unset GH_PR_VIEW_OUT GH_API_RC
 # Test 17: Resolver failure propagated (exit 1 + replayed stderr + hint).
 echo ""
 echo "--- test 17: resolver failure propagated ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 GH_PR_VIEW_ERR="$T/pr-view-err"
 write_file "$GH_PR_VIEW_ERR" "no default remote repository"
@@ -367,7 +386,8 @@ unset GH_PR_VIEW_ERR GH_PR_VIEW_RC
 # Test 18: Encode failure exit code (via fake jq).
 echo ""
 echo "--- test 18: encode failure ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 if ! setup_fake_jq "$T/jqbin"; then
   skip_test "test 18" "real jq required for fake-jq delegation"
@@ -407,7 +427,8 @@ fi
 # Test 19: PATCH failure — stage-specific stderr (exit 4).
 echo ""
 echo "--- test 19: PATCH failure exit 4 ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 GH_PR_VIEW_OUT="$T/pr-view.json"
 write_file "$GH_PR_VIEW_OUT" "$(default_payload)"
@@ -430,7 +451,8 @@ unset GH_PR_VIEW_OUT GH_API_ERR GH_API_RC
 # Test 20: Success — exit 0 and PATCH was actually called.
 echo ""
 echo "--- test 20: success path ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 GH_PR_VIEW_OUT="$T/pr-view.json"
 write_file "$GH_PR_VIEW_OUT" "$(default_payload)"
@@ -450,7 +472,8 @@ unset GH_PR_VIEW_OUT
 # Test 21: jq preflight — missing jq exits 2.
 echo ""
 echo "--- test 21: missing jq preflight ---"
-new_case; T=$CASE_DIR
+new_case
+T=$CASE_DIR
 setup_gh_stub "$T"
 body_file="$T/body.md"
 write_file "$body_file" "x"
@@ -470,8 +493,8 @@ echo ""
 echo "=== Tree-state regression guards ==="
 
 case "$phase" in
-  1|2|3) skip_test "test 22" "deferred — guards Phase 4" ;;
-  4|5|6|final)
+  1 | 2 | 3) skip_test "test 22" "deferred — guards Phase 4" ;;
+  4 | 5 | 6 | final)
     assert_grep_empty "test 22" \
       "$PLUGIN_ROOT/skills/" "gh pr edit" \
       --include='*.md'
@@ -479,8 +502,8 @@ case "$phase" in
 esac
 
 case "$phase" in
-  1|2|3|4|5) skip_test "test 23" "deferred — guards Phase 6" ;;
-  6|final)
+  1 | 2 | 3 | 4 | 5) skip_test "test 23" "deferred — guards Phase 6" ;;
+  6 | final)
     assert_grep_empty "test 23" \
       "$PLUGIN_ROOT/skills/github/" "gh repo view --json owner,name" \
       --include='*.md'

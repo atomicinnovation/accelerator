@@ -18,7 +18,11 @@ trap '
   rm -rf "$TMPDIR_BASE"
 ' EXIT
 
-make_project() { local d="$1"; mkdir -p "$d/.jj" "$d/.accelerator/tmp"; : > "$d/.accelerator/tmp/.gitignore"; }
+make_project() {
+  local d="$1"
+  mkdir -p "$d/.jj" "$d/.accelerator/tmp"
+  : >"$d/.accelerator/tmp/.gitignore"
+}
 
 launch_fake() {
   local proj="$1" fake="$2"
@@ -38,9 +42,11 @@ assert_file_executable "executable bit set" "$STATUS_SERVER"
 
 # ─── 2. not_running when no lifecycle files ──────────────────────
 echo "Test: status with no server → not_running"
-PROJ="$TMPDIR_BASE/t-statusnr"; make_project "$PROJ"
+PROJ="$TMPDIR_BASE/t-statusnr"
+make_project "$PROJ"
 cd "$PROJ"
-OUT="$TMPDIR_BASE/t-statusnr.out"; RC=0
+OUT="$TMPDIR_BASE/t-statusnr.out"
+RC=0
 bash "$STATUS_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "statusnr: exit code" "0" "$RC"
 assert_json_eq "statusnr: status" ".status" "not_running" "$OUT"
@@ -48,15 +54,18 @@ cd "$ORIG_DIR"
 
 # ─── 3. running server → running + url + pid ─────────────────────
 echo "Test: status with running server → running + url + pid"
-PROJ="$TMPDIR_BASE/t-statusrun"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-statusrun"; make_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-statusrun"
+make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-statusrun"
+make_fake_visualiser "$FAKE"
 launch_fake "$PROJ" "$FAKE"
 
 INFO_FILE="$PROJ/.accelerator/tmp/visualiser/server-info.json"
 EXPECTED_URL="$(jq -r '.url' "$INFO_FILE")"
 
 cd "$PROJ"
-OUT="$TMPDIR_BASE/t-statusrun.out"; RC=0
+OUT="$TMPDIR_BASE/t-statusrun.out"
+RC=0
 bash "$STATUS_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "statusrun: exit code" "0" "$RC"
 assert_json_eq "statusrun: status" ".status" "running" "$OUT"
@@ -67,16 +76,19 @@ cd "$ORIG_DIR"
 
 # ─── 4. dead PID in info file → stale ────────────────────────────
 echo "Test: status with dead PID in info file → stale"
-PROJ="$TMPDIR_BASE/t-statusstale"; make_project "$PROJ"
+PROJ="$TMPDIR_BASE/t-statusstale"
+make_project "$PROJ"
 DEAD_PID="$(spawn_and_reap_pid)"
-INFO_DIR="$PROJ/.accelerator/tmp/visualiser"; mkdir -p "$INFO_DIR"
-cat > "$INFO_DIR/server-info.json" << INFOJSON
+INFO_DIR="$PROJ/.accelerator/tmp/visualiser"
+mkdir -p "$INFO_DIR"
+cat >"$INFO_DIR/server-info.json" <<INFOJSON
 {"version":"0.0.0-test","pid":$DEAD_PID,"start_time":null,"host":"127.0.0.1","port":9996,"url":"http://127.0.0.1:9996","log_path":"$INFO_DIR/server.log","tmp_path":"$INFO_DIR"}
 INFOJSON
-echo "$DEAD_PID" > "$INFO_DIR/server.pid"
+echo "$DEAD_PID" >"$INFO_DIR/server.pid"
 
 cd "$PROJ"
-OUT="$TMPDIR_BASE/t-statusstale.out"; RC=0
+OUT="$TMPDIR_BASE/t-statusstale.out"
+RC=0
 bash "$STATUS_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "statusstale: exit code" "0" "$RC"
 assert_json_eq "statusstale: status" ".status" "stale" "$OUT"

@@ -115,7 +115,7 @@ echo ""
 echo "Test: Valid frontmatter status: proposed"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/decisions"
-cat > "$REPO/meta/decisions/ADR-0001-test.md" << 'FIXTURE'
+cat >"$REPO/meta/decisions/ADR-0001-test.md" <<'FIXTURE'
 ---
 adr_id: ADR-0001
 status: proposed
@@ -130,7 +130,7 @@ assert_eq "outputs proposed" "proposed" "$OUTPUT"
 echo "Test: Valid frontmatter status: accepted"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/decisions"
-cat > "$REPO/meta/decisions/ADR-0001-test.md" << 'FIXTURE'
+cat >"$REPO/meta/decisions/ADR-0001-test.md" <<'FIXTURE'
 ---
 adr_id: ADR-0001
 status: accepted
@@ -145,7 +145,7 @@ assert_eq "outputs accepted" "accepted" "$OUTPUT"
 echo "Test: Quoted value status: \"proposed\""
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/decisions"
-cat > "$REPO/meta/decisions/ADR-0001-test.md" << 'FIXTURE'
+cat >"$REPO/meta/decisions/ADR-0001-test.md" <<'FIXTURE'
 ---
 adr_id: ADR-0001
 status: "proposed"
@@ -160,7 +160,7 @@ assert_eq "outputs proposed (strips quotes)" "proposed" "$OUTPUT"
 echo "Test: No space status:proposed"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/decisions"
-cat > "$REPO/meta/decisions/ADR-0001-test.md" << 'FIXTURE'
+cat >"$REPO/meta/decisions/ADR-0001-test.md" <<'FIXTURE'
 ---
 adr_id: ADR-0001
 status:proposed
@@ -176,7 +176,7 @@ echo "Test: Trailing whitespace"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/decisions"
 printf -- '---\nadr_id: ADR-0001\nstatus: proposed  \n---\n\n# ADR-0001: Test\n' \
-  > "$REPO/meta/decisions/ADR-0001-test.md"
+  >"$REPO/meta/decisions/ADR-0001-test.md"
 OUTPUT=$(bash "$READ_STATUS" "$REPO/meta/decisions/ADR-0001-test.md")
 assert_eq "outputs proposed (stripped)" "proposed" "$OUTPUT"
 
@@ -187,7 +187,7 @@ assert_exit_code "exits 1" 1 bash "$READ_STATUS" "/nonexistent/file.md"
 # Test 7: File with no frontmatter
 echo "Test: File with no frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/no-frontmatter.md" << 'FIXTURE'
+cat >"$REPO/no-frontmatter.md" <<'FIXTURE'
 # Just a regular file
 
 No frontmatter here.
@@ -197,7 +197,7 @@ assert_exit_code "exits 1" 1 bash "$READ_STATUS" "$REPO/no-frontmatter.md"
 # Test 8: Unclosed frontmatter (single ---)
 echo "Test: Unclosed frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/unclosed.md" << 'FIXTURE'
+cat >"$REPO/unclosed.md" <<'FIXTURE'
 ---
 adr_id: ADR-0001
 status: proposed
@@ -208,7 +208,7 @@ assert_exit_code "exits 1" 1 bash "$READ_STATUS" "$REPO/unclosed.md"
 echo "Test: Status in body ignored, frontmatter value returned"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/decisions"
-cat > "$REPO/meta/decisions/ADR-0001-test.md" << 'FIXTURE'
+cat >"$REPO/meta/decisions/ADR-0001-test.md" <<'FIXTURE'
 ---
 adr_id: ADR-0001
 status: proposed
@@ -226,7 +226,7 @@ echo "Test: Empty status value"
 REPO=$(setup_repo)
 mkdir -p "$REPO/meta/decisions"
 printf -- '---\nadr_id: ADR-0001\nstatus: \n---\n\n# ADR-0001: Test\n' \
-  > "$REPO/meta/decisions/ADR-0001-test.md"
+  >"$REPO/meta/decisions/ADR-0001-test.md"
 OUTPUT=$(bash "$READ_STATUS" "$REPO/meta/decisions/ADR-0001-test.md")
 assert_eq "outputs empty string" "" "$OUTPUT"
 

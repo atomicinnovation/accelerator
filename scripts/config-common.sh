@@ -155,8 +155,8 @@ config_enumerate_templates() {
 config_format_available_templates() {
   local plugin_root="$1"
   local available
-  available=$(config_enumerate_templates "$plugin_root" | tr '\n' ', ' \
-    | sed 's/,$//' | sed 's/,/, /g')
+  available=$(config_enumerate_templates "$plugin_root" | tr '\n' ', ' |
+    sed 's/,$//' | sed 's/,/, /g')
   if [ -z "$available" ]; then
     echo "(none found)"
   else

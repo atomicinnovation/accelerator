@@ -70,21 +70,53 @@ _jira_comment_add() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --body)          body_inline="$2"; body_inline_set=1; shift 2 ;;
-      --body-file)     body_file="$2"; body_file_set=1; shift 2 ;;
-      --visibility)    visibility="$2"; shift 2 ;;
-      --no-notify)     no_notify=1; shift ;;
-      --render-adf)    render_adf=1; shift ;;
-      --no-render-adf) render_adf=0; shift ;;
-      --print-payload) print_payload=1; shift ;;
-      --no-editor)     no_editor=1; shift ;;
+      --body)
+        body_inline="$2"
+        body_inline_set=1
+        shift 2
+        ;;
+      --body-file)
+        body_file="$2"
+        body_file_set=1
+        shift 2
+        ;;
+      --visibility)
+        visibility="$2"
+        shift 2
+        ;;
+      --no-notify)
+        no_notify=1
+        shift
+        ;;
+      --render-adf)
+        render_adf=1
+        shift
+        ;;
+      --no-render-adf)
+        render_adf=0
+        shift
+        ;;
+      --print-payload)
+        print_payload=1
+        shift
+        ;;
+      --no-editor)
+        no_editor=1
+        shift
+        ;;
       --*)
         printf 'E_COMMENT_BAD_FLAG: unrecognised flag: %s\n' "$1" >&2
-        return 96 ;;
+        return 96
+        ;;
       *)
-        if [[ -z "$key" ]]; then key="$1"
-        else printf 'E_COMMENT_BAD_FLAG: unexpected argument: %s\n' "$1" >&2; return 96
-        fi; shift ;;
+        if [[ -z "$key" ]]; then
+          key="$1"
+        else
+          printf 'E_COMMENT_BAD_FLAG: unexpected argument: %s\n' "$1" >&2
+          return 96
+        fi
+        shift
+        ;;
     esac
   done
 
@@ -100,9 +132,9 @@ _jira_comment_add() {
   fi
 
   local body_src_args=()
-  (( body_inline_set )) && body_src_args+=(--body "$body_inline")
-  (( body_file_set ))   && body_src_args+=(--body-file "$body_file")
-  if (( no_editor )); then
+  ((body_inline_set)) && body_src_args+=(--body "$body_inline")
+  ((body_file_set)) && body_src_args+=(--body-file "$body_file")
+  if ((no_editor)); then
     body_src_args+=(--allow-stdin)
   else
     body_src_args+=(--allow-stdin --allow-editor)
@@ -110,7 +142,7 @@ _jira_comment_add() {
 
   local body_md="" body_rc=0
   body_md=$(jira_resolve_body "${body_src_args[@]}") || body_rc=$?
-  if (( body_rc != 0 )); then
+  if ((body_rc != 0)); then
     printf 'E_COMMENT_NO_BODY: no body source available (use --body, --body-file, stdin, or $EDITOR)\n' >&2
     return 94
   fi
@@ -118,9 +150,9 @@ _jira_comment_add() {
   local adf_doc="{}"
   if [[ -n "$body_md" ]]; then
     local adf_rc=0
-    adf_doc=$(printf '%s' "$body_md" \
-      | bash "$_JIRA_COMMENT_SCRIPT_DIR/jira-md-to-adf.sh") || adf_rc=$?
-    if (( adf_rc != 0 )); then
+    adf_doc=$(printf '%s' "$body_md" |
+      bash "$_JIRA_COMMENT_SCRIPT_DIR/jira-md-to-adf.sh") || adf_rc=$?
+    if ((adf_rc != 0)); then
       printf 'Warning: body Markdown could not be converted to ADF (exit %d); body will be empty\n' \
         "$adf_rc" >&2
       adf_doc="{}"
@@ -136,23 +168,24 @@ _jira_comment_add() {
   fi
 
   local -a query_params=()
-  if (( no_notify )); then query_params+=(--query "notifyUsers=false"); fi
+  if ((no_notify)); then query_params+=(--query "notifyUsers=false"); fi
 
-  if (( print_payload )); then
+  if ((print_payload)); then
     local qp_obj="{}"
-    if (( no_notify )); then qp_obj='{"notifyUsers":"false"}'; fi
+    if ((no_notify)); then qp_obj='{"notifyUsers":"false"}'; fi
     jq -n \
-      --arg     method "POST" \
-      --arg     path   "/rest/api/3/issue/$key/comment" \
-      --argjson qp     "$qp_obj" \
-      --argjson body   "$payload" \
+      --arg method "POST" \
+      --arg path "/rest/api/3/issue/$key/comment" \
+      --argjson qp "$qp_obj" \
+      --argjson body "$payload" \
       '{method:$method, path:$path, queryParams:$qp, body:$body}'
     return 0
   fi
 
-  local tmpfile; tmpfile=$(mktemp)
+  local tmpfile
+  tmpfile=$(mktemp)
   trap 'rm -f "$tmpfile"; trap - RETURN' RETURN
-  printf '%s' "$payload" > "$tmpfile"
+  printf '%s' "$payload" >"$tmpfile"
 
   local req_exit=0 response=""
   response=$(bash "$_JIRA_COMMENT_SCRIPT_DIR/jira-request.sh" \
@@ -160,7 +193,7 @@ _jira_comment_add() {
     --json "@$tmpfile" \
     "${query_params[@]+"${query_params[@]}"}") || req_exit=$?
 
-  if (( req_exit != 0 )); then
+  if ((req_exit != 0)); then
     if ! _jira_emit_generic_hint "$req_exit"; then
       case "$req_exit" in
         13) printf 'Hint: issue or comment not found, or you do not have permission.\n' >&2 ;;
@@ -169,9 +202,9 @@ _jira_comment_add() {
     return "$req_exit"
   fi
 
-  if (( render_adf )); then
-    response=$(printf '%s' "$response" \
-      | bash "$_JIRA_COMMENT_SCRIPT_DIR/jira-render-adf-fields.sh") || return $?
+  if ((render_adf)); then
+    response=$(printf '%s' "$response" |
+      bash "$_JIRA_COMMENT_SCRIPT_DIR/jira-render-adf-fields.sh") || return $?
   fi
   printf '%s\n' "$response"
 }
@@ -181,17 +214,35 @@ _jira_comment_list() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --page-size)      page_size="$2"; shift 2 ;;
-      --first-page-only) first_page_only=1; shift ;;
-      --render-adf)     render_adf=1; shift ;;
-      --no-render-adf)  render_adf=0; shift ;;
+      --page-size)
+        page_size="$2"
+        shift 2
+        ;;
+      --first-page-only)
+        first_page_only=1
+        shift
+        ;;
+      --render-adf)
+        render_adf=1
+        shift
+        ;;
+      --no-render-adf)
+        render_adf=0
+        shift
+        ;;
       --*)
         printf 'E_COMMENT_BAD_FLAG: unrecognised flag: %s\n' "$1" >&2
-        return 96 ;;
+        return 96
+        ;;
       *)
-        if [[ -z "$key" ]]; then key="$1"
-        else printf 'E_COMMENT_BAD_FLAG: unexpected argument: %s\n' "$1" >&2; return 96
-        fi; shift ;;
+        if [[ -z "$key" ]]; then
+          key="$1"
+        else
+          printf 'E_COMMENT_BAD_FLAG: unexpected argument: %s\n' "$1" >&2
+          return 96
+        fi
+        shift
+        ;;
     esac
   done
 
@@ -200,7 +251,7 @@ _jira_comment_list() {
     return 93
   fi
 
-  if ! [[ "$page_size" =~ ^[0-9]+$ ]] || (( page_size < 1 || page_size > 100 )); then
+  if ! [[ "$page_size" =~ ^[0-9]+$ ]] || ((page_size < 1 || page_size > 100)); then
     printf 'E_COMMENT_BAD_PAGE_SIZE: --page-size must be an integer in [1, 100] (got: %s)\n' \
       "$page_size" >&2
     return 97
@@ -214,8 +265,9 @@ _jira_comment_list() {
   local MAX_PAGES=20
 
   while :; do
-    if (( page_count >= MAX_PAGES )); then
-      truncated=1; break
+    if ((page_count >= MAX_PAGES)); then
+      truncated=1
+      break
     fi
 
     local resp="" req_exit=0
@@ -224,7 +276,7 @@ _jira_comment_list() {
       --query "startAt=$start_at" \
       --query "maxResults=$page_size") || req_exit=$?
 
-    if (( req_exit != 0 )); then
+    if ((req_exit != 0)); then
       if ! _jira_emit_generic_hint "$req_exit"; then
         case "$req_exit" in
           13) printf 'Hint: issue or comment not found, or you do not have permission.\n' >&2 ;;
@@ -245,29 +297,29 @@ _jira_comment_list() {
 
     total="$page_total"
     accumulated=$(jq -n --argjson a "$accumulated" --argjson b "$page_comments" '$a + $b')
-    page_count=$(( page_count + 1 ))
-    if (( first_page_only )); then break; fi
-    if (( page_returned == 0 )); then break; fi
-    start_at=$(( start_at + page_returned ))
-    if (( start_at >= page_total )); then break; fi
+    page_count=$((page_count + 1))
+    if ((first_page_only)); then break; fi
+    if ((page_returned == 0)); then break; fi
+    start_at=$((start_at + page_returned))
+    if ((start_at >= page_total)); then break; fi
   done
 
-  if (( truncated )); then
+  if ((truncated)); then
     printf 'Warning: truncated comment list at %d pages (page_size=%d). Use --page-size 100 (max) to reduce round-trips, or --first-page-only to fetch only the first page.\n' \
       "$MAX_PAGES" "$page_size" >&2
   fi
 
   local response
   response=$(jq -n \
-    --argjson c     "$accumulated" \
-    --argjson t     "$total" \
+    --argjson c "$accumulated" \
+    --argjson t "$total" \
     --argjson trunc "$truncated" \
     '{startAt: 0, maxResults: ($c | length), total: $t,
       truncated: ($trunc != 0), comments: $c}')
 
-  if (( render_adf )); then
-    response=$(printf '%s' "$response" \
-      | bash "$_JIRA_COMMENT_SCRIPT_DIR/jira-render-adf-fields.sh") || return $?
+  if ((render_adf)); then
+    response=$(printf '%s' "$response" |
+      bash "$_JIRA_COMMENT_SCRIPT_DIR/jira-render-adf-fields.sh") || return $?
   fi
   printf '%s\n' "$response"
 }
@@ -279,22 +331,55 @@ _jira_comment_edit() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --body)          body_inline="$2"; body_inline_set=1; shift 2 ;;
-      --body-file)     body_file="$2"; body_file_set=1; shift 2 ;;
-      --visibility)    visibility="$2"; shift 2 ;;
-      --no-notify)     no_notify=1; shift ;;
-      --render-adf)    render_adf=1; shift ;;
-      --no-render-adf) render_adf=0; shift ;;
-      --print-payload) print_payload=1; shift ;;
-      --no-editor)     no_editor=1; shift ;;
+      --body)
+        body_inline="$2"
+        body_inline_set=1
+        shift 2
+        ;;
+      --body-file)
+        body_file="$2"
+        body_file_set=1
+        shift 2
+        ;;
+      --visibility)
+        visibility="$2"
+        shift 2
+        ;;
+      --no-notify)
+        no_notify=1
+        shift
+        ;;
+      --render-adf)
+        render_adf=1
+        shift
+        ;;
+      --no-render-adf)
+        render_adf=0
+        shift
+        ;;
+      --print-payload)
+        print_payload=1
+        shift
+        ;;
+      --no-editor)
+        no_editor=1
+        shift
+        ;;
       --*)
         printf 'E_COMMENT_BAD_FLAG: unrecognised flag: %s\n' "$1" >&2
-        return 96 ;;
+        return 96
+        ;;
       *)
-        if [[ -z "$key" ]]; then key="$1"
-        elif [[ -z "$comment_id" ]]; then comment_id="$1"
-        else printf 'E_COMMENT_BAD_FLAG: unexpected argument: %s\n' "$1" >&2; return 96
-        fi; shift ;;
+        if [[ -z "$key" ]]; then
+          key="$1"
+        elif [[ -z "$comment_id" ]]; then
+          comment_id="$1"
+        else
+          printf 'E_COMMENT_BAD_FLAG: unexpected argument: %s\n' "$1" >&2
+          return 96
+        fi
+        shift
+        ;;
     esac
   done
 
@@ -314,9 +399,9 @@ _jira_comment_edit() {
   fi
 
   local body_src_args=()
-  (( body_inline_set )) && body_src_args+=(--body "$body_inline")
-  (( body_file_set ))   && body_src_args+=(--body-file "$body_file")
-  if (( no_editor )); then
+  ((body_inline_set)) && body_src_args+=(--body "$body_inline")
+  ((body_file_set)) && body_src_args+=(--body-file "$body_file")
+  if ((no_editor)); then
     body_src_args+=(--allow-stdin)
   else
     body_src_args+=(--allow-stdin --allow-editor)
@@ -324,7 +409,7 @@ _jira_comment_edit() {
 
   local body_md="" body_rc=0
   body_md=$(jira_resolve_body "${body_src_args[@]}") || body_rc=$?
-  if (( body_rc != 0 )); then
+  if ((body_rc != 0)); then
     printf 'E_COMMENT_NO_BODY: no body source available (use --body, --body-file, stdin, or $EDITOR)\n' >&2
     return 94
   fi
@@ -332,9 +417,9 @@ _jira_comment_edit() {
   local adf_doc="{}"
   if [[ -n "$body_md" ]]; then
     local adf_rc=0
-    adf_doc=$(printf '%s' "$body_md" \
-      | bash "$_JIRA_COMMENT_SCRIPT_DIR/jira-md-to-adf.sh") || adf_rc=$?
-    if (( adf_rc != 0 )); then
+    adf_doc=$(printf '%s' "$body_md" |
+      bash "$_JIRA_COMMENT_SCRIPT_DIR/jira-md-to-adf.sh") || adf_rc=$?
+    if ((adf_rc != 0)); then
       printf 'Warning: body Markdown could not be converted to ADF (exit %d); body will be empty\n' \
         "$adf_rc" >&2
       adf_doc="{}"
@@ -350,23 +435,24 @@ _jira_comment_edit() {
   fi
 
   local -a query_params=()
-  if (( no_notify )); then query_params+=(--query "notifyUsers=false"); fi
+  if ((no_notify)); then query_params+=(--query "notifyUsers=false"); fi
 
-  if (( print_payload )); then
+  if ((print_payload)); then
     local qp_obj="{}"
-    if (( no_notify )); then qp_obj='{"notifyUsers":"false"}'; fi
+    if ((no_notify)); then qp_obj='{"notifyUsers":"false"}'; fi
     jq -n \
-      --arg     method "PUT" \
-      --arg     path   "/rest/api/3/issue/$key/comment/$comment_id" \
-      --argjson qp     "$qp_obj" \
-      --argjson body   "$payload" \
+      --arg method "PUT" \
+      --arg path "/rest/api/3/issue/$key/comment/$comment_id" \
+      --argjson qp "$qp_obj" \
+      --argjson body "$payload" \
       '{method:$method, path:$path, queryParams:$qp, body:$body}'
     return 0
   fi
 
-  local tmpfile; tmpfile=$(mktemp)
+  local tmpfile
+  tmpfile=$(mktemp)
   trap 'rm -f "$tmpfile"; trap - RETURN' RETURN
-  printf '%s' "$payload" > "$tmpfile"
+  printf '%s' "$payload" >"$tmpfile"
 
   local req_exit=0 response=""
   response=$(bash "$_JIRA_COMMENT_SCRIPT_DIR/jira-request.sh" \
@@ -374,7 +460,7 @@ _jira_comment_edit() {
     --json "@$tmpfile" \
     "${query_params[@]+"${query_params[@]}"}") || req_exit=$?
 
-  if (( req_exit != 0 )); then
+  if ((req_exit != 0)); then
     if ! _jira_emit_generic_hint "$req_exit"; then
       case "$req_exit" in
         13) printf 'Hint: issue or comment not found, or you do not have permission.\n' >&2 ;;
@@ -383,9 +469,9 @@ _jira_comment_edit() {
     return "$req_exit"
   fi
 
-  if (( render_adf )); then
-    response=$(printf '%s' "$response" \
-      | bash "$_JIRA_COMMENT_SCRIPT_DIR/jira-render-adf-fields.sh") || return $?
+  if ((render_adf)); then
+    response=$(printf '%s' "$response" |
+      bash "$_JIRA_COMMENT_SCRIPT_DIR/jira-render-adf-fields.sh") || return $?
   fi
   printf '%s\n' "$response"
 }
@@ -395,16 +481,29 @@ _jira_comment_delete() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --no-notify) no_notify=1; shift ;;
-      --describe)  describe=1; shift ;;
+      --no-notify)
+        no_notify=1
+        shift
+        ;;
+      --describe)
+        describe=1
+        shift
+        ;;
       --*)
         printf 'E_COMMENT_BAD_FLAG: unrecognised flag: %s\n' "$1" >&2
-        return 96 ;;
+        return 96
+        ;;
       *)
-        if [[ -z "$key" ]]; then key="$1"
-        elif [[ -z "$comment_id" ]]; then comment_id="$1"
-        else printf 'E_COMMENT_BAD_FLAG: unexpected argument: %s\n' "$1" >&2; return 96
-        fi; shift ;;
+        if [[ -z "$key" ]]; then
+          key="$1"
+        elif [[ -z "$comment_id" ]]; then
+          comment_id="$1"
+        else
+          printf 'E_COMMENT_BAD_FLAG: unexpected argument: %s\n' "$1" >&2
+          return 96
+        fi
+        shift
+        ;;
     esac
   done
 
@@ -419,15 +518,15 @@ _jira_comment_delete() {
   fi
 
   local -a query_params=()
-  if (( no_notify )); then query_params+=(--query "notifyUsers=false"); fi
+  if ((no_notify)); then query_params+=(--query "notifyUsers=false"); fi
 
-  if (( describe )); then
+  if ((describe)); then
     local qp_obj="{}"
-    if (( no_notify )); then qp_obj='{"notifyUsers":"false"}'; fi
+    if ((no_notify)); then qp_obj='{"notifyUsers":"false"}'; fi
     jq -n \
-      --arg     method "DELETE" \
-      --arg     path   "/rest/api/3/issue/$key/comment/$comment_id" \
-      --argjson qp     "$qp_obj" \
+      --arg method "DELETE" \
+      --arg path "/rest/api/3/issue/$key/comment/$comment_id" \
+      --argjson qp "$qp_obj" \
       '{method:$method, path:$path, queryParams:$qp, body:null, irreversible:true}'
     return 0
   fi
@@ -437,7 +536,7 @@ _jira_comment_delete() {
     DELETE "/rest/api/3/issue/$key/comment/$comment_id" \
     "${query_params[@]+"${query_params[@]}"}" >/dev/null || req_exit=$?
 
-  if (( req_exit != 0 )); then
+  if ((req_exit != 0)); then
     if ! _jira_emit_generic_hint "$req_exit"; then
       case "$req_exit" in
         13) printf 'Hint: issue or comment not found, or you do not have permission.\n' >&2 ;;
@@ -451,23 +550,27 @@ _jira_comment_delete() {
 
 _jira_comment() {
   jira_require_dependencies
-  local sub="${1:-}"; shift || true
+  local sub="${1:-}"
+  shift || true
   case "$sub" in
-    add)    _jira_comment_add    "$@" ;;
-    list)   _jira_comment_list   "$@" ;;
-    edit)   _jira_comment_edit   "$@" ;;
+    add) _jira_comment_add "$@" ;;
+    list) _jira_comment_list "$@" ;;
+    edit) _jira_comment_edit "$@" ;;
     delete) _jira_comment_delete "$@" ;;
-    -h|--help)
+    -h | --help)
       _jira_comment_usage
-      return 0 ;;
+      return 0
+      ;;
     "")
       _jira_comment_usage >&2
       printf 'E_COMMENT_NO_SUBCOMMAND: a subcommand is required (add, list, edit, delete)\n' >&2
-      return 91 ;;
+      return 91
+      ;;
     *)
       printf 'E_COMMENT_BAD_SUBCOMMAND: unknown subcommand: %s\n' "$sub" >&2
       _jira_comment_usage >&2
-      return 92 ;;
+      return 92
+      ;;
   esac
 }
 

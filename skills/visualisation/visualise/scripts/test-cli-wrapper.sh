@@ -22,7 +22,7 @@ TEMP_CLI="$TEMP_SKILL/cli/accelerator-visualiser"
 TEMP_STUB="$TEMP_SKILL/scripts/visualiser.sh"
 
 INITIAL_SENTINEL="cli-wrapper-initial-sentinel"
-cat > "$TEMP_STUB" << SENTINELEOF
+cat >"$TEMP_STUB" <<SENTINELEOF
 #!/usr/bin/env bash
 echo "$INITIAL_SENTINEL"
 SENTINELEOF
@@ -46,7 +46,7 @@ echo "Test: wrapper actually delegates (proven by sentinel)"
 # inlined its own echo instead of exec'ing the stub, the sentinel
 # would not appear. Mutation is on the copy only.
 SENTINEL="delegation-sentinel-$$-$RANDOM"
-cat > "$TEMP_STUB" <<EOF
+cat >"$TEMP_STUB" <<EOF
 #!/usr/bin/env bash
 echo "$SENTINEL"
 EOF
@@ -57,7 +57,7 @@ assert_eq "wrapper delegated to stub" "$SENTINEL" "$DELEGATION_OUTPUT"
 echo "Test: wrapper forwards arguments verbatim (incl. spaces and empty)"
 # Replace TEMP_STUB with a script that echoes each argv on its own line
 # so quoting regressions (exec "..." $@ vs exec "..." "$@") surface.
-cat > "$TEMP_STUB" <<'EOF'
+cat >"$TEMP_STUB" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$@"
 EOF
@@ -69,7 +69,7 @@ assert_eq "wrapper preserves \$@ quoting" "$EXPECTED_ARGS" "$ARG_OUTPUT"
 echo "Test: wrapper works via symlink (skip if filesystem forbids symlinks)"
 # Restore a sentinel stub before the symlink test (it was replaced above).
 LINK_SENTINEL="symlink-sentinel-$$"
-cat > "$TEMP_STUB" << LINKEOF
+cat >"$TEMP_STUB" <<LINKEOF
 #!/usr/bin/env bash
 echo "$LINK_SENTINEL"
 LINKEOF
@@ -90,8 +90,8 @@ echo "Test: wrapper source contains symlink-cycle guard"
 # bash starts, so the wrapper's walk never runs via invocation.
 # Instead we assert the guard is present in the source so an
 # accidental removal surfaces as a test failure.
-if grep -q 'HOPS.*-gt.*40' "$REAL_CLI" \
-  && grep -q 'symlink loop detected' "$REAL_CLI"; then
+if grep -q 'HOPS.*-gt.*40' "$REAL_CLI" &&
+  grep -q 'symlink loop detected' "$REAL_CLI"; then
   echo "  PASS: hop counter and loop-detected diagnostic present"
   PASS=$((PASS + 1))
 else
@@ -101,7 +101,7 @@ fi
 
 echo "Test: stderr is empty on happy path (sentinel stub)"
 # Restore a quiet sentinel so the wrapper produces no stderr.
-cat > "$TEMP_STUB" <<'EOF'
+cat >"$TEMP_STUB" <<'EOF'
 #!/usr/bin/env bash
 echo "ok"
 EOF

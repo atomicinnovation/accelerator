@@ -46,7 +46,10 @@ value=$("$SCRIPT_DIR/config-read-value.sh" "work.${key}" "${default}")
 if [ "$key" = "integration" ] && [ -n "$value" ]; then
   valid=false
   for allowed in "${WORK_INTEGRATION_VALUES[@]}"; do
-    if [ "$value" = "$allowed" ]; then valid=true; break; fi
+    if [ "$value" = "$allowed" ]; then
+      valid=true
+      break
+    fi
   done
   if [ "$valid" = false ]; then
     allowed_list="${WORK_INTEGRATION_VALUES[*]}"

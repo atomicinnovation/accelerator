@@ -60,7 +60,7 @@ for f in "${FILES[@]}"; do
     keys=$(echo "$fm" | grep -E '^[a-zA-Z_][a-zA-Z0-9_-]*:' | sed 's/:.*//' | sort -u)
     for k in $keys; do
       case " $SECTIONS " in
-        *" $k "*) ;;  # already seen
+        *" $k "*) ;; # already seen
         *) SECTIONS="$SECTIONS $k" ;;
       esac
     done
@@ -119,11 +119,11 @@ if [ -d "$SKILL_CUSTOM_DIR" ]; then
     has_context=false
     has_instructions=false
     if [ -f "$skill_dir/context.md" ]; then
-      trimmed=$(config_trim_body < "$skill_dir/context.md")
+      trimmed=$(config_trim_body <"$skill_dir/context.md")
       [ -n "$trimmed" ] && has_context=true
     fi
     if [ -f "$skill_dir/instructions.md" ]; then
-      trimmed=$(config_trim_body < "$skill_dir/instructions.md")
+      trimmed=$(config_trim_body <"$skill_dir/instructions.md")
       [ -n "$trimmed" ] && has_instructions=true
     fi
 

@@ -55,7 +55,7 @@ TMP_DIR=$(bash "$CONFIG_READ_PATH" tmp)
 mkdir -p "$TMP_DIR"
 TMP_GITIGNORE="$TMP_DIR/.gitignore"
 if [ ! -f "$TMP_GITIGNORE" ]; then
-  cat > "$TMP_GITIGNORE" <<'EOF'
+  cat >"$TMP_GITIGNORE" <<'EOF'
 *
 !.gitkeep
 !.gitignore

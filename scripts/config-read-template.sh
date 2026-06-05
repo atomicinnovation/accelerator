@@ -56,5 +56,5 @@ RESOLUTION=$(config_resolve_template "$TEMPLATE_NAME" "$PLUGIN_ROOT") || {
   exit 1
 }
 
-IFS=$'\t' read -r _SOURCE RESOLVED_PATH <<< "$RESOLUTION"
+IFS=$'\t' read -r _SOURCE RESOLVED_PATH <<<"$RESOLUTION"
 _output_template "$RESOLVED_PATH"

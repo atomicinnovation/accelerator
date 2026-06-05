@@ -26,9 +26,10 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 # setup_repo — jira + work config with default project code
 setup_repo() {
-  local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
+  local d
+  d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
   mkdir -p "$d/.git" "$d/.accelerator"
-  cat > "$d/.accelerator/config.md" <<ENDCONFIG
+  cat >"$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -42,9 +43,10 @@ ENDCONFIG
 
 # setup_repo_minimal — jira credentials only, no default project code
 setup_repo_minimal() {
-  local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
+  local d
+  d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
   mkdir -p "$d/.git" "$d/.accelerator"
-  cat > "$d/.accelerator/config.md" <<ENDCONFIG
+  cat >"$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -58,7 +60,7 @@ write_site_json() {
   local repo="$1"
   mkdir -p "$repo/.accelerator/state/integrations/jira"
   printf '{"site":"%s","accountId":"%s"}\n' "$TEST_SITE" "$TEST_ACCOUNT_ID" \
-    > "$repo/.accelerator/state/integrations/jira/site.json"
+    >"$repo/.accelerator/state/integrations/jira/site.json"
 }
 
 write_fields_json() {
@@ -88,7 +90,7 @@ write_fields_json() {
         "schema": {"type": "array", "custom": "com.pyxis.greenhopper.jira:gh-sprint"}
       }
     ]
-  }' > "$repo/.accelerator/state/integrations/jira/fields.json"
+  }' >"$repo/.accelerator/state/integrations/jira/fields.json"
 }
 
 REPO=$(setup_repo)
@@ -118,11 +120,13 @@ start_mock() {
 
   local i=0
   while [ ! -s "$MOCK_URL_FILE" ] && [ $i -lt 50 ]; do
-    sleep 0.1; i=$((i + 1))
+    sleep 0.1
+    i=$((i + 1))
   done
   if [ ! -s "$MOCK_URL_FILE" ]; then
     echo "ERROR: mock server did not start within 5s" >&2
-    kill "$MOCK_PID" 2>/dev/null || true; exit 1
+    kill "$MOCK_PID" 2>/dev/null || true
+    exit 1
   fi
   MOCK_URL=$(cat "$MOCK_URL_FILE")
 }
@@ -133,7 +137,10 @@ stop_mock() {
     wait "$MOCK_PID" 2>/dev/null || true
     MOCK_PID=""
   fi
-  [ -n "$MOCK_URL_FILE" ] && { rm -f "$MOCK_URL_FILE"; MOCK_URL_FILE=""; }
+  [ -n "$MOCK_URL_FILE" ] && {
+    rm -f "$MOCK_URL_FILE"
+    MOCK_URL_FILE=""
+  }
   MOCK_URL=""
 }
 
@@ -223,11 +230,11 @@ OUT_6=$(create --project ENG --type Task --summary "create test" --body "Hello w
 stop_mock
 
 CAPTURED_6=$(jq -r '.[0]' "$BODIES_6")
-assert_eq "response key" "ENG-123" "$(jq -r '.key' <<< "$OUT_6")"
-assert_eq "project key in body" "ENG" "$(jq -r '.fields.project.key' <<< "$CAPTURED_6")"
-assert_eq "summary in body" "create test" "$(jq -r '.fields.summary' <<< "$CAPTURED_6")"
-assert_eq "issuetype name in body" "Task" "$(jq -r '.fields.issuetype.name' <<< "$CAPTURED_6")"
-assert_eq "description is ADF doc" "doc" "$(jq -r '.fields.description.type' <<< "$CAPTURED_6")"
+assert_eq "response key" "ENG-123" "$(jq -r '.key' <<<"$OUT_6")"
+assert_eq "project key in body" "ENG" "$(jq -r '.fields.project.key' <<<"$CAPTURED_6")"
+assert_eq "summary in body" "create test" "$(jq -r '.fields.summary' <<<"$CAPTURED_6")"
+assert_eq "issuetype name in body" "Task" "$(jq -r '.fields.issuetype.name' <<<"$CAPTURED_6")"
+assert_eq "description is ADF doc" "doc" "$(jq -r '.fields.description.type' <<<"$CAPTURED_6")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -235,14 +242,14 @@ echo "=== Case 7: --body-file takes precedence over piped stdin ==="
 echo ""
 
 BODY_FILE_7=$(mktemp "$TMPDIR_BASE/bodyfile-XXXXXX")
-printf 'from file content\n' > "$BODY_FILE_7"
+printf 'from file content\n' >"$BODY_FILE_7"
 BODIES_7=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_7"
-printf 'from stdin content\n' | create --project ENG --type Task --summary "foo" --body-file "$BODY_FILE_7" > /dev/null 2>&1
+printf 'from stdin content\n' | create --project ENG --type Task --summary "foo" --body-file "$BODY_FILE_7" >/dev/null 2>&1
 stop_mock
 
 CAPTURED_7=$(jq -r '.[0]' "$BODIES_7")
-BODY_7_STR=$(jq -c '.fields.description' <<< "$CAPTURED_7")
+BODY_7_STR=$(jq -c '.fields.description' <<<"$CAPTURED_7")
 assert_contains "body from file not stdin" "$BODY_7_STR" "from file content"
 echo ""
 
@@ -252,11 +259,11 @@ echo ""
 
 BODIES_8=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_8"
-printf 'from stdin input\n' | create --project ENG --type Task --summary "foo" > /dev/null 2>&1
+printf 'from stdin input\n' | create --project ENG --type Task --summary "foo" >/dev/null 2>&1
 stop_mock
 
 CAPTURED_8=$(jq -r '.[0]' "$BODIES_8")
-BODY_8_STR=$(jq -c '.fields.description' <<< "$CAPTURED_8")
+BODY_8_STR=$(jq -c '.fields.description' <<<"$CAPTURED_8")
 assert_contains "body from stdin" "$BODY_8_STR" "from stdin input"
 echo ""
 
@@ -277,11 +284,11 @@ echo ""
 
 BODIES_10=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_10"
-create --project ENG --type Task --summary "foo" --body "x" --assignee @me > /dev/null 2>&1
+create --project ENG --type Task --summary "foo" --body "x" --assignee @me >/dev/null 2>&1
 stop_mock
 
 CAPTURED_10=$(jq -r '.[0]' "$BODIES_10")
-assert_eq "assignee accountId in body" "$TEST_ACCOUNT_ID" "$(jq -r '.fields.assignee.accountId' <<< "$CAPTURED_10")"
+assert_eq "assignee accountId in body" "$TEST_ACCOUNT_ID" "$(jq -r '.fields.assignee.accountId' <<<"$CAPTURED_10")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -332,11 +339,11 @@ echo ""
 
 BODIES_12=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_12"
-create --project ENG --type Task --summary "foo" --body "x" --label foo --label bar > /dev/null 2>&1
+create --project ENG --type Task --summary "foo" --body "x" --label foo --label bar >/dev/null 2>&1
 stop_mock
 
 CAPTURED_12=$(jq -r '.[0]' "$BODIES_12")
-LABELS_12=$(jq -c '.fields.labels' <<< "$CAPTURED_12")
+LABELS_12=$(jq -c '.fields.labels' <<<"$CAPTURED_12")
 assert_eq "labels array" '["foo","bar"]' "$LABELS_12"
 echo ""
 
@@ -346,11 +353,11 @@ echo ""
 
 BODIES_13=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_13"
-create --project ENG --type Task --summary "foo" --body "x" --component "API" > /dev/null 2>&1
+create --project ENG --type Task --summary "foo" --body "x" --component "API" >/dev/null 2>&1
 stop_mock
 
 CAPTURED_13=$(jq -r '.[0]' "$BODIES_13")
-COMPS_13=$(jq -c '.fields.components' <<< "$CAPTURED_13")
+COMPS_13=$(jq -c '.fields.components' <<<"$CAPTURED_13")
 assert_eq "components array" '[{"name":"API"}]' "$COMPS_13"
 echo ""
 
@@ -360,11 +367,11 @@ echo ""
 
 BODIES_14=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_14"
-create --project ENG --type Task --summary "foo" --body "x" --parent ENG-99 > /dev/null 2>&1
+create --project ENG --type Task --summary "foo" --body "x" --parent ENG-99 >/dev/null 2>&1
 stop_mock
 
 CAPTURED_14=$(jq -r '.[0]' "$BODIES_14")
-assert_eq "parent key in body" "ENG-99" "$(jq -r '.fields.parent.key' <<< "$CAPTURED_14")"
+assert_eq "parent key in body" "ENG-99" "$(jq -r '.fields.parent.key' <<<"$CAPTURED_14")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -373,11 +380,11 @@ echo ""
 
 BODIES_15=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-with-custom-fields-capture.json" "$BODIES_15"
-create --project ENG --type Task --summary "foo" --body "x" --custom story-points=5 > /dev/null 2>&1
+create --project ENG --type Task --summary "foo" --body "x" --custom story-points=5 >/dev/null 2>&1
 stop_mock
 
 CAPTURED_15=$(jq -r '.[0]' "$BODIES_15")
-assert_eq "story points as number" "5" "$(jq '.fields.customfield_10016' <<< "$CAPTURED_15")"
+assert_eq "story points as number" "5" "$(jq '.fields.customfield_10016' <<<"$CAPTURED_15")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -398,11 +405,11 @@ echo ""
 
 BODIES_17=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-with-custom-fields-capture.json" "$BODIES_17"
-create --project ENG --type Task --summary "foo" --body "x" --custom 'sprint=@json:[42]' > /dev/null 2>&1
+create --project ENG --type Task --summary "foo" --body "x" --custom 'sprint=@json:[42]' >/dev/null 2>&1
 stop_mock
 
 CAPTURED_17=$(jq -r '.[0]' "$BODIES_17")
-assert_eq "sprint as array literal" "[42]" "$(jq -c '.fields.customfield_10020' <<< "$CAPTURED_17")"
+assert_eq "sprint as array literal" "[42]" "$(jq -c '.fields.customfield_10020' <<<"$CAPTURED_17")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -423,12 +430,12 @@ echo ""
 
 BODIES_19=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
 start_mock "$SCENARIOS/create-201-capture.json" "$BODIES_19"
-create --project ENG --issuetype-id 10001 --summary "foo" --body "x" > /dev/null 2>&1
+create --project ENG --issuetype-id 10001 --summary "foo" --body "x" >/dev/null 2>&1
 stop_mock
 
 CAPTURED_19=$(jq -r '.[0]' "$BODIES_19")
-assert_eq "issuetype id in body" "10001" "$(jq -r '.fields.issuetype.id' <<< "$CAPTURED_19")"
-assert_eq "issuetype name absent" "null" "$(jq -r '.fields.issuetype.name // "null"' <<< "$CAPTURED_19")"
+assert_eq "issuetype id in body" "10001" "$(jq -r '.fields.issuetype.id' <<<"$CAPTURED_19")"
+assert_eq "issuetype name absent" "null" "$(jq -r '.fields.issuetype.name // "null"' <<<"$CAPTURED_19")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -472,9 +479,9 @@ stop_mock
 assert_eq "print-payload exits 0" "0" "$RC_22"
 CAPTURED_URLS_22=$(jq -c '.' "$URLS_22")
 assert_eq "no API calls made" "[]" "$CAPTURED_URLS_22"
-assert_eq "method is POST" "POST" "$(jq -r '.method' <<< "$PAYLOAD_22")"
-assert_eq "path is /rest/api/3/issue" "/rest/api/3/issue" "$(jq -r '.path' <<< "$PAYLOAD_22")"
-assert_eq "body is JSON object" "object" "$(jq -r '.body | type' <<< "$PAYLOAD_22")"
+assert_eq "method is POST" "POST" "$(jq -r '.method' <<<"$PAYLOAD_22")"
+assert_eq "path is /rest/api/3/issue" "/rest/api/3/issue" "$(jq -r '.path' <<<"$PAYLOAD_22")"
+assert_eq "body is JSON object" "object" "$(jq -r '.body | type' <<<"$PAYLOAD_22")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -527,7 +534,7 @@ echo ""
 
 BODY_MD_26="Hello **world** from _ADF_"
 BODY_FILE_26=$(mktemp "$TMPDIR_BASE/body-XXXXXX")
-printf '%s\n' "$BODY_MD_26" > "$BODY_FILE_26"
+printf '%s\n' "$BODY_MD_26" >"$BODY_FILE_26"
 EXPECTED_ADF_26=$(printf '%s\n' "$BODY_MD_26" | bash "$SCRIPT_DIR/jira-md-to-adf.sh")
 
 BODIES_26=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
@@ -538,7 +545,7 @@ stop_mock
 CAPTURED_26=$(jq -r '.[0]' "$BODIES_26")
 ADF_RC_26=0
 jq -e --argjson exp "$EXPECTED_ADF_26" \
-  '.fields.description == $exp' <<< "$CAPTURED_26" >/dev/null 2>&1 || ADF_RC_26=$?
+  '.fields.description == $exp' <<<"$CAPTURED_26" >/dev/null 2>&1 || ADF_RC_26=$?
 assert_eq "ADF round-trip matches expected output" "0" "$ADF_RC_26"
 echo ""
 

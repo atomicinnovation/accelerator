@@ -28,7 +28,8 @@ chmod 0700 "$STATE_DIR" 2>/dev/null || true
 CACHE_ROOT="${ACCELERATOR_PLAYWRIGHT_CACHE:-${HOME}/.cache/accelerator/playwright}"
 PKG_LOCK="$SCRIPT_DIR/package-lock.json"
 sha256_of() {
-  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -c1-8
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -c1-8
   else shasum -a 256 "$1" | cut -c1-8; fi
 }
 LOCKHASH="$(sha256_of "$PKG_LOCK")"
@@ -47,7 +48,7 @@ LOCK="$STATE_DIR/launcher.lock"
 STOPPED="$STATE_DIR/server-stopped.json"
 
 if [[ -f "$INFO" ]] && [[ -f "$PID_FILE" ]]; then
-  EXISTING_PID="$(tr -cd '0-9' < "$PID_FILE" 2>/dev/null || true)"
+  EXISTING_PID="$(tr -cd '0-9' <"$PID_FILE" 2>/dev/null || true)"
   EXPECTED_START="$(jq -r '.start_time // empty' "$INFO" 2>/dev/null || true)"
   if [[ -n "$EXISTING_PID" ]] && kill -0 "$EXISTING_PID" 2>/dev/null; then
     ACTUAL_START="$(start_time_of "$EXISTING_PID" 2>/dev/null || true)"
@@ -81,7 +82,7 @@ fi
 
 # Under lock: re-check (another process may have just spawned the daemon)
 if [[ -f "$INFO" ]] && [[ -f "$PID_FILE" ]]; then
-  EXISTING_PID="$(tr -cd '0-9' < "$PID_FILE" 2>/dev/null || true)"
+  EXISTING_PID="$(tr -cd '0-9' <"$PID_FILE" 2>/dev/null || true)"
   EXPECTED_START="$(jq -r '.start_time // empty' "$INFO" 2>/dev/null || true)"
   if [[ -n "$EXISTING_PID" ]] && kill -0 "$EXISTING_PID" 2>/dev/null; then
     ACTUAL_START="$(start_time_of "$EXISTING_PID" 2>/dev/null || true)"
@@ -104,14 +105,14 @@ rm -f "$STOPPED"
 # -- Spawn daemon --------------------------------------------------------
 
 BOOTSTRAP_LOG="$STATE_DIR/server.bootstrap.log"
-: > "$BOOTSTRAP_LOG"
+: >"$BOOTSTRAP_LOG"
 chmod 0600 "$BOOTSTRAP_LOG"
 
 export NODE_PATH="$NS_ROOT/node_modules"
 export ACCELERATOR_PLAYWRIGHT_NS_ROOT="$NS_ROOT"
 nohup node "$SCRIPT_DIR/run.js" daemon \
   --state-dir "$STATE_DIR" \
-  >> "$BOOTSTRAP_LOG" 2>&1 &
+  >>"$BOOTSTRAP_LOG" 2>&1 &
 DAEMON_PID=$!
 disown "$DAEMON_PID" 2>/dev/null || true
 

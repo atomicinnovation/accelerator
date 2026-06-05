@@ -22,7 +22,7 @@ accelerator_ensure_inner_gitignore() {
   local gi="$dir/.gitignore"
   mkdir -p "$dir"
   if [ ! -f "$gi" ]; then
-    printf 'config.local.md\n' > "$gi"
+    printf 'config.local.md\n' >"$gi"
   fi
 }
 
@@ -35,7 +35,7 @@ accelerator_ensure_root_gitignore_rule() {
   local rule='.accelerator/config.local.md'
   touch "$gi"
   if ! grep -qFx "$rule" "$gi"; then
-    printf '%s\n' "$rule" >> "$gi"
+    printf '%s\n' "$rule" >>"$gi"
   fi
 }
 
@@ -73,7 +73,7 @@ accelerator_remove_legacy_root_gitignore_rules() {
         return 1
       fi
     done
-  done < "$gi"
+  done <"$gi"
 
   # Remove exact whole-line matches.
   local tmp
@@ -88,7 +88,7 @@ accelerator_remove_legacy_root_gitignore_rules() {
       fi
     done
     [ "$skip" -eq 0 ] && printf '%s\n' "$line"
-  done < "$gi" > "$tmp"
+  done <"$gi" >"$tmp"
   mv "$tmp" "$gi"
 }
 

@@ -25,7 +25,7 @@ INSTRUCTIONS_FILE="$PROJECT_ROOT/.accelerator/skills/$SKILL_NAME/instructions.md
 
 [ -f "$INSTRUCTIONS_FILE" ] || exit 0
 
-CONTENT=$(config_trim_body < "$INSTRUCTIONS_FILE")
+CONTENT=$(config_trim_body <"$INSTRUCTIONS_FILE")
 [ -z "$CONTENT" ] && exit 0
 
 echo "## Additional Instructions"

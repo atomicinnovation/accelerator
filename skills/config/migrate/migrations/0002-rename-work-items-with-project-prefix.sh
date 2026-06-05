@@ -28,10 +28,10 @@ fi
 
 if [ -z "$DEFAULT_PROJECT" ]; then
   echo "error: migration 0002 requires a value for work.default_project_code" \
-       "(your pattern '$PATTERN' contains {project}). Set work.default_project_code" \
-       "in your config to apply, or run 'bash run-migrations.sh --skip" \
-       "0002-rename-work-items-with-project-prefix' to opt out. See" \
-       "skills/config/configure/SKILL.md > Work Items for details on choosing." >&2
+    "(your pattern '$PATTERN' contains {project}). Set work.default_project_code" \
+    "in your config to apply, or run 'bash run-migrations.sh --skip" \
+    "0002-rename-work-items-with-project-prefix' to opt out. See" \
+    "skills/config/configure/SKILL.md > Work Items for details on choosing." >&2
   exit 1
 fi
 
@@ -191,7 +191,7 @@ rewrite_frontmatter_in_file() {
         in_list=0
         new_content+="$line"$'\n'
       fi
-    done <<< "$content"
+    done <<<"$content"
 
     # Remove trailing newline added by heredoc
     content="${new_content%$'\n'}"
@@ -274,7 +274,7 @@ rewrite_prose_in_file() {
       else
         new_content+="$line"$'\n'
       fi
-    done <<< "$content"
+    done <<<"$content"
 
     content="${new_content%$'\n'}"
   done
@@ -302,7 +302,7 @@ rewrite_prose_in_file() {
       else
         new_content+="$line"$'\n'
       fi
-    done <<< "$content"
+    done <<<"$content"
 
     content="${new_content%$'\n'}"
   done

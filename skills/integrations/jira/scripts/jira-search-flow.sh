@@ -94,7 +94,7 @@ _jira_search_resolve_field() {
   fi
   local resolved
   if resolved=$(bash "$_JIRA_SEARCH_SCRIPT_DIR/jira-fields.sh" \
-                  resolve "$token" 2>/dev/null); then
+    resolve "$token" 2>/dev/null); then
     printf '%s' "$resolved"
     return 0
   fi
@@ -132,43 +132,69 @@ _jira_search() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --help|-h)
+      --help | -h)
         _jira_search_usage
         exit 0
         ;;
       --project)
-        project="$2"; shift 2 ;;
+        project="$2"
+        shift 2
+        ;;
       --all-projects)
-        all_projects=1; shift ;;
+        all_projects=1
+        shift
+        ;;
       --status)
-        status_vals+=("$2"); shift 2 ;;
+        status_vals+=("$2")
+        shift 2
+        ;;
       --label)
-        label_vals+=("$2"); shift 2 ;;
+        label_vals+=("$2")
+        shift 2
+        ;;
       --assignee)
-        assignee_vals+=("$2"); shift 2 ;;
+        assignee_vals+=("$2")
+        shift 2
+        ;;
       --type)
-        type_vals+=("$2"); shift 2 ;;
+        type_vals+=("$2")
+        shift 2
+        ;;
       --component)
-        component_vals+=("$2"); shift 2 ;;
+        component_vals+=("$2")
+        shift 2
+        ;;
       --reporter)
-        reporter_vals+=("$2"); shift 2 ;;
+        reporter_vals+=("$2")
+        shift 2
+        ;;
       --parent)
-        parent_vals+=("$2"); shift 2 ;;
+        parent_vals+=("$2")
+        shift 2
+        ;;
       --watching)
-        watching=1; shift ;;
+        watching=1
+        shift
+        ;;
       --text)
-        text_vals+=("$2"); shift 2 ;;
+        text_vals+=("$2")
+        shift 2
+        ;;
       --jql)
-        raw_jql="$2"; shift 2 ;;
+        raw_jql="$2"
+        shift 2
+        ;;
       --limit)
-        limit="$2"; shift 2
-        if ! [[ "$limit" =~ ^[0-9]+$ ]] || (( limit < 1 || limit > 100 )); then
+        limit="$2"
+        shift 2
+        if ! [[ "$limit" =~ ^[0-9]+$ ]] || ((limit < 1 || limit > 100)); then
           echo "E_SEARCH_BAD_LIMIT: --limit must be a positive integer between 1 and 100; got '$limit'. Use --page-token to paginate beyond 100 results." >&2
           return 71
         fi
         ;;
       --page-token)
-        page_token="$2"; shift 2
+        page_token="$2"
+        shift 2
         if [[ ${#page_token} -gt 4096 ]] || [[ "$page_token" =~ [[:cntrl:][:space:]] ]]; then
           echo "E_SEARCH_BAD_PAGE_TOKEN: --page-token contains invalid characters or exceeds maximum length" >&2
           return 70
@@ -176,14 +202,18 @@ _jira_search() {
         ;;
       --fields)
         local -a _fs=()
-        IFS=',' read -ra _fs <<< "$2"
+        IFS=',' read -ra _fs <<<"$2"
         field_tokens+=("${_fs[@]}")
         shift 2
         ;;
       --render-adf)
-        render_adf=1; shift ;;
-      --quiet|-q)
-        quiet=1; shift ;;
+        render_adf=1
+        shift
+        ;;
+      --quiet | -q)
+        quiet=1
+        shift
+        ;;
       *)
         echo "E_SEARCH_BAD_FLAG: unrecognised flag: $1" >&2
         _jira_search_usage >&2
@@ -208,23 +238,23 @@ _jira_search() {
   # Build jql_compose args
   local -a compose_args=()
   [[ -n "$project" ]] && compose_args+=(--project "$project")
-  if (( all_projects )); then compose_args+=(--all-projects); fi
+  if ((all_projects)); then compose_args+=(--all-projects); fi
   local v
-  for v in "${status_vals[@]+"${status_vals[@]}"}";    do compose_args+=(--status "$v");    done
-  for v in "${label_vals[@]+"${label_vals[@]}"}";      do compose_args+=(--label "$v");     done
+  for v in "${status_vals[@]+"${status_vals[@]}"}"; do compose_args+=(--status "$v"); done
+  for v in "${label_vals[@]+"${label_vals[@]}"}"; do compose_args+=(--label "$v"); done
   for v in "${assignee_vals[@]+"${assignee_vals[@]}"}"; do compose_args+=(--assignee "$v"); done
-  for v in "${type_vals[@]+"${type_vals[@]}"}";        do compose_args+=(--type "$v");      done
+  for v in "${type_vals[@]+"${type_vals[@]}"}"; do compose_args+=(--type "$v"); done
   for v in "${component_vals[@]+"${component_vals[@]}"}"; do compose_args+=(--component "$v"); done
   for v in "${reporter_vals[@]+"${reporter_vals[@]}"}"; do compose_args+=(--reporter "$v"); done
-  for v in "${parent_vals[@]+"${parent_vals[@]}"}";    do compose_args+=(--parent "$v");    done
-  if (( watching )); then compose_args+=(--watching); fi
-  for v in "${text_vals[@]+"${text_vals[@]}"}";        do compose_args+=(--text "$v");      done
+  for v in "${parent_vals[@]+"${parent_vals[@]}"}"; do compose_args+=(--parent "$v"); done
+  if ((watching)); then compose_args+=(--watching); fi
+  for v in "${text_vals[@]+"${text_vals[@]}"}"; do compose_args+=(--text "$v"); done
   [[ -n "$raw_jql" ]] && compose_args+=(--jql "$raw_jql")
 
   local jql
   jql=$(jql_compose "${compose_args[@]}") || return $?
 
-  if ! (( quiet )); then echo "INFO: composed JQL: $jql" >&2; fi
+  if ! ((quiet)); then echo "INFO: composed JQL: $jql" >&2; fi
 
   # Resolve fields
   local -a resolved_tokens=()
@@ -234,7 +264,7 @@ _jira_search() {
     resolved_tokens+=("$(_jira_search_resolve_field "$tok")")
   done
   local fields_array
-  if (( ${#resolved_tokens[@]} > 0 )); then
+  if ((${#resolved_tokens[@]} > 0)); then
     fields_array=$(printf '%s\n' "${resolved_tokens[@]}" | jq -R . | jq -s .)
   else
     fields_array='[]'
@@ -243,10 +273,10 @@ _jira_search() {
   # Build request body
   local body
   body=$(jq -n \
-    --arg    jql        "$jql" \
-    --argjson fields    "$fields_array" \
+    --arg jql "$jql" \
+    --argjson fields "$fields_array" \
     --argjson maxResults "$limit" \
-    --arg    pageToken  "$page_token" \
+    --arg pageToken "$page_token" \
     '{
        jql: $jql,
        fields: $fields,
@@ -258,8 +288,8 @@ _jira_search() {
   response=$(bash "$_JIRA_SEARCH_SCRIPT_DIR/jira-request.sh" \
     POST /rest/api/3/search/jql --json "$body") || return $?
 
-  if (( render_adf )); then
-    response=$(printf '%s' "$response" | \
+  if ((render_adf)); then
+    response=$(printf '%s' "$response" |
       bash "$_JIRA_SEARCH_SCRIPT_DIR/jira-render-adf-fields.sh") || return $?
   fi
 

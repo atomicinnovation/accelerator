@@ -28,7 +28,10 @@ _DEBUG=0
 for _arg in "$@"; do
   case "$_arg" in
     --debug) _DEBUG=1 ;;
-    *) echo "Usage: jira-auth-cli.sh [--debug]" >&2; exit 2 ;;
+    *)
+      echo "Usage: jira-auth-cli.sh [--debug]" >&2
+      exit 2
+      ;;
   esac
 done
 

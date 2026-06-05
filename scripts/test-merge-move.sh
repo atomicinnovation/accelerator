@@ -21,7 +21,7 @@ fresh_workdir() {
 # mk <path> <content>: write a file, creating parents.
 mk() {
   mkdir -p "$(dirname "$1")"
-  printf '%s' "$2" > "$1"
+  printf '%s' "$2" >"$1"
 }
 
 echo "=== merge_move ==="

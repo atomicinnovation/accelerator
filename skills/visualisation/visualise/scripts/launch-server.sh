@@ -27,7 +27,7 @@ LOCK="$TMP_DIR/launcher.lock"
 # Runs before the sentinel check so an already-running server is not
 # killed by a transient sentinel deletion.
 if [ -d "$TMP_DIR" ] && [ -f "$INFO" ] && [ -f "$PID_FILE" ]; then
-  EXISTING_PID="$(tr -cd '0-9' < "$PID_FILE")"
+  EXISTING_PID="$(tr -cd '0-9' <"$PID_FILE")"
   EXPECTED_START="$(jq -r '.start_time // empty' "$INFO" 2>/dev/null || true)"
   if [ -n "$EXISTING_PID" ] && kill -0 "$EXISTING_PID" 2>/dev/null; then
     if [ -z "$EXPECTED_START" ] || [ "$(start_time_of "$EXISTING_PID" 2>/dev/null || echo '')" = "$EXPECTED_START" ]; then
@@ -77,15 +77,15 @@ rm -f "$STOPPED"
 OS_RAW="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH_RAW="$(uname -m)"
 case "$OS_RAW" in
-  darwin|linux) OS="$OS_RAW" ;;
+  darwin | linux) OS="$OS_RAW" ;;
   *) die_json "$(jq -nc --arg error 'unsupported platform' --arg os "$OS_RAW" \
-       '{error:$error,os:$os}')" ;;
+    '{error:$error,os:$os}')" ;;
 esac
 case "$ARCH_RAW" in
-  arm64|aarch64) ARCH="arm64" ;;
+  arm64 | aarch64) ARCH="arm64" ;;
   x86_64) ARCH="x64" ;;
   *) die_json "$(jq -nc --arg error 'unsupported architecture' --arg arch "$ARCH_RAW" \
-       '{error:$error,arch:$arch}')" ;;
+    '{error:$error,arch:$arch}')" ;;
 esac
 
 if ! command -v jq >/dev/null 2>&1; then
@@ -186,14 +186,14 @@ CONFIG_ARGS=(
 if [ -n "$OWNER_START_TIME" ]; then
   CONFIG_ARGS+=(--owner-start-time "$OWNER_START_TIME")
 fi
-"$SCRIPT_DIR/write-visualiser-config.sh" "${CONFIG_ARGS[@]}" > "$CFG"
+"$SCRIPT_DIR/write-visualiser-config.sh" "${CONFIG_ARGS[@]}" >"$CFG"
 
 # ─── background launch; server writes its own pid file ───────
 
 BOOTSTRAP_LOG="$TMP_DIR/server.bootstrap.log"
-: > "$BOOTSTRAP_LOG"
+: >"$BOOTSTRAP_LOG"
 chmod 0600 "$BOOTSTRAP_LOG"
-nohup "$BIN" --config "$CFG" >> "$BOOTSTRAP_LOG" 2>&1 &
+nohup "$BIN" --config "$CFG" >>"$BOOTSTRAP_LOG" 2>&1 &
 SERVER_PID=$!
 disown "$SERVER_PID" 2>/dev/null || true
 

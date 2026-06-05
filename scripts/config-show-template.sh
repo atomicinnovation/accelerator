@@ -23,7 +23,7 @@ RESOLUTION=$(config_resolve_template "$TEMPLATE_NAME" "$PLUGIN_ROOT") || {
   exit 1
 }
 
-IFS=$'\t' read -r RESOLVED_SOURCE RESOLVED_PATH <<< "$RESOLUTION"
+IFS=$'\t' read -r RESOLVED_SOURCE RESOLVED_PATH <<<"$RESOLUTION"
 DISPLAY_PATH=$(config_display_path "$RESOLVED_PATH" "$PLUGIN_ROOT")
 
 echo "Source: $RESOLVED_SOURCE ($DISPLAY_PATH)"

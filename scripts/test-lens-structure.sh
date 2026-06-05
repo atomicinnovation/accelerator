@@ -44,8 +44,8 @@ fi
 
 for LENS_DIR in "${LENS_DIRS[@]}"; do
   SKILL_FILE="$LENS_DIR/SKILL.md"
-  LENS_NAME="$(basename "$LENS_DIR")"  # e.g. "scope-lens"
-  LENS_ID="${LENS_NAME%-lens}"         # e.g. "scope"
+  LENS_NAME="$(basename "$LENS_DIR")" # e.g. "scope-lens"
+  LENS_ID="${LENS_NAME%-lens}"        # e.g. "scope"
 
   echo "=== Linting $LENS_NAME ==="
 
@@ -99,8 +99,7 @@ for LENS_DIR in "${LENS_DIRS[@]}"; do
     "## Core Responsibilities" \
     "## Key Evaluation Questions" \
     "## Important Guidelines" \
-    "## What NOT to Do"
-  do
+    "## What NOT to Do"; do
     if grep -qF "$HEADING" "$SKILL_FILE"; then
       echo "  PASS: $LENS_NAME has '$HEADING'"
       PASS=$((PASS + 1))

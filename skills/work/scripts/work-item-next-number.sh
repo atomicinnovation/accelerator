@@ -27,17 +27,25 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --count)
       if [ $# -lt 2 ]; then
-        echo "Error: --count requires a value" >&2; exit 1
+        echo "Error: --count requires a value" >&2
+        exit 1
       fi
-      COUNT="$2"; shift 2 ;;
+      COUNT="$2"
+      shift 2
+      ;;
     --project)
       if [ $# -lt 2 ]; then
-        echo "Error: --project requires a value" >&2; exit 1
+        echo "Error: --project requires a value" >&2
+        exit 1
       fi
       PROJECT="$2"
       PROJECT_FLAG_GIVEN=1
-      shift 2 ;;
-    *) echo "Usage: work-item-next-number.sh [--project CODE] [--count N]" >&2; exit 1 ;;
+      shift 2
+      ;;
+    *)
+      echo "Usage: work-item-next-number.sh [--project CODE] [--count N]" >&2
+      exit 1
+      ;;
   esac
 done
 

@@ -18,9 +18,10 @@ TMPDIR_BASE=$(mktemp -d)
 trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 setup_repo() {
-  local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
+  local d
+  d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
   mkdir -p "$d/.git" "$d/.accelerator"
-  cat > "$d/.accelerator/config.md" <<ENDCONFIG
+  cat >"$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -46,11 +47,13 @@ start_mock() {
 
   local i=0
   while [ ! -s "$MOCK_URL_FILE" ] && [ $i -lt 50 ]; do
-    sleep 0.1; i=$((i + 1))
+    sleep 0.1
+    i=$((i + 1))
   done
   if [ ! -s "$MOCK_URL_FILE" ]; then
     echo "ERROR: mock server did not start within 5s" >&2
-    kill "$MOCK_PID" 2>/dev/null || true; exit 1
+    kill "$MOCK_PID" 2>/dev/null || true
+    exit 1
   fi
   MOCK_URL=$(cat "$MOCK_URL_FILE")
 }
@@ -61,7 +64,10 @@ stop_mock() {
     wait "$MOCK_PID" 2>/dev/null || true
     MOCK_PID=""
   fi
-  [ -n "$MOCK_URL_FILE" ] && { rm -f "$MOCK_URL_FILE"; MOCK_URL_FILE=""; }
+  [ -n "$MOCK_URL_FILE" ] && {
+    rm -f "$MOCK_URL_FILE"
+    MOCK_URL_FILE=""
+  }
   MOCK_URL=""
 }
 
@@ -73,7 +79,8 @@ flow() {
 }
 
 flow_for() {
-  local repo="$1"; shift
+  local repo="$1"
+  shift
   cd "$repo" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" \
     ACCELERATOR_TEST_MODE=1 \
     ACCELERATOR_JIRA_BASE_URL_OVERRIDE_TEST="${MOCK_URL:-}" \
@@ -113,7 +120,7 @@ assert_eq "fields.json populated" "9" "$FIELD_COUNT"
 
 # No timestamps in committed files
 for f in "$SITE_JSON" "$PROJECTS_JSON" "$FIELDS_JSON"; do
-  if jq -e 'has("lastRefreshed") or has("lastVerified") or has("lastUpdated")' "$f" > /dev/null 2>&1; then
+  if jq -e 'has("lastRefreshed") or has("lastVerified") or has("lastUpdated")' "$f" >/dev/null 2>&1; then
     echo "  FAIL: $f must not contain timestamp keys"
     FAIL=$((FAIL + 1))
   else
@@ -149,7 +156,7 @@ echo ""
 
 REPO3=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO3/.git" "$REPO3/.accelerator"
-cat > "$REPO3/.accelerator/config.md" <<'ENDCONFIG'
+cat >"$REPO3/.accelerator/config.md" <<'ENDCONFIG'
 ---
 jira:
   email: test@example.com
@@ -299,7 +306,7 @@ else
   echo "  FAIL: inner .gitignore missing .lock/ rule"
   FAIL=$((FAIL + 1))
 fi
-RULE_COUNT=$(wc -l < "$STATE_DIR/.gitignore" 2>/dev/null | tr -d ' ' || echo 0)
+RULE_COUNT=$(wc -l <"$STATE_DIR/.gitignore" 2>/dev/null | tr -d ' ' || echo 0)
 assert_eq "inner .gitignore has exactly 3 rules" "3" "$RULE_COUNT"
 
 # Idempotency: re-run must not duplicate rules
@@ -322,7 +329,7 @@ echo "=== Case 9b: project root .gitignore NOT mutated by init-jira ==="
 echo ""
 
 REPO9B=$(setup_repo)
-printf '%s\n' "# custom content" "*.log" > "$REPO9B/.gitignore"
+printf '%s\n' "# custom content" "*.log" >"$REPO9B/.gitignore"
 GI_CONTENT_BEFORE=$(cat "$REPO9B/.gitignore")
 
 start_mock "$SCENARIOS/init-flow-200.json"
@@ -339,7 +346,7 @@ echo ""
 
 REPO10=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO10/.git" "$REPO10/.accelerator"
-cat > "$REPO10/.accelerator/config.md" <<ENDCONFIG
+cat >"$REPO10/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -402,7 +409,7 @@ echo ""
 # Create repo with config but WITHOUT .accelerator/.gitignore (init sentinel)
 REPO11=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO11/.git" "$REPO11/.accelerator"
-cat > "$REPO11/.accelerator/config.md" <<ENDCONFIG
+cat >"$REPO11/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE

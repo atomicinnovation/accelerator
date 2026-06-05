@@ -39,18 +39,18 @@ echo ""
 
 assert_exit_code "matched-fences exits 0" 0 \
   bash "$HIERARCHY_SCRIPT" \
-    "$HIERARCHY_FIXTURES/matched-fences/file-a.md" \
-    "$HIERARCHY_FIXTURES/matched-fences/file-b.md"
+  "$HIERARCHY_FIXTURES/matched-fences/file-a.md" \
+  "$HIERARCHY_FIXTURES/matched-fences/file-b.md"
 
 assert_exit_code "mismatched-fences exits non-zero" 1 \
   bash "$HIERARCHY_SCRIPT" \
-    "$HIERARCHY_FIXTURES/mismatched-fences/file-a.md" \
-    "$HIERARCHY_FIXTURES/mismatched-fences/file-b.md"
+  "$HIERARCHY_FIXTURES/mismatched-fences/file-a.md" \
+  "$HIERARCHY_FIXTURES/mismatched-fences/file-b.md"
 
 assert_exit_code "missing-marker exits non-zero" 1 \
   bash "$HIERARCHY_SCRIPT" \
-    "$HIERARCHY_FIXTURES/missing-marker/file-a.md" \
-    "$HIERARCHY_FIXTURES/missing-marker/file-b.md"
+  "$HIERARCHY_FIXTURES/missing-marker/file-a.md" \
+  "$HIERARCHY_FIXTURES/missing-marker/file-b.md"
 
 echo ""
 test_summary

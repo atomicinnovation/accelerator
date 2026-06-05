@@ -36,7 +36,7 @@ RESOLUTION=$(config_resolve_template "$TEMPLATE_NAME" "$PLUGIN_ROOT") || {
   exit 2
 }
 
-IFS=$'\t' read -r RESOLVED_SOURCE RESOLVED_PATH <<< "$RESOLUTION"
+IFS=$'\t' read -r RESOLVED_SOURCE RESOLVED_PATH <<<"$RESOLUTION"
 
 if [ "$RESOLVED_SOURCE" = "$CONFIG_TEMPLATE_SOURCE_PLUGIN_DEFAULT" ]; then
   echo "No customised template found for '$TEMPLATE_NAME' — using plugin default." >&2

@@ -30,7 +30,7 @@
 # project-value rule is safe without code changes.
 _wip_regex_escape_char() {
   case "$1" in
-    '.'|'^'|'$'|'*'|'+'|'?'|'('|')'|'['|']'|'{'|'}'|'|'|'\')
+    '.' | '^' | '$' | '*' | '+' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '|' | '\')
       printf '\\%s' "$1"
       ;;
     *) printf '%s' "$1" ;;
@@ -60,7 +60,7 @@ _wip_compile() {
     ch="${pattern:$i:1}"
     next=""
     if [ "$((i + 1))" -lt "$len" ]; then
-      next="${pattern:$((i+1)):1}"
+      next="${pattern:$((i + 1)):1}"
     fi
 
     # Escape sequences {{ and }}
@@ -172,7 +172,7 @@ _wip_compile() {
 
     # Literal char
     case "$ch" in
-      '/'|'\\'|':'|'*'|'?'|'<'|'>'|'|'|'"')
+      '/' | '\\' | ':' | '*' | '?' | '<' | '>' | '|' | '"')
         echo "E_PATTERN_HOSTILE_CHAR: literal '$ch' is forbidden in patterns (rule 2)" >&2
         return 1
         ;;
@@ -316,9 +316,9 @@ wip_parse_full_id() {
         while [ "${pat_re:$j:1}" != $'\x01' ]; do
           j=$((j + 1))
         done
-        local marker="${pat_re:$((i+1)):$((j - i - 1))}"
+        local marker="${pat_re:$((i + 1)):$((j - i - 1))}"
         case "$marker" in
-          NUM)  result+='([0-9]+)' ;;
+          NUM) result+='([0-9]+)' ;;
           PROJ) result+='([A-Za-z][A-Za-z0-9]*)' ;;
         esac
         i=$((j + 1))

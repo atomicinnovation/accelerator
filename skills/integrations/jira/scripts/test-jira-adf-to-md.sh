@@ -19,8 +19,8 @@ echo ""
 for adf_file in "$FIXTURES"/*.adf.json; do
   name=$(basename "$adf_file" .adf.json)
   md_file="$FIXTURES/$name.md"
-  [[ -f "$md_file" ]] || continue  # skip rendering-only fixtures
-  actual=$(bash "$RENDERER" < "$adf_file")
+  [[ -f "$md_file" ]] || continue # skip rendering-only fixtures
+  actual=$(bash "$RENDERER" <"$adf_file")
   expected=$(cat "$md_file")
   assert_eq "render $name" "$expected" "$actual"
 done
@@ -32,11 +32,11 @@ echo "=== Placeholder rendering ==="
 echo ""
 
 echo "Test: unsupported panel node emits placeholder"
-OUT=$(bash "$RENDERER" < "$FIXTURES/unsupported-panel.adf.json")
+OUT=$(bash "$RENDERER" <"$FIXTURES/unsupported-panel.adf.json")
 assert_contains "panel placeholder" "$OUT" "[unsupported ADF node: panel]"
 
 echo "Test: unsupported mention inline emits placeholder"
-OUT=$(bash "$RENDERER" < "$FIXTURES/unsupported-mention.adf.json")
+OUT=$(bash "$RENDERER" <"$FIXTURES/unsupported-mention.adf.json")
 assert_contains "mention placeholder" "$OUT" "[unsupported ADF inline: mention]"
 
 echo ""
@@ -46,14 +46,14 @@ echo "=== Error handling ==="
 echo ""
 
 echo "Test: non-JSON input exits E_BAD_JSON"
-ERR=$(bash "$RENDERER" <<< "not json" 2>&1 >/dev/null || true)
+ERR=$(bash "$RENDERER" <<<"not json" 2>&1 >/dev/null || true)
 assert_contains "names error code" "$ERR" "E_BAD_JSON"
-assert_exit_code "exits 40" 40 bash "$RENDERER" <<< "not json"
+assert_exit_code "exits 40" 40 bash "$RENDERER" <<<"not json"
 
 echo "Test: valid JSON but not a doc exits E_BAD_JSON"
-ERR=$(bash "$RENDERER" <<< '{"type":"paragraph"}' 2>&1 >/dev/null || true)
+ERR=$(bash "$RENDERER" <<<'{"type":"paragraph"}' 2>&1 >/dev/null || true)
 assert_contains "names error code" "$ERR" "E_BAD_JSON"
-assert_exit_code "exits 40" 40 bash "$RENDERER" <<< '{"type":"paragraph"}'
+assert_exit_code "exits 40" 40 bash "$RENDERER" <<<'{"type":"paragraph"}'
 
 echo ""
 

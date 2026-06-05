@@ -20,10 +20,14 @@ PLUGIN_VERSION="$(jq -r .version "$PLUGIN_ROOT/.claude-plugin/plugin.json")"
 OS_RAW="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH_RAW="$(uname -m)"
 case "$OS_RAW" in darwin) OS="darwin" ;; linux) OS="linux" ;; *) OS="$OS_RAW" ;; esac
-case "$ARCH_RAW" in arm64|aarch64) ARCH="arm64" ;; x86_64) ARCH="x64" ;; *) ARCH="$ARCH_RAW" ;; esac
+case "$ARCH_RAW" in arm64 | aarch64) ARCH="arm64" ;; x86_64) ARCH="x64" ;; *) ARCH="$ARCH_RAW" ;; esac
 
 # All test projects get .jj so find_repo_root succeeds, plus the init sentinel.
-make_project() { local d="$1"; mkdir -p "$d/.jj" "$d/.accelerator/tmp"; : > "$d/.accelerator/tmp/.gitignore"; }
+make_project() {
+  local d="$1"
+  mkdir -p "$d/.jj" "$d/.accelerator/tmp"
+  : >"$d/.accelerator/tmp/.gitignore"
+}
 
 echo "=== launch-server.sh (Phase 2) ==="
 echo ""
@@ -34,15 +38,18 @@ assert_file_executable "executable bit set" "$LAUNCH_SERVER"
 
 # ─── 2. placeholder sentinel refusal ─────────────────────────────
 echo "Test: placeholder checksums → sentinel refusal"
-PROJ="$TMPDIR_BASE/t-sentinel"; make_project "$PROJ"
+PROJ="$TMPDIR_BASE/t-sentinel"
+make_project "$PROJ"
 cd "$PROJ"
 unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
-FAKE_SENTINEL="$TMPDIR_BASE/fake-sentinel"; mkdir -p "$FAKE_SENTINEL/bin"
+FAKE_SENTINEL="$TMPDIR_BASE/fake-sentinel"
+mkdir -p "$FAKE_SENTINEL/bin"
 ZERO_SHA="0000000000000000000000000000000000000000000000000000000000000000"
-cat > "$FAKE_SENTINEL/bin/checksums.json" << SENTINELJSON
+cat >"$FAKE_SENTINEL/bin/checksums.json" <<SENTINELJSON
 {"version":"$PLUGIN_VERSION","binaries":{"darwin-arm64":"sha256:$ZERO_SHA","darwin-x64":"sha256:$ZERO_SHA","linux-arm64":"sha256:$ZERO_SHA","linux-x64":"sha256:$ZERO_SHA"}}
 SENTINELJSON
-RC=0; ERR="$TMPDIR_BASE/t-sentinel.err"
+RC=0
+ERR="$TMPDIR_BASE/t-sentinel.err"
 ACCELERATOR_VISUALISER_SKILL_ROOT="$FAKE_SENTINEL" \
   bash "$LAUNCH_SERVER" >/dev/null 2>"$ERR" || RC=$?
 assert_eq "sentinel: exit code" "1" "$RC"
@@ -51,41 +58,47 @@ cd "$ORIG_DIR"
 
 # ─── 3. ACCELERATOR_VISUALISER_BIN happy path ────────────────────
 echo "Test: ACCELERATOR_VISUALISER_BIN → server starts and URL is printed"
-PROJ="$TMPDIR_BASE/t-binenv"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-binenv"; make_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-binenv"
+make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-binenv"
+make_fake_visualiser "$FAKE"
 cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
 OUT="$TMPDIR_BASE/t-binenv.out"
-RC=0; bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
+RC=0
+bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "binenv: exit code" "0" "$RC"
 URL="$(grep '^\*\*Visualiser URL\*\*:' "$OUT" 2>/dev/null | sed 's/\*\*Visualiser URL\*\*: //')" || true
 URLMATCH="$(echo "$URL" | grep -cE '^http://127\.0\.0\.1:[0-9]+/?$')" || true
 assert_eq "binenv: URL format" "1" "$URLMATCH"
-CURLRC=0; curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
+CURLRC=0
+curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
 assert_eq "binenv: curl 200" "0" "$CURLRC"
 CFG_FILE="$PROJ/.accelerator/tmp/visualiser/config.json"
-assert_json_eq "config: decisions"                    ".doc_paths.decisions"                       "$PROJ/meta/decisions"                           "$CFG_FILE"
-assert_json_eq "config: work"                         ".doc_paths.work"                            "$PROJ/meta/work"                                "$CFG_FILE"
-assert_json_eq "config: plans"                        ".doc_paths.plans"                           "$PROJ/meta/plans"                               "$CFG_FILE"
-assert_json_eq "config: research_codebase"            ".doc_paths.research_codebase"               "$PROJ/meta/research/codebase"                   "$CFG_FILE"
-assert_json_eq "config: review_plans"                 ".doc_paths.review_plans"                    "$PROJ/meta/reviews/plans"                       "$CFG_FILE"
-assert_json_eq "config: review_prs"                   ".doc_paths.review_prs"                      "$PROJ/meta/reviews/prs"                         "$CFG_FILE"
-assert_json_eq "config: validations"                  ".doc_paths.validations"                     "$PROJ/meta/validations"                         "$CFG_FILE"
-assert_json_eq "config: notes"                        ".doc_paths.notes"                           "$PROJ/meta/notes"                               "$CFG_FILE"
-assert_json_eq "config: prs"                          ".doc_paths.prs"                             "$PROJ/meta/prs"                                 "$CFG_FILE"
-assert_json_eq "config: adr user_override"            ".templates.adr.user_override"               "$PROJ/.accelerator/templates/adr.md"            "$CFG_FILE"
-assert_json_eq "config: plan user_override"           ".templates.plan.user_override"              "$PROJ/.accelerator/templates/plan.md"           "$CFG_FILE"
+assert_json_eq "config: decisions" ".doc_paths.decisions" "$PROJ/meta/decisions" "$CFG_FILE"
+assert_json_eq "config: work" ".doc_paths.work" "$PROJ/meta/work" "$CFG_FILE"
+assert_json_eq "config: plans" ".doc_paths.plans" "$PROJ/meta/plans" "$CFG_FILE"
+assert_json_eq "config: research_codebase" ".doc_paths.research_codebase" "$PROJ/meta/research/codebase" "$CFG_FILE"
+assert_json_eq "config: review_plans" ".doc_paths.review_plans" "$PROJ/meta/reviews/plans" "$CFG_FILE"
+assert_json_eq "config: review_prs" ".doc_paths.review_prs" "$PROJ/meta/reviews/prs" "$CFG_FILE"
+assert_json_eq "config: validations" ".doc_paths.validations" "$PROJ/meta/validations" "$CFG_FILE"
+assert_json_eq "config: notes" ".doc_paths.notes" "$PROJ/meta/notes" "$CFG_FILE"
+assert_json_eq "config: prs" ".doc_paths.prs" "$PROJ/meta/prs" "$CFG_FILE"
+assert_json_eq "config: adr user_override" ".templates.adr.user_override" "$PROJ/.accelerator/templates/adr.md" "$CFG_FILE"
+assert_json_eq "config: plan user_override" ".templates.plan.user_override" "$PROJ/.accelerator/templates/plan.md" "$CFG_FILE"
 assert_json_eq "config: codebase-research user_override" '.templates."codebase-research".user_override' "$PROJ/.accelerator/templates/codebase-research.md" "$CFG_FILE"
-assert_json_eq "config: validation user_override"     ".templates.validation.user_override"        "$PROJ/.accelerator/templates/validation.md"     "$CFG_FILE"
-assert_json_eq "config: pr-description user_override" '.templates."pr-description".user_override'  "$PROJ/.accelerator/templates/pr-description.md" "$CFG_FILE"
-assert_json_eq "config: work-item user_override"      '.templates."work-item".user_override'       "$PROJ/.accelerator/templates/work-item.md"      "$CFG_FILE"
+assert_json_eq "config: validation user_override" ".templates.validation.user_override" "$PROJ/.accelerator/templates/validation.md" "$CFG_FILE"
+assert_json_eq "config: pr-description user_override" '.templates."pr-description".user_override' "$PROJ/.accelerator/templates/pr-description.md" "$CFG_FILE"
+assert_json_eq "config: work-item user_override" '.templates."work-item".user_override' "$PROJ/.accelerator/templates/work-item.md" "$CFG_FILE"
 unset ACCELERATOR_VISUALISER_BIN
 cd "$ORIG_DIR"
 
 # ─── 4. reuse short-circuit ──────────────────────────────────────
 echo "Test: reuse short-circuit — second launch returns same URL"
-PROJ="$TMPDIR_BASE/t-reuse"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-reuse"; make_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-reuse"
+make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-reuse"
+make_fake_visualiser "$FAKE"
 cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
 URL1="$(bash "$LAUNCH_SERVER" 2>/dev/null | grep '^\*\*Visualiser URL\*\*:' | sed 's/\*\*Visualiser URL\*\*: //')" || true
@@ -96,59 +109,75 @@ cd "$ORIG_DIR"
 
 # ─── 5. visualiser.binary config key (absolute path) ─────────────
 echo "Test: visualiser.binary config key (absolute path)"
-PROJ="$TMPDIR_BASE/t-cfgabs"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-cfgabs"; make_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-cfgabs"
+make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-cfgabs"
+make_fake_visualiser "$FAKE"
 cd "$PROJ"
 unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
-printf -- '---\nvisualiser:\n  binary: %s\n---\n' "$FAKE" > "$PROJ/.accelerator/config.local.md"
+printf -- '---\nvisualiser:\n  binary: %s\n---\n' "$FAKE" >"$PROJ/.accelerator/config.local.md"
 OUT="$TMPDIR_BASE/t-cfgabs.out"
-RC=0; bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
+RC=0
+bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "cfgabs: exit code" "0" "$RC"
 URL="$(grep '^\*\*Visualiser URL\*\*:' "$OUT" 2>/dev/null | sed 's/\*\*Visualiser URL\*\*: //')" || true
-CURLRC=0; curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
+CURLRC=0
+curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
 assert_eq "cfgabs: curl 200" "0" "$CURLRC"
 cd "$ORIG_DIR"
 
 # ─── 6. visualiser.binary config key (relative path) ─────────────
 echo "Test: visualiser.binary config key (relative path)"
-PROJ="$TMPDIR_BASE/t-cfgrel"; make_project "$PROJ"; mkdir -p "$PROJ/bin"
-FAKE="$PROJ/bin/fake-server"; make_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-cfgrel"
+make_project "$PROJ"
+mkdir -p "$PROJ/bin"
+FAKE="$PROJ/bin/fake-server"
+make_fake_visualiser "$FAKE"
 cd "$PROJ"
 unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
-printf -- '---\nvisualiser:\n  binary: bin/fake-server\n---\n' > "$PROJ/.accelerator/config.local.md"
+printf -- '---\nvisualiser:\n  binary: bin/fake-server\n---\n' >"$PROJ/.accelerator/config.local.md"
 OUT="$TMPDIR_BASE/t-cfgrel.out"
-RC=0; bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
+RC=0
+bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "cfgrel: exit code" "0" "$RC"
 URL="$(grep '^\*\*Visualiser URL\*\*:' "$OUT" 2>/dev/null | sed 's/\*\*Visualiser URL\*\*: //')" || true
-CURLRC=0; curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
+CURLRC=0
+curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
 assert_eq "cfgrel: curl 200" "0" "$CURLRC"
 cd "$ORIG_DIR"
 
 # ─── 7. env var beats config key ─────────────────────────────────
 echo "Test: ACCELERATOR_VISUALISER_BIN env var takes precedence over config key"
-PROJ="$TMPDIR_BASE/t-prec"; make_project "$PROJ"
-FAKE_ENV="$TMPDIR_BASE/fake-env-prec"; make_fake_visualiser "$FAKE_ENV"
-FAKE_CFG="$TMPDIR_BASE/fake-cfg-prec"; make_fake_visualiser "$FAKE_CFG"
+PROJ="$TMPDIR_BASE/t-prec"
+make_project "$PROJ"
+FAKE_ENV="$TMPDIR_BASE/fake-env-prec"
+make_fake_visualiser "$FAKE_ENV"
+FAKE_CFG="$TMPDIR_BASE/fake-cfg-prec"
+make_fake_visualiser "$FAKE_CFG"
 cd "$PROJ"
-printf -- '---\nvisualiser:\n  binary: %s\n---\n' "$FAKE_CFG" > "$PROJ/.accelerator/config.local.md"
+printf -- '---\nvisualiser:\n  binary: %s\n---\n' "$FAKE_CFG" >"$PROJ/.accelerator/config.local.md"
 export ACCELERATOR_VISUALISER_BIN="$FAKE_ENV"
 OUT="$TMPDIR_BASE/t-prec.out"
-RC=0; bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
+RC=0
+bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "prec: exit code" "0" "$RC"
 URL="$(grep '^\*\*Visualiser URL\*\*:' "$OUT" 2>/dev/null | sed 's/\*\*Visualiser URL\*\*: //')" || true
-CURLRC=0; curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
+CURLRC=0
+curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
 assert_eq "prec: curl 200" "0" "$CURLRC"
 unset ACCELERATOR_VISUALISER_BIN
 cd "$ORIG_DIR"
 
 # ─── 8. non-executable binary → error ────────────────────────────
 echo "Test: non-executable visualiser.binary → error"
-PROJ="$TMPDIR_BASE/t-nonexec"; make_project "$PROJ"
+PROJ="$TMPDIR_BASE/t-nonexec"
+make_project "$PROJ"
 cd "$PROJ"
 unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
-echo "not-a-binary" > "$TMPDIR_BASE/nonexec-file"
-printf -- '---\nvisualiser:\n  binary: %s\n---\n' "$TMPDIR_BASE/nonexec-file" > "$PROJ/.accelerator/config.local.md"
-RC=0; ERR="$TMPDIR_BASE/t-nonexec.err"
+echo "not-a-binary" >"$TMPDIR_BASE/nonexec-file"
+printf -- '---\nvisualiser:\n  binary: %s\n---\n' "$TMPDIR_BASE/nonexec-file" >"$PROJ/.accelerator/config.local.md"
+RC=0
+ERR="$TMPDIR_BASE/t-nonexec.err"
 bash "$LAUNCH_SERVER" >/dev/null 2>"$ERR" || RC=$?
 assert_eq "nonexec: exit code" "1" "$RC"
 assert_json_eq "nonexec: error field" ".error" "configured visualiser.binary is not executable" "$ERR"
@@ -156,22 +185,27 @@ cd "$ORIG_DIR"
 
 # ─── 9. concurrent launch → flock refusal ────────────────────────
 echo "Test: concurrent launch is serialised (flock refusal)"
-PROJ="$TMPDIR_BASE/t-conc"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-conc"; make_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-conc"
+make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-conc"
+make_fake_visualiser "$FAKE"
 cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
 LOCK_FILE="$PROJ/.accelerator/tmp/visualiser/launcher.lock"
 mkdir -p "$(dirname "$LOCK_FILE")"
 if command -v flock >/dev/null 2>&1; then
-  exec 8>"$LOCK_FILE"; flock 8
-  RC=0; ERR="$TMPDIR_BASE/t-conc.err"
+  exec 8>"$LOCK_FILE"
+  flock 8
+  RC=0
+  ERR="$TMPDIR_BASE/t-conc.err"
   bash "$LAUNCH_SERVER" >/dev/null 2>"$ERR" || RC=$?
   assert_eq "concurrent: exit code" "1" "$RC"
   assert_json_eq "concurrent: error field" ".error" "another launcher is running" "$ERR"
   exec 8>&-
 else
   mkdir "$LOCK_FILE.d"
-  RC=0; ERR="$TMPDIR_BASE/t-conc.err"
+  RC=0
+  ERR="$TMPDIR_BASE/t-conc.err"
   bash "$LAUNCH_SERVER" >/dev/null 2>"$ERR" || RC=$?
   assert_eq "concurrent (mkdir): exit code" "1" "$RC"
   assert_json_eq "concurrent (mkdir): error field" ".error" "another launcher is running" "$ERR"
@@ -182,42 +216,49 @@ cd "$ORIG_DIR"
 
 # ─── 10. PID identity mismatch → fresh launch ────────────────────
 echo "Test: stale server-info.json with wrong start_time → fresh launch"
-PROJ="$TMPDIR_BASE/t-pidmm"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-pidmm"; make_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-pidmm"
+make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-pidmm"
+make_fake_visualiser "$FAKE"
 cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
-INFO_DIR="$PROJ/.accelerator/tmp/visualiser"; mkdir -p "$INFO_DIR"
+INFO_DIR="$PROJ/.accelerator/tmp/visualiser"
+mkdir -p "$INFO_DIR"
 OWN_PID=$$
-cat > "$INFO_DIR/server-info.json" << INFOJSON
+cat >"$INFO_DIR/server-info.json" <<INFOJSON
 {"version":"0.0.0-stale","pid":$OWN_PID,"start_time":1,"host":"127.0.0.1","port":9999,"url":"http://127.0.0.1:9999","log_path":"$INFO_DIR/server.log","tmp_path":"$INFO_DIR"}
 INFOJSON
-echo "$OWN_PID" > "$INFO_DIR/server.pid"
+echo "$OWN_PID" >"$INFO_DIR/server.pid"
 OUT="$TMPDIR_BASE/t-pidmm.out"
-RC=0; bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
+RC=0
+bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "pidmismatch: exit code" "0" "$RC"
 URL="$(grep '^\*\*Visualiser URL\*\*:' "$OUT" 2>/dev/null | sed 's/\*\*Visualiser URL\*\*: //')" || true
 STALE="$(echo "$URL" | grep -c ':9999')" || true
 assert_eq "pidmismatch: not the stale URL" "0" "$STALE"
-CURLRC=0; curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
+CURLRC=0
+curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
 assert_eq "pidmismatch: fresh server reachable" "0" "$CURLRC"
 unset ACCELERATOR_VISUALISER_BIN
 cd "$ORIG_DIR"
 
 # ─── 11. checksum mismatch (HTTP fixture) ────────────────────────
 echo "Test: checksum mismatch → error (HTTP fixture serving wrong bytes)"
-PROJ="$TMPDIR_BASE/t-shamm"; make_project "$PROJ"
+PROJ="$TMPDIR_BASE/t-shamm"
+make_project "$PROJ"
 cd "$PROJ"
 unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
-FAKE_SKILL="$TMPDIR_BASE/fake-skill"; mkdir -p "$FAKE_SKILL/bin"
+FAKE_SKILL="$TMPDIR_BASE/fake-skill"
+mkdir -p "$FAKE_SKILL/bin"
 EXPECTED_SHA="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-cat > "$FAKE_SKILL/bin/checksums.json" << CHECKJSON
+cat >"$FAKE_SKILL/bin/checksums.json" <<CHECKJSON
 {"version":"$PLUGIN_VERSION","binaries":{"darwin-arm64":"sha256:$EXPECTED_SHA","darwin-x64":"sha256:$EXPECTED_SHA","linux-arm64":"sha256:$EXPECTED_SHA","linux-x64":"sha256:$EXPECTED_SHA"}}
 CHECKJSON
 FIXTURE_DIR="$TMPDIR_BASE/fixture-srv/v${PLUGIN_VERSION}"
 mkdir -p "$FIXTURE_DIR"
-echo "wrong-content-will-not-match-sha" > "$FIXTURE_DIR/accelerator-visualiser-${OS}-${ARCH}"
+echo "wrong-content-will-not-match-sha" >"$FIXTURE_DIR/accelerator-visualiser-${OS}-${ARCH}"
 PORT_FILE="$TMPDIR_BASE/fixture-port"
-python3 - << PYEOF &
+python3 - <<PYEOF &
 import http.server, os
 class H(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -227,10 +268,14 @@ open("$PORT_FILE", 'w').write(str(srv.server_address[1]) + '\n')
 srv.serve_forever()
 PYEOF
 HTTP_PID=$!
-for _ in $(seq 1 30); do [ -f "$PORT_FILE" ] && break; sleep 0.1; done
+for _ in $(seq 1 30); do
+  [ -f "$PORT_FILE" ] && break
+  sleep 0.1
+done
 if [ -f "$PORT_FILE" ]; then
-  SRV_PORT="$(tr -d '[:space:]' < "$PORT_FILE")"
-  RC=0; ERR="$TMPDIR_BASE/t-shamm.err"
+  SRV_PORT="$(tr -d '[:space:]' <"$PORT_FILE")"
+  RC=0
+  ERR="$TMPDIR_BASE/t-shamm.err"
   ACCELERATOR_VISUALISER_SKILL_ROOT="$FAKE_SKILL" \
     ACCELERATOR_VISUALISER_RELEASES_URL="http://127.0.0.1:${SRV_PORT}" \
     ACCELERATOR_VISUALISER_INSECURE_DOWNLOAD=1 \
@@ -246,16 +291,18 @@ cd "$ORIG_DIR"
 
 # ─── 12. mirror 404 → download-failed error ──────────────────────
 echo "Test: mirror returns 404 → download failed error"
-PROJ="$TMPDIR_BASE/t-404"; make_project "$PROJ"
+PROJ="$TMPDIR_BASE/t-404"
+make_project "$PROJ"
 cd "$PROJ"
 unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
-FAKE_SKILL_404="$TMPDIR_BASE/fake-skill-404"; mkdir -p "$FAKE_SKILL_404/bin"
+FAKE_SKILL_404="$TMPDIR_BASE/fake-skill-404"
+mkdir -p "$FAKE_SKILL_404/bin"
 EXPECTED_SHA_404="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-cat > "$FAKE_SKILL_404/bin/checksums.json" << CHECK404JSON
+cat >"$FAKE_SKILL_404/bin/checksums.json" <<CHECK404JSON
 {"version":"$PLUGIN_VERSION","binaries":{"darwin-arm64":"sha256:$EXPECTED_SHA_404","darwin-x64":"sha256:$EXPECTED_SHA_404","linux-arm64":"sha256:$EXPECTED_SHA_404","linux-x64":"sha256:$EXPECTED_SHA_404"}}
 CHECK404JSON
 PORT_FILE_404="$TMPDIR_BASE/fixture-port-404"
-python3 - << PYEOF404 &
+python3 - <<PYEOF404 &
 import http.server, os
 class H(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
@@ -267,10 +314,14 @@ open("$PORT_FILE_404", 'w').write(str(srv.server_address[1]) + '\n')
 srv.serve_forever()
 PYEOF404
 HTTP_PID_404=$!
-for _ in $(seq 1 30); do [ -f "$PORT_FILE_404" ] && break; sleep 0.1; done
+for _ in $(seq 1 30); do
+  [ -f "$PORT_FILE_404" ] && break
+  sleep 0.1
+done
 if [ -f "$PORT_FILE_404" ]; then
-  SRV_PORT_404="$(tr -d '[:space:]' < "$PORT_FILE_404")"
-  RC=0; ERR="$TMPDIR_BASE/t-404.err"
+  SRV_PORT_404="$(tr -d '[:space:]' <"$PORT_FILE_404")"
+  RC=0
+  ERR="$TMPDIR_BASE/t-404.err"
   ACCELERATOR_VISUALISER_SKILL_ROOT="$FAKE_SKILL_404" \
     ACCELERATOR_VISUALISER_RELEASES_URL="http://127.0.0.1:${SRV_PORT_404}" \
     ACCELERATOR_VISUALISER_INSECURE_DOWNLOAD=1 \
@@ -286,15 +337,19 @@ cd "$ORIG_DIR"
 
 # ─── 13. unsupported platform → error ────────────────────────────
 echo "Test: unsupported platform → error"
-PROJ="$TMPDIR_BASE/t-bados"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-bados"; make_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-bados"
+make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-bados"
+make_fake_visualiser "$FAKE"
 cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
-FAKE_BINS="$TMPDIR_BASE/fake-bins-os"; mkdir -p "$FAKE_BINS"
+FAKE_BINS="$TMPDIR_BASE/fake-bins-os"
+mkdir -p "$FAKE_BINS"
 printf '#!/usr/bin/env bash\ncase "$1" in -s) echo "Windows_NT";; -m) echo "x86_64";; *) echo "Windows_NT";; esac\n' \
-  > "$FAKE_BINS/uname"
+  >"$FAKE_BINS/uname"
 chmod +x "$FAKE_BINS/uname"
-RC=0; ERR="$TMPDIR_BASE/t-bados.err"
+RC=0
+ERR="$TMPDIR_BASE/t-bados.err"
 PATH="$FAKE_BINS:$PATH" bash "$LAUNCH_SERVER" >/dev/null 2>"$ERR" || RC=$?
 assert_eq "badplatform: exit code" "1" "$RC"
 assert_json_eq "badplatform: error field" ".error" "unsupported platform" "$ERR"
@@ -307,7 +362,8 @@ PROJ="$TMPDIR_BASE/t-uninit"
 mkdir -p "$PROJ/.jj" "$PROJ/.accelerator"
 cd "$PROJ"
 unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
-RC=0; ERR="$TMPDIR_BASE/t-uninit.err"
+RC=0
+ERR="$TMPDIR_BASE/t-uninit.err"
 bash "$LAUNCH_SERVER" >/dev/null 2>"$ERR" || RC=$?
 assert_eq "uninit: exit code" "1" "$RC"
 UNINIT_ERR="$(jq -r '.error // empty' "$ERR" 2>/dev/null)"
@@ -320,27 +376,33 @@ cd "$ORIG_DIR"
 
 # ─── 15. initialised project proceeds past sentinel ──────────────
 echo "Test: initialised project proceeds past sentinel check"
-PROJ="$TMPDIR_BASE/t-initok"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-initok"; make_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-initok"
+make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-initok"
+make_fake_visualiser "$FAKE"
 cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
 OUT="$TMPDIR_BASE/t-initok.out"
-RC=0; bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
+RC=0
+bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "initok: exit code" "0" "$RC"
 unset ACCELERATOR_VISUALISER_BIN
 cd "$ORIG_DIR"
 
 # ─── 16. sentinel deletion does not kill already-running server ──
 echo "Test: sentinel deletion mid-session → reuse short-circuit still works"
-PROJ="$TMPDIR_BASE/t-sentdel"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-sentdel"; make_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-sentdel"
+make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-sentdel"
+make_fake_visualiser "$FAKE"
 cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
 bash "$LAUNCH_SERVER" >/dev/null 2>/dev/null || true
 # Delete the sentinel after the server is running.
 rm -f "$PROJ/.accelerator/tmp/.gitignore"
 OUT="$TMPDIR_BASE/t-sentdel.out"
-RC=0; bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
+RC=0
+bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "sentdel: exit code" "0" "$RC"
 URL="$(grep '^\*\*Visualiser URL\*\*:' "$OUT" 2>/dev/null | sed 's/\*\*Visualiser URL\*\*: //')" || true
 URLMATCH="$(echo "$URL" | grep -cE '^http://127\.0\.0\.1:[0-9]+/?$')" || true

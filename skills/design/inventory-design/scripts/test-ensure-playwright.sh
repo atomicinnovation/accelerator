@@ -141,10 +141,10 @@ trap 'rm -rf "$MOCK_CACHE_SWEEP"' EXIT
 OLD_DATE="2025-01-01T00:00:00Z"
 mkdir -p "$MOCK_CACHE_SWEEP/aaaaaaaa"
 printf '{"lockhash":"aaaaaaaa","playwright_version":"1.40.0","completed_at":"%s"}' "$OLD_DATE" \
-  > "$MOCK_CACHE_SWEEP/aaaaaaaa/.bootstrap-sentinel"
+  >"$MOCK_CACHE_SWEEP/aaaaaaaa/.bootstrap-sentinel"
 mkdir -p "$MOCK_CACHE_SWEEP/bbbbbbbb"
 printf '{"lockhash":"bbbbbbbb","playwright_version":"1.41.0","completed_at":"%s"}' "$OLD_DATE" \
-  > "$MOCK_CACHE_SWEEP/bbbbbbbb/.bootstrap-sentinel"
+  >"$MOCK_CACHE_SWEEP/bbbbbbbb/.bootstrap-sentinel"
 
 # Without sweep flag: stale dirs are preserved
 assert_exit_code "sweep disabled by default: stale dirs preserved" 0 \

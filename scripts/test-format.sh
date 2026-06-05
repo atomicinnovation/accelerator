@@ -8,8 +8,15 @@ cd "$ROOT"
 PASS=0
 FAIL=0
 
-pass() { echo "  PASS: $1"; PASS=$((PASS + 1)); }
-fail() { echo "  FAIL: $1"; echo "        $2"; FAIL=$((FAIL + 1)); }
+pass() {
+  echo "  PASS: $1"
+  PASS=$((PASS + 1))
+}
+fail() {
+  echo "  FAIL: $1"
+  echo "        $2"
+  FAIL=$((FAIL + 1))
+}
 
 echo "=== Format checks ==="
 
@@ -24,8 +31,8 @@ echo "=== Format checks ==="
 # This check is intentionally targeted, not exhaustive. Run the broader
 # `rg '\bwork item\b' skills/` sweep manually for prose audits.
 
-PATTERN1='work item-[a-z]'  # compound-word hyphen: work item-foo
-PATTERN2='work items/'      # plural as path component
+PATTERN1='work item-[a-z]'   # compound-word hyphen: work item-foo
+PATTERN2='work items/'       # plural as path component
 PATTERN3='paths\.work items' # config key with wrong plural
 
 HITS1=$(rg -l --no-ignore-parent "$PATTERN1" \
@@ -44,9 +51,10 @@ if [ -z "$ALL_HITS" ]; then
   pass "No 'work item' (space) in identifier/path contexts"
 else
   fail "Found 'work item' (space) in identifier/path contexts — use 'work-item'" \
-       "$(echo "$ALL_HITS" | tr '\n' ' ')"
+    "$(echo "$ALL_HITS" | tr '\n' ' ')"
   echo "      Matching lines:"
-  { rg -n "$PATTERN1" skills/ scripts/ templates/ README.md CHANGELOG.md \
+  {
+    rg -n "$PATTERN1" skills/ scripts/ templates/ README.md CHANGELOG.md \
       --iglob '!scripts/test-format.sh' 2>/dev/null || true
     rg -n "$PATTERN2" skills/ scripts/ templates/ README.md CHANGELOG.md \
       --iglob '!scripts/test-format.sh' 2>/dev/null || true

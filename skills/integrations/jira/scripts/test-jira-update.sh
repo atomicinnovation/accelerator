@@ -26,9 +26,10 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 # Repo / mock setup helpers
 
 setup_repo() {
-  local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
+  local d
+  d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
   mkdir -p "$d/.git" "$d/.accelerator"
-  cat > "$d/.accelerator/config.md" <<ENDCONFIG
+  cat >"$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -41,9 +42,10 @@ ENDCONFIG
 }
 
 setup_repo_minimal() {
-  local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
+  local d
+  d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
   mkdir -p "$d/.git" "$d/.accelerator"
-  cat > "$d/.accelerator/config.md" <<ENDCONFIG
+  cat >"$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -57,7 +59,7 @@ write_site_json() {
   local repo="$1"
   mkdir -p "$repo/.accelerator/state/integrations/jira"
   printf '{"site":"%s","accountId":"%s"}\n' "$TEST_SITE" "$TEST_ACCOUNT_ID" \
-    > "$repo/.accelerator/state/integrations/jira/site.json"
+    >"$repo/.accelerator/state/integrations/jira/site.json"
 }
 
 write_fields_json() {
@@ -74,7 +76,7 @@ write_fields_json() {
         "schema": {"type": "number", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:float"}
       }
     ]
-  }' > "$repo/.accelerator/state/integrations/jira/fields.json"
+  }' >"$repo/.accelerator/state/integrations/jira/fields.json"
 }
 
 REPO=$(setup_repo)
@@ -102,11 +104,13 @@ start_mock() {
 
   local i=0
   while [ ! -s "$MOCK_URL_FILE" ] && [ $i -lt 50 ]; do
-    sleep 0.1; i=$((i + 1))
+    sleep 0.1
+    i=$((i + 1))
   done
   if [ ! -s "$MOCK_URL_FILE" ]; then
     echo "ERROR: mock server did not start within 5s" >&2
-    kill "$MOCK_PID" 2>/dev/null || true; exit 1
+    kill "$MOCK_PID" 2>/dev/null || true
+    exit 1
   fi
   MOCK_URL=$(cat "$MOCK_URL_FILE")
 }
@@ -117,7 +121,10 @@ stop_mock() {
     wait "$MOCK_PID" 2>/dev/null || true
     MOCK_PID=""
   fi
-  [ -n "$MOCK_URL_FILE" ] && { rm -f "$MOCK_URL_FILE"; MOCK_URL_FILE=""; }
+  [ -n "$MOCK_URL_FILE" ] && {
+    rm -f "$MOCK_URL_FILE"
+    MOCK_URL_FILE=""
+  }
   MOCK_URL=""
 }
 
@@ -169,8 +176,8 @@ update "$TEST_KEY" --summary "updated title" 2>/dev/null
 stop_mock
 
 CAPTURED_3=$(jq -r '.[0]' "$BODIES_3")
-assert_eq "summary in fields" "updated title" "$(jq -r '.fields.summary' <<< "$CAPTURED_3")"
-assert_eq "no update key" "null" "$(jq -r '.update // "null"' <<< "$CAPTURED_3")"
+assert_eq "summary in fields" "updated title" "$(jq -r '.fields.summary' <<<"$CAPTURED_3")"
+assert_eq "no update key" "null" "$(jq -r '.update // "null"' <<<"$CAPTURED_3")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -183,7 +190,7 @@ update "$TEST_KEY" --body "Hello update" 2>/dev/null
 stop_mock
 
 CAPTURED_4=$(jq -r '.[0]' "$BODIES_4")
-assert_eq "description is ADF doc" "doc" "$(jq -r '.fields.description.type' <<< "$CAPTURED_4")"
+assert_eq "description is ADF doc" "doc" "$(jq -r '.fields.description.type' <<<"$CAPTURED_4")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -197,8 +204,8 @@ stop_mock
 
 CAPTURED_5=$(jq -r '.[0]' "$BODIES_5")
 assert_eq "add-labels in update" '[{"add":"foo"},{"add":"bar"}]' \
-  "$(jq -c '.update.labels' <<< "$CAPTURED_5")"
-assert_eq "no fields.labels" "null" "$(jq -r '.fields.labels // "null"' <<< "$CAPTURED_5")"
+  "$(jq -c '.update.labels' <<<"$CAPTURED_5")"
+assert_eq "no fields.labels" "null" "$(jq -r '.fields.labels // "null"' <<<"$CAPTURED_5")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -212,7 +219,7 @@ stop_mock
 
 CAPTURED_6=$(jq -r '.[0]' "$BODIES_6")
 assert_eq "remove-label in update" '[{"remove":"stale"}]' \
-  "$(jq -c '.update.labels' <<< "$CAPTURED_6")"
+  "$(jq -c '.update.labels' <<<"$CAPTURED_6")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -225,8 +232,8 @@ update "$TEST_KEY" --label one --label two 2>/dev/null
 stop_mock
 
 CAPTURED_7=$(jq -r '.[0]' "$BODIES_7")
-assert_eq "labels in fields" '["one","two"]' "$(jq -c '.fields.labels' <<< "$CAPTURED_7")"
-assert_eq "no update.labels" "null" "$(jq -r '.update.labels // "null"' <<< "$CAPTURED_7")"
+assert_eq "labels in fields" '["one","two"]' "$(jq -c '.fields.labels' <<<"$CAPTURED_7")"
+assert_eq "no update.labels" "null" "$(jq -r '.update.labels // "null"' <<<"$CAPTURED_7")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -252,7 +259,7 @@ stop_mock
 
 CAPTURED_9=$(jq -r '.[0]' "$BODIES_9")
 assert_eq "add-component in update" '[{"add":{"name":"API"}}]' \
-  "$(jq -c '.update.components' <<< "$CAPTURED_9")"
+  "$(jq -c '.update.components' <<<"$CAPTURED_9")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -266,7 +273,7 @@ stop_mock
 
 CAPTURED_10=$(jq -r '.[0]' "$BODIES_10")
 assert_eq "remove-component in update" '[{"remove":{"name":"Legacy"}}]' \
-  "$(jq -c '.update.components' <<< "$CAPTURED_10")"
+  "$(jq -c '.update.components' <<<"$CAPTURED_10")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -280,8 +287,8 @@ stop_mock
 
 CAPTURED_11=$(jq -r '.[0]' "$BODIES_11")
 assert_eq "component in fields" '[{"name":"Only"}]' \
-  "$(jq -c '.fields.components' <<< "$CAPTURED_11")"
-assert_eq "no update.components" "null" "$(jq -r '.update.components // "null"' <<< "$CAPTURED_11")"
+  "$(jq -c '.fields.components' <<<"$CAPTURED_11")"
+assert_eq "no update.components" "null" "$(jq -r '.update.components // "null"' <<<"$CAPTURED_11")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -294,7 +301,7 @@ update "$TEST_KEY" --priority "High" 2>/dev/null
 stop_mock
 
 CAPTURED_12=$(jq -r '.[0]' "$BODIES_12")
-assert_eq "priority in fields" "High" "$(jq -r '.fields.priority.name' <<< "$CAPTURED_12")"
+assert_eq "priority in fields" "High" "$(jq -r '.fields.priority.name' <<<"$CAPTURED_12")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -308,7 +315,7 @@ stop_mock
 
 CAPTURED_13=$(jq -r '.[0]' "$BODIES_13")
 assert_eq "assignee accountId resolved" "$TEST_ACCOUNT_ID" \
-  "$(jq -r '.fields.assignee.accountId' <<< "$CAPTURED_13")"
+  "$(jq -r '.fields.assignee.accountId' <<<"$CAPTURED_13")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -321,7 +328,7 @@ update "$TEST_KEY" --assignee "" 2>/dev/null
 stop_mock
 
 CAPTURED_14=$(jq -r '.[0]' "$BODIES_14")
-assert_eq "assignee null for unassign" "null" "$(jq -r '.fields.assignee.accountId' <<< "$CAPTURED_14")"
+assert_eq "assignee null for unassign" "null" "$(jq -r '.fields.assignee.accountId' <<<"$CAPTURED_14")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -356,7 +363,7 @@ update "$TEST_KEY" --parent ENG-99 2>/dev/null
 stop_mock
 
 CAPTURED_15=$(jq -r '.[0]' "$BODIES_15")
-assert_eq "parent key in fields" "ENG-99" "$(jq -r '.fields.parent.key' <<< "$CAPTURED_15")"
+assert_eq "parent key in fields" "ENG-99" "$(jq -r '.fields.parent.key' <<<"$CAPTURED_15")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -369,7 +376,7 @@ update "$TEST_KEY" --parent "" 2>/dev/null
 stop_mock
 
 CAPTURED_16=$(jq -r '.[0]' "$BODIES_16")
-assert_eq "parent null clears parent" "null" "$(jq -r '.fields.parent' <<< "$CAPTURED_16")"
+assert_eq "parent null clears parent" "null" "$(jq -r '.fields.parent' <<<"$CAPTURED_16")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -382,7 +389,7 @@ update "$TEST_KEY" --custom story-points=8 2>/dev/null
 stop_mock
 
 CAPTURED_17=$(jq -r '.[0]' "$BODIES_17")
-assert_eq "story points as number" "8" "$(jq '.fields.customfield_10016' <<< "$CAPTURED_17")"
+assert_eq "story points as number" "8" "$(jq '.fields.customfield_10016' <<<"$CAPTURED_17")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -395,9 +402,9 @@ update "$TEST_KEY" --custom story-points=8 --add-label x --summary "updated" 2>/
 stop_mock
 
 CAPTURED_18=$(jq -r '.[0]' "$BODIES_18")
-assert_eq "summary in fields" "updated" "$(jq -r '.fields.summary' <<< "$CAPTURED_18")"
-assert_eq "story-points in fields" "8" "$(jq '.fields.customfield_10016' <<< "$CAPTURED_18")"
-assert_eq "add-label in update" '[{"add":"x"}]' "$(jq -c '.update.labels' <<< "$CAPTURED_18")"
+assert_eq "summary in fields" "updated" "$(jq -r '.fields.summary' <<<"$CAPTURED_18")"
+assert_eq "story-points in fields" "8" "$(jq '.fields.customfield_10016' <<<"$CAPTURED_18")"
+assert_eq "add-label in update" '[{"add":"x"}]' "$(jq -c '.update.labels' <<<"$CAPTURED_18")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -441,9 +448,9 @@ stop_mock
 assert_eq "print-payload exits 0" "0" "$RC_21"
 CAPTURED_URLS_21=$(jq -c '.' "$URLS_21")
 assert_eq "no API calls made" "[]" "$CAPTURED_URLS_21"
-assert_eq "method is PUT" "PUT" "$(jq -r '.method' <<< "$PAYLOAD_21")"
-assert_contains "path contains key" "$(jq -r '.path' <<< "$PAYLOAD_21")" "$TEST_KEY"
-assert_eq "body is JSON object" "object" "$(jq -r '.body | type' <<< "$PAYLOAD_21")"
+assert_eq "method is PUT" "PUT" "$(jq -r '.method' <<<"$PAYLOAD_21")"
+assert_contains "path contains key" "$(jq -r '.path' <<<"$PAYLOAD_21")" "$TEST_KEY"
+assert_eq "body is JSON object" "object" "$(jq -r '.body | type' <<<"$PAYLOAD_21")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -514,7 +521,7 @@ stop_mock
 
 CAPTURED_27=$(jq -r '.[0]' "$BODIES_27")
 assert_eq "both ops in update.labels" '[{"add":"foo"},{"remove":"foo"}]' \
-  "$(jq -c '.update.labels' <<< "$CAPTURED_27")"
+  "$(jq -c '.update.labels' <<<"$CAPTURED_27")"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -528,7 +535,7 @@ stop_mock
 
 CAPTURED_28=$(jq -r '.[0]' "$BODIES_28")
 HAS_FIELDS_28=0
-jq -e 'has("fields") | not' <<< "$CAPTURED_28" >/dev/null 2>&1 || HAS_FIELDS_28=1
+jq -e 'has("fields") | not' <<<"$CAPTURED_28" >/dev/null 2>&1 || HAS_FIELDS_28=1
 assert_eq "no fields key when only update ops" "0" "$HAS_FIELDS_28"
 echo ""
 
@@ -555,7 +562,7 @@ echo ""
 
 BODY_MD_30="Update body with **bold** text"
 BODY_FILE_30=$(mktemp "$TMPDIR_BASE/body-XXXXXX")
-printf '%s\n' "$BODY_MD_30" > "$BODY_FILE_30"
+printf '%s\n' "$BODY_MD_30" >"$BODY_FILE_30"
 EXPECTED_ADF_30=$(printf '%s\n' "$BODY_MD_30" | bash "$SCRIPT_DIR/jira-md-to-adf.sh")
 
 BODIES_30=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
@@ -566,7 +573,7 @@ stop_mock
 CAPTURED_30=$(jq -r '.[0]' "$BODIES_30")
 ADF_RC_30=0
 jq -e --argjson exp "$EXPECTED_ADF_30" \
-  '.fields.description == $exp' <<< "$CAPTURED_30" >/dev/null 2>&1 || ADF_RC_30=$?
+  '.fields.description == $exp' <<<"$CAPTURED_30" >/dev/null 2>&1 || ADF_RC_30=$?
 assert_eq "ADF round-trip matches expected output" "0" "$ADF_RC_30"
 echo ""
 

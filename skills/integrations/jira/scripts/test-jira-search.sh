@@ -25,9 +25,10 @@ trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 # Repo / mock setup helpers
 
 setup_repo() {
-  local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
+  local d
+  d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
   mkdir -p "$d/.git" "$d/.accelerator"
-  cat > "$d/.accelerator/config.md" <<ENDCONFIG
+  cat >"$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -43,7 +44,7 @@ write_site_json() {
   local repo="$1"
   mkdir -p "$repo/.accelerator/state/integrations/jira"
   printf '{"site":"%s","accountId":"%s"}\n' "$TEST_SITE" "$TEST_ACCOUNT_ID" \
-    > "$repo/.accelerator/state/integrations/jira/site.json"
+    >"$repo/.accelerator/state/integrations/jira/site.json"
 }
 
 write_fields_json() {
@@ -56,7 +57,7 @@ write_fields_json() {
       {"id":"status","key":"status","name":"Status","slug":"status"},
       {"id":"customfield_10016","key":"customfield_10016","name":"Story Points","slug":"story-points"}
     ]
-  }' > "$repo/.accelerator/state/integrations/jira/fields.json"
+  }' >"$repo/.accelerator/state/integrations/jira/fields.json"
 }
 
 REPO=$(setup_repo)
@@ -77,11 +78,13 @@ start_mock() {
 
   local i=0
   while [ ! -s "$MOCK_URL_FILE" ] && [ $i -lt 50 ]; do
-    sleep 0.1; i=$((i + 1))
+    sleep 0.1
+    i=$((i + 1))
   done
   if [ ! -s "$MOCK_URL_FILE" ]; then
     echo "ERROR: mock server did not start within 5s" >&2
-    kill "$MOCK_PID" 2>/dev/null || true; exit 1
+    kill "$MOCK_PID" 2>/dev/null || true
+    exit 1
   fi
   MOCK_URL=$(cat "$MOCK_URL_FILE")
 }
@@ -92,7 +95,10 @@ stop_mock() {
     wait "$MOCK_PID" 2>/dev/null || true
     MOCK_PID=""
   fi
-  [ -n "$MOCK_URL_FILE" ] && { rm -f "$MOCK_URL_FILE"; MOCK_URL_FILE=""; }
+  [ -n "$MOCK_URL_FILE" ] && {
+    rm -f "$MOCK_URL_FILE"
+    MOCK_URL_FILE=""
+  }
   MOCK_URL=""
 }
 
@@ -332,7 +338,7 @@ echo "=== Case 15: default project from config ==="
 echo ""
 
 start_mock "$SCENARIOS/search-200.json"
-ERR15=$(search 2>&1 >/dev/null)  # no --project flag
+ERR15=$(search 2>&1 >/dev/null) # no --project flag
 stop_mock
 
 assert_contains "default project ENG in JQL" "$ERR15" "project = 'ENG'"

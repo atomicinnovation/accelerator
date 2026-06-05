@@ -39,33 +39,46 @@ jira_resolve_body() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --body)
-        if (( body_set )); then
+        if ((body_set)); then
           printf 'E_BODY_BAD_FLAG: --body specified more than once\n' >&2
           return 1
         fi
-        body="$2"; body_set=1; shift 2 ;;
+        body="$2"
+        body_set=1
+        shift 2
+        ;;
       --body-file)
-        if (( body_file_set )); then
+        if ((body_file_set)); then
           printf 'E_BODY_BAD_FLAG: --body-file specified more than once\n' >&2
           return 1
         fi
-        body_file="$2"; body_file_set=1; shift 2 ;;
-      --allow-stdin)  allow_stdin=1;  shift ;;
-      --allow-editor) allow_editor=1; shift ;;
+        body_file="$2"
+        body_file_set=1
+        shift 2
+        ;;
+      --allow-stdin)
+        allow_stdin=1
+        shift
+        ;;
+      --allow-editor)
+        allow_editor=1
+        shift
+        ;;
       *)
         printf 'E_BODY_BAD_FLAG: unrecognised flag: %s\n' "$1" >&2
-        return 1 ;;
+        return 1
+        ;;
     esac
   done
 
   # Priority 1: inline --body (empty string is valid)
-  if (( body_set )); then
+  if ((body_set)); then
     printf '%s' "$body"
     return 0
   fi
 
   # Priority 2: --body-file
-  if (( body_file_set )); then
+  if ((body_file_set)); then
     if [[ ! -f "$body_file" ]]; then
       printf 'E_BODY_FILE_NOT_FOUND: %s\n' "$body_file" >&2
       return 2
@@ -85,8 +98,8 @@ jira_resolve_body() {
     _stdin_is_piped=0
   fi
 
-  if (( _stdin_is_piped )); then
-    if (( allow_stdin )); then
+  if ((_stdin_is_piped)); then
+    if ((allow_stdin)); then
       cat
       return 0
     fi
@@ -95,7 +108,7 @@ jira_resolve_body() {
   fi
 
   # Priority 4: $EDITOR tempfile
-  if (( allow_editor )); then
+  if ((allow_editor)); then
     local editor="${EDITOR:-vi}"
     # Reject EDITOR values containing shell metacharacters or whitespace.
     # Only POSIX-portable characters plus "/", ".", "_", "-" are accepted.
@@ -108,7 +121,7 @@ jira_resolve_body() {
     local tmp editor_rc=0
     tmp=$(mktemp)
     "$editor" "$tmp" || editor_rc=$?
-    if (( editor_rc != 0 )); then
+    if ((editor_rc != 0)); then
       rm -f "$tmp"
       printf 'E_BODY_EDITOR_FAILED: editor exited %d\n' "$editor_rc" >&2
       return 4

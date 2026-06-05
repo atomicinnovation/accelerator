@@ -33,7 +33,10 @@ _ancestor_has_marker() {
     # which lives in /usr/bin and may be unavailable when callers strip
     # paths from PATH to simulate a missing VCS binary.
     case "$dir" in
-      */*) dir="${dir%/*}"; [ -z "$dir" ] && dir="/" ;;
+      */*)
+        dir="${dir%/*}"
+        [ -z "$dir" ] && dir="/"
+        ;;
       *) dir="" ;;
     esac
   done
@@ -160,8 +163,8 @@ classify_checkout() {
 
   # ── jj probe ─────────────────────────────────────────────────────────────
   if command -v jj >/dev/null 2>&1; then
-    if jj_workspace_root=$(cd "$dir" 2>/dev/null && jj workspace root 2>/dev/null) \
-       && [ -n "$jj_workspace_root" ]; then
+    if jj_workspace_root=$(cd "$dir" 2>/dev/null && jj workspace root 2>/dev/null) &&
+      [ -n "$jj_workspace_root" ]; then
       in_jj=1
       if _jj_workspace_is_secondary "$jj_workspace_root"; then
         jj_secondary=1
@@ -183,9 +186,9 @@ classify_checkout() {
   if command -v git >/dev/null 2>&1; then
     local git_dir git_common_dir is_bare
     is_bare=$(cd "$dir" 2>/dev/null && git rev-parse --is-bare-repository 2>/dev/null || true)
-    if [ "$is_bare" != "true" ] \
-       && git_dir=$(cd "$dir" 2>/dev/null && git rev-parse --git-dir 2>/dev/null) \
-       && [ -n "$git_dir" ]; then
+    if [ "$is_bare" != "true" ] &&
+      git_dir=$(cd "$dir" 2>/dev/null && git rev-parse --git-dir 2>/dev/null) &&
+      [ -n "$git_dir" ]; then
       git_common_dir=$(cd "$dir" && git rev-parse --git-common-dir 2>/dev/null || true)
       if [ -n "$git_common_dir" ]; then
         in_git=1
@@ -218,22 +221,22 @@ classify_checkout() {
   # rather than emitting a misleading multi-parent record.
   if [ $in_jj -eq 0 ] && [ $in_git -eq 0 ]; then
     kind="none"
-  elif [ $jj_secondary -eq 1 ] && [ $git_worktree -eq 1 ] \
-       && [ -n "$jj_main_root" ] && [ -n "$git_main_root" ]; then
+  elif [ $jj_secondary -eq 1 ] && [ $git_worktree -eq 1 ] &&
+    [ -n "$jj_main_root" ] && [ -n "$git_main_root" ]; then
     kind="colocated"
     boundary=$(realpath "$jj_workspace_root")
     jj_parent="$jj_main_root"
     git_parent="$git_main_root"
-  elif [ $jj_secondary -eq 1 ] && [ $in_git -eq 1 ] \
-       && [ -n "$jj_main_root" ] && [ -n "$git_main_root" ] \
-       && [ "$jj_main_root" != "$git_main_root" ]; then
+  elif [ $jj_secondary -eq 1 ] && [ $in_git -eq 1 ] &&
+    [ -n "$jj_main_root" ] && [ -n "$git_main_root" ] &&
+    [ "$jj_main_root" != "$git_main_root" ]; then
     kind="nested-jj-in-git"
     boundary=$(realpath "$jj_workspace_root")
     jj_parent="$jj_main_root"
     git_parent="$git_main_root"
-  elif [ $git_worktree -eq 1 ] && [ $in_jj -eq 1 ] \
-       && [ -n "$jj_main_root" ] && [ -n "$git_main_root" ] \
-       && [ "$jj_main_root" != "$git_main_root" ]; then
+  elif [ $git_worktree -eq 1 ] && [ $in_jj -eq 1 ] &&
+    [ -n "$jj_main_root" ] && [ -n "$git_main_root" ] &&
+    [ "$jj_main_root" != "$git_main_root" ]; then
     kind="nested-git-in-jj"
     boundary="$git_worktree_root"
     jj_parent="$jj_main_root"

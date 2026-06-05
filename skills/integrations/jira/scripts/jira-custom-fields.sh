@@ -62,7 +62,8 @@ _jira_coerce_custom_value() {
     "")
       printf '%s: %s has no schema.type in cache; run /init-jira --refresh-fields\n' \
         "$err_prefix" "$field_id" >&2
-      return 1 ;;
+      return 1
+      ;;
 
     number)
       if [[ ! "$raw" =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
@@ -70,20 +71,25 @@ _jira_coerce_custom_value() {
           "$err_prefix" "$field_id" "$raw" >&2
         return 1
       fi
-      printf '%s' "$raw" ;;
+      printf '%s' "$raw"
+      ;;
 
-    date|datetime|string)
-      jq -n --arg v "$raw" '$v' ;;
+    date | datetime | string)
+      jq -n --arg v "$raw" '$v'
+      ;;
 
     option)
-      jq -n --arg v "$raw" '{value: $v}' ;;
+      jq -n --arg v "$raw" '{value: $v}'
+      ;;
 
     user)
-      jq -n --arg v "$raw" '{accountId: $v}' ;;
+      jq -n --arg v "$raw" '{accountId: $v}'
+      ;;
 
     *)
       printf '%s: %s has unsupported schema.type=%s; use @json: escape, e.g. --custom %s=@json:[42]\n' \
         "$err_prefix" "$field_id" "$schema_type" "${field_id#customfield_}" >&2
-      return 1 ;;
+      return 1
+      ;;
   esac
 }

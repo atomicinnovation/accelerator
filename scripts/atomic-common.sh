@@ -26,7 +26,7 @@ atomic_write() {
   tmp="$(mktemp "$dir/.atomic-write.XXXXXX")"
   # Trap inside a function: run the cleanup only if something interrupts before mv
   trap 'rm -f "'"$tmp"'"' EXIT
-  cat > "$tmp"
+  cat >"$tmp"
   mv "$tmp" "$target"
   trap - EXIT
 }
@@ -118,8 +118,8 @@ _atomic_lock_acquire() {
   # Re-seed RANDOM per call: concurrent subshells inherit the parent's
   # RANDOM state and would otherwise sleep in lockstep, defeating the
   # jitter. PID + nanosecond clock gives unique seeds across forks.
-  RANDOM=$(( ($$ * 31 + ${RANDOM:-0}) ^ \
-    $(date +%N 2>/dev/null | sed 's/^0*//' || echo 0) ))
+  RANDOM=$((($$ * 31 + ${RANDOM:-0}) ^ \
+    $(date +%N 2>/dev/null | sed 's/^0*//' || echo 0)))
   while ! mkdir "$lockdir" 2>/dev/null; do
     # A lockdir whose recorded owner has died (e.g. OOM-killed mid
     # critical section, common under parallel CI load) would otherwise
@@ -130,7 +130,7 @@ _atomic_lock_acquire() {
       echo "atomic_jsonl: lock acquisition timed out on $lockdir" >&2
       return 1
     fi
-    local jitter_ms=$(( (RANDOM % base_ms) + 1 ))
+    local jitter_ms=$(((RANDOM % base_ms) + 1))
     sleep "0.$(printf '%03d' "$jitter_ms")"
     waited_ms=$((waited_ms + jitter_ms))
     [ "$base_ms" -lt 200 ] && base_ms=$((base_ms * 2))
@@ -177,11 +177,13 @@ _atomic_lock_reclaim_if_stale() {
 atomic_jsonl_append() {
   local target="$1" line="$2"
   if [ -z "$target" ] || [ -z "$line" ]; then
-    echo "atomic_jsonl_append: missing target or line" >&2; return 1
+    echo "atomic_jsonl_append: missing target or line" >&2
+    return 1
   fi
   case "$line" in *$'\n'*)
     echo "atomic_jsonl_append: line must not contain embedded newline" >&2
-    return 1 ;;
+    return 1
+    ;;
   esac
   local dir
   dir=$(dirname "$target")
@@ -239,7 +241,7 @@ atomic_jsonl_remove_by_key() {
     # inside the JSON-escaped key and silently break the match. ENVIRON
     # values are passed through unmodified.
     JSONL_REMOVE_PREFIX="$prefix" \
-      awk 'BEGIN{p=ENVIRON["JSONL_REMOVE_PREFIX"]} index($0,p)!=1{print}' "$target" \
-      | atomic_write "$target"
+      awk 'BEGIN{p=ENVIRON["JSONL_REMOVE_PREFIX"]} index($0,p)!=1{print}' "$target" |
+      atomic_write "$target"
   )
 }

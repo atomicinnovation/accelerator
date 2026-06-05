@@ -57,7 +57,7 @@ while IFS= read -r line; do
     TAGS_LINE="$line"
     TAGS_LINE_NUM=$LINE_NUM
   fi
-done <<< "$FRONTMATTER"
+done <<<"$FRONTMATTER"
 
 if [ -n "$TAGS_LINE" ]; then
   TAGS_VALUE_PART="${TAGS_LINE#tags:}"

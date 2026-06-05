@@ -13,15 +13,15 @@ if [ -z "${PROJECT_ROOT:-}" ]; then
   PROJECT_ROOT="$(config_project_root)"
 fi
 
-work_dir_rel="$(cd "$PROJECT_ROOT" \
-  && bash "$PLUGIN_ROOT/scripts/config-read-path.sh" work)"
+work_dir_rel="$(cd "$PROJECT_ROOT" &&
+  bash "$PLUGIN_ROOT/scripts/config-read-path.sh" work)"
 
 if [ -z "$work_dir_rel" ]; then
   log_die "0005: config-read-path.sh returned empty for 'work'"
 fi
 
 case "$work_dir_rel" in
-  .|..|/|/*|*/..|../*|*/../*)
+  . | .. | / | /* | */.. | ../* | */../*)
     log_die "0005: refusing dangerous paths.work value: $work_dir_rel"
     ;;
 esac

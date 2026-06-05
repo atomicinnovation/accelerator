@@ -16,7 +16,7 @@ fi
 # ── jj op-id breadcrumb for rollback ─────────────────────────────────────────
 if command -v jj >/dev/null 2>&1 && [ -d "$PROJECT_ROOT/.jj" ]; then
   _0004_op_id=$(jj op log -l 1 --no-graph -T 'self.id().short()' \
-                  2>/dev/null | head -1 || true)
+    2>/dev/null | head -1 || true)
   if [ -n "$_0004_op_id" ]; then
     echo "0004: pre-migration jj op-id: $_0004_op_id" >&2
     echo "0004: roll back with: jj op restore $_0004_op_id" >&2
@@ -31,7 +31,10 @@ fi
 # flat-dotted form (`paths.key: value`).
 probe_key_in_file() {
   local cfg="$1" prefix="$2" key="$3"
-  [ -f "$cfg" ] || { printf '0\t'; return 0; }
+  [ -f "$cfg" ] || {
+    printf '0\t'
+    return 0
+  }
   local result
   result=$(awk -v prefix="$prefix" -v key="$key" '
     BEGIN {
@@ -71,7 +74,7 @@ probe_key_in_file() {
 probe_key() {
   local prefix="$1" key="$2" cfg p
   for cfg in "$PROJECT_ROOT/.accelerator/config.local.md" \
-             "$PROJECT_ROOT/.accelerator/config.md"; do
+    "$PROJECT_ROOT/.accelerator/config.md"; do
     p=$(probe_key_in_file "$cfg" "$prefix" "$key")
     if [ "${p%%$'\t'*}" = "1" ]; then
       printf '%s' "$p"
@@ -94,8 +97,8 @@ OLD_INV="${_probe_inv#*$'\t'}"
 OLD_GAPS="${_probe_gaps#*$'\t'}"
 
 [ "$RESEARCH_HAD_OVERRIDE" = "1" ] || OLD_RESEARCH="meta/research"
-[ "$INV_HAD_OVERRIDE" = "1" ]      || OLD_INV="meta/design-inventories"
-[ "$GAPS_HAD_OVERRIDE" = "1" ]     || OLD_GAPS="meta/design-gaps"
+[ "$INV_HAD_OVERRIDE" = "1" ] || OLD_INV="meta/design-inventories"
+[ "$GAPS_HAD_OVERRIDE" = "1" ] || OLD_GAPS="meta/design-gaps"
 
 # Strip trailing slash for consistent path arithmetic.
 OLD_RESEARCH="${OLD_RESEARCH%/}"
@@ -120,16 +123,18 @@ fi
 _assert_no_mixed_state() {
   local triple prefix rest old new old_present new_present p cfg
   for triple in \
-      "paths:research:research_codebase" \
-      "paths:design_inventories:research_design_inventories" \
-      "paths:design_gaps:research_design_gaps" \
-      "templates:research:codebase-research"; do
+    "paths:research:research_codebase" \
+    "paths:design_inventories:research_design_inventories" \
+    "paths:design_gaps:research_design_gaps" \
+    "templates:research:codebase-research"; do
     prefix="${triple%%:*}"
     rest="${triple#*:}"
-    old="${rest%:*}"; new="${rest#*:}"
-    old_present=0; new_present=0
+    old="${rest%:*}"
+    new="${rest#*:}"
+    old_present=0
+    new_present=0
     for cfg in "$PROJECT_ROOT/.accelerator/config.md" \
-               "$PROJECT_ROOT/.accelerator/config.local.md"; do
+      "$PROJECT_ROOT/.accelerator/config.local.md"; do
       [ -f "$cfg" ] || continue
       p=$(probe_key_in_file "$cfg" "$prefix" "$old")
       [ "${p%%$'\t'*}" = "1" ] && old_present=1
@@ -146,14 +151,14 @@ _assert_no_mixed_state
 # Short-circuit when there is genuinely nothing to migrate: neither the legacy
 # research dir nor the legacy design-inv/design-gaps dirs exist. Keeps fresh
 # repos / unrelated test fixtures a clean no-op.
-if [ ! -d "$PROJECT_ROOT/$OLD_RESEARCH" ] \
-   && [ ! -d "$PROJECT_ROOT/$OLD_INV" ] \
-   && [ ! -d "$PROJECT_ROOT/$OLD_GAPS" ]; then
+if [ ! -d "$PROJECT_ROOT/$OLD_RESEARCH" ] &&
+  [ ! -d "$PROJECT_ROOT/$OLD_INV" ] &&
+  [ ! -d "$PROJECT_ROOT/$OLD_GAPS" ]; then
   exit 0
 fi
 
 # ── Step 1: plan moves, then execute ─────────────────────────────────────────
-PLANNED_MOVES=()  # entries are "src<TAB>dst"
+PLANNED_MOVES=() # entries are "src<TAB>dst"
 _plan_move() { PLANNED_MOVES+=("$1"$'\t'"$2"); }
 
 _plan_research_moves() {
@@ -165,8 +170,11 @@ _plan_research_moves() {
     [ "$base" = ".gitkeep" ] && continue
     _plan_move "$OLD_RESEARCH/$base" "$NEW_RESEARCH_CODEBASE/$base"
   done < <(
-    cd "$PROJECT_ROOT/$OLD_RESEARCH" && \
-      ( shopt -s nullglob dotglob; for f in *; do [ -f "$f" ] && printf '%s\n' "$f"; done )
+    cd "$PROJECT_ROOT/$OLD_RESEARCH" &&
+      (
+        shopt -s nullglob dotglob
+        for f in *; do [ -f "$f" ] && printf '%s\n' "$f"; done
+      )
   )
 }
 
@@ -178,8 +186,11 @@ _plan_inv_moves() {
     base=$(basename "$d")
     _plan_move "$OLD_INV/$base" "$NEW_INV/$base"
   done < <(
-    cd "$PROJECT_ROOT/$OLD_INV" && \
-      ( shopt -s nullglob; for d in */; do printf '%s\n' "${d%/}"; done )
+    cd "$PROJECT_ROOT/$OLD_INV" &&
+      (
+        shopt -s nullglob
+        for d in */; do printf '%s\n' "${d%/}"; done
+      )
   )
 }
 
@@ -193,8 +204,11 @@ _plan_gaps_moves() {
     [ "$base" = ".gitkeep" ] && continue
     _plan_move "$OLD_GAPS/$base" "$NEW_GAPS/$base"
   done < <(
-    cd "$PROJECT_ROOT/$OLD_GAPS" && \
-      ( shopt -s nullglob dotglob; for f in *; do [ -f "$f" ] && printf '%s\n' "$f"; done )
+    cd "$PROJECT_ROOT/$OLD_GAPS" &&
+      (
+        shopt -s nullglob dotglob
+        for f in *; do [ -f "$f" ] && printf '%s\n' "$f"; done
+      )
   )
 }
 
@@ -215,7 +229,8 @@ _move_if_pending() {
 }
 
 for entry in "${PLANNED_MOVES[@]+"${PLANNED_MOVES[@]}"}"; do
-  src="${entry%$'\t'*}"; dst="${entry#*$'\t'}"
+  src="${entry%$'\t'*}"
+  dst="${entry#*$'\t'}"
   _move_if_pending "$src" "$dst"
 done
 
@@ -234,13 +249,16 @@ _cleanup_legacy_parent() {
     while IFS= read -r r; do
       log_warn "  contains: $r (manual cleanup may be needed)"
     done < <(
-      cd "$full" && \
-        ( shopt -s nullglob dotglob; for x in *; do printf '%s\n' "$x"; done )
+      cd "$full" &&
+        (
+          shopt -s nullglob dotglob
+          for x in *; do printf '%s\n' "$x"; done
+        )
     )
   fi
 }
 
-[ "$INV_HAD_OVERRIDE" = "1" ]  || _cleanup_legacy_parent "$OLD_INV"
+[ "$INV_HAD_OVERRIDE" = "1" ] || _cleanup_legacy_parent "$OLD_INV"
 [ "$GAPS_HAD_OVERRIDE" = "1" ] || _cleanup_legacy_parent "$OLD_GAPS"
 
 # ── Ensure .gitkeep in every destination directory ───────────────────────────
@@ -248,12 +266,15 @@ _ensure_gitkeep() {
   local d="$1"
   local full="$PROJECT_ROOT/$d"
   [ -d "$full" ] || mkdir -p "$full"
-  [ -e "$full/.gitkeep" ] || { : > "$full/.gitkeep"; echo "0004: created $d/.gitkeep"; }
+  [ -e "$full/.gitkeep" ] || {
+    : >"$full/.gitkeep"
+    echo "0004: created $d/.gitkeep"
+  }
 }
 
 _ensure_gitkeep "$NEW_RESEARCH_CODEBASE"
 _ensure_gitkeep "$NEW_RESEARCH_ISSUES"
-[ "$INV_HAD_OVERRIDE" = "1" ]  || _ensure_gitkeep "$NEW_INV"
+[ "$INV_HAD_OVERRIDE" = "1" ] || _ensure_gitkeep "$NEW_INV"
 [ "$GAPS_HAD_OVERRIDE" = "1" ] || _ensure_gitkeep "$NEW_GAPS"
 
 # ── Step 2: per-key config rewrites with informational notifications ─────────
@@ -269,9 +290,18 @@ _backup_config_once() {
 
 detect_form() {
   local cfg="$1" prefix="$2"
-  [ -f "$cfg" ] || { printf 'absent'; return 0; }
-  if grep -qE "^${prefix}:[[:space:]]*$" "$cfg"; then printf 'nested'; return; fi
-  if grep -qE "^${prefix}\\." "$cfg"; then printf 'flat'; return; fi
+  [ -f "$cfg" ] || {
+    printf 'absent'
+    return 0
+  }
+  if grep -qE "^${prefix}:[[:space:]]*$" "$cfg"; then
+    printf 'nested'
+    return
+  fi
+  if grep -qE "^${prefix}\\." "$cfg"; then
+    printf 'flat'
+    return
+  fi
   printf 'absent'
 }
 
@@ -296,14 +326,14 @@ rewrite_one_key() {
           next
         }
         { print }
-      ' "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
+      ' "$cfg" >"$cfg.tmp" && mv "$cfg.tmp" "$cfg"
       ;;
     flat)
       awk -v prefix="$prefix" -v old="$old_key" -v new="$new_key" -v val="$new_val" '
         BEGIN { old_re="^" prefix "\\." old ":" }
         $0 ~ old_re { print prefix "." new ": " val; next }
         { print }
-      ' "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
+      ' "$cfg" >"$cfg.tmp" && mv "$cfg.tmp" "$cfg"
       ;;
     absent)
       return 0
@@ -327,7 +357,7 @@ _rewrite_pair() {
   local prefix="$1" old="$2" new="$3" xform="$4"
   local cfg
   for cfg in "$PROJECT_ROOT/.accelerator/config.md" \
-             "$PROJECT_ROOT/.accelerator/config.local.md"; do
+    "$PROJECT_ROOT/.accelerator/config.local.md"; do
     [ -f "$cfg" ] || continue
     local probe
     probe=$(probe_key_in_file "$cfg" "$prefix" "$old")
@@ -387,7 +417,7 @@ _inject_research_issues() {
             if (i==last_sib) print sib_indent "research_issues: " val
           }
         }
-      ' "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
+      ' "$cfg" >"$cfg.tmp" && mv "$cfg.tmp" "$cfg"
       ;;
     flat)
       grep -qE '^paths\.research_issues:' "$cfg" && return 0
@@ -400,14 +430,14 @@ _inject_research_issues() {
             if (i==last) print "paths.research_issues: " val
           }
         }
-      ' "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
+      ' "$cfg" >"$cfg.tmp" && mv "$cfg.tmp" "$cfg"
       ;;
   esac
 }
 
 if [ "$RESEARCH_HAD_OVERRIDE" = "1" ]; then
   for cfg in "$PROJECT_ROOT/.accelerator/config.md" \
-             "$PROJECT_ROOT/.accelerator/config.local.md"; do
+    "$PROJECT_ROOT/.accelerator/config.local.md"; do
     [ -f "$cfg" ] || continue
     _backup_config_once "$cfg"
     _inject_research_issues "$cfg"
@@ -426,24 +456,24 @@ fi
 # one absolute path per line. Sole consumer is Step 3's inbound-link scan below
 # (both the corpus-size banner and the per-file walk).
 build_scan_corpus() {
-  bash "$PLUGIN_ROOT/scripts/config-read-all-paths.sh" 2>/dev/null \
-    | awk '
+  bash "$PLUGIN_ROOT/scripts/config-read-all-paths.sh" 2>/dev/null |
+    awk '
         /^- [^[:space:]]+: / {
           sub(/^- [^[:space:]]+: /, "")
           print
         }
-      ' \
-    | while IFS= read -r v; do
-        if [ -d "$PROJECT_ROOT/$v" ]; then
-          printf '%s\n' "$PROJECT_ROOT/$v"
-        fi
-      done
+      ' |
+    while IFS= read -r v; do
+      if [ -d "$PROJECT_ROOT/$v" ]; then
+        printf '%s\n' "$PROJECT_ROOT/$v"
+      fi
+    done
   return 0
 }
 
 PAIRS=()
 PAIRS+=("$OLD_RESEARCH"$'\t'"$NEW_RESEARCH_CODEBASE")
-[ "$INV_HAD_OVERRIDE" = "1" ]  || PAIRS+=("$OLD_INV"$'\t'"$NEW_INV")
+[ "$INV_HAD_OVERRIDE" = "1" ] || PAIRS+=("$OLD_INV"$'\t'"$NEW_INV")
 [ "$GAPS_HAD_OVERRIDE" = "1" ] || PAIRS+=("$OLD_GAPS"$'\t'"$NEW_GAPS")
 
 _corpus_count=$(build_scan_corpus | wc -l | tr -d ' ')
@@ -454,7 +484,8 @@ rewrite_file_with_pairs() {
   local entry old new
   local research_subcat_exclusion="codebase|issues|design-inventories|design-gaps"
   for entry in "${PAIRS[@]+"${PAIRS[@]}"}"; do
-    old="${entry%$'\t'*}"; new="${entry#*$'\t'}"
+    old="${entry%$'\t'*}"
+    new="${entry#*$'\t'}"
     awk -v old="$old" -v new="$new" -v exclusion="$research_subcat_exclusion" '
       function build_excl(s,    parts, i, n) {
         delete excl
@@ -500,7 +531,7 @@ rewrite_file_with_pairs() {
       }
       BEGIN { build_excl(exclusion) }
       { print rewrite_line($0) }
-    ' "$file" > "$file.0004.tmp" && mv "$file.0004.tmp" "$file"
+    ' "$file" >"$file.0004.tmp" && mv "$file.0004.tmp" "$file"
   done
 }
 

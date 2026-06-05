@@ -67,11 +67,23 @@ unescape_field() {
     if [ "$ch" = '\' ] && [ $((i + 1)) -lt ${#v} ]; then
       next="${v:$((i + 1)):1}"
       case "$next" in
-        '\\') out+='\\'; i=$((i + 1)) ;;
-        '\') out+='\'; i=$((i + 1)) ;;
-        t)  out+=$'\t'; i=$((i + 1)) ;;
-        n)  out+=$'\n'; i=$((i + 1)) ;;
-        *)  out+="$ch" ;;
+        '\\')
+          out+='\\'
+          i=$((i + 1))
+          ;;
+        '\')
+          out+='\'
+          i=$((i + 1))
+          ;;
+        t)
+          out+=$'\t'
+          i=$((i + 1))
+          ;;
+        n)
+          out+=$'\n'
+          i=$((i + 1))
+          ;;
+        *) out+="$ch" ;;
       esac
     else
       out+="$ch"
@@ -90,7 +102,8 @@ unescape_field() {
 #   MIGRATION_PROTOCOL_LOG_MIGRATION env var is set on the respective
 #   side, the frame is also appended (test-only instrumentation).
 emit_frame() {
-  local type="$1"; shift
+  local type="$1"
+  shift
   local line="$type"
   local f
   for f in "$@"; do
@@ -102,7 +115,7 @@ emit_frame() {
   # MIGRATION_PROTOCOL_LOG_MIGRATION (set on the migration's environment
   # by the runner when it forks the child process).
   if [ -n "${INTERACTIVE_PROTOCOL_SIDE_LOG:-}" ]; then
-    printf '%s\n' "$line" >> "$INTERACTIVE_PROTOCOL_SIDE_LOG"
+    printf '%s\n' "$line" >>"$INTERACTIVE_PROTOCOL_SIDE_LOG"
   fi
 }
 
@@ -122,7 +135,7 @@ read_frame() {
     return 1
   fi
   if [ -n "${INTERACTIVE_PROTOCOL_SIDE_LOG:-}" ]; then
-    printf '%s\n' "$line" >> "$INTERACTIVE_PROTOCOL_SIDE_LOG"
+    printf '%s\n' "$line" >>"$INTERACTIVE_PROTOCOL_SIDE_LOG"
   fi
   # Split on TAB without touching anything else.
   local IFS_save="$IFS"

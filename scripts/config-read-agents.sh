@@ -97,7 +97,7 @@ while IFS= read -r config_file; do
         echo "Warning: unknown agent key '$found_key' in $config_file — ignoring" >&2
         ;;
     esac
-  done <<< "$parsed"
+  done <<<"$parsed"
 done < <(config_find_files)
 
 # Build resolved name for each agent (override or default).

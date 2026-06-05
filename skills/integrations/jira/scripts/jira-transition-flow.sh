@@ -83,7 +83,7 @@ _jira_transition_lookup() {
   response=$(bash "$_JIRA_TRANSITION_SCRIPT_DIR/jira-request.sh" \
     GET "/rest/api/3/issue/$key/transitions") || req_exit=$?
 
-  if (( req_exit != 0 )); then
+  if ((req_exit != 0)); then
     if ! _jira_emit_generic_hint "$req_exit"; then
       case "$req_exit" in
         13) printf 'Hint: issue not found or you do not have permission to see it.\n' >&2 ;;
@@ -100,13 +100,13 @@ _jira_transition_lookup() {
   local count
   count=$(printf '%s' "$matches" | jq 'length')
 
-  if (( count == 0 )); then
+  if ((count == 0)); then
     printf 'E_TRANSITION_NOT_FOUND: no transition leads to state "%s" from the current state\n' \
       "$state_name" >&2
     return 122
   fi
 
-  if (( count > 1 )); then
+  if ((count > 1)); then
     printf '%s\n' "$matches"
     return 123
   fi
@@ -130,36 +130,59 @@ _jira_transition() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --help|-h)
-        _jira_transition_usage; exit 0 ;;
+      --help | -h)
+        _jira_transition_usage
+        exit 0
+        ;;
       --describe)
-        describe=1; shift ;;
+        describe=1
+        shift
+        ;;
       --transition-id)
-        transition_id="$2"; shift 2 ;;
+        transition_id="$2"
+        shift 2
+        ;;
       --resolution)
-        resolution="$2"; resolution_set=1; shift 2 ;;
+        resolution="$2"
+        resolution_set=1
+        shift 2
+        ;;
       --comment)
-        comment_text="$2"; comment_text_set=1; shift 2 ;;
+        comment_text="$2"
+        comment_text_set=1
+        shift 2
+        ;;
       --comment-file)
-        comment_file="$2"; comment_file_set=1; shift 2 ;;
+        comment_file="$2"
+        comment_file_set=1
+        shift 2
+        ;;
       --no-notify)
-        no_notify=1; shift ;;
-      --quiet|-q)
-        quiet=1; shift ;;
+        no_notify=1
+        shift
+        ;;
+      --quiet | -q)
+        quiet=1
+        shift
+        ;;
       -*)
         printf 'E_TRANSITION_BAD_FLAG: unrecognised flag: %s\n' "$1" >&2
         _jira_transition_usage >&2
-        return 124 ;;
+        return 124
+        ;;
       *)
         if [[ -z "$key" ]]; then
-          key="$1"; shift
+          key="$1"
+          shift
         elif [[ -z "$state_name" ]]; then
-          state_name="$1"; shift
+          state_name="$1"
+          shift
         else
           printf 'E_TRANSITION_BAD_FLAG: unexpected positional argument: %s\n' "$1" >&2
           _jira_transition_usage >&2
           return 124
-        fi ;;
+        fi
+        ;;
     esac
   done
 
@@ -191,7 +214,7 @@ _jira_transition() {
   fi
 
   # Validate --comment-file path
-  if (( comment_file_set )); then
+  if ((comment_file_set)); then
     if [[ "$comment_file" == -* ]]; then
       printf 'E_TRANSITION_NO_BODY: --comment-file path must not begin with "-": %s\n' \
         "$comment_file" >&2
@@ -201,10 +224,11 @@ _jira_transition() {
       local resolved
       resolved=$(readlink -f "$comment_file" 2>/dev/null || true)
       case "$resolved" in
-        /dev/*|/proc/*|/sys/*)
+        /dev/* | /proc/* | /sys/*)
           printf 'E_TRANSITION_NO_BODY: --comment-file resolves to a device path: %s\n' \
             "$comment_file" >&2
-          return 125 ;;
+          return 125
+          ;;
       esac
     fi
     if ! [[ -f "$comment_file" && -r "$comment_file" ]]; then
@@ -215,7 +239,7 @@ _jira_transition() {
   fi
 
   # Validate --resolution value
-  if (( resolution_set )); then
+  if ((resolution_set)); then
     local trimmed="${resolution//[[:space:]]/}"
     if [[ -z "$trimmed" ]]; then
       printf 'E_TRANSITION_BAD_RESOLUTION: --resolution value must not be empty or whitespace-only\n' >&2
@@ -225,24 +249,24 @@ _jira_transition() {
 
   # --- --describe branch ---
 
-  if (( describe )); then
+  if ((describe)); then
     local resolution_json="null"
-    if (( resolution_set )); then
+    if ((resolution_set)); then
       resolution_json=$(jq -n --arg v "$resolution" '$v')
     fi
     local comment_bool="false"
-    if (( comment_text_set || comment_file_set )); then
+    if ((comment_text_set || comment_file_set)); then
       comment_bool="true"
     fi
 
     if [[ -n "$transition_id" ]]; then
       # Known ID: no network call needed
       jq -n \
-        --arg     key   "$key" \
+        --arg key "$key" \
         --argjson state "null" \
-        --arg     tid   "$transition_id" \
-        --argjson res   "$resolution_json" \
-        --argjson com   "$comment_bool" \
+        --arg tid "$transition_id" \
+        --argjson res "$resolution_json" \
+        --argjson com "$comment_bool" \
         '{"key":$key,"state":$state,"transition_id":$tid,"resolution":$res,"comment":$com}'
       return 0
     fi
@@ -250,11 +274,11 @@ _jira_transition() {
     # STATE_NAME path: resolve eagerly via GET
     local lookup_rc=0 matches=""
     matches=$(_jira_transition_lookup "$key" "$state_name") || lookup_rc=$?
-    if (( lookup_rc == 123 )); then
+    if ((lookup_rc == 123)); then
       printf '%s\n' "$matches"
       return 123
     fi
-    if (( lookup_rc != 0 )); then
+    if ((lookup_rc != 0)); then
       return "$lookup_rc"
     fi
 
@@ -262,11 +286,11 @@ _jira_transition() {
     resolved_id=$(printf '%s' "$matches" | jq -r '.[0].id')
 
     jq -n \
-      --arg     key   "$key" \
-      --arg     state "$state_name" \
-      --arg     tid   "$resolved_id" \
-      --argjson res   "$resolution_json" \
-      --argjson com   "$comment_bool" \
+      --arg key "$key" \
+      --arg state "$state_name" \
+      --arg tid "$resolved_id" \
+      --argjson res "$resolution_json" \
+      --argjson com "$comment_bool" \
       '{"key":$key,"state":$state,"transition_id":$tid,"resolution":$res,"comment":$com}'
     return 0
   fi
@@ -277,8 +301,8 @@ _jira_transition() {
   if [[ -z "$transition_id" ]]; then
     local lookup_rc=0 matches=""
     matches=$(_jira_transition_lookup "$key" "$state_name") || lookup_rc=$?
-    if (( lookup_rc != 0 )); then
-      if (( lookup_rc == 123 )); then
+    if ((lookup_rc != 0)); then
+      if ((lookup_rc == 123)); then
         printf '%s\n' "$matches"
       fi
       return "$lookup_rc"
@@ -288,22 +312,22 @@ _jira_transition() {
 
   # Resolve comment body → ADF (if supplied)
   local adf_comment=""
-  if (( comment_text_set || comment_file_set )); then
+  if ((comment_text_set || comment_file_set)); then
     local body_src_args=()
-    if (( comment_text_set )); then body_src_args+=(--body "$comment_text"); fi
-    if (( comment_file_set )); then body_src_args+=(--body-file "$comment_file"); fi
+    if ((comment_text_set)); then body_src_args+=(--body "$comment_text"); fi
+    if ((comment_file_set)); then body_src_args+=(--body-file "$comment_file"); fi
 
     local body_md="" body_rc=0
     body_md=$(jira_resolve_body "${body_src_args[@]}") || body_rc=$?
-    if (( body_rc != 0 )); then
+    if ((body_rc != 0)); then
       printf 'E_TRANSITION_NO_BODY: comment body resolution failed\n' >&2
       return 125
     fi
 
     local adf_rc=0
-    adf_comment=$(printf '%s' "$body_md" \
-      | bash "$_JIRA_TRANSITION_SCRIPT_DIR/jira-md-to-adf.sh") || adf_rc=$?
-    if (( adf_rc != 0 )); then
+    adf_comment=$(printf '%s' "$body_md" |
+      bash "$_JIRA_TRANSITION_SCRIPT_DIR/jira-md-to-adf.sh") || adf_rc=$?
+    if ((adf_rc != 0)); then
       printf 'E_TRANSITION_NO_BODY: failed to convert comment to ADF\n' >&2
       return 125
     fi
@@ -315,7 +339,7 @@ _jira_transition() {
   transition_obj=$(jq -n --arg id "$transition_id" '{"id": $id}')
 
   fields_obj="{}"
-  if (( resolution_set )); then
+  if ((resolution_set)); then
     fields_obj=$(jq -n --arg r "$resolution" '{"resolution": {"name": $r}}')
   fi
 
@@ -327,25 +351,26 @@ _jira_transition() {
 
   payload=$(jq -n \
     --argjson transition "$transition_obj" \
-    --argjson fields     "$fields_obj" \
-    --argjson update     "$update_obj" \
+    --argjson fields "$fields_obj" \
+    --argjson update "$update_obj" \
     '{transition: $transition} +
       (if $fields == {} then {} else {fields: $fields} end) +
       (if $update == {} then {} else {update: $update} end)')
 
   # Build query params
   local -a query_params=()
-  if (( no_notify )); then
+  if ((no_notify)); then
     query_params+=(--query "notifyUsers=false")
   fi
 
-  if ! (( quiet )); then
+  if ! ((quiet)); then
     printf 'INFO: transitioning issue %s\n' "$key" >&2
   fi
 
-  local tmpfile; tmpfile=$(mktemp)
+  local tmpfile
+  tmpfile=$(mktemp)
   trap 'rm -f "$tmpfile"; trap - RETURN' RETURN
-  printf '%s' "$payload" > "$tmpfile"
+  printf '%s' "$payload" >"$tmpfile"
 
   local req_exit=0
   bash "$_JIRA_TRANSITION_SCRIPT_DIR/jira-request.sh" \
@@ -353,7 +378,7 @@ _jira_transition() {
     --json "@$tmpfile" \
     "${query_params[@]+"${query_params[@]}"}" || req_exit=$?
 
-  if (( req_exit != 0 )); then
+  if ((req_exit != 0)); then
     if ! _jira_emit_generic_hint "$req_exit"; then
       case "$req_exit" in
         12) printf 'Hint: you do not have the TRANSITION_ISSUES permission on this project.\n' >&2 ;;

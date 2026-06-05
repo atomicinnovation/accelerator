@@ -40,7 +40,7 @@ while IFS= read -r line; do
       FOUND_STATUS=true
     fi
   fi
-done < "$ADR_FILE"
+done <"$ADR_FILE"
 
 if [ "$FRONTMATTER_CLOSED" = true ] && [ "$FOUND_STATUS" = true ]; then
   echo "$STATUS_VALUE"

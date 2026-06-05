@@ -13,9 +13,12 @@ REASON=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --reason) REASON="${2:-}"; shift 2 ;;
-    --from)   shift 2 ;;  # accepted for forward-compat; not used in message selection
-    --to)     shift 2 ;;  # accepted for forward-compat; not used in message selection
+    --reason)
+      REASON="${2:-}"
+      shift 2
+      ;;
+    --from) shift 2 ;; # accepted for forward-compat; not used in message selection
+    --to) shift 2 ;;   # accepted for forward-compat; not used in message selection
     *) usage ;;
   esac
 done

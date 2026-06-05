@@ -30,7 +30,7 @@ source "$_JIRA_RENDER_SCRIPT_DIR/jira-common.sh"
 # already-rendered strings short-circuits without re-spawning the renderer.
 _render_at_jq_path() {
   local json="$1"
-  local path_arr="$2"  # JSON array: e.g. ["fields","description"]
+  local path_arr="$2" # JSON array: e.g. ["fields","description"]
 
   local is_adf
   is_adf=$(printf '%s' "$json" | jq -r --argjson p "$path_arr" \
@@ -44,8 +44,8 @@ _render_at_jq_path() {
 
   # Resolve the ADF renderer path (test seam: ACCELERATOR_JIRA_ADF_RENDERER_TEST)
   local _renderer
-  if [[ "${ACCELERATOR_TEST_MODE:-}" == "1" \
-     && -n "${ACCELERATOR_JIRA_ADF_RENDERER_TEST:-}" ]]; then
+  if [[ "${ACCELERATOR_TEST_MODE:-}" == "1" &&
+    -n "${ACCELERATOR_JIRA_ADF_RENDERER_TEST:-}" ]]; then
     _renderer="$ACCELERATOR_JIRA_ADF_RENDERER_TEST"
   else
     _renderer="$_JIRA_RENDER_SCRIPT_DIR/jira-adf-to-md.sh"
@@ -82,7 +82,7 @@ _render_issue() {
   count=$(printf '%s' "$json" | jq -r '(.fields.comment.comments // []) | length' \
     2>/dev/null) || count=0
   local i
-  for (( i = 0; i < count; i++ )); do
+  for ((i = 0; i < count; i++)); do
     json=$(_render_at_jq_path "$json" "[\"fields\",\"comment\",\"comments\",$i,\"body\"]")
   done
 
@@ -109,8 +109,8 @@ main() {
   # Resolve the custom-fields cache path
   # Test seam (strict equality — "true" / "false" / "" do NOT activate):
   local fields_cache
-  if [[ "${ACCELERATOR_TEST_MODE:-}" == "1" \
-     && -n "${ACCELERATOR_JIRA_FIELDS_CACHE_PATH_TEST:-}" ]]; then
+  if [[ "${ACCELERATOR_TEST_MODE:-}" == "1" &&
+    -n "${ACCELERATOR_JIRA_FIELDS_CACHE_PATH_TEST:-}" ]]; then
     fields_cache="$ACCELERATOR_JIRA_FIELDS_CACHE_PATH_TEST"
   else
     local state_dir
@@ -154,7 +154,7 @@ main() {
     local issue_count
     issue_count=$(printf '%s' "$result" | jq -r '.issues | length' 2>/dev/null) || issue_count=0
     local i issue_json rendered_issue
-    for (( i = 0; i < issue_count; i++ )); do
+    for ((i = 0; i < issue_count; i++)); do
       issue_json=$(printf '%s' "$result" | jq ".issues[$i]")
       rendered_issue=$(_render_issue "$issue_json" "${custom_ids[@]+"${custom_ids[@]}"}")
       result=$(printf '%s' "$result" | jq --argjson i "$i" --argjson v "$rendered_issue" \
@@ -165,7 +165,7 @@ main() {
     local comment_count
     comment_count=$(printf '%s' "$result" | jq -r '.comments | length' 2>/dev/null) || comment_count=0
     local i comment_json rendered_comment
-    for (( i = 0; i < comment_count; i++ )); do
+    for ((i = 0; i < comment_count; i++)); do
       comment_json=$(printf '%s' "$result" | jq ".comments[$i]")
       rendered_comment=$(_render_comment "$comment_json")
       result=$(printf '%s' "$result" | jq --argjson i "$i" --argjson v "$rendered_comment" \

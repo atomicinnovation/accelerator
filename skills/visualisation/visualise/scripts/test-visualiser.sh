@@ -21,7 +21,7 @@ chmod +x "$TEMP_SKILL/scripts/visualiser.sh"
 TEMP_DISPATCH="$TEMP_SKILL/scripts/visualiser.sh"
 
 for stub in launch-server stop-server status-server; do
-  cat > "$TEMP_SKILL/scripts/$stub.sh" << EOF
+  cat >"$TEMP_SKILL/scripts/$stub.sh" <<EOF
 #!/usr/bin/env bash
 echo "$stub-stub: \$#:\$*"
 EOF

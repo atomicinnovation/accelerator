@@ -22,7 +22,7 @@ CONTENT=$(cat "$TARGET")
 assert_eq "content written" "$(printf 'hello\nworld')" "$CONTENT"
 
 echo "Test: overwrites existing file"
-printf 'old\n' > "$TARGET"
+printf 'old\n' >"$TARGET"
 printf 'new\n' | atomic_write "$TARGET"
 assert_eq "content replaced" "new" "$(cat "$TARGET")"
 
@@ -31,7 +31,7 @@ TARGET_DIR="$TMPDIR_BASE/sub"
 mkdir -p "$TARGET_DIR"
 TARGET="$TARGET_DIR/file.txt"
 # Use a coproc-style approach: start writing in background and verify temp is local
-( printf 'data\n' | atomic_write "$TARGET" )
+(printf 'data\n' | atomic_write "$TARGET")
 # After completion, temp file should be cleaned up; the directory should
 # contain only the target file.
 LISTING=$(ls -A "$TARGET_DIR")
@@ -59,7 +59,7 @@ echo "Test: idempotent — duplicate append produces no change"
 atomic_append_unique "$TARGET" "alpha"
 COUNT=$(grep -c '^alpha$' "$TARGET")
 assert_eq "alpha appears exactly once" "1" "$COUNT"
-COUNT=$(wc -l < "$TARGET" | tr -d ' ')
+COUNT=$(wc -l <"$TARGET" | tr -d ' ')
 assert_eq "two lines total" "2" "$COUNT"
 
 echo "Test: target file does not exist yet"
@@ -74,7 +74,7 @@ echo ""
 
 echo "Test: removes the named line"
 TARGET="$TMPDIR_BASE/remove.txt"
-printf 'alpha\nbeta\ngamma\n' > "$TARGET"
+printf 'alpha\nbeta\ngamma\n' >"$TARGET"
 atomic_remove_line "$TARGET" "beta"
 assert_eq "beta removed" "$(printf 'alpha\ngamma')" "$(cat "$TARGET")"
 
@@ -83,7 +83,7 @@ atomic_remove_line "$TARGET" "missing"
 assert_eq "file unchanged" "$(printf 'alpha\ngamma')" "$(cat "$TARGET")"
 
 echo "Test: substring matches are preserved (only exact-match removed)"
-printf 'alpha\nalphabet\nalpha-beta\n' > "$TARGET"
+printf 'alpha\nalphabet\nalpha-beta\n' >"$TARGET"
 atomic_remove_line "$TARGET" "alpha"
 assert_eq "only exact match removed" "$(printf 'alphabet\nalpha-beta')" "$(cat "$TARGET")"
 
@@ -233,12 +233,14 @@ PREFIX_EXPECT=$(printf '{"transformation_key":"%s",' "$ESC")
 case "$OUT" in
   "$PREFIX_EXPECT"*)
     echo "  PASS: anchored prefix matches"
-    PASS=$((PASS + 1)) ;;
+    PASS=$((PASS + 1))
+    ;;
   *)
     echo "  FAIL: anchored prefix mismatch"
     echo "    Output: $OUT"
     echo "    Expect prefix: $PREFIX_EXPECT"
-    FAIL=$((FAIL + 1)) ;;
+    FAIL=$((FAIL + 1))
+    ;;
 esac
 
 echo ""
@@ -250,13 +252,13 @@ echo "Test: single call writes one line, newline-terminated"
 TARGET="$TMPDIR_BASE/log.jsonl"
 rm -f "$TARGET"
 atomic_jsonl_append "$TARGET" '{"transformation_key":"a","schema_version":1,"v":1}'
-COUNT=$(wc -l < "$TARGET" | tr -d ' ')
+COUNT=$(wc -l <"$TARGET" | tr -d ' ')
 assert_eq "single line" "1" "$COUNT"
 
 echo "Test: repeated calls append (do not overwrite)"
 atomic_jsonl_append "$TARGET" '{"transformation_key":"b","schema_version":1,"v":2}'
 atomic_jsonl_append "$TARGET" '{"transformation_key":"c","schema_version":1,"v":3}'
-COUNT=$(wc -l < "$TARGET" | tr -d ' ')
+COUNT=$(wc -l <"$TARGET" | tr -d ' ')
 assert_eq "three lines now" "3" "$COUNT"
 
 echo "Test: rejects embedded newline"
@@ -298,10 +300,11 @@ for size in 100 1024 4096 16384 65536; do
     ) &
   done
   wait
-  TOTAL=$(wc -l < "$TARGET3" | tr -d ' ')
+  TOTAL=$(wc -l <"$TARGET3" | tr -d ' ')
   assert_eq "10 lines total at $size B" "10" "$TOTAL"
   if command -v python3 >/dev/null 2>&1; then
-    BAD=$(python3 - "$TARGET3" <<'PY'
+    BAD=$(
+      python3 - "$TARGET3" <<'PY'
 import json, sys
 bad = 0
 with open(sys.argv[1]) as f:
@@ -363,14 +366,14 @@ setup_log() {
     '{"transformation_key":"alpha","schema_version":1,"v":1}' \
     '{"transformation_key":"beta","schema_version":1,"v":2}' \
     '{"transformation_key":"gamma","schema_version":1,"v":3}' \
-    > "$target"
+    >"$target"
 }
 
 echo "Test: removes matching key, preserves others in order"
 TARGET="$TMPDIR_BASE/r-basic.jsonl"
 setup_log "$TARGET"
 atomic_jsonl_remove_by_key "$TARGET" "beta"
-COUNT=$(wc -l < "$TARGET" | tr -d ' ')
+COUNT=$(wc -l <"$TARGET" | tr -d ' ')
 assert_eq "two lines remain" "2" "$COUNT"
 assert_eq "alpha first" "1" "$(grep -c '"alpha"' "$TARGET")"
 assert_eq "gamma second" "1" "$(grep -c '"gamma"' "$TARGET")"
@@ -383,7 +386,7 @@ assert_eq "unchanged" "$ORIG" "$(cat "$TARGET")"
 
 echo "Test: empty file is no-op"
 EMPTY_TARGET="$TMPDIR_BASE/empty.jsonl"
-: > "$EMPTY_TARGET"
+: >"$EMPTY_TARGET"
 atomic_jsonl_remove_by_key "$EMPTY_TARGET" "anything"
 assert_file_exists "empty file still present" "$EMPTY_TARGET"
 
@@ -400,9 +403,9 @@ printf '%s\n' \
   '{"transformation_key":"a","schema_version":1}' \
   '{"transformation_key":"b","schema_version":1}' \
   '{"transformation_key":"a","schema_version":1}' \
-  > "$TARGET"
+  >"$TARGET"
 atomic_jsonl_remove_by_key "$TARGET" "a"
-COUNT=$(wc -l < "$TARGET" | tr -d ' ')
+COUNT=$(wc -l <"$TARGET" | tr -d ' ')
 assert_eq "only b remains" "1" "$COUNT"
 
 echo "Test: prefix-collision safety (foo vs foobar)"
@@ -411,9 +414,9 @@ rm -f "$TARGET"
 printf '%s\n' \
   '{"transformation_key":"foo","schema_version":1}' \
   '{"transformation_key":"foobar","schema_version":1}' \
-  > "$TARGET"
+  >"$TARGET"
 atomic_jsonl_remove_by_key "$TARGET" "foo"
-COUNT=$(wc -l < "$TARGET" | tr -d ' ')
+COUNT=$(wc -l <"$TARGET" | tr -d ' ')
 assert_eq "one line remains" "1" "$COUNT"
 assert_eq "foobar survives" "1" "$(grep -c '"foobar"' "$TARGET")"
 
@@ -425,9 +428,9 @@ rm -f "$TARGET"
 printf '%s\n' \
   '{"transformation_key":"real-foo","schema_version":1,"proposed_value":"x \"transformation_key\":\"foo\" y"}' \
   '{"transformation_key":"foo","schema_version":1,"v":1}' \
-  > "$TARGET"
+  >"$TARGET"
 atomic_jsonl_remove_by_key "$TARGET" "foo"
-COUNT=$(wc -l < "$TARGET" | tr -d ' ')
+COUNT=$(wc -l <"$TARGET" | tr -d ' ')
 assert_eq "substring-bearing record survives" "1" "$COUNT"
 assert_eq "real-foo survives" "1" "$(grep -c '"real-foo"' "$TARGET")"
 
@@ -442,7 +445,7 @@ atomic_jsonl_append "$TARGET" "$LINE"
 atomic_jsonl_append "$TARGET" \
   '{"transformation_key":"other","schema_version":1}'
 atomic_jsonl_remove_by_key "$TARGET" "$KEY_RAW"
-COUNT=$(wc -l < "$TARGET" | tr -d ' ')
+COUNT=$(wc -l <"$TARGET" | tr -d ' ')
 assert_eq "only 'other' remains" "1" "$COUNT"
 assert_eq "other survives" "1" "$(grep -c '"other"' "$TARGET")"
 

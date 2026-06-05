@@ -58,30 +58,43 @@ _jira_attach() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --help|-h)
-        _jira_attach_usage; exit 0 ;;
+      --help | -h)
+        _jira_attach_usage
+        exit 0
+        ;;
       --describe)
-        describe=1; shift ;;
-      --quiet|-q)
-        quiet=1; shift ;;
+        describe=1
+        shift
+        ;;
+      --quiet | -q)
+        quiet=1
+        shift
+        ;;
       --)
         shift
         while [[ $# -gt 0 ]]; do
-          if [[ -z "$key" ]]; then key="$1"
-          else files+=("$1")
+          if [[ -z "$key" ]]; then
+            key="$1"
+          else
+            files+=("$1")
           fi
           shift
-        done ;;
+        done
+        ;;
       -*)
         printf 'E_ATTACH_BAD_FLAG: unrecognised flag: %s\n' "$1" >&2
         _jira_attach_usage >&2
-        return 133 ;;
+        return 133
+        ;;
       *)
         if [[ -z "$key" ]]; then
-          key="$1"; shift
+          key="$1"
+          shift
         else
-          files+=("$1"); shift
-        fi ;;
+          files+=("$1")
+          shift
+        fi
+        ;;
     esac
   done
 
@@ -110,10 +123,11 @@ _jira_attach() {
       local resolved
       resolved=$(readlink -f "$path" 2>/dev/null || true)
       case "$resolved" in
-        /dev/*|/proc/*|/sys/*)
+        /dev/* | /proc/* | /sys/*)
           printf 'E_ATTACH_FILE_MISSING: file path resolves to a device path: %s\n' \
             "$path" >&2
-          return 132 ;;
+          return 132
+          ;;
       esac
     fi
     if ! [[ -f "$path" && -r "$path" ]]; then
@@ -122,8 +136,8 @@ _jira_attach() {
       return 132
     fi
     local size
-    size=$(wc -c < "$path" 2>/dev/null || echo 0)
-    if (( size > ten_mb )); then
+    size=$(wc -c <"$path" 2>/dev/null || echo 0)
+    if ((size > ten_mb)); then
       printf 'Warning: %s is %.1f MB — Jira Cloud'\''s default limit is 10 MB; upload may fail\n' \
         "$path" "$(echo "scale=1; $size / 1048576" | bc)" >&2
     fi
@@ -131,11 +145,11 @@ _jira_attach() {
 
   # --- --describe branch ---
 
-  if (( describe )); then
+  if ((describe)); then
     local files_json
     files_json=$(printf '%s\n' "${files[@]}" | jq -R . | jq -s .)
     jq -n \
-      --arg     key   "$key" \
+      --arg key "$key" \
       --argjson files "$files_json" \
       '{"key":$key,"files":$files}'
     return 0
@@ -143,7 +157,7 @@ _jira_attach() {
 
   # --- Live path ---
 
-  if ! (( quiet )); then
+  if ! ((quiet)); then
     printf 'INFO: uploading %d file(s) to %s\n' "${#files[@]}" "$key" >&2
   fi
 
@@ -157,7 +171,7 @@ _jira_attach() {
     POST "/rest/api/3/issue/$key/attachments" \
     "${multipart_args[@]}") || req_exit=$?
 
-  if (( req_exit != 0 )); then
+  if ((req_exit != 0)); then
     if ! _jira_emit_generic_hint "$req_exit"; then
       case "$req_exit" in
         12) printf 'Hint: you do not have the CreateAttachments permission on this project.\n' >&2 ;;

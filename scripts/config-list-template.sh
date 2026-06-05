@@ -22,7 +22,7 @@ for KEY in $(config_enumerate_templates "$PLUGIN_ROOT"); do
   RESOLUTION=$(config_resolve_template "$KEY" "$PLUGIN_ROOT" 2>/dev/null) || true
 
   if [ -n "$RESOLUTION" ]; then
-    IFS=$'\t' read -r RESOLVED_SOURCE RESOLVED_PATH <<< "$RESOLUTION"
+    IFS=$'\t' read -r RESOLVED_SOURCE RESOLVED_PATH <<<"$RESOLUTION"
     DISPLAY_PATH=$(config_display_path "$RESOLVED_PATH" "$PLUGIN_ROOT")
   else
     RESOLVED_SOURCE="not found"

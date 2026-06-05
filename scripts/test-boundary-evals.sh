@@ -20,7 +20,8 @@ for lens in "${LENSES[@]}"; do
   fi
 
   # Count expectations and failed expectations using Python.
-  result=$(python3 - "$benchmark_file" <<'PYEOF'
+  result=$(
+    python3 - "$benchmark_file" <<'PYEOF'
 import json, sys
 
 with open(sys.argv[1]) as f:
@@ -37,7 +38,7 @@ for run in data.get("runs", []):
 
 print(f"SUMMARY:{total}:{failed}")
 PYEOF
-)
+  )
 
   summary_line=$(echo "$result" | grep '^SUMMARY:')
   total=$(echo "$summary_line" | cut -d: -f2)

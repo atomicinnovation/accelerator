@@ -55,27 +55,35 @@ _jira_show() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --help|-h)
+      --help | -h)
         _jira_show_usage
         exit 0
         ;;
       --render-adf)
-        render_adf=1; shift ;;
+        render_adf=1
+        shift
+        ;;
       --no-render-adf)
-        render_adf=0; shift ;;
+        render_adf=0
+        shift
+        ;;
       --fields)
         local -a _fs=()
-        IFS=',' read -ra _fs <<< "$2"
+        IFS=',' read -ra _fs <<<"$2"
         local _t
         for _t in "${_fs[@]}"; do
           [[ -n "$_t" ]] && field_tokens+=("$_t")
         done
-        shift 2 ;;
+        shift 2
+        ;;
       --expand)
-        expand="$2"; shift 2 ;;
+        expand="$2"
+        shift 2
+        ;;
       --comments)
-        comments="$2"; shift 2
-        if ! [[ "$comments" =~ ^[0-9]+$ ]] || (( comments > 100 )); then
+        comments="$2"
+        shift 2
+        if ! [[ "$comments" =~ ^[0-9]+$ ]] || ((comments > 100)); then
           echo "E_SHOW_BAD_COMMENTS_LIMIT: --comments must be an integer between 0 and 100; got '$comments'." >&2
           return 81
         fi
@@ -87,7 +95,8 @@ _jira_show() {
         ;;
       *)
         if [[ -z "$key" ]]; then
-          key="$1"; shift
+          key="$1"
+          shift
         else
           echo "E_SHOW_BAD_FLAG: unexpected positional argument: $1" >&2
           _jira_show_usage >&2
@@ -104,14 +113,17 @@ _jira_show() {
 
   # Compose the fields query value. Default to *all when no tokens supplied.
   local fields="*all"
-  if (( ${#field_tokens[@]} > 0 )); then
-    fields=$(IFS=','; printf '%s' "${field_tokens[*]}")
+  if ((${#field_tokens[@]} > 0)); then
+    fields=$(
+      IFS=','
+      printf '%s' "${field_tokens[*]}"
+    )
   fi
 
   # Append comments to expand when requested; this adds fields.comment to the
   # response without a second round-trip.
   local effective_expand="$expand"
-  if (( comments > 0 )); then
+  if ((comments > 0)); then
     effective_expand="${effective_expand},comments"
   fi
 
@@ -131,9 +143,9 @@ _jira_show() {
 
   # Client-side comment slice: sort embedded comments by .created and keep
   # the last N. Bounded by Atlassian's embedded page (typically ~20).
-  if (( comments > 0 )); then
-    issue_json=$(printf '%s' "$issue_json" \
-      | jq --argjson n "$comments" '
+  if ((comments > 0)); then
+    issue_json=$(printf '%s' "$issue_json" |
+      jq --argjson n "$comments" '
           if (.fields.comment.comments // null) == null then .
           else .fields.comment.comments |=
             (sort_by(.created // "") | .[-($n):])
@@ -141,8 +153,8 @@ _jira_show() {
   fi
 
   # Optional ADF render (default ON for show).
-  if (( render_adf )); then
-    issue_json=$(printf '%s' "$issue_json" | \
+  if ((render_adf)); then
+    issue_json=$(printf '%s' "$issue_json" |
       bash "$_JIRA_SHOW_SCRIPT_DIR/jira-render-adf-fields.sh") || return $?
   fi
 
