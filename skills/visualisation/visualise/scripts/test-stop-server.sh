@@ -17,7 +17,11 @@ trap '
   rm -rf "$TMPDIR_BASE"
 ' EXIT
 
-make_project() { local d="$1"; mkdir -p "$d/.jj" "$d/.accelerator/tmp"; : > "$d/.accelerator/tmp/.gitignore"; }
+make_project() {
+  local d="$1"
+  mkdir -p "$d/.jj" "$d/.accelerator/tmp"
+  : >"$d/.accelerator/tmp/.gitignore"
+}
 
 launch_fake() {
   local proj="$1" fake="$2"
@@ -47,9 +51,11 @@ fi
 
 # ─── 3. not_running when no lifecycle files ───────────────────────
 echo "Test: stop with no server → not_running"
-PROJ="$TMPDIR_BASE/t-notrun"; make_project "$PROJ"
+PROJ="$TMPDIR_BASE/t-notrun"
+make_project "$PROJ"
 cd "$PROJ"
-OUT="$TMPDIR_BASE/t-notrun.out"; RC=0
+OUT="$TMPDIR_BASE/t-notrun.out"
+RC=0
 bash "$STOP_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "notrun: exit code" "0" "$RC"
 assert_json_eq "notrun: status" ".status" "not_running" "$OUT"
@@ -57,15 +63,18 @@ cd "$ORIG_DIR"
 
 # ─── 4. stop running server ──────────────────────────────────────
 echo "Test: stop running server → stopped, URL unreachable, server-stopped.json exists"
-PROJ="$TMPDIR_BASE/t-stop"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-stop"; make_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-stop"
+make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-stop"
+make_fake_visualiser "$FAKE"
 launch_fake "$PROJ" "$FAKE"
 
 INFO_FILE="$PROJ/.accelerator/tmp/visualiser/server-info.json"
 URL="$(jq -r '.url' "$INFO_FILE")"
 
 cd "$PROJ"
-OUT="$TMPDIR_BASE/t-stop.out"; RC=0
+OUT="$TMPDIR_BASE/t-stop.out"
+RC=0
 bash "$STOP_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "stop: exit code" "0" "$RC"
 assert_json_eq "stop: status" ".status" "stopped" "$OUT"
@@ -79,7 +88,8 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-CURLRC=0; curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
+CURLRC=0
+curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
 if [ "$CURLRC" -ne 0 ]; then
   echo "  PASS: URL unreachable after stop"
   PASS=$((PASS + 1))
@@ -100,15 +110,17 @@ cd "$ORIG_DIR"
 
 # ─── 5. double launch → reuse, same URL ──────────────────────────
 echo "Test: double launch reuses existing server (same URL)"
-PROJ="$TMPDIR_BASE/t-reuse"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-reuse"; make_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-reuse"
+make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-reuse"
+make_fake_visualiser "$FAKE"
 cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
 URL1="$(bash "$LAUNCH_SERVER" 2>/dev/null | grep '^\*\*Visualiser URL\*\*:' | sed 's/\*\*Visualiser URL\*\*: //')" || true
 URL2="$(bash "$LAUNCH_SERVER" 2>/dev/null | grep '^\*\*Visualiser URL\*\*:' | sed 's/\*\*Visualiser URL\*\*: //')" || true
 assert_eq "reuse: same URL both times" "$URL1" "$URL2"
-PID1="$(tr -cd '0-9' < "$PROJ/.accelerator/tmp/visualiser/server.pid")"
-CURLRC=0; curl -fsS "$URL2" >/dev/null 2>/dev/null || CURLRC=$?
+CURLRC=0
+curl -fsS "$URL2" >/dev/null 2>/dev/null || CURLRC=$?
 assert_eq "reuse: URL reachable on second launch" "0" "$CURLRC"
 unset ACCELERATOR_VISUALISER_BIN
 bash "$STOP_SERVER" >/dev/null 2>/dev/null || true
@@ -116,22 +128,25 @@ cd "$ORIG_DIR"
 
 # ─── 6. stale PID cleanup ────────────────────────────────────────
 echo "Test: stale server.pid → launcher starts fresh server"
-PROJ="$TMPDIR_BASE/t-stale"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-stale"; make_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-stale"
+make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-stale"
+make_fake_visualiser "$FAKE"
 STALE_PID="$(spawn_and_reap_pid)"
 
-INFO_DIR="$PROJ/.accelerator/tmp/visualiser"; mkdir -p "$INFO_DIR"
-cat > "$INFO_DIR/server-info.json" << INFOJSON
+INFO_DIR="$PROJ/.accelerator/tmp/visualiser"
+mkdir -p "$INFO_DIR"
+cat >"$INFO_DIR/server-info.json" <<INFOJSON
 {"version":"0.0.0-stale","pid":$STALE_PID,"start_time":null,"host":"127.0.0.1","port":9998,"url":"http://127.0.0.1:9998","log_path":"$INFO_DIR/server.log","tmp_path":"$INFO_DIR"}
 INFOJSON
-echo "$STALE_PID" > "$INFO_DIR/server.pid"
+echo "$STALE_PID" >"$INFO_DIR/server.pid"
 
 cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
 OUT="$TMPDIR_BASE/t-stale.out"
 bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null
 URL="$(grep '^\*\*Visualiser URL\*\*:' "$OUT" 2>/dev/null | sed 's/\*\*Visualiser URL\*\*: //')" || true
-NEW_PID="$(tr -cd '0-9' < "$INFO_DIR/server.pid" 2>/dev/null || echo '')"
+NEW_PID="$(tr -cd '0-9' <"$INFO_DIR/server.pid" 2>/dev/null || echo '')"
 if [ "$NEW_PID" != "$STALE_PID" ] && [ -n "$NEW_PID" ]; then
   echo "  PASS: fresh PID (not the stale one)"
   PASS=$((PASS + 1))
@@ -139,7 +154,8 @@ else
   echo "  FAIL: expected fresh PID, got '$NEW_PID' (stale was '$STALE_PID')"
   FAIL=$((FAIL + 1))
 fi
-CURLRC=0; curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
+CURLRC=0
+curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
 assert_eq "stale: fresh server reachable" "0" "$CURLRC"
 unset ACCELERATOR_VISUALISER_BIN
 bash "$STOP_SERVER" >/dev/null 2>/dev/null || true
@@ -147,16 +163,19 @@ cd "$ORIG_DIR"
 
 # ─── 7. identity-mismatch refusal ────────────────────────────────
 echo "Test: stop refuses when PID start_time doesn't match"
-PROJ="$TMPDIR_BASE/t-idmm"; make_project "$PROJ"
-INFO_DIR="$PROJ/.accelerator/tmp/visualiser"; mkdir -p "$INFO_DIR"
+PROJ="$TMPDIR_BASE/t-idmm"
+make_project "$PROJ"
+INFO_DIR="$PROJ/.accelerator/tmp/visualiser"
+mkdir -p "$INFO_DIR"
 OWN_PID=$$
-cat > "$INFO_DIR/server-info.json" << INFOJSON
+cat >"$INFO_DIR/server-info.json" <<INFOJSON
 {"version":"0.0.0-test","pid":$OWN_PID,"start_time":1,"host":"127.0.0.1","port":9997,"url":"http://127.0.0.1:9997","log_path":"$INFO_DIR/server.log","tmp_path":"$INFO_DIR"}
 INFOJSON
-echo "$OWN_PID" > "$INFO_DIR/server.pid"
+echo "$OWN_PID" >"$INFO_DIR/server.pid"
 
 cd "$PROJ"
-OUT="$TMPDIR_BASE/t-idmm.out"; RC=0
+OUT="$TMPDIR_BASE/t-idmm.out"
+RC=0
 bash "$STOP_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "idmm: exit code (refused)" "1" "$RC"
 assert_json_eq "idmm: status" ".status" "refused" "$OUT"
@@ -191,12 +210,15 @@ cd "$ORIG_DIR"
 
 # ─── 8. forced SIGKILL path ──────────────────────────────────────
 echo "Test: unkillable server escalates to SIGKILL, server-stopped.json synthesised"
-PROJ="$TMPDIR_BASE/t-sigkill"; make_project "$PROJ"
-FAKE="$TMPDIR_BASE/fake-sigkill"; make_unkillable_fake_visualiser "$FAKE"
+PROJ="$TMPDIR_BASE/t-sigkill"
+make_project "$PROJ"
+FAKE="$TMPDIR_BASE/fake-sigkill"
+make_unkillable_fake_visualiser "$FAKE"
 cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
 bash "$LAUNCH_SERVER" >/dev/null 2>/dev/null
-OUT="$TMPDIR_BASE/t-sigkill.out"; RC=0
+OUT="$TMPDIR_BASE/t-sigkill.out"
+RC=0
 bash "$STOP_SERVER" >"$OUT" 2>/dev/null || RC=$?
 assert_eq "sigkill: exit code" "0" "$RC"
 assert_json_eq "sigkill: status" ".status" "stopped" "$OUT"

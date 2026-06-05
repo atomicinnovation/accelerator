@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# This harness sources the script-under-test (config-defaults.sh via the
+# computed $DEFAULTS_FILE) inside dozens of subshells to assert schema parity;
+# the path is intentionally dynamic, so following it adds nothing.
+# shellcheck disable=SC1090
 set -euo pipefail
 
 # Test harness for config reader scripts.
@@ -22,7 +26,6 @@ source "$SCRIPT_DIR/config-common.sh"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
-
 # Create a temporary directory base
 TMPDIR_BASE=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_BASE"' EXIT
@@ -41,7 +44,7 @@ echo ""
 
 echo "Test: File with valid frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/test.md" << 'FIXTURE'
+cat >"$REPO/test.md" <<'FIXTURE'
 ---
 key: value
 other: thing
@@ -55,7 +58,7 @@ assert_eq "outputs frontmatter content" "$EXPECTED" "$OUTPUT"
 
 echo "Test: File with no frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/test.md" << 'FIXTURE'
+cat >"$REPO/test.md" <<'FIXTURE'
 # Just a heading
 
 Some content.
@@ -65,7 +68,7 @@ assert_eq "outputs nothing" "" "$OUTPUT"
 
 echo "Test: File with unclosed frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/test.md" << 'FIXTURE'
+cat >"$REPO/test.md" <<'FIXTURE'
 ---
 key: value
 no closing delimiter
@@ -76,7 +79,7 @@ assert_exit_code "exits 1" 1 config_extract_frontmatter "$REPO/test.md"
 
 echo "Test: --- on line 1 as frontmatter AND later in body"
 REPO=$(setup_repo)
-cat > "$REPO/test.md" << 'FIXTURE'
+cat >"$REPO/test.md" <<'FIXTURE'
 ---
 key: value
 ---
@@ -92,13 +95,13 @@ assert_eq "only extracts between first and second ---" "key: value" "$OUTPUT"
 
 echo "Test: Trailing spaces on --- delimiter"
 REPO=$(setup_repo)
-printf -- '---   \nkey: value\n---   \n\nBody.\n' > "$REPO/test.md"
+printf -- '---   \nkey: value\n---   \n\nBody.\n' >"$REPO/test.md"
 OUTPUT=$(config_extract_frontmatter "$REPO/test.md")
 assert_eq "still recognised as delimiter" "key: value" "$OUTPUT"
 
 echo "Test: Empty frontmatter (--- on line 1 and --- on line 2)"
 REPO=$(setup_repo)
-printf -- '---\n---\n\nBody.\n' > "$REPO/test.md"
+printf -- '---\n---\n\nBody.\n' >"$REPO/test.md"
 OUTPUT=$(config_extract_frontmatter "$REPO/test.md")
 assert_eq "outputs nothing (empty frontmatter)" "" "$OUTPUT"
 
@@ -110,7 +113,7 @@ echo ""
 
 echo "Test: File with valid frontmatter and body"
 REPO=$(setup_repo)
-cat > "$REPO/test.md" << 'FIXTURE'
+cat >"$REPO/test.md" <<'FIXTURE'
 ---
 key: value
 ---
@@ -123,7 +126,7 @@ assert_eq "outputs only body after closing ---" "$EXPECTED" "$OUTPUT"
 
 echo "Test: File with no frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/test.md" << 'FIXTURE'
+cat >"$REPO/test.md" <<'FIXTURE'
 # Just a heading
 
 Some content.
@@ -134,7 +137,7 @@ assert_eq "outputs entire file" "$EXPECTED" "$OUTPUT"
 
 echo "Test: File with unclosed frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/test.md" << 'FIXTURE'
+cat >"$REPO/test.md" <<'FIXTURE'
 ---
 key: value
 no closing delimiter
@@ -144,7 +147,7 @@ assert_eq "outputs nothing (malformed)" "" "$OUTPUT"
 
 echo "Test: --- horizontal rule in body after frontmatter"
 REPO=$(setup_repo)
-cat > "$REPO/test.md" << 'FIXTURE'
+cat >"$REPO/test.md" <<'FIXTURE'
 ---
 key: value
 ---
@@ -161,7 +164,7 @@ assert_eq "includes horizontal rule in body" "$EXPECTED" "$OUTPUT"
 
 echo "Test: Empty body after frontmatter"
 REPO=$(setup_repo)
-printf -- '---\nkey: value\n---\n' > "$REPO/test.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/test.md"
 OUTPUT=$(config_extract_body "$REPO/test.md")
 assert_eq "outputs nothing" "" "$OUTPUT"
 
@@ -179,7 +182,7 @@ assert_eq "outputs default" "reviewer" "$OUTPUT"
 echo "Test: Top-level key present"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 enabled: true
 ---
@@ -190,7 +193,7 @@ assert_eq "outputs value" "true" "$OUTPUT"
 echo "Test: Nested key (section.key) present"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: senior-dev
@@ -202,7 +205,7 @@ assert_eq "outputs nested value" "senior-dev" "$OUTPUT"
 echo "Test: Key not found -> outputs default"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: senior-dev
@@ -214,7 +217,7 @@ assert_eq "outputs default" "default-planner" "$OUTPUT"
 echo "Test: Key not found, no default -> outputs nothing"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: senior-dev
@@ -226,13 +229,13 @@ assert_eq "outputs nothing" "" "$OUTPUT"
 echo "Test: Local overrides team for same key"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: team-reviewer
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 agents:
   reviewer: my-reviewer
@@ -244,7 +247,7 @@ assert_eq "local overrides team" "my-reviewer" "$OUTPUT"
 echo "Test: work.id_pattern reads from team config"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{project}-{number:04d}"
@@ -259,7 +262,7 @@ assert_eq "reads work.default_project_code" "PROJ" "$OUTPUT"
 echo "Test: work.id_pattern defaults when unset"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: senior-dev
@@ -273,14 +276,14 @@ assert_eq "empty returned" "" "$OUTPUT"
 echo "Test: work.id_pattern local override wins"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{number:04d}"
   default_project_code: ""
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{project}-{number:04d}"
@@ -295,7 +298,7 @@ assert_eq "local wins for default_project_code" "ENG" "$OUTPUT"
 echo "Test: jira.* keys read from team config"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 jira:
   site: atomic-innovation
@@ -313,7 +316,7 @@ assert_eq "reads jira.token_cmd" "op read op://Work/Atlassian/credential" "$OUTP
 echo "Test: jira.* defaults when unset"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: senior-dev
@@ -325,14 +328,14 @@ assert_eq "empty default for jira.site" "" "$OUTPUT"
 echo "Test: jira.token local override wins"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 jira:
   site: atomic-innovation
   email: toby@go-atomic.io
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 jira:
   token: "secret-local-token"
@@ -346,7 +349,7 @@ assert_eq "team jira.site preserved" "atomic-innovation" "$OUTPUT"
 echo "Test: Values with double quotes are stripped"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 name: "quoted value"
 ---
@@ -357,28 +360,28 @@ assert_eq "strips double quotes" "quoted value" "$OUTPUT"
 echo "Test: Values with single quotes are stripped"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- "---\nname: 'single quoted'\n---\n" > "$REPO/.accelerator/config.md"
+printf -- "---\nname: 'single quoted'\n---\n" >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "name" "default")
 assert_eq "strips single quotes" "single quoted" "$OUTPUT"
 
 echo "Test: Values with trailing whitespace are trimmed"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nname: hello   \n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nname: hello   \n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "name" "default")
 assert_eq "trims trailing whitespace" "hello" "$OUTPUT"
 
 echo "Test: Empty frontmatter -> outputs default"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\n---\n\nBody.\n' > "$REPO/.accelerator/config.md"
+printf -- '---\n---\n\nBody.\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "name" "default")
 assert_eq "outputs default" "default" "$OUTPUT"
 
 echo "Test: No frontmatter (plain markdown file) -> outputs default"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 # Just a heading
 
 Some content.
@@ -389,7 +392,7 @@ assert_eq "outputs default" "default" "$OUTPUT"
 echo "Test: Array values are output as-is"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 lenses: [security, architecture, performance]
 ---
@@ -400,7 +403,7 @@ assert_eq "outputs array as-is" "[security, architecture, performance]" "$OUTPUT
 echo "Test: Values containing colons (URLs)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 url: https://example.com/path
 ---
@@ -411,7 +414,7 @@ assert_eq "outputs URL correctly" "https://example.com/path" "$OUTPUT"
 echo "Test: Blank line within a YAML section does not terminate scanning"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: senior-dev
@@ -425,7 +428,7 @@ assert_eq "finds key after blank line" "architect" "$OUTPUT"
 echo "Test: Key with underscore matches exactly"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   max_count: 5
@@ -437,7 +440,7 @@ assert_eq "matches underscore key" "5" "$OUTPUT"
 echo "Test: Unclosed frontmatter -> outputs default, warning to stderr"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 key: value
 no closing
@@ -471,7 +474,7 @@ assert_eq "no config: exits 0" "0" "$RC"
 echo "Test: .accelerator/config.md present -> passes silently (exits 0)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 key: value
 ---
@@ -483,8 +486,8 @@ assert_eq "new layout: exits 0" "0" "$RC"
 echo "Test: both .accelerator/config.md and .claude/accelerator.md -> passes (exits 0)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator" "$REPO/.claude"
-printf -- '---\nkey: new\n---\n' > "$REPO/.accelerator/config.md"
-printf -- '---\nkey: legacy\n---\n' > "$REPO/.claude/accelerator.md"
+printf -- '---\nkey: new\n---\n' >"$REPO/.accelerator/config.md"
+printf -- '---\nkey: legacy\n---\n' >"$REPO/.claude/accelerator.md"
 RC=0
 (cd "$REPO" && bash "$READ_VALUE" "key" "default") >/dev/null 2>&1 || RC=$?
 assert_eq "both present: exits 0 (new layout takes precedence)" "0" "$RC"
@@ -492,7 +495,7 @@ assert_eq "both present: exits 0 (new layout takes precedence)" "0" "$RC"
 echo "Test: only .claude/accelerator.md -> emits error and exits non-zero"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
-printf -- '---\nkey: legacy\n---\n' > "$REPO/.claude/accelerator.md"
+printf -- '---\nkey: legacy\n---\n' >"$REPO/.claude/accelerator.md"
 RC=0
 STDERR=$(cd "$REPO" && bash "$READ_VALUE" "key" "default" 2>&1 >/dev/null) || RC=$?
 assert_neq "legacy-only: exits non-zero" "0" "$RC"
@@ -504,7 +507,7 @@ assert_contains "legacy-only: mentions /accelerator:migrate" \
 echo "Test: legacy layout guard fires for config-read-review.sh"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
-printf -- '---\nkey: legacy\n---\n' > "$REPO/.claude/accelerator.md"
+printf -- '---\nkey: legacy\n---\n' >"$REPO/.claude/accelerator.md"
 RC=0
 (cd "$REPO" && bash "$READ_REVIEW" "pr") >/dev/null 2>&1 || RC=$?
 assert_neq "review: legacy layout exits non-zero" "0" "$RC"
@@ -523,7 +526,7 @@ assert_eq "outputs nothing" "" "$OUTPUT"
 echo "Test: Team config with body"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 key: value
 ---
@@ -537,7 +540,7 @@ assert_eq "outputs body under Project Context header" "$EXPECTED" "$OUTPUT"
 echo "Test: Local config with body"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 key: value
 ---
@@ -551,14 +554,14 @@ assert_eq "outputs local body under Project Context header" "$EXPECTED" "$OUTPUT
 echo "Test: Both configs with bodies -> outputs both, team first"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 key: value
 ---
 
 Team context.
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 key: value
 ---
@@ -572,21 +575,21 @@ assert_eq "outputs both, team first" "$EXPECTED" "$OUTPUT"
 echo "Test: Config with frontmatter but no body"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_CONTEXT")
 assert_eq "outputs nothing" "" "$OUTPUT"
 
 echo "Test: Config with empty body"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n\n\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n\n\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_CONTEXT")
 assert_eq "outputs nothing" "" "$OUTPUT"
 
 echo "Test: Config with unclosed frontmatter -> outputs nothing"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 key: value
 no closing
@@ -614,7 +617,7 @@ assert_contains "init hint shown" "$OUTPUT" "has not been initialised"
 echo "Test: Team config present -> lists it"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
 if echo "$OUTPUT" | grep -q "Team config:"; then
   echo "  PASS: lists team config"
@@ -628,8 +631,8 @@ fi
 echo "Test: Both configs present -> lists both"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.local.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.local.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
 if echo "$OUTPUT" | grep -q "Team config:" && echo "$OUTPUT" | grep -q "Personal config:"; then
   echo "  PASS: lists both configs"
@@ -643,7 +646,7 @@ fi
 echo "Test: Config with frontmatter sections -> lists section names"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: senior-dev
@@ -664,13 +667,13 @@ fi
 echo "Test: Duplicate section keys across team and local -> deduplicated"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: team-val
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 agents:
   reviewer: local-val
@@ -685,7 +688,7 @@ assert_eq "agents appears once (deduplicated)" "1" "$AGENT_COUNT"
 echo "Test: Config with whitespace-only body -> no project context reported"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n\n   \n\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n\n   \n\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
 if echo "$OUTPUT" | grep -q "Project context:"; then
   echo "  FAIL: should not report project context for whitespace-only body"
@@ -699,7 +702,7 @@ fi
 echo "Test: Config with frontmatter but no top-level keys -> no Configured sections"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\n---\n\nBody.\n' > "$REPO/.accelerator/config.md"
+printf -- '---\n---\n\nBody.\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
 if echo "$OUTPUT" | grep -q "Configured sections:"; then
   echo "  FAIL: should not have Configured sections for empty frontmatter"
@@ -713,7 +716,7 @@ fi
 echo "Test: Section keys with hyphens and digits -> included in output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 my-section2:
   key: value
@@ -732,7 +735,7 @@ fi
 echo "Test: Unclosed frontmatter -> warns to stderr, does not crash"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 key: value
 no closing
@@ -769,7 +772,7 @@ assert_contains "init hint in JSON" "$OUTPUT" "has not been initialised"
 echo "Test: Config present -> outputs valid JSON"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: senior-dev
@@ -791,7 +794,7 @@ fi
 echo "Test: JSON structure matches SessionStart hook contract"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT" 2>/dev/null)
 HOOK_EVENT=$(echo "$OUTPUT" | jq -r '.hookSpecificOutput.hookEventName' 2>/dev/null || true)
 assert_eq "hookEventName is SessionStart" "SessionStart" "$HOOK_EVENT"
@@ -805,14 +808,14 @@ echo ""
 echo "Test: No config files -> outputs all agents with default names"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q "## Agent Names" && \
-   echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: accelerator:reviewer' && \
-   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: accelerator:codebase-locator' && \
-   echo "$OUTPUT" | grep -q '\- \*\*codebase analyser agent\*\*: accelerator:codebase-analyser' && \
-   echo "$OUTPUT" | grep -q '\- \*\*codebase pattern finder agent\*\*: accelerator:codebase-pattern-finder' && \
-   echo "$OUTPUT" | grep -q '\- \*\*documents locator agent\*\*: accelerator:documents-locator' && \
-   echo "$OUTPUT" | grep -q '\- \*\*documents analyser agent\*\*: accelerator:documents-analyser' && \
-   echo "$OUTPUT" | grep -q '\- \*\*web search researcher agent\*\*: accelerator:web-search-researcher'; then
+if echo "$OUTPUT" | grep -q "## Agent Names" &&
+  echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: accelerator:reviewer' &&
+  echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: accelerator:codebase-locator' &&
+  echo "$OUTPUT" | grep -q '\- \*\*codebase analyser agent\*\*: accelerator:codebase-analyser' &&
+  echo "$OUTPUT" | grep -q '\- \*\*codebase pattern finder agent\*\*: accelerator:codebase-pattern-finder' &&
+  echo "$OUTPUT" | grep -q '\- \*\*documents locator agent\*\*: accelerator:documents-locator' &&
+  echo "$OUTPUT" | grep -q '\- \*\*documents analyser agent\*\*: accelerator:documents-analyser' &&
+  echo "$OUTPUT" | grep -q '\- \*\*web search researcher agent\*\*: accelerator:web-search-researcher'; then
   echo "  PASS: outputs all 7 agents with default names"
   PASS=$((PASS + 1))
 else
@@ -824,7 +827,7 @@ fi
 echo "Test: Config with agents section -> outputs labeled agent names with overrides"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: my-custom-reviewer
@@ -832,9 +835,9 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q "## Agent Names" && \
-   echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: my-custom-reviewer' && \
-   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: my-locator'; then
+if echo "$OUTPUT" | grep -q "## Agent Names" &&
+  echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: my-custom-reviewer' &&
+  echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: my-locator'; then
   echo "  PASS: outputs labeled agent names with overrides"
   PASS=$((PASS + 1))
 else
@@ -846,15 +849,15 @@ fi
 echo "Test: Config with partial overrides -> overridden agent shows new name, others show defaults"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: my-reviewer
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: my-reviewer' && \
-   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: accelerator:codebase-locator'; then
+if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: my-reviewer' &&
+  echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: accelerator:codebase-locator'; then
   echo "  PASS: overridden agent shows new name, others show defaults"
   PASS=$((PASS + 1))
 else
@@ -866,21 +869,21 @@ fi
 echo "Test: Local overrides team for same agent key"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: team-reviewer
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 agents:
   reviewer: local-reviewer
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: local-reviewer' && \
-   ! echo "$OUTPUT" | grep -q 'team-reviewer'; then
+if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: local-reviewer' &&
+  ! echo "$OUTPUT" | grep -q 'team-reviewer'; then
   echo "  PASS: local overrides team"
   PASS=$((PASS + 1))
 else
@@ -892,21 +895,21 @@ fi
 echo "Test: Non-overlapping overrides across team and local -> both appear"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: custom-reviewer
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 agents:
   codebase-locator: custom-locator
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: custom-reviewer' && \
-   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: custom-locator'; then
+if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: custom-reviewer' &&
+  echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: custom-locator'; then
   echo "  PASS: both overrides appear"
   PASS=$((PASS + 1))
 else
@@ -918,7 +921,7 @@ fi
 echo "Test: Unknown agent keys -> ignored with warning to stderr"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: my-reviewer
@@ -927,8 +930,8 @@ agents:
 FIXTURE
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS" 2>&1 1>/dev/null)
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS" 2>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning.*unknown-agent" && \
-   ! echo "$OUTPUT" | grep -q 'unknown-agent'; then
+if echo "$STDERR_OUTPUT" | grep -q "Warning.*unknown-agent" &&
+  ! echo "$OUTPUT" | grep -q 'unknown-agent'; then
   echo "  PASS: unknown key warned and ignored"
   PASS=$((PASS + 1))
 else
@@ -941,7 +944,7 @@ fi
 echo "Test: Agent key with same value as default -> shows default name"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: reviewer
@@ -949,8 +952,8 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: reviewer' && \
-   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: my-locator'; then
+if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: reviewer' &&
+  echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: my-locator'; then
   echo "  PASS: identity override shows default name, other override applied"
   PASS=$((PASS + 1))
 else
@@ -962,7 +965,7 @@ fi
 echo "Test: Agent lines appear in fixed order (AGENT_KEYS order)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   web-search-researcher: custom-web
@@ -975,8 +978,8 @@ OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
 ROWS=$(echo "$OUTPUT" | grep '^- \*\*' || true)
 FIRST_ROW=$(echo "$ROWS" | head -1)
 LAST_ROW=$(echo "$ROWS" | tail -1)
-if echo "$FIRST_ROW" | grep -q 'reviewer agent' && \
-   echo "$LAST_ROW" | grep -q 'web search researcher agent'; then
+if echo "$FIRST_ROW" | grep -q 'reviewer agent' &&
+  echo "$LAST_ROW" | grep -q 'web search researcher agent'; then
   echo "  PASS: rows in AGENT_KEYS order"
   PASS=$((PASS + 1))
 else
@@ -988,15 +991,15 @@ fi
 echo "Test: Config with frontmatter but no agents section -> outputs all defaults"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   max_count: 5
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q "## Agent Names" && \
-   echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: accelerator:reviewer'; then
+if echo "$OUTPUT" | grep -q "## Agent Names" &&
+  echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: accelerator:reviewer'; then
   echo "  PASS: outputs all defaults when no agents section"
   PASS=$((PASS + 1))
 else
@@ -1010,7 +1013,7 @@ echo "Test: AGENT_KEYS list matches actual agent .md files in the plugin"
 SCRIPT_KEYS=$(grep -A 20 '^AGENT_KEYS=(' "$READ_AGENTS" | sed -n '/^AGENT_KEYS=(/,/^)/p' | grep -v '^AGENT_KEYS=(' | grep -v '^)' | sed 's/^[[:space:]]*//' | sort)
 # List actual agent .md files (strip path and extension)
 AGENT_DIR="$SCRIPT_DIR/../agents"
-FILE_KEYS=$(ls "$AGENT_DIR"/*.md 2>/dev/null | xargs -I{} basename {} .md | sort)
+FILE_KEYS=$(for f in "$AGENT_DIR"/*.md; do [ -e "$f" ] && basename "$f" .md; done | sort)
 assert_eq "AGENT_KEYS matches agent files" "$FILE_KEYS" "$SCRIPT_KEYS"
 
 echo ""
@@ -1027,7 +1030,7 @@ assert_eq "outputs default" "accelerator:reviewer" "$OUTPUT"
 echo "Test: Config with override for requested agent -> outputs override value"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: my-custom-reviewer
@@ -1039,7 +1042,7 @@ assert_eq "outputs override" "my-custom-reviewer" "$OUTPUT"
 echo "Test: Config with override for different agent -> outputs the default"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   codebase-locator: my-locator
@@ -1051,13 +1054,13 @@ assert_eq "outputs default" "accelerator:reviewer" "$OUTPUT"
 echo "Test: Local overrides team for same agent key"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 agents:
   reviewer: team-reviewer
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 agents:
   reviewer: local-reviewer
@@ -1180,8 +1183,8 @@ if [ "$NON_AGENT_OK" = true ]; then
 fi
 
 echo "Test: review-pr and review-plan have inline config-read-agent-name.sh"
-if grep -q 'config-read-agent-name.sh reviewer' "$SKILLS_DIR/github/review-pr/SKILL.md" && \
-   grep -q 'config-read-agent-name.sh reviewer' "$SKILLS_DIR/planning/review-plan/SKILL.md"; then
+if grep -q 'config-read-agent-name.sh reviewer' "$SKILLS_DIR/github/review-pr/SKILL.md" &&
+  grep -q 'config-read-agent-name.sh reviewer' "$SKILLS_DIR/planning/review-plan/SKILL.md"; then
   echo "  PASS: both review skills have inline agent name substitution"
   PASS=$((PASS + 1))
 else
@@ -1237,12 +1240,12 @@ assert_exit_code "invalid argument exits" 1 bash "$READ_REVIEW" "invalid"
 echo "Test: No review config with pr mode -> outputs all PR-relevant defaults"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "## Review Configuration" && \
-   echo "$OUTPUT" | grep -q '\- \*\*max inline comments\*\*: 10' && \
-   echo "$OUTPUT" | grep -q '\- \*\*dedup proximity\*\*: 3' && \
-   echo "$OUTPUT" | grep -q '\- \*\*pr request changes severity\*\*: critical' && \
-   echo "$OUTPUT" | grep -q '\- \*\*min lenses\*\*: 4' && \
-   echo "$OUTPUT" | grep -q '\- \*\*max lenses\*\*: 8'; then
+if echo "$OUTPUT" | grep -q "## Review Configuration" &&
+  echo "$OUTPUT" | grep -q '\- \*\*max inline comments\*\*: 10' &&
+  echo "$OUTPUT" | grep -q '\- \*\*dedup proximity\*\*: 3' &&
+  echo "$OUTPUT" | grep -q '\- \*\*pr request changes severity\*\*: critical' &&
+  echo "$OUTPUT" | grep -q '\- \*\*min lenses\*\*: 4' &&
+  echo "$OUTPUT" | grep -q '\- \*\*max lenses\*\*: 8'; then
   echo "  PASS: outputs all PR-relevant defaults"
   PASS=$((PASS + 1))
 else
@@ -1254,11 +1257,11 @@ fi
 echo "Test: No review config with plan mode -> outputs all plan-relevant defaults"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-if echo "$OUTPUT" | grep -q "## Review Configuration" && \
-   echo "$OUTPUT" | grep -q '\- \*\*plan revise severity\*\*: critical' && \
-   echo "$OUTPUT" | grep -q '\- \*\*plan revise major count\*\*: 3' && \
-   echo "$OUTPUT" | grep -q '\- \*\*min lenses\*\*: 4' && \
-   echo "$OUTPUT" | grep -q '\- \*\*max lenses\*\*: 8'; then
+if echo "$OUTPUT" | grep -q "## Review Configuration" &&
+  echo "$OUTPUT" | grep -q '\- \*\*plan revise severity\*\*: critical' &&
+  echo "$OUTPUT" | grep -q '\- \*\*plan revise major count\*\*: 3' &&
+  echo "$OUTPUT" | grep -q '\- \*\*min lenses\*\*: 4' &&
+  echo "$OUTPUT" | grep -q '\- \*\*max lenses\*\*: 8'; then
   echo "  PASS: outputs all plan-relevant defaults"
   PASS=$((PASS + 1))
 else
@@ -1270,15 +1273,15 @@ fi
 echo "Test: Partial config (only some keys) -> overridden values show default annotation"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   max_inline_comments: 15
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q '\- \*\*max inline comments\*\*: 15 (default: 10)' && \
-   echo "$OUTPUT" | grep -q '\- \*\*dedup proximity\*\*: 3$'; then
+if echo "$OUTPUT" | grep -q '\- \*\*max inline comments\*\*: 15 (default: 10)' &&
+  echo "$OUTPUT" | grep -q '\- \*\*dedup proximity\*\*: 3$'; then
   echo "  PASS: overridden value annotated, default value plain"
   PASS=$((PASS + 1))
 else
@@ -1290,7 +1293,7 @@ fi
 echo "Test: Full config -> outputs all overrides with default annotations"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   max_inline_comments: 15
@@ -1303,13 +1306,13 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q '\*\*max inline comments\*\*: 15 (default: 10)' && \
-   echo "$OUTPUT" | grep -q '\*\*dedup proximity\*\*: 5 (default: 3)' && \
-   echo "$OUTPUT" | grep -q '\*\*min lenses\*\*: 3 (default: 4)' && \
-   echo "$OUTPUT" | grep -q '\*\*max lenses\*\*: 10 (default: 8)' && \
-   echo "$OUTPUT" | grep -q "Core lenses" && \
-   echo "$OUTPUT" | grep -q "Disabled lenses" && \
-   echo "$OUTPUT" | grep -q "Verdict"; then
+if echo "$OUTPUT" | grep -q '\*\*max inline comments\*\*: 15 (default: 10)' &&
+  echo "$OUTPUT" | grep -q '\*\*dedup proximity\*\*: 5 (default: 3)' &&
+  echo "$OUTPUT" | grep -q '\*\*min lenses\*\*: 3 (default: 4)' &&
+  echo "$OUTPUT" | grep -q '\*\*max lenses\*\*: 10 (default: 8)' &&
+  echo "$OUTPUT" | grep -q "Core lenses" &&
+  echo "$OUTPUT" | grep -q "Disabled lenses" &&
+  echo "$OUTPUT" | grep -q "Verdict"; then
   echo "  PASS: outputs all overrides with annotations"
   PASS=$((PASS + 1))
 else
@@ -1321,7 +1324,7 @@ fi
 echo "Test: disabled_lenses array correctly parsed"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   disabled_lenses: [portability, compatibility]
@@ -1340,7 +1343,7 @@ fi
 echo "Test: core_lenses with hyphenated names"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   core_lenses: [architecture, code-quality, test-coverage, correctness]
@@ -1359,7 +1362,7 @@ fi
 echo "Test: Custom lens directory with valid SKILL.md -> listed in output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/compliance-lens"
-cat > "$REPO/.accelerator/lenses/compliance-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/compliance-lens/SKILL.md" <<'FIXTURE'
 ---
 name: compliance
 description: Evaluates compliance
@@ -1382,22 +1385,22 @@ echo "Test: Multiple custom lens directories -> all listed"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/compliance-lens"
 mkdir -p "$REPO/.accelerator/lenses/accessibility-lens"
-cat > "$REPO/.accelerator/lenses/compliance-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/compliance-lens/SKILL.md" <<'FIXTURE'
 ---
 name: compliance
 description: Compliance lens
 auto_detect: Relevant for compliance
 ---
 FIXTURE
-cat > "$REPO/.accelerator/lenses/accessibility-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/accessibility-lens/SKILL.md" <<'FIXTURE'
 ---
 name: accessibility
 description: Accessibility lens
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "| compliance |" && \
-   echo "$OUTPUT" | grep -q "| accessibility |"; then
+if echo "$OUTPUT" | grep -q "| compliance |" &&
+  echo "$OUTPUT" | grep -q "| accessibility |"; then
   echo "  PASS: multiple custom lenses listed"
   PASS=$((PASS + 1))
 else
@@ -1410,8 +1413,8 @@ echo "Test: Directory without SKILL.md -> skipped (no custom lens in output)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/empty-lens"
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "## Review Configuration" && \
-   ! echo "$OUTPUT" | grep -q "custom"; then
+if echo "$OUTPUT" | grep -q "## Review Configuration" &&
+  ! echo "$OUTPUT" | grep -q "custom"; then
   echo "  PASS: empty lens dir skipped, defaults still emitted"
   PASS=$((PASS + 1))
 else
@@ -1423,7 +1426,7 @@ fi
 echo "Test: Custom lens with missing name in frontmatter -> warning, skipped"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/bad-lens"
-cat > "$REPO/.accelerator/lenses/bad-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/bad-lens/SKILL.md" <<'FIXTURE'
 ---
 description: Missing name field
 ---
@@ -1441,7 +1444,7 @@ fi
 echo "Test: Custom lens with same name as built-in -> warning to stderr"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/my-security-lens"
-cat > "$REPO/.accelerator/lenses/my-security-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/my-security-lens/SKILL.md" <<'FIXTURE'
 ---
 name: security
 description: Custom security lens
@@ -1460,7 +1463,7 @@ fi
 echo "Test: No .accelerator/lenses/ directory -> no custom lenses listed"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   min_lenses: 3
@@ -1479,7 +1482,7 @@ fi
 echo "Test: Custom lens with auto_detect -> auto-detect criteria included"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/compliance-lens"
-cat > "$REPO/.accelerator/lenses/compliance-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/compliance-lens/SKILL.md" <<'FIXTURE'
 ---
 name: compliance
 description: Compliance lens
@@ -1499,7 +1502,7 @@ fi
 echo "Test: Custom lens without auto_detect -> shows 'always include'"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/accessibility-lens"
-cat > "$REPO/.accelerator/lenses/accessibility-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/accessibility-lens/SKILL.md" <<'FIXTURE'
 ---
 name: accessibility
 description: Accessibility lens
@@ -1518,7 +1521,7 @@ fi
 echo "Test: Negative min_lenses -> warning to stderr, falls back to default"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   min_lenses: -1
@@ -1537,7 +1540,7 @@ fi
 echo "Test: min_lenses > max_lenses -> warning to stderr, falls back to defaults"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   min_lenses: 10
@@ -1557,7 +1560,7 @@ fi
 echo "Test: Unrecognised lens name in disabled_lenses -> warning to stderr"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   disabled_lenses: [code_quality]
@@ -1576,7 +1579,7 @@ fi
 echo "Test: Lens in both core_lenses and disabled_lenses -> warning to stderr"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   core_lenses: [architecture, security]
@@ -1596,7 +1599,7 @@ fi
 echo "Test: Invalid severity value -> warning to stderr, default used"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   pr_request_changes_severity: blocker
@@ -1615,7 +1618,7 @@ fi
 echo "Test: Non-integer plan_revise_major_count -> warning to stderr, default used"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   plan_revise_major_count: abc
@@ -1634,7 +1637,7 @@ fi
 echo "Test: disabled_lenses disabling enough to drop below min_lenses -> warning"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   min_lenses: 12
@@ -1655,7 +1658,7 @@ fi
 echo "Test: pr_request_changes_severity: major -> output shows override"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   pr_request_changes_severity: major
@@ -1674,7 +1677,7 @@ fi
 echo "Test: pr_request_changes_severity: none -> output shows disabled"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   pr_request_changes_severity: none
@@ -1693,7 +1696,7 @@ fi
 echo "Test: plan_revise_severity: none -> output shows disabled"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   plan_revise_severity: none
@@ -1712,7 +1715,7 @@ fi
 echo "Test: plan_revise_major_count: 2 -> output shows override"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   plan_revise_major_count: 2
@@ -1731,7 +1734,7 @@ fi
 echo "Test: plan_revise_severity: critical (same as default) -> shown without annotation"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   plan_revise_severity: critical
@@ -1750,16 +1753,16 @@ fi
 echo "Test: Lens Catalogue always present when config exists"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   min_lenses: 3
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "### Lens Catalogue" && \
-   echo "$OUTPUT" | grep -q "| architecture |" && \
-   echo "$OUTPUT" | grep -q "| usability |"; then
+if echo "$OUTPUT" | grep -q "### Lens Catalogue" &&
+  echo "$OUTPUT" | grep -q "| architecture |" &&
+  echo "$OUTPUT" | grep -q "| usability |"; then
   echo "  PASS: lens catalogue present with all 13 built-in lenses"
   PASS=$((PASS + 1))
 else
@@ -1771,7 +1774,7 @@ fi
 echo "Test: PR mode does not include plan-specific settings"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   max_inline_comments: 15
@@ -1779,8 +1782,8 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "max inline comments" && \
-   ! echo "$OUTPUT" | grep -q "plan revise"; then
+if echo "$OUTPUT" | grep -q "max inline comments" &&
+  ! echo "$OUTPUT" | grep -q "plan revise"; then
   echo "  PASS: PR mode excludes plan settings"
   PASS=$((PASS + 1))
 else
@@ -1792,7 +1795,7 @@ fi
 echo "Test: Plan mode does not include PR-specific settings"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   max_inline_comments: 15
@@ -1800,8 +1803,8 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-if ! echo "$OUTPUT" | grep -q "max inline comments" && \
-   echo "$OUTPUT" | grep -q "plan revise major count.*2"; then
+if ! echo "$OUTPUT" | grep -q "max inline comments" &&
+  echo "$OUTPUT" | grep -q "plan revise major count.*2"; then
   echo "  PASS: Plan mode excludes PR settings"
   PASS=$((PASS + 1))
 else
@@ -1813,7 +1816,7 @@ fi
 echo "Test: Config variable names in PR output match review-pr SKILL.md"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   max_inline_comments: 15
@@ -1913,11 +1916,11 @@ fi
 # Helper local to this block: extract sorted built-in lens names
 # from a catalogue output. Accepts the output on stdin.
 _extract_builtin_lens_names() {
-  grep "| built-in |" \
-    | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2}' \
-    | sort \
-    | tr '\n' ' ' \
-    | sed 's/ $//'
+  grep "| built-in |" |
+    awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2}' |
+    sort |
+    tr '\n' ' ' |
+    sed 's/ $//'
 }
 
 echo "Test: work-item mode catalogue contains exactly 5 built-in rows"
@@ -1956,7 +1959,7 @@ assert_eq "no work-item lens leaks into pr or plan catalogue" "" "$LEAKED"
 echo "Test: core_lenses override emits informational note in work-item mode"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   core_lenses: [completeness, testability, clarity]
@@ -2000,7 +2003,7 @@ assert_exit_code "unknown mode exits 1" 1 bash -c "cd '$REPO' && bash '$READ_REV
 echo "Test: custom lens with applies_to: [plan] appears only in plan mode"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/plan-only-lens"
-cat > "$REPO/.accelerator/lenses/plan-only-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/plan-only-lens/SKILL.md" <<'FIXTURE'
 ---
 name: plan-only
 description: Appears in plan only
@@ -2010,9 +2013,9 @@ FIXTURE
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
 WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if ! echo "$PR_OUT" | grep -q "| plan-only |" && \
-   echo "$PLAN_OUT" | grep -q "| plan-only |" && \
-   ! echo "$WORK_ITEM_OUT" | grep -q "| plan-only |"; then
+if ! echo "$PR_OUT" | grep -q "| plan-only |" &&
+  echo "$PLAN_OUT" | grep -q "| plan-only |" &&
+  ! echo "$WORK_ITEM_OUT" | grep -q "| plan-only |"; then
   echo "  PASS: applies_to: [plan] restricts lens to plan mode only"
   PASS=$((PASS + 1))
 else
@@ -2026,7 +2029,7 @@ fi
 echo "Test: custom lens without applies_to appears in all three modes"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/all-modes-lens"
-cat > "$REPO/.accelerator/lenses/all-modes-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/all-modes-lens/SKILL.md" <<'FIXTURE'
 ---
 name: all-modes
 description: Appears everywhere
@@ -2035,9 +2038,9 @@ FIXTURE
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
 WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if echo "$PR_OUT" | grep -q "| all-modes |" && \
-   echo "$PLAN_OUT" | grep -q "| all-modes |" && \
-   echo "$WORK_ITEM_OUT" | grep -q "| all-modes |"; then
+if echo "$PR_OUT" | grep -q "| all-modes |" &&
+  echo "$PLAN_OUT" | grep -q "| all-modes |" &&
+  echo "$WORK_ITEM_OUT" | grep -q "| all-modes |"; then
   echo "  PASS: no applies_to means all modes"
   PASS=$((PASS + 1))
 else
@@ -2051,7 +2054,7 @@ fi
 echo "Test: custom lens with applies_to: [work-item, plan] appears in work-item+plan but not pr"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/work-item-plan-lens"
-cat > "$REPO/.accelerator/lenses/work-item-plan-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/work-item-plan-lens/SKILL.md" <<'FIXTURE'
 ---
 name: work-item-plan
 description: Work-item and plan modes only
@@ -2061,9 +2064,9 @@ FIXTURE
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
 WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if ! echo "$PR_OUT" | grep -q "| work-item-plan |" && \
-   echo "$PLAN_OUT" | grep -q "| work-item-plan |" && \
-   echo "$WORK_ITEM_OUT" | grep -q "| work-item-plan |"; then
+if ! echo "$PR_OUT" | grep -q "| work-item-plan |" &&
+  echo "$PLAN_OUT" | grep -q "| work-item-plan |" &&
+  echo "$WORK_ITEM_OUT" | grep -q "| work-item-plan |"; then
   echo "  PASS: applies_to: [work-item, plan] includes work-item and plan but not pr"
   PASS=$((PASS + 1))
 else
@@ -2074,7 +2077,7 @@ fi
 echo "Test: core_lenses: [architecture] in plan mode produces no warning (valid cross-mode lens)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   core_lenses: [architecture]
@@ -2093,7 +2096,7 @@ fi
 echo "Test: cross-mode filter - work-item-only custom lens in core_lenses shows Filtered info in pr mode"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/work-item-custom-lens"
-cat > "$REPO/.accelerator/lenses/work-item-custom-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/work-item-custom-lens/SKILL.md" <<'FIXTURE'
 ---
 name: work-item-custom
 description: Work-item only custom lens
@@ -2101,7 +2104,7 @@ applies_to: [work-item]
 ---
 FIXTURE
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   core_lenses: [architecture, work-item-custom]
@@ -2120,7 +2123,7 @@ fi
 echo "Test: unknown lens xyz in core_lenses still produces unrecognised warning"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   core_lenses: [architecture, xyz]
@@ -2139,7 +2142,7 @@ fi
 echo "Test: applies_to: [prr] -> unrecognised mode warning, lens absent from all catalogues"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/bad-mode-lens"
-cat > "$REPO/.accelerator/lenses/bad-mode-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/bad-mode-lens/SKILL.md" <<'FIXTURE'
 ---
 name: bad-mode
 description: Has unrecognised mode
@@ -2149,9 +2152,9 @@ FIXTURE
 STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>/dev/null)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan 2>/dev/null)
-if echo "$STDERR_OUT" | grep -qi "unrecognised mode.*prr\|prr.*unrecognised" && \
-   ! echo "$PR_OUT" | grep -q "| bad-mode |" && \
-   ! echo "$PLAN_OUT" | grep -q "| bad-mode |"; then
+if echo "$STDERR_OUT" | grep -qi "unrecognised mode.*prr\|prr.*unrecognised" &&
+  ! echo "$PR_OUT" | grep -q "| bad-mode |" &&
+  ! echo "$PLAN_OUT" | grep -q "| bad-mode |"; then
   echo "  PASS: unrecognised mode warns and excludes lens from all catalogues"
   PASS=$((PASS + 1))
 else
@@ -2164,7 +2167,7 @@ fi
 echo "Test: applies_to: [] -> empty applies_to warning, lens absent from all catalogues"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/empty-applies-lens"
-cat > "$REPO/.accelerator/lenses/empty-applies-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/empty-applies-lens/SKILL.md" <<'FIXTURE'
 ---
 name: empty-applies
 description: Has empty applies_to
@@ -2173,8 +2176,8 @@ applies_to: []
 FIXTURE
 STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>/dev/null)
-if echo "$STDERR_OUT" | grep -qi "empty applies_to" && \
-   ! echo "$PR_OUT" | grep -q "| empty-applies |"; then
+if echo "$STDERR_OUT" | grep -qi "empty applies_to" &&
+  ! echo "$PR_OUT" | grep -q "| empty-applies |"; then
   echo "  PASS: empty applies_to warns and excludes lens"
   PASS=$((PASS + 1))
 else
@@ -2187,7 +2190,7 @@ fi
 echo "Test: applies_to: pr (scalar) -> parsed as [pr], appears in pr only"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/scalar-applies-lens"
-cat > "$REPO/.accelerator/lenses/scalar-applies-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/scalar-applies-lens/SKILL.md" <<'FIXTURE'
 ---
 name: scalar-applies
 description: Scalar applies_to
@@ -2196,8 +2199,8 @@ applies_to: pr
 FIXTURE
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-if echo "$PR_OUT" | grep -q "| scalar-applies |" && \
-   ! echo "$PLAN_OUT" | grep -q "| scalar-applies |"; then
+if echo "$PR_OUT" | grep -q "| scalar-applies |" &&
+  ! echo "$PLAN_OUT" | grep -q "| scalar-applies |"; then
   echo "  PASS: scalar applies_to treated as [pr]"
   PASS=$((PASS + 1))
 else
@@ -2210,7 +2213,7 @@ fi
 echo "Test: applies_to: [pr, pr] (duplicate) -> deduplicated, appears in pr exactly once"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/dedup-applies-lens"
-cat > "$REPO/.accelerator/lenses/dedup-applies-lens/SKILL.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/lenses/dedup-applies-lens/SKILL.md" <<'FIXTURE'
 ---
 name: dedup-applies
 description: Duplicate applies_to entries
@@ -2230,7 +2233,7 @@ fi
 echo "Test: pr mode still emits PR verdict override when pr_request_changes_severity set to major"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   pr_request_changes_severity: major
@@ -2249,7 +2252,7 @@ fi
 echo "Test: plan mode still emits plan verdict override when plan_revise_severity set to major"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   plan_revise_severity: major
@@ -2268,8 +2271,8 @@ fi
 echo "Test: work-item mode emits work-item revise severity and count with defaults"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if echo "$OUTPUT" | grep -q '\*\*work-item revise severity\*\*: critical$' && \
-   echo "$OUTPUT" | grep -q '\*\*work-item revise major count\*\*: 2$'; then
+if echo "$OUTPUT" | grep -q '\*\*work-item revise severity\*\*: critical$' &&
+  echo "$OUTPUT" | grep -q '\*\*work-item revise major count\*\*: 2$'; then
   echo "  PASS: work-item mode emits verdict defaults without annotation"
   PASS=$((PASS + 1))
 else
@@ -2281,7 +2284,7 @@ fi
 echo "Test: work_item_revise_severity: major -> annotated with default"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   work_item_revise_severity: major
@@ -2300,7 +2303,7 @@ fi
 echo "Test: work_item_revise_major_count: 5 -> annotated with default"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   work_item_revise_major_count: 5
@@ -2319,7 +2322,7 @@ fi
 echo "Test: work_item_revise_major_count: 0 -> warning, falls back to 2"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   work_item_revise_major_count: 0
@@ -2327,8 +2330,8 @@ review:
 FIXTURE
 STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>&1 1>/dev/null || true)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if echo "$STDERR_OUT" | grep -q "Warning.*work_item_revise_major_count" && \
-   echo "$OUTPUT" | grep -q '\*\*work-item revise major count\*\*: 2$'; then
+if echo "$STDERR_OUT" | grep -q "Warning.*work_item_revise_major_count" &&
+  echo "$OUTPUT" | grep -q '\*\*work-item revise major count\*\*: 2$'; then
   echo "  PASS: invalid major count warns and falls back to default"
   PASS=$((PASS + 1))
 else
@@ -2341,7 +2344,7 @@ fi
 echo "Test: work_item_revise_severity: sometimes -> warning, falls back to critical"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   work_item_revise_severity: sometimes
@@ -2349,8 +2352,8 @@ review:
 FIXTURE
 STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>&1 1>/dev/null || true)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if echo "$STDERR_OUT" | grep -q "Warning.*work_item_revise_severity" && \
-   echo "$OUTPUT" | grep -q '\*\*work-item revise severity\*\*: critical$'; then
+if echo "$STDERR_OUT" | grep -q "Warning.*work_item_revise_severity" &&
+  echo "$OUTPUT" | grep -q '\*\*work-item revise severity\*\*: critical$'; then
   echo "  PASS: invalid severity warns and falls back to default"
   PASS=$((PASS + 1))
 else
@@ -2363,7 +2366,7 @@ fi
 echo "Test: work_item_revise_severity: none -> severity-based REVISE disabled verdict line"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   work_item_revise_severity: none
@@ -2384,9 +2387,9 @@ REPO=$(setup_repo)
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
 WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if echo "$WORK_ITEM_OUT" | grep -q "| completeness |" && \
-   ! echo "$PR_OUT" | grep -q "| completeness |" && \
-   ! echo "$PLAN_OUT" | grep -q "| completeness |"; then
+if echo "$WORK_ITEM_OUT" | grep -q "| completeness |" &&
+  ! echo "$PR_OUT" | grep -q "| completeness |" &&
+  ! echo "$PLAN_OUT" | grep -q "| completeness |"; then
   echo "  PASS: completeness in work-item only"
   PASS=$((PASS + 1))
 else
@@ -2400,7 +2403,7 @@ fi
 echo "Test: cross-mode core_lenses: [architecture, completeness] produces no warning in pr, plan, or work-item mode"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   core_lenses: [architecture, completeness]
@@ -2409,9 +2412,9 @@ FIXTURE
 PR_STDERR=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
 PLAN_STDERR=$(cd "$REPO" && bash "$READ_REVIEW" plan 2>&1 1>/dev/null)
 WORK_ITEM_STDERR=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>&1 1>/dev/null || true)
-if ! echo "$PR_STDERR" | grep -q "unrecognised" && \
-   ! echo "$PLAN_STDERR" | grep -q "unrecognised" && \
-   ! echo "$WORK_ITEM_STDERR" | grep -q "unrecognised"; then
+if ! echo "$PR_STDERR" | grep -q "unrecognised" &&
+  ! echo "$PLAN_STDERR" | grep -q "unrecognised" &&
+  ! echo "$WORK_ITEM_STDERR" | grep -q "unrecognised"; then
   echo "  PASS: cross-mode core_lenses produces no unrecognised warning"
   PASS=$((PASS + 1))
 else
@@ -2442,42 +2445,42 @@ fi
 
 echo "Test: PATH_KEYS has expected length and order"
 EXPECTED_PATH_KEYS="paths.plans paths.research_codebase paths.decisions paths.prs paths.validations paths.review_plans paths.review_prs paths.review_work paths.templates paths.work paths.notes paths.tmp paths.integrations paths.research_design_inventories paths.research_design_gaps paths.global paths.research_issues"
-ACTUAL_PATH_KEYS_LEN=$( source "$DEFAULTS_FILE" && echo "${#PATH_KEYS[@]}" )
+ACTUAL_PATH_KEYS_LEN=$(source "$DEFAULTS_FILE" && echo "${#PATH_KEYS[@]}")
 assert_eq "PATH_KEYS length" "17" "$ACTUAL_PATH_KEYS_LEN"
-ACTUAL_PATH_KEYS=$( source "$DEFAULTS_FILE" && echo "${PATH_KEYS[*]}" )
+ACTUAL_PATH_KEYS=$(source "$DEFAULTS_FILE" && echo "${PATH_KEYS[*]}")
 assert_eq "PATH_KEYS contents" "$EXPECTED_PATH_KEYS" "$ACTUAL_PATH_KEYS"
 
 echo "Test: PATH_DEFAULTS has expected length and order"
 EXPECTED_PATH_DEFAULTS="meta/plans meta/research/codebase meta/decisions meta/prs meta/validations meta/reviews/plans meta/reviews/prs meta/reviews/work .accelerator/templates meta/work meta/notes .accelerator/tmp .accelerator/state/integrations meta/research/design-inventories meta/research/design-gaps meta/global meta/research/issues"
-ACTUAL_PATH_DEFAULTS_LEN=$( source "$DEFAULTS_FILE" && echo "${#PATH_DEFAULTS[@]}" )
+ACTUAL_PATH_DEFAULTS_LEN=$(source "$DEFAULTS_FILE" && echo "${#PATH_DEFAULTS[@]}")
 assert_eq "PATH_DEFAULTS length" "17" "$ACTUAL_PATH_DEFAULTS_LEN"
-ACTUAL_PATH_DEFAULTS=$( source "$DEFAULTS_FILE" && echo "${PATH_DEFAULTS[*]}" )
+ACTUAL_PATH_DEFAULTS=$(source "$DEFAULTS_FILE" && echo "${PATH_DEFAULTS[*]}")
 assert_eq "PATH_DEFAULTS contents" "$EXPECTED_PATH_DEFAULTS" "$ACTUAL_PATH_DEFAULTS"
 
 echo "Test: TEMPLATE_KEYS has expected length and order"
 EXPECTED_TEMPLATE_KEYS="templates.plan templates.codebase-research templates.adr templates.validation templates.pr-description templates.work-item"
-ACTUAL_TEMPLATE_KEYS_LEN=$( source "$DEFAULTS_FILE" && echo "${#TEMPLATE_KEYS[@]}" )
+ACTUAL_TEMPLATE_KEYS_LEN=$(source "$DEFAULTS_FILE" && echo "${#TEMPLATE_KEYS[@]}")
 assert_eq "TEMPLATE_KEYS length" "6" "$ACTUAL_TEMPLATE_KEYS_LEN"
-ACTUAL_TEMPLATE_KEYS=$( source "$DEFAULTS_FILE" && echo "${TEMPLATE_KEYS[*]}" )
+ACTUAL_TEMPLATE_KEYS=$(source "$DEFAULTS_FILE" && echo "${TEMPLATE_KEYS[*]}")
 assert_eq "TEMPLATE_KEYS contents" "$EXPECTED_TEMPLATE_KEYS" "$ACTUAL_TEMPLATE_KEYS"
 
 echo "Test: WORK_KEYS has expected length and order"
 EXPECTED_WORK_KEYS="work.integration work.id_pattern work.default_project_code"
-ACTUAL_WORK_KEYS_LEN=$( source "$DEFAULTS_FILE" && echo "${#WORK_KEYS[@]}" )
+ACTUAL_WORK_KEYS_LEN=$(source "$DEFAULTS_FILE" && echo "${#WORK_KEYS[@]}")
 assert_eq "WORK_KEYS length" "3" "$ACTUAL_WORK_KEYS_LEN"
-ACTUAL_WORK_KEYS=$( source "$DEFAULTS_FILE" && echo "${WORK_KEYS[*]}" )
+ACTUAL_WORK_KEYS=$(source "$DEFAULTS_FILE" && echo "${WORK_KEYS[*]}")
 assert_eq "WORK_KEYS contents" "$EXPECTED_WORK_KEYS" "$ACTUAL_WORK_KEYS"
 
 echo "Test: WORK_DEFAULTS has expected length and matches WORK_KEYS"
-ACTUAL_WORK_DEFAULTS_LEN=$( source "$DEFAULTS_FILE" && echo "${#WORK_DEFAULTS[@]}" )
+ACTUAL_WORK_DEFAULTS_LEN=$(source "$DEFAULTS_FILE" && echo "${#WORK_DEFAULTS[@]}")
 assert_eq "WORK_DEFAULTS length" "3" "$ACTUAL_WORK_DEFAULTS_LEN"
-ACTUAL_WORK_DEFAULTS=$( source "$DEFAULTS_FILE" && echo "${WORK_DEFAULTS[*]}" )
+ACTUAL_WORK_DEFAULTS=$(source "$DEFAULTS_FILE" && echo "${WORK_DEFAULTS[*]}")
 assert_eq "WORK_DEFAULTS contents" " {number:04d} " "$ACTUAL_WORK_DEFAULTS"
 
 echo "Test: WORK_INTEGRATION_VALUES has expected length and contains exactly jira, linear, trello, github-issues"
-ACTUAL_WORK_INTEGRATION_VALUES_LEN=$( source "$DEFAULTS_FILE" && echo "${#WORK_INTEGRATION_VALUES[@]}" )
+ACTUAL_WORK_INTEGRATION_VALUES_LEN=$(source "$DEFAULTS_FILE" && echo "${#WORK_INTEGRATION_VALUES[@]}")
 assert_eq "WORK_INTEGRATION_VALUES length" "4" "$ACTUAL_WORK_INTEGRATION_VALUES_LEN"
-ACTUAL_WORK_INTEGRATION_VALUES=$( source "$DEFAULTS_FILE" && echo "${WORK_INTEGRATION_VALUES[*]}" )
+ACTUAL_WORK_INTEGRATION_VALUES=$(source "$DEFAULTS_FILE" && echo "${WORK_INTEGRATION_VALUES[*]}")
 assert_eq "WORK_INTEGRATION_VALUES contents" "jira linear trello github-issues" "$ACTUAL_WORK_INTEGRATION_VALUES"
 
 echo "Test: no file outside config-defaults.sh contains a literal jira|linear|trello|github-issues alternation"
@@ -2499,7 +2502,7 @@ fi
 echo "Test: config-dump.sh renders at least one paths.* and one templates.* row"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 if echo "$OUTPUT" | grep -qF '| `paths.plans` |' && echo "$OUTPUT" | grep -qF '| `templates.plan` |'; then
   echo "  PASS: paths.* and templates.* rows present in config-dump output"
@@ -2533,7 +2536,7 @@ assert_eq "outputs nothing" "" "$OUTPUT"
 echo "Test: Team-only config -> all keys shown with correct source"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   max_inline_comments: 15
@@ -2552,7 +2555,7 @@ fi
 echo "Test: Local-only config -> keys shown with local source"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 review:
   max_inline_comments: 20
@@ -2571,22 +2574,22 @@ fi
 echo "Test: Merged config -> overridden key shows local source"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   max_inline_comments: 15
   min_lenses: 3
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 review:
   max_inline_comments: 20
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep "review.max_inline_comments" | grep -q "local" && \
-   echo "$OUTPUT" | grep "review.min_lenses" | grep -q "team"; then
+if echo "$OUTPUT" | grep "review.max_inline_comments" | grep -q "local" &&
+  echo "$OUTPUT" | grep "review.min_lenses" | grep -q "team"; then
   echo "  PASS: merged config shows correct sources"
   PASS=$((PASS + 1))
 else
@@ -2598,7 +2601,7 @@ fi
 echo "Test: Default keys shown with default source"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   max_inline_comments: 15
@@ -2621,7 +2624,7 @@ echo "Test: REVIEW_DEFAULTS stays index-aligned with REVIEW_KEYS (first + last)"
 # REVIEW_DEFAULTS and REVIEW_KEYS that the single-key checks above would miss.
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nreview:\n  min_lenses: 5\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nreview:\n  min_lenses: 5\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 assert_contains "first key default value/source aligned" "$OUTPUT" \
   '`review.max_inline_comments` | `10` | default'
@@ -2631,7 +2634,7 @@ assert_contains "last key default value/source aligned" "$OUTPUT" \
 echo "Test: All review config keys appear in output (completeness check)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 ALL_KEYS_OK=true
 for key in review.max_inline_comments review.min_lenses review.max_lenses review.dedup_proximity review.core_lenses review.disabled_lenses review.pr_request_changes_severity review.plan_revise_severity review.plan_revise_major_count; do
@@ -2650,15 +2653,15 @@ fi
 echo "Test: No config overrides -> config-dump shows prefixed agent defaults"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 review:
   max_inline_comments: 15
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep -q 'agents\.reviewer.*accelerator:reviewer.*default' && \
-   echo "$OUTPUT" | grep -q 'agents\.codebase-locator.*accelerator:codebase-locator.*default'; then
+if echo "$OUTPUT" | grep -q 'agents\.reviewer.*accelerator:reviewer.*default' &&
+  echo "$OUTPUT" | grep -q 'agents\.codebase-locator.*accelerator:codebase-locator.*default'; then
   echo "  PASS: config-dump shows prefixed agent defaults"
   PASS=$((PASS + 1))
 else
@@ -2676,9 +2679,9 @@ echo ""
 echo "Test: work.integration appears in dump as *(not set)* with default source when unconfigured"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep -qF '`work.integration`' && echo "$OUTPUT" | grep 'work\.integration' | grep -q '*(not set)*'; then
+if echo "$OUTPUT" | grep -qF '`work.integration`' && echo "$OUTPUT" | grep 'work\.integration' | grep -qF '*(not set)*'; then
   echo "  PASS: work.integration shows as not set"
   PASS=$((PASS + 1))
 else
@@ -2690,7 +2693,7 @@ fi
 echo "Test: work.id_pattern appears in dump with default {number:04d}"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 if echo "$OUTPUT" | grep 'work\.id_pattern' | grep -q '{number:04d}'; then
   echo "  PASS: work.id_pattern shows default"
@@ -2704,9 +2707,9 @@ fi
 echo "Test: work.default_project_code appears in dump as *(not set)* by default"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep 'work\.default_project_code' | grep -q '*(not set)*'; then
+if echo "$OUTPUT" | grep 'work\.default_project_code' | grep -qF '*(not set)*'; then
   echo "  PASS: work.default_project_code shows as not set"
   PASS=$((PASS + 1))
 else
@@ -2718,16 +2721,16 @@ fi
 echo "Test: configured work.integration: jira shows 'jira' with team source"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jira
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep 'work\.integration' | grep -q 'jira' && \
-   echo "$OUTPUT" | grep 'work\.integration' | grep -q 'team' && \
-   ! echo "$OUTPUT" | grep 'work\.integration' | grep -q 'invalid'; then
+if echo "$OUTPUT" | grep 'work\.integration' | grep -q 'jira' &&
+  echo "$OUTPUT" | grep 'work\.integration' | grep -q 'team' &&
+  ! echo "$OUTPUT" | grep 'work\.integration' | grep -q 'invalid'; then
   echo "  PASS: jira integration shown correctly with team source, no invalid annotation"
   PASS=$((PASS + 1))
 else
@@ -2739,21 +2742,21 @@ fi
 echo "Test: local override of work.integration shows 'local' source"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jira
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 work:
   integration: linear
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep 'work\.integration' | grep -q 'linear' && \
-   echo "$OUTPUT" | grep 'work\.integration' | grep -q 'local'; then
+if echo "$OUTPUT" | grep 'work\.integration' | grep -q 'linear' &&
+  echo "$OUTPUT" | grep 'work\.integration' | grep -q 'local'; then
   echo "  PASS: local override shows linear with local source"
   PASS=$((PASS + 1))
 else
@@ -2765,7 +2768,7 @@ fi
 echo "Test: invalid work.integration value appears with (invalid: ...) annotation"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jura
@@ -2784,14 +2787,14 @@ fi
 echo "Test: invalid work.integration value does not cause dump to exit non-zero"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jura
 ---
 FIXTURE
 EXIT_CODE=0
-(cd "$REPO" && bash "$CONFIG_DUMP" > /dev/null) || EXIT_CODE=$?
+(cd "$REPO" && bash "$CONFIG_DUMP" >/dev/null) || EXIT_CODE=$?
 if [ "$EXIT_CODE" -eq 0 ]; then
   echo "  PASS: dump exits 0 with invalid integration"
   PASS=$((PASS + 1))
@@ -2804,7 +2807,7 @@ fi
 echo "Test: completeness — all three work.* keys appear in dump output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 COMPLETENESS_FAIL=0
 for key in work.integration work.id_pattern work.default_project_code; do
@@ -2823,13 +2826,13 @@ fi
 echo "Test: work.* rows appear in WORK_KEYS declaration order in dump output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 INTEGRATION_LINE=$(echo "$OUTPUT" | grep -n 'work\.integration' | head -1 | cut -d: -f1)
 IDPATTERN_LINE=$(echo "$OUTPUT" | grep -n 'work\.id_pattern' | head -1 | cut -d: -f1)
 PROJECT_LINE=$(echo "$OUTPUT" | grep -n 'work\.default_project_code' | head -1 | cut -d: -f1)
-if [ -n "$INTEGRATION_LINE" ] && [ -n "$IDPATTERN_LINE" ] && [ -n "$PROJECT_LINE" ] && \
-   [ "$INTEGRATION_LINE" -lt "$IDPATTERN_LINE" ] && [ "$IDPATTERN_LINE" -lt "$PROJECT_LINE" ]; then
+if [ -n "$INTEGRATION_LINE" ] && [ -n "$IDPATTERN_LINE" ] && [ -n "$PROJECT_LINE" ] &&
+  [ "$INTEGRATION_LINE" -lt "$IDPATTERN_LINE" ] && [ "$IDPATTERN_LINE" -lt "$PROJECT_LINE" ]; then
   echo "  PASS: work.* rows in declaration order (integration < id_pattern < default_project_code)"
   PASS=$((PASS + 1))
 else
@@ -2841,14 +2844,14 @@ fi
 echo "Test: mixed source attribution — each row shows its own provenance"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jira
   id_pattern: "{project}-{number:04d}"
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 work:
   integration: linear
@@ -2938,7 +2941,7 @@ assert_eq "outputs default" "meta/plans" "$OUTPUT"
 echo "Test: paths.plans configured -> outputs configured value"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   plans: docs/plans
@@ -2950,7 +2953,7 @@ assert_eq "outputs configured path" "docs/plans" "$OUTPUT"
 echo "Test: paths.decisions configured -> outputs configured value"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   decisions: docs/adrs
@@ -2962,7 +2965,7 @@ assert_eq "outputs configured path" "docs/adrs" "$OUTPUT"
 echo "Test: paths.review_plans configured"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   review_plans: docs/reviews/plans
@@ -2974,7 +2977,7 @@ assert_eq "outputs configured path" "docs/reviews/plans" "$OUTPUT"
 echo "Test: paths.review_prs configured"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   review_prs: docs/reviews/prs
@@ -2986,7 +2989,7 @@ assert_eq "outputs configured path" "docs/reviews/prs" "$OUTPUT"
 echo "Test: paths.templates configured"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   templates: docs/templates
@@ -2998,7 +3001,7 @@ assert_eq "outputs configured path" "docs/templates" "$OUTPUT"
 echo "Test: paths.work configured"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   work: docs/work
@@ -3010,7 +3013,7 @@ assert_eq "outputs configured path" "docs/work" "$OUTPUT"
 echo "Test: paths.notes configured"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   notes: docs/notes
@@ -3022,7 +3025,7 @@ assert_eq "outputs configured path" "docs/notes" "$OUTPUT"
 echo "Test: paths.review_work configured"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   review_work: docs/reviews/work
@@ -3034,7 +3037,7 @@ assert_eq "outputs configured path" "docs/reviews/work" "$OUTPUT"
 echo "Test: config-read-path.sh integrations returns supplied default when paths.integrations is unset"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 # accelerator
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_PATH" integrations .accelerator/state/integrations)
@@ -3043,7 +3046,7 @@ assert_eq "default returned" ".accelerator/state/integrations" "$OUTPUT"
 echo "Test: config-read-path.sh integrations honours paths.integrations override"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   integrations: custom/integrations
@@ -3055,7 +3058,7 @@ assert_eq "override returned" "custom/integrations" "$OUTPUT"
 echo "Test: Absolute path is output as-is"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   plans: /opt/docs/plans
@@ -3067,13 +3070,13 @@ assert_eq "outputs absolute path" "/opt/docs/plans" "$OUTPUT"
 echo "Test: Local overrides team for paths"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   plans: team/plans
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 paths:
   plans: my/plans
@@ -3121,7 +3124,7 @@ assert_eq "global default" "meta/global" "$OUTPUT"
 echo "Test: global key returns config override when set"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   global: custom/global
@@ -3133,13 +3136,13 @@ assert_eq "global config override" "custom/global" "$OUTPUT"
 echo "Test: global key returns config.local.md override (last-writer-wins)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   global: custom/global
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 paths:
   global: local/override
@@ -3156,7 +3159,7 @@ assert_eq "templates default" ".accelerator/templates" "$OUTPUT"
 echo "Test: no-\$2 returns configured value when key is set in config"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   work: docs/work-items
@@ -3193,7 +3196,7 @@ if [ ! -f "$JIRA_FILE" ]; then
   echo "  FAIL: $JIRA_FILE not found — cannot verify multiline call site"
   FAIL=$((FAIL + 1))
 fi
-JIRA_MATCHES=$(grep -n '\.accelerator/state/integrations' "$JIRA_FILE" 2>/dev/null | \
+JIRA_MATCHES=$(grep -n '\.accelerator/state/integrations' "$JIRA_FILE" 2>/dev/null |
   grep -v '#' | sort -u || true)
 ALL_MATCHES="${SKILL_MATCHES}${BASH_MATCHES}${JIRA_MATCHES}"
 if [ -z "$ALL_MATCHES" ]; then
@@ -3222,7 +3225,7 @@ assert_contains "bare-key warning names the canonical key" "$ERR" "research_desi
 echo "Test: config-read-path.sh warns when canonical key called but legacy alias is in user config"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\npaths:\n  design_inventories: my-custom-path\n  design_gaps: my-other-path\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\npaths:\n  design_inventories: my-custom-path\n  design_gaps: my-other-path\n---\n' >"$REPO/.accelerator/config.md"
 ERR=$(cd "$REPO" && bash "$CONFIG_READ_PATH" research_design_inventories 2>&1 >/dev/null || true)
 assert_contains "legacy-in-config warning names migration 0004" "$ERR" "migration 0004"
 assert_contains "legacy-in-config warning names the ignored key" "$ERR" "paths.design_inventories"
@@ -3274,7 +3277,7 @@ assert_eq "default_project_code default empty" "" "$OUTPUT"
 echo "Test: integration -> reads team config value (jira)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jira
@@ -3286,7 +3289,7 @@ assert_eq "reads jira from team config" "jira" "$OUTPUT"
 echo "Test: id_pattern -> reads team config value"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{project}-{number:04d}"
@@ -3298,7 +3301,7 @@ assert_eq "reads id_pattern from team config" "{project}-{number:04d}" "$OUTPUT"
 echo "Test: default_project_code -> reads team config value"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   default_project_code: PROJ
@@ -3310,13 +3313,13 @@ assert_eq "reads default_project_code from team config" "PROJ" "$OUTPUT"
 echo "Test: local override of work.integration wins over team"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jira
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 work:
   integration: linear
@@ -3328,13 +3331,13 @@ assert_eq "local override wins for integration" "linear" "$OUTPUT"
 echo "Test: local override of work.id_pattern wins over team"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{number:04d}"
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{project}-{number:06d}"
@@ -3346,13 +3349,13 @@ assert_eq "local override wins for id_pattern" "{project}-{number:06d}" "$OUTPUT
 echo "Test: local override of work.default_project_code wins over team"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   default_project_code: TEAM
 ---
 FIXTURE
-cat > "$REPO/.accelerator/config.local.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.local.md" <<'FIXTURE'
 ---
 work:
   default_project_code: LOCAL
@@ -3364,7 +3367,7 @@ assert_eq "local override wins for default_project_code" "LOCAL" "$OUTPUT"
 echo "Test: work.integration explicitly set to empty string -> empty value, no error, no warning"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: ""
@@ -3385,7 +3388,7 @@ fi
 echo "Test: work.default_project_code set to empty string in team config -> empty value"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   default_project_code: ""
@@ -3411,7 +3414,7 @@ fi
 echo "Test: unknown work.* key with value set in config -> warning + value returned"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   unknown_key: somevalue
@@ -3454,7 +3457,7 @@ unset _EXPECTED_DEFAULTS _KEY_NAMES _key _expected _actual
 echo "Test: work.integration: jira -> reads jira"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jira
@@ -3466,7 +3469,7 @@ assert_eq "jira is valid" "jira" "$OUTPUT"
 echo "Test: work.integration: linear -> reads linear"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: linear
@@ -3478,7 +3481,7 @@ assert_eq "linear is valid" "linear" "$OUTPUT"
 echo "Test: work.integration: trello -> reads trello"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: trello
@@ -3490,7 +3493,7 @@ assert_eq "trello is valid" "trello" "$OUTPUT"
 echo "Test: work.integration: github-issues -> reads github-issues"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: github-issues
@@ -3502,7 +3505,7 @@ assert_eq "github-issues is valid" "github-issues" "$OUTPUT"
 echo "Test: work.integration: garbage -> exits non-zero"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: garbage
@@ -3521,7 +3524,7 @@ fi
 echo "Test: work.integration: garbage -> stderr contains all valid values"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: garbage
@@ -3546,7 +3549,7 @@ fi
 echo "Test: work.integration: garbage -> stderr contains the input value"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: garbage
@@ -3565,7 +3568,7 @@ fi
 echo "Test: work.integration: garbage -> stderr names .accelerator/config.md and /accelerator:configure view"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: garbage
@@ -3597,7 +3600,7 @@ fi
 echo "Test: work.integration: garbage but reading id_pattern -> id_pattern read succeeds"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: garbage
@@ -3617,7 +3620,7 @@ fi
 echo "Test: work.integration: garbage but reading default_project_code -> read succeeds"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: garbage
@@ -3637,7 +3640,7 @@ fi
 echo "Test: capture+echo form propagates exit when config-read-value.sh itself returns normally"
 EMPTY_DIR=$(mktemp -d "$TMPDIR_BASE/empty-XXXXXX")
 EXIT_CODE=0
-( cd "$EMPTY_DIR" && bash "$READ_WORK" id_pattern 2>/dev/null ) || EXIT_CODE=$?
+(cd "$EMPTY_DIR" && bash "$READ_WORK" id_pattern 2>/dev/null) || EXIT_CODE=$?
 if [ "$EXIT_CODE" -eq 0 ]; then
   echo "  PASS: wrapper exits 0 when config-read-value.sh returns normally"
   PASS=$((PASS + 1))
@@ -3658,7 +3661,13 @@ WORK_COMMON="$SCRIPT_DIR/work-common.sh"
 _run_resolve() {
   local repo="$1"
   local stdout stderr exit_code
-  stderr=$(cd "$repo" && { stdout=$(source "$WORK_COMMON" && work_resolve_default_project); exit_code=$?; } 2>&1 1>&3; echo "$exit_code") 3>&1
+  stderr=$(
+    cd "$repo" && {
+      stdout=$(source "$WORK_COMMON" && work_resolve_default_project)
+      exit_code=$?
+    } 2>&1 1>&3
+    echo "$exit_code"
+  ) 3>&1
   printf '%s\n' "$stdout" "$stderr"
 }
 
@@ -3679,7 +3688,7 @@ fi
 echo "Test: integration unset, project = PROJ -> no warning, returns PROJ"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   default_project_code: PROJ
@@ -3700,7 +3709,7 @@ fi
 echo "Test: integration = jira, project = PROJ -> no warning, returns PROJ"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jira
@@ -3722,7 +3731,7 @@ fi
 echo "Test: integration = jira, project unset -> warning to stderr, returns empty"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jira
@@ -3743,7 +3752,7 @@ fi
 echo "Test: integration = jira, project unset -> warning names 'jira'"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jira
@@ -3762,7 +3771,7 @@ fi
 echo "Test: integration = linear, project unset -> warning names 'linear'"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: linear
@@ -3781,7 +3790,7 @@ fi
 echo "Test: integration = trello, project unset -> warning names 'trello'"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: trello
@@ -3800,7 +3809,7 @@ fi
 echo "Test: integration = github-issues, project unset -> warning names 'github-issues'"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: github-issues
@@ -3819,7 +3828,7 @@ fi
 echo "Test: warning includes 'pass --project' and references default_project_code"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jira
@@ -3838,7 +3847,7 @@ fi
 echo "Test: warning includes '.accelerator/config.md'"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jira
@@ -3857,7 +3866,7 @@ fi
 echo "Test: integration = 'jura' (invalid), project unset -> exits non-zero and stderr names valid values"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jura
@@ -3878,7 +3887,7 @@ fi
 echo "Test: integration = 'jura' (invalid), project = PROJ -> still exits non-zero"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   integration: jura
@@ -4099,7 +4108,7 @@ done
 echo "Test: config override reflected in output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   work: docs/work-items
@@ -4143,7 +4152,7 @@ fi
 echo "Test: Template in configured templates directory (default .accelerator/templates/) -> outputs user template"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-cat > "$REPO/.accelerator/templates/plan.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/templates/plan.md" <<'FIXTURE'
 # Custom Plan Template
 
 ## My Custom Section
@@ -4163,13 +4172,13 @@ echo "Test: paths.templates overridden -> looks in overridden directory"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/docs/templates"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   templates: docs/templates
 ---
 FIXTURE
-cat > "$REPO/docs/templates/plan.md" << 'FIXTURE'
+cat >"$REPO/docs/templates/plan.md" <<'FIXTURE'
 # Overridden Directory Plan Template
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
@@ -4186,16 +4195,16 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/custom"
 mkdir -p "$REPO/.accelerator/templates"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 templates:
   plan: custom/my-plan.md
 ---
 FIXTURE
-cat > "$REPO/custom/my-plan.md" << 'FIXTURE'
+cat >"$REPO/custom/my-plan.md" <<'FIXTURE'
 # Config-Specified Plan
 FIXTURE
-cat > "$REPO/.accelerator/templates/plan.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/templates/plan.md" <<'FIXTURE'
 # Templates-Dir Plan (should NOT be used)
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
@@ -4210,7 +4219,7 @@ fi
 echo "Test: Template file already starts with code fence -> output as-is (no double-wrapping)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-printf '```markdown\n# Already Fenced\n```\n' > "$REPO/.accelerator/templates/plan.md"
+printf '```markdown\n# Already Fenced\n```\n' >"$REPO/.accelerator/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
 # Count occurrences of ```markdown - should be exactly 1
 FENCE_COUNT=$(echo "$OUTPUT" | grep -c '```markdown' || true)
@@ -4219,7 +4228,7 @@ assert_eq "no double-wrapping" "1" "$FENCE_COUNT"
 echo "Test: Config path specified but missing -> falls back to plugin default with warning"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 templates:
   plan: nonexistent/plan.md
@@ -4246,13 +4255,13 @@ echo "Test: Config path specified as relative -> resolved against project root"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/relative/path"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 templates:
   plan: relative/path/plan.md
 ---
 FIXTURE
-cat > "$REPO/relative/path/plan.md" << 'FIXTURE'
+cat >"$REPO/relative/path/plan.md" <<'FIXTURE'
 # Relative Path Plan
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
@@ -4268,10 +4277,10 @@ echo "Test: Config path specified as absolute -> used as-is"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 ABS_TEMPLATE=$(mktemp "$TMPDIR_BASE/abs-template-XXXXXX.md")
-cat > "$ABS_TEMPLATE" << 'FIXTURE'
+cat >"$ABS_TEMPLATE" <<'FIXTURE'
 # Absolute Path Plan
 FIXTURE
-cat > "$REPO/.accelerator/config.md" << FIXTURE
+cat >"$REPO/.accelerator/config.md" <<FIXTURE
 ---
 templates:
   plan: $ABS_TEMPLATE
@@ -4289,12 +4298,12 @@ fi
 echo "Test: Unknown template name -> error listing available template names"
 REPO=$(setup_repo)
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "nonexistent" 2>&1 1>/dev/null || true)
-if echo "$STDERR_OUTPUT" | grep -q "pr-description" && \
-   echo "$STDERR_OUTPUT" | grep -q "plan" && \
-   echo "$STDERR_OUTPUT" | grep -q "research" && \
-   echo "$STDERR_OUTPUT" | grep -q "adr" && \
-   echo "$STDERR_OUTPUT" | grep -q "validation" && \
-   echo "$STDERR_OUTPUT" | grep -q "work-item"; then
+if echo "$STDERR_OUTPUT" | grep -q "pr-description" &&
+  echo "$STDERR_OUTPUT" | grep -q "plan" &&
+  echo "$STDERR_OUTPUT" | grep -q "research" &&
+  echo "$STDERR_OUTPUT" | grep -q "adr" &&
+  echo "$STDERR_OUTPUT" | grep -q "validation" &&
+  echo "$STDERR_OUTPUT" | grep -q "work-item"; then
   echo "  PASS: error lists available templates (including pr-description and work-item)"
   PASS=$((PASS + 1))
 else
@@ -4329,7 +4338,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/meta/decisions"
 cp "$TMPDIR_BASE/repo-"*/meta/decisions/ADR-* "$REPO/meta/decisions/" 2>/dev/null || true
 # Create a sample ADR file
-cat > "$REPO/meta/decisions/ADR-0005-test.md" << 'FIXTURE'
+cat >"$REPO/meta/decisions/ADR-0005-test.md" <<'FIXTURE'
 ---
 adr_id: ADR-0005
 status: proposed
@@ -4343,13 +4352,13 @@ echo "Test: With paths.decisions configured, scans custom directory"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/custom/adrs"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   decisions: custom/adrs
 ---
 FIXTURE
-cat > "$REPO/custom/adrs/ADR-0003-test.md" << 'FIXTURE'
+cat >"$REPO/custom/adrs/ADR-0003-test.md" <<'FIXTURE'
 ---
 adr_id: ADR-0003
 status: proposed
@@ -4362,7 +4371,7 @@ assert_eq "scans custom directory" "0004" "$OUTPUT"
 echo "Test: With configured directory that does not exist, warns and returns 0001"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   decisions: nonexistent/adrs
@@ -4505,8 +4514,8 @@ fi
 
 echo "Test: describe-pr uses config-read-path.sh for prs and config-read-template.sh for pr-description"
 DESCRIBE_SKILL="$SKILLS_DIR/github/describe-pr/SKILL.md"
-if grep -q 'config-read-path.sh prs' "$DESCRIBE_SKILL" && \
-   grep -q 'config-read-template.sh pr-description' "$DESCRIBE_SKILL"; then
+if grep -q 'config-read-path.sh prs' "$DESCRIBE_SKILL" &&
+  grep -q 'config-read-template.sh pr-description' "$DESCRIBE_SKILL"; then
   echo "  PASS: describe-pr has prs path and pr-description template injections"
   PASS=$((PASS + 1))
 else
@@ -4591,7 +4600,7 @@ assert_empty "no output without context.md" "$OUTPUT"
 echo "Test: context.md exists with content -> outputs section with header"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/create-plan"
-printf 'Some context content.\n' > "$REPO/.accelerator/skills/create-plan/context.md"
+printf 'Some context content.\n' >"$REPO/.accelerator/skills/create-plan/context.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
 EXPECTED="## Skill-Specific Context
 
@@ -4611,14 +4620,14 @@ assert_empty "no output for empty file" "$OUTPUT"
 echo "Test: context.md exists with only whitespace/blank lines -> no output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/create-plan"
-printf '   \n\n  \n' > "$REPO/.accelerator/skills/create-plan/context.md"
+printf '   \n\n  \n' >"$REPO/.accelerator/skills/create-plan/context.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
 assert_empty "no output for whitespace-only file" "$OUTPUT"
 
 echo "Test: context.md with leading/trailing blank lines -> trimmed output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/review-pr"
-printf '\n\nTrimmed content.\n\n\n' > "$REPO/.accelerator/skills/review-pr/context.md"
+printf '\n\nTrimmed content.\n\n\n' >"$REPO/.accelerator/skills/review-pr/context.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" review-pr)
 assert_contains "content is trimmed" "$OUTPUT" "Trimmed content."
 # Should not start with blank lines in content section
@@ -4628,7 +4637,7 @@ assert_eq "last line is trimmed content" "Trimmed content." "$CONTENT_AFTER_HEAD
 echo "Test: Output includes skill name in header text"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/review-pr"
-printf 'Content.\n' > "$REPO/.accelerator/skills/review-pr/context.md"
+printf 'Content.\n' >"$REPO/.accelerator/skills/review-pr/context.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" review-pr)
 assert_contains "header mentions skill name" "$OUTPUT" "review-pr skill"
 
@@ -4636,8 +4645,8 @@ echo "Test: Multiple skills with context -> each reads only its own"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/create-plan"
 mkdir -p "$REPO/.accelerator/skills/review-pr"
-printf 'Plan context.\n' > "$REPO/.accelerator/skills/create-plan/context.md"
-printf 'PR context.\n' > "$REPO/.accelerator/skills/review-pr/context.md"
+printf 'Plan context.\n' >"$REPO/.accelerator/skills/create-plan/context.md"
+printf 'PR context.\n' >"$REPO/.accelerator/skills/review-pr/context.md"
 OUTPUT_PLAN=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
 OUTPUT_PR=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" review-pr)
 assert_contains "plan reads its own context" "$OUTPUT_PLAN" "Plan context."
@@ -4674,7 +4683,7 @@ assert_empty "no output without instructions.md" "$OUTPUT"
 echo "Test: instructions.md exists with content -> outputs section with header"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/review-pr"
-printf 'Always check for tests.\n' > "$REPO/.accelerator/skills/review-pr/instructions.md"
+printf 'Always check for tests.\n' >"$REPO/.accelerator/skills/review-pr/instructions.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
 EXPECTED="## Additional Instructions
 
@@ -4695,14 +4704,14 @@ assert_empty "no output for empty file" "$OUTPUT"
 echo "Test: instructions.md exists with only whitespace/blank lines -> no output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/review-pr"
-printf '   \n\n  \n' > "$REPO/.accelerator/skills/review-pr/instructions.md"
+printf '   \n\n  \n' >"$REPO/.accelerator/skills/review-pr/instructions.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
 assert_empty "no output for whitespace-only file" "$OUTPUT"
 
 echo "Test: instructions.md with leading/trailing blank lines -> trimmed output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/commit"
-printf '\n\nTrimmed instructions.\n\n\n' > "$REPO/.accelerator/skills/commit/instructions.md"
+printf '\n\nTrimmed instructions.\n\n\n' >"$REPO/.accelerator/skills/commit/instructions.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" commit)
 assert_contains "content is trimmed" "$OUTPUT" "Trimmed instructions."
 CONTENT_AFTER_HEADER=$(echo "$OUTPUT" | tail -1)
@@ -4711,7 +4720,7 @@ assert_eq "last line is trimmed content" "Trimmed instructions." "$CONTENT_AFTER
 echo "Test: Output includes skill name in header text"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/commit"
-printf 'Instructions.\n' > "$REPO/.accelerator/skills/commit/instructions.md"
+printf 'Instructions.\n' >"$REPO/.accelerator/skills/commit/instructions.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" commit)
 assert_contains "header mentions skill name" "$OUTPUT" "commit skill"
 
@@ -4719,8 +4728,8 @@ echo "Test: Multiple skills with instructions -> each reads only its own"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/commit"
 mkdir -p "$REPO/.accelerator/skills/review-pr"
-printf 'Commit instructions.\n' > "$REPO/.accelerator/skills/commit/instructions.md"
-printf 'Review instructions.\n' > "$REPO/.accelerator/skills/review-pr/instructions.md"
+printf 'Commit instructions.\n' >"$REPO/.accelerator/skills/commit/instructions.md"
+printf 'Review instructions.\n' >"$REPO/.accelerator/skills/review-pr/instructions.md"
 OUTPUT_COMMIT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" commit)
 OUTPUT_PR=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
 assert_contains "commit reads its own instructions" "$OUTPUT_COMMIT" "Commit instructions."
@@ -4742,7 +4751,7 @@ echo ""
 echo "Test: No per-skill directories -> no per-skill line in summary"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
 if echo "$OUTPUT" | grep -q "Per-skill"; then
   echo "  FAIL: should not mention per-skill without directories"
@@ -4756,39 +4765,39 @@ fi
 echo "Test: One skill with context.md -> summary lists skill with (context)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 mkdir -p "$REPO/.accelerator/skills/create-plan"
-printf 'Some context.\n' > "$REPO/.accelerator/skills/create-plan/context.md"
+printf 'Some context.\n' >"$REPO/.accelerator/skills/create-plan/context.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
 assert_contains "lists skill with context" "$OUTPUT" "create-plan (context)"
 
 echo "Test: One skill with instructions.md -> summary lists skill with (instructions)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 mkdir -p "$REPO/.accelerator/skills/review-pr"
-printf 'Some instructions.\n' > "$REPO/.accelerator/skills/review-pr/instructions.md"
+printf 'Some instructions.\n' >"$REPO/.accelerator/skills/review-pr/instructions.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
 assert_contains "lists skill with instructions" "$OUTPUT" "review-pr (instructions)"
 
 echo "Test: One skill with both files -> summary lists skill with (context + instructions)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 mkdir -p "$REPO/.accelerator/skills/create-plan"
-printf 'Context.\n' > "$REPO/.accelerator/skills/create-plan/context.md"
-printf 'Instructions.\n' > "$REPO/.accelerator/skills/create-plan/instructions.md"
+printf 'Context.\n' >"$REPO/.accelerator/skills/create-plan/context.md"
+printf 'Instructions.\n' >"$REPO/.accelerator/skills/create-plan/instructions.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
 assert_contains "lists skill with both" "$OUTPUT" "create-plan (context + instructions)"
 
 echo "Test: Multiple skills with customisations -> all listed"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 mkdir -p "$REPO/.accelerator/skills/create-plan"
 mkdir -p "$REPO/.accelerator/skills/review-pr"
-printf 'Context.\n' > "$REPO/.accelerator/skills/create-plan/context.md"
-printf 'Instructions.\n' > "$REPO/.accelerator/skills/review-pr/instructions.md"
+printf 'Context.\n' >"$REPO/.accelerator/skills/create-plan/context.md"
+printf 'Instructions.\n' >"$REPO/.accelerator/skills/review-pr/instructions.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
 assert_contains "lists create-plan" "$OUTPUT" "create-plan (context)"
 assert_contains "lists review-pr" "$OUTPUT" "review-pr (instructions)"
@@ -4796,9 +4805,9 @@ assert_contains "lists review-pr" "$OUTPUT" "review-pr (instructions)"
 echo "Test: Skill directory with no recognised files -> not listed"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 mkdir -p "$REPO/.accelerator/skills/create-plan"
-printf 'Some other file.\n' > "$REPO/.accelerator/skills/create-plan/notes.md"
+printf 'Some other file.\n' >"$REPO/.accelerator/skills/create-plan/notes.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
 if echo "$OUTPUT" | grep -q "Per-skill"; then
   echo "  FAIL: should not list skill with no recognised files"
@@ -4812,7 +4821,7 @@ fi
 echo "Test: Empty context.md and instructions.md -> skill not listed"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 mkdir -p "$REPO/.accelerator/skills/create-plan"
 touch "$REPO/.accelerator/skills/create-plan/context.md"
 touch "$REPO/.accelerator/skills/create-plan/instructions.md"
@@ -4829,9 +4838,9 @@ fi
 echo "Test: Whitespace-only context.md -> skill not listed (matches reader behaviour)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 mkdir -p "$REPO/.accelerator/skills/create-plan"
-printf '   \n\n  \n' > "$REPO/.accelerator/skills/create-plan/context.md"
+printf '   \n\n  \n' >"$REPO/.accelerator/skills/create-plan/context.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
 if echo "$OUTPUT" | grep -q "Per-skill"; then
   echo "  FAIL: should not list skill with whitespace-only files"
@@ -4845,18 +4854,18 @@ fi
 echo "Test: Unrecognised skill directory name -> stderr warning emitted"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 mkdir -p "$REPO/.accelerator/skills/nonexistent-skill"
-printf 'Content.\n' > "$REPO/.accelerator/skills/nonexistent-skill/context.md"
+printf 'Content.\n' >"$REPO/.accelerator/skills/nonexistent-skill/context.md"
 STDERR_OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>&1 1>/dev/null)
 assert_contains "warns about unrecognised skill" "$STDERR_OUTPUT" "does not match any known skill name"
 
 echo "Test: Known skill directory name -> no stderr warning"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 mkdir -p "$REPO/.accelerator/skills/create-plan"
-printf 'Content.\n' > "$REPO/.accelerator/skills/create-plan/context.md"
+printf 'Content.\n' >"$REPO/.accelerator/skills/create-plan/context.md"
 STDERR_OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>&1 1>/dev/null)
 if [ -z "$STDERR_OUTPUT" ]; then
   echo "  PASS: no stderr warning for known skill name"
@@ -4973,9 +4982,9 @@ echo ""
 echo "Test: Per-skill customisations appear in hook additionalContext JSON"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 mkdir -p "$REPO/.accelerator/skills/create-plan"
-printf 'Context content.\n' > "$REPO/.accelerator/skills/create-plan/context.md"
+printf 'Context content.\n' >"$REPO/.accelerator/skills/create-plan/context.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT" 2>/dev/null)
 ADDITIONAL_CONTEXT=$(echo "$OUTPUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || true)
 assert_contains "per-skill info in additionalContext" "$ADDITIONAL_CONTEXT" "Per-skill customisations"
@@ -4983,9 +4992,9 @@ assert_contains "per-skill info in additionalContext" "$ADDITIONAL_CONTEXT" "Per
 echo "Test: Unrecognised skill name warning appears in stderr (not in JSON)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\nkey: value\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 mkdir -p "$REPO/.accelerator/skills/nonexistent-skill"
-printf 'Content.\n' > "$REPO/.accelerator/skills/nonexistent-skill/context.md"
+printf 'Content.\n' >"$REPO/.accelerator/skills/nonexistent-skill/context.md"
 STDERR_OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT" 2>&1 1>/dev/null)
 STDOUT_OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT" 2>/dev/null)
 assert_contains "warning in stderr" "$STDERR_OUTPUT" "does not match any known skill name"
@@ -5028,16 +5037,16 @@ assert_empty "empty output for empty directory" "$OUTPUT"
 echo "Test: Only returns .md files (ignores other extensions)"
 MIXED_ROOT=$(mktemp -d "$TMPDIR_BASE/mixed-plugin-XXXXXX")
 mkdir -p "$MIXED_ROOT/templates"
-echo "template" > "$MIXED_ROOT/templates/plan.md"
-echo "not a template" > "$MIXED_ROOT/templates/readme.txt"
-echo "also not" > "$MIXED_ROOT/templates/notes.json"
+echo "template" >"$MIXED_ROOT/templates/plan.md"
+echo "not a template" >"$MIXED_ROOT/templates/readme.txt"
+echo "also not" >"$MIXED_ROOT/templates/notes.json"
 OUTPUT=$(config_enumerate_templates "$MIXED_ROOT")
 assert_eq "only returns plan" "plan" "$OUTPUT"
 
 echo "Test: Returns nothing if directory exists with only non-.md files"
 NOMD_ROOT=$(mktemp -d "$TMPDIR_BASE/nomd-plugin-XXXXXX")
 mkdir -p "$NOMD_ROOT/templates"
-echo "not md" > "$NOMD_ROOT/templates/readme.txt"
+echo "not md" >"$NOMD_ROOT/templates/readme.txt"
 OUTPUT=$(config_enumerate_templates "$NOMD_ROOT")
 assert_empty "empty output for non-md files" "$OUTPUT"
 
@@ -5050,16 +5059,16 @@ echo ""
 echo "Test: Resolves to plugin default when no config or override exists"
 REPO=$(setup_repo)
 RESOLUTION=$(cd "$REPO" && config_resolve_template "plan" "$PLUGIN_ROOT")
-IFS=$'\t' read -r SOURCE PATH_VAL <<< "$RESOLUTION"
+IFS=$'\t' read -r SOURCE PATH_VAL <<<"$RESOLUTION"
 assert_eq "source is plugin default" "$CONFIG_TEMPLATE_SOURCE_PLUGIN_DEFAULT" "$SOURCE"
 assert_contains "path contains templates/plan.md" "$PATH_VAL" "templates/plan.md"
 
 echo "Test: Resolves to user override when present in templates directory"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-echo "# Custom" > "$REPO/.accelerator/templates/plan.md"
+echo "# Custom" >"$REPO/.accelerator/templates/plan.md"
 RESOLUTION=$(cd "$REPO" && config_resolve_template "plan" "$PLUGIN_ROOT")
-IFS=$'\t' read -r SOURCE PATH_VAL <<< "$RESOLUTION"
+IFS=$'\t' read -r SOURCE PATH_VAL <<<"$RESOLUTION"
 assert_eq "source is user override" "$CONFIG_TEMPLATE_SOURCE_USER_OVERRIDE" "$SOURCE"
 assert_contains "path contains .accelerator/templates/plan.md" "$PATH_VAL" ".accelerator/templates/plan.md"
 
@@ -5067,15 +5076,15 @@ echo "Test: Resolves to config path when templates.<key> is set"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/custom"
-echo "# Config Path" > "$REPO/custom/my-plan.md"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+echo "# Config Path" >"$REPO/custom/my-plan.md"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 templates:
   plan: custom/my-plan.md
 ---
 FIXTURE
 RESOLUTION=$(cd "$REPO" && config_resolve_template "plan" "$PLUGIN_ROOT")
-IFS=$'\t' read -r SOURCE PATH_VAL <<< "$RESOLUTION"
+IFS=$'\t' read -r SOURCE PATH_VAL <<<"$RESOLUTION"
 assert_eq "source is config path" "$CONFIG_TEMPLATE_SOURCE_CONFIG_PATH" "$SOURCE"
 assert_contains "path contains custom/my-plan.md" "$PATH_VAL" "custom/my-plan.md"
 
@@ -5084,16 +5093,16 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/custom"
 mkdir -p "$REPO/.accelerator/templates"
-echo "# Config Path" > "$REPO/custom/my-plan.md"
-echo "# User Override" > "$REPO/.accelerator/templates/plan.md"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+echo "# Config Path" >"$REPO/custom/my-plan.md"
+echo "# User Override" >"$REPO/.accelerator/templates/plan.md"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 templates:
   plan: custom/my-plan.md
 ---
 FIXTURE
 RESOLUTION=$(cd "$REPO" && config_resolve_template "plan" "$PLUGIN_ROOT")
-IFS=$'\t' read -r SOURCE PATH_VAL <<< "$RESOLUTION"
+IFS=$'\t' read -r SOURCE PATH_VAL <<<"$RESOLUTION"
 assert_eq "source is config path (precedence)" "$CONFIG_TEMPLATE_SOURCE_CONFIG_PATH" "$SOURCE"
 
 echo "Test: Returns 1 when template key is unknown"
@@ -5105,7 +5114,7 @@ assert_eq "returns 1 for unknown key" "1" "$RC"
 echo "Test: Emits warning to stderr when config path is missing but falls back"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 templates:
   plan: nonexistent/plan.md
@@ -5140,21 +5149,21 @@ echo ""
 echo "Test: Output contains templates.pr-description row"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\ntemplates:\n  pr-description: custom/pr.md\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\ntemplates:\n  pr-description: custom/pr.md\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 assert_contains "pr-description key in dump" "$OUTPUT" "templates.pr-description"
 
 echo "Test: Output contains templates.work-item row"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\ntemplates:\n  work-item: custom/work-item.md\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\ntemplates:\n  work-item: custom/work-item.md\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 assert_contains "work-item key in dump" "$OUTPUT" "templates.work-item"
 
 echo "Test: Output contains paths.review_work row"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-printf -- '---\npaths:\n  review_work: docs/reviews/work\n---\n' > "$REPO/.accelerator/config.md"
+printf -- '---\npaths:\n  review_work: docs/reviews/work\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 assert_contains "review_work key in dump" "$OUTPUT" "paths.review_work"
 
@@ -5200,7 +5209,7 @@ done
 echo "Test: User override in .accelerator/templates/ -> shows user override"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-echo "# Custom" > "$REPO/.accelerator/templates/plan.md"
+echo "# Custom" >"$REPO/.accelerator/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 if echo "$OUTPUT" | grep '`plan`' | grep -q "user override"; then
   echo "  PASS: plan shows user override"
@@ -5215,8 +5224,8 @@ echo "Test: Config path override -> shows config path"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/custom"
-echo "# Config" > "$REPO/custom/my-plan.md"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+echo "# Config" >"$REPO/custom/my-plan.md"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 templates:
   plan: custom/my-plan.md
@@ -5236,8 +5245,8 @@ echo "Test: Custom paths.templates -> finds override in custom directory"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/docs/tpl"
-echo "# Custom" > "$REPO/docs/tpl/codebase-research.md"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+echo "# Custom" >"$REPO/docs/tpl/codebase-research.md"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   templates: docs/tpl
@@ -5266,18 +5275,18 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/custom"
 mkdir -p "$REPO/.accelerator/templates"
-echo "# Config" > "$REPO/custom/my-plan.md"
-echo "# Override" > "$REPO/.accelerator/templates/codebase-research.md"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+echo "# Config" >"$REPO/custom/my-plan.md"
+echo "# Override" >"$REPO/.accelerator/templates/codebase-research.md"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 templates:
   plan: custom/my-plan.md
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
-if echo "$OUTPUT" | grep '`plan`' | grep -q "config path" && \
-   echo "$OUTPUT" | grep '`codebase-research`' | grep -q "user override" && \
-   echo "$OUTPUT" | grep '`adr`' | grep -q "plugin default"; then
+if echo "$OUTPUT" | grep '`plan`' | grep -q "config path" &&
+  echo "$OUTPUT" | grep '`codebase-research`' | grep -q "user override" &&
+  echo "$OUTPUT" | grep '`adr`' | grep -q "plugin default"; then
   echo "  PASS: mixed sources correctly labelled"
   PASS=$((PASS + 1))
 else
@@ -5311,7 +5320,7 @@ fi
 echo "Test: User override -> shows Source: user override + user content"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-echo "# My Custom Plan" > "$REPO/.accelerator/templates/plan.md"
+echo "# My Custom Plan" >"$REPO/.accelerator/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "plan")
 assert_contains "source line says user override" "$(echo "$OUTPUT" | head -1)" "Source: user override"
 assert_contains "contains user content" "$OUTPUT" "My Custom Plan"
@@ -5320,8 +5329,8 @@ echo "Test: Config path override -> shows Source: config path + content"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/custom"
-echo "# Config Plan" > "$REPO/custom/my-plan.md"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+echo "# Config Plan" >"$REPO/custom/my-plan.md"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 templates:
   plan: custom/my-plan.md
@@ -5346,7 +5355,7 @@ assert_exit_code "exits 1 for no argument" 1 bash "$SHOW_TEMPLATE"
 echo "Test: Content is raw (no code fences added)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-printf '# Raw Template\n\nSome content here.\n' > "$REPO/.accelerator/templates/plan.md"
+printf '# Raw Template\n\nSome content here.\n' >"$REPO/.accelerator/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "plan")
 # Extract content after the --- separator
 CONTENT=$(echo "$OUTPUT" | sed '1,2d')
@@ -5385,7 +5394,7 @@ assert_file_content_eq "content matches plugin default" "$REPO/.accelerator/temp
 echo "Test: Exit code 2 when target exists without --force"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-echo "# Existing" > "$REPO/.accelerator/templates/plan.md"
+echo "# Existing" >"$REPO/.accelerator/templates/plan.md"
 RC=0
 cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null 2>&1 || RC=$?
 assert_eq "exit code 2" "2" "$RC"
@@ -5394,7 +5403,7 @@ assert_file_content_eq "file unchanged" "$REPO/.accelerator/templates/plan.md" "
 echo "Test: --force overwrites existing file, exit 0"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-echo "# Existing" > "$REPO/.accelerator/templates/plan.md"
+echo "# Existing" >"$REPO/.accelerator/templates/plan.md"
 RC=0
 OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --force "plan") || RC=$?
 assert_eq "exit code 0" "0" "$RC"
@@ -5412,8 +5421,8 @@ done
 echo "Test: --all --force overwrites all existing"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-echo "# Old" > "$REPO/.accelerator/templates/plan.md"
-echo "# Old" > "$REPO/.accelerator/templates/codebase-research.md"
+echo "# Old" >"$REPO/.accelerator/templates/plan.md"
+echo "# Old" >"$REPO/.accelerator/templates/codebase-research.md"
 RC=0
 OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --all --force) || RC=$?
 assert_eq "exit code 0" "0" "$RC"
@@ -5423,7 +5432,7 @@ assert_file_content_eq "plan overwritten" "$REPO/.accelerator/templates/plan.md"
 echo "Test: --all with some existing files exits 2 without --force"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-echo "# Existing" > "$REPO/.accelerator/templates/plan.md"
+echo "# Existing" >"$REPO/.accelerator/templates/plan.md"
 RC=0
 cd "$REPO" && bash "$EJECT_TEMPLATE" --all >/dev/null 2>&1 || RC=$?
 assert_eq "exit code 2" "2" "$RC"
@@ -5445,7 +5454,7 @@ assert_eq "exit code 0 for dry-run" "0" "$RC"
 echo "Test: --dry-run with existing file shows would skip"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-echo "# Existing" > "$REPO/.accelerator/templates/plan.md"
+echo "# Existing" >"$REPO/.accelerator/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$EJECT_TEMPLATE" --dry-run "plan" 2>&1) || true
 assert_contains "would skip message" "$OUTPUT" "Would skip:"
 
@@ -5459,7 +5468,7 @@ assert_contains "unexpected argument error" "$STDERR_OUTPUT" "unexpected argumen
 echo "Test: Respects paths.templates config override"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   templates: docs/tpl
@@ -5499,7 +5508,7 @@ echo "Test: User override with differences -> outputs unified diff"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
 cp "$PLUGIN_ROOT/templates/plan.md" "$REPO/.accelerator/templates/plan.md"
-echo "# Extra line added by user" >> "$REPO/.accelerator/templates/plan.md"
+echo "# Extra line added by user" >>"$REPO/.accelerator/templates/plan.md"
 RC=0
 OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan") || RC=$?
 assert_contains "diff header present" "$OUTPUT" "Comparing plugin default vs user override:"
@@ -5508,7 +5517,7 @@ assert_contains "diff contains addition" "$OUTPUT" "+# Extra line added by user"
 echo "Test: User override with known added line -> diff shows + prefix"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-printf 'Modified content\n' > "$REPO/.accelerator/templates/plan.md"
+printf 'Modified content\n' >"$REPO/.accelerator/templates/plan.md"
 RC=0
 OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan") || RC=$?
 assert_contains "additions shown with +" "$OUTPUT" "+Modified content"
@@ -5525,8 +5534,8 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/custom"
 cp "$PLUGIN_ROOT/templates/plan.md" "$REPO/custom/my-plan.md"
-echo "# Config override addition" >> "$REPO/custom/my-plan.md"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+echo "# Config override addition" >>"$REPO/custom/my-plan.md"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 templates:
   plan: custom/my-plan.md
@@ -5566,7 +5575,7 @@ assert_contains "already using default" "$STDERR_OUTPUT" "already using plugin d
 echo "Test: User override without --confirm -> exit 0, outputs override path and source"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-echo "# Custom" > "$REPO/.accelerator/templates/plan.md"
+echo "# Custom" >"$REPO/.accelerator/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" "plan")
 assert_contains "found override" "$OUTPUT" "Found override:"
 assert_contains "source is user override" "$OUTPUT" "user override"
@@ -5577,8 +5586,8 @@ echo "Test: Config path override without --confirm -> includes note about config
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/custom"
-echo "# Config" > "$REPO/custom/my-plan.md"
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+echo "# Config" >"$REPO/custom/my-plan.md"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 templates:
   plan: custom/my-plan.md
@@ -5592,8 +5601,8 @@ echo "Test: Config path outside project root without --confirm -> warning shown"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 OUTSIDE_FILE=$(mktemp "$TMPDIR_BASE/outside-plan-XXXXXX.md")
-echo "# Outside" > "$OUTSIDE_FILE"
-cat > "$REPO/.accelerator/config.md" << FIXTURE
+echo "# Outside" >"$OUTSIDE_FILE"
+cat >"$REPO/.accelerator/config.md" <<FIXTURE
 ---
 templates:
   plan: $OUTSIDE_FILE
@@ -5605,7 +5614,7 @@ assert_contains "outside project warning" "$OUTPUT" "Warning: This file is outsi
 echo "Test: --confirm with user override -> deletes file"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
-echo "# Custom" > "$REPO/.accelerator/templates/plan.md"
+echo "# Custom" >"$REPO/.accelerator/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$RESET_TEMPLATE" --confirm "plan")
 assert_file_not_exists "file deleted" "$REPO/.accelerator/templates/plan.md"
 assert_contains "reset message" "$OUTPUT" "Reset: plan"
@@ -5711,7 +5720,7 @@ assert_contains "identical message" "$OUTPUT" "Templates are identical."
 echo "Test: Eject + edit + diff: shows addition with + prefix"
 REPO=$(setup_repo)
 cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null
-echo "# User addition" >> "$REPO/.accelerator/templates/plan.md"
+echo "# User addition" >>"$REPO/.accelerator/templates/plan.md"
 RC=0
 OUTPUT=$(cd "$REPO" && bash "$DIFF_TEMPLATE" "plan") || RC=$?
 assert_contains "addition shown with +" "$OUTPUT" "+# User addition"
@@ -5732,8 +5741,8 @@ echo ""
 echo "Test: init SKILL.md directory count matches Path Resolution list"
 INIT_SKILL="$PLUGIN_ROOT/skills/config/init/SKILL.md"
 EXPECTED=$(grep -cE '^\*\*[A-Za-z][^*]* directory\*\*:' "$INIT_SKILL")
-ACTUAL=$(grep -oE '<!-- DIR_COUNT:[0-9]+ -->' "$INIT_SKILL" \
-  | grep -oE '[0-9]+' | head -1)
+ACTUAL=$(grep -oE '<!-- DIR_COUNT:[0-9]+ -->' "$INIT_SKILL" |
+  grep -oE '[0-9]+' | head -1)
 assert_eq "directory count agrees with Path Resolution list" \
   "$EXPECTED" "$ACTUAL"
 
@@ -5916,8 +5925,8 @@ else
 fi
 
 echo "Test: configure/SKILL.md recognised-keys paragraph lists work.integration"
-if grep -q "work\.integration" "$CONFIGURE_SKILL" && \
-   grep -A2 "Recognised keys" "$CONFIGURE_SKILL" | grep -q "work\.integration"; then
+if grep -q "work\.integration" "$CONFIGURE_SKILL" &&
+  grep -A2 "Recognised keys" "$CONFIGURE_SKILL" | grep -q "work\.integration"; then
   echo "  PASS: recognised-keys paragraph mentions work.integration"
   PASS=$((PASS + 1))
 else

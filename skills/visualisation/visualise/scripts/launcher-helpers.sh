@@ -45,12 +45,16 @@ ppid_of() {
 start_time_of() {
   local pid="$1"
   if [ -r "/proc/$pid/stat" ] && [ -r "/proc/stat" ]; then
-    local tail; tail="$(sed -E 's/.*\) //' "/proc/$pid/stat")"
-    local starttime_ticks; starttime_ticks="$(echo "$tail" | awk '{print $20}')"
-    local hz; hz="$(getconf CLK_TCK 2>/dev/null || echo 0)"
+    local tail
+    tail="$(sed -E 's/.*\) //' "/proc/$pid/stat")"
+    local starttime_ticks
+    starttime_ticks="$(echo "$tail" | awk '{print $20}')"
+    local hz
+    hz="$(getconf CLK_TCK 2>/dev/null || echo 0)"
     [ "$hz" -gt 0 ] || return 1
-    local btime; btime="$(awk '/^btime / {print $2}' /proc/stat)"
-    echo $(( btime + starttime_ticks / hz ))
+    local btime
+    btime="$(awk '/^btime / {print $2}' /proc/stat)"
+    echo $((btime + starttime_ticks / hz))
   elif command -v ps >/dev/null 2>&1 && [ "$(uname -s)" = "Darwin" ]; then
     # Force C locale on both sides: `ps lstart` and `date -j -f` both
     # localise day/month names (and on de_DE even the field order),
@@ -60,7 +64,8 @@ start_time_of() {
     # here, every reuse check fails and the launcher respawns the
     # daemon between commands — losing page state (e.g. a prior
     # `navigate`) on the way through.
-    local out; out="$(LANG=C LC_ALL=C ps -p "$pid" -o lstart= 2>/dev/null | tr -s ' ' ' ' | sed 's/^ //;s/ $//')"
+    local out
+    out="$(LANG=C LC_ALL=C ps -p "$pid" -o lstart= 2>/dev/null | tr -s ' ' ' ' | sed 's/^ //;s/ $//')"
     [ -n "$out" ] || return 1
     LANG=C LC_ALL=C date -j -f "%a %b %d %H:%M:%S %Y" "$out" +%s 2>/dev/null
   else
@@ -80,8 +85,8 @@ start_time_matches() {
   local expected="$1" actual="$2" diff
   [ -z "$expected" ] && return 0
   [ -z "$actual" ] && return 1
-  diff=$(( actual - expected ))
-  [ "$diff" -lt 0 ] && diff=$(( -diff ))
+  diff=$((actual - expected))
+  [ "$diff" -lt 0 ] && diff=$((-diff))
   [ "$diff" -le 1 ]
 }
 
@@ -89,12 +94,15 @@ start_time_matches() {
 # Uses a hidden tempfile in the same dir for an atomic rename.
 write_server_stopped() {
   local path="$1" reason="$2"
-  local dir; dir="$(dirname "$path")"
+  local dir
+  dir="$(dirname "$path")"
   mkdir -p "$dir"
-  local tmp; tmp="$(mktemp "$dir/.server-stopped.XXXXXX")"
-  local ts; ts="$(date +%s 2>/dev/null || echo null)"
+  local tmp
+  tmp="$(mktemp "$dir/.server-stopped.XXXXXX")"
+  local ts
+  ts="$(date +%s 2>/dev/null || echo null)"
   jq -nc --arg reason "$reason" --argjson timestamp "$ts" \
-    '{reason:$reason,timestamp:$timestamp,written_by:"stop-server.sh"}' > "$tmp"
+    '{reason:$reason,timestamp:$timestamp,written_by:"stop-server.sh"}' >"$tmp"
   chmod 0600 "$tmp" 2>/dev/null || true
   mv "$tmp" "$path"
 }
@@ -107,13 +115,13 @@ stop_server_status() {
     return 0
   fi
   local pid url start_time alive
-  pid="$(tr -cd '0-9' < "$PID_FILE" 2>/dev/null || echo '')"
+  pid="$(tr -cd '0-9' <"$PID_FILE" 2>/dev/null || echo '')"
   url="$(jq -r '.url // empty' "$INFO" 2>/dev/null || true)"
   start_time="$(jq -r '.start_time // empty' "$INFO" 2>/dev/null || true)"
   alive=false
   if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-    if [ -z "$start_time" ] || \
-       [ "$(start_time_of "$pid" 2>/dev/null || echo '')" = "$start_time" ]; then
+    if [ -z "$start_time" ] ||
+      [ "$(start_time_of "$pid" 2>/dev/null || echo '')" = "$start_time" ]; then
       alive=true
     fi
   fi
@@ -133,7 +141,7 @@ stop_server_stop() {
   fi
 
   local pid expected_start current_start
-  pid="$(tr -cd '0-9' < "$PID_FILE")"
+  pid="$(tr -cd '0-9' <"$PID_FILE")"
   expected_start="$(jq -r '.start_time // empty' "$INFO" 2>/dev/null || true)"
 
   if [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; then
@@ -157,8 +165,7 @@ stop_server_stop() {
   fi
 
   kill "$pid" 2>/dev/null || true
-  local i
-  for i in $(seq 1 20); do
+  for _ in $(seq 1 20); do
     kill -0 "$pid" 2>/dev/null || break
     sleep 0.1
   done

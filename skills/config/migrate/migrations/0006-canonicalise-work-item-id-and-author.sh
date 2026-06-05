@@ -22,9 +22,10 @@ fi
 # ---- Path safety ----------------------------------------------------
 
 assert_safe_relpath() {
-  local rel="$1"; local label="$2"
+  local rel="$1"
+  local label="$2"
   case "$rel" in
-    ''|.|..|/|/*|*/..|../*|*/../*|*/./*)
+    '' | . | .. | / | /* | */.. | ../* | */../* | */./*)
       log_warn "0006: refusing dangerous $label value: $rel"
       return 1
       ;;
@@ -38,11 +39,14 @@ assert_safe_relpath() {
   local parent leaf abs_parent
   parent="$(dirname "$rel")"
   leaf="$(basename "$rel")"
-  if abs_parent="$(cd "$PROJECT_ROOT" && CDPATH= cd -- "$parent" 2>/dev/null && pwd -P)"; then
+  if abs_parent="$(cd "$PROJECT_ROOT" && CDPATH='' cd -- "$parent" 2>/dev/null && pwd -P)"; then
     local canonical="$abs_parent/$leaf"
     case "$canonical" in
-      "$PROJECT_ROOT"|"$PROJECT_ROOT"/*) return 0 ;;
-      *) log_warn "0006: $label resolves outside project root: $rel -> $canonical"; return 1 ;;
+      "$PROJECT_ROOT" | "$PROJECT_ROOT"/*) return 0 ;;
+      *)
+        log_warn "0006: $label resolves outside project root: $rel -> $canonical"
+        return 1
+        ;;
     esac
   fi
   # Parent doesn't exist yet — accept on the basis of the surface-form check.
@@ -52,8 +56,8 @@ assert_safe_relpath() {
 resolve_corpus_path() {
   local key="$1"
   local rel
-  rel="$(cd "$PROJECT_ROOT" \
-    && bash "$PLUGIN_ROOT/scripts/config-read-path.sh" "$key" 2>/dev/null || true)"
+  rel="$(cd "$PROJECT_ROOT" &&
+    bash "$PLUGIN_ROOT/scripts/config-read-path.sh" "$key" 2>/dev/null || true)"
   if [ -z "$rel" ]; then
     log_warn "0006: config-read-path.sh returned empty for '$key' — skipping corpus"
     return 1
@@ -67,8 +71,8 @@ resolve_corpus_path() {
 
 canonicalise_rel() {
   local rel="$1"
-  (cd "$PROJECT_ROOT" && CDPATH= cd -- "$rel" 2>/dev/null && pwd -P) \
-    || printf '%s\n' "$PROJECT_ROOT/$rel"
+  (cd "$PROJECT_ROOT" && CDPATH='' cd -- "$rel" 2>/dev/null && pwd -P) ||
+    printf '%s\n' "$PROJECT_ROOT/$rel"
 }
 
 # ---- Awk transform --------------------------------------------------
@@ -256,29 +260,29 @@ rewrite_file() {
   fm=$(extract_frontmatter "$file")
   pre_h2=$(extract_pre_h2 "$file")
   local has_wi=0 has_id=0 has_r=0 has_a=0 has_rb=0 has_ab=0
-  if printf '%s\n' "$fm" | grep -q '^work-item:';     then has_wi=1; fi
-  if printf '%s\n' "$fm" | grep -q '^work_item_id:';  then has_id=1; fi
-  if printf '%s\n' "$fm" | grep -q '^researcher:';    then has_r=1;  fi
-  if printf '%s\n' "$fm" | grep -q '^author:';        then has_a=1;  fi
+  if printf '%s\n' "$fm" | grep -q '^work-item:'; then has_wi=1; fi
+  if printf '%s\n' "$fm" | grep -q '^work_item_id:'; then has_id=1; fi
+  if printf '%s\n' "$fm" | grep -q '^researcher:'; then has_r=1; fi
+  if printf '%s\n' "$fm" | grep -q '^author:'; then has_a=1; fi
   if printf '%s\n' "$pre_h2" | grep -q '^\*\*Researcher\*\*:'; then has_rb=1; fi
-  if printf '%s\n' "$pre_h2" | grep -q '^\*\*Author\*\*:';     then has_ab=1; fi
+  if printf '%s\n' "$pre_h2" | grep -q '^\*\*Author\*\*:'; then has_ab=1; fi
 
   local tmp_out tmp_err
   tmp_out=$(mktemp)
   tmp_err=$(mktemp)
   awk_transform "$file" "$has_wi" "$has_id" "$has_r" "$has_a" "$has_rb" "$has_ab" \
-    < "$file" > "$tmp_out" 2> "$tmp_err"
+    <"$file" >"$tmp_out" 2>"$tmp_err"
 
   local touched=0
   if ! cmp -s "$file" "$tmp_out"; then
-    atomic_write "$file" < "$tmp_out"
+    atomic_write "$file" <"$tmp_out"
     touched=1
   fi
 
   if [ -s "$tmp_err" ]; then
     while IFS= read -r line; do
       log_warn "0006: ${line}"
-    done < "$tmp_err"
+    done <"$tmp_err"
   fi
   rm -f "$tmp_out" "$tmp_err"
 
@@ -347,8 +351,8 @@ resolve_user_template_path() {
   local name="$1"
 
   local tier1
-  tier1="$(cd "$PROJECT_ROOT" \
-    && bash "$PLUGIN_ROOT/scripts/config-read-value.sh" "templates.$name" 2>/dev/null || true)"
+  tier1="$(cd "$PROJECT_ROOT" &&
+    bash "$PLUGIN_ROOT/scripts/config-read-value.sh" "templates.$name" 2>/dev/null || true)"
   if [ -n "$tier1" ]; then
     if ! assert_safe_relpath "$tier1" "templates.$name"; then
       return 0
@@ -363,8 +367,8 @@ resolve_user_template_path() {
   fi
 
   local tdir_rel
-  tdir_rel="$(cd "$PROJECT_ROOT" \
-    && bash "$PLUGIN_ROOT/scripts/config-read-path.sh" templates 2>/dev/null || true)"
+  tdir_rel="$(cd "$PROJECT_ROOT" &&
+    bash "$PLUGIN_ROOT/scripts/config-read-path.sh" templates 2>/dev/null || true)"
   if [ -n "$tdir_rel" ]; then
     local tier2_abs="$PROJECT_ROOT/$tdir_rel/$name.md"
     if [ -f "$tier2_abs" ]; then

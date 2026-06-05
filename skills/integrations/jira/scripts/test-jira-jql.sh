@@ -10,7 +10,6 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
 JQL_LIB="$SCRIPT_DIR/jira-jql.sh"
-JQL_CLI="$SCRIPT_DIR/jira-jql-cli.sh"
 
 # shellcheck source=/dev/null
 source "$JQL_LIB"
@@ -126,7 +125,7 @@ echo ""
 
 echo "Test 17: printable punctuation passes without --unsafe"
 for val in 'feature/auth' 'Customer Champion?' '[brackets]' 'tag#1' \
-           'email@example' '100%' '*wildcard*' 'path|pipe' 'bug;urgent'; do
+  'email@example' '100%' '*wildcard*' 'path|pipe' 'bug;urgent'; do
   OUT=$(jql_quote_value "$val")
   assert_contains "quoted: $val" "$OUT" "'"
 done
@@ -154,30 +153,33 @@ echo "Test 19: 100 random printable-ASCII inputs round-trip"
 PRINTABLE='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !"#$%&'"'"'()*+,-./:;<=>?@[\]^_`{|}~'
 PRINTABLE_LEN=${#PRINTABLE}
 FUZZ_FAIL=0
-for i in $(seq 1 100); do
+for _ in $(seq 1 100); do
   # Generate a random length 1..40 string from printable ASCII
-  LEN=$(( (RANDOM % 40) + 1 ))
+  LEN=$(((RANDOM % 40) + 1))
   INPUT=""
-  for j in $(seq 1 "$LEN"); do
-    IDX=$(( RANDOM % PRINTABLE_LEN ))
+  for _ in $(seq 1 "$LEN"); do
+    IDX=$((RANDOM % PRINTABLE_LEN))
     INPUT="${INPUT}${PRINTABLE:$IDX:1}"
   done
-  OUT=$(jql_quote_value "$INPUT" 2>/dev/null) || { FUZZ_FAIL=$(( FUZZ_FAIL + 1 )); continue; }
+  OUT=$(jql_quote_value "$INPUT" 2>/dev/null) || {
+    FUZZ_FAIL=$((FUZZ_FAIL + 1))
+    continue
+  }
   # Strip the surrounding single quotes and check no unescaped single quote remains
   INNER="${OUT:1:${#OUT}-2}"
   # Replace all '' (doubled quotes) with empty; no bare ' should remain
   STRIPPED="${INNER//\'\'/}"
   if [[ "$STRIPPED" == *"'"* ]]; then
     echo "  FUZZ FAIL on input: $(printf '%q' "$INPUT") -> $(printf '%q' "$OUT")"
-    FUZZ_FAIL=$(( FUZZ_FAIL + 1 ))
+    FUZZ_FAIL=$((FUZZ_FAIL + 1))
   fi
 done
 if [[ "$FUZZ_FAIL" -eq 0 ]]; then
   echo "  PASS: fuzz sanity check (100 inputs)"
-  PASS=$(( PASS + 1 ))
+  PASS=$((PASS + 1))
 else
   echo "  FAIL: fuzz sanity check ($FUZZ_FAIL failures)"
-  FAIL=$(( FAIL + 1 ))
+  FAIL=$((FAIL + 1))
 fi
 
 echo ""

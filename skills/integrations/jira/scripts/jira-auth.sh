@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034 # JIRA_*/JIRA_RESOLUTION_SOURCE_* are set in the caller's scope (see below) and consumed by jira-auth-cli.sh
 # Jira credential resolver. Source from scripts that need Jira credentials:
 #
 #   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

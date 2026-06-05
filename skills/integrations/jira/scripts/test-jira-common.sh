@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# This harness sources the script-under-test (jira-common.sh via the computed
+# $JIRA_COMMON) inside dozens of subshell test cases; the path is intentionally
+# dynamic, so following it adds nothing.
+# shellcheck disable=SC1090
 set -euo pipefail
 
 # Tests for jira-common.sh
@@ -9,7 +13,6 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 JIRA_COMMON="$SCRIPT_DIR/jira-common.sh"
 
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
-
 
 TMPDIR_BASE=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_BASE"' EXIT
@@ -49,7 +52,7 @@ assert_dir_exists "state dir created" "$REPO/.accelerator/state/integrations/jir
 
 echo "Test: jira_state_dir respects paths.integrations override"
 REPO=$(setup_repo)
-cat > "$REPO/.accelerator/config.md" << 'FIXTURE'
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 paths:
   integrations: .state/integrations
@@ -142,7 +145,7 @@ assert_contains "E_BAD_JSON on stderr" "$STDERR" "E_BAD_JSON"
 echo "Test: invalid JSON leaves existing target unchanged"
 REPO=$(setup_repo)
 TARGET="$REPO/out.json"
-printf '{"original":1}' > "$TARGET"
+printf '{"original":1}' >"$TARGET"
 (cd "$REPO" && source "$JIRA_COMMON" && printf 'bad' | jira_atomic_write_json "$TARGET" 2>/dev/null) || true
 CONTENT=$(cat "$TARGET")
 assert_eq "original file intact after bad JSON" '{"original":1}' "$CONTENT"
@@ -151,11 +154,28 @@ echo "Test: concurrent writers — final content is exactly one write (atomicity
 REPO=$(setup_repo)
 TARGET="$REPO/concurrent.json"
 mkdir -p "$(dirname "$TARGET")"
-_writer_1() { sleep 0.15; printf '{"writer":1}' | jira_atomic_write_json "$TARGET"; }
-_writer_2() { sleep 0.05; printf '{"writer":2}' | jira_atomic_write_json "$TARGET"; }
-(cd "$REPO" && source "$JIRA_COMMON" && _writer_1() { sleep 0.15; printf '{"writer":1}' | jira_atomic_write_json "$TARGET"; }; jira_state_dir >/dev/null; _writer_1) &
+_writer_1() {
+  sleep 0.15
+  printf '{"writer":1}' | jira_atomic_write_json "$TARGET"
+}
+_writer_2() {
+  sleep 0.05
+  printf '{"writer":2}' | jira_atomic_write_json "$TARGET"
+}
+(
+  cd "$REPO" && source "$JIRA_COMMON" && _writer_1() {
+    sleep 0.15
+    printf '{"writer":1}' | jira_atomic_write_json "$TARGET"
+  }
+  jira_state_dir >/dev/null
+  _writer_1
+) &
 PID1=$!
-(cd "$REPO" && source "$JIRA_COMMON" && _writer_2() { printf '{"writer":2}' | jira_atomic_write_json "$TARGET"; }; jira_state_dir >/dev/null; _writer_2) &
+(
+  cd "$REPO" && source "$JIRA_COMMON" && _writer_2() { printf '{"writer":2}' | jira_atomic_write_json "$TARGET"; }
+  jira_state_dir >/dev/null
+  _writer_2
+) &
 PID2=$!
 wait "$PID1" "$PID2"
 CONTENT=$(cat "$TARGET" 2>/dev/null || echo "")
@@ -175,7 +195,13 @@ REPO=$(setup_repo)
 TARGET="$REPO/interrupted.json"
 mkdir -p "$(dirname "$TARGET")"
 # Start a writer that pauses long enough to kill
-(cd "$REPO" && source "$JIRA_COMMON" && (printf '{"x":1}' | atomic_write "$TARGET" &); BGPID=$!; sleep 0.05; kill -TERM "$BGPID" 2>/dev/null || true; wait "$BGPID" 2>/dev/null || true) 2>/dev/null || true
+(
+  cd "$REPO" && source "$JIRA_COMMON" && (printf '{"x":1}' | atomic_write "$TARGET" &)
+  BGPID=$!
+  sleep 0.05
+  kill -TERM "$BGPID" 2>/dev/null || true
+  wait "$BGPID" 2>/dev/null || true
+) 2>/dev/null || true
 sleep 0.1
 ORPHANS=$(find "$(dirname "$TARGET")" -name '.atomic-write.*' 2>/dev/null | wc -l | tr -d ' ')
 assert_eq "no orphaned tmp file after SIGTERM" "0" "$ORPHANS"
@@ -213,7 +239,7 @@ rm -f "$OUTPUT_FILE"
   cd "$REPO" && source "$JIRA_COMMON"
   _hold_write() {
     sleep 0.2
-    echo "writer-1" >> "$OUTPUT_FILE"
+    echo "writer-1" >>"$OUTPUT_FILE"
   }
   ACCELERATOR_TEST_MODE=1 JIRA_LOCK_TIMEOUT_SECS=10 JIRA_LOCK_SLEEP_SECS=0.05 \
     jira_with_lock _hold_write
@@ -222,13 +248,13 @@ PID1=$!
 sleep 0.05
 (
   cd "$REPO" && source "$JIRA_COMMON"
-  _quick_write() { echo "writer-2" >> "$OUTPUT_FILE"; }
+  _quick_write() { echo "writer-2" >>"$OUTPUT_FILE"; }
   ACCELERATOR_TEST_MODE=1 JIRA_LOCK_TIMEOUT_SECS=10 JIRA_LOCK_SLEEP_SECS=0.05 \
     jira_with_lock _quick_write
 ) &
 PID2=$!
 wait "$PID1" "$PID2"
-LINE_COUNT=$(wc -l < "$OUTPUT_FILE" | tr -d ' ')
+LINE_COUNT=$(wc -l <"$OUTPUT_FILE" | tr -d ' ')
 assert_eq "both writers completed" "2" "$LINE_COUNT"
 # Both lines present — order may vary but no interleaving possible in this test
 CONTAINS_1=$(grep -c "writer-1" "$OUTPUT_FILE" 2>/dev/null || echo 0)
@@ -241,9 +267,9 @@ REPO=$(setup_repo)
 STATE_DIR=$(cd "$REPO" && source "$JIRA_COMMON" && jira_state_dir)
 LOCKDIR="$STATE_DIR/.lock"
 mkdir -p "$LOCKDIR"
-echo "999999" > "$LOCKDIR/holder.pid"
-echo "12345" > "$LOCKDIR/holder.start"
-echo "fake-script.sh" > "$LOCKDIR/holder.cmd"
+echo "999999" >"$LOCKDIR/holder.pid"
+echo "12345" >"$LOCKDIR/holder.start"
+echo "fake-script.sh" >"$LOCKDIR/holder.cmd"
 RESULT=""
 (
   cd "$REPO" && source "$JIRA_COMMON"
@@ -251,7 +277,7 @@ RESULT=""
   RESULT=$(ACCELERATOR_TEST_MODE=1 JIRA_LOCK_TIMEOUT_SECS=5 JIRA_LOCK_SLEEP_SECS=0.05 \
     jira_with_lock _noop)
   echo "$RESULT"
-) > /tmp/lock-test-b-$$.txt 2>/dev/null
+) >/tmp/lock-test-b-$$.txt 2>/dev/null
 RESULT=$(cat /tmp/lock-test-b-$$.txt 2>/dev/null || echo "")
 rm -f /tmp/lock-test-b-$$.txt
 assert_eq "dead-holder lock reclaimed and function ran" "ran" "$RESULT"
@@ -267,10 +293,10 @@ STATE_DIR=$(cd "$REPO" && source "$JIRA_COMMON" && jira_state_dir)
     jira_with_lock _hold_forever
 ) &
 HOLDER_PID=$!
-sleep 0.15  # give holder time to acquire the lock
+sleep 0.15 # give holder time to acquire the lock
 kill -9 "$HOLDER_PID" 2>/dev/null || true
 wait "$HOLDER_PID" 2>/dev/null || true
-sleep 0.05  # let OS clean up
+sleep 0.05 # let OS clean up
 # Now try to acquire — should succeed despite orphaned lockdir
 RESULT=""
 EXIT_CODE=0
@@ -280,7 +306,7 @@ EXIT_CODE=0
   RESULT=$(ACCELERATOR_TEST_MODE=1 JIRA_LOCK_TIMEOUT_SECS=5 JIRA_LOCK_SLEEP_SECS=0.05 \
     jira_with_lock _noop 2>/dev/null)
   echo "$RESULT"
-) > /tmp/lock-test-c-$$.txt 2>/dev/null || EXIT_CODE=$?
+) >/tmp/lock-test-c-$$.txt 2>/dev/null || EXIT_CODE=$?
 RESULT=$(cat /tmp/lock-test-c-$$.txt 2>/dev/null || echo "")
 rm -f /tmp/lock-test-c-$$.txt
 assert_eq "SIGKILL-orphaned lock recovered" "recovered" "$RESULT"
@@ -291,9 +317,9 @@ STATE_DIR=$(cd "$REPO" && source "$JIRA_COMMON" && jira_state_dir)
 LOCKDIR="$STATE_DIR/.lock"
 mkdir -p "$LOCKDIR"
 # Use the test's own PID (live!) but a deliberately wrong start time
-echo "$$" > "$LOCKDIR/holder.pid"
-echo "WRONG-START-TIME-99999" > "$LOCKDIR/holder.start"
-echo "fake-script.sh" > "$LOCKDIR/holder.cmd"
+echo "$$" >"$LOCKDIR/holder.pid"
+echo "WRONG-START-TIME-99999" >"$LOCKDIR/holder.start"
+echo "fake-script.sh" >"$LOCKDIR/holder.cmd"
 RESULT=""
 (
   cd "$REPO" && source "$JIRA_COMMON"
@@ -301,7 +327,7 @@ RESULT=""
   RESULT=$(ACCELERATOR_TEST_MODE=1 JIRA_LOCK_TIMEOUT_SECS=5 JIRA_LOCK_SLEEP_SECS=0.05 \
     jira_with_lock _noop 2>/dev/null)
   echo "$RESULT"
-) > /tmp/lock-test-d-$$.txt 2>/dev/null
+) >/tmp/lock-test-d-$$.txt 2>/dev/null
 RESULT=$(cat /tmp/lock-test-d-$$.txt 2>/dev/null || echo "")
 rm -f /tmp/lock-test-d-$$.txt
 assert_eq "recycled-PID lock treated as stale" "pid-recycle-ran" "$RESULT"
@@ -321,7 +347,7 @@ HOLDER_PID=$!
 _waited=0
 until [[ -d "$STATE_DIR/.lock" ]] || [[ "$_waited" -ge 50 ]]; do
   sleep 0.1
-  _waited=$(( _waited + 1 ))
+  _waited=$((_waited + 1))
 done
 EXIT_CODE=0
 STDERR=$(
@@ -364,6 +390,7 @@ source "$JIRA_COMMON"
 
 _hint() {
   local code="$1"
+  # shellcheck disable=SC2069 # intentional: capture stderr on stdout, discard real stdout
   _jira_emit_generic_hint "$code" 2>&1 >/dev/null || true
 }
 _hint_rc() {

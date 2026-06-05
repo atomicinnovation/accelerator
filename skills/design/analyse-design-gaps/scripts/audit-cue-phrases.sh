@@ -40,7 +40,6 @@ fi
 CASE_INSENSITIVE_PATTERN=$(grep -vE '^\s*#|\[Ii\]mplement' "$CUE_FILE" | grep -v '^$' | paste -sd '|' -)
 
 # Parse H2 sections and check each for cue-phrase compliance.
-FAILED_SECTIONS=()
 
 # Use awk to split document into H2 sections.
 # Each section is output as: SECTION_NAME\x00\nSECTION_CONTENT\x00\n
@@ -92,7 +91,7 @@ while IFS= read -r line || [ -n "$line" ]; do
   else
     CURRENT_CONTENT="${CURRENT_CONTENT}"$'\n'"$line"
   fi
-done < "$FILE"
+done <"$FILE"
 
 # Process the last section
 if [ -n "$CURRENT_SECTION" ]; then

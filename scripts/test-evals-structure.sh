@@ -65,22 +65,23 @@ for evals_file in "${EVALS_FILES[@]}"; do
   echo "  PASS: benchmark.json exists"
   PASS=$((PASS + 1))
 
-  # Parse evals.json
-  if ! evals_json=$(python3 -c "import json,sys; json.load(open('$evals_file')); print(open('$evals_file').read())" 2>/dev/null); then
+  # Parse evals.json (validate only; the parsed content is not needed)
+  if ! python3 -c "import json; json.load(open('$evals_file'))" 2>/dev/null; then
     echo "  FAIL: evals.json is not valid JSON — $rel_evals"
     FAIL=$((FAIL + 1))
     continue
   fi
 
-  # Parse benchmark.json
-  if ! benchmark_json=$(python3 -c "import json,sys; json.load(open('$benchmark_file')); print(open('$benchmark_file').read())" 2>/dev/null); then
+  # Parse benchmark.json (validate only; the parsed content is not needed)
+  if ! python3 -c "import json; json.load(open('$benchmark_file'))" 2>/dev/null; then
     echo "  FAIL: benchmark.json is not valid JSON — $rel_benchmark"
     FAIL=$((FAIL + 1))
     continue
   fi
 
   # Check 2: every scenario in evals.json has a with_skill run in benchmark.json
-  missing_scenarios=$(python3 - "$evals_file" "$benchmark_file" <<'PYEOF'
+  missing_scenarios=$(
+    python3 - "$evals_file" "$benchmark_file" <<'PYEOF'
 import json, sys
 evals = json.load(open(sys.argv[1]))
 benchmark = json.load(open(sys.argv[2]))
@@ -91,7 +92,7 @@ missing = sorted(eval_ids - benchmark_ids)
 if missing:
     print(' '.join(str(m) for m in missing))
 PYEOF
-)
+  )
   if [[ -n "$missing_scenarios" ]]; then
     echo "  FAIL: eval IDs missing from benchmark.json with_skill runs: $missing_scenarios"
     FAIL=$((FAIL + 1))
@@ -101,7 +102,8 @@ PYEOF
   fi
 
   # Check 3: pass_rate.mean >= 0.9
-  pass_rate=$(python3 - "$benchmark_file" <<'PYEOF'
+  pass_rate=$(
+    python3 - "$benchmark_file" <<'PYEOF'
 import json, sys
 b = json.load(open(sys.argv[1]))
 rate = b.get('run_summary', {}).get('with_skill', {}).get('pass_rate', {}).get('mean')
@@ -110,7 +112,7 @@ if rate is None:
 else:
     print(rate)
 PYEOF
-)
+  )
   if [[ "$pass_rate" == "MISSING" ]]; then
     echo "  FAIL: run_summary.with_skill.pass_rate.mean not found in benchmark.json"
     FAIL=$((FAIL + 1))

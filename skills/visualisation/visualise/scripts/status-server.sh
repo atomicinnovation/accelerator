@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# INFO/PID_FILE are the caller-set globals that stop_server_status (from
+# launcher-helpers.sh) reads; ShellCheck can't see the cross-file consumption.
+# shellcheck disable=SC2034
 set -euo pipefail
 umask 077
 

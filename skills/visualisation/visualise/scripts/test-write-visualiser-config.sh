@@ -15,7 +15,7 @@ trap 'cd "$ORIG_DIR"; rm -rf "$TMPDIR_BASE"' EXIT
 make_project() {
   local d="$1"
   mkdir -p "$d/.jj" "$d/.accelerator/tmp"
-  : > "$d/.accelerator/tmp/.gitignore"
+  : >"$d/.accelerator/tmp/.gitignore"
 }
 
 # Write a config.md with given frontmatter body into a project.
@@ -23,7 +23,7 @@ write_config() {
   local proj="$1"
   local body="$2"
   mkdir -p "$proj/.accelerator"
-  printf -- "---\n%s\n---\n" "$body" > "$proj/.accelerator/config.md"
+  printf -- "---\n%s\n---\n" "$body" >"$proj/.accelerator/config.md"
 }
 
 run_config() {
@@ -49,7 +49,7 @@ PROJ1="$TMPDIR_BASE/t-default"
 make_project "$PROJ1"
 # No accelerator.md — use pure defaults
 OUT1_FILE="$TMPDIR_BASE/out1.json"
-run_config "$PROJ1" > "$OUT1_FILE"
+run_config "$PROJ1" >"$OUT1_FILE"
 assert_json_eq "doc_paths.work is meta/work" ".doc_paths.work" "$PROJ1/meta/work" "$OUT1_FILE"
 assert_json_eq "doc_paths.review_work is meta/reviews/work" ".doc_paths.review_work" "$PROJ1/meta/reviews/work" "$OUT1_FILE"
 OUT1_TEXT="$(cat "$OUT1_FILE")"
@@ -65,11 +65,11 @@ write_config "$PROJ2" "paths:
 STDERR2=""
 EXIT2=0
 STDERR2="$(cd "$PROJ2" && "$WRITE_CONFIG" \
-    --plugin-version "0.0.0-test" \
-    --project-root "$PROJ2" \
-    --tmp-dir "$PROJ2/.accelerator/tmp/visualiser" \
-    --log-file "$PROJ2/.accelerator/tmp/visualiser/server.log" \
-    2>&1 >/dev/null)" || EXIT2=$?
+  --plugin-version "0.0.0-test" \
+  --project-root "$PROJ2" \
+  --tmp-dir "$PROJ2/.accelerator/tmp/visualiser" \
+  --log-file "$PROJ2/.accelerator/tmp/visualiser/server.log" \
+  2>&1 >/dev/null)" || EXIT2=$?
 assert_eq "non-zero exit for pre-migration project" "1" "$EXIT2"
 assert_contains "stderr names the migration" "$STDERR2" "migrate"
 
@@ -80,7 +80,7 @@ make_project "$PROJ3"
 write_config "$PROJ3" "paths:
   work: meta/items"
 OUT3_FILE="$TMPDIR_BASE/out3.json"
-run_config "$PROJ3" > "$OUT3_FILE"
+run_config "$PROJ3" >"$OUT3_FILE"
 assert_json_eq "doc_paths.work reflects override" ".doc_paths.work" "$PROJ3/meta/items" "$OUT3_FILE"
 
 # ─── 4. kanban_columns: missing → 7 defaults ─────────────────────────────────
@@ -88,7 +88,7 @@ echo "Test: missing visualiser.kanban_columns → 7 defaults in config"
 PROJ4="$TMPDIR_BASE/t-kanban-default"
 make_project "$PROJ4"
 OUT4_FILE="$TMPDIR_BASE/out4.json"
-run_config "$PROJ4" > "$OUT4_FILE"
+run_config "$PROJ4" >"$OUT4_FILE"
 assert_json_eq "kanban_columns has 7 entries" ".kanban_columns | length" "7" "$OUT4_FILE"
 assert_json_eq "kanban_columns[0] is draft" ".kanban_columns[0]" "draft" "$OUT4_FILE"
 assert_json_eq "kanban_columns[6] is abandoned" ".kanban_columns[6]" "abandoned" "$OUT4_FILE"
@@ -100,7 +100,7 @@ make_project "$PROJ5"
 write_config "$PROJ5" "visualiser:
   kanban_columns: [ready, in-progress, review, done]"
 OUT5_FILE="$TMPDIR_BASE/out5.json"
-run_config "$PROJ5" > "$OUT5_FILE"
+run_config "$PROJ5" >"$OUT5_FILE"
 assert_json_eq "kanban_columns has 4 entries" ".kanban_columns | length" "4" "$OUT5_FILE"
 assert_json_eq "kanban_columns[0] is ready" ".kanban_columns[0]" "ready" "$OUT5_FILE"
 assert_json_eq "kanban_columns[3] is done" ".kanban_columns[3]" "done" "$OUT5_FILE"
@@ -113,11 +113,11 @@ write_config "$PROJ6" "visualiser:
   kanban_columns: []"
 EXIT6=0
 STDERR6="$(cd "$PROJ6" && "$WRITE_CONFIG" \
-    --plugin-version "0.0.0-test" \
-    --project-root "$PROJ6" \
-    --tmp-dir "$PROJ6/.accelerator/tmp/visualiser" \
-    --log-file "$PROJ6/.accelerator/tmp/visualiser/server.log" \
-    2>&1 >/dev/null)" || EXIT6=$?
+  --plugin-version "0.0.0-test" \
+  --project-root "$PROJ6" \
+  --tmp-dir "$PROJ6/.accelerator/tmp/visualiser" \
+  --log-file "$PROJ6/.accelerator/tmp/visualiser/server.log" \
+  2>&1 >/dev/null)" || EXIT6=$?
 assert_eq "empty kanban_columns exits non-zero" "1" "$EXIT6"
 assert_contains "stderr mentions empty" "$STDERR6" "empty"
 
@@ -128,12 +128,13 @@ make_project "$PROJ7"
 write_config "$PROJ7" 'visualiser:
   kanban_columns: "[ready, in-progress"'
 EXIT7=0
+# shellcheck disable=SC2034 # command run for its exit status (EXIT7); captured stderr intentionally unused
 STDERR7="$(cd "$PROJ7" && "$WRITE_CONFIG" \
-    --plugin-version "0.0.0-test" \
-    --project-root "$PROJ7" \
-    --tmp-dir "$PROJ7/.accelerator/tmp/visualiser" \
-    --log-file "$PROJ7/.accelerator/tmp/visualiser/server.log" \
-    2>&1 >/dev/null)" || EXIT7=$?
+  --plugin-version "0.0.0-test" \
+  --project-root "$PROJ7" \
+  --tmp-dir "$PROJ7/.accelerator/tmp/visualiser" \
+  --log-file "$PROJ7/.accelerator/tmp/visualiser/server.log" \
+  2>&1 >/dev/null)" || EXIT7=$?
 assert_eq "malformed kanban_columns exits non-zero" "1" "$EXIT7"
 
 echo ""

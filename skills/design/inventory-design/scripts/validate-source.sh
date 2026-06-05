@@ -39,8 +39,8 @@ canonicalise_host() {
   # Reject userinfo / suffix-confusion forms
   [[ "$raw" == *@* ]] && return 1
 
-  # Lowercase
-  raw="${raw,,}"
+  # Lowercase (tr, not ${raw,,} — the latter is bash-4 only)
+  raw="$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]')"
 
   if [[ "$raw" == \[* ]]; then
     # IPv6 literal: strip surrounding brackets
@@ -57,7 +57,7 @@ canonicalise_host() {
   raw="${raw%.}"
 
   # Reject decimal-only long integers (decimal IPv4 encoding, e.g. 2130706433)
-  if [[ "$raw" =~ ^[0-9]+$ ]] && (( ${#raw} > 3 )); then
+  if [[ "$raw" =~ ^[0-9]+$ ]] && ((${#raw} > 3)); then
     return 1
   fi
 
@@ -78,7 +78,7 @@ canonicalise_host() {
 # Returns 0 if the canonical host is always-allowed localhost or 127.0.0.1.
 is_localhost_default() {
   case "$1" in
-    localhost|127.0.0.1) return 0 ;;
+    localhost | 127.0.0.1) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -92,33 +92,54 @@ classify_internal() {
 
   # Named IPv6 addresses
   case "$h" in
-    ::1|::ffff:127.0.0.1) printf 'loopback'; return 0 ;;
-    ::|0.0.0.0)           printf 'wildcard'; return 0 ;;
+    ::1 | ::ffff:127.0.0.1)
+      printf 'loopback'
+      return 0
+      ;;
+    :: | 0.0.0.0)
+      printf 'wildcard'
+      return 0
+      ;;
   esac
 
   # IPv4 loopback range: 127.x.x.x
-  if [[ "$h" =~ ^127\. ]]; then printf 'loopback'; return 0; fi
+  if [[ "$h" =~ ^127\. ]]; then
+    printf 'loopback'
+    return 0
+  fi
 
   # RFC1918: 10.x.x.x
-  if [[ "$h" =~ ^10\. ]]; then printf 'RFC1918'; return 0; fi
+  if [[ "$h" =~ ^10\. ]]; then
+    printf 'RFC1918'
+    return 0
+  fi
 
   # RFC1918: 192.168.x.x
-  if [[ "$h" =~ ^192\.168\. ]]; then printf 'RFC1918'; return 0; fi
+  if [[ "$h" =~ ^192\.168\. ]]; then
+    printf 'RFC1918'
+    return 0
+  fi
 
   # RFC1918: 172.16.0.0/12 (172.16.x.x through 172.31.x.x)
   if [[ "$h" =~ ^172\.([0-9]+)\. ]]; then
     local octet="${BASH_REMATCH[1]}"
-    if (( octet >= 16 && octet <= 31 )); then
+    if ((octet >= 16 && octet <= 31)); then
       printf 'RFC1918'
       return 0
     fi
   fi
 
   # Link-local: 169.254.x.x (includes cloud metadata services)
-  if [[ "$h" =~ ^169\.254\. ]]; then printf 'link-local'; return 0; fi
+  if [[ "$h" =~ ^169\.254\. ]]; then
+    printf 'link-local'
+    return 0
+  fi
 
   # Link-local IPv6: fe80::/10
-  if [[ "$h" =~ ^fe80: ]]; then printf 'link-local'; return 0; fi
+  if [[ "$h" =~ ^fe80: ]]; then
+    printf 'link-local'
+    return 0
+  fi
 
   return 1
 }
@@ -129,11 +150,21 @@ main() {
   local allow_insecure_scheme=0
   local location=""
 
-  while (( $# > 0 )); do
+  while (($# > 0)); do
     case "$1" in
-      --allow-internal)        allow_internal=1; shift ;;
-      --allow-insecure-scheme) allow_insecure_scheme=1; shift ;;
-      --)                      shift; location="${1:-}"; break ;;
+      --allow-internal)
+        allow_internal=1
+        shift
+        ;;
+      --allow-insecure-scheme)
+        allow_insecure_scheme=1
+        shift
+        ;;
+      --)
+        shift
+        location="${1:-}"
+        break
+        ;;
       -*)
         echo "error: unknown flag $1" >&2
         exit 2
@@ -158,17 +189,17 @@ main() {
 
   local scheme=""
   case "$location" in
-    https://*)    scheme="https" ;;
-    http://*)     scheme="http" ;;
-    file://*)     scheme="file" ;;
+    https://*) scheme="https" ;;
+    http://*) scheme="http" ;;
+    file://*) scheme="file" ;;
     javascript:*) scheme="javascript" ;;
-    data:*)       scheme="data" ;;
-    chrome://*)   scheme="chrome" ;;
-    about:blank)  scheme="about_blank" ;;
-    about:*)      scheme="about" ;;
-    ./*)          scheme="path" ;;
-    ../*)         scheme="path_escape" ;;
-    /*)           scheme="abs_path" ;;
+    data:*) scheme="data" ;;
+    chrome://*) scheme="chrome" ;;
+    about:blank) scheme="about_blank" ;;
+    about:*) scheme="about" ;;
+    ./*) scheme="path" ;;
+    ../*) scheme="path_escape" ;;
+    /*) scheme="abs_path" ;;
     *://*)
       local scheme_name="${location%%://*}"
       echo "error: scheme '${scheme_name}://' is not permitted. Only https:// and relative code-repo paths are accepted." >&2
@@ -250,7 +281,7 @@ main() {
   # Internal / reserved ranges
   local classification=""
   if classification="$(classify_internal "$canonical_host")"; then
-    if (( allow_internal )); then
+    if ((allow_internal)); then
       exit 0
     fi
     echo "error: host '$canonical_host' is a $classification address. Pass --allow-internal to permit." >&2
@@ -259,7 +290,7 @@ main() {
 
   # Public host — https is always allowed; http requires --allow-insecure-scheme
   if [[ "$scheme" == "http" ]]; then
-    if (( allow_insecure_scheme )); then
+    if ((allow_insecure_scheme)); then
       exit 0
     fi
     echo "error: http:// to public host '$canonical_host' is rejected. Use https:// or pass --allow-insecure-scheme." >&2

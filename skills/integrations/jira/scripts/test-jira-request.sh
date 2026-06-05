@@ -26,9 +26,10 @@ TMPDIR_BASE=$(mktemp -d)
 trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 setup_repo() {
-  local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
+  local d
+  d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
   mkdir -p "$d/.git" "$d/.accelerator"
-  cat > "$d/.accelerator/config.md" <<ENDCONFIG
+  cat >"$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -56,11 +57,13 @@ start_mock() {
 
   local i=0
   while [ ! -s "$MOCK_URL_FILE" ] && [ $i -lt 50 ]; do
-    sleep 0.1; i=$((i + 1))
+    sleep 0.1
+    i=$((i + 1))
   done
   if [ ! -s "$MOCK_URL_FILE" ]; then
     echo "ERROR: mock server did not start within 5s" >&2
-    kill "$MOCK_PID" 2>/dev/null || true; exit 1
+    kill "$MOCK_PID" 2>/dev/null || true
+    exit 1
   fi
   MOCK_URL=$(cat "$MOCK_URL_FILE")
 }
@@ -71,7 +74,10 @@ stop_mock() {
     wait "$MOCK_PID" 2>/dev/null || true
     MOCK_PID=""
   fi
-  [ -n "$MOCK_URL_FILE" ] && { rm -f "$MOCK_URL_FILE"; MOCK_URL_FILE=""; }
+  [ -n "$MOCK_URL_FILE" ] && {
+    rm -f "$MOCK_URL_FILE"
+    MOCK_URL_FILE=""
+  }
   MOCK_URL=""
 }
 
@@ -92,19 +98,20 @@ SLEEP_ARGS_FILE=$(mktemp "$TMPDIR_BASE/sleepargs-XXXXXX")
 export SLEEP_COUNT_FILE SLEEP_ARGS_FILE
 
 test_record_sleep() {
-  local n; n=$(cat "$SLEEP_COUNT_FILE" 2>/dev/null || echo 0)
-  echo $(( n + 1 )) > "$SLEEP_COUNT_FILE"
-  echo "$1" >> "$SLEEP_ARGS_FILE"
+  local n
+  n=$(cat "$SLEEP_COUNT_FILE" 2>/dev/null || echo 0)
+  echo $((n + 1)) >"$SLEEP_COUNT_FILE"
+  echo "$1" >>"$SLEEP_ARGS_FILE"
 }
 export -f test_record_sleep
 
 reset_sleep_counter() {
-  echo 0 > "$SLEEP_COUNT_FILE"
-  : > "$SLEEP_ARGS_FILE"
+  echo 0 >"$SLEEP_COUNT_FILE"
+  : >"$SLEEP_ARGS_FILE"
 }
 
-get_sleep_count()    { cat "$SLEEP_COUNT_FILE" 2>/dev/null || echo 0; }
-get_sleep_arg()      { sed -n "${1}p" "$SLEEP_ARGS_FILE" 2>/dev/null || echo ""; }
+get_sleep_count() { cat "$SLEEP_COUNT_FILE" 2>/dev/null || echo 0; }
+get_sleep_arg() { sed -n "${1}p" "$SLEEP_ARGS_FILE" 2>/dev/null || echo ""; }
 
 # ============================================================
 echo "=== Case 1: GET 200 — body on stdout, exit 0 ==="
@@ -136,7 +143,7 @@ echo ""
 
 start_mock "$SCENARIOS/post-multipart-200.json"
 tmpatt=$(mktemp "$TMPDIR_BASE/attach-XXXXXX")
-echo "attachment" > "$tmpatt"
+echo "attachment" >"$tmpatt"
 RESULT=$(req POST /rest/api/3/issue/ENG-1/attachments --multipart "file=@$tmpatt")
 stop_mock
 assert_contains "POST multipart returns []" "$RESULT" "[]"
@@ -198,13 +205,13 @@ echo "=== Case 9: 429 Retry-After HTTP-date (future) → 200 ==="
 echo ""
 
 # Generate date 2 seconds in the future (macOS: date -v; GNU: date -d)
-future_date=$(LC_ALL=C date -v +2S "%a, %d %b %Y %H:%M:%S GMT" 2>/dev/null \
-  || LC_ALL=C date -d "+2 seconds" +"%a, %d %b %Y %H:%M:%S GMT" 2>/dev/null \
-  || echo "")
+future_date=$(LC_ALL=C date -v +2S "%a, %d %b %Y %H:%M:%S GMT" 2>/dev/null ||
+  LC_ALL=C date -d "+2 seconds" +"%a, %d %b %Y %H:%M:%S GMT" 2>/dev/null ||
+  echo "")
 
 if [ -n "$future_date" ]; then
   tmp_scen=$(mktemp "$TMPDIR_BASE/scen-XXXXXX.json")
-  sed "s/__HTTP_DATE_FUTURE__/$future_date/" "$SCENARIOS/retry-after-http-date.json.tmpl" > "$tmp_scen"
+  sed "s/__HTTP_DATE_FUTURE__/$future_date/" "$SCENARIOS/retry-after-http-date.json.tmpl" >"$tmp_scen"
 
   start_mock "$tmp_scen"
   reset_sleep_counter
@@ -213,11 +220,14 @@ if [ -n "$future_date" ]; then
   rm -f "$tmp_scen"
 
   assert_eq "http-date retry: one sleep" "1" "$(get_sleep_count)"
-  sv="$(get_sleep_arg 1)"; sv="${sv:-0}"
+  sv="$(get_sleep_arg 1)"
+  sv="${sv:-0}"
   if [ "$sv" -ge 1 ] && [ "$sv" -le 60 ]; then
-    echo "  PASS: http-date retry: sleep $sv in [1,60]"; PASS=$((PASS+1))
+    echo "  PASS: http-date retry: sleep $sv in [1,60]"
+    PASS=$((PASS + 1))
   else
-    echo "  FAIL: http-date retry: sleep $sv out of [1,60]"; FAIL=$((FAIL+1))
+    echo "  FAIL: http-date retry: sleep $sv out of [1,60]"
+    FAIL=$((FAIL + 1))
   fi
 else
   echo "  SKIP: http-date retry (date -v not available)"
@@ -228,13 +238,13 @@ echo ""
 echo "=== Case 9a: 429 Retry-After past date → clamp to 1s ==="
 echo ""
 
-past_date=$(LC_ALL=C date -v -30S "%a, %d %b %Y %H:%M:%S GMT" 2>/dev/null \
-  || LC_ALL=C date -d "-30 seconds" +"%a, %d %b %Y %H:%M:%S GMT" 2>/dev/null \
-  || echo "")
+past_date=$(LC_ALL=C date -v -30S "%a, %d %b %Y %H:%M:%S GMT" 2>/dev/null ||
+  LC_ALL=C date -d "-30 seconds" +"%a, %d %b %Y %H:%M:%S GMT" 2>/dev/null ||
+  echo "")
 
 if [ -n "$past_date" ]; then
   tmp_scen=$(mktemp "$TMPDIR_BASE/scen-XXXXXX.json")
-  sed "s/__HTTP_DATE_PAST__/$past_date/" "$SCENARIOS/retry-after-past.json.tmpl" > "$tmp_scen"
+  sed "s/__HTTP_DATE_PAST__/$past_date/" "$SCENARIOS/retry-after-past.json.tmpl" >"$tmp_scen"
 
   start_mock "$tmp_scen"
   reset_sleep_counter
@@ -312,7 +322,7 @@ start_mock "$SCENARIOS/slow-200.json"
 # Start request in background; sample ps while in flight
 (cd "$REPO" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" ACCELERATOR_TEST_MODE=1 \
   ACCELERATOR_JIRA_BASE_URL_OVERRIDE_TEST="$MOCK_URL" \
-  bash "$SCRIPT" GET /rest/api/3/myself > /dev/null 2>&1) &
+  bash "$SCRIPT" GET /rest/api/3/myself >/dev/null 2>&1) &
 req_pid=$!
 sleep 0.2
 ps_out=$(ps -o args= -p "$req_pid" 2>/dev/null || echo "")
@@ -340,7 +350,7 @@ echo ""
 
 NO_CREDS_REPO=$(mktemp -d "$TMPDIR_BASE/nocreds-XXXXXX")
 mkdir -p "$NO_CREDS_REPO/.git" "$NO_CREDS_REPO/.accelerator"
-cat > "$NO_CREDS_REPO/.accelerator/config.md" <<'ENDCONF'
+cat >"$NO_CREDS_REPO/.accelerator/config.md" <<'ENDCONF'
 ---
 jira:
   site: example
@@ -382,6 +392,7 @@ echo "=== Case 19: Path validation ==="
 echo ""
 
 run_path_check() {
+  # shellcheck disable=SC2069 # intentional: capture stderr on stdout, discard real stdout
   cd "$REPO" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" ACCELERATOR_TEST_MODE=1 \
     ACCELERATOR_JIRA_BASE_URL_OVERRIDE_TEST="http://127.0.0.1:1" \
     bash "$SCRIPT" GET "$1" 2>&1 >/dev/null || true
@@ -459,7 +470,7 @@ echo ""
 
 BAD_SITE_REPO=$(mktemp -d "$TMPDIR_BASE/badsite-XXXXXX")
 mkdir -p "$BAD_SITE_REPO/.git" "$BAD_SITE_REPO/.accelerator"
-cat > "$BAD_SITE_REPO/.accelerator/config.md" <<'ENDCONF'
+cat >"$BAD_SITE_REPO/.accelerator/config.md" <<'ENDCONF'
 ---
 jira:
   site: evil.com#

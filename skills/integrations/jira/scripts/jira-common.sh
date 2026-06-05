@@ -49,6 +49,7 @@ source "$_JIRA_PLUGIN_ROOT/scripts/atomic-common.sh"
 # Must stay byte-equal to JIRA_INNER_GITIGNORE_RULES in
 # 0003-relocate-accelerator-state.sh. Both copies are pinned to equality by a
 # test in test-jira-paths.sh (Phase 6 / 4b).
+# shellcheck disable=SC2034 # consumed by sourcing scripts and pinned by test-jira-paths.sh
 JIRA_INNER_GITIGNORE_RULES=(
   site.json
   .refresh-meta.json
@@ -59,7 +60,7 @@ source "$_JIRA_PLUGIN_ROOT/scripts/log-common.sh"
 # shellcheck source=../../../../scripts/work-common.sh
 source "$_JIRA_PLUGIN_ROOT/scripts/work-common.sh"
 
-jira_die()  { log_die  "$1"; }
+jira_die() { log_die "$1"; }
 jira_warn() { log_warn "$1"; }
 
 # ---------------------------------------------------------------------------
@@ -127,11 +128,12 @@ _jira_lockdir_mtime_age() {
   local now
   now=$(date +%s)
   local mtime
-  mtime=$(stat -f '%m' "$lockdir" 2>/dev/null) || \
-  mtime=$(stat -c '%Y' "$lockdir" 2>/dev/null) || {
-    echo 0; return
+  mtime=$(stat -f '%m' "$lockdir" 2>/dev/null) ||
+    mtime=$(stat -c '%Y' "$lockdir" 2>/dev/null) || {
+    echo 0
+    return
   }
-  echo $(( now - mtime ))
+  echo $((now - mtime))
 }
 
 jira_with_lock() {
@@ -148,7 +150,7 @@ jira_with_lock() {
   fi
 
   local deadline
-  deadline=$(( $(date +%s) + timeout_secs ))
+  deadline=$(($(date +%s) + timeout_secs))
 
   while true; do
     if mkdir "$lockdir" 2>/dev/null; then
@@ -158,9 +160,9 @@ jira_with_lock() {
       local my_pid="${BASHPID:-$$}"
       local my_start
       my_start=$(_jira_proc_starttime "$my_pid")
-      printf '%s\n' "$my_pid"               > "$lockdir/holder.pid"
-      printf '%s\n' "$my_start"             > "$lockdir/holder.start"
-      printf '%s\n' "$(basename "${0:--}")" > "$lockdir/holder.cmd"
+      printf '%s\n' "$my_pid" >"$lockdir/holder.pid"
+      printf '%s\n' "$my_start" >"$lockdir/holder.start"
+      printf '%s\n' "$(basename "${0:--}")" >"$lockdir/holder.cmd"
 
       # Release on exit (including SIGTERM; not SIGKILL — stale recovery handles that)
       trap 'rm -rf "'"$lockdir"'"' EXIT
@@ -173,7 +175,7 @@ jira_with_lock() {
 
     # Could not acquire — determine if holder is alive
     local holder_pid="" holder_start=""
-    [[ -f "$lockdir/holder.pid" ]]   && holder_pid=$(cat   "$lockdir/holder.pid"   2>/dev/null || true)
+    [[ -f "$lockdir/holder.pid" ]] && holder_pid=$(cat "$lockdir/holder.pid" 2>/dev/null || true)
     [[ -f "$lockdir/holder.start" ]] && holder_start=$(cat "$lockdir/holder.start" 2>/dev/null || true)
 
     local holder_alive=0
@@ -207,7 +209,7 @@ jira_with_lock() {
     # Holder is alive — check timeout
     if [[ "$(date +%s)" -ge "$deadline" ]]; then
       local holder_cmd="unknown"
-      [[ -f "$lockdir/holder.cmd" ]] && \
+      [[ -f "$lockdir/holder.cmd" ]] &&
         holder_cmd=$(cat "$lockdir/holder.cmd" 2>/dev/null || echo "unknown")
       echo "E_REFRESH_LOCKED: lock held by ${holder_cmd} (pid ${holder_pid:-?}) for >${timeout_secs}s" >&2
       return 53
@@ -222,9 +224,9 @@ jira_with_lock() {
 
 jira_require_dependencies() {
   local missing=()
-  command -v jq   >/dev/null 2>&1 || missing+=("jq")
+  command -v jq >/dev/null 2>&1 || missing+=("jq")
   command -v curl >/dev/null 2>&1 || missing+=("curl")
-  command -v awk  >/dev/null 2>&1 || missing+=("awk")
+  command -v awk >/dev/null 2>&1 || missing+=("awk")
 
   if [[ ${#missing[@]} -gt 0 ]]; then
     log_die "E_MISSING_DEP: required dependencies not found: ${missing[*]}"
@@ -259,7 +261,7 @@ _jira_uuid_v4() {
   if command -v uuidgen >/dev/null 2>&1; then
     uuidgen | tr '[:upper:]' '[:lower:]'
   else
-    od -An -N16 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n' | \
+    od -An -N16 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n' |
       awk '{
         h = $0
         v = strtonum("0x" substr(h, 17, 2))
@@ -280,12 +282,12 @@ _jira_uuid_v4() {
 _jira_emit_generic_hint() {
   local code="$1"
   case "$code" in
-    11|12|22) printf 'Hint: check credentials with /init-jira.\n' >&2 ;;
-    19)       printf 'Hint: rate-limited by Jira; wait briefly and retry.\n' >&2 ;;
-    20)       printf 'Hint: Jira returned a server error; check the Jira status page.\n' >&2 ;;
-    21)       printf 'Hint: connection failed; check network and ACCELERATOR_JIRA_BASE_URL.\n' >&2 ;;
-    34)       printf 'Hint: check the field error above; run /init-jira --refresh-fields if a custom field id was rejected.\n' >&2 ;;
-    *)        return 1 ;;
+    11 | 12 | 22) printf 'Hint: check credentials with /init-jira.\n' >&2 ;;
+    19) printf 'Hint: rate-limited by Jira; wait briefly and retry.\n' >&2 ;;
+    20) printf 'Hint: Jira returned a server error; check the Jira status page.\n' >&2 ;;
+    21) printf 'Hint: connection failed; check network and ACCELERATOR_JIRA_BASE_URL.\n' >&2 ;;
+    34) printf 'Hint: check the field error above; run /init-jira --refresh-fields if a custom field id was rejected.\n' >&2 ;;
+    *) return 1 ;;
   esac
   return 0
 }

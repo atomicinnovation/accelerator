@@ -18,9 +18,10 @@ TMPDIR_BASE=$(mktemp -d)
 trap 'stop_mock; rm -rf "$TMPDIR_BASE"' EXIT
 
 setup_repo() {
-  local d; d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
+  local d
+  d=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
   mkdir -p "$d/.git" "$d/.accelerator"
-  cat > "$d/.accelerator/config.md" <<ENDCONFIG
+  cat >"$d/.accelerator/config.md" <<ENDCONFIG
 ---
 jira:
   site: $TEST_SITE
@@ -44,11 +45,13 @@ start_mock() {
 
   local i=0
   while [ ! -s "$MOCK_URL_FILE" ] && [ $i -lt 50 ]; do
-    sleep 0.1; i=$((i + 1))
+    sleep 0.1
+    i=$((i + 1))
   done
   if [ ! -s "$MOCK_URL_FILE" ]; then
     echo "ERROR: mock server did not start within 5s" >&2
-    kill "$MOCK_PID" 2>/dev/null || true; exit 1
+    kill "$MOCK_PID" 2>/dev/null || true
+    exit 1
   fi
   MOCK_URL=$(cat "$MOCK_URL_FILE")
 }
@@ -59,7 +62,10 @@ stop_mock() {
     wait "$MOCK_PID" 2>/dev/null || true
     MOCK_PID=""
   fi
-  [ -n "$MOCK_URL_FILE" ] && { rm -f "$MOCK_URL_FILE"; MOCK_URL_FILE=""; }
+  [ -n "$MOCK_URL_FILE" ] && {
+    rm -f "$MOCK_URL_FILE"
+    MOCK_URL_FILE=""
+  }
   MOCK_URL=""
 }
 
@@ -73,6 +79,7 @@ fields() {
 
 # Source jira-fields.sh to access jira_field_slugify directly.
 # The BASH_SOURCE guard prevents CLI dispatch.
+# shellcheck source=jira-fields.sh
 source "$SCRIPT"
 
 # ============================================================
@@ -124,7 +131,7 @@ assert_eq "fields.json has 9 fields" "9" "$FIELD_COUNT"
 SLUG_SP=$(jq -r '.fields[] | select(.id=="customfield_10016") | .slug' "$FIELDS_JSON")
 assert_eq "story-points slug in cache" "story-points" "$SLUG_SP"
 
-if jq -e 'has("lastRefreshed")' "$FIELDS_JSON" > /dev/null 2>&1; then
+if jq -e 'has("lastRefreshed")' "$FIELDS_JSON" >/dev/null 2>&1; then
   echo "  FAIL: fields.json must not contain lastRefreshed (use .refresh-meta.json)"
   FAIL=$((FAIL + 1))
 else
@@ -233,7 +240,8 @@ PID_A=$!
 LOCKDIR="$REPO13/.accelerator/state/integrations/jira/.lock"
 i=0
 while [ ! -d "$LOCKDIR" ] && [ $i -lt 30 ]; do
-  sleep 0.05; i=$((i + 1))
+  sleep 0.05
+  i=$((i + 1))
 done
 
 # Process B: refresh with timeout 0 — will fail immediately (lock already held)
@@ -244,8 +252,10 @@ done
   bash "$SCRIPT" refresh) &
 PID_B=$!
 
-EXIT_A=0; wait "$PID_A" || EXIT_A=$?
-EXIT_B=0; wait "$PID_B" || EXIT_B=$?
+EXIT_A=0
+wait "$PID_A" || EXIT_A=$?
+EXIT_B=0
+wait "$PID_B" || EXIT_B=$?
 
 stop_mock
 

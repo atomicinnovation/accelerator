@@ -25,7 +25,6 @@ cd "$ROOT"
 echo "=== SKILL.md frontmatter population prose ==="
 
 SKILLS_TSV="$SCRIPT_DIR/skills-schema.tsv"
-TEMPLATES_TSV="$SCRIPT_DIR/templates-schema.tsv"
 
 # Allowlists for the Phase 11 discovery assertion. Together they must cover
 # every SKILL.md surfaced by Pass A or Pass B (see Phase 11 of the plan).
@@ -134,11 +133,11 @@ while IFS=$'\t' read -r skill_path producer_name fields; do
   fi
 
   stripped=$(mktemp)
-  strip_template_directives "$skill_path" > "$stripped"
+  strip_template_directives "$skill_path" >"$stripped"
 
   for field in $fields; do
-    if in_fenced_block "$stripped" "$field" \
-       || in_imperative_section "$stripped" "$field"; then
+    if in_fenced_block "$stripped" "$field" ||
+      in_imperative_section "$stripped" "$field"; then
       echo "  PASS: $skill_path: instructs population of '$field'"
       PASS=$((PASS + 1))
     else
@@ -177,8 +176,8 @@ discovered=$(
 allowlist=$(
   printf '%s\n' \
     "${IN_SCOPE_PRODUCERS[@]}" \
-    "${NON_EMITTER_TEMPLATE_CONSUMERS[@]}" \
-  | sort -u
+    "${NON_EMITTER_TEMPLATE_CONSUMERS[@]}" |
+    sort -u
 )
 
 unexpected=$(comm -23 <(printf '%s\n' "$discovered") <(printf '%s\n' "$allowlist"))

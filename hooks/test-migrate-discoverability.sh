@@ -20,6 +20,7 @@ run_hook() {
 
 run_hook_stderr() {
   local repo="$1"
+  # shellcheck disable=SC2069 # intentional: capture stderr on stdout, discard real stdout
   PROJECT_ROOT="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1 >/dev/null || true
 }
 
@@ -52,7 +53,7 @@ echo "Test: state-file read from .accelerator/state/migrations-applied when it e
 REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO/.accelerator/state"
 # Only 0001 applied — 0002 and 0003 pending — so the hook emits a warning with the file path
-printf '0001-rename-tickets-to-work\n' > "$REPO/.accelerator/state/migrations-applied"
+printf '0001-rename-tickets-to-work\n' >"$REPO/.accelerator/state/migrations-applied"
 OUTPUT=$(run_hook "$REPO")
 assert_contains "references new state file path" "$OUTPUT" ".accelerator/state/migrations-applied"
 assert_contains "warning emitted for pending migration" "$OUTPUT" "is behind the plugin"
@@ -61,7 +62,7 @@ assert_contains "warning emitted for pending migration" "$OUTPUT" "is behind the
 echo "Test: state-file fallback uses meta/.migrations-applied when .accelerator/ absent"
 REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO/meta"
-printf '0001-rename-tickets-to-work\n' > "$REPO/meta/.migrations-applied"
+printf '0001-rename-tickets-to-work\n' >"$REPO/meta/.migrations-applied"
 OUTPUT=$(run_hook "$REPO")
 assert_contains "references legacy state file path" "$OUTPUT" "meta/.migrations-applied"
 
@@ -71,7 +72,7 @@ REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO/.accelerator"
 mkdir -p "$REPO/meta"
 printf '0001-rename-tickets-to-work\n0002-rename-work-items-with-project-prefix\n' \
-  > "$REPO/meta/.migrations-applied"
+  >"$REPO/meta/.migrations-applied"
 OUTPUT=$(run_hook "$REPO")
 # Must read from meta/ fallback (per-file existence, not per-directory)
 assert_contains "uses legacy fallback" "$OUTPUT" "meta/.migrations-applied"
@@ -96,7 +97,7 @@ echo "Test: hook exits 0 on fully-migrated repo with no pending migrations"
 REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO/.accelerator/state"
 printf '0001-rename-tickets-to-work\n0002-rename-work-items-with-project-prefix\n0003-relocate-accelerator-state\n' \
-  > "$REPO/.accelerator/state/migrations-applied"
+  >"$REPO/.accelerator/state/migrations-applied"
 RC=0
 PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" >/dev/null 2>&1 || RC=$?
 assert_eq "exits 0" "0" "$RC"

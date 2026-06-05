@@ -30,7 +30,7 @@ run_helper_in_clean_repo() {
   local tmpdir
   tmpdir=$(mktemp -d)
   (
-    trap "rm -rf '$tmpdir'" EXIT
+    trap 'rm -rf "$tmpdir"' EXIT
     unset GIT_DIR GIT_WORK_TREE JJ_CONFIG
     export HOME="$tmpdir"
     export XDG_CONFIG_HOME="$tmpdir/.config"
@@ -42,8 +42,8 @@ run_helper_in_clean_repo() {
       git)
         git -c init.defaultBranch=main -c commit.gpgsign=false init -q .
         git -c user.email=test@example.com -c user.name=Test \
-            -c commit.gpgsign=false \
-            commit --allow-empty -q -m init
+          -c commit.gpgsign=false \
+          commit --allow-empty -q -m init
         ;;
       jj)
         jj git init --colocate . >/dev/null 2>&1

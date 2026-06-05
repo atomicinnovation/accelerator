@@ -47,13 +47,13 @@ setup_old_repo() {
   local repo_dir
   repo_dir=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
   mkdir -p "$repo_dir/meta/tickets"
-  printf -- '---\nticket_id: 0001\n---\n\n# 0001: Foo\n' > "$repo_dir/meta/tickets/0001-foo.md"
+  printf -- '---\nticket_id: 0001\n---\n\n# 0001: Foo\n' >"$repo_dir/meta/tickets/0001-foo.md"
   mkdir -p "$repo_dir/meta/reviews/tickets"
   printf -- '---\ntype: work-item-review\n---\n\n# foo-review-1\n' \
-    > "$repo_dir/meta/reviews/tickets/foo-review-1.md"
+    >"$repo_dir/meta/reviews/tickets/foo-review-1.md"
   mkdir -p "$repo_dir/.claude"
   printf -- '---\npaths:\n  tickets: meta/tickets\n---\n' \
-    > "$repo_dir/.claude/accelerator.md"
+    >"$repo_dir/.claude/accelerator.md"
   echo "$repo_dir"
 }
 
@@ -85,7 +85,7 @@ echo ""
 echo "Test: Re-running is idempotent"
 REPO=$(setup_old_repo)
 # First run
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" > /dev/null 2>&1
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" >/dev/null 2>&1
 BEFORE_STATE=$(cat "$REPO/.accelerator/state/migrations-applied")
 # Second run
 RC=0
@@ -101,11 +101,11 @@ echo ""
 echo "Test: Pre-populated state file skips migration on first run"
 REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO/meta/work"
-printf -- '---\nwork_item_id: 0001\n---\n\n# 0001: Foo\n' > "$REPO/meta/work/0001-foo.md"
+printf -- '---\nwork_item_id: 0001\n---\n\n# 0001: Foo\n' >"$REPO/meta/work/0001-foo.md"
 mkdir -p "$REPO/.claude"
-printf -- '---\npaths:\n  work: meta/work\n---\n' > "$REPO/.claude/accelerator.md"
+printf -- '---\npaths:\n  work: meta/work\n---\n' >"$REPO/.claude/accelerator.md"
 mkdir -p "$REPO/.accelerator/state"
-printf '0001-rename-tickets-to-work\n' > "$REPO/.accelerator/state/migrations-applied"
+printf '0001-rename-tickets-to-work\n' >"$REPO/.accelerator/state/migrations-applied"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
@@ -122,7 +122,7 @@ echo "Test: Failed migration aborts without updating state file"
 REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO/.git" "$REPO/meta"
 FAIL_DIR=$(mktemp -d "$TMPDIR_BASE/failmigs-XXXXXX")
-cat > "$FAIL_DIR/9003-stub-fail.sh" << 'STUB'
+cat >"$FAIL_DIR/9003-stub-fail.sh" <<'STUB'
 #!/usr/bin/env bash
 # DESCRIPTION: stub migration that fails
 echo "boom" >&2
@@ -131,7 +131,7 @@ STUB
 chmod +x "$FAIL_DIR/9003-stub-fail.sh"
 RC=0
 cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$FAIL_DIR" \
-  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1 || RC=$?
 assert_neq "non-zero exit" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
 assert_not_contains "failed migration NOT recorded as applied" "$APPLIED" "9003-stub-fail"
@@ -143,13 +143,13 @@ echo "Test: Per-migration idempotency (direct invocation)"
 MIGRATION="$MIGRATIONS_DIR/0001-rename-tickets-to-work.sh"
 REPO=$(setup_old_repo)
 RC=0
-PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$MIGRATION" > /dev/null 2>&1 || RC=$?
+PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$MIGRATION" >/dev/null 2>&1 || RC=$?
 assert_eq "first run exit 0" "0" "$RC"
 assert_dir_exists "meta/work created" "$REPO/meta/work"
 assert_dir_not_exists "meta/tickets removed" "$REPO/meta/tickets"
 # Second run
 RC=0
-PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$MIGRATION" > /dev/null 2>&1 || RC=$?
+PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$MIGRATION" >/dev/null 2>&1 || RC=$?
 assert_eq "second run exit 0" "0" "$RC"
 assert_dir_exists "meta/work still exists" "$REPO/meta/work"
 
@@ -160,7 +160,7 @@ echo "Test: Empty repo is a no-op (state file still written)"
 REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO/meta"
 RC=0
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
 assert_contains "state file has migration ID" "$APPLIED" "0001-rename-tickets-to-work"
@@ -171,11 +171,11 @@ echo ""
 echo "Test: paths.tickets override is respected — pinned directory preserved"
 REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO/meta/custom-tix"
-printf -- '---\nticket_id: 0001\n---\n\n# 0001: Foo\n' > "$REPO/meta/custom-tix/0001-foo.md"
+printf -- '---\nticket_id: 0001\n---\n\n# 0001: Foo\n' >"$REPO/meta/custom-tix/0001-foo.md"
 mkdir -p "$REPO/.claude"
-printf -- '---\npaths:\n  tickets: meta/custom-tix\n---\n' > "$REPO/.claude/accelerator.md"
+printf -- '---\npaths:\n  tickets: meta/custom-tix\n---\n' >"$REPO/.claude/accelerator.md"
 RC=0
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 assert_dir_exists "meta/custom-tix still exists" "$REPO/meta/custom-tix"
 CONTENT=$(cat "$REPO/meta/custom-tix/0001-foo.md")
@@ -198,17 +198,17 @@ REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO/meta/tickets" "$REPO/meta/work"
 mkdir -p "$REPO/meta/reviews/tickets" "$REPO/meta/reviews/work"
 # tickets-side (source) files: 0001-foo unique; shared overlaps meta/work.
-printf -- '---\nticket_id: 0001\n---\n\nSRC-FOO\n' > "$REPO/meta/tickets/0001-foo.md"
-printf -- '---\nticket_id: 0003\n---\n\nSRC-SHARED\n' > "$REPO/meta/tickets/shared.md"
+printf -- '---\nticket_id: 0001\n---\n\nSRC-FOO\n' >"$REPO/meta/tickets/0001-foo.md"
+printf -- '---\nticket_id: 0003\n---\n\nSRC-SHARED\n' >"$REPO/meta/tickets/shared.md"
 # work-side (destination) files: shared overlaps (differing); dest-only resident.
-printf -- '---\nwork_item_id: 0003\n---\n\nDEST-SHARED\n' > "$REPO/meta/work/shared.md"
-printf -- '---\nticket_id: 0009\n---\n\nDEST-ONLY\n' > "$REPO/meta/work/dest-only.md"
+printf -- '---\nwork_item_id: 0003\n---\n\nDEST-SHARED\n' >"$REPO/meta/work/shared.md"
+printf -- '---\nticket_id: 0009\n---\n\nDEST-ONLY\n' >"$REPO/meta/work/dest-only.md"
 # review pair: r-shared overlaps (differing); r-dest resident.
-printf -- 'SRC-RSHARED\n' > "$REPO/meta/reviews/tickets/r-shared.md"
-printf -- 'DEST-RSHARED\n' > "$REPO/meta/reviews/work/r-shared.md"
-printf -- 'DEST-RONLY\n' > "$REPO/meta/reviews/work/r-dest.md"
+printf -- 'SRC-RSHARED\n' >"$REPO/meta/reviews/tickets/r-shared.md"
+printf -- 'DEST-RSHARED\n' >"$REPO/meta/reviews/work/r-shared.md"
+printf -- 'DEST-RONLY\n' >"$REPO/meta/reviews/work/r-dest.md"
 mkdir -p "$REPO/.claude"
-printf -- '---\n---\n' > "$REPO/.claude/accelerator.md"
+printf -- '---\n---\n' >"$REPO/.claude/accelerator.md"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
   ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
@@ -239,7 +239,7 @@ echo ""
 echo "Test: Malformed config aborts migration before any changes"
 REPO=$(setup_old_repo)
 # Overwrite with unclosed frontmatter
-printf -- '---\npaths:\n  tickets: meta/tickets\n' > "$REPO/.claude/accelerator.md"
+printf -- '---\npaths:\n  tickets: meta/tickets\n' >"$REPO/.claude/accelerator.md"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_neq "non-zero exit" "0" "$RC"
@@ -254,7 +254,7 @@ echo ""
 echo "Test: Unknown migration ID preserved and warned about"
 REPO=$(setup_old_repo)
 mkdir -p "$REPO/.accelerator/state"
-printf '0099-future-migration\n' > "$REPO/.accelerator/state/migrations-applied"
+printf '0099-future-migration\n' >"$REPO/.accelerator/state/migrations-applied"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
@@ -270,11 +270,11 @@ echo "Test: Both ticket_id and work_item_id in frontmatter — no duplicate afte
 REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO/meta/tickets"
 printf -- '---\nticket_id: 0001\nwork_item_id: 0001\n---\n\n# 0001: Foo\n' \
-  > "$REPO/meta/tickets/0001-foo.md"
+  >"$REPO/meta/tickets/0001-foo.md"
 mkdir -p "$REPO/.claude"
-printf -- '---\n---\n' > "$REPO/.claude/accelerator.md"
+printf -- '---\n---\n' >"$REPO/.claude/accelerator.md"
 RC=0
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 RESULT_FILE="$REPO/meta/work/0001-foo.md"
 CONTENT=$(cat "$RESULT_FILE" 2>/dev/null || echo "")
@@ -290,11 +290,11 @@ echo "Test: Filename with spaces handled correctly"
 REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO/meta/tickets"
 printf -- '---\nticket_id: 0001\n---\n\n# 0001: With Space\n' \
-  > "$REPO/meta/tickets/0001-with space.md"
+  >"$REPO/meta/tickets/0001-with space.md"
 mkdir -p "$REPO/.claude"
-printf -- '---\n---\n' > "$REPO/.claude/accelerator.md"
+printf -- '---\n---\n' >"$REPO/.claude/accelerator.md"
 RC=0
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 assert_file_exists "file with space migrated" "$REPO/meta/work/0001-with space.md"
 CONTENT=$(cat "$REPO/meta/work/0001-with space.md")
@@ -309,17 +309,17 @@ FIXTURE_MIGRATIONS="$TMPDIR_BASE/fixture-migrations-$$"
 mkdir -p "$FIXTURE_MIGRATIONS"
 cp "$MIGRATIONS_DIR/0001-rename-tickets-to-work.sh" "$FIXTURE_MIGRATIONS/"
 MARKER="$TMPDIR_BASE/0002-ran-$$"
-cat > "$FIXTURE_MIGRATIONS/0002-noop.sh" << EOF
+cat >"$FIXTURE_MIGRATIONS/0002-noop.sh" <<EOF
 #!/usr/bin/env bash
 # DESCRIPTION: No-op test migration
 touch "$MARKER"
 EOF
 chmod +x "$FIXTURE_MIGRATIONS/0002-noop.sh"
 RC=0
-cd "$REPO" && \
+cd "$REPO" &&
   CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
-  ACCELERATOR_MIGRATIONS_DIR="$FIXTURE_MIGRATIONS" \
-  bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+    ACCELERATOR_MIGRATIONS_DIR="$FIXTURE_MIGRATIONS" \
+    bash "$DRIVER" >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
 assert_contains "state file has 0001" "$APPLIED" "0001-rename-tickets-to-work"
@@ -334,15 +334,15 @@ echo ""
 echo "Test: Clean-tree check aborts on uncommitted changes in meta/"
 REPO=$(mktemp -d "$TMPDIR_BASE/repo-XXXXXX")
 mkdir -p "$REPO/meta/tickets"
-printf -- '---\nticket_id: 0001\n---\n\n# 0001: Foo\n' > "$REPO/meta/tickets/0001-foo.md"
+printf -- '---\nticket_id: 0001\n---\n\n# 0001: Foo\n' >"$REPO/meta/tickets/0001-foo.md"
 mkdir -p "$REPO/.claude"
-printf -- '---\n---\n' > "$REPO/.claude/accelerator.md"
+printf -- '---\n---\n' >"$REPO/.claude/accelerator.md"
 # Initialise a real git repo and commit the file so it is tracked
 git -C "$REPO" init -q
 git -C "$REPO" -c user.email="test@test.com" -c user.name="Test" add .
 git -C "$REPO" -c user.email="test@test.com" -c user.name="Test" commit -qm "initial"
 # Modify the tracked file without committing — makes the tree dirty
-printf '\n# extra line\n' >> "$REPO/meta/tickets/0001-foo.md"
+printf '\n# extra line\n' >>"$REPO/meta/tickets/0001-foo.md"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_neq "non-zero exit (dirty tree)" "0" "$RC"
@@ -351,9 +351,9 @@ APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo 
 assert_not_contains "no state entry on abort" "$APPLIED" "0001-rename-tickets-to-work"
 # Re-run with ACCELERATOR_MIGRATE_FORCE=1 bypasses the check
 RC=0
-cd "$REPO" && \
+cd "$REPO" &&
   ACCELERATOR_MIGRATE_FORCE=1 CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" \
-  > /dev/null 2>&1 || RC=$?
+    >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0 with FORCE flag" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
 assert_contains "migration applied with FORCE" "$APPLIED" "0001-rename-tickets-to-work"
@@ -367,7 +367,7 @@ echo "Test: --skip records the ID in .migrations-skipped"
 REPO=$(setup_old_repo)
 RC=0
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 0001-rename-tickets-to-work \
-  > /dev/null 2>&1 || RC=$?
+  >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 SKIPPED=$(cat "$REPO/.accelerator/state/migrations-skipped" 2>/dev/null || echo "")
 assert_contains "skip file has migration ID" "$SKIPPED" "0001-rename-tickets-to-work"
@@ -385,7 +385,7 @@ assert_file_exists "meta/tickets/0001-foo.md still present" "$REPO/meta/tickets/
 echo "Test: --unskip removes the ID and migration becomes pending again"
 RC=0
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --unskip 0001-rename-tickets-to-work \
-  > /dev/null 2>&1 || RC=$?
+  >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 SKIPPED=$(cat "$REPO/.accelerator/state/migrations-skipped" 2>/dev/null || echo "")
 assert_not_contains "skip file no longer has ID" "$SKIPPED" "0001-rename-tickets-to-work"
@@ -398,9 +398,9 @@ assert_contains "migration applied after unskip" "$APPLIED" "0001-rename-tickets
 echo "Test: --skip is idempotent"
 REPO=$(setup_old_repo)
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 0001-rename-tickets-to-work \
-  > /dev/null 2>&1
+  >/dev/null 2>&1
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 0001-rename-tickets-to-work \
-  > /dev/null 2>&1
+  >/dev/null 2>&1
 COUNT=$(grep -c "^0001-rename-tickets-to-work$" "$REPO/.accelerator/state/migrations-skipped")
 assert_eq "ID present exactly once" "1" "$COUNT"
 
@@ -408,13 +408,13 @@ echo "Test: --unskip on absent ID is a no-op"
 REPO=$(setup_old_repo)
 RC=0
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --unskip 0001-rename-tickets-to-work \
-  > /dev/null 2>&1 || RC=$?
+  >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 
 echo "Test: skipping unknown ID writes it and warns on next run"
 REPO=$(setup_old_repo)
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 9999-future-migration \
-  > /dev/null 2>&1
+  >/dev/null 2>&1
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
@@ -425,11 +425,11 @@ assert_contains "unknown skipped ID preserved" "$SKIPPED" "9999-future-migration
 echo "Test: ACCELERATOR_MIGRATE_FORCE bypasses dirty-tree only — skip still wins"
 REPO=$(setup_old_repo)
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 0001-rename-tickets-to-work \
-  > /dev/null 2>&1
+  >/dev/null 2>&1
 git -C "$REPO" init -q
 git -C "$REPO" -c user.email=t@t -c user.name=T add .
 git -C "$REPO" -c user.email=t@t -c user.name=T commit -qm initial
-printf '\nx\n' >> "$REPO/meta/tickets/0001-foo.md"
+printf '\nx\n' >>"$REPO/meta/tickets/0001-foo.md"
 RC=0
 OUTPUT=$(cd "$REPO" && ACCELERATOR_MIGRATE_FORCE=1 CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
   ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
@@ -441,8 +441,8 @@ assert_not_contains "skipped migration NOT applied under FORCE" "$APPLIED" "0001
 echo "Test: applied + skipped same ID — applied wins, warning emitted"
 REPO=$(setup_old_repo)
 mkdir -p "$REPO/.accelerator/state"
-printf '0001-rename-tickets-to-work\n' > "$REPO/.accelerator/state/migrations-applied"
-printf '0001-rename-tickets-to-work\n' > "$REPO/.accelerator/state/migrations-skipped"
+printf '0001-rename-tickets-to-work\n' >"$REPO/.accelerator/state/migrations-applied"
+printf '0001-rename-tickets-to-work\n' >"$REPO/.accelerator/state/migrations-skipped"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
@@ -452,7 +452,7 @@ assert_contains "no pending output (applied wins)" "$OUTPUT" "No pending migrati
 echo "Test: empty .migrations-skipped is treated as no-skip"
 REPO=$(setup_old_repo)
 mkdir -p "$REPO/.accelerator/state"
-: > "$REPO/.accelerator/state/migrations-skipped"
+: >"$REPO/.accelerator/state/migrations-skipped"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
@@ -469,7 +469,7 @@ echo "Test: migration emitting MIGRATION_RESULT: no_op_pending stays unapplied"
 REPO=$(mktemp -d "$TMPDIR_BASE/no-op-XXXXXX")
 mkdir -p "$REPO/.git" "$REPO/meta"
 STUB_DIR=$(mktemp -d "$TMPDIR_BASE/stubmigs-XXXXXX")
-cat > "$STUB_DIR/9001-stub-no-op.sh" << 'STUB'
+cat >"$STUB_DIR/9001-stub-no-op.sh" <<'STUB'
 #!/usr/bin/env bash
 # DESCRIPTION: stub migration that defers via the no_op_pending sentinel
 echo "MIGRATION_RESULT: no_op_pending"
@@ -494,7 +494,7 @@ assert_contains "stub still listed as about-to-apply" "$OUTPUT" "9001-stub-no-op
 
 echo "Test: 0-exit migration WITHOUT sentinel IS recorded"
 STUB2_DIR=$(mktemp -d "$TMPDIR_BASE/stubmigs2-XXXXXX")
-cat > "$STUB2_DIR/9002-stub-applied.sh" << 'STUB'
+cat >"$STUB2_DIR/9002-stub-applied.sh" <<'STUB'
 #!/usr/bin/env bash
 # DESCRIPTION: stub migration that records as applied
 echo "did some work"
@@ -505,7 +505,7 @@ REPO=$(mktemp -d "$TMPDIR_BASE/applied-XXXXXX")
 mkdir -p "$REPO/.git" "$REPO/meta"
 RC=0
 cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$STUB2_DIR" \
-  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
 assert_contains "stub recorded as applied" "$APPLIED" "9002-stub-applied"
@@ -527,7 +527,7 @@ assert_contains "skip hint per migration" "$OUTPUT" "To skip:"
 echo "Test: banner suppressed when no pending migrations"
 REPO=$(mktemp -d "$TMPDIR_BASE/empty-XXXXXX")
 mkdir -p "$REPO/.git" "$REPO/.accelerator/state"
-printf '0001-rename-tickets-to-work\n' > "$REPO/.accelerator/state/migrations-applied"
+printf '0001-rename-tickets-to-work\n' >"$REPO/.accelerator/state/migrations-applied"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATIONS_DIR="$ONLY_0001_DIR" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
@@ -550,7 +550,7 @@ setup_0002_repo() {
   # meta/research/, so we explicitly gate 0004 out to keep those files
   # at their legacy locations for 0002's assertions.
   printf '0001-rename-tickets-to-work\n0004-restructure-meta-research-into-subject-subcategories\n' \
-    > "$repo/.accelerator/state/migrations-applied"
+    >"$repo/.accelerator/state/migrations-applied"
   printf '%s\n' "$repo"
 }
 
@@ -559,8 +559,8 @@ REPO=$(mktemp -d "$TMPDIR_BASE/m0002-noproj-XXXXXX")
 cp -R "$FIXTURE_0002/." "$REPO/"
 mkdir -p "$REPO/.git" "$REPO/meta" "$REPO/.accelerator/state"
 # Override config to have no {project}
-printf '%s\n' '---' 'work:' '  id_pattern: "{number:04d}"' '---' > "$REPO/.claude/accelerator.md"
-printf '0001-rename-tickets-to-work\n' > "$REPO/.accelerator/state/migrations-applied"
+printf '%s\n' '---' 'work:' '  id_pattern: "{number:04d}"' '---' >"$REPO/.claude/accelerator.md"
+printf '0001-rename-tickets-to-work\n' >"$REPO/.accelerator/state/migrations-applied"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0" "0" "$RC"
@@ -573,8 +573,8 @@ echo "Test: pattern has {project} but default_project_code empty — exits non-z
 REPO=$(mktemp -d "$TMPDIR_BASE/m0002-nocode-XXXXXX")
 cp -R "$FIXTURE_0002/." "$REPO/"
 mkdir -p "$REPO/.git" "$REPO/meta" "$REPO/.accelerator/state"
-printf '%s\n' '---' 'work:' '  id_pattern: "{project}-{number:04d}"' '---' > "$REPO/.claude/accelerator.md"
-printf '0001-rename-tickets-to-work\n' > "$REPO/.accelerator/state/migrations-applied"
+printf '%s\n' '---' 'work:' '  id_pattern: "{project}-{number:04d}"' '---' >"$REPO/.claude/accelerator.md"
+printf '0001-rename-tickets-to-work\n' >"$REPO/.accelerator/state/migrations-applied"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "non-zero exit" "1" "$([ "$RC" -ne 0 ] && echo 1 || echo 0)"
@@ -655,7 +655,7 @@ echo "Test: already-rewritten input is a no-op"
 REPO2=$(mktemp -d "$TMPDIR_BASE/m0002-rewritten-XXXXXX")
 cp -R "$REPO/." "$REPO2/"
 # Remove from applied so 0002 runs again
-grep -v "0002-rename-work-items-with-project-prefix" "$REPO2/.accelerator/state/migrations-applied" > "$REPO2/.accelerator/state/migrations-applied.tmp" || true
+grep -v "0002-rename-work-items-with-project-prefix" "$REPO2/.accelerator/state/migrations-applied" >"$REPO2/.accelerator/state/migrations-applied.tmp" || true
 mv "$REPO2/.accelerator/state/migrations-applied.tmp" "$REPO2/.accelerator/state/migrations-applied"
 HASH1=$(tree_hash "$REPO2/meta" -name '*.md')
 RC=0
@@ -705,9 +705,9 @@ setup_0003_repo() {
   cp -R "$FIXTURE_0003/." "$repo/"
   mkdir -p "$repo/.accelerator/state"
   printf '0001-rename-tickets-to-work\n0002-rename-work-items-with-project-prefix\n' \
-    > "$repo/.accelerator/state/migrations-applied"
+    >"$repo/.accelerator/state/migrations-applied"
   printf '0001-rename-tickets-to-work\n0002-rename-work-items-with-project-prefix\n' \
-    > "$repo/meta/.migrations-applied"
+    >"$repo/meta/.migrations-applied"
   printf '%s\n' "$repo"
 }
 
@@ -716,11 +716,11 @@ echo "Test: dirty-tree refusal applies to .accelerator/ changes"
 REPO=$(mktemp -d "$TMPDIR_BASE/m0003-dirty-XXXXXX")
 mkdir -p "$REPO/.accelerator/state"
 printf '0001-rename-tickets-to-work\n0002-rename-work-items-with-project-prefix\n' \
-  > "$REPO/.accelerator/state/migrations-applied"
+  >"$REPO/.accelerator/state/migrations-applied"
 git -C "$REPO" init -q
 git -C "$REPO" -c user.email="test@test.com" -c user.name="Test" add .
 git -C "$REPO" -c user.email="test@test.com" -c user.name="Test" commit -qm "initial"
-printf '\n# extra\n' >> "$REPO/.accelerator/state/migrations-applied"
+printf '\n# extra\n' >>"$REPO/.accelerator/state/migrations-applied"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_neq "non-zero exit (dirty .accelerator/)" "0" "$RC"
@@ -732,7 +732,7 @@ echo ""
 echo "Test: end-to-end move — all sources reach destinations, sources absent after"
 REPO=$(setup_0003_repo)
 RC=0
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 assert_file_exists ".accelerator/config.md created" "$REPO/.accelerator/config.md"
 assert_file_not_exists ".claude/accelerator.md removed" "$REPO/.claude/accelerator.md"
@@ -763,7 +763,7 @@ echo ""
 # ── Test 3: inner Jira .gitignore contains exact rules ───────────────────────
 echo "Test: inner Jira .gitignore contains exact rules site.json, .refresh-meta.json, .lock/"
 REPO=$(setup_0003_repo)
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 JIRA_GI="$REPO/.accelerator/state/integrations/jira/.gitignore"
 assert_file_exists "inner .gitignore created" "$JIRA_GI"
 GI_CONTENT=$(cat "$JIRA_GI")
@@ -786,7 +786,7 @@ echo ""
 echo "Test: paths.tmp unset — meta/tmp/ moves to .accelerator/tmp/"
 REPO=$(setup_0003_repo)
 # Fixture has no paths.tmp override
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_exists ".accelerator/tmp created" "$REPO/.accelerator/tmp"
 assert_dir_not_exists "meta/tmp absent" "$REPO/meta/tmp"
 assert_file_exists "session.json moved" "$REPO/.accelerator/tmp/session.json"
@@ -797,8 +797,8 @@ echo ""
 echo "Test: paths.tmp overridden to custom path — meta/tmp/ left untouched"
 REPO=$(setup_0003_repo)
 printf -- '---\npaths:\n  tmp: custom/tmp\n---\n' \
-  >> "$REPO/.claude/accelerator.md"
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
+  >>"$REPO/.claude/accelerator.md"
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_exists "meta/tmp still present" "$REPO/meta/tmp"
 assert_dir_not_exists ".accelerator/tmp not created" "$REPO/.accelerator/tmp"
 
@@ -808,8 +808,8 @@ echo ""
 echo "Test: paths.tmp = meta/tmp literal — explicit override leaves meta/tmp untouched"
 REPO=$(setup_0003_repo)
 printf -- '---\npaths:\n  tmp: meta/tmp\n---\n' \
-  >> "$REPO/.claude/accelerator.md"
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
+  >>"$REPO/.claude/accelerator.md"
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_exists "meta/tmp still present (literal override)" "$REPO/meta/tmp"
 assert_dir_not_exists ".accelerator/tmp not created" "$REPO/.accelerator/tmp"
 
@@ -819,8 +819,8 @@ echo ""
 echo "Test: paths.tmp with trailing slash — treated as explicit override"
 REPO=$(setup_0003_repo)
 printf -- '---\npaths:\n  tmp: meta/tmp/\n---\n' \
-  >> "$REPO/.claude/accelerator.md"
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
+  >>"$REPO/.claude/accelerator.md"
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_exists "meta/tmp still present (slash override)" "$REPO/meta/tmp"
 
 echo ""
@@ -829,8 +829,8 @@ echo ""
 echo "Test: tmp under non-paths block — awk anchor prevents false positive, meta/tmp moved"
 REPO=$(setup_0003_repo)
 printf -- '---\nsome_section:\n  tmp: meta/tmp\n---\n' \
-  >> "$REPO/.claude/accelerator.md"
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
+  >>"$REPO/.claude/accelerator.md"
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_exists ".accelerator/tmp created (nested not detected)" "$REPO/.accelerator/tmp"
 assert_dir_not_exists "meta/tmp moved away" "$REPO/meta/tmp"
 
@@ -839,7 +839,7 @@ echo ""
 # ── Test 7: idempotency — re-run reports 0003 already applied ────────────────
 echo "Test: idempotency — re-running after success reports no pending migrations"
 REPO=$(setup_0003_repo)
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0 on re-run" "0" "$RC"
@@ -850,7 +850,7 @@ echo ""
 # ── Test 8: root .gitignore rewrite ──────────────────────────────────────────
 echo "Test: root .gitignore — legacy rule replaced by anchored new rule"
 REPO=$(setup_0003_repo)
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 GI="$REPO/.gitignore"
 assert_file_exists ".gitignore still exists" "$GI"
 assert_eq "old unanchored rule removed" "0" \
@@ -859,7 +859,7 @@ assert_eq "new anchored rule present" "1" \
   "$(grep -cFx '.accelerator/config.local.md' "$GI" || true)"
 
 echo "Test: root .gitignore new rule not duplicated on re-run"
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_eq "new rule present exactly once after re-run" "1" \
   "$(grep -cFx '.accelerator/config.local.md' "$GI" || true)"
 
@@ -884,7 +884,7 @@ echo ""
 # ── Test 9: Jira rules removed from .gitignore ───────────────────────────────
 echo "Test: root .gitignore Jira legacy rules removed"
 REPO=$(setup_0003_repo)
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 GI="$REPO/.gitignore"
 assert_eq "jira .lock rule removed" "0" \
   "$(grep -cFx 'meta/integrations/jira/.lock' "$GI" || true)"
@@ -898,7 +898,7 @@ echo "Test: no_op_pending sentinel when .accelerator/ has minimal scaffold and n
 REPO=$(mktemp -d "$TMPDIR_BASE/m0003-noop-XXXXXX")
 mkdir -p "$REPO/.accelerator/state"
 touch "$REPO/.accelerator/state/.gitkeep"
-printf 'config.local.md\n' > "$REPO/.accelerator/.gitignore"
+printf 'config.local.md\n' >"$REPO/.accelerator/.gitignore"
 RC=0
 OUTPUT=$(PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
   bash "$MIGRATION_0003" 2>&1) || RC=$?
@@ -914,7 +914,7 @@ REPO=$(setup_0003_repo)
 mkdir -p "$REPO/.accelerator"
 mv "$REPO/.claude/accelerator.md" "$REPO/.accelerator/config.md"
 RC=0
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0 on partial recovery" "0" "$RC"
 assert_file_exists ".accelerator/config.md still present" "$REPO/.accelerator/config.md"
 assert_dir_exists ".accelerator/skills completed" "$REPO/.accelerator/skills"
@@ -936,7 +936,7 @@ rmdir "$REPO/meta/integrations" 2>/dev/null || true
 mv "$REPO/meta/tmp" "$REPO/.accelerator/tmp"
 # meta/.migrations-applied still exists
 RC=0
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0 on partial recovery (state pending)" "0" "$RC"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied")
 assert_contains "0003 recorded" "$APPLIED" "0003-relocate-accelerator-state"
@@ -948,7 +948,7 @@ echo ""
 echo "Test: both .claude/accelerator.md and .accelerator/config.md exist — source wins, no abort"
 REPO=$(setup_0003_repo)
 mkdir -p "$REPO/.accelerator"
-printf 'different content\n' > "$REPO/.accelerator/config.md"
+printf 'different content\n' >"$REPO/.accelerator/config.md"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0 — merge, no abort" "0" "$RC"
@@ -962,13 +962,13 @@ echo ""
 # ── Test 11b: both-present directory → recursive merge, source-wins on leaf ──
 echo "Test: meta/tmp/ merges into existing .accelerator/tmp/ (dir merge, source-wins on overlap)"
 REPO=$(setup_0003_repo)
-printf 'SRC-KEEP\n' > "$REPO/meta/tmp/keep.md"
-printf 'SRC-NEW\n' > "$REPO/meta/tmp/new.md"
+printf 'SRC-KEEP\n' >"$REPO/meta/tmp/keep.md"
+printf 'SRC-NEW\n' >"$REPO/meta/tmp/new.md"
 mkdir -p "$REPO/.accelerator/tmp"
-printf 'DEST-KEEP\n' > "$REPO/.accelerator/tmp/keep.md"
-printf 'DEST-ONLY\n' > "$REPO/.accelerator/tmp/dest-only.md"
+printf 'DEST-KEEP\n' >"$REPO/.accelerator/tmp/keep.md"
+printf 'DEST-ONLY\n' >"$REPO/.accelerator/tmp/dest-only.md"
 RC=0
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1 || RC=$?
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0 — dir merge, no abort" "0" "$RC"
 assert_dir_not_exists "meta/tmp removed after merge" "$REPO/meta/tmp"
 assert_file_content_eq "new source file merged in" "$REPO/.accelerator/tmp/new.md" "SRC-NEW"
@@ -983,7 +983,7 @@ echo "Test: state-file merge — meta/.migrations-applied lines preserved and de
 REPO=$(setup_0003_repo)
 # setup_0003_repo seeds both new and legacy state with 0001+0002
 # After migration, new state file should be union {0001, 0002, 0003}
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied")
 assert_contains "0001 preserved in merged state" "$APPLIED" "0001-rename-tickets-to-work"
 assert_contains "0002 preserved in merged state" "$APPLIED" "0002-rename-work-items-with-project-prefix"
@@ -1000,7 +1000,7 @@ echo ""
 echo "Test: trailing scaffold — no meta/templates/ source means .accelerator/templates/ not created"
 REPO=$(setup_0003_repo)
 rm -rf "$REPO/meta/templates"
-cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" > /dev/null 2>&1
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_not_exists ".accelerator/templates not pre-created" "$REPO/.accelerator/templates"
 
 echo ""
@@ -1009,7 +1009,7 @@ echo ""
 echo "Test: pinned-override warning emitted for paths.templates and paths.integrations"
 REPO=$(setup_0003_repo)
 printf -- '---\npaths:\n  templates: custom/templates\n  integrations: custom/ints\n---\n' \
-  >> "$REPO/.claude/accelerator.md"
+  >>"$REPO/.claude/accelerator.md"
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0 (warning not error)" "0" "$RC"
@@ -1049,7 +1049,7 @@ setup_0004_repo() {
   cp -R "$FIXTURE_0004/$fixture/." "$repo/"
   mkdir -p "$repo/.accelerator/state"
   printf '0001-rename-tickets-to-work\n0002-rename-work-items-with-project-prefix\n0003-relocate-accelerator-state\n' \
-    > "$repo/.accelerator/state/migrations-applied"
+    >"$repo/.accelerator/state/migrations-applied"
   printf '%s\n' "$repo"
 }
 
@@ -1130,7 +1130,7 @@ assert_dir_not_exists "no codebase dir created" "$REPO/meta/research/codebase"
 echo "Test: destination collision — source overwrites target (merge, source-wins)"
 REPO=$(setup_0004_repo default-layout)
 mkdir -p "$REPO/meta/research/codebase"
-printf 'pre-existing\n' > "$REPO/meta/research/codebase/2026-01-01-example.md"
+printf 'pre-existing\n' >"$REPO/meta/research/codebase/2026-01-01-example.md"
 RC=0
 OUTPUT=$(run_0004 "$REPO" 2>&1) || RC=$?
 assert_eq "exit 0 — merge, no abort" "0" "$RC"
@@ -1182,10 +1182,10 @@ echo "Test: mid-batch sibling-dirty — 0004 converges after 0001/0003 dirty the
 # dirty the tree before 0004 runs. 0004 must no longer re-police the tree.
 REPO=$(mktemp -d "$TMPDIR_BASE/m0004-batch-XXXXXX")
 mkdir -p "$REPO/meta/tickets" "$REPO/meta/research" "$REPO/.claude"
-printf -- '---\nticket_id: 0001\n---\n\n# t\n' > "$REPO/meta/tickets/0001-foo.md"
+printf -- '---\nticket_id: 0001\n---\n\n# t\n' >"$REPO/meta/tickets/0001-foo.md"
 printf -- '---\nwork-item: "0001"\n---\n\n# Example research\n' \
-  > "$REPO/meta/research/2026-01-01-example.md"
-printf -- '---\n---\n' > "$REPO/.claude/accelerator.md"
+  >"$REPO/meta/research/2026-01-01-example.md"
+printf -- '---\n---\n' >"$REPO/.claude/accelerator.md"
 git -C "$REPO" init -q
 git -C "$REPO" -c user.email="t@t.com" -c user.name="T" add -A
 git -C "$REPO" -c user.email="t@t.com" -c user.name="T" commit -qm "init"
@@ -1268,7 +1268,7 @@ assert_eq "config byte-identical on re-run" "$BEFORE" "$AFTER"
 echo "Test: templates.research → templates.codebase-research rename when overridden"
 REPO=$(setup_0004_repo default-layout)
 # Add templates.research override after fixture copy
-cat > "$REPO/.accelerator/config.md" <<'EOF'
+cat >"$REPO/.accelerator/config.md" <<'EOF'
 ---
 templates:
   research: custom/templates/my-research.md
@@ -1411,7 +1411,8 @@ REPO=$(setup_0005_repo partial-prior-run)
 RC=0
 STDERR_FILE=$(mktemp)
 run_0005_driver "$REPO" 2>"$STDERR_FILE" >/dev/null || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 WI="$REPO/meta/work/0001-foo.md"
 CONTENT=$(cat "$WI")
@@ -1428,7 +1429,8 @@ REPO=$(setup_0005_repo partial-prior-run-divergent)
 RC=0
 STDERR_FILE=$(mktemp)
 run_0005_driver "$REPO" 2>"$STDERR_FILE" >/dev/null || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 WI="$REPO/meta/work/0001-foo.md"
 CONTENT=$(cat "$WI")
@@ -1445,7 +1447,8 @@ REPO=$(setup_0005_repo partial-prior-run-body-label)
 RC=0
 STDERR_FILE=$(mktemp)
 run_0005_driver "$REPO" 2>"$STDERR_FILE" >/dev/null || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 WI="$REPO/meta/work/0001-foo.md"
 CONTENT=$(cat "$WI")
@@ -1462,7 +1465,8 @@ REPO=$(setup_0005_repo partial-prior-run-body-label-divergent)
 RC=0
 STDERR_FILE=$(mktemp)
 run_0005_driver "$REPO" 2>"$STDERR_FILE" >/dev/null || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 WI="$REPO/meta/work/0001-foo.md"
 CONTENT=$(cat "$WI")
@@ -1494,7 +1498,8 @@ REPO=$(setup_0005_repo paths-override-missing)
 RC=0
 STDERR_FILE=$(mktemp)
 run_0005_driver "$REPO" 2>"$STDERR_FILE" >/dev/null || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 assert_contains "missing-dir warning" "$STDERR" "work directory does not exist"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
@@ -1522,7 +1527,8 @@ REPO=$(setup_0005_repo empty-work-dir)
 RC=0
 STDOUT_FILE=$(mktemp)
 run_0005_driver "$REPO" >"$STDOUT_FILE" 2>&1 || RC=$?
-STDOUT=$(cat "$STDOUT_FILE"); rm -f "$STDOUT_FILE"
+STDOUT=$(cat "$STDOUT_FILE")
+rm -f "$STDOUT_FILE"
 assert_eq "exit 0" "0" "$RC"
 MD_COUNT=$(find "$REPO/docs/work" -name '*.md' -type f 2>/dev/null | wc -l | tr -d ' ')
 assert_eq "no .md files created" "0" "$MD_COUNT"
@@ -1563,27 +1569,31 @@ setup_0006_repo() {
 }
 
 run_0006_driver() {
-  local repo="$1"; shift
+  local repo="$1"
+  shift
   (
-    cd "$repo" && \
-    CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
-    ACCELERATOR_MIGRATIONS_DIR="$ONLY_0006_DIR" \
-    ACCELERATOR_MIGRATE_FORCE=1 \
-      bash "$DRIVER" "$@" 2>&1
+    cd "$repo" &&
+      CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+        ACCELERATOR_MIGRATIONS_DIR="$ONLY_0006_DIR" \
+        ACCELERATOR_MIGRATE_FORCE=1 \
+        bash "$DRIVER" "$@" 2>&1
   )
 }
 
 # Convenience: split combined stdout+stderr by capturing them separately.
 run_0006_driver_split() {
-  local repo="$1"; shift
-  local stdout_file="$1"; shift
-  local stderr_file="$1"; shift
+  local repo="$1"
+  shift
+  local stdout_file="$1"
+  shift
+  local stderr_file="$1"
+  shift
   (
-    cd "$repo" && \
-    CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
-    ACCELERATOR_MIGRATIONS_DIR="$ONLY_0006_DIR" \
-    ACCELERATOR_MIGRATE_FORCE=1 \
-      bash "$DRIVER" "$@" >"$stdout_file" 2>"$stderr_file"
+    cd "$repo" &&
+      CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+        ACCELERATOR_MIGRATIONS_DIR="$ONLY_0006_DIR" \
+        ACCELERATOR_MIGRATE_FORCE=1 \
+        bash "$DRIVER" "$@" >"$stdout_file" 2>"$stderr_file"
   )
 }
 
@@ -1649,9 +1659,11 @@ echo ""
 echo "Test: inline-comment-work-item — REFUSED, line preserved, stderr warns"
 REPO=$(setup_0006_repo inline-comment-work-item)
 RC=0
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
-STDOUT=$(cat "$STDOUT_FILE"); STDERR=$(cat "$STDERR_FILE")
+STDOUT=$(cat "$STDOUT_FILE")
+STDERR=$(cat "$STDERR_FILE")
 rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 PLAN="$REPO/meta/plans/0001-foo.md"
@@ -1673,9 +1685,11 @@ echo ""
 echo "Test: embedded-quote-work-item — REFUSED, line preserved, stderr warns"
 REPO=$(setup_0006_repo embedded-quote-work-item)
 RC=0
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 PLAN="$REPO/meta/plans/0001-foo.md"
 assert_contains "legacy line preserved" "$(cat "$PLAN")" 'work-item: foo"bar'
@@ -1691,9 +1705,11 @@ echo ""
 echo "Test: trailing-whitespace-work-item — whitespace stripped, no false refuse"
 REPO=$(setup_0006_repo trailing-whitespace-work-item)
 RC=0
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 PLAN="$REPO/meta/plans/0001-foo.md"
 PLAN_LINE=$(grep '^work_item_id:' "$PLAN" || true)
@@ -1732,7 +1748,6 @@ REPO=$(setup_0006_repo mixed-plan-shapes)
 RC=0
 OUTPUT=$(run_0006_driver "$REPO") || RC=$?
 assert_eq "exit 0" "0" "$RC"
-NON_QUOTED=$(grep -rE '^work_item_id: [^"]' "$REPO/meta/plans" | grep -v '^[^:]*:work_item_id:$' || true)
 # Filter: only count those where value is non-quoted AND non-empty
 NON_QUOTED_FILTERED=$(grep -rE '^work_item_id: [^"]' "$REPO/meta/plans" || true)
 assert_eq "no unquoted non-empty work_item_id values" "" "$NON_QUOTED_FILTERED"
@@ -1744,9 +1759,11 @@ echo ""
 echo "Test: partial-prior-run-plan — stale work-item dropped, no warn"
 REPO=$(setup_0006_repo partial-prior-run-plan)
 RC=0
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 PLAN="$REPO/meta/plans/0001-foo.md"
 WIID_LINES=$(grep -c '^work_item_id:' "$PLAN" || true)
@@ -1760,9 +1777,11 @@ echo ""
 echo "Test: partial-prior-run-plan-unquoted — survivor normalised to quoted"
 REPO=$(setup_0006_repo partial-prior-run-plan-unquoted)
 RC=0
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 PLAN="$REPO/meta/plans/0001-foo.md"
 PLAN_LINE=$(grep '^work_item_id:' "$PLAN" || true)
@@ -1775,9 +1794,11 @@ echo ""
 echo "Test: partial-prior-run-plan-divergent — work_item_id wins; stderr warns"
 REPO=$(setup_0006_repo partial-prior-run-plan-divergent)
 RC=0
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 PLAN="$REPO/meta/plans/0001-foo.md"
 assert_contains "work_item_id 0099 remains" "$(cat "$PLAN")" 'work_item_id: "0099"'
@@ -1790,9 +1811,11 @@ echo ""
 echo "Test: partial-prior-run-plan-refused-shape — refused legacy preserved"
 REPO=$(setup_0006_repo partial-prior-run-plan-refused-shape)
 RC=0
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 PLAN="$REPO/meta/plans/0001-foo.md"
 assert_contains "refused legacy line preserved" "$(cat "$PLAN")" "work-item: 0042 # note"
@@ -1805,9 +1828,11 @@ echo ""
 echo "Test: partial-prior-run-research — stale researcher dropped, no warn"
 REPO=$(setup_0006_repo partial-prior-run-research)
 RC=0
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 R="$REPO/meta/research/codebase/2026-01-01-foo.md"
 A_LINES=$(grep -c '^author:' "$R" || true)
@@ -1821,9 +1846,11 @@ echo ""
 echo "Test: partial-prior-run-research-divergent — author wins; stderr warns"
 REPO=$(setup_0006_repo partial-prior-run-research-divergent)
 RC=0
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 R="$REPO/meta/research/codebase/2026-01-01-foo.md"
 assert_contains "author B remains" "$(cat "$R")" "author: B"
@@ -1836,9 +1863,11 @@ echo ""
 echo "Test: partial-prior-run-body-label — stale **Researcher** dropped"
 REPO=$(setup_0006_repo partial-prior-run-body-label)
 RC=0
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 R="$REPO/meta/research/codebase/2026-01-01-foo.md"
 assert_not_contains "no **Researcher** line" "$(cat "$R")" "**Researcher**:"
@@ -1851,9 +1880,11 @@ echo ""
 echo "Test: partial-prior-run-body-label-divergent — **Author** wins, warns"
 REPO=$(setup_0006_repo partial-prior-run-body-label-divergent)
 RC=0
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 R="$REPO/meta/research/codebase/2026-01-01-foo.md"
 assert_contains "**Author** B remains" "$(cat "$R")" "**Author**: B"
@@ -2052,9 +2083,11 @@ echo ""
 echo "Test: template-override-missing — exit 0, no error, no warning"
 REPO=$(setup_0006_repo template-override-missing)
 RC=0
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 # Stderr may contain other framework messages, but no 0006 warnings about templates
 assert_not_contains "no templates.plan warning" "$STDERR" "templates.plan"
@@ -2081,9 +2114,11 @@ echo ""
 echo "Test: template-alias — dedup; rewrite once; warn"
 REPO=$(setup_0006_repo template-alias)
 RC=0
-STDOUT_FILE=$(mktemp); STDERR_FILE=$(mktemp)
+STDOUT_FILE=$(mktemp)
+STDERR_FILE=$(mktemp)
 run_0006_driver_split "$REPO" "$STDOUT_FILE" "$STDERR_FILE" || RC=$?
-STDERR=$(cat "$STDERR_FILE"); rm -f "$STDOUT_FILE" "$STDERR_FILE"
+STDERR=$(cat "$STDERR_FILE")
+rm -f "$STDOUT_FILE" "$STDERR_FILE"
 assert_eq "exit 0" "0" "$RC"
 T="$REPO/.accelerator/templates/shared.md"
 WIID=$(grep -c '^work_item_id:' "$T" || true)

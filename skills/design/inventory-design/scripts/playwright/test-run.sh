@@ -5,7 +5,6 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
 RUN_SH="$SCRIPT_DIR/run.sh"
-FIXTURE_HTML="$SCRIPT_DIR/__fixtures__/fixture.html"
 LAUNCHER_HELPERS="$PLUGIN_ROOT/skills/visualisation/visualise/scripts/launcher-helpers.sh"
 
 # When set, skip tests that require a real Playwright install
@@ -164,7 +163,7 @@ if [[ -n "$LINKS_OUT" ]] && echo "$LINKS_OUT" | grep -q '"links"'; then
   # can wait for the daemon process to fully exit (it holds the
   # launcher.lock FD across its shutdown, so the next launcher invocation
   # is blocked until then).
-  LINKS_DAEMON_PID="$(tr -cd '0-9' < "$LINKS_PROJECT_TMP/.accelerator/tmp/inventory-design-playwright/server.pid" 2>/dev/null || echo "")"
+  LINKS_DAEMON_PID="$(tr -cd '0-9' <"$LINKS_PROJECT_TMP/.accelerator/tmp/inventory-design-playwright/server.pid" 2>/dev/null || echo "")"
   (cd "$LINKS_PROJECT_TMP" && bash "$RUN_SH" daemon-stop >/dev/null 2>&1 || true)
   if [[ -n "$LINKS_DAEMON_PID" ]]; then
     for _ in $(seq 1 50); do
@@ -207,7 +206,7 @@ export ACCELERATOR_PLAYWRIGHT_CACHE="${ACCELERATOR_PLAYWRIGHT_CACHE:-$HOME/.cach
 
 STATE_DIR="$PROJECT_TMP/.accelerator/tmp/inventory-design-playwright"
 if [[ -f "$STATE_DIR/server.pid" ]]; then
-  SERVER_PID="$(tr -cd '0-9' < "$STATE_DIR/server.pid")"
+  SERVER_PID="$(tr -cd '0-9' <"$STATE_DIR/server.pid")"
   assert_neq "daemon wrote server.pid" "" "$SERVER_PID"
 
   sleep 2

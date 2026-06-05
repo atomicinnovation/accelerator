@@ -32,7 +32,6 @@ DEFAULT_MIN_LENSES=4
 DEFAULT_MIN_LENSES_WORK_ITEM=3
 DEFAULT_MAX_LENSES=8
 DEFAULT_CORE_LENSES="architecture code-quality test-coverage correctness"
-DEFAULT_DISABLED_LENSES=""
 
 # Built-in lens names for code reviews (PR and plan modes)
 BUILTIN_CODE_LENSES=(
@@ -129,7 +128,7 @@ validate_positive_int() {
 validate_severity() {
   local name="$1" value="$2" default="$3"
   case "$value" in
-    critical|major|none) echo "$value" ;;
+    critical | major | none) echo "$value" ;;
     *)
       echo "Warning: review.$name must be 'critical', 'major', or 'none', got '$value' — using default ($default)" >&2
       echo "$default"
@@ -166,9 +165,7 @@ validate_applies_to() {
 
   # Split comma-separated entries
   local seen_modes=""
-  local has_valid=false
-  local all_invalid=true
-  IFS=',' read -ra entries <<< "$stripped"
+  IFS=',' read -ra entries <<<"$stripped"
   for entry in "${entries[@]}"; do
     local mode
     mode=$(echo "$entry" | tr -d ' ')
@@ -194,8 +191,6 @@ validate_applies_to() {
     fi
     seen_modes="$seen_modes $mode"
     echo "$mode"
-    has_valid=true
-    all_invalid=false
   done
 }
 
@@ -223,7 +218,7 @@ CUSTOM_LENSES_DIR="$PROJECT_ROOT/.accelerator/lenses"
 custom_lens_names=()
 custom_lens_paths=()
 custom_lens_auto_detect=()
-custom_lens_applies_to=()  # parallel array; empty string means "all modes"
+custom_lens_applies_to=() # parallel array; empty string means "all modes"
 
 # Helper: extract a scalar field from frontmatter text
 _read_frontmatter_scalar() {
@@ -540,8 +535,8 @@ if [ "$MODE" = "pr" ]; then
   fi
 elif [ "$MODE" = "plan" ]; then
   plan_verdict_changed=false
-  if [ "$plan_revise_severity" != "$DEFAULT_PLAN_REVISE_SEVERITY" ] || \
-     [ "$plan_revise_major_count" != "$DEFAULT_PLAN_REVISE_MAJOR_COUNT" ]; then
+  if [ "$plan_revise_severity" != "$DEFAULT_PLAN_REVISE_SEVERITY" ] ||
+    [ "$plan_revise_major_count" != "$DEFAULT_PLAN_REVISE_MAJOR_COUNT" ]; then
     plan_verdict_changed=true
   fi
 
@@ -556,8 +551,8 @@ elif [ "$MODE" = "plan" ]; then
   fi
 elif [ "$MODE" = "work-item" ]; then
   work_item_verdict_changed=false
-  if [ "$work_item_revise_severity" != "$DEFAULT_WORK_ITEM_REVISE_SEVERITY" ] || \
-     [ "$work_item_revise_major_count" != "$DEFAULT_WORK_ITEM_REVISE_MAJOR_COUNT" ]; then
+  if [ "$work_item_revise_severity" != "$DEFAULT_WORK_ITEM_REVISE_SEVERITY" ] ||
+    [ "$work_item_revise_major_count" != "$DEFAULT_WORK_ITEM_REVISE_MAJOR_COUNT" ]; then
     work_item_verdict_changed=true
   fi
 
@@ -582,7 +577,6 @@ echo ""
 echo "| Lens | Path | Source |"
 echo "|------|------|--------|"
 
-LENSES_BASE="$SCRIPT_DIR/../skills/review/lenses"
 _LENSES_BASE_REL="skills/review/lenses"
 
 while IFS= read -r lens; do

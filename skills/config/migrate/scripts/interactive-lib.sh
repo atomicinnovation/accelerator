@@ -30,9 +30,9 @@ is_interactive_migration() {
 # All values are escape_field-encoded.
 build_resume_state_file() {
   local session_log="$1" out="$2"
-  : > "$out"
-  [ -z "$session_log" ] || [ ! -f "$session_log" ] || [ ! -s "$session_log" ] \
-    && return 0
+  : >"$out"
+  [ -z "$session_log" ] || [ ! -f "$session_log" ] || [ ! -s "$session_log" ] &&
+    return 0
   local awk_script='
 function js_unescape(s,   r, i, c, n) {
   r = ""
@@ -112,7 +112,7 @@ function extract_field(line, key,   pat, p, val_start, depth, ch, i, esc) {
   printf "RESUMED\t%s\t%s\t%s\t%s\n",
     tsv_escape(key), outcome, tsv_escape(proposed), tsv_escape(user_v)
 }'
-  RESUME_SESSION_LOG="$session_log" awk "$awk_script" "$session_log" > "$out"
+  RESUME_SESSION_LOG="$session_log" awk "$awk_script" "$session_log" >"$out"
 }
 
 # Parse the extras_tsv field (US-separated key=value pairs, values
@@ -143,16 +143,18 @@ _parse_extras_tsv() {
 write_session_record() {
   local key="$1" outcome="$2" proposed="$3" user_value="$4"
   local extras_tsv="$5" session_log="$6"
-  EXTRAS_KEYS=(); EXTRAS_VALUES=()
+  EXTRAS_KEYS=()
+  EXTRAS_VALUES=()
   _parse_extras_tsv "$extras_tsv"
   # Defensive re-validation of extras keys.
   local i k
   for ((i = 0; i < ${#EXTRAS_KEYS[@]}; i++)); do
     k="${EXTRAS_KEYS[$i]}"
     case "$k" in
-      transformation_key|schema_version|outcome|proposed_value|user_value|timestamp)
+      transformation_key | schema_version | outcome | proposed_value | user_value | timestamp)
         echo "[interactive] runner rejected reserved extras key '$k'" >&2
-        return 1 ;;
+        return 1
+        ;;
     esac
     if [[ ! "$k" =~ ^[a-z][a-z0-9_]*$ ]]; then
       echo "[interactive] runner rejected invalid extras key '$k'" >&2
@@ -211,8 +213,8 @@ render_prompt() {
     # Inline help frequency: full on first prompt + every prompt after a
     # VALIDATE_ERR, compact otherwise. The PROMPT loop body resets the
     # validate-err flag after rendering.
-    if [ "$PROMPT_INDEX" -eq 1 ] \
-       || [ "${LAST_PROMPT_HAD_VALIDATE_ERR:-0}" -eq 1 ]; then
+    if [ "$PROMPT_INDEX" -eq 1 ] ||
+      [ "${LAST_PROMPT_HAD_VALIDATE_ERR:-0}" -eq 1 ]; then
       printf '[accept | edit <new-value> | skip] > '
     else
       printf '> '
@@ -245,18 +247,33 @@ read_decision() {
     echo "[decisions] consumed line $DECISIONS_LINE_NUM: ${line%% *}" >&2
   else
     if [ -t 0 ]; then
-      IFS= read -r line < /dev/tty || return 1
+      IFS= read -r line </dev/tty || return 1
     else
       IFS= read -r line || return 1
     fi
   fi
   # Parse outcome and value.
   case "$line" in
-    accept|accept' '*) DECIDE_OUTCOME=accept; DECIDE_VALUE="" ;;
-    skip|skip' '*)     DECIDE_OUTCOME=skip;   DECIDE_VALUE="" ;;
-    edit' '*)          DECIDE_OUTCOME=edit;   DECIDE_VALUE="${line#edit }" ;;
-    edit)              DECIDE_OUTCOME=edit;   DECIDE_VALUE="" ;;
-    *)                 DECIDE_OUTCOME="$line"; DECIDE_VALUE="" ;;
+    accept | accept' '*)
+      DECIDE_OUTCOME=accept
+      DECIDE_VALUE=""
+      ;;
+    skip | skip' '*)
+      DECIDE_OUTCOME=skip
+      DECIDE_VALUE=""
+      ;;
+    edit' '*)
+      DECIDE_OUTCOME=edit
+      DECIDE_VALUE="${line#edit }"
+      ;;
+    edit)
+      DECIDE_OUTCOME=edit
+      DECIDE_VALUE=""
+      ;;
+    *)
+      DECIDE_OUTCOME="$line"
+      DECIDE_VALUE=""
+      ;;
   esac
 }
 
@@ -267,7 +284,7 @@ run_interactive_migration() {
   resume_state_path="$PROJECT_ROOT/.accelerator/state/migrations-${id}-resume-state.tmp"
   stderr_file="$PROJECT_ROOT/.accelerator/state/migrations-${id}-stderr.log"
   mkdir -p "$(dirname "$resume_state_path")"
-  : > "$stderr_file"
+  : >"$stderr_file"
 
   # Default session-log path (the migration may override via
   # migration_session_log_path; the actual path is announced on READY).
@@ -282,7 +299,7 @@ run_interactive_migration() {
   local decisions_fd_open=0
   DECISIONS_LINE_NUM=0
   if [ -n "${ACCELERATOR_MIGRATE_DECISIONS_FILE:-}" ]; then
-    exec 9< "$ACCELERATOR_MIGRATE_DECISIONS_FILE"
+    exec 9<"$ACCELERATOR_MIGRATE_DECISIONS_FILE"
     DECISIONS_FD=9
     decisions_fd_open=1
   fi
@@ -324,8 +341,8 @@ run_interactive_migration() {
   # Fork the migration: its stdin reads from r2m, its stdout writes
   # to m2r. Stderr captured to a per-migration file.
   PROJECT_ROOT="$PROJECT_ROOT" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
-  ACCELERATOR_MIGRATION_MODE=1 MIGRATION_ID="$id" \
-  MIGRATION_PROTOCOL_LOG_MIGRATION="${MIGRATION_PROTOCOL_LOG_MIGRATION:-}" \
+    ACCELERATOR_MIGRATION_MODE=1 MIGRATION_ID="$id" \
+    MIGRATION_PROTOCOL_LOG_MIGRATION="${MIGRATION_PROTOCOL_LOG_MIGRATION:-}" \
     bash "$f" <"$fifo_runner_to_mig" >"$fifo_mig_to_runner" 2>"$stderr_file" &
   local pid=$!
 
@@ -343,7 +360,7 @@ run_interactive_migration() {
     printf 'INIT\t%s\t%s\n' \
       "$(escape_field "$resume_state_path")" \
       "$(escape_field "${ACCELERATOR_MIGRATE_DECISIONS_FILE:-}")" \
-      >> "$runner_log_path"
+      >>"$runner_log_path"
   fi
 
   SESSION_LOG="$default_session_log"
@@ -364,7 +381,7 @@ run_interactive_migration() {
     fi
 
     if [ -n "$runner_log_path" ]; then
-      printf '%s\n' "$frame" >> "$runner_log_path"
+      printf '%s\n' "$frame" >>"$runner_log_path"
     fi
 
     # Parse out type + fields. read_frame helper from interactive-protocol.sh
@@ -397,7 +414,7 @@ run_interactive_migration() {
         # paths in migration_session_log_path.
         case "$SESSION_LOG" in
           /*) ;;
-          *)  SESSION_LOG="$PROJECT_ROOT/$SESSION_LOG" ;;
+          *) SESSION_LOG="$PROJECT_ROOT/$SESSION_LOG" ;;
         esac
         # Re-derive the resume state if the migration declared a custom
         # session-log path.
@@ -408,8 +425,9 @@ run_interactive_migration() {
           }
         fi
         ;;
-      MECHANICAL_APPLIED|RESUMED_APPLIED|RESUMED_SKIPPED|APPLIED_CONFIRM)
-        : ;;
+      MECHANICAL_APPLIED | RESUMED_APPLIED | RESUMED_SKIPPED | APPLIED_CONFIRM)
+        :
+        ;;
       PROMPT)
         local p_key="${fields[0]:-}" p_path="${fields[1]:-}"
         local p_anchor="${fields[2]:-}" p_proposed="${fields[3]:-}"
@@ -436,7 +454,7 @@ run_interactive_migration() {
         if [ -n "$runner_log_path" ]; then
           printf 'DECIDE\t%s\t%s\n' \
             "$(escape_field "$DECIDE_OUTCOME")" \
-            "$(escape_field "$DECIDE_VALUE")" >> "$runner_log_path"
+            "$(escape_field "$DECIDE_VALUE")" >>"$runner_log_path"
         fi
         ;;
       VALIDATE_ERR)
@@ -463,7 +481,7 @@ run_interactive_migration() {
         if [ -n "$runner_log_path" ]; then
           printf 'DECIDE\t%s\t%s\n' \
             "$(escape_field "$DECIDE_OUTCOME")" \
-            "$(escape_field "$DECIDE_VALUE")" >> "$runner_log_path"
+            "$(escape_field "$DECIDE_VALUE")" >>"$runner_log_path"
         fi
         ;;
       RECORDED)
@@ -471,14 +489,14 @@ run_interactive_migration() {
         local r_proposed="${fields[2]:-}" r_user="${fields[3]:-}"
         local r_extras="${fields[4]:-}"
         if ! write_session_record "$r_key" "$r_outcome" "$r_proposed" \
-             "$r_user" "$r_extras" "$SESSION_LOG"; then
+          "$r_user" "$r_extras" "$SESSION_LOG"; then
           echo "[$id] failed to persist record for $r_key" >&2
           exec 7>&-
           return 1
         fi
         printf 'APPLY\t%s\n' "$(escape_field "$r_key")" >&"$mig_in"
         if [ -n "$runner_log_path" ]; then
-          printf 'APPLY\t%s\n' "$(escape_field "$r_key")" >> "$runner_log_path"
+          printf 'APPLY\t%s\n' "$(escape_field "$r_key")" >>"$runner_log_path"
         fi
         ;;
       DRIFT)
@@ -490,15 +508,19 @@ run_interactive_migration() {
         }
         printf 'DRIFT_CLEARED\t%s\n' "$(escape_field "$d_key")" >&"$mig_in"
         if [ -n "$runner_log_path" ]; then
-          printf 'DRIFT_CLEARED\t%s\n' "$(escape_field "$d_key")" >> "$runner_log_path"
+          printf 'DRIFT_CLEARED\t%s\n' "$(escape_field "$d_key")" >>"$runner_log_path"
         fi
         ;;
-      DONE) saw_done=1; break ;;
+      DONE)
+        saw_done=1
+        break
+        ;;
       FAIL)
         echo "[$id] ${fields[0]:-}" >&2
         wait "$pid" 2>/dev/null || true
         rm -f "$resume_state_path"
-        return 1 ;;
+        return 1
+        ;;
     esac
   done
 
@@ -528,8 +550,8 @@ run_interactive_migration() {
   kill "$watchdog_pid" 2>/dev/null || true
   wait "$watchdog_pid" 2>/dev/null || true
 
-  if [ "$wait_status" -ne 0 ] \
-     || { [ "$saw_done" -ne 1 ] && [ "$saw_no_op_pending" -ne 1 ]; }; then
+  if [ "$wait_status" -ne 0 ] ||
+    { [ "$saw_done" -ne 1 ] && [ "$saw_no_op_pending" -ne 1 ]; }; then
     if [ -s "$stderr_file" ]; then
       echo "[$id] migration exited unexpectedly. Last stderr lines:" >&2
       tail -n 20 "$stderr_file" | sed "s/^/[$id]   /" >&2
@@ -553,5 +575,6 @@ run_interactive_migration() {
   echo "[${id}] applied" >&2
   # Signal to caller that this migration was fully applied (not soft-deferred)
   # so the apply counter can be bumped.
+  # shellcheck disable=SC2034 # read by the sourcing orchestrator after this returns
   INTERACTIVE_APPLIED=1
 }
