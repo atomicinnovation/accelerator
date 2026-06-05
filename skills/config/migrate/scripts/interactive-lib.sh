@@ -21,7 +21,15 @@ source "$PLUGIN_ROOT/scripts/interactive-protocol.sh"
 is_interactive_migration() {
   local path="$1"
   [ -f "$path" ] || return 1
-  head -5 "$path" | grep -qE '^# INTERACTIVE:[[:space:]]*yes$'
+  # Read the header into a variable first rather than piping head into
+  # grep: under `set -o pipefail`, `grep -q` exiting on first match can
+  # close the pipe before `head` finishes writing, leaving head with
+  # SIGPIPE (141) as the pipeline status — which would misclassify an
+  # interactive migration as mechanical. A here-string has no upstream
+  # writer to kill.
+  local header
+  header=$(head -5 "$path")
+  grep -qE '^# INTERACTIVE:[[:space:]]*yes$' <<<"$header"
 }
 
 # Build the resume-state file the harness will load on INIT. For each

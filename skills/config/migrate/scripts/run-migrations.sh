@@ -257,7 +257,7 @@ for f in "${pending_files[@]}"; do
   export PROJECT_ROOT
 
   # Dispatch on the # INTERACTIVE: yes header marker.
-  if head -5 "$f" | grep -qE '^# INTERACTIVE:[[:space:]]*yes$'; then
+  if is_interactive_migration "$f"; then
     INTERACTIVE_APPLIED=0
     if ! run_interactive_migration "$f" "$id"; then
       echo "[${id}] failed" >&2

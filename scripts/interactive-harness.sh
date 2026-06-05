@@ -319,7 +319,15 @@ harness_run() {
     # declared, default to "always prompt" (predicate=true).
     local predicate_rc=0
     if declare -F migration_evaluate_predicate >/dev/null; then
-      printf '%s\n' "$tx" | migration_evaluate_predicate >/dev/null 2>&1 ||
+      # Feed the transformation via a here-string, NOT a pipe. A predicate
+      # that returns without draining stdin (e.g. one that reads fields via
+      # harness_field rather than stdin) would close the read end of a pipe
+      # before `printf` finishes writing; under `set -o pipefail` the
+      # resulting SIGPIPE (141) on printf becomes the pipeline's exit status
+      # and gets misread as a contract violation. A here-string has no
+      # upstream writer to receive SIGPIPE, so the predicate's own return
+      # code is preserved.
+      migration_evaluate_predicate <<<"$tx" >/dev/null 2>&1 ||
         predicate_rc=$?
     fi
     case "$predicate_rc" in
