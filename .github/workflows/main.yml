@@ -12,8 +12,8 @@ on:
       - synchronize
 
 jobs:
-  test:
-    name: Run tests
+  test-unit:
+    name: Run unit tests
     runs-on: ubuntu-latest
 
     steps:
@@ -27,11 +27,11 @@ jobs:
           cache: true
           experimental: true
 
-      - name: Run all tests
-        run: mise run test
+      - name: Run unit tests
+        run: mise run test:unit
 
-  checks:
-    name: Run shell format & lint checks
+  test-integration:
+    name: Run integration tests
     runs-on: ubuntu-latest
 
     steps:
@@ -45,13 +45,53 @@ jobs:
           cache: true
           experimental: true
 
-      - name: Run format & lint checks
+      - name: Run integration tests
+        run: mise run test:integration
+
+  test-e2e:
+    name: Run E2E tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+          experimental: true
+
+      - name: Run E2E tests
+        run: mise run test:e2e
+
+  check:
+    name: Run checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+          experimental: true
+
+      - name: Run checks
         run: mise run check
 
   prerelease:
     name: Create prerelease
     runs-on: macos-latest
-    needs: test
+    needs:
+      - test-unit
+      - test-integration
+      - test-e2e
+      - check
     if: github.event_name == 'push'
     permissions:
       id-token: write
