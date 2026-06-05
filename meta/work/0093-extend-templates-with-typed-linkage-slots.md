@@ -5,7 +5,7 @@ title: "Extend Templates With Typed-Linkage Slots"
 date: "2026-05-31T12:13:53+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: story
 priority: medium
 parent: "0057"

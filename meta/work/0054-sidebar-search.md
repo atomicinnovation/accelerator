@@ -4,7 +4,7 @@ title: "Sidebar Search Input and API Search Endpoint"
 date: "2026-05-11T12:11:50+00:00"
 author: Toby Clemson
 kind: story
-status: ready
+status: done
 priority: high
 parent: "0036"
 tags: [design, frontend, chrome, navigation]
