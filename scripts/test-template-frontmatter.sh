@@ -21,11 +21,12 @@ export LC_ALL=C
 echo "=== Template frontmatter shape ==="
 
 SCHEMA_TSV="$SCRIPT_DIR/templates-schema.tsv"
-# Cross-check inputs (both 0065 and 0066 carry Schema Reference tables;
-# the union must match the TSV exactly).
+# Cross-check inputs: each listed work item carries a Schema Reference table;
+# the union of those tables must match the TSV exactly.
 WORK_ITEM_MDS=(
   "meta/work/0065-update-artifact-templates-to-unified-schema.md"
   "meta/work/0066-update-review-skills-inline-frontmatter.md"
+  "meta/work/0067-create-note-skill.md"
 )
 
 BASE_FIELDS=(type id title date author producer status tags last_updated last_updated_by schema_version)
@@ -253,8 +254,9 @@ while IFS=$'\t' read -r template_file expected_type anchored extras status_vocab
 done < <(tail -n +2 "$SCHEMA_TSV")
 
 # Cross-check: parse the work-item Schema Reference markdown table(s) and
-# assert the union of templates matches the TSV exactly. Both 0065 and 0066
-# carry Schema Reference tables; their union is the authoritative source.
+# assert the union of templates matches the TSV exactly. Each work item in
+# WORK_ITEM_MDS carries a Schema Reference table; their union is the
+# authoritative source.
 echo "--- Cross-check: work-item Schema Reference vs templates-schema.tsv ---"
 existing_count=0
 for wi in "${WORK_ITEM_MDS[@]}"; do

@@ -326,19 +326,19 @@ Notes on shape:
 
 #### Automated Verification:
 
-- [ ] Template-shape test passes: `bash scripts/test-template-frontmatter.sh`
-- [ ] Full template/skill schema suite passes: `mise run test:unit:templates`
-- [ ] Template resolves through the loader:
+- [x] Template-shape test passes: `bash scripts/test-template-frontmatter.sh`
+- [x] Full template/skill schema suite passes: `mise run test:unit:templates`
+- [x] Template resolves through the loader:
       `bash scripts/config-read-template.sh note` prints the note template
       wrapped in `markdown` fences and exits 0
-- [ ] Shell format/lint clean for the edited test script:
+- [x] Shell format/lint clean for the edited test script:
       `mise run format:check` and `mise run lint:check`
 
 #### Manual Verification:
 
-- [ ] `templates/note.md` frontmatter visually matches the
+- [x] `templates/note.md` frontmatter visually matches the
       `codebase-research.md` spine (field order, comment style, quoting).
-- [ ] The 0067 Schema Reference table reads accurately and does not
+- [x] The 0067 Schema Reference table reads accurately and does not
       contradict ADR-0033/0034.
 
 ---

@@ -89,3 +89,24 @@ Per 0057, `meta/notes/` exists as an artifact category but has no creator skill 
 - Source: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`
 - Related: 0057, 0060, 0061, 0065, 0070
 - Decisions: `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` (unified base schema + note `topic` / provenance extras), `meta/decisions/ADR-0034-typed-linkage-vocabulary.md` (`parent` / `relates_to` / `source` semantics)
+
+## Schema Reference
+
+The note template emits the unified base schema plus the `topic` per-type
+extra and the `revision`/`repository` provenance bundle per ADR-0033, and
+the `parent`/`relates_to` typed-linkage slots per ADR-0034, emitted
+omit-when-empty per ADR-0040. Authoritative source: ADR-0033 and ADR-0034,
+with omit-when-empty emission per ADR-0040; on any discrepancy the ADRs win
+and this table should be re-synced. This table is mirror data validated by
+`test-template-frontmatter.sh`, but its cross-check compares only the
+template-filename cell — the `type` / `schema_version` / provenance / extras
+columns are unverified by any test and must be checked by hand against the
+template and the ADRs during manual verification. The note template
+deliberately carries no `work_item_id` foreign-reference slot (unlike the
+`codebase-research.md` / `rca.md` exemplars): ADR-0033 lists no foreign
+reference for the note type — notes link via `parent`/`relates_to` — so the
+omission is intentional, not an oversight.
+
+| Template file | Artifact `type` | `schema_version` | Provenance bundle? | Per-type extras (beyond base) |
+|---|---|---|---|---|
+| `note.md` | `note` | 1 | yes | `topic` |
