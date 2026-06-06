@@ -638,22 +638,34 @@ allowed-tools:
 #### Manual Verification:
 
 - [ ] `create-note` appears in the available-skills listing alongside
-      `create-work-item` (re-list skills after registration).
+      `create-work-item` (re-list skills after registration). *(Pending: needs
+      the plugin reloaded/reinstalled — the new skill lives in this workspace,
+      not the running harness's loaded plugin cache.)*
 - [ ] Each of "capture a note", "jot this down", and "make a note of this"
       routes to `create-note` on a single dispatch against the full enabled
-      skill set (AC10).
-- [ ] A live run elicits topic + body + tags and writes
+      skill set (AC10). *(Pending: routing dispatch requires the skill
+      registered in the running harness — not testable until the plugin is
+      reloaded.)*
+- [x] A live run elicits topic + body + tags and writes
       `meta/notes/YYYY-MM-DD-<topic-slug>.md` with base fields, `topic`,
       and provenance populated; the body and `tags` reflect the supplied
-      values (AC3, AC4, AC5).
-- [ ] Naming a related work-item records it under `relates_to`; confirming
+      values (AC3, AC4, AC5). *(Verified by executing the skill's documented
+      procedure against the real `config-read-path.sh`,
+      `artifact-derive-metadata.sh`, and `note.md` template; the written note
+      was conformant. Test artifact removed afterwards.)*
+- [x] Naming a related work-item records it under `relates_to`; confirming
       ownership moves it to `parent`; unused linkage slots are omitted, not
       emitted empty; `source`/`derived_from` never appear (AC6, AC7).
-- [ ] The emitted slug is a meaningful condensed kebab summary of the topic,
+      *(Verified via the same dry-run: declined-ownership note carried
+      `relates_to`, confirmed-ownership note carried `parent`, neither emitted
+      the unused slot nor `source`/`derived_from`.)*
+- [x] The emitted slug is a meaningful condensed kebab summary of the topic,
       distinct from a naive passthrough of the raw input (AC5).
-- [ ] On a same-day same-slug collision the skill auto-disambiguates the slug
+- [x] On a same-day same-slug collision the skill auto-disambiguates the slug
       and writes — it neither aborts nor overwrites; the pre-existing note is
-      left intact and the new note lands at the disambiguated path.
+      left intact and the new note lands at the disambiguated path. *(Verified:
+      re-running the same topic probed to `…-behaviour-2.md` with the first
+      note left intact.)*
 
 ---
 
