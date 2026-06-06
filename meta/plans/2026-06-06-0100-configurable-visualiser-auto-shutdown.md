@@ -706,12 +706,12 @@ field's presence-when-set, add a case there.
 
 #### Automated Verification:
 
-- [ ] Shell config-writer tests pass:
+- [x] Shell config-writer tests pass:
   `bash skills/visualisation/visualise/scripts/test-write-visualiser-config.sh`
-- [ ] Integration tests pass: `mise run test:integration:visualiser`
-- [ ] Full launcher tests pass:
+- [x] Integration tests pass: `mise run test:integration:visualiser`
+- [x] Full launcher tests pass:
   `bash skills/visualisation/visualise/scripts/test-launch-server.sh`
-- [ ] A config with `visualiser.idle_timeout: "30m"` produces `config.json` with
+- [x] A config with `visualiser.idle_timeout: "30m"` produces `config.json` with
   `.idle_timeout == "30m"` (covered by the new shell test)
 
 #### Manual Verification:

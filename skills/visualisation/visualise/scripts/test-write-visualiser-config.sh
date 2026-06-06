@@ -137,5 +137,141 @@ STDERR7="$(cd "$PROJ7" && "$WRITE_CONFIG" \
   2>&1 >/dev/null)" || EXIT7=$?
 assert_eq "malformed kanban_columns exits non-zero" "1" "$EXIT7"
 
+# ─── 8. idle_timeout: no env, no config → key absent ─────────────────────────
+echo "Test: no idle_timeout configured → key absent from config.json"
+PROJ8="$TMPDIR_BASE/t-idle-absent"
+make_project "$PROJ8"
+OUT8_FILE="$TMPDIR_BASE/out8.json"
+run_config "$PROJ8" >"$OUT8_FILE"
+assert_json_eq "idle_timeout key absent (null)" ".idle_timeout" "null" "$OUT8_FILE"
+
+# ─── 9. idle_timeout: config value, no env → config-over-default ─────────────
+echo "Test: visualiser.idle_timeout in config → emitted verbatim"
+PROJ9="$TMPDIR_BASE/t-idle-config"
+make_project "$PROJ9"
+write_config "$PROJ9" 'visualiser:
+  idle_timeout: "30m"'
+OUT9_FILE="$TMPDIR_BASE/out9.json"
+run_config "$PROJ9" >"$OUT9_FILE"
+assert_json_eq "idle_timeout reflects config" ".idle_timeout" "30m" "$OUT9_FILE"
+
+# ─── 10. idle_timeout: numeric 0 → survives as string "0" ────────────────────
+echo "Test: numeric visualiser.idle_timeout: 0 → string \"0\""
+PROJ10="$TMPDIR_BASE/t-idle-zero"
+make_project "$PROJ10"
+write_config "$PROJ10" 'visualiser:
+  idle_timeout: 0'
+OUT10_FILE="$TMPDIR_BASE/out10.json"
+run_config "$PROJ10" >"$OUT10_FILE"
+assert_json_eq "numeric 0 token survives as string" ".idle_timeout" "0" "$OUT10_FILE"
+
+# ─── 11. idle_timeout: mixed-case Never → passes through untouched ────────────
+echo "Test: visualiser.idle_timeout: Never → passes through (case-folding is Rust's job)"
+PROJ11="$TMPDIR_BASE/t-idle-never"
+make_project "$PROJ11"
+write_config "$PROJ11" 'visualiser:
+  idle_timeout: "Never"'
+OUT11_FILE="$TMPDIR_BASE/out11.json"
+run_config "$PROJ11" >"$OUT11_FILE"
+assert_json_eq "mixed-case Never passes through" ".idle_timeout" "Never" "$OUT11_FILE"
+
+# ─── 12. idle_timeout: env over config ───────────────────────────────────────
+echo "Test: ACCELERATOR_VISUALISER_IDLE_TIMEOUT overrides config (env-over-config)"
+PROJ12="$TMPDIR_BASE/t-idle-env"
+make_project "$PROJ12"
+write_config "$PROJ12" 'visualiser:
+  idle_timeout: "30m"'
+OUT12_FILE="$TMPDIR_BASE/out12.json"
+ACCELERATOR_VISUALISER_IDLE_TIMEOUT=2h run_config "$PROJ12" >"$OUT12_FILE"
+assert_json_eq "env value wins over config" ".idle_timeout" "2h" "$OUT12_FILE"
+
+# ─── 13. idle_timeout: empty env falls through to config ──────────────────────
+echo "Test: empty ACCELERATOR_VISUALISER_IDLE_TIMEOUT falls through to config"
+PROJ13="$TMPDIR_BASE/t-idle-empty-env"
+make_project "$PROJ13"
+write_config "$PROJ13" 'visualiser:
+  idle_timeout: "30m"'
+OUT13_FILE="$TMPDIR_BASE/out13.json"
+ACCELERATOR_VISUALISER_IDLE_TIMEOUT="" run_config "$PROJ13" >"$OUT13_FILE"
+assert_json_eq "empty env does not override config" ".idle_timeout" "30m" "$OUT13_FILE"
+
+# ─── 14. idle_timeout: zero-length duration "0s" passes guard ────────────────
+echo "Test: visualiser.idle_timeout: 0s → passes coarse guard, emitted verbatim"
+PROJ14="$TMPDIR_BASE/t-idle-zero-s"
+make_project "$PROJ14"
+write_config "$PROJ14" 'visualiser:
+  idle_timeout: "0s"'
+OUT14_FILE="$TMPDIR_BASE/out14.json"
+run_config "$PROJ14" >"$OUT14_FILE"
+assert_json_eq "0s passes guard, emitted verbatim" ".idle_timeout" "0s" "$OUT14_FILE"
+
+# ─── 15. idle_timeout: compound + spaced forms not rejected by guard ─────────
+echo "Test: compound 1h30m and spaced '1h 30m' pass the digit-led guard"
+PROJ15="$TMPDIR_BASE/t-idle-compound"
+make_project "$PROJ15"
+write_config "$PROJ15" 'visualiser:
+  idle_timeout: "1h30m"'
+OUT15_FILE="$TMPDIR_BASE/out15.json"
+run_config "$PROJ15" >"$OUT15_FILE"
+assert_json_eq "compound 1h30m emitted verbatim" ".idle_timeout" "1h30m" "$OUT15_FILE"
+PROJ15B="$TMPDIR_BASE/t-idle-spaced"
+make_project "$PROJ15B"
+write_config "$PROJ15B" 'visualiser:
+  idle_timeout: "1h 30m"'
+OUT15B_FILE="$TMPDIR_BASE/out15b.json"
+run_config "$PROJ15B" >"$OUT15B_FILE"
+assert_json_eq "spaced '1h 30m' emitted verbatim" ".idle_timeout" "1h 30m" "$OUT15B_FILE"
+
+# ─── 16. idle_timeout: whitespace-padded env is trimmed ──────────────────────
+echo "Test: whitespace-padded env ' 8h ' is trimmed before emission"
+PROJ16="$TMPDIR_BASE/t-idle-padded"
+make_project "$PROJ16"
+OUT16_FILE="$TMPDIR_BASE/out16.json"
+ACCELERATOR_VISUALISER_IDLE_TIMEOUT=" 8h " run_config "$PROJ16" >"$OUT16_FILE"
+assert_json_eq "padded env trimmed to 8h" ".idle_timeout" "8h" "$OUT16_FILE"
+
+# ─── 17. idle_timeout: guard-accepted-but-Rust-invalid passes through ────────
+echo "Test: digit-led but Rust-invalid '5 zonks' passes the coarse guard"
+PROJ17="$TMPDIR_BASE/t-idle-zonks"
+make_project "$PROJ17"
+OUT17_FILE="$TMPDIR_BASE/out17.json"
+ACCELERATOR_VISUALISER_IDLE_TIMEOUT="5 zonks" run_config "$PROJ17" >"$OUT17_FILE"
+assert_json_eq "5 zonks passes coarse guard (Rust is authoritative)" ".idle_timeout" "5 zonks" "$OUT17_FILE"
+
+# ─── 18. idle_timeout: quoted vs unquoted config scalar ──────────────────────
+echo "Test: quoted and unquoted idle_timeout config forms both yield 8h"
+PROJ18="$TMPDIR_BASE/t-idle-quoted"
+make_project "$PROJ18"
+write_config "$PROJ18" 'visualiser:
+  idle_timeout: "8h"'
+OUT18_FILE="$TMPDIR_BASE/out18.json"
+run_config "$PROJ18" >"$OUT18_FILE"
+assert_json_eq "quoted idle_timeout yields 8h" ".idle_timeout" "8h" "$OUT18_FILE"
+PROJ18B="$TMPDIR_BASE/t-idle-unquoted"
+make_project "$PROJ18B"
+write_config "$PROJ18B" 'visualiser:
+  idle_timeout: 8h'
+OUT18B_FILE="$TMPDIR_BASE/out18b.json"
+run_config "$PROJ18B" >"$OUT18B_FILE"
+assert_json_eq "unquoted idle_timeout yields 8h" ".idle_timeout" "8h" "$OUT18B_FILE"
+
+# ─── 19. idle_timeout: invalid shape rejected on the terminal ────────────────
+echo "Test: invalid visualiser.idle_timeout: soon → non-zero exit + terminal error + no config"
+PROJ19="$TMPDIR_BASE/t-idle-invalid"
+make_project "$PROJ19"
+write_config "$PROJ19" 'visualiser:
+  idle_timeout: "soon"'
+OUT19_FILE="$TMPDIR_BASE/out19.json"
+EXIT19=0
+STDERR19="$(cd "$PROJ19" && "$WRITE_CONFIG" \
+  --plugin-version "0.0.0-test" \
+  --project-root "$PROJ19" \
+  --tmp-dir "$PROJ19/.accelerator/tmp/visualiser" \
+  --log-file "$PROJ19/.accelerator/tmp/visualiser/server.log" \
+  2>&1 >"$OUT19_FILE")" || EXIT19=$?
+assert_eq "invalid idle_timeout exits non-zero" "1" "$EXIT19"
+assert_contains "stderr names the bad value" "$STDERR19" "invalid visualiser.idle_timeout 'soon'"
+assert_empty "no config.json emitted on invalid idle_timeout" "$(cat "$OUT19_FILE")"
+
 echo ""
 test_summary

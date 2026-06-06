@@ -172,6 +172,52 @@ if [ "$(printf '%s' "$KANBAN_COLS_JSON" | jq 'length')" -eq 0 ]; then
   exit 1
 fi
 
+# Idle auto-shutdown window. Precedence: env var > visualiser.idle_timeout
+# config key > (omit → Rust applies the 8h default).
+#
+# Note on the empty env var: `:-` treats ACCELERATOR_VISUALISER_IDLE_TIMEOUT=""
+# (set-but-empty) identically to unset, so an empty env value falls through to
+# the config key rather than overriding it with "".
+IDLE_TIMEOUT="${ACCELERATOR_VISUALISER_IDLE_TIMEOUT:-}"
+if [ -z "$IDLE_TIMEOUT" ]; then
+  IDLE_TIMEOUT="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "visualiser.idle_timeout" "" 2>/dev/null || true)"
+fi
+
+if [ -n "$IDLE_TIMEOUT" ]; then
+  # Trim surrounding whitespace so the shell's accept-set is a superset of Rust's
+  # (resolve_idle_limit_ms trims before parsing); bash-3.2 safe. LANG=C keeps the
+  # whitespace class deterministic across locales, matching the launcher's
+  # existing locale-hardening. NOTE: this is a *separate* block from the guard
+  # below on purpose — a whitespace-only value collapses to empty here and is then
+  # treated as unset (falls through to the 8h default), rather than reaching the
+  # guard and erroring.
+  IDLE_TIMEOUT="$(printf '%s' "$IDLE_TIMEOUT" | LANG=C sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+fi
+if [ -n "$IDLE_TIMEOUT" ]; then
+  # Coarse typo-guard. A duration-SHAPED value starts with a digit; a disable
+  # token is `never`/`0`. Anything else (e.g. "soon", "off", "in a bit") clearly
+  # is not a duration and is rejected here, on the user's terminal, where the
+  # Rust error is invisible (stderr is /dev/null'd after config load).
+  #
+  # This is deliberately a *shape* check, NOT the humantime grammar: every valid
+  # humantime duration begins with a digit, so this can never reject a value Rust
+  # accepts (including compound "1h30m" and spaced "1h 30m"). Rust's
+  # resolve_idle_limit_ms is the authoritative parser and fail-fast backstop for
+  # anything the guard waves through (e.g. "5 zonks", "0.0").
+  # Keep the example list in the message in sync with
+  # ConfigError::InvalidIdleTimeout (config.rs).
+  case "$IDLE_TIMEOUT" in
+    [Nn][Ee][Vv][Ee][Rr] | 0) : ;;  # disable tokens
+    # Zero-length durations (0s/0ms) are digit-led, so they pass here as
+    # duration-shaped; Rust resolves them to the disable sentinel.
+    [0-9]*) : ;;                     # duration-shaped: starts with a digit
+    *)
+      echo "error: invalid visualiser.idle_timeout '$IDLE_TIMEOUT': expected a duration like \"8h\", \"30m\", \"1h30m\", or \"never\"/0 to disable" >&2
+      exit 1
+      ;;
+  esac
+fi
+
 if [ -z "$OWNER_START_TIME" ]; then
   OWNER_START_TIME_JSON="null"
 else
@@ -202,6 +248,7 @@ jq -n \
   --argjson design_inventory "$DINV" \
   --argjson work_item "$WORK_ITEM_JSON" \
   --argjson kanban_columns "$KANBAN_COLS_JSON" \
+  --arg idle_timeout "$IDLE_TIMEOUT" \
   '{
     plugin_root: $plugin_root,
     plugin_version: $plugin_version,
@@ -231,4 +278,5 @@ jq -n \
     },
     work_item: $work_item,
     kanban_columns: $kanban_columns
-  }'
+  }
+  + (if $idle_timeout == "" then {} else {idle_timeout: $idle_timeout} end)'
