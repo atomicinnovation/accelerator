@@ -30,6 +30,13 @@ export type EventSourceFactory = (url: string) => EventSource
  */
 export interface DocEventsHandle {
   setDragInProgress(v: boolean): void
+  /**
+   * Reads the current drag-in-progress flag. Lets root-level consumers (the
+   * Toaster) gate Escape handling so a drag-cancel Escape is not also consumed
+   * as a toast dismissal. Synchronous read of the same ref `setDragInProgress`
+   * writes — true between `onDragStart` and drop/cancel.
+   */
+  isDragInProgress(): boolean
   connectionState: ConnectionState
   justReconnected: boolean
   /**
@@ -172,6 +179,8 @@ export function makeUseDocEvents(
       [queryClient],
     )
 
+    const isDragInProgress = useCallback(() => isDraggingRef.current, [])
+
     useEffect(() => {
       let reconnectedTimer: ReturnType<typeof setTimeout> | null = null
       const reconnecting = new ReconnectingEventSource('/api/events', {
@@ -237,7 +246,7 @@ export function makeUseDocEvents(
       }
     }, [queryClient, createSource, registry])
 
-    return { setDragInProgress, connectionState, justReconnected, subscribe }
+    return { setDragInProgress, isDragInProgress, connectionState, justReconnected, subscribe }
   }
 }
 
@@ -246,6 +255,7 @@ export const useDocEvents = makeUseDocEvents((url) => new EventSource(url))
 
 const _defaultHandle: DocEventsHandle = {
   setDragInProgress: () => {},
+  isDragInProgress: () => false,
   connectionState: 'connecting',
   justReconnected: false,
   subscribe: () => () => {},

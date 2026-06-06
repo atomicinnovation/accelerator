@@ -73,6 +73,7 @@ function makeDocEventsHandle(): {
   const listeners = new Set<(e: SseEvent) => void>()
   const handle: DocEventsHandle = {
     setDragInProgress: vi.fn(),
+    isDragInProgress: vi.fn(() => false),
     connectionState: 'open',
     justReconnected: false,
     subscribe: (listener) => {

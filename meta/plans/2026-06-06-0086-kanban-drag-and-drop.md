@@ -347,13 +347,13 @@ confusing duplication.
 
 #### Automated Verification:
 
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] Type-checking passes: `mise run typecheck`
-- [ ] New variant tests assert `kind` default `'info'` and `ok`/`error` mapping
-- [ ] Updated CSS-source test asserts the `--toast-accent` indirection
-- [ ] `error` toast renders in the assertive region; `info`/`ok` in the polite
+- [x] Unit tests pass: `mise run test:unit:frontend`
+- [x] Type-checking passes: `mise run typecheck`
+- [x] New variant tests assert `kind` default `'info'` and `ok`/`error` mapping
+- [x] Updated CSS-source test asserts the `--toast-accent` indirection
+- [x] `error` toast renders in the assertive region; `info`/`ok` in the polite
       region; each kind renders its sr-only severity prefix
-- [ ] `error` toast does not auto-dismiss; `info`/`ok` do
+- [x] `error` toast does not auto-dismiss; `info`/`ok` do
 
 #### Manual Verification:
 

@@ -37,6 +37,7 @@ interface MountResult {
 function mockHandle(overrides: Partial<DocEventsHandle> = {}): DocEventsHandle {
   return {
     setDragInProgress: vi.fn(),
+    isDragInProgress: vi.fn(() => false),
     connectionState: 'open',
     justReconnected: false,
     subscribe: () => () => {},

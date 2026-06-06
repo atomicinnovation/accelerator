@@ -395,6 +395,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
       'dot-size',
     ]),
     'components/Pipeline/Pipeline.module.css': new Set(['next-accent']),
+    'components/Toaster/Toaster.module.css': new Set(['toast-accent']),
   }
   for (const [path, css] of Object.entries(allCss)) {
     it(`${path} references only declared tokens`, () => {

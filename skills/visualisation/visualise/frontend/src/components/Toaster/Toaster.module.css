@@ -14,7 +14,18 @@
   max-width: 420px;
 }
 
+/* Two sibling live regions stack inside the viewport (assertive first so the
+   rarer error region sits at the top and an empty region never shows a gap
+   above the visible stack). Each region is its own flex column so toasts
+   within it keep the inter-toast gap. */
+.region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
 .toast {
+  --toast-accent: var(--ac-accent);
   pointer-events: auto;
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -23,7 +34,7 @@
   padding: var(--sp-3) var(--sp-4);
   background: var(--ac-bg-card);
   border: 1px solid var(--ac-stroke-strong);
-  border-left: 3px solid var(--ac-accent);
+  border-left: 3px solid var(--toast-accent);
   border-radius: var(--radius-8);
   box-shadow: var(--ac-shadow-lift);
   color: var(--ac-fg);
@@ -32,8 +43,11 @@
   line-height: var(--lh-normal);
 }
 
+.toast[data-kind='ok']    { --toast-accent: var(--ac-ok); }
+.toast[data-kind='error'] { --toast-accent: var(--ac-err); }
+
 .icon {
-  color: var(--ac-accent);
+  color: var(--toast-accent);
   flex: none;
   margin-top: 2px;
 }
@@ -65,6 +79,10 @@
   padding: 0.1rem var(--sp-1);
 }
 
+/* The resting close glyph uses --ac-fg-faint and is supplementary; the
+   conformance-bearing dismissal affordance is the :focus-visible outline
+   (--ac-accent, ≥3:1 per contrast.test.ts) plus Escape. This matters now that
+   error toasts persist and rely on an explicit dismiss. */
 .close {
   appearance: none;
   background: transparent;

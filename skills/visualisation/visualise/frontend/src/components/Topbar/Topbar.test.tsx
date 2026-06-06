@@ -33,6 +33,7 @@ function mountTopbar(connectionState = 'open', justReconnected = false) {
     connectionState,
     justReconnected,
     setDragInProgress: vi.fn(),
+    isDragInProgress: vi.fn(() => false),
   } as any)
   vi.mocked(useOrigin).mockReturnValue('127.0.0.1:5173')
   vi.mocked(useThemeContext).mockReturnValue({
@@ -114,6 +115,7 @@ describe('Topbar', () => {
       connectionState: 'open',
       justReconnected: false,
       setDragInProgress: vi.fn(),
+      isDragInProgress: vi.fn(() => false),
     } as any)
     vi.mocked(useOrigin).mockReturnValue('127.0.0.1:5173')
     render(<Topbar />)
@@ -137,6 +139,7 @@ describe('Topbar', () => {
       connectionState: 'open',
       justReconnected: false,
       setDragInProgress: vi.fn(),
+      isDragInProgress: vi.fn(() => false),
     } as any)
     vi.mocked(useOrigin).mockReturnValue('127.0.0.1:5173')
     render(<Topbar />)

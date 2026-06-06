@@ -14,6 +14,7 @@ function mockState(connectionState: string) {
     connectionState,
     justReconnected: false,
     setDragInProgress: vi.fn(),
+    isDragInProgress: vi.fn(() => false),
   } as any)
 }
 

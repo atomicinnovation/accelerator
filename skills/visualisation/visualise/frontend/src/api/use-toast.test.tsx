@@ -232,6 +232,54 @@ describe('useToastDispatcher', () => {
     })
     expect(result.current.toasts).toHaveLength(0)
   })
+
+  it('defaults kind to "info" and threads an explicit kind through', () => {
+    const { result } = renderHook(() => useToastDispatcher())
+    act(() => {
+      result.current.showToast({ heading: 'A', message: 'a' })
+    })
+    act(() => {
+      result.current.showToast({ heading: 'B', message: 'b', kind: 'ok' })
+    })
+    act(() => {
+      result.current.showToast({ heading: 'C', message: 'c', kind: 'error' })
+    })
+    expect(result.current.toasts.map((t) => t.kind)).toEqual(['info', 'ok', 'error'])
+  })
+
+  it('error toasts persist (never auto-dismiss); info/ok still auto-dismiss', () => {
+    const { result } = renderHook(() => useToastDispatcher())
+    act(() => {
+      result.current.showToast({ heading: 'E', message: 'e', kind: 'error' })
+      result.current.showToast({ heading: 'O', message: 'o', kind: 'ok' })
+    })
+    expect(result.current.toasts).toHaveLength(2)
+    act(() => {
+      vi.advanceTimersByTime(10_000)
+    })
+    // The ok toast auto-dismissed; the error toast survives indefinitely.
+    expect(result.current.toasts.map((t) => t.kind)).toEqual(['error'])
+  })
+
+  it('error toasts are EXEMPT from the MAX_TOASTS cap while info/ok are capped', () => {
+    const { result } = renderHook(() => useToastDispatcher())
+    let errorId = 0
+    const okIds: number[] = []
+    act(() => {
+      errorId = result.current.showToast({ heading: 'E', message: 'e', kind: 'error' })
+    })
+    act(() => {
+      for (let i = 0; i < MAX_TOASTS + 1; i++) {
+        okIds.push(result.current.showToast({ heading: `O${i}`, message: `o${i}`, kind: 'ok' }))
+      }
+    })
+    // The persistent error survives, the info/ok kinds are capped at MAX_TOASTS,
+    // and the oldest ok is dropped — so the total is MAX_TOASTS + 1 (the error).
+    expect(result.current.toasts).toHaveLength(MAX_TOASTS + 1)
+    expect(result.current.toasts.find((t) => t.id === errorId)).toBeDefined()
+    expect(result.current.toasts.find((t) => t.id === okIds[0])).toBeUndefined()
+    expect(result.current.toasts.find((t) => t.id === okIds[okIds.length - 1])).toBeDefined()
+  })
 })
 
 describe('useToast (consumer)', () => {

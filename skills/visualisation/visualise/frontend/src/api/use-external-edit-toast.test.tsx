@@ -28,6 +28,7 @@ function setupMocks(opts: {
   vi.mocked(useDocEventsContext).mockReturnValue({
     subscribe,
     setDragInProgress: vi.fn(),
+    isDragInProgress: vi.fn(() => false),
     connectionState: 'open',
     justReconnected: false,
   } as any)
@@ -182,6 +183,7 @@ describe('useExternalEditToast', () => {
     vi.mocked(useDocEventsContext).mockReturnValue({
       subscribe: vi.fn().mockReturnValue(unsubscribe),
       setDragInProgress: vi.fn(),
+      isDragInProgress: vi.fn(() => false),
       connectionState: 'open',
       justReconnected: false,
     } as any)

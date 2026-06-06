@@ -1,14 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 
+export type ToastKind = 'info' | 'ok' | 'error'
+
 export interface Toast {
   id: number
   heading: string
   message: string
+  kind: ToastKind
 }
 
 export interface ShowToastInput {
   heading: string
   message: string
+  kind?: ToastKind
 }
 
 export interface ToastHandle {
@@ -79,10 +83,20 @@ export function useToastDispatcher(
   )
 
   const showToast = useCallback(
-    ({ heading, message }: ShowToastInput): number => {
+    ({ heading, message, kind = 'info' }: ShowToastInput): number => {
       const id = nextIdRef.current++
-      setToasts((prev) => [...prev, { id, heading, message }].slice(-MAX_TOASTS))
-      arm(id)
+      // Eviction policy: `error` toasts persist and are EXEMPT from the cap —
+      // only the auto-dismissing kinds (`info`/`ok`) are capped at MAX_TOASTS
+      // (oldest dropped first). This stops a burst of later toasts silently
+      // evicting a persistent error the user has not acknowledged.
+      setToasts((prev) => {
+        const next = [...prev, { id, heading, message, kind }]
+        const capped = new Set(next.filter((t) => t.kind !== 'error').slice(-MAX_TOASTS))
+        return next.filter((t) => t.kind === 'error' || capped.has(t))
+      })
+      // Kind-aware auto-dismiss: `info`/`ok` auto-dismiss after the configured
+      // window; `error` toasts persist (no timer armed).
+      if (kind !== 'error') arm(id)
       return id
     },
     [arm],

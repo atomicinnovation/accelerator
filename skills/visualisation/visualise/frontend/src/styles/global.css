@@ -497,3 +497,18 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
+
+/* Visually-hidden but announced to assistive tech (standard clip-rect recipe).
+   Deliberately NOT display:none so the content stays in the accessibility tree.
+   Reusable utility — first consumer is the Toaster severity prefix. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
