@@ -87,24 +87,25 @@ test.describe('related-artifacts container invariance', () => {
     await setTheme(page, 'light')
   })
 
-  test('row container background and border-width are unchanged', async ({
-    page,
-  }) => {
-    const row = page.locator('[data-testid="related-row"]').first()
+  test('row hover-card reads as chrome-free at rest', async ({ page }) => {
+    // The row is now an `.ac-related__item`-style hover-card: at rest it
+    // carries a 1px *transparent* border (so hover can fill the colour in
+    // without a layout shift) and no background. Assert both read as
+    // chrome-free — transparent border colour + transparent background —
+    // rather than a literal 0px border.
+    const row = page.locator('[data-testid="related-row"] a').first()
     const bg = await row.evaluate((el) => getComputedStyle(el).backgroundColor)
-    // .item sets no background — assert the transparent default.
     expect(bg).toBe('rgba(0, 0, 0, 0)')
-    // .item sets no border — assert the 0px default.
-    const borderWidth = await row.evaluate(
-      (el) => getComputedStyle(el).borderTopWidth,
+    const borderColor = await row.evaluate(
+      (el) => getComputedStyle(el).borderTopColor,
     )
-    expect(borderWidth).toBe('0px')
+    expect(borderColor).toBe('rgba(0, 0, 0, 0)')
   })
 
-  test('row uses align-items: center for icon/text/tag alignment', async ({
+  test('row uses align-items: center for icon/text/chevron alignment', async ({
     page,
   }) => {
-    const row = page.locator('[data-testid="related-row"]').first()
+    const row = page.locator('[data-testid="related-row"] a').first()
     expect(await row.evaluate((el) => getComputedStyle(el).alignItems)).toBe(
       'center',
     )

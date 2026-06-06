@@ -1,27 +1,48 @@
-/* Mirrors the LifecycleIndex card idioms (display title + mono meta row),
-   kept minimal for the narrow detail-page aside column. */
-.link {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
+/* Bordered card affordance mirroring the prototype's cluster button:
+   lifecycle mark | title + meta | chevron, with a hover lift. */
+.card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-4);
   text-decoration: none;
   color: inherit;
 }
-.link:hover .title,
-.link:focus-visible .title {
-  color: var(--ac-accent);
+.card:hover,
+.card:focus-visible {
+  background: var(--ac-bg-hover);
+  border-color: var(--ac-stroke-strong);
+}
+
+.mark {
+  color: var(--ac-fg-muted);
+  flex-shrink: 0;
+}
+
+.body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .title {
-  font-family: var(--ac-font-display);
-  font-size: var(--size-sm);
-  font-weight: 600;
-  color: var(--ac-fg-strong);
-  line-height: 1.2;
+  color: var(--ac-fg);
+  font-size: var(--size-subtitle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .meta {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-3xs-lg);
   color: var(--ac-fg-muted);
+}
+
+.chevron {
+  color: var(--ac-fg-faint);
+  flex-shrink: 0;
 }

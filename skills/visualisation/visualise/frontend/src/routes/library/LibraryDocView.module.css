@@ -1,12 +1,21 @@
 .article {
   display: grid;
   grid-template-areas: "body aside";
-  grid-template-columns: 1fr 260px;
-  gap: var(--sp-5) var(--sp-6);
+  grid-template-columns: 1fr 280px;
+  gap: var(--sp-5) var(--sp-7);
 }
 .bodyColumn { grid-area: body; min-width: 0; }
 .body { margin-top: var(--sp-4); }
-.aside { grid-area: aside; font-size: var(--size-xs); color: var(--ac-fg-muted); }
+/* Aside reads as a quiet sidebar set off from the body by a hairline rule
+   (prototype `.ac-doc-aside`): border-left + padding-left, body copy a notch
+   smaller than the main column. */
+.aside {
+  grid-area: aside;
+  border-left: 1px solid var(--ac-stroke);
+  padding-left: var(--sp-5);
+  font-size: var(--size-subtitle);
+  color: var(--ac-fg-muted);
+}
 /* Aside section labels share the page-eyebrow recipe (0079): mono, eyebrow
    size, caps tracking, uppercase, faint. font-weight is pinned explicitly
    to match the eyebrow's resolved (inherited) weight — h3's UA default is
@@ -20,7 +29,13 @@
   color: var(--ac-fg-faint);
   margin: 0 0 0.4rem;
 }
-.aside section { margin-bottom: var(--sp-5); }
+/* Sections stack with a dashed divider between them (prototype
+   `.ac-doc-aside__section + .ac-doc-aside__section`). */
+.aside section + section {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-5);
+  border-top: 1px dashed var(--ac-stroke);
+}
 .empty { font-style: italic; }
 .meta { word-break: break-all; font-family: var(--ac-font-mono); font-size: var(--size-xxs); }
 .error {

@@ -2,18 +2,50 @@
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
 }
 .item {
-  padding: 0.15rem 0;
-  display: flex;
-  gap: 0.4rem;
-  /* Aligns Glyph (16×16 SVG, no text baseline) with anchor text — see
-     meta/work/0074. */
-  align-items: center;
+  display: block;
 }
-.item a {
-  flex: 1;
-  word-break: break-all;
+
+/* Whole-row hover-card (prototype `.ac-related__item`): glyph | title+meta |
+   chevron, padded, with a transparent border that fills in on hover so the
+   layout does not shift. */
+.row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-4);
+  text-decoration: none;
+  color: inherit;
+}
+.row:hover,
+.row:focus-visible {
+  background: var(--ac-bg-hover);
+  border-color: var(--ac-stroke);
+}
+
+.content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.title {
+  color: var(--ac-fg);
+  font-size: var(--size-subtitle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.metaRow {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs-lg);
+  color: var(--ac-fg-faint);
 }
 
 /* Per-row provenance tag — the inline `(declared)` / `(inferred)` text
@@ -26,11 +58,15 @@
  * (light) / ~3.9:1 (dark) and fails; --ac-fg-muted clears it (~5.8 / ~7.7)
  * while keeping the accent-vs-neutral declared/inferred distinction. */
 .tag {
-  font-size: var(--size-xxs);
-  flex-shrink: 0;
+  padding-left: var(--sp-1);
 }
 .tagDeclared { color: var(--ac-accent); }
 .tagInferred { color: var(--ac-fg-muted); }
+
+.chevron {
+  color: var(--ac-fg-faint);
+  flex-shrink: 0;
+}
 
 .emptyAll {
   font-style: italic;

@@ -99,8 +99,10 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   // 0079 (Option B): the legend, group border-lefts (2px) and badge border
   // (1px) were removed when the three groups collapsed to a single tagged
   // list, so the former '2px' (×2) and '1px' (×1) exceptions are gone.
-  { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '0.4rem', count: 2, kind: 'irreducible', reason: 'off-scale spacing (6.4px) — between --sp-1 and --sp-2' },
-  { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '0.15rem', count: 1, kind: 'irreducible', reason: 'item vertical padding (2.4px) — below --sp-1 floor' },
+  { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'updating-hint margin (6.4px) — between --sp-1 and --sp-2' },
+  { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'row hover-card border width — below --sp-1 floor' },
+  // components/RelatedCluster/RelatedCluster.module.css
+  { file: 'components/RelatedCluster/RelatedCluster.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'cluster card border width — below --sp-1 floor' },
   // components/ActivityFeed/ActivityFeed.module.css
   { file: 'components/ActivityFeed/ActivityFeed.module.css', literal: '#6c7088', count: 2, kind: 'irreducible', reason: 'ACTIVITY heading + LIVE badge colour — mirrors Sidebar section-heading hex' },
   { file: 'components/ActivityFeed/ActivityFeed.module.css', literal: '0.12em', count: 2, kind: 'irreducible', reason: 'ACTIVITY heading + LIVE badge caps letter-spacing — mirrors Sidebar section-heading' },
@@ -164,8 +166,8 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   // routes/library/LibraryDocView.module.css
   { file: 'routes/library/LibraryDocView.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'malformed-banner border-left width — no border-width token' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'aside h3 margin (6.4px) — between --sp-1 and --sp-2' },
-  { file: 'routes/library/LibraryDocView.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
-  { file: 'routes/library/LibraryDocView.module.css', literal: '260px', count: 1, kind: 'irreducible', reason: 'aside column width — no token equivalent' },
+  { file: 'routes/library/LibraryDocView.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'error border + aside border-left + dashed section divider — below --sp-1 floor' },
+  { file: 'routes/library/LibraryDocView.module.css', literal: '280px', count: 1, kind: 'irreducible', reason: 'aside column width — no token equivalent' },
   // routes/library/LibraryTemplatesIndex.module.css
   { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'connected-table outer border + per-row border-top + tier-pill borders — below --sp-1 floor' },
   { file: 'routes/library/LibraryTemplatesIndex.module.css', literal: '0.02em', count: 1, kind: 'irreducible', reason: 'tier-pill letter-spacing — prototype-derived typography refinement (mirrors Chip)' },
@@ -412,7 +414,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 949 // 0079: eyebrow unification added 5 var refs (Page tracking token, aside h3 recipe, panel-rail rule); re-synced floor to observed
+const AC5_FLOOR = 972 // 0079: prototype-styling pass added var refs (aside border/padding/dividers, cluster card, related row hover-cards); re-synced floor to observed
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 
