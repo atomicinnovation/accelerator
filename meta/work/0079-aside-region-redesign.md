@@ -5,7 +5,7 @@ title: "Detail-Page Aside Region Redesign"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 producer: extract-work-items
-status: ready
+status: done
 kind: story
 priority: medium
 parent: ""
@@ -19,7 +19,7 @@ schema_version: 1
 # 0079: Detail-Page Aside Region Redesign
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
