@@ -1085,13 +1085,13 @@ SKILLS_DIR="$SCRIPT_DIR/../skills"
 # Add new artefact directories here rather than at each call site.
 SKILLS_GREP=(grep -r --include='SKILL.md' --exclude-dir=node_modules --exclude-dir=target)
 
-echo "Test: config-read-context.sh appears in exactly 32 skills"
+echo "Test: config-read-context.sh appears in exactly 33 skills"
 CONTEXT_COUNT=$("${SKILLS_GREP[@]}" 'config-read-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "32 skills have context injection" "32" "$CONTEXT_COUNT"
+assert_eq "33 skills have context injection" "33" "$CONTEXT_COUNT"
 
-echo "Test: config-read-agents.sh appears in exactly 20 skills"
+echo "Test: config-read-agents.sh appears in exactly 21 skills"
 AGENTS_COUNT=$("${SKILLS_GREP[@]}" 'config-read-agents.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "20 skills have agent override injection" "20" "$AGENTS_COUNT"
+assert_eq "21 skills have agent override injection" "21" "$AGENTS_COUNT"
 
 echo "Test: context injection is within a few lines of first # heading"
 CONTEXT_SKILLS=(
@@ -4882,13 +4882,13 @@ echo ""
 echo "=== Preprocessor placement (per-skill) ==="
 echo ""
 
-echo "Test: config-read-skill-context.sh appears in exactly 32 skills"
+echo "Test: config-read-skill-context.sh appears in exactly 33 skills"
 SKILL_CONTEXT_COUNT=$("${SKILLS_GREP[@]}" 'config-read-skill-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "32 skills have skill-context injection" "32" "$SKILL_CONTEXT_COUNT"
+assert_eq "33 skills have skill-context injection" "33" "$SKILL_CONTEXT_COUNT"
 
-echo "Test: config-read-skill-instructions.sh appears in exactly 32 skills"
+echo "Test: config-read-skill-instructions.sh appears in exactly 33 skills"
 SKILL_INSTRUCTIONS_COUNT=$("${SKILLS_GREP[@]}" 'config-read-skill-instructions.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "32 skills have skill-instructions injection" "32" "$SKILL_INSTRUCTIONS_COUNT"
+assert_eq "33 skills have skill-instructions injection" "33" "$SKILL_INSTRUCTIONS_COUNT"
 
 echo "Test: config-read-skill-context.sh appears immediately after config-read-context.sh in each skill"
 ALL_SKILLS=(
@@ -5025,8 +5025,9 @@ assert_contains "contains rca" "$OUTPUT" "rca"
 assert_contains "contains plan-review" "$OUTPUT" "plan-review"
 assert_contains "contains work-item-review" "$OUTPUT" "work-item-review"
 assert_contains "contains pr-review" "$OUTPUT" "pr-review"
+assert_contains "contains note" "$OUTPUT" "note"
 LINE_COUNT=$(echo "$OUTPUT" | wc -l | tr -d ' ')
-assert_eq "outputs 12 keys" "12" "$LINE_COUNT"
+assert_eq "outputs 13 keys" "13" "$LINE_COUNT"
 
 echo "Test: Returns nothing if templates directory is empty"
 EMPTY_ROOT=$(mktemp -d "$TMPDIR_BASE/empty-plugin-XXXXXX")
@@ -5194,8 +5195,8 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/tmp" && touch "$REPO/.accelerator/tmp/.gitignore"
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 LINE_COUNT=$(echo "$OUTPUT" | grep -c '| `' || true)
-assert_eq "12 template rows" "12" "$LINE_COUNT"
-for KEY in plan codebase-research adr validation pr-description work-item rca plan-review work-item-review pr-review; do
+assert_eq "13 template rows" "13" "$LINE_COUNT"
+for KEY in plan codebase-research adr validation pr-description work-item rca plan-review work-item-review pr-review note; do
   if echo "$OUTPUT" | grep "\`$KEY\`" | grep -q "plugin default"; then
     echo "  PASS: $KEY shows plugin default"
     PASS=$((PASS + 1))
