@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-font="display">
+<head>
+<meta charset="UTF-8">
+<title>Accelerator · Visualiser</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="src/app.css?v=4">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<template id="__bundler_thumbnail" data-bg-color="#FBFCFE">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#FBFCFE"/>
+    <g transform="translate(440 220)">
+      <path d="M160 20 L300 100 L300 260 L160 340 L20 260 L20 100 Z"
+            fill="none" stroke="#595FC8" stroke-width="10" stroke-linejoin="round"/>
+      <circle cx="160" cy="180" r="26" fill="#595FC8"/>
+      <circle cx="160" cy="180" r="62" fill="none" stroke="#CB4647" stroke-width="6" stroke-opacity="0.55"/>
+      <circle cx="160" cy="180" r="100" fill="none" stroke="#595FC8" stroke-width="3" stroke-opacity="0.35"/>
+    </g>
+    <text x="600" y="640" text-anchor="middle"
+          font-family="Sora, system-ui, sans-serif" font-size="44" font-weight="600" fill="#0A111B"
+          letter-spacing="0.02em">Accelerator</text>
+    <text x="600" y="690" text-anchor="middle"
+          font-family="Fira Code, ui-monospace, monospace" font-size="18" font-weight="500"
+          fill="#8B90A3" letter-spacing="0.24em">VISUALISER</text>
+  </svg>
+</template>
+<div id="root"></div>
+
+<script type="text/babel" src="src/data.jsx"></script>
+<script type="text/babel" src="src/highlight.jsx"></script>
+<script type="text/babel" src="src/ui.jsx"></script>
+<script type="text/babel" src="src/app-shell.jsx"></script>
+<script type="text/babel" src="src/search.jsx"></script>
+<script type="text/babel" src="src/view-library.jsx"></script>
+<script type="text/babel" src="src/view-lifecycle.jsx"></script>
+<script type="text/babel" src="src/view-kanban.jsx"></script>
+<script type="text/babel" src="src/view-templates.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "light",
+  "font": "display",
+  "initialView": "lifecycle",
+  "initialSlug": "meta-visualisation",
+  "initialSearch": "review"
+}/*EDITMODE-END*/;
+
+function Toaster({ toasts, dismiss }) {
+  return (
+    <div className="ac-toaster">
+      {toasts.map(t => (
+        <div key={t.id} className={`ac-toast ${t.kind === "err" ? "ac-toast--err" : t.kind === "warn" ? "ac-toast--warn" : ""}`}>
+          <div className="ac-toast__icon">
+            <Icon name={t.kind === "err" ? "alert" : t.kind === "warn" ? "alert" : "check"} size={16}/>
+          </div>
+          <div>
+            <div className="ac-toast__title">{t.title}</div>
+            <div className="ac-toast__body">{t.body}</div>
+          </div>
+          <button className="ac-toast__close" onClick={() => dismiss(t.id)}><Icon name="close" size={14}/></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TweaksPanel({ visible, theme, setTheme, fontMode, setFontMode, showActivity, setShowActivity }) {
+  if (!visible) return null;
+  return (
+    <div className="ac-tweaks">
+      <div className="ac-tweaks__head"><b>Tweaks</b><Icon name="settings" size={12} className="faint"/></div>
+      <div className="ac-tweaks__row">
+        <div className="ac-tweaks__label">Theme</div>
+        <div className="ac-tweaks__seg">
+          <button className={theme === "light" ? "on" : ""} onClick={() => setTheme("light")}>Light</button>
+          <button className={theme === "dark" ? "on" : ""} onClick={() => setTheme("dark")}>Dark</button>
+        </div>
+      </div>
+      <div className="ac-tweaks__row">
+        <div className="ac-tweaks__label">Font</div>
+        <div className="ac-tweaks__seg">
+          <button className={fontMode === "display" ? "on" : ""} onClick={() => setFontMode("display")}>Sora+Inter</button>
+          <button className={fontMode === "mono" ? "on" : ""} onClick={() => setFontMode("mono")}>Mono</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [route, setRoute] = useState(() => {
+    const saved = localStorage.getItem("accelerator-route");
+    if (saved) { try { return JSON.parse(saved); } catch {} }
+    return { view: TWEAK_DEFAULTS.initialView, type: null, slug: TWEAK_DEFAULTS.initialSlug, docId: null };
+  });
+  const [theme, setTheme] = useState(TWEAK_DEFAULTS.theme);
+  const [fontMode, setFontMode] = useState(TWEAK_DEFAULTS.font);
+  const [toasts, setToasts] = useState([]);
+  const [tweaksVisible, setTweaksVisible] = useState(false);
+
+  useEffect(() => { document.documentElement.setAttribute("data-theme", theme); }, [theme]);
+  useEffect(() => { document.documentElement.setAttribute("data-font", fontMode); }, [fontMode]);
+  useEffect(() => { localStorage.setItem("accelerator-route", JSON.stringify(route)); }, [route]);
+
+  // Demo toast on first render for realism
+  useEffect(() => {
+    const t = setTimeout(() => {
+      pushToast({
+        kind: "warn",
+        title: "External edit detected",
+        body: <>A reviewer agent updated <code>WORK-0007</code> while you were looking at it. Query invalidated.</>,
+        ttl: 9000,
+      });
+    }, 1800);
+    return () => clearTimeout(t);
+  }, []);
+
+  const pushToast = (t) => {
+    const id = Math.random().toString(36).slice(2);
+    const entry = { ...t, id };
+    setToasts(xs => [...xs, entry]);
+    if (t.ttl !== 0) setTimeout(() => setToasts(xs => xs.filter(x => x.id !== id)), t.ttl || 5000);
+  };
+  const dismiss = id => setToasts(xs => xs.filter(x => x.id !== id));
+
+  // Tweaks mode listener
+  useEffect(() => {
+    const onMsg = (e) => {
+      if (!e.data) return;
+      if (e.data.type === "__activate_edit_mode")   setTweaksVisible(true);
+      if (e.data.type === "__deactivate_edit_mode") setTweaksVisible(false);
+    };
+    window.addEventListener("message", onMsg);
+    window.parent.postMessage({type: "__edit_mode_available"}, "*");
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
+
+  let main = null;
+  if (route.view === "library" && !route.type) {
+    main = <LibraryLanding setRoute={setRoute}/>;
+  } else if (route.view === "library" && route.type && !route.docId) {
+    main = <LibraryIndex type={route.type} setRoute={setRoute}/>;
+  } else if (route.view === "library" && route.docId) {
+    main = <DocPage type={route.type} docId={route.docId} slug={route.slug} setRoute={setRoute}/>;
+  } else if (route.view === "lifecycle" && !route.slug) {
+    main = <LifecycleIndex setRoute={setRoute}/>;
+  } else if (route.view === "lifecycle" && route.slug) {
+    main = <LifecycleCluster slug={route.slug} setRoute={setRoute}/>;
+  } else if (route.view === "kanban") {
+    main = <KanbanBoard setRoute={setRoute} pushToast={pushToast}/>;
+  } else {
+    main = <LibraryLanding setRoute={setRoute}/>;
+  }
+
+  return (
+    <div className="ac-app">
+      <Topbar route={route} setRoute={setRoute} theme={theme} setTheme={setTheme} fontMode={fontMode} setFontMode={setFontMode}/>
+      <Sidebar route={route} setRoute={setRoute} initialSearch={TWEAK_DEFAULTS.initialSearch}/>
+      <main className="ac-main">{main}</main>
+      <Toaster toasts={toasts} dismiss={dismiss}/>
+      <TweaksPanel visible={tweaksVisible} theme={theme} setTheme={setTheme} fontMode={fontMode} setFontMode={setFontMode}/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

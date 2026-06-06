@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-font="display">
+<head>
+<meta charset="UTF-8">
+<title>Accelerator · Visualiser</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="src/app.css?v=15">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<template id="__bundler_thumbnail" data-bg-color="#0E1116">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#0E1116"/>
+    <path d="M600 250 L710 313 L710 439 L600 502 L490 439 L490 313 Z" fill="none" stroke="#6E7BF2" stroke-width="10"/>
+    <circle cx="600" cy="376" r="20" fill="#6E7BF2"/>
+    <circle cx="600" cy="376" r="48" fill="none" stroke="#CB4647" stroke-width="6" stroke-opacity="0.6"/>
+  </svg>
+</template>
+<div id="root"></div>
+
+<script type="text/babel" src="src/data.jsx"></script>
+<script type="text/babel" src="src/highlight.jsx"></script>
+<script type="text/babel" src="src/ui.jsx"></script>
+<script type="text/babel" src="src/big-glyphs.jsx"></script>
+<script type="text/babel" src="src/type-copy.jsx"></script>
+<script type="text/babel" src="src/app-shell.jsx"></script>
+<script type="text/babel" src="src/search.jsx"></script>
+<script type="text/babel" src="src/view-empty.jsx"></script>
+<script type="text/babel" src="src/view-library.jsx"></script>
+<script type="text/babel" src="src/view-lifecycle.jsx"></script>
+<script type="text/babel" src="src/view-kanban.jsx"></script>
+<script type="text/babel" src="src/view-templates.jsx"></script>
+<script type="text/babel" src="src/view-dev.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "light",
+  "font": "display",
+  "initialView": "lifecycle",
+  "initialSlug": "meta-visualisation",
+  "initialSearch": "review"
+}/*EDITMODE-END*/;
+
+function Toaster({ toasts, dismiss }) {
+  return (
+    <div className="ac-toaster">
+      {toasts.map(t => (
+        <div key={t.id} className={`ac-toast ${t.kind === "err" ? "ac-toast--err" : t.kind === "warn" ? "ac-toast--warn" : ""}`}>
+          <div className="ac-toast__icon">
+            <Icon name={t.kind === "err" ? "alert" : t.kind === "warn" ? "alert" : "check"} size={16}/>
+          </div>
+          <div>
+            <div className="ac-toast__title">{t.title}</div>
+            <div className="ac-toast__body">{t.body}</div>
+          </div>
+          <button className="ac-toast__close" onClick={() => dismiss(t.id)}><Icon name="close" size={14}/></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TweaksPanel({ visible, theme, setTheme, fontMode, setFontMode, showActivity, setShowActivity }) {
+  if (!visible) return null;
+  return (
+    <div className="ac-tweaks">
+      <div className="ac-tweaks__head"><b>Tweaks</b><Icon name="settings" size={12} className="faint"/></div>
+      <div className="ac-tweaks__row">
+        <div className="ac-tweaks__label">Theme</div>
+        <div className="ac-tweaks__seg">
+          <button className={theme === "light" ? "on" : ""} onClick={() => setTheme("light")}>Light</button>
+          <button className={theme === "dark" ? "on" : ""} onClick={() => setTheme("dark")}>Dark</button>
+        </div>
+      </div>
+      <div className="ac-tweaks__row">
+        <div className="ac-tweaks__label">Font</div>
+        <div className="ac-tweaks__seg">
+          <button className={fontMode === "display" ? "on" : ""} onClick={() => setFontMode("display")}>Sora+Inter</button>
+          <button className={fontMode === "mono" ? "on" : ""} onClick={() => setFontMode("mono")}>Mono</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  // ---- Hash router -------------------------------------------------------
+  // Each view gets a unique URL fragment so deep links work and browser
+  // back/forward navigate between screens. Shapes:
+  //   #/library
+  //   #/library/<type>
+  //   #/library/<type>/<docId>            (+ optional ?slug=<cluster>)
+  //   #/lifecycle
+  //   #/lifecycle/<slug>
+  //   #/kanban
+  //   #dev  (+ optional /<section-id>)    — hidden design-system route
+  const DEFAULT_ROUTE = { view: TWEAK_DEFAULTS.initialView, type: null, slug: TWEAK_DEFAULTS.initialSlug, docId: null };
+  const isDevHash = () => /^#\/?dev(\b|\/|$)/.test(location.hash);
+
+  const routeToHash = (r) => {
+    if (!r) return "#/library";
+    const enc = encodeURIComponent;
+    if (r.view === "library") {
+      if (!r.type) return "#/library";
+      if (!r.docId) return `#/library/${enc(r.type)}`;
+      const base = `#/library/${enc(r.type)}/${enc(r.docId)}`;
+      return r.slug ? `${base}?slug=${enc(r.slug)}` : base;
+    }
+    if (r.view === "lifecycle") {
+      return r.slug ? `#/lifecycle/${enc(r.slug)}` : "#/lifecycle";
+    }
+    if (r.view === "kanban") return "#/kanban";
+    return "#/library";
+  };
+
+  const hashToRoute = (hash) => {
+    if (!hash) return null;
+    const stripped = hash.replace(/^#\/?/, "");
+    if (!stripped || stripped.startsWith("dev")) return null;
+    const [pathPart, queryPart] = stripped.split("?");
+    const parts = pathPart.split("/").filter(Boolean).map(decodeURIComponent);
+    const params = new URLSearchParams(queryPart || "");
+    const view = parts[0];
+    if (view === "library") {
+      return { view: "library", type: parts[1] || null, docId: parts[2] || null, slug: params.get("slug") };
+    }
+    if (view === "lifecycle") {
+      return { view: "lifecycle", slug: parts[1] || null, type: null, docId: null };
+    }
+    if (view === "kanban") {
+      return { view: "kanban", type: null, slug: null, docId: null };
+    }
+    return null;
+  };
+
+  const getStoredRoute = () => {
+    const saved = localStorage.getItem("accelerator-route");
+    if (saved) { try { return JSON.parse(saved); } catch {} }
+    return DEFAULT_ROUTE;
+  };
+
+  const parseLoc = () => {
+    if (isDevHash()) return { devMode: true, route: getStoredRoute() };
+    const fromHash = hashToRoute(location.hash);
+    if (fromHash) return { devMode: false, route: fromHash };
+    return { devMode: false, route: getStoredRoute() };
+  };
+
+  const initial = parseLoc();
+  const [devMode, setDevMode] = useState(initial.devMode);
+  const [route, setRoute] = useState(initial.route);
+
+  // On first mount, normalise the URL so it reflects the resolved route
+  // (e.g. cold load with no hash → write the default route into the URL).
+  useEffect(() => {
+    if (devMode) return;
+    const want = routeToHash(route);
+    if (location.hash !== want) {
+      history.replaceState(null, "", location.pathname + location.search + want);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // hashchange is the single source of truth: every navigation writes to
+  // location.hash and this listener parses it back into state.
+  useEffect(() => {
+    const onHash = () => {
+      const next = parseLoc();
+      setDevMode(next.devMode);
+      if (!next.devMode) setRoute(next.route);
+    };
+    const onKey = (e) => {
+      // Cmd/Ctrl + Shift + D toggles dev mode
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === "d" || e.key === "D")) {
+        e.preventDefault();
+        if (isDevHash()) {
+          location.hash = routeToHash(getStoredRoute());
+        } else {
+          location.hash = "#dev";
+        }
+      }
+      // Escape exits dev mode
+      if (e.key === "Escape" && isDevHash()) {
+        location.hash = routeToHash(getStoredRoute());
+      }
+    };
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
+  const [theme, setTheme] = useState(TWEAK_DEFAULTS.theme);
+  const [fontMode, setFontMode] = useState(TWEAK_DEFAULTS.font);
+  const [toasts, setToasts] = useState([]);
+  const [tweaksVisible, setTweaksVisible] = useState(false);
+
+  useEffect(() => { document.documentElement.setAttribute("data-theme", theme); }, [theme]);
+  useEffect(() => { document.documentElement.setAttribute("data-font", fontMode); }, [fontMode]);
+  useEffect(() => { localStorage.setItem("accelerator-route", JSON.stringify(route)); }, [route]);
+
+  // Navigation entry-point: every setRoute call goes through here.
+  // Writes the new route to location.hash, which fires hashchange and lets
+  // the listener above sync React state. This way the URL is always the
+  // source of truth and back/forward Just Work.
+  const setRouteSafe = (next) => {
+    const want = routeToHash(next);
+    if (location.hash === want) {
+      // Hash unchanged (e.g. re-clicking the same nav item) — still apply
+      // state updates and ensure we drop dev mode if it was on.
+      setDevMode(false);
+      setRoute(next);
+      return;
+    }
+    // Pushing via location.hash creates a history entry so Back returns
+    // the user to the previous screen.
+    location.hash = want;
+  };
+
+  // Demo toast on first render for realism
+  useEffect(() => {
+    const t = setTimeout(() => {
+      pushToast({
+        kind: "warn",
+        title: "External edit detected",
+        body: <>A reviewer agent updated <code>WORK-0007</code> while you were looking at it. Query invalidated.</>,
+        ttl: 9000,
+      });
+    }, 1800);
+    return () => clearTimeout(t);
+  }, []);
+
+  const pushToast = (t) => {
+    const id = Math.random().toString(36).slice(2);
+    const entry = { ...t, id };
+    setToasts(xs => [...xs, entry]);
+    if (t.ttl !== 0) setTimeout(() => setToasts(xs => xs.filter(x => x.id !== id)), t.ttl || 5000);
+  };
+  const dismiss = id => setToasts(xs => xs.filter(x => x.id !== id));
+
+  // Tweaks mode listener
+  useEffect(() => {
+    const onMsg = (e) => {
+      if (!e.data) return;
+      if (e.data.type === "__activate_edit_mode")   setTweaksVisible(true);
+      if (e.data.type === "__deactivate_edit_mode") setTweaksVisible(false);
+    };
+    window.addEventListener("message", onMsg);
+    window.parent.postMessage({type: "__edit_mode_available"}, "*");
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
+
+  let main = null;
+  if (devMode) {
+    main = <DevDesignSystem setRoute={setRouteSafe} theme={theme} setTheme={setTheme}/>;
+  } else if (route.view === "library" && !route.type) {
+    main = <LibraryLanding setRoute={setRouteSafe}/>;
+  } else if (route.view === "library" && route.type && !route.docId) {
+    main = <LibraryIndex type={route.type} setRoute={setRouteSafe}/>;
+  } else if (route.view === "library" && route.docId) {
+    main = <DocPage type={route.type} docId={route.docId} slug={route.slug} setRoute={setRouteSafe}/>;
+  } else if (route.view === "lifecycle" && !route.slug) {
+    main = <LifecycleIndex setRoute={setRouteSafe}/>;
+  } else if (route.view === "lifecycle" && route.slug) {
+    main = <LifecycleCluster slug={route.slug} setRoute={setRouteSafe}/>;
+  } else if (route.view === "kanban") {
+    main = <KanbanBoard setRoute={setRouteSafe} pushToast={pushToast}/>;
+  } else {
+    main = <LibraryLanding setRoute={setRouteSafe}/>;
+  }
+
+  return (
+    <div className="ac-app">
+      <Topbar route={devMode ? { view: "__dev__" } : route} setRoute={setRouteSafe} theme={theme} setTheme={setTheme} fontMode={fontMode} setFontMode={setFontMode}/>
+      <Sidebar route={devMode ? { view: "__dev__" } : route} setRoute={setRouteSafe} initialSearch={TWEAK_DEFAULTS.initialSearch} onSecret={() => { location.hash = "#dev"; }}/>
+      <main className="ac-main">{main}</main>
+      <Toaster toasts={toasts} dismiss={dismiss}/>
+      <TweaksPanel visible={tweaksVisible} theme={theme} setTheme={setTheme} fontMode={fontMode} setFontMode={setFontMode}/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
