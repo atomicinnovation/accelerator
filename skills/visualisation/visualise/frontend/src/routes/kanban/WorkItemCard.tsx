@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { MouseEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { fileSlugFromRelPath } from '../../api/path-utils'
 import { WorkItemCardPresentation } from './WorkItemCardPresentation'
+import { useKanbanFocusRegistry } from './kanban-focus-registry'
 import type { IndexEntry } from '../../api/types'
 import styles from './WorkItemCard.module.css'
 
@@ -34,6 +35,18 @@ export function WorkItemCard({ entry, now }: WorkItemCardProps) {
   const { role: _role, ...sortableAttributes } = attributes
 
   const fileSlug = fileSlugFromRelPath(entry.relPath)
+
+  // Combine dnd-kit's node ref with the board's focus-registry registration on
+  // the same anchor element: dnd-kit needs the node for drag geometry; the board
+  // needs it to return focus by relPath after a move settles (C3).
+  const focusRegistry = useKanbanFocusRegistry()
+  const setRefs = useCallback(
+    (el: HTMLElement | null) => {
+      setNodeRef(el)
+      focusRegistry.register(entry.relPath, el)
+    },
+    [setNodeRef, focusRegistry, entry.relPath],
+  )
 
   // A2: suppress the synthetic post-drag click so a drag never navigates, while
   // a genuine click still does. Card-local (not a board-passed signal) so the
@@ -69,7 +82,7 @@ export function WorkItemCard({ entry, now }: WorkItemCardProps) {
   return (
     <li className={styles.cardItem} data-relpath={entry.relPath}>
       <Link
-        ref={setNodeRef}
+        ref={setRefs}
         to="/library/$type/$fileSlug"
         params={{ type: 'work-items', fileSlug }}
         className={styles.cardLink}

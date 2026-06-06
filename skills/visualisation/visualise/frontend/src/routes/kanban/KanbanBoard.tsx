@@ -21,6 +21,7 @@ import { buildKanbanAnnouncements } from './announcements'
 import { moveToastFor } from './move-toast'
 import { KanbanColumn } from './KanbanColumn'
 import { WorkItemCardPresentation } from './WorkItemCardPresentation'
+import { KanbanFocusContext, createKanbanFocusRegistry } from './kanban-focus-registry'
 import { Page } from '../../components/Page/Page'
 import { Chip } from '../../components/Chip/Chip'
 import styles from './KanbanBoard.module.css'
@@ -37,6 +38,19 @@ export function KanbanBoard() {
   const [announcement, setAnnouncement] = useState('')
   const [activeId, setActiveId] = useState<string | null>(null)
   const announcementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // C3 focus contract: cards register their anchor here by relPath; the board
+  // focuses the resting card after a move settles.
+  const anchorsRef = useRef(new Map<string, HTMLElement>())
+  const focusRegistry = useMemo(
+    () => createKanbanFocusRegistry(anchorsRef.current),
+    [],
+  )
+  // Single-use token armed on settle (NOT on entries identity) carrying the
+  // moved card's relPath. Armed only after success-commit / error-revert have
+  // applied, so it is inert for the optimistic render and any unrelated SSE
+  // refetch, and fires exactly once on the post-settle render.
+  const pendingFocusRef = useRef<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -73,6 +87,19 @@ export function KanbanBoard() {
   const docEvents = useDocEventsContext()
   const move = useMoveWorkItem()
   const { showToast } = useToast()
+
+  // Declarative consumer of the on-settle focus token: when the entries list
+  // next renders with a pending focus armed, focus the registered anchor (live
+  // after any refetch remount) and clear the token — single-fire. Inert for the
+  // optimistic render (token not yet armed) and for unrelated SSE refetches
+  // (token null), so it never re-applies focus. No rAF poll loop.
+  useEffect(() => {
+    const relPath = pendingFocusRef.current
+    if (relPath === null) return
+    if (focusRegistry.focus(relPath)) {
+      pendingFocusRef.current = null
+    }
+  }, [entries, focusRegistry])
 
   function showAnnouncement(msg: string) {
     setAnnouncement(msg)
@@ -128,6 +155,13 @@ export function KanbanBoard() {
               const toast = moveToastFor(outcome, source, targetLabel, { ok: false, error: err })
               if (toast) showToast(toast)
             },
+            // Arm focus restoration AFTER the success-commit / error-revert has
+            // applied and the invalidation refetch is in flight. relPath is
+            // stable across the move, so it resolves to the card in its final
+            // resting column (target on success, source on revert).
+            onSettled: () => {
+              pendingFocusRef.current = cardId
+            },
           },
         )
         return
@@ -174,6 +208,7 @@ export function KanbanBoard() {
         ? `Work items whose status is missing or not one of: ${columns.map(c => c.key).join(', ')}.`
         : 'Work items whose status is missing or does not match any configured column.'
     content = (
+      <KanbanFocusContext.Provider value={focusRegistry}>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -220,6 +255,7 @@ export function KanbanBoard() {
           })()}
         </DragOverlay>
       </DndContext>
+      </KanbanFocusContext.Provider>
     )
   }
 

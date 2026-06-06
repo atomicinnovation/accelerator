@@ -46,12 +46,28 @@ describe('buildKanbanAnnouncements', () => {
     expect(msg).toBe('Moved work item 0001: Foo to In progress.')
   })
 
+  it('onDragOver announces the card over the target column label (C2)', () => {
+    const msg = a.onDragOver!({
+      active: { id: 'meta/work/0001-foo.md' },
+      over: { id: 'in-progress' },
+    } as any)
+    expect(msg).toBe('work item 0001: Foo is over In progress.')
+  })
+
   it('onDragOver omits announcement when there is no over target', () => {
     const msg = a.onDragOver!({
       active: { id: 'meta/work/0001-foo.md' },
       over: null,
     } as any)
     expect(msg).toBeUndefined()
+  })
+
+  it('onDragEnd with no target announces a cancelled drop (C2)', () => {
+    const msg = a.onDragEnd!({
+      active: { id: 'meta/work/0001-foo.md' },
+      over: null,
+    } as any)
+    expect(msg).toBe('Drop of work item 0001: Foo cancelled, no target.')
   })
 
   it('onDragCancel labels the cancellation', () => {

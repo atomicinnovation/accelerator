@@ -932,19 +932,22 @@ change, drop, and cancel, each naming the affected card and the relevant column:
 
 #### Automated Verification:
 
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] Type-checking passes: `mise run typecheck`
-- [ ] **E2E** keyboard-move test completes a cross-column move (C1)
-- [ ] Announcement assertions match `announcements.ts` strings verbatim (C2)
-- [ ] Focus-return test (authoritative at **E2E**; any unit test uses
+- [x] Unit tests pass: `mise run test:unit:frontend`
+- [x] Type-checking passes: `mise run typecheck`
+- [~] **E2E** keyboard-move test completes a cross-column move (C1) _(spec
+      written; gated on the feasibility spike in the consolidated E2E pass)_
+- [x] Announcement assertions match `announcements.ts` strings verbatim (C2)
+- [~] Focus-return test (authoritative at **E2E**; any unit test uses
       deterministic rAF/timer flushing or `waitFor` on `activeElement`): focus
       lands on the card `<Link>` anchor in the target column on success and the
       source column on revert, **after** the `onSettled` invalidation resolves (C3)
-- [ ] Focus single-fire isolation: after a move settles and focus is applied, an
+      _(E2E written; run in the consolidated pass)_
+- [x] Focus single-fire isolation: after a move settles and focus is applied, an
       **unrelated** entries-list change (e.g. an external SSE edit) does **not**
       re-apply focus (asserts the on-settle token is single-use); the
       relPath-keyed focus contract resolves to the live anchor after a refetch
-      remount
+      remount _(token armed only in onSettled; relPath-keyed registry covered by
+      kanban-focus-registry.test.ts)_
 
 #### Manual Verification:
 
