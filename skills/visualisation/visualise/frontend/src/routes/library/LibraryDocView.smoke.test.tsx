@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
@@ -53,6 +53,13 @@ function makeWrapper(qc: QueryClient) {
 }
 
 describe('LibraryDocView smoke', () => {
+  // useDocCluster fires fetchLifecycleClusters on the resolved-document
+  // branch; default it to an empty list so these SSE-refetch smoke tests
+  // never reach a real /api/lifecycle fetch.
+  beforeEach(() => {
+    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue([])
+  })
+
   // ── Step 7.2a ────────────────────────────────────────────────────────
   it('active refetch re-renders the DOM after SSE doc-changed', async () => {
     const qc = buildQueryClient()

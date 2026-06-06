@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { fetchLifecycleClusters, FetchError } from '../../api/fetch'
-import { formatMtime } from '../../api/format'
+import { formatMtime, pluralise } from '../../api/format'
 import { queryKeys } from '../../api/query-keys'
 import {
   WORKFLOW_PIPELINE_STEPS,
@@ -48,10 +48,6 @@ function statusOf(cluster: LifecycleCluster): string | null {
   if (!entry || entry.frontmatterState !== 'parsed') return null
   const raw = entry.frontmatter['status']
   return typeof raw === 'string' && raw.length > 0 ? raw : null
-}
-
-function pluralise(n: number, singular: string, plural = `${singular}s`): string {
-  return `${n} ${n === 1 ? singular : plural}`
 }
 
 export function LifecycleIndex() {

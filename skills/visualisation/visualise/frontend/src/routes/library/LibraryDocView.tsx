@@ -11,6 +11,8 @@ import { FrontmatterChips } from '../../components/FrontmatterChips/FrontmatterC
 import { FrontmatterTable } from '../../components/FrontmatterTable/FrontmatterTable'
 import { MarkdownRenderer } from '../../components/MarkdownRenderer/MarkdownRenderer'
 import { RelatedArtifacts } from '../../components/RelatedArtifacts/RelatedArtifacts'
+import { RelatedCluster } from '../../components/RelatedCluster/RelatedCluster'
+import { useDocCluster } from '../../api/use-doc-cluster'
 import { EyebrowLabel } from '../../components/EyebrowLabel/EyebrowLabel'
 import type { DocTypeKey } from '../../api/types'
 import { isDocTypeKey } from '../../api/types'
@@ -56,6 +58,11 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
   // `entry?.relPath`. Body rendering is *not* gated on the wiki-link
   // resolver — pending markers handle the cache-warming window.
   const { content, related } = useDocPageData(entry?.relPath)
+  const {
+    cluster,
+    isPending: clusterPending,
+    isError: clusterError,
+  } = useDocCluster(entry)
   const {
     resolver: resolveWikiLink,
     pattern: wikiLinkPattern,
@@ -124,6 +131,25 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
             <h3>File</h3>
             <p className={styles.meta}>{entry.relPath}</p>
           </section>
+          {/* Cluster section degrades visibly, mirroring the Related
+              artifacts section above: render the shell while the cluster
+              query is pending/errored so the heading + state shows rather
+              than the block silently vanishing; suppress the section
+              entirely only once the query has settled with no match. */}
+          {(clusterPending || clusterError || cluster) && (
+            <section>
+              <h3>Cluster</h3>
+              {clusterError ? (
+                <p role="alert" className={styles.error}>
+                  Could not load cluster. Try again later.
+                </p>
+              ) : clusterPending ? (
+                <p>Loading…</p>
+              ) : cluster ? (
+                <RelatedCluster cluster={cluster} />
+              ) : null}
+            </section>
+          )}
         </div>
 
         <div className={styles.bodyColumn}>

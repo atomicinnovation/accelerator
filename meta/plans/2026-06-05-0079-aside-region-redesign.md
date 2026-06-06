@@ -609,14 +609,14 @@ DOM order is therefore `Related artifacts` → `File` → `Cluster`. The genuine
 
 #### Automated Verification
 
-- [ ] New `RelatedCluster` + `useDocCluster` tests fail before implementation,
+- [x] New `RelatedCluster` + `useDocCluster` tests fail before implementation,
   pass after: `mise run test:unit:frontend`
-- [ ] `useDocCluster` loading and error cases pass; `pluralise` direct unit
+- [x] `useDocCluster` loading and error cases pass; `pluralise` direct unit
   tests pass: `mise run test:unit:frontend`
-- [ ] `LibraryDocView` DOM-order, loading, error, and settled-no-match
+- [x] `LibraryDocView` DOM-order, loading, error, and settled-no-match
   presence/absence tests pass: `mise run test:unit:frontend`
-- [ ] Frontend unit suite passes: `mise run test:unit:frontend`
-- [ ] Typecheck passes (frontend typecheck task)
+- [x] Frontend unit suite passes: `mise run test:unit:frontend`
+- [x] Typecheck passes (frontend typecheck task)
 
 #### Manual Verification
 

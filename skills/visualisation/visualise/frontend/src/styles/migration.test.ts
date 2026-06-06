@@ -411,7 +411,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 936 // 0079: Option B collapsed RelatedArtifacts to one tagged list, removing 15 var(--*) refs (legend/group/badge rules); re-synced floor to observed
+const AC5_FLOOR = 944 // 0079: net of Option B (-15 var refs) and the new RelatedCluster.module.css (+8 var refs); re-synced floor to observed
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 

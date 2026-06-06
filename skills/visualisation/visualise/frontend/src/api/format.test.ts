@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatMtime, formatRelative, formatChipDate } from './format'
+import { formatMtime, formatRelative, formatChipDate, pluralise } from './format'
 
 describe('formatMtime', () => {
   const NOW = 1_700_000_000_000
@@ -92,5 +92,24 @@ describe('formatChipDate', () => {
 
   it('stringifies non-string, non-Date values', () => {
     expect(formatChipDate(2026, NOW)).toBe('2026')
+  })
+})
+
+describe('pluralise', () => {
+  it('uses the plural form for zero', () => {
+    expect(pluralise(0, 'artifact')).toBe('0 artifacts')
+  })
+
+  it('uses the singular form for one', () => {
+    expect(pluralise(1, 'artifact')).toBe('1 artifact')
+  })
+
+  it('uses the plural form for many', () => {
+    expect(pluralise(3, 'artifact')).toBe('3 artifacts')
+  })
+
+  it('honours an explicit irregular plural', () => {
+    expect(pluralise(1, 'entry', 'entries')).toBe('1 entry')
+    expect(pluralise(2, 'entry', 'entries')).toBe('2 entries')
   })
 })

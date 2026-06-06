@@ -22,7 +22,19 @@ function buildTestRouter(ui: React.ReactNode, atUrl = '/') {
     path: '/library/$type/$fileSlug',
     component: () => <>{ui}</>,
   })
-  const tree = root.addChildren([indexRoute, libraryTypeRoute, libraryDocRoute])
+  // Mirror the production `/lifecycle/$slug` route so `<Link to="/lifecycle/$slug">`
+  // resolves to the expected href in tests (e.g. the Cluster block).
+  const lifecycleClusterRoute = createRoute({
+    getParentRoute: () => root,
+    path: '/lifecycle/$slug',
+    component: () => <>{ui}</>,
+  })
+  const tree = root.addChildren([
+    indexRoute,
+    libraryTypeRoute,
+    libraryDocRoute,
+    lifecycleClusterRoute,
+  ])
   return createRouter({
     routeTree: tree,
     history: createMemoryHistory({ initialEntries: [atUrl] }),

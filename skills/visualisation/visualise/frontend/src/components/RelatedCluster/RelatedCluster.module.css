@@ -1,0 +1,27 @@
+/* Mirrors the LifecycleIndex card idioms (display title + mono meta row),
+   kept minimal for the narrow detail-page aside column. */
+.link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  text-decoration: none;
+  color: inherit;
+}
+.link:hover .title,
+.link:focus-visible .title {
+  color: var(--ac-accent);
+}
+
+.title {
+  font-family: var(--ac-font-display);
+  font-size: var(--size-sm);
+  font-weight: 600;
+  color: var(--ac-fg-strong);
+  line-height: 1.2;
+}
+
+.meta {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-eyebrow);
+  color: var(--ac-fg-muted);
+}

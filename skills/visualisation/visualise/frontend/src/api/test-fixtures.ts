@@ -1,4 +1,4 @@
-import type { Completeness, IndexEntry } from './types'
+import type { Completeness, IndexEntry, LifecycleCluster } from './types'
 
 /** Test-only `Completeness` factory. Defaults to all-false with empty
  *  `present`; callers override only what they care about via
@@ -43,6 +43,24 @@ export function makeIndexEntry(overrides: Partial<IndexEntry> = {}): IndexEntry 
     bodyPreview: '',
     completeness: null,
     linkedCount: 0,
+    clusterKey: null,
+    ...overrides,
+  }
+}
+
+/** Test-only `LifecycleCluster` factory. Defaults to a single-entry
+ *  cluster; callers override `entries`, `slug`, `title`, etc. via
+ *  `Partial<LifecycleCluster>`. Centralises the verbose cluster literal
+ *  so a future `LifecycleCluster` shape change updates one place. */
+export function makeLifecycleCluster(
+  overrides: Partial<LifecycleCluster> = {},
+): LifecycleCluster {
+  return {
+    slug: 'foo',
+    title: 'Foo',
+    entries: [makeIndexEntry()],
+    completeness: makeCompleteness(),
+    lastChangedMs: 0,
     clusterKey: null,
     ...overrides,
   }

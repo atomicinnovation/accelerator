@@ -1,11 +1,12 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { LibraryDocView } from './LibraryDocView'
 import * as fetchModule from '../../api/fetch'
 import { dispatchSseEvent } from '../../api/use-doc-events'
 import type { IndexEntry } from '../../api/types'
+import { makeIndexEntry, makeLifecycleCluster } from '../../api/test-fixtures'
 import { MemoryRouter } from '../../test/router-helpers'
 
 const mockEntry: IndexEntry = {
@@ -32,6 +33,15 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe('LibraryDocView', () => {
+  // Wiring useDocCluster into the view makes every resolved-document test
+  // call fetchLifecycleClusters. Default it to an empty list (no matching
+  // cluster) so the suite never hits a real /api/lifecycle fetch; the
+  // cluster-present/error tests override this inside the test body.
+  // (restoreMocks: true resets spies per test, so this must re-run here.)
+  beforeEach(() => {
+    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue([])
+  })
+
   it('renders the doc title', async () => {
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
     // Use content that doesn't repeat the title to avoid duplicate h1s in DOM
@@ -376,5 +386,103 @@ describe('LibraryDocView', () => {
       qc,
     )
     await screen.findByLabelText(/metadata header/i)
+  })
+
+  // ── 0079: Cluster block ───────────────────────────────────────────────
+  it('renders a Cluster section after File when the doc is in a cluster', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: 'Body.',
+      etag: '"sha256-a"',
+    })
+    vi.spyOn(fetchModule, 'fetchRelated').mockResolvedValue({
+      inferredCluster: [],
+      declaredOutbound: [],
+      declaredInbound: [],
+    })
+    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockResolvedValue([
+      makeLifecycleCluster({
+        slug: '0001',
+        title: 'Foo cluster',
+        entries: [makeIndexEntry({ path: mockEntry.path })],
+      }),
+    ])
+    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
+
+    const clusterLink = await screen.findByRole('link', { name: /Foo cluster/ })
+    expect(clusterLink.getAttribute('href')).toBe('/lifecycle/0001')
+
+    // DOM order: Related artifacts → File → Cluster.
+    const headings = screen
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.textContent)
+    expect(headings).toEqual(['Related artifacts', 'File', 'Cluster'])
+  })
+
+  it('shows the Cluster heading + Loading while the cluster query is pending', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: 'Body.',
+      etag: '"sha256-a"',
+    })
+    vi.spyOn(fetchModule, 'fetchRelated').mockResolvedValue({
+      inferredCluster: [],
+      declaredOutbound: [],
+      declaredInbound: [],
+    })
+    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockImplementation(
+      () => new Promise(() => { /* pending forever */ }),
+    )
+    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
+
+    // The section shell does not vanish: heading + a loading state show.
+    const clusterHeading = await screen.findByRole('heading', { name: 'Cluster' })
+    const section = clusterHeading.closest('section')!
+    expect(within(section).getByText('Loading…')).toBeInTheDocument()
+  })
+
+  it('shows a role=alert in the Cluster section when fetchLifecycleClusters rejects', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: 'Body.',
+      etag: '"sha256-a"',
+    })
+    vi.spyOn(fetchModule, 'fetchRelated').mockResolvedValue({
+      inferredCluster: [],
+      declaredOutbound: [],
+      declaredInbound: [],
+    })
+    vi.spyOn(fetchModule, 'fetchLifecycleClusters').mockRejectedValue(
+      new Error('lifecycle-boom'),
+    )
+    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
+
+    expect(await screen.findByText(/Could not load cluster/i)).toBeInTheDocument()
+    const clusterHeading = screen.getByRole('heading', { name: 'Cluster' })
+    const section = clusterHeading.closest('section')!
+    expect(within(section).getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('renders no Cluster section once the query settles with no matching cluster', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: 'Body.',
+      etag: '"sha256-a"',
+    })
+    vi.spyOn(fetchModule, 'fetchRelated').mockResolvedValue({
+      inferredCluster: [],
+      declaredOutbound: [],
+      declaredInbound: [],
+    })
+    // Default beforeEach stub resolves []; the doc is in no cluster.
+    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
+
+    await screen.findByText('Foo Plan')
+    // Anchor on the settled signal: the would-be Cluster section's Loading…
+    // clears and the heading is absent (it must not pass against the
+    // still-loading shell).
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Cluster' })).toBeNull()
+    })
   })
 })

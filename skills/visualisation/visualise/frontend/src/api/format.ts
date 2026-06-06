@@ -43,6 +43,13 @@ export function formatDate(raw: string): string {
   return `${y}-${m}-${day}`
 }
 
+/** Renders `<n> <noun>` with naive English pluralisation. Defaults the
+ *  plural to `<singular>s`; pass an explicit `plural` for irregular nouns.
+ *  Shared by the lifecycle index card and the detail-page Cluster block. */
+export function pluralise(n: number, singular: string, plural = `${singular}s`): string {
+  return `${n} ${n === 1 ? singular : plural}`
+}
+
 export function formatRelative(ms: number, now: number = Date.now()): string {
   const diffSec = Math.floor((now - ms) / 1000)
   if (diffSec < 0) return '0s ago'
