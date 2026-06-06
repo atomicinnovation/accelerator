@@ -5,7 +5,7 @@ title: "Configurable Visualiser Auto-Shutdown Implementation Plan"
 date: "2026-06-06T13:41:38+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: accepted
+status: complete
 work_item_id: "work-item:0100"
 parent: "work-item:0100"
 derived_from: ["codebase-research:2026-06-06-0100-configurable-visualiser-auto-shutdown"]
