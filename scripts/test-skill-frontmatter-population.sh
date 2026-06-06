@@ -49,6 +49,7 @@ IN_SCOPE_PRODUCERS=(
   skills/work/review-work-item/SKILL.md
   skills/github/review-pr/SKILL.md
   skills/planning/validate-plan/SKILL.md
+  skills/notes/create-note/SKILL.md
 )
 NON_EMITTER_TEMPLATE_CONSUMERS=(
   skills/work/update-work-item/SKILL.md

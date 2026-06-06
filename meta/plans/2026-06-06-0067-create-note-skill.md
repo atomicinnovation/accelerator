@@ -603,13 +603,13 @@ allowed-tools:
 
 #### Automated Verification:
 
-- [ ] Skill-population test passes:
+- [x] Skill-population test passes:
       `bash scripts/test-skill-frontmatter-population.sh` (row asserts +
       discovery pass green)
-- [ ] Full template/skill schema suite passes: `mise run test:unit:templates`
-- [ ] `plugin.json` is valid JSON and lists `./skills/notes/`:
+- [x] Full template/skill schema suite passes: `mise run test:unit:templates`
+- [x] `plugin.json` is valid JSON and lists `./skills/notes/`:
       `jq -e '.skills | index("./skills/notes/")' .claude-plugin/plugin.json`
-- [ ] Routing keywords live in the **`description:` value** (the AC8 routing
+- [x] Routing keywords live in the **`description:` value** (the AC8 routing
       surface), not merely elsewhere in the frontmatter or body. The grep must
       isolate the `description:` line and its indented YAML continuation lines
       — scoping only to the frontmatter block is **not** sufficient, because
@@ -620,20 +620,20 @@ allowed-tools:
       and the same `awk … | grep -Eiq 'capture|jot'`. (These are presence
       floors backstopped by the AC10 manual dispatch test, which is the
       load-bearing routing verification.)
-- [ ] Collision-handling regression floor — the skill documents
+- [x] Collision-handling regression floor — the skill documents
       auto-disambiguation, not abort:
       `grep -Eiq 'disambiguat' skills/notes/create-note/SKILL.md`
       (a cheap standing guard that the deliberate departure from
       `create-work-item`'s abort-on-collision behaviour is not silently
       reverted; the full behaviour is exercised by the manual collision step).
-- [ ] AC7 regression net — the skill carries no `source:`/`derived_from:`
+- [x] AC7 regression net — the skill carries no `source:`/`derived_from:`
       population instruction:
       `! grep -Eq '\`(source|derived_from):\`' skills/notes/create-note/SKILL.md`.
       For this to stay clean, the prohibition statement must use the
       colon-less backtick form (`` `source` ``/`` `derived_from` ``), never
       the colon-anchored `` `source:` ``/`` `derived_from:` `` populate-field
       form — only populate-field references carry the trailing colon.
-- [ ] Shell format/lint clean: `mise run format:check`, `mise run lint:check`
+- [x] Shell format/lint clean: `mise run format:check`, `mise run lint:check`
 
 #### Manual Verification:
 
