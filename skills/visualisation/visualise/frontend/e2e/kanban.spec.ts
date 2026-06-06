@@ -67,6 +67,12 @@ test('drag todo card to in-progress column', async ({ page }) => {
       ),
     ).toBeVisible({ timeout: 5000 })
 
+    // A success toast (plain copy, polite region) confirms the move; the card
+    // stays put in the target column.
+    await expect(
+      page.getByTestId('toaster-region-polite').getByText(/moved to In progress/i),
+    ).toBeVisible({ timeout: 5000 })
+
     // Wait for the server to finish writing before finally restores the file.
     await patchDone
   } finally {

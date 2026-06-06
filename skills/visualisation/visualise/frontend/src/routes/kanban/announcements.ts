@@ -18,14 +18,24 @@ function labelFor(columnId: unknown, columns: ReadonlyArray<KanbanColumn>): stri
     ?? (OTHER_COLUMN.key === id ? OTHER_COLUMN.label : id)
 }
 
-function describe(id: unknown, entries: Map<string, IndexEntry>): string {
-  if (typeof id !== 'string') return `work item ${String(id)}`
-  const entry = entries.get(id)
-  const num = workItemIdFromRelPath(id)
-  const title = entry?.title
+/**
+ * Names a work item for screen-reader announcements AND the move-confirmation
+ * toast — the single source of truth so the two can never drift. Operates on a
+ * resolved entry; an `undefined` entry (e.g. deleted mid-drag) yields the bare
+ * "work item" fallback. The number is relPath-derived (matching the historical
+ * announcement wording) rather than `entry.workItemId`.
+ */
+export function describeEntry(entry: IndexEntry | undefined): string {
+  if (!entry) return 'work item'
+  const num = workItemIdFromRelPath(entry.relPath)
+  const title = entry.title
   if (num && title) return `work item ${num}: ${title}`
   if (title) return `work item ${title}`
-  return `work item ${id}`
+  return `work item ${entry.relPath}`
+}
+
+function describe(id: unknown, entries: Map<string, IndexEntry>): string {
+  return describeEntry(typeof id === 'string' ? entries.get(id) : undefined)
 }
 
 export function buildKanbanAnnouncements(

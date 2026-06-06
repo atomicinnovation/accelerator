@@ -7,7 +7,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
-import { fetchDocs, FetchError, ConflictError } from '../../api/fetch'
+import { fetchDocs, FetchError } from '../../api/fetch'
 import { queryKeys } from '../../api/query-keys'
 import { groupWorkItemsByStatus } from '../../api/work-item'
 import { useKanbanConfig } from '../../api/use-kanban-config'
@@ -15,8 +15,10 @@ import { OTHER_COLUMN, OTHER_COLUMN_KEY } from '../../api/types'
 import type { IndexEntry } from '../../api/types'
 import { useDocEventsContext } from '../../api/use-doc-events'
 import { useMoveWorkItem } from '../../api/use-move-work-item'
+import { useToast } from '../../api/use-toast'
 import { resolveDropOutcome } from './resolve-drop-outcome'
 import { buildKanbanAnnouncements } from './announcements'
+import { moveToastFor } from './move-toast'
 import { KanbanColumn } from './KanbanColumn'
 import { Page } from '../../components/Page/Page'
 import { Chip } from '../../components/Chip/Chip'
@@ -29,21 +31,9 @@ function errorMessageFor(error: unknown): string {
   return 'Something went wrong loading the work items.'
 }
 
-function conflictMessageFor(error: unknown): string {
-  if (error instanceof ConflictError) {
-    return 'This work item was updated by another editor. Your change was not saved — the card has been returned to its original column.'
-  }
-  if (error instanceof FetchError) {
-    return 'The work item could not be saved. Try again in a moment.'
-  }
-  return 'An unexpected error occurred while saving. Try again.'
-}
-
 export function KanbanBoard() {
   const queryClient = useQueryClient()
-  const [conflict, setConflict] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState('')
-  const conflictTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const announcementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const sensors = useSensors(
@@ -80,12 +70,7 @@ export function KanbanBoard() {
 
   const docEvents = useDocEventsContext()
   const move = useMoveWorkItem()
-
-  function showConflict(msg: string) {
-    setConflict(msg)
-    if (conflictTimerRef.current !== null) clearTimeout(conflictTimerRef.current)
-    conflictTimerRef.current = setTimeout(() => setConflict(null), 30_000)
-  }
+  const { showToast } = useToast()
 
   function showAnnouncement(msg: string) {
     setAnnouncement(msg)
@@ -95,8 +80,6 @@ export function KanbanBoard() {
 
   function handleDragStart() {
     docEvents.setDragInProgress(true)
-    if (conflictTimerRef.current !== null) { clearTimeout(conflictTimerRef.current); conflictTimerRef.current = null }
-    setConflict(null)
     if (announcementTimerRef.current !== null) { clearTimeout(announcementTimerRef.current); announcementTimerRef.current = null }
     setAnnouncement('')
   }
@@ -108,22 +91,33 @@ export function KanbanBoard() {
     const source = entriesByRelPath.get(cardId)
 
     switch (outcome.kind) {
-      case 'move':
+      case 'move': {
+        // Guard the source entry (matches the overlay null-guard convention): if
+        // the entry was deleted mid-drag, treat the drop as a no-op rather than
+        // asserting non-null.
+        if (!source) return
+        // toStatus is a valid configured column key by construction
+        // (resolveDropOutcome only returns 'move' for keys in validColumnKeys),
+        // so its label always resolves — never fall back to the raw key.
+        const targetLabel = columns.find(c => c.key === outcome.toStatus)?.label
+        if (targetLabel === undefined) return
         move.mutate(
-          { entry: source!, toStatus: outcome.toStatus },
+          { entry: source, toStatus: outcome.toStatus },
           {
-            onError: (err) => {
-              showConflict(conflictMessageFor(err))
-              requestAnimationFrame(() =>
-                document.querySelector<HTMLElement>(
-                  `[data-relpath="${CSS.escape(cardId)}"]`,
-                )?.focus()
-              )
+            onSuccess: () => {
+              const toast = moveToastFor(outcome, source, targetLabel, { ok: true })
+              if (toast) showToast(toast)
             },
-            onSuccess: () => setConflict(null),
+            onError: (err) => {
+              // Revert is owned by useMoveWorkItem's onError; the board only
+              // surfaces the assertive, persistent error toast.
+              const toast = moveToastFor(outcome, source, targetLabel, { ok: false, error: err })
+              if (toast) showToast(toast)
+            },
           },
         )
         return
+      }
       case 'no-op-other-rejected':
         showAnnouncement('The Other column is read-only; drops are ignored.')
         return
@@ -174,19 +168,6 @@ export function KanbanBoard() {
         accessibility={{ announcements }}
       >
         <div className={styles.board} data-sse-state={docEvents.connectionState}>
-          {conflict !== null && (
-            <div role="alert" aria-atomic="true" className={styles.conflictBanner}>
-              <span className={styles.conflictMessage}>{conflict}</span>
-              <button
-                type="button"
-                aria-label="Dismiss conflict notice"
-                className={styles.conflictDismiss}
-                onClick={() => setConflict(null)}
-              >
-                ×
-              </button>
-            </div>
-          )}
           <div role="status" aria-live="polite" className={styles.announcement}>
             {announcement}
           </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildKanbanAnnouncements, workItemIdFromRelPath } from './announcements'
+import { buildKanbanAnnouncements, describeEntry, workItemIdFromRelPath } from './announcements'
 import type { IndexEntry } from '../../api/types'
 
 const fooEntry = {
@@ -57,5 +57,19 @@ describe('buildKanbanAnnouncements', () => {
   it('onDragCancel labels the cancellation', () => {
     const msg = a.onDragCancel!({ active: { id: 'meta/work/0001-foo.md' } } as any)
     expect(msg).toBe('Drag of work item 0001: Foo cancelled.')
+  })
+
+  it('announcements use describeEntry — the same card name the toast uses', () => {
+    // One source of truth: the pick-up announcement embeds exactly
+    // describeEntry(entry), so the toast heading and announcements cannot drift.
+    expect(describeEntry(fooEntry)).toBe('work item 0001: Foo')
+    const msg = a.onDragStart!({ active: { id: 'meta/work/0001-foo.md' } } as any)
+    expect(msg).toBe(`Picked up ${describeEntry(fooEntry)}.`)
+  })
+})
+
+describe('describeEntry', () => {
+  it('returns the bare "work item" fallback for a missing (undefined) entry', () => {
+    expect(describeEntry(undefined)).toBe('work item')
   })
 })

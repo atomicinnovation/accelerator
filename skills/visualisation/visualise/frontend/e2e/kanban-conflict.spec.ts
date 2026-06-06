@@ -28,7 +28,7 @@ async function dndDrag(
   await page.mouse.up()
 }
 
-test('stale ETag produces conflict banner, card stays in draft', async ({ page }) => {
+test('stale ETag produces an assertive error toast and reverts the card to draft', async ({ page }) => {
   const original = readFileSync(WORK_ITEM_PATH, 'utf-8')
 
   // Intercept PATCH: mutate the file on disk before the request completes
@@ -61,10 +61,11 @@ test('stale ETag produces conflict banner, card stays in draft', async ({ page }
       'section[data-column="in-progress"]',
     )
 
-    // Conflict banner should appear
-    await expect(
-      page.locator('[role="alert"][aria-atomic="true"]'),
-    ).toBeVisible({ timeout: 8000 })
+    // An assertive, persistent error toast should appear (replacing the old
+    // inline conflict banner).
+    const errorRegion = page.getByTestId('toaster-region-assertive')
+    await expect(errorRegion.getByText('Move failed')).toBeVisible({ timeout: 8000 })
+    await expect(errorRegion.getByText(/updated by another editor/i)).toBeVisible()
 
     // Card should have snapped back to draft (optimistic rollback)
     await expect(
@@ -72,6 +73,11 @@ test('stale ETag produces conflict banner, card stays in draft', async ({ page }
         'section[data-column="draft"] li[data-relpath="tests/fixtures/meta/work/0006-conflict-test-work-item.md"]',
       ),
     ).toBeVisible({ timeout: 5000 })
+
+    // The error toast is persistent: it survives past the info/ok auto-dismiss
+    // window (5s) rather than disappearing on its own.
+    await page.waitForTimeout(5_500)
+    await expect(errorRegion.getByText('Move failed')).toBeVisible()
   } finally {
     writeFileSync(WORK_ITEM_PATH, original)
   }

@@ -511,16 +511,17 @@ resulting `showToast`. Split the coverage accordingly:
 
 #### Automated Verification:
 
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] Type-checking passes: `mise run typecheck`
-- [ ] Unit `moveToastFor` covers: `204`→`ok` with exact label; `ConflictError` vs
+- [x] Unit tests pass: `mise run test:unit:frontend`
+- [x] Type-checking passes: `mise run typecheck`
+- [x] Unit `moveToastFor` covers: `204`→`ok` with exact label; `ConflictError` vs
       `FetchError`→`error` (separately); non-`move`/same-column→`null` (no toast)
-- [ ] **E2E** asserts the integrated success (toast + card stays) and `412`
-      (assertive persistent error toast + revert) paths
-- [ ] `kanban-conflict.spec.ts` migrated from the banner to the assertive error
-      toast + revert
-- [ ] Empty-message success toast renders no message paragraph
-- [ ] `describeEntry` is shared between the toast and `announcements.ts`
+- [~] **E2E** asserts the integrated success (toast + card stays) and `412`
+      (assertive persistent error toast + revert) paths _(written; run in the
+      consolidated E2E pass)_
+- [~] `kanban-conflict.spec.ts` migrated from the banner to the assertive error
+      toast + revert _(written; run in the consolidated E2E pass)_
+- [x] Empty-message success toast renders no message paragraph
+- [x] `describeEntry` is shared between the toast and `announcements.ts`
 
 #### Manual Verification:
 
