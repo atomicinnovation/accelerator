@@ -127,6 +127,36 @@ const CASES: Case[] = [
     selector: '[data-testid="activity-live-badge"]',
     expected: '10.5px',
   },
+  // Kanban surfaces — these previously inherited the 16px UA base (no explicit
+  // size) or used a token a step larger than the prototype; pinned here to the
+  // prototype-matching scale tokens (--size-subtitle 13, --size-3xs-lg 10.5,
+  // --size-4xs 9.5).
+  {
+    name: 'Kanban column title',
+    route: '/kanban',
+    selector: 'section[data-column] h2',
+    expected: '13px',
+  },
+  {
+    name: 'Kanban card title',
+    route: '/kanban',
+    selector: '.ac-kcard__title',
+    expected: '13px',
+  },
+  {
+    name: 'Kanban card id (mono meta)',
+    route: '/kanban',
+    selector: '.ac-kcard__id',
+    expected: '10.5px',
+  },
+  {
+    name: 'Kanban kind badge',
+    // /kanban fixtures carry no `kind`, so the badge only renders on the
+    // showcase surface (sample entry has kind: 'feature').
+    route: '/kanban-card-showcase',
+    selector: '[data-tone]',
+    expected: '9.5px',
+  },
 ]
 
 for (const c of CASES) {

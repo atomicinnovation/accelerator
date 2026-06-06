@@ -31,7 +31,7 @@
   margin: 0;
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: var(--size-sm);
+  font-size: var(--size-subtitle);
   letter-spacing: 0.02em;
   color: var(--ac-fg-strong);
 }
@@ -66,12 +66,13 @@
   margin: 0 0 var(--sp-1) 0;
   font-family: var(--ac-font-display);
   font-weight: 600;
+  font-size: var(--size-xs);
   color: var(--ac-fg);
 }
 .emptyBody {
   margin: 0 auto;
   max-width: 46ch;
-  font-size: var(--size-xs);
+  font-size: var(--size-row);
 }
 .columnOver {
   outline: 2px dashed var(--ac-accent);
