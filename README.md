@@ -471,7 +471,7 @@ returns the same URL.
 ```
 
 Both subcommands also work via the `accelerator-visualiser` CLI wrapper.
-The server auto-exits after 30 minutes idle or when the process that
+The server auto-exits after 8 hours idle or when the process that
 launched it exits, so explicit `stop` is rarely necessary.
 
 ### First-run binary download

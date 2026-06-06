@@ -210,14 +210,14 @@ idle".
 
 #### Automated Verification:
 
-- [ ] Unit tests pass: `mise run test:unit:visualiser`
-- [ ] Integration tests pass: `mise run test:integration:visualiser`
-- [ ] No stale "30 minutes"/"30-minute" idle references remain:
+- [x] Unit tests pass: `mise run test:unit:visualiser`
+- [x] Integration tests pass: `mise run test:integration:visualiser`
+- [x] No stale "30 minutes"/"30-minute" idle references remain:
   `grep -rn "30 minute" README.md skills/visualisation/visualise/SKILL.md skills/visualisation/visualise/server/src` returns nothing idle-related
 
 #### Manual Verification:
 
-- [ ] `SKILL.md` and `README.md` read coherently with the new 8-hour figure.
+- [x] `SKILL.md` and `README.md` read coherently with the new 8-hour figure.
 
 ---
 

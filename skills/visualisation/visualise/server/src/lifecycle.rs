@@ -16,13 +16,13 @@ pub struct Settings {
 }
 
 impl Settings {
-    /// Production defaults: 60s tick, 30-minute idle window.
+    /// Production defaults: 60s tick, 8-hour idle window.
     /// Tests pass shortened values via `Settings { tick: 50ms,
     /// idle_limit_ms: 200 }` without any test-only conditional
     /// in the module itself.
     pub const DEFAULT: Settings = Settings {
         tick: Duration::from_secs(60),
-        idle_limit_ms: 30 * 60 * 1000,
+        idle_limit_ms: 8 * 60 * 60 * 1000,
     };
 }
 

@@ -36,7 +36,7 @@ allowed-tools:
 Context for Claude only — do not relay to the user verbatim:
 The visualiser server is a locally-backgrounded Rust process. It
 binds a random high port on 127.0.0.1 and exits automatically when
-idle for 30 minutes, when the process that launched the server
+idle for 8 hours, when the process that launched the server
 exits, or when `/accelerator:visualise stop` is invoked. Re-running
 `/accelerator:visualise` while the server is up reuses the
 existing instance. Note: "the process that launched the server"
@@ -60,7 +60,7 @@ invoked:
   - Open the URL in a browser to use the visualiser UI.
   - Re-running `/accelerator:visualise` returns the same URL
     while the server is alive.
-  - The server auto-exits after 30 minutes idle, or when the
+  - The server auto-exits after 8 hours idle, or when the
     process that launched it exits. To stop it explicitly, run
     `/accelerator:visualise stop`.
 - A JSON `{"error":...}` object — the server isn't running.
