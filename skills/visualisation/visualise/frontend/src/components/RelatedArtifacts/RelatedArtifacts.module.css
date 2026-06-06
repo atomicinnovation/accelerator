@@ -42,26 +42,46 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Second line, mirroring the search-result sub row: doc-type label · id ·
+   mtime · provenance tag. Wraps rather than truncates so the tag stays
+   visible on long types/ids. */
 .metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--sp-1);
   font-family: var(--ac-font-mono);
   font-size: var(--size-3xs-lg);
   color: var(--ac-fg-faint);
+  margin-top: var(--sp-1);
+}
+.type {
+  font-weight: 500;
+}
+.id {
+  color: var(--ac-fg-muted);
+}
+.sep {
+  color: var(--ac-fg-faint);
+}
+/* Keep the timestamp and provenance tag on the same wrapped line. */
+.timeTag {
+  white-space: nowrap;
 }
 
 /* Per-row provenance tag — the inline `(declared)` / `(inferred)` text
- * that replaced the old legend + solid/dashed group borders. Declared
- * rows take the accent hue; inferred rows a muted neutral.
- *
- * Inferred uses --ac-fg-muted, NOT --ac-fg-faint: with the legend gone the
- * tag is standalone meaning-bearing text, so it must clear WCAG 1.4.3
- * (≥4.5:1) against the aside background. --ac-fg-faint resolves to ~3.1:1
- * (light) / ~3.9:1 (dark) and fails; --ac-fg-muted clears it (~5.8 / ~7.7)
- * while keeping the accent-vs-neutral declared/inferred distinction. */
+ * that replaced the old legend + solid/dashed group borders. Both render
+ * as neutral greys (no saturated accent, which read out of place in the
+ * quiet aside): declared takes the stronger --ac-fg-muted, inferred the
+ * fainter --ac-fg-faint, so authority maps to visual weight while the
+ * literal word carries the distinction. --ac-fg-muted clears WCAG 1.4.3
+ * (≥4.5:1); the now-supplementary inferred tag sits alongside the
+ * type/id/mtime that carry the row's meaning. */
 .tag {
   padding-left: var(--sp-1);
 }
-.tagDeclared { color: var(--ac-accent); }
-.tagInferred { color: var(--ac-fg-muted); }
+.tagDeclared { color: var(--ac-fg-muted); }
+.tagInferred { color: var(--ac-fg-faint); }
 
 .chevron {
   color: var(--ac-fg-faint);

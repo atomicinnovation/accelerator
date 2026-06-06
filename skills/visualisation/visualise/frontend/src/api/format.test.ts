@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatMtime, formatRelative, formatChipDate, pluralise } from './format'
+import { formatMtime, formatRelative, formatChipDate, pluralise, formatBytes, formatEtagShort } from './format'
 
 describe('formatMtime', () => {
   const NOW = 1_700_000_000_000
@@ -111,5 +111,38 @@ describe('pluralise', () => {
   it('honours an explicit irregular plural', () => {
     expect(pluralise(1, 'entry', 'entries')).toBe('1 entry')
     expect(pluralise(2, 'entry', 'entries')).toBe('2 entries')
+  })
+})
+
+describe('formatBytes', () => {
+  it('renders raw bytes below 1 KiB', () => {
+    expect(formatBytes(0)).toBe('0 B')
+    expect(formatBytes(512)).toBe('512 B')
+    expect(formatBytes(1023)).toBe('1023 B')
+  })
+
+  it('renders KiB with one decimal between 1 KiB and 1 MiB', () => {
+    expect(formatBytes(1024)).toBe('1.0 KiB')
+    expect(formatBytes(4301)).toBe('4.2 KiB')
+  })
+
+  it('renders MiB with one decimal at and above 1 MiB', () => {
+    expect(formatBytes(1024 * 1024)).toBe('1.0 MiB')
+    expect(formatBytes(5 * 1024 * 1024)).toBe('5.0 MiB')
+  })
+
+  it('returns an em-dash for negative or non-finite input', () => {
+    expect(formatBytes(-1)).toBe('—')
+    expect(formatBytes(NaN)).toBe('—')
+  })
+})
+
+describe('formatEtagShort', () => {
+  it('leaves short etags untouched', () => {
+    expect(formatEtagShort('sha256-a')).toBe('sha256-a')
+  })
+
+  it('truncates long etags to a prefix with an ellipsis', () => {
+    expect(formatEtagShort('sha256-4f2a19bc8d0e1f')).toBe('sha256-4f2a19b…')
   })
 })

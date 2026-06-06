@@ -1,7 +1,10 @@
 import type { IndexEntry, RelatedArtifactsResponse } from '../../api/types'
+import { DOC_TYPE_LABELS } from '../../api/types'
 import { fileSlugFromRelPath } from '../../api/path-utils'
 import { formatMtime } from '../../api/format'
+import { formatDocId } from '../../routes/library/doc-type-id'
 import { Glyph } from '../Glyph/Glyph'
+import { DOC_TYPE_COLOR_VAR } from '../Glyph/Glyph.constants'
 import styles from './RelatedArtifacts.module.css'
 
 interface Props {
@@ -89,6 +92,11 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
       <ul className={styles.list} data-testid="related-list">
         {rows.map(({ entry, kind }) => {
           const title = entry.title || entry.relPath
+          // Mirrors the lifecycle/search id treatment: a formatted work-item
+          // id when present, else the file slug.
+          const docId = entry.workItemId
+            ? formatDocId(entry.workItemId)
+            : (entry.slug ?? fileSlugFromRelPath(entry.relPath))
           return (
             <li
               key={entry.path}
@@ -98,22 +106,39 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
             >
               {/* Whole-row link (prototype `.ac-related__item`). aria-label
                   pins the accessible name to the title so the supplementary
-                  mtime/tag metadata isn't announced as part of the link. */}
+                  type/id/mtime/tag metadata isn't announced as part of the
+                  link. */}
               <a
                 className={styles.row}
                 href={`/library/${entry.type}/${fileSlugFromRelPath(entry.relPath)}`}
                 aria-label={title}
               >
-                <Glyph docType={entry.type} size={16} framed />
+                <Glyph docType={entry.type} size={24} framed />
                 <span className={styles.content}>
                   <span className={styles.title}>{title}</span>
                   <span className={styles.metaRow}>
-                    <time>{formatMtime(entry.mtimeMs)}</time>
+                    {/* Doc-type label, coloured like the search-result sub
+                        row (DOC_TYPE_COLOR_VAR → per-type hue in light,
+                        white in dark). */}
                     <span
-                      className={`${styles.tag} ${tagClass(kind)}`}
-                      data-testid="related-tag"
+                      className={styles.type}
+                      style={{ color: DOC_TYPE_COLOR_VAR[entry.type] }}
                     >
-                      {TAG_TEXT[kind]}
+                      {DOC_TYPE_LABELS[entry.type]}
+                    </span>
+                    <span className={styles.sep}>·</span>
+                    <span className={styles.id}>{docId}</span>
+                    <span className={styles.sep}>·</span>
+                    {/* mtime + tag stay together so the provenance tag never
+                        orphans onto its own wrapped line. */}
+                    <span className={styles.timeTag}>
+                      <time>{formatMtime(entry.mtimeMs)}</time>
+                      <span
+                        className={`${styles.tag} ${tagClass(kind)}`}
+                        data-testid="related-tag"
+                      >
+                        {TAG_TEXT[kind]}
+                      </span>
                     </span>
                   </span>
                 </span>

@@ -165,7 +165,6 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'routes/kanban/WorkItemCard.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   // routes/library/LibraryDocView.module.css
   { file: 'routes/library/LibraryDocView.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'malformed-banner border-left width — no border-width token' },
-  { file: 'routes/library/LibraryDocView.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'aside h3 margin (6.4px) — between --sp-1 and --sp-2' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'error border + aside border-left + dashed section divider — below --sp-1 floor' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '280px', count: 1, kind: 'irreducible', reason: 'aside column width — no token equivalent' },
   // routes/library/LibraryTemplatesIndex.module.css
@@ -414,7 +413,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 972 // 0079: prototype-styling pass added var refs (aside border/padding/dividers, cluster card, related row hover-cards); re-synced floor to observed
+const AC5_FLOOR = 981 // 0079: aside-feedback pass added var refs (related meta type/id/sep colours, File etag/size detail lines); re-synced floor to observed
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 

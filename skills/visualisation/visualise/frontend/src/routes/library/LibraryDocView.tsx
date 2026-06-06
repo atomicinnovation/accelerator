@@ -17,6 +17,7 @@ import { EyebrowLabel } from '../../components/EyebrowLabel/EyebrowLabel'
 import type { DocTypeKey } from '../../api/types'
 import { isDocTypeKey } from '../../api/types'
 import { fileSlugFromRelPath } from '../../api/path-utils'
+import { formatBytes, formatEtagShort } from '../../api/format'
 import styles from './LibraryDocView.module.css'
 
 /** Strip a leading YAML frontmatter block (`---\n…\n---\n`) from the
@@ -130,6 +131,8 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
           <section>
             <h3>File</h3>
             <p className={styles.meta}>{entry.relPath}</p>
+            <p className={styles.fileDetail}>etag · {formatEtagShort(entry.etag)}</p>
+            <p className={styles.fileDetail}>size · {formatBytes(entry.size)}</p>
           </section>
           {/* Cluster section degrades visibly, mirroring the Related
               artifacts section above: render the shell while the cluster

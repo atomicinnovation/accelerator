@@ -31,9 +31,9 @@
 .title {
   color: var(--ac-fg);
   font-size: var(--size-subtitle);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Wrap to two-plus lines (matches the prototype's cluster card) rather
+     than truncating the title. */
+  line-height: 1.3;
 }
 
 .meta {

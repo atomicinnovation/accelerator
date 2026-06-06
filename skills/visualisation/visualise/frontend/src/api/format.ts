@@ -50,6 +50,23 @@ export function pluralise(n: number, singular: string, plural = `${singular}s`):
   return `${n} ${n === 1 ? singular : plural}`
 }
 
+/** Renders a byte count in binary units (`B` / `KiB` / `MiB`), one decimal
+ *  place above the byte tier. Used by the detail-page File aside. */
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return '—'
+  if (bytes < 1024) return `${bytes} B`
+  const kib = bytes / 1024
+  if (kib < 1024) return `${kib.toFixed(1)} KiB`
+  return `${(kib / 1024).toFixed(1)} MiB`
+}
+
+/** Truncates a long etag (e.g. `sha256-<64 hex>`) to a glanceable prefix
+ *  with an ellipsis, leaving short test/sentinel etags untouched. Used by
+ *  the detail-page File aside. */
+export function formatEtagShort(etag: string, keep = 14): string {
+  return etag.length > keep ? `${etag.slice(0, keep)}…` : etag
+}
+
 export function formatRelative(ms: number, now: number = Date.now()): string {
   const diffSec = Math.floor((now - ms) / 1000)
   if (diffSec < 0) return '0s ago'

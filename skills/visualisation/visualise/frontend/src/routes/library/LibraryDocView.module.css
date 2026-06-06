@@ -27,7 +27,7 @@
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--ac-fg-faint);
-  margin: 0 0 0.4rem;
+  margin: 0 0 var(--sp-3);
 }
 /* Sections stack with a dashed divider between them (prototype
    `.ac-doc-aside__section + .ac-doc-aside__section`). */
@@ -37,7 +37,15 @@
   border-top: 1px dashed var(--ac-stroke);
 }
 .empty { font-style: italic; }
-.meta { word-break: break-all; font-family: var(--ac-font-mono); font-size: var(--size-xxs); }
+.meta { word-break: break-all; font-family: var(--ac-font-mono); font-size: var(--size-xxs); margin: 0; }
+/* etag / size detail lines under the File path (prototype File section). */
+.fileDetail {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs-lg);
+  color: var(--ac-fg-faint);
+  word-break: break-all;
+  margin: var(--sp-1) 0 0;
+}
 .error {
   color: var(--ac-err); background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg)); border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
   border-radius: var(--radius-4); padding: var(--sp-2) var(--sp-3); margin-top: var(--sp-4);
