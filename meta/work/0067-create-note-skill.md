@@ -5,7 +5,7 @@ title: "Create `create-note` Skill"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
 producer: extract-work-items
-status: ready
+status: done
 kind: story
 priority: medium
 parent: "work-item:0057"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0067: Create `create-note` Skill
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
