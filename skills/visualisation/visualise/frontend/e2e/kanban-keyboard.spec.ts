@@ -3,69 +3,67 @@
  * anchor after the move settles). dnd-kit's sortableKeyboardCoordinates needs
  * real layout boxes jsdom does not provide, so these are E2E.
  *
- * C1 has no existing page.keyboard precedent in this suite — treat a failure
- * here as the feasibility-spike outcome (e.g. the keyboard sensor needs
- * configuration), not as a flaky test to retry.
+ * The data path is mocked (see installMockBoard) so the move is deterministic
+ * and isolated from on-disk fixture state; the real KeyboardSensor geometry and
+ * the real DOM are still exercised in a real browser. The real-server write path
+ * is covered by kanban.spec / kanban-conflict.
  */
 import { test, expect } from './fixtures.js'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { dndDrag } from './dnd.js'
+import { installMockBoard } from './mock-board.js'
 
-const WORK_ITEM_0001_PATH = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../server/tests/fixtures/meta/work/0001-first-work-item.md',
-)
-const CARD_0001 =
-  'li[data-relpath="tests/fixtures/meta/work/0001-first-work-item.md"]'
+const RELPATH = 'meta/work/0001-keyboard.md'
+const CARD = `li[data-relpath="${RELPATH}"]`
+const COLUMNS = [
+  { key: 'draft', label: 'Draft' },
+  { key: 'in-progress', label: 'In progress' },
+  { key: 'done', label: 'Done' },
+]
+const CARD_FIXTURE = {
+  relPath: RELPATH,
+  workItemId: '0001',
+  title: 'Keyboard card',
+  status: 'draft',
+}
 
 test('keyboard: Space → arrows → Space completes a cross-column move (C1)', async ({ page }) => {
-  const original = readFileSync(WORK_ITEM_0001_PATH, 'utf-8')
-  try {
-    await page.goto('/kanban')
-    await expect(page.locator(`section[data-column="draft"] ${CARD_0001}`)).toBeVisible()
+  await installMockBoard(page, { columns: COLUMNS, cards: [CARD_FIXTURE] })
+  await page.goto('/kanban')
+  await expect(page.locator(`section[data-column="draft"] ${CARD}`)).toBeVisible()
 
-    const patchDone = page.waitForResponse(
-      (r) => r.url().includes('/api/docs/') && r.request().method() === 'PATCH',
-    )
+  // Focus the draggable's listeners element (the card anchor) and drive the
+  // KeyboardSensor: Space to pick up, ArrowRight to cross to the next column,
+  // Space to drop. Space (not Enter) avoids the anchor's native activation.
+  // Assert focus landed and pace the presses so the first event is not dropped
+  // before the sensor activates.
+  const anchor = page.locator(`${CARD} a`)
+  await anchor.focus()
+  await expect(anchor).toBeFocused()
+  await page.keyboard.press('Space')
+  await page.waitForTimeout(150)
+  await page.keyboard.press('ArrowRight')
+  await page.waitForTimeout(150)
+  await page.keyboard.press('Space')
 
-    // Focus the draggable's listeners element (the card anchor) and drive the
-    // KeyboardSensor: Space to pick up, ArrowRight to cross to the next column,
-    // Space to drop. Space (not Enter) avoids the anchor's native activation.
-    await page.locator(`${CARD_0001} a`).focus()
-    await page.keyboard.press('Space')
-    await page.keyboard.press('ArrowRight')
-    await page.keyboard.press('Space')
-
-    // The card left the draft column (optimistic move) and the PATCH fires.
-    await expect(page.locator(`section[data-column="draft"] ${CARD_0001}`)).toHaveCount(0, {
-      timeout: 5000,
-    })
-    await expect(page.locator(CARD_0001)).toBeVisible()
-    await patchDone
-  } finally {
-    writeFileSync(WORK_ITEM_0001_PATH, original)
-  }
+  // The card left the draft column and persists in a new column.
+  await expect(page.locator(`section[data-column="draft"] ${CARD}`)).toHaveCount(0, {
+    timeout: 5000,
+  })
+  await expect(page.locator(CARD)).toBeVisible()
 })
 
 test('focus returns to the moved card anchor in its resting column after settle (C3)', async ({ page }) => {
-  const original = readFileSync(WORK_ITEM_0001_PATH, 'utf-8')
-  try {
-    await page.goto('/kanban')
-    await expect(page.locator(CARD_0001)).toBeVisible()
+  await installMockBoard(page, { columns: COLUMNS, cards: [CARD_FIXTURE] })
+  await page.goto('/kanban')
+  await expect(page.locator(CARD)).toBeVisible()
 
-    const patchDone = page.waitForResponse(
-      (r) => r.url().includes('/api/docs/') && r.request().method() === 'PATCH',
-    )
-    await dndDrag(page, `${CARD_0001} a`, 'section[data-column="ready"]')
-    await patchDone
+  await dndDrag(page, `${CARD} a`, 'section[data-column="in-progress"]')
 
-    // After the onSettled invalidation resolves and the node remounts, focus is
-    // restored to the card's <Link> anchor (relPath-keyed, so it resolves to the
-    // live node in its resting column).
-    await expect(page.locator(`${CARD_0001} a`)).toBeFocused({ timeout: 5000 })
-  } finally {
-    writeFileSync(WORK_ITEM_0001_PATH, original)
-  }
+  // After the onSettled invalidation resolves and the node remounts, focus is
+  // restored to the card's <Link> anchor (relPath-keyed, so it resolves to the
+  // live node in its resting column).
+  await expect(page.locator(`section[data-column="in-progress"] ${CARD}`)).toBeVisible({
+    timeout: 5000,
+  })
+  await expect(page.locator(`${CARD} a`)).toBeFocused({ timeout: 5000 })
 })

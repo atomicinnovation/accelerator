@@ -515,11 +515,10 @@ resulting `showToast`. Split the coverage accordingly:
 - [x] Type-checking passes: `mise run typecheck`
 - [x] Unit `moveToastFor` covers: `204`→`ok` with exact label; `ConflictError` vs
       `FetchError`→`error` (separately); non-`move`/same-column→`null` (no toast)
-- [~] **E2E** asserts the integrated success (toast + card stays) and `412`
-      (assertive persistent error toast + revert) paths _(written; run in the
-      consolidated E2E pass)_
-- [~] `kanban-conflict.spec.ts` migrated from the banner to the assertive error
-      toast + revert _(written; run in the consolidated E2E pass)_
+- [x] **E2E** asserts the integrated success (toast + card stays) and `412`
+      (assertive persistent error toast + revert) paths
+- [x] `kanban-conflict.spec.ts` migrated from the banner to the assertive error
+      toast + revert
 - [x] Empty-message success toast renders no message paragraph
 - [x] `describeEntry` is shared between the toast and `announcements.ts`
 
@@ -735,14 +734,14 @@ performed after the baseline commit lands.
 
 - [x] Unit tests pass: `mise run test:unit:frontend`
 - [x] Type-checking passes: `mise run typecheck`
-- [~] E2E asserts source card persists mid-drag (A3) and the overlay renders (A1)
-      _(spec written; run in the consolidated E2E pass)_
-- [~] Resolved-style probes assert opacity 0.6, the rotation/lift/border, and the
-      grab/grabbing cursor _(spec written; run in the consolidated E2E pass)_
+- [x] E2E asserts source card persists mid-drag (A3) and the overlay renders (A1)
+- [x] Resolved-style probes assert opacity 0.6, the rotation/lift/border, and the
+      grab/grabbing cursor
 - [~] Drag-state visual-regression baseline matches on **both** darwin and the
-      **linux CI runner**: `mise run test:e2e:visualiser` (linux baseline must
-      exist and pass before merge; manual re-trigger after the baseline commit)
-      _(spec + showcase written; baselines generated in the consolidated pass)_
+      **linux CI runner**: `mise run test:e2e:visualiser` _(darwin baselines
+      generated and passing; linux baselines still to be generated via the
+      "Update visual regression baselines" workflow + Main CI re-trigger before
+      merge — see the convergence record)_
 
 #### Manual Verification:
 
@@ -828,8 +827,7 @@ this so the three drag signals are not conflated.
 
 - [x] Unit tests pass: `mise run test:unit:frontend`
 - [x] Type-checking passes: `mise run typecheck`
-- [~] **E2E**: drag-then-release does not navigate; plain click navigates
-      _(spec written; run in the consolidated E2E pass)_
+- [x] **E2E**: drag-then-release does not navigate; plain click navigates
 - [x] Unit: `onClickCapture` suppresses when the guard is set, passes through
       otherwise
 
@@ -934,14 +932,12 @@ change, drop, and cancel, each naming the affected card and the relevant column:
 
 - [x] Unit tests pass: `mise run test:unit:frontend`
 - [x] Type-checking passes: `mise run typecheck`
-- [~] **E2E** keyboard-move test completes a cross-column move (C1) _(spec
-      written; gated on the feasibility spike in the consolidated E2E pass)_
+- [x] **E2E** keyboard-move test completes a cross-column move (C1)
 - [x] Announcement assertions match `announcements.ts` strings verbatim (C2)
-- [~] Focus-return test (authoritative at **E2E**; any unit test uses
+- [x] Focus-return test (authoritative at **E2E**; any unit test uses
       deterministic rAF/timer flushing or `waitFor` on `activeElement`): focus
       lands on the card `<Link>` anchor in the target column on success and the
       source column on revert, **after** the `onSettled` invalidation resolves (C3)
-      _(E2E written; run in the consolidated pass)_
 - [x] Focus single-fire isolation: after a move settles and focus is applied, an
       **unrelated** entries-list change (e.g. an external SSE edit) does **not**
       re-apply focus (asserts the on-settle token is single-use); the
@@ -1016,16 +1012,16 @@ the swap fallback.
 
 #### Automated Verification:
 
-- [ ] E2E passes for both configs: `mise run test:e2e:visualiser`
-- [ ] Cross-config specs cover drag, drop, toast, and keyboard in 3- and 5-column
+- [x] E2E passes for both configs: `mise run test:e2e:visualiser`
+- [x] Cross-config specs cover drag, drop, toast, and keyboard in 3- and 5-column
       sets (with a ≥30-char wrapping label)
 
 #### Manual Verification:
 
-- [ ] Recorded comparison exists with a parity/fixed/follow-up verdict for every
+- [x] Recorded comparison exists with a parity/fixed/follow-up verdict for every
       section-A aspect; A1–A3 are at least *fixed*
-- [ ] Any discrepancy too large for this story is logged as a follow-up work item
-      referencing 0086
+- [x] Any discrepancy too large for this story is logged as a follow-up work item
+      referencing 0086 (none required — all aspects resolved in-surface)
 - [ ] All behaviours verified by eye against both column configurations
 
 ---
