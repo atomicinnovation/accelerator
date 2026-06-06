@@ -20,7 +20,7 @@ import { contrastRatio } from './contrast'
 import { extractBlockBody } from './testing/cssBlocks'
 import { canonicaliseBrand } from './testing/canonicaliseBrand'
 import { extractAllAcDeclarations } from './testing/extractAcDeclarations'
-import { DOC_TYPE_KEYS, DOC_TYPE_LABELS, isPhysicalDocTypeKey } from '../api/types'
+import { DOC_TYPE_KEYS, DOC_TYPE_LABELS, DOC_TYPE_LABELS_SINGULAR, isPhysicalDocTypeKey } from '../api/types'
 
 type Scope = 'root' | 'dark'
 
@@ -327,6 +327,10 @@ describe('tokens.ts ↔ global.css [data-font="mono"] parity', () => {
 describe('DOC_TYPE_LABELS ↔ DOC_TYPE_KEYS parity', () => {
   it('every DocTypeKey has a label', () => {
     expect(Object.keys(DOC_TYPE_LABELS).sort()).toEqual([...DOC_TYPE_KEYS].sort())
+  })
+
+  it('every DocTypeKey has a singular label', () => {
+    expect(Object.keys(DOC_TYPE_LABELS_SINGULAR).sort()).toEqual([...DOC_TYPE_KEYS].sort())
   })
 })
 

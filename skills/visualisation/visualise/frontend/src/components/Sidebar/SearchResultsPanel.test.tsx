@@ -127,9 +127,9 @@ describe('SearchResultsPanel', () => {
     // Highlight does not match (query absent from titles), so titles render
     // as single text nodes.
     expect(container.textContent).toContain('Pumpkin pie plan')
-    expect(screen.getByText('Plans')).toBeInTheDocument()
+    expect(screen.getByText('Plan')).toBeInTheDocument()
     expect(container.textContent).toContain('Pumpkin work item')
-    expect(screen.getByText('Work items')).toBeInTheDocument()
+    expect(screen.getByText('Work item')).toBeInTheDocument()
   })
 
   it('renders a Glyph per result (data-doc-type element)', async () => {
@@ -184,7 +184,7 @@ describe('SearchResultsPanel', () => {
       vi.advanceTimersByTime(200)
     })
     await flushMicrotasks()
-    expect(screen.getByText('Plans')).toBeInTheDocument()
+    expect(screen.getByText('Plan')).toBeInTheDocument()
     // The path sub-row renders <docType>/<slug>.
     expect(container.textContent).toContain('plans/foo')
   })

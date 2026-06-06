@@ -62,6 +62,25 @@ export const DOC_TYPE_LABELS: Readonly<Record<DocTypeKey, string>> = {
   'templates': 'Templates',
 }
 
+/** Singular human-friendly label for each `DocTypeKey` — for surfaces that
+ *  name a single document (search-result and related-artifact rows) rather
+ *  than a collection. `research` is a mass noun (no singular/plural split). */
+export const DOC_TYPE_LABELS_SINGULAR: Readonly<Record<DocTypeKey, string>> = {
+  'decisions': 'Decision',
+  'work-items': 'Work item',
+  'plans': 'Plan',
+  'research': 'Research',
+  'plan-reviews': 'Plan review',
+  'pr-reviews': 'PR review',
+  'work-item-reviews': 'Work item review',
+  'validations': 'Validation',
+  'notes': 'Note',
+  'pr-descriptions': 'PR description',
+  'design-gaps': 'Design gap',
+  'design-inventories': 'Design inventory',
+  'templates': 'Template',
+}
+
 export interface DocType {
   key: DocTypeKey
   label: string

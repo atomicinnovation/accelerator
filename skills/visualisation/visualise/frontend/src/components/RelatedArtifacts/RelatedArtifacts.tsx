@@ -1,5 +1,5 @@
 import type { IndexEntry, RelatedArtifactsResponse } from '../../api/types'
-import { DOC_TYPE_LABELS } from '../../api/types'
+import { DOC_TYPE_LABELS_SINGULAR } from '../../api/types'
 import { fileSlugFromRelPath } from '../../api/path-utils'
 import { formatMtime } from '../../api/format'
 import { formatDocId } from '../../routes/library/doc-type-id'
@@ -124,7 +124,7 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
                       className={styles.type}
                       style={{ color: DOC_TYPE_COLOR_VAR[entry.type] }}
                     >
-                      {DOC_TYPE_LABELS[entry.type]}
+                      {DOC_TYPE_LABELS_SINGULAR[entry.type]}
                     </span>
                     <span className={styles.sep}>·</span>
                     <span className={styles.id}>{docId}</span>

@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Glyph } from '../Glyph/Glyph'
 import { DOC_TYPE_COLOR_VAR } from '../Glyph/Glyph.constants'
-import { DOC_TYPE_LABELS } from '../../api/types'
+import { DOC_TYPE_LABELS_SINGULAR } from '../../api/types'
 import { useSearch } from '../../api/use-search'
 import styles from './Sidebar.module.css'
 
@@ -75,7 +75,7 @@ export function SearchResultsPanel({ query }: { query: string }) {
                       className={styles.searchRowType}
                       style={{ color: DOC_TYPE_COLOR_VAR[r.docType] }}
                     >
-                      {DOC_TYPE_LABELS[r.docType]}
+                      {DOC_TYPE_LABELS_SINGULAR[r.docType]}
                     </span>
                     <span className={styles.searchRowSep}>·</span>
                     <span className={`${styles.mono} ${styles.searchRowPath}`}>
