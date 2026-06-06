@@ -7,10 +7,11 @@
  *   0009-child-story-2.md        — parent: "0007"
  *   0010-child-story-3.md        — parent: "0007"
  *
- * The reverse index built by the server connects children → parent so that:
- *   - The parent's library view shows all three children under "Referenced by"
+ * The reverse index built by the server connects children → parent so that
+ * (under the Option B single-list aside):
+ *   - The parent's library view shows all three children as `(declared)` rows
  *     (declared_inbound via work_item_refs_by_id)
- *   - Each child's library view shows the parent under "Targets"
+ *   - Each child's library view shows the parent as a `(declared)` row
  *     (declared_outbound via work_item_by_id lookup)
  */
 import { test, expect } from './fixtures.js'
@@ -24,41 +25,46 @@ const CHILD_SLUG_URL = '/library/work-items/child-story-1'
 const PARENT_FILE_SLUG = '0007-parent-epic'
 
 test.describe('work-item parent/child cross-references in library view', () => {
-  test('parent epic shows all three children in Referenced by', async ({ page }) => {
+  test('parent epic shows all three children as declared rows', async ({ page }) => {
     await page.goto(PARENT_SLUG_URL)
 
     // Wait for the related-artifacts panel to load and display declared inbound refs.
     const relatedSection = page.locator('section', {
       has: page.locator('h3', { hasText: 'Related artifacts' }),
     })
-    const referencedByHeading = relatedSection.getByRole('heading', {
-      level: 4,
-      name: 'Referenced by',
+    // Option B: a single list with no sub-group headings.
+    await expect(relatedSection.getByTestId('related-list')).toBeVisible({
+      timeout: 10_000,
     })
-    await expect(referencedByHeading).toBeVisible({ timeout: 10_000 })
+    await expect(relatedSection.getByRole('heading', { level: 4 })).toHaveCount(0)
 
-    // All three children must appear as navigable links.
-    await expect(relatedSection.getByRole('link', { name: 'Child Story 1' })).toBeVisible()
-    await expect(relatedSection.getByRole('link', { name: 'Child Story 2' })).toBeVisible()
-    await expect(relatedSection.getByRole('link', { name: 'Child Story 3' })).toBeVisible()
+    // All three children appear as navigable links, each in a (declared) row.
+    for (const name of ['Child Story 1', 'Child Story 2', 'Child Story 3']) {
+      const row = relatedSection
+        .locator('[data-testid="related-row"][data-kind="declared"]')
+        .filter({ has: page.getByRole('link', { name }) })
+      await expect(row).toHaveCount(1)
+      await expect(row.getByText('(declared)')).toBeVisible()
+    }
   })
 
-  test('child story shows parent in Targets', async ({ page }) => {
+  test('child story shows parent as a declared row', async ({ page }) => {
     await page.goto(CHILD_SLUG_URL)
 
     const relatedSection = page.locator('section', {
       has: page.locator('h3', { hasText: 'Related artifacts' }),
     })
-    const targetsHeading = relatedSection.getByRole('heading', {
-      level: 4,
-      name: 'Targets',
+    await expect(relatedSection.getByTestId('related-list')).toBeVisible({
+      timeout: 10_000,
     })
-    await expect(targetsHeading).toBeVisible({ timeout: 10_000 })
 
-    // The parent link is present and points to the correct library URL.
-    const parentLink = relatedSection.getByRole('link', { name: 'Parent Epic' })
-    await expect(parentLink).toBeVisible()
-    await expect(parentLink).toHaveAttribute(
+    // The parent appears as a (declared) row linking to the correct library URL.
+    const parentRow = relatedSection
+      .locator('[data-testid="related-row"][data-kind="declared"]')
+      .filter({ has: page.getByRole('link', { name: 'Parent Epic' }) })
+    await expect(parentRow).toHaveCount(1)
+    await expect(parentRow.getByText('(declared)')).toBeVisible()
+    await expect(parentRow.getByRole('link', { name: 'Parent Epic' })).toHaveAttribute(
       'href',
       `/library/work-items/${PARENT_FILE_SLUG}`,
     )

@@ -61,7 +61,9 @@ export function Pipeline({ completeness, variant = 'card' }: Props) {
                 colorVar={active ? 'var(--atomic-white)' : accent}
               />
             </span>
-            <span className={styles.label}>{step.label}</span>
+            <span className={`${styles.label} ac-stagechain__label`}>
+              {step.label}
+            </span>
             {nextStep !== null && (
               <span
                 className={styles.connector}

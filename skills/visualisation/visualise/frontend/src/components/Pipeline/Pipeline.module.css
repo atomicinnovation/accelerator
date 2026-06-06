@@ -61,6 +61,13 @@
   border-color: color-mix(in srgb, currentColor 22%, transparent);
 }
 
+/* Base label — SHARED across the `card` (lifecycle-index cluster cards) and
+   `panel` (cluster-detail rail) variants. font-family (mono) and color
+   (--ac-fg-faint) already match the page eyebrow, and font-weight is
+   undeclared (inherits, also matching). The panel-variant eyebrow promotion
+   (uppercase / eyebrow size / caps tracking) lives in the scoped rule below
+   — do NOT add it here, or the card-variant index labels (which have no
+   dedicated regression spec) would be restyled out of scope (0079). */
 .label {
   font-family: var(--ac-font-mono);
   font-size: var(--size-4xs);
@@ -70,6 +77,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+}
+
+/* Panel-variant rail label: promote to the page-eyebrow recipe (0079).
+   Scoped to data-variant='panel' so only the cluster-detail rail is
+   affected; the card variant keeps its smaller size / tighter tracking /
+   mixed-case. */
+.chain[data-variant='panel'] .label {
+  font-size: var(--size-eyebrow);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
 }
 
 .stage[data-active='true'] .label {

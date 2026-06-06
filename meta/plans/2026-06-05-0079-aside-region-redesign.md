@@ -746,12 +746,12 @@ the three elements (using `setTheme`, `DETAIL_ROUTE_SLUGS`, token helpers from
 
 #### Automated Verification
 
-- [ ] New eyebrow-equality spec fails before the CSS changes, passes after:
+- [x] New eyebrow-equality spec fails before the CSS changes, passes after:
   `mise run test:e2e:visualiser`
-- [ ] Existing typography/eyebrow specs still pass
+- [x] Existing typography/eyebrow specs still pass
   (`detail-eyebrow-resolved-colours.spec.ts`,
   `typography-resolved-sizes.spec.ts`): `mise run test:e2e:visualiser`
-- [ ] Frontend unit suite + typecheck pass: `mise run test:unit:frontend`
+- [x] Frontend unit suite + typecheck pass: `mise run test:unit:frontend`
 
 #### Manual Verification
 

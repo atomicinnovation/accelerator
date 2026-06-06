@@ -148,7 +148,8 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/Page/Page.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'header/content divider border-top width — below --sp-1 floor' },
   { file: 'components/Page/Page.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'eyebrow margin-bottom from design — between --sp-1 and --sp-2' },
   { file: 'components/Page/Page.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'subtitle margin-top from design — equals --sp-1 but co-located with non-token siblings' },
-  { file: 'components/Page/Page.module.css', literal: '0.12em', count: 1, kind: 'irreducible', reason: 'eyebrow caps letter-spacing — matches sidebar headings' },
+  // 0079: .eyebrow letter-spacing now consumes var(--tracking-caps), so the
+  // former '0.12em' literal exception is gone.
   { file: 'components/Page/Page.module.css', literal: '0.01em', count: 1, kind: 'irreducible', reason: 'title negative letter-spacing — display-font tightening per design' },
   // components/Popover/Popover.module.css
   { file: 'components/Popover/Popover.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'panel border width — below --sp-1 floor' },
@@ -411,7 +412,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 944 // 0079: net of Option B (-15 var refs) and the new RelatedCluster.module.css (+8 var refs); re-synced floor to observed
+const AC5_FLOOR = 949 // 0079: eyebrow unification added 5 var refs (Page tracking token, aside h3 recipe, panel-rail rule); re-synced floor to observed
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 

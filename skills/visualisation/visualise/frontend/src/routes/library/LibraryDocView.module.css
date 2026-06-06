@@ -7,7 +7,19 @@
 .bodyColumn { grid-area: body; min-width: 0; }
 .body { margin-top: var(--sp-4); }
 .aside { grid-area: aside; font-size: var(--size-xs); color: var(--ac-fg-muted); }
-.aside h3 { font-size: var(--size-xxs); font-weight: 600; text-transform: uppercase; color: var(--ac-fg-faint); margin: 0 0 0.4rem; }
+/* Aside section labels share the page-eyebrow recipe (0079): mono, eyebrow
+   size, caps tracking, uppercase, faint. font-weight is pinned explicitly
+   to match the eyebrow's resolved (inherited) weight — h3's UA default is
+   bold, so the explicit value is required for the six-property parity. */
+.aside h3 {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-eyebrow);
+  font-weight: 400;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ac-fg-faint);
+  margin: 0 0 0.4rem;
+}
 .aside section { margin-bottom: var(--sp-5); }
 .empty { font-style: italic; }
 .meta { word-break: break-all; font-family: var(--ac-font-mono); font-size: var(--size-xxs); }
