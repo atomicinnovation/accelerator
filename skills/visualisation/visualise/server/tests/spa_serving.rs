@@ -23,6 +23,7 @@ mod tests {
             templates: HashMap::new(),
             work_item: None,
             kanban_columns: None,
+            idle_timeout: None,
         };
         let activity = std::sync::Arc::new(accelerator_visualiser::activity::Activity::new());
         AppState::build(cfg, activity).await.unwrap()

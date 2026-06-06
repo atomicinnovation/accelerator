@@ -35,6 +35,12 @@ pub struct Config {
     /// An empty list is rejected at boot.
     #[serde(default)]
     pub kanban_columns: Option<Vec<String>>,
+    /// Idle auto-shutdown window as a humantime duration string
+    /// (`"8h"`, `"30m"`, `"1h30m"`), or a disable token (`"never"`, `0`,
+    /// or any zero-length duration). Absent → the built-in 8h default.
+    /// Resolved + validated at boot by `resolve_idle_limit_ms`.
+    #[serde(default)]
+    pub idle_timeout: Option<String>,
 }
 
 /// A single kanban board column, as resolved at boot.
@@ -303,6 +309,66 @@ impl Config {
     }
 }
 
+/// Canonical default idle window, expressed in the same duration-string
+/// form accepted from config so there is a single parse path.
+const DEFAULT_IDLE_TIMEOUT: &str = "8h";
+
+/// Sentinel meaning "idle auto-shutdown disabled". Inert against the
+/// `idle >= idle_limit_ms` comparison in lifecycle.rs (the production loop
+/// just compares the value it is handed; the sentinel never appears there
+/// literally).
+///
+/// The disable tests (the owner-death test in `tests/lifecycle_owner.rs` and the
+/// new `disabled_idle_never_fires`) reference this exported constant rather than a
+/// bare `i64::MAX`, so the disable contract is named in one place and shared by
+/// import — a future change to the idle comparison cannot silently break the
+/// disable assumption without the named constant showing up in the diff.
+pub const DISABLED_IDLE_LIMIT_MS: i64 = i64::MAX;
+
+/// Largest finite idle window we store: one below the disable sentinel,
+/// so an over-large configured duration clamps here and can never be
+/// mistaken for "disabled".
+const MAX_IDLE_LIMIT_MS: i64 = DISABLED_IDLE_LIMIT_MS - 1;
+
+impl Config {
+    /// Resolve the idle window into milliseconds, or the disable sentinel.
+    ///
+    /// Semantics:
+    /// - Absent field → the built-in `"8h"` default, parsed through the
+    ///   same path as user input.
+    /// - `"never"` (case-insensitive), the bare `"0"`, or *any* zero-length
+    ///   duration (`"0s"`, `"0ms"`, …) → `DISABLED_IDLE_LIMIT_MS`, so the
+    ///   "zero idle window" case is uniform regardless of spelling.
+    /// - Any other value → parsed by `humantime`; an unparseable value is
+    ///   rejected (`ConfigError::InvalidIdleTimeout`, carrying the
+    ///   underlying parse error) so the server fails fast at boot rather
+    ///   than silently defaulting.
+    pub fn resolve_idle_limit_ms(&self) -> Result<i64, ConfigError> {
+        let raw = self.idle_timeout.as_deref().unwrap_or(DEFAULT_IDLE_TIMEOUT);
+        let trimmed = raw.trim();
+        // Disable tokens handled before parsing: the textual "never" and the
+        // bare "0" (which humantime cannot parse, lacking a unit).
+        if trimmed.eq_ignore_ascii_case("never") || trimmed == "0" {
+            return Ok(DISABLED_IDLE_LIMIT_MS);
+        }
+        let dur = humantime::parse_duration(trimmed).map_err(|source| {
+            ConfigError::InvalidIdleTimeout { value: raw.to_string(), source }
+        })?;
+        // A zero-length window ("0s", "0ms", …) also disables, matching the
+        // bare-"0" token above.
+        if dur.is_zero() {
+            return Ok(DISABLED_IDLE_LIMIT_MS);
+        }
+        // Saturate in u128 *before* the i64 cast (an over-large duration must
+        // clamp to MAX_IDLE_LIMIT_MS, never wrap negative), and floor at 1ms so a
+        // sub-millisecond-but-non-zero value ("1ns", "500us") — which is NOT
+        // is_zero() yet truncates to 0 ms — stays a tiny finite window (fires on
+        // the next tick) rather than collapsing to `idle_limit_ms == 0`, which
+        // the loop would treat as fire-on-first-tick.
+        Ok(dur.as_millis().min(MAX_IDLE_LIMIT_MS as u128).max(1) as i64)
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
     #[error("failed to read config {path}: {source}")]
@@ -322,6 +388,13 @@ pub enum ConfigError {
     },
     #[error("visualiser.kanban_columns must not be empty")]
     EmptyKanbanColumns,
+    // The accepted-format guidance is duplicated in write-visualiser-config.sh's
+    // pre-flight error — keep the two messages in sync.
+    #[error("invalid visualiser.idle_timeout '{value}': expected a duration like \"8h\", \"30m\", \"1h30m\", or \"never\"/0 to disable: {source}")]
+    InvalidIdleTimeout {
+        value: String,
+        source: humantime::DurationError,
+    },
 }
 
 #[cfg(test)]
@@ -626,5 +699,115 @@ mod tests {
         let cfg: Config = serde_json::from_str(json).unwrap();
         let err = cfg.resolve_kanban_columns().unwrap_err();
         assert!(matches!(err, ConfigError::EmptyKanbanColumns));
+    }
+
+    /// Build a `Config` from `bare_config_json` with a single `idle_timeout`
+    /// value spliced in, so each resolver case is a one-liner.
+    fn config_with_idle_timeout(value: &str) -> Config {
+        let json = format!(
+            r#"{{
+                "plugin_root": "/p", "plugin_version": "0.0.0", "project_root": "/r",
+                "tmp_path": "/t", "host": "127.0.0.1", "owner_pid": 0,
+                "log_path": "/l", "doc_paths": {{}}, "templates": {{}},
+                "idle_timeout": {value}
+            }}"#
+        );
+        serde_json::from_str(&json).unwrap()
+    }
+
+    #[test]
+    fn idle_timeout_absent_field_defaults_to_8h() {
+        let cfg: Config = serde_json::from_str(bare_config_json()).unwrap();
+        // Absolute assertion pins the unit (8h in ms).
+        assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), 28_800_000);
+        // Relative drift guard ties the "8h" string default to the const.
+        assert_eq!(
+            cfg.resolve_idle_limit_ms().unwrap(),
+            crate::lifecycle::Settings::DEFAULT.idle_limit_ms
+        );
+    }
+
+    #[test]
+    fn idle_timeout_simple_minutes() {
+        let cfg = config_with_idle_timeout(r#""30m""#);
+        assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), 30 * 60 * 1000);
+    }
+
+    #[test]
+    fn idle_timeout_compound_duration() {
+        let cfg = config_with_idle_timeout(r#""1h30m""#);
+        assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), 90 * 60 * 1000);
+    }
+
+    #[test]
+    fn idle_timeout_never_token_is_case_insensitive() {
+        for token in [r#""never""#, r#""Never""#, r#""NEVER""#] {
+            let cfg = config_with_idle_timeout(token);
+            assert_eq!(
+                cfg.resolve_idle_limit_ms().unwrap(),
+                DISABLED_IDLE_LIMIT_MS,
+                "token {token} must disable"
+            );
+        }
+    }
+
+    #[test]
+    fn idle_timeout_bare_zero_disables() {
+        // The bare "0" arrives as a JSON string "0" from config-read-value.sh.
+        let cfg = config_with_idle_timeout(r#""0""#);
+        assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), DISABLED_IDLE_LIMIT_MS);
+    }
+
+    #[test]
+    fn idle_timeout_zero_length_durations_disable() {
+        for token in [r#""0s""#, r#""0ms""#] {
+            let cfg = config_with_idle_timeout(token);
+            assert_eq!(
+                cfg.resolve_idle_limit_ms().unwrap(),
+                DISABLED_IDLE_LIMIT_MS,
+                "zero-length {token} must disable"
+            );
+        }
+    }
+
+    #[test]
+    fn idle_timeout_sub_millisecond_floors_to_one_ms() {
+        for token in [r#""1ns""#, r#""500us""#] {
+            let cfg = config_with_idle_timeout(token);
+            assert_eq!(
+                cfg.resolve_idle_limit_ms().unwrap(),
+                1,
+                "sub-ms {token} must floor to 1ms, not 0 and not disabled"
+            );
+        }
+    }
+
+    #[test]
+    fn idle_timeout_over_large_saturates_below_sentinel() {
+        let cfg = config_with_idle_timeout(r#""100000000000years""#);
+        let resolved = cfg.resolve_idle_limit_ms().unwrap();
+        assert_eq!(resolved, MAX_IDLE_LIMIT_MS);
+        assert_ne!(resolved, DISABLED_IDLE_LIMIT_MS);
+        assert!(resolved > 0, "must not wrap negative or to zero");
+    }
+
+    #[test]
+    fn idle_timeout_surrounding_whitespace_trimmed() {
+        let cfg = config_with_idle_timeout(r#""  8h  ""#);
+        assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), 28_800_000);
+    }
+
+    #[test]
+    fn idle_timeout_invalid_values_fail_fast() {
+        for token in [r#""soon""#, r#""00""#, r#""0.0""#, r#""   ""#] {
+            let cfg = config_with_idle_timeout(token);
+            let err = cfg
+                .resolve_idle_limit_ms()
+                .expect_err(&format!("{token} must be rejected"));
+            assert!(
+                matches!(err, ConfigError::InvalidIdleTimeout { .. }),
+                "expected InvalidIdleTimeout for {token}, got {err:?}"
+            );
+        }
     }
 }

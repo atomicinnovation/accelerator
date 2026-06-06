@@ -361,6 +361,7 @@ mod tests {
             templates: Default::default(),
             work_item: None,
             kanban_columns: None,
+            idle_timeout: None,
         };
 
         let types = describe_types(&cfg);
@@ -404,6 +405,7 @@ mod tests {
             templates: Default::default(),
             work_item: None,
             kanban_columns: None,
+            idle_timeout: None,
         };
         let types = describe_types(&cfg);
         let decisions = types

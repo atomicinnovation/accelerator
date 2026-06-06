@@ -52,6 +52,7 @@ futures = { version = "0.3", default-features = false, features = ["std"] }
 regex = "1"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
 form_urlencoded = "1"
+humantime = "2"
 
 [dev-dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }

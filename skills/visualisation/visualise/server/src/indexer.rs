@@ -1618,6 +1618,7 @@ mod tests {
             templates: Default::default(),
             work_item: None,
             kanban_columns: None,
+            idle_timeout: None,
         }
     }
 
@@ -1787,6 +1788,7 @@ mod tests {
                 default_project_code: Some(code.to_string()),
             }),
             kanban_columns: None,
+            idle_timeout: None,
         }
     }
 

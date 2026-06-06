@@ -530,26 +530,27 @@ runs. The fixture must deserialise cleanly and fail *only* at
 
 #### Automated Verification:
 
-- [ ] Unit tests pass: `mise run test:unit:visualiser`
-- [ ] Integration tests pass: `mise run test:integration:visualiser`
-- [ ] Compile check passes: `cargo check --manifest-path
+- [x] Unit tests pass: `mise run test:unit:visualiser`
+- [x] Integration tests pass: `mise run test:integration:visualiser`
+- [x] Compile check passes: `cargo check --manifest-path
   skills/visualisation/visualise/server/Cargo.toml` (no `typecheck` mise task
   exists; `mise run check` runs the repo's read-only format/lint checks)
-- [ ] `humantime` resolves in `Cargo.lock`: `cargo tree --manifest-path
+- [x] `humantime` resolves in `Cargo.lock`: `cargo tree --manifest-path
   skills/visualisation/visualise/server/Cargo.toml -i humantime` lists it, with
-  **no transitive dependencies**
-- [ ] `humantime` license + MSRV verified: the resolved `2.x` version is dual
-  MIT/Apache-2.0 and its `rust-version` is ≤ the package's `rust-version = "1.85"`
-  (confirm via `cargo metadata` / the resolved crate; the pinned-toolchain `cargo
-  check` is the backstop for an MSRV regression once the lockfile is committed)
-- [ ] The bad-idle fixture causes a non-zero exit (covered by the new
-  `config_cli` test)
+  **no transitive dependencies** (humantime v2.3.0, no deps)
+- [x] `humantime` license + MSRV verified: the resolved `2.3.0` version is dual
+  MIT/Apache-2.0 and declares no `rust-version` (does not raise our MSRV); the
+  pinned-toolchain `cargo check` is the backstop for an MSRV regression once the
+  lockfile is committed
+- [x] The bad-idle fixture causes a non-zero exit (covered by the new
+  `config_cli` test, which asserts exit code 1 specifically)
 
 #### Manual Verification:
 
-- [ ] With no config change, a real launch still idles at 8h (unchanged from
-  Phase 1) — i.e. behaviour is preserved before the shell starts emitting the
-  field.
+- [x] With no config change, a real launch still idles at 8h (unchanged from
+  Phase 1) — behaviour-preserving: the shell does not emit the field yet, so
+  `resolve_idle_limit_ms` returns the `"8h"` default (verified by the
+  absent-field resolver unit test pinning `28_800_000` ms).
 
 ---
 

@@ -40,6 +40,10 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 pub struct AppState {
     pub cfg: Arc<Config>,
     pub kanban_columns: Arc<Vec<crate::config::KanbanColumn>>,
+    /// Resolved idle auto-shutdown window in milliseconds, or
+    /// `config::DISABLED_IDLE_LIMIT_MS` when idle shutdown is disabled.
+    /// Fed into `lifecycle::Settings` in `run`.
+    pub idle_limit_ms: i64,
     pub file_driver: Arc<crate::file_driver::LocalFileDriver>,
     pub indexer: Arc<crate::indexer::Indexer>,
     pub templates: Arc<arc_swap::ArcSwap<crate::templates::TemplateResolver>>,
@@ -57,6 +61,7 @@ impl AppState {
         http_activity: Arc<crate::activity::Activity>,
     ) -> Result<Arc<Self>, AppStateError> {
         let kanban_columns = Arc::new(cfg.resolve_kanban_columns()?);
+        let idle_limit_ms = cfg.resolve_idle_limit_ms()?;
         let cfg = Arc::new(cfg);
         let template_roots = crate::file_driver::template_extra_roots(&cfg.templates);
         let work_root = cfg
@@ -121,6 +126,7 @@ impl AppState {
         Ok(Arc::new(Self {
             cfg,
             kanban_columns,
+            idle_limit_ms,
             file_driver: driver,
             indexer,
             templates,
@@ -142,7 +148,7 @@ async fn canonical_or_self(p: PathBuf) -> PathBuf {
 pub enum AppStateError {
     #[error("indexer build failed: {0}")]
     Indexer(#[from] crate::file_driver::FileDriverError),
-    #[error("invalid work-item config: {0}")]
+    #[error("invalid configuration: {0}")]
     Config(#[from] crate::config::ConfigError),
 }
 
@@ -318,7 +324,10 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
         activity.clone(),
         state.cfg.owner_pid,
         state.cfg.owner_start_time,
-        crate::lifecycle::Settings::DEFAULT,
+        crate::lifecycle::Settings {
+            tick: crate::lifecycle::Settings::DEFAULT.tick,
+            idle_limit_ms: state.idle_limit_ms,
+        },
         tx.clone(),
     );
 
@@ -609,6 +618,7 @@ mod tests {
             templates: HashMap::new(),
             work_item: None,
             kanban_columns: None,
+            idle_timeout: None,
         }
     }
 
@@ -673,6 +683,19 @@ mod tests {
             matches!(err, ServerError::NonLoopbackHost(_)),
             "got {err:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn idle_timeout_resolves_into_app_state() {
+        // Pins the resolve→store→Settings wiring: a configured idle_timeout
+        // must reach AppState.idle_limit_ms (and thence lifecycle::spawn in
+        // `run`), not just be parsed in isolation.
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = minimal_config(dir.path());
+        cfg.idle_timeout = Some("30m".to_string());
+        let activity = Arc::new(crate::activity::Activity::new());
+        let state = AppState::build(cfg, activity).await.unwrap();
+        assert_eq!(state.idle_limit_ms, 30 * 60 * 1000);
     }
 
     #[test]

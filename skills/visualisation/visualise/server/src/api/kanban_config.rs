@@ -54,6 +54,7 @@ mod tests {
             templates: HashMap::new(),
             work_item: None,
             kanban_columns: None,
+            idle_timeout: None,
         }
     }
 

@@ -82,6 +82,7 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
         templates,
         work_item: None,
             kanban_columns: None,
+            idle_timeout: None,
     }
 }
 
