@@ -39,12 +39,18 @@ describe('KanbanColumn', () => {
     expect(within(region).getByText('Beta')).toBeInTheDocument()
   })
 
-  it('renders an empty-state message when entries is empty, marked aria-hidden', async () => {
+  it('renders the prototype empty-state panel when entries is empty, marked aria-hidden', async () => {
     renderColumn(<KanbanColumn columnKey="in-progress" label="In progress" entries={[]} />)
     const region = await screen.findByRole('region', { name: /in progress/i })
-    const empty = within(region).getByText(/no work/i)
-    expect(empty).toBeInTheDocument()
-    expect(empty.getAttribute('aria-hidden')).toBe('true')
+    const title = within(region).getByText('Nothing here')
+    expect(title).toBeInTheDocument()
+    // Mechanism-neutral body copy naming the column's label.
+    expect(
+      within(region).getByText('Move a work item here to set its status to In progress.'),
+    ).toBeInTheDocument()
+    // The whole panel is aria-hidden — the column header's count is the single
+    // announced source of truth.
+    expect(title.closest('[aria-hidden="true"]')).not.toBeNull()
   })
 
   it('exposes the count via aria-label without duplicating the column name', async () => {

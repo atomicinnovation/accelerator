@@ -157,12 +157,15 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/Popover/Popover.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'panel border width — below --sp-1 floor' },
   { file: 'components/Popover/Popover.module.css', literal: '240px', count: 1, kind: 'irreducible', reason: 'panel min-width — no token equivalent' },
   // routes/kanban/KanbanBoard.module.css
-  { file: 'routes/kanban/KanbanBoard.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
+  { file: 'routes/kanban/KanbanBoard.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'border width (load-failure alert + retry button + Other-swimlane divider) — below --sp-1 floor' },
   // routes/kanban/KanbanColumn.module.css
   { file: 'routes/kanban/KanbanColumn.module.css', literal: '16rem', count: 2, kind: 'irreducible', reason: 'column min-width/flex-basis — layout dimension, no token' },
   { file: 'routes/kanban/KanbanColumn.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'outline width and offset — below --sp-1 floor' },
+  { file: 'routes/kanban/KanbanColumn.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'empty-state panel dashed border — below --sp-1 floor' },
   // routes/kanban/WorkItemCard.module.css
-  { file: 'routes/kanban/WorkItemCard.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
+  { file: 'routes/kanban/WorkItemCard.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'card border width — below --sp-1 floor' },
+  // routes/kanban-card-showcase/KanbanCardShowcase.module.css — dev-only fixture surface
+  { file: 'routes/kanban-card-showcase/KanbanCardShowcase.module.css', literal: '16rem', count: 1, kind: 'irreducible', reason: 'showcase cell width mirrors a kanban column card width — layout dimension, no token' },
   // routes/library/LibraryDocView.module.css
   { file: 'routes/library/LibraryDocView.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'malformed-banner border-left width — no border-width token' },
   { file: 'routes/library/LibraryDocView.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'error border + aside border-left + dashed section divider — below --sp-1 floor' },

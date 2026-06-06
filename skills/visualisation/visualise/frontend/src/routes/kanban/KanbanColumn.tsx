@@ -41,7 +41,17 @@ export function KanbanColumn({ columnKey, label, entries, description }: KanbanC
       {description && <p className={styles.columnDescription}>{description}</p>}
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
         {entries.length === 0 ? (
-          <p className={styles.empty} aria-hidden="true">No work items</p>
+          // Static empty panel matching the prototype. aria-hidden because the
+          // column header already announces the item count (single source of
+          // truth) — the prose would otherwise be redundant/contradictory. Copy
+          // is mechanism-neutral ("Move … here") since keyboard users place
+          // cards via Space/arrows, not a pointer-only drop.
+          <div className={styles.empty} aria-hidden="true">
+            <p className={styles.emptyTitle}>Nothing here</p>
+            <p className={styles.emptyBody}>
+              Move a work item here to set its status to {label}.
+            </p>
+          </div>
         ) : (
           <ul className={styles.cardList}>
             {entries.map(entry => (

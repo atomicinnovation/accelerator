@@ -1,10 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { formatMtime } from '../../api/format'
 import { fileSlugFromRelPath } from '../../api/path-utils'
-import { formatDocId } from '../library/doc-type-id'
-import { PipelineMini } from '../../components/PipelineMini/PipelineMini'
+import { WorkItemCardPresentation } from './WorkItemCardPresentation'
 import type { IndexEntry } from '../../api/types'
 import styles from './WorkItemCard.module.css'
 
@@ -14,9 +12,8 @@ export interface WorkItemCardProps {
 }
 
 export function WorkItemCard({ entry, now }: WorkItemCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-    id: entry.relPath,
-  })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: entry.relPath })
 
   // Strip role="button" so the anchor keeps its native role="link" — the card
   // is still a navigation target and must be discoverable via link navigation.
@@ -25,46 +22,25 @@ export function WorkItemCard({ entry, now }: WorkItemCardProps) {
   const { role: _role, ...sortableAttributes } = attributes
 
   const fileSlug = fileSlugFromRelPath(entry.relPath)
-  const fmKind = entry.frontmatter['kind']
-  const kindLabel = typeof fmKind === 'string' && fmKind.length > 0 ? fmKind : null
-  const idLabel = entry.workItemId ? formatDocId(entry.workItemId) : null
 
   return (
-    <li className={`${styles.card} ac-kcard`} data-relpath={entry.relPath}>
+    <li className={styles.cardItem} data-relpath={entry.relPath}>
       <Link
         ref={setNodeRef}
         to="/library/$type/$fileSlug"
         params={{ type: 'work-items', fileSlug }}
         className={styles.cardLink}
+        // While dragging, the lifted DragOverlay clone follows the cursor and
+        // the source card stays in its slot (showing the dragging style), so the
+        // sortable translate transform is suppressed for the active card.
         style={{
-          transform: CSS.Transform.toString(transform),
+          transform: isDragging ? undefined : CSS.Transform.toString(transform),
           transition,
         }}
         {...sortableAttributes}
         {...listeners}
       >
-        <div className={`${styles.cardTop} ac-kcard__top`}>
-          {entry.completeness != null && (
-            <PipelineMini completeness={entry.completeness} />
-          )}
-          {idLabel !== null && (
-            <span className={`${styles.cardId} ac-kcard__id`}>{idLabel}</span>
-          )}
-        </div>
-        <p className={`${styles.cardTitle} ac-kcard__title`}>{entry.title}</p>
-        {kindLabel !== null && (
-          <p className={`${styles.cardKind} ac-kcard__kind`}>{kindLabel}</p>
-        )}
-        <div className={`${styles.cardFoot} ac-kcard__foot`}>
-          <span className={`${styles.cardMtime} ac-kcard__mtime`}>
-            {formatMtime(entry.mtimeMs, now)}
-          </span>
-          {entry.linkedCount > 0 && (
-            <span className={`${styles.cardLinks} ac-kcard__links`}>
-              {entry.linkedCount} linked
-            </span>
-          )}
-        </div>
+        <WorkItemCardPresentation entry={entry} now={now} dragging={isDragging} />
       </Link>
     </li>
   )

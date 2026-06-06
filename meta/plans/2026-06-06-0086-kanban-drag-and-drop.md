@@ -733,14 +733,16 @@ performed after the baseline commit lands.
 
 #### Automated Verification:
 
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] Type-checking passes: `mise run typecheck`
-- [ ] E2E asserts source card persists mid-drag (A3) and the overlay renders (A1)
-- [ ] Resolved-style probes assert opacity 0.6, the rotation/lift/border, and the
-      grab/grabbing cursor
-- [ ] Drag-state visual-regression baseline matches on **both** darwin and the
+- [x] Unit tests pass: `mise run test:unit:frontend`
+- [x] Type-checking passes: `mise run typecheck`
+- [~] E2E asserts source card persists mid-drag (A3) and the overlay renders (A1)
+      _(spec written; run in the consolidated E2E pass)_
+- [~] Resolved-style probes assert opacity 0.6, the rotation/lift/border, and the
+      grab/grabbing cursor _(spec written; run in the consolidated E2E pass)_
+- [~] Drag-state visual-regression baseline matches on **both** darwin and the
       **linux CI runner**: `mise run test:e2e:visualiser` (linux baseline must
       exist and pass before merge; manual re-trigger after the baseline commit)
+      _(spec + showcase written; baselines generated in the consolidated pass)_
 
 #### Manual Verification:
 

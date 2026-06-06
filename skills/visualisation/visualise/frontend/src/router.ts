@@ -52,6 +52,7 @@ import { KanbanBoard } from './routes/kanban/KanbanBoard'
 import { GlyphShowcase } from './routes/glyph-showcase/GlyphShowcase'
 import { ChipShowcase } from './routes/chip-showcase/ChipShowcase'
 import { CodeSyntaxShowcase } from './routes/code-syntax-showcase/CodeSyntaxShowcase'
+import { KanbanCardShowcase } from './routes/kanban-card-showcase/KanbanCardShowcase'
 import { isDocTypeKey, type DocTypeKey } from './api/types'
 
 const rootRoute = createRootRoute({ component: RootLayout })
@@ -164,6 +165,16 @@ const codeSyntaxShowcaseRoute = createRoute({
   component: CodeSyntaxShowcase,
 })
 
+// Developer-only Playwright fixture surface for the kanban card's drag states
+// (story 0086). Renders the resting / dragging / overlay presentations
+// statically; used by tests/visual-regression/kanban-card-showcase.spec.ts and
+// kanban-card-resolved-styles.spec.ts.
+const kanbanCardShowcaseRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/kanban-card-showcase',
+  component: KanbanCardShowcase,
+})
+
 // Exported so tests can construct an isolated router with memory history.
 export const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -180,6 +191,7 @@ export const routeTree = rootRoute.addChildren([
   glyphShowcaseRoute,
   chipShowcaseRoute,
   codeSyntaxShowcaseRoute,
+  kanbanCardShowcaseRoute,
 ])
 
 export const router = createRouter({ routeTree })

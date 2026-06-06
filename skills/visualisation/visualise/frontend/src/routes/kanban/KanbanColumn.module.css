@@ -33,8 +33,22 @@
 }
 .empty {
   margin: var(--sp-2) 0;
-  color: var(--ac-fg-faint);
-  font-style: italic;
+  border: 1px dashed var(--ac-stroke-soft);
+  border-radius: var(--radius-4);
+  padding: var(--sp-4) var(--sp-3);
+  text-align: center;
+  color: var(--ac-fg-muted);
+}
+.emptyTitle {
+  margin: 0 0 var(--sp-1) 0;
+  font-family: var(--ac-font-display);
+  font-weight: 600;
+  color: var(--ac-fg);
+}
+.emptyBody {
+  margin: 0 auto;
+  max-width: 46ch;
+  font-size: var(--size-xs);
 }
 .columnOver {
   outline: 2px dashed var(--ac-accent);

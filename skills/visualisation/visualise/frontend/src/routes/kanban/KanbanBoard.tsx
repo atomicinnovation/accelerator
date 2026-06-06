@@ -2,9 +2,9 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  DndContext, PointerSensor, KeyboardSensor,
+  DndContext, DragOverlay, PointerSensor, KeyboardSensor,
   useSensor, useSensors, closestCorners,
-  type DragEndEvent,
+  type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { fetchDocs, FetchError } from '../../api/fetch'
@@ -20,6 +20,7 @@ import { resolveDropOutcome } from './resolve-drop-outcome'
 import { buildKanbanAnnouncements } from './announcements'
 import { moveToastFor } from './move-toast'
 import { KanbanColumn } from './KanbanColumn'
+import { WorkItemCardPresentation } from './WorkItemCardPresentation'
 import { Page } from '../../components/Page/Page'
 import { Chip } from '../../components/Chip/Chip'
 import styles from './KanbanBoard.module.css'
@@ -34,6 +35,7 @@ function errorMessageFor(error: unknown): string {
 export function KanbanBoard() {
   const queryClient = useQueryClient()
   const [announcement, setAnnouncement] = useState('')
+  const [activeId, setActiveId] = useState<string | null>(null)
   const announcementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const sensors = useSensors(
@@ -78,14 +80,26 @@ export function KanbanBoard() {
     announcementTimerRef.current = setTimeout(() => setAnnouncement(''), 15_000)
   }
 
-  function handleDragStart() {
+  function handleDragStart({ active }: DragStartEvent) {
     docEvents.setDragInProgress(true)
+    setActiveId(active.id as string)
     if (announcementTimerRef.current !== null) { clearTimeout(announcementTimerRef.current); announcementTimerRef.current = null }
     setAnnouncement('')
   }
 
-  function handleDragEnd({ active, over }: DragEndEvent) {
+  // Single teardown for the gate-clearing invariant, shared by drop and cancel.
+  // setDragInProgress(false) runs FIRST so it drains any SSE invalidations queued
+  // mid-drag BEFORE the optimistic onMutate write (handleDragEnd dispatches
+  // move.mutate only after this), and clearing activeId tears down the overlay.
+  // dnd-kit calls onDragCancel INSTEAD OF onDragEnd, so without this the gate
+  // would stay true and silently freeze live board updates for the session.
+  function endDrag() {
     docEvents.setDragInProgress(false)
+    setActiveId(null)
+  }
+
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    endDrag()
     const outcome = resolveDropOutcome(active, over, entriesByRelPath, validColumnKeys)
     const cardId = active.id as string
     const source = entriesByRelPath.get(cardId)
@@ -165,6 +179,7 @@ export function KanbanBoard() {
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={endDrag}
         accessibility={{ announcements }}
       >
         <div className={styles.board} data-sse-state={docEvents.connectionState}>
@@ -192,6 +207,18 @@ export function KanbanBoard() {
             </div>
           )}
         </div>
+        <DragOverlay>
+          {(() => {
+            // Real null-check, not `!`: the board is SSE-live, so a concurrent
+            // external delete (flushed when endDrag clears the gate) can remove
+            // the in-flight entry from the map mid-drag — rendering it as the
+            // lifted clone must degrade to nothing rather than crash.
+            const active = activeId ? entriesByRelPath.get(activeId) : null
+            return active ? (
+              <WorkItemCardPresentation entry={active} overlay />
+            ) : null
+          })()}
+        </DragOverlay>
       </DndContext>
     )
   }

@@ -1,18 +1,35 @@
-.card {
+.cardItem {
   list-style: none;
   margin: 0 0 var(--sp-2) 0;
+}
+.cardLink {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+.card {
+  cursor: grab;                                  /* grab at rest */
   border: 1px solid var(--ac-stroke-soft);
   border-radius: var(--radius-4);
   background: var(--ac-bg-card);
 }
-.cardLink {
-  display: block;
+.cardBody {
   padding: var(--sp-2) var(--sp-3);
-  color: inherit;
-  text-decoration: none;
 }
-.cardLink:hover { background: var(--ac-bg-sunken); }
+.cardLink:hover .card { background: var(--ac-bg-sunken); }
 .cardLink:hover .cardTitle { color: var(--ac-accent); }
+/* Source card while a drag is in progress (A1): rotated/lifted with an accent
+   border, matching the prototype's `.ac-kcard.is-dragging`. */
+.cardDragging {
+  transform: rotate(1.5deg) scale(1.02);
+  box-shadow: var(--ac-shadow-lift);
+  border-color: var(--ac-accent);
+}
+/* The lifted DragOverlay clone that follows the cursor. */
+.cardOverlay {
+  opacity: 0.6;
+  cursor: grabbing;
+}
 .cardTop {
   display: flex;
   justify-content: space-between;
