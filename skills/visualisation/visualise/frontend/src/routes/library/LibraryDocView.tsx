@@ -131,7 +131,9 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
           <section>
             <h3>File</h3>
             <p className={styles.meta}>{entry.relPath}</p>
-            <p className={styles.fileDetail}>etag · {formatEtagShort(entry.etag)}</p>
+            <p className={styles.fileDetail} title={entry.etag}>
+              etag · {formatEtagShort(entry.etag)}
+            </p>
             <p className={styles.fileDetail}>size · {formatBytes(entry.size)}</p>
           </section>
           {/* Cluster section degrades visibly, mirroring the Related

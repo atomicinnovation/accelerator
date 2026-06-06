@@ -38,13 +38,18 @@
 }
 .empty { font-style: italic; }
 .meta { word-break: break-all; font-family: var(--ac-font-mono); font-size: var(--size-xxs); margin: 0; }
-/* etag / size detail lines under the File path (prototype File section). */
+/* etag / size detail lines under the File path (prototype File section):
+   the etag sits a step (--sp-2) below the path; size tucks directly under
+   the etag with no gap. */
 .fileDetail {
   font-family: var(--ac-font-mono);
   font-size: var(--size-3xs-lg);
   color: var(--ac-fg-faint);
   word-break: break-all;
-  margin: var(--sp-1) 0 0;
+  margin: 0;
+}
+.meta + .fileDetail {
+  margin-top: var(--sp-2);
 }
 .error {
   color: var(--ac-err); background: color-mix(in srgb, var(--ac-err) 8%, var(--ac-bg)); border: 1px solid color-mix(in srgb, var(--ac-err) 30%, var(--ac-bg));
