@@ -11,19 +11,23 @@ import { EXPECTED_COLOR, hexToRgb, setTheme } from './lib/expected-colours'
 const PHYSICAL_DOC_TYPE_KEYS = DOC_TYPE_KEYS.filter(isPhysicalDocTypeKey)
 
 // Navigate to any one of the 12 sibling 'ac2-coverage' fixtures — the other
-// 11 surface in the inferred-cluster section.
+// 11 surface as inferred rows in the single Related artifacts list.
 const ANCHOR_URL = '/library/work-items/0099-ac2-coverage'
 
 const THEMES = ['light', 'dark'] as const
 
 // Up-front coverage guard. If a sibling fixture renames or breaks its shared
-// slug, this fails with a clear count signal.
-test('inferred-cluster surfaces one row per other non-virtual doc type', async ({
+// slug, this fails with a clear count signal. Scope to icons within *inferred*
+// rows via the stable `data-kind` hook — Option B merges declared and inferred
+// into one <ul>, so an unscoped count would over-count any declared-row icons
+// the anchor fixture carries. `data-kind` is a stable attribute (the module
+// class `.tagInferred` is hashed and unselectable in the built bundle).
+test('inferred rows surface one row per other non-virtual doc type', async ({
   page,
 }) => {
   await page.goto(ANCHOR_URL)
   const rowIcons = page.locator(
-    '[data-testid="related-group-inferred"] svg[data-doc-type]',
+    '[data-testid="related-row"][data-kind="inferred"] svg[data-doc-type]',
   )
   // -1 because the anchor doc itself is not listed as its own cluster
   // sibling. The remaining 11 cover the other non-virtual types.
@@ -46,7 +50,7 @@ for (const theme of THEMES) {
     )) {
       test(`row icon for ${target}`, async ({ page }) => {
         const icon = page.locator(
-          `[data-testid="related-group-inferred"] svg[data-doc-type="${target}"]`,
+          `[data-testid="related-row"][data-kind="inferred"] svg[data-doc-type="${target}"]`,
         )
         await expect(icon).toBeVisible()
         const color = await icon.evaluate((el) => getComputedStyle(el).color)
@@ -66,7 +70,7 @@ for (const theme of THEMES) {
       await page.goto('/library/decisions/ADR-0099-ac2-coverage')
       await setTheme(page, theme)
       const icon = page.locator(
-        '[data-testid="related-group-inferred"] svg[data-doc-type="work-items"]',
+        '[data-testid="related-row"][data-kind="inferred"] svg[data-doc-type="work-items"]',
       )
       await expect(icon).toBeVisible()
       const color = await icon.evaluate((el) => getComputedStyle(el).color)
@@ -86,35 +90,21 @@ test.describe('related-artifacts container invariance', () => {
   test('row container background and border-width are unchanged', async ({
     page,
   }) => {
-    const row = page
-      .locator('[data-testid="related-group-inferred"] li')
-      .first()
+    const row = page.locator('[data-testid="related-row"]').first()
     const bg = await row.evaluate((el) => getComputedStyle(el).backgroundColor)
-    // .groupItem sets no background — assert the transparent default.
+    // .item sets no background — assert the transparent default.
     expect(bg).toBe('rgba(0, 0, 0, 0)')
-    // .groupItem sets no border — assert the 0px default.
+    // .item sets no border — assert the 0px default.
     const borderWidth = await row.evaluate(
       (el) => getComputedStyle(el).borderTopWidth,
     )
     expect(borderWidth).toBe('0px')
   })
 
-  test('inferred group border is 2px dashed', async ({ page }) => {
-    const group = page.locator('[data-testid="related-group-inferred"]')
-    expect(
-      await group.evaluate((el) => getComputedStyle(el).borderLeftWidth),
-    ).toBe('2px')
-    expect(
-      await group.evaluate((el) => getComputedStyle(el).borderLeftStyle),
-    ).toBe('dashed')
-  })
-
-  test('row uses align-items: center for icon/text/badge alignment', async ({
+  test('row uses align-items: center for icon/text/tag alignment', async ({
     page,
   }) => {
-    const row = page
-      .locator('[data-testid="related-group-inferred"] li')
-      .first()
+    const row = page.locator('[data-testid="related-row"]').first()
     expect(await row.evaluate((el) => getComputedStyle(el).alignItems)).toBe(
       'center',
     )

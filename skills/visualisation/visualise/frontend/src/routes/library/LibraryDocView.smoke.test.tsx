@@ -79,8 +79,9 @@ describe('LibraryDocView smoke', () => {
     render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
       wrapper: makeWrapper(qc),
     })
+    // Option B: the inbound review surfaces as a single declared-tagged row.
     expect(
-      await screen.findByRole('heading', { level: 4, name: 'Referenced by' }),
+      await screen.findByRole('link', { name: 'Foo review' }),
     ).toBeInTheDocument()
     expect(fetchRelated).toHaveBeenCalledTimes(1)
 
@@ -99,9 +100,7 @@ describe('LibraryDocView smoke', () => {
 
     await waitFor(() => expect(fetchRelated).toHaveBeenCalledTimes(2))
     await waitFor(() => {
-      expect(
-        screen.queryByRole('heading', { level: 4, name: 'Referenced by' }),
-      ).toBeNull()
+      expect(screen.queryByRole('link', { name: 'Foo review' })).toBeNull()
     })
   })
 
@@ -134,7 +133,7 @@ describe('LibraryDocView smoke', () => {
       { wrapper: makeWrapper(qc) },
     )
     expect(
-      await screen.findByRole('heading', { level: 4, name: 'Referenced by' }),
+      await screen.findByRole('link', { name: 'Foo review' }),
     ).toBeInTheDocument()
 
     // Unmount — query becomes inactive but stays cached per gcTime.
@@ -167,9 +166,7 @@ describe('LibraryDocView smoke', () => {
     // Referenced by group never appears.
     await screen.findByText('Foo Plan')
     await waitFor(() => {
-      expect(
-        screen.queryByRole('heading', { level: 4, name: 'Referenced by' }),
-      ).toBeNull()
+      expect(screen.queryByRole('link', { name: 'Foo review' })).toBeNull()
     })
   })
 })

@@ -96,10 +96,11 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/PipelineMini/PipelineMini.module.css', literal: '8px', count: 2, kind: 'irreducible', reason: 'dot diameter — fixed pixel for visual rhythm with kanban card chrome' },
   { file: 'components/PipelineMini/PipelineMini.module.css', literal: '1.5px', count: 1, kind: 'irreducible', reason: 'dot border-width — below --sp-1 floor' },
   // components/RelatedArtifacts/RelatedArtifacts.module.css
-  { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'declared + inferred group border-left widths — below --sp-1 floor' },
+  // 0079 (Option B): the legend, group border-lefts (2px) and badge border
+  // (1px) were removed when the three groups collapsed to a single tagged
+  // list, so the former '2px' (×2) and '1px' (×1) exceptions are gone.
   { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '0.4rem', count: 2, kind: 'irreducible', reason: 'off-scale spacing (6.4px) — between --sp-1 and --sp-2' },
   { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '0.15rem', count: 1, kind: 'irreducible', reason: 'item vertical padding (2.4px) — below --sp-1 floor' },
-  { file: 'components/RelatedArtifacts/RelatedArtifacts.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'border width — below --sp-1 floor' },
   // components/ActivityFeed/ActivityFeed.module.css
   { file: 'components/ActivityFeed/ActivityFeed.module.css', literal: '#6c7088', count: 2, kind: 'irreducible', reason: 'ACTIVITY heading + LIVE badge colour — mirrors Sidebar section-heading hex' },
   { file: 'components/ActivityFeed/ActivityFeed.module.css', literal: '0.12em', count: 2, kind: 'irreducible', reason: 'ACTIVITY heading + LIVE badge caps letter-spacing — mirrors Sidebar section-heading' },
@@ -410,7 +411,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 951 // 0090: 27 radius literals → var(--radius-*); re-synced floor to observed (was stale-low at 427)
+const AC5_FLOOR = 936 // 0079: Option B collapsed RelatedArtifacts to one tagged list, removing 15 var(--*) refs (legend/group/badge rules); re-synced floor to observed
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 

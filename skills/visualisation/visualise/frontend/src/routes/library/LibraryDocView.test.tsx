@@ -97,7 +97,7 @@ describe('LibraryDocView', () => {
   })
 
   // ── Step 6.6 ──────────────────────────────────────────────────────────
-  it('fetches related on mount and renders the inbound group when present', async () => {
+  it('fetches related on mount and renders an inbound declared row when present', async () => {
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
     vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
       content: 'Body.',
@@ -106,6 +106,7 @@ describe('LibraryDocView', () => {
     const review: IndexEntry = {
       ...mockEntry,
       type: 'plan-reviews',
+      path: '/p/meta/reviews/plans/2026-01-01-foo-review-1.md',
       relPath: 'meta/reviews/plans/2026-01-01-foo-review-1.md',
       title: 'Foo review',
     }
@@ -115,9 +116,11 @@ describe('LibraryDocView', () => {
       declaredInbound: [review],
     })
     render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, { wrapper: Wrapper })
-    expect(
-      await screen.findByRole('heading', { level: 4, name: 'Referenced by' }),
-    ).toBeInTheDocument()
+    // Option B: the inbound entry renders as a single declared-tagged row.
+    const link = await screen.findByRole('link', { name: 'Foo review' })
+    expect(link).toBeInTheDocument()
+    expect(screen.getByText('(declared)')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 4 })).toBeNull()
   })
 
   // ── Step 6.6b ─────────────────────────────────────────────────────────

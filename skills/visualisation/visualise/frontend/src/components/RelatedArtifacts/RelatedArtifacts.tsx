@@ -15,18 +15,49 @@ interface Props {
   showUpdatingHint?: boolean
 }
 
+type Kind = 'declared' | 'inferred'
+
+/** Visible tag copy kept separate from the discriminant so copy and the
+ *  CSS class can diverge later (e.g. an `aria-label` distinct from the
+ *  class name). */
+const TAG_TEXT: Record<Kind, string> = {
+  declared: '(declared)',
+  inferred: '(inferred)',
+}
+
+function tagClass(kind: Kind): string {
+  return kind === 'declared' ? styles.tagDeclared : styles.tagInferred
+}
+
 export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
-  const isEmpty =
-    related.inferredCluster.length === 0 &&
-    related.declaredOutbound.length === 0 &&
-    related.declaredInbound.length === 0
-  if (isEmpty) {
+  // Concatenate the two declared arrays and dedupe by `path`. The server
+  // builds declaredOutbound/declaredInbound independently and does NOT
+  // dedup across them (`related.rs` dedups only within each list), so a
+  // bidirectional declared relation (A targets B; B targets A) appears in
+  // both arrays. The old grouped UI tolerated this under distinct
+  // `Targets` / `Referenced by` headings; the flat Option B list would
+  // otherwise render it twice with a colliding `key={entry.path}`. Keep
+  // the first occurrence; directionality is intentionally collapsed at the
+  // render boundary (the server contract is untouched).
+  const declaredAll = [...related.declaredOutbound, ...related.declaredInbound]
+  const seen = new Set<string>()
+  const declared = declaredAll.filter(
+    (e) => !seen.has(e.path) && seen.add(e.path),
+  )
+  const inferred = related.inferredCluster
+  const rows: { entry: IndexEntry; kind: Kind }[] = [
+    ...declared.map((entry) => ({ entry, kind: 'declared' as const })),
+    ...inferred.map((entry) => ({ entry, kind: 'inferred' as const })),
+  ]
+
+  if (rows.length === 0) {
     return (
       <p className={styles.emptyAll}>
         This document has no declared or inferred relations.
       </p>
     )
   }
+
   return (
     <>
       {showUpdatingHint && (
@@ -34,72 +65,27 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
           Updating…
         </p>
       )}
-      <Legend />
-      {related.declaredOutbound.length > 0 && (
-        <RelatedGroup
-          label="Targets"
-          entries={related.declaredOutbound}
-          kind="declared"
-          testId="related-group-declared-outbound"
-        />
-      )}
-      {related.declaredInbound.length > 0 && (
-        <RelatedGroup
-          label="Referenced by"
-          entries={related.declaredInbound}
-          kind="declared"
-          testId="related-group-declared-inbound"
-        />
-      )}
-      {related.inferredCluster.length > 0 && (
-        <RelatedGroup
-          label="Same lifecycle"
-          entries={related.inferredCluster}
-          kind="inferred"
-          testId="related-group-inferred"
-        />
-      )}
-    </>
-  )
-}
-
-function Legend() {
-  return (
-    <dl className={styles.legend}>
-      <dt>Declared</dt>
-      <dd>explicit cross-reference in frontmatter.</dd>
-      <dt>Inferred</dt>
-      <dd>shares a slug with this document.</dd>
-    </dl>
-  )
-}
-
-interface GroupProps {
-  label: string
-  entries: IndexEntry[]
-  kind: 'declared' | 'inferred'
-  testId?: string
-}
-
-function RelatedGroup({ label, entries, kind, testId }: GroupProps) {
-  const groupClass =
-    kind === 'declared' ? styles.groupDeclared : styles.groupInferred
-  const badgeClass =
-    kind === 'declared' ? styles.badgeDeclared : styles.badgeInferred
-  return (
-    <div className={`${styles.group} ${groupClass}`} data-testid={testId}>
-      <h4 className={styles.groupHeading}>{label}</h4>
-      <ul className={styles.groupList}>
-        {entries.map((entry) => (
-          <li key={entry.path} className={styles.groupItem}>
+      <ul className={styles.list} data-testid="related-list">
+        {rows.map(({ entry, kind }) => (
+          <li
+            key={entry.path}
+            className={styles.item}
+            data-testid="related-row"
+            data-kind={kind}
+          >
             <Glyph docType={entry.type} size={16} framed />
             <a href={`/library/${entry.type}/${fileSlugFromRelPath(entry.relPath)}`}>
               {entry.title || entry.relPath}
             </a>
-            <span className={`${styles.badge} ${badgeClass}`}>{kind}</span>
+            <span
+              className={`${styles.tag} ${tagClass(kind)}`}
+              data-testid="related-tag"
+            >
+              {TAG_TEXT[kind]}
+            </span>
           </li>
         ))}
       </ul>
-    </div>
+    </>
   )
 }

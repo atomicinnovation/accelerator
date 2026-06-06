@@ -362,11 +362,11 @@ The precise selector is load-bearing for the equality.
 
 #### Automated Verification
 
-- [ ] Rewritten unit test fails before the component change, passes after:
+- [x] Rewritten unit test fails before the component change, passes after:
   `mise run test:unit:frontend`
-- [ ] Frontend unit suite passes: `mise run test:unit:frontend`
-- [ ] Typecheck passes (frontend typecheck task)
-- [ ] Updated aside-row visual-regression spec passes:
+- [x] Frontend unit suite passes: `mise run test:unit:frontend`
+- [x] Typecheck passes (frontend typecheck task)
+- [x] Updated aside-row visual-regression spec passes:
   `mise run test:e2e:visualiser`
 
 #### Manual Verification

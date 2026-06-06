@@ -1,29 +1,9 @@
-.legend {
-  font-size: var(--size-xxs);
-  margin: 0 0 var(--sp-2);
-  color: var(--ac-fg-muted);
-}
-.legend dt { display: inline; font-weight: 600; }
-.legend dd { display: inline; margin: 0 var(--sp-2) 0 var(--sp-1); }
-.legend dd::after { content: ""; }
-
-.group {
-  margin: 0 0 var(--sp-4);
-  padding-left: var(--sp-2);
-}
-.groupHeading {
-  font-size: var(--size-xxs);
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--ac-fg-muted);
-  margin: 0 0 var(--sp-1);
-}
-.groupList {
+.list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-.groupItem {
+.item {
   padding: 0.15rem 0;
   display: flex;
   gap: 0.4rem;
@@ -31,28 +11,26 @@
      meta/work/0074. */
   align-items: center;
 }
-.groupItem a {
+.item a {
   flex: 1;
   word-break: break-all;
 }
 
-/* Element-named modifiers — declared vs inferred provenance carries
- * a different border treatment so authors can tell them apart at a
- * glance without reading the badge. */
-.groupDeclared { border-left: 2px solid var(--ac-accent); }
-.groupInferred { border-left: 2px dashed var(--ac-fg-faint); }
-
-.badge {
+/* Per-row provenance tag — the inline `(declared)` / `(inferred)` text
+ * that replaced the old legend + solid/dashed group borders. Declared
+ * rows take the accent hue; inferred rows a muted neutral.
+ *
+ * Inferred uses --ac-fg-muted, NOT --ac-fg-faint: with the legend gone the
+ * tag is standalone meaning-bearing text, so it must clear WCAG 1.4.3
+ * (≥4.5:1) against the aside background. --ac-fg-faint resolves to ~3.1:1
+ * (light) / ~3.9:1 (dark) and fails; --ac-fg-muted clears it (~5.8 / ~7.7)
+ * while keeping the accent-vs-neutral declared/inferred distinction. */
+.tag {
   font-size: var(--size-xxs);
-  text-transform: uppercase;
-  padding: 0 var(--sp-1);
-  border-radius: var(--radius-2);
-  border: 1px solid currentColor;
-  color: var(--ac-fg-muted);
   flex-shrink: 0;
 }
-.badgeDeclared { color: var(--ac-accent); }
-.badgeInferred { color: var(--ac-fg-faint); }
+.tagDeclared { color: var(--ac-accent); }
+.tagInferred { color: var(--ac-fg-muted); }
 
 .emptyAll {
   font-style: italic;
