@@ -158,12 +158,21 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/Popover/Popover.module.css', literal: '240px', count: 1, kind: 'irreducible', reason: 'panel min-width — no token equivalent' },
   // routes/kanban/KanbanBoard.module.css
   { file: 'routes/kanban/KanbanBoard.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'border width (load-failure alert + retry button + Other-swimlane divider) — below --sp-1 floor' },
+  { file: 'routes/kanban/KanbanBoard.module.css', literal: '15rem', count: 1, kind: 'irreducible', reason: 'minimum kanban column track width — layout dimension, no token' },
   // routes/kanban/KanbanColumn.module.css
-  { file: 'routes/kanban/KanbanColumn.module.css', literal: '16rem', count: 2, kind: 'irreducible', reason: 'column min-width/flex-basis — layout dimension, no token' },
-  { file: 'routes/kanban/KanbanColumn.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'outline width and offset — below --sp-1 floor' },
-  { file: 'routes/kanban/KanbanColumn.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'empty-state panel dashed border — below --sp-1 floor' },
+  { file: 'routes/kanban/KanbanColumn.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'columnOver outline width and offset — below --sp-1 floor' },
+  { file: 'routes/kanban/KanbanColumn.module.css', literal: '1px', count: 4, kind: 'irreducible', reason: 'column border + count-pill border + count-pill padding-block + empty-panel dashed border — below --sp-1 floor' },
+  { file: 'routes/kanban/KanbanColumn.module.css', literal: '300px', count: 1, kind: 'irreducible', reason: 'column min-height per prototype .ac-kcol — layout dimension, no token' },
+  { file: 'routes/kanban/KanbanColumn.module.css', literal: '6px', count: 2, kind: 'irreducible', reason: 'status-dot diameter (width/height) per prototype .ac-kcol__title .dot — below --sp-1 floor' },
+  { file: 'routes/kanban/KanbanColumn.module.css', literal: '7px', count: 1, kind: 'irreducible', reason: 'count-pill horizontal padding per prototype .ac-kcol__count — between --sp-1 and --sp-2' },
+  { file: 'routes/kanban/KanbanColumn.module.css', literal: '0.02em', count: 1, kind: 'irreducible', reason: 'column-title caps tracking per prototype .ac-kcol__title — below --tracking-caps' },
   // routes/kanban/WorkItemCard.module.css
-  { file: 'routes/kanban/WorkItemCard.module.css', literal: '1px', count: 1, kind: 'irreducible', reason: 'card border width — below --sp-1 floor' },
+  { file: 'routes/kanban/WorkItemCard.module.css', literal: '1px', count: 3, kind: 'irreducible', reason: 'card border + foot dashed divider + hover translateY(-1px) — below --sp-1 floor' },
+  { file: 'routes/kanban/WorkItemCard.module.css', literal: '0.04em', count: 1, kind: 'irreducible', reason: 'card-id mono tracking per prototype .ac-kcard__id — below --tracking-caps' },
+  // routes/kanban/WorkKindBadge.module.css
+  { file: 'routes/kanban/WorkKindBadge.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'badge border + vertical padding per prototype .ac-kindbadge — below --sp-1 floor' },
+  { file: 'routes/kanban/WorkKindBadge.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'badge horizontal padding per prototype .ac-kindbadge — between --sp-1 and --sp-2' },
+  { file: 'routes/kanban/WorkKindBadge.module.css', literal: '0.07em', count: 1, kind: 'irreducible', reason: 'kind-badge caps tracking per prototype .ac-kindbadge — below --tracking-caps' },
   // routes/kanban-card-showcase/KanbanCardShowcase.module.css — dev-only fixture surface
   { file: 'routes/kanban-card-showcase/KanbanCardShowcase.module.css', literal: '16rem', count: 1, kind: 'irreducible', reason: 'showcase cell width mirrors a kanban column card width — layout dimension, no token' },
   // routes/library/LibraryDocView.module.css
@@ -399,6 +408,9 @@ describe('var(--NAME) references resolve to declared tokens', () => {
     ]),
     'components/Pipeline/Pipeline.module.css': new Set(['next-accent']),
     'components/Toaster/Toaster.module.css': new Set(['toast-accent']),
+    // --kanban-cols is set inline (React style) on the .columns grid from the
+    // configured column count; consumed only here as the grid track repeat.
+    'routes/kanban/KanbanBoard.module.css': new Set(['kanban-cols']),
   }
   for (const [path, css] of Object.entries(allCss)) {
     it(`${path} references only declared tokens`, () => {

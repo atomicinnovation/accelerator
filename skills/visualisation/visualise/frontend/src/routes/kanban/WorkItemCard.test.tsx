@@ -57,7 +57,7 @@ describe('WorkItemCard', () => {
     expect(container.querySelector('.ac-kcard__id')).toBeNull()
   })
 
-  it('renders PipelineMini as first child of .ac-kcard__top when completeness is present', async () => {
+  it('renders the meta (kind/id) first and PipelineMini last in .ac-kcard__top', async () => {
     const entry = makeIndexEntry({
       type: 'work-items',
       relPath: 'meta/work/0001-foo.md',
@@ -72,8 +72,9 @@ describe('WorkItemCard', () => {
     const { container } = renderCard(entry)
     await screen.findByText('Foo')
     const top = container.querySelector('.ac-kcard__top')!
-    const firstChild = top.firstElementChild!
-    expect(firstChild.classList.contains('ac-stagedots')).toBe(true)
+    // Prototype order: meta (badge + id) on the left, pipeline mini on the right.
+    expect(top.firstElementChild!.classList.contains('ac-kcard__meta')).toBe(true)
+    expect(top.lastElementChild!.classList.contains('ac-stagedots')).toBe(true)
   })
 
   it('passes the entry.completeness to PipelineMini (active stages reflect present)', async () => {
@@ -127,7 +128,8 @@ describe('WorkItemCard', () => {
     await screen.findByText('Foo')
     const foot = container.querySelector('.ac-kcard__foot')!
     expect(foot.textContent).toContain('3 linked')
-    expect(container.querySelector('.ac-kcard__links')!.textContent).toBe('3 linked')
+    // The links meta now leads with a link glyph, so assert on trimmed text.
+    expect(container.querySelector('.ac-kcard__links')!.textContent!.trim()).toBe('3 linked')
   })
 
   it('omits the linked label when linkedCount is 0', async () => {
@@ -143,7 +145,7 @@ describe('WorkItemCard', () => {
     expect(container.querySelector('.ac-kcard__links')).toBeNull()
   })
 
-  it('renders entry.frontmatter.kind inside .ac-kcard__kind', async () => {
+  it('renders entry.frontmatter.kind as a kind badge in the card meta', async () => {
     const entry = makeIndexEntry({
       type: 'work-items',
       relPath: 'meta/work/0001-foo.md',
@@ -153,9 +155,12 @@ describe('WorkItemCard', () => {
     })
     const { container } = renderCard(entry)
     await screen.findByText('Foo')
-    expect(container.querySelector('.ac-kcard__kind')!.textContent).toBe(
-      'adr-creation-task',
-    )
+    // Unknown kinds fall back to a neutral badge showing the raw kind verbatim,
+    // rendered inside the card's meta row (left of the id).
+    const meta = container.querySelector('.ac-kcard__meta')!
+    const badge = meta.querySelector('[data-tone]')!
+    expect(badge.getAttribute('data-tone')).toBe('neutral')
+    expect(badge.textContent).toBe('adr-creation-task')
   })
 
   it('links to the library detail page using the canonical typed-route form', async () => {

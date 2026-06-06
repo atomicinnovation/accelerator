@@ -79,7 +79,8 @@ describe('KanbanBoard', () => {
   it('renders the page-level heading at the top of the board', async () => {
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([])
     renderKanbanAt()
-    expect(await screen.findByRole('heading', { level: 1, name: /^kanban$/i })).toBeInTheDocument()
+    // The h1 is the prototype's "Work items"; "Kanban" is the eyebrow above it.
+    expect(await screen.findByRole('heading', { level: 1, name: /^work items$/i })).toBeInTheDocument()
   })
 
   it('renders a "live" Chip with indigo variant in the page subtitle when loaded', async () => {

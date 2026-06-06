@@ -1,0 +1,42 @@
+/* Small uppercase mono pill, tinted by kind — mirrors the prototype's
+   `.ac-kindbadge`. Tone colours reuse the semantic tokens; amber maps onto
+   `--ac-warn` rather than the prototype's bespoke hex so it stays token-driven
+   and theme-aware. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  border-radius: var(--radius-4);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.badge[data-tone='neutral'] {
+  color: var(--ac-fg-muted);
+  background: var(--ac-bg-hover);
+  border-color: var(--ac-stroke);
+}
+.badge[data-tone='indigo'] {
+  color: var(--ac-accent);
+  background: var(--ac-accent-faint);
+  border-color: var(--ac-accent-tint);
+}
+.badge[data-tone='violet'] {
+  color: var(--ac-violet);
+  background: rgba(123, 92, 217, 0.1);
+  border-color: rgba(123, 92, 217, 0.24);
+}
+.badge[data-tone='amber'] {
+  color: var(--ac-warn);
+  background: rgba(217, 143, 46, 0.12);
+  border-color: rgba(217, 143, 46, 0.26);
+}
+.badge[data-tone='red'] {
+  color: var(--ac-accent-2);
+  background: rgba(203, 70, 71, 0.1);
+  border-color: rgba(203, 70, 71, 0.24);
+}

@@ -31,9 +31,15 @@ export function KanbanColumn({ columnKey, label, entries, description }: KanbanC
       data-column={columnKey}
     >
       <header className={styles.columnHeader}>
-        <h2 id={headingId} className={styles.columnHeading}>
-          {label}
-        </h2>
+        <div className={styles.columnTitle}>
+          {/* Neutral status dot — decorative. The board's column set is
+              config-driven, so no per-status colour is assigned (the column
+              header count remains the single announced source of truth). */}
+          <span className={styles.dot} aria-hidden="true" />
+          <h2 id={headingId} className={styles.columnHeading}>
+            {label}
+          </h2>
+        </div>
         <span className={styles.columnCount} aria-label={`${count} ${itemWord}`}>
           {count}
         </span>

@@ -46,10 +46,22 @@ test('Escape-cancelling a drag clears the SSE gate so later updates still render
 
     // Begin a drag, then cancel it with Escape (dnd-kit fires onDragCancel
     // INSTEAD OF onDragEnd — endDrag must still clear setDragInProgress).
+    // Wait for the lifted overlay clone before cancelling: this confirms the
+    // active-drag render has committed (so the card-local click guard is armed)
+    // before Escape, mirroring real use where the lift is visible before the
+    // user presses Escape — without it, a sub-frame Escape can let the synthetic
+    // release-click leak through to the card's navigation.
     const drag = await startDrag(page, `${CARD_0001} a`)
     await drag.moveBy(0, 40)
+    await expect(page.locator('[data-overlay]')).toBeVisible()
     await page.keyboard.press('Escape')
+    // Escape has already cancelled the dnd-kit drag; move the (still-down)
+    // pointer onto a non-navigable spot (a column heading) before releasing so
+    // the synthetic release-click can't land on the card's <Link> and navigate
+    // away — keeping the board mounted for the SSE assertion below.
+    await drag.moveTo('section[data-column="done"] h2')
     await drag.drop()
+    await expect(page).toHaveURL(/\/kanban$/)
 
     // An external edit now arrives via SSE. If the cancel path left the gate
     // stuck true, this invalidation would be queued forever and the card would

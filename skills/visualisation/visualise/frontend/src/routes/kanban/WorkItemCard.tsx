@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import type { MouseEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useSortable } from '@dnd-kit/sortable'
@@ -58,10 +58,12 @@ export function WorkItemCard({ entry, now }: WorkItemCardProps) {
 
   // Keyed off a real drag having started (the activation threshold crossed /
   // isDragging gone true), NOT a bare press — so a sub-threshold genuine click
-  // is never swallowed.
-  useEffect(() => {
-    if (isDragging) draggedRef.current = true
-  }, [isDragging])
+  // is never swallowed. Set during render rather than in an effect: the
+  // suppressing synthetic click can fire in the same task as a drop/Escape-cancel
+  // (before a post-paint effect commits), so a deferred set would race and let
+  // navigation leak. A render-time write of this idempotent flag is synchronous
+  // with the render that first reflects isDragging, closing that window.
+  if (isDragging) draggedRef.current = true
 
   // Cleared on the NEXT interaction's pointer-down — a boundary provably later
   // than the suppressing synthetic click (which fires in the same pointerup

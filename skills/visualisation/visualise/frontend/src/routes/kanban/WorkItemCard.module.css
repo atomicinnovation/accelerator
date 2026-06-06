@@ -9,25 +9,43 @@
 }
 .card {
   cursor: grab;                                  /* grab at rest */
-  border: 1px solid var(--ac-stroke-soft);
+  border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-4);
   background: var(--ac-bg-card);
+  /* Animate the lift/hover transitions in, matching the prototype's
+     `.ac-kcard` transition (so the dragging rotate eases in rather than
+     snapping). */
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease;
 }
 .cardBody {
-  padding: var(--sp-2) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
 }
-.cardLink:hover .card { background: var(--ac-bg-sunken); }
+.cardLink:hover .card {
+  transform: translateY(-1px);
+  border-color: var(--ac-stroke-strong);
+  background: var(--ac-bg-hover);
+}
 .cardLink:hover .cardTitle { color: var(--ac-accent); }
 /* Source card while a drag is in progress (A1): rotated/lifted with an accent
-   border, matching the prototype's `.ac-kcard.is-dragging`. */
-.cardDragging {
+   border, matching the prototype's `.ac-kcard.is-dragging`. Listed with enough
+   specificity (and after the hover rule) to win over `:hover` so the lift is
+   not overridden if the pointer lingers on the source card during a drag. */
+.card.cardDragging,
+.cardLink:hover .card.cardDragging {
   transform: rotate(1.5deg) scale(1.02);
   box-shadow: var(--ac-shadow-lift);
   border-color: var(--ac-accent);
 }
 /* The lifted DragOverlay clone that follows the cursor. */
 .cardOverlay {
-  opacity: 0.6;
+  opacity: 0.8;
   cursor: grabbing;
 }
 .cardTop {
@@ -35,18 +53,52 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--sp-2);
-  font-size: var(--size-xs);
 }
-.cardId     { font-family: var(--ac-font-mono); color: var(--ac-fg-muted); font-size: var(--size-xxs); }
-.cardTitle  { margin: var(--sp-1) 0; font-weight: 600; color: var(--ac-fg-strong); }
-.cardKind   { margin: 0; font-size: var(--size-xs); color: var(--ac-fg-muted); }
+.cardMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.cardId {
+  font-family: var(--ac-font-mono);
+  color: var(--ac-fg-faint);
+  font-size: var(--size-xxs);
+  letter-spacing: 0.04em;
+}
+.cardTitle {
+  margin: 0;
+  font-weight: 500;
+  color: var(--ac-fg-strong);
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+.cardSlug {
+  margin: 0;
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xxs);
+  color: var(--ac-fg-muted);
+}
 .cardFoot {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: baseline;
   gap: var(--sp-2);
-  margin-top: var(--sp-1);
+  padding-top: var(--sp-2);
+  border-top: 1px dashed var(--ac-stroke);
   font-size: var(--size-xxs);
 }
-.cardMtime  { font-family: var(--ac-font-mono); color: var(--ac-fg-muted); }
-.cardLinks  { font-family: var(--ac-font-mono); color: var(--ac-fg-faint); }
+.cardLinks {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-family: var(--ac-font-mono);
+  color: var(--ac-fg-muted);
+}
+/* Always trail to the right edge, so it stays right-aligned even when the
+   "N linked" meta is absent (linkedCount === 0). */
+.cardMtime {
+  margin-left: auto;
+  font-family: var(--ac-font-mono);
+  color: var(--ac-fg-faint);
+}

@@ -4,10 +4,25 @@
   gap: var(--sp-4);
   padding-block: var(--sp-4);
 }
+/* While a drag is active the DragOverlay clone follows the cursor with
+   pointer-events: none, so the element actually under the pointer is a column
+   or card. Force a `grabbing` cursor across the whole board so the affordance
+   reads correctly (the descendant selector outranks `.card { cursor: grab }`). */
+.board[data-dragging],
+.board[data-dragging] * {
+  cursor: grabbing;
+}
 .columns {
-  display: flex;
+  /* Equal-width tracks for the config-driven set (count fed in via the
+     --kanban-cols custom property) — matching the prototype's equal grid
+     rather than a flex row. Each track keeps a readable minimum and the row
+     scrolls horizontally when the configured columns (up to the 7 defaults)
+     can't all fit, instead of squishing titles/counts to illegibility. */
+  display: grid;
+  grid-template-columns: repeat(var(--kanban-cols, 3), minmax(15rem, 1fr));
   gap: var(--sp-4);
-  align-items: flex-start;
+  align-items: start;
+  overflow-x: auto;
 }
 .otherSwimlane {
   border-top: 1px dashed var(--ac-stroke-soft);
@@ -43,4 +58,11 @@
   min-height: 0;
   color: var(--ac-fg);
   font-size: var(--size-xs);
+}
+/* "{N} total" beside the live chip in the page-header actions slot — small,
+   mono, faint, matching the prototype. */
+.totalCount {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-eyebrow);
+  color: var(--ac-fg-faint);
 }

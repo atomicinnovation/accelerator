@@ -1101,6 +1101,34 @@ No data migration. The `kind` field is optional and defaults to `info`, so the
 one existing `showToast` caller (`use-external-edit-toast.ts`) is unaffected.
 Removing the conflict banner deletes board-local state/CSS only.
 
+## Post-implementation design feedback (2026-06-06)
+
+A visual-fidelity review against the prototype after the six phases landed
+prompted a follow-up convergence pass. Revised/added decisions (authoritative
+detail in the convergence record):
+
+- **Clone opacity 0.6 → 0.8** (decision 2 above is superseded). Baselines +
+  resolved-style probe updated.
+- **Drop spring-back fixed** — `DragOverlay dropAnimation={null}` disables
+  dnd-kit's default fling-to-origin so a released card no longer animates back to
+  its source column.
+- **Cursor during drag** — the board sets `data-dragging` and forces
+  `cursor: grabbing` board-wide (the `pointer-events: none` overlay clone meant a
+  `.cardOverlay` cursor alone never showed).
+- **Source-card lift now animates in** via the prototype's 140ms `.card`
+  transition (previously snapped).
+- **Card / column / page-header visual convergence** (aspect 8) — the card,
+  column, and `Page` header were brought onto the prototype (kind badge, slug,
+  dashed foot, status dot, count pill, eyebrow/“Work items”/subtitle, "{N} total"
+  count). The config-driven column status dot is **neutral** for every column
+  (chosen over a per-status colour, which the arbitrary config can't carry).
+- **E2E drag-helper hardening** — `e2e/dnd.ts` scrolls the source into view
+  before measuring (the taller redesigned cards pushed targets below the fold at
+  the 720px test viewport), and the A2 click guard arms during render so a
+  sub-frame release-click never leaks navigation.
+
+See `meta/research/design-gaps/2026-06-06-0086-kanban-convergence-record.md`.
+
 ## References
 
 - Original work item: `meta/work/0086-kanban-drag-and-drop.md`

@@ -6,7 +6,13 @@ interface Point {
 }
 
 async function centreOf(page: Page, selector: string): Promise<Point> {
-  const box = (await page.locator(selector).boundingBox())!
+  const locator = page.locator(selector)
+  // Scroll into view before measuring: the mouse-driven drag uses absolute
+  // viewport coordinates, so a target below the fold (e.g. a card low in a
+  // tall column) would otherwise yield an off-screen centre and the pointer
+  // events would miss it entirely.
+  await locator.scrollIntoViewIfNeeded()
+  const box = (await locator.boundingBox())!
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
 }
 

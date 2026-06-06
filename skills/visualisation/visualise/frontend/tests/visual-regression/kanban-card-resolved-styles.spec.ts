@@ -24,6 +24,13 @@ for (const theme of ['light', 'dark'] as const) {
   test.describe(`kanban-card-resolved-styles (${theme})`, () => {
     test.beforeEach(async ({ page }) => {
       await page.goto('/kanban-card-showcase')
+      // Disable transitions before any theme flip: `.card` now animates
+      // border-color/transform/background (140ms), so a theme switch would
+      // otherwise be caught mid-transition and the computed border-color would
+      // read an intermediate blend rather than the settled accent.
+      await page.addStyleTag({
+        content: '*, *::before, *::after { transition: none !important; animation: none !important; }',
+      })
       if (theme === 'dark') await setTheme(page, 'dark')
     })
 
@@ -54,14 +61,14 @@ for (const theme of ['light', 'dark'] as const) {
       expect(parseRgb(borderColor)).toEqual(accent)
     })
 
-    test('overlay clone: opacity 0.6 and grabbing cursor', async ({ page }) => {
+    test('overlay clone: opacity 0.8 and grabbing cursor', async ({ page }) => {
       const { opacity, cursor } = await page
         .locator(card('overlay'))
         .evaluate((el) => {
           const s = getComputedStyle(el)
           return { opacity: s.opacity, cursor: s.cursor }
         })
-      expect(opacity).toBe('0.6')
+      expect(opacity).toBe('0.8')
       expect(cursor).toBe('grabbing')
     })
   })

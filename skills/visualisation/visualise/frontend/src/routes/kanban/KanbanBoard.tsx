@@ -22,9 +22,13 @@ import { moveToastFor } from './move-toast'
 import { KanbanColumn } from './KanbanColumn'
 import { WorkItemCardPresentation } from './WorkItemCardPresentation'
 import { KanbanFocusContext, createKanbanFocusRegistry } from './kanban-focus-registry'
+import { KanbanEyebrowIcon, ActivityIcon } from './icons'
 import { Page } from '../../components/Page/Page'
 import { Chip } from '../../components/Chip/Chip'
 import styles from './KanbanBoard.module.css'
+
+const KANBAN_SUBTITLE =
+  'Every work item, grouped by status. Drag a card to move it between columns — the change writes back to the file on disk.'
 
 function errorMessageFor(error: unknown): string {
   if (error instanceof FetchError && error.status >= 500) {
@@ -217,11 +221,18 @@ export function KanbanBoard() {
         onDragCancel={endDrag}
         accessibility={{ announcements }}
       >
-        <div className={styles.board} data-sse-state={docEvents.connectionState}>
+        <div
+          className={styles.board}
+          data-sse-state={docEvents.connectionState}
+          data-dragging={activeId !== null ? '' : undefined}
+        >
           <div role="status" aria-live="polite" className={styles.announcement}>
             {announcement}
           </div>
-          <div className={styles.columns}>
+          <div
+            className={styles.columns}
+            style={{ '--kanban-cols': columns.length } as React.CSSProperties}
+          >
             {columns.map(col => (
               <KanbanColumn
                 key={col.key}
@@ -242,7 +253,13 @@ export function KanbanBoard() {
             </div>
           )}
         </div>
-        <DragOverlay>
+        {/* dropAnimation={null}: dnd-kit's default drop animation springs the
+            clone back to the active sortable node's measured rect. The source
+            card stays in its origin column (its transform is suppressed) and the
+            optimistic move only re-renders after onDragEnd, so the default would
+            visibly fling the released card back to its old column. Disabling it
+            lets the clone vanish in place while the optimistic update lands. */}
+        <DragOverlay dropAnimation={null}>
           {(() => {
             // Real null-check, not `!`: the board is SSE-live, so a concurrent
             // external delete (flushed when endDrag clears the gate) can remove
@@ -261,8 +278,17 @@ export function KanbanBoard() {
 
   return (
     <Page
-      title="Kanban"
-      actions={isSuccess ? <Chip variant="indigo">live</Chip> : undefined}
+      eyebrow={<><KanbanEyebrowIcon /> Kanban</>}
+      title="Work items"
+      subtitle={KANBAN_SUBTITLE}
+      actions={isSuccess
+        ? (
+          <>
+            <Chip variant="indigo" leading={<ActivityIcon />}>live</Chip>
+            <span className={styles.totalCount}>{entries.length} total</span>
+          </>
+        )
+        : undefined}
     >
       {content}
     </Page>
