@@ -10,6 +10,8 @@ license = "MIT"
 [dependency-groups]
 build = [
     "invoke>=2.2.1",
+    "circus>=0.19.0",
+    "psutil>=6",
     "keepachangelog>=2.0.0",
     "rich>=14.2.0",
     "semver>=3.0.4,<4",

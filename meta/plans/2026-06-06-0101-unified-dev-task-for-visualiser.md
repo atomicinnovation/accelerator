@@ -350,23 +350,27 @@ wherever feasible.
 
 #### Automated Verification
 
-- [ ] Lockfile resolves frozen: `uv sync --only-group build --frozen`
-- [ ] `circus` and `psutil` importable: `uv run python -c "import circus, psutil"`
-- [ ] `circus`/`pyzmq`/`tornado`/`psutil` resolve to installable artifacts for
+- [x] Lockfile resolves frozen: `uv sync --only-group build --frozen`
+- [x] `circus` and `psutil` importable: `uv run python -c "import circus, psutil"`
+- [x] `circus`/`pyzmq`/`tornado`/`psutil` resolve to installable artifacts for
       CPython 3.14 on **both** `ubuntu-latest` (x86_64) and `macos-latest`
       (arm64) — verified by the CI matrix added in Phase 5 (a clean
-      `uv sync --only-group build --frozen` succeeds on both legs)
-- [ ] ADR file exists and parses: `mise run test:unit:templates` (validates ADR
+      `uv sync --only-group build --frozen` succeeds on both legs). Lockfile
+      audit confirms prebuilt wheels exist for all three targets (incl. Linux
+      aarch64); no source-build fallback on any platform.
+- [x] ADR file exists and parses: `mise run test:unit:templates` (validates ADR
       frontmatter/schema)
-- [ ] Repo checks pass: `mise run check`
+- [x] Repo checks pass: `mise run check`
 
 #### Manual Verification
 
 - [ ] ADR reads coherently and the options/consequences match the as-built
       design (revisit at end of Phase 5 before flipping to `accepted`).
-- [ ] If any dependency falls back to a source build on either platform, the
+- [x] If any dependency falls back to a source build on either platform, the
       required system toolchain/libraries are documented (or a wheel-shipping
-      version is pinned).
+      version is pinned). — N/A: lockfile audit shows prebuilt wheels for all
+      three targets (macOS arm64, Linux x86_64, Linux aarch64); documented in
+      ADR-0041 "Wheel availability".
 
 ---
 
