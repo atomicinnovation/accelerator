@@ -826,10 +826,11 @@ this so the three drag signals are not conflated.
 
 #### Automated Verification:
 
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] Type-checking passes: `mise run typecheck`
-- [ ] **E2E**: drag-then-release does not navigate; plain click navigates
-- [ ] Unit: `onClickCapture` suppresses when the guard is set, passes through
+- [x] Unit tests pass: `mise run test:unit:frontend`
+- [x] Type-checking passes: `mise run typecheck`
+- [~] **E2E**: drag-then-release does not navigate; plain click navigates
+      _(spec written; run in the consolidated E2E pass)_
+- [x] Unit: `onClickCapture` suppresses when the guard is set, passes through
       otherwise
 
 #### Manual Verification:
