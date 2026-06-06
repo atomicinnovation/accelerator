@@ -828,15 +828,15 @@ section ordering: Added → Changed → …):
 
 #### Automated Verification:
 
-- [ ] Read-only format/lint checks pass: `mise run check` (the repo's CI check
+- [x] Read-only format/lint checks pass: `mise run check` (the repo's CI check
   task; no `typecheck` task exists); no broken internal references.
 
 #### Manual Verification:
 
-- [ ] The `configure` SKILL.md `visualiser` table documents `idle_timeout`
+- [x] The `configure` SKILL.md `visualiser` table documents `idle_timeout`
   accurately (format, tokens, env override, default), consistent with the
   shipped behaviour.
-- [ ] CHANGELOG entry reads clearly and names both the key and the default
+- [x] CHANGELOG entry reads clearly and names both the key and the default
   change.
 
 ---

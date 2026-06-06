@@ -2,8 +2,21 @@
 
 ## [Unreleased]
 
+### Added
+
+- Configurable visualiser idle auto-shutdown. The idle window is now set via the
+  `visualiser.idle_timeout` config key (a humantime duration string such as
+  `"8h"`, `"30m"`, `"1h30m"`) with the `ACCELERATOR_VISUALISER_IDLE_TIMEOUT`
+  environment variable as a one-shot override (precedence: env > config > 8h
+  default). Setting it to `never` (case-insensitive), `0`, or any zero-length
+  duration disables idle auto-shutdown entirely — the server still exits when its
+  launching process exits and on `/accelerator:visualise stop`. An unparseable
+  value fails fast at launch with a clear error rather than silently defaulting.
+
 ### Changed
 
+- Visualiser idle auto-shutdown default raised from 30 minutes to 8 hours, so a
+  review session left open in a browser tab no longer outlives the server.
 - Migration framework: directory relocations in migrations 0001, 0003, and
   0004 now **merge** into an existing target instead of aborting. Previously a
   both-present state (e.g. a stale `meta/tmp/` alongside a fresh

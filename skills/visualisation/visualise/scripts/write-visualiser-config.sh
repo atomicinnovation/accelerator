@@ -207,10 +207,10 @@ if [ -n "$IDLE_TIMEOUT" ]; then
   # Keep the example list in the message in sync with
   # ConfigError::InvalidIdleTimeout (config.rs).
   case "$IDLE_TIMEOUT" in
-    [Nn][Ee][Vv][Ee][Rr] | 0) : ;;  # disable tokens
+    [Nn][Ee][Vv][Ee][Rr] | 0) : ;; # disable tokens
     # Zero-length durations (0s/0ms) are digit-led, so they pass here as
     # duration-shaped; Rust resolves them to the disable sentinel.
-    [0-9]*) : ;;                     # duration-shaped: starts with a digit
+    [0-9]*) : ;; # duration-shaped: starts with a digit
     *)
       echo "error: invalid visualiser.idle_timeout '$IDLE_TIMEOUT': expected a duration like \"8h\", \"30m\", \"1h30m\", or \"never\"/0 to disable" >&2
       exit 1

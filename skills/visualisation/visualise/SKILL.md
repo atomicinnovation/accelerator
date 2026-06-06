@@ -60,9 +60,11 @@ invoked:
   - Open the URL in a browser to use the visualiser UI.
   - Re-running `/accelerator:visualise` returns the same URL
     while the server is alive.
-  - The server auto-exits after 8 hours idle, or when the
-    process that launched it exits. To stop it explicitly, run
-    `/accelerator:visualise stop`.
+  - The server auto-exits after the idle window (8 hours by
+    default, configurable via `visualiser.idle_timeout` /
+    `ACCELERATOR_VISUALISER_IDLE_TIMEOUT`, and disable-able with
+    `never`/`0`), or when the process that launched it exits. To
+    stop it explicitly, run `/accelerator:visualise stop`.
 - A JSON `{"error":...}` object — the server isn't running.
   Read the `hint` field and relay the remediation.
 
@@ -109,6 +111,13 @@ air-gapped, or pinned-binary workflows:
 The release-binary mirror URL can be overridden via
 `ACCELERATOR_VISUALISER_RELEASES_URL=<base-url>` (air-gapped
 or proxy-hosted mirrors).
+
+The idle auto-shutdown window is configurable via the
+`visualiser.idle_timeout` config key (a humantime duration like
+`"8h"`, `"30m"`, `"1h30m"`; `never`/`0` disables it), with the
+`ACCELERATOR_VISUALISER_IDLE_TIMEOUT` environment variable as a
+one-shot, shell-scoped override (precedence:
+env > `visualiser.idle_timeout` > 8h default).
 
 To run the visualiser from a terminal, symlink the CLI wrapper:
 

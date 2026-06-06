@@ -545,11 +545,12 @@ consumed by any plugin script.
 
 ### visualiser
 
-Configure the kanban board rendered by the visualiser plugin.
+Configure the visualiser plugin.
 
-| Key               | Default                                                         | Description                            |
-|-------------------|-----------------------------------------------------------------|----------------------------------------|
-| `kanban_columns`  | `[draft, ready, in-progress, review, done, blocked, abandoned]` | Ordered list of kanban column keys     |
+| Key               | Default                                                         | Description                                                                  |
+|-------------------|-----------------------------------------------------------------|------------------------------------------------------------------------------|
+| `kanban_columns`  | `[draft, ready, in-progress, review, done, blocked, abandoned]` | Ordered list of kanban column keys                                           |
+| `idle_timeout`    | `8h`                                                            | Idle auto-shutdown window (humantime duration; `never`/`0` to disable)       |
 
 Example configuration for a project using a reduced column set:
 
@@ -575,6 +576,31 @@ title-cased with hyphens replaced by spaces (`in-progress` → `In progress`).
 The column set is read once at boot. Changing `visualiser.kanban_columns`
 requires a server restart; the browser will pick up the new columns on the
 next page-load (TanStack Query re-fetches `/api/kanban/config` each time).
+
+#### Idle auto-shutdown
+
+The visualiser server auto-exits after a period with no incoming HTTP
+requests. `visualiser.idle_timeout` sets that window as a humantime
+duration string (`"8h"`, `"30m"`, `"1h30m"`); it defaults to `8h` when
+absent.
+
+Setting it to `never` (case-insensitive), `0`, or any zero-length
+duration (`0s`, `0ms`) **disables** idle auto-shutdown — the idle timer
+never fires, which is **not** the same as "shut down immediately". The
+server still terminates when the process that launched it exits and on
+`/accelerator:visualise stop`.
+
+An unparseable value (e.g. `soon`) is rejected at launch with a clear
+error naming the bad value, rather than silently defaulting.
+
+The `ACCELERATOR_VISUALISER_IDLE_TIMEOUT` environment variable overrides
+the config key for one-shot, shell-scoped use. Precedence is
+**env var > `visualiser.idle_timeout` > 8h default**.
+
+The window is read once at boot and honoured to within one ~60s polling
+tick — shutdown lands on the next tick after the window elapses, so
+sub-minute values are effectively rounded up to the next tick. Changing it
+requires a server restart.
 
 #### Kanban write-back contract
 

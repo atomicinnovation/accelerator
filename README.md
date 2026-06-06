@@ -495,6 +495,8 @@ pre-release version.
 |--------------------------------------------|--------------------------------------------------------------------|
 | `ACCELERATOR_VISUALISER_BIN`               | One-shot override pointing at a locally-built binary               |
 | `visualiser.binary` config key             | Persistent binary override in `.accelerator/config.local.md`       |
+| `ACCELERATOR_VISUALISER_IDLE_TIMEOUT`      | One-shot override of the idle auto-shutdown window (duration string, or `never`/`0` to disable) |
+| `visualiser.idle_timeout` config key       | Persistent idle auto-shutdown window (humantime duration; default `8h`; `never`/`0` to disable) |
 | `ACCELERATOR_VISUALISER_RELEASES_URL`      | Alternative HTTPS mirror for air-gapped or self-hosted installs    |
 | `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE` | Set to `1` to verify SLSA build-provenance after the SHA-256 check |
 
