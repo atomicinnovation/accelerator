@@ -56,9 +56,28 @@ class TestRenderCircusIni:
 
     def test_server_cmd_omits_log_file_flag(self):
         ini = render_circus_ini(_spec())
+        # The server binary only takes --config; --log-file is a config-script
+        # arg, not a server cmd arg. It must never appear in the watcher cmd.
         assert "--log-file" not in ini
+
+    def test_server_stream_captures_bootstrap_log_not_server_log(self):
+        # The server writes dev/server.log itself (via config --log-file) and
+        # /dev/null's its stdout, so circus captures only the pre-redirect
+        # stderr to a separate bootstrap log — never the same file.
+        spec = _spec()
+        ini = render_circus_ini(spec)
+        server_section = ini.split("[watcher:server]")[1].split("[watcher:frontend]")[0]
+        assert f"{spec.dev_dir}/server.bootstrap.log" in server_section
+        assert f"{spec.dev_dir}/server.log" not in server_section
+
+    def test_frontend_stream_captures_frontend_log(self):
+        spec = _spec()
+        ini = render_circus_ini(spec)
+        frontend_section = ini.split("[watcher:frontend]")[1]
+        assert f"{spec.dev_dir}/frontend.log" in frontend_section
 
     def test_visualiser_info_path_set_for_frontend(self):
         spec = _spec()
         ini = render_circus_ini(spec)
         assert f"VISUALISER_INFO_PATH = {spec.server_info_path}" in ini
+

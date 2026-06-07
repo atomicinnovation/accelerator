@@ -1002,10 +1002,11 @@ run = "invoke dev.restart"
 
 #### Automated Verification
 
-- [ ] Orchestration unit tests pass against `bring_up`/`do_stop`/`do_status` and
+- [x] Orchestration unit tests pass against `bring_up`/`do_stop`/`do_status` and
       the named helpers (`reuse_or_teardown`, `allocate_and_launch`, `teardown`)
       via the injected `DevDeps` (fake `CircusClient` + fake launcher + fake killer
       + injected clock), all in `tests/tasks/test_dev.py`: reuse short-circuit;
+      (`do_status` orchestration tests land in Phase 4):
       **lock-held → re-probe → reuse** *and* **lock-held → fail-fast** (both
       branches); degraded-teardown that **honours a `survivor`/`refused` result by
       failing fast**; stale-cleanup (incl. removing stale `ipc://` sockets);
@@ -1021,9 +1022,9 @@ run = "invoke dev.restart"
       `clean`/`survivor`/`refused` handling (refused keeps state + aborts); and the
       printed success/reuse blocks (incl. the reuse "changes NOT live" heading) —
       `mise run test:unit:tasks`
-- [ ] `invoke dev --help` lists `dev` (default), `dev.stop`, `dev.restart`, and
+- [x] `invoke dev --help` lists `dev` (default), `dev.stop`, `dev.restart`, and
       each docstring carries the mental model / exit-code legend
-- [ ] Repo checks pass: `mise run check`
+- [x] Repo checks pass: `mise run check`
 
 #### Manual Verification
 

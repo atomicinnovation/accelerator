@@ -95,24 +95,25 @@ def _try_reclaim(lock_dir: Path) -> bool:
     owner = _read_owner(lock_dir / "owner.json")
     if owner is not None and _owner_alive(owner):
         return False  # genuinely held
-    # Provably stale (dead/unreadable owner). Arbitrate by renaming the stale
-    # dir away — os.rename is atomic, so exactly one contender wins the move.
-    graveyard = lock_dir.with_name(f"{lock_dir.name}.stale.{uuid.uuid4().hex}")
+    # Provably stale (dead/unreadable owner). Serialise the reclaim through a
+    # dedicated arbitration dir: ``os.mkdir`` is atomic, so exactly one
+    # contender holds it at a time and removes-then-recreates the stale lock —
+    # no two contenders can both reclaim. (Losers simply fail fast this round.)
+    arb = lock_dir.with_name(lock_dir.name + ".reclaim")
     try:
-        os.rename(lock_dir, graveyard)
-    except OSError:
-        return False  # lost the race or it vanished; treat as held
-    # Re-stat after the rename: back off if we moved a lock another contender
-    # reclaimed (made live) in the window between our read and our rename.
-    moved = _read_owner(graveyard / "owner.json")
-    if moved is not None and _owner_alive(moved):
-        try:
-            os.rename(graveyard, lock_dir)
-        except OSError:
-            shutil.rmtree(graveyard, ignore_errors=True)
-        return False
-    shutil.rmtree(graveyard, ignore_errors=True)
-    return _acquire_mkdir(lock_dir)
+        os.mkdir(arb)
+    except FileExistsError:
+        return False  # another reclaimer holds the arbitration; we lose
+    try:
+        # Re-check under the arbitration: skip if it was reclaimed live meanwhile.
+        owner = _read_owner(lock_dir / "owner.json")
+        if owner is not None and _owner_alive(owner):
+            return False
+        shutil.rmtree(lock_dir, ignore_errors=True)
+        return _acquire_mkdir(lock_dir)
+    finally:
+        with contextlib.suppress(OSError):
+            os.rmdir(arb)
 
 
 def _write_owner(owner_file: Path) -> None:

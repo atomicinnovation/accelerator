@@ -30,7 +30,17 @@ ns_release.add_task(release.release_finalise, name="finalise")
 ns.add_collection(ns_release)
 
 ns.add_collection(Collection.from_module(build))
-ns.add_collection(Collection.from_module(dev))
+
+# Manual dev collection so a bare `invoke dev` maps to `up` (the unified
+# supervised stack), while the manual two-terminal tasks remain available.
+ns_dev = Collection("dev")
+ns_dev.add_task(dev.up, default=True)
+ns_dev.add_task(dev.stop)
+ns_dev.add_task(dev.restart)
+ns_dev.add_task(dev.server)
+ns_dev.add_task(dev.frontend)
+ns.add_collection(ns_dev)
+
 ns.add_collection(Collection.from_module(changelog))
 ns.add_collection(Collection.from_module(deps))
 ns.add_collection(Collection.from_module(git))

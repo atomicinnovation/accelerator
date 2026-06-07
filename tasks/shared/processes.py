@@ -1,5 +1,10 @@
 """Process identity and control backed by psutil + ``os.kill``."""
 
+import contextlib
+import os
+import signal
+from typing import Protocol
+
 import psutil
 
 # A start time recorded by one psutil ``create_time()`` call and compared
@@ -22,3 +27,51 @@ def pid_identity_matches(pid: int, expected_start: float, *, tolerance: float) -
     except psutil.NoSuchProcess:
         return False
     return abs(actual - expected_start) <= tolerance
+
+
+class ProcessOps(Protocol):
+    """Process inspection + signalling, injected so callers are unit-testable."""
+
+    def is_alive(self, pid: int) -> bool: ...
+    def create_time(self, pid: int) -> float | None: ...
+    def identity_matches(self, pid: int, start_time: float) -> bool: ...
+    def children(self, pid: int) -> list[tuple[int, float]]: ...
+    def terminate(self, pid: int) -> None: ...
+    def kill(self, pid: int) -> None: ...
+
+
+class PsutilProcessOps:
+    """Real ``ProcessOps`` backed by psutil + ``os.kill``."""
+
+    def is_alive(self, pid: int) -> bool:
+        return psutil.pid_exists(pid)
+
+    def create_time(self, pid: int) -> float | None:
+        try:
+            return psutil.Process(pid).create_time()
+        except psutil.NoSuchProcess:
+            return None
+
+    def identity_matches(self, pid: int, start_time: float) -> bool:
+        return pid_identity_matches(pid, start_time, tolerance=START_TIME_TOLERANCE)
+
+    def children(self, pid: int) -> list[tuple[int, float]]:
+        try:
+            proc = psutil.Process(pid)
+            out = []
+            for child in proc.children(recursive=True):
+                try:
+                    out.append((child.pid, child.create_time()))
+                except psutil.NoSuchProcess:
+                    continue
+            return out
+        except psutil.NoSuchProcess:
+            return []
+
+    def terminate(self, pid: int) -> None:
+        with contextlib.suppress(ProcessLookupError, OSError):
+            os.kill(pid, signal.SIGTERM)
+
+    def kill(self, pid: int) -> None:
+        with contextlib.suppress(ProcessLookupError, OSError):
+            os.kill(pid, signal.SIGKILL)
