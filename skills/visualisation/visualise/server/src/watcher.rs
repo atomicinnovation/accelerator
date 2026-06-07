@@ -179,6 +179,27 @@ pub async fn on_path_changed_debounced(
 
     match indexer.get(&path).await {
         Some(entry) => {
+            // Suppress no-op re-broadcasts. A filesystem event does not imply
+            // the indexed content changed: editors touch metadata, and macOS
+            // FSEvents replays coalesced historical events for files that
+            // existed before the watch began plus multi-event bursts per
+            // write. When the post-rescan content hash matches the hash
+            // captured before the event, nothing the frontend renders has
+            // changed, so broadcasting would only churn SSE clients. Both
+            // states must be well-formed — any transition into or out of the
+            // malformed state is a real change the frontend must observe.
+            let unchanged = pre.as_ref().is_some_and(|p| {
+                entry.frontmatter_state != FRONTMATTER_MALFORMED
+                    && p.frontmatter_state != FRONTMATTER_MALFORMED
+                    && p.etag == entry.etag
+            });
+            if unchanged {
+                tracing::debug!(
+                    file = %path.display(),
+                    "watcher suppressed no-op re-broadcast (content unchanged)",
+                );
+                return;
+            }
             emit(
                 payload_for_entry(&entry, rel, pre.as_ref(), now),
                 hub.as_ref(),
@@ -548,6 +569,56 @@ mod tests {
             }
             other => panic!("expected DocChanged, got {other:?}"),
         }
+    }
+
+    #[tokio::test]
+    async fn unchanged_content_rewrite_is_suppressed() {
+        // A filesystem event whose rescan yields content identical to what was
+        // already indexed must not broadcast. This guards the macOS FSEvents
+        // behaviour where coalesced historical events and per-write multi-event
+        // bursts re-fire for files whose content never changed — broadcasting
+        // those would churn SSE clients with no-op doc-changed events.
+        if !watcher_fires_in_this_env().await {
+            eprintln!("SKIP: notify watcher not firing in this environment");
+            return;
+        }
+        let tmp = tempfile::tempdir().unwrap();
+        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
+        let mut rx = hub.subscribe();
+        let path = tmp.path().join("meta/plans/2026-01-01-foo.md");
+        let original = std::fs::read_to_string(&path).unwrap();
+
+        spawn(
+            doc_paths.values().cloned().collect(),
+            tmp.path().to_path_buf(),
+            indexer,
+            clusters,
+            hub,
+            activity_feed.clone(),
+            Arc::new(WriteCoordinator::new()),
+            None,
+            Settings {
+                debounce: Duration::from_millis(5),
+            },
+        );
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Rewrite byte-for-byte identical content: the rescan etag matches the
+        // pre-event etag, so the broadcast must be suppressed.
+        std::fs::write(&path, &original).unwrap();
+
+        assert!(
+            tokio::time::timeout(Duration::from_millis(400), rx.recv())
+                .await
+                .is_err(),
+            "no-op rewrite of unchanged content must not broadcast",
+        );
+        assert_eq!(
+            activity_feed.recent(5).len(),
+            0,
+            "suppressed re-broadcast must not push an activity event",
+        );
     }
 
     #[tokio::test]

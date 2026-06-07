@@ -164,10 +164,17 @@ def _build_deps(workspace: Path, opts: dict) -> DevDeps:
         npm_bin=str(npm_bin),
         node_bin="node",
         free_port=(lambda: opts["free_port"]) if "free_port" in opts else free_port,
-        probe_timeout=opts.get("probe_timeout", 2.0),
-        pidfile_timeout=opts.get("pidfile_timeout", 5.0),
-        readiness_timeout=opts.get("readiness_timeout", 3.0),
-        frontend_active_timeout=opts.get("frontend_active_timeout", 5.0),
+        # Happy-path defaults are deliberately generous: these are real
+        # processes (circusd + Python fakes) started on shared CI runners that
+        # may have only a few cores under heavy parallel load. The suite
+        # asserts direction (it happened), not precise deadlines — the exact
+        # poll-count/timeout maths is pinned by the unit tests in test_dev.py.
+        # Negative-path tests override these with small values to exercise the
+        # timeout branches.
+        probe_timeout=opts.get("probe_timeout", 5.0),
+        pidfile_timeout=opts.get("pidfile_timeout", 20.0),
+        readiness_timeout=opts.get("readiness_timeout", 20.0),
+        frontend_active_timeout=opts.get("frontend_active_timeout", 20.0),
         grace_quit=opts.get("grace_quit", 6.0),
         grace_kill=opts.get("grace_kill", 3.0),
     )

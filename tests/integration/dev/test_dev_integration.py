@@ -28,7 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 DRIVER = Path(__file__).parent / "dev_integration_driver.py"
 
 
-def run_driver(workspace: Path, action: str, opts: dict | None = None, timeout: float = 60):
+def run_driver(workspace: Path, action: str, opts: dict | None = None, timeout: float = 120):
     cmd = [sys.executable, str(DRIVER), "--workspace", str(workspace), "--action", action]
     if opts is not None:
         opts_path = workspace / f"opts-{action}.json"

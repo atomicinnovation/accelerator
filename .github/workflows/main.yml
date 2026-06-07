@@ -53,6 +53,15 @@ jobs:
           cache: true
           experimental: true
 
+      # Compile the visualiser server up front, in its own step, so the
+      # heavyweight Rust build does not run concurrently with the timing-
+      # sensitive integration suites (dev, binary-acquisition). On the
+      # few-core macOS runners that contention starved real-process startup
+      # and fork-heavy shell paths, flaking those suites. With the build
+      # already done, its dependency in test:integration is a no-op.
+      - name: Build visualiser server
+        run: mise run build:server:dev
+
       - name: Run integration tests
         run: mise run test:integration
 
