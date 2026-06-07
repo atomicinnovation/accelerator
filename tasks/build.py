@@ -120,6 +120,26 @@ def server_dev(context: Context):
 
 
 @task
+def server_dev_tests(context: Context):
+    """Compile the visualiser test binaries (test profile) without running them.
+
+    CI warms this before ``test:integration`` so ``test:integration:visualiser``
+    performs no rustc compilation while the timing- and fork-sensitive shell
+    suites (binary-acquisition, dev) run alongside it: a compilation CPU/memory
+    spike otherwise starves their subprocess ``fork()`` calls on the few-core
+    hosted runners. The dev profile built by ``server_dev`` is a *different*
+    artifact set, so it does not warm this — both are pre-built in CI.
+
+    Mirrors the cargo invocation in ``test.integration.visualiser`` with
+    ``--no-run``; keep the feature flags in sync with it.
+    """
+    context.run(
+        f"cargo test --manifest-path {CARGO_TOML} --tests --no-run "
+        f"--no-default-features --features dev-frontend"
+    )
+
+
+@task
 def server_release(context: Context):
     """Build the visualiser server binary for release.
 
