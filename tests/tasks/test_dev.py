@@ -8,6 +8,7 @@ blocks, exit codes) and the mise-task config shape.
 import pytest
 from invoke import Context as _Context
 
+from tasks.shared.dev.health import Health
 from tasks.shared.dev.lifecycle import StopResult, UpResult
 
 
@@ -98,3 +99,20 @@ class TestStopAdapter:
         )
         with pytest.raises(Exit):
             dev.stop(_Context())
+
+
+class TestStatusAdapter:
+    def test_exits_with_status_code(self, mocker):
+        from invoke import Exit
+
+        from tasks import dev
+        from tasks.shared.dev.lifecycle import StatusResult
+
+        mocker.patch.object(dev, "_dev_deps", return_value=object())
+        mocker.patch(
+            "tasks.dev.do_status",
+            return_value=StatusResult(Health.PARTIAL, 3, ["Server:   active"]),
+        )
+        with pytest.raises(Exit) as exc:
+            dev.status(_Context())
+        assert exc.value.code == 3

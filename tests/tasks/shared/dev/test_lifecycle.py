@@ -10,6 +10,7 @@ from tasks.shared.dev.lifecycle import (
     UpResult,
     bring_up,
     do_restart,
+    do_status,
     do_stop,
 )
 from tasks.shared.dev.state import DevState, read_dev_state, write_dev_state
@@ -580,4 +581,79 @@ class TestDoRestart:
         assert result.kind == "failed"
         bu.assert_not_called()
 
+
+
+
+# ─── do_status ───────────────────────────────────────────────
+
+
+def _status_deps(tmp_path, *, statuses, reachable=True, state=None, info=None):
+    procs = FakeProcs()
+    world = FakeWorld(procs, statuses=statuses, reachable=reachable)
+    deps = _orch_deps(tmp_path, procs=procs, world=world)
+    if state is not None:
+        write_dev_state(deps.state_path, state)
+    if info is not None:
+        deps.server_info_path.write_text(json.dumps(info))
+    return deps
+
+
+class TestDoStatus:
+    def test_both_active_is_healthy_exit_0_with_fields(self, tmp_path):
+        deps = _status_deps(
+            tmp_path,
+            statuses={"server": "active", "frontend": "active"},
+            state=_healthy_state(_orch_deps(tmp_path, procs=FakeProcs(), world=FakeWorld(FakeProcs()))),
+            info={"url": "http://127.0.0.1:7777", "port": 7777},
+        )
+        # rebuild state on the real deps paths
+        write_dev_state(deps.state_path, _healthy_state(deps))
+        result = do_status(deps)
+        assert result.exit_code == 0
+        text = "\n".join(result.lines)
+        assert "Server:   active" in text
+        assert "Frontend: active" in text
+        assert "http://127.0.0.1:54321" in text  # frontend URL
+        assert "http://127.0.0.1:7777" in text  # API URL
+        # log paths printed even when HEALTHY
+        assert "/server.log" in text
+        assert "/frontend.log" in text
+
+    def test_starting_label_when_frontend_pid_never_recorded(self, tmp_path):
+        deps = _status_deps(tmp_path, statuses={"server": "active", "frontend": "stopped"})
+        state = _healthy_state(deps)
+        state.frontend_pid = None  # never recorded => genuinely mid-first-launch
+        state.frontend_start_time = None
+        write_dev_state(deps.state_path, state)
+        result = do_status(deps)
+        assert result.exit_code == 3
+        assert any("(starting)" in line for line in result.lines)
+
+    def test_settled_dead_frontend_is_degraded_not_starting(self, tmp_path):
+        deps = _status_deps(tmp_path, statuses={"server": "active", "frontend": "stopped"})
+        state = _healthy_state(deps)  # frontend_pid WAS recorded (9002)
+        write_dev_state(deps.state_path, state)
+        result = do_status(deps)
+        assert result.exit_code == 3
+        assert not any("(starting)" in line for line in result.lines)
+
+    def test_no_state_is_down_exit_4(self, tmp_path):
+        deps = _status_deps(tmp_path, statuses={})
+        result = do_status(deps)
+        assert result.exit_code == 4
+
+    def test_unreachable_is_down_exit_4(self, tmp_path):
+        deps = _status_deps(
+            tmp_path, statuses={"server": "active", "frontend": "active"}, reachable=False
+        )
+        write_dev_state(deps.state_path, _healthy_state(deps))
+        result = do_status(deps)
+        assert result.exit_code == 4
+
+    def test_log_paths_printed_on_down_too(self, tmp_path):
+        deps = _status_deps(tmp_path, statuses={})
+        result = do_status(deps)
+        text = "\n".join(result.lines)
+        assert "/server.log" in text
+        assert "/frontend.log" in text
 

@@ -1006,7 +1006,7 @@ run = "invoke dev.restart"
       the named helpers (`reuse_or_teardown`, `allocate_and_launch`, `teardown`)
       via the injected `DevDeps` (fake `CircusClient` + fake launcher + fake killer
       + injected clock), all in `tests/tasks/test_dev.py`: reuse short-circuit;
-      (`do_status` orchestration tests land in Phase 4):
+      (`do_status` orchestration tests added in Phase 4 — done):
       **lock-held → re-probe → reuse** *and* **lock-held → fail-fast** (both
       branches); degraded-teardown that **honours a `survivor`/`refused` result by
       failing fast**; stale-cleanup (incl. removing stale `ipc://` sockets);
@@ -1106,13 +1106,13 @@ run = "invoke dev.status"
 
 #### Automated Verification
 
-- [ ] Exit-code mapping + field-rendering unit tests pass, including: the
+- [x] Exit-code mapping + field-rendering unit tests pass, including: the
       **"(starting)"** label is emitted for `server=active, frontend=stopped` only
       when the **frontend watcher PID has never been recorded** in dev-state; the
       complementary negative case — a frontend whose PID *was* recorded but is now
       dead (port still populated) renders as **degraded (exit 3)**, not
       "(starting)"; and log paths print on HEALTHY too: `mise run test:unit:tasks`
-- [ ] Repo checks pass: `mise run check`
+- [x] Repo checks pass: `mise run check`
 
 #### Manual Verification
 

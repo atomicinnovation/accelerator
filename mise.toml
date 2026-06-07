@@ -49,6 +49,10 @@ description = "Restart the supervised dev stack (stop then start)"
 depends = ["build:server:dev", "deps:install:node"]
 run = "invoke dev.restart"
 
+[tasks."dev:status"]
+description = "Report dev server + frontend state, frontend URL, and resolved API port (exit 0 = both running, 3 = one, 4 = neither)"
+run = "invoke dev.status"
+
 [tasks."dev:server"]
 description = "Start the visualiser API server in dev mode (run alongside dev:frontend in a second terminal)"
 depends = ["build:server:dev"]

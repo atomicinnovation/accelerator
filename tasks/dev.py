@@ -7,7 +7,14 @@ from invoke import Context, Exit, task
 
 from tasks.shared.clock import Clock
 from tasks.shared.dev.circus import default_client_factory, default_launcher
-from tasks.shared.dev.lifecycle import DevDeps, UpResult, bring_up, do_restart, do_stop
+from tasks.shared.dev.lifecycle import (
+    DevDeps,
+    UpResult,
+    bring_up,
+    do_restart,
+    do_status,
+    do_stop,
+)
 from tasks.shared.paths import FRONTEND, PLUGIN_JSON, REPO_ROOT, SERVER, VISUALISER
 from tasks.shared.ports import free_port
 from tasks.shared.processes import PsutilProcessOps
@@ -149,6 +156,19 @@ def restart(context: Context):
         )
         return
     _print_stack_block(result, heading="Visualiser dev stack ready.")
+
+
+@task
+def status(context: Context):
+    """Report dev server + frontend state, frontend URL, and resolved API port.
+
+    Exit code conveys overall state: 0 = both running, 3 = one running,
+    4 = neither — identical on macOS and Linux.
+    """
+    result = do_status(_dev_deps(context))
+    for line in result.lines:
+        print(line)
+    raise Exit(code=result.exit_code)
 
 
 @task

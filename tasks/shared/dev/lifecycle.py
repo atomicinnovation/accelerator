@@ -23,7 +23,7 @@ from tasks.shared.dev.circus import (
     render_circus_ini,
 )
 from tasks.shared.dev.endpoints import ipc_socket_paths
-from tasks.shared.dev.health import Health, evaluate_health
+from tasks.shared.dev.health import Health, evaluate_health, status_exit_code
 from tasks.shared.dev.state import DevState, read_dev_state, write_dev_state
 from tasks.shared.locking import workspace_lock
 from tasks.shared.polling import wait_for_file
@@ -96,6 +96,13 @@ class StopResult:
     kind: str  # "clean" | "refused" | "survivor"
     pid: int | None = None
     message: str | None = None
+
+
+@dataclasses.dataclass
+class StatusResult:
+    health: Health
+    exit_code: int
+    lines: list[str]
 
 
 @dataclasses.dataclass
@@ -702,6 +709,55 @@ def _stop_without_state(deps: DevDeps) -> StopResult:
         remove_artifacts(synthetic, deps, StopResult("clean"), lock_held=False)
         return StopResult("clean", message="Dev stack not running.")
     return teardown(synthetic, deps, lock_held=False)
+
+
+def do_status(deps: DevDeps) -> StatusResult:
+    """Report each watcher's state, the frontend URL, and the API port.
+
+    Exit code: 0 = both running, 3 = one, 4 = neither (identical on macOS and
+    Linux). The "(starting)" label is gated on the frontend watcher PID having
+    *never* been recorded (genuinely mid-first-launch) — not merely on a
+    populated port — so a frontend that started and later died (respawn=false)
+    renders as degraded (exit 3), not "(starting)" forever. The exit code is
+    still ``status_exit_code(health)``; "(starting)" is display-only.
+    """
+    state = read_dev_state(deps.state_path)
+    if state is None:
+        statuses: dict[str, str] = {}
+    else:
+        statuses = _probe_status(state, deps, timeout=deps.probe_timeout) or {}
+    health = evaluate_health(statuses)
+
+    server_state = statuses.get("server", "stopped")
+    frontend_state = statuses.get("frontend", "stopped")
+    lines = [f"Server:   {server_state}"]
+
+    frontend_label = frontend_state
+    if (
+        state is not None
+        and server_state == "active"
+        and frontend_state != "active"
+        and state.frontend_pid is None  # never recorded => true pre-first-start
+    ):
+        frontend_label = f"{frontend_state} (starting)"
+    lines.append(f"Frontend: {frontend_label}")
+
+    if frontend_state == "active" and state is not None:
+        lines.append(f"  Frontend URL: {state.frontend_url}")
+    if server_state == "active":
+        info = _read_server_info(deps.server_info_path) or {}
+        if info.get("url"):
+            lines.append(f"  API:          {info['url']}")
+        elif info.get("port") is not None:
+            lines.append(f"  API port:     {info['port']}")
+
+    # Always print the log paths — on a running stack, tailing logs is the most
+    # common reason to run dev:status and (with no dev:logs helper) the printed
+    # path is the only discovery route.
+    lines.append(f"Logs:     {deps.dev_dir}/server.log")
+    lines.append(f"          {deps.dev_dir}/frontend.log")
+
+    return StatusResult(health, status_exit_code(health), lines)
 
 
 def do_restart(deps: DevDeps) -> UpResult:
