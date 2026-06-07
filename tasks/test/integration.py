@@ -27,7 +27,7 @@ def visualiser(context: Context):
 @task
 def dev(context: Context):
     """Integration tests for the unified dev task (real circusd + fake processes)."""
-    context.run("uv run pytest tests/tasks/test_dev_integration.py -v")
+    context.run("uv run pytest tests/integration/dev -v")
 
 
 @task

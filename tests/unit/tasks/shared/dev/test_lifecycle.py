@@ -15,7 +15,7 @@ from tasks.shared.dev.lifecycle import (
 )
 from tasks.shared.dev.state import DevState, read_dev_state, write_dev_state
 from tasks.shared.locking import workspace_lock
-from tests.tasks.shared.doubles import FakeClock
+from tests.unit.tasks.shared.doubles import FakeClock
 
 
 # ─── orchestration fakes ─────────────────────────────────────

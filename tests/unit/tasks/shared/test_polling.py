@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from tasks.shared.polling import wait_for_file
-from tests.tasks.shared.doubles import FakeClock
+from tests.unit.tasks.shared.doubles import FakeClock
 
 
 class TestWaitForFile:

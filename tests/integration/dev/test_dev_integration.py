@@ -24,7 +24,7 @@ import pytest
 
 from tasks.shared.dev.endpoints import ipc_socket_paths
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 DRIVER = Path(__file__).parent / "dev_integration_driver.py"
 
 

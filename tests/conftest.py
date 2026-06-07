@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_TASKS_FIXTURES = _REPO_ROOT / "tests/tasks/fixtures"
+_TASKS_FIXTURES = _REPO_ROOT / "tests/unit/tasks/fixtures"
 
 
 @pytest.fixture

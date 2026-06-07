@@ -7,7 +7,7 @@ from invoke import Context, Exit
 
 from tasks.lint import scripts as lint
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 LINT_BASHISMS = REPO_ROOT / "scripts/lint-bashisms.sh"
 
 

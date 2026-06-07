@@ -104,10 +104,7 @@ run = "invoke test.unit.frontend"
 [tasks."test:unit:tasks"]
 description = "Run pytest unit tests for invoke tasks"
 depends = ["deps:install:python"]
-# Auto-discover every test under tests/tasks, excluding the integration suites
-# that live in the same tree and run under test:integration:tasks /
-# test:integration:dev (they are slow and need their own setup).
-run = "uv run pytest tests/tasks --ignore=tests/tasks/test_github.py --ignore=tests/tasks/test_release.py --ignore=tests/tasks/test_dev_integration.py -v"
+run = "uv run pytest tests/unit/tasks -v"
 
 [tasks."test:unit:templates"]
 description = "Run template / SKILL / metadata-helper schema tests"
@@ -116,7 +113,7 @@ run = "invoke test.unit.templates"
 [tasks."test:integration:tasks"]
 description = "Run pytest integration tests for invoke tasks"
 depends = ["deps:install:python"]
-run = "uv run pytest tests/tasks/test_github.py tests/tasks/test_release.py -v"
+run = "uv run pytest tests/integration/tasks -v"
 
 [tasks."test:unit"]
 description = "Run all unit tests in parallel"

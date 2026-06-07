@@ -1,8 +1,8 @@
 """Tests for the thin ``@task`` adapters in ``tasks/dev.py``.
 
-The helper/orchestration logic is covered under ``tests/tasks/shared/`` and
-``tests/tasks/shared/dev/``; this file covers only the adapter mapping (printed
-blocks, exit codes) and the mise-task config shape.
+The helper/orchestration logic is covered under ``tests/unit/tasks/shared/`` and
+``tests/unit/tasks/shared/dev/``; this file covers only the adapter mapping
+(printed blocks, exit codes) and the mise-task config shape.
 """
 
 from pathlib import Path
@@ -128,7 +128,7 @@ class TestMiseConfigShape:
     def _mise():
         import tomllib
 
-        root = Path(__file__).resolve().parents[2]
+        root = Path(__file__).resolve().parents[3]
         return tomllib.loads((root / "mise.toml").read_text())
 
     @pytest.mark.parametrize("name", ["dev", "dev:restart"])
