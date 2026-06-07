@@ -44,7 +44,12 @@ class PsutilProcessOps:
     """Real ``ProcessOps`` backed by psutil + ``os.kill``."""
 
     def is_alive(self, pid: int) -> bool:
-        return psutil.pid_exists(pid)
+        # A killed-but-not-yet-reaped child reads as a zombie; treat it as dead
+        # so teardown confirms death even when the killer is the parent process.
+        try:
+            return psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+        except psutil.NoSuchProcess:
+            return False
 
     def create_time(self, pid: int) -> float | None:
         try:

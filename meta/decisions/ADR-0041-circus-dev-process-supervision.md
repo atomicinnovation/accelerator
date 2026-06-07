@@ -2,14 +2,14 @@
 adr_id: ADR-0041
 date: "2026-06-07T00:00:00+00:00"
 author: Toby Clemson
-status: proposed
+status: accepted
 tags: [adr, dev-tooling, process-supervision, circus, visualiser]
 ---
 
 # ADR-0041: circus for dev process supervision
 
 **Date**: 2026-06-07
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context

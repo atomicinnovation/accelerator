@@ -5,6 +5,8 @@ The helper/orchestration logic is covered under ``tests/tasks/shared/`` and
 blocks, exit codes) and the mise-task config shape.
 """
 
+from pathlib import Path
+
 import pytest
 from invoke import Context as _Context
 
@@ -116,3 +118,26 @@ class TestStatusAdapter:
         with pytest.raises(Exit) as exc:
             dev.status(_Context())
         assert exc.value.code == 3
+
+
+# ─── mise config shape (prerequisite-auto-run cannot silently regress) ───────
+
+
+class TestMiseConfigShape:
+    @staticmethod
+    def _mise():
+        import tomllib
+
+        root = Path(__file__).resolve().parents[2]
+        return tomllib.loads((root / "mise.toml").read_text())
+
+    @pytest.mark.parametrize("name", ["dev", "dev:restart"])
+    def test_dev_tasks_declare_build_and_deps(self, name):
+        depends = self._mise()["tasks"][name]["depends"]
+        assert "build:server:dev" in depends
+        assert "deps:install:node" in depends
+
+    def test_integration_dev_is_in_the_aggregate(self):
+        mise = self._mise()
+        assert "test:integration:dev" in mise["tasks"]["test:integration"]["depends"]
+        assert mise["tasks"]["test:integration:dev"]["depends"] == ["deps:install:python"]

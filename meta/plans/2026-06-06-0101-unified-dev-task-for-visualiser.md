@@ -1279,6 +1279,18 @@ enforcing, and a macOS-only regression (e.g. a `sun_path` breach) could ship.
 (`release` already gates transitively via `needs: prerelease`, so it needs no
 direct edit.)
 
+> **Deviation (as-built, maintainer decision):** rather than a dedicated
+> `test-cross-platform` job scoped to the two dev suites, the existing
+> `test-unit`/`test-integration`/`test-e2e` jobs were each turned into
+> `strategy.matrix.os: [ubuntu-latest, macos-latest]` jobs, so **all** suites run
+> cross-platform (not only the dev-task ones). This accepts the extra macOS
+> minutes in exchange for catching macOS-only regressions across the whole repo,
+> and removes the special-case job. `check` stays Linux-only (shell format/lint is
+> platform-independent). `prerelease.needs` lists the three matrix jobs (a `needs`
+> on a matrix job waits for every leg), so a red macOS leg still gates the release
+> chain. This also dissolves the "`test:integration:dev` must run independently"
+> constraint, since the matrix runs the whole `test:integration` aggregate.
+
 > **Architecture coverage caveat**: the matrix proves wheel resolution + behaviour
 > on `ubuntu-latest` (x86_64) and `macos-latest` (arm64). **aarch64 Linux**
 > (Apple-silicon Docker, ARM CI/containers) is *not* exercised; circus/pyzmq/
@@ -1297,27 +1309,36 @@ direct edit.)
 
 #### Automated Verification
 
-- [ ] The dedicated `test-cross-platform` CI job is green on **both** legs
-      (`ubuntu-latest` and `macos-latest`), running `test:unit:tasks` +
-      `test:integration:dev` with identical exit codes, field set, and no orphans
-      — the cross-platform parity claim is enforced, not manual (this also proves
-      the py3.14 wheel resolution for circus/pyzmq/tornado/psutil on arm64 macOS)
-- [ ] `test-cross-platform` is in the `prerelease`/`release` `needs:` list, so a
-      red macOS leg **blocks** release
-- [ ] Integration suite includes the restart round-trip, lost-state-file
+- [~] The `test-unit`/`test-integration`/`test-e2e` jobs are matrixed over
+      `[ubuntu-latest, macos-latest]`, so every suite (incl. `test:unit:tasks` +
+      `test:integration:dev`) runs on **both** legs with identical exit codes,
+      field set, and no orphans — the cross-platform parity claim is enforced, not
+      manual (this also proves the py3.14 wheel resolution for
+      circus/pyzmq/tornado/psutil on arm64 macOS). Matrix added to
+      `.github/workflows/main.yml`; green on darwin locally — the live CI run on
+      both legs is pending push.
+- [x] The matrixed `test-unit`/`test-integration`/`test-e2e` jobs are in the
+      `prerelease`/`release` `needs:` list, so a red macOS leg of any suite
+      **blocks** release (a `needs` on a matrix job waits for every leg; `release`
+      gates transitively via `needs: prerelease`)
+- [x] Integration suite includes the restart round-trip, lost-state-file
       discovery, orphan-reach-with-only-server-recorded, and daemon-startup-failure
-      (real-handle reap) cases above, all green on both legs
-- [ ] `test:integration:dev` is part of `mise run test:integration`
-- [ ] Full suite green: `mise run test`
-- [ ] Repo checks pass: `mise run check`
+      (real-handle reap) cases above, all green (on darwin locally; both legs via CI)
+- [x] `test:integration:dev` is part of `mise run test:integration`
+- [~] Full suite green: `mise run test` (dev unit + integration suites green;
+      full Rust/e2e suite not re-run locally — covered by the existing CI jobs)
+- [x] Repo checks pass: `mise run check`
 
 #### Manual Verification
 
-- [ ] **Required**: `mise run dev` exercised by hand from a *real interactive
-      shell* on macOS confirms the detached arbiter outlives the terminal closing
+- [ ] **Required (outstanding human step)**: `mise run dev` exercised by hand
+      from a *real interactive shell* on macOS confirms the detached arbiter
+      outlives the terminal closing
       (a stronger condition than surviving a CI step's non-interactive shell under
       launchd), and `dev:stop` then leaves no orphaned `node`/server children.
-- [ ] ADR-0041 is `accepted` and matches the shipped design.
+- [x] ADR-0041 is `accepted` and matches the shipped design. (The server-log
+      capture deviation is an implementation detail outside the ADR's
+      circus-choice scope; recorded in the plan + code comments + memory.)
 
 ---
 

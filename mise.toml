@@ -127,6 +127,11 @@ description = "Run visualiser integration tests"
 depends = ["build:server:dev"]
 run = "invoke test.integration.visualiser"
 
+[tasks."test:integration:dev"]
+description = "Run unified dev task integration tests (real circusd + Python fake processes)"
+depends = ["deps:install:python"]
+run = "invoke test.integration.dev"
+
 [tasks."test:integration:config"]
 description = "Run config integration tests"
 run = "invoke test.integration.config"
@@ -156,6 +161,7 @@ run = "invoke test.integration.migrate"
 description = "Run all integration tests in parallel"
 depends = [
     "test:integration:visualiser",
+    "test:integration:dev",
     "test:integration:config",
     "test:integration:decisions",
     "test:integration:tasks",

@@ -139,7 +139,8 @@ class CircusSupervisor:
         return {}
 
     def pids(self, name: str) -> list[int]:
-        resp = self._call("listpids", name=name)
+        # circus `list <name>` returns {"pids": [...]} for a watcher's processes.
+        resp = self._call("list", name=name)
         return [int(p) for p in resp.get("pids", [])]
 
     def start(self, name: str) -> None:
@@ -175,7 +176,7 @@ class PopenHandle:
         return self._popen.poll()
 
 
-def default_launcher(argv: list[str], *, env: dict, cwd: str) -> LaunchHandle:
+def default_launcher(argv: list[str], *, env: dict[str, str], cwd: str) -> LaunchHandle:
     # start_new_session detaches into a new session, so the arbiter survives the
     # invoking shell *and* the Popen PID is the real arbiter (we do NOT use
     # --daemon, whose double-fork would make the handle a useless intermediate).
