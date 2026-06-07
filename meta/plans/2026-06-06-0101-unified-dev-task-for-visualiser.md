@@ -603,19 +603,19 @@ drift within tolerance, mismatch (recycled PID), and dead PID.
 
 #### Automated Verification
 
-- [ ] New unit suite passes: `uv run pytest tests/tasks/test_dev.py -v`, covering
+- [x] New unit suite passes: `uv run pytest tests/tasks/test_dev.py -v`, covering
       every helper above incl. `free_port` bindable, `ipc_socket_paths`
       (distinct / deterministic / within `sun_path` limit / filesystem-path /
       `$TMPDIR`-unset resolution), `workspace_lock` (acquire / fail-fast-when-held /
       release / atomic dead-owner reclaim), `DevState` schema-mismatch and
       provisional-state round-trips, the exact `wait_for_file` poll count, and
       `pid_identity_matches` drift/recycle/dead-PID
-- [ ] `test_dev.py` registered in `mise.toml` `test:unit:tasks` file list and the
+- [x] `test_dev.py` registered in `mise.toml` `test:unit:tasks` file list and the
       task is green: `mise run test:unit:tasks`. **All** fake-driven orchestration
       tests (Phase 3) also live in this same `tests/tasks/test_dev.py` so they are
       wired into CI via the explicit file list (a file in neither explicit list
       runs locally but is silently skipped in CI)
-- [ ] Repo checks pass: `mise run check`
+- [x] Repo checks pass: `mise run check`
 
 #### Manual Verification
 
