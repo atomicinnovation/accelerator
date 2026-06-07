@@ -173,12 +173,11 @@ export function KanbanBoard() {
       case 'no-op-other-rejected':
         showAnnouncement('The Other column is read-only; drops are ignored.')
         return
-      case 'no-op-same-column': {
-        const sourceStatus = String(source?.frontmatter['status'] ?? '')
-        const columnLabel = columns.find(c => c.key === sourceStatus)?.label ?? sourceStatus
-        showAnnouncement(`Card returned to ${columnLabel}.`)
+      case 'no-op-same-column':
+        // Releasing on the origin column is a no-op — no message (it added no
+        // information and reflowed the board on the common pick-up-and-put-back
+        // gesture). dnd-kit's own live region still narrates the drag lifecycle.
         return
-      }
       case 'no-op-unknown':
         return
     }

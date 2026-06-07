@@ -2,7 +2,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
-  padding-block: var(--sp-4);
+  /* No top padding: the Page divider already provides the gap below the
+     heading (its margin-bottom). The board's own top padding stacked on top of
+     that pushed the columns too far from the heading versus the prototype. */
+  padding-bottom: var(--sp-4);
 }
 /* While a drag is active the DragOverlay clone follows the cursor with
    pointer-events: none, so the element actually under the pointer is a column
