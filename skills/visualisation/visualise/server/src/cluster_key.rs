@@ -124,6 +124,15 @@ fn parent_or_legacy_id(entry: &IndexEntry, cfg: &WorkItemConfig) -> Option<Strin
     }
     if let Some(raw) = entry.frontmatter.get("work_item_id").and_then(|v| v.as_str()) {
         if let Some(id) = id_from_value(raw, cfg) {
+            // Deprecated legacy branch: the canonical clustering key is now
+            // `parent:` (the migration derives it from the foreign
+            // `work_item_id:`). Retained this release for un-migrated repos;
+            // its removal is the story-0070 follow-on contract story.
+            warn!(
+                entry_path = %entry.path.display(),
+                "cluster key resolved via the legacy `work_item_id:` branch; \
+                 migrate to `parent:` (deprecated fallback — story 0070 follow-on)",
+            );
             return Some(id);
         }
     }
@@ -262,6 +271,31 @@ mod tests {
             &cfg,
         );
         assert_eq!(resolved.as_deref(), Some("0042"));
+    }
+
+    #[test]
+    fn legacy_work_item_id_branch_emits_deprecation_warning() {
+        // Story 0070: the retained legacy `work_item_id:` clustering branch
+        // emits a deprecation warning when it resolves (the canonical key is
+        // now `parent:`). Capture synchronously on the test thread.
+        let body = crate::log::test_support::capture_logs(|| {
+            let cfg = WorkItemConfig::default();
+            let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 1, "P");
+            plan.frontmatter = json!({ "work_item_id": "0042" });
+            let resolved = resolve_cluster_key(
+                &plan,
+                &empty_entries(),
+                &HashMap::new(),
+                &HashMap::new(),
+                &project_root(),
+                &cfg,
+            );
+            assert_eq!(resolved.as_deref(), Some("0042"));
+        });
+        assert!(
+            body.contains("legacy `work_item_id:` branch"),
+            "expected cluster-key legacy-branch deprecation warning, got: {body}"
+        );
     }
 
     #[test]

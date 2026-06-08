@@ -1209,28 +1209,51 @@ fn build_entry(
         // regex doesn't match (e.g., legacy bare-numeric files in a
         // project-prefixed workspace during a pattern-config rollout).
         let slug = regex_slug.or_else(|| slug::derive(kind, filename, work_item_cfg));
-        // Frontmatter-first: a synced work-item may carry `work_item_id:` even
-        // when the filename doesn't start with the namespaced prefix. Trim,
-        // route through `normalise_id`, and fall back to filename extraction
-        // only if the frontmatter value is missing or shape-invalid.
-        let fm_id = match &parsed.state {
-            FrontmatterState::Parsed(map) => map
-                .get("work_item_id")
-                .and_then(|v| v.as_str())
-                .and_then(|raw| {
-                    let normalised = work_item_cfg.normalise_id(raw);
-                    if normalised.is_none() && !raw.trim().is_empty() {
-                        tracing::warn!(
-                            file = %path.display(),
-                            value = raw,
-                            "work_item_id frontmatter value failed shape validation; falling back to filename extraction",
-                        );
-                    }
-                    normalised
-                }),
-            _ => None,
+        // Identity resolution (story 0070): the unified `id:` key is primary,
+        // then the legacy `work_item_id:` key, then filename extraction. The
+        // latter two are retained transitional fallbacks — a follow-on contract
+        // story removes them once every consuming repo has migrated — and each
+        // emits a deprecation warning when it is the resolving source. All three
+        // sources route through `normalise_id` so the identity shape is
+        // canonical regardless of where it came from (a raw `id:` must not
+        // bypass normalisation). A synced work-item may carry its id in
+        // frontmatter even when the filename doesn't encode it.
+        let read_fm_id = |key: &str| -> Option<String> {
+            let FrontmatterState::Parsed(map) = &parsed.state else {
+                return None;
+            };
+            map.get(key).and_then(|v| v.as_str()).and_then(|raw| {
+                let normalised = work_item_cfg.normalise_id(raw);
+                if normalised.is_none() && !raw.trim().is_empty() {
+                    tracing::warn!(
+                        file = %path.display(),
+                        key = key,
+                        value = raw,
+                        "work-item identity frontmatter value failed shape validation",
+                    );
+                }
+                normalised
+            })
         };
-        let id = fm_id.or_else(|| work_item_cfg.extract_id(filename));
+        let id = if let Some(v) = read_fm_id("id") {
+            Some(v)
+        } else if let Some(v) = read_fm_id("work_item_id") {
+            tracing::warn!(
+                file = %path.display(),
+                "work-item identity resolved via the legacy `work_item_id:` key; \
+                 migrate to `id:` (deprecated fallback — story 0070 follow-on)",
+            );
+            Some(v)
+        } else if let Some(v) = work_item_cfg.extract_id(filename) {
+            tracing::warn!(
+                file = %path.display(),
+                "work-item identity resolved via the filename fallback; \
+                 add an `id:` (deprecated fallback — story 0070 follow-on)",
+            );
+            Some(v)
+        } else {
+            None
+        };
         (slug, id)
     } else {
         (slug::derive(kind, &slug_filename, work_item_cfg), None)
@@ -3010,6 +3033,69 @@ mod reverse_index_tests {
             .await
             .expect("indexed");
         assert_eq!(entry.work_item_id.as_deref(), Some("0042"));
+    }
+
+    // ── Story 0070: unified `id:` read path + per-arm deprecation warnings ──
+    fn fc_for(s: &str) -> crate::file_driver::FileContent {
+        crate::file_driver::FileContent {
+            bytes: s.as_bytes().to_vec(),
+            etag: "etag".into(),
+            mtime_ms: 0,
+            size: s.len() as u64,
+        }
+    }
+
+    #[test]
+    fn work_item_identity_resolves_via_unified_id_key() {
+        // `id:` is primary and wins over the filename (9999), routed through
+        // normalise_id — no legacy `work_item_id:` present.
+        let cfg = crate::config::WorkItemConfig::default_numeric();
+        let entry = build_entry(
+            DocTypeKey::WorkItems,
+            PathBuf::from("/repo/meta/work/9999-x.md"),
+            &fc_for("---\ntitle: T\nid: \"0042\"\n---\nbody\n"),
+            Path::new("/repo"),
+            &cfg,
+        );
+        assert_eq!(entry.work_item_id.as_deref(), Some("0042"));
+    }
+
+    #[test]
+    fn legacy_work_item_id_key_emits_deprecation_warning() {
+        let cfg = crate::config::WorkItemConfig::default_numeric();
+        let body = crate::log::test_support::capture_logs(|| {
+            let entry = build_entry(
+                DocTypeKey::WorkItems,
+                PathBuf::from("/repo/meta/work/9999-x.md"),
+                &fc_for("---\ntitle: T\nwork_item_id: \"0042\"\n---\nbody\n"),
+                Path::new("/repo"),
+                &cfg,
+            );
+            assert_eq!(entry.work_item_id.as_deref(), Some("0042"));
+        });
+        assert!(
+            body.contains("legacy `work_item_id:` key"),
+            "expected legacy-key deprecation warning, got: {body}"
+        );
+    }
+
+    #[test]
+    fn filename_fallback_emits_deprecation_warning() {
+        let cfg = crate::config::WorkItemConfig::default_numeric();
+        let body = crate::log::test_support::capture_logs(|| {
+            let entry = build_entry(
+                DocTypeKey::WorkItems,
+                PathBuf::from("/repo/meta/work/0042-foo.md"),
+                &fc_for("---\ntitle: T\n---\nbody\n"),
+                Path::new("/repo"),
+                &cfg,
+            );
+            assert_eq!(entry.work_item_id.as_deref(), Some("0042"));
+        });
+        assert!(
+            body.contains("filename fallback"),
+            "expected filename-fallback deprecation warning, got: {body}"
+        );
     }
 
     #[tokio::test]

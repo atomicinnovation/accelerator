@@ -297,11 +297,12 @@ pub fn title_from(parsed: &FrontmatterState, body: &str, filename_stem: &str) ->
 /// Reads cross-reference keys from frontmatter for work-item aggregation.
 ///
 /// Reads `work_item_id:` (preferred), `work-item:` (transitional legacy
-/// fallback — removed in the release that closes story 0070), or `ticket:`
-/// (older legacy fallback) as a scalar, plus `parent:` and `related:` which
-/// may each be a scalar or an array. All non-empty string/numeric values
-/// are aggregated into a single `Vec<String>`. Returns an empty Vec when
-/// no recognised key is present or all values are empty.
+/// fallback — retained this release and deprecated; removal tracked by the
+/// story-0070 follow-on contract story, to ship once every consuming repo has
+/// migrated), or `ticket:` (older legacy fallback) as a scalar, plus `parent:`
+/// and `related:` which may each be a scalar or an array. All non-empty
+/// string/numeric values are aggregated into a single `Vec<String>`. Returns
+/// an empty Vec when no recognised key is present or all values are empty.
 pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
     let FrontmatterState::Parsed(m) = parsed else {
         return Vec::new();
@@ -333,10 +334,17 @@ pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
         }
     } else if let Some(v) = m.get("work-item") {
         // Transitional fallback: pre-migration repos still emit the legacy
-        // `work-item:` key. Remove in the release that closes story 0070 —
-        // by then all userspace repos should have run `/accelerator:migrate`
-        // at least once.
+        // `work-item:` key. Retained and deprecated this release; its removal
+        // (and this test's deletion) is the story-0070 follow-on contract
+        // story, to ship once every consuming repo has run
+        // `/accelerator:migrate`.
         if let Some(s) = extract_scalar(v) {
+            tracing::warn!(
+                value = %s,
+                "work-item ref resolved via the legacy `work-item:` key; \
+                 migrate to `work_item_id:`/`id:` (deprecated fallback — \
+                 story 0070 follow-on)",
+            );
             refs.push(s);
         }
     } else if let Some(v) = m.get("ticket") {
@@ -474,6 +482,22 @@ mod tests {
         let raw = b("---\nwork-item: \"0042\"\n---\nbody\n");
         let p = parse(&raw);
         assert_eq!(read_ref_keys(&p.state), vec!["0042".to_string()]);
+    }
+
+    #[test]
+    fn read_ref_keys_legacy_work_item_arm_emits_deprecation_warning() {
+        // Story 0070: the retained `work-item:` arm emits a deprecation warning
+        // when it resolves. Capture synchronously on the test thread under a
+        // thread-local subscriber (the log.rs with_default precedent).
+        let body = crate::log::test_support::capture_logs(|| {
+            let raw = b("---\nwork-item: \"0042\"\n---\nbody\n");
+            let p = parse(&raw);
+            assert_eq!(read_ref_keys(&p.state), vec!["0042".to_string()]);
+        });
+        assert!(
+            body.contains("legacy `work-item:` key"),
+            "expected work-item: arm deprecation warning, got: {body}"
+        );
     }
 
     #[test]
