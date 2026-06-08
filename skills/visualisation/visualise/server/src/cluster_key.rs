@@ -90,8 +90,13 @@ fn walk<'a>(
             // Otherwise: delegate to target_path_from_entry, which owns
             // Plan(id) / Path(p) dispatch + normalize_target_key path
             // safety. Recurse on the resulting entry.
-            let target_path =
-                target_path_from_entry(entry, plans_by_id, project_root)?;
+            let target_path = target_path_from_entry(
+                entry,
+                plans_by_id,
+                work_item_by_id,
+                work_item_cfg,
+                project_root,
+            )?;
             let target_entry: &IndexEntry = *entries_by_path.get(&target_path)?;
             walk(
                 target_entry,

@@ -365,9 +365,13 @@ impl Indexer {
         // populated `plans_by_id` so typed-linkage `target: "plan:<id>"`
         // references resolve regardless of file-driver iteration order.
         for entry in entries.values() {
-            if let Some(target_key) =
-                target_path_from_entry(entry, &plans_by_id, &self.project_root)
-            {
+            if let Some(target_key) = target_path_from_entry(
+                entry,
+                &plans_by_id,
+                &work_item_by_id,
+                &self.work_item_cfg,
+                &self.project_root,
+            ) {
                 reviews_by_target
                     .entry(target_key)
                     .or_default()
@@ -427,9 +431,15 @@ impl Indexer {
                             remove_from_work_item_by_id(&self.work_item_by_id, &previous).await;
                             remove_from_plans_by_id(&self.plans_by_id, &previous).await;
                             let plans_snapshot = self.plans_by_id.read().await.clone();
+                            // Snapshot work_item_by_id AFTER the work-item-by-id
+                            // removal, mirroring plans_snapshot, so the typed
+                            // `work-item:` target resolves against a consistent view.
+                            let work_item_snapshot = self.work_item_by_id.read().await.clone();
                             remove_from_reviews_by_target(
                                 &self.reviews_by_target,
                                 &plans_snapshot,
+                                &work_item_snapshot,
+                                &self.work_item_cfg,
                                 &self.project_root,
                                 &previous,
                             )
@@ -461,9 +471,15 @@ impl Indexer {
                 // helper has folded the new entry in, so the
                 // reviews_by_target update sees a consistent view.
                 let plans_snapshot = self.plans_by_id.read().await.clone();
+                // Snapshot work_item_by_id AFTER update_work_item_by_id has
+                // folded the new entry in, mirroring plans_snapshot, so a typed
+                // `work-item:` target resolves against a consistent view.
+                let work_item_snapshot = self.work_item_by_id.read().await.clone();
                 update_reviews_by_target(
                     &self.reviews_by_target,
                     &plans_snapshot,
+                    &work_item_snapshot,
+                    &self.work_item_cfg,
                     &self.project_root,
                     &entry,
                     previous.as_ref(),
@@ -501,9 +517,12 @@ impl Indexer {
                     remove_from_work_item_by_id(&self.work_item_by_id, &previous).await;
                     remove_from_plans_by_id(&self.plans_by_id, &previous).await;
                     let plans_snapshot = self.plans_by_id.read().await.clone();
+                    let work_item_snapshot = self.work_item_by_id.read().await.clone();
                     remove_from_reviews_by_target(
                         &self.reviews_by_target,
                         &plans_snapshot,
+                        &work_item_snapshot,
+                        &self.work_item_cfg,
                         &self.project_root,
                         &previous,
                     )
@@ -757,7 +776,9 @@ impl Indexer {
         let mut seen: HashSet<PathBuf> = HashSet::new();
 
         // Existing: plan-review `target:` field.
-        if let Some(target_key) = target_path_from_entry(entry, &plans, &self.project_root) {
+        if let Some(target_key) =
+            target_path_from_entry(entry, &plans, &by_id, &self.work_item_cfg, &self.project_root)
+        {
             if let Some(e) = entries.get(&target_key) {
                 if seen.insert(e.path.clone()) {
                     result.push(e.clone());
@@ -855,20 +876,28 @@ fn normalize_target_key(raw: &str, project_root: &Path) -> Option<PathBuf> {
     Some(normalized)
 }
 
-/// Resolves a plan-review's `target:` value to the target plan's path.
+/// Resolves a review/validation `target:` value to the target artifact's path.
 ///
-/// Accepts two forms per ADR-0034 §"Forms":
+/// Accepts, per ADR-0034 §"Forms":
 ///   - Path form: `target: "meta/plans/2026-...md"` — resolved via
 ///     `normalize_target_key` against `project_root`.
-///   - Typed-linkage form: `target: "plan:<plan-id>"` — resolved via
+///   - Typed `plan:` form: `target: "plan:<plan-id>"` — resolved via
 ///     the `plans_by_id` index (the plan's `id:` field; usually the
 ///     filename stem).
+///   - Typed `work-item:` form: `target: "work-item:NNNN"` — resolved via the
+///     `work_item_by_id` index, canonicalising the raw id through
+///     `canonicalise_one_id` first (so a project-prefixed/under-padded id still
+///     resolves, matching `cluster_key.rs`). Story 0070 types work-item-review
+///     targets to this shape; resolving it here keeps the path-keyed
+///     `reviews_by_target` reverse index populated.
 ///
-/// Returns `None` for non-plan-review entries or unrecognised target
-/// shapes.
+/// Returns `None` for entries that carry no `target:`, or for `adr:`/`pr:`
+/// targets (no corpus path).
 pub(crate) fn target_path_from_entry(
     entry: &IndexEntry,
     plans_by_id: &HashMap<String, PathBuf>,
+    work_item_by_id: &HashMap<String, PathBuf>,
+    work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
 ) -> Option<PathBuf> {
     use crate::typed_ref::{parse_typed_ref, TypedRef};
@@ -878,6 +907,10 @@ pub(crate) fn target_path_from_entry(
     let raw = entry.frontmatter.get("target")?.as_str()?;
     match parse_typed_ref(raw)? {
         TypedRef::Plan(id) => plans_by_id.get(&id).cloned(),
+        TypedRef::WorkItem(id) => {
+            let canon = canonicalise_one_id(&id, work_item_cfg)?;
+            work_item_by_id.get(&canon).cloned()
+        }
         TypedRef::Path(p) => {
             let raw_str = p.to_str()?;
             normalize_target_key(raw_str, project_root)
@@ -977,6 +1010,8 @@ async fn update_plans_by_id(
 async fn update_reviews_by_target(
     map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
     plans_by_id: &HashMap<String, PathBuf>,
+    work_item_by_id: &HashMap<String, PathBuf>,
+    work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
     new_entry: &IndexEntry,
     previous: Option<&IndexEntry>,
@@ -989,8 +1024,11 @@ async fn update_reviews_by_target(
     // removing `previous.path` and inserting `new_entry.path` keeps the
     // contract correct on rename. BTreeSet ops are O(log n) so the
     // redundant work is negligible at v1 scale.
-    let prev_target = previous.and_then(|p| target_path_from_entry(p, plans_by_id, project_root));
-    let next_target = target_path_from_entry(new_entry, plans_by_id, project_root);
+    let prev_target = previous.and_then(|p| {
+        target_path_from_entry(p, plans_by_id, work_item_by_id, work_item_cfg, project_root)
+    });
+    let next_target =
+        target_path_from_entry(new_entry, plans_by_id, work_item_by_id, work_item_cfg, project_root);
     let mut m = map.write().await;
     if let (Some(t), Some(prev)) = (&prev_target, previous) {
         if let Some(set) = m.get_mut(t) {
@@ -1032,10 +1070,14 @@ async fn remove_from_plans_by_id(
 async fn remove_from_reviews_by_target(
     map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
     plans_by_id: &HashMap<String, PathBuf>,
+    work_item_by_id: &HashMap<String, PathBuf>,
+    work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
     previous: &IndexEntry,
 ) {
-    if let Some(target_key) = target_path_from_entry(previous, plans_by_id, project_root) {
+    if let Some(target_key) =
+        target_path_from_entry(previous, plans_by_id, work_item_by_id, work_item_cfg, project_root)
+    {
         let mut m = map.write().await;
         if let Some(set) = m.get_mut(&target_key) {
             set.remove(&previous.path);
@@ -2657,6 +2699,50 @@ mod reverse_index_tests {
         assert_eq!(inbound.len(), 1, "PR-review with path target is admitted");
     }
 
+    #[tokio::test]
+    async fn reviews_by_target_resolves_typed_work_item_target_on_rescan_and_refresh() {
+        // Story 0070: a migrated work-item-review carries `target:
+        // "work-item:NNNN"`. target_path_from_entry now resolves it via
+        // work_item_by_id, so the path-keyed reviews_by_target reverse index
+        // is populated on BOTH the full rescan (Indexer::build Pass B) and the
+        // incremental refresh_one path.
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("meta/work");
+        let wi_reviews = tmp.path().join("meta/reviews/work");
+        std::fs::create_dir_all(&work).unwrap();
+        std::fs::create_dir_all(&wi_reviews).unwrap();
+        std::fs::write(work.join("0042-foo.md"), "---\ntitle: Foo\n---\n").unwrap();
+        std::fs::write(
+            wi_reviews.join("0042-foo-review-1.md"),
+            "---\ntarget: \"work-item:0042\"\n---\n",
+        )
+        .unwrap();
+        let mut map = HashMap::new();
+        map.insert("work".into(), work.clone());
+        map.insert("review_work".into(), wi_reviews.clone());
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx =
+            Indexer::build(driver, tmp.path().to_path_buf(), Arc::new(WorkItemConfig::default_numeric()))
+                .await
+                .unwrap();
+
+        let wi_path = std::fs::canonicalize(work.join("0042-foo.md")).unwrap();
+        assert_eq!(
+            idx.reviews_by_target(&wi_path).await.len(),
+            1,
+            "rescan: typed work-item target resolves the reverse edge"
+        );
+
+        // Incremental refresh of the review re-resolves the same edge.
+        let rev_path = std::fs::canonicalize(wi_reviews.join("0042-foo-review-1.md")).unwrap();
+        idx.refresh_one(&rev_path).await.unwrap();
+        assert_eq!(
+            idx.reviews_by_target(&wi_path).await.len(),
+            1,
+            "refresh_one: typed work-item target re-resolves the reverse edge"
+        );
+    }
+
     // ── Step 1.11 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn target_path_from_entry_rejects_malformed_values() {
@@ -3447,6 +3533,8 @@ mod target_path_resolution_tests {
         let resolved = target_path_from_entry(
             &entry,
             &plans_by_id_with("ignored", PathBuf::from("/repo/meta/plans/x.md")),
+            &HashMap::new(),
+            &crate::config::WorkItemConfig::default(),
             &root,
         );
         assert_eq!(
@@ -3462,7 +3550,13 @@ mod target_path_resolution_tests {
             "target": "meta/plans/2026-04-21-foo.md"
         });
         let root = PathBuf::from("/repo");
-        let resolved = target_path_from_entry(&entry, &HashMap::new(), &root);
+        let resolved = target_path_from_entry(
+            &entry,
+            &HashMap::new(),
+            &HashMap::new(),
+            &crate::config::WorkItemConfig::default(),
+            &root,
+        );
         assert_eq!(
             resolved,
             Some(PathBuf::from("/repo/meta/plans/2026-04-21-foo.md"))
@@ -3479,7 +3573,13 @@ mod target_path_resolution_tests {
             "2026-05-31-0040-pipeline",
             PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md"),
         );
-        let resolved = target_path_from_entry(&entry, &plans, &PathBuf::from("/repo"));
+        let resolved = target_path_from_entry(
+            &entry,
+            &plans,
+            &HashMap::new(),
+            &crate::config::WorkItemConfig::default(),
+            &PathBuf::from("/repo"),
+        );
         assert_eq!(
             resolved,
             Some(PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md"))
@@ -3495,6 +3595,8 @@ mod target_path_resolution_tests {
         let resolved = target_path_from_entry(
             &entry,
             &HashMap::new(),
+            &HashMap::new(),
+            &crate::config::WorkItemConfig::default(),
             &PathBuf::from("/repo"),
         );
         assert_eq!(resolved, Some(PathBuf::from("/repo/meta/prs/42-foo.md")));
@@ -3506,6 +3608,8 @@ mod target_path_resolution_tests {
         let resolved = target_path_from_entry(
             &entry,
             &HashMap::new(),
+            &HashMap::new(),
+            &crate::config::WorkItemConfig::default(),
             &PathBuf::from("/repo"),
         );
         assert_eq!(resolved, None);
@@ -3521,7 +3625,13 @@ mod target_path_resolution_tests {
             let mut entry = entry_for_test(kind, "x", 0, "T");
             entry.frontmatter = serde_json::json!({ "target": "meta/plans/foo.md" });
             assert_eq!(
-                target_path_from_entry(&entry, &HashMap::new(), &PathBuf::from("/repo")),
+                target_path_from_entry(
+                    &entry,
+                    &HashMap::new(),
+                    &HashMap::new(),
+                    &crate::config::WorkItemConfig::default(),
+                    &PathBuf::from("/repo")
+                ),
                 None,
                 "{kind:?} should not resolve target:",
             );
@@ -3529,16 +3639,27 @@ mod target_path_resolution_tests {
     }
 
     #[test]
-    fn typed_work_item_target_returns_none_resolved_by_cluster_key_resolver() {
-        // Phase 3 deliberately leaves work-item:/adr:/pr: target
-        // resolution to the cluster-key resolver. Pin this contract so
-        // the Phase 3/Phase 4 division of labour can't drift silently.
+    fn typed_work_item_target_resolves_via_work_item_by_id() {
+        // Story 0070 types work-item-review targets to `work-item:NNNN`;
+        // target_path_from_entry now resolves them through work_item_by_id
+        // (canonicalising the raw id first), so the path-keyed
+        // reviews_by_target reverse index stays populated. (Was previously
+        // pinned to return None and resolved only by the cluster-key resolver.)
         let mut entry = entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
         entry.frontmatter = serde_json::json!({ "target": "work-item:0042" });
-        assert_eq!(
-            target_path_from_entry(&entry, &HashMap::new(), &PathBuf::from("/repo")),
-            None,
+        let mut work_item_by_id = HashMap::new();
+        work_item_by_id.insert(
+            "0042".to_string(),
+            PathBuf::from("/repo/meta/work/0042-foo.md"),
         );
+        let resolved = target_path_from_entry(
+            &entry,
+            &HashMap::new(),
+            &work_item_by_id,
+            &crate::config::WorkItemConfig::default(),
+            &PathBuf::from("/repo"),
+        );
+        assert_eq!(resolved, Some(PathBuf::from("/repo/meta/work/0042-foo.md")));
     }
 
     #[test]
@@ -3547,7 +3668,13 @@ mod target_path_resolution_tests {
             let mut entry = entry_for_test(DocTypeKey::PrReviews, "x", 0, "PRR");
             entry.frontmatter = serde_json::json!({ "target": raw });
             assert_eq!(
-                target_path_from_entry(&entry, &HashMap::new(), &PathBuf::from("/repo")),
+                target_path_from_entry(
+                    &entry,
+                    &HashMap::new(),
+                    &HashMap::new(),
+                    &crate::config::WorkItemConfig::default(),
+                    &PathBuf::from("/repo")
+                ),
                 None,
                 "raw={raw}",
             );
@@ -3559,7 +3686,13 @@ mod target_path_resolution_tests {
         let mut entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
         entry.frontmatter = serde_json::json!({ "target": "../../etc/passwd" });
         assert_eq!(
-            target_path_from_entry(&entry, &HashMap::new(), &PathBuf::from("/repo")),
+            target_path_from_entry(
+                &entry,
+                &HashMap::new(),
+                &HashMap::new(),
+                &crate::config::WorkItemConfig::default(),
+                &PathBuf::from("/repo")
+            ),
             None,
         );
     }
@@ -3571,6 +3704,8 @@ mod target_path_resolution_tests {
         let resolved = target_path_from_entry(
             &entry,
             &HashMap::new(),
+            &HashMap::new(),
+            &crate::config::WorkItemConfig::default(),
             &PathBuf::from("/repo/alt"),
         );
         assert_eq!(resolved, Some(PathBuf::from("/repo/alt/meta/plans/foo.md")));
