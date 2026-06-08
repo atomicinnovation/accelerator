@@ -171,14 +171,20 @@ run_hook() {
 # actually fail inside a subshell.
 strip_binary_from_path() {
   local binary="$1"
-  local path="$PATH"
-  local found
-  while found=$(PATH="$path" type -p "$binary" 2>/dev/null) && [ -n "$found" ]; do
-    local dir
-    dir=$(dirname "$found")
-    path=$(printf '%s' "$path" | tr ':' '\n' | grep -vxF "$dir" | paste -sd: -)
+  local result="" dir
+  # Single pass over PATH, dropping every dir that holds an executable
+  # <binary>. Deliberately does NOT use `type -p`: its result is served from
+  # bash's command hash table and can name a directory that is absent from the
+  # live PATH (e.g. a mise-managed jq hashed to its installs/ dir). The
+  # previous remove-and-rescan loop then never matched that dirname against a
+  # PATH entry and spun forever — a hard hang on macOS's bash 3.2.
+  local IFS=:
+  for dir in $PATH; do
+    if [ -z "$dir" ] || [ ! -x "$dir/$binary" ]; then
+      result="${result:+$result:}$dir"
+    fi
   done
-  printf '%s' "$path"
+  printf '%s' "$result"
 }
 
 echo "=== vcs-detect.sh ==="

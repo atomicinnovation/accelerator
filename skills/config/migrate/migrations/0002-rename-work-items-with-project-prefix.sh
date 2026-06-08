@@ -296,8 +296,11 @@ rewrite_prose_in_file() {
         fi
         new_content+="$line"$'\n'
       elif [ "$in_tagged" -eq 1 ]; then
-        # Only rewrite path-shaped references
-        local rewritten="${line//meta\/work\/${old_id}-/meta\/work\/${new_id}-}"
+        # Only rewrite path-shaped references. Slashes are escaped in the
+        # PATTERN (so `/` does not terminate it) but MUST be literal in the
+        # REPLACEMENT: macOS's bash 3.2 keeps a backslash before `/` in the
+        # replacement (leaking `meta\/work\/`), whereas bash 5 strips it.
+        local rewritten="${line//meta\/work\/${old_id}-/meta/work/${new_id}-}"
         new_content+="$rewritten"$'\n'
       else
         new_content+="$line"$'\n'
