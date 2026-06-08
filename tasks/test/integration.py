@@ -8,6 +8,12 @@ from .helpers import repo_root, run_shell_suites
 # regression net.
 _EXPECTED_MIGRATE_SUITES = 3
 
+# The config subtree (scripts/) discoverable shell suites. Like the migrate
+# guard, this is an at-least floor so a dropped exec bit on a fail-closed gate
+# (e.g. validate-corpus-frontmatter.sh — the AC-1 corpus validator) can't
+# silently vanish from CI. Bumped as suites are added under scripts/.
+_EXPECTED_CONFIG_SUITES = 14
+
 
 @task
 def visualiser(context: Context):
@@ -33,7 +39,15 @@ def dev(context: Context):
 @task
 def config(context: Context):
     """Integration tests for the plugin-wide config scripts."""
-    run_shell_suites(context, "scripts")
+    suites = run_shell_suites(context, "scripts")
+    if len(suites) < _EXPECTED_CONFIG_SUITES:
+        raise Exit(
+            f"Expected at least {_EXPECTED_CONFIG_SUITES} config shell "
+            f"suites, found {len(suites)}: {suites}. An exec bit may have "
+            f"been dropped — a fail-closed gate (e.g. the corpus validator) is "
+            f"missing from CI.",
+            code=1,
+        )
 
 
 @task

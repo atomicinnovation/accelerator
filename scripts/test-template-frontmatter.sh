@@ -11,6 +11,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=test-helpers.sh
 source "$SCRIPT_DIR/test-helpers.sh"
+# Cross-cutting emission rules (base fields, source-type vocab, linkage
+# cardinality, quoted-id/schema_version regexes) — single-sourced with the
+# corpus validator. Overridable via FM_EMISSION_RULES so the single-source
+# guard test can point both surfaces at a tampered copy.
+# shellcheck source=frontmatter-emission-rules.sh
+FM_EMISSION_RULES="${FM_EMISSION_RULES:-$SCRIPT_DIR/frontmatter-emission-rules.sh}"
+source "$FM_EMISSION_RULES"
 cd "$ROOT"
 
 # Pin locale so the [A-Za-z0-9-] ranges, tolower/sort, and regex matching
@@ -29,36 +36,22 @@ WORK_ITEM_MDS=(
   "meta/work/0067-create-note-skill.md"
 )
 
-BASE_FIELDS=(type id title date author producer status tags last_updated last_updated_by schema_version)
-PROVENANCE_FIELDS=(revision repository)
-FORBIDDEN_PROVENANCE_FIELDS=(git_commit branch)
+# Base fields from the shared emission-rules helper, plus the two the template
+# surface additionally pins on every template (producer + status). The corpus
+# validator does not require those two (legacy plans omit producer; status is
+# left unset when absent), so they live here, not in FM_BASE_FIELDS.
+BASE_FIELDS=("${FM_BASE_FIELDS[@]}" producer status)
+PROVENANCE_FIELDS=("${FM_PROVENANCE_FIELDS[@]}")
+FORBIDDEN_PROVENANCE_FIELDS=("${FM_FORBIDDEN_PROVENANCE_FIELDS[@]}")
 
-# Cardinality lookup by linkage-key name. case-based (not `declare -A`)
-# so the script keeps running on bash 3.2, the macOS default (a `declare -A`
-# aborts the whole script under `set -euo pipefail` there). Echoes `single`,
-# `list`, or empty (unknown key).
-linkage_cardinality() {
-  case "$1" in
-    parent | superseded_by | target | source) echo single ;;
-    supersedes | blocks | blocked_by | derived_from | relates_to) echo list ;;
-    *) echo "" ;;
-  esac
-}
-
-# Curated source-type set used inside the comment regex. Kept as a
-# pipe-joined string so it can be interpolated into ERE patterns.
-SOURCE_TYPE_RE='work-item|plan|adr|pr|codebase-research|issue-research|pr-description|design-inventory|design-gap|plan-validation|plan-review|work-item-review|pr-review'
-
-# The blocked_by inverse-key guidance line. It lives on its own full-line
-# comment beneath the slot, so it never breaks the list regex's `\[\]$`
-# end-anchor; the post-check greps for it across the whole block.
-INVERSE_GUIDANCE_LINE='# inverse of blocks — producers SHOULD prefer writing blocks: on the canonical side'
-
-# Union of all linkage-vocabulary key names (used by the closed-set check).
-# Keep aligned with linkage_cardinality(). superseded_by is listed as a guard
-# even though no template carries it, so the closed-set check rejects any
-# template that adds it.
-LINKAGE_VOCABULARY=(parent superseded_by target source supersedes blocks blocked_by derived_from relates_to)
+# Cardinality lookup, source-type vocab, inverse-guidance line, and the linkage
+# vocabulary are single-sourced from the emission-rules helper. Local aliases
+# keep the rest of this script unchanged; because they are assigned AFTER the
+# `source`, the single-source guard's tampered copy flows through here too.
+linkage_cardinality() { fm_linkage_cardinality "$@"; }
+SOURCE_TYPE_RE="$FM_SOURCE_TYPE_RE"
+INVERSE_GUIDANCE_LINE="$FM_INVERSE_GUIDANCE_LINE"
+LINKAGE_VOCABULARY=("${FM_LINKAGE_VOCABULARY[@]}")
 
 # rc 0 = slot shape+comment valid (and, for blocked_by, the standalone
 # inverse-guidance line is present); 1 = rejected; 2 = unknown key. The
@@ -172,10 +165,10 @@ while IFS=$'\t' read -r template_file expected_type anchored extras status_vocab
   assert_in_block "$template_file: type is '$expected_type'" "$block" "^type:[[:space:]]+${expected_type}([[:space:]]+#.*)?$"
 
   # `schema_version: 1` (bare integer).
-  assert_in_block "$template_file: schema_version is bare integer 1" "$block" "^schema_version:[[:space:]]+1([[:space:]]+#.*)?$"
+  assert_in_block "$template_file: schema_version is bare integer 1" "$block" "$FM_SCHEMA_VERSION_RE"
 
   # `id:` value is a quoted YAML string.
-  assert_in_block "$template_file: id value is quoted string" "$block" '^id:[[:space:]]+"[^"]*"([[:space:]]+#.*)?$'
+  assert_in_block "$template_file: id value is quoted string" "$block" "$FM_ID_QUOTED_RE"
 
   # Forbidden legacy own-identity key(s) absent (when applicable). The column
   # accepts a space-separated list of keys or the `-` sentinel for "no

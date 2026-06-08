@@ -364,22 +364,22 @@ guard fires, so the baseline can't silently drift.
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] Validator test passes via `test:integration:config` (new suite discovered)
-- [ ] Validator accepts a known-good fixture of every schema-defined type
+- [x] Validator test passes via `test:integration:config` (new suite discovered)
+- [x] Validator accepts a known-good fixture of every schema-defined type
       (**13 rows in `templates-schema.tsv`**; assert coverage against the TSV row
       count, not a hard-coded number)
-- [ ] Validator rejects each failure-mode fixture with the expected diagnostic
+- [x] Validator rejects each failure-mode fixture with the expected diagnostic
       (unquoted id, missing base field, `git_commit` present, forbidden own-id
       key, empty-placeholder key, bare-number linkage, bad status,
       `schema_version` non-integer, **dangling typed-linkage reference**)
-- [ ] Referential-integrity check resolves valid `"doc-type:id"` refs and flags a
+- [x] Referential-integrity check resolves valid `"doc-type:id"` refs and flags a
       dangling one; `pr:<n>` is accepted as a tolerated literal
-- [ ] Running the validator over the *current* (pre-migration) corpus reports
+- [x] Running the validator over the *current* (pre-migration) corpus reports
       the expected legacy violations (sanity check that it inspects real files)
 
 #### Manual Verification:
-- [ ] Diagnostics are specific enough to locate the offending file + key
-- [ ] Per-type tabular facts come only from `templates-schema.tsv`; cross-cutting
+- [x] Diagnostics are specific enough to locate the offending file + key
+- [x] Per-type tabular facts come only from `templates-schema.tsv`; cross-cutting
       emission rules live in the one shared helper (no duplication with
       `test-template-frontmatter.sh`)
 
