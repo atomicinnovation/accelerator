@@ -37,6 +37,55 @@ function norm_date(v,   inner) {
   return ""   # non-conforming, non-normalisable
 }
 
+# Linkage vocabulary membership (keys whose values are typed references).
+function is_linkage_key(k) {
+  return (k == "parent" || k == "target" || k == "source" || k == "superseded_by" ||
+    k == "supersedes" || k == "blocks" || k == "blocked_by" ||
+    k == "derived_from" || k == "relates_to")
+}
+
+# Map a project-relative meta path to a typed "doc-type:id" reference, per the
+# target doc-type's identity convention (work-item/ADR → bare number / ADR-NNNN;
+# every other type → full filename stem). Returns "" for an unmapped directory
+# (specs/talks/global/typo) so the caller can DIVERGE and leave it untouched.
+function path_to_typed(p,   type, base, id) {
+  if (p ~ /^meta\/work\//) type = "work-item"
+  else if (p ~ /^meta\/plans\//) type = "plan"
+  else if (p ~ /^meta\/decisions\//) type = "adr"
+  else if (p ~ /^meta\/research\/codebase\//) type = "codebase-research"
+  else if (p ~ /^meta\/research\/issues\//) type = "issue-research"
+  else if (p ~ /^meta\/research\/design-gaps\//) type = "design-gap"
+  else if (p ~ /^meta\/research\/design-inventories\//) type = "design-inventory"
+  else if (p ~ /^meta\/reviews\/plans\//) type = "plan-review"
+  else if (p ~ /^meta\/reviews\/work\//) type = "work-item-review"
+  else if (p ~ /^meta\/reviews\/prs\//) type = "pr-review"
+  else if (p ~ /^meta\/validations\//) type = "plan-validation"
+  else if (p ~ /^meta\/notes\//) type = "note"
+  else return ""
+  base = p; sub(/.*\//, "", base); sub(/\.md$/, "", base)
+  if (type == "work-item") { id = base; sub(/-.*/, "", id) }
+  else if (type == "adr") { if (match(base, /^ADR-[0-9]+/)) id = substr(base, RSTART, RLENGTH); else id = base }
+  else id = base
+  return type ":" id
+}
+
+# Rewrite every quoted meta-path token inside a linkage value to its typed form;
+# tokens already typed (or pointing at an unmapped directory) are left as-is, the
+# latter setting UNMAPPED_PATH for the caller to DIVERGE.
+function normalize_paths(val,   out, rest, pre, tok, path, typed) {
+  out = ""; rest = val
+  while (match(rest, /"meta\/[^"]*\.md"/)) {
+    pre = substr(rest, 1, RSTART - 1)
+    tok = substr(rest, RSTART, RLENGTH)
+    path = tok; gsub(/"/, "", path)
+    typed = path_to_typed(path)
+    if (typed != "") out = out pre "\"" typed "\""
+    else { out = out pre tok; UNMAPPED_PATH = 1 }
+    rest = substr(rest, RSTART + RLENGTH)
+  }
+  return out rest
+}
+
 function in_vocab(s,   n, a, i) {
   n = split(statusvocab, a, "|")
   for (i = 1; i <= n; i++) if (trim(a[i]) == s) return 1
@@ -64,6 +113,7 @@ BEGIN {
   date_value = ""        # normalised date, for seeding last_updated
   author_value = ""      # author, for seeding last_updated_by
   emitted_id = 0; emitted_revision = 0
+  UNMAPPED_PATH = 0
 }
 
 # First fence opens the frontmatter region.
@@ -149,6 +199,20 @@ in_fm && /^[A-Za-z_][A-Za-z0-9_]*:/ {
     if (mapped != "") { print "status: " mapped; next }
     print $0
     print "0007-DIVERGE[unmapped-status]: " file " — status '" inner "' not in vocab and unmapped" > "/dev/stderr"
+    next
+  }
+
+  # Typed-linkage keys: drop when empty (omit-when-empty); otherwise normalise
+  # any pre-existing path-shape value (e.g. "meta/work/0030-foo.md") to its typed
+  # "doc-type:id" form. Only fence-region values are touched. An unmapped
+  # directory is left untouched and counted as a DIVERGE.
+  if (is_linkage_key(key)) {
+    if (is_empty_val(val)) { next }
+    UNMAPPED_PATH = 0
+    newval = normalize_paths(val)
+    print key ": " newval
+    if (UNMAPPED_PATH)
+      print "0007-DIVERGE[unmapped-dir]: " file " — " key " has a path under an unmapped directory: " val > "/dev/stderr"
     next
   }
 

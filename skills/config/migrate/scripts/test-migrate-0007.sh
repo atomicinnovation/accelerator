@@ -225,6 +225,64 @@ hy_out="$(printf 'INIT\t\t\n' | (cd "$HY" && PROJECT_ROOT="$HY" CLAUDE_PLUGIN_RO
 first_line="$(printf '%s\n' "$hy_out" | head -1)"
 assert_matches_regex "first stdout line is the READY frame" '^READY' "$first_line"
 
+# ── Pre-existing frontmatter linkage: path-shape → typed ─────────────────────
+echo "=== Frontmatter linkage normalisation: path-shape -> typed ==="
+PL="$TMP/pathlink"
+mkdir -p "$PL/meta/work" "$PL/meta/plans"
+cat >"$PL/meta/work/0030-target.md" <<'EOF'
+---
+type: work-item
+work_item_id: "0030"
+title: "Target"
+date: "2026-01-01T00:00:00+00:00"
+author: Toby
+producer: create-work-item
+kind: story
+priority: high
+status: ready
+tags: []
+last_updated: "2026-01-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Target
+EOF
+cat >"$PL/meta/plans/2026-05-13-0055-feature.md" <<'EOF'
+---
+type: plan
+work_item_id: "0030"
+title: "Feature Plan"
+date: "2026-05-13T00:00:00+00:00"
+author: Toby
+producer: create-plan
+status: done
+parent: "meta/work/0030-target.md"
+relates_to: ["meta/plans/2026-05-13-0055-feature.md"]
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-05-13T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Feature Plan
+
+A code sample mentioning `meta/work/0099-nonexistent.md` in the body must not change.
+EOF
+git_init "$PL"
+run_0007 "$PL"
+assert_eq "path-shape corpus exits 0" "0" "$RUN_RC"
+PLAN2="$PL/meta/plans/2026-05-13-0055-feature.md"
+assert_contains "path parent -> work-item:0030 (bare number)" "$(fm_line "$PLAN2" parent)" 'parent: "work-item:0030"'
+assert_contains "path relates_to plan -> full stem" "$(fm_line "$PLAN2" relates_to)" 'relates_to: ["plan:2026-05-13-0055-feature"]'
+assert_contains "body path-shape mention left untouched" "$(cat "$PLAN2")" 'meta/work/0099-nonexistent.md'
+plvrc=0
+"$VALIDATOR" "$PL/meta" >/tmp/0007-pl-val.out 2>&1 || plvrc=$?
+if [ "$plvrc" -eq 0 ]; then
+  echo "  PASS: path-normalised corpus validates"; PASS=$((PASS + 1))
+else
+  echo "  FAIL: path-normalised corpus has violations"; sed 's/^/    /' /tmp/0007-pl-val.out; FAIL=$((FAIL + 1))
+fi
+
 # ── Interactive body-section linkage: resolved mechanical + ambiguous accept ─
 echo "=== Interactive linkage: resolved mechanical + ambiguous applied ==="
 LINK="$TMP/linkrepo"
