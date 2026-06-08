@@ -1,0 +1,15 @@
+source_type	key	target_type
+work-item	parent	work-item
+plan	parent	work-item
+adr	supersedes	adr
+work-item	blocks	work-item
+plan-review	target	plan
+work-item-review	target	work-item
+plan-validation	target	plan
+plan	derived_from	codebase-research
+plan	derived_from	issue-research
+work-item	derived_from	note
+work-item	derived_from	work-item
+adr	relates_to	adr
+design-gap	relates_to	design-inventory
+work-item	source	note

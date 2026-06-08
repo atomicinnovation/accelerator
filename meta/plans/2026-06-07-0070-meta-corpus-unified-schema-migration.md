@@ -476,20 +476,28 @@ write only the canonical bidirectional side (`blocks`, `supersedes`). Tolerate
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] Parser tests pass via `test:integration:config`
-- [ ] Each of the three spike fixes is proven by a dedicated fixture, including
+- [x] Parser tests pass via `test:integration:config`
+- [x] Each of the three spike fixes is proven by a dedicated fixture, including
       the hyphen-boundary case under the macOS toolchain (no `\b`)
-- [ ] Every band-classification fixture classifies to its labelled band
-- [ ] Every resolved-band golden-target fixture emits its hand-verified
+- [x] Every band-classification fixture classifies to its labelled band
+- [x] Every resolved-band golden-target fixture emits its hand-verified
       `"doc-type:id"` value (correctness, not just band)
-- [ ] `"Source:"` line resolves to `parent` / `derived_from` / `source` for
+- [x] `"Source:"` line resolves to `parent` / `derived_from` / `source` for
       work-item / research / non-meta targets
-- [ ] A `pr:<n>` reference is tolerated, never flagged
-- [ ] Each known-ambiguous fixture classifies `ambiguous`
+- [x] A `pr:<n>` reference is tolerated, never flagged
+- [x] Each known-ambiguous fixture classifies `ambiguous`
 
 #### Manual Verification:
-- [ ] The five header parsers handle real corpus phrasings (spot-check against
+- [x] The five header parsers handle real corpus phrasings (spot-check against
       `meta/research/`, `meta/work/`, `meta/decisions/` examples)
+
+> Implementation note: the plan's prescribed boundary regex
+> `(^|[^[:alnum:]_])blocks?(…)` would *match* `code-block` (a hyphen satisfies
+> the negated class), contradicting AC-11's "code-block produces no `blocks`
+> linkage". The spike's own fix text ("scope it to recognised list-lead
+> positions") and the acceptance criterion are unambiguous, so the keyword
+> detectors use a whitespace/label boundary that correctly excludes both
+> `code-block` and `code_block` (still no `\b`; proven under `/bin/bash` 3.2).
 
 ---
 
