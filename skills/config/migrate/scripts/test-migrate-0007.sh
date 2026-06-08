@@ -268,9 +268,30 @@ schema_version: 1
 
 A code sample mentioning `meta/work/0099-nonexistent.md` in the body must not change.
 EOF
+# Child work-item with a deterministic bare-number parent → work-item:0030.
+cat >"$PL/meta/work/0031-child.md" <<'EOF'
+---
+type: work-item
+work_item_id: "0031"
+title: "Child"
+date: "2026-01-02T00:00:00+00:00"
+author: Toby
+producer: create-work-item
+kind: story
+priority: high
+status: ready
+parent: "0030"
+tags: []
+last_updated: "2026-01-02T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Child
+EOF
 git_init "$PL"
 run_0007 "$PL"
 assert_eq "path-shape corpus exits 0" "0" "$RUN_RC"
+assert_contains "bare-number parent -> work-item:0030 (deterministic)" "$(fm_line "$PL/meta/work/0031-child.md" parent)" 'parent: "work-item:0030"'
 PLAN2="$PL/meta/plans/2026-05-13-0055-feature.md"
 assert_contains "path parent -> work-item:0030 (bare number)" "$(fm_line "$PLAN2" parent)" 'parent: "work-item:0030"'
 assert_contains "path relates_to plan -> full stem" "$(fm_line "$PLAN2" relates_to)" 'relates_to: ["plan:2026-05-13-0055-feature"]'

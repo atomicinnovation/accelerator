@@ -77,9 +77,10 @@ FM_ID_QUOTED_RE='^id:[[:space:]]+"[^"]*"([[:space:]]+#.*)?$'
 FM_SCHEMA_VERSION_RE='^schema_version:[[:space:]]+1([[:space:]]+#.*)?$'
 
 # A typed-linkage *value* (inner, unquoted) is `doc-type:id`, never bare `NNNN`
-# and never a path (`meta/work/...` — the `/` and `.` are excluded by the id
-# class). The id part is `[A-Za-z0-9-]+` (bare numbers, ADR-NNNN, full stems).
-FM_TYPED_REF_RE="^(${FM_SOURCE_TYPE_RE}):[A-Za-z0-9-]+$"
+# and never a path (`meta/work/...` — the `/` keeps a path out). The id part is
+# `[A-Za-z0-9.-]+`: bare numbers, ADR-NNNN, and full filename stems — which can
+# contain dots (e.g. a version-numbered stem `…-changelog-1.21.0-cleanup`).
+FM_TYPED_REF_RE="^(${FM_SOURCE_TYPE_RE}):[A-Za-z0-9.-]+$"
 
 # The blocked_by inverse-key guidance comment line (template surface only).
 FM_INVERSE_GUIDANCE_LINE='# inverse of blocks — producers SHOULD prefer writing blocks: on the canonical side'

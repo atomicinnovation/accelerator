@@ -435,7 +435,7 @@ linkage_card() {
 }
 
 # A typed reference value: doc-type:id (or pr:<n>). Bare/path shapes rejected.
-LINKAGE_REF_RE='^(work-item|plan|adr|pr|codebase-research|issue-research|pr-description|design-inventory|design-gap|plan-validation|plan-review|work-item-review|pr-review|note):[A-Za-z0-9-]+$'
+LINKAGE_REF_RE='^(work-item|plan|adr|pr|codebase-research|issue-research|pr-description|design-inventory|design-gap|plan-validation|plan-review|work-item-review|pr-review|note):[A-Za-z0-9.-]+$'
 
 # Run the body-section parser over every fenced in-scope artifact and emit one
 # transformation per reference. resolved-band → predicate routes mechanical;

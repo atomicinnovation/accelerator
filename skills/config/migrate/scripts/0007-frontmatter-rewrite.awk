@@ -106,6 +106,42 @@ function normalize_paths(val,   out, rest, pre, tok, path, typed) {
   return out rest
 }
 
+# Deterministic target doc-type for a bare-number value on (source_type, key)
+# per ADR-0034's table — only the single-candidate pairings. Multi-candidate
+# pairings (work-item derived_from → note|work-item; plan derived_from →
+# codebase-research|issue-research) and loose keys return "" → routed to the
+# interactive hook (the §2 side-channel) rather than guessed.
+function bare_target_type(t, k) {
+  if (k == "parent") { if (t == "work-item" || t == "plan") return "work-item"; return "" }
+  if (k == "blocks" || k == "blocked_by") { if (t == "work-item") return "work-item"; return "" }
+  if (k == "supersedes" || k == "superseded_by") { if (t == "adr") return "adr"; return "" }
+  if (k == "target") {
+    if (t == "plan-review" || t == "plan-validation") return "plan"
+    if (t == "work-item-review") return "work-item"
+    return ""
+  }
+  if (k == "source") { if (t == "work-item") return "note"; return "" }
+  return ""   # relates_to / derived_from etc. — multi-candidate or loose
+}
+
+# Convert a bare-number linkage value ("NNNN") to "doc-type:NNNN" where the
+# (source_type, key) pairing is single-candidate; an already-typed token (the
+# `"` is not immediately followed by a digit) is left untouched, and a
+# multi-candidate bare number is left and flagged (BARE_AMBIG) for the hook.
+function normalize_bare(val, t, k,   out, rest, pre, tok, num, tt) {
+  out = ""; rest = val
+  while (match(rest, /"[0-9]+"/)) {
+    pre = substr(rest, 1, RSTART - 1)
+    tok = substr(rest, RSTART, RLENGTH)
+    num = tok; gsub(/"/, "", num)
+    tt = bare_target_type(t, k)
+    if (tt != "") out = out pre "\"" tt ":" num "\""
+    else { out = out pre tok; BARE_AMBIG = 1 }
+    rest = substr(rest, RSTART + RLENGTH)
+  }
+  return out rest
+}
+
 function in_vocab(s,   n, a, i) {
   n = split(statusvocab, a, "|")
   for (i = 1; i <= n; i++) if (trim(a[i]) == s) return 1
@@ -251,11 +287,13 @@ in_fm && /^[A-Za-z_][A-Za-z0-9_]*:/ {
   # directory is left untouched and counted as a DIVERGE.
   if (is_linkage_key(key)) {
     if (is_empty_val(val)) { next }
-    UNMAPPED_PATH = 0
-    newval = normalize_paths(val)
+    UNMAPPED_PATH = 0; BARE_AMBIG = 0
+    newval = normalize_bare(normalize_paths(val), type, key)
     print key ": " newval
     if (UNMAPPED_PATH)
       print "0007-DIVERGE[unmapped-dir]: " file " — " key " has a path under an unmapped directory: " val > "/dev/stderr"
+    if (BARE_AMBIG)
+      print "0007-DIVERGE[parent-ambiguous]: " file " — " key " has a multi-candidate bare-number target (route to hook): " val > "/dev/stderr"
     next
   }
 

@@ -145,6 +145,10 @@ assert_rejects "bare-number linkage rejected" "BAD-LINKAGE-SHAPE" "$TMP/bad-bare
 emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-path-linkage.md" 'parent: "meta/work/0030-foo.md"'
 assert_rejects "path-shape linkage rejected" "BAD-LINKAGE-SHAPE" "$TMP/bad-path-linkage.md"
 
+# A typed ref whose id is a version-numbered stem (dots) is accepted.
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/ok-dotted-linkage.md" 'relates_to: ["plan:2026-06-04-changelog-1.21.0-cleanup"]'
+assert_accepts "dotted typed-ref id accepted (version-numbered stem)" "$TMP/ok-dotted-linkage.md"
+
 emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-status.md"
 sed -i.bak 's/^status: .*/status: bogus/' "$TMP/bad-status.md"
 assert_rejects "bad status rejected" "BAD-STATUS" "$TMP/bad-status.md"
