@@ -64,8 +64,12 @@ if command -v flock >/dev/null 2>&1; then
   fi
 else
   if ! mkdir "$LOCK.d" 2>/dev/null; then
+    # No apostrophe in this hint: under macOS's bash 3.2, a stray single quote
+    # inside a double-quoted word in a $(...) command substitution mis-pairs
+    # with the single quotes around the jq program operand below, leaving the
+    # {..} unquoted so bash brace-expands it and jq receives a broken program.
     die_json "$(jq -nc --arg error 'another launcher is running' \
-      --arg hint "rm -rf $LOCK.d if it's stale" \
+      --arg hint "rm -rf $LOCK.d if it is stale" \
       '{error:$error,hint:$hint}')"
   fi
   trap 'rmdir "$LOCK.d" 2>/dev/null || true' EXIT

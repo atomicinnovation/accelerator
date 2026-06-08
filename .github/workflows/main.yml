@@ -42,16 +42,6 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
 
-    # Defence-in-depth against subprocess-fork pressure on the few-core hosted
-    # runners. The primary cause was rustc compilation spiking mid-run (see the
-    # warm-up steps below); capping mise's parallelism (default 4) is the
-    # belt-and-braces so the surviving subprocess-heavy suites (binary-
-    # acquisition's bash/jq forks, dev's circusd + fakes) cannot oversubscribe
-    # the runner and trip a fork() failure. Keep BOTH this cap and the warm-up
-    # steps — neither alone fully isolates the timing-sensitive suites.
-    env:
-      MISE_JOBS: "2"
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -62,20 +52,6 @@ jobs:
           install: true
           cache: true
           experimental: true
-
-      # Compile all the Rust the integration run needs up front, in their own
-      # steps, so no rustc compilation runs concurrently with the timing- and
-      # fork-sensitive shell suites (binary-acquisition, dev). The dev-profile
-      # binary and the test-profile test binaries are SEPARATE artifact sets —
-      # both must be warmed, or test:integration:visualiser still compiles the
-      # test harnesses (dev-deps like assert_cmd) mid-run, spiking CPU/memory
-      # and starving the sibling suites' subprocess forks. With both warmed,
-      # test:integration does no compilation.
-      - name: Build visualiser server
-        run: mise run build:server:dev
-
-      - name: Compile visualiser test binaries
-        run: mise run build:server:dev-tests
 
       - name: Run integration tests
         run: mise run test:integration

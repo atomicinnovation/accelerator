@@ -72,10 +72,6 @@ run = "invoke build.frontend"
 description = "Build the visualiser server binary with the dev-frontend feature"
 run = "invoke build.server-dev"
 
-[tasks."build:server:dev-tests"]
-description = "Compile the visualiser test binaries (test profile) without running them"
-run = "invoke build.server-dev-tests"
-
 [tasks."build:server:release"]
 description = "Build the visualiser server binary for release (embed-dist)"
 run = "invoke build.server-release"
