@@ -774,6 +774,23 @@ a { color: inherit; text-decoration: none; }
 .ac-md p.ac-md-p { margin: 10px 0; font-size: 14.5px; line-height: 1.65; }
 .ac-md ol.ac-md-ol, .ac-md ul.ac-md-ul { margin: 10px 0; padding-left: 22px; font-size: 14.5px; line-height: 1.65; }
 .ac-md ol.ac-md-ol li, .ac-md ul.ac-md-ul li { margin: 4px 0; font-size: 14.5px; line-height: 1.65; }
+/* Task lists (`- [ ]` / `- [x]`) */
+.ac-md ul.ac-md-tasklist { list-style: none; margin: 12px 0; padding-left: 2px; }
+.ac-md-task { display: flex; align-items: flex-start; gap: 9px; margin: 6px 0; font-size: 14.5px; line-height: 1.6; }
+.ac-md-task__box {
+  flex: none; margin-top: 2px;
+  width: 17px; height: 17px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--ac-stroke-strong, var(--ac-stroke));
+  border-radius: 5px;
+  background: var(--ac-bg-card);
+  color: #fff;
+}
+.ac-md-task.is-done .ac-md-task__box {
+  background: var(--ac-accent);
+  border-color: var(--ac-accent);
+}
+.ac-md-task.is-done .ac-md-task__label { color: var(--ac-fg-muted); text-decoration: line-through; text-decoration-color: var(--ac-stroke-strong, var(--ac-fg-faint)); }
 .ac-md-code { font-family: var(--ac-font-mono); font-size: 11.5px; background: var(--ac-bg-sunken); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--ac-stroke-soft); }
 
 /* Code blocks — a self-contained "panel" with a chrome header and a darker

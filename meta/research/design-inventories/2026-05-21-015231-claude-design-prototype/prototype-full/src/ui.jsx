@@ -212,11 +212,31 @@ function renderMarkdown(src) {
       out.push(<ol key={"ol"+i} className="ac-md-ol">{items.map((it,k) => <li key={k}>{inline(it)}</li>)}</ol>);
       continue;
     }
-    // unordered list
+    // unordered list — also handles GitHub-style task lists (`- [ ]` / `- [x]`)
     if (/^[-*]\s/.test(l)) {
       const items = [];
       while (i < lines.length && /^[-*]\s/.test(lines[i])) {
         items.push(lines[i].replace(/^[-*]\s/, "")); i++;
+      }
+      const isTaskList = items.every(it => /^\[[ xX]\]\s/.test(it));
+      if (isTaskList) {
+        out.push(
+          <ul key={"tl"+i} className="ac-md-tasklist">
+            {items.map((it,k) => {
+              const checked = /^\[[xX]\]/.test(it);
+              const text = it.replace(/^\[[ xX]\]\s/, "");
+              return (
+                <li key={k} className={`ac-md-task ${checked ? "is-done" : ""}`}>
+                  <span className="ac-md-task__box" aria-hidden="true">
+                    {checked && <Icon name="check" size={11}/>}
+                  </span>
+                  <span className="ac-md-task__label">{inline(text)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        );
+        continue;
       }
       out.push(<ul key={"ul"+i} className="ac-md-ul">{items.map((it,k) => <li key={k}>{inline(it)}</li>)}</ul>);
       continue;

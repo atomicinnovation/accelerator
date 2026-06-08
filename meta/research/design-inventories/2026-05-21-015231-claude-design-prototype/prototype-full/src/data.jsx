@@ -424,10 +424,10 @@ views: library, lifecycle, kanban.
 
 ## Acceptance
 
-- Runs via \`/accelerator:visualise\` and \`accelerator-visualiser\` CLI.
-- Binds to 127.0.0.1 on a dynamic port.
-- Detects live instance via PID file; reuses rather than duplicating.
-- Embedded frontend bundle — one static binary per arch.
+- [x] Runs via \`/accelerator:visualise\` and \`accelerator-visualiser\` CLI.
+- [x] Binds to 127.0.0.1 on a dynamic port.
+- [ ] Detects live instance via PID file; reuses rather than duplicating.
+- [ ] Embedded frontend bundle — one static binary per arch.
 
 ## Links
 
@@ -1294,6 +1294,14 @@ orchestrator:
 - Cache invalidation semantics on partial diff overlap.
 - Whether the orchestrator should expose a streaming API or only a final verdict.
 
+## Implementation checklist
+
+- [x] Define the public \`run\` surface and \`RunOptions\`
+- [x] Wire the orchestrator to the layer registry
+- [ ] Implement per-layer timeout + \`on_error: skip\` handling
+- [ ] Add the \`verdict_policy: strictest\` merge
+- [ ] Cover partial-overlap cache invalidation with a test
+
 ## Links
 
 - work item [[work/${slug}.md]]
@@ -1396,6 +1404,13 @@ def test_${slug.replace(/-/g,"_")}(case: str) -> None:
 
 - All cases pass; behaviour matches the plan.
 - One minor observation: error messages on the oversized case could be tightened — captured as a follow-up note rather than a blocking issue.
+
+## Sign-off checklist
+
+- [x] All four cases run green against the pinned baseline
+- [x] Reproduction script committed alongside this doc
+- [x] Snapshot test added to CI
+- [ ] Follow-up note filed for the oversized-case error message
 
 ## Links
 
