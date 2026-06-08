@@ -95,6 +95,17 @@ out_of_scope() {
 
 stem_of() { local b; b="$(basename "$1")"; printf '%s' "${b%.md}"; }
 
+# Identity stem for a file, type-aware. Nested-manifest types (design-inventory,
+# whose manifest is always `inventory.md` under a dated directory) take the
+# PARENT DIRECTORY name as their stem — mirroring the indexer's slug source —
+# so distinct inventories don't all collapse to the id "inventory".
+derive_stem() { # $1=file $2=type
+  case "$2" in
+    design-inventory) basename "$(dirname "$1")" ;;
+    *) stem_of "$1" ;;
+  esac
+}
+
 # Strict leading-fence test (no trailing whitespace tolerance — by design).
 has_strict_fence() {
   awk 'NR == 1 { exit ($0 == "---" ? 0 : 1) } END { if (NR == 0) exit 1 }' "$1"
@@ -191,17 +202,24 @@ precondition_prepass() {
         esac
       fi
     fi
-    # Post-rewrite id (own-id key → id, else existing id, else stem).
+    # Post-rewrite id (own-id key → id, else existing id, else stem). The
+    # duplicate check is keyed on the TYPED reference (type:id), not the bare
+    # id, because the reference namespace is per-type: a plan and its driving
+    # research legitimately share a YYYY-MM-DD-NNNN-slug stem (→ same bare id)
+    # but resolve to distinct typed refs (plan:… vs codebase-research:…). A true
+    # collision is two artifacts of the SAME type with the same id (e.g. the
+    # 0032 work-item carrying work_item_id "0031", colliding with 0031).
     case "$type" in
       work-item | adr) id="$(fm_inner "$(fm_get "$(own_id_key_for_type "$type")" "$f")")" ;;
       *) id="" ;;
     esac
     [ -n "$id" ] || id="$(fm_inner "$(fm_get id "$f")")"
-    [ -n "$id" ] || id="$(stem_of "$f")"
+    [ -n "$id" ] || id="$(derive_stem "$f" "$type")"
+    local typed_id="${type}:${id}"
     case "$seen_ids" in
-      *"|${id}|"*) log_warn "0007-REFUSE: $f — duplicate post-rewrite id '$id'" >&2; refused=1 ;;
+      *"|${typed_id}|"*) log_warn "0007-REFUSE: $f — duplicate post-rewrite id '$typed_id'" >&2; refused=1 ;;
     esac
-    seen_ids="${seen_ids}|${id}|"
+    seen_ids="${seen_ids}|${typed_id}|"
   done < <(corpus_files)
   [ "$refused" -eq 0 ] || return 1
   return 0
@@ -211,7 +229,7 @@ precondition_prepass() {
 backfill_file() {
   local f="$1" type stem h1 title date author rel iso tmp
   type="$(infer_type_from_path "$f")"
-  stem="$(stem_of "$f")"
+  stem="$(derive_stem "$f" "$type")"
   rel="${f#"$PROJECT_ROOT"/}"
   # Title from first H1, else humanised stem.
   h1="$(awk '/^# / { sub(/^# /, ""); print; exit }' "$f" || true)"
@@ -289,7 +307,7 @@ rewrite_file() {
   own="$(own_id_key_for_type "$type")"
   vocab="$(status_vocab_of "$type")"
   smap="$(status_map_for_type "$type")"
-  stem="$(stem_of "$f")"
+  stem="$(derive_stem "$f" "$type")"
   case "$type" in
     work-item) idstem="$(printf '%s' "$stem" | grep -oE '^[0-9]+' || echo "$stem")" ;;
     *) idstem="$stem" ;;

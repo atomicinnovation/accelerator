@@ -95,31 +95,42 @@ out_of_scope() {
 
 # ---- Frontmatter extraction + field access --------------------------------
 # Loose fence detector (tolerates trailing whitespace on the opening `---`).
+# NB: no `exit` in the awk and no upstream-killing pipe — under `set -o
+# pipefail` an early awk `exit` SIGPIPEs the upstream `tr`, turning the
+# pipeline's status to 141 and (e.g. in has_fence) flipping a valid result.
+# The frontmatter is tiny, so reading the whole file is cheap.
 extract_frontmatter() {
-  tr -d '\r' <"$1" | awk '
+  awk '
     BEGIN { state = 0 }
     /^---[[:space:]]*$/ {
       if (state == 0) { state = 1; next }
-      if (state == 1) { exit }
+      if (state == 1) { state = 2; next }
     }
-    state == 1 { print }
-  '
+    state == 1 { sub(/\r$/, ""); print }
+  ' "$1"
 }
 
+# Has a leading frontmatter fence (loose: trailing whitespace tolerated). Reads
+# only the first line via the builtin `read` — no pipe, so no SIGPIPE.
 has_fence() {
-  tr -d '\r' <"$1" | awk 'NR == 1 && /^---[[:space:]]*$/ { found = 1; exit } END { exit (found ? 0 : 1) }'
+  local first
+  IFS= read -r first <"$1" 2>/dev/null || return 1
+  first="${first%$'\r'}"
+  [[ "$first" =~ ^---[[:space:]]*$ ]]
 }
 
-# Raw (trimmed) value of a frontmatter key from a block, or empty.
+# Raw (trimmed) value of a frontmatter key from a block, or empty. Here-string
+# input + no awk `exit` (a `done` flag keeps only the first match) so there is
+# no upstream writer to receive SIGPIPE under pipefail.
 fm_value() {
-  printf '%s\n' "$1" | awk -v k="$2" '
-    index($0, k ":") == 1 {
+  awk -v k="$2" '
+    !done && index($0, k ":") == 1 {
       line = $0
       sub("^" k ":[ \t]*", "", line)
       sub(/[ \t]+$/, "", line)
       print line
-      exit
-    }'
+      done = 1
+    }' <<<"$1"
 }
 
 # Inner (unquoted) value: strip a single layer of surrounding double/single
@@ -155,7 +166,7 @@ resolve_id() {
 
 # ---- ISO-8601 timestamp check ---------------------------------------------
 ISO_TS_RE='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2})$'
-is_iso_ts() { printf '%s' "$1" | grep -qE "$ISO_TS_RE"; }
+is_iso_ts() { grep -qE "$ISO_TS_RE" <<<"$1"; }
 
 # ---- Build the corpus index (referential integrity target set) -------------
 # Newline-delimited set of "doc-type:id" identities. Built from all in-scope
@@ -176,7 +187,7 @@ build_index() {
   done < <(find "$root" -type f -name '*.md' -print0)
 }
 
-index_has() { printf '%s' "$INDEX_KEYS" | grep -qxF "$1"; }
+index_has() { grep -qxF -- "$1" <<<"$INDEX_KEYS"; }
 
 # ---- Per-file validation ---------------------------------------------------
 # $1 = file, $2 = "yes" to run referential integrity (whole-corpus mode).
@@ -235,8 +246,12 @@ validate_file() {
   status_raw="$(fm_value "$block" status)"
   if [ -n "$status_raw" ]; then
     status_inner="$(fm_inner "$status_raw")"
-    # status_vocab is a `a | b | c` string; match the inner value as a whole token.
-    if ! printf '%s' "$status_vocab" | tr '|' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -qxF "$status_inner"; then
+    # status_vocab is a `a | b | c` string; match the inner value as a whole
+    # token. The token list is built in a sub-pipeline that runs to completion
+    # (no early exit), then matched via a here-string — no upstream SIGPIPE.
+    local vocab_tokens
+    vocab_tokens="$(printf '%s' "$status_vocab" | tr '|' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    if ! grep -qxF -- "$status_inner" <<<"$vocab_tokens"; then
       violation "$file" "BAD-STATUS" "status: '$status_inner' not in vocab ($status_vocab)"
     fi
   fi
