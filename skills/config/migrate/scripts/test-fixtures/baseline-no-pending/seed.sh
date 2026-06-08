@@ -18,7 +18,11 @@ mkdir -p "$SANDBOX/.git"
 
 # Mark every bundled mechanical migration as applied so the runner has
 # nothing pending. The IDs come from the bundled migrations directory —
-# enumerating here keeps the fixture decoupled from the runner.
+# enumerating here keeps the fixture decoupled from the runner. Interactive
+# migrations (# INTERACTIVE: yes — e.g. 0007) are out of scope for this
+# mechanical-path snapshot (the harness pins the runner to the non-interactive
+# set), so they are excluded here too, keeping the seeded ledger in lock-step.
 for f in "$MIGRATIONS_DIR"/[0-9][0-9][0-9][0-9]-*.sh; do
+  head -5 "$f" | grep -qE '^# INTERACTIVE:[[:space:]]*yes$' && continue
   basename "$f" .sh
 done > "$SANDBOX/.accelerator/state/migrations-applied"

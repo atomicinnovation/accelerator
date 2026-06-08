@@ -234,25 +234,36 @@ run_interactive_fixture() {
 }
 last_sandbox() { cat "$INTERACTIVE_FIXTURE_SANDBOX_FILE"; }
 
-echo "Test: existing mechanical migrations (0001-0006) classified mechanical"
-# Source the lib so we can call is_interactive_migration directly.
+echo "Test: bundled mechanical migrations classified mechanical; 0007 interactive"
+# Source the lib so we can call is_interactive_migration directly. 0007 is the
+# first genuinely-interactive bundled migration (# INTERACTIVE: yes); every
+# other bundled migration must classify mechanical, and 0007 must classify
+# interactive.
 PLUGIN_ROOT_TEST="$PLUGIN_ROOT" bash -c '
   PROJECT_ROOT=/tmp PLUGIN_ROOT="'"$PLUGIN_ROOT"'" CLAUDE_PLUGIN_ROOT="'"$PLUGIN_ROOT"'"
   source "'"$PLUGIN_ROOT"'/scripts/atomic-common.sh"
   source "'"$PLUGIN_ROOT"'/skills/config/migrate/scripts/interactive-lib.sh"
   fail=0
+  saw_0007_interactive=0
   for f in "'"$PLUGIN_ROOT"'/skills/config/migrate/migrations"/[0-9][0-9][0-9][0-9]-*.sh; do
+    case "$(basename "$f")" in
+      0007-*)
+        if is_interactive_migration "$f"; then saw_0007_interactive=1; else
+          echo "ERROR: $f should be classified interactive" >&2; fail=1; fi
+        continue ;;
+    esac
     if is_interactive_migration "$f"; then
       echo "ERROR: $f classified as interactive" >&2
       fail=1
     fi
   done
+  [ "$saw_0007_interactive" -eq 1 ] || { echo "ERROR: 0007 not found/not interactive" >&2; fail=1; }
   exit $fail
 ' && {
-  echo "  PASS: 0001-0006 are mechanical"
+  echo "  PASS: mechanical migrations mechanical, 0007 interactive"
   PASS=$((PASS + 1))
 } || {
-  echo "  FAIL: at least one of 0001-0006 misclassified"
+  echo "  FAIL: migration classification mismatch"
   FAIL=$((FAIL + 1))
 }
 

@@ -31,6 +31,22 @@ mkdir -p "$SNAPSHOTS_ROOT"
 TMPDIR_BASE=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_BASE"' EXIT
 
+# This is the MECHANICAL-path snapshot test (see header). Interactive migrations
+# (# INTERACTIVE: yes — e.g. 0007) drive the runner through a FIFO handshake and
+# run a whole-corpus self-validation, so they are out of scope here and are
+# covered by test-migrate-0007.sh / test-migrate-interactive.sh. Pin the default
+# migrations dir to the non-interactive set so the checked-in snapshots stay
+# stable as interactive migrations are added.
+MIGRATIONS_DIR="$SCRIPT_DIR/../migrations"
+MECHANICAL_MIGRATIONS_DIR="$TMPDIR_BASE/mechanical-migrations"
+mkdir -p "$MECHANICAL_MIGRATIONS_DIR"
+for _m in "$MIGRATIONS_DIR"/[0-9][0-9][0-9][0-9]-*.sh; do
+  if ! head -5 "$_m" | grep -qE '^# INTERACTIVE:[[:space:]]*yes$'; then
+    cp "$_m" "$MECHANICAL_MIGRATIONS_DIR/"
+  fi
+done
+export ACCELERATOR_MIGRATIONS_DIR="$MECHANICAL_MIGRATIONS_DIR"
+
 # Each per-migration fixture exposes a `seed.sh` that populates a fresh
 # PROJECT_ROOT and (optionally) writes state under .accelerator/state/. The
 # snapshot captures the migrated tree, redacted streams, and exit code.

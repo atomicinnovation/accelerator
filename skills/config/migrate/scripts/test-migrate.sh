@@ -14,6 +14,23 @@ MIGRATIONS_DIR="$SCRIPT_DIR/../migrations"
 TMPDIR_BASE=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_BASE"' EXIT
 
+# Generic runner tests exercise runner mechanics against the bundled MECHANICAL
+# migrations. Interactive migrations (# INTERACTIVE: yes — e.g. 0007) are driven
+# by their own suites (test-migrate-0007.sh / test-migrate-interactive.sh): their
+# whole-corpus self-validation and FIFO handshake make them unsuitable for the
+# minimal fixtures these tests apply the full set to. Pin the default migrations
+# dir to the non-interactive set so adding an interactive migration doesn't break
+# runner-mechanics tests. Tests that set ACCELERATOR_MIGRATIONS_DIR inline still
+# override this default.
+MECHANICAL_MIGRATIONS_DIR="$TMPDIR_BASE/mechanical-migrations"
+mkdir -p "$MECHANICAL_MIGRATIONS_DIR"
+for _m in "$MIGRATIONS_DIR"/[0-9][0-9][0-9][0-9]-*.sh; do
+  if ! head -5 "$_m" | grep -qE '^# INTERACTIVE:[[:space:]]*yes$'; then
+    cp "$_m" "$MECHANICAL_MIGRATIONS_DIR/"
+  fi
+done
+export ACCELERATOR_MIGRATIONS_DIR="$MECHANICAL_MIGRATIONS_DIR"
+
 # A migrations directory containing only 0001, used by tests that
 # don't want 0002 or 0003 interfering with "No pending" assertions.
 ONLY_0001_DIR="$TMPDIR_BASE/only-0001-migrations"

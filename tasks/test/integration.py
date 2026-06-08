@@ -2,11 +2,10 @@ from invoke import Context, Exit, task
 
 from .helpers import repo_root, run_shell_suites
 
-# The migrate subtree ships exactly these three shell suites. The count is
-# asserted in `migrate` below so a dropped exec bit (e.g. on an exec-bit-lossy
-# filesystem) fails the build loudly instead of silently shrinking the
-# regression net.
-_EXPECTED_MIGRATE_SUITES = 3
+# The migrate subtree ships exactly these shell suites. The count is asserted in
+# `migrate` below so a dropped exec bit (e.g. on an exec-bit-lossy filesystem)
+# fails the build loudly instead of silently shrinking the regression net.
+_EXPECTED_MIGRATE_SUITES = 4
 
 # The config subtree (scripts/) discoverable shell suites. Like the migrate
 # guard, this is an at-least floor so a dropped exec bit on a fail-closed gate
