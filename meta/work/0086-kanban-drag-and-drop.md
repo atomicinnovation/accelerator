@@ -5,7 +5,7 @@ title: "Kanban Drag-and-Drop with Toast Confirmations"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: story
 priority: medium
 relates_to: ["work-item:0040"]

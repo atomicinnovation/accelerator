@@ -5,7 +5,7 @@ title: "Unified Managed dev Task for Visualiser Server and Frontend"
 date: "2026-06-06T13:04:38+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: task
 priority: medium
 relates_to: ["work-item:0100"]

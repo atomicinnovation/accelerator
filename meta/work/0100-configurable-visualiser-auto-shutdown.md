@@ -4,7 +4,7 @@ title: "Configurable Visualiser Auto-Shutdown"
 date: "2026-06-02T13:37:32+00:00"
 author: Toby Clemson
 type: story
-status: ready
+status: done
 priority: low
 parent: ""
 tags: [visualiser, server, configuration, lifecycle]
