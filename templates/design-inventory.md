@@ -5,7 +5,7 @@ title: "Design Inventory: {source-id}"
 date: "{ISO timestamp}"
 author: "{author name}"
 producer: inventory-design
-status: draft                                # draft
+status: draft                                # draft | superseded
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
 relates_to: []                               # typed-linkage list: ["design-inventory:NNNN", ...] or []

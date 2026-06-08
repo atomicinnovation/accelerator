@@ -6,8 +6,8 @@ pr-description.md	pr-description	yes	pr_url pr_number merge_commit	complete	pr_t
 adr.md	adr	no	decision_makers	proposed | accepted | superseded | deprecated	adr_id	parent supersedes relates_to
 codebase-research.md	codebase-research	yes	topic	complete	-	parent relates_to
 rca.md	issue-research	yes	topic	complete	-	parent relates_to
-design-inventory.md	design-inventory	yes	source source_kind source_location crawler sequence screenshots_incomplete	draft	-	parent relates_to
-design-gap.md	design-gap	no	current_inventory target_inventory	draft	-	parent relates_to
+design-inventory.md	design-inventory	yes	source source_kind source_location crawler sequence screenshots_incomplete	draft | superseded	-	parent relates_to
+design-gap.md	design-gap	no	current_inventory target_inventory	draft | accepted	-	parent relates_to
 plan-review.md	plan-review	no	reviewer verdict lenses review_number review_pass	complete	-	parent target relates_to
 work-item-review.md	work-item-review	no	reviewer verdict lenses review_number review_pass work_item_id	complete	-	parent target relates_to
 pr-review.md	pr-review	no	reviewer verdict lenses review_number pr_number	complete	pr_title review_pass	parent target relates_to

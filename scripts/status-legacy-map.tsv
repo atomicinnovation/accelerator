@@ -1,0 +1,9 @@
+type	legacy	canonical
+plan	accepted	done
+plan	complete	done
+plan	implemented	done
+plan	final	done
+plan	revised	done
+plan	approved	ready
+plan	reviewed	ready
+plan-review	accepted	complete

@@ -5,7 +5,7 @@ title: "Design Gap Analysis: {current-source} → {target-source}"
 date: "{ISO timestamp}"
 author: "{author name}"
 producer: analyse-design-gaps
-status: draft                                # draft
+status: draft                                # draft | accepted
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
 relates_to: []                               # typed-linkage list: ["design-inventory:NNNN", ...] or []
