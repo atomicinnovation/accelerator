@@ -28,13 +28,19 @@ function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
 # YYYY-MM-DD gets a midnight-UTC suffix by string concatenation (no date(1));
 # an already-full timestamp (Z or ±HH:MM) is returned unchanged; anything else
 # is returned unchanged and flagged by the caller.
-function norm_date(v,   inner) {
+function norm_date(v,   inner, base, off) {
   inner = fm_semantic_inner(v)
   if (inner ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/)
     return "\"" inner "T00:00:00+00:00\""
   if (inner ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9](Z|[+-][0-9][0-9]:[0-9][0-9])$/)
     return "\"" inner "\""
-  return ""   # non-conforming, non-normalisable
+  # Legacy colon-less offset (e.g. "…T21:49:56+0000") → insert the colon.
+  if (inner ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9][+-][0-9][0-9][0-9][0-9]$/) {
+    base = substr(inner, 1, 19)
+    off = substr(inner, 20)
+    return "\"" base substr(off, 1, 3) ":" substr(off, 4, 2) "\""
+  }
+  return ""   # non-conforming, non-normalisable (e.g. space-separated / TZ abbrev)
 }
 
 # Linkage vocabulary membership (keys whose values are typed references).
@@ -122,24 +128,40 @@ BEGIN {
   print; next
 }
 
-# Closing fence: emit any missing base fields, then the fence.
+# Closing fence: emit any missing base fields, then the fence. The "hard" base
+# fields a file may lack (title/author/date/revision) are derived caller-side
+# (H1, VCS, filename) and passed in as *_default — the same derivation the
+# fence-less backfill uses, applied here to fenced files missing them.
 in_fm && fm_is_fence($0) {
   if (!has_type && type != "") print "type: " type
-  if (!emitted_id && !has_id && own_id_key == "") {
+  if (!emitted_id && !has_id) {
+    # Covers any type with neither an existing id: nor a legacy own-id key —
+    # including a work-item/ADR missing its own-id key (id_from_stem is then the
+    # bare number / ADR-NNNN, computed caller-side).
     if (id_from_stem != "") print "id: \"" id_from_stem "\""
     else print "0007-REFUSE: " file " — no id and no derivable filename stem" > "/dev/stderr"
   }
+  if (!has_title && title_default != "") print "title: \"" title_default "\""
+  if (!has_date && date_default != "") {
+    print "date: \"" date_default "\""
+    if (date_value == "") date_value = "\"" date_default "\""
+  }
+  if (!has_author && author_default != "") print "author: " author_default
   if (!has_tags) print "tags: []"
   if (!has_schema) print "schema_version: 1"
   if (!has_lu) {
-    if (date_value != "") print "last_updated: " date_value
+    seed = (date_value != "" ? date_value : (date_default != "" ? "\"" date_default "\"" : ""))
+    if (seed != "") print "last_updated: " seed
   }
   if (!has_lub) {
-    if (author_value != "") print "last_updated_by: " author_value
+    seedby = (author_value != "" ? author_value : author_default)
+    if (seedby != "") print "last_updated_by: " seedby
   }
   if (anchored == 1) {
-    if (!emitted_revision && !has_revision)
-      print "0007-DIVERGE[nonconforming-base-field]: " file " — anchored type missing revision (no git_commit to migrate)" > "/dev/stderr"
+    if (!emitted_revision && !has_revision) {
+      if (revision_default != "") print "revision: \"" revision_default "\""
+      else print "0007-DIVERGE[author-lookup-failed]: " file " — anchored type missing revision (no git_commit, no VCS revision)" > "/dev/stderr"
+    }
     if (!has_repository) {
       if (repo_name != "") print "repository: \"" repo_name "\""
       else print "0007-DIVERGE[nonconforming-base-field]: " file " — anchored type missing repository" > "/dev/stderr"

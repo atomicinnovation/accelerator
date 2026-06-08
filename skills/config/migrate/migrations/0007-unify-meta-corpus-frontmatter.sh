@@ -315,9 +315,10 @@ rewrite_file() {
   repo="$(basename "$PROJECT_ROOT")"
 
   local has_type=0 has_id=0 has_tags=0 has_schema=0 has_lu=0 has_lub=0
-  local has_date=0 has_author=0 has_producer=0 has_revision=0 has_repository=0
+  local has_date=0 has_author=0 has_producer=0 has_revision=0 has_repository=0 has_title=0
   [ -n "$(fm_get type "$f")" ] && has_type=1
   [ -n "$(fm_get id "$f")" ] && has_id=1
+  [ -n "$(fm_get title "$f")" ] && has_title=1
   [ -n "$(fm_get tags "$f")" ] && has_tags=1
   [ -n "$(fm_get schema_version "$f")" ] && has_schema=1
   [ -n "$(fm_get last_updated "$f")" ] && has_lu=1
@@ -328,13 +329,34 @@ rewrite_file() {
   [ -n "$(fm_get revision "$f")" ] && has_revision=1
   [ -n "$(fm_get repository "$f")" ] && has_repository=1
 
+  # Derive the "hard" base fields a fenced file may lack — same sources as the
+  # fence-less backfill: H1 → title, VCS → author/revision, filename → date.
+  local rel="${f#"$PROJECT_ROOT"/}"
+  local title_default="" author_default="" date_default="" revision_default=""
+  if [ "$has_title" -eq 0 ]; then
+    title_default="$(awk 'f && /^# /{sub(/^# /,""); print; exit} /^---[[:space:]]*$/{c++; if(c==2)f=1}' "$f" | tr -d '"')"
+    [ -n "$title_default" ] || title_default="$stem"
+  fi
+  if [ "$has_author" -eq 0 ]; then
+    resolve_author "$rel"; author_default="$RESOLVED_AUTHOR"
+  fi
+  if [ "$has_date" -eq 0 ]; then
+    local _d; _d="$(printf '%s' "$stem" | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)"
+    [ -n "$_d" ] && date_default="${_d}T00:00:00+00:00"
+  fi
+  if [ "$anchored" -eq 1 ] && [ "$has_revision" -eq 0 ]; then
+    resolve_revision "$rel"; revision_default="$RESOLVED_REVISION"
+  fi
+
   local tmp_out tmp_err
   tmp_out="$(mktemp)"; tmp_err="$(mktemp)"
   awk -f "$FRAG_AWK" -f "$BODY_AWK" \
     -v file="$f" -v type="$type" -v anchored="$anchored" -v own_id_key="$own" \
     -v id_from_stem="$idstem" -v repo_name="$repo" \
     -v statusvocab="$vocab" -v statusmap="$smap" \
-    -v has_type="$has_type" -v has_id="$has_id" -v has_tags="$has_tags" \
+    -v title_default="$title_default" -v author_default="$author_default" \
+    -v date_default="$date_default" -v revision_default="$revision_default" \
+    -v has_type="$has_type" -v has_id="$has_id" -v has_title="$has_title" -v has_tags="$has_tags" \
     -v has_schema="$has_schema" -v has_lu="$has_lu" -v has_lub="$has_lub" \
     -v has_date="$has_date" -v has_author="$has_author" \
     -v has_producer="$has_producer" -v has_revision="$has_revision" \
