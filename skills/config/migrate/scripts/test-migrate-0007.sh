@@ -225,4 +225,78 @@ hy_out="$(printf 'INIT\t\t\n' | (cd "$HY" && PROJECT_ROOT="$HY" CLAUDE_PLUGIN_RO
 first_line="$(printf '%s\n' "$hy_out" | head -1)"
 assert_matches_regex "first stdout line is the READY frame" '^READY' "$first_line"
 
+# ── Interactive body-section linkage: resolved mechanical + ambiguous accept ─
+echo "=== Interactive linkage: resolved mechanical + ambiguous applied ==="
+LINK="$TMP/linkrepo"
+mkdir -p "$LINK/meta/work"
+# Target work-item (exists, so references resolve referentially).
+cat >"$LINK/meta/work/0061-target.md" <<'EOF'
+---
+type: work-item
+work_item_id: "0061"
+title: "Target"
+date: "2026-01-01T00:00:00+00:00"
+author: Toby
+producer: create-work-item
+kind: story
+priority: high
+status: ready
+tags: []
+last_updated: "2026-01-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Target
+EOF
+# Source work-item: one resolved (Blocks: → blocks work-item:0061) and one
+# ambiguous (unhinted ## References path → relates_to, accepted).
+cat >"$LINK/meta/work/0060-source.md" <<'EOF'
+---
+type: work-item
+work_item_id: "0060"
+title: "Source"
+date: "2026-01-01T00:00:00+00:00"
+author: Toby
+producer: create-work-item
+kind: story
+priority: high
+status: ready
+tags: []
+last_updated: "2026-01-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Source
+
+## References
+
+- See `meta/work/0061-target.md`
+
+## Dependencies
+
+- Blocks: 0061
+EOF
+git_init "$LINK"
+DEC="$TMP/decisions.txt"
+printf 'accept\n' >"$DEC"   # one decision for the single ambiguous reference
+LRC=0
+LOUT="$(cd "$LINK" && PROJECT_ROOT="$LINK" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATIONS_DIR="$ONLY_0007" ACCELERATOR_MIGRATE_FORCE=1 \
+  ACCELERATOR_MIGRATE_DECISIONS_FILE="$DEC" \
+  bash "$DRIVER" 2>&1 </dev/null)" || LRC=$?
+assert_eq "interactive run exits 0" "0" "$LRC"
+SRC="$LINK/meta/work/0060-source.md"
+assert_contains "resolved Blocks applied mechanically" "$(cat "$SRC")" 'blocks: ["work-item:0061"]'
+assert_contains "ambiguous relates_to applied on accept" "$(cat "$SRC")" 'relates_to: ["work-item:0061"]'
+SESSION="$LINK/.accelerator/state/migrations-0007-unify-meta-corpus-frontmatter-session.jsonl"
+assert_file_exists "session log written" "$SESSION"
+assert_contains "session log records an accepted ambiguous decision" "$(cat "$SESSION" 2>/dev/null)" '"outcome":"accepted"'
+lvrc=0
+"$VALIDATOR" "$LINK/meta" >/tmp/0007-link-val.out 2>&1 || lvrc=$?
+if [ "$lvrc" -eq 0 ]; then
+  echo "  PASS: linked corpus validates (incl. referential integrity)"; PASS=$((PASS + 1))
+else
+  echo "  FAIL: linked corpus has violations"; sed 's/^/    /' /tmp/0007-link-val.out; FAIL=$((FAIL + 1))
+fi
+
 test_summary

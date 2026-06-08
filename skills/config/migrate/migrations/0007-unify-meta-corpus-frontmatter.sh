@@ -359,9 +359,95 @@ self_validate_referential() {
   bash "$VALIDATOR" "$META_ABS" >&2
 }
 
-# ── Interactive hooks (body-section linkage lands in a later sub-unit) ───────
-migration_emit_transformations() { :; }              # no transformations yet
-migration_apply_decision() { return 0; }             # unreached (no TX)
+# ── Interactive hooks: body-section typed linkage ───────────────────────────
+PARSER="$PLUGIN_ROOT/scripts/linkage-parser.sh"
+MERGE_AWK="$PLUGIN_ROOT/skills/config/migrate/scripts/frontmatter-merge.awk"
+
+# Cardinality of a linkage key (single vs list), per ADR-0034.
+linkage_card() {
+  case "$1" in
+    parent | target | source | superseded_by) echo single ;;
+    *) echo list ;;
+  esac
+}
+
+# A typed reference value: doc-type:id (or pr:<n>). Bare/path shapes rejected.
+LINKAGE_REF_RE='^(work-item|plan|adr|pr|codebase-research|issue-research|pr-description|design-inventory|design-gap|plan-validation|plan-review|work-item-review|pr-review|note):[A-Za-z0-9-]+$'
+
+# Run the body-section parser over every fenced in-scope artifact and emit one
+# transformation per reference. resolved-band → predicate routes mechanical;
+# ambiguous-band → predicate routes to the interactive prompt. The parser's
+# stdout is captured here and re-emitted as TX frames; only TX lines reach
+# stdout (parser diagnostics go to its stderr → the runner's stderr capture).
+migration_emit_transformations() {
+  local f rel recs src key target anchor band
+  while IFS= read -r -d '' f; do
+    out_of_scope "$f" && continue
+    has_strict_fence "$f" || continue
+    rel="${f#"$PROJECT_ROOT"/}"
+    recs="$(bash "$PARSER" "$f" 2>/dev/null || true)"
+    [ -n "$recs" ] || continue
+    while IFS=$'\t' read -r src key target anchor band; do
+      [ -n "$key" ] && [ -n "$target" ] || continue
+      harness_extras_set band "$band"
+      harness_extras_set linkage_key "$key"
+      harness_emit_transformation \
+        key="${rel}#${anchor}" path="$rel" anchor="$anchor" \
+        proposed="${key}=${target}" predicate_value="$band" \
+        display="Proposed linkage: ${key}: \"${target}\"
+Section anchor: ${anchor}
+Band: ${band}"
+    done <<<"$recs"
+  done < <(corpus_files)
+}
+
+# Prompt only ambiguous-band references; resolved apply mechanically.
+migration_evaluate_predicate() {
+  [ "$(harness_field band)" = "ambiguous" ]
+}
+
+# Reject an edited value that is not a "<linkage-key>=<typed-ref>" pair with a
+# vocabulary key and a doc-type:id target.
+migration_validate_edit() {
+  local key="$1" path="$2" anchor="$3" proposed="$4" user_value="$5"
+  case "$user_value" in
+    *=*) : ;;
+    *) harness_reject "edit must be <linkage-key>=<doc-type:id>"; return 1 ;;
+  esac
+  local lk="${user_value%%=*}" tr="${user_value#*=}"
+  case "$(linkage_card "$lk")" in single | list) : ;; *) harness_reject "unknown linkage key '$lk'"; return 1 ;; esac
+  if ! printf '%s' "$tr" | grep -qE "$LINKAGE_REF_RE"; then
+    harness_reject "target '$tr' is not a typed doc-type:id reference"
+    return 1
+  fi
+  return 0
+}
+
+# Insert the typed linkage (canonical side) into the artifact's frontmatter.
+migration_apply_decision() {
+  local key="$1" path="$2" anchor="$3" decision="$4" value="$5"
+  local lk="${value%%=*}" tr="${value#*=}"
+  [ -n "$lk" ] && [ -n "$tr" ] || return 0
+  local abs="$PROJECT_ROOT/$path" tmp
+  [ -f "$abs" ] || return 0
+  tmp="$(mktemp)"
+  awk -f "$MERGE_AWK" -v lkey="$lk" -v lval="$tr" -v card="$(linkage_card "$lk")" \
+    <"$abs" >"$tmp"
+  cmp -s "$abs" "$tmp" || atomic_write "$abs" <"$tmp"
+  rm -f "$tmp"
+}
+
+# Confirm the recorded linkage is present (drives resume DRIFT recovery).
+migration_verify_applied() {
+  local key="$1" path="$2" anchor="$3" outcome="$4" proposed="$5" user="$6"
+  local value="${user:-$proposed}"
+  local lk="${value%%=*}" tr="${value#*=}"
+  [ -n "$lk" ] && [ -n "$tr" ] || return 0
+  local abs="$PROJECT_ROOT/$path"
+  [ -f "$abs" ] || return 1
+  grep -qF -- "\"$tr\"" "$abs"
+}
+
 migration_session_log_path() {
   printf '.accelerator/state/migrations-%s-session.jsonl\n' "${MIGRATION_ID:-0007-unify-meta-corpus-frontmatter}"
 }
