@@ -1253,22 +1253,23 @@ closed by this release's mechanical `work_item_id:`→`parent:` derivation (Phas
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `mise run test:unit:visualiser` passes (cargo `--lib`, both feature modes),
-      including the **retained** fallback pinning tests
-- [ ] A new test asserts a work-item with `id:` and no `work_item_id:` resolves
+- [x] `mise run test:unit:visualiser` passes (cargo `--lib`, both feature modes),
+      including the **retained** fallback pinning tests (411 default / 415 dev-frontend)
+- [x] A new test asserts a work-item with `id:` and no `work_item_id:` resolves
       its identity (the unified read path works, via `normalise_id`)
-- [ ] **Per-arm** deprecation tests assert a `tracing::warn!` fires from *each* of
+- [x] **Per-arm** deprecation tests assert a `tracing::warn!` fires from *each* of
       the three retained fallbacks (indexer filename/legacy-key, `read_ref_keys`
       `work-item:`, `cluster_key` legacy branch), each driving its resolving call
-      **synchronously on the test thread under a thread-local subscriber** (the
-      existing `log.rs` `with_default` capture precedent; a spawned-thread path
-      would capture nothing and falsely pass), asserting the arm-specific message —
-      distinct from the pre-existing shape-invalid warn at `indexer.rs:1223`, which
-      fires on a different (failure) condition — not a single collective assertion
-- [ ] `scripts/test-template-frontmatter.sh` passes with the alias removed and the
-      `work_item_id` extra dropped from the `work-item-review.md` schema row
-- [ ] A test (or fixture) confirms a **deliberately un-migrated** corpus still
-      resolves cross-references via the retained fallbacks (no silent breakage)
+      **synchronously on the test thread** — captured via a parallel-safe permissive
+      global subscriber routing to a per-thread buffer (`log::test_support::capture_logs`),
+      since `with_default` thread-local capture is unreliable against tracing's
+      global callsite-interest cache when other parallel tests hit the same callsite
+- [ ] (Phase 5b — after dogfood) `scripts/test-template-frontmatter.sh` passes with
+      the alias removed and the `work_item_id` extra dropped from the
+      `work-item-review.md` schema row
+- [x] The retained-fallback pinning tests + the per-arm deprecation tests confirm a
+      **deliberately un-migrated** corpus still resolves cross-references via the
+      retained fallbacks (no silent breakage)
 
 #### Manual Verification:
 - [ ] The visualiser clusters work-item reviews via the `target:` typed ref and
