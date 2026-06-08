@@ -161,6 +161,20 @@ resolve_revision() {
   RESOLVED_REVISION="$rev"
 }
 
+# Sets RESOLVED_DATE to the YYYY-MM-DD the file was first authored (VCS), or ""
+# when no VCS / no history. Used as the date fallback for files (e.g.
+# work-items) whose filename carries no date prefix.
+resolve_date() {
+  local relpath="$1" d=""
+  if [ -d "$PROJECT_ROOT/.jj" ] && command -v jj >/dev/null 2>&1; then
+    d="$(cd "$PROJECT_ROOT" && LANG=C jj --no-pager log --no-graph \
+      -r "latest(::@ & files(\"$relpath\"))" -T 'author.timestamp().format("%Y-%m-%d")' 2>/dev/null | head -1 || true)"
+  elif [ -d "$PROJECT_ROOT/.git" ] && command -v git >/dev/null 2>&1; then
+    d="$(cd "$PROJECT_ROOT" && LANG=C git log --format='%ad' --date=format:'%Y-%m-%d' -1 -- "$relpath" 2>/dev/null | head -1 || true)"
+  fi
+  RESOLVED_DATE="$d"
+}
+
 # ── Corpus enumeration ───────────────────────────────────────────────────────
 META_REL="meta"
 META_ABS="$PROJECT_ROOT/$META_REL"
@@ -328,6 +342,7 @@ rewrite_file() {
   [ -n "$(fm_get producer "$f")" ] && has_producer=1
   [ -n "$(fm_get revision "$f")" ] && has_revision=1
   [ -n "$(fm_get repository "$f")" ] && has_repository=1
+  local has_priority=0; [ -n "$(fm_get priority "$f")" ] && has_priority=1
 
   # Derive the "hard" base fields a fenced file may lack — same sources as the
   # fence-less backfill: H1 → title, VCS → author/revision, filename → date.
@@ -342,7 +357,14 @@ rewrite_file() {
   fi
   if [ "$has_date" -eq 0 ]; then
     local _d; _d="$(printf '%s' "$stem" | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)"
-    [ -n "$_d" ] && date_default="${_d}T00:00:00+00:00"
+    if [ -n "$_d" ]; then
+      date_default="${_d}T00:00:00+00:00"
+    else
+      # No date in the filename (e.g. work-items NNNN-slug) — fall back to the
+      # VCS-authored date.
+      resolve_date "$rel"
+      [ -n "$RESOLVED_DATE" ] && date_default="${RESOLVED_DATE}T00:00:00+00:00"
+    fi
   fi
   if [ "$anchored" -eq 1 ] && [ "$has_revision" -eq 0 ]; then
     resolve_revision "$rel"; revision_default="$RESOLVED_REVISION"
@@ -357,6 +379,7 @@ rewrite_file() {
     -v title_default="$title_default" -v author_default="$author_default" \
     -v date_default="$date_default" -v revision_default="$revision_default" \
     -v has_type="$has_type" -v has_id="$has_id" -v has_title="$has_title" -v has_tags="$has_tags" \
+    -v has_priority="$has_priority" \
     -v has_schema="$has_schema" -v has_lu="$has_lu" -v has_lub="$has_lub" \
     -v has_date="$has_date" -v has_author="$has_author" \
     -v has_producer="$has_producer" -v has_revision="$has_revision" \

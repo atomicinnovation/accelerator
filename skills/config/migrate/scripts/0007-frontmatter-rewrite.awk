@@ -40,7 +40,21 @@ function norm_date(v,   inner, base, off) {
     off = substr(inner, 20)
     return "\"" base substr(off, 1, 3) ":" substr(off, 4, 2) "\""
   }
-  return ""   # non-conforming, non-normalisable (e.g. space-separated / TZ abbrev)
+  # Last resort: a value that merely STARTS with a YYYY-MM-DD date but is
+  # otherwise non-ISO (space-separated time, TZ abbreviation like GMT/CEST) —
+  # keep the date, drop the unrepresentable time, normalise to midnight UTC.
+  # Deterministic, so applied mechanically (the lost time is recorded in the
+  # dogfood gap-fix log rather than DIVERGEd).
+  if (inner ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][^0-9]/)
+    return "\"" substr(inner, 1, 10) "T00:00:00+00:00\""
+  return ""   # genuinely non-normalisable
+}
+
+# Legacy artifact-type aliases → canonical ADR-0033 type. Work-item kind-values
+# (story/bug/…) are NOT handled here — migration 0005 owns those.
+function canonical_type(t) {
+  if (t == "validation") return "plan-validation"
+  return t
 }
 
 # Linkage vocabulary membership (keys whose values are typed references).
@@ -157,6 +171,9 @@ in_fm && fm_is_fence($0) {
     seedby = (author_value != "" ? author_value : author_default)
     if (seedby != "") print "last_updated_by: " seedby
   }
+  # Work-item priority is an always-valued extra; default it to the template's
+  # `medium` when absent (a deliberate decision recorded in the dogfood log).
+  if (type == "work-item" && !has_priority) print "priority: medium"
   if (anchored == 1) {
     if (!emitted_revision && !has_revision) {
       if (revision_default != "") print "revision: \"" revision_default "\""
@@ -175,6 +192,10 @@ in_fm && fm_is_fence($0) {
 in_fm && /^[A-Za-z_][A-Za-z0-9_]*:/ {
   key = $0; sub(/:.*/, "", key)
   val = $0; sub(/^[A-Za-z_][A-Za-z0-9_]*:[ \t]*/, "", val); val = trim(val)
+
+  # Canonicalise a present legacy artifact-type alias (e.g. validation →
+  # plan-validation). A conforming type: passes through unchanged.
+  if (key == "type") { print "type: " canonical_type(val); next }
 
   # Drop legacy provenance keys (git_commit migrates to revision; branch goes).
   if (key == "git_commit") {
