@@ -100,6 +100,10 @@ lp_resolve_path_target() {
   case "$type" in
     work-item) id="$(printf '%s' "$stem" | grep -oE '^[0-9]+' || true)" ;;
     adr) id="$(printf '%s' "$stem" | grep -oE '^ADR-[0-9]+' || true)" ;;
+    design-inventory)
+      # Nested manifest: the id is the parent directory name (matching the
+      # migration's derive_stem), not the manifest basename `inventory`.
+      id="$(basename "$(dirname "$path")")" ;;
     *) id="$stem" ;;
   esac
   [ -n "$id" ] || return 0
