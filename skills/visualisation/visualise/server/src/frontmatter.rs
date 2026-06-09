@@ -134,9 +134,21 @@ pub fn parse(raw: &[u8]) -> Parsed {
     };
     let body = s[body_start..].trim_start_matches('\n').to_string();
 
-    let value: serde_yml::Value = match serde_yml::from_str(yaml_src) {
-        Ok(v) => v,
-        Err(_) => {
+    // serde_yml delegates scanning to libyml, a C-port that *panics* (rather
+    // than returning Err) on some adversarial inputs — e.g. a quoted flow
+    // scalar ending in a run of trailing whitespace overflows its internal
+    // bounds check ("String join would overflow memory bounds"). A single such
+    // file must not take down the whole server, so we treat a panic exactly
+    // like a parse error: the document is Malformed. `yaml_src` is a `&str` and
+    // `from_str` holds no shared mutable state, so asserting unwind-safety is
+    // sound; the default panic hook still logs the backtrace (to the server log
+    // in production) for diagnosis.
+    let parsed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        serde_yml::from_str::<serde_yml::Value>(yaml_src)
+    }));
+    let value: serde_yml::Value = match parsed {
+        Ok(Ok(v)) => v,
+        Ok(Err(_)) | Err(_) => {
             return Parsed {
                 state: FrontmatterState::Malformed,
                 body,
@@ -410,6 +422,20 @@ mod tests {
         let raw = b("---\ntitle: \"unclosed\nstatus: done\n---\n");
         let p = parse(&raw);
         assert!(matches!(p.state, FrontmatterState::Malformed));
+    }
+
+    #[test]
+    fn malformed_when_quoted_scalar_has_trailing_whitespace() {
+        // libyml panics (rather than returning Err) on a quoted flow scalar
+        // ending in a run of trailing whitespace: "String join would overflow
+        // memory bounds". parse() must catch that panic and report Malformed
+        // instead of crashing the whole server (regression for a migrated note
+        // whose H1-derived title carried ~34 trailing spaces inside its quotes).
+        let title = format!("Security Lens{}", " ".repeat(34));
+        let raw = b(&format!("---\ntitle: \"{title}\"\nstatus: done\n---\nbody\n"));
+        let p = parse(&raw);
+        assert!(matches!(p.state, FrontmatterState::Malformed));
+        assert_eq!(p.body, "body\n");
     }
 
     #[test]

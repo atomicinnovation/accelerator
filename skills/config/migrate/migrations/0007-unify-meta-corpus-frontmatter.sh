@@ -257,8 +257,11 @@ backfill_file() {
   type="$(infer_type_from_path "$f")"
   stem="$(derive_stem "$f" "$type")"
   rel="${f#"$PROJECT_ROOT"/}"
-  # Title from first H1, else humanised stem.
-  h1="$(awk '/^# / { sub(/^# /, ""); print; exit }' "$f" || true)"
+  # Title from first H1, else humanised stem. Trim surrounding whitespace: a
+  # column-padded source line would otherwise yield a quoted scalar with
+  # trailing spaces, which crashes the visualiser's YAML parser (libyml panics
+  # on a quoted flow scalar ending in trailing whitespace).
+  h1="$(awk '/^# / { sub(/^# /, ""); sub(/[[:space:]]+$/, ""); print; exit }' "$f" || true)"
   title="${h1:-$stem}"
   # Date from a leading YYYY-MM-DD filename prefix, else Unknown→skip date seed.
   date="$(printf '%s' "$stem" | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)"
