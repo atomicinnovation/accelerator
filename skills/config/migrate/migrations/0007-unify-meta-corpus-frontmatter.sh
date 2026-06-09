@@ -62,6 +62,17 @@ own_id_key_for_type() {
   esac
 }
 
+# Canonicalise a legacy artifact-type alias to its ADR-0033 type (mirrors the
+# awk's canonical_type). Used wherever the shell looks a present type: up in the
+# schema table — the raw legacy alias has no row, so vocab/extras/anchored would
+# misfire (e.g. a `type: validation` file's `status: complete` DIVERGEing).
+canonical_type() {
+  case "$1" in
+    validation) echo plan-validation ;;
+    *) echo "$1" ;;
+  esac
+}
+
 # Space-joined "legacy=canonical" status pairs for a type (for awk -v).
 status_map_for_type() {
   awk -F'\t' -v t="$1" 'NR > 1 && $1 == t { printf "%s=%s ", $2, $3 }' "$STATUS_MAP_TSV"
@@ -192,6 +203,7 @@ precondition_prepass() {
     has_strict_fence "$f" || continue
     type="$(fm_inner "$(fm_get type "$f")")"
     [ -n "$type" ] || type="$(infer_type_from_path "$f")"
+    type="$(canonical_type "$type")"
     if [ "$type" = "work-item" ]; then
       if [ -z "$(fm_get kind "$f")" ]; then
         log_warn "0007-REFUSE: $f — work-item missing kind: (run migration 0005 first)" >&2
@@ -316,6 +328,7 @@ rewrite_file() {
   local f="$1" type anchored own extras vocab smap stem idstem repo
   type="$(fm_inner "$(fm_get type "$f")")"
   [ -n "$type" ] || type="$(infer_type_from_path "$f")"
+  type="$(canonical_type "$type")"
   [ -n "$type" ] || return 0
   anchored=0; [ "$(anchored_for_type "$type")" = "yes" ] && anchored=1
   own="$(own_id_key_for_type "$type")"
@@ -422,6 +435,30 @@ self_validate_referential() {
   bash "$VALIDATOR" "$META_ABS" >&2
 }
 
+# ── Corpus identity index (for existence-checking resolved inferences) ───────
+# Newline-delimited set of "type:id" identities over the (post-rewrite) corpus,
+# resolved by the same rule the migration uses (own-id → id → derived stem).
+CORPUS_INDEX=""
+build_corpus_index() {
+  local f type id
+  while IFS= read -r -d '' f; do
+    out_of_scope "$f" && continue
+    has_strict_fence "$f" || continue
+    type="$(fm_inner "$(fm_get type "$f")")"
+    [ -n "$type" ] || type="$(infer_type_from_path "$f")"
+    type="$(canonical_type "$type")"
+    [ -n "$type" ] || continue
+    case "$type" in
+      work-item | adr) id="$(fm_inner "$(fm_get "$(own_id_key_for_type "$type")" "$f")")" ;;
+      *) id="" ;;
+    esac
+    [ -n "$id" ] || id="$(fm_inner "$(fm_get id "$f")")"
+    [ -n "$id" ] || id="$(derive_stem "$f" "$type")"
+    CORPUS_INDEX="${CORPUS_INDEX}${type}:${id}"$'\n'
+  done < <(corpus_files)
+}
+corpus_index_has() { grep -qxF -- "$1" <<<"$CORPUS_INDEX"; }
+
 # ── Interactive hooks: body-section typed linkage ───────────────────────────
 PARSER="$PLUGIN_ROOT/scripts/linkage-parser.sh"
 MERGE_AWK="$PLUGIN_ROOT/skills/config/migrate/scripts/frontmatter-merge.awk"
@@ -452,6 +489,18 @@ migration_emit_transformations() {
     [ -n "$recs" ] || continue
     while IFS=$'\t' read -r src key target anchor band; do
       [ -n "$key" ] && [ -n "$target" ] || continue
+      # Existence-check resolved inferences: a resolved-band target that does
+      # not resolve to a real artifact (e.g. a year/date mis-parsed from prose,
+      # like "work-item:2026") is NOT applied mechanically — skip + DIVERGE
+      # rather than write a dangling edge. pr: is tolerated. Ambiguous-band
+      # refs are emitted regardless (the human gates them).
+      if [ "$band" = "resolved" ]; then
+        case "$target" in
+          pr:*) : ;;
+          *:*) corpus_index_has "$target" ||
+            { log_warn "0007-DIVERGE[reverse-orphan]: $rel — resolved $key target '$target' resolves to no artifact; skipped" >&2; continue; } ;;
+        esac
+      fi
       harness_extras_set band "$band"
       harness_extras_set linkage_key "$key"
       harness_emit_transformation \
@@ -530,6 +579,9 @@ migration_session_log_path() {
     exit 1
   fi
   self_validate_structural
+  # Build the identity index over the final (post-rewrite) corpus so the
+  # emitter can existence-check resolved inferences before harness_run.
+  build_corpus_index
 } >&2
 
 harness_run
