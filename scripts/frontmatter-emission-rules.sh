@@ -33,7 +33,7 @@ FM_FORBIDDEN_PROVENANCE_FIELDS=(git_commit branch)
 # Pipe-joined for interpolation into ERE patterns. `pr` is the external-entity
 # prefix (tolerated; an ADR-0034 supplement is pending). Keep aligned with the
 # doc-types that appear in template typed-linkage comments.
-FM_SOURCE_TYPE_RE='work-item|plan|adr|pr|codebase-research|issue-research|pr-description|design-inventory|design-gap|plan-validation|plan-review|work-item-review|pr-review'
+FM_SOURCE_TYPE_RE='work-item|plan|adr|pr|note|codebase-research|issue-research|pr-description|design-inventory|design-gap|plan-validation|plan-review|work-item-review|pr-review'
 
 # ---- Linkage vocabulary + cardinality -------------------------------------
 # Union of all typed-linkage key names. superseded_by is listed as a guard even

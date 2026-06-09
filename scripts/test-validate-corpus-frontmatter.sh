@@ -149,6 +149,11 @@ assert_rejects "path-shape linkage rejected" "BAD-LINKAGE-SHAPE" "$TMP/bad-path-
 emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/ok-dotted-linkage.md" 'relates_to: ["plan:2026-06-04-changelog-1.21.0-cleanup"]'
 assert_accepts "dotted typed-ref id accepted (version-numbered stem)" "$TMP/ok-dotted-linkage.md"
 
+# A note: target is a valid typed ref (work-item extracted from a note —
+# ADR-0034 work-item|source|note).
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/ok-note-source.md" 'source: "note:2026-04-29-some-note"'
+assert_accepts "note: typed-ref target accepted" "$TMP/ok-note-source.md"
+
 emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-status.md"
 sed -i.bak 's/^status: .*/status: bogus/' "$TMP/bad-status.md"
 assert_rejects "bad status rejected" "BAD-STATUS" "$TMP/bad-status.md"
