@@ -5,7 +5,7 @@ title: "Ship meta/ Corpus Unified-Schema Migration Implementation Plan"
 date: "2026-06-07T09:05:13+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0070"
 parent: "work-item:0070"
 derived_from: ["codebase-research:2026-06-07-0070-meta-corpus-unified-schema-migration"]
@@ -1008,38 +1008,38 @@ to their expected linkage and to `APPLIED_CONFIRM`. Plus, explicitly:
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] Mechanical-rewrite golden test passes (base fields, defaults,
+- [x] Mechanical-rewrite golden test passes (base fields, defaults,
       `skill:`→`producer:`, own-id→quoted `id:`, provenance bundle, extras,
       omit-when-empty, `schema_version: 1`) — AC-3/4/5/6 + defaults
-- [ ] Backfill golden test passes for notes (incl. the partial-fence note,
+- [x] Backfill golden test passes for notes (incl. the partial-fence note,
       `status: draft`→`captured`) and confirmed pre-convention plans
-- [ ] Author resolution verified on both branches **and both VCS** (jj + git;
+- [x] Author resolution verified on both branches **and both VCS** (jj + git;
       history present → committer, absent → `Unknown`, failed lookup → counted
       diagnostic) — AC-15
-- [ ] `last_updated` seeded from `date` where first set, byte-stable on re-run — AC-16
-- [ ] Precondition fixture: work-item missing `kind:` / unquoted foreign
+- [x] `last_updated` seeded from `date` where first set, byte-stable on re-run — AC-16
+- [x] Precondition fixture: work-item missing `kind:` / unquoted foreign
       `work_item_id:` → `0007-REFUSE` + non-zero exit — AC-2
-- [ ] Migration **exits non-zero** when any `REFUSE`/`MALFORMED` fires
-- [ ] No-placeholder emission asserted at the migration's write site — AC-10
-- [ ] Location inference does not override an existing `type:`
+- [x] Migration **exits non-zero** when any `REFUSE`/`MALFORMED` fires
+- [x] No-placeholder emission asserted at the migration's write site — AC-10
+- [x] Location inference does not override an existing `type:`
       (design-gap/design-inventory fixtures); reviews typed by subdirectory
-- [ ] Interactive scripted-decision test: known-ambiguous fixtures reach
+- [x] Interactive scripted-decision test: known-ambiguous fixtures reach
       `APPLIED_CONFIRM` and produce the expected linkage; at least one
       `accepted`/`edited` outcome writes a linkage (apply path exercised) — AC-9
-- [ ] Resolved-band references apply mechanically; ambiguous-band route to the
+- [x] Resolved-band references apply mechanically; ambiguous-band route to the
       hook — AC-7
-- [ ] No non-frame bytes precede `READY` on stdout (FIFO protocol hygiene)
-- [ ] Every migrated fixture passes the Phase 1 validator (incl. referential
+- [x] No non-frame bytes precede `READY` on stdout (FIFO protocol hygiene)
+- [x] Every migrated fixture passes the Phase 1 validator (incl. referential
       integrity)
-- [ ] Direct script re-invocation (ledger bypassed) over the migrated fixture
+- [x] Direct script re-invocation (ledger bypassed) over the migrated fixture
       corpus is a byte-identical no-op; an interrupt-then-re-run over a
       half-written corpus converges to the same result — AC-17
-- [ ] ADR-0033's `adr_id:` is rewritten to quoted `id:` in the fixture — AC-14
+- [x] ADR-0033's `adr_id:` is rewritten to quoted `id:` in the fixture — AC-14
 
 #### Manual Verification:
-- [ ] Spot-check that linkage values are typed `"doc-type:id"`, canonical side
+- [x] Spot-check that linkage values are typed `"doc-type:id"`, canonical side
       only
-- [ ] The interactive prompts render legible prose context for ambiguous refs
+- [x] The interactive prompts render legible prose context for ambiguous refs
 
 ---
 
@@ -1274,9 +1274,9 @@ closed by this release's mechanical `work_item_id:`→`parent:` derivation (Phas
       retained fallbacks (no silent breakage)
 
 #### Manual Verification:
-- [ ] The visualiser clusters work-item reviews via the `target:` typed ref and
+- [x] The visualiser clusters work-item reviews via the `target:` typed ref and
       resolves migrated work-items via the new `id:` path
-- [ ] Loading this repo's migrated corpus shows no broken cross-references; loading
+- [x] Loading this repo's migrated corpus shows no broken cross-references; loading
       a simulated un-migrated corpus degrades gracefully with deprecation warnings,
       not broken edges
 - [x] The follow-on contract work item has been raised (with AC-12/AC-13 and the
