@@ -542,6 +542,19 @@ migration_apply_decision() {
   [ -n "$lk" ] && [ -n "$tr" ] || return 0
   local abs="$PROJECT_ROOT/$path" tmp
   [ -f "$abs" ] || return 0
+  # Single-valued keys are set-if-absent-or-equal, never overwritten: a file may
+  # have competing inferences for the same single key (e.g. two `source:`
+  # candidates), and last-wins would be resume-order-dependent (resolved refs
+  # re-apply every run; resumed ambiguous ones do not) — non-idempotent. Once
+  # set, the value sticks; a conflicting candidate is kept-out and DIVERGEd.
+  if [ "$(linkage_card "$lk")" = "single" ]; then
+    local existing
+    existing="$(fm_inner "$(fm_get "$lk" "$abs")")"
+    if [ -n "$existing" ] && [ "$existing" != "$tr" ]; then
+      log_warn "0007-DIVERGE[parent-conflict]: $path — $lk already '$existing'; not overwriting with '$tr'" >&2
+      return 0
+    fi
+  fi
   tmp="$(mktemp)"
   awk -f "$MERGE_AWK" -v lkey="$lk" -v lval="$tr" -v card="$(linkage_card "$lk")" \
     <"$abs" >"$tmp"
@@ -557,6 +570,13 @@ migration_verify_applied() {
   [ -n "$lk" ] && [ -n "$tr" ] || return 0
   local abs="$PROJECT_ROOT/$path"
   [ -f "$abs" ] || return 1
+  # A single-valued key counts as applied once it is populated, even if a
+  # conflicting candidate won the set-if-absent race (the relationship is
+  # handled; the conflict is in the DIVERGE log). This keeps resume from
+  # spuriously DRIFTing the candidate that was kept out.
+  if [ "$(linkage_card "$lk")" = "single" ] && [ -n "$(fm_inner "$(fm_get "$lk" "$abs")")" ]; then
+    return 0
+  fi
   grep -qF -- "\"$tr\"" "$abs"
 }
 
