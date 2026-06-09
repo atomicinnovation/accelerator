@@ -4,7 +4,7 @@ title: "Ship `meta/` Corpus Unified-Schema Migration"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
 kind: story
-status: ready
+status: done
 priority: high
 parent: "work-item:0057"
 tags: [migration, frontmatter, schema, dogfood]
