@@ -1,5 +1,5 @@
 ---
-work_item_id: "0031"
+work_item_id: "0032"
 title: "Per-test server configuration and fixtures for E2E tests"
 date: "2026-05-05T00:00:00+01:00"
 author: Toby Clemson
@@ -10,7 +10,7 @@ parent: ""
 tags: [visualiser, testing, playwright, e2e]
 ---
 
-# 0031: Per-test server configuration and fixtures for E2E tests
+# 0032: Per-test server configuration and fixtures for E2E tests
 
 **Kind**: Task
 **Status**: Draft
