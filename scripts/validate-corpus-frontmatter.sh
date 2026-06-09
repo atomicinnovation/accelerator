@@ -151,6 +151,52 @@ stem_of() {
   printf '%s' "${b%.md}"
 }
 
+# ---- Bash-native frontmatter parse (no per-field subprocess) ----------------
+# parse_fm <block> fills the parallel arrays BK_KEYS / BK_VALS with one entry
+# per `key: value` line (comment and non-key lines skipped), values whitespace-
+# trimmed. One read loop, no per-line spawn — this is what keeps the whole-corpus
+# validation comfortably inside the migration's post-DONE watchdog.
+BK_KEYS=()
+BK_VALS=()
+parse_fm() {
+  BK_KEYS=()
+  BK_VALS=()
+  local line k v
+  while IFS= read -r line; do
+    case "$line" in
+      [A-Za-z_]*:*) ;;
+      *) continue ;;
+    esac
+    k="${line%%:*}"
+    case "$k" in *[!A-Za-z0-9_]*) continue ;; esac
+    v="${line#*:}"
+    v="${v#"${v%%[![:space:]]*}"}" # strip leading whitespace
+    v="${v%"${v##*[![:space:]]}"}" # strip trailing whitespace
+    BK_KEYS+=("$k")
+    BK_VALS+=("$v")
+  done <<<"$1"
+}
+# Returns 0 if the key is present.
+bk_present() {
+  local n="$1" i
+  for ((i = 0; i < ${#BK_KEYS[@]}; i++)); do
+    [ "${BK_KEYS[$i]}" = "$n" ] && return 0
+  done
+  return 1
+}
+# Sets BK_VAL to the first value for the key; returns 1 (BK_VAL="") if absent.
+bk_value() {
+  local n="$1" i
+  BK_VAL=""
+  for ((i = 0; i < ${#BK_KEYS[@]}; i++)); do
+    if [ "${BK_KEYS[$i]}" = "$n" ]; then
+      BK_VAL="${BK_VALS[$i]}"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # ---- Identity resolution (matches the migration's rule) --------------------
 # id: → legacy own-id key (work_item_id / adr_id) → filename stem.
 resolve_id() {
@@ -173,15 +219,20 @@ is_iso_ts() { grep -qE "$ISO_TS_RE" <<<"$1"; }
 # fenced files (plus location-inferred type when type: is absent).
 INDEX_KEYS=""
 build_index() {
-  local root="$1" f block type id
+  local root="$1" f type id
   while IFS= read -r -d '' f; do
     out_of_scope "$f" && continue
     has_fence "$f" || continue
-    block="$(extract_frontmatter "$f")"
-    type="$(fm_inner "$(fm_value "$block" type)")"
+    parse_fm "$(extract_frontmatter "$f")"
+    bk_value type && type="$(fm_inner "$BK_VAL")" || type=""
     [ -n "$type" ] || type="$(infer_type_from_path "$f")"
     [ -n "$type" ] || continue
-    id="$(resolve_id "$block" "$f")"
+    # id: → legacy own-id key → filename stem.
+    id=""
+    if bk_value id; then id="$(fm_inner "$BK_VAL")"; fi
+    if [ -z "$id" ] && bk_value work_item_id; then id="$(fm_inner "$BK_VAL")"; fi
+    if [ -z "$id" ] && bk_value adr_id; then id="$(fm_inner "$BK_VAL")"; fi
+    [ -n "$id" ] || id="$(stem_of "$f")"
     [ -n "$id" ] || continue
     INDEX_KEYS="${INDEX_KEYS}${type}:${id}"$'\n'
   done < <(find "$root" -type f -name '*.md' -print0)
@@ -199,8 +250,9 @@ validate_file() {
     return 0
   fi
   block="$(extract_frontmatter "$file")"
+  parse_fm "$block"
 
-  type="$(fm_inner "$(fm_value "$block" type)")"
+  if bk_value type; then type="$(fm_inner "$BK_VAL")"; else type=""; fi
   idx="$(schema_index "$type")"
   if [ -z "$type" ] || [ -z "$idx" ]; then
     violation "$file" "INVALID-TYPE" "type: '${type:-<absent>}' is not a schema type"
@@ -212,66 +264,69 @@ validate_file() {
   forbidden="${SCHEMA_FORBIDDEN[$idx]}"
   linkkeys="${SCHEMA_LINKKEYS[$idx]}"
 
+  # Value-level regexes (matched against the trimmed value, not the whole line).
+  local re_id_val='^"[^"]*"([[:space:]]+#.*)?$'
+  local re_sv_val='^1([[:space:]]+#.*)?$'
+
   # Required base fields present.
   local f
   for f in "${FM_BASE_FIELDS[@]}"; do
-    if ! grep -qE "^${f}:[[:space:]]" <<<"$block"; then
-      violation "$file" "MISSING-BASE-FIELD" "required base field '$f' absent"
-    fi
+    bk_present "$f" || violation "$file" "MISSING-BASE-FIELD" "required base field '$f' absent"
   done
 
   # id: is a quoted YAML string.
-  if grep -qE '^id:[[:space:]]' <<<"$block" && ! grep -qE "$FM_ID_QUOTED_RE" <<<"$block"; then
+  if bk_value id && [ -n "$BK_VAL" ] && [[ ! "$BK_VAL" =~ $re_id_val ]]; then
     violation "$file" "UNQUOTED-ID" "id: value is not a quoted string"
   fi
 
   # schema_version: bare integer 1.
-  if grep -qE '^schema_version:[[:space:]]' <<<"$block" && ! grep -qE "$FM_SCHEMA_VERSION_RE" <<<"$block"; then
+  if bk_value schema_version && [[ ! "$BK_VAL" =~ $re_sv_val ]]; then
     violation "$file" "BAD-SCHEMA-VERSION" "schema_version: is not the bare integer 1"
   fi
 
   # date / last_updated are full ISO timestamps (when present).
+  local inner
   for f in date last_updated; do
-    local raw inner
-    raw="$(fm_value "$block" "$f")"
-    [ -n "$raw" ] || continue
-    inner="$(fm_inner "$raw")"
-    if ! is_iso_ts "$inner"; then
+    bk_value "$f" || continue
+    inner="$(fm_inner "$BK_VAL")"
+    [ -n "$inner" ] || continue
+    [[ "$inner" =~ $ISO_TS_RE ]] ||
       violation "$file" "BAD-TIMESTAMP" "$f: '$inner' is not a full ISO-8601 timestamp"
-    fi
   done
 
   # status (when present) in the type's vocab.
-  local status_raw status_inner
-  status_raw="$(fm_value "$block" status)"
-  if [ -n "$status_raw" ]; then
-    status_inner="$(fm_inner "$status_raw")"
-    # status_vocab is a `a | b | c` string; match the inner value as a whole
-    # token. The token list is built in a sub-pipeline that runs to completion
-    # (no early exit), then matched via a here-string — no upstream SIGPIPE.
-    local vocab_tokens
-    vocab_tokens="$(printf '%s' "$status_vocab" | tr '|' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-    if ! grep -qxF -- "$status_inner" <<<"$vocab_tokens"; then
-      violation "$file" "BAD-STATUS" "status: '$status_inner' not in vocab ($status_vocab)"
+  if bk_value status; then
+    inner="$(fm_inner "$BK_VAL")"
+    if [ -n "$inner" ]; then
+      local ok=0 tok oldifs="$IFS"
+      IFS='|'
+      for tok in $status_vocab; do
+        tok="${tok#"${tok%%[![:space:]]*}"}"
+        tok="${tok%"${tok##*[![:space:]]}"}"
+        [ "$tok" = "$inner" ] && ok=1
+      done
+      IFS="$oldifs"
+      [ "$ok" -eq 1 ] ||
+        violation "$file" "BAD-STATUS" "status: '$inner' not in vocab ($status_vocab)"
     fi
   fi
 
   # Provenance bundle iff code_state_anchored=yes; git_commit/branch never.
   if [ "$anchored" = "yes" ]; then
     for f in "${FM_PROVENANCE_FIELDS[@]}"; do
-      grep -qE "^${f}:[[:space:]]" <<<"$block" ||
+      bk_present "$f" ||
         violation "$file" "MISSING-PROVENANCE" "anchored type missing provenance field '$f'"
     done
   fi
   for f in "${FM_FORBIDDEN_PROVENANCE_FIELDS[@]}"; do
-    grep -qE "^${f}:[[:space:]]" <<<"$block" &&
+    bk_present "$f" &&
       violation "$file" "FORBIDDEN-PROVENANCE" "legacy provenance field '$f' present"
   done
 
   # Forbidden own-identity key absent.
   if [ "$forbidden" != "-" ]; then
     for f in $forbidden; do
-      grep -qE "^${f}:[[:space:]]" <<<"$block" &&
+      bk_present "$f" &&
         violation "$file" "FORBIDDEN-OWN-ID" "forbidden own-id key '$f' present"
     done
   fi
@@ -279,44 +334,45 @@ validate_file() {
   # Required (always-valued) extras present.
   for f in $extras; do
     case " $FM_OPTIONAL_EXTRAS " in *" $f "*) continue ;; esac
-    grep -qE "^${f}:[[:space:]]" <<<"$block" ||
-      violation "$file" "MISSING-EXTRA" "required extra '$f' absent"
+    bk_present "$f" || violation "$file" "MISSING-EXTRA" "required extra '$f' absent"
   done
 
   # Omit-when-empty: no key (except tags) carries an empty `""` or `[]`.
-  local empty_key
-  while IFS= read -r empty_key; do
-    [ -n "$empty_key" ] || continue
-    violation "$file" "EMPTY-PLACEHOLDER" "key '$empty_key' emitted empty (should be omitted)"
-  done < <(printf '%s\n' "$block" | awk '
-    /^tags:[[:space:]]/ { next }
-    /^[A-Za-z_][A-Za-z0-9_]*:[[:space:]]*(""|\[\])[[:space:]]*(#.*)?$/ {
-      k = $0; sub(/:.*/, "", k); print k
-    }')
+  local i ek ev
+  for ((i = 0; i < ${#BK_KEYS[@]}; i++)); do
+    ek="${BK_KEYS[$i]}"
+    [ "$ek" = "tags" ] && continue
+    ev="${BK_VALS[$i]}"
+    case "$ev" in
+      '""' | '[]')
+        violation "$file" "EMPTY-PLACEHOLDER" "key '$ek' emitted empty (should be omitted)"
+        ;;
+    esac
+  done
 
   # Typed-linkage values: doc-type:id shape + (corpus mode) referential.
-  local key val inner
+  local key rest tok
   for key in $linkkeys; do
-    grep -qE "^${key}:[[:space:]]" <<<"$block" || continue
-    while IFS= read -r val; do
-      [ -n "$val" ] || continue
-      inner="$(fm_inner "$val")"
-      # Empty already handled by omit-when-empty; skip blanks.
-      [ -n "$inner" ] || continue
-      if ! printf '%s' "$inner" | grep -qE "$FM_TYPED_REF_RE"; then
-        violation "$file" "BAD-LINKAGE-SHAPE" "$key: '$inner' is not a typed \"doc-type:id\" reference"
+    bk_value "$key" || continue
+    rest="$BK_VAL"
+    while [[ "$rest" =~ \"([^\"]*)\" ]]; do
+      tok="${BASH_REMATCH[1]}"
+      rest="${rest#*\"${tok}\"}"
+      [ -n "$tok" ] || continue
+      if [[ ! "$tok" =~ $FM_TYPED_REF_RE ]]; then
+        violation "$file" "BAD-LINKAGE-SHAPE" "$key: '$tok' is not a typed \"doc-type:id\" reference"
         continue
       fi
       if [ "$referential" = "yes" ]; then
-        case "$inner" in
+        case "$tok" in
           pr:*) : ;; # tolerated external-entity prefix
           *)
-            index_has "$inner" ||
-              violation "$file" "DANGLING-REF" "$key: '$inner' resolves to no artifact in the corpus"
+            index_has "$tok" ||
+              violation "$file" "DANGLING-REF" "$key: '$tok' resolves to no artifact in the corpus"
             ;;
         esac
       fi
-    done < <(grep -oE '"[^"]*"' <<<"$(grep -E "^${key}:[[:space:]]" <<<"$block")")
+    done
   done
 }
 
