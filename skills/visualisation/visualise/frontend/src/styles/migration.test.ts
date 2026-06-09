@@ -66,6 +66,12 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '0.4rem', count: 1, kind: 'irreducible', reason: 'off-scale cell padding (6.4px) — between --sp-1 and --sp-2' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '5px', count: 1, kind: 'irreducible', reason: 'inline-code pill horizontal padding — off-scale, between --sp-1 (4px) and --sp-2 (8px)' },
   { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'blockquote border-left width — no border-width token' },
+  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '1.5px', count: 1, kind: 'irreducible', reason: 'task box border width — below --sp-1 floor' },
+  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '2px', count: 2, kind: 'irreducible', reason: 'task box margin-top + tasklist padding-left — below --sp-1 floor' },
+  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '6px', count: 1, kind: 'irreducible', reason: 'task row vertical margin — between --sp-1 and --sp-2' },
+  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '9px', count: 1, kind: 'irreducible', reason: 'task box→label gap — between --sp-2 and --sp-3' },
+  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '17px', count: 2, kind: 'irreducible', reason: 'task box width + height — fixed component dimension, no token' },
+  { file: 'components/MarkdownRenderer/MarkdownRenderer.module.css', literal: '#ffffff', count: 1, kind: 'irreducible', reason: 'task tick stroke on --ac-accent — theme-invariant white (mirrors FilterPill checkmark)' },
   // routes/lifecycle/LifecycleClusterView.module.css — pipeline panel,
   // timeline spine, stage tile, and tcard literals. Numbers track the
   // prototype's `.ac-tcard` / `.ac-tstep` measurements verbatim so the
@@ -429,7 +435,7 @@ describe('var(--NAME) references resolve to declared tokens', () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 981 // 0079: aside-feedback pass added var refs (related meta type/id/sep colours, File etag/size detail lines); re-synced floor to observed
+const AC5_FLOOR = 989 // 0095: task-list box+label CSS added 8 var refs (--sp-3, --ac-stroke-strong ×2, --ac-bg-card, --ac-accent ×2, --ac-fg-muted, --radius-4)
 const AC5_TARGET = 300 // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0
 
@@ -545,6 +551,30 @@ describe('MarkdownRenderer inline-code rule (0094)', () => {
   itIfPresent('table-body inline code uses the 11px token, out-specifying the base rule', () => {
     expect(css!).toContain('td code:not(pre code)')
     expect(css!).toContain('var(--size-eyebrow)')
+  })
+})
+
+describe('MarkdownRenderer task-list rule (0095)', () => {
+  const path = 'components/MarkdownRenderer/MarkdownRenderer.module.css'
+  const css = cssBySrcRelative.get(path)
+  const itIfPresent = css ? it : it.skip
+  itIfPresent('tasklist removes the list marker', () => {
+    expect(css!).toContain('list-style: none')
+  })
+  itIfPresent('unchecked box borders off --ac-stroke-strong (single-arg var)', () => {
+    expect(css!).toContain('border: 1.5px solid var(--ac-stroke-strong)')
+  })
+  itIfPresent('box fills off --ac-bg-card', () => {
+    expect(css!).toContain('background: var(--ac-bg-card)')
+  })
+  itIfPresent('checked box fills + borders off --ac-accent', () => {
+    expect(css!).toContain('background: var(--ac-accent)')
+    expect(css!).toContain('border-color: var(--ac-accent)')
+  })
+  itIfPresent('done label is muted + struck through off --ac-stroke-strong', () => {
+    expect(css!).toContain('color: var(--ac-fg-muted)')
+    expect(css!).toContain('text-decoration: line-through')
+    expect(css!).toContain('text-decoration-color: var(--ac-stroke-strong)')
   })
 })
 

@@ -682,13 +682,13 @@ value it reports, with a `// 0095:` comment per the bump protocol (`:425-431`).
 
 #### Automated Verification:
 
-- [ ] Vitest passes — rewritten unit tests (tight/loose/mixed/plain), new 0095
+- [x] Vitest passes — rewritten unit tests (tight/loose/mixed/plain), new 0095
   CSS-as-text guards, `EXCEPTIONS` hygiene, `var()`-fallback ban,
   `var()`-resolves-to-declared-token, the **ADR-0039 border-radius literal ban**
   (`migration.test.ts:758-788`) and its **radius-reason gate** (`:824-838`), and
   the `AC5` ratchet all green: `mise run test:unit:frontend`
-- [ ] Type-checking clean: `npm --prefix skills/visualisation/visualise/frontend run typecheck`
-- [ ] The Playwright suite is unchanged and still green (no fixture/baseline
+- [x] Type-checking clean: `npm --prefix skills/visualisation/visualise/frontend run typecheck`
+- [x] The Playwright suite is unchanged and still green (no fixture/baseline
   touched in this phase): `mise run test:e2e:visualiser`
 
 #### Manual Verification:

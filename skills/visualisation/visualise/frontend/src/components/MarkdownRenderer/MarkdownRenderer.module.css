@@ -72,3 +72,40 @@
   border-left: 4px solid var(--ac-stroke); margin: var(--sp-4) 0;
   padding: var(--sp-2) var(--sp-4); color: var(--ac-fg-muted);
 }
+
+/* Task lists (`- [ ]` / `- [x]`) — token-driven box + label replacing the
+   native <input type="checkbox">; theme-reactive by construction. See 0095.
+   Single-arg var(): --ac-stroke-strong is defined in both themes, and the
+   two-arg fallback form is banned by migration.test.ts. The corner uses
+   var(--radius-4) — the nearest ladder step to the prototype's rounded box,
+   within ADR-0026 tolerance: ADR-0039 bans literal border-radius outright. */
+.tasklist { list-style: none; margin: var(--sp-3) 0; padding-left: 2px; }
+.task { display: flex; align-items: flex-start; gap: 9px; margin: 6px 0; }
+.taskBox {
+  flex: none;
+  margin-top: 2px;
+  width: 17px;
+  height: 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--ac-stroke-strong);
+  border-radius: var(--radius-4);
+  background: var(--ac-bg-card);
+  color: #ffffff;
+}
+/* Block label so a loose list's <p> child nests validly (a <span> cannot
+   contain block content; the label is the aria-labelledby target, so invalid
+   nesting could perturb the accessible name). Reset the inner prose-<p>
+   margins so a loose item aligns with its box like a tight one. */
+.taskLabel { min-width: 0; }
+.taskLabel > p { margin: 0; }
+.taskDone .taskBox {
+  background: var(--ac-accent);
+  border-color: var(--ac-accent);
+}
+.taskDone .taskLabel {
+  color: var(--ac-fg-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--ac-stroke-strong);
+}

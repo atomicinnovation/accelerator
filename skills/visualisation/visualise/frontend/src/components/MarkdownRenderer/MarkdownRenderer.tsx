@@ -1,4 +1,12 @@
-import { Children, isValidElement, useMemo, type ReactNode } from 'react'
+import {
+  Children,
+  isValidElement,
+  useId,
+  useMemo,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from 'react'
+import type { Element, ElementContent } from 'hast'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
@@ -21,6 +29,89 @@ function fenceLanguageOf(children: ReactNode): string | null {
   return match?.[1] ?? null
 }
 
+// White tick for the checked task-list box, modelled on the local CheckIcon
+// in SortPill.tsx. `stroke="currentColor"` inherits the box's `color: #ffffff`
+// so the tick paints white on the accent fill (mirrors FilterPill's checkmark).
+function CheckIcon() {
+  return (
+    <svg
+      width="11" height="11" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="3"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+    >
+      <path d="m5 12 5 5L20 7" />
+    </svg>
+  )
+}
+
+// The class mdast-util-to-hast stamps on task-list <li> nodes
+// (handlers/list-item.js:52). The native <input> it injects (:43-48) is always
+// `disabled` and sits either as a direct <li> child (tight lists) or inside a
+// <p> (loose lists); `findCheckbox` searches both so the override is
+// shape-agnostic.
+const TASK_LIST_ITEM_CLASS = 'task-list-item'
+
+function isTaskItem(node: Element | undefined): boolean {
+  const cls = node?.properties?.className
+  return Array.isArray(cls) && cls.includes(TASK_LIST_ITEM_CLASS)
+}
+
+// Recursively find the injected checkbox <input> (direct child for tight
+// lists, nested in a <p> for loose lists) and return it.
+function findCheckbox(children: ElementContent[]): Element | undefined {
+  for (const child of children) {
+    if (child.type !== 'element') continue
+    if (child.tagName === 'input') return child
+    const nested = findCheckbox(child.children) // child: Element ⇒ ElementContent[]
+    if (nested) return nested
+  }
+  return undefined
+}
+
+// Always calls useId() at the top — no conditional hook (useId requires React
+// 18+; the app pins React 19, so this is a no-op constraint). Props extend the
+// <li> attribute set so forwarded props (and the hast `className`) are typed;
+// we pull `className` out and compose it rather than letting `{...rest}`
+// clobber the module-scoped classes (JSX last-wins).
+//
+// A11y (intentional, not incidental):
+//  - `aria-readonly`, not `aria-disabled`: the box shows state but cannot be
+//    changed. Several screen readers de-emphasise/skip disabled form controls,
+//    which would suppress the very state announcement this override preserves.
+//  - `role="checkbox"` lives on the box span, NOT the parent <li> (unlike
+//    FilterPill, whose <li> is an interactive menu item). The markdown <li> is
+//    a plain, non-interactive list item, so overriding its role would strip
+//    list semantics and item count from AT.
+function TaskListItem({
+  checked,
+  className,
+  children,
+  ...rest
+}: { checked: boolean } & ComponentPropsWithoutRef<'li'>) {
+  const labelId = useId()
+  // Compose: our module classes first, then the upstream `task-list-item`
+  // class (if any) — so styles.task/styles.taskDone always apply.
+  const liClass = [styles.task, checked && styles.taskDone, className]
+    .filter(Boolean)
+    .join(' ')
+  return (
+    <li className={liClass} {...rest}>
+      <span
+        className={styles.taskBox}
+        role="checkbox"
+        aria-checked={checked}
+        aria-readonly
+        aria-labelledby={labelId}
+      >
+        {checked && <CheckIcon />}
+      </span>
+      {/* Block-level label so a loose list's <p> nests validly; it is the
+          aria-labelledby target. */}
+      <div id={labelId} className={styles.taskLabel}>{children}</div>
+    </li>
+  )
+}
+
 // `pre` renderer that adds the prototype's code-block header (the
 // language label band) when the fence carries a `language-*` class.
 // Unlabelled fences render as a bare `<pre>` so we don't add chrome
@@ -39,6 +130,49 @@ const MARKDOWN_COMPONENTS: Components = {
         </div>
         <pre {...rest}>{children}</pre>
       </div>
+    )
+  },
+
+  // Drop the GFM task-list checkbox wherever it sits (tight or loose),
+  // independent of the <p>-unwrapping detail and of react-markdown's
+  // element-type resolution. Scoped to the disabled checkbox mdast-util-to-hast
+  // injects (list-item.js:46) so a future legitimate input is NOT swallowed.
+  // INVARIANT: the `li` override below relies on this entry having removed the
+  // native control from the children it wraps as the label.
+  input({ node: _node, ...props }) {
+    if (props.type === 'checkbox' && props.disabled) return null
+    return <input {...props} />
+  },
+
+  ul({ children, node, className, ...rest }) {
+    // Mirror the prototype's `isTaskList = items.every(...)`: only a pure
+    // task list drops its markers and gutter (a mixed list keeps markers).
+    const items = (node?.children ?? []).filter(
+      (c): c is Element => c.type === 'element' && c.tagName === 'li',
+    )
+    const isTaskList = items.length > 0 && items.every(isTaskItem)
+    // Compose, never clobber: prepend styles.tasklist to the upstream
+    // `contains-task-list` class (pulled out of rest) so a bare `{...rest}`
+    // spread can't overwrite the module class (JSX last-wins).
+    const ulClass = isTaskList
+      ? [styles.tasklist, className].filter(Boolean).join(' ')
+      : className
+    return <ul className={ulClass} {...rest}>{children}</ul>
+  },
+
+  li({ children, node, ...rest }) {
+    if (!isTaskItem(node)) return <li {...rest}>{children}</li>
+    const checked = Boolean(
+      findCheckbox((node?.children ?? []) as ElementContent[])?.properties
+        ?.checked,
+    )
+    // `children` is the rendered label; the native <input> is already removed
+    // by the `input` override above (INVARIANT), so no child-filtering is
+    // needed and the loose-list <p> wrapper (if any) is preserved intact.
+    return (
+      <TaskListItem checked={checked} {...rest}>
+        {children}
+      </TaskListItem>
     )
   },
 }

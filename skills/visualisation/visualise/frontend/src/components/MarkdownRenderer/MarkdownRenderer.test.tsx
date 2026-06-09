@@ -111,17 +111,72 @@ describe('MarkdownRenderer', () => {
     expect(anchor?.getAttribute('href') ?? '').not.toMatch(/^\s*javascript:/i)
   })
 
-  describe('Story 0076 AC4 — markdown pipeline behaviours', () => {
-    it('renders a GFM task list with interactive checkboxes', () => {
+  describe('0095 — theme-reactive task-list checkboxes', () => {
+    it('renders a tight GFM task list as token-driven boxes, not native inputs (0095)', () => {
       const { container } = render(
         <MarkdownRenderer content={'- [x] done\n- [ ] todo\n'} />,
       )
-      const checkboxes = container.querySelectorAll('input[type="checkbox"]')
-      expect(checkboxes.length).toBe(2)
-      expect((checkboxes[0] as HTMLInputElement).checked).toBe(true)
-      expect((checkboxes[1] as HTMLInputElement).checked).toBe(false)
+      // No native control survives.
+      expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(0)
+      // Two read-only checkbox boxes, state preserved for AT.
+      const boxes = screen.getAllByRole('checkbox')
+      expect(boxes).toHaveLength(2)
+      expect(boxes[0]).toHaveAttribute('aria-checked', 'true')
+      expect(boxes[1]).toHaveAttribute('aria-checked', 'false')
+      boxes.forEach((b) => expect(b).toHaveAttribute('aria-readonly', 'true'))
+      // Accessible name comes from the label (aria-labelledby).
+      expect(screen.getByRole('checkbox', { name: 'done' })).toBe(boxes[0])
+      expect(screen.getByRole('checkbox', { name: 'todo' })).toBe(boxes[1])
+      // Tick present only on the checked box.
+      expect(boxes[0].querySelector('svg')).not.toBeNull()
+      expect(boxes[1].querySelector('svg')).toBeNull()
+      // Label text preserved verbatim (children-survival, not just normalised name).
+      const labels = container.querySelectorAll('li [class*="taskLabel"]')
+      expect(labels[0].textContent?.trim()).toBe('done')
+      expect(labels[1].textContent?.trim()).toBe('todo')
+      // aria-labelledby ids are unique per item (useId, not a shared constant).
+      const id0 = boxes[0].getAttribute('aria-labelledby')
+      const id1 = boxes[1].getAttribute('aria-labelledby')
+      expect(id0).toBeTruthy()
+      expect(id0).not.toBe(id1)
+      // The pure task list's <ul> gets the marker-removing tasklist class,
+      // composed with (not clobbered by) the upstream contains-task-list class.
+      expect(container.querySelector('ul')?.className ?? '').toMatch(/tasklist/)
     })
 
+    it('handles a LOOSE task list (input nested in <p>) with no native control (0095)', () => {
+      // Blank line between items → loose list → mdast-util-to-hast keeps the <p>.
+      const { container } = render(
+        <MarkdownRenderer content={'- [x] done\n\n- [ ] todo\n'} />,
+      )
+      expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(0)
+      const boxes = screen.getAllByRole('checkbox')
+      expect(boxes).toHaveLength(2)
+      expect(boxes[0]).toHaveAttribute('aria-checked', 'true')
+      expect(boxes[1]).toHaveAttribute('aria-checked', 'false')
+    })
+
+    it('forwards a plain (non-task) list unchanged — no checkbox boxes (0095)', () => {
+      const { container } = render(<MarkdownRenderer content={'- a\n- b\n'} />)
+      expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
+      // Ordinary <li> still produced (markers come from the default <ul>).
+      expect(container.querySelectorAll('ul > li')).toHaveLength(2)
+    })
+
+    it('renders task items as boxes even in a mixed list (0095)', () => {
+      const { container } = render(
+        <MarkdownRenderer content={'- [x] done\n- plain item\n'} />,
+      )
+      // Task item still boxed; native input still gone.
+      expect(screen.getAllByRole('checkbox')).toHaveLength(1)
+      expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(0)
+      // A mixed list keeps its default markers — the <ul> must NOT get the
+      // marker-removing tasklist class (the items.every(isTaskItem) branch).
+      expect(container.querySelector('ul')?.className ?? '').not.toMatch(/tasklist/)
+    })
+  })
+
+  describe('Story 0076 AC4 — markdown pipeline behaviours', () => {
     it('renders a GFM table with thead/tbody/tr/td structure', () => {
       const { container } = render(
         <MarkdownRenderer
