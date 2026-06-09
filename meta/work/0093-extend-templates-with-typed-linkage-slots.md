@@ -1,5 +1,4 @@
 ---
-type: work-item
 id: "0093"
 title: "Extend Templates With Typed-Linkage Slots"
 date: "2026-05-31T12:13:53+00:00"

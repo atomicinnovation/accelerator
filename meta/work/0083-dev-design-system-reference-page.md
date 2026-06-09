@@ -3,7 +3,7 @@ work_item_id: "0083"
 title: "DevDesignSystem Reference Page"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: draft
 priority: low
 parent: ""
@@ -12,7 +12,7 @@ tags: [design, frontend, dev-tools, documentation]
 
 # 0083: DevDesignSystem Reference Page
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: Low
 **Author**: Toby Clemson

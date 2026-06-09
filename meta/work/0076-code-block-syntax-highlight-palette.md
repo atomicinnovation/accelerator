@@ -3,7 +3,7 @@ work_item_id: "0076"
 title: "Code-Block Syntax-Highlight Tokens and Renderer Adoption"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: done
 priority: medium
 parent: ""
@@ -12,7 +12,7 @@ tags: [design, frontend, tokens, markdown, code]
 
 # 0076: Code-Block Syntax-Highlight Tokens and Renderer Adoption
 
-**Type**: Story
+**Kind**: Story
 **Status**: Ready
 **Priority**: Medium
 **Author**: Toby Clemson

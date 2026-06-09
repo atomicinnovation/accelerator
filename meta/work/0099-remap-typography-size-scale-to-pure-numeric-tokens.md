@@ -1,5 +1,4 @@
 ---
-type: work-item
 id: "0099"
 title: "Remap Typography Size Scale To Pure-Numeric Tokens"
 date: "2026-06-02T16:30:00+00:00"

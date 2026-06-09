@@ -1,5 +1,4 @@
 ---
-type: work-item
 id: "0095"
 title: "Theme-Reactive Markdown Task-List Checkboxes"
 date: "2026-06-02T12:11:27+00:00"

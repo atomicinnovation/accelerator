@@ -1,5 +1,4 @@
 ---
-type: work-item
 id: "0079"
 title: "Detail-Page Aside Region Redesign"
 date: "2026-05-21T09:16:34+00:00"

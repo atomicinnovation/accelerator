@@ -3,7 +3,7 @@ work_item_id: "0087"
 title: "404 / Error Screen with Affordances"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: draft
 priority: low
 parent: ""
@@ -12,7 +12,7 @@ tags: [design, frontend, error-states]
 
 # 0087: 404 / Error Screen with Affordances
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: Low
 **Author**: Toby Clemson

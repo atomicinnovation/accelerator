@@ -3,7 +3,6 @@ work_item_id: "0091"
 title: "Typography rem-vs-px stance review"
 date: "2026-05-23T16:30:00+00:00"
 author: Toby Clemson
-type: work-item
 kind: task
 status: draft
 priority: low
@@ -13,7 +12,7 @@ tags: [design, frontend, tokens, typography, accessibility]
 
 # 0091: Typography rem-vs-px stance review
 
-**Type**: Spike
+**Kind**: Spike
 **Status**: Backlog
 **Priority**: Low
 **Author**: Toby Clemson

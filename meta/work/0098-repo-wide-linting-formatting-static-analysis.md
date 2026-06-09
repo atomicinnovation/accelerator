@@ -1,5 +1,4 @@
 ---
-type: work-item
 id: "0098"
 title: "Repo-Wide Linting, Formatting, And Static Analysis Guardrails"
 date: "2026-06-02T12:11:27+00:00"

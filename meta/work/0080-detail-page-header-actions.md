@@ -3,7 +3,7 @@ work_item_id: "0080"
 title: "Detail-Page Header Actions (Open in Editor, Copy Link)"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: draft
 priority: medium
 parent: ""
@@ -12,7 +12,7 @@ tags: [design, frontend, detail-page]
 
 # 0080: Detail-Page Header Actions (Open in Editor, Copy Link)
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: Medium
 **Author**: Toby Clemson

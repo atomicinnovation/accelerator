@@ -3,7 +3,7 @@ work_item_id: "0082"
 title: "BigGlyph Hero Illustration Set"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: draft
 priority: medium
 parent: ""
@@ -12,7 +12,7 @@ tags: [design, frontend, components, illustrations]
 
 # 0082: BigGlyph Hero Illustration Set
 
-**Type**: Story
+**Kind**: Story
 **Status**: Draft
 **Priority**: Medium
 **Author**: Toby Clemson

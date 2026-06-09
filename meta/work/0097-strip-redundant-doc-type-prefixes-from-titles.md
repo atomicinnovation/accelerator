@@ -1,5 +1,4 @@
 ---
-type: work-item
 id: "0097"
 title: "Strip Redundant Document-Type Prefixes From Artifact Titles"
 date: "2026-06-02T12:11:27+00:00"

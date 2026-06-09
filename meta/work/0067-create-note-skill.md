@@ -1,5 +1,4 @@
 ---
-type: work-item
 id: "0067"
 title: "Create `create-note` Skill"
 date: "2026-05-17T17:16:35+00:00"

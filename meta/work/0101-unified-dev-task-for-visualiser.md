@@ -1,5 +1,4 @@
 ---
-type: work-item
 id: "0101"
 title: "Unified Managed dev Task for Visualiser Server and Frontend"
 date: "2026-06-06T13:04:38+00:00"

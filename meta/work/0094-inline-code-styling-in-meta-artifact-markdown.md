@@ -1,5 +1,4 @@
 ---
-type: work-item
 id: "0094"
 title: "Inline Code Styling In Meta Artifact Markdown"
 date: "2026-06-02T12:11:27+00:00"

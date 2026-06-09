@@ -3,7 +3,7 @@ work_item_id: "0100"
 title: "Configurable Visualiser Auto-Shutdown"
 date: "2026-06-02T13:37:32+00:00"
 author: Toby Clemson
-type: story
+kind: story
 status: done
 priority: low
 parent: ""
@@ -12,7 +12,7 @@ tags: [visualiser, server, configuration, lifecycle]
 
 # 0100: Configurable Visualiser Auto-Shutdown
 
-**Type**: Story
+**Kind**: Story
 **Status**: Ready
 **Priority**: Low
 **Author**: Toby Clemson

@@ -1,5 +1,4 @@
 ---
-type: work-item
 id: "0086"
 title: "Kanban Drag-and-Drop with Toast Confirmations"
 date: "2026-05-21T09:16:34+00:00"
