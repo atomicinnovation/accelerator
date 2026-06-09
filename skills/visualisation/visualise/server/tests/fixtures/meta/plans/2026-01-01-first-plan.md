@@ -23,3 +23,14 @@ Inline configuration like `--ac-font-mono` should render as a monospace pill.
 ```js
 const x = 1
 ```
+
+#### Task list (tight)
+
+- [x] Ship the release notes
+- [ ] Capture the visual-regression baselines
+
+#### Task list (loose)
+
+- [x] Tag the release
+
+- [ ] Announce in the changelog

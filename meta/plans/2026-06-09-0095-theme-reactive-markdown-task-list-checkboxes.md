@@ -916,15 +916,20 @@ alongside the new `task-list-{tight,loose}-{light,dark}-*.png` baselines. Both
 
 #### Automated Verification:
 
-- [ ] Playwright e2e passes incl. the new `task-list-resolved-styles` (light +
-  dark), `task-list-visual` (tight + loose × light + dark), and the regenerated
-  `library-doc-view` screenshots: `mise run test:e2e:visualiser`
-- [ ] Vitest stays green (no regression from the fixture/spec additions):
+- [x] Playwright e2e passes incl. the new `task-list-resolved-styles` (light +
+  dark), `task-list-visual` (tight + loose × light + dark) screenshots:
+  `mise run test:e2e:visualiser` (451 passed; the lone flaky `kanban-keyboard`
+  drag test is unrelated and passed on retry). NOTE: the `library-doc-view`
+  baselines did **not** need regenerating — the appended task lists sit below
+  the 1440×900 viewport fold, so the viewport screenshots are byte-identical.
+- [x] Vitest stays green (no regression from the fixture/spec additions):
   `mise run test:unit:frontend`
-- [ ] FilterPill specs/snapshots pass unchanged (AC6): covered by the full
+- [x] FilterPill specs/snapshots pass unchanged (AC6): covered by the full
   suites above.
 - [ ] Both `-darwin` and `-linux` baseline PNGs for `task-list-{tight,loose}-*`
-  and the regenerated `library-doc-view-*` are committed.
+  are committed. (Darwin committed; `library-doc-view-*` unchanged — below the
+  fold. **Linux still pending**: dispatch the `Update visual regression
+  baselines` workflow.)
 
 #### Manual Verification:
 
