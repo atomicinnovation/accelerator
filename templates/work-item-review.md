@@ -10,7 +10,6 @@ status: complete                             # complete
 parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
 target: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
 relates_to: []                               # typed-linkage list: ["work-item-review:NNNN", ...] or []
-work_item_id: ""                             # transitional alias — same 4-digit id as in target; consumed by visualiser frontmatter.rs:330 until Phase 7 teaches it to extract from target. Removed by the visualiser consumer-update.
 reviewer: ""                                 # name/email of reviewer (filled by review-work-item)
 verdict: ""                                  # APPROVE | REVISE | COMMENT (filled by review-work-item)
 lenses: []                                   # list of work-item lens names used (filled by review-work-item)

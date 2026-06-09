@@ -7,7 +7,6 @@ author: Toby Clemson
 producer: review-work-item
 status: complete
 target: "work-item:0086"
-work_item_id: "0086"
 reviewer: Toby Clemson
 verdict: APPROVE
 lenses: [clarity, completeness, dependency, scope, testability]

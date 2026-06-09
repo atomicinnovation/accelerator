@@ -8,7 +8,6 @@ producer: review-work-item
 status: complete
 target: "work-item:0070"
 parent: "work-item:0057"
-work_item_id: "0070"
 reviewer: Toby Clemson
 verdict: APPROVE
 lenses: [clarity, completeness, dependency, scope, testability]

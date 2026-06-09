@@ -3,7 +3,6 @@ date: "2026-05-26T08:55:08+00:00"
 type: work-item-review
 producer: review-work-item
 target: "work-item:0084"
-work_item_id: "0084"
 review_number: 1
 verdict: APPROVE
 lenses: [clarity, completeness, dependency, scope, testability]

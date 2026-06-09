@@ -234,13 +234,15 @@ tmpl_bad_rc=0
 FM_EMISSION_RULES="$TAMPERED" "$TEMPLATE_TEST" >/dev/null 2>&1 || tmpl_bad_rc=$?
 assert_neq "template-shape test behaviour flips with tampered helper" "0" "$tmpl_bad_rc"
 
-# ---- 5. Sanity: validator inspects real files (current pre-migration corpus)
-echo "=== Sanity: real corpus reports legacy violations ==="
+# ---- 5. Sanity: the real (migrated) corpus validates clean ----------------
+# Post-0007 the corpus is unified-schema; this both proves the validator reads
+# real files and guards against the migrated corpus regressing.
+echo "=== Sanity: real (migrated) corpus validates clean ==="
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 if [ -d "$ROOT/meta/work" ]; then
   sanity_rc=0
   "$VALIDATOR" "$ROOT/meta" >/dev/null 2>&1 || sanity_rc=$?
-  assert_neq "pre-migration corpus reports violations (validator reads real files)" "0" "$sanity_rc"
+  assert_eq "migrated corpus validates clean (validator reads real files)" "0" "$sanity_rc"
 else
   skip_test "real-corpus sanity check" "meta/work not present"
 fi
