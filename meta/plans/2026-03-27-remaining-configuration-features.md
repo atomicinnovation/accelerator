@@ -1,9 +1,18 @@
 ---
-date: "2026-03-27T23:30:00+0000"
+date: "2026-03-27T23:30:00+00:00"
 type: plan
-skill: create-plan
-ticket: ""
-status: final
+producer: create-plan
+status: done
+id: "2026-03-27-remaining-configuration-features"
+title: "Remaining Configuration Features Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-03-27T23:30:00+00:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-03-22-skill-customisation-and-override-patterns", "codebase-research:2026-03-27-skill-customisation-implementation-status", "plan:2026-03-23-config-infrastructure", "plan:2026-03-23-context-and-agent-customisation", "plan:2026-03-23-review-system-customisation", "plan:2026-03-23-template-and-path-customisation"]
 ---
 
 # Remaining Configuration Features Implementation Plan

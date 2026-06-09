@@ -1,14 +1,21 @@
 ---
 date: "2026-05-07T21:17:00+00:00"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0035-topbar-component.md"
+producer: review-work-item
+target: "work-item:0035"
 work_item_id: "0035"
 review_number: 1
 verdict: REVISE
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 2
 status: complete
+id: "0035-topbar-component-review-1"
+title: "0035-topbar-component-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-07T21:17:00+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: Topbar Component

@@ -4,8 +4,7 @@ type: design-inventory
 source: "current-app"
 source_kind: "running-app"
 source_location: "http://127.0.0.1:52339/"
-git_commit: "07413d3a13c37ff94b38c36b020a902e58cdb77f"
-branch: "main"
+revision: "07413d3a13c37ff94b38c36b020a902e58cdb77f"
 crawler: "hybrid"
 author: "Toby Clemson"
 status: draft
@@ -14,6 +13,11 @@ screenshots_incomplete: false
 tags: [design, inventory, "current-app"]
 last_updated: "2026-05-21T00:42:50+01:00"
 last_updated_by: "Toby Clemson"
+id: "2026-05-21-004250-current-app"
+title: "Design Inventory: current-app"
+schema_version: 1
+repository: "ticket-management"
+relates_to: ["design-inventory:2026-05-06-140608-claude-design-prototype", "design-inventory:2026-05-06-135214-current-app"]
 ---
 
 # Design Inventory: current-app

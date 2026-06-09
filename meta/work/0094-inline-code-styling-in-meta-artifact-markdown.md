@@ -7,12 +7,12 @@ producer: create-work-item
 status: done
 kind: bug
 priority: medium
-parent: ""
-external_id: ""
 tags: [visualiser, markdown, rendering, bug]
 last_updated: "2026-06-02T14:26:51+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+type: work-item
+relates_to: ["work-item:0076"]
 ---
 
 # 0094: Inline Code Styling In Meta Artifact Markdown

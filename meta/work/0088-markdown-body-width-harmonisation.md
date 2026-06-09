@@ -1,13 +1,18 @@
 ---
-work_item_id: "0088"
+id: "0088"
 title: "Markdown Body Width Harmonisation"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: low
-parent: ""
 tags: [design, frontend, markdown, tokens]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-21T09:16:34+00:00"
+last_updated_by: Toby Clemson
+source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
+relates_to: ["work-item:0076", "plan:2026-05-26-0088-markdown-body-width-harmonisation"]
 ---
 
 # 0088: Markdown Body Width Harmonisation

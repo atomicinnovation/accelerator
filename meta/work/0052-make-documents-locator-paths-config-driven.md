@@ -1,13 +1,18 @@
 ---
-work_item_id: "0052"
+id: "0052"
 title: "Make documents-locator Agent Paths Config-Driven via Preloaded Skill"
 date: "2026-05-07T21:50:34+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: medium
-parent: ""
 tags: [agents, configuration, documents-locator]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-07T21:50:34+00:00"
+last_updated_by: Toby Clemson
+source: "note:2026-04-26-agents-hardcode-default-directory-locations"
+relates_to: ["work-item:0030", "adr:ADR-0022"]
 ---
 
 # 0052: Make documents-locator Agent Paths Config-Driven via Preloaded Skill

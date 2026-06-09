@@ -1,14 +1,19 @@
 ---
 date: "2026-04-27T09:44:53+01:00"
 author: Toby Clemson
-git_commit: 6947ac9f1b3d2429623df1d008cc38578bbde52f
-branch: ticket-management
+revision: "6947ac9f1b3d2429623df1d008cc38578bbde52f"
 repository: accelerator
 topic: "Extending create-work-item to accept an existing work item as a starting point"
 tags: [research, create-work-item, work-item, skills, argument-handling, enrichment]
 status: complete
-last_updated: "2026-04-27"
+last_updated: "2026-04-27T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-04-27-create-work-item-open-from-existing"
+title: "Research: Extending `create-work-item` to Accept an Existing Work Item"
+schema_version: 1
+relates_to: ["plan:2026-04-19-ticket-creation-skills", "codebase-research:2026-04-08-ticket-management-skills"]
+derived_from: ["codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-04-25-rename-tickets-to-work-items"]
 ---
 
 # Research: Extending `create-work-item` to Accept an Existing Work Item

@@ -1,3 +1,21 @@
+---
+type: note
+id: "2026-05-09-design-paths-missing-from-documents-locator"
+title: "documents-locator does not surface design_inventories or design_gaps paths"
+date: "2026-05-09T00:00:00+00:00"
+author: Toby Clemson
+producer: create-note
+status: captured
+topic: "documents-locator does not surface design_inventories or design_gaps paths"
+tags: []
+revision: "cca787aeed49"
+repository: "ticket-management"
+last_updated: "2026-05-09T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["plan:2026-05-08-0052-documents-locator-config-driven-paths"]
+---
+
 # documents-locator does not surface design_inventories or design_gaps paths
 
 ## Observation

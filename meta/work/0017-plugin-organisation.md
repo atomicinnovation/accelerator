@@ -2,6 +2,16 @@
 title: "Plugin organisation: two-commit strategy and four skill groups"
 kind: adr-creation-task
 status: draft
+type: work-item
+id: "0017"
+date: "2026-05-24T00:00:00+00:00"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-24T00:00:00+00:00"
+last_updated_by: Toby Clemson
+priority: medium
+source: "plan:2026-03-14-plugin-extraction"
 ---
 
 # ADR Ticket: Plugin organisation: two-commit strategy and four skill groups

@@ -1,9 +1,19 @@
 ---
 date: "2026-05-15T00:00:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "0038"
-status: implemented
+status: done
+id: "2026-05-15-0038-generic-chip-component"
+title: "0038 — Generic Chip Component Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-15T00:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+relates_to: ["work-item:0038", "codebase-research:2026-05-14-0038-generic-chip-component", "plan:2026-05-12-0037-glyph-component", "work-item:0033", "adr:ADR-0026"]
 ---
 
 # 0038 — Generic Chip Component Implementation Plan

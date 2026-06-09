@@ -1,14 +1,21 @@
 ---
 date: "2026-05-23T15:00:00+01:00"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0075-typography-size-scale-consumption.md"
+producer: review-work-item
+target: "work-item:0075"
 work_item_id: "0075"
 review_number: 2
 verdict: COMMENT
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 2
 status: complete
+id: "0075-typography-size-scale-consumption-review-2"
+title: "0075-typography-size-scale-consumption-review-2"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-23T15:00:00+01:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: Typography Size-Scale Consumption Reconciliation

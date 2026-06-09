@@ -1,9 +1,19 @@
 ---
 date: "2026-05-08T00:00:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "meta/work/0035-topbar-component.md"
-status: approved
+status: ready
+id: "2026-05-08-0035-topbar-component"
+title: "0035 Topbar Component Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-08T00:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+relates_to: ["work-item:0035", "codebase-research:2026-05-07-0035-topbar-component", "work-item:0033", "work-item:0034", "work-item:0036", "work-item:0041", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
 ---
 
 # 0035 Topbar Component Implementation Plan

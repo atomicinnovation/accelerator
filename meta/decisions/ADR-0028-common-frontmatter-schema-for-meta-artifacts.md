@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0028
+id: "ADR-0028"
 date: "2026-03-22T00:00:00+00:00"
 author: Toby Clemson
 status: accepted
 tags: [artifacts, metadata, frontmatter, lifecycle, meta-directory]
+type: adr
+title: "ADR-0028: Common frontmatter schema for meta/ artifacts"
+schema_version: 1
+last_updated: "2026-03-22T00:00:00+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["plan:2026-03-22-validation-crossref-frontmatter", "codebase-research:2026-03-18-meta-management-strategy", "adr:ADR-0027", "adr:ADR-0001"]
 ---
 
 # ADR-0028: Common frontmatter schema for meta/ artifacts

@@ -1,13 +1,20 @@
 ---
 date: "2026-05-14T09:30:00Z"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-13-0055-sidebar-activity-feed.md"
+producer: review-plan
+target: "plan:2026-05-13-0055-sidebar-activity-feed"
 review_number: 1
 verdict: COMMENT
 lenses: [architecture, code-quality, test-coverage, correctness, performance, compatibility]
 review_pass: 2
 status: complete
+id: "2026-05-13-0055-sidebar-activity-feed-review-1"
+title: "2026-05-13-0055-sidebar-activity-feed-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-14T09:30:00Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: 0055 — Sidebar Activity Feed and SSE Action Discriminator

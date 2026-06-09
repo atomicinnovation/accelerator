@@ -1,3 +1,20 @@
+---
+type: note
+id: "2026-05-19-playwright-daemon-owner-pid-ephemeral-shell"
+title: "Tech Debt: Playwright daemon owner-pid is bash `$$` — dies with ephemeral shells"
+date: "2026-05-19T00:00:00+00:00"
+author: Toby Clemson
+producer: create-note
+status: captured
+topic: "Tech Debt: Playwright daemon owner-pid is bash `$$` — dies with ephemeral shells"
+tags: []
+revision: "11218123a1e4"
+repository: "ticket-management"
+last_updated: "2026-05-19T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+---
+
 # Tech Debt: Playwright daemon owner-pid is bash `$$` — dies with ephemeral shells
 
 ## Problem

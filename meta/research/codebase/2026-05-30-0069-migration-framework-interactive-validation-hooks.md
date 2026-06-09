@@ -1,14 +1,20 @@
 ---
-date: 2026-05-30T11:01:43+01:00
+date: "2026-05-30T11:01:43+01:00"
 researcher: Toby Clemson
-git_commit: 4c801749a9b8cb2d5c7f995d65914f7dc4411dbc
-branch: HEAD
+revision: "4c801749a9b8cb2d5c7f995d65914f7dc4411dbc"
 repository: accelerator
 topic: "Migration framework interactive validation hooks — implementation surface for story 0069"
 tags: [research, codebase, migration-framework, interactive-hooks, accelerator-plugin, adr-0037, adr-0038]
 status: complete
-last_updated: 2026-05-30
+last_updated: "2026-05-30T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-30-0069-migration-framework-interactive-validation-hooks"
+title: "Research: Migration framework interactive validation hooks — implementation surface for story 0069"
+author: Toby Clemson
+schema_version: 1
+relates_to: ["adr:ADR-0023", "adr:ADR-0031", "adr:ADR-0037", "adr:ADR-0033", "adr:ADR-0035", "adr:ADR-0028", "adr:ADR-0026", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework", "codebase-research:2026-05-26-0062-adr-interactive-validation-for-corpus-migration", "adr:ADR-0038", "work-item:0069"]
+derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework", "adr:ADR-0037", "codebase-research:2026-05-26-0062-adr-interactive-validation-for-corpus-migration", "adr:ADR-0038", "codebase-research:2026-05-05-0031-consolidate-accelerator-owned-files"]
 ---
 
 # Research: Migration framework interactive validation hooks — implementation surface for story 0069

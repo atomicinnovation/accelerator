@@ -1,15 +1,19 @@
 ---
-work_item_id: "0070"
+id: "0070"
 title: "Ship `meta/` Corpus Unified-Schema Migration"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
 kind: story
 status: ready
 priority: high
-parent: "0057"
+parent: "work-item:0057"
 tags: [migration, frontmatter, schema, dogfood]
 last_updated: "2026-06-06T23:20:24+00:00"
 last_updated_by: Toby Clemson
+type: work-item
+schema_version: 1
+blocked_by: ["work-item:0060", "work-item:0033", "work-item:0061", "adr:ADR-0033"]
+relates_to: ["adr:ADR-0034", "adr:ADR-0038", "work-item:0057", "work-item:0056", "adr:ADR-0023", "adr:ADR-0033", "adr:ADR-0037", "adr:ADR-0040", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
 ---
 
 # 0070: Ship `meta/` Corpus Unified-Schema Migration

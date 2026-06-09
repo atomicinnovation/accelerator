@@ -1,14 +1,19 @@
 ---
 date: "2026-03-15T15:46:31+00:00"
 author: Toby Clemson
-git_commit: 54bf3e8f4bf2f289b9ecc6f68c5f4b06859023ad
-branch: main
+revision: "54bf3e8f4bf2f289b9ecc6f68c5f4b06859023ad"
 repository: accelerator
 topic: "Optimal structure for review lenses — codebase analysis and web research"
 tags: [ research, review-lenses, lens-structure, code-review, perspective-based-reading ]
 status: complete
-last_updated: "2026-03-15"
+last_updated: "2026-03-15T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-03-15-review-lens-optimal-structure"
+title: "Research: Optimal Structure for Review Lenses"
+schema_version: 1
+relates_to: ["codebase-research:2026-02-22-review-lens-gap-analysis", "plan:2026-02-23-performance-lens-and-resilience-extension"]
+derived_from: ["codebase-research:2026-02-22-pr-review-agents-design", "codebase-research:2026-02-22-review-plan-pr-alignment", "codebase-research:2026-02-22-review-lens-gap-analysis"]
 ---
 
 # Research: Optimal Structure for Review Lenses

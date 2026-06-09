@@ -1,14 +1,21 @@
 ---
 date: "2026-06-05T21:38:10Z"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0079-aside-region-redesign.md"
+producer: review-work-item
+target: "work-item:0079"
 work_item_id: "0079"
 review_number: 1
 verdict: APPROVE
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 2
 status: complete
+id: "0079-aside-region-redesign-review-1"
+title: "0079-aside-region-redesign-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-06-05T21:38:10Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: Detail-Page Aside Region Redesign

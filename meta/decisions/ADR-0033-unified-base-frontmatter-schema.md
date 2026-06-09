@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0033
+id: "ADR-0033"
 date: "2026-05-19T08:17:35+00:00"
 author: Toby Clemson
 status: accepted
 tags: [frontmatter, schema, artifacts, meta-directory, migration]
+type: adr
+title: "ADR-0033: Unified base frontmatter schema for meta/ artifacts"
+schema_version: 1
+last_updated: "2026-05-19T08:17:35+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["work-item:0061", "work-item:0060", "work-item:0057", "adr:ADR-0027", "adr:ADR-0028", "work-item:0021", "work-item:0022", "work-item:0023", "work-item:0045"]
 ---
 
 # ADR-0033: Unified base frontmatter schema for meta/ artifacts

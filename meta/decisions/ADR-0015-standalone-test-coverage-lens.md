@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0015
+id: "ADR-0015"
 date: "2026-04-17T16:33:16+00:00"
 author: Toby Clemson
 status: accepted
 tags: [review, lenses, plan-review, test-coverage, code-quality]
+type: adr
+title: "ADR-0015: Standalone Test-Coverage Lens"
+schema_version: 1
+last_updated: "2026-04-17T16:33:16+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["adr:ADR-0013", "work-item:0012", "adr:ADR-0002", "adr:ADR-0004", "adr:ADR-0005", "adr:ADR-0006", "adr:ADR-0011", "adr:ADR-0014", "plan:2026-02-22-review-plan-alignment", "codebase-research:2026-02-22-review-plan-pr-alignment"]
 ---
 
 # ADR-0015: Standalone Test-Coverage Lens

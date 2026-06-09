@@ -2,6 +2,16 @@
 title: "Init skill for repo bootstrap"
 kind: adr-creation-task
 status: done
+type: work-item
+id: "0026"
+date: "2026-05-21T00:00:00+00:00"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-21T00:00:00+00:00"
+last_updated_by: Toby Clemson
+priority: medium
+source: "codebase-research:2026-03-28-initialise-skill-requirements"
 ---
 
 # ADR Ticket: Init skill for repo bootstrap

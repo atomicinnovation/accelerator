@@ -5,9 +5,8 @@ title: "Detail-Page Aside Region Redesign Implementation Plan"
 date: "2026-06-05T22:36:44+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: accepted
+status: done
 work_item_id: "0079"
-parent: ""
 reviewer: "Toby Clemson"
 tags: [design, frontend, detail-page, aside, eyebrow, lifecycle-cluster]
 revision: "4daa574d16893179833fe762052c84a863e2d635"
@@ -15,6 +14,7 @@ repository: "visualisation-system"
 last_updated: "2026-06-06T01:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+relates_to: ["work-item:0079", "codebase-research:2026-06-05-0079-aside-region-redesign"]
 ---
 
 # Detail-Page Aside Region Redesign Implementation Plan

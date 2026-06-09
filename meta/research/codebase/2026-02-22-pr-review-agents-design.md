@@ -1,14 +1,17 @@
 ---
-date: 2026-02-22T13:59:16+00:00
+date: "2026-02-22T13:59:16+00:00"
 author: Toby Clemson
-git_commit: n/a
-branch: n/a
+revision: "n/a"
 repository: claude-config
 topic: "Designing PR Review Agents for Multi-Lens Pull Request Analysis"
 tags: [research, agents, pr-review, architecture, security, test-coverage, code-quality, standards, usability]
 status: complete
-last_updated: 2026-02-22
+last_updated: "2026-02-22T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-02-22-pr-review-agents-design"
+title: "Research: Designing PR Review Agents for Multi-Lens Pull Request Analysis"
+schema_version: 1
 ---
 
 # Research: Designing PR Review Agents for Multi-Lens Pull Request Analysis

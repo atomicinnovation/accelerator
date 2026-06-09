@@ -1,13 +1,18 @@
 ---
-work_item_id: "0039"
+id: "0039"
 title: "Toaster and External-Edit Notifications"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: medium
-parent: ""
 tags: [design, frontend, components, notifications]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-06T14:04:04+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0033"]
+source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
 ---
 
 # 0039: Toaster and External-Edit Notifications

@@ -1,9 +1,18 @@
 ---
 date: "2026-05-03T16:30:00+01:00"
 type: plan
-skill: create-plan
-work_item_id: ""
+producer: create-plan
 status: draft
+id: "2026-05-03-update-visualiser-for-work-item-terminology"
+title: "Update Visualiser for Work-Item Terminology Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-03T16:30:00+01:00"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-05-03-update-visualiser-for-work-item-terminology", "codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-04-26-remaining-ticket-references-post-migration", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "adr:ADR-0022", "adr:ADR-0023", "adr:ADR-0017", "adr:ADR-0024", "adr:ADR-0025", "plan:2026-04-30-meta-visualiser-phase-12-packaging-docs-and-release"]
 ---
 
 # Update Visualiser for Work-Item Terminology Implementation Plan

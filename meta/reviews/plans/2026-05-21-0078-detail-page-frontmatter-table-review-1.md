@@ -1,13 +1,20 @@
 ---
 date: "2026-05-21T20:25:00Z"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-21-0078-detail-page-frontmatter-table.md"
+producer: review-plan
+target: "plan:2026-05-21-0078-detail-page-frontmatter-table"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, code-quality, test-coverage, correctness, standards, usability]
 review_pass: 2
 status: complete
+id: "2026-05-21-0078-detail-page-frontmatter-table-review-1"
+title: "2026-05-21-0078-detail-page-frontmatter-table-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-21T20:25:00Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Detail-Page Frontmatter Table Implementation Plan

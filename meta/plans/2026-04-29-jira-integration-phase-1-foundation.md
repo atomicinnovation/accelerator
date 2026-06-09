@@ -2,10 +2,18 @@
 date: "2026-04-29T23:00:00+01:00"
 last_revised: "2026-05-01T00:00:00+01:00"
 type: plan
-skill: create-plan
-ticket: ""
-status: complete
+producer: create-plan
+status: done
 revision: 2
+id: "2026-04-29-jira-integration-phase-1-foundation"
+title: "Jira Integration Phase 1 — Foundation Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-29T23:00:00+01:00"
+last_updated_by: Toby Clemson
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-29-jira-cloud-integration-skills", "note:2026-04-29-accelerator-config-state-reorg", "adr:ADR-0017", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "plan:2026-04-28-configurable-work-item-id-pattern"]
 ---
 
 # Jira Integration Phase 1 — Foundation Implementation Plan

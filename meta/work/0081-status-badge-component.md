@@ -1,13 +1,18 @@
 ---
-work_item_id: "0081"
+id: "0081"
 title: "StatusBadge — Decompose FrontmatterChips and Map Status + Verdict to Tone"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: medium
-parent: ""
 tags: [design, frontend, components, chips]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-21T09:16:34+00:00"
+last_updated_by: Toby Clemson
+blocks: ["work-item:0084"]
+source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 ---
 
 # 0081: StatusBadge — Decompose FrontmatterChips and Map Status + Verdict to Tone

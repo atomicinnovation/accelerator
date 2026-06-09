@@ -7,12 +7,11 @@ producer: create-work-item
 status: draft
 kind: task
 priority: medium
-parent: ""
-external_id: ""
 tags: [tooling, linting, formatting, static-analysis, ci, guardrails]
 last_updated: "2026-06-02T12:11:27+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+type: work-item
 ---
 
 # 0098: Repo-Wide Linting, Formatting, And Static Analysis Guardrails

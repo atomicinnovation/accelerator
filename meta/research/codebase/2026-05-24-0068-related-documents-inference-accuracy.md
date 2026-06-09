@@ -1,15 +1,20 @@
 ---
 date: "2026-05-24T19:12:50+01:00"
 researcher: Toby Clemson
-git_commit: 4ea5c4b4917c0d785e8e3d9b0f74025ca28b361d
-branch: ticket-management@
+revision: "4ea5c4b4917c0d785e8e3d9b0f74025ca28b361d"
 repository: accelerator
 topic: "Accuracy of inferring typed linkages from `Related Documents` body sections in `meta/`"
 tags: [spike, frontmatter, migration, knowledge-graph, parser, typed-linkages]
 status: complete
-last_updated: 2026-05-24
+last_updated: "2026-05-24T00:00:00+00:00"
 last_updated_by: Toby Clemson
 work_item_id: "0068"
+type: codebase-research
+id: "2026-05-24-0068-related-documents-inference-accuracy"
+title: "Research: Accuracy of inferring typed linkages from body sections in `meta/`"
+author: Toby Clemson
+schema_version: 1
+relates_to: ["work-item:0057"]
 ---
 
 # Research: Accuracy of inferring typed linkages from body sections in `meta/`

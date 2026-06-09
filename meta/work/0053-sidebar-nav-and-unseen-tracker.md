@@ -1,13 +1,20 @@
 ---
-work_item_id: "0053"
+id: "0053"
 title: "Sidebar Nav with Per-Type Change Indicators"
 date: "2026-05-11T12:11:50+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: high
-parent: "0036"
+parent: "work-item:0036"
 tags: [ design, frontend, chrome, navigation ]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-11T12:11:50+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0033", "work-item:0037"]
+blocks: ["work-item:0054"]
+relates_to: ["work-item:0036", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
 ---
 
 # 0053: Sidebar Nav with Per-Type Change Indicators

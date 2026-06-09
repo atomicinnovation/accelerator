@@ -1,13 +1,20 @@
 ---
 date: "2026-06-02T17:00:00+00:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown.md"
+producer: review-plan
+target: "plan:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, code-quality, correctness, test-coverage, standards, compatibility, documentation]
 review_pass: 3
 status: complete
+id: "2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown-review-1"
+title: "2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-06-02T17:00:00+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Inline Code Styling In Meta Artifact Markdown

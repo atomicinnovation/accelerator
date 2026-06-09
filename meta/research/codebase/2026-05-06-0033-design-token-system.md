@@ -1,14 +1,20 @@
 ---
 date: "2026-05-06T17:19:01+01:00"
 author: "Toby Clemson"
-git_commit: "bf60483a3af7e1519824704cb04cdca995bc2a70"
-branch: "HEAD"
+revision: "bf60483a3af7e1519824704cb04cdca995bc2a70"
 repository: "accelerator"
 topic: "Implementation of work item 0033 — Design Token System"
 tags: [research, codebase, design-tokens, visualiser, frontend, css, theming, typography]
 status: complete
-last_updated: "2026-05-06"
+last_updated: "2026-05-06T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
+type: codebase-research
+id: "2026-05-06-0033-design-token-system"
+title: "Research: Implementation of work item 0033 — Design Token System"
+schema_version: 1
+relates_to: ["work-item:0033", "work-item:0043", "design-inventory:2026-05-06-140608-claude-design-prototype", "design-inventory:2026-05-06-135214-current-app", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "codebase-research:2026-05-02-design-convergence-workflow", "plan:2026-05-03-design-convergence-workflow", "plan:2026-04-22-meta-visualiser-phase-5-frontend-scaffold-and-library-view", "adr:ADR-0001", "adr:ADR-0024"]
+blocks: ["work-item:0034", "work-item:0035"]
+derived_from: ["codebase-research:2026-05-02-design-convergence-workflow", "codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues"]
 ---
 
 # Research: Implementation of work item 0033 — Design Token System

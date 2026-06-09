@@ -1,13 +1,19 @@
 ---
-work_item_id: "0037"
+id: "0037"
 title: "Glyph Component"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: high
-parent: ""
 tags: [design, frontend, components]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-06T14:04:04+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0033"]
+blocks: ["work-item:0036", "work-item:0040", "work-item:0041", "work-item:0042", "work-item:0043", "work-item:0053", "work-item:0054", "work-item:0055"]
+source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
 ---
 
 # 0037: Glyph Component

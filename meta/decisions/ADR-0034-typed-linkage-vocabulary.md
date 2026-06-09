@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0034
+id: "ADR-0034"
 date: "2026-05-20T10:13:04+00:00"
 author: Toby Clemson
 status: accepted
 tags: [frontmatter, schema, linkages, knowledge-graph, meta-directory]
+type: adr
+title: "ADR-0034: Typed linkage vocabulary for meta/ artifacts"
+schema_version: 1
+last_updated: "2026-05-20T10:13:04+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["work-item:0060", "adr:ADR-0033", "work-item:0061", "work-item:0057", "work-item:0040"]
 ---
 
 # ADR-0034: Typed linkage vocabulary for meta/ artifacts

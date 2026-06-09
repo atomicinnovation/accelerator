@@ -1,10 +1,16 @@
 ---
-adr_id: ADR-0036
+id: "ADR-0036"
 date: "2026-05-23T00:00:00+01:00"
 author: Toby Clemson
 status: accepted
 supersedes: ["adr:ADR-0026"]
 tags: [visualiser, frontend, css, design-tokens, typography]
+type: adr
+title: "ADR-0036: Typography font-size consumption rule"
+schema_version: 1
+last_updated: "2026-05-23T00:00:00+01:00"
+last_updated_by: Toby Clemson
+relates_to: ["adr:ADR-0026", "adr:ADR-0030", "adr:ADR-0031", "adr:ADR-0034", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "work-item:0075", "work-item:0091"]
 ---
 
 # ADR-0036: Typography font-size consumption rule

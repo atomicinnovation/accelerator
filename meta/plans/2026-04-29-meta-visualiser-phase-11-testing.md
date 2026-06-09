@@ -1,9 +1,19 @@
 ---
 date: "2026-04-29T19:15:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 ticket: null
-status: complete
+status: done
+id: "2026-04-29-meta-visualiser-phase-11-testing"
+title: "Meta Visualiser — Phase 11: Testing"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-29T19:15:00+01:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context"]
 ---
 
 # Meta Visualiser — Phase 11: Testing

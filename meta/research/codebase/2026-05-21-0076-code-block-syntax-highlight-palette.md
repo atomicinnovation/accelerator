@@ -1,14 +1,20 @@
 ---
-date: 2026-05-21T22:51:56+01:00
+date: "2026-05-21T22:51:56+01:00"
 researcher: Toby Clemson
-git_commit: 504eb39ccc6e8eb44b3134e76ccabcbed4067f68
-branch: vulqmkrnzrykvxxlplmplysrzvspwoon
+revision: "504eb39ccc6e8eb44b3134e76ccabcbed4067f68"
 repository: accelerator
 topic: "Code-block syntax-highlight tokens and renderer adoption (story 0076)"
 tags: [research, codebase, design-tokens, syntax-highlighting, hljs, markdown, react-markdown, rehype-highlight, code-blocks, visualiser]
 status: complete
-last_updated: 2026-05-21
+last_updated: "2026-05-21T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-21-0076-code-block-syntax-highlight-palette"
+title: "Research: Code-block syntax-highlight tokens and renderer adoption (story 0076)"
+author: Toby Clemson
+schema_version: 1
+relates_to: ["work-item:0033", "adr:ADR-0026", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-18-0042-templates-view-redesign", "work-item:0076", "work-item:0037"]
+derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "codebase-research:2026-05-18-0042-templates-view-redesign", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table"]
 ---
 
 # Research: Code-block syntax-highlight tokens and renderer adoption (story 0076)

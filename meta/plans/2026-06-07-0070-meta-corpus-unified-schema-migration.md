@@ -15,6 +15,7 @@ repository: "ticket-management"
 last_updated: "2026-06-08T09:33:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+relates_to: ["work-item:0070", "codebase-research:2026-06-07-0070-meta-corpus-unified-schema-migration", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "adr:ADR-0023", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0037", "adr:ADR-0038", "adr:ADR-0040", "adr:ADR-0042"]
 ---
 
 # Ship `meta/` Corpus Unified-Schema Migration Implementation Plan

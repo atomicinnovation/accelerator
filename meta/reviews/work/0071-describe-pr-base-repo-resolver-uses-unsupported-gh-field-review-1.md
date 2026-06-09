@@ -1,14 +1,21 @@
 ---
 date: "2026-05-18T20:13:13+00:00"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0071-describe-pr-base-repo-resolver-uses-unsupported-gh-field.md"
+producer: review-work-item
+target: "work-item:0071"
 work_item_id: "0071"
 review_number: 1
 verdict: COMMENT
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 2
 status: complete
+id: "0071-describe-pr-base-repo-resolver-uses-unsupported-gh-field-review-1"
+title: "0071-describe-pr-base-repo-resolver-uses-unsupported-gh-field-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-18T20:13:13+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: describe-pr cannot post PR body — pr-base-repo.sh uses unsupported gh JSON field

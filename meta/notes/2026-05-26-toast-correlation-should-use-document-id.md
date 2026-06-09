@@ -1,3 +1,21 @@
+---
+type: note
+id: "2026-05-26-toast-correlation-should-use-document-id"
+title: "Future: switch external-edit correlation/display from relPath to a document ID"
+date: "2026-05-26T00:00:00+00:00"
+author: Toby Clemson
+producer: create-note
+status: captured
+topic: "Future: switch external-edit correlation/display from relPath to a document ID"
+tags: []
+revision: "5fabe73c39b5"
+repository: "ticket-management"
+last_updated: "2026-05-26T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["work-item:0039"]
+---
+
 # Future: switch external-edit correlation/display from relPath to a document ID
 
 ## Context

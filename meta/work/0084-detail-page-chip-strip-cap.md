@@ -1,13 +1,19 @@
 ---
-work_item_id: "0084"
+id: "0084"
 title: "Detail-Page Chip Strip Cap (Status, Date, Author)"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: medium
-parent: ""
 tags: [design, frontend, detail-page, chips]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-21T09:16:34+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0038", "work-item:0078"]
+source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
+relates_to: ["adr:ADR-0033", "work-item:0038", "work-item:0078"]
 ---
 
 # 0084: Detail-Page Chip Strip Cap (Status, Date, Author)

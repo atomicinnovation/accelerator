@@ -1,13 +1,20 @@
 ---
 date: "2026-05-01T01:30:00+01:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-04-30-meta-visualiser-phase-12-packaging-docs-and-release.md"
+producer: review-plan
+target: "plan:2026-04-30-meta-visualiser-phase-12-packaging-docs-and-release"
 review_number: 1
 verdict: REVISE
 lenses: [architecture, code-quality, test-coverage, correctness, security, compatibility, safety, documentation]
 review_pass: 4
 status: complete
+id: "2026-04-30-meta-visualiser-phase-12-packaging-docs-and-release-review-1"
+title: "2026-04-30-meta-visualiser-phase-12-packaging-docs-and-release-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-01T01:30:00+01:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Meta Visualiser — Phase 12: Packaging, docs, and release

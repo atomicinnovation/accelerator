@@ -1,14 +1,21 @@
 ---
 date: "2026-05-19T23:57:41+00:00"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0061-adr-typed-linkage-vocabulary.md"
+producer: review-work-item
+target: "work-item:0061"
 work_item_id: "0061"
 review_number: 1
 verdict: COMMENT
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 2
 status: complete
+id: "0061-adr-typed-linkage-vocabulary-review-1"
+title: "0061-adr-typed-linkage-vocabulary-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-19T23:57:41+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: ADR: Typed Linkage Vocabulary

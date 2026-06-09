@@ -5,7 +5,7 @@ title: "Extend Templates With Typed-Linkage Slots Implementation Plan"
 date: "2026-06-02T18:00:37+00:00"
 author: Toby Clemson
 producer: create-plan
-status: complete
+status: done
 work_item_id: "0093"
 parent: "work-item:0093"
 reviewer: "review-plan (3 passes, APPROVE)"
@@ -15,6 +15,7 @@ repository: build-system
 last_updated: "2026-06-04T15:50:30+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+relates_to: ["work-item:0093", "codebase-research:2026-06-02-0093-extend-templates-with-typed-linkage-slots", "adr:ADR-0034", "adr:ADR-0033", "adr:ADR-0040", "work-item:0065", "work-item:0066", "plan:2026-05-30-0065-update-artifact-templates-to-unified-schema"]
 ---
 
 # Extend Templates With Typed-Linkage Slots Implementation Plan

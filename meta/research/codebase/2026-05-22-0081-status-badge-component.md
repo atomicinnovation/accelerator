@@ -1,14 +1,20 @@
 ---
 date: "2026-05-22T22:55:08+01:00"
 researcher: Toby Clemson
-git_commit: e8ed1ce002796e05ce8d787294858ba042020195
-branch: HEAD
+revision: "e8ed1ce002796e05ce8d787294858ba042020195"
 repository: accelerator
 topic: "Decomposing FrontmatterChips into chip-list renderer + FrontmatterChip + StatusBadge (work item 0081)"
 tags: [research, codebase, frontmatter-chips, status-badge, chip-primitive, verdict, frontend]
 status: complete
-last_updated: 2026-05-22
+last_updated: "2026-05-22T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-22-0081-status-badge-component"
+title: "Research: Decomposing `FrontmatterChips` into chip-list renderer + `FrontmatterChip` + `StatusBadge`"
+author: Toby Clemson
+schema_version: 1
+relates_to: ["work-item:0038", "work-item:0005", "adr:ADR-0007", "work-item:0066", "work-item:0084", "work-item:0078", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:0081", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table"]
+derived_from: ["codebase-research:2026-05-21-0078-detail-page-frontmatter-table", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype", "design-inventory:2026-05-21-004250-current-app"]
 ---
 
 # Research: Decomposing `FrontmatterChips` into chip-list renderer + `FrontmatterChip` + `StatusBadge`

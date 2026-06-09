@@ -1,13 +1,20 @@
 ---
 date: "2026-05-30T19:26:56Z"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-30-0069-migration-framework-interactive-validation-hooks.md"
+producer: review-plan
+target: "plan:2026-05-30-0069-migration-framework-interactive-validation-hooks"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, correctness, code-quality, test-coverage, safety, compatibility, usability, documentation]
 review_pass: 3
 status: complete
+id: "2026-05-30-0069-migration-framework-interactive-validation-hooks-review-1"
+title: "2026-05-30-0069-migration-framework-interactive-validation-hooks-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-30T19:26:56Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: 0069 — Migration Framework Interactive Validation Hooks

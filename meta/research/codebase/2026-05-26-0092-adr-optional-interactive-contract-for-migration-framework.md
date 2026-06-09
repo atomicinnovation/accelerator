@@ -1,14 +1,20 @@
 ---
 date: "2026-05-26T14:58:00+01:00"
 author: Toby Clemson
-git_commit: 0f16c47c1f7cadb49bb69b320d94c7b36565c4d9
-branch: HEAD
+revision: "0f16c47c1f7cadb49bb69b320d94c7b36565c4d9"
 repository: accelerator
 topic: "ADR drafting context for 0092 — optional interactive contract amending ADR-0023's mechanical-by-default migration framework"
 tags: [research, codebase, adr, migration, framework, interactive-hooks, adr-0023, adr-0030, adr-0031, accelerator-plugin]
 status: complete
-last_updated: 2026-05-26
+last_updated: "2026-05-26T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework"
+title: "Research: ADR drafting context for 0092 — optional interactive contract amending ADR-0023's mechanical-by-default migration framework"
+schema_version: 1
+relates_to: ["work-item:0062", "adr:ADR-0023", "adr:ADR-0030", "adr:ADR-0031", "adr:ADR-0035", "adr:ADR-0033", "adr:ADR-0028", "adr:ADR-0034", "work-item:0057", "work-item:0068", "work-item:0069", "work-item:0070", "work-item:0092", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
+supersedes: ["adr:ADR-0036", "adr:ADR-0026", "adr:ADR-0023"]
+derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-04-25-rename-tickets-to-work-items", "adr:ADR-0023", "codebase-research:2026-03-28-initialise-skill-requirements"]
 ---
 
 # Research: ADR drafting context for 0092 — optional interactive contract amending ADR-0023's mechanical-by-default migration framework

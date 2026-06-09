@@ -1,13 +1,20 @@
 ---
 date: "2026-05-23T18:30:00Z"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-23-0075-typography-size-scale-consumption.md"
+producer: review-plan
+target: "plan:2026-05-23-0075-typography-size-scale-consumption"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, correctness, code-quality, test-coverage, standards, documentation, compatibility, safety]
 review_pass: 5
 status: complete
+id: "2026-05-23-0075-typography-size-scale-consumption-review-1"
+title: "2026-05-23-0075-typography-size-scale-consumption-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-23T18:30:00Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: 0075 Typography Size-Scale Consumption Reconciliation

@@ -1,14 +1,19 @@
 ---
-date: 2026-05-18T22:10:38+01:00
+date: "2026-05-18T22:10:38+01:00"
 author: Toby Clemson
-git_commit: ee201256c147a4f4e8b8f7427f9292fd79925767
-branch: HEAD
+revision: "ee201256c147a4f4e8b8f7427f9292fd79925767"
 repository: accelerator
 topic: "Templates View Redesign (work item 0042)"
 tags: [research, codebase, templates, sse, chip, page, etag, sha256, frontend, backend]
 status: complete
-last_updated: 2026-05-18
+last_updated: "2026-05-18T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-18-0042-templates-view-redesign"
+title: "Research: Templates View Redesign (work item 0042)"
+schema_version: 1
+relates_to: ["work-item:0029", "work-item:0033", "work-item:0037", "work-item:0038", "work-item:0041", "work-item:0055", "plan:2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher", "plan:2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api", "codebase-research:2026-05-13-0055-sidebar-activity-feed", "codebase-research:2026-05-14-0038-generic-chip-component", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "design-inventory:2026-05-06-140608-claude-design-prototype", "work-item:0042"]
+derived_from: ["codebase-research:2026-05-13-0055-sidebar-activity-feed", "codebase-research:2026-05-14-0038-generic-chip-component", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-16-0041-library-page-wrapper-supplementary", "codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-03-29-template-management-subcommands"]
 ---
 
 # Research: Templates View Redesign (work item 0042)

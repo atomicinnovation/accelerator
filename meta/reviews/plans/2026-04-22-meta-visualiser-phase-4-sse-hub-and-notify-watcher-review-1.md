@@ -1,13 +1,20 @@
 ---
 date: "2026-04-22T16:45:00+00:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher.md"
+producer: review-plan
+target: "plan:2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher"
 review_number: 1
 verdict: COMMENT
 lenses: [architecture, code-quality, test-coverage, correctness, performance, safety, portability]
 review_pass: 2
 status: complete
+id: "2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher-review-1"
+title: "2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-22T16:45:00+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Meta Visualiser Phase 4 — SSE Hub and Notify Watcher

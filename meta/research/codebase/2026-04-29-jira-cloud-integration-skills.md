@@ -1,14 +1,18 @@
 ---
 date: "2026-04-29T22:31:35+01:00"
 author: Toby Clemson
-git_commit: 77cbbb0e4288c49347d3258fffbcf3d83b396999
-branch: (no bookmark — change lwoqvyopkmsu)
+revision: "77cbbb0e4288c49347d3258fffbcf3d83b396999"
 repository: accelerator
 topic: "Jira Cloud integration skills as the first integration under skills/integrations/"
 tags: [research, integrations, jira, skills, work-management, adf, jql, configuration]
 status: complete
-last_updated: "2026-04-29"
+last_updated: "2026-04-29T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-04-29-jira-cloud-integration-skills"
+title: "Research: Jira Cloud Integration Skills"
+schema_version: 1
+relates_to: ["codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "adr:ADR-0017", "adr:ADR-0023"]
 ---
 
 # Research: Jira Cloud Integration Skills

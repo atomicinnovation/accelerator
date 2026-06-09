@@ -1,13 +1,20 @@
 ---
 date: "2026-04-30T00:55:00+01:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-04-29-jira-integration-phase-1-foundation.md"
+producer: review-plan
+target: "plan:2026-04-29-jira-integration-phase-1-foundation"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, security, test-coverage, code-quality, correctness, usability, standards, portability]
 review_pass: 4
 status: complete
+id: "2026-04-29-jira-integration-phase-1-foundation-review-1"
+title: "2026-04-29-jira-integration-phase-1-foundation-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-30T00:55:00+01:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Jira Integration Phase 1 — Foundation

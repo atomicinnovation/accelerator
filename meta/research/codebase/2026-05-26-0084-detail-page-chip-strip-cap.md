@@ -1,15 +1,20 @@
 ---
 date: "2026-05-26T15:58:09+00:00"
 author: Toby Clemson
-git_commit: 745a54caf27eb8e5344023cc826231aacda82356
-branch: ""
+revision: "745a54caf27eb8e5344023cc826231aacda82356"
 change_id: lswwkotttlkmvnxlrymqkqtqtmrkzmwl
 repository: accelerator
 topic: "Detail-Page Chip Strip Cap (Status, Date, Author) — codebase landscape for work item 0084"
 tags: [research, codebase, frontend, visualiser, frontmatter-chips, detail-page, status-badge, frontmatter-table, adr-0033]
 status: complete
-last_updated: "2026-05-26"
+last_updated: "2026-05-26T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-26-0084-detail-page-chip-strip-cap"
+title: "Research: Detail-Page Chip Strip Cap (Status, Date, Author) — codebase landscape for work item 0084"
+schema_version: 1
+relates_to: ["codebase-research:2026-05-22-0081-status-badge-component", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table", "codebase-research:2026-05-14-0038-generic-chip-component", "adr:ADR-0033", "work-item:0084"]
+derived_from: ["codebase-research:2026-05-22-0081-status-badge-component", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table", "codebase-research:2026-05-14-0038-generic-chip-component", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype", "adr:ADR-0033"]
 ---
 
 # Research: Detail-Page Chip Strip Cap (Status, Date, Author) — codebase landscape for work item 0084

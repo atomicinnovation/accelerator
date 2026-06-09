@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0012
+id: "ADR-0012"
 date: "2026-04-17T12:42:04+00:00"
 author: Toby Clemson
 status: accepted
 tags: [review-system, lenses, architecture, resilience]
+type: adr
+title: "ADR-0012: Resilience as Architecture Responsibility"
+schema_version: 1
+last_updated: "2026-04-17T12:42:04+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["adr:ADR-0011", "codebase-research:2026-02-22-review-lens-gap-analysis", "plan:2026-02-23-performance-lens-and-resilience-extension", "adr:ADR-0002", "adr:ADR-0003"]
 ---
 
 # ADR-0012: Resilience as Architecture Responsibility

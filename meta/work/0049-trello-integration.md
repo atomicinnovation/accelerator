@@ -1,13 +1,19 @@
 ---
-work_item_id: "0049"
+id: "0049"
 title: "Trello Integration"
 date: "2026-05-06T17:49:44+00:00"
 author: Toby Clemson
 kind: story
 status: draft
 priority: medium
-parent: "0045"
+parent: "work-item:0045"
 tags: [work-management, integrations, trello]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-06T17:49:44+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0046"]
+blocks: ["work-item:0051"]
 ---
 
 # 0049: Trello Integration

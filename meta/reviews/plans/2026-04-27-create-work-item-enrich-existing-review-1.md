@@ -1,13 +1,20 @@
 ---
 date: "2026-04-27T15:25:38+00:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-04-27-create-work-item-enrich-existing.md"
+producer: review-plan
+target: "plan:2026-04-27-create-work-item-enrich-existing"
 review_number: 1
 verdict: COMMENT
 lenses: [architecture, code-quality, test-coverage, correctness, usability, compatibility, safety, standards]
 review_pass: 3
 status: complete
+id: "2026-04-27-create-work-item-enrich-existing-review-1"
+title: "2026-04-27-create-work-item-enrich-existing-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-27T15:25:38+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Extend `create-work-item` to Enrich an Existing Work Item

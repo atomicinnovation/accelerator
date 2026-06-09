@@ -1,10 +1,17 @@
 ---
 date: "2026-05-01T13:00:00+01:00"
 type: plan-validation
-skill: validate-plan
-target: "meta/plans/2026-04-29-jira-integration-phase-1-foundation.md"
+producer: validate-plan
+target: "plan:2026-04-29-jira-integration-phase-1-foundation"
 result: partial
 status: complete
+id: "2026-04-29-jira-integration-phase-1-foundation-validation"
+title: "2026-04-29-jira-integration-phase-1-foundation-validation"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-01T13:00:00+01:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Validation Report: Jira Integration Phase 1 — Foundation

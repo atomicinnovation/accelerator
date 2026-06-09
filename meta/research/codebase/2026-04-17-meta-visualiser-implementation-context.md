@@ -1,15 +1,18 @@
 ---
 date: "2026-04-17T17:15:00+01:00"
 author: Toby Clemson
-git_commit: 9f076a60
-branch: visualisation-system
+revision: "9f076a60"
 repository: accelerator (visualisation-system workspace)
 topic: "Meta visualiser v1 — implementation context and phasing"
 tags: [ research, codebase, visualisation-system, meta, skill, http-server, sse, react, kanban, rust, axum, github-releases ]
 status: complete
-last_updated: "2026-04-18"
+last_updated: "2026-04-18T00:00:00+00:00"
 last_updated_by: Toby Clemson
 last_updated_note: "Later on 2026-04-18: revised the 'Major gaps' framing — gap items are now explicitly owned by the phase plan that touches them (Gap 1 → Phase 1; Gaps 2/5/6 → Phase 2; Gaps 3/7 → Phase 12; Gap 4 already resolved by D10) rather than being decided wholesale during Phase 1 planning. Gap 1 is concretely resolved by the Phase 1 plan at `meta/plans/2026-04-18-meta-visualiser-phase-1-skill-scaffolding.md`. Earlier same day: appended follow-up 'Consistency and gap analysis'; corrected the monorepo misconception (`workspaces/visualisation-system/` is a jj workspace, not a monorepo member — single plugin manifest at the repo root); added D9 (Templates view renders all three resolution tiers per template; `templates` is a virtual DocType backed by `config_resolve_template()`); and D10 (frontend embedded into the Rust binary via `rust-embed` — `frontend/dist/` is gitignored, not committed; `dev-frontend` Cargo feature swaps to disk-based `ServeDir` for local iteration). D10 updates D1, D2's tree layout, D3's stack table, Phases 5 and 12, the Open questions list, and resolves follow-up gap #4 (committed-dist drift). Later on 2026-04-18: tightened D4 (and the §1 intro, the jj-workspace architecture insight, the Open-questions recap, and the Code references) to spell out **strict workspace-isolation rules** — Claude must treat the `visualisation-system` workspace root as the sole repository root, never read from or write to any other checkout of the repo on disk, and resolve all relative paths in this document against the workspace root only. Any absolute `/Users/…/accelerator/…` paths that remain are historical artefacts of earlier research gathering, not instructions to step outside the workspace."
+type: codebase-research
+id: "2026-04-17-meta-visualiser-implementation-context"
+title: "Research: Meta visualiser v1 — implementation context and phasing"
+schema_version: 1
 ---
 
 # Research: Meta visualiser v1 — implementation context and phasing

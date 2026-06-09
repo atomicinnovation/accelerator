@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0019
+id: "ADR-0019"
 date: "2026-04-18T13:46:13+00:00"
 author: Toby Clemson
 status: accepted
 tags: [configuration, paths, gitignore, ephemeral, review-pr]
+type: adr
+title: "ADR-0019: Ephemeral File Separation via paths.tmp"
+schema_version: 1
+last_updated: "2026-04-18T13:46:13+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["work-item:0027", "codebase-research:2026-04-07-pr-review-tmp-directory-usage", "plan:2026-03-28-initialise-skill-and-review-pr-ephemeral-migration", "adr:ADR-0008", "adr:ADR-0016", "adr:ADR-0018"]
 ---
 
 # ADR-0019: Ephemeral File Separation via paths.tmp

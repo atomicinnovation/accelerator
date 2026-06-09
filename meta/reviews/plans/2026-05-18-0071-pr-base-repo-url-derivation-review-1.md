@@ -1,13 +1,20 @@
 ---
 date: "2026-05-19T00:17:15+00:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-18-0071-pr-base-repo-url-derivation.md"
+producer: review-plan
+target: "plan:2026-05-18-0071-pr-base-repo-url-derivation"
 review_number: 1
 verdict: APPROVE
 lenses: [correctness, test-coverage, code-quality, compatibility, safety, portability, documentation]
 review_pass: 4
 status: complete
+id: "2026-05-18-0071-pr-base-repo-url-derivation-review-1"
+title: "2026-05-18-0071-pr-base-repo-url-derivation-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-19T00:17:15+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: pr-base-repo.sh URL-Derivation Migration

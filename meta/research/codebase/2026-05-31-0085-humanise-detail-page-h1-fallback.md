@@ -1,15 +1,20 @@
 ---
-date: 2026-05-31T22:54:27+01:00
+date: "2026-05-31T22:54:27+01:00"
 author: Toby Clemson
-git_commit: 88b3cab89687dd2ca32bc4e38fb603198e46eb92
-branch: HEAD
+revision: "88b3cab89687dd2ca32bc4e38fb603198e46eb92"
 repository: accelerator
 topic: "Humanise Detail-Page H1 Across All Doc Kinds (0085)"
 tags: [research, codebase, visualiser, frontmatter, title-cascade, indexer, humanise-slug]
 status: complete
-last_updated: 2026-06-06
+last_updated: "2026-06-06T00:00:00+00:00"
 last_updated_by: Toby Clemson
 last_updated_note: "Added follow-up research re-verifying live codebase state and dependency statuses; 0065 and 0066 now done, 0070 still draft."
+type: codebase-research
+id: "2026-05-31-0085-humanise-detail-page-h1-fallback"
+title: "Research: Humanise Detail-Page H1 Across All Doc Kinds (0085)"
+schema_version: 1
+relates_to: ["work-item:0041", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
+derived_from: ["codebase-research:2026-03-18-meta-management-strategy", "codebase-research:2026-04-08-ticket-management-skills"]
 ---
 
 # Research: Humanise Detail-Page H1 Across All Doc Kinds (0085)

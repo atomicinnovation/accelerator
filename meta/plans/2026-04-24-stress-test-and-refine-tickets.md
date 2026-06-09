@@ -1,9 +1,18 @@
 ---
 date: "2026-04-24T00:00:00+01:00"
 type: plan
-skill: create-plan
-ticket: ""
-status: complete
+producer: create-plan
+status: done
+id: "2026-04-24-stress-test-and-refine-tickets"
+title: "Stress-Test and Refine Tickets — Phase 6 (Interactive Quality)"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-24T00:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-08-ticket-management-skills", "plan:2026-04-19-ticket-creation-skills", "plan:2026-04-21-list-and-update-tickets", "plan:2026-04-22-ticket-review-core", "plan:2026-04-24-ticket-review-extended-lenses"]
 ---
 
 # Stress-Test and Refine Tickets — Phase 6 (Interactive Quality)

@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0011
+id: "ADR-0011"
 date: "2026-04-17T12:42:04+00:00"
 author: Toby Clemson
 status: accepted
 tags: [review-system, lenses, performance]
+type: adr
+title: "ADR-0011: Standalone Performance Lens"
+schema_version: 1
+last_updated: "2026-04-17T12:42:04+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["codebase-research:2026-02-22-review-lens-gap-analysis", "plan:2026-02-23-performance-lens-and-resilience-extension", "adr:ADR-0002", "adr:ADR-0003", "adr:ADR-0005"]
 ---
 
 # ADR-0011: Standalone Performance Lens

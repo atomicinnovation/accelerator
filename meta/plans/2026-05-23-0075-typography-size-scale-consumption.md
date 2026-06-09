@@ -1,9 +1,19 @@
 ---
 date: "2026-05-23T13:42:51Z"
 type: plan
-skill: create-plan
+producer: create-plan
 work-item: "0075"
-status: accepted
+status: done
+id: "2026-05-23-0075-typography-size-scale-consumption"
+title: "0075 Typography Size-Scale Consumption Reconciliation — Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-23T13:42:51Z"
+last_updated_by: Toby Clemson
+revision: "77dcc312cc6a"
+repository: "ticket-management"
+relates_to: ["work-item:0075", "work-item:0091", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "adr:ADR-0036", "adr:ADR-0026", "adr:ADR-0031"]
 ---
 
 # 0075 Typography Size-Scale Consumption Reconciliation — Implementation Plan

@@ -1,13 +1,18 @@
 ---
-work_item_id: "0080"
+id: "0080"
 title: "Detail-Page Header Actions (Open in Editor, Copy Link)"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
 status: draft
 priority: medium
-parent: ""
 tags: [design, frontend, detail-page]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-21T09:16:34+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0041", "work-item:0039"]
+source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 ---
 
 # 0080: Detail-Page Header Actions (Open in Editor, Copy Link)

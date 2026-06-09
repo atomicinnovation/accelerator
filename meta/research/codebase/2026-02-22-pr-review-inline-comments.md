@@ -1,15 +1,18 @@
 ---
-date: 2026-02-22T15:04:46+00:00
+date: "2026-02-22T15:04:46+00:00"
 author: Toby Clemson
-git_commit: N/A
-branch: N/A
+revision: "N/A"
 repository: ~/.claude (Claude Code configuration)
 topic: "Modifying review-pr command to suggest inline PR comments instead of monolithic review"
 tags: [research, pr-review, inline-comments, github-api, agents, commands]
 status: complete
-last_updated: 2026-02-22
+last_updated: "2026-02-22T00:00:00+00:00"
 last_updated_by: Toby Clemson
 last_updated_note: "Incorporated formatting patterns from temp-review-gh.md reference command"
+type: codebase-research
+id: "2026-02-22-pr-review-inline-comments"
+title: "Research: Modifying review-pr to Suggest Inline PR Comments"
+schema_version: 1
 ---
 
 # Research: Modifying review-pr to Suggest Inline PR Comments

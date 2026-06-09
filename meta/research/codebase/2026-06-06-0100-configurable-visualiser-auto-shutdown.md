@@ -15,6 +15,8 @@ repository: "accelerator"
 last_updated: "2026-06-06T13:06:49+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+relates_to: ["work-item:0055", "codebase-research:2026-05-13-0055-sidebar-activity-feed", "plan:2026-04-18-meta-visualiser-phase-2-server-bootstrap", "adr:ADR-0024", "adr:ADR-0016", "adr:ADR-0017"]
+derived_from: ["codebase-research:2026-05-13-0055-sidebar-activity-feed", "codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-06-04-changelog-1.21.0-cleanup"]
 ---
 
 # Research: Configurable Visualiser Auto-Shutdown

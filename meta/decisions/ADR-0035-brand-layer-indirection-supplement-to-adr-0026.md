@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0035
+id: "ADR-0035"
 date: "2026-05-23T00:00:00+01:00"
 author: Toby Clemson
 status: accepted
 tags: [visualiser, frontend, css, design-tokens, brand]
+type: adr
+title: "ADR-0035: Brand-layer indirection — supplement to ADR-0026"
+schema_version: 1
+last_updated: "2026-05-23T00:00:00+01:00"
+last_updated_by: Toby Clemson
+relates_to: ["adr:ADR-0026", "adr:ADR-0031", "adr:ADR-0033", "adr:ADR-0028", "work-item:0073", "plan:2026-05-23-0073-atomic-brand-layer-palette", "work-item:0033", "work-item:0076"]
 ---
 
 # ADR-0035: Brand-layer indirection — supplement to ADR-0026

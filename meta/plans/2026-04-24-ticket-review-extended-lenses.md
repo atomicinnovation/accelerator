@@ -1,9 +1,18 @@
 ---
 date: "2026-04-24T10:28:36+01:00"
 type: plan
-skill: create-plan
-ticket: ""
+producer: create-plan
 status: draft
+id: "2026-04-24-ticket-review-extended-lenses"
+title: "Ticket Review (Extended Lenses) — Phase 5"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-24T10:28:36+01:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-08-ticket-management-skills", "plan:2026-04-22-ticket-review-core"]
 ---
 
 # Ticket Review (Extended Lenses) — Phase 5

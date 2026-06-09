@@ -1,14 +1,19 @@
 ---
 date: "2026-05-13T09:15:21+01:00"
 author: Toby Clemson
-git_commit: 99c29ca35498adbe72fafec97a68216d6ebf6fde
-branch: yptuuowrwpqzxxzrvvzmqpxwsnrtpkkt
+revision: "99c29ca35498adbe72fafec97a68216d6ebf6fde"
 repository: accelerator
 topic: "Educate implementation of 0055 — Sidebar Activity Feed and SSE Action Discriminator"
 tags: [research, codebase, sse, watcher, activity-feed, sidebar, sse-hub, frontend, server, work-item-0055]
 status: complete
-last_updated: 2026-05-13
+last_updated: "2026-05-13T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-13-0055-sidebar-activity-feed"
+title: "Research: Educate implementation of 0055 — Sidebar Activity Feed and SSE Action Discriminator"
+schema_version: 1
+relates_to: ["codebase-research:2026-05-12-0053-sidebar-nav-and-unseen-tracker", "work-item:0055", "work-item:0036", "work-item:0053", "work-item:0037", "plan:2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher", "plan:2026-04-26-meta-visualiser-phase-8-kanban-write-path", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
+derived_from: ["codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-04-17-meta-visualiser-implementation-context"]
 ---
 
 # Research: Educate implementation of 0055 — Sidebar Activity Feed and SSE Action Discriminator

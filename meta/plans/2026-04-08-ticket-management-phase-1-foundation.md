@@ -1,9 +1,18 @@
 ---
 date: "2026-04-08T12:47:11+00:00"
 type: plan
-skill: create-plan
-ticket: ""
+producer: create-plan
 status: draft
+id: "2026-04-08-ticket-management-phase-1-foundation"
+title: "Ticket Management Phase 1: Foundation and Configuration"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-08T12:47:11+00:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-08-ticket-management-skills"]
 ---
 
 # Ticket Management Phase 1: Foundation and Configuration

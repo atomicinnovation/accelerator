@@ -1,14 +1,21 @@
 ---
 date: "2026-05-31T21:18:14Z"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0066-update-review-skills-inline-frontmatter.md"
+producer: review-work-item
+target: "work-item:0066"
 work_item_id: "0066"
 review_number: 1
 verdict: APPROVE
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 2
 status: complete
+id: "0066-update-review-skills-inline-frontmatter-review-1"
+title: "0066-update-review-skills-inline-frontmatter-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-31T21:18:14Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: Move Review/Validation Skills' Frontmatter into Templates on Unified Schema

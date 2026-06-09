@@ -1,13 +1,20 @@
 ---
 date: "2026-03-29T17:30:00+01:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-03-29-template-management-subcommands.md"
+producer: review-plan
+target: "plan:2026-03-29-template-management-subcommands"
 review_number: 1
 verdict: COMMENT
 lenses: [architecture, code-quality, correctness, test-coverage, standards, usability, safety]
 review_pass: 2
 status: complete
+id: "2026-03-29-template-management-subcommands-review-1"
+title: "2026-03-29-template-management-subcommands-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-03-29T17:30:00+01:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Template Management Subcommands

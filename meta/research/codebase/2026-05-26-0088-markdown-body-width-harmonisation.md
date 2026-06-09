@@ -1,14 +1,19 @@
 ---
-date: 2026-05-26T14:59:05+01:00
+date: "2026-05-26T14:59:05+01:00"
 author: Toby Clemson
-git_commit: 0f16c47c1f7cadb49bb69b320d94c7b36565c4d9
-branch: HEAD
+revision: "0f16c47c1f7cadb49bb69b320d94c7b36565c4d9"
 repository: accelerator
 topic: "0088 Markdown Body Width Harmonisation — implementation surface area"
 tags: [research, codebase, markdown-renderer, design-tokens, layout]
 status: complete
-last_updated: 2026-05-26
+last_updated: "2026-05-26T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-26-0088-markdown-body-width-harmonisation"
+title: "Research: 0088 Markdown Body Width Harmonisation"
+schema_version: 1
+relates_to: ["work-item:0033", "work-item:0075", "work-item:0076", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
+derived_from: ["design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 ---
 
 # Research: 0088 Markdown Body Width Harmonisation

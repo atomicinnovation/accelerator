@@ -1,9 +1,19 @@
 ---
 date: "2026-05-12T00:00:00+00:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "0056"
-status: accepted
+status: done
+id: "2026-05-12-0056-restructure-meta-research-into-subject-subcategories"
+title: "0056 — Restructure `meta/research/codebase/` into Subject Subcategories — Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-12T00:00:00+00:00"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+relates_to: ["work-item:0056", "codebase-research:2026-05-11-0056-restructure-meta-research-into-subject-subcategories", "note:2026-05-02-research-directory-subcategory-restructure", "work-item:0030", "work-item:0052", "adr:ADR-0023"]
 ---
 
 # 0056 — Restructure `meta/research/codebase/` into Subject Subcategories — Implementation Plan

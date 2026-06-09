@@ -1,3 +1,18 @@
+---
+type: plan
+id: "2026-03-15-readme-restructure"
+title: "README Restructure Implementation Plan"
+date: "2026-03-15T00:00:00+00:00"
+author: Toby Clemson
+tags: []
+revision: "cca787aeed49"
+repository: "ticket-management"
+last_updated: "2026-03-15T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["codebase-research:2026-03-15-context-management-approaches"]
+---
+
 # README Restructure Implementation Plan
 
 ## Overview

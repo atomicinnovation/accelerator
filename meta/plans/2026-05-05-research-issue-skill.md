@@ -1,9 +1,18 @@
 ---
-date: "2026-05-05 16:54:05 CEST"
+date: "2026-05-05T00:00:00+00:00"
 type: plan
-skill: create-plan
-ticket: ""
+producer: create-plan
 status: draft
+id: "2026-05-05-research-issue-skill"
+title: "`research-issue` Skill Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-05T00:00:00+00:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-05-05-debug-issue-skill-design"]
 ---
 
 # `research-issue` Skill Implementation Plan

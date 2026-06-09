@@ -1,9 +1,20 @@
 ---
 date: "2026-05-21T20:30:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "meta/work/0064-canonicalise-work-item-id-and-author-fields.md"
-status: accepted
+status: done
+id: "2026-05-21-0064-canonicalise-work-item-id-and-author-fields"
+title: "Canonicalise `work_item_id` and `author` Frontmatter Field Names — Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-21T20:30:00+01:00"
+last_updated_by: Toby Clemson
+revision: "620bda26c4ff"
+repository: "ticket-management"
+parent: "work-item:0064"
+relates_to: ["work-item:0063", "plan:2026-05-20-0063-rename-work-item-type-to-kind", "codebase-research:2026-05-21-0064-canonicalise-work-item-id-and-author-fields", "work-item:0057", "adr:ADR-0033", "adr:ADR-0023", "work-item:0065", "work-item:0070"]
 ---
 
 # Canonicalise `work_item_id` and `author` Frontmatter Field Names — Implementation Plan

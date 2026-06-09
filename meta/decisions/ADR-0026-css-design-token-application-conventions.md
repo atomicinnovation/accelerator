@@ -1,10 +1,16 @@
 ---
-adr_id: ADR-0026
+id: "ADR-0026"
 date: "2026-05-07T00:00:00+01:00"
 author: Toby Clemson
 status: accepted
 superseded_by: "adr:ADR-0036"
 tags: [visualiser, frontend, css, design-tokens]
+type: adr
+title: "ADR-0026: CSS Design-Token Application Conventions"
+schema_version: 1
+last_updated: "2026-05-07T00:00:00+01:00"
+last_updated_by: Toby Clemson
+relates_to: ["work-item:0033", "plan:2026-05-06-0033-design-token-system"]
 ---
 
 # ADR-0026: CSS Design-Token Application Conventions

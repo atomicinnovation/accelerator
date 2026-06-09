@@ -5,11 +5,11 @@ title: "Kanban Drag-and-Drop with Toast Confirmations Implementation Plan"
 date: "2026-06-06T13:44:13+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: accepted
+status: done
 work_item_id: "work-item:0086"
 parent: "work-item:0086"
 derived_from: ["codebase-research:2026-06-06-0086-kanban-drag-and-drop"]
-relates_to: ["work-item:0040", "work-item:0039"]
+relates_to: ["work-item:0040", "work-item:0039", "work-item:0086", "codebase-research:2026-06-06-0086-kanban-drag-and-drop", "adr:ADR-0024"]
 tags: [design, frontend, kanban, drag-and-drop, dnd-kit, toaster, accessibility]
 revision: "1142b697961a6827cc98770834ed9e1e0ea933b4"
 repository: "build-system"

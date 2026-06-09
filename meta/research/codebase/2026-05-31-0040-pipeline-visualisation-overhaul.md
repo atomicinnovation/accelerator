@@ -1,14 +1,19 @@
 ---
 date: "2026-05-31T23:08:12+01:00"
 author: Toby Clemson
-git_commit: 88b3cab89687dd2ca32bc4e38fb603198e46eb92
-branch: HEAD
+revision: "88b3cab89687dd2ca32bc4e38fb603198e46eb92"
 repository: accelerator
 topic: "Pipeline Visualisation Overhaul (work item 0040) — codebase landing readiness"
 tags: [research, codebase, visualiser, pipeline, lifecycle, kanban, indexer, work-item-0040]
 status: complete
-last_updated: 2026-05-31
+last_updated: "2026-05-31T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-31-0040-pipeline-visualisation-overhaul"
+title: "Research: Pipeline Visualisation Overhaul (0040)"
+schema_version: 1
+relates_to: ["adr:ADR-0025", "adr:ADR-0034", "adr:ADR-0033", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-12-0037-glyph-component", "plan:2026-05-12-0037-glyph-component", "codebase-research:2026-05-14-0038-generic-chip-component", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype", "work-item:0040", "work-item:0044", "work-item:0063", "plan:2026-04-26-meta-visualiser-phase-7-kanban-read-only"]
+derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-14-0038-generic-chip-component", "codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-20-0063-rename-work-item-type-to-kind", "codebase-research:2026-04-17-meta-visualiser-implementation-context"]
 ---
 
 # Research: Pipeline Visualisation Overhaul (0040)

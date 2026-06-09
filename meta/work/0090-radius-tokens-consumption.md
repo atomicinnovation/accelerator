@@ -1,13 +1,18 @@
 ---
-work_item_id: "0090"
+id: "0090"
 title: "Radius Tokens Consumption"
 date: "2026-05-23T00:00:00+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: low
-parent: ""
 tags: [design, frontend, tokens, radius]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-23T00:00:00+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0075"]
+relates_to: ["adr:ADR-0026", "work-item:0041", "work-item:0075", "work-item:0033"]
 ---
 
 # 0090: Radius Tokens Consumption

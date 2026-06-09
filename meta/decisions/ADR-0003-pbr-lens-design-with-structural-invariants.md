@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0003
+id: "ADR-0003"
 date: "2026-03-28T14:16:02+00:00"
 author: Toby Clemson
 status: accepted
 tags: [review-lenses, perspective-based-reading, pbr, lens-design, structural-invariants, boundaries]
+type: adr
+title: "ADR-0003: Perspective-Based Reading (PBR) with Structural Invariants for Lens Design"
+schema_version: 1
+last_updated: "2026-03-28T14:16:02+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["codebase-research:2026-03-15-review-lens-optimal-structure", "plan:2026-03-15-new-review-lenses", "adr:ADR-0002", "adr:ADR-0001"]
 ---
 
 # ADR-0003: Perspective-Based Reading (PBR) with Structural Invariants for Lens Design

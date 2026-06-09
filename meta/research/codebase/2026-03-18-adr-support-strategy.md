@@ -1,14 +1,18 @@
 ---
 date: "2026-03-18T02:43:24+00:00"
 author: Toby Clemson
-git_commit: 2bfac71efe3c5cd83ea1fa3b48b69fa805c4919f
-branch: add-adrs
+revision: "2bfac71efe3c5cd83ea1fa3b48b69fa805c4919f"
 repository: accelerator
 topic: "ADR support strategy - adding architecture decision record skills to the accelerator plugin"
 tags: [ research, adr, architecture-decisions, skills, meta-directory ]
 status: complete
-last_updated: "2026-03-18"
+last_updated: "2026-03-18T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-03-18-adr-support-strategy"
+title: "Research: ADR Support Strategy"
+schema_version: 1
+relates_to: ["adr:ADR-0001", "adr:ADR-0002", "adr:ADR-0003", "adr:ADR-0005"]
 ---
 
 # Research: ADR Support Strategy

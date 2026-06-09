@@ -7,12 +7,12 @@ producer: create-work-item
 status: draft
 kind: story
 priority: medium
-parent: ""
-external_id: ""
 tags: [visualiser, templates, frontend]
 last_updated: "2026-06-02T12:11:27+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+type: work-item
+relates_to: ["work-item:0042", "work-item:0089"]
 ---
 
 # 0096: Templates View Auto-Discovers Available Templates

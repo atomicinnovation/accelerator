@@ -1,16 +1,20 @@
 ---
-date: 2026-05-16T08:44:14+01:00
+date: "2026-05-16T08:44:14+01:00"
 author: Toby Clemson
-git_commit: 60812eb5fda5696e4b71499da7f36545027ae2fb
-branch: HEAD (jj change stlzowrnoslm; main at f5c54374)
+revision: "60812eb5fda5696e4b71499da7f36545027ae2fb"
 repository: accelerator
 topic: "Work item 0041 — supplementary codebase research after work-item rewrite"
 tags: [research, codebase, visualiser, library, page-wrapper, five-route-migration, prs-rename, indexer, library-structure-endpoint]
 status: complete
-last_updated: 2026-05-16
+last_updated: "2026-05-16T00:00:00+00:00"
 last_updated_by: Toby Clemson
-supersedes: ""
 extends: "meta/research/codebase/2026-05-15-0041-library-page-wrapper-and-overview-hub.md"
+type: codebase-research
+id: "2026-05-16-0041-library-page-wrapper-supplementary"
+title: "Research: Work Item 0041 — Supplementary Findings"
+schema_version: 1
+relates_to: ["codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "work-item:0041", "adr:ADR-0024", "adr:ADR-0026"]
+derived_from: ["codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-13-0055-sidebar-activity-feed", "codebase-research:2026-05-14-0038-generic-chip-component"]
 ---
 
 # Research: Work Item 0041 — Supplementary Findings

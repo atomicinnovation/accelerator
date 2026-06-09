@@ -1,14 +1,21 @@
 ---
 date: "2026-05-26T09:20:00Z"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0088-markdown-body-width-harmonisation.md"
+producer: review-work-item
+target: "work-item:0088"
 work_item_id: "0088"
 review_number: 1
 verdict: APPROVE
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 2
 status: complete
+id: "0088-markdown-body-width-harmonisation-review-1"
+title: "0088-markdown-body-width-harmonisation-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-26T09:20:00Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: Markdown Body Width Harmonisation

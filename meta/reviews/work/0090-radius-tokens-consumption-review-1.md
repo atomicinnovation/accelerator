@@ -1,14 +1,21 @@
 ---
 date: "2026-06-02T15:16:16+00:00"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0090-radius-tokens-consumption.md"
+producer: review-work-item
+target: "work-item:0090"
 work_item_id: "0090"
 review_number: 1
 verdict: APPROVE
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 3
 status: complete
+id: "0090-radius-tokens-consumption-review-1"
+title: "0090-radius-tokens-consumption-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-06-02T15:16:16+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: Radius Tokens Consumption

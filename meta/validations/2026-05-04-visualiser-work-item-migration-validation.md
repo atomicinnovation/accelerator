@@ -1,10 +1,17 @@
 ---
 date: "2026-05-04T00:00:00+01:00"
-type: validation
-skill: implement-plan
-target: "meta/plans/2026-05-03-update-visualiser-for-work-item-terminology.md"
+type: plan-validation
+producer: implement-plan
+target: "plan:2026-05-03-update-visualiser-for-work-item-terminology"
 result: pass
 status: complete
+id: "2026-05-04-visualiser-work-item-migration-validation"
+title: "Validation: Visualiser Work-Item Terminology Migration"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-04T00:00:00+01:00"
+last_updated_by: Toby Clemson
 ---
 
 # Validation: Visualiser Work-Item Terminology Migration

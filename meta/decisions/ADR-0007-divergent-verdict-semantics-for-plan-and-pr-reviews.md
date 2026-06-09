@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0007
+id: "ADR-0007"
 date: "2026-03-29T21:09:03+00:00"
 author: Toby Clemson
 status: accepted
 tags: [review-system, verdicts, plan-review, pr-review, thresholds]
+type: adr
+title: "ADR-0007: Divergent Verdict Semantics for Plan and PR Reviews"
+schema_version: 1
+last_updated: "2026-03-29T21:09:03+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["plan:2026-02-22-review-plan-alignment", "codebase-research:2026-02-22-review-plan-pr-alignment", "adr:ADR-0002", "adr:ADR-0006"]
 ---
 
 # ADR-0007: Divergent Verdict Semantics for Plan and PR Reviews

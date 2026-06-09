@@ -1,9 +1,19 @@
 ---
 date: "2026-05-12T20:28:19+00:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "0053"
 status: draft
+id: "2026-05-12-0053-sidebar-nav-and-unseen-tracker"
+title: "Sidebar Nav with Per-Type Change Indicators — Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-12T20:28:19+00:00"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+relates_to: ["work-item:0053", "codebase-research:2026-05-12-0053-sidebar-nav-and-unseen-tracker", "work-item:0036", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
 ---
 
 # Sidebar Nav with Per-Type Change Indicators — Implementation Plan

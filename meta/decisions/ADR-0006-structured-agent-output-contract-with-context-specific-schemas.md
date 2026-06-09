@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0006
+id: "ADR-0006"
 date: "2026-03-29T13:34:55+00:00"
 author: Toby Clemson
 status: accepted
 tags: [review-system, agent-output, json-schema, structured-output, orchestration]
+type: adr
+title: "ADR-0006: Structured Agent Output Contract with Context-Specific Schemas"
+schema_version: 1
+last_updated: "2026-03-29T13:34:55+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["codebase-research:2026-02-22-pr-review-inline-comments", "codebase-research:2026-02-22-review-plan-pr-alignment", "plan:2026-02-22-review-plan-alignment", "adr:ADR-0002", "adr:ADR-0005"]
 ---
 
 # ADR-0006: Structured Agent Output Contract with Context-Specific Schemas

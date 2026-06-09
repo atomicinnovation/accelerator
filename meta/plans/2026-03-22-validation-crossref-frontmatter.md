@@ -1,3 +1,18 @@
+---
+type: plan
+id: "2026-03-22-validation-crossref-frontmatter"
+title: "Validation Artifacts, Cross-Referencing, and Frontmatter Implementation Plan"
+date: "2026-03-22T00:00:00+00:00"
+author: Toby Clemson
+tags: []
+revision: "cca787aeed49"
+repository: "ticket-management"
+last_updated: "2026-03-22T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["codebase-research:2026-03-18-meta-management-strategy", "plan:2026-03-22-persist-review-artifacts"]
+---
+
 # Validation Artifacts, Cross-Referencing, and Frontmatter Implementation Plan
 
 ## Overview

@@ -1,13 +1,18 @@
 ---
-work_item_id: "0042"
+id: "0042"
 title: "Templates View Redesign"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: low
-parent: ""
 tags: [design, frontend, templates, backend]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-06T14:04:04+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0033", "work-item:0037"]
+source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
 ---
 
 # 0042: Templates View Redesign

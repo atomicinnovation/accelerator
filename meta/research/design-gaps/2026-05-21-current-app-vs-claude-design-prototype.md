@@ -6,6 +6,12 @@ target_inventory: "/Users/tobyclemson/Code/organisations/atomic/company/accelera
 author: "Toby Clemson"
 status: draft
 tags: [design, gap-analysis]
+id: "2026-05-21-current-app-vs-claude-design-prototype"
+title: "Design Gap Analysis: current-app → claude-design-prototype"
+schema_version: 1
+last_updated: "2026-05-21T03:53:43+01:00"
+last_updated_by: "Toby Clemson"
+relates_to: ["design-inventory:2026-05-21-004250-current-app", "design-inventory:2026-05-21-015231-claude-design-prototype", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
 ---
 
 # Design Gap Analysis: current-app → claude-design-prototype

@@ -6,7 +6,6 @@ date: "2026-06-04T13:51:06+00:00"
 author: "Toby Clemson"
 producer: research-codebase
 status: complete
-work_item_id: ""
 topic: "Resolving migration failures encountered by a consumer upgrading the Accelerator plugin"
 tags: [research, codebase, migrate, run-migrations, bash-compatibility, clean-tree-preflight]
 revision: "4730e9347dcaee854d9561c2c0f8e53465b7ad12"
@@ -14,6 +13,7 @@ repository: "accelerator"
 last_updated: "2026-06-04T13:51:06+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+relates_to: ["adr:ADR-0023", "adr:ADR-0016", "adr:ADR-0037"]
 ---
 
 # Research: Migration framework failures on consumer upgrade

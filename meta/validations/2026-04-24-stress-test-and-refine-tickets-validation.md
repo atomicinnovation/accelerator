@@ -1,10 +1,17 @@
 ---
 date: "2026-04-25T00:00:00+01:00"
 type: plan-validation
-skill: validate-plan
-target: "meta/plans/2026-04-24-stress-test-and-refine-tickets.md"
+producer: validate-plan
+target: "plan:2026-04-24-stress-test-and-refine-tickets"
 result: pass
 status: complete
+id: "2026-04-24-stress-test-and-refine-tickets-validation"
+title: "2026-04-24-stress-test-and-refine-tickets-validation"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-25T00:00:00+01:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Validation Report: Stress-Test and Refine Tickets — Phase 6

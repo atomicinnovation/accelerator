@@ -1,9 +1,18 @@
 ---
 date: "2026-04-28T14:37:15Z"
 type: plan
-skill: create-plan
-ticket: ""
+producer: create-plan
 status: ready
+id: "2026-04-28-configurable-work-item-id-pattern"
+title: "Configurable Work-Item ID Pattern Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-28T14:37:15Z"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-28-configurable-work-item-id-pattern", "codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-03-22-skill-customisation-and-override-patterns", "adr:ADR-0023", "adr:ADR-0017", "adr:ADR-0022"]
 ---
 
 # Configurable Work-Item ID Pattern Implementation Plan

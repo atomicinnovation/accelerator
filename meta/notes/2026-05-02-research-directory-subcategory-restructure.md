@@ -1,3 +1,21 @@
+---
+type: note
+id: "2026-05-02-research-directory-subcategory-restructure"
+title: "Future Work: Restructure `meta/research/codebase/` into subcategories"
+date: "2026-05-02T00:00:00+00:00"
+author: Toby Clemson
+producer: create-note
+status: captured
+topic: "Future Work: Restructure `meta/research/codebase/` into subcategories"
+tags: []
+revision: "cca787aeed49"
+repository: "ticket-management"
+last_updated: "2026-05-02T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["codebase-research:2026-05-02-design-convergence-workflow", "note:2026-04-26-agents-hardcode-default-directory-locations"]
+---
+
 # Future Work: Restructure `meta/research/codebase/` into subcategories
 
 ## Problem

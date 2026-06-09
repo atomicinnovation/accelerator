@@ -1,14 +1,18 @@
 ---
-date: 2026-05-08T21:53:59+01:00
+date: "2026-05-08T21:53:59+01:00"
 author: Toby Clemson
-git_commit: bfd6098c7c35911633de3ecd790632bcf5ce0c96
-branch: HEAD
+revision: "bfd6098c7c35911633de3ecd790632bcf5ce0c96"
 repository: accelerator
 topic: "Implementation research for 0052: Make documents-locator Agent Paths Config-Driven via Preloaded Skill"
 tags: [research, codebase, config, agents, documents-locator, paths, harness]
 status: complete
-last_updated: 2026-05-08
+last_updated: "2026-05-08T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-08-0052-documents-locator-config-driven-paths"
+title: "Research: Implementation of 0052 — documents-locator Config-Driven Paths"
+schema_version: 1
+relates_to: ["note:2026-04-26-agents-hardcode-default-directory-locations", "codebase-research:2026-02-22-skills-agents-commands-refactoring", "work-item:0030"]
 ---
 
 # Research: Implementation of 0052 — documents-locator Config-Driven Paths

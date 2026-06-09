@@ -1,13 +1,17 @@
 ---
-work_item_id: "0072"
+id: "0072"
 title: "Playwright daemon imports CJS entry, hiding chromium named export"
 date: "2026-05-18T17:56:43+00:00"
 author: Toby Clemson
 kind: bug
 status: done
 priority: high
-parent: ""
 tags: [bug, inventory-design, playwright, daemon, esm, security]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-18T17:56:43+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["codebase-research:2026-05-18-0072-playwright-daemon-cjs-import-bug", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues", "plan:2026-05-06-design-skill-localhost-and-mcp-issues"]
 ---
 
 # 0072: Playwright daemon imports CJS entry, hiding chromium named export

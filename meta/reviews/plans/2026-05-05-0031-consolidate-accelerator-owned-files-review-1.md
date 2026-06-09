@@ -1,13 +1,20 @@
 ---
 date: "2026-05-05T08:15:00+00:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-05-0031-consolidate-accelerator-owned-files.md"
+producer: review-plan
+target: "plan:2026-05-05-0031-consolidate-accelerator-owned-files"
 review_number: 1
 verdict: REVISE
 lenses: [architecture, code-quality, test-coverage, correctness, safety, compatibility, documentation]
 review_pass: 2
 status: complete
+id: "2026-05-05-0031-consolidate-accelerator-owned-files-review-1"
+title: "2026-05-05-0031-consolidate-accelerator-owned-files-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-05T08:15:00+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: 0031 Consolidate Accelerator-Owned Files Under `.accelerator/`

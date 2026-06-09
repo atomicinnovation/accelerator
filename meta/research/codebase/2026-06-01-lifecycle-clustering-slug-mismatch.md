@@ -1,14 +1,20 @@
 ---
 date: "2026-06-01T22:18:41+01:00"
 author: "Toby Clemson"
-git_commit: 53e5936ccef94b353d2aec867e95314f77cb564a
-branch: main
+revision: "53e5936ccef94b353d2aec867e95314f77cb564a"
 repository: accelerator
 topic: "Lifecycle clustering breaks because work-item slugs and plan/research/review slugs use different shapes; validations/PR-descriptions/PR-reviews never join a cluster"
 tags: [research, codebase, visualiser, clusters, slug, work-item-id, typed-linkage]
 status: complete
-last_updated: 2026-06-01
+last_updated: "2026-06-01T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
+type: codebase-research
+id: "2026-06-01-lifecycle-clustering-slug-mismatch"
+title: "Research: lifecycle clustering breaks because slugs don't agree across doc types"
+schema_version: 1
+relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0025", "adr:ADR-0028", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "work-item:0057", "work-item:0040"]
+supersedes: ["adr:ADR-0034", "adr:ADR-0033"]
+derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-21-0064-canonicalise-work-item-id-and-author-fields", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "adr:ADR-0033", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul"]
 ---
 
 # Research: lifecycle clustering breaks because slugs don't agree across doc types

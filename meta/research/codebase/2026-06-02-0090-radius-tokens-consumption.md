@@ -14,6 +14,8 @@ repository: "visualisation-system"
 last_updated: "2026-06-02T15:45:49+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+relates_to: ["work-item:0075", "plan:2026-05-23-0075-typography-size-scale-consumption", "work-item:0033", "adr:ADR-0036", "adr:ADR-0026"]
+derived_from: ["codebase-research:2026-05-23-0075-typography-size-scale-consumption"]
 ---
 
 # Research: Radius Tokens Consumption (0090)

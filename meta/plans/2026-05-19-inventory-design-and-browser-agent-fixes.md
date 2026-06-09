@@ -1,9 +1,18 @@
 ---
 date: "2026-05-19T08:36:10Z"
 type: plan
-skill: create-plan
-work_item_id: ""
-status: approved
+producer: create-plan
+status: ready
+id: "2026-05-19-inventory-design-and-browser-agent-fixes"
+title: "Inventory-Design and Browser-Agent Fixes Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-19T08:36:10Z"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-05-19-inventory-design-and-browser-agent-fixes", "note:2026-05-19-browser-agents-self-discover-playwright-executor", "note:2026-05-19-browser-locator-cannot-enumerate-routes", "note:2026-05-19-config-read-path-missing-design-keys", "note:2026-05-19-playwright-daemon-owner-pid-ephemeral-shell", "work-item:0052"]
 ---
 
 # Inventory-Design and Browser-Agent Fixes Implementation Plan

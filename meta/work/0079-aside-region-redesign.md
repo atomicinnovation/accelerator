@@ -7,12 +7,13 @@ producer: extract-work-items
 status: done
 kind: story
 priority: medium
-parent: ""
-external_id: ""
 tags: [design, frontend, detail-page, aside]
 last_updated: "2026-06-05T21:38:10+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+type: work-item
+source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
+relates_to: ["work-item:0043"]
 ---
 
 # 0079: Detail-Page Aside Region Redesign

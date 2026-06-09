@@ -1,14 +1,18 @@
 ---
-date: "2026-03-22T21:09:57+0000"
+date: "2026-03-22T21:09:57+00:00"
 author: Toby Clemson
-git_commit: 662188f6f566501718337baf446305a48783f69c
-branch: main
+revision: "662188f6f566501718337baf446305a48783f69c"
 repository: accelerator
 topic: "Skill customisation and override patterns for Claude Code plugins"
 tags: [ research, plugin, skills, customisation, overrides, configuration, agents ]
 status: complete
-last_updated: "2026-03-22"
+last_updated: "2026-03-22T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-03-22-skill-customisation-and-override-patterns"
+title: "Research: Skill Customisation and Override Patterns for Claude Code Plugins"
+schema_version: 1
+derived_from: ["codebase-research:2026-03-14-plugin-extraction"]
 ---
 
 # Research: Skill Customisation and Override Patterns for Claude Code Plugins

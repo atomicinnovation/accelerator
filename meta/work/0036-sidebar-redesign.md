@@ -1,13 +1,18 @@
 ---
-work_item_id: "0036"
+id: "0036"
 title: "Sidebar Redesign"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 kind: epic
 status: done
 priority: high
-parent: ""
 tags: [ design, frontend, chrome, navigation ]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-06T14:04:04+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0033", "work-item:0037"]
+relates_to: ["design-gap:2026-05-06-current-app-vs-claude-design-prototype", "work-item:0036"]
 ---
 
 # 0036: Sidebar Redesign

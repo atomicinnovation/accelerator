@@ -1,13 +1,19 @@
 ---
-work_item_id: "0082"
+id: "0082"
 title: "BigGlyph Hero Illustration Set"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
 status: draft
 priority: medium
-parent: ""
 tags: [design, frontend, components, illustrations]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-21T09:16:34+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0073", "work-item:0074"]
+source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
+relates_to: ["work-item:0041"]
 ---
 
 # 0082: BigGlyph Hero Illustration Set

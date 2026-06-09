@@ -1,14 +1,21 @@
 ---
 date: "2026-05-26T10:45:00Z"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0062-adr-corpus-migration-strategy.md"
+producer: review-work-item
+target: "work-item:0062"
 work_item_id: "0062"
 review_number: 1
 verdict: APPROVE
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 5
 status: complete
+id: "0062-adr-corpus-migration-strategy-review-1"
+title: "0062-adr-corpus-migration-strategy-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-26T10:45:00Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: 0062 — ADR: Interactive Validation for Corpus Migration

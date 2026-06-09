@@ -1,14 +1,19 @@
 ---
 date: "2026-05-03T14:44:01+01:00"
 author: Toby Clemson
-git_commit: 4c47a7a65115d4991f1b8886036d864593973a61
-branch: visualisation-system (jj workspace, change pwzplnxyxyok)
+revision: "4c47a7a65115d4991f1b8886036d864593973a61"
 repository: accelerator
 topic: "Updating the visualiser to support work-item terminology and the new work-management approach"
 tags: [research, visualiser, work-item, ticket, migration, terminology, kanban, wiki-links, configurable-id-pattern]
 status: complete
-last_updated: "2026-05-03"
+last_updated: "2026-05-03T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-03-update-visualiser-for-work-item-terminology"
+title: "Research: Updating the visualiser to support work-item terminology"
+schema_version: 1
+relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-04-26-remaining-ticket-references-post-migration", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "adr:ADR-0022", "adr:ADR-0023", "plan:2026-04-30-meta-visualiser-phase-12-packaging-docs-and-release"]
+derived_from: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-04-26-remaining-ticket-references-post-migration", "codebase-research:2026-04-28-configurable-work-item-id-pattern"]
 ---
 
 # Research: Updating the visualiser to support work-item terminology

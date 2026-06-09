@@ -1,14 +1,17 @@
 ---
 date: "2026-03-18T02:46:16+00:00"
 author: Toby Clemson (via Claude)
-git_commit: 2bfac71efe3c5cd83ea1fa3b48b69fa805c4919f
-branch: improve-meta
+revision: "2bfac71efe3c5cd83ea1fa3b48b69fa805c4919f"
 repository: accelerator
 topic: "Meta directory management strategy: preserving review artifacts and improving consistency"
 tags: [ research, meta, review-pr, review-plan, skills, architecture ]
 status: complete
-last_updated: "2026-03-18"
+last_updated: "2026-03-18T00:00:00+00:00"
 last_updated_by: Toby Clemson (via Claude)
+type: codebase-research
+id: "2026-03-18-meta-management-strategy"
+title: "Research: Meta Directory Management Strategy"
+schema_version: 1
 ---
 
 # Research: Meta Directory Management Strategy

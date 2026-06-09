@@ -1,14 +1,19 @@
 ---
-date: 2026-05-18T21:28:41+01:00
+date: "2026-05-18T21:28:41+01:00"
 author: Toby Clemson
-git_commit: ee201256c147a4f4e8b8f7427f9292fd79925767
-branch: HEAD
+revision: "ee201256c147a4f4e8b8f7427f9292fd79925767"
 repository: accelerator
 topic: "Fix scope, blast radius, test strategy, and fix-path candidates for `pr-base-repo.sh` `--json baseRepository` defect on `gh 2.65.0` (work item 0071)"
 tags: [research, codebase, github, describe-pr, review-pr, respond-to-pr, gh-cli-compat, pr-base-repo, testing]
 status: complete
-last_updated: 2026-05-18
+last_updated: "2026-05-18T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-18-0071-describe-pr-base-repo-resolver-unsupported-gh-field"
+title: "Research: `pr-base-repo.sh` `--json baseRepository` Defect on `gh 2.65.0` — Fix Scope and Test Strategy"
+schema_version: 1
+relates_to: ["work-item:0059", "codebase-research:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "plan:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "work-item:0071", "adr:ADR-0010", "adr:ADR-0008", "plan:2026-04-07-fix-tmp-directory-usage-in-pr-skills"]
+derived_from: ["codebase-research:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "codebase-research:2026-04-07-pr-review-tmp-directory-usage", "codebase-research:2026-02-23-respond-to-pr-feedback-skill", "codebase-research:2026-02-22-pr-review-agents-design", "codebase-research:2026-02-22-pr-review-inline-comments"]
 ---
 
 # Research: `pr-base-repo.sh` `--json baseRepository` Defect on `gh 2.65.0` — Fix Scope and Test Strategy

@@ -1,9 +1,19 @@
 ---
 date: "2026-05-08T09:02:26Z"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "0030"
 status: draft
+id: "2026-05-08-0030-centralise-path-defaults"
+title: "Centralise PATH and TEMPLATE Config Arrays Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-08T09:02:26Z"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+relates_to: ["work-item:0030", "codebase-research:2026-05-08-0030-centralise-path-defaults-implementation", "adr:ADR-0023", "plan:2026-04-25-rename-tickets-to-work-items", "work-item:0052"]
 ---
 
 # Centralise PATH and TEMPLATE Config Arrays Implementation Plan

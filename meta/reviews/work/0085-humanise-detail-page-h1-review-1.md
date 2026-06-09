@@ -1,14 +1,21 @@
 ---
 date: "2026-05-31T21:18:21Z"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0085-humanise-detail-page-h1.md"
+producer: review-work-item
+target: "work-item:0085"
 work_item_id: "0085"
 review_number: 1
 verdict: APPROVE
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 3
 status: complete
+id: "0085-humanise-detail-page-h1-review-1"
+title: "0085-humanise-detail-page-h1-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-31T21:18:21Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: Humanise Detail-Page H1 Across All Doc Kinds

@@ -5,7 +5,7 @@ title: "Create create-note Skill Implementation Plan"
 date: "2026-06-06T10:39:57+00:00"
 author: Toby Clemson
 producer: create-plan
-status: complete
+status: done
 work_item_id: "work-item:0067"
 parent: "work-item:0067"
 derived_from: ["codebase-research:2026-06-06-0067-create-note-skill"]
@@ -15,6 +15,7 @@ repository: "ticket-management"
 last_updated: "2026-06-06T12:35:19+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+relates_to: ["work-item:0067", "codebase-research:2026-06-06-0067-create-note-skill", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0040"]
 ---
 
 # Create create-note Skill Implementation Plan

@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0013
+id: "ADR-0013"
 date: "2026-04-17T13:48:51+00:00"
 author: Toby Clemson
 status: accepted
 tags: [review-system, lenses, safety, iso-25010]
+type: adr
+title: "ADR-0013: Standalone Safety Lens"
+schema_version: 1
+last_updated: "2026-04-17T13:48:51+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["adr:ADR-0011", "codebase-research:2026-02-22-review-lens-gap-analysis", "plan:2026-03-15-new-review-lenses", "adr:ADR-0002", "adr:ADR-0003", "adr:ADR-0004", "adr:ADR-0005", "adr:ADR-0012"]
 ---
 
 # ADR-0013: Standalone Safety Lens

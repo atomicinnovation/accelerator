@@ -8,7 +8,6 @@ producer: review-plan
 status: complete
 parent: "work-item:0101"
 target: "plan:2026-06-06-0101-unified-dev-task-for-visualiser"
-relates_to: []
 reviewer: Toby Clemson
 verdict: APPROVE
 lenses: [architecture, correctness, test-coverage, code-quality, safety, portability, usability]

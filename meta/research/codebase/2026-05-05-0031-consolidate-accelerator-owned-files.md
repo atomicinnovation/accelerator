@@ -1,15 +1,20 @@
 ---
-date: 2026-05-05T00:46:40+01:00
+date: "2026-05-05T00:46:40+01:00"
 author: Toby Clemson
-git_commit: 3e96e9c5e616a93f42a7b1496c8c6e0b72092b9b
-branch: HEAD (work item drafting)
+revision: "3e96e9c5e616a93f42a7b1496c8c6e0b72092b9b"
 repository: accelerator
 topic: "Consolidating Accelerator-owned files under .accelerator/ (work item 0031)"
 tags: [research, codebase, configuration, migration, init, init-jira, visualiser, paths, integrations]
 status: complete
-last_updated: 2026-05-05
+last_updated: "2026-05-05T00:00:00+00:00"
 last_updated_by: Toby Clemson
 last_updated_note: "Resolved all seven open questions via Q1-Q7 review."
+type: codebase-research
+id: "2026-05-05-0031-consolidate-accelerator-owned-files"
+title: "Research: Consolidating Accelerator-Owned Files Under `.accelerator/` (Work Item 0031)"
+schema_version: 1
+relates_to: ["adr:ADR-0016", "adr:ADR-0017", "adr:ADR-0019", "adr:ADR-0020", "adr:ADR-0023", "note:2026-04-29-accelerator-config-state-reorg", "codebase-research:2026-04-29-jira-cloud-integration-skills", "adr:ADR-0018"]
+derived_from: ["codebase-research:2026-04-29-jira-cloud-integration-skills", "note:2026-04-29-accelerator-config-state-reorg"]
 ---
 
 # Research: Consolidating Accelerator-Owned Files Under `.accelerator/` (Work Item 0031)

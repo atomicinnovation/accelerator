@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0020
+id: "ADR-0020"
 date: "2026-04-18T14:24:07+01:00"
 author: Toby Clemson
 status: accepted
 tags: [configuration, plugin, skills, bash, preprocessor, customisation]
+type: adr
+title: "ADR-0020: Per-Skill Customisation Directory"
+schema_version: 1
+last_updated: "2026-04-18T14:24:07+01:00"
+last_updated_by: Toby Clemson
+relates_to: ["adr:ADR-0016", "adr:ADR-0017", "plan:2026-03-28-per-skill-userspace-customisation", "codebase-research:2026-03-22-skill-customisation-and-override-patterns", "codebase-research:2026-03-27-skill-customisation-implementation-status"]
 ---
 
 # ADR-0020: Per-Skill Customisation Directory

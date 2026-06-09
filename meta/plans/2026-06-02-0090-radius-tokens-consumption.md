@@ -5,9 +5,8 @@ title: "Radius Tokens Consumption Implementation Plan"
 date: "2026-06-02T16:02:57+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: complete
+status: done
 work_item_id: "0090"
-parent: ""
 reviewer: "Toby Clemson"
 tags: [design, frontend, tokens, radius]
 revision: "947ee021d2441d539e6bbee77227bc4dd21fc3ed"
@@ -15,6 +14,7 @@ repository: "visualisation-system"
 last_updated: "2026-06-03T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+relates_to: ["work-item:0090", "codebase-research:2026-06-02-0090-radius-tokens-consumption", "plan:2026-05-23-0075-typography-size-scale-consumption", "work-item:0033", "adr:ADR-0036", "adr:ADR-0026", "adr:ADR-0031"]
 ---
 
 # Radius Tokens Consumption Implementation Plan

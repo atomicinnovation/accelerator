@@ -1,15 +1,19 @@
 ---
-date: 2026-05-02T23:37:50+01:00
+date: "2026-05-02T23:37:50+01:00"
 author: Toby Clemson
-git_commit: ae21ddf823b5777728ae649e038feab98d88d5ae
-branch: main
+revision: "ae21ddf823b5777728ae649e038feab98d88d5ae"
 repository: accelerator
 topic: "Design convergence workflow: inventory-and-diff approach for aligning a current frontend with a Claude Design prototype"
 tags: [research, design, convergence, frontend, inventory, agents, skills, mcp, playwright]
 status: complete
-last_updated: 2026-05-03
+last_updated: "2026-05-03T00:00:00+00:00"
 last_updated_by: Toby Clemson
 last_updated_note: "Revised inventory storage to directory-per-inventory so screenshots are dated alongside the markdown they belong to (§3.1, §5.1, §5.2, §8, §9.9)."
+type: codebase-research
+id: "2026-05-02-design-convergence-workflow"
+title: "Research: Design Convergence Workflow — Inventory-and-Diff Approach"
+schema_version: 1
+relates_to: ["adr:ADR-0001"]
 ---
 
 # Research: Design Convergence Workflow — Inventory-and-Diff Approach

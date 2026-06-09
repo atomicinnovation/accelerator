@@ -1,8 +1,18 @@
 ---
 date: "2026-04-22T00:00:00+01:00"
 type: plan
-skill: create-plan
-status: complete
+producer: create-plan
+status: done
+id: "2026-04-22-meta-visualiser-phase-5-frontend-scaffold-and-library-view"
+title: "Meta visualiser Phase 5 — Frontend scaffold and library view"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-22T00:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "plan:2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher"]
 ---
 
 # Meta visualiser Phase 5 — Frontend scaffold and library view

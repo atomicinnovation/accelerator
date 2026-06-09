@@ -1,3 +1,18 @@
+---
+type: plan
+id: "2026-03-23-template-and-path-customisation"
+title: "Template & Path Customisation Implementation Plan"
+date: "2026-03-23T00:00:00+00:00"
+author: Toby Clemson
+tags: []
+revision: "cca787aeed49"
+repository: "ticket-management"
+last_updated: "2026-03-23T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["plan:2026-03-23-config-infrastructure", "codebase-research:2026-03-22-skill-customisation-and-override-patterns"]
+---
+
 # Template & Path Customisation Implementation Plan
 
 ## Overview

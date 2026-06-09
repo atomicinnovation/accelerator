@@ -1,14 +1,19 @@
 ---
-date: 2026-05-08T17:30:00+01:00
+date: "2026-05-08T17:30:00+01:00"
 author: Toby Clemson
-git_commit: ee509027f295c920a2e6ac97327cf182aa87a69e
-branch: visualisation-system (jj workspace; no bookmark on @-)
+revision: "ee509027f295c920a2e6ac97327cf182aa87a69e"
 repository: accelerator
 topic: "Implementation of work item 0034 — Theme and Font-Mode Toggles"
 tags: [research, codebase, visualiser, theming, fonts, tokens, topbar, work-item-0034]
 status: complete
-last_updated: 2026-05-08
+last_updated: "2026-05-08T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-08-0034-theme-and-font-mode-toggles"
+title: "Research: Implementation of work item 0034 — Theme and Font-Mode Toggles"
+schema_version: 1
+relates_to: ["adr:ADR-0026", "codebase-research:2026-05-06-0033-design-token-system", "plan:2026-05-06-0033-design-token-system", "codebase-research:2026-05-07-0035-topbar-component", "plan:2026-05-08-0035-topbar-component"]
+derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-07-0035-topbar-component", "codebase-research:2026-05-02-design-convergence-workflow", "codebase-research:2026-04-17-meta-visualiser-implementation-context"]
 ---
 
 # Research: Implementation of work item 0034 — Theme and Font-Mode Toggles

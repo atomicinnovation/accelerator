@@ -1,13 +1,20 @@
 ---
 date: "2026-06-04T12:38:29+00:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-06-02-0093-extend-templates-with-typed-linkage-slots.md"
+producer: review-plan
+target: "plan:2026-06-02-0093-extend-templates-with-typed-linkage-slots"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, code-quality, correctness, test-coverage, documentation, standards, usability, portability]
 review_pass: 3
 status: complete
+id: "2026-06-02-0093-extend-templates-with-typed-linkage-slots-review-1"
+title: "2026-06-02-0093-extend-templates-with-typed-linkage-slots-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-06-04T12:38:29+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Extend Templates With Typed-Linkage Slots

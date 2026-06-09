@@ -8,7 +8,7 @@ producer: research-codebase
 status: complete
 work_item_id: "0086"
 parent: "work-item:0086"
-relates_to: ["codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-05-27-0039-toaster-and-external-edit-notifications"]
+relates_to: ["codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-05-27-0039-toaster-and-external-edit-notifications", "adr:ADR-0024", "plan:2026-04-26-meta-visualiser-phase-8-kanban-write-path", "plan:2026-04-26-meta-visualiser-phase-7-kanban-read-only", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:0044"]
 topic: "Kanban Drag-and-Drop with Toast Confirmations"
 tags: [research, codebase, kanban, drag-and-drop, dnd-kit, toaster, accessibility, frontend]
 revision: "a3fa7a527033f198a9239b2c6c23a9550ba7f269"
@@ -16,6 +16,7 @@ repository: "build-system"
 last_updated: "2026-06-06T13:06:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+derived_from: ["codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-05-27-0039-toaster-and-external-edit-notifications", "codebase-research:2026-04-17-meta-visualiser-implementation-context", "work-item:0086"]
 ---
 
 # Research: Kanban Drag-and-Drop with Toast Confirmations (work item 0086)

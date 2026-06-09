@@ -1,13 +1,20 @@
 ---
 date: "2026-04-21T16:40:54Z"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-04-21-list-and-update-tickets.md"
+producer: review-plan
+target: "plan:2026-04-21-list-and-update-tickets"
 review_number: 2
 verdict: COMMENT
 lenses: [ architecture, code-quality, test-coverage, correctness, standards, usability, compatibility, safety ]
 review_pass: 2
 status: complete
+id: "2026-04-21-list-and-update-tickets-review-2"
+title: "2026-04-21-list-and-update-tickets-review-2"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-21T16:40:54Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Ticket Listing and Updating Skills (Phase 3)

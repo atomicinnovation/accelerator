@@ -8,7 +8,7 @@ producer: research-codebase
 status: complete
 work_item_id: "0070"
 parent: "work-item:0070"
-relates_to: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
+relates_to: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "adr:ADR-0033", "adr:ADR-0037", "adr:ADR-0038"]
 topic: "Implementing the meta/ corpus unified-schema migration (story 0070)"
 tags: [research, codebase, migration, frontmatter, schema, interactive, visualiser, linkage]
 revision: "ae318e09c04bb2d7f7b78f4031f73696212e1062"
@@ -16,6 +16,7 @@ repository: "ticket-management"
 last_updated: "2026-06-07T08:36:10+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
 ---
 
 # Research: Implementing the meta/ corpus unified-schema migration (story 0070)

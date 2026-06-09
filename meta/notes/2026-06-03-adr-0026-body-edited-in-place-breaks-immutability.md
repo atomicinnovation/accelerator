@@ -1,3 +1,21 @@
+---
+type: note
+id: "2026-06-03-adr-0026-body-edited-in-place-breaks-immutability"
+title: "ADR-0026 body was edited in place, against ADR-0031 immutability"
+date: "2026-06-03T00:00:00+00:00"
+author: Toby Clemson
+producer: create-note
+status: captured
+topic: "ADR-0026 body was edited in place, against ADR-0031 immutability"
+tags: []
+revision: "7c64d7296228"
+repository: "ticket-management"
+last_updated: "2026-06-03T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["adr:ADR-0026", "adr:ADR-0031", "adr:ADR-0034", "plan:2026-06-02-0090-radius-tokens-consumption"]
+---
+
 # ADR-0026 body was edited in place, against ADR-0031 immutability
 
 ## Problem

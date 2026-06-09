@@ -1,15 +1,19 @@
 ---
 date: "2026-04-26T19:01:48+01:00"
 author: Toby Clemson
-git_commit: f03a7dfe
-branch: ticket-management
+revision: "f03a7dfe"
 repository: accelerator
 topic: "Remaining 'ticket' references after rename migration"
 tags: [ research, migration, ticket, work-item, terminology, cleanup ]
 status: complete
-last_updated: "2026-04-26"
+last_updated: "2026-04-26T00:00:00+00:00"
 last_updated_by: Toby Clemson
 last_updated_note: "Added follow-up research for agents/ directory"
+type: codebase-research
+id: "2026-04-26-remaining-ticket-references-post-migration"
+title: "Research: Remaining 'ticket' References After Rename Migration"
+schema_version: 1
+relates_to: ["plan:2026-04-25-rename-tickets-to-work-items", "adr:ADR-0022", "adr:ADR-0023"]
 ---
 
 # Research: Remaining 'ticket' References After Rename Migration

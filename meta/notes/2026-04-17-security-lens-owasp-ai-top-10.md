@@ -1,9 +1,21 @@
----                                                                                          
-date: "2026-04-17"                                                            
-author: Toby Clemson                                                            
-tags: [review-lenses, security-lens, owasp, ai-governance]                 
-status: draft                                                                 
----                                                                             
+---
+type: note
+id: "2026-04-17-security-lens-owasp-ai-top-10"
+title: "Security Lens Should Cover OWASP AI Top 10                                  "
+date: "2026-04-17T00:00:00+00:00"
+author: Toby Clemson
+producer: create-note
+status: captured
+topic: "Security Lens Should Cover OWASP AI Top 10                                  "
+tags: []
+revision: "cca787aeed49"
+repository: "ticket-management"
+last_updated: "2026-04-17T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["codebase-research:2026-02-22-review-lens-gap-analysis"]
+---
+
                                                                             
 # Security Lens Should Cover OWASP AI Top 10                                  
                                                                                 

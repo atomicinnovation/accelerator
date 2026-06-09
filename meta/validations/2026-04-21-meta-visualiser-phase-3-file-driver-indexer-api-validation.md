@@ -1,10 +1,17 @@
 ---
 date: "2026-04-22T00:00:00+01:00"
 type: plan-validation
-skill: validate-plan
-target: "meta/plans/2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api.md"
+producer: validate-plan
+target: "plan:2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api"
 result: pass
 status: complete
+id: "2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api-validation"
+title: "2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api-validation"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-22T00:00:00+01:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Validation Report: Meta Visualiser — Phase 3: FileDriver, Indexer, and read-only API

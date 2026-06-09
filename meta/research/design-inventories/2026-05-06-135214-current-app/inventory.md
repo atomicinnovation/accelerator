@@ -4,8 +4,7 @@ type: design-inventory
 source: "current-app"
 source_kind: "running-app"
 source_location: "http://127.0.0.1:51771/"
-git_commit: "94a0ed6be593686b773b1b2e617dcc311a2673dc"
-branch: "main"
+revision: "94a0ed6be593686b773b1b2e617dcc311a2673dc"
 crawler: "hybrid"
 author: "Toby Clemson"
 status: superseded
@@ -14,6 +13,11 @@ screenshots_incomplete: false
 tags: [design, inventory, "current-app"]
 last_updated: "2026-05-06T13:52:14+01:00"
 last_updated_by: "Toby Clemson"
+id: "2026-05-06-135214-current-app"
+title: "Design Inventory: current-app"
+schema_version: 1
+repository: "ticket-management"
+relates_to: ["adr:ADR-0024", "adr:ADR-0016"]
 ---
 
 # Design Inventory: current-app

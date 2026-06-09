@@ -1,14 +1,18 @@
 ---
 date: "2026-03-16T12:24:27+00:00"
 author: Toby Clemson
-git_commit: 4a96a19d86bd224b45d7e97f39bbd2079141eb80
-branch: main
+revision: "4a96a19d86bd224b45d7e97f39bbd2079141eb80"
 repository: accelerator
 topic: "Jujutsu integration, VCS auto-detection, and git/github skill restructuring"
 tags: [ research, jujutsu, git, github, hooks, vcs, auto-detection, skills ]
 status: complete
-last_updated: "2026-03-16"
+last_updated: "2026-03-16T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-03-16-jujutsu-integration-and-vcs-autodetection"
+title: "Research: Jujutsu Integration, VCS Auto-Detection, and Git/GitHub Skill Restructuring"
+schema_version: 1
+derived_from: ["codebase-research:2026-02-22-skills-agents-commands-refactoring", "codebase-research:2026-03-14-plugin-extraction", "codebase-research:2026-03-15-context-management-approaches"]
 ---
 
 # Research: Jujutsu Integration, VCS Auto-Detection, and Git/GitHub Skill Restructuring

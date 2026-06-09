@@ -1,3 +1,21 @@
+---
+type: note
+id: "2026-04-18-adr-read-status-frontmatter-helper"
+title: "Tech Debt: `adr-read-status.sh` does not use `config_extract_frontmatter`"
+date: "2026-04-18T00:00:00+00:00"
+author: Toby Clemson
+producer: create-note
+status: captured
+topic: "Tech Debt: `adr-read-status.sh` does not use `config_extract_frontmatter`"
+tags: []
+revision: "fe283931c116"
+repository: "ticket-management"
+last_updated: "2026-04-18T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["plan:2026-04-08-ticket-management-phase-1-foundation"]
+---
+
 # Tech Debt: `adr-read-status.sh` does not use `config_extract_frontmatter`
 
 ## Problem

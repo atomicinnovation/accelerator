@@ -1,9 +1,19 @@
 ---
 date: "2026-05-30T11:30:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work-item: "0069"
-status: accepted
+status: done
+id: "2026-05-30-0069-migration-framework-interactive-validation-hooks"
+title: "0069: Extend Migration Framework with Interactive Validation Hooks — Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-30T11:30:00+01:00"
+last_updated_by: Toby Clemson
+revision: "6a4f780d5657"
+repository: "ticket-management"
+relates_to: ["work-item:0069", "codebase-research:2026-05-30-0069-migration-framework-interactive-validation-hooks", "adr:ADR-0037", "adr:ADR-0038", "adr:ADR-0023", "work-item:0070"]
 ---
 
 # 0069: Extend Migration Framework with Interactive Validation Hooks — Implementation Plan

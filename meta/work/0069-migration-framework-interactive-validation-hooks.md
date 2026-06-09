@@ -1,13 +1,20 @@
 ---
-work_item_id: "0069"
+id: "0069"
 title: "Extend Migration Framework with Interactive Validation Hooks"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: medium
-parent: "0057"
+parent: "work-item:0057"
 tags: [migration, framework, accelerator-plugin]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-17T17:16:35+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0092", "work-item:0037", "work-item:0062", "work-item:0038", "adr:ADR-0037", "adr:ADR-0038"]
+blocks: ["work-item:0070", "work-item:0038", "adr:ADR-0038"]
+relates_to: ["adr:ADR-0037", "adr:ADR-0031", "work-item:0057", "work-item:0068", "work-item:0023", "work-item:0037", "work-item:0031", "adr:ADR-0038", "adr:ADR-0023"]
 ---
 
 # 0069: Extend Migration Framework with Interactive Validation Hooks

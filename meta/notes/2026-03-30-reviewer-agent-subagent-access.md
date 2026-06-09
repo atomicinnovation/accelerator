@@ -1,3 +1,20 @@
+---
+type: note
+id: "2026-03-30-reviewer-agent-subagent-access"
+title: "Reviewer Agent Subagent Access"
+date: "2026-03-30T00:00:00+00:00"
+author: Toby Clemson
+producer: create-note
+status: captured
+topic: "Reviewer Agent Subagent Access"
+tags: []
+revision: "6947ac9f1b3d"
+repository: "ticket-management"
+last_updated: "2026-03-30T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+---
+
 # Reviewer Agent Subagent Access
 
 ## Observation

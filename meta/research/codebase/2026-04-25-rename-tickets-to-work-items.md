@@ -1,14 +1,19 @@
 ---
 date: "2026-04-25T21:03:16+01:00"
 author: Toby Clemson
-git_commit: 6947ac9f1b3d2429623df1d008cc38578bbde52f
-branch: ticket-management
+revision: "6947ac9f1b3d2429623df1d008cc38578bbde52f"
 repository: accelerator
 topic: "Rename `tickets` category to `work` and `ticket` to `work-item`, and consider an `/accelerator:migrate` skill"
 tags: [research, rename, terminology, work-item, migration, meta-directory, configuration]
 status: complete
-last_updated: "2026-04-25"
+last_updated: "2026-04-25T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-04-25-rename-tickets-to-work-items"
+title: "Research: Rename `tickets` → `work`, `ticket` → `work-item`, and consider `/accelerator:migrate`"
+schema_version: 1
+relates_to: ["codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-03-18-meta-management-strategy", "adr:ADR-0016", "adr:ADR-0018"]
+derived_from: ["codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-03-18-meta-management-strategy", "codebase-research:2026-03-22-skill-customisation-and-override-patterns", "codebase-research:2026-03-28-initialise-skill-requirements"]
 ---
 
 # Research: Rename `tickets` → `work`, `ticket` → `work-item`, and consider `/accelerator:migrate`

@@ -1,13 +1,20 @@
 ---
 date: "2026-05-19T12:34:06Z"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-19-inventory-design-and-browser-agent-fixes.md"
+producer: review-plan
+target: "plan:2026-05-19-inventory-design-and-browser-agent-fixes"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, code-quality, test-coverage, correctness, security, documentation, compatibility, usability]
 review_pass: 5
 status: complete
+id: "2026-05-19-inventory-design-and-browser-agent-fixes-review-1"
+title: "2026-05-19-inventory-design-and-browser-agent-fixes-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-19T12:34:06Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Inventory-Design and Browser-Agent Fixes

@@ -1,14 +1,21 @@
 ---
 date: "2026-05-15T14:16:55+00:00"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0059-gh-pr-edit-fails-due-to-projects-classic-deprecation.md"
+producer: review-work-item
+target: "work-item:0059"
 work_item_id: "0059"
 review_number: 1
 verdict: COMMENT
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 2
 status: complete
+id: "0059-gh-pr-edit-fails-due-to-projects-classic-deprecation-review-1"
+title: "0059-gh-pr-edit-fails-due-to-projects-classic-deprecation-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-15T14:16:55+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: gh pr edit Fails Due to GitHub Projects Classic Deprecation

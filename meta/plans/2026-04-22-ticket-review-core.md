@@ -1,9 +1,18 @@
 ---
 date: "2026-04-22T00:00:00+01:00"
 type: plan
-skill: create-plan
-ticket: ""
+producer: create-plan
 status: draft
+id: "2026-04-22-ticket-review-core"
+title: "Ticket Review (Core) — Phase 4"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-22T00:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-08-ticket-management-skills", "plan:2026-04-08-ticket-management-phase-1-foundation", "plan:2026-04-19-ticket-creation-skills", "plan:2026-04-21-list-and-update-tickets"]
 ---
 
 # Ticket Review (Core) — Phase 4

@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0029
+id: "ADR-0029"
 date: "2026-03-18T00:00:00+00:00"
 author: Toby Clemson
 status: accepted
 tags: [adr, decisions, naming, identifiers]
+type: adr
+title: "ADR-0029: Sequential ADR identifiers"
+schema_version: 1
+last_updated: "2026-03-18T00:00:00+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["adr:ADR-0030", "adr:ADR-0031", "adr:ADR-0032", "codebase-research:2026-03-18-adr-support-strategy", "plan:2026-03-18-adr-skills", "work-item:0023"]
 ---
 
 # ADR-0029: Sequential ADR identifiers

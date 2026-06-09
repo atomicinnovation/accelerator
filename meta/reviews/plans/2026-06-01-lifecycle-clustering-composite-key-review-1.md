@@ -1,13 +1,20 @@
 ---
 date: "2026-06-02T00:45:15+00:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-06-01-lifecycle-clustering-composite-key.md"
+producer: review-plan
+target: "plan:2026-06-01-lifecycle-clustering-composite-key"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, code-quality, test-coverage, correctness, compatibility, safety, performance]
 review_pass: 2
 status: complete
+id: "2026-06-01-lifecycle-clustering-composite-key-review-1"
+title: "2026-06-01-lifecycle-clustering-composite-key-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-06-02T00:45:15+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Lifecycle Clustering Composite Key Implementation Plan

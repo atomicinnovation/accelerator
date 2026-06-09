@@ -1,9 +1,20 @@
 ---
 date: "2026-05-20T22:45:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "meta/work/0063-rename-work-item-type-to-kind.md"
-status: reviewed
+status: ready
+id: "2026-05-20-0063-rename-work-item-type-to-kind"
+title: "Rename work-item `type:` field to `kind:` — Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-20T22:45:00+01:00"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+parent: "work-item:0063"
+relates_to: ["codebase-research:2026-05-20-0063-rename-work-item-type-to-kind", "work-item:0063", "adr:ADR-0023", "work-item:0057", "adr:ADR-0033", "work-item:0065", "work-item:0070"]
 ---
 
 # Rename work-item `type:` field to `kind:` — Implementation Plan

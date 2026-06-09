@@ -1,9 +1,19 @@
 ---
 date: "2026-05-08T19:00:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "meta/work/0034-theme-and-font-mode-toggles.md"
 status: draft
+id: "2026-05-08-0034-theme-and-font-mode-toggles"
+title: "0034 Theme and Font-Mode Toggles Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-08T19:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+relates_to: ["work-item:0034", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "plan:2026-05-06-0033-design-token-system", "plan:2026-05-08-0035-topbar-component", "adr:ADR-0026"]
 ---
 
 # 0034 Theme and Font-Mode Toggles Implementation Plan

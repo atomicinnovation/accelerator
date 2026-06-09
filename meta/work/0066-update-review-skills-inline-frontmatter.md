@@ -1,13 +1,20 @@
 ---
-work_item_id: "0066"
+id: "0066"
 title: "Move Review/Validation Skills' Frontmatter into Templates on Unified Schema"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: medium
-parent: "0057"
+parent: "work-item:0057"
 tags: [review-skills, frontmatter, schema]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-17T17:16:35+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0060", "work-item:0061", "work-item:0065"]
+blocks: ["work-item:0070"]
+relates_to: ["work-item:0057", "work-item:0064", "work-item:0065", "adr:ADR-0033", "adr:ADR-0034"]
 ---
 
 # 0066: Move Review/Validation Skills' Frontmatter into Templates on Unified Schema

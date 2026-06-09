@@ -1,15 +1,21 @@
 ---
 date: "2026-05-23T13:51:26+01:00"
 researcher: Toby Clemson
-git_commit: 0303ec8773f59a3c7ecaf875a3e6eb4c09ad92f1
-branch: HEAD
+revision: "0303ec8773f59a3c7ecaf875a3e6eb4c09ad92f1"
 repository: accelerator
 topic: "0075 Typography Size-Scale Consumption Reconciliation — codebase state"
 tags: [research, codebase, typography, design-tokens, css, migration]
 status: complete
-last_updated: 2026-05-23
+last_updated: "2026-05-23T00:00:00+00:00"
 last_updated_by: Toby Clemson
 work_item_id: "0075"
+type: codebase-research
+id: "2026-05-23-0075-typography-size-scale-consumption"
+title: "Research: 0075 Typography Size-Scale Consumption Reconciliation"
+author: Toby Clemson
+schema_version: 1
+relates_to: ["design-gap:2026-05-21-current-app-vs-claude-design-prototype", "adr:ADR-0026", "work-item:0033", "work-item:0090"]
+derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-21-0076-code-block-syntax-highlight-palette", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table", "design-inventory:2026-05-21-015231-claude-design-prototype"]
 ---
 
 # Research: 0075 Typography Size-Scale Consumption Reconciliation

@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0014
+id: "ADR-0014"
 date: "2026-04-17T15:15:33+01:00"
 author: Toby Clemson
 status: accepted
 tags: [review-system, lenses, correctness]
+type: adr
+title: "ADR-0014: Standalone Correctness Lens"
+schema_version: 1
+last_updated: "2026-04-17T15:15:33+01:00"
+last_updated_by: Toby Clemson
+relates_to: ["adr:ADR-0011", "adr:ADR-0013", "codebase-research:2026-02-22-review-lens-gap-analysis", "codebase-research:2026-03-15-review-lens-optimal-structure", "plan:2026-03-15-new-review-lenses", "adr:ADR-0002", "adr:ADR-0003", "adr:ADR-0004", "adr:ADR-0005", "adr:ADR-0009"]
 ---
 
 # ADR-0014: Standalone Correctness Lens

@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0025
+id: "ADR-0025"
 date: "2026-05-05T00:00:00+01:00"
 author: Toby Clemson
 status: proposed
 tags: [visualiser, cross-references, indexer]
+type: adr
+title: "ADR-0025: Multi-field Work-item Cross-reference Aggregation"
+schema_version: 1
+last_updated: "2026-05-05T00:00:00+01:00"
+last_updated_by: Toby Clemson
+relates_to: ["adr:ADR-0017", "adr:ADR-0024"]
 ---
 
 # ADR-0025: Multi-field Work-item Cross-reference Aggregation

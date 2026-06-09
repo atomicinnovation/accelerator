@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0023
+id: "ADR-0023"
 date: "2026-04-25T22:30:00+01:00"
 author: Toby Clemson
 status: accepted
 tags: [migration, meta-directory, configuration, upgrade]
+type: adr
+title: "ADR-0023: Meta-directory migration framework"
+schema_version: 1
+last_updated: "2026-04-25T22:30:00+01:00"
+last_updated_by: Toby Clemson
+relates_to: ["codebase-research:2026-04-25-rename-tickets-to-work-items", "adr:ADR-0022", "codebase-research:2026-03-28-initialise-skill-requirements"]
 ---
 
 # ADR-0023: Meta-directory migration framework

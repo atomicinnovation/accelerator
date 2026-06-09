@@ -1,9 +1,19 @@
 ---
 date: "2026-05-26T16:30:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work-item: "0088"
-status: accepted
+status: done
+id: "2026-05-26-0088-markdown-body-width-harmonisation"
+title: "0088 Markdown Body Width Harmonisation — Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-26T16:30:00+01:00"
+last_updated_by: Toby Clemson
+revision: "9cc7bcf225b1"
+repository: "ticket-management"
+relates_to: ["work-item:0088", "codebase-research:2026-05-26-0088-markdown-body-width-harmonisation", "work-item:0033", "plan:2026-05-23-0075-typography-size-scale-consumption", "work-item:0076"]
 ---
 
 # 0088 Markdown Body Width Harmonisation — Implementation Plan

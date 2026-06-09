@@ -1,13 +1,20 @@
 ---
-work_item_id: "0073"
+id: "0073"
 title: "Atomic Brand-Layer Palette"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: medium
-parent: ""
 tags: [design, frontend, tokens, foundation]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-21T09:16:34+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0033"]
+blocks: ["work-item:0082"]
+source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
+relates_to: ["adr:ADR-0026"]
 ---
 
 # 0073: Atomic Brand-Layer Palette

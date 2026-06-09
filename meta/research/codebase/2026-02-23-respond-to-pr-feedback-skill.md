@@ -1,14 +1,17 @@
 ---
 date: "2026-02-23T01:30:00+00:00"
 author: Toby Clemson
-git_commit: N/A
-branch: N/A
+revision: "N/A"
 repository: .claude
 topic: "New skill for responding to pull request feedback interactively"
 tags: [ research, codebase, skills, pull-requests, code-review, github ]
 status: complete
-last_updated: "2026-02-23"
+last_updated: "2026-02-23T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-02-23-respond-to-pr-feedback-skill"
+title: "Research: New Skill for Responding to Pull Request Feedback"
+schema_version: 1
 ---
 
 # Research: New Skill for Responding to Pull Request Feedback

@@ -1,13 +1,20 @@
 ---
 date: "2026-05-23T12:50:00+00:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-22-0081-status-badge-component.md"
+producer: review-plan
+target: "plan:2026-05-22-0081-status-badge-component"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, code-quality, test-coverage, correctness, standards, usability, compatibility]
 review_pass: 3
 status: complete
+id: "2026-05-22-0081-status-badge-component-review-1"
+title: "2026-05-22-0081-status-badge-component-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-23T12:50:00+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: 0081 — StatusBadge / VerdictBadge / ResultBadge Implementation Plan

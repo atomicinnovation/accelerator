@@ -1,3 +1,18 @@
+---
+type: plan
+id: "2026-03-15-review-lens-improvements"
+title: "Review Lens Improvements Implementation Plan"
+date: "2026-03-15T00:00:00+00:00"
+author: Toby Clemson
+tags: []
+revision: "cca787aeed49"
+repository: "ticket-management"
+last_updated: "2026-03-15T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["codebase-research:2026-03-15-review-lens-optimal-structure", "codebase-research:2026-02-22-review-lens-gap-analysis", "plan:2026-02-23-performance-lens-and-resilience-extension"]
+---
+
 # Review Lens Improvements Implementation Plan
 
 ## Overview

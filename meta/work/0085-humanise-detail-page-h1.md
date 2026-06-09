@@ -1,13 +1,19 @@
 ---
-work_item_id: "0085"
+id: "0085"
 title: "Humanise Detail-Page H1 Across All Doc Kinds"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
 status: ready
 priority: low
-parent: ""
 tags: [backend, detail-page, indexer]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-21T09:16:34+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0065", "work-item:0066"]
+source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
+relates_to: ["work-item:0078"]
 ---
 
 # 0085: Humanise Detail-Page H1 Across All Doc Kinds

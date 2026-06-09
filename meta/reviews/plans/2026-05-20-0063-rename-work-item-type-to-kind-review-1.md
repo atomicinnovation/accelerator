@@ -1,13 +1,20 @@
 ---
 date: "2026-05-21T00:44:14+00:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-20-0063-rename-work-item-type-to-kind.md"
+producer: review-plan
+target: "plan:2026-05-20-0063-rename-work-item-type-to-kind"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, code-quality, test-coverage, correctness, safety, standards, compatibility]
 review_pass: 4
 status: complete
+id: "2026-05-20-0063-rename-work-item-type-to-kind-review-1"
+title: "2026-05-20-0063-rename-work-item-type-to-kind-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-21T00:44:14+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Rename work-item `type:` → `kind:`

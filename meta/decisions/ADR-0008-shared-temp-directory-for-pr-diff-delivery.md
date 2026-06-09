@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0008
+id: "ADR-0008"
 date: "2026-03-30T00:00:00+00:00"
 author: Toby Clemson
 status: accepted
 tags: [pr-review, diff-pipeline, data-delivery, orchestration]
+type: adr
+title: "ADR-0008: Shared Temp Directory for PR Diff Delivery"
+schema_version: 1
+last_updated: "2026-03-30T00:00:00+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["codebase-research:2026-02-22-pr-review-agents-design", "adr:ADR-0002", "adr:ADR-0005"]
 ---
 
 # ADR-0008: Shared Temp Directory for PR Diff Delivery

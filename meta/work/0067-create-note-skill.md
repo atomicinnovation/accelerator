@@ -9,11 +9,14 @@ kind: story
 priority: medium
 parent: "work-item:0057"
 derived_from: ["work-item:0057"]
-relates_to: ["work-item:0060", "work-item:0061", "work-item:0065", "work-item:0070"]
+relates_to: ["work-item:0060", "work-item:0061", "work-item:0065", "work-item:0070", "work-item:0057", "adr:ADR-0034", "adr:ADR-0033"]
 tags: [skills, notes, accelerator-plugin]
 last_updated: "2026-06-06T08:57:04+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+type: work-item
+blocked_by: ["work-item:0060", "work-item:0061", "work-item:0065"]
+blocks: ["work-item:0070"]
 ---
 
 # 0067: Create `create-note` Skill

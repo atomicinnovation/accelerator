@@ -1,14 +1,19 @@
 ---
-date: 2026-05-15T12:35:58+01:00
+date: "2026-05-15T12:35:58+01:00"
 author: Toby Clemson
-git_commit: 08a7f5e3cdca3fb84bae5b5ce3a98c909ad2cbb7
-branch: (detached / jj change xrmuuuzntsly)
+revision: "08a7f5e3cdca3fb84bae5b5ce3a98c909ad2cbb7"
 repository: accelerator
 topic: "Workspace and worktree boundary detection at session start (0058)"
 tags: [research, codebase, hooks, vcs, jj, git, session-start, vcs-detect, vcs-common, worktree, workspace]
 status: complete
-last_updated: 2026-05-15
+last_updated: "2026-05-15T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-15-0058-workspace-worktree-boundary-detection"
+title: "Research: Workspace and worktree boundary detection at session start (work item 0058)"
+schema_version: 1
+relates_to: ["codebase-research:2026-03-16-jujutsu-integration-and-vcs-autodetection", "work-item:0020", "plan:2026-03-18-vcs-skill-improvements", "work-item:0058"]
+derived_from: ["codebase-research:2026-03-16-jujutsu-integration-and-vcs-autodetection", "codebase-research:2026-03-18-adr-support-strategy", "codebase-research:2026-03-28-initialise-skill-requirements"]
 ---
 
 # Research: Workspace and worktree boundary detection at session start (work item 0058)

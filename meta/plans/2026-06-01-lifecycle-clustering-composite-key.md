@@ -5,16 +5,14 @@ title: "Lifecycle Clustering Composite Key Implementation Plan"
 date: "2026-06-01T21:47:39+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: accepted
-work_item_id: ""
-parent: ""
-reviewer: ""
+status: done
 tags: [visualiser, clusters, slug, typed-linkage, frontmatter]
 revision: "d773efd41bb5d12c3fde4fffc25128da2708eda6"
 repository: "accelerator"
 last_updated: "2026-06-02T00:45:15+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+relates_to: ["codebase-research:2026-06-01-lifecycle-clustering-slug-mismatch", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0025", "work-item:0057", "work-item:0040"]
 ---
 
 # Lifecycle Clustering Composite Key Implementation Plan

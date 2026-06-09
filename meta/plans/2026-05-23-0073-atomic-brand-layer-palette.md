@@ -1,9 +1,19 @@
 ---
 date: "2026-05-23T16:00:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work-item: "0073"
-status: accepted
+status: done
+id: "2026-05-23-0073-atomic-brand-layer-palette"
+title: "0073 Atomic Brand-Layer Palette — Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-23T16:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "5b07c7da3f63"
+repository: "ticket-management"
+relates_to: ["work-item:0073", "codebase-research:2026-05-23-0073-atomic-brand-layer-palette", "adr:ADR-0026", "work-item:0033", "work-item:0076", "work-item:0082", "work-item:0077"]
 ---
 
 # 0073 Atomic Brand-Layer Palette — Implementation Plan

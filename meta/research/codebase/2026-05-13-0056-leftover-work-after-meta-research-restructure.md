@@ -1,14 +1,19 @@
 ---
 date: "2026-05-13T09:29:26+01:00"
 author: Toby Clemson
-git_commit: 99c29ca35498adbe72fafec97a68216d6ebf6fde
-branch: main
+revision: "99c29ca35498adbe72fafec97a68216d6ebf6fde"
 repository: accelerator
 topic: "Leftover work / issues after meta directory restructure (0056)"
 tags: [research, codebase, migration, 0056, meta-restructure]
 status: complete
-last_updated: 2026-05-13
+last_updated: "2026-05-13T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-13-0056-leftover-work-after-meta-research-restructure"
+title: "Research: Leftover work / issues after meta directory restructure (0056)"
+schema_version: 1
+relates_to: ["plan:2026-05-12-0056-restructure-meta-research-into-subject-subcategories", "work-item:0056", "codebase-research:2026-05-11-0056-restructure-meta-research-into-subject-subcategories"]
+derived_from: ["codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-05-08-0052-documents-locator-config-driven-paths"]
 ---
 
 # Research: Leftover work / issues after meta directory restructure (0056)

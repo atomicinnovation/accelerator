@@ -1,13 +1,17 @@
 ---
-work_item_id: "0100"
+id: "0100"
 title: "Configurable Visualiser Auto-Shutdown"
 date: "2026-06-02T13:37:32+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: low
-parent: ""
 tags: [visualiser, server, configuration, lifecycle]
+type: work-item
+schema_version: 1
+last_updated: "2026-06-02T13:37:32+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["work-item:0055"]
 ---
 
 # 0100: Configurable Visualiser Auto-Shutdown

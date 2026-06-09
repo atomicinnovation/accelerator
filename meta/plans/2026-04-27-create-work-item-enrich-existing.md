@@ -1,9 +1,18 @@
 ---
 date: "2026-04-27T11:00:00+00:00"
 type: plan
-skill: create-plan
-ticket: ""
+producer: create-plan
 status: draft
+id: "2026-04-27-create-work-item-enrich-existing"
+title: "Extend `create-work-item` to Enrich an Existing Work Item"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-27T11:00:00+00:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-27-create-work-item-open-from-existing"]
 ---
 
 # Extend `create-work-item` to Enrich an Existing Work Item

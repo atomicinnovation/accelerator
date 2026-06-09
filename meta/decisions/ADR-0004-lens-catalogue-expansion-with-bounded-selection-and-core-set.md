@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0004
+id: "ADR-0004"
 date: "2026-03-29T09:06:01+00:00"
 author: Toby Clemson
 status: accepted
 tags: [review-system, lenses, scaling, iso-25010]
+type: adr
+title: "ADR-0004: Lens Catalogue Expansion with Bounded Selection and Core Set"
+schema_version: 1
+last_updated: "2026-03-29T09:06:01+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["codebase-research:2026-02-22-review-lens-gap-analysis", "codebase-research:2026-03-15-review-lens-optimal-structure", "plan:2026-03-15-new-review-lenses", "plan:2026-03-15-review-lens-improvements", "adr:ADR-0002", "adr:ADR-0003"]
 ---
 
 # ADR-0004: Lens Catalogue Expansion with Bounded Selection and Core Set

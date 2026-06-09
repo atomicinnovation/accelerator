@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0041
+id: "ADR-0041"
 date: "2026-06-07T00:00:00+00:00"
 author: Toby Clemson
 status: accepted
 tags: [adr, dev-tooling, process-supervision, circus, visualiser]
+type: adr
+title: "ADR-0041: circus for dev process supervision"
+schema_version: 1
+last_updated: "2026-06-07T00:00:00+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["work-item:0101", "plan:2026-06-06-0101-unified-dev-task-for-visualiser", "adr:ADR-0030", "adr:ADR-0029", "adr:ADR-0031", "adr:ADR-0019"]
 ---
 
 # ADR-0041: circus for dev process supervision

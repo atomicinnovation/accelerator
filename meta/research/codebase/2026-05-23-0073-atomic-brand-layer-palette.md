@@ -1,14 +1,19 @@
 ---
-date: 2026-05-23T15:00:31+01:00
+date: "2026-05-23T15:00:31+01:00"
 researcher: Toby Clemson
-git_commit: 0303ec8773f59a3c7ecaf875a3e6eb4c09ad92f1
-branch: HEAD (detached)
+revision: "0303ec8773f59a3c7ecaf875a3e6eb4c09ad92f1"
 repository: accelerator
 topic: "0073 Atomic Brand-Layer Palette — implementation surface"
 tags: [research, codebase, design-tokens, brand-palette, atomic, visualiser, frontend, css, tokens-ts]
 status: complete
-last_updated: 2026-05-23
+last_updated: "2026-05-23T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-23-0073-atomic-brand-layer-palette"
+title: "Research: 0073 Atomic Brand-Layer Palette — implementation surface"
+author: Toby Clemson
+schema_version: 1
+relates_to: ["adr:ADR-0026", "work-item:0033", "work-item:0076", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 ---
 
 # Research: 0073 Atomic Brand-Layer Palette — implementation surface

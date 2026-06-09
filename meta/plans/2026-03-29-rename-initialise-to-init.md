@@ -1,8 +1,17 @@
 ---
 date: "2026-03-29T00:00:00Z"
 type: plan
-skill: create-plan
+producer: create-plan
 status: draft
+id: "2026-03-29-rename-initialise-to-init"
+title: "Rename `initialise` Skill to `init` Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-03-29T00:00:00Z"
+last_updated_by: Toby Clemson
+revision: "f283d252215b"
+repository: "ticket-management"
 ---
 
 # Rename `initialise` Skill to `init` Implementation Plan

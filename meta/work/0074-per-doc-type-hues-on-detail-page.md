@@ -1,13 +1,19 @@
 ---
-work_item_id: "0074"
+id: "0074"
 title: "Per-Doc-Type Hues on Detail Page"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: medium
-parent: ""
 tags: [design, frontend, detail-page, tokens]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-21T09:16:34+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0037", "work-item:0082"]
+source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
+relates_to: ["work-item:0073"]
 ---
 
 # 0074: Per-Doc-Type Hues on Detail Page

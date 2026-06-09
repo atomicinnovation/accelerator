@@ -1,13 +1,20 @@
 ---
 date: "2026-05-08T23:45:00+01:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-08-0052-documents-locator-config-driven-paths.md"
+producer: review-plan
+target: "plan:2026-05-08-0052-documents-locator-config-driven-paths"
 review_number: 1
 verdict: COMMENT
 lenses: [architecture, code-quality, test-coverage, correctness, security, standards, compatibility, safety]
 review_pass: 2
 status: complete
+id: "2026-05-08-0052-documents-locator-config-driven-paths-review-1"
+title: "2026-05-08-0052-documents-locator-config-driven-paths-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-08T23:45:00+01:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: 0052 — Documents-Locator Config-Driven Paths

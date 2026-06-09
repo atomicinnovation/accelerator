@@ -1,13 +1,20 @@
 ---
 date: "2026-05-06T00:00:00Z"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-05-add-missing-templates-to-visualiser.md"
+producer: review-plan
+target: "plan:2026-05-05-add-missing-templates-to-visualiser"
 review_number: 1
 verdict: COMMENT
 lenses: [correctness, test-coverage, code-quality, standards, architecture, safety]
 review_pass: 2
 status: complete
+id: "2026-05-05-add-missing-templates-to-visualiser-review-1"
+title: "2026-05-05-add-missing-templates-to-visualiser-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-06T00:00:00Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Add Design Gap and Design Inventory to Visualiser

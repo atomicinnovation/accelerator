@@ -7,12 +7,12 @@ producer: create-work-item
 status: ready
 kind: bug
 priority: medium
-parent: ""
-external_id: ""
 tags: [visualiser, markdown, theme, dark-mode, bug]
 last_updated: "2026-06-08T23:12:30+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+type: work-item
+relates_to: ["work-item:0034", "work-item:0077"]
 ---
 
 # 0095: Theme-Reactive Markdown Task-List Checkboxes

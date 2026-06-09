@@ -12,6 +12,12 @@ screenshots_incomplete: false
 tags: [design, inventory, claude-design-prototype]
 last_updated: "2026-05-21T02:35:00+01:00"
 last_updated_by: "Toby Clemson"
+id: "2026-05-21-015231-claude-design-prototype"
+title: "Design Inventory: claude-design-prototype"
+schema_version: 1
+revision: "970c6bd863e7"
+repository: "ticket-management"
+relates_to: ["design-inventory:2026-05-06-140608-claude-design-prototype", "design-inventory:2026-05-21-004250-current-app"]
 ---
 
 # Design Inventory: claude-design-prototype

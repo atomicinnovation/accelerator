@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0018
+id: "ADR-0018"
 date: "2026-04-18T13:29:15+01:00"
 author: Toby Clemson
 status: accepted
 tags: [configuration, plugin, skills, bootstrap, gitignore]
+type: adr
+title: "ADR-0018: Init Skill for Repository Bootstrap"
+schema_version: 1
+last_updated: "2026-04-18T13:29:15+01:00"
+last_updated_by: Toby Clemson
+relates_to: ["codebase-research:2026-03-28-initialise-skill-requirements", "plan:2026-03-28-initialise-skill-and-review-pr-ephemeral-migration", "plan:2026-03-29-rename-initialise-to-init", "adr:ADR-0016", "adr:ADR-0008"]
 ---
 
 # ADR-0018: Init Skill for Repository Bootstrap

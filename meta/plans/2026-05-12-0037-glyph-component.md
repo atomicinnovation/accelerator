@@ -1,9 +1,19 @@
 ---
-date: 2026-05-12T10:14:12Z
+date: "2026-05-12T10:14:12Z"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "0037"
-status: approved
+status: ready
+id: "2026-05-12-0037-glyph-component"
+title: "Glyph Component Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-12T10:14:12Z"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-05-07-0035-topbar-component", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "work-item:0037", "codebase-research:2026-05-12-0037-glyph-component", "plan:2026-05-06-0033-design-token-system", "adr:ADR-0026"]
 ---
 
 # Glyph Component Implementation Plan

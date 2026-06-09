@@ -1,14 +1,21 @@
 ---
 date: "2026-05-08T00:00:00+00:00"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0030-centralise-path-defaults.md"
+producer: review-work-item
+target: "work-item:0030"
 work_item_id: "0030"
 review_number: 1
 verdict: COMMENT
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 4
 status: complete
+id: "0030-centralise-path-defaults-review-1"
+title: "0030-centralise-path-defaults-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-08T00:00:00+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: Centralise PATH and TEMPLATE config arrays to scripts/config-defaults.sh

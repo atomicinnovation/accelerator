@@ -1,9 +1,19 @@
 ---
 date: "2026-05-18T18:30:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "meta/work/0072-playwright-daemon-cjs-import-bug.md"
-status: approved
+status: ready
+id: "2026-05-18-0072-playwright-daemon-cjs-import-bug"
+title: "0072 — Playwright daemon CJS-import bug: implementation plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-18T18:30:00+01:00"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+relates_to: ["work-item:0072", "codebase-research:2026-05-18-0072-playwright-daemon-cjs-import-bug", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues", "plan:2026-05-06-design-skill-localhost-and-mcp-issues"]
 ---
 
 # 0072 — Playwright daemon CJS-import bug: implementation plan

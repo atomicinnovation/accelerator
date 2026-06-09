@@ -1,13 +1,18 @@
 ---
-work_item_id: "0089"
+id: "0089"
 title: "Templates Preview Body White-Space Fix"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: bug
 status: draft
 priority: low
-parent: ""
 tags: [design, frontend, templates, bug]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-21T09:16:34+00:00"
+last_updated_by: Toby Clemson
+source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
+relates_to: ["work-item:0042"]
 ---
 
 # 0089: Templates Preview Body White-Space Fix

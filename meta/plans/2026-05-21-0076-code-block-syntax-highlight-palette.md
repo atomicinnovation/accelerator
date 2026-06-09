@@ -1,10 +1,20 @@
 ---
 date: "2026-05-21T23:30:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work-item: "meta/work/0076-code-block-syntax-highlight-palette.md"
-status: accepted
+status: done
 review: "meta/reviews/plans/2026-05-21-0076-code-block-syntax-highlight-palette-review-1.md"
+id: "2026-05-21-0076-code-block-syntax-highlight-palette"
+title: "Code-Block Syntax-Highlight Palette Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-21T23:30:00+01:00"
+last_updated_by: Toby Clemson
+revision: "fe3b4f6a08ca"
+repository: "ticket-management"
+relates_to: ["work-item:0076", "codebase-research:2026-05-21-0076-code-block-syntax-highlight-palette", "adr:ADR-0026", "work-item:0033"]
 ---
 
 # Code-Block Syntax-Highlight Palette Implementation Plan

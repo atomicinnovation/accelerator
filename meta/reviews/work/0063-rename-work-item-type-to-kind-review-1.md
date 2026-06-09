@@ -1,14 +1,21 @@
 ---
 date: "2026-05-20T21:08:04Z"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0063-rename-work-item-type-to-kind.md"
+producer: review-work-item
+target: "work-item:0063"
 work_item_id: "0063"
 review_number: 1
 verdict: APPROVE
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 4
 status: complete
+id: "0063-rename-work-item-type-to-kind-review-1"
+title: "0063-rename-work-item-type-to-kind-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-20T21:08:04Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: 0063 Rename work-item `type:` Field to `kind:`

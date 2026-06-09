@@ -1,13 +1,19 @@
 ---
-work_item_id: "0077"
+id: "0077"
 title: "Shadow and Dark-Accent Token Audit"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: task
 status: done
 priority: medium
-parent: ""
 tags: [design, frontend, tokens, audit]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-21T09:16:34+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0033"]
+source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
+relates_to: ["plan:2026-05-31-0077-shadow-and-dark-accent-token-audit", "codebase-research:2026-05-31-0077-shadow-and-dark-accent-token-audit"]
 ---
 
 # 0077: Shadow and Dark-Accent Token Audit

@@ -1,9 +1,19 @@
 ---
 date: "2026-05-26T16:30:00+00:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "0084"
 status: draft
+id: "2026-05-26-0084-detail-page-chip-strip-cap"
+title: "Detail-Page Chip Strip Cap (Status, Date, Author) — Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-26T16:30:00+00:00"
+last_updated_by: Toby Clemson
+revision: "56c8d5aa081f"
+repository: "ticket-management"
+relates_to: ["work-item:0084", "codebase-research:2026-05-26-0084-detail-page-chip-strip-cap", "adr:ADR-0033", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype"]
 ---
 
 # Detail-Page Chip Strip Cap (Status, Date, Author) — Implementation Plan

@@ -1,3 +1,18 @@
+---
+type: plan
+id: "2026-02-23-performance-lens-and-resilience-extension"
+title: "Performance Lens & Resilience Extension Implementation Plan"
+date: "2026-02-23T00:00:00+00:00"
+author: Toby Clemson
+tags: []
+revision: "cca787aeed49"
+repository: "ticket-management"
+last_updated: "2026-02-23T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["codebase-research:2026-02-22-review-lens-gap-analysis"]
+---
+
 # Performance Lens & Resilience Extension Implementation Plan
 
 ## Overview

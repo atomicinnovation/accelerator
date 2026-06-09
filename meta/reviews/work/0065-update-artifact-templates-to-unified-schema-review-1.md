@@ -1,14 +1,21 @@
 ---
 date: "2026-05-28T00:00:00+00:00"
 type: work-item-review
-skill: review-work-item
-target: "meta/work/0065-update-artifact-templates-to-unified-schema.md"
+producer: review-work-item
+target: "work-item:0065"
 work_item_id: "0065"
 review_number: 1
 verdict: COMMENT
 lenses: [clarity, completeness, dependency, scope, testability]
 review_pass: 3
 status: complete
+id: "0065-update-artifact-templates-to-unified-schema-review-1"
+title: "0065-update-artifact-templates-to-unified-schema-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-28T00:00:00+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Work Item Review: Update All Artifact Templates to Unified Schema

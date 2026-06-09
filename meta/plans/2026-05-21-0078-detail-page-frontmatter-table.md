@@ -1,9 +1,19 @@
 ---
 date: "2026-05-21T00:00:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work-item: "0078"
 status: done
+id: "2026-05-21-0078-detail-page-frontmatter-table"
+title: "Detail-Page Frontmatter Table Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-21T00:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "327941cbe7b8"
+repository: "ticket-management"
+relates_to: ["work-item:0078", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table"]
 ---
 
 # Detail-Page Frontmatter Table Implementation Plan

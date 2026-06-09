@@ -1,9 +1,19 @@
 ---
 date: "2026-05-30T01:30:00+00:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "0065"
 status: ready
+id: "2026-05-30-0065-update-artifact-templates-to-unified-schema"
+title: "Update All Artifact Templates to Unified Schema Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-30T01:30:00+00:00"
+last_updated_by: Toby Clemson
+revision: "cf72bbdc6bea"
+repository: "ticket-management"
+relates_to: ["work-item:0065", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "adr:ADR-0033", "adr:ADR-0034", "work-item:0057"]
 ---
 
 # Update All Artifact Templates to Unified Schema Implementation Plan

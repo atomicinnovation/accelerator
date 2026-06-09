@@ -1,13 +1,18 @@
 ---
-work_item_id: "0075"
+id: "0075"
 title: "Typography Size-Scale Consumption Reconciliation"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: medium
-parent: ""
 tags: [design, frontend, tokens, typography]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-21T09:16:34+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0033"]
+relates_to: ["adr:ADR-0026", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "adr:ADR-0036", "work-item:0091"]
 ---
 
 # 0075: Typography Size-Scale Consumption Reconciliation

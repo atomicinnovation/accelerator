@@ -14,6 +14,7 @@ repository: "build-system"
 last_updated: "2026-05-31T22:24:45+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+relates_to: ["codebase-research:2026-05-06-0033-design-token-system", "work-item:0033", "plan:2026-05-08-0034-theme-and-font-mode-toggles", "codebase-research:2026-05-23-0073-atomic-brand-layer-palette", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype", "work-item:0077"]
 ---
 
 # Research: Shadow and Dark-Accent Token Audit (work item 0077)

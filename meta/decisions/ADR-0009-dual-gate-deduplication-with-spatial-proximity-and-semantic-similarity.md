@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0009
+id: "ADR-0009"
 date: "2026-03-30T00:55:06+00:00"
 author: Toby Clemson
 status: accepted
 tags: [review-system, deduplication, aggregation, orchestration]
+type: adr
+title: "ADR-0009: Dual-Gate Deduplication with Spatial Proximity and Semantic Similarity"
+schema_version: 1
+last_updated: "2026-03-30T00:55:06+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["plan:2026-02-22-pr-review-inline-comments", "plan:2026-02-22-review-plan-alignment", "adr:ADR-0002", "adr:ADR-0006"]
 ---
 
 # ADR-0009: Dual-Gate Deduplication with Spatial Proximity and Semantic Similarity

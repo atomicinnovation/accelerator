@@ -1,13 +1,20 @@
 ---
 date: "2026-05-26T17:35:00+00:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-26-0084-detail-page-chip-strip-cap.md"
+producer: review-plan
+target: "plan:2026-05-26-0084-detail-page-chip-strip-cap"
 review_number: 1
 verdict: APPROVE
 lenses: [correctness, code-quality, test-coverage, architecture, usability, compatibility, standards]
 review_pass: 2
 status: complete
+id: "2026-05-26-0084-detail-page-chip-strip-cap-review-1"
+title: "2026-05-26-0084-detail-page-chip-strip-cap-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-26T17:35:00+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Detail-Page Chip Strip Cap (Status, Date, Author)

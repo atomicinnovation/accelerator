@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0010
+id: "ADR-0010"
 date: "2026-03-30T00:19:49+00:00"
 author: Toby Clemson
 status: accepted
 tags: [review-system, github-api, inline-comments, posting-strategy, orchestration]
+type: adr
+title: "ADR-0010: Atomic Review Posting via GitHub REST API"
+schema_version: 1
+last_updated: "2026-03-30T00:19:49+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["codebase-research:2026-02-22-pr-review-inline-comments", "plan:2026-02-22-pr-review-inline-comments", "adr:ADR-0002", "adr:ADR-0006"]
 ---
 
 # ADR-0010: Atomic Review Posting via GitHub REST API

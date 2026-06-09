@@ -1,14 +1,19 @@
 ---
-date: 2026-05-08T20:42:32+01:00
+date: "2026-05-08T20:42:32+01:00"
 author: Toby Clemson
-git_commit: 8f03965c736cef0f31a56eefa0852e50be23f513
-branch: omvluvulyxnmuwpvplrykkwronryozuv (jj change)
+revision: "8f03965c736cef0f31a56eefa0852e50be23f513"
 repository: accelerator
 topic: "Work Management System Configuration (work item 0046) — implementation prep"
 tags: [research, codebase, work-management, integrations, configuration, work.integration]
 status: complete
-last_updated: 2026-05-08
+last_updated: "2026-05-08T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-08-0046-work-management-system-configuration"
+title: "Research: Work Management System Configuration (0046)"
+schema_version: 1
+relates_to: ["adr:ADR-0016", "adr:ADR-0017", "adr:ADR-0022", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "codebase-research:2026-04-29-jira-cloud-integration-skills", "note:2026-04-29-accelerator-config-state-reorg"]
+derived_from: ["codebase-research:2026-04-28-configurable-work-item-id-pattern", "codebase-research:2026-04-29-jira-cloud-integration-skills", "codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-05-08-0030-centralise-path-defaults-implementation"]
 ---
 
 # Research: Work Management System Configuration (0046)

@@ -1,13 +1,16 @@
 ---
-work_item_id: "0071"
+id: "0071"
 title: "describe-pr cannot post PR body — pr-base-repo.sh uses unsupported gh JSON field"
 date: "2026-05-18T19:23:06+00:00"
 author: Toby Clemson
 kind: bug
 status: done
 priority: medium
-parent: ""
 tags: [accelerator, github, tooling]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-18T19:23:06+00:00"
+last_updated_by: Toby Clemson
 ---
 
 # 0071: describe-pr cannot post PR body — pr-base-repo.sh uses unsupported gh JSON field

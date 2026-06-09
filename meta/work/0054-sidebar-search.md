@@ -1,13 +1,20 @@
 ---
-work_item_id: "0054"
+id: "0054"
 title: "Sidebar Search Input and API Search Endpoint"
 date: "2026-05-11T12:11:50+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: high
-parent: "0036"
+parent: "work-item:0036"
 tags: [design, frontend, chrome, navigation]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-11T12:11:50+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0037", "work-item:0053", "work-item:0055"]
+source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
+relates_to: ["work-item:0036", "design-inventory:2026-05-21-015231-claude-design-prototype"]
 ---
 
 # 0054: Sidebar Search Input and API Search Endpoint

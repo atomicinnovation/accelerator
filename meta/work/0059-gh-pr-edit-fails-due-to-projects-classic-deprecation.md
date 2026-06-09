@@ -1,13 +1,17 @@
 ---
-work_item_id: "0059"
+id: "0059"
 title: "gh pr edit Fails Due to GitHub Projects Classic Deprecation"
 date: "2026-05-15T11:26:39+00:00"
 author: Toby Clemson
 kind: bug
 status: done
 priority: medium
-parent: ""
 tags: [github, skills, describe-pr, review-pr, respond-to-pr]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-15T11:26:39+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["adr:ADR-0010"]
 ---
 
 # 0059: gh pr edit Fails Due to GitHub Projects Classic Deprecation

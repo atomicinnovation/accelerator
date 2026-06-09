@@ -1,3 +1,18 @@
+---
+type: plan
+id: "2026-02-22-skills-agents-commands-refactoring"
+title: "Skills, Agents, and Commands Refactoring"
+date: "2026-02-22T00:00:00+00:00"
+author: Toby Clemson
+tags: []
+revision: "cca787aeed49"
+repository: "ticket-management"
+last_updated: "2026-02-22T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["codebase-research:2026-02-22-skills-agents-commands-refactoring", "codebase-research:2026-02-22-review-plan-pr-alignment", "codebase-research:2026-02-22-pr-review-agents-design"]
+---
+
 # Skills, Agents, and Commands Refactoring
 
 ## Overview

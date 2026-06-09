@@ -1,9 +1,19 @@
 ---
 date: "2026-06-01T20:45:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "0054"
-status: accepted
+status: done
+id: "2026-06-01-0054-sidebar-search"
+title: "0054 Sidebar Search Input and API Search Endpoint — Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-06-01T20:45:00+01:00"
+last_updated_by: Toby Clemson
+revision: "9233d4c5361d"
+repository: "ticket-management"
+relates_to: ["work-item:0054", "codebase-research:2026-06-01-0054-sidebar-search", "work-item:0036"]
 ---
 
 # 0054 Sidebar Search Input and API Search Endpoint — Implementation Plan

@@ -1,9 +1,18 @@
 ---
 date: "2026-04-25T22:30:00+01:00"
 type: plan
-skill: create-plan
-ticket: ""
+producer: create-plan
 status: draft
+id: "2026-04-25-rename-tickets-to-work-items"
+title: "Rename `tickets` → `work` and `ticket` → `work-item` (with Migration Skill) Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-25T22:30:00+01:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-03-18-meta-management-strategy", "codebase-research:2026-03-28-initialise-skill-requirements", "adr:ADR-0016", "adr:ADR-0018"]
 ---
 
 # Rename `tickets` → `work` and `ticket` → `work-item` (with Migration Skill) Implementation Plan

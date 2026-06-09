@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0002
+id: "ADR-0002"
 date: "2026-03-28T12:58:11+00:00"
 author: Toby Clemson
 status: accepted
 tags: [review-system, architecture, agents, parallel-execution, orchestration]
+type: adr
+title: "ADR-0002: Three-Layer Architecture for Multi-Lens Review System"
+schema_version: 1
+last_updated: "2026-03-28T12:58:11+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["codebase-research:2026-02-22-pr-review-agents-design", "codebase-research:2026-02-22-skills-agents-commands-refactoring", "plan:2026-02-22-pr-review-agents", "plan:2026-02-23-performance-lens-and-resilience-extension", "adr:ADR-0001"]
 ---
 
 # ADR-0002: Three-Layer Architecture for Multi-Lens Review System

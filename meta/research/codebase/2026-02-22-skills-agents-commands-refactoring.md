@@ -1,15 +1,19 @@
 ---
-date: 2026-02-22T19:05:56+0000
+date: "2026-02-22T19:05:56+00:00"
 author: Toby Clemson
-git_commit: N/A
-branch: N/A
+revision: "N/A"
 repository: ~/.claude (Claude Code configuration)
 topic: "Refactoring agents, commands, and skills for optimal Claude Code configuration"
 tags: [ research, skills, agents, commands, refactoring, review-pr, review-plan ]
 status: complete
-last_updated: 2026-02-22
+last_updated: "2026-02-22T00:00:00+00:00"
 last_updated_by: Toby Clemson
 last_updated_note: "Revised to path-passing pattern; added skills vs agents capability boundaries"
+type: codebase-research
+id: "2026-02-22-skills-agents-commands-refactoring"
+title: "Research: Skills, Agents, and Commands Refactoring"
+schema_version: 1
+relates_to: ["codebase-research:2026-02-22-review-plan-pr-alignment"]
 ---
 
 # Research: Skills, Agents, and Commands Refactoring

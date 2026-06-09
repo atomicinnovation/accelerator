@@ -1,9 +1,19 @@
 ---
 date: "2026-04-21T09:00:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 ticket: null
-status: complete
+status: done
+id: "2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api"
+title: "Meta Visualiser — Phase 3: FileDriver, Indexer, and read-only API"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-21T09:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "plan:2026-04-18-meta-visualiser-phase-1-skill-scaffolding", "plan:2026-04-18-meta-visualiser-phase-2-server-bootstrap", "adr:ADR-0017", "note:2026-03-24-yaml-block-sequence-array-parsing"]
 ---
 
 # Meta Visualiser — Phase 3: FileDriver, Indexer, and read-only API

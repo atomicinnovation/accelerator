@@ -6,15 +6,13 @@ date: "2026-06-04T15:54:32+00:00"
 author: "Toby Clemson"
 producer: create-plan
 status: draft
-work_item_id: ""
-parent: ""
-reviewer: ""
 tags: [migrate, run-migrations, bash-compatibility, merge-move, shell-lint]
 revision: "03b648e48e3ccf390c71cc1e622e350d4c5fc450"
 repository: "accelerator"
 last_updated: "2026-06-04T15:54:32+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+relates_to: ["codebase-research:2026-06-04-migration-upgrade-failures", "adr:ADR-0023", "adr:ADR-0016"]
 ---
 
 # Migration Framework Upgrade-Failure Fixes Implementation Plan

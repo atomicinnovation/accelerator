@@ -2,6 +2,16 @@
 title: "ADR system design"
 kind: adr-creation-task
 status: done
+type: work-item
+id: "0023"
+date: "2026-05-21T00:00:00+00:00"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-21T00:00:00+00:00"
+last_updated_by: Toby Clemson
+priority: medium
+source: "codebase-research:2026-03-18-adr-support-strategy"
 ---
 
 # ADR Ticket: ADR system design

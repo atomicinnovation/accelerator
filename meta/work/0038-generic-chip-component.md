@@ -1,13 +1,19 @@
 ---
-work_item_id: "0038"
+id: "0038"
 title: "Generic Chip Component"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: medium
-parent: ""
 tags: [design, frontend, components]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-06T14:04:04+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0033"]
+blocks: ["work-item:0040", "work-item:0041", "work-item:0042"]
+source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
 ---
 
 # 0038: Generic Chip Component

@@ -2,6 +2,16 @@
 title: "README structured around philosophy and development loop"
 kind: adr-creation-task
 status: draft
+type: work-item
+id: "0019"
+date: "2026-05-24T00:00:00+00:00"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-24T00:00:00+00:00"
+last_updated_by: Toby Clemson
+priority: medium
+source: "plan:2026-03-15-readme-restructure"
 ---
 
 # ADR Ticket: README structured around philosophy and development loop

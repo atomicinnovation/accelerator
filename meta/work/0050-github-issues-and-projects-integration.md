@@ -1,13 +1,19 @@
 ---
-work_item_id: "0050"
+id: "0050"
 title: "GitHub Issues and Projects Integration"
 date: "2026-05-06T17:49:44+00:00"
 author: Toby Clemson
 kind: story
 status: draft
 priority: medium
-parent: "0045"
+parent: "work-item:0045"
 tags: [work-management, integrations, github-issues, github-projects]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-06T17:49:44+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0046"]
+blocks: ["work-item:0051"]
 ---
 
 # 0050: GitHub Issues and Projects Integration

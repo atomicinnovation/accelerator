@@ -1,13 +1,20 @@
 ---
 date: "2026-05-12T00:00:00+00:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-12-0056-restructure-meta-research-into-subject-subcategories.md"
+producer: review-plan
+target: "plan:2026-05-12-0056-restructure-meta-research-into-subject-subcategories"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, correctness, test-coverage, code-quality, safety, compatibility, documentation]
 review_pass: 3
 status: complete
+id: "2026-05-12-0056-restructure-meta-research-into-subject-subcategories-review-1"
+title: "2026-05-12-0056-restructure-meta-research-into-subject-subcategories-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-12T00:00:00+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: 0056 — Restructure `meta/research/codebase/` into Subject Subcategories

@@ -1,8 +1,18 @@
 ---
-date: "2026-03-28T12:27:27+0000"
+date: "2026-03-28T12:27:27+00:00"
 type: plan
-skill: create-plan
+producer: create-plan
 status: draft
+id: "2026-03-28-per-skill-userspace-customisation"
+title: "Per-Skill Userspace Customisation Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-03-28T12:27:27+00:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-03-22-skill-customisation-and-override-patterns", "codebase-research:2026-03-27-skill-customisation-implementation-status"]
 ---
 
 # Per-Skill Userspace Customisation Implementation Plan

@@ -1,9 +1,19 @@
 ---
 date: "2026-05-15T16:50:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "0059"
-status: accepted
+status: done
+id: "2026-05-15-0059-gh-pr-edit-projects-classic-deprecation"
+title: "gh pr edit → REST PATCH Migration in describe-pr Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-15T16:50:00+01:00"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+relates_to: ["work-item:0059", "codebase-research:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "adr:ADR-0010"]
 ---
 
 # gh pr edit → REST PATCH Migration in describe-pr Implementation Plan

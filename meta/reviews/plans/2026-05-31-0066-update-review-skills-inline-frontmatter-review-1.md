@@ -1,13 +1,20 @@
 ---
 date: "2026-06-01T10:49:55Z"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-31-0066-update-review-skills-inline-frontmatter.md"
+producer: review-plan
+target: "plan:2026-05-31-0066-update-review-skills-inline-frontmatter"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, code-quality, test-coverage, correctness, documentation, standards, compatibility]
 review_pass: 3
 status: complete
+id: "2026-05-31-0066-update-review-skills-inline-frontmatter-review-1"
+title: "2026-05-31-0066-update-review-skills-inline-frontmatter-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-06-01T10:49:55Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Move Review/Validation Skills' Frontmatter into Templates

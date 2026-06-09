@@ -6,6 +6,12 @@ target_inventory: "meta/research/design-inventories/2026-05-06-140608-claude-des
 author: "Toby Clemson"
 status: draft
 tags: [design, gap-analysis]
+id: "2026-05-06-current-app-vs-claude-design-prototype"
+title: "Design Gap Analysis: current-app → claude-design-prototype"
+schema_version: 1
+last_updated: "2026-05-06T14:46:33+01:00"
+last_updated_by: "Toby Clemson"
+relates_to: ["design-inventory:2026-05-06-135214-current-app", "design-inventory:2026-05-06-140608-claude-design-prototype", "adr:ADR-0024", "adr:ADR-0016"]
 ---
 
 # Design Gap Analysis: current-app → claude-design-prototype

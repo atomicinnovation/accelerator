@@ -1,13 +1,20 @@
 ---
 date: "2026-04-28T16:47:53Z"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-04-28-configurable-work-item-id-pattern.md"
+producer: review-plan
+target: "plan:2026-04-28-configurable-work-item-id-pattern"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, correctness, code-quality, test-coverage, safety, usability, compatibility, documentation]
 review_pass: 2
 status: complete
+id: "2026-04-28-configurable-work-item-id-pattern-review-1"
+title: "2026-04-28-configurable-work-item-id-pattern-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-28T16:47:53Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Configurable Work-Item ID Pattern Implementation Plan

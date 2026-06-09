@@ -8,7 +8,7 @@ producer: research-codebase
 status: complete
 work_item_id: "0101"
 parent: "work-item:0101"
-relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context"]
+relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "plan:2026-04-18-meta-visualiser-phase-2-server-bootstrap", "note:2026-05-19-playwright-daemon-owner-pid-ephemeral-shell", "work-item:0101", "work-item:0100", "adr:ADR-0019"]
 topic: "Unified mise run dev task supervising the visualiser API server and Vite frontend under circus"
 tags: [research, codebase, visualiser, dev-tooling, mise, invoke, circus, process-supervision, lifecycle]
 revision: "0bbab3114c0dbc1639ec4a2297e23cc4fec1ccf7"
@@ -16,6 +16,7 @@ repository: "miscellaneous"
 last_updated: "2026-06-06T17:34:38+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+derived_from: ["codebase-research:2026-06-06-0100-configurable-visualiser-auto-shutdown", "codebase-research:2026-05-18-0072-playwright-daemon-cjs-import-bug", "codebase-research:2026-05-19-inventory-design-and-browser-agent-fixes"]
 ---
 
 # Research: Unified Managed dev Task for Visualiser Server and Frontend (0101)

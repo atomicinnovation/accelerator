@@ -14,6 +14,8 @@ repository: "ticket-management"
 last_updated: "2026-06-02T14:30:26+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+relates_to: ["work-item:0095", "work-item:0076", "work-item:0088", "work-item:0089", "adr:ADR-0026", "adr:ADR-0036", "adr:ADR-0035", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "codebase-research:2026-05-06-0033-design-token-system"]
+derived_from: ["codebase-research:2026-05-21-0076-code-block-syntax-highlight-palette", "codebase-research:2026-05-26-0088-markdown-body-width-harmonisation", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 ---
 
 # Research: Inline code styling in meta artifact markdown (0094)

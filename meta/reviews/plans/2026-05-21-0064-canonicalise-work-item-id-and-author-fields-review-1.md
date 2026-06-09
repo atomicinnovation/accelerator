@@ -1,13 +1,20 @@
 ---
 date: "2026-05-21T20:15:00+00:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-21-0064-canonicalise-work-item-id-and-author-fields.md"
+producer: review-plan
+target: "plan:2026-05-21-0064-canonicalise-work-item-id-and-author-fields"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, code-quality, test-coverage, correctness, safety, compatibility, database, standards]
 review_pass: 3
 status: complete
+id: "2026-05-21-0064-canonicalise-work-item-id-and-author-fields-review-1"
+title: "2026-05-21-0064-canonicalise-work-item-id-and-author-fields-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-21T20:15:00+00:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Canonicalise `work_item_id` and `author` Frontmatter Field Names

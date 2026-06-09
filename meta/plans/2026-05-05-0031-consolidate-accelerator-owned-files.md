@@ -1,9 +1,19 @@
 ---
 date: "2026-05-05T07:17:16+00:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md"
-status: complete
+status: done
+id: "2026-05-05-0031-consolidate-accelerator-owned-files"
+title: "0031: Consolidate Accelerator-Owned Files Under `.accelerator/` — Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-05T07:17:16+00:00"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+relates_to: ["work-item:0031", "codebase-research:2026-05-05-0031-consolidate-accelerator-owned-files", "note:2026-04-29-accelerator-config-state-reorg", "adr:ADR-0016", "adr:ADR-0017", "adr:ADR-0019", "adr:ADR-0020", "adr:ADR-0023"]
 ---
 
 # 0031: Consolidate Accelerator-Owned Files Under `.accelerator/` — Implementation Plan

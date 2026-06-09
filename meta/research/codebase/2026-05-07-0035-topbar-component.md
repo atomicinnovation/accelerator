@@ -1,14 +1,19 @@
 ---
-date: 2026-05-07T23:33:16+01:00
+date: "2026-05-07T23:33:16+01:00"
 author: Toby Clemson
-git_commit: e5f283acf73ac13bc9806e9d8ab6055aba929dca
-branch: main
+revision: "e5f283acf73ac13bc9806e9d8ab6055aba929dca"
 repository: accelerator
 topic: "Implementation of work item 0035 — Topbar Component"
 tags: [research, codebase, topbar, root-layout, sse, breadcrumbs, tanstack-router, design-tokens]
 status: complete
-last_updated: 2026-05-07
+last_updated: "2026-05-07T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-07-0035-topbar-component"
+title: "Research: Implementation of work item 0035 — Topbar Component"
+schema_version: 1
+relates_to: ["work-item:0033", "work-item:0034", "work-item:0036", "work-item:0041", "work-item:0035", "design-inventory:2026-05-06-140608-claude-design-prototype", "design-inventory:2026-05-06-135214-current-app", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "adr:ADR-0026"]
+derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-02-design-convergence-workflow", "codebase-research:2026-04-17-meta-visualiser-implementation-context"]
 ---
 
 # Research: Implementation of work item 0035 — Topbar Component

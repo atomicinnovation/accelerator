@@ -1,13 +1,20 @@
 ---
-work_item_id: "0062"
+id: "0062"
 title: "ADR: Interactive Validation for Corpus Migration"
 date: "2026-05-17T17:16:35+00:00"
 author: Toby Clemson
 kind: task
 status: done
 priority: high
-parent: "0057"
+parent: "work-item:0057"
 tags: [adr, migration, frontmatter, accelerator-plugin]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-17T17:16:35+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0060", "work-item:0061", "work-item:0034", "work-item:0068", "work-item:0092", "work-item:0062", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "adr:ADR-0034"]
+blocks: ["work-item:0069", "work-item:0070", "work-item:0057"]
+relates_to: ["adr:ADR-0030", "adr:ADR-0034", "adr:ADR-0023", "work-item:0030", "work-item:0057", "work-item:0034", "work-item:0092", "work-item:0023", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
 ---
 
 # 0062: ADR: Interactive Validation for Corpus Migration

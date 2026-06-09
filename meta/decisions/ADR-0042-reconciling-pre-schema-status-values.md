@@ -7,7 +7,7 @@ author: Toby Clemson
 producer: create-adr
 status: accepted
 parent: "work-item:0070"
-relates_to: ["adr:ADR-0033"]
+relates_to: ["adr:ADR-0033", "work-item:0070", "plan:2026-06-07-0070-meta-corpus-unified-schema-migration"]
 tags: [migration, frontmatter, schema, status, vocabulary]
 last_updated: "2026-06-08T09:33:11+00:00"
 last_updated_by: Toby Clemson

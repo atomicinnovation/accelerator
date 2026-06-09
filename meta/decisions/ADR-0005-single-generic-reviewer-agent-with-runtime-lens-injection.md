@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0005
+id: "ADR-0005"
 date: "2026-03-28T20:13:17+00:00"
 author: Toby Clemson
 status: accepted
 tags: [review-system, agents, path-passing, separation-of-concerns, lens-injection]
+type: adr
+title: "ADR-0005: Single Generic Reviewer Agent with Runtime Lens Injection"
+schema_version: 1
+last_updated: "2026-03-28T20:13:17+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["codebase-research:2026-02-22-skills-agents-commands-refactoring", "plan:2026-02-22-skills-agents-commands-refactoring", "codebase-research:2026-03-15-review-lens-optimal-structure", "adr:ADR-0002", "adr:ADR-0003"]
 ---
 
 # ADR-0005: Single Generic Reviewer Agent with Runtime Lens Injection

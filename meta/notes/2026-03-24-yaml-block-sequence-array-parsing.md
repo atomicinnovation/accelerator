@@ -1,3 +1,21 @@
+---
+type: note
+id: "2026-03-24-yaml-block-sequence-array-parsing"
+title: "YAML Block-Sequence Array Parsing"
+date: "2026-03-24T00:00:00+00:00"
+author: Toby Clemson
+producer: create-note
+status: captured
+topic: "YAML Block-Sequence Array Parsing"
+tags: []
+revision: "b96ab434a061"
+repository: "ticket-management"
+last_updated: "2026-03-24T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["plan:2026-03-23-config-infrastructure", "plan:2026-03-23-review-system-customisation"]
+---
+
 # YAML Block-Sequence Array Parsing
 
 ## Problem

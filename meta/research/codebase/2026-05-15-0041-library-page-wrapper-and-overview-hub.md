@@ -1,15 +1,20 @@
 ---
-date: 2026-05-15T18:41:25+01:00
+date: "2026-05-15T18:41:25+01:00"
 author: Toby Clemson
-git_commit: 77c4cfe1aa718e2ca1d381780dc170b1b3db9334
-branch: HEAD (jj change stlzowrnoslm; main at f5c54374)
+revision: "77c4cfe1aa718e2ca1d381780dc170b1b3db9334"
 repository: accelerator
 topic: "Library Page Wrapper, Overview Hub, and List Views (work item 0041) — codebase context"
 tags: [research, codebase, visualiser, library, page-wrapper, sort, filter, server-driven, doc-types, popover]
 status: complete
-last_updated: 2026-05-15
+last_updated: "2026-05-15T00:00:00+00:00"
 last_updated_by: Toby Clemson
 last_updated_note: "Resolved all eight open questions via Q&A with work-item author; updated work item 0041 to reflect decisions."
+type: codebase-research
+id: "2026-05-15-0041-library-page-wrapper-and-overview-hub"
+title: "Research: Work Item 0041 — Library Page Wrapper, Overview Hub, and List Views"
+schema_version: 1
+relates_to: ["design-gap:2026-05-06-current-app-vs-claude-design-prototype", "design-inventory:2026-05-06-140608-claude-design-prototype", "design-inventory:2026-05-06-135214-current-app", "plan:2026-04-22-meta-visualiser-phase-5-frontend-scaffold-and-library-view", "plan:2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api", "plan:2026-05-05-add-missing-templates-to-visualiser", "adr:ADR-0024", "adr:ADR-0026", "adr:ADR-0025", "work-item:0041"]
+derived_from: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-05-02-design-convergence-workflow", "codebase-research:2026-05-03-update-visualiser-for-work-item-terminology"]
 ---
 
 # Research: Work Item 0041 — Library Page Wrapper, Overview Hub, and List Views

@@ -14,6 +14,8 @@ repository: "visualisation-system"
 last_updated: "2026-06-05T21:43:50+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+relates_to: ["work-item:0079", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:0040", "plan:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-06-01-lifecycle-clustering-slug-mismatch", "plan:2026-06-01-lifecycle-clustering-composite-key", "adr:ADR-0025", "adr:ADR-0034", "adr:ADR-0036", "work-item:0074"]
+derived_from: ["codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-06-01-lifecycle-clustering-slug-mismatch", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "codebase-research:2026-05-24-0074-per-doc-type-hues-on-detail-page"]
 ---
 
 # Research: Detail-Page Aside Region Redesign (0079)

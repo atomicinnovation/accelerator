@@ -1,13 +1,18 @@
 ---
-work_item_id: "0044"
+id: "0044"
 title: "Spike: Confirm List-Screen Scope Decisions"
 date: "2026-05-06T14:04:04+00:00"
 author: Toby Clemson
 kind: spike
 status: abandoned
 priority: high
-parent: ""
 tags: [design, spike, scope, kanban, lifecycle]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-06T14:04:04+00:00"
+last_updated_by: Toby Clemson
+source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
+relates_to: ["adr:ADR-0024"]
 ---
 
 # 0044: Spike: Confirm List-Screen Scope Decisions

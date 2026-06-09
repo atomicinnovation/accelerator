@@ -1,9 +1,19 @@
 ---
 date: "2026-05-31T23:30:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "0040"
-status: accepted
+status: done
+id: "2026-05-31-0040-pipeline-visualisation-overhaul"
+title: "Pipeline Visualisation Overhaul Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-31T23:30:00+01:00"
+last_updated_by: Toby Clemson
+revision: "75809591931b"
+repository: "ticket-management"
+relates_to: ["work-item:0040", "codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "adr:ADR-0025", "adr:ADR-0033", "adr:ADR-0034"]
 ---
 
 # Pipeline Visualisation Overhaul Implementation Plan

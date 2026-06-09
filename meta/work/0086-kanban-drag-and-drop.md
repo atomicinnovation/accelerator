@@ -7,11 +7,14 @@ producer: create-work-item
 status: done
 kind: story
 priority: medium
-relates_to: ["work-item:0040"]
+relates_to: ["work-item:0040", "adr:ADR-0024"]
 tags: [design, frontend, kanban, accessibility]
 last_updated: "2026-06-06T12:54:32+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+type: work-item
+blocked_by: ["work-item:0039", "work-item:0044"]
+source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 ---
 
 # 0086: Kanban Drag-and-Drop with Toast Confirmations

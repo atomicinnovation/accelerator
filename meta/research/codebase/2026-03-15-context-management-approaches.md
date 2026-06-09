@@ -1,14 +1,17 @@
 ---
-date: 2026-03-15 14:39:41 GMT
+date: "2026-03-15T00:00:00+00:00"
 author: accelerator
-git_commit: a0ffa8d28db952004a8ae84556e433e49415f48c
-branch: main
+revision: "a0ffa8d28db952004a8ae84556e433e49415f48c"
 repository: accelerator
 topic: "Context Management Approaches for Claude Code"
 tags: [ research, context-engineering, claude-code, subagents, compaction, filesystem-state ]
 status: complete
-last_updated: 2026-03-15
+last_updated: "2026-03-15T00:00:00+00:00"
 last_updated_by: accelerator
+type: codebase-research
+id: "2026-03-15-context-management-approaches"
+title: "Research: Context Management Approaches for Claude Code"
+schema_version: 1
 ---
 
 # Research: Context Management Approaches for Claude Code

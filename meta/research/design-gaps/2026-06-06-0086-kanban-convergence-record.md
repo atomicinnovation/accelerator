@@ -7,6 +7,11 @@ current_inventory: "meta/research/design-inventories/2026-05-21-004250-current-a
 author: "Toby Clemson"
 status: accepted
 tags: [design, gap-analysis, kanban, drag-and-drop, convergence]
+id: "2026-06-06-0086-kanban-convergence-record"
+title: "Kanban Drag-and-Drop Convergence Record (work item 0086)"
+schema_version: 1
+last_updated: "2026-06-06T22:35:00+00:00"
+last_updated_by: "Toby Clemson"
 ---
 
 # Kanban Drag-and-Drop Convergence Record (work item 0086)

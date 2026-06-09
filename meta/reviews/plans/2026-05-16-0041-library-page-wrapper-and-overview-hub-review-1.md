@@ -1,13 +1,20 @@
 ---
 date: "2026-05-17T17:00:00+01:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-16-0041-library-page-wrapper-and-overview-hub.md"
+producer: review-plan
+target: "plan:2026-05-16-0041-library-page-wrapper-and-overview-hub"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, code-quality, test-coverage, correctness, standards, usability, compatibility]
 review_pass: 4
 status: complete
+id: "2026-05-16-0041-library-page-wrapper-and-overview-hub-review-1"
+title: "2026-05-16-0041-library-page-wrapper-and-overview-hub-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-17T17:00:00+01:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: 0041 — Library Page Wrapper, Overview Hub, and List Views

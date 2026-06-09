@@ -1,13 +1,19 @@
 ---
-work_item_id: "0076"
+id: "0076"
 title: "Code-Block Syntax-Highlight Tokens and Renderer Adoption"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
 status: done
 priority: medium
-parent: ""
 tags: [design, frontend, tokens, markdown, code]
+type: work-item
+schema_version: 1
+last_updated: "2026-05-21T09:16:34+00:00"
+last_updated_by: Toby Clemson
+blocked_by: ["work-item:0033", "work-item:0075"]
+blocks: ["work-item:0042"]
+source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 ---
 
 # 0076: Code-Block Syntax-Highlight Tokens and Renderer Adoption

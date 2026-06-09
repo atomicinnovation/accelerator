@@ -5,9 +5,8 @@ title: "Inline Code Styling In Meta Artifact Markdown Implementation Plan"
 date: "2026-06-02T14:56:53+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: accepted
+status: done
 work_item_id: "0094"
-parent: ""
 reviewer: "Toby Clemson"
 tags: [visualiser, markdown, css, design-tokens, inline-code, bug]
 revision: "c7f49b8e3ad2c6b37f8645d1168bb6be02939295"
@@ -15,6 +14,7 @@ repository: "ticket-management"
 last_updated: "2026-06-02T17:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+relates_to: ["work-item:0094", "work-item:0099", "codebase-research:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown", "adr:ADR-0036", "adr:ADR-0026"]
 ---
 
 # Inline Code Styling In Meta Artifact Markdown Implementation Plan

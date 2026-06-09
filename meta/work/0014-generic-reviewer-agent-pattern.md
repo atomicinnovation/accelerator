@@ -2,6 +2,16 @@
 title: "Generic reviewer agent with path passing and three-way separation"
 kind: adr-creation-task
 status: done
+type: work-item
+id: "0014"
+date: "2026-05-21T00:00:00+00:00"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-21T00:00:00+00:00"
+last_updated_by: Toby Clemson
+priority: medium
+source: "codebase-research:2026-02-22-skills-agents-commands-refactoring"
 ---
 
 # ADR Ticket: Generic reviewer agent with path passing and three-way separation

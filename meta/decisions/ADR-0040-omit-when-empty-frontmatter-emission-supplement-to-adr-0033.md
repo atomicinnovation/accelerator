@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0040
+id: "ADR-0040"
 date: "2026-06-04T17:22:01+01:00"
 author: Toby Clemson
 status: accepted
 tags: [frontmatter, schema, artifacts, emission, linkage]
+type: adr
+title: "ADR-0040: Omit-When-Empty Frontmatter Emission — supplement to ADR-0033"
+schema_version: 1
+last_updated: "2026-06-04T17:22:01+01:00"
+last_updated_by: Toby Clemson
+relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0031", "adr:ADR-0035", "adr:ADR-0037", "adr:ADR-0030", "work-item:0093", "work-item:0070"]
 ---
 
 # ADR-0040: Omit-When-Empty Frontmatter Emission — supplement to ADR-0033

@@ -1,15 +1,20 @@
 ---
 date: "2026-05-08T01:08:36+01:00"
 author: Toby Clemson
-git_commit: 7dab2df48e6016dd4fe9b3a807193000432ea002
-branch: HEAD
+revision: "7dab2df48e6016dd4fe9b3a807193000432ea002"
 repository: accelerator
 topic: "Implementation of work item 0030: centralise PATH and TEMPLATE config arrays"
 tags: [research, codebase, config, refactoring, work-0030, path-defaults, config-dump]
 status: complete
-last_updated: 2026-05-08
+last_updated: "2026-05-08T00:00:00+00:00"
 last_updated_by: Toby Clemson
 last_updated_note: "Corrected: workspaces/ is jj workspace checkouts, not source duplicates. There is only one config-dump.sh."
+type: codebase-research
+id: "2026-05-08-0030-centralise-path-defaults-implementation"
+title: "Research: Implementation of work item 0030 — centralise PATH and TEMPLATE config arrays"
+schema_version: 1
+relates_to: ["plan:2026-04-25-rename-tickets-to-work-items", "adr:ADR-0023", "plan:2026-03-23-config-infrastructure", "plan:2026-03-23-template-and-path-customisation", "plan:2026-03-29-template-management-subcommands", "work-item:0024", "work-item:0025", "work-item:0027", "work-item:0029", "work-item:0031", "note:2026-04-26-agents-hardcode-default-directory-locations"]
+derived_from: ["plan:2026-04-25-rename-tickets-to-work-items", "work-item:0030"]
 ---
 
 # Research: Implementation of work item 0030 — centralise PATH and TEMPLATE config arrays

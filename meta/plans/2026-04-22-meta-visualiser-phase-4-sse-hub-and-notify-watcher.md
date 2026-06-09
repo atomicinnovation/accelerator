@@ -1,8 +1,18 @@
 ---
 date: "2026-04-22T00:00:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 status: draft
+id: "2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher"
+title: "Meta visualiser Phase 4 — SSE hub and notify watcher"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-22T00:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context"]
 ---
 
 # Meta visualiser Phase 4 — SSE hub and notify watcher

@@ -7,12 +7,12 @@ producer: create-work-item
 status: draft
 kind: bug
 priority: medium
-parent: ""
-external_id: ""
 tags: [visualiser, artifacts, titles, conventions]
 last_updated: "2026-06-02T12:11:27+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+type: work-item
+relates_to: ["work-item:0085"]
 ---
 
 # 0097: Strip Redundant Document-Type Prefixes From Artifact Titles

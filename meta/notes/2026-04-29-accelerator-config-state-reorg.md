@@ -1,3 +1,20 @@
+---
+type: note
+id: "2026-04-29-accelerator-config-state-reorg"
+title: "Top-level `.accelerator/` reorganisation"
+date: "2026-04-29T00:00:00+00:00"
+author: Toby Clemson
+producer: create-note
+status: captured
+topic: "Top-level `.accelerator/` reorganisation"
+tags: []
+revision: "dd7533029be3"
+repository: "ticket-management"
+last_updated: "2026-04-29T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+---
+
 # Top-level `.accelerator/` reorganisation
 
 **Status**: Implemented in

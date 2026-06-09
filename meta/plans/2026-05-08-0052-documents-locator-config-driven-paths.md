@@ -1,9 +1,19 @@
 ---
 date: "2026-05-08T23:00:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 work_item_id: "meta/work/0052-make-documents-locator-paths-config-driven.md"
-status: complete
+status: done
+id: "2026-05-08-0052-documents-locator-config-driven-paths"
+title: "0052: Documents-Locator Config-Driven Paths — Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-08T23:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
+relates_to: ["work-item:0052", "codebase-research:2026-05-08-0052-documents-locator-config-driven-paths", "work-item:0030", "note:2026-04-26-agents-hardcode-default-directory-locations"]
 ---
 
 # 0052: Documents-Locator Config-Driven Paths — Implementation Plan

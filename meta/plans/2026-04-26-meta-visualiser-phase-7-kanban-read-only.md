@@ -1,8 +1,18 @@
 ---
 date: "2026-04-26T00:00:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 status: draft
+id: "2026-04-26-meta-visualiser-phase-7-kanban-read-only"
+title: "Meta visualiser Phase 7 — Kanban read-only"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-26T00:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "plan:2026-04-25-meta-visualiser-phase-6-lifecycle-clusters-and-view", "plan:2026-04-22-meta-visualiser-phase-5-frontend-scaffold-and-library-view"]
 ---
 
 # Meta visualiser Phase 7 — Kanban read-only

@@ -1,14 +1,20 @@
 ---
-date: 2026-05-21T19:46:26+01:00
+date: "2026-05-21T19:46:26+01:00"
 researcher: Toby Clemson
-git_commit: 64eca1bf99c3b311862da9df1baf1095b43ca4a7
-branch: build-system
+revision: "64eca1bf99c3b311862da9df1baf1095b43ca4a7"
 repository: accelerator
 topic: "Detail-Page Frontmatter Table (work item 0078)"
 tags: [research, codebase, frontmatter, detail-page, frontend, visualiser, wiki-links]
 status: complete
-last_updated: 2026-05-21
+last_updated: "2026-05-21T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-05-21-0078-detail-page-frontmatter-table"
+title: "Research: Detail-Page Frontmatter Table (0078)"
+author: Toby Clemson
+schema_version: 1
+relates_to: ["adr:ADR-0026", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-16-0041-library-page-wrapper-supplementary", "codebase-research:2026-05-14-0038-generic-chip-component", "codebase-research:2026-05-06-0033-design-token-system", "plan:2026-05-06-0033-design-token-system", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:0078"]
+derived_from: ["codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-16-0041-library-page-wrapper-supplementary", "codebase-research:2026-05-14-0038-generic-chip-component", "codebase-research:2026-05-06-0033-design-token-system", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 ---
 
 # Research: Detail-Page Frontmatter Table (0078)

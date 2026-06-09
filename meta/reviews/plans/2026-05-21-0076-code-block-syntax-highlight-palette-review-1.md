@@ -1,13 +1,20 @@
 ---
 date: "2026-05-22T01:00:00+01:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-21-0076-code-block-syntax-highlight-palette.md"
+producer: review-plan
+target: "plan:2026-05-21-0076-code-block-syntax-highlight-palette"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, code-quality, test-coverage, correctness, standards, documentation]
 review_pass: 3
 status: complete
+id: "2026-05-21-0076-code-block-syntax-highlight-palette-review-1"
+title: "2026-05-21-0076-code-block-syntax-highlight-palette-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-22T01:00:00+01:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Code-Block Syntax-Highlight Palette

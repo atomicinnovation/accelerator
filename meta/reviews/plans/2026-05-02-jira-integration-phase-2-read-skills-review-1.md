@@ -1,13 +1,20 @@
 ---
 date: "2026-05-02T14:00:00Z"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-02-jira-integration-phase-2-read-skills.md"
+producer: review-plan
+target: "plan:2026-05-02-jira-integration-phase-2-read-skills"
 review_number: 1
 verdict: COMMENT
 lenses: [architecture, code-quality, test-coverage, correctness, security, usability, compatibility]
 review_pass: 3
 status: complete
+id: "2026-05-02-jira-integration-phase-2-read-skills-review-1"
+title: "2026-05-02-jira-integration-phase-2-read-skills-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-02T14:00:00Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Jira Integration Phase 2 — Read Skills

@@ -1,10 +1,16 @@
 ---
-adr_id: ADR-0039
+id: "ADR-0039"
 date: "2026-06-04T00:00:00+01:00"
 author: Toby Clemson
 status: accepted
 supersedes: ["adr:ADR-0026"]
 tags: [visualiser, frontend, css, design-tokens, radius]
+type: adr
+title: "ADR-0039: Border-radius consumption rule"
+schema_version: 1
+last_updated: "2026-06-04T00:00:00+01:00"
+last_updated_by: Toby Clemson
+relates_to: ["adr:ADR-0026", "adr:ADR-0031", "adr:ADR-0030", "adr:ADR-0034", "adr:ADR-0036"]
 ---
 
 # ADR-0039: Border-radius consumption rule

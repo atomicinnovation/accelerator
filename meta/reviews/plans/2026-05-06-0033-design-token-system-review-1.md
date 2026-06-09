@@ -1,13 +1,20 @@
 ---
 date: "2026-05-06T21:30:00+01:00"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-05-06-0033-design-token-system.md"
+producer: review-plan
+target: "plan:2026-05-06-0033-design-token-system"
 review_number: 1
 verdict: APPROVE
 lenses: [architecture, code-quality, test-coverage, correctness, standards, performance, security]
 review_pass: 3
 status: complete
+id: "2026-05-06-0033-design-token-system-review-1"
+title: "2026-05-06-0033-design-token-system-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-06T21:30:00+01:00"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: 0033 Design Token System

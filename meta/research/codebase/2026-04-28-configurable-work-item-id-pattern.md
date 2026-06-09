@@ -1,14 +1,19 @@
 ---
-date: 2026-04-28T09:40:31+01:00
+date: "2026-04-28T09:40:31+01:00"
 author: Toby Clemson
-git_commit: 6947ac9f1b3d2429623df1d008cc38578bbde52f
-branch: (no bookmark — change qkn)
+revision: "6947ac9f1b3d2429623df1d008cc38578bbde52f"
 repository: accelerator
 topic: "Configurable work-item ID prefix pattern"
 tags: [ research, work-items, configuration, naming, migration, ticket-management ]
 status: complete
-last_updated: 2026-04-28
+last_updated: "2026-04-28T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-04-28-configurable-work-item-id-pattern"
+title: "Research: Configurable work-item ID prefix pattern"
+schema_version: 1
+relates_to: ["codebase-research:2026-04-08-ticket-management-skills", "plan:2026-04-08-ticket-management-phase-1-foundation", "adr:ADR-0017", "adr:ADR-0022", "adr:ADR-0023", "codebase-research:2026-03-18-adr-support-strategy"]
+derived_from: ["codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-03-22-skill-customisation-and-override-patterns", "codebase-research:2026-03-27-skill-customisation-implementation-status"]
 ---
 
 # Research: Configurable work-item ID prefix pattern

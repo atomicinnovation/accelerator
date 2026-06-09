@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0021
+id: "ADR-0021"
 date: "2026-04-18T15:33:05+00:00"
 author: Toby Clemson
 status: accepted
 tags: [configuration, templates, configure-skill]
+type: adr
+title: "ADR-0021: Template management subcommands"
+schema_version: 1
+last_updated: "2026-04-18T15:33:05+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["codebase-research:2026-03-29-template-management-subcommands", "plan:2026-03-29-template-management-subcommands", "adr:ADR-0017"]
 ---
 
 # ADR-0021: Template management subcommands

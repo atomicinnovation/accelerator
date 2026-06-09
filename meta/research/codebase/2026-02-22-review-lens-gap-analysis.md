@@ -4,8 +4,14 @@ author: Toby Clemson
 topic: "Gap analysis of review lenses used by review-pr and review-plan skills"
 tags: [research, review-lenses, review-pr, review-plan, gap-analysis]
 status: complete
-last_updated: "2026-02-22"
+last_updated: "2026-02-22T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-02-22-review-lens-gap-analysis"
+title: "Research: Review Lens Gap Analysis"
+schema_version: 1
+revision: "4a4febd1f1ac"
+repository: "ticket-management"
 ---
 
 # Research: Review Lens Gap Analysis

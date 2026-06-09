@@ -1,13 +1,20 @@
 ---
 date: "2026-04-25T19:30:00Z"
 type: plan-review
-skill: review-plan
-target: "meta/plans/2026-04-25-meta-visualiser-phase-6-lifecycle-clusters-and-view.md"
+producer: review-plan
+target: "plan:2026-04-25-meta-visualiser-phase-6-lifecycle-clusters-and-view"
 review_number: 1
 verdict: REVISE
 lenses: [architecture, code-quality, test-coverage, correctness, standards, usability, performance, compatibility]
 review_pass: 2
 status: complete
+id: "2026-04-25-meta-visualiser-phase-6-lifecycle-clusters-and-view-review-1"
+title: "2026-04-25-meta-visualiser-phase-6-lifecycle-clusters-and-view-review-1"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-25T19:30:00Z"
+last_updated_by: Toby Clemson
 ---
 
 ## Plan Review: Phase 6 — Lifecycle clusters and view

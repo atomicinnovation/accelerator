@@ -15,6 +15,8 @@ last_updated: "2026-06-02T16:07:06+00:00"
 last_updated_by: Toby Clemson
 last_updated_note: "Rebased on top of typed-linkage clustering rollout (commits xzkvrrlw..tntvnkpq); added Follow-up Research section covering the new typed_ref.rs / cluster_key.rs / widened indexer consumers and recording the Pass 3 APPROVE verdict on the 0093 work-item review."
 schema_version: 1
+relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0038", "plan:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-31-0066-update-review-skills-inline-frontmatter", "work-item:0093"]
+derived_from: ["codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-31-0066-update-review-skills-inline-frontmatter"]
 ---
 
 # Research: Extend Templates With Typed-Linkage Slots (0093)

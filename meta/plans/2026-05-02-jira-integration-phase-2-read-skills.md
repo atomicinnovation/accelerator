@@ -1,9 +1,18 @@
 ---
 date: "2026-05-02T13:00:00+01:00"
 type: plan
-skill: create-plan
-ticket: ""
+producer: create-plan
 status: draft
+id: "2026-05-02-jira-integration-phase-2-read-skills"
+title: "Jira Integration Phase 2 — Read Skills Implementation Plan"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-02T13:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-29-jira-cloud-integration-skills", "plan:2026-04-29-jira-integration-phase-1-foundation"]
 ---
 
 # Jira Integration Phase 2 — Read Skills Implementation Plan

@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0038
+id: "ADR-0038"
 date: "2026-05-26T17:09:45+01:00"
 author: Toby Clemson
 status: accepted
 tags: [migration, interactive-validation, typed-linkage, frontmatter, accelerator-plugin]
+type: adr
+title: "ADR-0038: Interactive validation parameters for unified-schema linkage migration"
+schema_version: 1
+last_updated: "2026-05-26T17:09:45+01:00"
+last_updated_by: Toby Clemson
+relates_to: ["adr:ADR-0023", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0037", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-26-0062-adr-interactive-validation-for-corpus-migration", "work-item:0057", "work-item:0062", "work-item:0068", "work-item:0069", "work-item:0070"]
 ---
 
 # ADR-0038: Interactive validation parameters for unified-schema linkage migration

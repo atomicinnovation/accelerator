@@ -1,15 +1,18 @@
 ---
-date: "2026-03-28T21:49:56+0000"
+date: "2026-03-28T21:49:56+00:00"
 author: Toby Clemson
-git_commit: 508ca24b973d8c742e52e829c557f0c62f81076d
-branch: main
+revision: "508ca24b973d8c742e52e829c557f0c62f81076d"
 repository: accelerator
 topic: "Initialise skill: codebase analysis and requirements"
 tags: [research, codebase, initialise, skill, directory-structure, configuration]
 status: complete
-last_updated: "2026-03-28"
+last_updated: "2026-03-28T00:00:00+00:00"
 last_updated_by: Toby Clemson
 last_updated_note: "Added analysis of review-pr ephemeral file placement problem and proposed migration to meta/tmp/"
+type: codebase-research
+id: "2026-03-28-initialise-skill-requirements"
+title: "Research: Initialise Skill — Codebase Analysis and Requirements"
+schema_version: 1
 ---
 
 # Research: Initialise Skill — Codebase Analysis and Requirements

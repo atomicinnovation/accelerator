@@ -2,6 +2,16 @@
 title: "Skills and agents as complementary abstractions"
 kind: adr-creation-task
 status: draft
+type: work-item
+id: "0013"
+date: "2026-05-24T00:00:00+00:00"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-05-24T00:00:00+00:00"
+last_updated_by: Toby Clemson
+priority: medium
+source: "codebase-research:2026-02-22-skills-agents-commands-refactoring"
 ---
 
 # ADR Ticket: Skills and agents as complementary abstractions

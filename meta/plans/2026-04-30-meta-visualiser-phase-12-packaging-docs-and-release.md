@@ -1,9 +1,19 @@
 ---
 date: "2026-04-30T22:00:00+01:00"
 type: plan
-skill: create-plan
+producer: create-plan
 ticket: null
-status: complete
+status: done
+id: "2026-04-30-meta-visualiser-phase-12-packaging-docs-and-release"
+title: "Meta Visualiser — Phase 12: Packaging, docs, and release"
+author: Toby Clemson
+tags: []
+schema_version: 1
+last_updated: "2026-04-30T22:00:00+01:00"
+last_updated_by: Toby Clemson
+revision: "cca787aeed49"
+repository: "ticket-management"
+relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "plan:2026-04-29-meta-visualiser-phase-11-testing"]
 ---
 
 # Meta Visualiser — Phase 12: Packaging, docs, and release

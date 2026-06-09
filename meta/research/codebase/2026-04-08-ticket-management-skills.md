@@ -1,14 +1,18 @@
 ---
 date: "2026-04-08T01:21:36+01:00"
 author: Toby Clemson
-git_commit: 508ca24b973d8c742e52e829c557f0c62f81076d
-branch: ticket-management
+revision: "508ca24b973d8c742e52e829c557f0c62f81076d"
 repository: accelerator
 topic: "Product management and requirements gathering skills for the Accelerator plugin"
 tags: [ research, tickets, product-management, skills, requirements, lifecycle ]
 status: complete
-last_updated: "2026-04-08"
+last_updated: "2026-04-08T00:00:00+00:00"
 last_updated_by: Toby Clemson
+type: codebase-research
+id: "2026-04-08-ticket-management-skills"
+title: "Research: Product Management and Requirements Gathering Skills"
+schema_version: 1
+relates_to: ["adr:ADR-0001"]
 ---
 
 # Research: Product Management and Requirements Gathering Skills

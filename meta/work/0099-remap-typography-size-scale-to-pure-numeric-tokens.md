@@ -7,12 +7,13 @@ producer: review-plan
 status: draft
 kind: task
 priority: medium
-parent: ""
-external_id: ""
 tags: [visualiser, design-tokens, typography, refactor, tech-debt, adr]
 last_updated: "2026-06-02T16:30:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+type: work-item
+relates_to: ["plan:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown"]
+supersedes: ["adr:ADR-0036"]
 ---
 
 # 0099: Remap Typography Size Scale To Pure-Numeric Tokens

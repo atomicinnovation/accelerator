@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0037
+id: "ADR-0037"
 date: "2026-05-26T15:07:14+01:00"
 author: Toby Clemson
 status: accepted
 tags: [migration, framework, accelerator-plugin, interactive-hooks]
+type: adr
+title: "ADR-0037: Optional interactive contract for the migration framework — supplement to ADR-0023"
+schema_version: 1
+last_updated: "2026-05-26T15:07:14+01:00"
+last_updated_by: Toby Clemson
+relates_to: ["work-item:0062", "adr:ADR-0023", "adr:ADR-0031", "adr:ADR-0033", "adr:ADR-0028", "adr:ADR-0035", "adr:ADR-0026", "adr:ADR-0030", "work-item:0057", "work-item:0068", "work-item:0069", "work-item:0070", "work-item:0092", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework"]
 ---
 
 # ADR-0037: Optional interactive contract for the migration framework — supplement to ADR-0023

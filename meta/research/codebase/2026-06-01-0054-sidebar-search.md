@@ -14,6 +14,8 @@ repository: "accelerator"
 last_updated: "2026-06-01T20:31:09+01:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+relates_to: ["codebase-research:2026-05-13-0055-sidebar-activity-feed", "codebase-research:2026-05-12-0053-sidebar-nav-and-unseen-tracker", "codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-07-0035-topbar-component", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "adr:ADR-0026", "adr:ADR-0038"]
+derived_from: ["codebase-research:2026-05-12-0053-sidebar-nav-and-unseen-tracker", "codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-07-0035-topbar-component", "design-inventory:2026-05-21-015231-claude-design-prototype", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
 ---
 
 # Research: Sidebar Search Input and API Search Endpoint (work item 0054)

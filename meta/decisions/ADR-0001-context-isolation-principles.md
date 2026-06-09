@@ -1,9 +1,15 @@
 ---
-adr_id: ADR-0001
+id: "ADR-0001"
 date: "2026-03-28T12:05:37+00:00"
 author: Toby Clemson
 status: accepted
 tags: [context-engineering, agents, filesystem, token-management, architecture]
+type: adr
+title: "ADR-0001: Use Filesystem Communication, Agent Separation, and Token Budgets for Context Isolation"
+schema_version: 1
+last_updated: "2026-03-28T12:05:37+00:00"
+last_updated_by: Toby Clemson
+relates_to: ["codebase-research:2026-03-15-context-management-approaches", "codebase-research:2026-03-18-meta-management-strategy", "plan:2026-03-15-readme-restructure"]
 ---
 
 # ADR-0001: Use Filesystem Communication, Agent Separation, and Token Budgets for Context Isolation

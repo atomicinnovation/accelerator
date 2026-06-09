@@ -1,3 +1,21 @@
+---
+type: note
+id: "2026-04-26-agents-hardcode-default-directory-locations"
+title: "Tech Debt: Agents hardcode default directory locations rather than reading config"
+date: "2026-04-26T00:00:00+00:00"
+author: Toby Clemson
+producer: create-note
+status: captured
+topic: "Tech Debt: Agents hardcode default directory locations rather than reading config"
+tags: []
+revision: "cca787aeed49"
+repository: "ticket-management"
+last_updated: "2026-04-26T00:00:00+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+relates_to: ["adr:ADR-0022"]
+---
+
 # Tech Debt: Agents hardcode default directory locations rather than reading config
 
 ## Problem
