@@ -1266,9 +1266,9 @@ closed by this release's mechanical `work_item_id:`→`parent:` derivation (Phas
       global subscriber routing to a per-thread buffer (`log::test_support::capture_logs`),
       since `with_default` thread-local capture is unreliable against tracing's
       global callsite-interest cache when other parallel tests hit the same callsite
-- [ ] (Phase 5b — after dogfood) `scripts/test-template-frontmatter.sh` passes with
+- [x] (Phase 5b — after dogfood) `scripts/test-template-frontmatter.sh` passes with
       the alias removed and the `work_item_id` extra dropped from the
-      `work-item-review.md` schema row
+      `work-item-review.md` schema row (and the 49 corpus reviews stripped of it)
 - [x] The retained-fallback pinning tests + the per-arm deprecation tests confirm a
       **deliberately un-migrated** corpus still resolves cross-references via the
       retained fallbacks (no silent breakage)
@@ -1279,8 +1279,8 @@ closed by this release's mechanical `work_item_id:`→`parent:` derivation (Phas
 - [ ] Loading this repo's migrated corpus shows no broken cross-references; loading
       a simulated un-migrated corpus degrades gracefully with deprecation warnings,
       not broken edges
-- [ ] The follow-on contract work item has been raised (with AC-12/AC-13 and the
-      migration-completion gate)
+- [x] The follow-on contract work item has been raised (with AC-12/AC-13 and the
+      migration-completion gate) — `meta/work/0102-remove-visualiser-legacy-linkage-fallback-arms.md`
 
 ---
 
