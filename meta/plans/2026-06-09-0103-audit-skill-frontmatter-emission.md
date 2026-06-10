@@ -5,7 +5,7 @@ title: "Audit Skill Frontmatter Emission Against the Unified Schema Implementati
 date: "2026-06-09T19:05:20+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0103"
 parent: "work-item:0103"
 derived_from: ["codebase-research:2026-06-09-0103-skill-frontmatter-emission-audit"]
