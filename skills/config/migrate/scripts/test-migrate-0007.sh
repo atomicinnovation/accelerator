@@ -15,7 +15,6 @@ MIGRATION="$PLUGIN_ROOT/skills/config/migrate/migrations/0007-unify-meta-corpus-
 DRIVER="$SCRIPT_DIR/run-migrations.sh"
 VALIDATOR="$PLUGIN_ROOT/scripts/validate-corpus-frontmatter.sh"
 FRAG="$SCRIPT_DIR/frontmatter-frag.awk"
-BODY="$SCRIPT_DIR/0007-frontmatter-rewrite.awk"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
@@ -41,7 +40,7 @@ run_0007() {
     bash "$DRIVER" 2>&1 </dev/null)" || RUN_RC=$?
 }
 
-fm_line() { grep -E "^$2:" "$1" | head -1; }   # $1=file $2=key
+fm_line() { grep -E "^$2:" "$1" | head -1; } # $1=file $2=key
 
 # ── Happy-path corpus (post-0005/0006 shapes) ───────────────────────────────
 echo "=== Mechanical rewrite + backfill (happy path) ==="
@@ -144,9 +143,12 @@ echo "=== Validator passes over the migrated corpus ==="
 vrc=0
 "$VALIDATOR" "$REPO/meta" >/tmp/0007-val.out 2>&1 || vrc=$?
 if [ "$vrc" -eq 0 ]; then
-  echo "  PASS: migrated corpus validates"; PASS=$((PASS + 1))
+  echo "  PASS: migrated corpus validates"
+  PASS=$((PASS + 1))
 else
-  echo "  FAIL: migrated corpus has violations"; sed 's/^/    /' /tmp/0007-val.out; FAIL=$((FAIL + 1))
+  echo "  FAIL: migrated corpus has violations"
+  sed 's/^/    /' /tmp/0007-val.out
+  FAIL=$((FAIL + 1))
 fi
 
 echo "=== Idempotency: direct re-invocation is an empty diff ==="
@@ -299,9 +301,12 @@ assert_contains "body path-shape mention left untouched" "$(cat "$PLAN2")" 'meta
 plvrc=0
 "$VALIDATOR" "$PL/meta" >/tmp/0007-pl-val.out 2>&1 || plvrc=$?
 if [ "$plvrc" -eq 0 ]; then
-  echo "  PASS: path-normalised corpus validates"; PASS=$((PASS + 1))
+  echo "  PASS: path-normalised corpus validates"
+  PASS=$((PASS + 1))
 else
-  echo "  FAIL: path-normalised corpus has violations"; sed 's/^/    /' /tmp/0007-pl-val.out; FAIL=$((FAIL + 1))
+  echo "  FAIL: path-normalised corpus has violations"
+  sed 's/^/    /' /tmp/0007-pl-val.out
+  FAIL=$((FAIL + 1))
 fi
 
 # ── Interactive body-section linkage: resolved mechanical + ambiguous accept ─
@@ -357,8 +362,9 @@ schema_version: 1
 EOF
 git_init "$LINK"
 DEC="$TMP/decisions.txt"
-printf 'accept\n' >"$DEC"   # one decision for the single ambiguous reference
+printf 'accept\n' >"$DEC" # one decision for the single ambiguous reference
 LRC=0
+# shellcheck disable=SC2034  # captured only to harvest the exit code into LRC
 LOUT="$(cd "$LINK" && PROJECT_ROOT="$LINK" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
   ACCELERATOR_MIGRATIONS_DIR="$ONLY_0007" ACCELERATOR_MIGRATE_FORCE=1 \
   ACCELERATOR_MIGRATE_DECISIONS_FILE="$DEC" \
@@ -373,9 +379,12 @@ assert_contains "session log records an accepted ambiguous decision" "$(cat "$SE
 lvrc=0
 "$VALIDATOR" "$LINK/meta" >/tmp/0007-link-val.out 2>&1 || lvrc=$?
 if [ "$lvrc" -eq 0 ]; then
-  echo "  PASS: linked corpus validates (incl. referential integrity)"; PASS=$((PASS + 1))
+  echo "  PASS: linked corpus validates (incl. referential integrity)"
+  PASS=$((PASS + 1))
 else
-  echo "  FAIL: linked corpus has violations"; sed 's/^/    /' /tmp/0007-link-val.out; FAIL=$((FAIL + 1))
+  echo "  FAIL: linked corpus has violations"
+  sed 's/^/    /' /tmp/0007-link-val.out
+  FAIL=$((FAIL + 1))
 fi
 
 test_summary

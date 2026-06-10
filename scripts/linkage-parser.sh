@@ -72,6 +72,12 @@ lp_has_source_label() {
 # Location → doc-type (exhaustive; reviews by subdir).
 lp_type_from_path() {
   case "$1" in
+    # Reviews are discriminated by subdirectory and MUST precede the generic
+    # */work/* and */plans/* arms: a review path contains both segments (e.g.
+    # */reviews/work/*) so the generic arms would otherwise shadow them.
+    */reviews/plans/*) echo plan-review ;;
+    */reviews/work/*) echo work-item-review ;;
+    */reviews/prs/*) echo pr-review ;;
     */work/*) echo work-item ;;
     */plans/*) echo plan ;;
     */decisions/*) echo adr ;;
@@ -79,9 +85,6 @@ lp_type_from_path() {
     */research/issues/*) echo issue-research ;;
     */research/design-gaps/*) echo design-gap ;;
     */research/design-inventories/*) echo design-inventory ;;
-    */reviews/plans/*) echo plan-review ;;
-    */reviews/work/*) echo work-item-review ;;
-    */reviews/prs/*) echo pr-review ;;
     */validations/*) echo plan-validation ;;
     */notes/*) echo note ;;
     *) echo "" ;;
@@ -103,7 +106,8 @@ lp_resolve_path_target() {
     design-inventory)
       # Nested manifest: the id is the parent directory name (matching the
       # migration's derive_stem), not the manifest basename `inventory`.
-      id="$(basename "$(dirname "$path")")" ;;
+      id="$(basename "$(dirname "$path")")"
+      ;;
     *) id="$stem" ;;
   esac
   [ -n "$id" ] || return 0
@@ -145,10 +149,22 @@ lp_infer_key() {
   local source="$1" section="$2" line="$3" target_type="$4"
   # Explicit prose hints, in priority order. Spike fix #3 (sibling) outranks the
   # derived_from pair default it used to fall through to.
-  if lp_has_sibling_keyword "$line"; then printf 'relates_to\t1\n'; return; fi
-  if lp_has_supersedes_keyword "$line"; then printf 'supersedes\t1\n'; return; fi
-  if lp_has_blocked_by_keyword "$line"; then printf 'blocked_by\t1\n'; return; fi
-  if lp_has_blocks_keyword "$line"; then printf 'blocks\t1\n'; return; fi
+  if lp_has_sibling_keyword "$line"; then
+    printf 'relates_to\t1\n'
+    return
+  fi
+  if lp_has_supersedes_keyword "$line"; then
+    printf 'supersedes\t1\n'
+    return
+  fi
+  if lp_has_blocked_by_keyword "$line"; then
+    printf 'blocked_by\t1\n'
+    return
+  fi
+  if lp_has_blocks_keyword "$line"; then
+    printf 'blocks\t1\n'
+    return
+  fi
   if lp_has_source_label "$line"; then
     # "Source:" disambiguation onto ADR-0034's table (ADR-0038 decision).
     case "$target_type" in

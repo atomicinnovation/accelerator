@@ -44,6 +44,7 @@ source "$SCRIPT_DIR/frontmatter-emission-rules.sh"
 
 export LC_ALL=C
 
+# shellcheck disable=SC2034  # consumed by frontmatter-fixtures.sh (sourced below)
 VALIDATOR="$SCRIPT_DIR/validate-corpus-frontmatter.sh"
 # shellcheck source=frontmatter-fixtures.sh
 source "$SCRIPT_DIR/frontmatter-fixtures.sh"
@@ -76,7 +77,10 @@ done < <(tail -n +2 "$SCHEMA_TSV")
 schema_index() { # $1 type -> index or ""
   local needle="$1" i
   for ((i = 0; i < ${#SCHEMA_TYPES[@]}; i++)); do
-    [ "${SCHEMA_TYPES[$i]}" = "$needle" ] && { printf '%s' "$i"; return 0; }
+    [ "${SCHEMA_TYPES[$i]}" = "$needle" ] && {
+      printf '%s' "$i"
+      return 0
+    }
   done
   return 0
 }
@@ -101,10 +105,10 @@ EMITTERS=(
   skills/notes/create-note/SKILL.md
 )
 # Surfaced by the discovery grep but out of scope (corpus transformer).
-EXCLUDED=( skills/config/migrate/SKILL.md )
+EXCLUDED=(skills/config/migrate/SKILL.md)
 # Status-transition mutators: not surfaced by the discovery grep (no full-block
 # marker reaches them); tracked by hand, asserted on the status axis only.
-STATUS_AXIS=( skills/planning/validate-plan/SKILL.md skills/decisions/review-adr/SKILL.md )
+STATUS_AXIS=(skills/planning/validate-plan/SKILL.md skills/decisions/review-adr/SKILL.md)
 
 DISCOVERY_RE='schema_version:|Populate frontmatter|Substitute .*frontmatter|frontmatter-emission|artifact-derive-metadata\.sh'
 
@@ -135,12 +139,18 @@ extract_validate_plan_plan_status() {
 # review-adr -> adr: target statuses live in the "Change `status: X` to
 # `status: Y`" prose; emit the set of Y targets.
 extract_review_adr_targets() {
-  grep -oE "to \`status: [a-z]+\`" skills/decisions/review-adr/SKILL.md \
-    | sed -E "s/.*status: ([a-z]+)\`.*/\1/" | sort -u
+  grep -oE "to \`status: [a-z]+\`" skills/decisions/review-adr/SKILL.md |
+    sed -E "s/.*status: ([a-z]+)\`.*/\1/" | sort -u
 }
 
 # ---- Small helpers ----------------------------------------------------------
-in_list() { local needle="$1"; shift; local x; for x in "$@"; do [ "$x" = "$needle" ] && return 0; done; return 1; }
+in_list() {
+  local needle="$1"
+  shift
+  local x
+  for x in "$@"; do [ "$x" = "$needle" ] && return 0; done
+  return 1
+}
 
 status_in_vocab() { # $1 status  $2 vocab(pipe-joined) -> rc
   local s="$1" vocab="$2" tok oldifs="$IFS"
@@ -148,7 +158,10 @@ status_in_vocab() { # $1 status  $2 vocab(pipe-joined) -> rc
   for tok in $vocab; do
     tok="${tok#"${tok%%[![:space:]]*}"}"
     tok="${tok%"${tok##*[![:space:]]}"}"
-    [ "$tok" = "$s" ] && { IFS="$oldifs"; return 0; }
+    [ "$tok" = "$s" ] && {
+      IFS="$oldifs"
+      return 0
+    }
   done
   IFS="$oldifs"
   return 1
@@ -183,7 +196,7 @@ check_linkage_quoted() { # $1 template-file $2 linkkeys -> rc 0 clean / 1 bare v
     [ -n "$line" ] || continue
     val="${line#*:}"
     val="${val#"${val%%[![:space:]]*}"}" # trim leading ws
-    val="${val%%#*}"                      # strip trailing inline comment
+    val="${val%%#*}"                     # strip trailing inline comment
     val="${val%"${val##*[![:space:]]}"}" # trim trailing ws
     case "$val" in
       '' | '""' | '[]') continue ;; # empty slot

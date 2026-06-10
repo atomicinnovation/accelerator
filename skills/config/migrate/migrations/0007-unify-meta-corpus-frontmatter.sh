@@ -81,6 +81,12 @@ status_map_for_type() {
 # ── Location → doc-type (exhaustive; reviews by subdir) ──────────────────────
 infer_type_from_path() {
   case "$1" in
+    # Reviews are discriminated by subdirectory and MUST precede the generic
+    # */work/* and */plans/* arms: a review path contains both segments (e.g.
+    # */reviews/work/*) so the generic arms would otherwise shadow them.
+    */reviews/plans/*) echo plan-review ;;
+    */reviews/work/*) echo work-item-review ;;
+    */reviews/prs/*) echo pr-review ;;
     */work/*) echo work-item ;;
     */plans/*) echo plan ;;
     */decisions/*) echo adr ;;
@@ -88,9 +94,6 @@ infer_type_from_path() {
     */research/issues/*) echo issue-research ;;
     */research/design-gaps/*) echo design-gap ;;
     */research/design-inventories/*) echo design-inventory ;;
-    */reviews/plans/*) echo plan-review ;;
-    */reviews/work/*) echo work-item-review ;;
-    */reviews/prs/*) echo pr-review ;;
     */validations/*) echo plan-validation ;;
     */notes/*) echo note ;;
     *) echo "" ;;
@@ -104,7 +107,11 @@ out_of_scope() {
   esac
 }
 
-stem_of() { local b; b="$(basename "$1")"; printf '%s' "${b%.md}"; }
+stem_of() {
+  local b
+  b="$(basename "$1")"
+  printf '%s' "${b%.md}"
+}
 
 # Identity stem for a file, type-aware. Nested-manifest types (design-inventory,
 # whose manifest is always `inventory.md` under a dated directory) take the
@@ -135,8 +142,14 @@ fm_get() {
 fm_inner() {
   local v="$1"
   case "$v" in
-    '"'*'"') v="${v#\"}"; v="${v%\"}" ;;
-    "'"*"'") v="${v#\'}"; v="${v%\'}" ;;
+    '"'*'"')
+      v="${v#\"}"
+      v="${v%\"}"
+      ;;
+    "'"*"'")
+      v="${v#\'}"
+      v="${v%\'}"
+      ;;
   esac
   printf '%s' "$v"
 }
@@ -197,7 +210,7 @@ corpus_files() {
 
 # ── Step 0: read-only precondition pre-pass (zero mutations) ─────────────────
 precondition_prepass() {
-  local f type id own seen_ids="" dup=0 refused=0
+  local f type id own seen_ids="" refused=0
   while IFS= read -r -d '' f; do
     out_of_scope "$f" && continue
     has_strict_fence "$f" || continue
@@ -210,14 +223,16 @@ precondition_prepass() {
         refused=1
       fi
       own="$(fm_inner "$(fm_get work_item_id "$f")")"
-      local fid; fid="$(printf '%s' "$(stem_of "$f")" | grep -oE '^[0-9]+' || true)"
+      local fid
+      fid="$(printf '%s' "$(stem_of "$f")" | grep -oE '^[0-9]+' || true)"
       if [ -n "$own" ] && [ -n "$fid" ] && [ "$own" != "$fid" ]; then
         log_warn "0007-REFUSE: $f — own work_item_id '$own' != filename id '$fid'" >&2
         refused=1
       fi
     else
       # Foreign work_item_id must already be quoted (0006 guarantee).
-      local raw; raw="$(fm_get work_item_id "$f")"
+      local raw
+      raw="$(fm_get work_item_id "$f")"
       if [ -n "$raw" ]; then
         case "$raw" in
           '"'*'"' | "'"*"'") : ;;
@@ -243,7 +258,10 @@ precondition_prepass() {
     [ -n "$id" ] || id="$(derive_stem "$f" "$type")"
     local typed_id="${type}:${id}"
     case "$seen_ids" in
-      *"|${typed_id}|"*) log_warn "0007-REFUSE: $f — duplicate post-rewrite id '$typed_id'" >&2; refused=1 ;;
+      *"|${typed_id}|"*)
+        log_warn "0007-REFUSE: $f — duplicate post-rewrite id '$typed_id'" >&2
+        refused=1
+        ;;
     esac
     seen_ids="${seen_ids}|${typed_id}|"
   done < <(corpus_files)
@@ -333,7 +351,8 @@ rewrite_file() {
   [ -n "$type" ] || type="$(infer_type_from_path "$f")"
   type="$(canonical_type "$type")"
   [ -n "$type" ] || return 0
-  anchored=0; [ "$(anchored_for_type "$type")" = "yes" ] && anchored=1
+  anchored=0
+  [ "$(anchored_for_type "$type")" = "yes" ] && anchored=1
   own="$(own_id_key_for_type "$type")"
   vocab="$(status_vocab_of "$type")"
   smap="$(status_map_for_type "$type")"
@@ -358,7 +377,8 @@ rewrite_file() {
   [ -n "$(fm_get producer "$f")" ] && has_producer=1
   [ -n "$(fm_get revision "$f")" ] && has_revision=1
   [ -n "$(fm_get repository "$f")" ] && has_repository=1
-  local has_priority=0; [ -n "$(fm_get priority "$f")" ] && has_priority=1
+  local has_priority=0
+  [ -n "$(fm_get priority "$f")" ] && has_priority=1
 
   # Derive the "hard" base fields a fenced file may lack — same sources as the
   # fence-less backfill: H1 → title, VCS → author/revision, filename → date.
@@ -369,10 +389,12 @@ rewrite_file() {
     [ -n "$title_default" ] || title_default="$stem"
   fi
   if [ "$has_author" -eq 0 ]; then
-    resolve_author "$rel"; author_default="$RESOLVED_AUTHOR"
+    resolve_author "$rel"
+    author_default="$RESOLVED_AUTHOR"
   fi
   if [ "$has_date" -eq 0 ]; then
-    local _d; _d="$(printf '%s' "$stem" | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)"
+    local _d
+    _d="$(printf '%s' "$stem" | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)"
     if [ -n "$_d" ]; then
       date_default="${_d}T00:00:00+00:00"
     else
@@ -383,11 +405,13 @@ rewrite_file() {
     fi
   fi
   if [ "$anchored" -eq 1 ] && [ "$has_revision" -eq 0 ]; then
-    resolve_revision "$rel"; revision_default="$RESOLVED_REVISION"
+    resolve_revision "$rel"
+    revision_default="$RESOLVED_REVISION"
   fi
 
   local tmp_out tmp_err
-  tmp_out="$(mktemp)"; tmp_err="$(mktemp)"
+  tmp_out="$(mktemp)"
+  tmp_err="$(mktemp)"
   awk -f "$FRAG_AWK" -f "$BODY_AWK" \
     -v file="$f" -v type="$type" -v anchored="$anchored" -v own_id_key="$own" \
     -v id_from_stem="$idstem" -v repo_name="$repo" \
@@ -417,7 +441,7 @@ run_rewrite() {
   local f
   while IFS= read -r -d '' f; do
     out_of_scope "$f" && continue
-    has_strict_fence "$f" || continue   # backfill already fenced these
+    has_strict_fence "$f" || continue # backfill already fenced these
     rewrite_file "$f"
   done < <(corpus_files)
 }
@@ -490,6 +514,7 @@ migration_emit_transformations() {
     rel="${f#"$PROJECT_ROOT"/}"
     recs="$(bash "$PARSER" "$f" 2>/dev/null || true)"
     [ -n "$recs" ] || continue
+    # shellcheck disable=SC2034  # `src` is the leading TSV column, read past but unused here
     while IFS=$'\t' read -r src key target anchor band; do
       [ -n "$key" ] && [ -n "$target" ] || continue
       # Existence-check resolved inferences: a resolved-band target that does
@@ -501,7 +526,10 @@ migration_emit_transformations() {
         case "$target" in
           pr:*) : ;;
           *:*) corpus_index_has "$target" ||
-            { log_warn "0007-DIVERGE[reverse-orphan]: $rel — resolved $key target '$target' resolves to no artifact; skipped" >&2; continue; } ;;
+            {
+              log_warn "0007-DIVERGE[reverse-orphan]: $rel — resolved $key target '$target' resolves to no artifact; skipped" >&2
+              continue
+            } ;;
         esac
       fi
       harness_extras_set band "$band"
@@ -527,10 +555,17 @@ migration_validate_edit() {
   local key="$1" path="$2" anchor="$3" proposed="$4" user_value="$5"
   case "$user_value" in
     *=*) : ;;
-    *) harness_reject "edit must be <linkage-key>=<doc-type:id>"; return 1 ;;
+    *)
+      harness_reject "edit must be <linkage-key>=<doc-type:id>"
+      return 1
+      ;;
   esac
   local lk="${user_value%%=*}" tr="${user_value#*=}"
-  case "$(linkage_card "$lk")" in single | list) : ;; *) harness_reject "unknown linkage key '$lk'"; return 1 ;; esac
+  case "$(linkage_card "$lk")" in single | list) : ;; *)
+    harness_reject "unknown linkage key '$lk'"
+    return 1
+    ;;
+  esac
   if ! printf '%s' "$tr" | grep -qE "$LINKAGE_REF_RE"; then
     harness_reject "target '$tr' is not a typed doc-type:id reference"
     return 1
@@ -540,7 +575,8 @@ migration_validate_edit() {
 
 # Insert the typed linkage (canonical side) into the artifact's frontmatter.
 migration_apply_decision() {
-  local key="$1" path="$2" anchor="$3" decision="$4" value="$5"
+  # $4 is the decision label (consumed by the caller, not needed here).
+  local key="$1" path="$2" anchor="$3" value="$5"
   local lk="${value%%=*}" tr="${value#*=}"
   [ -n "$lk" ] && [ -n "$tr" ] || return 0
   local abs="$PROJECT_ROOT/$path" tmp

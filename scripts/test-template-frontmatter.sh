@@ -15,8 +15,8 @@ source "$SCRIPT_DIR/test-helpers.sh"
 # cardinality, quoted-id/schema_version regexes) — single-sourced with the
 # corpus validator. Overridable via FM_EMISSION_RULES so the single-source
 # guard test can point both surfaces at a tampered copy.
-# shellcheck source=frontmatter-emission-rules.sh
 FM_EMISSION_RULES="${FM_EMISSION_RULES:-$SCRIPT_DIR/frontmatter-emission-rules.sh}"
+# shellcheck source=frontmatter-emission-rules.sh
 source "$FM_EMISSION_RULES"
 cd "$ROOT"
 

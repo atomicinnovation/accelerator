@@ -18,6 +18,11 @@
 # Pure data + pure functions only — no top-level side effects, safe to source
 # under `set -euo pipefail` on bash 3.2 (no associative arrays).
 
+# shellcheck disable=SC2034
+# (every FM_* constant below is consumed by the sourcing surfaces — the
+# template-shape test and the corpus validator — which are invisible to a
+# per-file lint of this library.)
+
 # ---- Required base fields -------------------------------------------------
 # The base fields every conforming artifact MUST carry. `producer` and `status`
 # are deliberately NOT here: `producer` is omitted on hand-written legacy plans,

@@ -22,8 +22,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=frontmatter-emission-rules.sh
 FM_EMISSION_RULES="${FM_EMISSION_RULES:-$SCRIPT_DIR/frontmatter-emission-rules.sh}"
+# shellcheck source=frontmatter-emission-rules.sh
 source "$FM_EMISSION_RULES"
 SCHEMA_TSV="${SCHEMA_TSV:-$SCRIPT_DIR/templates-schema.tsv}"
 
@@ -69,6 +69,12 @@ schema_index() {
 # Exhaustive per the plan; reviews discriminated by subdirectory.
 infer_type_from_path() {
   case "$1" in
+    # Reviews are discriminated by subdirectory and MUST precede the generic
+    # */work/* and */plans/* arms: a review path contains both segments (e.g.
+    # */reviews/work/*) so the generic arms would otherwise shadow them.
+    */reviews/plans/*) echo plan-review ;;
+    */reviews/work/*) echo work-item-review ;;
+    */reviews/prs/*) echo pr-review ;;
     */work/*) echo work-item ;;
     */plans/*) echo plan ;;
     */decisions/*) echo adr ;;
@@ -76,9 +82,6 @@ infer_type_from_path() {
     */research/issues/*) echo issue-research ;;
     */research/design-gaps/*) echo design-gap ;;
     */research/design-inventories/*) echo design-inventory ;;
-    */reviews/plans/*) echo plan-review ;;
-    */reviews/work/*) echo work-item-review ;;
-    */reviews/prs/*) echo pr-review ;;
     */validations/*) echo plan-validation ;;
     */notes/*) echo note ;;
     *) echo "" ;;
@@ -138,8 +141,14 @@ fm_value() {
 fm_inner() {
   local v="$1"
   case "$v" in
-    '"'*'"'*) v="${v#\"}"; v="${v%%\"*}" ;;
-    "'"*"'"*) v="${v#\'}"; v="${v%%\'*}" ;;
+    '"'*'"'*)
+      v="${v#\"}"
+      v="${v%%\"*}"
+      ;;
+    "'"*"'"*)
+      v="${v#\'}"
+      v="${v%%\'*}"
+      ;;
   esac
   printf '%s' "$v"
 }
@@ -202,11 +211,20 @@ bk_value() {
 resolve_id() {
   local block="$1" file="$2" v
   v="$(fm_value "$block" id)"
-  if [ -n "$v" ]; then fm_inner "$v"; return 0; fi
+  if [ -n "$v" ]; then
+    fm_inner "$v"
+    return 0
+  fi
   v="$(fm_value "$block" work_item_id)"
-  if [ -n "$v" ]; then fm_inner "$v"; return 0; fi
+  if [ -n "$v" ]; then
+    fm_inner "$v"
+    return 0
+  fi
   v="$(fm_value "$block" adr_id)"
-  if [ -n "$v" ]; then fm_inner "$v"; return 0; fi
+  if [ -n "$v" ]; then
+    fm_inner "$v"
+    return 0
+  fi
   stem_of "$file"
 }
 
