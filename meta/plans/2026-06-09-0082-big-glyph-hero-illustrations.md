@@ -616,12 +616,15 @@ exact-duplicate dispatch collisions accordingly.
 
 #### Automated Verification
 
-- [ ] Type checking passes: `npm run typecheck`
-- [ ] Showcase unit test passes: `mise run test:unit:frontend`
-- [ ] Visual-regression spec passes against committed baselines:
-  `mise run test:e2e:visualiser`
-- [ ] 26 darwin + 26 linux baseline PNGs committed under
-  `__screenshots__/big-glyph-showcase.spec.ts-snapshots/`
+- [x] Type checking passes: `npm run typecheck`
+- [x] Showcase unit test passes: `mise run test:unit:frontend`
+- [x] Visual-regression spec passes against committed baselines:
+  `mise run test:e2e:visualiser` (26/26 darwin, expected 26 / unexpected 0)
+- [~] 26 darwin + 26 linux baseline PNGs committed under
+  `__screenshots__/big-glyph-showcase.spec.ts-snapshots/` — **darwin committed;
+  linux baselines must be generated via the "Update visual regression
+  baselines" CI workflow after the branch is pushed (cannot be captured
+  locally on darwin)**
 
 #### Manual Verification
 

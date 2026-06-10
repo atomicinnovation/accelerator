@@ -50,6 +50,7 @@ import { LifecycleIndex } from './routes/lifecycle/LifecycleIndex'
 import { LifecycleClusterView } from './routes/lifecycle/LifecycleClusterView'
 import { KanbanBoard } from './routes/kanban/KanbanBoard'
 import { GlyphShowcase } from './routes/glyph-showcase/GlyphShowcase'
+import { BigGlyphShowcase } from './routes/big-glyph-showcase/BigGlyphShowcase'
 import { ChipShowcase } from './routes/chip-showcase/ChipShowcase'
 import { CodeSyntaxShowcase } from './routes/code-syntax-showcase/CodeSyntaxShowcase'
 import { KanbanCardShowcase } from './routes/kanban-card-showcase/KanbanCardShowcase'
@@ -146,6 +147,17 @@ const glyphShowcaseRoute = createRoute({
   component: GlyphShowcase,
 })
 
+// Developer-only preview route for the BigGlyph hero illustrations. Mirrors
+// glyphShowcaseRoute: uncrumbed, renders all 13 doc-type heroes at 96px and is
+// the page under test for tests/visual-regression/big-glyph-showcase.spec.ts.
+// Throwaway fixture — superseded by story 0083's DevDesignSystem (migrate the
+// VR spec + baselines, don't just delete).
+const bigGlyphShowcaseRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/big-glyph-showcase',
+  component: BigGlyphShowcase,
+})
+
 // Developer-only preview route for the Chip primitive. Mirrors the
 // glyphShowcaseRoute: uncrumbed, renders all 6 variants × 2 sizes for
 // visual review and visual-regression coverage.
@@ -189,6 +201,7 @@ export const routeTree = rootRoute.addChildren([
   lifecycleRoute.addChildren([lifecycleIndexRoute, lifecycleClusterRoute]),
   kanbanRoute,
   glyphShowcaseRoute,
+  bigGlyphShowcaseRoute,
   chipShowcaseRoute,
   codeSyntaxShowcaseRoute,
   kanbanCardShowcaseRoute,
