@@ -389,26 +389,27 @@ items (e.g. ADR `rejected`, if so classified) are **not** touched here.
 
 #### Automated Verification:
 
-- [ ] Behavioural regression (authoritative): the red→green oracle above behaves
+- [x] Behavioural regression (authoritative): the red→green oracle above behaves
       as documented — a synthesized `plan` fixture carrying the post-fix
       plan-status literal is **accepted** by `validate-corpus-frontmatter.sh`, and
       one carrying `complete` is **rejected** with `BAD-STATUS`. (This verifies
       emission behaviour, not text position, so it survives routine line shifts.)
-- [ ] Sanity aid (non-authoritative, no line numbers): `validate-plan/SKILL.md`
-      still documents `done` for the plan mutation and retains `complete` for the
-      plan-validation report. Confirm by reading the two sites, not by a
-      line-coupled grep (the legitimate plan-validation `complete` would otherwise
-      false-match a `plan.*status.*complete` pattern).
-- [ ] Existing population/prose test stays green: `mise run test:unit:templates`
-- [ ] Corpus validator + existing config suites stay green:
-      `mise run test:integration:config`
+- [x] Sanity aid (non-authoritative, no line numbers): `validate-plan/SKILL.md`
+      still documents `done` for the plan mutation (`:187`) and retains `complete`
+      for the plan-validation report (`:161`). Confirmed by reading the two sites.
+- [x] Existing population/prose test stays green: `mise run test:unit:templates`
+      (36 passed, 0 failed).
+- [x] Corpus validator + existing config suites stay green:
+      `mise run test:integration:config` (exit 0, 15 suites).
 
 #### Manual Verification:
 
-- [ ] The red→green oracle steps above behave as documented (reject `complete`,
+- [x] The red→green oracle steps above behave as documented (reject `complete`,
       accept `done`).
-- [ ] No producer-text divergence classified in Phase 1 is left unfixed; no
-      schema-source item was fixed here by mistake.
+- [x] No producer-text divergence classified in Phase 1 is left unfixed; no
+      schema-source item was fixed here by mistake (only the `validate-plan`
+      plan-status literal changed; the `review-adr` `rejected` item is deferred to
+      0104).
 
 ---
 

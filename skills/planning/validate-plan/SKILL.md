@@ -184,7 +184,7 @@ Determine the `result` field from the report:
 - `fail`: major deviations or critical failures
 
 4. If the validation result is `pass`, update the plan's frontmatter
-`status` field to `complete` (if the plan has YAML frontmatter with a
+`status` field to `done` (if the plan has YAML frontmatter with a
 `status` field). This closes the plan lifecycle.
 
 5. Inform the user where the report was saved:
