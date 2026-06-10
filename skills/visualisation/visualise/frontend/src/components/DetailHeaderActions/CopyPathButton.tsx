@@ -1,4 +1,4 @@
-import { TopbarIconButton } from '../TopbarIconButton/TopbarIconButton'
+import { HeaderActionButton } from './HeaderActionButton'
 import { copyText } from '../../api/clipboard'
 import { useToast } from '../../api/use-toast'
 
@@ -7,13 +7,12 @@ interface Props {
   relPath: string
 }
 
-/** Clipboard glyph — two overlapping sheets, matching the topbar icon stroke
- *  style (16×16, `currentColor`, strokeWidth 2). Decorative. */
+/** Copy / clipboard glyph (Feather "copy") — reads as "copy to clipboard",
+ *  matching the renamed Copy path action. Decorative. */
 const copyGlyph = (
   <svg
-    aria-hidden="true"
-    width="16"
-    height="16"
+    width="13"
+    height="13"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -21,7 +20,7 @@ const copyGlyph = (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </svg>
 )
@@ -50,13 +49,11 @@ export function CopyPathButton({ relPath }: Props) {
   }
 
   return (
-    <TopbarIconButton
-      ariaLabel="Copy path"
-      dataIcon="copy"
+    <HeaderActionButton
+      icon={copyGlyph}
+      label="Copy path"
       title="Copy path"
       onClick={onCopyPath}
-    >
-      {copyGlyph}
-    </TopbarIconButton>
+    />
   )
 }

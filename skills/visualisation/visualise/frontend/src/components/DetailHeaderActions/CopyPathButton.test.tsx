@@ -22,7 +22,10 @@ describe('CopyPathButton', () => {
     copyText.mockResolvedValue(true)
     render(<CopyPathButton relPath="meta/work/0080-detail-page-header-actions.md" />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy path' }))
+    const btn = screen.getByRole('button', { name: 'Copy path' })
+    // The label is rendered as visible text, not just an accessible name.
+    expect(btn).toHaveTextContent('Copy path')
+    fireEvent.click(btn)
 
     await waitFor(() => expect(showToast).toHaveBeenCalled())
     expect(copyText).toHaveBeenCalledWith('meta/work/0080-detail-page-header-actions.md')

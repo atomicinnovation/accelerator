@@ -120,9 +120,13 @@ exists.
   `Open in editor` button renders **disabled**, with a hover tooltip that
   names the `visualiser.editor` config field (or the
   `ACCELERATOR_VISUALISER_EDITOR` env var) the user must set to enable it.
-- Use the existing Glyph or icon system for button glyphs, and follow the
-  existing `TopbarIconButton` styling precedent; both buttons consume
-  `--ac-*` tokens.
+- Render both actions as **labelled pill buttons** (icon **and** visible text
+  label), matching the prototype's `DocPage` `ac-topbar__btn` affordance
+  (`Icon name="edit"` + "Open in editor", `Icon name="link"`/copy + "Copy
+  path"). Use the current-app pill precedent established by `SortPill` /
+  `FilterPill` (the realisation of the prototype's `ac-topbar__btn`); both
+  buttons consume `--ac-*` tokens for colour and glyph. (Supersedes the earlier
+  icon-only `TopbarIconButton` framing — the prototype shows labelled buttons.)
 
 ## Acceptance Criteria
 
@@ -173,9 +177,10 @@ exists.
   tooltip text contains the literal string `visualiser.editor` (and/or
   `ACCELERATOR_VISUALISER_EDITOR`), naming the config the user must set to
   enable it.
-- [ ] Both buttons render via the `TopbarIconButton` component, and their
-  computed `color` (and the glyph's `fill`/`color`) resolve to `--ac-*`
-  token values, matching the `TopbarIconButton` precedent.
+- [ ] Both buttons render as labelled pill buttons (icon + visible text
+  label) matching the prototype's `ac-topbar__btn` DocPage affordance and the
+  current-app `SortPill`/`FilterPill` pill precedent, and their computed
+  `color` (and the glyph's `fill`/`color`) resolve to `--ac-*` token values.
 
 ## Open Questions
 

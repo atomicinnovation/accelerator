@@ -37,6 +37,21 @@ The work is a frontend wiring exercise plus a config-plumbing extension that
 mirrors the existing `visualiser.idle_timeout` / `kanban_columns` precedent. The
 server already exposes both source paths the feature needs.
 
+> **Post-implementation revision (button presentation).** This plan's Phases 2–3
+> built the two actions on an icon-only, polymorphic `TopbarIconButton`, per the
+> work item's original "render via `TopbarIconButton`" AC. On review against the
+> design prototype (`view-library.jsx` `DocPage`), the actions are **labelled
+> pill buttons** — icon **and** visible text ("Open in editor" / "Copy path") —
+> in the `ac-topbar__btn` family the current app realises as `SortPill` /
+> `FilterPill`. The implementation was reworked accordingly: a dedicated labelled
+> `DetailHeaderActions/HeaderActionButton` (button | anchor | disabled, prototype
+> `ac-topbar__btn` styling) now backs both actions, and `TopbarIconButton` was
+> reverted to its original icon-only form (its polymorphism would have been dead
+> code). The icons were corrected to the prototype's exact `edit` glyph and a
+> copy/clipboard glyph (the renamed "Copy path" action). The work item AC was
+> updated to match. All other behaviour (anchor-for-gesture, the disabled
+> sub-states, the scheme guard, config plumbing) is unchanged.
+
 ## Current State Analysis
 
 - **`Page.actions` slot exists and is unused by `LibraryDocView`.** `Page` renders

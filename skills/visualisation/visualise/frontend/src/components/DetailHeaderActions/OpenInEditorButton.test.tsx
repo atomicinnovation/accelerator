@@ -20,6 +20,8 @@ describe('OpenInEditorButton — configured', () => {
     editorData = { editor: 'vscode', editorProject: 'myrepo' }
     render(<OpenInEditorButton {...PATHS} />)
     const link = screen.getByRole('link', { name: 'Open in editor' })
+    // The label is rendered as visible text, not just an accessible name.
+    expect(link).toHaveTextContent('Open in editor')
     expect(link).toHaveAttribute('href', 'vscode://file/Users/x/a%20b.md')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
   })

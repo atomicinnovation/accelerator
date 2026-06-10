@@ -242,6 +242,12 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'components/SortPill/SortPill.module.css', literal: '8px', count: 2, kind: 'irreducible', reason: 'menu-header bottom padding + menu-item gap from design — equals --sp-2 but co-located' },
   { file: 'components/SortPill/SortPill.module.css', literal: '4px', count: 1, kind: 'irreducible', reason: 'menu-header bottom margin from design — equals --sp-1 but co-located' },
   { file: 'components/SortPill/SortPill.module.css', literal: '0.12em', count: 1, kind: 'irreducible', reason: 'menu-header caps letter-spacing — matches sidebar headings' },
+  // components/DetailHeaderActions/HeaderActionButton.module.css — labelled
+  // detail-header pill matching the prototype .ac-topbar__btn (same literals
+  // the SortPill/FilterPill pill family uses).
+  { file: 'components/DetailHeaderActions/HeaderActionButton.module.css', literal: '6px', count: 2, kind: 'irreducible', reason: 'pill vertical padding + icon/label gap from prototype .ac-topbar__btn — between --sp-1 and --sp-2' },
+  { file: 'components/DetailHeaderActions/HeaderActionButton.module.css', literal: '10px', count: 1, kind: 'irreducible', reason: 'pill horizontal padding from prototype .ac-topbar__btn — between --sp-2 and --sp-3' },
+  { file: 'components/DetailHeaderActions/HeaderActionButton.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'resting transparent border + forced-colors border widths — below --sp-1 floor' },
   // components/FilterPill/FilterPill.module.css
   { file: 'components/FilterPill/FilterPill.module.css', literal: '1px', count: 6, kind: 'irreducible', reason: 'trigger / checkbox / search / dashed dividers + checkmark translateY — below --sp-1 floor' },
   { file: 'components/FilterPill/FilterPill.module.css', literal: '260px', count: 1, kind: 'irreducible', reason: 'menu min-width — no token equivalent' },

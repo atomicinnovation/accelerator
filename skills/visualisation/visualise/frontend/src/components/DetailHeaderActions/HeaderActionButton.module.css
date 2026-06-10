@@ -1,0 +1,51 @@
+/* Labelled detail-header action pill — the current-app realisation of the
+   prototype's `.ac-topbar__btn` (DocPage actions): icon + visible label, a
+   transparent resting border that fills on hover. Sits in the same pill family
+   as SortPill/FilterPill but stays borderless-until-hover per the prototype. */
+.btn {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-4);
+  color: var(--ac-fg-muted);
+  font-size: var(--size-xxs);
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--ac-bg-hover);
+  color: var(--ac-fg);
+}
+
+/* Disabled affordance (e.g. `Open in editor` with no editor configured). We use
+   aria-disabled (NOT the native `disabled` attribute) so the control stays
+   focusable and its title/description remain reachable by keyboard and screen
+   readers — the disabled hint is the user's only path to enabling the feature.
+   The compound selectors below outrank `.btn:hover` so feedback is suppressed. */
+.btn[aria-disabled='true'] {
+  color: var(--ac-fg-faint);
+  cursor: default;
+}
+
+.btn[aria-disabled='true']:hover {
+  background: transparent;
+  color: var(--ac-fg-faint);
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+}
+
+/* Forced-colors mode (Windows High Contrast): explicit border so the pill is
+   distinguishable from the page-header background. */
+@media (forced-colors: active) {
+  .btn {
+    border: 1px solid ButtonText;
+  }
+}
