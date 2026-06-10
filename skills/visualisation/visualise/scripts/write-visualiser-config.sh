@@ -238,7 +238,12 @@ fi
 # empty and is omitted by the splice below — upholding "absent → None → disabled"
 # for whitespace-only values, not just genuinely-empty ones, so config.json never
 # carries a spurious `"editor": "   "` key. (The server still trims defensively.)
-trim_ws() { local v="$1"; v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"; printf '%s' "$v"; }
+trim_ws() {
+  local v="$1"
+  v="${v#"${v%%[![:space:]]*}"}"
+  v="${v%"${v##*[![:space:]]}"}"
+  printf '%s' "$v"
+}
 EDITOR="$(trim_ws "$EDITOR")"
 EDITOR_PROJECT="$(trim_ws "$EDITOR_PROJECT")"
 
