@@ -52,10 +52,14 @@ class TestConfigSuiteGuard:
             integration.config(Context())
 
     def test_guard_passes_at_baseline(self, mocker):
-        suites = [
+        # The required-by-name gates must be present, with generic filler making
+        # up the rest of the count floor.
+        required = list(integration._REQUIRED_CONFIG_SUITES)
+        filler = [
             f"scripts/test-{i}.sh"
-            for i in range(integration._EXPECTED_CONFIG_SUITES)
+            for i in range(integration._EXPECTED_CONFIG_SUITES - len(required))
         ]
+        suites = required + filler
         mocker.patch.object(integration, "run_shell_suites", return_value=suites)
         integration.config(Context())  # must not raise
 
