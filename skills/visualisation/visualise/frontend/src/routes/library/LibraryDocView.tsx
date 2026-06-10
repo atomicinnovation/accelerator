@@ -14,6 +14,7 @@ import { RelatedArtifacts } from '../../components/RelatedArtifacts/RelatedArtif
 import { RelatedCluster } from '../../components/RelatedCluster/RelatedCluster'
 import { useDocCluster } from '../../api/use-doc-cluster'
 import { EyebrowLabel } from '../../components/EyebrowLabel/EyebrowLabel'
+import { CopyPathButton } from '../../components/DetailHeaderActions/CopyPathButton'
 import type { DocTypeKey } from '../../api/types'
 import { isDocTypeKey } from '../../api/types'
 import { fileSlugFromRelPath } from '../../api/path-utils'
@@ -190,6 +191,11 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
       eyebrow={hasResolvedDocument ? <EyebrowLabel type={type} /> : undefined}
       title={title}
       subtitle={subtitle}
+      actions={
+        hasResolvedDocument && entry ? (
+          <CopyPathButton relPath={entry.relPath} />
+        ) : undefined
+      }
     >
       {body}
     </Page>

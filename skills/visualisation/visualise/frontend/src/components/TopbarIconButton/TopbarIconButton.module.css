@@ -24,6 +24,24 @@
   color: var(--ac-fg-strong);
 }
 
+/* Disabled affordance (e.g. `Open in editor` with no editor configured).
+   We mark disabled controls with aria-disabled (not the native `disabled`
+   attribute) so they stay focusable and their tooltip/description remain
+   reachable. The styling reads as inactive: a faint token colour, the
+   default cursor, and suppressed hover/active feedback. The :hover/:active
+   overrides below win over the rules above by virtue of the compound
+   selector's higher specificity. */
+.toggle[aria-disabled="true"] {
+  color: var(--ac-fg-faint);
+  cursor: default;
+}
+
+.toggle[aria-disabled="true"]:hover,
+.toggle[aria-disabled="true"]:active {
+  background: transparent;
+  color: var(--ac-fg-faint);
+}
+
 /* Forced-colors mode (Windows High Contrast): explicit border so
    the button is distinguishable from the topbar background. */
 @media (forced-colors: active) {

@@ -582,22 +582,22 @@ return (
 
 #### Automated Verification:
 
-- [ ] Frontend tests pass: `mise run test:unit:frontend`
-- [ ] `TopbarIconButton` test: button variant emits `aria-pressed` only when
+- [x] Frontend tests pass: `mise run test:unit:frontend`
+- [x] `TopbarIconButton` test: button variant emits `aria-pressed` only when
   provided and is absent on the anchor variant; anchor variant renders `<a href>`
   with `rel="noopener noreferrer"`; disabled variant renders `<button
   aria-disabled="true">` that stays focusable (NOT the native `disabled` attribute),
   keeps its `title`, fires no `onClick`, and wires `aria-describedby` when provided
   (extend `TopbarIconButton.test.tsx`)
-- [ ] `.toggle[aria-disabled="true"]` style asserts an inactive affordance
+- [x] `.toggle[aria-disabled="true"]` style asserts an inactive affordance
   (`cursor: default`, muted `--ac-*` colour, no hover/active change)
-- [ ] `clipboard.ts` test: uses `navigator.clipboard.writeText` when present; falls
+- [x] `clipboard.ts` test: uses `navigator.clipboard.writeText` when present; falls
   back to `execCommand('copy')` when absent; returns false on failure
-- [ ] Copy-path success test: clicking copies the raw `relPath` (no scheme/host/encoding)
+- [x] Copy-path success test: clicking copies the raw `relPath` (no scheme/host/encoding)
   and triggers a `kind: 'ok'` toast
-- [ ] Copy-path failure test: when `copyText` resolves `false`, the handler shows a
+- [x] Copy-path failure test: when `copyText` resolves `false`, the handler shows a
   `kind: 'error'` toast and NOT the success toast
-- [ ] Typecheck passes; existing `ThemeToggle`/`FontModeToggle` tests still pass
+- [x] Typecheck passes; existing `ThemeToggle`/`FontModeToggle` tests still pass
   (backward-compatible props)
 
 #### Manual Verification:
