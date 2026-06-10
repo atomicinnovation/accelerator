@@ -5,7 +5,7 @@ title: "Detail-Page Header Actions (Open in Editor, Copy Path) Implementation Pl
 date: "2026-06-09T21:10:24+00:00"
 author: Toby Clemson
 producer: create-plan
-status: complete
+status: done
 work_item_id: "work-item:0080"
 parent: "work-item:0080"
 derived_from: ["codebase-research:2026-06-09-0080-detail-page-header-actions"]

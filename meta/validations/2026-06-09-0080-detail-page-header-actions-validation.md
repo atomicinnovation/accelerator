@@ -9,7 +9,6 @@ status: complete
 result: "pass"
 parent: "plan:2026-06-09-0080-detail-page-header-actions"
 target: "plan:2026-06-09-0080-detail-page-header-actions"
-relates_to: []
 tags: [design, frontend, detail-page, config, editor-deeplink, clipboard]
 last_updated: "2026-06-10T21:34:09+00:00"
 last_updated_by: Toby Clemson

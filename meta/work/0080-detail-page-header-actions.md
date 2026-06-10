@@ -7,7 +7,6 @@ kind: story
 status: ready
 priority: medium
 type: work-item
-parent: ""
 blocked_by: ["work-item:0041", "work-item:0039"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 tags: [design, frontend, detail-page, config]
