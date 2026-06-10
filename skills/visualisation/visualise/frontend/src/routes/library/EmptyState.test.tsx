@@ -3,6 +3,19 @@ import { render, screen } from '@testing-library/react'
 import { EmptyState } from './EmptyState'
 import { EMPTY_DESCRIPTIONS, EMPTY_TYPE_PLURALS } from './empty-descriptions'
 import { DOC_TYPE_KEYS } from '../../api/types'
+import { DOC_TYPE_HUE } from '../../styles/tokens'
+
+// Does any descendant fill/stroke carry an `hsl(<hue> …)` tone for this hue?
+function heroHasHue(svg: SVGElement, hue: number): boolean {
+  const want = `hsl(${hue} `
+  for (const node of Array.from(svg.querySelectorAll('*'))) {
+    for (const attr of ['fill', 'stroke'] as const) {
+      const v = node.getAttribute(attr)
+      if (v && v.toLowerCase().startsWith(want)) return true
+    }
+  }
+  return false
+}
 
 describe('EmptyState', () => {
   it('renders the path heading from dirPath', () => {
@@ -33,6 +46,41 @@ describe('EmptyState', () => {
     expect(footer?.textContent ?? '').toMatch(
       /new files added to meta\/plans are picked up live/i,
     )
+  })
+})
+
+describe('EmptyState: BigGlyph hero wiring', () => {
+  // Two doc types with deliberately distinct hues, so "the tones differ between
+  // the two" is genuinely discriminating. Asserted up front rather than assumed.
+  const A = 'work-items'
+  const B = 'decisions'
+
+  it('the two probe doc types have distinct hues (guards the wiring assertions)', () => {
+    expect(DOC_TYPE_HUE[A]).not.toBe(DOC_TYPE_HUE[B])
+  })
+
+  it('renders each type-specific hero coloured from its OWN doc-type hue', () => {
+    const a = render(<EmptyState docType={A} />)
+    const aSvg = a.container.querySelector('svg')!
+    expect(heroHasHue(aSvg, DOC_TYPE_HUE[A]), `${A} hero hue`).toBe(true)
+    // Cross-check: the work-items hero must NOT be coloured with decisions' hue.
+    expect(heroHasHue(aSvg, DOC_TYPE_HUE[B])).toBe(false)
+    a.unmount()
+
+    const b = render(<EmptyState docType={B} />)
+    const bSvg = b.container.querySelector('svg')!
+    expect(heroHasHue(bSvg, DOC_TYPE_HUE[B]), `${B} hero hue`).toBe(true)
+    expect(heroHasHue(bSvg, DOC_TYPE_HUE[A])).toBe(false)
+  })
+
+  it('renders the hero as a decorative 96px svg (aria-hidden, no role)', () => {
+    const { container } = render(<EmptyState docType="plans" />)
+    const svg = container.querySelector('svg')!
+    expect(svg.getAttribute('aria-hidden')).toBe('true')
+    expect(svg.getAttribute('role')).toBeNull()
+    expect(svg.getAttribute('width')).toBe('96')
+    expect(svg.getAttribute('height')).toBe('96')
+    expect(svg.getAttribute('viewBox')).toBe('0 0 80 80')
   })
 })
 

@@ -697,14 +697,14 @@ pass. Instead:
 
 #### Automated Verification
 
-- [ ] Type checking passes: `npm run typecheck`
-- [ ] Unit tests pass (incl. updated `EmptyState.test.tsx` and
-  `migration.test.ts`): `mise run test:unit:frontend`
-- [ ] No remaining references to `PaperFold` in `src`/`tests`:
+- [x] Type checking passes: `npm run typecheck`
+- [x] Unit tests pass (incl. updated `EmptyState.test.tsx` and
+  `migration.test.ts`): `mise run test:unit:frontend` (2316 passed)
+- [x] No remaining references to `PaperFold` in `src`/`tests`:
   `grep -rn "PaperFold" src tests` returns nothing
-- [ ] EmptyState-adjacent visual-regression specs still pass:
+- [x] EmptyState-adjacent visual-regression specs still pass:
   `mise run test:e2e:visualiser` (`typography-resolved-sizes.spec.ts`,
-  `radius-resolved-radii.spec.ts`)
+  `radius-resolved-radii.spec.ts` — 27/27)
 
 #### Manual Verification
 

@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 import type { DocTypeKey } from '../../api/types'
 import { DOC_TYPE_LABELS } from '../../api/types'
 import { TYPE_COPY, EMPTY_TYPE_PLURALS } from './empty-descriptions'
-import { PaperFold } from './PaperFold'
+import { BigGlyph } from '../../components/BigGlyph/BigGlyph'
 import styles from './EmptyState.module.css'
 
 export interface EmptyStateProps {
@@ -29,7 +29,7 @@ export function EmptyState({ docType, dirPath }: EmptyStateProps) {
   return (
     <div className={styles.card} style={cssVars} role="status">
       <div className={styles.hero}>
-        <PaperFold size={72} hue={hue} />
+        <BigGlyph docType={docType} size={96} />
       </div>
       <div className={styles.body}>
         <div className={styles.eyebrow}>{path}</div>

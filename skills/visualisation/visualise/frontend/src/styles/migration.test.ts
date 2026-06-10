@@ -220,7 +220,7 @@ const EXCEPTIONS: ReadonlyArray<Exception & { kind: 'to-migrate' | 'irreducible'
   { file: 'routes/library/LibraryOverviewHub.module.css', literal: '0.12em', count: 1, kind: 'irreducible', reason: 'phase-heading caps letter-spacing' },
   // routes/library/EmptyState.module.css — full-page list-view empty state
   { file: 'routes/library/EmptyState.module.css', literal: '1px', count: 2, kind: 'irreducible', reason: 'dashed card outline + dashed foot top border — below --sp-1 floor' },
-  { file: 'routes/library/EmptyState.module.css', literal: '96px', count: 1, kind: 'irreducible', reason: 'PaperFold hero column track from design — no token equivalent' },
+  { file: 'routes/library/EmptyState.module.css', literal: '96px', count: 1, kind: 'irreducible', reason: 'BigGlyph hero column track from design — no token equivalent' },
   { file: 'routes/library/EmptyState.module.css', literal: '28px', count: 3, kind: 'irreducible', reason: 'card grid gap + horizontal padding + top padding from design — between --sp-5 and --sp-6' },
   { file: 'routes/library/EmptyState.module.css', literal: '26px', count: 1, kind: 'irreducible', reason: 'card bottom padding from design — between --sp-5 and --sp-6' },
   { file: 'routes/library/EmptyState.module.css', literal: '22px', count: 1, kind: 'irreducible', reason: 'card responsive padding-block at .card — equals --size-lg but co-located' },
