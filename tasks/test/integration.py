@@ -11,7 +11,14 @@ _EXPECTED_MIGRATE_SUITES = 4
 # guard, this is an at-least floor so a dropped exec bit on a fail-closed gate
 # (e.g. validate-corpus-frontmatter.sh — the AC-1 corpus validator) can't
 # silently vanish from CI. Bumped as suites are added under scripts/.
-_EXPECTED_CONFIG_SUITES = 15
+_EXPECTED_CONFIG_SUITES = 16
+
+# Fail-closed gates that MUST run by name, not merely satisfy the count floor —
+# a guard renamed off the `test-*.sh` convention would vanish while the count
+# still passes via other suites. The producer-conformance guard (work item
+# 0103) is the gate that "cannot drift undetected", so its presence is asserted
+# by identity.
+_REQUIRED_CONFIG_SUITES = ("scripts/test-skill-frontmatter-conformance.sh",)
 
 
 @task
@@ -45,6 +52,14 @@ def config(context: Context):
             f"suites, found {len(suites)}: {suites}. An exec bit may have "
             f"been dropped — a fail-closed gate (e.g. the corpus validator) is "
             f"missing from CI.",
+            code=1,
+        )
+    missing = [s for s in _REQUIRED_CONFIG_SUITES if s not in suites]
+    if missing:
+        raise Exit(
+            f"Required config shell suite(s) not discovered by name: {missing} "
+            f"(found {suites}). A fail-closed gate may have lost its exec bit or "
+            f"been renamed off the test-*.sh convention.",
             code=1,
         )
 

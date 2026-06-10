@@ -19,84 +19,15 @@ VALIDATOR="$SCRIPT_DIR/validate-corpus-frontmatter.sh"
 TEMPLATE_TEST="$SCRIPT_DIR/test-template-frontmatter.sh"
 SCHEMA_TSV="$SCRIPT_DIR/templates-schema.tsv"
 
+# emit_valid / run_validator / assert_rejects / assert_accepts live in the
+# shared fixture helper, so this suite and the producer-conformance guard share
+# one fixture authority. Sourced AFTER test-helpers.sh (PASS/FAIL counters),
+# frontmatter-emission-rules.sh (FM_OPTIONAL_EXTRAS), and the VALIDATOR= set.
+# shellcheck source=frontmatter-fixtures.sh
+source "$SCRIPT_DIR/frontmatter-fixtures.sh"
+
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-
-# ---- Fixture generation ---------------------------------------------------
-# Emit a minimal *valid* artifact for a schema row. Required (non-optional)
-# extras get a non-empty placeholder; anchored types get the provenance bundle;
-# typed-linkage keys are omitted (omit-when-empty), so no referential targets
-# are needed. Extra frontmatter lines may be appended via $extra_lines (a
-# newline-separated string injected before the closing fence).
-emit_valid() {
-  local type="$1" anchored="$2" extras="$3" vocab="$4" outfile="$5" extra_lines="${6:-}"
-  local id status e
-  case "$type" in
-    work-item) id="0001" ;;
-    adr) id="ADR-0001" ;;
-    pr-description) id="0042" ;;
-    *) id="fixture-$type" ;;
-  esac
-  status="$(printf '%s' "$vocab" | cut -d'|' -f1 | tr -d '[:space:]')"
-  {
-    printf -- '---\n'
-    printf 'type: %s\n' "$type"
-    printf 'id: "%s"\n' "$id"
-    printf 'title: "Fixture %s"\n' "$type"
-    printf 'date: "2026-01-01T00:00:00+00:00"\n'
-    printf 'author: Fixture Author\n'
-    printf 'producer: fixture\n'
-    printf 'status: %s\n' "$status"
-    printf 'tags: []\n'
-    printf 'last_updated: "2026-01-01T00:00:00+00:00"\n'
-    printf 'last_updated_by: Fixture Author\n'
-    printf 'schema_version: 1\n'
-    for e in $extras; do
-      case " $FM_OPTIONAL_EXTRAS " in *" $e "*) continue ;; esac
-      printf '%s: "x"\n' "$e"
-    done
-    if [ "$anchored" = "yes" ]; then
-      printf 'revision: "abc123"\n'
-      printf 'repository: "repo"\n'
-    fi
-    [ -n "$extra_lines" ] && printf '%s\n' "$extra_lines"
-    printf -- '---\n\n# Fixture %s\n' "$type"
-  } >"$outfile"
-}
-
-# Capture the validator's stderr+rc for a set of args.
-run_validator() {
-  VALIDATOR_RC=0
-  VALIDATOR_ERR="$("$VALIDATOR" "$@" 2>&1 >/dev/null)" || VALIDATOR_RC=$?
-}
-
-assert_rejects() { # $1=name $2=code; remaining args = validator args
-  local name="$1" code="$2"
-  shift 2
-  run_validator "$@"
-  if [ "$VALIDATOR_RC" -ne 0 ] && grep -qF -- "$code" <<<"$VALIDATOR_ERR"; then
-    echo "  PASS: $name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $name (rc=$VALIDATOR_RC, expected code '$code')"
-    echo "$VALIDATOR_ERR" | sed 's/^/    /'
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_accepts() { # $1=name; remaining args = validator args
-  local name="$1"
-  shift
-  run_validator "$@"
-  if [ "$VALIDATOR_RC" -eq 0 ]; then
-    echo "  PASS: $name"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: $name (rc=$VALIDATOR_RC)"
-    echo "$VALIDATOR_ERR" | sed 's/^/    /'
-    FAIL=$((FAIL + 1))
-  fi
-}
 
 # ---- 1. One valid fixture per schema type; coverage == TSV row count -------
 echo "=== Valid fixtures: one per schema type ==="

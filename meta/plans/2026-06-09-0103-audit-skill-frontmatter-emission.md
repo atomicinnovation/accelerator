@@ -598,38 +598,39 @@ follow-up — noted so the two CI gates can converge.)
 
 #### Automated Verification:
 
-- [ ] The guard is executable: `test -x scripts/test-skill-frontmatter-conformance.sh`
-- [ ] The guard passes standalone: `bash scripts/test-skill-frontmatter-conformance.sh`
-- [ ] It is discovered and the floor tracks it (16 suites):
-      `mise run test:integration:config`
-- [ ] Negative test proves wiring — the in-suite self-test mutates each
+- [x] The guard is executable: `test -x scripts/test-skill-frontmatter-conformance.sh`
+- [x] The guard passes standalone: `bash scripts/test-skill-frontmatter-conformance.sh`
+      (129 passed, 1 skip, 0 failed).
+- [x] It is discovered and the floor tracks it (16 suites):
+      `mise run test:integration:config` (16 suites; guard present by name).
+- [x] Negative test proves wiring — the in-suite self-test mutates each
       synthesized fixture's value (one mutation per axis: type, status, missing
       extra, schema_version), asserts the mutation actually changed the fixture,
       and fails the suite if any mutated fixture is *accepted*.
-- [ ] Each conditional axis is exercised on both branches (anchored vs
+- [x] Each conditional axis is exercised on both branches (anchored vs
       non-anchored provenance, linkage present vs absent, omit-when-empty key
       present-and-valid vs absent) — synthesized and validated in-suite, per AC4.
-      The omit-when-empty key set is `FM_OPTIONAL_EXTRAS` ∩ the type's extras plus
-      the type's typed-linkage keys (not `tags`, which the validator exempts at
-      `:343`); includes an `EMPTY-PLACEHOLDER` liveness fixture (a non-`tags` key
-      emitted as `""`) alongside the present-and-valid and absent branches.
-- [ ] Both blind-spot checks have a liveness case (a deliberately non-conforming
-      fixture each must reject), so neither can rot into an assertion-free no-op.
-- [ ] Every claimed extraction is non-empty: the guard fails if a (skill, type,
+      Includes an `EMPTY-PLACEHOLDER` liveness fixture (`external_id: ""`, a
+      non-`tags` key) alongside the present-and-valid and absent branches.
+- [x] Both blind-spot checks have a liveness case (a deliberately non-conforming
+      fixture each must reject) plus a clean control, so neither can rot into an
+      assertion-free no-op.
+- [x] Every claimed extraction is non-empty: the guard fails if a (skill, type,
       field) it intends to check yields an empty literal (formatting-drift guard).
-- [ ] No re-encoded contract: the guard sources `frontmatter-emission-rules.sh`
-      and reads `templates-schema.tsv`
-      (`grep -nE "frontmatter-emission-rules\.sh|templates-schema\.tsv" scripts/test-skill-frontmatter-conformance.sh`).
-- [ ] Full integration suite green: `mise run test:integration:config`
+- [x] No re-encoded contract: the guard sources `frontmatter-emission-rules.sh`
+      and reads `templates-schema.tsv` (asserted in-suite).
+- [x] Full integration suite green: `mise run test:integration:config` (exit 0).
 
 #### Manual Verification:
 
-- [ ] Temporarily reverting `validate-plan` to `status: complete` for the plan
-      makes the guard fail with a plan `BAD-STATUS`-class diagnostic (then revert).
-- [ ] The guard is bash 3.2-safe (no associative arrays / bash-4 constructs);
-      reasoned-through against the macOS CI floor. In particular, extraction
-      anchors on ASCII tokens and treats the `←` (U+2190) glyph as opaque bytes
-      under `LC_ALL=C`, so it behaves identically under BSD and GNU tooling.
+- [x] Temporarily reverting `validate-plan` to `status: complete` for the plan
+      makes the guard fail with a plan `BAD-STATUS`-class diagnostic (verified:
+      2 failures on the `validate-plan -> plan` status axis; reverted).
+- [x] The guard is bash 3.2-safe (no associative arrays / bash-4 constructs):
+      verified by running both the guard and the refactored validator suite
+      under `/bin/bash` 3.2.57 on macOS (both exit 0). Extraction anchors on
+      ASCII tokens and treats the `←` (U+2190) glyph as opaque bytes under
+      `LC_ALL=C`, so it behaves identically under BSD and GNU tooling.
 
 ---
 
