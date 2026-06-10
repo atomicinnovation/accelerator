@@ -41,6 +41,17 @@ pub struct Config {
     /// Resolved + validated at boot by `resolve_idle_limit_ms`.
     #[serde(default)]
     pub idle_timeout: Option<String>,
+    /// Editor deep-link selection: a preset key (e.g. `vscode`, `cursor`,
+    /// `idea`, `web-storm`) or a custom URL template containing `://` or an
+    /// `{abs}`/`{rel}` placeholder. Absent → `Open in editor` renders disabled.
+    /// Passed through verbatim; the frontend resolves presets/templates.
+    #[serde(default)]
+    pub editor: Option<String>,
+    /// JetBrains project name for the `{project}` placeholder. Absent →
+    /// server defaults to the basename of `project_root`. Ignored by
+    /// non-JetBrains presets.
+    #[serde(default)]
+    pub editor_project: Option<String>,
 }
 
 /// A single kanban board column, as resolved at boot.
@@ -809,5 +820,27 @@ mod tests {
                 "expected InvalidIdleTimeout for {token}, got {err:?}"
             );
         }
+    }
+
+    #[test]
+    fn editor_fields_absent_resolve_to_none() {
+        // The `#[serde(default)]` fields are absent from `bare_config_json`;
+        // assert they parse to `None` at runtime (the disabled-button contract).
+        let cfg: Config = serde_json::from_str(bare_config_json()).unwrap();
+        assert_eq!(cfg.editor, None);
+        assert_eq!(cfg.editor_project, None);
+    }
+
+    #[test]
+    fn editor_fields_parse_when_present() {
+        let json = r#"{
+            "plugin_root": "/p", "plugin_version": "0.0.0", "project_root": "/r",
+            "tmp_path": "/t", "host": "127.0.0.1", "owner_pid": 0,
+            "log_path": "/l", "doc_paths": {}, "templates": {},
+            "editor": "cursor", "editor_project": "myrepo"
+        }"#;
+        let cfg: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(cfg.editor.as_deref(), Some("cursor"));
+        assert_eq!(cfg.editor_project.as_deref(), Some("myrepo"));
     }
 }

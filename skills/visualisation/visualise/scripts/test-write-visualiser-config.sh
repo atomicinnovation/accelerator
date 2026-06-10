@@ -273,5 +273,72 @@ assert_eq "invalid idle_timeout exits non-zero" "1" "$EXIT19"
 assert_contains "stderr names the bad value" "$STDERR19" "invalid visualiser.idle_timeout 'soon'"
 assert_empty "no config.json emitted on invalid idle_timeout" "$(cat "$OUT19_FILE")"
 
+# ─── 20. editor: no env, no config → key absent ──────────────────────────────
+echo "Test: no editor configured → editor/editor_project keys absent from config.json"
+PROJ20="$TMPDIR_BASE/t-editor-absent"
+make_project "$PROJ20"
+OUT20_FILE="$TMPDIR_BASE/out20.json"
+run_config "$PROJ20" >"$OUT20_FILE"
+assert_json_eq "editor key absent (null)" ".editor" "null" "$OUT20_FILE"
+assert_json_eq "editor_project key absent (null)" ".editor_project" "null" "$OUT20_FILE"
+OUT20_TEXT="$(cat "$OUT20_FILE")"
+assert_not_contains "no editor key emitted when unset" "$OUT20_TEXT" '"editor"'
+
+# ─── 21. editor: config value, no env → config-over-default ──────────────────
+echo "Test: visualiser.editor + editor_project in config → emitted verbatim"
+PROJ21="$TMPDIR_BASE/t-editor-config"
+make_project "$PROJ21"
+write_config "$PROJ21" 'visualiser:
+  editor: cursor
+  editor_project: myrepo'
+OUT21_FILE="$TMPDIR_BASE/out21.json"
+run_config "$PROJ21" >"$OUT21_FILE"
+assert_json_eq "editor reflects config" ".editor" "cursor" "$OUT21_FILE"
+assert_json_eq "editor_project reflects config" ".editor_project" "myrepo" "$OUT21_FILE"
+
+# ─── 22. editor: env over config ─────────────────────────────────────────────
+echo "Test: ACCELERATOR_VISUALISER_EDITOR(_PROJECT) override config (env-over-config)"
+PROJ22="$TMPDIR_BASE/t-editor-env"
+make_project "$PROJ22"
+write_config "$PROJ22" 'visualiser:
+  editor: cursor
+  editor_project: myrepo'
+OUT22_FILE="$TMPDIR_BASE/out22.json"
+ACCELERATOR_VISUALISER_EDITOR=vscode ACCELERATOR_VISUALISER_EDITOR_PROJECT=otherrepo \
+  run_config "$PROJ22" >"$OUT22_FILE"
+assert_json_eq "editor env wins over config" ".editor" "vscode" "$OUT22_FILE"
+assert_json_eq "editor_project env wins over config" ".editor_project" "otherrepo" "$OUT22_FILE"
+
+# ─── 23. editor: empty env falls through to config ───────────────────────────
+echo "Test: empty ACCELERATOR_VISUALISER_EDITOR falls through to config"
+PROJ23="$TMPDIR_BASE/t-editor-empty-env"
+make_project "$PROJ23"
+write_config "$PROJ23" 'visualiser:
+  editor: cursor'
+OUT23_FILE="$TMPDIR_BASE/out23.json"
+ACCELERATOR_VISUALISER_EDITOR="" run_config "$PROJ23" >"$OUT23_FILE"
+assert_json_eq "empty env does not override config" ".editor" "cursor" "$OUT23_FILE"
+
+# ─── 24. editor: whitespace-only → key absent ────────────────────────────────
+echo "Test: whitespace-only ACCELERATOR_VISUALISER_EDITOR → key absent"
+PROJ24="$TMPDIR_BASE/t-editor-ws"
+make_project "$PROJ24"
+OUT24_FILE="$TMPDIR_BASE/out24.json"
+ACCELERATOR_VISUALISER_EDITOR="   " run_config "$PROJ24" >"$OUT24_FILE"
+assert_json_eq "whitespace-only editor collapses to absent" ".editor" "null" "$OUT24_FILE"
+
+# ─── 25. editor: custom template with :// and a space round-trips intact ─────
+# Guards the macOS bash 3.2 quoting gotcha: the value carries a scheme, a
+# placeholder, and an embedded space, all of which must survive verbatim.
+echo "Test: custom-template editor with '://' and a space round-trips intact"
+PROJ25="$TMPDIR_BASE/t-editor-template"
+make_project "$PROJ25"
+write_config "$PROJ25" 'visualiser:
+  editor: "zed://open?path={abs}&name=My Project"'
+OUT25_FILE="$TMPDIR_BASE/out25.json"
+run_config "$PROJ25" >"$OUT25_FILE"
+assert_json_eq "custom template round-trips with :// and space" \
+  ".editor" "zed://open?path={abs}&name=My Project" "$OUT25_FILE"
+
 echo ""
 test_summary

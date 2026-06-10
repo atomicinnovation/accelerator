@@ -119,6 +119,41 @@ The idle auto-shutdown window is configurable via the
 one-shot, shell-scoped override (precedence:
 env > `visualiser.idle_timeout` > 8h default).
 
+The detail-page `Open in editor` action is configured via the
+`visualiser.editor` config key (with `ACCELERATOR_VISUALISER_EDITOR`
+as a one-shot env override; precedence env > config). When unset the
+button renders disabled. The value is either a **preset key** or a
+**custom URL template**:
+
+- **VS Code family** preset keys — `vscode`, `vscode-insiders`,
+  `vscodium`, `cursor`, `windsurf` — each opening
+  `{scheme}://file{abs}` (a single slash before the absolute path).
+- **JetBrains** preset keys — `idea`, `web-storm`, `pycharm`,
+  `php-storm`, `goland`, `rubymine`, `clion`, `rd`, `rustrover` — each
+  opening `jetbrains://{tag}/navigate/reference?project={project}&path={rel}`.
+  The `{project}` name comes from `visualiser.editor_project`
+  (env override `ACCELERATOR_VISUALISER_EDITOR_PROJECT`); when unset it
+  defaults to the project directory's basename. Ignored by non-JetBrains
+  presets.
+- **Custom template** — for editors without a preset (e.g. Zed, Sublime),
+  set `visualiser.editor` to a URL template. It **must contain at least
+  one** `{abs}` (percent-encoded absolute path) or `{rel}` (percent-encoded
+  project-relative path) placeholder — a value that cannot reference the
+  file is treated as unresolvable and the button renders disabled. Example:
+  `zed://file{abs}`. As a safety guard a resolved link whose scheme is
+  `javascript`, `data`, `vbscript`, `blob`, or `file` is rejected (disabled);
+  any other editor scheme is allowed.
+
+```yaml
+---
+visualiser:
+  editor: cursor
+  # editor: web-storm
+  # editor_project: myrepo        # JetBrains project name override
+  # editor: "zed://file{abs}"     # custom-template escape hatch
+---
+```
+
 To run the visualiser from a terminal, symlink the CLI wrapper:
 
 **Install command**: !`printf 'ln -s "%s" "%s"' "${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/cli/accelerator-visualiser" "$HOME/.local/bin/accelerator-visualiser"`

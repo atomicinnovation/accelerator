@@ -29,6 +29,8 @@ async fn file_mutation_arrives_as_sse_event() {
         work_item: None,
             kanban_columns: None,
             idle_timeout: None,
+            editor: None,
+            editor_project: None,
     };
 
     let info_path = tmp.path().join("server-info.json");
@@ -180,6 +182,8 @@ fn make_template_cfg(
         work_item: None,
         kanban_columns: None,
         idle_timeout: None,
+        editor: None,
+        editor_project: None,
     }
 }
 

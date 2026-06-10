@@ -57,6 +57,8 @@ mod tests {
             work_item: None,
             kanban_columns: None,
             idle_timeout: None,
+            editor: None,
+            editor_project: None,
         };
         let activity = Arc::new(crate::activity::Activity::new());
         AppState::build(cfg, activity).await.unwrap()

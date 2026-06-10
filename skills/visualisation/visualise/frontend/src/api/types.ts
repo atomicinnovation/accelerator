@@ -346,6 +346,13 @@ export interface KanbanColumn {
   label: string
 }
 
+export interface EditorConfig {
+  /** Configured editor preset key or custom template; null → render disabled. */
+  editor: string | null
+  /** Resolved JetBrains project name (server-defaulted to project_root basename). */
+  editorProject: string
+}
+
 export const OTHER_COLUMN_KEY = 'other' as const
 
 export const OTHER_COLUMN: { key: typeof OTHER_COLUMN_KEY; label: string } = {

@@ -56,6 +56,7 @@ export const queryKeys = {
   lifecycleClusterPrefix: () => ['lifecycle-cluster', 'v2'] as const,
   lifecycleCluster: (slug: string) => ['lifecycle-cluster', 'v2', slug] as const,
   kanban: () => ['kanban'] as const,
+  editor: () => ['editor'] as const,
   related: (relPath: string) => ['related', relPath] as const,
   relatedPrefix: () => ['related'] as const,
   activity: (limit: number) => ['activity', limit] as const,

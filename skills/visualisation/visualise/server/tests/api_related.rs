@@ -60,6 +60,8 @@ fn cfg_with_only(tmp: &std::path::Path, doc_paths: HashMap<String, std::path::Pa
         work_item: None,
             kanban_columns: None,
             idle_timeout: None,
+            editor: None,
+            editor_project: None,
     }
 }
 

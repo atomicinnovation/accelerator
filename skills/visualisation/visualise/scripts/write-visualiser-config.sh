@@ -218,6 +218,30 @@ if [ -n "$IDLE_TIMEOUT" ]; then
   esac
 fi
 
+# Editor deep-link config. Precedence: env var > visualiser.editor config key >
+# (omit → field absent → Rust None → button disabled). Both keys are free-form
+# passthrough — no shape validation here; the frontend resolves presets/templates.
+#
+# As with idle_timeout above, `:-` treats a set-but-empty env var identically to
+# unset, so an empty env value falls through to the config key.
+EDITOR="${ACCELERATOR_VISUALISER_EDITOR:-}"
+if [ -z "$EDITOR" ]; then
+  EDITOR="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "visualiser.editor" "" 2>/dev/null || true)"
+fi
+EDITOR_PROJECT="${ACCELERATOR_VISUALISER_EDITOR_PROJECT:-}"
+if [ -z "$EDITOR_PROJECT" ]; then
+  EDITOR_PROJECT="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "visualiser.editor_project" "" 2>/dev/null || true)"
+fi
+
+# Trim surrounding whitespace (bash 3.2-safe; uses ${%%}/${##}, NOT ${//} per the
+# known macOS replacement-slash gotcha) so a whitespace-only value collapses to
+# empty and is omitted by the splice below — upholding "absent → None → disabled"
+# for whitespace-only values, not just genuinely-empty ones, so config.json never
+# carries a spurious `"editor": "   "` key. (The server still trims defensively.)
+trim_ws() { local v="$1"; v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"; printf '%s' "$v"; }
+EDITOR="$(trim_ws "$EDITOR")"
+EDITOR_PROJECT="$(trim_ws "$EDITOR_PROJECT")"
+
 if [ -z "$OWNER_START_TIME" ]; then
   OWNER_START_TIME_JSON="null"
 else
@@ -249,6 +273,8 @@ jq -n \
   --argjson work_item "$WORK_ITEM_JSON" \
   --argjson kanban_columns "$KANBAN_COLS_JSON" \
   --arg idle_timeout "$IDLE_TIMEOUT" \
+  --arg editor "$EDITOR" \
+  --arg editor_project "$EDITOR_PROJECT" \
   '{
     plugin_root: $plugin_root,
     plugin_version: $plugin_version,
@@ -279,4 +305,6 @@ jq -n \
     work_item: $work_item,
     kanban_columns: $kanban_columns
   }
-  + (if $idle_timeout == "" then {} else {idle_timeout: $idle_timeout} end)'
+  + (if $idle_timeout == "" then {} else {idle_timeout: $idle_timeout} end)
+  + (if $editor == "" then {} else {editor: $editor} end)
+  + (if $editor_project == "" then {} else {editor_project: $editor_project} end)'

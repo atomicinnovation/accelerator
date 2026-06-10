@@ -1,5 +1,6 @@
 mod activity;
 mod docs;
+mod editor_config;
 mod events;
 pub(crate) mod info;
 mod kanban_config;
@@ -45,6 +46,7 @@ pub fn mount(_state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/api/search", get(search::search))
         .route("/api/work-item/config", get(work_item_config::get_work_item_config))
         .route("/api/kanban/config", get(kanban_config::get_kanban_config))
+        .route("/api/editor/config", get(editor_config::get_editor_config))
 }
 
 #[derive(Debug, thiserror::Error)]

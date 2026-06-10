@@ -619,6 +619,8 @@ mod tests {
             work_item: None,
             kanban_columns: None,
             idle_timeout: None,
+            editor: None,
+            editor_project: None,
         }
     }
 

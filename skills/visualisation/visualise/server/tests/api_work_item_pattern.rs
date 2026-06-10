@@ -73,6 +73,8 @@ fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
         }),
         kanban_columns: None,
         idle_timeout: None,
+        editor: None,
+        editor_project: None,
     }
 }
 
@@ -198,6 +200,8 @@ async fn default_numeric_pattern_indexes_bare_numeric_files() {
         work_item: None,
             kanban_columns: None,
             idle_timeout: None,
+            editor: None,
+            editor_project: None,
     };
 
     let activity = Arc::new(Activity::new());
