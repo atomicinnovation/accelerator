@@ -1,3 +1,29 @@
+import { type DocTypeKey } from '../api/types'
+
+// Per-doc-type identity hue (0–360), the single source of colour identity
+// shared across the sidebar glyph, the empty-state gradient panel, and the
+// BigGlyph hero. Mirrors the prototype's TYPE_META.hue. Lives here — with the
+// design tokens — rather than in a single component's constants because the
+// numeric hue is the upstream colour-identity source that the per-doc-type
+// token-key maps (DOC_TYPE_TOKEN_KEY / DOC_TYPE_COLOR_VAR in Glyph.constants.ts)
+// and the gradient panel both derive from. `empty-descriptions.ts` sources
+// TYPE_COPY.hue from here so the value is single-sourced.
+export const DOC_TYPE_HUE: Record<DocTypeKey, number> = {
+  'work-items': 12,
+  'work-item-reviews': 340,
+  'design-inventories': 185,
+  'design-gaps': 95,
+  'research': 28,
+  'plans': 220,
+  'plan-reviews': 260,
+  'validations': 160,
+  'pr-descriptions': 200,
+  'pr-reviews': 280,
+  'decisions': 355,
+  'notes': 50,
+  'templates': 215,
+}
+
 // Resolved-hex semantic palette. Values are stored as resolved hex (or
 // rgba) even where the corresponding global.css declaration uses
 // var(--atomic-X) brand-layer indirection — see ADR-0035 §3. The

@@ -477,19 +477,19 @@ doesn't flag them:**
 
 #### Automated Verification
 
-- [ ] Type checking passes: `npm run typecheck`
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] `bigPalette` hue-equality test passes for ≥2 distinct hues
-- [ ] Dispatch exhaustiveness test (`=== 13`) passes
-- [ ] Dispatch-collision guard passes (`new Set(Object.values(BIG_GLYPHS)).size
+- [x] Type checking passes: `npm run typecheck`
+- [x] Unit tests pass: `mise run test:unit:frontend`
+- [x] `bigPalette` hue-equality test passes for ≥2 distinct hues
+- [x] Dispatch exhaustiveness test (`=== 13`) passes
+- [x] Dispatch-collision guard passes (`new Set(Object.values(BIG_GLYPHS)).size
   === 13` — thirteen referentially distinct illustration functions)
-- [ ] `PR_REVIEW_DIFF_TINTS` equality test passes
-- [ ] Source-walk literal guard passes (no per-type colour literal outside the
+- [x] `PR_REVIEW_DIFF_TINTS` equality test passes
+- [x] Source-walk literal guard passes (no per-type colour literal outside the
   sanctioned set)
-- [ ] Off-union fallback test passes: `DEFAULT_BIG` marker present, `215` guard
+- [x] Off-union fallback test passes: `DEFAULT_BIG` marker present, `215` guard
   hue applied, no throw
-- [ ] `hue` override honours the boundary `hue={0}` (renders `hsl(0 `)
-- [ ] a11y test confirms `aria-hidden="true"` and no `role`
+- [x] `hue` override honours the boundary `hue={0}` (renders `hsl(0 `)
+- [x] a11y test confirms `aria-hidden="true"` and no `role`
 
 #### Manual Verification
 

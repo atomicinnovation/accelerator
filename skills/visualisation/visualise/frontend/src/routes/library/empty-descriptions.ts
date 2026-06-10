@@ -1,11 +1,13 @@
 import type { DocTypeKey } from '../../api/types'
+import { DOC_TYPE_HUE } from '../../styles/tokens'
 
 /** Per-doc-type copy used by the list-view empty state. Mirrors the
  *  prototype's `TYPE_COPY` table — each entry carries:
  *    purpose — short sentence explaining what the doc type captures.
  *    path    — directory path shown in mono in the empty-state eyebrow + footer.
- *    hue     — HSL hue used to tint the radial-gradient background + paper-fold
- *              hero. Matches the prototype's `TYPE_META.hue`.
+ *    hue     — HSL hue used to tint the radial-gradient background + BigGlyph
+ *              hero. Single-sourced from `DOC_TYPE_HUE` in styles/tokens.ts so
+ *              the empty-state panel and the BigGlyph hero cannot drift.
  */
 export interface TypeCopy {
   purpose: string
@@ -17,68 +19,68 @@ export const TYPE_COPY: Record<DocTypeKey, TypeCopy> = {
   'work-items': {
     purpose: 'Atomic, shippable units of work — one story per file.',
     path: 'meta/work/',
-    hue: 12,
+    hue: DOC_TYPE_HUE['work-items'],
   },
   'work-item-reviews': {
     purpose: 'Round-by-round reviews of work-item scope and breakdown.',
     path: 'meta/reviews/work/',
-    hue: 340,
+    hue: DOC_TYPE_HUE['work-item-reviews'],
   },
   'design-inventories': {
     purpose: 'Captured snapshots of an existing surface, screen-by-screen.',
     path: 'meta/research/design-inventories/',
-    hue: 185,
+    hue: DOC_TYPE_HUE['design-inventories'],
   },
   'design-gaps': {
     purpose: 'Annotated diffs between a current surface and a target design.',
     path: 'meta/research/design-gaps/',
-    hue: 95,
+    hue: DOC_TYPE_HUE['design-gaps'],
   },
   'research': {
     purpose: "Prior-art write-ups and exploration notes before planning.",
     path: 'meta/research/codebase/',
-    hue: 28,
+    hue: DOC_TYPE_HUE['research'],
   },
   'plans': {
     purpose: 'Design proposals for a work item, ready for review.',
     path: 'meta/plans/',
-    hue: 220,
+    hue: DOC_TYPE_HUE['plans'],
   },
   'plan-reviews': {
     purpose: "Round-by-round reviews of a plan's design.",
     path: 'meta/reviews/plans/',
-    hue: 260,
+    hue: DOC_TYPE_HUE['plan-reviews'],
   },
   'validations': {
     purpose: "Empirical checks that a plan's promises hold in code.",
     path: 'meta/validations/',
-    hue: 160,
+    hue: DOC_TYPE_HUE['validations'],
   },
   'pr-descriptions': {
     purpose: 'Long-form PR descriptions co-located with the plan.',
     path: 'meta/prs/',
-    hue: 200,
+    hue: DOC_TYPE_HUE['pr-descriptions'],
   },
   'pr-reviews': {
     purpose: 'Round-by-round reviews of a specific PR.',
     path: 'meta/reviews/prs/',
-    hue: 280,
+    hue: DOC_TYPE_HUE['pr-reviews'],
   },
   'decisions': {
     purpose: 'Architecture Decision Records — durable, non-reversible choices.',
     path: 'meta/decisions/',
-    hue: 355,
+    hue: DOC_TYPE_HUE['decisions'],
   },
   'notes': {
     purpose:
       "Short hallway captures and open questions that don't warrant a full plan.",
     path: 'meta/notes/',
-    hue: 50,
+    hue: DOC_TYPE_HUE['notes'],
   },
   'templates': {
     purpose: 'Authoring templates seeded into every new artifact.',
     path: 'meta/templates/',
-    hue: 215,
+    hue: DOC_TYPE_HUE['templates'],
   },
 }
 
