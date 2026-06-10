@@ -11,7 +11,7 @@ priority: medium
 parent: "work-item:0057"
 relates_to: ["work-item:0070"]
 tags: [frontmatter, schema, skills, validation, audit]
-last_updated: "2026-06-09T18:09:18+00:00"
+last_updated: "2026-06-10T13:37:48+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -186,3 +186,171 @@ closes the producer-side gap the migration left open.
   `scripts/frontmatter-emission-rules.sh`, `scripts/templates-schema.tsv`,
   `scripts/test-skill-frontmatter-population.sh`
 - Offending instruction: `skills/planning/validate-plan/SKILL.md:187`
+
+## Discovery Pass Record
+
+This section is the auditable artifact AC1/AC2 require: the re-runnable
+discovery procedure, the producer set with emitted type(s), and the
+per-(skill, type) conformance table. It is a **point-in-time snapshot** (audited
+2026-06-10). The live authority on attribute completeness is the Phase 3 guard
+(`scripts/test-skill-frontmatter-conformance.sh`), which derives the enforced
+attribute set per type from the same contract files and asserts a synthesized
+fixture exercises every attribute; a stale table here is expected as the schema
+evolves, not a defect.
+
+### 1. Discovery procedure (re-runnable)
+
+Producing-skill discovery (run from repo root). The markers indicate a SKILL.md
+that writes/substitutes a schema-governed frontmatter block:
+
+```bash
+grep -rlE 'schema_version:|Populate frontmatter|Substitute .*frontmatter|frontmatter-emission|artifact-derive-metadata\.sh' \
+  skills --include='SKILL.md' | sort -u
+```
+
+This returns **17 files** (verified). Reconciliation mirrors the population
+test's `comm -23` discovery assertion: the discovered set, minus a recorded
+`EXCLUDED` allowlist, must equal the `EMITTERS` allowlist; the status-axis-only
+mutators are tracked separately because no full-block marker reaches them.
+
+- **`EMITTERS` (16 full-block emitters)** — cross-checked against
+  `skills-schema.tsv` rows 2–17:
+  - **work/**: `create-work-item`, `extract-work-items`, `refine-work-item`,
+    `review-work-item`
+  - **planning/**: `create-plan`, `review-plan`, `validate-plan`
+  - **decisions/**: `create-adr`, `extract-adrs`
+  - **research/**: `research-codebase`, `research-issue`
+  - **design/**: `inventory-design`, `analyse-design-gaps`
+  - **github/**: `describe-pr`, `review-pr`
+  - **notes/**: `create-note`
+- **`EXCLUDED` (1, grep-surfaced but out of scope)**:
+  `skills/config/migrate/SKILL.md` — the corpus transformer, governed
+  differently (subtracted via the allowlist so `comm -23` is empty).
+- **`STATUS_AXIS_ONLY` (not surfaced by the discovery grep; tracked by hand)**:
+  `validate-plan`→`plan` (its *second* type; already an `EMITTERS` member for
+  `plan-validation`) and `review-adr`→`adr`.
+
+`update-work-item` (arbitrary field mutator) and `list-work-items` (consumer)
+are out-of-scope by construction — neither carries a discovery marker, so
+neither is surfaced.
+
+Reconciliation result (verified 2026-06-10): discovery returns 17 files;
+`comm -23 <(discovered) <(EMITTERS ∪ EXCLUDED)` is empty; `${#EMITTERS[@]} == 16`;
+both status-axis mutators present.
+
+### 2. Producer → emitted type(s)
+
+| Skill | Emitted type(s) | Mode |
+|-------|-----------------|------|
+| `work/create-work-item` | `work-item` | full block |
+| `work/extract-work-items` | `work-item` | full block |
+| `work/refine-work-item` | `work-item` | full block |
+| `work/review-work-item` | `work-item-review` | full block |
+| `planning/create-plan` | `plan` | full block |
+| `planning/review-plan` | `plan-review` | full block |
+| `planning/validate-plan` | `plan-validation`; `plan` (status axis) | full block; status-axis mutation |
+| `decisions/create-adr` | `adr` | full block |
+| `decisions/extract-adrs` | `adr` | full block |
+| `decisions/review-adr` | `adr` (status axis) | status-axis mutation |
+| `research/research-codebase` | `codebase-research` | full block |
+| `research/research-issue` | `issue-research` | full block |
+| `design/inventory-design` | `design-inventory` | full block |
+| `design/analyse-design-gaps` | `design-gap` | full block |
+| `github/describe-pr` | `pr-description` | full block |
+| `github/review-pr` | `pr-review` | full block |
+| `notes/create-note` | `note` | full block |
+
+### 3. Conformance table — universal base fields (all (skill, type))
+
+Every full-block emitter composes its emission from three sources: **literal**
+(verbatim in SKILL.md), **template** (the `config-read-template.sh <name>` slot
+the skill loads), and **helper** (`artifact-derive-metadata.sh` /
+author-resolution). The base-field block is sourced identically for every
+producer, so it is factored out here and referenced by every per-type table in
+§4:
+
+| attribute | source | validator rule (diagnostic) |
+|-----------|--------|-----------------------------|
+| `type` | literal (fixed per type, also in template) | known schema type (`INVALID-TYPE`) |
+| `id` | helper/skill (filename stem or `work-item-next-number.sh`), quoted | required base field + quoted (`MISSING-BASE-FIELD`, `UNQUOTED-ID`) |
+| `title` | skill (composed) | required base field (`MISSING-BASE-FIELD`) |
+| `date` | helper (`artifact-derive-metadata.sh`) | required base field + ISO timestamp (`MISSING-BASE-FIELD`, `BAD-TIMESTAMP`) |
+| `author` | helper (VCS author resolution) | required base field (`MISSING-BASE-FIELD`) |
+| `producer` | literal (skill name) | not validator-required; emitted by every producer |
+| `tags` | template (slot) | required base field; `tags` exempt from omit-when-empty (`MISSING-BASE-FIELD`) |
+| `last_updated` | helper | required base field + ISO timestamp (`MISSING-BASE-FIELD`, `BAD-TIMESTAMP`) |
+| `last_updated_by` | helper (author resolution) | required base field (`MISSING-BASE-FIELD`) |
+| `schema_version` | literal (`1`, bare integer) | required base field + bare `1` (`MISSING-BASE-FIELD`, `BAD-SCHEMA-VERSION`) |
+| `status` | literal (per-type value) | in the type's `status_vocab` (`BAD-STATUS`) — see §4 per-type values |
+
+### 4. Conformance table — per-type axes (status, extras, provenance, linkage)
+
+`req extras` = type extras minus `FM_OPTIONAL_EXTRAS`
+(`external_id reviewer pr_url merge_commit decision_makers work_item_id`);
+`opt extras` are omit-when-empty. Anchored types additionally carry
+`revision` + `repository` (source: **helper**). Forbidden own-id keys must be
+absent (`FORBIDDEN-OWN-ID`). Typed-linkage values are quoted `"doc-type:id"`
+(source: **template** slot, skill-filled; `BAD-LINKAGE-SHAPE`, +`DANGLING-REF`
+in corpus mode). `git_commit`/`branch` are never emitted by any producer
+(`FORBIDDEN-PROVENANCE`).
+
+| type (skills) | anchored | status literal → vocab | req extras (source) | opt extras | linkage keys | forbidden own-id |
+|---------------|----------|------------------------|---------------------|------------|--------------|------------------|
+| `work-item` (create-work-item, extract-work-items, refine-work-item) | no | `draft` → ✓ | `kind` `priority` (literal/template) | `external_id` | `parent blocks blocked_by derived_from relates_to source` | `work_item_id` (absent ✓) |
+| `plan` (create-plan) | yes | `draft` → ✓ | — | `reviewer` | `parent blocks blocked_by derived_from relates_to` | — |
+| `plan` (validate-plan, status-axis mutation) | yes | **`complete` → ✗ BAD-STATUS** (fix → `done`) | — | — | — | — |
+| `plan-validation` (validate-plan) | no | `complete` → ✓ | `result` (template slot, skill-filled) | — | `parent target relates_to` | — |
+| `pr-description` (describe-pr) | yes | `complete` → ✓ | `pr_number` (template, bare int) | `pr_url` `merge_commit` | `parent relates_to` | `pr_title` (absent ✓) |
+| `adr` (create-adr, extract-adrs) | no | `proposed` → ✓ | — | `decision_makers` | `parent supersedes relates_to` | `adr_id` (absent ✓) |
+| `adr` (review-adr, status-axis mutation) | no | `accepted`/`superseded`/`deprecated` → ✓; **`rejected` → ✗ BAD-STATUS** (schema-source, → 0104) | — | — | — | — |
+| `codebase-research` (research-codebase) | yes | `complete` → ✓ | `topic` (template/skill) | — | `parent relates_to` | — |
+| `issue-research` (research-issue) | yes | `complete` → ✓ | `topic` (template/skill) | — | `parent relates_to` | — |
+| `design-inventory` (inventory-design) | yes | `draft` → ✓ | `source source_kind source_location crawler sequence screenshots_incomplete` (template/skill) | — | `parent relates_to` | — |
+| `design-gap` (analyse-design-gaps) | no | `draft` → ✓ | `current_inventory target_inventory` (template/skill) | — | `parent relates_to` | — |
+| `plan-review` (review-plan) | no | `complete` → ✓ | `verdict lenses review_number review_pass` (template, skill-filled) | `reviewer` | `parent target relates_to` | — |
+| `work-item-review` (review-work-item) | no | `complete` → ✓ | `verdict lenses review_number review_pass` (template, skill-filled) | `reviewer` `work_item_id` | `parent target relates_to` | — |
+| `pr-review` (review-pr) | no | `complete` → ✓ | `verdict lenses review_number pr_number` (template, skill-filled) | `reviewer` | `parent target relates_to` | `pr_title review_pass` (absent ✓) |
+| `note` (create-note) | yes | `captured` → ✓ | `topic` (template/skill) | — | `parent relates_to` | — |
+
+### 5. Blind-spot axes (by inspection — not validator-checkable)
+
+The validator is a partial oracle on two axes (see Context). These are audited
+by inspection of the composed emission (skill literals + loaded template) and
+will be folded into the validator under work item 0105, at which point this
+by-inspection coverage collapses back to the single oracle.
+
+- **Provenance over-emission on non-anchored types** — checked for every
+  non-anchored type (`work-item`, `plan-validation`, `adr`, `design-gap`,
+  `plan-review`, `work-item-review`, `pr-review`). **Result: clean.** None of
+  their templates carry `revision`/`repository`, and `skills-schema.tsv` lists
+  `revision repository` in `fields_to_assert` only for the six anchored
+  producers (`create-plan`, `describe-pr`, `research-codebase`,
+  `research-issue`, `inventory-design`, `create-note`). No producer over-emits
+  provenance.
+- **Bare/unquoted typed-linkage values** — checked for every type carrying
+  linkage keys. **Result: clean.** Every template slot uses the quoted
+  `"doc-type:id"` form (scalars) or quoted-element lists (`["plan:NNNN", ...]`);
+  no producer documents a bare `parent: 0042` or path-shaped value. The scalar
+  `work_item_id:` alias on plan / pr-description / research / work-item-review
+  is a foreign-ref (in `FM_OPTIONAL_EXTRAS`), not a typed-linkage key, and is
+  emitted quoted-or-omitted — not in scope for the linkage-shape axis.
+
+### 6. Divergence triage
+
+| # | Divergence | Source location | Classification | Disposition |
+|---|------------|-----------------|----------------|-------------|
+| 1 | `validate-plan` sets a passing **plan**'s `status` to `complete`, outside the plan vocab `draft\|ready\|in-progress\|done` | `validate-plan/SKILL.md:186-188` | **Producer-text** | Fixed in Phase 2 (`complete` → `done`). Its sibling `:161` correctly sets the **plan-validation** report to `complete` (that vocab is `complete`) — left unchanged. |
+| 2 | `review-adr` persists `status: rejected` (+`rejected_reason`) per the accepted ADR-0031 lifecycle, but the `adr` `status_vocab` omits `rejected` | `review-adr/SKILL.md:85,192-201`; `templates-schema.tsv:6` | **Schema-source** | NOT fixed here. The producer correctly implements ADR-0031 (accepted); the TSV vocab is incomplete. Raised as child work item **0104** under epic 0057. Phase 3 guard represents this axis as a `skip_test` keyed to 0104. |
+
+Rationale for #2 (schema-source, not producer): ADR-0031 (accepted)
+explicitly adopts the lifecycle vocabulary `proposed, accepted, rejected,
+superseded, deprecated` (`ADR-0031:28-29`) with `proposed → rejected` in its
+transition table (`:75`) and a `rejected_reason` field (`:56,67`). `review-adr`
+faithfully implements that lifecycle. The unified-schema TSV dropping `rejected`
+contradicts an accepted ADR, so the correction belongs to the schema source, not
+the producer.
+
+A second schema-source follow-on (not a divergence, but a contract-coverage
+gap) is raised as child work item **0105** under 0057: fold the two validator
+blind spots (§5) into `validate-corpus-frontmatter.sh` so the Phase 3 guard's
+bespoke checks collapse back to the single oracle.

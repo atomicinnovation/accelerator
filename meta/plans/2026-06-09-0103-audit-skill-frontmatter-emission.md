@@ -311,24 +311,32 @@ Each divergence is classified:
 
 #### Automated Verification:
 
-- [ ] Discovery command is re-runnable and returns the expected 17 files:
+- [x] Discovery command is re-runnable and returns the expected 17 files:
       `test "$(grep -rlE 'schema_version:|Populate frontmatter|Substitute .*frontmatter|frontmatter-emission|artifact-derive-metadata\.sh' skills --include='SKILL.md' | sort -u | wc -l)" -eq 17`
-- [ ] Reconciliation holds — discovery minus the EXCLUDED allowlist equals the
+- [x] Reconciliation holds — discovery minus the EXCLUDED allowlist equals the
       EMITTERS allowlist (`comm -23` against EMITTERS ∪ EXCLUDED is empty), and
       both status-axis-only mutators (`validate-plan`, `review-adr`) are present.
-- [ ] The work item still validates: `bash scripts/validate-corpus-frontmatter.sh meta/work/0103-audit-skill-frontmatter-emission-against-unified-schema.md`
-- [ ] Any drafted child work items validate: `bash scripts/validate-corpus-frontmatter.sh meta/work`
+- [x] The work item still validates: `bash scripts/validate-corpus-frontmatter.sh meta/work/0103-audit-skill-frontmatter-emission-against-unified-schema.md`
+- [x] Any drafted child work items validate (0104, 0105). NB: the literal
+      `validate-corpus-frontmatter.sh meta/work` runs *whole-corpus* mode against a
+      subtree, so every cross-subtree ref (to `adr:`/`codebase-research:`/… in
+      other `meta/` subtrees) reports a pre-existing `DANGLING-REF`. The
+      meaningful checks both pass: structural file-list validation of the new
+      files, and a clean full-corpus run (`validate-corpus-frontmatter.sh meta`,
+      rc=0). The new files add no dangling refs (they reference only
+      `work-item:0057` / `work-item:0103`, both under `meta/work`).
 
 #### Manual Verification:
 
-- [ ] Every discovered producer appears in the table with its emitted type(s).
-- [ ] The recorded table is a faithful point-in-time rendering of the Phase 3
+- [x] Every discovered producer appears in the table with its emitted type(s).
+- [x] The recorded table is a faithful point-in-time rendering of the Phase 3
       guard's contract-derived attribute set (the guard, not this manual check, is
       the completeness authority — confirm the snapshot matches the guard's
       derivation, not the table against `templates-schema.tsv` independently).
-- [ ] Both blind-spot axes are recorded for every type that can exhibit them.
-- [ ] Every divergence is classified producer-text vs schema-source, with a
-      recorded rationale; schema-source items have child work items under 0057.
+- [x] Both blind-spot axes are recorded for every type that can exhibit them.
+- [x] Every divergence is classified producer-text vs schema-source, with a
+      recorded rationale; schema-source items have child work items under 0057
+      (0104 = ADR `rejected` schema-source; 0105 = blind-spot consolidation).
 
 ---
 
