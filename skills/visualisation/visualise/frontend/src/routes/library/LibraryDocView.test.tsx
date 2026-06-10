@@ -463,6 +463,44 @@ describe('LibraryDocView', () => {
     expect(within(section).getByRole('alert')).toBeInTheDocument()
   })
 
+  // ── 0080: Detail-page header actions ──────────────────────────────────
+  it('renders both header actions in the actions slot for a resolved doc', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({
+      content: 'Body text.', etag: '"sha256-a"',
+    })
+    const { container } = render(
+      <LibraryDocView type="plans" fileSlug="2026-01-01-foo" />,
+      { wrapper: Wrapper },
+    )
+    await screen.findByText('Foo Plan')
+    const actions = container.querySelector('[data-slot="actions"]')
+    expect(actions).not.toBeNull()
+    // Both affordances live in the slot. Open-in-editor renders disabled
+    // (no editor configured / config fetch unavailable in this harness) but is
+    // still present and reachable.
+    expect(within(actions as HTMLElement).getByRole('button', { name: 'Copy path' }))
+      .toBeInTheDocument()
+    expect(
+      within(actions as HTMLElement).getByRole('button', { name: 'Open in editor' }),
+    ).toBeInTheDocument()
+  })
+
+  it('does not render the actions slot while the document is loading', async () => {
+    vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
+    vi.spyOn(fetchModule, 'fetchDocContent').mockImplementation(
+      () => new Promise(() => { /* pending forever */ }),
+    )
+    const { container } = render(
+      <LibraryDocView type="plans" fileSlug="2026-01-01-foo" />,
+      { wrapper: Wrapper },
+    )
+    expect((await screen.findAllByText(/Loading…/i)).length).toBeGreaterThan(0)
+    expect(container.querySelector('[data-slot="actions"]')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Copy path' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Open in editor' })).toBeNull()
+  })
+
   it('renders no Cluster section once the query settles with no matching cluster', async () => {
     vi.spyOn(fetchModule, 'fetchDocs').mockResolvedValue([mockEntry])
     vi.spyOn(fetchModule, 'fetchDocContent').mockResolvedValue({

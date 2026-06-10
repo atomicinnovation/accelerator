@@ -836,40 +836,40 @@ actions={
 
 #### Automated Verification:
 
-- [ ] Frontend tests pass: `mise run test:unit:frontend`
-- [ ] `editor-link.ts` table-driven test asserts **every** preset maps to its
+- [x] Frontend tests pass: `mise run test:unit:frontend`
+- [x] `editor-link.ts` table-driven test asserts **every** preset maps to its
   documented scheme/tag (VS Code family `{scheme}://file{abs}` — a **single** slash
   before the absolute path; JetBrains
   `jetbrains://{tag}/navigate/reference?project=…&path={rel}`)
-- [ ] Single-slash regression test: a VS Code preset with `/Users/x/a b.md` →
+- [x] Single-slash regression test: a VS Code preset with `/Users/x/a b.md` →
   `vscode://file/Users/x/a%20b.md` (asserts **no** `file//`)
-- [ ] Custom-template test: `zed://file{abs}` + `/a b/c.md` → `zed://file/a%20b/c.md`
-- [ ] Percent-encoding test: spaces encoded, `/` preserved; JetBrains example
+- [x] Custom-template test: `zed://file{abs}` + `/a b/c.md` → `zed://file/a%20b/c.md`
+- [x] Percent-encoding test: spaces encoded, `/` preserved; JetBrains example
   `project=myrepo&path=sub%20dir/a.md`
-- [ ] Preset-vs-custom test: bare `cursor` → preset template (no `://` in value);
+- [x] Preset-vs-custom test: bare `cursor` → preset template (no `://` in value);
   non-matching bare value → null
-- [ ] Placeholder-required test: a `://` template with **no** `{abs}`/`{rel}`
+- [x] Placeholder-required test: a `://` template with **no** `{abs}`/`{rel}`
   (e.g. `myeditor://open`) → null (disabled), not a path-less link
-- [ ] Scheme-required test: a placeholder template with **no** scheme (e.g. `{rel}`,
+- [x] Scheme-required test: a placeholder template with **no** scheme (e.g. `{rel}`,
   `./{rel}`) → null (disabled), never emitted as a relative in-app navigation href
-- [ ] Dangerous-scheme test (table-driven, deny-list): `javascript:`, `data:`,
+- [x] Dangerous-scheme test (table-driven, deny-list): `javascript:`, `data:`,
   `vbscript:`, `blob:`, `file:` templates → null; a benign editor scheme
   (`zed://file{abs}`) still resolves
-- [ ] Scheme-guard bypass test (the load-bearing security cases): mixed-case
+- [x] Scheme-guard bypass test (the load-bearing security cases): mixed-case
   (`JavaScript:…{rel}`), leading whitespace (`"  javascript:…{rel}"`), and an embedded
   TAB/CR/LF in the scheme (`"java\tscript:…{rel}"`) all → null — pins `schemeOf`'s
   `trimStart` + control-char reject + lowercasing, not just the deny-list set
-- [ ] Multi-placeholder test: a template with two `{abs}` occurrences substitutes both
+- [x] Multi-placeholder test: a template with two `{abs}` occurrences substitutes both
   (pins `replaceAll`, not replace-first)
-- [ ] `OpenInEditorButton` renders `<a rel="noopener noreferrer">` with the computed
+- [x] `OpenInEditorButton` renders `<a rel="noopener noreferrer">` with the computed
   `href` when configured; renders a focusable `aria-disabled` button (assert it has
   **no** native `disabled` attribute and is reachable via `.focus()`/tab — not merely
   that `aria-disabled` is set) wired to an `aria-describedby` element carrying the hint
-- [ ] Tooltip-contract test (pins the distinguishing content, not just presence): the
+- [x] Tooltip-contract test (pins the distinguishing content, not just presence): the
   unconfigured `title`/description contains the literal `visualiser.editor`; the
   configured-but-unrecognised one contains a "not recognised" phrase **and** the
   offending value (truncated), so the two sub-states cannot silently swap or drop the value
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 #### Manual Verification:
 
