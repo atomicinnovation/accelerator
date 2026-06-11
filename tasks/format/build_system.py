@@ -10,7 +10,7 @@ from tasks.shared.paths import REPO_ROOT
 def check(context: Context) -> None:
     """Check Python formatting with ruff (read-only; fails on drift)."""
     with context.cd(str(REPO_ROOT)):
-        result = context.run("ruff format --check", warn=True, pty=False)
+        result = context.run("uv run ruff format --check", warn=True, pty=False)
     if result.exited != 0:
         raise Exit(
             "ruff format: drift — run `mise run format:build-system:fix`",
@@ -22,4 +22,4 @@ def check(context: Context) -> None:
 def fix(context: Context) -> None:
     """Format Python in place with ruff."""
     with context.cd(str(REPO_ROOT)):
-        context.run("ruff format", warn=True, pty=False)
+        context.run("uv run ruff format", warn=True, pty=False)

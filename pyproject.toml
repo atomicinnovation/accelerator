@@ -23,6 +23,12 @@ build = [
 dev = [
     "pytest>=8",
     "pytest-mock>=3.14",
+    # Exact pins (not `>=`): ruff's `select = ["ALL"]` and pyrefly's strict
+    # preset are version-sensitive — a patch bump can add or alter rules — so a
+    # relock must not silently move them off the audited rule sets. uv.lock +
+    # --frozen pins the resolved build; these guard `uv lock --upgrade`.
+    "ruff==0.15.16",
+    "pyrefly==1.0.0",
 ]
 
 [tool.pytest.ini_options]

@@ -5,19 +5,12 @@ _.python.venv = { path = ".venv", create = true }
 uv = "0.11.6"
 python = "3.14.4"
 gh = "2.89.0"
-rust = "1.90.0"
+rust = { version = "1.90.0", components = "rustfmt,clippy" }
 node = "22.22.2"
 shellcheck = "0.11.0"
 shfmt = "3.13.1"
 jj = "0.36.0"
 jq = "1.7.1"
-# EXACT full triples — no `.x`/prefix range operators. `select = ["ALL"]` makes
-# ruff's rule set version-sensitive (a new patch can add/alter rules), so a
-# fuzzy match would let a CI-green lint fail for a developer the next day.
-ruff = "0.15.16"
-# pyrefly has no mise registry short-name; the PyPI wheel (pipx backend) is the
-# deterministic channel pinned identically on the ubuntu CI runner and macOS.
-"pipx:pyrefly" = "1.0.0"
 
 [settings]
 experimental = true
@@ -305,33 +298,6 @@ run = "invoke types.frontend.check"
 description = "Run all frontend format, lint, and type checks (Biome + tsc)"
 depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check"]
 
-# ─── Lint/format/type task tree — AC→task mapping + folding rule ────────────
-#
-# The 0098 work item asks for `lint:<language>` tasks; this tree deliberately
-# diverges (the PR description evaporates, so the mapping lives here):
-#   - The work item's `lint:<language>` ACs are satisfied by `<component>:check`,
-#     which folds that component's format + lint (+ types where applicable).
-#       frontend → frontend:check     server   → server:check
-#       python   → build-system:check shell    → scripts:check
-#   - The work item's aggregate `lint` / `format` ACs are satisfied by the
-#     `lint:check` / `format:check` family aggregates below.
-#   - `build-system` is the repo-root Python automation toolchain (the tasks/
-#     invoke package + its tests), unrelated to the `build:*` artifact namespace;
-#     its task descriptions name Python/ruff/pyrefly so `mise tasks | grep -i
-#     python` finds it.
-#
-# Folding rule (the tree's shape is learn-once):
-#   - `<component>:check` runs every applicable family for that component;
-#     `scripts`/`server` have no `types:*` (only `frontend`/`build-system` do).
-#   - `lint:scripts:check` nests one level deeper (shellcheck + bashisms) because
-#     shell has two linters. Consult `mise tasks` for the per-component leaves.
-#   - Namespace shapes: a component name LEADS its roll-up (`<component>:check`,
-#     entity-first, like `version:*`/`github:*`) but TRAILS in the families
-#     (`format:<component>:check`) — the one genuinely new shape.
-#   - There are `<component>:check` roll-ups but NO `<component>:fix`; fix one
-#     component via `format:<component>:fix` + `lint:<component>:fix`, or the
-#     top-level `fix`. (shell has no autofixer — `scripts` is absent from
-#     `lint:fix`; run `mise run scripts:check` for remaining shell findings.)
 [tasks."lint:check"]
 description = "Run all lint checks"
 depends = ["lint:frontend:check", "lint:server:check", "lint:build-system:check", "lint:scripts:check"]

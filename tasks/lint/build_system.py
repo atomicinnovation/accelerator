@@ -10,7 +10,7 @@ from tasks.shared.paths import REPO_ROOT
 def check(context: Context) -> None:
     """Lint Python with ruff (config in pyproject.toml; select = ALL)."""
     with context.cd(str(REPO_ROOT)):
-        result = context.run("ruff check", warn=True, pty=False)
+        result = context.run("uv run ruff check", warn=True, pty=False)
     if result.exited != 0:
         raise Exit(
             "ruff reported findings — run `mise run lint:build-system:fix` "
@@ -23,4 +23,4 @@ def check(context: Context) -> None:
 def fix(context: Context) -> None:
     """Apply ruff's safe lint fixes (safe-only; never --unsafe-fixes)."""
     with context.cd(str(REPO_ROOT)):
-        context.run("ruff check --fix", warn=True, pty=False)
+        context.run("uv run ruff check --fix", warn=True, pty=False)

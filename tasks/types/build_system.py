@@ -13,7 +13,7 @@ def check(context: Context) -> None:
         # --output-format github emits inline annotations on the CI runner and
         # is inert (plain text) locally. No autofixer to name on failure.
         result = context.run(
-            "pyrefly check --output-format github", warn=True, pty=False
+            "uv run pyrefly check --output-format github", warn=True, pty=False
         )
     if result.exited != 0:
         raise Exit("pyrefly reported type errors", code=1)
