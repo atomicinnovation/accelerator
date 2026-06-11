@@ -291,34 +291,34 @@ branch alone would leave two of them contradicting the code):
 
 #### Automated Verification:
 
-- [ ] Config integration suites pass with the new fixture + live axis present:
+- [x] Config integration suites pass with the new fixture + live axis present:
       `mise run test:integration:config`
-- [ ] Templates suite still green: `mise run test:unit:templates`
-- [ ] The corpus-validator suite contains and passes both the rejected
+- [x] Templates suite still green: `mise run test:unit:templates`
+- [x] The corpus-validator suite contains and passes both the rejected
       accept-fixture and the adr non-member reject-fixture:
       `bash scripts/test-validate-corpus-frontmatter.sh` shows
       `PASS: adr status: rejected accepted` and
       `PASS: adr non-member status rejected`
-- [ ] The conformance suite runs a live rejected axis — assert the two PASS lines
+- [x] The conformance suite runs a live rejected axis — assert the two PASS lines
       are **present**: `bash scripts/test-skill-frontmatter-conformance.sh 2>&1`
       shows `PASS: review-adr -> adr: status 'rejected' ∈ adr vocab` and
       `PASS: review-adr -> adr: status 'rejected' fixture accepted`
-- [ ] The rejected `SKIP:` line is **gone** — assert the negative explicitly
+- [x] The rejected `SKIP:` line is **gone** — assert the negative explicitly
       (a bare `grep "rejected"` is permissive and would still match a residual
       SKIP line alongside the PASS lines):
       `! bash scripts/test-skill-frontmatter-conformance.sh 2>&1 | grep -q "SKIP:.*rejected"`
       exits 0
-- [ ] No remaining `skip_test` keyed to `0104` in the conformance suite:
+- [x] No remaining `skip_test` keyed to `0104` in the conformance suite:
       `grep -c "0104" scripts/test-skill-frontmatter-conformance.sh` reflects only
       intended references (the deferral skip is gone)
 
 #### Manual Verification:
 
-- [ ] Confirm (TDD check, local) that with Phase 2's edits applied but the Phase 1
+- [x] Confirm (TDD check, local) that with Phase 2's edits applied but the Phase 1
       TSV edit reverted, both the new corpus accept-fixture and the flipped
       conformance axis FAIL with `BAD-STATUS` / non-member — proving the
       assertions are load-bearing and genuinely gated on the vocab change.
-- [ ] Re-confirm the independent re-encodings still carry `rejected` and need no
+- [x] Re-confirm the independent re-encodings still carry `rejected` and need no
       change: `status-variant.ts:7`, `adr-read-status.sh:51` (verify only).
 
 ---

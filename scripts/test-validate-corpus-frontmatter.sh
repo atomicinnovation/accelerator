@@ -89,6 +89,18 @@ emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-status.md"
 sed -i.bak 's/^status: .*/status: bogus/' "$TMP/bad-status.md"
 assert_rejects "bad status rejected" "BAD-STATUS" "$TMP/bad-status.md"
 
+# adr status: rejected is a vocab member (ADR-0031 lifecycle); validator accepts.
+# NOTE: this is the ONLY corpus-validator coverage for `rejected` — the generic
+# per-type valid-fixture loop (:37-44) cannot reach it (emit_valid pins status to
+# the first vocab token, `proposed`). Do not treat this fixture as redundant.
+emit_valid adr no decision_makers "rejected" "$TMP/ok-adr-rejected.md"
+assert_accepts "adr status: rejected accepted" "$TMP/ok-adr-rejected.md"
+
+# adr status: a non-member near-miss (`reject`) still rejects after the widening.
+# Same single-token idiom — pass the non-member token directly, no sed.
+emit_valid adr no decision_makers "reject" "$TMP/bad-adr-status.md"
+assert_rejects "adr non-member status rejected" "BAD-STATUS" "$TMP/bad-adr-status.md"
+
 emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-schemaver.md"
 sed -i.bak 's/^schema_version: 1$/schema_version: "1"/' "$TMP/bad-schemaver.md"
 assert_rejects "non-integer schema_version rejected" "BAD-SCHEMA-VERSION" "$TMP/bad-schemaver.md"

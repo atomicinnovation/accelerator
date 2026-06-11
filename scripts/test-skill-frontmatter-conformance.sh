@@ -19,9 +19,9 @@ set -euo pipefail
 #
 # Status-transition mutators (validate-plan -> plan, review-adr -> adr) are
 # asserted on the status axis only: the documented target status must be a
-# member of the TARGET type's status_vocab. review-adr's `rejected` target is a
-# known schema-source divergence deferred to work item 0104, represented here as
-# an explicit skip_test keyed to that id (not a silent omission).
+# member of the TARGET type's status_vocab. Every review-adr target — including
+# `rejected` (the proposed -> rejected transition ADR-0031 adopts) — is asserted
+# uniformly on this axis.
 #
 # A negative self-test mutates each synthesised fixture (one mutation per axis)
 # and asserts rejection with the specific diagnostic, proving the guard is wired
@@ -336,19 +336,12 @@ vp_fx="$TMP/vp-plan.md"
 emit_valid plan yes reviewer "$vp_plan_status" "$vp_fx"
 assert_accepts "validate-plan -> plan: status fixture accepted" "$vp_fx"
 
-# review-adr -> adr: each documented target status must be an adr-vocab member,
-# EXCEPT `rejected` — a known schema-source divergence deferred to 0104.
+# review-adr -> adr: each documented target status must be an adr-vocab member.
 ADR_IDX="$(schema_index adr)"
 ADR_VOCAB="${SCHEMA_STATUS[$ADR_IDX]}"
 adr_targets="$(extract_review_adr_targets)"
 assert_true "review-adr -> adr: target statuses extracted (non-empty)" test -n "$adr_targets"
 for tgt in $adr_targets; do
-  if [ "$tgt" = "rejected" ]; then
-    # Deferred: adr vocab lacks `rejected` though ADR-0031 adopts it and
-    # review-adr persists it. Flips to a live assert_check when 0104 lands.
-    skip_test "review-adr -> adr: status 'rejected' ∈ vocab" "schema-source divergence deferred to work item 0104"
-    continue
-  fi
   assert_check "review-adr -> adr: status '$tgt' ∈ adr vocab" 0 status_in_vocab "$tgt" "$ADR_VOCAB"
   adr_fx="$TMP/adr-$tgt.md"
   emit_valid adr no decision_makers "$tgt" "$adr_fx"
