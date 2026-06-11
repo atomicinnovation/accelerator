@@ -1,8 +1,34 @@
 root = true
 
+# Canonical line width for the repo. ruff (line-length) and rustfmt (max_width)
+# duplicate this value in their own config because they do not read
+# .editorconfig; Biome (useEditorconfig) and shfmt read it natively. Keep the
+# four in sync by hand — there is no automated consistency check (by design).
+[*]
+max_line_length = 80
+
 [*.tsv]
 indent_style = tab
 trim_trailing_whitespace = false
+
+# Frontend (Biome reads these via formatter.useEditorconfig). `mts`/`cts` are
+# included so a future ECMAScript-module-typed file is not formatted with
+# Biome's tab default (the [*] section sets no indent_style).
+[*.{ts,tsx,mts,cts,js,jsx,mjs,cjs,css,json,jsonc}]
+indent_style = space
+indent_size = 2
+
+# Python (informational for editors; ruff does not read .editorconfig — its
+# line-length/indent are duplicated in pyproject.toml with a cross-reference).
+[*.py]
+indent_style = space
+indent_size = 4
+
+# Rust (informational for editors; rustfmt does not read .editorconfig — its
+# max_width is duplicated in rustfmt.toml with a cross-reference).
+[*.rs]
+indent_style = space
+indent_size = 4
 
 # shfmt reads these when invoked with no formatting flags (single source of
 # truth shared by editors and CI). switch_case_indent is the .editorconfig

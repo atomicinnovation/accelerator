@@ -266,11 +266,11 @@ node` / current 22.x LTS), e.g. `node = "22.20.0"`.
 ### Success Criteria
 
 #### Automated Verification:
-- [ ] No bare action tag remains: `! grep -rn 'jdx/mise-action@v4' .github/`
-- [ ] node pin is a full semver: `grep -E 'node = "22\.[0-9]+\.[0-9]+"' mise.toml`
-- [ ] `.editorconfig` carries the width anchor: `grep -q 'max_line_length = 80' .editorconfig`
-- [ ] Tools still resolve: `mise install` succeeds.
-- [ ] Existing checks unaffected: `mise run check` exits 0 (shfmt does not reflow,
+- [x] No bare action tag remains: `! grep -rn 'jdx/mise-action@v4' .github/`
+- [x] node pin is a full semver: `grep -E 'node = "22\.[0-9]+\.[0-9]+"' mise.toml`
+- [x] `.editorconfig` carries the width anchor: `grep -q 'max_line_length = 80' .editorconfig`
+- [x] Tools still resolve: `mise install` succeeds.
+- [x] Existing checks unaffected: `mise run check` exits 0 (shfmt does not reflow,
   so `max_line_length` is inert for shell).
 
 #### Manual Verification:
