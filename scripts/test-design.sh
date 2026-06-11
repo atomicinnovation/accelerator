@@ -149,6 +149,7 @@ assert_contains "argument-hint includes --allow-insecure-scheme flag" \
   "$(cat "$SKILL")" "--allow-insecure-scheme"
 assert_not_contains "allowed-tools contains no mcp__playwright__ entries" \
   "$(cat "$SKILL")" "mcp__playwright__"
+# shellcheck disable=SC2016 # single-quoted assert pattern; ${CLAUDE_PLUGIN_ROOT} is a literal allowed-tools entry matched verbatim, intentionally not shell-expanded
 assert_contains "allowed-tools enumerates inventory-design scripts glob" \
   "$(cat "$SKILL")" 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*)'
 assert_contains "loads config context" \

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # DESCRIPTION: Empty interactive migration (no transformations) — Phase 3 smoke test.
 # INTERACTIVE: yes
+# shellcheck disable=SC2154 # CLAUDE_PLUGIN_ROOT provided by the interactive-migration harness environment
 set -euo pipefail
 # shellcheck source=../../../../../../../../scripts/atomic-common.sh
 source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"

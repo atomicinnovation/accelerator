@@ -4,6 +4,11 @@ from invoke import Context, Exit, task
 
 from tasks.shared.sources import repo_root, shell_sources
 
+# An empty match set means scope discovery broke (a glob/`_keep` regression),
+# not that there is nothing to lint — so every task below fails loudly rather
+# than passing green (fail-closed, not fail-open).
+_EMPTY_SCOPE = "no shell sources matched — scope discovery is broken"
+
 
 def _sources_args() -> str | None:
     sources = shell_sources()
@@ -14,16 +19,18 @@ def _sources_args() -> str | None:
 
 @task
 def shellcheck(context: Context):
-    """Lint every shell source with ShellCheck (-x, --severity=warning)."""
+    """Lint every shell source with ShellCheck (config in .shellcheckrc)."""
     args = _sources_args()
     if args is None:
-        return
+        raise Exit(f"shellcheck: {_EMPTY_SCOPE}", code=1)
     with context.cd(str(repo_root())):
-        result = context.run(
-            f"shellcheck -x --severity=warning {args}", warn=True, pty=False
-        )
+        result = context.run(f"shellcheck {args}", warn=True, pty=False)
     if result.exited != 0:
-        raise Exit("shellcheck reported findings", code=1)
+        raise Exit(
+            "shellcheck reported findings — fix them, or add a justified "
+            "`# shellcheck disable=`/`source=` directive",
+            code=1,
+        )
 
 
 @task
@@ -31,7 +38,7 @@ def bashisms(context: Context):
     """Guard the bash-3.2 floor by scanning for a denylist of bash-4 constructs."""
     args = _sources_args()
     if args is None:
-        return
+        raise Exit(f"bashisms: {_EMPTY_SCOPE}", code=1)
     with context.cd(str(repo_root())):
         result = context.run(f"bash scripts/lint-bashisms.sh {args}", warn=True, pty=False)
     if result.exited != 0:

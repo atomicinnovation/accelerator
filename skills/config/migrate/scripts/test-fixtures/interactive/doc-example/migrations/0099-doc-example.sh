@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # DESCRIPTION: Worked example for the interactive contract.
 # INTERACTIVE: yes
+# shellcheck disable=SC2154 # CLAUDE_PLUGIN_ROOT/PROJECT_ROOT provided by the interactive-migration harness environment
 set -euo pipefail
 source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
 source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"
@@ -50,10 +51,11 @@ migration_validate_edit() {
 }
 
 migration_apply_decision() {
+  # shellcheck disable=SC2034 # fixture demonstrates the full callback signature; decision is intentionally unused
   local key="$1" path="$2" anchor="$3" decision="$4" value="$5"
   local abs="$PROJECT_ROOT/$path"
   mkdir -p "$(dirname "$abs")"
-  printf '%s:%s=%s\n' "$key" "$anchor" "$value" >> "$abs"
+  printf '%s:%s=%s\n' "$key" "$anchor" "$value" >>"$abs"
 }
 
 harness_run

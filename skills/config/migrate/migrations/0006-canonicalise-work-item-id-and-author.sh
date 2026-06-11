@@ -270,6 +270,7 @@ rewrite_file() {
   local tmp_out tmp_err
   tmp_out=$(mktemp)
   tmp_err=$(mktemp)
+  # shellcheck disable=SC2094 # reads the input file but writes a distinct temp file (atomic-write idiom); not the same file
   awk_transform "$file" "$has_wi" "$has_id" "$has_r" "$has_a" "$has_rb" "$has_ab" \
     <"$file" >"$tmp_out" 2>"$tmp_err"
 

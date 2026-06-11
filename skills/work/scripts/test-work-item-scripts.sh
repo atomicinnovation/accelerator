@@ -933,6 +933,7 @@ FIXTURE
 RC=0
 STDERR=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" add backend 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
+# shellcheck disable=SC2015 # test idiom; the && branch ends in a successful echo so the || cannot spuriously fire
 echo "$STDERR" | grep -q "block format" && echo "  PASS: stderr mentions block format" || {
   echo "  FAIL: stderr missing block format message"
   FAIL=$((FAIL + 1))
@@ -943,6 +944,7 @@ echo "Test: Non-existent file"
 RC=0
 STDERR=$(bash "$UPDATE_TAGS" "/nonexistent/file.md" add backend 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
+# shellcheck disable=SC2015 # test idiom; the && branch ends in a successful echo so the || cannot spuriously fire
 echo "$STDERR" | grep -q "file not found" && echo "  PASS: stderr mentions file not found" || {
   echo "  FAIL: stderr missing file not found message"
   FAIL=$((FAIL + 1))

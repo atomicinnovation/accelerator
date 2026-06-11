@@ -51,8 +51,8 @@ echo ""
 for evals_file in "${EVALS_FILES[@]}"; do
   dir="$(dirname "$evals_file")"
   benchmark_file="$dir/benchmark.json"
-  rel_evals="${evals_file#$REPO/}"
-  rel_benchmark="${benchmark_file#$REPO/}"
+  rel_evals="${evals_file#"$REPO"/}"
+  rel_benchmark="${benchmark_file#"$REPO"/}"
 
   echo "Checking: $rel_evals"
 

@@ -262,6 +262,7 @@ else
   wi_templates=$(
     for wi in "${WORK_ITEM_MDS[@]}"; do
       if [ -f "$wi" ]; then
+        # shellcheck disable=SC2016 # single-quoted awk program; $0 is awk's own field syntax, intentionally not shell-expanded
         awk '
           /^## Schema Reference/ { in_section=1; next }
           in_section && /^## / { in_section=0 }
@@ -277,8 +278,10 @@ else
   else
     echo "  FAIL: work-item Schema Reference templates differ from TSV"
     echo "    Work-item (union):"
+    # shellcheck disable=SC2001 # anchored whole-line sed indent that ${var//.../...} cannot express
     echo "$wi_templates" | sed 's/^/      /'
     echo "    TSV:"
+    # shellcheck disable=SC2001 # anchored whole-line sed indent that ${var//.../...} cannot express
     echo "$tsv_templates" | sed 's/^/      /'
     FAIL=$((FAIL + 1))
   fi

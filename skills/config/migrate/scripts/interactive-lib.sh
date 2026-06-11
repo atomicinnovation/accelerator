@@ -16,6 +16,7 @@
 #                                              (interactive-protocol.sh)
 
 # shellcheck source=../../../../scripts/interactive-protocol.sh
+# shellcheck disable=SC2154 # PLUGIN_ROOT provided by the interactive-migration harness environment
 source "$PLUGIN_ROOT/scripts/interactive-protocol.sh"
 
 is_interactive_migration() {
@@ -41,6 +42,7 @@ build_resume_state_file() {
   : >"$out"
   [ -z "$session_log" ] || [ ! -f "$session_log" ] || [ ! -s "$session_log" ] &&
     return 0
+  # shellcheck disable=SC2016 # single-quoted awk program; $ is awk's own syntax, intentionally not shell-expanded
   local awk_script='
 function js_unescape(s,   r, i, c, n) {
   r = ""
@@ -289,6 +291,7 @@ read_decision() {
 run_interactive_migration() {
   local f="$1" id="$2"
   local resume_state_path stderr_file
+  # shellcheck disable=SC2154 # PROJECT_ROOT provided by the interactive-migration harness environment
   resume_state_path="$PROJECT_ROOT/.accelerator/state/migrations-${id}-resume-state.tmp"
   stderr_file="$PROJECT_ROOT/.accelerator/state/migrations-${id}-stderr.log"
   mkdir -p "$(dirname "$resume_state_path")"
@@ -577,6 +580,7 @@ run_interactive_migration() {
     return 0
   fi
 
+  # shellcheck disable=SC2154 # STATE_FILE provided by the interactive-migration harness environment
   mkdir -p "$(dirname "$STATE_FILE")"
   atomic_append_unique "$STATE_FILE" "$id"
   rm -f "$resume_state_path" "$stderr_file"

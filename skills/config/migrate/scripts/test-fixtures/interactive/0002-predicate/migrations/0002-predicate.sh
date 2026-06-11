@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # DESCRIPTION: Predicate-routing fixture — Phase 4 (mixed band ambiguous/resolved).
 # INTERACTIVE: yes
+# shellcheck disable=SC2154 # CLAUDE_PLUGIN_ROOT/PROJECT_ROOT provided by the interactive-migration harness environment
 set -euo pipefail
 source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
 source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"
@@ -21,7 +22,7 @@ migration_emit_transformations() {
       proposed="$proposed" predicate_value="$band" \
       display="Proposed value: $proposed
 Surrounding prose: $prose"
-  done < "$FIXTURE_DATA"
+  done <"$FIXTURE_DATA"
 }
 
 migration_evaluate_predicate() {
@@ -48,12 +49,12 @@ migration_apply_decision() {
   mkdir -p "$sentinel_dir"
   printf '%s\t%s\t%s\t%s\t%s\n' \
     "$key" "$path" "$anchor" "$decision" "$value" \
-    >> "$sentinel_dir/log"
+    >>"$sentinel_dir/log"
   # Mutate the target artifact: paths in the transformations file are
   # always relative to PROJECT_ROOT.
   local abs="$PROJECT_ROOT/$path"
   mkdir -p "$(dirname "$abs")"
-  printf '%s=%s\n' "$anchor" "$value" >> "$abs"
+  printf '%s=%s\n' "$anchor" "$value" >>"$abs"
 }
 
 harness_run

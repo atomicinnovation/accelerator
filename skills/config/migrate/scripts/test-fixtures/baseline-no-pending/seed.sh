@@ -25,4 +25,4 @@ mkdir -p "$SANDBOX/.git"
 for f in "$MIGRATIONS_DIR"/[0-9][0-9][0-9][0-9]-*.sh; do
   head -5 "$f" | grep -qE '^# INTERACTIVE:[[:space:]]*yes$' && continue
   basename "$f" .sh
-done > "$SANDBOX/.accelerator/state/migrations-applied"
+done >"$SANDBOX/.accelerator/state/migrations-applied"

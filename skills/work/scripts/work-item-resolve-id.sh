@@ -203,7 +203,7 @@ case "$CLASS" in
         # against the pattern. The "ID portion" is everything before
         # the slug, so split on the last '-<slug>.md'.
         # Better: extract the prefix portion before '-<padded>-'.
-        PREFIX="${BASE%-${PADDED}-*}"
+        PREFIX="${BASE%-"${PADDED}"-*}"
         if [ "$PREFIX" = "$BASE" ]; then
           # No match — basename did not contain -<padded>-
           continue

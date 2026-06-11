@@ -3,6 +3,10 @@
 # `printf -v`, which ShellCheck cannot track — suppress the file-wide false
 # "referenced but not assigned" warnings.
 # shellcheck disable=SC2154
+# Every assertion uses the `[[ test ]] && { PASS } || { FAIL }` idiom; the &&
+# branch ends in a successful PASS=$((PASS + 1)) assignment so the || cannot
+# spuriously fire — this is intentional, not an if-then-else mistake.
+# shellcheck disable=SC2015
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"

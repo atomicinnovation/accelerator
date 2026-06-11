@@ -32,7 +32,7 @@ assert_eq() {
 
 assert_contains() {
   local test_name="$1" haystack="$2" needle="$3"
-  if grep -qF -- "$needle" <<< "$haystack"; then
+  if grep -qF -- "$needle" <<<"$haystack"; then
     echo "  PASS: $test_name"
     PASS=$((PASS + 1))
   else
@@ -45,7 +45,7 @@ assert_contains() {
 
 assert_not_contains() {
   local test_name="$1" haystack="$2" needle="$3"
-  if grep -qF -- "$needle" <<< "$haystack"; then
+  if grep -qF -- "$needle" <<<"$haystack"; then
     echo "  FAIL: $test_name"
     echo "    Expected NOT to contain: $(printf '%q' "$needle")"
     echo "    Actual: $(printf '%q' "$haystack")"
@@ -68,6 +68,7 @@ assert_file_exists() {
   fi
 }
 
+# shellcheck disable=SC2329 # public assert helper invoked by the sourcing test-*.sh scripts, not within this library
 assert_file_not_exists() {
   local test_name="$1" file_path="$2"
   if [ ! -f "$file_path" ]; then
@@ -117,7 +118,7 @@ assert_empty() {
 
 assert_matches_regex() {
   local test_name="$1" regex="$2" subject="$3"
-  if grep -qE "$regex" <<< "$subject"; then
+  if grep -qE "$regex" <<<"$subject"; then
     echo "  PASS: $test_name"
     PASS=$((PASS + 1))
   else
@@ -130,7 +131,7 @@ assert_matches_regex() {
 
 assert_not_matches_regex() {
   local test_name="$1" regex="$2" subject="$3"
-  if ! grep -qE "$regex" <<< "$subject"; then
+  if ! grep -qE "$regex" <<<"$subject"; then
     echo "  PASS: $test_name"
     PASS=$((PASS + 1))
   else
@@ -258,7 +259,7 @@ assert_stderr_contains() {
   shift 2
   local stderr
   stderr=$("$@" 2>&1 >/dev/null) || true
-  if grep -qF -- "$substr" <<< "$stderr"; then
+  if grep -qF -- "$substr" <<<"$stderr"; then
     echo "  PASS: $test_name"
     PASS=$((PASS + 1))
   else
@@ -274,7 +275,7 @@ assert_stderr_not_contains() {
   shift 2
   local stderr
   stderr=$("$@" 2>&1 >/dev/null) || true
-  if grep -qF -- "$substr" <<< "$stderr"; then
+  if grep -qF -- "$substr" <<<"$stderr"; then
     echo "  FAIL: $test_name"
     echo "    Unexpected stderr content: $(printf '%q' "$substr")"
     echo "    Actual stderr: $stderr"

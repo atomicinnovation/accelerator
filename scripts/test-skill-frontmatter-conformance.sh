@@ -121,9 +121,9 @@ extract_literal() { # $1 file  $2 field -> verbatim value or ""
   local file="$1" field="$2" line rest val
   line=$(grep -E "^[[:space:]]*-[[:space:]]*\`${field}:\`" "$file" | head -1) || true
   [ -n "$line" ] || return 0
-  rest="${line#*\`${field}:\`}" # drop through the field token's closing backtick
-  rest="${rest#*\`}"            # drop through the next opening backtick
-  val="${rest%%\`*}"            # capture up to the next backtick
+  rest="${line#*\`"${field}":\`}" # drop through the field token's closing backtick
+  rest="${rest#*\`}"              # drop through the next opening backtick
+  val="${rest%%\`*}"              # capture up to the next backtick
   printf '%s' "$val"
 }
 

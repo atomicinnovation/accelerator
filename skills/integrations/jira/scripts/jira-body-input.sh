@@ -114,6 +114,7 @@ jira_resolve_body() {
     # Only POSIX-portable characters plus "/", ".", "_", "-" are accepted.
     # This guards against injection via a compromised or malformed EDITOR env var.
     if [[ ! "$editor" =~ ^[A-Za-z0-9_./-]+$ ]]; then
+      # shellcheck disable=SC2016 # single-quoted printf format; $EDITOR is literal message text, intentionally not shell-expanded
       printf 'E_BODY_EDITOR_INVALID: $EDITOR contains disallowed characters: %s. Only [A-Za-z0-9_./-] are accepted (no spaces or shell flags). Set EDITOR to a bare executable path, e.g. EDITOR=/usr/bin/vim.\n' \
         "$editor" >&2
       return 6

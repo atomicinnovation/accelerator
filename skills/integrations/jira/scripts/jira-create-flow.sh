@@ -253,6 +253,7 @@ _jira_create() {
   local body_rc=0
   body_md=$(jira_resolve_body "${body_src_args[@]}") || body_rc=$?
   if ((body_rc != 0)); then
+    # shellcheck disable=SC2016 # single-quoted printf format; $EDITOR is literal message text, intentionally not shell-expanded
     printf 'E_CREATE_NO_BODY: no body source available (use --body, --body-file, stdin, or $EDITOR)\n' >&2
     return 105
   fi

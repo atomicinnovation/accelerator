@@ -78,8 +78,8 @@ jobs:
       - name: Run E2E tests
         run: mise run test:e2e
 
-  check:
-    name: Run checks
+  check-scripts:
+    name: Check shell scripts
     runs-on: ubuntu-latest
 
     steps:
@@ -93,8 +93,8 @@ jobs:
           cache: true
           experimental: true
 
-      - name: Run checks
-        run: mise run check
+      - name: Run shell checks
+        run: mise run scripts:check
 
   prerelease:
     name: Create prerelease
@@ -103,7 +103,7 @@ jobs:
       - test-unit
       - test-integration
       - test-e2e
-      - check
+      - check-scripts
     if: github.event_name == 'push'
     permissions:
       id-token: write

@@ -276,6 +276,7 @@ if [ -z "$unexpected" ]; then
   PASS=$((PASS + 1))
 else
   echo "  FAIL: SKILL.md files surfaced by discovery pass but not categorised:"
+  # shellcheck disable=SC2001 # anchored whole-line sed indent that ${var//.../...} cannot express
   echo "$unexpected" | sed 's/^/    /'
   FAIL=$((FAIL + 1))
 fi

@@ -86,6 +86,7 @@ run_snapshot() {
     bash "$RUNNER" >"$stdout_file" 2>"$stderr_file" || rc=$?
 
   local files_list="$TMPDIR_BASE/$id.files"
+  # shellcheck disable=SC2016 # single-quoted sh -c program; $ is the inner shell's own syntax, intentionally not shell-expanded
   (cd "$sandbox" && find . -type f | sort |
     xargs -I{} sh -c 'printf "%s  %s\n" "$(sha256sum < "{}" | cut -d" " -f1)" "{}"') \
     >"$files_list"

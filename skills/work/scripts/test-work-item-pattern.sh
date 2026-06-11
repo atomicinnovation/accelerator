@@ -141,6 +141,7 @@ roundtrip_default() {
   local fmt scan formatted recovered
   fmt=$(bash "$PATTERN_CLI" --compile-format "$pattern" "$project")
   scan=$(bash "$PATTERN_CLI" --compile-scan "$pattern" "$project")
+  # shellcheck disable=SC2059 # $fmt is the CLI-compiled format string under test, intentionally used as the printf format
   formatted=$(printf "$fmt" "$want")
   # Append a slug-like suffix to mimic a real filename and parse via the scan regex.
   local subject="${formatted}-x.md"

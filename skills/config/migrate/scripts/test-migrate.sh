@@ -1316,6 +1316,7 @@ echo "Test: inbound — inline backtick reference rewritten"
 REPO=$(setup_0004_repo inbound-corpus)
 run_0004 "$REPO" >/dev/null 2>&1
 CONTENT=$(cat "$REPO/meta/work/0050.md")
+# shellcheck disable=SC2016 # single-quoted literal expected-content string; the backticks are Markdown, intentionally not shell-expanded
 assert_contains "inline backtick rewritten" "$CONTENT" '`meta/research/design-inventories/2026-05-06-x/inventory.md`'
 
 echo "Test: inbound — bare narrative reference rewritten"

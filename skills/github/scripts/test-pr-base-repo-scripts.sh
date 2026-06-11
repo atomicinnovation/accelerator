@@ -189,6 +189,7 @@ setup_gh_stub "$T"
 payload="$T/pr-view.json"
 write_file "$payload" '{"url":"https://github.com/acme/app/pull/119"}'
 GH_PR_VIEW_OUT="$payload" "$SCRIPT" 119 >/dev/null 2>"$T/stderr" || true
+# shellcheck disable=SC2154 # exported by setup_gh_stub and written by the gh stub before use
 argv=$(cat "$GH_ARGV_LOG")
 assert_eq "test 5: argv is exactly 'pr view 119 --json url'" \
   "pr view 119 --json url" "$argv"

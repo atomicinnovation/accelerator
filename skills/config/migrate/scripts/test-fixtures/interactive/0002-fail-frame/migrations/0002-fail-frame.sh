@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # DESCRIPTION: Emit FAIL after READY — Phase 3 negative test.
 # INTERACTIVE: yes
+# shellcheck disable=SC2154 # CLAUDE_PLUGIN_ROOT provided by the interactive-migration harness environment
+# shellcheck disable=SC2329 # stub migration_* hooks are unused here (harness_run_fail overrides dispatch); kept to mirror the standard fixture shape
 set -euo pipefail
 source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
 source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"

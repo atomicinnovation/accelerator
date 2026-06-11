@@ -35,28 +35,28 @@ trap 'rm -rf "$WORK"' EXIT
 # Main jj workspace.
 WORKDIR="$WORK/main-jj" && mkdir -p "$WORKDIR" && (cd "$WORKDIR" && jj git init --quiet)
 (cd "$WORKDIR" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK") \
-  > "$SCRIPT_DIR/main-jj-workspace.json"
+  >"$SCRIPT_DIR/main-jj-workspace.json"
 
 # Main git checkout (with one empty commit, matching the test fixture).
 WORKDIR="$WORK/main-git" && mkdir -p "$WORKDIR"
 (cd "$WORKDIR" && git init -q && git config user.email t@e.x && git config user.name T)
 (cd "$WORKDIR" && git commit --allow-empty -q -m init)
 (cd "$WORKDIR" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK") \
-  > "$SCRIPT_DIR/main-git-checkout.json"
+  >"$SCRIPT_DIR/main-git-checkout.json"
 
 # Record source provenance so the AC5 test can verify the snapshots
 # match the production code state they were captured against.
 {
   printf 'hooks/vcs-detect.sh: '
-  (cd "$PLUGIN_ROOT" && git log -n1 --format=%H hooks/vcs-detect.sh 2>/dev/null \
-    || jj log -r 'latest(::@ & file("hooks/vcs-detect.sh"))' --no-graph -T 'commit_id' 2>/dev/null \
-    || echo UNKNOWN)
+  (cd "$PLUGIN_ROOT" && git log -n1 --format=%H hooks/vcs-detect.sh 2>/dev/null ||
+    jj log -r 'latest(::@ & file("hooks/vcs-detect.sh"))' --no-graph -T 'commit_id' 2>/dev/null ||
+    echo UNKNOWN)
   printf '\nscripts/vcs-common.sh: '
-  (cd "$PLUGIN_ROOT" && git log -n1 --format=%H scripts/vcs-common.sh 2>/dev/null \
-    || jj log -r 'latest(::@ & file("scripts/vcs-common.sh"))' --no-graph -T 'commit_id' 2>/dev/null \
-    || echo UNKNOWN)
+  (cd "$PLUGIN_ROOT" && git log -n1 --format=%H scripts/vcs-common.sh 2>/dev/null ||
+    jj log -r 'latest(::@ & file("scripts/vcs-common.sh"))' --no-graph -T 'commit_id' 2>/dev/null ||
+    echo UNKNOWN)
   printf '\nCaptured: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf 'Host: %s\n' "$(uname -s)"
-} > "$SCRIPT_DIR/CAPTURE-SOURCE.txt"
+} >"$SCRIPT_DIR/CAPTURE-SOURCE.txt"
 
 echo "Captured snapshots into $SCRIPT_DIR"

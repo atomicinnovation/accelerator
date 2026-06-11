@@ -52,6 +52,7 @@ emit_valid() {
     printf 'last_updated_by: Fixture Author\n'
     printf 'schema_version: 1\n'
     for e in $extras; do
+      # shellcheck disable=SC2154 # FM_OPTIONAL_EXTRAS populated by the sourced frontmatter-emission-rules.sh (see header preconditions)
       case " $FM_OPTIONAL_EXTRAS " in *" $e "*) continue ;; esac
       printf '%s: "x"\n' "$e"
     done
@@ -67,6 +68,7 @@ emit_valid() {
 # Capture the validator's stderr+rc for a set of args.
 run_validator() {
   VALIDATOR_RC=0
+  # shellcheck disable=SC2154 # VALIDATOR set by the caller before sourcing (see header preconditions)
   VALIDATOR_ERR="$("$VALIDATOR" "$@" 2>&1 >/dev/null)" || VALIDATOR_RC=$?
 }
 
@@ -79,6 +81,7 @@ assert_rejects() { # $1=name $2=code; remaining args = validator args
     PASS=$((PASS + 1))
   else
     echo "  FAIL: $name (rc=$VALIDATOR_RC, expected code '$code')"
+    # shellcheck disable=SC2001 # anchored whole-line sed indent that ${var//.../...} cannot express
     echo "$VALIDATOR_ERR" | sed 's/^/    /'
     FAIL=$((FAIL + 1))
   fi
@@ -93,6 +96,7 @@ assert_accepts() { # $1=name; remaining args = validator args
     PASS=$((PASS + 1))
   else
     echo "  FAIL: $name (rc=$VALIDATOR_RC)"
+    # shellcheck disable=SC2001 # anchored whole-line sed indent that ${var//.../...} cannot express
     echo "$VALIDATOR_ERR" | sed 's/^/    /'
     FAIL=$((FAIL + 1))
   fi

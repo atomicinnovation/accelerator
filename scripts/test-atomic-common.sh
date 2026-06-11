@@ -111,14 +111,17 @@ echo "Test: double quote → escaped quote"
 ESC=$(jsonl_json_escape 'he said "hi"')
 assert_eq "quote escaped" 'he said \"hi\"' "$ESC"
 
+# shellcheck disable=SC2028 # intentionally prints the literal \n escape sequence as a test label, not an expanded newline
 echo "Test: newline → \\n"
 ESC=$(jsonl_json_escape $'line1\nline2')
 assert_eq "newline escaped" 'line1\nline2' "$ESC"
 
+# shellcheck disable=SC2028 # intentionally prints the literal \t escape sequence as a test label, not an expanded tab
 echo "Test: tab → \\t"
 ESC=$(jsonl_json_escape $'a\tb')
 assert_eq "tab escaped" 'a\tb' "$ESC"
 
+# shellcheck disable=SC2028 # intentionally prints the literal \r escape sequence as a test label, not an expanded carriage return
 echo "Test: carriage return → \\r"
 ESC=$(jsonl_json_escape $'a\rb')
 assert_eq "cr escaped" 'a\rb' "$ESC"
@@ -438,6 +441,7 @@ assert_eq "real-foo survives" "1" "$(grep -c '"real-foo"' "$TARGET")"
 echo "Test: escape-character round-trip (key with quote and backslash)"
 TARGET="$TMPDIR_BASE/r-escape.jsonl"
 rm -f "$TARGET"
+# shellcheck disable=SC1003 # deliberate trailing literal backslash in escape round-trip test data, not a single-quote-escape mistake
 KEY_RAW='key-with-"-and-\'
 LINE=$(jsonl_compose_record \
   transformation_key="$KEY_RAW" schema_version=1 outcome=accepted \

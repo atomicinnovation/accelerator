@@ -409,7 +409,7 @@ while [ $attempt -lt $max_attempts ]; do
         seed=$(((RANDOM ^ $(date +%s)) % 1000))
         jitter=$((base * 30 / 100))
         sign=$((seed % 2))
-        rand=$(((seed % (jitter + 1))))
+        rand=$((seed % (jitter + 1)))
         if [ $sign -eq 0 ]; then
           sleep_secs=$((base + rand))
         else

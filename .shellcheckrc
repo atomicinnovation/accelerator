@@ -1,0 +1,54 @@
+# Authoritative ShellCheck configuration. Because this rc lives at the repo
+# root, a bare `shellcheck` invocation picks it up everywhere (editors, CI,
+# ad-hoc runs) — the single source of truth for shell linting.
+
+# Strict mandate (0098): enable every optional check.
+enable=all
+
+# Analyse `source`d files in context (replaces the former `-x` CLI flag).
+external-sources=true
+
+# Resolve `source`d libraries (and any `# shellcheck source=` directive) relative
+# to each script's OWN directory. The repo sources shared libraries with the
+# `source "$SCRIPT_DIR/<lib>.sh"` idiom; this lets ShellCheck extract the literal
+# basename, follow the chain, and see the variables those libs define — clearing
+# the referenced-but-unassigned (SC2154) false positives AT THE ROOT while keeping
+# SC2154 enabled to catch a genuinely-undefined variable in a non-sourcing script.
+source-path=SCRIPTDIR
+
+# --- Documented global disables (added from the 0098 report-only pass) --------
+# Each entry silences a check whose remediation across the 174-file corpus was
+# disproportionate to its value; every finding it covered was style/optional
+# severity, not a latent bug. Counts are from the report-only run.
+
+# SC2250 (779): "prefer ${var} braces even when not required". Pure style; the
+# repo deliberately uses bare $var for simple references. Brace-everywhere would
+# rewrite nearly every variable reference in every script.
+disable=SC2250
+
+# SC2292 (160): "prefer [[ ]] over [ ]". Both are valid on the bash-3.2 floor
+# (ADR-0016); the repo uses POSIX [ ] deliberately. Stylistic only.
+disable=SC2292
+
+# SC2312 (171) / SC2310 (2): set -e is disabled inside command substitutions and
+# `if`-condition function calls. check-extra advisories about an intentional,
+# pervasive error-handling pattern (command substitution in conditions), not bugs.
+disable=SC2312
+disable=SC2310
+
+# SC2249 (59): "add a default *) case". Defensive-style opinion; many case
+# statements deliberately handle only the known set of values.
+disable=SC2249
+
+# SC2248 (11): "quote even variables that can't contain special characters".
+# Stylistic; harms readability of known-safe integer/enum references.
+disable=SC2248
+
+# SC2004 (3): "$/${} is unnecessary in arithmetic". Stylistic micro-preference.
+disable=SC2004
+
+# SC1091 (49, 35 files): "not following sourced file". Scripts source shared
+# libraries via runtime-resolved $CLAUDE_PLUGIN_ROOT paths that ShellCheck cannot
+# follow statically; external-sources=true still resolves the statically-followable
+# ones, and the dynamic sources are exercised by the integration suites.
+disable=SC1091

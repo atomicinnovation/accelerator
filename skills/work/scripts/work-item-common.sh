@@ -29,6 +29,7 @@
 # Defensively escapes regex metachars so a future widening of the
 # project-value rule is safe without code changes.
 _wip_regex_escape_char() {
+  # shellcheck disable=SC1003 # deliberate literal-backslash handling (regex metachar escaping), not a single-quote-escape mistake
   case "$1" in
     '.' | '^' | '$' | '*' | '+' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '|' | '\')
       printf '\\%s' "$1"
@@ -171,6 +172,7 @@ _wip_compile() {
     fi
 
     # Literal char
+    # shellcheck disable=SC1003 # deliberate literal-backslash handling (TSV/regex escaping), not a single-quote-escape mistake
     case "$ch" in
       '/' | '\\' | ':' | '*' | '?' | '<' | '>' | '|' | '"')
         echo "E_PATTERN_HOSTILE_CHAR: literal '$ch' is forbidden in patterns (rule 2)" >&2

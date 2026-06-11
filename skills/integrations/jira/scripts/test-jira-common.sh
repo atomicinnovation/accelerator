@@ -3,6 +3,8 @@
 # $JIRA_COMMON) inside dozens of subshell test cases; the path is intentionally
 # dynamic, so following it adds nothing.
 # shellcheck disable=SC1090
+# Helper functions in the subshell test cases are passed by name to jira_with_lock and invoked by it, not within this library, so ShellCheck cannot see the call.
+# shellcheck disable=SC2329
 set -euo pipefail
 
 # Tests for jira-common.sh

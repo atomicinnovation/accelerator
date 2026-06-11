@@ -9,7 +9,7 @@ spawn_and_reap_pid() {
   sh -c 'exit 0' &
   local dead_pid=$!
   wait "$dead_pid" 2>/dev/null || true
-  echo "$dead_pid"``
+  echo "$dead_pid"$()
 }
 
 # Write an executable fake-visualiser binary to <out-path>. When invoked
@@ -18,7 +18,7 @@ spawn_and_reap_pid() {
 # atomically, and parks until SIGTERM. Uses Python 3 (required by mise env).
 make_fake_visualiser() {
   local out_path="$1"
-  cat > "$out_path" << 'FAKE_VISUALISER_EOF'
+  cat >"$out_path" <<'FAKE_VISUALISER_EOF'
 #!/usr/bin/env python3
 import argparse, json, os, signal, stat, sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -97,7 +97,7 @@ reap_visualiser_fakes() {
   local base="$1"
   while IFS= read -r pid_file; do
     local pid
-    pid=$(tr -cd '0-9' < "$pid_file" 2>/dev/null || true)
+    pid=$(tr -cd '0-9' <"$pid_file" 2>/dev/null || true)
     [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null || true
   done < <(find "$base" -name "server.pid" 2>/dev/null)
 }

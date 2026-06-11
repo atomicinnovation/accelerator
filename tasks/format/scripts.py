@@ -14,7 +14,12 @@ def _shfmt(context: Context, op_flags: str):
     """
     sources = shell_sources()
     if not sources:
-        return None
+        # Fail loudly, not green: an empty match set means scope discovery broke
+        # (a glob/`_keep` regression), not that there is nothing to format
+        # (fail-closed, not fail-open). Mirrors the lint tasks' guard.
+        raise Exit(
+            "shfmt: no shell sources matched — scope discovery is broken", code=1
+        )
     args = " ".join(shlex.quote(s) for s in sources)
     # mise runs invoke tasks from the repo root and shell_sources() returns
     # repo-relative paths, so no cwd override is needed (invoke's run() does
@@ -27,7 +32,7 @@ def _shfmt(context: Context, op_flags: str):
 def check(context: Context):
     """Report shell files that are not shfmt-formatted (read-only)."""
     result = _shfmt(context, "-d")
-    if result is not None and result.exited != 0:
+    if result.exited != 0:
         raise Exit(
             "shfmt: formatting drift detected — run `mise run format:scripts:fix`",
             code=1,

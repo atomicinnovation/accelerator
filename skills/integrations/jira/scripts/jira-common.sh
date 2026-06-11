@@ -70,6 +70,7 @@ jira_state_dir() {
   local root
   root=$(find_repo_root) || {
     log_die "E_NO_REPO: cannot locate repository root"
+    # shellcheck disable=SC2317 # defensive return after log_die, which exits the process; unreachable by design
     return 1
   }
   local integrations_path
@@ -230,6 +231,7 @@ jira_require_dependencies() {
 
   if [[ ${#missing[@]} -gt 0 ]]; then
     log_die "E_MISSING_DEP: required dependencies not found: ${missing[*]}"
+    # shellcheck disable=SC2317 # defensive return after log_die, which exits the process; unreachable by design
     return 1
   fi
 
@@ -240,6 +242,7 @@ jira_require_dependencies() {
     local minor="${jq_ver#*.}"
     if [[ "$major" -lt 1 ]] || { [[ "$major" -eq 1 ]] && [[ "$minor" -lt 6 ]]; }; then
       log_die "E_MISSING_DEP: jq >= 1.6 required, found $jq_ver"
+      # shellcheck disable=SC2317 # defensive return after log_die, which exits the process; unreachable by design
       return 1
     fi
   fi

@@ -27,7 +27,12 @@ class TestShellcheckTask:
         mocker.patch.object(lint, "shell_sources", return_value=["a.sh", "b.sh"])
         lint.shellcheck(ctx)
         cmd = _command(ctx)
-        assert cmd.startswith("shellcheck -x --severity=warning ")
+        # Flag ownership moved to .shellcheckrc: the invocation is now bare.
+        assert cmd.startswith("shellcheck ")
+        # Explicit absence checks — a startswith-only assertion would still pass
+        # if a stray flag survived later in the command string.
+        assert "-x" not in cmd
+        assert "--severity" not in cmd
         assert "a.sh" in cmd and "b.sh" in cmd
 
     def test_raises_on_findings(self, ctx, mocker):
@@ -35,6 +40,14 @@ class TestShellcheckTask:
         ctx.run.return_value = MagicMock(exited=1)
         with pytest.raises(Exit):
             lint.shellcheck(ctx)
+
+    def test_raises_on_empty_source_set(self, ctx, mocker):
+        # Fail-closed: an empty match set means scope discovery broke, not that
+        # there is nothing to lint — the task must raise, not pass green.
+        mocker.patch.object(lint, "shell_sources", return_value=[])
+        with pytest.raises(Exit):
+            lint.shellcheck(ctx)
+        ctx.run.assert_not_called()
 
 
 class TestBashismsTask:
@@ -48,6 +61,13 @@ class TestBashismsTask:
         ctx.run.return_value = MagicMock(exited=1)
         with pytest.raises(Exit):
             lint.bashisms(ctx)
+
+    def test_raises_on_empty_source_set(self, ctx, mocker):
+        # Fail-closed, as for shellcheck.
+        mocker.patch.object(lint, "shell_sources", return_value=[])
+        with pytest.raises(Exit):
+            lint.bashisms(ctx)
+        ctx.run.assert_not_called()
 
 
 def _run_lint(path: Path) -> subprocess.CompletedProcess:

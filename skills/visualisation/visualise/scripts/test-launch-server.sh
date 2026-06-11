@@ -345,6 +345,7 @@ cd "$PROJ"
 export ACCELERATOR_VISUALISER_BIN="$FAKE"
 FAKE_BINS="$TMPDIR_BASE/fake-bins-os"
 mkdir -p "$FAKE_BINS"
+# shellcheck disable=SC2016 # single-quoted printf program emitting a fake-uname script; $1 is that script's own syntax, intentionally not shell-expanded
 printf '#!/usr/bin/env bash\ncase "$1" in -s) echo "Windows_NT";; -m) echo "x86_64";; *) echo "Windows_NT";; esac\n' \
   >"$FAKE_BINS/uname"
 chmod +x "$FAKE_BINS/uname"

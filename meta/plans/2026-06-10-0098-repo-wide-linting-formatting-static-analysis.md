@@ -550,25 +550,31 @@ test:unit:tasks` exits 0" is unachievable.)
 ### Success Criteria
 
 #### Automated Verification:
-- [ ] `mise run lint:scripts:check` exits 0.
-- [ ] `mise run format:scripts:check` exits 0.
-- [ ] `mise run scripts:check` exits 0.
-- [ ] `.shellcheckrc` enables all optional checks: `grep -q 'enable=all' .shellcheckrc`
-- [ ] Scope test passes: `mise run test:unit:tasks` (covers the new `shell_sources` assertion).
-- [ ] Shell harness suites unaffected by the reformat: `mise run test:integration:migrate`,
-  `mise run test:integration:github` pass.
+- [x] `mise run lint:scripts:check` exits 0.
+- [x] `mise run format:scripts:check` exits 0.
+- [x] `mise run scripts:check` exits 0.
+- [x] `.shellcheckrc` enables all optional checks: `grep -q 'enable=all' .shellcheckrc`
+- [x] Scope test passes: `mise run test:unit:tasks` (covers the new `shell_sources` assertion).
+- [x] Shell harness suites unaffected by the reformat: `mise run test:integration:migrate`,
+  `mise run test:integration:github` pass. (Also verified `test:integration:config` after
+  removing dead `_run_resolve` from `test-config.sh`.)
 
 #### Manual Verification:
 - [ ] Report-only violation count recorded in the PR description before the sweep.
-- [ ] Every added `disable=`/`source=` directive (and any `.shellcheckrc` global
-  `disable=`) carries an adjacent rationale; the PR enumerates them.
+  (Counts captured: shfmt drift in 8 newly-in-scope files; shellcheck `enable=all`
+  ≈1314 raw findings dominated by style/optional codes, of which ≈189 remained after
+  the agreed global disables — remediated to zero.)
+- [x] Every added `disable=`/`source=` directive (and any `.shellcheckrc` global
+  `disable=`) carries an adjacent rationale; the PR enumerates them. (82 inline/file-level
+  directives + 8 global rc disables, each justified; `source-path=SCRIPTDIR` resolves
+  the SC2154 class at the root.)
 - [ ] Falsification probe linked: one shfmt drift, one shellcheck finding (e.g.
   SC2086), and one bashism (e.g. `declare -A`) each drive `check-scripts` non-zero;
   reverted after. Place at least one probe in a **newly-in-scope** file (a former
   `test-fixtures`/`test-helpers.sh`) so the probe also exercises the widened
   boundary, not just files already linted. (Note: the probe proves the command
   is *wired and blocking*, not that the file-set is complete — file-set breadth
-  is what the `shell_sources()` scope test guards.)
+  is what the `shell_sources()` scope test guards.) **[CI/manual — pending push + branch-protection rename `check` → `check-scripts`.]**
 
 ---
 

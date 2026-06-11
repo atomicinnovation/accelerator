@@ -2495,6 +2495,7 @@ if [ -z "$ENUM_MATCHES" ]; then
   PASS=$((PASS + 1))
 else
   echo "  FAIL: hardcoded enum alternation found outside config-defaults.sh:"
+  # shellcheck disable=SC2001 # anchored whole-line sed indent that ${var//.../...} cannot express
   echo "$ENUM_MATCHES" | sed 's/^/    /'
   FAIL=$((FAIL + 1))
 fi
@@ -2504,6 +2505,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+# shellcheck disable=SC2016 # single-quoted grep -F patterns; backticks are literal markdown, intentionally not command substitution
 if echo "$OUTPUT" | grep -qF '| `paths.plans` |' && echo "$OUTPUT" | grep -qF '| `templates.plan` |'; then
   echo "  PASS: paths.* and templates.* rows present in config-dump output"
   PASS=$((PASS + 1))
@@ -2626,8 +2628,10 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\nreview:\n  min_lenses: 5\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+# shellcheck disable=SC2016 # single-quoted assert pattern; backticks are literal markdown, intentionally not command substitution
 assert_contains "first key default value/source aligned" "$OUTPUT" \
   '`review.max_inline_comments` | `10` | default'
+# shellcheck disable=SC2016 # single-quoted assert pattern; backticks are literal markdown, intentionally not command substitution
 assert_contains "last key default value/source aligned" "$OUTPUT" \
   '`review.plan_revise_major_count` | `3` | default'
 
@@ -2681,6 +2685,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+# shellcheck disable=SC2016 # single-quoted grep patterns; backticks are literal markdown, intentionally not command substitution
 if echo "$OUTPUT" | grep -qF '`work.integration`' && echo "$OUTPUT" | grep 'work\.integration' | grep -qF '*(not set)*'; then
   echo "  PASS: work.integration shows as not set"
   PASS=$((PASS + 1))
@@ -3204,6 +3209,7 @@ if [ -z "$ALL_MATCHES" ]; then
   PASS=$((PASS + 1))
 else
   echo "  FAIL: inline defaults remain at:"
+  # shellcheck disable=SC2001 # anchored whole-line sed indent that ${var//.../...} cannot express
   echo "$ALL_MATCHES" | sed 's/^/    /'
   FAIL=$((FAIL + 1))
 fi
@@ -3658,19 +3664,6 @@ echo ""
 
 WORK_COMMON="$SCRIPT_DIR/work-common.sh"
 
-_run_resolve() {
-  local repo="$1"
-  local stdout stderr exit_code
-  stderr=$(
-    cd "$repo" && {
-      stdout=$(source "$WORK_COMMON" && work_resolve_default_project)
-      exit_code=$?
-    } 2>&1 1>&3
-    echo "$exit_code"
-  ) 3>&1
-  printf '%s\n' "$stdout" "$stderr"
-}
-
 echo "Test: integration unset, project unset -> no warning, returns empty"
 REPO=$(setup_repo)
 STDOUT=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>/dev/null)
@@ -3981,6 +3974,7 @@ if [ -z "$WORK_INLINE_MATCHES" ]; then
   PASS=$((PASS + 1))
 else
   echo "  FAIL: inline defaults passed to config-read-work.sh:"
+  # shellcheck disable=SC2001 # anchored whole-line sed indent that ${var//.../...} cannot express
   echo "$WORK_INLINE_MATCHES" | sed 's/^/    /'
   FAIL=$((FAIL + 1))
 fi
@@ -4010,6 +4004,7 @@ if [ -z "$STALE_MATCHES" ]; then
   PASS=$((PASS + 1))
 else
   echo "  FAIL: stale config-read-value.sh work.* invocations remain:"
+  # shellcheck disable=SC2001 # anchored whole-line sed indent that ${var//.../...} cannot express
   echo "$STALE_MATCHES" | sed 's/^/    /'
   FAIL=$((FAIL + 1))
 fi
@@ -4049,7 +4044,7 @@ SKILL_TOOL_FAIL=0
 while IFS= read -r -d '' skill_file; do
   if grep -q "config-read-work" "$skill_file" 2>/dev/null; then
     if ! grep -qE 'Bash\(.*scripts[/*]|\bBash\b' "$skill_file" 2>/dev/null; then
-      rel="${skill_file#$PLUGIN_ROOT/}"
+      rel="${skill_file#"$PLUGIN_ROOT"/}"
       echo "  FAIL: $rel uses config-read-work.sh but has no matching allowed-tools entry"
       SKILL_TOOL_FAIL=$((SKILL_TOOL_FAIL + 1))
     fi
@@ -4219,6 +4214,7 @@ fi
 echo "Test: Template file already starts with code fence -> output as-is (no double-wrapping)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
+# shellcheck disable=SC2016 # single-quoted printf format; backticks are literal markdown fence text, intentionally not command substitution
 printf '```markdown\n# Already Fenced\n```\n' >"$REPO/.accelerator/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
 # Count occurrences of ```markdown - should be exactly 1
@@ -5212,6 +5208,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
 echo "# Custom" >"$REPO/.accelerator/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
+# shellcheck disable=SC2016 # single-quoted grep pattern; backticks are literal markdown, intentionally not command substitution
 if echo "$OUTPUT" | grep '`plan`' | grep -q "user override"; then
   echo "  PASS: plan shows user override"
   PASS=$((PASS + 1))
@@ -5233,6 +5230,7 @@ templates:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
+# shellcheck disable=SC2016 # single-quoted grep pattern; backticks are literal markdown, intentionally not command substitution
 if echo "$OUTPUT" | grep '`plan`' | grep -q "config path"; then
   echo "  PASS: plan shows config path"
   PASS=$((PASS + 1))
@@ -5254,6 +5252,7 @@ paths:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
+# shellcheck disable=SC2016 # single-quoted grep pattern; backticks are literal markdown, intentionally not command substitution
 if echo "$OUTPUT" | grep '`codebase-research`' | grep -q "user override"; then
   echo "  PASS: codebase-research shows user override via custom paths.templates"
   PASS=$((PASS + 1))
@@ -5285,6 +5284,7 @@ templates:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
+# shellcheck disable=SC2016 # single-quoted grep patterns; backticks are literal markdown, intentionally not command substitution
 if echo "$OUTPUT" | grep '`plan`' | grep -q "config path" &&
   echo "$OUTPUT" | grep '`codebase-research`' | grep -q "user override" &&
   echo "$OUTPUT" | grep '`adr`' | grep -q "plugin default"; then
@@ -5703,6 +5703,7 @@ echo "Test: Eject then list: plan shows as user override"
 REPO=$(setup_repo)
 cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
+# shellcheck disable=SC2016 # single-quoted grep pattern; backticks are literal markdown, intentionally not command substitution
 if echo "$OUTPUT" | grep '`plan`' | grep -q "user override"; then
   echo "  PASS: plan shows user override after eject"
   PASS=$((PASS + 1))

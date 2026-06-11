@@ -156,10 +156,13 @@ assert_eq "golden: plan target uses full stem" "plan:2026-05-13-0055-sidebar-act
 
 # ---- 6. Prose disambiguation: Source → parent / derived_from / source ------
 echo "=== Source: disambiguation (parent / derived_from / source) ==="
+# shellcheck disable=SC2016 # single-quoted markdown arg; backticks are literal text passed verbatim to lp_infer_key, intentionally not command substitution
 assert_eq "Source→parent for work-item target" "parent" \
   "$(printf '%s' "$(lp_infer_key plan '## References' '- Source: `meta/work/0042-x.md`' work-item)" | cut -f1)"
+# shellcheck disable=SC2016 # single-quoted markdown arg; backticks are literal text passed verbatim to lp_infer_key, intentionally not command substitution
 assert_eq "Source→derived_from for codebase-research target" "derived_from" \
   "$(printf '%s' "$(lp_infer_key plan '## References' '- Source: `meta/research/codebase/x.md`' codebase-research)" | cut -f1)"
+# shellcheck disable=SC2016 # single-quoted markdown arg; backticks are literal text passed verbatim to lp_infer_key, intentionally not command substitution
 assert_eq "Source→derived_from for issue-research target" "derived_from" \
   "$(printf '%s' "$(lp_infer_key plan '## References' '- Source: `meta/research/issues/x.md`' issue-research)" | cut -f1)"
 assert_eq "Source→source for non-meta target" "source" \

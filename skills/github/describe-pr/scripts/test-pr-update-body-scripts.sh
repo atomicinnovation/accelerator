@@ -147,6 +147,7 @@ body_file="$T/body.md"
 write_file "$body_file" "hello world"
 "$SCRIPT" 119 "$body_file" >/dev/null 2>"$T/stderr" || true
 # Pull the pr-view line out of the recorded argv log.
+# shellcheck disable=SC2154 # exported by setup_gh_stub and written by the gh stub before use
 pr_view_line=$(grep "^pr view" "$GH_ARGV_LOG" || true)
 assert_eq "test 6: pr view argv shape" \
   "pr view 119 --json url" "$pr_view_line"
@@ -216,6 +217,7 @@ assert_body_round_trip() {
   write_file "$body_file" "$input"
   "$SCRIPT" 119 "$body_file" >/dev/null 2>"$T/stderr" || true
   local extracted="$T/extracted"
+  # shellcheck disable=SC2154 # exported by setup_gh_stub and written by the gh stub before use
   jq -j .body "$GH_STDIN_LOG" >"$extracted"
   if cmp -s "$extracted" "$body_file"; then
     echo "  PASS: $test_name"

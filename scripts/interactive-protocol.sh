@@ -64,8 +64,10 @@ unescape_field() {
   local v="$1" out="" i ch next
   for ((i = 0; i < ${#v}; i++)); do
     ch="${v:$i:1}"
+    # shellcheck disable=SC1003 # deliberate literal-backslash test for TSV unescaping, not a single-quote-escape mistake
     if [ "$ch" = '\' ] && [ $((i + 1)) -lt ${#v} ]; then
       next="${v:$((i + 1)):1}"
+      # shellcheck disable=SC1003 # literal backslash branches for TSV decoding (\\ pair and lone \), not single-quote-escape mistakes
       case "$next" in
         '\\')
           out+='\\'

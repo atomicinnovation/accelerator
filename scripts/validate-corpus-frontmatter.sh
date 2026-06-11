@@ -122,20 +122,6 @@ has_fence() {
   [[ "$first" =~ ^---[[:space:]]*$ ]]
 }
 
-# Raw (trimmed) value of a frontmatter key from a block, or empty. Here-string
-# input + no awk `exit` (a `done` flag keeps only the first match) so there is
-# no upstream writer to receive SIGPIPE under pipefail.
-fm_value() {
-  awk -v k="$2" '
-    !done && index($0, k ":") == 1 {
-      line = $0
-      sub("^" k ":[ \t]*", "", line)
-      sub(/[ \t]+$/, "", line)
-      print line
-      done = 1
-    }' <<<"$1"
-}
-
 # Inner (unquoted) value: strip a single layer of surrounding double/single
 # quotes; leave a trailing inline comment off only for quoted scalars.
 fm_inner() {
@@ -206,31 +192,8 @@ bk_value() {
   return 1
 }
 
-# ---- Identity resolution (matches the migration's rule) --------------------
-# id: → legacy own-id key (work_item_id / adr_id) → filename stem.
-resolve_id() {
-  local block="$1" file="$2" v
-  v="$(fm_value "$block" id)"
-  if [ -n "$v" ]; then
-    fm_inner "$v"
-    return 0
-  fi
-  v="$(fm_value "$block" work_item_id)"
-  if [ -n "$v" ]; then
-    fm_inner "$v"
-    return 0
-  fi
-  v="$(fm_value "$block" adr_id)"
-  if [ -n "$v" ]; then
-    fm_inner "$v"
-    return 0
-  fi
-  stem_of "$file"
-}
-
 # ---- ISO-8601 timestamp check ---------------------------------------------
 ISO_TS_RE='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2})$'
-is_iso_ts() { grep -qE "$ISO_TS_RE" <<<"$1"; }
 
 # ---- Build the corpus index (referential integrity target set) -------------
 # Newline-delimited set of "doc-type:id" identities. Built from all in-scope
@@ -375,7 +338,7 @@ validate_file() {
     rest="$BK_VAL"
     while [[ "$rest" =~ \"([^\"]*)\" ]]; do
       tok="${BASH_REMATCH[1]}"
-      rest="${rest#*\"${tok}\"}"
+      rest="${rest#*\""${tok}"\"}"
       [ -n "$tok" ] || continue
       if [[ ! "$tok" =~ $FM_TYPED_REF_RE ]]; then
         violation "$file" "BAD-LINKAGE-SHAPE" "$key: '$tok' is not a typed \"doc-type:id\" reference"

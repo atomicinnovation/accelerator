@@ -198,7 +198,7 @@ description = "Apply all formatters in place"
 depends = ["format:scripts:fix"]
 
 [tasks."lint:scripts:shellcheck:check"]
-description = "Lint shell scripts with ShellCheck (-x, --severity=warning)"
+description = "Lint shell scripts with ShellCheck (config in .shellcheckrc)"
 run = "invoke lint.scripts.shellcheck"
 
 [tasks."lint:scripts:bashisms:check"]
@@ -208,6 +208,10 @@ run = "invoke lint.scripts.bashisms"
 [tasks."lint:scripts:check"]
 description = "Run all shell lint checks"
 depends = ["lint:scripts:shellcheck:check", "lint:scripts:bashisms:check"]
+
+[tasks."scripts:check"]
+description = "Run all shell format and lint checks (shfmt + ShellCheck + bashisms)"
+depends = ["format:scripts:check", "lint:scripts:check"]
 
 [tasks."lint:check"]
 description = "Run all lint checks"

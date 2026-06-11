@@ -17,16 +17,16 @@ set -euo pipefail
 SELF="${BASH_SOURCE[0]}"
 HOPS=0
 while [ -L "$SELF" ]; do
-  HOPS=$((HOPS + 1))
-  if [ "$HOPS" -gt 40 ]; then
-    echo "accelerator-visualiser: symlink loop detected (exceeded 40 hops)" >&2
-    exit 1
-  fi
-  LINK_TARGET=$(readlink "$SELF")
-  case "$LINK_TARGET" in
-    /*) SELF="$LINK_TARGET" ;;
-    *)  SELF="$(cd "$(dirname "$SELF")" && pwd -P)/$LINK_TARGET" ;;
-  esac
+	HOPS=$((HOPS + 1))
+	if [ "$HOPS" -gt 40 ]; then
+		echo "accelerator-visualiser: symlink loop detected (exceeded 40 hops)" >&2
+		exit 1
+	fi
+	LINK_TARGET=$(readlink "$SELF")
+	case "$LINK_TARGET" in
+	/*) SELF="$LINK_TARGET" ;;
+	*) SELF="$(cd "$(dirname "$SELF")" && pwd -P)/$LINK_TARGET" ;;
+	esac
 done
 SCRIPT_DIR="$(cd "$(dirname "$SELF")" && pwd -P)"
 SKILL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"

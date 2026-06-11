@@ -11,6 +11,7 @@ source "$SCRIPT_DIR/interactive-protocol.sh"
 echo "=== escape_field / unescape_field round-trip ==="
 echo ""
 
+# shellcheck disable=SC1003 # '\\' and similar entries are deliberate literal-backslash round-trip test data, not single-quote-escape mistakes
 cases=(
   "plain ascii"
   "with TAB"$'\t'"in middle"

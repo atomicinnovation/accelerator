@@ -89,7 +89,9 @@ echo ""
 
 echo "Test 12: split positives and negatives"
 jql_split_neg "Done" "~In Progress" "Backlog"
+# shellcheck disable=SC2154 # populated by jql_split_neg (the function under test) on the line above
 assert_eq "positives" "Done Backlog" "${JQL_POSITIVES[*]}"
+# shellcheck disable=SC2154 # populated by jql_split_neg (the function under test) on the line above
 assert_eq "negatives" "In Progress" "${JQL_NEGATIVES[*]}"
 
 echo ""
@@ -131,6 +133,7 @@ for val in 'feature/auth' 'Customer Champion?' '[brackets]' 'tag#1' \
 done
 
 echo "Test 18: control char rejected with named byte"
+# shellcheck disable=SC2016 # single-quoted inner bash -c program; $1 is that shell's positional param, intentionally not shell-expanded
 ERR=$(printf 'foo\x07bar' | xargs -I{} bash -c 'source '"$JQL_LIB"'; jql_quote_value "$1" 2>&1 >/dev/null || true' _ {})
 # Use a simpler approach: call jql_quote_value directly with a control char
 CTRL_VAL=$'foo\x07bar'

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # DESCRIPTION: Fail mid-stream — Phase 5 negative test.
 # INTERACTIVE: yes
+# shellcheck disable=SC2154 # CLAUDE_PLUGIN_ROOT provided by the interactive-migration harness environment
 set -euo pipefail
 source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
 source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"

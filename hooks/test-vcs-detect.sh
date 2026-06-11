@@ -415,6 +415,7 @@ echo "Test [AC7]: classify_checkout GIT_MISSING=1 in git checkout with git absen
 d=$(make_main_git_checkout)
 NEW_PATH=$(strip_binary_from_path git)
 parse_classification "$( (
+  # shellcheck disable=SC2030 # the test deliberately verifies subshell isolation and asserts the change does not leak
   PATH="$NEW_PATH"
   cd "$d" && classify_checkout .
 ))"
@@ -590,6 +591,7 @@ assert_eq "matcher empty" \
 assert_eq "one hook entry" \
   "1" \
   "$(jq '.hooks.SessionStart[0].hooks | length' "$HOOKS_JSON")"
+# shellcheck disable=SC2016 # single-quoted jq expected value; ${CLAUDE_PLUGIN_ROOT} is expanded by Claude Code at runtime, intentionally not shell-expanded
 assert_eq "command points at vcs-detect.sh" \
   '${CLAUDE_PLUGIN_ROOT}/hooks/vcs-detect.sh' \
   "$(jq -r '.hooks.SessionStart[0].hooks[0].command' "$HOOKS_JSON")"
@@ -633,12 +635,14 @@ assert_contains "links to work item" \
 # (c) NOT crash with a partial boundary block.
 echo "Test [missing-binary]: jj absent — hook exits 0 with systemMessage"
 make_jj_secondary_workspace
+# shellcheck disable=SC2031 # the test deliberately verifies subshell isolation and asserts the change does not leak
 ORIG_PATH=$PATH
 NEW_PATH=$(strip_binary_from_path jj)
 # Capture hook output and exit code with PATH scoped to the substitution's
 # subshell.
 RC=0
 OUTPUT=$(PATH="$NEW_PATH" run_hook "$FIXTURE_SECONDARY") || RC=$?
+# shellcheck disable=SC2031 # the test deliberately verifies subshell isolation and asserts the change does not leak
 assert_eq "PATH not leaked" "$ORIG_PATH" "$PATH"
 assert_eq "exits 0 with jj missing" "0" "$RC"
 SYS_MSG=$(jq -r '.systemMessage // ""' <<<"$OUTPUT")
@@ -662,9 +666,11 @@ echo "Test [missing-binary]: jq absent — hook exits 0 with systemMessage (exis
 NEW_PATH=$(strip_binary_from_path jq)
 RC=0
 (
+  # shellcheck disable=SC2030 # the test deliberately verifies subshell isolation and asserts the change does not leak
   PATH="$NEW_PATH"
   cd "$FIXTURE_SECONDARY" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" "$BASH_BIN" "$HOOK"
 ) >/dev/null 2>&1 || RC=$?
+# shellcheck disable=SC2031 # the test deliberately verifies subshell isolation and asserts the change does not leak
 assert_eq "PATH not leaked" "$ORIG_PATH" "$PATH"
 assert_eq "exits 0 with jq missing" "0" "$RC"
 

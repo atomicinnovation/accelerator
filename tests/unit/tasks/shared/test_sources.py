@@ -12,19 +12,21 @@ class TestKeepPredicate:
     def test_keeps_a_normal_script(self):
         assert _keep("scripts/foo.sh")
 
-    def test_excludes_fixtures_at_any_depth(self):
-        assert not _keep("skills/x/test-fixtures/seed.sh")
-        assert not _keep("test-fixtures/a.sh")
+    def test_keeps_fixtures_at_any_depth(self):
+        # 0098 widened scope: fixtures are now linted/formatted like any script.
+        assert _keep("skills/x/test-fixtures/seed.sh")
+        assert _keep("test-fixtures/a.sh")
 
     def test_excludes_workspaces(self):
         assert not _keep("workspaces/ws/a.sh")
 
-    def test_excludes_test_helpers(self):
-        assert not _keep("scripts/test-helpers.sh")
+    def test_keeps_test_helpers(self):
+        # 0098 widened scope: sourced-only helper libs are now in scope too.
+        assert _keep("scripts/test-helpers.sh")
 
 
 class TestShellSourcesDiscovery:
-    def test_excludes_fixtures_workspaces_helpers_keeps_normal(self, tmp_path: Path):
+    def test_keeps_fixtures_and_helpers_excludes_only_workspaces(self, tmp_path: Path):
         _write(tmp_path / "scripts/normal.sh")
         _write(tmp_path / "scripts/test-helpers.sh")
         _write(tmp_path / "scripts/test-fixtures/seed.sh")
@@ -32,7 +34,21 @@ class TestShellSourcesDiscovery:
         # A non-shell file must not appear regardless.
         _write(tmp_path / "scripts/readme.md", "x\n")
 
-        assert shell_sources(root=tmp_path) == ["scripts/normal.sh"]
+        # workspaces/ is the one permanent exclusion; fixtures + helpers are kept.
+        assert shell_sources(root=tmp_path) == [
+            "scripts/normal.sh",
+            "scripts/test-fixtures/seed.sh",
+            "scripts/test-helpers.sh",
+        ]
+
+    def test_includes_extensionless_cli_script(self):
+        # The visualiser CLI is a bash script with no .sh extension, so the walk's
+        # `.sh` filter never matches it — it must be appended explicitly. Runs
+        # against the real repo root where the script exists on disk.
+        sources = shell_sources()
+        assert (
+            "skills/visualisation/visualise/cli/accelerator-visualiser" in sources
+        )
 
     def test_honours_gitignored_directories(self, tmp_path: Path):
         _write(tmp_path / ".gitignore", "node_modules/\ndist/\n")

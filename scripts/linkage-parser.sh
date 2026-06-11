@@ -319,6 +319,7 @@ lp_parse_file() {
       seen_this_line="${seen_this_line}|${key}=${target_ref}|"
 
       local slug
+      # shellcheck disable=SC2018,SC2019 # the preceding sed strips every non-ASCII-alphanumeric, so only ASCII A-Z reaches tr; ASCII-only case folding is intended
       slug="$(printf '%s' "$section" | sed 's/^## //; s/[^A-Za-z0-9]/-/g' | tr 'A-Z' 'a-z')"
       printf '%s\t%s\t%s\tbody:%s#%d\t%s\n' \
         "$source_type" "$key" "$target_ref" "$slug" "$seq" "$band"

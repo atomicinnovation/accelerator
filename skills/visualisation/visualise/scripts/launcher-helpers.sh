@@ -110,11 +110,13 @@ write_server_stopped() {
 # stop_server_status — read-only probe of the lifecycle files.
 # Expects $INFO, $PID_FILE to be set by the caller.
 stop_server_status() {
+  # shellcheck disable=SC2154 # INFO set by the caller before invocation (see function contract)
   if [ ! -f "$INFO" ]; then
     jq -nc '{status:"not_running"}'
     return 0
   fi
   local pid url start_time alive
+  # shellcheck disable=SC2154 # PID_FILE set by the caller before invocation (see function contract)
   pid="$(tr -cd '0-9' <"$PID_FILE" 2>/dev/null || echo '')"
   url="$(jq -r '.url // empty' "$INFO" 2>/dev/null || true)"
   start_time="$(jq -r '.start_time // empty' "$INFO" 2>/dev/null || true)"
@@ -185,6 +187,7 @@ stop_server_stop() {
   # Post-shutdown invariant: server-stopped.json must exist.
   # If the Rust server handled SIGTERM, it already wrote this.
   # If not (fake server, or SIGKILL), we synthesise it here.
+  # shellcheck disable=SC2154 # STOPPED set by the caller before invocation (see function contract)
   if [ "$forced" = true ] || [ ! -f "$STOPPED" ]; then
     write_server_stopped "$STOPPED" "forced-sigkill"
   fi

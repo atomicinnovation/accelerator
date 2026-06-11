@@ -239,6 +239,7 @@ echo "Test: bundled mechanical migrations classified mechanical; 0007 interactiv
 # first genuinely-interactive bundled migration (# INTERACTIVE: yes); every
 # other bundled migration must classify mechanical, and 0007 must classify
 # interactive.
+# shellcheck disable=SC2015 # test idiom; the && branch ends in a successful assignment so the || cannot spuriously fire
 PLUGIN_ROOT_TEST="$PLUGIN_ROOT" bash -c '
   PROJECT_ROOT=/tmp PLUGIN_ROOT="'"$PLUGIN_ROOT"'" CLAUDE_PLUGIN_ROOT="'"$PLUGIN_ROOT"'"
   source "'"$PLUGIN_ROOT"'/scripts/atomic-common.sh"
@@ -300,6 +301,8 @@ cat >"$MIGRATIONS_DIR_FIXTURE/0002-fail-frame/migrations/0002-fail-frame.sh" <<'
 #!/usr/bin/env bash
 # DESCRIPTION: Emit FAIL after READY — Phase 3 negative test.
 # INTERACTIVE: yes
+# shellcheck disable=SC2154 # CLAUDE_PLUGIN_ROOT provided by the interactive-migration harness environment
+# shellcheck disable=SC2329 # stub migration_* hooks are unused here (harness_run_fail overrides dispatch); kept to mirror the standard fixture shape
 set -euo pipefail
 source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
 source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"
@@ -669,6 +672,7 @@ cat >"$MIGRATIONS_DIR_FIXTURE/0004-midstream-fail/migrations/0004-midstream-fail
 #!/usr/bin/env bash
 # DESCRIPTION: Fail mid-stream — Phase 5 negative test.
 # INTERACTIVE: yes
+# shellcheck disable=SC2154 # CLAUDE_PLUGIN_ROOT provided by the interactive-migration harness environment
 set -euo pipefail
 source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
 source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"
@@ -911,6 +915,7 @@ cat >"$MIGRATIONS_DIR_FIXTURE/0005-verify-applied/migrations/0005-verify-applied
 #!/usr/bin/env bash
 # DESCRIPTION: Resume-integrity check fixture — Phase 6.
 # INTERACTIVE: yes
+# shellcheck disable=SC2154 # CLAUDE_PLUGIN_ROOT/PROJECT_ROOT provided by the interactive-migration harness environment
 set -euo pipefail
 source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
 source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"
@@ -923,7 +928,7 @@ migration_evaluate_predicate() { return 0; }
 migration_validate_edit() { return 0; }
 
 migration_apply_decision() {
-  printf 'mutated\n' > "$PROJECT_ROOT/marker"
+  printf 'mutated\n' >"$PROJECT_ROOT/marker"
 }
 
 # Verifies the mutation actually landed. Returns non-zero if marker

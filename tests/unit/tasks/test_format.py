@@ -34,9 +34,12 @@ class TestFormatCheck:
         with pytest.raises(Exit):
             fmt.check(ctx)
 
-    def test_noop_when_no_sources(self, ctx, mocker):
+    def test_raises_on_empty_source_set(self, ctx, mocker):
+        # Fail-closed: an empty match set means scope discovery broke, not that
+        # there is nothing to format — check must raise, not pass green.
         mocker.patch.object(fmt, "shell_sources", return_value=[])
-        fmt.check(ctx)
+        with pytest.raises(Exit):
+            fmt.check(ctx)
         ctx.run.assert_not_called()
 
 
