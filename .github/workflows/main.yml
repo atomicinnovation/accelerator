@@ -122,11 +122,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      # Route the rustup toolchain inside the mise data dir, which mise-action
+      # caches in full, so the rustfmt/clippy components persist across runs.
+      # By default rust lives in ~/.rustup (outside the cache), so a cache hit
+      # makes `mise install` no-op while the toolchain is absent and the
+      # parallel format/lint server checks race to auto-install it ("detected
+      # conflict: bin/cargo"). Must be set before mise install runs.
+      - name: Route the rust toolchain into the cached mise data dir
+        run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         uses: jdx/mise-action@v4.1.0
         with:
           install: true
           cache: true
+          # Own cache namespace: this job's cache carries the rust toolchain the
+          # other jobs don't need, and a distinct key forces the first run after
+          # this change to repopulate it under the relocated RUSTUP_HOME.
+          cache_key_prefix: mise-server-v1
           experimental: true
 
       - name: Run Rust checks
