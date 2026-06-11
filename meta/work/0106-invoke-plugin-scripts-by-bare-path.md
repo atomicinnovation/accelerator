@@ -95,15 +95,13 @@ converting the two bare ADR fences to inline code.
       backtick-delimited **inline** occurrence of the script path (presence check)
       and **no** bare unlabeled fenced block housing that path remains (absence
       check).
-- [ ] Given the full skill set, when the regression-guard check is run — a multiline
-      search for an unlabeled triple-backtick fence whose body contains an
-      `artifact-*`/`config-*` script path, e.g.
-      `rg -U '```\n(?:(?!```)[\s\S])*scripts/(?:artifact|config)-[\s\S]*?```' skills/`
-      (an unlabeled opening fence is one with no language tag on its line) — then it
-      returns zero matches (expected result: empty). The same pattern must first be
-      confirmed to **match** the pre-conversion `create-adr`/`extract-adrs` fences
-      (a known-positive check), so an empty result proves cleanliness rather than a
-      broken regex.
+- [ ] Given the full skill set, when the fence-state regression guard is run (a
+      line-by-line parser that flags any **unlabeled** fenced block whose body contains
+      an `artifact-*`/`config-*` script path, excluding `!`…`` load-time substitutions —
+      see the plan's Testing Strategy for the canonical `awk` implementation), then it
+      returns **zero** matches. Precondition: the guard must first be confirmed to match
+      the pre-conversion bare fences as a known-positive, so an empty result proves
+      cleanliness.
 - [ ] No `allowed-tools` frontmatter is modified by this item.
 
 ## Open Questions
@@ -168,6 +166,16 @@ converting the two bare ADR fences to inline code.
   reframed into inspectable conditions rather than a manual reproduction step.
 - Scoped strictly to the body-directive and fence-conversion edits; changing
   `allowed-tools` rules is intentionally excluded from this item.
+- AC3 was corrected during planning (research §5): the original
+  `rg -U '```\n…--pcre2'` regex was removed because it errors without `--pcre2`
+  and, with it, over-matches 12 non-target files via inter-fence false positives —
+  so it can never return empty and "empty proves cleanliness" was false. It is
+  replaced by the fence-state `awk` guard.
+- The plan's single fixed canonical directive sentence ("Run the bare path
+  **directly** as an executable; never prefix it with `bash`/`sh`/`env` …") is the
+  **authoritative** wording for the convention; the Requirements blockquote template
+  above is illustrative-only. Both meet the conformance minimum, but only the plan's
+  fixed string is reproduced verbatim across sites and matched by 0107's lint.
 
 ## References
 

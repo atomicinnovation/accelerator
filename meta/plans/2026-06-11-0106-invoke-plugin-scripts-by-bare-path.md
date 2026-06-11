@@ -545,18 +545,18 @@ Do not change `0107`'s status or dependencies.
 
 #### Automated Verification
 
-- [ ] `0106` no longer contains the broken look-ahead regex:
+- [x] `0106` no longer contains the broken look-ahead regex:
       `grep -F '(?:(?!```)' meta/work/0106-invoke-plugin-scripts-by-bare-path.md` → empty
-- [ ] `0106` AC3 references the fence-state guard:
+- [x] `0106` AC3 references the fence-state guard:
       `grep -n 'fence-state' meta/work/0106-invoke-plugin-scripts-by-bare-path.md` → ≥1
-- [ ] `0107` carries the defect note:
+- [x] `0107` carries the defect note:
       `grep -n 'defective\|fence-state' meta/work/0107-lint-skill-body-script-invocations.md` → ≥1
 
 #### Manual Verification
 
-- [ ] The amended AC3 reads as a satisfiable gate and its known-positive/known-negative
+- [x] The amended AC3 reads as a satisfiable gate and its known-positive/known-negative
       framing is internally consistent.
-- [ ] No other acceptance criteria or frontmatter in `0106`/`0107` were altered beyond
+- [x] No other acceptance criteria or frontmatter in `0106`/`0107` were altered beyond
       the AC3 correction and the notes.
 
 ---

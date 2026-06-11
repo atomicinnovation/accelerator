@@ -150,6 +150,22 @@ between a skill's body invocations and its declared permissions.
   deliberately excluded.
 - Priority medium: it prevents regression of an already-low-severity, now-fixed issue;
   raise to high if the convention is expected to be edited frequently soon.
+- The committed guard must **not** reuse 0106's original
+  `rg -U '```\n…--pcre2'` regex (it is defective per research §5 — errors without
+  `--pcre2`, over-matches via inter-fence false positives) and should build on the
+  fence-state `awk` parser approach instead. Additional constraints for the committed
+  guard:
+  - **Avoid `rg --pcre2`** — PCRE2 is not a guaranteed ripgrep build feature, and a CI
+    guard must run on the team's macOS BSD and Linux GNU environments alike; prefer the
+    POSIX `awk` parser.
+  - **Encode the general invariant**, not just the wrapper case — assert that each
+    model-issued invocation's first token is the bare braced path
+    `${CLAUDE_PLUGIN_ROOT}/scripts/<name>.sh`, so it also catches assignment-prefix
+    (`VAR=$(…)`) and quoted/unbraced escapes, not only `bash`/`sh`/`env` prefixes.
+  - **Mind the fence-syntax assumption** — the plan's `awk` guard recognises only plain
+    triple-backtick fences (the only form in the current corpus); a committed guard
+    should match the opening-fence backtick run length or document that 4+-backtick and
+    tilde (`~~~`) fences are out of scope.
 
 ## References
 
