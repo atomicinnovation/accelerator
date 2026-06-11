@@ -18,13 +18,11 @@ pub enum FenceError {
 /// `yaml_start`: byte offset of the first character after the opening fence line.
 /// `body_start`: byte offset of the first character after the closing fence line.
 pub fn fence_offsets(raw: &[u8]) -> Result<Option<(usize, usize)>, FenceError> {
+    const MAX_SCAN: usize = 1 << 20;
     // Find the end of the first line.
-    let first_lf = match raw.iter().position(|&b| b == b'\n') {
-        Some(p) => p,
-        None => {
-            // Single line with no newline: can't be valid frontmatter.
-            return Ok(None);
-        }
+    let Some(first_lf) = raw.iter().position(|&b| b == b'\n') else {
+        // Single line with no newline: can't be valid frontmatter.
+        return Ok(None);
     };
     // Strip optional CRLF.
     let first_line_end = if first_lf > 0 && raw[first_lf - 1] == b'\r' {
@@ -36,7 +34,6 @@ pub fn fence_offsets(raw: &[u8]) -> Result<Option<(usize, usize)>, FenceError> {
         return Ok(None);
     }
 
-    const MAX_SCAN: usize = 1 << 20;
     let scan_end = raw.len().min(MAX_SCAN);
     let yaml_start = first_lf + 1;
     if yaml_start >= raw.len() {
@@ -49,9 +46,8 @@ pub fn fence_offsets(raw: &[u8]) -> Result<Option<(usize, usize)>, FenceError> {
             .iter()
             .position(|&b| b == b'\n')
             .map(|n| pos + n);
-        let line_lf = match line_lf {
-            Some(p) => p,
-            None => break, // no newline found before scan_end
+        let Some(line_lf) = line_lf else {
+            break; // no newline found before scan_end
         };
         let line_end = if line_lf > pos && raw[line_lf - 1] == b'\r' {
             line_lf - 1
@@ -181,14 +177,11 @@ pub fn parse(raw: &[u8]) -> Parsed {
                 }
             },
         };
-        let json_val = match yml_to_json(&v) {
-            Some(v) => v,
-            None => {
-                return Parsed {
-                    state: FrontmatterState::Malformed,
-                    body,
-                }
-            }
+        let Some(json_val) = yml_to_json(&v) else {
+            return Parsed {
+                state: FrontmatterState::Malformed,
+                body,
+            };
         };
         out.insert(key, json_val);
     }
@@ -210,9 +203,7 @@ fn yml_to_json(v: &serde_yml::Value) -> Option<serde_json::Value> {
             } else if let Some(u) = n.as_u64() {
                 J::Number(u.into())
             } else if let Some(f) = n.as_f64() {
-                serde_json::Number::from_f64(f)
-                    .map(J::Number)
-                    .unwrap_or(J::Null)
+                serde_json::Number::from_f64(f).map_or(J::Null, J::Number)
             } else {
                 J::Null
             }
@@ -230,7 +221,9 @@ fn yml_to_json(v: &serde_yml::Value) -> Option<serde_json::Value> {
             for (k, v) in map {
                 let key = match k {
                     serde_yml::Value::String(s) => s.clone(),
-                    other => serde_yml::to_string(other).ok()?.trim().to_string(),
+                    other => {
+                        serde_yml::to_string(other).ok()?.trim().to_string()
+                    }
                 };
                 obj.insert(key, yml_to_json(v)?);
             }
@@ -287,7 +280,11 @@ pub fn body_preview_from(body: &str) -> String {
     }
 }
 
-pub fn title_from(parsed: &FrontmatterState, body: &str, filename_stem: &str) -> String {
+pub fn title_from(
+    parsed: &FrontmatterState,
+    body: &str,
+    filename_stem: &str,
+) -> String {
     if let FrontmatterState::Parsed(m) = parsed {
         if let Some(v) = m.get("title") {
             if let Some(s) = v.as_str() {
@@ -329,7 +326,7 @@ pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
     let extract_values = |v: &serde_json::Value| -> Vec<String> {
         match v {
             serde_json::Value::Array(arr) => {
-                arr.iter().filter_map(|item| extract_scalar(item)).collect()
+                arr.iter().filter_map(&extract_scalar).collect()
             }
             other => extract_scalar(other).into_iter().collect(),
         }
@@ -401,8 +398,14 @@ mod tests {
         let p = parse(&raw);
         match p.state {
             FrontmatterState::Parsed(m) => {
-                assert_eq!(m.get("title").and_then(|v| v.as_str()), Some("Foo"));
-                assert_eq!(m.get("status").and_then(|v| v.as_str()), Some("done"));
+                assert_eq!(
+                    m.get("title").and_then(|v| v.as_str()),
+                    Some("Foo")
+                );
+                assert_eq!(
+                    m.get("status").and_then(|v| v.as_str()),
+                    Some("done")
+                );
             }
             other => panic!("expected Parsed, got {other:?}"),
         }
@@ -432,7 +435,9 @@ mod tests {
         // instead of crashing the whole server (regression for a migrated note
         // whose H1-derived title carried ~34 trailing spaces inside its quotes).
         let title = format!("Security Lens{}", " ".repeat(34));
-        let raw = b(&format!("---\ntitle: \"{title}\"\nstatus: done\n---\nbody\n"));
+        let raw = b(&format!(
+            "---\ntitle: \"{title}\"\nstatus: done\n---\nbody\n"
+        ));
         let p = parse(&raw);
         assert!(matches!(p.state, FrontmatterState::Malformed));
         assert_eq!(p.body, "body\n");
@@ -542,7 +547,8 @@ mod tests {
 
     #[test]
     fn read_ref_keys_prefers_work_item_id_over_transitional_work_item() {
-        let raw = b("---\nwork_item_id: \"0007\"\nwork-item: \"0099\"\n---\nbody\n");
+        let raw =
+            b("---\nwork_item_id: \"0007\"\nwork-item: \"0099\"\n---\nbody\n");
         let p = parse(&raw);
         assert_eq!(read_ref_keys(&p.state), vec!["0007".to_string()]);
     }

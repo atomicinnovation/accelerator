@@ -19,7 +19,8 @@ async fn sigterm_removes_info_writes_stopped_and_exits() {
         "doc_paths": {},
         "templates": {}
     });
-    std::fs::write(&cfg_path, serde_json::to_vec_pretty(&config).unwrap()).unwrap();
+    std::fs::write(&cfg_path, serde_json::to_vec_pretty(&config).unwrap())
+        .unwrap();
 
     let bin = env!("CARGO_BIN_EXE_accelerator-visualiser");
     let mut child = tokio::process::Command::new(bin)
@@ -41,7 +42,8 @@ async fn sigterm_removes_info_writes_stopped_and_exits() {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
 
-    kill(Pid::from_raw(child.id().unwrap() as i32), Signal::SIGTERM).expect("send SIGTERM");
+    kill(Pid::from_raw(child.id().unwrap() as i32), Signal::SIGTERM)
+        .expect("send SIGTERM");
     let status = tokio::time::timeout(Duration::from_secs(30), child.wait())
         .await
         .expect("server exits on SIGTERM within 30s")
@@ -72,7 +74,8 @@ async fn server_writes_pid_file_with_its_own_pid() {
         "doc_paths": {},
         "templates": {}
     });
-    std::fs::write(&cfg_path, serde_json::to_vec_pretty(&config).unwrap()).unwrap();
+    std::fs::write(&cfg_path, serde_json::to_vec_pretty(&config).unwrap())
+        .unwrap();
 
     let bin = env!("CARGO_BIN_EXE_accelerator-visualiser");
     let mut child = tokio::process::Command::new(bin)
@@ -125,7 +128,8 @@ async fn shutdown_preserves_state_on_stopped_write_failure() {
         "doc_paths": {},
         "templates": {}
     });
-    std::fs::write(&cfg_path, serde_json::to_vec_pretty(&config).unwrap()).unwrap();
+    std::fs::write(&cfg_path, serde_json::to_vec_pretty(&config).unwrap())
+        .unwrap();
 
     // Pre-create a non-empty directory at the stopped-file path to force
     // the atomic rename to fail on shutdown.
@@ -152,7 +156,8 @@ async fn shutdown_preserves_state_on_stopped_write_failure() {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
 
-    kill(Pid::from_raw(child.id().unwrap() as i32), Signal::SIGTERM).expect("send SIGTERM");
+    kill(Pid::from_raw(child.id().unwrap() as i32), Signal::SIGTERM)
+        .expect("send SIGTERM");
     let status = tokio::time::timeout(Duration::from_secs(30), child.wait())
         .await
         .expect("server exits within 30s")

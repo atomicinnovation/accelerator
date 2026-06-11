@@ -110,6 +110,24 @@ def frontend(context: Context) -> None:
 
 
 @task
+def frontend_stub(context: Context) -> None:
+    """Write a placeholder frontend/dist/index.html if absent (lint-only stub).
+
+    Satisfies the embed-dist build.rs existence check for lint-only compiles
+    (cargo clippy) without a full Vite build. Never clobbers a real build; a
+    real `build.frontend` overwrites it. A zero-byte file is treated as absent
+    so a torn prior write self-heals rather than being embedded.
+    """
+    index = FRONTEND / "dist" / "index.html"
+    if index.is_file() and index.stat().st_size > 0:
+        return
+    index.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write_text(
+        index, "<!-- accelerator lint stub — not a real build -->\n"
+    )
+
+
+@task
 def server_dev(context: Context) -> None:
     """Build the visualiser server binary with the dev-frontend feature.
 

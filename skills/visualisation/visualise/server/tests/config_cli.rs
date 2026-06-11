@@ -38,7 +38,8 @@ fn exits_1_when_idle_timeout_invalid() {
         "idle_timeout": "soon"
     });
     let config_path = dir.path().join("config.json");
-    std::fs::write(&config_path, serde_json::to_vec_pretty(&config).unwrap()).unwrap();
+    std::fs::write(&config_path, serde_json::to_vec_pretty(&config).unwrap())
+        .unwrap();
 
     let mut cmd = Command::cargo_bin("accelerator-visualiser").unwrap();
     cmd.args(["--config", config_path.to_str().unwrap()]);

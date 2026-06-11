@@ -146,10 +146,13 @@ async fn patch_broadcasts_doc_changed_with_new_etag() {
             etag: Some(broadcast_etag),
             ..
         } => {
-            assert_eq!(doc_type, accelerator_visualiser::docs::DocTypeKey::WorkItems);
+            assert_eq!(
+                doc_type,
+                accelerator_visualiser::docs::DocTypeKey::WorkItems
+            );
             assert_eq!(path, WORK_ITEM_PATH);
             assert_eq!(
-                format!("\"{}\"", broadcast_etag),
+                format!("\"{broadcast_etag}\""),
                 response_etag,
                 "broadcast etag must match response ETag header"
             );
@@ -448,7 +451,8 @@ async fn path_with_dotdot_segment_rejected_at_handler() {
 
 #[cfg(unix)]
 #[tokio::test]
-async fn path_passing_handler_check_but_resolving_outside_writable_roots_rejected_at_driver() {
+async fn path_passing_handler_check_but_resolving_outside_writable_roots_rejected_at_driver(
+) {
     let tmp = tempfile::tempdir().unwrap();
     let state = setup(tmp.path()).await;
 
@@ -456,7 +460,8 @@ async fn path_passing_handler_check_but_resolving_outside_writable_roots_rejecte
     let work_dir = tmp.path().join("meta/work");
     let plans_dir = tmp.path().join("meta/plans");
     let sneaky = work_dir.join("sneaky.md");
-    std::os::unix::fs::symlink(plans_dir.join("2026-04-18-foo.md"), &sneaky).unwrap();
+    std::os::unix::fs::symlink(plans_dir.join("2026-04-18-foo.md"), &sneaky)
+        .unwrap();
 
     let etag = fetch_etag(state.clone(), "meta/work/sneaky.md").await;
 
@@ -586,7 +591,8 @@ async fn get_request_unaffected_by_patch_method_being_added() {
 // ── Step 3.14 ────────────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn idempotent_patch_with_same_value_returns_204_with_unchanged_etag_and_no_broadcast() {
+async fn idempotent_patch_with_same_value_returns_204_with_unchanged_etag_and_no_broadcast(
+) {
     let tmp = tempfile::tempdir().unwrap();
     // Use a done-fixture so we can PATCH with status=done (same value).
     let state = setup(tmp.path()).await;
@@ -723,13 +729,14 @@ async fn patch_emits_exactly_one_doc_changed_event() {
         let snapshot = state.indexer.all().await;
         let wbi = state.indexer.work_item_by_id_snapshot().await;
         let pbi = state.indexer.plans_by_id_snapshot().await;
-        let ctx = accelerator_visualiser::clusters::ClusterContext::from_entries(
-            &snapshot,
-            &wbi,
-            &pbi,
-            state.indexer.project_root(),
-            state.indexer.work_item_cfg(),
-        );
+        let ctx =
+            accelerator_visualiser::clusters::ClusterContext::from_entries(
+                &snapshot,
+                &wbi,
+                &pbi,
+                state.indexer.project_root(),
+                state.indexer.work_item_cfg(),
+            );
         accelerator_visualiser::clusters::compute_clusters(&snapshot, &ctx)
     }));
 
@@ -812,13 +819,14 @@ async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
         let snapshot = state.indexer.all().await;
         let wbi = state.indexer.work_item_by_id_snapshot().await;
         let pbi = state.indexer.plans_by_id_snapshot().await;
-        let ctx = accelerator_visualiser::clusters::ClusterContext::from_entries(
-            &snapshot,
-            &wbi,
-            &pbi,
-            state.indexer.project_root(),
-            state.indexer.work_item_cfg(),
-        );
+        let ctx =
+            accelerator_visualiser::clusters::ClusterContext::from_entries(
+                &snapshot,
+                &wbi,
+                &pbi,
+                state.indexer.project_root(),
+                state.indexer.work_item_cfg(),
+            );
         accelerator_visualiser::clusters::compute_clusters(&snapshot, &ctx)
     }));
 

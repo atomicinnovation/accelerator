@@ -5,7 +5,12 @@ use std::path::PathBuf;
 
 /// Test-only `IndexEntry` factory. New required fields default here in
 /// one place; callers override only what they care about.
-pub fn entry_for_test(doc_type: DocTypeKey, slug: &str, mtime_ms: i64, title: &str) -> IndexEntry {
+pub fn entry_for_test(
+    doc_type: DocTypeKey,
+    slug: &str,
+    mtime_ms: i64,
+    title: &str,
+) -> IndexEntry {
     IndexEntry {
         r#type: doc_type,
         path: PathBuf::from(format!("/x/{slug}.md")),
@@ -35,9 +40,7 @@ pub fn entry_for_test_with_filename(
     cfg: &WorkItemConfig,
 ) -> IndexEntry {
     let slug = crate::slug::derive(doc_type, filename, cfg);
-    let dir = doc_type
-        .config_path_key()
-        .unwrap_or("misc");
+    let dir = doc_type.config_path_key().unwrap_or("misc");
     let path = PathBuf::from(format!("/repo/meta/{dir}/{filename}"));
     let title = slug.as_deref().unwrap_or("untitled").to_string();
     IndexEntry {

@@ -87,11 +87,13 @@ pub async fn resolve_related(
     }
 }
 
-/// Total relation count for an entry — equals `inferredCluster.len()
-/// + declaredOutbound.len() + declaredInbound.len()` from the
-/// `/api/related/{path}` response, by construction.
+/// Total relation count for an entry — equals
+/// `inferredCluster.len() + declaredOutbound.len() + declaredInbound.len()`
+/// from the `/api/related/{path}` response, by construction.
 pub fn count_from_resolution(r: &RelatedResolution) -> usize {
-    r.inferred_cluster.len() + r.declared_outbound.len() + r.declared_inbound.len()
+    r.inferred_cluster.len()
+        + r.declared_outbound.len()
+        + r.declared_inbound.len()
 }
 
 /// Pass 1 of the linked-count back-fill pipeline: iterate the entries
@@ -107,7 +109,8 @@ pub async fn collect_linked_counts(
     clusters: &[LifecycleCluster],
     entries_snapshot: &[IndexEntry],
 ) -> HashMap<PathBuf, usize> {
-    let mut counts: HashMap<PathBuf, usize> = HashMap::with_capacity(entries_snapshot.len());
+    let mut counts: HashMap<PathBuf, usize> =
+        HashMap::with_capacity(entries_snapshot.len());
     for entry in entries_snapshot {
         let resolution = resolve_related(indexer, clusters, entry).await;
         counts.insert(entry.path.clone(), count_from_resolution(&resolution));

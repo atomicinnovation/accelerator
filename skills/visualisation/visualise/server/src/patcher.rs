@@ -5,7 +5,10 @@ pub enum FrontmatterPatch {
     Status(String),
 }
 
-pub fn apply(raw: &[u8], patch: FrontmatterPatch) -> Result<Vec<u8>, PatchError> {
+pub fn apply(
+    raw: &[u8],
+    patch: FrontmatterPatch,
+) -> Result<Vec<u8>, PatchError> {
     match patch {
         FrontmatterPatch::Status(s) => patch_status(raw, &s),
     }
@@ -28,10 +31,15 @@ pub enum PatchError {
 /// Operates line-by-line so comments, key order, and surrounding whitespace
 /// are preserved verbatim. Only a top-level (non-indented) `status:` key is
 /// touched; nested occurrences inside YAML mappings are ignored.
-pub fn patch_status(raw: &[u8], new_value: &str) -> Result<Vec<u8>, PatchError> {
+pub fn patch_status(
+    raw: &[u8],
+    new_value: &str,
+) -> Result<Vec<u8>, PatchError> {
     let (yaml_start, body_start) = match frontmatter::fence_offsets(raw) {
         Ok(None) => return Err(PatchError::FrontmatterAbsent),
-        Err(FenceError::Malformed) => return Err(PatchError::FrontmatterMalformed),
+        Err(FenceError::Malformed) => {
+            return Err(PatchError::FrontmatterMalformed)
+        }
         Ok(Some(offsets)) => offsets,
     };
 
@@ -62,7 +70,7 @@ pub fn patch_status(raw: &[u8], new_value: &str) -> Result<Vec<u8>, PatchError> 
 
         // Only match top-level (non-indented) `status:` keys.
         let first_byte = line_slice.first().copied();
-        if !first_byte.map(|b| b == b' ' || b == b'\t').unwrap_or(false)
+        if !first_byte.is_some_and(|b| b == b' ' || b == b'\t')
             && line_slice.starts_with(b"status:")
         {
             let abs_start = yaml_start + pos;
@@ -98,7 +106,10 @@ fn strip_line_ending(line: &[u8]) -> &[u8] {
 /// Rewrites the value portion of a `status: <value>` line, preserving
 /// the original quote style (none / single / double), any trailing inline
 /// comment, and the line's original line ending (LF or CRLF).
-fn replace_status_value(line: &[u8], new_value: &str) -> Result<Vec<u8>, PatchError> {
+fn replace_status_value(
+    line: &[u8],
+    new_value: &str,
+) -> Result<Vec<u8>, PatchError> {
     let (without_ending, line_ending) = if line.ends_with(b"\r\n") {
         (&line[..line.len() - 2], &b"\r\n"[..])
     } else if line.ends_with(b"\n") {
@@ -142,11 +153,12 @@ fn replace_status_value(line: &[u8], new_value: &str) -> Result<Vec<u8>, PatchEr
         b'"' => {
             // Double-quoted value: find the closing `"`.
             let rest = &value_part[1..];
-            let close = rest.iter().position(|&b| b == b'"').ok_or_else(|| {
-                PatchError::UnsupportedValueShape {
-                    reason: "unclosed double-quoted string".into(),
-                }
-            })?;
+            let close =
+                rest.iter().position(|&b| b == b'"').ok_or_else(|| {
+                    PatchError::UnsupportedValueShape {
+                        reason: "unclosed double-quoted string".into(),
+                    }
+                })?;
             let trailing = &rest[close + 1..];
 
             let mut out = build_prefix(ws);
@@ -189,13 +201,16 @@ fn replace_status_value(line: &[u8], new_value: &str) -> Result<Vec<u8>, PatchEr
         }
         _ => {
             // Unquoted value.
-            let value_str =
-                std::str::from_utf8(value_part).map_err(|_| PatchError::UnsupportedValueShape {
+            let value_str = std::str::from_utf8(value_part).map_err(|_| {
+                PatchError::UnsupportedValueShape {
                     reason: "invalid UTF-8 in value".into(),
-                })?;
+                }
+            })?;
 
             let comment_start = find_comment_start(value_str);
-            let value_content = value_str[..comment_start.unwrap_or(value_str.len())].trim_end();
+            let value_content = value_str
+                [..comment_start.unwrap_or(value_str.len())]
+                .trim_end();
 
             // Reject values whose content contains a bare '#' (ambiguous without quoting).
             if value_content.contains('#') {
@@ -227,10 +242,15 @@ fn build_prefix(ws: &[u8]) -> Vec<u8> {
 fn find_comment_start(s: &str) -> Option<usize> {
     let bytes = s.as_bytes();
     for i in 0..bytes.len() {
-        if bytes[i] == b'#' && i > 0 && (bytes[i - 1] == b' ' || bytes[i - 1] == b'\t') {
+        if bytes[i] == b'#'
+            && i > 0
+            && (bytes[i - 1] == b' ' || bytes[i - 1] == b'\t')
+        {
             // Walk back to the start of the whitespace run.
             let mut ws_start = i;
-            while ws_start > 0 && (bytes[ws_start - 1] == b' ' || bytes[ws_start - 1] == b'\t') {
+            while ws_start > 0
+                && (bytes[ws_start - 1] == b' ' || bytes[ws_start - 1] == b'\t')
+            {
                 ws_start -= 1;
             }
             return Some(ws_start);
@@ -256,7 +276,8 @@ mod tests {
 
     #[test]
     fn preserves_other_frontmatter_keys_and_order() {
-        let input = b("---\ntitle: Foo\nstatus: todo\nwork_item_id: bar\n---\nbody\n");
+        let input =
+            b("---\ntitle: Foo\nstatus: todo\nwork_item_id: bar\n---\nbody\n");
         let out = patch_status(&input, "done").unwrap();
         let out_str = std::str::from_utf8(&out).unwrap();
         assert!(out_str.contains("title: Foo\n"));
@@ -311,7 +332,15 @@ mod tests {
     #[test]
     fn accepts_any_string_status_value() {
         let base = b("---\nstatus: todo\n---\n");
-        for status in &["draft", "ready", "in-progress", "review", "done", "blocked", "abandoned"] {
+        for status in &[
+            "draft",
+            "ready",
+            "in-progress",
+            "review",
+            "done",
+            "blocked",
+            "abandoned",
+        ] {
             let out = patch_status(&base, status).unwrap();
             let out_str = std::str::from_utf8(&out).unwrap();
             assert!(out_str.contains(&format!("status: {status}\n")));
@@ -348,7 +377,8 @@ mod tests {
 
     #[test]
     fn does_not_mutate_indented_status_in_nested_mapping() {
-        let input = b("---\nmetadata:\n  status: todo\nstatus: todo\n---\nbody\n");
+        let input =
+            b("---\nmetadata:\n  status: todo\nstatus: todo\n---\nbody\n");
         let out = patch_status(&input, "done").unwrap();
         let out_str = std::str::from_utf8(&out).unwrap();
         assert!(out_str.contains("  status: todo\n"));
@@ -404,7 +434,8 @@ mod tests {
 
     #[test]
     fn preserves_line_specific_line_ending() {
-        let input = b"---\ntitle: foo\nstatus: todo\r\nwork_item_id: bar\n---\nbody\n";
+        let input =
+            b"---\ntitle: foo\nstatus: todo\r\nwork_item_id: bar\n---\nbody\n";
         let out = patch_status(input, "done").unwrap();
         let out_str = std::str::from_utf8(&out).unwrap();
         assert!(

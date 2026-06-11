@@ -67,3 +67,29 @@ lto = "thin"
 codegen-units = 1
 strip = true
 opt-level = 3
+
+[lints.clippy]
+# pedantic enabled at warn, priority -1 so the individual allows below (default
+# priority 0) override it. Default clippy groups stay at their warn defaults and
+# are promoted to errors by `-- -D warnings` in the lint task / CI (the [lints]
+# table cannot express the `warnings` catch-all).
+pedantic = { level = "warn", priority = -1 }
+
+# --- Curated pedantic allows (each with a justification) ---------------------
+missing_errors_doc = "allow"      # no # Errors section mandated on every fallible fn
+missing_panics_doc = "allow"      # ditto for # Panics
+must_use_candidate = "allow"      # too noisy; flags large numbers of fns
+module_name_repetitions = "allow" # permits e.g. assets::AssetError naming
+# Numeric `as` casts in size/duration/index/byte math are deliberate and
+# known-safe in context; mechanical try_from rewrites would add error paths for
+# arithmetically-impossible cases.
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_sign_loss = "allow"
+too_many_lines = "allow"          # function length is a readability opinion
+type_complexity = "allow"         # some axum/tokio signatures are inherently complex
+implicit_hasher = "allow"         # no generic-hasher API exposed; explicit HashMap is intentional
+similar_names = "allow"           # short related bindings (req/res, etc.) read clearly
+struct_excessive_bools = "allow"  # config structs carry several independent flags
+ref_option = "allow"              # &Option<T> params match the borrow patterns used
+needless_pass_by_value = "allow"  # owned params are intentional where the value is stored/consumed

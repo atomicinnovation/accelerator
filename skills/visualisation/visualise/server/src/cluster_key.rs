@@ -24,14 +24,14 @@ use crate::typed_ref::{parse_typed_ref, TypedRef};
 /// work-item-review → plan → parent → work-item (3 hops). 8 gives
 /// generous headroom for transitional shapes that bounce through
 /// path-target intermediaries during the epic-0057 migration window
-/// without measurably impacting cost (each extra hop is one HashMap
+/// without measurably impacting cost (each extra hop is one `HashMap`
 /// lookup). When the limit is hit, we emit a warn-log so the
 /// silent-fallback case is observable.
 const MAX_DEPTH: u8 = 8;
 
-pub fn resolve_cluster_key<'a>(
+pub fn resolve_cluster_key(
     entry: &IndexEntry,
-    entries_by_path: &HashMap<PathBuf, &'a IndexEntry>,
+    entries_by_path: &HashMap<PathBuf, &IndexEntry>,
     work_item_by_id: &HashMap<String, PathBuf>,
     plans_by_id: &HashMap<String, PathBuf>,
     project_root: &Path,
@@ -48,9 +48,9 @@ pub fn resolve_cluster_key<'a>(
     )
 }
 
-fn walk<'a>(
+fn walk(
     entry: &IndexEntry,
-    entries_by_path: &HashMap<PathBuf, &'a IndexEntry>,
+    entries_by_path: &HashMap<PathBuf, &IndexEntry>,
     work_item_by_id: &HashMap<String, PathBuf>,
     plans_by_id: &HashMap<String, PathBuf>,
     project_root: &Path,
@@ -71,7 +71,9 @@ fn walk<'a>(
     }
     match entry.r#type {
         DocTypeKey::WorkItems => entry.work_item_id.clone(),
-        DocTypeKey::Plans | DocTypeKey::Research | DocTypeKey::PrDescriptions => {
+        DocTypeKey::Plans
+        | DocTypeKey::Research
+        | DocTypeKey::PrDescriptions => {
             parent_or_legacy_id(entry, work_item_cfg)
         }
         DocTypeKey::PlanReviews
@@ -97,7 +99,8 @@ fn walk<'a>(
                 work_item_cfg,
                 project_root,
             )?;
-            let target_entry: &IndexEntry = *entries_by_path.get(&target_path)?;
+            let target_entry: &IndexEntry =
+                *entries_by_path.get(&target_path)?;
             walk(
                 target_entry,
                 entries_by_path,
@@ -121,13 +124,21 @@ fn walk<'a>(
 /// 2. `parent: "NNNN"` or bare `parent: "0042"`  (transitional)
 /// 3. `work_item_id: "0042"`  (legacy frontmatter)
 /// 4. `work_item_id: "meta/work/0033-foo.md"`  (legacy path shape)
-fn parent_or_legacy_id(entry: &IndexEntry, cfg: &WorkItemConfig) -> Option<String> {
-    if let Some(raw) = entry.frontmatter.get("parent").and_then(|v| v.as_str()) {
+fn parent_or_legacy_id(
+    entry: &IndexEntry,
+    cfg: &WorkItemConfig,
+) -> Option<String> {
+    if let Some(raw) = entry.frontmatter.get("parent").and_then(|v| v.as_str())
+    {
         if let Some(id) = id_from_value(raw, cfg) {
             return Some(id);
         }
     }
-    if let Some(raw) = entry.frontmatter.get("work_item_id").and_then(|v| v.as_str()) {
+    if let Some(raw) = entry
+        .frontmatter
+        .get("work_item_id")
+        .and_then(|v| v.as_str())
+    {
         if let Some(id) = id_from_value(raw, cfg) {
             // Deprecated legacy branch: the canonical clustering key is now
             // `parent:` (the migration derives it from the foreign
@@ -144,11 +155,11 @@ fn parent_or_legacy_id(entry: &IndexEntry, cfg: &WorkItemConfig) -> Option<Strin
     None
 }
 
-/// Normalise a parent/work_item_id frontmatter value to a canonical
+/// Normalise a `parent/work_item_id` frontmatter value to a canonical
 /// work-item id. Handles three shapes routed through `parse_typed_ref`:
 /// - `TypedRef::WorkItem(id)` — typed canonical form
 /// - `TypedRef::Path(p)` — legacy path shape, e.g. `meta/work/0033-foo.md`
-/// - bare numeric/`PROJ-NNNN` token — routed via canonicalise_one_id
+/// - bare numeric/`PROJ-NNNN` token — routed via `canonicalise_one_id`
 fn id_from_value(raw: &str, cfg: &WorkItemConfig) -> Option<String> {
     let s = raw.trim();
     if s.is_empty() {
@@ -285,7 +296,8 @@ mod tests {
         // now `parent:`). Capture synchronously on the test thread.
         let body = crate::log::test_support::capture_logs(|| {
             let cfg = WorkItemConfig::default();
-            let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 1, "P");
+            let mut plan =
+                entry_for_test(DocTypeKey::Plans, "pipeline", 1, "P");
             plan.frontmatter = json!({ "work_item_id": "0042" });
             let resolved = resolve_cluster_key(
                 &plan,
@@ -338,14 +350,16 @@ mod tests {
     #[test]
     fn plan_review_target_path_resolves_transitively_via_plan() {
         let cfg = WorkItemConfig::default();
-        let plan_path = PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md");
+        let plan_path =
+            PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md");
         let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 1, "P");
         plan.path = plan_path.clone();
         plan.frontmatter = json!({ "parent": "work-item:0040" });
         let mut entries: HashMap<PathBuf, &IndexEntry> = HashMap::new();
         entries.insert(plan_path.clone(), &plan);
         let mut review = entry_for_test(DocTypeKey::PlanReviews, "rev", 2, "R");
-        review.frontmatter = json!({ "target": "meta/plans/2026-05-31-0040-pipeline.md" });
+        review.frontmatter =
+            json!({ "target": "meta/plans/2026-05-31-0040-pipeline.md" });
         let resolved = resolve_cluster_key(
             &review,
             &entries,
@@ -360,16 +374,19 @@ mod tests {
     #[test]
     fn plan_review_target_plan_id_resolves_transitively_via_plans_by_id() {
         let cfg = WorkItemConfig::default();
-        let plan_path = PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md");
+        let plan_path =
+            PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md");
         let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 1, "P");
         plan.path = plan_path.clone();
         plan.frontmatter = json!({ "parent": "work-item:0040" });
         let mut entries: HashMap<PathBuf, &IndexEntry> = HashMap::new();
         entries.insert(plan_path.clone(), &plan);
         let mut plans_by_id = HashMap::new();
-        plans_by_id.insert("2026-05-31-0040-pipeline".to_string(), plan_path.clone());
+        plans_by_id
+            .insert("2026-05-31-0040-pipeline".to_string(), plan_path.clone());
         let mut review = entry_for_test(DocTypeKey::PlanReviews, "rev", 2, "R");
-        review.frontmatter = json!({ "target": "plan:2026-05-31-0040-pipeline" });
+        review.frontmatter =
+            json!({ "target": "plan:2026-05-31-0040-pipeline" });
         let resolved = resolve_cluster_key(
             &review,
             &entries,
@@ -384,13 +401,20 @@ mod tests {
     #[test]
     fn work_item_review_target_path_resolves_to_work_item_id() {
         let cfg = WorkItemConfig::default();
-        let wi_path = PathBuf::from("/repo/meta/work/0033-design-token-system.md");
-        let mut wi = entry_for_test(DocTypeKey::WorkItems, "design-token-system", 1, "WI");
+        let wi_path =
+            PathBuf::from("/repo/meta/work/0033-design-token-system.md");
+        let mut wi = entry_for_test(
+            DocTypeKey::WorkItems,
+            "design-token-system",
+            1,
+            "WI",
+        );
         wi.work_item_id = Some("0033".into());
         wi.path = wi_path.clone();
         let mut entries: HashMap<PathBuf, &IndexEntry> = HashMap::new();
         entries.insert(wi_path.clone(), &wi);
-        let mut review = entry_for_test(DocTypeKey::WorkItemReviews, "rev", 2, "R");
+        let mut review =
+            entry_for_test(DocTypeKey::WorkItemReviews, "rev", 2, "R");
         review.frontmatter =
             json!({ "target": "meta/work/0033-design-token-system.md" });
         let resolved = resolve_cluster_key(
@@ -407,7 +431,8 @@ mod tests {
     #[test]
     fn work_item_review_typed_work_item_target_short_circuits() {
         let cfg = WorkItemConfig::default();
-        let mut review = entry_for_test(DocTypeKey::WorkItemReviews, "rev", 2, "R");
+        let mut review =
+            entry_for_test(DocTypeKey::WorkItemReviews, "rev", 2, "R");
         review.frontmatter = json!({ "target": "work-item:0033" });
         let resolved = resolve_cluster_key(
             &review,
@@ -423,14 +448,16 @@ mod tests {
     #[test]
     fn validation_target_plan_resolves_transitively_two_hop() {
         let cfg = WorkItemConfig::default();
-        let plan_path = PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md");
+        let plan_path =
+            PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md");
         let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 1, "P");
         plan.path = plan_path.clone();
         plan.frontmatter = json!({ "parent": "work-item:0040" });
         let mut entries: HashMap<PathBuf, &IndexEntry> = HashMap::new();
         entries.insert(plan_path.clone(), &plan);
         let mut val = entry_for_test(DocTypeKey::Validations, "val", 2, "V");
-        val.frontmatter = json!({ "target": "meta/plans/2026-05-31-0040-pipeline.md" });
+        val.frontmatter =
+            json!({ "target": "meta/plans/2026-05-31-0040-pipeline.md" });
         let resolved = resolve_cluster_key(
             &val,
             &entries,

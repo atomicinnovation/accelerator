@@ -55,7 +55,7 @@ enum Bucket {
 /// allocation in the common case where matches come from title/slug.
 fn classify(entry: &IndexEntry, q_lc: &str) -> Option<Bucket> {
     let title_lc = entry.title.to_ascii_lowercase();
-    let slug_lc = entry.slug.as_deref().map(|s| s.to_ascii_lowercase());
+    let slug_lc = entry.slug.as_deref().map(str::to_ascii_lowercase);
 
     if let Some(s) = slug_lc.as_deref() {
         if s == q_lc {

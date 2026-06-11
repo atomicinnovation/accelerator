@@ -39,7 +39,12 @@ pub(crate) async fn related_get(
         return Err(ApiError::PathEscape);
     }
     for seg in decoded.split('/') {
-        if seg == ".." || seg == "." || seg.is_empty() || seg.contains('\\') || seg.contains('\0') {
+        if seg == ".."
+            || seg == "."
+            || seg.is_empty()
+            || seg.contains('\\')
+            || seg.contains('\0')
+        {
             return Err(ApiError::PathEscape);
         }
     }
@@ -65,7 +70,7 @@ pub(crate) async fn related_get(
 
 /// Single-pass percent-decoding for a captured `*path`. Returns `None`
 /// if the input contains a malformed `%XX` triplet (truncated, non-hex)
-/// — those map to 403 PathEscape rather than a silent passthrough.
+/// — those map to 403 `PathEscape` rather than a silent passthrough.
 /// Reserved characters that are not percent-encoded pass through
 /// unchanged; the per-segment validator handles the rest.
 fn decode_path(raw: &str) -> Option<String> {
@@ -103,7 +108,10 @@ mod tests {
 
     #[test]
     fn decode_path_decodes_percent_slash_and_nul() {
-        assert_eq!(decode_path("foo%2F..%2Fbar").as_deref(), Some("foo/../bar"),);
+        assert_eq!(
+            decode_path("foo%2F..%2Fbar").as_deref(),
+            Some("foo/../bar"),
+        );
         assert_eq!(decode_path("foo%00bar").as_deref(), Some("foo\0bar"),);
     }
 

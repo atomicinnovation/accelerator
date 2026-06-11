@@ -5,14 +5,30 @@ use crate::docs::DocTypeKey;
 /// The regex must have capture group 1 covering the ID token (digits or
 /// project-prefixed digits). The slug is everything after the full match
 /// in the filename stem (excluding the `.md` extension).
-pub fn derive_work_item_with_regex(re: &regex::Regex, filename: &str) -> Option<String> {
+pub fn derive_work_item_with_regex(
+    re: &regex::Regex,
+    filename: &str,
+) -> Option<String> {
     let stem = filename.strip_suffix(".md")?;
     let m = re.find(stem)?;
     let tail = &stem[m.end()..];
-    if tail.is_empty() { None } else { Some(tail.to_string()) }
+    if tail.is_empty() {
+        None
+    } else {
+        Some(tail.to_string())
+    }
 }
 
-pub fn derive(kind: DocTypeKey, filename: &str, cfg: &WorkItemConfig) -> Option<String> {
+pub fn derive(
+    kind: DocTypeKey,
+    filename: &str,
+    cfg: &WorkItemConfig,
+) -> Option<String> {
+    // Exact lowercase `.md` only: paired with the 3-byte slice below and
+    // the case-sensitive `.md` checks elsewhere (file_driver list filter,
+    // `strip_suffix(".md")`); a case-insensitive rewrite would also accept
+    // a bare `.md` filename, changing the empty-stem edge case.
+    #[allow(clippy::case_sensitive_file_extension_comparisons)]
     if !filename.ends_with(".md") {
         return None;
     }
@@ -27,9 +43,12 @@ pub fn derive(kind: DocTypeKey, filename: &str, cfg: &WorkItemConfig) -> Option<
         | DocTypeKey::Notes
         | DocTypeKey::PrDescriptions
         | DocTypeKey::DesignGaps
-        | DocTypeKey::DesignInventories => strip_prefix_date_and_optional_id(stem, cfg),
+        | DocTypeKey::DesignInventories => {
+            strip_prefix_date_and_optional_id(stem, cfg)
+        }
         DocTypeKey::PlanReviews | DocTypeKey::PrReviews => {
-            let without_date_and_id = strip_prefix_date_and_optional_id(stem, cfg)?;
+            let without_date_and_id =
+                strip_prefix_date_and_optional_id(stem, cfg)?;
             strip_suffix_review_n(&without_date_and_id)
         }
         DocTypeKey::WorkItemReviews => {
@@ -77,11 +96,11 @@ fn strip_prefix_date_str(stem: &str) -> Option<&str> {
     let (head, tail) = stem.split_at(10);
     let bytes = head.as_bytes();
     let ok = bytes.len() == 10
-        && bytes[0..4].iter().all(|b| b.is_ascii_digit())
+        && bytes[0..4].iter().all(u8::is_ascii_digit)
         && bytes[4] == b'-'
-        && bytes[5..7].iter().all(|b| b.is_ascii_digit())
+        && bytes[5..7].iter().all(u8::is_ascii_digit)
         && bytes[7] == b'-'
-        && bytes[8..10].iter().all(|b| b.is_ascii_digit());
+        && bytes[8..10].iter().all(u8::is_ascii_digit);
     if !ok {
         return None;
     }
@@ -95,7 +114,10 @@ fn strip_prefix_date_str(stem: &str) -> Option<&str> {
 /// the config whether the head is itself a canonical work-item id
 /// (strict: exact width, exact prefix). First match wins — shortest
 /// valid id prefix.
-fn strip_optional_work_item_id_prefix<'a>(stem: &'a str, cfg: &WorkItemConfig) -> &'a str {
+fn strip_optional_work_item_id_prefix<'a>(
+    stem: &'a str,
+    cfg: &WorkItemConfig,
+) -> &'a str {
     for (i, c) in stem.char_indices() {
         if c == '-' {
             let head = &stem[..i];
@@ -107,7 +129,10 @@ fn strip_optional_work_item_id_prefix<'a>(stem: &'a str, cfg: &WorkItemConfig) -
     stem
 }
 
-fn strip_prefix_date_and_optional_id(stem: &str, cfg: &WorkItemConfig) -> Option<String> {
+fn strip_prefix_date_and_optional_id(
+    stem: &str,
+    cfg: &WorkItemConfig,
+) -> Option<String> {
     let after_date = strip_prefix_date_str(stem)?;
     // If the entire post-date tail is itself a canonical id token (no
     // descriptive tail follows), there's no slug — return None.
@@ -436,12 +461,19 @@ mod tests {
             .arg(project_code)
             .output()
             .expect("work-item-pattern.sh must be executable");
-        assert!(out.status.success(), "compile-scan failed for pattern={pattern}: {}", String::from_utf8_lossy(&out.stderr));
+        assert!(
+            out.status.success(),
+            "compile-scan failed for pattern={pattern}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
         regex::Regex::new(String::from_utf8(out.stdout).unwrap().trim())
             .expect("compiler must produce valid regex")
     }
 
-    fn compile_scan_status(pattern: &str, project_code: &str) -> std::process::Output {
+    fn compile_scan_status(
+        pattern: &str,
+        project_code: &str,
+    ) -> std::process::Output {
         let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../../../skills/work/scripts/work-item-pattern.sh");
         std::process::Command::new(&script)
@@ -480,8 +512,11 @@ mod tests {
     fn work_items_default_numeric_pattern_still_works() {
         let re = compile_scan("{number:04d}", "");
         assert_eq!(
-            derive_work_item_with_regex(&re, "0001-three-layer-review-system-architecture.md")
-                .as_deref(),
+            derive_work_item_with_regex(
+                &re,
+                "0001-three-layer-review-system-architecture.md"
+            )
+            .as_deref(),
             Some("three-layer-review-system-architecture")
         );
     }

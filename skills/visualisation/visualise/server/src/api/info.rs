@@ -27,7 +27,12 @@ mod tests {
         let app: Router = Router::new().route("/api/info", get(get_info));
 
         let resp = app
-            .oneshot(Request::builder().uri("/api/info").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/info")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
 

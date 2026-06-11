@@ -31,14 +31,18 @@ pub fn apply_spa_serving(router: Router) -> Router {
 // ── dev-frontend mode ──────────────────────────────────────────────────────
 
 #[cfg(feature = "dev-frontend")]
-pub fn apply_spa_serving_with_dist_path(router: Router, dist_path: std::path::PathBuf) -> Router {
+pub fn apply_spa_serving_with_dist_path(
+    router: Router,
+    dist_path: std::path::PathBuf,
+) -> Router {
     use tower_http::services::{ServeDir, ServeFile};
     // Use `.fallback()` (not `.not_found_service()`). In tower-http 0.5,
     // `not_found_service` wraps the fallback in SetStatus(404) — it forces
     // 404 even when the fallback (ServeFile) would return 200. For SPA
     // client-side routing we need 200, so `.fallback()` is correct here.
     router.fallback_service(
-        ServeDir::new(&dist_path).fallback(ServeFile::new(dist_path.join("index.html"))),
+        ServeDir::new(&dist_path)
+            .fallback(ServeFile::new(dist_path.join("index.html"))),
     )
 }
 
@@ -48,7 +52,7 @@ pub fn apply_spa_serving_with_dist_path(router: Router, dist_path: std::path::Pa
 /// paths map to `"index.html"`; the leading slash is stripped otherwise.
 ///
 /// Intentionally does NOT sanitise traversal sequences — that belongs to
-/// rust-embed (compile-time HashMap lookup, no filesystem resolution) and
+/// rust-embed (compile-time `HashMap` lookup, no filesystem resolution) and
 /// tower-http `ServeDir` (path-traversal hardened).
 #[cfg(any(test, not(feature = "dev-frontend")))]
 fn normalise_asset_path(uri_path: &str) -> &str {
@@ -73,7 +77,9 @@ fn apply_spa_serving_inner(router: Router) -> Router {
 }
 
 #[cfg(not(feature = "dev-frontend"))]
-async fn embedded_fallback(uri: axum::http::Uri) -> impl axum::response::IntoResponse {
+async fn embedded_fallback(
+    uri: axum::http::Uri,
+) -> impl axum::response::IntoResponse {
     serve_embedded::<Frontend>(uri.path())
 }
 
@@ -81,7 +87,9 @@ async fn embedded_fallback(uri: axum::http::Uri) -> impl axum::response::IntoRes
 /// unknown paths. Generic so tests can substitute a fixture embed
 /// (`tests/fixtures/mini-dist/`) without pulling in the real frontend.
 #[cfg(not(feature = "dev-frontend"))]
-fn serve_embedded<E: rust_embed::Embed>(uri_path: &str) -> axum::response::Response {
+fn serve_embedded<E: rust_embed::Embed>(
+    uri_path: &str,
+) -> axum::response::Response {
     use axum::{
         http::{header, StatusCode},
         response::IntoResponse,
@@ -227,7 +235,10 @@ mod dev_frontend_tests {
     async fn known_static_file_is_served() {
         let dist = tempfile::tempdir().unwrap();
         make_dist(dist.path());
-        let app = apply_spa_serving_with_dist_path(Router::new(), dist.path().to_path_buf());
+        let app = apply_spa_serving_with_dist_path(
+            Router::new(),
+            dist.path().to_path_buf(),
+        );
 
         let resp = app
             .oneshot(
@@ -252,7 +263,10 @@ mod dev_frontend_tests {
     async fn unknown_path_falls_back_to_index_html() {
         let dist = tempfile::tempdir().unwrap();
         make_dist(dist.path());
-        let app = apply_spa_serving_with_dist_path(Router::new(), dist.path().to_path_buf());
+        let app = apply_spa_serving_with_dist_path(
+            Router::new(),
+            dist.path().to_path_buf(),
+        );
 
         let resp = app
             .oneshot(
@@ -273,7 +287,10 @@ mod dev_frontend_tests {
     async fn root_path_serves_index_html() {
         let dist = tempfile::tempdir().unwrap();
         make_dist(dist.path());
-        let app = apply_spa_serving_with_dist_path(Router::new(), dist.path().to_path_buf());
+        let app = apply_spa_serving_with_dist_path(
+            Router::new(),
+            dist.path().to_path_buf(),
+        );
 
         let resp = app
             .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())

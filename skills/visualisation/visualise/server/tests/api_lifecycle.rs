@@ -41,9 +41,9 @@ async fn lifecycle_list_carries_last_changed_ms_and_body_preview() {
     assert!(last > 0, "expected a positive mtime, got {last}");
 
     for entry in foo["entries"].as_array().unwrap() {
-        let preview = entry["bodyPreview"]
-            .as_str()
-            .unwrap_or_else(|| panic!("bodyPreview should be a string: {entry}"));
+        let preview = entry["bodyPreview"].as_str().unwrap_or_else(|| {
+            panic!("bodyPreview should be a string: {entry}")
+        });
         assert_eq!(
             preview, "",
             "expected empty preview for heading-only seeded body, got {preview:?}",
@@ -74,9 +74,9 @@ async fn lifecycle_detail_carries_last_changed_ms_and_body_preview() {
     let last = v["lastChangedMs"].as_i64().expect("lastChangedMs missing");
     assert!(last > 0, "expected a positive mtime, got {last}");
     for entry in v["entries"].as_array().unwrap() {
-        let preview = entry["bodyPreview"]
-            .as_str()
-            .unwrap_or_else(|| panic!("bodyPreview should be a string: {entry}"));
+        let preview = entry["bodyPreview"].as_str().unwrap_or_else(|| {
+            panic!("bodyPreview should be a string: {entry}")
+        });
         assert_eq!(preview, "");
     }
 }

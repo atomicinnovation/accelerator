@@ -13,12 +13,7 @@ mod common;
 async fn fetch_search(uri: &str, state: Arc<AppState>) -> serde_json::Value {
     let app = build_router(state);
     let res = app
-        .oneshot(
-            Request::builder()
-                .uri(uri)
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK, "expected 200 for {uri}");
@@ -26,7 +21,13 @@ async fn fetch_search(uri: &str, state: Arc<AppState>) -> serde_json::Value {
     serde_json::from_slice(&bytes).unwrap()
 }
 
-fn write_plan_dated(dir: &Path, date: &str, slug_tail: &str, title: &str, body: &str) -> std::path::PathBuf {
+fn write_plan_dated(
+    dir: &Path,
+    date: &str,
+    slug_tail: &str,
+    title: &str,
+    body: &str,
+) -> std::path::PathBuf {
     let filename = format!("{date}-{slug_tail}.md");
     let content = format!("---\ntitle: \"{title}\"\n---\n{body}\n");
     let path = dir.join(&filename);
@@ -34,7 +35,13 @@ fn write_plan_dated(dir: &Path, date: &str, slug_tail: &str, title: &str, body: 
     path
 }
 
-fn write_decision(dir: &Path, adr_num: &str, slug_tail: &str, title: &str, body: &str) -> std::path::PathBuf {
+fn write_decision(
+    dir: &Path,
+    adr_num: &str,
+    slug_tail: &str,
+    title: &str,
+    body: &str,
+) -> std::path::PathBuf {
     let filename = format!("ADR-{adr_num}-{slug_tail}.md");
     let content = format!("---\ntitle: \"{title}\"\n---\n{body}\n");
     let path = dir.join(&filename);
@@ -92,7 +99,8 @@ async fn excludes_templates_by_indexer_structure() {
     assert!(
         snapshot
             .iter()
-            .all(|e| e.r#type != accelerator_visualiser::docs::DocTypeKey::Templates),
+            .all(|e| e.r#type
+                != accelerator_visualiser::docs::DocTypeKey::Templates),
         "Indexer::all() must not yield Templates entries",
     );
 
@@ -124,10 +132,22 @@ async fn bucket_1_exact_slug_first() {
     let cfg = common::seeded_cfg(tmp.path());
     let plans = tmp.path().join("meta/plans");
     // Entry A: slug "alpha" matches exactly; older mtime.
-    let p1 = write_plan_dated(&plans, "2026-04-01", "alpha", "Some unrelated title", "");
+    let p1 = write_plan_dated(
+        &plans,
+        "2026-04-01",
+        "alpha",
+        "Some unrelated title",
+        "",
+    );
     common::set_mtime_ms(&p1, 1_000).unwrap();
     // Entry B: title prefix-matches "alpha"; newer mtime.
-    let p2 = write_plan_dated(&plans, "2026-04-02", "beta", "Alpha plan with longer title", "");
+    let p2 = write_plan_dated(
+        &plans,
+        "2026-04-02",
+        "beta",
+        "Alpha plan with longer title",
+        "",
+    );
     common::set_mtime_ms(&p2, 9_000_000).unwrap();
 
     let activity = Arc::new(Activity::new());
@@ -143,9 +163,16 @@ async fn bucket_2_prefix_before_interior() {
     let tmp = tempfile::tempdir().unwrap();
     let cfg = common::seeded_cfg(tmp.path());
     let plans = tmp.path().join("meta/plans");
-    let p1 = write_plan_dated(&plans, "2026-04-01", "plan-a", "Banana split", "");
+    let p1 =
+        write_plan_dated(&plans, "2026-04-01", "plan-a", "Banana split", "");
     common::set_mtime_ms(&p1, 1_000).unwrap();
-    let p2 = write_plan_dated(&plans, "2026-04-02", "plan-b", "Has banana inside", "");
+    let p2 = write_plan_dated(
+        &plans,
+        "2026-04-02",
+        "plan-b",
+        "Has banana inside",
+        "",
+    );
     common::set_mtime_ms(&p2, 9_000_000).unwrap();
 
     let activity = Arc::new(Activity::new());
@@ -162,9 +189,21 @@ async fn bucket_3_title_slug_before_bucket_4_body_preview() {
     let tmp = tempfile::tempdir().unwrap();
     let cfg = common::seeded_cfg(tmp.path());
     let plans = tmp.path().join("meta/plans");
-    let p1 = write_plan_dated(&plans, "2026-04-01", "plan-x", "Has zebra inside it", "");
+    let p1 = write_plan_dated(
+        &plans,
+        "2026-04-01",
+        "plan-x",
+        "Has zebra inside it",
+        "",
+    );
     common::set_mtime_ms(&p1, 1_000).unwrap();
-    let p2 = write_plan_dated(&plans, "2026-04-02", "plan-y", "Totally different", "Mentions zebra in the body");
+    let p2 = write_plan_dated(
+        &plans,
+        "2026-04-02",
+        "plan-y",
+        "Totally different",
+        "Mentions zebra in the body",
+    );
     common::set_mtime_ms(&p2, 9_000_000).unwrap();
 
     let activity = Arc::new(Activity::new());
@@ -181,9 +220,11 @@ async fn mtime_desc_within_bucket() {
     let tmp = tempfile::tempdir().unwrap();
     let cfg = common::seeded_cfg(tmp.path());
     let plans = tmp.path().join("meta/plans");
-    let p1 = write_plan_dated(&plans, "2026-04-01", "old", "Carrot top old", "");
+    let p1 =
+        write_plan_dated(&plans, "2026-04-01", "old", "Carrot top old", "");
     common::set_mtime_ms(&p1, 1_000).unwrap();
-    let p2 = write_plan_dated(&plans, "2026-04-02", "new", "Carrot top new", "");
+    let p2 =
+        write_plan_dated(&plans, "2026-04-02", "new", "Carrot top new", "");
     common::set_mtime_ms(&p2, 9_000_000).unwrap();
 
     let activity = Arc::new(Activity::new());
@@ -201,9 +242,11 @@ async fn path_asc_breaks_mtime_ties() {
     let cfg = common::seeded_cfg(tmp.path());
     let plans = tmp.path().join("meta/plans");
     // Same date, different tails — rel_path lexicographic tiebreak.
-    let p1 = write_plan_dated(&plans, "2026-04-01", "zzz-plan", "Date pudding", "");
+    let p1 =
+        write_plan_dated(&plans, "2026-04-01", "zzz-plan", "Date pudding", "");
     common::set_mtime_ms(&p1, 5_000_000).unwrap();
-    let p2 = write_plan_dated(&plans, "2026-04-01", "aaa-plan", "Date pudding", "");
+    let p2 =
+        write_plan_dated(&plans, "2026-04-01", "aaa-plan", "Date pudding", "");
     common::set_mtime_ms(&p2, 5_000_000).unwrap();
 
     let activity = Arc::new(Activity::new());
@@ -256,7 +299,13 @@ async fn body_preview_substring_match() {
     let tmp = tempfile::tempdir().unwrap();
     let cfg = common::seeded_cfg(tmp.path());
     let plans = tmp.path().join("meta/plans");
-    write_plan_dated(&plans, "2026-04-01", "narnia", "Unrelated", "body mentions kumquat fruit");
+    write_plan_dated(
+        &plans,
+        "2026-04-01",
+        "narnia",
+        "Unrelated",
+        "body mentions kumquat fruit",
+    );
     let activity = Arc::new(Activity::new());
     let state = AppState::build(cfg, activity).await.unwrap();
     let v = fetch_search("/api/search?q=kumquat", state).await;
@@ -320,7 +369,13 @@ async fn non_matching_entries_are_excluded() {
     // Positive: title contains "xylo".
     write_decision(&decisions, "0002", "xylo-decision", "Xylo decision", "");
     // Negative: nothing matches "xylo".
-    write_decision(&decisions, "0003", "unrelated", "Totally different", "no body match");
+    write_decision(
+        &decisions,
+        "0003",
+        "unrelated",
+        "Totally different",
+        "no body match",
+    );
     let activity = Arc::new(Activity::new());
     let state = AppState::build(cfg, activity).await.unwrap();
     let v = fetch_search("/api/search?q=xylo", state).await;
@@ -343,5 +398,7 @@ async fn mixed_case_query_and_field_classify_correctly() {
     let state = AppState::build(cfg, activity).await.unwrap();
     let v = fetch_search("/api/search?q=FoO", state).await;
     let results = v["results"].as_array().unwrap();
-    assert!(results.iter().any(|r| r["slug"].as_str() == Some("foo-bar")));
+    assert!(results
+        .iter()
+        .any(|r| r["slug"].as_str() == Some("foo-bar")));
 }

@@ -6,9 +6,10 @@ use tokio::process::Command;
 
 #[tokio::test]
 async fn api_surface_is_fully_reachable_against_fixture_meta() {
-    let fixtures = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/meta");
-    let plugin_templates =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/templates");
+    let fixtures = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/meta");
+    let plugin_templates = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/templates");
     let tmp = tempfile::tempdir().unwrap();
     let cfg_path = tmp.path().join("config.json");
     let tmp_dir = tmp.path().join("visualiser");
@@ -51,7 +52,8 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         "doc_paths": doc_paths,
         "templates": templates,
     });
-    std::fs::write(&cfg_path, serde_json::to_vec_pretty(&cfg).unwrap()).unwrap();
+    std::fs::write(&cfg_path, serde_json::to_vec_pretty(&cfg).unwrap())
+        .unwrap();
 
     let bin = env!("CARGO_BIN_EXE_accelerator-visualiser");
     let mut child = Command::new(bin)

@@ -31,7 +31,8 @@ pub(crate) async fn docs_list(
     State(state): State<Arc<AppState>>,
     Query(q): Query<DocsListQuery>,
 ) -> Result<Response, ApiError> {
-    let kind = parse_kind(&q.type_).ok_or(ApiError::InvalidDocType(q.type_.clone()))?;
+    let kind = parse_kind(&q.type_)
+        .ok_or(ApiError::InvalidDocType(q.type_.clone()))?;
     if kind == DocTypeKey::Templates {
         return Err(ApiError::InvalidDocType(q.type_.clone()));
     }
@@ -54,27 +55,38 @@ pub(crate) async fn doc_fetch(
     if let Some(ref e) = entry {
         if let Some(inm) = headers.get("if-none-match") {
             let quoted = format!("\"{}\"", e.etag);
-            if inm.to_str().ok() == Some(&quoted) || inm.to_str().ok() == Some(&e.etag) {
-                return Ok((StatusCode::NOT_MODIFIED, [(header::ETAG, quoted)]).into_response());
+            if inm.to_str().ok() == Some(&quoted)
+                || inm.to_str().ok() == Some(&e.etag)
+            {
+                return Ok((
+                    StatusCode::NOT_MODIFIED,
+                    [(header::ETAG, quoted)],
+                )
+                    .into_response());
             }
         }
     }
 
-    let (etag, bytes) = match entry {
-        Some(e) => {
-            let content = state.file_driver.read(&e.path).await.map_err(api_from_fd)?;
-            (e.etag, content.bytes)
-        }
-        None => {
-            let content = state.file_driver.read(&abs).await.map_err(api_from_fd)?;
-            if let Some(inm) = headers.get("if-none-match") {
-                let quoted = format!("\"{}\"", content.etag);
-                if inm.to_str().ok() == Some(&quoted) || inm.to_str().ok() == Some(&content.etag) {
-                    return Ok((StatusCode::NOT_MODIFIED, [(header::ETAG, quoted)]).into_response());
-                }
+    let (etag, bytes) = if let Some(e) = entry {
+        let content =
+            state.file_driver.read(&e.path).await.map_err(api_from_fd)?;
+        (e.etag, content.bytes)
+    } else {
+        let content =
+            state.file_driver.read(&abs).await.map_err(api_from_fd)?;
+        if let Some(inm) = headers.get("if-none-match") {
+            let quoted = format!("\"{}\"", content.etag);
+            if inm.to_str().ok() == Some(&quoted)
+                || inm.to_str().ok() == Some(&content.etag)
+            {
+                return Ok((
+                    StatusCode::NOT_MODIFIED,
+                    [(header::ETAG, quoted)],
+                )
+                    .into_response());
             }
-            (content.etag, content.bytes)
         }
+        (content.etag, content.bytes)
     };
 
     Ok((
@@ -102,12 +114,15 @@ pub(crate) struct PatchFrontmatterBody {
     patch: PatchFields,
 }
 
-fn validate_kanban_status(status: &str, accepted: &[&str]) -> Result<(), super::ApiError> {
+fn validate_kanban_status(
+    status: &str,
+    accepted: &[&str],
+) -> Result<(), super::ApiError> {
     if accepted.contains(&status) {
         Ok(())
     } else {
         Err(super::ApiError::UnknownKanbanStatus {
-            accepted_keys: accepted.iter().map(|s| s.to_string()).collect(),
+            accepted_keys: accepted.iter().map(|s| (*s).to_string()).collect(),
         })
     }
 }
@@ -121,14 +136,17 @@ pub(crate) struct PatchFields {
 /// PATCH /api/docs/{path}/frontmatter
 ///
 /// Exposed URL: /api/docs/{path}/frontmatter.
-/// Registered route: /api/docs/*path (shared with GET doc_fetch) because matchit 0.7
+/// Registered route: /api/docs/*path (shared with GET `doc_fetch`) because matchit 0.7
 /// forbids catch-all + literal suffix on the same route. This handler strips the
 /// trailing /frontmatter suffix and returns 400 if it is absent.
 pub(crate) async fn doc_patch_frontmatter(
     State(state): State<Arc<AppState>>,
     AxumPath(path): AxumPath<String>,
     headers: HeaderMap,
-    body: Result<Json<PatchFrontmatterBody>, axum::extract::rejection::JsonRejection>,
+    body: Result<
+        Json<PatchFrontmatterBody>,
+        axum::extract::rejection::JsonRejection,
+    >,
 ) -> Result<Response, ApiError> {
     use super::api_from_fd;
 
@@ -145,7 +163,12 @@ pub(crate) async fn doc_patch_frontmatter(
         return Err(ApiError::PathEscape);
     }
     for seg in doc_rel.split('/') {
-        if seg == ".." || seg == "." || seg.is_empty() || seg.contains('\\') || seg.contains('\0') {
+        if seg == ".."
+            || seg == "."
+            || seg.is_empty()
+            || seg.contains('\\')
+            || seg.contains('\0')
+        {
             return Err(ApiError::PathEscape);
         }
     }
@@ -168,11 +191,14 @@ pub(crate) async fn doc_patch_frontmatter(
     // Step 6 — parse JSON body. Result<Json<T>, JsonRejection> intercepts axum's extractor
     // (syntax/data/unknown-field errors) and remaps them all to 400 via InvalidPatch.
     let Json(body) = body.map_err(|e| ApiError::InvalidPatch(e.to_string()))?;
-    let status = body
-        .patch
-        .status
-        .ok_or_else(|| ApiError::InvalidPatch("patch object is empty".into()))?;
-    let accepted_keys: Vec<&str> = state.kanban_columns.iter().map(|c| c.key.as_str()).collect();
+    let status = body.patch.status.ok_or_else(|| {
+        ApiError::InvalidPatch("patch object is empty".into())
+    })?;
+    let accepted_keys: Vec<&str> = state
+        .kanban_columns
+        .iter()
+        .map(|c| c.key.as_str())
+        .collect();
     validate_kanban_status(&status, &accepted_keys)?;
 
     // Step 7 — read and validate If-Match header.
@@ -180,12 +206,13 @@ pub(crate) async fn doc_patch_frontmatter(
         let v = headers
             .get(header::IF_MATCH)
             .ok_or(ApiError::IfMatchRequired)?;
-        let s = v
-            .to_str()
-            .map_err(|_| ApiError::UnsupportedIfMatch("non-UTF-8 If-Match header".into()))?;
+        let s = v.to_str().map_err(|_| {
+            ApiError::UnsupportedIfMatch("non-UTF-8 If-Match header".into())
+        })?;
         if s == "*" {
             return Err(ApiError::UnsupportedIfMatch(
-                "wildcard If-Match is not supported; supply a specific etag".into(),
+                "wildcard If-Match is not supported; supply a specific etag"
+                    .into(),
             ));
         }
         if s.starts_with("W/") {
@@ -206,13 +233,15 @@ pub(crate) async fn doc_patch_frontmatter(
     // lock is released. Registering here (while locked) closes the race where an
     // inotify/FSEvents notification could arrive at the watcher's debounce handler
     // before mark_self_write has run.
-    let committed_canonical: Arc<Mutex<Option<PathBuf>>> = Arc::new(Mutex::new(None));
+    let committed_canonical: Arc<Mutex<Option<PathBuf>>> =
+        Arc::new(Mutex::new(None));
     let canonical_capture = committed_canonical.clone();
     let coordinator = state.write_coordinator.clone();
-    let on_committed: Box<dyn FnOnce(&Path) + Send> = Box::new(move |canonical: &Path| {
-        *canonical_capture.lock().unwrap() = Some(canonical.to_path_buf());
-        coordinator.mark_self_write(canonical);
-    });
+    let on_committed: Box<dyn FnOnce(&Path) + Send> =
+        Box::new(move |canonical: &Path| {
+            *canonical_capture.lock().unwrap() = Some(canonical.to_path_buf());
+            coordinator.mark_self_write(canonical);
+        });
 
     let content = state
         .file_driver
@@ -249,9 +278,16 @@ pub(crate) async fn doc_patch_frontmatter(
             state.indexer.work_item_cfg(),
         );
         let (new_clusters, completeness_backfill, cluster_key_backfill) =
-            crate::clusters::compute_clusters_with_backfill(&snapshot, &cluster_ctx);
-        let linked_counts =
-            crate::related::collect_linked_counts(&state.indexer, &new_clusters, &snapshot).await;
+            crate::clusters::compute_clusters_with_backfill(
+                &snapshot,
+                &cluster_ctx,
+            );
+        let linked_counts = crate::related::collect_linked_counts(
+            &state.indexer,
+            &new_clusters,
+            &snapshot,
+        )
+        .await;
         state
             .indexer
             .apply_completeness_backfill(completeness_backfill)
@@ -260,7 +296,10 @@ pub(crate) async fn doc_patch_frontmatter(
             .indexer
             .apply_cluster_key_backfill(cluster_key_backfill)
             .await;
-        state.indexer.apply_linked_count_backfill(linked_counts).await;
+        state
+            .indexer
+            .apply_linked_count_backfill(linked_counts)
+            .await;
         *state.clusters.write().await = new_clusters;
 
         // Use the etag from FileContent, not from the index after refresh. A concurrent
@@ -283,7 +322,8 @@ pub(crate) async fn doc_patch_frontmatter(
         StatusCode::NO_CONTENT,
         [(
             header::ETAG,
-            HeaderValue::from_str(&quoted).unwrap_or_else(|_| HeaderValue::from_static("")),
+            HeaderValue::from_str(&quoted)
+                .unwrap_or_else(|_| HeaderValue::from_static("")),
         )],
     )
         .into_response())

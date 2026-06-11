@@ -29,6 +29,8 @@ impl Settings {
     };
 }
 
+// Each arg is a distinct shared-state handle or config value the watcher
+// task captures; bundling them into a struct would only rename the wiring.
 #[allow(clippy::too_many_arguments)]
 pub fn spawn(
     dirs: Vec<PathBuf>,
@@ -41,7 +43,8 @@ pub fn spawn(
     template_change_handler: Option<Arc<TemplateChangeHandler>>,
     settings: Settings,
 ) -> JoinHandle<()> {
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<notify::Result<Event>>(1024);
+    let (tx, mut rx) =
+        tokio::sync::mpsc::channel::<notify::Result<Event>>(1024);
 
     let mut watcher = RecommendedWatcher::new(
         move |res| {
@@ -107,6 +110,8 @@ pub fn spawn(
     })
 }
 
+// Forwards the same set of narrow shared-state handles `spawn` holds, plus
+// the changed path and pre-change entry; a param struct would not aid clarity.
 #[allow(clippy::too_many_arguments)]
 pub async fn on_path_changed_debounced(
     path: PathBuf,
@@ -132,8 +137,7 @@ pub async fn on_path_changed_debounced(
     // write path today, so we skip WriteCoordinator suppression here.
     let is_template = template_change_handler
         .as_ref()
-        .map(|h| h.try_handle(&canonical))
-        .unwrap_or(false);
+        .is_some_and(|h| h.try_handle(&canonical));
     tracing::debug!(
         file = %canonical.display(),
         is_template,
@@ -162,10 +166,18 @@ pub async fn on_path_changed_debounced(
     );
     let (new_clusters, completeness_backfill, cluster_key_backfill) =
         compute_clusters_with_backfill(&snapshot, &cluster_ctx);
-    let linked_counts =
-        crate::related::collect_linked_counts(&indexer, &new_clusters, &snapshot).await;
-    indexer.apply_completeness_backfill(completeness_backfill).await;
-    indexer.apply_cluster_key_backfill(cluster_key_backfill).await;
+    let linked_counts = crate::related::collect_linked_counts(
+        &indexer,
+        &new_clusters,
+        &snapshot,
+    )
+    .await;
+    indexer
+        .apply_completeness_backfill(completeness_backfill)
+        .await;
+    indexer
+        .apply_cluster_key_backfill(cluster_key_backfill)
+        .await;
     indexer.apply_linked_count_backfill(linked_counts).await;
     *clusters.write().await = new_clusters;
 
@@ -316,7 +328,8 @@ pub struct TierPathIndex {
 
 impl TierPathIndex {
     pub async fn build(templates: &HashMap<String, TemplateTiers>) -> Self {
-        let mut by_canonical_path: HashMap<PathBuf, Vec<String>> = HashMap::new();
+        let mut by_canonical_path: HashMap<PathBuf, Vec<String>> =
+            HashMap::new();
         for (name, t) in templates {
             for raw in t.iter_paths() {
                 let canon = canonicalise_path_or_ancestor(&raw).await;
@@ -332,8 +345,7 @@ impl TierPathIndex {
     pub fn names_for(&self, canonical: &Path) -> &[String] {
         self.by_canonical_path
             .get(canonical)
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
+            .map_or(&[], Vec::as_slice)
     }
 
     pub fn has_any(&self, canonical: &Path) -> bool {
@@ -351,6 +363,8 @@ pub struct TemplateChangeHandler {
 }
 
 impl TemplateChangeHandler {
+    // Distinct template-resolution collaborators (resolver, config, driver,
+    // index, hub, roots) captured by the spawned task; a struct adds no clarity.
     #[allow(clippy::too_many_arguments)]
     pub fn spawn(
         templates: Arc<ArcSwap<TemplateResolver>>,
@@ -414,9 +428,11 @@ impl TemplateChangeHandler {
                     }
                 };
 
-                let mut to_broadcast: Vec<(String, Option<String>)> = Vec::new();
+                let mut to_broadcast: Vec<(String, Option<String>)> =
+                    Vec::new();
                 for name in &cfg_keys {
-                    let new_sha = new_resolver.detail(name).and_then(|d| d.sha256);
+                    let new_sha =
+                        new_resolver.detail(name).and_then(|d| d.sha256);
                     let prev = previous.get(name).cloned().flatten();
                     if new_sha != prev {
                         previous.insert(name.clone(), new_sha.clone());
@@ -462,6 +478,7 @@ mod tests {
     use tokio::sync::RwLock;
 
     async fn watcher_fires_in_this_env() -> bool {
+        use notify::Watcher;
         let tmp = tempfile::tempdir().unwrap();
         let probe = tmp.path().join("probe.txt");
         std::fs::write(&probe, "a").unwrap();
@@ -471,7 +488,6 @@ mod tests {
             let _ = tx.try_send(());
         })
         .unwrap();
-        use notify::Watcher;
         watcher
             .watch(tmp.path(), notify::RecursiveMode::NonRecursive)
             .unwrap();
@@ -504,8 +520,13 @@ mod tests {
         doc_paths.insert("plans".into(), plans);
         let driver: Arc<dyn crate::file_driver::FileDriver> =
             Arc::new(LocalFileDriver::new(&doc_paths, vec![], vec![]));
-        let work_item_cfg = Arc::new(crate::config::WorkItemConfig::default_numeric());
-        let indexer = Arc::new(Indexer::build(driver, tmp.to_path_buf(), work_item_cfg).await.unwrap());
+        let work_item_cfg =
+            Arc::new(crate::config::WorkItemConfig::default_numeric());
+        let indexer = Arc::new(
+            Indexer::build(driver, tmp.to_path_buf(), work_item_cfg)
+                .await
+                .unwrap(),
+        );
         let hub = Arc::new(SseHub::new(64));
         let activity_feed = Arc::new(ActivityRingBuffer::new());
         let snapshot = indexer.all().await;
@@ -518,9 +539,9 @@ mod tests {
             indexer.project_root(),
             indexer.work_item_cfg(),
         );
-        let clusters = Arc::new(RwLock::new(crate::clusters::compute_clusters(
-            &snapshot, &ctx,
-        )));
+        let clusters = Arc::new(RwLock::new(
+            crate::clusters::compute_clusters(&snapshot, &ctx),
+        ));
         (doc_paths, indexer, hub, activity_feed, clusters)
     }
 
@@ -531,7 +552,8 @@ mod tests {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
+        let (doc_paths, indexer, hub, activity_feed, clusters) =
+            setup(tmp.path()).await;
         let mut rx = hub.subscribe();
 
         spawn(
@@ -583,7 +605,8 @@ mod tests {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
+        let (doc_paths, indexer, hub, activity_feed, clusters) =
+            setup(tmp.path()).await;
         let mut rx = hub.subscribe();
         let path = tmp.path().join("meta/plans/2026-01-01-foo.md");
         let original = std::fs::read_to_string(&path).unwrap();
@@ -628,7 +651,8 @@ mod tests {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
+        let (doc_paths, indexer, hub, activity_feed, clusters) =
+            setup(tmp.path()).await;
         let mut rx = hub.subscribe();
 
         // Use a generous debounce so the coalescing assertion is robust to
@@ -659,10 +683,13 @@ mod tests {
             std::fs::write(&path, format!("---\ntitle: v{i}\n---\n")).unwrap();
         }
 
-        let event = tokio::time::timeout(debounce + Duration::from_millis(500), rx.recv())
-            .await
-            .expect("timed out")
-            .expect("channel closed");
+        let event = tokio::time::timeout(
+            debounce + Duration::from_millis(500),
+            rx.recv(),
+        )
+        .await
+        .expect("timed out")
+        .expect("channel closed");
         match event {
             SsePayload::DocChanged { action, .. } => {
                 assert_eq!(action, ActionKind::Edited);
@@ -685,7 +712,8 @@ mod tests {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
+        let (doc_paths, indexer, hub, activity_feed, clusters) =
+            setup(tmp.path()).await;
         let mut rx = hub.subscribe();
 
         spawn(
@@ -728,7 +756,8 @@ mod tests {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
+        let (doc_paths, indexer, hub, activity_feed, clusters) =
+            setup(tmp.path()).await;
         let mut rx = hub.subscribe();
 
         spawn(
@@ -803,7 +832,8 @@ mod tests {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
+        let (doc_paths, indexer, hub, activity_feed, clusters) =
+            setup(tmp.path()).await;
         let mut rx = hub.subscribe();
         let path = tmp.path().join("meta/plans/2026-01-01-foo.md");
 
@@ -859,7 +889,8 @@ mod tests {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
-        let (doc_paths, indexer, hub, activity_feed, clusters) = setup(tmp.path()).await;
+        let (doc_paths, indexer, hub, activity_feed, clusters) =
+            setup(tmp.path()).await;
         let mut rx = hub.subscribe();
 
         spawn(
@@ -882,26 +913,29 @@ mod tests {
 
         // 1. Create.
         std::fs::write(&chain_path, "---\ntitle: Chain v1\n---\n").unwrap();
-        let created = tokio::time::timeout(Duration::from_millis(800), rx.recv())
-            .await
-            .expect("timed out waiting for created event")
-            .expect("channel closed");
+        let created =
+            tokio::time::timeout(Duration::from_millis(800), rx.recv())
+                .await
+                .expect("timed out waiting for created event")
+                .expect("channel closed");
 
         // 2. Edit. Pause longer than debounce so the events do not coalesce.
         tokio::time::sleep(Duration::from_millis(150)).await;
         std::fs::write(&chain_path, "---\ntitle: Chain v2\n---\n").unwrap();
-        let edited = tokio::time::timeout(Duration::from_millis(800), rx.recv())
-            .await
-            .expect("timed out waiting for edited event")
-            .expect("channel closed");
+        let edited =
+            tokio::time::timeout(Duration::from_millis(800), rx.recv())
+                .await
+                .expect("timed out waiting for edited event")
+                .expect("channel closed");
 
         // 3. Delete.
         tokio::time::sleep(Duration::from_millis(150)).await;
         std::fs::remove_file(&chain_path).unwrap();
-        let deleted = tokio::time::timeout(Duration::from_millis(800), rx.recv())
-            .await
-            .expect("timed out waiting for deleted event")
-            .expect("channel closed");
+        let deleted =
+            tokio::time::timeout(Duration::from_millis(800), rx.recv())
+                .await
+                .expect("timed out waiting for deleted event")
+                .expect("channel closed");
 
         let (a0, t0) = match &created {
             SsePayload::DocChanged {
@@ -989,7 +1023,8 @@ mod tier_path_index_tests {
             },
         );
         let idx = TierPathIndex::build(&map).await;
-        let unrelated = canonicalise_path_or_ancestor(&tmp.path().join("nope.md")).await;
+        let unrelated =
+            canonicalise_path_or_ancestor(&tmp.path().join("nope.md")).await;
         assert!(idx.names_for(&unrelated).is_empty());
         assert!(!idx.has_any(&unrelated));
     }
@@ -1042,7 +1077,8 @@ mod template_change_handler_tests {
             vec![],
         ));
         let resolver =
-            TemplateResolver::build(&templates_map, driver.as_ref(), tmp, tmp).await;
+            TemplateResolver::build(&templates_map, driver.as_ref(), tmp, tmp)
+                .await;
         let templates = Arc::new(ArcSwap::from_pointee(resolver));
         let hub = Arc::new(SseHub::new(64));
         let index = TierPathIndex::build(&templates_map).await;
@@ -1183,7 +1219,8 @@ mod template_change_handler_tests {
             },
         );
         let (handler, _resolver, _hub) = build_handler(tmp.path(), map).await;
-        let unrelated = canonicalise_path_or_ancestor(&tmp.path().join("other.md")).await;
+        let unrelated =
+            canonicalise_path_or_ancestor(&tmp.path().join("other.md")).await;
         assert!(!handler.try_handle(&unrelated));
     }
 
@@ -1220,10 +1257,11 @@ mod template_change_handler_tests {
 
         let mut got: Vec<String> = Vec::new();
         for _ in 0..2 {
-            let event = tokio::time::timeout(Duration::from_millis(500), rx.recv())
-                .await
-                .expect("timed out")
-                .expect("channel closed");
+            let event =
+                tokio::time::timeout(Duration::from_millis(500), rx.recv())
+                    .await
+                    .expect("timed out")
+                    .expect("channel closed");
             if let SsePayload::TemplateChanged { template, .. } = event {
                 got.push(template);
             }

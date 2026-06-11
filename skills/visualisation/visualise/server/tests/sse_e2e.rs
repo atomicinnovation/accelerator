@@ -10,7 +10,8 @@ async fn file_mutation_arrives_as_sse_event() {
     let tmp = tempfile::tempdir().unwrap();
     let plans = tmp.path().join("meta/plans");
     std::fs::create_dir_all(&plans).unwrap();
-    std::fs::write(plans.join("2026-01-01-test.md"), "---\ntitle: T\n---\n").unwrap();
+    std::fs::write(plans.join("2026-01-01-test.md"), "---\ntitle: T\n---\n")
+        .unwrap();
 
     let mut doc_paths = HashMap::new();
     doc_paths.insert("plans".into(), plans.clone());
@@ -27,10 +28,10 @@ async fn file_mutation_arrives_as_sse_event() {
         doc_paths,
         templates: HashMap::new(),
         work_item: None,
-            kanban_columns: None,
-            idle_timeout: None,
-            editor: None,
-            editor_project: None,
+        kanban_columns: None,
+        idle_timeout: None,
+        editor: None,
+        editor_project: None,
     };
 
     let info_path = tmp.path().join("server-info.json");
@@ -49,9 +50,10 @@ async fn file_mutation_arrives_as_sse_event() {
             let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
             break v["port"].as_u64().unwrap() as u16;
         }
-        if start.elapsed().as_secs() > 5 {
-            panic!("server-info.json did not appear in 5s");
-        }
+        assert!(
+            start.elapsed().as_secs() <= 5,
+            "server-info.json did not appear in 5s"
+        );
         tokio::time::sleep(Duration::from_millis(50)).await;
     };
 
@@ -86,7 +88,12 @@ async fn file_mutation_arrives_as_sse_event() {
     let deadline = tokio::time::Instant::now() + Duration::from_millis(2000);
     let mut found = false;
     while tokio::time::Instant::now() < deadline {
-        match tokio::time::timeout(Duration::from_millis(300), sse_response.chunk()).await {
+        match tokio::time::timeout(
+            Duration::from_millis(300),
+            sse_response.chunk(),
+        )
+        .await
+        {
             Ok(Ok(Some(chunk))) => {
                 let text = std::str::from_utf8(&chunk).unwrap_or("");
                 if text.contains("doc-changed") {
@@ -94,9 +101,8 @@ async fn file_mutation_arrives_as_sse_event() {
                     break;
                 }
             }
-            Ok(Ok(None)) => break,
+            Ok(Ok(None)) | Err(_) => break,
             Ok(Err(e)) => panic!("reqwest error reading SSE stream: {e}"),
-            Err(_) => break,
         }
     }
     assert!(found, "expected doc-changed SSE event within 2000ms");
@@ -118,9 +124,10 @@ async fn start_server_with_template(
             let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
             break v["port"].as_u64().unwrap() as u16;
         }
-        if start.elapsed().as_secs() > 5 {
-            panic!("server-info.json did not appear in 5s");
-        }
+        assert!(
+            start.elapsed().as_secs() <= 5,
+            "server-info.json did not appear in 5s"
+        );
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
 }
@@ -130,10 +137,16 @@ async fn read_until_substring(
     needle: &str,
     deadline_ms: u64,
 ) -> Option<String> {
-    let deadline = tokio::time::Instant::now() + Duration::from_millis(deadline_ms);
+    let deadline =
+        tokio::time::Instant::now() + Duration::from_millis(deadline_ms);
     let mut accumulated = String::new();
     while tokio::time::Instant::now() < deadline {
-        match tokio::time::timeout(Duration::from_millis(300), sse_response.chunk()).await {
+        match tokio::time::timeout(
+            Duration::from_millis(300),
+            sse_response.chunk(),
+        )
+        .await
+        {
             Ok(Ok(Some(chunk))) => {
                 if let Ok(text) = std::str::from_utf8(&chunk) {
                     accumulated.push_str(text);
@@ -142,9 +155,8 @@ async fn read_until_substring(
                     }
                 }
             }
-            Ok(Ok(None)) => return None,
-            Ok(Err(_)) => return None,
-            Err(_) => continue,
+            Ok(Ok(None) | Err(_)) => return None,
+            Err(_) => {}
         }
     }
     None
@@ -159,10 +171,7 @@ fn make_template_cfg(
         "adr".to_string(),
         accelerator_visualiser::config::TemplateTiers {
             config_override: None,
-            user_override: tier_file
-                .parent()
-                .unwrap()
-                .join("missing-user.md"),
+            user_override: tier_file.parent().unwrap().join("missing-user.md"),
             plugin_default: tier_file,
             config_override_source: None,
         },
@@ -201,7 +210,8 @@ async fn template_file_mutation_arrives_as_template_changed_sse_event() {
 
     let url = format!("http://127.0.0.1:{port}/api/events");
     let client = reqwest::Client::new();
-    let mut sse_response = client.get(&url).send().await.expect("GET /api/events");
+    let mut sse_response =
+        client.get(&url).send().await.expect("GET /api/events");
     assert_eq!(sse_response.status(), 200);
 
     tokio::time::sleep(Duration::from_millis(150)).await;
@@ -223,7 +233,8 @@ async fn template_file_mutation_arrives_as_template_changed_sse_event() {
         .expect("expected data: line with template-changed payload");
     let payload: serde_json::Value = serde_json::from_str(json_str).unwrap();
     assert_eq!(payload["template"], "adr");
-    let expected = format!("sha256-{}", hex::encode(sha2::Sha256::digest(b"v2")));
+    let expected =
+        format!("sha256-{}", hex::encode(sha2::Sha256::digest(b"v2")));
     assert_eq!(payload["sha256"], expected);
 }
 
@@ -241,7 +252,8 @@ async fn template_file_emptied_arrives_as_template_changed_with_no_sha256() {
 
     let url = format!("http://127.0.0.1:{port}/api/events");
     let client = reqwest::Client::new();
-    let mut sse_response = client.get(&url).send().await.expect("GET /api/events");
+    let mut sse_response =
+        client.get(&url).send().await.expect("GET /api/events");
     assert_eq!(sse_response.status(), 200);
 
     tokio::time::sleep(Duration::from_millis(150)).await;

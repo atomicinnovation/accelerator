@@ -1,4 +1,5 @@
 import json
+import tomllib
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -8,6 +9,9 @@ from invoke import Context
 import tasks.build as tb
 import tasks.version as tv
 from tasks.build import validate_version_coherence
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+SERVER_DIR = REPO_ROOT / "skills/visualisation/visualise/server"
 
 
 @pytest.fixture
@@ -176,3 +180,45 @@ class TestBump:
             (fake_repo_tree / ".claude-plugin/plugin.json").read_text()
         )
         assert plugin_json["version"] == "1.22.0-pre.1"
+
+
+# ── [lints.clippy] templating + edition sync ──────────────────────────
+
+
+class TestLintsTemplating:
+    """Guard the tomlkit round-trip that 0098's clippy config depends on."""
+
+    def test_render_cargo_toml_preserves_lints_table(
+        self, mocker, fake_repo_tree
+    ):
+        cargo_path = (
+            fake_repo_tree / "skills/visualisation/visualise/server/Cargo.toml"
+        )
+        # Bespoke input: a [lints.clippy] table AND an inline rationale comment.
+        cargo_path.write_text(
+            "[package]\n"
+            'name = "accelerator-visualiser"\n'
+            'version = "1.20.0"\n'
+            'edition = "2021"\n\n'
+            "[lints.clippy]\n"
+            'pedantic = { level = "warn", priority = -1 }\n'
+            'missing_errors_doc = "allow"  # why: no Errors doc mandated\n'
+        )
+        mocker.patch.object(tv, "CARGO_TOML", cargo_path)
+        result = tv._render_cargo_toml("1.21.0")
+        # The table and its values survive the round-trip...
+        assert "[lints.clippy]" in result
+        assert 'pedantic = { level = "warn", priority = -1 }' in result
+        # ...and — the load-bearing assertion — so does the verbatim comment.
+        # (A plain dict-based TOML writer would keep the table but DROP this; it
+        # is the property the justification-comment policy depends on.)
+        assert "# why: no Errors doc mandated" in result
+        assert 'version = "1.21.0"' in result
+
+    def test_cargo_and_rustfmt_editions_match(self):
+        # Cargo.toml [package].edition and rustfmt.toml edition are two
+        # hand-duplicated literals; this guards the drift hazard that would let
+        # a direct-rustfmt caller silently fall back to edition 2015.
+        cargo = tomllib.loads((SERVER_DIR / "Cargo.toml").read_text())
+        rustfmt = tomllib.loads((SERVER_DIR / "rustfmt.toml").read_text())
+        assert cargo["package"]["edition"] == rustfmt["edition"]

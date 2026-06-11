@@ -54,8 +54,8 @@ impl ActivityEvent {
                 path: path.clone(),
                 timestamp: *timestamp,
             }),
-            SsePayload::DocInvalid { .. } => None,
-            SsePayload::TemplateChanged { .. } => None,
+            SsePayload::DocInvalid { .. }
+            | SsePayload::TemplateChanged { .. } => None,
         }
     }
 }
@@ -79,7 +79,10 @@ impl ActivityRingBuffer {
     /// Pushes `event` onto the front (newest-first ordering on read).
     /// If the buffer is at `CAPACITY`, the oldest event (back) is evicted.
     pub fn push(&self, event: ActivityEvent) {
-        let mut buf = self.inner.lock().unwrap_or_else(|p| p.into_inner());
+        let mut buf = self
+            .inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if buf.len() == CAPACITY {
             buf.pop_back();
         }
@@ -89,7 +92,10 @@ impl ActivityRingBuffer {
     /// Returns up to `limit` events, newest-first. Clones under the lock —
     /// see module-level Mutex discipline.
     pub fn recent(&self, limit: usize) -> Vec<ActivityEvent> {
-        let buf = self.inner.lock().unwrap_or_else(|p| p.into_inner());
+        let buf = self
+            .inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         buf.iter().take(limit).cloned().collect()
     }
 }
@@ -180,7 +186,8 @@ mod tests {
             etag: Some("sha256-abc".into()),
             timestamp: Utc.timestamp_opt(42, 0).unwrap(),
         };
-        let projected = ActivityEvent::from_payload(&payload).expect("DocChanged must project");
+        let projected = ActivityEvent::from_payload(&payload)
+            .expect("DocChanged must project");
         assert_eq!(projected.action, ActionKind::Created);
         assert_eq!(projected.path, "meta/plans/x.md");
         assert_eq!(projected.timestamp.timestamp(), 42);
@@ -217,7 +224,8 @@ mod tests {
         }
         let out = buf.recent(CAPACITY);
         assert_eq!(out.len() as i64, THREADS * PER_THREAD);
-        let unique: HashSet<i64> = out.iter().map(|e| e.timestamp.timestamp()).collect();
+        let unique: HashSet<i64> =
+            out.iter().map(|e| e.timestamp.timestamp()).collect();
         assert_eq!(
             unique.len() as i64,
             THREADS * PER_THREAD,

@@ -92,11 +92,12 @@ fn display_path(
             .ok()
             .map(|rel| PathBuf::from("<plugin-root>").join(rel))
     };
-    let strip_project = |p: &Path| {
-        p.strip_prefix(project_root).ok().map(Path::to_path_buf)
-    };
+    let strip_project =
+        |p: &Path| p.strip_prefix(project_root).ok().map(Path::to_path_buf);
     let (first, second) = match tier {
-        TemplateTierSource::PluginDefault => (strip_plugin(path), strip_project(path)),
+        TemplateTierSource::PluginDefault => {
+            (strip_plugin(path), strip_project(path))
+        }
         _ => (strip_project(path), strip_plugin(path)),
     };
     first.or(second).unwrap_or_else(|| path.to_path_buf())
@@ -107,9 +108,9 @@ fn display_path(
 /// empty winning file produces no displayable hash) and for absent
 /// content.
 pub(crate) fn content_sha256(content: Option<&str>) -> Option<String> {
-    content
-        .filter(|s| !s.is_empty())
-        .map(|s| format!("sha256-{}", hex::encode(Sha256::digest(s.as_bytes()))))
+    content.filter(|s| !s.is_empty()).map(|s| {
+        format!("sha256-{}", hex::encode(Sha256::digest(s.as_bytes())))
+    })
 }
 
 impl TemplateResolver {
@@ -123,11 +124,12 @@ impl TemplateResolver {
         for (name, tiers) in templates {
             let mut ordered = Vec::with_capacity(3);
 
-            let config_path = tiers
-                .config_override
-                .clone()
-                .unwrap_or_else(|| PathBuf::from(format!("<no config override for {name}>")));
-            let (present, content, etag) = load_via_driver(&tiers.config_override, driver).await;
+            let config_path =
+                tiers.config_override.clone().unwrap_or_else(|| {
+                    PathBuf::from(format!("<no config override for {name}>"))
+                });
+            let (present, content, etag) =
+                load_via_driver(&tiers.config_override, driver).await;
             ordered.push(TemplateTier {
                 source: TemplateTierSource::ConfigOverride,
                 path: display_path(
@@ -144,7 +146,8 @@ impl TemplateResolver {
             });
 
             let (present, content, etag) =
-                load_via_driver(&Some(tiers.user_override.clone()), driver).await;
+                load_via_driver(&Some(tiers.user_override.clone()), driver)
+                    .await;
             ordered.push(TemplateTier {
                 source: TemplateTierSource::UserOverride,
                 path: display_path(
@@ -161,7 +164,8 @@ impl TemplateResolver {
             });
 
             let (present, content, etag) =
-                load_via_driver(&Some(tiers.plugin_default.clone()), driver).await;
+                load_via_driver(&Some(tiers.plugin_default.clone()), driver)
+                    .await;
             ordered.push(TemplateTier {
                 source: TemplateTierSource::PluginDefault,
                 path: display_path(
@@ -180,8 +184,7 @@ impl TemplateResolver {
             let active_source = ordered
                 .iter()
                 .find(|t| t.present)
-                .map(|t| t.source)
-                .unwrap_or(TemplateTierSource::PluginDefault);
+                .map_or(TemplateTierSource::PluginDefault, |t| t.source);
             for t in &mut ordered {
                 t.active = t.source == active_source;
             }
@@ -272,20 +275,32 @@ mod display_path_tests {
     fn project_root_strip_wins_for_user_override_tier() {
         let project = std::path::Path::new("/work/repo");
         let plugin = std::path::Path::new("/elsewhere/plugin");
-        let path = std::path::Path::new("/work/repo/.accelerator/templates/adr.md");
-        let got = display_path(path, project, plugin, TemplateTierSource::UserOverride);
+        let path =
+            std::path::Path::new("/work/repo/.accelerator/templates/adr.md");
+        let got = display_path(
+            path,
+            project,
+            plugin,
+            TemplateTierSource::UserOverride,
+        );
         assert_eq!(got, std::path::Path::new(".accelerator/templates/adr.md"));
     }
 
     #[test]
-    fn plugin_root_prefix_wins_for_plugin_default_tier_even_when_path_is_under_project_root() {
+    fn plugin_root_prefix_wins_for_plugin_default_tier_even_when_path_is_under_project_root(
+    ) {
         // Local plugin-dev scenario: the plugin lives inside the project
         // root. Naive ordering would strip project_root first and lose the
         // `<plugin-root>` prefix; the tier-aware logic must keep it.
         let project = std::path::Path::new("/work/repo");
         let plugin = std::path::Path::new("/work/repo");
         let path = std::path::Path::new("/work/repo/templates/adr.md");
-        let got = display_path(path, project, plugin, TemplateTierSource::PluginDefault);
+        let got = display_path(
+            path,
+            project,
+            plugin,
+            TemplateTierSource::PluginDefault,
+        );
         assert_eq!(got, std::path::Path::new("<plugin-root>/templates/adr.md"));
     }
 
@@ -294,16 +309,27 @@ mod display_path_tests {
         let project = std::path::Path::new("/work/repo");
         let plugin = std::path::Path::new("/elsewhere/plugin");
         let path = std::path::Path::new("/elsewhere/plugin/templates/adr.md");
-        let got = display_path(path, project, plugin, TemplateTierSource::PluginDefault);
+        let got = display_path(
+            path,
+            project,
+            plugin,
+            TemplateTierSource::PluginDefault,
+        );
         assert_eq!(got, std::path::Path::new("<plugin-root>/templates/adr.md"));
     }
 
     #[test]
-    fn plugin_default_falls_back_to_project_root_strip_when_outside_plugin_root() {
+    fn plugin_default_falls_back_to_project_root_strip_when_outside_plugin_root(
+    ) {
         let project = std::path::Path::new("/work/repo");
         let plugin = std::path::Path::new("/elsewhere/plugin");
         let path = std::path::Path::new("/work/repo/local/templates/adr.md");
-        let got = display_path(path, project, plugin, TemplateTierSource::PluginDefault);
+        let got = display_path(
+            path,
+            project,
+            plugin,
+            TemplateTierSource::PluginDefault,
+        );
         // Plugin-root strip fails → falls through to project-root strip.
         assert_eq!(got, std::path::Path::new("local/templates/adr.md"));
     }
@@ -313,7 +339,12 @@ mod display_path_tests {
         let project = std::path::Path::new("/work/repo");
         let plugin = std::path::Path::new("/elsewhere/plugin");
         let path = std::path::Path::new("/somewhere/else/templates/adr.md");
-        let got = display_path(path, project, plugin, TemplateTierSource::UserOverride);
+        let got = display_path(
+            path,
+            project,
+            plugin,
+            TemplateTierSource::UserOverride,
+        );
         assert_eq!(got, path);
     }
 }
@@ -348,10 +379,14 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
-        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path())
+            .await;
         let summaries = r.list();
         assert_eq!(summaries.len(), 1);
-        assert_eq!(summaries[0].active_tier, TemplateTierSource::ConfigOverride);
+        assert_eq!(
+            summaries[0].active_tier,
+            TemplateTierSource::ConfigOverride
+        );
         let active = summaries[0].tiers.iter().find(|t| t.active).unwrap();
         assert_eq!(active.source, TemplateTierSource::ConfigOverride);
     }
@@ -368,7 +403,8 @@ mod tests {
         };
         let mut map = HashMap::new();
         map.insert("adr".to_string(), t);
-        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path())
+            .await;
         let d = r.detail("adr").unwrap();
         assert_eq!(d.active_tier, TemplateTierSource::PluginDefault);
         assert_eq!(
@@ -390,7 +426,8 @@ mod tests {
         };
         let mut map = HashMap::new();
         map.insert("adr".to_string(), t);
-        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path())
+            .await;
         let d = r.detail("adr").unwrap();
         assert_eq!(d.active_tier, TemplateTierSource::UserOverride);
     }
@@ -403,7 +440,8 @@ mod tests {
         map.insert("plan".to_string(), tiers_all_three(tmp.path()));
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
         map.insert("research".to_string(), tiers_all_three(tmp.path()));
-        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path())
+            .await;
         let names: Vec<String> = r.list().into_iter().map(|s| s.name).collect();
         assert_eq!(names, vec!["adr", "plan", "research"]);
     }
@@ -414,7 +452,8 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
-        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path())
+            .await;
         let s = &r.list()[0];
         assert!(s.tiers.iter().all(|t| t.content.is_none()));
         let d = r.detail("adr").unwrap();
@@ -432,7 +471,8 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
-        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path())
+            .await;
         assert!(r.detail("missing").is_none());
     }
 
@@ -442,7 +482,8 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
-        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path())
+            .await;
         let d = r.detail("adr").unwrap();
         let active = d.tiers.iter().find(|t| t.active).unwrap();
         let expected = format!(
@@ -467,7 +508,8 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("e".to_string(), t);
-        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path())
+            .await;
         let d = r.detail("e").unwrap();
         assert!(d.sha256.is_none(), "empty winning content -> no sha256");
     }
@@ -478,7 +520,8 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
-        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
+        let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path())
+            .await;
         let s1 = r.detail("adr").unwrap().sha256.clone();
         let s2 = r.detail("adr").unwrap().sha256.clone();
         assert_eq!(s1, s2);
@@ -491,8 +534,10 @@ mod tests {
         let driver = test_driver(tmp.path());
         let mut map = HashMap::new();
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
-        let r1 = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
-        let r2 = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path()).await;
+        let r1 = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path())
+            .await;
+        let r2 = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path())
+            .await;
         let a = r1.detail("adr").unwrap();
         let b = r2.detail("adr").unwrap();
         for (ta, tb) in a.tiers.iter().zip(b.tiers.iter()) {

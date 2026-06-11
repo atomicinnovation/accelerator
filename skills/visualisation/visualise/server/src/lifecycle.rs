@@ -61,9 +61,9 @@ pub(crate) fn owner_alive(pid: i32, expected_start_time: Option<u64>) -> bool {
     use nix::errno::Errno;
     use nix::unistd::Pid;
     let probe = match nix::sys::signal::kill(Pid::from_raw(pid), None) {
-        Ok(()) => true,
-        Err(Errno::EPERM) => true, // exists, we just can't signal it
-        Err(_) => false,           // ESRCH or similar — gone
+        // Ok: signalled it; EPERM: exists, we just can't signal it.
+        Ok(()) | Err(Errno::EPERM) => true,
+        Err(_) => false, // ESRCH or similar — gone
     };
     if !probe {
         return false;

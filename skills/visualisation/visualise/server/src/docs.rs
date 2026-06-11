@@ -54,7 +54,9 @@ impl DocTypeKey {
             // with user config files. See plan 2026-05-16-0041.
             DocTypeKey::PrDescriptions => Some("prs"),
             DocTypeKey::DesignGaps => Some("research_design_gaps"),
-            DocTypeKey::DesignInventories => Some("research_design_inventories"),
+            DocTypeKey::DesignInventories => {
+                Some("research_design_inventories")
+            }
             DocTypeKey::Templates => None,
         }
     }
@@ -97,7 +99,7 @@ impl DocTypeKey {
 
     /// True iff this doc type is part of the work-item lifecycle
     /// pipeline. These types fall back to slug-bucketing when their
-    /// typed-linkage walk returns no cluster_key (legacy filename
+    /// typed-linkage walk returns no `cluster_key` (legacy filename
     /// shapes). Orphan-by-design types return `false` and are kept
     /// in per-path buckets to prevent slug-collision merges.
     pub fn participates_in_lifecycle(self) -> bool {
@@ -276,7 +278,10 @@ mod tests {
 
     #[test]
     fn work_item_reviews_uses_review_work_config_path_key() {
-        assert_eq!(DocTypeKey::WorkItemReviews.config_path_key(), Some("review_work"));
+        assert_eq!(
+            DocTypeKey::WorkItemReviews.config_path_key(),
+            Some("review_work")
+        );
     }
 
     #[test]
@@ -346,7 +351,8 @@ mod tests {
     fn describe_types_populates_dir_paths_from_config() {
         let mut doc_paths = std::collections::HashMap::new();
         doc_paths.insert("decisions".into(), PathBuf::from("/abs/decisions"));
-        doc_paths.insert("review_plans".into(), PathBuf::from("/abs/reviews/plans"));
+        doc_paths
+            .insert("review_plans".into(), PathBuf::from("/abs/reviews/plans"));
 
         let cfg = crate::config::Config {
             plugin_root: "/p".into(),
@@ -358,7 +364,7 @@ mod tests {
             owner_start_time: None,
             log_path: "/l".into(),
             doc_paths,
-            templates: Default::default(),
+            templates: std::collections::HashMap::default(),
             work_item: None,
             kanban_columns: None,
             idle_timeout: None,
@@ -403,8 +409,8 @@ mod tests {
             owner_pid: 0,
             owner_start_time: None,
             log_path: "/l".into(),
-            doc_paths: Default::default(),
-            templates: Default::default(),
+            doc_paths: std::collections::HashMap::default(),
+            templates: std::collections::HashMap::default(),
             work_item: None,
             kanban_columns: None,
             idle_timeout: None,

@@ -130,7 +130,9 @@ async fn version_header_present_on_404_fallback() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-    assert!(resp.headers().contains_key("accelerator-visualiser-version"));
+    assert!(resp
+        .headers()
+        .contains_key("accelerator-visualiser-version"));
 }
 
 #[tokio::test]
@@ -152,7 +154,8 @@ async fn version_header_present_on_host_header_guard_rejection() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::FORBIDDEN);
     assert!(
-        resp.headers().contains_key("accelerator-visualiser-version"),
+        resp.headers()
+            .contains_key("accelerator-visualiser-version"),
         "version header must survive guard short-circuits",
     );
 }

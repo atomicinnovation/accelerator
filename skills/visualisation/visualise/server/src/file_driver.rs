@@ -54,12 +54,26 @@ pub trait FileDriver: Send + Sync {
     fn list(
         &self,
         kind: DocTypeKey,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<Vec<PathBuf>, FileDriverError>> + Send + '_>>;
+    ) -> Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<Vec<PathBuf>, FileDriverError>,
+                > + Send
+                + '_,
+        >,
+    >;
 
     fn read(
         &self,
         path: &Path,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<FileContent, FileDriverError>> + Send + '_>>;
+    ) -> Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<FileContent, FileDriverError>,
+                > + Send
+                + '_,
+        >,
+    >;
 
     fn write_frontmatter(
         &self,
@@ -67,7 +81,14 @@ pub trait FileDriver: Send + Sync {
         patch: FrontmatterPatch,
         if_match: &str,
         on_committed: Box<dyn FnOnce(&Path) + Send>,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<FileContent, FileDriverError>> + Send + '_>>;
+    ) -> Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<FileContent, FileDriverError>,
+                > + Send
+                + '_,
+        >,
+    >;
 
     fn kind_for_canonical_path(&self, path: &Path) -> Option<DocTypeKey>;
 }
@@ -76,7 +97,8 @@ pub struct LocalFileDriver {
     roots: HashMap<DocTypeKey, PathBuf>,
     extra_roots: Vec<PathBuf>,
     writable_roots: Vec<PathBuf>,
-    path_locks: Arc<std::sync::Mutex<HashMap<PathBuf, Arc<tokio::sync::Mutex<()>>>>>,
+    path_locks:
+        Arc<std::sync::Mutex<HashMap<PathBuf, Arc<tokio::sync::Mutex<()>>>>>,
 }
 
 impl LocalFileDriver {
@@ -93,7 +115,8 @@ impl LocalFileDriver {
             let Some(raw) = doc_paths.get(cfg_key) else {
                 continue;
             };
-            let canonical = std::fs::canonicalize(raw).unwrap_or_else(|_| raw.clone());
+            let canonical =
+                std::fs::canonicalize(raw).unwrap_or_else(|_| raw.clone());
             roots.insert(kind, canonical);
         }
         let extra_roots = extra_roots
@@ -115,7 +138,7 @@ impl LocalFileDriver {
     fn root_for(&self, kind: DocTypeKey) -> Result<&Path, FileDriverError> {
         self.roots
             .get(&kind)
-            .map(|p| p.as_path())
+            .map(std::path::PathBuf::as_path)
             .ok_or(FileDriverError::TypeNotConfigured { kind })
     }
 
@@ -129,7 +152,10 @@ impl LocalFileDriver {
                 .any(|r| canonical_path.starts_with(r))
     }
 
-    async fn acquire_write_lock(&self, canonical: &Path) -> tokio::sync::OwnedMutexGuard<()> {
+    async fn acquire_write_lock(
+        &self,
+        canonical: &Path,
+    ) -> tokio::sync::OwnedMutexGuard<()> {
         let per_path = {
             let mut map = self.path_locks.lock().unwrap();
             map.entry(canonical.to_path_buf())
@@ -144,12 +170,12 @@ impl LocalFileDriver {
         canonical: &Path,
         if_match: &str,
     ) -> Result<Vec<u8>, FileDriverError> {
-        let bytes = tokio::fs::read(canonical)
-            .await
-            .map_err(|source| FileDriverError::Io {
+        let bytes = tokio::fs::read(canonical).await.map_err(|source| {
+            FileDriverError::Io {
                 path: canonical.to_path_buf(),
                 source,
-            })?;
+            }
+        })?;
         let current = etag_of(&bytes);
         let stripped = if_match.trim_matches('"');
         if stripped != current {
@@ -174,16 +200,19 @@ impl LocalFileDriver {
                 .to_path_buf();
 
             let mut tmp =
-                tempfile::NamedTempFile::new_in(&parent).map_err(|source| FileDriverError::Io {
-                    path: parent.clone(),
-                    source,
+                tempfile::NamedTempFile::new_in(&parent).map_err(|source| {
+                    FileDriverError::Io {
+                        path: parent.clone(),
+                        source,
+                    }
                 })?;
 
-            tmp.write_all(&new_bytes)
-                .map_err(|source| FileDriverError::Io {
+            tmp.write_all(&new_bytes).map_err(|source| {
+                FileDriverError::Io {
                     path: parent.clone(),
                     source,
-                })?;
+                }
+            })?;
 
             tmp.as_file()
                 .sync_all()
@@ -192,12 +221,12 @@ impl LocalFileDriver {
                     source,
                 })?;
 
-            std::fs::set_permissions(tmp.path(), original_perms).map_err(|source| {
-                FileDriverError::Io {
+            std::fs::set_permissions(tmp.path(), original_perms).map_err(
+                |source| FileDriverError::Io {
                     path: tmp.path().to_path_buf(),
                     source,
-                }
-            })?;
+                },
+            )?;
 
             tmp.persist(&canonical_clone).map_err(|e| {
                 if e.error.raw_os_error() == Some(libc::EXDEV) {
@@ -212,9 +241,11 @@ impl LocalFileDriver {
                 }
             })?;
 
-            let dir = std::fs::File::open(&parent).map_err(|source| FileDriverError::Io {
-                path: parent.clone(),
-                source,
+            let dir = std::fs::File::open(&parent).map_err(|source| {
+                FileDriverError::Io {
+                    path: parent.clone(),
+                    source,
+                }
             })?;
             dir.sync_all().map_err(|source| FileDriverError::Io {
                 path: parent.clone(),
@@ -235,8 +266,14 @@ impl FileDriver for LocalFileDriver {
     fn list(
         &self,
         kind: DocTypeKey,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<Vec<PathBuf>, FileDriverError>> + Send + '_>>
-    {
+    ) -> Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<Vec<PathBuf>, FileDriverError>,
+                > + Send
+                + '_,
+        >,
+    > {
         let root = match self.root_for(kind) {
             Ok(r) => r.to_path_buf(),
             Err(e) => return Box::pin(std::future::ready(Err(e))),
@@ -248,7 +285,9 @@ impl FileDriver for LocalFileDriver {
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                     return Ok(vec![]);
                 }
-                Err(source) => return Err(FileDriverError::Io { path: root, source }),
+                Err(source) => {
+                    return Err(FileDriverError::Io { path: root, source })
+                }
             };
             let mut entries = Vec::new();
             let mut stream = read;
@@ -289,7 +328,7 @@ impl FileDriver for LocalFileDriver {
                     let candidate = path.join(manifest_name);
                     match tokio::fs::metadata(&candidate).await {
                         Ok(meta) if meta.is_file() => entries.push(candidate),
-                        _ => continue,
+                        _ => {}
                     }
                 } else {
                     if path.extension().and_then(|s| s.to_str()) != Some("md") {
@@ -308,30 +347,37 @@ impl FileDriver for LocalFileDriver {
     fn read(
         &self,
         path: &Path,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<FileContent, FileDriverError>> + Send + '_>>
-    {
+    ) -> Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<FileContent, FileDriverError>,
+                > + Send
+                + '_,
+        >,
+    > {
         let path = path.to_path_buf();
         Box::pin(async move {
-            let canonical = tokio::fs::canonicalize(&path).await.map_err(|source| {
-                if source.kind() == std::io::ErrorKind::NotFound {
-                    FileDriverError::NotFound { path: path.clone() }
-                } else {
-                    FileDriverError::Io {
-                        path: path.clone(),
-                        source,
+            let canonical =
+                tokio::fs::canonicalize(&path).await.map_err(|source| {
+                    if source.kind() == std::io::ErrorKind::NotFound {
+                        FileDriverError::NotFound { path: path.clone() }
+                    } else {
+                        FileDriverError::Io {
+                            path: path.clone(),
+                            source,
+                        }
                     }
-                }
-            })?;
+                })?;
             if !self.path_is_allowed(&canonical) {
                 return Err(FileDriverError::PathEscape { path });
             }
             let meta =
-                tokio::fs::metadata(&canonical)
-                    .await
-                    .map_err(|source| FileDriverError::Io {
+                tokio::fs::metadata(&canonical).await.map_err(|source| {
+                    FileDriverError::Io {
                         path: canonical.clone(),
                         source,
-                    })?;
+                    }
+                })?;
             if meta.len() > MAX_DOC_BYTES {
                 return Err(FileDriverError::TooLarge {
                     path,
@@ -339,24 +385,24 @@ impl FileDriver for LocalFileDriver {
                     limit: MAX_DOC_BYTES,
                 });
             }
-            let bytes = tokio::fs::read(&canonical).await.map_err(|source| {
-                if source.kind() == std::io::ErrorKind::NotFound {
-                    FileDriverError::NotFound {
-                        path: canonical.clone(),
+            let bytes =
+                tokio::fs::read(&canonical).await.map_err(|source| {
+                    if source.kind() == std::io::ErrorKind::NotFound {
+                        FileDriverError::NotFound {
+                            path: canonical.clone(),
+                        }
+                    } else {
+                        FileDriverError::Io {
+                            path: canonical.clone(),
+                            source,
+                        }
                     }
-                } else {
-                    FileDriverError::Io {
-                        path: canonical.clone(),
-                        source,
-                    }
-                }
-            })?;
+                })?;
             let mtime_ms = meta
                 .modified()
                 .ok()
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_millis() as i64)
-                .unwrap_or(0);
+                .map_or(0, |d| d.as_millis() as i64);
             let etag = etag_of(&bytes);
             Ok(FileContent {
                 bytes,
@@ -373,27 +419,37 @@ impl FileDriver for LocalFileDriver {
         patch: FrontmatterPatch,
         if_match: &str,
         on_committed: Box<dyn FnOnce(&Path) + Send>,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<FileContent, FileDriverError>> + Send + '_>>
-    {
+    ) -> Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<FileContent, FileDriverError>,
+                > + Send
+                + '_,
+        >,
+    > {
         let path = path.to_path_buf();
         let if_match = if_match.to_string();
         Box::pin(async move {
             // Canonicalize
-            let canonical = tokio::fs::canonicalize(&path).await.map_err(|source| {
-                if source.kind() == std::io::ErrorKind::NotFound {
-                    FileDriverError::NotFound { path: path.clone() }
-                } else {
-                    FileDriverError::Io {
-                        path: path.clone(),
-                        source,
+            let canonical =
+                tokio::fs::canonicalize(&path).await.map_err(|source| {
+                    if source.kind() == std::io::ErrorKind::NotFound {
+                        FileDriverError::NotFound { path: path.clone() }
+                    } else {
+                        FileDriverError::Io {
+                            path: path.clone(),
+                            source,
+                        }
                     }
-                }
-            })?;
+                })?;
 
             // Writable-root check
-            let writable = self.writable_roots.iter().any(|r| canonical.starts_with(r));
+            let writable =
+                self.writable_roots.iter().any(|r| canonical.starts_with(r));
             if !writable {
-                return Err(FileDriverError::PathNotWritable { path: canonical });
+                return Err(FileDriverError::PathNotWritable {
+                    path: canonical,
+                });
             }
 
             // Acquire per-path mutex (TOCTOU safety)
@@ -412,7 +468,8 @@ impl FileDriver for LocalFileDriver {
             let bytes = self.read_and_check_etag(&canonical, &if_match).await?;
 
             // Apply the patch
-            let new_bytes = patcher::apply(&bytes, patch).map_err(FileDriverError::Patch)?;
+            let new_bytes = patcher::apply(&bytes, patch)
+                .map_err(FileDriverError::Patch)?;
 
             // Idempotent short-circuit: no write needed
             if new_bytes == bytes {
@@ -421,8 +478,7 @@ impl FileDriver for LocalFileDriver {
                     .ok()
                     .and_then(|m| m.modified().ok())
                     .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                    .map(|d| d.as_millis() as i64)
-                    .unwrap_or(0);
+                    .map_or(0, |d| d.as_millis() as i64);
                 let size = bytes.len() as u64;
                 return Ok(FileContent {
                     bytes,
@@ -444,18 +500,17 @@ impl FileDriver for LocalFileDriver {
             on_committed(&canonical);
 
             let meta =
-                tokio::fs::metadata(&canonical)
-                    .await
-                    .map_err(|source| FileDriverError::Io {
+                tokio::fs::metadata(&canonical).await.map_err(|source| {
+                    FileDriverError::Io {
                         path: canonical.clone(),
                         source,
-                    })?;
+                    }
+                })?;
             let mtime_ms = meta
                 .modified()
                 .ok()
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_millis() as i64)
-                .unwrap_or(0);
+                .map_or(0, |d| d.as_millis() as i64);
             let size = new_bytes.len() as u64;
             let new_etag = etag_of(&new_bytes);
 
@@ -718,7 +773,8 @@ mod write_tests {
         let original = d.read(&path).await.unwrap();
 
         // Out-of-band edit
-        std::fs::write(&path, "---\ntitle: Foo\nstatus: done\n---\n# body\n").unwrap();
+        std::fs::write(&path, "---\ntitle: Foo\nstatus: done\n---\n# body\n")
+            .unwrap();
 
         let err = d
             .write_frontmatter(
@@ -813,7 +869,11 @@ mod write_tests {
         let tmp = tempfile::tempdir().unwrap();
         let work = tmp.path().join("work");
         std::fs::create_dir_all(&work).unwrap();
-        std::fs::write(work.join("0001-no-fm.md"), "# Heading\nno frontmatter\n").unwrap();
+        std::fs::write(
+            work.join("0001-no-fm.md"),
+            "# Heading\nno frontmatter\n",
+        )
+        .unwrap();
 
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
@@ -836,7 +896,9 @@ mod write_tests {
         assert!(
             matches!(
                 err,
-                FileDriverError::Patch(crate::patcher::PatchError::FrontmatterAbsent)
+                FileDriverError::Patch(
+                    crate::patcher::PatchError::FrontmatterAbsent
+                )
             ),
             "expected Patch(FrontmatterAbsent), got {err:?}"
         );
@@ -897,7 +959,8 @@ mod write_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
-        let d = StdArc::new(LocalFileDriver::new(&map, vec![], vec![work.clone()]));
+        let d =
+            StdArc::new(LocalFileDriver::new(&map, vec![], vec![work.clone()]));
 
         let path = work.join("0001-foo.md");
         let etag = {
@@ -915,8 +978,13 @@ mod write_tests {
             let b2 = barrier.clone();
             handles.push(tokio::spawn(async move {
                 b2.wait().await;
-                d2.write_frontmatter(&p2, FrontmatterPatch::Status(status), &e2, Box::new(|_| {}))
-                    .await
+                d2.write_frontmatter(
+                    &p2,
+                    FrontmatterPatch::Status(status),
+                    &e2,
+                    Box::new(|_| {}),
+                )
+                .await
             }));
         }
 
@@ -987,7 +1055,8 @@ mod write_tests {
         let path = work.join("0001-foo.md");
         let raw = std::fs::read(&path).unwrap();
         let etag = etag_of(&raw);
-        let mtime_before = std::fs::metadata(&path).unwrap().modified().unwrap();
+        let mtime_before =
+            std::fs::metadata(&path).unwrap().modified().unwrap();
 
         let result = d
             .write_frontmatter(
@@ -1021,7 +1090,8 @@ mod write_tests {
         let path = tmp.path().join("work").join("0001-foo.md");
 
         // Set mode to 0o644
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
+            .unwrap();
 
         let raw = std::fs::read(&path).unwrap();
         let etag = etag_of(&raw);
@@ -1035,7 +1105,8 @@ mod write_tests {
         .await
         .unwrap();
 
-        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        let mode =
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o644, "file mode must be preserved after write");
     }
 
@@ -1054,7 +1125,9 @@ mod write_tests {
     }
 
     // Helper: collect JoinHandle results
-    async fn futures_collect<T>(handles: Vec<tokio::task::JoinHandle<T>>) -> Vec<T> {
+    async fn futures_collect<T>(
+        handles: Vec<tokio::task::JoinHandle<T>>,
+    ) -> Vec<T> {
         let mut out = Vec::with_capacity(handles.len());
         for h in handles {
             out.push(h.await.expect("task panicked"));

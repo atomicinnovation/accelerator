@@ -34,7 +34,7 @@ pub struct PerTypeAggregate {
     pub filtered_count: usize,
     /// Selection-unaware: hub card always shows the absolute latest.
     pub latest: Option<LatestPreview>,
-    /// facet_options[facet_id] => sorted map of option-id → count.
+    /// `facet_options`[`facet_id`] => sorted map of option-id → count.
     /// Counts are computed with post-other-facet, pre-own-facet scoping.
     pub facet_options: HashMap<String, BTreeMap<String, usize>>,
 }
@@ -84,7 +84,7 @@ pub fn extract_facet_value(
                 .frontmatter
                 .get("status")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
         }
         "clusterSlug" => entry.slug.clone(),
         "project" => {
@@ -120,9 +120,8 @@ pub fn entry_matches_all(
         if options.is_empty() {
             continue;
         }
-        let value = match extract_facet_value(entry, cfg, facet_id) {
-            Some(v) => v,
-            None => return false,
+        let Some(value) = extract_facet_value(entry, cfg, facet_id) else {
+            return false;
         };
         if !options.iter().any(|o| o == &value) {
             return false;
@@ -148,9 +147,8 @@ pub fn entry_matches_all_except(
         if options.is_empty() {
             continue;
         }
-        let value = match extract_facet_value(entry, cfg, facet_id) {
-            Some(v) => v,
-            None => return false,
+        let Some(value) = extract_facet_value(entry, cfg, facet_id) else {
+            return false;
         };
         if !options.iter().any(|o| o == &value) {
             return false;
@@ -241,7 +239,8 @@ pub struct Indexer {
     // Serialises rescan() against refresh_one() so they cannot interleave.
     rescan_lock: Arc<Semaphore>,
     #[cfg(test)]
-    test_post_secondary_update: tokio::sync::Mutex<Option<PostSecondaryUpdateHook>>,
+    test_post_secondary_update:
+        tokio::sync::Mutex<Option<PostSecondaryUpdateHook>>,
 }
 
 impl Indexer {
@@ -285,14 +284,18 @@ impl Indexer {
     }
 
     pub async fn rescan(&self) -> Result<(), FileDriverError> {
+        // Phase 2 reads files concurrently; this bounds the in-flight reads.
+        const READ_CONCURRENCY: usize = 64;
         let _permit = self.rescan_lock.acquire().await.unwrap();
 
         let mut entries: HashMap<PathBuf, IndexEntry> = HashMap::new();
         let mut adr_by_id: HashMap<u32, PathBuf> = HashMap::new();
         let mut work_item_by_id: HashMap<String, PathBuf> = HashMap::new();
         let mut plans_by_id: HashMap<String, PathBuf> = HashMap::new();
-        let mut reviews_by_target: HashMap<PathBuf, BTreeSet<PathBuf>> = HashMap::new();
-        let mut work_item_refs_by_target: HashMap<String, BTreeSet<PathBuf>> = HashMap::new();
+        let mut reviews_by_target: HashMap<PathBuf, BTreeSet<PathBuf>> =
+            HashMap::new();
+        let mut work_item_refs_by_target: HashMap<String, BTreeSet<PathBuf>> =
+            HashMap::new();
 
         // Phase 1: enumerate every (kind, path) up front, preserving doc-type
         // and per-type listing order so the dedup folds below stay deterministic.
@@ -302,8 +305,10 @@ impl Indexer {
                 continue;
             }
             match self.driver.list(kind).await {
-                Ok(paths) => targets.extend(paths.into_iter().map(|p| (kind, p))),
-                Err(FileDriverError::TypeNotConfigured { .. }) => continue,
+                Ok(paths) => {
+                    targets.extend(paths.into_iter().map(|p| (kind, p)));
+                }
+                Err(FileDriverError::TypeNotConfigured { .. }) => {}
                 Err(e) => return Err(e),
             }
         }
@@ -312,19 +317,21 @@ impl Indexer {
         // calls that block; overlapping them lets the runtime's blocking pool
         // service many at once instead of one round-trip at a time. `buffered`
         // preserves input order, so the serial fold below remains deterministic.
-        const READ_CONCURRENCY: usize = 64;
-        let read_results: Vec<(DocTypeKey, PathBuf, Result<FileContent, FileDriverError>)> =
-            stream::iter(targets)
-                .map(|(kind, path)| {
-                    let driver = &self.driver;
-                    async move {
-                        let content = driver.read(&path).await;
-                        (kind, path, content)
-                    }
-                })
-                .buffered(READ_CONCURRENCY)
-                .collect()
-                .await;
+        let read_results: Vec<(
+            DocTypeKey,
+            PathBuf,
+            Result<FileContent, FileDriverError>,
+        )> = stream::iter(targets)
+            .map(|(kind, path)| {
+                let driver = &self.driver;
+                async move {
+                    let content = driver.read(&path).await;
+                    (kind, path, content)
+                }
+            })
+            .buffered(READ_CONCURRENCY)
+            .collect()
+            .await;
 
         // Phase 3 Pass A: parse and fold serially, in original order.
         // Build entries and every primary-id map. Defer reviews_by_target
@@ -336,7 +343,13 @@ impl Indexer {
                 Err(FileDriverError::NotFound { .. }) => continue,
                 Err(e) => return Err(e),
             };
-            let entry = build_entry(kind, path.clone(), &content, &self.project_root, &self.work_item_cfg);
+            let entry = build_entry(
+                kind,
+                path.clone(),
+                &content,
+                &self.project_root,
+                &self.work_item_cfg,
+            );
 
             if let Some(id) = adr_id_from_entry(&entry) {
                 adr_by_id.insert(id, path.clone());
@@ -347,7 +360,10 @@ impl Indexer {
             if let Some(id) = plan_id_from_entry(&entry) {
                 plans_by_id.insert(id, path.clone());
             }
-            for id in canonicalise_refs(entry.work_item_refs.clone(), &self.work_item_cfg) {
+            for id in canonicalise_refs(
+                entry.work_item_refs.clone(),
+                &self.work_item_cfg,
+            ) {
                 // Skip self-references: a doc must not appear in its own index.
                 if entry.work_item_id.as_deref() == Some(id.as_str()) {
                     continue;
@@ -408,7 +424,10 @@ impl Indexer {
     /// single `entries.write()` guard. Each secondary-index helper takes its
     /// own write lock *while* the caller holds `entries.write()`, so readers
     /// never observe a partial (entries, secondary) snapshot.
-    pub async fn refresh_one(&self, path: &Path) -> Result<Option<IndexEntry>, FileDriverError> {
+    pub async fn refresh_one(
+        &self,
+        path: &Path,
+    ) -> Result<Option<IndexEntry>, FileDriverError> {
         let _permit = self.rescan_lock.acquire().await.unwrap();
 
         match self.driver.read(path).await {
@@ -419,44 +438,56 @@ impl Indexer {
                     .await
                     .unwrap_or_else(|_| path.to_path_buf());
 
-                let kind = match self.driver.kind_for_canonical_path(&canonical) {
-                    Some(k) => k,
-                    None => {
-                        // Path is not under any known root; remove if present and bail.
-                        // Hold entries.write() and clean each secondary index for
-                        // any previous entry under this path before dropping.
-                        let mut entries = self.entries.write().await;
-                        if let Some(previous) = entries.get(&canonical).cloned() {
-                            remove_from_adr_by_id(&self.adr_by_id, &previous).await;
-                            remove_from_work_item_by_id(&self.work_item_by_id, &previous).await;
-                            remove_from_plans_by_id(&self.plans_by_id, &previous).await;
-                            let plans_snapshot = self.plans_by_id.read().await.clone();
-                            // Snapshot work_item_by_id AFTER the work-item-by-id
-                            // removal, mirroring plans_snapshot, so the typed
-                            // `work-item:` target resolves against a consistent view.
-                            let work_item_snapshot = self.work_item_by_id.read().await.clone();
-                            remove_from_reviews_by_target(
-                                &self.reviews_by_target,
-                                &plans_snapshot,
-                                &work_item_snapshot,
-                                &self.work_item_cfg,
-                                &self.project_root,
-                                &previous,
-                            )
+                let Some(kind) =
+                    self.driver.kind_for_canonical_path(&canonical)
+                else {
+                    // Path is not under any known root; remove if present and bail.
+                    // Hold entries.write() and clean each secondary index for
+                    // any previous entry under this path before dropping.
+                    let mut entries = self.entries.write().await;
+                    if let Some(previous) = entries.get(&canonical).cloned() {
+                        remove_from_adr_by_id(&self.adr_by_id, &previous).await;
+                        remove_from_work_item_by_id(
+                            &self.work_item_by_id,
+                            &previous,
+                        )
+                        .await;
+                        remove_from_plans_by_id(&self.plans_by_id, &previous)
                             .await;
-                            remove_from_work_item_refs_by_target(
-                                &self.work_item_refs_by_target,
-                                &self.work_item_cfg,
-                                &previous,
-                            )
-                            .await;
-                            entries.remove(&canonical);
-                        }
-                        return Ok(None);
+                        let plans_snapshot =
+                            self.plans_by_id.read().await.clone();
+                        // Snapshot work_item_by_id AFTER the work-item-by-id
+                        // removal, mirroring plans_snapshot, so the typed
+                        // `work-item:` target resolves against a consistent view.
+                        let work_item_snapshot =
+                            self.work_item_by_id.read().await.clone();
+                        remove_from_reviews_by_target(
+                            &self.reviews_by_target,
+                            &plans_snapshot,
+                            &work_item_snapshot,
+                            &self.work_item_cfg,
+                            &self.project_root,
+                            &previous,
+                        )
+                        .await;
+                        remove_from_work_item_refs_by_target(
+                            &self.work_item_refs_by_target,
+                            &self.work_item_cfg,
+                            &previous,
+                        )
+                        .await;
+                        entries.remove(&canonical);
                     }
+                    return Ok(None);
                 };
 
-                let entry = build_entry(kind, canonical.clone(), &content, &self.project_root, &self.work_item_cfg);
+                let entry = build_entry(
+                    kind,
+                    canonical.clone(),
+                    &content,
+                    &self.project_root,
+                    &self.work_item_cfg,
+                );
 
                 // Single-writer-lock invariant: hold entries.write() across
                 // every secondary-index update so readers see a consistent
@@ -464,9 +495,20 @@ impl Indexer {
                 let mut entries = self.entries.write().await;
                 let previous = entries.get(&canonical).cloned();
 
-                update_adr_by_id(&self.adr_by_id, &entry, previous.as_ref()).await;
-                update_work_item_by_id(&self.work_item_by_id, &entry, previous.as_ref()).await;
-                update_plans_by_id(&self.plans_by_id, &entry, previous.as_ref()).await;
+                update_adr_by_id(&self.adr_by_id, &entry, previous.as_ref())
+                    .await;
+                update_work_item_by_id(
+                    &self.work_item_by_id,
+                    &entry,
+                    previous.as_ref(),
+                )
+                .await;
+                update_plans_by_id(
+                    &self.plans_by_id,
+                    &entry,
+                    previous.as_ref(),
+                )
+                .await;
                 // Acquire a snapshot of plans_by_id AFTER the plans-by-id
                 // helper has folded the new entry in, so the
                 // reviews_by_target update sees a consistent view.
@@ -474,7 +516,8 @@ impl Indexer {
                 // Snapshot work_item_by_id AFTER update_work_item_by_id has
                 // folded the new entry in, mirroring plans_snapshot, so a typed
                 // `work-item:` target resolves against a consistent view.
-                let work_item_snapshot = self.work_item_by_id.read().await.clone();
+                let work_item_snapshot =
+                    self.work_item_by_id.read().await.clone();
                 update_reviews_by_target(
                     &self.reviews_by_target,
                     &plans_snapshot,
@@ -496,7 +539,9 @@ impl Indexer {
                 entries.insert(canonical.clone(), entry.clone());
 
                 #[cfg(test)]
-                if let Some(hook) = self.test_post_secondary_update.lock().await.take() {
+                if let Some(hook) =
+                    self.test_post_secondary_update.lock().await.take()
+                {
                     let _ = hook.reached.send(());
                     let _ = hook.proceed.await;
                 }
@@ -514,10 +559,15 @@ impl Indexer {
 
                 if let Some(previous) = previous {
                     remove_from_adr_by_id(&self.adr_by_id, &previous).await;
-                    remove_from_work_item_by_id(&self.work_item_by_id, &previous).await;
+                    remove_from_work_item_by_id(
+                        &self.work_item_by_id,
+                        &previous,
+                    )
+                    .await;
                     remove_from_plans_by_id(&self.plans_by_id, &previous).await;
                     let plans_snapshot = self.plans_by_id.read().await.clone();
-                    let work_item_snapshot = self.work_item_by_id.read().await.clone();
+                    let work_item_snapshot =
+                        self.work_item_by_id.read().await.clone();
                     remove_from_reviews_by_target(
                         &self.reviews_by_target,
                         &plans_snapshot,
@@ -537,7 +587,9 @@ impl Indexer {
                 }
 
                 #[cfg(test)]
-                if let Some(hook) = self.test_post_secondary_update.lock().await.take() {
+                if let Some(hook) =
+                    self.test_post_secondary_update.lock().await.take()
+                {
                     let _ = hook.reached.send(());
                     let _ = hook.proceed.await;
                 }
@@ -550,7 +602,10 @@ impl Indexer {
     }
 
     #[cfg(test)]
-    pub(crate) async fn install_post_secondary_update_hook(&self, hook: PostSecondaryUpdateHook) {
+    pub(crate) async fn install_post_secondary_update_hook(
+        &self,
+        hook: PostSecondaryUpdateHook,
+    ) {
         *self.test_post_secondary_update.lock().await = Some(hook);
     }
 
@@ -612,7 +667,7 @@ impl Indexer {
         }
 
         // Second pass: facet scoping per doc type, under the same lock.
-        for (doc_type, per) in agg.per_type.iter_mut() {
+        for (doc_type, per) in &mut agg.per_type {
             let type_selection = selection.get(doc_type);
             let type_entries: Vec<&IndexEntry> =
                 entries.values().filter(|e| e.r#type == *doc_type).collect();
@@ -623,16 +678,25 @@ impl Indexer {
                 .count();
 
             for facet_id in facets_for(*doc_type) {
-                let mut option_counts: BTreeMap<String, usize> = BTreeMap::new();
+                let mut option_counts: BTreeMap<String, usize> =
+                    BTreeMap::new();
                 for entry in &type_entries {
-                    if !entry_matches_all_except(entry, cfg, type_selection, facet_id) {
+                    if !entry_matches_all_except(
+                        entry,
+                        cfg,
+                        type_selection,
+                        facet_id,
+                    ) {
                         continue;
                     }
-                    if let Some(option_id) = extract_facet_value(entry, cfg, facet_id) {
+                    if let Some(option_id) =
+                        extract_facet_value(entry, cfg, facet_id)
+                    {
                         *option_counts.entry(option_id).or_insert(0) += 1;
                     }
                 }
-                per.facet_options.insert((*facet_id).to_string(), option_counts);
+                per.facet_options
+                    .insert((*facet_id).to_string(), option_counts);
             }
         }
 
@@ -661,10 +725,10 @@ impl Indexer {
         &self.work_item_cfg
     }
 
-    /// Applies a per-path cluster_key map onto `IndexEntry.cluster_key`
+    /// Applies a per-path `cluster_key` map onto `IndexEntry.cluster_key`
     /// under a single `entries.write()` lock. Paths absent from
-    /// `backfill` have their cluster_key cleared to `None`, mirroring
-    /// the apply_completeness_backfill contract so a slug-derivation
+    /// `backfill` have their `cluster_key` cleared to `None`, mirroring
+    /// the `apply_completeness_backfill` contract so a slug-derivation
     /// regression or removal of typed-linkage frontmatter flips the
     /// entry back to slug-bucket rendering.
     pub async fn apply_cluster_key_backfill(
@@ -698,7 +762,10 @@ impl Indexer {
     /// under a single `entries.write()` lock. Paths absent from `backfill`
     /// fall back to `0`, so an entry that no longer has any cross-links
     /// drops its count rather than retaining a stale value.
-    pub async fn apply_linked_count_backfill(&self, backfill: HashMap<PathBuf, usize>) {
+    pub async fn apply_linked_count_backfill(
+        &self,
+        backfill: HashMap<PathBuf, usize>,
+    ) {
         let mut entries = self.entries.write().await;
         for (path, entry) in entries.iter_mut() {
             entry.linked_count = backfill.get(path).copied().unwrap_or(0);
@@ -768,7 +835,10 @@ impl Indexer {
     /// Returns the resolved declared-outbound entries for the given entry:
     /// - the plan-review `target:` (if this entry is a plan-review), and
     /// - the work-items referenced via `work_item_id:`, `parent:`, `related:`.
-    pub async fn declared_outbound(&self, entry: &IndexEntry) -> Vec<IndexEntry> {
+    pub async fn declared_outbound(
+        &self,
+        entry: &IndexEntry,
+    ) -> Vec<IndexEntry> {
         let entries = self.entries.read().await;
         let by_id = self.work_item_by_id.read().await;
         let plans = self.plans_by_id.read().await;
@@ -776,9 +846,13 @@ impl Indexer {
         let mut seen: HashSet<PathBuf> = HashSet::new();
 
         // Existing: plan-review `target:` field.
-        if let Some(target_key) =
-            target_path_from_entry(entry, &plans, &by_id, &self.work_item_cfg, &self.project_root)
-        {
+        if let Some(target_key) = target_path_from_entry(
+            entry,
+            &plans,
+            &by_id,
+            &self.work_item_cfg,
+            &self.project_root,
+        ) {
             if let Some(e) = entries.get(&target_key) {
                 if seen.insert(e.path.clone()) {
                     result.push(e.clone());
@@ -787,7 +861,10 @@ impl Indexer {
         }
 
         // Work-item cross-refs from `work_item_id:`, `parent:`, `related:`.
-        let canon_refs = canonicalise_refs(entry.work_item_refs.clone(), &self.work_item_cfg);
+        let canon_refs = canonicalise_refs(
+            entry.work_item_refs.clone(),
+            &self.work_item_cfg,
+        );
         for id in &canon_refs {
             if let Some(path) = by_id.get(id) {
                 if path != &entry.path {
@@ -827,15 +904,16 @@ fn normalize_absolute(path: &Path) -> PathBuf {
     let mut out = PathBuf::new();
     for c in path.components() {
         match c {
-            Component::Prefix(_) | Component::RootDir => out.push(c.as_os_str()),
+            Component::Prefix(_) | Component::RootDir => {
+                out.push(c.as_os_str());
+            }
             Component::CurDir => {}
             Component::ParentDir => {
                 // Pop only Normal components; never pop past RootDir/Prefix.
                 let popped = out
                     .components()
                     .next_back()
-                    .map(|c| matches!(c, Component::Normal(_)))
-                    .unwrap_or(false);
+                    .is_some_and(|c| matches!(c, Component::Normal(_)));
                 if popped {
                     out.pop();
                 }
@@ -932,7 +1010,8 @@ fn find_entry_for_deleted(
         return Some(e.clone());
     }
     let filename = path.file_name()?;
-    let canonical_parent = path.parent().and_then(|p| std::fs::canonicalize(p).ok())?;
+    let canonical_parent =
+        path.parent().and_then(|p| std::fs::canonicalize(p).ok())?;
     entries
         .values()
         .find(|e| {
@@ -1025,10 +1104,21 @@ async fn update_reviews_by_target(
     // contract correct on rename. BTreeSet ops are O(log n) so the
     // redundant work is negligible at v1 scale.
     let prev_target = previous.and_then(|p| {
-        target_path_from_entry(p, plans_by_id, work_item_by_id, work_item_cfg, project_root)
+        target_path_from_entry(
+            p,
+            plans_by_id,
+            work_item_by_id,
+            work_item_cfg,
+            project_root,
+        )
     });
-    let next_target =
-        target_path_from_entry(new_entry, plans_by_id, work_item_by_id, work_item_cfg, project_root);
+    let next_target = target_path_from_entry(
+        new_entry,
+        plans_by_id,
+        work_item_by_id,
+        work_item_cfg,
+        project_root,
+    );
     let mut m = map.write().await;
     if let (Some(t), Some(prev)) = (&prev_target, previous) {
         if let Some(set) = m.get_mut(t) {
@@ -1043,7 +1133,10 @@ async fn update_reviews_by_target(
     }
 }
 
-async fn remove_from_adr_by_id(map: &Arc<RwLock<HashMap<u32, PathBuf>>>, previous: &IndexEntry) {
+async fn remove_from_adr_by_id(
+    map: &Arc<RwLock<HashMap<u32, PathBuf>>>,
+    previous: &IndexEntry,
+) {
     if let Some(id) = adr_id_from_entry(previous) {
         map.write().await.remove(&id);
     }
@@ -1075,9 +1168,13 @@ async fn remove_from_reviews_by_target(
     project_root: &Path,
     previous: &IndexEntry,
 ) {
-    if let Some(target_key) =
-        target_path_from_entry(previous, plans_by_id, work_item_by_id, work_item_cfg, project_root)
-    {
+    if let Some(target_key) = target_path_from_entry(
+        previous,
+        plans_by_id,
+        work_item_by_id,
+        work_item_cfg,
+        project_root,
+    ) {
         let mut m = map.write().await;
         if let Some(set) = m.get_mut(&target_key) {
             set.remove(&previous.path);
@@ -1113,11 +1210,12 @@ pub fn canonicalise_one_id(
 ) -> Option<String> {
     use std::sync::OnceLock;
     static PROJECT_RE: OnceLock<regex::Regex> = OnceLock::new();
-    let project_re = PROJECT_RE
-        .get_or_init(|| regex::Regex::new(r"^[A-Za-z][A-Za-z0-9]*-\d+$").unwrap());
     static NUMERIC_RE: OnceLock<regex::Regex> = OnceLock::new();
-    let numeric_re = NUMERIC_RE
-        .get_or_init(|| regex::Regex::new(r"^\d+$").unwrap());
+    let project_re = PROJECT_RE.get_or_init(|| {
+        regex::Regex::new(r"^[A-Za-z][A-Za-z0-9]*-\d+$").unwrap()
+    });
+    let numeric_re =
+        NUMERIC_RE.get_or_init(|| regex::Regex::new(r"^\d+$").unwrap());
 
     if raw.is_empty() {
         return None;
@@ -1128,9 +1226,8 @@ pub fn canonicalise_one_id(
     if numeric_re.is_match(raw) {
         let n_str = raw
             .parse::<u64>()
-            .map(|n| n.to_string())
-            .unwrap_or_else(|_| raw.to_string());
-        let padded = format!("{:0>width$}", n_str, width = width);
+            .map_or_else(|_| raw.to_string(), |n| n.to_string());
+        let padded = format!("{n_str:0>width$}");
         if has_project {
             return Some(match &cfg.default_project_code {
                 Some(code) => format!("{code}-{padded}"),
@@ -1198,7 +1295,9 @@ async fn update_work_item_refs_by_target(
         if new_entry.work_item_id.as_deref() == Some(id.as_str()) {
             continue;
         }
-        m.entry(id.clone()).or_default().insert(new_entry.path.clone());
+        m.entry(id.clone())
+            .or_default()
+            .insert(new_entry.path.clone());
     }
 }
 
@@ -1239,18 +1338,21 @@ fn build_entry(
         path.parent()
             .and_then(|p| p.file_name())
             .and_then(|n| n.to_str())
-            .map(|n| format!("{n}.md"))
-            .unwrap_or_else(|| filename.to_string())
+            .map_or_else(|| filename.to_string(), |n| format!("{n}.md"))
     } else {
         filename.to_string()
     };
 
     let (slug_val, work_item_id) = if kind == DocTypeKey::WorkItems {
-        let regex_slug = slug::derive_work_item_with_regex(&work_item_cfg.scan_regex, filename);
+        let regex_slug = slug::derive_work_item_with_regex(
+            &work_item_cfg.scan_regex,
+            filename,
+        );
         // Fall back to the default numeric slug derivation when the primary
         // regex doesn't match (e.g., legacy bare-numeric files in a
         // project-prefixed workspace during a pattern-config rollout).
-        let slug = regex_slug.or_else(|| slug::derive(kind, filename, work_item_cfg));
+        let slug =
+            regex_slug.or_else(|| slug::derive(kind, filename, work_item_cfg));
         // Identity resolution (story 0070): the unified `id:` key is primary,
         // then the legacy `work_item_id:` key, then filename extraction. The
         // latter two are retained transitional fallbacks — a follow-on contract
@@ -1302,10 +1404,13 @@ fn build_entry(
     };
     // Title fallback uses the slug-source stem so nested kinds (where the
     // manifest filename is just "inventory") get a meaningful default.
-    let title_fallback_stem = slug_filename
-        .strip_suffix(".md")
-        .unwrap_or(filename_stem);
-    let title = frontmatter::title_from(&parsed.state, &parsed.body, title_fallback_stem);
+    let title_fallback_stem =
+        slug_filename.strip_suffix(".md").unwrap_or(filename_stem);
+    let title = frontmatter::title_from(
+        &parsed.state,
+        &parsed.body,
+        title_fallback_stem,
+    );
     let body_preview = frontmatter::body_preview_from(&parsed.body);
     let work_item_refs = frontmatter::read_ref_keys(&parsed.state);
 
@@ -1317,14 +1422,17 @@ fn build_entry(
             }
             ("parsed".to_string(), serde_json::Value::Object(o))
         }
-        FrontmatterState::Absent => ("absent".to_string(), serde_json::Value::Null),
-        FrontmatterState::Malformed => ("malformed".to_string(), serde_json::Value::Null),
+        FrontmatterState::Absent => {
+            ("absent".to_string(), serde_json::Value::Null)
+        }
+        FrontmatterState::Malformed => {
+            ("malformed".to_string(), serde_json::Value::Null)
+        }
     };
 
     let rel_path = path
         .strip_prefix(project_root)
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|_| path.clone());
+        .map_or_else(|_| path.clone(), std::path::Path::to_path_buf);
 
     IndexEntry {
         r#type: kind,
@@ -1385,7 +1493,6 @@ fn parse_adr_id(fm: &serde_json::Value, filename: &str) -> Option<u32> {
     rest[..dash].parse().ok()
 }
 
-
 #[cfg(test)]
 mod canonicalise_tests {
     use super::*;
@@ -1398,7 +1505,7 @@ mod canonicalise_tests {
     fn cfg_project(code: &str) -> WorkItemConfig {
         let raw = crate::config::RawWorkItemConfig {
             scan_regex: format!("^{code}-(\\d+)-"),
-            id_pattern: format!("{{project}}-{{number:04d}}"),
+            id_pattern: "{project}-{number:04d}".to_string(),
             default_project_code: Some(code.to_string()),
         };
         WorkItemConfig::from_raw(raw).unwrap()
@@ -1438,7 +1545,7 @@ mod canonicalise_tests {
         let cfg = cfg_numeric();
         let raw = vec![
             "not-a-valid-id".to_string(),
-            "".to_string(),
+            String::new(),
             "42-foo".to_string(),
             "PROJ-".to_string(),
             "-0042".to_string(),
@@ -1450,18 +1557,18 @@ mod canonicalise_tests {
     fn canonicalise_refs_case_3_vs_case_4_boundary() {
         let cfg = cfg_numeric();
         let cases: &[(&str, Option<&str>)] = &[
-            ("PROJ-0042",   Some("PROJ-0042")),
-            ("FOO-1",       Some("FOO-1")),
-            ("Web2-7",      Some("Web2-7")),
-            ("42-foo",      None),
-            ("PROJ-",       None),
-            ("-0042",       None),
-            ("PROJ--0042",  None),
+            ("PROJ-0042", Some("PROJ-0042")),
+            ("FOO-1", Some("FOO-1")),
+            ("Web2-7", Some("Web2-7")),
+            ("42-foo", None),
+            ("PROJ-", None),
+            ("-0042", None),
+            ("PROJ--0042", None),
             ("PROJ-0042-x", None),
-            ("",            None),
+            ("", None),
         ];
         for (input, expected) in cases {
-            let got = canonicalise_refs(vec![input.to_string()], &cfg);
+            let got = canonicalise_refs(vec![(*input).to_string()], &cfg);
             let got_first = got.first().map(String::as_str);
             assert_eq!(got_first, *expected, "input={input}");
         }
@@ -1479,7 +1586,9 @@ mod tests {
         Arc::new(WorkItemConfig::default_numeric())
     }
 
-    fn seed(tmp: &Path) -> (PathBuf, std::collections::HashMap<String, PathBuf>) {
+    fn seed(
+        tmp: &Path,
+    ) -> (PathBuf, std::collections::HashMap<String, PathBuf>) {
         let dec = tmp.join("meta/decisions");
         let plans = tmp.join("meta/plans");
         let reviews = tmp.join("meta/reviews/plans");
@@ -1518,7 +1627,8 @@ mod tests {
             "---\ntitle: review\n---\n",
         )
         .unwrap();
-        std::fs::write(notes.join("2026-03-30-no-fm.md"), "# A bare note\n").unwrap();
+        std::fs::write(notes.join("2026-03-30-no-fm.md"), "# A bare note\n")
+            .unwrap();
 
         let mut map = HashMap::new();
         map.insert("decisions".into(), dec);
@@ -1530,8 +1640,11 @@ mod tests {
 
     async fn build_indexer(tmp: &Path) -> Indexer {
         let (root, map) = seed(tmp);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        Indexer::build(driver, root, default_work_item_cfg()).await.unwrap()
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        Indexer::build(driver, root, default_work_item_cfg())
+            .await
+            .unwrap()
     }
 
     #[tokio::test]
@@ -1555,7 +1668,10 @@ mod tests {
         let counts = idx.counts_by_type().await;
         assert_eq!(counts.get(&DocTypeKey::Plans).copied().unwrap_or(0), 3);
         assert_eq!(counts.get(&DocTypeKey::Decisions).copied().unwrap_or(0), 1);
-        assert_eq!(counts.get(&DocTypeKey::PlanReviews).copied().unwrap_or(0), 2);
+        assert_eq!(
+            counts.get(&DocTypeKey::PlanReviews).copied().unwrap_or(0),
+            2
+        );
         assert_eq!(counts.get(&DocTypeKey::Notes).copied().unwrap_or(0), 1);
         assert!(!counts.contains_key(&DocTypeKey::Templates));
     }
@@ -1578,7 +1694,9 @@ mod tests {
         let plans = idx.all_by_type(DocTypeKey::Plans).await;
         let by_name: HashMap<String, IndexEntry> = plans
             .into_iter()
-            .map(|e| (e.path.file_name().unwrap().to_string_lossy().to_string(), e))
+            .map(|e| {
+                (e.path.file_name().unwrap().to_string_lossy().to_string(), e)
+            })
             .collect();
         assert_eq!(by_name["2026-04-18-hello.md"].frontmatter_state, "parsed");
         assert_eq!(by_name["2026-03-22-no-fm.md"].frontmatter_state, "absent");
@@ -1593,10 +1711,14 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
         let revs = idx.all_by_type(DocTypeKey::PlanReviews).await;
-        let slugs: Vec<String> = revs.iter().filter_map(|e| e.slug.clone()).collect();
+        let slugs: Vec<String> =
+            revs.iter().filter_map(|e| e.slug.clone()).collect();
         assert!(slugs.contains(&"hello".to_string()));
         assert!(
-            slugs.contains(&"initialise-skill-and-review-pr-ephemeral-migration".to_string()),
+            slugs.contains(
+                &"initialise-skill-and-review-pr-ephemeral-migration"
+                    .to_string()
+            ),
             "internal -review- must be preserved in slug; got {slugs:?}",
         );
     }
@@ -1638,7 +1760,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
         let path = tmp.path().join("meta/plans/2026-04-01-malformed.md");
-        let entry = idx.get(&path).await.expect("malformed entry still indexed");
+        let entry =
+            idx.get(&path).await.expect("malformed entry still indexed");
         assert_eq!(entry.frontmatter_state, "malformed");
         assert!(entry.etag.starts_with("sha256-"));
     }
@@ -1656,14 +1779,16 @@ mod tests {
 
         let mut paths = std::collections::HashMap::new();
         paths.insert("plans".to_string(), plans);
-        let driver: Arc<dyn FileDriver> = Arc::new(crate::file_driver::LocalFileDriver::new(
-            &paths,
-            vec![],
-            vec![],
-        ));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), default_work_item_cfg())
-            .await
-            .unwrap();
+        let driver: Arc<dyn FileDriver> = Arc::new(
+            crate::file_driver::LocalFileDriver::new(&paths, vec![], vec![]),
+        );
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            default_work_item_cfg(),
+        )
+        .await
+        .unwrap();
         let entries = idx.all().await;
         let foo = entries.iter().find(|e| e.title == "Foo").unwrap();
         assert_eq!(foo.body_preview, "First paragraph of the body.");
@@ -1680,7 +1805,7 @@ mod tests {
             owner_start_time: None,
             log_path: "/l".into(),
             doc_paths,
-            templates: Default::default(),
+            templates: HashMap::default(),
             work_item: None,
             kanban_columns: None,
             idle_timeout: None,
@@ -1695,10 +1820,8 @@ mod tests {
         let idx = build_indexer(tmp.path()).await;
         let cfg = make_cfg(HashMap::new());
         let agg = idx.library_aggregates(&cfg, &Selection::new()).await;
-        let plans = agg
-            .per_type
-            .get(&DocTypeKey::Plans)
-            .expect("plans present");
+        let plans =
+            agg.per_type.get(&DocTypeKey::Plans).expect("plans present");
         assert_eq!(plans.count, 3);
         assert_eq!(plans.filtered_count, 3);
         assert!(plans.latest.is_some());
@@ -1711,16 +1834,21 @@ mod tests {
     async fn library_aggregates_returns_empty_map_for_empty_index() {
         let tmp = tempfile::tempdir().unwrap();
         let map = HashMap::new();
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), default_work_item_cfg())
-            .await
-            .unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            default_work_item_cfg(),
+        )
+        .await
+        .unwrap();
         let cfg = make_cfg(HashMap::new());
         let agg = idx.library_aggregates(&cfg, &Selection::new()).await;
         assert!(agg.per_type.is_empty());
     }
 
-#[tokio::test]
+    #[tokio::test]
     async fn library_aggregates_status_facet_skips_non_parsed_frontmatter() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
@@ -1767,7 +1895,10 @@ mod tests {
 
     #[test]
     fn facets_for_returns_expected_facets() {
-        assert_eq!(facets_for(DocTypeKey::Decisions), &["status", "clusterSlug"]);
+        assert_eq!(
+            facets_for(DocTypeKey::Decisions),
+            &["status", "clusterSlug"]
+        );
         assert_eq!(
             facets_for(DocTypeKey::WorkItems),
             &["status", "project", "clusterSlug"]
@@ -1829,8 +1960,10 @@ mod tests {
     fn entry_matches_all_except_skips_named_facet() {
         let entry = sample_entry_without_work_item();
         let cfg = make_cfg(HashMap::new());
-        let sel: HashMap<String, Vec<String>> =
-            HashMap::from([("status".to_string(), vec!["does-not-match".to_string()])]);
+        let sel: HashMap<String, Vec<String>> = HashMap::from([(
+            "status".to_string(),
+            vec!["does-not-match".to_string()],
+        )]);
         // entry_matches_all would reject it
         assert!(!entry_matches_all(&entry, &cfg, Some(&sel)));
         // entry_matches_all_except("status") skips the rejecting facet
@@ -1848,7 +1981,7 @@ mod tests {
             owner_start_time: None,
             log_path: "/l".into(),
             doc_paths: HashMap::new(),
-            templates: Default::default(),
+            templates: HashMap::default(),
             work_item: Some(crate::config::RawWorkItemConfig {
                 scan_regex: r"^(?<id>\d+)".to_string(),
                 id_pattern: "{number:04d}".to_string(),
@@ -1932,19 +2065,26 @@ mod tests {
 
         let mut map = HashMap::new();
         map.insert("research_design_inventories".to_string(), inv_root);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), default_work_item_cfg())
-            .await
-            .unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            default_work_item_cfg(),
+        )
+        .await
+        .unwrap();
 
         let entries = idx.all_by_type(DocTypeKey::DesignInventories).await;
-        let titles: Vec<&str> = entries.iter().map(|e| e.title.as_str()).collect();
+        let titles: Vec<&str> =
+            entries.iter().map(|e| e.title.as_str()).collect();
         assert!(titles.contains(&"Foo Inventory"), "got {titles:?}");
         assert!(titles.contains(&"Bar Inventory"), "got {titles:?}");
         assert_eq!(entries.len(), 2);
 
         // Slug derived from the parent directory name, not the manifest stem.
-        let slugs: Vec<String> = entries.iter().filter_map(|e| e.slug.clone()).collect();
+        let slugs: Vec<String> =
+            entries.iter().filter_map(|e| e.slug.clone()).collect();
         assert!(
             slugs.iter().any(|s| s == "140608-foo"),
             "expected slug derived from parent dir; got {slugs:?}",
@@ -1958,7 +2098,8 @@ mod tests {
     #[tokio::test]
     async fn scan_2000_files_completes_within_one_second() {
         let tmp = tempfile::tempdir().unwrap();
-        let body = "---\ntitle: Filler\n---\n".to_string() + &"x".repeat(10 * 1024);
+        let body =
+            "---\ntitle: Filler\n---\n".to_string() + &"x".repeat(10 * 1024);
 
         let dirs = [
             ("decisions", "meta/decisions", "0001"),
@@ -1971,17 +2112,22 @@ mod tests {
             let dir_path = tmp.path().join(rel);
             std::fs::create_dir_all(&dir_path).unwrap();
             for i in 0..500 {
-                let name = format!("{}-filler-{i:04}.md", prefix);
+                let name = format!("{prefix}-filler-{i:04}.md");
                 std::fs::write(dir_path.join(name), &body).unwrap();
             }
-            map.insert(key.to_string(), dir_path);
+            map.insert((*key).to_string(), dir_path);
         }
 
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let start = std::time::Instant::now();
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), default_work_item_cfg())
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            default_work_item_cfg(),
+        )
+        .await
+        .unwrap();
         let elapsed = start.elapsed();
 
         assert!(
@@ -2029,9 +2175,12 @@ mod refresh_tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
         map.insert("decisions".into(), dec);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.to_path_buf(), cfg).await.unwrap();
+        let idx = Indexer::build(driver, tmp.to_path_buf(), cfg)
+            .await
+            .unwrap();
         (idx, work)
     }
 
@@ -2043,7 +2192,11 @@ mod refresh_tests {
 
         // Write a new work item file that didn't exist at build time
         let new_path = work.join("0004-new.md");
-        std::fs::write(&new_path, "---\ntitle: New\nstatus: todo\n---\n# body\n").unwrap();
+        std::fs::write(
+            &new_path,
+            "---\ntitle: New\nstatus: todo\n---\n# body\n",
+        )
+        .unwrap();
 
         let entry = idx.refresh_one(&new_path).await.unwrap();
         assert!(
@@ -2073,7 +2226,11 @@ mod refresh_tests {
         let old_entry = idx.get(&path).await.unwrap();
 
         // Edit the file out-of-band
-        std::fs::write(&path, "---\ntitle: Foo\nstatus: in-progress\n---\n# body\n").unwrap();
+        std::fs::write(
+            &path,
+            "---\ntitle: Foo\nstatus: in-progress\n---\n# body\n",
+        )
+        .unwrap();
 
         idx.refresh_one(&path).await.unwrap();
         let new_entry = idx.get(&path).await.unwrap();
@@ -2133,17 +2290,24 @@ mod refresh_tests {
         let after2 = idx.get(&path2).await.unwrap();
         let after3 = idx.get(&path3).await.unwrap();
 
-        assert_eq!(before2.etag, after2.etag, "work item 2 etag must not change");
+        assert_eq!(
+            before2.etag, after2.etag,
+            "work item 2 etag must not change"
+        );
         assert_eq!(
             before2.mtime_ms, after2.mtime_ms,
             "work item 2 mtime must not change"
         );
-        assert_eq!(before3.etag, after3.etag, "work item 3 etag must not change");
+        assert_eq!(
+            before3.etag, after3.etag,
+            "work item 3 etag must not change"
+        );
     }
 
     // ── Step 2.18 ────────────────────────────────────────────────────────────
     #[tokio::test]
-    async fn refresh_one_rebuilds_secondary_indexes_for_work_items_and_decisions() {
+    async fn refresh_one_rebuilds_secondary_indexes_for_work_items_and_decisions(
+    ) {
         let tmp = tempfile::tempdir().unwrap();
         let (idx, work) = build_refresh_indexer(tmp.path()).await;
 
@@ -2176,7 +2340,8 @@ mod refresh_tests {
 
         let path = work.join("0001-foo.md");
         // Out-of-band edit so refresh_one picks up a different etag
-        std::fs::write(&path, "---\ntitle: Foo\nstatus: done\n---\n# body\n").unwrap();
+        std::fs::write(&path, "---\ntitle: Foo\nstatus: done\n---\n# body\n")
+            .unwrap();
         let expected_etag = etag_of(&std::fs::read(&path).unwrap());
 
         let barrier = StdArc::new(Barrier::new(2));
@@ -2220,10 +2385,12 @@ mod reverse_index_tests {
     use std::sync::Arc;
 
     /// Seed a tempdir with one plan and one review whose `target:`
-    /// points at the plan. Returns (idx, plan_path, review_path), with
+    /// points at the plan. Returns (idx, `plan_path`, `review_path`), with
     /// paths in canonicalised form so they match the indexer's primary
     /// keys directly.
-    async fn build_with_plan_and_review(tmp: &Path) -> (Indexer, PathBuf, PathBuf) {
+    async fn build_with_plan_and_review(
+        tmp: &Path,
+    ) -> (Indexer, PathBuf, PathBuf) {
         let plans = tmp.join("meta/plans");
         let reviews = tmp.join("meta/reviews/plans");
         std::fs::create_dir_all(&plans).unwrap();
@@ -2239,9 +2406,12 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.to_path_buf(), cfg).await.unwrap();
+        let idx = Indexer::build(driver, tmp.to_path_buf(), cfg)
+            .await
+            .unwrap();
         // Canonicalise the paths so callers compare against the
         // indexer's primary key form.
         let plan = std::fs::canonicalize(&plan).unwrap();
@@ -2280,7 +2450,8 @@ mod reverse_index_tests {
     #[tokio::test]
     async fn reviews_by_target_populated_on_initial_scan() {
         let tmp = tempfile::tempdir().unwrap();
-        let (idx, plan_path, review_path) = build_with_plan_and_review(tmp.path()).await;
+        let (idx, plan_path, review_path) =
+            build_with_plan_and_review(tmp.path()).await;
         let inbound = idx.reviews_by_target(&plan_path).await;
         assert_eq!(inbound.len(), 1, "expected exactly one inbound review");
         assert_eq!(inbound[0].path, review_path);
@@ -2298,7 +2469,11 @@ mod reverse_index_tests {
         let reviews = tmp.path().join("meta/reviews/plans");
         std::fs::create_dir_all(&plans).unwrap();
         std::fs::create_dir_all(&reviews).unwrap();
-        std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: Foo\n---\n").unwrap();
+        std::fs::write(
+            plans.join("2026-04-18-foo.md"),
+            "---\ntitle: Foo\n---\n",
+        )
+        .unwrap();
         std::fs::write(
             reviews.join("2026-04-18-foo-review-1.md"),
             "---\ntarget: \"meta/plans/2026-04-18-foo.md\"\n---\n",
@@ -2307,10 +2482,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), Arc::new(WorkItemConfig::default_numeric()))
-            .await
-            .unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
 
         // Look up the plan via Indexer::get with the non-canonical path.
         let plan = idx
@@ -2330,7 +2510,11 @@ mod reverse_index_tests {
         let reviews = tmp.path().join("meta/reviews/plans");
         std::fs::create_dir_all(&plans).unwrap();
         std::fs::create_dir_all(&reviews).unwrap();
-        std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: Foo\n---\n").unwrap();
+        std::fs::write(
+            plans.join("2026-04-18-foo.md"),
+            "---\ntitle: Foo\n---\n",
+        )
+        .unwrap();
         std::fs::write(
             reviews.join("2026-04-18-foo-review-1.md"),
             "---\ntitle: review with no target\n---\n",
@@ -2339,10 +2523,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), Arc::new(WorkItemConfig::default_numeric()))
-            .await
-            .unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
 
         let map_guard = idx.reviews_by_target.read().await;
         assert!(
@@ -2368,10 +2557,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), Arc::new(WorkItemConfig::default_numeric()))
-            .await
-            .unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
 
         // Compute the lexical key the way the production code does.
         let project_root = idx.project_root().to_path_buf();
@@ -2393,7 +2587,11 @@ mod reverse_index_tests {
         let reviews = tmp.path().join("meta/reviews/plans");
         std::fs::create_dir_all(&plans).unwrap();
         std::fs::create_dir_all(&reviews).unwrap();
-        std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: Foo\n---\n").unwrap();
+        std::fs::write(
+            plans.join("2026-04-18-foo.md"),
+            "---\ntitle: Foo\n---\n",
+        )
+        .unwrap();
         std::fs::write(
             reviews.join("2026-04-18-foo-review-1.md"),
             "---\ntarget: \"meta/plans/2026-04-18-foo.md\"\n---\n",
@@ -2407,12 +2605,18 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews.clone());
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), Arc::new(WorkItemConfig::default_numeric()))
-            .await
-            .unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
 
-        let plan_canon = std::fs::canonicalize(plans.join("2026-04-18-foo.md")).unwrap();
+        let plan_canon =
+            std::fs::canonicalize(plans.join("2026-04-18-foo.md")).unwrap();
         let inbound = idx.reviews_by_target(&plan_canon).await;
         assert_eq!(inbound.len(), 2, "both reviews must appear");
         // BTreeSet iteration is path-sorted; review-1 sorts before review-2.
@@ -2434,7 +2638,8 @@ mod reverse_index_tests {
     #[tokio::test]
     async fn refresh_one_on_unchanged_review_keeps_set_size_one() {
         let tmp = tempfile::tempdir().unwrap();
-        let (idx, plan_path, review_path) = build_with_plan_and_review(tmp.path()).await;
+        let (idx, plan_path, review_path) =
+            build_with_plan_and_review(tmp.path()).await;
         // Refresh the review twice without touching its content.
         idx.refresh_one(&review_path).await.unwrap();
         idx.refresh_one(&review_path).await.unwrap();
@@ -2446,7 +2651,8 @@ mod reverse_index_tests {
     #[tokio::test]
     async fn refresh_one_on_renamed_review_with_unchanged_target() {
         let tmp = tempfile::tempdir().unwrap();
-        let (idx, plan_path, review_a) = build_with_plan_and_review(tmp.path()).await;
+        let (idx, plan_path, review_a) =
+            build_with_plan_and_review(tmp.path()).await;
 
         // Move the review (rename to a new path), keeping target the same.
         let review_b = review_a.with_file_name("2026-04-18-foo-review-2.md");
@@ -2456,7 +2662,8 @@ mod reverse_index_tests {
         idx.refresh_one(&review_a).await.unwrap();
 
         let inbound = idx.reviews_by_target(&plan_path).await;
-        let paths: Vec<&Path> = inbound.iter().map(|e| e.path.as_path()).collect();
+        let paths: Vec<&Path> =
+            inbound.iter().map(|e| e.path.as_path()).collect();
         let review_b_canon = std::fs::canonicalize(&review_b).unwrap();
         assert_eq!(
             paths,
@@ -2474,14 +2681,23 @@ mod reverse_index_tests {
         let reviews = tmp.path().join("meta/reviews/plans");
         std::fs::create_dir_all(&plans).unwrap();
         std::fs::create_dir_all(&reviews).unwrap();
-        std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: Foo\n---\n").unwrap();
+        std::fs::write(
+            plans.join("2026-04-18-foo.md"),
+            "---\ntitle: Foo\n---\n",
+        )
+        .unwrap();
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews.clone());
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), Arc::new(WorkItemConfig::default_numeric()))
-            .await
-            .unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
 
         // Now create a review and refresh_one.
         let new_review = reviews.join("2026-04-18-foo-review-1.md");
@@ -2492,7 +2708,8 @@ mod reverse_index_tests {
         .unwrap();
         idx.refresh_one(&new_review).await.unwrap();
 
-        let plan_canon = std::fs::canonicalize(plans.join("2026-04-18-foo.md")).unwrap();
+        let plan_canon =
+            std::fs::canonicalize(plans.join("2026-04-18-foo.md")).unwrap();
         let inbound = idx.reviews_by_target(&plan_canon).await;
         assert_eq!(inbound.len(), 1);
     }
@@ -2509,20 +2726,27 @@ mod reverse_index_tests {
         std::fs::write(plans.join("a.md"), "---\ntitle: A\n---\n").unwrap();
         std::fs::write(plans.join("b.md"), "---\ntitle: B\n---\n").unwrap();
         let review = reviews.join("rev-1.md");
-        std::fs::write(&review, "---\ntarget: \"meta/plans/a.md\"\n---\n").unwrap();
+        std::fs::write(&review, "---\ntarget: \"meta/plans/a.md\"\n---\n")
+            .unwrap();
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), Arc::new(WorkItemConfig::default_numeric()))
-            .await
-            .unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
 
         let plan_a = std::fs::canonicalize(plans.join("a.md")).unwrap();
         let plan_b = std::fs::canonicalize(plans.join("b.md")).unwrap();
 
         // Migrate target from A to B.
-        std::fs::write(&review, "---\ntarget: \"meta/plans/b.md\"\n---\n").unwrap();
+        std::fs::write(&review, "---\ntarget: \"meta/plans/b.md\"\n---\n")
+            .unwrap();
         idx.refresh_one(&review).await.unwrap();
 
         let inbound_a = idx.reviews_by_target(&plan_a).await;
@@ -2542,15 +2766,21 @@ mod reverse_index_tests {
         std::fs::write(plans.join("a.md"), "---\ntitle: A\n---\n").unwrap();
         std::fs::write(plans.join("b.md"), "---\ntitle: B\n---\n").unwrap();
         let review = reviews.join("rev-1.md");
-        std::fs::write(&review, "---\ntarget: \"meta/plans/a.md\"\n---\n").unwrap();
+        std::fs::write(&review, "---\ntarget: \"meta/plans/a.md\"\n---\n")
+            .unwrap();
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let idx = Arc::new(
-            Indexer::build(driver, tmp.path().to_path_buf(), Arc::new(WorkItemConfig::default_numeric()))
-                .await
-                .unwrap(),
+            Indexer::build(
+                driver,
+                tmp.path().to_path_buf(),
+                Arc::new(WorkItemConfig::default_numeric()),
+            )
+            .await
+            .unwrap(),
         );
 
         let plan_a = std::fs::canonicalize(plans.join("a.md")).unwrap();
@@ -2566,7 +2796,8 @@ mod reverse_index_tests {
         .await;
 
         // Spawn the writer: migrate the review's target from A → B.
-        std::fs::write(&review, "---\ntarget: \"meta/plans/b.md\"\n---\n").unwrap();
+        std::fs::write(&review, "---\ntarget: \"meta/plans/b.md\"\n---\n")
+            .unwrap();
         let writer_idx = idx.clone();
         let writer_review = review.clone();
         let writer = tokio::spawn(async move {
@@ -2600,14 +2831,19 @@ mod reverse_index_tests {
             inbound_a.is_empty(),
             "post-migration: A must have no inbound"
         );
-        assert_eq!(inbound_b.len(), 1, "post-migration: B must have the review");
+        assert_eq!(
+            inbound_b.len(),
+            1,
+            "post-migration: B must have the review"
+        );
     }
 
     // ── Step 1.8 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_removes_review_from_reverse_index_on_deletion() {
         let tmp = tempfile::tempdir().unwrap();
-        let (idx, plan_path, review_path) = build_with_plan_and_review(tmp.path()).await;
+        let (idx, plan_path, review_path) =
+            build_with_plan_and_review(tmp.path()).await;
         std::fs::remove_file(&review_path).unwrap();
         idx.refresh_one(&review_path).await.unwrap();
         let inbound = idx.reviews_by_target(&plan_path).await;
@@ -2639,10 +2875,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews.clone());
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), Arc::new(WorkItemConfig::default_numeric()))
-            .await
-            .unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
 
         let plan_a = plans.join("a.md");
         let plan_a_canon = std::fs::canonicalize(&plan_a).unwrap();
@@ -2658,7 +2899,8 @@ mod reverse_index_tests {
             "lexical key survives target-file deletion"
         );
         // Reviews' own entries are unchanged.
-        let rev_canon = std::fs::canonicalize(reviews.join("rev-1.md")).unwrap();
+        let rev_canon =
+            std::fs::canonicalize(reviews.join("rev-1.md")).unwrap();
         assert!(idx.get(&rev_canon).await.is_some());
     }
 
@@ -2666,7 +2908,8 @@ mod reverse_index_tests {
     #[tokio::test]
     async fn reviews_by_target_survives_full_rescan() {
         let tmp = tempfile::tempdir().unwrap();
-        let (idx, plan_path, _review_path) = build_with_plan_and_review(tmp.path()).await;
+        let (idx, plan_path, _review_path) =
+            build_with_plan_and_review(tmp.path()).await;
         idx.rescan().await.unwrap();
         let inbound = idx.reviews_by_target(&plan_path).await;
         assert_eq!(inbound.len(), 1, "rescan re-populates the reverse index");
@@ -2693,10 +2936,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_prs".into(), pr_reviews);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), Arc::new(WorkItemConfig::default_numeric()))
-            .await
-            .unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
 
         let plan_a = std::fs::canonicalize(plans.join("a.md")).unwrap();
         let inbound = idx.reviews_by_target(&plan_a).await;
@@ -2704,7 +2952,8 @@ mod reverse_index_tests {
     }
 
     #[tokio::test]
-    async fn reviews_by_target_resolves_typed_work_item_target_on_rescan_and_refresh() {
+    async fn reviews_by_target_resolves_typed_work_item_target_on_rescan_and_refresh(
+    ) {
         // Story 0070: a migrated work-item-review carries `target:
         // "work-item:NNNN"`. target_path_from_entry now resolves it via
         // work_item_by_id, so the path-keyed reviews_by_target reverse index
@@ -2715,7 +2964,8 @@ mod reverse_index_tests {
         let wi_reviews = tmp.path().join("meta/reviews/work");
         std::fs::create_dir_all(&work).unwrap();
         std::fs::create_dir_all(&wi_reviews).unwrap();
-        std::fs::write(work.join("0042-foo.md"), "---\ntitle: Foo\n---\n").unwrap();
+        std::fs::write(work.join("0042-foo.md"), "---\ntitle: Foo\n---\n")
+            .unwrap();
         std::fs::write(
             wi_reviews.join("0042-foo-review-1.md"),
             "---\ntarget: \"work-item:0042\"\n---\n",
@@ -2724,11 +2974,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
         map.insert("review_work".into(), wi_reviews.clone());
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx =
-            Indexer::build(driver, tmp.path().to_path_buf(), Arc::new(WorkItemConfig::default_numeric()))
-                .await
-                .unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
 
         let wi_path = std::fs::canonicalize(work.join("0042-foo.md")).unwrap();
         assert_eq!(
@@ -2738,7 +2992,9 @@ mod reverse_index_tests {
         );
 
         // Incremental refresh of the review re-resolves the same edge.
-        let rev_path = std::fs::canonicalize(wi_reviews.join("0042-foo-review-1.md")).unwrap();
+        let rev_path =
+            std::fs::canonicalize(wi_reviews.join("0042-foo-review-1.md"))
+                .unwrap();
         idx.refresh_one(&rev_path).await.unwrap();
         assert_eq!(
             idx.reviews_by_target(&wi_path).await.len(),
@@ -2778,10 +3034,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews.clone());
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), Arc::new(WorkItemConfig::default_numeric()))
-            .await
-            .unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(
+            driver,
+            tmp.path().to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap();
 
         // Each review entry is admitted to the primary index.
         for (name, _) in cases {
@@ -2803,16 +3064,17 @@ mod reverse_index_tests {
     #[tokio::test]
     async fn rescan_clears_all_three_secondary_maps_before_repopulating() {
         let tmp = tempfile::tempdir().unwrap();
-        let (idx, _plan_path, _review_path) = build_with_plan_and_review(tmp.path()).await;
+        let (idx, _plan_path, _review_path) =
+            build_with_plan_and_review(tmp.path()).await;
         // Inject stale data into each of the three secondary maps.
         idx.adr_by_id
             .write()
             .await
             .insert(99, PathBuf::from("/nonexistent/ADR-9999.md"));
-        idx.work_item_by_id
-            .write()
-            .await
-            .insert("99".to_string(), PathBuf::from("/nonexistent/9999-work-item.md"));
+        idx.work_item_by_id.write().await.insert(
+            "99".to_string(),
+            PathBuf::from("/nonexistent/9999-work-item.md"),
+        );
         idx.reviews_by_target.write().await.insert(
             PathBuf::from("/nonexistent/plan.md"),
             BTreeSet::from([PathBuf::from("/nonexistent/review.md")]),
@@ -2845,15 +3107,21 @@ mod reverse_index_tests {
         std::fs::write(plans.join("a.md"), "---\ntitle: A\n---\n").unwrap();
         std::fs::write(plans.join("b.md"), "---\ntitle: B\n---\n").unwrap();
         let review = reviews.join("rev-1.md");
-        std::fs::write(&review, "---\ntarget: \"meta/plans/a.md\"\n---\n").unwrap();
+        std::fs::write(&review, "---\ntarget: \"meta/plans/a.md\"\n---\n")
+            .unwrap();
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let idx = Arc::new(
-            Indexer::build(driver, tmp.path().to_path_buf(), Arc::new(WorkItemConfig::default_numeric()))
-                .await
-                .unwrap(),
+            Indexer::build(
+                driver,
+                tmp.path().to_path_buf(),
+                Arc::new(WorkItemConfig::default_numeric()),
+            )
+            .await
+            .unwrap(),
         );
 
         let (reached_tx, reached_rx) = tokio::sync::oneshot::channel::<()>();
@@ -2866,7 +3134,8 @@ mod reverse_index_tests {
 
         // Migrate target from A to B; the writer holds the rescan_lock
         // permit while parked at the post-secondary-update barrier.
-        std::fs::write(&review, "---\ntarget: \"meta/plans/b.md\"\n---\n").unwrap();
+        std::fs::write(&review, "---\ntarget: \"meta/plans/b.md\"\n---\n")
+            .unwrap();
         let writer_idx = idx.clone();
         let writer_review = review.clone();
         let writer = tokio::spawn(async move {
@@ -2885,7 +3154,8 @@ mod reverse_index_tests {
 
         // Schedule a rescan; it must wait for the writer to release.
         let rescan_idx = idx.clone();
-        let rescan = tokio::spawn(async move { rescan_idx.rescan().await.unwrap() });
+        let rescan =
+            tokio::spawn(async move { rescan_idx.rescan().await.unwrap() });
 
         // Release the writer.
         proceed_tx.send(()).expect("writer awaiting proceed");
@@ -2928,7 +3198,8 @@ mod reverse_index_tests {
         let mut dir_map = HashMap::new();
         dir_map.insert("work".into(), work_dir);
         dir_map.insert("plans".into(), plan_dir);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&dir_map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&dir_map, vec![], vec![]));
         let work_item_cfg = Arc::new(WorkItemConfig::default_numeric());
         Indexer::build(driver, tmp.to_path_buf(), work_item_cfg)
             .await
@@ -2948,8 +3219,15 @@ mod reverse_index_tests {
         )
         .await;
         let refs = idx.work_item_refs_by_id("0001").await;
-        assert_eq!(refs.len(), 1, "plan should appear in work-item 0001's refs");
-        assert!(refs[0].rel_path.to_string_lossy().contains("2026-05-01-plan.md"));
+        assert_eq!(
+            refs.len(),
+            1,
+            "plan should appear in work-item 0001's refs"
+        );
+        assert!(refs[0]
+            .rel_path
+            .to_string_lossy()
+            .contains("2026-05-01-plan.md"));
     }
 
     #[tokio::test]
@@ -2958,7 +3236,10 @@ mod reverse_index_tests {
         // Work-item 0001 has parent: 0001 in its own frontmatter.
         let idx = build_indexer_with_work_items(
             tmp.path(),
-            &[("0001-self-ref.md", "---\ntitle: Self Ref\nparent: 0001\n---\n")],
+            &[(
+                "0001-self-ref.md",
+                "---\ntitle: Self Ref\nparent: 0001\n---\n",
+            )],
             &[],
         )
         .await;
@@ -2984,8 +3265,16 @@ mod reverse_index_tests {
         .await;
         let refs_a = idx.work_item_refs_by_id("0001").await;
         let refs_b = idx.work_item_refs_by_id("0002").await;
-        assert_eq!(refs_a.len(), 1, "0001 should be referenced by B exactly once");
-        assert_eq!(refs_b.len(), 1, "0002 should be referenced by A exactly once");
+        assert_eq!(
+            refs_a.len(),
+            1,
+            "0001 should be referenced by B exactly once"
+        );
+        assert_eq!(
+            refs_b.len(),
+            1,
+            "0002 should be referenced by A exactly once"
+        );
         assert!(refs_a[0].rel_path.to_string_lossy().contains("0002-b.md"));
         assert!(refs_b[0].rel_path.to_string_lossy().contains("0001-a.md"));
     }
@@ -3041,7 +3330,11 @@ mod reverse_index_tests {
         std::fs::create_dir_all(&plan_dir).unwrap();
         std::fs::create_dir_all(&review_dir).unwrap();
 
-        std::fs::write(work_dir.join("0001-epic.md"), "---\ntitle: Epic\n---\n").unwrap();
+        std::fs::write(
+            work_dir.join("0001-epic.md"),
+            "---\ntitle: Epic\n---\n",
+        )
+        .unwrap();
         // A plan that references the work item via work_item_id:
         std::fs::write(
             plan_dir.join("2026-05-01-plan.md"),
@@ -3060,24 +3353,37 @@ mod reverse_index_tests {
         dir_map.insert("work".into(), work_dir.clone());
         dir_map.insert("plans".into(), plan_dir);
         dir_map.insert("review_plans".into(), review_dir);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&dir_map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&dir_map, vec![], vec![]));
         let work_item_cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), work_item_cfg)
-            .await
-            .unwrap();
+        let idx =
+            Indexer::build(driver, tmp.path().to_path_buf(), work_item_cfg)
+                .await
+                .unwrap();
 
-        let work_item_path = std::fs::canonicalize(work_dir.join("0001-epic.md")).unwrap();
+        let work_item_path =
+            std::fs::canonicalize(work_dir.join("0001-epic.md")).unwrap();
         let via_review = idx.reviews_by_target(&work_item_path).await;
         let via_ref = idx.work_item_refs_by_id("0001").await;
 
-        assert_eq!(via_review.len(), 1, "review must appear under work-item path");
+        assert_eq!(
+            via_review.len(),
+            1,
+            "review must appear under work-item path"
+        );
         assert_eq!(via_ref.len(), 1, "plan must appear under work-item ID");
         assert!(
-            via_review[0].rel_path.to_string_lossy().contains("0001-epic-review-1.md"),
+            via_review[0]
+                .rel_path
+                .to_string_lossy()
+                .contains("0001-epic-review-1.md"),
             "review entry path must match"
         );
         assert!(
-            via_ref[0].rel_path.to_string_lossy().contains("2026-05-01-plan.md"),
+            via_ref[0]
+                .rel_path
+                .to_string_lossy()
+                .contains("2026-05-01-plan.md"),
             "ref entry path must match"
         );
     }
@@ -3097,9 +3403,12 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg).await.unwrap();
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
+            .await
+            .unwrap();
         let entry = idx
             .get(&work_dir.join("0001-foo.md"))
             .await
@@ -3112,12 +3421,16 @@ mod reverse_index_tests {
         let tmp = tempfile::tempdir().unwrap();
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();
-        std::fs::write(work_dir.join("0042-foo.md"), "---\ntitle: F\n---\n").unwrap();
+        std::fs::write(work_dir.join("0042-foo.md"), "---\ntitle: F\n---\n")
+            .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg).await.unwrap();
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
+            .await
+            .unwrap();
         let entry = idx
             .get(&work_dir.join("0042-foo.md"))
             .await
@@ -3200,7 +3513,8 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let cfg = Arc::new(
             WorkItemConfig::from_raw(crate::config::RawWorkItemConfig {
                 scan_regex: "^ENG-([0-9]+)-".to_string(),
@@ -3209,7 +3523,9 @@ mod reverse_index_tests {
             })
             .unwrap(),
         );
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg).await.unwrap();
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
+            .await
+            .unwrap();
         let entry = idx
             .get(&work_dir.join("0001-foo.md"))
             .await
@@ -3231,7 +3547,8 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let cfg = Arc::new(
             WorkItemConfig::from_raw(crate::config::RawWorkItemConfig {
                 scan_regex: "^ENG-([0-9]+)-".to_string(),
@@ -3240,7 +3557,9 @@ mod reverse_index_tests {
             })
             .unwrap(),
         );
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg).await.unwrap();
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
+            .await
+            .unwrap();
         let entry = idx
             .get(&work_dir.join("0001-foo.md"))
             .await
@@ -3260,9 +3579,12 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg).await.unwrap();
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
+            .await
+            .unwrap();
         let entry = idx
             .get(&work_dir.join("0001-foo.md"))
             .await
@@ -3286,9 +3608,12 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg).await.unwrap();
+        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
+            .await
+            .unwrap();
         let entry = idx
             .get(&work_dir.join("foo-without-number.md"))
             .await
@@ -3321,7 +3646,8 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let idx = Indexer::build(
             driver,
             tmp.path().to_path_buf(),
@@ -3330,7 +3656,8 @@ mod reverse_index_tests {
         .await
         .unwrap();
 
-        let plan_path = std::fs::canonicalize(plans.join("2026-04-18-foo.md")).unwrap();
+        let plan_path =
+            std::fs::canonicalize(plans.join("2026-04-18-foo.md")).unwrap();
         let inbound = idx.reviews_by_target(&plan_path).await;
         assert_eq!(
             inbound.len(),
@@ -3362,7 +3689,8 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let idx = Indexer::build(
             driver,
             tmp.path().to_path_buf(),
@@ -3393,7 +3721,8 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let idx = Indexer::build(
             driver,
             tmp.path().to_path_buf(),
@@ -3410,7 +3739,8 @@ mod reverse_index_tests {
     }
 
     #[tokio::test]
-    async fn target_path_typed_linkage_resolves_regardless_of_iteration_order() {
+    async fn target_path_typed_linkage_resolves_regardless_of_iteration_order()
+    {
         // Validates the two-pass build approach: a plan-review whose
         // source plan happens to be enumerated after it must still
         // resolve once Pass A has populated plans_by_id.
@@ -3435,7 +3765,8 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let idx = Indexer::build(
             driver,
             tmp.path().to_path_buf(),
@@ -3444,7 +3775,8 @@ mod reverse_index_tests {
         .await
         .unwrap();
 
-        let plan_path = std::fs::canonicalize(plans.join("zzz-target-plan.md")).unwrap();
+        let plan_path =
+            std::fs::canonicalize(plans.join("zzz-target-plan.md")).unwrap();
         let inbound = idx.reviews_by_target(&plan_path).await;
         assert_eq!(
             inbound.len(),
@@ -3469,7 +3801,8 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
         let idx = Indexer::build(
             driver,
             tmp.path().to_path_buf(),
@@ -3529,14 +3862,18 @@ mod target_path_resolution_tests {
 
     #[test]
     fn work_item_review_with_path_target_resolves_to_work_item_path() {
-        let mut entry = entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
+        let mut entry =
+            entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
         entry.frontmatter = serde_json::json!({
             "target": "meta/work/0033-design-token-system.md"
         });
         let root = PathBuf::from("/repo");
         let resolved = target_path_from_entry(
             &entry,
-            &plans_by_id_with("ignored", PathBuf::from("/repo/meta/plans/x.md")),
+            &plans_by_id_with(
+                "ignored",
+                PathBuf::from("/repo/meta/plans/x.md"),
+            ),
             &HashMap::new(),
             &crate::config::WorkItemConfig::default(),
             &root,
@@ -3586,7 +3923,9 @@ mod target_path_resolution_tests {
         );
         assert_eq!(
             resolved,
-            Some(PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md"))
+            Some(PathBuf::from(
+                "/repo/meta/plans/2026-05-31-0040-pipeline.md"
+            ))
         );
     }
 
@@ -3627,7 +3966,8 @@ mod target_path_resolution_tests {
             DocTypeKey::WorkItems,
         ] {
             let mut entry = entry_for_test(kind, "x", 0, "T");
-            entry.frontmatter = serde_json::json!({ "target": "meta/plans/foo.md" });
+            entry.frontmatter =
+                serde_json::json!({ "target": "meta/plans/foo.md" });
             assert_eq!(
                 target_path_from_entry(
                     &entry,
@@ -3649,7 +3989,8 @@ mod target_path_resolution_tests {
         // (canonicalising the raw id first), so the path-keyed
         // reviews_by_target reverse index stays populated. (Was previously
         // pinned to return None and resolved only by the cluster-key resolver.)
-        let mut entry = entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
+        let mut entry =
+            entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
         entry.frontmatter = serde_json::json!({ "target": "work-item:0042" });
         let mut work_item_by_id = HashMap::new();
         work_item_by_id.insert(
@@ -3663,13 +4004,17 @@ mod target_path_resolution_tests {
             &crate::config::WorkItemConfig::default(),
             &PathBuf::from("/repo"),
         );
-        assert_eq!(resolved, Some(PathBuf::from("/repo/meta/work/0042-foo.md")));
+        assert_eq!(
+            resolved,
+            Some(PathBuf::from("/repo/meta/work/0042-foo.md"))
+        );
     }
 
     #[test]
     fn typed_adr_and_pr_targets_return_none() {
         for raw in ["adr:0034", "pr:42"] {
-            let mut entry = entry_for_test(DocTypeKey::PrReviews, "x", 0, "PRR");
+            let mut entry =
+                entry_for_test(DocTypeKey::PrReviews, "x", 0, "PRR");
             entry.frontmatter = serde_json::json!({ "target": raw });
             assert_eq!(
                 target_path_from_entry(
@@ -3704,7 +4049,8 @@ mod target_path_resolution_tests {
     #[test]
     fn path_target_resolves_against_supplied_project_root() {
         let mut entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
-        entry.frontmatter = serde_json::json!({ "target": "meta/plans/foo.md" });
+        entry.frontmatter =
+            serde_json::json!({ "target": "meta/plans/foo.md" });
         let resolved = target_path_from_entry(
             &entry,
             &HashMap::new(),
@@ -3712,6 +4058,9 @@ mod target_path_resolution_tests {
             &crate::config::WorkItemConfig::default(),
             &PathBuf::from("/repo/alt"),
         );
-        assert_eq!(resolved, Some(PathBuf::from("/repo/alt/meta/plans/foo.md")));
+        assert_eq!(
+            resolved,
+            Some(PathBuf::from("/repo/alt/meta/plans/foo.md"))
+        );
     }
 }

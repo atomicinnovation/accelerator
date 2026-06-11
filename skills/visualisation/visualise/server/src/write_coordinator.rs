@@ -23,7 +23,10 @@ impl WriteCoordinator {
         }
     }
 
-    pub fn with_clock(ttl: Duration, now: Box<dyn Fn() -> Instant + Send + Sync>) -> Self {
+    pub fn with_clock(
+        ttl: Duration,
+        now: Box<dyn Fn() -> Instant + Send + Sync>,
+    ) -> Self {
         Self {
             recent: Mutex::new(HashMap::new()),
             ttl,
@@ -37,7 +40,9 @@ impl WriteCoordinator {
         let now = (self.now)();
         if map.len() >= self.max_entries {
             // Evict the oldest entry (FIFO cap)
-            if let Some(oldest) = map.iter().min_by_key(|(_, t)| *t).map(|(k, _)| k.clone()) {
+            if let Some(oldest) =
+                map.iter().min_by_key(|(_, t)| *t).map(|(k, _)| k.clone())
+            {
                 map.remove(&oldest);
             }
         }
@@ -69,7 +74,9 @@ mod tests {
     use super::*;
     use std::sync::{Arc, Mutex};
 
-    fn spy_clock(shared: Arc<Mutex<Instant>>) -> Box<dyn Fn() -> Instant + Send + Sync> {
+    fn spy_clock(
+        shared: Arc<Mutex<Instant>>,
+    ) -> Box<dyn Fn() -> Instant + Send + Sync> {
         Box::new(move || *shared.lock().unwrap())
     }
 
@@ -91,7 +98,10 @@ mod tests {
     #[test]
     fn suppress_after_ttl_returns_false() {
         let t = Arc::new(Mutex::new(Instant::now()));
-        let wc = WriteCoordinator::with_clock(Duration::from_secs(1), spy_clock(t.clone()));
+        let wc = WriteCoordinator::with_clock(
+            Duration::from_secs(1),
+            spy_clock(t.clone()),
+        );
         let path = PathBuf::from("/tmp/foo.md");
         wc.mark_self_write(&path);
         *t.lock().unwrap() += Duration::from_secs(2);
@@ -120,7 +130,10 @@ mod tests {
     #[test]
     fn fifo_cap_evicts_oldest() {
         let t = Arc::new(Mutex::new(Instant::now()));
-        let mut wc = WriteCoordinator::with_clock(Duration::from_secs(60), spy_clock(t.clone()));
+        let mut wc = WriteCoordinator::with_clock(
+            Duration::from_secs(60),
+            spy_clock(t.clone()),
+        );
         wc.max_entries = 2;
 
         let p1 = PathBuf::from("/tmp/a.md");

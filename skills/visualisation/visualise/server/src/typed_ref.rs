@@ -20,7 +20,13 @@ pub enum TypedRef {
 
 /// A path-shaped suffix contains `/` or ends in `.md`.
 fn looks_like_path(s: &str) -> bool {
-    s.contains('/') || s.ends_with(".md")
+    // Purely syntactic heuristic (see module docs): exact lowercase `.md`
+    // suffix. A `Path::extension` rewrite would reject a bare `".md"` and
+    // newly accept `.MD`, changing which raw refs parse as paths.
+    #[allow(clippy::case_sensitive_file_extension_comparisons)]
+    {
+        s.contains('/') || s.ends_with(".md")
+    }
 }
 
 pub fn parse_typed_ref(raw: &str) -> Option<TypedRef> {
@@ -103,9 +109,7 @@ mod tests {
         let r = parse_typed_ref("meta/plans/2026-05-31-0040-foo.md");
         assert_eq!(
             r,
-            Some(TypedRef::Path(
-                "meta/plans/2026-05-31-0040-foo.md".into()
-            ))
+            Some(TypedRef::Path("meta/plans/2026-05-31-0040-foo.md".into()))
         );
     }
 

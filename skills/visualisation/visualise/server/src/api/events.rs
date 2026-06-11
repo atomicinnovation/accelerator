@@ -22,8 +22,13 @@ pub async fn events(State(state): State<Arc<AppState>>) -> impl IntoResponse {
             let data = serde_json::to_string(&payload).ok()?;
             Some(Ok::<Event, Infallible>(Event::default().data(data)))
         }
-        Err(tokio_stream::wrappers::errors::BroadcastStreamRecvError::Lagged(n)) => {
-            tracing::warn!(dropped = n, "SSE subscriber lagged; messages dropped");
+        Err(
+            tokio_stream::wrappers::errors::BroadcastStreamRecvError::Lagged(n),
+        ) => {
+            tracing::warn!(
+                dropped = n,
+                "SSE subscriber lagged; messages dropped"
+            );
             None
         }
     });
@@ -52,8 +57,8 @@ mod tests {
             owner_pid: 0,
             owner_start_time: None,
             log_path: tmp.path().join("server.log"),
-            doc_paths: Default::default(),
-            templates: Default::default(),
+            doc_paths: std::collections::HashMap::default(),
+            templates: std::collections::HashMap::default(),
             work_item: None,
             kanban_columns: None,
             idle_timeout: None,

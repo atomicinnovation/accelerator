@@ -11,7 +11,9 @@ pub(crate) struct TypesResponse {
     types: Vec<crate::docs::DocType>,
 }
 
-pub(crate) async fn types(State(state): State<Arc<AppState>>) -> Json<TypesResponse> {
+pub(crate) async fn types(
+    State(state): State<Arc<AppState>>,
+) -> Json<TypesResponse> {
     let mut types = describe_types(&state.cfg);
     let counts = state.indexer.counts_by_type().await;
     for t in &mut types {

@@ -19,11 +19,15 @@ pub enum LoggingError {
 pub(crate) const MAX_BYTES: usize = 5 * 1024 * 1024;
 pub(crate) const MAX_FILES: usize = 3;
 
-pub fn make_writer(path: &Path) -> Result<FileRotate<AppendCount>, LoggingError> {
+pub fn make_writer(
+    path: &Path,
+) -> Result<FileRotate<AppendCount>, LoggingError> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| LoggingError::CreateDir {
-            path: parent.to_path_buf(),
-            source: e,
+        std::fs::create_dir_all(parent).map_err(|e| {
+            LoggingError::CreateDir {
+                path: parent.to_path_buf(),
+                source: e,
+            }
         })?;
     }
     Ok(FileRotate::new(
@@ -65,7 +69,9 @@ pub(crate) mod test_support {
         }
     }
 
-    pub struct MutexGuardWriter<'a, W: Write + Send + 'static>(MutexGuard<'a, W>);
+    pub struct MutexGuardWriter<'a, W: Write + Send + 'static>(
+        MutexGuard<'a, W>,
+    );
 
     impl<W: Write + Send + 'static> Write for MutexGuardWriter<'_, W> {
         fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
@@ -114,7 +120,9 @@ pub(crate) mod test_support {
         fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
             CAPTURE_BUF.with(|c| {
                 if let Some(buf) = c.borrow().as_ref() {
-                    buf.lock().expect("capture buffer poisoned").extend_from_slice(b);
+                    buf.lock()
+                        .expect("capture buffer poisoned")
+                        .extend_from_slice(b);
                 }
             });
             Ok(b.len())
@@ -166,7 +174,7 @@ mod tests {
     fn count_segments(dir: &std::path::Path) -> usize {
         std::fs::read_dir(dir)
             .unwrap()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .filter(|e| {
                 let s = e.file_name().to_string_lossy().into_owned();
                 s.starts_with("server.log.")

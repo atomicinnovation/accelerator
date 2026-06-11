@@ -1,7 +1,8 @@
 use std::time::Duration;
 
 use accelerator_visualiser::{
-    activity::Activity, config::DISABLED_IDLE_LIMIT_MS, lifecycle, shutdown::ShutdownReason,
+    activity::Activity, config::DISABLED_IDLE_LIMIT_MS, lifecycle,
+    shutdown::ShutdownReason,
 };
 
 #[tokio::test]
@@ -69,10 +70,15 @@ async fn idle_survives_below_threshold_then_fires() {
         tx,
     );
     // Below the threshold: must still be alive.
-    let early = tokio::time::timeout(Duration::from_millis(150), rx.recv()).await;
-    assert!(early.is_err(), "must not fire before the threshold, got {early:?}");
+    let early =
+        tokio::time::timeout(Duration::from_millis(150), rx.recv()).await;
+    assert!(
+        early.is_err(),
+        "must not fire before the threshold, got {early:?}"
+    );
     // After the threshold: must fire.
-    let late = tokio::time::timeout(Duration::from_millis(1000), rx.recv()).await;
+    let late =
+        tokio::time::timeout(Duration::from_millis(1000), rx.recv()).await;
     assert!(
         matches!(late, Ok(Some(ShutdownReason::IdleTimeout))),
         "must fire after the threshold, got {late:?}"

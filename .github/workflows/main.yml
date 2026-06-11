@@ -114,6 +114,24 @@ jobs:
       - name: Run Python checks
         run: mise run build-system:check
 
+  check-server:
+    name: Check Rust server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        uses: jdx/mise-action@v4.1.0
+        with:
+          install: true
+          cache: true
+          experimental: true
+
+      - name: Run Rust checks
+        run: mise run server:check
+
   prerelease:
     name: Create prerelease
     runs-on: macos-latest
@@ -123,6 +141,7 @@ jobs:
       - test-e2e
       - check-scripts
       - check-build-system
+      - check-server
     if: github.event_name == 'push'
     permissions:
       id-token: write

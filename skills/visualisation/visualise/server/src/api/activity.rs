@@ -67,8 +67,8 @@ mod tests {
             owner_pid: 0,
             owner_start_time: None,
             log_path: tmp.path().join("server.log"),
-            doc_paths: Default::default(),
-            templates: Default::default(),
+            doc_paths: std::collections::HashMap::default(),
+            templates: std::collections::HashMap::default(),
             work_item: None,
             kanban_columns: None,
             idle_timeout: None,
@@ -101,7 +101,13 @@ mod tests {
             .await
             .unwrap();
         let status = resp.status();
-        let bytes = resp.into_body().collect().await.unwrap().to_bytes().to_vec();
+        let bytes = resp
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes()
+            .to_vec();
         (status, bytes)
     }
 
@@ -122,8 +128,14 @@ mod tests {
         let events = v["events"].as_array().unwrap();
         assert_eq!(events.len(), 5);
         // Newest first.
-        assert_eq!(events[0]["timestamp"].as_str().unwrap(), "1970-01-01T00:00:06Z");
-        assert_eq!(events[4]["timestamp"].as_str().unwrap(), "1970-01-01T00:00:02Z");
+        assert_eq!(
+            events[0]["timestamp"].as_str().unwrap(),
+            "1970-01-01T00:00:06Z"
+        );
+        assert_eq!(
+            events[4]["timestamp"].as_str().unwrap(),
+            "1970-01-01T00:00:02Z"
+        );
     }
 
     #[tokio::test]
@@ -138,8 +150,14 @@ mod tests {
         let v = parse(&body);
         let events = v["events"].as_array().unwrap();
         assert_eq!(events.len(), 50);
-        assert_eq!(events[0]["timestamp"].as_str().unwrap(), "1970-01-01T00:00:51Z");
-        assert_eq!(events[49]["timestamp"].as_str().unwrap(), "1970-01-01T00:00:02Z");
+        assert_eq!(
+            events[0]["timestamp"].as_str().unwrap(),
+            "1970-01-01T00:00:51Z"
+        );
+        assert_eq!(
+            events[49]["timestamp"].as_str().unwrap(),
+            "1970-01-01T00:00:02Z"
+        );
     }
 
     #[tokio::test]

@@ -5,7 +5,9 @@ use axum::{extract::State, Json};
 use serde::Serialize;
 
 use crate::docs::DocTypeKey;
-use crate::indexer::{facets_for, LatestPreview, LibraryAggregates, PerTypeAggregate, Selection};
+use crate::indexer::{
+    facets_for, LatestPreview, LibraryAggregates, PerTypeAggregate, Selection,
+};
 use crate::server::AppState;
 
 #[derive(Serialize, Debug)]
@@ -126,17 +128,27 @@ pub(crate) async fn library_structure(
 pub(crate) fn parse_selection_query(raw: &str) -> Selection {
     let mut out: Selection = HashMap::new();
     for (key, value) in form_urlencoded::parse(raw.as_bytes()) {
-        let Some(rest) = key.strip_prefix("selection[") else { continue };
-        let Some((type_token, rest)) = rest.split_once(']') else { continue };
-        let Some(rest) = rest.strip_prefix('[') else { continue };
-        let Some((facet_id, tail)) = rest.split_once(']') else { continue };
+        let Some(rest) = key.strip_prefix("selection[") else {
+            continue;
+        };
+        let Some((type_token, rest)) = rest.split_once(']') else {
+            continue;
+        };
+        let Some(rest) = rest.strip_prefix('[') else {
+            continue;
+        };
+        let Some((facet_id, tail)) = rest.split_once(']') else {
+            continue;
+        };
         if !tail.is_empty() {
             continue;
         }
         if value.is_empty() {
             continue;
         }
-        let Some(doc_type) = DocTypeKey::from_wire_str(type_token) else { continue };
+        let Some(doc_type) = DocTypeKey::from_wire_str(type_token) else {
+            continue;
+        };
         out.entry(doc_type)
             .or_default()
             .entry(facet_id.to_string())
@@ -177,9 +189,11 @@ fn build_doc_type(
     LibraryDocType {
         id: doc_type,
         label: doc_type.label().to_string(),
-        count: per.map(|p| p.count).unwrap_or(0),
-        filtered_count: per.map(|p| p.filtered_count).unwrap_or(0),
-        latest: per.and_then(|p| p.latest.as_ref()).map(LatestPreviewWire::from),
+        count: per.map_or(0, |p| p.count),
+        filtered_count: per.map_or(0, |p| p.filtered_count),
+        latest: per
+            .and_then(|p| p.latest.as_ref())
+            .map(LatestPreviewWire::from),
         filter_facets: build_facets(cfg, per, doc_type),
     }
 }
@@ -202,7 +216,9 @@ fn build_facets(
                     m.iter()
                         .map(|(id, count)| FacetOption {
                             id: id.clone(),
-                            label: facet_option_label(cfg, doc_type, facet_id, id),
+                            label: facet_option_label(
+                                cfg, doc_type, facet_id, id,
+                            ),
                             count: *count,
                         })
                         .collect()
@@ -236,7 +252,9 @@ fn facet_option_label(
 fn humanise_status(id: &str) -> String {
     let mut chars = id.chars();
     match chars.next() {
-        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+        Some(first) => {
+            first.to_uppercase().collect::<String>() + chars.as_str()
+        }
         None => String::new(),
     }
 }
@@ -290,7 +308,9 @@ mod tests {
 
     #[test]
     fn url_encoded_value_round_trips() {
-        let sel = parse_selection_query("selection[decisions][clusterSlug]=foo%20bar");
+        let sel = parse_selection_query(
+            "selection[decisions][clusterSlug]=foo%20bar",
+        );
         let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
         assert_eq!(
             decisions.get("clusterSlug").unwrap(),
@@ -300,7 +320,8 @@ mod tests {
 
     #[test]
     fn percent_encoded_reserved_characters_round_trip() {
-        let sel = parse_selection_query("selection[decisions][clusterSlug]=a%2Cb");
+        let sel =
+            parse_selection_query("selection[decisions][clusterSlug]=a%2Cb");
         let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
         assert_eq!(
             decisions.get("clusterSlug").unwrap(),
@@ -323,7 +344,9 @@ mod tests {
 
     #[test]
     fn unrelated_query_params_are_ignored() {
-        let sel = parse_selection_query("other=value&selection[decisions][status]=open");
+        let sel = parse_selection_query(
+            "other=value&selection[decisions][status]=open",
+        );
         assert_eq!(sel.len(), 1);
         let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
         assert_eq!(decisions.get("status").unwrap(), &vec!["open".to_string()]);

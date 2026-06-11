@@ -44,7 +44,10 @@ pub fn mount(_state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/api/lifecycle/:slug", get(lifecycle::lifecycle_one))
         .route("/api/related/*path", get(related::related_get))
         .route("/api/search", get(search::search))
-        .route("/api/work-item/config", get(work_item_config::get_work_item_config))
+        .route(
+            "/api/work-item/config",
+            get(work_item_config::get_work_item_config),
+        )
         .route("/api/kanban/config", get(kanban_config::get_kanban_config))
         .route("/api/editor/config", get(editor_config::get_editor_config))
 }
@@ -79,7 +82,9 @@ pub(crate) enum ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         match self {
-            ApiError::InvalidDocType(s) => (
+            ApiError::InvalidDocType(s)
+            | ApiError::InvalidPatch(s)
+            | ApiError::UnsupportedIfMatch(s) => (
                 StatusCode::BAD_REQUEST,
                 Json(serde_json::json!({ "error": s })),
             )
@@ -117,16 +122,6 @@ impl IntoResponse for ApiError {
                 })),
             )
                 .into_response(),
-            ApiError::InvalidPatch(s) => (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({ "error": s })),
-            )
-                .into_response(),
-            ApiError::UnsupportedIfMatch(s) => (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({ "error": s })),
-            )
-                .into_response(),
             // 428 Precondition Required — no currentEtag, no ETag header.
             // A client that omits If-Match entirely demonstrated no prior knowledge,
             // so we do not leak the current state. This prevents the optimistic-
@@ -140,7 +135,7 @@ impl IntoResponse for ApiError {
             // The client demonstrated prior knowledge by sending an If-Match value;
             // echoing the current etag lets it retry with the up-to-date precondition.
             ApiError::EtagMismatch { current } => {
-                let quoted = format!("\"{}\"", current);
+                let quoted = format!("\"{current}\"");
                 (
                     StatusCode::PRECONDITION_FAILED,
                     [(
@@ -163,7 +158,9 @@ pub(crate) fn parse_kind(s: &str) -> Option<crate::docs::DocTypeKey> {
 pub(crate) fn api_from_fd(e: crate::file_driver::FileDriverError) -> ApiError {
     use crate::file_driver::FileDriverError as F;
     match e {
-        F::PathEscape { .. } | F::TypeNotConfigured { .. } => ApiError::PathEscape,
+        F::PathEscape { .. } | F::TypeNotConfigured { .. } => {
+            ApiError::PathEscape
+        }
         F::NotFound { path } => ApiError::NotFound(path.display().to_string()),
         F::TooLarge { path, size, limit } => ApiError::Internal(format!(
             "{} is {} bytes (limit {})",
@@ -175,6 +172,8 @@ pub(crate) fn api_from_fd(e: crate::file_driver::FileDriverError) -> ApiError {
         F::EtagMismatch { current } => ApiError::EtagMismatch { current },
         F::Patch(p) => ApiError::InvalidPatch(p.to_string()),
         F::PathNotWritable { .. } => ApiError::OnlyWorkItemsAreWritable,
-        F::CrossFilesystem { .. } => ApiError::Internal("cross-filesystem rename".into()),
+        F::CrossFilesystem { .. } => {
+            ApiError::Internal("cross-filesystem rename".into())
+        }
     }
 }

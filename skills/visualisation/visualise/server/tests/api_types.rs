@@ -40,7 +40,10 @@ async fn types_returns_thirteen_entries_with_virtual_flag_on_templates() {
     assert_eq!(design_gaps["virtual"], false);
     assert_eq!(design_gaps["inLifecycle"], true);
     assert!(design_gaps["dirPath"].is_string());
-    let design_inventories = arr.iter().find(|t| t["key"] == "design-inventories").unwrap();
+    let design_inventories = arr
+        .iter()
+        .find(|t| t["key"] == "design-inventories")
+        .unwrap();
     assert_eq!(design_inventories["virtual"], false);
     assert_eq!(design_inventories["inLifecycle"], true);
     assert!(design_inventories["dirPath"].is_string());

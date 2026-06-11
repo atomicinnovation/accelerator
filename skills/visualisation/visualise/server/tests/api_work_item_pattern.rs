@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
 use accelerator_visualiser::activity::Activity;
-use accelerator_visualiser::config::{Config, RawWorkItemConfig, TemplateTiers};
+use accelerator_visualiser::config::{
+    Config, RawWorkItemConfig, TemplateTiers,
+};
 use accelerator_visualiser::server::{build_router, AppState};
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
-use tower::ServiceExt;
 use std::collections::HashMap;
+use tower::ServiceExt;
 
 fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
     let work = tmp.join("meta/work");
@@ -115,10 +117,16 @@ async fn project_pattern_work_items_have_correct_slug_and_id() {
         .collect();
 
     let foo = by_id.get("PROJ-0042").expect("PROJ-0042 must be indexed");
-    assert_eq!(foo["slug"], "foo", "slug for PROJ-0042-foo.md should be 'foo'");
+    assert_eq!(
+        foo["slug"], "foo",
+        "slug for PROJ-0042-foo.md should be 'foo'"
+    );
 
     let bar = by_id.get("PROJ-0007").expect("PROJ-0007 must be indexed");
-    assert_eq!(bar["slug"], "bar", "slug for PROJ-0007-bar.md should be 'bar'");
+    assert_eq!(
+        bar["slug"], "bar",
+        "slug for PROJ-0007-bar.md should be 'bar'"
+    );
 }
 
 #[tokio::test]
@@ -198,10 +206,10 @@ async fn default_numeric_pattern_indexes_bare_numeric_files() {
         doc_paths,
         templates,
         work_item: None,
-            kanban_columns: None,
-            idle_timeout: None,
-            editor: None,
-            editor_project: None,
+        kanban_columns: None,
+        idle_timeout: None,
+        editor: None,
+        editor_project: None,
     };
 
     let activity = Arc::new(Activity::new());

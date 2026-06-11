@@ -20,7 +20,8 @@ async fn request(uri: &str, app: axum::Router) -> serde_json::Value {
 }
 
 #[tokio::test]
-async fn library_structure_returns_phases_in_canonical_order_and_top_level_templates() {
+async fn library_structure_returns_phases_in_canonical_order_and_top_level_templates(
+) {
     let tmp = tempfile::tempdir().unwrap();
     let cfg = common::seeded_cfg(tmp.path());
     let activity = Arc::new(Activity::new());
@@ -29,7 +30,8 @@ async fn library_structure_returns_phases_in_canonical_order_and_top_level_templ
     let v = request("/api/library/structure", app).await;
 
     let phases = v["phases"].as_array().unwrap();
-    let ids: Vec<&str> = phases.iter().map(|p| p["id"].as_str().unwrap()).collect();
+    let ids: Vec<&str> =
+        phases.iter().map(|p| p["id"].as_str().unwrap()).collect();
     assert_eq!(ids, vec!["define", "discover", "build", "ship", "remember"]);
     assert!(v["templates"].is_object());
     assert_eq!(v["templates"]["id"], "templates");
@@ -70,7 +72,11 @@ async fn library_structure_filtered_count_equals_count_with_no_selection() {
     let v = request("/api/library/structure", app).await;
     for phase in v["phases"].as_array().unwrap() {
         for dt in phase["docTypes"].as_array().unwrap() {
-            assert_eq!(dt["count"], dt["filteredCount"], "doc-type {:?}", dt["id"]);
+            assert_eq!(
+                dt["count"], dt["filteredCount"],
+                "doc-type {:?}",
+                dt["id"]
+            );
         }
     }
 }
@@ -124,10 +130,8 @@ async fn library_structure_emits_facets_per_doc_type() {
     let v = request("/api/library/structure", app).await;
 
     let phases = v["phases"].as_array().unwrap();
-    let work_items = phases
-        .iter()
-        .find(|p| p["id"] == "define")
-        .unwrap()["docTypes"]
+    let work_items = phases.iter().find(|p| p["id"] == "define").unwrap()
+        ["docTypes"]
         .as_array()
         .unwrap()
         .iter()
@@ -142,10 +146,8 @@ async fn library_structure_emits_facets_per_doc_type() {
         .collect();
     assert_eq!(facets, vec!["status", "project", "clusterSlug"]);
 
-    let decisions = phases
-        .iter()
-        .find(|p| p["id"] == "remember")
-        .unwrap()["docTypes"]
+    let decisions = phases.iter().find(|p| p["id"] == "remember").unwrap()
+        ["docTypes"]
         .as_array()
         .unwrap()
         .iter()
@@ -160,7 +162,10 @@ async fn library_structure_emits_facets_per_doc_type() {
         .collect();
     assert_eq!(dec_facets, vec!["status", "clusterSlug"]);
 
-    assert!(v["templates"]["filterFacets"].as_array().unwrap().is_empty());
+    assert!(v["templates"]["filterFacets"]
+        .as_array()
+        .unwrap()
+        .is_empty());
 }
 
 #[tokio::test]

@@ -47,7 +47,7 @@ pub struct Config {
     /// Passed through verbatim; the frontend resolves presets/templates.
     #[serde(default)]
     pub editor: Option<String>,
-    /// JetBrains project name for the `{project}` placeholder. Absent →
+    /// `JetBrains` project name for the `{project}` placeholder. Absent →
     /// server defaults to the basename of `project_root`. Ignored by
     /// non-JetBrains presets.
     #[serde(default)]
@@ -89,12 +89,13 @@ pub struct WorkItemConfig {
 
 impl WorkItemConfig {
     pub fn from_raw(raw: RawWorkItemConfig) -> Result<Self, ConfigError> {
-        let scan_regex = regex::Regex::new(&raw.scan_regex).map_err(|source| {
-            ConfigError::InvalidScanRegex {
-                pattern: raw.scan_regex.clone(),
-                source,
-            }
-        })?;
+        let scan_regex =
+            regex::Regex::new(&raw.scan_regex).map_err(|source| {
+                ConfigError::InvalidScanRegex {
+                    pattern: raw.scan_regex.clone(),
+                    source,
+                }
+            })?;
         Ok(Self {
             scan_regex,
             scan_regex_raw: raw.scan_regex,
@@ -144,9 +145,13 @@ impl WorkItemConfig {
 
     fn canonical_digit_width(&self) -> usize {
         let s = &self.id_pattern;
-        let Some(i) = s.find("{number") else { return 0; };
+        let Some(i) = s.find("{number") else {
+            return 0;
+        };
         let rest = &s[i + "{number".len()..];
-        let Some(end) = rest.find('}') else { return 0; };
+        let Some(end) = rest.find('}') else {
+            return 0;
+        };
         let spec = &rest[..end];
         let trimmed = spec.trim_start_matches(':').trim_end_matches('d');
         if trimmed.is_empty() {
@@ -196,6 +201,7 @@ impl WorkItemConfig {
     /// - Prefixed form (`"ENG-0042"`, `"OPS-7"`): returns the value
     ///   verbatim — the workspace's `default_project_code` is NOT
     ///   re-applied, so multi-prefix coexistence under remote sync works.
+    ///
     /// Returns `None` for any other shape (`"ENG0042"`, `"PROJ-1.2"`,
     /// `""`, whitespace).
     pub fn normalise_id(&self, raw: &str) -> Option<String> {
@@ -238,7 +244,7 @@ impl WorkItemConfig {
             scan_regex_raw: raw,
             // Use the literal `{project}` placeholder so `id_pattern.contains
             // ("{project}")` lookups behave like production configs.
-            id_pattern: format!("{{project}}-{{number:0{}d}}", width),
+            id_pattern: format!("{{project}}-{{number:0{width}d}}"),
             default_project_code: Some(prefix.to_string()),
         }
     }
@@ -273,10 +279,11 @@ impl TemplateTiers {
 
 impl Config {
     pub fn from_path(path: &std::path::Path) -> Result<Self, ConfigError> {
-        let bytes = std::fs::read(path).map_err(|source| ConfigError::Read {
-            path: path.to_path_buf(),
-            source,
-        })?;
+        let bytes =
+            std::fs::read(path).map_err(|source| ConfigError::Read {
+                path: path.to_path_buf(),
+                source,
+            })?;
         serde_json::from_slice(&bytes).map_err(|source| ConfigError::Parse {
             path: path.to_path_buf(),
             source,
@@ -285,7 +292,13 @@ impl Config {
 }
 
 const DEFAULT_KANBAN_COLUMN_KEYS: &[&str] = &[
-    "draft", "ready", "in-progress", "review", "done", "blocked", "abandoned",
+    "draft",
+    "ready",
+    "in-progress",
+    "review",
+    "done",
+    "blocked",
+    "abandoned",
 ];
 
 fn label_from_key(key: &str) -> String {
@@ -305,16 +318,26 @@ impl Config {
     /// - `None` (field absent from config) → seven template-status defaults.
     /// - `Some(keys)` where `keys` is non-empty → one `KanbanColumn` per key.
     /// - `Some([])` (empty list) → `ConfigError::EmptyKanbanColumns` (reject at boot).
-    pub fn resolve_kanban_columns(&self) -> Result<Vec<KanbanColumn>, ConfigError> {
+    pub fn resolve_kanban_columns(
+        &self,
+    ) -> Result<Vec<KanbanColumn>, ConfigError> {
         match &self.kanban_columns {
             None => Ok(DEFAULT_KANBAN_COLUMN_KEYS
                 .iter()
-                .map(|k| KanbanColumn { key: k.to_string(), label: label_from_key(k) })
+                .map(|k| KanbanColumn {
+                    key: (*k).to_string(),
+                    label: label_from_key(k),
+                })
                 .collect()),
-            Some(keys) if keys.is_empty() => Err(ConfigError::EmptyKanbanColumns),
+            Some(keys) if keys.is_empty() => {
+                Err(ConfigError::EmptyKanbanColumns)
+            }
             Some(keys) => Ok(keys
                 .iter()
-                .map(|k| KanbanColumn { key: k.clone(), label: label_from_key(k) })
+                .map(|k| KanbanColumn {
+                    key: k.clone(),
+                    label: label_from_key(k),
+                })
                 .collect()),
         }
     }
@@ -363,7 +386,10 @@ impl Config {
             return Ok(DISABLED_IDLE_LIMIT_MS);
         }
         let dur = humantime::parse_duration(trimmed).map_err(|source| {
-            ConfigError::InvalidIdleTimeout { value: raw.to_string(), source }
+            ConfigError::InvalidIdleTimeout {
+                value: raw.to_string(),
+                source,
+            }
         })?;
         // A zero-length window ("0s", "0ms", …) also disables, matching the
         // bare-"0" token above.
@@ -422,7 +448,8 @@ mod tests {
 
     #[test]
     fn parses_valid_config() {
-        let c = Config::from_path(&fixture("config.valid.json")).expect("valid");
+        let c =
+            Config::from_path(&fixture("config.valid.json")).expect("valid");
         assert_eq!(c.plugin_version, "1.19.0-pre.2");
         assert_eq!(c.host, "127.0.0.1");
         assert_eq!(c.owner_pid, 0);
@@ -449,8 +476,9 @@ mod tests {
 
     #[test]
     fn rejects_nonexistent_path() {
-        let err = Config::from_path(std::path::Path::new("/nonexistent/config.json"))
-            .expect_err("missing file must fail");
+        let err =
+            Config::from_path(std::path::Path::new("/nonexistent/config.json"))
+                .expect_err("missing file must fail");
         assert!(matches!(err, ConfigError::Read { .. }));
     }
 
@@ -466,7 +494,8 @@ mod tests {
             "log_path": "/l", "doc_paths": {}, "templates": {},
             "doc_path": {"decisions": "/typo"}
         }"#;
-        let err = serde_json::from_str::<Config>(json).expect_err("unknown field must fail");
+        let err = serde_json::from_str::<Config>(json)
+            .expect_err("unknown field must fail");
         assert!(err.to_string().contains("unknown field"));
     }
 
@@ -514,7 +543,8 @@ mod tests {
             id_pattern: "{number:04d}".to_string(),
             default_project_code: None,
         };
-        let err = WorkItemConfig::from_raw(raw).expect_err("invalid regex must fail");
+        let err =
+            WorkItemConfig::from_raw(raw).expect_err("invalid regex must fail");
         assert!(matches!(err, ConfigError::InvalidScanRegex { .. }));
     }
 
@@ -535,8 +565,14 @@ mod tests {
             default_project_code: Some("PROJ".to_string()),
         })
         .unwrap();
-        assert_eq!(cfg.extract_id("PROJ-0042-foo.md").as_deref(), Some("PROJ-0042"));
-        assert_eq!(cfg.extract_id("PROJ-1-short.md").as_deref(), Some("PROJ-1"));
+        assert_eq!(
+            cfg.extract_id("PROJ-0042-foo.md").as_deref(),
+            Some("PROJ-0042")
+        );
+        assert_eq!(
+            cfg.extract_id("PROJ-1-short.md").as_deref(),
+            Some("PROJ-1")
+        );
         assert_eq!(cfg.extract_id("PROJ-0042.md"), None);
         assert_eq!(cfg.extract_id("malformed.md"), None);
     }
@@ -641,7 +677,7 @@ mod tests {
 
     #[test]
     fn default_impl_matches_default_numeric() {
-        let a: WorkItemConfig = Default::default();
+        let a: WorkItemConfig = WorkItemConfig::default();
         let b = WorkItemConfig::default_numeric();
         assert_eq!(a.scan_regex_raw, b.scan_regex_raw);
         assert_eq!(a.id_pattern, b.id_pattern);
@@ -669,7 +705,15 @@ mod tests {
         let cols = cfg.resolve_kanban_columns().unwrap();
         assert_eq!(
             cols.iter().map(|c| c.key.as_str()).collect::<Vec<_>>(),
-            vec!["draft", "ready", "in-progress", "review", "done", "blocked", "abandoned"]
+            vec![
+                "draft",
+                "ready",
+                "in-progress",
+                "review",
+                "done",
+                "blocked",
+                "abandoned"
+            ]
         );
     }
 
@@ -766,7 +810,10 @@ mod tests {
     fn idle_timeout_bare_zero_disables() {
         // The bare "0" arrives as a JSON string "0" from config-read-value.sh.
         let cfg = config_with_idle_timeout(r#""0""#);
-        assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), DISABLED_IDLE_LIMIT_MS);
+        assert_eq!(
+            cfg.resolve_idle_limit_ms().unwrap(),
+            DISABLED_IDLE_LIMIT_MS
+        );
     }
 
     #[test]

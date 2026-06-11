@@ -27,7 +27,9 @@ mod tests {
             editor: None,
             editor_project: None,
         };
-        let activity = std::sync::Arc::new(accelerator_visualiser::activity::Activity::new());
+        let activity = std::sync::Arc::new(
+            accelerator_visualiser::activity::Activity::new(),
+        );
         AppState::build(cfg, activity).await.unwrap()
     }
 

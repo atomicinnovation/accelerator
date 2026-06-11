@@ -27,7 +27,10 @@ async fn json_body(res: axum::response::Response) -> serde_json::Value {
 /// Build a Config rooted at `tmp` with only the doc-type paths the
 /// caller cares about. Templates point at empty placeholders so the
 /// resolver builds without panicking.
-fn cfg_with_only(tmp: &std::path::Path, doc_paths: HashMap<String, std::path::PathBuf>) -> Config {
+fn cfg_with_only(
+    tmp: &std::path::Path,
+    doc_paths: HashMap<String, std::path::PathBuf>,
+) -> Config {
     let tpl_dir = tmp.join("plugin-templates");
     std::fs::create_dir_all(&tpl_dir).unwrap();
     let mut templates = HashMap::new();
@@ -58,10 +61,10 @@ fn cfg_with_only(tmp: &std::path::Path, doc_paths: HashMap<String, std::path::Pa
         doc_paths,
         templates,
         work_item: None,
-            kanban_columns: None,
-            idle_timeout: None,
-            editor: None,
-            editor_project: None,
+        kanban_columns: None,
+        idle_timeout: None,
+        editor: None,
+        editor_project: None,
     }
 }
 
@@ -143,7 +146,8 @@ async fn related_endpoint_includes_slug_cluster_siblings() {
     let work = tmp.path().join("meta/work");
     std::fs::create_dir_all(&plans).unwrap();
     std::fs::create_dir_all(&work).unwrap();
-    std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: P\n---\n").unwrap();
+    std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: P\n---\n")
+        .unwrap();
     std::fs::write(work.join("0001-foo.md"), "---\ntitle: T\n---\n").unwrap();
     let mut paths = HashMap::new();
     paths.insert("plans".into(), plans);
@@ -173,7 +177,8 @@ async fn related_endpoint_excludes_self_from_inferred() {
     let tmp = tempfile::tempdir().unwrap();
     let plans = tmp.path().join("meta/plans");
     std::fs::create_dir_all(&plans).unwrap();
-    std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: P1\n---\n").unwrap();
+    std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: P1\n---\n")
+        .unwrap();
     std::fs::write(
         plans.join("2026-04-18-foo-extra.md"),
         "---\ntitle: P2\n---\n",
@@ -335,7 +340,8 @@ async fn related_response_uses_camelcase_field_names() {
     assert_eq!(res.status(), StatusCode::OK);
     let body = json_body(res).await;
     let obj = body.as_object().unwrap();
-    let keys: std::collections::BTreeSet<&str> = obj.keys().map(String::as_str).collect();
+    let keys: std::collections::BTreeSet<&str> =
+        obj.keys().map(String::as_str).collect();
     let expected: std::collections::BTreeSet<&str> =
         ["inferredCluster", "declaredOutbound", "declaredInbound"]
             .iter()
@@ -378,7 +384,8 @@ async fn related_endpoint_recovers_after_target_creation() {
     assert_eq!(body["declaredOutbound"].as_array().unwrap().len(), 0);
 
     // Create the target plan and rescan.
-    std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: Foo\n---\n").unwrap();
+    std::fs::write(plans.join("2026-04-18-foo.md"), "---\ntitle: Foo\n---\n")
+        .unwrap();
     state.indexer.rescan().await.unwrap();
     {
         let snapshot = state.indexer.all().await;
@@ -497,7 +504,11 @@ async fn related_endpoint_returns_multiple_inbound_reviews() {
     let reviews = tmp.path().join("meta/reviews/plans");
     std::fs::create_dir_all(&plans).unwrap();
     std::fs::create_dir_all(&reviews).unwrap();
-    std::fs::write(plans.join("2026-01-01-first-plan.md"), "---\ntitle: First\n---\n").unwrap();
+    std::fs::write(
+        plans.join("2026-01-01-first-plan.md"),
+        "---\ntitle: First\n---\n",
+    )
+    .unwrap();
     std::fs::write(
         reviews.join("2026-01-01-first-plan-review-1.md"),
         "---\ntarget: \"meta/plans/2026-01-01-first-plan.md\"\n---\n",
@@ -525,7 +536,11 @@ async fn related_endpoint_returns_multiple_inbound_reviews() {
     assert_eq!(res.status(), StatusCode::OK);
     let body = json_body(res).await;
     let inbound = body["declaredInbound"].as_array().unwrap();
-    assert_eq!(inbound.len(), 2, "both reviews must appear in declaredInbound");
+    assert_eq!(
+        inbound.len(),
+        2,
+        "both reviews must appear in declaredInbound"
+    );
 }
 
 // ── linkedCount: agreement with /api/related sum ───────────────────────────
@@ -590,11 +605,8 @@ async fn linked_count_reflects_inbound_merge_dedup() {
     let reviews = tmp.path().join("meta/reviews/work");
     std::fs::create_dir_all(&work).unwrap();
     std::fs::create_dir_all(&reviews).unwrap();
-    std::fs::write(
-        work.join("0001-target.md"),
-        "---\ntitle: T\n---\n",
-    )
-    .unwrap();
+    std::fs::write(work.join("0001-target.md"), "---\ntitle: T\n---\n")
+        .unwrap();
     // Review file targets the work-item AND declares work_item_id pointing
     // back at the same work-item. Both inbound channels reach the same
     // review path → dedup must collapse to 1.
@@ -621,7 +633,11 @@ async fn linked_count_reflects_inbound_merge_dedup() {
         .unwrap();
     let body = json_body(res).await;
     let inbound = body["declaredInbound"].as_array().unwrap();
-    assert_eq!(inbound.len(), 1, "inbound merge must dedupe duplicate sources");
+    assert_eq!(
+        inbound.len(),
+        1,
+        "inbound merge must dedupe duplicate sources"
+    );
 
     let res = app
         .oneshot(

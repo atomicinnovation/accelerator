@@ -57,7 +57,8 @@ async fn template_detail_returns_three_tiers_with_plugin_default_active() {
     assert_eq!(v["name"], "adr");
     let tiers = v["tiers"].as_array().unwrap();
     assert_eq!(tiers.len(), 3);
-    let active: Vec<&serde_json::Value> = tiers.iter().filter(|t| t["active"] == true).collect();
+    let active: Vec<&serde_json::Value> =
+        tiers.iter().filter(|t| t["active"] == true).collect();
     assert_eq!(active.len(), 1);
     assert_eq!(active[0]["source"], "plugin-default");
 }

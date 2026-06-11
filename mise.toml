@@ -80,7 +80,8 @@ description = "Build the visualiser server binary with the dev-frontend feature"
 run = "invoke build.server-dev"
 
 [tasks."build:server:release"]
-description = "Build the visualiser server binary for release (embed-dist)"
+description = "Build the frontend, then the visualiser server binary for release (embed-dist; the frontend build overwrites any lint-stub dist/index.html)"
+depends = ["build:frontend"]
 run = "invoke build.server-release"
 
 [tasks."build:server:cross-compile"]
@@ -248,6 +249,32 @@ run = "invoke types.build-system.check"
 [tasks."build-system:check"]
 description = "Run all Python format, lint, and type checks (ruff + pyrefly)"
 depends = ["format:build-system:check", "lint:build-system:check", "types:build-system:check"]
+
+[tasks."format:server:check"]
+description = "Check Rust formatting with rustfmt (cargo fmt --check)"
+run = "invoke format.server.check"
+
+[tasks."format:server:fix"]
+description = "Format Rust in place (cargo fmt)"
+run = "invoke format.server.fix"
+
+[tasks."build:frontend:stub"]
+description = "Write a placeholder frontend/dist/index.html if absent (satisfies embed-dist build.rs for lint-only compiles; not a real build; real build:frontend overwrites it)"
+run = "invoke build.frontend-stub"
+
+[tasks."lint:server:check"]
+description = "Lint Rust with clippy, two feature passes, -D warnings (gated on a dist stub, not a full SPA build; still two cold compiles — slow on a cold cache)"
+depends = ["build:frontend:stub"]
+run = "invoke lint.server.check"
+
+[tasks."lint:server:fix"]
+description = "Apply clippy's machine-applicable fixes (cargo clippy --fix, default features only — all-features/dev-frontend arms surface via server:check and may need manual fixes)"
+depends = ["build:frontend:stub"]
+run = "invoke lint.server.fix"
+
+[tasks."server:check"]
+description = "Run all Rust format and lint checks (rustfmt + clippy)"
+depends = ["format:server:check", "lint:server:check"]
 
 [tasks."lint:check"]
 description = "Run all lint checks"

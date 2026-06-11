@@ -22,7 +22,10 @@ pub(crate) async fn get_kanban_config(
     let columns = state
         .kanban_columns
         .iter()
-        .map(|c| KanbanColumnDto { key: c.key.clone(), label: c.label.clone() })
+        .map(|c| KanbanColumnDto {
+            key: c.key.clone(),
+            label: c.label.clone(),
+        })
         .collect();
     Json(KanbanConfigBody { columns })
 }
@@ -30,10 +33,10 @@ pub(crate) async fn get_kanban_config(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use http_body_util::BodyExt;
+    use std::collections::HashMap;
     use tower::ServiceExt;
 
     use crate::activity::Activity;
@@ -100,7 +103,8 @@ mod tests {
     async fn returns_configured_columns_with_derived_labels() {
         let tmp = tempfile::tempdir().unwrap();
         let mut cfg = minimal_config(tmp.path());
-        cfg.kanban_columns = Some(vec!["ready".into(), "in-progress".into(), "done".into()]);
+        cfg.kanban_columns =
+            Some(vec!["ready".into(), "in-progress".into(), "done".into()]);
         let state = build_state(cfg).await;
         let body = get_json(state).await;
         let cols = body["columns"].as_array().unwrap();
@@ -121,9 +125,12 @@ mod tests {
         assert!(result.is_err(), "build must fail with empty kanban_columns");
         let err = result.err().unwrap();
         assert!(
-            matches!(err, crate::server::AppStateError::Config(
-                crate::config::ConfigError::EmptyKanbanColumns
-            )),
+            matches!(
+                err,
+                crate::server::AppStateError::Config(
+                    crate::config::ConfigError::EmptyKanbanColumns
+                )
+            ),
             "expected EmptyKanbanColumns"
         );
     }

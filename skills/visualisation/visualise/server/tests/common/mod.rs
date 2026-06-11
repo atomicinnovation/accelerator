@@ -3,6 +3,8 @@ use std::path::Path;
 
 use accelerator_visualiser::config::{Config, TemplateTiers};
 
+// Shared helper compiled into every integration test binary; only some use
+// it, so binaries that don't would otherwise flag it as dead code.
 #[allow(dead_code)]
 pub fn set_mtime_ms(path: &Path, ms: i64) -> std::io::Result<()> {
     use std::fs::OpenOptions;
@@ -39,8 +41,16 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
     let tpl_dir = tmp.join("plugin-templates");
     std::fs::create_dir_all(&tpl_dir).unwrap();
     let mut templates = HashMap::new();
-    for name in ["adr", "plan", "research", "validation", "pr-description",
-                 "work-item", "design-gap", "design-inventory"] {
+    for name in [
+        "adr",
+        "plan",
+        "research",
+        "validation",
+        "pr-description",
+        "work-item",
+        "design-gap",
+        "design-inventory",
+    ] {
         let pd = tpl_dir.join(format!("{name}.md"));
         std::fs::write(&pd, format!("# {name} plugin default\n")).unwrap();
         templates.insert(
@@ -58,7 +68,8 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
     doc_paths.insert("decisions".into(), decisions);
     doc_paths.insert("work".into(), meta.join("work"));
     doc_paths.insert("plans".into(), plans);
-    doc_paths.insert("research_codebase".into(), meta.join("research/codebase"));
+    doc_paths
+        .insert("research_codebase".into(), meta.join("research/codebase"));
     doc_paths.insert("research_issues".into(), meta.join("research/issues"));
     doc_paths.insert("review_plans".into(), reviews);
     doc_paths.insert("review_prs".into(), meta.join("reviews/prs"));
@@ -66,8 +77,14 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
     doc_paths.insert("validations".into(), meta.join("validations"));
     doc_paths.insert("notes".into(), meta.join("notes"));
     doc_paths.insert("prs".into(), meta.join("prs"));
-    doc_paths.insert("research_design_gaps".into(), meta.join("research/design-gaps"));
-    doc_paths.insert("research_design_inventories".into(), meta.join("research/design-inventories"));
+    doc_paths.insert(
+        "research_design_gaps".into(),
+        meta.join("research/design-gaps"),
+    );
+    doc_paths.insert(
+        "research_design_inventories".into(),
+        meta.join("research/design-inventories"),
+    );
 
     Config {
         plugin_root: tmp.to_path_buf(),
@@ -81,13 +98,15 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
         doc_paths,
         templates,
         work_item: None,
-            kanban_columns: None,
-            idle_timeout: None,
-            editor: None,
-            editor_project: None,
+        kanban_columns: None,
+        idle_timeout: None,
+        editor: None,
+        editor_project: None,
     }
 }
 
+// Shared helper compiled into every integration test binary; only the
+// work-item suites call it, so the others would flag it as dead code.
 #[allow(dead_code)]
 pub fn seeded_cfg_with_work_items(tmp: &Path) -> Config {
     let mut cfg = seeded_cfg(tmp);

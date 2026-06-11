@@ -1,7 +1,8 @@
 use std::time::Duration;
 
 use accelerator_visualiser::{
-    activity::Activity, config::DISABLED_IDLE_LIMIT_MS, lifecycle, shutdown::ShutdownReason,
+    activity::Activity, config::DISABLED_IDLE_LIMIT_MS, lifecycle,
+    shutdown::ShutdownReason,
 };
 
 #[tokio::test]

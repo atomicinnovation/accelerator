@@ -10,14 +10,13 @@ fn main() {
         let manifest = std::env::var("CARGO_MANIFEST_DIR").unwrap();
         let dist_dir = std::path::Path::new(&manifest).join(FRONTEND_DIST_REL);
         let dist_index = dist_dir.join("index.html");
-        if !dist_index.exists() {
-            panic!(
-                "frontend/dist/index.html not found — \
-                 run `npm run build` in skills/visualisation/visualise/frontend/ \
-                 before `cargo build` (or use `--features dev-frontend` to \
-                 skip embedding and serve from disk instead)"
-            );
-        }
+        assert!(
+            dist_index.exists(),
+            "frontend/dist/index.html not found — \
+             run `npm run build` in skills/visualisation/visualise/frontend/ \
+             before `cargo build` (or use `--features dev-frontend` to \
+             skip embedding and serve from disk instead)"
+        );
         println!("cargo:rerun-if-changed={FRONTEND_DIST_REL}");
     }
     println!("cargo:rerun-if-changed=build.rs");

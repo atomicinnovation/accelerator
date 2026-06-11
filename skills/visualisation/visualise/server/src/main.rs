@@ -23,7 +23,7 @@ async fn main() -> ExitCode {
         }
     };
 
-    let _log_guard = match log::init(&cfg.log_path) {
+    let log_guard = match log::init(&cfg.log_path) {
         Ok(g) => g,
         Err(e) => {
             eprintln!("failed to init logging: {e}");
@@ -47,7 +47,7 @@ async fn main() -> ExitCode {
     if let Err(ref e) = result {
         error!(error = %e, "server error");
     }
-    drop(_log_guard);
+    drop(log_guard);
     if result.is_err() {
         ExitCode::from(1)
     } else {

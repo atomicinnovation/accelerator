@@ -10,7 +10,7 @@ use crate::server::AppState;
 pub(crate) struct EditorConfigBody {
     /// `None` → no editor configured → frontend renders the disabled state.
     editor: Option<String>,
-    /// Resolved JetBrains project name: configured `editor_project`, else the
+    /// Resolved `JetBrains` project name: configured `editor_project`, else the
     /// basename of `project_root`. Always present so the frontend never derives it.
     editor_project: String,
 }
@@ -40,11 +40,11 @@ pub(crate) async fn get_editor_config(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
-    use std::path::Path;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use http_body_util::BodyExt;
+    use std::collections::HashMap;
+    use std::path::Path;
     use tower::ServiceExt;
 
     use crate::activity::Activity;
@@ -98,7 +98,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let project_root = tmp.path().join("my-project");
         std::fs::create_dir_all(&project_root).unwrap();
-        let state = build_state(minimal_config(&project_root, tmp.path())).await;
+        let state =
+            build_state(minimal_config(&project_root, tmp.path())).await;
         let body = get_json(state).await;
         assert!(body["editor"].is_null());
         assert_eq!(body["editorProject"], "my-project");

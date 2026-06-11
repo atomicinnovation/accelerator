@@ -20,7 +20,9 @@ pub(crate) async fn get_work_item_config(
         .work_item
         .as_ref()
         .and_then(|w| w.default_project_code.clone());
-    Json(WorkItemConfigBody { default_project_code })
+    Json(WorkItemConfigBody {
+        default_project_code,
+    })
 }
 
 #[cfg(test)]
@@ -59,7 +61,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let cfg = minimal_config(tmp.path());
         let activity = Arc::new(Activity::new());
-        let state = crate::server::AppState::build(cfg, activity).await.unwrap();
+        let state =
+            crate::server::AppState::build(cfg, activity).await.unwrap();
         let app = build_router(state);
 
         let resp = app
@@ -75,8 +78,11 @@ mod tests {
         assert_eq!(resp.status(), 200);
         let bytes = resp.into_body().collect().await.unwrap().to_bytes();
         let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-        assert!(v["defaultProjectCode"].is_null() || !v.as_object().unwrap().contains_key("defaultProjectCode"),
-            "defaultProjectCode should be absent or null when unconfigured");
+        assert!(
+            v["defaultProjectCode"].is_null()
+                || !v.as_object().unwrap().contains_key("defaultProjectCode"),
+            "defaultProjectCode should be absent or null when unconfigured"
+        );
     }
 
     #[tokio::test]
@@ -89,7 +95,8 @@ mod tests {
             default_project_code: Some("PROJ".into()),
         });
         let activity = Arc::new(Activity::new());
-        let state = crate::server::AppState::build(cfg, activity).await.unwrap();
+        let state =
+            crate::server::AppState::build(cfg, activity).await.unwrap();
         let app = build_router(state);
 
         let resp = app

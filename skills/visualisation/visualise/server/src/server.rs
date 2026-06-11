@@ -63,7 +63,8 @@ impl AppState {
         let kanban_columns = Arc::new(cfg.resolve_kanban_columns()?);
         let idle_limit_ms = cfg.resolve_idle_limit_ms()?;
         let cfg = Arc::new(cfg);
-        let template_roots = crate::file_driver::template_extra_roots(&cfg.templates);
+        let template_roots =
+            crate::file_driver::template_extra_roots(&cfg.templates);
         let work_root = cfg
             .doc_paths
             .get("work")
@@ -80,7 +81,12 @@ impl AppState {
             None => crate::config::WorkItemConfig::default_numeric(),
         });
         let indexer = Arc::new(
-            crate::indexer::Indexer::build(driver.clone(), cfg.project_root.clone(), work_item_cfg).await?,
+            crate::indexer::Indexer::build(
+                driver.clone(),
+                cfg.project_root.clone(),
+                work_item_cfg,
+            )
+            .await?,
         );
         let templates = Arc::new(arc_swap::ArcSwap::from_pointee(
             crate::templates::TemplateResolver::build(
@@ -102,27 +108,43 @@ impl AppState {
             indexer.work_item_cfg(),
         );
         let (cluster_seed, completeness_backfill, cluster_key_backfill) =
-            crate::clusters::compute_clusters_with_backfill(&snapshot, &cluster_ctx);
-        let linked_counts =
-            crate::related::collect_linked_counts(&indexer, &cluster_seed, &snapshot).await;
-        indexer.apply_completeness_backfill(completeness_backfill).await;
-        indexer.apply_cluster_key_backfill(cluster_key_backfill).await;
+            crate::clusters::compute_clusters_with_backfill(
+                &snapshot,
+                &cluster_ctx,
+            );
+        let linked_counts = crate::related::collect_linked_counts(
+            &indexer,
+            &cluster_seed,
+            &snapshot,
+        )
+        .await;
+        indexer
+            .apply_completeness_backfill(completeness_backfill)
+            .await;
+        indexer
+            .apply_cluster_key_backfill(cluster_key_backfill)
+            .await;
         indexer.apply_linked_count_backfill(linked_counts).await;
         let clusters = Arc::new(RwLock::new(cluster_seed));
         let sse_hub = Arc::new(crate::sse_hub::SseHub::new(256));
-        let activity_feed = Arc::new(crate::activity_feed::ActivityRingBuffer::new());
-        let write_coordinator = Arc::new(crate::write_coordinator::WriteCoordinator::new());
-        let tier_index = crate::watcher::TierPathIndex::build(&cfg.templates).await;
-        let driver_dyn: Arc<dyn crate::file_driver::FileDriver> = driver.clone();
-        let template_change_handler = Arc::new(crate::watcher::TemplateChangeHandler::spawn(
-            templates.clone(),
-            Arc::new(cfg.templates.clone()),
-            driver_dyn,
-            tier_index,
-            sse_hub.clone(),
-            Arc::new(cfg.project_root.clone()),
-            Arc::new(cfg.plugin_root.clone()),
-        ));
+        let activity_feed =
+            Arc::new(crate::activity_feed::ActivityRingBuffer::new());
+        let write_coordinator =
+            Arc::new(crate::write_coordinator::WriteCoordinator::new());
+        let tier_index =
+            crate::watcher::TierPathIndex::build(&cfg.templates).await;
+        let driver_dyn: Arc<dyn crate::file_driver::FileDriver> =
+            driver.clone();
+        let template_change_handler =
+            Arc::new(crate::watcher::TemplateChangeHandler::spawn(
+                templates.clone(),
+                Arc::new(cfg.templates.clone()),
+                driver_dyn,
+                tier_index,
+                sse_hub.clone(),
+                Arc::new(cfg.project_root.clone()),
+                Arc::new(cfg.plugin_root.clone()),
+            ));
         Ok(Arc::new(Self {
             cfg,
             kanban_columns,
@@ -197,7 +219,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
 /// Callers that need to test the embed-dist handler use `serve_embedded<E>`
 /// with a fixture embed type instead.
 #[cfg(feature = "dev-frontend")]
-pub fn build_router_with_dist(state: Arc<AppState>, dist_path: std::path::PathBuf) -> Router {
+pub fn build_router_with_dist(
+    state: Arc<AppState>,
+    dist_path: std::path::PathBuf,
+) -> Router {
     build_router_with_spa(state, move |router| {
         crate::assets::apply_spa_serving_with_dist_path(router, dist_path)
     })
@@ -257,7 +282,9 @@ async fn healthz() -> &'static str {
     "ok\n"
 }
 
-async fn api_not_found(uri: axum::http::Uri) -> impl axum::response::IntoResponse {
+async fn api_not_found(
+    uri: axum::http::Uri,
+) -> impl axum::response::IntoResponse {
     (
         StatusCode::NOT_FOUND,
         axum::Json(serde_json::json!({
@@ -281,12 +308,12 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
     let app = build_router(state.clone());
 
     let bind_addr = SocketAddr::new(host, 0);
-    let listener = TcpListener::bind(bind_addr)
-        .await
-        .map_err(|source| ServerError::Bind {
+    let listener = TcpListener::bind(bind_addr).await.map_err(|source| {
+        ServerError::Bind {
             addr: bind_addr.to_string(),
             source,
-        })?;
+        }
+    })?;
     let local = listener.local_addr().map_err(|source| ServerError::Bind {
         addr: bind_addr.to_string(),
         source,
@@ -308,13 +335,17 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
     // the launcher's poll-for-readiness, which keys on
     // server-info.json.
     let pid_path = info_path.with_file_name("server.pid");
-    write_pid_file(&pid_path, info.pid).map_err(|source| ServerError::LifecycleWrite {
-        path: pid_path.clone(),
-        source,
+    write_pid_file(&pid_path, info.pid).map_err(|source| {
+        ServerError::LifecycleWrite {
+            path: pid_path.clone(),
+            source,
+        }
     })?;
-    write_server_info(info_path, &info).map_err(|source| ServerError::LifecycleWrite {
-        path: info_path.to_path_buf(),
-        source,
+    write_server_info(info_path, &info).map_err(|source| {
+        ServerError::LifecycleWrite {
+            path: info_path.to_path_buf(),
+            source,
+        }
     })?;
     info!(url = %info.url, pid = info.pid, start_time = ?info.start_time, "server-started");
 
@@ -406,7 +437,8 @@ fn spawn_signal_handlers(tx: mpsc::Sender<ShutdownReason>) {
     tokio::spawn({
         let tx = tx.clone();
         async move {
-            let mut s = signal(SignalKind::terminate()).expect("SIGTERM handler");
+            let mut s =
+                signal(SignalKind::terminate()).expect("SIGTERM handler");
             s.recv().await;
             let _ = tx.send(ShutdownReason::Sigterm).await;
         }
@@ -418,7 +450,11 @@ fn spawn_signal_handlers(tx: mpsc::Sender<ShutdownReason>) {
     });
 }
 
-fn write_server_stopped(path: &Path, reason: ShutdownReason) -> std::io::Result<()> {
+fn write_server_stopped(
+    path: &Path,
+    reason: ShutdownReason,
+) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
     let record = serde_json::json!({
         "reason": reason,
         // System-clock read — if this errs (pre-epoch clock) we
@@ -439,7 +475,6 @@ fn write_server_stopped(path: &Path, reason: ShutdownReason) -> std::io::Result<
     let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
     serde_json::to_writer_pretty(&mut tmp, &record)?;
     tmp.as_file_mut().write_all(b"\n")?;
-    use std::os::unix::fs::PermissionsExt;
     tmp.as_file()
         .set_permissions(std::fs::Permissions::from_mode(0o600))?;
     tmp.persist(path)?;
@@ -447,6 +482,7 @@ fn write_server_stopped(path: &Path, reason: ShutdownReason) -> std::io::Result<
 }
 
 fn write_server_info(path: &Path, info: &ServerInfo) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
     let dir = path.parent().ok_or_else(|| {
         std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
@@ -460,7 +496,6 @@ fn write_server_info(path: &Path, info: &ServerInfo) -> std::io::Result<()> {
     // Owner-only read/write — the file reveals listener URL and
     // process identity, and lives under the user's project tree
     // where other local accounts may have traversal.
-    use std::os::unix::fs::PermissionsExt;
     tmp.as_file()
         .set_permissions(std::fs::Permissions::from_mode(0o600))?;
     tmp.persist(path)?;
@@ -468,6 +503,7 @@ fn write_server_info(path: &Path, info: &ServerInfo) -> std::io::Result<()> {
 }
 
 fn write_pid_file(path: &Path, pid: i32) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
     let dir = path.parent().ok_or_else(|| {
         std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
@@ -477,7 +513,6 @@ fn write_pid_file(path: &Path, pid: i32) -> std::io::Result<()> {
     std::fs::create_dir_all(dir)?;
     let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
     writeln!(tmp.as_file_mut(), "{pid}")?;
-    use std::os::unix::fs::PermissionsExt;
     tmp.as_file()
         .set_permissions(std::fs::Permissions::from_mode(0o600))?;
     tmp.persist(path)?;
@@ -498,7 +533,8 @@ pub(crate) fn process_start_time(pid: i32) -> Option<u64> {
         // The command field (field 2) is wrapped in parens and may
         // contain spaces, so skip past the last ')' before splitting.
         let tail = stat.rsplit_once(')').map(|(_, t)| t)?;
-        let starttime_ticks: u64 = tail.split_whitespace().nth(19)?.parse().ok()?;
+        let starttime_ticks: u64 =
+            tail.split_whitespace().nth(19)?.parse().ok()?;
         let hz = unsafe { libc::sysconf(libc::_SC_CLK_TCK) } as u64;
         if hz == 0 {
             return None;
@@ -535,10 +571,10 @@ pub(crate) fn process_start_time(pid: i32) -> Option<u64> {
         let mib = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid];
         let ret = unsafe {
             libc::sysctl(
-                mib.as_ptr() as *mut libc::c_int,
+                mib.as_ptr().cast_mut(),
                 mib.len() as libc::c_uint,
-                buf.as_mut_ptr() as *mut libc::c_void,
-                &mut size,
+                buf.as_mut_ptr().cast::<libc::c_void>(),
+                &raw mut size,
                 std::ptr::null_mut(),
                 0,
             )
@@ -559,7 +595,10 @@ pub(crate) fn process_start_time(pid: i32) -> Option<u64> {
     }
 }
 
-async fn host_header_guard(req: Request, next: Next) -> Result<Response, StatusCode> {
+async fn host_header_guard(
+    req: Request,
+    next: Next,
+) -> Result<Response, StatusCode> {
     // Defence-in-depth against DNS-rebinding: only accept the
     // Host header values we actually bind to.
     let host = req
@@ -568,14 +607,20 @@ async fn host_header_guard(req: Request, next: Next) -> Result<Response, StatusC
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
     let (host_part, _) = host.split_once(':').unwrap_or((host, ""));
-    if host_part == "127.0.0.1" || host_part == "localhost" || host_part.is_empty() {
+    if host_part == "127.0.0.1"
+        || host_part == "localhost"
+        || host_part.is_empty()
+    {
         Ok(next.run(req).await)
     } else {
         Err(StatusCode::FORBIDDEN)
     }
 }
 
-async fn origin_guard(req: Request, next: Next) -> Result<Response, StatusCode> {
+async fn origin_guard(
+    req: Request,
+    next: Next,
+) -> Result<Response, StatusCode> {
     // Reject state-changing requests from foreign origins. Browsers always send
     // Origin on cross-origin PATCH/POST/PUT/DELETE; curl and server-to-server
     // callers omit it, so requests with no Origin header are allowed through.
@@ -590,7 +635,8 @@ async fn origin_guard(req: Request, next: Next) -> Result<Response, StatusCode> 
     if is_state_changing {
         if let Some(origin) = req.headers().get("origin") {
             let s = origin.to_str().unwrap_or("");
-            let allowed = s.starts_with("http://127.0.0.1") || s.starts_with("http://localhost");
+            let allowed = s.starts_with("http://127.0.0.1")
+                || s.starts_with("http://localhost");
             if !allowed {
                 return Err(StatusCode::FORBIDDEN);
             }
@@ -626,6 +672,7 @@ mod tests {
 
     #[test]
     fn write_server_info_roundtrips() {
+        use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
         let info_path = dir.path().join("server-info.json");
         let info = ServerInfo {
@@ -645,20 +692,20 @@ mod tests {
         assert_eq!(v["url"], "http://127.0.0.1:1234");
         assert_eq!(v["pid"], 42);
         assert_eq!(v["start_time"], 1_700_000_000);
-        use std::os::unix::fs::PermissionsExt;
-        let mode = std::fs::metadata(&info_path).unwrap().permissions().mode() & 0o777;
+        let mode =
+            std::fs::metadata(&info_path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600, "server-info.json must be owner-only");
     }
 
     #[test]
     fn write_pid_file_roundtrips() {
+        use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path().join("server.pid");
         write_pid_file(&p, 9999).unwrap();
         let content = std::fs::read_to_string(&p).unwrap();
         assert_eq!(content.trim(), "9999");
         assert!(content.ends_with('\n'));
-        use std::os::unix::fs::PermissionsExt;
         let mode = std::fs::metadata(&p).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600);
     }
@@ -705,7 +752,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path().join("server-stopped.json");
         write_server_stopped(&p, ShutdownReason::Sigterm).unwrap();
-        let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
+        let v: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
         assert_eq!(v["reason"], "sigterm");
         assert!(v["timestamp"].as_u64().unwrap() > 0);
     }
@@ -745,7 +793,11 @@ mod tests {
 
     #[cfg(feature = "dev-frontend")]
     fn seed_stub_dist(tmp: &std::path::Path) {
-        std::fs::write(tmp.join("index.html"), "<!doctype html><html>stub</html>").unwrap();
+        std::fs::write(
+            tmp.join("index.html"),
+            "<!doctype html><html>stub</html>",
+        )
+        .unwrap();
     }
 
     #[cfg(feature = "dev-frontend")]
@@ -765,12 +817,16 @@ mod tests {
         seed_stub_dist(dist.path());
 
         let state = build_minimal_state(dir.path()).await;
-        let app = build_router_with_dist(state.clone(), dist.path().to_path_buf());
+        let app =
+            build_router_with_dist(state.clone(), dist.path().to_path_buf());
 
-        let listener = match tokio::net::TcpListener::bind("127.0.0.1:0").await {
+        let listener = match tokio::net::TcpListener::bind("127.0.0.1:0").await
+        {
             Ok(l) => l,
             Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
-                eprintln!("SKIP: TCP bind not permitted in this environment: {e}");
+                eprintln!(
+                    "SKIP: TCP bind not permitted in this environment: {e}"
+                );
                 return;
             }
             Err(e) => panic!("unexpected bind error: {e}"),
@@ -845,7 +901,8 @@ mod tests {
         let state = build_minimal_state(dir.path()).await;
         let before = state.http_activity.last_millis();
         tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-        let app = build_router_with_dist(state.clone(), dist.path().to_path_buf());
+        let app =
+            build_router_with_dist(state.clone(), dist.path().to_path_buf());
 
         let _ = app
             .oneshot(
@@ -916,7 +973,8 @@ mod tests {
             "// ".to_string() + &"x".repeat(4096),
         )
         .unwrap();
-        std::fs::write(dist.path().join("index.html"), "<!doctype html>").unwrap();
+        std::fs::write(dist.path().join("index.html"), "<!doctype html>")
+            .unwrap();
 
         let state = build_minimal_state(dir.path()).await;
         let app = build_router_with_dist(state, dist.path().to_path_buf());
