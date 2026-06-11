@@ -1,22 +1,22 @@
 // Preview all 13 doc-type heroes at 96px in both themes at /big-glyph-showcase.
-import type { ReactElement } from 'react'
-import { type DocTypeKey, DOC_TYPE_KEYS } from '../../api/types'
-import { DOC_TYPE_HUE } from '../../styles/tokens'
-import { bigPalette, type BigGlyphDraw } from './bigPalette'
-import { DefaultBigGlyph } from './icons/DefaultBigGlyph'
-import { WorkItemsBigGlyph } from './icons/WorkItemsBigGlyph'
-import { WorkItemReviewsBigGlyph } from './icons/WorkItemReviewsBigGlyph'
-import { DesignInventoriesBigGlyph } from './icons/DesignInventoriesBigGlyph'
-import { DesignGapsBigGlyph } from './icons/DesignGapsBigGlyph'
-import { ResearchBigGlyph } from './icons/ResearchBigGlyph'
-import { PlansBigGlyph } from './icons/PlansBigGlyph'
-import { PlanReviewsBigGlyph } from './icons/PlanReviewsBigGlyph'
-import { ValidationsBigGlyph } from './icons/ValidationsBigGlyph'
-import { PrDescriptionsBigGlyph } from './icons/PrDescriptionsBigGlyph'
-import { PrReviewsBigGlyph } from './icons/PrReviewsBigGlyph'
-import { DecisionsBigGlyph } from './icons/DecisionsBigGlyph'
-import { NotesBigGlyph } from './icons/NotesBigGlyph'
-import { TemplatesBigGlyph } from './icons/TemplatesBigGlyph'
+import type { ReactElement } from "react";
+import { DOC_TYPE_KEYS, type DocTypeKey } from "../../api/types";
+import { DOC_TYPE_HUE } from "../../styles/tokens";
+import { type BigGlyphDraw, bigPalette } from "./bigPalette";
+import { DecisionsBigGlyph } from "./icons/DecisionsBigGlyph";
+import { DefaultBigGlyph } from "./icons/DefaultBigGlyph";
+import { DesignGapsBigGlyph } from "./icons/DesignGapsBigGlyph";
+import { DesignInventoriesBigGlyph } from "./icons/DesignInventoriesBigGlyph";
+import { NotesBigGlyph } from "./icons/NotesBigGlyph";
+import { PlanReviewsBigGlyph } from "./icons/PlanReviewsBigGlyph";
+import { PlansBigGlyph } from "./icons/PlansBigGlyph";
+import { PrDescriptionsBigGlyph } from "./icons/PrDescriptionsBigGlyph";
+import { PrReviewsBigGlyph } from "./icons/PrReviewsBigGlyph";
+import { ResearchBigGlyph } from "./icons/ResearchBigGlyph";
+import { TemplatesBigGlyph } from "./icons/TemplatesBigGlyph";
+import { ValidationsBigGlyph } from "./icons/ValidationsBigGlyph";
+import { WorkItemReviewsBigGlyph } from "./icons/WorkItemReviewsBigGlyph";
+import { WorkItemsBigGlyph } from "./icons/WorkItemsBigGlyph";
 
 /** Exhaustiveness enforced by `Record<DocTypeKey, BigGlyphDraw>` across all 13
  *  keys. Each entry is a render FUNCTION (`(p: BigPalette) => ReactElement`)
@@ -25,37 +25,37 @@ import { TemplatesBigGlyph } from './icons/TemplatesBigGlyph'
  *  `Glyph`'s `ICON_COMPONENTS` map; a contributor adding a type must follow the
  *  same `(p) => <g>…</g>` shape, not reach for `<XBigGlyph />`. */
 const BIG_GLYPHS: Record<DocTypeKey, BigGlyphDraw> = {
-  'decisions': DecisionsBigGlyph,
-  'work-items': WorkItemsBigGlyph,
-  'plans': PlansBigGlyph,
-  'research': ResearchBigGlyph,
-  'plan-reviews': PlanReviewsBigGlyph,
-  'pr-reviews': PrReviewsBigGlyph,
-  'work-item-reviews': WorkItemReviewsBigGlyph,
-  'validations': ValidationsBigGlyph,
-  'notes': NotesBigGlyph,
-  'pr-descriptions': PrDescriptionsBigGlyph,
-  'design-gaps': DesignGapsBigGlyph,
-  'design-inventories': DesignInventoriesBigGlyph,
-  'templates': TemplatesBigGlyph,
-}
+  decisions: DecisionsBigGlyph,
+  "work-items": WorkItemsBigGlyph,
+  plans: PlansBigGlyph,
+  research: ResearchBigGlyph,
+  "plan-reviews": PlanReviewsBigGlyph,
+  "pr-reviews": PrReviewsBigGlyph,
+  "work-item-reviews": WorkItemReviewsBigGlyph,
+  validations: ValidationsBigGlyph,
+  notes: NotesBigGlyph,
+  "pr-descriptions": PrDescriptionsBigGlyph,
+  "design-gaps": DesignGapsBigGlyph,
+  "design-inventories": DesignInventoriesBigGlyph,
+  templates: TemplatesBigGlyph,
+};
 
 /** Neutral blue hue for the off-union fallback path (mirrors the prototype's
  *  `|| 215` default). Named so it is not mistaken for `templates`' canonical
  *  hue, which happens to be 215 too — they are independent facts. */
-const DEFAULT_BIG_HUE = 215
+const DEFAULT_BIG_HUE = 215;
 
 export interface BigGlyphProps {
-  docType: DocTypeKey
+  docType: DocTypeKey;
   /** Rendered px (square). Defaults to 96 — the EmptyState hero column width.
    *  Freely scalable, unlike `Glyph`'s fixed `16 | 24 | 32` size union — this is
    *  an illustrative hero, not a fixed-grid icon. */
-  size?: number
+  size?: number;
   /** Numeric HSL hue (0–360) override. Defaults to DOC_TYPE_HUE[docType].
    *  Exposed for the 0083 showcase / off-canon rendering. Unlike `Glyph.colorVar`
    *  (a CSS-var string), BigGlyph overrides via a raw numeric hue because it
    *  constructs `hsl()` tones at render time (the runtime-hsl model). */
-  hue?: number
+  hue?: number;
 }
 
 /** Decorative per-doc-type hero illustration. Runtime-hsl coloured from a single
@@ -63,18 +63,22 @@ export interface BigGlyphProps {
  *  Decorative-only by design — always `aria-hidden`, with no `ariaLabel` escape
  *  hatch (unlike the small `Glyph`): the empty-state copy carries the meaning, so
  *  a labelled/announced hero is intentionally out of scope. */
-export function BigGlyph({ docType, size = 96, hue }: BigGlyphProps): ReactElement {
+export function BigGlyph({
+  docType,
+  size = 96,
+  hue,
+}: BigGlyphProps): ReactElement {
   // `??` (not `||`) so an explicit `hue={0}` (valid red) is honoured rather than
   // discarded. `DOC_TYPE_HUE[docType]` is undefined for off-union keys (cast /
   // JS callers), so fall back to DEFAULT_BIG_HUE — this keeps the off-union path
   // null-safe so the `?? DefaultBigGlyph` fallback can render.
-  const resolvedHue = hue ?? DOC_TYPE_HUE[docType] ?? DEFAULT_BIG_HUE
-  const draw = BIG_GLYPHS[docType] ?? DefaultBigGlyph
+  const resolvedHue = hue ?? DOC_TYPE_HUE[docType] ?? DEFAULT_BIG_HUE;
+  const draw = BIG_GLYPHS[docType] ?? DefaultBigGlyph;
   if (import.meta.env.DEV && !BIG_GLYPHS[docType]) {
     console.warn(
       `[BigGlyph] Unknown docType "${docType}"; falling back to DEFAULT_BIG. ` +
-        `Expected one of: ${DOC_TYPE_KEYS.join(', ')}.`,
-    )
+        `Expected one of: ${DOC_TYPE_KEYS.join(", ")}.`,
+    );
   }
   return (
     <svg
@@ -82,13 +86,13 @@ export function BigGlyph({ docType, size = 96, hue }: BigGlyphProps): ReactEleme
       width={size}
       height={size}
       aria-hidden="true"
-      style={{ display: 'block' }}
+      style={{ display: "block" }}
     >
       {draw(bigPalette(resolvedHue))}
     </svg>
-  )
+  );
 }
 
 // Exported for the dispatch-collision guard in BigGlyph.test.tsx — the thirteen
 // values must be referentially distinct functions.
-export { BIG_GLYPHS, DEFAULT_BIG_HUE }
+export { BIG_GLYPHS, DEFAULT_BIG_HUE };

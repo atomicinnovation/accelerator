@@ -1,13 +1,13 @@
-import type { ReactElement } from 'react'
+import type { ReactElement } from "react";
 
 export interface BigPalette {
-  stroke: string
-  fill: string
-  fold: string
-  line: string
-  accent: string
-  deep: string
-  white: string
+  stroke: string;
+  fill: string;
+  fold: string;
+  line: string;
+  accent: string;
+  deep: string;
+  white: string;
 }
 
 /** Render signature for a single per-doc-type BigGlyph illustration: it
@@ -16,7 +16,7 @@ export interface BigPalette {
  *  in one place and each of the thirteen illustration call sites is
  *  self-documenting. This is the key divergence from `Glyph`'s zero-arg
  *  `ComponentType` — the palette must be threaded in at render time. */
-export type BigGlyphDraw = (p: BigPalette) => ReactElement
+export type BigGlyphDraw = (p: BigPalette) => ReactElement;
 
 /** Derive the seven-tone BigGlyph palette from a single HSL hue (0–360).
  *  Six hue-derived tones + a fixed `white`. Value-preserving port of the
@@ -32,6 +32,6 @@ export function bigPalette(hue: number): BigPalette {
     line: `hsl(${hue} 30% 78%)`,
     accent: `hsl(${hue} 65% 56%)`,
     deep: `hsl(${hue} 55% 38%)`,
-    white: '#ffffff',
-  }
+    white: "#ffffff",
+  };
 }

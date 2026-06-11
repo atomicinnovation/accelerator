@@ -1,9 +1,9 @@
-import { Link } from '@tanstack/react-router'
-import { Glyph } from '../Glyph/Glyph'
-import { DOC_TYPE_COLOR_VAR } from '../Glyph/Glyph.constants'
-import { DOC_TYPE_LABELS_SINGULAR } from '../../api/types'
-import { useSearch } from '../../api/use-search'
-import styles from './Sidebar.module.css'
+import { Link } from "@tanstack/react-router";
+import { DOC_TYPE_LABELS_SINGULAR } from "../../api/types";
+import { useSearch } from "../../api/use-search";
+import { Glyph } from "../Glyph/Glyph";
+import { DOC_TYPE_COLOR_VAR } from "../Glyph/Glyph.constants";
+import styles from "./Sidebar.module.css";
 
 /**
  * Render state machine (rows = mutually exclusive branches, top-down
@@ -17,23 +17,29 @@ import styles from './Sidebar.module.css'
  *   otherwise                                          → render nothing (first-load pending)
  */
 export function SearchResultsPanel({ query }: { query: string }) {
-  const search = useSearch(query)
-  const trimmed = query.trim()
-  if (trimmed.length < 2) return null
-  if (search.isError) return null
+  const search = useSearch(query);
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return null;
+  if (search.isError) return null;
 
   const showLoading =
-    search.isFetching && (!search.data || search.data.length === 0)
+    search.isFetching && (!search.data || search.data.length === 0);
   const showEmpty =
-    search.isSuccess &&
-    search.data?.length === 0 &&
-    !search.isPlaceholderData
-  const showResults = !!(search.data && search.data.length > 0)
+    search.isSuccess && search.data?.length === 0 && !search.isPlaceholderData;
+  const showResults = !!(search.data && search.data.length > 0);
+  // Narrowed view of the results: empty array when absent, so the results
+  // branch (only rendered when showResults) needs no non-null assertions.
+  const results = search.data ?? [];
 
-  if (!showLoading && !showEmpty && !showResults) return null
+  if (!showLoading && !showEmpty && !showResults) return null;
 
   return (
-    <div className={styles.searchPanel} role="region" aria-label="Search results">
+    // biome-ignore lint/a11y/useSemanticElements: intentional div+role="region" to preserve the existing search-panel layout/styling; native <section> migration is deferred to a dedicated a11y pass
+    <div
+      className={styles.searchPanel}
+      role="region"
+      aria-label="Search results"
+    >
       {showLoading && (
         <div className={styles.searchLoading} aria-hidden="true">
           <span className={styles.searchLoadbar} />
@@ -46,8 +52,8 @@ export function SearchResultsPanel({ query }: { query: string }) {
         <>
           <div className={styles.searchMeta}>
             <span>
-              <b>{search.data!.length}</b>{' '}
-              {search.data!.length === 1 ? 'match' : 'matches'} ·{' '}
+              <b>{results.length}</b>{" "}
+              {results.length === 1 ? "match" : "matches"} ·{" "}
               <span className={styles.mono}>{trimmed}</span>
             </span>
             <span className={styles.searchHint} title="Enter opens, Esc clears">
@@ -56,7 +62,7 @@ export function SearchResultsPanel({ query }: { query: string }) {
             </span>
           </div>
           <div className={styles.searchList} role="listbox">
-            {search.data!.map(r => (
+            {results.map((r) => (
               <Link
                 key={`${r.docType}/${r.slug}`}
                 to="/library/$type/$fileSlug"
@@ -93,22 +99,22 @@ export function SearchResultsPanel({ query }: { query: string }) {
         <div className={styles.searchEmpty} role="status" aria-live="polite">
           <div className={styles.searchEmptyTitle}>No matches</div>
           <div className={styles.searchEmptyBody}>
-            Nothing in <span className={styles.mono}>meta/</span> matches{' '}
-            <span className={styles.mono}>"{trimmed}"</span>. Try a slug,
-            a fragment of a title, or a doc id.
+            Nothing in <span className={styles.mono}>meta/</span> matches{" "}
+            <span className={styles.mono}>"{trimmed}"</span>. Try a slug, a
+            fragment of a title, or a doc id.
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function Highlight({ text, q }: { text: string; q: string }) {
-  if (!q || q.length < 2) return <>{text}</>
-  const lower = text.toLowerCase()
-  const needle = q.toLowerCase()
-  const i = lower.indexOf(needle)
-  if (i < 0) return <>{text}</>
+  if (!q || q.length < 2) return <>{text}</>;
+  const lower = text.toLowerCase();
+  const needle = q.toLowerCase();
+  const i = lower.indexOf(needle);
+  if (i < 0) return <>{text}</>;
   return (
     <>
       {text.slice(0, i)}
@@ -117,7 +123,7 @@ function Highlight({ text, q }: { text: string; q: string }) {
       </mark>
       {text.slice(i + needle.length)}
     </>
-  )
+  );
 }
 
 function ChevronRight() {
@@ -138,5 +144,5 @@ function ChevronRight() {
         strokeLinejoin="round"
       />
     </svg>
-  )
+  );
 }

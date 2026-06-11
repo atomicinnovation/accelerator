@@ -1,24 +1,25 @@
-import { useDocEventsContext } from '../../api/use-doc-events'
-import type { ConnectionState } from '../../api/reconnecting-event-source'
-import styles from './SseIndicator.module.css'
+import type { ConnectionState } from "../../api/reconnecting-event-source";
+import { useDocEventsContext } from "../../api/use-doc-events";
+import styles from "./SseIndicator.module.css";
 
 const LABELS: Record<ConnectionState, string> = {
-  open: 'SSE connection: open',
-  reconnecting: 'SSE connection: reconnecting',
-  connecting: 'SSE connection: connecting',
-  closed: 'SSE connection: closed',
-}
+  open: "SSE connection: open",
+  reconnecting: "SSE connection: reconnecting",
+  connecting: "SSE connection: connecting",
+  closed: "SSE connection: closed",
+};
 
 export function SseIndicator() {
-  const { connectionState } = useDocEventsContext()
-  const animated = connectionState === 'reconnecting'
+  const { connectionState } = useDocEventsContext();
+  const animated = connectionState === "reconnecting";
 
   return (
     <span
       className={styles.sse}
+      role="img"
       aria-label={LABELS[connectionState]}
       data-state={connectionState}
-      data-animated={animated ? 'true' : undefined}
+      data-animated={animated ? "true" : undefined}
     >
       <svg
         width="12"
@@ -38,5 +39,5 @@ export function SseIndicator() {
       </svg>
       <span className={styles.label}>SSE</span>
     </span>
-  )
+  );
 }

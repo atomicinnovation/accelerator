@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react'
+import { type RefObject, useEffect } from "react";
 
 export function useDismiss(
   open: boolean,
@@ -6,20 +6,20 @@ export function useDismiss(
   onDismiss: () => void,
 ): void {
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     const onMouseDown = (event: MouseEvent) => {
-      const target = event.target as Node | null
-      if (target && ref.current && ref.current.contains(target)) return
-      onDismiss()
-    }
+      const target = event.target as Node | null;
+      if (target && ref.current?.contains(target)) return;
+      onDismiss();
+    };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onDismiss()
-    }
-    document.addEventListener('mousedown', onMouseDown)
-    document.addEventListener('keydown', onKeyDown)
+      if (event.key === "Escape") onDismiss();
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', onMouseDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open, ref, onDismiss])
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, ref, onDismiss]);
 }

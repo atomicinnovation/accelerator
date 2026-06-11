@@ -1,726 +1,1032 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import React from 'react'
-import { dispatchSseEvent, makeUseDocEvents, useDocEventsContext } from './use-doc-events'
-import { createSelfCauseRegistry } from './self-cause'
-import { queryKeys } from './query-keys'
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook } from "@testing-library/react";
+import React from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { queryKeys } from "./query-keys";
+import { createSelfCauseRegistry } from "./self-cause";
+import {
+  dispatchSseEvent,
+  makeUseDocEvents,
+  useDocEventsContext,
+} from "./use-doc-events";
 
 // ── Pure dispatch tests ──────────────────────────────────────────────────
 // No hooks, no EventSource, no async — just exercise the invalidation
 // rules directly.
-describe('dispatchSseEvent', () => {
-  let queryClient: QueryClient
+describe("dispatchSseEvent", () => {
+  let queryClient: QueryClient;
 
   beforeEach(() => {
-    queryClient = new QueryClient()
-    vi.spyOn(queryClient, 'invalidateQueries')
-  })
+    queryClient = new QueryClient();
+    vi.spyOn(queryClient, "invalidateQueries");
+  });
 
-  it('invalidates docs query on doc-changed event', () => {
+  it("invalidates docs query on doc-changed event", () => {
     dispatchSseEvent(
-      { type: 'doc-changed', action: 'edited', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-abc', timestamp: '2026-05-13T00:00:00Z' },
+      {
+        type: "doc-changed",
+        action: "edited",
+        docType: "plans",
+        path: "meta/plans/foo.md",
+        etag: "sha256-abc",
+        timestamp: "2026-05-13T00:00:00Z",
+      },
       queryClient,
-    )
+    );
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: queryKeys.docs('plans') }),
-    )
-  })
+      expect.objectContaining({ queryKey: queryKeys.docs("plans") }),
+    );
+  });
 
-  it('invalidates the types query on doc-changed event', () => {
+  it("invalidates the types query on doc-changed event", () => {
     dispatchSseEvent(
-      { type: 'doc-changed', action: 'edited', docType: 'decisions', path: 'meta/decisions/0001.md', etag: 'sha256-abc', timestamp: '2026-05-13T00:00:00Z' },
+      {
+        type: "doc-changed",
+        action: "edited",
+        docType: "decisions",
+        path: "meta/decisions/0001.md",
+        etag: "sha256-abc",
+        timestamp: "2026-05-13T00:00:00Z",
+      },
       queryClient,
-    )
+    );
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: queryKeys.types() }),
-    )
-  })
+    );
+  });
 
-  it('invalidates the types query on doc-invalid event', () => {
+  it("invalidates the types query on doc-invalid event", () => {
     dispatchSseEvent(
-      { type: 'doc-invalid', docType: 'decisions', path: 'meta/decisions/0001.md' },
+      {
+        type: "doc-invalid",
+        docType: "decisions",
+        path: "meta/decisions/0001.md",
+      },
       queryClient,
-    )
+    );
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: queryKeys.types() }),
-    )
-  })
+    );
+  });
 
-  it('invalidates doc content for the changed file', () => {
+  it("invalidates doc content for the changed file", () => {
     dispatchSseEvent(
-      { type: 'doc-changed', action: 'edited', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-abc', timestamp: '2026-05-13T00:00:00Z' },
+      {
+        type: "doc-changed",
+        action: "edited",
+        docType: "plans",
+        path: "meta/plans/foo.md",
+        etag: "sha256-abc",
+        timestamp: "2026-05-13T00:00:00Z",
+      },
       queryClient,
-    )
+    );
     // Refreshes the markdown body when the open detail view's file changes.
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: queryKeys.docContent('meta/plans/foo.md') }),
-    )
-  })
+      expect.objectContaining({
+        queryKey: queryKeys.docContent("meta/plans/foo.md"),
+      }),
+    );
+  });
 
-  it('invalidates kanban on work-item doc-changed event', () => {
+  it("invalidates kanban on work-item doc-changed event", () => {
     dispatchSseEvent(
-      { type: 'doc-changed', action: 'edited', docType: 'work-items', path: 'meta/work/0001-foo.md', etag: 'sha256-abc', timestamp: '2026-05-13T00:00:00Z' },
+      {
+        type: "doc-changed",
+        action: "edited",
+        docType: "work-items",
+        path: "meta/work/0001-foo.md",
+        etag: "sha256-abc",
+        timestamp: "2026-05-13T00:00:00Z",
+      },
       queryClient,
-    )
+    );
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: queryKeys.kanban() }),
-    )
-  })
+    );
+  });
 
-  it('invalidates the lifecycle-cluster prefix on doc-changed event', () => {
-    queryClient.setQueryData(queryKeys.lifecycleCluster('foo'), null)
-    queryClient.setQueryData(queryKeys.lifecycleCluster('bar'), null)
-
-    dispatchSseEvent(
-      { type: 'doc-changed', action: 'edited', docType: 'plans', path: 'meta/plans/x.md', etag: 'sha256-x', timestamp: '2026-05-13T00:00:00Z' },
-      queryClient,
-    )
-
-    expect(queryClient.getQueryState(queryKeys.lifecycleCluster('foo'))?.isInvalidated).toBe(true)
-    expect(queryClient.getQueryState(queryKeys.lifecycleCluster('bar'))?.isInvalidated).toBe(true)
-  })
-
-  it('also invalidates the lifecycle-cluster prefix on doc-invalid event', () => {
-    queryClient.setQueryData(queryKeys.lifecycleCluster('foo'), null)
+  it("invalidates the lifecycle-cluster prefix on doc-changed event", () => {
+    queryClient.setQueryData(queryKeys.lifecycleCluster("foo"), null);
+    queryClient.setQueryData(queryKeys.lifecycleCluster("bar"), null);
 
     dispatchSseEvent(
-      { type: 'doc-invalid', docType: 'plans', path: 'meta/plans/x.md' },
+      {
+        type: "doc-changed",
+        action: "edited",
+        docType: "plans",
+        path: "meta/plans/x.md",
+        etag: "sha256-x",
+        timestamp: "2026-05-13T00:00:00Z",
+      },
       queryClient,
-    )
+    );
 
     expect(
-      queryClient.getQueryState(queryKeys.lifecycleCluster('foo'))?.isInvalidated,
-    ).toBe(true)
-  })
+      queryClient.getQueryState(queryKeys.lifecycleCluster("foo"))
+        ?.isInvalidated,
+    ).toBe(true);
+    expect(
+      queryClient.getQueryState(queryKeys.lifecycleCluster("bar"))
+        ?.isInvalidated,
+    ).toBe(true);
+  });
+
+  it("also invalidates the lifecycle-cluster prefix on doc-invalid event", () => {
+    queryClient.setQueryData(queryKeys.lifecycleCluster("foo"), null);
+
+    dispatchSseEvent(
+      { type: "doc-invalid", docType: "plans", path: "meta/plans/x.md" },
+      queryClient,
+    );
+
+    expect(
+      queryClient.getQueryState(queryKeys.lifecycleCluster("foo"))
+        ?.isInvalidated,
+    ).toBe(true);
+  });
 
   // ── Step 5.5 ────────────────────────────────────────────────────────
   it('invalidates the related prefix with refetchType: "all" on doc-changed', () => {
     dispatchSseEvent(
-      { type: 'doc-changed', action: 'edited', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-x', timestamp: '2026-05-13T00:00:00Z' },
+      {
+        type: "doc-changed",
+        action: "edited",
+        docType: "plans",
+        path: "meta/plans/foo.md",
+        etag: "sha256-x",
+        timestamp: "2026-05-13T00:00:00Z",
+      },
       queryClient,
-    )
+    );
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
       expect.objectContaining({
         queryKey: queryKeys.relatedPrefix(),
-        refetchType: 'all',
+        refetchType: "all",
       }),
-    )
-  })
+    );
+  });
 
-  it('related-prefix invalidation marks unmounted-but-cached related queries stale', () => {
-    queryClient.setQueryData(queryKeys.related('meta/plans/a.md'), null)
-    queryClient.setQueryData(queryKeys.related('meta/plans/b.md'), null)
+  it("related-prefix invalidation marks unmounted-but-cached related queries stale", () => {
+    queryClient.setQueryData(queryKeys.related("meta/plans/a.md"), null);
+    queryClient.setQueryData(queryKeys.related("meta/plans/b.md"), null);
     dispatchSseEvent(
-      { type: 'doc-changed', action: 'edited', docType: 'plans', path: 'meta/plans/x.md', etag: 'sha256-x', timestamp: '2026-05-13T00:00:00Z' },
+      {
+        type: "doc-changed",
+        action: "edited",
+        docType: "plans",
+        path: "meta/plans/x.md",
+        etag: "sha256-x",
+        timestamp: "2026-05-13T00:00:00Z",
+      },
       queryClient,
-    )
-    expect(queryClient.getQueryState(queryKeys.related('meta/plans/a.md'))?.isInvalidated).toBe(true)
-    expect(queryClient.getQueryState(queryKeys.related('meta/plans/b.md'))?.isInvalidated).toBe(true)
-  })
+    );
+    expect(
+      queryClient.getQueryState(queryKeys.related("meta/plans/a.md"))
+        ?.isInvalidated,
+    ).toBe(true);
+    expect(
+      queryClient.getQueryState(queryKeys.related("meta/plans/b.md"))
+        ?.isInvalidated,
+    ).toBe(true);
+  });
 
   // ── Step 5.5b ───────────────────────────────────────────────────────
-  it('does not invalidate related-prefix on unknown event kinds', () => {
-    queryClient.setQueryData(queryKeys.related('meta/plans/a.md'), null)
+  it("does not invalidate related-prefix on unknown event kinds", () => {
+    queryClient.setQueryData(queryKeys.related("meta/plans/a.md"), null);
     dispatchSseEvent(
-      { type: 'connected' } as unknown as Parameters<typeof dispatchSseEvent>[0],
+      { type: "connected" } as unknown as Parameters<
+        typeof dispatchSseEvent
+      >[0],
       queryClient,
-    )
+    );
     expect(queryClient.invalidateQueries).not.toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: queryKeys.relatedPrefix() }),
-    )
-    expect(queryClient.getQueryState(queryKeys.related('meta/plans/a.md'))?.isInvalidated).toBe(false)
-  })
+    );
+    expect(
+      queryClient.getQueryState(queryKeys.related("meta/plans/a.md"))
+        ?.isInvalidated,
+    ).toBe(false);
+  });
 
-  it('invalidates exactly templateDetail(name) and templates() on template-changed', () => {
+  it("invalidates exactly templateDetail(name) and templates() on template-changed", () => {
     dispatchSseEvent(
       {
-        type: 'template-changed',
-        template: 'adr',
-        sha256: `sha256-${'a'.repeat(64)}`,
-        timestamp: '2026-05-18T00:00:00Z',
+        type: "template-changed",
+        template: "adr",
+        sha256: `sha256-${"a".repeat(64)}`,
+        timestamp: "2026-05-18T00:00:00Z",
       },
       queryClient,
-    )
-    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(2)
-    const spy = queryClient.invalidateQueries as unknown as ReturnType<typeof vi.fn>
-    const keys = spy.mock.calls.map((c: unknown[]) => (c[0] as { queryKey: unknown }).queryKey)
-    expect(keys).toContainEqual(queryKeys.templateDetail('adr'))
-    expect(keys).toContainEqual(queryKeys.templates())
-  })
+    );
+    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(2);
+    const spy = queryClient.invalidateQueries as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    const keys = spy.mock.calls.map(
+      (c: unknown[]) => (c[0] as { queryKey: unknown }).queryKey,
+    );
+    expect(keys).toContainEqual(queryKeys.templateDetail("adr"));
+    expect(keys).toContainEqual(queryKeys.templates());
+  });
 
-  it('invalidates the same template keys when sha256 is absent', () => {
+  it("invalidates the same template keys when sha256 is absent", () => {
     dispatchSseEvent(
       {
-        type: 'template-changed',
-        template: 'adr',
-        timestamp: '2026-05-18T00:00:00Z',
+        type: "template-changed",
+        template: "adr",
+        timestamp: "2026-05-18T00:00:00Z",
       },
       queryClient,
-    )
-    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(2)
-  })
-})
+    );
+    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(2);
+  });
+});
 
 // ── Wiring tests via the factory ─────────────────────────────────────────
 // Construct an isolated hook with a fake EventSource factory. Instance
 // capture happens via a test-local closure — no global-stub coordination.
-describe('makeUseDocEvents wiring', () => {
-  let queryClient: QueryClient
+describe("makeUseDocEvents wiring", () => {
+  let queryClient: QueryClient;
 
   class FakeEventSource {
-    onmessage: ((e: MessageEvent) => void) | null = null
-    onerror: ((e: Event) => void) | null = null
-    onopen: ((e: Event) => void) | null = null
-    close = vi.fn()
+    onmessage: ((e: MessageEvent) => void) | null = null;
+    onerror: ((e: Event) => void) | null = null;
+    onopen: ((e: Event) => void) | null = null;
+    close = vi.fn();
     constructor(public url: string) {}
   }
 
   beforeEach(() => {
-    vi.useFakeTimers()
-    queryClient = new QueryClient()
-  })
-  afterEach(() => { vi.useRealTimers() })
+    vi.useFakeTimers();
+    queryClient = new QueryClient();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   function wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children)
+    return React.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      children,
+    );
   }
 
-  it('opens an EventSource to /api/events', () => {
+  it("opens an EventSource to /api/events", () => {
     const factory = vi.fn(
       (url: string) => new FakeEventSource(url) as unknown as EventSource,
-    )
-    const useDocEvents = makeUseDocEvents(factory)
-    renderHook(() => useDocEvents(), { wrapper })
-    expect(factory).toHaveBeenCalledWith('/api/events')
-  })
+    );
+    const useDocEvents = makeUseDocEvents(factory);
+    renderHook(() => useDocEvents(), { wrapper });
+    expect(factory).toHaveBeenCalledWith("/api/events");
+  });
 
-  it('closes the EventSource on unmount', () => {
-    let captured: FakeEventSource | null = null
+  it("closes the EventSource on unmount", () => {
+    let captured: FakeEventSource | null = null;
     const useDocEvents = makeUseDocEvents((url) => {
-      captured = new FakeEventSource(url)
-      return captured as unknown as EventSource
-    })
-    const { unmount } = renderHook(() => useDocEvents(), { wrapper })
-    unmount()
-    expect(captured!.close).toHaveBeenCalled()
-  })
+      captured = new FakeEventSource(url);
+      return captured as unknown as EventSource;
+    });
+    const { unmount } = renderHook(() => useDocEvents(), { wrapper });
+    unmount();
+    expect(captured!.close).toHaveBeenCalled();
+  });
 
-  it('ignores malformed JSON without throwing or invalidating', () => {
-    vi.spyOn(queryClient, 'invalidateQueries')
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    let captured: FakeEventSource | null = null
+  it("ignores malformed JSON without throwing or invalidating", () => {
+    vi.spyOn(queryClient, "invalidateQueries");
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    let captured: FakeEventSource | null = null;
     const useDocEvents = makeUseDocEvents((url) => {
-      captured = new FakeEventSource(url)
-      return captured as unknown as EventSource
-    })
-    renderHook(() => useDocEvents(), { wrapper })
-    act(() => { captured!.onopen?.(new Event('open')) })
+      captured = new FakeEventSource(url);
+      return captured as unknown as EventSource;
+    });
+    renderHook(() => useDocEvents(), { wrapper });
+    act(() => {
+      captured!.onopen?.(new Event("open"));
+    });
 
     expect(() => {
-      captured!.onmessage?.(new MessageEvent('message', { data: 'not json' }))
-    }).not.toThrow()
-    expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
-  })
+      captured!.onmessage?.(new MessageEvent("message", { data: "not json" }));
+    }).not.toThrow();
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
+  });
 
-  it('invalidates all queries except session-stable on reconnect', () => {
-    queryClient.setQueryData(queryKeys.docs('plans'), [])
-    queryClient.setQueryData(queryKeys.docs('work-items'), [])
-    queryClient.setQueryData(queryKeys.serverInfo(), { name: 'x', version: '1.0.0' })
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it("invalidates all queries except session-stable on reconnect", () => {
+    queryClient.setQueryData(queryKeys.docs("plans"), []);
+    queryClient.setQueryData(queryKeys.docs("work-items"), []);
+    queryClient.setQueryData(queryKeys.serverInfo(), {
+      name: "x",
+      version: "1.0.0",
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const fakes: FakeEventSource[] = []
+    const fakes: FakeEventSource[] = [];
     const useDocEvents = makeUseDocEvents((url) => {
-      const fake = new FakeEventSource(url)
-      fakes.push(fake)
-      return fake as unknown as EventSource
-    })
-    renderHook(() => useDocEvents(), { wrapper })
+      const fake = new FakeEventSource(url);
+      fakes.push(fake);
+      return fake as unknown as EventSource;
+    });
+    renderHook(() => useDocEvents(), { wrapper });
 
     // Establish open connection then error → reconnect
-    act(() => { fakes[0].onopen?.(new Event('open')) })
-    act(() => { fakes[0].onerror?.(new Event('error')) })
+    act(() => {
+      fakes[0].onopen?.(new Event("open"));
+    });
+    act(() => {
+      fakes[0].onerror?.(new Event("error"));
+    });
     // Max possible first-attempt delay with +20% jitter = 1200ms
-    act(() => { vi.advanceTimersByTime(1500) })
-    act(() => { fakes[1].onopen?.(new Event('open')) })
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    act(() => {
+      fakes[1].onopen?.(new Event("open"));
+    });
 
     // Docs queries are invalidated on reconnect
-    expect(queryClient.getQueryState(queryKeys.docs('plans'))?.isInvalidated).toBe(true)
-    expect(queryClient.getQueryState(queryKeys.docs('work-items'))?.isInvalidated).toBe(true)
+    expect(
+      queryClient.getQueryState(queryKeys.docs("plans"))?.isInvalidated,
+    ).toBe(true);
+    expect(
+      queryClient.getQueryState(queryKeys.docs("work-items"))?.isInvalidated,
+    ).toBe(true);
     // Session-stable query survives
-    expect(queryClient.getQueryState(queryKeys.serverInfo())?.isInvalidated).toBe(false)
-  })
+    expect(
+      queryClient.getQueryState(queryKeys.serverInfo())?.isInvalidated,
+    ).toBe(false);
+  });
 
-  it('exposes connectionState and justReconnected', () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const fakes: FakeEventSource[] = []
+  it("exposes connectionState and justReconnected", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fakes: FakeEventSource[] = [];
     const useDocEvents = makeUseDocEvents((url) => {
-      const fake = new FakeEventSource(url)
-      fakes.push(fake)
-      return fake as unknown as EventSource
-    })
-    const { result } = renderHook(() => useDocEvents(), { wrapper })
+      const fake = new FakeEventSource(url);
+      fakes.push(fake);
+      return fake as unknown as EventSource;
+    });
+    const { result } = renderHook(() => useDocEvents(), { wrapper });
 
-    expect(result.current.connectionState).toBe('connecting')
+    expect(result.current.connectionState).toBe("connecting");
 
-    act(() => { fakes[0].onopen?.(new Event('open')) })
-    expect(result.current.connectionState).toBe('open')
-    expect(result.current.justReconnected).toBe(false)
+    act(() => {
+      fakes[0].onopen?.(new Event("open"));
+    });
+    expect(result.current.connectionState).toBe("open");
+    expect(result.current.justReconnected).toBe(false);
 
-    act(() => { fakes[0].onerror?.(new Event('error')) })
-    expect(result.current.connectionState).toBe('reconnecting')
+    act(() => {
+      fakes[0].onerror?.(new Event("error"));
+    });
+    expect(result.current.connectionState).toBe("reconnecting");
 
     // Max possible first-attempt delay with +20% jitter = 1200ms
-    act(() => { vi.advanceTimersByTime(1500) })
-    act(() => { fakes[1].onopen?.(new Event('open')) })
-    expect(result.current.connectionState).toBe('open')
-    expect(result.current.justReconnected).toBe(true)
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    act(() => {
+      fakes[1].onopen?.(new Event("open"));
+    });
+    expect(result.current.connectionState).toBe("open");
+    expect(result.current.justReconnected).toBe(true);
 
-    act(() => { vi.advanceTimersByTime(3000) })
-    expect(result.current.justReconnected).toBe(false)
-  })
-})
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(result.current.justReconnected).toBe(false);
+  });
+});
 
 // ── Self-cause filter + drag-suppress ────────────────────────────────────
-describe('makeUseDocEvents self-cause + drag-suppress', () => {
-  let queryClient: QueryClient
+describe("makeUseDocEvents self-cause + drag-suppress", () => {
+  let queryClient: QueryClient;
 
   class FakeEventSource {
-    onmessage: ((e: MessageEvent) => void) | null = null
-    onerror: ((e: Event) => void) | null = null
-    onopen: ((e: Event) => void) | null = null
-    close = vi.fn()
+    onmessage: ((e: MessageEvent) => void) | null = null;
+    onerror: ((e: Event) => void) | null = null;
+    onopen: ((e: Event) => void) | null = null;
+    close = vi.fn();
     constructor(public url: string) {}
   }
 
   function makeFactory() {
-    const fakes: FakeEventSource[] = []
+    const fakes: FakeEventSource[] = [];
     const factory = (url: string) => {
-      const fake = new FakeEventSource(url)
-      fakes.push(fake)
-      return fake as unknown as EventSource
-    }
-    return { factory, get source() { return fakes[fakes.length - 1]! }, fakes }
+      const fake = new FakeEventSource(url);
+      fakes.push(fake);
+      return fake as unknown as EventSource;
+    };
+    return {
+      factory,
+      get source() {
+        return fakes[fakes.length - 1]!;
+      },
+      fakes,
+    };
   }
 
   beforeEach(() => {
-    vi.useFakeTimers()
-    queryClient = new QueryClient()
-  })
-  afterEach(() => { vi.useRealTimers() })
+    vi.useFakeTimers();
+    queryClient = new QueryClient();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   function wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children)
+    return React.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      children,
+    );
   }
 
-  it('skips invalidation when etag was self-caused', () => {
-    vi.spyOn(queryClient, 'invalidateQueries')
-    const registry = createSelfCauseRegistry()
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory, registry)
-    renderHook(() => useDocEvents(), { wrapper })
-    act(() => { ctx.source.onopen?.(new Event('open')) })
+  it("skips invalidation when etag was self-caused", () => {
+    vi.spyOn(queryClient, "invalidateQueries");
+    const registry = createSelfCauseRegistry();
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory, registry);
+    renderHook(() => useDocEvents(), { wrapper });
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
 
-    registry.register('sha256-X')
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'work-items', path: 'meta/work/foo.md', etag: 'sha256-X' }),
-    }))
+    registry.register("sha256-X");
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          type: "doc-changed",
+          docType: "work-items",
+          path: "meta/work/foo.md",
+          etag: "sha256-X",
+        }),
+      }),
+    );
 
-    expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
-  })
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
+  });
 
-  it('still invalidates for unknown etags', () => {
-    vi.spyOn(queryClient, 'invalidateQueries')
-    const registry = createSelfCauseRegistry()
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory, registry)
-    renderHook(() => useDocEvents(), { wrapper })
-    act(() => { ctx.source.onopen?.(new Event('open')) })
+  it("still invalidates for unknown etags", () => {
+    vi.spyOn(queryClient, "invalidateQueries");
+    const registry = createSelfCauseRegistry();
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory, registry);
+    renderHook(() => useDocEvents(), { wrapper });
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
 
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'work-items', path: 'meta/work/foo.md', etag: 'sha256-FOREIGN' }),
-    }))
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          type: "doc-changed",
+          docType: "work-items",
+          path: "meta/work/foo.md",
+          etag: "sha256-FOREIGN",
+        }),
+      }),
+    );
 
-    expect(queryClient.invalidateQueries).toHaveBeenCalled()
-  })
+    expect(queryClient.invalidateQueries).toHaveBeenCalled();
+  });
 
-  it('suppresses duplicate self-caused events (non-consuming)', () => {
-    vi.spyOn(queryClient, 'invalidateQueries')
-    const registry = createSelfCauseRegistry()
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory, registry)
-    renderHook(() => useDocEvents(), { wrapper })
-    act(() => { ctx.source.onopen?.(new Event('open')) })
+  it("suppresses duplicate self-caused events (non-consuming)", () => {
+    vi.spyOn(queryClient, "invalidateQueries");
+    const registry = createSelfCauseRegistry();
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory, registry);
+    renderHook(() => useDocEvents(), { wrapper });
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
 
-    registry.register('sha256-X')
-    const msg = new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'work-items', path: 'meta/work/foo.md', etag: 'sha256-X' }),
-    })
-    ctx.source.onmessage?.(msg)
-    ctx.source.onmessage?.(msg)
+    registry.register("sha256-X");
+    const msg = new MessageEvent("message", {
+      data: JSON.stringify({
+        type: "doc-changed",
+        docType: "work-items",
+        path: "meta/work/foo.md",
+        etag: "sha256-X",
+      }),
+    });
+    ctx.source.onmessage?.(msg);
+    ctx.source.onmessage?.(msg);
 
-    expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
-  })
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
+  });
 
-  it('queues invalidation during drag and flushes on drop', () => {
-    vi.spyOn(queryClient, 'invalidateQueries')
-    const registry = createSelfCauseRegistry()
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory, registry)
-    const { result } = renderHook(() => useDocEvents(), { wrapper })
-    act(() => { ctx.source.onopen?.(new Event('open')) })
+  it("queues invalidation during drag and flushes on drop", () => {
+    vi.spyOn(queryClient, "invalidateQueries");
+    const registry = createSelfCauseRegistry();
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory, registry);
+    const { result } = renderHook(() => useDocEvents(), { wrapper });
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
 
-    act(() => { result.current.setDragInProgress(true) })
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'work-items', path: 'meta/work/foo.md', etag: 'sha256-FOREIGN' }),
-    }))
-    expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
+    act(() => {
+      result.current.setDragInProgress(true);
+    });
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          type: "doc-changed",
+          docType: "work-items",
+          path: "meta/work/foo.md",
+          etag: "sha256-FOREIGN",
+        }),
+      }),
+    );
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
 
-    act(() => { result.current.setDragInProgress(false) })
+    act(() => {
+      result.current.setDragInProgress(false);
+    });
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: queryKeys.docs('work-items') }),
-    )
-  })
+      expect.objectContaining({ queryKey: queryKeys.docs("work-items") }),
+    );
+  });
 
-  it('coalesces multiple invalidations for same key during drag', () => {
-    const spy = vi.spyOn(queryClient, 'invalidateQueries')
-    const registry = createSelfCauseRegistry()
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory, registry)
-    const { result } = renderHook(() => useDocEvents(), { wrapper })
-    act(() => { ctx.source.onopen?.(new Event('open')) })
+  it("coalesces multiple invalidations for same key during drag", () => {
+    const spy = vi.spyOn(queryClient, "invalidateQueries");
+    const registry = createSelfCauseRegistry();
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory, registry);
+    const { result } = renderHook(() => useDocEvents(), { wrapper });
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
 
-    act(() => { result.current.setDragInProgress(true) })
-    const makeMsg = (path: string) => new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'work-items', path, etag: `sha256-${path}` }),
-    })
-    ctx.source.onmessage?.(makeMsg('meta/work/a.md'))
-    ctx.source.onmessage?.(makeMsg('meta/work/b.md'))
-    ctx.source.onmessage?.(makeMsg('meta/work/c.md'))
+    act(() => {
+      result.current.setDragInProgress(true);
+    });
+    const makeMsg = (path: string) =>
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          type: "doc-changed",
+          docType: "work-items",
+          path,
+          etag: `sha256-${path}`,
+        }),
+      });
+    ctx.source.onmessage?.(makeMsg("meta/work/a.md"));
+    ctx.source.onmessage?.(makeMsg("meta/work/b.md"));
+    ctx.source.onmessage?.(makeMsg("meta/work/c.md"));
 
-    act(() => { result.current.setDragInProgress(false) })
+    act(() => {
+      result.current.setDragInProgress(false);
+    });
 
     const docsWorkItemsCalls = spy.mock.calls.filter(
-      ([arg]) => JSON.stringify((arg as { queryKey: unknown }).queryKey) === JSON.stringify(queryKeys.docs('work-items'))
-    )
-    expect(docsWorkItemsCalls).toHaveLength(1)
-  })
+      ([arg]) =>
+        JSON.stringify((arg as { queryKey: unknown }).queryKey) ===
+        JSON.stringify(queryKeys.docs("work-items")),
+    );
+    expect(docsWorkItemsCalls).toHaveLength(1);
+  });
 
-  it('resets registry and flushes pending invalidations on SSE reconnect', () => {
-    const spy = vi.spyOn(queryClient, 'invalidateQueries')
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const registry = createSelfCauseRegistry()
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory, registry)
-    const { result } = renderHook(() => useDocEvents(), { wrapper })
+  it("resets registry and flushes pending invalidations on SSE reconnect", () => {
+    const spy = vi.spyOn(queryClient, "invalidateQueries");
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const registry = createSelfCauseRegistry();
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory, registry);
+    const { result } = renderHook(() => useDocEvents(), { wrapper });
 
-    act(() => { ctx.source.onopen?.(new Event('open')) })
-    registry.register('sha256-X')
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
+    registry.register("sha256-X");
 
     // Queue an invalidation during drag, then flush (clear the pending set)
-    act(() => { result.current.setDragInProgress(true) })
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'work-items', path: 'meta/work/foo.md', etag: 'sha256-FOREIGN' }),
-    }))
-    act(() => { result.current.setDragInProgress(false) })
-    spy.mockClear()
+    act(() => {
+      result.current.setDragInProgress(true);
+    });
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          type: "doc-changed",
+          docType: "work-items",
+          path: "meta/work/foo.md",
+          etag: "sha256-FOREIGN",
+        }),
+      }),
+    );
+    act(() => {
+      result.current.setDragInProgress(false);
+    });
+    spy.mockClear();
 
     // Re-register and simulate disconnect → reconnect
-    registry.register('sha256-X')
+    registry.register("sha256-X");
 
     // Queue a pending invalidation during drag
-    act(() => { result.current.setDragInProgress(true) })
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'plans', path: 'meta/plans/foo.md', etag: 'sha256-PLAN' }),
-    }))
-    spy.mockClear()
+    act(() => {
+      result.current.setDragInProgress(true);
+    });
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          type: "doc-changed",
+          docType: "plans",
+          path: "meta/plans/foo.md",
+          etag: "sha256-PLAN",
+        }),
+      }),
+    );
+    spy.mockClear();
 
     // Trigger error → backoff → reconnect
-    act(() => { ctx.source.onerror?.(new Event('error')) })
-    act(() => { vi.advanceTimersByTime(1500) })
-    act(() => { ctx.fakes[1].onopen?.(new Event('open')) })
+    act(() => {
+      ctx.source.onerror?.(new Event("error"));
+    });
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    act(() => {
+      ctx.fakes[1].onopen?.(new Event("open"));
+    });
 
-    expect(registry.has('sha256-X')).toBe(false)
-    expect(queryClient.invalidateQueries).toHaveBeenCalled()
-  })
-})
+    expect(registry.has("sha256-X")).toBe(false);
+    expect(queryClient.invalidateQueries).toHaveBeenCalled();
+  });
+});
 
 // ── Consumer callbacks: onEvent / onReconnect ────────────────────────────
-describe('makeUseDocEvents consumer callbacks', () => {
-  let queryClient: QueryClient
+describe("makeUseDocEvents consumer callbacks", () => {
+  let queryClient: QueryClient;
 
   class FakeEventSource {
-    onmessage: ((e: MessageEvent) => void) | null = null
-    onerror: ((e: Event) => void) | null = null
-    onopen: ((e: Event) => void) | null = null
-    close = vi.fn()
+    onmessage: ((e: MessageEvent) => void) | null = null;
+    onerror: ((e: Event) => void) | null = null;
+    onopen: ((e: Event) => void) | null = null;
+    close = vi.fn();
     constructor(public url: string) {}
   }
 
   function makeFactory() {
-    const fakes: FakeEventSource[] = []
+    const fakes: FakeEventSource[] = [];
     const factory = vi.fn((url: string) => {
-      const fake = new FakeEventSource(url)
-      fakes.push(fake)
-      return fake as unknown as EventSource
-    })
-    return { factory, get source() { return fakes[fakes.length - 1]! }, fakes }
+      const fake = new FakeEventSource(url);
+      fakes.push(fake);
+      return fake as unknown as EventSource;
+    });
+    return {
+      factory,
+      get source() {
+        return fakes[fakes.length - 1]!;
+      },
+      fakes,
+    };
   }
 
   beforeEach(() => {
-    vi.useFakeTimers()
-    queryClient = new QueryClient()
-  })
-  afterEach(() => { vi.useRealTimers() })
+    vi.useFakeTimers();
+    queryClient = new QueryClient();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   function wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children)
+    return React.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      children,
+    );
   }
 
-  it('fires onEvent for doc-changed events', () => {
-    const onEvent = vi.fn()
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory)
-    renderHook(() => useDocEvents({ onEvent }), { wrapper })
-    act(() => { ctx.source.onopen?.(new Event('open')) })
+  it("fires onEvent for doc-changed events", () => {
+    const onEvent = vi.fn();
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory);
+    renderHook(() => useDocEvents({ onEvent }), { wrapper });
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
 
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'decisions', path: '/x', etag: 'sha256-abc' }),
-    }))
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          type: "doc-changed",
+          docType: "decisions",
+          path: "/x",
+          etag: "sha256-abc",
+        }),
+      }),
+    );
 
-    expect(onEvent).toHaveBeenCalledTimes(1)
+    expect(onEvent).toHaveBeenCalledTimes(1);
     expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'doc-changed', docType: 'decisions' }),
-    )
-  })
+      expect.objectContaining({ type: "doc-changed", docType: "decisions" }),
+    );
+  });
 
-  it('fires onEvent for doc-invalid events', () => {
-    const onEvent = vi.fn()
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory)
-    renderHook(() => useDocEvents({ onEvent }), { wrapper })
-    act(() => { ctx.source.onopen?.(new Event('open')) })
+  it("fires onEvent for doc-invalid events", () => {
+    const onEvent = vi.fn();
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory);
+    renderHook(() => useDocEvents({ onEvent }), { wrapper });
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
 
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-invalid', docType: 'plans', path: '/x' }),
-    }))
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          type: "doc-invalid",
+          docType: "plans",
+          path: "/x",
+        }),
+      }),
+    );
 
-    expect(onEvent).toHaveBeenCalledTimes(1)
+    expect(onEvent).toHaveBeenCalledTimes(1);
     expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'doc-invalid', docType: 'plans' }),
-    )
-  })
+      expect.objectContaining({ type: "doc-invalid", docType: "plans" }),
+    );
+  });
 
-  it('does NOT fire onEvent for self-cause doc-changed echo', () => {
-    const onEvent = vi.fn()
-    const registry = createSelfCauseRegistry()
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory, registry)
-    renderHook(() => useDocEvents({ onEvent }), { wrapper })
-    act(() => { ctx.source.onopen?.(new Event('open')) })
+  it("does NOT fire onEvent for self-cause doc-changed echo", () => {
+    const onEvent = vi.fn();
+    const registry = createSelfCauseRegistry();
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory, registry);
+    renderHook(() => useDocEvents({ onEvent }), { wrapper });
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
 
-    registry.register('sha256-SELF')
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'decisions', path: '/x', etag: 'sha256-SELF' }),
-    }))
+    registry.register("sha256-SELF");
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          type: "doc-changed",
+          docType: "decisions",
+          path: "/x",
+          etag: "sha256-SELF",
+        }),
+      }),
+    );
 
-    expect(onEvent).not.toHaveBeenCalled()
-  })
+    expect(onEvent).not.toHaveBeenCalled();
+  });
 
-  it('forwards events with unknown docType verbatim, exactly once', () => {
-    const onEvent = vi.fn()
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory)
-    renderHook(() => useDocEvents({ onEvent }), { wrapper })
-    act(() => { ctx.source.onopen?.(new Event('open')) })
+  it("forwards events with unknown docType verbatim, exactly once", () => {
+    const onEvent = vi.fn();
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory);
+    renderHook(() => useDocEvents({ onEvent }), { wrapper });
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
 
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'made-up-type', path: '/x', etag: 'sha256-Y' }),
-    }))
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          type: "doc-changed",
+          docType: "made-up-type",
+          path: "/x",
+          etag: "sha256-Y",
+        }),
+      }),
+    );
 
-    expect(onEvent).toHaveBeenCalledTimes(1)
+    expect(onEvent).toHaveBeenCalledTimes(1);
     expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ docType: 'made-up-type' }),
-    )
-  })
+      expect.objectContaining({ docType: "made-up-type" }),
+    );
+  });
 
-  it('fires onReconnect exactly once on reconnect, no synthesised reset event', () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const onEvent = vi.fn()
-    const onReconnect = vi.fn()
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory)
-    renderHook(() => useDocEvents({ onEvent, onReconnect }), { wrapper })
+  it("fires onReconnect exactly once on reconnect, no synthesised reset event", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const onEvent = vi.fn();
+    const onReconnect = vi.fn();
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory);
+    renderHook(() => useDocEvents({ onEvent, onReconnect }), { wrapper });
 
-    act(() => { ctx.source.onopen?.(new Event('open')) })
-    expect(onReconnect).not.toHaveBeenCalled()
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
+    expect(onReconnect).not.toHaveBeenCalled();
 
-    act(() => { ctx.source.onerror?.(new Event('error')) })
-    act(() => { vi.advanceTimersByTime(1500) })
-    act(() => { ctx.fakes[1].onopen?.(new Event('open')) })
+    act(() => {
+      ctx.source.onerror?.(new Event("error"));
+    });
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    act(() => {
+      ctx.fakes[1].onopen?.(new Event("open"));
+    });
 
-    expect(onReconnect).toHaveBeenCalledTimes(1)
-    expect(onEvent).not.toHaveBeenCalled()
-  })
+    expect(onReconnect).toHaveBeenCalledTimes(1);
+    expect(onEvent).not.toHaveBeenCalled();
+  });
 
-  it('EventSource is created once across re-renders; latest onEvent receives the event', () => {
-    const cb1 = vi.fn()
-    const cb2 = vi.fn()
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory)
+  it("EventSource is created once across re-renders; latest onEvent receives the event", () => {
+    const cb1 = vi.fn();
+    const cb2 = vi.fn();
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory);
     const { rerender } = renderHook(
       ({ onEvent }: { onEvent: (e: unknown) => void }) =>
-        useDocEvents({ onEvent: onEvent as (e: import('./types').SseEvent) => void }),
+        useDocEvents({
+          onEvent: onEvent as (e: import("./types").SseEvent) => void,
+        }),
       { wrapper, initialProps: { onEvent: cb1 } },
-    )
-    act(() => { ctx.source.onopen?.(new Event('open')) })
+    );
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
 
-    rerender({ onEvent: cb2 })
+    rerender({ onEvent: cb2 });
 
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ type: 'doc-changed', docType: 'decisions', path: '/x', etag: 'sha256-Z' }),
-    }))
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          type: "doc-changed",
+          docType: "decisions",
+          path: "/x",
+          etag: "sha256-Z",
+        }),
+      }),
+    );
 
-    expect(ctx.factory).toHaveBeenCalledTimes(1)
-    expect(cb1).not.toHaveBeenCalled()
-    expect(cb2).toHaveBeenCalledTimes(1)
-  })
-})
+    expect(ctx.factory).toHaveBeenCalledTimes(1);
+    expect(cb1).not.toHaveBeenCalled();
+    expect(cb2).toHaveBeenCalledTimes(1);
+  });
+});
 
-describe('makeUseDocEvents subscribe', () => {
-  let queryClient: QueryClient
+describe("makeUseDocEvents subscribe", () => {
+  let queryClient: QueryClient;
 
   class FakeEventSource {
-    onmessage: ((e: MessageEvent) => void) | null = null
-    onerror: ((e: Event) => void) | null = null
-    onopen: ((e: Event) => void) | null = null
-    close = vi.fn()
+    onmessage: ((e: MessageEvent) => void) | null = null;
+    onerror: ((e: Event) => void) | null = null;
+    onopen: ((e: Event) => void) | null = null;
+    close = vi.fn();
     constructor(public url: string) {}
   }
 
   function makeFactory() {
-    const fakes: FakeEventSource[] = []
+    const fakes: FakeEventSource[] = [];
     const factory = (url: string) => {
-      const fake = new FakeEventSource(url)
-      fakes.push(fake)
-      return fake as unknown as EventSource
-    }
-    return { factory, get source() { return fakes[fakes.length - 1]! } }
+      const fake = new FakeEventSource(url);
+      fakes.push(fake);
+      return fake as unknown as EventSource;
+    };
+    return {
+      factory,
+      get source() {
+        return fakes[fakes.length - 1]!;
+      },
+    };
   }
 
   beforeEach(() => {
-    vi.useFakeTimers()
-    queryClient = new QueryClient()
-  })
-  afterEach(() => { vi.useRealTimers() })
+    vi.useFakeTimers();
+    queryClient = new QueryClient();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   function wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children)
+    return React.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      children,
+    );
   }
 
   const sample = {
-    type: 'doc-changed',
-    action: 'edited',
-    docType: 'plans',
-    path: 'meta/plans/foo.md',
-    etag: 'sha256-S',
-    timestamp: '2026-05-13T00:00:00Z',
-  }
+    type: "doc-changed",
+    action: "edited",
+    docType: "plans",
+    path: "meta/plans/foo.md",
+    etag: "sha256-S",
+    timestamp: "2026-05-13T00:00:00Z",
+  };
 
-  it('delivers parsed events to a subscribed listener', () => {
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory)
-    const { result } = renderHook(() => useDocEvents(), { wrapper })
-    act(() => { ctx.source.onopen?.(new Event('open')) })
-
-    const listener = vi.fn()
-    act(() => { result.current.subscribe(listener) })
-
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify(sample),
-    }))
-
-    expect(listener).toHaveBeenCalledTimes(1)
-    expect(listener).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'doc-changed',
-      action: 'edited',
-      path: 'meta/plans/foo.md',
-    }))
-  })
-
-  it('stops delivering after unsubscribe', () => {
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory)
-    const { result } = renderHook(() => useDocEvents(), { wrapper })
-    act(() => { ctx.source.onopen?.(new Event('open')) })
-
-    const listener = vi.fn()
-    let unsub!: () => void
-    act(() => { unsub = result.current.subscribe(listener) })
-    unsub()
-
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify(sample),
-    }))
-
-    expect(listener).not.toHaveBeenCalled()
-  })
-
-  it('invokes every subscriber for the same event', () => {
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory)
-    const { result } = renderHook(() => useDocEvents(), { wrapper })
-    act(() => { ctx.source.onopen?.(new Event('open')) })
-
-    const l1 = vi.fn()
-    const l2 = vi.fn()
+  it("delivers parsed events to a subscribed listener", () => {
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory);
+    const { result } = renderHook(() => useDocEvents(), { wrapper });
     act(() => {
-      result.current.subscribe(l1)
-      result.current.subscribe(l2)
-    })
+      ctx.source.onopen?.(new Event("open"));
+    });
 
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify(sample),
-    }))
+    const listener = vi.fn();
+    act(() => {
+      result.current.subscribe(listener);
+    });
 
-    expect(l1).toHaveBeenCalledTimes(1)
-    expect(l2).toHaveBeenCalledTimes(1)
-  })
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify(sample),
+      }),
+    );
 
-  it('delivers self-caused events to subscribers (pre-self-cause-drop)', () => {
-    vi.spyOn(queryClient, 'invalidateQueries')
-    const registry = createSelfCauseRegistry()
-    const ctx = makeFactory()
-    const useDocEvents = makeUseDocEvents(ctx.factory, registry)
-    const onEvent = vi.fn()
-    const { result } = renderHook(
-      () => useDocEvents({ onEvent }),
-      { wrapper },
-    )
-    act(() => { ctx.source.onopen?.(new Event('open')) })
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "doc-changed",
+        action: "edited",
+        path: "meta/plans/foo.md",
+      }),
+    );
+  });
 
-    const listener = vi.fn()
-    act(() => { result.current.subscribe(listener) })
+  it("stops delivering after unsubscribe", () => {
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory);
+    const { result } = renderHook(() => useDocEvents(), { wrapper });
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
 
-    registry.register('sha256-SELF')
-    ctx.source.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify({ ...sample, etag: 'sha256-SELF' }),
-    }))
+    const listener = vi.fn();
+    let unsub!: () => void;
+    act(() => {
+      unsub = result.current.subscribe(listener);
+    });
+    unsub();
+
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify(sample),
+      }),
+    );
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("invokes every subscriber for the same event", () => {
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory);
+    const { result } = renderHook(() => useDocEvents(), { wrapper });
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
+
+    const l1 = vi.fn();
+    const l2 = vi.fn();
+    act(() => {
+      result.current.subscribe(l1);
+      result.current.subscribe(l2);
+    });
+
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify(sample),
+      }),
+    );
+
+    expect(l1).toHaveBeenCalledTimes(1);
+    expect(l2).toHaveBeenCalledTimes(1);
+  });
+
+  it("delivers self-caused events to subscribers (pre-self-cause-drop)", () => {
+    vi.spyOn(queryClient, "invalidateQueries");
+    const registry = createSelfCauseRegistry();
+    const ctx = makeFactory();
+    const useDocEvents = makeUseDocEvents(ctx.factory, registry);
+    const onEvent = vi.fn();
+    const { result } = renderHook(() => useDocEvents({ onEvent }), { wrapper });
+    act(() => {
+      ctx.source.onopen?.(new Event("open"));
+    });
+
+    const listener = vi.fn();
+    act(() => {
+      result.current.subscribe(listener);
+    });
+
+    registry.register("sha256-SELF");
+    ctx.source.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({ ...sample, etag: "sha256-SELF" }),
+      }),
+    );
 
     // Subscriber observed the self-caused event …
-    expect(listener).toHaveBeenCalledTimes(1)
+    expect(listener).toHaveBeenCalledTimes(1);
     // … while onEvent and dispatchSseEvent stayed silent.
-    expect(onEvent).not.toHaveBeenCalled()
-    expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
-  })
+    expect(onEvent).not.toHaveBeenCalled();
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
+  });
 
-  it('_defaultHandle.subscribe is a no-op returning a no-op unsubscribe', () => {
+  it("_defaultHandle.subscribe is a no-op returning a no-op unsubscribe", () => {
     // Render outside any DocEventsContext.Provider — picks up the default.
-    const { result } = renderHook(() => useDocEventsContext())
-    const fn = vi.fn()
-    const unsub = result.current.subscribe(fn)
-    expect(typeof unsub).toBe('function')
-    expect(() => unsub()).not.toThrow()
-    expect(fn).not.toHaveBeenCalled()
-  })
-})
+    const { result } = renderHook(() => useDocEventsContext());
+    const fn = vi.fn();
+    const unsub = result.current.subscribe(fn);
+    expect(typeof unsub).toBe("function");
+    expect(() => unsub()).not.toThrow();
+    expect(fn).not.toHaveBeenCalled();
+  });
+});

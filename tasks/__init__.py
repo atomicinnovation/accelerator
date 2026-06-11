@@ -61,6 +61,9 @@ ns_format.add_collection(
 ns_format.add_collection(
     Collection.from_module(format_.server)
 )  # format.server.check / .fix
+ns_format.add_collection(
+    Collection.from_module(format_.frontend)
+)  # format.frontend.check / .fix
 ns.add_collection(ns_format)
 
 ns_lint = Collection("lint")
@@ -73,10 +76,16 @@ ns_lint.add_collection(
 ns_lint.add_collection(
     Collection.from_module(lint.server)
 )  # lint.server.check / .fix
+ns_lint.add_collection(
+    Collection.from_module(lint.frontend)
+)  # lint.frontend.check / .fix
 ns.add_collection(ns_lint)
 
 ns_types = Collection("types")
 ns_types.add_collection(
     Collection.from_module(types.build_system)
 )  # types.build-system.check
+ns_types.add_collection(
+    Collection.from_module(types.frontend)
+)  # types.frontend.check
 ns.add_collection(ns_types)

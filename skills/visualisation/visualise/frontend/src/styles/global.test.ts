@@ -1,28 +1,33 @@
-import { describe, it, expect } from 'vitest'
-import globalCss from './global.css?raw'
+import { describe, expect, it } from "vitest";
 import {
-  LIGHT_COLOR_TOKENS,
-  DARK_COLOR_TOKENS,
-  TYPOGRAPHY_TOKENS,
-  SPACING_TOKENS,
-  RADIUS_TOKENS,
-  LIGHT_SHADOW_TOKENS,
-  DARK_SHADOW_TOKENS,
-  LAYOUT_TOKENS,
-  MONO_FONT_TOKENS,
+  DOC_TYPE_KEYS,
+  DOC_TYPE_LABELS,
+  DOC_TYPE_LABELS_SINGULAR,
+  isPhysicalDocTypeKey,
+} from "../api/types";
+import { contrastRatio } from "./contrast";
+import prototypeTokens from "./fixtures/prototype-tokens.json";
+import globalCss from "./global.css?raw";
+import { canonicaliseBrand } from "./testing/canonicaliseBrand";
+import { extractBlockBody } from "./testing/cssBlocks";
+import { extractAllAcDeclarations } from "./testing/extractAcDeclarations";
+import {
+  BRAND_ALIAS_PAIRS,
+  BRAND_COLOR_TOKENS,
   CODE_SURFACE_TOKENS,
   CODE_SYNTAX_TOKENS,
-  BRAND_COLOR_TOKENS,
-  BRAND_ALIAS_PAIRS,
-} from './tokens'
-import prototypeTokens from './fixtures/prototype-tokens.json'
-import { contrastRatio } from './contrast'
-import { extractBlockBody } from './testing/cssBlocks'
-import { canonicaliseBrand } from './testing/canonicaliseBrand'
-import { extractAllAcDeclarations } from './testing/extractAcDeclarations'
-import { DOC_TYPE_KEYS, DOC_TYPE_LABELS, DOC_TYPE_LABELS_SINGULAR, isPhysicalDocTypeKey } from '../api/types'
+  DARK_COLOR_TOKENS,
+  DARK_SHADOW_TOKENS,
+  LAYOUT_TOKENS,
+  LIGHT_COLOR_TOKENS,
+  LIGHT_SHADOW_TOKENS,
+  MONO_FONT_TOKENS,
+  RADIUS_TOKENS,
+  SPACING_TOKENS,
+  TYPOGRAPHY_TOKENS,
+} from "./tokens";
 
-type Scope = 'root' | 'dark'
+type Scope = "root" | "dark";
 
 /**
  * Reads a CSS custom property's declared value from the relevant top-level
@@ -34,18 +39,18 @@ type Scope = 'root' | 'dark'
  * `@media` wrappers, no CSS nesting inside `:root` or `[data-theme="dark"]`.
  * The non-greedy regex would silently truncate at the first inner `}`.
  */
-function readCssVar(name: string, scope: Scope = 'root'): string | null {
+function readCssVar(name: string, scope: Scope = "root"): string | null {
   const blockRe =
-    scope === 'root'
+    scope === "root"
       ? /:root\s*\{([\s\S]*?)\}/
-      : /\[data-theme="dark"\]\s*\{([\s\S]*?)\}/
-  const block = blockRe.exec(globalCss)?.[1] ?? ''
+      : /\[data-theme="dark"\]\s*\{([\s\S]*?)\}/;
+  const block = blockRe.exec(globalCss)?.[1] ?? "";
   // Defensive: token names today are kebab-case alphanumeric, but escape
   // metacharacters so a future contributor passing an unusual name doesn't
   // silently get a corrupted match.
-  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const re = new RegExp(`--${escapedName}:\\s*([^;]+);`)
-  return re.exec(block)?.[1].trim().toLowerCase() ?? null
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`--${escapedName}:\\s*([^;]+);`);
+  return re.exec(block)?.[1].trim().toLowerCase() ?? null;
 }
 
 // Parity comparator. Both sides are passed through canonicaliseBrand so
@@ -54,64 +59,64 @@ function readCssVar(name: string, scope: Scope = 'root'): string | null {
 // lowercase + whitespace-strip behaviour as a strict superset, so all
 // existing rgba/shadow parity assertions continue to hold.
 function expectMatches(actual: string | null, expected: string): void {
-  expect(actual).not.toBeNull()
-  expect(canonicaliseBrand(actual!)).toBe(canonicaliseBrand(expected))
+  expect(actual).not.toBeNull();
+  expect(canonicaliseBrand(actual!)).toBe(canonicaliseBrand(expected));
 }
 
-describe('global focus rings', () => {
-  it('declares :focus-visible with an outline', () => {
-    expect(globalCss).toMatch(/:focus-visible\s*\{[^}]*outline:[^;]+;/)
-  })
-  it('declares an outline-offset for breathing room', () => {
-    expect(globalCss).toMatch(/:focus-visible\s*\{[^}]*outline-offset:[^;]+;/)
-  })
-  it('overrides the focus-ring colour under forced-colors mode', () => {
+describe("global focus rings", () => {
+  it("declares :focus-visible with an outline", () => {
+    expect(globalCss).toMatch(/:focus-visible\s*\{[^}]*outline:[^;]+;/);
+  });
+  it("declares an outline-offset for breathing room", () => {
+    expect(globalCss).toMatch(/:focus-visible\s*\{[^}]*outline-offset:[^;]+;/);
+  });
+  it("overrides the focus-ring colour under forced-colors mode", () => {
     expect(globalCss).toMatch(
       /@media\s*\(forced-colors:\s*active\)\s*\{[^}]*:focus-visible[^}]*outline-color:\s*Highlight/i,
-    )
-  })
-})
+    );
+  });
+});
 
-describe('tokens.ts ↔ global.css :root parity (light colour)', () => {
+describe("tokens.ts ↔ global.css :root parity (light colour)", () => {
   for (const [name, value] of Object.entries(LIGHT_COLOR_TOKENS)) {
     it(`--${name} matches LIGHT_COLOR_TOKENS.${name}`, () => {
-      expectMatches(readCssVar(name, 'root'), value)
-    })
+      expectMatches(readCssVar(name, "root"), value);
+    });
   }
-})
+});
 
 describe('tokens.ts ↔ global.css [data-theme="dark"] parity (dark colour)', () => {
   for (const [name, value] of Object.entries(DARK_COLOR_TOKENS)) {
     it(`--${name} matches DARK_COLOR_TOKENS.${name}`, () => {
-      expectMatches(readCssVar(name, 'dark'), value)
-    })
+      expectMatches(readCssVar(name, "dark"), value);
+    });
   }
-})
+});
 
 describe('tokens.ts ↔ global.css [data-theme="dark"] parity (dark shadow)', () => {
   for (const [name, value] of Object.entries(DARK_SHADOW_TOKENS)) {
     it(`--${name} matches DARK_SHADOW_TOKENS.${name}`, () => {
-      expectMatches(readCssVar(name, 'dark'), value)
-    })
+      expectMatches(readCssVar(name, "dark"), value);
+    });
   }
-})
+});
 
 describe.each([
-  ['typography', TYPOGRAPHY_TOKENS],
-  ['spacing', SPACING_TOKENS],
-  ['radius', RADIUS_TOKENS],
-  ['light shadow', LIGHT_SHADOW_TOKENS],
-  ['layout', LAYOUT_TOKENS],
-  ['code surface', CODE_SURFACE_TOKENS],
-  ['syntax', CODE_SYNTAX_TOKENS],
-  ['brand', BRAND_COLOR_TOKENS],
-])('tokens.ts ↔ global.css :root parity (%s)', (_label, tokens) => {
+  ["typography", TYPOGRAPHY_TOKENS],
+  ["spacing", SPACING_TOKENS],
+  ["radius", RADIUS_TOKENS],
+  ["light shadow", LIGHT_SHADOW_TOKENS],
+  ["layout", LAYOUT_TOKENS],
+  ["code surface", CODE_SURFACE_TOKENS],
+  ["syntax", CODE_SYNTAX_TOKENS],
+  ["brand", BRAND_COLOR_TOKENS],
+])("tokens.ts ↔ global.css :root parity (%s)", (_label, tokens) => {
   for (const [name, value] of Object.entries(tokens)) {
     it(`--${name} matches`, () => {
-      expectMatches(readCssVar(name, 'root'), value)
-    })
+      expectMatches(readCssVar(name, "root"), value);
+    });
   }
-})
+});
 
 /**
  * The `[data-theme="dark"]` block and the `@media (prefers-color-scheme: dark)`
@@ -123,54 +128,62 @@ describe.each([
  * against the explicit `[data-theme="dark"]` block.
  */
 describe('global.css [data-theme="dark"] ↔ @media (prefers-color-scheme: dark) parity', () => {
-  it('the two dark blocks declare the same tokens with the same values', () => {
-    const explicitMatch = /\[data-theme="dark"\]\s*\{/.exec(globalCss)
+  it("the two dark blocks declare the same tokens with the same values", () => {
+    const explicitMatch = /\[data-theme="dark"\]\s*\{/.exec(globalCss);
     const explicit = explicitMatch
       ? extractBlockBody(globalCss, explicitMatch.index)
-      : undefined
+      : undefined;
 
-    const mediaMatch = /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{/.exec(globalCss)
+    const mediaMatch = /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{/.exec(
+      globalCss,
+    );
     const mediaBody = mediaMatch
       ? extractBlockBody(globalCss, mediaMatch.index)
-      : undefined
+      : undefined;
     const innerMatch = mediaBody
       ? /:root:not\(\[data-theme="light"\]\)\s*\{/.exec(mediaBody)
-      : null
+      : null;
     const mirror = innerMatch
       ? extractBlockBody(mediaBody!, innerMatch.index)
-      : undefined
+      : undefined;
 
-    expect(explicit, 'failed to extract [data-theme="dark"] body').toBeDefined()
-    expect(mirror, 'failed to extract prefers-color-scheme inner block').toBeDefined()
+    expect(
+      explicit,
+      'failed to extract [data-theme="dark"] body',
+    ).toBeDefined();
+    expect(
+      mirror,
+      "failed to extract prefers-color-scheme inner block",
+    ).toBeDefined();
 
     const normalise = (s: string): Map<string, string> => {
-      const map = new Map<string, string>()
+      const map = new Map<string, string>();
       for (const m of s.matchAll(/--([\w-]+):\s*([^;]+);/g)) {
-        map.set(m[1], m[2].trim().toLowerCase())
+        map.set(m[1], m[2].trim().toLowerCase());
       }
-      return map
-    }
-    const a = normalise(explicit!)
-    const b = normalise(mirror!)
+      return map;
+    };
+    const a = normalise(explicit!);
+    const b = normalise(mirror!);
 
     // Sets of declared property names match (catches "added in one, forgot the other")
-    expect([...a.keys()].sort()).toEqual([...b.keys()].sort())
+    expect([...a.keys()].sort()).toEqual([...b.keys()].sort());
     // Each name has the same value in both blocks
     for (const [name, value] of a) {
-      expect(b.get(name)).toBe(value)
+      expect(b.get(name)).toBe(value);
     }
-  })
-})
+  });
+});
 
-describe('global.css @keyframes ac-pulse', () => {
-  it('declares @keyframes ac-pulse', () => {
-    expect(globalCss).toMatch(/@keyframes\s+ac-pulse\s*\{/)
-  })
-  it('has the canonical body (0%/100% opacity:1, 50% opacity:0.4)', () => {
-    expect(globalCss).toContain('0%, 100% { opacity: 1; }')
-    expect(globalCss).toContain('50% { opacity: 0.4; }')
-  })
-})
+describe("global.css @keyframes ac-pulse", () => {
+  it("declares @keyframes ac-pulse", () => {
+    expect(globalCss).toMatch(/@keyframes\s+ac-pulse\s*\{/);
+  });
+  it("has the canonical body (0%/100% opacity:1, 50% opacity:0.4)", () => {
+    expect(globalCss).toContain("0%, 100% { opacity: 1; }");
+    expect(globalCss).toContain("50% { opacity: 0.4; }");
+  });
+});
 
 /**
  * Sanity guard: catch the silent-truncation failure mode of the flat-block
@@ -180,228 +193,240 @@ describe('global.css @keyframes ac-pulse', () => {
  * one known-last token from each block, the truncation produces a hard
  * failure rather than passing on a partial extraction.
  */
-describe('--ac-violet theme invariance', () => {
-  it('--ac-violet has no dark-theme override (intentionally theme-invariant per prototype)', () => {
-    expect(DARK_COLOR_TOKENS).not.toHaveProperty('ac-violet')
-    const darkMatch = /\[data-theme="dark"\]\s*\{/.exec(globalCss)
+describe("--ac-violet theme invariance", () => {
+  it("--ac-violet has no dark-theme override (intentionally theme-invariant per prototype)", () => {
+    expect(DARK_COLOR_TOKENS).not.toHaveProperty("ac-violet");
+    const darkMatch = /\[data-theme="dark"\]\s*\{/.exec(globalCss);
     const darkBody = darkMatch
       ? extractBlockBody(globalCss, darkMatch.index)
-      : undefined
-    expect(darkBody, 'failed to extract [data-theme="dark"] body').toBeDefined()
-    expect(darkBody!).not.toMatch(/--ac-violet\s*:/)
-  })
-})
+      : undefined;
+    expect(
+      darkBody,
+      'failed to extract [data-theme="dark"] body',
+    ).toBeDefined();
+    expect(darkBody!).not.toMatch(/--ac-violet\s*:/);
+  });
+});
 
-describe('readCssVar truncation guard', () => {
-  it(':root block extends past --ac-topbar-h', () => {
-    expect(readCssVar('ac-topbar-h', 'root')).not.toBeNull()
-  })
-  it(':root block extends past --tk-ddel', () => {
-    expect(readCssVar('tk-ddel', 'root')).not.toBeNull()
-  })
+describe("readCssVar truncation guard", () => {
+  it(":root block extends past --ac-topbar-h", () => {
+    expect(readCssVar("ac-topbar-h", "root")).not.toBeNull();
+  });
+  it(":root block extends past --tk-ddel", () => {
+    expect(readCssVar("tk-ddel", "root")).not.toBeNull();
+  });
   it('[data-theme="dark"] block extends past --ac-shadow-lift', () => {
-    expect(readCssVar('ac-shadow-lift', 'dark')).not.toBeNull()
-  })
-})
+    expect(readCssVar("ac-shadow-lift", "dark")).not.toBeNull();
+  });
+});
 
-describe('prototype fixture ↔ tokens.ts parity (theme-invariant families)', () => {
+describe("prototype fixture ↔ tokens.ts parity (theme-invariant families)", () => {
   for (const [rawName, rawValue] of Object.entries(
     prototypeTokens as Record<string, string>,
   )) {
-    const name = rawName.replace(/^--/, '')
-    const expectedValue = canonicaliseBrand(rawValue)
+    const name = rawName.replace(/^--/, "");
+    const expectedValue = canonicaliseBrand(rawValue);
     it(`--${name} matches the combined token map`, () => {
       const actual =
         (CODE_SURFACE_TOKENS as Record<string, string>)[name] ??
         (CODE_SYNTAX_TOKENS as Record<string, string>)[name] ??
-        (BRAND_COLOR_TOKENS as Record<string, string>)[name]
-      expect(actual).toBeDefined()
-      expect(canonicaliseBrand(actual!)).toBe(expectedValue)
-    })
+        (BRAND_COLOR_TOKENS as Record<string, string>)[name];
+      expect(actual).toBeDefined();
+      expect(canonicaliseBrand(actual!)).toBe(expectedValue);
+    });
   }
-})
+});
 
-describe('--atomic-* theme invariance', () => {
+describe("--atomic-* theme invariance", () => {
   it('no --atomic-* declaration appears in [data-theme="dark"] block', () => {
-    const darkMatch = /\[data-theme="dark"\]\s*\{/.exec(globalCss)
+    const darkMatch = /\[data-theme="dark"\]\s*\{/.exec(globalCss);
     const darkBody = darkMatch
       ? extractBlockBody(globalCss, darkMatch.index)
-      : undefined
-    expect(darkBody).toBeDefined()
-    expect(darkBody!).not.toMatch(/--atomic-[\w-]+\s*:/)
-  })
-  it('no --atomic-* declaration appears in @media (prefers-color-scheme: dark)', () => {
-    const mediaMatch = /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{/.exec(globalCss)
+      : undefined;
+    expect(darkBody).toBeDefined();
+    expect(darkBody!).not.toMatch(/--atomic-[\w-]+\s*:/);
+  });
+  it("no --atomic-* declaration appears in @media (prefers-color-scheme: dark)", () => {
+    const mediaMatch = /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{/.exec(
+      globalCss,
+    );
     const mediaBody = mediaMatch
       ? extractBlockBody(globalCss, mediaMatch.index)
-      : undefined
-    expect(mediaBody).toBeDefined()
-    expect(mediaBody!).not.toMatch(/--atomic-[\w-]+\s*:/)
-  })
-})
+      : undefined;
+    expect(mediaBody).toBeDefined();
+    expect(mediaBody!).not.toMatch(/--atomic-[\w-]+\s*:/);
+  });
+});
 
-describe('BRAND_COLOR_TOKENS alias-target equality', () => {
-  it.each(BRAND_ALIAS_PAIRS)(
-    '%s resolves to the same hex as its target %s',
-    (alias, target) => {
-      expect(BRAND_COLOR_TOKENS[alias]).toBe(BRAND_COLOR_TOKENS[target])
-    },
-  )
-})
+describe("BRAND_COLOR_TOKENS alias-target equality", () => {
+  it.each(
+    BRAND_ALIAS_PAIRS,
+  )("%s resolves to the same hex as its target %s", (alias, target) => {
+    expect(BRAND_COLOR_TOKENS[alias]).toBe(BRAND_COLOR_TOKENS[target]);
+  });
+});
 
-describe('LIGHT_COLOR_TOKENS / DARK_COLOR_TOKENS contain no indirection', () => {
+describe("LIGHT_COLOR_TOKENS / DARK_COLOR_TOKENS contain no indirection", () => {
   // TS-side stores resolved hex (or rgba/shadow). Bare rgb() would compare
   // equal to a CSS hex through the comparator and silently relax parity;
   // var() would obviously break the "TS knows the resolved hex" invariant.
   // See ADR-0035 §3.
-  it.each(Object.entries({ ...LIGHT_COLOR_TOKENS, ...DARK_COLOR_TOKENS }))(
-    '%s contains no var(--atomic-*) or bare rgb(...) indirection',
-    (_name, value) => {
-      expect(value).not.toMatch(/var\(--atomic-/)
-      expect(value).not.toMatch(/^\s*rgb\(/i)
-    },
-  )
-})
+  it.each(
+    Object.entries({ ...LIGHT_COLOR_TOKENS, ...DARK_COLOR_TOKENS }),
+  )("%s contains no var(--atomic-*) or bare rgb(...) indirection", (_name, value) => {
+    expect(value).not.toMatch(/var\(--atomic-/);
+    expect(value).not.toMatch(/^\s*rgb\(/i);
+  });
+});
 
-describe('AC2 invariant: --ac-* hex literals must reference brand when possible', () => {
+describe("AC2 invariant: --ac-* hex literals must reference brand when possible", () => {
   // Tokens intentionally left as hex literals despite a brand-value
   // match — typically near-misses or theme-specific overrides. Adding
   // to this list requires a code-review reason recorded in the PR.
-  const ALLOW_LIST_LITERALS: ReadonlyArray<string> = []
+  const ALLOW_LIST_LITERALS: ReadonlyArray<string> = [];
 
-  it('every --ac-* hex literal that matches a BRAND_COLOR_TOKENS entry is in the allow-list', () => {
-    const decls = extractAllAcDeclarations(globalCss)
+  it("every --ac-* hex literal that matches a BRAND_COLOR_TOKENS entry is in the allow-list", () => {
+    const decls = extractAllAcDeclarations(globalCss);
     const brandValues = new Set(
       Object.values(BRAND_COLOR_TOKENS).map((v) => v.toLowerCase()),
-    )
+    );
     const offenders = decls.filter((d) => {
-      if (d.value.startsWith('var(')) return false
+      if (d.value.startsWith("var(")) return false;
       // rgba() is out of scope per ADR-0035 §2 (six-digit hex only).
-      if (d.value.toLowerCase().startsWith('rgba(')) return false
-      const hex = canonicaliseBrand(d.value)
-      const brandMatches = brandValues.has(hex)
-      return brandMatches && !ALLOW_LIST_LITERALS.includes(`${d.block}:${d.name}`)
-    })
-    expect(offenders).toEqual([])
-  })
+      if (d.value.toLowerCase().startsWith("rgba(")) return false;
+      const hex = canonicaliseBrand(d.value);
+      const brandMatches = brandValues.has(hex);
+      return (
+        brandMatches && !ALLOW_LIST_LITERALS.includes(`${d.block}:${d.name}`)
+      );
+    });
+    expect(offenders).toEqual([]);
+  });
 
   it.each([
-    ['root',       9],
-    ['data-dark',  16],
-    ['media-dark', 16],
-  ] as const)('block %s contains exactly %d var(--atomic-X) refs', (block, expected) => {
+    ["root", 9],
+    ["data-dark", 16],
+    ["media-dark", 16],
+  ] as const)("block %s contains exactly %d var(--atomic-X) refs", (block, expected) => {
     const refs = extractAllAcDeclarations(globalCss).filter(
-      (d) => d.block === block && d.value.startsWith('var(--atomic-'),
-    )
-    expect(refs).toHaveLength(expected)
-  })
-})
+      (d) => d.block === block && d.value.startsWith("var(--atomic-"),
+    );
+    expect(refs).toHaveLength(expected);
+  });
+});
 
-function findBlockBodyForSelector(css: string, selector: string): string | null {
-  const idx = css.indexOf(selector + ' ')
-  if (idx === -1) return null
-  return extractBlockBody(css, idx) ?? null
+function findBlockBodyForSelector(
+  css: string,
+  selector: string,
+): string | null {
+  const idx = css.indexOf(`${selector} `);
+  if (idx === -1) return null;
+  return extractBlockBody(css, idx) ?? null;
 }
 
 function countTopLevelBodyRules(css: string): number {
-  const stripped = css.replace(/@[^{]+\{(?:[^{}]|\{[^}]*\})*\}/g, '')
-  return (stripped.match(/(^|\s|,)body\s*\{/g) ?? []).length
+  const stripped = css.replace(/@[^{]+\{(?:[^{}]|\{[^}]*\})*\}/g, "");
+  return (stripped.match(/(^|\s|,)body\s*\{/g) ?? []).length;
 }
 
 function readMonoVar(name: string): string | null {
-  const blockRe = /\[data-font="mono"\]\s*\{([\s\S]*?)\}/
-  const block = blockRe.exec(globalCss)?.[1] ?? ''
-  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const re = new RegExp(`--${escapedName}:\\s*([^;]+);`)
-  return re.exec(block)?.[1].trim().toLowerCase() ?? null
+  const blockRe = /\[data-font="mono"\]\s*\{([\s\S]*?)\}/;
+  const block = blockRe.exec(globalCss)?.[1] ?? "";
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`--${escapedName}:\\s*([^;]+);`);
+  return re.exec(block)?.[1].trim().toLowerCase() ?? null;
 }
 
 describe('tokens.ts ↔ global.css [data-font="mono"] parity', () => {
   for (const [name, value] of Object.entries(MONO_FONT_TOKENS)) {
     it(`--${name} matches MONO_FONT_TOKENS.${name}`, () => {
-      expectMatches(readMonoVar(name), value)
-    })
+      expectMatches(readMonoVar(name), value);
+    });
   }
-})
+});
 
-describe('DOC_TYPE_LABELS ↔ DOC_TYPE_KEYS parity', () => {
-  it('every DocTypeKey has a label', () => {
-    expect(Object.keys(DOC_TYPE_LABELS).sort()).toEqual([...DOC_TYPE_KEYS].sort())
-  })
+describe("DOC_TYPE_LABELS ↔ DOC_TYPE_KEYS parity", () => {
+  it("every DocTypeKey has a label", () => {
+    expect(Object.keys(DOC_TYPE_LABELS).sort()).toEqual(
+      [...DOC_TYPE_KEYS].sort(),
+    );
+  });
 
-  it('every DocTypeKey has a singular label', () => {
-    expect(Object.keys(DOC_TYPE_LABELS_SINGULAR).sort()).toEqual([...DOC_TYPE_KEYS].sort())
-  })
-})
+  it("every DocTypeKey has a singular label", () => {
+    expect(Object.keys(DOC_TYPE_LABELS_SINGULAR).sort()).toEqual(
+      [...DOC_TYPE_KEYS].sort(),
+    );
+  });
+});
 
-describe('--ac-doc-* tokens meet WCAG 1.4.11 ≥3:1 contrast vs --ac-bg', () => {
-  const BG_LIGHT = LIGHT_COLOR_TOKENS['ac-bg']
-  const BG_DARK = DARK_COLOR_TOKENS['ac-bg']
-  const glyphKeys = DOC_TYPE_KEYS.filter(isPhysicalDocTypeKey)
+describe("--ac-doc-* tokens meet WCAG 1.4.11 ≥3:1 contrast vs --ac-bg", () => {
+  const BG_LIGHT = LIGHT_COLOR_TOKENS["ac-bg"];
+  const BG_DARK = DARK_COLOR_TOKENS["ac-bg"];
+  const glyphKeys = DOC_TYPE_KEYS.filter(isPhysicalDocTypeKey);
   for (const key of glyphKeys) {
-    const tokenName = `ac-doc-${key}` as const
+    const tokenName = `ac-doc-${key}` as const;
     it(`light: ${key} contrast >= 3:1 vs --ac-bg`, () => {
-      const fg = (LIGHT_COLOR_TOKENS as Record<string, string>)[tokenName]
-      expect(fg, `LIGHT_COLOR_TOKENS missing ${tokenName}`).toBeTruthy()
-      expect(contrastRatio(fg, BG_LIGHT)).toBeGreaterThanOrEqual(3)
-    })
+      const fg = (LIGHT_COLOR_TOKENS as Record<string, string>)[tokenName];
+      expect(fg, `LIGHT_COLOR_TOKENS missing ${tokenName}`).toBeTruthy();
+      expect(contrastRatio(fg, BG_LIGHT)).toBeGreaterThanOrEqual(3);
+    });
     it(`dark: ${key} contrast >= 3:1 vs --ac-bg`, () => {
-      const fg = (DARK_COLOR_TOKENS as Record<string, string>)[tokenName]
-      expect(fg, `DARK_COLOR_TOKENS missing ${tokenName}`).toBeTruthy()
-      expect(contrastRatio(fg, BG_DARK)).toBeGreaterThanOrEqual(3)
-    })
+      const fg = (DARK_COLOR_TOKENS as Record<string, string>)[tokenName];
+      expect(fg, `DARK_COLOR_TOKENS missing ${tokenName}`).toBeTruthy();
+      expect(contrastRatio(fg, BG_DARK)).toBeGreaterThanOrEqual(3);
+    });
   }
-})
+});
 
-describe('--ac-stage-* tokens meet WCAG 1.4.11 ≥3:1 contrast vs --ac-bg', () => {
-  const BG_LIGHT = LIGHT_COLOR_TOKENS['ac-bg']
-  const BG_DARK = DARK_COLOR_TOKENS['ac-bg']
+describe("--ac-stage-* tokens meet WCAG 1.4.11 ≥3:1 contrast vs --ac-bg", () => {
+  const BG_LIGHT = LIGHT_COLOR_TOKENS["ac-bg"];
+  const BG_DARK = DARK_COLOR_TOKENS["ac-bg"];
   // Workflow-only — long-tail stages do not get tokens.
   const stageKeys = [
-    'work-items',
-    'research',
-    'plans',
-    'plan-reviews',
-    'validations',
-    'pr-descriptions',
-    'pr-reviews',
-    'decisions',
-  ] as const
+    "work-items",
+    "research",
+    "plans",
+    "plan-reviews",
+    "validations",
+    "pr-descriptions",
+    "pr-reviews",
+    "decisions",
+  ] as const;
   for (const key of stageKeys) {
-    const tokenName = `ac-stage-${key}` as const
+    const tokenName = `ac-stage-${key}` as const;
     it(`light: ${key} contrast >= 3:1 vs --ac-bg`, () => {
-      const fg = (LIGHT_COLOR_TOKENS as Record<string, string>)[tokenName]
-      expect(fg, `LIGHT_COLOR_TOKENS missing ${tokenName}`).toBeTruthy()
-      expect(contrastRatio(fg, BG_LIGHT)).toBeGreaterThanOrEqual(3)
-    })
+      const fg = (LIGHT_COLOR_TOKENS as Record<string, string>)[tokenName];
+      expect(fg, `LIGHT_COLOR_TOKENS missing ${tokenName}`).toBeTruthy();
+      expect(contrastRatio(fg, BG_LIGHT)).toBeGreaterThanOrEqual(3);
+    });
     it(`dark: ${key} contrast >= 3:1 vs --ac-bg`, () => {
-      const fg = (DARK_COLOR_TOKENS as Record<string, string>)[tokenName]
-      expect(fg, `DARK_COLOR_TOKENS missing ${tokenName}`).toBeTruthy()
-      expect(contrastRatio(fg, BG_DARK)).toBeGreaterThanOrEqual(3)
-    })
+      const fg = (DARK_COLOR_TOKENS as Record<string, string>)[tokenName];
+      expect(fg, `DARK_COLOR_TOKENS missing ${tokenName}`).toBeTruthy();
+      expect(contrastRatio(fg, BG_DARK)).toBeGreaterThanOrEqual(3);
+    });
   }
-})
+});
 
-describe('global body/html token consumption', () => {
-  it('there is exactly one top-level body rule', () => {
-    expect(countTopLevelBodyRules(globalCss)).toBe(1)
-  })
+describe("global body/html token consumption", () => {
+  it("there is exactly one top-level body rule", () => {
+    expect(countTopLevelBodyRules(globalCss)).toBe(1);
+  });
 
-  it('body declares background-color: var(--ac-bg)', () => {
-    const body = findBlockBodyForSelector(globalCss, 'body')
-    expect(body).not.toBeNull()
-    expect(body!).toMatch(/background-color:\s*var\(--ac-bg\)/)
-  })
+  it("body declares background-color: var(--ac-bg)", () => {
+    const body = findBlockBodyForSelector(globalCss, "body");
+    expect(body).not.toBeNull();
+    expect(body!).toMatch(/background-color:\s*var\(--ac-bg\)/);
+  });
 
-  it('body declares color: var(--ac-fg)', () => {
-    const body = findBlockBodyForSelector(globalCss, 'body')
-    expect(body).not.toBeNull()
-    expect(body!).toMatch(/(?<!background-)color:\s*var\(--ac-fg\)/)
-  })
+  it("body declares color: var(--ac-fg)", () => {
+    const body = findBlockBodyForSelector(globalCss, "body");
+    expect(body).not.toBeNull();
+    expect(body!).toMatch(/(?<!background-)color:\s*var\(--ac-fg\)/);
+  });
 
-  it(':root declares color-scheme: light dark', () => {
-    const root = findBlockBodyForSelector(globalCss, ':root')
-    expect(root).not.toBeNull()
-    expect(root!).toMatch(/color-scheme:\s*light\s+dark/)
-  })
-})
+  it(":root declares color-scheme: light dark", () => {
+    const root = findBlockBodyForSelector(globalCss, ":root");
+    expect(root).not.toBeNull();
+    expect(root!).toMatch(/color-scheme:\s*light\s+dark/);
+  });
+});

@@ -1,11 +1,11 @@
-import type { ShowToastInput } from '../../api/use-toast'
-import type { IndexEntry } from '../../api/types'
-import { errorToastMessageFor } from '../../api/move-error-copy'
-import { describeEntry } from './announcements'
-import type { DropOutcome } from './resolve-drop-outcome'
+import { errorToastMessageFor } from "../../api/move-error-copy";
+import type { IndexEntry } from "../../api/types";
+import type { ShowToastInput } from "../../api/use-toast";
+import { describeEntry } from "./announcements";
+import type { DropOutcome } from "./resolve-drop-outcome";
 
 /** Whether the move's PATCH settled successfully, or the error it failed with. */
-export type MoveResult = { ok: true } | { ok: false; error: unknown }
+export type MoveResult = { ok: true } | { ok: false; error: unknown };
 
 /**
  * Pure mapping from a resolved drop outcome + the already-resolved human target
@@ -22,20 +22,20 @@ export function moveToastFor(
   targetLabel: string,
   result: MoveResult,
 ): ShowToastInput | null {
-  if (outcome.kind !== 'move') return null
-  if (entry === undefined) return null
+  if (outcome.kind !== "move") return null;
+  if (entry === undefined) return null;
   if (result.ok) {
     // Heading-only success toast (the heading carries the confirmation; the
     // Toaster omits an empty body so it is not mis-padded).
     return {
-      kind: 'ok',
+      kind: "ok",
       heading: `${describeEntry(entry)} moved to ${targetLabel}`,
-      message: '',
-    }
+      message: "",
+    };
   }
   return {
-    kind: 'error',
-    heading: 'Move failed',
+    kind: "error",
+    heading: "Move failed",
     message: errorToastMessageFor(result.error),
-  }
+  };
 }

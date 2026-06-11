@@ -1,8 +1,8 @@
-import { FrontmatterChip } from '../FrontmatterChip/FrontmatterChip'
-import { statusToVariant } from '../../api/status-variant'
+import { statusToVariant } from "../../api/status-variant";
+import { FrontmatterChip } from "../FrontmatterChip/FrontmatterChip";
 
 export interface StatusBadgeProps {
-  value: unknown
+  value: unknown;
 }
 
 // The prototype always renders status labels in sentence case
@@ -10,8 +10,8 @@ export interface StatusBadgeProps {
 // cases the value. Tone selection still keys off the raw value via
 // `statusToVariant`, which normalises casing and separators separately.
 function sentenceCase(value: unknown): unknown {
-  if (typeof value !== 'string' || value.length === 0) return value
-  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
+  if (typeof value !== "string" || value.length === 0) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }
 
 export function StatusBadge({ value }: StatusBadgeProps) {
@@ -22,5 +22,5 @@ export function StatusBadge({ value }: StatusBadgeProps) {
       variant={statusToVariant(value)}
       testId="status-badge"
     />
-  )
+  );
 }

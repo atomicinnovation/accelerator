@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
-import { fetchRelated } from './fetch'
-import { queryKeys } from './query-keys'
+import { useQuery } from "@tanstack/react-query";
+import { fetchRelated } from "./fetch";
+import { queryKeys } from "./query-keys";
 
 /** TanStack Query hook around `fetchRelated`. Gates the query on
  *  `relPath` so the consumer can render the route shell while the
@@ -8,8 +8,11 @@ import { queryKeys } from './query-keys'
  *  relPath is in hand. */
 export function useRelated(relPath: string | undefined) {
   return useQuery({
-    queryKey: relPath ? queryKeys.related(relPath) : queryKeys.disabled('related'),
+    queryKey: relPath
+      ? queryKeys.related(relPath)
+      : queryKeys.disabled("related"),
+    // biome-ignore lint/style/noNonNullAssertion: queryFn only runs while `enabled: !!relPath`, so `relPath` is guaranteed defined here
     queryFn: () => fetchRelated(relPath!),
     enabled: !!relPath,
-  })
+  });
 }

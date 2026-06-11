@@ -1,362 +1,378 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from "vitest";
+import { makeIndexEntry } from "./test-fixtures";
 import {
-  buildWikiLinkPattern,
-  buildWikiLinkIndex,
-  resolveWikiLink,
   buildBareIdPattern,
+  buildWikiLinkIndex,
+  buildWikiLinkPattern,
+  resolveWikiLink,
   splitByBareIds,
-} from './wiki-links'
-import { makeIndexEntry } from './test-fixtures'
+} from "./wiki-links";
 
 /** Reset the regex's `lastIndex` between matches so global-flag state
  *  doesn't leak across tests. Tests should always create matches via
  *  `[...source.matchAll(regex)]` (which is iterator-based and
  *  state-safe), or call `.exec` once per assertion. */
 function matches(s: string): Array<{ prefix: string; n: string }> {
-  const out: Array<{ prefix: string; n: string }> = []
+  const out: Array<{ prefix: string; n: string }> = [];
   for (const m of s.matchAll(buildWikiLinkPattern(null))) {
-    out.push({ prefix: m[1], n: m[2] })
+    out.push({ prefix: m[1], n: m[2] });
   }
-  return out
+  return out;
 }
 
-describe('buildWikiLinkPattern', () => {
+describe("buildWikiLinkPattern", () => {
   // ── Step 3.1 ─────────────────────────────────────────────────────────
-  it('matches both ADR and WORK-ITEM forms', () => {
-    const m = matches('see [[ADR-0017]] and [[WORK-ITEM-1]]')
+  it("matches both ADR and WORK-ITEM forms", () => {
+    const m = matches("see [[ADR-0017]] and [[WORK-ITEM-1]]");
     expect(m).toEqual([
-      { prefix: 'ADR', n: '0017' },
-      { prefix: 'WORK-ITEM', n: '1' },
-    ])
-  })
+      { prefix: "ADR", n: "0017" },
+      { prefix: "WORK-ITEM", n: "1" },
+    ]);
+  });
 
   // ── Step 3.2 ─────────────────────────────────────────────────────────
-  it('does not match bare numeric form', () => {
-    expect(matches('[[0001]]')).toEqual([])
-  })
+  it("does not match bare numeric form", () => {
+    expect(matches("[[0001]]")).toEqual([]);
+  });
 
   // ── Step 3.3 ─────────────────────────────────────────────────────────
-  it('does not match unknown prefix', () => {
-    expect(matches('[[EPIC-0001]]')).toEqual([])
-  })
+  it("does not match unknown prefix", () => {
+    expect(matches("[[EPIC-0001]]")).toEqual([]);
+  });
 
   // ── Step 3.4 ─────────────────────────────────────────────────────────
-  it('does not match uppercase-mismatched form', () => {
-    expect(matches('[[adr-0001]]')).toEqual([])
-    expect(matches('[[Adr-0001]]')).toEqual([])
-  })
+  it("does not match uppercase-mismatched form", () => {
+    expect(matches("[[adr-0001]]")).toEqual([]);
+    expect(matches("[[Adr-0001]]")).toEqual([]);
+  });
 
   // ── Step 3.4b ────────────────────────────────────────────────────────
   // buildWikiLinkPattern uses `\d+` (no upper limit), so long digit
   // runs DO match. The old WIKI_LINK_PATTERN had a {1,6} cap to guard
   // Number.MAX_SAFE_INTEGER — with string-based IDs that concern is gone.
-  it('matches digit-runs longer than six (no upper limit)', () => {
-    expect(matches('[[ADR-9999999]]')).toEqual([{ prefix: 'ADR', n: '9999999' }])
-  })
+  it("matches digit-runs longer than six (no upper limit)", () => {
+    expect(matches("[[ADR-9999999]]")).toEqual([
+      { prefix: "ADR", n: "9999999" },
+    ]);
+  });
 
   // ── Step 3.4c ────────────────────────────────────────────────────────
-  it('boundary cases', () => {
-    expect(matches('[[ADR-0001]].')).toEqual([{ prefix: 'ADR', n: '0001' }])
-    expect(matches('prefix[[ADR-0001]]suffix')).toEqual([
-      { prefix: 'ADR', n: '0001' },
-    ])
-    expect(matches('[[ADR-]]')).toEqual([])
-    expect(matches('[[ADR-0001a]]')).toEqual([])
-  })
+  it("boundary cases", () => {
+    expect(matches("[[ADR-0001]].")).toEqual([{ prefix: "ADR", n: "0001" }]);
+    expect(matches("prefix[[ADR-0001]]suffix")).toEqual([
+      { prefix: "ADR", n: "0001" },
+    ]);
+    expect(matches("[[ADR-]]")).toEqual([]);
+    expect(matches("[[ADR-0001a]]")).toEqual([]);
+  });
 
   // ── Project-code tests ────────────────────────────────────────────────
-  it('matches project-prefixed work-item ids under a project pattern', () => {
-    const pattern = buildWikiLinkPattern('PROJ')
-    const text = 'See [[WORK-ITEM-PROJ-0042]] for context'
-    const ms = [...text.matchAll(pattern)]
-    expect(ms).toHaveLength(1)
-    expect(ms[0][2]).toBe('PROJ-0042')
-  })
+  it("matches project-prefixed work-item ids under a project pattern", () => {
+    const pattern = buildWikiLinkPattern("PROJ");
+    const text = "See [[WORK-ITEM-PROJ-0042]] for context";
+    const ms = [...text.matchAll(pattern)];
+    expect(ms).toHaveLength(1);
+    expect(ms[0][2]).toBe("PROJ-0042");
+  });
 
-  it('falls back to bare numeric under a project pattern', () => {
-    const pattern = buildWikiLinkPattern('PROJ')
-    const text = 'See [[WORK-ITEM-0007]] for legacy context'
-    const ms = [...text.matchAll(pattern)]
-    expect(ms).toHaveLength(1)
-    expect(ms[0][2]).toBe('0007')
-  })
+  it("falls back to bare numeric under a project pattern", () => {
+    const pattern = buildWikiLinkPattern("PROJ");
+    const text = "See [[WORK-ITEM-0007]] for legacy context";
+    const ms = [...text.matchAll(pattern)];
+    expect(ms).toHaveLength(1);
+    expect(ms[0][2]).toBe("0007");
+  });
 
-  it('matches default-pattern work-item ids when no project code is configured', () => {
-    const pattern = buildWikiLinkPattern(null)
-    const text = 'See [[WORK-ITEM-0042]] and [[ADR-0023]]'
-    const ms = [...text.matchAll(pattern)]
-    expect(ms).toHaveLength(2)
-  })
+  it("matches default-pattern work-item ids when no project code is configured", () => {
+    const pattern = buildWikiLinkPattern(null);
+    const text = "See [[WORK-ITEM-0042]] and [[ADR-0023]]";
+    const ms = [...text.matchAll(pattern)];
+    expect(ms).toHaveLength(2);
+  });
 
-  it('does not match multi-segment project codes (out of scope)', () => {
+  it("does not match multi-segment project codes (out of scope)", () => {
     // Pinned negative: the compiler grammar forbids hyphens in project codes.
     // ACME-CORE-0042 is not expected to resolve; ACME pattern matches ACME-CORE
     // as the id (digits portion absent), so no digit match → no result.
-    const pattern = buildWikiLinkPattern('ACME')
-    const text = 'See [[WORK-ITEM-ACME-CORE-0042]]'
-    const ms = [...text.matchAll(pattern)]
-    expect(ms).toHaveLength(0)
-  })
-})
+    const pattern = buildWikiLinkPattern("ACME");
+    const text = "See [[WORK-ITEM-ACME-CORE-0042]]";
+    const ms = [...text.matchAll(pattern)];
+    expect(ms).toHaveLength(0);
+  });
+});
 
-describe('buildWikiLinkIndex', () => {
+describe("buildWikiLinkIndex", () => {
   // ── Step 3.5 ─────────────────────────────────────────────────────────
-  it('indexes ADRs by adr_id when present', () => {
+  it("indexes ADRs by adr_id when present", () => {
     const adr = makeIndexEntry({
-      type: 'decisions',
-      relPath: 'meta/decisions/ADR-0017-foo.md',
-      frontmatter: { adr_id: 'ADR-0017' },
-    })
-    const idx = buildWikiLinkIndex([adr], [])
-    expect(idx.adrById.get(17)).toBe(adr)
-  })
+      type: "decisions",
+      relPath: "meta/decisions/ADR-0017-foo.md",
+      frontmatter: { adr_id: "ADR-0017" },
+    });
+    const idx = buildWikiLinkIndex([adr], []);
+    expect(idx.adrById.get(17)).toBe(adr);
+  });
 
   // ── Step 3.6 ─────────────────────────────────────────────────────────
-  it('falls back to filename prefix for ADRs missing adr_id', () => {
+  it("falls back to filename prefix for ADRs missing adr_id", () => {
     const adr = makeIndexEntry({
-      type: 'decisions',
-      relPath: 'meta/decisions/ADR-0042-foo.md',
+      type: "decisions",
+      relPath: "meta/decisions/ADR-0042-foo.md",
       frontmatter: {},
-    })
-    const idx = buildWikiLinkIndex([adr], [])
-    expect(idx.adrById.get(42)).toBe(adr)
-  })
+    });
+    const idx = buildWikiLinkIndex([adr], []);
+    expect(idx.adrById.get(42)).toBe(adr);
+  });
 
   // ── Step 3.7 ─────────────────────────────────────────────────────────
-  it('prefers adr_id over filename when both are present and disagree', () => {
+  it("prefers adr_id over filename when both are present and disagree", () => {
     const adr = makeIndexEntry({
-      type: 'decisions',
-      relPath: 'meta/decisions/ADR-0042-foo.md',
-      frontmatter: { adr_id: 'ADR-0099' },
-    })
-    const idx = buildWikiLinkIndex([adr], [])
-    expect(idx.adrById.get(99)).toBe(adr)
-    expect(idx.adrById.get(42)).toBeUndefined()
-  })
+      type: "decisions",
+      relPath: "meta/decisions/ADR-0042-foo.md",
+      frontmatter: { adr_id: "ADR-0099" },
+    });
+    const idx = buildWikiLinkIndex([adr], []);
+    expect(idx.adrById.get(99)).toBe(adr);
+    expect(idx.adrById.get(42)).toBeUndefined();
+  });
 
   // ── Step 3.7b ────────────────────────────────────────────────────────
-  it('picks earliest-relPath on duplicate IDs', () => {
+  it("picks earliest-relPath on duplicate IDs", () => {
     const earlier = makeIndexEntry({
-      type: 'decisions',
-      relPath: 'meta/decisions/ADR-0017-aaa.md',
-      frontmatter: { adr_id: 'ADR-0017' },
-    })
+      type: "decisions",
+      relPath: "meta/decisions/ADR-0017-aaa.md",
+      frontmatter: { adr_id: "ADR-0017" },
+    });
     const later = makeIndexEntry({
-      type: 'decisions',
-      relPath: 'meta/decisions/ADR-0017-zzz.md',
-      frontmatter: { adr_id: 'ADR-0017' },
-    })
+      type: "decisions",
+      relPath: "meta/decisions/ADR-0017-zzz.md",
+      frontmatter: { adr_id: "ADR-0017" },
+    });
     // Insert in non-lexical order to verify the tie-break is independent of input order.
-    const idx = buildWikiLinkIndex([later, earlier], [])
-    expect(idx.adrById.get(17)).toBe(earlier)
-  })
+    const idx = buildWikiLinkIndex([later, earlier], []);
+    expect(idx.adrById.get(17)).toBe(earlier);
+  });
 
   // ── Step 3.7c ────────────────────────────────────────────────────────
-  it('defensively filters by entry type', () => {
+  it("defensively filters by entry type", () => {
     // A plan mistakenly passed as a work item must not appear in workItemById,
     // even if it has a workItemId set.
     const planMaskedAsWorkItem = makeIndexEntry({
-      type: 'plans',
-      relPath: 'meta/plans/2026-04-18-foo.md',
-      workItemId: '2026',
-    })
-    const idx = buildWikiLinkIndex([], [planMaskedAsWorkItem])
-    expect(idx.workItemById.get('2026')).toBeUndefined()
-  })
+      type: "plans",
+      relPath: "meta/plans/2026-04-18-foo.md",
+      workItemId: "2026",
+    });
+    const idx = buildWikiLinkIndex([], [planMaskedAsWorkItem]);
+    expect(idx.workItemById.get("2026")).toBeUndefined();
+  });
 
   // ── Step 3.8 ─────────────────────────────────────────────────────────
-  it('indexes work items by workItemId (string key)', () => {
+  it("indexes work items by workItemId (string key)", () => {
     const workItem = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/0001-foo.md',
-      workItemId: '0001',
-    })
-    const idx = buildWikiLinkIndex([], [workItem])
-    expect(idx.workItemById.get('0001')).toBe(workItem)
-  })
+      type: "work-items",
+      relPath: "meta/work/0001-foo.md",
+      workItemId: "0001",
+    });
+    const idx = buildWikiLinkIndex([], [workItem]);
+    expect(idx.workItemById.get("0001")).toBe(workItem);
+  });
 
-  it('indexes project-prefixed work items by full string ID', () => {
+  it("indexes project-prefixed work items by full string ID", () => {
     const workItem = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/PROJ-0042-foo.md',
-      workItemId: 'PROJ-0042',
-    })
-    const idx = buildWikiLinkIndex([], [workItem])
-    expect(idx.workItemById.get('PROJ-0042')).toBe(workItem)
-  })
-})
+      type: "work-items",
+      relPath: "meta/work/PROJ-0042-foo.md",
+      workItemId: "PROJ-0042",
+    });
+    const idx = buildWikiLinkIndex([], [workItem]);
+    expect(idx.workItemById.get("PROJ-0042")).toBe(workItem);
+  });
+});
 
-describe('resolveWikiLink', () => {
+describe("resolveWikiLink", () => {
   const adr = makeIndexEntry({
-    type: 'decisions',
-    relPath: 'meta/decisions/ADR-0017-foo.md',
-    title: 'Configuration extension points',
-    frontmatter: { adr_id: 'ADR-0017' },
-  })
+    type: "decisions",
+    relPath: "meta/decisions/ADR-0017-foo.md",
+    title: "Configuration extension points",
+    frontmatter: { adr_id: "ADR-0017" },
+  });
   const workItem = makeIndexEntry({
-    type: 'work-items',
-    relPath: 'meta/work/0001-foo.md',
-    title: 'Three-layer review system architecture',
-    workItemId: '0001',
-  })
-  const idx = buildWikiLinkIndex([adr], [workItem])
+    type: "work-items",
+    relPath: "meta/work/0001-foo.md",
+    title: "Three-layer review system architecture",
+    workItemId: "0001",
+  });
+  const idx = buildWikiLinkIndex([adr], [workItem]);
 
   // ── Step 3.9 ─────────────────────────────────────────────────────────
-  it('returns null for unknown ADR id', () => {
-    expect(resolveWikiLink('ADR', '9999', idx)).toBeNull()
-  })
+  it("returns null for unknown ADR id", () => {
+    expect(resolveWikiLink("ADR", "9999", idx)).toBeNull();
+  });
 
   // ── Step 3.10 ────────────────────────────────────────────────────────
-  it('returns href and title for known ADR', () => {
-    expect(resolveWikiLink('ADR', '17', idx)).toEqual({
-      href: '/library/decisions/ADR-0017-foo',
-      title: 'Configuration extension points',
-    })
-  })
+  it("returns href and title for known ADR", () => {
+    expect(resolveWikiLink("ADR", "17", idx)).toEqual({
+      href: "/library/decisions/ADR-0017-foo",
+      title: "Configuration extension points",
+    });
+  });
 
   // ── Step 3.11 ────────────────────────────────────────────────────────
-  it('returns href and title for known work item', () => {
-    expect(resolveWikiLink('WORK-ITEM', '0001', idx)).toEqual({
-      href: '/library/work-items/0001-foo',
-      title: 'Three-layer review system architecture',
-    })
-  })
+  it("returns href and title for known work item", () => {
+    expect(resolveWikiLink("WORK-ITEM", "0001", idx)).toEqual({
+      href: "/library/work-items/0001-foo",
+      title: "Three-layer review system architecture",
+    });
+  });
 
   // ── Step 3.12 ────────────────────────────────────────────────────────
-  it('returns null for unknown work item', () => {
-    expect(resolveWikiLink('WORK-ITEM', '9999', idx)).toBeNull()
-  })
+  it("returns null for unknown work item", () => {
+    expect(resolveWikiLink("WORK-ITEM", "9999", idx)).toBeNull();
+  });
 
   // ── Step 3.13 ────────────────────────────────────────────────────────
-  it('ADR id string is parsed to integer for lookup (leading zeros transparent)', () => {
+  it("ADR id string is parsed to integer for lookup (leading zeros transparent)", () => {
     // resolveWikiLink takes a raw string from the regex capture group.
     // ADR lookups parse the string to int internally, so '0017' and '17'
     // both hit the same entry keyed on 17.
-    expect(resolveWikiLink('ADR', '0017', idx)?.href).toBe('/library/decisions/ADR-0017-foo')
-    expect(resolveWikiLink('ADR', '17', idx)?.href).toBe('/library/decisions/ADR-0017-foo')
-  })
+    expect(resolveWikiLink("ADR", "0017", idx)?.href).toBe(
+      "/library/decisions/ADR-0017-foo",
+    );
+    expect(resolveWikiLink("ADR", "17", idx)?.href).toBe(
+      "/library/decisions/ADR-0017-foo",
+    );
+  });
 
-  it('resolves a project-prefixed work item via full string id', () => {
+  it("resolves a project-prefixed work item via full string id", () => {
     const projItem = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/PROJ-0042-foo.md',
-      title: 'Foo work item',
-      workItemId: 'PROJ-0042',
-    })
-    const projIdx = buildWikiLinkIndex([], [projItem])
-    expect(resolveWikiLink('WORK-ITEM', 'PROJ-0042', projIdx)).toEqual({
-      href: '/library/work-items/PROJ-0042-foo',
-      title: 'Foo work item',
-    })
-  })
-})
+      type: "work-items",
+      relPath: "meta/work/PROJ-0042-foo.md",
+      title: "Foo work item",
+      workItemId: "PROJ-0042",
+    });
+    const projIdx = buildWikiLinkIndex([], [projItem]);
+    expect(resolveWikiLink("WORK-ITEM", "PROJ-0042", projIdx)).toEqual({
+      href: "/library/work-items/PROJ-0042-foo",
+      title: "Foo work item",
+    });
+  });
+});
 
-describe('buildBareIdPattern', () => {
-  it('matches bare ADR and WORK-ITEM tokens when projectCode is null', () => {
-    const re = buildBareIdPattern(null)
-    expect('ADR-0001'.match(re)).not.toBeNull()
-    expect('WORK-ITEM-0042'.match(re)).not.toBeNull()
-  })
+describe("buildBareIdPattern", () => {
+  it("matches bare ADR and WORK-ITEM tokens when projectCode is null", () => {
+    const re = buildBareIdPattern(null);
+    expect("ADR-0001".match(re)).not.toBeNull();
+    expect("WORK-ITEM-0042".match(re)).not.toBeNull();
+  });
 
-  it('captures the inner token even when wrapped in brackets', () => {
-    const re = buildBareIdPattern(null)
-    const matches = [...'[[WORK-ITEM-0042]]'.matchAll(re)]
-    expect(matches.length).toBe(1)
-    expect(matches[0][1]).toBe('WORK-ITEM')
-    expect(matches[0][2]).toBe('0042')
-  })
+  it("captures the inner token even when wrapped in brackets", () => {
+    const re = buildBareIdPattern(null);
+    const matches = [..."[[WORK-ITEM-0042]]".matchAll(re)];
+    expect(matches.length).toBe(1);
+    expect(matches[0][1]).toBe("WORK-ITEM");
+    expect(matches[0][2]).toBe("0042");
+  });
 
-  it('matches project-prefixed forms when projectCode is set', () => {
-    const re = buildBareIdPattern('PROJ')
-    expect('WORK-ITEM-PROJ-0042'.match(re)).not.toBeNull()
-    expect('WORK-ITEM-0042'.match(re)).not.toBeNull()
-  })
+  it("matches project-prefixed forms when projectCode is set", () => {
+    const re = buildBareIdPattern("PROJ");
+    expect("WORK-ITEM-PROJ-0042".match(re)).not.toBeNull();
+    expect("WORK-ITEM-0042".match(re)).not.toBeNull();
+  });
 
-  it('does not match non-token text', () => {
-    const re = buildBareIdPattern(null)
-    expect('see issue 0042 for context'.match(re)).toBeNull()
-    expect('WORKBOOK-0042'.match(re)).toBeNull()
-  })
+  it("does not match non-token text", () => {
+    const re = buildBareIdPattern(null);
+    expect("see issue 0042 for context".match(re)).toBeNull();
+    expect("WORKBOOK-0042".match(re)).toBeNull();
+  });
 
-  describe('word-boundary collision cases', () => {
-    it('matches ADR-NNNN embedded inside a longer hyphen-joined token', () => {
-      const re = buildBareIdPattern(null)
-      const matches = [...'MY-ADR-0017'.matchAll(re)]
-      expect(matches.length).toBe(1)
-      expect(matches[0][0]).toBe('ADR-0017')
-    })
+  describe("word-boundary collision cases", () => {
+    it("matches ADR-NNNN embedded inside a longer hyphen-joined token", () => {
+      const re = buildBareIdPattern(null);
+      const matches = [..."MY-ADR-0017".matchAll(re)];
+      expect(matches.length).toBe(1);
+      expect(matches[0][0]).toBe("ADR-0017");
+    });
 
-    it('matches WORK-ITEM-NNNN even when followed by an extra hyphenated suffix', () => {
-      const re = buildBareIdPattern(null)
-      const matches = [...'WORK-ITEM-0042-suffix'.matchAll(re)]
-      expect(matches.length).toBe(1)
-      expect(matches[0][0]).toBe('WORK-ITEM-0042')
-    })
+    it("matches WORK-ITEM-NNNN even when followed by an extra hyphenated suffix", () => {
+      const re = buildBareIdPattern(null);
+      const matches = [..."WORK-ITEM-0042-suffix".matchAll(re)];
+      expect(matches.length).toBe(1);
+      expect(matches[0][0]).toBe("WORK-ITEM-0042");
+    });
 
-    it('matches a token inside a path-shaped string', () => {
-      const re = buildBareIdPattern(null)
-      const matches = [...'notes/WORK-ITEM-0042.md'.matchAll(re)]
-      expect(matches.length).toBe(1)
-      expect(matches[0][0]).toBe('WORK-ITEM-0042')
-    })
+    it("matches a token inside a path-shaped string", () => {
+      const re = buildBareIdPattern(null);
+      const matches = [..."notes/WORK-ITEM-0042.md".matchAll(re)];
+      expect(matches.length).toBe(1);
+      expect(matches[0][0]).toBe("WORK-ITEM-0042");
+    });
 
-    it('does not match a token immediately followed by a word character', () => {
-      const re = buildBareIdPattern(null)
-      expect('WORK-ITEM-0042a'.match(re)).toBeNull()
-    })
-  })
-})
+    it("does not match a token immediately followed by a word character", () => {
+      const re = buildBareIdPattern(null);
+      expect("WORK-ITEM-0042a".match(re)).toBeNull();
+    });
+  });
+});
 
-describe('splitByBareIds', () => {
-  it('returns a single text segment when no matches are present', () => {
-    const segs = splitByBareIds('plain value', buildBareIdPattern(null))
-    expect(segs).toEqual([{ kind: 'text', text: 'plain value' }])
-  })
+describe("splitByBareIds", () => {
+  it("returns a single text segment when no matches are present", () => {
+    const segs = splitByBareIds("plain value", buildBareIdPattern(null));
+    expect(segs).toEqual([{ kind: "text", text: "plain value" }]);
+  });
 
-  it('returns a single match segment when the whole string is one token', () => {
-    const segs = splitByBareIds('WORK-ITEM-0042', buildBareIdPattern(null))
-    expect(segs).toEqual([
-      { kind: 'match', text: 'WORK-ITEM-0042', prefix: 'WORK-ITEM', id: '0042' },
-    ])
-  })
-
-  it('interleaves text and matches in source order', () => {
-    const segs = splitByBareIds(
-      'see WORK-ITEM-0041 for context',
-      buildBareIdPattern(null),
-    )
-    expect(segs).toEqual([
-      { kind: 'text', text: 'see ' },
-      { kind: 'match', text: 'WORK-ITEM-0041', prefix: 'WORK-ITEM', id: '0041' },
-      { kind: 'text', text: ' for context' },
-    ])
-  })
-
-  it('handles consecutive matches with no separator text', () => {
-    const segs = splitByBareIds(
-      'WORK-ITEM-0001 WORK-ITEM-0002',
-      buildBareIdPattern(null),
-    )
-    expect(segs.filter((s) => s.kind === 'match').length).toBe(2)
-  })
-
-  it('returns one empty text segment for empty input', () => {
-    const segs = splitByBareIds('', buildBareIdPattern(null))
-    expect(segs).toEqual([{ kind: 'text', text: '' }])
-  })
-
-  it('captures project-prefixed IDs when the pattern includes them', () => {
-    const segs = splitByBareIds(
-      'WORK-ITEM-PROJ-0099',
-      buildBareIdPattern('PROJ'),
-    )
+  it("returns a single match segment when the whole string is one token", () => {
+    const segs = splitByBareIds("WORK-ITEM-0042", buildBareIdPattern(null));
     expect(segs).toEqual([
       {
-        kind: 'match',
-        text: 'WORK-ITEM-PROJ-0099',
-        prefix: 'WORK-ITEM',
-        id: 'PROJ-0099',
+        kind: "match",
+        text: "WORK-ITEM-0042",
+        prefix: "WORK-ITEM",
+        id: "0042",
       },
-    ])
-  })
-})
+    ]);
+  });
+
+  it("interleaves text and matches in source order", () => {
+    const segs = splitByBareIds(
+      "see WORK-ITEM-0041 for context",
+      buildBareIdPattern(null),
+    );
+    expect(segs).toEqual([
+      { kind: "text", text: "see " },
+      {
+        kind: "match",
+        text: "WORK-ITEM-0041",
+        prefix: "WORK-ITEM",
+        id: "0041",
+      },
+      { kind: "text", text: " for context" },
+    ]);
+  });
+
+  it("handles consecutive matches with no separator text", () => {
+    const segs = splitByBareIds(
+      "WORK-ITEM-0001 WORK-ITEM-0002",
+      buildBareIdPattern(null),
+    );
+    expect(segs.filter((s) => s.kind === "match").length).toBe(2);
+  });
+
+  it("returns one empty text segment for empty input", () => {
+    const segs = splitByBareIds("", buildBareIdPattern(null));
+    expect(segs).toEqual([{ kind: "text", text: "" }]);
+  });
+
+  it("captures project-prefixed IDs when the pattern includes them", () => {
+    const segs = splitByBareIds(
+      "WORK-ITEM-PROJ-0099",
+      buildBareIdPattern("PROJ"),
+    );
+    expect(segs).toEqual([
+      {
+        kind: "match",
+        text: "WORK-ITEM-PROJ-0099",
+        prefix: "WORK-ITEM",
+        id: "PROJ-0099",
+      },
+    ]);
+  });
+});

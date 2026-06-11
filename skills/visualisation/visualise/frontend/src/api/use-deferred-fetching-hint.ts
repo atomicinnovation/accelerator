@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from "react";
 
 interface QueryStatus {
-  isFetching: boolean
-  isPending: boolean
+  isFetching: boolean;
+  isPending: boolean;
 }
 
 /** Gate the "Updating…" hint on two conditions:
@@ -17,15 +17,15 @@ export function useDeferredFetchingHint(
   query: QueryStatus,
   delayMs = 250,
 ): boolean {
-  const [show, setShow] = useState(false)
-  const isRefetch = query.isFetching && !query.isPending
+  const [show, setShow] = useState(false);
+  const isRefetch = query.isFetching && !query.isPending;
   useEffect(() => {
     if (!isRefetch) {
-      setShow(false)
-      return
+      setShow(false);
+      return;
     }
-    const id = setTimeout(() => setShow(true), delayMs)
-    return () => clearTimeout(id)
-  }, [isRefetch, delayMs])
-  return show
+    const id = setTimeout(() => setShow(true), delayMs);
+    return () => clearTimeout(id);
+  }, [isRefetch, delayMs]);
+  return show;
 }

@@ -4,5 +4,5 @@
  *  sufficient; update both this helper and the indexer contract if
  *  other extensions are ever admitted. */
 export function fileSlugFromRelPath(relPath: string): string {
-  return relPath.split('/').at(-1)?.replace(/\.md$/, '') ?? relPath
+  return relPath.split("/").at(-1)?.replace(/\.md$/, "") ?? relPath;
 }

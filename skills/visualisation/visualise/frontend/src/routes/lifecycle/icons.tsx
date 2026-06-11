@@ -3,10 +3,10 @@
 // surface can drop them into its layout (eyebrow, meta row, breadcrumb)
 // without going through Glyph (which is keyed off DocTypeKey).
 
-import { IconFrame } from '../../components/Glyph/IconFrame'
+import { IconFrame } from "../../components/Glyph/IconFrame";
 
 interface IconProps {
-  size?: number
+  size?: number;
 }
 
 /** Framed lifecycle eyebrow glyph — drop-in for `Page`'s eyebrow slot
@@ -33,7 +33,7 @@ export function LifecycleEyebrowIcon({ size = 16 }: IconProps) {
         <path d="M8 6h8M6 8v8M18 8v8M8 18h8" />
       </svg>
     </IconFrame>
-  )
+  );
 }
 
 export function ClockIcon({ size = 11 }: IconProps) {
@@ -52,7 +52,7 @@ export function ClockIcon({ size = 11 }: IconProps) {
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" />
     </svg>
-  )
+  );
 }
 
 export function ChevronRightIcon({ size = 10 }: IconProps) {
@@ -70,5 +70,5 @@ export function ChevronRightIcon({ size = 10 }: IconProps) {
     >
       <path d="m9 6 6 6-6 6" />
     </svg>
-  )
+  );
 }

@@ -1,71 +1,71 @@
-import { useEffect, useRef } from 'react'
-import { Outlet } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
-import { Sidebar } from '../Sidebar/Sidebar'
-import { Topbar } from '../Topbar/Topbar'
-import { useDocEvents, DocEventsContext } from '../../api/use-doc-events'
-import { useTheme, ThemeContext } from '../../api/use-theme'
-import { useFontMode, FontModeContext } from '../../api/use-font-mode'
+import { useQuery } from "@tanstack/react-query";
+import { Outlet } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
+import { fetchLibraryStructure, fetchTypes } from "../../api/fetch";
+import { queryKeys } from "../../api/query-keys";
+import { DocEventsContext, useDocEvents } from "../../api/use-doc-events";
+import { FontModeContext, useFontMode } from "../../api/use-font-mode";
+import { ThemeContext, useTheme } from "../../api/use-theme";
+import { ToastContext, useToastDispatcher } from "../../api/use-toast";
 import {
-  useUnseenDocTypes,
   UnseenDocTypesContext,
-} from '../../api/use-unseen-doc-types'
-import { useToastDispatcher, ToastContext } from '../../api/use-toast'
-import { Toaster } from '../Toaster/Toaster'
-import { ExternalEditToast } from '../Toaster/ExternalEditToast'
-import { fetchTypes, fetchLibraryStructure } from '../../api/fetch'
-import { queryKeys } from '../../api/query-keys'
-import styles from './RootLayout.module.css'
+  useUnseenDocTypes,
+} from "../../api/use-unseen-doc-types";
+import { Sidebar } from "../Sidebar/Sidebar";
+import { ExternalEditToast } from "../Toaster/ExternalEditToast";
+import { Toaster } from "../Toaster/Toaster";
+import { Topbar } from "../Topbar/Topbar";
+import styles from "./RootLayout.module.css";
 
 function isPlainSlashKey(event: KeyboardEvent): boolean {
   return (
-    event.key === '/' &&
+    event.key === "/" &&
     !event.metaKey &&
     !event.ctrlKey &&
     !event.altKey &&
     !event.shiftKey
-  )
+  );
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  if (target instanceof HTMLInputElement) return true
-  if (target instanceof HTMLTextAreaElement) return true
-  if (target.isContentEditable) return true
+  if (!(target instanceof HTMLElement)) return false;
+  if (target instanceof HTMLInputElement) return true;
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target.isContentEditable) return true;
   // JSDOM doesn't always set isContentEditable from the attribute. Fall back
   // to the attribute so the test environment matches browser behaviour.
-  const attr = target.getAttribute('contenteditable')
-  return attr !== null && attr !== 'false'
+  const attr = target.getAttribute("contenteditable");
+  return attr !== null && attr !== "false";
 }
 
 export function RootLayout() {
-  const unseen = useUnseenDocTypes()
+  const unseen = useUnseenDocTypes();
   const docEvents = useDocEvents({
     onEvent: unseen.onEvent,
     onReconnect: unseen.onReconnect,
-  })
-  const theme = useTheme()
-  const fontMode = useFontMode()
-  const toast = useToastDispatcher()
-  const searchInputRef = useRef<HTMLInputElement>(null)
+  });
+  const theme = useTheme();
+  const fontMode = useFontMode();
+  const toast = useToastDispatcher();
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!isPlainSlashKey(e)) return
-      if (isEditableTarget(e.target)) return
-      const input = searchInputRef.current
-      if (!input) return
-      e.preventDefault()
-      input.focus()
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [])
+      if (!isPlainSlashKey(e)) return;
+      if (isEditableTarget(e.target)) return;
+      const input = searchInputRef.current;
+      if (!input) return;
+      e.preventDefault();
+      input.focus();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const { data: docTypes = [] } = useQuery({
     queryKey: queryKeys.types(),
     queryFn: fetchTypes,
-  })
+  });
 
   // Shared library-structure fetch — `LibraryOverviewHub` and any
   // selection-aware list view re-use the same query key (no selection arg
@@ -74,39 +74,39 @@ export function RootLayout() {
   const { data: libraryStructure } = useQuery({
     queryKey: queryKeys.libraryStructure(),
     queryFn: () => fetchLibraryStructure(),
-  })
+  });
 
   return (
     <ThemeContext.Provider value={theme}>
       <FontModeContext.Provider value={fontMode}>
-      <DocEventsContext.Provider value={docEvents}>
-        <UnseenDocTypesContext.Provider value={unseen}>
-        <ToastContext.Provider value={toast}>
-        <div className={styles.root}>
-          <Topbar />
-          <div className={styles.body}>
-            <Sidebar
-              docTypes={docTypes}
-              phases={libraryStructure?.phases ?? []}
-              templates={libraryStructure?.templates ?? null}
-              searchInputRef={searchInputRef}
-            />
-            <main className={styles.main}>
-              <Outlet />
-            </main>
-          </div>
-        </div>
-        {/* INVARIANT: <ExternalEditToast/> and <Toaster/> must stay inside
+        <DocEventsContext.Provider value={docEvents}>
+          <UnseenDocTypesContext.Provider value={unseen}>
+            <ToastContext.Provider value={toast}>
+              <div className={styles.root}>
+                <Topbar />
+                <div className={styles.body}>
+                  <Sidebar
+                    docTypes={docTypes}
+                    phases={libraryStructure?.phases ?? []}
+                    templates={libraryStructure?.templates ?? null}
+                    searchInputRef={searchInputRef}
+                  />
+                  <main className={styles.main}>
+                    <Outlet />
+                  </main>
+                </div>
+              </div>
+              {/* INVARIANT: <ExternalEditToast/> and <Toaster/> must stay inside
             <ToastContext.Provider>. Toaster portals to document.body, so its DOM
             position is irrelevant, but if it falls outside this provider it
             silently reads the no-op handle and all toasts vanish with no type
             error. Keep these two adjacent and inside the provider. */}
-        <ExternalEditToast />
-        <Toaster />
-        </ToastContext.Provider>
-        </UnseenDocTypesContext.Provider>
-      </DocEventsContext.Provider>
+              <ExternalEditToast />
+              <Toaster />
+            </ToastContext.Provider>
+          </UnseenDocTypesContext.Provider>
+        </DocEventsContext.Provider>
       </FontModeContext.Provider>
     </ThemeContext.Provider>
-  )
+  );
 }

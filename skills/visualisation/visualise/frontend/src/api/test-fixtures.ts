@@ -1,4 +1,4 @@
-import type { Completeness, IndexEntry, LifecycleCluster } from './types'
+import type { Completeness, IndexEntry, LifecycleCluster } from "./types";
 
 /** Test-only `Completeness` factory. Defaults to all-false with empty
  *  `present`; callers override only what they care about via
@@ -20,32 +20,34 @@ export function makeCompleteness(
     hasDesignGap: false,
     present: [],
     ...overrides,
-  }
+  };
 }
 
 /** Test-only `IndexEntry` factory. New required fields default here
  *  in one place; callers override only what they care about via
  *  `Partial<IndexEntry>`. */
-export function makeIndexEntry(overrides: Partial<IndexEntry> = {}): IndexEntry {
+export function makeIndexEntry(
+  overrides: Partial<IndexEntry> = {},
+): IndexEntry {
   return {
-    type: 'plans',
-    path: '/x/foo.md',
-    relPath: 'foo.md',
-    slug: 'foo',
+    type: "plans",
+    path: "/x/foo.md",
+    relPath: "foo.md",
+    slug: "foo",
     workItemId: null,
-    title: 'Foo',
+    title: "Foo",
     frontmatter: {},
-    frontmatterState: 'parsed',
+    frontmatterState: "parsed",
     workItemRefs: [],
     mtimeMs: 0,
     size: 0,
-    etag: 'sha256-x',
-    bodyPreview: '',
+    etag: "sha256-x",
+    bodyPreview: "",
     completeness: null,
     linkedCount: 0,
     clusterKey: null,
     ...overrides,
-  }
+  };
 }
 
 /** Test-only `LifecycleCluster` factory. Defaults to a single-entry
@@ -56,12 +58,12 @@ export function makeLifecycleCluster(
   overrides: Partial<LifecycleCluster> = {},
 ): LifecycleCluster {
   return {
-    slug: 'foo',
-    title: 'Foo',
+    slug: "foo",
+    title: "Foo",
     entries: [makeIndexEntry()],
     completeness: makeCompleteness(),
     lastChangedMs: 0,
     clusterKey: null,
     ...overrides,
-  }
+  };
 }

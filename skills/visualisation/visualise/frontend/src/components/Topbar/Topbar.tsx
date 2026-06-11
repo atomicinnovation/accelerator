@@ -1,10 +1,10 @@
-import { Brand } from '../Brand/Brand'
-import { Breadcrumbs } from '../Breadcrumbs/Breadcrumbs'
-import { OriginPill } from '../OriginPill/OriginPill'
-import { SseIndicator } from '../SseIndicator/SseIndicator'
-import { ThemeToggle } from '../ThemeToggle/ThemeToggle'
-import { FontModeToggle } from '../FontModeToggle/FontModeToggle'
-import styles from './Topbar.module.css'
+import { Brand } from "../Brand/Brand";
+import { Breadcrumbs } from "../Breadcrumbs/Breadcrumbs";
+import { FontModeToggle } from "../FontModeToggle/FontModeToggle";
+import { OriginPill } from "../OriginPill/OriginPill";
+import { SseIndicator } from "../SseIndicator/SseIndicator";
+import { ThemeToggle } from "../ThemeToggle/ThemeToggle";
+import styles from "./Topbar.module.css";
 
 export function Topbar() {
   return (
@@ -24,5 +24,5 @@ export function Topbar() {
         </div>
       </div>
     </header>
-  )
+  );
 }

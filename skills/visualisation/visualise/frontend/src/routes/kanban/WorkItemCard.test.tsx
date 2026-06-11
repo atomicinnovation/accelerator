@@ -1,195 +1,212 @@
-import { describe, it, expect } from 'vitest'
-import { screen } from '@testing-library/react'
-import { DndContext } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { WorkItemCard } from './WorkItemCard'
-import { makeCompleteness, makeIndexEntry } from '../../api/test-fixtures'
-import { renderWithRouterAt } from '../../test/router-helpers'
+import { DndContext } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { makeCompleteness, makeIndexEntry } from "../../api/test-fixtures";
+import { renderWithRouterAt } from "../../test/router-helpers";
+import { WorkItemCard } from "./WorkItemCard";
 
-const FROZEN_NOW = 1_700_000_000_000
+const FROZEN_NOW = 1_700_000_000_000;
 
-function renderCard(entry: ReturnType<typeof makeIndexEntry>, now = FROZEN_NOW) {
+function renderCard(
+  entry: ReturnType<typeof makeIndexEntry>,
+  now = FROZEN_NOW,
+) {
   return renderWithRouterAt(
     <DndContext>
-      <SortableContext items={[entry.relPath]} strategy={verticalListSortingStrategy}>
+      <SortableContext
+        items={[entry.relPath]}
+        strategy={verticalListSortingStrategy}
+      >
         <WorkItemCard entry={entry} now={now} />
       </SortableContext>
     </DndContext>,
-  )
+  );
 }
 
-describe('WorkItemCard', () => {
-  it('renders the work-item ID verbatim from entry.workItemId (prefixed form)', async () => {
+describe("WorkItemCard", () => {
+  it("renders the work-item ID verbatim from entry.workItemId (prefixed form)", async () => {
     const entry = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/0001-foo.md',
-      workItemId: 'ENG-0042',
-      title: 'Foo',
-      frontmatter: { kind: 'adr-creation-task' },
-    })
-    const { container } = renderCard(entry)
-    const id = await screen.findByText('ENG-0042')
-    expect(id).toBeInTheDocument()
-    expect(container.querySelector('.ac-kcard__id')).toBeInTheDocument()
-    expect(container.querySelector('.ac-kcard__id')!.textContent).toBe('ENG-0042')
-  })
+      type: "work-items",
+      relPath: "meta/work/0001-foo.md",
+      workItemId: "ENG-0042",
+      title: "Foo",
+      frontmatter: { kind: "adr-creation-task" },
+    });
+    const { container } = renderCard(entry);
+    const id = await screen.findByText("ENG-0042");
+    expect(id).toBeInTheDocument();
+    expect(container.querySelector(".ac-kcard__id")).toBeInTheDocument();
+    expect(container.querySelector(".ac-kcard__id")!.textContent).toBe(
+      "ENG-0042",
+    );
+  });
 
-  it('renders bare-digit workItemId verbatim (formatDocId passthrough)', async () => {
+  it("renders bare-digit workItemId verbatim (formatDocId passthrough)", async () => {
     const entry = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/0042-foo.md',
-      workItemId: '0042',
-      title: 'Foo',
-    })
-    renderCard(entry)
-    expect(await screen.findByText('0042')).toBeInTheDocument()
-  })
+      type: "work-items",
+      relPath: "meta/work/0042-foo.md",
+      workItemId: "0042",
+      title: "Foo",
+    });
+    renderCard(entry);
+    expect(await screen.findByText("0042")).toBeInTheDocument();
+  });
 
-  it('omits the .ac-kcard__id slot when workItemId is null', async () => {
+  it("omits the .ac-kcard__id slot when workItemId is null", async () => {
     const entry = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/foo-without-number.md',
+      type: "work-items",
+      relPath: "meta/work/foo-without-number.md",
       workItemId: null,
-      title: 'No id',
-    })
-    const { container } = renderCard(entry)
-    await screen.findByText('No id')
-    expect(container.querySelector('.ac-kcard__id')).toBeNull()
-  })
+      title: "No id",
+    });
+    const { container } = renderCard(entry);
+    await screen.findByText("No id");
+    expect(container.querySelector(".ac-kcard__id")).toBeNull();
+  });
 
-  it('renders the meta (kind/id) first and PipelineMini last in .ac-kcard__top', async () => {
+  it("renders the meta (kind/id) first and PipelineMini last in .ac-kcard__top", async () => {
     const entry = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/0001-foo.md',
-      workItemId: '0001',
-      title: 'Foo',
+      type: "work-items",
+      relPath: "meta/work/0001-foo.md",
+      workItemId: "0001",
+      title: "Foo",
       completeness: makeCompleteness({
         hasWorkItem: true,
         hasPlan: true,
-        present: ['work-items', 'plans'],
+        present: ["work-items", "plans"],
       }),
-    })
-    const { container } = renderCard(entry)
-    await screen.findByText('Foo')
-    const top = container.querySelector('.ac-kcard__top')!
+    });
+    const { container } = renderCard(entry);
+    await screen.findByText("Foo");
+    const top = container.querySelector(".ac-kcard__top")!;
     // Prototype order: meta (badge + id) on the left, pipeline mini on the right.
-    expect(top.firstElementChild!.classList.contains('ac-kcard__meta')).toBe(true)
-    expect(top.lastElementChild!.classList.contains('ac-stagedots')).toBe(true)
-  })
+    expect(top.firstElementChild!.classList.contains("ac-kcard__meta")).toBe(
+      true,
+    );
+    expect(top.lastElementChild!.classList.contains("ac-stagedots")).toBe(true);
+  });
 
-  it('passes the entry.completeness to PipelineMini (active stages reflect present)', async () => {
+  it("passes the entry.completeness to PipelineMini (active stages reflect present)", async () => {
     const entry = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/0001-foo.md',
-      workItemId: '0001',
-      title: 'Foo',
+      type: "work-items",
+      relPath: "meta/work/0001-foo.md",
+      workItemId: "0001",
+      title: "Foo",
       completeness: makeCompleteness({
         hasWorkItem: true,
         hasPlan: true,
-        present: ['work-items', 'plans'],
+        present: ["work-items", "plans"],
       }),
-    })
-    const { container } = renderCard(entry)
-    await screen.findByText('Foo')
-    const top = container.querySelector('.ac-kcard__top')!
+    });
+    const { container } = renderCard(entry);
+    await screen.findByText("Foo");
+    const top = container.querySelector(".ac-kcard__top")!;
     expect(
-      top.querySelector('[data-stage="work-items"]')!.getAttribute('data-active'),
-    ).toBe('true')
+      top
+        .querySelector('[data-stage="work-items"]')!
+        .getAttribute("data-active"),
+    ).toBe("true");
     expect(
-      top.querySelector('[data-stage="plans"]')!.getAttribute('data-active'),
-    ).toBe('true')
+      top.querySelector('[data-stage="plans"]')!.getAttribute("data-active"),
+    ).toBe("true");
     expect(
-      top.querySelector('[data-stage="research"]')!.getAttribute('data-active'),
-    ).toBe('false')
-  })
+      top.querySelector('[data-stage="research"]')!.getAttribute("data-active"),
+    ).toBe("false");
+  });
 
-  it('omits PipelineMini when completeness is null (orphan)', async () => {
+  it("omits PipelineMini when completeness is null (orphan)", async () => {
     const entry = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/0001-foo.md',
-      workItemId: '0001',
-      title: 'Foo',
+      type: "work-items",
+      relPath: "meta/work/0001-foo.md",
+      workItemId: "0001",
+      title: "Foo",
       completeness: null,
-    })
-    const { container } = renderCard(entry)
-    await screen.findByText('Foo')
-    expect(container.querySelector('.ac-stagedots')).toBeNull()
-  })
+    });
+    const { container } = renderCard(entry);
+    await screen.findByText("Foo");
+    expect(container.querySelector(".ac-stagedots")).toBeNull();
+  });
 
   it('renders "{N} linked" inside .ac-kcard__foot when linkedCount > 0', async () => {
     const entry = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/0001-foo.md',
-      workItemId: '0001',
-      title: 'Foo',
+      type: "work-items",
+      relPath: "meta/work/0001-foo.md",
+      workItemId: "0001",
+      title: "Foo",
       linkedCount: 3,
-    })
-    const { container } = renderCard(entry)
-    await screen.findByText('Foo')
-    const foot = container.querySelector('.ac-kcard__foot')!
-    expect(foot.textContent).toContain('3 linked')
+    });
+    const { container } = renderCard(entry);
+    await screen.findByText("Foo");
+    const foot = container.querySelector(".ac-kcard__foot")!;
+    expect(foot.textContent).toContain("3 linked");
     // The links meta now leads with a link glyph, so assert on trimmed text.
-    expect(container.querySelector('.ac-kcard__links')!.textContent!.trim()).toBe('3 linked')
-  })
+    expect(
+      container.querySelector(".ac-kcard__links")!.textContent!.trim(),
+    ).toBe("3 linked");
+  });
 
-  it('omits the linked label when linkedCount is 0', async () => {
+  it("omits the linked label when linkedCount is 0", async () => {
     const entry = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/0001-foo.md',
-      workItemId: '0001',
-      title: 'Foo',
+      type: "work-items",
+      relPath: "meta/work/0001-foo.md",
+      workItemId: "0001",
+      title: "Foo",
       linkedCount: 0,
-    })
-    const { container } = renderCard(entry)
-    await screen.findByText('Foo')
-    expect(container.querySelector('.ac-kcard__links')).toBeNull()
-  })
+    });
+    const { container } = renderCard(entry);
+    await screen.findByText("Foo");
+    expect(container.querySelector(".ac-kcard__links")).toBeNull();
+  });
 
-  it('renders entry.frontmatter.kind as a kind badge in the card meta', async () => {
+  it("renders entry.frontmatter.kind as a kind badge in the card meta", async () => {
     const entry = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/0001-foo.md',
-      workItemId: '0001',
-      title: 'Foo',
-      frontmatter: { kind: 'adr-creation-task' },
-    })
-    const { container } = renderCard(entry)
-    await screen.findByText('Foo')
+      type: "work-items",
+      relPath: "meta/work/0001-foo.md",
+      workItemId: "0001",
+      title: "Foo",
+      frontmatter: { kind: "adr-creation-task" },
+    });
+    const { container } = renderCard(entry);
+    await screen.findByText("Foo");
     // Unknown kinds fall back to a neutral badge showing the raw kind verbatim,
     // rendered inside the card's meta row (left of the id).
-    const meta = container.querySelector('.ac-kcard__meta')!
-    const badge = meta.querySelector('[data-tone]')!
-    expect(badge.getAttribute('data-tone')).toBe('neutral')
-    expect(badge.textContent).toBe('adr-creation-task')
-  })
+    const meta = container.querySelector(".ac-kcard__meta")!;
+    const badge = meta.querySelector("[data-tone]")!;
+    expect(badge.getAttribute("data-tone")).toBe("neutral");
+    expect(badge.textContent).toBe("adr-creation-task");
+  });
 
-  it('links to the library detail page using the canonical typed-route form', async () => {
+  it("links to the library detail page using the canonical typed-route form", async () => {
     const entry = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/0001-three-layer-review-system-architecture.md',
-      workItemId: '0001',
-      title: 'Three-layer review system architecture',
-    })
-    renderCard(entry)
-    const link = await screen.findByRole('link', {
+      type: "work-items",
+      relPath: "meta/work/0001-three-layer-review-system-architecture.md",
+      workItemId: "0001",
+      title: "Three-layer review system architecture",
+    });
+    renderCard(entry);
+    const link = await screen.findByRole("link", {
       name: /three-layer review system architecture/i,
-    })
-    expect(link.getAttribute('href')).toBe(
-      '/library/work-items/0001-three-layer-review-system-architecture',
-    )
-  })
+    });
+    expect(link.getAttribute("href")).toBe(
+      "/library/work-items/0001-three-layer-review-system-architecture",
+    );
+  });
 
-  it('preserves dnd-kit attributes: data-relpath and aria-roledescription', async () => {
+  it("preserves dnd-kit attributes: data-relpath and aria-roledescription", async () => {
     const entry = makeIndexEntry({
-      type: 'work-items',
-      relPath: 'meta/work/0001-a.md',
-      workItemId: '0001',
-      title: 'Some work item',
-    })
-    renderCard(entry)
-    const link = await screen.findByRole('link', { name: /some work item/i })
-    expect(link.getAttribute('aria-roledescription')).toBe('sortable')
-    const li = document.querySelector('[data-relpath="meta/work/0001-a.md"]')
-    expect(li).not.toBeNull()
-  })
-})
+      type: "work-items",
+      relPath: "meta/work/0001-a.md",
+      workItemId: "0001",
+      title: "Some work item",
+    });
+    renderCard(entry);
+    const link = await screen.findByRole("link", { name: /some work item/i });
+    expect(link.getAttribute("aria-roledescription")).toBe("sortable");
+    const li = document.querySelector('[data-relpath="meta/work/0001-a.md"]');
+    expect(li).not.toBeNull();
+  });
+});

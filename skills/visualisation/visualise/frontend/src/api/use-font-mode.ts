@@ -1,26 +1,32 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { safeGetItem, safeSetItem } from './safe-storage'
-import { FONT_MODE_STORAGE_KEY } from './storage-keys'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { safeGetItem, safeSetItem } from "./safe-storage";
+import { FONT_MODE_STORAGE_KEY } from "./storage-keys";
 
-export type FontMode = 'display' | 'mono'
-export { FONT_MODE_STORAGE_KEY }
+export type FontMode = "display" | "mono";
+export { FONT_MODE_STORAGE_KEY };
 
 export interface FontModeHandle {
-  fontMode: FontMode
-  setFontMode(m: FontMode): void
-  toggleFontMode(): void
+  fontMode: FontMode;
+  setFontMode(m: FontMode): void;
+  toggleFontMode(): void;
 }
 
 export function isFontMode(v: unknown): v is FontMode {
-  return v === 'display' || v === 'mono'
+  return v === "display" || v === "mono";
 }
 
 function readInitial(): FontMode {
-  const attr = document.documentElement.getAttribute('data-font')
-  if (isFontMode(attr)) return attr
-  const stored = safeGetItem(FONT_MODE_STORAGE_KEY)
-  if (isFontMode(stored)) return stored
-  return 'display'
+  const attr = document.documentElement.getAttribute("data-font");
+  if (isFontMode(attr)) return attr;
+  const stored = safeGetItem(FONT_MODE_STORAGE_KEY);
+  if (isFontMode(stored)) return stored;
+  return "display";
 }
 
 /**
@@ -30,34 +36,34 @@ function readInitial(): FontMode {
  * call this directly — use `useFontModeContext()`.
  */
 export function useFontMode(): FontModeHandle {
-  const [fontMode, setState] = useState<FontMode>(() => readInitial())
+  const [fontMode, setState] = useState<FontMode>(() => readInitial());
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-font', fontMode)
-  }, [fontMode])
+    document.documentElement.setAttribute("data-font", fontMode);
+  }, [fontMode]);
 
   const setFontMode = useCallback((m: FontMode) => {
-    setState(m)
-    safeSetItem(FONT_MODE_STORAGE_KEY, m)
-  }, [])
+    setState(m);
+    safeSetItem(FONT_MODE_STORAGE_KEY, m);
+  }, []);
 
   // toggleFontMode routes through setFontMode so persistence happens
   // outside the state-updater function — see use-theme.ts for
   // rationale (React purity / StrictMode double-invoke).
   const toggleFontMode = useCallback(() => {
-    setFontMode(fontMode === 'display' ? 'mono' : 'display')
-  }, [fontMode, setFontMode])
+    setFontMode(fontMode === "display" ? "mono" : "display");
+  }, [fontMode, setFontMode]);
 
-  return { fontMode, setFontMode, toggleFontMode }
+  return { fontMode, setFontMode, toggleFontMode };
 }
 
 const _defaultHandle: FontModeHandle = {
-  fontMode: 'display',
+  fontMode: "display",
   setFontMode: () => {},
   toggleFontMode: () => {},
-}
+};
 
-export const FontModeContext = createContext<FontModeHandle>(_defaultHandle)
+export const FontModeContext = createContext<FontModeHandle>(_defaultHandle);
 
 /**
  * CONSUMER hook — reads the FontModeContext provided by RootLayout.
@@ -65,5 +71,5 @@ export const FontModeContext = createContext<FontModeHandle>(_defaultHandle)
  * current font mode.
  */
 export function useFontModeContext(): FontModeHandle {
-  return useContext(FontModeContext)
+  return useContext(FontModeContext);
 }

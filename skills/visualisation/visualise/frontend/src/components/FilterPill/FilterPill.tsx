@@ -1,21 +1,18 @@
-import { useState } from 'react'
-import { Popover } from '../Popover/Popover'
-import { Chip } from '../Chip/Chip'
-import { statusToVariant } from '../../api/status-variant'
-import type {
-  LibraryFacet,
-  LibrarySelectionPerType,
-} from '../../api/types'
-import styles from './FilterPill.module.css'
+import { useState } from "react";
+import { statusToVariant } from "../../api/status-variant";
+import type { LibraryFacet, LibrarySelectionPerType } from "../../api/types";
+import { Chip } from "../Chip/Chip";
+import { Popover } from "../Popover/Popover";
+import styles from "./FilterPill.module.css";
 
 export interface FilterPillProps {
-  facets: LibraryFacet[]
-  selection: LibrarySelectionPerType
-  onChange: (next: LibrarySelectionPerType) => void
-  isFetching?: boolean
+  facets: LibraryFacet[];
+  selection: LibrarySelectionPerType;
+  onChange: (next: LibrarySelectionPerType) => void;
+  isFetching?: boolean;
 }
 
-const SEARCH_THRESHOLD = 8
+const SEARCH_THRESHOLD = 8;
 
 export function FilterPill({
   facets,
@@ -23,20 +20,20 @@ export function FilterPill({
   onChange,
   isFetching,
 }: FilterPillProps) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(false);
   const activeCount = Object.values(selection).reduce(
     (n, arr) => n + (arr ? arr.length : 0),
     0,
-  )
+  );
 
   function toggleOption(facetId: string, optionId: string) {
-    const current = selection[facetId] ?? []
+    const current = selection[facetId] ?? [];
     const next = current.includes(optionId)
       ? current.filter((o) => o !== optionId)
-      : [...current, optionId]
-    const updated: LibrarySelectionPerType = { ...selection, [facetId]: next }
-    if (next.length === 0) delete updated[facetId]
-    onChange(updated)
+      : [...current, optionId];
+    const updated: LibrarySelectionPerType = { ...selection, [facetId]: next };
+    if (next.length === 0) delete updated[facetId];
+    onChange(updated);
   }
 
   return (
@@ -48,7 +45,7 @@ export function FilterPill({
         <button
           {...triggerProps}
           ref={triggerProps.ref as React.Ref<HTMLButtonElement>}
-          className={`${styles.trigger} ${open ? styles.triggerOpen : ''} ${activeCount > 0 ? styles.triggerActive : ''}`}
+          className={`${styles.trigger} ${open ? styles.triggerOpen : ""} ${activeCount > 0 ? styles.triggerActive : ""}`}
           data-testid="filter-trigger"
         >
           <FilterIcon />
@@ -89,7 +86,7 @@ export function FilterPill({
         ))}
       </div>
     </Popover>
-  )
+  );
 }
 
 function FacetSection({
@@ -97,21 +94,22 @@ function FacetSection({
   selected,
   onToggle,
 }: {
-  facet: LibraryFacet
-  selected: string[]
-  onToggle: (optionId: string) => void
+  facet: LibraryFacet;
+  selected: string[];
+  onToggle: (optionId: string) => void;
 }) {
-  const [query, setQuery] = useState('')
-  const showSearch = facet.options.length > SEARCH_THRESHOLD
-  const filtered = showSearch && query
-    ? facet.options.filter((o) =>
-        o.label.toLowerCase().includes(query.toLowerCase()),
-      )
-    : facet.options
+  const [query, setQuery] = useState("");
+  const showSearch = facet.options.length > SEARCH_THRESHOLD;
+  const filtered =
+    showSearch && query
+      ? facet.options.filter((o) =>
+          o.label.toLowerCase().includes(query.toLowerCase()),
+        )
+      : facet.options;
 
   // Only the cluster-slug facet gets a scrolling, search-augmented list. The
   // status/project facets stay short and fit the panel height comfortably.
-  const isLongFacet = showSearch
+  const isLongFacet = showSearch;
 
   return (
     <section className={styles.facetSection}>
@@ -126,46 +124,55 @@ function FacetSection({
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               // Prevent printable chars bubbling up to the menu key handler.
-              e.stopPropagation()
+              e.stopPropagation();
             }}
           />
         </div>
       )}
-      <ul className={`${styles.optionList} ${isLongFacet ? styles.optionListScroll : ''}`}>
+      <ul
+        className={`${styles.optionList} ${isLongFacet ? styles.optionListScroll : ""}`}
+      >
         {filtered.map((option) => {
-          const isSelected = selected.includes(option.id)
+          const isSelected = selected.includes(option.id);
           return (
             <li
               key={option.id}
+              // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: <li role="menuitemcheckbox"> is the canonical multi-select menu-item markup; the unit tests query getAllByRole("menuitemcheckbox"), so the role cannot be downgraded
               role="menuitemcheckbox"
               tabIndex={-1}
               aria-checked={isSelected}
               className={styles.option}
               onClick={() => onToggle(option.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onToggle(option.id);
+                }
+              }}
             >
               <span
-                className={`${styles.checkbox} ${isSelected ? styles.checkboxChecked : ''}`}
+                className={`${styles.checkbox} ${isSelected ? styles.checkboxChecked : ""}`}
                 aria-hidden="true"
               />
               <span className={styles.optionLabel}>
-                {facet.id === 'status' ? (
+                {facet.id === "status" ? (
                   <Chip variant={statusToVariant(option.id)}>
                     {option.label}
                   </Chip>
                 ) : (
-                  <>{option.label}</>
+                  option.label
                 )}
               </span>
               <span className={styles.optionCount}>{option.count}</span>
             </li>
-          )
+          );
         })}
         {filtered.length === 0 && (
           <li className={styles.noMatches}>No matches.</li>
         )}
       </ul>
     </section>
-  )
+  );
 }
 
 function FilterIcon() {
@@ -183,7 +190,7 @@ function FilterIcon() {
     >
       <path d="M4 4h16l-6 8v6l-4 2v-8z" />
     </svg>
-  )
+  );
 }
 
 function SearchIcon() {
@@ -202,5 +209,5 @@ function SearchIcon() {
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.5-3.5" />
     </svg>
-  )
+  );
 }

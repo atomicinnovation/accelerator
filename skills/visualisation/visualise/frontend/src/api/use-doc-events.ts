@@ -1,16 +1,23 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { queryKeys, SESSION_STABLE_QUERY_ROOTS } from './query-keys'
-import type { SseEvent, SseTemplateChangedEvent } from './types'
-import { type SelfCauseRegistry, defaultSelfCauseRegistry } from './self-cause'
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import {
-  ReconnectingEventSource,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { queryKeys, SESSION_STABLE_QUERY_ROOTS } from "./query-keys";
+import {
   type ConnectionState,
-} from './reconnecting-event-source'
+  ReconnectingEventSource,
+} from "./reconnecting-event-source";
+import { defaultSelfCauseRegistry, type SelfCauseRegistry } from "./self-cause";
+import type { SseEvent, SseTemplateChangedEvent } from "./types";
 
-export type { ConnectionState } from './reconnecting-event-source'
+export type { ConnectionState } from "./reconnecting-event-source";
 
-export type EventSourceFactory = (url: string) => EventSource
+export type EventSourceFactory = (url: string) => EventSource;
 
 /**
  * Handle returned by `useDocEvents` / `useDocEventsContext`.
@@ -29,16 +36,16 @@ export type EventSourceFactory = (url: string) => EventSource
  *   `useUnseenDocTypes` is the only current consumer.
  */
 export interface DocEventsHandle {
-  setDragInProgress(v: boolean): void
+  setDragInProgress(v: boolean): void;
   /**
    * Reads the current drag-in-progress flag. Lets root-level consumers (the
    * Toaster) gate Escape handling so a drag-cancel Escape is not also consumed
    * as a toast dismissal. Synchronous read of the same ref `setDragInProgress`
    * writes — true between `onDragStart` and drop/cancel.
    */
-  isDragInProgress(): boolean
-  connectionState: ConnectionState
-  justReconnected: boolean
+  isDragInProgress(): boolean;
+  connectionState: ConnectionState;
+  justReconnected: boolean;
   /**
    * Subscribe to incoming SSE events. The listener fires for every event,
    * including self-caused ones (this is the load-bearing difference from
@@ -48,25 +55,28 @@ export interface DocEventsHandle {
    *
    * Returns an unsubscribe function. Safe to call multiple times.
    */
-  subscribe(listener: (event: SseEvent) => void): () => void
+  subscribe(listener: (event: SseEvent) => void): () => void;
 }
 
 export interface UseDocEventsOptions {
-  onEvent?: (event: SseEvent) => void
-  onReconnect?: () => void
+  onEvent?: (event: SseEvent) => void;
+  onReconnect?: () => void;
 }
 
 function templateKeysForEvent(
   event: SseTemplateChangedEvent,
 ): ReadonlyArray<readonly unknown[]> {
-  return [queryKeys.templateDetail(event.template), queryKeys.templates()] as const
+  return [
+    queryKeys.templateDetail(event.template),
+    queryKeys.templates(),
+  ] as const;
 }
 
 function queryKeysForEvent(event: SseEvent): ReadonlyArray<readonly unknown[]> {
-  if (event.type === 'template-changed') {
-    return [...templateKeysForEvent(event)]
+  if (event.type === "template-changed") {
+    return [...templateKeysForEvent(event)];
   }
-  if (event.type !== 'doc-changed' && event.type !== 'doc-invalid') return []
+  if (event.type !== "doc-changed" && event.type !== "doc-invalid") return [];
   const keys: Array<readonly unknown[]> = [
     queryKeys.types(),
     queryKeys.docs(event.docType),
@@ -74,11 +84,11 @@ function queryKeysForEvent(event: SseEvent): ReadonlyArray<readonly unknown[]> {
     queryKeys.lifecycle(),
     queryKeys.lifecycleClusterPrefix(),
     queryKeys.relatedPrefix(),
-  ]
-  if (event.docType === 'work-items') {
-    keys.push(queryKeys.kanban())
+  ];
+  if (event.docType === "work-items") {
+    keys.push(queryKeys.kanban());
   }
-  return keys
+  return keys;
 }
 
 /**
@@ -98,21 +108,27 @@ export function dispatchSseEvent(
   queryClient: QueryClient,
   registry?: SelfCauseRegistry,
 ): void {
-  if (event.type === 'doc-changed' && registry?.has(event.etag)) {
-    return
+  if (event.type === "doc-changed" && registry?.has(event.etag)) {
+    return;
   }
-  if (event.type === 'template-changed') {
+  if (event.type === "template-changed") {
     for (const queryKey of templateKeysForEvent(event)) {
-      void queryClient.invalidateQueries({ queryKey })
+      void queryClient.invalidateQueries({ queryKey });
     }
-    return
+    return;
   }
-  if (event.type === 'doc-changed' || event.type === 'doc-invalid') {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.types() })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.docs(event.docType) })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.docContent(event.path) })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.lifecycle() })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.lifecycleClusterPrefix() })
+  if (event.type === "doc-changed" || event.type === "doc-invalid") {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.types() });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.docs(event.docType),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.docContent(event.path),
+    });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.lifecycle() });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.lifecycleClusterPrefix(),
+    });
     // Prefix-invalidate the related namespace. The set of related-of
     // pages that depend on a given doc is unbounded (every doc whose
     // cluster contains it; every plan if it's a review's target;
@@ -124,10 +140,10 @@ export function dispatchSseEvent(
     // event.
     void queryClient.invalidateQueries({
       queryKey: queryKeys.relatedPrefix(),
-      refetchType: 'all',
-    })
-    if (event.docType === 'work-items') {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.kanban() })
+      refetchType: "all",
+    });
+    if (event.docType === "work-items") {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.kanban() });
     }
   }
 }
@@ -143,74 +159,79 @@ export function makeUseDocEvents(
   registry: SelfCauseRegistry = defaultSelfCauseRegistry,
 ) {
   return function useDocEvents(options?: UseDocEventsOptions): DocEventsHandle {
-    const queryClient = useQueryClient()
-    const isDraggingRef = useRef(false)
-    const pendingRef = useRef(new Set<string>())
-    const [connectionState, setConnectionState] = useState<ConnectionState>('connecting')
-    const [justReconnected, setJustReconnected] = useState(false)
+    const queryClient = useQueryClient();
+    const isDraggingRef = useRef(false);
+    const pendingRef = useRef(new Set<string>());
+    const [connectionState, setConnectionState] =
+      useState<ConnectionState>("connecting");
+    const [justReconnected, setJustReconnected] = useState(false);
     // Refs ensure the long-lived onmessage / onReconnect closures always
     // read the latest consumer callbacks WITHOUT extending the useEffect
     // deps array. Consumers MAY pass freshly-allocated objects on every
     // render; the EventSource stays singleton across re-renders.
-    const onEventRef = useRef(options?.onEvent)
-    const onReconnectRef = useRef(options?.onReconnect)
-    onEventRef.current = options?.onEvent
-    onReconnectRef.current = options?.onReconnect
+    const onEventRef = useRef(options?.onEvent);
+    const onReconnectRef = useRef(options?.onReconnect);
+    onEventRef.current = options?.onEvent;
+    onReconnectRef.current = options?.onReconnect;
 
-    const listenersRef = useRef(new Set<(e: SseEvent) => void>())
+    const listenersRef = useRef(new Set<(e: SseEvent) => void>());
 
     const subscribe = useCallback((listener: (e: SseEvent) => void) => {
-      listenersRef.current.add(listener)
+      listenersRef.current.add(listener);
       return () => {
-        listenersRef.current.delete(listener)
-      }
-    }, [])
+        listenersRef.current.delete(listener);
+      };
+    }, []);
 
     const setDragInProgress = useCallback(
       (v: boolean) => {
-        isDraggingRef.current = v
+        isDraggingRef.current = v;
         if (!v) {
           for (const qkStr of pendingRef.current) {
-            void queryClient.invalidateQueries({ queryKey: JSON.parse(qkStr) as unknown[] })
+            void queryClient.invalidateQueries({
+              queryKey: JSON.parse(qkStr) as unknown[],
+            });
           }
-          pendingRef.current.clear()
+          pendingRef.current.clear();
         }
       },
       [queryClient],
-    )
+    );
 
-    const isDragInProgress = useCallback(() => isDraggingRef.current, [])
+    const isDragInProgress = useCallback(() => isDraggingRef.current, []);
 
     useEffect(() => {
-      let reconnectedTimer: ReturnType<typeof setTimeout> | null = null
-      const reconnecting = new ReconnectingEventSource('/api/events', {
+      let reconnectedTimer: ReturnType<typeof setTimeout> | null = null;
+      const reconnecting = new ReconnectingEventSource("/api/events", {
         factory: createSource,
         onStateChange: setConnectionState,
         onerror: () => {
-          console.warn('useDocEvents: SSE error — reconnecting')
+          console.warn("useDocEvents: SSE error — reconnecting");
         },
         onReconnect: () => {
-          registry.reset()
+          registry.reset();
           for (const qkStr of pendingRef.current) {
-            void queryClient.invalidateQueries({ queryKey: JSON.parse(qkStr) as unknown[] })
+            void queryClient.invalidateQueries({
+              queryKey: JSON.parse(qkStr) as unknown[],
+            });
           }
-          pendingRef.current.clear()
+          pendingRef.current.clear();
           void queryClient.invalidateQueries({
             predicate: (q) => !SESSION_STABLE_QUERY_ROOTS.has(q.queryKey[0]),
-          })
-          if (reconnectedTimer !== null) clearTimeout(reconnectedTimer)
-          setJustReconnected(true)
+          });
+          if (reconnectedTimer !== null) clearTimeout(reconnectedTimer);
+          setJustReconnected(true);
           reconnectedTimer = setTimeout(() => {
-            setJustReconnected(false)
-            reconnectedTimer = null
-          }, 3_000)
-          onReconnectRef.current?.()
+            setJustReconnected(false);
+            reconnectedTimer = null;
+          }, 3_000);
+          onReconnectRef.current?.();
         },
-      })
+      });
 
       reconnecting.onmessage = (e: MessageEvent) => {
         try {
-          const event = JSON.parse(e.data as string) as SseEvent
+          const event = JSON.parse(e.data as string) as SseEvent;
           // Fan out to subscribers BEFORE the self-cause drop so they
           // observe events the dispatcher chooses to ignore. Listener
           // errors are isolated (one bad listener does not break others)
@@ -218,51 +239,62 @@ export function makeUseDocEvents(
           // diagnostics.
           for (const listener of listenersRef.current) {
             try {
-              listener(event)
+              listener(event);
             } catch (listenerErr) {
               console.error(
-                '[doc-events] subscriber threw — listener faulted, others continue',
+                "[doc-events] subscriber threw — listener faulted, others continue",
                 listenerErr,
-              )
+              );
             }
           }
-          if (event.type === 'doc-changed' && registry.has(event.etag)) return
-          onEventRef.current?.(event)
+          if (event.type === "doc-changed" && registry.has(event.etag)) return;
+          onEventRef.current?.(event);
           if (isDraggingRef.current) {
             for (const k of queryKeysForEvent(event)) {
-              pendingRef.current.add(JSON.stringify(k))
+              pendingRef.current.add(JSON.stringify(k));
             }
           } else {
-            dispatchSseEvent(event, queryClient)
+            dispatchSseEvent(event, queryClient);
           }
         } catch (err) {
-          console.warn('useDocEvents: failed to parse SSE message', { data: e.data, err })
+          console.warn("useDocEvents: failed to parse SSE message", {
+            data: e.data,
+            err,
+          });
         }
-      }
+      };
 
       return () => {
-        if (reconnectedTimer !== null) clearTimeout(reconnectedTimer)
-        reconnecting.close()
-      }
-    }, [queryClient, createSource, registry])
+        if (reconnectedTimer !== null) clearTimeout(reconnectedTimer);
+        reconnecting.close();
+      };
+      // createSource and registry are bound once by makeUseDocEvents and never
+      // change across this hook's lifetime, so they are not effect dependencies.
+    }, [queryClient]);
 
-    return { setDragInProgress, isDragInProgress, connectionState, justReconnected, subscribe }
-  }
+    return {
+      setDragInProgress,
+      isDragInProgress,
+      connectionState,
+      justReconnected,
+      subscribe,
+    };
+  };
 }
 
 /** Production hook. Wired once at module load. */
-export const useDocEvents = makeUseDocEvents((url) => new EventSource(url))
+export const useDocEvents = makeUseDocEvents((url) => new EventSource(url));
 
 const _defaultHandle: DocEventsHandle = {
   setDragInProgress: () => {},
   isDragInProgress: () => false,
-  connectionState: 'connecting',
+  connectionState: "connecting",
   justReconnected: false,
   subscribe: () => () => {},
-}
+};
 
-export const DocEventsContext = createContext<DocEventsHandle>(_defaultHandle)
+export const DocEventsContext = createContext<DocEventsHandle>(_defaultHandle);
 
 export function useDocEventsContext(): DocEventsHandle {
-  return useContext(DocEventsContext)
+  return useContext(DocEventsContext);
 }

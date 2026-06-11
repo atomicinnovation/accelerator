@@ -5,53 +5,56 @@ import {
   useEffect,
   useRef,
   useState,
-} from 'react'
-import { safeGetItem, safeSetItem } from './safe-storage'
-import { SEEN_DOC_TYPES_STORAGE_KEY } from './storage-keys'
-import { DOC_TYPE_KEYS, isDocTypeKey, type DocTypeKey, type SseEvent } from './types'
+} from "react";
+import { safeGetItem, safeSetItem } from "./safe-storage";
+import { SEEN_DOC_TYPES_STORAGE_KEY } from "./storage-keys";
+import {
+  DOC_TYPE_KEYS,
+  type DocTypeKey,
+  isDocTypeKey,
+  type SseEvent,
+} from "./types";
 
-type SeenMap = Partial<Record<DocTypeKey, number>>
+type SeenMap = Partial<Record<DocTypeKey, number>>;
 
 export interface UnseenDocTypesHandle {
-  unseenSet: ReadonlySet<DocTypeKey>
-  markSeen: (type: DocTypeKey) => void
-  onEvent: (event: SseEvent) => void
-  onReconnect: () => void
+  unseenSet: ReadonlySet<DocTypeKey>;
+  markSeen: (type: DocTypeKey) => void;
+  onEvent: (event: SseEvent) => void;
+  onReconnect: () => void;
 }
 
 /** Exported for testing. Reads and sanitises the persisted SeenMap. */
 export function parseStored(): SeenMap {
-  const raw = safeGetItem(SEEN_DOC_TYPES_STORAGE_KEY)
-  if (raw === null) return {}
-  let parsed: unknown
+  const raw = safeGetItem(SEEN_DOC_TYPES_STORAGE_KEY);
+  if (raw === null) return {};
+  let parsed: unknown;
   try {
-    parsed = JSON.parse(raw)
+    parsed = JSON.parse(raw);
   } catch {
-    return {}
+    return {};
   }
-  if (
-    parsed === null ||
-    typeof parsed !== 'object' ||
-    Array.isArray(parsed)
-  ) {
-    return {}
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return {};
   }
   // One-shot migration: the wire token `prs` was renamed to `pr-descriptions`
   // in work item 0041. Rewrite any pre-upgrade key in place so existing users
   // do not lose their last-seen timestamp (which would resurface the card as
   // unseen).
-  const parsedObj = parsed as Record<string, unknown>
-  if ('prs' in parsedObj && !('pr-descriptions' in parsedObj)) {
-    parsedObj['pr-descriptions'] = parsedObj.prs
-    delete parsedObj.prs
+  const parsedObj = parsed as Record<string, unknown>;
+  if ("prs" in parsedObj && !("pr-descriptions" in parsedObj)) {
+    parsedObj["pr-descriptions"] = parsedObj.prs;
+    delete parsedObj.prs;
   }
-  const out: SeenMap = {}
-  for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-    if (!isDocTypeKey(key)) continue
-    if (typeof value !== 'number' || !Number.isFinite(value)) continue
-    out[key] = value
+  const out: SeenMap = {};
+  for (const [key, value] of Object.entries(
+    parsed as Record<string, unknown>,
+  )) {
+    if (!isDocTypeKey(key)) continue;
+    if (typeof value !== "number" || !Number.isFinite(value)) continue;
+    out[key] = value;
   }
-  return out
+  return out;
 }
 
 /**
@@ -63,56 +66,54 @@ export function parseStored(): SeenMap {
 export function useUnseenDocTypes(): UnseenDocTypesHandle {
   // Persisted: per-type last-seen epoch ms. Survives across mounts.
   // Updated only by markSeen.
-  const seenRef = useRef<SeenMap>(parseStored())
+  const seenRef = useRef<SeenMap>(parseStored());
 
   // Transient: which types have unseen activity right now. Empty on
   // mount; never persisted, so N events do not produce N storage writes.
-  const [unseenSet, setUnseenSet] = useState<Set<DocTypeKey>>(
-    () => new Set(),
-  )
+  const [unseenSet, setUnseenSet] = useState<Set<DocTypeKey>>(() => new Set());
 
   const onEvent = useCallback((event: SseEvent) => {
     // doc-invalid bypasses the self-cause guard (no etag); ignore it
     // entirely — it signals an operational issue, not new content.
-    if (event.type !== 'doc-changed') return
-    if (!isDocTypeKey(event.docType)) return
+    if (event.type !== "doc-changed") return;
+    if (!isDocTypeKey(event.docType)) return;
 
-    const type = event.docType
-    const stored = seenRef.current[type]
+    const type = event.docType;
+    const stored = seenRef.current[type];
 
     // First event for a never-visited type is silently absorbed: the
     // user has no T to compare against; "since last visit" semantics,
     // not "new to you".
-    if (stored === undefined) return
+    if (stored === undefined) return;
 
     // Strict greater-than: same-ms markSeen+event resolves as 'seen'.
     if (Date.now() > stored) {
       setUnseenSet((prev) => {
-        if (prev.has(type)) return prev
-        const next = new Set(prev)
-        next.add(type)
-        return next
-      })
+        if (prev.has(type)) return prev;
+        const next = new Set(prev);
+        next.add(type);
+        return next;
+      });
     }
-  }, [])
+  }, []);
 
   const markSeen = useCallback((type: DocTypeKey) => {
-    seenRef.current = { ...seenRef.current, [type]: Date.now() }
-    safeSetItem(SEEN_DOC_TYPES_STORAGE_KEY, JSON.stringify(seenRef.current))
+    seenRef.current = { ...seenRef.current, [type]: Date.now() };
+    safeSetItem(SEEN_DOC_TYPES_STORAGE_KEY, JSON.stringify(seenRef.current));
     setUnseenSet((prev) => {
-      if (!prev.has(type)) return prev
-      const next = new Set(prev)
-      next.delete(type)
-      return next
-    })
-  }, [])
+      if (!prev.has(type)) return prev;
+      const next = new Set(prev);
+      next.delete(type);
+      return next;
+    });
+  }, []);
 
   const onReconnect = useCallback(() => {
     // No-op. Real changes during a disconnect are reflected by replayed
     // doc-changed events; onEvent classifies them correctly.
-  }, [])
+  }, []);
 
-  return { unseenSet, markSeen, onEvent, onReconnect }
+  return { unseenSet, markSeen, onEvent, onReconnect };
 }
 
 const noopHandle: UnseenDocTypesHandle = {
@@ -120,14 +121,14 @@ const noopHandle: UnseenDocTypesHandle = {
   markSeen: () => {},
   onEvent: () => {},
   onReconnect: () => {},
-}
+};
 
 export const UnseenDocTypesContext =
-  createContext<UnseenDocTypesHandle>(noopHandle)
+  createContext<UnseenDocTypesHandle>(noopHandle);
 
 /** CONSUMER hook — reads the UnseenDocTypesContext. */
 export function useUnseenDocTypesContext(): UnseenDocTypesHandle {
-  return useContext(UnseenDocTypesContext)
+  return useContext(UnseenDocTypesContext);
 }
 
 /**
@@ -136,11 +137,11 @@ export function useUnseenDocTypesContext(): UnseenDocTypesHandle {
  * that must NOT silently clear the parent type's unseen dot).
  */
 export function useMarkDocTypeSeen(type: DocTypeKey | undefined): void {
-  const { markSeen } = useUnseenDocTypesContext()
+  const { markSeen } = useUnseenDocTypesContext();
   useEffect(() => {
-    if (type) markSeen(type)
-  }, [type, markSeen])
+    if (type) markSeen(type);
+  }, [type, markSeen]);
 }
 
 // Re-export so consumers do not need to import storage-keys directly.
-export { SEEN_DOC_TYPES_STORAGE_KEY, DOC_TYPE_KEYS }
+export { DOC_TYPE_KEYS, SEEN_DOC_TYPES_STORAGE_KEY };

@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import React from 'react'
-import { useSearch } from './use-search'
-import * as fetchModule from './fetch'
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook } from "@testing-library/react";
+import React from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as fetchModule from "./fetch";
+import { useSearch } from "./use-search";
 
 function makeWrapper(qc: QueryClient) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: qc }, children)
-  }
+    return React.createElement(QueryClientProvider, { client: qc }, children);
+  };
 }
 
 function makeClient() {
@@ -20,148 +20,146 @@ function makeClient() {
         gcTime: Infinity,
       },
     },
-  })
+  });
 }
 
-describe('useSearch', () => {
+describe("useSearch", () => {
   beforeEach(() => {
-    vi.useFakeTimers()
-    vi.restoreAllMocks()
-  })
+    vi.useFakeTimers();
+    vi.restoreAllMocks();
+  });
   afterEach(() => {
-    vi.useRealTimers()
-  })
+    vi.useRealTimers();
+  });
 
-  it('does not request below 2 chars', async () => {
-    const qc = makeClient()
-    const spy = vi.spyOn(fetchModule, 'fetchSearch').mockResolvedValue([])
+  it("does not request below 2 chars", async () => {
+    const qc = makeClient();
+    const spy = vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([]);
     renderHook(({ q }: { q: string }) => useSearch(q), {
       wrapper: makeWrapper(qc),
-      initialProps: { q: 'a' },
-    })
+      initialProps: { q: "a" },
+    });
     await act(async () => {
-      vi.advanceTimersByTime(200)
-    })
-    expect(spy).not.toHaveBeenCalled()
-  })
+      vi.advanceTimersByTime(200);
+    });
+    expect(spy).not.toHaveBeenCalled();
+  });
 
-  it('requests once after settle for 2+ chars', async () => {
-    const qc = makeClient()
-    const spy = vi
-      .spyOn(fetchModule, 'fetchSearch')
-      .mockResolvedValue([])
+  it("requests once after settle for 2+ chars", async () => {
+    const qc = makeClient();
+    const spy = vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([]);
     renderHook(({ q }: { q: string }) => useSearch(q), {
       wrapper: makeWrapper(qc),
-      initialProps: { q: 'ab' },
-    })
+      initialProps: { q: "ab" },
+    });
     await act(async () => {
-      vi.advanceTimersByTime(200)
-    })
-    expect(spy).toHaveBeenCalledTimes(1)
-    expect(spy).toHaveBeenCalledWith('ab', expect.anything())
-  })
+      vi.advanceTimersByTime(200);
+    });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith("ab", expect.anything());
+  });
 
-  it('dedupes via react-query cache within gcTime', async () => {
-    const qc = makeClient()
-    const spy = vi.spyOn(fetchModule, 'fetchSearch').mockResolvedValue([])
-    const { rerender } = renderHook(
-      ({ q }: { q: string }) => useSearch(q),
-      { wrapper: makeWrapper(qc), initialProps: { q: 'ab' } },
-    )
+  it("dedupes via react-query cache within gcTime", async () => {
+    const qc = makeClient();
+    const spy = vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([]);
+    const { rerender } = renderHook(({ q }: { q: string }) => useSearch(q), {
+      wrapper: makeWrapper(qc),
+      initialProps: { q: "ab" },
+    });
     await act(async () => {
-      vi.advanceTimersByTime(200)
-    })
+      vi.advanceTimersByTime(200);
+    });
     // Let the resolved promise flush through React Query.
     await act(async () => {
-      await Promise.resolve()
-      await Promise.resolve()
-    })
-    rerender({ q: 'a' })
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    rerender({ q: "a" });
     await act(async () => {
-      vi.advanceTimersByTime(200)
-    })
-    rerender({ q: 'ab' })
+      vi.advanceTimersByTime(200);
+    });
+    rerender({ q: "ab" });
     await act(async () => {
-      vi.advanceTimersByTime(200)
-    })
-    expect(spy).toHaveBeenCalledTimes(1)
-  })
+      vi.advanceTimersByTime(200);
+    });
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
 
-  it('intermediate keystrokes do not settle', async () => {
-    const qc = makeClient()
-    const spy = vi.spyOn(fetchModule, 'fetchSearch').mockResolvedValue([])
-    const { rerender } = renderHook(
-      ({ q }: { q: string }) => useSearch(q),
-      { wrapper: makeWrapper(qc), initialProps: { q: 'ab' } },
-    )
+  it("intermediate keystrokes do not settle", async () => {
+    const qc = makeClient();
+    const spy = vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([]);
+    const { rerender } = renderHook(({ q }: { q: string }) => useSearch(q), {
+      wrapper: makeWrapper(qc),
+      initialProps: { q: "ab" },
+    });
     await act(async () => {
-      vi.advanceTimersByTime(100)
-    })
-    rerender({ q: 'abc' })
+      vi.advanceTimersByTime(100);
+    });
+    rerender({ q: "abc" });
     await act(async () => {
-      vi.advanceTimersByTime(100)
-    })
-    rerender({ q: 'ab' })
+      vi.advanceTimersByTime(100);
+    });
+    rerender({ q: "ab" });
     await act(async () => {
-      vi.advanceTimersByTime(200)
-    })
-    expect(spy).toHaveBeenCalledTimes(1)
-    expect(spy).toHaveBeenCalledWith('ab', expect.anything())
-    expect(spy).not.toHaveBeenCalledWith('abc', expect.anything())
-  })
+      vi.advanceTimersByTime(200);
+    });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith("ab", expect.anything());
+    expect(spy).not.toHaveBeenCalledWith("abc", expect.anything());
+  });
 
-  it('trims input before debounce', async () => {
-    const qc = makeClient()
-    const spy = vi.spyOn(fetchModule, 'fetchSearch').mockResolvedValue([])
+  it("trims input before debounce", async () => {
+    const qc = makeClient();
+    const spy = vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([]);
     renderHook(({ q }: { q: string }) => useSearch(q), {
       wrapper: makeWrapper(qc),
-      initialProps: { q: '  ab  ' },
-    })
+      initialProps: { q: "  ab  " },
+    });
     await act(async () => {
-      vi.advanceTimersByTime(200)
-    })
-    expect(spy).toHaveBeenCalledWith('ab', expect.anything())
-  })
+      vi.advanceTimersByTime(200);
+    });
+    expect(spy).toHaveBeenCalledWith("ab", expect.anything());
+  });
 
-  it('query key uses settled trimmed value', async () => {
-    const qc = makeClient()
-    vi.spyOn(fetchModule, 'fetchSearch').mockResolvedValue([])
+  it("query key uses settled trimmed value", async () => {
+    const qc = makeClient();
+    vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([]);
     renderHook(({ q }: { q: string }) => useSearch(q), {
       wrapper: makeWrapper(qc),
-      initialProps: { q: '  ab  ' },
-    })
+      initialProps: { q: "  ab  " },
+    });
     await act(async () => {
-      vi.advanceTimersByTime(200)
-    })
-    expect(qc.getQueryState(['search', 'ab'])).toBeDefined()
-    expect(qc.getQueryState(['search', '  ab  '])).toBeUndefined()
-  })
+      vi.advanceTimersByTime(200);
+    });
+    expect(qc.getQueryState(["search", "ab"])).toBeDefined();
+    expect(qc.getQueryState(["search", "  ab  "])).toBeUndefined();
+  });
 
-  it('aborts in-flight request on key change', async () => {
-    const qc = makeClient()
-    let capturedSignal: AbortSignal | undefined
+  it("aborts in-flight request on key change", async () => {
+    const qc = makeClient();
+    let capturedSignal: AbortSignal | undefined;
     const neverResolves = new Promise<fetchModule.SearchResult[]>(() => {
       /* never */
-    })
-    vi.spyOn(fetchModule, 'fetchSearch').mockImplementation(
+    });
+    vi.spyOn(fetchModule, "fetchSearch").mockImplementation(
       (_q: string, signal?: AbortSignal) => {
-        if (capturedSignal === undefined) capturedSignal = signal
-        return neverResolves
+        if (capturedSignal === undefined) capturedSignal = signal;
+        return neverResolves;
       },
-    )
-    const { rerender } = renderHook(
-      ({ q }: { q: string }) => useSearch(q),
-      { wrapper: makeWrapper(qc), initialProps: { q: 'abcd' } },
-    )
+    );
+    const { rerender } = renderHook(({ q }: { q: string }) => useSearch(q), {
+      wrapper: makeWrapper(qc),
+      initialProps: { q: "abcd" },
+    });
     await act(async () => {
-      vi.advanceTimersByTime(200)
-    })
-    expect(capturedSignal).toBeDefined()
-    expect(capturedSignal?.aborted).toBe(false)
-    rerender({ q: 'abcde' })
+      vi.advanceTimersByTime(200);
+    });
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal?.aborted).toBe(false);
+    rerender({ q: "abcde" });
     await act(async () => {
-      vi.advanceTimersByTime(200)
-    })
-    expect(capturedSignal?.aborted).toBe(true)
-  })
-})
+      vi.advanceTimersByTime(200);
+    });
+    expect(capturedSignal?.aborted).toBe(true);
+  });
+});

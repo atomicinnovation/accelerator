@@ -1,18 +1,18 @@
-import { formatMtime } from '../../api/format'
-import { formatDocId } from '../library/doc-type-id'
-import { PipelineMini } from '../../components/PipelineMini/PipelineMini'
-import { WorkKindBadge } from './WorkKindBadge'
-import { LinkIcon } from './icons'
-import type { IndexEntry } from '../../api/types'
-import styles from './WorkItemCard.module.css'
+import { formatMtime } from "../../api/format";
+import type { IndexEntry } from "../../api/types";
+import { PipelineMini } from "../../components/PipelineMini/PipelineMini";
+import { formatDocId } from "../library/doc-type-id";
+import { LinkIcon } from "./icons";
+import styles from "./WorkItemCard.module.css";
+import { WorkKindBadge } from "./WorkKindBadge";
 
 export interface WorkItemCardPresentationProps {
-  entry: IndexEntry
-  now?: number
+  entry: IndexEntry;
+  now?: number;
   /** Render as the lifted DragOverlay clone — 0.8 opacity. */
-  overlay?: boolean
+  overlay?: boolean;
   /** Render the source card's dragging state — rotate/scale lift, accent border. */
-  dragging?: boolean
+  dragging?: boolean;
 }
 
 /**
@@ -33,24 +33,25 @@ export function WorkItemCardPresentation({
   overlay = false,
   dragging = false,
 }: WorkItemCardPresentationProps) {
-  const fmKind = entry.frontmatter['kind']
-  const kindLabel = typeof fmKind === 'string' && fmKind.length > 0 ? fmKind : null
-  const idLabel = entry.workItemId ? formatDocId(entry.workItemId) : null
+  const fmKind = entry.frontmatter.kind;
+  const kindLabel =
+    typeof fmKind === "string" && fmKind.length > 0 ? fmKind : null;
+  const idLabel = entry.workItemId ? formatDocId(entry.workItemId) : null;
 
   const className = [
     styles.card,
-    'ac-kcard',
-    dragging ? styles.cardDragging : '',
-    overlay ? styles.cardOverlay : '',
+    "ac-kcard",
+    dragging ? styles.cardDragging : "",
+    overlay ? styles.cardOverlay : "",
   ]
     .filter(Boolean)
-    .join(' ')
+    .join(" ");
 
   return (
     <div
       className={className}
-      data-dragging={dragging ? '' : undefined}
-      data-overlay={overlay ? '' : undefined}
+      data-dragging={dragging ? "" : undefined}
+      data-overlay={overlay ? "" : undefined}
     >
       <div className={styles.cardBody}>
         <div className={`${styles.cardTop} ac-kcard__top`}>
@@ -80,5 +81,5 @@ export function WorkItemCardPresentation({
         </div>
       </div>
     </div>
-  )
+  );
 }

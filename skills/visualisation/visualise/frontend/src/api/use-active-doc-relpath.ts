@@ -1,9 +1,9 @@
-import { useParams } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
-import { fetchDocs } from './fetch'
-import { queryKeys } from './query-keys'
-import { isDocTypeKey } from './types'
-import { fileSlugFromRelPath } from './path-utils'
+import { useQuery } from "@tanstack/react-query";
+import { useParams } from "@tanstack/react-router";
+import { fetchDocs } from "./fetch";
+import { fileSlugFromRelPath } from "./path-utils";
+import { queryKeys } from "./query-keys";
+import { isDocTypeKey } from "./types";
 
 /**
  * Resolves the relPath of the document currently being viewed, purely from
@@ -17,18 +17,20 @@ import { fileSlugFromRelPath } from './path-utils'
  */
 export function useActiveDocRelPath(): string | undefined {
   const params = useParams({ strict: false }) as {
-    type?: string
-    fileSlug?: string
-  }
-  const type = params.type && isDocTypeKey(params.type) ? params.type : undefined
-  const fileSlug = params.fileSlug ?? ''
+    type?: string;
+    fileSlug?: string;
+  };
+  const type =
+    params.type && isDocTypeKey(params.type) ? params.type : undefined;
+  const fileSlug = params.fileSlug ?? "";
   const { data: entries = [] } = useQuery({
-    queryKey: type ? queryKeys.docs(type) : queryKeys.disabled('docs'),
+    queryKey: type ? queryKeys.docs(type) : queryKeys.disabled("docs"),
+    // biome-ignore lint/style/noNonNullAssertion: queryFn only runs while `enabled: type !== undefined`, so `type` is guaranteed defined here
     queryFn: () => fetchDocs(type!),
     enabled: type !== undefined,
-  })
-  if (!fileSlug) return undefined
+  });
+  if (!fileSlug) return undefined;
   return entries.find(
     (e) => e.slug === fileSlug || fileSlugFromRelPath(e.relPath) === fileSlug,
-  )?.relPath
+  )?.relPath;
 }

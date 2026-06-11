@@ -87,6 +87,8 @@
    break the theme contract). Targets the data-doc-type attribute so the
    override is local to ActivityFeed and does not leak. */
 .row [data-doc-type] {
+  /* biome-ignore lint/complexity/noImportantStyles: overrides Glyph's inline
+     per-type colour; allowed by the Glyph contract (see comment above). */
   color: var(--ac-fg-faint) !important;
   margin-top: 1px;
 }

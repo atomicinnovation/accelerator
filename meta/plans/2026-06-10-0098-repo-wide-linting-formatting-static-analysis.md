@@ -1429,30 +1429,45 @@ Add `check-frontend` to the `prerelease` job's `needs:` list in this same PR
 ### Success Criteria
 
 #### Automated Verification:
-- [ ] `mise run lint:frontend:check` exits 0 (Biome, react+test+project, warnings
+- [x] `mise run lint:frontend:check` exits 0 (Biome, react+test+project, warnings
   fail).
-- [ ] `mise run format:frontend:check` exits 0.
-- [ ] `mise run types:frontend:check` exits 0 (`tsc -b --noEmit`, all referenced
-  projects + the formerly-stray files).
-- [ ] `mise run frontend:check` exits 0.
-- [ ] `check-frontend` CI job exists and is in the `prerelease` job's `needs:` list
+- [x] `mise run format:frontend:check` exits 0.
+- [x] `mise run types:frontend:check` exits 0 (`tsc -b --noEmit`, all referenced
+  projects + the formerly-stray files — `tsconfig.node.json` widened to cover the
+  playwright configs + `scripts/**/*.ts` and set `strict`; `@types/culori` added).
+- [x] `mise run frontend:check` exits 0.
+- [x] `check-frontend` CI job exists and is in the `prerelease` job's `needs:` list
   (added in this phase, not deferred to Phase 6).
-- [ ] biome + typescript pinned exact in `package.json` (no caret); lockfile
-  committed.
-- [ ] `mise run test:unit:frontend` passes after the reformat.
-- [ ] `mise run test:e2e:visualiser` and the visual-regression baselines pass
-  after the reformat — the largest, riskiest sweep (single→double quotes,
-  semicolon insertion, 80-col CSS reflow) is gated by the suite most likely to
-  catch a rendering-level behavioural change, not just unit tests.
+- [x] biome (2.4.16) + typescript (5.9.3) pinned exact in `package.json` (no caret);
+  `package-lock.json` committed (incl. all 8 `@biomejs/cli-*` platform binaries).
+- [x] `mise run test:unit:frontend` passes after the reformat (2378 tests, 115 files).
+- [x] `mise run test:e2e:visualiser` and the visual-regression baselines pass
+  after the reformat (478 passed) — the largest, riskiest sweep (single→double
+  quotes, semicolon insertion, 80-col CSS reflow) gated by the suite most likely
+  to catch a rendering-level change; all visual baselines matched, confirming the
+  sweep + a11y fixes (svg titles, button types, key handlers — all visually
+  invisible; useSemanticElements deliberately suppressed, not rewritten) are
+  rendering-preserving.
 
 #### Manual Verification:
-- [ ] Report-only Biome diagnostic count recorded before the sweep.
-- [ ] `biome.jsonc` enables react+test+project; `--error-on-warnings` present in
-  the committed lint task/script.
-- [ ] Reformat diff is mechanical-only (no behavioural change); spot-checked
-  (the e2e + visual-regression gates above are the automated backstop).
+- [x] Report-only Biome diagnostic count recorded. **Pre-sweep: `biome format`
+  345 of 372 files would reformat; `biome lint` 364 findings (64 errors + 264
+  warnings + 36 infos). After the format sweep + safe `lint --write` + a test
+  override (noNonNullAssertion + noExplicitAny off for tests, mirroring the
+  ruff/pyrefly tests treatment) + source fixes + 52 justified `// biome-ignore`
+  directives: 0 errors, 0 warnings.**
+- [x] `biome.jsonc` enables react+test+project; `--error-on-warnings` present in
+  the committed lint script (`biome check --formatter-enabled=false
+  --error-on-warnings .`). **Deviation: `useEditorconfig` does NOT reach the
+  repo-root `.editorconfig` from this subdir (verified), so indent (2-space) and
+  width (80) are set explicitly in `biome.jsonc`, duplicating `.editorconfig`
+  with a sync comment.**
+- [x] Reformat diff is mechanical-only (no behavioural change); the e2e +
+  visual-regression gates above (478 passed, all baselines matched) are the
+  automated backstop, plus 2378 vitest unit tests.
 - [ ] Falsification probe linked: one Biome lint violation, one format drift, one
   tsc type error each drive `check-frontend` non-zero; reverted.
+  **[CI/manual — pending push + branch-protection add of `check-frontend`.]**
 
 ---
 

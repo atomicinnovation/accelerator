@@ -1,8 +1,8 @@
-import { FrontmatterChip } from '../FrontmatterChip/FrontmatterChip'
-import { verdictToVariant } from '../../api/verdict-variant'
+import { verdictToVariant } from "../../api/verdict-variant";
+import { FrontmatterChip } from "../FrontmatterChip/FrontmatterChip";
 
 export interface VerdictBadgeProps {
-  value: unknown
+  value: unknown;
 }
 
 export function VerdictBadge({ value }: VerdictBadgeProps) {
@@ -13,5 +13,5 @@ export function VerdictBadge({ value }: VerdictBadgeProps) {
       variant={verdictToVariant(value)}
       testId="verdict-badge"
     />
-  )
+  );
 }

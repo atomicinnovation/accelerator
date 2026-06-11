@@ -73,4 +73,7 @@
   margin: 0 0 var(--sp-5) 0;
 }
 
-.content {}
+/* biome-ignore lint/suspicious/noEmptyBlock: structural wrapper class consumed
+   by Page.tsx; intentionally carries no declarations. */
+.content {
+}

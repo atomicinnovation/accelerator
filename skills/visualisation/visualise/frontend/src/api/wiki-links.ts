@@ -1,20 +1,20 @@
-import type { IndexEntry } from './types'
-import { fileSlugFromRelPath } from './path-utils'
+import { fileSlugFromRelPath } from "./path-utils";
+import type { IndexEntry } from "./types";
 
 export interface WikiLinkIndex {
-  adrById: Map<number, IndexEntry>
-  workItemById: Map<string, IndexEntry>
+  adrById: Map<number, IndexEntry>;
+  workItemById: Map<string, IndexEntry>;
 }
 
 export interface ResolvedWikiLink {
-  href: string
-  title: string
+  href: string;
+  title: string;
 }
 
-type WikiLinkKind = 'ADR' | 'WORK-ITEM'
+type WikiLinkKind = "ADR" | "WORK-ITEM";
 
 function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Build the wiki-link match pattern from the server-supplied project code
@@ -28,18 +28,18 @@ function escapeRegExp(s: string): string {
 export function buildWikiLinkPattern(projectCode: string | null): RegExp {
   const innerWorkItem = projectCode
     ? `${escapeRegExp(projectCode)}-\\d+|\\d+`
-    : `\\d+`
-  return new RegExp(`\\[\\[(ADR|WORK-ITEM)-(${innerWorkItem})\\]\\]`, 'g')
+    : `\\d+`;
+  return new RegExp(`\\[\\[(ADR|WORK-ITEM)-(${innerWorkItem})\\]\\]`, "g");
 }
 
 export type BareIdSegment =
-  | { kind: 'text'; text: string }
+  | { kind: "text"; text: string }
   | {
-      kind: 'match'
-      text: string
-      prefix: 'ADR' | 'WORK-ITEM'
-      id: string
-    }
+      kind: "match";
+      text: string;
+      prefix: "ADR" | "WORK-ITEM";
+      id: string;
+    };
 
 /** Build a bare-token regex that matches the wiki-link grammar without
  *  the surrounding `[[ … ]]`. Used by surfaces that linkify scalar
@@ -54,8 +54,8 @@ export type BareIdSegment =
 export function buildBareIdPattern(projectCode: string | null): RegExp {
   const innerWorkItem = projectCode
     ? `${escapeRegExp(projectCode)}-\\d+|\\d+`
-    : `\\d+`
-  return new RegExp(`\\b(ADR|WORK-ITEM)-(${innerWorkItem})\\b`, 'g')
+    : `\\d+`;
+  return new RegExp(`\\b(ADR|WORK-ITEM)-(${innerWorkItem})\\b`, "g");
 }
 
 /** Split a string into ordered segments alternating between plain text
@@ -65,63 +65,61 @@ export function buildBareIdPattern(projectCode: string | null): RegExp {
  *
  *  Forces the `g` flag on the cloned regex so a caller that hands in
  *  a non-global pattern does not hang the loop. */
-export function splitByBareIds(
-  text: string,
-  pattern: RegExp,
-): BareIdSegment[] {
-  const flags = pattern.flags.includes('g')
+export function splitByBareIds(text: string, pattern: RegExp): BareIdSegment[] {
+  const flags = pattern.flags.includes("g")
     ? pattern.flags
-    : pattern.flags + 'g'
-  const re = new RegExp(pattern.source, flags)
-  const segments: BareIdSegment[] = []
-  let lastIndex = 0
-  let m: RegExpExecArray | null
-  while ((m = re.exec(text)) !== null) {
+    : `${pattern.flags}g`;
+  const re = new RegExp(pattern.source, flags);
+  const segments: BareIdSegment[] = [];
+  let lastIndex = 0;
+  let m = re.exec(text);
+  while (m !== null) {
     if (m.index > lastIndex) {
-      segments.push({ kind: 'text', text: text.slice(lastIndex, m.index) })
+      segments.push({ kind: "text", text: text.slice(lastIndex, m.index) });
     }
     segments.push({
-      kind: 'match',
+      kind: "match",
       text: m[0],
-      prefix: m[1] as 'ADR' | 'WORK-ITEM',
+      prefix: m[1] as "ADR" | "WORK-ITEM",
       id: m[2],
-    })
-    lastIndex = m.index + m[0].length
+    });
+    lastIndex = m.index + m[0].length;
+    m = re.exec(text);
   }
   if (lastIndex < text.length) {
-    segments.push({ kind: 'text', text: text.slice(lastIndex) })
+    segments.push({ kind: "text", text: text.slice(lastIndex) });
   }
   if (segments.length === 0) {
-    segments.push({ kind: 'text', text })
+    segments.push({ kind: "text", text });
   }
-  return segments
+  return segments;
 }
 
 /** Parse an ADR id that may live on `frontmatter.adr_id` (e.g. `"ADR-0017"`)
  *  or in the filename prefix (`ADR-0017-foo.md`). Frontmatter wins over
  *  filename — mirrors the server's `parse_adr_id` precedence. */
 function adrIdOf(entry: IndexEntry): number | null {
-  const fmId = entry.frontmatter['adr_id']
-  if (typeof fmId === 'string') {
-    const rest = fmId.startsWith('ADR-') ? fmId.slice(4) : fmId
-    const n = parsePositiveInt(rest)
-    if (n !== null) return n
+  const fmId = entry.frontmatter.adr_id;
+  if (typeof fmId === "string") {
+    const rest = fmId.startsWith("ADR-") ? fmId.slice(4) : fmId;
+    const n = parsePositiveInt(rest);
+    if (n !== null) return n;
   }
-  const filename = entry.relPath.split('/').at(-1) ?? ''
-  if (!filename.startsWith('ADR-')) return null
-  const rest = filename.slice(4)
-  const dash = rest.indexOf('-')
-  if (dash < 0) return null
-  return parsePositiveInt(rest.slice(0, dash))
+  const filename = entry.relPath.split("/").at(-1) ?? "";
+  if (!filename.startsWith("ADR-")) return null;
+  const rest = filename.slice(4);
+  const dash = rest.indexOf("-");
+  if (dash < 0) return null;
+  return parsePositiveInt(rest.slice(0, dash));
 }
 
 /** Single helper for all numeric extraction in this module. Explicit
  *  radix 10 (no octal/hex inference); rejects leading-`+`, leading-`-`,
  *  empty, and trailing-non-digits. */
 function parsePositiveInt(s: string): number | null {
-  if (!/^\d+$/.test(s)) return null
-  const n = parseInt(s, 10)
-  return Number.isFinite(n) && n >= 0 ? n : null
+  if (!/^\d+$/.test(s)) return null;
+  const n = parseInt(s, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 /** Build the resolver maps from the docs caches. ADRs are keyed by
@@ -135,21 +133,21 @@ export function buildWikiLinkIndex(
   adrEntries: IndexEntry[],
   workItemEntries: IndexEntry[],
 ): WikiLinkIndex {
-  const adrById = new Map<number, IndexEntry>()
+  const adrById = new Map<number, IndexEntry>();
   for (const entry of adrEntries) {
-    if (entry.type !== 'decisions') continue
-    const id = adrIdOf(entry)
-    if (id === null) continue
-    insertWithEarliestRelPath(adrById, id, entry)
+    if (entry.type !== "decisions") continue;
+    const id = adrIdOf(entry);
+    if (id === null) continue;
+    insertWithEarliestRelPath(adrById, id, entry);
   }
-  const workItemById = new Map<string, IndexEntry>()
+  const workItemById = new Map<string, IndexEntry>();
   for (const entry of workItemEntries) {
-    if (entry.type !== 'work-items') continue
-    const id = entry.workItemId
-    if (id === null) continue
-    insertWithEarliestRelPath(workItemById, id, entry)
+    if (entry.type !== "work-items") continue;
+    const id = entry.workItemId;
+    if (id === null) continue;
+    insertWithEarliestRelPath(workItemById, id, entry);
   }
-  return { adrById, workItemById }
+  return { adrById, workItemById };
 }
 
 function insertWithEarliestRelPath<K>(
@@ -157,9 +155,9 @@ function insertWithEarliestRelPath<K>(
   key: K,
   candidate: IndexEntry,
 ): void {
-  const existing = map.get(key)
+  const existing = map.get(key);
   if (!existing || candidate.relPath < existing.relPath) {
-    map.set(key, candidate)
+    map.set(key, candidate);
   }
 }
 
@@ -177,18 +175,18 @@ export function resolveWikiLink(
   id: string,
   idx: WikiLinkIndex,
 ): ResolvedWikiLink | null {
-  let entry: IndexEntry | undefined
-  if (prefix === 'ADR') {
-    const n = parsePositiveInt(id)
-    if (n === null) return null
-    entry = idx.adrById.get(n)
+  let entry: IndexEntry | undefined;
+  if (prefix === "ADR") {
+    const n = parsePositiveInt(id);
+    if (n === null) return null;
+    entry = idx.adrById.get(n);
   } else {
-    entry = idx.workItemById.get(id)
+    entry = idx.workItemById.get(id);
   }
-  if (!entry) return null
-  const fileSlug = fileSlugFromRelPath(entry.relPath)
+  if (!entry) return null;
+  const fileSlug = fileSlugFromRelPath(entry.relPath);
   return {
     href: `/library/${entry.type}/${fileSlug}`,
     title: entry.title,
-  }
+  };
 }

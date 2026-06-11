@@ -66,6 +66,7 @@
   font-size: var(--size-3xs-lg);
   letter-spacing: 0.04em;
 }
+/* biome-ignore lint/style/noDescendingSpecificity: intentional source order; `.cardLink:hover .cardTitle` above is a deliberate higher-specificity override */
 .cardTitle {
   margin: 0;
   /* Prototype `.ac-kcard__title` sits between the 13 and 14 scale steps;

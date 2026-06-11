@@ -1,4 +1,4 @@
-import styles from './Brand.module.css'
+import styles from "./Brand.module.css";
 
 export function Brand() {
   return (
@@ -38,5 +38,5 @@ export function Brand() {
         <span className={styles.brandSub}>VISUALISER</span>
       </div>
     </div>
-  )
+  );
 }

@@ -22,9 +22,9 @@
 // ADR-0026 §5 for the design-token testing context.
 
 export interface CssRule {
-  selectors: string[]
-  body: string
-  offset: number
+  selectors: string[];
+  body: string;
+  offset: number;
 }
 
 // Parses a flat CSS source into `{ selectors, body, offset }`
@@ -38,30 +38,30 @@ export interface CssRule {
 export function parseFlatCssRules(css: string): CssRule[] {
   if (/^\s*@(?:media|supports|container|layer)\b/m.test(css)) {
     throw new Error(
-      'parseFlatCssRules: input contains a top-level @-rule (e.g. @media). ' +
-        'This helper does not recurse into at-rules; assertions against nested ' +
-        'rules would be silently missed. Extend the parser before using.',
-    )
+      "parseFlatCssRules: input contains a top-level @-rule (e.g. @media). " +
+        "This helper does not recurse into at-rules; assertions against nested " +
+        "rules would be silently missed. Extend the parser before using.",
+    );
   }
-  const rules: CssRule[] = []
-  let i = 0
+  const rules: CssRule[] = [];
+  let i = 0;
   while (i < css.length) {
-    const openBrace = css.indexOf('{', i)
-    if (openBrace < 0) break
-    const closeBrace = css.indexOf('}', openBrace + 1)
-    if (closeBrace < 0) break
+    const openBrace = css.indexOf("{", i);
+    if (openBrace < 0) break;
+    const closeBrace = css.indexOf("}", openBrace + 1);
+    if (closeBrace < 0) break;
     const selectorBlock = css
       .slice(i, openBrace)
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .trim()
-    const body = css.slice(openBrace + 1, closeBrace)
-    if (selectorBlock && !selectorBlock.startsWith('@')) {
-      const selectors = selectorBlock.split(',').map((s) => s.trim())
-      rules.push({ selectors, body, offset: openBrace })
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .trim();
+    const body = css.slice(openBrace + 1, closeBrace);
+    if (selectorBlock && !selectorBlock.startsWith("@")) {
+      const selectors = selectorBlock.split(",").map((s) => s.trim());
+      rules.push({ selectors, body, offset: openBrace });
     }
-    i = closeBrace + 1
+    i = closeBrace + 1;
   }
-  return rules
+  return rules;
 }
 
 // Asserts that some rule in `css` whose comma-separated selector list
@@ -76,27 +76,25 @@ export function assertSelectorColorIs(
   selector: string,
   token: string,
 ): void {
-  const rules = parseFlatCssRules(css)
-  const matchingRules = rules.filter((r) => r.selectors.includes(selector))
+  const rules = parseFlatCssRules(css);
+  const matchingRules = rules.filter((r) => r.selectors.includes(selector));
   if (matchingRules.length === 0) {
     throw new Error(
       `assertSelectorColorIs: no rule declares selector "${selector}" exactly. ` +
         `Compound selectors like "${selector}.foo" do NOT satisfy this check.`,
-    )
+    );
   }
-  const tokenRef = `var(--${token})`
-  const escapedRef = tokenRef.replace(/[()]/g, '\\$&')
+  const tokenRef = `var(--${token})`;
+  const escapedRef = tokenRef.replace(/[()]/g, "\\$&");
   // Anchor on a property-name boundary: start-of-body, `;`, or `{`
   // so the substring `color:` inside `border-color:` does not match.
-  const colourRegex = new RegExp(
-    `(?:^|[;{\\s])color\\s*:\\s*${escapedRef}`,
-  )
-  const ok = matchingRules.some((r) => colourRegex.test(r.body))
+  const colourRegex = new RegExp(`(?:^|[;{\\s])color\\s*:\\s*${escapedRef}`);
+  const ok = matchingRules.some((r) => colourRegex.test(r.body));
   if (!ok) {
     throw new Error(
       `assertSelectorColorIs: selector "${selector}" found but no matching rule declares color: ${tokenRef}. ` +
         `Inspected bodies: ${JSON.stringify(matchingRules.map((r) => r.body))}`,
-    )
+    );
   }
 }
 
@@ -104,7 +102,7 @@ export function assertSelectorColorIs(
 // includes `selector`. Used by source-order assertions in
 // `code-syntax.test.ts`.
 export function selectorOffset(css: string, selector: string): number | null {
-  const rules = parseFlatCssRules(css)
-  const match = rules.find((r) => r.selectors.includes(selector))
-  return match?.offset ?? null
+  const rules = parseFlatCssRules(css);
+  const match = rules.find((r) => r.selectors.includes(selector));
+  return match?.offset ?? null;
 }

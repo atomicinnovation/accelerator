@@ -1,32 +1,40 @@
-import { useDroppable } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { WorkItemCard } from './WorkItemCard'
-import type { IndexEntry } from '../../api/types'
-import { OTHER_COLUMN_KEY } from '../../api/types'
-import styles from './KanbanColumn.module.css'
+import { useDroppable } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import type { IndexEntry } from "../../api/types";
+import { OTHER_COLUMN_KEY } from "../../api/types";
+import styles from "./KanbanColumn.module.css";
+import { WorkItemCard } from "./WorkItemCard";
 
 export interface KanbanColumnProps {
-  columnKey: string
-  label: string
-  entries: IndexEntry[]
-  description?: string
+  columnKey: string;
+  label: string;
+  entries: IndexEntry[];
+  description?: string;
 }
 
-export function KanbanColumn({ columnKey, label, entries, description }: KanbanColumnProps) {
-  const ids = entries.map(e => e.relPath)
-  const count = entries.length
-  const headingId = `kanban-col-${columnKey}-heading`
-  const itemWord = count === 1 ? 'work item' : 'work items'
-  const isOtherColumn = columnKey === OTHER_COLUMN_KEY
+export function KanbanColumn({
+  columnKey,
+  label,
+  entries,
+  description,
+}: KanbanColumnProps) {
+  const ids = entries.map((e) => e.relPath);
+  const count = entries.length;
+  const headingId = `kanban-col-${columnKey}-heading`;
+  const itemWord = count === 1 ? "work item" : "work items";
+  const isOtherColumn = columnKey === OTHER_COLUMN_KEY;
   const { setNodeRef, isOver } = useDroppable({
     id: `column:${columnKey}`,
     disabled: isOtherColumn,
-  })
+  });
 
   return (
     <section
       ref={setNodeRef}
-      className={`${styles.column}${isOver ? ` ${styles.columnOver}` : ''}`}
+      className={`${styles.column}${isOver ? ` ${styles.columnOver}` : ""}`}
       aria-labelledby={headingId}
       data-column={columnKey}
     >
@@ -40,7 +48,11 @@ export function KanbanColumn({ columnKey, label, entries, description }: KanbanC
             {label}
           </h2>
         </div>
-        <span className={styles.columnCount} aria-label={`${count} ${itemWord}`}>
+        <span
+          className={styles.columnCount}
+          role="img"
+          aria-label={`${count} ${itemWord}`}
+        >
           {count}
         </span>
       </header>
@@ -60,12 +72,12 @@ export function KanbanColumn({ columnKey, label, entries, description }: KanbanC
           </div>
         ) : (
           <ul className={styles.cardList}>
-            {entries.map(entry => (
+            {entries.map((entry) => (
               <WorkItemCard key={entry.relPath} entry={entry} />
             ))}
           </ul>
         )}
       </SortableContext>
     </section>
-  )
+  );
 }

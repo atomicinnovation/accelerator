@@ -1,57 +1,57 @@
 // Preview all 13 doc types × 3 sizes in both themes at /glyph-showcase (see frontend README).
-import type { ComponentType, ReactElement } from 'react'
-import styles from './Glyph.module.css'
-import { DOC_TYPE_KEYS, type DocTypeKey } from '../../api/types'
-import { DOC_TYPE_COLOR_VAR } from './Glyph.constants'
-import { DecisionsIcon } from './icons/DecisionsIcon'
-import { DesignGapsIcon } from './icons/DesignGapsIcon'
-import { DesignInventoriesIcon } from './icons/DesignInventoriesIcon'
-import { NotesIcon } from './icons/NotesIcon'
-import { PlanReviewsIcon } from './icons/PlanReviewsIcon'
-import { PlansIcon } from './icons/PlansIcon'
-import { PrReviewsIcon } from './icons/PrReviewsIcon'
-import { PrDescriptionsIcon } from './icons/PrDescriptionsIcon'
-import { ResearchIcon } from './icons/ResearchIcon'
-import { ValidationsIcon } from './icons/ValidationsIcon'
-import { WorkItemReviewsIcon } from './icons/WorkItemReviewsIcon'
-import { WorkItemsIcon } from './icons/WorkItemsIcon'
-import { TemplatesIcon } from './icons/TemplatesIcon'
+import type { ComponentType, ReactElement } from "react";
+import { DOC_TYPE_KEYS, type DocTypeKey } from "../../api/types";
+import { DOC_TYPE_COLOR_VAR } from "./Glyph.constants";
+import styles from "./Glyph.module.css";
+import { DecisionsIcon } from "./icons/DecisionsIcon";
+import { DesignGapsIcon } from "./icons/DesignGapsIcon";
+import { DesignInventoriesIcon } from "./icons/DesignInventoriesIcon";
+import { NotesIcon } from "./icons/NotesIcon";
+import { PlanReviewsIcon } from "./icons/PlanReviewsIcon";
+import { PlansIcon } from "./icons/PlansIcon";
+import { PrDescriptionsIcon } from "./icons/PrDescriptionsIcon";
+import { PrReviewsIcon } from "./icons/PrReviewsIcon";
+import { ResearchIcon } from "./icons/ResearchIcon";
+import { TemplatesIcon } from "./icons/TemplatesIcon";
+import { ValidationsIcon } from "./icons/ValidationsIcon";
+import { WorkItemReviewsIcon } from "./icons/WorkItemReviewsIcon";
+import { WorkItemsIcon } from "./icons/WorkItemsIcon";
 
 // Ordering mirrors the Colour Token Table in meta/work/0037-glyph-component.md.
 // `Record<DocTypeKey, ...>` constraint enforces exhaustiveness at compile time
 // across all 13 keys (including the virtual `templates` key).
 const ICON_COMPONENTS: Record<DocTypeKey, ComponentType> = {
-  'decisions': DecisionsIcon,
-  'work-items': WorkItemsIcon,
-  'plans': PlansIcon,
-  'research': ResearchIcon,
-  'plan-reviews': PlanReviewsIcon,
-  'pr-reviews': PrReviewsIcon,
-  'work-item-reviews': WorkItemReviewsIcon,
-  'validations': ValidationsIcon,
-  'notes': NotesIcon,
-  'pr-descriptions': PrDescriptionsIcon,
-  'design-gaps': DesignGapsIcon,
-  'design-inventories': DesignInventoriesIcon,
-  'templates': TemplatesIcon,
-}
+  decisions: DecisionsIcon,
+  "work-items": WorkItemsIcon,
+  plans: PlansIcon,
+  research: ResearchIcon,
+  "plan-reviews": PlanReviewsIcon,
+  "pr-reviews": PrReviewsIcon,
+  "work-item-reviews": WorkItemReviewsIcon,
+  validations: ValidationsIcon,
+  notes: NotesIcon,
+  "pr-descriptions": PrDescriptionsIcon,
+  "design-gaps": DesignGapsIcon,
+  "design-inventories": DesignInventoriesIcon,
+  templates: TemplatesIcon,
+};
 
 export interface GlyphProps {
-  docType: DocTypeKey
-  size: 16 | 24 | 32
+  docType: DocTypeKey;
+  size: 16 | 24 | 32;
   /** Accessible label. If provided (including empty string), Glyph renders
    *  with `role="img"` + `aria-label`. If omitted (undefined), Glyph is
    *  decorative (`aria-hidden`). */
-  ariaLabel?: string
+  ariaLabel?: string;
   /** When true, the glyph is wrapped in a tinted square frame. Used in the
    *  library list view eyebrow and overview hub cards. */
-  framed?: boolean
+  framed?: boolean;
   /** Override the inline `color` driving the glyph's fill. Pass a CSS
    *  custom-property reference (e.g. `var(--ac-stage-plans)`) when a
    *  consumer surface needs a different hue family than the default
    *  per-doc-type `--ac-doc-<key>` token (Pipeline uses this to render
    *  active stages in the bright `--ac-stage-*` chain palette). */
-  colorVar?: string
+  colorVar?: string;
 }
 
 /**
@@ -71,21 +71,27 @@ export interface GlyphProps {
  * 5. `docType` accepts any `DocTypeKey` (all 13, including the virtual
  *    `templates` key). Colour resolves via `DOC_TYPE_COLOR_VAR`.
  */
-export function Glyph({ docType, size, ariaLabel, framed, colorVar }: GlyphProps): ReactElement | null {
-  const Icon = ICON_COMPONENTS[docType]
+export function Glyph({
+  docType,
+  size,
+  ariaLabel,
+  framed,
+  colorVar,
+}: GlyphProps): ReactElement | null {
+  const Icon = ICON_COMPONENTS[docType];
   if (!Icon) {
     if (import.meta.env.DEV) {
       console.warn(
-        `[Glyph] Unknown docType: ${String(docType)}. Expected one of: ${DOC_TYPE_KEYS.join(', ')}.`,
-      )
+        `[Glyph] Unknown docType: ${String(docType)}. Expected one of: ${DOC_TYPE_KEYS.join(", ")}.`,
+      );
     }
-    return null
+    return null;
   }
-  const resolvedColor = colorVar ?? DOC_TYPE_COLOR_VAR[docType]
+  const resolvedColor = colorVar ?? DOC_TYPE_COLOR_VAR[docType];
   const a11y =
     ariaLabel !== undefined
-      ? ({ role: 'img' as const, 'aria-label': ariaLabel })
-      : ({ 'aria-hidden': true as const })
+      ? { role: "img" as const, "aria-label": ariaLabel }
+      : { "aria-hidden": true as const };
 
   // Framed mode: `size` denotes the OUTER tile dimension (matches the
   // prototype's `.ac-glyph` convention). Padding scales at ~14% so a
@@ -94,8 +100,8 @@ export function Glyph({ docType, size, ariaLabel, framed, colorVar }: GlyphProps
   // fills the remaining inner area and inherits its `--ac-doc-{type}`
   // colour from the inline style below.
   if (framed) {
-    const pad = Math.round(size * 0.14)
-    const inner = size - 2 * pad
+    const pad = Math.round(size * 0.14);
+    const inner = size - 2 * pad;
     return (
       <span
         className={styles.frame}
@@ -110,10 +116,11 @@ export function Glyph({ docType, size, ariaLabel, framed, colorVar }: GlyphProps
           data-doc-type={docType}
           {...a11y}
         >
+          <title>{ariaLabel ?? `${docType} glyph`}</title>
           <Icon />
         </svg>
       </span>
-    )
+    );
   }
 
   // viewBox 0 0 24 24 — see meta/work/0037-glyph-component.md (Colour Token
@@ -129,7 +136,8 @@ export function Glyph({ docType, size, ariaLabel, framed, colorVar }: GlyphProps
       data-doc-type={docType}
       {...a11y}
     >
+      <title>{ariaLabel ?? `${docType} glyph`}</title>
       <Icon />
     </svg>
-  )
+  );
 }

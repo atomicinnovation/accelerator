@@ -276,6 +276,35 @@ run = "invoke lint.server.fix"
 description = "Run all Rust format and lint checks (rustfmt + clippy)"
 depends = ["format:server:check", "lint:server:check"]
 
+[tasks."format:frontend:check"]
+description = "Check frontend formatting with Biome (read-only)"
+depends = ["deps:install:node"]
+run = "invoke format.frontend.check"
+
+[tasks."format:frontend:fix"]
+description = "Format the frontend in place with Biome"
+depends = ["deps:install:node"]
+run = "invoke format.frontend.fix"
+
+[tasks."lint:frontend:check"]
+description = "Lint the frontend with Biome (react+test+project, warnings-as-errors)"
+depends = ["deps:install:node"]
+run = "invoke lint.frontend.check"
+
+[tasks."lint:frontend:fix"]
+description = "Apply Biome's safe lint fixes to the frontend"
+depends = ["deps:install:node"]
+run = "invoke lint.frontend.fix"
+
+[tasks."types:frontend:check"]
+description = "Type-check the frontend with tsc (tsc -b --noEmit)"
+depends = ["deps:install:node"]
+run = "invoke types.frontend.check"
+
+[tasks."frontend:check"]
+description = "Run all frontend format, lint, and type checks (Biome + tsc)"
+depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check"]
+
 [tasks."lint:check"]
 description = "Run all lint checks"
 depends = ["lint:scripts:check"]

@@ -1,10 +1,10 @@
-import type { ReactElement } from 'react'
-import { Glyph } from '../Glyph/Glyph'
-import { DOC_TYPE_LABELS, type DocTypeKey } from '../../api/types'
-import styles from './EyebrowLabel.module.css'
+import type { ReactElement } from "react";
+import { DOC_TYPE_LABELS, type DocTypeKey } from "../../api/types";
+import { Glyph } from "../Glyph/Glyph";
+import styles from "./EyebrowLabel.module.css";
 
 interface Props {
-  type: DocTypeKey
+  type: DocTypeKey;
 }
 
 export function EyebrowLabel({ type }: Props): ReactElement {
@@ -13,5 +13,5 @@ export function EyebrowLabel({ type }: Props): ReactElement {
       <Glyph docType={type} size={16} framed />
       {DOC_TYPE_LABELS[type].toUpperCase()}
     </span>
-  )
+  );
 }

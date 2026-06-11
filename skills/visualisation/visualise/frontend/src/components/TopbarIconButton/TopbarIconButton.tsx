@@ -1,17 +1,17 @@
-import type { ReactNode } from 'react'
-import styles from './TopbarIconButton.module.css'
+import type { ReactNode } from "react";
+import styles from "./TopbarIconButton.module.css";
 
 export interface TopbarIconButtonProps {
   /** Function-describing accessible name (e.g. "Dark theme"). */
-  ariaLabel: string
+  ariaLabel: string;
   /** Pressed state for binary toggle buttons. */
-  ariaPressed: boolean
+  ariaPressed: boolean;
   /** State key written to `data-icon` for CSS targeting and tests. */
-  dataIcon: string
+  dataIcon: string;
   /** Glyph / SVG content rendered inside the button. Should be
    *  decorative — wrap in `aria-hidden="true"` at the call site. */
-  children: ReactNode
-  onClick: () => void
+  children: ReactNode;
+  onClick: () => void;
 }
 
 export function TopbarIconButton(props: TopbarIconButtonProps) {
@@ -26,5 +26,5 @@ export function TopbarIconButton(props: TopbarIconButtonProps) {
     >
       {props.children}
     </button>
-  )
+  );
 }

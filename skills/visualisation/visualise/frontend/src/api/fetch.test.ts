@@ -1,191 +1,226 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  FetchError, ConflictError,
+  ConflictError,
+  FetchError,
   fetchActivity,
-  fetchTypes, fetchDocs, fetchDocContent, fetchLibraryStructure,
-  fetchTemplates, fetchTemplateDetail,
-  fetchLifecycleClusters, fetchLifecycleCluster,
+  fetchDocContent,
+  fetchDocs,
+  fetchLibraryStructure,
+  fetchLifecycleCluster,
+  fetchLifecycleClusters,
   fetchRelated,
   fetchSearch,
+  fetchTemplateDetail,
+  fetchTemplates,
+  fetchTypes,
   patchWorkItemFrontmatter,
-} from './fetch'
+} from "./fetch";
 
-const mockFetch = vi.fn()
-vi.stubGlobal('fetch', mockFetch)
+const mockFetch = vi.fn();
+vi.stubGlobal("fetch", mockFetch);
 
-beforeEach(() => mockFetch.mockReset())
+beforeEach(() => mockFetch.mockReset());
 
-describe('fetchTypes', () => {
-  it('returns parsed JSON on 200', async () => {
+describe("fetchTypes", () => {
+  it("returns parsed JSON on 200", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ types: [{ key: 'decisions', label: 'Decisions', dirPath: '/p', inLifecycle: true, inKanban: false, virtual: false }] }),
-    })
-    const types = await fetchTypes()
-    expect(types).toHaveLength(1)
-    expect(types[0].key).toBe('decisions')
-  })
+      json: async () => ({
+        types: [
+          {
+            key: "decisions",
+            label: "Decisions",
+            dirPath: "/p",
+            inLifecycle: true,
+            inKanban: false,
+            virtual: false,
+          },
+        ],
+      }),
+    });
+    const types = await fetchTypes();
+    expect(types).toHaveLength(1);
+    expect(types[0].key).toBe("decisions");
+  });
 
-  it('throws on non-200', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 })
-    await expect(fetchTypes()).rejects.toThrow('500')
-  })
-})
+  it("throws on non-200", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    await expect(fetchTypes()).rejects.toThrow("500");
+  });
+});
 
-describe('fetchDocs', () => {
-  it('unwraps the `docs` field from the response envelope', async () => {
+describe("fetchDocs", () => {
+  it("unwraps the `docs` field from the response envelope", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ docs: [{ type: 'plans', path: '/p', relPath: 'r' }] }),
-    })
-    const docs = await fetchDocs('plans')
-    expect(Array.isArray(docs)).toBe(true)
-    expect(docs).toHaveLength(1)
-  })
+      json: async () => ({
+        docs: [{ type: "plans", path: "/p", relPath: "r" }],
+      }),
+    });
+    const docs = await fetchDocs("plans");
+    expect(Array.isArray(docs)).toBe(true);
+    expect(docs).toHaveLength(1);
+  });
 
-  it('url-encodes the type parameter', async () => {
+  it("url-encodes the type parameter", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ docs: [] }),
-    })
-    await fetchDocs('plan-reviews')
-    expect(mockFetch).toHaveBeenCalledWith('/api/docs?type=plan-reviews')
-  })
+    });
+    await fetchDocs("plan-reviews");
+    expect(mockFetch).toHaveBeenCalledWith("/api/docs?type=plan-reviews");
+  });
 
-  it('throws on non-200', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 })
-    await expect(fetchDocs('plans')).rejects.toThrow('404')
-  })
-})
+  it("throws on non-200", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+    await expect(fetchDocs("plans")).rejects.toThrow("404");
+  });
+});
 
-describe('fetchDocContent', () => {
-  it('returns content and etag', async () => {
+describe("fetchDocContent", () => {
+  it("returns content and etag", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      text: async () => '# Hello',
-      headers: { get: (h: string) => h === 'etag' ? '"sha256-abc"' : null },
-    })
-    const result = await fetchDocContent('meta/plans/foo.md')
-    expect(result.content).toBe('# Hello')
-    expect(result.etag).toBe('"sha256-abc"')
-  })
+      text: async () => "# Hello",
+      headers: { get: (h: string) => (h === "etag" ? '"sha256-abc"' : null) },
+    });
+    const result = await fetchDocContent("meta/plans/foo.md");
+    expect(result.content).toBe("# Hello");
+    expect(result.etag).toBe('"sha256-abc"');
+  });
 
-  it('encodes path segments individually, preserving slash separators', async () => {
+  it("encodes path segments individually, preserving slash separators", async () => {
     // Locks in the per-segment encoding: spaces and special characters
     // get percent-encoded within a segment, but '/' between segments
     // stays literal so the server route `/api/docs/*path` receives the
     // right structure.
     mockFetch.mockResolvedValueOnce({
-      ok: true, text: async () => '', headers: { get: () => null },
-    })
-    await fetchDocContent('meta/plans/with spaces/file#1.md')
+      ok: true,
+      text: async () => "",
+      headers: { get: () => null },
+    });
+    await fetchDocContent("meta/plans/with spaces/file#1.md");
     expect(mockFetch).toHaveBeenCalledWith(
-      '/api/docs/meta/plans/with%20spaces/file%231.md',
-    )
-  })
+      "/api/docs/meta/plans/with%20spaces/file%231.md",
+    );
+  });
 
-  it('falls back to empty etag when the header is missing', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true, text: async () => 'x', headers: { get: () => null },
-    })
-    const result = await fetchDocContent('foo.md')
-    expect(result.etag).toBe('')
-  })
-})
-
-describe('fetchTemplates', () => {
-  it('returns the full template-summary envelope', async () => {
+  it("falls back to empty etag when the header is missing", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ templates: [{ name: 'adr', activeTier: 'plugin-default', tiers: [] }] }),
-    })
-    const result = await fetchTemplates()
-    expect(result.templates).toHaveLength(1)
-    expect(result.templates[0].name).toBe('adr')
-  })
+      text: async () => "x",
+      headers: { get: () => null },
+    });
+    const result = await fetchDocContent("foo.md");
+    expect(result.etag).toBe("");
+  });
+});
 
-  it('throws on non-200', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 })
-    await expect(fetchTemplates()).rejects.toThrow('500')
-  })
-})
-
-describe('fetchTemplateDetail', () => {
-  it('url-encodes the template name', async () => {
+describe("fetchTemplates", () => {
+  it("returns the full template-summary envelope", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ name: 'adr', activeTier: 'plugin-default', tiers: [] }),
-    })
-    await fetchTemplateDetail('adr')
-    expect(mockFetch).toHaveBeenCalledWith('/api/templates/adr')
-  })
+      json: async () => ({
+        templates: [{ name: "adr", activeTier: "plugin-default", tiers: [] }],
+      }),
+    });
+    const result = await fetchTemplates();
+    expect(result.templates).toHaveLength(1);
+    expect(result.templates[0].name).toBe("adr");
+  });
 
-  it('throws on non-200', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 })
-    await expect(fetchTemplateDetail('missing')).rejects.toThrow('404')
-  })
-})
+  it("throws on non-200", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    await expect(fetchTemplates()).rejects.toThrow("500");
+  });
+});
 
-describe('fetchLifecycleClusters', () => {
-  it('unwraps the `clusters` field from the response envelope', async () => {
+describe("fetchTemplateDetail", () => {
+  it("url-encodes the template name", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        name: "adr",
+        activeTier: "plugin-default",
+        tiers: [],
+      }),
+    });
+    await fetchTemplateDetail("adr");
+    expect(mockFetch).toHaveBeenCalledWith("/api/templates/adr");
+  });
+
+  it("throws on non-200", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+    await expect(fetchTemplateDetail("missing")).rejects.toThrow("404");
+  });
+});
+
+describe("fetchLifecycleClusters", () => {
+  it("unwraps the `clusters` field from the response envelope", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         clusters: [
           {
-            slug: 'foo',
-            title: 'Foo',
+            slug: "foo",
+            title: "Foo",
             entries: [],
             completeness: {
-              hasWorkItem: false, hasResearch: false, hasPlan: true,
-              hasPlanReview: false, hasValidation: false, hasPrDescription: false,
-              hasPrReview: false, hasDecision: false, hasNotes: false,
+              hasWorkItem: false,
+              hasResearch: false,
+              hasPlan: true,
+              hasPlanReview: false,
+              hasValidation: false,
+              hasPrDescription: false,
+              hasPrReview: false,
+              hasDecision: false,
+              hasNotes: false,
             },
             lastChangedMs: 1_700_000_000_000,
           },
         ],
       }),
-    })
-    const clusters = await fetchLifecycleClusters()
-    expect(clusters).toHaveLength(1)
-    expect(clusters[0].slug).toBe('foo')
-    expect(clusters[0].lastChangedMs).toBe(1_700_000_000_000)
-  })
+    });
+    const clusters = await fetchLifecycleClusters();
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].slug).toBe("foo");
+    expect(clusters[0].lastChangedMs).toBe(1_700_000_000_000);
+  });
 
-  it('throws on non-200', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 })
-    await expect(fetchLifecycleClusters()).rejects.toThrow('500')
-  })
-})
+  it("throws on non-200", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    await expect(fetchLifecycleClusters()).rejects.toThrow("500");
+  });
+});
 
-describe('fetchRelated', () => {
+describe("fetchRelated", () => {
   // ── Step 5.1 ─────────────────────────────────────────────────────────
-  it('builds the right URL and decodes the payload', async () => {
+  it("builds the right URL and decodes the payload", async () => {
     const payload = {
       inferredCluster: [],
       declaredOutbound: [],
       declaredInbound: [],
-    }
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => payload })
-    const result = await fetchRelated('meta/plans/foo.md')
-    expect(mockFetch).toHaveBeenCalledWith('/api/related/meta/plans/foo.md')
-    expect(result).toEqual(payload)
-  })
+    };
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => payload });
+    const result = await fetchRelated("meta/plans/foo.md");
+    expect(mockFetch).toHaveBeenCalledWith("/api/related/meta/plans/foo.md");
+    expect(result).toEqual(payload);
+  });
 
   // ── Step 5.2 ─────────────────────────────────────────────────────────
-  it('throws FetchError on non-2xx', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 })
+  it("throws FetchError on non-2xx", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
     try {
-      await fetchRelated('meta/plans/missing.md')
-      throw new Error('expected throw')
+      await fetchRelated("meta/plans/missing.md");
+      throw new Error("expected throw");
     } catch (err) {
-      expect(err).toBeInstanceOf(FetchError)
-      expect((err as FetchError).status).toBe(404)
+      expect(err).toBeInstanceOf(FetchError);
+      expect((err as FetchError).status).toBe(404);
     }
-  })
+  });
 
   // ── Step 5.3 ─────────────────────────────────────────────────────────
-  it('encodes path segments individually, preserving slash separators', async () => {
+  it("encodes path segments individually, preserving slash separators", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -193,14 +228,14 @@ describe('fetchRelated', () => {
         declaredOutbound: [],
         declaredInbound: [],
       }),
-    })
-    await fetchRelated('meta/plans/with spaces/file#1.md')
+    });
+    await fetchRelated("meta/plans/with spaces/file#1.md");
     expect(mockFetch).toHaveBeenCalledWith(
-      '/api/related/meta/plans/with%20spaces/file%231.md',
-    )
-  })
+      "/api/related/meta/plans/with%20spaces/file%231.md",
+    );
+  });
 
-  it('round-trips a literal % through encode/decode', async () => {
+  it("round-trips a literal % through encode/decode", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -208,296 +243,383 @@ describe('fetchRelated', () => {
         declaredOutbound: [],
         declaredInbound: [],
       }),
-    })
-    await fetchRelated('meta/plans/100%-coverage.md')
+    });
+    await fetchRelated("meta/plans/100%-coverage.md");
     expect(mockFetch).toHaveBeenCalledWith(
-      '/api/related/meta/plans/100%25-coverage.md',
-    )
-  })
-})
+      "/api/related/meta/plans/100%25-coverage.md",
+    );
+  });
+});
 
-describe('FetchError contract — all helpers throw FetchError on non-2xx', () => {
+describe("FetchError contract — all helpers throw FetchError on non-2xx", () => {
   it.each([
-    ['fetchTypes',          () => fetchTypes()],
-    ['fetchDocs',           () => fetchDocs('work-items')],
-    ['fetchDocContent',     () => fetchDocContent('meta/work/0001-x.md')],
-    ['fetchTemplates',      () => fetchTemplates()],
-    ['fetchTemplateDetail', () => fetchTemplateDetail('foo')],
-  ])('%s rejects with FetchError carrying the status', async (_name, call) => {
-    mockFetch.mockResolvedValue({ ok: false, status: 503, headers: { get: () => null }, text: async () => '', json: async () => ({}) })
-    await expect(call()).rejects.toBeInstanceOf(FetchError)
+    ["fetchTypes", () => fetchTypes()],
+    ["fetchDocs", () => fetchDocs("work-items")],
+    ["fetchDocContent", () => fetchDocContent("meta/work/0001-x.md")],
+    ["fetchTemplates", () => fetchTemplates()],
+    ["fetchTemplateDetail", () => fetchTemplateDetail("foo")],
+  ])("%s rejects with FetchError carrying the status", async (_name, call) => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      headers: { get: () => null },
+      text: async () => "",
+      json: async () => ({}),
+    });
+    await expect(call()).rejects.toBeInstanceOf(FetchError);
     try {
-      await call()
+      await call();
     } catch (err) {
-      expect(err).toBeInstanceOf(FetchError)
-      expect((err as FetchError).status).toBe(503)
+      expect(err).toBeInstanceOf(FetchError);
+      expect((err as FetchError).status).toBe(503);
     }
-  })
+  });
 
   it.each([
-    ['fetchTypes',          () => fetchTypes(),                 404],
-    ['fetchDocs',           () => fetchDocs('work-items'),         404],
-    ['fetchDocContent',     () => fetchDocContent('foo.md'),    404],
-    ['fetchTemplates',      () => fetchTemplates(),             404],
-    ['fetchTemplateDetail', () => fetchTemplateDetail('foo'),   404],
-  ])('%s rejects with FetchError(404)', async (_name, call, status) => {
-    mockFetch.mockResolvedValue({ ok: false, status, headers: { get: () => null }, text: async () => '', json: async () => ({}) })
-    await expect(call()).rejects.toMatchObject({
-      name: 'FetchError',
+    ["fetchTypes", () => fetchTypes(), 404],
+    ["fetchDocs", () => fetchDocs("work-items"), 404],
+    ["fetchDocContent", () => fetchDocContent("foo.md"), 404],
+    ["fetchTemplates", () => fetchTemplates(), 404],
+    ["fetchTemplateDetail", () => fetchTemplateDetail("foo"), 404],
+  ])("%s rejects with FetchError(404)", async (_name, call, status) => {
+    mockFetch.mockResolvedValue({
+      ok: false,
       status,
-    })
-  })
-})
+      headers: { get: () => null },
+      text: async () => "",
+      json: async () => ({}),
+    });
+    await expect(call()).rejects.toMatchObject({
+      name: "FetchError",
+      status,
+    });
+  });
+});
 
-describe('patchWorkItemFrontmatter', () => {
-  it('sends PATCH with If-Match and JSON body', async () => {
+describe("patchWorkItemFrontmatter", () => {
+  it("sends PATCH with If-Match and JSON body", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 204,
-      headers: { get: (h: string) => h === 'etag' ? '"sha256-NEW"' : null },
-    })
+      headers: { get: (h: string) => (h === "etag" ? '"sha256-NEW"' : null) },
+    });
     const result = await patchWorkItemFrontmatter(
-      'meta/work/0001-foo.md',
-      { status: 'in-progress' },
-      'sha256-OLD',
-    )
+      "meta/work/0001-foo.md",
+      { status: "in-progress" },
+      "sha256-OLD",
+    );
     expect(mockFetch).toHaveBeenCalledWith(
-      '/api/docs/meta/work/0001-foo.md/frontmatter',
+      "/api/docs/meta/work/0001-foo.md/frontmatter",
       expect.objectContaining({
-        method: 'PATCH',
-        headers: expect.objectContaining({ 'If-Match': '"sha256-OLD"' }),
-        body: JSON.stringify({ patch: { status: 'in-progress' } }),
+        method: "PATCH",
+        headers: expect.objectContaining({ "If-Match": '"sha256-OLD"' }),
+        body: JSON.stringify({ patch: { status: "in-progress" } }),
       }),
-    )
-    expect(result).toEqual({ etag: 'sha256-NEW' })
-  })
+    );
+    expect(result).toEqual({ etag: "sha256-NEW" });
+  });
 
-  it('unwraps quoted etag from response', async () => {
+  it("unwraps quoted etag from response", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 204,
-      headers: { get: (h: string) => h === 'etag' ? '"sha256-NEW"' : null },
-    })
-    const result = await patchWorkItemFrontmatter('meta/work/0001-foo.md', { status: 'todo' }, 'sha256-OLD')
-    expect(result.etag).toBe('sha256-NEW')
-  })
+      headers: { get: (h: string) => (h === "etag" ? '"sha256-NEW"' : null) },
+    });
+    const result = await patchWorkItemFrontmatter(
+      "meta/work/0001-foo.md",
+      { status: "todo" },
+      "sha256-OLD",
+    );
+    expect(result.etag).toBe("sha256-NEW");
+  });
 
-  it('throws ConflictError on 412 with currentEtag', async () => {
+  it("throws ConflictError on 412 with currentEtag", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 412,
-      json: async () => ({ currentEtag: 'sha256-LATEST' }),
-    })
+      json: async () => ({ currentEtag: "sha256-LATEST" }),
+    });
     await expect(
-      patchWorkItemFrontmatter('meta/work/0001-foo.md', { status: 'done' }, 'sha256-OLD'),
+      patchWorkItemFrontmatter(
+        "meta/work/0001-foo.md",
+        { status: "done" },
+        "sha256-OLD",
+      ),
     ).rejects.toSatisfy((e: unknown) => {
-      return e instanceof ConflictError && e.status === 412 && e.currentEtag === 'sha256-LATEST'
-    })
-  })
+      return (
+        e instanceof ConflictError &&
+        e.status === 412 &&
+        e.currentEtag === "sha256-LATEST"
+      );
+    });
+  });
 
-  it('throws FetchError (not ConflictError) on other 4xx', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({}) })
+  it("throws FetchError (not ConflictError) on other 4xx", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({}),
+    });
     const err = await patchWorkItemFrontmatter(
-      'meta/work/0001-foo.md', { status: 'todo' }, 'sha256-OLD',
-    ).catch((e: unknown) => e)
-    expect(err).toBeInstanceOf(FetchError)
-    expect(err).not.toBeInstanceOf(ConflictError)
-    expect((err as FetchError).status).toBe(400)
-  })
+      "meta/work/0001-foo.md",
+      { status: "todo" },
+      "sha256-OLD",
+    ).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(FetchError);
+    expect(err).not.toBeInstanceOf(ConflictError);
+    expect((err as FetchError).status).toBe(400);
+  });
 
-  it('encodes rel path segments', async () => {
+  it("encodes rel path segments", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 204,
       headers: { get: () => '"sha256-NEW"' },
-    })
-    await patchWorkItemFrontmatter('meta/work/0001 weird path.md', { status: 'todo' }, 'sha256-X')
+    });
+    await patchWorkItemFrontmatter(
+      "meta/work/0001 weird path.md",
+      { status: "todo" },
+      "sha256-X",
+    );
     expect(mockFetch).toHaveBeenCalledWith(
-      '/api/docs/meta/work/0001%20weird%20path.md/frontmatter',
+      "/api/docs/meta/work/0001%20weird%20path.md/frontmatter",
       expect.anything(),
-    )
-  })
-})
+    );
+  });
+});
 
-describe('fetchLifecycleCluster', () => {
-  it('returns the single-cluster payload directly', async () => {
+describe("fetchLifecycleCluster", () => {
+  it("returns the single-cluster payload directly", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        slug: 'foo', title: 'Foo', entries: [],
+        slug: "foo",
+        title: "Foo",
+        entries: [],
         completeness: {
-          hasWorkItem: false, hasResearch: false, hasPlan: false,
-          hasPlanReview: false, hasValidation: false, hasPrDescription: false,
-          hasPrReview: false, hasDecision: false, hasNotes: false,
+          hasWorkItem: false,
+          hasResearch: false,
+          hasPlan: false,
+          hasPlanReview: false,
+          hasValidation: false,
+          hasPrDescription: false,
+          hasPrReview: false,
+          hasDecision: false,
+          hasNotes: false,
         },
         lastChangedMs: 0,
       }),
-    })
-    const cluster = await fetchLifecycleCluster('foo')
-    expect(cluster.slug).toBe('foo')
-  })
+    });
+    const cluster = await fetchLifecycleCluster("foo");
+    expect(cluster.slug).toBe("foo");
+  });
 
-  it('url-encodes the slug', async () => {
+  it("url-encodes the slug", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        slug: 'foo bar', title: '', entries: [],
+        slug: "foo bar",
+        title: "",
+        entries: [],
         completeness: {
-          hasWorkItem: false, hasResearch: false, hasPlan: false,
-          hasPlanReview: false, hasValidation: false, hasPrDescription: false,
-          hasPrReview: false, hasDecision: false, hasNotes: false,
+          hasWorkItem: false,
+          hasResearch: false,
+          hasPlan: false,
+          hasPlanReview: false,
+          hasValidation: false,
+          hasPrDescription: false,
+          hasPrReview: false,
+          hasDecision: false,
+          hasNotes: false,
         },
         lastChangedMs: 0,
       }),
-    })
-    await fetchLifecycleCluster('foo bar')
-    expect(mockFetch).toHaveBeenCalledWith('/api/lifecycle/foo%20bar')
-  })
+    });
+    await fetchLifecycleCluster("foo bar");
+    expect(mockFetch).toHaveBeenCalledWith("/api/lifecycle/foo%20bar");
+  });
 
-  it('throws on 404', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 })
-    await expect(fetchLifecycleCluster('missing')).rejects.toThrow('404')
-  })
-})
+  it("throws on 404", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+    await expect(fetchLifecycleCluster("missing")).rejects.toThrow("404");
+  });
+});
 
-describe('fetchActivity', () => {
-  it('GETs /api/activity?limit=N and returns events array', async () => {
+describe("fetchActivity", () => {
+  it("GETs /api/activity?limit=N and returns events array", async () => {
     const events = [
-      { action: 'created', docType: 'plans', path: 'a', timestamp: '2026-05-13T00:00:00Z' },
-    ]
+      {
+        action: "created",
+        docType: "plans",
+        path: "a",
+        timestamp: "2026-05-13T00:00:00Z",
+      },
+    ];
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ events }),
-    })
-    const out = await fetchActivity(5)
-    expect(out).toEqual(events)
-    expect(mockFetch).toHaveBeenCalledWith('/api/activity?limit=5')
-  })
+    });
+    const out = await fetchActivity(5);
+    expect(out).toEqual(events);
+    expect(mockFetch).toHaveBeenCalledWith("/api/activity?limit=5");
+  });
 
-  it('throws FetchError on non-2xx', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 })
-    await expect(fetchActivity(5)).rejects.toBeInstanceOf(FetchError)
-  })
-})
+  it("throws FetchError on non-2xx", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    await expect(fetchActivity(5)).rejects.toBeInstanceOf(FetchError);
+  });
+});
 
-describe('fetchLibraryStructure', () => {
-  it('GETs /api/library/structure with no query string when no selection', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
-    await fetchLibraryStructure()
-    expect(mockFetch).toHaveBeenCalledWith('/api/library/structure')
-  })
+describe("fetchLibraryStructure", () => {
+  it("GETs /api/library/structure with no query string when no selection", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ phases: [], templates: {} }),
+    });
+    await fetchLibraryStructure();
+    expect(mockFetch).toHaveBeenCalledWith("/api/library/structure");
+  });
 
-  it('appends a single selection key when one option is set', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
-    await fetchLibraryStructure({ decisions: { status: ['open'] } })
-    expect(mockFetch).toHaveBeenCalledTimes(1)
-    const url = mockFetch.mock.calls[0][0]
-    expect(url).toContain('selection%5Bdecisions%5D%5Bstatus%5D=open')
-  })
+  it("appends a single selection key when one option is set", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ phases: [], templates: {} }),
+    });
+    await fetchLibraryStructure({ decisions: { status: ["open"] } });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const url = mockFetch.mock.calls[0][0];
+    expect(url).toContain("selection%5Bdecisions%5D%5Bstatus%5D=open");
+  });
 
-  it('uses repeated keys (not commas) for multiple options', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
-    await fetchLibraryStructure({ decisions: { status: ['open', 'blocked'] } })
-    const url = mockFetch.mock.calls[0][0] as string
-    const matches = url.match(/selection%5Bdecisions%5D%5Bstatus%5D=/g) ?? []
-    expect(matches.length).toBe(2)
-    expect(url).not.toContain('open%2Cblocked')
-  })
+  it("uses repeated keys (not commas) for multiple options", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ phases: [], templates: {} }),
+    });
+    await fetchLibraryStructure({ decisions: { status: ["open", "blocked"] } });
+    const url = mockFetch.mock.calls[0][0] as string;
+    const matches = url.match(/selection%5Bdecisions%5D%5Bstatus%5D=/g) ?? [];
+    expect(matches.length).toBe(2);
+    expect(url).not.toContain("open%2Cblocked");
+  });
 
-  it('omits empty option arrays from the URL', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
-    await fetchLibraryStructure({ decisions: { status: [] } })
-    expect(mockFetch).toHaveBeenCalledWith('/api/library/structure')
-  })
+  it("omits empty option arrays from the URL", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ phases: [], templates: {} }),
+    });
+    await fetchLibraryStructure({ decisions: { status: [] } });
+    expect(mockFetch).toHaveBeenCalledWith("/api/library/structure");
+  });
 
-  it('omits empty per-type objects', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
-    await fetchLibraryStructure({ decisions: {} })
-    expect(mockFetch).toHaveBeenCalledWith('/api/library/structure')
-  })
+  it("omits empty per-type objects", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ phases: [], templates: {} }),
+    });
+    await fetchLibraryStructure({ decisions: {} });
+    expect(mockFetch).toHaveBeenCalledWith("/api/library/structure");
+  });
 
-  it('percent-encodes reserved characters in option ids', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
-    await fetchLibraryStructure({ decisions: { clusterSlug: ['a,b'] } })
-    const url = mockFetch.mock.calls[0][0] as string
-    expect(url).toContain('clusterSlug%5D=a%2Cb')
-  })
+  it("percent-encodes reserved characters in option ids", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ phases: [], templates: {} }),
+    });
+    await fetchLibraryStructure({ decisions: { clusterSlug: ["a,b"] } });
+    const url = mockFetch.mock.calls[0][0] as string;
+    expect(url).toContain("clusterSlug%5D=a%2Cb");
+  });
 
-  it('produces the same URL for empty-array selections and empty selection', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
-    await fetchLibraryStructure({ decisions: { status: [] } })
-    const first = mockFetch.mock.calls[0][0]
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ phases: [], templates: {} }) })
-    await fetchLibraryStructure({})
-    const second = mockFetch.mock.calls[1][0]
-    expect(first).toBe(second)
-  })
-})
+  it("produces the same URL for empty-array selections and empty selection", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ phases: [], templates: {} }),
+    });
+    await fetchLibraryStructure({ decisions: { status: [] } });
+    const first = mockFetch.mock.calls[0][0];
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ phases: [], templates: {} }),
+    });
+    await fetchLibraryStructure({});
+    const second = mockFetch.mock.calls[1][0];
+    expect(first).toBe(second);
+  });
+});
 
-describe('fetchSearch', () => {
-  it('returns results on 2xx', async () => {
+describe("fetchSearch", () => {
+  it("returns results on 2xx", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        results: [
-          { docType: 'plans', title: 'Foo', slug: 'foo', mtimeMs: 1 },
-        ],
+        results: [{ docType: "plans", title: "Foo", slug: "foo", mtimeMs: 1 }],
       }),
-    })
-    const out = await fetchSearch('foo')
-    expect(out).toHaveLength(1)
-    expect(out[0]).toEqual({ docType: 'plans', title: 'Foo', slug: 'foo', mtimeMs: 1 })
-  })
+    });
+    const out = await fetchSearch("foo");
+    expect(out).toHaveLength(1);
+    expect(out[0]).toEqual({
+      docType: "plans",
+      title: "Foo",
+      slug: "foo",
+      mtimeMs: 1,
+    });
+  });
 
-  it('throws FetchError on non-2xx with /api/search in message but not raw q', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 })
-    let err: unknown
+  it("throws FetchError on non-2xx with /api/search in message but not raw q", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    let err: unknown;
     try {
-      await fetchSearch('secret-token')
+      await fetchSearch("secret-token");
     } catch (e) {
-      err = e
+      err = e;
     }
-    expect(err).toBeInstanceOf(FetchError)
-    expect((err as FetchError).status).toBe(500)
-    expect((err as FetchError).message).toContain('/api/search')
-    expect((err as FetchError).message).not.toContain('secret-token')
-    expect(consoleSpy).toHaveBeenCalled()
-    consoleSpy.mockRestore()
-  })
+    expect(err).toBeInstanceOf(FetchError);
+    expect((err as FetchError).status).toBe(500);
+    expect((err as FetchError).message).toContain("/api/search");
+    expect((err as FetchError).message).not.toContain("secret-token");
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
 
-  it('url-encodes the query', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ results: [] }) })
-    await fetchSearch('foo bar/baz')
-    const url = mockFetch.mock.calls[0][0] as string
-    expect(url).toContain('q=foo%20bar%2Fbaz')
-  })
+  it("url-encodes the query", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ results: [] }),
+    });
+    await fetchSearch("foo bar/baz");
+    const url = mockFetch.mock.calls[0][0] as string;
+    expect(url).toContain("q=foo%20bar%2Fbaz");
+  });
 
-  it('forwards an AbortSignal and propagates AbortError without console.error', async () => {
-    const controller = new AbortController()
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockFetch.mockImplementationOnce(async (_url: string, init: RequestInit) => {
-      // Simulate a fetch that aborts when the signal aborts.
-      return await new Promise((_resolve, reject) => {
-        init.signal?.addEventListener('abort', () => {
-          reject(new DOMException('aborted', 'AbortError'))
-        })
-        controller.abort()
-      })
-    })
-    let err: unknown
+  it("forwards an AbortSignal and propagates AbortError without console.error", async () => {
+    const controller = new AbortController();
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockFetch.mockImplementationOnce(
+      async (_url: string, init: RequestInit) => {
+        // Simulate a fetch that aborts when the signal aborts.
+        return await new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => {
+            reject(new DOMException("aborted", "AbortError"));
+          });
+          controller.abort();
+        });
+      },
+    );
+    let err: unknown;
     try {
-      await fetchSearch('q', controller.signal)
+      await fetchSearch("q", controller.signal);
     } catch (e) {
-      err = e
+      err = e;
     }
-    expect(err).toBeInstanceOf(DOMException)
-    expect((err as DOMException).name).toBe('AbortError')
+    expect(err).toBeInstanceOf(DOMException);
+    expect((err as DOMException).name).toBe("AbortError");
     // Verify fetch received the signal.
-    const init = mockFetch.mock.calls[0][1] as RequestInit
-    expect(init.signal).toBe(controller.signal)
+    const init = mockFetch.mock.calls[0][1] as RequestInit;
+    expect(init.signal).toBe(controller.signal);
     // Abort must NOT have been logged via console.error.
-    expect(consoleSpy).not.toHaveBeenCalled()
-    consoleSpy.mockRestore()
-  })
-})
+    expect(consoleSpy).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+});

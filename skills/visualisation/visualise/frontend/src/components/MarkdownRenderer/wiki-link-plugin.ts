@@ -1,6 +1,6 @@
-import type { Plugin } from 'unified'
-import type { Link, Parents, Root, Text } from 'mdast'
-import { SKIP, visit } from 'unist-util-visit'
+import type { Link, Parents, Root, Text } from "mdast";
+import type { Plugin } from "unified";
+import { SKIP, visit } from "unist-util-visit";
 
 /** The resolver's three return shapes drive three distinct visual
  *  treatments downstream. The hook in Phase 5 returns `pending` while
@@ -8,14 +8,14 @@ import { SKIP, visit } from 'unist-util-visit'
  *  and `unresolved` when both queries have settled and no entry
  *  matches. */
 export type ResolverResult =
-  | { kind: 'resolved'; href: string; title: string }
-  | { kind: 'unresolved' }
-  | { kind: 'pending' }
+  | { kind: "resolved"; href: string; title: string }
+  | { kind: "unresolved" }
+  | { kind: "pending" };
 
 export type Resolver = (
-  prefix: 'ADR' | 'WORK-ITEM',
+  prefix: "ADR" | "WORK-ITEM",
   id: string,
-) => ResolverResult
+) => ResolverResult;
 
 /** A pseudo-mdast node rendered as a span with a class modifier. Two
  *  flavours: `wiki-link-pending` (cache warming) and
@@ -24,18 +24,18 @@ export type Resolver = (
  *  way to emit a custom HTML element without enabling raw-HTML
  *  parsing. */
 export interface MarkerNode {
-  type: 'wikiLinkMarker'
+  type: "wikiLinkMarker";
   data: {
-    hName: 'span'
+    hName: "span";
     hProperties: {
-      className: 'unresolved-wiki-link' | 'wiki-link-pending'
-      title: string
-    }
-    hChildren: [{ type: 'text'; value: string }]
-  }
+      className: "unresolved-wiki-link" | "wiki-link-pending";
+      title: string;
+    };
+    hChildren: [{ type: "text"; value: string }];
+  };
 }
 
-type ReplacementNode = Text | Link | MarkerNode
+type ReplacementNode = Text | Link | MarkerNode;
 
 /** remark plugin that rewrites `[[ADR-NNNN]]` / `[[WORK-ITEM-NNNN]]`
  *  occurrences inside `text` nodes only. mdast represents fenced and
@@ -45,92 +45,95 @@ type ReplacementNode = Text | Link | MarkerNode
  *  Takes the compiled wiki-link pattern as the first argument rather
  *  than reading a module-level constant, so the caller controls the
  *  pattern (default numeric vs. project-prefixed). */
-export const remarkWikiLinks: Plugin<[RegExp, Resolver], Root> = (pattern, resolve) => (tree) => {
-  visit(tree, 'text', (node: Text, index, parent: Parents | undefined) => {
-    if (!parent || index === undefined) return
-    const replacement = splitTextNode(node, pattern, resolve)
-    if (!replacement) return
-    parent.children.splice(
-      index,
-      1,
-      ...(replacement as Array<Text | Link>),
-    )
-    // Skip past the inserted nodes unconditionally. Inserted nodes are
-    // either Text (already exhausted), Link (Text child is the entry
-    // title — never the bracket-form), or marker spans (child Text
-    // *is* bracket-form and would re-match if visited). SKIP prevents
-    // double-rewrite for the marker case and is a no-op for the others.
-    return [SKIP, index + replacement.length]
-  })
-}
+export const remarkWikiLinks: Plugin<[RegExp, Resolver], Root> =
+  (pattern, resolve) => (tree) => {
+    visit(tree, "text", (node: Text, index, parent: Parents | undefined) => {
+      if (!parent || index === undefined) return;
+      const replacement = splitTextNode(node, pattern, resolve);
+      if (!replacement) return;
+      parent.children.splice(index, 1, ...(replacement as Array<Text | Link>));
+      // Skip past the inserted nodes unconditionally. Inserted nodes are
+      // either Text (already exhausted), Link (Text child is the entry
+      // title — never the bracket-form), or marker spans (child Text
+      // *is* bracket-form and would re-match if visited). SKIP prevents
+      // double-rewrite for the marker case and is a no-op for the others.
+      return [SKIP, index + replacement.length];
+    });
+  };
 
 /** Returns the replacement node sequence, or `null` when the input
  *  contains no bracket-shape matches at all (no allocation overhead
  *  for plain prose). */
-function splitTextNode(node: Text, pattern: RegExp, resolve: Resolver): ReplacementNode[] | null {
-  const value = node.value
+function splitTextNode(
+  node: Text,
+  pattern: RegExp,
+  resolve: Resolver,
+): ReplacementNode[] | null {
+  const value = node.value;
   // Reset lastIndex defensively — the pattern regex uses the global flag.
-  pattern.lastIndex = 0
-  const out: ReplacementNode[] = []
-  let cursor = 0
-  let match: RegExpExecArray | null = pattern.exec(value)
+  pattern.lastIndex = 0;
+  const out: ReplacementNode[] = [];
+  let cursor = 0;
+  let match: RegExpExecArray | null = pattern.exec(value);
   while (match !== null) {
-    const [bracketForm, prefixRaw, id] = match
-    const prefix = prefixRaw as 'ADR' | 'WORK-ITEM'
-    const start = match.index
-    const end = start + bracketForm.length
+    const [bracketForm, prefixRaw, id] = match;
+    const prefix = prefixRaw as "ADR" | "WORK-ITEM";
+    const start = match.index;
+    const end = start + bracketForm.length;
 
     if (start > cursor) {
-      out.push({ type: 'text', value: value.slice(cursor, start) })
+      out.push({ type: "text", value: value.slice(cursor, start) });
     }
 
-    const result = resolve(prefix, id)
-    if (result.kind === 'resolved') {
-      out.push(linkNode(result.href, result.title, bracketForm))
-    } else if (result.kind === 'unresolved') {
+    const result = resolve(prefix, id);
+    if (result.kind === "resolved") {
+      out.push(linkNode(result.href, result.title, bracketForm));
+    } else if (result.kind === "unresolved") {
       out.push(
         markerNode(
           bracketForm,
-          'unresolved-wiki-link',
+          "unresolved-wiki-link",
           `No matching ${prefix} found for ID ${id}`,
         ),
-      )
+      );
     } else {
-      out.push(markerNode(bracketForm, 'wiki-link-pending', 'Loading reference…'))
+      out.push(
+        markerNode(bracketForm, "wiki-link-pending", "Loading reference…"),
+      );
     }
 
-    cursor = end
-    match = pattern.exec(value)
+    cursor = end;
+    match = pattern.exec(value);
   }
-  if (out.length === 0) return null
+  if (out.length === 0) return null;
   if (cursor < value.length) {
-    out.push({ type: 'text', value: value.slice(cursor) })
+    out.push({ type: "text", value: value.slice(cursor) });
   }
-  return out
+  return out;
 }
 
 function linkNode(href: string, title: string, bracketForm: string): Link {
   return {
-    type: 'link',
+    type: "link",
     url: href,
-    children: [{ type: 'text', value: title }],
+    children: [{ type: "text", value: title }],
     // The hover/source-form fallback. `data.hProperties.title` becomes
     // the rendered `<a>`'s `title` attribute via mdast-to-hast.
     data: { hProperties: { title: bracketForm } },
-  }
+  };
 }
 
 function markerNode(
   bracketForm: string,
-  className: 'unresolved-wiki-link' | 'wiki-link-pending',
+  className: "unresolved-wiki-link" | "wiki-link-pending",
   title: string,
 ): MarkerNode {
   return {
-    type: 'wikiLinkMarker',
+    type: "wikiLinkMarker",
     data: {
-      hName: 'span',
+      hName: "span",
       hProperties: { className, title },
-      hChildren: [{ type: 'text', value: bracketForm }],
+      hChildren: [{ type: "text", value: bracketForm }],
     },
-  }
+  };
 }

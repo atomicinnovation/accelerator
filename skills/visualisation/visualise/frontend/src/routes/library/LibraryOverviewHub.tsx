@@ -1,39 +1,35 @@
-import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { Page } from '../../components/Page/Page'
-import { Glyph } from '../../components/Glyph/Glyph'
-import { IconFrame } from '../../components/Glyph/IconFrame'
-import { fetchLibraryStructure } from '../../api/fetch'
-import { queryKeys } from '../../api/query-keys'
-import { isPhysicalDocTypeKey, type LibraryDocType } from '../../api/types'
-import styles from './LibraryOverviewHub.module.css'
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { fetchLibraryStructure } from "../../api/fetch";
+import { queryKeys } from "../../api/query-keys";
+import { isPhysicalDocTypeKey, type LibraryDocType } from "../../api/types";
+import { Glyph } from "../../components/Glyph/Glyph";
+import { IconFrame } from "../../components/Glyph/IconFrame";
+import { Page } from "../../components/Page/Page";
+import styles from "./LibraryOverviewHub.module.css";
 
 export function LibraryOverviewHub() {
   const { data, isPending, isError } = useQuery({
     queryKey: queryKeys.libraryStructure(),
     queryFn: () => fetchLibraryStructure(),
-  })
+  });
 
-  let body: React.ReactNode
+  let body: React.ReactNode;
   if (isPending) {
-    body = <p>Loading…</p>
+    body = <p>Loading…</p>;
   } else if (isError || !data) {
-    body = <p>Could not load library structure.</p>
+    body = <p>Could not load library structure.</p>;
   } else {
-    body = (
-      <>
-        {data.phases.map((phase) => (
-          <section key={phase.id} className={styles.phaseSection}>
-            <h2 className={styles.phaseHeading}>{phase.label.toUpperCase()}</h2>
-            <div className={styles.hubGrid} data-testid="hub-grid">
-              {phase.docTypes.map((dt) => (
-                <HubCard key={dt.id} docType={dt} />
-              ))}
-            </div>
-          </section>
-        ))}
-      </>
-    )
+    body = data.phases.map((phase) => (
+      <section key={phase.id} className={styles.phaseSection}>
+        <h2 className={styles.phaseHeading}>{phase.label.toUpperCase()}</h2>
+        <div className={styles.hubGrid} data-testid="hub-grid">
+          {phase.docTypes.map((dt) => (
+            <HubCard key={dt.id} docType={dt} />
+          ))}
+        </div>
+      </section>
+    ));
   }
 
   return (
@@ -45,29 +41,26 @@ export function LibraryOverviewHub() {
       }
       title={
         <>
-          All artifacts in{' '}
-          <span className={styles.metaToken}>meta/</span>
+          All artifacts in <span className={styles.metaToken}>meta/</span>
         </>
       }
       subtitle="Every document grouped by lifecycle phase."
     >
       {body}
     </Page>
-  )
+  );
 }
 
 function HubCard({ docType }: { docType: LibraryDocType }) {
-  const isEmpty = docType.count === 0
-  const className = `${styles.card} ${isEmpty ? styles.cardEmpty : ''}`
+  const isEmpty = docType.count === 0;
+  const className = `${styles.card} ${isEmpty ? styles.cardEmpty : ""}`;
   return (
     <Link
       to="/library/$type"
       params={{ type: docType.id }}
       className={className}
       aria-label={
-        isEmpty
-          ? `${docType.label} (no documents yet)`
-          : docType.label
+        isEmpty ? `${docType.label} (no documents yet)` : docType.label
       }
     >
       {/* templates excluded — see meta/work/0074 */}
@@ -80,13 +73,11 @@ function HubCard({ docType }: { docType: LibraryDocType }) {
           <span className={styles.cardCount}>{docType.count}</span>
         </div>
         <p className={styles.cardLatest}>
-          {docType.latest
-            ? `latest · ${docType.latest.title}`
-            : 'no docs yet'}
+          {docType.latest ? `latest · ${docType.latest.title}` : "no docs yet"}
         </p>
       </div>
     </Link>
-  )
+  );
 }
 
 /** Framed library eyebrow glyph — matches the tinted-square treatment
@@ -111,5 +102,5 @@ function LibraryIcon() {
         <path d="m17 5 3 1-4 14-3-1z" />
       </svg>
     </IconFrame>
-  )
+  );
 }

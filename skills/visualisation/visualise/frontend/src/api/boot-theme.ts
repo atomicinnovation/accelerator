@@ -1,11 +1,11 @@
-import { THEME_STORAGE_KEY, FONT_MODE_STORAGE_KEY } from './storage-keys'
+import { FONT_MODE_STORAGE_KEY, THEME_STORAGE_KEY } from "./storage-keys";
 
-export { BOOT_SCRIPT_SOURCE } from './storage-keys'
+export { BOOT_SCRIPT_SOURCE } from "./storage-keys";
 
 export interface BootDeps {
-  doc: Document
-  storage: Storage | null
-  matchPrefersDark: () => boolean
+  doc: Document;
+  storage: Storage | null;
+  matchPrefersDark: () => boolean;
 }
 
 /**
@@ -18,21 +18,25 @@ export interface BootDeps {
  * CSS prefers-color-scheme mirror handles the paint.
  */
 export function applyBootAttributes(deps: BootDeps): void {
-  const root = deps.doc.documentElement
+  const root = deps.doc.documentElement;
   // Theme: only write when storage has a valid entry. Otherwise let
   // CSS prefers-color-scheme govern the paint.
   try {
-    const t = deps.storage?.getItem(THEME_STORAGE_KEY)
-    if (t === 'light' || t === 'dark') {
-      root.setAttribute('data-theme', t)
+    const t = deps.storage?.getItem(THEME_STORAGE_KEY);
+    if (t === "light" || t === "dark") {
+      root.setAttribute("data-theme", t);
     }
-  } catch { /* SecurityError in private mode — fall through */ }
+  } catch {
+    /* SecurityError in private mode — fall through */
+  }
   // Font-mode: same shape, separate try block so a font-mode failure
   // never overwrites an already-applied data-theme.
   try {
-    const f = deps.storage?.getItem(FONT_MODE_STORAGE_KEY)
-    if (f === 'display' || f === 'mono') {
-      root.setAttribute('data-font', f)
+    const f = deps.storage?.getItem(FONT_MODE_STORAGE_KEY);
+    if (f === "display" || f === "mono") {
+      root.setAttribute("data-font", f);
     }
-  } catch { /* SecurityError — fall through */ }
+  } catch {
+    /* SecurityError — fall through */
+  }
 }

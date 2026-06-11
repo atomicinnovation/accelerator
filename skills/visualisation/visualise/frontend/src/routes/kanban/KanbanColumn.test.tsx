@@ -1,140 +1,178 @@
-import { describe, it, expect } from 'vitest'
-import React from 'react'
-import { screen, within, waitFor } from '@testing-library/react'
-import { DndContext, useDndContext } from '@dnd-kit/core'
-import { KanbanColumn } from './KanbanColumn'
-import { makeIndexEntry } from '../../api/test-fixtures'
-import { renderWithRouterAt } from '../../test/router-helpers'
+import { DndContext, useDndContext } from "@dnd-kit/core";
+import { screen, waitFor, within } from "@testing-library/react";
+import type React from "react";
+import { describe, expect, it } from "vitest";
+import { makeIndexEntry } from "../../api/test-fixtures";
+import { renderWithRouterAt } from "../../test/router-helpers";
+import { KanbanColumn } from "./KanbanColumn";
 
 function DroppableProbe({ id }: { id: string }) {
-  const { droppableContainers } = useDndContext()
-  const container = droppableContainers.get(id)
+  const { droppableContainers } = useDndContext();
+  const container = droppableContainers.get(id);
   return (
     <div
       data-testid={`probe-${id}`}
       data-registered={String(container !== undefined)}
       data-disabled={String(container?.disabled ?? false)}
     />
-  )
+  );
 }
 
 function renderColumn(ui: React.ReactNode) {
-  return renderWithRouterAt(<DndContext>{ui}</DndContext>)
+  return renderWithRouterAt(<DndContext>{ui}</DndContext>);
 }
 
-describe('KanbanColumn', () => {
-  it('renders the column heading and one card per entry', async () => {
+describe("KanbanColumn", () => {
+  it("renders the column heading and one card per entry", async () => {
     const a = makeIndexEntry({
-      type: 'work-items', relPath: 'meta/work/0001-a.md', title: 'Alpha',
-      frontmatter: { type: 'adr-creation-task', status: 'todo' },
-    })
+      type: "work-items",
+      relPath: "meta/work/0001-a.md",
+      title: "Alpha",
+      frontmatter: { type: "adr-creation-task", status: "todo" },
+    });
     const b = makeIndexEntry({
-      type: 'work-items', relPath: 'meta/work/0002-b.md', title: 'Beta',
-      frontmatter: { type: 'adr-creation-task', status: 'todo' },
-    })
-    renderColumn(<KanbanColumn columnKey="todo" label="Todo" entries={[a, b]} />)
-    const region = await screen.findByRole('region', { name: /todo/i })
-    expect(within(region).getByRole('heading', { name: /todo/i, level: 2 })).toBeInTheDocument()
-    expect(within(region).getByText('Alpha')).toBeInTheDocument()
-    expect(within(region).getByText('Beta')).toBeInTheDocument()
-  })
+      type: "work-items",
+      relPath: "meta/work/0002-b.md",
+      title: "Beta",
+      frontmatter: { type: "adr-creation-task", status: "todo" },
+    });
+    renderColumn(
+      <KanbanColumn columnKey="todo" label="Todo" entries={[a, b]} />,
+    );
+    const region = await screen.findByRole("region", { name: /todo/i });
+    expect(
+      within(region).getByRole("heading", { name: /todo/i, level: 2 }),
+    ).toBeInTheDocument();
+    expect(within(region).getByText("Alpha")).toBeInTheDocument();
+    expect(within(region).getByText("Beta")).toBeInTheDocument();
+  });
 
-  it('renders the prototype empty-state panel when entries is empty, marked aria-hidden', async () => {
-    renderColumn(<KanbanColumn columnKey="in-progress" label="In progress" entries={[]} />)
-    const region = await screen.findByRole('region', { name: /in progress/i })
-    const title = within(region).getByText('Nothing here')
-    expect(title).toBeInTheDocument()
+  it("renders the prototype empty-state panel when entries is empty, marked aria-hidden", async () => {
+    renderColumn(
+      <KanbanColumn columnKey="in-progress" label="In progress" entries={[]} />,
+    );
+    const region = await screen.findByRole("region", { name: /in progress/i });
+    const title = within(region).getByText("Nothing here");
+    expect(title).toBeInTheDocument();
     // Mechanism-neutral body copy naming the column's label.
     expect(
-      within(region).getByText('Move a work item here to set its status to In progress.'),
-    ).toBeInTheDocument()
+      within(region).getByText(
+        "Move a work item here to set its status to In progress.",
+      ),
+    ).toBeInTheDocument();
     // The whole panel is aria-hidden — the column header's count is the single
     // announced source of truth.
-    expect(title.closest('[aria-hidden="true"]')).not.toBeNull()
-  })
+    expect(title.closest('[aria-hidden="true"]')).not.toBeNull();
+  });
 
-  it('exposes the count via aria-label without duplicating the column name', async () => {
-    const a = makeIndexEntry({ type: 'work-items', relPath: 'meta/work/0001-a.md', frontmatter: { status: 'done' } })
-    const b = makeIndexEntry({ type: 'work-items', relPath: 'meta/work/0002-b.md', frontmatter: { status: 'done' } })
-    renderColumn(<KanbanColumn columnKey="done" label="Done" entries={[a, b]} />)
-    await screen.findByRole('region', { name: /done/i })
-    expect(screen.getByLabelText(/^2 work items$/i)).toBeInTheDocument()
-  })
+  it("exposes the count via aria-label without duplicating the column name", async () => {
+    const a = makeIndexEntry({
+      type: "work-items",
+      relPath: "meta/work/0001-a.md",
+      frontmatter: { status: "done" },
+    });
+    const b = makeIndexEntry({
+      type: "work-items",
+      relPath: "meta/work/0002-b.md",
+      frontmatter: { status: "done" },
+    });
+    renderColumn(
+      <KanbanColumn columnKey="done" label="Done" entries={[a, b]} />,
+    );
+    await screen.findByRole("region", { name: /done/i });
+    expect(screen.getByLabelText(/^2 work items$/i)).toBeInTheDocument();
+  });
 
-  it('uses singular wording for one work item and plural for zero or many', async () => {
-    const a = makeIndexEntry({ type: 'work-items', relPath: 'meta/work/0001-a.md', frontmatter: { status: 'todo' } })
-    const { unmount } = renderColumn(<KanbanColumn columnKey="todo" label="Todo" entries={[a]} />)
-    await screen.findByRole('region', { name: /todo/i })
-    expect(screen.getByLabelText(/^1 work item$/i)).toBeInTheDocument()
-    unmount()
-    renderColumn(<KanbanColumn columnKey="todo" label="Todo" entries={[]} />)
-    await screen.findByRole('region', { name: /todo/i })
-    expect(screen.getByLabelText(/^0 work items$/i)).toBeInTheDocument()
-  })
+  it("uses singular wording for one work item and plural for zero or many", async () => {
+    const a = makeIndexEntry({
+      type: "work-items",
+      relPath: "meta/work/0001-a.md",
+      frontmatter: { status: "todo" },
+    });
+    const { unmount } = renderColumn(
+      <KanbanColumn columnKey="todo" label="Todo" entries={[a]} />,
+    );
+    await screen.findByRole("region", { name: /todo/i });
+    expect(screen.getByLabelText(/^1 work item$/i)).toBeInTheDocument();
+    unmount();
+    renderColumn(<KanbanColumn columnKey="todo" label="Todo" entries={[]} />);
+    await screen.findByRole("region", { name: /todo/i });
+    expect(screen.getByLabelText(/^0 work items$/i)).toBeInTheDocument();
+  });
 
-  it('non_other_column_is_registered_as_droppable_with_column_key_id', async () => {
+  it("non_other_column_is_registered_as_droppable_with_column_key_id", async () => {
     renderColumn(
       <>
         <KanbanColumn columnKey="todo" label="Todo" entries={[]} />
         <DroppableProbe id="column:todo" />
       </>,
-    )
-    await screen.findByRole('region', { name: /todo/i })
+    );
+    await screen.findByRole("region", { name: /todo/i });
     await waitFor(() => {
-      const probe = screen.getByTestId('probe-column:todo')
-      expect(probe.dataset.registered).toBe('true')
-      expect(probe.dataset.disabled).toBe('false')
-    })
-  })
+      const probe = screen.getByTestId("probe-column:todo");
+      expect(probe.dataset.registered).toBe("true");
+      expect(probe.dataset.disabled).toBe("false");
+    });
+  });
 
-  it('empty_non_other_column_is_still_droppable', async () => {
+  it("empty_non_other_column_is_still_droppable", async () => {
     renderColumn(
       <>
-        <KanbanColumn columnKey="in-progress" label="In progress" entries={[]} />
+        <KanbanColumn
+          columnKey="in-progress"
+          label="In progress"
+          entries={[]}
+        />
         <DroppableProbe id="column:in-progress" />
       </>,
-    )
-    await screen.findByRole('region', { name: /in progress/i })
+    );
+    await screen.findByRole("region", { name: /in progress/i });
     await waitFor(() => {
-      const probe = screen.getByTestId('probe-column:in-progress')
-      expect(probe.dataset.registered).toBe('true')
-    })
-  })
+      const probe = screen.getByTestId("probe-column:in-progress");
+      expect(probe.dataset.registered).toBe("true");
+    });
+  });
 
-  it('other_column_registers_droppable_as_disabled', async () => {
+  it("other_column_registers_droppable_as_disabled", async () => {
     const x = makeIndexEntry({
-      type: 'work-items', relPath: 'meta/work/0007-x.md', title: 'Exotic',
-      frontmatter: { status: 'blocked' },
-    })
+      type: "work-items",
+      relPath: "meta/work/0007-x.md",
+      title: "Exotic",
+      frontmatter: { status: "blocked" },
+    });
     renderColumn(
       <>
         <KanbanColumn columnKey="other" label="Other" entries={[x]} />
         <DroppableProbe id="column:other" />
       </>,
-    )
-    await screen.findByRole('region', { name: /other/i })
+    );
+    await screen.findByRole("region", { name: /other/i });
     await waitFor(() => {
-      const probe = screen.getByTestId('probe-column:other')
-      expect(probe.dataset.registered).toBe('true')
-      expect(probe.dataset.disabled).toBe('true')
-    })
-  })
+      const probe = screen.getByTestId("probe-column:other");
+      expect(probe.dataset.registered).toBe("true");
+      expect(probe.dataset.disabled).toBe("true");
+    });
+  });
 
   it('renders the "Other" column variant with a distinct heading and explanation', async () => {
     const x = makeIndexEntry({
-      type: 'work-items', relPath: 'meta/work/0007-x.md', title: 'Exotic',
-      frontmatter: { type: 'adr-creation-task', status: 'blocked' },
-    })
+      type: "work-items",
+      relPath: "meta/work/0007-x.md",
+      title: "Exotic",
+      frontmatter: { type: "adr-creation-task", status: "blocked" },
+    });
     renderColumn(
       <KanbanColumn
         columnKey="other"
         label="Other"
         entries={[x]}
         description="Work items whose status is missing or not one of: todo, in-progress, done."
-      />
-    )
-    expect(await screen.findByRole('heading', { name: /other/i, level: 2 })).toBeInTheDocument()
-    expect(screen.getByText('Exotic')).toBeInTheDocument()
-    expect(screen.getByText(/missing or not one of/i)).toBeInTheDocument()
-  })
-})
+      />,
+    );
+    expect(
+      await screen.findByRole("heading", { name: /other/i, level: 2 }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Exotic")).toBeInTheDocument();
+    expect(screen.getByText(/missing or not one of/i)).toBeInTheDocument();
+  });
+});

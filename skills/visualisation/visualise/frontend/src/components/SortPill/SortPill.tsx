@@ -1,35 +1,35 @@
-import { useState } from 'react'
-import { Popover } from '../Popover/Popover'
-import styles from './SortPill.module.css'
+import { useState } from "react";
+import { Popover } from "../Popover/Popover";
+import styles from "./SortPill.module.css";
 
 export type SortOption =
-  | 'recently-modified'
-  | 'oldest-first'
-  | 'title-asc'
-  | 'title-desc'
-  | 'id-asc'
+  | "recently-modified"
+  | "oldest-first"
+  | "title-asc"
+  | "title-desc"
+  | "id-asc";
 
 interface OptionMeta {
-  id: SortOption
-  label: string
+  id: SortOption;
+  label: string;
 }
 
 const OPTIONS: OptionMeta[] = [
-  { id: 'recently-modified', label: 'Recently modified' },
-  { id: 'oldest-first', label: 'Oldest first' },
-  { id: 'title-asc', label: 'Title (A → Z)' },
-  { id: 'title-desc', label: 'Title (Z → A)' },
-  { id: 'id-asc', label: 'ID (ascending)' },
-]
+  { id: "recently-modified", label: "Recently modified" },
+  { id: "oldest-first", label: "Oldest first" },
+  { id: "title-asc", label: "Title (A → Z)" },
+  { id: "title-desc", label: "Title (Z → A)" },
+  { id: "id-asc", label: "ID (ascending)" },
+];
 
 export interface SortPillProps {
-  value: SortOption
-  onChange: (next: SortOption) => void
+  value: SortOption;
+  onChange: (next: SortOption) => void;
 }
 
 export function SortPill({ value, onChange }: SortPillProps) {
-  const [open, setOpen] = useState(false)
-  const current = OPTIONS.find(o => o.id === value) ?? OPTIONS[0]
+  const [open, setOpen] = useState(false);
+  const current = OPTIONS.find((o) => o.id === value) ?? OPTIONS[0];
 
   return (
     <Popover
@@ -40,7 +40,7 @@ export function SortPill({ value, onChange }: SortPillProps) {
         <button
           {...triggerProps}
           ref={triggerProps.ref as React.Ref<HTMLButtonElement>}
-          className={`${styles.trigger} ${open ? styles.triggerOpen : ''}`}
+          className={`${styles.trigger} ${open ? styles.triggerOpen : ""}`}
           data-testid="sort-trigger"
         >
           <SortIcon />
@@ -52,29 +52,38 @@ export function SortPill({ value, onChange }: SortPillProps) {
       <div className={styles.menu}>
         <div className={styles.menuHeader}>Sort by</div>
         <ul className={styles.menuList}>
-          {OPTIONS.map(opt => {
-            const selected = opt.id === value
+          {OPTIONS.map((opt) => {
+            const selected = opt.id === value;
+            const select = () => {
+              onChange(opt.id);
+              setOpen(false);
+            };
             return (
+              // biome-ignore lint/a11y/useAriaPropsSupportedByRole: this single-select menu deliberately pairs role="menuitem" with aria-checked to expose the active sort; the unit tests assert getAllByRole("menuitem") + aria-checked together, so switching to menuitemradio would break the contract
               <li
                 key={opt.id}
+                // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: <li role="menuitem"> is the canonical menu-item markup inside this role-less menu container; the unit tests query getByRole("menuitem"), so it cannot be downgraded
                 role="menuitem"
                 tabIndex={-1}
-                className={`${styles.menuItem} ${selected ? styles.menuItemActive : ''}`}
+                className={`${styles.menuItem} ${selected ? styles.menuItemActive : ""}`}
                 aria-checked={selected}
-                onClick={() => {
-                  onChange(opt.id)
-                  setOpen(false)
+                onClick={select}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    select();
+                  }
                 }}
               >
                 <span>{opt.label}</span>
                 {selected && <CheckIcon />}
               </li>
-            )
+            );
           })}
         </ul>
       </div>
     </Popover>
-  )
+  );
 }
 
 function SortIcon() {
@@ -95,7 +104,7 @@ function SortIcon() {
       <path d="M17 20V4" />
       <path d="m13 16 4 4 4-4" />
     </svg>
-  )
+  );
 }
 
 function ChevronDownIcon() {
@@ -113,7 +122,7 @@ function ChevronDownIcon() {
     >
       <path d="m6 9 6 6 6-6" />
     </svg>
-  )
+  );
 }
 
 function CheckIcon() {
@@ -131,5 +140,5 @@ function CheckIcon() {
     >
       <path d="m5 12 5 5L20 7" />
     </svg>
-  )
+  );
 }

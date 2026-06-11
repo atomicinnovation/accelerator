@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+import type { ReactElement } from "react";
 
 export function TemplatesIcon(): ReactElement {
   return (
@@ -13,5 +13,5 @@ export function TemplatesIcon(): ReactElement {
       <path d="m3 13 9 5 9-5" />
       <path d="m3 18 9 5 9-5" />
     </g>
-  )
+  );
 }

@@ -13,15 +13,15 @@ export function extractBlockBody(
   source: string,
   index: number,
 ): string | undefined {
-  const open = source.indexOf('{', index)
-  if (open === -1) return undefined
-  let depth = 1
+  const open = source.indexOf("{", index);
+  if (open === -1) return undefined;
+  let depth = 1;
   for (let i = open + 1; i < source.length; i++) {
-    if (source[i] === '{') depth++
-    else if (source[i] === '}') {
-      depth--
-      if (depth === 0) return source.slice(open + 1, i)
+    if (source[i] === "{") depth++;
+    else if (source[i] === "}") {
+      depth--;
+      if (depth === 0) return source.slice(open + 1, i);
     }
   }
-  return undefined
+  return undefined;
 }

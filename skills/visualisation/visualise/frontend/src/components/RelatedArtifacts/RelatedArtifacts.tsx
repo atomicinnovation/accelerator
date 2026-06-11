@@ -1,14 +1,14 @@
-import type { IndexEntry, RelatedArtifactsResponse } from '../../api/types'
-import { DOC_TYPE_LABELS_SINGULAR } from '../../api/types'
-import { fileSlugFromRelPath } from '../../api/path-utils'
-import { formatMtime } from '../../api/format'
-import { formatDocId } from '../../routes/library/doc-type-id'
-import { Glyph } from '../Glyph/Glyph'
-import { DOC_TYPE_COLOR_VAR } from '../Glyph/Glyph.constants'
-import styles from './RelatedArtifacts.module.css'
+import { formatMtime } from "../../api/format";
+import { fileSlugFromRelPath } from "../../api/path-utils";
+import type { IndexEntry, RelatedArtifactsResponse } from "../../api/types";
+import { DOC_TYPE_LABELS_SINGULAR } from "../../api/types";
+import { formatDocId } from "../../routes/library/doc-type-id";
+import { Glyph } from "../Glyph/Glyph";
+import { DOC_TYPE_COLOR_VAR } from "../Glyph/Glyph.constants";
+import styles from "./RelatedArtifacts.module.css";
 
 interface Props {
-  related: RelatedArtifactsResponse
+  related: RelatedArtifactsResponse;
   /** Optional. Set to true ONLY when a refetch has been in flight for
    *  more than ~250ms AND will likely produce different data. The
    *  caller should drive this through `useDeferredFetchingHint` —
@@ -16,21 +16,21 @@ interface Props {
    *  every background refetch (`refetchType: 'all'` invalidates the
    *  related prefix on every doc-changed event, including unrelated
    *  edits). */
-  showUpdatingHint?: boolean
+  showUpdatingHint?: boolean;
 }
 
-type Kind = 'declared' | 'inferred'
+type Kind = "declared" | "inferred";
 
 /** Visible tag copy kept separate from the discriminant so copy and the
  *  CSS class can diverge later (e.g. an `aria-label` distinct from the
  *  class name). */
 const TAG_TEXT: Record<Kind, string> = {
-  declared: '(declared)',
-  inferred: '(inferred)',
-}
+  declared: "(declared)",
+  inferred: "(inferred)",
+};
 
 function tagClass(kind: Kind): string {
-  return kind === 'declared' ? styles.tagDeclared : styles.tagInferred
+  return kind === "declared" ? styles.tagDeclared : styles.tagInferred;
 }
 
 /** Trailing affordance chevron (prototype `Icon name="chevron-right"`). */
@@ -50,7 +50,7 @@ function Chevron() {
     >
       <path d="m9 6 6 6-6 6" />
     </svg>
-  )
+  );
 }
 
 export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
@@ -63,23 +63,23 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
   // otherwise render it twice with a colliding `key={entry.path}`. Keep
   // the first occurrence; directionality is intentionally collapsed at the
   // render boundary (the server contract is untouched).
-  const declaredAll = [...related.declaredOutbound, ...related.declaredInbound]
-  const seen = new Set<string>()
+  const declaredAll = [...related.declaredOutbound, ...related.declaredInbound];
+  const seen = new Set<string>();
   const declared = declaredAll.filter(
     (e) => !seen.has(e.path) && seen.add(e.path),
-  )
-  const inferred = related.inferredCluster
+  );
+  const inferred = related.inferredCluster;
   const rows: { entry: IndexEntry; kind: Kind }[] = [
-    ...declared.map((entry) => ({ entry, kind: 'declared' as const })),
-    ...inferred.map((entry) => ({ entry, kind: 'inferred' as const })),
-  ]
+    ...declared.map((entry) => ({ entry, kind: "declared" as const })),
+    ...inferred.map((entry) => ({ entry, kind: "inferred" as const })),
+  ];
 
   if (rows.length === 0) {
     return (
       <p className={styles.emptyAll}>
         This document has no declared or inferred relations.
       </p>
-    )
+    );
   }
 
   return (
@@ -91,12 +91,12 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
       )}
       <ul className={styles.list} data-testid="related-list">
         {rows.map(({ entry, kind }) => {
-          const title = entry.title || entry.relPath
+          const title = entry.title || entry.relPath;
           // Mirrors the lifecycle/search id treatment: a formatted work-item
           // id when present, else the file slug.
           const docId = entry.workItemId
             ? formatDocId(entry.workItemId)
-            : (entry.slug ?? fileSlugFromRelPath(entry.relPath))
+            : (entry.slug ?? fileSlugFromRelPath(entry.relPath));
           return (
             <li
               key={entry.path}
@@ -145,9 +145,9 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
                 <Chevron />
               </a>
             </li>
-          )
+          );
         })}
       </ul>
     </>
-  )
+  );
 }

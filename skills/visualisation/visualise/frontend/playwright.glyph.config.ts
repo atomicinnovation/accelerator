@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test'
+import { defineConfig } from "@playwright/test";
 
 // Standalone Playwright config used to generate / verify the Glyph showcase
 // baselines. The default config (playwright.config.ts) brings up the Rust
@@ -8,25 +8,25 @@ import { defineConfig } from '@playwright/test'
 // config serves the built `dist/` via `vite preview` and shares the same
 // snapshot directory as the default config so the linux baselines land
 // alongside the darwin ones.
-const PORT = Number(process.env.GLYPH_PREVIEW_PORT ?? 4173)
+const PORT = Number(process.env.GLYPH_PREVIEW_PORT ?? 4173);
 
 export default defineConfig({
-  testDir: './tests/visual-regression',
+  testDir: "./tests/visual-regression",
   // Only the Glyph specs — other visual-regression specs (tokens.spec.ts)
   // depend on the visualiser server and must run via playwright.config.ts.
-  testMatch: ['glyph-showcase.spec.ts', 'glyph-resolved-fill.spec.ts'],
-  snapshotDir: './tests/visual-regression/__screenshots__',
+  testMatch: ["glyph-showcase.spec.ts", "glyph-resolved-fill.spec.ts"],
+  snapshotDir: "./tests/visual-regression/__screenshots__",
   timeout: 30_000,
   retries: 0,
   workers: 1,
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
-    trace: 'on-first-retry',
+    trace: "on-first-retry",
   },
   projects: [
     {
-      name: 'visual-regression',
-      use: { browserName: 'chromium' },
+      name: "visual-regression",
+      use: { browserName: "chromium" },
     },
   ],
   webServer: {
@@ -34,7 +34,7 @@ export default defineConfig({
     url: `http://127.0.0.1:${PORT}/glyph-showcase`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
-    stdout: 'pipe',
-    stderr: 'pipe',
+    stdout: "pipe",
+    stderr: "pipe",
   },
-})
+});

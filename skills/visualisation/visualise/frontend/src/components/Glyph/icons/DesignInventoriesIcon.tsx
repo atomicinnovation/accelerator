@@ -1,8 +1,14 @@
-import type { ReactElement } from 'react'
+import type { ReactElement } from "react";
 
 export function DesignInventoriesIcon(): ReactElement {
   return (
-    <g fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+    <g
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <rect x="3.5" y="4.5" width="7" height="7" rx="1" />
       <rect x="13.5" y="4.5" width="7" height="7" rx="1" />
       <rect x="3.5" y="13.5" width="7" height="7" rx="1" />
@@ -13,5 +19,5 @@ export function DesignInventoriesIcon(): ReactElement {
       <path d="M15 16h4M15 18h2.5" strokeOpacity="0.55" />
       <circle cx="17" cy="16.5" r="1" strokeOpacity="0.6" />
     </g>
-  )
+  );
 }

@@ -1,7 +1,7 @@
-import { Link } from '@tanstack/react-router'
-import { formatMtime, pluralise } from '../../api/format'
-import type { LifecycleCluster } from '../../api/types'
-import styles from './RelatedCluster.module.css'
+import { Link } from "@tanstack/react-router";
+import { formatMtime, pluralise } from "../../api/format";
+import type { LifecycleCluster } from "../../api/types";
+import styles from "./RelatedCluster.module.css";
 
 /** Lifecycle dot-grid mark (unframed, muted) — signals the card navigates
  *  into the pipeline view. Mirrors the prototype's `Icon name="lifecycle"`. */
@@ -25,7 +25,7 @@ function LifecycleMark() {
       <circle cx="18" cy="18" r="2" />
       <path d="M8 6h8M6 8v8M18 8v8M8 18h8" />
     </svg>
-  )
+  );
 }
 
 function Chevron() {
@@ -44,7 +44,7 @@ function Chevron() {
     >
       <path d="m9 6 6 6-6 6" />
     </svg>
-  )
+  );
 }
 
 /** Detail-page aside block linking to the document's lifecycle pipeline
@@ -62,12 +62,12 @@ export function RelatedCluster({ cluster }: { cluster: LifecycleCluster }) {
       <span className={styles.body}>
         <span className={styles.title}>{cluster.title}</span>
         <span className={styles.meta}>
-          {pluralise(cluster.entries.length, 'artifact')}
-          {' · '}
+          {pluralise(cluster.entries.length, "artifact")}
+          {" · "}
           <time>{formatMtime(cluster.lastChangedMs)}</time>
         </span>
       </span>
       <Chevron />
     </Link>
-  )
+  );
 }

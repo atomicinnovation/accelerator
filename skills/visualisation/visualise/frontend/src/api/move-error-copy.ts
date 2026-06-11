@@ -1,4 +1,4 @@
-import { ConflictError, FetchError } from './fetch'
+import { ConflictError, FetchError } from "./fetch";
 
 /**
  * User-facing copy for a failed work-item status move, rendered in the
@@ -12,10 +12,10 @@ import { ConflictError, FetchError } from './fetch'
  */
 export function errorToastMessageFor(error: unknown): string {
   if (error instanceof ConflictError) {
-    return 'This work item was updated by another editor. Your change was not saved, so the card has returned to its original column.'
+    return "This work item was updated by another editor. Your change was not saved, so the card has returned to its original column.";
   }
   if (error instanceof FetchError) {
-    return 'The work item could not be saved. Try again in a moment.'
+    return "The work item could not be saved. Try again in a moment.";
   }
-  return 'An unexpected error occurred while saving. Try again.'
+  return "An unexpected error occurred while saving. Try again.";
 }

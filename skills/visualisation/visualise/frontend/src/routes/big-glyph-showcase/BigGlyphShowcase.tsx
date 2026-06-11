@@ -1,7 +1,7 @@
-import type { ReactElement } from 'react'
-import { BigGlyph } from '../../components/BigGlyph/BigGlyph'
-import { DOC_TYPE_KEYS, DOC_TYPE_LABELS } from '../../api/types'
-import styles from './BigGlyphShowcase.module.css'
+import type { ReactElement } from "react";
+import { DOC_TYPE_KEYS, DOC_TYPE_LABELS } from "../../api/types";
+import { BigGlyph } from "../../components/BigGlyph/BigGlyph";
+import styles from "./BigGlyphShowcase.module.css";
 
 export function BigGlyphShowcase(): ReactElement {
   // `data-testid="big-glyph-cell-<docType>"` is the locator contract for
@@ -16,7 +16,7 @@ export function BigGlyphShowcase(): ReactElement {
     <main className={styles.root}>
       <h1>Big Glyph Showcase</h1>
       <p className={styles.note}>
-        Toggle <code>document.documentElement.dataset.theme</code> between{' '}
+        Toggle <code>document.documentElement.dataset.theme</code> between{" "}
         <code>light</code> and <code>dark</code> in dev tools to compare. Cells
         sit on <code>--ac-bg-card</code> so each themed surface is exercised.
       </p>
@@ -30,11 +30,13 @@ export function BigGlyphShowcase(): ReactElement {
             <BigGlyph docType={docType} size={96} />
             <span className={styles.label}>
               <code>{docType}</code>
-              <span className={styles.friendly}>{DOC_TYPE_LABELS[docType]}</span>
+              <span className={styles.friendly}>
+                {DOC_TYPE_LABELS[docType]}
+              </span>
             </span>
           </div>
         ))}
       </div>
     </main>
-  )
+  );
 }

@@ -1,0 +1,77 @@
+{
+  // Pin $schema to the installed package so it tracks the exact biome version.
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true, // honour .gitignore (repo-root dist/ etc.)
+    "defaultBranch": "main"
+  },
+  "files": {
+    // v2 single-array form; "!"-negation. v2 does NOT auto-prepend "**/".
+    "includes": [
+      "**",
+      "!**/node_modules", // dependencies, never linted
+      "!**/dist", // Vite build output (gitignored at repo root only)
+      "!**/__screenshots__", // committed Playwright PNG baselines — binary
+      "!**/*.woff2", // committed font binaries
+      "!**/package-lock.json", // lockfile — managed by npm
+      "!**/*.tsbuildinfo", // tsc incremental cache
+      "!**/test-results", // Playwright run output
+      "!**/playwright-report" // Playwright HTML report
+    ],
+    "ignoreUnknown": true // silently skip binary/unknown file types
+  },
+  "formatter": {
+    "enabled": true,
+    // 2-space / 80-col canonical width, matching the repo .editorconfig. Set
+    // explicitly here because the repo-root .editorconfig lives several levels
+    // above this Biome project root and is not picked up by useEditorconfig
+    // (Biome only reads an .editorconfig at or under its own project root).
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 80
+  },
+  // javascript/json formatters stay at Biome's stock defaults (double quotes,
+  // semicolons, trailing commas "all") by deliberate design — see plan 0098.
+  "linter": {
+    "enabled": true,
+    "rules": { "recommended": true },
+    "domains": {
+      // react & test auto-enable from deps; listed for lock-in. project NEVER
+      // auto-enables (whole-project module-graph rules) — must be explicit.
+      "react": "recommended",
+      "test": "recommended",
+      "project": "recommended"
+    }
+  },
+  // Import organisation is an assist action in v2 (was organizeImports in v1).
+  "assist": {
+    "enabled": true,
+    "actions": { "source": { "organizeImports": "on" } }
+  },
+  // CSS linter on (catches noImportantStyles / noDescendingSpecificity etc.).
+  // CSS FORMATTER explicitly DISABLED: formatting CSS normalises
+  // attribute-selector quotes ('x' -> "x"), trims numeric trailing zeros
+  // (0.10 -> 0.1) and rewraps @keyframes bodies, which desyncs global.css from
+  // its tokens.ts mirror and breaks the CSS-source-asserting / token-parity
+  // unit tests for zero rendering benefit. Re-enabling it is a separate,
+  // test-aware change. *.module.css is auto-detected as CSS modules in v2.4.
+  "css": {
+    "formatter": { "enabled": false },
+    "linter": { "enabled": true }
+  },
+  "overrides": [
+    {
+      // Tests legitimately use non-null assertions on fixture lookups and `any`
+      // for partial mocks; relax these two style/suspicious rules for test files.
+      "includes": ["**/*.test.ts", "**/*.test.tsx", "**/e2e/**", "**/tests/**"],
+      "linter": {
+        "rules": {
+          "style": { "noNonNullAssertion": "off" },
+          "suspicious": { "noExplicitAny": "off" }
+        }
+      }
+    }
+  ]
+}

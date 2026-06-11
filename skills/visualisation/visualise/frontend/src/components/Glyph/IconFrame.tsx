@@ -1,13 +1,13 @@
-import type { ReactNode } from 'react'
-import styles from './Glyph.module.css'
+import type { ReactNode } from "react";
+import styles from "./Glyph.module.css";
 
 interface IconFrameProps {
   /** Outer tile dimension in pixels. Padding scales at ~14%, same as
    *  framed Glyph, so the inner SVG draws on the prototype's
    *  size-16/24/32 grid. */
-  size?: number
+  size?: number;
   /** A 24×24-viewBox stroke SVG, sized down via the framed padding. */
-  children: ReactNode
+  children: ReactNode;
 }
 
 /** Generic chrome-glyph frame — the same tinted square the per-doc-type
@@ -15,8 +15,8 @@ interface IconFrameProps {
  *  page eyebrow, etc.) that aren't tied to a `DocTypeKey`. Background
  *  falls through to `--ac-bg-sunken` from the shared `.frame` rule. */
 export function IconFrame({ size = 16, children }: IconFrameProps) {
-  const pad = Math.round(size * 0.14)
-  const inner = size - 2 * pad
+  const pad = Math.round(size * 0.14);
+  const inner = size - 2 * pad;
   return (
     <span
       className={styles.frame}
@@ -24,12 +24,12 @@ export function IconFrame({ size = 16, children }: IconFrameProps) {
         width: `${size}px`,
         height: `${size}px`,
         padding: `${pad}px`,
-        color: 'var(--ac-fg-muted)',
+        color: "var(--ac-fg-muted)",
       }}
     >
       <span
         style={{
-          display: 'inline-flex',
+          display: "inline-flex",
           width: `${inner}px`,
           height: `${inner}px`,
         }}
@@ -38,5 +38,5 @@ export function IconFrame({ size = 16, children }: IconFrameProps) {
         {children}
       </span>
     </span>
-  )
+  );
 }

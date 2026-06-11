@@ -1,34 +1,34 @@
-import { Fragment, type ReactNode } from 'react'
-import type { Resolver } from '../MarkdownRenderer/wiki-link-plugin'
-import { splitByBareIds } from '../../api/wiki-links'
-import styles from './FrontmatterTable.module.css'
+import { Fragment, type ReactNode } from "react";
+import { splitByBareIds } from "../../api/wiki-links";
+import type { Resolver } from "../MarkdownRenderer/wiki-link-plugin";
+import styles from "./FrontmatterTable.module.css";
 
 export interface FrontmatterTableProps {
-  frontmatter: Record<string, unknown>
-  resolveWikiLink: Resolver
-  bareIdPattern: RegExp
+  frontmatter: Record<string, unknown>;
+  resolveWikiLink: Resolver;
+  bareIdPattern: RegExp;
 }
 
 function isEmpty(value: unknown): boolean {
-  if (value === null || value === undefined) return true
-  if (typeof value === 'string' && value === '') return true
-  if (Array.isArray(value) && value.length === 0) return true
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string" && value === "") return true;
+  if (Array.isArray(value) && value.length === 0) return true;
   if (
-    typeof value === 'object' &&
+    typeof value === "object" &&
     value !== null &&
     !Array.isArray(value) &&
     Object.keys(value as object).length === 0
   ) {
-    return true
+    return true;
   }
-  return false
+  return false;
 }
 
 function safeStringify(value: unknown): string {
   try {
-    return JSON.stringify(value)
+    return JSON.stringify(value);
   } catch {
-    return String(value)
+    return String(value);
   }
 }
 
@@ -37,28 +37,32 @@ function renderScalar(
   resolveWikiLink: Resolver,
   bareIdPattern: RegExp,
 ): ReactNode {
-  const segments = splitByBareIds(text, bareIdPattern)
+  const segments = splitByBareIds(text, bareIdPattern);
   return segments.map((seg, i) => {
-    if (seg.kind === 'text') {
-      return <Fragment key={i}>{seg.text}</Fragment>
+    if (seg.kind === "text") {
+      // biome-ignore lint/suspicious/noArrayIndexKey: positional segments of one split string — no stable id (text may repeat); the list is static and never reorders
+      return <Fragment key={i}>{seg.text}</Fragment>;
     }
-    const result = resolveWikiLink(seg.prefix, seg.id)
-    if (result.kind === 'resolved') {
+    const result = resolveWikiLink(seg.prefix, seg.id);
+    if (result.kind === "resolved") {
       return (
+        // biome-ignore lint/suspicious/noArrayIndexKey: positional segments of one split string — no stable id (text may repeat); the list is static and never reorders
         <a key={i} href={result.href} title={result.title}>
           {seg.text}
         </a>
-      )
+      );
     }
-    if (result.kind === 'pending') {
+    if (result.kind === "pending") {
       return (
+        // biome-ignore lint/suspicious/noArrayIndexKey: positional segments of one split string — no stable id (text may repeat); the list is static and never reorders
         <span key={i} className={styles.pending}>
           {seg.text}
         </span>
-      )
+      );
     }
-    return <Fragment key={i}>{seg.text}</Fragment>
-  })
+    // biome-ignore lint/suspicious/noArrayIndexKey: positional segments of one split string — no stable id (text may repeat); the list is static and never reorders
+    return <Fragment key={i}>{seg.text}</Fragment>;
+  });
 }
 
 function renderValue(
@@ -68,22 +72,23 @@ function renderValue(
 ): ReactNode {
   if (Array.isArray(value)) {
     return value.map((el, i) => (
+      // biome-ignore lint/suspicious/noArrayIndexKey: positional render of an arbitrary frontmatter array (values may repeat) — no stable id; the list is static and never reorders
       <Fragment key={i}>
-        {i > 0 ? ', ' : ''}
+        {i > 0 ? ", " : ""}
         {renderScalar(
-          typeof el === 'object' && el !== null
+          typeof el === "object" && el !== null
             ? safeStringify(el)
             : String(el),
           resolveWikiLink,
           bareIdPattern,
         )}
       </Fragment>
-    ))
+    ));
   }
-  if (typeof value === 'object' && value !== null) {
-    return renderScalar(safeStringify(value), resolveWikiLink, bareIdPattern)
+  if (typeof value === "object" && value !== null) {
+    return renderScalar(safeStringify(value), resolveWikiLink, bareIdPattern);
   }
-  return renderScalar(String(value), resolveWikiLink, bareIdPattern)
+  return renderScalar(String(value), resolveWikiLink, bareIdPattern);
 }
 
 export function FrontmatterTable({
@@ -91,8 +96,8 @@ export function FrontmatterTable({
   resolveWikiLink,
   bareIdPattern,
 }: FrontmatterTableProps) {
-  const entries = Object.entries(frontmatter)
-  if (entries.length === 0) return null
+  const entries = Object.entries(frontmatter);
+  if (entries.length === 0) return null;
 
   return (
     <dl className={styles.table} aria-label="Document metadata">
@@ -115,5 +120,5 @@ export function FrontmatterTable({
         </dd>,
       ])}
     </dl>
-  )
+  );
 }

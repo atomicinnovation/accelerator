@@ -1,9 +1,20 @@
-import type { ReactElement } from 'react'
-import { Chip, type ChipVariant, type ChipSize } from '../../components/Chip/Chip'
-import styles from './ChipShowcase.module.css'
+import type { ReactElement } from "react";
+import {
+  Chip,
+  type ChipSize,
+  type ChipVariant,
+} from "../../components/Chip/Chip";
+import styles from "./ChipShowcase.module.css";
 
-const VARIANTS: ReadonlyArray<ChipVariant> = ['neutral', 'indigo', 'green', 'amber', 'red', 'violet']
-const SIZES: ReadonlyArray<ChipSize> = ['sm', 'md']
+const VARIANTS: ReadonlyArray<ChipVariant> = [
+  "neutral",
+  "indigo",
+  "green",
+  "amber",
+  "red",
+  "violet",
+];
+const SIZES: ReadonlyArray<ChipSize> = ["sm", "md"];
 
 export function ChipShowcase(): ReactElement {
   // `data-testid="chip-cell-<variant>-<size>"` is the locator contract for
@@ -13,14 +24,16 @@ export function ChipShowcase(): ReactElement {
     <main className={styles.root}>
       <h1>Chip Showcase</h1>
       <p className={styles.note}>
-        Toggle <code>document.documentElement.dataset.theme</code> between{' '}
+        Toggle <code>document.documentElement.dataset.theme</code> between{" "}
         <code>light</code> and <code>dark</code> in dev tools to compare.
       </p>
       <div className={styles.grid}>
         <div className={styles.headerRow}>
           <span className={styles.headerLabel}>variant</span>
           {SIZES.map((s) => (
-            <span key={s} className={styles.headerCell}>{s}</span>
+            <span key={s} className={styles.headerCell}>
+              {s}
+            </span>
           ))}
         </div>
         {VARIANTS.map((variant) => (
@@ -34,12 +47,14 @@ export function ChipShowcase(): ReactElement {
                 className={styles.cell}
                 data-testid={`chip-cell-${variant}-${size}`}
               >
-                <Chip variant={variant} size={size}>{variant}</Chip>
+                <Chip variant={variant} size={size}>
+                  {variant}
+                </Chip>
               </span>
             ))}
           </div>
         ))}
       </div>
     </main>
-  )
+  );
 }

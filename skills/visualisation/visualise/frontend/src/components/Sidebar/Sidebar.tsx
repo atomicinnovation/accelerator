@@ -1,25 +1,30 @@
-import { useState, type RefObject } from 'react'
-import { Link, useRouterState } from '@tanstack/react-router'
-import type { DocType, LibraryDocType, LibraryPhase } from '../../api/types'
-import { useUnseenDocTypesContext } from '../../api/use-unseen-doc-types'
-import { ActivityFeed } from '../ActivityFeed/ActivityFeed'
-import { SearchResultsPanel } from './SearchResultsPanel'
-import styles from './Sidebar.module.css'
+import { Link, useRouterState } from "@tanstack/react-router";
+import { type RefObject, useState } from "react";
+import type { DocType, LibraryDocType, LibraryPhase } from "../../api/types";
+import { useUnseenDocTypesContext } from "../../api/use-unseen-doc-types";
+import { ActivityFeed } from "../ActivityFeed/ActivityFeed";
+import { SearchResultsPanel } from "./SearchResultsPanel";
+import styles from "./Sidebar.module.css";
 
 interface Props {
-  docTypes: DocType[]
-  phases: LibraryPhase[]
-  templates: LibraryDocType | null
-  searchInputRef: RefObject<HTMLInputElement | null>
+  docTypes: DocType[];
+  phases: LibraryPhase[];
+  templates: LibraryDocType | null;
+  searchInputRef: RefObject<HTMLInputElement | null>;
 }
 
-export function Sidebar({ docTypes, phases, templates, searchInputRef }: Props) {
-  const pathname = useRouterState({ select: s => s.location.pathname })
-  const { unseenSet } = useUnseenDocTypesContext()
-  const [query, setQuery] = useState('')
+export function Sidebar({
+  docTypes,
+  phases,
+  templates,
+  searchInputRef,
+}: Props) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { unseenSet } = useUnseenDocTypesContext();
+  const [query, setQuery] = useState("");
   // docTypes is kept around for affordances that need dirPath / inLifecycle,
   // but phase grouping comes from the server-driven `phases` prop.
-  void docTypes
+  void docTypes;
 
   return (
     <nav className={styles.sidebar} aria-label="Site navigation">
@@ -33,11 +38,11 @@ export function Sidebar({ docTypes, phases, templates, searchInputRef }: Props) 
             placeholder="Search meta/…"
             className={styles.searchInput}
             value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Escape') {
-                setQuery('')
-                e.currentTarget.blur()
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setQuery("");
+                e.currentTarget.blur();
               }
             }}
           />
@@ -48,8 +53,8 @@ export function Sidebar({ docTypes, phases, templates, searchInputRef }: Props) 
               aria-label="Clear search"
               title="Clear (Esc)"
               onClick={() => {
-                setQuery('')
-                searchInputRef.current?.focus()
+                setQuery("");
+                searchInputRef.current?.focus();
               }}
             >
               <CloseIcon />
@@ -65,31 +70,37 @@ export function Sidebar({ docTypes, phases, templates, searchInputRef }: Props) 
         <Link
           to="/library"
           id="library-heading"
-          className={`${styles.libraryHeading} ${styles.libraryHeadingClickable} ${pathname === '/library' ? styles.libraryHeadingActive : ''}`}
+          className={`${styles.libraryHeading} ${styles.libraryHeadingClickable} ${pathname === "/library" ? styles.libraryHeadingActive : ""}`}
         >
           <span>LIBRARY</span>
-          <span className={styles.libraryHeadingHint} aria-hidden="true">All</span>
+          <span className={styles.libraryHeadingHint} aria-hidden="true">
+            All
+          </span>
         </Link>
-        {phases.map(phase => (
+        {phases.map((phase) => (
           <section key={phase.id} className={styles.phase}>
             <h3 className={styles.phaseHeading}>{phase.label.toUpperCase()}</h3>
             <ul className={styles.list}>
-              {phase.docTypes.map(dt => {
+              {phase.docTypes.map((dt) => {
                 const active =
                   pathname === `/library/${dt.id}` ||
-                  pathname.startsWith(`/library/${dt.id}/`)
-                const hasUnseen = unseenSet.has(dt.id)
+                  pathname.startsWith(`/library/${dt.id}/`);
+                const hasUnseen = unseenSet.has(dt.id);
                 const linkLabel = hasUnseen
                   ? `${dt.label} (unseen changes)`
-                  : dt.label
+                  : dt.label;
                 return (
                   <li key={dt.id}>
                     <Link
                       to="/library/$type"
                       params={{ type: dt.id }}
                       aria-label={linkLabel}
-                      title={hasUnseen ? 'Unseen changes since your last visit' : undefined}
-                      className={`${styles.link} ${active ? styles.active : ''}`}
+                      title={
+                        hasUnseen
+                          ? "Unseen changes since your last visit"
+                          : undefined
+                      }
+                      className={`${styles.link} ${active ? styles.active : ""}`}
                     >
                       <span className={styles.label}>{dt.label}</span>
                       {hasUnseen && (
@@ -100,7 +111,7 @@ export function Sidebar({ docTypes, phases, templates, searchInputRef }: Props) 
                       )}
                     </Link>
                   </li>
-                )
+                );
               })}
             </ul>
           </section>
@@ -108,12 +119,14 @@ export function Sidebar({ docTypes, phases, templates, searchInputRef }: Props) 
       </section>
 
       <section aria-labelledby="views-heading" className={styles.section}>
-        <h2 id="views-heading" className={styles.sectionHeading}>VIEWS</h2>
+        <h2 id="views-heading" className={styles.sectionHeading}>
+          VIEWS
+        </h2>
         <ul className={styles.list}>
           <li>
             <Link
               to="/kanban"
-              className={`${styles.link} ${pathname === '/kanban' ? styles.active : ''}`}
+              className={`${styles.link} ${pathname === "/kanban" ? styles.active : ""}`}
             >
               <KanbanIcon />
               <span className={styles.label}>Kanban</span>
@@ -122,7 +135,7 @@ export function Sidebar({ docTypes, phases, templates, searchInputRef }: Props) 
           <li>
             <Link
               to="/lifecycle"
-              className={`${styles.link} ${pathname.startsWith('/lifecycle') ? styles.active : ''}`}
+              className={`${styles.link} ${pathname.startsWith("/lifecycle") ? styles.active : ""}`}
             >
               <LifecycleIcon />
               <span className={styles.label}>Lifecycle</span>
@@ -135,17 +148,19 @@ export function Sidebar({ docTypes, phases, templates, searchInputRef }: Props) 
 
       {templates && (
         <section aria-labelledby="meta-heading" className={styles.section}>
-          <h2 id="meta-heading" className={styles.sectionHeading}>META</h2>
+          <h2 id="meta-heading" className={styles.sectionHeading}>
+            META
+          </h2>
           <ul className={styles.list}>
             <li>
               <Link
                 to="/library/$type"
-                params={{ type: 'templates' }}
+                params={{ type: "templates" }}
                 className={`${styles.link} ${
-                  pathname === '/library/templates' ||
-                  pathname.startsWith('/library/templates/')
+                  pathname === "/library/templates" ||
+                  pathname.startsWith("/library/templates/")
                     ? styles.active
-                    : ''
+                    : ""
                 }`}
               >
                 <span className={styles.label}>{templates.label}</span>
@@ -155,7 +170,7 @@ export function Sidebar({ docTypes, phases, templates, searchInputRef }: Props) 
         </section>
       )}
     </nav>
-  )
+  );
 }
 
 function SearchIcon() {
@@ -167,20 +182,27 @@ function SearchIcon() {
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
-      <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M15.2 15.2 L20 20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <circle
+        cx="10.5"
+        cy="10.5"
+        r="6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M15.2 15.2 L20 20"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
     </svg>
-  )
+  );
 }
 
 function CloseIcon() {
   return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
+    <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true">
       <path
         d="M6 6 L18 18 M18 6 L6 18"
         stroke="currentColor"
@@ -188,7 +210,7 @@ function CloseIcon() {
         strokeLinecap="round"
       />
     </svg>
-  )
+  );
 }
 
 function KanbanIcon() {
@@ -200,11 +222,38 @@ function KanbanIcon() {
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
-      <rect x="3" y="5" width="4" height="12" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <rect x="10" y="5" width="4" height="8" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <rect x="17" y="5" width="4" height="14" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <rect
+        x="3"
+        y="5"
+        width="4"
+        height="12"
+        rx="1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <rect
+        x="10"
+        y="5"
+        width="4"
+        height="8"
+        rx="1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <rect
+        x="17"
+        y="5"
+        width="4"
+        height="14"
+        rx="1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
     </svg>
-  )
+  );
 }
 
 /* Lifecycle nav icon — mirrors the prototype's `lifecycle` Icon (four
@@ -232,5 +281,5 @@ function LifecycleIcon() {
       <circle cx="18" cy="18" r="2" />
       <path d="M8 6h8M6 8v8M18 8v8M8 18h8" />
     </svg>
-  )
+  );
 }

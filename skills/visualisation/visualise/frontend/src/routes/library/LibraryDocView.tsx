@@ -1,26 +1,26 @@
-import type { ReactNode } from 'react'
-import { useParams } from '@tanstack/react-router'
-import { Page } from '../../components/Page/Page'
-import { useQuery } from '@tanstack/react-query'
-import { fetchDocs } from '../../api/fetch'
-import { queryKeys } from '../../api/query-keys'
-import { useDocPageData } from '../../api/use-doc-page-data'
-import { useWikiLinkResolver } from '../../api/use-wiki-link-resolver'
-import { useDeferredFetchingHint } from '../../api/use-deferred-fetching-hint'
-import { FrontmatterChips } from '../../components/FrontmatterChips/FrontmatterChips'
-import { FrontmatterTable } from '../../components/FrontmatterTable/FrontmatterTable'
-import { MarkdownRenderer } from '../../components/MarkdownRenderer/MarkdownRenderer'
-import { RelatedArtifacts } from '../../components/RelatedArtifacts/RelatedArtifacts'
-import { RelatedCluster } from '../../components/RelatedCluster/RelatedCluster'
-import { useDocCluster } from '../../api/use-doc-cluster'
-import { EyebrowLabel } from '../../components/EyebrowLabel/EyebrowLabel'
-import { CopyPathButton } from '../../components/DetailHeaderActions/CopyPathButton'
-import { OpenInEditorButton } from '../../components/DetailHeaderActions/OpenInEditorButton'
-import type { DocTypeKey } from '../../api/types'
-import { isDocTypeKey } from '../../api/types'
-import { fileSlugFromRelPath } from '../../api/path-utils'
-import { formatBytes, formatEtagShort } from '../../api/format'
-import styles from './LibraryDocView.module.css'
+import { useQuery } from "@tanstack/react-query";
+import { useParams } from "@tanstack/react-router";
+import type { ReactNode } from "react";
+import { fetchDocs } from "../../api/fetch";
+import { formatBytes, formatEtagShort } from "../../api/format";
+import { fileSlugFromRelPath } from "../../api/path-utils";
+import { queryKeys } from "../../api/query-keys";
+import type { DocTypeKey } from "../../api/types";
+import { isDocTypeKey } from "../../api/types";
+import { useDeferredFetchingHint } from "../../api/use-deferred-fetching-hint";
+import { useDocCluster } from "../../api/use-doc-cluster";
+import { useDocPageData } from "../../api/use-doc-page-data";
+import { useWikiLinkResolver } from "../../api/use-wiki-link-resolver";
+import { CopyPathButton } from "../../components/DetailHeaderActions/CopyPathButton";
+import { OpenInEditorButton } from "../../components/DetailHeaderActions/OpenInEditorButton";
+import { EyebrowLabel } from "../../components/EyebrowLabel/EyebrowLabel";
+import { FrontmatterChips } from "../../components/FrontmatterChips/FrontmatterChips";
+import { FrontmatterTable } from "../../components/FrontmatterTable/FrontmatterTable";
+import { MarkdownRenderer } from "../../components/MarkdownRenderer/MarkdownRenderer";
+import { Page } from "../../components/Page/Page";
+import { RelatedArtifacts } from "../../components/RelatedArtifacts/RelatedArtifacts";
+import { RelatedCluster } from "../../components/RelatedCluster/RelatedCluster";
+import styles from "./LibraryDocView.module.css";
 
 /** Strip a leading YAML frontmatter block (`---\n…\n---\n`) from the
  *  raw document content. The server returns the file verbatim, so
@@ -28,87 +28,99 @@ import styles from './LibraryDocView.module.css'
  *  horizontal rule and the title line as a setext heading. The
  *  frontmatter is already surfaced via the FrontmatterTable above the
  *  body. */
-const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/
+const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
 function stripFrontmatter(content: string): string {
-  return content.replace(FRONTMATTER_RE, '')
+  return content.replace(FRONTMATTER_RE, "");
 }
 
 interface Props {
-  type?: DocTypeKey
-  fileSlug?: string
+  type?: DocTypeKey;
+  fileSlug?: string;
 }
 
 export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
   // See LibraryTypeView for the prop-or-param + narrowing rationale.
-  const params = useParams({ strict: false }) as { type?: string; fileSlug?: string }
-  const rawType = propType ?? params.type
-  const fileSlug = propSlug ?? params.fileSlug ?? ''
+  const params = useParams({ strict: false }) as {
+    type?: string;
+    fileSlug?: string;
+  };
+  const rawType = propType ?? params.type;
+  const fileSlug = propSlug ?? params.fileSlug ?? "";
 
   const type: DocTypeKey | undefined =
-    rawType && isDocTypeKey(rawType) ? rawType : undefined
+    rawType && isDocTypeKey(rawType) ? rawType : undefined;
 
-  const { data: entries = [], isError: listError, error: listErr } = useQuery({
-    queryKey: type ? queryKeys.docs(type) : queryKeys.disabled('docs'),
+  const {
+    data: entries = [],
+    isError: listError,
+    error: listErr,
+  } = useQuery({
+    queryKey: type ? queryKeys.docs(type) : queryKeys.disabled("docs"),
+    // biome-ignore lint/style/noNonNullAssertion: queryFn only runs while `enabled: type !== undefined`, so `type` is guaranteed defined here
     queryFn: () => fetchDocs(type!),
     enabled: type !== undefined,
-  })
+  });
 
   const entry = entries.find(
-    e => e.slug === fileSlug || fileSlugFromRelPath(e.relPath) === fileSlug,
-  )
+    (e) => e.slug === fileSlug || fileSlugFromRelPath(e.relPath) === fileSlug,
+  );
 
   // The doc-view's read path: content + related, both gated on
   // `entry?.relPath`. Body rendering is *not* gated on the wiki-link
   // resolver — pending markers handle the cache-warming window.
-  const { content, related } = useDocPageData(entry?.relPath)
+  const { content, related } = useDocPageData(entry?.relPath);
   const {
     cluster,
     isPending: clusterPending,
     isError: clusterError,
-  } = useDocCluster(entry)
+  } = useDocCluster(entry);
   const {
     resolver: resolveWikiLink,
     pattern: wikiLinkPattern,
     bareIdPattern,
-  } = useWikiLinkResolver()
-  const showUpdatingHint = useDeferredFetchingHint(related)
+  } = useWikiLinkResolver();
+  const showUpdatingHint = useDeferredFetchingHint(related);
 
   if (type === undefined) {
-    return <p role="alert">Unknown doc type: {String(rawType)}</p>
+    return <p role="alert">Unknown doc type: {String(rawType)}</p>;
   }
   if (!fileSlug) {
-    return <p role="alert">Missing file slug.</p>
+    return <p role="alert">Missing file slug.</p>;
   }
 
-  let title: ReactNode = 'Loading…'
-  let subtitle: ReactNode | undefined = undefined
-  let body: ReactNode = <p>Loading…</p>
+  let title: ReactNode = "Loading…";
+  let subtitle: ReactNode | undefined;
+  let body: ReactNode = <p>Loading…</p>;
 
   if (listError) {
-    title = 'Document not found'
+    title = "Document not found";
     body = (
       <p role="alert" className={styles.error}>
-        Failed to load document list: {listErr instanceof Error ? listErr.message : String(listErr)}
+        Failed to load document list:{" "}
+        {listErr instanceof Error ? listErr.message : String(listErr)}
       </p>
-    )
+    );
   } else if (content.isError) {
-    title = 'Document not found'
+    title = "Document not found";
     body = (
       <p role="alert" className={styles.error}>
-        Failed to load document content: {content.error instanceof Error ? content.error.message : String(content.error)}
+        Failed to load document content:{" "}
+        {content.error instanceof Error
+          ? content.error.message
+          : String(content.error)}
       </p>
-    )
+    );
   } else if (!entry && entries.length > 0) {
-    title = 'Document not found'
-    body = <p>Document not found.</p>
+    title = "Document not found";
+    body = <p>Document not found.</p>;
   } else if (entry && content.data) {
-    title = entry.title
+    title = entry.title;
     subtitle = (
       <FrontmatterChips
         frontmatter={entry.frontmatter as Record<string, unknown>}
         state={entry.frontmatterState}
       />
-    )
+    );
     body = (
       <article className={styles.article}>
         <div className={styles.aside}>
@@ -116,13 +128,13 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
             <h3>Related artifacts</h3>
             {related.isError && (
               <p role="alert" className={styles.error}>
-                Failed to load related artifacts:{' '}
-                {related.error instanceof Error ? related.error.message : String(related.error)}
+                Failed to load related artifacts:{" "}
+                {related.error instanceof Error
+                  ? related.error.message
+                  : String(related.error)}
               </p>
             )}
-            {related.isPending && !related.isError && (
-              <p>Loading…</p>
-            )}
+            {related.isPending && !related.isError && <p>Loading…</p>}
             {related.data && (
               <RelatedArtifacts
                 related={related.data}
@@ -136,7 +148,9 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
             <p className={styles.fileDetail} title={entry.etag}>
               etag · {formatEtagShort(entry.etag)}
             </p>
-            <p className={styles.fileDetail}>size · {formatBytes(entry.size)}</p>
+            <p className={styles.fileDetail}>
+              size · {formatBytes(entry.size)}
+            </p>
           </section>
           {/* Cluster section degrades visibly, mirroring the Related
               artifacts section above: render the shell while the cluster
@@ -160,14 +174,19 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
         </div>
 
         <div className={styles.bodyColumn}>
-          {entry.frontmatterState === 'malformed' && (
-            <div className={styles.malformedBanner} aria-label="Document metadata header notice">
-              <strong className={styles.malformedPrefix}>Warning:</strong>{' '}
-              We couldn&rsquo;t read this document&rsquo;s metadata header; showing the file as-is.
+          {entry.frontmatterState === "malformed" && (
+            <div
+              className={styles.malformedBanner}
+              role="note"
+              aria-label="Document metadata header notice"
+            >
+              <strong className={styles.malformedPrefix}>Warning:</strong> We
+              couldn&rsquo;t read this document&rsquo;s metadata header; showing
+              the file as-is.
             </div>
           )}
 
-          {entry.frontmatterState === 'parsed' && (
+          {entry.frontmatterState === "parsed" && (
             <FrontmatterTable
               frontmatter={entry.frontmatter as Record<string, unknown>}
               resolveWikiLink={resolveWikiLink}
@@ -176,16 +195,20 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
           )}
 
           <div className={styles.body}>
-            <MarkdownRenderer content={stripFrontmatter(content.data.content)} resolveWikiLink={resolveWikiLink} wikiLinkPattern={wikiLinkPattern} />
+            <MarkdownRenderer
+              content={stripFrontmatter(content.data.content)}
+              resolveWikiLink={resolveWikiLink}
+              wikiLinkPattern={wikiLinkPattern}
+            />
           </div>
         </div>
       </article>
-    )
+    );
   }
 
   // Only show the per-doc-type eyebrow once the document has resolved —
   // not on the loading or "Document not found" branches.
-  const hasResolvedDocument = Boolean(entry && content.data)
+  const hasResolvedDocument = Boolean(entry && content.data);
 
   return (
     <Page
@@ -203,5 +226,5 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
     >
       {body}
     </Page>
-  )
+  );
 }

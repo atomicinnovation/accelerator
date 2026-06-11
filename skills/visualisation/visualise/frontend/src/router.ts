@@ -1,14 +1,14 @@
 import {
-  createRouter,
-  createRoute,
-  createRootRoute,
-  redirect,
   type AnyRoute,
-} from '@tanstack/react-router'
+  createRootRoute,
+  createRoute,
+  createRouter,
+  redirect,
+} from "@tanstack/react-router";
 
-export type CrumbLoaderData = { crumb: string }
+export type CrumbLoaderData = { crumb: string };
 
-type CrumbResolver = (args: { params: Record<string, string> }) => string
+type CrumbResolver = (args: { params: Record<string, string> }) => string;
 
 export function resolveCrumb(
   crumbOrResolver: string | CrumbResolver,
@@ -16,136 +16,144 @@ export function resolveCrumb(
 ): CrumbLoaderData {
   return {
     crumb:
-      typeof crumbOrResolver === 'string'
+      typeof crumbOrResolver === "string"
         ? crumbOrResolver
         : crumbOrResolver({ params }),
-  }
+  };
 }
 
 // Wraps createRoute with a breadcrumb loader. Generic over TParentRoute and
 // TPath so the returned Route carries the correct path literal type — required
 // for TanStack Router's module-level type registry to include these routes.
-export function withCrumb<
-  TParentRoute extends AnyRoute,
-  TPath extends string,
->(
+export function withCrumb<TParentRoute extends AnyRoute, TPath extends string>(
   crumbOrResolver: string | CrumbResolver,
-  options: { getParentRoute: () => TParentRoute; path: TPath } & Record<string, unknown>,
+  options: { getParentRoute: () => TParentRoute; path: TPath } & Record<
+    string,
+    unknown
+  >,
 ): ReturnType<typeof createRoute<unknown, TParentRoute, TPath>> {
-  return createRoute({
+  const route = createRoute({
     ...options,
     loader: ({ params }: { params: Record<string, string> }) =>
       resolveCrumb(crumbOrResolver, params),
-  } as any) as ReturnType<typeof createRoute<unknown, TParentRoute, TPath>>
+  } as unknown as Parameters<typeof createRoute>[0]);
+  // Double-cast through `unknown` bridges TanStack Router's over-constrained
+  // createRoute generics, which the structural value cannot satisfy directly.
+  return route as unknown as ReturnType<
+    typeof createRoute<unknown, TParentRoute, TPath>
+  >;
 }
-import { RootLayout } from './components/RootLayout/RootLayout'
-import { LibraryLayout } from './routes/library/LibraryLayout'
-import { LibraryOverviewHub } from './routes/library/LibraryOverviewHub'
-import { LibraryTypeView } from './routes/library/LibraryTypeView'
-import { LibraryDocView } from './routes/library/LibraryDocView'
-import { LibraryTemplatesIndex } from './routes/library/LibraryTemplatesIndex'
-import { LibraryTemplatesView } from './routes/library/LibraryTemplatesView'
-import { LifecycleLayout } from './routes/lifecycle/LifecycleLayout'
-import { LifecycleIndex } from './routes/lifecycle/LifecycleIndex'
-import { LifecycleClusterView } from './routes/lifecycle/LifecycleClusterView'
-import { KanbanBoard } from './routes/kanban/KanbanBoard'
-import { GlyphShowcase } from './routes/glyph-showcase/GlyphShowcase'
-import { BigGlyphShowcase } from './routes/big-glyph-showcase/BigGlyphShowcase'
-import { ChipShowcase } from './routes/chip-showcase/ChipShowcase'
-import { CodeSyntaxShowcase } from './routes/code-syntax-showcase/CodeSyntaxShowcase'
-import { KanbanCardShowcase } from './routes/kanban-card-showcase/KanbanCardShowcase'
-import { isDocTypeKey, type DocTypeKey } from './api/types'
 
-const rootRoute = createRootRoute({ component: RootLayout })
+import { type DocTypeKey, isDocTypeKey } from "./api/types";
+import { RootLayout } from "./components/RootLayout/RootLayout";
+import { BigGlyphShowcase } from "./routes/big-glyph-showcase/BigGlyphShowcase";
+import { ChipShowcase } from "./routes/chip-showcase/ChipShowcase";
+import { CodeSyntaxShowcase } from "./routes/code-syntax-showcase/CodeSyntaxShowcase";
+import { GlyphShowcase } from "./routes/glyph-showcase/GlyphShowcase";
+import { KanbanBoard } from "./routes/kanban/KanbanBoard";
+import { KanbanCardShowcase } from "./routes/kanban-card-showcase/KanbanCardShowcase";
+import { LibraryDocView } from "./routes/library/LibraryDocView";
+import { LibraryLayout } from "./routes/library/LibraryLayout";
+import { LibraryOverviewHub } from "./routes/library/LibraryOverviewHub";
+import { LibraryTemplatesIndex } from "./routes/library/LibraryTemplatesIndex";
+import { LibraryTemplatesView } from "./routes/library/LibraryTemplatesView";
+import { LibraryTypeView } from "./routes/library/LibraryTypeView";
+import { LifecycleClusterView } from "./routes/lifecycle/LifecycleClusterView";
+import { LifecycleIndex } from "./routes/lifecycle/LifecycleIndex";
+import { LifecycleLayout } from "./routes/lifecycle/LifecycleLayout";
+
+const rootRoute = createRootRoute({ component: RootLayout });
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/',
-  beforeLoad: () => { throw redirect({ to: '/library' }) },
-})
+  path: "/",
+  beforeLoad: () => {
+    throw redirect({ to: "/library" });
+  },
+});
 
-const libraryRoute = withCrumb('Library', {
+const libraryRoute = withCrumb("Library", {
   getParentRoute: () => rootRoute,
-  path: '/library',
+  path: "/library",
   component: LibraryLayout,
-})
+});
 
 // Landing at /library renders the overview hub.
 const libraryIndexRoute = createRoute({
   getParentRoute: () => libraryRoute,
-  path: '/',
+  path: "/",
   component: LibraryOverviewHub,
-})
+});
 
 // Dedicated Templates routes — literal paths beat the `/$type` param
 // route below, so these are dispatched directly by the router rather
 // than via a runtime `if (type === 'templates')` branch inside the
 // generic views.
-const libraryTemplatesIndexRoute = withCrumb('Templates', {
+const libraryTemplatesIndexRoute = withCrumb("Templates", {
   getParentRoute: () => libraryRoute,
-  path: '/templates',
+  path: "/templates",
   component: LibraryTemplatesIndex,
-})
+});
 
 const libraryTemplateDetailRoute = withCrumb(({ params }) => params.name, {
   getParentRoute: () => libraryRoute,
-  path: '/templates/$name',
+  path: "/templates/$name",
   component: LibraryTemplatesView,
-})
+});
 
 // `parseParams` narrows `type: string` → `type: DocTypeKey` at the router
 // boundary. An unknown type in the URL redirects to /library rather than
 // rendering a silently-wrong view.
 const libraryTypeRoute = withCrumb(({ params }) => params.type, {
   getParentRoute: () => libraryRoute,
-  path: '/$type',
+  path: "/$type",
   parseParams: (raw: Record<string, string>): { type: DocTypeKey } => {
     if (!isDocTypeKey(raw.type)) {
-      throw redirect({ to: '/library' })
+      throw redirect({ to: "/library" });
     }
-    return { type: raw.type }
+    return { type: raw.type };
   },
   component: LibraryTypeView,
-})
+});
 
 const libraryDocRoute = withCrumb(({ params }) => params.fileSlug, {
   getParentRoute: () => libraryTypeRoute,
-  path: '/$fileSlug',
+  path: "/$fileSlug",
   component: LibraryDocView,
-})
+});
 
-const lifecycleRoute = withCrumb('Lifecycle', {
+const lifecycleRoute = withCrumb("Lifecycle", {
   getParentRoute: () => rootRoute,
-  path: '/lifecycle',
+  path: "/lifecycle",
   component: LifecycleLayout,
-})
+});
 
 const lifecycleIndexRoute = createRoute({
   getParentRoute: () => lifecycleRoute,
-  path: '/',
+  path: "/",
   component: LifecycleIndex,
-})
+});
 
 export const lifecycleClusterRoute = withCrumb(({ params }) => params.slug, {
   getParentRoute: () => lifecycleRoute,
-  path: '/$slug',
+  path: "/$slug",
   component: LifecycleClusterView,
-})
+});
 
-const kanbanRoute = withCrumb('Kanban', {
+const kanbanRoute = withCrumb("Kanban", {
   getParentRoute: () => rootRoute,
-  path: '/kanban',
+  path: "/kanban",
   component: KanbanBoard,
-})
+});
 
 // Developer-only preview route — uncrumbed (does not appear in the breadcrumb
 // trail). Renders all 12 doc-type Glyphs × 3 sizes for visual review and as
 // the page under test for the Playwright visual-regression spec.
 const glyphShowcaseRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/glyph-showcase',
+  path: "/glyph-showcase",
   component: GlyphShowcase,
-})
+});
 
 // Developer-only preview route for the BigGlyph hero illustrations. Mirrors
 // glyphShowcaseRoute: uncrumbed, renders all 13 doc-type heroes at 96px and is
@@ -154,18 +162,18 @@ const glyphShowcaseRoute = createRoute({
 // VR spec + baselines, don't just delete).
 const bigGlyphShowcaseRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/big-glyph-showcase',
+  path: "/big-glyph-showcase",
   component: BigGlyphShowcase,
-})
+});
 
 // Developer-only preview route for the Chip primitive. Mirrors the
 // glyphShowcaseRoute: uncrumbed, renders all 6 variants × 2 sizes for
 // visual review and visual-regression coverage.
 const chipShowcaseRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/chip-showcase',
+  path: "/chip-showcase",
   component: ChipShowcase,
-})
+});
 
 // Developer-only Playwright fixture surface for the code-block
 // syntax-highlight palette (story 0076). Renders one fenced code
@@ -173,9 +181,9 @@ const chipShowcaseRoute = createRoute({
 // tests/visual-regression/code-block-resolved-colours.spec.ts.
 const codeSyntaxShowcaseRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/code-syntax-showcase',
+  path: "/code-syntax-showcase",
   component: CodeSyntaxShowcase,
-})
+});
 
 // Developer-only Playwright fixture surface for the kanban card's drag states
 // (story 0086). Renders the resting / dragging / overlay presentations
@@ -183,9 +191,9 @@ const codeSyntaxShowcaseRoute = createRoute({
 // kanban-card-resolved-styles.spec.ts.
 const kanbanCardShowcaseRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/kanban-card-showcase',
+  path: "/kanban-card-showcase",
   component: KanbanCardShowcase,
-})
+});
 
 // Exported so tests can construct an isolated router with memory history.
 export const routeTree = rootRoute.addChildren([
@@ -205,12 +213,12 @@ export const routeTree = rootRoute.addChildren([
   chipShowcaseRoute,
   codeSyntaxShowcaseRoute,
   kanbanCardShowcaseRoute,
-])
+]);
 
-export const router = createRouter({ routeTree })
+export const router = createRouter({ routeTree });
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface Register {
-    router: typeof router
+    router: typeof router;
   }
 }

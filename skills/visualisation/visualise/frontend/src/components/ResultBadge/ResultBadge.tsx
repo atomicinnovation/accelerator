@@ -1,8 +1,8 @@
-import { FrontmatterChip } from '../FrontmatterChip/FrontmatterChip'
-import { resultToVariant } from '../../api/result-variant'
+import { resultToVariant } from "../../api/result-variant";
+import { FrontmatterChip } from "../FrontmatterChip/FrontmatterChip";
 
 export interface ResultBadgeProps {
-  value: unknown
+  value: unknown;
 }
 
 export function ResultBadge({ value }: ResultBadgeProps) {
@@ -13,5 +13,5 @@ export function ResultBadge({ value }: ResultBadgeProps) {
       variant={resultToVariant(value)}
       testId="result-badge"
     />
-  )
+  );
 }

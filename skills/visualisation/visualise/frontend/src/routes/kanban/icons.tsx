@@ -3,10 +3,10 @@
 // reads the same as the design; exported standalone like the lifecycle icons
 // rather than routed through `Glyph` (which is keyed off `DocTypeKey`).
 
-import { IconFrame } from '../../components/Glyph/IconFrame'
+import { IconFrame } from "../../components/Glyph/IconFrame";
 
 interface IconProps {
-  size?: number
+  size?: number;
 }
 
 /** Framed kanban eyebrow glyph for `Page`'s eyebrow slot — the tinted-square
@@ -31,7 +31,7 @@ export function KanbanEyebrowIcon({ size = 16 }: IconProps) {
         <rect x="17" y="4" width="4" height="13" rx="1" />
       </svg>
     </IconFrame>
-  )
+  );
 }
 
 /** Pulse glyph — the leading icon on the "live" chip (prototype `activity`). */
@@ -50,7 +50,7 @@ export function ActivityIcon({ size = 10 }: IconProps) {
     >
       <path d="M3 12h4l3-8 4 16 3-8h4" />
     </svg>
-  )
+  );
 }
 
 /** Link glyph for the card foot's "N linked" meta (prototype `link`). */
@@ -70,5 +70,5 @@ export function LinkIcon({ size = 11 }: IconProps) {
       <path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1" />
       <path d="M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1" />
     </svg>
-  )
+  );
 }

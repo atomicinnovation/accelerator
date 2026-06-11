@@ -1,75 +1,78 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render } from '@testing-library/react'
-import { Glyph } from './Glyph'
-import { DOC_TYPE_COLOR_VAR } from './Glyph.constants'
-import GlyphSource from './Glyph.tsx?raw'
-import { DOC_TYPE_KEYS, type DocTypeKey } from '../../api/types'
+import { render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { DOC_TYPE_KEYS, type DocTypeKey } from "../../api/types";
+import { Glyph } from "./Glyph";
+import { DOC_TYPE_COLOR_VAR } from "./Glyph.constants";
+import GlyphSource from "./Glyph.tsx?raw";
 
 // Compile-time type-rejection guard. The @ts-expect-error directive fires
 // when `typecheck` (tsc --noEmit) runs; `npm test` alone does not enforce
 // it. Exported so `noUnusedLocals` doesn't elide the function — never
 // called at runtime.
+// biome-ignore lint/suspicious/noExportsInTest: the export is load-bearing — it keeps tsc's noUnusedLocals from eliding this compile-time @ts-expect-error type guard; the function is never imported or run
 export function _typeContractGuards(): void {
   // @ts-expect-error — size 20 is not 16 | 24 | 32.
-  void (<Glyph docType="decisions" size={20} />)
+  void (<Glyph docType="decisions" size={20} />);
 }
 
-describe('Glyph: colour-var lookup', () => {
-  it('resolves the virtual templates key to var(--ac-fg-muted)', () => {
-    expect(DOC_TYPE_COLOR_VAR['templates']).toBe('var(--ac-fg-muted)')
-  })
+describe("Glyph: colour-var lookup", () => {
+  it("resolves the virtual templates key to var(--ac-fg-muted)", () => {
+    expect(DOC_TYPE_COLOR_VAR.templates).toBe("var(--ac-fg-muted)");
+  });
 
-  it('resolves a non-virtual key to its var(--ac-doc-<key>)', () => {
-    expect(DOC_TYPE_COLOR_VAR['decisions']).toBe('var(--ac-doc-decisions)')
-  })
-})
+  it("resolves a non-virtual key to its var(--ac-doc-<key>)", () => {
+    expect(DOC_TYPE_COLOR_VAR.decisions).toBe("var(--ac-doc-decisions)");
+  });
+});
 
-describe('Glyph: templates rendering', () => {
-  it('unframed templates Glyph sets color var(--ac-fg-muted) and data-doc-type', () => {
-    const { container } = render(<Glyph docType="templates" size={16} />)
-    const svg = container.querySelector('svg') as SVGElement
-    expect(svg.style.color).toBe('var(--ac-fg-muted)')
-    expect(svg.getAttribute('data-doc-type')).toBe('templates')
-  })
+describe("Glyph: templates rendering", () => {
+  it("unframed templates Glyph sets color var(--ac-fg-muted) and data-doc-type", () => {
+    const { container } = render(<Glyph docType="templates" size={16} />);
+    const svg = container.querySelector("svg") as SVGElement;
+    expect(svg.style.color).toBe("var(--ac-fg-muted)");
+    expect(svg.getAttribute("data-doc-type")).toBe("templates");
+  });
 
-  it('framed templates Glyph sets inner-svg color and data-doc-type on span + svg', () => {
-    const { container } = render(<Glyph docType="templates" size={16} framed />)
-    const span = container.querySelector('span')!
-    const svg = container.querySelector('svg') as SVGElement
-    expect(span.getAttribute('data-doc-type')).toBe('templates')
-    expect(svg.getAttribute('data-doc-type')).toBe('templates')
-    expect(svg.style.color).toBe('var(--ac-fg-muted)')
-  })
-})
+  it("framed templates Glyph sets inner-svg color and data-doc-type on span + svg", () => {
+    const { container } = render(
+      <Glyph docType="templates" size={16} framed />,
+    );
+    const span = container.querySelector("span")!;
+    const svg = container.querySelector("svg") as SVGElement;
+    expect(span.getAttribute("data-doc-type")).toBe("templates");
+    expect(svg.getAttribute("data-doc-type")).toBe("templates");
+    expect(svg.style.color).toBe("var(--ac-fg-muted)");
+  });
+});
 
-describe('Glyph: runtime DOM shape', () => {
-  it('root element is <svg> with viewBox 0 0 24 24', () => {
-    const { container } = render(<Glyph docType="decisions" size={24} />)
-    const svg = container.querySelector('svg')
-    expect(svg).not.toBeNull()
-    expect(svg!.getAttribute('viewBox')).toBe('0 0 24 24')
-  })
+describe("Glyph: runtime DOM shape", () => {
+  it("root element is <svg> with viewBox 0 0 24 24", () => {
+    const { container } = render(<Glyph docType="decisions" size={24} />);
+    const svg = container.querySelector("svg");
+    expect(svg).not.toBeNull();
+    expect(svg!.getAttribute("viewBox")).toBe("0 0 24 24");
+  });
 
-  it('width and height attributes match the requested size', () => {
-    const { container } = render(<Glyph docType="decisions" size={32} />)
-    const svg = container.querySelector('svg')!
-    expect(svg.getAttribute('width')).toBe('32')
-    expect(svg.getAttribute('height')).toBe('32')
-  })
+  it("width and height attributes match the requested size", () => {
+    const { container } = render(<Glyph docType="decisions" size={32} />);
+    const svg = container.querySelector("svg")!;
+    expect(svg.getAttribute("width")).toBe("32");
+    expect(svg.getAttribute("height")).toBe("32");
+  });
 
-  it('inline style.color resolves to var(--ac-doc-<key>)', () => {
-    const { container } = render(<Glyph docType="research" size={24} />)
-    const svg = container.querySelector('svg') as SVGElement
-    expect(svg.style.color).toBe('var(--ac-doc-research)')
-  })
+  it("inline style.color resolves to var(--ac-doc-<key>)", () => {
+    const { container } = render(<Glyph docType="research" size={24} />);
+    const svg = container.querySelector("svg") as SVGElement;
+    expect(svg.style.color).toBe("var(--ac-doc-research)");
+  });
 
-  it('carries data-doc-type attribute matching docType', () => {
-    const { container } = render(<Glyph docType="plans" size={16} />)
-    const svg = container.querySelector('svg')!
-    expect(svg.getAttribute('data-doc-type')).toBe('plans')
-  })
+  it("carries data-doc-type attribute matching docType", () => {
+    const { container } = render(<Glyph docType="plans" size={16} />);
+    const svg = container.querySelector("svg")!;
+    expect(svg.getAttribute("data-doc-type")).toBe("plans");
+  });
 
-  it('every descendant fill is currentColor / none / var(--ac-*) — never a hex (deep walk)', () => {
+  it("every descendant fill is currentColor / none / var(--ac-*) — never a hex (deep walk)", () => {
     // Permitted fills:
     //   - `currentColor` — inherits the cascade `color` driven by --ac-doc-<key>
     //   - `none`         — stroke-only shapes
@@ -78,93 +81,103 @@ describe('Glyph: runtime DOM shape', () => {
     //                      and work-item-reviews; matches --ac-bg-raised).
     // Walk via querySelectorAll('*') (not children) so paths nested inside
     // <g> groups are inspected too.
-    const allowedFill = /^(currentColor|none|var\(--ac-[a-z0-9-]+\))$/
+    const allowedFill = /^(currentColor|none|var\(--ac-[a-z0-9-]+\))$/;
     for (const docType of DOC_TYPE_KEYS) {
-      const { container, unmount } = render(<Glyph docType={docType} size={24} />)
-      const svg = container.querySelector('svg')!
-      for (const node of Array.from(svg.querySelectorAll('*'))) {
-        const fill = node.getAttribute('fill')
+      const { container, unmount } = render(
+        <Glyph docType={docType} size={24} />,
+      );
+      const svg = container.querySelector("svg")!;
+      for (const node of Array.from(svg.querySelectorAll("*"))) {
+        const fill = node.getAttribute("fill");
         if (fill !== null) {
           expect(
             allowedFill.test(fill),
             `${docType}: descendant <${node.tagName}> has fill="${fill}"`,
-          ).toBe(true)
+          ).toBe(true);
         }
       }
-      unmount()
+      unmount();
     }
-  })
+  });
 
-  it('every descendant stroke is currentColor or none — never a hex (deep walk)', () => {
+  it("every descendant stroke is currentColor or none — never a hex (deep walk)", () => {
     // `stroke="none"` is used on filled-only primitives (e.g. dot accents).
     // Only hex literals would break the theme contract.
     for (const docType of DOC_TYPE_KEYS) {
-      const { container, unmount } = render(<Glyph docType={docType} size={24} />)
-      const svg = container.querySelector('svg')!
-      for (const node of Array.from(svg.querySelectorAll('*'))) {
-        const stroke = node.getAttribute('stroke')
+      const { container, unmount } = render(
+        <Glyph docType={docType} size={24} />,
+      );
+      const svg = container.querySelector("svg")!;
+      for (const node of Array.from(svg.querySelectorAll("*"))) {
+        const stroke = node.getAttribute("stroke");
         if (stroke !== null) {
           expect(
-            stroke === 'currentColor' || stroke === 'none',
+            stroke === "currentColor" || stroke === "none",
             `${docType}: descendant <${node.tagName}> has stroke="${stroke}"`,
-          ).toBe(true)
+          ).toBe(true);
         }
       }
-      unmount()
+      unmount();
     }
-  })
-})
+  });
+});
 
-describe('Glyph: accessibility branches', () => {
+describe("Glyph: accessibility branches", () => {
   it('default render carries aria-hidden="true" and neither role nor aria-label', () => {
-    const { container } = render(<Glyph docType="decisions" size={24} />)
-    const svg = container.querySelector('svg')!
-    expect(svg.getAttribute('aria-hidden')).toBe('true')
-    expect(svg.getAttribute('role')).toBeNull()
-    expect(svg.getAttribute('aria-label')).toBeNull()
-  })
+    const { container } = render(<Glyph docType="decisions" size={24} />);
+    const svg = container.querySelector("svg")!;
+    expect(svg.getAttribute("aria-hidden")).toBe("true");
+    expect(svg.getAttribute("role")).toBeNull();
+    expect(svg.getAttribute("aria-label")).toBeNull();
+  });
 
   it('with ariaLabel="Decision" carries role="img" and aria-label and no aria-hidden', () => {
-    const { container } = render(<Glyph docType="decisions" size={24} ariaLabel="Decision" />)
-    const svg = container.querySelector('svg')!
-    expect(svg.getAttribute('role')).toBe('img')
-    expect(svg.getAttribute('aria-label')).toBe('Decision')
-    expect(svg.getAttribute('aria-hidden')).toBeNull()
-  })
+    const { container } = render(
+      <Glyph docType="decisions" size={24} ariaLabel="Decision" />,
+    );
+    const svg = container.querySelector("svg")!;
+    expect(svg.getAttribute("role")).toBe("img");
+    expect(svg.getAttribute("aria-label")).toBe("Decision");
+    expect(svg.getAttribute("aria-hidden")).toBeNull();
+  });
 
   it('with ariaLabel="" (empty string) treats Glyph as labelled, not decorative', () => {
-    const { container } = render(<Glyph docType="decisions" size={24} ariaLabel="" />)
-    const svg = container.querySelector('svg')!
-    expect(svg.getAttribute('role')).toBe('img')
-    expect(svg.getAttribute('aria-label')).toBe('')
-    expect(svg.getAttribute('aria-hidden')).toBeNull()
-  })
-})
+    const { container } = render(
+      <Glyph docType="decisions" size={24} ariaLabel="" />,
+    );
+    const svg = container.querySelector("svg")!;
+    expect(svg.getAttribute("role")).toBe("img");
+    expect(svg.getAttribute("aria-label")).toBe("");
+    expect(svg.getAttribute("aria-hidden")).toBeNull();
+  });
+});
 
-describe('Glyph: runtime guard', () => {
+describe("Glyph: runtime guard", () => {
   afterEach(() => {
-    vi.restoreAllMocks()
-  })
+    vi.restoreAllMocks();
+  });
 
-  it('renders null and warns once for an unknown docType in dev', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it("renders null and warns once for an unknown docType in dev", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     // Force an unknown key past the type system to exercise the dev guard.
-    const docType = 'banana' as unknown as DocTypeKey
-    const { container } = render(<Glyph docType={docType} size={24} />)
-    expect(container.querySelector('svg')).toBeNull()
-    expect(warn).toHaveBeenCalledTimes(1)
-    expect(warn.mock.calls[0][0]).toMatch(/Unknown docType: banana/)
-  })
-})
+    const docType = "banana" as unknown as DocTypeKey;
+    const { container } = render(<Glyph docType={docType} size={24} />);
+    expect(container.querySelector("svg")).toBeNull();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toMatch(/Unknown docType: banana/);
+  });
+});
 
-describe('Glyph: source-level no-state-hooks guard', () => {
-  it('Glyph.tsx contains no React state, effect, or context hooks', () => {
+describe("Glyph: source-level no-state-hooks guard", () => {
+  it("Glyph.tsx contains no React state, effect, or context hooks", () => {
     // AC #4's "no React render occurred" invariant. Structural enforcement —
     // a future refactor introducing a state hook must consciously update or
     // remove this guard.
-    expect(GlyphSource).not.toMatch(/\buse(State|Effect|Reducer|Context|LayoutEffect)\b/)
-  })
-})
+    expect(GlyphSource).not.toMatch(
+      /\buse(State|Effect|Reducer|Context|LayoutEffect)\b/,
+    );
+  });
+});
 
 // AC #4 ("getComputedStyle(svg).fill resolves to a hex") is verified end-to-end
 // by Playwright (tests/visual-regression/glyph-resolved-fill.spec.ts). JSDOM
@@ -173,35 +186,35 @@ describe('Glyph: source-level no-state-hooks guard', () => {
 
 // Explicit 13 × 3 = 39 combination matrix. Each (docType, size)
 // case is named so a regression points directly at the failing combination.
-const SIZES = [16, 24, 32] as const
+const SIZES = [16, 24, 32] as const;
 
-describe.each(DOC_TYPE_KEYS)('Glyph: %s', (docType) => {
-  describe.each(SIZES)('size %s', (size) => {
-    it('renders an <svg> with correct dimensions, viewBox, and color var', () => {
-      const { container } = render(<Glyph docType={docType} size={size} />)
-      const svg = container.querySelector('svg') as SVGElement | null
-      expect(svg).not.toBeNull()
-      expect(svg!.getAttribute('width')).toBe(String(size))
-      expect(svg!.getAttribute('height')).toBe(String(size))
-      expect(svg!.getAttribute('viewBox')).toBeTruthy()
-      expect(svg!.style.color).toBe(DOC_TYPE_COLOR_VAR[docType])
-    })
-  })
-})
+describe.each(DOC_TYPE_KEYS)("Glyph: %s", (docType) => {
+  describe.each(SIZES)("size %s", (size) => {
+    it("renders an <svg> with correct dimensions, viewBox, and color var", () => {
+      const { container } = render(<Glyph docType={docType} size={size} />);
+      const svg = container.querySelector("svg") as SVGElement | null;
+      expect(svg).not.toBeNull();
+      expect(svg!.getAttribute("width")).toBe(String(size));
+      expect(svg!.getAttribute("height")).toBe(String(size));
+      expect(svg!.getAttribute("viewBox")).toBeTruthy();
+      expect(svg!.style.color).toBe(DOC_TYPE_COLOR_VAR[docType]);
+    });
+  });
+});
 
 // Replace attribute-literal a11y assertions with Testing Library's
 // accessible-name resolution so the test reflects what assistive tech
 // actually sees, not the raw attribute spelling.
-describe('Glyph: accessible-name semantics', () => {
-  it('default render is not exposed as an image to assistive tech', () => {
-    const { queryByRole } = render(<Glyph docType="decisions" size={24} />)
-    expect(queryByRole('img')).toBeNull()
-  })
+describe("Glyph: accessible-name semantics", () => {
+  it("default render is not exposed as an image to assistive tech", () => {
+    const { queryByRole } = render(<Glyph docType="decisions" size={24} />);
+    expect(queryByRole("img")).toBeNull();
+  });
 
-  it('with ariaLabel, render exposes role=img with the given name', () => {
+  it("with ariaLabel, render exposes role=img with the given name", () => {
     const { getByRole } = render(
       <Glyph docType="decisions" size={24} ariaLabel="Decision" />,
-    )
-    expect(getByRole('img', { name: 'Decision' })).toBeTruthy()
-  })
-})
+    );
+    expect(getByRole("img", { name: "Decision" })).toBeTruthy();
+  });
+});
