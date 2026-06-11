@@ -117,10 +117,11 @@ Wait for user selection.
 
 ### Step 3: Generate ADRs
 
-1. **Gather metadata** by running:
-   ```
-   ${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh
-   ```
+1. **Gather metadata** by running
+   `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`. Run the bare path
+   **directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
+   prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
+   prompt).
 
 2. **For each selected decision**, generate a draft ADR using the create-adr
    template with:
@@ -161,7 +162,10 @@ Wait for user selection.
    the template's frontmatter block:
 
    1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
-      once for the batch to obtain `Current Date/Time (UTC):`.
+      once for the batch to obtain `Current Date/Time (UTC):`. Run the bare path
+      **directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
+      prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
+      prompt).
    2. For each approved ADR, **substitute** every field below with the
       indicated value:
       - `type:` ← `adr`

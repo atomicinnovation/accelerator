@@ -439,7 +439,9 @@ concurrently. Please re-run /create-work-item.
 
    1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
       to obtain `Current Date/Time (UTC):`, `Current Revision:`, and
-      `Repository Name:`.
+      `Repository Name:`. Run the bare path **directly** as an executable;
+      never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the
+      skill's `allowed-tools` permission and forces an unnecessary prompt).
    2. **Substitute** every field below with the indicated value:
       - `type:` ← `work-item`
       - `id:` ← the full ID produced by `work-item-next-number.sh`,

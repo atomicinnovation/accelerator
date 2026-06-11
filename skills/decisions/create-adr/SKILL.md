@@ -120,11 +120,11 @@ Wait for user input before proceeding.
 
 ### Step 3: Draft the ADR
 
-1. **Gather metadata** by running:
-
-```
-${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh
-```
+1. **Gather metadata** by running
+   `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`. Run the bare path
+   **directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
+   prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
+   prompt).
 
 2. **Draft the ADR** using the template below and present it to the user for
    review:

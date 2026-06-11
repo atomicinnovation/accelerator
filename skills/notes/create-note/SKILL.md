@@ -79,7 +79,10 @@ not to the note itself.
 ## Step 2: Derive the Filename
 
 1. Run `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh` to obtain
-   the current date/time, revision, and repository name.
+   the current date/time, revision, and repository name. Run the bare path
+   **directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
+   prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
+   prompt).
 2. Build the path `<notes_dir>/YYYY-MM-DD-<topic-slug>.md`, where the date is
    the `Current Date/Time (UTC):` date portion and `<topic-slug>` is a
    meaningful kebab-case summary of the topic — condense and normalise it,

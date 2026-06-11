@@ -104,7 +104,10 @@ potential impacts)
 
   1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
      to obtain `Current Date/Time (UTC):`, `Current Revision:`, and
-     `Repository Name:`. Also capture PR-specific extras via
+     `Repository Name:`. Run the bare path **directly** as an executable;
+     never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the
+     skill's `allowed-tools` permission and forces an unnecessary prompt). Also
+     capture PR-specific extras via
      `gh pr view <number> --json url,number,title,mergeCommit` to
      fill `pr_url:`, `pr_number:`, `title:`, and (when the PR is
      merged) `merge_commit:`.

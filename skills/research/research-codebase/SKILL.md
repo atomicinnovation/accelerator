@@ -110,7 +110,9 @@ The key is to use these agents intelligently:
 ### Step 5: Gather metadata for the research document
 
 - Run the `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
-  script to generate all relevant metadata
+  script to generate all relevant metadata. Run the bare path **directly** as an
+  executable; never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the
+  skill's `allowed-tools` permission and forces an unnecessary prompt).
 - Filename: write to the configured research directory (shown above) using
   - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
     - YYYY-MM-DD is today's date

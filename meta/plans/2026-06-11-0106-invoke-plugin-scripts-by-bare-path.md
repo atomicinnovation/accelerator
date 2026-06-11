@@ -285,17 +285,20 @@ The two fence conversions above (`create-adr:126`, `extract-adrs:122`) are the 1
 
 #### Automated Verification
 
-- [ ] **(AC2 — fence absence)** No bare fence houses an artifact path in the two ADR
+- [x] **(AC2 — fence absence)** No bare fence houses an artifact path in the two ADR
       files (guard reports neither `create-adr` nor `extract-adrs`):
       `find skills -name SKILL.md -print0 | xargs -0 awk -f /tmp/fence-guard.awk | grep -E 'create-adr|extract-adrs'` → empty.
       The guard (see Testing Strategy) is the **authoritative** absence proof for AC2.
-- [ ] **(AC2 — inline presence, necessary-but-not-sufficient)** Both ADR files contain the
+- [x] **(AC2 — inline presence, necessary-but-not-sufficient)** Both ADR files contain the
       path as inline (backtick-delimited) code:
       `grep -c '`${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`' skills/decisions/create-adr/SKILL.md skills/decisions/extract-adrs/SKILL.md` → ≥1 each.
       Note: `extract-adrs` already carries an inline occurrence at `:163`, so this presence
       grep can pass even if the `:122` fence were left unconverted — it is the paired
       guard-empty check above that actually proves the fence is gone. Read the two together.
-- [ ] **(AC1 — per-occurrence directive coverage)** Every model-issued artifact occurrence
+      (Implementation note: the `${…}`/`.` make this an unreliable regex that matched 0 on
+      both BSD and GNU grep; use `grep -Fc` to verify the fixed string — create-adr=1,
+      extract-adrs=2. Condition satisfied; the bare `grep -c` form is buggy.)
+- [x] **(AC1 — per-occurrence directive coverage)** Every model-issued artifact occurrence
       carries the canonical directive, verified at **occurrence** granularity (a file with
       two sites must carry two directives — `extract-adrs` has `:122` and `:163`). The
       occurrence pattern `scripts/artifact-derive-metadata\.sh` is anchored on `scripts/`,
@@ -310,13 +313,13 @@ The two fence conversions above (`create-adr:126`, `extract-adrs:122`) are the 1
       ```
       → no output. (`grep -Fc` matches the canonical fixed fragment literally, so the
       embedded backticks are unambiguous and bash-3.2-safe.)
-- [ ] No `allowed-tools` line changed in any edited file (review `jj diff` — only body
+- [x] No `allowed-tools` line changed in any edited file (review `jj diff` — only body
       prose differs).
 
 #### Manual Verification
 
-- [ ] Each converted/appended passage reads naturally with the directive in place.
-- [ ] The split-passage sites (`research-issue:93-94`, `extract-work-items:447-448`) keep
+- [x] Each converted/appended passage reads naturally with the directive in place.
+- [x] The split-passage sites (`research-issue:93-94`, `extract-work-items:447-448`) keep
       the verb, path, and directive in one coherent passage.
 
 ---
