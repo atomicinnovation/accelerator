@@ -5,7 +5,7 @@ title: "Invoke Plugin Scripts by Bare Path in Skill Bodies Implementation Plan"
 date: "2026-06-11T13:38:03+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0106"
 parent: "work-item:0106"
 derived_from: ["codebase-research:2026-06-11-0106-bare-path-script-invocation-call-sites"]
