@@ -4,22 +4,22 @@ from tasks.shared.dev.state import DevState, read_dev_state, write_dev_state
 
 
 def _full_state(**overrides) -> DevState:
-    base = dict(
-        endpoint="ipc:///tmp/acc-dev-abc/e.sock",
-        pubsub_endpoint="ipc:///tmp/acc-dev-abc/p.sock",
-        frontend_port=54321,
-        frontend_url="http://127.0.0.1:54321",
-        pidfile="/dev/dir/circusd.pid",
-        ini_path="/dev/dir/circus.ini",
-        arbiter_pid=4242,
-        arbiter_start_time=1000.5,
-        server_pid=4243,
-        server_start_time=1001.5,
-        frontend_pid=4244,
-        frontend_start_time=1002.5,
-        npm_bin="/usr/local/bin/npm",
-        node_bin="/usr/local/bin/node",
-    )
+    base = {
+        "endpoint": "ipc:///tmp/acc-dev-abc/e.sock",
+        "pubsub_endpoint": "ipc:///tmp/acc-dev-abc/p.sock",
+        "frontend_port": 54321,
+        "frontend_url": "http://127.0.0.1:54321",
+        "pidfile": "/dev/dir/circusd.pid",
+        "ini_path": "/dev/dir/circus.ini",
+        "arbiter_pid": 4242,
+        "arbiter_start_time": 1000.5,
+        "server_pid": 4243,
+        "server_start_time": 1001.5,
+        "frontend_pid": 4244,
+        "frontend_start_time": 1002.5,
+        "npm_bin": "/usr/local/bin/npm",
+        "node_bin": "/usr/local/bin/node",
+    }
     base.update(overrides)
     return DevState(**base)
 
@@ -50,7 +50,9 @@ class TestDevStateRoundTrip:
 
     def test_incremental_pid_write(self, tmp_path: Path):
         path = tmp_path / "dev.json"
-        state = _full_state(arbiter_pid=None, server_pid=None, frontend_pid=None)
+        state = _full_state(
+            arbiter_pid=None, server_pid=None, frontend_pid=None
+        )
         write_dev_state(path, state)
         # server becomes active -> record only the server PID
         state.server_pid = 555

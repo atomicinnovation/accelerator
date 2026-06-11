@@ -40,7 +40,9 @@ class TestIpcSocketPaths:
         finally:
             tempfile.tempdir = None
 
-    def test_hard_errors_when_path_exceeds_limit(self, tmp_path: Path, monkeypatch):
+    def test_hard_errors_when_path_exceeds_limit(
+        self, tmp_path: Path, monkeypatch
+    ):
         deep = "/" + "x" * endpoints._SUN_PATH_MAX
         monkeypatch.setattr(endpoints.tempfile, "gettempdir", lambda: deep)
         with pytest.raises(ValueError, match="sun_path"):

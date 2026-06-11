@@ -21,23 +21,23 @@ import sys
 from pathlib import Path
 
 # Make ``tasks`` importable when run as a bare script (cwd is the repo root).
-sys.path.insert(0, os.getcwd())
+sys.path.insert(0, str(Path.cwd()))
 
-from tasks.shared.clock import Clock  # noqa: E402
-from tasks.shared.dev.circus import (  # noqa: E402
+from tasks.shared.clock import Clock
+from tasks.shared.dev.circus import (
     PopenHandle,
     default_client_factory,
     default_launcher,
 )
-from tasks.shared.dev.lifecycle import (  # noqa: E402
+from tasks.shared.dev.lifecycle import (
     DevDeps,
     bring_up,
     do_restart,
     do_status,
     do_stop,
 )
-from tasks.shared.ports import free_port  # noqa: E402
-from tasks.shared.processes import PsutilProcessOps  # noqa: E402
+from tasks.shared.ports import free_port
+from tasks.shared.processes import PsutilProcessOps
 
 _SERVER_TEMPLATE = """\
 #!{interp}
@@ -64,7 +64,9 @@ time.sleep(3600)
 _IGNORE = "signal.signal(signal.SIGTERM, signal.SIG_IGN)"
 # Spawn a descendant via the absolute interpreter so it needs no PATH (the
 # stripped-PATH test strips everything but the venv bin).
-_SPAWN = "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(3600)'])"
+_SPAWN = (
+    "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(3600)'])"
+)
 
 
 def _write_fakes(workspace: Path, opts: dict) -> tuple[Path, Path]:
@@ -141,7 +143,9 @@ def _build_deps(workspace: Path, opts: dict) -> DevDeps:
         # cmd, proving the PATH-drift mitigation.
         env["PATH"] = str(Path(sys.executable).parent)
 
-    launcher = _failing_launcher if opts.get("fake_circusd_fail") else default_launcher
+    launcher = (
+        _failing_launcher if opts.get("fake_circusd_fail") else default_launcher
+    )
 
     return DevDeps(
         client_factory=default_client_factory,
@@ -163,7 +167,9 @@ def _build_deps(workspace: Path, opts: dict) -> DevDeps:
         env=env,
         npm_bin=str(npm_bin),
         node_bin="node",
-        free_port=(lambda: opts["free_port"]) if "free_port" in opts else free_port,
+        free_port=(lambda: opts["free_port"])
+        if "free_port" in opts
+        else free_port,
         # Happy-path defaults are deliberately generous: these are real
         # processes (circusd + Python fakes) started on shared CI runners that
         # may have only a few cores under heavy parallel load. The suite
@@ -183,7 +189,9 @@ def _build_deps(workspace: Path, opts: dict) -> DevDeps:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--workspace", required=True)
-    parser.add_argument("--action", required=True, choices=["up", "stop", "status", "restart"])
+    parser.add_argument(
+        "--action", required=True, choices=["up", "stop", "status", "restart"]
+    )
     parser.add_argument("--opts")
     args = parser.parse_args()
 
@@ -204,7 +212,9 @@ def main() -> int:
         return 0 if result.kind == "clean" else 1
     if args.action == "status":
         result = do_status(deps)
-        print(json.dumps({"exit_code": result.exit_code, "lines": result.lines}))
+        print(
+            json.dumps({"exit_code": result.exit_code, "lines": result.lines})
+        )
         return result.exit_code
     return 2
 

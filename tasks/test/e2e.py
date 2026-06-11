@@ -4,7 +4,7 @@ from .helpers import repo_root
 
 
 @task
-def visualiser(context: Context):
+def visualiser(context: Context) -> None:
     """E2E tests for the visualiser (Playwright).
 
     Requires build.frontend and build.server to have run first.
@@ -13,8 +13,8 @@ def visualiser(context: Context):
     """
     frontend_root = repo_root() / "skills/visualisation/visualise/frontend"
     server_bin = (
-        repo_root()
-        / "skills/visualisation/visualise/server/target/debug/accelerator-visualiser"
+        repo_root() / "skills/visualisation/visualise/server/target/debug/"
+        "accelerator-visualiser"
     )
     context.run(
         f"npm --prefix {frontend_root} run test:e2e",

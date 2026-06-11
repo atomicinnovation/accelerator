@@ -35,6 +35,106 @@ prerelease = "allow"
 [tool.setuptools]
 packages = []
 
+[tool.ruff]
+# line-length mirrors .editorconfig (max_line_length = 80); ruff does not read
+# .editorconfig, so the value is duplicated here. Keep in sync by hand.
+# Indent is intentionally NOT set: ruff's default (4-space) already equals the
+# .editorconfig [*.py] indent_size, so the .editorconfig-sync intent's indent
+# half is met by matching the default rather than a duplicated setting (recorded
+# so a future .editorconfig indent change is known to need a ruff change too).
+line-length = 80
+target-version = "py314"
+# workspaces/ holds jj workspace checkouts (full repo copies) — never linted.
+# (.venv is already in ruff's default exclude set.)
+# mock-jira-server.py runs under the end user's system python3 (3.9 floor); the
+# global target-version = "py314" drives `ruff format` output and version rules
+# (FA/PYI/UP/...) that could emit 3.10+ syntax into a file that must parse on
+# 3.9, and a per-file UP-only ignore does not constrain `ruff format`. Exclude
+# it entirely (mirroring the pyrefly project-excludes), not rule-by-rule.
+extend-exclude = [
+    "workspaces",
+    "skills/integrations/jira/scripts/test-helpers/mock-jira-server.py",
+]
+
+[tool.ruff.lint]
+# Strict mandate (0098): select every rule, subtract documented ignores.
+select = ["ALL"]
+ignore = [
+    # Formatter-conflicting rules (Astral docs recommend disabling under the
+    # formatter — they fight `ruff format`'s own decisions):
+    "COM812", "COM819", "ISC001",
+    "Q000", "Q001", "Q002", "Q003",
+    "D206", "D300", "W191",
+    # Mutually-exclusive docstring conventions (keep D211 / D212):
+    "D203", "D213",
+    # --- Curated high-noise opinionated ignores (finalised from the report-only
+    #     pass; each with a one-line rationale) ---------------------------------
+    # Docstring *presence* on every symbol is not mandated (the format rules
+    # D2xx/D4xx stay enabled, so docstrings that exist must be well-formed):
+    "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107",
+    "PLC0415",  # local/lazy imports are deliberate (avoid import cycles + defer heavy-module load)
+    "TRY003",   # allow inline exception messages (pairs with EM below)
+    "EM101", "EM102",  # ditto: raw/f-string literals passed straight to exceptions are idiomatic here
+    "T201",     # build tooling writes user-facing progress/output to stdout via print
+    "ARG001", "ARG002",  # framework/interface-mandated params (invoke's `context`, callbacks) are often unused
+    "ARG005",   # unused lambda args in callbacks/sort-keys
+    "TC001", "TC002", "TC003",  # not mandating TYPE_CHECKING import blocks; runtime import cost is negligible for build tooling
+    "S603", "S607",  # we invoke known dev tools (cargo/npm/shfmt/git) by name via PATH/mise, never untrusted input
+    "FBT001", "FBT002",  # boolean flags in task/helper signatures are idiomatic and read clearly at call sites
+    "PLR0911", "PLR0913",  # opinionated return-count / argument-count thresholds
+    "PLR2004",  # magic-value comparisons are readable in this tooling (named constants would add indirection)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests are held to a looser standard: asserts are the point, fixtures/mocks skip
+# annotations + docstrings, security lints (S) and pytest-style nudges (PT) are
+# noise on test code, and the test tree deliberately has no __init__.py (pytest
+# importlib mode) so implicit-namespace-package never applies.
+"tests/**" = ["S", "ANN", "D", "PLR2004", "SLF001", "PT", "INP001"]
+# (mock-jira-server.py is fully excluded via [tool.ruff] extend-exclude above
+# because of its 3.9 floor — no per-file ignore needed.)
+
+[tool.ruff.format]
+# Defaults (double quotes, space indent); line-length inherited from [tool.ruff].
+
+[tool.pyrefly]
+# Strict preset (0098): bans implicit-Any, requires @override, enables
+# unused-ignore + potential-bad-keyword-argument, strict-callable-subtyping.
+preset = "strict"
+python-version = "3.14"
+# Justified excludes (asserted by the coverage guard in
+# tests/unit/tasks/test_python_coverage.py so none of these can grow silently):
+#  - workspaces/  : jj workspace checkouts (full repo copies) — never checked.
+#  - .venv/       : the virtualenv (third-party site-packages).
+#  - mock-jira-server.py : reads ad-hoc attributes off HTTPServer and targets the
+#    3.9 floor (mirrors the ruff extend-exclude).
+#  - tests/       : pytest + MagicMock suites are inherently dynamic — fixtures
+#    inject un-annotated params and mocks present arbitrary attributes/returns,
+#    so strict typing yields only false positives (None-subscripting of values
+#    the test knows are populated, mock attribute access). Tests are validated by
+#    execution; ruff still lints them (with ANN/D relaxed). This mirrors ruff's
+#    `tests/** = ["ANN", "D", ...]` looser-standard treatment of the same tree.
+project-excludes = [
+    "**/workspaces/**",
+    "**/.venv/**",
+    "**/skills/integrations/jira/scripts/test-helpers/mock-jira-server.py",
+    "**/tests/**",
+]
+# Installed-but-untyped third-party packages: treat as Any so `untyped-import`
+# does not fire under strict. Finalised from the report-only run.
+replace-imports-with-any = [
+    "invoke.*",
+    "circus.*",
+    "keepachangelog.*",
+    "semver.*",
+    "pathspec.*",
+    # tomlkit ships partial stubs that type table access as the base `Item`
+    # (no __setitem__), so the version-templating round-trip
+    # (`data["package"]["version"] = ...`) reads as unsupported. Treat as Any —
+    # the round-trip's comment-preservation is guarded by a unit test, not types.
+    "tomlkit.*",
+]
+
 [project.urls]
 Homepage = "https://github.com/atomicinnovation/accelerator"
 Repository = "https://github.com/atomicinnovation/accelerator"

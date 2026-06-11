@@ -60,7 +60,9 @@ class TestConfigSuiteGuard:
             for i in range(integration._EXPECTED_CONFIG_SUITES - len(required))
         ]
         suites = required + filler
-        mocker.patch.object(integration, "run_shell_suites", return_value=suites)
+        mocker.patch.object(
+            integration, "run_shell_suites", return_value=suites
+        )
         integration.config(Context())  # must not raise
 
 

@@ -18,7 +18,7 @@ def _sources_args() -> str | None:
 
 
 @task
-def shellcheck(context: Context):
+def shellcheck(context: Context) -> None:
     """Lint every shell source with ShellCheck (config in .shellcheckrc)."""
     args = _sources_args()
     if args is None:
@@ -34,12 +34,14 @@ def shellcheck(context: Context):
 
 
 @task
-def bashisms(context: Context):
-    """Guard the bash-3.2 floor by scanning for a denylist of bash-4 constructs."""
+def bashisms(context: Context) -> None:
+    """Guard the bash-3.2 floor by scanning for denylisted bash-4 constructs."""
     args = _sources_args()
     if args is None:
         raise Exit(f"bashisms: {_EMPTY_SCOPE}", code=1)
     with context.cd(str(repo_root())):
-        result = context.run(f"bash scripts/lint-bashisms.sh {args}", warn=True, pty=False)
+        result = context.run(
+            f"bash scripts/lint-bashisms.sh {args}", warn=True, pty=False
+        )
     if result.exited != 0:
         raise Exit("lint-bashisms found bash-4 constructs", code=1)

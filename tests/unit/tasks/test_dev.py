@@ -13,7 +13,6 @@ from invoke import Context as _Context
 from tasks.shared.dev.health import Health
 from tasks.shared.dev.lifecycle import StopResult, UpResult
 
-
 # ─── @task adapter output blocks ─────────────────────────────
 
 
@@ -59,8 +58,9 @@ class TestUpAdapter:
         dev.up(_Context())
         out = capsys.readouterr().out
         assert (
-            "Dev stack already running (reused) — code changes since it started "
-            "are NOT live; run `mise run dev:restart` to apply them." in out
+            "Dev stack already running (reused) — code changes since it "
+            "started are NOT live; run `mise run dev:restart` to apply them."
+            in out
         )
 
     def test_failed_raises_exit(self, mocker):
@@ -97,7 +97,9 @@ class TestStopAdapter:
         mocker.patch.object(dev, "_dev_deps", return_value=object())
         mocker.patch(
             "tasks.dev.do_stop",
-            return_value=StopResult("survivor", pid=9000, message="still alive"),
+            return_value=StopResult(
+                "survivor", pid=9000, message="still alive"
+            ),
         )
         with pytest.raises(Exit):
             dev.stop(_Context())
@@ -139,5 +141,10 @@ class TestMiseConfigShape:
 
     def test_integration_dev_is_in_the_aggregate(self):
         mise = self._mise()
-        assert "test:integration:dev" in mise["tasks"]["test:integration"]["depends"]
-        assert mise["tasks"]["test:integration:dev"]["depends"] == ["deps:install:python"]
+        assert (
+            "test:integration:dev"
+            in mise["tasks"]["test:integration"]["depends"]
+        )
+        assert mise["tasks"]["test:integration:dev"]["depends"] == [
+            "deps:install:python"
+        ]

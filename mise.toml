@@ -11,6 +11,13 @@ shellcheck = "0.11.0"
 shfmt = "3.13.1"
 jj = "0.36.0"
 jq = "1.7.1"
+# EXACT full triples — no `.x`/prefix range operators. `select = ["ALL"]` makes
+# ruff's rule set version-sensitive (a new patch can add/alter rules), so a
+# fuzzy match would let a CI-green lint fail for a developer the next day.
+ruff = "0.15.16"
+# pyrefly has no mise registry short-name; the PyPI wheel (pipx backend) is the
+# deterministic channel pinned identically on the ubuntu CI runner and macOS.
+"pipx:pyrefly" = "1.0.0"
 
 [settings]
 experimental = true
@@ -212,6 +219,35 @@ depends = ["lint:scripts:shellcheck:check", "lint:scripts:bashisms:check"]
 [tasks."scripts:check"]
 description = "Run all shell format and lint checks (shfmt + ShellCheck + bashisms)"
 depends = ["format:scripts:check", "lint:scripts:check"]
+
+[tasks."format:build-system:check"]
+description = "Check Python formatting with ruff (read-only; fails on drift)"
+depends = ["deps:install:python"]
+run = "invoke format.build-system.check"
+
+[tasks."format:build-system:fix"]
+description = "Format Python in place with ruff"
+depends = ["deps:install:python"]
+run = "invoke format.build-system.fix"
+
+[tasks."lint:build-system:check"]
+description = "Lint Python with ruff (select = ALL)"
+depends = ["deps:install:python"]
+run = "invoke lint.build-system.check"
+
+[tasks."lint:build-system:fix"]
+description = "Apply ruff's safe lint fixes to Python"
+depends = ["deps:install:python"]
+run = "invoke lint.build-system.fix"
+
+[tasks."types:build-system:check"]
+description = "Type-check Python with pyrefly (strict preset)"
+depends = ["deps:install:python"]
+run = "invoke types.build-system.check"
+
+[tasks."build-system:check"]
+description = "Run all Python format, lint, and type checks (ruff + pyrefly)"
+depends = ["format:build-system:check", "lint:build-system:check", "types:build-system:check"]
 
 [tasks."lint:check"]
 description = "Run all lint checks"

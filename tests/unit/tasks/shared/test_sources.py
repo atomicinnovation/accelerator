@@ -26,7 +26,9 @@ class TestKeepPredicate:
 
 
 class TestShellSourcesDiscovery:
-    def test_keeps_fixtures_and_helpers_excludes_only_workspaces(self, tmp_path: Path):
+    def test_keeps_fixtures_and_helpers_excludes_only_workspaces(
+        self, tmp_path: Path
+    ):
         _write(tmp_path / "scripts/normal.sh")
         _write(tmp_path / "scripts/test-helpers.sh")
         _write(tmp_path / "scripts/test-fixtures/seed.sh")
@@ -34,7 +36,8 @@ class TestShellSourcesDiscovery:
         # A non-shell file must not appear regardless.
         _write(tmp_path / "scripts/readme.md", "x\n")
 
-        # workspaces/ is the one permanent exclusion; fixtures + helpers are kept.
+        # workspaces/ is the one permanent exclusion; fixtures + helpers are
+        # kept.
         assert shell_sources(root=tmp_path) == [
             "scripts/normal.sh",
             "scripts/test-fixtures/seed.sh",
@@ -42,12 +45,14 @@ class TestShellSourcesDiscovery:
         ]
 
     def test_includes_extensionless_cli_script(self):
-        # The visualiser CLI is a bash script with no .sh extension, so the walk's
-        # `.sh` filter never matches it — it must be appended explicitly. Runs
-        # against the real repo root where the script exists on disk.
+        # The visualiser CLI is a bash script with no .sh extension, so the
+        # walk's `.sh` filter never matches it — it must be appended
+        # explicitly. Runs against the real repo root where the script exists
+        # on disk.
         sources = shell_sources()
         assert (
-            "skills/visualisation/visualise/cli/accelerator-visualiser" in sources
+            "skills/visualisation/visualise/cli/accelerator-visualiser"
+            in sources
         )
 
     def test_honours_gitignored_directories(self, tmp_path: Path):
@@ -80,7 +85,10 @@ class TestShellSourcesDiscovery:
         _write(tmp_path / "a.sh")
         _write(tmp_path / "skills/x/scripts/deep.sh")
 
-        assert shell_sources(root=tmp_path) == ["a.sh", "skills/x/scripts/deep.sh"]
+        assert shell_sources(root=tmp_path) == [
+            "a.sh",
+            "skills/x/scripts/deep.sh",
+        ]
 
     def test_no_gitignore_present_is_tolerated(self, tmp_path: Path):
         _write(tmp_path / "scripts/keep.sh")

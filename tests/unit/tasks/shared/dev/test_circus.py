@@ -2,18 +2,18 @@ from tasks.shared.dev.circus import ArbiterSpec, render_circus_ini
 
 
 def _spec(**overrides) -> ArbiterSpec:
-    base = dict(
-        endpoint_socket="/tmp/acc-dev-abc/e.sock",
-        pubsub_socket="/tmp/acc-dev-abc/p.sock",
-        pidfile="/dev/dir/circusd.pid",
-        dev_dir="/dev/dir",
-        server_bin="/bin/accelerator-visualiser",
-        config_path="/dev-server/config.json",
-        npm_bin="/usr/local/bin/npm",
-        frontend="/repo/frontend",
-        frontend_port=54321,
-        server_info_path="/dev-server/server-info.json",
-    )
+    base = {
+        "endpoint_socket": "/tmp/acc-dev-abc/e.sock",
+        "pubsub_socket": "/tmp/acc-dev-abc/p.sock",
+        "pidfile": "/dev/dir/circusd.pid",
+        "dev_dir": "/dev/dir",
+        "server_bin": "/bin/accelerator-visualiser",
+        "config_path": "/dev-server/config.json",
+        "npm_bin": "/usr/local/bin/npm",
+        "frontend": "/repo/frontend",
+        "frontend_port": 54321,
+        "server_info_path": "/dev-server/server-info.json",
+    }
     base.update(overrides)
     return ArbiterSpec(**base)
 
@@ -66,7 +66,9 @@ class TestRenderCircusIni:
         # stderr to a separate bootstrap log — never the same file.
         spec = _spec()
         ini = render_circus_ini(spec)
-        server_section = ini.split("[watcher:server]")[1].split("[watcher:frontend]")[0]
+        server_section = ini.split("[watcher:server]")[1].split(
+            "[watcher:frontend]"
+        )[0]
         assert f"{spec.dev_dir}/server.bootstrap.log" in server_section
         assert f"{spec.dev_dir}/server.log" not in server_section
 
@@ -80,4 +82,3 @@ class TestRenderCircusIni:
         spec = _spec()
         ini = render_circus_ini(spec)
         assert f"VISUALISER_INFO_PATH = {spec.server_info_path}" in ini
-

@@ -11,7 +11,8 @@ from . import (
     marketplace,
     release,
     test,
-    version
+    types,
+    version,
 )
 from . import format as format_  # `format` shadows a builtin; alias the import
 
@@ -51,9 +52,25 @@ ns.add_collection(Collection.from_module(test))
 ns.add_collection(Collection.from_module(version))
 
 ns_format = Collection("format")
-ns_format.add_collection(Collection.from_module(format_.scripts))  # format.scripts.check / .fix
+ns_format.add_collection(
+    Collection.from_module(format_.scripts)
+)  # format.scripts.check / .fix
+ns_format.add_collection(
+    Collection.from_module(format_.build_system)
+)  # format.build-system.check / .fix
 ns.add_collection(ns_format)
 
 ns_lint = Collection("lint")
-ns_lint.add_collection(Collection.from_module(lint.scripts))  # lint.scripts.shellcheck / .bashisms
+ns_lint.add_collection(
+    Collection.from_module(lint.scripts)
+)  # lint.scripts.shellcheck / .bashisms
+ns_lint.add_collection(
+    Collection.from_module(lint.build_system)
+)  # lint.build-system.check / .fix
 ns.add_collection(ns_lint)
+
+ns_types = Collection("types")
+ns_types.add_collection(
+    Collection.from_module(types.build_system)
+)  # types.build-system.check
+ns.add_collection(ns_types)

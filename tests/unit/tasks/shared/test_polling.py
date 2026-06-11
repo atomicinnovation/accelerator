@@ -29,7 +29,9 @@ class TestWaitForFile:
         )
         assert len(clock.sleeps) == 3
 
-    def test_returns_false_after_timeout_with_exact_sleep_count(self, tmp_path: Path):
+    def test_returns_false_after_timeout_with_exact_sleep_count(
+        self, tmp_path: Path
+    ):
         target = tmp_path / "never"
         clock = FakeClock()
         # deadline=10, interval=1: sleeps from t=0->1 .. t=9->10 = 10 sleeps.
@@ -43,6 +45,8 @@ class TestWaitForFile:
         target = tmp_path / "never"
         clock = FakeClock()
         # deadline=5, interval=2: sleeps 2, 2, then 1 (clamped), never past 5.
-        wait_for_file(target, timeout=5, interval=2, sleep=clock.sleep, now=clock.now)
+        wait_for_file(
+            target, timeout=5, interval=2, sleep=clock.sleep, now=clock.now
+        )
         assert clock.sleeps == [2, 2, 1]
         assert clock.t == 5  # never slept past the deadline

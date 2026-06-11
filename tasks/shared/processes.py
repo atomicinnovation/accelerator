@@ -13,7 +13,9 @@ import psutil
 START_TIME_TOLERANCE = 0.5
 
 
-def pid_identity_matches(pid: int, expected_start: float, *, tolerance: float) -> bool:
+def pid_identity_matches(
+    pid: int, expected_start: float, *, tolerance: float
+) -> bool:
     """Return whether the live process at ``pid`` has the expected start time.
 
     Guards against a recycled PID belonging to an unrelated process. Returns
@@ -30,7 +32,7 @@ def pid_identity_matches(pid: int, expected_start: float, *, tolerance: float) -
 
 
 class ProcessOps(Protocol):
-    """Process inspection + signalling, injected so callers are unit-testable."""
+    """Process inspection + signalling, injected so callers stay testable."""
 
     def is_alive(self, pid: int) -> bool: ...
     def create_time(self, pid: int) -> float | None: ...
@@ -58,7 +60,9 @@ class PsutilProcessOps:
             return None
 
     def identity_matches(self, pid: int, start_time: float) -> bool:
-        return pid_identity_matches(pid, start_time, tolerance=START_TIME_TOLERANCE)
+        return pid_identity_matches(
+            pid, start_time, tolerance=START_TIME_TOLERANCE
+        )
 
     def children(self, pid: int) -> list[tuple[int, float]]:
         try:
@@ -69,9 +73,10 @@ class PsutilProcessOps:
                     out.append((child.pid, child.create_time()))
                 except psutil.NoSuchProcess:
                     continue
-            return out
         except psutil.NoSuchProcess:
             return []
+        else:
+            return out
 
     def terminate(self, pid: int) -> None:
         with contextlib.suppress(ProcessLookupError, OSError):

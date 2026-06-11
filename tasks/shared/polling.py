@@ -1,6 +1,7 @@
 """Filesystem polling with an injectable clock."""
 
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 
@@ -9,8 +10,8 @@ def wait_for_file(
     *,
     timeout: float = 30.0,
     interval: float = 0.1,
-    sleep=time.sleep,
-    now=time.monotonic,
+    sleep: Callable[[float], object] = time.sleep,
+    now: Callable[[], float] = time.monotonic,
 ) -> bool:
     """Poll for ``path`` to exist, returning ``True`` as soon as it does.
 

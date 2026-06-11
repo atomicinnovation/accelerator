@@ -3,6 +3,7 @@
 import dataclasses
 import json
 from pathlib import Path
+from typing import Any
 
 from tasks.shared.files import atomic_write_text
 
@@ -35,19 +36,34 @@ class DevState:
     node_bin: str | None = None
 
 
-_REQUIRED_STR_FIELDS = ("endpoint", "pubsub_endpoint", "frontend_url", "pidfile", "ini_path")
+_REQUIRED_STR_FIELDS = (
+    "endpoint",
+    "pubsub_endpoint",
+    "frontend_url",
+    "pidfile",
+    "ini_path",
+)
 _OPTIONAL_INT_FIELDS = ("arbiter_pid", "server_pid", "frontend_pid")
-_OPTIONAL_FLOAT_FIELDS = ("arbiter_start_time", "server_start_time", "frontend_start_time")
+_OPTIONAL_FLOAT_FIELDS = (
+    "arbiter_start_time",
+    "server_start_time",
+    "frontend_start_time",
+)
 _OPTIONAL_STR_FIELDS = ("npm_bin", "node_bin")
 
 
 def _is_int(value: object) -> bool:
-    # bool is an int subclass; reject it so a JSON ``true`` never reads as a PID.
+    # bool is an int subclass; reject it so a JSON ``true`` never reads as a
+    # PID.
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-def _devstate_from_dict(raw: dict) -> DevState:
-    kwargs: dict[str, object] = {}
+def _devstate_from_dict(raw: dict[str, object]) -> DevState:
+    # The values are validated field-by-field below (isinstance guards raise
+    # TypeError on mismatch), but the dynamic accumulate-then-`**kwargs`-unpack
+    # into the typed DevState defeats static tracking, so the bag is `Any`: the
+    # runtime guards are the real guarantee, not the static type.
+    kwargs: dict[str, Any] = {}
     for key in _REQUIRED_STR_FIELDS:
         value = raw[key]  # KeyError -> schema mismatch
         if not isinstance(value, str):
@@ -77,7 +93,9 @@ def _devstate_from_dict(raw: dict) -> DevState:
 
 def write_dev_state(path: Path | str, state: DevState) -> None:
     """Atomically write dev-state as JSON."""
-    atomic_write_text(Path(path), json.dumps(dataclasses.asdict(state), indent=2))
+    atomic_write_text(
+        Path(path), json.dumps(dataclasses.asdict(state), indent=2)
+    )
 
 
 def read_dev_state(path: Path | str) -> DevState | None:
@@ -89,11 +107,11 @@ def read_dev_state(path: Path | str) -> DevState | None:
     """
     try:
         raw = json.loads(Path(path).read_text())
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return None
     if not isinstance(raw, dict):
         return None
     try:
         return _devstate_from_dict(raw)
-    except (KeyError, TypeError, ValueError):
+    except KeyError, TypeError, ValueError:
         return None

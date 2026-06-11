@@ -15,7 +15,13 @@ from tasks.shared.dev.lifecycle import (
     do_status,
     do_stop,
 )
-from tasks.shared.paths import FRONTEND, PLUGIN_JSON, REPO_ROOT, SERVER, VISUALISER
+from tasks.shared.paths import (
+    FRONTEND,
+    PLUGIN_JSON,
+    REPO_ROOT,
+    SERVER,
+    VISUALISER,
+)
 from tasks.shared.ports import free_port
 from tasks.shared.processes import PsutilProcessOps
 
@@ -68,13 +74,15 @@ def _render_server_config(context: Context, *, log_file: Path) -> Path:
 
 
 def _dev_deps(context: Context) -> DevDeps:
-    """Wire DevDeps to the real circus / subprocess / psutil / time collaborators."""
+    """Wire DevDeps to the real circus/subprocess/psutil/time collaborators."""
     return DevDeps(
         client_factory=default_client_factory,
         launcher=default_launcher,
         killer=PsutilProcessOps(),
         clock=Clock(),
-        config_renderer=lambda: _render_server_config(context, log_file=_DEV_DIR / "server.log"),
+        config_renderer=lambda: _render_server_config(
+            context, log_file=_DEV_DIR / "server.log"
+        ),
         workspace_root=REPO_ROOT,
         state_path=_DEV_STATE,
         lock_path=_LOCK,
@@ -86,7 +94,8 @@ def _dev_deps(context: Context) -> DevDeps:
         server_bin=_SERVER_BIN,
         frontend=FRONTEND,
         diagnostic_log=_DIAGNOSTIC_LOG,
-        env=os.environ.copy(),  # resolved PATH so the detached daemon finds node
+        # resolved PATH so the detached daemon finds node
+        env=os.environ.copy(),
         npm_bin=shutil.which("npm") or "npm",
         node_bin=shutil.which("node") or "node",
         free_port=free_port,
@@ -107,12 +116,13 @@ def _print_stack_block(result: UpResult, *, heading: str) -> None:
 
 
 @task(default=True)
-def up(context: Context):
+def up(context: Context) -> None:
     """Start both processes detached in the background under a circus arbiter.
 
-    Returns once ready. The arbiter keeps supervising after this command exits —
-    use `dev:stop` to tear it down, or `dev:server`/`dev:frontend` for the manual
-    two-terminal flow. Re-running while a healthy session is up reuses it.
+    Returns once ready. The arbiter keeps supervising after this command
+    exits — use `dev:stop` to tear it down, or `dev:server`/`dev:frontend`
+    for the manual two-terminal flow. Re-running while a healthy session is
+    up reuses it.
     """
     result = bring_up(_dev_deps(context))
     if result.kind == "failed":
@@ -122,7 +132,8 @@ def up(context: Context):
             result,
             heading=(
                 "Dev stack already running (reused) — code changes since it "
-                "started are NOT live; run `mise run dev:restart` to apply them."
+                "started are NOT live; run `mise run dev:restart` to apply "
+                "them."
             ),
         )
         return
@@ -130,7 +141,7 @@ def up(context: Context):
 
 
 @task
-def stop(context: Context):
+def stop(context: Context) -> None:
     """Stop the supervised dev server + frontend and the circus arbiter."""
     result = do_stop(_dev_deps(context))
     if result.kind == "clean":
@@ -141,7 +152,7 @@ def stop(context: Context):
 
 
 @task
-def restart(context: Context):
+def restart(context: Context) -> None:
     """Restart the supervised dev stack (stop then start)."""
     result = do_restart(_dev_deps(context))
     if result.kind == "failed":
@@ -151,7 +162,8 @@ def restart(context: Context):
             result,
             heading=(
                 "Dev stack already running (reused) — code changes since it "
-                "started are NOT live; run `mise run dev:restart` to apply them."
+                "started are NOT live; run `mise run dev:restart` to apply "
+                "them."
             ),
         )
         return
@@ -159,7 +171,7 @@ def restart(context: Context):
 
 
 @task
-def status(context: Context):
+def status(context: Context) -> None:
     """Report dev server + frontend state, frontend URL, and resolved API port.
 
     Exit code conveys overall state: 0 = both running, 3 = one running,
@@ -172,7 +184,7 @@ def status(context: Context):
 
 
 @task
-def server(context: Context):
+def server(context: Context) -> None:
     """Start the visualiser API server in dev mode.
 
     Generates a server config via write-visualiser-config.sh (picks up
@@ -184,12 +196,14 @@ def server(context: Context):
     Run in one terminal; run `mise run dev:frontend` in a second terminal once
     the server is up and the info file has been written.
     """
-    config_path = _render_server_config(context, log_file=_TMP_DIR / "server.log")
+    config_path = _render_server_config(
+        context, log_file=_TMP_DIR / "server.log"
+    )
     context.run(f"{_SERVER_BIN} --config {config_path}", pty=True)
 
 
 @task
-def frontend(context: Context):
+def frontend(context: Context) -> None:
     """Start the Vite dev server, proxying /api to the running dev API server.
 
     Reads the server port from .accelerator/tmp/dev-server/server-info.json,

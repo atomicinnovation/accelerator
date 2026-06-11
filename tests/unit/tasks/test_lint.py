@@ -24,7 +24,9 @@ def _command(ctx) -> str:
 
 class TestShellcheckTask:
     def test_command(self, ctx, mocker):
-        mocker.patch.object(lint, "shell_sources", return_value=["a.sh", "b.sh"])
+        mocker.patch.object(
+            lint, "shell_sources", return_value=["a.sh", "b.sh"]
+        )
         lint.shellcheck(ctx)
         cmd = _command(ctx)
         # Flag ownership moved to .shellcheckrc: the invocation is now bare.
@@ -75,6 +77,7 @@ def _run_lint(path: Path) -> subprocess.CompletedProcess:
         ["bash", str(LINT_BASHISMS), str(path)],
         capture_output=True,
         text=True,
+        check=False,
     )
 
 
@@ -91,7 +94,9 @@ class TestBashismsScript:
     def test_comment_naming_a_construct_is_not_flagged(self, tmp_path: Path):
         # A comment that mentions a forbidden construct must not trip the lint.
         f = tmp_path / "x.sh"
-        f.write_text("#!/usr/bin/env bash\n# do not use declare -A here\necho ok\n")
+        f.write_text(
+            "#!/usr/bin/env bash\n# do not use declare -A here\necho ok\n"
+        )
         result = _run_lint(f)
         assert result.returncode == 0, result.stdout
 
@@ -104,7 +109,8 @@ class TestBashismsScript:
         assert result.returncode == 0, result.stdout
 
     def test_parameter_expansion_strip_is_not_a_case_mod(self, tmp_path: Path):
-        # ${x#prefix} is a bash-3.2 prefix strip, not a ${x^^} case modification.
+        # ${x#prefix} is a bash-3.2 prefix strip, not a ${x^^} case
+        # modification.
         f = tmp_path / "x.sh"
         f.write_text('#!/usr/bin/env bash\necho "${x#prefix}"\n')
         result = _run_lint(f)
@@ -112,6 +118,8 @@ class TestBashismsScript:
 
     def test_clean_file_passes(self, tmp_path: Path):
         f = tmp_path / "x.sh"
-        f.write_text("#!/usr/bin/env bash\nfor i in 1 2 3; do echo \"$i\"; done\n")
+        f.write_text(
+            '#!/usr/bin/env bash\nfor i in 1 2 3; do echo "$i"; done\n'
+        )
         result = _run_lint(f)
         assert result.returncode == 0, result.stdout

@@ -1,11 +1,14 @@
-"""circus integration for the dev arbiter: INI generation, the ``Supervisor``
-control adapter, and the self-detaching ``circusd`` launcher."""
+"""circus integration for the dev arbiter.
+
+INI generation, the ``Supervisor`` control adapter, and the self-detaching
+``circusd`` launcher.
+"""
 
 import contextlib
 import dataclasses
 import subprocess
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 
 @dataclasses.dataclass(frozen=True)
@@ -39,14 +42,19 @@ def render_circus_ini(spec: ArbiterSpec) -> str:
     Rust server initialises ``tracing`` to its config ``--log-file`` and then
     redirects its own stdout/stderr to ``/dev/null`` (``main.rs``), so circus
     cannot capture the server's output via stdout. The server therefore writes
-    ``dev/server.log`` itself (via ``--log-file``, rendered by the config helper)
-    and circus captures only the server watcher's **pre-redirect** stderr — the
-    early "failed to load config" / "failed to init logging" lines — to a
-    *separate* ``dev/server.bootstrap.log``, so the two never contend for one
-    file. The frontend (Vite) does log to stdout, so circus's ``FileStream``
-    captures it to ``dev/frontend.log`` normally. ``copy_env`` lets the watchers
-    inherit the detached daemon's resolved PATH so npm can find node.
+    ``dev/server.log`` itself (via ``--log-file``, rendered by the config
+    helper) and circus captures only the server watcher's **pre-redirect**
+    stderr — the early "failed to load config" / "failed to init logging"
+    lines — to a *separate* ``dev/server.bootstrap.log``, so the two never
+    contend for one file. The frontend (Vite) does log to stdout, so circus's
+    ``FileStream`` captures it to ``dev/frontend.log`` normally. ``copy_env``
+    lets the watchers inherit the detached daemon's resolved PATH so npm can
+    find node.
     """
+    frontend_cmd = (
+        f"{spec.npm_bin} --prefix {spec.frontend} run dev "
+        f"-- --port {spec.frontend_port} --strictPort --host 127.0.0.1"
+    )
     return f"""\
 [circus]
 endpoint = ipc://{spec.endpoint_socket}
@@ -68,7 +76,7 @@ stderr_stream.class = FileStream
 stderr_stream.filename = {spec.dev_dir}/server.bootstrap.log
 
 [watcher:frontend]
-cmd = {spec.npm_bin} --prefix {spec.frontend} run dev -- --port {spec.frontend_port} --strictPort --host 127.0.0.1
+cmd = {frontend_cmd}
 numprocesses = 1
 autostart = false
 respawn = false
@@ -88,7 +96,7 @@ VISUALISER_INFO_PATH = {spec.server_info_path}
 # ─── supervisor protocol + circus adapter ────────────────────
 
 
-class SupervisorUnreachable(Exception):
+class SupervisorUnreachableError(Exception):
     """Raised when the arbiter endpoint cannot be reached or errors.
 
     A local boundary so the orchestrators never see ``circus.exc.CallError`` or
@@ -97,7 +105,7 @@ class SupervisorUnreachable(Exception):
 
 
 class Supervisor(Protocol):
-    """Minimal control surface the orchestrators depend on (not circus verbs)."""
+    """Minimal control surface orchestrators depend on (not circus verbs)."""
 
     def status(self) -> dict[str, str]: ...
     def pids(self, name: str) -> list[int]: ...
@@ -110,24 +118,24 @@ class CircusSupervisor:
 
     Parses the real circus wire shapes (``{"statuses": {name: state}}`` for all
     watchers, ``{"status": state}`` for one) and translates an unreachable or
-    timed-out endpoint into ``SupervisorUnreachable``. circus is imported lazily
-    so the helper tests never pull in pyzmq/tornado.
+    timed-out endpoint into ``SupervisorUnreachableError``. circus is imported
+    lazily so the helper tests never pull in pyzmq/tornado.
     """
 
-    def __init__(self, endpoint: str, *, timeout: float):
+    def __init__(self, endpoint: str, *, timeout: float) -> None:
         from circus.client import CircusClient
 
         self._client = CircusClient(endpoint=endpoint, timeout=timeout)
 
-    def _call(self, command: str, **props) -> dict:
+    def _call(self, command: str, **props: object) -> dict[str, Any]:
         from circus.exc import CallError
 
         try:
             return self._client.send_message(command, **props)
         except CallError as exc:
-            raise SupervisorUnreachable(str(exc)) from exc
+            raise SupervisorUnreachableError(str(exc)) from exc
         except Exception as exc:  # zmq/transport errors connect lazily
-            raise SupervisorUnreachable(str(exc)) from exc
+            raise SupervisorUnreachableError(str(exc)) from exc
 
     def status(self) -> dict[str, str]:
         resp = self._call("status")
@@ -139,7 +147,8 @@ class CircusSupervisor:
         return {}
 
     def pids(self, name: str) -> list[int]:
-        # circus `list <name>` returns {"pids": [...]} for a watcher's processes.
+        # circus `list <name>` returns {"pids": [...]} for a watcher's
+        # processes.
         resp = self._call("list", name=name)
         return [int(p) for p in resp.get("pids", [])]
 
@@ -168,7 +177,7 @@ class LaunchHandle(Protocol):
 
 
 class PopenHandle:
-    def __init__(self, popen: subprocess.Popen):
+    def __init__(self, popen: subprocess.Popen[bytes]) -> None:
         self._popen = popen
         self.pid = popen.pid
 
@@ -176,13 +185,15 @@ class PopenHandle:
         return self._popen.poll()
 
 
-def default_launcher(argv: list[str], *, env: dict[str, str], cwd: str) -> LaunchHandle:
+def default_launcher(
+    argv: list[str], *, env: dict[str, str], cwd: str
+) -> LaunchHandle:
     # start_new_session detaches into a new session, so the arbiter survives the
     # invoking shell *and* the Popen PID is the real arbiter (we do NOT use
     # --daemon, whose double-fork would make the handle a useless intermediate).
     log_path = Path(cwd) / ".accelerator/tmp/dev/circusd.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    log = open(log_path, "ab")  # noqa: SIM115 — handed to Popen, closed on exit
+    log = log_path.open("ab")  # handed to Popen, closed on process exit
     popen = subprocess.Popen(
         argv, env=env, cwd=cwd, stdout=log, stderr=log, start_new_session=True
     )

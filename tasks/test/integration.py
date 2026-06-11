@@ -22,7 +22,7 @@ _REQUIRED_CONFIG_SUITES = ("scripts/test-skill-frontmatter-conformance.sh",)
 
 
 @task
-def visualiser(context: Context):
+def visualiser(context: Context) -> None:
     """Integration tests for the visualiser (cargo --tests + shell suites).
 
     The `spa_serving.rs` integration test is gated on the `dev-frontend`
@@ -37,13 +37,13 @@ def visualiser(context: Context):
 
 
 @task
-def dev(context: Context):
-    """Integration tests for the unified dev task (real circusd + fake processes)."""
+def dev(context: Context) -> None:
+    """Integration tests for the dev task (real circusd, fake processes)."""
     context.run("uv run pytest tests/integration/dev -v")
 
 
 @task
-def config(context: Context):
+def config(context: Context) -> None:
     """Integration tests for the plugin-wide config scripts."""
     suites = run_shell_suites(context, "scripts")
     if len(suites) < _EXPECTED_CONFIG_SUITES:
@@ -58,39 +58,42 @@ def config(context: Context):
     if missing:
         raise Exit(
             f"Required config shell suite(s) not discovered by name: {missing} "
-            f"(found {suites}). A fail-closed gate may have lost its exec bit or "
-            f"been renamed off the test-*.sh convention.",
+            f"(found {suites}). A fail-closed gate may have lost its exec bit "
+            f"or been renamed off the test-*.sh convention.",
             code=1,
         )
 
 
 @task
-def decisions(context: Context):
+def decisions(context: Context) -> None:
     """Integration tests for the decisions skill scripts."""
     run_shell_suites(context, "skills/decisions")
 
 
 @task
-def binary_acquisition(context: Context):
-    """Test launch-server.sh binary acquisition paths (sentinel rejection, SHA mismatch, 404)."""
-    script = repo_root() / "skills/visualisation/visualise/scripts/test-launch-server.sh"
+def binary_acquisition(context: Context) -> None:
+    """Test launch-server.sh binary acquisition (sentinel, SHA, 404)."""
+    script = (
+        repo_root()
+        / "skills/visualisation/visualise/scripts/test-launch-server.sh"
+    )
     context.run(f"bash {script}")
 
 
 @task
-def hooks(context: Context):
+def hooks(context: Context) -> None:
     """Integration tests for the hooks/ subtree."""
     run_shell_suites(context, "hooks")
 
 
 @task
-def github(context: Context):
+def github(context: Context) -> None:
     """Integration tests for the github skills (shell harnesses)."""
     run_shell_suites(context, "skills/github")
 
 
 @task
-def migrate(context: Context):
+def migrate(context: Context) -> None:
     """Integration tests for the meta-directory migration framework."""
     suites = run_shell_suites(context, "skills/config/migrate")
     if len(suites) < _EXPECTED_MIGRATE_SUITES:

@@ -27,20 +27,18 @@ def repo_root() -> Path:
 
 
 def _keep(rel: str) -> bool:
-    """True when a repo-relative shell path should be formatted/linted."""
+    """Return True if a repo-relative shell path should be formatted/linted."""
     if not rel:
         return False
     parts = rel.split("/")
-    # workspaces/ holds jj workspace checkouts — full copies of the repo. Linting
-    # them would re-lint every tracked script N times over, and they are never
-    # edited directly, so they are the one permanent exclusion.
-    if parts[0] == "workspaces":
-        return False
-    return True
+    # workspaces/ holds jj workspace checkouts — full copies of the repo.
+    # Linting them would re-lint every tracked script N times over, and they
+    # are never edited directly, so they are the one permanent exclusion.
+    return parts[0] != "workspaces"
 
 
 def _ignore_spec(repo: Path) -> pathspec.GitIgnoreSpec:
-    """Gitignore matcher from the repo-root `.gitignore`, plus VCS metadata dirs.
+    """Gitignore matcher from the repo `.gitignore`, plus VCS metadata dirs.
 
     `.git`/`.jj` are never listed in `.gitignore` but must never be walked.
     """
@@ -76,17 +74,20 @@ def shell_sources(root: Path | None = None) -> list[str]:
         dirnames[:] = [
             d
             for d in dirnames
-            if not spec.match_file(f"{d}/" if rel_dir == Path(".") else f"{rel_dir / d}/")
+            if not spec.match_file(
+                f"{d}/" if rel_dir == Path() else f"{rel_dir / d}/"
+            )
         ]
         for filename in filenames:
             if not filename.endswith(".sh"):
                 continue
-            rel = filename if rel_dir == Path(".") else str(rel_dir / filename)
+            rel = filename if rel_dir == Path() else str(rel_dir / filename)
             if spec.match_file(rel):
                 continue
             if _keep(rel):
                 out.append(rel)
-    # Append the extensionless CLI script(s) — they escape the `.sh` walk filter.
+    # Append the extensionless CLI script(s) — they escape the `.sh` walk
+    # filter.
     # Gate on existence under `repo` (so a tmp_path test root that lacks them
     # does not pick up the literal) and still respect gitignore + _keep
     # (defensive: a future workspaces-relative extra would be filtered, though

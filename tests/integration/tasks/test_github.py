@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
 from invoke import Context
 
 import tasks.github as gh
@@ -39,27 +38,37 @@ def _setup_upload_and_verify(
     create_archives: bool = True,
 ) -> None:
     checksums_file = tmp_path / "checksums.json"
-    checksums_file.write_text(json.dumps({
-        "version": "1.20.0",
-        "binaries": {p: f"sha256:{'a' * 64}" for p in _PLATFORMS},
-    }))
+    checksums_file.write_text(
+        json.dumps(
+            {
+                "version": "1.20.0",
+                "binaries": dict.fromkeys(_PLATFORMS, f"sha256:{'a' * 64}"),
+            }
+        )
+    )
     mocker.patch.object(gh, "CHECKSUMS", checksums_file)
     mocker.patch.object(
-        gh, "binary_path",
+        gh,
+        "binary_path",
         side_effect=lambda p: tmp_path / f"accelerator-visualiser-{p}",
     )
     mocker.patch.object(
-        gh, "debug_archive_path",
-        side_effect=lambda p: tmp_path / f"accelerator-visualiser-{p}.debug.tar.gz",
+        gh,
+        "debug_archive_path",
+        side_effect=lambda p: (
+            tmp_path / f"accelerator-visualiser-{p}.debug.tar.gz"
+        ),
     )
     if create_binaries:
         for platform in _PLATFORMS:
-            (tmp_path / f"accelerator-visualiser-{platform}").write_bytes(b"\x00" * 4)
+            (tmp_path / f"accelerator-visualiser-{platform}").write_bytes(
+                b"\x00" * 4
+            )
     if create_archives:
         for platform in _PLATFORMS:
-            (tmp_path / f"accelerator-visualiser-{platform}.debug.tar.gz").write_bytes(
-                b"\x00" * 8
-            )
+            (
+                tmp_path / f"accelerator-visualiser-{platform}.debug.tar.gz"
+            ).write_bytes(b"\x00" * 8)
 
 
 # ── create_release() ─────────────────────────────────────────────────
@@ -134,7 +143,9 @@ class TestDownloadReleaseAsset:
                 "run",
                 lambda *a, **kw: MagicMock(returncode=1, stderr="not found"),
             )
-            with pytest.raises(AssetVerificationError, match="gh release download failed"):
+            with pytest.raises(
+                AssetVerificationError, match="gh release download failed"
+            ):
                 download_release_asset(ctx, "v1.20.0", "binary", out)
 
 
@@ -145,7 +156,9 @@ class TestVerifyReleaseAsset:
     def test_matching_hash_passes(self, ctx, tmp_path):
         path = tmp_path / "f"
         path.write_bytes(b"hello\n")
-        expected = "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"
+        expected = (
+            "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"
+        )
         verify_release_asset(ctx, path, expected)
 
     def test_hash_mismatch_raises(self, ctx, tmp_path):
@@ -162,15 +175,26 @@ class TestDownloadAndVerify:
     def _fake_download(self, content: bytes):
         def fake(ctx, tag, asset_name, output_path):
             output_path.write_bytes(content)
+
         return fake
 
     def test_matching_hash_passes(self, ctx, mocker):
-        expected = "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"
-        mocker.patch.object(gh, "download_release_asset", side_effect=self._fake_download(b"hello\n"))
+        expected = (
+            "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"
+        )
+        mocker.patch.object(
+            gh,
+            "download_release_asset",
+            side_effect=self._fake_download(b"hello\n"),
+        )
         download_and_verify(ctx, "v1.20.0", "binary", expected)
 
     def test_hash_mismatch_raises(self, ctx, mocker):
-        mocker.patch.object(gh, "download_release_asset", side_effect=self._fake_download(b"hello\n"))
+        mocker.patch.object(
+            gh,
+            "download_release_asset",
+            side_effect=self._fake_download(b"hello\n"),
+        )
         with pytest.raises(AssetVerificationError, match="expected sha256"):
             download_and_verify(ctx, "v1.20.0", "binary", "b" * 64)
 
@@ -184,7 +208,9 @@ class TestDownloadAndVerify:
             download_and_verify(ctx, "v1.20.0", "binary", "a" * 64)
 
     def test_temp_file_cleaned_up_on_success(self, ctx, mocker, tmp_path):
-        expected = "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"
+        expected = (
+            "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"
+        )
         created = []
 
         original_download = self._fake_download(b"hello\n")
@@ -193,7 +219,9 @@ class TestDownloadAndVerify:
             created.append(output_path)
             original_download(ctx, tag, asset_name, output_path)
 
-        mocker.patch.object(gh, "download_release_asset", side_effect=tracking_download)
+        mocker.patch.object(
+            gh, "download_release_asset", side_effect=tracking_download
+        )
         download_and_verify(ctx, "v1.20.0", "binary", expected)
         assert len(created) == 1
         assert not created[0].exists()
@@ -205,7 +233,9 @@ class TestDownloadAndVerify:
             created.append(output_path)
             output_path.write_bytes(b"hello\n")
 
-        mocker.patch.object(gh, "download_release_asset", side_effect=tracking_download)
+        mocker.patch.object(
+            gh, "download_release_asset", side_effect=tracking_download
+        )
         with pytest.raises(AssetVerificationError):
             download_and_verify(ctx, "v1.20.0", "binary", "b" * 64)
         assert len(created) == 1
@@ -217,13 +247,17 @@ class TestDownloadAndVerify:
 
 class TestUploadAndVerify:
     def test_missing_binary_raises_before_upload(self, ctx, mocker, tmp_path):
-        _setup_upload_and_verify(mocker, tmp_path, create_binaries=False, create_archives=False)
+        _setup_upload_and_verify(
+            mocker, tmp_path, create_binaries=False, create_archives=False
+        )
         with pytest.raises(FileNotFoundError):
             upload_and_verify(ctx, "1.20.0")
         ctx.run.assert_not_called()
 
     def test_missing_archive_raises_before_upload(self, ctx, mocker, tmp_path):
-        _setup_upload_and_verify(mocker, tmp_path, create_binaries=True, create_archives=False)
+        _setup_upload_and_verify(
+            mocker, tmp_path, create_binaries=True, create_archives=False
+        )
         with pytest.raises(FileNotFoundError):
             upload_and_verify(ctx, "1.20.0")
         ctx.run.assert_not_called()
@@ -232,7 +266,9 @@ class TestUploadAndVerify:
         _setup_upload_and_verify(mocker, tmp_path)
         mocker.patch.object(gh, "download_and_verify")
         upload_and_verify(ctx, "1.20.0")
-        upload_calls = [c for c in ctx.run.call_args_list if "gh release upload" in str(c)]
+        upload_calls = [
+            c for c in ctx.run.call_args_list if "gh release upload" in str(c)
+        ]
         assert len(upload_calls) == 8
 
     def test_publish_runs_after_verify(self, ctx, mocker, tmp_path):
@@ -253,7 +289,11 @@ class TestUploadAndVerify:
         mock_verify = mocker.patch.object(gh, "download_and_verify")
         upload_and_verify(ctx, "1.20.0")
         for call in mock_verify.call_args_list:
-            asset_name = call.args[2] if len(call.args) > 2 else call.kwargs.get("asset_name")
+            asset_name = (
+                call.args[2]
+                if len(call.args) > 2
+                else call.kwargs.get("asset_name")
+            )
             assert not asset_name.endswith(".debug.tar.gz")
 
     def test_asset_verification_error_preserves_draft(
@@ -261,7 +301,9 @@ class TestUploadAndVerify:
     ):
         _setup_upload_and_verify(mocker, tmp_path)
         mocker.patch.object(
-            gh, "download_and_verify", side_effect=AssetVerificationError("mismatch")
+            gh,
+            "download_and_verify",
+            side_effect=AssetVerificationError("mismatch"),
         )
         with pytest.raises(AssetVerificationError):
             upload_and_verify(ctx, "1.20.0")
@@ -274,7 +316,9 @@ class TestUploadAndVerify:
     ):
         _setup_upload_and_verify(mocker, tmp_path)
         mocker.patch.object(
-            gh, "download_and_verify", side_effect=AssetVerificationError("mismatch")
+            gh,
+            "download_and_verify",
+            side_effect=AssetVerificationError("mismatch"),
         )
         with pytest.raises(AssetVerificationError):
             upload_and_verify(ctx, "1.20.0")
@@ -289,10 +333,14 @@ class TestUploadAndVerify:
         )
         with pytest.raises(RuntimeError):
             upload_and_verify(ctx, "1.20.0")
-        delete_calls = [c for c in ctx.run.call_args_list if "gh release delete" in str(c)]
+        delete_calls = [
+            c for c in ctx.run.call_args_list if "gh release delete" in str(c)
+        ]
         assert len(delete_calls) == 1
 
-    def test_cleanup_invocation_uses_warn_and_timeout(self, ctx, mocker, tmp_path):
+    def test_cleanup_invocation_uses_warn_and_timeout(
+        self, ctx, mocker, tmp_path
+    ):
         _setup_upload_and_verify(mocker, tmp_path)
         mocker.patch.object(
             gh, "download_and_verify", side_effect=RuntimeError("transient")
@@ -305,7 +353,9 @@ class TestUploadAndVerify:
         assert delete_call.kwargs.get("warn") is True
         assert delete_call.kwargs.get("timeout") == 120
 
-    def test_verify_short_circuits_on_first_mismatch(self, ctx, mocker, tmp_path):
+    def test_verify_short_circuits_on_first_mismatch(
+        self, ctx, mocker, tmp_path
+    ):
         _setup_upload_and_verify(mocker, tmp_path)
         call_count = 0
 
@@ -326,7 +376,9 @@ class TestUploadAndVerify:
         )
         with pytest.raises(KeyboardInterrupt):
             upload_and_verify(ctx, "1.20.0")
-        delete_calls = [c for c in ctx.run.call_args_list if "gh release delete" in str(c)]
+        delete_calls = [
+            c for c in ctx.run.call_args_list if "gh release delete" in str(c)
+        ]
         assert len(delete_calls) == 0
 
     def test_cleanup_failure_does_not_mask_original_error(

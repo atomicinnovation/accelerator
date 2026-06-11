@@ -32,7 +32,7 @@ class TestWorkspaceLockMkdirFallback:
 
     @pytest.fixture(autouse=True)
     def _force_mkdir_branch(self, monkeypatch):
-        import tasks.shared.locking as locking
+        from tasks.shared import locking
 
         monkeypatch.setattr(locking, "_try_import_fcntl", lambda: None)
 
@@ -63,7 +63,9 @@ class TestWorkspaceLockMkdirFallback:
         with workspace_lock(lock) as acquired:
             assert acquired is True  # stale dir reclaimed
 
-    def test_two_contenders_dead_owner_resolve_to_single_winner(self, tmp_path: Path):
+    def test_two_contenders_dead_owner_resolve_to_single_winner(
+        self, tmp_path: Path
+    ):
         import json
 
         lock = tmp_path / "dev.lock"

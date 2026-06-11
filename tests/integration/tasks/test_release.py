@@ -1,25 +1,20 @@
-import os
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
 from invoke import Context
 
+import tasks.build as tb
+import tasks.git as tgit
+import tasks.github as gh
+import tasks.marketplace as tm
 import tasks.release as tr
 import tasks.version as tv
-import tasks.build as tb
-import tasks.github as gh
-import tasks.git as tgit
-import tasks.marketplace as tm
 from tasks.release import (
     _refuse_under_ci,
     prerelease,
     prerelease_finalise,
     prerelease_prepare,
     release,
-    release_finalise,
-    release_prepare,
 )
 
 
@@ -109,14 +104,32 @@ class TestPrereleasePrepare:
         call_log = []
         mocker.patch.object(tgit, "configure")
         mocker.patch.object(tgit, "pull")
-        mocker.patch.object(tv, "bump", side_effect=lambda *a, **kw: call_log.append("bump"))
+        mocker.patch.object(
+            tv, "bump", side_effect=lambda *a, **kw: call_log.append("bump")
+        )
         mock_read = mocker.patch.object(tv, "read", return_value=MagicMock())
         mock_read.return_value.__str__ = lambda _: "1.21.0-pre.1"
         mocker.patch.object(tm, "update_prerelease_version")
-        mocker.patch.object(tb, "frontend", side_effect=lambda *a, **kw: call_log.append("frontend"))
-        mocker.patch.object(tb, "server_cross_compile", side_effect=lambda *a, **kw: call_log.append("cross_compile"))
-        mocker.patch.object(tb, "create_debug_archives", side_effect=lambda *a, **kw: call_log.append("debug_archives"))
-        mocker.patch.object(tb, "create_checksums", side_effect=lambda *a, **kw: call_log.append("checksums"))
+        mocker.patch.object(
+            tb,
+            "frontend",
+            side_effect=lambda *a, **kw: call_log.append("frontend"),
+        )
+        mocker.patch.object(
+            tb,
+            "server_cross_compile",
+            side_effect=lambda *a, **kw: call_log.append("cross_compile"),
+        )
+        mocker.patch.object(
+            tb,
+            "create_debug_archives",
+            side_effect=lambda *a, **kw: call_log.append("debug_archives"),
+        )
+        mocker.patch.object(
+            tb,
+            "create_checksums",
+            side_effect=lambda *a, **kw: call_log.append("checksums"),
+        )
 
         prerelease_prepare(ctx)
 
@@ -132,7 +145,9 @@ class TestPrereleasePrepare:
 
 class TestPrereleaseFinalise:
     def test_commits_before_upload(self, ctx, mocker):
-        mocker.patch.object(tv, "read", return_value=MagicMock(__str__=lambda _: "1.21.0-pre.1"))
+        mocker.patch.object(
+            tv, "read", return_value=MagicMock(__str__=lambda _: "1.21.0-pre.1")
+        )
         mock_commit = mocker.patch.object(tgit, "commit_version")
         mock_upload = mocker.patch.object(gh, "upload_and_verify")
         mocker.patch.object(tgit, "tag_version")
@@ -145,7 +160,9 @@ class TestPrereleaseFinalise:
         assert mock_upload.called
 
     def test_creates_release_before_upload(self, ctx, mocker):
-        mocker.patch.object(tv, "read", return_value=MagicMock(__str__=lambda _: "1.21.0-pre.1"))
+        mocker.patch.object(
+            tv, "read", return_value=MagicMock(__str__=lambda _: "1.21.0-pre.1")
+        )
         mocker.patch.object(tgit, "commit_version")
         mocker.patch.object(tgit, "tag_version")
         mocker.patch.object(tgit, "push")
@@ -174,7 +191,9 @@ class TestLocalDevGuards:
         with pytest.raises(RuntimeError):
             release(ctx)
 
-    def test_prerelease_composes_prepare_and_finalise(self, ctx, mocker, monkeypatch):
+    def test_prerelease_composes_prepare_and_finalise(
+        self, ctx, mocker, monkeypatch
+    ):
         monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
         monkeypatch.delenv("CI", raising=False)
         mock_prepare = mocker.patch.object(tr, "prerelease_prepare")

@@ -10,14 +10,16 @@ import json
 import os
 import shutil
 import uuid
+from collections.abc import Iterator
 from pathlib import Path
+from types import ModuleType
 
 import psutil
 
 from tasks.shared.processes import START_TIME_TOLERANCE, pid_identity_matches
 
 
-def _try_import_fcntl():
+def _try_import_fcntl() -> ModuleType | None:
     try:
         import fcntl
     except ImportError:
@@ -26,7 +28,7 @@ def _try_import_fcntl():
 
 
 @contextlib.contextmanager
-def workspace_lock(path: Path | str):
+def workspace_lock(path: Path | str) -> Iterator[bool]:
     """Non-blocking lock over ``path``; yields whether it was acquired.
 
     Primary path is ``fcntl.flock(LOCK_EX | LOCK_NB)`` on a held fd (available
@@ -67,7 +69,7 @@ def workspace_lock(path: Path | str):
 
 
 @contextlib.contextmanager
-def _mkdir_lock(path: Path):
+def _mkdir_lock(path: Path) -> Iterator[bool]:
     lock_dir = path.with_name(path.name + ".d")
     acquired = _acquire_mkdir(lock_dir)
     try:
@@ -78,17 +80,19 @@ def _mkdir_lock(path: Path):
 
 
 def _acquire_mkdir(lock_dir: Path) -> bool:
-    # Create the lock dir already-populated and rename it into place atomically,
-    # so there is never an owner-less window a contender could mis-read as stale.
+    # Create the lock dir already-populated and rename it into place
+    # atomically, so there is never an owner-less window a contender could
+    # mis-read as stale.
     staged = lock_dir.with_name(f"{lock_dir.name}.stage.{uuid.uuid4().hex}")
     staged.mkdir(parents=True)
     _write_owner(staged / "owner.json")
     try:
-        os.rename(staged, lock_dir)  # atomic; fails if lock_dir already exists
-        return True
+        staged.rename(lock_dir)  # atomic; fails if lock_dir already exists
     except OSError:
         shutil.rmtree(staged, ignore_errors=True)
         return _try_reclaim(lock_dir)
+    else:
+        return True
 
 
 def _try_reclaim(lock_dir: Path) -> bool:
@@ -101,11 +105,12 @@ def _try_reclaim(lock_dir: Path) -> bool:
     # no two contenders can both reclaim. (Losers simply fail fast this round.)
     arb = lock_dir.with_name(lock_dir.name + ".reclaim")
     try:
-        os.mkdir(arb)
+        arb.mkdir()
     except FileExistsError:
         return False  # another reclaimer holds the arbitration; we lose
     try:
-        # Re-check under the arbitration: skip if it was reclaimed live meanwhile.
+        # Re-check under the arbitration: skip if it was reclaimed live
+        # meanwhile.
         owner = _read_owner(lock_dir / "owner.json")
         if owner is not None and _owner_alive(owner):
             return False
@@ -113,7 +118,7 @@ def _try_reclaim(lock_dir: Path) -> bool:
         return _acquire_mkdir(lock_dir)
     finally:
         with contextlib.suppress(OSError):
-            os.rmdir(arb)
+            arb.rmdir()
 
 
 def _write_owner(owner_file: Path) -> None:
@@ -130,7 +135,7 @@ def _read_owner(owner_file: Path) -> tuple[int, float | None] | None:
         data = json.loads(owner_file.read_text())
         start = data["start_time"]
         return (int(data["pid"]), float(start) if start is not None else None)
-    except (OSError, ValueError, KeyError, TypeError):
+    except OSError, ValueError, KeyError, TypeError:
         return None
 
 

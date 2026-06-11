@@ -10,6 +10,7 @@ the precise poll-count/deadline maths is pinned by the deterministic unit tests
 in ``test_dev.py``; the readiness timeout is parametrised small.
 """
 
+import contextlib
 import json
 import os
 import shutil
@@ -28,8 +29,17 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 DRIVER = Path(__file__).parent / "dev_integration_driver.py"
 
 
-def run_driver(workspace: Path, action: str, opts: dict | None = None, timeout: float = 120):
-    cmd = [sys.executable, str(DRIVER), "--workspace", str(workspace), "--action", action]
+def run_driver(
+    workspace: Path, action: str, opts: dict | None = None, timeout: float = 120
+):
+    cmd = [
+        sys.executable,
+        str(DRIVER),
+        "--workspace",
+        str(workspace),
+        "--action",
+        action,
+    ]
     if opts is not None:
         opts_path = workspace / f"opts-{action}.json"
         opts_path.write_text(json.dumps(opts))
@@ -37,7 +47,13 @@ def run_driver(workspace: Path, action: str, opts: dict | None = None, timeout: 
     env = os.environ.copy()
     env["PYTHONPATH"] = str(REPO_ROOT)
     return subprocess.run(
-        cmd, cwd=str(REPO_ROOT), env=env, capture_output=True, text=True, timeout=timeout
+        cmd,
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
     )
 
 
@@ -61,8 +77,9 @@ def alive(pid: int | None) -> bool:
 
 
 def wait_for_text(path: Path, text: str, timeout: float = 5.0) -> bool:
-    """Wait for ``text`` to appear in ``path`` (circus's FileStream capture lags
-    the watcher's write, so the log can be momentarily empty after up returns)."""
+    """Wait for ``text`` to appear in ``path`` (circus's FileStream capture
+    lags the watcher's write, so the log can be momentarily empty after up
+    returns)."""
     deadline = time.time() + timeout
     while time.time() < deadline:
         if path.exists() and text in path.read_text():
@@ -82,30 +99,20 @@ def descendants(pid: int | None) -> list[int]:
 
 def _hard_cleanup(workspace: Path) -> None:
     """Best-effort: stop the stack, kill any survivors, remove ipc sockets."""
-    try:
+    with contextlib.suppress(Exception):
         run_driver(workspace, "stop", timeout=30)
-    except Exception:
-        pass
     state = read_state(workspace)
     if state:
         for key in ("server_pid", "frontend_pid", "arbiter_pid"):
             pid = state.get(key)
             for child in descendants(pid):
-                with _suppress():
+                with contextlib.suppress(Exception):
                     psutil.Process(child).kill()
             if pid:
-                with _suppress():
+                with contextlib.suppress(Exception):
                     psutil.Process(pid).kill()
-    with _suppress():
+    with contextlib.suppress(Exception):
         shutil.rmtree(ipc_socket_paths(workspace)[0].parent, ignore_errors=True)
-
-
-class _suppress:
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc):
-        return True
 
 
 @pytest.fixture
@@ -123,7 +130,9 @@ def test_detach_readiness_and_log_routing(workspace):
     proc = run_driver(workspace, "up")
     assert proc.returncode == 0, proc.stderr
     state = read_state(workspace)
-    assert state["arbiter_pid"] and state["server_pid"] and state["frontend_pid"]
+    assert (
+        state["arbiter_pid"] and state["server_pid"] and state["frontend_pid"]
+    )
     assert state["frontend_port"]
     assert state["endpoint"].startswith("ipc://")
     # arbiter survives the (now-exited) launching process
@@ -131,7 +140,8 @@ def test_detach_readiness_and_log_routing(workspace):
     dev = workspace / ".accelerator/tmp/dev"
     server_log_path = dev / "server.log"
     frontend_log_path = dev / "frontend.log"
-    # each marker reaches its own log (AC3) — wait for the async capture to flush
+    # each marker reaches its own log (AC3) — wait for the async capture to
+    # flush
     assert wait_for_text(server_log_path, "SERVER_UP")
     assert wait_for_text(frontend_log_path, "FRONTEND_UP")
     # and crucially each marker appears ONLY in its own log (no cross-wiring)
@@ -162,11 +172,13 @@ def test_stale_info_does_not_satisfy_gate(workspace):
 def test_clean_teardown_leaves_no_orphans(workspace):
     assert run_driver(workspace, "up").returncode == 0
     state = read_state(workspace)
-    tracked = (
-        [state["server_pid"], state["frontend_pid"], state["arbiter_pid"]]
-        + descendants(state["server_pid"])
-        + descendants(state["frontend_pid"])
-    )
+    tracked = [
+        state["server_pid"],
+        state["frontend_pid"],
+        state["arbiter_pid"],
+        *descendants(state["server_pid"]),
+        *descendants(state["frontend_pid"]),
+    ]
     assert run_driver(workspace, "stop").returncode == 0
     for pid in tracked:
         assert not alive(pid)
@@ -179,7 +191,9 @@ def test_orphan_reach_when_arbiter_already_dead(workspace):
     server_pid, frontend_pid = state["server_pid"], state["frontend_pid"]
     os.kill(state["arbiter_pid"], signal.SIGKILL)  # children reparent to init
     time.sleep(0.5)
-    assert alive(server_pid)  # still alive, no longer a child of the dead arbiter
+    assert alive(
+        server_pid
+    )  # still alive, no longer a child of the dead arbiter
     assert run_driver(workspace, "stop").returncode == 0
     assert not alive(server_pid)  # reaped via recorded server_pid
     assert not alive(frontend_pid)  # reaped via recorded frontend_pid
@@ -195,7 +209,8 @@ def test_orphan_reach_with_only_server_recorded(workspace):
             sys.executable,
             "-c",
             "import subprocess, sys, time; "
-            "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']); "
+            "subprocess.Popen([sys.executable, '-c', "
+            "'import time; time.sleep(60)']); "
             "time.sleep(60)",
         ]
     )
@@ -222,11 +237,13 @@ def test_orphan_reach_with_only_server_recorded(workspace):
         }
         (dev / "dev.json").write_text(json.dumps(state))
         assert run_driver(workspace, "stop").returncode == 0
-        assert not alive(server.pid)  # server subtree reaped via recorded server_pid
+        assert not alive(
+            server.pid
+        )  # server subtree reaped via recorded server_pid
         for pid in child_pids:
             assert not alive(pid)
     finally:
-        with _suppress():
+        with contextlib.suppress(Exception):
             server.kill()
 
 
@@ -270,10 +287,12 @@ def test_stale_cleanup_after_out_of_band_kill(workspace):
     assert run_driver(workspace, "up").returncode == 0
     state = read_state(workspace)
     for key in ("arbiter_pid", "server_pid", "frontend_pid"):
-        with _suppress():
+        with contextlib.suppress(Exception):
             os.kill(state[key], signal.SIGKILL)
     time.sleep(0.5)
-    assert run_driver(workspace, "status").returncode == 4  # treated as not-running
+    assert (
+        run_driver(workspace, "status").returncode == 4
+    )  # treated as not-running
     assert run_driver(workspace, "stop").returncode == 0
     endpoint_sock = ipc_socket_paths(workspace)[0]
     assert not endpoint_sock.exists()  # stale socket cleaned up
@@ -293,7 +312,8 @@ def test_recycled_pid_is_refused_real_psutil(workspace):
             "pidfile": str(dev / "circusd.pid"),
             "ini_path": str(dev / "circus.ini"),
             "arbiter_pid": victim.pid,
-            "arbiter_start_time": 1.0,  # bogus -> identity mismatch vs the live victim
+            # bogus -> identity mismatch vs the live victim
+            "arbiter_start_time": 1.0,
             "server_pid": None,
             "server_start_time": None,
             "frontend_pid": None,
@@ -329,13 +349,17 @@ def test_status_exit_codes(workspace):
     assert run_driver(workspace, "up").returncode == 0
     assert run_driver(workspace, "status").returncode == 0  # both
     state = read_state(workspace)
-    os.kill(state["frontend_pid"], signal.SIGKILL)  # respawn=false -> stays stopped
+    os.kill(
+        state["frontend_pid"], signal.SIGKILL
+    )  # respawn=false -> stays stopped
     time.sleep(0.7)
     assert run_driver(workspace, "status").returncode == 3  # one
 
 
 def test_sigterm_ignoring_frontend_is_sigkilled(workspace):
-    assert run_driver(workspace, "up", {"fe_ignore_sigterm": True}).returncode == 0
+    assert (
+        run_driver(workspace, "up", {"fe_ignore_sigterm": True}).returncode == 0
+    )
     frontend_pid = read_state(workspace)["frontend_pid"]
     assert alive(frontend_pid)
     assert run_driver(workspace, "stop", {"grace_quit": 8.0}).returncode == 0
@@ -352,7 +376,9 @@ def test_cross_workspace_concurrency(tmp_path):
         assert run_driver(ws_b, "up").returncode == 0
         a, b = read_state(ws_a), read_state(ws_b)
         assert a["frontend_port"] != b["frontend_port"]
-        assert a["endpoint"] != b["endpoint"]  # distinct per-workspace ipc sockets
+        assert (
+            a["endpoint"] != b["endpoint"]
+        )  # distinct per-workspace ipc sockets
         assert alive(a["arbiter_pid"]) and alive(b["arbiter_pid"])
         # stopping A leaves B untouched (structural isolation)
         assert run_driver(ws_a, "stop").returncode == 0

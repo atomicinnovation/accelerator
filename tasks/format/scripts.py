@@ -1,11 +1,12 @@
 import shlex
 
 from invoke import Context, Exit, task
+from invoke.runners import Result
 
 from tasks.shared.sources import repo_root, shell_sources
 
 
-def _shfmt(context: Context, op_flags: str):
+def _shfmt(context: Context, op_flags: str) -> Result:
     """Run shfmt over every shell source with only operation flags.
 
     No formatting flags (-i, -ci, …) are passed so shfmt reads `.editorconfig`
@@ -18,7 +19,8 @@ def _shfmt(context: Context, op_flags: str):
         # (a glob/`_keep` regression), not that there is nothing to format
         # (fail-closed, not fail-open). Mirrors the lint tasks' guard.
         raise Exit(
-            "shfmt: no shell sources matched — scope discovery is broken", code=1
+            "shfmt: no shell sources matched — scope discovery is broken",
+            code=1,
         )
     args = " ".join(shlex.quote(s) for s in sources)
     # mise runs invoke tasks from the repo root and shell_sources() returns
@@ -29,17 +31,18 @@ def _shfmt(context: Context, op_flags: str):
 
 
 @task
-def check(context: Context):
+def check(context: Context) -> None:
     """Report shell files that are not shfmt-formatted (read-only)."""
     result = _shfmt(context, "-d")
     if result.exited != 0:
         raise Exit(
-            "shfmt: formatting drift detected — run `mise run format:scripts:fix`",
+            "shfmt: formatting drift detected — run "
+            "`mise run format:scripts:fix`",
             code=1,
         )
 
 
 @task
-def fix(context: Context):
+def fix(context: Context) -> None:
     """Format shell files in place with shfmt, listing the changed files."""
     _shfmt(context, "-l -w")

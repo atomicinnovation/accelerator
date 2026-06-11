@@ -33,8 +33,8 @@ def _publish(context: Context) -> None:
 
 
 @task
-def prerelease_prepare(context: Context):
-    """CI prerelease halve 1: bump version, build binaries, compute checksums."""
+def prerelease_prepare(context: Context) -> None:
+    """CI prerelease halve 1: bump version, build binaries, checksum."""
     git.configure(context)
     git.pull(context)
     version.bump(context, bump_type=[version.BumpType.PRE])
@@ -47,14 +47,17 @@ def prerelease_prepare(context: Context):
 
 
 @task
-def prerelease_finalise(context: Context):
-    """CI prerelease halve 2: commit, tag, push, create release, upload, publish."""
+def prerelease_finalise(context: Context) -> None:
+    """CI prerelease halve 2: commit, tag, push, release, publish."""
     _publish(context)
 
 
 @task
-def release_prepare(context: Context):
-    """CI stable release halve 1: finalise version, update marketplace and changelog, build binaries."""
+def release_prepare(context: Context) -> None:
+    """CI stable release halve 1: finalise version and build binaries.
+
+    Also updates the marketplace version and changelog before building.
+    """
     git.configure(context)
     git.pull(context)
     version.bump(context, bump_type=[version.BumpType.FINALISE])
@@ -68,8 +71,8 @@ def release_prepare(context: Context):
 
 
 @task
-def release_finalise(context: Context):
-    """CI stable release halve 2: commit, tag, push, create release, upload, publish."""
+def release_finalise(context: Context) -> None:
+    """CI stable release halve 2: commit, tag, push, release, publish."""
     _publish(context)
 
 
@@ -77,7 +80,7 @@ def release_finalise(context: Context):
 
 
 @task
-def prerelease(context: Context):
+def prerelease(context: Context) -> None:
     """Local-dev only: full prerelease flow without SLSA attestation."""
     _refuse_under_ci("prerelease")
     prerelease_prepare(context)
@@ -85,7 +88,7 @@ def prerelease(context: Context):
 
 
 @task
-def release(context: Context):
+def release(context: Context) -> None:
     """Local-dev only: full stable release flow without SLSA attestation.
 
     Runs: release prepare → release finalise → prerelease prepare →

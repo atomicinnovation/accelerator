@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from invoke import Context, task
 
@@ -6,26 +7,30 @@ from . import version
 from .shared.paths import MARKETPLACE_JSON, PRERELEASE_MARKETPLACE_JSON
 
 
-def read_metadata():
+def read_metadata() -> dict[str, Any]:
     return json.loads(MARKETPLACE_JSON.read_text())
 
 
-def write_metadata(metadata):
+def write_metadata(metadata: dict[str, Any]) -> None:
     MARKETPLACE_JSON.write_text(json.dumps(metadata, indent=2))
 
 
-def read_prerelease_metadata():
+def read_prerelease_metadata() -> dict[str, Any]:
     return json.loads(PRERELEASE_MARKETPLACE_JSON.read_text())
 
 
-def write_prerelease_metadata(metadata):
+def write_prerelease_metadata(metadata: dict[str, Any]) -> None:
     PRERELEASE_MARKETPLACE_JSON.write_text(json.dumps(metadata, indent=2))
 
 
 @task
-def update_version(_context: Context, plugin: str, target_version: str | None = None):
+def update_version(
+    _context: Context, plugin: str, target_version: str | None = None
+) -> None:
     """Update marketplace plugin ref to the given version."""
-    resolved_version = target_version or version.read(_context, print_to_stdout=False)
+    resolved_version = target_version or version.read(
+        _context, print_to_stdout=False
+    )
     marketplace = read_metadata()
     for entry in marketplace["plugins"]:
         if entry["name"] == plugin:
@@ -34,9 +39,13 @@ def update_version(_context: Context, plugin: str, target_version: str | None = 
 
 
 @task
-def update_prerelease_version(_context: Context, plugin: str, target_version: str | None = None):
+def update_prerelease_version(
+    _context: Context, plugin: str, target_version: str | None = None
+) -> None:
     """Update prerelease marketplace plugin ref to the given version."""
-    resolved_version = target_version or version.read(_context, print_to_stdout=False)
+    resolved_version = target_version or version.read(
+        _context, print_to_stdout=False
+    )
     marketplace = read_prerelease_metadata()
     for entry in marketplace["plugins"]:
         if entry["name"] == plugin:

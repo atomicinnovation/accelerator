@@ -4,8 +4,8 @@ from .helpers import repo_root
 
 
 @task
-def visualiser(context: Context):
-    """Unit tests for the visualiser server.
+def visualiser(context: Context) -> None:
+    """Run the visualiser server unit tests.
 
     Runs cargo test twice to cover both feature-gated test modules:
       1. `--no-default-features --features dev-frontend` — covers
@@ -25,21 +25,21 @@ def visualiser(context: Context):
 
 
 @task
-def frontend(context: Context):
-    """Unit tests for the visualiser frontend (Vitest)."""
+def frontend(context: Context) -> None:
+    """Run the visualiser frontend unit tests (Vitest)."""
     frontend_root = repo_root() / "skills/visualisation/visualise/frontend"
     context.run(f"npm --prefix {frontend_root} run test")
 
 
 @task
-def templates(context: Context):
+def templates(context: Context) -> None:
     """Run template / SKILL / metadata-helper schema tests."""
     drivers = [
         "scripts/test-template-frontmatter.sh",
         "scripts/test-skill-frontmatter-population.sh",
         "scripts/test-metadata-helpers.sh",
     ]
-    failures = []
+    failures: list[str] = []
     for driver in drivers:
         result = context.run(f"bash {driver}", warn=True, pty=False)
         if result.exited != 0:

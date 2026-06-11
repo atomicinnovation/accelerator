@@ -2,11 +2,14 @@ import json
 import shutil
 import tarfile
 import tomllib
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 
 from invoke import Context, task
 
+from tasks.shared.errors import InvalidVersionError
+from tasks.shared.files import atomic_write_text
+from tasks.shared.hashing import compute_sha256
 from tasks.shared.paths import (
     BIN_DIR,
     CARGO_TOML,
@@ -18,23 +21,23 @@ from tasks.shared.paths import (
     binary_path,
     debug_archive_path,
 )
-from tasks.shared.errors import InvalidVersionError
-from tasks.shared.files import atomic_write_text
-from tasks.shared.hashing import compute_sha256
 from tasks.shared.targets import TARGETS
 
 
 class VersionCoherenceError(Exception): ...
 
-_CARGO_TOML_RELATIVE  = CARGO_TOML.relative_to(REPO_ROOT)
-_PLUGIN_JSON_RELATIVE = PLUGIN_JSON.relative_to(REPO_ROOT)
-_CHECKSUMS_RELATIVE   = CHECKSUMS.relative_to(REPO_ROOT)
 
-_MACHO_MAGIC = frozenset([
-    b"\xcf\xfa\xed\xfe",
-    b"\xce\xfa\xed\xfe",
-    b"\xca\xfe\xba\xbe",
-])
+_CARGO_TOML_RELATIVE = CARGO_TOML.relative_to(REPO_ROOT)
+_PLUGIN_JSON_RELATIVE = PLUGIN_JSON.relative_to(REPO_ROOT)
+_CHECKSUMS_RELATIVE = CHECKSUMS.relative_to(REPO_ROOT)
+
+_MACHO_MAGIC = frozenset(
+    [
+        b"\xcf\xfa\xed\xfe",
+        b"\xce\xfa\xed\xfe",
+        b"\xca\xfe\xba\xbe",
+    ]
+)
 _ELF_MAGIC = b"\x7fELF"
 
 
@@ -44,7 +47,7 @@ def _read_plugin_json_version(root: Path) -> str:
 
 
 def _read_cargo_toml_version(root: Path) -> str:
-    with open(root / _CARGO_TOML_RELATIVE, "rb") as f:
+    with (root / _CARGO_TOML_RELATIVE).open("rb") as f:
         data = tomllib.load(f)
     return data["package"]["version"]
 
@@ -54,18 +57,18 @@ def _read_checksums_json_version(root: Path) -> str:
     return data["version"]
 
 
-def _assert_magic_bytes(path, triple: str) -> None:
+def _assert_magic_bytes(path: Path, triple: str) -> None:
     magic = path.read_bytes()[:4]
     if "darwin" in triple:
         if magic not in _MACHO_MAGIC:
             raise RuntimeError(
-                f"unexpected magic bytes for darwin binary {path.name}: {magic!r}"
+                f"unexpected magic bytes for darwin binary "
+                f"{path.name}: {magic!r}"
             )
-    else:
-        if magic != _ELF_MAGIC:
-            raise RuntimeError(
-                f"unexpected magic bytes for linux binary {path.name}: {magic!r}"
-            )
+    elif magic != _ELF_MAGIC:
+        raise RuntimeError(
+            f"unexpected magic bytes for linux binary {path.name}: {magic!r}"
+        )
 
 
 def update_checksums_json(
@@ -89,8 +92,8 @@ def validate_version_coherence(
         raise InvalidVersionError("expected_version must not be empty")
     root = repo_root or REPO_ROOT
     found = {
-        "plugin.json":    _read_plugin_json_version(root),
-        "Cargo.toml":     _read_cargo_toml_version(root),
+        "plugin.json": _read_plugin_json_version(root),
+        "Cargo.toml": _read_cargo_toml_version(root),
         "checksums.json": _read_checksums_json_version(root),
     }
     mismatches = {k: v for k, v in found.items() if v != expected_version}
@@ -101,13 +104,13 @@ def validate_version_coherence(
 
 
 @task
-def frontend(context: Context):
+def frontend(context: Context) -> None:
     """Build the visualiser frontend (Vite production build into dist/)."""
     context.run(f"npm --prefix {FRONTEND} run build")
 
 
 @task
-def server_dev(context: Context):
+def server_dev(context: Context) -> None:
     """Build the visualiser server binary with the dev-frontend feature.
 
     Serves the frontend from the filesystem at runtime; used for local
@@ -120,7 +123,7 @@ def server_dev(context: Context):
 
 
 @task
-def server_release(context: Context):
+def server_release(context: Context) -> None:
     """Build the visualiser server binary for release.
 
     Uses the default embed-dist feature, which bakes the frontend assets
@@ -130,14 +133,15 @@ def server_release(context: Context):
 
 
 @task
-def server_cross_compile(context: Context):
+def server_cross_compile(context: Context) -> None:
     """Cross-compile the visualiser server for all four release targets.
 
     Produces stripped binaries staged to bin/ alongside debug-symbol archives.
     """
     for triple, platform in TARGETS:
         context.run(
-            f"cargo zigbuild --release --target {triple} --manifest-path {CARGO_TOML}",
+            f"cargo zigbuild --release --target {triple} "
+            f"--manifest-path {CARGO_TOML}",
             pty=True,
         )
         src = SERVER / "target" / triple / "release" / "accelerator-visualiser"
@@ -146,7 +150,7 @@ def server_cross_compile(context: Context):
 
 
 @task
-def create_debug_archives(context: Context):
+def create_debug_archives(context: Context) -> None:
     """Create .debug.tar.gz archives for all cross-compiled release binaries."""
     for _, platform in TARGETS:
         binary = binary_path(platform)
@@ -157,12 +161,13 @@ def create_debug_archives(context: Context):
 
 @task
 def create_checksums(context: Context, version: str) -> None:
-    """Compute SHA-256 checksums for all release binaries and write checksums.json."""
+    """Compute SHA-256 checksums for release binaries; write checksums.json."""
     validate_version_coherence(version)
     binaries = {
-        platform: binary_path(platform, BIN_DIR)
-        for _, platform in TARGETS
+        platform: binary_path(platform, BIN_DIR) for _, platform in TARGETS
     }
-    hashes = {platform: compute_sha256(path) for platform, path in binaries.items()}
+    hashes = {
+        platform: compute_sha256(path) for platform, path in binaries.items()
+    }
     update_checksums_json(CHECKSUMS, version, hashes)
     validate_version_coherence(version)

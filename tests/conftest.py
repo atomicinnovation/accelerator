@@ -20,6 +20,7 @@ def fake_repo_tree(tmp_path: Path) -> Path:
     )
     bin_dir = tmp_path / "skills/visualisation/visualise/bin"
     bin_dir.mkdir(parents=True)
-    shutil.copy(_TASKS_FIXTURES / "checksums.example.json",
-                bin_dir / "checksums.json")
+    shutil.copy(
+        _TASKS_FIXTURES / "checksums.example.json", bin_dir / "checksums.json"
+    )
     return tmp_path

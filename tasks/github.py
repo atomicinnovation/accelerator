@@ -7,9 +7,9 @@ from pathlib import Path
 import semver
 from invoke import Context, task
 
-from tasks.shared.paths import CHECKSUMS, binary_path, debug_archive_path
 from tasks.shared.errors import InvalidVersionError
 from tasks.shared.hashing import compute_sha256
+from tasks.shared.paths import CHECKSUMS, binary_path, debug_archive_path
 from tasks.shared.targets import TARGETS
 
 
@@ -30,7 +30,7 @@ class AssetVerificationError(Exception):
 
 
 @task
-def check_auth(context: Context):
+def check_auth(context: Context) -> None:
     """Verify the GitHub CLI is authenticated."""
     result = context.run("gh auth status", warn=True, hide=True)
     if result.return_code != 0:
@@ -40,7 +40,7 @@ def check_auth(context: Context):
 
 
 @task
-def create_release(context: Context, target_version: str | None = None):
+def create_release(context: Context, target_version: str | None = None) -> None:
     """Create a draft GitHub release for the current version.
 
     Passes --prerelease for pre-release versions (X.Y.Z-suffix) and
@@ -48,12 +48,21 @@ def create_release(context: Context, target_version: str | None = None):
     has verified every binary and published the release.
     """
     from tasks import version
+
     resolved_version = str(
         target_version or version.read(context, print_to_stdout=False)
     )
     tag = f"v{resolved_version}"
-    cmd = ["gh", "release", "create", tag,
-           "--draft", "--generate-notes", "--title", tag]
+    cmd = [
+        "gh",
+        "release",
+        "create",
+        tag,
+        "--draft",
+        "--generate-notes",
+        "--title",
+        tag,
+    ]
     if is_prerelease_version(resolved_version):
         cmd.append("--prerelease")
     context.run(shlex.join(cmd), pty=True)
@@ -71,10 +80,21 @@ def download_release_asset(
 ) -> None:
     """Download a single asset from a GitHub release to output_path."""
     result = subprocess.run(
-        ["gh", "release", "download", tag,
-         "--pattern", asset_name,
-         "--output", str(output_path), "--clobber"],
-        capture_output=True, text=True, timeout=120,
+        [
+            "gh",
+            "release",
+            "download",
+            tag,
+            "--pattern",
+            asset_name,
+            "--output",
+            str(output_path),
+            "--clobber",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
     )
     if result.returncode != 0:
         raise AssetVerificationError(
@@ -83,7 +103,9 @@ def download_release_asset(
 
 
 @task
-def verify_release_asset(context: Context, path: Path, expected_hex: str) -> None:
+def verify_release_asset(
+    context: Context, path: Path, expected_hex: str
+) -> None:
     """Verify the SHA-256 of a local file matches expected_hex."""
     actual = compute_sha256(path)
     if actual != expected_hex:
@@ -113,7 +135,7 @@ def download_and_verify(
 
 @task
 def upload_and_verify(context: Context, version: str) -> None:
-    """Upload all release artefacts, verify their SHA-256, then publish the draft."""
+    """Upload release artefacts, verify SHA-256, then publish the draft."""
     tag = f"v{version}"
     checksums = json.loads(CHECKSUMS.read_text())
     hashes = {
@@ -121,9 +143,12 @@ def upload_and_verify(context: Context, version: str) -> None:
         for platform, digest in checksums["binaries"].items()
     }
     binaries = {platform: binary_path(platform) for _, platform in TARGETS}
-    archives = {platform: debug_archive_path(platform) for _, platform in TARGETS}
+    archives = {
+        platform: debug_archive_path(platform) for _, platform in TARGETS
+    }
     missing = [
-        p for p in list(binaries.values()) + list(archives.values())
+        p
+        for p in list(binaries.values()) + list(archives.values())
         if not p.exists()
     ]
     if missing:
@@ -139,13 +164,15 @@ def upload_and_verify(context: Context, version: str) -> None:
         context.run(f"gh release edit {tag} --draft=false", pty=True)
     except AssetVerificationError:
         _emit_forensic_alert(
-            context, tag,
+            context,
+            tag,
             "AssetVerificationError — draft + tag PRESERVED for triage",
         )
         raise
     except Exception:
         context.run(
             f"gh release delete {tag} --cleanup-tag --yes",
-            warn=True, timeout=120,
+            warn=True,
+            timeout=120,
         )
         raise
