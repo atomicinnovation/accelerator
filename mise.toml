@@ -199,11 +199,11 @@ run = "invoke format.scripts.fix"
 
 [tasks."format:check"]
 description = "Run all format checks (read-only)"
-depends = ["format:scripts:check"]
+depends = ["format:frontend:check", "format:server:check", "format:build-system:check", "format:scripts:check"]
 
 [tasks."format:fix"]
 description = "Apply all formatters in place"
-depends = ["format:scripts:fix"]
+depends = ["format:frontend:fix", "format:server:fix", "format:build-system:fix", "format:scripts:fix"]
 
 [tasks."lint:scripts:shellcheck:check"]
 description = "Lint shell scripts with ShellCheck (config in .shellcheckrc)"
@@ -305,17 +305,56 @@ run = "invoke types.frontend.check"
 description = "Run all frontend format, lint, and type checks (Biome + tsc)"
 depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check"]
 
+# ─── Lint/format/type task tree — AC→task mapping + folding rule ────────────
+#
+# The 0098 work item asks for `lint:<language>` tasks; this tree deliberately
+# diverges (the PR description evaporates, so the mapping lives here):
+#   - The work item's `lint:<language>` ACs are satisfied by `<component>:check`,
+#     which folds that component's format + lint (+ types where applicable).
+#       frontend → frontend:check     server   → server:check
+#       python   → build-system:check shell    → scripts:check
+#   - The work item's aggregate `lint` / `format` ACs are satisfied by the
+#     `lint:check` / `format:check` family aggregates below.
+#   - `build-system` is the repo-root Python automation toolchain (the tasks/
+#     invoke package + its tests), unrelated to the `build:*` artifact namespace;
+#     its task descriptions name Python/ruff/pyrefly so `mise tasks | grep -i
+#     python` finds it.
+#
+# Folding rule (the tree's shape is learn-once):
+#   - `<component>:check` runs every applicable family for that component;
+#     `scripts`/`server` have no `types:*` (only `frontend`/`build-system` do).
+#   - `lint:scripts:check` nests one level deeper (shellcheck + bashisms) because
+#     shell has two linters. Consult `mise tasks` for the per-component leaves.
+#   - Namespace shapes: a component name LEADS its roll-up (`<component>:check`,
+#     entity-first, like `version:*`/`github:*`) but TRAILS in the families
+#     (`format:<component>:check`) — the one genuinely new shape.
+#   - There are `<component>:check` roll-ups but NO `<component>:fix`; fix one
+#     component via `format:<component>:fix` + `lint:<component>:fix`, or the
+#     top-level `fix`. (shell has no autofixer — `scripts` is absent from
+#     `lint:fix`; run `mise run scripts:check` for remaining shell findings.)
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:scripts:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:build-system:check", "lint:scripts:check"]
+
+[tasks."lint:fix"]
+description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"
+depends = ["lint:frontend:fix", "lint:server:fix", "lint:build-system:fix"]
+
+[tasks."types:check"]
+description = "Run all type checks (tsc + pyrefly)"
+depends = ["types:frontend:check", "types:build-system:check"]
+
+[tasks.fix]
+description = "Apply all formatters + safe lint fixes (MECHANICAL only — no type-checks, and shell has no autofixer; still run `mise run check` before pushing)"
+depends = ["format:fix", "lint:fix"]
 
 [tasks.check]
-description = "Run all read-only format and lint checks (what CI runs)"
-depends = ["format:check", "lint:check"]
+description = "Run all read-only format, lint, and type checks (what CI runs)"
+depends = ["frontend:check", "server:check", "build-system:check", "scripts:check"]
 
 [tasks.default]
-description = "Build all artifacts, format, lint, and run all tests"
-depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "test"]
+description = "Full local CI mirror: build, format-fix, lint, type-check, test (heavy — reformats in place + compiles Rust several times; for a fast inner loop use a single <component>:check)"
+depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "test"]
 
 [tasks."version:read"]
 description = "Read plugin version"

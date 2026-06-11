@@ -1591,19 +1591,27 @@ branch-protection required-check names match the renamed/added jobs.
 ### Success Criteria
 
 #### Automated Verification:
-- [ ] `mise run check` runs all four component aggregates and exits 0.
-- [ ] `mise run format:fix` / `mise run lint:fix` run clean.
-- [ ] `mise run fix` (top-level) runs clean.
-- [ ] Every new task carries a `description`: spot-check via `mise tasks`.
-- [ ] `mise run default` on a clean tree produces a **real (non-stub)**
-  `frontend/dist/index.html` in the final artifact (the stub-shadowing guard —
-  `build:frontend` overwrites any stub; the dist file contains no lint-stub marker).
+- [x] `mise run check` runs all four component aggregates and exits 0.
+- [x] `mise run format:fix` / `mise run lint:fix` run clean.
+- [x] `mise run fix` (top-level) runs clean (idempotent on the clean tree — no
+  new changes).
+- [x] Every new task carries a `description`: spot-check via `mise tasks`.
+- [x] `mise run default` on a clean tree produces a **real (non-stub)**
+  `frontend/dist/index.html` (the stub-shadowing guard — verified directly:
+  `build:frontend:stub` writes a marked stub only when absent and never clobbers
+  a real dist; a real `build:frontend` overwrites the stub, leaving no lint-stub
+  marker. `default` schedules `build:frontend`, so the final artifact is real.)
 
 #### Manual Verification:
-- [ ] The pyrefly `all`-preset follow-up work item exists and is linked.
+- [x] The pyrefly `all`-preset follow-up work item exists and is linked
+  (`meta/work/0106-re-evaluate-pyrefly-all-preset.md`, relates_to work-item:0098).
 - [ ] Main CI shows four separate blocking per-component jobs, no
-  `continue-on-error`.
-- [ ] AC→task mapping recorded for validation traceability.
+  `continue-on-error`. **[CI/manual — wiring asserted in-repo: `check-scripts`,
+  `check-build-system`, `check-server`, `check-frontend` all in `prerelease.needs`
+  alongside the 3 test jobs; no monolithic `check` job; no `continue-on-error`.
+  Observing them green is pending push.]**
+- [x] AC→task mapping recorded for validation traceability (durable comment block
+  in `mise.toml` + the contributor note in `CONTRIBUTING.md`).
 
 ---
 
