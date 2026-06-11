@@ -1115,7 +1115,7 @@ mod write_tests {
     // marked #[ignore] and #[cfg(target_os = "linux")]. Opt-in when
     // a tmpfs mount is available at the path below.
     #[cfg(target_os = "linux")]
-    #[ignore]
+    #[ignore = "requires a separate tmpfs mount; run explicitly where available"]
     #[tokio::test]
     async fn cross_filesystem_persist_returns_cross_filesystem_error() {
         // This test requires a tmpfs mounted separately; it is ignored by
