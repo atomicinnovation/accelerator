@@ -11,7 +11,7 @@ type: work-item
 schema_version: 1
 last_updated: "2026-05-21T09:16:34+00:00"
 last_updated_by: Toby Clemson
-blocked_by: ["work-item:0065", "work-item:0066"]
+blocked_by: ["work-item:0065", "work-item:0066", "work-item:0070"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0078"]
 ---
@@ -41,7 +41,10 @@ humanisation. The current cascade is: `frontmatter.title` → first H1 →
 raw `filename_stem`. Three doc kinds (work-item-reviews, plan-reviews,
 validations) currently lack both `frontmatter.title` and a first H1, so
 they fall through to the unhumanised stem (e.g.
-`0042-templates-view-redesign-review-1`).
+`0042-templates-view-redesign-review-1`). Only those three kinds break
+today, but the humanised fallback and its test cover all thirteen kinds
+in `DocTypeKey::all()`, so any future kind that ships without a title or
+first H1 is protected without further change.
 
 The unified frontmatter schema work (epic 0057) makes `title` a base
 field on every artifact type. Once the producer (0065), inline-generator
@@ -58,9 +61,14 @@ malformed) still renders a readable H1.
   (`skills/visualisation/visualise/server/src/frontmatter.rs`) with a
   humanised form of the slug.
 - Introduce a `humanise_slug` helper next to the existing
-  `humanise_status` helper in `api/library.rs`. Strip any leading
-  numeric ID (e.g. `0042-`) or ISO date prefix (e.g. `2026-05-21-`),
-  then split the remainder on hyphens and title-case each segment.
+  `humanise_status` helper in `api/library.rs`. Strip at most one
+  leading prefix matching a numeric ID (e.g. `0042-`) or ISO date (e.g.
+  `2026-05-21-`), then split the remainder on hyphens and title-case
+  each segment. "Title-case" means: uppercase the first character of
+  each segment and leave the remaining characters untouched; segments
+  led by a digit (e.g. `0042`, `21`, a trailing `1`) are emitted
+  verbatim. Hyphens inside a *residual* date or ID (one that was not the
+  leading prefix) are treated as ordinary segment separators.
   Extraction to a dedicated `humanise.rs` module is deferred until a
   third humaniser appears.
 - Apply the new cascade uniformly: the change is a single function edit
@@ -78,23 +86,31 @@ malformed) still renders a readable H1.
   `"0042-test-fixture"`) with **no** `frontmatter.title` and **no**
   first H1 through `title_from`, and asserts the resolved title
   equals `humanise_slug(stem)` (and therefore differs from the raw
-  stem). This guarantees no detail-page route can render an
-  unhumanised filename stem as the page's `<h1>` heading for any doc
-  kind.
+  stem). To guard against a shared bug in the test oracle (the
+  `humanise_slug(stem)` call computing the expected value) and the
+  production path, the test also asserts the resolved title against a
+  concrete literal for the fixed stem — `"0042-test-fixture"` →
+  `"Test Fixture"` — for at least one variant. This guarantees no
+  detail-page route can render an unhumanised filename stem as the
+  page's `<h1>` heading for any doc kind.
 - [ ] `humanise_slug` is implemented as a discrete helper with unit
   tests covering, at minimum:
   - simple hyphen splits — `humanise_slug("design-token-system") == "Design Token System"`
   - leading numeric IDs stripped — `humanise_slug("0042-templates-view-redesign-review-1") == "Templates View Redesign Review 1"`
   - leading ISO dates stripped — `humanise_slug("2026-05-21-current-app-vs-claude-design-prototype") == "Current App Vs Claude Design Prototype"`
-  - mixed prefixes — single-pass strip: only the leading matching prefix is removed, e.g. `humanise_slug("2026-05-21-0042-foo") == "0042 Foo"` and `humanise_slug("0042-2026-05-21-foo") == "2026 05 21 Foo"`
+  - mixed prefixes — single-pass strip: only the leading matching prefix is removed, e.g. `humanise_slug("2026-05-21-0042-foo") == "0042 Foo"` and `humanise_slug("0042-2026-05-21-foo") == "2026 05 21 Foo"`. Once the leading prefix is stripped, hyphens inside any *residual* date or ID become ordinary separators — which is why `0042` survives as a single token in the first example while the residual date splits into `2026 05 21` in the second.
   - single-segment slugs — `humanise_slug("notes") == "Notes"`
+  - degenerate inputs (the malformed-document case the fallback defends) — a prefix-only stem yields the stripped prefix's tokens, e.g. `humanise_slug("2026-05-21") == "2026 05 21"`; an empty stem yields an empty string (`humanise_slug("") == ""`)
 - [ ] `title_from` has fixture-driven cascade tests verifying:
   - (a) `frontmatter.title` present → returned verbatim
   - (b) `frontmatter.title` absent, first H1 present → first H1
     returned
   - (c) both absent → `humanise_slug(stem)` returned
-- [ ] `LibraryDocView.tsx` and `Page.tsx` are unchanged by this work
-  item; the change is server-side only.
+- [ ] The change is server-side only: the PR diff touches no frontend
+  files, and in particular no modifications appear to `LibraryDocView.tsx`
+  or `Page.tsx`. (Verifiable against the actual diff by a reviewer or a
+  CI path guard, rather than asserted as an unobservable "nothing
+  changed".)
 - [ ] The cascade order is documented inline in `title_from` with a
   one-line comment per layer; each comment names its source
   (`frontmatter.title`, `first H1`, `humanise_slug(stem)`) and its
@@ -113,7 +129,10 @@ malformed) still renders a readable H1.
   to existing `meta/` documents). Without these, reviews and validations
   would still hit the humanised-slug fallback as their primary path,
   which would force this work item to grow a kind-aware synthesis layer.
-- Builds on: 0041 (Page wrapper standardised across detail routes).
+- Builds on: 0041 (Page wrapper standardised across detail routes);
+  0060 (ADR establishing `title` as a base frontmatter field on every
+  artifact type — the invariant this story's primary cascade path
+  relies on, leaving the humanised slug as a defensive fallback).
 - Related: 0078 (frontmatter table — shares parsed frontmatter source),
   0074 (per-doc-type hues — same header surface), 0080 (header actions —
   same header surface), 0084 (chip strip cap — same header surface),
