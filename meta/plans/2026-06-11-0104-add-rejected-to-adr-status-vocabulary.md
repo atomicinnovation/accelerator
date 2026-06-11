@@ -188,22 +188,22 @@ status: proposed                             # proposed | accepted | rejected | 
 
 #### Automated Verification:
 
-- [ ] Templates suite passes (the verbatim-comment check is green):
+- [x] Templates suite passes (the verbatim-comment check is green):
       `mise run test:unit:templates`
-- [ ] Config integration suites pass (validator + conformance + template tests):
+- [x] Config integration suites pass (validator + conformance + template tests):
       `mise run test:integration:config`
-- [ ] The TSV `adr` row col 5 contains `rejected`:
+- [x] The TSV `adr` row col 5 contains `rejected`:
       `awk -F'\t' '$2=="adr"{print $5}' scripts/templates-schema.tsv` shows
       `proposed | accepted | rejected | superseded | deprecated`
-- [ ] The template comment matches the TSV cell verbatim (the standalone test
+- [x] The template comment matches the TSV cell verbatim (the standalone test
       that guards it): `bash scripts/test-template-frontmatter.sh`
 
 #### Manual Verification:
 
-- [ ] Confirm (TDD check, local) that *before* the `templates/adr.md` edit but
+- [x] Confirm (TDD check, local) that *before* the `templates/adr.md` edit but
       *after* the TSV edit, `bash scripts/test-template-frontmatter.sh` fails with
       "status line missing pinned vocabulary" — proving the comment sync is load-bearing.
-- [ ] Confirm the `skip_test` in `test-skill-frontmatter-conformance.sh` still
+- [x] Confirm the `skip_test` in `test-skill-frontmatter-conformance.sh` still
       reports `SKIP:` for `rejected` at this phase (no assertion yet) and the
       suite remains green.
 

@@ -5,7 +5,7 @@ title: "Title as Short Noun Phrase"
 date: "YYYY-MM-DDTHH:MM:SS+00:00"
 author: Author Name
 producer: create-adr
-status: proposed                             # proposed | accepted | superseded | deprecated
+status: proposed                             # proposed | accepted | rejected | superseded | deprecated
 decision_makers: []                          # omitted when empty
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""

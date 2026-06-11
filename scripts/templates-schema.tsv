@@ -3,7 +3,7 @@ work-item.md	work-item	no	kind priority external_id	draft | ready | in-progress 
 plan.md	plan	yes	reviewer	draft | ready | in-progress | done	-	parent blocks blocked_by derived_from relates_to
 validation.md	plan-validation	no	result	complete	-	parent target relates_to
 pr-description.md	pr-description	yes	pr_url pr_number merge_commit	complete	pr_title	parent relates_to
-adr.md	adr	no	decision_makers	proposed | accepted | superseded | deprecated	adr_id	parent supersedes relates_to
+adr.md	adr	no	decision_makers	proposed | accepted | rejected | superseded | deprecated	adr_id	parent supersedes relates_to
 codebase-research.md	codebase-research	yes	topic	complete	-	parent relates_to
 rca.md	issue-research	yes	topic	complete	-	parent relates_to
 design-inventory.md	design-inventory	yes	source source_kind source_location crawler sequence screenshots_incomplete	draft | superseded	-	parent relates_to
