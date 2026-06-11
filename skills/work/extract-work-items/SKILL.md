@@ -345,11 +345,19 @@ in Step 4 after all approvals — enriched and thin — are collected.
    a. **Compute target slugs** — for each approved draft, derive a meaningful
       kebab-case slug from its title.
 
-   b. **Read configuration**:
-      ```
-      PATTERN=$(${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh id_pattern)
-      DEFAULT_PROJECT=$(${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh default_project_code)
-      ```
+   b. **Read configuration.** Invoke each script by its bare path and use the
+      command's stdout as the named value — do **not** wrap the call in a `VAR=$(…)`
+      assignment, as the assignment (not the path) would become the command and escape
+      the rule:
+
+      - Run `${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh id_pattern` and use its
+        stdout as `PATTERN`.
+      - Run `${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh default_project_code` and
+        use its stdout as `DEFAULT_PROJECT`.
+
+      Run the bare path **directly** as an executable;
+      never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the skill's
+      `allowed-tools` permission and forces an unnecessary prompt).
 
    c. **Suggest projected IDs**: if `PATTERN` contains `{project}`, the
       default project for each row is `DEFAULT_PROJECT` (warn and require

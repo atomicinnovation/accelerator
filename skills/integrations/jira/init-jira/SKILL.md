@@ -57,22 +57,22 @@ If `--refresh-fields` was requested, skip to Step 5 (field discovery only).
 
 ## Step 1: Resolve site
 
-Use the site from `--site` if provided. Otherwise read it from config:
-
-```
-${CLAUDE_PLUGIN_ROOT}/scripts/config-read-value.sh jira.site ""
-```
+Use the site from `--site` if provided. Otherwise read it from config by running
+`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-value.sh jira.site ""`. Run the bare path
+**directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
+prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
+prompt).
 
 If still empty, prompt: *"Enter your Jira Cloud subdomain (the part before
 `.atlassian.net`, e.g. `mycompany`):"*
 
 ## Step 2: Resolve email
 
-Use `--email` if provided. Otherwise read it from config:
-
-```
-${CLAUDE_PLUGIN_ROOT}/scripts/config-read-value.sh jira.email ""
-```
+Use `--email` if provided. Otherwise read it from config by running
+`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-value.sh jira.email ""`. Run the bare path
+**directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
+prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
+prompt).
 
 If still empty, prompt: *"Enter your Atlassian account email:"*
 

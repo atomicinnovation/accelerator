@@ -825,20 +825,24 @@ to the plugin installation directory where scripts are located.
 
 #### `templates list`
 
-Run the list script and display its output:
+Run the list script and display its output. Run the bare path **directly** as an
+executable; never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the
+skill's `allowed-tools` permission and forces an unnecessary prompt):
 
 ```bash
-bash "$CLAUDE_PLUGIN_ROOT/scripts/config-list-template.sh"
+${CLAUDE_PLUGIN_ROOT}/scripts/config-list-template.sh
 ```
 
 Present the table output to the user.
 
 #### `templates show <key>`
 
-Run the show script with the template key:
+Run the show script with the template key. Run the bare path **directly** as an
+executable; never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the
+skill's `allowed-tools` permission and forces an unnecessary prompt):
 
 ```bash
-bash "$CLAUDE_PLUGIN_ROOT/scripts/config-show-template.sh" <key>
+${CLAUDE_PLUGIN_ROOT}/scripts/config-show-template.sh <key>
 ```
 
 Present the source metadata and template content to the user. If the user
@@ -847,10 +851,14 @@ running `templates list` first.
 
 #### `templates eject <key>` or `templates eject --all`
 
-**Before ejecting**, run with `--dry-run` to preview what will happen:
+**Before ejecting**, run with `--dry-run` to preview what will happen. Run the bare
+path **directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
+prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
+prompt) — this applies to every `config-eject-template.sh` invocation in this
+subsection:
 
 ```bash
-bash "$CLAUDE_PLUGIN_ROOT/scripts/config-eject-template.sh" --dry-run <key|--all>
+${CLAUDE_PLUGIN_ROOT}/scripts/config-eject-template.sh --dry-run <key|--all>
 ```
 
 Present the dry-run output to the user. If any templates already exist
@@ -859,20 +867,20 @@ overwriting, run a second dry-run with `--force` to show the full preview
 (including which files will be overwritten):
 
 ```bash
-bash "$CLAUDE_PLUGIN_ROOT/scripts/config-eject-template.sh" --dry-run --force <key|--all>
+${CLAUDE_PLUGIN_ROOT}/scripts/config-eject-template.sh --dry-run --force <key|--all>
 ```
 
 Present this preview, then run the actual eject with `--force`:
 
 ```bash
-bash "$CLAUDE_PLUGIN_ROOT/scripts/config-eject-template.sh" --force <key|--all>
+${CLAUDE_PLUGIN_ROOT}/scripts/config-eject-template.sh --force <key|--all>
 ```
 
 If no templates already exist (exit code 0 from the initial dry-run),
 proceed directly with the eject (no `--force` needed):
 
 ```bash
-bash "$CLAUDE_PLUGIN_ROOT/scripts/config-eject-template.sh" <key|--all>
+${CLAUDE_PLUGIN_ROOT}/scripts/config-eject-template.sh <key|--all>
 ```
 
 If the user says `eject --all` or `eject all`, pass `--all` to the script.
@@ -885,10 +893,12 @@ After successful ejection, inform the user:
 
 #### `templates diff <key>`
 
-Run the diff script:
+Run the diff script. Run the bare path **directly** as an executable;
+never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the skill's
+`allowed-tools` permission and forces an unnecessary prompt):
 
 ```bash
-bash "$CLAUDE_PLUGIN_ROOT/scripts/config-diff-template.sh" <key>
+${CLAUDE_PLUGIN_ROOT}/scripts/config-diff-template.sh <key>
 ```
 
 Present the diff output to the user. If exit code is 2, no customisation
@@ -899,12 +909,15 @@ exists — relay the "using plugin default" message.
 This action removes a user's customised template to revert to the plugin
 default. Reset operates on a **single template at a time** — if the user
 requests resetting all templates, process them one-by-one with individual
-confirmations.
+confirmations. Run the bare path **directly** as an executable;
+never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the skill's
+`allowed-tools` permission and forces an unnecessary prompt) — this applies to
+both `config-reset-template.sh` invocations below.
 
 1. Determine the template key. If not provided, ask the user.
 2. Run the reset script without `--confirm` to check for an override:
    ```bash
-   bash "$CLAUDE_PLUGIN_ROOT/scripts/config-reset-template.sh" <key>
+   ${CLAUDE_PLUGIN_ROOT}/scripts/config-reset-template.sh <key>
    ```
 3. If exit code 2: tell the user "No customised template found for '<key>'
    — already using plugin default."
@@ -915,7 +928,7 @@ confirmations.
    confirm they want to delete a file outside the project root.
 5. On confirmation, run with `--confirm`:
    ```bash
-   bash "$CLAUDE_PLUGIN_ROOT/scripts/config-reset-template.sh" --confirm <key>
+   ${CLAUDE_PLUGIN_ROOT}/scripts/config-reset-template.sh --confirm <key>
    ```
 6. Inform the user that the template was reset. If the script output
    includes a note about removing a config entry (i.e., the override was

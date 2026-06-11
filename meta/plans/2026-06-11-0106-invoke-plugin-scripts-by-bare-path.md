@@ -444,26 +444,26 @@ the §Migration Notes generalisation of the invariant.
 
 #### Automated Verification
 
-- [ ] **(structural)** No `bash `-prefixed `config-*` invocation remains:
+- [x] **(structural)** No `bash `-prefixed `config-*` invocation remains:
       `grep -rn 'bash "\?\$CLAUDE_PLUGIN_ROOT.*scripts/config-' --include=SKILL.md skills/` → empty
-- [ ] **(structural)** No unbraced `$CLAUDE_PLUGIN_ROOT` precedes a `config-*` path in a
+- [x] **(structural)** No unbraced `$CLAUDE_PLUGIN_ROOT` precedes a `config-*` path in a
       body invocation:
       `grep -rn '\$CLAUDE_PLUGIN_ROOT/scripts/config-' --include=SKILL.md skills/config/` → empty
-- [ ] **(AC2 — fence absence)** The full-tree guard now returns empty (Phase 1 + Phase 2
+- [x] **(AC2 — fence absence)** The full-tree guard now returns empty (Phase 1 + Phase 2
       complete): `find skills -name SKILL.md -print0 | xargs -0 awk -f /tmp/fence-guard.awk` → empty.
       (Guard-empty proves *fences are gone*; it does **not** prove the directive-adds — the
       directive-coverage checks below are the AC1 gate for the config sites.)
-- [ ] **(structural)** No `VAR=$(…config-…)` assignment remains in `extract-work-items`:
+- [x] **(structural)** No `VAR=$(…config-…)` assignment remains in `extract-work-items`:
       `grep -n '=\$(${CLAUDE_PLUGIN_ROOT}/scripts/config-' skills/work/extract-work-items/SKILL.md` → empty
-- [ ] **(AC1 — directive coverage, config sites)** Each config family carries its expected
+- [x] **(AC1 — directive coverage, config sites)** Each config family carries its expected
       number of canonical directives (passage-level, per the placement tables above):
       ```
       [ "$(grep -Fc 'never prefix it with `bash`/`sh`/`env`' skills/config/configure/SKILL.md)" -ge 5 ] || echo "configure: expected >=5"
       [ "$(grep -Fc 'never prefix it with `bash`/`sh`/`env`' skills/integrations/jira/init-jira/SKILL.md)" -ge 2 ] || echo "init-jira: expected >=2"
       [ "$(grep -Fc 'never prefix it with `bash`/`sh`/`env`' skills/integrations/jira/create-jira-issue/SKILL.md)" -ge 1 ] || echo "create-jira-issue: expected >=1"
       ```
-      → no output.
-- [ ] **(AC1 — extract-work-items step b, positive assertion)** The restructured step shows
+      → no output. (configure=5, init-jira=2, create-jira-issue=1 — all pass.)
+- [x] **(AC1 — extract-work-items step b, positive assertion)** The restructured step shows
       both bare paths inline and carries the directive:
       ```
       grep -Fq 'never prefix it with `bash`/`sh`/`env`' skills/work/extract-work-items/SKILL.md &&
@@ -471,14 +471,14 @@ the §Migration Notes generalisation of the invariant.
       grep -Fq '${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh default_project_code' skills/work/extract-work-items/SKILL.md
       ```
       → exit 0.
-- [ ] No `allowed-tools` line changed in any edited file (`jj diff` review).
+- [x] No `allowed-tools` line changed in any edited file (`jj diff` review).
 
 #### Manual Verification
 
-- [ ] The 9 `configure` blocks no longer contradict the new directive (no example
+- [x] The 9 `configure` blocks no longer contradict the new directive (no example
       prefixes with `bash`).
-- [ ] The `configure` `<args>`/`<key|--all>` placeholders survive the rewrite unchanged.
-- [ ] The `extract-work-items` step still reads as a coherent capture-into-variable
+- [x] The `configure` `<args>`/`<key|--all>` placeholders survive the rewrite unchanged.
+- [x] The `extract-work-items` step still reads as a coherent capture-into-variable
       instruction without the literal `VAR=$()` syntax.
 
 ---
