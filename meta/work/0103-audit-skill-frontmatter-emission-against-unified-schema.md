@@ -5,7 +5,7 @@ title: "Audit Skill Frontmatter Emission Against the Unified Schema"
 date: "2026-06-09T14:13:02+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: task
 priority: medium
 parent: "work-item:0057"

@@ -4,7 +4,7 @@ title: "Detail-Page Header Actions (Open in Editor, Copy Path)"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
-status: ready
+status: done
 priority: medium
 type: work-item
 blocked_by: ["work-item:0041", "work-item:0039"]
