@@ -2487,7 +2487,7 @@ echo "Test: no file outside config-defaults.sh contains a literal jira|linear|tr
 ENUM_PATTERN='jira[[:space:]]*\|[[:space:]]*linear[[:space:]]*\|[[:space:]]*trello[[:space:]]*\|[[:space:]]*github-issues'
 ENUM_MATCHES=$(cd "$PLUGIN_ROOT" && grep -rInE \
   --include='*.sh' --include='SKILL.md' \
-  --exclude-dir=workspaces \
+  --exclude-dir=workspaces --exclude-dir=node_modules --exclude-dir=target \
   --exclude='test-config.sh' \
   "$ENUM_PATTERN" . | grep -v 'scripts/config-defaults.sh' | grep -v ':[[:space:]]*#' | sort -u || true)
 if [ -z "$ENUM_MATCHES" ]; then
@@ -2518,7 +2518,7 @@ fi
 echo "Test: config-defaults.sh is the only definition site for the arrays"
 DEFINITION_PATTERN='^[[:space:]]*((declare|typeset)[[:space:]]+(-[a-zA-Z]+[[:space:]]+)?|readonly[[:space:]]+|export[[:space:]]+|local[[:space:]]+)?(PATH_KEYS|PATH_DEFAULTS|TEMPLATE_KEYS|WORK_KEYS|WORK_DEFAULTS|WORK_INTEGRATION_VALUES)(\+)?='
 MATCHES=$(cd "$PLUGIN_ROOT" && grep -rlnE --include='*.sh' \
-  --exclude-dir=workspaces \
+  --exclude-dir=workspaces --exclude-dir=node_modules --exclude-dir=target \
   "$DEFINITION_PATTERN" . | sort -u)
 EXPECTED="./scripts/config-defaults.sh"
 assert_eq "only config-defaults.sh defines PATH_KEYS/PATH_DEFAULTS/TEMPLATE_KEYS/WORK_KEYS/WORK_DEFAULTS/WORK_INTEGRATION_VALUES" \
@@ -3188,10 +3188,10 @@ echo "Test: no consumer passes a hardcoded inline default to config-read-path.sh
 # and quoted-path bash style ("$VAR/config-read-path.sh" key default).
 INLINE_DEFAULT_PATTERN='config-read-path\.sh"?[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]+[^$"\n[:space:]]'
 SKILL_MATCHES=$(cd "$PLUGIN_ROOT" && grep -rn --include='SKILL.md' \
-  --exclude-dir=workspaces \
+  --exclude-dir=workspaces --exclude-dir=node_modules --exclude-dir=target \
   -E "$INLINE_DEFAULT_PATTERN" . | sort -u || true)
 BASH_MATCHES=$(cd "$PLUGIN_ROOT" && grep -rn --include='*.sh' \
-  --exclude-dir=workspaces \
+  --exclude-dir=workspaces --exclude-dir=node_modules --exclude-dir=target \
   --exclude='test-config.sh' \
   -E "$INLINE_DEFAULT_PATTERN" . | grep -v '/migrations/' | grep -v ':[[:space:]]*#' | sort -u || true)
 # jira-common.sh uses a multiline invocation — check the default token separately
@@ -3965,7 +3965,8 @@ _check_inline_default_work() {
 WORK_INLINE_MATCHES=""
 while IFS= read -r -d '' f; do
   WORK_INLINE_MATCHES+=$(_check_inline_default_work "$f")
-done < <(cd "$PLUGIN_ROOT" && find . \( -name '*.sh' -o -name 'SKILL.md' \) \
+done < <(cd "$PLUGIN_ROOT" && find . \( -type d \( -name node_modules -o -name target \) \) -prune -o \
+  \( -name '*.sh' -o -name 'SKILL.md' \) \
   -not -path './workspaces/*' \
   -not -name 'test-config.sh' \
   -print0)
@@ -3993,7 +3994,8 @@ STALE_MATCHES=""
 while IFS= read -r -d '' f; do
   hits=$(_check_stale_work_read "$f")
   [ -n "$hits" ] && STALE_MATCHES+="$f: $hits"$'\n'
-done < <(cd "$PLUGIN_ROOT" && find . \( -name '*.sh' -o -name 'SKILL.md' \) \
+done < <(cd "$PLUGIN_ROOT" && find . \( -type d \( -name node_modules -o -name target \) \) -prune -o \
+  \( -name '*.sh' -o -name 'SKILL.md' \) \
   -not -path './workspaces/*' \
   -not -path './scripts/config-*.sh' \
   -not -path '*/migrations/*' \
@@ -4049,7 +4051,8 @@ while IFS= read -r -d '' skill_file; do
       SKILL_TOOL_FAIL=$((SKILL_TOOL_FAIL + 1))
     fi
   fi
-done < <(cd "$PLUGIN_ROOT" && find . -name 'SKILL.md' \
+done < <(cd "$PLUGIN_ROOT" && find . \( -type d \( -name node_modules -o -name target \) \) -prune -o \
+  -name 'SKILL.md' \
   -not -path './workspaces/*' \
   -print0)
 if [ "$SKILL_TOOL_FAIL" -eq 0 ]; then
