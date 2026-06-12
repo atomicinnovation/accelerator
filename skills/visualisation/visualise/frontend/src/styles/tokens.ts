@@ -70,6 +70,10 @@ export const LIGHT_COLOR_TOKENS = {
   "ac-doc-pr-descriptions": "#4588b8",
   "ac-doc-design-gaps": "#5c9132",
   "ac-doc-design-inventories": "#2e7e8a",
+  // Glyph-only doc type (not a server DocTypeKey) — rendered for the `rca`
+  // template on the templates page. Hue ~310 (the prototype's RCA hue),
+  // darkened within that family to clear 3:1 contrast vs --ac-bg (#fbfcfe).
+  "ac-doc-root-cause-analyses": "#ab2c96",
   // Per-doc-type glyph BACKGROUND tints (light theme). Each value is a
   // very-light, low-saturation hue matching the corresponding foreground
   // token, used as the framed-glyph background in eyebrows and hub cards.
@@ -85,6 +89,7 @@ export const LIGHT_COLOR_TOKENS = {
   "ac-doc-bg-pr-descriptions": "#e2eff7",
   "ac-doc-bg-design-gaps": "#e7f1d8",
   "ac-doc-bg-design-inventories": "#dceaec",
+  "ac-doc-bg-root-cause-analyses": "#f6e2f1",
   // Per-stage lifecycle pipeline accents (light). Distinct family from
   // --ac-doc-* — see global.css inline comment. Long-tail stages
   // (notes, design-inventories, design-gaps) are not rendered inside
@@ -141,6 +146,7 @@ export const DARK_COLOR_TOKENS = {
   "ac-doc-pr-descriptions": "#ffffff",
   "ac-doc-design-gaps": "#ffffff",
   "ac-doc-design-inventories": "#ffffff",
+  "ac-doc-root-cause-analyses": "#ffffff",
   // Glyph BACKGROUND tints (dark theme). Design intent: uniform monochrome
   // background regardless of doc type — all twelve collapse to a single
   // lighter-than-bg-sunken neutral grey.
@@ -156,6 +162,7 @@ export const DARK_COLOR_TOKENS = {
   "ac-doc-bg-pr-descriptions": "#1d2030",
   "ac-doc-bg-design-gaps": "#1d2030",
   "ac-doc-bg-design-inventories": "#1d2030",
+  "ac-doc-bg-root-cause-analyses": "#1d2030",
   // Per-stage lifecycle pipeline accents (dark). Stay coloured (unlike
   // --ac-doc-* which collapses to white in dark) — the stage chain's
   // whole purpose is per-stage differentiation.

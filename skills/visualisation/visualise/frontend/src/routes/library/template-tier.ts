@@ -1,4 +1,5 @@
-import type { DocTypeKey, TemplateTierSource } from "../../api/types";
+import type { TemplateTierSource } from "../../api/types";
+import type { GlyphDocType } from "../../components/Glyph/Glyph.constants";
 
 export const TIER_LABELS: Record<TemplateTierSource, string> = {
   "plugin-default": "Plugin default",
@@ -27,8 +28,10 @@ export const TIER_ORDER: readonly TemplateTierSource[] = [
  *  so the rightmost matching stem wins for names like
  *  `something-plan-review` → `plan-reviews`. */
 // Stems map to physical doc-type keys only — templates is the umbrella,
-// not a target.
-const STEM_TO_GLYPH: Readonly<Record<string, DocTypeKey>> = {
+// not a target. Values are `GlyphDocType` rather than `DocTypeKey` so a
+// stem can target a glyph-only key (`rca` → `root-cause-analyses`), which
+// is not a browsable server doc type.
+const STEM_TO_GLYPH: Readonly<Record<string, GlyphDocType>> = {
   // Exact-template-name shortcuts.
   adr: "decisions",
   plan: "plans",
@@ -56,15 +59,20 @@ const STEM_TO_GLYPH: Readonly<Record<string, DocTypeKey>> = {
   "work-item-reviews": "work-item-reviews",
   note: "notes",
   notes: "notes",
+  // Root-cause analyses: glyph-only (not a server doc type). Renders the
+  // prototype's RCA fishbone glyph on the templates page.
+  rca: "root-cause-analyses",
+  "root-cause-analyses": "root-cause-analyses",
 };
 
 /** Back-compat: kept for callers that expect a single-shot map. The
  *  preferred lookup is `glyphKeyForTemplate`, which also handles
  *  compound names. */
-export const TEMPLATE_NAME_TO_GLYPH_KEY: Readonly<Record<string, DocTypeKey>> =
-  STEM_TO_GLYPH;
+export const TEMPLATE_NAME_TO_GLYPH_KEY: Readonly<
+  Record<string, GlyphDocType>
+> = STEM_TO_GLYPH;
 
-export function glyphKeyForTemplate(name: string): DocTypeKey | null {
+export function glyphKeyForTemplate(name: string): GlyphDocType | null {
   // Exact-name match wins first.
   if (STEM_TO_GLYPH[name]) return STEM_TO_GLYPH[name];
   // Multi-token compound names: try the rightmost token first (the

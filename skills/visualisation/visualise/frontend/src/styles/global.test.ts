@@ -305,8 +305,8 @@ describe("AC2 invariant: --ac-* hex literals must reference brand when possible"
 
   it.each([
     ["root", 9],
-    ["data-dark", 16],
-    ["media-dark", 16],
+    ["data-dark", 17],
+    ["media-dark", 17],
   ] as const)("block %s contains exactly %d var(--atomic-X) refs", (block, expected) => {
     const refs = extractAllAcDeclarations(globalCss).filter(
       (d) => d.block === block && d.value.startsWith("var(--atomic-"),

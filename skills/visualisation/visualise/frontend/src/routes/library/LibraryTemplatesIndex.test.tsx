@@ -89,6 +89,13 @@ describe("glyphKeyForTemplate", () => {
   it("returns null when no stem matches", () => {
     expect(glyphKeyForTemplate("totally-unknown")).toBeNull();
   });
+
+  it("maps rca to the glyph-only root-cause-analyses key", () => {
+    // `root-cause-analyses` is not a server DocTypeKey — it is a glyph-only
+    // key so the rca template row shows the prototype's RCA glyph instead of
+    // the blank fallback.
+    expect(glyphKeyForTemplate("rca")).toBe("root-cause-analyses");
+  });
 });
 
 describe("LibraryTemplatesIndex", () => {

@@ -1,7 +1,7 @@
 // Preview all 13 doc types × 3 sizes in both themes at /glyph-showcase (see frontend README).
 import type { ComponentType, ReactElement } from "react";
-import { DOC_TYPE_KEYS, type DocTypeKey } from "../../api/types";
-import { DOC_TYPE_COLOR_VAR } from "./Glyph.constants";
+import { DOC_TYPE_KEYS } from "../../api/types";
+import { DOC_TYPE_COLOR_VAR, type GlyphDocType } from "./Glyph.constants";
 import styles from "./Glyph.module.css";
 import { DecisionsIcon } from "./icons/DecisionsIcon";
 import { DesignGapsIcon } from "./icons/DesignGapsIcon";
@@ -12,15 +12,18 @@ import { PlansIcon } from "./icons/PlansIcon";
 import { PrDescriptionsIcon } from "./icons/PrDescriptionsIcon";
 import { PrReviewsIcon } from "./icons/PrReviewsIcon";
 import { ResearchIcon } from "./icons/ResearchIcon";
+import { RootCauseAnalysesIcon } from "./icons/RootCauseAnalysesIcon";
 import { TemplatesIcon } from "./icons/TemplatesIcon";
 import { ValidationsIcon } from "./icons/ValidationsIcon";
 import { WorkItemReviewsIcon } from "./icons/WorkItemReviewsIcon";
 import { WorkItemsIcon } from "./icons/WorkItemsIcon";
 
 // Ordering mirrors the Colour Token Table in meta/work/0037-glyph-component.md.
-// `Record<DocTypeKey, ...>` constraint enforces exhaustiveness at compile time
-// across all 13 keys (including the virtual `templates` key).
-const ICON_COMPONENTS: Record<DocTypeKey, ComponentType> = {
+// `Record<GlyphDocType, ...>` constraint enforces exhaustiveness at compile
+// time across all 13 server doc-type keys (including the virtual `templates`
+// key) plus the glyph-only `root-cause-analyses` key (rendered for the `rca`
+// template; not a browsable doc type — see Glyph.constants).
+const ICON_COMPONENTS: Record<GlyphDocType, ComponentType> = {
   decisions: DecisionsIcon,
   "work-items": WorkItemsIcon,
   plans: PlansIcon,
@@ -33,11 +36,12 @@ const ICON_COMPONENTS: Record<DocTypeKey, ComponentType> = {
   "pr-descriptions": PrDescriptionsIcon,
   "design-gaps": DesignGapsIcon,
   "design-inventories": DesignInventoriesIcon,
+  "root-cause-analyses": RootCauseAnalysesIcon,
   templates: TemplatesIcon,
 };
 
 export interface GlyphProps {
-  docType: DocTypeKey;
+  docType: GlyphDocType;
   size: 16 | 24 | 32;
   /** Accessible label. If provided (including empty string), Glyph renders
    *  with `role="img"` + `aria-label`. If omitted (undefined), Glyph is
@@ -68,8 +72,9 @@ export interface GlyphProps {
  * 3. Do not wrap Glyph in another `<svg>`. Glyph owns the `<svg>` boundary.
  * 4. Sizes are restricted to 16/24/32. For off-grid sizes, widen the union
  *    with a documented specimen — do not cast.
- * 5. `docType` accepts any `DocTypeKey` (all 13, including the virtual
- *    `templates` key). Colour resolves via `DOC_TYPE_COLOR_VAR`.
+ * 5. `docType` accepts any `GlyphDocType` — every `DocTypeKey` (all 13,
+ *    including the virtual `templates` key) plus glyph-only keys like
+ *    `root-cause-analyses`. Colour resolves via `DOC_TYPE_COLOR_VAR`.
  */
 export function Glyph({
   docType,

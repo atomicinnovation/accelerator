@@ -202,6 +202,31 @@ describe.each(DOC_TYPE_KEYS)("Glyph: %s", (docType) => {
   });
 });
 
+// `root-cause-analyses` is a glyph-only key (not in DOC_TYPE_KEYS), so the
+// matrix above does not cover it. Verify it renders like a real doc type.
+describe("Glyph: root-cause-analyses (glyph-only key)", () => {
+  it("renders an <svg> coloured by the RCA token var", () => {
+    const { container } = render(
+      <Glyph docType="root-cause-analyses" size={24} />,
+    );
+    const svg = container.querySelector("svg");
+    expect(svg).not.toBeNull();
+    expect(svg!.style.color).toBe(DOC_TYPE_COLOR_VAR["root-cause-analyses"]);
+  });
+
+  it("framed render tints the wrapper via data-doc-type", () => {
+    const { container } = render(
+      <Glyph docType="root-cause-analyses" size={24} framed />,
+    );
+    expect(
+      container.querySelector('span[data-doc-type="root-cause-analyses"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('svg[data-doc-type="root-cause-analyses"]'),
+    ).not.toBeNull();
+  });
+});
+
 // Replace attribute-literal a11y assertions with Testing Library's
 // accessible-name resolution so the test reflects what assistive tech
 // actually sees, not the raw attribute spelling.
