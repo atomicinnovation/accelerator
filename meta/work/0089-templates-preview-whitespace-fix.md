@@ -4,12 +4,12 @@ title: "Templates Preview Body White-Space Fix"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: bug
-status: draft
+status: done
 priority: low
 tags: [design, frontend, templates, bug]
 type: work-item
 schema_version: 1
-last_updated: "2026-05-21T09:16:34+00:00"
+last_updated: "2026-06-12T11:15:21+00:00"
 last_updated_by: Toby Clemson
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0042"]
@@ -18,69 +18,113 @@ relates_to: ["work-item:0042"]
 # 0089: Templates Preview Body White-Space Fix
 
 **Kind**: Bug
-**Status**: Draft
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 
 ## Summary
 
-The templates preview pane renders with `white-space: normal`, which
-collapses internal whitespace despite the Fira Code monospace face — an
-obvious styling oversight in a code-preview surface. Set
-`white-space: pre` (or `pre-wrap`) on the preview body so template
-content renders verbatim.
+The templates preview pane rendered with `white-space: normal`, which
+collapsed internal whitespace despite the Fira Code monospace face — an
+obvious styling oversight in a code-preview surface. The fix was to render
+template content verbatim (preserved newlines and indentation).
+
+**Resolved as a no-op verification**: the 0042 templates-view redesign
+(done) already incorporated this fix. The current preview pane renders each
+template line through per-line `.tpl-line` wrappers with
+`white-space: pre-wrap` over the Fira Code face, so content renders
+verbatim. No further change was required; this item records that the bug was
+checked against the shipped code and found already fixed.
 
 ## Context
 
-The current app's template preview pane uses Fira Code 12 with
-`white-space: normal`, which collapses internal whitespace despite the
-monospace face. The prototype's templates list reuses
-`HighlightedCode` and preserves whitespace via per-line wrappers.
-0042 redesigns the templates view but does not explicitly address the
-`white-space` setting on the preview body; this bug captures the fix.
+The current app's template preview pane used Fira Code 12 with
+`white-space: normal`, which collapsed internal whitespace despite the
+monospace face. The prototype's templates list reused `HighlightedCode` and
+preserved whitespace via per-line wrappers.
+
+0042 (Templates View Redesign) rebuilt the templates detail screen. Its spec
+covered the preview pane (content-hash label as the first row, rendered body
+below) but did not explicitly call out the `white-space` setting, leaving
+open whether the redesign actually closed this gap. 0089's own dependency
+note anticipated this: *"if 0042 lands first it may incorporate this fix, in
+which case this becomes a no-op verification."* That is what happened — 0042
+shipped the per-line-wrapper + `pre-wrap` rendering, so the bug no longer
+exists in the codebase.
 
 ## Requirements
 
-- Set `white-space: pre` (or `pre-wrap`) on the templates preview pane
-  so newlines, indentation, and internal whitespace render verbatim.
-- Confirm the fix lands compatible with 0042's two-column detail layout
-  and the prototype's per-line wrappers (if 0042 adopts that pattern).
+- Set `white-space: pre` (or `pre-wrap`) on the templates preview pane so
+  newlines, indentation, and internal whitespace render verbatim.
+  *(Satisfied: shipped as `white-space: pre-wrap` on the `.tpl-line`
+  per-line wrappers.)*
+- Confirm the fix is compatible with 0042's two-column detail layout and the
+  prototype's per-line wrappers. *(Satisfied: the fix lives inside 0042's
+  redesigned pane and uses exactly those per-line wrappers.)*
 
 ## Acceptance Criteria
 
-- [ ] The templates preview pane renders multi-line template content
-  with all newlines and indentation preserved.
-- [ ] Visual rendering matches the prototype's code-style preview
-  (mono face + preserved whitespace).
-- [ ] No regression on existing single-line templates.
+- [x] The templates preview pane renders multi-line template content with all
+  newlines and indentation preserved. *(Verified in code: newlines preserved
+  structurally by one `.tpl-line` div per source line; indentation preserved
+  by `white-space: pre-wrap`.)*
+- [x] Visual rendering matches the prototype's code-style preview (mono face
+  + preserved whitespace). *(Verified: Fira Code via `--ac-font-mono`,
+  per-line highlighted wrappers as in the prototype.)*
+- [x] No regression on existing single-line templates. *(Single-line content
+  renders correctly under `pre-wrap`; the `.tpl-line` min-height rule is
+  covered by a regression test.)*
 
 ## Open Questions
 
-- `pre` vs `pre-wrap` — does the team want long lines to overflow
-  horizontally (pre) or wrap (pre-wrap)?
+- None remaining. The `pre` vs `pre-wrap` question was resolved by 0042's
+  implementation, which shipped `white-space: pre-wrap` — long lines
+  soft-wrap rather than overflowing horizontally, while internal and
+  leading whitespace is preserved verbatim.
 
 ## Dependencies
 
-- Related: 0042 (Templates View Redesign — landing order matters; if
-  0042 lands first it may incorporate this fix, in which case this
-  becomes a no-op verification).
+- Related: 0042 (Templates View Redesign — done; its redesign incorporated
+  this fix, making 0089 a no-op verification rather than a separate change).
 - Blocks: none.
 
 ## Assumptions
 
-- The fix is a CSS one-liner; no markup or component changes required.
+- The original draft assumed the fix would be a CSS one-liner with no markup
+  changes. This turned out to be superseded by reality: 0042 delivered the
+  fix as part of a larger rendering change — per-line `.tpl-line` wrappers
+  generated by the `TemplateHighlight` component plus `white-space: pre-wrap`
+  — not a standalone single-property edit.
 
 ## Technical Notes
 
-- This is small enough to fold into 0042's PR if both land together.
+- Verification basis (current code):
+  - `frontend/src/routes/library/LibraryTemplatesView.module.css:148-151` —
+    `.previewBody :global(.tpl-line) { min-height: 1em; white-space: pre-wrap; }`
+  - `frontend/src/routes/library/LibraryTemplatesView.module.css:142` —
+    `.previewBody` uses `font-family: var(--ac-font-mono)` (Fira Code).
+  - `frontend/src/routes/library/template-highlight.tsx:29-91` —
+    `TemplateHighlight` splits highlighted content on `\n` and wraps each
+    line in `<div class="tpl-line">`, preserving empty lines via `&nbsp;`.
+  - `frontend/src/styles/migration.test.ts:990` — regression coverage
+    referencing the `tpl-line` min-height / line-preservation rule.
+- `pre-wrap` (not `pre`) means long lines soft-wrap inside the pane rather
+  than scrolling horizontally; whitespace within and between lines is still
+  preserved.
 
 ## Drafting Notes
 
-- Extracted from source documents without interactive enrichment.
-  Acceptance criteria, dependencies, and type may need refinement before
-  promoting from `draft` to `ready`.
+- Closed as a verified no-op on 2026-06-12. Investigation of the shipped
+  code (post-0042) confirmed the reported `white-space: normal` failure mode
+  is not present — the pane renders verbatim via `pre-wrap` + per-line
+  wrappers. No code change was made under this item; it is retained as a
+  record that the bug was checked and resolved by 0042.
+- Status transitioned draft → done at the author's explicit request, given
+  the fix already shipped under 0042.
 
 ## References
 
 - Source: `meta/research/design-gaps/2026-05-21-current-app-vs-claude-design-prototype.md`
-- Related: 0042
+- Related: 0042 (Templates View Redesign — incorporated this fix)
+- Verification: `frontend/src/routes/library/LibraryTemplatesView.module.css`,
+  `frontend/src/routes/library/template-highlight.tsx`
