@@ -88,6 +88,11 @@ function StatusBadge({ status }) {
     "approve-with-changes":  { tone: "amber",  label: "Approve w/ changes" },
     "request-changes":       { tone: "red",    label: "Request changes" },
     "pass":                  { tone: "green",  label: "Pass" },
+    "sev-1":      { tone: "red",     label: "SEV-1" },
+    "sev-2":      { tone: "amber",   label: "SEV-2" },
+    "sev-3":      { tone: "neutral", label: "SEV-3" },
+    "resolved":   { tone: "green",   label: "Resolved" },
+    "monitoring": { tone: "indigo",  label: "Monitoring" },
   };
   const cfg = map[status] || { tone: "neutral", label: status };
   return <Chip tone={cfg.tone}>{cfg.label}</Chip>;
@@ -295,6 +300,7 @@ function renderEmphasis(t, key) {
 const TYPE_META = {
   work:          { hue: 12,  label: "Work item",   short: "WRK" },
   decisions:     { hue: 355, label: "Decision",    short: "ADR" },
+  "root-cause-analyses": { hue: 310, label: "Root cause analysis", short: "RCA" },
   research:      { hue: 28,  label: "Research",    short: "RSC" },
   plans:         { hue: 220, label: "Plan",        short: "PLN" },
   "plan-reviews":{ hue: 260, label: "Plan review", short: "P/R" },
@@ -405,6 +411,17 @@ const TYPE_ICONS = {
       <path d="M12 8 6.5 6.5v4L12 12" strokeOpacity="0.5"/>
       <path d="M12 11 18 9v4.5L12 15" strokeWidth="1.5"/>
       <circle cx="12" cy="20.5" r="1" fill="currentColor" stroke="none"/>
+    </g>
+  ),
+  "root-cause-analyses": (
+    <g fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.5 12h12"/>
+      <path d="M6 6.5 8.5 12M11 6.5 13.5 12M6 17.5 8.5 12M11 17.5 13.5 12"/>
+      <circle cx="6"  cy="6.5"  r="0.6" fill="currentColor" stroke="none"/>
+      <circle cx="11" cy="6.5"  r="0.6" fill="currentColor" stroke="none"/>
+      <circle cx="6"  cy="17.5" r="0.6" fill="currentColor" stroke="none"/>
+      <circle cx="11" cy="17.5" r="0.6" fill="currentColor" stroke="none"/>
+      <circle cx="18" cy="12" r="2.2" fill="currentColor" stroke="none"/>
     </g>
   ),
   notes: (

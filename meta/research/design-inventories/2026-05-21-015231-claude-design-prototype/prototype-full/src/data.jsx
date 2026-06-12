@@ -15,6 +15,7 @@ const DOC_TYPES = [
   { key: "pr-reviews",          label: "PR reviews",         count: 8,  pulse: false, kind: "doc" },
   { key: "decisions",           label: "Decisions",          count: 9,  pulse: true,  kind: "doc" },
   { key: "notes",               label: "Notes",              count: 0,  pulse: false, kind: "doc" },
+  { key: "root-cause-analyses", label: "Root cause analyses", count: 4, pulse: true,  kind: "doc" },
 ];
 
 // Library grouping: keeps the left-nav and the Library landing in sync. Work
@@ -26,6 +27,7 @@ const LIBRARY_GROUPS = [
   { key: "discover", label: "Discover", types: ["design-inventories", "design-gaps", "research"] },
   { key: "build",    label: "Build",    types: ["plans", "plan-reviews", "validations"] },
   { key: "ship",     label: "Ship",     types: ["pr-descriptions", "pr-reviews"] },
+  { key: "operate",  label: "Operate",  types: ["root-cause-analyses"] },
   { key: "remember", label: "Remember", types: ["decisions", "notes"] },
 ];
 
@@ -35,7 +37,7 @@ const VIEWS = [
 ];
 
 const META = [
-  { key: "templates", label: "Templates", count: 5, kind: "meta" },
+  { key: "templates", label: "Templates", count: 6, kind: "meta" },
 ];
 
 // Lifecycle stages, in canonical order. The spec calls out: work-item → research
@@ -49,6 +51,7 @@ const STAGES = [
   { key: "pr-descriptions", short: "PR",  label: "PR description", hue: 200 },
   { key: "pr-reviews",    short: "P/R", label: "PR review",    hue: 280 },
   { key: "decisions",     short: "ADR", label: "Decision",     hue: 355 },
+  { key: "root-cause-analyses", short: "RCA", label: "Root cause", hue: 310 },
 ];
 
 // A handful of work-unit clusters. Each entry represents one slug; the stages
@@ -77,7 +80,7 @@ const CLUSTERS = [
     status: "in-progress",
     updated: "1h ago",
     owner: "Toby Clemson",
-    present: ["work", "research", "plans", "plan-reviews", "pr-descriptions", "pr-reviews"],
+    present: ["work", "research", "plans", "plan-reviews", "pr-descriptions", "pr-reviews", "root-cause-analyses"],
     entries: [
       { type: "work",      id: "PROJ-0007", title: "Ship PR review agents behind a flag",  date: "2026-02-22", mtime: "1h ago", status: "in-progress" },
       { type: "research",     id: "2026-02-25",  title: "Agent orchestration patterns",          date: "2026-02-25", mtime: "1w ago" },
@@ -85,6 +88,7 @@ const CLUSTERS = [
       { type: "plan-reviews", id: "review-1",    title: "Plan review · round 1",                 date: "2026-03-06", mtime: "5d ago", verdict: "request-changes" },
       { type: "pr-descriptions", id: "PR-133",   title: "feat(agents): pr-review scaffolding",   date: "2026-04-08", mtime: "2h ago" },
       { type: "pr-reviews",   id: "review-1",    title: "PR review · round 1",                   date: "2026-04-12", mtime: "1h ago", verdict: "request-changes" },
+      { type: "root-cause-analyses", id: "RCA-2026-04-14", title: "Reviewer agent fan-out exhausted the API rate limit", date: "2026-04-14", mtime: "3h ago", status: "resolved" },
     ],
   },
   {
@@ -93,13 +97,14 @@ const CLUSTERS = [
     status: "in-progress",
     updated: "5m ago",
     owner: "Toby Clemson",
-    present: ["work", "research", "plans", "plan-reviews", "notes"],
+    present: ["work", "research", "plans", "plan-reviews", "notes", "root-cause-analyses"],
     entries: [
       { type: "work",      id: "META-0011", title: "Browser-based visualiser for meta/",    date: "2026-04-14", mtime: "5m ago", status: "in-progress" },
       { type: "research",     id: "2026-04-15",  title: "Companion tools for Claude Code",        date: "2026-04-15", mtime: "8d ago" },
       { type: "plans",        id: "2026-04-17",  title: "Meta directory visualiser — design",     date: "2026-04-17", mtime: "4d ago" },
       { type: "plan-reviews", id: "review-1",    title: "Plan review · round 1",                  date: "2026-04-18", mtime: "3d ago", verdict: "approve-with-changes" },
       { type: "notes",        id: "2026-04-19",  title: "Open questions on SSE reconnect",        date: "2026-04-19", mtime: "2d ago" },
+      { type: "root-cause-analyses", id: "RCA-2026-04-02", title: "SSE hub dropped events under a reconnect storm", date: "2026-04-02", mtime: "1w ago", status: "monitoring" },
     ],
   },
   {
@@ -137,7 +142,7 @@ const CLUSTERS = [
     status: "done",
     updated: "2w ago",
     owner: "Toby Clemson",
-    present: ["work", "research", "plans", "validations", "pr-descriptions", "pr-reviews"],
+    present: ["work", "research", "plans", "validations", "pr-descriptions", "pr-reviews", "root-cause-analyses"],
     entries: [
       { type: "work",    id: "META-0006", title: "Surgical frontmatter patcher",       date: "2026-03-01", mtime: "6w ago", status: "done" },
       { type: "research",   id: "2026-03-03",  title: "YAML-aware patching strategies",     date: "2026-03-03", mtime: "6w ago" },
@@ -145,6 +150,7 @@ const CLUSTERS = [
       { type: "validations",id: "2026-03-15",  title: "Validation: comment preservation",   date: "2026-03-15", mtime: "5w ago", verdict: "pass" },
       { type: "pr-descriptions", id: "PR-118", title: "feat(patcher): yaml-aware writes",    date: "2026-03-20", mtime: "4w ago" },
       { type: "pr-reviews", id: "review-1",    title: "PR review · round 1",                 date: "2026-03-21", mtime: "2w ago", verdict: "approve" },
+      { type: "root-cause-analyses", id: "RCA-2026-03-19", title: "Patcher corrupted a multi-doc YAML stream", date: "2026-03-19", mtime: "4w ago", status: "resolved" },
     ],
   },
   {
@@ -165,7 +171,7 @@ const CLUSTERS = [
     status: "done",
     updated: "1mo ago",
     owner: "Toby Clemson",
-    present: ["work", "plans", "plan-reviews", "validations", "pr-descriptions", "decisions"],
+    present: ["work", "plans", "plan-reviews", "validations", "pr-descriptions", "decisions", "root-cause-analyses"],
     entries: [
       { type: "work",    id: "ENG-0003", title: "Fetch server binary from releases",   date: "2026-02-10", mtime: "2mo ago", status: "done" },
       { type: "plans",      id: "2026-02-12",  title: "Binary download + checksum verify",   date: "2026-02-12", mtime: "2mo ago" },
@@ -173,6 +179,7 @@ const CLUSTERS = [
       { type: "validations",id: "2026-02-20",  title: "Validation: checksum gate",           date: "2026-02-20", mtime: "2mo ago", verdict: "pass" },
       { type: "pr-descriptions", id: "PR-072", title: "feat(launch): release binary gate",   date: "2026-02-24", mtime: "2mo ago" },
       { type: "decisions",  id: "ADR-0003",    title: "Binaries via GitHub Releases",        date: "2026-02-26", mtime: "1mo ago" },
+      { type: "root-cause-analyses", id: "RCA-2026-02-28", title: "Checksum gate false-negative blocked a release", date: "2026-02-28", mtime: "1mo ago", status: "resolved" },
     ],
   },
 ];
@@ -197,6 +204,103 @@ const WORK_ITEMS = [
 // Markdown-ish content samples for the library doc page. Stored as
 // plain strings — a tiny renderer below converts headings, fences, lists.
 const DOC_CONTENT = {
+  "RCA-2026-04-14": {
+    type: "root-cause-analyses",
+    slug: "pr-review-agents",
+    frontmatter: {
+      title: "Reviewer agent fan-out exhausted the API rate limit",
+      type: "root-cause-analysis",
+      status: "resolved",
+      severity: "sev-2",
+      date: "2026-04-14",
+      author: "Toby Clemson",
+      work_item: "PROJ-0007",
+      incident: "INC-0042",
+      detected: "2026-04-14 09:12",
+      resolved: "2026-04-14 10:48",
+    },
+    body: `# Reviewer agent fan-out exhausted the API rate limit
+
+## Summary
+
+When the PR-review agents shipped behind a flag to the internal dogfood
+group, a single large pull request fanned out into 140 concurrent diff
+reviews. The orchestrator issued one model call per file with no
+concurrency ceiling, tripped the account-wide rate limit, and every
+in-flight review for the org failed for roughly 90 minutes.
+
+## Impact
+
+- **Scope:** all reviewer-agent runs org-wide, not just the triggering PR.
+- **Duration:** 96 minutes from first 429 to mitigation.
+- **User-visible:** 23 PR reviews returned a partial verdict; 4 returned no
+  verdict at all and had to be re-run by hand.
+- **Data:** no corruption — failed runs left no artifact behind.
+
+## Timeline
+
+| Time (UTC) | Event |
+| ---------- | ----- |
+| 09:12 | Dogfood user opens PR-133 touching 140 files. |
+| 09:13 | Orchestrator fans out 140 concurrent \`AgentLayer::review\` calls. |
+| 09:14 | Provider returns \`429 Too Many Requests\`; retries amplify load. |
+| 09:31 | On-call paged by the SSE error-rate alert. |
+| 10:05 | Flag flipped off for the dogfood group — load drops. |
+| 10:48 | Rate limit recovers; reviewer agents re-enabled with a ceiling. |
+
+## Root cause
+
+The orchestrator's \`run\` mapped every layer over every diff and awaited the
+whole set with \`join_all\` — no semaphore, no per-account budget. A 5-why
+trace:
+
+1. Reviews failed → the provider rate-limited the account.
+2. Why rate-limited? → 140 review calls landed in the same second.
+3. Why 140 at once? → fan-out is one call per changed file, unbounded.
+4. Why unbounded? → the concurrency ceiling was never specified in the plan.
+5. Why not specified? → load testing used 3-file PRs; large PRs were never modelled.
+
+## Contributing factors
+
+- Retry-on-429 used a fixed delay, so retries synchronised and re-spiked load.
+- The rate-limit budget is account-wide; one user's PR starved everyone.
+- No dashboard panel for concurrent agent calls, so the spike was invisible
+  until the error-rate alert fired.
+
+## Resolution
+
+A bounded work queue now gates \`AgentLayer\` fan-out at 8 concurrent calls
+per account, with jittered exponential backoff on 429s.
+
+\`\`\`rust
+// Bound agent fan-out behind a shared semaphore. The permit count is the
+// per-account ceiling; backoff jitter de-synchronises retries.
+let permits = Arc::new(Semaphore::new(self.max_concurrency)); // default 8
+let runs = diffs.iter().map(|diff| {
+    let permit = permits.clone();
+    async move {
+        let _guard = permit.acquire().await.unwrap();
+        retry_with_jitter(|| self.agent.review(diff)).await
+    }
+});
+futures::future::join_all(runs).await
+\`\`\`
+
+## Action items
+
+- [x] Ship the concurrency ceiling (default 8, configurable per account).
+- [x] Replace fixed retry delay with jittered exponential backoff.
+- [ ] Add a "concurrent agent calls" panel to the ops dashboard.
+- [ ] Load-test the orchestrator against a 200-file PR before widening the flag.
+- [ ] Move from an account-wide budget to a per-trigger budget.
+
+## Links
+
+- work-item [[PROJ-0007]]
+- pr-description PR-133
+- decision [[ADR-0006]] *Two distinct review doc types*
+`,
+  },
   "ADR-0002": {
     type: "decisions",
     slug: "three-layer-review-system-architecture",
@@ -952,11 +1056,124 @@ by a separate Vite dev server proxying through to the binary.
 ` },
     ],
   },
+  "rca-template": {
+    type: "templates",
+    name: "rca",
+    tiers: [
+      { source: "config-override", path: ".claude/accelerator/templates/rca.md", present: false, active: false },
+      { source: "user-override",   path: "meta/templates/rca.md",                present: true,  active: true,  etag: "sha256-a4e7…",
+        content: `---
+title: "RCA: <one-line failure description>"
+type: root-cause-analysis
+status: investigating
+severity: sev-2
+date: 2026-04-14
+author: toby
+work_item: PROJ-0007
+incident: INC-0042
+detected: null
+resolved: null
+---
+
+# RCA: <one-line failure description>
+
+## Summary
+
+A blameless, one-paragraph account of what broke, who it affected, and how
+the system was returned to a known-good state. Name the trigger and the
+underlying defect — keep speculation out of the summary.
+
+## Impact
+
+- Scope: the affected surface and how far the blast radius reached.
+- Duration: time from first detection to mitigation.
+- User-visible: what a user would have seen during the window.
+- Data: whether any artifact was lost or corrupted.
+
+## Timeline
+
+- 00:00 — first symptom observed.
+- 00:14 — on-call paged by the error-rate alert.
+- 00:42 — mitigation applied; metrics recover.
+
+## Root cause
+
+Trace the failure through a short 5-why chain rather than stopping at the
+first plausible cause.
+
+## Contributing factors
+
+- Conditions that widened the blast radius or delayed detection.
+- Gaps in monitoring or alerting that hid the problem.
+
+## Resolution
+
+The change that restored service and the guardrail that prevents recurrence.
+
+## Action items
+
+- [ ] Land the durable fix behind the relevant work item.
+- [ ] Add the monitoring that would have caught this earlier.
+- [ ] Schedule the follow-up review.
+
+## Links
+
+- work-item [[PROJ-0007]]
+- incident INC-0042
+` },
+      { source: "plugin-default",  path: "<plugin-root>/templates/rca.md",        present: true,  active: false, etag: "sha256-1b90…",
+        content: `---
+title: "RCA: <one-line failure description>"
+type: root-cause-analysis
+status: investigating
+severity: sev-3
+date: 2026-01-01
+author: <author>
+work_item: null
+incident: null
+---
+
+# RCA: <one-line failure description>
+
+## Summary
+
+What broke, who it affected, and how it was recovered — written blamelessly.
+
+## Impact
+
+- Scope:
+- Duration:
+- Data:
+
+## Timeline
+
+- 00:00 — first symptom observed.
+
+## Root cause
+
+5 whys, traced to the underlying defect.
+
+## Resolution
+
+The fix and the guardrail that prevents recurrence.
+
+## Action items
+
+- [ ] Durable fix.
+- [ ] Monitoring that would have caught this earlier.
+
+## Links
+
+- work-item [[<id>]]
+` },
+    ],
+  },
 };
 
 // Activity feed — most recent mutations across all types.
 const ACTIVITY = [
   { type: "plans",        doc: "2026-04-17-meta-visualisation.md",           when: "2m ago",  action: "edited",  slug: "meta-visualisation" },
+  { type: "root-cause-analyses", doc: "RCA-2026-04-14-reviewer-agent-fan-out.md", when: "3h ago", action: "created", slug: "pr-review-agents" },
   { type: "work",      doc: "PROJ-0007.md",                             when: "1h ago",  action: "moved to in-progress", slug: "pr-review-agents" },
   { type: "pr-reviews",   doc: "2026-04-12-pr-review-agents-review-1.md",    when: "1h ago",  action: "created", slug: "pr-review-agents" },
   { type: "plan-reviews", doc: "2026-04-18-meta-visualisation-review-1.md",  when: "3d ago",  action: "created", slug: "meta-visualisation" },
@@ -1044,6 +1261,12 @@ const LIBRARY_INDEX = {
     { id: "DG-2026-04-15-kanban-vs-target",       title: "kanban board: current → target",                  date: "2026-04-15", status: "accepted", slug: "kanban-status-writes" },
     { id: "DG-2026-03-29-templates-vs-target",    title: "templates view: current → target",                date: "2026-03-29", status: "accepted", slug: "config-resolve-template" },
   ],
+  "root-cause-analyses": [
+    { id: "RCA-2026-04-14", title: "Reviewer agent fan-out exhausted the API rate limit", date: "2026-04-14", status: "resolved",   slug: "pr-review-agents" },
+    { id: "RCA-2026-04-02", title: "SSE hub dropped events under a reconnect storm",       date: "2026-04-02", status: "monitoring", slug: "meta-visualisation" },
+    { id: "RCA-2026-03-19", title: "Patcher corrupted a multi-doc YAML stream",            date: "2026-03-19", status: "resolved",   slug: "frontmatter-patcher" },
+    { id: "RCA-2026-02-28", title: "Checksum gate false-negative blocked a release",       date: "2026-02-28", status: "resolved",   slug: "binary-acquisition" },
+  ],
   notes: [
     // Intentionally empty — demonstrates the zero-doc empty state. Restore the
     // curated rows from git history to repopulate this type.
@@ -1054,6 +1277,7 @@ const LIBRARY_INDEX = {
     { name: "research",       tiers: ["—", "—", "default"], active: "default" },
     { name: "validation",     tiers: ["—", "user", "default"], active: "user" },
     { name: "pr-description", tiers: ["—", "—", "default"], active: "default" },
+    { name: "rca",            tiers: ["—", "user", "default"], active: "user" },
   ],
 };
 
@@ -1711,6 +1935,59 @@ Token migration first (load-bearing), then theming and font-mode, then a per-com
 
 - current inventory [[${slug}-current]]
 - target inventory [[${slug}-target]]
+`,
+    };
+
+    case "root-cause-analyses": return {
+      type, slug,
+      frontmatter: { ...common, type: "root-cause-analysis", status: row.status || "resolved", severity: row.severity || "sev-2", incident: "INC-" + (id.match(/\d{4}/)?.[0] || "0000") },
+      body: `# ${title}
+
+## Summary
+
+A brief, blameless account of what broke, who it affected, and how it was
+brought back to a known-good state. The narrative below traces the failure
+to its root cause and records the follow-on work.
+
+## Impact
+
+- **Scope:** the affected surface and how far the blast radius reached.
+- **Duration:** time from first detection to mitigation.
+- **User-visible:** what a user would have seen during the window.
+- **Data:** whether any artifact was lost or corrupted.
+
+## Timeline
+
+| Time (UTC) | Event |
+| ---------- | ----- |
+| 00:00 | First symptom observed. |
+| 00:14 | On-call paged by the error-rate alert. |
+| 00:42 | Mitigation applied; metrics recover. |
+
+## Root cause
+
+The trigger and the underlying defect, traced through a short 5-why chain
+rather than stopping at the first plausible cause.
+
+## Contributing factors
+
+- Conditions that widened the blast radius or delayed detection.
+- Gaps in monitoring or alerting that hid the problem.
+
+## Resolution
+
+The change that restored service and the guardrail that prevents recurrence.
+
+## Action items
+
+- [ ] Land the durable fix behind the relevant work item.
+- [ ] Add the monitoring that would have caught this earlier.
+- [ ] Schedule the follow-up review.
+
+## Links
+
+- work-item [[${(id || "").toUpperCase()}]]
+- cluster \`${slug}\`
 `,
     };
 

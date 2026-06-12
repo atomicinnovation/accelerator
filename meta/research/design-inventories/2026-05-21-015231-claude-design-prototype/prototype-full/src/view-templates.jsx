@@ -9,8 +9,14 @@ function TierPill({ tier, present, active }) {
 function TemplatesIndex({ setRoute }) {
   const [selected, setSelected] = React.useState("adr");
   const templates = window.LIBRARY_INDEX.templates;
-  const detail = window.DOC_CONTENT["adr-template"];
-  const [activeTier, setActiveTier] = React.useState("user-override");
+  // Curated tier content per template. Templates without a curated entry fall
+  // back to the ADR shape so the preview always has something to show.
+  const TPL_DETAIL = { adr: "adr-template", rca: "rca-template" };
+  const detail = window.DOC_CONTENT[TPL_DETAIL[selected]] || window.DOC_CONTENT["adr-template"];
+  const activeSource = (detail.tiers.find(t => t.active) || detail.tiers.find(t => t.present) || detail.tiers[0]).source;
+  const [activeTier, setActiveTier] = React.useState(activeSource);
+  // When the selected template changes, snap the tier preview to its active tier.
+  React.useEffect(() => { setActiveTier(activeSource); }, [selected]);
 
   const tierName = (s) => s === "config-override" ? "Config override" : s === "user-override" ? "User override" : "Plugin default";
   const tierNum  = (s) => s === "config-override" ? "Tier 1" : s === "user-override" ? "Tier 2" : "Tier 3";
@@ -38,7 +44,7 @@ function TemplatesIndex({ setRoute }) {
                className={`ac-tpl-row ${selected === t.name ? "is-active" : ""}`}
                onClick={() => setSelected(t.name)}>
             <div className="ac-tpl-row__name">
-              <TypeGlyph type={t.name === "adr" ? "decisions" : t.name === "plan" ? "plans" : t.name === "research" ? "research" : t.name === "validation" ? "validations" : "pr-descriptions"} size={22}/>
+              <TypeGlyph type={t.name === "adr" ? "decisions" : t.name === "rca" ? "root-cause-analyses" : t.name === "plan" ? "plans" : t.name === "research" ? "research" : t.name === "validation" ? "validations" : "pr-descriptions"} size={22}/>
               <span>{t.name}.md</span>
             </div>
             <div className="ac-tpl-row__tiers">

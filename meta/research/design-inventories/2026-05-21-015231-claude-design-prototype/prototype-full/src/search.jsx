@@ -24,6 +24,7 @@ function buildCorpus() {
     "design-inventories", "design-gaps", "research",
     "plans", "plan-reviews", "validations",
     "pr-descriptions", "pr-reviews",
+    "root-cause-analyses",
     "decisions", "notes",
   ];
   for (const t of LIBRARY_TYPES) {

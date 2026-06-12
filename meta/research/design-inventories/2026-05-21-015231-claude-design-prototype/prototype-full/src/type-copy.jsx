@@ -80,6 +80,16 @@ const TYPE_COPY = {
     template: "adr",
     path:     "meta/decisions/",
   },
+  "root-cause-analyses": {
+    purpose:  "Blameless post-incident write-ups that trace a failure to its root cause.",
+    when:     "Open one after an incident, once the timeline and contributing factors are known.",
+    examples: [
+      "Reviewer agent fan-out exhausted the API rate limit",
+      "Checksum gate false-negative blocked a release",
+    ],
+    template: "root-cause-analysis",
+    path:     "meta/root-cause-analyses/",
+  },
   notes: {
     purpose:  "Short hallway captures and open questions that don't warrant a full plan.",
     when:     "Drop one in whenever something is worth remembering but doesn't fit research, a plan, or a decision yet.",
