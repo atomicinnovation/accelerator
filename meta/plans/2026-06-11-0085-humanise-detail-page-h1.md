@@ -524,25 +524,25 @@ test rather than the parser's panic-handling path.
 
 #### Automated Verification:
 
-- [ ] Server unit tests pass: `mise run test:unit:visualiser`
-- [ ] Updated `title_cascade_falls_back_to_filename_stem` asserts the humanised
+- [x] Server unit tests pass: `mise run test:unit:visualiser`
+- [x] Updated `title_cascade_falls_back_to_filename_stem` asserts the humanised
       form and passes
-- [ ] `title_cascade_humanises_stem_for_every_doc_kind` passes (13-kind loop +
+- [x] `title_cascade_humanises_stem_for_every_doc_kind` passes (13-kind loop +
       `"Test Fixture"` literal oracle)
-- [ ] `title_cascade_blank_frontmatter_title_falls_through_to_humanised_stem`
+- [x] `title_cascade_blank_frontmatter_title_falls_through_to_humanised_stem`
       passes (both empty and whitespace-only `title:`)
-- [ ] Layers (a)/(b) cascade tests still pass unchanged
-- [ ] Rust formatting clean: `mise run format:server:check`
-- [ ] Clippy clean with `-D warnings`: `mise run lint:server:check`
+- [x] Layers (a)/(b) cascade tests still pass unchanged
+- [x] Rust formatting clean: `mise run format:server:check`
+- [x] Clippy clean with `-D warnings`: `mise run lint:server:check`
 
 #### Manual Verification:
 
-- [ ] PR diff under `server/src/` touches only `slug.rs` and `frontmatter.rs`;
+- [x] PR diff under `server/src/` touches only `slug.rs` and `frontmatter.rs`;
       **no** frontend files, and in particular no changes to
       `frontend/src/routes/library/LibraryDocView.tsx` or
       `frontend/src/components/Page/Page.tsx` (AC4 — verify against the actual
       diff)
-- [ ] Each of the three cascade layers carries a one-line comment naming its
+- [x] Each of the three cascade layers carries a one-line comment naming its
       source and position (AC5)
 - [ ] Spot-check a real review/validation detail page in a dev server with a
       doc lacking `frontmatter.title`: the H1 renders humanised, not a raw stem

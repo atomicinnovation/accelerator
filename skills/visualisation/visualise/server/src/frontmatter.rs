@@ -1,3 +1,4 @@
+use crate::slug::humanise_slug;
 use std::collections::BTreeMap;
 
 #[derive(Debug, PartialEq)]
@@ -285,22 +286,27 @@ pub fn title_from(
     body: &str,
     filename_stem: &str,
 ) -> String {
+    // Cascade layer 1/3 — frontmatter.title (verbatim when non-blank;
+    // whitespace-only is treated as absent so it can't render a blank <h1>).
     if let FrontmatterState::Parsed(m) = parsed {
         if let Some(v) = m.get("title") {
             if let Some(s) = v.as_str() {
-                if !s.is_empty() {
-                    return s.to_string();
+                if !s.trim().is_empty() {
+                    return s.trim().to_string(); // trim to match layer 2's H1
                 }
             }
         }
     }
+    // Cascade layer 2/3 — first H1 in the body.
     for line in body.lines() {
         let line = line.trim_start();
         if let Some(rest) = line.strip_prefix("# ") {
             return rest.trim().to_string();
         }
     }
-    filename_stem.to_string()
+    // Cascade layer 3/3 — humanise_slug(stem): humanised fallback so no detail
+    // page renders an unhumanised filename stem as its <h1>.
+    humanise_slug(filename_stem)
 }
 
 /// Reads cross-reference keys from frontmatter for work-item aggregation.
@@ -488,7 +494,55 @@ mod tests {
         let raw = b("body without h1\n");
         let p = parse(&raw);
         let t = title_from(&p.state, &p.body, "2026-04-18-my-doc");
-        assert_eq!(t, "2026-04-18-my-doc");
+        assert_eq!(t, "My Doc"); // humanised (date prefix stripped), not the raw stem
+    }
+
+    #[test]
+    fn title_cascade_humanises_stem_for_every_doc_kind() {
+        use crate::docs::DocTypeKey;
+
+        // No frontmatter.title and no first H1 → layer 3 for every kind.
+        let raw = b("body without h1\n");
+        let p = parse(&raw);
+        let stem = "0042-test-fixture";
+
+        // Forward-looking invariant: title_from is kind-agnostic today, so this
+        // loop runs the same path 13 times. We assert only that no kind renders
+        // the raw stem — comparing against humanise_slug(stem) would be a
+        // tautology (production calls the same helper). It guards against a
+        // future per-kind refactor regressing any kind back to an unhumanised
+        // stem.
+        for kind in DocTypeKey::all() {
+            let t = title_from(&p.state, &p.body, stem);
+            assert_ne!(t, stem, "kind={kind:?} must not render the raw stem");
+        }
+
+        // Concrete-literal oracle: gives the test real value-level bite,
+        // guarding against a shared bug in the test oracle and the production
+        // path both computing the same wrong value.
+        assert_eq!(title_from(&p.state, &p.body, stem), "Test Fixture");
+    }
+
+    #[test]
+    fn title_cascade_blank_frontmatter_title_falls_through_to_humanised_stem() {
+        // Drive the layer-1 guard directly at the title_from boundary by
+        // building FrontmatterState::Parsed ourselves. We do NOT round-trip
+        // through parse(): a quoted whitespace-only YAML scalar can trip
+        // libyml's trailing-whitespace panic and surface as Malformed (see
+        // `malformed_when_quoted_scalar_has_trailing_whitespace`), which would
+        // skip the Parsed arm entirely and make this test pass for the wrong
+        // reason — green even if the `!s.trim().is_empty()` guard were reverted.
+        for blank in ["", "   "] {
+            let mut m = std::collections::BTreeMap::new();
+            m.insert(
+                "title".to_string(),
+                serde_json::Value::String(blank.to_string()),
+            );
+            let state = FrontmatterState::Parsed(m);
+            let t =
+                title_from(&state, "body without h1\n", "0042-test-fixture");
+            assert_eq!(t, "Test Fixture", "blank title {blank:?}");
+        }
     }
 
     #[test]
