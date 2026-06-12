@@ -5,7 +5,7 @@ title: "Humanise Detail-Page H1 Across All Doc Kinds Implementation Plan"
 date: "2026-06-11T13:14:35+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0085"
 parent: "work-item:0085"
 derived_from: ["codebase-research:2026-06-11-0085-humanise-detail-page-h1"]
