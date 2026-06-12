@@ -1604,7 +1604,7 @@ branch-protection required-check names match the renamed/added jobs.
 
 #### Manual Verification:
 - [x] The pyrefly `all`-preset follow-up work item exists and is linked
-  (`meta/work/0106-re-evaluate-pyrefly-all-preset.md`, relates_to work-item:0098).
+  (`meta/work/0109-re-evaluate-pyrefly-all-preset.md`, relates_to work-item:0098).
 - [ ] Main CI shows four separate blocking per-component jobs, no
   `continue-on-error`. **[CI/manual — wiring asserted in-repo: `check-scripts`,
   `check-build-system`, `check-server`, `check-frontend` all in `prerelease.needs`

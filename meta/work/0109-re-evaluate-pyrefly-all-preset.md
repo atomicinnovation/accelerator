@@ -1,6 +1,6 @@
 ---
 type: work-item
-id: "0106"
+id: "0109"
 title: "Re-Evaluate Pyrefly's All Preset When v1.1 Ships"
 date: "2026-06-11T12:00:00+00:00"
 author: Toby Clemson
@@ -15,7 +15,7 @@ last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
-# 0106: Re-Evaluate Pyrefly's All Preset When v1.1 Ships
+# 0109: Re-Evaluate Pyrefly's All Preset When v1.1 Ships
 
 **Kind**: Task
 **Status**: Draft
