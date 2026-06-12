@@ -33,9 +33,23 @@ def pull(context: Context) -> None:
 
 
 @task
-def push(context: Context) -> None:
-    """Push the current branch to remote."""
-    context.run("git push origin HEAD --tags")
+def push(context: Context, target_version: str | None = None) -> None:
+    """Push the current branch and its version tag to remote, atomically.
+
+    --atomic makes the branch ref and the tag ref a single all-or-nothing
+    update: if the branch push is rejected (e.g. main advanced on the remote
+    since this pipeline pulled), the tag is NOT pushed either. Without this a
+    rejected branch push still leaves the tag behind, orphaning it on a commit
+    that never reached main and wedging the release. We push the one explicit
+    version tag rather than --tags so the result never depends on which tags
+    happen to be present in the runner's checkout.
+    """
+    resolved_version = target_version or version.read(
+        context, print_to_stdout=False
+    )
+    context.run(
+        f"git push --atomic origin HEAD 'refs/tags/v{resolved_version}'"
+    )
 
 
 @task

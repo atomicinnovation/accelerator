@@ -175,6 +175,14 @@ jobs:
       - check-server
       - check-frontend
     if: github.event_name == 'push'
+    # Serialise all release pipelines onto one queue. prepare (pull + bump) and
+    # finalise (commit + tag + push) are steps in this single job, so a queued
+    # pipeline cannot start its prepare until the running pipeline has pushed —
+    # which is what stops two pipelines bumping to the same version and racing
+    # their pushes. cancel-in-progress: false makes runs wait rather than abort.
+    concurrency:
+      group: accelerator-release
+      cancel-in-progress: false
     permissions:
       id-token: write
       contents: write
@@ -212,6 +220,11 @@ jobs:
     if: github.event_name == 'push'
     needs: prerelease
     environment: release
+    # Same queue as the prerelease job so a stable release (which also commits,
+    # tags, and pushes) never races a prerelease pipeline from another push.
+    concurrency:
+      group: accelerator-release
+      cancel-in-progress: false
     permissions:
       id-token: write
       contents: write
