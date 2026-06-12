@@ -374,18 +374,18 @@ fn humanise_slug_covers_ac2_cases() {
 
 #### Automated Verification:
 
-- [ ] Server unit tests pass: `mise run test:unit:visualiser`
-- [ ] `humanise_slug_covers_ac2_cases` passes (all cases incl. the bare-date,
+- [x] Server unit tests pass: `mise run test:unit:visualiser`
+- [x] `humanise_slug_covers_ac2_cases` passes (all cases incl. the bare-date,
       empty-string, and edge/consecutive-hyphen degenerate cases)
-- [ ] Existing `slug.rs` `derive()` tests still pass unchanged (borrowed-stripper
+- [x] Existing `slug.rs` `derive()` tests still pass unchanged (borrowed-stripper
       refactor is behaviour-preserving)
-- [ ] Rust formatting clean: `mise run format:server:check`
-- [ ] Clippy clean with `-D warnings`: `mise run lint:server:check`
+- [x] Rust formatting clean: `mise run format:server:check`
+- [x] Clippy clean with `-D warnings`: `mise run lint:server:check`
 
 #### Manual Verification:
 
-- [ ] Diff touches only `slug.rs` under `server/src/` in this phase
-- [ ] The bare-date guard is exercised by a fixture (not just asserted in prose)
+- [x] Diff touches only `slug.rs` under `server/src/` in this phase
+- [x] The bare-date guard is exercised by a fixture (not just asserted in prose)
 
 ---
 

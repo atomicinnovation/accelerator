@@ -80,30 +80,51 @@ fn strip_prefix_numbered(stem: &str, prefix: &str) -> Option<String> {
     Some(tail[1..].to_string()).filter(|s| !s.is_empty())
 }
 
-fn strip_prefix_work_item_id(stem: &str) -> Option<String> {
+/// Borrowed form: returns the descriptive tail after a leading run of ASCII
+/// digits + '-', or None when there is no such prefix or no tail follows.
+fn strip_prefix_work_item_id_str(stem: &str) -> Option<&str> {
     let dash = stem.find('-')?;
     let (digits, tail) = stem.split_at(dash);
     if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
         return None;
     }
-    Some(tail[1..].to_string()).filter(|s| !s.is_empty())
+    let rest = &tail[1..];
+    if rest.is_empty() {
+        None
+    } else {
+        Some(rest)
+    }
+}
+
+fn strip_prefix_work_item_id(stem: &str) -> Option<String> {
+    strip_prefix_work_item_id_str(stem).map(str::to_string)
+}
+
+/// True iff the first 10 bytes form a `YYYY-MM-DD` ISO date *shape* (does not
+/// require a trailing `-<tail>`; `strip_prefix_date_str` adds that).
+fn is_iso_date_prefix(s: &str) -> bool {
+    let b = s.as_bytes();
+    b.len() >= 10
+        && b[0..4].iter().all(u8::is_ascii_digit)
+        && b[4] == b'-'
+        && b[5..7].iter().all(u8::is_ascii_digit)
+        && b[7] == b'-'
+        && b[8..10].iter().all(u8::is_ascii_digit)
 }
 
 fn strip_prefix_date_str(stem: &str) -> Option<&str> {
+    // `is_iso_date_prefix` validates the 10-char `YYYY-MM-DD` *shape*; the
+    // `len < 11` / `tail.starts_with('-')` checks here assert a trailing
+    // `-<tail>` follows. These are not a redundant pair — the predicate is
+    // shape-only, this asserts a descriptive tail — so don't collapse one into
+    // the other or the bare-date-vs-dated-tail distinction breaks.
     if stem.len() < 11 {
         return None;
     }
-    let (head, tail) = stem.split_at(10);
-    let bytes = head.as_bytes();
-    let ok = bytes.len() == 10
-        && bytes[0..4].iter().all(u8::is_ascii_digit)
-        && bytes[4] == b'-'
-        && bytes[5..7].iter().all(u8::is_ascii_digit)
-        && bytes[7] == b'-'
-        && bytes[8..10].iter().all(u8::is_ascii_digit);
-    if !ok {
+    if !is_iso_date_prefix(stem) {
         return None;
     }
+    let tail = &stem[10..];
     if !tail.starts_with('-') {
         return None;
     }
@@ -157,9 +178,104 @@ fn strip_suffix_review_n(stem: &str) -> Option<String> {
     Some(head.to_string()).filter(|s| !s.is_empty())
 }
 
+/// Humanise a filename stem for display as a fallback page title.
+///
+/// Strips at most one leading prefix — an ISO date (`2026-05-21-`) takes
+/// priority over a numeric id (`0042-`) — then splits the remainder on '-',
+/// drops empty segments (so edge/consecutive hyphens never emit stray
+/// spaces), and title-cases each segment. The first character of each segment
+/// is uppercased; this is a no-op for a digit-led segment (`0042`, `21`, a
+/// trailing `1`), which therefore passes through unchanged. A stem that is
+/// *entirely* a date- or id-shaped prefix (no descriptive tail) is humanised
+/// whole, so a bare date `2026-05-21` renders `"2026 05 21"` rather than
+/// losing its leading token. A design-inventory `HHMMSS-` time token (e.g.
+/// `…-123456-architecture`) survives as a verbatim digit-led segment — this
+/// is accepted: the input is the slug-source stem, which for nested-manifest
+/// kinds is the parent directory name, not `inventory.md`.
+pub fn humanise_slug(stem: &str) -> String {
+    let remainder = strip_humanise_prefix(stem);
+    remainder
+        .split('-')
+        .filter(|s| !s.is_empty())
+        .map(title_case_segment)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Strip the single leading date/id prefix, returning the descriptive tail —
+/// or the whole stem when it is prefix-only (guards the bare-date case).
+fn strip_humanise_prefix(stem: &str) -> &str {
+    if let Some(rest) = strip_prefix_date_str(stem) {
+        if !rest.is_empty() {
+            return rest; // `YYYY-MM-DD-<tail>`
+        }
+        // date strip yielded an empty tail (e.g. `2026-05-21-`) — fall through
+        // to the bare-date guard rather than returning "" (which would render a
+        // blank <h1>, the very thing this fallback exists to prevent).
+    }
+    if is_iso_date_prefix(stem) {
+        return stem; // bare date (or date with empty tail) → humanise whole
+    }
+    if let Some(rest) = strip_prefix_work_item_id_str(stem) {
+        return rest; // `<digits>-<tail>` (the stripper returns None on empty tail)
+    }
+    stem
+}
+
+/// Uppercase the first char, leave the rest untouched. A digit-led segment is
+/// unchanged (a digit has no uppercase mapping), so it passes through as-is.
+///
+/// Mirrors `api::library::humanise_status`'s per-segment idiom byte-for-byte;
+/// unifying the two into one shared helper is deferred until a third humaniser
+/// appears (see "What We're NOT Doing").
+fn title_case_segment(seg: &str) -> String {
+    let mut chars = seg.chars();
+    match chars.next() {
+        Some(first) => {
+            first.to_uppercase().collect::<String>() + chars.as_str()
+        }
+        None => String::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn humanise_slug_covers_ac2_cases() {
+        let cases = &[
+            // simple hyphen splits
+            ("design-token-system", "Design Token System"),
+            // leading numeric id stripped; trailing review-N kept; digit verbatim
+            (
+                "0042-templates-view-redesign-review-1",
+                "Templates View Redesign Review 1",
+            ),
+            // leading ISO date stripped
+            (
+                "2026-05-21-current-app-vs-claude-design-prototype",
+                "Current App Vs Claude Design Prototype",
+            ),
+            // mixed prefixes — single-pass strip of the LEADING match only
+            ("2026-05-21-0042-foo", "0042 Foo"), // date wins; 0042 survives as one token
+            ("0042-2026-05-21-foo", "2026 05 21 Foo"), // id wins; residual date splits
+            // single segment
+            ("notes", "Notes"),
+            // edge/consecutive hyphens: empty segments dropped, no stray spaces
+            ("foo--bar", "Foo Bar"), // double hyphen would be "Foo  Bar" unfiltered
+            ("0042-", "0042"), // trailing dash would be "0042 " unfiltered
+            // degenerate: prefix-only stem humanises its own tokens
+            ("2026-05-21", "2026 05 21"), // bare-date guard (would be "05 21" naive)
+            ("2026-05-21-", "2026 05 21"), // date + empty tail → humanise whole (not "")
+            ("", ""),
+            // design-inventory HHMMSS- quirk: accepted, time token emitted verbatim
+            ("2026-05-21-123456-architecture", "123456 Architecture"),
+        ];
+        for (input, expected) in cases {
+            assert_eq!(humanise_slug(input), *expected, "input={input}");
+        }
+    }
 
     #[test]
     fn decisions_strip_adr_prefix() {
