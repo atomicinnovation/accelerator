@@ -124,6 +124,11 @@ with the dedicated, type-specific `BigGlyph`.
 - Blocks: 0083 (DevDesignSystem reference page) — its BigGlyph showcase
   consumes the component this story delivers, so 0083 cannot land until
   0082 ships.
+- Coordination: 0108 (local Docker visual-regression baselines) — soft
+  sequencing edge, not a hard block. 0082 captures new visual-regression
+  baselines; prefer landing 0108's single-Linux baseline collapse first, so
+  0082's baselines are generated under the Docker regime and do not need
+  regenerating afterwards.
 
 ## Assumptions
 
