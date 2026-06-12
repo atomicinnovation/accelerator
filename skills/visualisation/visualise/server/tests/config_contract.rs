@@ -68,26 +68,35 @@ fn write_visualiser_config_produces_valid_config_json() {
             "doc_paths missing key: {key}"
         );
     }
-    assert_eq!(
-        cfg.templates.len(),
-        8,
-        "expected 8 templates, got {:?}",
-        cfg.templates.keys().collect::<Vec<_>>()
+    // Derive the expected set the same way the launcher does: scan the
+    // plugin-default templates/ dir. Keeps the contract drift-proof — adding or
+    // removing a template never requires editing this test.
+    let templates_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../../templates");
+    let mut expected: Vec<String> = std::fs::read_dir(&templates_dir)
+        .expect("read plugin templates dir")
+        .filter_map(|e| {
+            let p = e.ok()?.path();
+            // Mirror config_enumerate_templates' `[ -f ]` guard so the in-test
+            // derivation matches the launcher exactly (skip dirs/symlinks).
+            (p.is_file() && p.extension()? == "md")
+                .then(|| p.file_stem().unwrap().to_string_lossy().into_owned())
+        })
+        .collect();
+    expected.sort();
+
+    let mut actual: Vec<String> = cfg.templates.keys().cloned().collect();
+    actual.sort();
+
+    assert!(
+        !expected.is_empty(),
+        "expected at least one template on disk"
     );
-    for name in [
-        "adr",
-        "plan",
-        "codebase-research",
-        "validation",
-        "pr-description",
-        "work-item",
-        "design-gap",
-        "design-inventory",
-    ] {
-        assert!(
-            cfg.templates.contains_key(name),
-            "templates missing: {name}"
-        );
+    assert_eq!(
+        actual, expected,
+        "config.json templates must equal the *.md set in templates/"
+    );
+    for name in &expected {
         let tiers = cfg.templates.get(name).unwrap();
         assert!(
             tiers

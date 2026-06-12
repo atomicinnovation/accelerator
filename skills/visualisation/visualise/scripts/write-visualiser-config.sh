@@ -118,14 +118,36 @@ template_tier() {
     '{config_override:$config_override, user_override:$user_override, plugin_default:$plugin_default, config_override_source:$config_override_source}'
 }
 
-ADR="$(template_tier adr)"
-PLAN="$(template_tier plan)"
-RES="$(template_tier codebase-research)"
-VAL="$(template_tier validation)"
-PRD="$(template_tier pr-description)"
-WI="$(template_tier work-item)"
-DGAP="$(template_tier design-gap)"
-DINV="$(template_tier design-inventory)"
+# ── Templates (auto-discovered) ──────────────────────────────────────────────
+# Derive the template set by scanning the plugin-default templates/ directory
+# rather than a hardcoded roster (config_enumerate_templates is sourced via
+# config-common.sh; bash 3.2-safe glob, one basename per *.md). Each name is
+# resolved through the same three tiers as before (template_tier) and folded
+# into one JSON object. A variable-length set cannot use statically-named
+# --argjson args, so the object is built here and spliced via one --argjson.
+#
+# Two invariants the tab-delimited fold relies on (both hold by construction):
+#   - template_tier emits single-line compact JSON (`jq -nc`), so split("\t")
+#     yields exactly [name, tier-json] per line — keep that `-c` flag.
+#   - template basenames are filename-safe (no tab / newline).
+# Fail-fast: capture the tier into its own assignment so `set -e` aborts on a
+# failed resolution. A failed `$(template_tier …)` used directly as a *printf
+# argument* would be masked (printf still succeeds), losing the abort the former
+# per-name `NAME="$(template_tier "$name")"` capture form gave; the subshell's
+# set -e + pipefail then surface the failure to the `TEMPLATES_JSON="$(…)"`
+# capture below. Keep `tier` declared via `local name tier` *separately* from
+# its assignment — collapsing to `local tier="$(…)"` would re-mask the failure
+# (the `local` builtin's own success status overrides the substitution's).
+build_templates_json() {
+  local name tier
+  for name in $(config_enumerate_templates "$PLUGIN_ROOT"); do
+    tier="$(template_tier "$name")"
+    printf '%s\t%s\n' "$name" "$tier"
+  done | jq -Rn '
+    reduce inputs as $line ({};
+      ($line | split("\t")) as [$k, $v] | .[$k] = ($v | fromjson))'
+}
+TEMPLATES_JSON="$(build_templates_json)"
 
 # Work-item ID pattern config. Read from `work.id_pattern` / `work.default_project_code`;
 # compile the scan regex via the work-item-pattern skill's --compile-scan subcommand.
@@ -270,11 +292,7 @@ jq -n \
   --arg validations "$VALIDATIONS" --arg notes "$NOTES" --arg prs "$PRS" \
   --arg research_design_gaps "$RESEARCH_DESIGN_GAPS" \
   --arg research_design_inventories "$RESEARCH_DESIGN_INVENTORIES" \
-  --argjson adr "$ADR" --argjson plan "$PLAN" --argjson research_t "$RES" \
-  --argjson validation "$VAL" --argjson pr_description "$PRD" \
-  --argjson work_item_template "$WI" \
-  --argjson design_gap "$DGAP" \
-  --argjson design_inventory "$DINV" \
+  --argjson templates "$TEMPLATES_JSON" \
   --argjson work_item "$WORK_ITEM_JSON" \
   --argjson kanban_columns "$KANBAN_COLS_JSON" \
   --arg idle_timeout "$IDLE_TIMEOUT" \
@@ -300,13 +318,7 @@ jq -n \
       research_design_gaps: $research_design_gaps,
       research_design_inventories: $research_design_inventories
     },
-    templates: {
-      adr: $adr, plan: $plan, "codebase-research": $research_t,
-      validation: $validation, "pr-description": $pr_description,
-      "work-item": $work_item_template,
-      "design-gap": $design_gap,
-      "design-inventory": $design_inventory
-    },
+    templates: $templates,
     work_item: $work_item,
     kanban_columns: $kanban_columns
   }

@@ -479,21 +479,21 @@ object (lines 303-309) with `templates: $templates,`.
 
 #### Automated Verification
 
-- [ ] Contract + launcher integration tests pass: `mise run test:integration:visualiser`
+- [x] Contract + launcher integration tests pass: `mise run test:integration:visualiser`
       (fallback: `cd skills/visualisation/visualise/server && cargo test --test config_contract`)
-- [ ] Launcher unit harness passes:
+- [x] Launcher unit harness passes:
       `bash skills/visualisation/visualise/scripts/test-write-visualiser-config.sh`
-- [ ] Launcher binary-acquisition harness still passes (unchanged template
+- [x] Launcher binary-acquisition harness still passes (unchanged template
       assertions): `mise run test:integration:binary-acquisition`
       (covers `test-launch-server.sh`)
-- [ ] Rust unit + config-helper tests still pass: `mise run test:unit:visualiser`
+- [x] Rust unit + config-helper tests still pass: `mise run test:unit:visualiser`
       and `mise run test:integration:config`
-- [ ] Shell format + lint clean (shfmt + ShellCheck + bash-3.2 bashisms guard):
+- [x] Shell format + lint clean (shfmt + ShellCheck + bash-3.2 bashisms guard):
       `mise run scripts:check`
-- [ ] Rust format + lint clean: `mise run server:check`
-- [ ] Full read-only CI gate passes: `mise run check`
-- [ ] Full test suite passes: `mise run test`
-- [ ] Generated config lists 13 templates with no static roster left in the
+- [x] Rust format + lint clean: `mise run server:check`
+- [x] Full read-only CI gate passes: `mise run check`
+- [x] Full test suite passes: `mise run test`
+- [x] Generated config lists 13 templates with no static roster left in the
       script: `bash skills/visualisation/visualise/scripts/write-visualiser-config.sh --plugin-version 0.0.0 --project-root "$(mktemp -d)" --tmp-dir /tmp/x --log-file /tmp/x.log --owner-pid 0 | jq '.templates | keys | length'`
       returns `13`; `grep -nE 'template_tier (adr|plan|validation)' skills/visualisation/visualise/scripts/write-visualiser-config.sh` returns nothing.
 

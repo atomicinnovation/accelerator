@@ -7,6 +7,12 @@ source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
 WRITE_CONFIG="$SCRIPT_DIR/write-visualiser-config.sh"
 
+# Sourced for config_enumerate_templates so the discovered-set assertions below
+# derive the expected keys the same way the launcher does. Sourced *after*
+# WRITE_CONFIG is assigned: config-common.sh reassigns SCRIPT_DIR to the plugin
+# scripts/ dir, which would otherwise repoint WRITE_CONFIG.
+source "$PLUGIN_ROOT/scripts/config-common.sh"
+
 TMPDIR_BASE="$(mktemp -d)"
 ORIG_DIR="$PWD"
 trap 'cd "$ORIG_DIR"; rm -rf "$TMPDIR_BASE"' EXIT
@@ -339,6 +345,62 @@ OUT25_FILE="$TMPDIR_BASE/out25.json"
 run_config "$PROJ25" >"$OUT25_FILE"
 assert_json_eq "custom template round-trips with :// and space" \
   ".editor" "zed://open?path={abs}&name=My Project" "$OUT25_FILE"
+
+# ─── templates: discovered set matches the templates/ directory ──────────────
+echo "Test: templates object lists every *.md in the plugin templates/ dir"
+PROJ_TD="$TMPDIR_BASE/t-templates-discovered"
+make_project "$PROJ_TD"
+OUT_TD="$TMPDIR_BASE/out-td.json"
+run_config "$PROJ_TD" >"$OUT_TD"
+EXPECTED_KEYS="$(config_enumerate_templates "$PLUGIN_ROOT" | sort | tr '\n' ' ')"
+ACTUAL_KEYS="$(jq -r '.templates | keys[]' "$OUT_TD" | sort | tr '\n' ' ')"
+assert_eq "templates keys match templates/ dir" "$EXPECTED_KEYS" "$ACTUAL_KEYS"
+
+# Tier wiring flows through template_tier for a previously-hidden template.
+# NOTE: user_override is the *unconditional candidate* path template_tier emits
+# (make_project never creates .accelerator/templates/); the server decides
+# present/absent. We pin the candidate path the launcher wires, not presence.
+assert_json_eq "rca plugin_default points at plugin templates/" \
+  ".templates.rca.plugin_default" "$PLUGIN_ROOT/templates/rca.md" "$OUT_TD"
+assert_json_eq "note user_override points at project .accelerator/templates" \
+  ".templates.note.user_override" "$PROJ_TD/.accelerator/templates/note.md" "$OUT_TD"
+
+# Fourth tier key: config_override_source. Null with no config override — this
+# guards the key the jq restructure is most likely to drop (it feeds the view's
+# Tier 1 description and has no other automated check).
+assert_json_eq "rca config_override_source null with no override" \
+  ".templates.rca.config_override_source" "null" "$OUT_TD"
+
+# …and populated when a config.md declares the override (exercises the 4th key
+# in its non-null form, plus the provenance scan in template_tier).
+echo "Test: config_override_source records the declaring config file"
+PROJ_CS="$TMPDIR_BASE/t-templates-override-source"
+make_project "$PROJ_CS"
+mkdir -p "$PROJ_CS/custom"
+echo "# custom rca" >"$PROJ_CS/custom/rca.md"
+printf -- '---\ntemplates:\n  rca: custom/rca.md\n---\n' >"$PROJ_CS/.accelerator/config.md"
+OUT_CS="$TMPDIR_BASE/out-cs.json"
+run_config "$PROJ_CS" >"$OUT_CS"
+# Pin both co-dependent halves of the populated-override shape: the path itself
+# and its provenance. (Asserting only the source would miss a dropped path.)
+assert_json_eq "rca config_override reflects the declared path" \
+  ".templates.rca.config_override" "custom/rca.md" "$OUT_CS"
+assert_json_eq "rca config_override_source names config.md" \
+  ".templates.rca.config_override_source" ".accelerator/config.md" "$OUT_CS"
+
+# ─── config-override-only template is NOT surfaced (templates/ is canonical) ──
+# NOTE: a characterisation/lock test — GREEN under both the old 8-name roster and
+# the new discovery (zzz-fake is in neither). It pins that .accelerator/templates/
+# is not a discovery source, guarding a future change that scanned the override dir.
+echo "Test: a template present only in .accelerator/templates is not surfaced"
+PROJ_OO="$TMPDIR_BASE/t-templates-override-only"
+make_project "$PROJ_OO"
+mkdir -p "$PROJ_OO/.accelerator/templates"
+echo "# fake" >"$PROJ_OO/.accelerator/templates/zzz-fake.md"
+OUT_OO="$TMPDIR_BASE/out-oo.json"
+run_config "$PROJ_OO" >"$OUT_OO"
+assert_json_eq "override-only template absent from set" \
+  '.templates | has("zzz-fake")' "false" "$OUT_OO"
 
 echo ""
 test_summary
