@@ -8,11 +8,11 @@ status: draft
 kind: task
 priority: medium
 tags: [visualiser, design-tokens, typography, refactor, tech-debt, adr]
-last_updated: "2026-06-02T16:30:00+00:00"
+last_updated: "2026-06-12T20:05:54+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 type: work-item
-relates_to: ["plan:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown"]
+relates_to: ["plan:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown", "work-item:0091"]
 supersedes: ["adr:ADR-0036"]
 ---
 
@@ -94,6 +94,11 @@ to any half-step — at the cost of breaking from the t-shirt convention.
 - Supersede ADR-0036 with a new ADR recording the scheme, rationale, and
   migration; keep the prototype drift fixture green (it pins only
   `--code-*`/`--tk-*`/`--atomic-*`, not `--size-*`).
+- The successor ADR must carry ADR-0036's px-anchoring stance forward as a
+  still-open Neutral consequence, with a pointer to 0091 (px-vs-rem review):
+  this remap changes token *names* only, not their unit, so the px-vs-rem
+  trade-off must not be dropped or silently re-decided at the rename. 0091
+  will later supersede this ADR on the unit axis.
 - Sweep up `--size-eyebrow` (consumed by 0094's table-cell rule) as part of the
   remap.
 
@@ -107,6 +112,8 @@ to any half-step — at the cost of breaking from the t-shirt convention.
   before and after (no visual regression; screenshot baselines unchanged).
 - [ ] A new ADR supersedes ADR-0036, documents the pure-numeric scheme, and
   records the migration; ADR-0036 is marked superseded per the ADR lifecycle.
+  The successor ADR carries px-anchoring forward as a still-open consequence
+  pointing at 0091, so the px-vs-rem trade-off survives the rename.
 - [ ] The full vitest + Playwright suites pass, including the ADR-0036 font-size
   ban (now enforced by the successor ADR), the EXCEPTIONS hygiene check, and the
   AC5 ratchet.
@@ -118,6 +125,10 @@ to any half-step — at the cost of breaking from the t-shirt convention.
   with the rest. This work should NOT block 0094.
 - Touches the same `global.css` / `tokens.ts` / `migration.test.ts` surfaces as
   any in-flight typography work; coordinate sequencing to avoid churn conflicts.
+- **Orthogonal to 0091** (px-vs-rem stance review): 0091 changes the token
+  *unit*, this changes their *names* — independent axes. Sequence this remap
+  first; 0091's later decision supersedes this ADR on the unit axis (a
+  declaration-only change that does not touch the renamed consumer sites).
 
 ## Open Questions
 
