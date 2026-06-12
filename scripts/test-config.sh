@@ -5011,17 +5011,20 @@ echo ""
 
 echo "Test: Lists all template keys from plugin templates directory"
 OUTPUT=$(config_enumerate_templates "$PLUGIN_ROOT")
-assert_contains "contains plan" "$OUTPUT" "plan"
-assert_contains "contains research" "$OUTPUT" "research"
-assert_contains "contains adr" "$OUTPUT" "adr"
-assert_contains "contains validation" "$OUTPUT" "validation"
-assert_contains "contains pr-description" "$OUTPUT" "pr-description"
-assert_contains "contains work-item" "$OUTPUT" "work-item"
-assert_contains "contains rca" "$OUTPUT" "rca"
-assert_contains "contains plan-review" "$OUTPUT" "plan-review"
-assert_contains "contains work-item-review" "$OUTPUT" "work-item-review"
-assert_contains "contains pr-review" "$OUTPUT" "pr-review"
-assert_contains "contains note" "$OUTPUT" "note"
+# Exact-line membership (^name$), not substring: a future rename (e.g.
+# codebase-research → research) can't slip through on a substring match the
+# way `assert_contains "research"` would have.
+assert_matches_regex "contains plan (exact line)" "^plan$" "$OUTPUT"
+assert_matches_regex "contains codebase-research (exact line)" "^codebase-research$" "$OUTPUT"
+assert_matches_regex "contains adr (exact line)" "^adr$" "$OUTPUT"
+assert_matches_regex "contains validation (exact line)" "^validation$" "$OUTPUT"
+assert_matches_regex "contains pr-description (exact line)" "^pr-description$" "$OUTPUT"
+assert_matches_regex "contains work-item (exact line)" "^work-item$" "$OUTPUT"
+assert_matches_regex "contains rca (exact line)" "^rca$" "$OUTPUT"
+assert_matches_regex "contains plan-review (exact line)" "^plan-review$" "$OUTPUT"
+assert_matches_regex "contains work-item-review (exact line)" "^work-item-review$" "$OUTPUT"
+assert_matches_regex "contains pr-review (exact line)" "^pr-review$" "$OUTPUT"
+assert_matches_regex "contains note (exact line)" "^note$" "$OUTPUT"
 LINE_COUNT=$(echo "$OUTPUT" | wc -l | tr -d ' ')
 assert_eq "outputs 13 keys" "13" "$LINE_COUNT"
 
@@ -5046,6 +5049,23 @@ mkdir -p "$NOMD_ROOT/templates"
 echo "not md" >"$NOMD_ROOT/templates/readme.txt"
 OUTPUT=$(config_enumerate_templates "$NOMD_ROOT")
 assert_empty "empty output for non-md files" "$OUTPUT"
+
+echo "Test: counts files one-to-one (K=3, no dedup / off-by-one)"
+K3_ROOT=$(mktemp -d "$TMPDIR_BASE/k3-plugin-XXXXXX")
+mkdir -p "$K3_ROOT/templates"
+echo a >"$K3_ROOT/templates/alpha.md"
+echo b >"$K3_ROOT/templates/beta.md"
+echo c >"$K3_ROOT/templates/gamma.md"
+assert_eq "K=3 yields 3 keys" "3" \
+  "$(config_enumerate_templates "$K3_ROOT" | wc -l | tr -d ' ')"
+
+echo "Test: adding / removing a file is reflected one-to-one"
+echo d >"$K3_ROOT/templates/delta.md"
+assert_eq "after add → 4 keys" "4" \
+  "$(config_enumerate_templates "$K3_ROOT" | wc -l | tr -d ' ')"
+rm "$K3_ROOT/templates/alpha.md"
+assert_eq "after remove → 3 keys" "3" \
+  "$(config_enumerate_templates "$K3_ROOT" | wc -l | tr -d ' ')"
 
 echo ""
 

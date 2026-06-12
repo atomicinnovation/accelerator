@@ -457,11 +457,19 @@ mod tests {
         assert!(c.doc_paths.contains_key("decisions"));
         assert!(c.doc_paths.contains_key("review_plans"));
         assert!(c.doc_paths.contains_key("review_prs"));
-        assert_eq!(c.templates.len(), 8);
+        assert_eq!(c.templates.len(), 13);
         let adr = c.templates.get("adr").expect("adr tier");
         assert!(adr.config_override.is_none());
         assert!(adr.user_override.ends_with("adr.md"));
         assert!(adr.plugin_default.ends_with("adr.md"));
+        assert!(adr.config_override_source.is_none());
+        // The previously-renamed and newly-added names deserialise and are
+        // tier-shaped (incl. the fourth key, config_override_source).
+        assert!(c.templates.contains_key("codebase-research"));
+        let rca = c.templates.get("rca").expect("rca tier");
+        assert!(rca.config_override.is_none());
+        assert!(rca.config_override_source.is_none());
+        assert!(rca.plugin_default.ends_with("rca.md"));
     }
 
     #[test]

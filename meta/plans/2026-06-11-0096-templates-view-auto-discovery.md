@@ -255,20 +255,20 @@ assert!(rca.plugin_default.ends_with("rca.md"));
 
 #### Automated Verification
 
-- [ ] Config-helper shell tests pass: `mise run test:integration:config`
-- [ ] Rust unit tests pass (incl. `parses_valid_config`):
+- [x] Config-helper shell tests pass: `mise run test:integration:config`
+- [x] Rust unit tests pass (incl. `parses_valid_config`):
       `mise run test:unit:visualiser`
       (fallback: `cd skills/visualisation/visualise/server && cargo test --lib`)
-- [ ] Shell format + lint clean: `mise run scripts:check`
-- [ ] Rust format + lint clean: `mise run server:check`
-- [ ] The breaking contract test is **untouched and still green** in this phase
+- [x] Shell format + lint clean: `mise run scripts:check`
+- [x] Rust format + lint clean: `mise run server:check`
+- [x] The breaking contract test is **untouched and still green** in this phase
       (script still emits 8): `cd skills/visualisation/visualise/server && cargo test --test config_contract`
 
 #### Manual Verification
 
-- [ ] `config.valid.json` lists exactly the 13 on-disk template names (diff
+- [x] `config.valid.json` lists exactly the 13 on-disk template names (diff
       against `for f in templates/*.md; do basename "$f" .md; done`).
-- [ ] This phase introduces no production-code change (review the diff:
+- [x] This phase introduces no production-code change (review the diff:
       only `test-config.sh`, `config.valid.json`, `config.rs`).
 
 ---

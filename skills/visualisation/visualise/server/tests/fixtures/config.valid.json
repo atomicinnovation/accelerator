@@ -25,42 +25,80 @@
     "adr": {
       "config_override": null,
       "user_override": "/abs/path/to/project/.accelerator/templates/adr.md",
-      "plugin_default": "/abs/path/to/plugin/templates/adr.md"
+      "plugin_default": "/abs/path/to/plugin/templates/adr.md",
+      "config_override_source": null
     },
     "plan": {
       "config_override": null,
       "user_override": "/abs/path/to/project/.accelerator/templates/plan.md",
-      "plugin_default": "/abs/path/to/plugin/templates/plan.md"
+      "plugin_default": "/abs/path/to/plugin/templates/plan.md",
+      "config_override_source": null
     },
-    "research": {
+    "codebase-research": {
       "config_override": null,
-      "user_override": "/abs/path/to/project/.accelerator/templates/research.md",
-      "plugin_default": "/abs/path/to/plugin/templates/research.md"
+      "user_override": "/abs/path/to/project/.accelerator/templates/codebase-research.md",
+      "plugin_default": "/abs/path/to/plugin/templates/codebase-research.md",
+      "config_override_source": null
     },
     "validation": {
       "config_override": null,
       "user_override": "/abs/path/to/project/.accelerator/templates/validation.md",
-      "plugin_default": "/abs/path/to/plugin/templates/validation.md"
+      "plugin_default": "/abs/path/to/plugin/templates/validation.md",
+      "config_override_source": null
     },
     "pr-description": {
       "config_override": null,
       "user_override": "/abs/path/to/project/.accelerator/templates/pr-description.md",
-      "plugin_default": "/abs/path/to/plugin/templates/pr-description.md"
+      "plugin_default": "/abs/path/to/plugin/templates/pr-description.md",
+      "config_override_source": null
     },
     "work-item": {
       "config_override": null,
       "user_override": "/abs/path/to/project/.accelerator/templates/work-item.md",
-      "plugin_default": "/abs/path/to/plugin/templates/work-item.md"
+      "plugin_default": "/abs/path/to/plugin/templates/work-item.md",
+      "config_override_source": null
     },
     "design-gap": {
       "config_override": null,
       "user_override": "/abs/path/to/project/.accelerator/templates/design-gap.md",
-      "plugin_default": "/abs/path/to/plugin/templates/design-gap.md"
+      "plugin_default": "/abs/path/to/plugin/templates/design-gap.md",
+      "config_override_source": null
     },
     "design-inventory": {
       "config_override": null,
       "user_override": "/abs/path/to/project/.accelerator/templates/design-inventory.md",
-      "plugin_default": "/abs/path/to/plugin/templates/design-inventory.md"
+      "plugin_default": "/abs/path/to/plugin/templates/design-inventory.md",
+      "config_override_source": null
+    },
+    "plan-review": {
+      "config_override": null,
+      "user_override": "/abs/path/to/project/.accelerator/templates/plan-review.md",
+      "plugin_default": "/abs/path/to/plugin/templates/plan-review.md",
+      "config_override_source": null
+    },
+    "pr-review": {
+      "config_override": null,
+      "user_override": "/abs/path/to/project/.accelerator/templates/pr-review.md",
+      "plugin_default": "/abs/path/to/plugin/templates/pr-review.md",
+      "config_override_source": null
+    },
+    "work-item-review": {
+      "config_override": null,
+      "user_override": "/abs/path/to/project/.accelerator/templates/work-item-review.md",
+      "plugin_default": "/abs/path/to/plugin/templates/work-item-review.md",
+      "config_override_source": null
+    },
+    "rca": {
+      "config_override": null,
+      "user_override": "/abs/path/to/project/.accelerator/templates/rca.md",
+      "plugin_default": "/abs/path/to/plugin/templates/rca.md",
+      "config_override_source": null
+    },
+    "note": {
+      "config_override": null,
+      "user_override": "/abs/path/to/project/.accelerator/templates/note.md",
+      "plugin_default": "/abs/path/to/plugin/templates/note.md",
+      "config_override_source": null
     }
   }
 }
