@@ -4,7 +4,7 @@ title: "Templates View Auto-Discovers Available Templates"
 date: "2026-06-02T12:11:27+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: draft
+status: in-progress
 kind: story
 priority: medium
 tags: [visualiser, templates, frontend]

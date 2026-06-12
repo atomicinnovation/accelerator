@@ -5,7 +5,7 @@ title: "Repo-Wide Linting, Formatting, And Static Analysis Guardrails"
 date: "2026-06-02T12:11:27+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: task
 priority: medium
 tags: [tooling, linting, formatting, static-analysis, ci, guardrails]

@@ -5,7 +5,7 @@ title: "Invoke Plugin Scripts by Bare Path in Skill Bodies"
 date: "2026-06-10T20:58:58+00:00"
 author: Toby Clemson
 producer: extract-work-items
-status: ready
+status: done
 kind: task
 priority: medium
 relates_to: ["work-item:0107"]

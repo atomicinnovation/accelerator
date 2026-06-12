@@ -4,7 +4,7 @@ title: "Humanise Detail-Page H1 Across All Doc Kinds"
 date: "2026-05-21T09:16:34+00:00"
 author: Toby Clemson
 kind: story
-status: ready
+status: done
 priority: low
 tags: [backend, detail-page, indexer]
 type: work-item
