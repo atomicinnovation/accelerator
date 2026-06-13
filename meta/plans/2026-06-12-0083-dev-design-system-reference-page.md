@@ -58,6 +58,31 @@ schema_version: 1
 > Overview flip card; deviations-aside test → zero-padded-numeral test; the e2e theme
 > flip drives the Overview card.
 
+> **Prototype-fidelity convergence — round 3 (2026-06-13).** A deeper per-section
+> rendered audit (paired Playwright screenshots of every prototype `#dev` section vs
+> the live `/dev`). **Converged:** (1) **colour swatches are solid again** — the
+> round-1 checkerboard was a regression (CSS paints `background-image` *over*
+> `background-color`, so the checker overlaid every swatch; the prototype renders
+> them solid, the checker code there being dead under its `background` shorthand);
+> (2) **doc-type glyphs are framed cards** (`<Glyph framed>` hue-tinted square +
+> hero/meta row + dashed size ramp, prototype `.ds-glyphcell`) instead of a flat
+> unframed row; (3) **chips** render as two tone rows (sm, md), not a grid; (4)
+> **status/verdict/result badges** pass display-cased values (`In progress`,
+> `Approve`, `Request changes`, `Pass`, `Approve w/ changes`) — the mappers
+> normalise, so colours are unchanged; (5) **stage-dot rows** get a clear gap + a
+> readable faint label (was a cramped mono caption); (6) **buttons** split into the
+> prototype's three labelled subsections (topbar / filter-badge / link); (7) the
+> **sidebar-nav demo** is constrained to a 280px sidebar width; (8) the **big-glyph
+> cell border** carries a translucent doc-type hue instead of the neutral stroke.
+> **Kept by constraint:** glyph sizes stay 16/24/32/48 (live `Glyph` union; no
+> 22/28/36), 13 doc types with no short codes (`RCA`/`WRK` are prototype-only), and
+> the live `statusToVariant` leaves `open`/`merged` neutral (the prototype colours
+> them). Gate ledger: removed the `10px`/`5px×2` checkerboard exceptions (`5px`
+> 3→1), `220px` 1→2 (glyph grid), `+280px` (nav), `1px` 43→44 (glyph card + dashed
+> divider). Glyph + big-glyph darwin VR baselines regenerated (framed glyphs + hue
+> border); chip baselines unchanged (only layout moved). All confirmed against the
+> screenshots; linux VR via the user's CI workflow.
+
 > **Implementation complete (2026-06-13).** **All 11 phases are implemented and
 > committed**, each leaving `main` green on darwin (`mise run frontend:check` + 2445
 > unit tests; the 9 migrated VR specs + the deferred behavioural e2e — green on

@@ -379,48 +379,10 @@
 .swatchChip {
   height: 56px;
   border-bottom: 1px solid var(--ac-stroke-soft);
-  /* Checkerboard under the (inline) token background-color, so translucent
-     tokens (hover/active/tint/faint/strokes) reveal their alpha rather than
-     reading as opaque over the card. Ported from the prototype .ds-swatch__chip
-     (which set it but then clobbered it with a `background` shorthand — here the
-     swatch sets `background-color` longhand so the pattern shows through). */
-  background-image:
-    linear-gradient(
-      45deg,
-      rgba(0, 0, 0, 0.04) 25%,
-      transparent 25%,
-      transparent 75%,
-      rgba(0, 0, 0, 0.04) 75%
-    ),
-    linear-gradient(
-      45deg,
-      rgba(0, 0, 0, 0.04) 25%,
-      transparent 25%,
-      transparent 75%,
-      rgba(0, 0, 0, 0.04) 75%
-    );
-  background-size: 10px 10px;
-  background-position:
-    0 0,
-    5px 5px;
-}
-:global([data-theme="dark"]) .swatchChip,
-:global(:root:not([data-theme="light"])) .swatchChip {
-  background-image:
-    linear-gradient(
-      45deg,
-      rgba(255, 255, 255, 0.04) 25%,
-      transparent 25%,
-      transparent 75%,
-      rgba(255, 255, 255, 0.04) 75%
-    ),
-    linear-gradient(
-      45deg,
-      rgba(255, 255, 255, 0.04) 25%,
-      transparent 25%,
-      transparent 75%,
-      rgba(255, 255, 255, 0.04) 75%
-    );
+  /* Solid swatch (prototype look): the chip shows its token colour as a flat
+     fill via the inline background-color. Translucent tokens (hover/active/
+     tint/faint) read as a faint wash over the card, exactly as the prototype
+     renders them — no checkerboard. */
 }
 .swatchMeta {
   padding: var(--sp-2);
@@ -623,34 +585,39 @@
 
 /* ─── Doc-type glyphs ─── */
 .glyphGrid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sp-3);
 }
-.glyphRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-4);
+.glyphCard {
   background: var(--ac-bg-card);
   border: 1px solid var(--ac-stroke);
-  border-radius: var(--radius-4);
-  padding: var(--sp-2) var(--sp-3);
-}
-.glyphRowLabel {
+  border-radius: var(--radius-6);
+  padding: var(--sp-3);
   display: flex;
   flex-direction: column;
+  gap: var(--sp-3);
+}
+.glyphCardRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
   min-width: 0;
 }
-.glyphRowLabel code {
-  font-family: var(--ac-font-mono);
-  font-size: var(--size-row);
+.glyphCardMeta {
+  min-width: 0;
+}
+.glyphCardName {
+  font-size: var(--size-subtitle);
+  font-weight: 500;
   color: var(--ac-fg-strong);
 }
-.glyphRowCells {
+.glyphCardSizes {
   display: flex;
   align-items: flex-end;
-  gap: var(--sp-5);
+  gap: var(--sp-3);
+  padding-top: var(--sp-2);
+  border-top: 1px dashed var(--ac-stroke);
 }
 .glyphCell {
   display: flex;
@@ -666,7 +633,10 @@
 }
 .bigGlyphCell {
   background: var(--ac-bg-card);
-  border: 1px solid var(--ac-stroke);
+  /* Border carries the doc-type hue (translucent so it reads in both themes),
+     not a flat neutral/black stroke — the glyph's identity colour frames its
+     card. `--bg-hue` is set inline per cell. */
+  border: 1px solid hsl(var(--bg-hue) 45% 55% / 0.4);
   border-radius: var(--radius-8);
   overflow: hidden;
   display: flex;
@@ -757,25 +727,21 @@
   padding: var(--sp-3) var(--sp-4);
 }
 
-/* ─── Chips ─── */
-.chipGrid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
+/* ─── Chips ─── (two tone rows via the shared .row) */
+.chipCell {
+  display: inline-flex;
 }
-.chipRow {
+
+/* ─── Stage dots ─── */
+.stageRow {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
 }
-.chipRowLabel {
-  font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+.stageLabel {
+  font-size: var(--size-subtitle);
   color: var(--ac-fg-faint);
-  min-width: var(--sp-10);
-}
-.chipCell {
-  display: inline-flex;
 }
 
 /* ─── Tier pills ─── */
@@ -937,6 +903,9 @@
 
 /* ─── Sidebar nav ─── */
 .navDemo {
+  /* Constrained to a real sidebar width (prototype .ds-navdemo) so the row
+     counts sit beside the labels rather than across the full content column. */
+  max-width: 280px;
   background: var(--ac-bg-card);
   border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-6);

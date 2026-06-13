@@ -137,9 +137,6 @@ function Swatch({ token, label }: { token: string; label: string }) {
       <div
         ref={ref}
         className={styles.swatchChip}
-        // `backgroundColor` (longhand, not the `background` shorthand) so the
-        // chip's checkerboard background-image survives — a translucent token
-        // then reveals its alpha over the checker.
         style={{ backgroundColor: `var(${token})` }}
       />
       <div className={styles.swatchMeta}>
@@ -490,8 +487,10 @@ function RadiiSection() {
 // Icon size ramp (prototype's 12→32 set); the `hex` icon is the specimen.
 const ICON_SIZE_RAMP = [12, 14, 16, 18, 20, 24, 28, 32] as const;
 // Doc-type glyph sizes — the live 16/24/32 plus the net-new 48 (the glyph VR
-// spec's contract; Phase 10 repoints it here, adding the 48 cell).
-const GLYPH_SIZES = [16, 24, 32, 48] as const;
+// spec's contract; Phase 10 repoints it here, adding the 48 cell). 48 is the
+// card hero; 16/24/32 the ramp.
+const GLYPH_HERO = 48 as const;
+const GLYPH_RAMP = [16, 24, 32] as const;
 // Empty-state (BigGlyph) size ramp.
 const BIG_GLYPH_SIZES = [48, 64, 80, 96, 128] as const;
 // Atomic-mark sizes.
@@ -529,25 +528,37 @@ function IconsSection() {
 }
 
 function GlyphsSection() {
-  // `glyph-cell-<docType>-<size>` reproduces the GlyphShowcase locator contract
-  // (tests/visual-regression/glyph-showcase.spec.ts + glyph-resolved-fill.spec.ts,
-  // migrated here in Phase 10) at the live 16/24/32 sizes + the net-new 48.
+  // Framed glyph cards (prototype .ds-glyphcell): a hero + meta row, then a size
+  // ramp under a dashed divider. The hero is the 48 cell and the ramp the
+  // 16/24/32 cells — together the four `glyph-cell-<docType>-<size>` testids the
+  // migrated VR specs clip (glyph-showcase.spec.ts + glyph-resolved-fill.spec.ts).
+  // `framed` gives the prototype's hue-tinted square backing per doc type.
   return (
     <div className={styles.glyphGrid} data-testid="ds-glyphs">
       {DOC_TYPE_KEYS.map((docType) => (
-        <div key={docType} className={styles.glyphRow}>
-          <div className={styles.glyphRowLabel}>
-            <code>{docType}</code>
-            <span className={styles.caption}>{DOC_TYPE_LABELS[docType]}</span>
+        <div key={docType} className={styles.glyphCard}>
+          <div className={styles.glyphCardRow}>
+            <span
+              className={styles.glyphCell}
+              data-testid={`glyph-cell-${docType}-${GLYPH_HERO}`}
+            >
+              <Glyph docType={docType} size={GLYPH_HERO} framed />
+            </span>
+            <div className={styles.glyphCardMeta}>
+              <div className={styles.glyphCardName}>
+                {DOC_TYPE_LABELS[docType]}
+              </div>
+              <div className={styles.caption}>{docType}</div>
+            </div>
           </div>
-          <div className={styles.glyphRowCells}>
-            {GLYPH_SIZES.map((size) => (
+          <div className={styles.glyphCardSizes}>
+            {GLYPH_RAMP.map((size) => (
               <span
                 key={size}
                 className={styles.glyphCell}
                 data-testid={`glyph-cell-${docType}-${size}`}
               >
-                <Glyph docType={docType} size={size} />
+                <Glyph docType={docType} size={size} framed />
               </span>
             ))}
           </div>
@@ -644,44 +655,45 @@ const CHIP_VARIANTS: ReadonlyArray<ChipVariant> = [
   "red",
   "violet",
 ];
-const CHIP_SIZES: ReadonlyArray<ChipSize> = ["sm", "md"];
-// The 8 statuses the badges section showcases (the live `statusToVariant` colours
-// done/accepted green, in-progress/proposed indigo, the rest neutral).
+// The 8 statuses the badges section showcases. Values are passed display-cased
+// (the prototype shows "In progress", "Done", …); `statusToVariant` normalises
+// case/separators internally, so the live colour mapping is unaffected
+// (done/accepted green, in-progress/proposed indigo, the rest neutral).
 const STATUS_VALUES = [
-  "todo",
-  "in-progress",
-  "done",
-  "draft",
-  "accepted",
-  "proposed",
-  "open",
-  "merged",
+  "Todo",
+  "In progress",
+  "Done",
+  "Draft",
+  "Accepted",
+  "Proposed",
+  "Open",
+  "Merged",
 ] as const;
 
 function ChipsSection() {
-  // `chip-cell-<variant>-<size>` reproduces the ChipShowcase locator contract
-  // (tests/visual-regression/chip-showcase.spec.ts + chip-resolved-colours.spec.ts,
-  // migrated here in Phase 10). Each cell wraps a live <Chip>.
-  return (
-    <div className={styles.chipGrid} data-testid="ds-chips">
+  // Two tone rows (sm, then md), matching the prototype's `.ds-row` layout — the
+  // per-cell `chip-cell-<variant>-<size>` testids preserve the migrated VR
+  // contract (chip-showcase.spec.ts + chip-resolved-colours.spec.ts).
+  const row = (size: ChipSize) => (
+    <div className={styles.row}>
       {CHIP_VARIANTS.map((variant) => (
-        <div key={variant} className={styles.chipRow}>
-          <span className={styles.chipRowLabel}>
-            <code>{variant}</code>
-          </span>
-          {CHIP_SIZES.map((size) => (
-            <span
-              key={size}
-              className={styles.chipCell}
-              data-testid={`chip-cell-${variant}-${size}`}
-            >
-              <Chip variant={variant} size={size}>
-                {variant}
-              </Chip>
-            </span>
-          ))}
-        </div>
+        <span
+          key={variant}
+          className={styles.chipCell}
+          data-testid={`chip-cell-${variant}-${size}`}
+        >
+          <Chip variant={variant} size={size}>
+            {variant}
+          </Chip>
+        </span>
       ))}
+    </div>
+  );
+  return (
+    <div data-testid="ds-chips">
+      {row("sm")}
+      <h3 className={styles.h3}>md size</h3>
+      {row("md")}
     </div>
   );
 }
@@ -689,7 +701,8 @@ function ChipsSection() {
 function BadgesSection() {
   // The three-component status/verdict/result split: approve/request-changes go
   // through VerdictBadge, approve-with-changes through StatusBadge (amber), pass
-  // through ResultBadge. Each renders a <Chip> carrying its own data-testid.
+  // through ResultBadge. Values are display-cased to match the prototype; each
+  // mapper normalises internally so colour routing is preserved.
   return (
     <>
       <div className={styles.row} data-testid="ds-badges-status">
@@ -699,10 +712,10 @@ function BadgesSection() {
       </div>
       <h3 className={styles.h3}>Verdicts &amp; results</h3>
       <div className={styles.row} data-testid="ds-badges-verdict">
-        <VerdictBadge value="approve" />
-        <StatusBadge value="approve-with-changes" />
-        <VerdictBadge value="request-changes" />
-        <ResultBadge value="pass" />
+        <VerdictBadge value="Approve" />
+        <StatusBadge value="Approve w/ changes" />
+        <VerdictBadge value="Request changes" />
+        <ResultBadge value="Pass" />
       </div>
     </>
   );
@@ -730,26 +743,17 @@ function completenessFromPresent(present: string[]): Completeness {
 
 function StageDotsSection() {
   const allPresent = WORKFLOW_PIPELINE_STEPS.map((s) => s.docType);
+  const dotRow = (present: string[], label: string) => (
+    <div className={styles.stageRow}>
+      <PipelineMini completeness={completenessFromPresent(present)} />
+      <span className={styles.stageLabel}>{label}</span>
+    </div>
+  );
   return (
     <div data-testid="ds-stagedots">
-      <div className={styles.row}>
-        <PipelineMini completeness={completenessFromPresent(allPresent)} />
-        <span className={styles.caption}>all present</span>
-      </div>
-      <div className={styles.row}>
-        <PipelineMini
-          completeness={completenessFromPresent([
-            "work-items",
-            "research",
-            "plans",
-          ])}
-        />
-        <span className={styles.caption}>partial</span>
-      </div>
-      <div className={styles.row}>
-        <PipelineMini completeness={completenessFromPresent([])} />
-        <span className={styles.caption}>none</span>
-      </div>
+      {dotRow(allPresent, "all present")}
+      {dotRow(["work-items", "research", "plans"], "partial")}
+      {dotRow([], "none")}
     </div>
   );
 }
@@ -789,46 +793,59 @@ function TierPillsSection() {
 }
 
 function ButtonsSection() {
+  // Three labelled subsections (prototype layout): topbar buttons, the filter
+  // badge, and links. Seven `data-btn` controls total.
   return (
-    <div className={styles.row} data-testid="ds-buttons">
-      <button type="button" className={styles.btn} data-btn>
-        <Icon name="moon" size={14} />
-      </button>
-      <button
-        type="button"
-        className={`${styles.btn} ${styles.btnBordered}`}
-        data-btn
-      >
-        <Icon name="filter" size={14} /> Filter
-      </button>
-      <button
-        type="button"
-        className={`${styles.btn} ${styles.btnBordered}`}
-        data-btn
-      >
-        <Icon name="sort" size={14} /> Sort
-      </button>
-      <button
-        type="button"
-        className={`${styles.btn} ${styles.btnBordered} ${styles.btnActive}`}
-        data-btn
-      >
-        <Icon name="sort" size={14} /> updated ↓
-      </button>
-      <button
-        type="button"
-        className={`${styles.btn} ${styles.btnBordered}`}
-        data-btn
-      >
-        <Icon name="filter" size={14} /> Filter{" "}
-        <span className={styles.filterBadge}>3</span>
-      </button>
-      <a href="#buttons" className={styles.inlineLink} data-btn>
-        standard inline link
-      </a>
-      <button type="button" className={styles.link} data-btn>
-        ds-link button
-      </button>
+    <div data-testid="ds-buttons">
+      <h3 className={styles.h3}>Topbar buttons</h3>
+      <div className={styles.row}>
+        <button type="button" className={styles.btn} data-btn>
+          <Icon name="moon" size={14} />
+        </button>
+        <button
+          type="button"
+          className={`${styles.btn} ${styles.btnBordered}`}
+          data-btn
+        >
+          <Icon name="filter" size={14} /> Filter
+        </button>
+        <button
+          type="button"
+          className={`${styles.btn} ${styles.btnBordered}`}
+          data-btn
+        >
+          <Icon name="sort" size={14} /> Sort
+        </button>
+        <button
+          type="button"
+          className={`${styles.btn} ${styles.btnBordered} ${styles.btnActive}`}
+          data-btn
+        >
+          <Icon name="sort" size={14} /> updated ↓
+        </button>
+      </div>
+
+      <h3 className={styles.h3}>Filter badge</h3>
+      <div className={styles.row}>
+        <button
+          type="button"
+          className={`${styles.btn} ${styles.btnBordered}`}
+          data-btn
+        >
+          <Icon name="filter" size={14} /> Filter{" "}
+          <span className={styles.filterBadge}>3</span>
+        </button>
+      </div>
+
+      <h3 className={styles.h3}>Link</h3>
+      <div className={styles.row}>
+        <a href="#buttons" className={styles.inlineLink} data-btn>
+          standard inline link
+        </a>
+        <button type="button" className={styles.link} data-btn>
+          ds-link button
+        </button>
+      </div>
     </div>
   );
 }

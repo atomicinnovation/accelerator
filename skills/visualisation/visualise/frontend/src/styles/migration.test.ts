@@ -68,10 +68,10 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "1px",
-    count: 43,
+    count: 44,
     kind: "irreducible",
     reason:
-      "hairline borders — chrome (marquee/TOC/section/footer 7) + TOC list hairline gap (1px) + token/type/glyph/mark cards (16, deviations aside removed) + interactive primitives (tier pill, topbar button, search input, search kbd, nav demo = 5) + composites & chrome (13) + the big-glyph cell hover translateY(-1px) lift — below --sp-1 floor, no border-width token",
+      "hairline borders — chrome (marquee/TOC/section/footer 7) + TOC list hairline gap (1px) + token/type cards + glyph card + glyph-card dashed size divider + mark cards (17, deviations aside removed) + interactive primitives (tier pill, topbar button, search input, search kbd, nav demo = 5) + composites & chrome (13) + the big-glyph cell hover translateY(-1px) lift — below --sp-1 floor, no border-width token",
   },
   // Prototype-fidelity convergence: off-scale dev-page measurements ported
   // verbatim from the prototype `ds-*` chrome (no --sp-* / token equivalent).
@@ -99,19 +99,11 @@ const EXCEPTIONS: ReadonlyArray<
   },
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
-    literal: "10px",
-    count: 2,
-    kind: "irreducible",
-    reason:
-      "swatch alpha-checkerboard tile size (background-size: 10px 10px) — prototype .ds-swatch__chip",
-  },
-  {
-    file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "5px",
-    count: 3,
+    count: 1,
     kind: "irreducible",
     reason:
-      "swatch alpha-checkerboard offset (background-position 5px 5px, ×2) + TOC jumplink vertical padding (prototype .ds-toc__item) — off-scale, no token",
+      "TOC jumplink vertical padding (prototype .ds-toc__item) — off-scale, no token",
   },
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
@@ -162,9 +154,18 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "220px",
+    count: 2,
+    kind: "irreducible",
+    reason:
+      "sticky TOC column fixed width + doc-type-glyph card grid min track width (minmax floor) — no layout-width token",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "280px",
     count: 1,
     kind: "irreducible",
-    reason: "sticky TOC column fixed width — no layout-width token",
+    reason:
+      "sidebar-nav demo max-width (prototype .ds-navdemo, real sidebar width) — no layout-width token",
   },
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
