@@ -615,15 +615,19 @@ frontend half of AC #6.
 
 #### Automated Verification:
 
-- [ ] Server compiles with the new variant (all match arms filled):
-      `cd skills/visualisation/visualise/server && cargo build`
-- [ ] Server tests pass, including the updated phase-id list, RCA count/latest,
+- [x] Server compiles with the new variant (all match arms filled):
+      `cd skills/visualisation/visualise/server && cargo build` (also forced
+      arms in `slug.rs`, `cluster_key.rs`, `clusters.rs` beyond those the plan
+      enumerated)
+- [x] Server tests pass, including the updated phase-id list, RCA count/latest,
       the RCA `/api/types` property assertions, `api_related`/`api_search` RCA
       cases, and the bumped counts in `api_smoke.rs` and the `docs.rs` test
-      module: `mise run test:unit:server` (or `cargo test` in the server dir)
-- [ ] `config_contract.rs` passes **unchanged** (the `research_issues` key is
+      module: `cargo test` (534 pass)
+- [x] `config_contract.rs` passes **unchanged** (the `research_issues` key is
       already in the 13-key contract).
-- [ ] Full read-only gate passes: `mise run check`
+- [x] Full read-only gate passes: `mise run check` (each component green
+      standalone; aggregate run hits the known pyrefly-vs-`deps:install:node`
+      node_modules race, not a real finding)
 
 #### Manual Verification:
 

@@ -32,9 +32,40 @@ async fn library_structure_returns_phases_in_canonical_order_and_top_level_templ
     let phases = v["phases"].as_array().unwrap();
     let ids: Vec<&str> =
         phases.iter().map(|p| p["id"].as_str().unwrap()).collect();
-    assert_eq!(ids, vec!["define", "discover", "build", "ship", "remember"]);
+    assert_eq!(
+        ids,
+        vec!["define", "discover", "build", "ship", "operate", "remember"]
+    );
     assert!(v["templates"].is_object());
     assert_eq!(v["templates"]["id"], "templates");
+}
+
+#[tokio::test]
+async fn library_structure_operate_phase_contains_root_cause_analyses() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = common::seeded_cfg(tmp.path());
+    let activity = Arc::new(Activity::new());
+    let state = AppState::build(cfg, activity).await.unwrap();
+    let app = build_router(state);
+    let v = request("/api/library/structure", app).await;
+
+    let operate = v["phases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["id"] == "operate")
+        .expect("Operate phase must be emitted");
+    assert_eq!(operate["label"], "Operate");
+    let rca = operate["docTypes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["id"] == "root-cause-analyses")
+        .expect("Operate phase must contain the RCA doc type");
+    // The seeded cfg has exactly one RCA, so count + latest are deterministic.
+    assert_eq!(rca["count"], 1);
+    assert_eq!(rca["filteredCount"], 1);
+    assert_eq!(rca["latest"]["title"], "Example RCA");
 }
 
 #[tokio::test]

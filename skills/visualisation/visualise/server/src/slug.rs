@@ -43,7 +43,8 @@ pub fn derive(
         | DocTypeKey::Notes
         | DocTypeKey::PrDescriptions
         | DocTypeKey::DesignGaps
-        | DocTypeKey::DesignInventories => {
+        | DocTypeKey::DesignInventories
+        | DocTypeKey::RootCauseAnalyses => {
             strip_prefix_date_and_optional_id(stem, cfg)
         }
         DocTypeKey::PlanReviews | DocTypeKey::PrReviews => {

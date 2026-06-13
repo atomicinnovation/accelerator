@@ -18,8 +18,9 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
     let decisions = meta.join("decisions");
     let plans = meta.join("plans");
     let reviews = meta.join("reviews/plans");
+    let issues = meta.join("research/issues");
     let tmp_dir = meta.join("tmp/visualiser");
-    for d in [&decisions, &plans, &reviews, &tmp_dir] {
+    for d in [&decisions, &plans, &reviews, &issues, &tmp_dir] {
         std::fs::create_dir_all(d).unwrap();
     }
     std::fs::write(
@@ -35,6 +36,14 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
     std::fs::write(
         reviews.join("2026-04-18-foo-review-1.md"),
         "---\ntarget: \"meta/plans/2026-04-18-foo.md\"\n---\n",
+    )
+    .unwrap();
+    // One isolated RCA so the Operate phase / `root-cause-analyses` count is a
+    // deterministic 1 with an unambiguous `latest`. The title/slug avoid every
+    // search-suite query token so adding it cannot perturb api_search totals.
+    std::fs::write(
+        issues.join("2026-06-10-example-rca.md"),
+        "---\ntitle: \"Example RCA\"\ntype: issue-research\nstatus: resolved\n---\n# body\n",
     )
     .unwrap();
 

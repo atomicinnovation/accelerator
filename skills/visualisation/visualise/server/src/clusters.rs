@@ -365,7 +365,9 @@ fn canonical_rank(kind: DocTypeKey) -> u8 {
         DocTypeKey::Notes => 8,
         DocTypeKey::DesignInventories => 9,
         DocTypeKey::DesignGaps => 10,
-        DocTypeKey::Templates => u8::MAX,
+        // Non-lifecycle peers: never clustered (cluster_key returns None), so
+        // these only reach here defensively — rank them last.
+        DocTypeKey::RootCauseAnalyses | DocTypeKey::Templates => u8::MAX,
     }
 }
 
@@ -404,7 +406,9 @@ fn derive_completeness(entries: &[IndexEntry]) -> Completeness {
             DocTypeKey::Research => c.has_research = true,
             DocTypeKey::Plans => c.has_plan = true,
             DocTypeKey::PlanReviews => c.has_plan_review = true,
-            DocTypeKey::WorkItemReviews | DocTypeKey::Templates => {}
+            DocTypeKey::WorkItemReviews
+            | DocTypeKey::RootCauseAnalyses
+            | DocTypeKey::Templates => {}
             DocTypeKey::Validations => c.has_validation = true,
             DocTypeKey::PrDescriptions => c.has_pr_description = true,
             DocTypeKey::PrReviews => c.has_pr_review = true,

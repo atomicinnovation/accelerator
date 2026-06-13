@@ -115,6 +115,7 @@ fn walk(
         | DocTypeKey::Notes
         | DocTypeKey::DesignGaps
         | DocTypeKey::DesignInventories
+        | DocTypeKey::RootCauseAnalyses
         | DocTypeKey::Templates => None,
     }
 }

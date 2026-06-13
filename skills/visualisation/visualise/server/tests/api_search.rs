@@ -389,6 +389,32 @@ async fn non_matching_entries_are_excluded() {
 }
 
 #[tokio::test]
+async fn returns_rca_for_a_title_query() {
+    // An RCA under research/issues is auto-included in search (non-virtual,
+    // config_path_key mapped, non-null slug), labelled/routed as an RCA — the
+    // server half of AC #6 (work item 0110).
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = common::seeded_cfg(tmp.path());
+    let issues = tmp.path().join("meta/research/issues");
+    std::fs::create_dir_all(&issues).unwrap();
+    std::fs::write(
+        issues.join("2026-06-10-kryptonite-rca.md"),
+        "---\ntitle: \"Kryptonite RCA\"\ntype: issue-research\nstatus: resolved\n---\n# body\n",
+    )
+    .unwrap();
+    let activity = Arc::new(Activity::new());
+    let state = AppState::build(cfg, activity).await.unwrap();
+    let v = fetch_search("/api/search?q=kryptonite", state).await;
+    let results = v["results"].as_array().unwrap();
+    let rca = results
+        .iter()
+        .find(|r| r["docType"].as_str() == Some("root-cause-analyses"))
+        .expect("RCA must appear in search results");
+    assert_eq!(rca["slug"].as_str(), Some("kryptonite-rca"));
+    assert!(!rca["slug"].as_str().unwrap().is_empty());
+}
+
+#[tokio::test]
 async fn mixed_case_query_and_field_classify_correctly() {
     let tmp = tempfile::tempdir().unwrap();
     let cfg = common::seeded_cfg(tmp.path());

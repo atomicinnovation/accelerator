@@ -16,11 +16,12 @@ pub enum DocTypeKey {
     PrDescriptions,
     DesignGaps,
     DesignInventories,
+    RootCauseAnalyses,
     Templates,
 }
 
 impl DocTypeKey {
-    pub fn all() -> [DocTypeKey; 13] {
+    pub fn all() -> [DocTypeKey; 14] {
         [
             DocTypeKey::Decisions,
             DocTypeKey::WorkItems,
@@ -34,6 +35,7 @@ impl DocTypeKey {
             DocTypeKey::PrDescriptions,
             DocTypeKey::DesignGaps,
             DocTypeKey::DesignInventories,
+            DocTypeKey::RootCauseAnalyses,
             DocTypeKey::Templates,
         ]
     }
@@ -57,6 +59,7 @@ impl DocTypeKey {
             DocTypeKey::DesignInventories => {
                 Some("research_design_inventories")
             }
+            DocTypeKey::RootCauseAnalyses => Some("research_issues"),
             DocTypeKey::Templates => None,
         }
     }
@@ -75,12 +78,19 @@ impl DocTypeKey {
             DocTypeKey::PrDescriptions => "PR descriptions",
             DocTypeKey::DesignGaps => "Design gaps",
             DocTypeKey::DesignInventories => "Design inventories",
+            DocTypeKey::RootCauseAnalyses => "Root cause analyses",
             DocTypeKey::Templates => "Templates",
         }
     }
 
     pub fn in_lifecycle(self) -> bool {
-        !matches!(self, DocTypeKey::Templates)
+        // Operate (root cause analyses) is a peer category OUTSIDE the linear
+        // DEFINE→REMEMBER flow, so it must report `inLifecycle: false` rather
+        // than falling through the default-`true` arm — otherwise the
+        // serialised flag would be a lie. Safe: linear-pipeline placement is
+        // governed by `participates_in_lifecycle`, and the sidebar discards
+        // this flag, so flipping it changes no surface — only the wire flag.
+        !matches!(self, DocTypeKey::Templates | DocTypeKey::RootCauseAnalyses)
     }
 
     /// True iff this doc type carries a `target:` frontmatter key per
@@ -154,6 +164,7 @@ impl DocTypeKey {
             DocTypeKey::PrDescriptions => "pr-descriptions",
             DocTypeKey::DesignGaps => "design-gaps",
             DocTypeKey::DesignInventories => "design-inventories",
+            DocTypeKey::RootCauseAnalyses => "root-cause-analyses",
             DocTypeKey::Templates => "templates",
         }
     }
@@ -229,6 +240,7 @@ mod tests {
             (DocTypeKey::PrDescriptions, "pr-descriptions"),
             (DocTypeKey::DesignGaps, "design-gaps"),
             (DocTypeKey::DesignInventories, "design-inventories"),
+            (DocTypeKey::RootCauseAnalyses, "root-cause-analyses"),
             (DocTypeKey::Templates, "templates"),
         ];
         for (variant, wire) in pairs {
@@ -246,8 +258,8 @@ mod tests {
         v.dedup();
         assert_eq!(
             v.len(),
-            13,
-            "DocTypeKey::all must return 13 distinct variants"
+            14,
+            "DocTypeKey::all must return 14 distinct variants"
         );
     }
 
@@ -293,8 +305,23 @@ mod tests {
     }
 
     #[test]
-    fn doc_type_key_all_returns_thirteen_variants() {
-        assert_eq!(DocTypeKey::all().len(), 13);
+    fn doc_type_key_all_length_matches_array_type() {
+        assert_eq!(DocTypeKey::all().len(), 14);
+    }
+
+    #[test]
+    fn root_cause_analyses_is_an_out_of_lifecycle_peer_type() {
+        // Operate is a peer category outside the linear DEFINE→REMEMBER flow:
+        // browsable (non-virtual, indexed via research_issues) but explicitly
+        // excluded from both lifecycle predicates so the serialised
+        // `inLifecycle` flag matches the design intent.
+        let rca = DocTypeKey::RootCauseAnalyses;
+        assert_eq!(rca.config_path_key(), Some("research_issues"));
+        assert!(!rca.in_lifecycle());
+        assert!(!rca.participates_in_lifecycle());
+        assert!(!rca.is_virtual());
+        assert!(!rca.in_kanban());
+        assert!(!rca.carries_target_frontmatter());
     }
 
     #[test]
@@ -373,7 +400,7 @@ mod tests {
         };
 
         let types = describe_types(&cfg);
-        assert_eq!(types.len(), 13);
+        assert_eq!(types.len(), 14);
         let decisions = types
             .iter()
             .find(|t| t.key == DocTypeKey::Decisions)

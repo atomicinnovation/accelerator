@@ -26,6 +26,7 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         ("validations", "validations"),
         ("notes", "notes"),
         ("prs", "prs"),
+        ("research_issues", "research/issues"),
     ] {
         doc_paths.insert(key.into(), json!(fixtures.join(rel)));
     }
@@ -90,7 +91,7 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         .build()
         .unwrap();
 
-    // /api/types -> 13 entries.
+    // /api/types -> one entry per DocTypeKey.
     let t: serde_json::Value = client
         .get(format!("{base}/api/types"))
         .send()
@@ -99,7 +100,7 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         .json()
         .await
         .unwrap();
-    assert_eq!(t["types"].as_array().unwrap().len(), 13);
+    assert_eq!(t["types"].as_array().unwrap().len(), 14);
 
     // /api/docs?type=decisions -> 3 entries.
     let d: serde_json::Value = client

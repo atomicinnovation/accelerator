@@ -10,7 +10,7 @@ use tower::ServiceExt;
 mod common;
 
 #[tokio::test]
-async fn types_returns_thirteen_entries_with_virtual_flag_on_templates() {
+async fn types_returns_every_doc_type_with_virtual_flag_on_templates() {
     let tmp = tempfile::tempdir().unwrap();
     let cfg = common::seeded_cfg(tmp.path());
     let activity = Arc::new(Activity::new());
@@ -29,7 +29,7 @@ async fn types_returns_thirteen_entries_with_virtual_flag_on_templates() {
     let bytes = res.into_body().collect().await.unwrap().to_bytes();
     let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let arr = v["types"].as_array().unwrap();
-    assert_eq!(arr.len(), 13);
+    assert_eq!(arr.len(), 14);
     let templates = arr.iter().find(|t| t["key"] == "templates").unwrap();
     assert_eq!(templates["virtual"], true);
     assert!(templates["dirPath"].is_null());
@@ -47,6 +47,17 @@ async fn types_returns_thirteen_entries_with_virtual_flag_on_templates() {
     assert_eq!(design_inventories["virtual"], false);
     assert_eq!(design_inventories["inLifecycle"], true);
     assert!(design_inventories["dirPath"].is_string());
+
+    // RCA: browsable (non-virtual), out of the linear lifecycle, mapped to a
+    // real dir, and counted from the single seeded fixture.
+    let rca = arr
+        .iter()
+        .find(|t| t["key"] == "root-cause-analyses")
+        .unwrap();
+    assert_eq!(rca["virtual"], false);
+    assert_eq!(rca["inLifecycle"], false);
+    assert!(rca["dirPath"].is_string());
+    assert_eq!(rca["count"].as_u64().unwrap(), 1);
 
     assert_eq!(decisions["count"].as_u64().unwrap(), 1);
     let plans = arr.iter().find(|t| t["key"] == "plans").unwrap();

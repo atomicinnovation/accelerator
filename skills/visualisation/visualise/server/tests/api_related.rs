@@ -662,6 +662,53 @@ async fn linked_count_reflects_inbound_merge_dedup() {
     );
 }
 
+// ── RCA inbound linkage (work item 0110, AC #5) ─────────────────────────────
+#[tokio::test]
+async fn related_endpoint_surfaces_rca_linked_to_a_work_item() {
+    // An RCA whose frontmatter links to a work item (via `parent:`) appears in
+    // that work item's declaredInbound through work_item_refs_by_id, with
+    // docType `root-cause-analyses` — the server half of AC #5. `parent:` uses
+    // the bare-numeric form because `canonicalise_one_id` only resolves
+    // bare-numeric / project-prefixed refs (not the `work-item:` typed prefix)
+    // for the aggregating `parent:`/`related:` keys.
+    let tmp = tempfile::tempdir().unwrap();
+    let work = tmp.path().join("meta/work");
+    let issues = tmp.path().join("meta/research/issues");
+    std::fs::create_dir_all(&work).unwrap();
+    std::fs::create_dir_all(&issues).unwrap();
+    std::fs::write(work.join("0001-target.md"), "---\ntitle: T\n---\n")
+        .unwrap();
+    std::fs::write(
+        issues.join("2026-06-10-example-rca.md"),
+        "---\ntitle: \"Example RCA\"\ntype: issue-research\nstatus: resolved\nparent: \"0001\"\n---\n# body\n",
+    )
+    .unwrap();
+    let mut paths = HashMap::new();
+    paths.insert("work".into(), work);
+    paths.insert("research_issues".into(), issues);
+    let cfg = cfg_with_only(tmp.path(), paths);
+    let (_state, app) = build_app(cfg).await;
+
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/related/meta/work/0001-target.md")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = json_body(res).await;
+    let inbound = body["declaredInbound"].as_array().unwrap();
+    assert_eq!(inbound.len(), 1, "the linking RCA must appear inbound");
+    assert_eq!(inbound[0]["type"], "root-cause-analyses");
+    assert_eq!(
+        inbound[0]["relPath"],
+        "meta/research/issues/2026-06-10-example-rca.md"
+    );
+}
+
 // ── Step 2.14 ──────────────────────────────────────────────────────────────
 #[tokio::test]
 async fn related_endpoint_validates_decoded_path_segments() {
