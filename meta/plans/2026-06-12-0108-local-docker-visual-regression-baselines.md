@@ -617,11 +617,11 @@ is the power-user escape hatch `invoke test.e2e.visualiser-docker --cache-deps`
 
 #### Automated Verification
 
-- [ ] New unit tests pass: `mise run test:unit:tasks`
-- [ ] Python format/lint/types pass: `mise run build-system:check`
-- [ ] Frontend typecheck/format/lint still pass: `mise run frontend:check`
-- [ ] Native e2e unchanged and green: `mise run test:e2e:visualiser`
-- [ ] Mise resolves the new tasks: `mise tasks | grep visualiser:docker`
+- [x] New unit tests pass: `mise run test:unit:tasks`
+- [x] Python format/lint/types pass: `mise run build-system:check`
+- [x] Frontend typecheck/format/lint still pass: `mise run frontend:check`
+- [x] Native e2e unchanged and green: `mise run test:e2e:visualiser`
+- [x] Mise resolves the new tasks: `mise tasks | grep visualiser:docker`
 
 #### Manual Verification
 

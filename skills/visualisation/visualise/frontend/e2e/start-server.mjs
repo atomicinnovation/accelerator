@@ -97,7 +97,11 @@ writeFileSync(
       plugin_version: "0.0.0-e2e",
       project_root: serverDir,
       tmp_path: tmpDir,
-      host: "127.0.0.1",
+      // Loopback by default; the Docker task overrides to 0.0.0.0 so the
+      // container can reach the host over the bridge gateway. The 0.0.0.0
+      // binding is transient (one compare/rebaseline run) and serves only
+      // non-sensitive committed fixtures.
+      host: process.env.E2E_SERVER_HOST ?? "127.0.0.1",
       owner_pid: 0,
       owner_start_time: null,
       log_path: join(tmpDir, "server.log"),
