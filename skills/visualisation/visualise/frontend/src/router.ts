@@ -58,6 +58,7 @@ import { LibraryOverviewHub } from "./routes/library/LibraryOverviewHub";
 import { LibraryTemplatesIndex } from "./routes/library/LibraryTemplatesIndex";
 import { LibraryTemplatesView } from "./routes/library/LibraryTemplatesView";
 import { LibraryTypeView } from "./routes/library/LibraryTypeView";
+import { CatchAllNotFound } from "./routes/library/recovery/CatchAllNotFound";
 import { LifecycleClusterView } from "./routes/lifecycle/LifecycleClusterView";
 import { LifecycleIndex } from "./routes/lifecycle/LifecycleIndex";
 import { LifecycleLayout } from "./routes/lifecycle/LifecycleLayout";
@@ -215,7 +216,15 @@ export const routeTree = rootRoute.addChildren([
   kanbanCardShowcaseRoute,
 ]);
 
-export const router = createRouter({ routeTree });
+// Shared so the `buildRouter` test fixture (router-fixtures.ts) constructs a
+// router carrying the same catch-all the app does — a `defaultNotFoundComponent`
+// set only on this instance would never be exercised by the fixture.
+export const routerOptions = {
+  routeTree,
+  defaultNotFoundComponent: CatchAllNotFound,
+};
+
+export const router = createRouter(routerOptions);
 
 declare module "@tanstack/react-router" {
   interface Register {

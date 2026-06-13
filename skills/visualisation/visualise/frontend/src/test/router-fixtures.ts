@@ -3,7 +3,7 @@ import { createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { waitFor } from "@testing-library/react";
 import { beforeEach, expect, vi } from "vitest";
 import * as fetchModule from "../api/fetch";
-import { routeTree } from "../router";
+import { routerOptions } from "../router";
 
 export function setupRouterFixtures() {
   beforeEach(() => {
@@ -33,7 +33,7 @@ export function setupRouterFixtures() {
 export function buildRouter(url: string) {
   return {
     router: createRouter({
-      routeTree,
+      ...routerOptions,
       history: createMemoryHistory({ initialEntries: [url] }),
     }),
     queryClient: new QueryClient(),

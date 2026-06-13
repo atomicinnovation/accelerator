@@ -84,6 +84,27 @@ describe("router", () => {
     await waitForPath(router, "/library");
   });
 
+  it("renders the catch-all not-found surface for a truly-unmatched URL", async () => {
+    renderAt("/garbage");
+    // Catch-all H1, co-asserted with RootLayout's <main> so the test fails
+    // concretely if the surface escapes the root shell rather than passing
+    // against a partial tree.
+    const h1 = await screen.findByRole("heading", {
+      level: 1,
+      name: /Page not found/i,
+    });
+    expect(h1).toBeInTheDocument();
+    expect(screen.getByRole("main")).toBeInTheDocument();
+    // Back-to-library present; no back-to-type; no eyebrow.
+    expect(
+      screen
+        .getByRole("link", { name: /Back to library/i })
+        .getAttribute("href"),
+    ).toBe("/library");
+    expect(screen.queryByRole("link", { name: /Back to .* list/i })).toBeNull();
+    expect(document.querySelector('[data-slot="eyebrow"]')).toBeNull();
+  });
+
   it("routes /lifecycle to the index view", async () => {
     vi.spyOn(fetchModule, "fetchLifecycleClusters").mockResolvedValue([]);
     const router = renderAt("/lifecycle");

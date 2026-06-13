@@ -870,10 +870,10 @@ least pass `defaultNotFoundComponent: CatchAllNotFound`) alongside its injected
 
 #### Automated Verification
 
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] Type checking passes: `mise run types:frontend:check`
-- [ ] Format/lint clean: `mise run frontend:check`
-- [ ] Router test asserts `/garbage` renders the `Page not found` H1
+- [x] Unit tests pass: `mise run test:unit:frontend`
+- [x] Type checking passes: `mise run types:frontend:check`
+- [x] Format/lint clean: `mise run frontend:check`
+- [x] Router test asserts `/garbage` renders the `Page not found` H1
 
 #### Manual Verification
 
