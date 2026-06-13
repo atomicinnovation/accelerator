@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { type RefObject, useRef, useState } from "react";
 import type { DocType, LibraryDocType, LibraryPhase } from "../../api/types";
+import { useServerInfo } from "../../api/use-server-info";
 import { useUnseenDocTypesContext } from "../../api/use-unseen-doc-types";
 import { ActivityFeed } from "../ActivityFeed/ActivityFeed";
 import { useDevActivationContext } from "../DevDesignSystem/use-dev-activation";
@@ -180,9 +181,13 @@ export function Sidebar({
 /** Sidebar-foot version label that doubles as the (least-discoverable) third
  *  DevDesignSystem trigger: three clicks within a rolling 600 ms window open
  *  `/dev`. Counter ported from the prototype `app-shell.jsx:7-20`. A subtle
- *  hover affordance + `title` is the only hint — an accepted dev-only tradeoff. */
+ *  hover affordance + `title` is the only hint — an accepted dev-only tradeoff.
+ *  Shows the running server's version (from `/api/info`); a full-width dashed
+ *  rule (the `.foot` border-top) separates it from the nav above. */
 function SidebarFoot() {
   const dev = useDevActivationContext();
+  const { data } = useServerInfo();
+  const version = data?.version;
   const clickCountRef = useRef(0);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -208,7 +213,7 @@ function SidebarFoot() {
       onClick={onFootClick}
       title="triple-click for the design-system reference"
     >
-      accelerator-visualiser
+      {version ? `v${version}` : "—"}
     </button>
   );
 }

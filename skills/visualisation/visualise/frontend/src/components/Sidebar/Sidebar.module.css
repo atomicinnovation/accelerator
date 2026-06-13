@@ -33,14 +33,17 @@
 
 /* Sidebar foot — a minimal version label pinned to the bottom that doubles as
    the (least-discoverable) triple-click DevDesignSystem trigger. Reset button
-   chrome; faint mono text with a subtle hover affordance. */
+   chrome; faint mono text with a subtle hover affordance. A full-menu-width
+   dashed rule (the border-top, bled past the sidebar's horizontal padding)
+   separates it from the nav. */
 .foot {
-  margin-top: auto;
+  margin: auto calc(-1 * var(--sp-3)) 0;
   flex-shrink: 0;
   appearance: none;
   background: transparent;
   border: 0;
-  padding: var(--sp-2) var(--sp-1) 0;
+  border-top: 1px dashed var(--ac-stroke);
+  padding: var(--sp-3) var(--sp-3) 0;
   text-align: left;
   font-family: var(--ac-font-mono);
   font-size: var(--size-3xs);

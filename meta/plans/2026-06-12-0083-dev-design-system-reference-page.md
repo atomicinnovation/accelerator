@@ -103,6 +103,38 @@ schema_version: 1
 > clipped. Verified by re-measuring (badges gap 12px, TOC item 29px, code gap 16px)
 > + screenshots. Linux VR via the user's CI workflow.
 
+> **Prototype-fidelity convergence — round 5 (2026-06-14).** Six targeted items.
+> **(1)** Removed the redundant `accelerator-visualiser | design-system reference`
+> TOC foot from the dev page. **(2)** The app `Sidebar` foot no longer prints
+> `accelerator-visualiser`; it now shows the running server **version**
+> (`v{version}` from `useServerInfo()`/`/api/info`, `—` while loading) and keeps the
+> triple-click `/dev` trigger. **(3)** Empty & banners converged on the prototype:
+> `.empty` is now dashed, centred, generously padded (`--sp-7 --sp-5` = 40/24) with a
+> centred 46ch body; `.banner` gained the warm status tint
+> (`color-mix(in srgb, var(--ac-warn) 8%, var(--ac-bg))`, the locked-in status-tint
+> convention) + a 3px `--ac-warn` left rule; the section heading is the prototype's
+> "Empty states & banners" (new optional `title` on `SECTION_CONTENT`, falling back to
+> the TOC label). Live inline empty/banner usages (NoResultsPanel, KanbanColumn,
+> LibraryDocView malformed banner, FrontmatterChips banner) were left as deliberate
+> contextual variants — converging them would alter unseen app screens + churn their
+> VR baselines; flagged for a separate decision. **(4)** Checkbox rebuilt as the
+> prototype's custom `appearance:none` box (`--ac-stroke-strong` border, `--ac-bg-card`
+> fill, `::after` tick) so the unchecked state renders identically in light/dark —
+> native `accent-color` was the inconsistency. **(5)** Big-glyph hover border was
+> still black: `--bg-hue` was set on the inner `.bigGlyphHero`, but the `.bigGlyphCell`
+> border reads `hsl(var(--bg-hue) …)` and custom props inherit *down* only, so the
+> cell's hue was unset → invalid `hsl` → `currentColor` (black). Moved `--bg-hue` onto
+> the cell; resting + hover borders now resolve the doc-type hue. **(6)** Added a
+> full-menu-width dashed top rule to the Sidebar `.foot` (negative `--sp-3` margins
+> bleed it past the nav padding). Exceptions: DevDS `3px` 1→2 (banner rule), `#ffffff`
+> 2→4 (tick strokes), `1px` 44→45 (net: TOC-foot removal −, checkbox border + tick
+> nudge +), new `13px`×2 / `7px` / `4px` / `1.5px`×2 (checkbox geometry); Sidebar `1px`
+> 10→11 (foot rule). `AC5_FLOOR` 1532→1533. Big-glyph darwin VR regenerated (border
+> hue); chip + kanban-card darwin baselines regenerated too (stale since round 4 — the
+> parent commit's spacing fix shifted them but only code-syntax was regen'd). Verified:
+> `frontend:check`, 2445 unit, 482 VR, 4 dev e2e — all green on darwin. Linux VR via
+> the user's CI workflow.
+
 > **Implementation complete (2026-06-13).** **All 11 phases are implemented and
 > committed**, each leaving `main` green on darwin (`mise run frontend:check` + 2445
 > unit tests; the 9 migrated VR specs + the deferred behavioural e2e — green on

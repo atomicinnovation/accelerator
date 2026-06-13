@@ -607,7 +607,9 @@ describe("Sidebar foot — triple-click dev activation", () => {
     // rolling window, so no timer advance is needed for the third to trip it.
     const enterDev = vi.fn();
     renderWithDev(enterDev);
-    const foot = await screen.findByText("accelerator-visualiser");
+    const foot = await screen.findByTitle(
+      "triple-click for the design-system reference",
+    );
     fireEvent.click(foot);
     fireEvent.click(foot);
     fireEvent.click(foot);
@@ -617,7 +619,9 @@ describe("Sidebar foot — triple-click dev activation", () => {
   it("does not open /dev when the third click is too slow", async () => {
     const enterDev = vi.fn();
     renderWithDev(enterDev);
-    const foot = await screen.findByText("accelerator-visualiser");
+    const foot = await screen.findByTitle(
+      "triple-click for the design-system reference",
+    );
     // Switch to fake timers AFTER the render has committed (fake timers before
     // render stall React's scheduler).
     vi.useFakeTimers();

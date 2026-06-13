@@ -586,12 +586,14 @@ function BigGlyphsSection() {
           <div
             key={docType}
             className={styles.bigGlyphCell}
+            // `--bg-hue` is set on the CELL (not just the hero) so both the
+            // cell's hue border and the hero's halo (which inherits it) resolve
+            // — set on the hero alone, the cell border's hsl(var(--bg-hue)…) was
+            // invalid and fell back to currentColor (black), killing the hover.
+            style={{ "--bg-hue": DOC_TYPE_HUE[docType] } as CSSProperties}
             data-testid={`big-glyph-cell-${docType}`}
           >
-            <div
-              className={styles.bigGlyphHero}
-              style={{ "--bg-hue": DOC_TYPE_HUE[docType] } as CSSProperties}
-            >
+            <div className={styles.bigGlyphHero}>
               <BigGlyph docType={docType} size={96} />
             </div>
             <div className={styles.bigGlyphMeta}>
@@ -1202,7 +1204,11 @@ function EmptyBannersSection() {
   return (
     <>
       <h3 className={styles.h3}>Inline empty</h3>
-      <div className={styles.empty} data-testid="ds-empty">
+      <div
+        className={styles.empty}
+        style={{ maxWidth: 480 }}
+        data-testid="ds-empty"
+      >
         <div className={styles.emptyTitle}>Nothing to show</div>
         <div className={styles.emptyBody}>
           No documents of this type exist yet. Drop the first one into{" "}
@@ -1210,7 +1216,11 @@ function EmptyBannersSection() {
         </div>
       </div>
       <h3 className={styles.h3}>Warn banner</h3>
-      <div className={styles.banner} data-testid="ds-banner">
+      <div
+        className={styles.banner}
+        style={{ maxWidth: 640 }}
+        data-testid="ds-banner"
+      >
         <Icon name="alert" size={14} className={styles.bannerIcon} />
         <div>
           <b>Validation pipeline lagging.</b> The orchestrator lens hasn't
@@ -1301,7 +1311,10 @@ function TopbarSection() {
 
 // Per-section content + hint, keyed by the DEV_SECTIONS slug. Sections without
 // an entry render as empty stubs (filled by later phases).
-const SECTION_CONTENT: Record<string, { hint?: string; body: ReactNode }> = {
+const SECTION_CONTENT: Record<
+  string,
+  { title?: string; hint?: string; body: ReactNode }
+> = {
   overview: { body: <OverviewSection /> },
   colors: {
     hint: "from global.css · respond to data-theme",
@@ -1335,7 +1348,7 @@ const SECTION_CONTENT: Record<string, { hint?: string; body: ReactNode }> = {
   markdown: { body: <MarkdownSection /> },
   code: { hint: "syntax-highlighted · chrome header", body: <CodeSection /> },
   frontmatter: { body: <FrontmatterSection /> },
-  empty: { body: <EmptyBannersSection /> },
+  empty: { title: "Empty states & banners", body: <EmptyBannersSection /> },
   toast: { body: <ToastsSection /> },
   topbar: { body: <TopbarSection /> },
 };
@@ -1516,10 +1529,6 @@ export function DevDesignSystem() {
               );
             })}
           </nav>
-          <div className={styles.tocFoot}>
-            <div>accelerator-visualiser</div>
-            <div className={styles.tocFootFaint}>design-system reference</div>
-          </div>
         </aside>
 
         <div className={styles.content}>
@@ -1539,7 +1548,7 @@ export function DevDesignSystem() {
               <DSSection
                 key={s.id}
                 id={s.id}
-                title={s.label}
+                title={content?.title ?? s.label}
                 hint={content?.hint}
               >
                 {content?.body}

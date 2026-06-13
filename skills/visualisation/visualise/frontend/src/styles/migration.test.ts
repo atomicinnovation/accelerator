@@ -68,10 +68,10 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "1px",
-    count: 44,
+    count: 45,
     kind: "irreducible",
     reason:
-      "hairline borders — chrome (marquee/TOC/section/footer 7) + TOC list hairline gap (1px) + token/type cards + glyph card + glyph-card dashed size divider + mark cards (17, deviations aside removed) + interactive primitives (tier pill, topbar button, search input, search kbd, nav demo = 5) + composites & chrome (13) + the big-glyph cell hover translateY(-1px) lift — below --sp-1 floor, no border-width token",
+      "hairline borders — chrome (marquee/TOC/section/footer 7) + TOC list hairline gap (1px) + token/type cards + glyph card + glyph-card dashed size divider + mark cards (17, deviations aside removed) + interactive primitives (tier pill, topbar button, search input, search kbd, nav demo = 5) + composites & chrome (13) + the big-glyph cell hover translateY(-1px) lift + custom checkbox box border + checkmark translate(-1px) nudge — below --sp-1 floor, no border-width token",
   },
   // Prototype-fidelity convergence: off-scale dev-page measurements ported
   // verbatim from the prototype `ds-*` chrome (no --sp-* / token equivalent).
@@ -116,9 +116,10 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "3px",
-    count: 1,
+    count: 2,
     kind: "irreducible",
-    reason: "toast left accent bar — below --sp-1 floor, no border-width token",
+    reason:
+      "toast left accent bar + warn-banner left rule — below --sp-1 floor, no border-width token",
   },
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
@@ -177,10 +178,41 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "#ffffff",
+    count: 4,
+    kind: "irreducible",
+    reason:
+      "DEV marquee tag text on the --ac-accent-2 red badge + filter-badge count text on --ac-accent + custom checkbox tick (border-left/border-bottom) on --ac-accent — theme-invariant white",
+  },
+  // Custom checkbox (prototype .ac-filter__opt input) control geometry — all
+  // off-scale, no token equivalent.
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "13px",
+    count: 2,
+    kind: "irreducible",
+    reason: "custom checkbox box width + height — off-scale control size",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "7px",
+    count: 1,
+    kind: "irreducible",
+    reason: "custom checkbox tick width — off-scale control geometry",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "4px",
+    count: 1,
+    kind: "irreducible",
+    reason: "custom checkbox tick height — off-scale control geometry",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "1.5px",
     count: 2,
     kind: "irreducible",
     reason:
-      "DEV marquee tag text on the --ac-accent-2 red badge + filter-badge count text on --ac-accent — theme-invariant white",
+      "custom checkbox tick stroke (border-left/border-bottom) — below --sp-1 floor, no border-width token",
   },
   // components/Chip/Chip.module.css
   {
@@ -619,10 +651,10 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/Sidebar/Sidebar.module.css",
     literal: "1px",
-    count: 10,
+    count: 11,
     kind: "irreducible",
     reason:
-      "sidebar border-right, search-input border, kbd hint border, hint-kbd border, panel border, panel meta-row border-bottom, list-gap, mark padding, row-sub margin-top, animation translateY — below --sp-1 floor",
+      "sidebar border-right, search-input border, kbd hint border, hint-kbd border, panel border, panel meta-row border-bottom, list-gap, mark padding, row-sub margin-top, animation translateY, foot dashed top rule — below --sp-1 floor",
   },
   {
     file: "components/Sidebar/Sidebar.module.css",
@@ -1887,7 +1919,7 @@ describe("var(--NAME) references resolve to declared tokens", () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 1532; // 0083: P11 retired the 5 showcase modules (1622→1546); prototype-fidelity passes removed the deviations panel + dead .tocActions (1546→1529) then re-added the shared .row helper + TOC line-height (1529→1532). Coverage in surviving files is unchanged.
+const AC5_FLOOR = 1533; // 0083: P11 retired the 5 showcase modules (1622→1546); prototype-fidelity passes removed the deviations panel + dead .tocActions (1546→1529) then re-added the shared .row helper + TOC line-height (1529→1532); the empty/banner + custom-checkbox convergence nets +1 (1532→1533). Coverage in surviving files is unchanged.
 const AC5_TARGET = 300; // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0;
 

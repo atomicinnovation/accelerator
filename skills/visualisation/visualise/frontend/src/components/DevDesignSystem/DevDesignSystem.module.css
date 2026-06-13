@@ -190,18 +190,6 @@
 .tocItemActive .tocNum {
   color: var(--ac-accent);
 }
-.tocFoot {
-  margin-top: var(--sp-4);
-  padding-top: var(--sp-3);
-  border-top: 1px dashed var(--ac-stroke);
-  font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs);
-  color: var(--ac-fg-muted);
-  line-height: var(--lh-normal);
-}
-.tocFootFaint {
-  color: var(--ac-fg-faint);
-}
 
 /* ─── Content column ─── */
 .content {
@@ -902,8 +890,33 @@
   color: var(--ac-fg);
   cursor: pointer;
 }
-.checkRow input {
-  accent-color: var(--ac-accent);
+/* Custom checkbox (prototype .ac-filter__opt input) — native `accent-color`
+   rendered the unchecked box inconsistently across themes; an appearance:none
+   box + ::after tick gives an identical light/dark control. */
+.checkRow input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  border: 1px solid var(--ac-stroke-strong);
+  border-radius: var(--radius-3);
+  background: var(--ac-bg-card);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+.checkRow input[type="checkbox"]:checked {
+  background: var(--ac-accent);
+  border-color: var(--ac-accent);
+}
+.checkRow input[type="checkbox"]:checked::after {
+  content: "";
+  width: 7px;
+  height: 4px;
+  border-left: 1.5px solid #ffffff;
+  border-bottom: 1.5px solid #ffffff;
+  transform: rotate(-45deg) translate(0, -1px);
 }
 .checkCount {
   font-family: var(--ac-font-mono);
@@ -1165,33 +1178,41 @@
 
 /* ─── Empty & banners ─── */
 .empty {
+  /* prototype .ac-empty — dashed, centred, generously padded (40/24) */
   background: var(--ac-bg-sunken);
-  border: 1px solid var(--ac-stroke-soft);
+  border: 1px dashed var(--ac-stroke);
   border-radius: var(--radius-6);
-  padding: var(--sp-4) var(--sp-5);
+  padding: var(--sp-7) var(--sp-5);
+  text-align: center;
+  color: var(--ac-fg-muted);
 }
 .emptyTitle {
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: var(--size-sm);
-  color: var(--ac-fg-strong);
+  font-size: var(--size-xs);
+  color: var(--ac-fg);
+  margin-bottom: var(--sp-1);
 }
 .emptyBody {
-  font-size: var(--size-xs);
+  /* centred measure (max-width 46ch · margin auto) sitting under the title */
+  max-width: 46ch;
+  margin: 0 auto;
+  font-size: var(--size-row);
   color: var(--ac-fg-muted);
-  margin-top: var(--sp-1);
   line-height: var(--lh-normal);
 }
 .banner {
+  /* prototype .ac-banner — warm status tint + warn-coloured left rule */
   display: flex;
   align-items: flex-start;
   gap: var(--sp-2);
-  background: var(--ac-bg-card);
+  background: color-mix(in srgb, var(--ac-warn) 8%, var(--ac-bg));
   border: 1px solid var(--ac-stroke);
+  border-left: 3px solid var(--ac-warn);
   border-radius: var(--radius-6);
   padding: var(--sp-3) var(--sp-4);
-  font-size: var(--size-xs);
-  color: var(--ac-fg-muted);
+  font-size: var(--size-row);
+  color: var(--ac-fg);
 }
 .bannerIcon {
   color: var(--ac-warn);
