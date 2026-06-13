@@ -3,7 +3,7 @@
 # match across all 13 sibling fixtures under server/tests/fixtures/meta/.
 # Carry NO cross-reference keys (work_item_id / work-item / ticket / parent
 # / related / target) — they would pull a sibling into a declared relation.
-title: AC2 Coverage (research)
+title: AC2 Coverage (root cause analyses)
 ---
 
-AC #2 coverage fixture for research.
+AC #2 coverage fixture for root-cause-analyses.

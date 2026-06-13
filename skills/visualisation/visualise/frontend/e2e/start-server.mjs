@@ -72,6 +72,10 @@ const docPaths = {
   review_work: join(fixturesDir, "reviews/work"),
   research_design_gaps: join(fixturesDir, "research/design-gaps"),
   research_design_inventories: join(fixturesDir, "research/design-inventories"),
+  research_issues: join(fixturesDir, "research/issues"),
+  // NOTE: keep this `docPaths` key set in sync with the launcher's
+  // (write-visualiser-config.sh); the two are hand-maintained and have drifted
+  // before. A missing key here makes a doc type server-active but E2E-invisible.
 };
 
 const templates = {};

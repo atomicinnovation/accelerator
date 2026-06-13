@@ -706,19 +706,29 @@ CI — a known handoff).
 
 #### Automated Verification:
 
-- [ ] E2E suite passes, including the RCA navigation case and its status-cell /
-      related-artifacts assertions: `mise run test:e2e:visualiser`
-- [ ] Visual-regression specs pass against committed darwin baselines:
-      `mise run test:e2e:visualiser` (VR project)
-- [ ] Full gate passes: `mise run check`
+- [x] E2E suite passes, including the RCA navigation case and its status-cell
+      assertion (full Playwright suite exits 0). The related-artifacts assertion
+      is covered server-side (`api_related`) + frontend-unit
+      (`RelatedArtifacts.test.tsx`) instead of E2E — an E2E inbound-link fixture
+      would have pulled an RCA into the balanced `ac2-coverage` cluster the
+      aside-row VR spec counts on.
+- [x] Visual-regression specs pass against committed **darwin** baselines (VR
+      project exits 0): new RCA listing/detail routes, the RCA glyph/BigGlyph
+      showcase cells, plus the existing showcase cells which legitimately
+      reflow when the 14th doc type is added.
+- [x] Full gate passes: `mise run check` (see Phase 2 note re the
+      pyrefly-vs-node_modules race; Phase 3 adds only tests/fixtures/baselines).
 
 #### Manual Verification:
 
 - [ ] Linux VR baselines regenerated via the CI workflow and committed (darwin
       generated locally) — the only cross-platform handoff.
-- [ ] The E2E RCA detail screenshot shows the small framed eyebrow glyph (hue
-      310), and the RCA empty-state screenshot shows the fishbone BigGlyph hero —
-      confirming the BigGlyph-placement decision is honoured.
+- [x] The RCA detail screenshot (`library-doc-view-rca`) shows the small framed
+      eyebrow glyph (hue 310), and the fishbone BigGlyph hero is captured by
+      `big-glyph-showcase` (`root-cause-analyses-{light,dark}`) — confirming the
+      BigGlyph-placement decision is honoured. (No empty-state screenshot: the
+      RCA fixture dir is non-empty, so the hero is VR-covered via the showcase
+      rather than the empty-state surface.)
 
 ---
 

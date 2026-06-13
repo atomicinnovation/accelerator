@@ -1,5 +1,29 @@
 import { expect, test } from "./fixtures.js";
 
+test("library → RCA listing → RCA detail with status colour", async ({
+  page,
+}) => {
+  // The Operate category's RCA listing reuses the shared list-view layout.
+  await page.goto("/library/root-cause-analyses");
+  await expect(page.locator('[role="table"]')).toBeVisible();
+
+  // AC #3: the resolved RCA row colours its status cell green
+  // (resolved→green), not neutral grey. The whole row is a single Link, so
+  // the status chip lives inside the row anchor.
+  const row = page.locator("a").filter({ hasText: "Example RCA" }).first();
+  await expect(row.locator('[data-variant="green"]')).toBeVisible();
+
+  // Click into the RCA detail page (dated stem → date-stripped slug).
+  await row.click();
+  await expect(page).toHaveURL(/\/library\/root-cause-analyses\/example-rca/);
+  await expect(page.locator("article")).toBeVisible();
+  // AC #5's related-artifacts routing is covered by the server `api_related`
+  // suite and the `RelatedArtifacts.test.tsx` unit case rather than here: an
+  // E2E inbound-link fixture would have to carry a cross-ref, which would pull
+  // an RCA into the balanced `ac2-coverage` cluster the aside-row VR spec
+  // counts on.
+});
+
 test("library → lifecycle → library deep-link round trip", async ({ page }) => {
   // Start at the plans list. The list view used to be a `<table>` but is
   // now a CSS grid with `role="table"` (the entire row is a single Link),

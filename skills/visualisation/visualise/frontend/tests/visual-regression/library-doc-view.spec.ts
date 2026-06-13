@@ -1,7 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { applyTheme, relativeTimeMask } from "../lib/helpers";
 
-const ROUTES = [["library-doc-view", "/library/plans/first-plan"]] as const;
+const ROUTES = [
+  ["library-doc-view", "/library/plans/first-plan"],
+  // RCA detail + listing (Operate category, work item 0110). The RCA empty
+  // state / BigGlyph hero is covered by big-glyph-showcase.spec.ts; the
+  // fixture dir is non-empty so it can't render here.
+  ["library-doc-view-rca", "/library/root-cause-analyses/example-rca"],
+  ["library-list-view-rca", "/library/root-cause-analyses"],
+] as const;
 
 const VIEWPORT = { width: 1440, height: 900 };
 
