@@ -436,16 +436,16 @@ Notes:
 
 #### Automated Verification
 
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] Type checking passes: `mise run types:frontend:check`
-- [ ] Format/lint clean: `mise run frontend:check` (Biome lint runs here as
+- [x] Unit tests pass: `mise run test:unit:frontend`
+- [x] Type checking passes: `mise run types:frontend:check`
+- [x] Format/lint clean: `mise run frontend:check` (Biome lint runs here as
   warnings-as-errors — the hook's `biome-ignore` suppression must use the exact
   rule id `lint/correctness/useExhaustiveDependencies`, not an `eslint-disable`)
-- [ ] Worked-example test asserts the exact `[error-screen-v2, error-screens, legacy-error-screen]` order
+- [x] Worked-example test asserts the exact `[error-screen-v2, error-screens, legacy-error-screen]` order
 
 #### Manual Verification
 
-- [ ] (None — no rendered surface yet; verified via tests.)
+- [x] (None — no rendered surface yet; verified via tests.)
 
 ---
 
