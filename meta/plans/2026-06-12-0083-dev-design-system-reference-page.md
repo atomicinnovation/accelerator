@@ -464,21 +464,22 @@ only if still referenced (it is removed in Phase 11).
 
 #### Automated Verification
 
-- [ ] Type-check + lint pass: `mise run frontend:check`
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] `AtomicMark` test: distinct gradient ids when two are rendered; `size`
-  sets width/height
-- [ ] `Brand` regression test asserts pixel/structural equivalence (no markup
-  snapshot of the literal gradient id — assert structure or normalise the
-  non-deterministic `useId()` id)
-- [ ] `Glyph` specimen test renders at the added `48` size without type error
-- [ ] Existing glyph VR specs still pass (no rendered change at 16/24/32 — only `48`
-  is net-new)
+- [x] Type-check + lint pass: `mise run frontend:check`
+- [x] Unit tests pass: `mise run test:unit:frontend`
+- [x] `AtomicMark` test: distinct gradient ids when two are rendered; `size`
+  sets width/height (ids are also `useId()`-colon-stripped so the `url(#…)` ref
+  resolves; a test asserts no `:` in the id and that the stroke wires to its own id)
+- [x] `Brand` regression test asserts pixel/structural equivalence (no markup
+  snapshot of the literal gradient id — the existing structural test still passes)
+- [x] `Glyph` specimen test renders at the added `48` size without type error
+- [x] Existing glyph VR specs still pass (no rendered change at 16/24/32 — only `48`
+  is net-new); the full-page specs that capture the topbar `Brand` (library-doc-view,
+  tokens, code-syntax-showcase) also pass — `AtomicMark` is pixel-identical
 
 #### Manual Verification
 
 - [ ] Atomic mark renders at 20/24/32/48/72 and on a dark backdrop without
-  gradient-id collision artefacts
+  gradient-id collision artefacts (covered by the Atomic-mark section in Phase 7)
 
 ---
 

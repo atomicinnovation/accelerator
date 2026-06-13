@@ -11,7 +11,7 @@ import GlyphSource from "./Glyph.tsx?raw";
 // called at runtime.
 // biome-ignore lint/suspicious/noExportsInTest: the export is load-bearing — it keeps tsc's noUnusedLocals from eliding this compile-time @ts-expect-error type guard; the function is never imported or run
 export function _typeContractGuards(): void {
-  // @ts-expect-error — size 20 is not 16 | 24 | 32.
+  // @ts-expect-error — size 20 is not 16 | 24 | 32 | 48.
   void (<Glyph docType="decisions" size={20} />);
 }
 
@@ -58,6 +58,14 @@ describe("Glyph: runtime DOM shape", () => {
     const svg = container.querySelector("svg")!;
     expect(svg.getAttribute("width")).toBe("32");
     expect(svg.getAttribute("height")).toBe("32");
+  });
+
+  it("renders at the added 48 size (the Doc-type-glyphs four-size ramp)", () => {
+    const { container } = render(<Glyph docType="research" size={48} />);
+    const svg = container.querySelector("svg")!;
+    expect(svg.getAttribute("width")).toBe("48");
+    expect(svg.getAttribute("height")).toBe("48");
+    expect(svg.getAttribute("viewBox")).toBe("0 0 24 24");
   });
 
   it("inline style.color resolves to var(--ac-doc-<key>)", () => {

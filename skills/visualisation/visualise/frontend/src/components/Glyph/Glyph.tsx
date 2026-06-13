@@ -42,7 +42,7 @@ const ICON_COMPONENTS: Record<GlyphDocType, ComponentType> = {
 
 export interface GlyphProps {
   docType: GlyphDocType;
-  size: 16 | 24 | 32;
+  size: 16 | 24 | 32 | 48;
   /** Accessible label. If provided (including empty string), Glyph renders
    *  with `role="img"` + `aria-label`. If omitted (undefined), Glyph is
    *  decorative (`aria-hidden`). */
@@ -70,7 +70,8 @@ export interface GlyphProps {
  *    a standalone visual without nearby text. The default render is
  *    `aria-hidden` and assumes a sibling text label is present.
  * 3. Do not wrap Glyph in another `<svg>`. Glyph owns the `<svg>` boundary.
- * 4. Sizes are restricted to 16/24/32. For off-grid sizes, widen the union
+ * 4. Sizes are restricted to 16/24/32/48 (48 added for the DevDesignSystem
+ *    Doc-type-glyphs four-size ramp). For off-grid sizes, widen the union
  *    with a documented specimen — do not cast.
  * 5. `docType` accepts any `GlyphDocType` — every `DocTypeKey` (all 13,
  *    including the virtual `templates` key) plus glyph-only keys like
