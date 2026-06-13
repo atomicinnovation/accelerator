@@ -383,21 +383,46 @@ regenerated. Resolved-colour specs (`aside-row`, `detail-eyebrow`,
 
 #### Automated Verification
 
-- [ ] Type-check + lint pass: `mise run frontend:check`
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] No remaining ad-hoc `chevron-right`/`search`/`sort` inline `<svg>` in the
+- [x] Type-check + lint pass: `mise run frontend:check`
+- [x] Unit tests pass: `mise run test:unit:frontend`
+- [x] No remaining ad-hoc `chevron-right`/`search`/`sort` inline `<svg>` in the
   migrated files (grep gate in review)
-- [ ] Targeted geometry unit assertions on a few canonical migrated icons (e.g.
+- [x] Targeted geometry unit assertions on a few canonical migrated icons (e.g.
   `chevron-right` path data + `strokeWidth=2`) so the refactor's correctness does
   not rest solely on a human reading regenerated pixel diffs (baseline regen blesses
   whatever rendered — it cannot catch a wrong stroke-width or a swapped icon)
-- [ ] E2E + VR pass with regenerated baselines: `mise run test:e2e:visualiser`
+- [x] E2E + VR pass with regenerated baselines: `mise run test:e2e:visualiser`
+  (478 e2e + 440 VR cases pass; **no baseline regen was needed** — the pixel specs
+  clip to their target components, so the migrated sidebar/topbar/chrome icons fall
+  outside every committed baseline. A `--update-snapshots` run produced zero PNG
+  changes. Linux baselines therefore also need no regen for this phase.)
 
 #### Manual Verification
 
 - [ ] Sidebar, topbar, sort/filter pills, toasts, breadcrumbs, related rows
-  render visually unchanged (or intentionally crisper) in light + dark
-- [ ] Regenerated VR diffs reviewed — only expected icon-geometry changes
+  render visually unchanged (or intentionally crisper) in light + dark (VR confirms
+  no pixel change in clipped specs; full-shell eyeball still pending)
+- [x] Regenerated VR diffs reviewed — only expected icon-geometry changes (N/A: the
+  VR update produced no diffs)
+
+> **Phase 2 deviations (found during implementation).** (1) `Breadcrumbs` uses a
+> text `›` separator, **not** an SVG chevron — there was no chevron-right SVG to
+> migrate there. The five real `chevron-right` SVG copies were in `RelatedArtifacts`,
+> `RelatedCluster`, `SearchResultsPanel`, `LibraryTemplatesIndex`, and
+> `lifecycle/icons.tsx` (the last's export was unused and was dropped). (2) The
+> `Toaster` `ToastIcon` (ok/error/info) is **kept custom**; only the dismiss button
+> migrated to `<Icon name="close">`. Reason: the icon svg carries a
+> `data-testid="toaster-icon"` contract asserted by four tests (incl. `tagName ===
+> "svg"` and live-region membership) that the deliberately-minimal `Icon` (no testid
+> passthrough) cannot carry, and the `ok` icon is a circle+check composite that does
+> not map cleanly to bare `check` without dropping the success circle. This keeps the
+> a11y/test contracts genuinely unchanged. (3) `RelatedCluster`'s `LifecycleMark` was
+> also migrated to `<Icon name="lifecycle">` (clean mapping; the plan listed only its
+> chevron). (4) `lifecycle/icons.tsx` + `kanban/icons.tsx` were rewritten as thin
+> `Icon` wrappers rather than deleted — their other exports are still imported. (5) A
+> shared `iconFrameInner(size)` helper was added to `IconFrame.tsx` so framed eyebrow
+> icons render a fixed-size `Icon` at the exact inner dimension (pixel-identical to the
+> prior `width="100%"` SVG).
 
 ---
 

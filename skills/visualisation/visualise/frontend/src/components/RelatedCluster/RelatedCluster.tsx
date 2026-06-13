@@ -1,50 +1,17 @@
 import { Link } from "@tanstack/react-router";
 import { formatMtime, pluralise } from "../../api/format";
 import type { LifecycleCluster } from "../../api/types";
+import { Icon } from "../Icon/Icon";
 import styles from "./RelatedCluster.module.css";
 
 /** Lifecycle dot-grid mark (unframed, muted) — signals the card navigates
  *  into the pipeline view. Mirrors the prototype's `Icon name="lifecycle"`. */
 function LifecycleMark() {
-  return (
-    <svg
-      className={styles.mark}
-      width={16}
-      height={16}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="6" cy="6" r="2" />
-      <circle cx="18" cy="6" r="2" />
-      <circle cx="6" cy="18" r="2" />
-      <circle cx="18" cy="18" r="2" />
-      <path d="M8 6h8M6 8v8M18 8v8M8 18h8" />
-    </svg>
-  );
+  return <Icon name="lifecycle" size={16} className={styles.mark} />;
 }
 
 function Chevron() {
-  return (
-    <svg
-      className={styles.chevron}
-      width={14}
-      height={14}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m9 6 6 6-6 6" />
-    </svg>
-  );
+  return <Icon name="chevron-right" size={14} className={styles.chevron} />;
 }
 
 /** Detail-page aside block linking to the document's lifecycle pipeline

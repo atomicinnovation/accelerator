@@ -74,6 +74,45 @@ describe("Icon: runtime DOM shape", () => {
   });
 });
 
+// Canonical geometry assertions for the app-icon refactor (Phase 2). Baseline
+// regeneration blesses whatever rendered — it cannot catch a wrong stroke-width
+// or a swapped icon. These pin the path data + the 2px stroke for the icons the
+// refactor migrates most widely, so a geometry drift fails in unit CI, not only
+// in a human reading regenerated pixel diffs.
+describe("Icon: canonical geometry", () => {
+  it("root <svg> carries a 2px stroke", () => {
+    const { container } = render(<Icon name="chevron-right" />);
+    expect(container.querySelector("svg")!.getAttribute("stroke-width")).toBe(
+      "2",
+    );
+  });
+
+  const CANONICAL: ReadonlyArray<[IconName, string]> = [
+    ["chevron-right", "m9 6 6 6-6 6"],
+    ["chevron-down", "m6 9 6 6 6-6"],
+    ["check", "m5 12 5 5L20 7"],
+    ["filter", "M4 4h16l-6 8v6l-4 2v-8z"],
+  ];
+
+  it.each(CANONICAL)("%s renders its canonical path data", (name, d) => {
+    const { container } = render(<Icon name={name} />);
+    const paths = Array.from(container.querySelectorAll("path")).map((p) =>
+      p.getAttribute("d"),
+    );
+    expect(paths).toContain(d);
+  });
+
+  it("search renders a circle of radius 7 plus the handle path", () => {
+    const { container } = render(<Icon name="search" />);
+    const circle = container.querySelector("circle")!;
+    expect(circle.getAttribute("r")).toBe("7");
+    const paths = Array.from(container.querySelectorAll("path")).map((p) =>
+      p.getAttribute("d"),
+    );
+    expect(paths).toContain("m20 20-3.5-3.5");
+  });
+});
+
 describe("Icon: accessibility branches", () => {
   it('decorative default carries explicit aria-hidden="true" and no role/label', () => {
     const { container } = render(<Icon name="search" />);

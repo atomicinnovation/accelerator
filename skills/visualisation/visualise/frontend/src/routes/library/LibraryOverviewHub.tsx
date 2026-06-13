@@ -4,7 +4,8 @@ import { fetchLibraryStructure } from "../../api/fetch";
 import { queryKeys } from "../../api/query-keys";
 import { isPhysicalDocTypeKey, type LibraryDocType } from "../../api/types";
 import { Glyph } from "../../components/Glyph/Glyph";
-import { IconFrame } from "../../components/Glyph/IconFrame";
+import { IconFrame, iconFrameInner } from "../../components/Glyph/IconFrame";
+import { Icon } from "../../components/Icon/Icon";
 import { Page } from "../../components/Page/Page";
 import styles from "./LibraryOverviewHub.module.css";
 
@@ -86,21 +87,7 @@ function HubCard({ docType }: { docType: LibraryDocType }) {
 function LibraryIcon() {
   return (
     <IconFrame size={16}>
-      <svg
-        width="100%"
-        height="100%"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M4 4h4v16H4z" />
-        <path d="M10 4h4v16h-4z" />
-        <path d="m17 5 3 1-4 14-3-1z" />
-      </svg>
+      <Icon name="library" size={iconFrameInner(16)} />
     </IconFrame>
   );
 }

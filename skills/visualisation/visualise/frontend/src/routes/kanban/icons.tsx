@@ -1,9 +1,10 @@
-// Feather-style 24×24 stroke icons for the kanban board's page header and
-// card chrome. Mirror the prototype's `Icon` set (`ui.jsx`) so the live board
-// reads the same as the design; exported standalone like the lifecycle icons
-// rather than routed through `Glyph` (which is keyed off `DocTypeKey`).
+// Kanban board chrome icons, composed from the unified `Icon` primitive.
+// Kept as thin named wrappers (rather than inlined at call sites) because the
+// eyebrow needs the tinted `IconFrame` treatment and the activity/link marks
+// are dropped into the page header and card foot at fixed chrome sizes.
 
-import { IconFrame } from "../../components/Glyph/IconFrame";
+import { IconFrame, iconFrameInner } from "../../components/Glyph/IconFrame";
+import { Icon } from "../../components/Icon/Icon";
 
 interface IconProps {
   size?: number;
@@ -15,60 +16,17 @@ interface IconProps {
 export function KanbanEyebrowIcon({ size = 16 }: IconProps) {
   return (
     <IconFrame size={size}>
-      <svg
-        width="100%"
-        height="100%"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <rect x="3" y="4" width="5" height="16" rx="1" />
-        <rect x="10" y="4" width="5" height="10" rx="1" />
-        <rect x="17" y="4" width="4" height="13" rx="1" />
-      </svg>
+      <Icon name="kanban" size={iconFrameInner(size)} />
     </IconFrame>
   );
 }
 
 /** Pulse glyph — the leading icon on the "live" chip (prototype `activity`). */
 export function ActivityIcon({ size = 10 }: IconProps) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 12h4l3-8 4 16 3-8h4" />
-    </svg>
-  );
+  return <Icon name="activity" size={size} />;
 }
 
 /** Link glyph for the card foot's "N linked" meta (prototype `link`). */
 export function LinkIcon({ size = 11 }: IconProps) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1" />
-      <path d="M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1" />
-    </svg>
-  );
+  return <Icon name="link" size={size} />;
 }

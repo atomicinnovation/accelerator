@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Icon } from "../Icon/Icon";
 import { Popover } from "../Popover/Popover";
 import styles from "./SortPill.module.css";
 
@@ -43,9 +44,9 @@ export function SortPill({ value, onChange }: SortPillProps) {
           className={`${styles.trigger} ${open ? styles.triggerOpen : ""}`}
           data-testid="sort-trigger"
         >
-          <SortIcon />
+          <Icon name="sort" size={12} />
           <span>{current.label}</span>
-          <ChevronDownIcon />
+          <Icon name="chevron-down" size={11} />
         </button>
       )}
     >
@@ -76,69 +77,12 @@ export function SortPill({ value, onChange }: SortPillProps) {
                 }}
               >
                 <span>{opt.label}</span>
-                {selected && <CheckIcon />}
+                {selected && <Icon name="check" size={12} />}
               </li>
             );
           })}
         </ul>
       </div>
     </Popover>
-  );
-}
-
-function SortIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M7 4v16" />
-      <path d="m3 8 4-4 4 4" />
-      <path d="M17 20V4" />
-      <path d="m13 16 4 4 4-4" />
-    </svg>
-  );
-}
-
-function ChevronDownIcon() {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m5 12 5 5L20 7" />
-    </svg>
   );
 }

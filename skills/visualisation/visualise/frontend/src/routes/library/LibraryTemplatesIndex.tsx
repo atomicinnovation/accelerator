@@ -10,6 +10,7 @@ import type {
 } from "../../api/types";
 import { EyebrowLabel } from "../../components/EyebrowLabel/EyebrowLabel";
 import { Glyph } from "../../components/Glyph/Glyph";
+import { Icon } from "../../components/Icon/Icon";
 import { Page } from "../../components/Page/Page";
 import styles from "./LibraryTemplatesIndex.module.css";
 import {
@@ -26,8 +27,8 @@ function tierStateFor(t: TemplateTier | undefined): TierState {
   return "present";
 }
 
-/** Inline chevron-right SVG. Used as the inter-pill separator and as
- *  the row disclosure marker. */
+/** Chevron-right marker — used as the inter-pill separator and the row
+ *  disclosure marker. Thin wrapper over the unified `Icon` primitive. */
 export function ChevronRightIcon({
   size = 10,
   className,
@@ -35,22 +36,7 @@ export function ChevronRightIcon({
   size?: number;
   className?: string;
 }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className={className}
-    >
-      <path d="m9 6 6 6-6 6" />
-    </svg>
-  );
+  return <Icon name="chevron-right" size={size} className={className} />;
 }
 
 interface TierPillsProps {

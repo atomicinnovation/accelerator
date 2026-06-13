@@ -1,6 +1,7 @@
 import { useId } from "react";
 import { buildEditorHref } from "../../api/editor-link";
 import { useEditorConfig } from "../../api/use-editor-config";
+import { Icon } from "../Icon/Icon";
 import { HeaderActionButton } from "./HeaderActionButton";
 
 interface Props {
@@ -10,24 +11,9 @@ interface Props {
   relPath: string;
 }
 
-/** Pencil glyph — the prototype DocPage's `edit` icon (Feather edit-2), size 13.
- *  Decorative. */
-const editGlyph = (
-  <svg
-    width="13"
-    height="13"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <title>Open in editor</title>
-    <path d="M12 20h9" />
-    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
-  </svg>
-);
+/** Pencil glyph — the prototype DocPage's `edit` icon, size 13. Decorative;
+ *  the button carries the "Open in editor" label/title. */
+const editGlyph = <Icon name="edit" size={13} />;
 
 export function OpenInEditorButton({ absPath, relPath }: Props) {
   const { data } = useEditorConfig();

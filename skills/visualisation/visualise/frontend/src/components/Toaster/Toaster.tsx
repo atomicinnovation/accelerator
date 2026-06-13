@@ -2,6 +2,7 @@ import { Fragment, type ReactNode, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useDocEventsContext } from "../../api/use-doc-events";
 import { type Toast, type ToastKind, useToast } from "../../api/use-toast";
+import { Icon } from "../Icon/Icon";
 import styles from "./Toaster.module.css";
 
 /** Render `text`, replacing paired-backtick runs with inline <code> spans.
@@ -130,20 +131,7 @@ function ToastCard({ toast, onDismiss, onPause, onResume }: ToastCardProps) {
         aria-label="Dismiss notification"
         onClick={() => onDismiss(toast.id)}
       >
-        <svg
-          viewBox="0 0 24 24"
-          width="16"
-          height="16"
-          fill="none"
-          stroke="currentColor"
-          aria-hidden="true"
-        >
-          <path
-            d="M6 6l12 12M18 6L6 18"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
+        <Icon name="close" size={16} />
       </button>
     </div>
   );

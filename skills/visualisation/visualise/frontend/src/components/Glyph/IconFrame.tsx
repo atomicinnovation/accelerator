@@ -10,13 +10,22 @@ interface IconFrameProps {
   children: ReactNode;
 }
 
+/** Inner content size for a framed tile of the given outer `size`. Mirrors
+ *  the ~14% padding convention below so callers that drop a fixed-size `Icon`
+ *  (rather than a `width="100%"` SVG) into the frame render at the exact same
+ *  inner dimension. Single source of truth for the pad/inner maths. */
+export function iconFrameInner(size: number): number {
+  const pad = Math.round(size * 0.14);
+  return size - 2 * pad;
+}
+
 /** Generic chrome-glyph frame — the same tinted square the per-doc-type
  *  framed `Glyph` renders, available for chrome icons (sidebar nav,
  *  page eyebrow, etc.) that aren't tied to a `DocTypeKey`. Background
  *  falls through to `--ac-bg-sunken` from the shared `.frame` rule. */
 export function IconFrame({ size = 16, children }: IconFrameProps) {
   const pad = Math.round(size * 0.14);
-  const inner = size - 2 * pad;
+  const inner = iconFrameInner(size);
   return (
     <span
       className={styles.frame}

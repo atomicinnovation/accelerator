@@ -3,6 +3,7 @@ import { DOC_TYPE_LABELS_SINGULAR } from "../../api/types";
 import { useSearch } from "../../api/use-search";
 import { Glyph } from "../Glyph/Glyph";
 import { DOC_TYPE_COLOR_VAR } from "../Glyph/Glyph.constants";
+import { Icon } from "../Icon/Icon";
 import styles from "./Sidebar.module.css";
 
 /**
@@ -128,21 +129,6 @@ function Highlight({ text, q }: { text: string; q: string }) {
 
 function ChevronRight() {
   return (
-    <svg
-      className={styles.searchRowChev}
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        d="M9 6 L15 12 L9 18"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <Icon name="chevron-right" size={12} className={styles.searchRowChev} />
   );
 }

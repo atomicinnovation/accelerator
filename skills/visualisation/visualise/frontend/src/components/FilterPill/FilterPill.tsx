@@ -2,6 +2,7 @@ import { useState } from "react";
 import { statusToVariant } from "../../api/status-variant";
 import type { LibraryFacet, LibrarySelectionPerType } from "../../api/types";
 import { Chip } from "../Chip/Chip";
+import { Icon } from "../Icon/Icon";
 import { Popover } from "../Popover/Popover";
 import styles from "./FilterPill.module.css";
 
@@ -48,7 +49,7 @@ export function FilterPill({
           className={`${styles.trigger} ${open ? styles.triggerOpen : ""} ${activeCount > 0 ? styles.triggerActive : ""}`}
           data-testid="filter-trigger"
         >
-          <FilterIcon />
+          <Icon name="filter" size={12} />
           <span>Filter</span>
           {activeCount > 0 && (
             <span className={styles.badge}>{activeCount}</span>
@@ -116,7 +117,7 @@ function FacetSection({
       <div className={styles.facetHeading}>{facet.label}</div>
       {showSearch && (
         <div className={styles.search}>
-          <SearchIcon />
+          <Icon name="search" size={11} />
           <input
             type="search"
             placeholder={`Filter ${facet.label.toLowerCase()}…`}
@@ -172,42 +173,5 @@ function FacetSection({
         )}
       </ul>
     </section>
-  );
-}
-
-function FilterIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M4 4h16l-6 8v6l-4 2v-8z" />
-    </svg>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" />
-    </svg>
   );
 }

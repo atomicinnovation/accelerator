@@ -3,6 +3,7 @@ import { type RefObject, useState } from "react";
 import type { DocType, LibraryDocType, LibraryPhase } from "../../api/types";
 import { useUnseenDocTypesContext } from "../../api/use-unseen-doc-types";
 import { ActivityFeed } from "../ActivityFeed/ActivityFeed";
+import { Icon } from "../Icon/Icon";
 import { SearchResultsPanel } from "./SearchResultsPanel";
 import styles from "./Sidebar.module.css";
 
@@ -30,7 +31,7 @@ export function Sidebar({
     <nav className={styles.sidebar} aria-label="Site navigation">
       <div className={styles.search}>
         <div className={styles.searchInputWrap}>
-          <SearchIcon />
+          <Icon name="search" size={14} className={styles.searchIcon} />
           <input
             ref={searchInputRef}
             type="search"
@@ -57,7 +58,7 @@ export function Sidebar({
                 searchInputRef.current?.focus();
               }}
             >
-              <CloseIcon />
+              <Icon name="close" size={11} />
             </button>
           ) : (
             <kbd className={styles.kbd}>/</kbd>
@@ -128,7 +129,7 @@ export function Sidebar({
               to="/kanban"
               className={`${styles.link} ${pathname === "/kanban" ? styles.active : ""}`}
             >
-              <KanbanIcon />
+              <Icon name="kanban" size={16} className={styles.viewIcon} />
               <span className={styles.label}>Kanban</span>
             </Link>
           </li>
@@ -137,7 +138,7 @@ export function Sidebar({
               to="/lifecycle"
               className={`${styles.link} ${pathname.startsWith("/lifecycle") ? styles.active : ""}`}
             >
-              <LifecycleIcon />
+              <Icon name="lifecycle" size={16} className={styles.viewIcon} />
               <span className={styles.label}>Lifecycle</span>
             </Link>
           </li>
@@ -170,116 +171,5 @@ export function Sidebar({
         </section>
       )}
     </nav>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg
-      className={styles.searchIcon}
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <circle
-        cx="10.5"
-        cy="10.5"
-        r="6.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <path
-        d="M15.2 15.2 L20 20"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M6 6 L18 18 M18 6 L6 18"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function KanbanIcon() {
-  return (
-    <svg
-      className={styles.viewIcon}
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <rect
-        x="3"
-        y="5"
-        width="4"
-        height="12"
-        rx="1"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <rect
-        x="10"
-        y="5"
-        width="4"
-        height="8"
-        rx="1"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <rect
-        x="17"
-        y="5"
-        width="4"
-        height="14"
-        rx="1"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-    </svg>
-  );
-}
-
-/* Lifecycle nav icon — mirrors the prototype's `lifecycle` Icon (four
-   dots in a square frame with cross-bars). Shared with the lifecycle
-   pages' eyebrow icon (`routes/lifecycle/icons.tsx`); the SVG is
-   inlined here too so the sidebar doesn't reach across route folders
-   for a chrome-level glyph. */
-function LifecycleIcon() {
-  return (
-    <svg
-      className={styles.viewIcon}
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="6" cy="6" r="2" />
-      <circle cx="18" cy="6" r="2" />
-      <circle cx="6" cy="18" r="2" />
-      <circle cx="18" cy="18" r="2" />
-      <path d="M8 6h8M6 8v8M18 8v8M8 18h8" />
-    </svg>
   );
 }

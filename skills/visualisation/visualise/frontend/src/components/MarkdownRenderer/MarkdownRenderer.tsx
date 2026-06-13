@@ -11,6 +11,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { buildWikiLinkPattern } from "../../api/wiki-links";
+import { Icon } from "../Icon/Icon";
 import styles from "./MarkdownRenderer.module.css";
 import { type Resolver, remarkWikiLinks } from "./wiki-link-plugin";
 
@@ -27,27 +28,6 @@ function fenceLanguageOf(children: ReactNode): string | null {
     typeof first?.props?.className === "string" ? first.props.className : "";
   const match = /\blanguage-(\S+)/.exec(className);
   return match?.[1] ?? null;
-}
-
-// White tick for the checked task-list box, modelled on the local CheckIcon
-// in SortPill.tsx. `stroke="currentColor"` inherits the box's `color: #ffffff`
-// so the tick paints white on the accent fill (mirrors FilterPill's checkmark).
-function CheckIcon() {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m5 12 5 5L20 7" />
-    </svg>
-  );
 }
 
 // The class mdast-util-to-hast stamps on task-list <li> nodes
@@ -111,7 +91,7 @@ function TaskListItem({
         aria-readonly
         aria-labelledby={labelId}
       >
-        {checked && <CheckIcon />}
+        {checked && <Icon name="check" size={11} />}
       </span>
       {/* Block-level label so a loose list's <p> nests validly; it is the
           aria-labelledby target. */}

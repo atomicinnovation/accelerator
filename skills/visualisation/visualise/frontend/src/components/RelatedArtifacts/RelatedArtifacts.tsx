@@ -5,6 +5,7 @@ import { DOC_TYPE_LABELS_SINGULAR } from "../../api/types";
 import { formatDocId } from "../../routes/library/doc-type-id";
 import { Glyph } from "../Glyph/Glyph";
 import { DOC_TYPE_COLOR_VAR } from "../Glyph/Glyph.constants";
+import { Icon } from "../Icon/Icon";
 import styles from "./RelatedArtifacts.module.css";
 
 interface Props {
@@ -35,22 +36,7 @@ function tagClass(kind: Kind): string {
 
 /** Trailing affordance chevron (prototype `Icon name="chevron-right"`). */
 function Chevron() {
-  return (
-    <svg
-      className={styles.chevron}
-      width={14}
-      height={14}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m9 6 6 6-6 6" />
-    </svg>
-  );
+  return <Icon name="chevron-right" size={14} className={styles.chevron} />;
 }
 
 export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
