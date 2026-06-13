@@ -967,3 +967,279 @@
     box-shadow: 0 0 0 0 transparent;
   }
 }
+
+/* ─── Cards ─── */
+.lcard {
+  background: var(--ac-bg-card);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-6);
+  padding: var(--sp-4) var(--sp-5);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-2) var(--sp-5);
+}
+.lcardTitle {
+  font-family: var(--ac-font-display);
+  font-weight: 600;
+  font-size: var(--size-sm);
+  color: var(--ac-fg-strong);
+}
+.lcardSlug {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xxs-sm);
+  color: var(--ac-fg-muted);
+}
+.lcardMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-eyebrow);
+  color: var(--ac-fg-muted);
+}
+.lcardPipe {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--ac-stroke);
+}
+.lcardEmpty {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-2) var(--sp-5);
+  align-items: center;
+  background: var(--ac-bg-sunken);
+  border: 1px dashed var(--ac-stroke);
+  border-radius: var(--radius-6);
+  padding: var(--sp-4) var(--sp-5);
+}
+.lcardEmptyTag {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs-lg);
+  color: var(--ac-fg-faint);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-3);
+  padding: var(--sp-1) var(--sp-2);
+}
+.kanbanGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+.kanbanCell {
+  width: 240px;
+}
+.related {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-6);
+  overflow: hidden;
+}
+.relatedItem {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-top: 1px solid var(--ac-stroke-soft);
+}
+.relatedItem:first-child {
+  border-top: 0;
+}
+.relatedType {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs-lg);
+  color: var(--ac-fg-faint);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+.relatedTitle {
+  color: var(--ac-fg);
+  font-size: var(--size-subtitle);
+}
+.relatedMeta {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs-lg);
+  color: var(--ac-fg-faint);
+}
+
+/* ─── Tables ─── */
+.libtable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--size-subtitle);
+}
+.libtableSelected {
+  background: var(--ac-bg-active);
+}
+.libtable th {
+  text-align: left;
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ac-fg-faint);
+  font-weight: 500;
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--ac-stroke);
+}
+.libtable td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--ac-stroke-soft);
+}
+.libtableId {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xxs);
+  color: var(--ac-fg-muted);
+}
+.libtableTitle {
+  color: var(--ac-fg-strong);
+  font-weight: 500;
+}
+.libtableSlug {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xxs-sm);
+  color: var(--ac-fg-muted);
+}
+.libtableDate {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-xxs-sm);
+  color: var(--ac-fg-faint);
+  white-space: nowrap;
+}
+
+/* ─── Markdown & code ─── */
+.markdown {
+  min-width: 0;
+}
+.codeStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* ─── Empty & banners ─── */
+.empty {
+  background: var(--ac-bg-sunken);
+  border: 1px solid var(--ac-stroke-soft);
+  border-radius: var(--radius-6);
+  padding: var(--sp-4) var(--sp-5);
+}
+.emptyTitle {
+  font-family: var(--ac-font-display);
+  font-weight: 600;
+  font-size: var(--size-sm);
+  color: var(--ac-fg-strong);
+}
+.emptyBody {
+  font-size: var(--size-xs);
+  color: var(--ac-fg-muted);
+  margin-top: var(--sp-1);
+  line-height: var(--lh-normal);
+}
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  background: var(--ac-bg-card);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-6);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--size-xs);
+  color: var(--ac-fg-muted);
+}
+.bannerIcon {
+  color: var(--ac-warn);
+  margin-top: var(--sp-1);
+  flex-shrink: 0;
+}
+
+/* ─── Toasts ─── */
+.toastStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-width: 420px;
+}
+.toast {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  background: var(--ac-bg-card);
+  border: 1px solid var(--ac-stroke-strong);
+  border-left: 3px solid var(--ac-accent);
+  border-radius: var(--radius-4);
+  padding: var(--sp-3) var(--sp-4);
+  box-shadow: var(--ac-shadow-lift);
+  font-size: var(--size-subtitle);
+}
+.toastWarn {
+  border-left-color: var(--ac-warn);
+}
+.toastErr {
+  border-left-color: var(--ac-err);
+}
+.toastIcon {
+  color: var(--ac-accent);
+  margin-top: var(--sp-1);
+}
+.toastWarn .toastIcon {
+  color: var(--ac-warn);
+}
+.toastErr .toastIcon {
+  color: var(--ac-err);
+}
+.toastTitle {
+  font-weight: 500;
+  color: var(--ac-fg-strong);
+}
+.toastBody {
+  color: var(--ac-fg-muted);
+  margin-top: var(--sp-1);
+  line-height: var(--lh-normal);
+}
+.toastClose {
+  color: var(--ac-fg-faint);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.toastClose:hover {
+  color: var(--ac-fg);
+}
+
+/* ─── Topbar ─── */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  background: var(--ac-bg-chrome);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-6);
+  padding: var(--sp-2) var(--sp-4);
+}
+.topbarSep {
+  width: 1px;
+  height: var(--sp-5);
+  background: var(--ac-stroke);
+}
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--ac-fg-muted);
+  font-size: var(--size-subtitle);
+}
+.crumbsStrong {
+  color: var(--ac-fg);
+  font-weight: 500;
+}
+.topbarSpacer {
+  flex: 1;
+}

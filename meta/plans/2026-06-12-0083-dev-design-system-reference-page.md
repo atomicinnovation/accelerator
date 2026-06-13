@@ -17,20 +17,21 @@ last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
-> **Implementation progress (2026-06-13).** Phases **1–8 are implemented and
-> committed**, each leaving `main` green (`mise run frontend:check` + 2480 unit
-> tests; full e2e/VR — 478 cases — for the pixel-touching phases 1–3). Per-phase
-> success-criteria checkboxes below are ticked accordingly; the unticked boxes in
-> phases 1–8 are the remaining **manual/browser** verifications, the **Phase 5
-> e2e specs deferred to Phase 10** (empty stub sections can't be scroll-spied
-> meaningfully — the `pickActiveSection` total-order unit test is the algorithm's
-> oracle), and the **Phase 6 colours theme-responsiveness check deferred to Phase
-> 10** (browser-only — jsdom can't resolve `var()`). Phases **9–11 remain** (9
-> section content, 10 VR migration + the deferred e2e, 11 route retirement + README
-> + work-item AC amendment). Commits: Icon primitive → icon migration →
-> AtomicMark/Glyph → /dev route+activation+chrome → scroll-spy+theme → tokens/type
-> sections → glyph/mark/icon sections → interactive-primitive sections. Notable
-> deviations are recorded inline per phase (Toaster ToastIcon kept
+> **Implementation progress (2026-06-13).** Phases **1–9 are implemented and
+> committed** (all section content is done), each leaving `main` green (`mise run
+> frontend:check` + 2487 unit tests; full e2e/VR — 478 cases — for the pixel-touching
+> phases 1–3). Per-phase success-criteria checkboxes below are ticked accordingly;
+> the unticked boxes in phases 1–9 are the remaining **manual/browser** verifications,
+> the **Phase 5 e2e specs deferred to Phase 10** (empty stub sections can't be
+> scroll-spied meaningfully — the `pickActiveSection` total-order unit test is the
+> algorithm's oracle), and the **Phase 6 colours theme-responsiveness check deferred
+> to Phase 10** (browser-only — jsdom can't resolve `var()`). Phases **10–11 remain**
+> (10 VR migration: rename/repoint the 9 showcase specs + regenerate baselines + the
+> deferred e2e; 11 route retirement + README + work-item AC amendment). Commits: Icon
+> primitive → icon migration → AtomicMark/Glyph → /dev route+activation+chrome →
+> scroll-spy+theme → tokens/type → glyph/mark/icon → interactive primitives →
+> composites & chrome. Notable deviations are recorded inline per phase (Toaster
+> ToastIcon kept
 > custom; Breadcrumbs uses a text `›`; module CSS tokenised against ADR-0039 with
 > documented `migration.test.ts` exceptions for irreducible dev-chrome values; Phase
 > 6 demonstration values inline in TSX, off-scale prototype px snapped to tokens).
@@ -1047,19 +1048,42 @@ that; the remaining hand-authored cases are noted in the in-page deviations asid
 
 #### Automated Verification
 
-- [ ] `mise run frontend:check` and `mise run test:unit:frontend` pass
-- [ ] Cards assert 4 variants incl. `kanban-card-cell-<state>` `.ac-kcard` cells
-- [ ] Markdown asserts 8 element kinds incl. a resolved wiki-link
-- [ ] Code blocks assert all 8 migrated `code-syntax-cell-<lang>` cells (python,
-  typescript, yaml, json, css, html, diff, markdown) + the diff-override fixture +
-  net-new bash, each with `data-language` + `.hljs-*` present
-- [ ] Frontmatter asserts key/value rows with a link; Empty/banners assert 2;
-  Toasts assert 3; Topbar asserts 5 parts
+- [x] `mise run frontend:check` and `mise run test:unit:frontend` pass (2487 unit
+  tests; +7 Phase 9 oracles)
+- [x] Cards assert 4 variants incl. `kanban-card-cell-<state>` `.ac-kcard` cells
+  (resting/dragging/overlay via `WorkItemCardPresentation`; + lifecycle, related,
+  empty-lifecycle, and the library table)
+- [x] Markdown asserts 8 element kinds (h2, h3, strong, em, inline code, ul, ol,
+  table) incl. a wiki-link node (a resolved anchor at runtime; a `wiki-link-pending`
+  marker under jsdom — the resolver's queries can't settle without the API)
+- [x] Code blocks assert all 8 migrated `code-syntax-cell-<lang>` cells (python,
+  typescript, yaml, json, css, html, diff, markdown — the diff + html cells *are*
+  the diff-override fixture, proving the `.language-diff` override is scoped) +
+  net-new bash, each with `data-language`; the python cell carries `.hljs-*` spans
+- [x] Frontmatter asserts key/value rows incl. the referenced ADR id; Empty/banners
+  assert 2; Toasts assert 3; Topbar asserts 5 parts
 
 #### Manual Verification
 
 - [ ] Wiki-link and frontmatter links resolve/render; code blocks highlight in
   both themes; kanban card matches the live kanban surface
+
+> **Phase 9 notes/deviations.** (1) **Live components reused** where they render
+> standalone: `WorkItemCardPresentation` (kanban card, reproducing the
+> `kanban-card-cell-<state>` + `.ac-kcard` VR contract incl. the dragging/overlay
+> states), `MarkdownRenderer` (markdown + the 9 fenced code cells reproducing the
+> `code-syntax-cell-<lang>` contract — fixtures copied verbatim so rehype-highlight
+> emits the same `hljs` classes the resolved-colour spec asserts; the showcase route
+> owns no shared FIXTURES export, so they're inlined here ahead of its Phase 11
+> deletion), `FrontmatterTable`, `Brand`, `OriginPill`, `SseIndicator`,
+> `ThemeToggle`. (2) **Hand-authored** (no standalone live equivalent): the lifecycle
+> card, related-item row, empty-lifecycle card, library table, inline empty + warn
+> banner, the static toasts, and the breadcrumb trail. (3) **`useWikiLinkResolver`
+> needs a `QueryClient`** — at runtime DevDesignSystem is inside RootLayout's tree;
+> the unit `renderPage` now wraps a no-retry `QueryClientProvider` (wiki-links stay
+> pending under jsdom, which is fine for presence oracles). (4) Module-CSS gate:
+> `1px` 29→42, `240px` 1→2, `+3px`×1 (toast accent bar), `+420px`×1 (toast stack);
+> `AC5_FLOOR` 1492→1622.
 
 ---
 

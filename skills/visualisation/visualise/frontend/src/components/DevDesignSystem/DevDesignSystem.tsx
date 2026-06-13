@@ -9,9 +9,12 @@ import {
   type Completeness,
   DOC_TYPE_KEYS,
   DOC_TYPE_LABELS,
+  type IndexEntry,
   WORKFLOW_PIPELINE_STEPS,
 } from "../../api/types";
 import { useThemeContext } from "../../api/use-theme";
+import { useWikiLinkResolver } from "../../api/use-wiki-link-resolver";
+import { WorkItemCardPresentation } from "../../routes/kanban/WorkItemCardPresentation";
 import {
   DOC_TYPE_HUE,
   RADIUS_TOKENS,
@@ -19,11 +22,16 @@ import {
 } from "../../styles/tokens";
 import { AtomicMark } from "../AtomicMark/AtomicMark";
 import { BigGlyph } from "../BigGlyph/BigGlyph";
+import { Brand } from "../Brand/Brand";
 import { Chip, type ChipSize, type ChipVariant } from "../Chip/Chip";
+import { FrontmatterTable } from "../FrontmatterTable/FrontmatterTable";
 import { Glyph } from "../Glyph/Glyph";
 import { ICON_NAMES, Icon } from "../Icon/Icon";
+import { MarkdownRenderer } from "../MarkdownRenderer/MarkdownRenderer";
+import { OriginPill } from "../OriginPill/OriginPill";
 import { PipelineMini } from "../PipelineMini/PipelineMini";
 import { ResultBadge } from "../ResultBadge/ResultBadge";
+import { SseIndicator } from "../SseIndicator/SseIndicator";
 import { StatusBadge } from "../StatusBadge/StatusBadge";
 import { ThemeToggle } from "../ThemeToggle/ThemeToggle";
 import { VerdictBadge } from "../VerdictBadge/VerdictBadge";
@@ -931,6 +939,375 @@ function NavSection() {
   );
 }
 
+// Static kanban fixture (mirrors the KanbanCardShowcase fixture so the migrated
+// VR baselines stay reproducible — fixed `now`/`mtimeMs` read "1h ago").
+const KANBAN_NOW = 1_700_000_000_000;
+const KANBAN_ENTRY: IndexEntry = {
+  type: "work-items",
+  path: "/x/meta/work/0086-kanban-drag-and-drop.md",
+  relPath: "meta/work/0086-kanban-drag-and-drop.md",
+  slug: "kanban-drag-and-drop",
+  workItemId: "0086",
+  title: "Kanban drag-and-drop",
+  frontmatter: { kind: "feature", status: "in-progress" },
+  frontmatterState: "parsed",
+  workItemRefs: [],
+  mtimeMs: KANBAN_NOW - 3_600_000,
+  size: 1024,
+  etag: "sha256-dev",
+  bodyPreview: "",
+  completeness: {
+    hasWorkItem: true,
+    hasResearch: true,
+    hasPlan: true,
+    hasPlanReview: false,
+    hasValidation: false,
+    hasPrDescription: false,
+    hasPrReview: false,
+    hasDecision: false,
+    hasNotes: false,
+    hasDesignInventory: false,
+    hasDesignGap: false,
+    present: ["work-items", "research", "plans"],
+  },
+  linkedCount: 3,
+  clusterKey: "0086",
+};
+const KANBAN_STATES = [
+  { id: "resting", props: {} },
+  { id: "dragging", props: { dragging: true } },
+  { id: "overlay", props: { overlay: true } },
+] as const;
+
+function CardsSection() {
+  return (
+    <>
+      <h3 className={styles.h3}>Lifecycle card</h3>
+      <div className={styles.lcard}>
+        <div>
+          <div className={styles.lcardTitle}>
+            Three-layer review system architecture
+          </div>
+          <div className={styles.lcardSlug}>
+            three-layer-review-system-architecture
+          </div>
+        </div>
+        <div className={styles.lcardMeta}>
+          <StatusBadge value="in-progress" />
+          <span>2m ago</span>
+        </div>
+        <div className={styles.lcardPipe}>
+          <PipelineMini
+            completeness={completenessFromPresent([
+              "work-items",
+              "research",
+              "plans",
+              "plan-reviews",
+              "validations",
+              "decisions",
+            ])}
+          />
+        </div>
+      </div>
+
+      <h3 className={styles.h3}>Kanban card</h3>
+      <div className={styles.kanbanGrid}>
+        {KANBAN_STATES.map((state) => (
+          <div
+            key={state.id}
+            className={styles.kanbanCell}
+            data-testid={`kanban-card-cell-${state.id}`}
+          >
+            <WorkItemCardPresentation
+              entry={KANBAN_ENTRY}
+              now={KANBAN_NOW}
+              {...state.props}
+            />
+          </div>
+        ))}
+      </div>
+
+      <h3 className={styles.h3}>Related item row</h3>
+      <div className={styles.related} data-testid="ds-related">
+        {[
+          ["PLAN", "Three-layer review system architecture", "2026-02-22"],
+          ["PLAN-REVIEW", "Plan review · round 1", "2026-03-01"],
+          ["ADR", "Three-layer review system architecture", "2026-03-14"],
+        ].map(([type, title, meta]) => (
+          <div key={title} className={styles.relatedItem}>
+            <span className={styles.relatedType}>{type}</span>
+            <span className={styles.relatedTitle}>{title}</span>
+            <span className={styles.relatedMeta}>{meta}</span>
+          </div>
+        ))}
+      </div>
+
+      <h3 className={styles.h3}>Empty-state lifecycle card</h3>
+      <div className={styles.lcardEmpty} data-testid="ds-lcard-empty">
+        <div>
+          <div className={styles.lcardTitle}>No docs yet</div>
+          <div className={styles.lcardSlug}>
+            Drop the first one in <code>meta/work/</code>
+          </div>
+        </div>
+        <div className={styles.lcardEmptyTag}>empty</div>
+      </div>
+    </>
+  );
+}
+
+function TableSection() {
+  const rows = [
+    [
+      "PROJ-0001",
+      "Add three-layer review pipeline",
+      "three-layer-review",
+      "2m ago",
+      false,
+    ],
+    [
+      "META-0011",
+      "Browser-based visualiser for meta/",
+      "meta-visualisation",
+      "5m ago",
+      true,
+    ],
+    [
+      "PROJ-0007",
+      "Ship PR review agents behind a flag",
+      "pr-review-agents",
+      "1h ago",
+      false,
+    ],
+  ] as const;
+  return (
+    <table className={styles.libtable} data-testid="ds-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Title</th>
+          <th>Slug</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map(([id, title, slug, date, selected]) => (
+          <tr
+            key={id}
+            className={selected ? styles.libtableSelected : undefined}
+          >
+            <td className={styles.libtableId}>{id}</td>
+            <td className={styles.libtableTitle}>{title}</td>
+            <td className={styles.libtableSlug}>{slug}</td>
+            <td className={styles.libtableDate}>{date}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+const MARKDOWN_SAMPLE = `## Heading 2
+
+### Heading 3
+
+Paragraph copy with **bold**, *italic*, \`inline code\`, and a [[ADR-0001]] reference.
+
+- Unordered list item one
+- Unordered list item two
+
+1. Ordered first
+2. Ordered second
+
+| Lens | Verdict |
+|------|---------|
+| Convention | pass |
+| Agent | approve |
+`;
+
+function MarkdownSection() {
+  const { resolver, pattern } = useWikiLinkResolver();
+  return (
+    <div className={styles.markdown} data-testid="ds-markdown">
+      <MarkdownRenderer
+        content={MARKDOWN_SAMPLE}
+        resolveWikiLink={resolver}
+        wikiLinkPattern={pattern}
+      />
+    </div>
+  );
+}
+
+// The eight languages the migrated code-block-resolved-colours spec asserts
+// (python…markdown — incl. the diff cell whose .language-diff overrides are
+// proven scoped against the html cell) plus net-new bash. Fixture text mirrors
+// the showcase so rehype-highlight emits the same hljs classes.
+const CODE_FIXTURES: ReadonlyArray<{ lang: string; code: string }> = [
+  {
+    lang: "python",
+    code: 'def foo(x: int) -> int:\n    print("hi")\n    return x + 42  # comment\n',
+  },
+  {
+    lang: "typescript",
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: literal TypeScript source shown in the highlighting demo — ${name} is sample code, not a template placeholder
+    code: "const greet = (name: string): string => `Hi ${name}`;\nconst obj = { prop: 1 };\nobj.prop = 2;\n",
+  },
+  { lang: "yaml", code: 'title: "Example"\ncount: 7\nactive: true\n' },
+  { lang: "json", code: '{\n  "key": "value",\n  "n": 42\n}\n' },
+  {
+    lang: "css",
+    code: ".cls { color: red; }\n#id { background: blue; }\na:hover { opacity: 0.5; }\n",
+  },
+  {
+    lang: "html",
+    code: '<!DOCTYPE html>\n<div class="x" data-foo="y">hi</div>\n',
+  },
+  {
+    lang: "diff",
+    code: "diff --git a/x b/x\n@@ -1,1 +1,1 @@\n-old\n+new\n",
+  },
+  {
+    lang: "markdown",
+    code: "# Heading\n\n- item\n[link](http://x)\n",
+  },
+  {
+    lang: "bash",
+    code: "$ ./accelerator review plan-2026-02-22\n→ running 3 lenses…\n✓ convention   pass\n",
+  },
+];
+
+function CodeSection() {
+  return (
+    <div className={styles.codeStack} data-testid="ds-code">
+      {CODE_FIXTURES.map(({ lang, code }) => (
+        <section key={lang} data-testid={`code-syntax-cell-${lang}`}>
+          <MarkdownRenderer content={`\`\`\`${lang}\n${code}\`\`\`\n`} />
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function FrontmatterSection() {
+  const { resolver, bareIdPattern } = useWikiLinkResolver();
+  return (
+    <div data-testid="ds-frontmatter">
+      <FrontmatterTable
+        frontmatter={{
+          slug: "three-layer-review-system-architecture",
+          status: "in-progress",
+          owner: "Toby Clemson",
+          updated: "2026-03-14T15:32:00Z",
+          related: "ADR-0001",
+        }}
+        resolveWikiLink={resolver}
+        bareIdPattern={bareIdPattern}
+      />
+    </div>
+  );
+}
+
+function EmptyBannersSection() {
+  return (
+    <>
+      <h3 className={styles.h3}>Inline empty</h3>
+      <div className={styles.empty} data-testid="ds-empty">
+        <div className={styles.emptyTitle}>Nothing to show</div>
+        <div className={styles.emptyBody}>
+          No documents of this type exist yet. Drop the first one into{" "}
+          <code>meta/notes/</code> to get started.
+        </div>
+      </div>
+      <h3 className={styles.h3}>Warn banner</h3>
+      <div className={styles.banner} data-testid="ds-banner">
+        <Icon name="alert" size={14} className={styles.bannerIcon} />
+        <div>
+          <b>Validation pipeline lagging.</b> The orchestrator lens hasn't
+          completed in 38s — usually under 5s. Check the watcher.
+        </div>
+      </div>
+    </>
+  );
+}
+
+const TOASTS = [
+  {
+    kind: "ok",
+    icon: "check",
+    title: "Snapshot saved",
+    body: "Cluster pinned at commit 9af2c1.",
+  },
+  {
+    kind: "warn",
+    icon: "alert",
+    title: "External edit detected",
+    body: "A reviewer agent updated WORK-0007.",
+  },
+  {
+    kind: "err",
+    icon: "alert",
+    title: "Indexer crashed",
+    body: "Validation pipeline returned exit code 42.",
+  },
+] as const;
+
+function ToastsSection() {
+  return (
+    <div className={styles.toastStack} data-testid="ds-toasts">
+      {TOASTS.map((t) => (
+        <div
+          key={t.title}
+          className={`${styles.toast} ${
+            t.kind === "err"
+              ? styles.toastErr
+              : t.kind === "warn"
+                ? styles.toastWarn
+                : ""
+          }`}
+          data-toast
+        >
+          <span className={styles.toastIcon}>
+            <Icon name={t.icon} size={16} />
+          </span>
+          <div>
+            <div className={styles.toastTitle}>{t.title}</div>
+            <div className={styles.toastBody}>{t.body}</div>
+          </div>
+          <button type="button" className={styles.toastClose}>
+            <Icon name="close" size={14} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TopbarSection() {
+  return (
+    <div className={styles.topbar} data-testid="ds-topbar">
+      <span data-topbar-part="brand">
+        <Brand />
+      </span>
+      <span className={styles.topbarSep} />
+      <span className={styles.crumbs} data-topbar-part="crumbs">
+        <span>Library</span>
+        <Icon name="chevron-right" size={12} />
+        <strong className={styles.crumbsStrong}>Plans</strong>
+      </span>
+      <span className={styles.topbarSpacer} />
+      <span data-topbar-part="origin">
+        <OriginPill />
+      </span>
+      <span data-topbar-part="sse">
+        <SseIndicator />
+      </span>
+      <span data-topbar-part="theme">
+        <ThemeToggle />
+      </span>
+    </div>
+  );
+}
+
 // Per-section content + hint, keyed by the DEV_SECTIONS slug. Sections without
 // an entry render as empty stubs (filled by later phases).
 const SECTION_CONTENT: Record<string, { hint?: string; body: ReactNode }> = {
@@ -962,6 +1339,14 @@ const SECTION_CONTENT: Record<string, { hint?: string; body: ReactNode }> = {
   buttons: { body: <ButtonsSection /> },
   form: { body: <FormSection /> },
   nav: { body: <NavSection /> },
+  cards: { body: <CardsSection /> },
+  table: { hint: "hand-authored library table", body: <TableSection /> },
+  markdown: { body: <MarkdownSection /> },
+  code: { hint: "syntax-highlighted · chrome header", body: <CodeSection /> },
+  frontmatter: { body: <FrontmatterSection /> },
+  empty: { body: <EmptyBannersSection /> },
+  toast: { body: <ToastsSection /> },
+  topbar: { body: <TopbarSection /> },
 };
 
 export function DevDesignSystem() {

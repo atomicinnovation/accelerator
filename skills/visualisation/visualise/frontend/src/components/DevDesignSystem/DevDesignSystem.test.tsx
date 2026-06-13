@@ -1,4 +1,5 @@
-import { fireEvent, render } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, within } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { DOC_TYPE_KEYS, WORKFLOW_PIPELINE_STEPS } from "../../api/types";
 import {
@@ -29,10 +30,19 @@ function renderPage(overrides: Partial<DevActivation> = {}) {
     recordProgrammaticHash: vi.fn(),
     ...overrides,
   };
+  // The composites/chrome sections call useWikiLinkResolver (3 useQuery calls),
+  // which needs a QueryClient — at runtime DevDesignSystem renders inside
+  // RootLayout's provider tree; here we supply a no-retry client (the wiki-link
+  // queries stay pending in jsdom, which is fine for presence assertions).
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   const result = render(
-    <DevActivationProvider value={dev}>
-      <DevDesignSystem />
-    </DevActivationProvider>,
+    <QueryClientProvider client={queryClient}>
+      <DevActivationProvider value={dev}>
+        <DevDesignSystem />
+      </DevActivationProvider>
+    </QueryClientProvider>,
   );
   return { ...result, dev };
 }
@@ -92,8 +102,13 @@ describe("DevDesignSystem chrome", () => {
   });
 
   it("renders an in-page theme toggle in the chrome", () => {
-    const { getByRole } = renderPage();
-    expect(getByRole("button", { name: /dark theme/i })).toBeInTheDocument();
+    // The topbar section also renders a ThemeToggle, so scope to the TOC aside.
+    const { container } = renderPage();
+    const aside = container.querySelector("aside");
+    expect(aside).not.toBeNull();
+    expect(
+      within(aside as HTMLElement).getByRole("button", { name: /dark theme/i }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -310,5 +325,92 @@ describe("DevDesignSystem section content — interactive primitives (Phase 8)",
     ]) {
       expect(nav.querySelector(`[data-nav="${variant}"]`)).not.toBeNull();
     }
+  });
+});
+
+describe("DevDesignSystem section content — composites & chrome (Phase 9)", () => {
+  it("cards render the four variants incl. the kanban-card-cell .ac-kcard cells", () => {
+    const { getByTestId } = renderPage();
+    // kanban: resting / dragging / overlay, each wrapping an .ac-kcard
+    for (const state of ["resting", "dragging", "overlay"]) {
+      const cell = getByTestId(`kanban-card-cell-${state}`);
+      expect(cell.querySelector(".ac-kcard")).not.toBeNull();
+    }
+    // the other three card variants
+    expect(getByTestId("ds-related")).toBeInTheDocument();
+    expect(getByTestId("ds-lcard-empty")).toBeInTheDocument();
+    expect(getByTestId("ds-table")).toBeInTheDocument();
+  });
+
+  it("markdown renders the eight element kinds incl. a wiki-link", () => {
+    const { getByTestId } = renderPage();
+    const md = getByTestId("ds-markdown");
+    expect(md.querySelector("h2")).not.toBeNull();
+    expect(md.querySelector("h3")).not.toBeNull();
+    expect(md.querySelector("strong")).not.toBeNull();
+    expect(md.querySelector("em")).not.toBeNull();
+    expect(md.querySelector("code")).not.toBeNull();
+    expect(md.querySelector("ul")).not.toBeNull();
+    expect(md.querySelector("ol")).not.toBeNull();
+    expect(md.querySelector("table")).not.toBeNull();
+    // the [[ADR-0001]] wiki-link renders as a wiki-link node (pending in jsdom,
+    // a resolved anchor at runtime)
+    expect(md.querySelector('[class*="wiki-link"], a')).not.toBeNull();
+  });
+
+  it("code blocks render all 8 languages + bash, each with data-language and hljs spans", () => {
+    const { getByTestId } = renderPage();
+    const code = getByTestId("ds-code");
+    for (const lang of [
+      "python",
+      "typescript",
+      "yaml",
+      "json",
+      "css",
+      "html",
+      "diff",
+      "markdown",
+      "bash",
+    ]) {
+      const cell = getByTestId(`code-syntax-cell-${lang}`);
+      expect(cell.querySelector(`[data-language="${lang}"]`)).not.toBeNull();
+    }
+    // rehype-highlight emits hljs token spans (the resolved-colour spec asserts
+    // these resolve to the syntax tokens)
+    expect(
+      code.querySelector(
+        '[data-testid="code-syntax-cell-python"] [class*="hljs-"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it("frontmatter renders key/value rows incl. a referenced value", () => {
+    const { getByTestId } = renderPage();
+    const fm = getByTestId("ds-frontmatter");
+    expect(fm.querySelectorAll("dt").length).toBeGreaterThan(0);
+    expect(fm.querySelectorAll("dd").length).toBeGreaterThan(0);
+    // the related ADR id renders (a resolved anchor at runtime; pending/plain in
+    // jsdom — either way the reference text is present)
+    expect(fm.textContent).toContain("ADR-0001");
+  });
+
+  it("empty + banner render two demos", () => {
+    const { getByTestId } = renderPage();
+    expect(getByTestId("ds-empty")).toBeInTheDocument();
+    expect(getByTestId("ds-banner")).toBeInTheDocument();
+  });
+
+  it("toasts render three dismissible demos", () => {
+    const { getByTestId } = renderPage();
+    expect(
+      getByTestId("ds-toasts").querySelectorAll("[data-toast]"),
+    ).toHaveLength(3);
+  });
+
+  it("topbar renders the five parts", () => {
+    const { getByTestId } = renderPage();
+    expect(
+      getByTestId("ds-topbar").querySelectorAll("[data-topbar-part]"),
+    ).toHaveLength(5);
   });
 });

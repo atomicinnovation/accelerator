@@ -68,17 +68,33 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "1px",
-    count: 29,
+    count: 42,
     kind: "irreducible",
     reason:
-      "hairline borders — chrome (marquee bottom, marquee kbd, TOC aside right, TOC foot dashed, section-head bottom, footer dashed, footer kbd) + section cards (prose/deviations code pill, overview card, deviations aside, swatch, swatch-chip divider, type-hue cell, type-sample, type-sample-meta dashed, spacing cell, radii cell, shadow cell, icon cell, glyph row, big-glyph cell, big-glyph hero divider, big-glyph sizes panel, mark cell, tier pill, topbar button, search input, search kbd, nav demo) — below --sp-1 floor, no border-width token",
+      "hairline borders — chrome (7) + token/type/glyph/mark cards (17) + interactive primitives (tier pill, topbar button, search input, search kbd, nav demo = 5) + composites & chrome (lifecycle card, lcard pipe dashed, lcard-empty dashed, lcard-empty tag, related panel, related item divider, library-table th, library-table td, inline-empty, warn banner, toast card, topbar demo, topbar divider = 13) — below --sp-1 floor, no border-width token",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "3px",
+    count: 1,
+    kind: "irreducible",
+    reason: "toast left accent bar — below --sp-1 floor, no border-width token",
   },
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "240px",
+    count: 2,
+    kind: "irreducible",
+    reason:
+      "search-input demo max-width + kanban-card demo cell width — no layout-width token",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "420px",
     count: 1,
     kind: "irreducible",
-    reason: "search-input demo max-width — no layout-width token",
+    reason:
+      "toast stack max-width (mirrors the live Toaster viewport) — no layout-width token",
   },
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
@@ -1828,7 +1844,7 @@ describe("var(--NAME) references resolve to declared tokens", () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 1492; // 0083 Phase 8: DevDesignSystem interactive-primitive CSS (chips/badges/stagedots/tierpills/buttons/form/nav) added more tokenised rules (P6 1313, P7 1373, was 989)
+const AC5_FLOOR = 1622; // 0083 Phase 9: DevDesignSystem composites & chrome CSS (cards/table/markdown/code/frontmatter/empty/toast/topbar) added more tokenised rules (P6 1313, P7 1373, P8 1492, was 989)
 const AC5_TARGET = 300; // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0;
 
