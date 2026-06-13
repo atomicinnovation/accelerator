@@ -9,7 +9,7 @@ priority: low
 tags: [design, frontend, dev-tools, documentation]
 type: work-item
 schema_version: 1
-last_updated: "2026-06-12T21:09:36+00:00"
+last_updated: "2026-06-13T07:24:32+00:00"
 last_updated_by: Toby Clemson
 blocked_by: ["work-item:0033", "work-item:0035", "work-item:0037", "work-item:0038", "work-item:0039", "work-item:0040", "work-item:0041", "work-item:0076", "work-item:0086"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
@@ -87,11 +87,13 @@ active highlight from the actual scroll position.
   `data-theme`, and the page offers an in-page theme toggle (per the
   prototype's Overview) that switches the rendered theme.
 - Activation triggers (any one activates the route):
-  - `#dev` URL fragment, and `#dev/<section>` to deep-link to a specific
-    section, where `<section>` is the prototype `DEV_SECTIONS` id — a
-    stable lowercase slug (e.g. `colors`), **not** the display label, so
-    the Colours section is reached at `#dev/colors` even though its
-    heading reads "Colours". Both are net-new — the router uses
+  - the `/dev` route, reached canonically at `/dev#<section>` to deep-link
+    to a specific section, where `<section>` is the prototype `DEV_SECTIONS`
+    id — a stable lowercase slug (e.g. `colors`), **not** the display label,
+    so the Colours section is reached at `/dev#colors` even though its
+    heading reads "Colours". `#dev` and `#dev/<section>` are accepted
+    **activation aliases** — a `hashchange` bridge normalises them to the
+    canonical `/dev#<section>` form. All net-new — the router uses
     path-based history today, with no hash handling.
   - a **modifier-based keyboard chord** that is *not* a reserved browser
     shortcut. `Cmd/Ctrl+Shift+D` is explicitly excluded — Chromium
@@ -105,8 +107,8 @@ active highlight from the actual scroll position.
 - **Scroll-spy + hash sync**: a scroll-spy TOC drives the active-section
   highlight from the actual scroll position (net-new — no
   `IntersectionObserver` or scroll-spy exists today) and updates the URL
-  hash to `#dev/<active-section>` as sections enter view; landing on
-  `#dev/<section>` scrolls to that section. Do not copy the prototype's
+  hash to `#<active-section>` as sections enter view; landing on
+  `/dev#<section>` scrolls to that section. Do not copy the prototype's
   pinned-to-`02 Colours` defect.
 - **Page chrome**: reproduce the dev-page affordances — a sticky
   table-of-contents aside with a "CONTENTS" eyebrow, two-digit numbered
@@ -141,20 +143,23 @@ active highlight from the actual scroll position.
   compositional sections assert presence of each named variant. Porting to
   live tokens means pixel values differ from the prototype, so the check
   is on variant presence and count, not pixel equality.
-- [ ] Given the app is loaded, when the user navigates to `#dev`, presses
-  the activation chord, or triple-clicks the sidebar-foot element, then
-  `DevDesignSystem` activates — observable as the "DEV" marquee and the
-  24-section TOC aside rendered and `location.hash` starting with `#dev` —
-  and each trigger works independently.
-- [ ] Given a `#dev/<section>` URL (e.g. `#dev/colors`), when the page
-  loads, then it scrolls so that section's heading sits within the
-  scroll-spy observer's active region (per the chosen `rootMargin`; see
-  Technical Notes) and that section's TOC entry carries the active state.
+- [ ] Given the app is loaded, when the user navigates to `#dev` (or
+  `#dev/<section>`), presses the activation chord, or triple-clicks the
+  sidebar-foot element, then `DevDesignSystem` activates on the `/dev`
+  route — observable as the path being `/dev` with the "DEV" marquee and the
+  24-section TOC aside rendered (the `#dev` / `#dev/<section>` forms are
+  activation aliases the bridge normalises to the canonical `/dev#<section>`
+  form) — and each trigger works independently.
+- [ ] Given a `/dev#<section>` URL (e.g. `/dev#colors`; the `#dev/<section>`
+  alias is also accepted and normalised), when the page loads, then it
+  scrolls so that section's heading sits within the scroll-spy observer's
+  active region (per the chosen `rootMargin`; see Technical Notes) and that
+  section's TOC entry carries the active state.
 - [ ] Given `DevDesignSystem` is open, when the user scrolls a lower
   section into the scroll-spy observer's active region (per the chosen
-  `rootMargin`; see Technical Notes — the same region the `#dev/<section>`
+  `rootMargin`; see Technical Notes — the same region the `/dev#<section>`
   deep-link criterion uses), then the TOC active highlight updates to that
-  section **and** the URL hash updates to `#dev/<that-section>` — asserted
+  section **and** the URL hash updates to `#<that-section>` — asserted
   by an automated test; the highlight is never pinned to a single
   section.
 - [ ] The page is captured under a light and a dark visual-regression
@@ -167,11 +172,11 @@ active highlight from the actual scroll position.
   it and observes `data-theme` (and the resulting `--ac-*` surface token
   values) change.
 - [ ] The TOC aside lists all 24 sections with two-digit numbers and
-  provides an "exit to app" control that returns to the app (clearing the
-  `#dev` hash and restoring the prior app route / sidebar). The "DEV"
-  marquee and footer are present, and their keybind hint equals the chord
-  the activation handler binds (a single shared constant), not just any
-  non-`⌘⇧D` string.
+  provides an "exit to app" control that returns to the app (leaving the
+  `/dev` route, clearing the section hash, and restoring the prior app
+  route / sidebar). The "DEV" marquee and footer are present, and their
+  keybind hint equals the chord the activation handler binds (a single
+  shared constant), not just any non-`⌘⇧D` string.
 - [ ] The activation chord is a modifier-based combination and is not
   `Cmd/Ctrl+Shift+D`. Verification splits in two: (a) an automated test
   asserts the chosen chord's keydown handler fires and `preventDefault()`
@@ -441,6 +446,17 @@ refinement (2026-06-12) and review (2026-06-12):
   although it is developer tooling with no direct end-user benefit, it is
   treated as a story serving the visualiser's maintainers. Recorded in
   Open Questions as a settled decision.
+- Mounting + hash form (refined 2026-06-13 during planning): `DevDesignSystem`
+  is an uncrumbed `/dev` TanStack route reached through a `hashchange` bridge.
+  The canonical URL is `/dev#<section>` (e.g. `/dev#colors`); `#dev` and
+  `#dev/<section>` are kept as activation aliases the bridge normalises to that
+  form. AC3/AC4/AC5, the "exit" clause (AC7), and the Activation /
+  Scroll-spy requirements were re-worded from the earlier hash-only
+  (`#dev/<section>`) phrasing to this route-plus-bare-section-hash model —
+  chosen for URL cleanliness over the redundant `/dev#dev/<section>`. The
+  prototype's own `history.replaceState(…, "#dev/<id>")` (Technical Notes)
+  remains the pattern to port from, now adapted to the bare `#<id>` write.
+  Plan: `meta/plans/2026-06-12-0083-dev-design-system-reference-page.md`.
 
 ## References
 
