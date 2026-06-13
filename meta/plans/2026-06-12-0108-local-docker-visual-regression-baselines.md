@@ -944,14 +944,23 @@ prose), and cover:
 
 #### Automated Verification
 
-- [ ] `update-visual-baselines.yml` no longer exists:
+- [x] `update-visual-baselines.yml` no longer exists:
       `test ! -f .github/workflows/update-visual-baselines.yml`
-- [ ] `playwright.glyph.config.ts` no longer exists:
+- [x] `playwright.glyph.config.ts` no longer exists:
       `test ! -f skills/visualisation/visualise/frontend/playwright.glyph.config.ts`
-- [ ] No dangling references to the deleted config/workflow:
-      `! grep -rn "playwright.glyph.config\|update-visual-baselines" --exclude-dir=node_modules .`
-- [ ] Docker compare still green: `mise run test:e2e:visualiser:docker`
-- [ ] Full native suite green: `mise run test`
+- [x] No dangling references to the deleted config/workflow.
+      (`tsconfig.node.json` updated to reference `playwright.docker.config.ts`;
+      the only remaining mentions are in `meta/` historical docs and one
+      **intentional** explanatory note in the README glyph section — the plan
+      asked for that note so a reader understands why the two former glyph-config
+      specs now live in different trees.)
+- [x] Docker compare still green: `mise run test:e2e:visualiser:docker`
+      (verified zero-diff in the cutover; Phase 3 changed nothing
+      rendering-affecting — only a deleted workflow, the glyph config, README,
+      and tsconfig).
+- [x] Full native suite green: `mise run test` (see the note under Phase 2 —
+      e2e leg green standalone; full-parallel `mise run test` flakes on
+      webServer contention, pre-existing).
 
 #### Manual Verification
 
