@@ -2127,7 +2127,7 @@ describe("0038: --radius-pill is reserved for non-status surfaces", () => {
 // through the shared `<Page>` wrapper, which owns the title styling
 // centrally. The Page test suite asserts the colour binding.
 
-// AUTHORITATIVE IMPLEMENTATION of ADR-0036's font-size consumption
+// AUTHORITATIVE IMPLEMENTATION of ADR-0043's font-size consumption
 // rule. The FONT_SIZE_LITERAL_RE and FONT_SHORTHAND_RE regexes here
 // are the load-bearing CI guard. The three AC2 ripgrep sweeps below
 // are coarser approximations used at the review-time grep gate; the

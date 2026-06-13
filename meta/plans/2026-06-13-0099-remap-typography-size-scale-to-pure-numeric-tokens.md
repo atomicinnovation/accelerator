@@ -283,27 +283,27 @@ token-name-agnostic; the in-same-commit re-derivation obligation at `:1915` is
 
 #### Automated Verification:
 
-- [ ] Full vitest suite stays green (no token names changed yet):
+- [x] Full vitest suite stays green (no token names changed yet):
       `mise run test:unit:frontend`
-- [ ] `migration.test.ts` no longer references `ADR-0036`:
+- [x] `migration.test.ts` no longer references `ADR-0036`:
       `grep -n 'ADR-0036' skills/visualisation/visualise/frontend/src/styles/migration.test.ts` returns nothing
-- [ ] `migration.test.ts` now references the successor ADR (positive check, not
+- [x] `migration.test.ts` now references the successor ADR (positive check, not
       just ADR-0036 absence):
       `grep -n 'ADR-0043' skills/visualisation/visualise/frontend/src/styles/migration.test.ts` returns the repointed comment line
-- [ ] ADR-0043 exists and is accepted; `grep -n 'status:' meta/decisions/ADR-0043-*.md` shows `accepted`
-- [ ] ADR-0036 marked superseded: `grep -nE 'status: superseded|superseded_by: "adr:ADR-0043"' meta/decisions/ADR-0036-typography-font-size-consumption-rule.md` shows both
+- [x] ADR-0043 exists and is accepted; `grep -n 'status:' meta/decisions/ADR-0043-*.md` shows `accepted`
+- [x] ADR-0036 marked superseded: `grep -nE 'status: superseded|superseded_by: "adr:ADR-0043"' meta/decisions/ADR-0036-typography-font-size-consumption-rule.md` shows both
 
 #### Manual Verification:
 
-- [ ] ADR-0043 reads coherently against the ADR-0030 template and the ADR-0039
+- [x] ADR-0043 reads coherently against the ADR-0030 template and the ADR-0039
       model (Context, Decision Drivers, Considered Options, Decision,
       Consequences[Positive/Negative/Neutral], References).
-- [ ] AC5: ADR-0043 created and supersedes ADR-0036.
-- [ ] AC6: ADR-0036 marked superseded per the lifecycle; ADR-0043 owns the
+- [x] AC5: ADR-0043 created and supersedes ADR-0036.
+- [x] AC6: ADR-0036 marked superseded per the lifecycle; ADR-0043 owns the
       `supersedes` edge; ADR-0036's body is unedited.
-- [ ] AC7: ADR-0043's Neutral consequence restates px-anchoring as still-open
+- [x] AC7: ADR-0043's Neutral consequence restates px-anchoring as still-open
       and links `work-item:0091`.
-- [ ] ADR-0043 carries forward the font-size consumption rule and a numeric
+- [x] ADR-0043 carries forward the font-size consumption rule and a numeric
       scale-extension policy (not silently dropped).
 
 ---

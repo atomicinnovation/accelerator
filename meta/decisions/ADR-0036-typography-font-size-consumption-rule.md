@@ -2,8 +2,9 @@
 id: "ADR-0036"
 date: "2026-05-23T00:00:00+01:00"
 author: Toby Clemson
-status: accepted
+status: superseded
 supersedes: ["adr:ADR-0026"]
+superseded_by: "adr:ADR-0043"
 tags: [visualiser, frontend, css, design-tokens, typography]
 type: adr
 title: "ADR-0036: Typography font-size consumption rule"
