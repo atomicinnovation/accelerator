@@ -762,10 +762,10 @@ instead of building `title`/`body` for the shared `<Page>` render.
 
 #### Automated Verification
 
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] Type checking passes: `mise run types:frontend:check`
-- [ ] Format/lint clean: `mise run frontend:check`
-- [ ] No remaining inline `Document not found.` `<p>` body in `LibraryDocView`
+- [x] Unit tests pass: `mise run test:unit:frontend`
+- [x] Type checking passes: `mise run types:frontend:check`
+- [x] Format/lint clean: `mise run frontend:check`
+- [x] No remaining inline `Document not found.` `<p>` body in `LibraryDocView`
 
 #### Manual Verification
 

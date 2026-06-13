@@ -89,7 +89,7 @@ describe("LibraryDocView", () => {
     expect(await screen.findByText("Body text here.")).toBeInTheDocument();
   });
 
-  it("shows Document not found when the slug does not match any entry", async () => {
+  it("renders the not-found surface when the slug does not match any entry", async () => {
     vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([mockEntry]);
     render(<LibraryDocView type="plans" fileSlug="nonexistent" />, {
       wrapper: Wrapper,
@@ -100,6 +100,13 @@ describe("LibraryDocView", () => {
         name: /Document not found/i,
       }),
     ).toBeInTheDocument();
+    // The new surface, not the old inline `Document not found.` paragraph.
+    expect(screen.queryByText("Document not found.")).toBeNull();
+    expect(
+      screen
+        .getByRole("link", { name: /Back to library/i })
+        .getAttribute("href"),
+    ).toBe("/library");
   });
 
   it("renders Loading while the content fetch is pending", async () => {
@@ -118,29 +125,77 @@ describe("LibraryDocView", () => {
     expect((await screen.findAllByText(/Loading…/i)).length).toBeGreaterThan(0);
   });
 
-  it("renders an error alert when fetchDocs rejects", async () => {
+  it("renders the load-error surface (no suggestions) when fetchDocs rejects", async () => {
     vi.spyOn(fetchModule, "fetchDocs").mockRejectedValue(
       new Error("list-boom"),
     );
     render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      /Failed to load document list/i,
-    );
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: /Something went wrong loading this document/i,
+      }),
+    ).toBeInTheDocument();
+    // A fetch failure is not a missing document — no suggestions block.
+    expect(screen.queryByRole("heading", { name: /Did you mean/i })).toBeNull();
+    expect(
+      screen.getByRole("link", { name: /Back to library/i }),
+    ).toBeInTheDocument();
   });
 
-  it("renders an error alert when fetchDocContent rejects", async () => {
+  it("renders the load-error surface with the content error when fetchDocContent rejects", async () => {
     vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([mockEntry]);
     vi.spyOn(fetchModule, "fetchDocContent").mockRejectedValue(
-      new Error("content-boom"),
+      new Error("content-boom-distinct"),
     );
     render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      /Failed to load document content/i,
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: /Something went wrong loading this document/i,
+      }),
+    ).toBeInTheDocument();
+    // The content rejection's own message is threaded through (not the list
+    // error) — confirms errorMessage(content.error) for this branch.
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "content-boom-distinct",
     );
+    expect(screen.queryByRole("heading", { name: /Did you mean/i })).toBeNull();
+  });
+
+  it("matches a null-slug entry by its relPath stem; falls to the 404 otherwise", async () => {
+    const nullSlugEntry: IndexEntry = {
+      ...mockEntry,
+      slug: null,
+      relPath: "meta/plans/2026-01-01-foo.md",
+    };
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([nullSlugEntry]);
+    vi.spyOn(fetchModule, "fetchDocContent").mockResolvedValue({
+      content: "Body text.",
+      etag: '"sha256-a"',
+    });
+    // A matching null-slug entry resolves as a found document.
+    const { unmount } = render(
+      <LibraryDocView type="plans" fileSlug="2026-01-01-foo" />,
+      { wrapper: Wrapper },
+    );
+    expect(await screen.findByText("Foo Plan")).toBeInTheDocument();
+    unmount();
+
+    // A non-matching slug under the same null-slug list falls to the 404.
+    render(<LibraryDocView type="plans" fileSlug="no-such-slug" />, {
+      wrapper: Wrapper,
+    });
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: /Document not found/i,
+      }),
+    ).toBeInTheDocument();
   });
 
   // ── Step 6.6 ──────────────────────────────────────────────────────────

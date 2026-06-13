@@ -21,6 +21,9 @@ import { Page } from "../../components/Page/Page";
 import { RelatedArtifacts } from "../../components/RelatedArtifacts/RelatedArtifacts";
 import { RelatedCluster } from "../../components/RelatedCluster/RelatedCluster";
 import styles from "./LibraryDocView.module.css";
+import { errorMessage } from "./recovery/error-message";
+import { LoadErrorSurface } from "./recovery/LoadErrorSurface";
+import { NotFoundSurface } from "./recovery/NotFoundSurface";
 
 /** Strip a leading YAML frontmatter block (`---\n…\n---\n`) from the
  *  raw document content. The server returns the file verbatim, so
@@ -88,32 +91,33 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
     return <p role="alert">Missing file slug.</p>;
   }
 
+  // Fetch failures are not missing documents: they render the sibling
+  // load-error surface (no suggestions), each resolving its own error through
+  // the shared `errorMessage()` helper so the surface receives a string.
+  if (listError) {
+    return (
+      <LoadErrorSurface knownType={type} errorMessage={errorMessage(listErr)} />
+    );
+  }
+  if (content.isError) {
+    return (
+      <LoadErrorSurface
+        knownType={type}
+        errorMessage={errorMessage(content.error)}
+      />
+    );
+  }
+  // True 404 — gated on `entries.length > 0` so loading/empty states fall
+  // through to the Loading… default rather than rendering the not-found surface.
+  if (!entry && entries.length > 0) {
+    return <NotFoundSurface missingSlug={fileSlug} knownType={type} />;
+  }
+
   let title: ReactNode = "Loading…";
   let subtitle: ReactNode | undefined;
   let body: ReactNode = <p>Loading…</p>;
 
-  if (listError) {
-    title = "Document not found";
-    body = (
-      <p role="alert" className={styles.error}>
-        Failed to load document list:{" "}
-        {listErr instanceof Error ? listErr.message : String(listErr)}
-      </p>
-    );
-  } else if (content.isError) {
-    title = "Document not found";
-    body = (
-      <p role="alert" className={styles.error}>
-        Failed to load document content:{" "}
-        {content.error instanceof Error
-          ? content.error.message
-          : String(content.error)}
-      </p>
-    );
-  } else if (!entry && entries.length > 0) {
-    title = "Document not found";
-    body = <p>Document not found.</p>;
-  } else if (entry && content.data) {
+  if (entry && content.data) {
     title = entry.title;
     subtitle = (
       <FrontmatterChips
