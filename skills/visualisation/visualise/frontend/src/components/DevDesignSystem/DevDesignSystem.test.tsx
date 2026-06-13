@@ -165,3 +165,55 @@ describe("DevDesignSystem section content — tokens & type (Phase 6)", () => {
     ).toHaveLength(7);
   });
 });
+
+describe("DevDesignSystem section content — glyphs, mark, icons (Phase 7)", () => {
+  it("icons section renders one cell per ICON_NAME", () => {
+    const { getByTestId } = renderPage();
+    expect(
+      getByTestId("ds-icons").querySelectorAll("[data-icon]"),
+    ).toHaveLength(ICON_NAMES.length);
+  });
+
+  it("doc-type glyphs reproduce the glyph-cell-<type>-<size> contract at 16/24/32/48", () => {
+    const { getByTestId, container } = renderPage();
+    const grid = getByTestId("ds-glyphs");
+    // every doc type renders all four sizes (the migrated VR + resolved-fill
+    // contract: the resolved-fill spec reads the 24px cell)
+    for (const docType of DOC_TYPE_KEYS) {
+      for (const size of [16, 24, 32, 48]) {
+        expect(
+          grid.querySelector(
+            `[data-testid="glyph-cell-${docType}-${size}"] svg`,
+          ),
+        ).not.toBeNull();
+      }
+    }
+    expect(
+      container.querySelectorAll('[data-testid^="glyph-cell-"]'),
+    ).toHaveLength(DOC_TYPE_KEYS.length * 4);
+  });
+
+  it("empty-state glyphs render a big-glyph-cell-<type> per doc type + a size ramp", () => {
+    const { getByTestId } = renderPage();
+    const grid = getByTestId("ds-bigglyphs");
+    for (const docType of DOC_TYPE_KEYS) {
+      expect(
+        grid.querySelector(`[data-testid="big-glyph-cell-${docType}"]`),
+      ).not.toBeNull();
+    }
+    expect(
+      grid.querySelectorAll('[data-testid^="big-glyph-cell-"]'),
+    ).toHaveLength(DOC_TYPE_KEYS.length);
+  });
+
+  it("empty-state glyphs render the five-size ramp", () => {
+    const { container } = renderPage();
+    expect(container.querySelectorAll("[data-big-glyph-size]")).toHaveLength(5);
+  });
+
+  it("atomic mark renders five sizes plus an on-night cell", () => {
+    const { container } = renderPage();
+    expect(container.querySelectorAll("[data-mark]")).toHaveLength(6);
+    expect(container.querySelectorAll("[data-mark-night]")).toHaveLength(1);
+  });
+});

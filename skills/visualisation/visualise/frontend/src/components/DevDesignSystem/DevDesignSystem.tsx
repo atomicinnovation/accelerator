@@ -12,6 +12,9 @@ import {
   RADIUS_TOKENS,
   SPACING_TOKENS,
 } from "../../styles/tokens";
+import { AtomicMark } from "../AtomicMark/AtomicMark";
+import { BigGlyph } from "../BigGlyph/BigGlyph";
+import { Glyph } from "../Glyph/Glyph";
 import { ICON_NAMES, Icon } from "../Icon/Icon";
 import { ThemeToggle } from "../ThemeToggle/ThemeToggle";
 import styles from "./DevDesignSystem.module.css";
@@ -492,6 +495,155 @@ function RadiiSection() {
   );
 }
 
+// Icon size ramp (prototype's 12→32 set); the `hex` icon is the specimen.
+const ICON_SIZE_RAMP = [12, 14, 16, 18, 20, 24, 28, 32] as const;
+// Doc-type glyph sizes — the live 16/24/32 plus the net-new 48 (the glyph VR
+// spec's contract; Phase 10 repoints it here, adding the 48 cell).
+const GLYPH_SIZES = [16, 24, 32, 48] as const;
+// Empty-state (BigGlyph) size ramp.
+const BIG_GLYPH_SIZES = [48, 64, 80, 96, 128] as const;
+// Atomic-mark sizes.
+const MARK_SIZES = [20, 24, 32, 48, 72] as const;
+
+function IconsSection() {
+  return (
+    <>
+      <div className={styles.iconsGrid} data-testid="ds-icons">
+        {ICON_NAMES.map((name) => (
+          <div
+            key={name}
+            className={styles.iconCell}
+            data-icon={name}
+            title={name}
+          >
+            <div className={styles.iconChip}>
+              <Icon name={name} size={20} />
+            </div>
+            <div className={styles.iconName}>{name}</div>
+          </div>
+        ))}
+      </div>
+      <h3 className={styles.h3}>Sizes</h3>
+      <div className={styles.iconSizes}>
+        {ICON_SIZE_RAMP.map((sz) => (
+          <div key={sz} className={styles.iconSizeCell}>
+            <Icon name="hex" size={sz} />
+            <div className={styles.caption}>{sz}px</div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function GlyphsSection() {
+  // `glyph-cell-<docType>-<size>` reproduces the GlyphShowcase locator contract
+  // (tests/visual-regression/glyph-showcase.spec.ts + glyph-resolved-fill.spec.ts,
+  // migrated here in Phase 10) at the live 16/24/32 sizes + the net-new 48.
+  return (
+    <div className={styles.glyphGrid} data-testid="ds-glyphs">
+      {DOC_TYPE_KEYS.map((docType) => (
+        <div key={docType} className={styles.glyphRow}>
+          <div className={styles.glyphRowLabel}>
+            <code>{docType}</code>
+            <span className={styles.caption}>{DOC_TYPE_LABELS[docType]}</span>
+          </div>
+          <div className={styles.glyphRowCells}>
+            {GLYPH_SIZES.map((size) => (
+              <span
+                key={size}
+                className={styles.glyphCell}
+                data-testid={`glyph-cell-${docType}-${size}`}
+              >
+                <Glyph docType={docType} size={size} />
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BigGlyphsSection() {
+  // `big-glyph-cell-<docType>` reproduces the BigGlyphShowcase locator contract
+  // (tests/visual-regression/big-glyph-showcase.spec.ts, migrated here in Phase
+  // 10). The cell keeps `background: var(--ac-bg-card)` because that spec's
+  // dark-commit poll reads the cell's computed background-color; the hue halo
+  // lives on the inner hero so the poll still sees the card surface.
+  return (
+    <>
+      <p className={styles.prose}>
+        Hero illustrations for per-type empty pages — each hue-tinted from{" "}
+        <code>DOC_TYPE_HUE</code> and rendered on an 80×80 viewBox so it scales
+        cleanly between 64–128px. Used in the library empty states.
+      </p>
+      <div className={styles.bigGlyphGrid} data-testid="ds-bigglyphs">
+        {DOC_TYPE_KEYS.map((docType) => (
+          <div
+            key={docType}
+            className={styles.bigGlyphCell}
+            data-testid={`big-glyph-cell-${docType}`}
+          >
+            <div
+              className={styles.bigGlyphHero}
+              style={{ "--bg-hue": DOC_TYPE_HUE[docType] } as CSSProperties}
+            >
+              <BigGlyph docType={docType} size={96} />
+            </div>
+            <div className={styles.bigGlyphMeta}>
+              <div className={styles.bigGlyphName}>
+                {DOC_TYPE_LABELS[docType]}
+              </div>
+              <div className={styles.caption}>{docType}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <h3 className={styles.h3}>Sizes</h3>
+      <div className={styles.bigGlyphSizes}>
+        {BIG_GLYPH_SIZES.map((sz) => (
+          <div
+            key={sz}
+            className={styles.bigGlyphSizeCell}
+            data-big-glyph-size={sz}
+          >
+            <BigGlyph docType="plans" size={sz} />
+            <div className={styles.caption}>{sz}px</div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function MarkSection() {
+  return (
+    <div className={styles.marks}>
+      {MARK_SIZES.map((sz) => (
+        <div key={sz} className={styles.markCell} data-mark>
+          <AtomicMark size={sz} />
+          <div className={styles.caption}>{sz}</div>
+        </div>
+      ))}
+      <div
+        className={styles.markCell}
+        data-mark
+        data-mark-night
+        style={{ background: "var(--atomic-night)" }}
+      >
+        <AtomicMark size={48} />
+        <div
+          className={styles.caption}
+          style={{ color: "rgba(255,255,255,0.7)" }}
+        >
+          on night
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Per-section content + hint, keyed by the DEV_SECTIONS slug. Sections without
 // an entry render as empty stubs (filled by later phases).
 const SECTION_CONTENT: Record<string, { hint?: string; body: ReactNode }> = {
@@ -503,6 +655,16 @@ const SECTION_CONTENT: Record<string, { hint?: string; body: ReactNode }> = {
   type: { hint: "Sora · Inter · Fira Code", body: <TypeSection /> },
   spacing: { hint: "--sp-1 … --sp-11", body: <SpacingSection /> },
   radii: { hint: "--radius-* ladder · 3 shadows", body: <RadiiSection /> },
+  icons: {
+    hint: `${ICON_NAMES.length} stroke icons · <Icon name size />`,
+    body: <IconsSection />,
+  },
+  glyphs: {
+    hint: `${DOC_TYPE_KEYS.length} types · <Glyph docType size />`,
+    body: <GlyphsSection />,
+  },
+  bigglyphs: { hint: "<BigGlyph docType size />", body: <BigGlyphsSection /> },
+  mark: { body: <MarkSection /> },
 };
 
 export function DevDesignSystem() {

@@ -545,3 +545,164 @@
   font-size: var(--size-xxs-sm);
   color: var(--ac-fg-muted);
 }
+
+/* ─── Icons ─── */
+.iconsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--sp-2);
+}
+.iconCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  background: var(--ac-bg-card);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-4);
+  padding: var(--sp-3) var(--sp-2) var(--sp-2);
+}
+.iconChip {
+  width: var(--sp-6);
+  height: var(--sp-6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-4);
+  color: var(--ac-fg-strong);
+}
+.iconCell:hover .iconChip {
+  background: var(--ac-accent-faint);
+  color: var(--ac-accent);
+}
+.iconName {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs-lg);
+  color: var(--ac-fg-muted);
+}
+.iconSizes {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+}
+.iconSizeCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--ac-fg-strong);
+}
+
+/* ─── Doc-type glyphs ─── */
+.glyphGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.glyphRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  background: var(--ac-bg-card);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-4);
+  padding: var(--sp-2) var(--sp-3);
+}
+.glyphRowLabel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.glyphRowLabel code {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-row);
+  color: var(--ac-fg-strong);
+}
+.glyphRowCells {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-5);
+}
+.glyphCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── Empty-state glyphs ─── */
+.bigGlyphGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--sp-4);
+}
+.bigGlyphCell {
+  background: var(--ac-bg-card);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-8);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.bigGlyphHero {
+  height: var(--sp-11);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(
+      circle at 30% 20%,
+      hsl(var(--bg-hue) 60% 55% / 0.18),
+      transparent 70%
+    ),
+    var(--ac-bg-sunken);
+  border-bottom: 1px solid var(--ac-stroke-soft);
+}
+.bigGlyphMeta {
+  padding: var(--sp-2) var(--sp-3) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.bigGlyphName {
+  font-size: var(--size-subtitle);
+  font-weight: 500;
+  color: var(--ac-fg-strong);
+  line-height: var(--lh-snug);
+}
+.bigGlyphSizes {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--sp-5);
+  padding: var(--sp-3);
+  background: var(--ac-bg-card);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-6);
+  margin-top: var(--sp-3);
+}
+.bigGlyphSizeCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* ─── Atomic mark ─── */
+.marks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-5);
+}
+.markCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  background: var(--ac-bg-card);
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-6);
+  padding: var(--sp-3) var(--sp-4);
+}

@@ -17,19 +17,20 @@ last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
-> **Implementation progress (2026-06-13).** Phases **1–6 are implemented and
-> committed**, each leaving `main` green (`mise run frontend:check` + 2468 unit
+> **Implementation progress (2026-06-13).** Phases **1–7 are implemented and
+> committed**, each leaving `main` green (`mise run frontend:check` + 2473 unit
 > tests; full e2e/VR — 478 cases — for the pixel-touching phases 1–3). Per-phase
 > success-criteria checkboxes below are ticked accordingly; the unticked boxes in
-> phases 1–6 are the remaining **manual/browser** verifications, the **Phase 5
+> phases 1–7 are the remaining **manual/browser** verifications, the **Phase 5
 > e2e specs deferred to Phase 10** (empty stub sections can't be scroll-spied
 > meaningfully — the `pickActiveSection` total-order unit test is the algorithm's
 > oracle), and the **Phase 6 colours theme-responsiveness check deferred to Phase
-> 10** (browser-only — jsdom can't resolve `var()`). Phases **7–11 remain** (7–9
+> 10** (browser-only — jsdom can't resolve `var()`). Phases **8–11 remain** (8–9
 > section content, 10 VR migration + the deferred e2e, 11 route retirement + README
 > + work-item AC amendment). Commits: Icon primitive → icon migration →
 > AtomicMark/Glyph → /dev route+activation+chrome → scroll-spy+theme → tokens/type
-> sections. Notable deviations are recorded inline per phase (Toaster ToastIcon kept
+> sections → glyph/mark/icon sections. Notable deviations are recorded inline per
+> phase (Toaster ToastIcon kept
 > custom; Breadcrumbs uses a text `›`; module CSS tokenised against ADR-0039 with
 > documented `migration.test.ts` exceptions for irreducible dev-chrome values; Phase
 > 6 demonstration values inline in TSX, off-scale prototype px snapped to tokens).
@@ -895,17 +896,34 @@ Emits the `data-testid` cells the migrated glyph VR specs will assert.
 
 #### Automated Verification
 
-- [ ] `mise run frontend:check` and `mise run test:unit:frontend` pass
-- [ ] Icons count asserts `= ICON_NAMES.length` (33)
-- [ ] Doc-type glyphs count asserts `= DOC_TYPE_KEYS.length` (13) × 4 sizes
-  (16/24/32/48); `glyph-cell-<type>-24` exists (for `glyph-resolved-fill`)
-- [ ] Empty-state glyphs count asserts `= DOC_TYPE_KEYS.length` (13) × 5 sizes;
-  `big-glyph-cell-<type>` cells present
-- [ ] Atomic mark asserts 5 sizes + 1 on-night
+- [x] `mise run frontend:check` and `mise run test:unit:frontend` pass (2473 unit
+  tests; +5 Phase 7 oracles)
+- [x] Icons count asserts `= ICON_NAMES.length` (33)
+- [x] Doc-type glyphs count asserts `= DOC_TYPE_KEYS.length` (13) × 4 sizes
+  (16/24/32/48); `glyph-cell-<type>-24` exists (for `glyph-resolved-fill`) — the
+  test asserts every `glyph-cell-<type>-<size>` cell wraps an `svg`
+- [x] Empty-state glyphs count asserts `= DOC_TYPE_KEYS.length` (13)
+  `big-glyph-cell-<type>` cells present + the 5-size ramp (48/64/80/96/128) — see
+  the deviation note below (one 96px hero per type + a separate ramp, not a literal
+  13×5 matrix)
+- [x] Atomic mark asserts 5 sizes + 1 on-night
 
 #### Manual Verification
 
 - [ ] All glyphs/icons render hue-/theme-correct in light + dark at every size
+
+> **Phase 7 notes/deviations.** (1) **Doc-type glyphs reproduce the GlyphShowcase
+> grid contract** (`glyph-cell-<type>-<size>`) at the live `16/24/32` + net-new `48`
+> — Phase 10 repoints `glyph-showcase.spec.ts` + `glyph-resolved-fill.spec.ts` here.
+> (2) **Empty-state glyphs**: 13 `big-glyph-cell-<type>` cells (one **96px** hero
+> each, matching the BigGlyphShowcase contract) **plus a separate 5-size ramp**
+> (`plans` @ 48/64/80/96/128) — *not* a literal 13×5 matrix. Each cell keeps
+> `background: var(--ac-bg-card)` because the migrated `big-glyph-showcase.spec.ts`
+> dark-commit poll reads the cell's computed `background-color`; the hue halo lives
+> on an inner `.bigGlyphHero` (via an inline `--bg-hue`, registered in
+> `LOCAL_CUSTOM_PROPS`) so the poll still sees the card surface. (3) Module-CSS gate:
+> `1px` 18→24, `180px` 2→3, `+110px`×1; `AC5_FLOOR` 1313→1373. The 48/64/80/96/128
+> and 12–32 icon sizes are passed inline (ungated) so the gate stays clean.
 
 ---
 

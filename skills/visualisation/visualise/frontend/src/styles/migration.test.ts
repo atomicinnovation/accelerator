@@ -68,18 +68,25 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "1px",
-    count: 18,
+    count: 24,
     kind: "irreducible",
     reason:
-      "hairline borders — chrome (marquee bottom, marquee kbd, TOC aside right, TOC foot dashed, section-head bottom, footer dashed, footer kbd) + section-content cards (prose/deviations code pill, overview card, deviations aside, swatch, swatch-chip divider, type-hue cell, type-sample, type-sample-meta dashed, spacing cell, radii cell, shadow cell) — below --sp-1 floor, no border-width token",
+      "hairline borders — chrome (marquee bottom, marquee kbd, TOC aside right, TOC foot dashed, section-head bottom, footer dashed, footer kbd) + section cards (prose/deviations code pill, overview card, deviations aside, swatch, swatch-chip divider, type-hue cell, type-sample, type-sample-meta dashed, spacing cell, radii cell, shadow cell, icon cell, glyph row, big-glyph cell, big-glyph hero divider, big-glyph sizes panel, mark cell) — below --sp-1 floor, no border-width token",
   },
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "180px",
-    count: 2,
+    count: 3,
     kind: "irreducible",
     reason:
-      "swatch + doc-type-hue grid min track widths (minmax floor) — no layout-width token",
+      "swatch + doc-type-hue + big-glyph grid min track widths (minmax floor) — no layout-width token",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "110px",
+    count: 1,
+    kind: "irreducible",
+    reason: "icon grid min track width (minmax floor) — no layout-width token",
   },
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
@@ -1778,6 +1785,8 @@ describe("var(--NAME) references resolve to declared tokens", () => {
       "ds-gutter",
       "ds-section-gap",
       "ds-marquee-h",
+      // per-cell empty-state-glyph hue, set inline on each big-glyph hero
+      "bg-hue",
     ]),
     "routes/library/EmptyState.module.css": new Set(["ac-empty-page-hue"]),
     "routes/library/recovery/RecoverySurface.module.css": new Set([
@@ -1812,7 +1821,7 @@ describe("var(--NAME) references resolve to declared tokens", () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 1313; // 0083 Phase 6: DevDesignSystem token/type section CSS (overview, colours, type, spacing, radii) added fully-tokenised structural rules (was 989)
+const AC5_FLOOR = 1373; // 0083 Phase 7: DevDesignSystem glyph/mark/icon section CSS added more tokenised structural rules (Phase 6 → 1313, was 989)
 const AC5_TARGET = 300; // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0;
 
