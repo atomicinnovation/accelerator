@@ -151,9 +151,10 @@ const CASES: Case[] = [
   },
   {
     name: "Kanban kind badge",
-    // /kanban fixtures carry no `kind`, so the badge only renders on the
-    // showcase surface (sample entry has kind: 'feature').
-    route: "/kanban-card-showcase",
+    // /kanban fixtures carry no `kind`, so the badge only renders where a
+    // sample entry has one — the DevDesignSystem Cards section's kanban demo
+    // (KANBAN_ENTRY has kind: 'feature'); the first [data-tone] in DOM order.
+    route: "/dev#cards",
     selector: "[data-tone]",
     expected: "9.5px",
   },

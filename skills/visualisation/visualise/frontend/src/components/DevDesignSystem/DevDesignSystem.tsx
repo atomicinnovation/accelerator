@@ -47,6 +47,8 @@ const SCROLL_ROOT_SELECTOR = "[data-scroll-root]";
 // Active-band top offset — matches the observer's rootMargin top so the pure
 // picker and the observer agree on where the band begins.
 const BAND_TOP = 80;
+// Sub-pixel slop for the active-band comparison — see the recompute call site.
+const ACTIVE_BAND_SLOP = 2;
 const SCROLL_SPY_MARGIN = "-80px 0px -55% 0px";
 const SCROLL_SPY_THRESHOLD = [0, 0.25, 0.5];
 
@@ -1365,11 +1367,32 @@ export function DevDesignSystem() {
   }, []);
 
   // Deep-link landing: scroll the requested section into the active region on
-  // cold load. `/dev#overview` and bare `/dev` stay at the top.
+  // cold load. `/dev#overview` and bare `/dev` stay at the top. The scroll is
+  // deferred until fonts + layout have settled — section heights shift as web
+  // fonts swap in, so a synchronous mount-time scroll can land at the wrong
+  // offset and the scroll-spy would then mark (and rewrite the hash to) the
+  // wrong section. A rAF after `fonts.ready` lets the final layout settle.
   useEffect(() => {
     const section = window.location.hash.replace(/^#/, "");
     if (!section || section === "overview") return;
-    scrollToSection(section, "auto");
+    let cancelled = false;
+    const land = () => {
+      // The scroll-spy's `scroll`-event recompute (below) picks up the resting
+      // position the landing scroll produces, so the highlight + hash settle on
+      // the deep-linked section without any duplicate state-write here.
+      requestAnimationFrame(() => {
+        if (!cancelled) scrollToSection(section, "auto");
+      });
+    };
+    const fonts = document.fonts;
+    if (fonts?.ready) {
+      fonts.ready.then(land);
+    } else {
+      land();
+    }
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Scroll-spy: drive the active highlight + canonical hash from actual scroll
@@ -1394,7 +1417,11 @@ export function DevDesignSystem() {
             : Number.POSITIVE_INFINITY,
         };
       });
-      const active = pickActiveSection(tops, BAND_TOP);
+      // A few px of slop absorbs sub-pixel layout rounding from
+      // getBoundingClientRect (a deep-linked section lands at e.g. 80.3px, just
+      // above an exact 80px band edge) so the section at the band top is
+      // reliably selected rather than flickering to the one above it.
+      const active = pickActiveSection(tops, BAND_TOP + ACTIVE_BAND_SLOP);
       if (!active) return;
       setActiveSection(active);
       if (active !== lastWritten) {
@@ -1417,7 +1444,28 @@ export function DevDesignSystem() {
       const el = document.getElementById(`ds-${id}`);
       if (el) observer.observe(el);
     }
-    return () => observer.disconnect();
+
+    // The IntersectionObserver fires on threshold crossings, not on scroll
+    // SETTLE — so a programmatic landing scroll (deep-link) or a scroll that
+    // ends a sub-pixel off a threshold can leave the active section reflecting
+    // a transient mid-scroll position. An rAF-coalesced `scroll` recompute
+    // pins the highlight + hash to the resting position. Cheap (24 rects,
+    // once per frame at most); disconnected on unmount.
+    let rafId = 0;
+    const onScroll = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        recompute();
+      });
+    };
+    main.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      main.removeEventListener("scroll", onScroll);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [dev]);
 
   const jump = (id: string) => {

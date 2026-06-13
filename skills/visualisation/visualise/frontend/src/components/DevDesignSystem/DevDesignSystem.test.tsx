@@ -414,3 +414,52 @@ describe("DevDesignSystem section content — composites & chrome (Phase 9)", ()
     ).toHaveLength(5);
   });
 });
+
+describe("VR cell-presence gate (Phase 10)", () => {
+  // Coverage-preservation enforced by CI: every data-testid cell the migrated
+  // visual-regression specs clip must exist on the page, with PINNED dimensions
+  // (a glyph size drift, a dropped chip size, or a missing code language fails
+  // here rather than slipping past the row-by-row audit).
+  it("renders every required migrated VR cell", () => {
+    const { container } = renderPage();
+    const required: string[] = [];
+    for (const docType of DOC_TYPE_KEYS) {
+      for (const size of [16, 24, 32, 48]) {
+        required.push(`glyph-cell-${docType}-${size}`);
+      }
+      required.push(`big-glyph-cell-${docType}`);
+    }
+    for (const variant of [
+      "neutral",
+      "indigo",
+      "green",
+      "amber",
+      "red",
+      "violet",
+    ]) {
+      for (const size of ["sm", "md"]) {
+        required.push(`chip-cell-${variant}-${size}`);
+      }
+    }
+    for (const lang of [
+      "python",
+      "typescript",
+      "yaml",
+      "json",
+      "css",
+      "html",
+      "diff",
+      "markdown",
+      "bash",
+    ]) {
+      required.push(`code-syntax-cell-${lang}`);
+    }
+    for (const state of ["resting", "dragging", "overlay"]) {
+      required.push(`kanban-card-cell-${state}`);
+    }
+    const missing = required.filter(
+      (id) => container.querySelector(`[data-testid="${id}"]`) === null,
+    );
+    expect(missing).toEqual([]);
+  });
+});
