@@ -5,17 +5,32 @@ title: "DevDesignSystem Reference Page Implementation Plan"
 date: "2026-06-12T23:10:21+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: in-progress
 work_item_id: "work-item:0083"
 parent: "work-item:0083"
 derived_from: ["codebase-research:2026-06-12-0083-dev-design-system-reference-page"]
 tags: [design, frontend, dev-tools, visualiser, design-system, visual-regression, theming, scroll-spy, keybind, icon]
 revision: "e13cea2829821da417f7d7e91e9c2bb7ba8b3852"
 repository: "accelerator"
-last_updated: "2026-06-13T09:24:53+00:00"
+last_updated: "2026-06-13T17:16:58+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
+
+> **Implementation progress (2026-06-13).** Phases **1–5 are implemented and
+> committed**, each leaving `main` green (`mise run frontend:check` + 2461 unit
+> tests; full e2e/VR — 478 cases — for the pixel-touching phases 1–3). Per-phase
+> success-criteria checkboxes below are ticked accordingly; the unticked boxes in
+> phases 1–5 are the remaining **manual/browser** verifications and the **Phase 5
+> e2e specs deferred to Phase 10** (empty stub sections can't be scroll-spied
+> meaningfully — the `pickActiveSection` total-order unit test is the algorithm's
+> oracle). Phases **6–11 remain** (6–9 section content, 10 VR migration + the
+> deferred e2e, 11 route retirement + README + work-item AC amendment). Commits:
+> Icon primitive → icon migration → AtomicMark/Glyph → /dev route+activation+chrome
+> → scroll-spy+theme. Notable deviations are recorded inline per phase (Toaster
+> ToastIcon kept custom; Breadcrumbs uses a text `›`; module CSS tokenised against
+> ADR-0039 with documented `migration.test.ts` exceptions for irreducible
+> dev-chrome values). State is also in memory `project_0083_dev_design_system_progress`.
 
 > **Revision note (2026-06-13).** Updated after plan review-1
 > (`meta/reviews/plans/2026-06-12-0083-dev-design-system-reference-page-review-1.md`,
