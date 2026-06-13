@@ -68,10 +68,17 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "1px",
-    count: 24,
+    count: 29,
     kind: "irreducible",
     reason:
-      "hairline borders — chrome (marquee bottom, marquee kbd, TOC aside right, TOC foot dashed, section-head bottom, footer dashed, footer kbd) + section cards (prose/deviations code pill, overview card, deviations aside, swatch, swatch-chip divider, type-hue cell, type-sample, type-sample-meta dashed, spacing cell, radii cell, shadow cell, icon cell, glyph row, big-glyph cell, big-glyph hero divider, big-glyph sizes panel, mark cell) — below --sp-1 floor, no border-width token",
+      "hairline borders — chrome (marquee bottom, marquee kbd, TOC aside right, TOC foot dashed, section-head bottom, footer dashed, footer kbd) + section cards (prose/deviations code pill, overview card, deviations aside, swatch, swatch-chip divider, type-hue cell, type-sample, type-sample-meta dashed, spacing cell, radii cell, shadow cell, icon cell, glyph row, big-glyph cell, big-glyph hero divider, big-glyph sizes panel, mark cell, tier pill, topbar button, search input, search kbd, nav demo) — below --sp-1 floor, no border-width token",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "240px",
+    count: 1,
+    kind: "irreducible",
+    reason: "search-input demo max-width — no layout-width token",
   },
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
@@ -105,10 +112,10 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "#ffffff",
-    count: 1,
+    count: 2,
     kind: "irreducible",
     reason:
-      "DEV marquee tag text on the --ac-accent-2 red badge — theme-invariant white",
+      "DEV marquee tag text on the --ac-accent-2 red badge + filter-badge count text on --ac-accent — theme-invariant white",
   },
   // components/Chip/Chip.module.css
   {
@@ -1821,7 +1828,7 @@ describe("var(--NAME) references resolve to declared tokens", () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 1373; // 0083 Phase 7: DevDesignSystem glyph/mark/icon section CSS added more tokenised structural rules (Phase 6 → 1313, was 989)
+const AC5_FLOOR = 1492; // 0083 Phase 8: DevDesignSystem interactive-primitive CSS (chips/badges/stagedots/tierpills/buttons/form/nav) added more tokenised rules (P6 1313, P7 1373, was 989)
 const AC5_TARGET = 300; // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0;
 

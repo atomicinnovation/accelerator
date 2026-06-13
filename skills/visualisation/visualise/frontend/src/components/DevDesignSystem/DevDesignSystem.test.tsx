@@ -1,6 +1,6 @@
 import { fireEvent, render } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { DOC_TYPE_KEYS } from "../../api/types";
+import { DOC_TYPE_KEYS, WORKFLOW_PIPELINE_STEPS } from "../../api/types";
 import {
   DOC_TYPE_HUE,
   RADIUS_TOKENS,
@@ -215,5 +215,100 @@ describe("DevDesignSystem section content — glyphs, mark, icons (Phase 7)", ()
     const { container } = renderPage();
     expect(container.querySelectorAll("[data-mark]")).toHaveLength(6);
     expect(container.querySelectorAll("[data-mark-night]")).toHaveLength(1);
+  });
+});
+
+describe("DevDesignSystem section content — interactive primitives (Phase 8)", () => {
+  it("chips reproduce the 6×2 chip-cell-<variant>-<size> contract", () => {
+    const { getByTestId } = renderPage();
+    const grid = getByTestId("ds-chips");
+    expect(grid.querySelectorAll('[data-testid^="chip-cell-"]')).toHaveLength(
+      12,
+    );
+    // each cell wraps a live Chip carrying data-variant + data-size
+    expect(
+      grid.querySelector(
+        '[data-testid="chip-cell-indigo-md"] [data-variant="indigo"][data-size="md"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it("badges route the 12 values through the correct status/verdict/result component", () => {
+    const { getByTestId } = renderPage();
+    const status = getByTestId("ds-badges-status");
+    // the 8 statuses
+    expect(
+      status.querySelectorAll('[data-testid="status-badge"]'),
+    ).toHaveLength(8);
+    const verdict = getByTestId("ds-badges-verdict");
+    // approve + request-changes → VerdictBadge; approve-with-changes → StatusBadge
+    // (amber); pass → ResultBadge
+    expect(
+      verdict.querySelectorAll('[data-testid="verdict-badge"]'),
+    ).toHaveLength(2);
+    expect(
+      verdict.querySelectorAll('[data-testid="status-badge"]'),
+    ).toHaveLength(1);
+    expect(
+      verdict.querySelectorAll('[data-testid="result-badge"]'),
+    ).toHaveLength(1);
+    // approve-with-changes resolves to amber via statusToVariant
+    expect(
+      verdict.querySelector(
+        '[data-testid="status-badge"][data-variant="amber"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it("stage dots render WORKFLOW_PIPELINE_STEPS dots across all/partial/none", () => {
+    const { getByTestId } = renderPage();
+    const dots = getByTestId("ds-stagedots");
+    expect(
+      dots.querySelectorAll('[aria-label^="Lifecycle pipeline"]'),
+    ).toHaveLength(3);
+    expect(dots.querySelectorAll("[data-stage]")).toHaveLength(
+      WORKFLOW_PIPELINE_STEPS.length * 3,
+    );
+    const n = WORKFLOW_PIPELINE_STEPS.length;
+    const all = dots.querySelector(
+      `[aria-label="Lifecycle pipeline, ${n} of ${n} stages complete"]`,
+    );
+    expect(all?.querySelectorAll('[data-active="true"]')).toHaveLength(n);
+  });
+
+  it("tier pills render the four presence states", () => {
+    const { getByTestId } = renderPage();
+    expect(
+      getByTestId("ds-tierpills").querySelectorAll("[data-tier]"),
+    ).toHaveLength(4);
+  });
+
+  it("buttons render the seven variants", () => {
+    const { getByTestId } = renderPage();
+    expect(
+      getByTestId("ds-buttons").querySelectorAll("[data-btn]"),
+    ).toHaveLength(7);
+  });
+
+  it("form renders the search composite + two checkbox rows", () => {
+    const { getByTestId } = renderPage();
+    expect(getByTestId("ds-form-search")).toBeInTheDocument();
+    expect(getByTestId("ds-form-search").querySelector("input")).not.toBeNull();
+    expect(document.querySelectorAll("[data-check]")).toHaveLength(2);
+  });
+
+  it("sidebar nav renders the six named variants", () => {
+    const { getByTestId } = renderPage();
+    const nav = getByTestId("ds-nav");
+    for (const variant of [
+      "label",
+      "sublabel",
+      "default",
+      "active",
+      "pulse",
+      "faded",
+    ]) {
+      expect(nav.querySelector(`[data-nav="${variant}"]`)).not.toBeNull();
+    }
   });
 });

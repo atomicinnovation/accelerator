@@ -17,20 +17,20 @@ last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
-> **Implementation progress (2026-06-13).** Phases **1–7 are implemented and
-> committed**, each leaving `main` green (`mise run frontend:check` + 2473 unit
+> **Implementation progress (2026-06-13).** Phases **1–8 are implemented and
+> committed**, each leaving `main` green (`mise run frontend:check` + 2480 unit
 > tests; full e2e/VR — 478 cases — for the pixel-touching phases 1–3). Per-phase
 > success-criteria checkboxes below are ticked accordingly; the unticked boxes in
-> phases 1–7 are the remaining **manual/browser** verifications, the **Phase 5
+> phases 1–8 are the remaining **manual/browser** verifications, the **Phase 5
 > e2e specs deferred to Phase 10** (empty stub sections can't be scroll-spied
 > meaningfully — the `pickActiveSection` total-order unit test is the algorithm's
 > oracle), and the **Phase 6 colours theme-responsiveness check deferred to Phase
-> 10** (browser-only — jsdom can't resolve `var()`). Phases **8–11 remain** (8–9
+> 10** (browser-only — jsdom can't resolve `var()`). Phases **9–11 remain** (9
 > section content, 10 VR migration + the deferred e2e, 11 route retirement + README
 > + work-item AC amendment). Commits: Icon primitive → icon migration →
 > AtomicMark/Glyph → /dev route+activation+chrome → scroll-spy+theme → tokens/type
-> sections → glyph/mark/icon sections. Notable deviations are recorded inline per
-> phase (Toaster ToastIcon kept
+> sections → glyph/mark/icon sections → interactive-primitive sections. Notable
+> deviations are recorded inline per phase (Toaster ToastIcon kept
 > custom; Breadcrumbs uses a text `›`; module CSS tokenised against ADR-0039 with
 > documented `migration.test.ts` exceptions for irreducible dev-chrome values; Phase
 > 6 demonstration values inline in TSX, off-scale prototype px snapped to tokens).
@@ -961,18 +961,39 @@ Port chips, badges, stage dots, tier pills, buttons, form, sidebar nav.
 
 #### Automated Verification
 
-- [ ] `mise run frontend:check` and `mise run test:unit:frontend` pass
-- [ ] Chips assert 12 (6×2) with `[data-variant]` cells; Status badges assert
-  presence of all 12 named values via the correct component
-- [ ] Stage dots count asserts `= WORKFLOW_PIPELINE_STEPS.length` (8) with
-  all/partial/none present
-- [ ] Tier pills assert 4 named states; Buttons assert 7; Form asserts 3
+- [x] `mise run frontend:check` and `mise run test:unit:frontend` pass (2480 unit
+  tests; +7 Phase 8 oracles)
+- [x] Chips assert 12 (6×2) with `[data-variant]` cells (each `chip-cell-<variant>-<size>`
+  wraps a live `<Chip>` carrying `data-variant`+`data-size`); Status badges assert
+  the 12 values route through the correct component (8 `status-badge` + the verdict
+  row's `status-badge`/`verdict-badge`×2/`result-badge`, with `approve-with-changes`
+  resolving to `data-variant="amber"`)
+- [x] Stage dots count asserts `= WORKFLOW_PIPELINE_STEPS.length` (8) with
+  all/partial/none present (3 `PipelineMini` instances; the all-present one shows 8
+  `data-active="true"` dots)
+- [x] Tier pills assert 4 named states; Buttons assert 7; Form asserts 3
   (search + checked + unchecked); Sidebar nav asserts the 6 named variants
 
 #### Manual Verification
 
 - [ ] `approve-with-changes` renders amber and `pass` renders green
 - [ ] The with-pulse nav item animates; checkboxes show counts
+
+> **Phase 8 notes/deviations.** (1) **Chips/badges/stage dots use the live
+> components** (`Chip`, `StatusBadge`/`VerdictBadge`/`ResultBadge`, `PipelineMini`);
+> the badges expose colour only as `data-variant` on the inner `Chip` (no
+> `data-status`/`-verdict`/`-result`), so oracles query the per-component
+> `data-testid` + `data-variant`. (2) **Compact `PipelineMini` omitted** — no live
+> prop (documented). (3) **Tier pills, buttons, search composite, checkboxes, and
+> sidebar nav are hand-authored** (the live equivalents are CSS-module-scoped /
+> template-coupled, not reusable here) over live `--ac-*` tokens. (4) **The
+> with-pulse keyframe avoids `color-mix()`** — the prototype's `color-mix(in oklab,
+> var(--ac-accent) …)` would fail the module gate's locked-in `color-mix` convention
+> (srgb + a fixed token set only), so the ring animates a `var(--ac-accent-tint)` →
+> `transparent` spread instead. Checkboxes are native inputs tinted via
+> `accent-color: var(--ac-accent)` (cleaner than the prototype's custom `::after`,
+> and avoids a pile of sub-px/white literals). (5) Module-CSS gate: `1px` 24→29,
+> `#ffffff` 1→2, `+240px`×1; `AC5_FLOOR` 1373→1492.
 
 ---
 

@@ -5,7 +5,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { DOC_TYPE_KEYS, DOC_TYPE_LABELS } from "../../api/types";
+import {
+  type Completeness,
+  DOC_TYPE_KEYS,
+  DOC_TYPE_LABELS,
+  WORKFLOW_PIPELINE_STEPS,
+} from "../../api/types";
 import { useThemeContext } from "../../api/use-theme";
 import {
   DOC_TYPE_HUE,
@@ -14,9 +19,14 @@ import {
 } from "../../styles/tokens";
 import { AtomicMark } from "../AtomicMark/AtomicMark";
 import { BigGlyph } from "../BigGlyph/BigGlyph";
+import { Chip, type ChipSize, type ChipVariant } from "../Chip/Chip";
 import { Glyph } from "../Glyph/Glyph";
 import { ICON_NAMES, Icon } from "../Icon/Icon";
+import { PipelineMini } from "../PipelineMini/PipelineMini";
+import { ResultBadge } from "../ResultBadge/ResultBadge";
+import { StatusBadge } from "../StatusBadge/StatusBadge";
 import { ThemeToggle } from "../ThemeToggle/ThemeToggle";
+import { VerdictBadge } from "../VerdictBadge/VerdictBadge";
 import styles from "./DevDesignSystem.module.css";
 import { DEV_CHORD_HINT, DEV_SECTIONS } from "./dev-constants";
 import { pickActiveSection } from "./pick-active-section";
@@ -644,6 +654,283 @@ function MarkSection() {
   );
 }
 
+const CHIP_VARIANTS: ReadonlyArray<ChipVariant> = [
+  "neutral",
+  "indigo",
+  "green",
+  "amber",
+  "red",
+  "violet",
+];
+const CHIP_SIZES: ReadonlyArray<ChipSize> = ["sm", "md"];
+// The 8 statuses the badges section showcases (the live `statusToVariant` colours
+// done/accepted green, in-progress/proposed indigo, the rest neutral).
+const STATUS_VALUES = [
+  "todo",
+  "in-progress",
+  "done",
+  "draft",
+  "accepted",
+  "proposed",
+  "open",
+  "merged",
+] as const;
+
+function ChipsSection() {
+  // `chip-cell-<variant>-<size>` reproduces the ChipShowcase locator contract
+  // (tests/visual-regression/chip-showcase.spec.ts + chip-resolved-colours.spec.ts,
+  // migrated here in Phase 10). Each cell wraps a live <Chip>.
+  return (
+    <div className={styles.chipGrid} data-testid="ds-chips">
+      {CHIP_VARIANTS.map((variant) => (
+        <div key={variant} className={styles.chipRow}>
+          <span className={styles.chipRowLabel}>
+            <code>{variant}</code>
+          </span>
+          {CHIP_SIZES.map((size) => (
+            <span
+              key={size}
+              className={styles.chipCell}
+              data-testid={`chip-cell-${variant}-${size}`}
+            >
+              <Chip variant={variant} size={size}>
+                {variant}
+              </Chip>
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BadgesSection() {
+  // The three-component status/verdict/result split: approve/request-changes go
+  // through VerdictBadge, approve-with-changes through StatusBadge (amber), pass
+  // through ResultBadge. Each renders a <Chip> carrying its own data-testid.
+  return (
+    <>
+      <div className={styles.row} data-testid="ds-badges-status">
+        {STATUS_VALUES.map((value) => (
+          <StatusBadge key={value} value={value} />
+        ))}
+      </div>
+      <h3 className={styles.h3}>Verdicts &amp; results</h3>
+      <div className={styles.row} data-testid="ds-badges-verdict">
+        <VerdictBadge value="approve" />
+        <StatusBadge value="approve-with-changes" />
+        <VerdictBadge value="request-changes" />
+        <ResultBadge value="pass" />
+      </div>
+    </>
+  );
+}
+
+// PipelineMini reads only `completeness.present` (kebab DocTypeKey strings); the
+// has* flags are required by the type but ignored at render, so derive them.
+function completenessFromPresent(present: string[]): Completeness {
+  const has = (k: string) => present.includes(k);
+  return {
+    hasWorkItem: has("work-items"),
+    hasResearch: has("research"),
+    hasPlan: has("plans"),
+    hasPlanReview: has("plan-reviews"),
+    hasValidation: has("validations"),
+    hasPrDescription: has("pr-descriptions"),
+    hasPrReview: has("pr-reviews"),
+    hasDecision: has("decisions"),
+    hasNotes: has("notes"),
+    hasDesignInventory: has("design-inventories"),
+    hasDesignGap: has("design-gaps"),
+    present,
+  };
+}
+
+function StageDotsSection() {
+  const allPresent = WORKFLOW_PIPELINE_STEPS.map((s) => s.docType);
+  return (
+    <div data-testid="ds-stagedots">
+      <div className={styles.row}>
+        <PipelineMini completeness={completenessFromPresent(allPresent)} />
+        <span className={styles.caption}>all present</span>
+      </div>
+      <div className={styles.row}>
+        <PipelineMini
+          completeness={completenessFromPresent([
+            "work-items",
+            "research",
+            "plans",
+          ])}
+        />
+        <span className={styles.caption}>partial</span>
+      </div>
+      <div className={styles.row}>
+        <PipelineMini completeness={completenessFromPresent([])} />
+        <span className={styles.caption}>none</span>
+      </div>
+    </div>
+  );
+}
+
+function TierPillsSection() {
+  // Hand-authored: the live `.tierPill` has only three states and is coupled to
+  // the templates table, so the four presence states are reproduced here.
+  return (
+    <div className={styles.row} data-testid="ds-tierpills">
+      <span
+        className={`${styles.tierPill} ${styles.tierPillPresent}`}
+        data-tier="present"
+      >
+        <span className={styles.tierDot} />
+        present
+      </span>
+      <span
+        className={`${styles.tierPill} ${styles.tierPillActive}`}
+        data-tier="active"
+      >
+        <span className={styles.tierDot} />
+        active
+      </span>
+      <span
+        className={`${styles.tierPill} ${styles.tierPillAbsent}`}
+        data-tier="absent"
+      >
+        <span className={styles.tierDot} />
+        absent
+      </span>
+      <span className={styles.tierPill} data-tier="default">
+        <span className={styles.tierDot} />
+        default
+      </span>
+    </div>
+  );
+}
+
+function ButtonsSection() {
+  return (
+    <div className={styles.row} data-testid="ds-buttons">
+      <button type="button" className={styles.btn} data-btn>
+        <Icon name="moon" size={14} />
+      </button>
+      <button
+        type="button"
+        className={`${styles.btn} ${styles.btnBordered}`}
+        data-btn
+      >
+        <Icon name="filter" size={14} /> Filter
+      </button>
+      <button
+        type="button"
+        className={`${styles.btn} ${styles.btnBordered}`}
+        data-btn
+      >
+        <Icon name="sort" size={14} /> Sort
+      </button>
+      <button
+        type="button"
+        className={`${styles.btn} ${styles.btnBordered} ${styles.btnActive}`}
+        data-btn
+      >
+        <Icon name="sort" size={14} /> updated ↓
+      </button>
+      <button
+        type="button"
+        className={`${styles.btn} ${styles.btnBordered}`}
+        data-btn
+      >
+        <Icon name="filter" size={14} /> Filter{" "}
+        <span className={styles.filterBadge}>3</span>
+      </button>
+      <a href="#buttons" className={styles.inlineLink} data-btn>
+        standard inline link
+      </a>
+      <button type="button" className={styles.link} data-btn>
+        ds-link button
+      </button>
+    </div>
+  );
+}
+
+function FormSection() {
+  return (
+    <>
+      <h3 className={styles.h3}>Search input</h3>
+      <div className={styles.searchWrap}>
+        <div className={styles.searchInput} data-testid="ds-form-search">
+          <Icon name="search" size={14} className={styles.searchIcon} />
+          <input type="text" placeholder="Search docs…" />
+          <kbd className={styles.searchKbd}>⌘K</kbd>
+        </div>
+      </div>
+      <h3 className={styles.h3}>Checkboxes</h3>
+      <div className={styles.checkRows}>
+        <label className={styles.checkRow} data-check>
+          <input type="checkbox" defaultChecked />
+          <span>checked</span>
+          <span className={styles.checkCount}>7</span>
+        </label>
+        <label className={styles.checkRow} data-check>
+          <input type="checkbox" />
+          <span>unchecked</span>
+          <span className={styles.checkCount}>12</span>
+        </label>
+      </div>
+    </>
+  );
+}
+
+function NavSection() {
+  return (
+    <div className={styles.navDemo} data-testid="ds-nav">
+      <div className={styles.navLabel} data-nav="label">
+        GROUP LABEL
+      </div>
+      <div className={styles.navSublabel} data-nav="sublabel">
+        Sub-group
+      </div>
+      <div className={styles.navItem} data-nav="default">
+        <span className={styles.navItemL}>
+          <Icon name="doc" size={14} /> default item
+        </span>
+        <span className={styles.navItemR}>
+          <span className={styles.navCount}>12</span>
+        </span>
+      </div>
+      <div
+        className={`${styles.navItem} ${styles.navItemActive}`}
+        data-nav="active"
+      >
+        <span className={styles.navItemL}>
+          <Icon name="doc" size={14} /> active item
+        </span>
+        <span className={styles.navItemR}>
+          <span className={styles.navCount}>8</span>
+        </span>
+      </div>
+      <div className={styles.navItem} data-nav="pulse">
+        <span className={styles.navItemL}>
+          <Icon name="doc" size={14} /> with pulse
+        </span>
+        <span className={styles.navItemR}>
+          <span className={styles.navPulse} />
+          <span className={styles.navCount}>3</span>
+        </span>
+      </div>
+      <div
+        className={`${styles.navItem} ${styles.navItemMeta}`}
+        data-nav="faded"
+      >
+        <span className={styles.navItemL}>
+          <Icon name="doc" size={14} /> meta (faded)
+        </span>
+        <span className={styles.navItemR}>
+          <span className={styles.navCount}>5</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // Per-section content + hint, keyed by the DEV_SECTIONS slug. Sections without
 // an entry render as empty stubs (filled by later phases).
 const SECTION_CONTENT: Record<string, { hint?: string; body: ReactNode }> = {
@@ -665,6 +952,16 @@ const SECTION_CONTENT: Record<string, { hint?: string; body: ReactNode }> = {
   },
   bigglyphs: { hint: "<BigGlyph docType size />", body: <BigGlyphsSection /> },
   mark: { body: <MarkSection /> },
+  chips: { hint: '<Chip variant size="sm|md">', body: <ChipsSection /> },
+  badges: { hint: "status · verdict · result", body: <BadgesSection /> },
+  stagedots: {
+    hint: `${WORKFLOW_PIPELINE_STEPS.length}-stage pipeline presence`,
+    body: <StageDotsSection />,
+  },
+  tierpills: { hint: "presence states", body: <TierPillsSection /> },
+  buttons: { body: <ButtonsSection /> },
+  form: { body: <FormSection /> },
+  nav: { body: <NavSection /> },
 };
 
 export function DevDesignSystem() {
