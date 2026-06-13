@@ -71,7 +71,7 @@ const EXCEPTIONS: ReadonlyArray<
     count: 43,
     kind: "irreducible",
     reason:
-      "hairline borders — chrome (7) + token/type/glyph/mark cards (17) + interactive primitives (tier pill, topbar button, search input, search kbd, nav demo = 5) + composites & chrome (13) + the big-glyph cell hover translateY(-1px) lift — below --sp-1 floor, no border-width token",
+      "hairline borders — chrome (marquee/TOC/section/footer 7) + TOC list hairline gap (1px) + token/type/glyph/mark cards (16, deviations aside removed) + interactive primitives (tier pill, topbar button, search input, search kbd, nav demo = 5) + composites & chrome (13) + the big-glyph cell hover translateY(-1px) lift — below --sp-1 floor, no border-width token",
   },
   // Prototype-fidelity convergence: off-scale dev-page measurements ported
   // verbatim from the prototype `ds-*` chrome (no --sp-* / token equivalent).
@@ -108,10 +108,10 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "5px",
-    count: 2,
+    count: 3,
     kind: "irreducible",
     reason:
-      "swatch alpha-checkerboard offset (background-position 5px 5px) — prototype .ds-swatch__chip",
+      "swatch alpha-checkerboard offset (background-position 5px 5px, ×2) + TOC jumplink vertical padding (prototype .ds-toc__item) — off-scale, no token",
   },
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
@@ -1886,7 +1886,7 @@ describe("var(--NAME) references resolve to declared tokens", () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 1546; // 0083 Phase 11: retiring the 5 showcase routes deleted their (tokenised) module CSS, lowering the count from the P9 high of 1622 (P6 1313, P7 1373, P8 1492). Coverage in surviving files is unchanged; the drop is whole dev-only fixture files removed, not de-tokenisation.
+const AC5_FLOOR = 1529; // 0083: P11 retired the 5 showcase modules (1622→1546); a later prototype-fidelity pass removed the deviations panel + the dead .tocActions rule from the dev page (1546→1529). Coverage in surviving files is unchanged; the drop is whole removed blocks, not de-tokenisation.
 const AC5_TARGET = 300; // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0;
 

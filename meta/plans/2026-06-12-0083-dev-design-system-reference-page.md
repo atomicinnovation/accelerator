@@ -39,6 +39,25 @@ schema_version: 1
 > `+5px×2`, `+130px`, `+0.06em`, `1px` 42→43; the big-glyph darwin VR baselines were
 > regenerated for the new hero (linux via the user's CI workflow).
 
+> **Prototype-fidelity convergence — round 2 (2026-06-13).** A second pass driven by
+> a rendered side-by-side (Playwright screenshots of the prototype `#dev` vs the live
+> `/dev`). **Converged:** overview-card numerals are now **mono (Fira Code) + zero-
+> padded** (`03/33/13/02`) — the prototype's `.ds-overview-card__num.mono`, *not* Sora
+> (the user's report) nor Inter (the implementation); the intro prose is **Inter Light
+> (300)** matching the prototype's lighter weight (the `Inter-Light.woff2` `@font-face`
+> already ships, just isn't preloaded); the **"Deviations from the prototype" panel was
+> removed** (not in the prototype / not wanted); the **theme toggle was removed from the
+> dev chrome** (the prototype's only theme control is the Overview "flip to …" card,
+> which stays — the chrome is now exit-only); and the **TOC jumplink spacing** was
+> opened up to the prototype's `5px` padding + `1px` list gap (was cramped at the
+> `--sp-1` floor). **Kept by gate:** the card numeral size stays `--size-h3` (ADR-0036
+> forbids `font-size` literals, so the prototype's off-scale 30px can't be ported).
+> Gate ledger: `+5px` (TOC padding, 2→3), removed the deviations panel + dead
+> `.tocActions` rule (`AC5_FLOOR` 1546→1529); no VR baselines touched (overview / intro
+> / TOC / theme-control are not VR-clipped). Tests updated: chrome theme-toggle test →
+> Overview flip card; deviations-aside test → zero-padded-numeral test; the e2e theme
+> flip drives the Overview card.
+
 > **Implementation complete (2026-06-13).** **All 11 phases are implemented and
 > committed**, each leaving `main` green on darwin (`mise run frontend:check` + 2445
 > unit tests; the 9 migrated VR specs + the deferred behavioural e2e — green on

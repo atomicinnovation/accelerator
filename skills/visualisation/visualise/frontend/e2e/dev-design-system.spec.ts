@@ -67,32 +67,26 @@ test.describe("DevDesignSystem (/dev)", () => {
     await expect.poll(() => hash(page), { timeout: 5000 }).toBe("");
   });
 
-  test("in-page theme toggle flips data-theme and the --ac-bg surface swatch", async ({
+  test("the Overview theme flip changes data-theme and the --ac-bg surface swatch", async ({
     page,
   }) => {
     await page.goto("/dev#colors");
-    // Force a known starting theme.
-    await page.evaluate(() => {
-      document.documentElement.dataset.theme = "light";
-    });
     const chip = page.locator('[data-token="--ac-bg"] > div').first();
-    await expect
-      .poll(() => bgColour(chip))
-      .toBe(hexToRgb(LIGHT_COLOR_TOKENS["ac-bg"]));
+    const before = await theme(page);
 
-    // Flip via the in-page control (the chrome toggle; the topbar section has a
-    // second one — take the first).
-    await page
-      .getByRole("button", { name: /dark theme/i })
-      .first()
-      .click();
-    await expect.poll(() => theme(page)).toBe("dark");
+    // The prototype's only theme control is the Overview "flip to …" card link
+    // (the dev chrome has no toggle). It flips to the opposite theme.
+    await page.getByRole("button", { name: /flip to (light|dark)/i }).click();
+    await expect.poll(() => theme(page)).not.toBe(before);
 
-    // The surface swatch's computed colour now resolves to the dark token — and
-    // the two values differ (the colours section is theme-responsive).
-    await expect
-      .poll(() => bgColour(chip))
-      .toBe(hexToRgb(DARK_COLOR_TOKENS["ac-bg"]));
+    // The surface swatch's computed colour follows the new theme's --ac-bg token
+    // (the colours section is theme-responsive; the two token values differ).
+    const after = await theme(page);
+    const expected =
+      after === "dark"
+        ? DARK_COLOR_TOKENS["ac-bg"]
+        : LIGHT_COLOR_TOKENS["ac-bg"];
+    await expect.poll(() => bgColour(chip)).toBe(hexToRgb(expected));
     expect(hexToRgb(LIGHT_COLOR_TOKENS["ac-bg"])).not.toBe(
       hexToRgb(DARK_COLOR_TOKENS["ac-bg"]),
     );

@@ -101,14 +101,22 @@ describe("DevDesignSystem chrome", () => {
     expect(dev.exitDev).toHaveBeenCalledTimes(1);
   });
 
-  it("renders an in-page theme toggle in the chrome", () => {
-    // The topbar section also renders a ThemeToggle, so scope to the TOC aside.
-    const { container } = renderPage();
+  it("offers the in-page theme flip via the Overview card (no chrome toggle)", () => {
+    // The dev chrome is exit-only (prototype parity); the only theme control is
+    // the Overview "flip to …" card link.
+    const { getByTestId, container } = renderPage();
+    const flip = within(getByTestId("overview-card-themes")).getByRole(
+      "button",
+      { name: /flip to (light|dark)/i },
+    );
+    expect(flip).toBeInTheDocument();
+    // The TOC aside no longer carries a ThemeToggle.
     const aside = container.querySelector("aside");
-    expect(aside).not.toBeNull();
     expect(
-      within(aside as HTMLElement).getByRole("button", { name: /dark theme/i }),
-    ).toBeInTheDocument();
+      within(aside as HTMLElement).queryByRole("button", {
+        name: /theme/i,
+      }),
+    ).toBeNull();
   });
 });
 
@@ -125,10 +133,12 @@ describe("DevDesignSystem section content — tokens & type (Phase 6)", () => {
     expect(getByTestId("overview-card-themes").textContent).toContain("2");
   });
 
-  it("overview renders the deviations aside (the divergences home)", () => {
+  it("overview card numerals are zero-padded to two digits", () => {
     const { getByTestId } = renderPage();
-    expect(getByTestId("ds-deviations").textContent).toMatch(
-      /deviations from the prototype/i,
+    expect(getByTestId("overview-card-fonts").textContent).toContain("03");
+    expect(getByTestId("overview-card-themes").textContent).toContain("02");
+    expect(getByTestId("overview-card-glyphs").textContent).toContain(
+      String(DOC_TYPE_KEYS.length).padStart(2, "0"),
     );
   });
 

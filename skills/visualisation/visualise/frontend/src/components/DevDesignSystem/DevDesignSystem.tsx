@@ -318,6 +318,10 @@ const SHADOW_SPECS = [
   ["--shadow-card", "brand (--shadow-card)"],
 ] as const;
 
+// Counts render zero-padded to two digits, matching the prototype's mono
+// overview cards (03 / 33 / 13 / 02).
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
 function OverviewSection() {
   const { theme, toggleTheme } = useThemeContext();
   const other = theme === "dark" ? "light" : "dark";
@@ -336,26 +340,30 @@ function OverviewSection() {
       </p>
       <div className={styles.overviewGrid}>
         <div className={styles.overviewCard} data-testid="overview-card-fonts">
-          <div className={styles.overviewCardNum}>3</div>
+          <div className={styles.overviewCardNum}>{pad2(3)}</div>
           <div className={styles.overviewCardLbl}>font families</div>
           <div className={styles.overviewCardSub}>Sora · Inter · Fira Code</div>
         </div>
         <div className={styles.overviewCard} data-testid="overview-card-icons">
-          <div className={styles.overviewCardNum}>{ICON_NAMES.length}</div>
+          <div className={styles.overviewCardNum}>
+            {pad2(ICON_NAMES.length)}
+          </div>
           <div className={styles.overviewCardLbl}>stroke icons</div>
           <div className={styles.overviewCardSub}>
             Feather-style · 2px stroke · currentColor
           </div>
         </div>
         <div className={styles.overviewCard} data-testid="overview-card-glyphs">
-          <div className={styles.overviewCardNum}>{DOC_TYPE_KEYS.length}</div>
+          <div className={styles.overviewCardNum}>
+            {pad2(DOC_TYPE_KEYS.length)}
+          </div>
           <div className={styles.overviewCardLbl}>doc-type glyphs</div>
           <div className={styles.overviewCardSub}>
             Hue-tinted square + line drawing per type
           </div>
         </div>
         <div className={styles.overviewCard} data-testid="overview-card-themes">
-          <div className={styles.overviewCardNum}>2</div>
+          <div className={styles.overviewCardNum}>{pad2(2)}</div>
           <div className={styles.overviewCardLbl}>themes</div>
           <div className={styles.overviewCardSub}>
             <button type="button" className={styles.link} onClick={toggleTheme}>
@@ -364,45 +372,6 @@ function OverviewSection() {
           </div>
         </div>
       </div>
-
-      <aside className={styles.deviations} data-testid="ds-deviations">
-        <div className={styles.deviationsTitle}>
-          Deviations from the prototype
-        </div>
-        <ul className={styles.deviationsList}>
-          <li>
-            Canonical deep-link is <code>{"/dev#<section>"}</code>;{" "}
-            <code>#dev</code> and <code>{"#dev/<section>"}</code> are accepted
-            aliases the bridge normalises.
-          </li>
-          <li>
-            Doc-type glyphs use the live <code>16/24/32</code> sizes plus a
-            net-new <code>48</code> (not the prototype's 22/28/36/48).
-          </li>
-          <li>
-            Radii are a px-ladder (<code>--radius-0…12</code>,{" "}
-            <code>--radius-pill</code>), not <code>sm/md/lg</code>.
-          </li>
-          <li>
-            There is no <code>--shadow-brand</code> token — the "brand" shadow
-            is <code>--shadow-card</code>.
-          </li>
-          <li>
-            Status, verdict and result are three separate live components, not
-            one.
-          </li>
-          <li>
-            <code>PipelineMini</code> has no compact mode (no live equivalent).
-          </li>
-          <li>
-            Code blocks omit the traffic-light dots (the live chrome does too).
-          </li>
-          <li>
-            Some composites (breadcrumbs, the library table, toasts) are
-            hand-authored — the live components can't render standalone here.
-          </li>
-        </ul>
-      </aside>
     </>
   );
 }
@@ -1489,21 +1458,20 @@ export function DevDesignSystem() {
         <aside className={styles.tocAside}>
           <div className={styles.tocHead}>
             <div className={styles.tocEyebrow}>CONTENTS</div>
-            <div className={styles.tocActions}>
-              <ThemeToggle />
-              <button
-                type="button"
-                className={styles.tocExit}
-                onClick={() => dev?.exitDev()}
-              >
-                <Icon
-                  name="arrow-right"
-                  size={12}
-                  className={styles.tocExitIcon}
-                />{" "}
-                exit to app
-              </button>
-            </div>
+            {/* No theme toggle here — the prototype's only theme control is the
+                Overview "flip to …" card; the dev chrome stays exit-only. */}
+            <button
+              type="button"
+              className={styles.tocExit}
+              onClick={() => dev?.exitDev()}
+            >
+              <Icon
+                name="arrow-right"
+                size={12}
+                className={styles.tocExitIcon}
+              />{" "}
+              exit to app
+            </button>
           </div>
           <nav className={styles.toc} aria-label="Design system sections">
             {DEV_SECTIONS.map((s, i) => {

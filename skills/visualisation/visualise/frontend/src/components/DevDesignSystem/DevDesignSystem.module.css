@@ -125,11 +125,6 @@
   justify-content: space-between;
   margin-bottom: var(--sp-3);
 }
-.tocActions {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-1);
-}
 .tocEyebrow {
   font-family: var(--ac-font-mono);
   font-size: var(--size-3xs);
@@ -159,14 +154,17 @@
 .toc {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  /* Hairline separation between jumplinks — prototype .ds-toc gap. */
+  gap: 1px;
 }
 .tocItem {
   display: grid;
   grid-template-columns: var(--sp-5) 1fr;
   align-items: center;
   gap: var(--sp-2);
-  padding: var(--sp-1) var(--sp-2);
+  /* Roomier vertical padding (prototype .ds-toc__item) than the --sp-1 floor,
+     so the 24-entry jumplink list isn't cramped. */
+  padding: 5px var(--sp-2);
   font-size: var(--size-row);
   color: var(--ac-fg-muted);
   border-radius: var(--radius-3);
@@ -291,13 +289,14 @@
 }
 .prose {
   font-size: var(--size-prose);
+  /* Inter Light — the prototype's intro reads lighter than body weight. */
+  font-weight: 300;
   line-height: var(--lh-prose);
   color: var(--ac-fg);
   max-width: 64ch;
   margin: 0 0 var(--sp-3);
 }
-.prose code,
-.deviations code {
+.prose code {
   font-family: var(--ac-font-mono);
   font-size: var(--size-xxs);
   background: var(--ac-bg-sunken);
@@ -340,6 +339,10 @@
   gap: var(--sp-1);
 }
 .overviewCardNum {
+  /* Mono numerals (prototype `.ds-overview-card__num.mono` is Fira Code, not
+     Sora/Inter); the live --size-h3 ramp step stands in for the prototype's
+     off-scale numeral size (ADR-0036 forbids font-size literals). */
+  font-family: var(--ac-font-mono);
   font-size: var(--size-h3);
   line-height: var(--lh-tight);
   color: var(--ac-fg-strong);
@@ -355,31 +358,6 @@
 }
 .overviewCardSub {
   font-size: var(--size-xxs-sm);
-  color: var(--ac-fg-muted);
-}
-.deviations {
-  margin-top: var(--sp-5);
-  background: var(--ac-bg-sunken);
-  border: 1px solid var(--ac-stroke-soft);
-  border-radius: var(--radius-6);
-  padding: var(--sp-4);
-}
-.deviationsTitle {
-  font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-  color: var(--ac-fg-faint);
-  margin-bottom: var(--sp-2);
-}
-.deviationsList {
-  margin: 0;
-  padding-left: var(--sp-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  font-size: var(--size-xs);
-  line-height: var(--lh-normal);
   color: var(--ac-fg-muted);
 }
 
