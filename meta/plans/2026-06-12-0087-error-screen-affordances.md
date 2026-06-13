@@ -5,7 +5,7 @@ title: "404 / Error Screen with Affordances Implementation Plan"
 date: "2026-06-12T22:02:45+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0087"
 parent: "work-item:0087"
 derived_from: ["codebase-research:2026-06-12-0087-error-screen-affordances"]
@@ -696,7 +696,7 @@ fed via `vi.spyOn(fetchModule, "fetchDocs")`. Both new surface tests use it.
 
 #### Manual Verification
 
-- [ ] Render both surfaces in isolation (e.g. via a temporary story/route or
+- [x] Render both surfaces in isolation (e.g. via a temporary story/route or
   the test DOM) and confirm the hero, eyebrow, and copy read correctly in light
   and dark themes. (Deferred to the post-Phase-4 manual pass once the surfaces
   are reachable via routing.)
@@ -769,11 +769,11 @@ instead of building `title`/`body` for the shared `<Page>` render.
 
 #### Manual Verification
 
-- [ ] Visit a valid type with a bogus slug (e.g. `/library/work-items/nope-nope`)
+- [x] Visit a valid type with a bogus slug (e.g. `/library/work-items/nope-nope`)
   → not-found surface with suggestions where applicable.
-- [ ] Simulate a list/content fetch failure (devtools offline or a forced 5xx) →
+- [x] Simulate a list/content fetch failure (devtools offline or a forced 5xx) →
   load-error surface with no suggestions block and the distinct heading.
-- [ ] Affordance links navigate correctly (library + type list).
+- [x] Affordance links navigate correctly (library + type list).
 
 ---
 
@@ -877,10 +877,10 @@ least pass `defaultNotFoundComponent: CatchAllNotFound`) alongside its injected
 
 #### Manual Verification
 
-- [ ] Navigate to `/garbage` and `/library/work-items/x/y/z` (over-deep) →
+- [x] Navigate to `/garbage` and `/library/work-items/x/y/z` (over-deep) →
   catch-all `Page not found` surface, back-to-library works.
-- [ ] `/library/<unknown-type>` still redirects to `/library` (unchanged).
-- [ ] Catch-all renders within the normal app chrome (sidebar/topbar present).
+- [x] `/library/<unknown-type>` still redirects to `/library` (unchanged).
+- [x] Catch-all renders within the normal app chrome (sidebar/topbar present).
 
 ---
 
