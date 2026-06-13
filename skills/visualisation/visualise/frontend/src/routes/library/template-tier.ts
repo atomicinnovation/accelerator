@@ -28,9 +28,11 @@ export const TIER_ORDER: readonly TemplateTierSource[] = [
  *  so the rightmost matching stem wins for names like
  *  `something-plan-review` → `plan-reviews`. */
 // Stems map to physical doc-type keys only — templates is the umbrella,
-// not a target. Values are `GlyphDocType` rather than `DocTypeKey` so a
-// stem can target a glyph-only key (`rca` → `root-cause-analyses`), which
-// is not a browsable server doc type.
+// not a target. Values are `GlyphDocType` (the presentational superset of
+// `DocTypeKey`) rather than `DocTypeKey` so a stem could target a future
+// glyph-only key with no browsable server doc type; today every value
+// (including `rca` → `root-cause-analyses`, now a real doc type) is also a
+// `DocTypeKey`.
 const STEM_TO_GLYPH: Readonly<Record<string, GlyphDocType>> = {
   // Exact-template-name shortcuts.
   adr: "decisions",
@@ -59,8 +61,8 @@ const STEM_TO_GLYPH: Readonly<Record<string, GlyphDocType>> = {
   "work-item-reviews": "work-item-reviews",
   note: "notes",
   notes: "notes",
-  // Root-cause analyses: glyph-only (not a server doc type). Renders the
-  // prototype's RCA fishbone glyph on the templates page.
+  // Root cause analyses: the `rca` template stem maps to the
+  // `root-cause-analyses` doc type, so its template row shows the RCA glyph.
   rca: "root-cause-analyses",
   "root-cause-analyses": "root-cause-analyses",
 };

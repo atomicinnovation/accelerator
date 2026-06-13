@@ -13,7 +13,7 @@ export interface BigPalette {
 /** Render signature for a single per-doc-type BigGlyph illustration: it
  *  receives the resolved palette and returns the inner SVG `<g>` (the wrapping
  *  `<svg>` is owned by `BigGlyph`). Named alias so the dispatch contract lives
- *  in one place and each of the thirteen illustration call sites is
+ *  in one place and each per-doc-type illustration call site is
  *  self-documenting. This is the key divergence from `Glyph`'s zero-arg
  *  `ComponentType` — the palette must be threaded in at render time. */
 export type BigGlyphDraw = (p: BigPalette) => ReactElement;

@@ -116,8 +116,8 @@ body {
   --ac-doc-pr-descriptions:                 #4588b8;
   --ac-doc-design-gaps:         #5c9132;
   --ac-doc-design-inventories:  #2e7e8a;
-  /* Glyph-only doc type (not a server DocTypeKey) — RCA glyph on the
-     templates page; hue ~310, cleared 3:1 vs --ac-bg. */
+  /* Root cause analyses (the issue-research doc type) — hue ~310, cleared
+     3:1 vs --ac-bg. */
   --ac-doc-root-cause-analyses: #ab2c96;
 
   /* Per-doc-type glyph BACKGROUND tints (light theme). Light pastel hues
@@ -366,7 +366,7 @@ body {
   --ac-warn:           #e4b76e;
   --ac-err:            #e86a6b;
   /* Per-doc-type glyph foreground (dark). Design intent: monochrome glyphs
-     in dark mode — all thirteen tokens collapse to --ac-fg-strong (atomic-white). */
+     in dark mode — every token collapses to --ac-fg-strong (atomic-white). */
   --ac-doc-decisions:           var(--atomic-white);
   --ac-doc-work-items:          var(--atomic-white);
   --ac-doc-plans:               var(--atomic-white);
@@ -381,7 +381,7 @@ body {
   --ac-doc-design-inventories:  var(--atomic-white);
   --ac-doc-root-cause-analyses: var(--atomic-white);
   /* Glyph BACKGROUND tints (dark theme). Uniform monochrome grey across
-     all thirteen doc types — slightly lighter than --ac-bg-sunken. */
+     every doc type — slightly lighter than --ac-bg-sunken. */
   --ac-doc-bg-decisions:           #1d2030;
   --ac-doc-bg-work-items:          #1d2030;
   --ac-doc-bg-plans:               #1d2030;

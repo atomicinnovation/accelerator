@@ -8,9 +8,12 @@ import type { ColorTokenKey } from "../../styles/tokens";
 
 // Glyph-only keys: things that need a per-type glyph but are NOT browsable
 // server doc types (so they stay out of `DocTypeKey`, which drives routes
-// and the sidebar). `root-cause-analyses` is rendered on the templates page
-// for the `rca` template; RCAs are not a visualiser doc type today.
-export const GLYPH_ONLY_DOC_TYPES = ["root-cause-analyses"] as const;
+// and the sidebar). Empty today — `root-cause-analyses` graduated to a real
+// browsable `DocTypeKey` (0110). Kept as intentional headroom: a future
+// glyph-only key (a template stem with no browsable doc type) drops in here
+// without reworking the `GlyphDocType` apparatus, so do not collapse the
+// indirection back into `DocTypeKey`.
+export const GLYPH_ONLY_DOC_TYPES = [] as const;
 
 /** Presentational superset of `DocTypeKey`: every renderable glyph key,
  *  including glyph-only keys that aren't server doc types. `Glyph` accepts

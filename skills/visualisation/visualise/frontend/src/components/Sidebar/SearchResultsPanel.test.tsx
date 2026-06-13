@@ -164,6 +164,32 @@ describe("SearchResultsPanel", () => {
     expect(glyph).not.toBeNull();
   });
 
+  it("labels and routes an RCA search result as a root cause analysis", async () => {
+    const qc = makeClient();
+    vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
+      {
+        docType: "root-cause-analyses",
+        title: "Bash prefix RCA",
+        slug: "bash-prefix",
+        mtimeMs: 1,
+      },
+    ]);
+    render(
+      <Wrap qc={qc}>
+        <SearchResultsPanel query="bash" />
+      </Wrap>,
+    );
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+    await flushMicrotasks();
+    const row = screen.getByRole("option");
+    expect(row.getAttribute("href")).toBe(
+      "/library/root-cause-analyses/bash-prefix",
+    );
+    expect(screen.getByText("Root cause analysis")).toBeInTheDocument();
+  });
+
   it("highlights the matched substring inside the title", async () => {
     const qc = makeClient();
     vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([

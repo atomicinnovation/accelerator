@@ -172,6 +172,29 @@ describe("RelatedArtifacts", () => {
     ).toBe("/library/decisions/ADR-0001-example");
   });
 
+  it("routes a related RCA row to the RCA detail page with the RCA singular label", () => {
+    const exampleRca = makeIndexEntry({
+      type: "root-cause-analyses",
+      relPath: "meta/research/issues/2026-06-10-example-rca.md",
+      path: "/x/meta/research/issues/2026-06-10-example-rca.md",
+      title: "Example RCA",
+    });
+    render(
+      <RelatedArtifacts
+        related={{ ...empty, declaredInbound: [exampleRca] }}
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Example RCA" });
+    expect(link.getAttribute("href")).toBe(
+      "/library/root-cause-analyses/2026-06-10-example-rca",
+    );
+    const row = screen.getByTestId("related-row");
+    expect(within(row).getByText("Root cause analysis")).toBeInTheDocument();
+    expect(row.querySelector("svg")?.getAttribute("data-doc-type")).toBe(
+      "root-cause-analyses",
+    );
+  });
+
   it("renders no legend", () => {
     render(
       <RelatedArtifacts

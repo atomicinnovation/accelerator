@@ -1,4 +1,4 @@
-// Preview all 13 doc-type heroes at 96px in both themes at /dev#bigglyphs.
+// Preview every doc-type hero at 96px in both themes at /dev#bigglyphs.
 import type { ReactElement } from "react";
 import { DOC_TYPE_KEYS, type DocTypeKey } from "../../api/types";
 import { DOC_TYPE_HUE } from "../../styles/tokens";
@@ -13,13 +13,14 @@ import { PlansBigGlyph } from "./icons/PlansBigGlyph";
 import { PrDescriptionsBigGlyph } from "./icons/PrDescriptionsBigGlyph";
 import { PrReviewsBigGlyph } from "./icons/PrReviewsBigGlyph";
 import { ResearchBigGlyph } from "./icons/ResearchBigGlyph";
+import { RootCauseAnalysesBigGlyph } from "./icons/RootCauseAnalysesBigGlyph";
 import { TemplatesBigGlyph } from "./icons/TemplatesBigGlyph";
 import { ValidationsBigGlyph } from "./icons/ValidationsBigGlyph";
 import { WorkItemReviewsBigGlyph } from "./icons/WorkItemReviewsBigGlyph";
 import { WorkItemsBigGlyph } from "./icons/WorkItemsBigGlyph";
 
-/** Exhaustiveness enforced by `Record<DocTypeKey, BigGlyphDraw>` across all 13
- *  keys. Each entry is a render FUNCTION (`(p: BigPalette) => ReactElement`)
+/** Exhaustiveness enforced by `Record<DocTypeKey, BigGlyphDraw>` across every
+ *  key. Each entry is a render FUNCTION (`(p: BigPalette) => ReactElement`)
  *  invoked as `draw(palette)`, NOT a zero-arg `ComponentType` rendered as
  *  `<Icon />` — the palette must be threaded in. This is the key divergence from
  *  `Glyph`'s `ICON_COMPONENTS` map; a contributor adding a type must follow the
@@ -37,6 +38,7 @@ const BIG_GLYPHS: Record<DocTypeKey, BigGlyphDraw> = {
   "pr-descriptions": PrDescriptionsBigGlyph,
   "design-gaps": DesignGapsBigGlyph,
   "design-inventories": DesignInventoriesBigGlyph,
+  "root-cause-analyses": RootCauseAnalysesBigGlyph,
   templates: TemplatesBigGlyph,
 };
 
@@ -102,6 +104,6 @@ export function BigGlyph({
   );
 }
 
-// Exported for the dispatch-collision guard in BigGlyph.test.tsx — the thirteen
-// values must be referentially distinct functions.
+// Exported for the dispatch-collision guard in BigGlyph.test.tsx — the
+// per-DocTypeKey values must be referentially distinct functions.
 export { BIG_GLYPHS, DEFAULT_BIG_HUE };

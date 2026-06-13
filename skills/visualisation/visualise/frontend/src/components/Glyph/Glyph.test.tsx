@@ -192,8 +192,8 @@ describe("Glyph: source-level no-state-hooks guard", () => {
 // does not reliably substitute `var()` in SVG presentation attributes — see
 // the Resolved Decision in meta/work/0037-glyph-component.md.
 
-// Explicit 13 × 3 = 39 combination matrix. Each (docType, size)
-// case is named so a regression points directly at the failing combination.
+// One (docType, size) combination per `DocTypeKey` × size. Each case is named
+// so a regression points directly at the failing combination.
 const SIZES = [16, 24, 32] as const;
 
 describe.each(DOC_TYPE_KEYS)("Glyph: %s", (docType) => {
@@ -207,31 +207,6 @@ describe.each(DOC_TYPE_KEYS)("Glyph: %s", (docType) => {
       expect(svg!.getAttribute("viewBox")).toBeTruthy();
       expect(svg!.style.color).toBe(DOC_TYPE_COLOR_VAR[docType]);
     });
-  });
-});
-
-// `root-cause-analyses` is a glyph-only key (not in DOC_TYPE_KEYS), so the
-// matrix above does not cover it. Verify it renders like a real doc type.
-describe("Glyph: root-cause-analyses (glyph-only key)", () => {
-  it("renders an <svg> coloured by the RCA token var", () => {
-    const { container } = render(
-      <Glyph docType="root-cause-analyses" size={24} />,
-    );
-    const svg = container.querySelector("svg");
-    expect(svg).not.toBeNull();
-    expect(svg!.style.color).toBe(DOC_TYPE_COLOR_VAR["root-cause-analyses"]);
-  });
-
-  it("framed render tints the wrapper via data-doc-type", () => {
-    const { container } = render(
-      <Glyph docType="root-cause-analyses" size={24} framed />,
-    );
-    expect(
-      container.querySelector('span[data-doc-type="root-cause-analyses"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('svg[data-doc-type="root-cause-analyses"]'),
-    ).not.toBeNull();
   });
 });
 

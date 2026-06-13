@@ -255,6 +255,65 @@ describe("LibraryTypeView", () => {
     expect(screen.getByText("Foo Plan")).toBeInTheDocument();
   });
 
+  it("renders the RCA listing with resolved→green / monitoring→indigo status chips", async () => {
+    const rcaStructure: LibraryStructureResponse = {
+      phases: [
+        {
+          id: "operate",
+          label: "Operate",
+          docTypes: [
+            {
+              id: "root-cause-analyses",
+              label: "Root cause analyses",
+              count: 2,
+              filteredCount: 2,
+              latest: null,
+              filterFacets: [],
+            },
+          ],
+        },
+      ],
+      templates: baseStructure.templates,
+    };
+    const rcaEntries: IndexEntry[] = [
+      {
+        ...mockEntries[0],
+        type: "root-cause-analyses",
+        path: "/p/meta/research/issues/2026-06-10-resolved-rca.md",
+        relPath: "meta/research/issues/2026-06-10-resolved-rca.md",
+        slug: "resolved-rca",
+        title: "Resolved RCA",
+        frontmatter: { status: "resolved", date: "2026-06-10" },
+      },
+      {
+        ...mockEntries[1],
+        type: "root-cause-analyses",
+        path: "/p/meta/research/issues/2026-06-11-monitoring-rca.md",
+        relPath: "meta/research/issues/2026-06-11-monitoring-rca.md",
+        slug: "monitoring-rca",
+        title: "Monitoring RCA",
+        frontmatter: { status: "monitoring", date: "2026-06-11" },
+      },
+    ];
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue(rcaEntries);
+    spyOnStructure(rcaStructure);
+    render(<LibraryTypeView type="root-cause-analyses" />, {
+      wrapper: Wrapper,
+    });
+    await screen.findByText("Resolved RCA");
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Root cause analyses" }),
+    ).toBeInTheDocument();
+    // The status column must colour the verbs specifically, not fall through
+    // to neutral grey: resolved→green, monitoring→indigo.
+    const resolvedRow = screen.getByText("Resolved RCA").closest("tr");
+    const monitoringRow = screen.getByText("Monitoring RCA").closest("tr");
+    expect(resolvedRow?.querySelector('[data-variant="green"]')).not.toBeNull();
+    expect(
+      monitoringRow?.querySelector('[data-variant="indigo"]'),
+    ).not.toBeNull();
+  });
+
   it("renders an error branch for an unknown doc type", async () => {
     spyOnStructure();
     render(<LibraryTypeView type={"bogus" as never} />, { wrapper: Wrapper });

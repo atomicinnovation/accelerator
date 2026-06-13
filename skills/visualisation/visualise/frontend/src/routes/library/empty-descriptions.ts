@@ -77,6 +77,12 @@ export const TYPE_COPY: Record<DocTypeKey, TypeCopy> = {
     path: "meta/notes/",
     hue: DOC_TYPE_HUE.notes,
   },
+  "root-cause-analyses": {
+    purpose:
+      "Hypothesis-driven investigations tracing a production issue to its root cause.",
+    path: "meta/research/issues/",
+    hue: DOC_TYPE_HUE["root-cause-analyses"],
+  },
   templates: {
     purpose: "Authoring templates seeded into every new artifact.",
     path: "meta/templates/",
@@ -98,6 +104,7 @@ export const EMPTY_TYPE_PLURALS: Record<DocTypeKey, string> = {
   "pr-descriptions": "pr descriptions",
   "design-gaps": "design gaps",
   "design-inventories": "design inventories",
+  "root-cause-analyses": "root cause analyses",
   templates: "templates",
 };
 

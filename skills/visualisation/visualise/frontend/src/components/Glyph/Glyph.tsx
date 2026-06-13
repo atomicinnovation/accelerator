@@ -1,4 +1,4 @@
-// Preview all 13 doc types × 3 sizes in both themes at /dev#glyphs (see frontend README).
+// Preview every doc type × 3 sizes in both themes at /dev#glyphs (see frontend README).
 import type { ComponentType, ReactElement } from "react";
 import { DOC_TYPE_KEYS } from "../../api/types";
 import { DOC_TYPE_COLOR_VAR, type GlyphDocType } from "./Glyph.constants";
@@ -20,9 +20,8 @@ import { WorkItemsIcon } from "./icons/WorkItemsIcon";
 
 // Ordering mirrors the Colour Token Table in meta/work/0037-glyph-component.md.
 // `Record<GlyphDocType, ...>` constraint enforces exhaustiveness at compile
-// time across all 13 server doc-type keys (including the virtual `templates`
-// key) plus the glyph-only `root-cause-analyses` key (rendered for the `rca`
-// template; not a browsable doc type — see Glyph.constants).
+// time across every server doc-type key (including the virtual `templates`
+// key) plus any glyph-only keys (none today — see Glyph.constants).
 const ICON_COMPONENTS: Record<GlyphDocType, ComponentType> = {
   decisions: DecisionsIcon,
   "work-items": WorkItemsIcon,
@@ -73,9 +72,9 @@ export interface GlyphProps {
  * 4. Sizes are restricted to 16/24/32/48 (48 added for the DevDesignSystem
  *    Doc-type-glyphs four-size ramp). For off-grid sizes, widen the union
  *    with a documented specimen — do not cast.
- * 5. `docType` accepts any `GlyphDocType` — every `DocTypeKey` (all 13,
- *    including the virtual `templates` key) plus glyph-only keys like
- *    `root-cause-analyses`. Colour resolves via `DOC_TYPE_COLOR_VAR`.
+ * 5. `docType` accepts any `GlyphDocType` — every `DocTypeKey` (including the
+ *    virtual `templates` key) plus any glyph-only keys (none today). Colour
+ *    resolves via `DOC_TYPE_COLOR_VAR`.
  */
 export function Glyph({
   docType,

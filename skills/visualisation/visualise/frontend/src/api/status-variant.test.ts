@@ -12,6 +12,7 @@ describe("statusToVariant", () => {
       "implemented",
       "final",
       "shipped",
+      "resolved",
     ])("maps %s → green", (s) => {
       expect(statusToVariant(s)).toBe("green");
     });
@@ -26,6 +27,7 @@ describe("statusToVariant", () => {
       "active",
       "proposed",
       "live",
+      "monitoring",
     ])("maps %s → indigo", (s) => expect(statusToVariant(s)).toBe("indigo"));
   });
 

@@ -42,6 +42,24 @@ const baseStructure: LibraryStructureResponse = {
         },
       ],
     },
+    {
+      id: "operate",
+      label: "Operate",
+      docTypes: [
+        {
+          id: "root-cause-analyses",
+          label: "Root cause analyses",
+          count: 2,
+          filteredCount: 2,
+          latest: {
+            title: "Bash prefix defeats allowed-tools",
+            slug: "bash-prefix",
+            modifiedAt: 1_700_050_000_000,
+          },
+          filterFacets: [],
+        },
+      ],
+    },
   ],
   templates: {
     id: "templates",
@@ -104,6 +122,48 @@ describe("LibraryOverviewHub", () => {
     await screen.findByText("Decisions");
     const link = screen.getByRole("link", { name: /decisions/i });
     expect(link).toHaveAttribute("href", "/library/decisions");
+  });
+
+  it("renders the Operate RCA card linking to the RCA listing", async () => {
+    vi.spyOn(fetchModule, "fetchLibraryStructure").mockResolvedValue(
+      baseStructure,
+    );
+    render(<LibraryOverviewHub />, { wrapper: makeWrapper() });
+    expect(await screen.findByText("OPERATE")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /root cause analyses/i });
+    expect(link).toHaveAttribute("href", "/library/root-cause-analyses");
+  });
+
+  it("renders a zero-count Operate RCA card identically to other empty cards", async () => {
+    const emptyRca: LibraryStructureResponse = {
+      ...baseStructure,
+      phases: baseStructure.phases.map((p) =>
+        p.id === "operate"
+          ? {
+              ...p,
+              docTypes: [
+                {
+                  id: "root-cause-analyses",
+                  label: "Root cause analyses",
+                  count: 0,
+                  filteredCount: 0,
+                  latest: null,
+                  filterFacets: [],
+                },
+              ],
+            }
+          : p,
+      ),
+    };
+    vi.spyOn(fetchModule, "fetchLibraryStructure").mockResolvedValue(emptyRca);
+    render(<LibraryOverviewHub />, { wrapper: makeWrapper() });
+    // Zero-count cards stay clickable (deep-link to the empty list view) and
+    // carry the "(no documents yet)" accessible name + "no docs yet" subtitle,
+    // exactly like the zero-count Research card above.
+    const link = await screen.findByRole("link", {
+      name: /root cause analyses \(no documents yet\)/i,
+    });
+    expect(link).toHaveAttribute("href", "/library/root-cause-analyses");
   });
 
   it('renders a zero-count card as a link with "no docs yet" subtitle', async () => {

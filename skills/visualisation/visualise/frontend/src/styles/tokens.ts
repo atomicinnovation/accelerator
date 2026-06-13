@@ -21,6 +21,7 @@ export const DOC_TYPE_HUE: Record<DocTypeKey, number> = {
   "pr-reviews": 280,
   decisions: 355,
   notes: 50,
+  "root-cause-analyses": 310,
   templates: 215,
 };
 
@@ -56,8 +57,8 @@ export const LIGHT_COLOR_TOKENS = {
   "ac-violet": "#7b5cd9",
   // Per-doc-type glyph foreground (light theme). Light values were eyedroppered
   // from library-view-updated-light.png; values that failed WCAG 1.4.11 against
-  // --ac-bg (#fbfcfe) were darkened within the same hue family so all 12 keys
-  // clear 3:1 contrast (see global.test.ts contrast block).
+  // --ac-bg (#fbfcfe) were darkened within the same hue family so every
+  // physical-doc-type key clears 3:1 contrast (see global.test.ts contrast block).
   "ac-doc-decisions": "#ad3437",
   "ac-doc-work-items": "#af4b2f",
   "ac-doc-plans": "#3256b6",
@@ -70,9 +71,9 @@ export const LIGHT_COLOR_TOKENS = {
   "ac-doc-pr-descriptions": "#4588b8",
   "ac-doc-design-gaps": "#5c9132",
   "ac-doc-design-inventories": "#2e7e8a",
-  // Glyph-only doc type (not a server DocTypeKey) — rendered for the `rca`
-  // template on the templates page. Hue ~310 (the prototype's RCA hue),
-  // darkened within that family to clear 3:1 contrast vs --ac-bg (#fbfcfe).
+  // Root cause analyses (the `issue-research` doc type, 0110). Hue ~310 (the
+  // prototype's RCA hue), darkened within that family to clear 3:1 contrast vs
+  // --ac-bg (#fbfcfe).
   "ac-doc-root-cause-analyses": "#ab2c96",
   // Per-doc-type glyph BACKGROUND tints (light theme). Each value is a
   // very-light, low-saturation hue matching the corresponding foreground
@@ -130,7 +131,7 @@ export const DARK_COLOR_TOKENS = {
   "ac-warn": "#e4b76e",
   "ac-err": "#e86a6b",
   // Per-doc-type glyph foreground (dark theme). Design intent: monochrome
-  // glyphs in dark mode regardless of doc type — all twelve tokens resolve
+  // glyphs in dark mode regardless of doc type — every token resolves
   // to --ac-fg-strong (#ffffff). Keeping the per-key tokens preserves the
   // light/dark parity contract; the values just collapse to a single hue
   // in dark.
@@ -148,7 +149,7 @@ export const DARK_COLOR_TOKENS = {
   "ac-doc-design-inventories": "#ffffff",
   "ac-doc-root-cause-analyses": "#ffffff",
   // Glyph BACKGROUND tints (dark theme). Design intent: uniform monochrome
-  // background regardless of doc type — all twelve collapse to a single
+  // background regardless of doc type — every key collapses to a single
   // lighter-than-bg-sunken neutral grey.
   "ac-doc-bg-decisions": "#1d2030",
   "ac-doc-bg-work-items": "#1d2030",

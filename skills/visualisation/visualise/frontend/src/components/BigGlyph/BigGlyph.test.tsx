@@ -65,8 +65,8 @@ describe("PR_REVIEW_DIFF_TINTS", () => {
 });
 
 describe("BIG_GLYPHS dispatch", () => {
-  it("has exactly 13 entries, one per DocTypeKey", () => {
-    expect(Object.keys(BIG_GLYPHS).length).toBe(13);
+  it("has exactly 14 entries, one per DocTypeKey", () => {
+    expect(Object.keys(BIG_GLYPHS).length).toBe(14);
     for (const key of DOC_TYPE_KEYS) {
       expect(BIG_GLYPHS[key], `missing dispatch entry for ${key}`).toBeTypeOf(
         "function",
@@ -78,7 +78,7 @@ describe("BIG_GLYPHS dispatch", () => {
     // Catches a dispatch copy-paste error (two keys pointing at the same
     // illustration) deterministically — a per-cell baseline could not, since
     // distinct hues render distinct bytes even for a shared function.
-    expect(new Set(Object.values(BIG_GLYPHS)).size).toBe(13);
+    expect(new Set(Object.values(BIG_GLYPHS)).size).toBe(14);
   });
 });
 
@@ -164,7 +164,7 @@ describe("BigGlyph: off-union fallback", () => {
 });
 
 describe("BigGlyph: source-walk literal guard", () => {
-  // Every descendant fill/stroke across all 13 illustrations (plus the
+  // Every descendant fill/stroke across all illustrations (plus the
   // fallback) must be a bigPalette tone, `none`, or a TYPE-SCOPED sanctioned
   // constant. Match by exact set membership after lowercasing — so a
   // wrong-lightness tone or a misplaced sanctioned constant (e.g. a diff tint

@@ -90,10 +90,10 @@ describe("glyphKeyForTemplate", () => {
     expect(glyphKeyForTemplate("totally-unknown")).toBeNull();
   });
 
-  it("maps rca to the glyph-only root-cause-analyses key", () => {
-    // `root-cause-analyses` is not a server DocTypeKey — it is a glyph-only
-    // key so the rca template row shows the prototype's RCA glyph instead of
-    // the blank fallback.
+  it("maps rca to the root-cause-analyses key", () => {
+    // The `rca` template stem resolves to the `root-cause-analyses` doc type,
+    // so the rca template row shows the RCA glyph rather than the blank
+    // fallback.
     expect(glyphKeyForTemplate("rca")).toBe("root-cause-analyses");
   });
 });

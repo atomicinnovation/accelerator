@@ -424,7 +424,7 @@ describe("FrontmatterChips", () => {
   });
 });
 
-describe("12-doc-kind corpus verification", () => {
+describe("per-doc-kind corpus verification", () => {
   // One extra non-canonical key per kind, plus the three canonical
   // keys, ensures the whitelist excludes anything outside the set
   // regardless of which kind's fixture shape is used. Per-kind
@@ -447,6 +447,7 @@ describe("12-doc-kind corpus verification", () => {
     "pr-descriptions": ["pr_number", 123],
     "design-gaps": ["file_path", "some/path.md"],
     "design-inventories": ["last_updated_by", "Someone"],
+    "root-cause-analyses": ["resolution", "root cause found"],
     templates: ["template_for", "work-items"],
   };
 

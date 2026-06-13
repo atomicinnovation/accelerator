@@ -14,6 +14,7 @@ export type DocTypeKey =
   | "pr-descriptions"
   | "design-gaps"
   | "design-inventories"
+  | "root-cause-analyses"
   | "templates";
 
 /** Single source of truth for the DocTypeKey union at runtime. Drives both
@@ -33,6 +34,7 @@ export const DOC_TYPE_KEYS: readonly DocTypeKey[] = [
   "pr-descriptions",
   "design-gaps",
   "design-inventories",
+  "root-cause-analyses",
   "templates",
 ] as const;
 
@@ -78,6 +80,7 @@ export const DOC_TYPE_LABELS: Readonly<Record<DocTypeKey, string>> = {
   "pr-descriptions": "PR descriptions",
   "design-gaps": "Design gaps",
   "design-inventories": "Design inventories",
+  "root-cause-analyses": "Root cause analyses",
   templates: "Templates",
 };
 
@@ -97,6 +100,7 @@ export const DOC_TYPE_LABELS_SINGULAR: Readonly<Record<DocTypeKey, string>> = {
   "pr-descriptions": "PR description",
   "design-gaps": "Design gap",
   "design-inventories": "Design inventory",
+  "root-cause-analyses": "Root cause analysis",
   templates: "Template",
 };
 
