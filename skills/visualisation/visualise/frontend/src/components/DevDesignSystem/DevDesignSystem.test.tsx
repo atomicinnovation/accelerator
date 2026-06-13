@@ -83,4 +83,9 @@ describe("DevDesignSystem chrome", () => {
     fireEvent.click(getByRole("button", { name: /exit to app/i }));
     expect(dev.exitDev).toHaveBeenCalledTimes(1);
   });
+
+  it("renders an in-page theme toggle in the chrome", () => {
+    const { getByRole } = renderPage();
+    expect(getByRole("button", { name: /dark theme/i })).toBeInTheDocument();
+  });
 });

@@ -118,6 +118,11 @@
   justify-content: space-between;
   margin-bottom: var(--sp-3);
 }
+.tocActions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
 .tocEyebrow {
   font-family: var(--ac-font-mono);
   font-size: var(--size-3xs);

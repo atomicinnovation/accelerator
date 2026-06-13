@@ -1,8 +1,36 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Icon } from "../Icon/Icon";
+import { ThemeToggle } from "../ThemeToggle/ThemeToggle";
 import styles from "./DevDesignSystem.module.css";
 import { DEV_CHORD_HINT, DEV_SECTIONS } from "./dev-constants";
+import { pickActiveSection } from "./pick-active-section";
 import { useDevActivationContext } from "./use-dev-activation";
+
+// The scroll-spy binds to the explicit scroll root RootLayout marks on its
+// <main> (not `closest("main")`, which would silently resolve to a nested
+// <main> if one were ever introduced).
+const SCROLL_ROOT_SELECTOR = "[data-scroll-root]";
+// Active-band top offset — matches the observer's rootMargin top so the pure
+// picker and the observer agree on where the band begins.
+const BAND_TOP = 80;
+const SCROLL_SPY_MARGIN = "-80px 0px -55% 0px";
+const SCROLL_SPY_THRESHOLD = [0, 0.25, 0.5];
+
+// Scroll a section to the active-band top within the scroll root. Robust to the
+// offsetParent chain (the live .main declares no `position`, so the prototype's
+// `el.offsetTop` would be unreliable). A no-op when the scroll root or section
+// is absent (e.g. unit tests that render the page without RootLayout).
+function scrollToSection(id: string, behavior: ScrollBehavior) {
+  const main = document.querySelector<HTMLElement>(SCROLL_ROOT_SELECTOR);
+  const el = document.getElementById(`ds-${id}`);
+  if (!main || !el) return;
+  const target =
+    el.getBoundingClientRect().top -
+    main.getBoundingClientRect().top +
+    main.scrollTop -
+    BAND_TOP;
+  main.scrollTo({ top: target, behavior });
+}
 
 /** Section wrapper — `§ <id>` eyebrow + title + optional hint, then the body. */
 function DSSection({
@@ -64,13 +92,65 @@ export function DevDesignSystem() {
     headingRef.current?.focus();
   }, []);
 
-  // Phase 4: a TOC click scrolls and sets the active highlight. Phase 5 adds the
-  // IntersectionObserver scroll-spy + the canonical `#<section>` hash write.
+  // Deep-link landing: scroll the requested section into the active region on
+  // cold load. `/dev#overview` and bare `/dev` stay at the top.
+  useEffect(() => {
+    const section = window.location.hash.replace(/^#/, "");
+    if (!section || section === "overview") return;
+    scrollToSection(section, "auto");
+  }, []);
+
+  // Scroll-spy: drive the active highlight + canonical hash from actual scroll
+  // position. Recompute ALL sections' live tops on each observer dispatch and
+  // pick via the pure total-order helper (never the prototype's pinned-to-
+  // Colours single-dispatch highest-ratio). `replaceState` does not fire
+  // `hashchange`, so the hash write never re-enters the activation bridge.
+  useEffect(() => {
+    const main = document.querySelector<HTMLElement>(SCROLL_ROOT_SELECTOR);
+    if (!main) return;
+    const ids = DEV_SECTIONS.map((s) => s.id);
+    let lastWritten: string | null = null;
+
+    const recompute = () => {
+      const mainTop = main.getBoundingClientRect().top;
+      const tops = ids.map((id) => {
+        const el = document.getElementById(`ds-${id}`);
+        return {
+          id,
+          top: el
+            ? el.getBoundingClientRect().top - mainTop
+            : Number.POSITIVE_INFINITY,
+        };
+      });
+      const active = pickActiveSection(tops, BAND_TOP);
+      if (!active) return;
+      setActiveSection(active);
+      if (active !== lastWritten) {
+        lastWritten = active;
+        const base = main.ownerDocument.location.pathname;
+        // Overview clears the hash (canonical bare /dev — never #overview);
+        // every other section writes the bare #<section> hash.
+        const url = active === "overview" ? base : `${base}#${active}`;
+        window.history.replaceState(null, "", url);
+        dev?.recordProgrammaticHash(active === "overview" ? "" : `#${active}`);
+      }
+    };
+
+    const observer = new IntersectionObserver(recompute, {
+      root: main,
+      rootMargin: SCROLL_SPY_MARGIN,
+      threshold: SCROLL_SPY_THRESHOLD,
+    });
+    for (const id of ids) {
+      const el = document.getElementById(`ds-${id}`);
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, [dev]);
+
   const jump = (id: string) => {
     setActiveSection(id);
-    document
-      .getElementById(`ds-${id}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollToSection(id, "smooth");
   };
 
   return (
@@ -86,18 +166,21 @@ export function DevDesignSystem() {
         <aside className={styles.tocAside}>
           <div className={styles.tocHead}>
             <div className={styles.tocEyebrow}>CONTENTS</div>
-            <button
-              type="button"
-              className={styles.tocExit}
-              onClick={() => dev?.exitDev()}
-            >
-              <Icon
-                name="arrow-right"
-                size={12}
-                className={styles.tocExitIcon}
-              />{" "}
-              exit to app
-            </button>
+            <div className={styles.tocActions}>
+              <ThemeToggle />
+              <button
+                type="button"
+                className={styles.tocExit}
+                onClick={() => dev?.exitDev()}
+              >
+                <Icon
+                  name="arrow-right"
+                  size={12}
+                  className={styles.tocExitIcon}
+                />{" "}
+                exit to app
+              </button>
+            </div>
           </div>
           <nav className={styles.toc} aria-label="Design system sections">
             {DEV_SECTIONS.map((s, i) => {

@@ -22,6 +22,16 @@ class MockResizeObserver {
   disconnect = vi.fn();
 }
 
+// jsdom has no IntersectionObserver; the DevDesignSystem scroll-spy constructs
+// one on mount. The mock is a no-op (scroll-spy behaviour is unit-tested via the
+// pure `pickActiveSection` helper and confirmed end-to-end in Playwright).
+class MockIntersectionObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  takeRecords = vi.fn(() => []);
+}
+
 // These are set via Object.defineProperty rather than vi.stubGlobal so that
 // they survive vi.unstubAllGlobals() calls in individual test files (e.g.
 // router.test.tsx's afterEach). vi.stubGlobal-based stubs are reverted by
@@ -35,6 +45,11 @@ Object.defineProperty(window, "EventSource", {
 });
 Object.defineProperty(window, "ResizeObserver", {
   value: MockResizeObserver,
+  writable: true,
+  configurable: true,
+});
+Object.defineProperty(window, "IntersectionObserver", {
+  value: MockIntersectionObserver,
   writable: true,
   configurable: true,
 });

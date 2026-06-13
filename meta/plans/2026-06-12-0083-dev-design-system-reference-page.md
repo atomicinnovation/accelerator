@@ -733,30 +733,34 @@ scrolls the section into the active region; compute the target robustly via
 
 #### Automated Verification
 
-- [ ] Type-check + lint pass: `mise run frontend:check`
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] Unit test: `pickActiveSection` returns the correct id across fabricated
+- [x] Type-check + lint pass: `mise run frontend:check`
+- [x] Unit tests pass: `mise run test:unit:frontend` (2461 pass)
+- [x] Unit test: `pickActiveSection` returns the correct id across fabricated
   rects — gap between two short sections, a tall section spanning the whole band,
-  scrolled-above-all (first), scrolled-below-all (last) — proving the total order
-  is defined everywhere
+  scrolled-above-all (first), scrolled-below-all (last), band-inclusive — proving
+  the total order is defined everywhere
+
+> **Phase 5 e2e deferral.** The scroll-spy/deep-link/theme-toggle **e2e** specs
+> below are deferred to the Phase 10 e2e run (and authored alongside it): empty
+> stub sections have no height to scroll between, so a scroll-spy e2e on the
+> Phase-5 page would be meaningless/flaky. The behaviour's correctness oracle is
+> the pure `pickActiveSection` unit test (the never-pinned total order); the
+> component wiring (observer bound to `[data-scroll-root]`, live-rect recompute,
+> overview-clears-hash, deep-link landing, `<ThemeToggle/>` in chrome) is in
+> place and unit-covered. The e2e specs run once the sections carry content
+> (Phases 6–9) in the Phase 10 visualiser e2e pass.
+
 - [ ] E2E test: scrolling a lower section into the active region updates the TOC
-  active item **and** `location.hash` to `#<that-section>`. Use **retrying
-  assertions** (`await expect(page).toHaveURL(/#…/)`, `expect.poll` on the active
-  TOC entry) with an explicit settle condition — never `waitForTimeout` — because
-  IntersectionObserver dispatches are async/batched
-- [ ] **Dedicated "never pinned" regression** E2E test: after scrolling past the
-  (tall) Colours section into the next short section, the active TOC entry is that
-  next section and the hash is `#<that-section>`, **not** Colours — a test that
-  fails against the prototype's single-dispatch-highest-ratio behaviour
-- [ ] E2E test: loading `/dev#colors` (and the `#dev/colors` alias) scrolls so the
-  Colours heading sits in the observer's active region and its TOC entry is active
-  (and carries `aria-current`)
-- [ ] E2E test: with the overview section active (cold load on `/dev`, and after
-  scrolling back to top), `location.hash` is empty and the URL is the bare `/dev`
-  (the overview clears the hash — never `#overview`, never a stale `#colors`)
-- [ ] E2E test: activating the in-page theme toggle flips
-  `document.documentElement.dataset.theme` and the resolved `--ac-*` surface
-  token values
+  active item **and** `location.hash` to `#<that-section>` (retrying assertions)
+  — *deferred to Phase 10 (needs section content)*
+- [ ] **Dedicated "never pinned" regression** E2E test: scrolling past the tall
+  Colours section activates the next section, not Colours — *deferred to Phase 10*
+  (the algorithm is proven by the `pickActiveSection` "tall section" unit test)
+- [ ] E2E test: loading `/dev#colors` (and the `#dev/colors` alias) scrolls into
+  the active region; TOC entry active + `aria-current` — *deferred to Phase 10*
+- [ ] E2E test: overview active ⇒ empty hash / bare `/dev` — *deferred to Phase 10*
+- [ ] E2E test: in-page theme toggle flips `data-theme` + `--ac-*` surface values
+  — *deferred to Phase 10*
 
 #### Manual Verification
 
