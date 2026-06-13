@@ -1,5 +1,12 @@
 import { fireEvent, render } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { DOC_TYPE_KEYS } from "../../api/types";
+import {
+  DOC_TYPE_HUE,
+  RADIUS_TOKENS,
+  SPACING_TOKENS,
+} from "../../styles/tokens";
+import { ICON_NAMES } from "../Icon/Icon";
 import { DevDesignSystem } from "./DevDesignSystem";
 import { DEV_CHORD_HINT, DEV_SECTIONS } from "./dev-constants";
 import {
@@ -87,5 +94,74 @@ describe("DevDesignSystem chrome", () => {
   it("renders an in-page theme toggle in the chrome", () => {
     const { getByRole } = renderPage();
     expect(getByRole("button", { name: /dark theme/i })).toBeInTheDocument();
+  });
+});
+
+describe("DevDesignSystem section content — tokens & type (Phase 6)", () => {
+  it("overview cards bind their counts to live constants", () => {
+    const { getByTestId } = renderPage();
+    expect(getByTestId("overview-card-icons").textContent).toContain(
+      String(ICON_NAMES.length),
+    );
+    expect(getByTestId("overview-card-glyphs").textContent).toContain(
+      String(DOC_TYPE_KEYS.length),
+    );
+    expect(getByTestId("overview-card-fonts").textContent).toContain("3");
+    expect(getByTestId("overview-card-themes").textContent).toContain("2");
+  });
+
+  it("overview renders the deviations aside (the divergences home)", () => {
+    const { getByTestId } = renderPage();
+    expect(getByTestId("ds-deviations").textContent).toMatch(
+      /deviations from the prototype/i,
+    );
+  });
+
+  it("colours section renders the curated semantic + brand swatch groups", () => {
+    const { getByTestId } = renderPage();
+    const count = (id: string) =>
+      getByTestId(id).querySelectorAll("[data-token]").length;
+    expect(count("ds-swatches-surfaces")).toBe(8);
+    expect(count("ds-swatches-foreground")).toBe(4);
+    expect(count("ds-swatches-accent")).toBe(8);
+    expect(count("ds-swatches-stroke")).toBe(3);
+    expect(count("ds-swatches-brand")).toBe(19);
+    expect(
+      getByTestId("ds-swatches-surfaces").querySelector(
+        '[data-token="--ac-bg"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it("doc-type hues bind one chip per DOC_TYPE_HUE entry", () => {
+    const { getByTestId } = renderPage();
+    const chips =
+      getByTestId("ds-typehues").querySelectorAll("[data-doc-type]");
+    expect(chips).toHaveLength(Object.keys(DOC_TYPE_HUE).length);
+    expect(chips).toHaveLength(DOC_TYPE_KEYS.length);
+  });
+
+  it("spacing section binds one bar per SPACING_TOKENS step", () => {
+    const { getByTestId } = renderPage();
+    expect(
+      getByTestId("ds-spacing").querySelectorAll("[data-sp]"),
+    ).toHaveLength(Object.keys(SPACING_TOKENS).length);
+  });
+
+  it("radii section binds the live radii ladder + the three shadows", () => {
+    const { getByTestId } = renderPage();
+    expect(
+      getByTestId("ds-radii").querySelectorAll("[data-radius]"),
+    ).toHaveLength(Object.keys(RADIUS_TOKENS).length);
+    expect(
+      getByTestId("ds-shadows").querySelectorAll("[data-shadow]"),
+    ).toHaveLength(3);
+  });
+
+  it("type section renders the seven ramp specimens", () => {
+    const { getByTestId } = renderPage();
+    expect(
+      getByTestId("ds-typesamples").querySelectorAll("[data-type-sample]"),
+    ).toHaveLength(7);
   });
 });

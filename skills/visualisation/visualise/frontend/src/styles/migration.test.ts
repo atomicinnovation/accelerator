@@ -68,10 +68,18 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "1px",
-    count: 7,
+    count: 18,
     kind: "irreducible",
     reason:
-      "hairline borders (marquee bottom, marquee kbd, TOC aside right, TOC foot dashed, section-head bottom, footer dashed, footer kbd) — below --sp-1 floor, no border-width token",
+      "hairline borders — chrome (marquee bottom, marquee kbd, TOC aside right, TOC foot dashed, section-head bottom, footer dashed, footer kbd) + section-content cards (prose/deviations code pill, overview card, deviations aside, swatch, swatch-chip divider, type-hue cell, type-sample, type-sample-meta dashed, spacing cell, radii cell, shadow cell) — below --sp-1 floor, no border-width token",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "180px",
+    count: 2,
+    kind: "irreducible",
+    reason:
+      "swatch + doc-type-hue grid min track widths (minmax floor) — no layout-width token",
   },
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
@@ -1804,7 +1812,7 @@ describe("var(--NAME) references resolve to declared tokens", () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 989; // 0095: task-list box+label CSS added 8 var refs (--sp-3, --ac-stroke-strong ×2, --ac-bg-card, --ac-accent ×2, --ac-fg-muted, --radius-4)
+const AC5_FLOOR = 1313; // 0083 Phase 6: DevDesignSystem token/type section CSS (overview, colours, type, spacing, radii) added fully-tokenised structural rules (was 989)
 const AC5_TARGET = 300; // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0;
 

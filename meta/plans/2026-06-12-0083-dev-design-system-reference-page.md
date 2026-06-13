@@ -12,25 +12,28 @@ derived_from: ["codebase-research:2026-06-12-0083-dev-design-system-reference-pa
 tags: [design, frontend, dev-tools, visualiser, design-system, visual-regression, theming, scroll-spy, keybind, icon]
 revision: "e13cea2829821da417f7d7e91e9c2bb7ba8b3852"
 repository: "accelerator"
-last_updated: "2026-06-13T17:16:58+00:00"
+last_updated: "2026-06-13T18:45:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
-> **Implementation progress (2026-06-13).** Phases **1–5 are implemented and
-> committed**, each leaving `main` green (`mise run frontend:check` + 2461 unit
+> **Implementation progress (2026-06-13).** Phases **1–6 are implemented and
+> committed**, each leaving `main` green (`mise run frontend:check` + 2468 unit
 > tests; full e2e/VR — 478 cases — for the pixel-touching phases 1–3). Per-phase
 > success-criteria checkboxes below are ticked accordingly; the unticked boxes in
-> phases 1–5 are the remaining **manual/browser** verifications and the **Phase 5
+> phases 1–6 are the remaining **manual/browser** verifications, the **Phase 5
 > e2e specs deferred to Phase 10** (empty stub sections can't be scroll-spied
 > meaningfully — the `pickActiveSection` total-order unit test is the algorithm's
-> oracle). Phases **6–11 remain** (6–9 section content, 10 VR migration + the
-> deferred e2e, 11 route retirement + README + work-item AC amendment). Commits:
-> Icon primitive → icon migration → AtomicMark/Glyph → /dev route+activation+chrome
-> → scroll-spy+theme. Notable deviations are recorded inline per phase (Toaster
-> ToastIcon kept custom; Breadcrumbs uses a text `›`; module CSS tokenised against
-> ADR-0039 with documented `migration.test.ts` exceptions for irreducible
-> dev-chrome values). State is also in memory `project_0083_dev_design_system_progress`.
+> oracle), and the **Phase 6 colours theme-responsiveness check deferred to Phase
+> 10** (browser-only — jsdom can't resolve `var()`). Phases **7–11 remain** (7–9
+> section content, 10 VR migration + the deferred e2e, 11 route retirement + README
+> + work-item AC amendment). Commits: Icon primitive → icon migration →
+> AtomicMark/Glyph → /dev route+activation+chrome → scroll-spy+theme → tokens/type
+> sections. Notable deviations are recorded inline per phase (Toaster ToastIcon kept
+> custom; Breadcrumbs uses a text `›`; module CSS tokenised against ADR-0039 with
+> documented `migration.test.ts` exceptions for irreducible dev-chrome values; Phase
+> 6 demonstration values inline in TSX, off-scale prototype px snapped to tokens).
+> State is also in memory `project_0083_dev_design_system_progress`.
 
 > **Revision note (2026-06-13).** Updated after plan review-1
 > (`meta/reviews/plans/2026-06-12-0083-dev-design-system-reference-page-review-1.md`,
@@ -821,22 +824,47 @@ Port the five token/type sections (pure CSS + token reads). Fills the stubs.
 
 #### Automated Verification
 
-- [ ] `mise run frontend:check` and `mise run test:unit:frontend` pass
-- [ ] Overview counts bind to `ICON_NAMES.length` / `DOC_TYPE_KEYS.length`
+- [x] `mise run frontend:check` and `mise run test:unit:frontend` pass (2468 unit
+  tests; +7 Phase 6 oracles)
+- [x] Overview counts bind to `ICON_NAMES.length` / `DOC_TYPE_KEYS.length`
   (asserted against the constants, not frozen integers)
-- [ ] Colours section asserts 8+4+8+3 named swatches, 19 named `--atomic-*`, and
-  doc-type hues `= DOC_TYPE_HUE` count
+- [x] Colours section asserts 8+4+8+3 named swatches, 19 named `--atomic-*`, and
+  doc-type hues `= DOC_TYPE_HUE` count (`Object.keys(DOC_TYPE_HUE).length`)
 - [ ] Colours theme-responsiveness (the AC's named oracle): read at least one
   surface swatch's computed `backgroundColor` in light and again in dark and assert
   they differ and match the expected light/dark token (reuse the
-  `expected-colours.ts` helpers) — not left to a manual "plausible values" check
-- [ ] Spacing asserts 11 steps; Radii asserts the live radii ladder + 3 shadows
+  `expected-colours.ts` helpers) — *deferred to Phase 10 (browser-only — jsdom does
+  not resolve `var()` custom properties; this is an `expected-colours.ts`-backed
+  Playwright check authored alongside the Phase 10 e2e pass, mirroring the Phase 5
+  e2e deferral). The `Swatch` reads `getComputedStyle().backgroundColor` and renders
+  the resolved value in-browser; the hex line is simply omitted under unit test.*
+- [x] Spacing asserts 11 steps (`SPACING_TOKENS`); Radii asserts the live radii
+  ladder (`RADIUS_TOKENS`, 10 entries) + 3 shadows
 
 #### Manual Verification
 
 - [ ] Swatches show plausible computed values that change between light/dark for
   surface tokens
 - [ ] No layout breakage in either theme
+
+> **Phase 6 notes/deviations.** (1) These five sections carry **no VR baseline**
+> (the Phase 10 VR migration covers only glyph/chip/code/kanban), so off-scale
+> prototype pixels are **snapped to the nearest live token** rather than reproduced
+> (e.g. swatch-chip height `56px`→`--sp-9`, shadow box `110px`→`--sp-11`, grid gaps
+> `14px`→`--sp-3`) — faithful to ADR-0039 intent and keeping the module CSS gate
+> clean. (2) **Demonstration values are rendered as inline `var(--token)` styles in
+> TSX** (type sizes, spacing-bar widths, radii box) so the page reads the LIVE tokens
+> directly and the migration gate (which scans only `*.module.css`) stays clean; the
+> module CSS holds only structural layout, fully tokenised. New module-CSS literals:
+> `1px` exception bumped 7→18 (section-card hairlines), `180px`×2 added (swatch +
+> type-hue grid mins). `AC5_FLOOR` ratcheted 989→1313. (3) **Type ramps use the live
+> `--size-*` ramp** (hero/h3/md/prose/subtitle/xxs/eyebrow), not the prototype's
+> arbitrary px — the specimens *are* the design system. (4) **Radii** render from
+> `RADIUS_TOKENS` (the full live ladder `0,1,2,3,4,6,8,12,pill,full` = 10 cells), not
+> the prototype's `sm/md/lg/pill`. (5) **Brand palette** is the curated **19 named**
+> tokens the prototype showcased (the live `--atomic-*` set has 37 incl. aliases +
+> neutrals). (6) The **Overview is the deviations home** — a `ds-deviations` aside
+> lists the union of every intentional divergence (per *Changes Required*).
 
 ---
 
