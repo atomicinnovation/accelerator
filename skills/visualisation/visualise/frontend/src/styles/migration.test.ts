@@ -930,15 +930,9 @@ const EXCEPTIONS: ReadonlyArray<
     reason:
       "kind-badge caps tracking per prototype .ac-kindbadge — below --tracking-caps",
   },
-  // routes/kanban-card-showcase/KanbanCardShowcase.module.css — dev-only fixture surface
-  {
-    file: "routes/kanban-card-showcase/KanbanCardShowcase.module.css",
-    literal: "16rem",
-    count: 1,
-    kind: "irreducible",
-    reason:
-      "showcase cell width mirrors a kanban column card width — layout dimension, no token",
-  },
+  // routes/kanban-card-showcase/KanbanCardShowcase.module.css — RETIRED in 0083
+  // (the showcase route was deleted; its VR coverage moved to /dev#cards), so the
+  // former 16rem exception is gone.
   // routes/library/LibraryDocView.module.css
   {
     file: "routes/library/LibraryDocView.module.css",
@@ -1844,7 +1838,7 @@ describe("var(--NAME) references resolve to declared tokens", () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 1622; // 0083 Phase 9: DevDesignSystem composites & chrome CSS (cards/table/markdown/code/frontmatter/empty/toast/topbar) added more tokenised rules (P6 1313, P7 1373, P8 1492, was 989)
+const AC5_FLOOR = 1546; // 0083 Phase 11: retiring the 5 showcase routes deleted their (tokenised) module CSS, lowering the count from the P9 high of 1622 (P6 1313, P7 1373, P8 1492). Coverage in surviving files is unchanged; the drop is whole dev-only fixture files removed, not de-tokenisation.
 const AC5_TARGET = 300; // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0;
 

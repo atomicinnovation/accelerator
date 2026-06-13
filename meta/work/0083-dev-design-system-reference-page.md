@@ -187,8 +187,12 @@ active highlight from the actual scroll position.
   bindings are out of scope. The "not reserved" property holds only for
   the tested browser versions.)
 - [ ] Given all five showcase routes are removed from `src/router.ts`,
-  when any former showcase path is requested, then it returns 404 (no
-  redirect).
+  when any former showcase path is requested, then it resolves to the SPA
+  not-found UI (no redirect) — the app is a client-side SPA with no
+  `notFoundComponent`, so a retired path no longer matches a showcase route
+  and falls through to TanStack's default not-found UI, served over HTTP 200
+  (a generic HTTP client requesting a former path still gets 200 +
+  `index.html`; nothing in-app or external links to these dev-only paths).
 - [ ] The visual-regression spec + baselines that covered each retired
   showcase are migrated to assert the corresponding `DevDesignSystem`
   section(s), audited row-by-row against the showcase→section mapping in
@@ -309,10 +313,10 @@ refinement (2026-06-12) and review (2026-06-12):
     (soft/lift/brand).
   - Icons: full `ICON_NAMES` set (33 stroke icons = `ICON_NAMES.length`) +
     a size ramp (12–32px).
-  - Doc-type glyphs: one `TypeGlyph` per doc-type (the component the
-    prototype/router comments also call "Glyph" — same component), sizes
-    22/28/36/48. Count = the `TypeGlyph` source set length (the retired
-    `/glyph-showcase` rendered 12).
+  - Doc-type glyphs: one `Glyph` per doc-type, sizes 16/24/32/48 (the live
+    `16/24/32` set plus a net-new `48`, not the prototype's 22/28/36/48).
+    Count = `DOC_TYPE_KEYS.length` (13; the retired `/glyph-showcase`
+    asserted the same live set).
   - Empty-state glyphs: one `BigGlyph` per type, sizes 48/64/80/96/128.
     Count = the `BigGlyph` source set length (the retired
     `/big-glyph-showcase` rendered 13). The doc-type-glyph and
@@ -322,8 +326,9 @@ refinement (2026-06-12) and review (2026-06-12):
   - Atomic mark: sizes 20/24/32/48/72 + an on-night variant.
   - Chips: 6 tones (neutral/indigo/green/amber/red/violet) × sm/md.
   - Status badges: 8 statuses + 4 verdicts.
-  - Stage dots: `PipelineMini` over `STAGES` (9 stages = `STAGES.length`)
-    — all/partial/none + compact.
+  - Stage dots: `PipelineMini` over the workflow steps (8 stages =
+    `WORKFLOW_PIPELINE_STEPS.length`) — all/partial/none (no compact: there
+    is no live compact prop).
   - Tier pills: present/active/absent/default.
   - Buttons: topbar buttons (icon-only, filter, sort, sort-active),
     filter badge, inline link + `ds-link`.

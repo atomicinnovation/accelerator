@@ -64,7 +64,7 @@ export function isPhysicalDocTypeKey(
 
 /** Static, human-friendly labels for each `DocTypeKey`. Mirrors the
  *  server-emitted `DocType.label` field; used in dev-only routes (e.g.
- *  `/glyph-showcase`) and tests where a runtime `useQuery` is undesirable. */
+ *  the `/dev` reference page) and tests where a runtime `useQuery` is undesirable. */
 export const DOC_TYPE_LABELS: Readonly<Record<DocTypeKey, string>> = {
   decisions: "Decisions",
   "work-items": "Work items",

@@ -47,12 +47,7 @@ export function withCrumb<TParentRoute extends AnyRoute, TPath extends string>(
 import { type DocTypeKey, isDocTypeKey } from "./api/types";
 import { DevDesignSystem } from "./components/DevDesignSystem/DevDesignSystem";
 import { RootLayout } from "./components/RootLayout/RootLayout";
-import { BigGlyphShowcase } from "./routes/big-glyph-showcase/BigGlyphShowcase";
-import { ChipShowcase } from "./routes/chip-showcase/ChipShowcase";
-import { CodeSyntaxShowcase } from "./routes/code-syntax-showcase/CodeSyntaxShowcase";
-import { GlyphShowcase } from "./routes/glyph-showcase/GlyphShowcase";
 import { KanbanBoard } from "./routes/kanban/KanbanBoard";
-import { KanbanCardShowcase } from "./routes/kanban-card-showcase/KanbanCardShowcase";
 import { LibraryDocView } from "./routes/library/LibraryDocView";
 import { LibraryLayout } from "./routes/library/LibraryLayout";
 import { LibraryOverviewHub } from "./routes/library/LibraryOverviewHub";
@@ -158,54 +153,13 @@ const devRoute = createRoute({
   component: DevDesignSystem,
 });
 
-// Developer-only preview route — uncrumbed (does not appear in the breadcrumb
-// trail). Renders all 12 doc-type Glyphs × 3 sizes for visual review and as
-// the page under test for the Playwright visual-regression spec.
-const glyphShowcaseRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/glyph-showcase",
-  component: GlyphShowcase,
-});
-
-// Developer-only preview route for the BigGlyph hero illustrations. Mirrors
-// glyphShowcaseRoute: uncrumbed, renders all 13 doc-type heroes at 96px and is
-// the page under test for tests/visual-regression/big-glyph-showcase.spec.ts.
-// Throwaway fixture — superseded by story 0083's DevDesignSystem (migrate the
-// VR spec + baselines, don't just delete).
-const bigGlyphShowcaseRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/big-glyph-showcase",
-  component: BigGlyphShowcase,
-});
-
-// Developer-only preview route for the Chip primitive. Mirrors the
-// glyphShowcaseRoute: uncrumbed, renders all 6 variants × 2 sizes for
-// visual review and visual-regression coverage.
-const chipShowcaseRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/chip-showcase",
-  component: ChipShowcase,
-});
-
-// Developer-only Playwright fixture surface for the code-block
-// syntax-highlight palette (story 0076). Renders one fenced code
-// block per language; used by
-// tests/visual-regression/code-block-resolved-colours.spec.ts.
-const codeSyntaxShowcaseRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/code-syntax-showcase",
-  component: CodeSyntaxShowcase,
-});
-
-// Developer-only Playwright fixture surface for the kanban card's drag states
-// (story 0086). Renders the resting / dragging / overlay presentations
-// statically; used by tests/visual-regression/kanban-card-showcase.spec.ts and
-// kanban-card-resolved-styles.spec.ts.
-const kanbanCardShowcaseRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/kanban-card-showcase",
-  component: KanbanCardShowcase,
-});
+// The five developer-only showcase routes (/glyph-showcase, /big-glyph-showcase,
+// /chip-showcase, /code-syntax-showcase, /kanban-card-showcase) were retired in
+// story 0083: their primitives and visual-regression coverage are consolidated
+// into the DevDesignSystem `/dev` reference page (the VR specs are repointed at
+// /dev#<section>). A retired path no longer resolves to a showcase — it falls
+// through to TanStack's default SPA not-found UI (served over HTTP 200; the app
+// has no notFoundComponent and adds no redirect).
 
 // Exported so tests can construct an isolated router with memory history.
 export const routeTree = rootRoute.addChildren([
@@ -221,11 +175,6 @@ export const routeTree = rootRoute.addChildren([
   lifecycleRoute.addChildren([lifecycleIndexRoute, lifecycleClusterRoute]),
   kanbanRoute,
   devRoute,
-  glyphShowcaseRoute,
-  bigGlyphShowcaseRoute,
-  chipShowcaseRoute,
-  codeSyntaxShowcaseRoute,
-  kanbanCardShowcaseRoute,
 ]);
 
 // Shared so the `buildRouter` test fixture (router-fixtures.ts) constructs a

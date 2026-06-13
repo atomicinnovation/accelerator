@@ -51,9 +51,35 @@ npm run build
 
 ## Developer Routes
 
-The following routes exist solely to preview internal components and are not part of the user-facing navigation:
+There is a single developer-only surface — the **DevDesignSystem reference page** at
+`/dev`. It consolidates every visual primitive the visualiser renders (colours,
+type, spacing, radii, icons, doc-type glyphs, empty-state glyphs, the Atomic mark,
+chips, badges, stage dots, tier pills, buttons, forms, sidebar nav, cards, tables,
+markdown, code blocks, frontmatter, empty/banners, toasts, topbar) across light and
+dark, and is the page under test for the visual-regression specs. It is **not** part
+of the user-facing navigation. (It replaced the five retired `*-showcase` routes —
+their VR coverage was migrated onto `/dev#<section>` in story
+[`0083`](../../../../meta/work/0083-dev-design-system-reference-page.md).)
 
-- `/glyph-showcase` — renders all 12 doc-type Glyphs at all 3 supported sizes (16/24/32 px), viewable under both `data-theme="light"` and `data-theme="dark"` via dev-tools attribute toggling. See [`meta/work/0037-glyph-component.md`](../../../../meta/work/0037-glyph-component.md).
+Activate it via any of **three triggers**:
+
+- **Hash** — visit `#dev` (or `#dev/<section>`); the activation bridge normalises
+  these aliases to the canonical route form below.
+- **Keyboard** — `Cmd/Ctrl+Shift+L` toggles in/out of the page (matched on
+  `event.code === "KeyL"`, so it is layout-independent).
+- **Sidebar foot** — triple-click the version/build label in the sidebar foot.
+
+Deep-linking and sections:
+
+- The **canonical deep-link is `/dev#<section>`** (e.g. `/dev#colors`; bare `/dev`
+  for the overview). `#dev` and `#dev/<section>` are accepted **activation aliases**
+  the bridge rewrites to that form.
+- `<section>` is the **lowercase slug, not the display label** — e.g.
+  `/dev#stagedots` reaches the "Stage dots" section, `/dev#bigglyphs` the
+  "Empty-state glyphs" section, `/dev#colors` the "Colours" section.
+- A scroll-spy keeps the URL hash and the contents highlight in sync with the
+  scrolled section; an in-page theme toggle flips `data-theme`; "exit to app"
+  (or `Escape`) returns to the route you came from.
 
 ## Visual-Regression Baselines
 
@@ -155,12 +181,12 @@ host `node_modules`, so no `npm ci` is needed on the host afterwards.
 ### Glyph showcase specs
 
 The glyph specs are no longer a carve-out — they regenerate through the unified
-flow like every other visual spec, driving the `/glyph-showcase` route served by
+flow like every other visual spec, driving the `/dev#glyphs` section served by
 the Rust dev-frontend server (not `vite preview`). The two former
 `playwright.glyph.config.ts` specs now live in different trees by type:
-`glyph-showcase.spec.ts` (screenshots) in `tests/visual-regression/` (Docker),
-and `glyph-resolved-fill.spec.ts` (computed-style) in `tests/resolved-styles/`
-(native).
+`dev-design-system-glyph.spec.ts` (screenshots) in `tests/visual-regression/`
+(Docker), and `dev-design-system-glyph-resolved-fill.spec.ts` (computed-style)
+in `tests/resolved-styles/` (native).
 
 ## Troubleshooting
 

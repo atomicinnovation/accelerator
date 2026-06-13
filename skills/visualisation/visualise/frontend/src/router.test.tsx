@@ -298,4 +298,23 @@ describe("loader crumbs", () => {
       screen.queryByRole("navigation", { name: /breadcrumb/i }),
     ).toBeNull();
   });
+
+  it("no longer resolves the retired showcase paths to a showcase (0083)", async () => {
+    // The five showcase routes were retired into /dev. A former path no longer
+    // matches a showcase route — it falls through to the default SPA not-found
+    // (no notFoundComponent, no redirect), so the path stays put and no match
+    // carries it as a route id.
+    for (const path of [
+      "/glyph-showcase",
+      "/big-glyph-showcase",
+      "/chip-showcase",
+      "/code-syntax-showcase",
+      "/kanban-card-showcase",
+    ]) {
+      const router = renderAt(path);
+      await waitForPath(router, path);
+      expect(router.state.location.pathname).toBe(path);
+      expect(router.state.matches.some((m) => m.routeId === path)).toBe(false);
+    }
+  });
 });

@@ -1,4 +1,4 @@
-// Preview all 13 doc-type heroes at 96px in both themes at /big-glyph-showcase.
+// Preview all 13 doc-type heroes at 96px in both themes at /dev#bigglyphs.
 import type { ReactElement } from "react";
 import { DOC_TYPE_KEYS, type DocTypeKey } from "../../api/types";
 import { DOC_TYPE_HUE } from "../../styles/tokens";

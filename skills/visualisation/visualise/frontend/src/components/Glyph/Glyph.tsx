@@ -1,4 +1,4 @@
-// Preview all 13 doc types × 3 sizes in both themes at /glyph-showcase (see frontend README).
+// Preview all 13 doc types × 3 sizes in both themes at /dev#glyphs (see frontend README).
 import type { ComponentType, ReactElement } from "react";
 import { DOC_TYPE_KEYS } from "../../api/types";
 import { DOC_TYPE_COLOR_VAR, type GlyphDocType } from "./Glyph.constants";
