@@ -11,6 +11,11 @@ import {
   UnseenDocTypesContext,
   useUnseenDocTypes,
 } from "../../api/use-unseen-doc-types";
+import { DEV_CHORD } from "../DevDesignSystem/dev-constants";
+import {
+  DevActivationProvider,
+  useDevActivation,
+} from "../DevDesignSystem/use-dev-activation";
 import { Sidebar } from "../Sidebar/Sidebar";
 import { ExternalEditToast } from "../Toaster/ExternalEditToast";
 import { Toaster } from "../Toaster/Toaster";
@@ -48,6 +53,8 @@ export function RootLayout() {
   const fontMode = useFontMode();
   const toast = useToastDispatcher();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const devActivation = useDevActivation();
+  const { toggleDev, exitDev, getIsDevActive } = devActivation;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -61,6 +68,37 @@ export function RootLayout() {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
+
+  // DevDesignSystem activation chord + Escape exit. The chord matches on
+  // `e.code` (physical key position) — a net-new pattern here (every other
+  // handler keys off `e.key`) — so it survives non-US layouts and the Shift
+  // uppercasing of "l"/"L". Escape only ejects from /dev and only when no
+  // editable target is focused (so it clears/blurs a demo input first).
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        !e.altKey &&
+        e.code === DEV_CHORD.code
+      ) {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        toggleDev();
+        return;
+      }
+      if (
+        e.key === "Escape" &&
+        getIsDevActive() &&
+        !isEditableTarget(e.target)
+      ) {
+        e.preventDefault();
+        exitDev();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [toggleDev, exitDev, getIsDevActive]);
 
   const { data: docTypes = [] } = useQuery({
     queryKey: queryKeys.types(),
@@ -82,20 +120,31 @@ export function RootLayout() {
         <DocEventsContext.Provider value={docEvents}>
           <UnseenDocTypesContext.Provider value={unseen}>
             <ToastContext.Provider value={toast}>
-              <div className={styles.root}>
-                <Topbar />
-                <div className={styles.body}>
-                  <Sidebar
-                    docTypes={docTypes}
-                    phases={libraryStructure?.phases ?? []}
-                    templates={libraryStructure?.templates ?? null}
-                    searchInputRef={searchInputRef}
-                  />
-                  <main className={styles.main}>
-                    <Outlet />
-                  </main>
+              <DevActivationProvider value={devActivation}>
+                <div className={styles.root}>
+                  <Topbar />
+                  <div className={styles.body}>
+                    <Sidebar
+                      docTypes={docTypes}
+                      phases={libraryStructure?.phases ?? []}
+                      templates={libraryStructure?.templates ?? null}
+                      searchInputRef={searchInputRef}
+                    />
+                    {/* `data-scroll-root` is the explicit scroll-spy root (Phase
+                        5 binds the IntersectionObserver to it rather than
+                        `closest("main")`); `data-app-focus-anchor` + tabIndex
+                        give exit-from-dev a stable focus target. */}
+                    <main
+                      className={styles.main}
+                      data-scroll-root
+                      data-app-focus-anchor
+                      tabIndex={-1}
+                    >
+                      <Outlet />
+                    </main>
+                  </div>
                 </div>
-              </div>
+              </DevActivationProvider>
               {/* INVARIANT: <ExternalEditToast/> and <Toaster/> must stay inside
             <ToastContext.Provider>. Toaster portals to document.body, so its DOM
             position is irrelevant, but if it falls outside this provider it

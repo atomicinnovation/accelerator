@@ -45,6 +45,7 @@ export function withCrumb<TParentRoute extends AnyRoute, TPath extends string>(
 }
 
 import { type DocTypeKey, isDocTypeKey } from "./api/types";
+import { DevDesignSystem } from "./components/DevDesignSystem/DevDesignSystem";
 import { RootLayout } from "./components/RootLayout/RootLayout";
 import { BigGlyphShowcase } from "./routes/big-glyph-showcase/BigGlyphShowcase";
 import { ChipShowcase } from "./routes/chip-showcase/ChipShowcase";
@@ -147,6 +148,16 @@ const kanbanRoute = withCrumb("Kanban", {
   component: KanbanBoard,
 });
 
+// DevDesignSystem — uncrumbed `/dev` reference page (story 0083). Reached via
+// the `#dev` activation aliases (normalised by the hash bridge), the
+// Cmd/Ctrl+Shift+L chord, or a sidebar-foot triple-click. Consolidates and
+// replaces the five throwaway showcase routes below (retired in a later phase).
+const devRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dev",
+  component: DevDesignSystem,
+});
+
 // Developer-only preview route — uncrumbed (does not appear in the breadcrumb
 // trail). Renders all 12 doc-type Glyphs × 3 sizes for visual review and as
 // the page under test for the Playwright visual-regression spec.
@@ -209,6 +220,7 @@ export const routeTree = rootRoute.addChildren([
   ]),
   lifecycleRoute.addChildren([lifecycleIndexRoute, lifecycleClusterRoute]),
   kanbanRoute,
+  devRoute,
   glyphShowcaseRoute,
   bigGlyphShowcaseRoute,
   chipShowcaseRoute,

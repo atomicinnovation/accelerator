@@ -1,8 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { type RefObject, useState } from "react";
+import { type RefObject, useRef, useState } from "react";
 import type { DocType, LibraryDocType, LibraryPhase } from "../../api/types";
 import { useUnseenDocTypesContext } from "../../api/use-unseen-doc-types";
 import { ActivityFeed } from "../ActivityFeed/ActivityFeed";
+import { useDevActivationContext } from "../DevDesignSystem/use-dev-activation";
 import { Icon } from "../Icon/Icon";
 import { SearchResultsPanel } from "./SearchResultsPanel";
 import styles from "./Sidebar.module.css";
@@ -170,6 +171,44 @@ export function Sidebar({
           </ul>
         </section>
       )}
+
+      <SidebarFoot />
     </nav>
+  );
+}
+
+/** Sidebar-foot version label that doubles as the (least-discoverable) third
+ *  DevDesignSystem trigger: three clicks within a rolling 600 ms window open
+ *  `/dev`. Counter ported from the prototype `app-shell.jsx:7-20`. A subtle
+ *  hover affordance + `title` is the only hint — an accepted dev-only tradeoff. */
+function SidebarFoot() {
+  const dev = useDevActivationContext();
+  const clickCountRef = useRef(0);
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const onFootClick = () => {
+    const next = clickCountRef.current + 1;
+    if (next >= 3) {
+      clickCountRef.current = 0;
+      if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+      dev?.enterDev();
+      return;
+    }
+    clickCountRef.current = next;
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+    clickTimerRef.current = setTimeout(() => {
+      clickCountRef.current = 0;
+    }, 600);
+  };
+
+  return (
+    <button
+      type="button"
+      className={styles.foot}
+      onClick={onFootClick}
+      title="triple-click for the design-system reference"
+    >
+      accelerator-visualiser
+    </button>
   );
 }

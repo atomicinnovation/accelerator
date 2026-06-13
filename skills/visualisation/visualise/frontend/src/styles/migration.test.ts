@@ -62,6 +62,39 @@ const EXCEPTIONS: ReadonlyArray<
     kind: "irreducible",
     reason: "text stack gap — below --sp-1 (4px) floor",
   },
+  // components/DevDesignSystem/DevDesignSystem.module.css — bespoke dev-only
+  // reference-page chrome. Spacing/type/radii are tokenised; these are the
+  // irreducible off-scale chrome values with no token equivalent.
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "1px",
+    count: 7,
+    kind: "irreducible",
+    reason:
+      "hairline borders (marquee bottom, marquee kbd, TOC aside right, TOC foot dashed, section-head bottom, footer dashed, footer kbd) — below --sp-1 floor, no border-width token",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "220px",
+    count: 1,
+    kind: "irreducible",
+    reason: "sticky TOC column fixed width — no layout-width token",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "1280px",
+    count: 1,
+    kind: "irreducible",
+    reason: "dev-page content max-width — no layout-width token",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "#ffffff",
+    count: 1,
+    kind: "irreducible",
+    reason:
+      "DEV marquee tag text on the --ac-accent-2 red badge — theme-invariant white",
+  },
   // components/Chip/Chip.module.css
   {
     file: "components/Chip/Chip.module.css",
@@ -1733,6 +1766,11 @@ describe("var(--NAME) references resolve to declared tokens", () => {
   // never make it into the global token set but still need to pass the
   // "var(--*) resolves to something" guard.
   const LOCAL_CUSTOM_PROPS: Record<string, ReadonlySet<string>> = {
+    "components/DevDesignSystem/DevDesignSystem.module.css": new Set([
+      "ds-gutter",
+      "ds-section-gap",
+      "ds-marquee-h",
+    ]),
     "routes/library/EmptyState.module.css": new Set(["ac-empty-page-hue"]),
     "routes/library/recovery/RecoverySurface.module.css": new Set([
       "ac-empty-page-hue",

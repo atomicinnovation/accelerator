@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,6 +21,10 @@ import {
   type UnseenDocTypesHandle,
 } from "../../api/use-unseen-doc-types";
 import { MemoryRouter, renderWithRouterAt } from "../../test/router-helpers";
+import {
+  type DevActivation,
+  DevActivationProvider,
+} from "../DevDesignSystem/use-dev-activation";
 import { Sidebar } from "./Sidebar";
 
 vi.mock("../../api/fetch", async (importOriginal) => {
@@ -557,5 +567,70 @@ describe("Sidebar", () => {
       expect(screen.getByText("VIEWS")).toBeInTheDocument();
       expect(screen.getByText("META")).toBeInTheDocument();
     });
+  });
+});
+
+describe("Sidebar foot — triple-click dev activation", () => {
+  function renderWithDev(enterDev: () => void) {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const dev: DevActivation = {
+      isDevActive: false,
+      enterDev,
+      exitDev: vi.fn(),
+      toggleDev: vi.fn(),
+      getIsDevActive: () => false,
+      recordProgrammaticHash: vi.fn(),
+    };
+    return render(
+      <QueryClientProvider client={qc}>
+        <UnseenDocTypesContext.Provider value={makeUnseenHandle()}>
+          <DevActivationProvider value={dev}>
+            <MemoryRouter>
+              <Sidebar
+                docTypes={allDocTypes}
+                phases={defaultPhases(allDocTypes)}
+                templates={null}
+                searchInputRef={createRef()}
+              />
+            </MemoryRouter>
+          </DevActivationProvider>
+        </UnseenDocTypesContext.Provider>
+      </QueryClientProvider>,
+    );
+  }
+
+  it("opens /dev after three clicks within the 600 ms window", async () => {
+    // The Sidebar renders asynchronously via RouterProvider, so await the foot
+    // before interacting. The three clicks fire synchronously, well inside the
+    // rolling window, so no timer advance is needed for the third to trip it.
+    const enterDev = vi.fn();
+    renderWithDev(enterDev);
+    const foot = await screen.findByText("accelerator-visualiser");
+    fireEvent.click(foot);
+    fireEvent.click(foot);
+    fireEvent.click(foot);
+    expect(enterDev).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not open /dev when the third click is too slow", async () => {
+    const enterDev = vi.fn();
+    renderWithDev(enterDev);
+    const foot = await screen.findByText("accelerator-visualiser");
+    // Switch to fake timers AFTER the render has committed (fake timers before
+    // render stall React's scheduler).
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(foot);
+      fireEvent.click(foot);
+      act(() => {
+        vi.advanceTimersByTime(700); // window elapses → counter resets
+      });
+      fireEvent.click(foot);
+      expect(enterDev).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

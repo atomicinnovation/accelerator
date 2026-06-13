@@ -1,0 +1,265 @@
+/* DevDesignSystem (/dev) chrome — selectively re-authored from the prototype's
+   ds-* sheet (app.css:1392-1943) over live design tokens (--ac-* semantic
+   colours, --sp-* spacing, --size-* type, --radius-* radii, --tracking-caps).
+   The live --ac-* tokens are theme-aware, so the prototype's hardcoded
+   [data-theme="dark"] overrides are dropped — the base rules adapt for free.
+   Layout: sticky DEV marquee → 2-column [sticky TOC | scrolling sections];
+   the scroll container is the app's <main>, so sticky offsets are relative to
+   it. The undefined `.ds-spec*` family is intentionally not ported. */
+
+.root {
+  --ds-gutter: var(--sp-6);
+  --ds-section-gap: var(--sp-8);
+  --ds-marquee-h: var(--sp-6);
+  font-family: var(--ac-font-body);
+  color: var(--ac-fg);
+  min-height: 100%;
+  background:
+    radial-gradient(
+      circle at 12% -10%,
+      var(--ac-accent-faint),
+      transparent 45%
+    ),
+    var(--ac-bg);
+}
+
+/* ─── Marquee header ─── */
+.marquee {
+  background: linear-gradient(
+    90deg,
+    var(--ac-bg-sunken) 0%,
+    var(--ac-bg-raised) 50%,
+    var(--ac-bg-sunken) 100%
+  );
+  color: var(--ac-fg);
+  border-bottom: 1px solid var(--ac-stroke);
+  overflow: hidden;
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-eyebrow);
+  letter-spacing: var(--tracking-caps);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.marqueeInner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  white-space: nowrap;
+  animation: marquee 50s linear infinite;
+  will-change: transform;
+}
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marqueeTag {
+  background: var(--ac-accent-2);
+  color: #ffffff;
+  padding: var(--sp-1) var(--sp-2);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  border-radius: var(--radius-2);
+}
+.marqueeTitle {
+  color: var(--ac-fg-strong);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+}
+.marqueeSep {
+  color: var(--ac-fg-faint);
+}
+.marqueeRoute {
+  color: var(--ac-accent);
+}
+.marqueeKbd {
+  border: 1px solid var(--ac-stroke-strong);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--radius-3);
+  color: var(--ac-fg-muted);
+  background: var(--ac-bg-raised);
+}
+
+/* ─── Two-column layout ─── */
+.layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 0;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 var(--ds-gutter);
+}
+
+/* ─── Sticky TOC aside ─── */
+.tocAside {
+  position: sticky;
+  top: var(--ds-marquee-h);
+  align-self: start;
+  padding: var(--sp-5) var(--sp-5) var(--sp-5) 0;
+  border-right: 1px solid var(--ac-stroke);
+  max-height: calc(100vh - var(--ac-topbar-h) - var(--ds-marquee-h));
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.tocAside::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+.tocHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-3);
+}
+.tocEyebrow {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs);
+  letter-spacing: var(--tracking-caps);
+  color: var(--ac-fg-faint);
+}
+.tocExit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs);
+  color: var(--ac-fg-muted);
+  padding: var(--sp-1);
+  border-radius: var(--radius-3);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.tocExit:hover {
+  color: var(--ac-accent);
+  background: var(--ac-accent-faint);
+}
+.tocExitIcon {
+  transform: rotate(180deg);
+}
+.toc {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.tocItem {
+  display: grid;
+  grid-template-columns: var(--sp-5) 1fr;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--size-row);
+  color: var(--ac-fg-muted);
+  border-radius: var(--radius-3);
+  cursor: pointer;
+  text-decoration: none;
+}
+.tocItem:hover {
+  background: var(--ac-bg-hover);
+  color: var(--ac-fg);
+}
+.tocItemActive {
+  background: var(--ac-accent-faint);
+  color: var(--ac-accent);
+  font-weight: 500;
+}
+.tocNum {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs);
+  color: var(--ac-fg-faint);
+}
+.tocItemActive .tocNum {
+  color: var(--ac-accent);
+}
+.tocFoot {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--ac-stroke);
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs);
+  color: var(--ac-fg-muted);
+  line-height: var(--lh-normal);
+}
+.tocFootFaint {
+  color: var(--ac-fg-faint);
+}
+
+/* ─── Content column ─── */
+.content {
+  padding: var(--sp-6) 0 var(--sp-10) var(--sp-6);
+  min-width: 0;
+}
+.section {
+  margin-bottom: var(--ds-section-gap);
+  scroll-margin-top: var(--sp-10);
+}
+.sectionHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--ac-stroke);
+}
+.sectionHeadL {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.sectionId {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-eyebrow);
+  color: var(--ac-fg-faint);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+.sectionTitle {
+  font-family: var(--ac-font-display);
+  font-weight: 600;
+  font-size: var(--size-lg);
+  line-height: var(--lh-snug);
+  color: var(--ac-fg-strong);
+  margin: 0;
+}
+.sectionHint {
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-eyebrow);
+  color: var(--ac-fg-faint);
+  text-align: right;
+  flex-shrink: 0;
+}
+.sectionBody {
+  min-width: 0;
+}
+
+/* ─── Footer ─── */
+.footer {
+  margin-top: var(--ds-section-gap);
+  padding-top: var(--sp-4);
+  border-top: 1px dashed var(--ac-stroke);
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-eyebrow);
+  color: var(--ac-fg-faint);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.footerHint kbd {
+  border: 1px solid var(--ac-stroke-strong);
+  padding: var(--sp-1);
+  border-radius: var(--radius-3);
+  background: var(--ac-bg-raised);
+  color: var(--ac-fg-muted);
+}
+.footerRoute {
+  color: var(--ac-accent);
+}

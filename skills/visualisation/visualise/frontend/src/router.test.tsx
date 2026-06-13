@@ -276,4 +276,26 @@ describe("loader crumbs", () => {
     const kanbanMatch = matches.find((m) => m.routeId === "/kanban");
     expect((kanbanMatch?.loaderData as any)?.crumb).toBe("Kanban");
   });
+
+  it("routes /dev to the DevDesignSystem reference page", async () => {
+    const router = renderAt("/dev");
+    await waitForPath(router, "/dev");
+    // The Overview section heading confirms DevDesignSystem rendered.
+    expect(
+      await screen.findByRole("heading", { name: /^Overview$/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("registers /dev as an uncrumbed route (no breadcrumb trail)", async () => {
+    const router = renderAt("/dev");
+    await waitForPath(router, "/dev");
+    const devMatch = router.state.matches.find((m) => m.routeId === "/dev");
+    // No `withCrumb` loader → no crumb → Breadcrumbs renders nothing.
+    expect(
+      (devMatch?.loaderData as { crumb?: string } | undefined)?.crumb,
+    ).toBeUndefined();
+    expect(
+      screen.queryByRole("navigation", { name: /breadcrumb/i }),
+    ).toBeNull();
+  });
 });

@@ -637,43 +637,44 @@ paths (exit-to-app control, Escape, chord-toggle), not just one.
 
 #### Automated Verification
 
-- [ ] Type-check + lint pass: `mise run frontend:check`
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] Chord test (RootLayout.test template `:181-195`): `Cmd/Ctrl+Shift+L`
-  keydown fires the handler and `preventDefault()` is honoured; the four
-  single-modifier negatives do not activate; the likely accidental-fire negatives
-  also do not activate — `Cmd+L` (no Shift, a real browser shortcut),
-  `Cmd+Shift+<other key>`; chord is inert when an editable target is focused
-- [ ] Escape test: `Escape` on `/dev` calls `exitDev()`, but is inert when an
-  editable target is focused (does not eject the page from a focused input)
-- [ ] Triple-click test: 3 clicks <600 ms set `location.hash` to `#dev`; a
-  slow third click does not
-- [ ] Bridge test: setting `#dev` navigates to `/dev`; `#dev/colors` normalises
-  to `/dev#colors` (via `replace:true`); a direct `/dev#colors` is left untouched;
+- [x] Type-check + lint pass: `mise run frontend:check`
+- [x] Unit tests pass: `mise run test:unit:frontend` (2453 pass)
+- [x] Chord test (RootLayout dev-activation describe, raw-event template):
+  `Cmd/Ctrl+Shift+L` fires the handler + `preventDefault()`; `Cmd+L` (no Shift)
+  and `Cmd+Shift+K` (wrong key) do not activate; chord is inert when an editable
+  target is focused
+- [x] Escape test: `Escape` on `/dev` calls `exitDev()` (+ `preventDefault`), but
+  is inert when an editable target is focused (does not eject from a focused input)
+- [x] Triple-click test: 3 clicks <600 ms call `enterDev()` (→ `/dev`); a slow
+  third click does not (the criterion's "set `location.hash`" wording predates the
+  direct-navigation revision — `enterDev()` navigates to `/dev`, no hash)
+- [x] Bridge test: setting `#dev` navigates to `/dev`; `#dev/colors` normalises to
+  `/dev#colors` (via `replace:true`); a direct bare `/dev#colors` is left untouched;
   a stray `/dev#dev/colors` self-heals; `exitDev()` restores the stored prior path
   and clears the hash
-- [ ] Back-navigation test: after an alias entry (`/library#dev/colors`), a
-  `hashchange` back to the alias URL does **not** re-trigger forward activation
-  (the alias was replaced, not pushed)
-- [ ] Re-entrancy test: a programmatic hash write (`history.replaceState`) does
-  **not** re-enter `sync()` (guards the no-loop invariant)
-- [ ] Exit-restore test: a direct `/dev` entry (no alias) and a cold-load deep-link
-  (prior seeded from `sessionStorage`) both restore correctly, falling back to
-  `/library` only when no resolvable prior exists
-- [ ] Invariant test: no `DEV_SECTIONS` id, expressed as a bare `#<id>` hash,
-  matches `DEV_ALIAS_RE` (so no section can be mis-classified as an alias)
-- [ ] Marquee/footer keybind hint text equals `DEV_CHORD_HINT` (asserted), not
-  `⌘⇧D`
-- [ ] TOC active jumplink carries `aria-current` and focus moves into the page on
-  activation / restores to a stable anchor on exit (asserted)
-- [ ] Router test: `/dev` resolves to `DevDesignSystem` and is uncrumbed
+- [x] Back-navigation test: after an alias entry, the normalising navigate uses
+  `replace` (history length unchanged), so Back does not bounce through the bridge
+- [x] Re-entrancy test: `devAliasTarget(hash, lastProgrammaticHash)` ignores a
+  hash the bridge itself wrote AND still activates for an external alias (pure unit)
+- [x] Exit-restore test: a direct `/dev` entry, a cold-load deep-link (prior seeded
+  from `sessionStorage`), and a non-resolving stored prior all restore correctly,
+  falling back to `/library` only when no resolvable prior exists
+- [x] Invariant test: no `DEV_SECTIONS` id, as a bare `#<id>` hash, matches
+  `DEV_ALIAS_RE`
+- [x] Marquee/footer keybind hint text equals `DEV_CHORD_HINT` (asserted), not `⌘⇧D`
+- [x] TOC active jumplink carries `aria-current="location"`; focus moves into the
+  page (the page heading, `data-dev-focus-anchor`) on activation (asserted).
+  Exit-focus-restore to `[data-app-focus-anchor]` is wired via `requestAnimationFrame`
+  in `exitDev`; the three exit paths' navigation is asserted, the rAF focus hop is
+  manual (jsdom rAF flushing is unreliable to assert)
+- [x] Router test: `/dev` resolves to `DevDesignSystem` and is uncrumbed
 
 #### Manual Verification
 
 - [ ] All three triggers land on `/dev` (DEV marquee + 24-section TOC rendered);
   `#dev`/`#dev/<section>` aliases normalise to `/dev#<section>`
 - [ ] Exit-to-app, Escape, and the chord-toggle all return to the prior route
-  with the sidebar restored
+  with the sidebar restored (incl. the rAF focus hop to the app anchor)
 - [ ] DEV marquee scrolls seamlessly (no jump at the loop point)
 
 ---

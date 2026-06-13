@@ -31,6 +31,29 @@
   .sidebar { width: 290px; }
 }
 
+/* Sidebar foot — a minimal version label pinned to the bottom that doubles as
+   the (least-discoverable) triple-click DevDesignSystem trigger. Reset button
+   chrome; faint mono text with a subtle hover affordance. */
+.foot {
+  margin-top: auto;
+  flex-shrink: 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: var(--sp-2) var(--sp-1) 0;
+  text-align: left;
+  font-family: var(--ac-font-mono);
+  font-size: var(--size-3xs);
+  letter-spacing: var(--tracking-caps);
+  color: var(--ac-fg-faint);
+  cursor: default;
+  user-select: none;
+  transition: color 0.12s ease;
+}
+.foot:hover {
+  color: var(--ac-fg-muted);
+}
+
 .section {
   display: flex;
   flex-direction: column;

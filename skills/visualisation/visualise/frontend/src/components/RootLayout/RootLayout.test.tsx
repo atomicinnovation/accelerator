@@ -1,4 +1,11 @@
-import { render, screen } from "@testing-library/react";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "../../test/router-helpers";
@@ -207,5 +214,127 @@ describe("RootLayout", () => {
     it(".body declares flex: 1", () => {
       expect(rootLayoutCss).toMatch(/\.body\s*\{[^}]*flex:\s*1/);
     });
+  });
+});
+
+// RootLayout is rootRoute's component in production, so mount it that way here
+// (a custom router with a real /dev child) to exercise the activation chord and
+// the Escape exit it wires onto the shared useDevActivation hook.
+describe("RootLayout — dev activation (chord + Escape)", () => {
+  function buildRouter(initial: string) {
+    const root = createRootRoute({ component: RootLayout });
+    const lib = createRoute({
+      getParentRoute: () => root,
+      path: "/library",
+      component: () => <div data-testid="route-library" />,
+    });
+    const dev = createRoute({
+      getParentRoute: () => root,
+      path: "/dev",
+      component: () => <div data-testid="route-dev" />,
+    });
+    const tree = root.addChildren([lib, dev]);
+    return createRouter({
+      routeTree: tree,
+      history: createMemoryHistory({ initialEntries: [initial] }),
+    });
+  }
+
+  async function renderAt(initial: string) {
+    sessionStorage.clear();
+    const router = buildRouter(initial);
+    render(<RouterProvider router={router} />);
+    await screen.findByRole("main");
+    await waitFor(() => expect(router.state.location.pathname).toBe(initial));
+    return router;
+  }
+
+  function dispatchKey(
+    opts: {
+      code: string;
+      key?: string;
+      meta?: boolean;
+      ctrl?: boolean;
+      shift?: boolean;
+      alt?: boolean;
+    },
+    target: EventTarget = document,
+  ) {
+    const event = new KeyboardEvent("keydown", {
+      code: opts.code,
+      key: opts.key ?? "",
+      metaKey: !!opts.meta,
+      ctrlKey: !!opts.ctrl,
+      shiftKey: !!opts.shift,
+      altKey: !!opts.alt,
+      bubbles: true,
+      cancelable: true,
+    });
+    const preventSpy = vi.spyOn(event, "preventDefault");
+    act(() => {
+      target.dispatchEvent(event);
+    });
+    return preventSpy;
+  }
+
+  it("Cmd+Shift+L enters /dev and the chord toggles back out", async () => {
+    const router = await renderAt("/library");
+    const enter = dispatchKey({ code: "KeyL", meta: true, shift: true });
+    expect(enter).toHaveBeenCalled();
+    await waitFor(() => expect(router.state.location.pathname).toBe("/dev"));
+    dispatchKey({ code: "KeyL", meta: true, shift: true });
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/library"),
+    );
+  });
+
+  it("Ctrl+Shift+L also activates (cross-platform modifier)", async () => {
+    const router = await renderAt("/library");
+    const spy = dispatchKey({ code: "KeyL", ctrl: true, shift: true });
+    expect(spy).toHaveBeenCalled();
+    await waitFor(() => expect(router.state.location.pathname).toBe("/dev"));
+  });
+
+  it("ignores accidental near-misses (Cmd+L without Shift, Cmd+Shift+K)", async () => {
+    const router = await renderAt("/library");
+    expect(dispatchKey({ code: "KeyL", meta: true })).not.toHaveBeenCalled();
+    expect(
+      dispatchKey({ code: "KeyK", meta: true, shift: true }),
+    ).not.toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe("/library");
+  });
+
+  it("chord is inert when an editable target is focused", async () => {
+    await renderAt("/library");
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+    const spy = dispatchKey({ code: "KeyL", meta: true, shift: true }, input);
+    expect(spy).not.toHaveBeenCalled();
+    input.remove();
+  });
+
+  it("Escape exits /dev to the prior route", async () => {
+    const router = await renderAt("/library");
+    dispatchKey({ code: "KeyL", meta: true, shift: true });
+    await waitFor(() => expect(router.state.location.pathname).toBe("/dev"));
+    const spy = dispatchKey({ code: "Escape", key: "Escape" });
+    expect(spy).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/library"),
+    );
+  });
+
+  it("Escape is inert inside a focused editable target (does not eject)", async () => {
+    const router = await renderAt("/library");
+    dispatchKey({ code: "KeyL", meta: true, shift: true });
+    await waitFor(() => expect(router.state.location.pathname).toBe("/dev"));
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+    const spy = dispatchKey({ code: "Escape", key: "Escape" }, input);
+    expect(spy).not.toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe("/dev");
+    input.remove();
   });
 });
