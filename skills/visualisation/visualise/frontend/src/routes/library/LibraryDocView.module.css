@@ -13,7 +13,7 @@
   grid-area: aside;
   border-left: 1px solid var(--ac-stroke);
   padding-left: var(--sp-5);
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
   color: var(--ac-fg-muted);
 }
 /* Aside section labels share the page-eyebrow recipe (0079): mono, eyebrow
@@ -22,7 +22,7 @@
    bold, so the explicit value is required for the six-property parity. */
 .aside h3 {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   font-weight: 400;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
@@ -37,13 +37,13 @@
   border-top: 1px dashed var(--ac-stroke);
 }
 .empty { font-style: italic; }
-.meta { word-break: break-all; font-family: var(--ac-font-mono); font-size: var(--size-xxs); margin: 0; }
+.meta { word-break: break-all; font-family: var(--ac-font-mono); font-size: var(--size-120); margin: 0; }
 /* etag / size detail lines under the File path (prototype File section):
    the etag sits a step (--sp-2) below the path; size tucks directly under
    the etag with no gap. */
 .fileDetail {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-faint);
   word-break: break-all;
   margin: 0;
@@ -61,7 +61,7 @@
   background: color-mix(in srgb, var(--ac-warn) 8%, var(--ac-bg));
   border-left: 4px solid var(--ac-warn);
   color: var(--ac-warn);
-  font-size: var(--size-sm);
+  font-size: var(--size-160);
 }
 .malformedPrefix {
   margin-right: var(--sp-1);

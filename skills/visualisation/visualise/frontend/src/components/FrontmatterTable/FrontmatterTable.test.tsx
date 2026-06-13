@@ -210,8 +210,8 @@ describe("FrontmatterTable", () => {
     it("uses --ac-font-mono (Fira Code) for table text", () => {
       expect(css).toMatch(/font-family:\s*var\(--ac-font-mono\)/);
     });
-    it("uses --size-xxs-sm for table font-size (not a literal)", () => {
-      expect(css).toMatch(/font-size:\s*var\(--size-xxs-sm\)/);
+    it("uses --size-115 for table font-size (not a literal)", () => {
+      expect(css).toMatch(/font-size:\s*var\(--size-115\)/);
     });
     it("uses --ac-fg-faint for keys (design: fainter than body text)", () => {
       expect(css).toMatch(/\.key\s*\{[^}]*color:\s*var\(--ac-fg-faint\)/);

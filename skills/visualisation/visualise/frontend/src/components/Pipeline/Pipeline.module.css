@@ -70,7 +70,7 @@
    dedicated regression spec) would be restyled out of scope (0079). */
 .label {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-4xs);
+  font-size: var(--size-95);
   letter-spacing: 0.04em;
   color: var(--ac-fg-faint);
   white-space: nowrap;
@@ -84,7 +84,7 @@
    affected; the card variant keeps its smaller size / tighter tracking /
    mixed-case. */
 .chain[data-variant='panel'] .label {
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }

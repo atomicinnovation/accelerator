@@ -37,7 +37,7 @@
 }
 .title {
   color: var(--ac-fg);
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -51,7 +51,7 @@
   align-items: baseline;
   gap: 0 var(--sp-1);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-faint);
   margin-top: var(--sp-1);
 }
@@ -93,7 +93,7 @@
   color: var(--ac-fg-faint);
 }
 .updating {
-  font-size: var(--size-xxs);
+  font-size: var(--size-120);
   font-style: italic;
   color: var(--ac-fg-faint);
   margin: 0 0 0.4rem;

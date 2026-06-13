@@ -40,7 +40,7 @@
   border-bottom: 1px solid var(--ac-stroke);
   overflow: hidden;
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   /* Tighter than --tracking-caps — matches the prototype marquee so the
      running header reads as one ticker rather than spaced-out caps. */
   letter-spacing: 0.06em;
@@ -127,7 +127,7 @@
 }
 .tocEyebrow {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs);
+  font-size: var(--size-100);
   letter-spacing: var(--tracking-caps);
   color: var(--ac-fg-faint);
 }
@@ -136,7 +136,7 @@
   align-items: center;
   gap: var(--sp-1);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs);
+  font-size: var(--size-100);
   color: var(--ac-fg-muted);
   padding: var(--sp-1);
   border-radius: var(--radius-3);
@@ -166,7 +166,7 @@
      plus the prototype's 1.5 line-height (the missing piece — the default
      `normal` made each row shorter) so the 24-entry jumplink list isn't cramped. */
   padding: 5px var(--sp-2);
-  font-size: var(--size-row);
+  font-size: var(--size-125);
   line-height: var(--lh-normal);
   color: var(--ac-fg-muted);
   border-radius: var(--radius-3);
@@ -184,7 +184,7 @@
 }
 .tocNum {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs);
+  font-size: var(--size-100);
   color: var(--ac-fg-faint);
 }
 .tocItemActive .tocNum {
@@ -217,7 +217,7 @@
 }
 .sectionId {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-faint);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
@@ -225,14 +225,14 @@
 .sectionTitle {
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: var(--size-lg);
+  font-size: var(--size-220);
   line-height: var(--lh-snug);
   color: var(--ac-fg-strong);
   margin: 0;
 }
 .sectionHint {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-faint);
   text-align: right;
   flex-shrink: 0;
@@ -247,7 +247,7 @@
   padding-top: var(--sp-4);
   border-top: 1px dashed var(--ac-stroke);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-faint);
   display: flex;
   flex-direction: column;
@@ -267,7 +267,7 @@
 /* ─── Section content: shared helpers ─── */
 .h3 {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--ac-fg-faint);
@@ -278,7 +278,7 @@
   margin-top: 0;
 }
 .prose {
-  font-size: var(--size-prose);
+  font-size: var(--size-145);
   /* Inter Light — the prototype's intro reads lighter than body weight. */
   font-weight: 300;
   line-height: var(--lh-prose);
@@ -288,7 +288,7 @@
 }
 .prose code {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: var(--size-120);
   background: var(--ac-bg-sunken);
   padding: 0 var(--sp-1);
   border-radius: var(--radius-3);
@@ -296,7 +296,7 @@
 }
 .link {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   color: var(--ac-accent);
   background: transparent;
   border: 0;
@@ -308,7 +308,7 @@
 }
 .caption {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-faint);
 }
 /* Shared horizontal cluster (prototype .ds-row) — spaces badges, tier pills,
@@ -339,24 +339,24 @@
 }
 .overviewCardNum {
   /* Mono numerals (prototype `.ds-overview-card__num.mono` is Fira Code, not
-     Sora/Inter); the live --size-h3 ramp step stands in for the prototype's
-     off-scale numeral size (ADR-0036 forbids font-size literals). */
+     Sora/Inter); the live --size-280 ramp step stands in for the prototype's
+     off-scale numeral size (ADR-0043 forbids font-size literals). */
   font-family: var(--ac-font-mono);
-  font-size: var(--size-h3);
+  font-size: var(--size-280);
   line-height: var(--lh-tight);
   color: var(--ac-fg-strong);
   font-weight: 600;
 }
 .overviewCardLbl {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--ac-fg-faint);
   margin-top: var(--sp-2);
 }
 .overviewCardSub {
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   color: var(--ac-fg-muted);
 }
 
@@ -389,19 +389,19 @@
   flex-direction: column;
 }
 .swatchName {
-  font-size: var(--size-row);
+  font-size: var(--size-125);
   font-weight: 500;
   color: var(--ac-fg-strong);
   line-height: var(--lh-snug);
 }
 .swatchToken {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-muted);
 }
 .swatchHex {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-faint);
 }
 .typeHues {
@@ -425,7 +425,7 @@
   border-radius: var(--radius-4);
 }
 .typeHueName {
-  font-size: var(--size-row);
+  font-size: var(--size-125);
   font-weight: 500;
   color: var(--ac-fg-strong);
 }
@@ -447,7 +447,7 @@
   padding-top: var(--sp-2);
   border-top: 1px dashed var(--ac-stroke);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-faint);
 }
 
@@ -474,12 +474,12 @@
 }
 .spacingLbl {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-strong);
 }
 .spacingVal {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-faint);
   text-align: right;
 }
@@ -508,12 +508,12 @@
 }
 .radiiLbl {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-strong);
 }
 .radiiVal {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-faint);
 }
 .shadows {
@@ -530,7 +530,7 @@
   align-items: center;
   justify-content: center;
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   color: var(--ac-fg-muted);
 }
 
@@ -565,7 +565,7 @@
 }
 .iconName {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-muted);
 }
 .iconSizes {
@@ -607,7 +607,7 @@
   min-width: 0;
 }
 .glyphCardName {
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
   font-weight: 500;
   color: var(--ac-fg-strong);
 }
@@ -685,7 +685,7 @@
   gap: var(--sp-1);
 }
 .bigGlyphName {
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
   font-weight: 500;
   color: var(--ac-fg-strong);
   line-height: var(--lh-snug);
@@ -739,7 +739,7 @@
   margin-bottom: var(--sp-3);
 }
 .stageLabel {
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
   color: var(--ac-fg-faint);
 }
 
@@ -751,7 +751,7 @@
   padding: var(--sp-1) var(--sp-2);
   border-radius: var(--radius-4);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   border: 1px solid var(--ac-stroke);
   color: var(--ac-fg-muted);
   background: var(--ac-bg-sunken);
@@ -791,7 +791,7 @@
   padding: var(--sp-2) var(--sp-3);
   border-radius: var(--radius-4);
   color: var(--ac-fg-muted);
-  font-size: var(--size-xxs);
+  font-size: var(--size-120);
   border: 1px solid transparent;
   background: transparent;
   cursor: pointer;
@@ -822,14 +822,14 @@
   background: var(--ac-accent);
   color: #ffffff;
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs);
+  font-size: var(--size-100);
   font-weight: 600;
   line-height: 1;
   margin-left: var(--sp-1);
 }
 .inlineLink {
   color: var(--ac-accent);
-  font-size: var(--size-xs);
+  font-size: var(--size-140);
 }
 
 /* ─── Inputs & form ─── */
@@ -846,7 +846,7 @@
   border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-4);
   color: var(--ac-fg);
-  font-size: var(--size-row);
+  font-size: var(--size-125);
   font-family: var(--ac-font-body);
 }
 .searchInput input:focus {
@@ -868,7 +868,7 @@
   top: 50%;
   transform: translateY(-50%);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs);
+  font-size: var(--size-100);
   color: var(--ac-fg-muted);
   padding: 0 var(--sp-1);
   border: 1px solid var(--ac-stroke);
@@ -886,7 +886,7 @@
   gap: var(--sp-2);
   padding: var(--sp-1) var(--sp-2);
   border-radius: var(--radius-3);
-  font-size: var(--size-row);
+  font-size: var(--size-125);
   color: var(--ac-fg);
   cursor: pointer;
 }
@@ -920,7 +920,7 @@
 }
 .checkCount {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-faint);
   margin-left: auto;
 }
@@ -941,7 +941,7 @@
   justify-content: space-between;
   padding: var(--sp-2) var(--sp-3);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--ac-fg-faint);
@@ -950,7 +950,7 @@
 .navSublabel {
   padding: var(--sp-2) var(--sp-3) var(--sp-1);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-4xs);
+  font-size: var(--size-95);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--ac-fg-faint);
@@ -963,7 +963,7 @@
   padding: var(--sp-2) var(--sp-3);
   border-radius: var(--radius-4);
   color: var(--ac-fg-muted);
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
   position: relative;
 }
 .navItemActive {
@@ -986,7 +986,7 @@
 }
 .navCount {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-faint);
   min-width: var(--sp-5);
   text-align: right;
@@ -1030,12 +1030,12 @@
 .lcardTitle {
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: var(--size-sm);
+  font-size: var(--size-160);
   color: var(--ac-fg-strong);
 }
 .lcardSlug {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   color: var(--ac-fg-muted);
 }
 .lcardMeta {
@@ -1043,7 +1043,7 @@
   align-items: center;
   gap: var(--sp-2);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-muted);
 }
 .lcardPipe {
@@ -1067,7 +1067,7 @@
 }
 .lcardEmptyTag {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-faint);
   border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-3);
@@ -1101,18 +1101,18 @@
 }
 .relatedType {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-faint);
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps);
 }
 .relatedTitle {
   color: var(--ac-fg);
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
 }
 .relatedMeta {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-faint);
 }
 
@@ -1120,7 +1120,7 @@
 .libtable {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
 }
 .libtableSelected {
   background: var(--ac-bg-active);
@@ -1128,7 +1128,7 @@
 .libtable th {
   text-align: left;
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--ac-fg-faint);
@@ -1142,7 +1142,7 @@
 }
 .libtableId {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: var(--size-120);
   color: var(--ac-fg-muted);
 }
 .libtableTitle {
@@ -1151,12 +1151,12 @@
 }
 .libtableSlug {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   color: var(--ac-fg-muted);
 }
 .libtableDate {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   color: var(--ac-fg-faint);
   white-space: nowrap;
 }
@@ -1189,7 +1189,7 @@
 .emptyTitle {
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: var(--size-xs);
+  font-size: var(--size-140);
   color: var(--ac-fg);
   margin-bottom: var(--sp-1);
 }
@@ -1197,7 +1197,7 @@
   /* centred measure (max-width 46ch · margin auto) sitting under the title */
   max-width: 46ch;
   margin: 0 auto;
-  font-size: var(--size-row);
+  font-size: var(--size-125);
   color: var(--ac-fg-muted);
   line-height: var(--lh-normal);
 }
@@ -1211,7 +1211,7 @@
   border-left: 3px solid var(--ac-warn);
   border-radius: var(--radius-6);
   padding: var(--sp-3) var(--sp-4);
-  font-size: var(--size-row);
+  font-size: var(--size-125);
   color: var(--ac-fg);
 }
 .bannerIcon {
@@ -1238,7 +1238,7 @@
   border-radius: var(--radius-4);
   padding: var(--sp-3) var(--sp-4);
   box-shadow: var(--ac-shadow-lift);
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
 }
 .toastWarn {
   border-left-color: var(--ac-warn);
@@ -1296,7 +1296,7 @@
   align-items: center;
   gap: var(--sp-2);
   color: var(--ac-fg-muted);
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
 }
 .crumbsStrong {
   color: var(--ac-fg);

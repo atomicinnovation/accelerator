@@ -31,7 +31,7 @@
   margin: 0;
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
   letter-spacing: 0.02em;
   color: var(--ac-fg-strong);
 }
@@ -41,12 +41,12 @@
   border: 1px solid var(--ac-stroke);
   border-radius: var(--radius-pill);
   padding: 1px 7px;
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-muted);
 }
 .columnDescription {
   margin: 0 0 var(--sp-2) 0;
-  font-size: var(--size-xs);
+  font-size: var(--size-140);
   color: var(--ac-fg-muted);
 }
 .cardList {
@@ -66,13 +66,13 @@
   margin: 0 0 var(--sp-1) 0;
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: var(--size-xs);
+  font-size: var(--size-140);
   color: var(--ac-fg);
 }
 .emptyBody {
   margin: 0 auto;
   max-width: 46ch;
-  font-size: var(--size-row);
+  font-size: var(--size-125);
 }
 .columnOver {
   outline: 2px dashed var(--ac-accent);

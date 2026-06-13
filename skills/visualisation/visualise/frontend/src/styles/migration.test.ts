@@ -1299,7 +1299,7 @@ const EXCEPTIONS: ReadonlyArray<
     count: 1,
     kind: "irreducible",
     reason:
-      "card responsive padding-block at .card — equals --size-lg but co-located",
+      "card responsive padding-block at .card — equals --size-220 but co-located",
   },
   {
     file: "routes/library/EmptyState.module.css",
@@ -1383,7 +1383,7 @@ const EXCEPTIONS: ReadonlyArray<
     count: 1,
     kind: "irreducible",
     reason:
-      "card responsive padding-block at .card — equals --size-lg but co-located",
+      "card responsive padding-block at .card — equals --size-220 but co-located",
   },
   {
     file: "routes/library/recovery/RecoverySurface.module.css",
@@ -2005,8 +2005,8 @@ describe("MarkdownRenderer .markdown rule consumes prose-width and body-size tok
     },
   );
 
-  itIfPresent("references var(--size-prose) for the body font-size", () => {
-    expect(css!).toContain("var(--size-prose)");
+  itIfPresent("references var(--size-145) for the body font-size", () => {
+    expect(css!).toContain("var(--size-145)");
   });
 });
 
@@ -2017,8 +2017,8 @@ describe("MarkdownRenderer inline-code rule (0094)", () => {
   itIfPresent("inline code uses the monospace face", () => {
     expect(css!).toContain("font-family: var(--ac-font-mono)");
   });
-  itIfPresent("inline code uses the 11.5px token, not --size-xs", () => {
-    expect(css!).toContain("var(--size-xxs-sm)");
+  itIfPresent("inline code uses the 11.5px token, not --size-140", () => {
+    expect(css!).toContain("var(--size-115)");
   });
   itIfPresent("inline code has the soft pill border", () => {
     expect(css!).toContain("1px solid var(--ac-stroke-soft)");
@@ -2026,20 +2026,20 @@ describe("MarkdownRenderer inline-code rule (0094)", () => {
   itIfPresent("inline code retains the :not(pre code) scoping", () => {
     expect(css!).toContain("code:not(pre code)");
   });
-  itIfPresent("inline code no longer sizes off --size-xs", () => {
+  itIfPresent("inline code no longer sizes off --size-140", () => {
     // indexOf finds the base rule `.markdown code:not(pre code)` first (the
     // td override shares the substring); scope the negative check to its body
-    // so it does not trip on `.markdown pre`'s legitimate var(--size-xs).
+    // so it does not trip on `.markdown pre`'s legitimate var(--size-140).
     const i = css!.indexOf("code:not(pre code)");
     const body = i >= 0 ? extractBlockBody(css!, i) : null;
     expect(body).not.toBeNull();
-    expect(body!).not.toContain("var(--size-xs)");
+    expect(body!).not.toContain("var(--size-140)");
   });
   itIfPresent(
     "table-body inline code uses the 11px token, out-specifying the base rule",
     () => {
       expect(css!).toContain("td code:not(pre code)");
-      expect(css!).toContain("var(--size-eyebrow)");
+      expect(css!).toContain("var(--size-110)");
     },
   );
 });
@@ -2259,8 +2259,8 @@ describe("AC2 / 0075: font-size literal regex fixtures", () => {
     "--ac-font: bold 14px sans;",
     "--my-line-height: 1.5rem;",
     'font-family: "Inter", sans-serif;',
-    "font: 400 var(--size-xxs)/1 var(--ac-font-mono);",
-    "font: 400 var(--size-xxs)/1.5rem var(--ac-font-body);",
+    "font: 400 var(--size-120)/1 var(--ac-font-mono);",
+    "font: 400 var(--size-120)/1.5rem var(--ac-font-body);",
     "font: 14pxsans;",
   ];
 

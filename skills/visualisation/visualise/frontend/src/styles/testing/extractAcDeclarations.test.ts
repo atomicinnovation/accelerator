@@ -32,7 +32,7 @@ describe("extractAllAcDeclarations", () => {
         --ac-bg: #fff;
         --atomic-night: rgb(14, 15, 25);
         --tk-com: #6f7796;
-        --size-md: 18px;
+        --size-180: 18px;
       }
     `;
     const decls = extractAllAcDeclarations(css);

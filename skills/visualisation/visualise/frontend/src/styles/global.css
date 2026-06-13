@@ -159,36 +159,41 @@ body {
   --ac-font-mono:     "Fira Code", ui-monospace, monospace;
 
   /*
-   * font-size consumers: use these tokens — see ADR-0036.
+   * font-size consumers: use these tokens — see ADR-0043. Rule: every
+   * `font-size` in current-app CSS must resolve to one of these tokens; no
+   * `px`/`rem`/`em` literals (including `font:` shorthand).
    *
-   * Naming: tier names (e.g. `--size-xxs`, `--size-xs`, `--size-sm`,
-   * `--size-md`, `--size-body`, `--size-lg`, `--size-h1`, `--size-hero`)
-   * form the integer-px scale. `--size-eyebrow`, `--size-row`, and
-   * `--size-subtitle` are semantic single-purpose tokens (each has one
-   * conceptual consumer in current designs). The `-sm` / `-lg` suffixes
-   * mark sub-pixel tweens between integer tiers
-   * (e.g. `--size-xxs-sm` = 11.5px sits between `--size-xxs` 12 and
-   * `--size-eyebrow` 11).
+   * Naming: every size token is pure-numeric, encoding its px value ×10
+   * with no zero-padding — `--size-<px×10>`. Whole-step example: 11px →
+   * `--size-110`. Half-step example: 14.5px → `--size-145` (so the smallest
+   * token `--size-95` is 9.5px, NOT 95px). Names are therefore variable-width
+   * — `--size-95` (9.5px, two digits) sits alongside `--size-110` (11px,
+   * three digits) — and sort numerically by name. Any 0.5px step is nameable
+   * without a new naming family.
+   * NB: the ×10 suffix is a px-derived value, NOT the ordinal step index used
+   * by the sibling `--sp-N` scale, NOR the ×1 px value used by the sibling
+   * `--radius-N` scale: 12px is `--size-120`, `--sp-3`, and `--radius-12`
+   * respectively — three numeric-suffix families, three numbering bases.
    */
-  --size-hero:        68px;
-  --size-h1:          48px;
-  --size-h2:          36px;
-  --size-h3:          28px;
-  --size-h4:          26px;
-  --size-lg:          22px;
-  --size-body:        20px;
-  --size-prose:       14.5px;
-  --size-md:          18px;
-  --size-sm:          16px;
-  --size-xs:          14px;
-  --size-subtitle:    13px;
-  --size-row:         12.5px;
-  --size-xxs:         12px;
-  --size-xxs-sm:      11.5px;
-  --size-eyebrow:     11px;
-  --size-3xs-lg:      10.5px;
-  --size-3xs:         10px;
-  --size-4xs:         9.5px;
+  --size-680:         68px;
+  --size-480:         48px;
+  --size-360:         36px;
+  --size-280:         28px;
+  --size-260:         26px;
+  --size-220:         22px;
+  --size-200:         20px;
+  --size-180:         18px;
+  --size-160:         16px;
+  --size-145:         14.5px;
+  --size-140:         14px;
+  --size-130:         13px;
+  --size-125:         12.5px;
+  --size-120:         12px;
+  --size-115:         11.5px;
+  --size-110:         11px;
+  --size-105:         10.5px;
+  --size-100:         10px;
+  --size-95:          9.5px;
   --lh-tight:         1.05;
   --lh-snug:          1.2;
   --lh-normal:        1.5;

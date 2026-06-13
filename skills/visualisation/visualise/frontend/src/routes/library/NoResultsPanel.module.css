@@ -11,7 +11,7 @@
 }
 
 .headline {
-  font-size: var(--size-lg);
+  font-size: var(--size-220);
   font-weight: 600;
   margin: 0;
   color: var(--ac-fg-strong);
@@ -24,7 +24,7 @@
 
 .activeFilters {
   color: var(--ac-fg-muted);
-  font-size: var(--size-xs);
+  font-size: var(--size-140);
   margin: 0;
 }
 
@@ -32,7 +32,7 @@
   all: unset;
   cursor: pointer;
   color: var(--ac-accent);
-  font-size: var(--size-sm);
+  font-size: var(--size-160);
   font-weight: 600;
   padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--ac-accent);

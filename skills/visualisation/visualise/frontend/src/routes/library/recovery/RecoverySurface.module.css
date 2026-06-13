@@ -59,7 +59,7 @@
 
 /* Body copy — sentence-case, terminal period. */
 .copy {
-  font-size: var(--size-xs);
+  font-size: var(--size-140);
   line-height: 1.55;
   color: var(--ac-fg);
   margin: 0 0 var(--sp-4);
@@ -70,12 +70,12 @@
 .mono {
   font-family: var(--ac-font-mono);
   color: var(--ac-fg-strong);
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
 }
 
 /* Load-error supplementary detail line. */
 .errorDetail {
-  font-size: var(--size-xxs);
+  font-size: var(--size-120);
   color: var(--ac-fg-muted);
   font-family: var(--ac-font-mono);
   margin: 0 0 var(--sp-4);
@@ -100,13 +100,13 @@
 .suggestHeading {
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: var(--size-sm);
+  font-size: var(--size-160);
   color: var(--ac-fg-strong);
   margin: 0 0 var(--sp-2);
 }
 
 .hint {
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-faint);
 }
 
@@ -141,7 +141,7 @@
 }
 
 .suggestRowTitle {
-  font-size: var(--size-row);
+  font-size: var(--size-125);
   font-weight: 500;
   color: var(--ac-fg-strong);
   white-space: nowrap;
@@ -151,7 +151,7 @@
 }
 
 .suggestRowSub {
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-muted);
   display: flex;
   gap: var(--sp-1);
@@ -170,7 +170,7 @@
 .suggestRowPath {
   font-family: var(--ac-font-mono);
   color: var(--ac-fg-faint);
-  font-size: var(--size-3xs);
+  font-size: var(--size-100);
   overflow: hidden;
   text-overflow: ellipsis;
 }

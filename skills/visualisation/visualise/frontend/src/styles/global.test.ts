@@ -118,6 +118,24 @@ describe.each([
   }
 });
 
+// Composes with the parity gate above (parity proves mirror == CSS; this proves
+// mirror == decoded-name; transitively CSS == decoded-name): a value typo
+// *duplicated* across global.css and the mirror — which the parity test alone
+// would pass — turns the suite red here. TYPOGRAPHY_TOKENS also holds non-size
+// keys (ac-font-*, lh-*, tracking-caps), so filter to `size-N` keys first; an
+// unfiltered Number(key.slice(5)) is NaN for those and would fail a correct
+// rename. See ADR-0043 for the px×10 naming scheme.
+describe("size tokens decode to their declared px value", () => {
+  const sizeEntries = Object.entries(TYPOGRAPHY_TOKENS).filter(([k]) =>
+    /^size-\d+$/.test(k),
+  );
+  it.each(sizeEntries)("%s decodes to px×10 of its name", (key, value) => {
+    const px = Number(key.slice("size-".length)) / 10;
+    expect(Number.parseFloat(value)).toBe(px); // value e.g. "14.5px"
+    expect(value).toBe(`${px}px`); // and no stray unit / precision drift
+  });
+});
+
 /**
  * The `[data-theme="dark"]` block and the `@media (prefers-color-scheme: dark)`
  * mirror block are hand-maintained duplicates of the same dark token values.

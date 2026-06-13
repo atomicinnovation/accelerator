@@ -55,7 +55,7 @@
   align-items: center;
   gap: var(--sp-2);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xs);
+  font-size: var(--size-140);
   font-weight: 400;
   color: var(--ac-fg-strong);
   white-space: nowrap;
@@ -109,7 +109,7 @@
   padding: 0.1875rem var(--sp-2);
   border-radius: var(--radius-4);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: var(--size-120);
   font-weight: 400;
   letter-spacing: 0.02em;
   white-space: nowrap;

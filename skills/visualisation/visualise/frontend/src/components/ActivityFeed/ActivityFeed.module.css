@@ -14,7 +14,7 @@
   font-variant: normal;
   font-stretch: normal;
   font-weight: 500;
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -30,7 +30,7 @@
   font-variant: normal;
   font-stretch: normal;
   font-weight: 500;
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   line-height: 1;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -38,7 +38,7 @@
 }
 
 .empty {
-  font: 400 var(--size-xxs)/1.4 var(--ac-font-body);
+  font: 400 var(--size-120)/1.4 var(--ac-font-body);
   color: var(--ac-fg-faint);
   padding: var(--sp-1) var(--sp-3) var(--sp-2);
   margin: 0;
@@ -106,7 +106,7 @@
 }
 
 .line1 {
-  font: 500 var(--size-xxs)/1.4 var(--ac-font-body);
+  font: 500 var(--size-120)/1.4 var(--ac-font-body);
   color: var(--ac-fg-strong);
 }
 
@@ -124,7 +124,7 @@
 }
 
 .line2 {
-  font: 400 var(--size-xxs)/1.4 var(--ac-font-body);
+  font: 400 var(--size-120)/1.4 var(--ac-font-body);
   color: var(--ac-fg-muted);
   word-break: break-all;
 }

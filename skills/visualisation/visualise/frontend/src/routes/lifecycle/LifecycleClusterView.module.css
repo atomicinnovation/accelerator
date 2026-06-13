@@ -24,7 +24,7 @@
   align-items: center;
   gap: var(--sp-1);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-faint);
 }
 
@@ -39,7 +39,7 @@
 
 .pipelineEyebrow {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-faint);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -158,7 +158,7 @@
 
 .tcardStage {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-muted);
   letter-spacing: 0.04em;
   flex-shrink: 0;
@@ -167,7 +167,7 @@
 .tcardTitle {
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: var(--size-xs);
+  font-size: var(--size-140);
   color: var(--ac-fg-strong);
   white-space: nowrap;
   overflow: hidden;
@@ -177,12 +177,12 @@
 
 .tcardDate {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-muted);
 }
 
 .tcardBody {
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   color: var(--ac-fg-muted);
 }
 
@@ -200,7 +200,7 @@
   text-align: center;
   padding: 10px;
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: var(--size-120);
   box-shadow: none;
 }
 
@@ -224,7 +224,7 @@
    typed-linkage migration window. */
 .clusteredVia {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-faint);
   margin-top: var(--sp-1);
 }

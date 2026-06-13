@@ -20,7 +20,7 @@ test.use({ viewport: { width: 1280, height: 720 } });
 // the MarkdownRenderer H1 value-transition case. It does not cover every
 // migrated font-size site. The vitest categorical ban in
 // `src/styles/migration.test.ts` is the authoritative test of compliance
-// with ADR-0036; this spec is a runtime regression guard for the most
+// with ADR-0043; this spec is a runtime regression guard for the most
 // load-bearing selectors. Inline-code-in-headings cases from the original
 // plan are dropped because the committed e2e markdown fixture
 // (`server/tests/fixtures/meta/plans/2026-01-01-first-plan.md`) does not
@@ -129,8 +129,8 @@ const CASES: Case[] = [
   },
   // Kanban surfaces — these previously inherited the 16px UA base (no explicit
   // size) or used a token a step larger than the prototype; pinned here to the
-  // prototype-matching scale tokens (--size-subtitle 13, --size-3xs-lg 10.5,
-  // --size-4xs 9.5).
+  // prototype-matching scale tokens (--size-130 13, --size-105 10.5,
+  // --size-95 9.5).
   {
     name: "Kanban column title",
     route: "/kanban",

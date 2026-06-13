@@ -235,10 +235,10 @@ const TYPE_SAMPLES: ReadonlyArray<{
 }> = [
   {
     text: "Sora · display hero",
-    meta: "var(--ac-font-display) · var(--size-hero) · 600",
+    meta: "var(--ac-font-display) · var(--size-680) · 600",
     style: {
       fontFamily: "var(--ac-font-display)",
-      fontSize: "var(--size-hero)",
+      fontSize: "var(--size-680)",
       fontWeight: 600,
       lineHeight: "var(--lh-tight)",
       color: "var(--ac-fg-strong)",
@@ -246,10 +246,10 @@ const TYPE_SAMPLES: ReadonlyArray<{
   },
   {
     text: "Sora 28 · page title",
-    meta: "var(--ac-font-display) · var(--size-h3) · 600",
+    meta: "var(--ac-font-display) · var(--size-280) · 600",
     style: {
       fontFamily: "var(--ac-font-display)",
-      fontSize: "var(--size-h3)",
+      fontSize: "var(--size-280)",
       fontWeight: 600,
       lineHeight: "var(--lh-snug)",
       color: "var(--ac-fg-strong)",
@@ -257,20 +257,20 @@ const TYPE_SAMPLES: ReadonlyArray<{
   },
   {
     text: "Sora 18 · section heading",
-    meta: "var(--ac-font-display) · var(--size-md) · 600",
+    meta: "var(--ac-font-display) · var(--size-180) · 600",
     style: {
       fontFamily: "var(--ac-font-display)",
-      fontSize: "var(--size-md)",
+      fontSize: "var(--size-180)",
       fontWeight: 600,
       color: "var(--ac-fg-strong)",
     },
   },
   {
     text: "Inter · body copy. The visualiser uses Inter for everything that isn't a heading or code, with mono metadata interleaved at smaller sizes.",
-    meta: "var(--ac-font-body) · var(--size-prose) · 400",
+    meta: "var(--ac-font-body) · var(--size-145) · 400",
     style: {
       fontFamily: "var(--ac-font-body)",
-      fontSize: "var(--size-prose)",
+      fontSize: "var(--size-145)",
       fontWeight: 400,
       lineHeight: "var(--lh-prose)",
       color: "var(--ac-fg)",
@@ -278,29 +278,29 @@ const TYPE_SAMPLES: ReadonlyArray<{
   },
   {
     text: "Inter 13 · UI label",
-    meta: "var(--ac-font-body) · var(--size-subtitle) · 500",
+    meta: "var(--ac-font-body) · var(--size-130) · 500",
     style: {
       fontFamily: "var(--ac-font-body)",
-      fontSize: "var(--size-subtitle)",
+      fontSize: "var(--size-130)",
       fontWeight: 500,
       color: "var(--ac-fg-strong)",
     },
   },
   {
     text: "Fira Code 12 · PR-0042 · 14d ago · /meta/work/0001.md",
-    meta: "var(--ac-font-mono) · var(--size-xxs) · metadata",
+    meta: "var(--ac-font-mono) · var(--size-120) · metadata",
     style: {
       fontFamily: "var(--ac-font-mono)",
-      fontSize: "var(--size-xxs)",
+      fontSize: "var(--size-120)",
       color: "var(--ac-fg-muted)",
     },
   },
   {
     text: "FIRA CODE 11 · EYEBROW LABEL",
-    meta: "var(--ac-font-mono) · var(--size-eyebrow) · var(--tracking-caps)",
+    meta: "var(--ac-font-mono) · var(--size-110) · var(--tracking-caps)",
     style: {
       fontFamily: "var(--ac-font-mono)",
-      fontSize: "var(--size-eyebrow)",
+      fontSize: "var(--size-110)",
       letterSpacing: "var(--tracking-caps)",
       textTransform: "uppercase",
       color: "var(--ac-fg-faint)",

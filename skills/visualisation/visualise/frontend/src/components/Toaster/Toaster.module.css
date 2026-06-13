@@ -39,7 +39,7 @@
   box-shadow: var(--ac-shadow-lift);
   color: var(--ac-fg);
   font-family: var(--ac-font-body);
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
   line-height: var(--lh-normal);
 }
 
@@ -73,7 +73,7 @@
 
 .code {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: var(--size-120);
   background: var(--ac-bg-sunken);
   border-radius: var(--radius-4);
   padding: 0.1rem var(--sp-1);

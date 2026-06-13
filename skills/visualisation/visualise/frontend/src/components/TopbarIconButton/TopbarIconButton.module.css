@@ -9,7 +9,7 @@
   border: none;
   border-radius: var(--radius-8);
   cursor: pointer;
-  font-size: var(--size-md);
+  font-size: var(--size-180);
   line-height: 1;
   padding: 0;
 }

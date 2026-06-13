@@ -42,7 +42,7 @@
 
 .cardTitle {
   font-family: var(--ac-font-display);
-  font-size: var(--size-sm);
+  font-size: var(--size-160);
   font-weight: 600;
   margin: 0;
   color: var(--ac-fg-strong);
@@ -51,7 +51,7 @@
 
 .cardSlug {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   color: var(--ac-fg-muted);
 }
 
@@ -60,7 +60,7 @@
   align-items: center;
   gap: var(--sp-3);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-muted);
   flex-shrink: 0;
 }
@@ -94,7 +94,7 @@
 
 .cardPipeCount {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-faint);
   white-space: nowrap;
   flex-shrink: 0;
@@ -114,7 +114,7 @@
 .sortPill {
   all: unset;
   font: inherit;
-  font-size: var(--size-xxs);
+  font-size: var(--size-120);
   padding: var(--sp-1) var(--sp-2);
   color: var(--ac-fg-muted);
   cursor: pointer;

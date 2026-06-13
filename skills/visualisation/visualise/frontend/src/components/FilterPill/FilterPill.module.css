@@ -8,7 +8,7 @@
   border-radius: var(--radius-4);
   background: var(--ac-bg-card);
   color: var(--ac-fg-muted);
-  font-size: var(--size-xxs);
+  font-size: var(--size-120);
   line-height: 1.5;
   cursor: pointer;
   position: relative;
@@ -42,7 +42,7 @@
   background: var(--ac-accent);
   color: #ffffff;
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs);
+  font-size: var(--size-100);
   font-weight: 600;
   line-height: 1;
 }
@@ -64,7 +64,7 @@
   align-items: center;
   justify-content: space-between;
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--ac-fg-faint);
@@ -76,7 +76,7 @@
   all: unset;
   cursor: pointer;
   font-family: var(--ac-font-body);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   text-transform: none;
   letter-spacing: 0;
   color: var(--ac-accent);
@@ -98,7 +98,7 @@
 
 .facetHeading {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--ac-fg-faint);
@@ -128,7 +128,7 @@
   outline: none;
   background: transparent;
   font-family: var(--ac-font-body);
-  font-size: var(--size-xxs);
+  font-size: var(--size-120);
   color: var(--ac-fg);
   -webkit-appearance: none;
   appearance: none;
@@ -173,7 +173,7 @@
   cursor: pointer;
   border-radius: var(--radius-3);
   outline: none;
-  font-size: var(--size-row);
+  font-size: var(--size-125);
   color: var(--ac-fg);
 }
 
@@ -224,13 +224,13 @@
 .optionCount {
   color: var(--ac-fg-faint);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
 }
 
 .noMatches {
   padding: 6px 8px;
   color: var(--ac-fg-faint);
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   font-style: italic;
   list-style: none;
 }

@@ -60,12 +60,12 @@
   /* Always in DOM for aria-live; takes no visual space when empty */
   min-height: 0;
   color: var(--ac-fg);
-  font-size: var(--size-xs);
+  font-size: var(--size-140);
 }
 /* "{N} total" beside the live chip in the page-header actions slot — small,
    mono, faint, matching the prototype. */
 .totalCount {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-faint);
 }

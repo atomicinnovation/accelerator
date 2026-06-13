@@ -46,7 +46,7 @@
   padding: var(--sp-3) var(--sp-3) 0;
   text-align: left;
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs);
+  font-size: var(--size-100);
   letter-spacing: var(--tracking-caps);
   color: var(--ac-fg-faint);
   cursor: default;
@@ -96,7 +96,7 @@
   font-variant: normal;
   font-stretch: normal;
   font-weight: 400;
-  font-size: var(--size-row);
+  font-size: var(--size-125);
   line-height: var(--lh-normal);
   appearance: none;
   -webkit-appearance: none;
@@ -125,7 +125,7 @@
   font-variant: normal;
   font-stretch: normal;
   font-weight: 400;
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   line-height: 1;
   color: var(--ac-fg-muted);
   padding: 2px 5px;
@@ -167,7 +167,7 @@
   align-items: center;
   justify-content: space-between;
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -185,7 +185,7 @@
 
 .libraryHeadingHint {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs);
+  font-size: var(--size-100);
   letter-spacing: 0.08em;
   color: var(--ac-fg-faint);
   opacity: 0;
@@ -221,7 +221,7 @@
 
 .sectionHeading {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -238,7 +238,7 @@
 
 .phaseHeading {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-4xs);
+  font-size: var(--size-95);
   font-weight: 400;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -268,7 +268,7 @@
   font-variant: normal;
   font-stretch: normal;
   font-weight: 400;
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
   line-height: var(--lh-normal);
   color: var(--ac-fg-muted);
   text-decoration: none;
@@ -307,7 +307,7 @@
 
 .count {
   color: var(--ac-fg-faint);
-  font: 400 var(--size-xxs)/1 var(--ac-font-body);
+  font: 400 var(--size-120)/1 var(--ac-font-body);
   flex-shrink: 0;
 }
 .active .count { color: var(--ac-accent); }
@@ -344,7 +344,7 @@
   justify-content: space-between;
   gap: var(--sp-2);
   padding: 7px 10px;
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   line-height: 1.4;
   color: var(--ac-fg-muted);
   background: var(--ac-bg-sunken);
@@ -370,7 +370,7 @@
 }
 .searchHintKbd {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-4xs);
+  font-size: var(--size-95);
   color: var(--ac-fg-muted);
   padding: 1px 4px;
   border: 1px solid var(--ac-stroke);
@@ -413,7 +413,7 @@
 .searchRowBody { min-width: 0; }
 
 .searchRowTitle {
-  font-size: var(--size-row);
+  font-size: var(--size-125);
   font-weight: 500;
   color: var(--ac-fg-strong);
   white-space: nowrap;
@@ -423,7 +423,7 @@
 }
 
 .searchRowSub {
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-muted);
   display: flex;
   gap: var(--sp-1);
@@ -437,7 +437,7 @@
 .searchRowSep { color: var(--ac-fg-faint); }
 .searchRowPath {
   color: var(--ac-fg-faint);
-  font-size: var(--size-3xs);
+  font-size: var(--size-100);
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -460,19 +460,19 @@
   text-align: left;
 }
 .searchEmptyTitle {
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
   font-weight: 600;
   color: var(--ac-fg-strong);
   margin-bottom: var(--sp-1);
 }
 .searchEmptyBody {
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   color: var(--ac-fg-muted);
   line-height: 1.5;
 }
 .searchEmptyBody .mono {
   color: var(--ac-fg);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
 }
 
 /* ─── Loading state ─── */
@@ -503,7 +503,7 @@
   100% { transform: translateX(280%); }
 }
 .searchLoadhint {
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-faint);
 }
 .searchLoadhint .mono {

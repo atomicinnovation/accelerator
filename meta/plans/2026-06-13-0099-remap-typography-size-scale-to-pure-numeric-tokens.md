@@ -548,7 +548,7 @@ secondary net for it.
 
 #### Automated Verification:
 
-- [ ] **AC1** — no old size-token names declared:
+- [x] **AC1** — no old size-token names declared:
       `rg -nP -- '^\s*--size-(?![0-9]+\s*:)[\w-]+\s*:' skills/visualisation/visualise/frontend/src/styles/global.css`
       returns zero matches. (The regex flags any declared `--size-` token whose
       name is not `--size-<digits>:` — sufficient for this rename set; it does
@@ -557,32 +557,32 @@ secondary net for it.
       (`skills/…/frontend/src/…`), the runnable form since mise tasks run from
       the repo root — this intentionally supersedes the work item's
       frontend-relative `src/…` AC paths.
-- [ ] **AC2** — convention comment carries no retired name:
+- [x] **AC2** — convention comment carries no retired name:
       `rg -nP -- '--size-(hero|h1|h2|h3|h4|lg|body|md|sm|prose|xs|subtitle|row|xxs|xxs-sm|eyebrow|3xs-lg|3xs|4xs)\b' skills/visualisation/visualise/frontend/src/styles/global.css`
       returns zero matches.
-- [ ] No retired name survives anywhere in the frontend `src` (declarations,
+- [x] No retired name survives anywhere in the frontend `src` (declarations,
       consumers, tests):
       `rg -nP -- '--size-(hero|h1|h2|h3|h4|lg|body|md|sm|prose|xs|subtitle|row|xxs|xxs-sm|eyebrow|3xs-lg|3xs|4xs)\b' skills/visualisation/visualise/frontend/src`
       returns zero matches. (The alternation lists only retired names, so the
       intentional `--size-foo` placeholder at `migration.test.ts:2027` cannot
       match — no exclusion clause needed; just leave `:2027` untouched per §5.)
-- [ ] **AC3** — `var()`-resolves-to-declared-token passes (no stale refs);
+- [x] **AC3** — `var()`-resolves-to-declared-token passes (no stale refs);
       **AC8** — font-size ban, EXCEPTIONS hygiene, and AC5 ratchet all green and
       executed (not skipped/`.only`/deleted): `mise run test:unit:frontend`
-- [ ] Value-preservation invariant (§7) passes — each `size-<px×10>` mirror key
+- [x] Value-preservation invariant (§7) passes — each `size-<px×10>` mirror key
       decodes to its declared px value: `mise run test:unit:frontend`
-- [ ] Lint, format, and types pass: `mise run frontend:check`
-- [ ] **AC4** — Playwright suite green incl. value-pinned resolved-size specs;
+- [x] Lint, format, and types pass: `mise run frontend:check`
+- [x] **AC4** — Playwright suite green incl. value-pinned resolved-size specs;
       screenshot baselines byte-identical: `mise run test:e2e:visualiser`
 
 #### Manual Verification:
 
-- [ ] **AC4** — spot-check 2-3 surfaces (e.g. a Chip, a FrontmatterTable cell,
+- [x] **AC4** — spot-check 2-3 surfaces (e.g. a Chip, a FrontmatterTable cell,
       a Sidebar label) render at identical sizes to before.
-- [ ] The `global.css` block reads cleanly in numeric order; the convention
+- [x] The `global.css` block reads cleanly in numeric order; the convention
       comment states the encoding with both a whole-step and a half-step
       example and cites ADR-0043.
-- [ ] Diff review confirms the change is a pure rename (no value drift, no
+- [x] Diff review confirms the change is a pure rename (no value drift, no
       stray token introduced).
 
 ---

@@ -30,7 +30,7 @@
 
 .title {
   color: var(--ac-fg);
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
   /* Wrap to two-plus lines (matches the prototype's cluster card) rather
      than truncating the title. */
   line-height: 1.3;
@@ -38,7 +38,7 @@
 
 .meta {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   color: var(--ac-fg-muted);
 }
 

@@ -14,7 +14,7 @@
 .headerRow {
   padding: 10px 12px;
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ac-fg-faint);
@@ -24,7 +24,7 @@
 
 .row {
   padding: 12px;
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
   text-decoration: none;
   color: var(--ac-fg);
   border-bottom: 1px solid var(--ac-stroke-soft);
@@ -42,13 +42,13 @@
 
 .firstCol {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs);
+  font-size: var(--size-120);
   color: var(--ac-fg-muted);
 }
 
 .slug {
   color: var(--ac-fg-muted);
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   font-family: var(--ac-font-mono);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -57,7 +57,7 @@
 
 .mtime {
   color: var(--ac-fg-faint);
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   font-family: var(--ac-font-mono);
   white-space: nowrap;
 }

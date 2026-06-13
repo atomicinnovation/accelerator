@@ -114,10 +114,8 @@ describe("Chip", () => {
         /\.chip\s*\{[^}]*border-radius:\s*var\(--radius-pill\)/,
       );
     });
-    it("binds base font-size to --size-3xs-lg", () => {
-      expect(chipCss).toMatch(
-        /\.chip\s*\{[^}]*font-size:\s*var\(--size-3xs-lg\)/,
-      );
+    it("binds base font-size to --size-105", () => {
+      expect(chipCss).toMatch(/\.chip\s*\{[^}]*font-size:\s*var\(--size-105\)/);
     });
 
     it(`[data-variant=…neutral…] binds color to --ac-fg-muted`, () => {
@@ -195,7 +193,7 @@ describe("Chip", () => {
       );
       expect(chipCss).toMatch(
         new RegExp(
-          `\\[data-size=${Q}md${Q}\\][^{]*\\{[^}]*font-size:\\s*var\\(--size-xxs-sm\\)`,
+          `\\[data-size=${Q}md${Q}\\][^{]*\\{[^}]*font-size:\\s*var\\(--size-115\\)`,
         ),
       );
     });

@@ -12,7 +12,7 @@
   border: 1px solid transparent;
   border-radius: var(--radius-4);
   color: var(--ac-fg-muted);
-  font-size: var(--size-xxs);
+  font-size: var(--size-120);
   line-height: 1.5;
   cursor: pointer;
 }

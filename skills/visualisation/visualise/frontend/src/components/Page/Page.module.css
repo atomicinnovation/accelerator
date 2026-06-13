@@ -32,7 +32,7 @@
   align-items: center;
   gap: var(--sp-2);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   /* Shared caps tracking token — the single source for the eyebrow recipe
      reused by .aside h3 and the panel-variant Pipeline rail label (0079). */
   letter-spacing: var(--tracking-caps);
@@ -45,7 +45,7 @@
   color: var(--ac-fg-strong);
   margin: 0;
   font-family: var(--ac-font-display);
-  font-size: var(--size-h3);
+  font-size: var(--size-280);
   font-weight: 600;
   line-height: 1.15;
   letter-spacing: -0.01em;
@@ -55,7 +55,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  font-size: var(--size-subtitle);
+  font-size: var(--size-130);
   line-height: 1.5;
   color: var(--ac-fg-muted);
   margin-top: 4px;

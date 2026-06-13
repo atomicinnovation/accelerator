@@ -9,7 +9,7 @@
 
 .phaseHeading {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -91,19 +91,19 @@
 .cardLabel {
   font-family: var(--ac-font-display);
   font-weight: 600;
-  font-size: var(--size-xs);
+  font-size: var(--size-140);
   color: var(--ac-fg-strong);
 }
 
 .cardCount {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
+  font-size: var(--size-110);
   color: var(--ac-fg-faint);
 }
 
 .cardLatest {
   font-family: var(--ac-font-mono);
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
   color: var(--ac-fg-muted);
   margin: 0;
   display: -webkit-box;

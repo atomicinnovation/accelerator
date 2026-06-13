@@ -96,7 +96,7 @@ test("fenced code is not pill-styled", async ({ page }) => {
         backgroundColor: c.backgroundColor,
       };
     });
-  expect(s.fontSize).toBe("14px"); // inherits .markdown pre var(--size-xs), not 11.5px
+  expect(s.fontSize).toBe("14px"); // inherits .markdown pre var(--size-140), not 11.5px
   expect(s.borderTopWidth).toBe("0px"); // no inline pill border leaked in
   // Anchor 'unchanged' on a second, independent property: the inner <code> has
   // no pill background of its own (the .markdown pre wrapper owns the surface),

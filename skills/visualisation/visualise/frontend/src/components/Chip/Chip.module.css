@@ -6,7 +6,7 @@
   border-radius: var(--radius-pill);
   border: 1px solid var(--ac-stroke);
   font-family: var(--ac-font-mono);
-  font-size: var(--size-3xs-lg);
+  font-size: var(--size-105);
   font-weight: 500;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -16,7 +16,7 @@
 
 .chip[data-size='md'] {
   padding: 0.1875rem var(--sp-3);
-  font-size: var(--size-xxs-sm);
+  font-size: var(--size-115);
 }
 
 .label { display: inline; }
