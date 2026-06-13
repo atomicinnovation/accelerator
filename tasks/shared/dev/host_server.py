@@ -74,6 +74,12 @@ def run_against_host_server(
             # server must bind all interfaces, not just loopback. Transient
             # (one run) and serves only non-sensitive committed fixtures.
             "E2E_SERVER_HOST": "0.0.0.0",  # noqa: S104
+            # Opt into the dev-frontend server's non-loopback bind + relaxed
+            # Host-header guard for the duration of this run. The bypass exists
+            # only in the dev-frontend (test) binary and only when this env var
+            # is set — release builds and normal `mise run dev` stay
+            # loopback-only.
+            "ACCELERATOR_VISUALISER_E2E_INSECURE": "1",
             # The host Rust server's locale comes from the same single source as
             # the container's (tasks/shared/playwright.py:E2E_LANG).
             "LANG": lang,

@@ -299,7 +299,7 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
         .host
         .parse()
         .map_err(|_| ServerError::NonLoopbackHost(cfg.host.clone()))?;
-    if !host.is_loopback() {
+    if !bind_host_is_allowed(&host, e2e_insecure_allowed()) {
         return Err(ServerError::NonLoopbackHost(cfg.host.clone()));
     }
 
@@ -595,6 +595,41 @@ pub(crate) fn process_start_time(pid: i32) -> Option<u64> {
     }
 }
 
+/// Whether the containerised visual-regression flow has opted into a
+/// non-loopback bind and a relaxed Host-header guard.
+///
+/// Defence-in-depth gate: this bypass is compiled in **only** for the
+/// `dev-frontend` (test/dev) binary — the release `embed-dist` binary never
+/// contains it — and additionally requires the explicit
+/// `ACCELERATOR_VISUALISER_E2E_INSECURE` env var at runtime, set only by the
+/// Docker visual-regression task. Normal `mise run dev` (also dev-frontend,
+/// but without the env var) stays strictly loopback-only.
+#[cfg(feature = "dev-frontend")]
+fn e2e_insecure_allowed() -> bool {
+    std::env::var_os("ACCELERATOR_VISUALISER_E2E_INSECURE").is_some()
+}
+
+#[cfg(not(feature = "dev-frontend"))]
+fn e2e_insecure_allowed() -> bool {
+    false
+}
+
+/// The startup bind is allowed iff the host is loopback, or the e2e bypass is
+/// active (the container reaches the host over a non-loopback bridge gateway).
+fn bind_host_is_allowed(host: &IpAddr, insecure: bool) -> bool {
+    insecure || host.is_loopback()
+}
+
+/// The Host header is accepted iff it names a loopback origin (the
+/// DNS-rebinding defence), or the e2e bypass is active (the container reaches
+/// the host via `host.docker.internal`, whose Host header is non-loopback).
+fn host_header_is_allowed(host_part: &str, insecure: bool) -> bool {
+    insecure
+        || host_part == "127.0.0.1"
+        || host_part == "localhost"
+        || host_part.is_empty()
+}
+
 async fn host_header_guard(
     req: Request,
     next: Next,
@@ -607,10 +642,7 @@ async fn host_header_guard(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
     let (host_part, _) = host.split_once(':').unwrap_or((host, ""));
-    if host_part == "127.0.0.1"
-        || host_part == "localhost"
-        || host_part.is_empty()
-    {
+    if host_header_is_allowed(host_part, e2e_insecure_allowed()) {
         Ok(next.run(req).await)
     } else {
         Err(StatusCode::FORBIDDEN)
@@ -732,6 +764,30 @@ mod tests {
             matches!(err, ServerError::NonLoopbackHost(_)),
             "got {err:?}"
         );
+    }
+
+    #[test]
+    fn bind_host_allowed_only_for_loopback_unless_insecure() {
+        let loopback: IpAddr = "127.0.0.1".parse().unwrap();
+        let any: IpAddr = "0.0.0.0".parse().unwrap();
+        // Secure (default): only loopback binds.
+        assert!(bind_host_is_allowed(&loopback, false));
+        assert!(!bind_host_is_allowed(&any, false));
+        // Insecure (e2e Docker opt-in): a non-loopback bind is permitted.
+        assert!(bind_host_is_allowed(&any, true));
+        assert!(bind_host_is_allowed(&loopback, true));
+    }
+
+    #[test]
+    fn host_header_allowed_only_for_loopback_unless_insecure() {
+        // Secure (default): loopback origins and empty only.
+        assert!(host_header_is_allowed("127.0.0.1", false));
+        assert!(host_header_is_allowed("localhost", false));
+        assert!(host_header_is_allowed("", false));
+        assert!(!host_header_is_allowed("host.docker.internal", false));
+        // Insecure (e2e Docker opt-in): the container's bridge-gateway Host
+        // (host.docker.internal) is accepted.
+        assert!(host_header_is_allowed("host.docker.internal", true));
     }
 
     #[tokio::test]

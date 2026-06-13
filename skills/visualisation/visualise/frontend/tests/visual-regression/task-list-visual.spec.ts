@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { applyTheme } from "./helpers";
+import { applyTheme } from "../lib/helpers";
 
 const LISTS = [
   ["tight", 0],

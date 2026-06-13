@@ -72,7 +72,11 @@ export default defineConfig({
     exclude: [
       "**/node_modules/**",
       "**/e2e/**",
-      "**/tests/visual-regression/**",
+      // Everything under tests/ is Playwright (visual-regression screenshots,
+      // resolved-styles computed-style specs, and their shared lib/ helpers) —
+      // Vitest unit tests live under src/. Excluding the whole tree keeps a
+      // future Playwright spec dir from being collected here by mistake.
+      "**/tests/**",
     ],
   },
 });

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { DOC_TYPE_KEYS } from "../../src/api/types";
 import { DARK_COLOR_TOKENS } from "../../src/styles/tokens";
-import { hexToRgb } from "./lib/expected-colours";
+import { hexToRgb } from "../lib/expected-colours";
 
 const VIEWPORT = { width: 1024, height: 768 };
 

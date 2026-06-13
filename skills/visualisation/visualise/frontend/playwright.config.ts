@@ -19,19 +19,23 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    // visual-regression runs first so the kanban snapshot captures the clean
-    // fixture state before the chromium project's drag tests modify it.
     {
-      name: "visual-regression",
-      testDir: "./tests/visual-regression",
-      snapshotDir: "./tests/visual-regression/__screenshots__",
+      // Computed-style specs only — no screenshots. The screenshot-emitting
+      // visual-regression specs live in playwright.docker.config.ts and run
+      // only in the pinned Docker image. These hit static showcase routes, so
+      // they must stay independent of the chromium drag tests' fixture
+      // mutation/restore order (project order is unspecified under workers:1);
+      // do not add a resolved-styles spec that reads live work-item status.
+      name: "resolved-styles",
+      testDir: "./tests/resolved-styles",
       use: { browserName: "chromium" },
     },
     {
+      // No dependency on a snapshot project: the clean-fixture-before-drag
+      // guarantee is now provided by globalSetup/globalTeardown restore, not by
+      // an inter-project dependency. Do not add a native spec that relies on
+      // observing pre-drag clean fixture state.
       name: "chromium",
-      // Depends on visual-regression so the kanban snapshot is captured
-      // against clean fixtures before the drag tests modify work item statuses.
-      dependencies: ["visual-regression"],
       use: { browserName: "chromium" },
     },
   ],

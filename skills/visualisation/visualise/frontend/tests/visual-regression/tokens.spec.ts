@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { applyTheme, relativeTimeMask } from "./helpers";
+import { applyTheme, relativeTimeMask } from "../lib/helpers";
 
 const ROUTES = [
   ["kanban", "/kanban"],

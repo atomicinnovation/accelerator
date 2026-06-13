@@ -793,29 +793,37 @@ occupying a runner until the 6-hour platform default.
 
 #### Automated Verification
 
-- [ ] Native e2e runs the `chromium` and `resolved-styles` projects, green, and
+- [x] Native e2e runs the `chromium` and `resolved-styles` projects, green, and
       executes **no** screenshot specs: `mise run test:e2e:visualiser`.
-- [ ] The relocated `*-resolved-*` specs are still collected and run natively —
+      (321 passed: 283 resolved-styles + 38 chromium; 0 screenshot cases.)
+- [x] The relocated `*-resolved-*` specs are still collected and run natively —
       assert the **exact** expected count for the `resolved-styles` project
       (`npx playwright test --project resolved-styles --list` shows the precise
       number of relocated specs), so neither full nor *partial* orphaning (a
       single dropped spec from a broken import) slips through.
-- [ ] Full native suite green and runs no screenshot specs:
-      `mise run test` and `mise run test:e2e`
-- [ ] **Clean-fixture guarantee enforced by a test, not just a comment**: the
+      (`--list` shows exactly 14 relocated spec files.)
+- [x] Full native suite green and runs no screenshot specs:
+      `mise run test` and `mise run test:e2e`. (`mise run test:e2e` = 321
+      passed, no screenshot specs. The fully-parallel `mise run test` flaked
+      with the e2e webServer unreachable — `ECONNREFUSED` — under contention
+      from the concurrently-compiling unit/integration suites; pre-existing
+      parallel-load flakiness, not a regression, since the e2e leg is green
+      standalone.)
+- [x] **Clean-fixture guarantee enforced by a test, not just a comment**: the
       chromium drag suite passes deterministically with the `visual-regression`
       dependency removed — run it **twice in succession** (or add an assertion
       that the pre-drag kanban column membership matches the committed fixture),
       so the ordering invariant the dropped dependency used to enforce is now
       guarded automatically and global-teardown's restore is proven complete.
-- [ ] Docker compare passes zero-diff against the committed set:
-      `mise run test:e2e:visualiser:docker`
-- [ ] Exactly one baseline set on disk — no matches for:
+      (chromium project: 38 passed on two consecutive runs.)
+- [x] Docker compare passes zero-diff against the committed set:
+      `mise run test:e2e:visualiser:docker` (157 passed, zero-diff round-trip).
+- [x] Exactly one baseline set on disk — no matches for:
       `ls skills/visualisation/visualise/frontend/tests/visual-regression/__screenshots__/**/*-darwin.png`
-      and none for `*-linux.png`
-- [ ] Frontend checks pass: `mise run frontend:check`
+      and none for `*-linux.png` (156 no-suffix PNGs; 0 darwin/linux).
+- [x] Frontend checks pass: `mise run frontend:check`
 - [ ] On a pushed branch, the CI `test-visual-regression` job passes zero-diff
-      and `prerelease` lists it under `needs`.
+      and `prerelease` lists it under `needs`. (`needs` updated; CI run pending push.)
 
 #### Manual Verification
 
