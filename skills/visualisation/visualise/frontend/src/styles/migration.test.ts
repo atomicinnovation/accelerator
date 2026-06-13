@@ -1887,7 +1887,7 @@ describe("var(--NAME) references resolve to declared tokens", () => {
 //   AC5_REGRESSION_SLACK). The implementer bumps AC5_FLOOR upward in
 //   the same commit that adds new var(--*) references.
 // - `AC5_TARGET = 300` is the work-item contract.
-const AC5_FLOOR = 1529; // 0083: P11 retired the 5 showcase modules (1622→1546); a later prototype-fidelity pass removed the deviations panel + the dead .tocActions rule from the dev page (1546→1529). Coverage in surviving files is unchanged; the drop is whole removed blocks, not de-tokenisation.
+const AC5_FLOOR = 1532; // 0083: P11 retired the 5 showcase modules (1622→1546); prototype-fidelity passes removed the deviations panel + dead .tocActions (1546→1529) then re-added the shared .row helper + TOC line-height (1529→1532). Coverage in surviving files is unchanged.
 const AC5_TARGET = 300; // contract from work item AC5
 const AC5_REGRESSION_SLACK = 0;
 

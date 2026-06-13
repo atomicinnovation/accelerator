@@ -83,6 +83,26 @@ schema_version: 1
 > border); chip baselines unchanged (only layout moved). All confirmed against the
 > screenshots; linux VR via the user's CI workflow.
 
+> **Prototype-fidelity convergence — round 4 (2026-06-13).** Measurement-driven
+> (computed-style probes, not just screenshots). **Root cause found:** the shared
+> `.row` helper (used by status badges, tier pills, button rows, chip rows) was
+> **never defined in the module CSS** — `styles.row` resolved to `undefined`, so
+> those clusters rendered `display:block` with no gap ("spacing off all round").
+> **Added `.row`** (flex/wrap/`gap: --sp-3`/`margin-bottom: --sp-2`) → 12px between
+> items. Also: **TOC menu items** were 25px tall vs the prototype's 29px — same
+> padding/font, but the line-height was `normal`; set `line-height: --lh-normal`
+> (1.5) to match. **Code blocks** were ~40px apart (the MarkdownRenderer codeblock's
+> own 16px block margin stacked on the `.codeStack` gap); dropped the gap and
+> scope-overrode the codeblock `margin-block` to `--sp-2` via the stable
+> `[data-language]` hook → 16px. **Big-glyph hover** had no visible delta (round-3
+> made the resting border the same hue as hover); resting is now a faint hue
+> (`/0.28`) and hover a bold opaque hue, restoring the affordance. No new exceptions
+> (all token-based); `AC5_FLOOR` 1529→1532 (the `.row` + TOC line-height refs).
+> Big-glyph + code-syntax darwin VR baselines regenerated (border + codeblock-margin
+> changes are inside the clipped cells); badges/buttons/tier-pills/TOC aren't VR-
+> clipped. Verified by re-measuring (badges gap 12px, TOC item 29px, code gap 16px)
+> + screenshots. Linux VR via the user's CI workflow.
+
 > **Implementation complete (2026-06-13).** **All 11 phases are implemented and
 > committed**, each leaving `main` green on darwin (`mise run frontend:check` + 2445
 > unit tests; the 9 migrated VR specs + the deferred behavioural e2e — green on
