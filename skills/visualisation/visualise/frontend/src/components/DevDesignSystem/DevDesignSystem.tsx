@@ -137,7 +137,10 @@ function Swatch({ token, label }: { token: string; label: string }) {
       <div
         ref={ref}
         className={styles.swatchChip}
-        style={{ background: `var(${token})` }}
+        // `backgroundColor` (longhand, not the `background` shorthand) so the
+        // chip's checkerboard background-image survives — a translucent token
+        // then reveals its alpha over the checker.
+        style={{ backgroundColor: `var(${token})` }}
       />
       <div className={styles.swatchMeta}>
         <div className={styles.swatchName}>{label}</div>

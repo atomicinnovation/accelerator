@@ -68,10 +68,58 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",
     literal: "1px",
-    count: 42,
+    count: 43,
     kind: "irreducible",
     reason:
-      "hairline borders — chrome (7) + token/type/glyph/mark cards (17) + interactive primitives (tier pill, topbar button, search input, search kbd, nav demo = 5) + composites & chrome (lifecycle card, lcard pipe dashed, lcard-empty dashed, lcard-empty tag, related panel, related item divider, library-table th, library-table td, inline-empty, warn banner, toast card, topbar demo, topbar divider = 13) — below --sp-1 floor, no border-width token",
+      "hairline borders — chrome (7) + token/type/glyph/mark cards (17) + interactive primitives (tier pill, topbar button, search input, search kbd, nav demo = 5) + composites & chrome (13) + the big-glyph cell hover translateY(-1px) lift — below --sp-1 floor, no border-width token",
+  },
+  // Prototype-fidelity convergence: off-scale dev-page measurements ported
+  // verbatim from the prototype `ds-*` chrome (no --sp-* / token equivalent).
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "36px",
+    count: 1,
+    kind: "irreducible",
+    reason: "dev-page content gutter (--ds-gutter) — prototype .ds-root rhythm",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "56px",
+    count: 2,
+    kind: "irreducible",
+    reason:
+      "inter-section gap (--ds-section-gap) + colour-swatch chip height — prototype .ds-root / .ds-swatch__chip",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "130px",
+    count: 1,
+    kind: "irreducible",
+    reason: "empty-state-glyph hero height — prototype .ds-bigglyph-cell__hero",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "10px",
+    count: 2,
+    kind: "irreducible",
+    reason:
+      "swatch alpha-checkerboard tile size (background-size: 10px 10px) — prototype .ds-swatch__chip",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "5px",
+    count: 2,
+    kind: "irreducible",
+    reason:
+      "swatch alpha-checkerboard offset (background-position 5px 5px) — prototype .ds-swatch__chip",
+  },
+  {
+    file: "components/DevDesignSystem/DevDesignSystem.module.css",
+    literal: "0.06em",
+    count: 1,
+    kind: "irreducible",
+    reason:
+      "DEV marquee letter-spacing — prototype .ds-marquee (tighter than --tracking-caps so the ticker reads as one run)",
   },
   {
     file: "components/DevDesignSystem/DevDesignSystem.module.css",

@@ -8,18 +8,23 @@
    it. The undefined `.ds-spec*` family is intentionally not ported. */
 
 .root {
-  --ds-gutter: var(--sp-6);
-  --ds-section-gap: var(--sp-8);
+  /* Off-scale dev-page rhythm constants ported verbatim from the prototype
+     (.ds-root --ds-gutter / --ds-section-gap) — no --sp-* token matches 36/56. */
+  --ds-gutter: 36px;
+  --ds-section-gap: 56px;
   --ds-marquee-h: var(--sp-6);
   font-family: var(--ac-font-body);
   color: var(--ac-fg);
   min-height: 100%;
+  /* Two corner glows (accent top-left, a faint atomic-red top-right) over the
+     page surface — the prototype's signature dev-page wash. */
   background:
     radial-gradient(
       circle at 12% -10%,
       var(--ac-accent-faint),
       transparent 45%
     ),
+    radial-gradient(circle at 92% 8%, rgba(203, 70, 71, 0.06), transparent 45%),
     var(--ac-bg);
 }
 
@@ -35,8 +40,10 @@
   border-bottom: 1px solid var(--ac-stroke);
   overflow: hidden;
   font-family: var(--ac-font-mono);
-  font-size: var(--size-eyebrow);
-  letter-spacing: var(--tracking-caps);
+  font-size: var(--size-xxs-sm);
+  /* Tighter than --tracking-caps — matches the prototype marquee so the
+     running header reads as one ticker rather than spaced-out caps. */
+  letter-spacing: 0.06em;
   position: sticky;
   top: 0;
   z-index: 5;
@@ -392,8 +399,50 @@
   flex-direction: column;
 }
 .swatchChip {
-  height: var(--sp-9);
+  height: 56px;
   border-bottom: 1px solid var(--ac-stroke-soft);
+  /* Checkerboard under the (inline) token background-color, so translucent
+     tokens (hover/active/tint/faint/strokes) reveal their alpha rather than
+     reading as opaque over the card. Ported from the prototype .ds-swatch__chip
+     (which set it but then clobbered it with a `background` shorthand — here the
+     swatch sets `background-color` longhand so the pattern shows through). */
+  background-image:
+    linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.04) 25%,
+      transparent 25%,
+      transparent 75%,
+      rgba(0, 0, 0, 0.04) 75%
+    ),
+    linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.04) 25%,
+      transparent 25%,
+      transparent 75%,
+      rgba(0, 0, 0, 0.04) 75%
+    );
+  background-size: 10px 10px;
+  background-position:
+    0 0,
+    5px 5px;
+}
+:global([data-theme="dark"]) .swatchChip,
+:global(:root:not([data-theme="light"])) .swatchChip {
+  background-image:
+    linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.04) 25%,
+      transparent 25%,
+      transparent 75%,
+      rgba(255, 255, 255, 0.04) 75%
+    ),
+    linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.04) 25%,
+      transparent 25%,
+      transparent 75%,
+      rgba(255, 255, 255, 0.04) 75%
+    );
 }
 .swatchMeta {
   padding: var(--sp-2);
@@ -644,20 +693,43 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+.bigGlyphCell:hover {
+  border-color: hsl(var(--bg-hue) 50% 60%);
+  transform: translateY(-1px);
 }
 .bigGlyphHero {
-  height: var(--sp-11);
+  height: 130px;
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Per-hue radial halo over the theme-aware sunken surface — the prototype's
+     signature empty-state-glyph backdrop. Light = a bright pale wash; dark uses
+     the override below (a deep, low-lightness hue), since one rule can't span
+     both lightness regimes. `--bg-hue` is set inline per cell. */
   background:
     radial-gradient(
       circle at 30% 20%,
-      hsl(var(--bg-hue) 60% 55% / 0.18),
-      transparent 70%
+      hsl(var(--bg-hue) 78% 96% / 0.85),
+      hsl(var(--bg-hue) 60% 90% / 0.35) 70%,
+      transparent 100%
     ),
     var(--ac-bg-sunken);
   border-bottom: 1px solid var(--ac-stroke-soft);
+}
+:global([data-theme="dark"]) .bigGlyphHero,
+:global(:root:not([data-theme="light"])) .bigGlyphHero {
+  background:
+    radial-gradient(
+      circle at 30% 20%,
+      hsl(var(--bg-hue) 50% 24% / 0.85),
+      hsl(var(--bg-hue) 50% 16% / 0.35) 70%,
+      transparent 100%
+    ),
+    var(--ac-bg-sunken);
 }
 .bigGlyphMeta {
   padding: var(--sp-2) var(--sp-3) var(--sp-3);
@@ -754,12 +826,18 @@
   color: var(--ac-fg-faint);
   border-style: dashed;
   background: transparent;
+  /* Absent reads as dimmed — prototype .ac-tier-pill.is-absent. */
+  opacity: 0.55;
 }
 .tierDot {
   width: var(--sp-1);
   height: var(--sp-1);
   border-radius: var(--radius-full);
   background: currentColor;
+  opacity: 0.7;
+}
+.tierPillAbsent .tierDot {
+  opacity: 0.35;
 }
 
 /* ─── Buttons ─── */

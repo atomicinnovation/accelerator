@@ -17,6 +17,28 @@ last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
+> **Prototype-fidelity convergence (2026-06-13, post-implementation).** A follow-up
+> audit against the prototype (`prototype-full/`) restored the dropped/simplified
+> *visual features* the token-snapping had lost, while keeping the live-token choices
+> where a hard constraint binds. **Converged:** the `.ds-root` second (atomic-red)
+> corner glow + the prototype's `--ds-gutter: 36px` / `--ds-section-gap: 56px`
+> rhythm; the DEV marquee's `11.5px` / `0.06em` ticker tracking; the colour-swatch
+> **alpha checkerboard** (re-authored to actually work — the chip now sets
+> `background-color` longhand so translucent tokens reveal their alpha over the
+> checker, vs the prototype where a `background` shorthand silently clobbered it);
+> the empty-state-glyph **hue-halo hero** (light + a `:global([data-theme])` deep-hue
+> dark variant) + the card hover lift; and the absent tier-pill fade. **Kept by
+> constraint** (documented in the per-phase notes): glyph sizes `16/24/32/48` (the
+> live `Glyph` union has no 22/28/36), the live radii ladder (no `sm/md/lg`), the
+> live `--size-*` type ramp (more faithful than the prototype's hardcoded px), the
+> token-ring nav pulse (the prototype's `color-mix(in oklab…)` fails the module-CSS
+> `color-mix` convention), and the theme-aware marquee (the prototype's
+> `--atomic-night` dark gradient can't be referenced from a `*.module.css` under the
+> gate). Marginal token-snaps (2–4px paddings/gaps) were left as the project's
+> preferred tokenisation. Module-CSS gate ledger: `+36px`, `+56px×2`, `+10px×2`,
+> `+5px×2`, `+130px`, `+0.06em`, `1px` 42→43; the big-glyph darwin VR baselines were
+> regenerated for the new hero (linux via the user's CI workflow).
+
 > **Implementation complete (2026-06-13).** **All 11 phases are implemented and
 > committed**, each leaving `main` green on darwin (`mise run frontend:check` + 2445
 > unit tests; the 9 migrated VR specs + the deferred behavioural e2e — green on
