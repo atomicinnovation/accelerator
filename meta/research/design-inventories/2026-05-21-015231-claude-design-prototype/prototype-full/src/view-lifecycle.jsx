@@ -2,6 +2,14 @@
 // tiles) and a per-cluster timeline detail view. Tiles share the icon system
 // used in the library so the visual language is consistent across views.
 
+// Decisions and root-cause analyses don't form part of a linear lifecycle —
+// they relate to a work unit as a graph, not a stage. A future piece of work
+// will redesign that relationship; for the interim we drop them from the
+// lifecycle pipeline/timeline. (window.STAGES stays intact for kanban + the
+// design-system view.)
+const LIFECYCLE_OMIT = ["decisions", "root-cause-analyses"];
+const LIFECYCLE_STAGES = window.STAGES.filter(s => !LIFECYCLE_OMIT.includes(s.key));
+
 function StageTile({ on, stage, size = 28 }) {
   const color = `hsl(${stage.hue} 68% 46%)`;
   const icon = window.TYPE_ICONS[stage.key];
@@ -25,7 +33,7 @@ function StageTile({ on, stage, size = 28 }) {
   );
 }
 
-function Pipeline({ present, stages = window.STAGES, size = 28 }) {
+function Pipeline({ present, stages = LIFECYCLE_STAGES, size = 28 }) {
   return (
     <div className="ac-hexchain">
       {stages.map((s, i) => {
@@ -85,7 +93,7 @@ function LifecycleIndex({ setRoute }) {
             <div className="ac-lcard__pipe">
               <Pipeline present={c.present} size={26}/>
               <div className="mono faint" style={{fontSize:10.5,whiteSpace:"nowrap",marginLeft:8}}>
-                {c.present.length}/{window.STAGES.length}
+                {c.present.filter(k => !LIFECYCLE_OMIT.includes(k)).length}/{LIFECYCLE_STAGES.length}
               </div>
             </div>
           </div>
@@ -100,7 +108,7 @@ function LifecycleCluster({ slug, setRoute }) {
   // Build ordered timeline: for each stage in canonical order, emit its entries
   // or a placeholder card.
   const timeline = [];
-  window.STAGES.forEach(stage => {
+  LIFECYCLE_STAGES.forEach(stage => {
     const matches = cluster.entries.filter(e => e.type === stage.key);
     if (matches.length === 0) {
       timeline.push({ stage, missing: true });
@@ -173,4 +181,4 @@ function LifecycleCluster({ slug, setRoute }) {
   );
 }
 
-Object.assign(window, { LifecycleIndex, LifecycleCluster, Pipeline, StageTile });
+Object.assign(window, { LifecycleIndex, LifecycleCluster, Pipeline, StageTile, LIFECYCLE_STAGES });
