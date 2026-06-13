@@ -298,20 +298,20 @@ glyph onto the primitive.
 
 #### Automated Verification
 
-- [ ] Type-check + lint pass: `mise run frontend:check`
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] Test asserts `ICON_NAMES.length === 33` and every name renders an `<svg>`
-- [ ] Test asserts `size` prop sets `width`/`height`; default is 16
-- [ ] Test asserts `stroke="currentColor"` on the root `<svg>` (tints via CSS `color`)
-- [ ] Test asserts the decorative default emits explicit `aria-hidden="true"`, and
+- [x] Type-check + lint pass: `mise run frontend:check`
+- [x] Unit tests pass: `mise run test:unit:frontend`
+- [x] Test asserts `ICON_NAMES.length === 33` and every name renders an `<svg>`
+- [x] Test asserts `size` prop sets `width`/`height`; default is 16
+- [x] Test asserts `stroke="currentColor"` on the root `<svg>` (tints via CSS `color`)
+- [x] Test asserts the decorative default emits explicit `aria-hidden="true"`, and
   `ariaLabel` flips it to `role="img"`+`aria-label`
-- [ ] Test asserts an off-registry `name` emits the DEV `console.warn` (and renders
+- [x] Test asserts an off-registry `name` emits the DEV `console.warn` (and renders
   nothing/blank rather than throwing)
 
 #### Manual Verification
 
 - [ ] Rendering all 33 icons in a scratch story shows no missing/broken glyphs
-  and consistent 2px stroke weight
+  and consistent 2px stroke weight (covered by the Icons section in Phase 7)
 
 ---
 

@@ -1,0 +1,8 @@
+/* The icon renders as a bare inline <svg> matching the app's hand-written
+   stroke icons (SortPill/FilterPill etc.). `flex-shrink: 0` keeps it from
+   being squished inside flex rows (buttons, pills, nav items); it is a no-op
+   in inline contexts, so the default flow is unchanged from the bare SVGs it
+   replaces. Tint via the cascade `color` — the SVG strokes via currentColor. */
+.icon {
+  flex-shrink: 0;
+}
