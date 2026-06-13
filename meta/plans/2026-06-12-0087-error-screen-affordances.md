@@ -690,15 +690,16 @@ fed via `vi.spyOn(fetchModule, "fetchDocs")`. Both new surface tests use it.
 
 #### Automated Verification
 
-- [ ] Unit tests pass: `mise run test:unit:frontend`
-- [ ] Type checking passes: `mise run types:frontend:check`
-- [ ] Format/lint clean: `mise run frontend:check`
+- [x] Unit tests pass: `mise run test:unit:frontend`
+- [x] Type checking passes: `mise run types:frontend:check`
+- [x] Format/lint clean: `mise run frontend:check`
 
 #### Manual Verification
 
 - [ ] Render both surfaces in isolation (e.g. via a temporary story/route or
   the test DOM) and confirm the hero, eyebrow, and copy read correctly in light
-  and dark themes.
+  and dark themes. (Deferred to the post-Phase-4 manual pass once the surfaces
+  are reachable via routing.)
 
 ---
 

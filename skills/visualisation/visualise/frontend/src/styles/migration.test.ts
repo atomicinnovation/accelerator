@@ -1206,6 +1206,75 @@ const EXCEPTIONS: ReadonlyArray<
     reason:
       "eyebrow letter-spacing from design — between --tracking-caps and 0",
   },
+  // routes/library/recovery/RecoverySurface.module.css — shared 404 / catch-all
+  // / load-error surface; reuses the EmptyState hero+illustration layout.
+  {
+    file: "routes/library/recovery/RecoverySurface.module.css",
+    literal: "96px",
+    count: 1,
+    kind: "irreducible",
+    reason: "BigGlyph hero column track from design — no token equivalent",
+  },
+  {
+    file: "routes/library/recovery/RecoverySurface.module.css",
+    literal: "28px",
+    count: 3,
+    kind: "irreducible",
+    reason:
+      "card grid gap + horizontal padding + top padding from design — between --sp-5 and --sp-6",
+  },
+  {
+    file: "routes/library/recovery/RecoverySurface.module.css",
+    literal: "26px",
+    count: 2,
+    kind: "irreducible",
+    reason:
+      "card bottom padding + suggestion-row glyph column track — between --sp-5 and --sp-6",
+  },
+  {
+    file: "routes/library/recovery/RecoverySurface.module.css",
+    literal: "22px",
+    count: 1,
+    kind: "irreducible",
+    reason:
+      "card responsive padding-block at .card — equals --size-lg but co-located",
+  },
+  {
+    file: "routes/library/recovery/RecoverySurface.module.css",
+    literal: "20px",
+    count: 1,
+    kind: "irreducible",
+    reason: "suggestion block bottom margin — between --sp-4 and --sp-5",
+  },
+  {
+    file: "routes/library/recovery/RecoverySurface.module.css",
+    literal: "6px",
+    count: 1,
+    kind: "irreducible",
+    reason: "suggestion-row vertical padding — between --sp-1 and --sp-2",
+  },
+  {
+    file: "routes/library/recovery/RecoverySurface.module.css",
+    literal: "2px",
+    count: 2,
+    kind: "irreducible",
+    reason: "hero top padding + suggestion-list row gap — below --sp-1 floor",
+  },
+  {
+    file: "routes/library/recovery/RecoverySurface.module.css",
+    literal: "1px",
+    count: 2,
+    kind: "irreducible",
+    reason:
+      "dashed card outline + suggestion-row sub-label top margin — below --sp-1 floor",
+  },
+  {
+    file: "routes/library/recovery/RecoverySurface.module.css",
+    literal: "820px",
+    count: 1,
+    kind: "irreducible",
+    reason: "responsive collapse breakpoint — no token equivalent",
+  },
   // routes/library/NoResultsPanel.module.css
   {
     file: "routes/library/NoResultsPanel.module.css",
@@ -1665,6 +1734,9 @@ describe("var(--NAME) references resolve to declared tokens", () => {
   // "var(--*) resolves to something" guard.
   const LOCAL_CUSTOM_PROPS: Record<string, ReadonlySet<string>> = {
     "routes/library/EmptyState.module.css": new Set(["ac-empty-page-hue"]),
+    "routes/library/recovery/RecoverySurface.module.css": new Set([
+      "ac-empty-page-hue",
+    ]),
     "routes/lifecycle/LifecycleClusterView.module.css": new Set([
       "spine-x",
       "dot-size",

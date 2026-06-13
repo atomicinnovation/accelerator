@@ -46,7 +46,12 @@ const BIG_GLYPHS: Record<DocTypeKey, BigGlyphDraw> = {
 const DEFAULT_BIG_HUE = 215;
 
 export interface BigGlyphProps {
-  docType: DocTypeKey;
+  /** Per-doc-type hero illustration to render. Optional: an absent value (the
+   *  404 catch-all / load-error surfaces, which carry no valid type) renders
+   *  `DefaultBigGlyph` at `DEFAULT_BIG_HUE` through this same component — a
+   *  single rendering authority, no hand-rolled fallback shell at the call
+   *  site. */
+  docType?: DocTypeKey;
   /** Rendered px (square). Defaults to 96 — the EmptyState hero column width.
    *  Freely scalable, unlike `Glyph`'s fixed `16 | 24 | 32` size union — this is
    *  an illustrative hero, not a fixed-grid icon. */
@@ -70,11 +75,15 @@ export function BigGlyph({
 }: BigGlyphProps): ReactElement {
   // `??` (not `||`) so an explicit `hue={0}` (valid red) is honoured rather than
   // discarded. `DOC_TYPE_HUE[docType]` is undefined for off-union keys (cast /
-  // JS callers), so fall back to DEFAULT_BIG_HUE — this keeps the off-union path
-  // null-safe so the `?? DefaultBigGlyph` fallback can render.
-  const resolvedHue = hue ?? DOC_TYPE_HUE[docType] ?? DEFAULT_BIG_HUE;
-  const draw = BIG_GLYPHS[docType] ?? DefaultBigGlyph;
-  if (import.meta.env.DEV && !BIG_GLYPHS[docType]) {
+  // JS callers) and `docType` is undefined for the no-type surfaces, so fall
+  // back to DEFAULT_BIG_HUE — this keeps both paths null-safe so the
+  // `?? DefaultBigGlyph` fallback can render.
+  const resolvedHue =
+    hue ?? (docType ? DOC_TYPE_HUE[docType] : undefined) ?? DEFAULT_BIG_HUE;
+  const draw = (docType ? BIG_GLYPHS[docType] : undefined) ?? DefaultBigGlyph;
+  // Warn only for a genuinely off-union *supplied* key. An absent docType is a
+  // sanctioned default (catch-all / load-error surfaces) and must stay silent.
+  if (import.meta.env.DEV && docType !== undefined && !BIG_GLYPHS[docType]) {
     console.warn(
       `[BigGlyph] Unknown docType "${docType}"; falling back to DEFAULT_BIG. ` +
         `Expected one of: ${DOC_TYPE_KEYS.join(", ")}.`,
