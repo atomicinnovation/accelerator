@@ -93,11 +93,11 @@ jobs:
           cache: true
           experimental: true
 
-      - name: Run visual regression tests (Docker)
+      - name: Run visual regression tests
         run: mise run test:e2e:visualiser:docker
 
   check-scripts:
-    name: Check shell scripts
+    name: Check scripts
     runs-on: ubuntu-latest
 
     steps:
@@ -111,11 +111,11 @@ jobs:
           cache: true
           experimental: true
 
-      - name: Run shell checks
+      - name: Run script checks
         run: mise run scripts:check
 
   check-build-system:
-    name: Check Python build system
+    name: Check build system
     runs-on: ubuntu-latest
 
     steps:
@@ -129,11 +129,11 @@ jobs:
           cache: true
           experimental: true
 
-      - name: Run Python checks
+      - name: Run build system checks
         run: mise run build-system:check
 
-  check-server:
-    name: Check Rust server
+  check-visualiser-server:
+    name: Check visualiser server
     runs-on: ubuntu-latest
 
     steps:
@@ -142,7 +142,7 @@ jobs:
 
       # Route the rustup toolchain inside the mise data dir, which mise-action
       # caches in full, so the rustfmt/clippy components persist across runs.
-      # By default rust lives in ~/.rustup (outside the cache), so a cache hit
+      # By default, rust lives in ~/.rustup (outside the cache), so a cache hit
       # makes `mise install` no-op while the toolchain is absent and the
       # parallel format/lint server checks race to auto-install it ("detected
       # conflict: bin/cargo"). Must be set before mise install runs.
@@ -160,11 +160,11 @@ jobs:
           cache_key_prefix: mise-server-v1
           experimental: true
 
-      - name: Run Rust checks
+      - name: Run visualiser server checks
         run: mise run server:check
 
-  check-frontend:
-    name: Check frontend
+  check-visualiser-frontend:
+    name: Check visualiser frontend
     runs-on: ubuntu-latest
 
     steps:
@@ -178,7 +178,7 @@ jobs:
           cache: true
           experimental: true
 
-      - name: Run frontend checks
+      - name: Run visualiser frontend checks
         run: mise run frontend:check
 
   prerelease:
@@ -191,8 +191,8 @@ jobs:
       - test-visual-regression
       - check-scripts
       - check-build-system
-      - check-server
-      - check-frontend
+      - check-visualiser-server
+      - check-visualiser-frontend
     if: github.event_name == 'push'
     # Serialise all release pipelines onto one queue: prepare (pull + bump) and
     # finalise (commit + tag + push) are steps in this single job, so a queued
