@@ -11,6 +11,11 @@ shellcheck = "0.11.0"
 shfmt = "3.13.1"
 jj = "0.36.0"
 jq = "1.7.1"
+# Exact pin + explicit backend (aqua), matching the exact-pin discipline of the
+# other tools: a floating patch could resolve to a build that errors on the
+# `concurrency.queue` sub-key on one runner but not another. See
+# tasks/lint/workflows.py for why that sub-key is suppressed.
+"aqua:rhysd/actionlint" = "1.7.12"
 
 [settings]
 experimental = true
@@ -249,9 +254,17 @@ description = "Type-check Python with pyrefly (strict preset)"
 depends = ["deps:install:python"]
 run = "invoke types.build-system.check"
 
+[tasks."lint:workflows:check"]
+description = "Lint GitHub Actions workflows with actionlint (general syntax hygiene; the queue/gate-placement invariants are guarded by tests/unit/tasks/test_workflows.py)"
+run = "invoke lint.workflows.actionlint"
+
+[tasks."lint:workflows"]
+description = "Lint GitHub Actions workflows with actionlint"
+depends = ["lint:workflows:check"]
+
 [tasks."build-system:check"]
-description = "Run all Python format, lint, and type checks (ruff + pyrefly)"
-depends = ["format:build-system:check", "lint:build-system:check", "types:build-system:check"]
+description = "Run all Python format, lint, and type checks plus workflow lint (ruff + pyrefly + actionlint)"
+depends = ["format:build-system:check", "lint:build-system:check", "types:build-system:check", "lint:workflows:check"]
 
 [tasks."format:server:check"]
 description = "Check Rust formatting with rustfmt (cargo fmt --check)"

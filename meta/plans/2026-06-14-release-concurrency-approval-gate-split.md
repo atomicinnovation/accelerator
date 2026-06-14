@@ -529,7 +529,7 @@ declare it so the queueing behaviour is consistent.
       PY
       ```
 - [x] Existing repo checks remain green: `mise run check`
-- [ ] (After Phase 3 lands) `actionlint` passes unconditionally:
+- [x] (After Phase 3 lands) `actionlint` passes unconditionally:
       `mise run lint:workflows`.
 
 #### Manual Verification:
@@ -664,16 +664,16 @@ moment someone re-couples the gate and lock or drops `queue: max`.
 
 #### Automated Verification:
 
-- [ ] `actionlint` is pinned in `mise.toml` and `mise run lint:workflows`
+- [x] `actionlint` is pinned in `mise.toml` and `mise run lint:workflows`
       passes against `.github/workflows/main.yml`.
-- [ ] `lint:workflows:check` is reached by `mise run build-system:check` (the
+- [x] `lint:workflows:check` is reached by `mise run build-system:check` (the
       roll-up CI actually invokes), so it runs in CI — confirm by inspecting the
       `build-system:check` task graph, not just the top-level `check`.
-- [ ] The new test passes, including its **encoded negative test** that feeds a
+- [x] The new test passes, including its **encoded negative test** that feeds a
       known-bad in-memory workflow (gate on the `accelerator-release` group;
       `queue` dropped) to `_invariants` and asserts it is rejected: `uv run
       pytest tests/unit/tasks/test_workflows.py -v`.
-- [ ] Full local CI mirror is green: `mise run`.
+- [x] Full local CI mirror is green: `mise run`.
 
 #### Manual Verification:
 

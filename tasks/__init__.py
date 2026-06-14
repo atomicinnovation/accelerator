@@ -79,6 +79,9 @@ ns_lint.add_collection(
 ns_lint.add_collection(
     Collection.from_module(lint.frontend)
 )  # lint.frontend.check / .fix
+ns_lint.add_collection(
+    Collection.from_module(lint.workflows)
+)  # lint.workflows.actionlint
 ns.add_collection(ns_lint)
 
 ns_types = Collection("types")

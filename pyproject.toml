@@ -23,6 +23,12 @@ build = [
 dev = [
     "pytest>=8",
     "pytest-mock>=3.14",
+    # Parses .github/workflows/main.yml for the concurrency-topology regression
+    # guard (tests/unit/tasks/test_workflows.py). Stable safe_load API, so a
+    # `>=` floor suffices (unlike ruff/pyrefly, whose rule sets are pinned
+    # exactly below). Test-only — the tests/ tree is excluded from pyrefly, so
+    # PyYAML being untyped needs no replace-imports-with-any entry.
+    "pyyaml>=6",
     # Exact pins (not `>=`): ruff's `select = ["ALL"]` and pyrefly's strict
     # preset are version-sensitive — a patch bump can add or alter rules — so a
     # relock must not silently move them off the audited rule sets. uv.lock +
