@@ -10,7 +10,8 @@ import {
 // the prototype palette in both light and dark themes (the palette
 // is theme-invariant by design). Empirically pinned to classes that
 // rehype-highlight actually emits for the showcase fixtures; see the
-// `FIXTURES` array in `src/routes/dev#code/CodeSyntaxShowcase.tsx`.
+// `CODE_FIXTURES` array in
+// `src/components/DevDesignSystem/DevDesignSystem.tsx`.
 
 interface ThemeCase {
   readonly name: "light" | "dark";
