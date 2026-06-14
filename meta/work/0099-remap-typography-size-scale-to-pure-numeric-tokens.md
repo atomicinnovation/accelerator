@@ -4,7 +4,7 @@ title: "Remap Typography Size Scale To Pure-Numeric Tokens"
 date: "2026-06-02T16:30:00+00:00"
 author: Toby Clemson
 producer: review-plan
-status: ready
+status: done
 kind: task
 priority: medium
 tags: [visualiser, design-tokens, typography, refactor, tech-debt, adr]

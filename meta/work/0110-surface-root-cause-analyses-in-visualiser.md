@@ -5,7 +5,7 @@ title: "Surface Root Cause Analyses in the Visualiser Under a New Operate Catego
 date: "2026-06-13T09:31:54+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: story
 priority: high
 relates_to: ["work-item:0041", "work-item:0074", "work-item:0054", "work-item:0057", "work-item:0082", "work-item:0093", "work-item:0096"]

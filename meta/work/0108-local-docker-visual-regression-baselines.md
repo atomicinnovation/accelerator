@@ -5,7 +5,7 @@ title: "Local Docker-Based Visual Regression Baseline Generation"
 date: "2026-06-12T09:08:47+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: story
 priority: medium
 tags: ["visual-regression", "testing", "ci", "developer-experience", "docker"]
