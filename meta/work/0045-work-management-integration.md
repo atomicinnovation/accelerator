@@ -51,6 +51,14 @@ catalogues to `meta/integrations/<system>/`; verb-decomposed read and write
 skills handle individual API operations; and `sync-work-items` orchestrates
 bidirectional sync across the configured system.
 
+> **Path note**: the `meta/integrations/<system>/` references throughout this
+> epic are illustrative and predate the **Work management system configuration**
+> stream, which makes the integrations path configurable. The resolved default
+> is `.accelerator/state/integrations/<system>/` (via `config-read-path.sh
+> integrations`); `meta/integrations/` is legacy and guard-banned. Integration
+> stories (e.g. 0048) use "the configured integrations path" and supersede the
+> literal paths below.
+
 Background research:
 - `meta/research/codebase/2026-04-08-ticket-management-skills.md` — original skill design
 - `meta/research/codebase/2026-04-25-rename-tickets-to-work-items.md` — terminology rename
@@ -102,14 +110,16 @@ offer to push to the remote.
   `work_item_id` in the local file — the local file is not written until the
   push succeeds or the user declines to push
 
-**Linear integration** — GraphQL-based. Seven skills under
+**Linear integration** — GraphQL-based. Eight skills under
 `skills/integrations/linear/`: `init-linear`, `search-linear-issues`,
 `show-linear-issue`, `create-linear-issue`, `update-linear-issue`,
-`transition-linear-issue`, `comment-linear-issue`. State transitions require
-resolving team-scoped `WorkflowState` UUIDs. Linear issue identifiers (e.g.
-`BLA-123`) map directly to `work_item_id`. A `linear-graphql.sh` request helper
-handles GraphQL query/mutation construction, cursor-based pagination, and the
-`400 RATELIMITED` response code.
+`transition-linear-issue`, `comment-linear-issue`, `attach-linear-issue`
+(`attach-linear-issue` added over the original seven because Linear supports both
+link-based and binary file attachments — see work item 0048). State transitions
+require resolving team-scoped `WorkflowState` UUIDs. Linear issue identifiers
+(e.g. `BLA-123`) map directly to `work_item_id`. A `linear-graphql.sh` request
+helper handles GraphQL query/mutation construction, cursor-based pagination, and
+the `400 RATELIMITED` response code.
 
 **Trello integration** — REST-based. Eight skills under
 `skills/integrations/trello/`: `init-trello`, `search-trello-cards`,
