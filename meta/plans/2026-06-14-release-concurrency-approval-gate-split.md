@@ -34,12 +34,15 @@ result: the approval wait no longer holds the release lock, and an approved
 release can never be silently evicted from the pending slot by a later-queued
 prerelease.
 
-Two further hardenings address review findings: the `approve-release` job
-carries its **own** concurrency group (distinct from the release lock) so
-stacked approvals serialise rather than racing two pushes into two simultaneous
-stable releases; and a parser-based regression test plus a pinned, unconditional
-`actionlint` (Phase 3) lock the new topology against a future edit silently
-reintroducing the bug.
+A further hardening addresses review findings: a parser-based regression test
+plus a pinned, unconditional `actionlint` (Phase 3) lock the new topology
+against a future edit silently reintroducing the bug. (The `approve-release` job
+holds **no** concurrency group: a group on a Waiting approval-gated job would
+recreate the original blocking bug in the approval lane and prevent picking
+which pipeline to release. The "two approved releases race" hazard a serialising
+group would have addressed is instead handled by the `release` lock plus the
+late-binding finalise, which make concurrent approvals cut sequential,
+HEAD-correct releases — see Phase 1.)
 
 ## Current State Analysis
 
@@ -120,15 +123,15 @@ The release pipeline behaves as originally intended:
   types (no two pipelines race their pushes or collide on a version).
 - An approved-and-queued stable release is never silently dropped by a
   later-queued prerelease (it FIFO-queues instead).
-- Only one stable-release approval is awaiting a decision at a time: a
-  dedicated approval concurrency group serialises the gates so two pushes cannot
-  race into two *simultaneous*, independently-approved stable releases. This
-  serialises approvals **in time only** — approving several gates in sequence
-  still cuts one stable release each (each approved push gets its release, by
-  design; the late-binding finalise keeps every cut at current HEAD). A pending
-  approval that a newer push supersedes is cancelled, which fails safe (no
-  double-cut, no silent release) but is invisible unless observed — see Testing
-  Strategy.
+- Every push's stable-release approval is an **independent, simultaneously
+  visible** gate that can be approved in any order — you can pick which pipeline
+  to release. The gate holds no concurrency group, so it never blocks a later
+  push's gate (a serialising group would, by holding the group through the
+  approval wait — the original bug in the approval lane). Approving several does
+  not race two *simultaneous* releases: the `release` lock + late-binding
+  finalise make concurrent approvals cut **sequential, HEAD-correct** stable
+  versions (each approved push gets its release, by design). Declining a gate
+  (or letting it time out) simply means that push never releases.
 - Release queue order is governed by lock-entry (= approval) time, not push
   time; the late-binding finalise (`release_prepare` re-pulls and re-bumps
   against current HEAD) makes any resulting interleaving safe.
@@ -164,13 +167,12 @@ Three independently mergeable phases. Phases 1 and 2 edit only
 `.github/workflows/main.yml` in non-overlapping ways; Phase 3 adds tooling.
 
 1. **Phase 1** restructures the jobs: a new no-op `approve-release` job holds
-   `environment: release` plus its **own** approval concurrency group
-   (`accelerator-release-approval`, distinct from the release lock); the
-   `release` work job drops `environment` and instead `needs: approve-release`,
-   keeping the `accelerator-release` lock. This makes the reported blocking
-   disappear — the approval wait no longer holds the *release* lock — and
-   serialises stacked approvals so two pushes cannot race into two simultaneous
-   stable releases. **Phase 1 is a strict improvement but not the complete
+   `environment: release` and **no concurrency group**; the `release` work job
+   drops `environment` and instead `needs: approve-release`, keeping the
+   `accelerator-release` lock. This makes the reported blocking disappear — the
+   approval wait no longer holds the *release* lock — while keeping every push's
+   approval gate independent and pickable (a group on the gate would re-block in
+   the approval lane). **Phase 1 is a strict improvement but not the complete
    fix**: the residual single-pending-slot eviction risk (Hypothesis 3) remains
    until Phase 2.
 2. **Phase 2** adds `queue: max` to both concurrency blocks referencing
@@ -186,27 +188,45 @@ Three independently mergeable phases. Phases 1 and 2 edit only
 
 Each phase leaves the workflow valid and CI green, so any can merge alone.
 
-The end-state concurrency topology (three distinct scopes):
+The end-state concurrency topology (two distinct scopes):
 
 | Group | Member job(s) | cancel-in-progress | queue |
 |-------|---------------|--------------------|-------|
 | `accelerator-release` (release lock) | `prerelease`, `release` | `false` | `max` (FIFO) |
-| `accelerator-release-approval` (gate) | `approve-release` | `false` | *none* (single-slot supersession — intentional, asymmetric) |
-| *(none)* | the eight check jobs | — | — |
+| *(none)* | `approve-release` (gate), the eight check jobs | — | — |
+
+`approve-release` deliberately holds **no** concurrency group: any group on a
+Waiting approval-gated job would hold that group for the whole approval wait and
+block every *later* push's approval gate from reaching its own prompt — the
+original bug, recreated in the approval lane, and the thing that would stop you
+picking which pipeline to release. The release lock + late-binding finalise (not
+an approval-lane lock) is what keeps concurrent approved releases safe.
 
 ## Phase 1: Split the approval gate from the release work
 
 ### Overview
 
 Introduce an `approve-release` job that carries the `environment: release`
-approval gate and its **own** concurrency group
-(`accelerator-release-approval`) — deliberately *not* the `accelerator-release`
-release lock — gated on `needs: prerelease`. Repoint the `release` work job to
-`needs: approve-release` and **remove** its `environment: release`, so the
-release lock is acquired only when the *approved* release work is queued — not
-during the approval wait. The separate approval group serialises the gates
-(only one approval active at a time) without ever touching the prerelease/
-release lock, so it cannot block prereleases.
+approval gate and **no concurrency group at all** — gated on `needs:
+prerelease`. Repoint the `release` work job to `needs: approve-release` and
+**remove** its `environment: release`, so the release lock is acquired only when
+the *approved* release work is queued — not during the approval wait. Because
+the gate holds no group, every push's approval gate is independent and
+simultaneously visible, so any pending release can be approved in any order
+("pick which pipeline to release") and the gate can never block a later push's
+gate or any prerelease.
+
+Giving the gate its own concurrency group was considered and rejected: a Waiting
+approval-gated job holds its group for the whole approval wait, so *any* group
+on this job would recreate the original blocking bug inside the approval lane —
+the oldest pending approval would hold the group and stop every later push's gate
+from even reaching its prompt, forcing strict oldest-first handling and
+defeating the "pick which pipeline" goal. The protection that group was meant to
+provide (no two simultaneous independently-approved releases) is already supplied
+one layer down by the `release` lock (`accelerator-release`, `queue: max`) plus
+the late-binding finalise (`release_prepare` re-pulls + re-bumps against current
+HEAD), so concurrent approvals cut sequential, HEAD-correct releases rather than
+racing.
 
 ### Changes Required:
 
@@ -226,36 +246,32 @@ without holding the concurrency lock.
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     needs: prerelease
-    # The approval gate lives HERE. GitHub Actions acquires a concurrency group
-    # at queue time, so a job sitting in the "Waiting" approval state holds its
-    # group for the entire, unbounded approval wait. This gate is therefore kept
-    # OFF the shared accelerator-release release lock (which lives on the
-    # `release` work job) — that is what lets later prereleases run while a
-    # stable release awaits approval.
+    # The approval gate lives HERE and carries NO concurrency group — on
+    # purpose. GitHub Actions acquires a concurrency group at queue time, so a
+    # job in the "Waiting" approval state holds its group for the entire,
+    # unbounded approval wait. Giving this gate ANY group would recreate the
+    # original bug inside the approval lane: a Waiting approval would hold the
+    # group and stop every later push's approval gate from even reaching its own
+    # prompt — you could only ever act on the oldest pending approval, never
+    # pick which pipeline to release.
     #
-    # It does, however, carry its OWN group (accelerator-release-approval) so
-    # the approval gates serialise: only one stable-release approval is ever
-    # awaiting a decision at a time, so two pushes cannot race into two
-    # simultaneous, independently approved stable releases. Semantics (single
-    # slot, no queue: max): a Waiting approval-gated job holds the group as the
-    # active occupant, so cancel-in-progress: false protects the approval a
-    # human is currently deciding on — a later push does NOT cancel it; it waits
-    # in the single pending slot behind it, and successive later pushes supersede
-    # one another there. This group never touches accelerator-release, so it
-    # cannot block prereleases.
+    # So each push spawns an independent, simultaneously-visible gate and any
+    # can be approved in any order. Approving several does NOT race two
+    # simultaneous releases: the `release` work job's accelerator-release lock
+    # (queue: max) serialises the publish window, and release:prepare re-pulls +
+    # re-bumps against current HEAD at execution time, so each approved release
+    # cuts a sequential, HEAD-correct stable version. That is the intended "each
+    # approved push gets its release" semantics, not a hazard.
     environment: release
-    concurrency:
-      group: accelerator-release-approval
-      cancel-in-progress: false
     steps:
       # No-op: this job exists solely to host the environment approval gate.
       - name: Approval gate (no-op; the gate is the environment, not this step)
         run: echo "Stable release approved"
 ```
 
-> The precise eviction/ordering of *pending* approvals under contention is a
-> GitHub Actions concurrency behaviour that, like `queue: max`, cannot be
-> verified locally — confirm it matches the intent above during CI observation
+> Whether independent approval gates behave exactly as described (all visible,
+> independently approvable, none blocking another) is a GitHub Actions
+> behaviour that cannot be verified locally — confirm it during CI observation
 > (Testing Strategy).
 
 #### 2. Rewire the `release` job: drop `environment`, depend on `approve-release`
@@ -316,7 +332,7 @@ monotonicity. The comment below records that rationale.
 
 #### Automated Verification:
 
-- [ ] Workflow YAML parses and the **invariants** hold (asserted against the
+- [x] Workflow YAML parses and the **invariants** hold (asserted against the
       parsed document). The *core* anti-bug invariant is name-agnostic; the
       *wiring* checks reference the named jobs deliberately (a rename of those is
       a reviewable act, and the name-agnostic core is the safety net). This is a
@@ -350,16 +366,17 @@ monotonicity. The comment below records that rationale.
       # Wiring: release is gated via approve-release; approval sits behind prerelease.
       assert "approve-release" in needs_of(jobs["release"])
       assert "prerelease" in needs_of(jobs["approve-release"])
-      assert conc(jobs["approve-release"]).get("group") == "accelerator-release-approval"
-      assert conc(jobs["approve-release"]).get("cancel-in-progress") is False
-      # The approval group MUST NOT FIFO-queue: single-slot supersession is what
-      # keeps only one approval awaiting a decision (queue: max would re-enable
-      # stacked approvals). It is deliberately asymmetric with the lock group.
-      assert "queue" not in conc(jobs["approve-release"]), "approval group must not set queue"
+      # The gate holds NO concurrency group: any group on a Waiting approval-
+      # gated job would hold it for the whole approval wait and block every
+      # later push's gate from reaching its prompt (the original bug in the
+      # approval lane). Independent gates are what let you pick which pipeline
+      # to release.
+      assert "concurrency" not in jobs["approve-release"], \
+          "approve-release must hold no concurrency group"
       print("Phase 1 invariants OK")
       PY
       ```
-- [ ] Existing repo checks remain green: `mise run check`
+- [x] Existing repo checks remain green: `mise run check`
 
 #### Manual Verification:
 
@@ -397,14 +414,16 @@ monotonicity. The comment below records that rationale.
       (it is an observed setting, not an assumption). Also record whether the
       re-run produces any Environments deployment/approval record at all, so the
       audit gap is characterised. Document the observed behaviour so it is known.
-- [ ] **Stacked approvals serialise.** With two unapproved `approve-release`
-      gates pending (two pushes), confirm only one is awaiting a decision at a
-      time and that approving them does not race two simultaneous stable
-      releases. Also confirm a superseded pending approval shows a clear
-      cancelled/superseded state in the Actions UI (so the loss is visible, not
-      silent) — and that the comment's stated semantics (active approval
-      protected; later pushes wait/supersede in the pending slot) match the
-      observed behaviour.
+- [ ] **Independent, pickable approvals.** With two unapproved `approve-release`
+      gates pending (two pushes), confirm **both** are simultaneously awaiting a
+      decision (neither blocks the other from showing its prompt) and that you
+      can approve the **second** while leaving the first pending — i.e. you can
+      pick which pipeline releases. Then confirm approving both does not race two
+      simultaneous stable releases: the two `release` jobs serialise on the
+      `accelerator-release` lock and each finalises against current HEAD,
+      yielding sequential, distinct stable versions (the intended "each approved
+      push gets its release"). Declining/ignoring a gate must leave subsequent
+      pushes' prereleases and approvals unaffected.
 
 ---
 
@@ -609,11 +628,13 @@ real blind spot). Assert:
   write `permissions` as `release`, so a permissions-based selector would be
   ambiguous (it matches both) — and renaming these jobs is a reviewable act the
   name-agnostic core invariant still backstops.
-- **Approval group:** `approve-release.concurrency.group ==
-  "accelerator-release-approval"`, `cancel-in-progress` `False`, and **no
-  `queue` key** (single-slot supersession is intentional and must stay
-  asymmetric with the lock group — `queue: max` here would re-enable stacked
-  approvals).
+- **Gate holds no group:** `"concurrency" not in approve-release`. Any group on
+  a Waiting approval-gated job would hold it for the whole approval wait and
+  block every later push's gate from reaching its prompt (the original bug in
+  the approval lane), and would prevent picking which pipeline to release. This
+  is stricter than the name-agnostic core invariant (which only forbids the
+  `accelerator-release` lock specifically) — it forbids *any* group on the gate,
+  including a re-introduced `accelerator-release-approval`.
 - **Symmetry:** exactly the two `accelerator-release` members exist and each
   declares `queue == "max"` and `cancel-in-progress` `False` (assert the
   count, so dropping the lock from one job fails rather than passing on the
@@ -628,8 +649,8 @@ real blind spot). Assert:
 - **Encoded negative tests (parametrised):** feed `_invariants` a set of
   in-memory `wf` dicts each mutated to one known-bad shape — gate-on-the-lock,
   `queue` dropped from a lock block, `accelerator-release` in string-shorthand
-  on a gated job, wrong approval-group name, `cancel-in-progress: true`, missing
-  `prerelease`→`approve-release` edge, `queue: max` added to the approval group
+  on a gated job, **any group added to the gate**, `cancel-in-progress: true`,
+  missing `prerelease`→`approve-release` edge
   — and assert each raises (`with pytest.raises(AssertionError):`). Each
   asserted invariant gets at least one mutation, so the guard's discriminating
   power is itself under test and cannot silently rot. (Supersedes the one-shot
@@ -680,10 +701,10 @@ observation in CI.
   no `environment`-bearing job on the `accelerator-release` lock (the core
   anti-bug property), the gate present on `approve-release`, the
   release-privileged job transitively gated via `approve-release` (itself behind
-  `prerelease`), the dedicated `accelerator-release-approval` group, and
-  `queue: max` + `cancel-in-progress: false` symmetric across all
-  `accelerator-release` blocks — plus an encoded negative test. It keys off job
-  *properties*, not names, so a rename cannot slip a recoupling past it.
+  `prerelease`), the gate holding **no** concurrency group, and `queue: max` +
+  `cancel-in-progress: false` symmetric across all `accelerator-release` blocks
+  — plus an encoded negative test. It keys off job *properties*, not names, so a
+  rename cannot slip a recoupling past it.
 - Pre-merge only: the throwaway-workflow acceptance check for `queue: max`
   (Phase 2 Overview), since no local tool validates the `queue` key.
 
@@ -703,19 +724,21 @@ observation in CI.
    per-run timestamps that all three runs succeed, the approved release starts
    *after* the prerelease (genuinely queued behind it), and none shows a
    "Canceled" state — FIFO-queued, not evicted.
-5. With two `approve-release` gates pending, confirm they serialise (one active
-   at a time) and approving them does not race two simultaneous stable releases;
-   also record whether re-running the `release` job alone re-requests approval
-   (the accepted re-run-bypass observation).
+5. With two `approve-release` gates pending, confirm they are **both**
+   independently awaiting a decision (neither blocks the other) and that
+   approving the second while leaving the first pending releases that pipeline —
+   you can pick which to release. Confirm approving both yields sequential,
+   distinct stable releases (serialised by the `release` lock), not a race. Also
+   record whether re-running the `release` job alone re-requests approval (the
+   accepted re-run-bypass observation).
 
 ## Performance Considerations
 
 Negligible. The added `approve-release` job is a single-step no-op on
-`ubuntu-latest`; its only "cost" is the (intended) approval wait, which now
-holds the dedicated `accelerator-release-approval` group rather than the shared
-release lock, so it never delays prereleases. `queue: max` adds no runtime cost
-and only changes how pending runs are ordered. Phase 3's `actionlint` run is a
-fast static check on one file.
+`ubuntu-latest`; its only "cost" is the (intended) approval wait, which holds no
+concurrency group, so it never delays prereleases or other approvals. `queue:
+max` adds no runtime cost and only changes how pending runs are ordered. Phase
+3's `actionlint` run is a fast static check on one file.
 
 ## Migration Notes
 
@@ -730,8 +753,8 @@ fast static check on one file.
 - **Rollback distinguishes two things.** Reverting the workflow change (VCS
   revert) fixes all *future* runs and has no external state to undo. But the
   failure modes this change could introduce (a stale-HEAD finalise, an evicted
-  approved release, or — guarded against by serialised approvals — a duplicate
-  stable cut) manifest as artifacts a faulty run *already published*: a pushed
+  approved release, or — when several gates are approved — sequential stable
+  cuts) manifest as artifacts a faulty run *already published*: a pushed
   tag and a created GitHub release. A workflow revert does **not** undo those;
   recovery is manual (delete the tag, delete/yank the GitHub release, restore
   version files). Two existing guards in `_publish` (push(atomic) →

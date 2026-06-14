@@ -233,14 +233,50 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mise run prerelease:finalise
 
+  approve-release:
+    name: Approve release
+    # Cheapest host for a no-op gate: this job runs one trivial step and needs
+    # no toolchain (macOS is only required for the cross-compile/attest steps on
+    # the prerelease/release work jobs).
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    needs: prerelease
+    # The approval gate lives HERE and carries NO concurrency group — on
+    # purpose. GitHub Actions acquires a concurrency group at queue time, so a
+    # job in the "Waiting" approval state holds its group for the entire,
+    # unbounded approval wait. Giving this gate ANY group would recreate the
+    # original bug inside the approval lane: a Waiting approval would hold the
+    # group and stop every later push's approval gate from even reaching its own
+    # prompt — you could only ever act on the oldest pending approval, never
+    # pick which pipeline to release.
+    #
+    # So each push spawns an independent, simultaneously-visible gate and any
+    # can be approved in any order. Approving several does NOT race two
+    # simultaneous releases: the `release` work job's accelerator-release lock
+    # (queue: max) serialises the publish window, and release:prepare re-pulls +
+    # re-bumps against current HEAD at execution time, so each approved release
+    # cuts a sequential, HEAD-correct stable version. That is the intended "each
+    # approved push gets its release" semantics, not a hazard.
+    environment: release
+    steps:
+      # No-op: this job exists solely to host the environment approval gate.
+      - name: Approval gate (no-op; the gate is the environment, not this step)
+        run: echo "Stable release approved"
+
   release:
     name: Create release
     runs-on: macos-latest
     if: github.event_name == 'push'
-    needs: prerelease
-    environment: release
-    # Same queue as the prerelease job so a stable release (which also commits,
-    # tags, and pushes) never races a prerelease pipeline from another push.
+    needs: approve-release
+    # The release lock lives HERE, deliberately WITHOUT `environment`. This
+    # group must never enclose the approval gate (see approve-release) — a
+    # Waiting, approval-gated job holds its concurrency group for its whole
+    # wait, which would block every subsequent prerelease. By the time this job
+    # is queued the release is already approved, so the lock covers only the
+    # active commit/tag/push window (tasks/release.py:_publish), exactly as
+    # intended.
+    # Keep in sync with the other accelerator-release block: both members must
+    # declare identical settings (group, cancel-in-progress: false).
     concurrency:
       group: accelerator-release
       cancel-in-progress: false
@@ -260,6 +296,12 @@ jobs:
           cache: true
           experimental: true
 
+      # The steps below stay INSIDE this locked, approved job on purpose: the
+      # post-stable prerelease re-cut (prepare/attest/finalise, last three
+      # steps) must run after the stable push and within the same
+      # accelerator-release window so no concurrent pipeline can bump/push
+      # between the two cuts (version monotonicity). Do not hoist it into a
+      # separate job.
       - name: Prepare stable release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
