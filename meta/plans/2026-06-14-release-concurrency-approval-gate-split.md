@@ -507,7 +507,7 @@ declare it so the queueing behaviour is consistent.
 
 #### Automated Verification:
 
-- [ ] Symmetry holds, asserted against the parsed document: **every**
+- [x] Symmetry holds, asserted against the parsed document: **every**
       `accelerator-release` concurrency block declares `queue: max` and
       `cancel-in-progress: false` (never `true`). Run:
       ```bash
@@ -528,7 +528,7 @@ declare it so the queueing behaviour is consistent.
       print("2 accelerator-release blocks, all queue: max + false")
       PY
       ```
-- [ ] Existing repo checks remain green: `mise run check`
+- [x] Existing repo checks remain green: `mise run check`
 - [ ] (After Phase 3 lands) `actionlint` passes unconditionally:
       `mise run lint:workflows`.
 

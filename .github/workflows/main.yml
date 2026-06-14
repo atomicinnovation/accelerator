@@ -194,14 +194,21 @@ jobs:
       - check-server
       - check-frontend
     if: github.event_name == 'push'
-    # Serialise all release pipelines onto one queue. prepare (pull + bump) and
+    # Serialise all release pipelines onto one queue: prepare (pull + bump) and
     # finalise (commit + tag + push) are steps in this single job, so a queued
-    # pipeline cannot start its prepare until the running pipeline has pushed —
-    # which is what stops two pipelines bumping to the same version and racing
-    # their pushes. cancel-in-progress: false makes runs wait rather than abort.
+    # pipeline cannot start its prepare until the running one has pushed — which
+    # stops two pipelines bumping to the same version and racing their pushes.
+    # cancel-in-progress: false makes runs wait rather than abort; queue: max
+    # then FIFO-queues pending runs (up to 100) instead of evicting the single
+    # pending slot, so an approved release queued behind a running prerelease is
+    # never dropped. (queue: max with cancel-in-progress: true is a validation
+    # error — keep it false.)
+    # Keep in sync with the other accelerator-release block: both members must
+    # declare identical settings (group, cancel-in-progress: false, queue: max).
     concurrency:
       group: accelerator-release
       cancel-in-progress: false
+      queue: max
     permissions:
       id-token: write
       contents: write
@@ -276,10 +283,11 @@ jobs:
     # active commit/tag/push window (tasks/release.py:_publish), exactly as
     # intended.
     # Keep in sync with the other accelerator-release block: both members must
-    # declare identical settings (group, cancel-in-progress: false).
+    # declare identical settings (group, cancel-in-progress: false, queue: max).
     concurrency:
       group: accelerator-release
       cancel-in-progress: false
+      queue: max
     permissions:
       id-token: write
       contents: write
