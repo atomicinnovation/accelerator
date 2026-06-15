@@ -9,7 +9,8 @@ set -euo pipefail
 # Run: bash scripts/test-config.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-READ_VALUE="$SCRIPT_DIR/config-read-value.sh"
+# config-read-value / config-read-path are invoked via run_sut (SUT switch), not
+# a bare path, so they have no $READ_* variable here.
 READ_CONTEXT="$SCRIPT_DIR/config-read-context.sh"
 READ_AGENTS="$SCRIPT_DIR/config-read-agents.sh"
 READ_AGENT_NAME="$SCRIPT_DIR/config-read-agent-name.sh"
@@ -26,6 +27,11 @@ source "$SCRIPT_DIR/config-common.sh"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
+# Run config-read assertions against bash (default) or the a9r binary
+# (A9R_BIN set). The floor is sized below the ~62 rerouted config-read sites so
+# guarding them out of the a9r path fails the suite directly.
+sut_mode_init 50
+
 # Create a temporary directory base
 TMPDIR_BASE=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_BASE"' EXIT
@@ -38,13 +44,18 @@ setup_repo() {
   echo "$repo_dir"
 }
 
-# ============================================================
-echo "=== config_extract_frontmatter ==="
-echo ""
+# config_extract_frontmatter / config_extract_body source the bash library and
+# test internal functions with no a9r-binary analogue, so they are skipped (and
+# accounted for) in a9r mode; the SUT-driven config-read tests below run in both.
+if ! skip_unless_bash_mode "config_extract_frontmatter / config_extract_body: sourced bash functions, no a9r subcommand"; then
 
-echo "Test: File with valid frontmatter"
-REPO=$(setup_repo)
-cat >"$REPO/test.md" <<'FIXTURE'
+  # ============================================================
+  echo "=== config_extract_frontmatter ==="
+  echo ""
+
+  echo "Test: File with valid frontmatter"
+  REPO=$(setup_repo)
+  cat >"$REPO/test.md" <<'FIXTURE'
 ---
 key: value
 other: thing
@@ -52,34 +63,34 @@ other: thing
 
 Body content here.
 FIXTURE
-OUTPUT=$(config_extract_frontmatter "$REPO/test.md")
-EXPECTED=$(printf 'key: value\nother: thing')
-assert_eq "outputs frontmatter content" "$EXPECTED" "$OUTPUT"
+  OUTPUT=$(config_extract_frontmatter "$REPO/test.md")
+  EXPECTED=$(printf 'key: value\nother: thing')
+  assert_eq "outputs frontmatter content" "$EXPECTED" "$OUTPUT"
 
-echo "Test: File with no frontmatter"
-REPO=$(setup_repo)
-cat >"$REPO/test.md" <<'FIXTURE'
+  echo "Test: File with no frontmatter"
+  REPO=$(setup_repo)
+  cat >"$REPO/test.md" <<'FIXTURE'
 # Just a heading
 
 Some content.
 FIXTURE
-OUTPUT=$(config_extract_frontmatter "$REPO/test.md" 2>/dev/null || true)
-assert_eq "outputs nothing" "" "$OUTPUT"
+  OUTPUT=$(config_extract_frontmatter "$REPO/test.md" 2>/dev/null || true)
+  assert_eq "outputs nothing" "" "$OUTPUT"
 
-echo "Test: File with unclosed frontmatter"
-REPO=$(setup_repo)
-cat >"$REPO/test.md" <<'FIXTURE'
+  echo "Test: File with unclosed frontmatter"
+  REPO=$(setup_repo)
+  cat >"$REPO/test.md" <<'FIXTURE'
 ---
 key: value
 no closing delimiter
 FIXTURE
-OUTPUT=$(config_extract_frontmatter "$REPO/test.md" 2>/dev/null || true)
-assert_eq "outputs nothing" "" "$OUTPUT"
-assert_exit_code "exits 1" 1 config_extract_frontmatter "$REPO/test.md"
+  OUTPUT=$(config_extract_frontmatter "$REPO/test.md" 2>/dev/null || true)
+  assert_eq "outputs nothing" "" "$OUTPUT"
+  assert_exit_code "exits 1" 1 config_extract_frontmatter "$REPO/test.md"
 
-echo "Test: --- on line 1 as frontmatter AND later in body"
-REPO=$(setup_repo)
-cat >"$REPO/test.md" <<'FIXTURE'
+  echo "Test: --- on line 1 as frontmatter AND later in body"
+  REPO=$(setup_repo)
+  cat >"$REPO/test.md" <<'FIXTURE'
 ---
 key: value
 ---
@@ -90,64 +101,64 @@ Body content.
 
 More body after horizontal rule.
 FIXTURE
-OUTPUT=$(config_extract_frontmatter "$REPO/test.md")
-assert_eq "only extracts between first and second ---" "key: value" "$OUTPUT"
+  OUTPUT=$(config_extract_frontmatter "$REPO/test.md")
+  assert_eq "only extracts between first and second ---" "key: value" "$OUTPUT"
 
-echo "Test: Trailing spaces on --- delimiter"
-REPO=$(setup_repo)
-printf -- '---   \nkey: value\n---   \n\nBody.\n' >"$REPO/test.md"
-OUTPUT=$(config_extract_frontmatter "$REPO/test.md")
-assert_eq "still recognised as delimiter" "key: value" "$OUTPUT"
+  echo "Test: Trailing spaces on --- delimiter"
+  REPO=$(setup_repo)
+  printf -- '---   \nkey: value\n---   \n\nBody.\n' >"$REPO/test.md"
+  OUTPUT=$(config_extract_frontmatter "$REPO/test.md")
+  assert_eq "still recognised as delimiter" "key: value" "$OUTPUT"
 
-echo "Test: Empty frontmatter (--- on line 1 and --- on line 2)"
-REPO=$(setup_repo)
-printf -- '---\n---\n\nBody.\n' >"$REPO/test.md"
-OUTPUT=$(config_extract_frontmatter "$REPO/test.md")
-assert_eq "outputs nothing (empty frontmatter)" "" "$OUTPUT"
+  echo "Test: Empty frontmatter (--- on line 1 and --- on line 2)"
+  REPO=$(setup_repo)
+  printf -- '---\n---\n\nBody.\n' >"$REPO/test.md"
+  OUTPUT=$(config_extract_frontmatter "$REPO/test.md")
+  assert_eq "outputs nothing (empty frontmatter)" "" "$OUTPUT"
 
-echo ""
+  echo ""
 
-# ============================================================
-echo "=== config_extract_body ==="
-echo ""
+  # ============================================================
+  echo "=== config_extract_body ==="
+  echo ""
 
-echo "Test: File with valid frontmatter and body"
-REPO=$(setup_repo)
-cat >"$REPO/test.md" <<'FIXTURE'
+  echo "Test: File with valid frontmatter and body"
+  REPO=$(setup_repo)
+  cat >"$REPO/test.md" <<'FIXTURE'
 ---
 key: value
 ---
 
 Body content here.
 FIXTURE
-OUTPUT=$(config_extract_body "$REPO/test.md")
-EXPECTED=$(printf '\nBody content here.')
-assert_eq "outputs only body after closing ---" "$EXPECTED" "$OUTPUT"
+  OUTPUT=$(config_extract_body "$REPO/test.md")
+  EXPECTED=$(printf '\nBody content here.')
+  assert_eq "outputs only body after closing ---" "$EXPECTED" "$OUTPUT"
 
-echo "Test: File with no frontmatter"
-REPO=$(setup_repo)
-cat >"$REPO/test.md" <<'FIXTURE'
+  echo "Test: File with no frontmatter"
+  REPO=$(setup_repo)
+  cat >"$REPO/test.md" <<'FIXTURE'
 # Just a heading
 
 Some content.
 FIXTURE
-OUTPUT=$(config_extract_body "$REPO/test.md")
-EXPECTED=$(printf '# Just a heading\n\nSome content.')
-assert_eq "outputs entire file" "$EXPECTED" "$OUTPUT"
+  OUTPUT=$(config_extract_body "$REPO/test.md")
+  EXPECTED=$(printf '# Just a heading\n\nSome content.')
+  assert_eq "outputs entire file" "$EXPECTED" "$OUTPUT"
 
-echo "Test: File with unclosed frontmatter"
-REPO=$(setup_repo)
-cat >"$REPO/test.md" <<'FIXTURE'
+  echo "Test: File with unclosed frontmatter"
+  REPO=$(setup_repo)
+  cat >"$REPO/test.md" <<'FIXTURE'
 ---
 key: value
 no closing delimiter
 FIXTURE
-OUTPUT=$(config_extract_body "$REPO/test.md")
-assert_eq "outputs nothing (malformed)" "" "$OUTPUT"
+  OUTPUT=$(config_extract_body "$REPO/test.md")
+  assert_eq "outputs nothing (malformed)" "" "$OUTPUT"
 
-echo "Test: --- horizontal rule in body after frontmatter"
-REPO=$(setup_repo)
-cat >"$REPO/test.md" <<'FIXTURE'
+  echo "Test: --- horizontal rule in body after frontmatter"
+  REPO=$(setup_repo)
+  cat >"$REPO/test.md" <<'FIXTURE'
 ---
 key: value
 ---
@@ -158,17 +169,19 @@ Body content.
 
 More body after horizontal rule.
 FIXTURE
-OUTPUT=$(config_extract_body "$REPO/test.md")
-EXPECTED=$(printf '\nBody content.\n\n---\n\nMore body after horizontal rule.')
-assert_eq "includes horizontal rule in body" "$EXPECTED" "$OUTPUT"
+  OUTPUT=$(config_extract_body "$REPO/test.md")
+  EXPECTED=$(printf '\nBody content.\n\n---\n\nMore body after horizontal rule.')
+  assert_eq "includes horizontal rule in body" "$EXPECTED" "$OUTPUT"
 
-echo "Test: Empty body after frontmatter"
-REPO=$(setup_repo)
-printf -- '---\nkey: value\n---\n' >"$REPO/test.md"
-OUTPUT=$(config_extract_body "$REPO/test.md")
-assert_eq "outputs nothing" "" "$OUTPUT"
+  echo "Test: Empty body after frontmatter"
+  REPO=$(setup_repo)
+  printf -- '---\nkey: value\n---\n' >"$REPO/test.md"
+  OUTPUT=$(config_extract_body "$REPO/test.md")
+  assert_eq "outputs nothing" "" "$OUTPUT"
 
-echo ""
+  echo ""
+
+fi # end sourced-function tests (bash mode only)
 
 # ============================================================
 echo "=== config-read-value.sh ==="
@@ -176,7 +189,7 @@ echo ""
 
 echo "Test: No config files -> outputs default"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "agents.reviewer" "reviewer")
+OUTPUT=$(cd "$REPO" && run_sut read-value "agents.reviewer" "reviewer")
 assert_eq "outputs default" "reviewer" "$OUTPUT"
 
 echo "Test: Top-level key present"
@@ -187,7 +200,7 @@ cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 enabled: true
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "enabled" "false")
+OUTPUT=$(cd "$REPO" && run_sut read-value "enabled" "false")
 assert_eq "outputs value" "true" "$OUTPUT"
 
 echo "Test: Nested key (section.key) present"
@@ -199,7 +212,7 @@ agents:
   reviewer: senior-dev
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "agents.reviewer" "reviewer")
+OUTPUT=$(cd "$REPO" && run_sut read-value "agents.reviewer" "reviewer")
 assert_eq "outputs nested value" "senior-dev" "$OUTPUT"
 
 echo "Test: Key not found -> outputs default"
@@ -211,7 +224,7 @@ agents:
   reviewer: senior-dev
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "agents.planner" "default-planner")
+OUTPUT=$(cd "$REPO" && run_sut read-value "agents.planner" "default-planner")
 assert_eq "outputs default" "default-planner" "$OUTPUT"
 
 echo "Test: Key not found, no default -> outputs nothing"
@@ -223,7 +236,7 @@ agents:
   reviewer: senior-dev
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "agents.planner")
+OUTPUT=$(cd "$REPO" && run_sut read-value "agents.planner")
 assert_eq "outputs nothing" "" "$OUTPUT"
 
 echo "Test: Local overrides team for same key"
@@ -241,7 +254,7 @@ agents:
   reviewer: my-reviewer
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "agents.reviewer" "default")
+OUTPUT=$(cd "$REPO" && run_sut read-value "agents.reviewer" "default")
 assert_eq "local overrides team" "my-reviewer" "$OUTPUT"
 
 echo "Test: work.id_pattern reads from team config"
@@ -254,9 +267,9 @@ work:
   default_project_code: "PROJ"
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "work.id_pattern" "{number:04d}")
+OUTPUT=$(cd "$REPO" && run_sut read-value "work.id_pattern" "{number:04d}")
 assert_eq "reads work.id_pattern" "{project}-{number:04d}" "$OUTPUT"
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "work.default_project_code" "")
+OUTPUT=$(cd "$REPO" && run_sut read-value "work.default_project_code" "")
 assert_eq "reads work.default_project_code" "PROJ" "$OUTPUT"
 
 echo "Test: work.id_pattern defaults when unset"
@@ -268,9 +281,9 @@ agents:
   reviewer: senior-dev
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "work.id_pattern" "{number:04d}")
+OUTPUT=$(cd "$REPO" && run_sut read-value "work.id_pattern" "{number:04d}")
 assert_eq "default returned" "{number:04d}" "$OUTPUT"
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "work.default_project_code" "")
+OUTPUT=$(cd "$REPO" && run_sut read-value "work.default_project_code" "")
 assert_eq "empty returned" "" "$OUTPUT"
 
 echo "Test: work.id_pattern local override wins"
@@ -290,9 +303,9 @@ work:
   default_project_code: "ENG"
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "work.id_pattern" "{number:04d}")
+OUTPUT=$(cd "$REPO" && run_sut read-value "work.id_pattern" "{number:04d}")
 assert_eq "local wins for id_pattern" "{project}-{number:04d}" "$OUTPUT"
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "work.default_project_code" "")
+OUTPUT=$(cd "$REPO" && run_sut read-value "work.default_project_code" "")
 assert_eq "local wins for default_project_code" "ENG" "$OUTPUT"
 
 echo "Test: jira.* keys read from team config"
@@ -306,11 +319,11 @@ jira:
   token_cmd: "op read op://Work/Atlassian/credential"
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "jira.site" "")
+OUTPUT=$(cd "$REPO" && run_sut read-value "jira.site" "")
 assert_eq "reads jira.site" "atomic-innovation" "$OUTPUT"
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "jira.email" "")
+OUTPUT=$(cd "$REPO" && run_sut read-value "jira.email" "")
 assert_eq "reads jira.email" "toby@go-atomic.io" "$OUTPUT"
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "jira.token_cmd" "")
+OUTPUT=$(cd "$REPO" && run_sut read-value "jira.token_cmd" "")
 assert_eq "reads jira.token_cmd" "op read op://Work/Atlassian/credential" "$OUTPUT"
 
 echo "Test: jira.* defaults when unset"
@@ -322,7 +335,7 @@ agents:
   reviewer: senior-dev
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "jira.site" "")
+OUTPUT=$(cd "$REPO" && run_sut read-value "jira.site" "")
 assert_eq "empty default for jira.site" "" "$OUTPUT"
 
 echo "Test: jira.token local override wins"
@@ -341,9 +354,9 @@ jira:
   token: "secret-local-token"
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "jira.token" "")
+OUTPUT=$(cd "$REPO" && run_sut read-value "jira.token" "")
 assert_eq "local jira.token wins" "secret-local-token" "$OUTPUT"
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "jira.site" "")
+OUTPUT=$(cd "$REPO" && run_sut read-value "jira.site" "")
 assert_eq "team jira.site preserved" "atomic-innovation" "$OUTPUT"
 
 echo "Test: Values with double quotes are stripped"
@@ -354,28 +367,28 @@ cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 name: "quoted value"
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "name" "default")
+OUTPUT=$(cd "$REPO" && run_sut read-value "name" "default")
 assert_eq "strips double quotes" "quoted value" "$OUTPUT"
 
 echo "Test: Values with single quotes are stripped"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- "---\nname: 'single quoted'\n---\n" >"$REPO/.accelerator/config.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "name" "default")
+OUTPUT=$(cd "$REPO" && run_sut read-value "name" "default")
 assert_eq "strips single quotes" "single quoted" "$OUTPUT"
 
 echo "Test: Values with trailing whitespace are trimmed"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\nname: hello   \n---\n' >"$REPO/.accelerator/config.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "name" "default")
+OUTPUT=$(cd "$REPO" && run_sut read-value "name" "default")
 assert_eq "trims trailing whitespace" "hello" "$OUTPUT"
 
 echo "Test: Empty frontmatter -> outputs default"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\n---\n\nBody.\n' >"$REPO/.accelerator/config.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "name" "default")
+OUTPUT=$(cd "$REPO" && run_sut read-value "name" "default")
 assert_eq "outputs default" "default" "$OUTPUT"
 
 echo "Test: No frontmatter (plain markdown file) -> outputs default"
@@ -386,7 +399,7 @@ cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 
 Some content.
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "name" "default")
+OUTPUT=$(cd "$REPO" && run_sut read-value "name" "default")
 assert_eq "outputs default" "default" "$OUTPUT"
 
 echo "Test: Array values are output as-is"
@@ -397,7 +410,7 @@ cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 lenses: [security, architecture, performance]
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "lenses" "default")
+OUTPUT=$(cd "$REPO" && run_sut read-value "lenses" "default")
 assert_eq "outputs array as-is" "[security, architecture, performance]" "$OUTPUT"
 
 echo "Test: Values containing colons (URLs)"
@@ -408,7 +421,7 @@ cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 url: https://example.com/path
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "url" "default")
+OUTPUT=$(cd "$REPO" && run_sut read-value "url" "default")
 assert_eq "outputs URL correctly" "https://example.com/path" "$OUTPUT"
 
 echo "Test: Blank line within a YAML section does not terminate scanning"
@@ -422,7 +435,7 @@ agents:
   planner: architect
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "agents.planner" "default")
+OUTPUT=$(cd "$REPO" && run_sut read-value "agents.planner" "default")
 assert_eq "finds key after blank line" "architect" "$OUTPUT"
 
 echo "Test: Key with underscore matches exactly"
@@ -434,7 +447,7 @@ review:
   max_count: 5
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "review.max_count" "default")
+OUTPUT=$(cd "$REPO" && run_sut read-value "review.max_count" "default")
 assert_eq "matches underscore key" "5" "$OUTPUT"
 
 echo "Test: Unclosed frontmatter -> outputs default, warning to stderr"
@@ -445,10 +458,10 @@ cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 key: value
 no closing
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "key" "default" 2>/dev/null)
+OUTPUT=$(cd "$REPO" && run_sut read-value "key" "default" 2>/dev/null)
 assert_eq "outputs default" "default" "$OUTPUT"
 # Verify warning goes to stderr
-STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "key" "default" 2>&1 1>/dev/null)
+STDERR_OUTPUT=$(cd "$REPO" && run_sut read-value "key" "default" 2>&1 1>/dev/null)
 if echo "$STDERR_OUTPUT" | grep -q "Warning"; then
   echo "  PASS: warning emitted to stderr"
   PASS=$((PASS + 1))
@@ -468,7 +481,7 @@ echo ""
 echo "Test: No config files at all -> passes silently (exits 0)"
 REPO=$(setup_repo)
 RC=0
-(cd "$REPO" && bash "$READ_VALUE" "key" "default") >/dev/null 2>&1 || RC=$?
+(cd "$REPO" && run_sut read-value "key" "default") >/dev/null 2>&1 || RC=$?
 assert_eq "no config: exits 0" "0" "$RC"
 
 echo "Test: .accelerator/config.md present -> passes silently (exits 0)"
@@ -480,7 +493,7 @@ key: value
 ---
 FIXTURE
 RC=0
-(cd "$REPO" && bash "$READ_VALUE" "key" "default") >/dev/null 2>&1 || RC=$?
+(cd "$REPO" && run_sut read-value "key" "default") >/dev/null 2>&1 || RC=$?
 assert_eq "new layout: exits 0" "0" "$RC"
 
 echo "Test: both .accelerator/config.md and .claude/accelerator.md -> passes (exits 0)"
@@ -489,7 +502,7 @@ mkdir -p "$REPO/.accelerator" "$REPO/.claude"
 printf -- '---\nkey: new\n---\n' >"$REPO/.accelerator/config.md"
 printf -- '---\nkey: legacy\n---\n' >"$REPO/.claude/accelerator.md"
 RC=0
-(cd "$REPO" && bash "$READ_VALUE" "key" "default") >/dev/null 2>&1 || RC=$?
+(cd "$REPO" && run_sut read-value "key" "default") >/dev/null 2>&1 || RC=$?
 assert_eq "both present: exits 0 (new layout takes precedence)" "0" "$RC"
 
 echo "Test: only .claude/accelerator.md -> emits error and exits non-zero"
@@ -497,7 +510,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.claude"
 printf -- '---\nkey: legacy\n---\n' >"$REPO/.claude/accelerator.md"
 RC=0
-STDERR=$(cd "$REPO" && bash "$READ_VALUE" "key" "default" 2>&1 >/dev/null) || RC=$?
+STDERR=$(cd "$REPO" && run_sut read-value "key" "default" 2>&1 >/dev/null) || RC=$?
 assert_neq "legacy-only: exits non-zero" "0" "$RC"
 assert_contains "legacy-only: mentions .claude/accelerator.md" \
   "$STDERR" ".claude/accelerator.md"
@@ -2936,11 +2949,9 @@ echo ""
 echo "=== config-read-path.sh ==="
 echo ""
 
-READ_PATH="$SCRIPT_DIR/config-read-path.sh"
-
 echo "Test: No paths config -> outputs default"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "plans" "meta/plans")
+OUTPUT=$(cd "$REPO" && run_sut read-path "plans" "meta/plans")
 assert_eq "outputs default" "meta/plans" "$OUTPUT"
 
 echo "Test: paths.plans configured -> outputs configured value"
@@ -2952,7 +2963,7 @@ paths:
   plans: docs/plans
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "plans" "meta/plans")
+OUTPUT=$(cd "$REPO" && run_sut read-path "plans" "meta/plans")
 assert_eq "outputs configured path" "docs/plans" "$OUTPUT"
 
 echo "Test: paths.decisions configured -> outputs configured value"
@@ -2964,7 +2975,7 @@ paths:
   decisions: docs/adrs
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "decisions" "meta/decisions")
+OUTPUT=$(cd "$REPO" && run_sut read-path "decisions" "meta/decisions")
 assert_eq "outputs configured path" "docs/adrs" "$OUTPUT"
 
 echo "Test: paths.review_plans configured"
@@ -2976,7 +2987,7 @@ paths:
   review_plans: docs/reviews/plans
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "review_plans" "meta/reviews/plans")
+OUTPUT=$(cd "$REPO" && run_sut read-path "review_plans" "meta/reviews/plans")
 assert_eq "outputs configured path" "docs/reviews/plans" "$OUTPUT"
 
 echo "Test: paths.review_prs configured"
@@ -2988,7 +2999,7 @@ paths:
   review_prs: docs/reviews/prs
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "review_prs" "meta/reviews/prs")
+OUTPUT=$(cd "$REPO" && run_sut read-path "review_prs" "meta/reviews/prs")
 assert_eq "outputs configured path" "docs/reviews/prs" "$OUTPUT"
 
 echo "Test: paths.templates configured"
@@ -3000,7 +3011,7 @@ paths:
   templates: docs/templates
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "templates" "meta/templates")
+OUTPUT=$(cd "$REPO" && run_sut read-path "templates" "meta/templates")
 assert_eq "outputs configured path" "docs/templates" "$OUTPUT"
 
 echo "Test: paths.work configured"
@@ -3012,7 +3023,7 @@ paths:
   work: docs/work
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "work" "meta/work")
+OUTPUT=$(cd "$REPO" && run_sut read-path "work" "meta/work")
 assert_eq "outputs configured path" "docs/work" "$OUTPUT"
 
 echo "Test: paths.notes configured"
@@ -3024,7 +3035,7 @@ paths:
   notes: docs/notes
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "notes" "meta/notes")
+OUTPUT=$(cd "$REPO" && run_sut read-path "notes" "meta/notes")
 assert_eq "outputs configured path" "docs/notes" "$OUTPUT"
 
 echo "Test: paths.review_work configured"
@@ -3036,7 +3047,7 @@ paths:
   review_work: docs/reviews/work
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "review_work" "meta/reviews/work")
+OUTPUT=$(cd "$REPO" && run_sut read-path "review_work" "meta/reviews/work")
 assert_eq "outputs configured path" "docs/reviews/work" "$OUTPUT"
 
 echo "Test: config-read-path.sh integrations returns supplied default when paths.integrations is unset"
@@ -3045,7 +3056,7 @@ mkdir -p "$REPO/.accelerator"
 cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 # accelerator
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" integrations .accelerator/state/integrations)
+OUTPUT=$(cd "$REPO" && run_sut read-path integrations .accelerator/state/integrations)
 assert_eq "default returned" ".accelerator/state/integrations" "$OUTPUT"
 
 echo "Test: config-read-path.sh integrations honours paths.integrations override"
@@ -3057,7 +3068,7 @@ paths:
   integrations: custom/integrations
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" integrations .accelerator/state/integrations)
+OUTPUT=$(cd "$REPO" && run_sut read-path integrations .accelerator/state/integrations)
 assert_eq "override returned" "custom/integrations" "$OUTPUT"
 
 echo "Test: Absolute path is output as-is"
@@ -3069,7 +3080,7 @@ paths:
   plans: /opt/docs/plans
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "plans" "meta/plans")
+OUTPUT=$(cd "$REPO" && run_sut read-path "plans" "meta/plans")
 assert_eq "outputs absolute path" "/opt/docs/plans" "$OUTPUT"
 
 echo "Test: Local overrides team for paths"
@@ -3087,7 +3098,7 @@ paths:
   plans: my/plans
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" "plans" "meta/plans")
+OUTPUT=$(cd "$REPO" && run_sut read-path "plans" "meta/plans")
 assert_eq "local overrides team" "my/plans" "$OUTPUT"
 
 echo ""
@@ -3098,32 +3109,32 @@ echo ""
 
 echo "Test: plans key → meta/plans with no \$2"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" plans)
+OUTPUT=$(cd "$REPO" && run_sut read-path plans)
 assert_eq "plans default" "meta/plans" "$OUTPUT"
 
 echo "Test: tmp key → .accelerator/tmp with no \$2"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" tmp)
+OUTPUT=$(cd "$REPO" && run_sut read-path tmp)
 assert_eq "tmp default" ".accelerator/tmp" "$OUTPUT"
 
 echo "Test: integrations key → .accelerator/state/integrations with no \$2"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" integrations)
+OUTPUT=$(cd "$REPO" && run_sut read-path integrations)
 assert_eq "integrations default" ".accelerator/state/integrations" "$OUTPUT"
 
 echo "Test: research_design_inventories key → meta/research/design-inventories with no \$2"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" research_design_inventories)
+OUTPUT=$(cd "$REPO" && run_sut read-path research_design_inventories)
 assert_eq "research_design_inventories default" "meta/research/design-inventories" "$OUTPUT"
 
 echo "Test: research_design_gaps key → meta/research/design-gaps with no \$2"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" research_design_gaps)
+OUTPUT=$(cd "$REPO" && run_sut read-path research_design_gaps)
 assert_eq "research_design_gaps default" "meta/research/design-gaps" "$OUTPUT"
 
 echo "Test: global key → meta/global with no \$2"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" global)
+OUTPUT=$(cd "$REPO" && run_sut read-path global)
 assert_eq "global default" "meta/global" "$OUTPUT"
 
 echo "Test: global key returns config override when set"
@@ -3135,7 +3146,7 @@ paths:
   global: custom/global
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" global)
+OUTPUT=$(cd "$REPO" && run_sut read-path global)
 assert_eq "global config override" "custom/global" "$OUTPUT"
 
 echo "Test: global key returns config.local.md override (last-writer-wins)"
@@ -3153,12 +3164,12 @@ paths:
   global: local/override
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" global)
+OUTPUT=$(cd "$REPO" && run_sut read-path global)
 assert_eq "global local override" "local/override" "$OUTPUT"
 
 echo "Test: templates key → .accelerator/templates with no \$2"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" templates)
+OUTPUT=$(cd "$REPO" && run_sut read-path templates)
 assert_eq "templates default" ".accelerator/templates" "$OUTPUT"
 
 echo "Test: no-\$2 returns configured value when key is set in config"
@@ -3170,17 +3181,17 @@ paths:
   work: docs/work-items
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" work)
+OUTPUT=$(cd "$REPO" && run_sut read-path work)
 assert_eq "config-set value with no \$2" "docs/work-items" "$OUTPUT"
 
 echo "Test: unknown key returns empty output with no \$2"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" unknown_key 2>/dev/null || true)
+OUTPUT=$(cd "$REPO" && run_sut read-path unknown_key 2>/dev/null || true)
 assert_eq "unknown key returns empty" "" "$OUTPUT"
 
 echo "Test: explicit \$2 still overrides centralized default"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_PATH" plans custom/plans)
+OUTPUT=$(cd "$REPO" && run_sut read-path plans custom/plans)
 assert_eq "explicit override" "custom/plans" "$OUTPUT"
 
 echo "Test: no consumer passes a hardcoded inline default to config-read-path.sh"
@@ -3220,11 +3231,9 @@ echo ""
 echo "=== config-read-path.sh (migration-aware warning) ==="
 echo ""
 
-CONFIG_READ_PATH="$READ_PATH"
-
 echo "Test: config-read-path.sh emits migration-aware warning for bare design_inventories (defensive)"
 REPO=$(setup_repo)
-ERR=$(cd "$REPO" && bash "$CONFIG_READ_PATH" design_inventories 2>&1 >/dev/null || true)
+ERR=$(cd "$REPO" && run_sut read-path design_inventories 2>&1 >/dev/null || true)
 assert_contains "bare-key warning names migration 0004" "$ERR" "migration 0004"
 assert_contains "bare-key warning names the canonical key" "$ERR" "research_design_inventories"
 
@@ -3232,17 +3241,17 @@ echo "Test: config-read-path.sh warns when canonical key called but legacy alias
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\npaths:\n  design_inventories: my-custom-path\n  design_gaps: my-other-path\n---\n' >"$REPO/.accelerator/config.md"
-ERR=$(cd "$REPO" && bash "$CONFIG_READ_PATH" research_design_inventories 2>&1 >/dev/null || true)
+ERR=$(cd "$REPO" && run_sut read-path research_design_inventories 2>&1 >/dev/null || true)
 assert_contains "legacy-in-config warning names migration 0004" "$ERR" "migration 0004"
 assert_contains "legacy-in-config warning names the ignored key" "$ERR" "paths.design_inventories"
 assert_contains "legacy-in-config warning says override is ignored" "$ERR" "ignored"
 
-ERR=$(cd "$REPO" && bash "$CONFIG_READ_PATH" research_design_gaps 2>&1 >/dev/null || true)
+ERR=$(cd "$REPO" && run_sut read-path research_design_gaps 2>&1 >/dev/null || true)
 assert_contains "legacy-in-config warning fires for design_gaps too" "$ERR" "paths.design_gaps"
 
 echo "Test: config-read-path.sh does NOT warn when no legacy alias is set"
 REPO=$(setup_repo)
-ERR=$(cd "$REPO" && bash "$CONFIG_READ_PATH" research_design_inventories 2>&1 >/dev/null || true)
+ERR=$(cd "$REPO" && run_sut read-path research_design_inventories 2>&1 >/dev/null || true)
 assert_not_contains "no legacy-warning noise when user config is clean" "$ERR" "ignored"
 
 echo ""
@@ -5871,9 +5880,9 @@ echo ""
 echo "=== design path keys: defaults work ==="
 echo ""
 
-ACTUAL=$("$READ_VALUE" paths.research_design_inventories meta/research/design-inventories)
+ACTUAL=$(run_sut read-value paths.research_design_inventories meta/research/design-inventories)
 assert_eq "research_design_inventories default" "meta/research/design-inventories" "$ACTUAL"
-ACTUAL=$("$READ_VALUE" paths.research_design_gaps meta/research/design-gaps)
+ACTUAL=$(run_sut read-value paths.research_design_gaps meta/research/design-gaps)
 assert_eq "research_design_gaps default" "meta/research/design-gaps" "$ACTUAL"
 
 echo ""

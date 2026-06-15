@@ -73,3 +73,57 @@ class TestMigrateSuiteGuard:
         )
         with pytest.raises(Exit):
             integration.migrate(Context())
+
+
+class TestConfigParityTwiceRun:
+    """The parity gate is only real if BOTH a bash-mode run (A9R_BIN unset) and
+    an a9r-mode run (A9R_BIN exported) are issued. A dropped second run would
+    silently test bash twice, so the structural contract is pinned here rather
+    than left to hand-wired CI steps."""
+
+    def _floor_suites(self) -> list[str]:
+        required = list(integration._REQUIRED_CONFIG_SUITES)
+        filler = [
+            f"scripts/test-{i}.sh"
+            for i in range(integration._EXPECTED_CONFIG_SUITES - len(required))
+        ]
+        return required + filler
+
+    def test_config_runs_bash_mode_without_a9r_bin(self, mocker):
+        captured: list[dict | None] = []
+
+        def fake(context, subtree, env=None):
+            captured.append(env)
+            return self._floor_suites()
+
+        mocker.patch.object(integration, "run_shell_suites", side_effect=fake)
+        integration.config(Context())
+        assert captured == [None], "config must run bash mode (no A9R_BIN)"
+
+    def test_config_parity_exports_a9r_bin(self, mocker, tmp_path):
+        a9r = tmp_path / "skills/visualisation/visualise/target/debug/a9r"
+        a9r.parent.mkdir(parents=True)
+        a9r.write_text("#!/bin/sh\n")
+        mocker.patch.object(integration, "repo_root", lambda: tmp_path)
+        captured: list[dict | None] = []
+
+        def fake(context, subtree, env=None):
+            captured.append(env)
+            return self._floor_suites()
+
+        mocker.patch.object(integration, "run_shell_suites", side_effect=fake)
+        integration.config_parity(Context())
+        assert len(captured) == 1
+        assert captured[0] == {"A9R_BIN": str(a9r)}
+
+    def test_config_parity_fails_loud_when_binary_absent(
+        self, mocker, tmp_path
+    ):
+        # No binary written: the task must abort rather than degrade to a
+        # second bash run.
+        mocker.patch.object(integration, "repo_root", lambda: tmp_path)
+        mocker.patch.object(
+            integration, "run_shell_suites", side_effect=AssertionError
+        )
+        with pytest.raises(Exit):
+            integration.config_parity(Context())

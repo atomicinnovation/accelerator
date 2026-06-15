@@ -10,12 +10,21 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def run_shell_suites(context: Context, subtree: str) -> list[str]:
+def run_shell_suites(
+    context: Context,
+    subtree: str,
+    env: dict[str, str] | None = None,
+) -> list[str]:
     """Glob-discover and run every executable test-*.sh inside a subtree.
 
     The exec-bit filter excludes `scripts/test-helpers.sh` (sourced,
     not run); the name-level filter is belt-and-braces for
     filesystems that synthesise exec bits uniformly.
+
+    `env`, when given, is overlaid onto each suite's environment (invoke
+    merges it onto os.environ rather than replacing). The config parity gate
+    uses this to re-run the same suites with `A9R_BIN` exported, driving the
+    config-read assertions through the a9r binary instead of bash.
 
     Returns the sorted list of suites that were discovered and run, so a
     caller can assert a non-zero discovery count and fail loudly if an
@@ -33,8 +42,9 @@ def run_shell_suites(context: Context, subtree: str) -> list[str]:
         and p.name not in EXCLUDED_HELPER_NAMES
         and os.access(p, os.X_OK)
     )
+    run_kwargs: dict[str, dict[str, str]] = {"env": env} if env else {}
     for suite in suites:
         print(f"Running {suite}...")
-        context.run(suite)
+        context.run(suite, **run_kwargs)
         print()
     return suites

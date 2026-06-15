@@ -17,6 +17,79 @@ PASS=0
 FAIL=0
 SKIP=0
 
+# Directory holding this library and the config-read-*.sh scripts it launches
+# in bash mode. Computed from BASH_SOURCE so run_sut resolves the scripts
+# regardless of the sourcing suite's own SCRIPT_DIR.
+_TEST_HELPERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# --- System-under-test (SUT) switch: bash scripts vs. the a9r binary --------
+#
+# The config-read suites must run unchanged against either the original bash
+# scripts (default) or the ported `a9r` binary (when A9R_BIN names it), proving
+# byte-for-byte parity. Call sites invoke `run_sut <key> args…` where <key> is
+# the abstract command (read-path / read-value); run_sut dispatches to bash or
+# a9r. It is a plain function (NEVER exec) so it composes both under $(…)
+# capture and as the trailing argument of assert_exit_code / assert_stderr_*.
+
+# Initialise SUT mode. Pass the a9r-mode executed-assertion floor as $1.
+# Fails the suite loudly if A9R_BIN is set but not an executable file, so an
+# a9r-mode run can never silently degrade to testing bash twice.
+sut_mode_init() {
+  A9R_RUN_SUT_FLOOR="${1:-0}"
+  if [ -n "${A9R_BIN:-}" ]; then
+    if [ ! -x "$A9R_BIN" ]; then
+      echo "run_sut: A9R_BIN is set but not an executable file: $A9R_BIN" >&2
+      exit 1
+    fi
+    # Subshell-safe executed-assertion counter: call sites run run_sut inside
+    # $(…) command substitutions, so an in-memory counter would never reach the
+    # parent. Each a9r invocation appends one byte to this file; test_summary
+    # counts its bytes in the parent shell.
+    A9R_RUN_SUT_COUNT_FILE="$(mktemp)"
+  fi
+}
+
+# Dispatch a config-read invocation to bash or a9r. Returns the SUT exit code.
+run_sut() {
+  local key="$1"
+  shift
+  local script subcommand
+  case "$key" in
+    read-path)
+      script="config-read-path.sh"
+      subcommand="config-read-path"
+      ;;
+    read-value)
+      script="config-read-value.sh"
+      subcommand="config-read-value"
+      ;;
+    *)
+      echo "run_sut: unknown subcommand key: $key" >&2
+      return 2
+      ;;
+  esac
+  if [ -n "${A9R_BIN:-}" ]; then
+    printf '.' >>"$A9R_RUN_SUT_COUNT_FILE"
+    "$A9R_BIN" "$subcommand" "$@"
+  else
+    bash "$_TEST_HELPERS_DIR/$script" "$@"
+  fi
+}
+
+# Guard a block that sources the bash library and exercises an internal
+# function with no a9r-binary analogue. In a9r mode it logs one accounted SKIP
+# and returns 0 (true → caller skips the block); in bash mode returns 1 (false
+# → caller runs it). Usage: `if ! skip_unless_bash_mode "reason"; then … fi`.
+skip_unless_bash_mode() {
+  local reason="$1"
+  if [ -n "${A9R_BIN:-}" ]; then
+    printf '  SKIP: %s\n' "$reason"
+    SKIP=$((SKIP + 1))
+    return 0
+  fi
+  return 1
+}
+
 assert_eq() {
   local test_name="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -351,6 +424,26 @@ test_summary() {
   echo "Passed: $PASS"
   echo "Skipped: $SKIP"
   echo "Failed: $FAIL"
+
+  # SUT-mode banner + executed-assertion floor. The floor fails the suite
+  # directly (not only via task wiring) if too few assertions actually reached
+  # the a9r path — so guarding everything out of the a9r branch is caught here.
+  if [ -n "${A9R_BIN:-}" ]; then
+    local sut_count=0
+    if [ -n "${A9R_RUN_SUT_COUNT_FILE:-}" ] && [ -f "$A9R_RUN_SUT_COUNT_FILE" ]; then
+      sut_count=$(wc -c <"$A9R_RUN_SUT_COUNT_FILE" | tr -d ' ')
+    fi
+    echo "SUT MODE: a9r=$A9R_BIN (executed $sut_count a9r assertions)"
+    if [ "$sut_count" -lt "${A9R_RUN_SUT_FLOOR:-0}" ]; then
+      echo "FAIL: a9r-mode executed only $sut_count assertions, below the" \
+        "floor of ${A9R_RUN_SUT_FLOOR:-0} — config-read sites were guarded" \
+        "out of the a9r path." >&2
+      return 1
+    fi
+  else
+    echo "SUT MODE: bash"
+  fi
+
   if [ "$FAIL" -gt 0 ]; then
     return 1
   fi

@@ -147,6 +147,11 @@ run = "invoke test.integration.dev"
 description = "Run config integration tests"
 run = "invoke test.integration.config"
 
+[tasks."test:integration:config-parity"]
+description = "Re-run config shell suites against the a9r binary (byte-for-byte parity gate)"
+depends = ["build:a9r:dev"]
+run = "invoke test.integration.config-parity"
+
 [tasks."test:integration:decisions"]
 description = "Run decisions integration tests"
 run = "invoke test.integration.decisions"
@@ -174,6 +179,7 @@ depends = [
     "test:integration:visualiser",
     "test:integration:dev",
     "test:integration:config",
+    "test:integration:config-parity",
     "test:integration:decisions",
     "test:integration:tasks",
     "test:integration:binary-acquisition",

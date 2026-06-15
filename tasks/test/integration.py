@@ -10,8 +10,9 @@ _EXPECTED_MIGRATE_SUITES = 4
 # The config subtree (scripts/) discoverable shell suites. Like the migrate
 # guard, this is an at-least floor so a dropped exec bit on a fail-closed gate
 # (e.g. validate-corpus-frontmatter.sh — the AC-1 corpus validator) can't
-# silently vanish from CI. Bumped as suites are added under scripts/.
-_EXPECTED_CONFIG_SUITES = 16
+# silently vanish from CI. Bumped as suites are added under scripts/ (the most
+# recent bump added test-config-parity.sh, the byte-for-byte parity gate).
+_EXPECTED_CONFIG_SUITES = 17
 
 # Fail-closed gates that MUST run by name, not merely satisfy the count floor —
 # a guard renamed off the `test-*.sh` convention would vanish while the count
@@ -42,10 +43,13 @@ def dev(context: Context) -> None:
     context.run("uv run pytest tests/integration/dev -v")
 
 
-@task
-def config(context: Context) -> None:
-    """Integration tests for the plugin-wide config scripts."""
-    suites = run_shell_suites(context, "scripts")
+def _assert_config_floor(suites: list[str]) -> None:
+    """Fail loudly on a shrunken config regression net.
+
+    Shared by the bash and a9r-parity runs so both enforce the same
+    guarantee: the discovered suites meet the count floor and every
+    required-by-name gate is present.
+    """
     if len(suites) < _EXPECTED_CONFIG_SUITES:
         raise Exit(
             f"Expected at least {_EXPECTED_CONFIG_SUITES} config shell "
@@ -62,6 +66,37 @@ def config(context: Context) -> None:
             f"or been renamed off the test-*.sh convention.",
             code=1,
         )
+
+
+@task
+def config(context: Context) -> None:
+    """Integration tests for the plugin-wide config scripts (bash mode)."""
+    _assert_config_floor(run_shell_suites(context, "scripts"))
+
+
+@task(name="config-parity")
+def config_parity(context: Context) -> None:
+    """Re-run the config shell suites against the a9r binary (parity gate).
+
+    The `config` task runs every scripts/ suite once in bash mode (A9R_BIN
+    unset). This runs them a second time with A9R_BIN exported at the built
+    binary, so `run_sut` dispatches every config-read assertion through a9r
+    and `test-config-parity.sh` compares the two backends byte-for-byte. Both
+    runs together are the merge gate — `mise run check` (format + lint) does
+    not exercise either. The mise task depends on `build:a9r:dev`; this guard
+    fails loudly if the artifact is somehow absent rather than silently
+    re-testing bash.
+    """
+    a9r = repo_root() / "skills/visualisation/visualise/target/debug/a9r"
+    if not a9r.exists():
+        raise Exit(
+            f"a9r binary not found at {a9r} — build it first "
+            f"(mise run build:a9r:dev) so the parity run does not silently "
+            f"degrade to a second bash run.",
+            code=1,
+        )
+    suites = run_shell_suites(context, "scripts", env={"A9R_BIN": str(a9r)})
+    _assert_config_floor(suites)
 
 
 @task

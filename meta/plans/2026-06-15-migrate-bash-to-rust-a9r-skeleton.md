@@ -6,9 +6,6 @@ date: "2026-06-15T15:16:31+00:00"
 author: "Phil Helm"
 producer: create-plan
 status: draft
-work_item_id: ""
-parent: ""
-reviewer: ""
 tags: [bash, rust, a9r, cli, migration, visualiser, build-system, workspace]
 revision: "21b96adac354e0285d1c76420a92681cb1938697"
 repository: "accelerator"
@@ -626,25 +623,36 @@ run fails CI. The merge gate is the test aggregate that *runs* both
 
 #### Automated Verification:
 
-- [ ] Bash mode green: `bash scripts/test-config.sh`
-- [ ] a9r mode green: `A9R_BIN=<built> bash scripts/test-config.sh`
-- [ ] Both modes wired into the test task and green in CI.
-- [ ] Suite count floors still satisfied: `uv run pytest tests/unit/tasks/test_integration.py -v`
-- [ ] Raw-byte differential passes: bash vs `a9r` output `cmp`s equal (including
-      the single trailing newline) for the representative case set.
-- [ ] `A9R_BIN` set to a non-empty non-executable path **fails the suite loudly**
-      (does not silently fall back to bash).
-- [ ] No residual `bash "$READ_` call sites remain after the reroute (grep clean).
-- [ ] Executed-assertion floor met in both modes (a9r-mode assertions actually ran).
+- [x] Bash mode green: `bash scripts/test-config.sh` (555 passed)
+- [x] a9r mode green: `A9R_BIN=<built> bash scripts/test-config.sh` (543 passed,
+      1 skipped — the sourced-function block, 0 failed)
+- [x] Both modes wired into the test task and green in CI: `mise run
+      test:integration:config` (bash) + `test:integration:config-parity` (a9r,
+      depends on `build:a9r:dev`), both in the `test:integration` aggregate.
+- [x] Suite count floors still satisfied: `uv run pytest
+      tests/unit/tasks/test_integration.py -v` (7 passed; floor bumped to 17 for
+      the new parity suite).
+- [x] Raw-byte differential passes: bash vs `a9r` output `cmp`s equal (including
+      the single trailing newline) for the representative case set (8/8 cases).
+- [x] `A9R_BIN` set to a non-empty non-executable path **fails the suite loudly**
+      (does not silently fall back to bash) — exits 1 with a clear message.
+- [x] No residual `bash "$READ_` call sites remain after the reroute (grep clean;
+      64 `run_sut` sites; dead `$READ_VALUE`/`$READ_PATH`/`$CONFIG_READ_PATH`
+      definitions removed).
+- [x] Executed-assertion floor met in both modes (a9r-mode executed 64 ≥ floor 50).
 
 #### Manual Verification:
 
-- [ ] A deliberately-broken `a9r` output (e.g. drop the trailing newline) makes
-      the raw-byte differential **and** the a9r-mode run fail — confirming the
-      gate actually bites.
-- [ ] The mode banner (`SUT MODE: …`) prints the expected backend per run.
-- [ ] Only the sourced-function tests are skipped under `A9R_BIN` (logged in the
-      summary); the SKILL.md grep-assertions still run in both modes.
+- [x] A deliberately-broken `a9r` output makes the gate bite. Two axes,
+      complementary by design: a **trailing-newline** corruption fails the
+      raw-byte differential (8/8) while `test-config.sh` is structurally blind to
+      it (`$(…)` strips trailing newlines — exactly why the differential exists);
+      a **value-level** corruption fails the a9r-mode `test-config.sh` run (55
+      failures). Together they cover both stdout-fidelity axes.
+- [x] The mode banner (`SUT MODE: …`) prints the expected backend per run
+      (`SUT MODE: bash` / `SUT MODE: a9r=<path> (executed N a9r assertions)`).
+- [x] Only the sourced-function tests are skipped under `A9R_BIN` (1 logged SKIP
+      in the summary); the SKILL.md grep-assertions still run in both modes.
 
 ---
 

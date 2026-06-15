@@ -6,7 +6,6 @@ date: "2026-06-15T14:01:59+00:00"
 author: "Phil Helm"
 producer: research-codebase
 status: complete
-work_item_id: ""
 topic: "Migrating skill-invoked bash scripts to Rust under a unified `a9r` executable, test-guarded for behavioural parity"
 tags: [research, codebase, bash, rust, a9r, cli, migration, testing, visualiser, build-system]
 revision: "21b96adac354e0285d1c76420a92681cb1938697"
