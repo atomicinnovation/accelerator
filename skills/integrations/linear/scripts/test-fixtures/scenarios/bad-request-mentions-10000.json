@@ -1,0 +1,16 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": false,
+      "response": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"errors\": [{\"message\": \"Rate limit exceeded; 10,000 request budget reached\", \"extensions\": {\"code\": \"RATELIMITED\"}}]}"
+      }
+    }
+  ]
+}

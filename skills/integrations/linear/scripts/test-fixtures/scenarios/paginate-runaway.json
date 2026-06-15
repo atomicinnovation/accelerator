@@ -1,0 +1,264 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-1\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-1\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-2\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-2\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-3\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-3\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-4\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-4\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-5\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-5\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-6\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-6\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-7\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-7\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-8\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-8\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-9\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-9\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-10\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-10\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-11\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-11\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-12\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-12\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-13\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-13\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-14\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-14\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-15\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-15\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-16\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-16\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-17\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-17\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-18\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-18\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-19\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-19\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-20\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-20\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"team\": {\"id\": \"team-y-uuid\", \"name\": \"Team Y\", \"key\": \"TY\", \"states\": {\"nodes\": [{\"id\": \"y-state-backlog\", \"name\": \"Backlog\", \"type\": \"backlog\", \"position\": 0}, {\"id\": \"y-state-shipped\", \"name\": \"Shipped\", \"type\": \"completed\", \"position\": 1}]}}}}"
+      },
+      "expect_body_contains": "team"
+    }
+  ]
+}

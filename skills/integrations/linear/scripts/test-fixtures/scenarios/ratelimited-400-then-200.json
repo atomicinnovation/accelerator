@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json",
+          "X-RateLimit-Requests-Reset": "1000"
+        },
+        "body": "{\"errors\": [{\"message\": \"Rate limit exceeded\", \"extensions\": {\"code\": \"RATELIMITED\"}}]}"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"viewer\": {\"id\": \"viewer-uuid-1\"}}}"
+      }
+    }
+  ]
+}

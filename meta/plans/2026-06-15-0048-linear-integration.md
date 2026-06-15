@@ -520,45 +520,45 @@ byte-identical-remainder assertion (only the target line changes).
 
 #### Automated Verification
 
-- [ ] Transport tests pass: `bash skills/integrations/linear/scripts/test-linear-graphql.sh`
-- [ ] Auth tests pass: `bash skills/integrations/linear/scripts/test-linear-auth.sh`
-- [ ] Common tests pass: `bash skills/integrations/linear/scripts/test-linear-common.sh`
-- [ ] init-flow tests pass: `bash skills/integrations/linear/scripts/test-linear-init-flow.sh`
-- [ ] Path/gitignore tests pass: `bash skills/integrations/linear/scripts/test-linear-paths.sh`
-- [ ] `paginate-3x50` scenario returns all 150 nodes in a single result set and
+- [x] Transport tests pass: `bash skills/integrations/linear/scripts/test-linear-graphql.sh`
+- [x] Auth tests pass: `bash skills/integrations/linear/scripts/test-linear-auth.sh`
+- [x] Common tests pass: `bash skills/integrations/linear/scripts/test-linear-common.sh`
+- [x] init-flow tests pass: `bash skills/integrations/linear/scripts/test-linear-init-flow.sh`
+- [x] Path/gitignore tests pass: `bash skills/integrations/linear/scripts/test-linear-paths.sh`
+- [x] `paginate-3x50` scenario returns all 150 nodes in a single result set and
       stops when `hasNextPage` is `false` (asserted in `test-linear-graphql.sh`)
-- [ ] `paginate-zero` (empty connection) returns `nodes: []` (a JSON array, not
+- [x] `paginate-zero` (empty connection) returns `nodes: []` (a JSON array, not
       null) and exits 0 (asserted in `test-linear-graphql.sh`)
-- [ ] `paginate-runaway` terminates at `MAX_PAGES` with `truncated: true`, a
+- [x] `paginate-runaway` terminates at `MAX_PAGES` with `truncated: true`, a
       bounded node count, and a `WARN:` on stderr (never `hasNextPage: false`)
-- [ ] RATELIMITED 400 yields exit `35`, a message naming the rate limit, and a
+- [x] RATELIMITED 400 yields exit `35`, a message naming the rate limit, and a
       backoff within ±2s of `reset_ms/1000 − now_s` for a reset 30000 ms ahead,
       **clamped to `[1,60]s`** (asserted via the sleep-seam counter)
-- [ ] `ratelimited-400-then-200` resumes: exit `0`, the 200 body on stdout, and
+- [x] `ratelimited-400-then-200` resumes: exit `0`, the 200 body on stdout, and
       exactly **one** recorded sleep (the happy retry path)
-- [ ] `ratelimited-400-no-reset-header` falls back to exponential backoff
+- [x] `ratelimited-400-no-reset-header` falls back to exponential backoff
       (clamped `[1,60]s`), not a sub-1s tight loop (sleep-seam assertion)
-- [ ] `bad-request-mentions-10000` (RATELIMITED-coded 400 whose message
+- [x] `bad-request-mentions-10000` (RATELIMITED-coded 400 whose message
       contains `10,000`) classifies as RATELIMITED (35), **not** complexity (36)
-- [ ] complexity 400 yields exit `36`, a message naming the 10,000-point limit,
+- [x] complexity 400 yields exit `36`, a message naming the 10,000-point limit,
       and **no** stdout result (asserted in `test-linear-graphql.sh`)
-- [ ] `bad-request-400` (no complexity/ratelimited wording) yields exit `34`
+- [x] `bad-request-400` (no complexity/ratelimited wording) yields exit `34`
       and is **not** retried — the discriminator's negative control
-- [ ] `graphql-auth-error-200` (`extensions.type == "authentication error"` in
+- [x] `graphql-auth-error-200` (`extensions.type == "authentication error"` in
       a 200 body) yields exit `11`, complementing the 401 path
-- [ ] malformed token (containing `"` / newline) yields exit `27`
+- [x] malformed token (containing `"` / newline) yields exit `27`
       (`E_TOKEN_MALFORMED`) before any request (`test-linear-auth.sh`)
-- [ ] stale-lock reclaim and lock-timeout → `E_REFRESH_LOCKED` (53) both
+- [x] stale-lock reclaim and lock-timeout → `E_REFRESH_LOCKED` (53) both
       asserted in `test-linear-common.sh`
-- [ ] `config_set_frontmatter_field` integrity: happy overwrite, missing-field
+- [x] `config_set_frontmatter_field` integrity: happy overwrite, missing-field
       fails closed, special-char value, and byte-identical remainder
       (`bash scripts/test-config.sh`)
-- [ ] Bearer-prefixed token → non-zero exit with an auth-failure message
+- [x] Bearer-prefixed token → non-zero exit with an auth-failure message
       (`test-linear-init-flow.sh`)
-- [ ] `plugin.json` is valid JSON and lists the linear dir:
+- [x] `plugin.json` is valid JSON and lists the linear dir:
       `jq -e '.skills | index("./skills/integrations/linear/")' .claude-plugin/plugin.json`
-- [ ] Shell checks pass: `mise run scripts:check`
-- [ ] Work item shows `5,000` (not `2,500`):
+- [x] Shell checks pass: `mise run scripts:check`
+- [x] Work item shows `5,000` (not `2,500`):
       `! grep -q "2,500" meta/work/0048-linear-integration.md`
 
 #### Manual Verification

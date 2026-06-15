@@ -1085,9 +1085,9 @@ SKILLS_DIR="$SCRIPT_DIR/../skills"
 # Add new artefact directories here rather than at each call site.
 SKILLS_GREP=(grep -r --include='SKILL.md' --exclude-dir=node_modules --exclude-dir=target)
 
-echo "Test: config-read-context.sh appears in exactly 33 skills"
+echo "Test: config-read-context.sh appears in exactly 34 skills"
 CONTEXT_COUNT=$("${SKILLS_GREP[@]}" 'config-read-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "33 skills have context injection" "33" "$CONTEXT_COUNT"
+assert_eq "34 skills have context injection" "34" "$CONTEXT_COUNT"
 
 echo "Test: config-read-agents.sh appears in exactly 21 skills"
 AGENTS_COUNT=$("${SKILLS_GREP[@]}" 'config-read-agents.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
@@ -4881,13 +4881,13 @@ echo ""
 echo "=== Preprocessor placement (per-skill) ==="
 echo ""
 
-echo "Test: config-read-skill-context.sh appears in exactly 33 skills"
+echo "Test: config-read-skill-context.sh appears in exactly 34 skills"
 SKILL_CONTEXT_COUNT=$("${SKILLS_GREP[@]}" 'config-read-skill-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "33 skills have skill-context injection" "33" "$SKILL_CONTEXT_COUNT"
+assert_eq "34 skills have skill-context injection" "34" "$SKILL_CONTEXT_COUNT"
 
-echo "Test: config-read-skill-instructions.sh appears in exactly 33 skills"
+echo "Test: config-read-skill-instructions.sh appears in exactly 34 skills"
 SKILL_INSTRUCTIONS_COUNT=$("${SKILLS_GREP[@]}" 'config-read-skill-instructions.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
-assert_eq "33 skills have skill-instructions injection" "33" "$SKILL_INSTRUCTIONS_COUNT"
+assert_eq "34 skills have skill-instructions injection" "34" "$SKILL_INSTRUCTIONS_COUNT"
 
 echo "Test: config-read-skill-context.sh appears immediately after config-read-context.sh in each skill"
 ALL_SKILLS=(
@@ -5985,6 +5985,93 @@ if [ "$JIRA_SKILL_FAIL" -eq 0 ]; then
 else
   FAIL=$((FAIL + 1))
 fi
+
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "=== config_set_frontmatter_field ==="
+echo ""
+
+CSF_DIR=$(mktemp -d "$TMPDIR_BASE/csf-XXXXXX")
+
+make_doc() {
+  # $1 = file, $2 = work_item_id value (raw, as it appears after the colon)
+  cat >"$1" <<EOF
+---
+id: "0048"
+title: Example work item
+work_item_id: $2
+status: ready
+---
+
+# Body heading
+
+Body text with a tricky line: a & b / c \\ d.
+EOF
+}
+
+echo "Test: happy overwrite — numeric work_item_id becomes a remote identifier"
+DOC="$CSF_DIR/happy.md"
+make_doc "$DOC" "42"
+config_set_frontmatter_field "$DOC" work_item_id "BLA-123"
+assert_eq "field overwritten" "work_item_id: BLA-123" "$(grep '^work_item_id:' "$DOC")"
+
+echo "Test: missing field fails closed (non-zero), file untouched"
+DOC="$CSF_DIR/missing.md"
+cat >"$DOC" <<'EOF'
+---
+id: "0048"
+title: No writeback field here
+---
+
+Body.
+EOF
+BEFORE=$(cat "$DOC")
+EXIT_CODE=0
+config_set_frontmatter_field "$DOC" work_item_id "BLA-9" 2>/dev/null || EXIT_CODE=$?
+if [ "$EXIT_CODE" -ne 0 ]; then
+  echo "  PASS: missing field exits non-zero"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: missing field should fail closed"
+  FAIL=$((FAIL + 1))
+fi
+assert_eq "file untouched on missing field" "$BEFORE" "$(cat "$DOC")"
+
+echo "Test: special-character value is written literally (no metachar corruption)"
+DOC="$CSF_DIR/special.md"
+make_doc "$DOC" "1"
+config_set_frontmatter_field "$DOC" work_item_id 'A&B/C\D'
+assert_eq "special value literal" 'work_item_id: A&B/C\D' "$(grep '^work_item_id:' "$DOC")"
+
+echo "Test: a quoted existing value is replaced (whole line)"
+DOC="$CSF_DIR/quoted.md"
+make_doc "$DOC" '"12"'
+config_set_frontmatter_field "$DOC" work_item_id "BLA-7"
+assert_eq "quoted value replaced" "work_item_id: BLA-7" "$(grep '^work_item_id:' "$DOC")"
+COUNT=$(grep -c '^work_item_id:' "$DOC")
+assert_eq "exactly one work_item_id line" "1" "$COUNT"
+
+echo "Test: remainder is byte-identical apart from the target line"
+DOC="$CSF_DIR/remainder.md"
+make_doc "$DOC" "99"
+BEFORE_NO_FIELD=$(grep -v '^work_item_id:' "$DOC")
+config_set_frontmatter_field "$DOC" work_item_id "BLA-500"
+AFTER_NO_FIELD=$(grep -v '^work_item_id:' "$DOC")
+assert_eq "all non-target lines unchanged" "$BEFORE_NO_FIELD" "$AFTER_NO_FIELD"
+
+echo "Test: a body line that looks like the key is NOT touched"
+DOC="$CSF_DIR/bodykey.md"
+cat >"$DOC" <<'EOF'
+---
+work_item_id: 5
+---
+
+work_item_id: this is body text, not frontmatter
+EOF
+config_set_frontmatter_field "$DOC" work_item_id "BLA-1"
+assert_eq "frontmatter line updated" "work_item_id: BLA-1" "$(sed -n '2p' "$DOC")"
+assert_contains "body line preserved" "$(tail -1 "$DOC")" "this is body text"
 
 echo ""
 

@@ -1,0 +1,43 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-1\"}, {\"id\": \"issue-2\"}, {\"id\": \"issue-3\"}, {\"id\": \"issue-4\"}, {\"id\": \"issue-5\"}, {\"id\": \"issue-6\"}, {\"id\": \"issue-7\"}, {\"id\": \"issue-8\"}, {\"id\": \"issue-9\"}, {\"id\": \"issue-10\"}, {\"id\": \"issue-11\"}, {\"id\": \"issue-12\"}, {\"id\": \"issue-13\"}, {\"id\": \"issue-14\"}, {\"id\": \"issue-15\"}, {\"id\": \"issue-16\"}, {\"id\": \"issue-17\"}, {\"id\": \"issue-18\"}, {\"id\": \"issue-19\"}, {\"id\": \"issue-20\"}, {\"id\": \"issue-21\"}, {\"id\": \"issue-22\"}, {\"id\": \"issue-23\"}, {\"id\": \"issue-24\"}, {\"id\": \"issue-25\"}, {\"id\": \"issue-26\"}, {\"id\": \"issue-27\"}, {\"id\": \"issue-28\"}, {\"id\": \"issue-29\"}, {\"id\": \"issue-30\"}, {\"id\": \"issue-31\"}, {\"id\": \"issue-32\"}, {\"id\": \"issue-33\"}, {\"id\": \"issue-34\"}, {\"id\": \"issue-35\"}, {\"id\": \"issue-36\"}, {\"id\": \"issue-37\"}, {\"id\": \"issue-38\"}, {\"id\": \"issue-39\"}, {\"id\": \"issue-40\"}, {\"id\": \"issue-41\"}, {\"id\": \"issue-42\"}, {\"id\": \"issue-43\"}, {\"id\": \"issue-44\"}, {\"id\": \"issue-45\"}, {\"id\": \"issue-46\"}, {\"id\": \"issue-47\"}, {\"id\": \"issue-48\"}, {\"id\": \"issue-49\"}, {\"id\": \"issue-50\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-1\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-51\"}, {\"id\": \"issue-52\"}, {\"id\": \"issue-53\"}, {\"id\": \"issue-54\"}, {\"id\": \"issue-55\"}, {\"id\": \"issue-56\"}, {\"id\": \"issue-57\"}, {\"id\": \"issue-58\"}, {\"id\": \"issue-59\"}, {\"id\": \"issue-60\"}, {\"id\": \"issue-61\"}, {\"id\": \"issue-62\"}, {\"id\": \"issue-63\"}, {\"id\": \"issue-64\"}, {\"id\": \"issue-65\"}, {\"id\": \"issue-66\"}, {\"id\": \"issue-67\"}, {\"id\": \"issue-68\"}, {\"id\": \"issue-69\"}, {\"id\": \"issue-70\"}, {\"id\": \"issue-71\"}, {\"id\": \"issue-72\"}, {\"id\": \"issue-73\"}, {\"id\": \"issue-74\"}, {\"id\": \"issue-75\"}, {\"id\": \"issue-76\"}, {\"id\": \"issue-77\"}, {\"id\": \"issue-78\"}, {\"id\": \"issue-79\"}, {\"id\": \"issue-80\"}, {\"id\": \"issue-81\"}, {\"id\": \"issue-82\"}, {\"id\": \"issue-83\"}, {\"id\": \"issue-84\"}, {\"id\": \"issue-85\"}, {\"id\": \"issue-86\"}, {\"id\": \"issue-87\"}, {\"id\": \"issue-88\"}, {\"id\": \"issue-89\"}, {\"id\": \"issue-90\"}, {\"id\": \"issue-91\"}, {\"id\": \"issue-92\"}, {\"id\": \"issue-93\"}, {\"id\": \"issue-94\"}, {\"id\": \"issue-95\"}, {\"id\": \"issue-96\"}, {\"id\": \"issue-97\"}, {\"id\": \"issue-98\"}, {\"id\": \"issue-99\"}, {\"id\": \"issue-100\"}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"cursor-2\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"issue-101\"}, {\"id\": \"issue-102\"}, {\"id\": \"issue-103\"}, {\"id\": \"issue-104\"}, {\"id\": \"issue-105\"}, {\"id\": \"issue-106\"}, {\"id\": \"issue-107\"}, {\"id\": \"issue-108\"}, {\"id\": \"issue-109\"}, {\"id\": \"issue-110\"}, {\"id\": \"issue-111\"}, {\"id\": \"issue-112\"}, {\"id\": \"issue-113\"}, {\"id\": \"issue-114\"}, {\"id\": \"issue-115\"}, {\"id\": \"issue-116\"}, {\"id\": \"issue-117\"}, {\"id\": \"issue-118\"}, {\"id\": \"issue-119\"}, {\"id\": \"issue-120\"}, {\"id\": \"issue-121\"}, {\"id\": \"issue-122\"}, {\"id\": \"issue-123\"}, {\"id\": \"issue-124\"}, {\"id\": \"issue-125\"}, {\"id\": \"issue-126\"}, {\"id\": \"issue-127\"}, {\"id\": \"issue-128\"}, {\"id\": \"issue-129\"}, {\"id\": \"issue-130\"}, {\"id\": \"issue-131\"}, {\"id\": \"issue-132\"}, {\"id\": \"issue-133\"}, {\"id\": \"issue-134\"}, {\"id\": \"issue-135\"}, {\"id\": \"issue-136\"}, {\"id\": \"issue-137\"}, {\"id\": \"issue-138\"}, {\"id\": \"issue-139\"}, {\"id\": \"issue-140\"}, {\"id\": \"issue-141\"}, {\"id\": \"issue-142\"}, {\"id\": \"issue-143\"}, {\"id\": \"issue-144\"}, {\"id\": \"issue-145\"}, {\"id\": \"issue-146\"}, {\"id\": \"issue-147\"}, {\"id\": \"issue-148\"}, {\"id\": \"issue-149\"}, {\"id\": \"issue-150\"}], \"pageInfo\": {\"hasNextPage\": false, \"endCursor\": \"cursor-3\"}}}}"
+      },
+      "expect_body_contains": "issues"
+    }
+  ]
+}

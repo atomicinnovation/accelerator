@@ -1,0 +1,17 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": false,
+      "response": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json",
+          "X-RateLimit-Requests-Reset": "__RESET_MS__"
+        },
+        "body": "{\"errors\": [{\"message\": \"Rate limit exceeded\", \"extensions\": {\"code\": \"RATELIMITED\"}}]}"
+      }
+    }
+  ]
+}

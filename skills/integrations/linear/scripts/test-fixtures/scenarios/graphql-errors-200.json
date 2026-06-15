@@ -1,0 +1,16 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": false,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": null, \"errors\": [{\"message\": \"Internal error processing request\", \"extensions\": {\"code\": \"INTERNAL_SERVER_ERROR\"}}]}"
+      }
+    }
+  ]
+}

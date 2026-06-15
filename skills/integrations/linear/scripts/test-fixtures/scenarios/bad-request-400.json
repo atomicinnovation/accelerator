@@ -1,0 +1,16 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": false,
+      "response": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"errors\": [{\"message\": \"Field 'bogus' doesn't exist on type 'Query'\", \"extensions\": {\"code\": \"GRAPHQL_VALIDATION_FAILED\"}}]}"
+      }
+    }
+  ]
+}

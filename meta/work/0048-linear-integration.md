@@ -164,9 +164,11 @@ Jira integration under `skills/integrations/jira/`.
   **definitional reference, not an ordering blocker**: `create-linear-issue` can
   allocate and write the remote ID independently of 0047's completion, so 0047 is
   intentionally absent from `blocked_by`.
-- Shared artefact: this integration claims a new transport-code range in the
-  shared `scripts/EXIT_CODES.md` (already populated by the Jira integration);
-  the range must be coordinated to avoid colliding with existing codes.
+- Shared artefact: this integration owns its own exit-code namespace in
+  `skills/integrations/linear/scripts/EXIT_CODES.md` (mirroring the Jira
+  integration's per-integration `EXIT_CODES.md`); there is no top-level shared
+  exit-code file. The transport band keeps positional parity with Jira's for
+  cross-integration reading, but each namespace is owned independently.
 - Internal ordering: `init-linear` must complete (catalogue populated) before the
   other seven skills are functional or independently verifiable.
 
@@ -237,8 +239,10 @@ shared `scripts/` library). Concrete anchors:
   `.accelerator/state/integrations/linear/` (resolved via
   `config-read-path.sh integrations`), **not** `meta/integrations/` (legacy,
   banned by a guard test).
-- **Exit codes**: claim a transport-code range in an `EXIT_CODES.md` equivalent
-  (`scripts/EXIT_CODES.md`) and propagate it unchanged through flow scripts.
+- **Exit codes**: define a per-integration namespace in
+  `skills/integrations/linear/scripts/EXIT_CODES.md` (mirroring the Jira
+  integration's own `EXIT_CODES.md` — there is no top-level shared file) and
+  propagate it unchanged through flow scripts.
 - **Registration**: add `"./skills/integrations/linear/"` to
   `.claude-plugin/plugin.json` (registration is per-integration-dir, not per-skill).
 

@@ -7,6 +7,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/vcs-common.sh"
 source "$SCRIPT_DIR/config-defaults.sh"
+source "$SCRIPT_DIR/atomic-common.sh"
 
 # shellcheck disable=SC2034
 AGENT_PREFIX="accelerator:"
@@ -97,6 +98,114 @@ config_extract_body() {
     in_fm { next }
     past_fm { print }
   ' "$file"
+}
+
+# Set (overwrite) a single top-level frontmatter field in a Markdown file.
+# Usage: config_set_frontmatter_field <file> <key> <value>
+#
+# This is the cross-cutting writeback primitive (the Linear/Jira create-issue
+# writeback and 0047's sync flow all want the identical operation), so it lives
+# in shared scripts/ rather than an integration-specific helper.
+#
+# Contract:
+#   - Operates ONLY inside the frontmatter block (between the first two `---`
+#     delimiters), anchored to that range — never the Markdown body.
+#   - Replaces exactly the named field's line. Fails closed (non-zero, file
+#     untouched) if the field is absent or matched more than once, if the file
+#     has no frontmatter, or if the frontmatter is unclosed.
+#   - <value> is treated as literal data (no awk/regex metacharacter
+#     interpretation), so a value containing &, /, or \ cannot corrupt the
+#     substitution. It is passed via the environment, not awk -v.
+#   - Before the atomic rename, re-extracts the frontmatter from the candidate
+#     output and verifies it still parses and now carries the expected value —
+#     the integrity check atomic_write itself does not perform.
+config_set_frontmatter_field() {
+  local file="$1" key="$2" value="$3"
+  if [ ! -f "$file" ]; then
+    echo "config_set_frontmatter_field: file not found: $file" >&2
+    return 1
+  fi
+
+  local candidate awk_rc=0
+  candidate=$(CSF_KEY="$key" CSF_VALUE="$value" awk '
+    BEGIN {
+      key = ENVIRON["CSF_KEY"]
+      value = ENVIRON["CSF_VALUE"]
+      kpat = "^" key ":"
+      count = 0
+    }
+    NR == 1 && /^---[[:space:]]*$/ { in_fm = 1; print; next }
+    NR == 1 { bad_start = 1; print; next }
+    in_fm && /^---[[:space:]]*$/ { in_fm = 0; closed = 1; print; next }
+    in_fm && $0 ~ kpat {
+      count++
+      print key ": " value
+      next
+    }
+    { print }
+    END {
+      if (bad_start) exit 3
+      if (!closed) exit 4
+      if (count == 0) exit 5
+      if (count > 1) exit 6
+    }
+  ' "$file") || awk_rc=$?
+
+  case "$awk_rc" in
+    0) ;;
+    3)
+      echo "config_set_frontmatter_field: file has no frontmatter (must start with ---): $file" >&2
+      return 1
+      ;;
+    4)
+      echo "config_set_frontmatter_field: unclosed frontmatter: $file" >&2
+      return 1
+      ;;
+    5)
+      echo "config_set_frontmatter_field: field '$key' not found in frontmatter: $file" >&2
+      return 1
+      ;;
+    6)
+      echo "config_set_frontmatter_field: field '$key' matched more than once: $file" >&2
+      return 1
+      ;;
+    *)
+      echo "config_set_frontmatter_field: internal error ($awk_rc)" >&2
+      return 1
+      ;;
+  esac
+
+  # Integrity check: candidate frontmatter must still parse (be a closed block)
+  # and the field must now read back as <value>.
+  local check
+  check=$(printf '%s\n' "$candidate" | awk '
+    NR == 1 && /^---[[:space:]]*$/ { in_fm = 1; next }
+    NR == 1 { exit 1 }
+    in_fm && /^---[[:space:]]*$/ { closed = 1; exit }
+    in_fm { print }
+    END { if (!closed) exit 1 }
+  ') || {
+    echo "config_set_frontmatter_field: candidate frontmatter no longer parses" >&2
+    return 1
+  }
+
+  local got
+  got=$(CSF_KEY="$key" awk '
+    BEGIN { key = ENVIRON["CSF_KEY"]; kpat = "^" key ":" }
+    $0 ~ kpat {
+      v = substr($0, length(key) + 2)
+      sub(/^[ \t]+/, "", v)
+      sub(/[ \t]+$/, "", v)
+      print v
+      exit
+    }
+  ' <<<"$check")
+  if [ "$got" != "$value" ]; then
+    echo "config_set_frontmatter_field: integrity check failed — value not set as expected" >&2
+    return 1
+  fi
+
+  printf '%s\n' "$candidate" | atomic_write "$file"
 }
 
 # Trim leading and trailing blank lines from stdin.

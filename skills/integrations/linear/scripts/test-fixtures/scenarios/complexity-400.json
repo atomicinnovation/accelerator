@@ -1,0 +1,16 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": false,
+      "response": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"errors\": [{\"message\": \"Query exceeds the complexity limit of 10,000 points\", \"extensions\": {\"code\": \"RATELIMITED\"}}]}"
+      }
+    }
+  ]
+}
