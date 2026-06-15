@@ -87,6 +87,24 @@ assert_rejects() { # $1=name $2=code; remaining args = validator args
   fi
 }
 
+assert_absent() { # $1=name $2=code; remaining args = validator args
+  # rc-agnostic by design: pairs with an assert_rejects that pins the expected
+  # diagnostic + non-zero rc; assert_absent only verifies a spurious second code
+  # is NOT also emitted.
+  local name="$1" code="$2"
+  shift 2
+  run_validator "$@"
+  if grep -qF -- "$code" <<<"$VALIDATOR_ERR"; then
+    echo "  FAIL: $name (unexpected code '$code' present)"
+    # shellcheck disable=SC2001 # anchored whole-line sed indent that ${var//.../...} cannot express
+    echo "$VALIDATOR_ERR" | sed 's/^/    /'
+    FAIL=$((FAIL + 1))
+  else
+    echo "  PASS: $name"
+    PASS=$((PASS + 1))
+  fi
+}
+
 assert_accepts() { # $1=name; remaining args = validator args
   local name="$1"
   shift

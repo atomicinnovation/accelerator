@@ -90,6 +90,62 @@ assert_rejects "bare-number linkage rejected" "BAD-LINKAGE-SHAPE" "$TMP/bad-bare
 emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-path-linkage.md" 'parent: "meta/work/0030-foo.md"'
 assert_rejects "path-shape linkage rejected" "BAD-LINKAGE-SHAPE" "$TMP/bad-path-linkage.md"
 
+# Genuinely *unquoted* linkage values (distinct from the quoted-malformed
+# fixtures above, which the legacy loop already caught). These produce zero/
+# partial tokens under the old tokenizer and so escaped BAD-LINKAGE-SHAPE.
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-unquoted-linkage.md" 'parent: 0030'
+assert_rejects "unquoted (bare) linkage rejected" "BAD-LINKAGE-SHAPE" "$TMP/bad-unquoted-linkage.md"
+
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-unquoted-path-linkage.md" 'parent: meta/work/0030-foo.md'
+assert_rejects "unquoted path linkage rejected" "BAD-LINKAGE-SHAPE" "$TMP/bad-unquoted-path-linkage.md"
+
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-bracket-unquoted-linkage.md" 'parent: [plan:0042]'
+assert_rejects "bracketed-but-unquoted linkage rejected" "BAD-LINKAGE-SHAPE" "$TMP/bad-bracket-unquoted-linkage.md"
+
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-mixed-list-linkage.md" 'relates_to: ["plan:0001", plan:0002]'
+assert_rejects "mixed list with one unquoted element rejected" "BAD-LINKAGE-SHAPE" "$TMP/bad-mixed-list-linkage.md"
+
+# Accept-side fixtures guarding the rewrite's new comma-split path directly (the
+# only existing bracketed-list accept fixture, ok-dotted-linkage, is single-
+# element, so multi-element splitting is otherwise unverified).
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/ok-multi-list-linkage.md" 'relates_to: ["adr:0001", "adr:0002"]'
+assert_accepts "multi-element quoted list accepted" "$TMP/ok-multi-list-linkage.md"
+
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/ok-spaced-list-linkage.md" 'relates_to: ["adr:0001",   "adr:0002"]'
+assert_accepts "irregularly-spaced quoted list accepted" "$TMP/ok-spaced-list-linkage.md"
+
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/ok-comment-linkage.md" 'parent: "work-item:0001" # inverse note'
+assert_accepts "quoted ref with trailing inline comment accepted" "$TMP/ok-comment-linkage.md"
+
+# set -f glob suppression: an UNQUOTED glob-bearing value must reject with the
+# LITERAL token, regardless of CWD contents — proving the comma-split does not
+# pathname-expand. Run from a directory seeded with files that WOULD match.
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-glob-linkage.md" 'parent: plan-*'
+mkdir -p "$TMP/globdir"
+: >"$TMP/globdir/plan-1.md"
+: >"$TMP/globdir/plan-2.md"
+glob_rc=0
+glob_err="$(cd "$TMP/globdir" && "$VALIDATOR" "$TMP/bad-glob-linkage.md" 2>&1 >/dev/null)" || glob_rc=$?
+if [ "$glob_rc" -ne 0 ] &&
+  grep -qF -- "BAD-LINKAGE-SHAPE" <<<"$glob_err" &&
+  grep -qF -- "plan-*" <<<"$glob_err"; then
+  echo "  PASS: unquoted glob value rejects with literal token (globbing suppressed)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: glob-bearing linkage not deterministic (rc=$glob_rc): $glob_err"
+  FAIL=$((FAIL + 1))
+fi
+
+# No-double-flag invariant: an empty linkage value yields EMPTY-PLACEHOLDER
+# *only*, never an additional BAD-LINKAGE-SHAPE. Cover BOTH empty forms — the
+# quoted-empty `parent: ""` (inner-skip branch) and the bracketed-empty
+# `relates_to: []` (post-bracket-strip empty $rest, a different branch).
+assert_absent "empty quoted linkage does not double-flag" "BAD-LINKAGE-SHAPE" "$TMP/bad-empty.md"
+
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-empty-list.md" 'relates_to: []'
+assert_rejects "empty-list placeholder rejected" "EMPTY-PLACEHOLDER" "$TMP/bad-empty-list.md"
+assert_absent "empty-list linkage does not double-flag" "BAD-LINKAGE-SHAPE" "$TMP/bad-empty-list.md"
+
 # A typed ref whose id is a version-numbered stem (dots) is accepted.
 emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/ok-dotted-linkage.md" 'relates_to: ["plan:2026-06-04-changelog-1.21.0-cleanup"]'
 assert_accepts "dotted typed-ref id accepted (version-numbered stem)" "$TMP/ok-dotted-linkage.md"

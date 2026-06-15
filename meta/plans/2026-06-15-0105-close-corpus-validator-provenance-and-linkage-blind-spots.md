@@ -482,13 +482,13 @@ Rationale for each guard:
 
 #### Automated Verification:
 
-- [ ] All four new reject fixtures pass; the new accept fixtures
+- [x] All four new reject fixtures pass; the new accept fixtures
       (multi-element list, irregular spacing, trailing inline comment) and the
       no-double-flag assertion pass; all existing linkage fixtures still pass:
       `bash scripts/test-validate-corpus-frontmatter.sh`
-- [ ] Tamper guard (`:163`) still green (work-item dropped from vocab still
+- [x] Tamper guard (`:163`) still green (work-item dropped from vocab still
       yields `BAD-LINKAGE-SHAPE` on the quoted ref).
-- [ ] `set -f` glob suppression holds: the `bad-glob-linkage` fixture (Section 1)
+- [x] `set -f` glob suppression holds: the `bad-glob-linkage` fixture (Section 1)
       — an unquoted `parent: plan-*` validated from a directory seeded with
       `plan-1.md`/`plan-2.md` — rejects with `BAD-LINKAGE-SHAPE` naming the
       literal `plan-*`, not the expanded filenames. This fixture goes red if the
@@ -496,16 +496,16 @@ Rationale for each guard:
       mutation-proof rather than asserted only in prose. (A *quoted* `"plan:*"`
       would be caught by the shape regex regardless of `set -f`, so the unquoted
       value reaching the `*)` arm is what actually exercises the glob path.)
-- [ ] Real-corpus sanity clean (section 5) — no regression on live artifacts.
-- [ ] Full config suite green: `mise run test:integration:config`
-- [ ] Shell lint/format clean: `mise run scripts:check`
+- [x] Real-corpus sanity clean (section 5) — no regression on live artifacts.
+- [x] Full config suite green: `mise run test:integration:config`
+- [x] Shell lint/format clean: `mise run scripts:check`
 
 #### Manual Verification:
 
-- [ ] Hand-run on `parent: 0042`, `parent: meta/work/x.md`, `parent: [plan:0042]`,
+- [x] Hand-run on `parent: 0042`, `parent: meta/work/x.md`, `parent: [plan:0042]`,
       and `relates_to: ["plan:0001", plan:0002]` each prints `BAD-LINKAGE-SHAPE`
       and exits non-zero.
-- [ ] Hand-run on a well-formed quoted list (`relates_to: ["adr:0001", "adr:0002"]`)
+- [x] Hand-run on a well-formed quoted list (`relates_to: ["adr:0001", "adr:0002"]`)
       exits 0.
 
 ---

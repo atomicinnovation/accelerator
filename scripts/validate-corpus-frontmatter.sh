@@ -337,29 +337,52 @@ validate_file() {
     esac
   done
 
-  # Typed-linkage values: doc-type:id shape + (corpus mode) referential.
-  local key rest tok
+  # Typed-linkage values: each non-empty element must be a quoted "doc-type:id"
+  # reference (bare/unquoted and path-shaped values rejected) + (corpus mode)
+  # referential integrity. The strip/split below rely on the FM_TYPED_REF_RE id
+  # grammar ([A-Za-z0-9.-]+): refs contain no '#', '[', ']', or ',', so the
+  # comment/bracket strips and comma-split are lossless for well-formed values.
+  local key rest elem inner oldifs
   for key in $linkkeys; do
     bk_value "$key" || continue
     rest="$BK_VAL"
-    while [[ "$rest" =~ \"([^\"]*)\" ]]; do
-      tok="${BASH_REMATCH[1]}"
-      rest="${rest#*\""${tok}"\"}"
-      [ -n "$tok" ] || continue
-      if [[ ! "$tok" =~ $FM_TYPED_REF_RE ]]; then
-        violation "$file" "BAD-LINKAGE-SHAPE" "$key: '$tok' is not a typed \"doc-type:id\" reference"
-        continue
-      fi
-      if [ "$referential" = "yes" ]; then
-        case "$tok" in
-          pr:*) : ;; # tolerated external-entity prefix
-          *)
-            index_has "$tok" ||
-              violation "$file" "DANGLING-REF" "$key: '$tok' resolves to no artifact in the corpus"
-            ;;
-        esac
-      fi
+    rest="${rest%%#*}"                      # strip trailing YAML inline comment (refs contain no '#')
+    rest="${rest%"${rest##*[![:space:]]}"}" # re-trim trailing whitespace
+    rest="${rest#\[}"                       # strip an optional surrounding flow-list bracket
+    rest="${rest%\]}"
+    oldifs="$IFS"
+    IFS=','
+    set -f # comma-split only — suppress pathname (glob) expansion
+    for elem in $rest; do
+      elem="${elem#"${elem%%[![:space:]]*}"}" # trim leading whitespace
+      elem="${elem%"${elem##*[![:space:]]}"}" # trim trailing whitespace
+      [ -n "$elem" ] || continue              # empty element ([] / trailing comma)
+      case "$elem" in
+        '"'*'"')
+          inner="${elem#\"}" # same-quote-pair strip (case proved both ends are ")
+          inner="${inner%\"}"
+          [ -n "$inner" ] || continue # empty quoted ("") — handled by EMPTY-PLACEHOLDER
+          if [[ ! "$inner" =~ $FM_TYPED_REF_RE ]]; then
+            violation "$file" "BAD-LINKAGE-SHAPE" "$key: '$inner' is not a well-formed \"doc-type:id\" reference"
+            continue
+          fi
+          if [ "$referential" = "yes" ]; then
+            case "$inner" in
+              pr:*) : ;; # tolerated external-entity prefix
+              *)
+                index_has "$inner" ||
+                  violation "$file" "DANGLING-REF" "$key: '$inner' resolves to no artifact in the corpus"
+                ;;
+            esac
+          fi
+          ;;
+        *)
+          violation "$file" "BAD-LINKAGE-SHAPE" "$key: unquoted value '$elem' is not a well-formed \"doc-type:id\" reference"
+          ;;
+      esac
     done
+    IFS="$oldifs"
+    set +f # restore default globbing (script never runs noglob globally)
   done
 }
 
