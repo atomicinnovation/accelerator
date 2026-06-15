@@ -5,7 +5,7 @@ title: "Linear Integration Implementation Plan"
 date: "2026-06-14T23:37:32+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0048"
 parent: "work-item:0048"
 derived_from: ["codebase-research:2026-06-14-0048-linear-integration-apis"]

@@ -4,7 +4,7 @@ title: "Linear Integration"
 date: "2026-05-06T17:49:44+00:00"
 author: Toby Clemson
 kind: story
-status: ready
+status: done
 priority: medium
 parent: "work-item:0045"
 tags: [work-management, integrations, linear]
@@ -19,7 +19,7 @@ blocks: ["work-item:0051"]
 # 0048: Linear Integration
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
