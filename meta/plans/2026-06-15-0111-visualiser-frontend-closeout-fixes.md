@@ -443,13 +443,9 @@ subtitle="Every work unit and how far it has progressed. Each row groups one uni
 
 #### Automated Verification
 
-- [ ] Frontend check passes: `mise run frontend:check`
-- [ ] `LifecycleIndex.test.tsx:82-95` ("renders the prototype-spec page header"),
-      which currently asserts the **old** copy ("Work units, from idea to shipped"
-      / "Each row is a slug-clustered work unit…"), is updated to assert the new
-      title and the full subtitle **verbatim** — exact ASCII apostrophe, US
-      "artifacts", and semicolon — so the prototype-source-of-truth wording is
-      regression-protected, not approximated by a substring match:
+- [x] Frontend check passes: `mise run frontend:check`
+- [x] `LifecycleIndex.test.tsx:82-95` updated to assert the new title and the
+      full subtitle **verbatim** (exact-string match, not substring regex):
       `cd skills/visualisation/visualise/frontend && npx vitest run -t "LifecycleIndex"`
 
 #### Manual Verification

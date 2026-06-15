@@ -143,8 +143,8 @@ export function LifecycleIndex() {
           <LifecycleEyebrowIcon /> Lifecycle
         </>
       }
-      title="Work units, from idea to shipped"
-      subtitle="Each row is a slug-clustered work unit. Filled tiles mark the stages present on disk. Missing stages are where the workflow has gaps."
+      title="Lifecycle overview"
+      subtitle="Every work unit and how far it has progressed. Each row groups one unit's artifacts; the pipeline shows which stages it has reached."
       actions={
         showSort ? (
           <SortSegment value={sortMode} onChange={setSortMode} />

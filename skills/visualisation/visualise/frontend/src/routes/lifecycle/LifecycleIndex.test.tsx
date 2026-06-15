@@ -85,12 +85,15 @@ describe("LifecycleIndex", () => {
     await screen.findByText("Older Cluster");
     expect(screen.getByText(/^Lifecycle$/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", {
-        name: /work units, from idea to shipped/i,
-      }),
+      screen.getByRole("heading", { name: "Lifecycle overview" }),
     ).toBeInTheDocument();
+    // Verbatim against the frozen prototype: exact ASCII apostrophe, US
+    // "artifacts", and the semicolon after "artifacts" — an exact-string match
+    // (not a substring regex) so punctuation drift is regression-protected.
     expect(
-      screen.getByText(/each row is a slug-clustered work unit/i),
+      screen.getByText(
+        "Every work unit and how far it has progressed. Each row groups one unit's artifacts; the pipeline shows which stages it has reached.",
+      ),
     ).toBeInTheDocument();
   });
 
