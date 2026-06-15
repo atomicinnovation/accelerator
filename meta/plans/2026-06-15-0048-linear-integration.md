@@ -622,17 +622,17 @@ already native (no ADF rendering).
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/linear/scripts/test-linear-search.sh` passes
-- [ ] `bash skills/integrations/linear/scripts/test-linear-show.sh` passes
-- [ ] Search filtered on state `S` over a 5-issue fixture (2 in `S`) returns
+- [x] `bash skills/integrations/linear/scripts/test-linear-search.sh` passes
+- [x] `bash skills/integrations/linear/scripts/test-linear-show.sh` passes
+- [x] Search filtered on state `S` over a 5-issue fixture (2 in `S`) returns
       exactly those 2 identifiers and none of the other 3
-- [ ] The composed GraphQL filter the search actually sends is body-captured
+- [x] The composed GraphQL filter the search actually sends is body-captured
       and asserted to carry the catalogue-resolved state value (not just that
       the canned response renders) — the mock answers positionally, so the
       filter must be verified directly
-- [ ] A multi-page search (3×50) returns all 150 issues in one result set
-- [ ] `show-linear-issue I` reports exactly `I/T/S/A/D` for each field
-- [ ] `mise run scripts:check` passes
+- [x] A multi-page search (3×50) returns all 150 issues in one result set
+- [x] `show-linear-issue I` reports exactly `I/T/S/A/D` for each field
+- [x] `mise run scripts:check` passes
 
 #### Manual Verification
 

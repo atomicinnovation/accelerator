@@ -1,0 +1,17 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issue\": {\"id\": \"uuid-BLA-42\", \"identifier\": \"BLA-42\", \"title\": \"The title T\", \"state\": {\"name\": \"In Review\"}, \"assignee\": {\"name\": \"Carol\"}, \"description\": \"The description D, in **Markdown**.\", \"comments\": {\"nodes\": [{\"body\": \"first comment\"}, {\"body\": \"second comment\"}]}}}}"
+      },
+      "expect_body_contains": "issue"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"uuid-BLA-1\", \"identifier\": \"BLA-1\", \"title\": \"First in progress\", \"state\": {\"name\": \"In Progress\"}, \"assignee\": {\"name\": \"Alice\"}}, {\"id\": \"uuid-BLA-2\", \"identifier\": \"BLA-2\", \"title\": \"Second in progress\", \"state\": {\"name\": \"In Progress\"}, \"assignee\": {\"name\": \"Bob\"}}], \"pageInfo\": {\"hasNextPage\": false, \"endCursor\": \"c-end\"}}}}"
+      },
+      "expect_body_contains": "issues",
+      "capture_body": true
+    }
+  ]
+}
