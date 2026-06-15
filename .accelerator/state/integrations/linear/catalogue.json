@@ -1,0 +1,51 @@
+{
+  "team": {
+    "id": "a599d49d-9b7a-4bbb-8e08-809ed1561b91",
+    "key": "PP",
+    "name": "Product Pod"
+  },
+  "workflowStates": [
+    {
+      "id": "aff0660a-bd5d-48aa-99ed-78a477b5e981",
+      "name": "In Review",
+      "type": "started",
+      "position": 1002
+    },
+    {
+      "id": "98ab7f78-3f87-481e-9aa7-08a770a9f31b",
+      "name": "Duplicate",
+      "type": "duplicate",
+      "position": 5
+    },
+    {
+      "id": "96ec3220-73b3-4adb-87be-da435b99a96a",
+      "name": "Backlog",
+      "type": "backlog",
+      "position": 0
+    },
+    {
+      "id": "322c9109-0510-4a25-a768-b6b0fce70869",
+      "name": "Canceled",
+      "type": "canceled",
+      "position": 4
+    },
+    {
+      "id": "30a18e90-4b44-4ed9-9ba6-1c70e709a840",
+      "name": "In Progress",
+      "type": "started",
+      "position": 2
+    },
+    {
+      "id": "251049f4-94ec-406d-85a3-3b77f6f273b7",
+      "name": "Todo",
+      "type": "unstarted",
+      "position": 1
+    },
+    {
+      "id": "160a3c54-76b3-4d55-8e0a-3206bcc69ba3",
+      "name": "Done",
+      "type": "completed",
+      "position": 3
+    }
+  ]
+}
