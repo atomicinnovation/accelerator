@@ -489,20 +489,26 @@ heading.
 
 #### Automated Verification
 
-- [ ] Frontend check passes: `mise run frontend:check`
+- [x] Frontend check passes: `mise run frontend:check`
+- [x] L4 values pinned by a resolved-styles spec (`sidebar-meta-muted.spec.ts`:
+      `.metaSection` opacity 0.7, `.metaHeading` opacity 0.75, Templates link
+      12.5px + `--ac-fg-faint`). Note: `.link.metaLink` needed compound
+      specificity to beat the base `.link` size/colour — caught by the spec.
 - [ ] All full-page VR baselines (sidebar renders in `RootLayout`) regenerate and
-      compare clean: `mise run test:e2e:visualiser:docker:update`
+      compare clean: `mise run test:e2e:visualiser:docker:update` — **deferred to
+      Closeout**
 
 #### Manual Verification
 
 - [ ] META block computes `opacity: 0.7`; META heading effective opacity ~0.525
       (lower than the ~0.75 of other section headings); Templates link is 12.5px
       (vs 13px elsewhere) and recoloured `--ac-fg-faint` — in both themes
-- [ ] Contrast check: the Templates `<Link>` is interactive nav, so its
-      composited colour (after the ~0.525 opacity over `--ac-bg-sidebar`, with dark
-      `--ac-fg-faint` ≈ `#6c7088`) is measured against the sidebar background in
-      both themes and confirmed ≥ 4.5:1 (WCAG 1.4.3); if it fails, record the
-      deliberate departure (prototype-faithful) or raise the faint value
+- [x] Contrast check: the Templates `<Link>` composited colour (~0.525 opacity
+      over the sidebar bg) falls below WCAG 1.4.3 4.5:1, especially in dark theme.
+      **Recorded as a deliberate, prototype-faithful departure**: the META block
+      is intentionally the sidebar's quietest treatment per the frozen prototype
+      (the source of truth for opacity factors); the faint value is not raised so
+      the implementation matches the prototype exactly
 
 ---
 

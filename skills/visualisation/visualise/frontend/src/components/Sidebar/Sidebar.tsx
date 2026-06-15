@@ -150,8 +150,14 @@ export function Sidebar({
       <ActivityFeed />
 
       {templates && (
-        <section aria-labelledby="meta-heading" className={styles.section}>
-          <h2 id="meta-heading" className={styles.sectionHeading}>
+        <section
+          aria-labelledby="meta-heading"
+          className={`${styles.section} ${styles.metaSection}`}
+        >
+          <h2
+            id="meta-heading"
+            className={`${styles.sectionHeading} ${styles.metaHeading}`}
+          >
             META
           </h2>
           <ul className={styles.list}>
@@ -159,7 +165,7 @@ export function Sidebar({
               <Link
                 to="/library/$type"
                 params={{ type: "templates" }}
-                className={`${styles.link} ${
+                className={`${styles.link} ${styles.metaLink} ${
                   pathname === "/library/templates" ||
                   pathname.startsWith("/library/templates/")
                     ? styles.active
