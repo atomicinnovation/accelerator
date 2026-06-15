@@ -401,11 +401,15 @@ fix).
 
 #### Automated Verification
 
-- [ ] Frontend check passes: `mise run frontend:check`
-- [ ] A `library-doc-view` fixture exercises the long-title boundary (added if
-      absent)
+- [x] Frontend check passes: `mise run frontend:check`
+- [x] The L1 guards are pinned deterministically by a resolved-styles spec
+      (`detail-actions-nowrap.spec.ts`: `.btn` computes `white-space: nowrap`,
+      `[data-slot="actions"]` computes `flex-shrink: 0`) — chosen over a
+      long-title server fixture (which would churn server fixture-count tests)
+      because the computed-style assertion guards the fix independent of title
+      length
 - [ ] `library-doc-view` VR baselines compare clean / regenerate:
-      `mise run test:e2e:visualiser:docker:update`
+      `mise run test:e2e:visualiser:docker:update` — **deferred to Closeout**
 
 #### Manual Verification
 

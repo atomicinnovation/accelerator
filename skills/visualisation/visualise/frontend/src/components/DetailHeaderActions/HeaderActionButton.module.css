@@ -14,6 +14,7 @@
   color: var(--ac-fg-muted);
   font-size: var(--size-120);
   line-height: 1.5;
+  white-space: nowrap;
   cursor: pointer;
 }
 

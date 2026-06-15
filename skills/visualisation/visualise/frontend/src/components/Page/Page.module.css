@@ -65,6 +65,7 @@
   display: inline-flex;
   gap: var(--sp-2);
   align-items: center;
+  flex-shrink: 0;
 }
 
 .divider {
