@@ -13,10 +13,17 @@ def fake_repo_tree(tmp_path: Path) -> Path:
     (tmp_path / ".claude-plugin/plugin.json").write_text(
         '{"name":"accelerator","version":"1.20.0"}'
     )
-    cargo_dir = tmp_path / "skills/visualisation/visualise/server"
+    visualiser = tmp_path / "skills/visualisation/visualise"
+    cargo_dir = visualiser / "server"
     cargo_dir.mkdir(parents=True)
+    # Workspace root owns the single inherited version; the member manifest
+    # inherits it (version.workspace = true) and carries no literal.
+    (visualiser / "Cargo.toml").write_text(
+        '[workspace]\nmembers = ["server"]\n\n'
+        '[workspace.package]\nversion = "1.20.0"\nedition = "2021"\n'
+    )
     (cargo_dir / "Cargo.toml").write_text(
-        '[package]\nname = "x"\nversion = "1.20.0"\n'
+        '[package]\nname = "x"\nversion.workspace = true\n'
     )
     bin_dir = tmp_path / "skills/visualisation/visualise/bin"
     bin_dir.mkdir(parents=True)

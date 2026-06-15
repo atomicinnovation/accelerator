@@ -11,7 +11,8 @@ import tasks.version as tv
 from tasks.build import validate_version_coherence
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SERVER_DIR = REPO_ROOT / "skills/visualisation/visualise/server"
+VISUALISER_DIR = REPO_ROOT / "skills/visualisation/visualise"
+SERVER_DIR = VISUALISER_DIR / "server"
 
 
 @pytest.fixture
@@ -25,8 +26,8 @@ def _patch_paths(mocker, base: Path) -> None:
     mocker.patch.object(tv, "PLUGIN_JSON", base / ".claude-plugin/plugin.json")
     mocker.patch.object(
         tv,
-        "CARGO_TOML",
-        base / "skills/visualisation/visualise/server/Cargo.toml",
+        "WORKSPACE_CARGO_TOML",
+        base / "skills/visualisation/visualise/Cargo.toml",
     )
     mocker.patch.object(
         tv,
@@ -47,7 +48,7 @@ class TestWrite:
             (fake_repo_tree / ".claude-plugin/plugin.json").read_text()
         )
         cargo_toml = (
-            fake_repo_tree / "skills/visualisation/visualise/server/Cargo.toml"
+            fake_repo_tree / "skills/visualisation/visualise/Cargo.toml"
         ).read_text()
         checksums = json.loads(
             (
@@ -81,17 +82,18 @@ class TestWrite:
 
     def test_cargo_toml_structure_preserved(self, ctx, mocker, fake_repo_tree):
         cargo_path = (
-            fake_repo_tree / "skills/visualisation/visualise/server/Cargo.toml"
+            fake_repo_tree / "skills/visualisation/visualise/Cargo.toml"
         )
         cargo_path.write_text(
-            '[package]\nname = "accelerator-visualiser"\nversion = "1.20.0"\n\n'
-            '[dependencies]\naxum = { version = "0.7" }\n'
+            '[workspace]\nmembers = ["server"]\n\n'
+            '[workspace.package]\nversion = "1.20.0"\nedition = "2021"\n\n'
+            '[profile.release]\nlto = "thin"\n'
         )
         _patch_paths(mocker, fake_repo_tree)
         tv.write(ctx, "1.21.0")
         result = cargo_path.read_text()
         assert 'version = "1.21.0"' in result
-        assert 'axum = { version = "0.7" }' in result
+        assert 'lto = "thin"' in result
 
     def test_idempotent(self, ctx, mocker, fake_repo_tree):
         _patch_paths(mocker, fake_repo_tree)
@@ -101,8 +103,7 @@ class TestWrite:
                 fake_repo_tree / ".claude-plugin/plugin.json"
             ).read_bytes(),
             "cargo_toml": (
-                fake_repo_tree
-                / "skills/visualisation/visualise/server/Cargo.toml"
+                fake_repo_tree / "skills/visualisation/visualise/Cargo.toml"
             ).read_bytes(),
             "checksums": (
                 fake_repo_tree
@@ -115,8 +116,7 @@ class TestWrite:
                 fake_repo_tree / ".claude-plugin/plugin.json"
             ).read_bytes(),
             "cargo_toml": (
-                fake_repo_tree
-                / "skills/visualisation/visualise/server/Cargo.toml"
+                fake_repo_tree / "skills/visualisation/visualise/Cargo.toml"
             ).read_bytes(),
             "checksums": (
                 fake_repo_tree
@@ -192,22 +192,23 @@ class TestLintsTemplating:
         self, mocker, fake_repo_tree
     ):
         cargo_path = (
-            fake_repo_tree / "skills/visualisation/visualise/server/Cargo.toml"
+            fake_repo_tree / "skills/visualisation/visualise/Cargo.toml"
         )
-        # Bespoke input: a [lints.clippy] table AND an inline rationale comment.
+        # Bespoke input: a [workspace.lints.clippy] table AND an inline comment.
         cargo_path.write_text(
-            "[package]\n"
-            'name = "accelerator-visualiser"\n'
+            "[workspace]\n"
+            'members = ["server"]\n\n'
+            "[workspace.package]\n"
             'version = "1.20.0"\n'
             'edition = "2021"\n\n'
-            "[lints.clippy]\n"
+            "[workspace.lints.clippy]\n"
             'pedantic = { level = "warn", priority = -1 }\n'
             'missing_errors_doc = "allow"  # why: no Errors doc mandated\n'
         )
-        mocker.patch.object(tv, "CARGO_TOML", cargo_path)
+        mocker.patch.object(tv, "WORKSPACE_CARGO_TOML", cargo_path)
         result = tv._render_cargo_toml("1.21.0")
         # The table and its values survive the round-trip...
-        assert "[lints.clippy]" in result
+        assert "[workspace.lints.clippy]" in result
         assert 'pedantic = { level = "warn", priority = -1 }' in result
         # ...and — the load-bearing assertion — so does the verbatim comment.
         # (A plain dict-based TOML writer would keep the table but DROP this; it
@@ -216,9 +217,12 @@ class TestLintsTemplating:
         assert 'version = "1.21.0"' in result
 
     def test_cargo_and_rustfmt_editions_match(self):
-        # Cargo.toml [package].edition and rustfmt.toml edition are two
-        # hand-duplicated literals; this guards the drift hazard that would let
-        # a direct-rustfmt caller silently fall back to edition 2015.
-        cargo = tomllib.loads((SERVER_DIR / "Cargo.toml").read_text())
+        # The workspace [workspace.package].edition and server rustfmt.toml
+        # edition are two hand-duplicated literals; this guards the drift
+        # hazard that would let a direct-rustfmt caller silently fall back to
+        # edition 2015. The server manifest inherits the edition
+        # (edition.workspace = true), so the literal lives in the workspace
+        # root.
+        cargo = tomllib.loads((VISUALISER_DIR / "Cargo.toml").read_text())
         rustfmt = tomllib.loads((SERVER_DIR / "rustfmt.toml").read_text())
-        assert cargo["package"]["edition"] == rustfmt["edition"]
+        assert cargo["workspace"]["package"]["edition"] == rustfmt["edition"]

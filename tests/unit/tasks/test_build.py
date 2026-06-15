@@ -165,14 +165,28 @@ class TestValidateVersionCoherence:
         assert result is None
 
     def test_cargo_toml_mismatch_raises(self, fake_repo_tree: Path):
-        cargo = (
-            fake_repo_tree / "skills/visualisation/visualise/server/Cargo.toml"
+        cargo = fake_repo_tree / "skills/visualisation/visualise/Cargo.toml"
+        cargo.write_text(
+            '[workspace]\nmembers = ["server"]\n\n'
+            '[workspace.package]\nversion = "0.9.0"\nedition = "2021"\n'
         )
-        cargo.write_text('[package]\nname = "x"\nversion = "0.9.0"\n')
         with pytest.raises(VersionCoherenceError) as exc_info:
             validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
         assert "Cargo.toml" in str(exc_info.value)
         assert "0.9.0" in str(exc_info.value)
+
+    def test_missing_workspace_version_key_fails_closed(
+        self, fake_repo_tree: Path
+    ):
+        # Fail-closed guard: if the [workspace.package].version key is absent
+        # (e.g. a botched inheritance edit), coherence must abort loudly, not
+        # silently pass — this is the guard that prevents shipping a binary
+        # mismatched to its checksums manifest.
+        cargo = fake_repo_tree / "skills/visualisation/visualise/Cargo.toml"
+        cargo.write_text('[workspace]\nmembers = ["server"]\n')
+        with pytest.raises(VersionCoherenceError) as exc_info:
+            validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
+        assert "workspace.package" in str(exc_info.value)
 
     def test_plugin_json_mismatch_raises(self, fake_repo_tree: Path):
         plugin = fake_repo_tree / ".claude-plugin/plugin.json"

@@ -22,6 +22,6 @@ skills/visualisation/visualise/frontend/.e2e-port
 skills/visualisation/visualise/frontend/.e2e-fixture-snapshot.json
 skills/visualisation/visualise/frontend/dist/
 skills/visualisation/visualise/frontend/node_modules/
-skills/visualisation/visualise/server/target/
+skills/visualisation/visualise/target/
 workspaces/
 node_modules/

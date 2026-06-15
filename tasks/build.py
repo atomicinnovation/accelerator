@@ -18,6 +18,7 @@ from tasks.shared.paths import (
     PLUGIN_JSON,
     REPO_ROOT,
     SERVER,
+    WORKSPACE_CARGO_TOML,
     binary_path,
     debug_archive_path,
 )
@@ -27,7 +28,7 @@ from tasks.shared.targets import TARGETS
 class VersionCoherenceError(Exception): ...
 
 
-_CARGO_TOML_RELATIVE = CARGO_TOML.relative_to(REPO_ROOT)
+_CARGO_TOML_RELATIVE = WORKSPACE_CARGO_TOML.relative_to(REPO_ROOT)
 _PLUGIN_JSON_RELATIVE = PLUGIN_JSON.relative_to(REPO_ROOT)
 _CHECKSUMS_RELATIVE = CHECKSUMS.relative_to(REPO_ROOT)
 
@@ -49,7 +50,15 @@ def _read_plugin_json_version(root: Path) -> str:
 def _read_cargo_toml_version(root: Path) -> str:
     with (root / _CARGO_TOML_RELATIVE).open("rb") as f:
         data = tomllib.load(f)
-    return data["package"]["version"]
+    try:
+        return data["workspace"]["package"]["version"]
+    except KeyError as exc:
+        # Fail closed: a missing [workspace.package].version must abort the
+        # coherence guard loudly, never silently pass. server/Cargo.toml
+        # inherits this key (version.workspace = true) and carries no literal.
+        raise VersionCoherenceError(
+            f"{_CARGO_TOML_RELATIVE}: missing [workspace.package].version"
+        ) from exc
 
 
 def _read_checksums_json_version(root: Path) -> str:

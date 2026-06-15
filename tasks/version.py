@@ -7,7 +7,7 @@ import tomlkit
 from invoke import Context, task
 
 from .shared.files import atomic_write_text
-from .shared.paths import CARGO_TOML, CHECKSUMS, PLUGIN_JSON
+from .shared.paths import CHECKSUMS, PLUGIN_JSON, WORKSPACE_CARGO_TOML
 
 
 class BumpType(StrEnum):
@@ -30,8 +30,8 @@ def _render_plugin_json(version: str) -> str:
 
 
 def _render_cargo_toml(version: str) -> str:
-    data = tomlkit.parse(CARGO_TOML.read_text())
-    data["package"]["version"] = version
+    data = tomlkit.parse(WORKSPACE_CARGO_TOML.read_text())
+    data["workspace"]["package"]["version"] = version
     return tomlkit.dumps(data)
 
 
@@ -59,7 +59,7 @@ def write(_context: Context, version: str) -> None:
     rendered_checksums = _render_checksums_version(version)
 
     atomic_write_text(PLUGIN_JSON, rendered_plugin_json)
-    atomic_write_text(CARGO_TOML, rendered_cargo_toml)
+    atomic_write_text(WORKSPACE_CARGO_TOML, rendered_cargo_toml)
     atomic_write_text(CHECKSUMS, rendered_checksums)
 
 
