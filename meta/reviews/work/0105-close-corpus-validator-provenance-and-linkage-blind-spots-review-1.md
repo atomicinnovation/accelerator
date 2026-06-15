@@ -453,8 +453,8 @@ addressed in the work item, so the verdict advances to APPROVE.
 
 ### Previously Identified Issues
 - 🟡 **Dependency**: 0104 merge-ordering coupling absent from typed linkage —
-  **Resolved** (`relates_to: ["work-item:0104", "work-item:0070", "adr:0033",
-  "adr:0034", "adr:0040"]` added to the work item frontmatter).
+  **Resolved** (`relates_to: ["work-item:0104", "work-item:0070", "adr:ADR-0033",
+  "adr:ADR-0034", "adr:ADR-0040"]` added to the work item frontmatter).
 - 🔵 **Testability**: AC3 linkage-diagnostic only conditionally specified —
   **Resolved** (the linkage Open Question is settled — reuse `BAD-LINKAGE-SHAPE`
   — and AC3 now names the diagnostic concretely).

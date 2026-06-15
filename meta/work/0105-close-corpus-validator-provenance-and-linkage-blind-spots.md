@@ -10,7 +10,7 @@ kind: task
 priority: medium
 parent: "work-item:0057"
 blocked_by: ["work-item:0103"]
-relates_to: ["work-item:0104", "work-item:0070", "adr:0033", "adr:0034", "adr:0040"]
+relates_to: ["work-item:0104", "work-item:0070", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0040"]
 tags: [frontmatter, schema, validator, provenance, linkage]
 last_updated: "2026-06-15T20:21:42+00:00"
 last_updated_by: Toby Clemson
