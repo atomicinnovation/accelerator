@@ -162,9 +162,14 @@ function Topbar({ route, setRoute, theme, setTheme, fontMode, setFontMode }) {
       <div className="ac-topbar__status">
         <Icon name="activity" size={12} style={{color:"var(--ac-ok)"}}/> SSE
       </div>
-      <button className="ac-topbar__btn" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} title="Toggle theme">
-        <Icon name={theme === "dark" ? "sun" : "moon"} size={14}/>
-      </button>
+      <div className="ac-topbar__toggles">
+        <button className="ac-topbar__btn" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} title="Toggle theme">
+          <Icon name={theme === "dark" ? "sun" : "moon"} size={14}/>
+        </button>
+        <button className={"ac-topbar__btn" + (fontMode === "mono" ? " is-active" : "")} onClick={() => setFontMode(fontMode === "mono" ? "display" : "mono")} title="Toggle monospaced fonts">
+          <Icon name="type" size={14}/>
+        </button>
+      </div>
     </header>
   );
 }

@@ -40,6 +40,7 @@ function Icon({ name, size = 18, className = "", style }) {
     hex:      <><path d="m12 3 8 5v8l-8 5-8-5V8z"/></>,
     shield:   <><path d="M12 3 4 6v6c0 4.5 3.5 8.5 8 9 4.5-.5 8-4.5 8-9V6z"/></>,
     moon:     <><path d="M20 14a8 8 0 0 1-10-10 8 8 0 1 0 10 10"/></>,
+    type:     <><path d="M4 7V5h16v2"/><path d="M12 5v14"/><path d="M9 19h6"/></>,
     sun:      <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></>,
     settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></>,
     terminal: <><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></>,
@@ -180,6 +181,8 @@ function renderMarkdown(src) {
       );
       continue;
     }
+    // horizontal rule — `---`, `***`, or `___` (3 or more)
+    if (/^\s*([-*_])\1{2,}\s*$/.test(l)) { out.push(<hr key={"hr"+i} className="ac-md-hr"/>); i++; continue; }
     if (l.startsWith("# "))  { out.push(<h1 key={"h"+i} className="ac-md-h1">{inline(l.slice(2))}</h1>); i++; continue; }
     if (l.startsWith("## ")) { out.push(<h2 key={"h"+i} className="ac-md-h2">{inline(l.slice(3))}</h2>); i++; continue; }
     if (l.startsWith("### ")){ out.push(<h3 key={"h"+i} className="ac-md-h3">{inline(l.slice(4))}</h3>); i++; continue; }

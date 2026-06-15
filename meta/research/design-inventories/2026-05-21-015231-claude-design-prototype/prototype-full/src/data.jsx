@@ -294,6 +294,8 @@ futures::future::join_all(runs).await
 - [ ] Load-test the orchestrator against a 200-file PR before widening the flag.
 - [ ] Move from an account-wide budget to a per-trigger budget.
 
+---
+
 ## Links
 
 - work-item [[PROJ-0007]]
@@ -339,6 +341,8 @@ dimension of the review.
 
 The orchestrator is the only layer the author interacts with directly. It
 merges the three streams and surfaces them as a single PR-review artefact.
+
+---
 
 ## Consequences
 
@@ -503,6 +507,8 @@ cargo build --release --features embed-ui
     --port 0          # bind to a dynamic port
     --pid ./.acc.pid  # write a pid file so re-invocations reuse this instance
 \`\`\`
+
+---
 
 ## Links
 
