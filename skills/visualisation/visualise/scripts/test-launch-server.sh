@@ -46,7 +46,7 @@ FAKE_SENTINEL="$TMPDIR_BASE/fake-sentinel"
 mkdir -p "$FAKE_SENTINEL/bin"
 ZERO_SHA="0000000000000000000000000000000000000000000000000000000000000000"
 cat >"$FAKE_SENTINEL/bin/checksums.json" <<SENTINELJSON
-{"version":"$PLUGIN_VERSION","binaries":{"darwin-arm64":"sha256:$ZERO_SHA","darwin-x64":"sha256:$ZERO_SHA","linux-arm64":"sha256:$ZERO_SHA","linux-x64":"sha256:$ZERO_SHA"}}
+{"version":"$PLUGIN_VERSION","binaries":{"$OS-$ARCH":{"accelerator-visualiser-$OS-$ARCH":"sha256:$ZERO_SHA","a9r-$OS-$ARCH":"sha256:$ZERO_SHA"}}}
 SENTINELJSON
 RC=0
 ERR="$TMPDIR_BASE/t-sentinel.err"
@@ -252,7 +252,7 @@ FAKE_SKILL="$TMPDIR_BASE/fake-skill"
 mkdir -p "$FAKE_SKILL/bin"
 EXPECTED_SHA="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 cat >"$FAKE_SKILL/bin/checksums.json" <<CHECKJSON
-{"version":"$PLUGIN_VERSION","binaries":{"darwin-arm64":"sha256:$EXPECTED_SHA","darwin-x64":"sha256:$EXPECTED_SHA","linux-arm64":"sha256:$EXPECTED_SHA","linux-x64":"sha256:$EXPECTED_SHA"}}
+{"version":"$PLUGIN_VERSION","binaries":{"$OS-$ARCH":{"accelerator-visualiser-$OS-$ARCH":"sha256:$EXPECTED_SHA","a9r-$OS-$ARCH":"sha256:$ZERO_SHA"}}}
 CHECKJSON
 FIXTURE_DIR="$TMPDIR_BASE/fixture-srv/v${PLUGIN_VERSION}"
 mkdir -p "$FIXTURE_DIR"
@@ -299,7 +299,7 @@ FAKE_SKILL_404="$TMPDIR_BASE/fake-skill-404"
 mkdir -p "$FAKE_SKILL_404/bin"
 EXPECTED_SHA_404="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 cat >"$FAKE_SKILL_404/bin/checksums.json" <<CHECK404JSON
-{"version":"$PLUGIN_VERSION","binaries":{"darwin-arm64":"sha256:$EXPECTED_SHA_404","darwin-x64":"sha256:$EXPECTED_SHA_404","linux-arm64":"sha256:$EXPECTED_SHA_404","linux-x64":"sha256:$EXPECTED_SHA_404"}}
+{"version":"$PLUGIN_VERSION","binaries":{"$OS-$ARCH":{"accelerator-visualiser-$OS-$ARCH":"sha256:$EXPECTED_SHA_404","a9r-$OS-$ARCH":"sha256:$ZERO_SHA"}}}
 CHECK404JSON
 PORT_FILE_404="$TMPDIR_BASE/fixture-port-404"
 python3 - <<PYEOF404 &

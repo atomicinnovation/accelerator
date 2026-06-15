@@ -160,6 +160,10 @@ run = "invoke test.integration.decisions"
 description = "Test launch-server.sh binary acquisition paths (sentinel rejection, SHA mismatch, 404)"
 run = "invoke test.integration.binary-acquisition"
 
+[tasks."test:integration:a9r-acquisition"]
+description = "Test a9r provisioning hook (fail-open degrade paths) + acquire_binary atomic publish"
+run = "invoke test.integration.a9r-acquisition"
+
 [tasks."test:integration:hooks"]
 description = "Run hooks integration tests"
 run = "invoke test.integration.hooks"
@@ -183,6 +187,7 @@ depends = [
     "test:integration:decisions",
     "test:integration:tasks",
     "test:integration:binary-acquisition",
+    "test:integration:a9r-acquisition",
     "test:integration:hooks",
     "test:integration:github",
     "test:integration:migrate",

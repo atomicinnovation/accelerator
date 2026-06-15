@@ -60,6 +60,12 @@ class TestCreateChecksums:
         create_checksums(ctx, "1.20.0")
         _, _, hashes_arg = mock_update.call_args.args
         assert set(hashes_arg.keys()) == set(_PLATFORMS)
+        # Each platform nests both release assets (visualiser + a9r).
+        for platform in _PLATFORMS:
+            assert set(hashes_arg[platform].keys()) == {
+                f"accelerator-visualiser-{platform}",
+                f"a9r-{platform}",
+            }
 
     def test_debug_archives_not_in_checksums_manifest(
         self, ctx, mocker, fake_binaries
@@ -105,10 +111,22 @@ class TestUpdateChecksumsJson:
         manifest = tmp_path / "checksums.json"
         shutil.copy(_FIXTURES / "checksums.with_sentinels.json", manifest)
         hashes = {
-            "darwin-arm64": "a" * 64,
-            "darwin-x64": "b" * 64,
-            "linux-arm64": "c" * 64,
-            "linux-x64": "d" * 64,
+            "darwin-arm64": {
+                "accelerator-visualiser-darwin-arm64": "a" * 64,
+                "a9r-darwin-arm64": "1" * 64,
+            },
+            "darwin-x64": {
+                "accelerator-visualiser-darwin-x64": "b" * 64,
+                "a9r-darwin-x64": "2" * 64,
+            },
+            "linux-arm64": {
+                "accelerator-visualiser-linux-arm64": "c" * 64,
+                "a9r-linux-arm64": "3" * 64,
+            },
+            "linux-x64": {
+                "accelerator-visualiser-linux-x64": "d" * 64,
+                "a9r-linux-x64": "4" * 64,
+            },
         }
         update_checksums_json(manifest, "1.20.0", hashes)
         expected = json.loads(
@@ -116,15 +134,56 @@ class TestUpdateChecksumsJson:
         )
         assert self._load(manifest) == expected
 
-    def test_single_platform_preserves_others(self, tmp_path: Path):
+    def test_single_asset_preserves_others(self, tmp_path: Path):
         manifest = tmp_path / "checksums.json"
         shutil.copy(_FIXTURES / "checksums.example.json", manifest)
-        update_checksums_json(manifest, "1.20.0", {"darwin-arm64": "e" * 64})
-        data = self._load(manifest)
-        assert data["binaries"]["darwin-arm64"] == f"sha256:{'e' * 64}"
-        assert data["binaries"]["darwin-x64"] == f"sha256:{'b' * 64}"
-        assert data["binaries"]["linux-arm64"] == f"sha256:{'c' * 64}"
-        assert data["binaries"]["linux-x64"] == f"sha256:{'d' * 64}"
+        update_checksums_json(
+            manifest,
+            "1.20.0",
+            {"darwin-arm64": {"accelerator-visualiser-darwin-arm64": "e" * 64}},
+        )
+        binaries = self._load(manifest)["binaries"]
+        # The updated asset changed…
+        assert (
+            binaries["darwin-arm64"]["accelerator-visualiser-darwin-arm64"]
+            == f"sha256:{'e' * 64}"
+        )
+        # …its sibling a9r asset on the same platform is preserved…
+        assert (
+            binaries["darwin-arm64"]["a9r-darwin-arm64"] == f"sha256:{'1' * 64}"
+        )
+        # …and every other platform is untouched.
+        assert (
+            binaries["darwin-x64"]["accelerator-visualiser-darwin-x64"]
+            == f"sha256:{'b' * 64}"
+        )
+        assert (
+            binaries["linux-arm64"]["accelerator-visualiser-linux-arm64"]
+            == f"sha256:{'c' * 64}"
+        )
+        assert (
+            binaries["linux-x64"]["accelerator-visualiser-linux-x64"]
+            == f"sha256:{'d' * 64}"
+        )
+
+    def test_flat_legacy_entry_migrated_to_nested(self, tmp_path: Path):
+        manifest = tmp_path / "checksums.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "version": "1.20.0",
+                    "binaries": {"darwin-arm64": "sha256:" + "0" * 64},
+                }
+            )
+        )
+        update_checksums_json(
+            manifest,
+            "1.20.0",
+            {"darwin-arm64": {"a9r-darwin-arm64": "9" * 64}},
+        )
+        slot = self._load(manifest)["binaries"]["darwin-arm64"]
+        assert isinstance(slot, dict)
+        assert slot["a9r-darwin-arm64"] == f"sha256:{'9' * 64}"
 
     def test_none_platform_hashes_only_updates_version(self, tmp_path: Path):
         manifest = tmp_path / "checksums.json"
@@ -150,7 +209,13 @@ class TestUpdateChecksumsJson:
         )
         with pytest.raises(OSError):
             update_checksums_json(
-                manifest, "1.20.0", {"darwin-arm64": "e" * 64}
+                manifest,
+                "1.20.0",
+                {
+                    "darwin-arm64": {
+                        "accelerator-visualiser-darwin-arm64": "e" * 64
+                    }
+                },
             )
         assert manifest.read_bytes() == original
         assert not (tmp_path / "checksums.json.tmp").exists()

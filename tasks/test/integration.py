@@ -115,6 +115,20 @@ def binary_acquisition(context: Context) -> None:
     context.run(f"bash {script}")
 
 
+@task(name="a9r-acquisition")
+def a9r_acquisition(context: Context) -> None:
+    """Test the a9r provisioning hook and acquire_binary's atomic publish.
+
+    Covers the SessionStart hook's fail-open degrade paths — sentinel,
+    version drift, 404, SHA mismatch, timeout, no downloader.
+    """
+    script = (
+        repo_root()
+        / "skills/visualisation/visualise/scripts/test-a9r-acquisition.sh"
+    )
+    context.run(f"bash {script}")
+
+
 @task
 def hooks(context: Context) -> None:
     """Integration tests for the hooks/ subtree."""

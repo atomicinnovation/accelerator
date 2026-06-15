@@ -1,9 +1,21 @@
 {
   "version": "1.20.0",
   "binaries": {
-    "darwin-arm64": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "darwin-x64": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "linux-arm64": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-    "linux-x64": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    "darwin-arm64": {
+      "accelerator-visualiser-darwin-arm64": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "a9r-darwin-arm64": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    "darwin-x64": {
+      "accelerator-visualiser-darwin-x64": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "a9r-darwin-x64": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    "linux-arm64": {
+      "accelerator-visualiser-linux-arm64": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "a9r-linux-arm64": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    "linux-x64": {
+      "accelerator-visualiser-linux-x64": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "a9r-linux-x64": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    }
   }
 }

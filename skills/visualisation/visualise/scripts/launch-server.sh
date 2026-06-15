@@ -122,7 +122,16 @@ else
 fi
 
 if [ -z "$BIN" ]; then
-  EXPECTED_SHA_RAW="$(jq -r ".binaries[\"${OS}-${ARCH}\"] // empty" "$MANIFEST")"
+  # checksums.json nests hashes by asset name (binaries[platform][asset]) so a
+  # single manifest can carry both the accelerator-visualiser and the a9r asset
+  # during the Phase 6 transition. This launcher resolves the visualiser asset;
+  # a9r-resolve.sh resolves the a9r asset from the same file. The lookup
+  # tolerates the legacy flat schema (binaries[platform] is a string) for a
+  # version-skewed manifest by falling back to it.
+  ASSET_NAME="accelerator-visualiser-${OS}-${ARCH}"
+  EXPECTED_SHA_RAW="$(jq -r --arg p "${OS}-${ARCH}" --arg a "$ASSET_NAME" \
+    '.binaries[$p] | if type == "object" then (.[$a] // empty) else . end // empty' \
+    "$MANIFEST")"
   EXPECTED_SHA="${EXPECTED_SHA_RAW#sha256:}"
   if [ "$EXPECTED_SHA" = "0000000000000000000000000000000000000000000000000000000000000000" ]; then
     die_json "$(jq -nc \
@@ -138,32 +147,29 @@ if [ -z "$BIN" ]; then
       --arg plugin "$PLUGIN_VERSION" --arg manifest "$MANIFEST_VERSION" \
       '{error:$error,plugin_version:$plugin,manifest_version:$manifest}')"
   fi
-  if [ -x "$BIN_CACHE" ] && [ ! -L "$BIN_CACHE" ]; then
-    ACTUAL_SHA="$(sha256_of "$BIN_CACHE")"
-  else
-    [ -L "$BIN_CACHE" ] && rm -f "$BIN_CACHE"
-    ACTUAL_SHA=""
-  fi
-  if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
+  # Acquire (download → SHA-verify → atomic publish) via the shared helper.
+  # The helper no-ops when the cache is already SHA-valid, so the "Downloading"
+  # notice only prints on a genuine fetch.
+  if ! { [ -x "$BIN_CACHE" ] && [ ! -L "$BIN_CACHE" ] &&
+    [ "$(sha256_of "$BIN_CACHE")" = "$EXPECTED_SHA" ]; }; then
     echo "Downloading visualiser server (first run, ~8 MB)…"
-    ASSET_URL="${RELEASES_URL_BASE}/v${PLUGIN_VERSION}/accelerator-visualiser-${OS}-${ARCH}"
-    TMP_PART="$(mktemp "$SKILL_ROOT/bin/accelerator-visualiser.XXXXXX")"
-    if ! download_to "$ASSET_URL" "$TMP_PART"; then
-      rm -f "$TMP_PART"
+  fi
+  ASSET_URL="${RELEASES_URL_BASE}/v${PLUGIN_VERSION}/${ASSET_NAME}"
+  ACQUIRE_RC=0
+  acquire_binary "$ASSET_URL" "$EXPECTED_SHA" "$BIN_CACHE" || ACQUIRE_RC=$?
+  case "$ACQUIRE_RC" in
+    0) ;;
+    2)
+      die_json "$(jq -nc --arg error 'checksum mismatch' \
+        --arg expected "$EXPECTED_SHA" \
+        '{error:$error,expected:$expected}')"
+      ;;
+    *)
       die_json "$(jq -nc --arg error 'download failed' --arg url "$ASSET_URL" \
         --arg hint 'set ACCELERATOR_VISUALISER_BIN=<path> or ACCELERATOR_VISUALISER_RELEASES_URL for a mirror' \
         '{error:$error,url:$url,hint:$hint}')"
-    fi
-    DOWNLOADED_SHA="$(sha256_of "$TMP_PART")"
-    if [ "$DOWNLOADED_SHA" != "$EXPECTED_SHA" ]; then
-      rm -f "$TMP_PART"
-      die_json "$(jq -nc --arg error 'checksum mismatch' \
-        --arg expected "$EXPECTED_SHA" --arg actual "$DOWNLOADED_SHA" \
-        '{error:$error,expected:$expected,actual:$actual}')"
-    fi
-    install -m 0755 "$TMP_PART" "$BIN_CACHE"
-    rm -f "$TMP_PART"
-  fi
+      ;;
+  esac
   BIN="$BIN_CACHE"
 fi
 

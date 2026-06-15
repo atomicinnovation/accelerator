@@ -25,5 +25,9 @@ def binary_path(platform: str, bin_dir: Path = BIN_DIR) -> Path:
     return bin_dir / f"accelerator-visualiser-{platform}"
 
 
+def a9r_binary_path(platform: str, bin_dir: Path = BIN_DIR) -> Path:
+    return bin_dir / f"a9r-{platform}"
+
+
 def debug_archive_path(platform: str, bin_dir: Path = BIN_DIR) -> Path:
     return bin_dir / f"accelerator-visualiser-{platform}.debug.tar.gz"

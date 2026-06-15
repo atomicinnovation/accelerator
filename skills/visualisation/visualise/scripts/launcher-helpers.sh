@@ -17,18 +17,82 @@ sha256_of() {
 
 download_to() {
   local url="$1" dest="$2"
+  # Hard wall-clock bounds via the downloader's OWN flags — NOT timeout(1),
+  # which is GNU coreutils and absent on stock macOS (only gtimeout via brew),
+  # so a timeout(1) wrapper would silently not apply on a primary target. The
+  # provisioning hook calls this at session start, so an unbounded hang would
+  # stall every session; these caps put a ceiling on that worst case.
+  # Overridable for tests that drive a deliberately-slow fixture server.
+  local connect_timeout="${ACCELERATOR_DOWNLOAD_CONNECT_TIMEOUT:-10}"
+  local max_time="${ACCELERATOR_DOWNLOAD_MAX_TIME:-60}"
   if command -v curl >/dev/null 2>&1; then
+    # --retry-max-time caps the retry timer so --max-time is a TRUE wall-clock
+    # ceiling: without it, --retry 3 adds exponential back-off (~1+2+4s) on top
+    # of each attempt's max-time, which would blow the bound the eager hook
+    # relies on.
     if [ -n "${ACCELERATOR_VISUALISER_INSECURE_DOWNLOAD:-}" ]; then
-      curl -fsSL --retry 3 --max-redirs 3 --max-filesize 33554432 -o "$dest" "$url" 2>/dev/null
+      curl -fsSL --connect-timeout "$connect_timeout" --max-time "$max_time" \
+        --retry 3 --retry-max-time "$max_time" --max-redirs 3 \
+        --max-filesize 33554432 -o "$dest" "$url" 2>/dev/null
     else
-      curl -fsSL --proto '=https' --tlsv1.2 --retry 3 --max-redirs 3 \
+      curl -fsSL --proto '=https' --tlsv1.2 \
+        --connect-timeout "$connect_timeout" --max-time "$max_time" \
+        --retry 3 --retry-max-time "$max_time" --max-redirs 3 \
         --max-filesize 33554432 -o "$dest" "$url" 2>/dev/null
     fi
   elif command -v wget >/dev/null 2>&1; then
-    wget -q --tries=3 --max-redirect=3 -O "$dest" "$url"
+    wget -q --tries=3 --max-redirect=3 \
+      --dns-timeout="$connect_timeout" --connect-timeout="$connect_timeout" \
+      --read-timeout="$max_time" --timeout="$max_time" -O "$dest" "$url"
   else
     return 127
   fi
+}
+
+# acquire_binary <asset_url> <expected_sha> <cache_path>
+#
+# The single download → verify → atomic-publish primitive shared by
+# launch-server.sh and the a9r-provision.sh SessionStart hook. Pure mechanics,
+# no policy: the sentinel / version-drift / die-vs-degrade decisions belong to
+# the caller (the launcher dies on failure; the hook degrades silently).
+#
+# If <cache_path> is already a regular (non-symlink), executable file whose
+# SHA-256 matches <expected_sha>, returns 0 without touching the network.
+# Otherwise downloads to a sibling tempfile, verifies the SHA, and publishes
+# by an atomic rename — so a shim resolving the cache concurrently with this
+# download never sees a partial file at <cache_path> (the hook-write/shim-read
+# TOCTOU). Returns: 0 published or already valid; 1 download failed / I/O
+# error; 2 checksum mismatch; 127 no downloader available.
+acquire_binary() {
+  local url="$1" expected="$2" dest="$3"
+
+  if [ -x "$dest" ] && [ ! -L "$dest" ] &&
+    [ "$(sha256_of "$dest" 2>/dev/null || true)" = "$expected" ]; then
+    return 0
+  fi
+  [ -L "$dest" ] && rm -f "$dest"
+
+  local dir tmp rc=0
+  dir="$(dirname "$dest")"
+  tmp="$(mktemp "$dir/.acquire.XXXXXX")" || return 1
+  download_to "$url" "$tmp" || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$tmp"
+    [ "$rc" -eq 127 ] && return 127
+    return 1
+  fi
+  if [ "$(sha256_of "$tmp" 2>/dev/null || true)" != "$expected" ]; then
+    rm -f "$tmp"
+    return 2
+  fi
+  chmod 0755 "$tmp" 2>/dev/null || true
+  # Atomic publish: rename within the same directory (same filesystem) is
+  # atomic, so the cache path flips from absent to complete in one step.
+  if ! mv -f "$tmp" "$dest" 2>/dev/null; then
+    rm -f "$tmp"
+    return 1
+  fi
+  return 0
 }
 
 ppid_of() {

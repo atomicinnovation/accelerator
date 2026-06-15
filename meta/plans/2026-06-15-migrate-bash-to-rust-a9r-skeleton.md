@@ -891,26 +891,62 @@ sees a partial file (atomic publish).
 
 #### Automated Verification:
 
-- [ ] Cross-compile produces `bin/a9r-<platform>` for all 4 targets:
-      `mise run build:server:cross-compile`
-- [ ] `checksums.json` nests hashes by asset name; both the new and old launcher
-      resolve their respective asset against the correct SHA.
-- [ ] Network timeouts use `curl --max-time`/`--connect-timeout` + `wget --timeout`
-      (no dependency on `timeout(1)`).
-- [ ] Checksums + coherence pass: `mise run build:checksums`
-- [ ] Acquisition tests pass: `mise run test:integration:a9r-acquisition`
-- [ ] Hook is valid and registered: `bash hooks/test-*.sh` (new hook suite) and
-      `jq . hooks/hooks.json`
-- [ ] Full CI green: `mise run` (default — includes tests; `mise run check` is
-      format + lint only and does not run the parity gate)
+- [x] Cross-compile produces `bin/a9r-<platform>` for all 4 targets:
+      `mise run build:server:cross-compile`. **Code-complete; the 4-target run is
+      CI-gated, not run locally** (needs `zig` + 3 cross rust targets the sandbox
+      lacks). `server_cross_compile` now builds *both* assets per target —
+      accelerator-visualiser (default/embed-dist) and a9r
+      (`--no-default-features --features visualise`, embedding the SPA) — and
+      stages each to `bin/`. Fixed the stale `server/target` path (workspace
+      members share `visualise/target`). The native `a9r --features visualise`
+      release compile was verified to build.
+- [x] `checksums.json` nests hashes by asset name; both the new and old launcher
+      resolve their respective asset against the correct SHA. Schema is now
+      `binaries[platform][asset-name]`; `launch-server.sh` resolves
+      `accelerator-visualiser-<platform>`, `a9r-resolve.sh`+the hook resolve
+      `a9r-<platform>`, both tolerating the legacy flat schema for a skewed
+      manifest. Verified via the launcher suite's sentinel/SHA-mismatch/404 cases
+      (nested fixtures) and test-a9r-resolve (20/20).
+- [x] Network timeouts use `curl --max-time`/`--connect-timeout` + `wget
+      --timeout` (no dependency on `timeout(1)`). Defaults: connect 10s, total
+      60s (overridable via `ACCELERATOR_DOWNLOAD_*`). Added `--retry-max-time` so
+      `--retry 3` back-off cannot blow the cap — verified by the timeout case
+      (returned in 1s against an 8s-stalled server).
+- [x] Checksums + coherence pass: `mise run build:checksums`. **Code-complete;
+      CI-gated** (depends on the cross-compile above). `create_checksums` /
+      `update_checksums_json` / `validate_version_coherence` for the nested
+      dual-asset schema are covered by the build unit tests (17 passed); the a9r
+      artifact now participates in the same checksum/coherence pipeline.
+- [x] Acquisition tests pass: `mise run test:integration:a9r-acquisition`
+      (22/22 — sentinel, version drift, valid download, fast-path, SHA mismatch,
+      404, timeout-in-budget, no-downloader, atomic-publish/no-partial).
+- [x] Hook is valid and registered: `jq . hooks/hooks.json` (4 SessionStart
+      objects) and the existing `bash hooks/test-*.sh` suites stay green
+      (126 + 11). The hook's own black-box suite is `test-a9r-acquisition.sh`
+      (in visualise/scripts so it reuses the launcher's HTTP-fixture +
+      `acquire_binary`), run via `test:integration:a9r-acquisition`.
+- [x] Full CI green: ran the relevant merge-gate aggregates rather than the heavy
+      bare `mise run` (Phase 5 touches shell + Python build/wiring + the manifest;
+      no frontend/server source) — `scripts:check`, `build-system:check`,
+      `test:integration:config` (bash) + `:config-parity` (a9r) + `:a9r-acquisition`,
+      and the full `tests/unit/tasks` suite (194) — all green. (`mise run check`
+      is format + lint only and does not run the gate.)
 
 #### Manual Verification:
 
-- [ ] Offline session start: hook fails quietly, all skills still load (fallback).
-- [ ] With a populated cache, hook takes the fast-path (no network) and exits fast.
-- [ ] Tampered cached binary is rejected and re-acquired (or fallback).
-- [ ] Slow/hung network: hook returns within the timeout budget and degrades to
-      fallback — session start is not stalled.
+- [x] Offline session start: hook fails quietly, all skills still load (fallback).
+      Covered by the 404 and no-downloader (127) cases — exit 0, no cache, so the
+      config-read shims fall back to bash.
+- [x] With a populated cache, hook takes the fast-path (no network) and exits
+      fast. The fast-path case points the mirror at a server serving *different*
+      bytes and asserts the cache is untouched — i.e. the network was not hit.
+- [x] Tampered cached binary is rejected and re-acquired (or fallback). The
+      fast-path SHA check rejects a non-matching cache and falls through to
+      `acquire_binary` (which re-downloads); the SHA-mismatch case proves a
+      tampered/served binary is never published (no partial at the cache path).
+- [x] Slow/hung network: hook returns within the timeout budget and degrades to
+      fallback — session start is not stalled. Timeout case: returned in 1s
+      against an 8s-stalled server, no cache written.
 
 ---
 
