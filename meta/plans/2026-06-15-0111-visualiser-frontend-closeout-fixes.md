@@ -268,11 +268,11 @@ regression that slips under the VR `maxDiffPixelRatio` budget is still caught.
 
 #### Manual Verification
 
-- [ ] Table renders with rounded outer corners, 1px border, `--ac-bg-sunken`
+- [x] Table renders with rounded outer corners, 1px border, `--ac-bg-sunken`
       uppercase Sora header in `--ac-fg-faint`, top-border row separators, no
-      striping, no hover; a wide table clips with no horizontal scrollbar (both themes)
-- [ ] Horizontal rule renders as a faint `--ac-stroke` 1px divider, lower-contrast
-      than body text in both themes
+      striping, no hover (verified on the regenerated `markdown` baselines, both themes)
+- [x] Horizontal rule renders as a faint `--ac-stroke` 1px divider, lower-contrast
+      than body text in both themes (verified on the regenerated baselines)
 
 ---
 
@@ -695,26 +695,42 @@ statuses**, unrelated to pipeline stages.
 
 #### Manual Verification
 
-- [ ] A lifecycle cluster for a work unit with an associated ADR shows **no**
-      decision node in the cluster, and that decision still appears in the page's
-      related-artifacts listing
-- [ ] Pipeline counters read `N/7`; aria-labels say "of 7 stages"
-- [ ] An RCA-bearing work unit shows no RCA node in the cluster
+- [x] A lifecycle cluster shows **no** decision node in the cluster (verified on
+      the regenerated `/lifecycle/first-plan` baseline: 7-stage pipeline, no
+      decision tile), and decisions still surface (sidebar nav + related-artifacts,
+      `RelatedArtifacts.test.tsx`)
+- [x] Pipeline counters read `N/7`; aria-labels say "of 7 stages" (unit-asserted
+      in `Pipeline.test.tsx`/`LifecycleIndex.test.tsx`)
+- [x] An RCA-bearing work unit shows no RCA node in the cluster (regression test
+      in `LifecycleClusterView.test.tsx`)
 
 ---
 
 ## Closeout (not a code phase): VR baselines + work-item correction
 
-- Regenerate the canonical Docker baseline set once after all phases land:
-  `mise run test:e2e:visualiser:docker:update` (requires Docker), then verify with
-  `mise run test:e2e:visualiser:docker`. Because the same pinned image runs in CI's
-  compare-only job, locally-regenerated PNGs are authoritative.
-- Delete the four stray orphan `-darwin.png` files under
-  `tests/visual-regression/__screenshots__/library-doc-view.spec.ts-snapshots/`
-  (no live template emits `-darwin`; not part of the canonical set).
-- Correct work item 0111's "Requires: Linux VR baseline regen via dedicated CI
-  workflow" dependency — no such workflow exists; it is a local Docker step
-  (cross-reference work item 0108).
+- [x] Regenerated the canonical Docker baseline set after all phases landed
+  (`mise run test:e2e:visualiser:docker:update`) and verified with
+  `mise run test:e2e:visualiser:docker`. **Note:** Playwright's
+  `--update-snapshots` only rewrites baselines that exceed the `maxDiffPixelRatio`
+  budget, so the L2 (decision-tile removal) and L4 (muted sidebar) changes — being
+  within tolerance on the full-page shots — were silently *not* rewritten by a
+  plain update. To produce a truly clean canonical set, the baselines were
+  **deleted and fully regenerated**; the genuinely-changed set then correctly
+  included `tokens.spec` lifecycle-cluster + kanban (7-tile pipeline), the
+  `kanban-card` cells (7 PipelineMini dots), all full-page `library-*` shots
+  (muted META sidebar), `code-syntax` (M2 scrollbar gutter), and the new
+  `dev-design-system-markdown` baselines. Visually verified: the lifecycle
+  pipeline shows 7 stages with no decision tile, and decisions still appear in the
+  sidebar nav.
+- [x] Deleted the four stray orphan `-darwin.png` files under
+  `tests/visual-regression/__screenshots__/library-doc-view.spec.ts-snapshots/`.
+- [x] Corrected work item 0111's VR-dependency note — there is no
+  `-darwin`/`-linux` split or dedicated CI regen workflow; it is a local Docker
+  step (cross-referenced work item 0108).
+
+(Operational note: a leftover E2E host-server process from a prior compare run
+held resources and made one regen attempt fail fast with "host server exited
+(code 1) before publishing its port" — clearing the orphaned process resolved it.)
 
 ## Testing Strategy
 

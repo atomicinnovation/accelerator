@@ -156,11 +156,15 @@ Navigation:
   milestone only — there is no dedicated release work item to reference yet; if
   one is created, link it here so closing 0111 visibly unblocks a tracked
   artefact.)
-- Requires: a Linux visual-regression baseline regeneration via the dedicated CI
-  workflow before merge, for the six visible UI changes. Darwin baselines
-  regenerate locally; Linux baselines do not, so this is an out-of-band
-  completion prerequisite (not a code blocker) that must be planned for rather
-  than discovered at PR time.
+- Requires: regenerating the canonical visual-regression baselines before merge,
+  for the visible UI changes. **Correction:** there is no `-darwin`/`-linux`
+  baseline split and no dedicated CI regen workflow — the repo renders a single
+  canonical baseline set inside a pinned Playwright Chromium-on-Linux Docker
+  container, regenerated locally with `mise run test:e2e:visualiser:docker:update`
+  (requires Docker) and compared in CI's compare-only job. Because the same pinned
+  image runs locally and in CI, locally-regenerated PNGs are authoritative. This
+  is a local Docker step, not an out-of-band CI prerequisite (cross-reference work
+  item 0108).
 - Source of truth: correctness of M1, L2, L3, and L4 is gated on the named design
   prototype snapshot (see References) as the frozen authoritative source for the
   exact wording strings, opacity factors, and font sizes — reviewers diff the
