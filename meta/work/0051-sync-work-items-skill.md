@@ -4,21 +4,21 @@ title: "Sync Work Items Skill"
 date: "2026-05-06T17:49:44+00:00"
 author: Toby Clemson
 kind: story
-status: draft
+status: ready
 priority: medium
 parent: "work-item:0045"
 tags: [work-management, integrations, sync]
 type: work-item
 schema_version: 1
-last_updated: "2026-05-06T17:49:44+00:00"
+last_updated: "2026-06-15T21:12:34+00:00"
 last_updated_by: Toby Clemson
-blocked_by: ["work-item:0046", "work-item:0047", "work-item:0048", "work-item:0049", "work-item:0050"]
+blocked_by: ["work-item:0046", "work-item:0047"]
 ---
 
 # 0051: Sync Work Items Skill
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Ready
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -27,10 +27,18 @@ blocked_by: ["work-item:0046", "work-item:0047", "work-item:0048", "work-item:00
 Implement `/sync-work-items`, an on-demand sync skill that reconciles local
 work items in `meta/work/` with the active remote system configured by
 `work.integration`. Defaults to bidirectional sync; supports `--push-only`,
-`--pull-only`, and `--preview` modes. Sync is timestamp-based against
-`last-sync.json`; on conflict (both sides changed since last sync), the user
+`--pull-only`, and `--preview` modes. Sync uses a timestamp pre-filter with an
+authoritative normalised-content comparison against the `last-sync.json`
+baseline; on conflict (both sides changed since last sync), the user
 is shown a section-by-section diff and must explicitly confirm or override
-before any write occurs.
+before any write occurs. Because this skill produces the `last-sync.json`
+baseline, it also extends `/list-work-items` to render the three
+baseline-dependent sync states (locally modified, remotely modified, conflict),
+completing the five-state display whose baseline-independent subset
+(synced/unsynced) ships in 0047. Both surfaces ship in one story because the
+local-vs-remote-vs-baseline comparison that classifies the states lives in this
+skill — rendering them in `/list-work-items` reuses that single derivation
+rather than duplicating it.
 
 ## Context
 
@@ -52,27 +60,44 @@ plan before any side effects occur.
   - `--pull-only` — apply remote changes locally; do not push local changes
   - `--preview` — report what would change in any of the above modes without
     applying any writes; combinable with the directional flags
+- A `work_item_id` matching `^[0-9]+$` is numeric (never pushed); any other
+  non-empty value is a remote-format key — the classification rule defined in
+  0047.
 - For each local work item with a remote-format `work_item_id`:
-  - Compare local and remote state against `last-sync.json` timestamps
+  - Classify the item with the change-detection contract (Assumptions): a
+    timestamp pre-filter against `last-sync.json`, followed by an authoritative
+    normalised-content comparison against the stored baseline
   - When local has changed and remote has not (and mode permits push):
     push local changes to remote
   - When remote has changed and local has not (and mode permits pull):
     update local file from remote
-  - When both have changed: present a section-by-section diff; default to
-    remote; require explicit user confirmation, or accept an override to push
-    local in place of accepting remote
+  - When both have changed: present a section-by-section diff; the confirmation
+    prompt's default answer is the remote version, but no local write occurs
+    without explicit user confirmation, and the user may override to push local
+    in place of accepting remote. In `--push-only` and `--pull-only`,
+    conflicting items are instead reported in the summary and skipped, since
+    resolving them would require a write the mode forbids
 - For each local work item with a numeric `work_item_id` (never pushed):
   offer to push to the remote — accept/decline per item, or batch
   accept/decline all
 - For untracked remote issues:
   - By default, pull only those within `work.default_project_code`
-  - Accept the same filter options as the integration's `search-*`/`list-*`
-    skills (e.g. assignee, label, state) to narrow further
-  - Accept an `--all` flag to pull everything the integration's read APIs
-    return
+  - Accept every filter option the active integration's `search-*`/`list-*`
+    skill accepts (e.g. assignee, label, state), narrowing the pulled set
+    identically to that skill
+  - Accept an `--all` flag that bypasses only the implicit
+    `work.default_project_code` project scope; any user-supplied filters
+    (assignee, label, state) still apply
 - Persist `last-sync.json` to the active integration's subdirectory under the
   configured integrations path on successful completion (not in `--preview`
   mode)
+- Extend `/list-work-items` to render the three baseline-dependent sync states
+  once `last-sync.json` exists: using the per-item status slot established by
+  0047, reuse this skill's local-vs-remote-vs-baseline comparison to label each
+  tracked item as **locally modified**, **remotely modified**, or **conflict**,
+  alongside the synced/unsynced labels 0047 already renders. This requires a
+  per-item remote read at list time; items with no baseline continue to show
+  only synced/unsynced
 
 ## Acceptance Criteria
 
@@ -88,47 +113,122 @@ plan before any side effects occur.
   local-ahead changes are pushed, untracked remote issues within
   `work.default_project_code` are created as local work items, and
   `last-sync.json` is updated
+- [ ] Given a local item differs from its remote counterpart only in trailing
+  whitespace and remote-managed fields (e.g. `updated_at`), when
+  `/sync-work-items` runs in default mode, then — per the normalisation rule in
+  Assumptions — the item is classified as unchanged and is neither pushed nor
+  flagged as a conflict
+- [ ] Given an untracked remote issue within `work.default_project_code`, when
+  `/sync-work-items` runs in default (or `--pull-only`) mode, then a local work
+  item is created carrying the remote-allocated key as its `work_item_id`
 - [ ] Given `--push-only`, when `/sync-work-items` runs, then no local file is
   modified and only local-ahead items are pushed to the remote
 - [ ] Given `--pull-only`, when `/sync-work-items` runs, then no remote API
   write occurs and only locally tracked remote-ahead items and untracked
   remote issues are written locally
+- [ ] Given a conflict exists and the mode is `--push-only` or `--pull-only`,
+  when `/sync-work-items` runs, then the conflicting item is reported in the
+  summary and skipped — no resolution prompt is shown and neither side is
+  written
 - [ ] Given a conflict exists, when `/sync-work-items` encounters it, then the
-  user is shown a section-by-section diff with the remote version highlighted
-  as default, and the local file is only overwritten after explicit user
-  confirmation
+  user is shown a section-by-section diff (grouped by work item section) in which
+  the remote side is labelled as the default choice and the confirmation prompt's
+  default answer accepts the remote version, and the local file is only
+  overwritten after explicit user confirmation
 - [ ] Given a conflict and the user supplies an override, when the user
-  confirms, then the local version is pushed to the remote and the choice is
-  logged
+  confirms, then the local version is pushed to the remote and a line recording
+  the override (the item's `work_item_id` and the direction chosen) is emitted to
+  the sync summary output
 - [ ] Given local work items with numeric `work_item_id` exist, when
-  `/sync-work-items` runs, then the user is offered to push them — per item or
-  in batch; accepted items are pushed and their `work_item_id` is rewritten
-  with the remote-allocated key, declined items remain unchanged
-- [ ] Given filter options are supplied (e.g. `--assignee`, `--label`,
-  `--state`), when pulling untracked remote issues, then only matching issues
-  are considered
-- [ ] Given `--all`, when pulling untracked remote issues, then the project
-  scope filter from `work.default_project_code` is bypassed
-- [ ] Given a sync is interrupted partway through, when the user re-runs
-  `/sync-work-items`, then the skill resumes safely without duplicating
-  remote-only items as local items or applying conflicting writes twice
+  `/sync-work-items` runs, then the user is offered to push each one per item;
+  accepted items are pushed and their `work_item_id` is rewritten to the key
+  returned by the integration's create operation (no longer matching `^[0-9]+$`),
+  and declined items remain unchanged
+- [ ] Given multiple local work items with numeric `work_item_id` exist, when
+  the user chooses the batch accept-all (or decline-all) option, then all are
+  pushed (or all left unchanged) in one action, with accepted items' IDs
+  rewritten to their remote-allocated keys
+- [ ] Given filter options accepted by the active integration's `search-*` skill
+  are supplied (e.g. `--assignee`, `--label`, `--state`), when pulling untracked
+  remote issues, then the set of issues `/sync-work-items` pulls equals the set
+  the integration's `search-*` skill returns for the same filter arguments
+  against the same remote state
+- [ ] Given `--all`, when pulling untracked remote issues, then the
+  `work.default_project_code` project-scope filter is bypassed while any
+  user-supplied filters (e.g. `--label`) still apply
+- [ ] Given a sync in which item A has been reconciled and `last-sync.json`
+  updated for A, but the process is killed before item B is processed, when
+  `/sync-work-items` is re-run, then A is not re-pushed or re-pulled, B is
+  reconciled exactly once, and no remote-only item already created locally is
+  created a second time
+- [ ] Given `last-sync.json` exists and a tracked item's local content has
+  changed since last sync while remote has not, when `/list-work-items` is
+  invoked, then the item renders the **locally modified** label
+- [ ] Given `last-sync.json` exists and a tracked item's remote content has
+  changed since last sync while local has not, when `/list-work-items` is
+  invoked, then the item renders the **remotely modified** label
+- [ ] Given `last-sync.json` exists and both local and remote content of a
+  tracked item have changed since last sync, when `/list-work-items` is invoked,
+  then the item renders the **conflict** label
+- [ ] Given the full set of five sync states is renderable, when
+  `/list-work-items` displays labels, then no two states share an identical
+  label+colour pairing
+- [ ] Given `last-sync.json` exists but the remote read fails (unreachable or
+  rate-limited), when `/list-work-items` is invoked, then every item still
+  renders with at least its synced/unsynced label and the command exits
+  successfully without error or hang
 
 ## Open Questions
 
-- —
+- Per-integration extensions to the normalisation ignored-field set — the
+  minimum rule is fixed in Assumptions; only integration-specific additions are
+  deferred to the implementing plan.
+- Per-item commit semantics for resumability (ordering of local write, remote
+  write, and `last-sync.json` update) — deferred to the implementing plan.
+- The exact sync-summary format for the override-log line — deferred to the
+  implementing plan.
 
 ## Dependencies
 
-- Blocked by: 0046, 0047, and at least one of Jira (existing), 0048, 0049, 0050
-- Blocks: —
+- Blocked by: 0046 (`work.integration` config) and 0047. The hard prerequisite
+  is the per-item status-slot seam this story's `/list-work-items` extension
+  builds on (the extension cannot be built until it exists); the reuse of
+  `/create-work-item`'s confirmation-prompt style by the conflict-resolution
+  override UX is an additional consistency tie on the same edge, not a separate
+  blocker.
+- Integration capability: requires at least one integration's read/search and
+  create APIs (the `search-*`/`list-*` skills are reused to fetch remote state
+  and the create skill to push numeric-ID items); Jira is already complete, so
+  this is satisfied today. Sync's filter flags are contractually coupled to the
+  active integration's `search-*` skill. 0048 (Linear), 0049 (Trello), and 0050
+  (GitHub Issues) extend sync coverage to their remotes as they land but are not
+  blockers.
+- Blocks: — (no hard downstream blocker). Non-blocking data relationship: 0047's
+  three deferred sync states consume the `last-sync.json` baseline this story
+  produces; this is intentionally not modelled as a `blocks` edge because 0051 is
+  itself `blocked_by` 0047 and the reverse edge would create a cycle.
 
 ## Assumptions
 
 - Sync is on-demand (user-invoked), not background or scheduled.
-- Conflict detection is last-modified timestamp-based: file modification time
-  for local, the integration's `updated_at` (or equivalent) for remote, both
-  compared against `last-sync.json`. SHA-based diffing and three-way merge
-  are out of scope.
+- **Change-detection contract.** A timestamp pre-filter selects candidates and a
+  normalised-content comparison is authoritative. The two never disagree because
+  the pre-filter may only short-circuit to *unchanged*, never declare *changed*:
+  - **Local side** — if the local file's modification time is at or before the
+    global `last-sync.json` `timestamp`, the local side is unchanged. Otherwise
+    the current local file is re-normalised and re-hashed and that digest is
+    compared against the per-item `local_hash` baseline in `last-sync.json`, and
+    counts as changed only if the digests differ (so a touch or reformat that
+    leaves content equivalent is not a change).
+  - **Remote side** — if the integration's `updated_at` equals the per-item
+    `remote_updated_at` baseline, the remote side is unchanged. Otherwise the
+    remote content is fetched and compared against that baseline, and counts as
+    changed only if the normalised content differs.
+  - The four states follow from the (local-changed, remote-changed) pair:
+    neither → synced, local-only → locally modified, remote-only → remotely
+    modified, both → conflict. Sync's push/pull/conflict decisions use the same
+    signals. SHA-based three-way merge is out of scope — the comparison is a
+    two-way normalised-equality check against the stored baseline.
 - "Section-by-section diff" means a textual diff grouped by work item section
   (frontmatter, Summary, Context, Requirements, Acceptance Criteria, etc.) so
   large work items remain reviewable; rich UI is out of scope.
@@ -138,21 +238,38 @@ plan before any side effects occur.
   `search-trello-cards`, `search-github-issues`) are reused by `/sync-work-items`
   to fetch remote state and to honour user-supplied filters; no separate
   sync-only fetch path is added.
-- Local content equivalence to remote content uses a normalised comparison
-  (whitespace-tolerant, ignoring fields that the integration manages
-  exclusively, e.g. remote-allocated timestamps); the implementing plan
-  defines the specific normalisation rules per integration.
+- **Normalisation rule (minimum, fixed here).** Two contents are equivalent when
+  they match after: (a) trimming leading/trailing whitespace per line and
+  trailing newlines, and (b) ignoring fields not part of the locally-authored
+  work item — remote-allocated/managed fields such as `updated_at`, and any field
+  absent from the local work-item schema. The implementing plan may extend the
+  ignored-field set per integration but may not narrow this minimum.
 - `--preview` is justified as an exception to the general "no preview UX on
   destructive ops" policy because sync writes can affect remote state, which
   is not recoverable via local VCS revert. Local-only destructive ops still
   rely on VCS for recovery.
+- The baseline-dependent `/list-work-items` states require a live per-item remote
+  read; when the remote is unreachable or rate-limited, `/list-work-items`
+  degrades gracefully to showing only synced/unsynced rather than failing.
 
 ## Technical Notes
 
+- **Size**: L — a net-new orchestration skill spanning four modes, bidirectional
+  reconciliation with conflict UX, numeric-ID batch push, untracked-issue
+  pulling, `last-sync.json` persistence with crash-safe resumability, plus the
+  `/list-work-items` three-state rendering extension. Larger than the M-sized
+  integration siblings; the capstone of the epic.
 - `last-sync.json` lives in the active integration's subdirectory under the
-  configured integrations path (e.g. `meta/integrations/jira/last-sync.json`).
-  Schema: `{ "timestamp": "<ISO8601>", "items": { "<work_item_id>":
-  "<last_remote_updated_at>" } }`. The per-item map allows fine-grained
+  configured integrations path (e.g.
+  `.accelerator/state/integrations/jira/last-sync.json`).
+  Schema: `{ "timestamp": "<ISO8601>", "items": { "<work_item_id>": {
+  "remote_updated_at": "<ISO8601>", "local_hash": "<hash of normalised local
+  content at last sync>" } } }`. Per item, `remote_updated_at` is the remote
+  baseline and `local_hash` is the local baseline the change-detection contract
+  compares against; the global `timestamp` is the local-mtime pre-filter
+  reference. `local_hash` is a digest of the normalised local content used purely
+  as a two-way equality check against the baseline — distinct from the SHA-based
+  three-way merge ruled out in Assumptions. The per-item map allows fine-grained
   conflict detection without a single global timestamp.
 - Resumability (the last AC) requires that writes to local files and the
   remote API are committed before `last-sync.json` is updated for that item.
@@ -167,11 +284,20 @@ plan before any side effects occur.
 - Multi-system mirroring is out of scope per the epic's "one active integration
   at a time" assumption; `/sync-work-items` operates against exactly one
   integration per invocation.
+- The `/list-work-items` extension depends on the extensible per-item status slot
+  established by 0047 (this story is `blocked_by` 0047, so the seam is present).
+  It adds a per-item remote read to `/list-work-items` for the three
+  baseline-dependent states, and reuses the same last-modified-vs-`last-sync.json`
+  comparison this skill applies during reconciliation — keeping state derivation
+  in a single source of truth rather than duplicating it across the two skills.
 
 ## Drafting Notes
 
-- Priority set to medium: this is the capstone of the epic but blocked by all
-  other planned stories. Priority can be raised once the integrations land.
+- Priority set to medium: this is the capstone of the epic. It is unblocked once
+  0046, 0047, and any one integration are done — Jira (complete) satisfies the
+  integration requirement today — so the gating is lighter than "all planned
+  stories". Priority can be raised as the remaining integrations land and broaden
+  sync coverage.
 - Modes (`--push-only`, `--pull-only`, `--preview`) added beyond what the
   epic explicitly states, per user direction. They make first-time and
   exploratory sync runs safer.
@@ -189,6 +315,12 @@ plan before any side effects occur.
   per-item commit semantics.
 - Section-by-section diff chosen over whole-file diff because work items can
   be long and a flat diff is hard to review when many items conflict at once.
+- The `/list-work-items` rendering of the three baseline-dependent states was
+  folded into this story when 0047's scope was narrowed to the two
+  baseline-independent states (synced/unsynced). 0047 leaves the status-slot
+  seam; 0051 produces the baseline and completes the five-state display, so the
+  state-derivation logic lives in one place rather than being split across the
+  two skills.
 
 ## References
 
