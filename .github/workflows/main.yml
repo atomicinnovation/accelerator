@@ -163,6 +163,34 @@ jobs:
       - name: Run visualiser server checks
         run: mise run server:check
 
+  check-a9r:
+    name: Check a9r
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      # Same rust-toolchain routing rationale as check-visualiser-server: keep
+      # the cached rustfmt/clippy components under the mise data dir so a cache
+      # hit does not leave the toolchain absent while parallel checks race to
+      # install it. Must be set before mise install runs.
+      - name: Route the rust toolchain into the cached mise data dir
+        run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        uses: jdx/mise-action@v4.1.0
+        with:
+          install: true
+          cache: true
+          # Distinct cache namespace from check-visualiser-server so the two
+          # rust jobs do not collide on the relocated RUSTUP_HOME cache.
+          cache_key_prefix: mise-a9r-v1
+          experimental: true
+
+      - name: Run a9r checks
+        run: mise run a9r:check
+
   check-visualiser-frontend:
     name: Check visualiser frontend
     runs-on: ubuntu-latest
@@ -192,6 +220,7 @@ jobs:
       - check-scripts
       - check-build-system
       - check-visualiser-server
+      - check-a9r
       - check-visualiser-frontend
     if: github.event_name == 'push'
     # Serialise all release pipelines onto one queue: prepare (pull + bump) and

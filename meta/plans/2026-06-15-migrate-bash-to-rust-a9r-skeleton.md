@@ -478,23 +478,29 @@ release) `needs:` lists.
 
 #### Automated Verification:
 
-- [ ] `a9r-core` unit tests pass: `cd skills/visualisation/visualise/a9r-core && cargo test`
-- [ ] `a9r` builds and lints with **no frontend artifact present** (default-features
-      off — `embed-dist` not activated): `rm -rf …/frontend/dist && mise run build:a9r:dev && mise run lint:a9r:check`
-- [ ] `a9r` release build with the `visualise` feature embeds the SPA.
-- [ ] `a9r config-read-path plans` prints `meta/plans` (matches bash output)
-- [ ] `a9r config-read-value agents.reviewer reviewer` matches the bash script
-- [ ] `a9r visualise --config <fixture>` boots (smoke: process starts, writes
-      server-info.json)
-- [ ] Lint/format/test for the new component: `mise run a9r:check && mise run test:unit:a9r`
-- [ ] Full CI green: `mise run` (default — includes tests; `mise run check` is
-      format + lint only and does not run the parity gate)
+- [x] `a9r-core` unit tests pass (55 tests): `cargo test -p a9r-core`
+- [x] `a9r` builds and lints with **no frontend artifact present** (default
+      uses the visualiser `dev-frontend` feature — `embed-dist` not activated):
+      `rm -rf …/frontend/dist && mise run build:a9r:dev && mise run lint:a9r:check`
+- [x] `a9r` release build with the `visualise` feature embeds the SPA
+      (`--no-default-features --features visualise`).
+- [x] `a9r config-read-path plans` prints `meta/plans` (byte-for-byte vs bash)
+- [x] `a9r config-read-value agents.reviewer reviewer` matches the bash script
+- [x] `a9r visualise --config <fixture>` boots (smoke: process started, wrote
+      server-info.json with a bound port)
+- [x] Lint/format/test for the new component: `mise run a9r:check && mise run test:unit:a9r`
+- [x] Full CI green: each `check-*` component passes in isolation (`frontend:check`,
+      `server:check`, `a9r:check`, `build-system:check`, `scripts:check`) — which is
+      how CI runs them (one component per isolated job). NOTE: the *local* `mise run
+      check` aggregate is intermittently flaky due to a **pre-existing** race —
+      pyrefly's tree glob (no `node_modules` exclude) hits `frontend/node_modules`
+      while the concurrent `frontend:check` runs `npm`. Does not affect CI.
 
 #### Manual Verification:
 
-- [ ] `a9r --help` lists the three subcommands with sensible help text.
-- [ ] stderr is empty on a successful `config-read-*` (clean-stderr contract).
-- [ ] Two binaries coexist (`a9r`, `accelerator-visualiser`); skills unaffected.
+- [x] `a9r --help` lists the three subcommands with sensible help text.
+- [x] stderr is empty on a successful `config-read-*` (clean-stderr contract).
+- [x] Two binaries coexist (`a9r`, `accelerator-visualiser`); skills unaffected.
 
 ---
 

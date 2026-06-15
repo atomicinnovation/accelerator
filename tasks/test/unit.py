@@ -25,6 +25,21 @@ def visualiser(context: Context) -> None:
 
 
 @task
+def a9r(context: Context) -> None:
+    """Run the a9r-core and a9r binary unit tests.
+
+    The default feature set (visualiser `dev-frontend`) needs no frontend
+    artifact, so these run without a `build:frontend` dependency. `-p` scopes
+    the run to the a9r packages.
+    """
+    manifest = repo_root() / "skills/visualisation/visualise/a9r/Cargo.toml"
+    context.run(
+        f"cargo test --manifest-path {manifest} "
+        f"--package a9r --package a9r-core"
+    )
+
+
+@task
 def frontend(context: Context) -> None:
     """Run the visualiser frontend unit tests (Vitest)."""
     frontend_root = repo_root() / "skills/visualisation/visualise/frontend"

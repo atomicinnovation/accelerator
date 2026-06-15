@@ -53,6 +53,9 @@ ns.add_collection(Collection.from_module(version))
 
 ns_format = Collection("format")
 ns_format.add_collection(
+    Collection.from_module(format_.a9r)
+)  # format.a9r.check / .fix
+ns_format.add_collection(
     Collection.from_module(format_.scripts)
 )  # format.scripts.check / .fix
 ns_format.add_collection(
@@ -67,6 +70,9 @@ ns_format.add_collection(
 ns.add_collection(ns_format)
 
 ns_lint = Collection("lint")
+ns_lint.add_collection(
+    Collection.from_module(lint.a9r)
+)  # lint.a9r.check / .fix
 ns_lint.add_collection(
     Collection.from_module(lint.scripts)
 )  # lint.scripts.shellcheck / .bashisms

@@ -3,6 +3,25 @@
 version = 4
 
 [[package]]
+name = "a9r"
+version = "1.22.0-pre.21"
+dependencies = [
+ "a9r-core",
+ "accelerator-visualiser",
+ "clap",
+ "libc",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "a9r-core"
+version = "1.22.0-pre.21"
+dependencies = [
+ "tempfile",
+]
+
+[[package]]
 name = "accelerator-visualiser"
 version = "1.22.0-pre.21"
 dependencies = [

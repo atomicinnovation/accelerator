@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["server"]
+members = ["server", "a9r-core", "a9r"]
 
 [workspace.package]
 version = "1.22.0-pre.21"

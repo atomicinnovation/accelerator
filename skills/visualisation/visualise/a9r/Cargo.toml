@@ -1,0 +1,33 @@
+[package]
+name = "a9r"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Accelerator's single CLI binary: config-read-* subcommands plus the visualiser server"
+publish = false
+
+[[bin]]
+name = "a9r"
+path = "src/main.rs"
+
+[features]
+# The default (dev) build serves the SPA from disk (dev-frontend) so it needs
+# no frontend artifact and never activates embed-dist's build.rs assertion —
+# this keeps the lightweight config-read build cheap. The release/visualise
+# build is `--no-default-features --features visualise`, which embeds the SPA.
+# The two visualiser frontend modes are mutually exclusive, so `visualise`
+# replaces `dev-frontend` rather than adding to it.
+default = ["dev-frontend"]
+dev-frontend = ["accelerator-visualiser/dev-frontend"]
+visualise = ["accelerator-visualiser/embed-dist"]
+
+[dependencies]
+a9r-core = { path = "../a9r-core" }
+accelerator-visualiser = { path = "../server", default-features = false }
+clap = { version = "4", features = ["derive"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
+tracing = "0.1"
+libc = "0.2"
+
+[lints]
+workspace = true

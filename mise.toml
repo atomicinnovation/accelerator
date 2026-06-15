@@ -77,6 +77,10 @@ run = "invoke build.frontend"
 description = "Build the visualiser server binary with the dev-frontend feature"
 run = "invoke build.server-dev"
 
+[tasks."build:a9r:dev"]
+description = "Build the a9r binary (default features: visualiser dev-frontend; no embed-dist, no frontend artifact required)"
+run = "cargo build --manifest-path skills/visualisation/visualise/a9r/Cargo.toml --package a9r"
+
 [tasks."build:server:release"]
 description = "Build the frontend, then the visualiser server binary for release (embed-dist; the frontend build overwrites any lint-stub dist/index.html)"
 depends = ["build:frontend"]
@@ -121,9 +125,13 @@ description = "Run pytest integration tests for invoke tasks"
 depends = ["deps:install:python"]
 run = "uv run pytest tests/integration/tasks -v"
 
+[tasks."test:unit:a9r"]
+description = "Run a9r-core and a9r binary unit tests (no frontend artifact required)"
+run = "invoke test.unit.a9r"
+
 [tasks."test:unit"]
 description = "Run all unit tests in parallel"
-depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "test:unit:templates"]
+depends = ["test:unit:visualiser", "test:unit:a9r", "test:unit:frontend", "test:unit:tasks", "test:unit:templates"]
 
 [tasks."test:integration:visualiser"]
 description = "Run visualiser integration tests"
@@ -207,11 +215,11 @@ run = "invoke format.scripts.fix"
 
 [tasks."format:check"]
 description = "Run all format checks (read-only)"
-depends = ["format:frontend:check", "format:server:check", "format:build-system:check", "format:scripts:check"]
+depends = ["format:frontend:check", "format:server:check", "format:a9r:check", "format:build-system:check", "format:scripts:check"]
 
 [tasks."format:fix"]
 description = "Apply all formatters in place"
-depends = ["format:frontend:fix", "format:server:fix", "format:build-system:fix", "format:scripts:fix"]
+depends = ["format:frontend:fix", "format:server:fix", "format:a9r:fix", "format:build-system:fix", "format:scripts:fix"]
 
 [tasks."lint:scripts:shellcheck:check"]
 description = "Lint shell scripts with ShellCheck (config in .shellcheckrc)"
@@ -292,6 +300,26 @@ run = "invoke lint.server.fix"
 description = "Run all Rust format and lint checks (rustfmt + clippy)"
 depends = ["format:server:check", "lint:server:check"]
 
+[tasks."format:a9r:check"]
+description = "Check a9r Rust formatting with rustfmt (cargo fmt --check)"
+run = "invoke format.a9r.check"
+
+[tasks."format:a9r:fix"]
+description = "Format a9r Rust in place (cargo fmt)"
+run = "invoke format.a9r.fix"
+
+[tasks."lint:a9r:check"]
+description = "Lint a9r + a9r-core with clippy, single default-feature pass, -D warnings (no SPA stub needed)"
+run = "invoke lint.a9r.check"
+
+[tasks."lint:a9r:fix"]
+description = "Apply clippy's machine-applicable fixes to a9r + a9r-core"
+run = "invoke lint.a9r.fix"
+
+[tasks."a9r:check"]
+description = "Run all a9r format and lint checks (rustfmt + clippy)"
+depends = ["format:a9r:check", "lint:a9r:check"]
+
 [tasks."format:frontend:check"]
 description = "Check frontend formatting with Biome (read-only)"
 depends = ["deps:install:node"]
@@ -323,11 +351,11 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:build-system:check", "lint:scripts:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:a9r:check", "lint:build-system:check", "lint:scripts:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"
-depends = ["lint:frontend:fix", "lint:server:fix", "lint:build-system:fix"]
+depends = ["lint:frontend:fix", "lint:server:fix", "lint:a9r:fix", "lint:build-system:fix"]
 
 [tasks."types:check"]
 description = "Run all type checks (tsc + pyrefly)"
@@ -339,7 +367,7 @@ depends = ["format:fix", "lint:fix"]
 
 [tasks.check]
 description = "Run all read-only format, lint, and type checks (what CI runs)"
-depends = ["frontend:check", "server:check", "build-system:check", "scripts:check"]
+depends = ["frontend:check", "server:check", "a9r:check", "build-system:check", "scripts:check"]
 
 [tasks.default]
 description = "Full local CI mirror: build, format-fix, lint, type-check, test (heavy — reformats in place + compiles Rust several times; for a fast inner loop use a single <component>:check)"

@@ -1,0 +1,17 @@
+[package]
+name = "a9r-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Pure config-resolution logic shared by the a9r binary (ports the config-read-* bash scripts)"
+publish = false
+
+[lib]
+
+[dependencies]
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

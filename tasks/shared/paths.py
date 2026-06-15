@@ -10,6 +10,8 @@ CARGO_TOML = SERVER / "Cargo.toml"
 # ([workspace.package].version) — the source of truth for version coherence.
 # CARGO_TOML stays the member manifest for --manifest-path fmt/clippy/test.
 WORKSPACE_CARGO_TOML = VISUALISER / "Cargo.toml"
+A9R_CARGO_TOML = VISUALISER / "a9r" / "Cargo.toml"
+A9R_CORE_CARGO_TOML = VISUALISER / "a9r-core" / "Cargo.toml"
 FRONTEND = VISUALISER / "frontend"
 PLUGIN_JSON = REPO_ROOT / ".claude-plugin/plugin.json"
 MARKETPLACE_JSON = REPO_ROOT / ".claude-plugin/marketplace.json"
