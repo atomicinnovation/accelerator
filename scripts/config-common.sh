@@ -28,6 +28,12 @@ config_find_files() {
   root=$(config_project_root)
   local team="$root/.accelerator/config.md"
   local local_="$root/.accelerator/config.local.md"
+  # Hot-path opt-in (a9r-resolve.sh): emit only the gitignored local config so
+  # a team-committed key cannot auto-execute a binary on a cloned/PR'd repo.
+  if [ "${ACCELERATOR_CONFIG_LOCAL_ONLY:-}" = "1" ]; then
+    [ -f "$local_" ] && echo "$local_"
+    return 0
+  fi
   local found=0
   if [ -f "$team" ]; then
     echo "$team"

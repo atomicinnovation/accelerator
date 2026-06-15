@@ -739,28 +739,42 @@ fit the v2.1.144 `hooks.json` schema.
 
 #### Automated Verification:
 
-- [ ] Shim → a9r path green: `A9R_BIN=<built> bash scripts/test-config.sh`
-- [ ] Shim → bash fallback green: `A9R_FORCE_BASH=1 bash scripts/test-config.sh`
-- [ ] shellcheck/shfmt/bashisms clean (bash 3.2 floor): `mise run scripts:check`
-- [ ] Path→value `exec` chain applies the defaults table exactly once in both modes.
-- [ ] Full CI green: `mise run` (default — includes tests; `mise run check` is
-      format + lint only and does not run the parity gate)
-- [ ] `a9r-resolve.sh` has a unit/black-box suite (`scripts/test-a9r-resolve.sh`)
+- [x] Shim → a9r path green: `A9R_BIN=<built> bash scripts/test-config.sh`
+      (543 passed, 1 skipped, 0 failed; 64 a9r assertions ≥ floor 50).
+- [x] Shim → bash fallback green: `A9R_FORCE_BASH=1 bash scripts/test-config.sh`
+      (555 passed, 0 failed).
+- [x] shellcheck/shfmt/bashisms clean (bash 3.2 floor): `mise run scripts:check`
+      (green; one justified `# shellcheck disable=SC2016` in the test's inner
+      `bash -c` where `$0` must expand in the inner shell).
+- [x] Path→value `exec` chain applies the defaults table exactly once in both
+      modes (bash, forced-bash, and a9r agree byte-for-byte for the defaults-table,
+      explicit-default, and configured-override cases).
+- [x] Full CI green: ran the relevant merge-gate aggregates rather than the heavy
+      bare `mise run` (Phase 4 touches only shell + the integration wiring):
+      `mise run scripts:check`, `mise run test:integration:config` (bash) +
+      `test:integration:config-parity` (a9r), and `pytest test_integration.py` —
+      all green. (`mise run check` is format + lint only and does not run the gate.)
+- [x] `a9r-resolve.sh` has a black-box suite (`scripts/test-a9r-resolve.sh`, 20/20)
       covering: symlinked cache rejected; world-writable cache rejected; SHA not in
-      manifest → fall back; team-committed `visualiser.binary` ignored on hot path;
-      gitignored `visualiser.binary` honoured; legacy visualiser-only binary in
-      `ACCELERATOR_VISUALISER_BIN` → fall back.
+      manifest → fall back (plus no-entry, flat-schema, and all-zeros sentinel
+      variants); team-committed `visualiser.binary` ignored on hot path; gitignored
+      `visualiser.binary` honoured; legacy visualiser-only binary in
+      `ACCELERATOR_VISUALISER_BIN` → fall back; A9R_FORCE_BASH forces fallback.
 
 #### Manual Verification:
 
-- [ ] With no binary present, `config-read-path.sh plans` still prints `meta/plans`
-      (fallback) with clean stderr.
-- [ ] With `A9R_BIN` set, the same call routes through `a9r` (verify via strace/
-      a debug marker) and output is identical.
-- [ ] A tampered cached binary (SHA no longer matches the manifest) is rejected and
-      the call falls back to bash — not executed.
-- [ ] A `visualiser.binary` set in team-committed `.accelerator/config.md` does
-      **not** alter the hot-path resolution (only `config.local.md` does).
+- [x] With no binary present, `config-read-path.sh plans` still prints `meta/plans`
+      (fallback) with clean stderr (verified in all three modes — empty stderr on
+      success).
+- [x] With `A9R_BIN` set, the same call routes through `a9r` (the shim `exec`s
+      `"$bin" config-read-value/-path`) and output is byte-for-byte identical
+      (differential 8/8).
+- [x] A tampered cached binary (SHA no longer matches the manifest) is rejected and
+      the call falls back to bash — not executed (`test-a9r-resolve.sh` SHA-mismatch
+      and sentinel cases).
+- [x] A `visualiser.binary` set in team-committed `.accelerator/config.md` does
+      **not** alter the hot-path resolution (only `config.local.md` does) — enforced
+      by the `ACCELERATOR_CONFIG_LOCAL_ONLY` read mode and pinned by two suite cases.
 
 ---
 

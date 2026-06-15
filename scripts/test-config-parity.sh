@@ -68,7 +68,11 @@ diff_cmd() {
   a9r_out="$TMPDIR_BASE/a9r.out"
   bash_rc=0
   a9r_rc=0
-  (cd "$repo" && bash "$script" "$@") >"$bash_out" 2>/dev/null || bash_rc=$?
+  # Force the bash impl on this side: the script is now a shim that would
+  # itself route to a9r when A9R_BIN is set, collapsing the differential to
+  # a9r-vs-a9r. A9R_FORCE_BASH=1 pins the genuine bash backend so the compare
+  # is bash-impl vs a9r.
+  (cd "$repo" && A9R_FORCE_BASH=1 bash "$script" "$@") >"$bash_out" 2>/dev/null || bash_rc=$?
   (cd "$repo" && "$A9R_BIN" "$subcommand" "$@") >"$a9r_out" 2>/dev/null || a9r_rc=$?
   if [ "$bash_rc" != "$a9r_rc" ]; then
     echo "  FAIL: $name — exit code differs: bash=$bash_rc a9r=$a9r_rc"

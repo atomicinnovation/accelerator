@@ -11,8 +11,8 @@ _EXPECTED_MIGRATE_SUITES = 4
 # guard, this is an at-least floor so a dropped exec bit on a fail-closed gate
 # (e.g. validate-corpus-frontmatter.sh — the AC-1 corpus validator) can't
 # silently vanish from CI. Bumped as suites are added under scripts/ (the most
-# recent bump added test-config-parity.sh, the byte-for-byte parity gate).
-_EXPECTED_CONFIG_SUITES = 17
+# recent bump added test-a9r-resolve.sh, the shim resolution/trust-gate suite).
+_EXPECTED_CONFIG_SUITES = 18
 
 # Fail-closed gates that MUST run by name, not merely satisfy the count floor —
 # a guard renamed off the `test-*.sh` convention would vanish while the count
