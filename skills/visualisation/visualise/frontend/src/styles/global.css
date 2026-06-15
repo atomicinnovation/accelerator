@@ -301,6 +301,10 @@ body {
   --code-stroke:    rgba(255, 255, 255, 0.07);
   --code-fg:        #d7dcec;
   --code-fg-faint:  #6f7796;
+  /* Dark horizontal scrollbar for the always-dark code surface (M2);
+     theme-invariant like the rest of the --code-* family. */
+  --code-scrollbar-thumb: rgba(255, 255, 255, 0.10);
+  --code-scrollbar-track: transparent;
 
   /* Syntax-highlight tokens (--tk-* — "tk" = "syntax token", per the
      prototype's naming; kept verbatim so the drift fixture matches the

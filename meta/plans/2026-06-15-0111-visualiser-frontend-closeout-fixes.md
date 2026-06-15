@@ -341,11 +341,12 @@ needs no entry.)
 
 #### Automated Verification
 
-- [ ] Frontend check passes: `mise run frontend:check`
-- [ ] Unit tests pass (incl. the new `8px` ledger entry + declared scrollbar
+- [x] Frontend check passes: `mise run frontend:check`
+- [x] Unit tests pass (incl. the new `8px` ledger entry + declared scrollbar
       tokens): `mise run test:unit:frontend`
 - [ ] Resolved-styles + code-block colour tests pass: `mise run test:e2e:visualiser:docker`
       (recompare `dev-design-system-code-syntax` baselines; regenerate if cell render shifts)
+      — **deferred to Closeout** (full canonical regen)
 
 #### Manual Verification
 

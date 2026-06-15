@@ -26,6 +26,22 @@
   font-size: var(--size-140);
 }
 
+/* M2 — dark horizontal scrollbar for the always-dark code surface. Long lines
+   scroll, never wrap. Standard (Firefox) + WebKit declarations, routed through
+   theme-invariant --code-scrollbar-* tokens (the dual-declaration precedent is
+   RootLayout.module.css). .codeblock pre inherits this overflow-x surface and
+   does not reset it, so this single selector covers labelled fences too. */
+.markdown pre {
+  scrollbar-width: thin;
+  scrollbar-color: var(--code-scrollbar-thumb) var(--code-scrollbar-track);
+}
+.markdown pre::-webkit-scrollbar { height: 8px; }
+.markdown pre::-webkit-scrollbar-thumb {
+  background: var(--code-scrollbar-thumb);
+  border-radius: var(--radius-4);
+}
+.markdown pre::-webkit-scrollbar-track { background: var(--code-scrollbar-track); }
+
 /* Fenced code block with a language label — the prototype's
    .ac-codeblock chrome. The wrapper owns the border + radius + bg
    so the head band sits flush against the <pre>; the inner <pre>

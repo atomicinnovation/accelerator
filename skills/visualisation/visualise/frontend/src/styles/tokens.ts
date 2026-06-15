@@ -332,6 +332,8 @@ export const CODE_SURFACE_TOKENS = {
   "code-stroke": "rgba(255, 255, 255, 0.07)",
   "code-fg": "#d7dcec",
   "code-fg-faint": "#6f7796",
+  "code-scrollbar-thumb": "rgba(255, 255, 255, 0.10)",
+  "code-scrollbar-track": "transparent",
 } as const;
 
 // Syntax-highlight tokens. The `tk-` prefix means "syntax token" and

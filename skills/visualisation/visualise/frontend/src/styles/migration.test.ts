@@ -303,6 +303,14 @@ const EXCEPTIONS: ReadonlyArray<
   },
   {
     file: "components/MarkdownRenderer/MarkdownRenderer.module.css",
+    literal: "8px",
+    count: 1,
+    kind: "irreducible",
+    reason:
+      "WebKit code-block scrollbar track height — no scrollbar-dimension token",
+  },
+  {
+    file: "components/MarkdownRenderer/MarkdownRenderer.module.css",
     literal: "5px",
     count: 1,
     kind: "irreducible",
