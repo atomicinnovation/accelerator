@@ -11,11 +11,12 @@ set -euo pipefail
 #      composed emission (skill literals ∪ loaded-template keys) covers it;
 #   3. synthesises a complete fixture (the shared emit_valid, pinned to the
 #      skill's extracted status literal) and runs the REAL corpus validator over
-#      it, asserting it passes;
-#   4. asserts the two validator blind spots (provenance over-emission on
-#      non-anchored types; bare/unquoted typed-linkage) by inspection of the
-#      composed emission — these BYPASS the validator (see comments) and are
-#      tracked for consolidation into the validator under work item 0105.
+#      it, asserting it passes.
+#
+# Provenance over-emission (revision/repository on a non-anchored type) and
+# bare/unquoted typed-linkage are enforced directly by the corpus validator
+# (work item 0105), so this guard no longer re-derives them by inspection; the
+# conditional-axis section below exercises both through the real validator.
 #
 # Status-transition mutators (validate-plan -> plan, review-adr -> adr) are
 # asserted on the status axis only: the documented target status must be a
@@ -173,41 +174,6 @@ template_keys() { # $1 template-file -> space-separated frontmatter keys
        n==1 && /^[A-Za-z_][A-Za-z0-9_]*:/ {k=$0; sub(/:.*/,"",k); print k}' "$1"
 }
 
-# ---- Blind-spot checks (BYPASS the validator — fold into the oracle under
-# ---- work item 0105; the validator does NOT enforce either today) ----------
-# Provenance over-emission: a non-anchored type must NOT carry revision/
-# repository in its composed emission (loaded template OR skill substitute-list).
-check_no_provenance_over_emission() { # $1 anchored $2 template-file $3 skill -> rc 0 clean / 1 over-emits
-  local anchored="$1" tmpl="$2" skill="$3" f
-  [ "$anchored" = "yes" ] && return 0
-  for f in "${FM_PROVENANCE_FIELDS[@]}"; do
-    grep -qE "^${f}:" "$tmpl" && return 1
-    grep -qE "^[[:space:]]*-[[:space:]]*\`${f}:\`" "$skill" && return 1
-  done
-  return 0
-}
-
-# Bare/unquoted linkage: every typed-linkage slot in the loaded template must be
-# empty (""/[]) or a quoted scalar / bracketed list — never a bare scalar.
-check_linkage_quoted() { # $1 template-file $2 linkkeys -> rc 0 clean / 1 bare value found
-  local tmpl="$1" keys="$2" key line val
-  for key in $keys; do
-    line=$(grep -E "^${key}:" "$tmpl" | head -1) || true
-    [ -n "$line" ] || continue
-    val="${line#*:}"
-    val="${val#"${val%%[![:space:]]*}"}" # trim leading ws
-    val="${val%%#*}"                     # strip trailing inline comment
-    val="${val%"${val##*[![:space:]]}"}" # trim trailing ws
-    case "$val" in
-      '' | '""' | '[]') continue ;; # empty slot
-      '"'*'"') continue ;;          # quoted scalar
-      '['*']') continue ;;          # bracketed list (quoted elements)
-      *) return 1 ;;                # bare/unquoted scalar — blind-spot hit
-    esac
-  done
-  return 0
-}
-
 # A pass/fail wrapper around a check function returning rc.
 assert_check() { # $1 name $2 expected_rc; remaining = command
   local name="$1" exprc="$2"
@@ -309,16 +275,6 @@ for skill in "${EMITTERS[@]}"; do
   emit_valid "$type" "$anchored" "$extras" "$status_lit" "$fx"
   assert_accepts "$label ($type): composed fixture accepted by validator" "$fx"
 
-  # Blind-spot 1 (BYPASSES validator; -> work item 0105): no provenance
-  # over-emission on a non-anchored type.
-  assert_check "$label ($type): no provenance over-emission [0105]" 0 \
-    check_no_provenance_over_emission "$anchored" "$tmpl_file" "$skill"
-
-  # Blind-spot 2 (BYPASSES validator; -> work item 0105): typed-linkage slots
-  # are quoted/empty, never bare.
-  assert_check "$label ($type): typed-linkage slots quoted/empty [0105]" 0 \
-    check_linkage_quoted "$tmpl_file" "$linkkeys"
-
   processed=$((processed + 1))
 done
 assert_eq "all 16 full-block emitters processed" "16" "$processed"
@@ -359,14 +315,21 @@ assert_accepts "provenance absent (non-anchored work-item) accepted" "$TMP/prov-
 emit_valid plan yes reviewer "draft" "$TMP/prov-missing.md"
 sed '/^revision: /d; /^repository: /d' "$TMP/prov-missing.md" >"$TMP/prov-missing2.md"
 assert_rejects "provenance missing on anchored type rejected" "MISSING-PROVENANCE" "$TMP/prov-missing2.md"
+# Over-emission: a non-anchored type carrying provenance rejects (the reverse
+# direction folded into the validator under work item 0105). Pairs with the
+# prov-absent accept above (non-anchored-with-no-provenance).
+emit_valid work-item no "kind priority external_id" "draft" "$TMP/prov-overemit.md" \
+  $'revision: "x"\nrepository: "y"'
+assert_rejects "provenance on non-anchored type rejected" \
+  "PROVENANCE-ON-NONANCHORED" "$TMP/prov-overemit.md"
 
 # Linkage: present (quoted typed ref) accepts; absent accepts; bare rejects.
 emit_valid work-item no "kind priority external_id" "draft" "$TMP/link-present.md" 'parent: "work-item:0001"'
 assert_accepts "typed-linkage present (quoted) accepted" "$TMP/link-present.md"
 emit_valid work-item no "kind priority external_id" "draft" "$TMP/link-absent.md"
 assert_accepts "typed-linkage absent accepted" "$TMP/link-absent.md"
-emit_valid work-item no "kind priority external_id" "draft" "$TMP/link-bare.md" 'parent: "0042"'
-assert_rejects "bare-number linkage rejected" "BAD-LINKAGE-SHAPE" "$TMP/link-bare.md"
+emit_valid work-item no "kind priority external_id" "draft" "$TMP/link-bare.md" 'parent: 0042'
+assert_rejects "bare (unquoted) linkage rejected" "BAD-LINKAGE-SHAPE" "$TMP/link-bare.md"
 
 # Omit-when-empty: present-and-valid accepts; absent accepts; empty rejects.
 emit_valid work-item no "kind priority external_id" "draft" "$TMP/owe-present.md" 'external_id: "JIRA-1"'
@@ -400,26 +363,6 @@ assert_axis_mutation "axis=type    -> INVALID-TYPE" "INVALID-TYPE" 's/^type: wor
 assert_axis_mutation "axis=status  -> BAD-STATUS" "BAD-STATUS" 's/^status: .*/status: bogus/'
 assert_axis_mutation "axis=extra   -> MISSING-EXTRA" "MISSING-EXTRA" '/^kind: /d'
 assert_axis_mutation "axis=schema_version -> BAD-SCHEMA-VERSION" "BAD-SCHEMA-VERSION" 's/^schema_version: 1$/schema_version: "1"/'
-
-# =============================================================================
-echo "=== Blind-spot liveness (each by-inspection check must be able to fail) ==="
-# Provenance over-emission: a non-anchored template carrying revision must trip
-# the check (the validator would NOT — that is the blind spot).
-LIVE_TMPL="$TMP/live-template.md"
-printf 'type: design-gap\nstatus: draft\nrevision: "x"\nrepository: "y"\n' >"$LIVE_TMPL"
-assert_check "blind-spot liveness: provenance over-emission detected" 1 \
-  check_no_provenance_over_emission "no" "$LIVE_TMPL" "$SCRIPT_DIR/frontmatter-emission-rules.sh"
-# Clean control: an anchored type is allowed to carry provenance.
-assert_check "blind-spot control: anchored provenance allowed" 0 \
-  check_no_provenance_over_emission "yes" "$LIVE_TMPL" "$SCRIPT_DIR/frontmatter-emission-rules.sh"
-
-# Bare linkage: a template slot with a bare scalar must trip the check.
-LIVE_LINK="$TMP/live-link.md"
-printf 'parent: 0042\nrelates_to: []\n' >"$LIVE_LINK"
-assert_check "blind-spot liveness: bare linkage detected" 1 check_linkage_quoted "$LIVE_LINK" "parent relates_to"
-LIVE_LINK_OK="$TMP/live-link-ok.md"
-printf 'parent: "work-item:0042"\nrelates_to: []\n' >"$LIVE_LINK_OK"
-assert_check "blind-spot control: quoted linkage accepted" 0 check_linkage_quoted "$LIVE_LINK_OK" "parent relates_to"
 
 # =============================================================================
 echo "=== No re-encoded contract ==="

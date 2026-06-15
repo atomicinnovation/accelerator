@@ -634,19 +634,19 @@ pass (the guard still sources `frontmatter-emission-rules.sh` and reads the TSV)
 
 #### Automated Verification:
 
-- [ ] Guard suite green: `bash scripts/test-skill-frontmatter-conformance.sh`
-- [ ] No orphaned 0105/helper references: `grep -rn '\[0105\]' scripts/` and
+- [x] Guard suite green: `bash scripts/test-skill-frontmatter-conformance.sh`
+- [x] No orphaned 0105/helper references: `grep -rn '\[0105\]' scripts/` and
       `grep -rn 'check_no_provenance_over_emission\|check_linkage_quoted' scripts/`
       both empty.
-- [ ] Producer-set reconciliation + count assertions still pass (16 emitters
+- [x] Producer-set reconciliation + count assertions still pass (16 emitters
       processed; discovery returns 17).
-- [ ] Full config suite green: `mise run test:integration:config`
-- [ ] `mise run test:unit:templates` green.
-- [ ] Shell lint/format clean: `mise run scripts:check`
+- [x] Full config suite green: `mise run test:integration:config`
+- [x] `mise run test:unit:templates` green.
+- [x] Shell lint/format clean: `mise run scripts:check`
 
 #### Manual Verification:
 
-- [ ] Reverting either validator rule turns the conformance guard's new
+- [x] Reverting either validator rule turns the conformance guard's new
       conditional-axis reject case red (proves the guard is tied to the rule, not
       green-path-only).
 
