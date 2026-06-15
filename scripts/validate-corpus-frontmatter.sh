@@ -292,11 +292,17 @@ validate_file() {
     fi
   fi
 
-  # Provenance bundle iff code_state_anchored=yes; git_commit/branch never.
+  # Provenance bundle iff code_state_anchored=yes (both directions enforced);
+  # git_commit/branch never.
   if [ "$anchored" = "yes" ]; then
     for f in "${FM_PROVENANCE_FIELDS[@]}"; do
       bk_present "$f" ||
         violation "$file" "MISSING-PROVENANCE" "anchored type missing provenance field '$f'"
+    done
+  else
+    for f in "${FM_PROVENANCE_FIELDS[@]}"; do
+      bk_present "$f" &&
+        violation "$file" "PROVENANCE-ON-NONANCHORED" "non-anchored type carries provenance field '$f'"
     done
   fi
   for f in "${FM_FORBIDDEN_PROVENANCE_FIELDS[@]}"; do

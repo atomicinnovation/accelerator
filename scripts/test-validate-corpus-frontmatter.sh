@@ -64,6 +64,20 @@ assert_rejects "missing base field rejected" "MISSING-BASE-FIELD" "$TMP/bad-miss
 emit_valid plan yes "reviewer" "draft | ready | in-progress | done" "$TMP/bad-gitcommit.md" 'git_commit: "deadbeef"'
 assert_rejects "git_commit present rejected" "FORBIDDEN-PROVENANCE" "$TMP/bad-gitcommit.md"
 
+# Non-anchored type carrying the provenance bundle is rejected (the reverse
+# direction of the iff). emit_valid only adds provenance for anchored types, so
+# inject it via extra_lines.
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-prov-nonanchored.md" \
+  $'revision: "abc123"\nrepository: "repo"'
+assert_rejects "non-anchored type with provenance rejected" \
+  "PROVENANCE-ON-NONANCHORED" "$TMP/bad-prov-nonanchored.md"
+
+# Single-field variant (only revision) still trips the rule.
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-prov-revision-only.md" \
+  'revision: "abc123"'
+assert_rejects "non-anchored type with lone revision rejected" \
+  "PROVENANCE-ON-NONANCHORED" "$TMP/bad-prov-revision-only.md"
+
 emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-ownid.md" 'work_item_id: "0001"'
 assert_rejects "forbidden own-id key rejected" "FORBIDDEN-OWN-ID" "$TMP/bad-ownid.md"
 

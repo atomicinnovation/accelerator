@@ -260,16 +260,16 @@ string-argument lines; the 80-col `.editorconfig` rule is not gated for shell).
 
 #### Automated Verification:
 
-- [ ] Both new fixtures pass: `bash scripts/test-validate-corpus-frontmatter.sh`
-- [ ] Full config suite green: `mise run test:integration:config`
-- [ ] Shell lint/format clean: `mise run scripts:check`
-- [ ] Real-corpus sanity still clean (covered by the suite's section 5)
+- [x] Both new fixtures pass: `bash scripts/test-validate-corpus-frontmatter.sh`
+- [x] Full config suite green: `mise run test:integration:config`
+- [x] Shell lint/format clean: `mise run scripts:check`
+- [x] Real-corpus sanity still clean (covered by the suite's section 5)
 
 #### Manual Verification:
 
-- [ ] Hand-run on a crafted non-anchored fixture with `revision:` prints
+- [x] Hand-run on a crafted non-anchored fixture with `revision:` prints
       `PROVENANCE-ON-NONANCHORED` and exits non-zero.
-- [ ] An anchored type (e.g. `plan`) still requires provenance (no regression to
+- [x] An anchored type (e.g. `plan`) still requires provenance (no regression to
       `MISSING-PROVENANCE`).
 
 ---
