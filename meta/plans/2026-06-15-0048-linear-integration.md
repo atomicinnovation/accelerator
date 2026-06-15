@@ -732,26 +732,26 @@ apart from the `work_item_id` line.
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/linear/scripts/test-linear-create.sh` passes
-- [ ] `bash skills/integrations/linear/scripts/test-linear-update.sh` passes
-- [ ] `bash skills/integrations/linear/scripts/test-linear-comment.sh` passes
-- [ ] create from a numeric-`work_item_id` file: issue title == work-item title,
+- [x] `bash skills/integrations/linear/scripts/test-linear-create.sh` passes
+- [x] `bash skills/integrations/linear/scripts/test-linear-update.sh` passes
+- [x] `bash skills/integrations/linear/scripts/test-linear-comment.sh` passes
+- [x] create from a numeric-`work_item_id` file: issue title == work-item title,
       description == rendered body, and the file's `work_item_id` is overwritten
       with the returned identifier (e.g. `BLA-123`)
-- [ ] create against an already-remote `work_item_id` creates no issue and
+- [x] create against an already-remote `work_item_id` creates no issue and
       reports already synced (exit 102) — including a quoted `"BLA-123"` value
-- [ ] a malformed returned identifier (newline/YAML) is rejected with
+- [x] a malformed returned identifier (newline/YAML) is rejected with
       `E_CREATE_BAD_IDENTIFIER` and the local file is left untouched
-- [ ] a successful remote create whose writeback then fails (e.g. read-only
+- [x] a successful remote create whose writeback then fails (e.g. read-only
       target file) yields `E_CREATE_WRITEBACK_FAILED` with a message naming the
       created identifier and warning against a blind re-run
-- [ ] on a successful create the file is byte-identical apart from the
+- [x] on a successful create the file is byte-identical apart from the
       `work_item_id` line (diff the remainder)
-- [ ] update setting title `T` + state `S` produces a payload with the
+- [x] update setting title `T` + state `S` produces a payload with the
       catalogue-resolved `stateId` and title `T` (body-capture assertion)
-- [ ] comment with a Markdown body sends `commentCreate.input.body` equal to the
+- [x] comment with a Markdown body sends `commentCreate.input.body` equal to the
       submitted Markdown (body-capture assertion)
-- [ ] `mise run scripts:check` passes
+- [x] `mise run scripts:check` passes
 
 #### Manual Verification
 

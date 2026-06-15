@@ -1,0 +1,18 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"commentCreate\": {\"success\": true, \"comment\": {\"id\": \"comment-1\"}}}}"
+      },
+      "expect_body_contains": "commentCreate",
+      "capture_body": true
+    }
+  ]
+}

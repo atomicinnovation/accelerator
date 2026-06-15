@@ -1,0 +1,17 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issueCreate\": {\"success\": true, \"issue\": {\"id\": \"uuid-x\", \"identifier\": \"BLA-1\\ninjected: evil\"}}}}"
+      },
+      "expect_body_contains": "issueCreate"
+    }
+  ]
+}
