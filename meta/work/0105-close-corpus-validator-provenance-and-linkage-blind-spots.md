@@ -5,7 +5,7 @@ title: "Close the Corpus Validator Provenance and Linkage Blind Spots"
 date: "2026-06-10T13:37:48+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: task
 priority: medium
 parent: "work-item:0057"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0105: Close the Corpus Validator Provenance and Linkage Blind Spots
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
