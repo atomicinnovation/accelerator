@@ -241,6 +241,11 @@ export interface Completeness {
   hasValidation: boolean;
   hasPrDescription: boolean;
   hasPrReview: boolean;
+  /** `decisions` still clusters and is pushed into `present` server-side, but
+   *  is intentionally NOT a lifecycle pipeline stage: it is absent from
+   *  LIFECYCLE_PIPELINE_STEPS, so it never renders as a pipeline tile/dot and is
+   *  excluded from the workflow stage count. The flag is retained so decisions
+   *  surface in related-artifacts and the wire shape / fixtures stay stable. */
   hasDecision: boolean;
   hasNotes: boolean;
   hasDesignInventory: boolean;
@@ -280,7 +285,6 @@ type PipelineStepKey =
   | "hasValidation"
   | "hasPrDescription"
   | "hasPrReview"
-  | "hasDecision"
   | "hasNotes"
   | "hasDesignInventory"
   | "hasDesignGap";
@@ -335,12 +339,6 @@ export const LIFECYCLE_PIPELINE_STEPS: ReadonlyArray<{
     placeholder: "no PR review yet",
   },
   {
-    key: "hasDecision",
-    docType: "decisions",
-    label: "Decision",
-    placeholder: "no decision yet",
-  },
-  {
     key: "hasNotes",
     docType: "notes",
     label: "Notes",
@@ -370,6 +368,16 @@ export const WORKFLOW_PIPELINE_STEPS = LIFECYCLE_PIPELINE_STEPS.filter(
 export const LONG_TAIL_PIPELINE_STEPS = LIFECYCLE_PIPELINE_STEPS.filter(
   (s) => s.longTail,
 );
+
+/** Number of workflow (non-long-tail) stages present, for the "N of
+ *  {WORKFLOW_PIPELINE_STEPS.length}" pipeline counter. Filters against
+ *  `docType` because `Completeness.present` holds kebab-case `DocTypeKey`
+ *  strings (NOT the camelCase `has*` keys), and excludes the three long-tail
+ *  keys so the numerator shares the workflow domain of the denominator. */
+export function workflowStagesComplete(present: readonly string[]): number {
+  const set = new Set(present);
+  return WORKFLOW_PIPELINE_STEPS.filter((s) => set.has(s.docType)).length;
+}
 
 export interface LibraryStructureResponse {
   phases: LibraryPhase[];

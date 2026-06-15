@@ -1,6 +1,9 @@
 import type { CSSProperties } from "react";
 import type { Completeness } from "../../api/types";
-import { WORKFLOW_PIPELINE_STEPS } from "../../api/types";
+import {
+  WORKFLOW_PIPELINE_STEPS,
+  workflowStagesComplete,
+} from "../../api/types";
 import { Glyph } from "../Glyph/Glyph";
 import styles from "./Pipeline.module.css";
 
@@ -22,11 +25,12 @@ interface StageStyle extends CSSProperties {
 
 export function Pipeline({ completeness, variant = "card" }: Props) {
   const present = new Set(completeness.present);
+  const complete = workflowStagesComplete(completeness.present);
   return (
     <ol
       className={`${styles.chain} ac-stagechain`}
       data-variant={variant}
-      aria-label={`Lifecycle pipeline, ${present.size} of 8 stages complete`}
+      aria-label={`Lifecycle pipeline, ${complete} of ${WORKFLOW_PIPELINE_STEPS.length} stages complete`}
     >
       {WORKFLOW_PIPELINE_STEPS.map((step, i) => {
         const active = present.has(step.docType);

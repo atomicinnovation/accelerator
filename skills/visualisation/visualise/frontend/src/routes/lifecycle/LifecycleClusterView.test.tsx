@@ -83,16 +83,14 @@ describe("LifecycleClusterContent", () => {
     ).toMatch(/^Pipeline$/i);
 
     const tiles = panel.querySelectorAll("[data-stage]");
-    expect(tiles).toHaveLength(8);
+    expect(tiles).toHaveLength(7);
 
     expect(
       panel.querySelector('[data-stage="plans"]')!.getAttribute("data-active"),
     ).toBe("true");
-    expect(
-      panel
-        .querySelector('[data-stage="decisions"]')!
-        .getAttribute("data-active"),
-    ).toBe("true");
+    // Decisions is no longer a lifecycle pipeline stage, so the cluster (which
+    // still has a decision entry) renders NO decisions tile.
+    expect(panel.querySelector('[data-stage="decisions"]')).toBeNull();
     expect(
       panel
         .querySelector('[data-stage="work-items"]')!
@@ -112,11 +110,41 @@ describe("LifecycleClusterContent", () => {
     expect(back.getAttribute("href")).toBe("/lifecycle");
   });
 
-  it("renders one timeline step per present entry", async () => {
+  it("renders one timeline step per present workflow/long-tail entry", async () => {
     vi.spyOn(fetchModule, "fetchLifecycleCluster").mockResolvedValue(cluster);
     render(<LifecycleClusterContent slug="foo" />, { wrapper: Wrapper });
     expect(await screen.findByText("The Foo Plan")).toBeInTheDocument();
-    expect(screen.getByText("ADR Foo")).toBeInTheDocument();
+    // The cluster has a decision entry, but decisions is no longer a lifecycle
+    // pipeline stage, so it renders no timeline node in the cluster view (it
+    // still clusters and surfaces in related-artifacts on the doc page).
+    expect(screen.queryByText("ADR Foo")).toBeNull();
+    expect(document.querySelector('[data-stage="decisions"]')).toBeNull();
+  });
+
+  it("renders no root-cause-analyses node even when the cluster has an RCA entry", async () => {
+    // RCA is out-of-lifecycle (never a pipeline stage); lock that it renders no
+    // cluster node regardless of an RCA entry being present.
+    const rcaCluster: LifecycleCluster = {
+      ...cluster,
+      entries: [
+        ...cluster.entries,
+        entry(
+          "root-cause-analyses",
+          "meta/root-cause-analyses/2026-04-20-foo-rca.md",
+          "Foo RCA",
+          300,
+        ),
+      ],
+    };
+    vi.spyOn(fetchModule, "fetchLifecycleCluster").mockResolvedValue(
+      rcaCluster,
+    );
+    render(<LifecycleClusterContent slug="foo" />, { wrapper: Wrapper });
+    expect(await screen.findByText("The Foo Plan")).toBeInTheDocument();
+    expect(screen.queryByText("Foo RCA")).toBeNull();
+    expect(
+      document.querySelector('[data-stage="root-cause-analyses"]'),
+    ).toBeNull();
   });
 
   it("renders a missing-stage placeholder card for each absent workflow stage", async () => {

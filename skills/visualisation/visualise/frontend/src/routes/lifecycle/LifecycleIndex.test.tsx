@@ -104,7 +104,7 @@ describe("LifecycleIndex", () => {
     expect(screen.getByText("Newer Cluster")).toBeInTheDocument();
   });
 
-  it("renders a Pipeline + N/8 counter inside .ac-lcard__pipe per cluster", async () => {
+  it("renders a Pipeline + N/7 counter inside .ac-lcard__pipe per cluster", async () => {
     vi.spyOn(fetchModule, "fetchLifecycleClusters").mockResolvedValue(clusters);
     const { container } = render(<LifecycleIndex />, { wrapper: Wrapper });
     await screen.findByText("Older Cluster");
@@ -112,23 +112,28 @@ describe("LifecycleIndex", () => {
     const pipes = container.querySelectorAll(".ac-lcard__pipe");
     expect(pipes.length).toBe(clusters.length);
 
-    // Older cluster (after default 'recent' sort, sits second): present = ['plans'] → 1/8
+    // Older cluster (after default 'recent' sort, sits second): present = ['plans'] → 1/7
     const older = within(pipes[1] as HTMLElement);
-    expect(older.getByText("1/8")).toBeInTheDocument();
+    expect(older.getByText("1/7")).toBeInTheDocument();
     expect(
       (pipes[1] as HTMLElement)
         .querySelector('[data-stage="plans"]')!
         .getAttribute("data-active"),
     ).toBe("true");
 
-    // Newer cluster: present has 4 entries, 4 of which are workflow → 4/8
+    // Newer cluster: present has 4 entries, but only 3 are workflow stages
+    // (decisions is no longer a stage) → 3/7.
     const newer = within(pipes[0] as HTMLElement);
-    expect(newer.getByText("4/8")).toBeInTheDocument();
+    expect(newer.getByText("3/7")).toBeInTheDocument();
     expect(
       (pipes[0] as HTMLElement)
-        .querySelector('[data-stage="decisions"]')!
+        .querySelector('[data-stage="plan-reviews"]')!
         .getAttribute("data-active"),
     ).toBe("true");
+    // No decisions tile renders even though the cluster has a decision entry.
+    expect(
+      (pipes[0] as HTMLElement).querySelector('[data-stage="decisions"]'),
+    ).toBeNull();
   });
 
   it("renders a status chip when the cluster has a work-item with a status", async () => {
@@ -198,7 +203,7 @@ describe("LifecycleIndex", () => {
     expect(within(group).queryByRole("button", { name: /oldest/i })).toBeNull();
   });
 
-  it("renders 8 pipeline tiles per card", async () => {
+  it("renders 7 pipeline tiles per card", async () => {
     vi.spyOn(fetchModule, "fetchLifecycleClusters").mockResolvedValue(clusters);
     render(<LifecycleIndex />, { wrapper: Wrapper });
     await screen.findByText("Newer Cluster");
@@ -207,7 +212,7 @@ describe("LifecycleIndex", () => {
     });
     expect(pipelines).toHaveLength(2);
     pipelines.forEach((p) => {
-      expect(within(p).getAllByRole("listitem")).toHaveLength(8);
+      expect(within(p).getAllByRole("listitem")).toHaveLength(7);
     });
   });
 

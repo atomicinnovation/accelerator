@@ -5,14 +5,14 @@ import { WORKFLOW_PIPELINE_STEPS } from "../../api/types";
 import { PipelineMini } from "./PipelineMini";
 
 describe("PipelineMini", () => {
-  it("renders eight <li> dots inside an <ol> root in canonical order", () => {
+  it("renders seven <li> dots inside an <ol> root in canonical order", () => {
     const { container } = render(
       <PipelineMini completeness={makeCompleteness()} />,
     );
     const root = container.querySelector("ol.ac-stagedots")!;
     expect(root).toBeInTheDocument();
     const dots = root.querySelectorAll("li[data-stage]");
-    expect(dots).toHaveLength(8);
+    expect(dots).toHaveLength(7);
     const order = Array.from(dots).map((d) => d.getAttribute("data-stage"));
     expect(order).toEqual(WORKFLOW_PIPELINE_STEPS.map((s) => s.docType));
   });

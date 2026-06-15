@@ -1,5 +1,8 @@
 import type { Completeness } from "../../api/types";
-import { WORKFLOW_PIPELINE_STEPS } from "../../api/types";
+import {
+  WORKFLOW_PIPELINE_STEPS,
+  workflowStagesComplete,
+} from "../../api/types";
 import styles from "./PipelineMini.module.css";
 
 interface Props {
@@ -8,10 +11,11 @@ interface Props {
 
 export function PipelineMini({ completeness }: Props) {
   const present = new Set(completeness.present);
+  const complete = workflowStagesComplete(completeness.present);
   return (
     <ol
       className={`${styles.row} ac-stagedots`}
-      aria-label={`Lifecycle pipeline, ${present.size} of 8 stages complete`}
+      aria-label={`Lifecycle pipeline, ${complete} of ${WORKFLOW_PIPELINE_STEPS.length} stages complete`}
     >
       {WORKFLOW_PIPELINE_STEPS.map((step) => {
         const active = present.has(step.docType);

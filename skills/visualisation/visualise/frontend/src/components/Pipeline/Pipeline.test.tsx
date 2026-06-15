@@ -5,14 +5,34 @@ import { WORKFLOW_PIPELINE_STEPS } from "../../api/types";
 import { Pipeline } from "./Pipeline";
 
 describe("Pipeline", () => {
-  it("renders exactly eight stage tiles in canonical order", () => {
+  it("renders exactly seven stage tiles in canonical order", () => {
     const { container } = render(
       <Pipeline completeness={makeCompleteness()} />,
     );
     const tiles = container.querySelectorAll("[data-stage]");
-    expect(tiles).toHaveLength(8);
+    expect(tiles).toHaveLength(7);
     const order = Array.from(tiles).map((t) => t.getAttribute("data-stage"));
     expect(order).toEqual(WORKFLOW_PIPELINE_STEPS.map((s) => s.docType));
+  });
+
+  it("aria-label counts only workflow stages (excludes long-tail keys) over the workflow total", () => {
+    // present carries a long-tail key (notes) alongside two workflow stages.
+    // The numerator must count workflow stages only (2), NOT present.size (3),
+    // against the workflow denominator (7) — guarding the docType-filtered
+    // numerator domain.
+    const { container } = render(
+      <Pipeline
+        completeness={makeCompleteness({
+          hasWorkItem: true,
+          hasPlan: true,
+          hasNotes: true,
+          present: ["work-items", "plans", "notes"],
+        })}
+      />,
+    );
+    expect(
+      container.querySelector("ol.ac-stagechain")!.getAttribute("aria-label"),
+    ).toBe("Lifecycle pipeline, 2 of 7 stages complete");
   });
 
   it("marks present stages active and absent stages inactive via data-active", () => {

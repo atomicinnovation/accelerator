@@ -81,15 +81,20 @@ META/Templates block carries the compounded opacity dampening + reduced font siz
 - **The stage model has a cross-language parity contract**: frontend
   `LIFECYCLE_PIPELINE_STEPS` ↔ Rust `STAGE_PUSH_ORDER`, asserted by
   `pipeline-step-parity.test.ts` against a hardcoded `CANONICAL_PRESENT_ORDER`.
-  Removing a stage must update all three in lockstep.
+  The Rust order is the canonical superset; the frontend renders it **minus the
+  backend-only `decisions` key**, and the parity test pins exactly that
+  relationship.
 
 ## What We're NOT Doing
 
-- **Not** adopting the view-layer omit (`LIFECYCLE_OMIT`) approach for L2 — the
-  planner chose the shared-model edit (strategy A).
+- **Not** touching the backend clustering / `present` model for L2. `decisions`
+  stays in the Rust `STAGE_PUSH_ORDER` and `present`; the omission is frontend-only
+  (dropped from `LIFECYCLE_PIPELINE_STEPS`), keeping the Rust side as the canonical
+  present superset.
 - **Not** excising the `hasDecision`/`has_decision` completeness boolean. Decisions
   must still cluster and surface in related-artifacts; we remove only its
-  *pipeline-stage membership*, retaining the recorded boolean to avoid churning
+  *frontend pipeline-stage membership*, retaining the recorded boolean to avoid
+  churning
   10+ test fixtures (`api/types.ts:244`, `test-fixtures.ts:17`, `fetch.test.ts`,
   `router.test.tsx`, `DevDesignSystem.tsx`, etc.).
 - **Not** dropping `root-cause-analyses` from the lifecycle cluster as a code change
@@ -516,23 +521,26 @@ heading.
 
 ### Overview
 
-Highest-risk fix — the only one with cross-language behavioural logic. Remove
-`decisions` from the pipeline-stage model on **both** the frontend and Rust sides
-in lockstep, switch the hardcoded `8` denominators to the self-deriving
-`WORKFLOW_PIPELINE_STEPS.length`, and update tests. Decisions remain clustered and
-visible in related-artifacts (the `hasDecision`/`has_decision` boolean is retained;
-only stage membership is removed). RCA needs no change (already excluded) — add a
-regression test asserting it. TDD: update the parity test + cluster assertions
-first, then make them green.
+Remove `decisions` from the **frontend** pipeline-stage model
+(`LIFECYCLE_PIPELINE_STEPS`), switch the hardcoded `8` denominators to the
+self-deriving `WORKFLOW_PIPELINE_STEPS.length`, and update tests. The **backend
+clustering is left unchanged** — `decisions` stays in the Rust `STAGE_PUSH_ORDER`
+and is still pushed into `completeness.present`; the SPA simply does not render or
+count it. Decisions remain clustered and visible in related-artifacts (the
+`hasDecision`/`has_decision` boolean is retained). RCA needs no change (already
+excluded) — add a regression test asserting it. TDD: update the parity test +
+cluster assertions first, then make them green.
 
-**Cross-surface scope (intentional).** This is the shared-model strategy (A), not
-a view-layer omit. `WORKFLOW_PIPELINE_STEPS` / `completeness.present` is consumed
-not only by the lifecycle cluster but also by `Pipeline` (lifecycle-index cards)
-and `PipelineMini` (kanban work-item cards). Removing `decisions` therefore drops
-the decision tile/dot — and lowers the `present` numerator — on the lifecycle
-**index** and the **kanban board** too. This is deliberate: "decisions is not a
-linear pipeline stage" holds on every surface, matching the prototype's intent.
-Because these surfaces change, their VR baselines are in scope for the closeout
+**Cross-surface scope (intentional).** `WORKFLOW_PIPELINE_STEPS` is consumed not
+only by the lifecycle cluster but also by `Pipeline` (lifecycle-index cards) and
+`PipelineMini` (kanban work-item cards), and all three gate rendering on
+`present.has(step.docType)`. Dropping `decisions` from `WORKFLOW_PIPELINE_STEPS`
+therefore removes the decision tile/dot — and the workflow-stage numerator no
+longer counts it — on the lifecycle **index** and the **kanban board** too, even
+though `present` still carries `"decisions"` from the backend. This is deliberate:
+"decisions is not a linear pipeline stage" holds on every surface, matching the
+prototype's intent. Because these surfaces change, their VR baselines are in scope
+for the closeout
 (see the updated Closeout + Testing Strategy sections): the kanban
 work-item-card baseline and the lifecycle-index card baseline must regenerate
 alongside the lifecycle-cluster `tokens.spec` baselines.
@@ -547,36 +555,27 @@ alongside the lifecycle-cluster `tokens.spec` baselines.
 (`:283`). **Retain** `Completeness.hasDecision` (`:244`).
 
 **File**: `src/api/pipeline-step-parity.test.ts`
-**Changes**: Remove `"decisions"` from `CANONICAL_PRESENT_ORDER` (`:19`); list now
-has 10 entries.
+**Changes**: **Keep** `"decisions"` in `CANONICAL_PRESENT_ORDER` (11 entries) so
+it still mirrors the unchanged Rust `STAGE_PUSH_ORDER`. Assert that
+`LIFECYCLE_PIPELINE_STEPS` equals that order with `"decisions"` filtered out —
+the frontend renders the backend present order minus the backend-only decisions
+key.
 
-#### 2. Rust stage-push order
+#### 2. Rust stage-push order — left unchanged
 
 **File**: `server/src/clusters.rs`
-**Changes**: Remove the `(|c| c.has_decision, "decisions")` tuple from
-`STAGE_PUSH_ORDER` (`:38`). **Retain** the `has_decision` field (`:20`), its
-initializer (`:397`), and the `DocTypeKey::Decisions => c.has_decision = true` arm
-(`:415`) — decisions still clusters (`canonical_rank` Decisions `=> 7` unchanged,
-`:364`) and surfaces in related-artifacts; it is simply no longer pushed into
-`present`. Add a one-line comment at the `has_decision` field (`:20`) noting it is
-**intentionally retained** for fixture/wire stability but no longer participates
-in `present`/the lifecycle pipeline, so the field does not read as dead code (the
-same note belongs on `Completeness.hasDecision`, `types.ts:244`).
-
-**Test reality check**: there is **no** existing `clusters.rs` test that asserts
-`"decisions"` in a `present` vector — decisions are orphan-by-design and never
-merge into a lifecycle cluster's `present` (e.g. `completeness_flags_track_present_types`
-asserts `!c.has_decision`). So removing the tuple makes the Rust suite pass
-unchanged, which means the server-side change would be **unverified**. Add a new
-assertion that locks the behaviour in. **Target the present-derivation directly,
-not the public `compute()` path**: because clustering prevents a `Decisions` entry
-from ever co-residing in a lifecycle cluster, a `compute()`-level test with a
-co-slugged decision would pass whether or not the tuple is removed (vacuous).
-Instead call `derive_completeness(&[entry(DocTypeKey::Decisions, …)])` directly
-(it takes `&[IndexEntry]`, not a `Completeness`; the `:415` arm sets
-`has_decision = true`, and it is reachable from `mod tests` via `use super::*` —
-no extraction needed), and assert the returned `present` excludes `"decisions"`.
-Confirm the test **fails before** the tuple removal and **passes after**.
+**Changes**: **None to the clustering behaviour.** `decisions` is the canonical
+`present` model and the backend stays as-is: the `(|c| c.has_decision, "decisions")`
+tuple remains in `STAGE_PUSH_ORDER`, decisions still cluster and are still pushed
+into `present` server-side. This is the chosen scope (see What We're NOT Doing):
+the lifecycle view is a **frontend** decision, so the Rust side is the canonical
+superset and the SPA simply omits `decisions` from `LIFECYCLE_PIPELINE_STEPS`.
+The only edit here is a clarifying comment on `STAGE_PUSH_ORDER` documenting that
+`decisions` is intentionally a backend-only `present` key with no rendered
+lifecycle stage, and that the frontend order must match this literal **minus**
+`decisions` (pinned by the parity test). No new Rust assertion is added — the
+behaviour being asserted (present *includes* decisions) is the pre-existing,
+already-covered server behaviour.
 
 #### 3. Self-deriving stage-count denominators
 
@@ -664,8 +663,6 @@ statuses**, unrelated to pipeline stages.
   `tokens.spec` lifecycle VR is an acceptable alternative anchor.
 - An RCA-bearing cluster renders **no** RCA node (locks in the already-true
   behaviour).
-- A new Rust assertion (see §2) that `has_decision = true` yields a `present`
-  without `"decisions"`.
 - Wording-only: when the `ADR Foo` decision-node assertion is dropped, reword the
   `LifecycleClusterView.test.tsx:115` test title ("renders one timeline step per
   present entry") — post-L2 the fixture's `present` still contains `"decisions"`
@@ -676,25 +673,25 @@ statuses**, unrelated to pipeline stages.
 
 #### Automated Verification
 
-- [ ] Frontend check passes: `mise run frontend:check`
-- [ ] Server check passes: `mise run server:check`
-- [ ] Parity test passes: `cd skills/visualisation/visualise/frontend && npx vitest run -t "parity"`
-- [ ] Full unit suites pass — **all** the `8 → 7` sites enumerated in §4 updated
-      (`Pipeline`, `PipelineMini`, `LifecycleClusterView`, `LifecycleIndex`),
-      including the removed `data-stage="decisions"` query: `mise run test:unit:frontend`
-      and `cd skills/visualisation/visualise/server && cargo test`
-- [ ] An assertion pins the Pipeline aria-label numerator + denominator ("N of 7
-      stages complete") so the self-deriving count cannot silently drift. Use a
-      **partial** fixture whose `present` includes at least one long-tail key
-      (e.g. `notes`) plus a subset of workflow stages, asserting e.g. "3 of 7" —
-      this is what guards the numerator-domain fix (`docType`-filtered count vs
-      the old `present.size` over-count); the existing all-present
-      `DevDesignSystem.test.tsx:288-302` guard only covers the "N of N" case
-- [ ] New Rust assertion passes: `has_decision = true` ⇒ `present` excludes
-      `"decisions"`
+- [x] Frontend check passes: `mise run frontend:check`
+- [x] Server check passes: `mise run server:check`
+- [x] Parity test passes (`CANONICAL_PRESENT_ORDER` mirrors the unchanged Rust
+      `STAGE_PUSH_ORDER` = 11 entries; the frontend renders that order minus the
+      backend-only `decisions` key; part of the frontend unit suite)
+- [x] Full unit suites pass — all `8 → 7` sites updated (`Pipeline`,
+      `PipelineMini`, `LifecycleClusterView`, `LifecycleIndex`), `data-stage="decisions"`
+      query removed: `mise run test:unit:frontend` (2536) and
+      `cargo test` (537)
+- [x] Pipeline aria-label numerator + denominator pinned by a **partial** fixture
+      (`Pipeline.test.tsx`: present `["work-items","plans","notes"]` ⇒ "2 of 7
+      stages complete"), guarding the `docType`-filtered numerator vs the old
+      `present.size` over-count
+- [x] Backend clustering left unchanged: `decisions` is still pushed into
+      `present` by `STAGE_PUSH_ORDER`; the frontend simply omits it from
+      `LIFECYCLE_PIPELINE_STEPS` so it never renders or counts as a stage
 - [ ] Lifecycle-cluster (`tokens.spec`), lifecycle-index card, and kanban
-      work-item-card VR baselines regenerate and compare clean (all three surfaces
-      lose the decision tile/dot): `mise run test:e2e:visualiser:docker:update`
+      work-item-card VR baselines regenerate and compare clean: **deferred to
+      Closeout** (full canonical regen)
 
 #### Manual Verification
 
@@ -723,14 +720,16 @@ statuses**, unrelated to pipeline stages.
 
 ### Unit Tests
 
-- L2: parity test (`CANONICAL_PRESENT_ORDER` = 10 entries); the full set of
-  `8 → 7` count assertions (`Pipeline`, `PipelineMini`, `LifecycleClusterView`,
-  `LifecycleIndex` incl. the `:198-209` per-card test); removal of the
-  `data-stage="decisions"` query in `LifecycleIndex.test.tsx`; no-decision-node
-  regression (negative, in the cluster view); decision-still-in-related-artifacts
-  regression (in a `LibraryDocView`/`RelatedArtifacts` test or VR); RCA-absence
-  regression; aria-label "N of 7" assertion; new Rust assertion that
-  `has_decision = true` excludes `"decisions"` from `present`.
+- L2: parity test (`CANONICAL_PRESENT_ORDER` = 11 entries, mirroring the unchanged
+  Rust `STAGE_PUSH_ORDER`; `LIFECYCLE_PIPELINE_STEPS` = that order minus the
+  backend-only `decisions` key); the full set of `8 → 7` count assertions
+  (`Pipeline`, `PipelineMini`, `LifecycleClusterView`, `LifecycleIndex` incl. the
+  `:198-209` per-card test); removal of the `data-stage="decisions"` query in
+  `LifecycleIndex.test.tsx`; no-decision-node regression (negative, in the cluster
+  view); decision-still-in-related-artifacts regression (in a
+  `LibraryDocView`/`RelatedArtifacts` test or VR); RCA-absence regression;
+  aria-label "N of 7" assertion. The backend is unchanged, so no new Rust
+  assertion is needed.
 - L3: `LifecycleIndex` wording assertions — exact verbatim subtitle string.
 
 ### Integration / Visual Regression
@@ -760,13 +759,15 @@ None — CSS rules, a wrapper element, string edits, and a constant removal.
 
 No data migration. The L2 stage-order parity contract (frontend
 `LIFECYCLE_PIPELINE_STEPS` ↔ Rust `STAGE_PUSH_ORDER` ↔ `CANONICAL_PRESENT_ORDER`)
-is the cross-surface coupling; all three are edited in Phase 6 together.
+is the cross-surface coupling; the Rust order is unchanged and the frontend +
+`CANONICAL_PRESENT_ORDER` are kept consistent with it (frontend = Rust order minus
+`decisions`) in Phase 6.
 
-Note that the serialised `present: string[]` field is itself part of the
-behavioural contract being changed — after L2 a cluster with a decision still
-emits `hasDecision: true` but its `present` no longer contains `"decisions"`. The
-embedded SPA stays consistent because all its readers (`Pipeline`, `PipelineMini`,
-`LifecycleIndex`, `DevDesignSystem`) gate on `WORKFLOW_PIPELINE_STEPS`, edited in
+Note that the serialised `present: string[]` field is **unchanged** — a cluster
+with a decision still emits `hasDecision: true` and still contains `"decisions"`
+in `present`. The embedded SPA simply does not render or count it, because all its
+readers (`Pipeline`, `PipelineMini`, `LifecycleIndex`, `DevDesignSystem`) gate on
+`WORKFLOW_PIPELINE_STEPS`, edited in
 the same change; the SPA is the sole consumer of `/api/lifecycle` (bundled via
 `rust-embed`), so no out-of-tree reader of `present` is affected.
 

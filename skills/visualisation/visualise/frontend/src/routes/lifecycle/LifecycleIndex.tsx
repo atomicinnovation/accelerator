@@ -10,6 +10,7 @@ import {
   type IndexEntry,
   type LifecycleCluster,
   WORKFLOW_PIPELINE_STEPS,
+  workflowStagesComplete,
 } from "../../api/types";
 import { Chip } from "../../components/Chip/Chip";
 import { Page } from "../../components/Page/Page";
@@ -90,9 +91,9 @@ export function LifecycleIndex() {
         {visible.map((cluster) => {
           const status = statusOf(cluster);
           const artifactCount = cluster.entries.length;
-          const stagesComplete = cluster.completeness.present.filter((p) =>
-            WORKFLOW_PIPELINE_STEPS.some((s) => s.docType === p),
-          ).length;
+          const stagesComplete = workflowStagesComplete(
+            cluster.completeness.present,
+          );
           return (
             <li key={cluster.slug} className={styles.card}>
               <Link
@@ -124,7 +125,7 @@ export function LifecycleIndex() {
                     variant="card"
                   />
                   <span className={styles.cardPipeCount}>
-                    {stagesComplete}/8
+                    {stagesComplete}/{WORKFLOW_PIPELINE_STEPS.length}
                   </span>
                 </div>
               </Link>

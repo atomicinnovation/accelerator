@@ -24,9 +24,13 @@ pub struct Completeness {
     pub present: Vec<String>,
 }
 
-// Single source of truth for stage push order. MUST match the frontend's
-// LIFECYCLE_PIPELINE_STEPS (in `frontend/src/api/types.ts`) followed by
-// LONG_TAIL_PIPELINE_STEPS. Cross-reference any reordering on both sides.
+// Single source of truth for stage push order. The clustering / `present`
+// model is the canonical superset; `decisions` is pushed here but is
+// intentionally NOT a rendered lifecycle stage on the frontend, which omits it
+// from LIFECYCLE_PIPELINE_STEPS (in `frontend/src/api/types.ts`). The frontend
+// order must otherwise match this literal minus `decisions` — the parity test
+// in `frontend/src/api/pipeline-step-parity.test.ts` pins that relationship.
+// Cross-reference any reordering on both sides.
 const STAGE_PUSH_ORDER: &[(fn(&Completeness) -> bool, &str)] = &[
     (|c| c.has_work_item, "work-items"),
     (|c| c.has_research, "research"),
