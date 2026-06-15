@@ -123,6 +123,18 @@ const MARKDOWN_COMPONENTS: Components = {
     );
   },
 
+  // Wrap the native <table> in a rounding wrapper that owns the border +
+  // radius + overflow:hidden, mirroring the .codeblock pattern — border-collapse
+  // on the inner table makes the wrapper mandatory for visibly rounded corners,
+  // and overflow:hidden clips wide tables (the prototype does not scroll them).
+  table({ children, node: _node, ...rest }) {
+    return (
+      <div className={styles.tableWrap}>
+        <table {...rest}>{children}</table>
+      </div>
+    );
+  },
+
   // Drop the GFM task-list checkbox wherever it sits (tight or loose),
   // independent of the <p>-unwrapping detail and of react-markdown's
   // element-type resolution. Scoped to the disabled checkbox mdast-util-to-hast

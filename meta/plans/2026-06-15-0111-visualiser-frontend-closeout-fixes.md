@@ -251,13 +251,15 @@ regression that slips under the VR `maxDiffPixelRatio` budget is still caught.
 
 #### Automated Verification
 
-- [ ] Frontend check passes: `mise run frontend:check`
-- [ ] Unit tests pass (incl. the bumped `1px` ledger count): `mise run test:unit:frontend`
-- [ ] Resolved-styles assertion passes (`.tableWrap` has `overflow: hidden`; `hr`
+- [x] Frontend check passes: `mise run frontend:check`
+- [x] Unit tests pass (incl. the bumped `1px` ledger count): `mise run test:unit:frontend`
+- [x] Resolved-styles assertion passes (`.tableWrap` has `overflow: hidden`; `hr`
       resolves to `--ac-stroke`)
 - [ ] New VR baselines render and compare clean: `mise run test:e2e:visualiser:docker`
+      — **deferred to Closeout** (full canonical regen; markdown specs verified
+      passing in the interim regen)
 - [ ] Baselines regenerated: `mise run test:e2e:visualiser:docker:update` produces
-      `dev-design-system-markdown` snapshots
+      `dev-design-system-markdown` snapshots — **deferred to Closeout**
 
 #### Manual Verification
 

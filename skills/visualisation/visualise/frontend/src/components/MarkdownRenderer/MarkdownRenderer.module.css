@@ -62,12 +62,47 @@
   font-family: var(--ac-font-mono);
   font-size: var(--size-115);
 }
-.markdown table { border-collapse: collapse; width: 100%; margin: var(--sp-4) 0; }
-.markdown th, .markdown td { border: 1px solid var(--ac-stroke-soft); padding: 0.4rem var(--sp-3); }
-.markdown th { background: var(--ac-bg-sunken); font-weight: 600; }
+/* Rounded table wrapper (cf. .codeblock): the wrapper owns the border +
+   radius + overflow:hidden so border-collapse corners round visibly and a
+   wide table clips rather than scrolls (matching the prototype). */
+.tableWrap {
+  margin: var(--sp-4) 0;
+  border: 1px solid var(--ac-stroke);
+  border-radius: var(--radius-6);
+  overflow: hidden;
+  background: var(--ac-bg-card);
+}
+.markdown table { width: 100%; border-collapse: collapse; }
+.markdown thead th {
+  text-align: left;
+  font-family: var(--ac-font-display);
+  font-weight: 600;
+  font-size: var(--size-115);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ac-fg-faint);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--ac-bg-sunken);
+  border-bottom: 1px solid var(--ac-stroke);
+}
+.markdown tbody td {
+  padding: var(--sp-2) var(--sp-3);
+  border-top: 1px solid var(--ac-stroke-soft);
+  color: var(--ac-fg);
+  vertical-align: top;
+}
+.markdown tbody tr:first-child td { border-top: none; }
 /* table-body size override for the inline-code pill defined above —
    :not(pre code) lifts specificity to (0,1,4) to beat the base (0,1,3). */
 .markdown td code:not(pre code) { font-size: var(--size-110); }
+
+/* M3 — muted, theme-reactive divider (prototype .ac-md-hr). */
+.markdown hr {
+  border: 0;
+  height: 1px;
+  background: var(--ac-stroke);
+  margin: var(--sp-6) 0;
+}
 .markdown blockquote {
   border-left: 4px solid var(--ac-stroke); margin: var(--sp-4) 0;
   padding: var(--sp-2) var(--sp-4); color: var(--ac-fg-muted);

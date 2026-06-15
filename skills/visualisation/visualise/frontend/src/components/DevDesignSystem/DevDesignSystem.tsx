@@ -1112,10 +1112,13 @@ Paragraph copy with **bold**, *italic*, \`inline code\`, and a [[ADR-0001]] refe
 1. Ordered first
 2. Ordered second
 
-| Lens | Verdict |
-|------|---------|
-| Convention | pass |
-| Agent | approve |
+---
+
+| Lens | Verdict | Confidence | Notes |
+|------|---------|------------|-------|
+| Convention | pass | high | Matches the established project conventions throughout |
+| Agent | approve | medium | Recommended with minor follow-ups noted in the review thread |
+| Correctness | revise | high | One boundary condition needs an additional regression test added |
 `;
 
 function MarkdownSection() {

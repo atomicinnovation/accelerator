@@ -296,17 +296,10 @@ const EXCEPTIONS: ReadonlyArray<
   {
     file: "components/MarkdownRenderer/MarkdownRenderer.module.css",
     literal: "1px",
-    count: 7,
+    count: 10,
     kind: "irreducible",
     reason:
-      "hairline borders + sub-px padding: <pre> stroke, h1 underline, table cell, codeblock wrapper, codeblockHead bottom, inline-code pill border, inline-code pill vertical padding — below --sp-1 floor",
-  },
-  {
-    file: "components/MarkdownRenderer/MarkdownRenderer.module.css",
-    literal: "0.4rem",
-    count: 1,
-    kind: "irreducible",
-    reason: "off-scale cell padding (6.4px) — between --sp-1 and --sp-2",
+      "hairline borders + sub-px padding: <pre> stroke, h1 underline, codeblock wrapper, codeblockHead bottom, inline-code pill border, inline-code pill vertical padding, table wrapper border, thead header bottom, tbody row top-separator, hr divider height — below --sp-1 floor",
   },
   {
     file: "components/MarkdownRenderer/MarkdownRenderer.module.css",
