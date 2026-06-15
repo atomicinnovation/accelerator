@@ -10,7 +10,7 @@ parent: "work-item:0045"
 tags: [work-management, integrations, linear]
 type: work-item
 schema_version: 1
-last_updated: "2026-05-06T17:49:44+00:00"
+last_updated: "2026-06-15T00:00:00+00:00"
 last_updated_by: Toby Clemson
 blocked_by: ["work-item:0046"]
 blocks: ["work-item:0051"]
@@ -150,7 +150,7 @@ Jira integration under `skills/integrations/jira/`.
   already satisfied by the completed Jira integration, so 0048 adds Linear
   support to 0051 rather than unblocking it.
 - External system: Linear GraphQL API (`https://api.linear.app/graphql`) — hard
-  rate limits (2,500 requests/hr, 3,000,000 complexity points/hr, 10,000 points
+  rate limits (5,000 requests/hr, 3,000,000 complexity points/hr, 10,000 points
   per single query) and the non-standard `400 RATELIMITED` response are
   availability and throughput couplings every skill depends on.
 - Credential prerequisite: a user-provisioned Linear personal API key
@@ -211,7 +211,7 @@ stories.
 - Linear personal API keys are long-lived and user-scoped, providing access to
   all teams the user is a member of. `init-linear` should call
   `teams { nodes { id name key } }` to discover and select the target team.
-- Rate limits: 2,500 requests/hr and 3,000,000 complexity points/hr per user
+- Rate limits: 5,000 requests/hr and 3,000,000 complexity points/hr per user
   for API keys. Single query maximum: 10,000 complexity points.
 
 ### Patterns to mirror from the Jira integration
