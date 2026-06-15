@@ -1,0 +1,18 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issueUpdate\": {\"success\": true, \"issue\": {\"id\": \"u\", \"identifier\": \"BLA-9\", \"state\": {\"name\": \"In Progress\"}}}}}"
+      },
+      "expect_body_contains": "issueUpdate",
+      "capture_body": true
+    }
+  ]
+}

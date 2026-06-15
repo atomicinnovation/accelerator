@@ -66,6 +66,7 @@ target-version = "py314"
 extend-exclude = [
     "workspaces",
     "skills/integrations/jira/scripts/test-helpers/mock-jira-server.py",
+    "skills/integrations/linear/scripts/test-helpers/mock-linear-server.py",
 ]
 
 [tool.ruff.lint]
@@ -118,8 +119,8 @@ python-version = "3.14"
 # tests/unit/tasks/test_python_coverage.py so none of these can grow silently):
 #  - workspaces/  : jj workspace checkouts (full repo copies) — never checked.
 #  - .venv/       : the virtualenv (third-party site-packages).
-#  - mock-jira-server.py : reads ad-hoc attributes off HTTPServer and targets the
-#    3.9 floor (mirrors the ruff extend-exclude).
+#  - mock-jira-server.py / mock-linear-server.py : read ad-hoc attributes off
+#    HTTPServer and target the 3.9 floor (mirrors the ruff extend-exclude).
 #  - tests/       : pytest + MagicMock suites are inherently dynamic — fixtures
 #    inject un-annotated params and mocks present arbitrary attributes/returns,
 #    so strict typing yields only false positives (None-subscripting of values
@@ -130,6 +131,7 @@ project-excludes = [
     "**/workspaces/**",
     "**/.venv/**",
     "**/skills/integrations/jira/scripts/test-helpers/mock-jira-server.py",
+    "**/skills/integrations/linear/scripts/test-helpers/mock-linear-server.py",
     "**/tests/**",
 ]
 # Installed-but-untyped third-party packages: treat as Any so `untyped-import`

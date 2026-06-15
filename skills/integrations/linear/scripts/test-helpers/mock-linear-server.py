@@ -149,8 +149,8 @@ class MockHandler(BaseHTTPRequestHandler):
 
 
 class MockServer(HTTPServer):
-    def __init__(self, expectations: list[dict]):
-        super().__init__(("127.0.0.1", 0), MockHandler)
+    def __init__(self, expectations: list[dict], port: int = 0):
+        super().__init__(("127.0.0.1", port), MockHandler)
         self.expectations = list(expectations)
         self.errors: list[str] = []
         self.captured_bodies: list[str] = []
@@ -167,10 +167,17 @@ def main():
     parser.add_argument("--captured-urls-file", default="")
     parser.add_argument("--captured-headers-file", default="")
     parser.add_argument("--captured-errors-file", default="")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=0,
+        help="Bind to a fixed port (default 0 = ephemeral). Used when a "
+        "fixture must embed the mock URL ahead of launch (binary upload PUT).",
+    )
     args = parser.parse_args()
 
     expectations = load_scenario(args.scenario)
-    server = MockServer(expectations)
+    server = MockServer(expectations, port=args.port)
     port = server.server_address[1]
     url = f"http://127.0.0.1:{port}"
 
@@ -179,7 +186,9 @@ def main():
 
     signal.signal(
         signal.SIGTERM,
-        lambda *_: threading.Thread(target=server.shutdown, daemon=True).start(),
+        lambda *_: threading.Thread(
+            target=server.shutdown, daemon=True
+        ).start(),
     )
 
     try:

@@ -1,0 +1,41 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"fileUpload\": {\"success\": true, \"uploadFile\": {\"uploadUrl\": \"__MOCK_URL__/upload\", \"assetUrl\": \"__MOCK_URL__/asset?sig=SECRET-TOKEN\", \"headers\": [{\"key\": \"x-amz-acl\", \"value\": \"private\"}, {\"key\": \"x-not-allowed\", \"value\": \"should-be-dropped\"}]}}}}"
+      },
+      "expect_body_contains": "fileUpload"
+    },
+    {
+      "method": "PUT",
+      "path": "/upload",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": ""
+      },
+      "capture_headers": true
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"attachmentCreate\": {\"success\": true, \"attachment\": {\"id\": \"att-2\"}}}}"
+      },
+      "expect_body_contains": "attachmentCreate"
+    }
+  ]
+}

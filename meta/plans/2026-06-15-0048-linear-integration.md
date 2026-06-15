@@ -900,31 +900,31 @@ scenarios:
 
 #### Automated Verification
 
-- [ ] `bash skills/integrations/linear/scripts/test-linear-transition.sh` passes
-- [ ] transition to a target state name sends `issueUpdate` with the
+- [x] `bash skills/integrations/linear/scripts/test-linear-transition.sh` passes
+- [x] transition to a target state name sends `issueUpdate` with the
       catalogue-resolved `stateId`; with the catalogue/team API endpoint stubbed
       to fail, the transition still succeeds (proves cache resolution, no live
       lookup)
-- [ ] `bash skills/integrations/linear/scripts/test-linear-attach.sh` passes
-- [ ] link attach calls `attachmentCreate` with the supplied URL
-- [ ] binary attach performs `fileUpload` → PUT → `attachmentCreate`, the
+- [x] `bash skills/integrations/linear/scripts/test-linear-attach.sh` passes
+- [x] link attach calls `attachmentCreate` with the supplied URL
+- [x] binary attach performs `fileUpload` → PUT → `attachmentCreate`, the
       attachment count increases by one, and the PUT (captured in the test)
       carried every allow-listed signed header + `Content-Type` +
       `Cache-Control`, **no** `Authorization` header, and **dropped** a
       non-allow-listed returned header
-- [ ] a non-`https`/off-host/look-alike `uploadUrl` is rejected with
+- [x] a non-`https`/off-host/look-alike `uploadUrl` is rejected with
       `E_ATTACH_BAD_UPLOAD_URL` and **no** PUT is issued
-- [ ] an allow-listed `uploadUrl` that 30x's to a non-allow-listed host is
+- [x] an allow-listed `uploadUrl` that 30x's to a non-allow-listed host is
       **not** followed by the PUT (`--max-redirs 0`)
-- [ ] a failing PUT (5xx/connection) retries (bounded, sleep-seam asserted)
+- [x] a failing PUT (5xx/connection) retries (bounded, sleep-seam asserted)
       then yields `E_ATTACH_UPLOAD_FAILED`, distinct from register-fail
-- [ ] a returned header whose value contains CR/LF is dropped from the PUT
+- [x] a returned header whose value contains CR/LF is dropped from the PUT
       (asserted via `captured_headers`)
-- [ ] a step-3 failure after a successful PUT yields `E_ATTACH_REGISTER_FAILED`
+- [x] a step-3 failure after a successful PUT yields `E_ATTACH_REGISTER_FAILED`
       with messaging naming the orphaned asset (not a generic upload-failed)
-- [ ] transition resolves a state name case-insensitively and rejects a
+- [x] transition resolves a state name case-insensitively and rejects a
       duplicate-name catalogue with `E_TRANSITION_STATE_AMBIGUOUS`
-- [ ] `mise run scripts:check` passes
+- [x] `mise run scripts:check` passes
 
 #### Manual Verification
 

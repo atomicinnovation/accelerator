@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"fileUpload\": {\"success\": true, \"uploadFile\": {\"uploadUrl\": \"__MOCK_URL__/upload\", \"assetUrl\": \"__MOCK_URL__/asset?sig=SECRET-TOKEN\", \"headers\": []}}}}"
+      },
+      "expect_body_contains": "fileUpload"
+    },
+    {
+      "method": "PUT",
+      "path": "/upload",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": ""
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": null, \"errors\": [{\"message\": \"attachmentCreate rejected\", \"extensions\": {\"code\": \"BAD_USER_INPUT\"}}]}"
+      },
+      "expect_body_contains": "attachmentCreate"
+    }
+  ]
+}
