@@ -44,6 +44,9 @@ PYREFLY_JUSTIFIED_EXCLUDES = {
     f"**/{MOCK_JIRA}",
     f"**/{MOCK_LINEAR}",
     "**/tests/**",
+    # JS dep trees hold no first-party Python; pyrefly ignores .gitignore, so
+    # without this it walks node_modules and races with `deps:install:node`.
+    "**/node_modules/**",
 }
 
 # A padded comment forces a ruff E501; the mistyped assignment forces a pyrefly

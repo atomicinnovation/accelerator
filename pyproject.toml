@@ -127,12 +127,18 @@ python-version = "3.14"
 #    the test knows are populated, mock attribute access). Tests are validated by
 #    execution; ruff still lints them (with ANN/D relaxed). This mirrors ruff's
 #    `tests/** = ["ANN", "D", ...]` looser-standard treatment of the same tree.
+#  - node_modules/: JS dependency trees (the frontend's, etc.) — no first-party
+#    Python. pyrefly does NOT honour .gitignore, so without this it walks
+#    node_modules while resolving `**/*.py*` and races with a concurrent
+#    `deps:install:node` (npm churns paths mid-walk → transient ENOENT that fails
+#    the whole `mise run check`). Excluding it prunes the walk entirely.
 project-excludes = [
     "**/workspaces/**",
     "**/.venv/**",
     "**/skills/integrations/jira/scripts/test-helpers/mock-jira-server.py",
     "**/skills/integrations/linear/scripts/test-helpers/mock-linear-server.py",
     "**/tests/**",
+    "**/node_modules/**",
 ]
 # Installed-but-untyped third-party packages: treat as Any so `untyped-import`
 # does not fire under strict. Finalised from the report-only run.
