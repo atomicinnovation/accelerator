@@ -43,6 +43,8 @@ enum Command {
     },
     /// Print the project context (config-file markdown bodies) under a header.
     ConfigReadContext,
+    /// Print the resolved agent-name override block.
+    ConfigReadAgents,
     /// Print a skill's `context.md` wrapped in a section header, if present.
     ConfigReadSkillContext {
         /// The skill name (the per-skill customisation directory).
@@ -196,6 +198,10 @@ fn main() -> ExitCode {
         }
         Command::ConfigReadContext => {
             emit_command(&a9r_core::read_context(&start, mm));
+            ExitCode::SUCCESS
+        }
+        Command::ConfigReadAgents => {
+            emit_command(&a9r_core::agents::read_agents(&start, mm));
             ExitCode::SUCCESS
         }
         Command::ConfigReadSkillContext { skill } => run_config_read(run_config_read_skill(

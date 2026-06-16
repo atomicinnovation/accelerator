@@ -67,6 +67,10 @@ run_sut() {
       script="config-read-context.sh"
       subcommand="config-read-context"
       ;;
+    read-agents)
+      script="config-read-agents.sh"
+      subcommand="config-read-agents"
+      ;;
     read-skill-context)
       script="config-read-skill-context.sh"
       subcommand="config-read-skill-context"

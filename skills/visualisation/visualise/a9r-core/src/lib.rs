@@ -22,6 +22,7 @@
 
 use std::path::Path;
 
+pub mod agents;
 pub mod body;
 pub mod defaults;
 pub mod files;

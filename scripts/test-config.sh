@@ -11,7 +11,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # config-read-value / config-read-path are invoked via run_sut (SUT switch), not
 # a bare path, so they have no $READ_* variable here.
-READ_AGENTS="$SCRIPT_DIR/config-read-agents.sh"
 READ_AGENT_NAME="$SCRIPT_DIR/config-read-agent-name.sh"
 READ_REVIEW="$SCRIPT_DIR/config-read-review.sh"
 CONFIG_DUMP="$SCRIPT_DIR/config-dump.sh"
@@ -817,7 +816,7 @@ echo ""
 
 echo "Test: No config files -> outputs all agents with default names"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+OUTPUT=$(cd "$REPO" && run_sut read-agents)
 if echo "$OUTPUT" | grep -q "## Agent Names" &&
   echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: accelerator:reviewer' &&
   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: accelerator:codebase-locator' &&
@@ -844,7 +843,7 @@ agents:
   codebase-locator: my-locator
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+OUTPUT=$(cd "$REPO" && run_sut read-agents)
 if echo "$OUTPUT" | grep -q "## Agent Names" &&
   echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: my-custom-reviewer' &&
   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: my-locator'; then
@@ -865,7 +864,7 @@ agents:
   reviewer: my-reviewer
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+OUTPUT=$(cd "$REPO" && run_sut read-agents)
 if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: my-reviewer' &&
   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: accelerator:codebase-locator'; then
   echo "  PASS: overridden agent shows new name, others show defaults"
@@ -891,7 +890,7 @@ agents:
   reviewer: local-reviewer
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+OUTPUT=$(cd "$REPO" && run_sut read-agents)
 if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: local-reviewer' &&
   ! echo "$OUTPUT" | grep -q 'team-reviewer'; then
   echo "  PASS: local overrides team"
@@ -917,7 +916,7 @@ agents:
   codebase-locator: custom-locator
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+OUTPUT=$(cd "$REPO" && run_sut read-agents)
 if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: custom-reviewer' &&
   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: custom-locator'; then
   echo "  PASS: both overrides appear"
@@ -938,8 +937,8 @@ agents:
   unknown-agent: something
 ---
 FIXTURE
-STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS" 2>&1 1>/dev/null)
-OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS" 2>/dev/null)
+STDERR_OUTPUT=$(cd "$REPO" && run_sut read-agents 2>&1 1>/dev/null)
+OUTPUT=$(cd "$REPO" && run_sut read-agents 2>/dev/null)
 if echo "$STDERR_OUTPUT" | grep -q "Warning.*unknown-agent" &&
   ! echo "$OUTPUT" | grep -q 'unknown-agent'; then
   echo "  PASS: unknown key warned and ignored"
@@ -961,7 +960,7 @@ agents:
   codebase-locator: my-locator
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+OUTPUT=$(cd "$REPO" && run_sut read-agents)
 if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: reviewer' &&
   echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: my-locator'; then
   echo "  PASS: identity override shows default name, other override applied"
@@ -983,7 +982,7 @@ agents:
   codebase-locator: custom-locator
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+OUTPUT=$(cd "$REPO" && run_sut read-agents)
 # Extract just the agent lines (lines starting with -)
 ROWS=$(echo "$OUTPUT" | grep '^- \*\*' || true)
 FIRST_ROW=$(echo "$ROWS" | head -1)
@@ -1007,7 +1006,7 @@ review:
   max_count: 5
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
+OUTPUT=$(cd "$REPO" && run_sut read-agents)
 if echo "$OUTPUT" | grep -q "## Agent Names" &&
   echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: accelerator:reviewer'; then
   echo "  PASS: outputs all defaults when no agents section"
@@ -1019,8 +1018,11 @@ else
 fi
 
 echo "Test: AGENT_KEYS list matches actual agent .md files in the plugin"
-# Extract agent keys from the script source (not by sourcing it)
-SCRIPT_KEYS=$(grep -A 20 '^AGENT_KEYS=(' "$READ_AGENTS" | sed -n '/^AGENT_KEYS=(/,/^)/p' | grep -v '^AGENT_KEYS=(' | grep -v '^)' | sed 's/^[[:space:]]*//' | sort)
+# Extract agent keys from the bash implementation source (not by sourcing it).
+# The entry script is a thin a9r-or-bash shim; the AGENT_KEYS array (and the
+# canonical key list) lives in the -impl.sh, so the source-grep targets it
+# directly — this assertion is backend-agnostic, like the SKILL.md greps.
+SCRIPT_KEYS=$(grep -A 20 '^AGENT_KEYS=(' "$SCRIPT_DIR/config-read-agents-impl.sh" | sed -n '/^AGENT_KEYS=(/,/^)/p' | grep -v '^AGENT_KEYS=(' | grep -v '^)' | sed 's/^[[:space:]]*//' | sort)
 # List actual agent .md files (strip path and extension)
 AGENT_DIR="$SCRIPT_DIR/../agents"
 FILE_KEYS=$(for f in "$AGENT_DIR"/*.md; do [ -e "$f" ] && basename "$f" .md; done | sort)
