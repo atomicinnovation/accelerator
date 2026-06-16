@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+> **Upgrading from 1.21.0 requires running `/accelerator:migrate`.** After
+> updating the plugin, **restart your Claude Code session**, then run
+> `/accelerator:migrate` before your next Accelerator skill invocation. This
+> release introduces migration 0007, which unifies the `meta/` corpus to the
+> ADR-0033/0034 frontmatter schema (canonical `id:` identity, typed linkage,
+> and provenance fields). The visualiser now reads only this unified schema, so
+> until the migration runs, work items and cross-references still keyed by the
+> old `work-item:` / `ticket:` / filename-derived shapes silently drop out of
+> the library and kanban.
+
 ### Added
 
 - Configurable visualiser idle auto-shutdown. The idle window is now set via the
@@ -15,6 +25,11 @@
 
 ### Changed
 
+- Visualiser server: the linkage reader now supports only the unified
+  ADR-0033/0034 schema; the transitional fallbacks for pre-migration
+  `work-item:` / `ticket:` / `work_item_id:` / filename-derived shapes are
+  removed. Run `/accelerator:migrate` (migration 0007) — see the upgrade note
+  above.
 - Visualiser idle auto-shutdown default raised from 30 minutes to 8 hours, so a
   review session left open in a browser tab no longer outlives the server.
 - Migration framework: directory relocations in migrations 0001, 0003, and
