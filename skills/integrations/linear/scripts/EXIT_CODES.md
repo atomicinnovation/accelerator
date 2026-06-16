@@ -71,14 +71,16 @@ idiom is an intentional upgrade over Jira's bare-literal `return 100`.
 | 90   | `E_COMMENT_NO_KEY`               | `linear-comment-flow.sh`    | No issue identifier positional argument                                                       |
 | 91   | `E_COMMENT_NO_BODY`              | `linear-comment-flow.sh`    | No resolvable comment body                                                                    |
 | 92   | `E_COMMENT_BAD_FLAG`             | `linear-comment-flow.sh`    | Unrecognised flag                                                                             |
-| 100  | `E_CREATE_NO_FILE`               | `linear-create-flow.sh`     | No work-item file path supplied, or path not readable                                         |
-| 101  | `E_CREATE_BAD_FRONTMATTER`       | `linear-create-flow.sh`     | Work-item file has missing/unclosed frontmatter or no `work_item_id`                          |
-| 102  | `E_CREATE_ALREADY_SYNCED`        | `linear-create-flow.sh`     | `work_item_id` is already a remote-format identifier — nothing created                        |
-| 103  | `E_CREATE_NO_TITLE`              | `linear-create-flow.sh`     | Work-item file has no `title`                                                                  |
+| 100  | `E_CREATE_NO_FILE`               | `linear-create-flow.sh`     | No work-item file path supplied, or path not readable (also a no-file `--body-file` not readable) |
+| 101  | `E_CREATE_BAD_FRONTMATTER`       | `linear-create-flow.sh`     | Work-item file has missing/unclosed frontmatter                                               |
+| 102  | `E_CREATE_ALREADY_SYNCED`        | `linear-create-flow.sh`     | `external_id` is already present (non-empty after trimming quotes/whitespace) — nothing created |
+| 103  | `E_CREATE_NO_TITLE`              | `linear-create-flow.sh`     | No `title` (frontmatter `title` in file mode, or `--title` in no-file mode)                   |
 | 104  | `E_CREATE_BAD_FLAG`              | `linear-create-flow.sh`     | Unrecognised flag                                                                             |
 | 105  | `E_CREATE_NO_CATALOGUE`          | `linear-create-flow.sh`     | `catalogue.json` missing; run `/init-linear`                                                  |
 | 106  | `E_CREATE_BAD_IDENTIFIER`        | `linear-create-flow.sh`     | Returned identifier failed `^[A-Z][A-Z0-9]*-[0-9]+$` validation (tampered response)           |
-| 107  | `E_CREATE_WRITEBACK_FAILED`      | `linear-create-flow.sh`     | Issue created remotely, but the local `work_item_id` writeback failed (surfaced loudly)       |
+| 107  | `E_CREATE_WRITEBACK_FAILED`      | `linear-create-flow.sh`     | Issue created remotely, but the local `external_id` writeback failed (surfaced loudly)        |
+| 108  | `E_CREATE_PRE_SEND`              | `linear-create-flow.sh`     | No-file mode: failure provably before the `issueCreate` mutation was transmitted — safe to retry |
+| 109  | `E_CREATE_POST_SEND`             | `linear-create-flow.sh`     | No-file mode: request was/may have been transmitted (issue may exist) — NOT safe to retry      |
 | 110  | `E_UPDATE_NO_KEY`                | `linear-update-flow.sh`     | No issue identifier positional argument                                                       |
 | 111  | `E_UPDATE_NO_OPS`                | `linear-update-flow.sh`     | No mutating flags supplied                                                                     |
 | 112  | `E_UPDATE_BAD_FLAG`              | `linear-update-flow.sh`     | Unrecognised flag                                                                             |
@@ -112,7 +114,7 @@ idiom is an intentional upgrade over Jira's bare-literal `return 100`.
 | 70–73     | `linear-search-flow.sh`     |                                                        |
 | 80–82     | `linear-show-flow.sh`       |                                                        |
 | 90–96     | `linear-comment-flow.sh`    |                                                        |
-| 100–109   | `linear-create-flow.sh`     | Includes the net-new `work_item_id` writeback codes    |
+| 100–109   | `linear-create-flow.sh`     | `external_id` writeback + no-file pre/post-send codes   |
 | 110–117   | `linear-update-flow.sh`     |                                                        |
 | 120–126   | `linear-transition-flow.sh` | Cache-resolved transitions (no live lookup)            |
 | 130–139   | `linear-attach-flow.sh`     | Dual link/binary attach                                |

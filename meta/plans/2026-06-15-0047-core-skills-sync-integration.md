@@ -394,14 +394,14 @@ is the synced signal.
 
 #### Automated Verification
 
-- [ ] New helper unit tests pass: `bash scripts/test-config.sh` (cover
+- [x] New helper unit tests pass: `bash scripts/test-config.sh` (cover
       upsert-replace, upsert-insert-before-closing-fence, **fail-closed on
       no-frontmatter / unclosed-frontmatter / duplicate-key (insert NOT
       attempted, error propagated, file left byte-unchanged)**, inserted line
       lands inside the frontmatter range and the block still parses,
       injection-safe value — `&`, `/`, `\`, embedded newline rejected).
       `test-config.sh` runs in CI today.
-- [ ] Linear create tests pass: `bash skills/integrations/linear/scripts/test-linear-create.sh`
+- [x] Linear create tests pass: `bash skills/integrations/linear/scripts/test-linear-create.sh`
       (re-point existing cases — the writeback case, the already-synced case
       (3), and the loud-writeback-failure case (5) — from `work_item_id` to
       `external_id`. The **byte-identical-remainder** case must exclude
@@ -418,12 +418,15 @@ is the synced signal.
       on stdout, GraphQL body captured, input file byte-unchanged)**, and
       **pre-create vs post-create exit-code (incl. a response-dropped-after-send
       case → post-create)** cases). Runs in CI only once wired — see Phase 0.
-- [ ] No remaining `work_item_id` remote-key reference anywhere under Linear,
+      *(Value-parity of the `readonly E_*` constants against `EXIT_CODES.md` is
+      asserted by the existing `test-linear-paths.sh` check; the
+      `! grep work_item_id` criterion below catches stale prose.)*
+- [x] No remaining `work_item_id` remote-key reference anywhere under Linear,
       **including `EXIT_CODES.md`**:
       `! grep -rn "work_item_id" skills/integrations/linear/` (other than
       historical mentions, if any, intentionally annotated)
-- [ ] Shell lint/format clean: `mise run scripts:check`
-- [ ] Full read-only gate: `mise run check`
+- [x] Shell lint/format clean: `mise run scripts:check`
+- [x] Full read-only gate: `mise run check`
 
 #### Manual Verification
 

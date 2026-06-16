@@ -119,6 +119,44 @@ config_extract_body() {
 #   - Before the atomic rename, re-extracts the frontmatter from the candidate
 #     output and verifies it still parses and now carries the expected value —
 #     the integrity check atomic_write itself does not perform.
+# Shared integrity re-check for the frontmatter writeback primitives. Given a
+# candidate file body (the full file after a replace or insert), verify the
+# frontmatter still parses (is a closed block) AND <key> now reads back as
+# <value>. Returns 0 on success, non-zero (with a stderr message) otherwise.
+# Both config_set_frontmatter_field (replace) and config_upsert_frontmatter_field
+# (insert) run this before the atomic rename, so the two share one definition.
+_config_fm_integrity_check() {
+  local candidate="$1" key="$2" value="$3"
+  local check
+  check=$(printf '%s\n' "$candidate" | awk '
+    NR == 1 && /^---[[:space:]]*$/ { in_fm = 1; next }
+    NR == 1 { exit 1 }
+    in_fm && /^---[[:space:]]*$/ { closed = 1; exit }
+    in_fm { print }
+    END { if (!closed) exit 1 }
+  ') || {
+    echo "config: candidate frontmatter no longer parses" >&2
+    return 1
+  }
+
+  local got
+  got=$(CSF_KEY="$key" awk '
+    BEGIN { key = ENVIRON["CSF_KEY"]; kpat = "^" key ":" }
+    $0 ~ kpat {
+      v = substr($0, length(key) + 2)
+      sub(/^[ \t]+/, "", v)
+      sub(/[ \t]+$/, "", v)
+      print v
+      exit
+    }
+  ' <<<"$check")
+  if [ "$got" != "$value" ]; then
+    echo "config: integrity check failed — value not set as expected" >&2
+    return 1
+  fi
+  return 0
+}
+
 config_set_frontmatter_field() {
   local file="$1" key="$2" value="$3"
   if [ ! -f "$file" ]; then
@@ -176,32 +214,95 @@ config_set_frontmatter_field() {
   esac
 
   # Integrity check: candidate frontmatter must still parse (be a closed block)
-  # and the field must now read back as <value>.
-  local check
-  check=$(printf '%s\n' "$candidate" | awk '
-    NR == 1 && /^---[[:space:]]*$/ { in_fm = 1; next }
-    NR == 1 { exit 1 }
-    in_fm && /^---[[:space:]]*$/ { closed = 1; exit }
-    in_fm { print }
-    END { if (!closed) exit 1 }
-  ') || {
-    echo "config_set_frontmatter_field: candidate frontmatter no longer parses" >&2
+  # and the field must now read back as <value>. Shared with the upsert helper.
+  if ! _config_fm_integrity_check "$candidate" "$key" "$value"; then
     return 1
-  }
+  fi
 
-  local got
-  got=$(CSF_KEY="$key" awk '
-    BEGIN { key = ENVIRON["CSF_KEY"]; kpat = "^" key ":" }
-    $0 ~ kpat {
-      v = substr($0, length(key) + 2)
-      sub(/^[ \t]+/, "", v)
-      sub(/[ \t]+$/, "", v)
-      print v
-      exit
+  printf '%s\n' "$candidate" | atomic_write "$file"
+}
+
+# Upsert a single top-level frontmatter field: replace it if present, else
+# insert a new "key: value" line immediately before the closing `---`.
+# Usage: config_upsert_frontmatter_field <file> <key> <value>
+#
+# This is the writeback primitive the create-issue flows use when the target
+# field (external_id) may not yet exist on the work-item file — the replace-only
+# config_set_frontmatter_field cannot insert.
+#
+# Contract (fails closed — file left byte-unchanged on any non-insert condition):
+#   - If the field is present, replace it (delegates to
+#     config_set_frontmatter_field; same integrity + injection guarantees).
+#   - Insert ONLY when the field is genuinely absent from a well-formed,
+#     closed frontmatter block. No frontmatter, unclosed frontmatter, or a
+#     duplicate/present key all propagate as failure without writing.
+#   - <value> is passed via the environment (no awk/regex interpretation) and
+#     written UNQUOTED, matching the identifier writeback shape so the shared
+#     read-back equality check holds.
+#   - Runs the same _config_fm_integrity_check as the replace path before the
+#     atomic rename.
+config_upsert_frontmatter_field() {
+  local file="$1" key="$2" value="$3"
+  if [ ! -f "$file" ]; then
+    echo "config_upsert_frontmatter_field: file not found: $file" >&2
+    return 1
+  fi
+
+  # Replace path: succeeds iff the field is present exactly once.
+  if config_set_frontmatter_field "$file" "$key" "$value"; then
+    return 0
+  fi
+
+  # config_set_frontmatter_field collapses no-frontmatter / unclosed /
+  # field-absent / duplicate to a single non-zero return. Re-detect the ONLY
+  # insertable condition — genuinely absent in a parseable block — and fail
+  # closed on everything else (unclosed frontmatter propagates here; a present
+  # or duplicate key is caught by the grep below; no-frontmatter is caught by
+  # the insert awk's bad_start exit).
+  local fm
+  if ! fm=$(config_extract_frontmatter "$file" 2>/dev/null); then
+    return 1 # unclosed frontmatter → not well-formed → do NOT insert
+  fi
+  # Same `^key:` anchoring config_set_frontmatter_field uses, so a present or
+  # duplicate key reads as present and propagates (fail closed).
+  if printf '%s\n' "$fm" | grep -q "^${key}:"; then
+    return 1
+  fi
+
+  # Genuinely absent in a well-formed block → insert "key: value" before the
+  # closing `---`. The awk also revalidates structure: a file with no
+  # frontmatter (bad_start) or an unclosed block exits non-zero and we bail.
+  local candidate awk_rc=0
+  candidate=$(CSF_KEY="$key" CSF_VALUE="$value" awk '
+    BEGIN {
+      key = ENVIRON["CSF_KEY"]
+      value = ENVIRON["CSF_VALUE"]
+      inserted = 0
     }
-  ' <<<"$check")
-  if [ "$got" != "$value" ]; then
-    echo "config_set_frontmatter_field: integrity check failed — value not set as expected" >&2
+    NR == 1 && /^---[[:space:]]*$/ { in_fm = 1; print; next }
+    NR == 1 { bad_start = 1; print; next }
+    in_fm && /^---[[:space:]]*$/ {
+      print key ": " value
+      inserted = 1
+      in_fm = 0
+      closed = 1
+      print
+      next
+    }
+    { print }
+    END {
+      if (bad_start) exit 3
+      if (!closed) exit 4
+      if (!inserted) exit 5
+    }
+  ' "$file") || awk_rc=$?
+
+  if [ "$awk_rc" -ne 0 ]; then
+    echo "config_upsert_frontmatter_field: cannot insert '$key' — frontmatter is missing or unclosed: $file" >&2
+    return 1
+  fi
+
+  if ! _config_fm_integrity_check "$candidate" "$key" "$value"; then
     return 1
   fi
 

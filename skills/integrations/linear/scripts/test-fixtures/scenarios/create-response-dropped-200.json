@@ -1,0 +1,17 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "<partial response — connection dropped before the JSON body completed"
+      },
+      "expect_body_contains": "issueCreate"
+    }
+  ]
+}

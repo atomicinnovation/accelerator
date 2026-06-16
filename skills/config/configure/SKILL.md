@@ -452,7 +452,7 @@ work:
 \```
 
 This produces work-item filenames such as `meta/work/PROJ-0042-add-foo.md`,
-H1 headings like `# PROJ-0042: add foo`, and a `work_item_id: "PROJ-0042"`
+H1 headings like `# PROJ-0042: add foo`, and an `id: "PROJ-0042"`
 frontmatter field.
 
 #### Local-first storage
@@ -501,14 +501,31 @@ The `id_pattern` value is a small DSL with two tokens:
    `proj_alpha`) are rejected — this is a known limitation of the
    initial scope.
 
-#### work_item_id frontmatter type contract
+#### `id` and `external_id`: local own-identity vs remote identifier
 
-The `work_item_id` frontmatter field on every work item is **always a
-quoted YAML string**, regardless of the configured pattern. New work
-items created post-feature land write `work_item_id: "0001"` under the
-default pattern and `work_item_id: "PROJ-0001"` under
-`{project}-{number:04d}`. Consumers must treat the field as a string;
-do not coerce to integer.
+A work item carries two distinct identity fields:
+
+- **`id`** — the **local own-identity**, allocated locally by
+  `work-item-next-number.sh` under the configured `id_pattern`. It is
+  **always a quoted YAML string**, regardless of the pattern: new work
+  items write `id: "0001"` under the default pattern and `id: "PROJ-0001"`
+  under `{project}-{number:04d}`. Consumers must treat it as a string; do
+  not coerce to integer. (Legacy work items carry the same own-identity
+  value under `work_item_id:`; `work-item-read-field.sh` bridges the two
+  names transparently, so a consumer asking for `id` against a legacy file
+  still gets the value.)
+- **`external_id`** — the **remote tracker's identifier** (e.g. a Jira or
+  Linear key), written when the item is pushed to the configured
+  `work.integration`. It is the per-item local→remote mapping, so no
+  separate mapping store is needed. Its **presence is the synced signal**:
+  an item with a non-empty `external_id` is *synced* (exists remotely), an
+  item without one is *unsynced* (never pushed) — see `/list-work-items`.
+
+`id` and `external_id` **may coincide** when the local and remote ID schemes
+align (Jira/Linear, under `{project}-{number:04d}`) or be **independent**
+when they do not (Trello, whose card IDs are opaque). `external_id` is always
+written on a successful push, even when it equals `id`, because presence —
+not value — is what marks an item synced.
 
 #### Choosing between default and project-coded patterns
 

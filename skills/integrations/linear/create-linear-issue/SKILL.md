@@ -7,7 +7,7 @@ description: >
   conversational context. It reads the work item's title and Markdown body,
   shows a payload preview, requires explicit confirmation, then creates the
   issue and writes the remote-allocated identifier (e.g. BLA-123) back into the
-  file's work_item_id frontmatter field.
+  file's external_id frontmatter field.
 argument-hint: "<work-item-file> [--print-payload] [--quiet]"
 disable-model-invocation: true
 allowed-tools:
@@ -50,8 +50,9 @@ ${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-create-flow.sh \
 ```
 
 If the helper exits non-zero (e.g. the file is already synced —
-`E_CREATE_ALREADY_SYNCED`, or has no `work_item_id` —
-`E_CREATE_BAD_FRONTMATTER`), STOP and report the error; make no API call.
+`E_CREATE_ALREADY_SYNCED` (it already carries a non-empty `external_id`), or
+has missing/unclosed frontmatter — `E_CREATE_BAD_FRONTMATTER`), STOP and report
+the error; make no API call.
 
 ## Step 3: Render the preview
 
@@ -62,13 +63,14 @@ Show the payload under this heading:
 Include the operation (`issueCreate`), the resolved `teamId`, the `title`, and
 the `description` (truncate to the first 500 characters for display if longer;
 the full body is still sent). State plainly that on success the file's
-`work_item_id` will be **overwritten** with the new identifier.
+`external_id` will be **set** to the new identifier (the line is inserted if the
+file does not already have one).
 
 ## Step 4: Confirm before writing
 
 Ask:
 
-> Create this issue in Linear and update the work item's `work_item_id`? Reply
+> Create this issue in Linear and set the work item's `external_id`? Reply
 > **y** to confirm, **n** to revise, anything else to abort.
 
 On a clear yes, proceed. On no/revise, ask what to change and rebuild the
@@ -85,12 +87,12 @@ ${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-create-flow.sh \
 
 On success the helper prints the new identifier. Report:
 
-> Issue created: **\<IDENTIFIER\>** — the work item's `work_item_id` is now
+> Issue created: **\<IDENTIFIER\>** — the work item's `external_id` is now
 > `\<IDENTIFIER\>`.
 
 If the helper exits `E_CREATE_WRITEBACK_FAILED` (107), the issue **was** created
 remotely but the local file was **not** updated. Surface this loudly: tell the
 user the created identifier, that they must NOT blindly re-run (it would create
-a duplicate), and that they should set `work_item_id: <IDENTIFIER>` by hand.
+a duplicate), and that they should set `external_id: <IDENTIFIER>` by hand.
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh create-linear-issue`

@@ -6075,4 +6075,114 @@ assert_contains "body line preserved" "$(tail -1 "$DOC")" "this is body text"
 
 echo ""
 
+# ---------------------------------------------------------------------------
+echo "=== config_upsert_frontmatter_field ==="
+echo ""
+
+CUF_DIR=$(mktemp -d "$TMPDIR_BASE/cuf-XXXXXX")
+
+# Doc WITHOUT an external_id line (insert case).
+make_doc_no_external() {
+  cat >"$1" <<'EOF'
+---
+id: "0048"
+title: Example work item
+status: ready
+---
+
+# Body heading
+
+Body text with a tricky line: a & b / c \ d.
+EOF
+}
+
+echo "Test: upsert replaces an existing field in place"
+DOC="$CUF_DIR/replace.md"
+cat >"$DOC" <<'EOF'
+---
+id: "0048"
+external_id: ""
+status: ready
+---
+
+Body.
+EOF
+config_upsert_frontmatter_field "$DOC" external_id "BLA-123"
+assert_eq "field replaced" "external_id: BLA-123" "$(grep '^external_id:' "$DOC")"
+assert_eq "exactly one external_id line" "1" "$(grep -c '^external_id:' "$DOC")"
+
+echo "Test: upsert inserts a missing field before the closing fence"
+DOC="$CUF_DIR/insert.md"
+make_doc_no_external "$DOC"
+BEFORE_REMAINDER=$(grep -v '^external_id:' "$DOC")
+config_upsert_frontmatter_field "$DOC" external_id "BLA-456"
+assert_eq "field inserted" "external_id: BLA-456" "$(grep '^external_id:' "$DOC")"
+assert_eq "exactly one external_id line" "1" "$(grep -c '^external_id:' "$DOC")"
+assert_eq "remainder byte-identical apart from inserted line" \
+  "$BEFORE_REMAINDER" "$(grep -v '^external_id:' "$DOC")"
+# The inserted line must land INSIDE the frontmatter block (remainder-equality
+# alone does not check insertion position).
+assert_contains "inserted line is inside the frontmatter range" \
+  "$(config_extract_frontmatter "$DOC")" "external_id: BLA-456"
+# Body must NOT have gained the line.
+assert_eq "body has no external_id line" "" \
+  "$(config_extract_body "$DOC" | grep '^external_id:' || true)"
+
+echo "Test: insert leaves the block parseable (closed)"
+PARSED=$(config_extract_frontmatter "$DOC")
+assert_contains "frontmatter still carries id" "$PARSED" 'id: "0048"'
+
+echo "Test: fail-closed on a file with no frontmatter (no insert, byte-unchanged)"
+DOC="$CUF_DIR/no-fm.md"
+printf 'just a body line\nanother line\n' >"$DOC"
+BEFORE=$(cat "$DOC")
+EXIT_CODE=0
+config_upsert_frontmatter_field "$DOC" external_id "BLA-1" 2>/dev/null || EXIT_CODE=$?
+assert_eq "no-frontmatter exits non-zero" "1" "$EXIT_CODE"
+assert_eq "no-frontmatter file untouched" "$BEFORE" "$(cat "$DOC")"
+
+echo "Test: fail-closed on unclosed frontmatter (no insert, byte-unchanged)"
+DOC="$CUF_DIR/unclosed.md"
+printf -- '---\nid: "0048"\nstatus: ready\n' >"$DOC"
+BEFORE=$(cat "$DOC")
+EXIT_CODE=0
+config_upsert_frontmatter_field "$DOC" external_id "BLA-1" 2>/dev/null || EXIT_CODE=$?
+assert_eq "unclosed exits non-zero" "1" "$EXIT_CODE"
+assert_eq "unclosed file untouched" "$BEFORE" "$(cat "$DOC")"
+
+echo "Test: fail-closed on a duplicate key (present twice → not an insert case)"
+DOC="$CUF_DIR/dup.md"
+cat >"$DOC" <<'EOF'
+---
+id: "0048"
+external_id: A
+external_id: B
+status: ready
+---
+
+Body.
+EOF
+BEFORE=$(cat "$DOC")
+EXIT_CODE=0
+config_upsert_frontmatter_field "$DOC" external_id "BLA-1" 2>/dev/null || EXIT_CODE=$?
+assert_eq "duplicate-key exits non-zero" "1" "$EXIT_CODE"
+assert_eq "duplicate-key file untouched" "$BEFORE" "$(cat "$DOC")"
+
+echo "Test: injection-safe value with & / \\ inserted literally"
+DOC="$CUF_DIR/inject.md"
+make_doc_no_external "$DOC"
+config_upsert_frontmatter_field "$DOC" external_id 'A&B/C\D'
+assert_eq "special value literal" 'external_id: A&B/C\D' "$(grep '^external_id:' "$DOC")"
+
+echo "Test: embedded-newline value rejected, file byte-unchanged"
+DOC="$CUF_DIR/newline.md"
+make_doc_no_external "$DOC"
+BEFORE=$(cat "$DOC")
+EXIT_CODE=0
+config_upsert_frontmatter_field "$DOC" external_id "$(printf 'BLA\n123')" 2>/dev/null || EXIT_CODE=$?
+assert_eq "embedded-newline exits non-zero" "1" "$EXIT_CODE"
+assert_eq "embedded-newline file untouched" "$BEFORE" "$(cat "$DOC")"
+
+echo ""
+
 test_summary
