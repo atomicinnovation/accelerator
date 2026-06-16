@@ -31,8 +31,9 @@ def _patch_paths(mocker, base: Path) -> None:
     mocker.patch.object(
         tg,
         "debug_archive_path",
-        lambda platform: bin_dir
-        / f"accelerator-visualiser-{platform}.debug.tar.gz",
+        lambda platform: (
+            bin_dir / f"accelerator-visualiser-{platform}.debug.tar.gz"
+        ),
     )
 
 
@@ -43,9 +44,9 @@ def staged_assets(fake_repo_tree: Path) -> Path:
     for platform in _PLATFORMS:
         (bin_dir / f"a9r-{platform}").write_bytes(b"\x00")
         (bin_dir / f"accelerator-visualiser-{platform}").write_bytes(b"\x00")
-        (bin_dir / f"accelerator-visualiser-{platform}.debug.tar.gz").write_bytes(
-            b"\x00"
-        )
+        (
+            bin_dir / f"accelerator-visualiser-{platform}.debug.tar.gz"
+        ).write_bytes(b"\x00")
     return fake_repo_tree
 
 
@@ -57,7 +58,9 @@ class TestUploadAndVerify:
         mocker.patch.object(
             tg,
             "upload_release_asset",
-            side_effect=lambda _ctx, _tag, path: uploads.append(Path(path).name),
+            side_effect=lambda _ctx, _tag, path: uploads.append(
+                Path(path).name
+            ),
         )
         mocker.patch.object(
             tg,
@@ -84,14 +87,8 @@ class TestUploadAndVerify:
         tg.upload_and_verify(ctx, "1.20.0")
         verified_map = dict(verified)
         # Hashes come from checksums.example.json (nested by asset name).
-        assert (
-            verified_map["a9r-darwin-arm64"]
-            == "1" * 64
-        )
-        assert (
-            verified_map["accelerator-visualiser-darwin-arm64"]
-            == "a" * 64
-        )
+        assert verified_map["a9r-darwin-arm64"] == "1" * 64
+        assert verified_map["accelerator-visualiser-darwin-arm64"] == "a" * 64
 
     def test_missing_a9r_checksum_entry_raises(
         self, ctx, mocker, staged_assets

@@ -173,11 +173,7 @@ def upload_and_verify(context: Context, version: str) -> None:
             assets.append((asset_path, digest.removeprefix("sha256:")))
         archives.append(debug_archive_path(platform))
 
-    missing = [
-        p
-        for p in [a for a, _ in assets] + archives
-        if not p.exists()
-    ]
+    missing = [p for p in [a for a, _ in assets] + archives if not p.exists()]
     if missing:
         raise FileNotFoundError(
             f"Expected release artefacts not found: {[str(p) for p in missing]}"
