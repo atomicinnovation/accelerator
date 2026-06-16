@@ -529,12 +529,22 @@ avoids overloading the `*_id` field/key vocabulary); update the declaration
 
 #### Automated Verification:
 
-- [ ] Server unit tests pass: `mise run test:unit:visualiser` (both modes)
-- [ ] No `parent_or_legacy_id` symbol remains in the tree:
+- [x] Server unit tests pass: `mise run test:unit:visualiser` (both modes —
+      529 default / 535 dev-frontend)
+- [x] No `parent_or_legacy_id` symbol remains in the tree:
       `grep -rn parent_or_legacy_id skills/visualisation/visualise/server/src/` returns nothing
-- [ ] No legacy `work_item_id:` clustering branch remains (verified by reading
-      the renamed function — single `parent:` path → `None`)
-- [ ] Full read-only CI mirror passes: `mise run check`
+- [x] No legacy `work_item_id:` clustering branch remains (verified by reading
+      the renamed `cluster_key_from_parent` — single `parent:` path → `None`)
+- [x] Full read-only CI mirror passes: `mise run check` (verified via
+      `mise run server:check`; exits 0 with no clippy/fmt findings)
+
+> Plan deviation: the Phase 3 test census missed an integration-level
+> legacy-pinning test, `clusters::tests::legacy_work_item_id_path_shape_resolves_to_work_item_cluster`
+> (`clusters.rs`), which asserted the removed legacy `work_item_id:` clustering
+> branch and went red. Retargeted to a path-shape `parent:`
+> (`path_shape_parent_resolves_to_work_item_cluster`), mirroring the
+> `plan_with_path_shape_parent_resolves` cluster_key retarget — preserves the
+> integration-level path-shape coverage, no coverage lost.
 
 #### Manual Verification:
 

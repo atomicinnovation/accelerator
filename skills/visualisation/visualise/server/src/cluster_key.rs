@@ -74,7 +74,7 @@ fn walk(
         DocTypeKey::Plans
         | DocTypeKey::Research
         | DocTypeKey::PrDescriptions => {
-            parent_or_legacy_id(entry, work_item_cfg)
+            cluster_key_from_parent(entry, work_item_cfg)
         }
         DocTypeKey::PlanReviews
         | DocTypeKey::WorkItemReviews
@@ -120,12 +120,13 @@ fn walk(
     }
 }
 
-/// For plans/research/pr-descriptions, accept (in priority order):
-/// 1. `parent: "work-item:NNNN"`  (ADR-0034 canonical)
-/// 2. `parent: "NNNN"` or bare `parent: "0042"`  (transitional)
-/// 3. `work_item_id: "0042"`  (legacy frontmatter)
-/// 4. `work_item_id: "meta/work/0033-foo.md"`  (legacy path shape)
-fn parent_or_legacy_id(
+/// For plans/research/pr-descriptions, derive the cluster key from the
+/// `parent:` linkage. The value is routed through `id_from_value`, which
+/// accepts the ADR-0034 canonical `parent: "work-item:NNNN"`, a bare
+/// `parent: "0042"`, or a legacy path shape (`meta/work/0033-foo.md`).
+/// Falls through to `None` when no `parent:` is present or it resolves to no
+/// work item.
+fn cluster_key_from_parent(
     entry: &IndexEntry,
     cfg: &WorkItemConfig,
 ) -> Option<String> {
@@ -135,29 +136,11 @@ fn parent_or_legacy_id(
             return Some(id);
         }
     }
-    if let Some(raw) = entry
-        .frontmatter
-        .get("work_item_id")
-        .and_then(|v| v.as_str())
-    {
-        if let Some(id) = id_from_value(raw, cfg) {
-            // Deprecated legacy branch: the canonical clustering key is now
-            // `parent:` (the migration derives it from the foreign
-            // `work_item_id:`). Retained this release for un-migrated repos;
-            // its removal is the story-0070 follow-on contract story.
-            warn!(
-                entry_path = %entry.path.display(),
-                "cluster key resolved via the legacy `work_item_id:` branch; \
-                 migrate to `parent:` (deprecated fallback — story 0070 follow-on)",
-            );
-            return Some(id);
-        }
-    }
     None
 }
 
-/// Normalise a `parent/work_item_id` frontmatter value to a canonical
-/// work-item id. Handles three shapes routed through `parse_typed_ref`:
+/// Normalise a `parent:` frontmatter value to a canonical work-item id.
+/// Handles three shapes routed through `parse_typed_ref`:
 /// - `TypedRef::WorkItem(id)` — typed canonical form
 /// - `TypedRef::Path(p)` — legacy path shape, e.g. `meta/work/0033-foo.md`
 /// - bare numeric/`PROJ-NNNN` token — routed via `canonicalise_one_id`
@@ -275,10 +258,14 @@ mod tests {
     }
 
     #[test]
-    fn plan_with_work_item_id_frontmatter_resolves() {
+    fn plan_resolves_via_parent_ignoring_legacy_work_item_id() {
+        // Post-removal contract: the legacy `work_item_id:` clustering branch is
+        // gone, so a plan carrying both an (inert) `work_item_id:` and a
+        // `parent:` resolves solely via `parent:`.
         let cfg = WorkItemConfig::default();
         let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 1, "P");
-        plan.frontmatter = json!({ "work_item_id": "0042" });
+        plan.frontmatter =
+            json!({ "work_item_id": "0099", "parent": "work-item:0042" });
         let resolved = resolve_cluster_key(
             &plan,
             &empty_entries(),
@@ -291,36 +278,12 @@ mod tests {
     }
 
     #[test]
-    fn legacy_work_item_id_branch_emits_deprecation_warning() {
-        // Story 0070: the retained legacy `work_item_id:` clustering branch
-        // emits a deprecation warning when it resolves (the canonical key is
-        // now `parent:`). Capture synchronously on the test thread.
-        let body = crate::log::test_support::capture_logs(|| {
-            let cfg = WorkItemConfig::default();
-            let mut plan =
-                entry_for_test(DocTypeKey::Plans, "pipeline", 1, "P");
-            plan.frontmatter = json!({ "work_item_id": "0042" });
-            let resolved = resolve_cluster_key(
-                &plan,
-                &empty_entries(),
-                &HashMap::new(),
-                &HashMap::new(),
-                &project_root(),
-                &cfg,
-            );
-            assert_eq!(resolved.as_deref(), Some("0042"));
-        });
-        assert!(
-            body.contains("legacy `work_item_id:` branch"),
-            "expected cluster-key legacy-branch deprecation warning, got: {body}"
-        );
-    }
-
-    #[test]
-    fn plan_with_path_shape_work_item_id_resolves() {
+    fn plan_with_path_shape_parent_resolves() {
+        // The only cluster-level coverage of id_from_value's surviving
+        // TypedRef::Path → extract_id branch, now exercised via `parent:`.
         let cfg = WorkItemConfig::default();
         let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 1, "P");
-        plan.frontmatter = json!({ "work_item_id": "meta/work/0033-foo.md" });
+        plan.frontmatter = json!({ "parent": "meta/work/0033-foo.md" });
         let resolved = resolve_cluster_key(
             &plan,
             &empty_entries(),
