@@ -167,6 +167,16 @@ _req_validate_site() {
 _jira_parse_http_date() {
   local datestr="$1"
   local epoch
+  # An HTTP-date (RFC 7231) is always expressed in GMT. Reject a
+  # timezone-less string before parsing: GNU `date -d` (Linux) would
+  # otherwise silently interpret it as *local* time and succeed, whereas
+  # BSD date (macOS) rejects it via the mandatory %Z token below. Guarding
+  # here keeps the two platforms in agreement — a zoneless Retry-After is
+  # malformed and must fall back to jittered back-off on both.
+  case "$datestr" in
+    *GMT | *UTC) ;;
+    *) return 1 ;;
+  esac
   # GNU date (Linux)
   if epoch=$(LC_ALL=C date -d "$datestr" +%s 2>/dev/null); then
     echo "$epoch"
