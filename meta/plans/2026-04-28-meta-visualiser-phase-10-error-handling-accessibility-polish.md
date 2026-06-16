@@ -2,7 +2,6 @@
 date: "2026-04-28T00:00:00Z"
 type: plan
 producer: create-plan
-ticket: null
 status: ready
 id: "2026-04-28-meta-visualiser-phase-10-error-handling-accessibility-polish"
 title: "Phase 10 — Error handling, accessibility, polish implementation plan"

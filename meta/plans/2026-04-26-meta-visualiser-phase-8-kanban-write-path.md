@@ -2,7 +2,6 @@
 date: "2026-04-26T22:18:09Z"
 type: plan
 producer: create-plan
-ticket: null
 status: done
 revised: "2026-04-27T00:00:00Z"
 id: "2026-04-26-meta-visualiser-phase-8-kanban-write-path"

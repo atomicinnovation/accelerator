@@ -2,7 +2,6 @@
 date: "2026-04-18T12:30:00+01:00"
 type: plan
 producer: create-plan
-ticket: null
 status: draft
 id: "2026-04-18-meta-visualiser-phase-1-skill-scaffolding"
 title: "Meta Visualiser — Phase 1: Skill Scaffolding and No-Op Preprocessor"

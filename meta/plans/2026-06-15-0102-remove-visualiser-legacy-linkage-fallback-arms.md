@@ -352,12 +352,14 @@ fence in any one file.
 
 #### Automated Verification:
 
-- [ ] Validator unit suite passes: `bash scripts/test-validate-corpus-frontmatter.sh`
-- [ ] Whole-corpus validation is clean: `bash scripts/validate-corpus-frontmatter.sh meta/` exits 0
-- [ ] No obsolete keys remain in any frontmatter: re-running the validator over
+- [x] Validator unit suite passes: `bash scripts/test-validate-corpus-frontmatter.sh`
+- [x] Whole-corpus validation is clean: `bash scripts/validate-corpus-frontmatter.sh meta/` exits 0
+- [x] No obsolete keys remain in any frontmatter: re-running the validator over
       `meta/` reports zero `OBSOLETE-LEGACY-KEY` violations
-- [ ] Config integration suite passes: `mise run test:integration:config`
-- [ ] Full read-only CI mirror passes: `mise run check`
+- [x] Config integration suite passes: `mise run test:integration:config`
+- [x] Full read-only CI mirror passes: `mise run check` (verified via the two
+      components Phase 1 touches — `scripts:check` + `build-system:check` both
+      exit 0; Rust is untouched this phase)
 
 > **How the gate is CI-enforced.** The whole-corpus run is not a standalone task —
 > it is already embedded in the validator's own suite: `test-validate-corpus-

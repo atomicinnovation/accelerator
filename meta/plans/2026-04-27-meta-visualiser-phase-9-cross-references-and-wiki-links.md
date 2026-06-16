@@ -2,7 +2,6 @@
 date: "2026-04-27T00:00:00Z"
 type: plan
 producer: create-plan
-ticket: null
 status: done
 id: "2026-04-27-meta-visualiser-phase-9-cross-references-and-wiki-links"
 title: "Phase 9 — Cross-references and wiki-links implementation plan"

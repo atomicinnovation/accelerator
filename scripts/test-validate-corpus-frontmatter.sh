@@ -81,6 +81,58 @@ assert_rejects "non-anchored type with lone revision rejected" \
 emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-ownid.md" 'work_item_id: "0001"'
 assert_rejects "forbidden own-id key rejected" "FORBIDDEN-OWN-ID" "$TMP/bad-ownid.md"
 
+# Obsolete legacy linkage keys (ticket / ticket_id) — forbidden on every
+# typed/type-inferable doc (the migration-completion gate's second clause; see
+# OBSOLETE_LEGACY_KEYS in the validator). `ticket` is neither a work-item
+# forbidden-own-id key nor a typed-linkage key, so its sole defect here is the
+# obsolete-key clause.
+# (a) Fires standalone — and is the ONLY violation, so a future reorder letting
+#     an earlier clause short-circuit first cannot mask it.
+for obs_key in ticket ticket_id; do
+  emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-obsolete-$obs_key.md" "$obs_key: \"0042\""
+  assert_rejects "obsolete legacy key '$obs_key' rejected" "OBSOLETE-LEGACY-KEY" "$TMP/bad-obsolete-$obs_key.md"
+  run_validator "$TMP/bad-obsolete-$obs_key.md"
+  if grep -qF "FAIL: 1 frontmatter violation" <<<"$VALIDATOR_ERR"; then
+    echo "  PASS: obsolete key '$obs_key' is the sole violation (standalone observability)"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: obsolete key '$obs_key' not standalone; got: $VALIDATOR_ERR"
+    FAIL=$((FAIL + 1))
+  fi
+done
+
+# (b) Clean fixture (no obsolete key) passes.
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/ok-no-obsolete.md"
+assert_accepts "fixture without obsolete keys accepted" "$TMP/ok-no-obsolete.md"
+
+# (c) Negative discrimination — a CURRENT foreign-reference work_item_id: (and a
+# typed parent: "work-item:NNNN") must NOT be flagged obsolete. The fixture is a
+# fully-valid PLAN: a work-item would trip FORBIDDEN-OWN-ID on work_item_id: and
+# mask this assertion. Pins the key-vs-reference distinction the whole gate rests
+# on, so a future widening of OBSOLETE_LEGACY_KEYS to work_item_id is caught here.
+emit_valid plan yes "reviewer" "draft | ready | in-progress | done" "$TMP/ok-foreign-wiid.md" 'work_item_id: "0042"'
+assert_accepts "foreign work_item_id: on plan not flagged obsolete" "$TMP/ok-foreign-wiid.md"
+emit_valid plan yes "reviewer" "draft | ready | in-progress | done" "$TMP/ok-typed-parent.md" 'parent: "work-item:0042"'
+assert_accepts "typed parent: work-item ref not flagged obsolete" "$TMP/ok-typed-parent.md"
+
+# (d) Coverage boundary — an obsolete key in an untyped/unmapped doc is NOT
+# flagged OBSOLETE-LEGACY-KEY: validate_file returns at the INVALID-TYPE guard
+# before the obsolete-key check is reached. (The boundary the gate documents is
+# the SKIP on untyped docs; a typeless file is itself an INVALID-TYPE violation,
+# so we assert the skip directly rather than via assert_accepts.)
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/boundary-untyped.md" 'ticket: "0042"'
+sed -i.bak '/^type: work-item$/d' "$TMP/boundary-untyped.md"
+run_validator "$TMP/boundary-untyped.md"
+if [ "$VALIDATOR_RC" -ne 0 ] &&
+  grep -qF "INVALID-TYPE" <<<"$VALIDATOR_ERR" &&
+  ! grep -qF "OBSOLETE-LEGACY-KEY" <<<"$VALIDATOR_ERR"; then
+  echo "  PASS: obsolete key in untyped doc skipped (INVALID-TYPE precedes the check)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: untyped-doc boundary not as expected (rc=$VALIDATOR_RC): $VALIDATOR_ERR"
+  FAIL=$((FAIL + 1))
+fi
+
 emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-empty.md" 'parent: ""'
 assert_rejects "empty-placeholder key rejected" "EMPTY-PLACEHOLDER" "$TMP/bad-empty.md"
 

@@ -2,7 +2,6 @@
 date: "2026-04-07T23:15:00+01:00"
 type: plan
 producer: create-plan
-ticket: null
 status: draft
 id: "2026-04-07-fix-tmp-directory-usage-in-pr-skills"
 title: "Fix /tmp Directory Usage in PR Skills — Implementation Plan"

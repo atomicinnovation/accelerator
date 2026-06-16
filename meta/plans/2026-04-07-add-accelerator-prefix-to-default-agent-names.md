@@ -2,7 +2,6 @@
 date: "2026-04-07T12:00:00+01:00"
 type: plan
 producer: create-plan
-ticket: null
 status: draft
 id: "2026-04-07-add-accelerator-prefix-to-default-agent-names"
 title: "Add `accelerator:` Prefix to Default Agent Names"

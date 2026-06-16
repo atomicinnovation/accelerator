@@ -28,9 +28,13 @@ _EXPECTED_INTEGRATIONS_SUITES = 32
 # Fail-closed gates that MUST run by name, not merely satisfy the count floor —
 # a guard renamed off the `test-*.sh` convention would vanish while the count
 # still passes via other suites. The producer-conformance guard (work item
-# 0103) is the gate that "cannot drift undetected", so its presence is asserted
-# by identity.
-_REQUIRED_CONFIG_SUITES = ("scripts/test-skill-frontmatter-conformance.sh",)
+# 0103) is the gate that "cannot drift undetected"; the corpus validator (work
+# item 0102) hosts the migration-completion gate (its whole-corpus sanity run is
+# the migration-complete signal). Both presences are asserted by identity.
+_REQUIRED_CONFIG_SUITES = (
+    "scripts/test-skill-frontmatter-conformance.sh",
+    "scripts/test-validate-corpus-frontmatter.sh",
+)
 
 
 @task

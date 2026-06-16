@@ -2,7 +2,6 @@
 date: "2026-04-30T22:00:00+01:00"
 type: plan
 producer: create-plan
-ticket: null
 status: done
 id: "2026-04-30-meta-visualiser-phase-12-packaging-docs-and-release"
 title: "Meta Visualiser — Phase 12: Packaging, docs, and release"

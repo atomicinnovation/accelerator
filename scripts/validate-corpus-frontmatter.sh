@@ -37,6 +37,15 @@ violation() { # $1 = file, $2 = code, $3 = message
   VIOLATIONS=$((VIOLATIONS + 1))
 }
 
+# Fully-obsolete legacy linkage keys (forbid on every typed/type-inferable doc —
+# see the coverage-boundary note below; this is not a SCHEMA_* parallel column).
+# Distinct from FORBIDDEN-OWN-ID (per-type own-id keys via the schema TSV) and
+# from build_index's deliberately-tolerant own-id fallback (:213-216): three
+# separate policies toward legacy keys live in this script — keep them distinct.
+# `ticket`/`ticket_id` were migrated out by 0001 (ticket→work-item) and the 0070
+# unified-schema work; no current template emits them on any type.
+OBSOLETE_LEGACY_KEYS=(ticket ticket_id)
+
 # ---- Schema table (parallel arrays; bash 3.2 has no associative arrays) ----
 SCHEMA_TYPES=()
 SCHEMA_ANCHORED=()
@@ -317,6 +326,16 @@ validate_file() {
         violation "$file" "FORBIDDEN-OWN-ID" "forbidden own-id key '$f' present"
     done
   fi
+
+  # Obsolete legacy linkage keys absent (cross-cutting, any type). Migration-
+  # completion gate: `ticket`/`ticket_id` were migrated out by 0001 and the 0070
+  # unified-schema work and must not reappear in any frontmatter.
+  local obs
+  for obs in "${OBSOLETE_LEGACY_KEYS[@]}"; do
+    bk_present "$obs" &&
+      violation "$file" "OBSOLETE-LEGACY-KEY" \
+        "obsolete legacy linkage key '$obs' present (use id:/typed references)"
+  done
 
   # Required (always-valued) extras present.
   for f in $extras; do

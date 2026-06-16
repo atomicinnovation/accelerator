@@ -2,7 +2,6 @@
 date: "2026-04-21T09:00:00+01:00"
 type: plan
 producer: create-plan
-ticket: null
 status: done
 id: "2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api"
 title: "Meta Visualiser — Phase 3: FileDriver, Indexer, and read-only API"
