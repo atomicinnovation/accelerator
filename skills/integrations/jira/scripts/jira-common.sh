@@ -155,9 +155,13 @@ jira_with_lock() {
 
   while true; do
     if mkdir "$lockdir" 2>/dev/null; then
-      # Lock acquired — record holder identity
+      # Lock acquired — record holder identity.
       # $BASHPID gives the current subshell's PID directly (no command substitution).
       # Using $() here would create a new subshell whose PID would immediately die.
+      # On bash 3.2 (the macOS floor) BASHPID does not exist and this falls back
+      # to $$. That is correct for real callers — each runs jira_with_lock as a
+      # top-level process, where $$ is the process PID — but note $$ does NOT
+      # track an in-process subshell on 3.2 (it stays the parent's PID).
       local my_pid="${BASHPID:-$$}"
       local my_start
       my_start=$(_jira_proc_starttime "$my_pid")

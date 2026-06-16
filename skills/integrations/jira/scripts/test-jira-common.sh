@@ -287,15 +287,27 @@ assert_eq "dead-holder lock reclaimed and function ran" "ran" "$RESULT"
 echo "Test: (c) SIGKILL holder recovery — lock from killed process is reclaimed"
 REPO=$(setup_repo)
 STATE_DIR=$(cd "$REPO" && source "$JIRA_COMMON" && jira_state_dir)
-# Start a background process that will hold the lock, then kill it
-(
-  cd "$REPO" && source "$JIRA_COMMON"
+# Start the holder as a separate `bash -c` *process*, not an in-process
+# `( ... ) &` subshell. This test hinges on the recorded holder PID being
+# *dead* after the kill below. jira_with_lock records ${BASHPID:-$$}, and on
+# bash 3.2 (the macOS floor — BASHPID is a bash 4+ feature) that resolves to
+# $$, which inside a subshell is the *parent* (this test runner), not the
+# subshell. A subshell holder would therefore record this still-alive PID and
+# the orphaned lock would never be reclaimed. A `bash -c` process has $$ ==
+# its own PID == $! on every bash version, so the kill genuinely orphans it.
+bash -c '
+  cd "$1" && source "$2"
   _hold_forever() { sleep 60; }
   ACCELERATOR_TEST_MODE=1 JIRA_LOCK_TIMEOUT_SECS=30 JIRA_LOCK_SLEEP_SECS=0.05 \
     jira_with_lock _hold_forever
-) &
+' _ "$REPO" "$JIRA_COMMON" &
 HOLDER_PID=$!
-sleep 0.15 # give holder time to acquire the lock
+# Poll until the holder acquires the lock (up to 5s) — avoids a fixed-sleep race
+_waited=0
+until [[ -d "$STATE_DIR/.lock" ]] || [[ "$_waited" -ge 50 ]]; do
+  sleep 0.1
+  _waited=$((_waited + 1))
+done
 kill -9 "$HOLDER_PID" 2>/dev/null || true
 wait "$HOLDER_PID" 2>/dev/null || true
 sleep 0.05 # let OS clean up
