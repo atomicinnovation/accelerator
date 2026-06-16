@@ -15,8 +15,9 @@ _EXPECTED_CONFIG_SUITES = 16
 
 # The skills/work subtree discoverable shell suites. At-least floor (mirror of
 # the migrate/config guards) so a dropped exec bit can't silently shrink the
-# regression net. Bumped as suites are added under skills/work.
-_EXPECTED_WORK_SUITES = 2
+# regression net. Bumped as suites are added under skills/work (pattern,
+# scripts, create-remote).
+_EXPECTED_WORK_SUITES = 3
 
 # The skills/integrations subtree discoverable shell suites (every individual
 # test-jira-*.sh + test-linear-*.sh; the test-jira-scripts.sh umbrella runner is

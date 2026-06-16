@@ -21,6 +21,15 @@ accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
 **Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
+**Active integration**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh integration`
+
+The **Active integration** line gates the post-draft push offer (Step 5).
+`config-read-work.sh integration` exits 0 with an **empty line** when no
+integration is configured, so branch on the **string**: a non-empty value means
+*integration configured* (offer the push); an empty value means *not configured*
+(no push offer — behave exactly as today). This is the single resolution of the
+active tracker for this invocation; the push dispatcher is told which tracker to
+use from **this** value, so the gate and the route cannot diverge.
 
 ## Work Item Template
 
@@ -486,13 +495,98 @@ concurrently. Please re-run /create-work-item.
         otherwise omit the key.
    3. Substitute `XXXX` with the full ID throughout the draft body (in
       the H1 line). The H1 line reads `# <full-id>: <title>`.
-   4. Write the file with the substituted frontmatter block.
+   4. **Do not Write yet if an integration is configured** — the push state
+      machine in Step 6 governs the single Write (so `external_id` can be
+      substituted in before it). If **no** integration is configured, Write the
+      file now with the substituted frontmatter block and skip to step 7.
 
-6. **Print a confirmation**:
+6. **Push state machine** (only when **Active integration** is non-empty;
+   otherwise this whole step is skipped and the file was already written in
+   step 5.4). The drafted frontmatter is held **in memory** — no file exists yet.
+
+   1. **Offer the push** using the fail-safe gate (copied from the
+      enrich-mode gate): present the target tracker, the title, and the
+      resolvable target fields so the single keystroke maps to an understood,
+      non-destructive result. Get the preview **through the dispatcher** (never
+      reach into an integration script directly — the dispatcher is the only
+      sanctioned bridge and the one your `allowed-tools` permits):
+
+      ```
+      ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-create-remote.sh \
+        --integration <sys> --kind <kind> --dry-run
+      ```
+
+      For **jira** it prints `jira\t<issue type>\t<type source>\t<project>\t<project source>` —
+      render the type and project with their sources, and say `kind "<k>" →
+      <Type> (default)` when the type source is `default`. If `--dry-run` exits
+      `70` (e.g. an unresolvable project), surface that as a pre-create failure
+      **before** the gate (name `work.default_project_code`) and do not offer the
+      push. For **linear** it prints that there are no user-resolvable
+      type/project fields (the team is fixed by `/init-linear`). State **both**
+      outcomes inline:
+
+      ```
+      Push to <tracker> now? [y/N]  (y = create the remote issue + save locally;
+      anything else = save locally only, unsynced — you can push it later by
+      running /create-<tracker>-issue <path>)
+      ```
+
+      Interpret strictly: exactly `y`/`Y` (trimmed) accepts; **anything else**
+      declines. `/sync-work-items` is **not built yet** — do not tell the user
+      to run it; the "push later" path is the standalone `/create-<tracker>-issue`
+      skill on the saved file (it shares this `external_id` contract).
+
+   2. **On decline** → write the file now with `external_id` omitted (unsynced),
+      then go to step 7.
+
+   3. **On accept** → write the work item's Markdown body to a temp file and call
+      the dispatcher with the tracker from the **Active integration** read above
+      (never a re-derived value):
+
+      ```
+      ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-create-remote.sh \
+        --integration <sys> --title "<title>" --body-file <body-tmp> --kind <kind>
+      ```
+
+      On success it prints **only** the bare remote identifier. Feed the
+      dispatcher's **exit code** (and the attempt number, starting at 1) to the
+      decision seam — never re-derive the branch by hand, it is the guard that
+      prevents duplicate issues:
+
+      ```
+      ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-push-decide.sh \
+        --code <dispatcher-exit-code> --attempt <n>
+      ```
+
+      Then act on the printed keyword, per the table below.
+
+   **Outcome table** (the seam returns the keyword; you render the message):
+
+   | Dispatcher result | Seam keyword | Action |
+   |---|---|---|
+   | `0` (success) | `write-once` | Substitute the returned identifier into the in-memory `external_id` line (add the line if omit-by-default dropped it), then **Write once**. |
+   | `70` retryable-transport, attempt 1 | `retry` | Offer **one** retry. Re-run the dispatcher; feed its code to the seam with `--attempt 2`. The retry's result re-enters this table (`0`→`write-once`; `71`→`loud-terminal`; `70` again→`local-save`). |
+   | `70` retryable-transport, attempt 2 | `local-save` | Write locally **without** `external_id`; tell the user it saved unsynced and can be pushed later via `/create-<tracker>-issue <path>`. |
+   | `71` terminal-post-create | `loud-terminal` | **Do NOT retry.** Write locally without `external_id`, then print loud non-idempotent guidance **naming the saved file's absolute path**: a remote issue may already have been created — do **not** blindly re-run `/create-work-item`; check the tracker, and if the issue exists reconcile by running `/create-<tracker>-issue <saved-path>` (guarded against double-create) **or** set `external_id: <KEY>` by hand. |
+   | Accept → success but the **single Write fails** | `loud-terminal` (seam called with `--code 0 --write-failed`) | The remote issue exists and its identifier is known, but nothing is on disk. Print the **same loud guidance**, echoing the returned identifier and intended path; do **not** silently re-create (a re-run would duplicate). |
+   | `72` not-available (trello/github-issues) | `local-save` | Tell the user create support for `<sys>` is not built yet (cite 0049/0050), the item is saved locally and will sync once support lands; Write without `external_id`. |
+   | `73` unrecognised | `local-save` | Fail closed: report the misconfigured `work.integration` value; Write without `external_id`. |
+
+   The single Write is the only disk mutation on the success path —
+   `external_id` is substituted **pre-write**, so the replace-only
+   `config_set_frontmatter_field` is never on this path. The invariant "no file
+   exists until success / decline / confirmed-local-fallback resolves" holds
+   across every row, including the Write-failure row (the failure leaves no
+   partial file and hands recovery to the user).
+
+7. **Print a confirmation**:
 
 ```
 Work item created: `{work_dir}/<full-id>-kebab-slug.md`
 ```
+
+   When the item was saved unsynced (decline / fallback), say so:
+   `Work item created (unsynced): … — push later with /create-<tracker>-issue <path>`.
 
 ### In enrich-existing mode
 

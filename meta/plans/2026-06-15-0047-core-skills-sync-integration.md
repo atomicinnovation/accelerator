@@ -823,19 +823,19 @@ not the gating safety test.
 
 #### Automated Verification
 
-- [ ] Dispatcher tests pass: `bash skills/work/scripts/test-work-item-create-remote.sh`
+- [x] Dispatcher tests pass: `bash skills/work/scripts/test-work-item-create-remote.sh`
       (executable; runs in CI once wired — see Phase 0)
-- [ ] Dispatcher routes each `work.integration` value correctly, returns the
+- [x] Dispatcher routes each `work.integration` value correctly, returns the
       not-available code for trello/github-issues, and **fails closed** on an
       unrecognised/empty `<sys>`
-- [ ] Dispatcher maps pre-mutation failures to `retryable-transport` and
+- [x] Dispatcher maps pre-mutation failures to `retryable-transport` and
       post-mutation/identifier-lost failures to `terminal-post-create` (distinct
       codes)
 - [ ] `create-work-item` eval suite passes (no regression to the
       no-integration path): the skill's `evals/` harness, with the §4 transition
       cases
-- [ ] Shell lint/format clean: `mise run scripts:check`
-- [ ] Full read-only gate: `mise run check`
+- [x] Shell lint/format clean: `mise run scripts:check`
+- [x] Full read-only gate: `mise run check`
 
 #### Manual Verification
 
