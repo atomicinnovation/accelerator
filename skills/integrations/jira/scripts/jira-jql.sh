@@ -321,12 +321,25 @@ jql_compose() {
   printf '%s' "$result"
 }
 
-# _jql_compose_field <clauses_nameref> <jql_field> <values_nameref>
-# Splits values into positives/negatives, appends IN/NOT IN clauses.
+# _jql_compose_field <clauses_array_name> <jql_field> <values_array_name>
+# Splits values into positives/negatives, appends IN/NOT IN clauses to the
+# named clauses array.
+#
+# Arrays are passed by name and dereferenced with bash 3.2-compatible indirect
+# expansion. Namerefs (local -n) are a bash 4.3+ feature and the macOS floor is
+# bash 3.2, where `local -n` is an invalid option.
 _jql_compose_field() {
-  local -n _clauses="$1"
+  local _clauses_name="$1"
   local jql_field="$2"
-  local -n _vals="$3"
+  local _vals_name="$3"
+
+  # Indirectly read the values array (guarded so an empty array does not trip
+  # set -u in the calling context).
+  local _vals_exp="${_vals_name}[@]"
+  local -a _vals=()
+  if eval "[[ \${#${_vals_name}[@]} -gt 0 ]]"; then
+    _vals=("${!_vals_exp}")
+  fi
 
   if [[ ${#_vals[@]} -eq 0 ]]; then
     return 0
@@ -334,13 +347,16 @@ _jql_compose_field() {
 
   jql_split_neg "${_vals[@]}"
 
+  # Append via eval: only the *reference* "$clause" is evaluated, never the
+  # clause's contents, so quotes/parens in the value are preserved verbatim
+  # and there is no injection surface.
   local clause
   if [[ ${#JQL_POSITIVES[@]} -gt 0 ]]; then
     clause=$(jql_in "$jql_field" "${JQL_POSITIVES[@]}") || return $?
-    _clauses+=("$clause")
+    eval "${_clauses_name}+=( \"\$clause\" )"
   fi
   if [[ ${#JQL_NEGATIVES[@]} -gt 0 ]]; then
     clause=$(jql_not_in "$jql_field" "${JQL_NEGATIVES[@]}") || return $?
-    _clauses+=("$clause")
+    eval "${_clauses_name}+=( \"\$clause\" )"
   fi
 }

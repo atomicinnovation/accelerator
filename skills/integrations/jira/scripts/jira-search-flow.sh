@@ -104,16 +104,35 @@ _jira_search_resolve_field() {
 
 # _jira_search_substitute_me_in <array_name>
 # Replaces @me and ~@me entries in the named array with the resolved accountId.
+#
+# The array is passed by name and accessed with bash 3.2-compatible indirection
+# (a read snapshot via indirect expansion, write-back per element via eval).
+# Namerefs (local -n) are a bash 4.3+ feature and the macOS floor is bash 3.2,
+# where `local -n` is an invalid option.
 _jira_search_substitute_me_in() {
-  local -n _sme_arr="$1"
+  local _sme_name="$1"
+
+  # Snapshot the named array (guarded so an empty array does not trip set -u).
+  local _sme_exp="${_sme_name}[@]"
+  local -a _sme_arr=()
+  if eval "[[ \${#${_sme_name}[@]} -gt 0 ]]"; then
+    _sme_arr=("${!_sme_exp}")
+  fi
+
+  # Write resolved values straight back into the named array element; only the
+  # reference "$av" is evaluated, so the value is assigned verbatim.
+  # av is referenced only inside the eval strings below (as \$av), which the
+  # linter cannot trace — hence the SC2034 (appears unused) suppressions.
   local i av
   for i in "${!_sme_arr[@]}"; do
     if [[ "${_sme_arr[$i]}" == "@me" ]]; then
+      # shellcheck disable=SC2034
       av=$(_jira_search_resolve_me) || return $?
-      _sme_arr[$i]="$av"
+      eval "${_sme_name}[\$i]=\"\$av\""
     elif [[ "${_sme_arr[$i]}" == "~@me" ]]; then
+      # shellcheck disable=SC2034
       av=$(_jira_search_resolve_me) || return $?
-      _sme_arr[$i]="~$av"
+      eval "${_sme_name}[\$i]=\"~\$av\""
     fi
   done
 }
