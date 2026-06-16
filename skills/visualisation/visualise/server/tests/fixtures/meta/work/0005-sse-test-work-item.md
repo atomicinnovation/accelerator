@@ -1,7 +1,7 @@
 ---
 title: SSE Test Work Item
 status: draft
-work_item_id: 5
+id: "0005"
 ---
 
 # SSE Test Work Item

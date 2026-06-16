@@ -1353,15 +1353,11 @@ fn build_entry(
         // project-prefixed workspace during a pattern-config rollout).
         let slug =
             regex_slug.or_else(|| slug::derive(kind, filename, work_item_cfg));
-        // Identity resolution (story 0070): the unified `id:` key is primary,
-        // then the legacy `work_item_id:` key, then filename extraction. The
-        // latter two are retained transitional fallbacks — a follow-on contract
-        // story removes them once every consuming repo has migrated — and each
-        // emits a deprecation warning when it is the resolving source. All three
-        // sources route through `normalise_id` so the identity shape is
-        // canonical regardless of where it came from (a raw `id:` must not
-        // bypass normalisation). A synced work-item may carry its id in
-        // frontmatter even when the filename doesn't encode it.
+        // Identity resolution: the unified `id:` key is the sole work-item
+        // identity source. It routes through `normalise_id` so the identity
+        // shape is canonical (a raw `id:` must not bypass normalisation). A
+        // synced work-item may carry its id in frontmatter even when the
+        // filename doesn't encode it.
         let read_fm_id = |key: &str| -> Option<String> {
             let FrontmatterState::Parsed(map) = &parsed.state else {
                 return None;
@@ -1379,25 +1375,10 @@ fn build_entry(
                 normalised
             })
         };
-        let id = if let Some(v) = read_fm_id("id") {
-            Some(v)
-        } else if let Some(v) = read_fm_id("work_item_id") {
-            tracing::warn!(
-                file = %path.display(),
-                "work-item identity resolved via the legacy `work_item_id:` key; \
-                 migrate to `id:` (deprecated fallback — story 0070 follow-on)",
-            );
-            Some(v)
-        } else if let Some(v) = work_item_cfg.extract_id(filename) {
-            tracing::warn!(
-                file = %path.display(),
-                "work-item identity resolved via the filename fallback; \
-                 add an `id:` (deprecated fallback — story 0070 follow-on)",
-            );
-            Some(v)
-        } else {
-            None
-        };
+        // `id:` is the sole work-item identity source (validated via
+        // normalise_id); absence → None, i.e. the entry is excluded from the
+        // index.
+        let id = read_fm_id("id");
         (slug, id)
     } else {
         (slug::derive(kind, &slug_filename, work_item_cfg), None)
@@ -2150,17 +2131,17 @@ mod refresh_tests {
         std::fs::create_dir_all(&work).unwrap();
         std::fs::write(
             work.join("0001-foo.md"),
-            "---\ntitle: Foo\nstatus: todo\n---\n# body\n",
+            "---\nid: \"0001\"\ntitle: Foo\nstatus: todo\n---\n# body\n",
         )
         .unwrap();
         std::fs::write(
             work.join("0002-bar.md"),
-            "---\ntitle: Bar\nstatus: done\n---\n# body\n",
+            "---\nid: \"0002\"\ntitle: Bar\nstatus: done\n---\n# body\n",
         )
         .unwrap();
         std::fs::write(
             work.join("0003-baz.md"),
-            "---\ntitle: Baz\nstatus: in-progress\n---\n# body\n",
+            "---\nid: \"0003\"\ntitle: Baz\nstatus: in-progress\n---\n# body\n",
         )
         .unwrap();
 
@@ -2964,8 +2945,11 @@ mod reverse_index_tests {
         let wi_reviews = tmp.path().join("meta/reviews/work");
         std::fs::create_dir_all(&work).unwrap();
         std::fs::create_dir_all(&wi_reviews).unwrap();
-        std::fs::write(work.join("0042-foo.md"), "---\ntitle: Foo\n---\n")
-            .unwrap();
+        std::fs::write(
+            work.join("0042-foo.md"),
+            "---\nid: \"0042\"\ntitle: Foo\n---\n",
+        )
+        .unwrap();
         std::fs::write(
             wi_reviews.join("0042-foo-review-1.md"),
             "---\ntarget: \"work-item:0042\"\n---\n",
@@ -3238,7 +3222,7 @@ mod reverse_index_tests {
             tmp.path(),
             &[(
                 "0001-self-ref.md",
-                "---\ntitle: Self Ref\nparent: 0001\n---\n",
+                "---\nid: \"0001\"\ntitle: Self Ref\nparent: 0001\n---\n",
             )],
             &[],
         )
@@ -3388,17 +3372,17 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Frontmatter-first work_item_id resolution ───────────────────────────
+    // ── Frontmatter-first id: resolution ────────────────────────────────────
     #[tokio::test]
-    async fn work_item_id_uses_frontmatter_when_present() {
+    async fn id_uses_frontmatter_when_present() {
         let tmp = tempfile::tempdir().unwrap();
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();
         // Filename is bare-numeric (matches default scan_regex) but
-        // frontmatter declares a prefixed ID — frontmatter wins.
+        // frontmatter declares a prefixed `id:` — frontmatter wins.
         std::fs::write(
             work_dir.join("0001-foo.md"),
-            "---\ntitle: F\nwork_item_id: \"ENG-0042\"\n---\n",
+            "---\ntitle: F\nid: \"ENG-0042\"\n---\n",
         )
         .unwrap();
         let mut map = HashMap::new();
@@ -3416,29 +3400,7 @@ mod reverse_index_tests {
         assert_eq!(entry.work_item_id.as_deref(), Some("ENG-0042"));
     }
 
-    #[tokio::test]
-    async fn work_item_id_falls_back_to_filename_when_frontmatter_absent() {
-        let tmp = tempfile::tempdir().unwrap();
-        let work_dir = tmp.path().join("meta/work");
-        std::fs::create_dir_all(&work_dir).unwrap();
-        std::fs::write(work_dir.join("0042-foo.md"), "---\ntitle: F\n---\n")
-            .unwrap();
-        let mut map = HashMap::new();
-        map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
-            .await
-            .unwrap();
-        let entry = idx
-            .get(&work_dir.join("0042-foo.md"))
-            .await
-            .expect("indexed");
-        assert_eq!(entry.work_item_id.as_deref(), Some("0042"));
-    }
-
-    // ── Story 0070: unified `id:` read path + per-arm deprecation warnings ──
+    // ── Unified `id:` read path ─────────────────────────────────────────────
     fn fc_for(s: &str) -> crate::file_driver::FileContent {
         crate::file_driver::FileContent {
             bytes: s.as_bytes().to_vec(),
@@ -3463,52 +3425,14 @@ mod reverse_index_tests {
         assert_eq!(entry.work_item_id.as_deref(), Some("0042"));
     }
 
-    #[test]
-    fn legacy_work_item_id_key_emits_deprecation_warning() {
-        let cfg = crate::config::WorkItemConfig::default_numeric();
-        let body = crate::log::test_support::capture_logs(|| {
-            let entry = build_entry(
-                DocTypeKey::WorkItems,
-                PathBuf::from("/repo/meta/work/9999-x.md"),
-                &fc_for("---\ntitle: T\nwork_item_id: \"0042\"\n---\nbody\n"),
-                Path::new("/repo"),
-                &cfg,
-            );
-            assert_eq!(entry.work_item_id.as_deref(), Some("0042"));
-        });
-        assert!(
-            body.contains("legacy `work_item_id:` key"),
-            "expected legacy-key deprecation warning, got: {body}"
-        );
-    }
-
-    #[test]
-    fn filename_fallback_emits_deprecation_warning() {
-        let cfg = crate::config::WorkItemConfig::default_numeric();
-        let body = crate::log::test_support::capture_logs(|| {
-            let entry = build_entry(
-                DocTypeKey::WorkItems,
-                PathBuf::from("/repo/meta/work/0042-foo.md"),
-                &fc_for("---\ntitle: T\n---\nbody\n"),
-                Path::new("/repo"),
-                &cfg,
-            );
-            assert_eq!(entry.work_item_id.as_deref(), Some("0042"));
-        });
-        assert!(
-            body.contains("filename fallback"),
-            "expected filename-fallback deprecation warning, got: {body}"
-        );
-    }
-
     #[tokio::test]
-    async fn work_item_id_frontmatter_bare_digits_applies_project_code() {
+    async fn id_frontmatter_bare_digits_applies_project_code() {
         let tmp = tempfile::tempdir().unwrap();
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();
         std::fs::write(
             work_dir.join("0001-foo.md"),
-            "---\ntitle: F\nwork_item_id: \"42\"\n---\n",
+            "---\ntitle: F\nid: \"42\"\n---\n",
         )
         .unwrap();
         let mut map = HashMap::new();
@@ -3534,7 +3458,7 @@ mod reverse_index_tests {
     }
 
     #[tokio::test]
-    async fn work_item_id_frontmatter_foreign_prefix_passes_through() {
+    async fn id_frontmatter_foreign_prefix_passes_through() {
         let tmp = tempfile::tempdir().unwrap();
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();
@@ -3542,7 +3466,7 @@ mod reverse_index_tests {
         // a foreign prefix — must passthrough verbatim.
         std::fs::write(
             work_dir.join("0001-foo.md"),
-            "---\ntitle: F\nwork_item_id: \"OPS-7\"\n---\n",
+            "---\ntitle: F\nid: \"OPS-7\"\n---\n",
         )
         .unwrap();
         let mut map = HashMap::new();
@@ -3568,13 +3492,13 @@ mod reverse_index_tests {
     }
 
     #[tokio::test]
-    async fn work_item_id_frontmatter_shape_invalid_falls_back_to_filename() {
+    async fn id_frontmatter_shape_invalid_resolves_none() {
         let tmp = tempfile::tempdir().unwrap();
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();
         std::fs::write(
             work_dir.join("0001-foo.md"),
-            "---\ntitle: F\nwork_item_id: \"PROJ-1.2\"\n---\n",
+            "---\ntitle: F\nid: \"PROJ-1.2\"\n---\n",
         )
         .unwrap();
         let mut map = HashMap::new();
@@ -3590,14 +3514,13 @@ mod reverse_index_tests {
             .await
             .expect("indexed");
         assert_eq!(
-            entry.work_item_id.as_deref(),
-            Some("0001"),
-            "shape-invalid frontmatter falls back to filename",
+            entry.work_item_id, None,
+            "shape-invalid id: resolves to None (no fallback to the filename)",
         );
     }
 
     #[tokio::test]
-    async fn work_item_id_none_when_neither_frontmatter_nor_filename_matches() {
+    async fn work_item_id_none_when_id_absent() {
         let tmp = tempfile::tempdir().unwrap();
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();

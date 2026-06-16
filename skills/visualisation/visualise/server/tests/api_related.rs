@@ -605,8 +605,11 @@ async fn linked_count_reflects_inbound_merge_dedup() {
     let reviews = tmp.path().join("meta/reviews/work");
     std::fs::create_dir_all(&work).unwrap();
     std::fs::create_dir_all(&reviews).unwrap();
-    std::fs::write(work.join("0001-target.md"), "---\ntitle: T\n---\n")
-        .unwrap();
+    std::fs::write(
+        work.join("0001-target.md"),
+        "---\nid: \"0001\"\ntitle: T\n---\n",
+    )
+    .unwrap();
     // Review file targets the work-item AND declares work_item_id pointing
     // back at the same work-item. Both inbound channels reach the same
     // review path → dedup must collapse to 1.
@@ -676,8 +679,11 @@ async fn related_endpoint_surfaces_rca_linked_to_a_work_item() {
     let issues = tmp.path().join("meta/research/issues");
     std::fs::create_dir_all(&work).unwrap();
     std::fs::create_dir_all(&issues).unwrap();
-    std::fs::write(work.join("0001-target.md"), "---\ntitle: T\n---\n")
-        .unwrap();
+    std::fs::write(
+        work.join("0001-target.md"),
+        "---\nid: \"0001\"\ntitle: T\n---\n",
+    )
+    .unwrap();
     std::fs::write(
         issues.join("2026-06-10-example-rca.md"),
         "---\ntitle: \"Example RCA\"\ntype: issue-research\nstatus: resolved\nparent: \"0001\"\n---\n# body\n",

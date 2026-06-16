@@ -17,16 +17,19 @@ fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
 
     std::fs::write(
         work.join("PROJ-0042-foo.md"),
-        "---\ntitle: Foo Work Item\nstatus: ready\n---\n# body\n",
+        "---\nid: \"PROJ-0042\"\ntitle: Foo Work Item\nstatus: ready\n---\n# body\n",
     )
     .unwrap();
     std::fs::write(
         work.join("PROJ-0007-bar.md"),
-        "---\ntitle: Bar Work Item\nstatus: done\n---\n# body\n",
+        "---\nid: \"PROJ-0007\"\ntitle: Bar Work Item\nstatus: done\n---\n# body\n",
     )
     .unwrap();
 
-    // Mixed-pattern: a legacy bare-numeric file that predates the project prefix.
+    // Mixed-pattern: a bare-numeric file that predates the project prefix and
+    // carries NO `id:`. Post-contract, the filename is no longer an identity
+    // fallback, so this file resolves to no work-item id (see the dedicated
+    // test below).
     std::fs::write(
         work.join("0001-legacy.md"),
         "---\ntitle: Legacy Work Item\nstatus: todo\n---\n# body\n",
@@ -130,7 +133,12 @@ async fn project_pattern_work_items_have_correct_slug_and_id() {
 }
 
 #[tokio::test]
-async fn legacy_bare_numeric_files_admitted_via_fallback() {
+async fn bare_numeric_file_without_id_has_no_resolved_work_item_id() {
+    // Contract-phase behaviour: the filename is no longer an identity fallback.
+    // A bare-numeric file in a project-prefixed workspace that carries no `id:`
+    // is still indexed as a work-item doc (by slug) but resolves to NO
+    // work-item id — previously it was admitted as PROJ-0001 via the removed
+    // two-pass filename fallback. Migrating the file (adding `id:`) restores it.
     let tmp = tempfile::tempdir().unwrap();
     let cfg = build_project_pattern_config(tmp.path());
     let activity = Arc::new(Activity::new());
@@ -151,13 +159,24 @@ async fn legacy_bare_numeric_files_admitted_via_fallback() {
     let body = json_body(res).await;
     let docs = body["docs"].as_array().expect("docs array");
 
-    // The legacy bare-numeric file (0001-legacy.md) should be admitted under
-    // the canonical project-prefixed ID via the two-pass fallback rule.
+    // The filename is no longer a fallback identity source: nothing resolves to
+    // the would-be PROJ-0001.
+    assert!(
+        docs.iter()
+            .all(|d| d["workItemId"].as_str() != Some("PROJ-0001")),
+        "bare-numeric file must not be filename-resolved to PROJ-0001"
+    );
+    // It is still indexed as a work-item doc (slug derived from the filename),
+    // but with no resolved work-item id.
     let legacy = docs
         .iter()
-        .find(|d| d["workItemId"].as_str() == Some("PROJ-0001"))
-        .expect("legacy bare-numeric file must be admitted as PROJ-0001");
-    assert_eq!(legacy["slug"], "legacy");
+        .find(|d| d["slug"] == "legacy")
+        .expect("0001-legacy.md is still indexed as a work-item doc");
+    assert!(
+        legacy["workItemId"].is_null(),
+        "bare-numeric file without id: must have a null work-item id, got {:?}",
+        legacy["workItemId"]
+    );
 }
 
 #[tokio::test]
@@ -168,7 +187,7 @@ async fn default_numeric_pattern_indexes_bare_numeric_files() {
     std::fs::create_dir_all(&work).unwrap();
     std::fs::write(
         work.join("0042-ship-it.md"),
-        "---\ntitle: Ship It\nstatus: ready\n---\n",
+        "---\nid: \"0042\"\ntitle: Ship It\nstatus: ready\n---\n",
     )
     .unwrap();
 

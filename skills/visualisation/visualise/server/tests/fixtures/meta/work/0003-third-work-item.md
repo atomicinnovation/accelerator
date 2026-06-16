@@ -1,6 +1,6 @@
 ---
 title: Third Work Item
-work_item_id: 3
+id: "0003"
 status: todo
 ---
 

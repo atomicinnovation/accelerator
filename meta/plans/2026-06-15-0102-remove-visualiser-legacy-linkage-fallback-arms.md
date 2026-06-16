@@ -637,16 +637,36 @@ let id = read_fm_id("id");
 
 #### Automated Verification:
 
-- [ ] Server unit tests pass: `mise run test:unit:visualiser` (both modes)
-- [ ] No legacy identity arm / filename fallback remains: reading
+- [x] Server unit tests pass: `mise run test:unit:visualiser` (both modes green)
+- [x] No legacy identity arm / filename fallback remains: reading
       `build_entry`'s `DocTypeKey::WorkItems` branch shows `id:` → `None` only;
       `grep -n 'work-item identity resolved via\|filename fallback' skills/visualisation/visualise/server/src/indexer.rs` returns nothing
-- [ ] No dead `capture_logs`: once the last caller is removed,
+- [x] No dead `capture_logs`:
       `grep -rn capture_logs skills/visualisation/visualise/server/src/` returns
-      **zero matches** (the `log.rs` definition removed by the order-independent
-      rule). If a server phase has not yet merged, the only permitted matches are
-      the `log.rs` definition plus its remaining live callers
-- [ ] Full read-only CI mirror passes: `mise run check`
+      **zero matches** — the whole harness block (`log.rs:102-164`) was removed by
+      the order-independent rule (this phase held the last two callers)
+- [x] Full read-only CI mirror passes: `mise run check` (verified via
+      `mise run server:check`; rustfmt drift from the edits applied via
+      `format:server:fix`, then clean)
+
+> Plan deviation: the Phase 4 test census covered only the `indexer.rs` test
+> module, but the removed filename/legacy identity sources were also pinned by
+> several **integration** tests and **checked-in fixtures** that build work
+> items without an `id:` (they relied on the filename fallback). All retargeted
+> to canonical `id:` resolution, with no coverage lost:
+> - lib: `build_refresh_indexer` work items, `reverse_cross_ref_excludes_self_reference`,
+>   `reviews_by_target_resolves_typed_work_item_target_on_rescan_and_refresh`,
+>   and a stray `clusters.rs` legacy clustering test (Phase 3 carry-over).
+> - integration (`tests/`): `api_lifecycle.rs` (`0099` review-target fixture),
+>   `api_related.rs` (the two `0001-target.md` fixtures), and `api_work_item_pattern.rs`
+>   (project-pattern + default-numeric fixtures migrated to `id:`; the
+>   `…via_fallback` test retargeted to pin the *new* contract — a bare-numeric
+>   file without `id:` is no longer filename-resolved, documenting the accepted
+>   breakage from Migration Notes).
+> - checked-in fixtures: `tests/fixtures/meta/work/000{1,2,3,5,6}-*.md` migrated
+>   from legacy own-id (`work_item_id:`, which was an *integer* — `as_str()`
+>   never read it, so identity actually came from the now-removed filename
+>   fallback) to canonical `id:`.
 
 #### Manual Verification:
 

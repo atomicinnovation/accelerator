@@ -169,7 +169,7 @@ async fn work_item_review_with_path_target_appears_in_work_item_cluster() {
     std::fs::create_dir_all(root.join("meta/reviews/work")).unwrap();
     std::fs::write(
         root.join("meta/work/0099-ac2-coverage.md"),
-        "---\nwork_item_id: \"0099\"\ntitle: AC2 Coverage\n---\n",
+        "---\nid: \"0099\"\ntitle: AC2 Coverage\n---\n",
     )
     .unwrap();
     std::fs::write(
