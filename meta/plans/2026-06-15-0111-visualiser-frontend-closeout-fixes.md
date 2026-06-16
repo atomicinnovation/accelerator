@@ -5,7 +5,7 @@ title: "Visualiser Frontend Closeout Fixes Implementation Plan"
 date: "2026-06-15T20:36:00+00:00"
 author: Toby Clemson
 producer: create-plan
-status: draft
+status: done
 work_item_id: "work-item:0111"
 parent: "work-item:0111"
 derived_from: ["codebase-research:2026-06-15-0111-visualiser-frontend-closeout-fixes"]
