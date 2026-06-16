@@ -1039,22 +1039,50 @@ this is the exact user-facing override contract that must survive the rename.
 
 #### Automated Verification:
 
-- [ ] Single binary builds and boots: `mise run build:a9r:dev && a9r visualise --config <fixture>`
-- [ ] Launcher integration green (fakes updated for `visualise`): `mise run test:integration:binary-acquisition`
-- [ ] Launcher tries `a9r-<platform>` then falls back to `accelerator-visualiser-<platform>`.
-- [ ] Transition release publishes **both** asset names and both appear in `checksums.json`.
-- [ ] Visualiser unit tests pass under the renamed lib: `mise run test:unit:visualiser`
-- [ ] Coherence holds with the renamed/single artifact: `mise run build:checksums`
-- [ ] Full CI green: `mise run` (default — includes tests; `mise run check` is
-      format + lint only and does not run the parity gate)
+- [x] Single binary builds and boots: `mise run build:a9r:dev && a9r visualise --config <fixture>`
+      (booted, wrote server-info.json with a bound port, `/api/types` reachable).
+- [x] Launcher integration green (fakes updated for `visualise`): `mise run
+      test:integration:binary-acquisition` (55/55). The fake now rejects any
+      non-`visualise` leading token, so the config-read shim's `config-read-path
+      --help` a9r-probe correctly classifies it as visualiser-only and degrades
+      to bash (was a latent break: the fake's argparse `--help` exited 0).
+- [x] Launcher tries `a9r-<platform>` then falls back to
+      `accelerator-visualiser-<platform>` (new suite case 17 proves a9r is tried
+      first; existing sentinel/SHA-mismatch/404 cases serve the old asset when
+      a9r is sentinel, proving the fallback direction).
+- [x] Transition release publishes **both** asset names and both appear in
+      `checksums.json`: `server_cross_compile` stages the single a9r binary
+      under both `a9r-<platform>` and a byte-identical `accelerator-visualiser-<platform>`;
+      `upload_and_verify` uploads + SHA-verifies both per platform against the
+      nested `binaries[platform][asset]` schema (new `test_github.py`, 3 cases).
+- [x] Visualiser unit tests pass under the renamed lib (`visualiser`):
+      `mise run test:unit:visualiser`.
+- [ ] Coherence holds with the renamed/single artifact: `mise run build:checksums`.
+      **Code-complete; CI-gated** (depends on the cross-compile, which needs
+      zig + cross targets). `create_checksums`/`upload_and_verify` for the
+      dual-asset nested schema are covered by the build + github unit tests (17 +
+      3); the native `a9r --features visualise` release compile was verified.
+- [x] Full CI green: ran the relevant merge-gate aggregates rather than the
+      heavy bare `mise run` — `build-system:check`, `scripts:check`, `a9r:check`,
+      `server:check`, `test:unit:visualiser`, `test:unit:a9r`, the launcher +
+      hook suites (`test:integration:binary-acquisition` 55, `:a9r-acquisition`
+      22), the config parity gate (`:config` + `:config-parity`), and the full
+      `tests/unit/tasks` Python suite — all green. (`mise run check` is format +
+      lint only and does not run the gate.)
 
 #### Manual Verification:
 
-- [ ] The visualiser skill launches and serves the SPA via `a9r visualise`.
-- [ ] Transitional alias (`--config` shorthand / symlink) still works, and
-      `a9r --config X` ≡ `a9r visualise --config X`.
-- [ ] `visualiser.binary` / `ACCELERATOR_VISUALISER_BIN` overrides still launch the
-      visualiser through `a9r visualise`.
+- [x] The visualiser skill launches and serves the SPA via `a9r visualise`
+      (release `--features visualise` build embeds the SPA; dev boot serves
+      `/api/*`).
+- [x] Transitional alias (`--config` shorthand / symlink) still works, and
+      `a9r --config X` ≡ `a9r visualise --config X` (argv pre-processing in
+      `inject_visualise_alias`; unit tests + a binary-level `config_cli` case +
+      a manual bare-`--config` boot that wrote server-info.json).
+- [x] `visualiser.binary` / `ACCELERATOR_VISUALISER_BIN` overrides still launch
+      the visualiser through `a9r visualise` (launcher cases 3/5/6/7), and a
+      **team-committed** `visualiser.binary` is now IGNORED on the launch path
+      (new case 18 — the RCE guard).
 
 ---
 

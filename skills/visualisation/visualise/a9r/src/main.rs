@@ -4,7 +4,10 @@
 //!   - `config-read-value <key> [default]` — port of `config-read-value.sh`.
 //!   - `config-read-path <key> [default]` — port of `config-read-path.sh`.
 //!   - `visualise --config <path>` — the visualiser server (the boot block
-//!     lifted from the former `accelerator-visualiser` binary).
+//!     lifted from the former `accelerator-visualiser` binary). A bare
+//!     `a9r --config <path>` (no subcommand) is aliased to this form for
+//!     transitional compatibility with the old launcher invocation — see
+//!     `inject_visualise_alias`.
 //!
 //! All parsing/resolution logic lives in `a9r-core`; this binary owns
 //! stream/exit policy. The config-read subcommands must not pull up the
@@ -118,8 +121,30 @@ fn run_config_read(result: Result<(), ConfigError>) -> ExitCode {
     }
 }
 
+/// Transitional invocation alias: the pre-rename `accelerator-visualiser`
+/// binary was launched as `<bin> --config <path>` (no subcommand). The renamed
+/// single binary is launched as `a9r visualise --config <path>`, but an older
+/// installed launcher — or the old `accelerator-visualiser` asset name, which
+/// during the rename transition is a byte-identical copy of this binary — still
+/// uses the bare `--config` form. clap's derive `Subcommand` has no native
+/// default subcommand, so detect the "no subcommand + leading `--config`" shape
+/// in argv and inject `visualise`. `--version`/`--help`/`-V`/`-h` are left
+/// untouched so top-level info flags still work. Bounded shim: removed together
+/// with the bash fallback / old asset name (see plan Phase 6 §1).
+fn inject_visualise_alias(mut args: Vec<String>) -> Vec<String> {
+    // args[0] is the program name. The first real argument decides.
+    match args.get(1).map(String::as_str) {
+        Some("--config") => args.insert(1, "visualise".to_string()),
+        Some(a) if a.starts_with("--config=") => {
+            args.insert(1, "visualise".to_string());
+        }
+        _ => {}
+    }
+    args
+}
+
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let cli = Cli::parse_from(inject_visualise_alias(std::env::args().collect()));
     let mm = migration_mode();
     let start = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
@@ -140,8 +165,8 @@ fn main() -> ExitCode {
 /// so the config-read subcommands never pay for it. Mirrors the boot block of
 /// the former `accelerator-visualiser` binary.
 fn run_visualise(config: &Path) -> ExitCode {
-    use accelerator_visualiser::{config::Config, log, server};
     use tracing::{error, info};
+    use visualiser::{config::Config, log, server};
 
     let cfg = match Config::from_path(config) {
         Ok(c) => c,
@@ -212,4 +237,49 @@ fn redirect_std_streams_to_devnull() -> std::io::Result<()> {
 #[cfg(not(unix))]
 fn redirect_std_streams_to_devnull() -> std::io::Result<()> {
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::inject_visualise_alias;
+
+    fn argv(args: &[&str]) -> Vec<String> {
+        args.iter().map(|s| (*s).to_string()).collect()
+    }
+
+    #[test]
+    fn bare_config_injects_visualise() {
+        assert_eq!(
+            inject_visualise_alias(argv(&["a9r", "--config", "/tmp/c.json"])),
+            argv(&["a9r", "visualise", "--config", "/tmp/c.json"])
+        );
+    }
+
+    #[test]
+    fn bare_config_eq_form_injects_visualise() {
+        assert_eq!(
+            inject_visualise_alias(argv(&["a9r", "--config=/tmp/c.json"])),
+            argv(&["a9r", "visualise", "--config=/tmp/c.json"])
+        );
+    }
+
+    #[test]
+    fn explicit_visualise_is_untouched() {
+        let a = argv(&["a9r", "visualise", "--config", "/tmp/c.json"]);
+        assert_eq!(inject_visualise_alias(a.clone()), a);
+    }
+
+    #[test]
+    fn config_read_subcommand_is_untouched() {
+        let a = argv(&["a9r", "config-read-path", "plans"]);
+        assert_eq!(inject_visualise_alias(a.clone()), a);
+    }
+
+    #[test]
+    fn version_and_help_flags_are_untouched() {
+        for flag in ["--version", "-V", "--help", "-h"] {
+            let a = argv(&["a9r", flag]);
+            assert_eq!(inject_visualise_alias(a.clone()), a);
+        }
+    }
 }

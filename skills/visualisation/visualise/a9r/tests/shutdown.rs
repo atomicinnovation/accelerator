@@ -22,9 +22,9 @@ async fn sigterm_removes_info_writes_stopped_and_exits() {
     std::fs::write(&cfg_path, serde_json::to_vec_pretty(&config).unwrap())
         .unwrap();
 
-    let bin = env!("CARGO_BIN_EXE_accelerator-visualiser");
+    let bin = env!("CARGO_BIN_EXE_a9r");
     let mut child = tokio::process::Command::new(bin)
-        .args(["--config", cfg_path.to_str().unwrap()])
+        .args(["visualise", "--config", cfg_path.to_str().unwrap()])
         .spawn()
         .expect("spawn");
 
@@ -77,9 +77,9 @@ async fn server_writes_pid_file_with_its_own_pid() {
     std::fs::write(&cfg_path, serde_json::to_vec_pretty(&config).unwrap())
         .unwrap();
 
-    let bin = env!("CARGO_BIN_EXE_accelerator-visualiser");
+    let bin = env!("CARGO_BIN_EXE_a9r");
     let mut child = tokio::process::Command::new(bin)
-        .args(["--config", cfg_path.to_str().unwrap()])
+        .args(["visualise", "--config", cfg_path.to_str().unwrap()])
         .spawn()
         .expect("spawn");
     let child_pid = child.id().unwrap() as i32;
@@ -137,9 +137,9 @@ async fn shutdown_preserves_state_on_stopped_write_failure() {
     std::fs::create_dir(&stopped_path).unwrap();
     std::fs::write(stopped_path.join("blocker"), "x").unwrap();
 
-    let bin = env!("CARGO_BIN_EXE_accelerator-visualiser");
+    let bin = env!("CARGO_BIN_EXE_a9r");
     let mut child = tokio::process::Command::new(bin)
-        .args(["--config", cfg_path.to_str().unwrap()])
+        .args(["visualise", "--config", cfg_path.to_str().unwrap()])
         .spawn()
         .expect("spawn");
 

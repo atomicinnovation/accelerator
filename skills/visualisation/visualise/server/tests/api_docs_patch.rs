@@ -1,10 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use accelerator_visualiser::activity::Activity;
-use accelerator_visualiser::server::{build_router, AppState};
-use accelerator_visualiser::sse_hub::SsePayload;
-use accelerator_visualiser::watcher;
+use visualiser::activity::Activity;
+use visualiser::server::{build_router, AppState};
+use visualiser::sse_hub::SsePayload;
+use visualiser::watcher;
 use axum::body::Body;
 use axum::http::{header, Method, Request, StatusCode};
 use http_body_util::BodyExt;
@@ -148,7 +148,7 @@ async fn patch_broadcasts_doc_changed_with_new_etag() {
         } => {
             assert_eq!(
                 doc_type,
-                accelerator_visualiser::docs::DocTypeKey::WorkItems
+                visualiser::docs::DocTypeKey::WorkItems
             );
             assert_eq!(path, WORK_ITEM_PATH);
             assert_eq!(
@@ -730,14 +730,14 @@ async fn patch_emits_exactly_one_doc_changed_event() {
         let wbi = state.indexer.work_item_by_id_snapshot().await;
         let pbi = state.indexer.plans_by_id_snapshot().await;
         let ctx =
-            accelerator_visualiser::clusters::ClusterContext::from_entries(
+            visualiser::clusters::ClusterContext::from_entries(
                 &snapshot,
                 &wbi,
                 &pbi,
                 state.indexer.project_root(),
                 state.indexer.work_item_cfg(),
             );
-        accelerator_visualiser::clusters::compute_clusters(&snapshot, &ctx)
+        visualiser::clusters::compute_clusters(&snapshot, &ctx)
     }));
 
     let app = build_router(state.clone());
@@ -820,14 +820,14 @@ async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
         let wbi = state.indexer.work_item_by_id_snapshot().await;
         let pbi = state.indexer.plans_by_id_snapshot().await;
         let ctx =
-            accelerator_visualiser::clusters::ClusterContext::from_entries(
+            visualiser::clusters::ClusterContext::from_entries(
                 &snapshot,
                 &wbi,
                 &pbi,
                 state.indexer.project_root(),
                 state.indexer.work_item_cfg(),
             );
-        accelerator_visualiser::clusters::compute_clusters(&snapshot, &ctx)
+        visualiser::clusters::compute_clusters(&snapshot, &ctx)
     }));
 
     let app = build_router(state.clone());

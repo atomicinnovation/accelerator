@@ -195,17 +195,17 @@ depends = [
 
 [tasks."test:e2e:visualiser"]
 description = "Run visualiser E2E tests (Playwright)"
-depends = ["deps:install:playwright", "build:frontend", "build:server:dev"]
+depends = ["deps:install:playwright", "build:frontend", "build:a9r:dev"]
 run = "invoke test.e2e.visualiser"
 
 [tasks."test:e2e:visualiser:docker"]
 description = "Run visual-regression specs in the pinned Playwright Docker image (compare)"
-depends = ["build:frontend", "build:server:dev"]
+depends = ["build:frontend", "build:a9r:dev"]
 run = "invoke test.e2e.visualiser-docker"
 
 [tasks."test:e2e:visualiser:docker:update"]
 description = "Regenerate the canonical Linux visual-regression baselines in the pinned Docker image"
-depends = ["build:frontend", "build:server:dev"]
+depends = ["build:frontend", "build:a9r:dev"]
 run = "invoke test.e2e.visualiser-docker --update"
 
 [tasks."test:e2e"]

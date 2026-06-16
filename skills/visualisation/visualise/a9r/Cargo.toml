@@ -18,16 +18,28 @@ path = "src/main.rs"
 # The two visualiser frontend modes are mutually exclusive, so `visualise`
 # replaces `dev-frontend` rather than adding to it.
 default = ["dev-frontend"]
-dev-frontend = ["accelerator-visualiser/dev-frontend"]
-visualise = ["accelerator-visualiser/embed-dist"]
+dev-frontend = ["visualiser/dev-frontend"]
+visualise = ["visualiser/embed-dist"]
 
 [dependencies]
 a9r-core = { path = "../a9r-core" }
-accelerator-visualiser = { path = "../server", default-features = false }
+visualiser = { path = "../server", default-features = false }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["rt-multi-thread"] }
 tracing = "0.1"
 libc = "0.2"
+
+[dev-dependencies]
+# The visualiser server's process-lifecycle and CLI tests spawn the built `a9r`
+# binary (via CARGO_BIN_EXE_a9r) and exercise `a9r visualise --config`; they
+# live here, not in the server crate, because that crate no longer ships a
+# binary. These dev-deps mirror the ones the tests used in their former home.
+assert_cmd = "2"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+nix = { version = "0.28", features = ["signal", "process"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "process"] }
+tempfile = "3"
+serde_json = "1"
 
 [lints]
 workspace = true

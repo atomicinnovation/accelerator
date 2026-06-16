@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use accelerator_visualiser::config::{Config, TemplateTiers};
+use visualiser::config::{Config, TemplateTiers};
 
 // Shared helper compiled into every integration test binary; only some use
 // it, so binaries that don't would otherwise flag it as dead code.

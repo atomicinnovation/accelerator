@@ -3,7 +3,18 @@ use std::process::Command;
 
 #[test]
 fn exits_2_when_config_missing() {
-    let mut cmd = Command::cargo_bin("accelerator-visualiser").unwrap();
+    let mut cmd = Command::cargo_bin("a9r").unwrap();
+    cmd.args(["visualise", "--config", "/nonexistent/config.json"]);
+    cmd.assert().code(2);
+}
+
+#[test]
+fn bare_config_alias_routes_to_visualise() {
+    // Transitional alias: the bare `--config` form (no subcommand) used by the
+    // pre-rename launcher must behave exactly like `visualise --config`. A
+    // missing config exits 2 in both forms — proving the alias injects the
+    // subcommand rather than failing to parse.
+    let mut cmd = Command::cargo_bin("a9r").unwrap();
     cmd.args(["--config", "/nonexistent/config.json"]);
     cmd.assert().code(2);
 }
@@ -41,7 +52,7 @@ fn exits_1_when_idle_timeout_invalid() {
     std::fs::write(&config_path, serde_json::to_vec_pretty(&config).unwrap())
         .unwrap();
 
-    let mut cmd = Command::cargo_bin("accelerator-visualiser").unwrap();
-    cmd.args(["--config", config_path.to_str().unwrap()]);
+    let mut cmd = Command::cargo_bin("a9r").unwrap();
+    cmd.args(["visualise", "--config", config_path.to_str().unwrap()]);
     cmd.assert().code(1);
 }

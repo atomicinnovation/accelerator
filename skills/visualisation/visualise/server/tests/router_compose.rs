@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use accelerator_visualiser::activity::Activity;
-use accelerator_visualiser::server::{build_router, AppState};
+use visualiser::activity::Activity;
+use visualiser::server::{build_router, AppState};
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -36,7 +36,7 @@ async fn healthz_returns_200() {
 #[cfg(feature = "dev-frontend")]
 #[tokio::test]
 async fn root_serves_spa_index() {
-    use accelerator_visualiser::server::build_router_with_dist;
+    use visualiser::server::build_router_with_dist;
 
     let tmp = tempfile::tempdir().unwrap();
     let dist = tempfile::tempdir().unwrap();
@@ -109,7 +109,7 @@ async fn responses_carry_version_header_on_normal_route() {
         .get("accelerator-visualiser-version")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
-    assert_eq!(header, accelerator_visualiser::VERSION);
+    assert_eq!(header, visualiser::VERSION);
 }
 
 #[tokio::test]

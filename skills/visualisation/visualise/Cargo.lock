@@ -7,11 +7,16 @@ name = "a9r"
 version = "1.22.0-pre.21"
 dependencies = [
  "a9r-core",
- "accelerator-visualiser",
+ "assert_cmd",
  "clap",
  "libc",
+ "nix",
+ "reqwest",
+ "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
+ "visualiser",
 ]
 
 [[package]]
@@ -19,46 +24,6 @@ name = "a9r-core"
 version = "1.22.0-pre.21"
 dependencies = [
  "tempfile",
-]
-
-[[package]]
-name = "accelerator-visualiser"
-version = "1.22.0-pre.21"
-dependencies = [
- "anyhow",
- "arc-swap",
- "assert_cmd",
- "axum",
- "chrono",
- "clap",
- "file-rotate",
- "form_urlencoded",
- "futures",
- "gray_matter",
- "hex",
- "http-body-util",
- "humantime",
- "libc",
- "mime_guess",
- "nix",
- "notify",
- "predicates",
- "regex",
- "reqwest",
- "rust-embed",
- "serde",
- "serde_json",
- "serde_yml",
- "sha2",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tower",
- "tower-http 0.5.2",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -2510,6 +2475,46 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "visualiser"
+version = "1.22.0-pre.21"
+dependencies = [
+ "anyhow",
+ "arc-swap",
+ "assert_cmd",
+ "axum",
+ "chrono",
+ "clap",
+ "file-rotate",
+ "form_urlencoded",
+ "futures",
+ "gray_matter",
+ "hex",
+ "http-body-util",
+ "humantime",
+ "libc",
+ "mime_guess",
+ "nix",
+ "notify",
+ "predicates",
+ "regex",
+ "reqwest",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "serde_yml",
+ "sha2",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "tower",
+ "tower-http 0.5.2",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+]
 
 [[package]]
 name = "wait-timeout"

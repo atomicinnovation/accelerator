@@ -1,6 +1,6 @@
 #[cfg(feature = "dev-frontend")]
 mod tests {
-    use accelerator_visualiser::server::AppState;
+    use visualiser::server::AppState;
     use axum::{
         body::Body,
         http::{Request, StatusCode},
@@ -10,7 +10,7 @@ mod tests {
     use tower::ServiceExt as _;
 
     async fn minimal_state(tmp: &std::path::Path) -> std::sync::Arc<AppState> {
-        let cfg = accelerator_visualiser::config::Config {
+        let cfg = visualiser::config::Config {
             plugin_root: tmp.to_path_buf(),
             plugin_version: "test".into(),
             project_root: tmp.to_path_buf(),
@@ -28,7 +28,7 @@ mod tests {
             editor_project: None,
         };
         let activity = std::sync::Arc::new(
-            accelerator_visualiser::activity::Activity::new(),
+            visualiser::activity::Activity::new(),
         );
         AppState::build(cfg, activity).await.unwrap()
     }
@@ -45,7 +45,7 @@ mod tests {
         )
         .unwrap();
 
-        let app = accelerator_visualiser::server::build_router_with_dist(
+        let app = visualiser::server::build_router_with_dist(
             state,
             dist.path().to_path_buf(),
         );

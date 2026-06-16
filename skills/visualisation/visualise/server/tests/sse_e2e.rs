@@ -16,7 +16,7 @@ async fn file_mutation_arrives_as_sse_event() {
     let mut doc_paths = HashMap::new();
     doc_paths.insert("plans".into(), plans.clone());
 
-    let cfg = accelerator_visualiser::config::Config {
+    let cfg = visualiser::config::Config {
         plugin_root: tmp.path().to_path_buf(),
         plugin_version: "test".into(),
         project_root: tmp.path().to_path_buf(),
@@ -38,7 +38,7 @@ async fn file_mutation_arrives_as_sse_event() {
     let info_path_clone = info_path.clone();
 
     let _handle = tokio::spawn(async move {
-        accelerator_visualiser::server::run(cfg, &info_path_clone)
+        visualiser::server::run(cfg, &info_path_clone)
             .await
             .unwrap();
     });
@@ -109,12 +109,12 @@ async fn file_mutation_arrives_as_sse_event() {
 }
 
 async fn start_server_with_template(
-    cfg: accelerator_visualiser::config::Config,
+    cfg: visualiser::config::Config,
     info_path: std::path::PathBuf,
 ) -> u16 {
     let info_path_clone = info_path.clone();
     let _handle = tokio::spawn(async move {
-        accelerator_visualiser::server::run(cfg, &info_path_clone)
+        visualiser::server::run(cfg, &info_path_clone)
             .await
             .unwrap();
     });
@@ -165,11 +165,11 @@ async fn read_until_substring(
 fn make_template_cfg(
     tmp: &std::path::Path,
     tier_file: std::path::PathBuf,
-) -> accelerator_visualiser::config::Config {
+) -> visualiser::config::Config {
     let mut templates = HashMap::new();
     templates.insert(
         "adr".to_string(),
-        accelerator_visualiser::config::TemplateTiers {
+        visualiser::config::TemplateTiers {
             config_override: None,
             user_override: tier_file.parent().unwrap().join("missing-user.md"),
             plugin_default: tier_file,
@@ -177,7 +177,7 @@ fn make_template_cfg(
         },
     );
     let doc_paths = HashMap::new();
-    accelerator_visualiser::config::Config {
+    visualiser::config::Config {
         plugin_root: tmp.to_path_buf(),
         plugin_version: "test".into(),
         project_root: tmp.to_path_buf(),

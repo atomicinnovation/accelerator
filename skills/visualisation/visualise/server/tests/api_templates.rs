@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use accelerator_visualiser::activity::Activity;
-use accelerator_visualiser::config::TemplateTiers;
-use accelerator_visualiser::server::{build_router, AppState};
+use visualiser::activity::Activity;
+use visualiser::config::TemplateTiers;
+use visualiser::server::{build_router, AppState};
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;

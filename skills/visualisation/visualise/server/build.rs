@@ -1,4 +1,4 @@
-// This value duplicates `accelerator_visualiser::assets::FRONTEND_DIST_REL`.
+// This value duplicates `visualiser::assets::FRONTEND_DIST_REL`.
 // `build.rs` runs before the crate compiles, so we cannot import from it.
 // Keep the two literals in sync — tests verify the dist path resolves to a
 // real directory under the manifest root.

@@ -13,7 +13,8 @@ spawn_and_reap_pid() {
 }
 
 # Write an executable fake-visualiser binary to <out-path>. When invoked
-# with --config <path>, it reads tmp_path from the config JSON, binds an
+# as `visualise --config <path>` (the renamed a9r form) — or the bare
+# `--config <path>` alias — it reads tmp_path from the config JSON, binds an
 # ephemeral port on 127.0.0.1, writes server-info.json + server.pid
 # atomically, and parks until SIGTERM. Uses Python 3 (required by mise env).
 make_fake_visualiser() {
@@ -24,9 +25,22 @@ import argparse, json, os, signal, stat, sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 def main():
+    # This fake mimics a visualiser-ONLY binary: it understands the `visualise`
+    # subcommand (and the bare `--config` alias) and nothing else. Any other
+    # leading token — notably the `config-read-path --help` probe the config-read
+    # shim uses to detect a real a9r — must fail with a non-zero exit, so the
+    # shim correctly classifies this as a visualiser-only binary and degrades to
+    # the bash config-read implementation rather than exec-ing the fake with
+    # config-read args.
+    argv = sys.argv[1:]
+    if argv and argv[0] == 'visualise':
+        argv = argv[1:]
+    elif not (argv and argv[0].startswith('--config')):
+        sys.stderr.write('fake-visualiser: unknown subcommand\n')
+        sys.exit(2)
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', required=True)
-    args, _ = parser.parse_known_args()
+    args, _ = parser.parse_known_args(argv)
 
     config = json.load(open(args.config))
     tmp_path = config['tmp_path']

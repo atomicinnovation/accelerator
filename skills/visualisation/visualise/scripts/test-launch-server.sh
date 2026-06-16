@@ -411,4 +411,84 @@ assert_eq "sentdel: URL still returned" "1" "$URLMATCH"
 unset ACCELERATOR_VISUALISER_BIN
 cd "$ORIG_DIR"
 
+# ─── 17. a9r asset preferred over accelerator-visualiser asset ───
+echo "Test: a9r asset is tried first (real SHA) → downloaded and launched via visualise"
+PROJ="$TMPDIR_BASE/t-a9rfirst"
+make_project "$PROJ"
+cd "$PROJ"
+unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
+FAKE_SKILL_A9R="$TMPDIR_BASE/fake-skill-a9rfirst"
+mkdir -p "$FAKE_SKILL_A9R/bin"
+SRV_ROOT_A9R="$TMPDIR_BASE/a9rfirst-srv"
+mkdir -p "$SRV_ROOT_A9R/v${PLUGIN_VERSION}"
+# Serve the fake visualiser AS the a9r asset; it understands `visualise`.
+make_fake_visualiser "$SRV_ROOT_A9R/v${PLUGIN_VERSION}/a9r-${OS}-${ARCH}"
+A9R_REAL_SHA="$({ sha256sum "$SRV_ROOT_A9R/v${PLUGIN_VERSION}/a9r-${OS}-${ARCH}" 2>/dev/null || shasum -a 256 "$SRV_ROOT_A9R/v${PLUGIN_VERSION}/a9r-${OS}-${ARCH}"; } | awk '{print $1}')"
+# a9r key real; accelerator-visualiser key a deliberately-wrong SHA so that if
+# the launcher wrongly preferred the old asset the download would mismatch.
+cat >"$FAKE_SKILL_A9R/bin/checksums.json" <<A9RFIRSTJSON
+{"version":"$PLUGIN_VERSION","binaries":{"$OS-$ARCH":{"accelerator-visualiser-$OS-$ARCH":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","a9r-$OS-$ARCH":"sha256:$A9R_REAL_SHA"}}}
+A9RFIRSTJSON
+PORT_FILE_A9R="$TMPDIR_BASE/fixture-port-a9rfirst"
+python3 - <<PYEOFA9R &
+import http.server, os
+class H(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, *a): pass
+os.chdir("$SRV_ROOT_A9R")
+srv = http.server.HTTPServer(('127.0.0.1', 0), H)
+open("$PORT_FILE_A9R", 'w').write(str(srv.server_address[1]) + '\n')
+srv.serve_forever()
+PYEOFA9R
+HTTP_PID_A9R=$!
+for _ in $(seq 1 30); do
+  [ -f "$PORT_FILE_A9R" ] && break
+  sleep 0.1
+done
+if [ -f "$PORT_FILE_A9R" ]; then
+  SRV_PORT_A9R="$(tr -d '[:space:]' <"$PORT_FILE_A9R")"
+  OUT="$TMPDIR_BASE/t-a9rfirst.out"
+  RC=0
+  ACCELERATOR_VISUALISER_SKILL_ROOT="$FAKE_SKILL_A9R" \
+    ACCELERATOR_VISUALISER_RELEASES_URL="http://127.0.0.1:${SRV_PORT_A9R}" \
+    ACCELERATOR_VISUALISER_INSECURE_DOWNLOAD=1 \
+    bash "$LAUNCH_SERVER" >"$OUT" 2>/dev/null || RC=$?
+  kill "$HTTP_PID_A9R" 2>/dev/null || true
+  assert_eq "a9rfirst: exit code" "0" "$RC"
+  assert_file_exists "a9rfirst: a9r asset cached (not the old name)" "$FAKE_SKILL_A9R/bin/a9r-${OS}-${ARCH}"
+  assert_file_not_exists "a9rfirst: old asset NOT downloaded" "$FAKE_SKILL_A9R/bin/accelerator-visualiser-${OS}-${ARCH}"
+  URL="$(grep '^\*\*Visualiser URL\*\*:' "$OUT" 2>/dev/null | sed 's/\*\*Visualiser URL\*\*: //')" || true
+  CURLRC=0
+  curl -fsS "$URL" >/dev/null 2>/dev/null || CURLRC=$?
+  assert_eq "a9rfirst: curl 200 (launched via visualise)" "0" "$CURLRC"
+else
+  kill "$HTTP_PID_A9R" 2>/dev/null || true
+  echo "  SKIP: could not start HTTP fixture server"
+fi
+cd "$ORIG_DIR"
+
+# ─── 18. team-committed visualiser.binary is IGNORED (RCE guard) ──
+echo "Test: visualiser.binary in TEAM config (.accelerator/config.md) is ignored"
+PROJ="$TMPDIR_BASE/t-teamrce"
+make_project "$PROJ"
+cd "$PROJ"
+unset ACCELERATOR_VISUALISER_BIN 2>/dev/null || true
+FAKE="$TMPDIR_BASE/fake-teamrce"
+make_fake_visualiser "$FAKE"
+# Team-committed key points at an executable fake. If honoured this would start
+# a server (exit 0); the launch path must ignore it and fall through to the
+# sentinel manifest → "no released binary".
+printf -- '---\nvisualiser:\n  binary: %s\n---\n' "$FAKE" >"$PROJ/.accelerator/config.md"
+FAKE_SKILL_TEAM="$TMPDIR_BASE/fake-skill-teamrce"
+mkdir -p "$FAKE_SKILL_TEAM/bin"
+cat >"$FAKE_SKILL_TEAM/bin/checksums.json" <<TEAMJSON
+{"version":"$PLUGIN_VERSION","binaries":{"$OS-$ARCH":{"accelerator-visualiser-$OS-$ARCH":"sha256:$ZERO_SHA","a9r-$OS-$ARCH":"sha256:$ZERO_SHA"}}}
+TEAMJSON
+RC=0
+ERR="$TMPDIR_BASE/t-teamrce.err"
+ACCELERATOR_VISUALISER_SKILL_ROOT="$FAKE_SKILL_TEAM" \
+  bash "$LAUNCH_SERVER" >/dev/null 2>"$ERR" || RC=$?
+assert_eq "teamrce: exit code (team key ignored → sentinel)" "1" "$RC"
+assert_json_eq "teamrce: error field" ".error" "no released binary for this plugin version" "$ERR"
+cd "$ORIG_DIR"
+
 test_summary

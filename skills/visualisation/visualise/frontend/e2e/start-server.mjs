@@ -18,7 +18,8 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const frontendDir = resolve(__dirname, "..");
-const serverDir = resolve(frontendDir, "../server");
+const visualiseDir = resolve(frontendDir, "..");
+const serverDir = resolve(visualiseDir, "server");
 const fixturesDir = join(serverDir, "tests/fixtures/meta");
 const templatesDir = join(serverDir, "tests/fixtures/templates");
 
@@ -41,12 +42,12 @@ healthServer.listen(HEALTH_PORT, "127.0.0.1", () => {
 
 let bin = process.env.ACCELERATOR_VISUALISER_BIN;
 if (!bin) {
-  console.log("[e2e] Building server binary (dev-frontend)…");
-  execSync("cargo build --no-default-features --features dev-frontend", {
-    cwd: serverDir,
+  console.log("[e2e] Building a9r binary (dev-frontend)…");
+  execSync("cargo build -p a9r --no-default-features --features dev-frontend", {
+    cwd: visualiseDir,
     stdio: "inherit",
   });
-  bin = join(serverDir, "target/debug/accelerator-visualiser");
+  bin = join(visualiseDir, "target/debug/a9r");
 }
 if (!existsSync(bin)) {
   console.error(`[e2e] Binary not found: ${bin}`);
@@ -119,7 +120,7 @@ writeFileSync(
 
 // ── 4. Spawn the visualiser server ────────────────────────────────────────────
 
-const child = spawn(bin, ["--config", configPath], {
+const child = spawn(bin, ["visualise", "--config", configPath], {
   env: { ...process.env, FIXTURES_PATH: fixturesDir },
   stdio: "inherit",
 });

@@ -98,8 +98,18 @@ fi
 
 PLUGIN_VERSION="$(jq -r .version "$PLUGIN_ROOT/.claude-plugin/plugin.json")"
 MANIFEST="$SKILL_ROOT/bin/checksums.json"
-BIN_CACHE="$SKILL_ROOT/bin/accelerator-visualiser-${OS}-${ARCH}"
 RELEASES_URL_BASE="${ACCELERATOR_VISUALISER_RELEASES_URL:-https://github.com/atomicinnovation/accelerator/releases/download}"
+
+# Expected SHA-256 (sha256: prefix stripped) for an asset, from the manifest's
+# nested-by-asset schema (binaries[platform][asset]). Tolerates the legacy flat
+# schema (binaries[platform] is a string) for a version-skewed manifest.
+manifest_asset_sha() {
+  local asset="$1" raw
+  raw="$(jq -r --arg p "${OS}-${ARCH}" --arg a "$asset" \
+    '.binaries[$p] | if type == "object" then (.[$a] // empty) else . end // empty' \
+    "$MANIFEST")"
+  printf '%s' "${raw#sha256:}"
+}
 
 # ─── tri-precedence binary resolution ────────────────────────
 
@@ -107,7 +117,15 @@ BIN=""
 if [ -n "${ACCELERATOR_VISUALISER_BIN:-}" ]; then
   BIN="$ACCELERATOR_VISUALISER_BIN"
 else
-  CONFIG_BIN="$("$PLUGIN_ROOT/scripts/config-read-value.sh" visualiser.binary 2>/dev/null || true)"
+  # visualiser.binary is read from the gitignored .accelerator/config.local.md
+  # ONLY (ACCELERATOR_CONFIG_LOCAL_ONLY=1), never the team-committed
+  # .accelerator/config.md: a checked-in `visualiser.binary: ./tools/x` would
+  # otherwise be a one-step RCE the first time a user opens the visualiser on a
+  # hostile clone. Read via the bash impl directly because the a9r config-read
+  # path does not (yet) honour the local-only gate.
+  CONFIG_BIN="$(ACCELERATOR_CONFIG_LOCAL_ONLY=1 \
+    "$PLUGIN_ROOT/scripts/config-read-value-impl.sh" visualiser.binary \
+    2>/dev/null || true)"
   if [ -n "$CONFIG_BIN" ]; then
     case "$CONFIG_BIN" in
       /*) ;;
@@ -122,24 +140,6 @@ else
 fi
 
 if [ -z "$BIN" ]; then
-  # checksums.json nests hashes by asset name (binaries[platform][asset]) so a
-  # single manifest can carry both the accelerator-visualiser and the a9r asset
-  # during the Phase 6 transition. This launcher resolves the visualiser asset;
-  # a9r-resolve.sh resolves the a9r asset from the same file. The lookup
-  # tolerates the legacy flat schema (binaries[platform] is a string) for a
-  # version-skewed manifest by falling back to it.
-  ASSET_NAME="accelerator-visualiser-${OS}-${ARCH}"
-  EXPECTED_SHA_RAW="$(jq -r --arg p "${OS}-${ARCH}" --arg a "$ASSET_NAME" \
-    '.binaries[$p] | if type == "object" then (.[$a] // empty) else . end // empty' \
-    "$MANIFEST")"
-  EXPECTED_SHA="${EXPECTED_SHA_RAW#sha256:}"
-  if [ "$EXPECTED_SHA" = "0000000000000000000000000000000000000000000000000000000000000000" ]; then
-    die_json "$(jq -nc \
-      --arg error 'no released binary for this plugin version' \
-      --arg version "$PLUGIN_VERSION" \
-      --arg hint 'set ACCELERATOR_VISUALISER_BIN=<path> (one-shot) or add `visualiser:\n  binary: <path>` to .accelerator/config.local.md (persistent)' \
-      '{error:$error,plugin_version:$version,hint:$hint}')"
-  fi
   MANIFEST_VERSION="$(jq -r '.version // empty' "$MANIFEST")"
   if [ -n "$MANIFEST_VERSION" ] && [ "$MANIFEST_VERSION" != "$PLUGIN_VERSION" ]; then
     die_json "$(jq -nc \
@@ -147,6 +147,34 @@ if [ -z "$BIN" ]; then
       --arg plugin "$PLUGIN_VERSION" --arg manifest "$MANIFEST_VERSION" \
       '{error:$error,plugin_version:$plugin,manifest_version:$manifest}')"
   fi
+  # Prefer the a9r asset (the renamed single binary, which understands the
+  # `visualise` subcommand); fall back to the transitional
+  # accelerator-visualiser asset name so a version-skewed plugin/release pair
+  # (installed launcher requesting one name, the pinned release carrying the
+  # other) does not hard-404. The transition release ships the
+  # accelerator-visualiser asset as a byte-identical copy of a9r, so
+  # `"$BIN" visualise` works regardless of which name resolved (and the bare
+  # `--config` form is aliased to `visualise` inside the binary too). An asset
+  # whose SHA is the all-zeros sentinel (or absent) is skipped.
+  ZERO_SHA="0000000000000000000000000000000000000000000000000000000000000000"
+  ASSET_NAME=""
+  EXPECTED_SHA=""
+  for candidate in "a9r-${OS}-${ARCH}" "accelerator-visualiser-${OS}-${ARCH}"; do
+    sha="$(manifest_asset_sha "$candidate")"
+    if [ -n "$sha" ] && [ "$sha" != "$ZERO_SHA" ]; then
+      ASSET_NAME="$candidate"
+      EXPECTED_SHA="$sha"
+      break
+    fi
+  done
+  if [ -z "$ASSET_NAME" ]; then
+    die_json "$(jq -nc \
+      --arg error 'no released binary for this plugin version' \
+      --arg version "$PLUGIN_VERSION" \
+      --arg hint 'set ACCELERATOR_VISUALISER_BIN=<path> (one-shot) or add `visualiser:\n  binary: <path>` to .accelerator/config.local.md (persistent)' \
+      '{error:$error,plugin_version:$version,hint:$hint}')"
+  fi
+  BIN_CACHE="$SKILL_ROOT/bin/${ASSET_NAME}"
   # Acquire (download → SHA-verify → atomic publish) via the shared helper.
   # The helper no-ops when the cache is already SHA-valid, so the "Downloading"
   # notice only prints on a genuine fetch.
@@ -203,7 +231,7 @@ fi
 BOOTSTRAP_LOG="$TMP_DIR/server.bootstrap.log"
 : >"$BOOTSTRAP_LOG"
 chmod 0600 "$BOOTSTRAP_LOG"
-nohup "$BIN" --config "$CFG" >>"$BOOTSTRAP_LOG" 2>&1 &
+nohup "$BIN" visualise --config "$CFG" >>"$BOOTSTRAP_LOG" 2>&1 &
 SERVER_PID=$!
 disown "$SERVER_PID" 2>/dev/null || true
 

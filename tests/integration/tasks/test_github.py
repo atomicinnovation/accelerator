@@ -37,16 +37,24 @@ def _setup_upload_and_verify(
     create_binaries: bool = True,
     create_archives: bool = True,
 ) -> None:
+    sha = f"sha256:{'a' * 64}"
+    binaries = {
+        platform: {
+            f"a9r-{platform}": sha,
+            f"accelerator-visualiser-{platform}": sha,
+        }
+        for platform in _PLATFORMS
+    }
     checksums_file = tmp_path / "checksums.json"
     checksums_file.write_text(
-        json.dumps(
-            {
-                "version": "1.20.0",
-                "binaries": dict.fromkeys(_PLATFORMS, f"sha256:{'a' * 64}"),
-            }
-        )
+        json.dumps({"version": "1.20.0", "binaries": binaries})
     )
     mocker.patch.object(gh, "CHECKSUMS", checksums_file)
+    mocker.patch.object(
+        gh,
+        "a9r_binary_path",
+        side_effect=lambda p: tmp_path / f"a9r-{p}",
+    )
     mocker.patch.object(
         gh,
         "binary_path",
@@ -61,6 +69,7 @@ def _setup_upload_and_verify(
     )
     if create_binaries:
         for platform in _PLATFORMS:
+            (tmp_path / f"a9r-{platform}").write_bytes(b"\x00" * 4)
             (tmp_path / f"accelerator-visualiser-{platform}").write_bytes(
                 b"\x00" * 4
             )
@@ -269,7 +278,7 @@ class TestUploadAndVerify:
         upload_calls = [
             c for c in ctx.run.call_args_list if "gh release upload" in str(c)
         ]
-        assert len(upload_calls) == 8
+        assert len(upload_calls) == 12
 
     def test_publish_runs_after_verify(self, ctx, mocker, tmp_path):
         _setup_upload_and_verify(mocker, tmp_path)
@@ -282,7 +291,7 @@ class TestUploadAndVerify:
         _setup_upload_and_verify(mocker, tmp_path)
         mock_verify = mocker.patch.object(gh, "download_and_verify")
         upload_and_verify(ctx, "1.20.0")
-        assert mock_verify.call_count == 4
+        assert mock_verify.call_count == 8
 
     def test_verify_skips_debug_archives(self, ctx, mocker, tmp_path):
         _setup_upload_and_verify(mocker, tmp_path)

@@ -178,28 +178,21 @@ def server_release(context: Context) -> None:
 
 @task
 def server_cross_compile(context: Context) -> None:
-    """Cross-compile the visualiser server and a9r for all four release targets.
+    """Cross-compile the single a9r binary for all four release targets.
 
-    Produces stripped binaries staged to bin/ alongside debug-symbol archives.
-    Both assets are built so a single release can carry the
-    accelerator-visualiser binary (still launched by older plugins) and the new
-    a9r binary side by side during the rename transition. a9r is built with the
-    `visualise` feature so the released artifact embeds the SPA — the
-    default-feature-off (no embed-dist) only applies to the dev/lint build.
+    The server crate is now lib-only; the one shipped binary is a9r, built with
+    the `visualise` feature so the released artifact embeds the SPA (the
+    default-feature-off / no-embed-dist build is only for dev/lint). Each target
+    is staged to bin/ under BOTH asset names: `a9r-<platform>` and, as a
+    byte-identical transition copy, `accelerator-visualiser-<platform>`. The
+    copy lets a version-skewed older launcher — which invokes the bare
+    `--config` form — still resolve and run it, because a9r aliases the bare
+    `--config` form to the `visualise` subcommand.
     """
     # Workspace members share the single target/ at the workspace root, not a
     # per-crate server/target/.
     target_root = WORKSPACE_CARGO_TOML.parent / "target"
     for triple, platform in TARGETS:
-        context.run(
-            f"cargo zigbuild --release --target {triple} "
-            f"--manifest-path {CARGO_TOML}",
-            pty=True,
-        )
-        src = target_root / triple / "release" / "accelerator-visualiser"
-        _assert_magic_bytes(src, triple)
-        shutil.copy2(src, binary_path(platform))
-
         context.run(
             f"cargo zigbuild --release --target {triple} "
             f"--manifest-path {A9R_CARGO_TOML} "
@@ -209,6 +202,9 @@ def server_cross_compile(context: Context) -> None:
         a9r_src = target_root / triple / "release" / "a9r"
         _assert_magic_bytes(a9r_src, triple)
         shutil.copy2(a9r_src, a9r_binary_path(platform))
+        # Transitional alias asset: byte-identical copy under the old name so
+        # older launchers (bare `--config`) keep resolving an asset that runs.
+        shutil.copy2(a9r_src, binary_path(platform))
 
 
 @task

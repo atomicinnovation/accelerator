@@ -9,7 +9,12 @@ from invoke import Context, task
 
 from tasks.shared.errors import InvalidVersionError
 from tasks.shared.hashing import compute_sha256
-from tasks.shared.paths import CHECKSUMS, binary_path, debug_archive_path
+from tasks.shared.paths import (
+    CHECKSUMS,
+    a9r_binary_path,
+    binary_path,
+    debug_archive_path,
+)
 from tasks.shared.targets import TARGETS
 
 
@@ -135,20 +140,42 @@ def download_and_verify(
 
 @task
 def upload_and_verify(context: Context, version: str) -> None:
-    """Upload release artefacts, verify SHA-256, then publish the draft."""
+    """Upload release artefacts, verify SHA-256, then publish the draft.
+
+    During the rename transition each platform ships BOTH binary assets — the
+    new `a9r-<platform>` and the byte-identical `accelerator-visualiser-<platform>`
+    copy — so neither an old launcher (old name) nor a new one (a9r) hard-404s.
+    Checksums are nested by asset name (`binaries[platform][asset]`); each asset
+    is verified against its own entry.
+    """
     tag = f"v{version}"
     checksums = json.loads(CHECKSUMS.read_text())
-    hashes = {
-        platform: digest.removeprefix("sha256:")
-        for platform, digest in checksums["binaries"].items()
-    }
-    binaries = {platform: binary_path(platform) for _, platform in TARGETS}
-    archives = {
-        platform: debug_archive_path(platform) for _, platform in TARGETS
-    }
+    manifest_binaries = checksums["binaries"]
+
+    # (asset_path, expected_hex) for every binary asset to publish + verify.
+    assets: list[tuple[Path, str]] = []
+    archives: list[Path] = []
+    for _, platform in TARGETS:
+        slot = manifest_binaries.get(platform)
+        if not isinstance(slot, dict):
+            raise AssetVerificationError(
+                f"checksums.json: binaries[{platform!r}] is not an "
+                f"asset-nested object (got {type(slot).__name__}); the "
+                f"transition manifest must key hashes by asset name"
+            )
+        for asset_path in (a9r_binary_path(platform), binary_path(platform)):
+            digest = slot.get(asset_path.name)
+            if not digest:
+                raise FileNotFoundError(
+                    f"checksums.json has no entry for {asset_path.name} "
+                    f"under platform {platform!r}"
+                )
+            assets.append((asset_path, digest.removeprefix("sha256:")))
+        archives.append(debug_archive_path(platform))
+
     missing = [
         p
-        for p in list(binaries.values()) + list(archives.values())
+        for p in [a for a, _ in assets] + archives
         if not p.exists()
     ]
     if missing:
@@ -156,11 +183,12 @@ def upload_and_verify(context: Context, version: str) -> None:
             f"Expected release artefacts not found: {[str(p) for p in missing]}"
         )
     try:
-        for platform, path in binaries.items():
-            upload_release_asset(context, tag, path)
-            upload_release_asset(context, tag, archives[platform])
-        for platform, asset_path in binaries.items():
-            download_and_verify(context, tag, asset_path.name, hashes[platform])
+        for asset_path, _ in assets:
+            upload_release_asset(context, tag, asset_path)
+        for archive in archives:
+            upload_release_asset(context, tag, archive)
+        for asset_path, expected_hex in assets:
+            download_and_verify(context, tag, asset_path.name, expected_hex)
         context.run(f"gh release edit {tag} --draft=false", pty=True)
     except AssetVerificationError:
         _emit_forensic_alert(

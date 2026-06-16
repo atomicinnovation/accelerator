@@ -262,7 +262,9 @@ jobs:
       - name: Attest binary provenance
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: "skills/visualisation/visualise/bin/accelerator-visualiser-*"
+          subject-path: |
+            skills/visualisation/visualise/bin/a9r-*
+            skills/visualisation/visualise/bin/accelerator-visualiser-*
 
       - name: Finalise prerelease
         env:
@@ -347,7 +349,9 @@ jobs:
       - name: Attest stable binary provenance
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: "skills/visualisation/visualise/bin/accelerator-visualiser-*"
+          subject-path: |
+            skills/visualisation/visualise/bin/a9r-*
+            skills/visualisation/visualise/bin/accelerator-visualiser-*
 
       - name: Finalise stable release
         env:
@@ -362,7 +366,9 @@ jobs:
       - name: Attest post-stable binary provenance
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: "skills/visualisation/visualise/bin/accelerator-visualiser-*"
+          subject-path: |
+            skills/visualisation/visualise/bin/a9r-*
+            skills/visualisation/visualise/bin/accelerator-visualiser-*
 
       - name: Finalise post-stable prerelease
         env:

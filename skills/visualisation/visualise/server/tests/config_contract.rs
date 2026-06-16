@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use accelerator_visualiser::config::Config;
+use visualiser::config::Config;
 
 #[test]
 fn write_visualiser_config_produces_valid_config_json() {

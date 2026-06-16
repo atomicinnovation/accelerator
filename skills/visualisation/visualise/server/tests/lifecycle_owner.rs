@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use accelerator_visualiser::{
+use visualiser::{
     activity::Activity, config::DISABLED_IDLE_LIMIT_MS, lifecycle,
     shutdown::ShutdownReason,
 };

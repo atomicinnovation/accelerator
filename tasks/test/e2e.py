@@ -4,7 +4,7 @@ import sys
 from invoke import Context, Exit, task
 
 from tasks.shared.dev.host_server import run_against_host_server
-from tasks.shared.paths import FRONTEND, SERVER
+from tasks.shared.paths import FRONTEND, VISUALISER
 from tasks.shared.playwright import (
     BROWSER_LOCALE,
     CHROMIUM_CHANNEL,
@@ -14,20 +14,22 @@ from tasks.shared.playwright import (
     resolved_playwright_version,
 )
 
-SERVER_BIN = SERVER / "target/debug/accelerator-visualiser"
+# Workspace members share one target dir; the visualiser server is now the
+# `a9r` binary's `visualise` subcommand (start-server.mjs prepends it).
+A9R_BIN = VISUALISER / "target/debug/a9r"
 
 
 @task
 def visualiser(context: Context) -> None:
     """E2E tests for the visualiser (Playwright).
 
-    Requires build.frontend and build.server to have run first.
+    Requires build.frontend and build.a9r-dev to have run first.
     When invoked via `mise run test:e2e:visualiser`, those build tasks
     are declared as dependencies and run automatically.
     """
     context.run(
         f"npm --prefix {FRONTEND} run test:e2e",
-        env={"ACCELERATOR_VISUALISER_BIN": str(SERVER_BIN)},
+        env={"ACCELERATOR_VISUALISER_BIN": str(A9R_BIN)},
     )
 
 
@@ -110,12 +112,12 @@ def visualiser_docker(
             code=1,
         )
 
-    # The mise tasks declare build:server:dev as a dependency, but a direct
+    # The mise tasks declare build:a9r:dev as a dependency, but a direct
     # `invoke` call (e.g. for --cache-deps) bypasses it — so check explicitly.
-    if not SERVER_BIN.exists():
+    if not A9R_BIN.exists():
         raise Exit(
-            f"Server binary not found at {SERVER_BIN} — run "
-            "`mise run build:server:dev` first (or use the mise tasks).",
+            f"a9r binary not found at {A9R_BIN} — run "
+            "`mise run build:a9r:dev` first (or use the mise tasks).",
             code=1,
         )
 
@@ -132,4 +134,4 @@ def visualiser_docker(
             pty=sys.stdout.isatty(),
         )
 
-    run_against_host_server(server_bin=SERVER_BIN, on_ready=on_ready)
+    run_against_host_server(server_bin=A9R_BIN, on_ready=on_ready)

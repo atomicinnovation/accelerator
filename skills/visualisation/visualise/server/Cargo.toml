@@ -1,5 +1,5 @@
 [package]
-name = "accelerator-visualiser"
+name = "visualiser"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,11 +11,11 @@ default = ["embed-dist"]
 embed-dist = ["dep:rust-embed", "dep:mime_guess"]
 dev-frontend = ["tower-http/fs"]
 
+# Lib-only crate. The binary now lives in the sibling `a9r` crate as the
+# `visualise` subcommand; this crate ships no `[[bin]]`. The directory stays
+# `server/` (not renamed to `visualiser/`) so the triplicated `../frontend/dist`
+# literal (build.rs, assets.rs ×2) keeps resolving against this manifest dir.
 [lib]
-
-[[bin]]
-name = "accelerator-visualiser"
-path = "src/main.rs"
 
 [dependencies]
 axum = { version = "0.7", default-features = false, features = ["http1", "tokio", "json", "query"] }
