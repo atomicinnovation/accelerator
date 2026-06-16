@@ -1,15 +1,13 @@
 use std::sync::Arc;
 
-use visualiser::activity::Activity;
-use visualiser::config::{
-    Config, RawWorkItemConfig, TemplateTiers,
-};
-use visualiser::server::{build_router, AppState};
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use std::collections::HashMap;
 use tower::ServiceExt;
+use visualiser::activity::Activity;
+use visualiser::config::{Config, RawWorkItemConfig, TemplateTiers};
+use visualiser::server::{build_router, AppState};
 
 fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
     let work = tmp.join("meta/work");

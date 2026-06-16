@@ -1,12 +1,12 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use visualiser::activity::Activity;
-use visualiser::server::{build_router, AppState};
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use tower::ServiceExt;
+use visualiser::activity::Activity;
+use visualiser::server::{build_router, AppState};
 
 mod common;
 
@@ -99,8 +99,7 @@ async fn excludes_templates_by_indexer_structure() {
     assert!(
         snapshot
             .iter()
-            .all(|e| e.r#type
-                != visualiser::docs::DocTypeKey::Templates),
+            .all(|e| e.r#type != visualiser::docs::DocTypeKey::Templates),
         "Indexer::all() must not yield Templates entries",
     );
 

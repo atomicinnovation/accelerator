@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use visualiser::activity::Activity;
-use visualiser::config::TemplateTiers;
-use visualiser::server::{build_router, AppState};
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use sha2::Digest;
 use tower::ServiceExt;
+use visualiser::activity::Activity;
+use visualiser::config::TemplateTiers;
+use visualiser::server::{build_router, AppState};
 
 mod common;
 

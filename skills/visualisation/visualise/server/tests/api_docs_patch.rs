@@ -1,15 +1,15 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use visualiser::activity::Activity;
-use visualiser::server::{build_router, AppState};
-use visualiser::sse_hub::SsePayload;
-use visualiser::watcher;
 use axum::body::Body;
 use axum::http::{header, Method, Request, StatusCode};
 use http_body_util::BodyExt;
 use tokio::sync::RwLock;
 use tower::ServiceExt;
+use visualiser::activity::Activity;
+use visualiser::server::{build_router, AppState};
+use visualiser::sse_hub::SsePayload;
+use visualiser::watcher;
 
 mod common;
 
@@ -146,10 +146,7 @@ async fn patch_broadcasts_doc_changed_with_new_etag() {
             etag: Some(broadcast_etag),
             ..
         } => {
-            assert_eq!(
-                doc_type,
-                visualiser::docs::DocTypeKey::WorkItems
-            );
+            assert_eq!(doc_type, visualiser::docs::DocTypeKey::WorkItems);
             assert_eq!(path, WORK_ITEM_PATH);
             assert_eq!(
                 format!("\"{broadcast_etag}\""),
@@ -729,14 +726,13 @@ async fn patch_emits_exactly_one_doc_changed_event() {
         let snapshot = state.indexer.all().await;
         let wbi = state.indexer.work_item_by_id_snapshot().await;
         let pbi = state.indexer.plans_by_id_snapshot().await;
-        let ctx =
-            visualiser::clusters::ClusterContext::from_entries(
-                &snapshot,
-                &wbi,
-                &pbi,
-                state.indexer.project_root(),
-                state.indexer.work_item_cfg(),
-            );
+        let ctx = visualiser::clusters::ClusterContext::from_entries(
+            &snapshot,
+            &wbi,
+            &pbi,
+            state.indexer.project_root(),
+            state.indexer.work_item_cfg(),
+        );
         visualiser::clusters::compute_clusters(&snapshot, &ctx)
     }));
 
@@ -819,14 +815,13 @@ async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
         let snapshot = state.indexer.all().await;
         let wbi = state.indexer.work_item_by_id_snapshot().await;
         let pbi = state.indexer.plans_by_id_snapshot().await;
-        let ctx =
-            visualiser::clusters::ClusterContext::from_entries(
-                &snapshot,
-                &wbi,
-                &pbi,
-                state.indexer.project_root(),
-                state.indexer.work_item_cfg(),
-            );
+        let ctx = visualiser::clusters::ClusterContext::from_entries(
+            &snapshot,
+            &wbi,
+            &pbi,
+            state.indexer.project_root(),
+            state.indexer.work_item_cfg(),
+        );
         visualiser::clusters::compute_clusters(&snapshot, &ctx)
     }));
 

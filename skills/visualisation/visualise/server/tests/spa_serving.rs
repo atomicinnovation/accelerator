@@ -1,6 +1,5 @@
 #[cfg(feature = "dev-frontend")]
 mod tests {
-    use visualiser::server::AppState;
     use axum::{
         body::Body,
         http::{Request, StatusCode},
@@ -8,6 +7,7 @@ mod tests {
     use http_body_util::BodyExt as _;
     use std::collections::HashMap;
     use tower::ServiceExt as _;
+    use visualiser::server::AppState;
 
     async fn minimal_state(tmp: &std::path::Path) -> std::sync::Arc<AppState> {
         let cfg = visualiser::config::Config {
@@ -27,9 +27,8 @@ mod tests {
             editor: None,
             editor_project: None,
         };
-        let activity = std::sync::Arc::new(
-            visualiser::activity::Activity::new(),
-        );
+        let activity =
+            std::sync::Arc::new(visualiser::activity::Activity::new());
         AppState::build(cfg, activity).await.unwrap()
     }
 
