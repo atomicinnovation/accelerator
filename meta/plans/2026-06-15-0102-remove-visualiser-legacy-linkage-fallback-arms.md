@@ -455,13 +455,15 @@ if let Some(v) = m.get("work_item_id") {
 
 #### Automated Verification:
 
-- [ ] Server unit tests pass: `mise run test:unit:visualiser`
-- [ ] Both feature modes green:
+- [x] Server unit tests pass: `mise run test:unit:visualiser`
+- [x] Both feature modes green:
       `cargo test --manifest-path skills/visualisation/visualise/server/Cargo.toml --no-default-features --features dev-frontend`
-      and the default (`embed-dist`) test run
-- [ ] No `work-item:` or `ticket:` frontmatter-key arm remains:
+      (536 passed) and the default (`embed-dist`) test run (530 passed)
+- [x] No `work-item:` or `ticket:` frontmatter-key arm remains:
       `grep -nE 'get\("work-item"\)|get\("ticket"\)' skills/visualisation/visualise/server/src/frontmatter.rs` returns nothing
-- [ ] Full read-only CI mirror passes: `mise run check`
+- [x] Full read-only CI mirror passes: `mise run check` (verified via
+      `mise run server:check` — the only component Phase 2 touches; exits 0 with
+      no clippy/fmt findings)
 
 #### Manual Verification:
 

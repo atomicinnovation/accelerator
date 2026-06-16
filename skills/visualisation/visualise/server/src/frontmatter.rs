@@ -311,13 +311,12 @@ pub fn title_from(
 
 /// Reads cross-reference keys from frontmatter for work-item aggregation.
 ///
-/// Reads `work_item_id:` (preferred), `work-item:` (transitional legacy
-/// fallback — retained this release and deprecated; removal tracked by the
-/// story-0070 follow-on contract story, to ship once every consuming repo has
-/// migrated), or `ticket:` (older legacy fallback) as a scalar, plus `parent:`
-/// and `related:` which may each be a scalar or an array. All non-empty
-/// string/numeric values are aggregated into a single `Vec<String>`. Returns
-/// an empty Vec when no recognised key is present or all values are empty.
+/// Reads `work_item_id:` (preferred) or, failing that, the typed `target:`
+/// (ADR-0034 `doc-type:id` form) as the cross-reference scalar, then
+/// unconditionally aggregates `parent:` and `related:` (each a scalar or an
+/// array). All non-empty string/numeric values are aggregated into a single
+/// `Vec<String>`. Returns an empty Vec when no recognised key is present or
+/// all values are empty.
 pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
     let FrontmatterState::Parsed(m) = parsed else {
         return Vec::new();
@@ -340,29 +339,9 @@ pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
 
     let mut refs: Vec<String> = Vec::new();
 
-    // `work_item_id:` wins over the transitional `work-item:` fallback and
-    // the older `ticket:` legacy fallback when multiple are present
+    // `work_item_id:` is preferred; the typed `target:` is the fallback
     // (scalar only).
     if let Some(v) = m.get("work_item_id") {
-        if let Some(s) = extract_scalar(v) {
-            refs.push(s);
-        }
-    } else if let Some(v) = m.get("work-item") {
-        // Transitional fallback: pre-migration repos still emit the legacy
-        // `work-item:` key. Retained and deprecated this release; its removal
-        // (and this test's deletion) is the story-0070 follow-on contract
-        // story, to ship once every consuming repo has run
-        // `/accelerator:migrate`.
-        if let Some(s) = extract_scalar(v) {
-            tracing::warn!(
-                value = %s,
-                "work-item ref resolved via the legacy `work-item:` key; \
-                 migrate to `work_item_id:`/`id:` (deprecated fallback — \
-                 story 0070 follow-on)",
-            );
-            refs.push(s);
-        }
-    } else if let Some(v) = m.get("ticket") {
         if let Some(s) = extract_scalar(v) {
             refs.push(s);
         }
@@ -560,54 +539,6 @@ mod tests {
     }
 
     #[test]
-    fn read_ref_keys_reads_legacy_work_item_key_via_transitional_fallback() {
-        // Pre-migration plans still carry `work-item:` until the user runs
-        // /accelerator:migrate. The transitional fallback keeps them
-        // readable for one release cycle.
-        let raw = b("---\nwork-item: \"0042\"\n---\nbody\n");
-        let p = parse(&raw);
-        assert_eq!(read_ref_keys(&p.state), vec!["0042".to_string()]);
-    }
-
-    #[test]
-    fn read_ref_keys_legacy_work_item_arm_emits_deprecation_warning() {
-        // Story 0070: the retained `work-item:` arm emits a deprecation warning
-        // when it resolves. Capture synchronously on the test thread under a
-        // thread-local subscriber (the log.rs with_default precedent).
-        let body = crate::log::test_support::capture_logs(|| {
-            let raw = b("---\nwork-item: \"0042\"\n---\nbody\n");
-            let p = parse(&raw);
-            assert_eq!(read_ref_keys(&p.state), vec!["0042".to_string()]);
-        });
-        assert!(
-            body.contains("legacy `work-item:` key"),
-            "expected work-item: arm deprecation warning, got: {body}"
-        );
-    }
-
-    #[test]
-    fn read_ref_keys_reads_legacy_ticket_key() {
-        let raw = b("---\nticket: 1478\n---\nbody\n");
-        let p = parse(&raw);
-        assert_eq!(read_ref_keys(&p.state), vec!["1478".to_string()]);
-    }
-
-    #[test]
-    fn read_ref_keys_with_both_legacy_and_current_keys_prefers_current() {
-        let raw = b("---\nwork_item_id: \"0007\"\nticket: 0042\n---\nbody\n");
-        let p = parse(&raw);
-        assert_eq!(read_ref_keys(&p.state), vec!["0007".to_string()]);
-    }
-
-    #[test]
-    fn read_ref_keys_prefers_work_item_id_over_transitional_work_item() {
-        let raw =
-            b("---\nwork_item_id: \"0007\"\nwork-item: \"0099\"\n---\nbody\n");
-        let p = parse(&raw);
-        assert_eq!(read_ref_keys(&p.state), vec!["0007".to_string()]);
-    }
-
-    #[test]
     fn read_ref_keys_extracts_work_item_id_from_target_when_no_alias() {
         let raw = b("---\ntype: work-item-review\ntarget: \"work-item:0042\"\n---\nbody\n");
         let p = parse(&raw);
@@ -654,13 +585,6 @@ mod tests {
         let raw = b("no frontmatter here\n");
         let p = parse(&raw);
         assert!(read_ref_keys(&p.state).is_empty());
-    }
-
-    #[test]
-    fn read_ref_keys_numeric_ticket_value_is_stringified() {
-        let raw = b("---\nticket: 1478\n---\nbody\n");
-        let p = parse(&raw);
-        assert_eq!(read_ref_keys(&p.state), vec!["1478".to_string()]);
     }
 
     #[test]
