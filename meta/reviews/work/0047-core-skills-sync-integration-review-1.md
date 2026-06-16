@@ -7,7 +7,6 @@ author: Toby Clemson
 producer: review-work-item
 status: complete
 target: "work-item:0047"
-relates_to: []
 work_item_id: "0047"
 reviewer: Toby Clemson
 verdict: APPROVE
