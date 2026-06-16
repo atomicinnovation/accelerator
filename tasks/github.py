@@ -138,21 +138,14 @@ def download_and_verify(
         tmp_path.unlink(missing_ok=True)
 
 
-@task
-def upload_and_verify(context: Context, version: str) -> None:
-    """Upload release artefacts, verify SHA-256, then publish the draft.
+def _resolve_release_assets(
+    manifest_binaries: dict[str, object],
+) -> tuple[list[tuple[Path, str]], list[Path]]:
+    """Collect (asset_path, expected_hex) pairs and debug archives per target.
 
-    During the rename transition each platform ships BOTH binary assets — the
-    new `a9r-<platform>` and the byte-identical `accelerator-visualiser-<platform>`
-    copy — so neither an old launcher (old name) nor a new one (a9r) hard-404s.
-    Checksums are nested by asset name (`binaries[platform][asset]`); each asset
-    is verified against its own entry.
+    Each platform ships both binary assets (a9r + accelerator-visualiser),
+    verified against their asset-nested checksum entries.
     """
-    tag = f"v{version}"
-    checksums = json.loads(CHECKSUMS.read_text())
-    manifest_binaries = checksums["binaries"]
-
-    # (asset_path, expected_hex) for every binary asset to publish + verify.
     assets: list[tuple[Path, str]] = []
     archives: list[Path] = []
     for _, platform in TARGETS:
@@ -172,12 +165,20 @@ def upload_and_verify(context: Context, version: str) -> None:
                 )
             assets.append((asset_path, digest.removeprefix("sha256:")))
         archives.append(debug_archive_path(platform))
+    return assets, archives
 
-    missing = [p for p in [a for a, _ in assets] + archives if not p.exists()]
-    if missing:
-        raise FileNotFoundError(
-            f"Expected release artefacts not found: {[str(p) for p in missing]}"
-        )
+
+def _publish_release_assets(
+    context: Context,
+    tag: str,
+    assets: list[tuple[Path, str]],
+    archives: list[Path],
+) -> None:
+    """Upload + SHA-verify every asset, publish the draft, roll back on error.
+
+    An `AssetVerificationError` preserves the draft + tag for triage (forensic
+    alert); any other failure deletes the draft and its tag.
+    """
     try:
         for asset_path, _ in assets:
             upload_release_asset(context, tag, asset_path)
@@ -200,3 +201,25 @@ def upload_and_verify(context: Context, version: str) -> None:
             timeout=120,
         )
         raise
+
+
+@task
+def upload_and_verify(context: Context, version: str) -> None:
+    """Upload release artefacts, verify SHA-256, then publish the draft.
+
+    During the rename transition each platform ships BOTH binary assets — the
+    new `a9r-<platform>` and the byte-identical
+    `accelerator-visualiser-<platform>` copy — so neither an old launcher (old
+    name) nor a new one (a9r) hard-404s. Checksums are nested by asset name
+    (`binaries[platform][asset]`); each asset is verified against its own entry.
+    """
+    tag = f"v{version}"
+    checksums = json.loads(CHECKSUMS.read_text())
+    assets, archives = _resolve_release_assets(checksums["binaries"])
+
+    missing = [p for p in [a for a, _ in assets] + archives if not p.exists()]
+    if missing:
+        raise FileNotFoundError(
+            f"Expected release artefacts not found: {[str(p) for p in missing]}"
+        )
+    _publish_release_assets(context, tag, assets, archives)
