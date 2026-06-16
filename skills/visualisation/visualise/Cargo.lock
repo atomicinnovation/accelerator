@@ -8,6 +8,7 @@ version = "1.22.0-pre.21"
 dependencies = [
  "a9r-core",
  "assert_cmd",
+ "chrono",
  "clap",
  "libc",
  "nix",

@@ -1,25 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Collect metadata
-DATETIME_UTC=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)
-FILENAME_TS=$(date '+%Y-%m-%d_%H-%M-%S')
+# Thin shim: route to the `a9r artifact-derive-metadata` subcommand when a
+# trusted binary resolves, else run the verbatim bash implementation. Output is
+# live (timestamps, VCS revision), so the two backends are not byte-identical;
+# the contract is the output *shape*, gated by test-metadata-helpers.sh (which
+# runs in a9r mode via this shim). Resolution lives in a9r-resolve.sh;
+# A9R_FORCE_BASH forces the bash path.
 
-if command -v jj >/dev/null 2>&1 && jj root >/dev/null 2>&1; then
-  REPO_ROOT=$(jj root)
-  REPO_NAME=$(basename "$REPO_ROOT")
-  REVISION=$(jj log -r @ --no-graph --template 'commit_id')
-elif command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  REPO_ROOT=$(git rev-parse --show-toplevel)
-  REPO_NAME=$(basename "$REPO_ROOT")
-  REVISION=$(git rev-parse HEAD)
-else
-  REPO_ROOT=""
-  REPO_NAME=""
-  REVISION=""
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=a9r-resolve.sh
+source "$SCRIPT_DIR/a9r-resolve.sh"
+
+if [ -z "${A9R_FORCE_BASH:-}" ] && bin="$(a9r_bin 2>/dev/null)" && [ -n "$bin" ]; then
+  exec "$bin" artifact-derive-metadata "$@"
 fi
-
-echo "Current Date/Time (UTC): $DATETIME_UTC"
-[ -n "$REVISION" ] && echo "Current Revision: $REVISION"
-[ -n "$REPO_NAME" ] && echo "Repository Name: $REPO_NAME"
-echo "Timestamp For Filename: $FILENAME_TS"
+exec "$SCRIPT_DIR/artifact-derive-metadata-impl.sh" "$@"

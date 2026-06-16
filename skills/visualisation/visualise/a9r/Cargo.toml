@@ -24,6 +24,7 @@ visualise = ["visualiser/embed-dist"]
 [dependencies]
 a9r-core = { path = "../a9r-core" }
 visualiser = { path = "../server", default-features = false }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["rt-multi-thread"] }
 tracing = "0.1"

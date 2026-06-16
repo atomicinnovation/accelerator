@@ -58,6 +58,9 @@ enum Command {
     },
     /// Print a skill's `instructions.md` wrapped in a section header.
     ConfigReadSkillInstructions { skill: Option<String> },
+    /// Print artifact metadata (UTC timestamp, VCS revision, repo name,
+    /// filename timestamp) for stamping generated documents.
+    ArtifactDeriveMetadata,
     /// Run the meta-directory visualiser server.
     Visualise {
         /// Path to the config.json written by launch-server.sh.
@@ -251,8 +254,97 @@ fn main() -> ExitCode {
             a9r_core::SKILL_INSTRUCTIONS_USAGE,
             mm,
         )),
+        Command::ArtifactDeriveMetadata => run_artifact_derive_metadata(),
         Command::Visualise { config } => run_visualise(&config),
     }
+}
+
+// ── artifact-derive-metadata ──────────────────────────────────────────────────
+
+/// Print artifact metadata, a faithful port of `artifact-derive-metadata.sh`:
+/// a UTC ISO timestamp, then (when in a repo) the VCS revision and repo name,
+/// then a local filename timestamp. jj is preferred over git; neither present
+/// → the revision/name lines are omitted. Byte-for-byte parity is not possible
+/// (timestamps/revisions are live), so the gate is the output *shape*
+/// (`test-metadata-helpers.sh`), which routes through the shim in a9r mode.
+fn run_artifact_derive_metadata() -> ExitCode {
+    use chrono::{Local, Utc};
+    let datetime_utc = Utc::now().format("%Y-%m-%dT%H:%M:%S+00:00").to_string();
+    let filename_ts = Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
+    let (revision, repo_name) = vcs_metadata();
+
+    println!("Current Date/Time (UTC): {datetime_utc}");
+    if !revision.is_empty() {
+        println!("Current Revision: {revision}");
+    }
+    if !repo_name.is_empty() {
+        println!("Repository Name: {repo_name}");
+    }
+    println!("Timestamp For Filename: {filename_ts}");
+    ExitCode::SUCCESS
+}
+
+/// `(revision, repo_name)` from jj (preferred) or git, or two empty strings
+/// when neither rooted VCS is available — mirroring the bash if/elif/else.
+fn vcs_metadata() -> (String, String) {
+    use std::process::Command;
+
+    // jj: `jj root` must succeed (also covers `command -v jj`, since a missing
+    // binary fails to spawn). Run it twice like the bash (guard + capture).
+    if command_succeeds(Command::new("jj").arg("root")) {
+        if let Some(root) = command_stdout(Command::new("jj").arg("root")) {
+            let revision = command_stdout(Command::new("jj").args([
+                "log",
+                "-r",
+                "@",
+                "--no-graph",
+                "--template",
+                "commit_id",
+            ]))
+            .unwrap_or_default();
+            return (revision, basename(&root));
+        }
+    }
+
+    // git: inside a work tree.
+    if command_succeeds(Command::new("git").args(["rev-parse", "--is-inside-work-tree"])) {
+        if let Some(root) =
+            command_stdout(Command::new("git").args(["rev-parse", "--show-toplevel"]))
+        {
+            let revision =
+                command_stdout(Command::new("git").args(["rev-parse", "HEAD"])).unwrap_or_default();
+            return (revision, basename(&root));
+        }
+    }
+
+    (String::new(), String::new())
+}
+
+/// Run a command, discarding output; true iff it spawned and exited 0.
+fn command_succeeds(cmd: &mut std::process::Command) -> bool {
+    cmd.stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|s| s.success())
+}
+
+/// Run a command and return its trimmed stdout, or `None` on spawn failure or
+/// a non-zero exit (matching `$(…)` which yields empty on failure under the
+/// bash guards above).
+fn command_stdout(cmd: &mut std::process::Command) -> Option<String> {
+    let out = cmd.stderr(std::process::Stdio::null()).output().ok()?;
+    if out.status.success() {
+        Some(String::from_utf8_lossy(&out.stdout).trim_end().to_string())
+    } else {
+        None
+    }
+}
+
+/// `basename` of a path string (the final component), or the string itself.
+fn basename(path: &str) -> String {
+    Path::new(path)
+        .file_name()
+        .map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned())
 }
 
 // ── visualise ───────────────────────────────────────────────────────────────
