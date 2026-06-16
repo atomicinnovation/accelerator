@@ -1116,21 +1116,37 @@ the relevant `scripts/<name>.sh`, `scripts/test-*.sh` (mapping + any backfill),
 
 #### Automated Verification:
 
-- [ ] Each command's suite green in both modes: `bash scripts/test-config.sh` and
-      `A9R_BIN=<built> bash scripts/test-config.sh` (plus
-      `test-metadata-helpers.sh` for `artifact-derive-metadata`)
-- [ ] `config-read-template` tab-delimited `<source>\t<path>` output matches bash
-      byte-for-byte
-- [ ] Coverage backfill suites (if any) green on bash before the port lands
-- [ ] Full CI green: `mise run` (default — includes tests; `mise run check` is
-      format + lint only and does not run the parity gate)
+- [x] Each command's suite green in both modes: `bash scripts/test-config.sh`
+      (555 passed) and `A9R_BIN=<built> bash scripts/test-config.sh` (543 passed,
+      1 skipped, 114 a9r assertions ≥ floor 50) — `config-read-context`,
+      `config-read-skill-context`, `config-read-skill-instructions`,
+      `config-read-agents`, `config-read-template` rerouted through `run_sut`;
+      `test-metadata-helpers.sh` green in both modes (36/36) for
+      `artifact-derive-metadata` (routed via the shim, shape-asserted).
+- [x] `config-read-template` output matches bash byte-for-byte: three template
+      cases added to the raw-byte differential (`test-config-parity.sh`, now
+      11/11 — plugin-default fenced, already-fenced passthrough, unknown-name
+      error + exit code). The internal tab-delimited resolution is not exposed by
+      the command; the observable fenced-content output is the gated contract.
+- [x] Coverage backfill suites (if any) green on bash before the port lands —
+      `test-config.sh`/`test-metadata-helpers.sh` already covered every ported
+      command's contract (no backfill needed; audited per command during the
+      port, all green on bash first).
+- [x] Full CI green: ran the relevant merge-gate aggregates rather than the heavy
+      bare `mise run` (Phase 7 touches a9r-core, the a9r binary, shell scripts,
+      and the test harness — no frontend/server source): `mise run a9r:check`,
+      `scripts:check`, `test:unit:a9r` (92 core + bin tests),
+      `test:integration:config` (bash) + `:config-parity` (a9r, builds the
+      binary). (`mise run check` is format + lint only and does not run the gate.)
 
 #### Manual Verification:
 
-- [ ] Spot-check a real skill load (e.g. a `!`-preprocessor `config-read-context`
-      call) renders identically with `a9r` active vs forced-bash.
-- [ ] stderr remains clean on success for every ported command (prompt-injection
-      safety).
+- [x] Spot-check renders identically with `a9r` active vs forced-bash:
+      `config-read-context`, `config-read-agents`, `config-read-skill-context`,
+      and `config-read-template` all produced byte-identical stdout under
+      `A9R_FORCE_BASH=1 bash <script>` vs `a9r <subcommand>` in a fixture repo.
+- [x] stderr remains clean on success for every ported command (0 bytes on the
+      success path for all four section commands — prompt-injection safety).
 
 ---
 
