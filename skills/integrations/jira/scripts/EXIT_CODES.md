@@ -68,8 +68,8 @@ table. Gaps within ranges are reserved.
 | 105  | `E_CREATE_NO_BODY`               | `jira-create-flow.sh`       | No body source available                                                                 |
 | 106  | `E_CREATE_NO_SITE_CACHE`         | `jira-create-flow.sh`       | `--assignee`/`--reporter` `@me` but `site.json` missing; run `/init-jira`                |
 | 107  | `E_CREATE_BAD_ASSIGNEE`          | `jira-create-flow.sh`       | `--assignee` value is not `@me` or a raw accountId (email addresses not supported)       |
-| 108  | —                                | reserved                    | Reserved for follow-up                                                                   |
-| 109  | —                                | reserved                    | Reserved for follow-up                                                                   |
+| 108  | `E_RESOLVE_NO_PROJECT`           | `jira-resolve-fields.sh`    | Cannot resolve a project (no `--project`, no `work.default_project_code`, no project-coded id) |
+| 109  | `E_RESOLVE_ALREADY_SYNCED`       | `jira-resolve-fields.sh`    | `--file` already carries a non-empty `external_id` — re-pushing would duplicate          |
 | 110  | `E_UPDATE_NO_KEY`                | `jira-update-flow.sh`       | No issue key positional argument                                                          |
 | 111  | `E_UPDATE_LABEL_MODE_CONFLICT`   | `jira-update-flow.sh`       | `--label` mixed with `--add-label`/`--remove-label`, or `--component` with `--add/--remove-component` |
 | 112  | `E_UPDATE_NO_OPS`                | `jira-update-flow.sh`       | No mutating flags supplied                                                                |
@@ -108,7 +108,7 @@ table. Gaps within ranges are reserved.
 | 34        | `jira-request.sh`          | `E_REQ_BAD_REQUEST` — HTTP 400                     |
 | 91–99     | `jira-comment-flow.sh`     | 99 = `E_COMMENT_BAD_RESPONSE`                      |
 | 100–107   | `jira-create-flow.sh`      |                                                    |
-| 108–109   | reserved                   | Reserved for follow-up                             |
+| 108–109   | `jira-resolve-fields.sh`   | work-item-file resolver: no-project / already-synced |
 | 110–117   | `jira-update-flow.sh`      |                                                    |
 | 118–119   | reserved                   | Reserved for follow-up                             |
 | 120–126   | `jira-transition-flow.sh`  |                                                    |

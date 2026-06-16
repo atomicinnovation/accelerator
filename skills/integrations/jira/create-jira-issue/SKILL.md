@@ -35,6 +35,95 @@ This skill never synthesises `--body` content from upstream context (issue
 descriptions, web fetches, prior tool output) without explicit user approval —
 body content always comes from the user's prompt or a path the user named.
 
+## Two modes
+
+This skill accepts **either** a work-item file or the explicit flag set:
+
+- **Work-item-file mode** — the argument is a path to a `meta/work/` work item
+  (or resolves to one). The issue summary, body, type, and project are derived
+  from the work item, and the created issue's key is written back into the
+  work item's `external_id`. Use this mode whenever the argument is a work-item
+  file path. Follow the **Work-item-file mode** section below.
+- **Flag-driven mode** — the argument is the `--project/--type/--summary/…`
+  flag set (no work-item file). Follow **Steps 1–10**. This mode is unchanged
+  and writes nothing back to any file.
+
+Both modes share one create contract: read/preview/confirm/create. They mirror
+`/create-linear-issue` in shape — the only difference is which tracker is called.
+
+## Work-item-file mode
+
+### WF-1: Resolve the issue type and project
+
+Run the read-only resolver against the work-item file (pass `--project KEY` only
+if the user explicitly overrode it):
+
+```
+${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-resolve-fields.sh \
+  --file <work-item-file>
+```
+
+It prints a tab-separated line `<issue_type>\t<issue_type_source>\t<project>\t<project_source>`
+and is the **single source of truth** for the kind→issue-type map and project
+resolution (shared with `/create-work-item`'s push), so the two entry points
+can never disagree. Handle its exit code **before** any preview or create:
+
+- **Exit 109** (`E_RESOLVE_ALREADY_SYNCED`) — the work item already carries a
+  non-empty `external_id`. STOP; tell the user it is already synced and name the
+  existing identifier. Make no API call.
+- **Exit 108** (`E_RESOLVE_NO_PROJECT`) — the project is unresolvable. STOP and
+  tell the user to pass `--project KEY` or set `work.default_project_code`
+  (name `work.default_project_code` explicitly). This is a pre-create failure —
+  do **not** proceed to the confirm gate.
+- **Exit 0** — capture the four resolved values and continue.
+
+### WF-2: Preview
+
+Read the work item's `title` (the issue summary) and its Markdown body (the
+description). Show the preview under **Proposed Jira write — review before
+sending**, stating plainly:
+
+- the resolved **issue type**, and — when `issue_type_source` is `default` —
+  that the kind fell through, e.g. `kind "spike" → Task (default)`;
+- the resolved **project** and **which source it came from**
+  (`project_source`: `work.default_project_code` for `config`, the project code
+  embedded in `id` for `id`, or an explicit flag for `flag`);
+- the summary and the (≤500-char-truncated) description.
+
+### WF-3: Confirm (fail-safe gate)
+
+Ask: `Create this Jira issue and set the work item's external_id? [y/N]`.
+Interpret strictly: exactly `y`/`Y` proceeds; anything else aborts with
+"Aborted — no Jira write was made."
+
+### WF-4: Create and write back
+
+On `y`, create via the thin post-create wrapper, which returns **only** the bare
+issue key. Write the work item's body to a file for `--body-file` (or pass
+`--body`):
+
+```
+${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-emit-key.sh \
+  --project <project> --type <issue_type> --summary "<title>" --body-file <body-path>
+```
+
+On success, write the returned key into the work item's `external_id`,
+inserting the line if absent:
+
+```
+source ${CLAUDE_PLUGIN_ROOT}/scripts/config-common.sh
+config_upsert_frontmatter_field <work-item-file> external_id <KEY>
+```
+
+Then report `Issue created: <KEY> — the work item's external_id is now <KEY>.`
+
+If `jira-emit-key.sh` exits non-zero, the issue **was not** confirmed created
+with a usable key (or a transport error occurred) — surface the error and make
+no writeback. If the create **succeeded** but the `config_upsert_frontmatter_field`
+writeback fails, surface this **loudly**: the issue exists remotely as `<KEY>`,
+the user must NOT blindly re-run (it would create a duplicate), and they should
+set `external_id: <KEY>` in the work item by hand.
+
 ## Step 1: Parse the flag set
 
 Read the argument string and note each flag:

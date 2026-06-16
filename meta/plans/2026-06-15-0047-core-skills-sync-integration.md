@@ -510,20 +510,20 @@ invocation of it).
 
 #### Automated Verification
 
-- [ ] Jira create tests pass: `bash skills/integrations/jira/scripts/test-jira-create.sh`
+- [x] Jira create tests pass: `bash skills/integrations/jira/scripts/test-jira-create.sh`
       (runs in CI only once wired — see Phase 0)
-- [ ] kind→issue-type mapping covered (each kind → expected type; unknown →
+- [x] kind→issue-type mapping covered (each kind → expected type; unknown →
       Task), via the shared resolver
-- [ ] Project resolution covered (from config, from `id` project code, and
+- [x] Project resolution covered (from config, from `id` project code, and
       unresolvable → pre-create failure naming `work.default_project_code`)
-- [ ] Jira already-synced refusal covered (non-empty `external_id`; `""` →
+- [x] Jira already-synced refusal covered (non-empty `external_id`; `""` →
       proceeds)
-- [ ] End-to-end Jira writeback covered (`.key` from a mock 201 lands in
+- [x] End-to-end Jira writeback covered (`.key` from a mock 201 lands in
       `external_id` on the work-item file)
-- [ ] New Jira exit codes drawn from the reserved `108–109` band; `EXIT_CODES.md`
+- [x] New Jira exit codes drawn from the reserved `108–109` band; `EXIT_CODES.md`
       Codes table + Phase 4 namespace summary updated
-- [ ] Shell lint/format clean: `mise run scripts:check`
-- [ ] Full read-only gate: `mise run check`
+- [x] Shell lint/format clean: `mise run scripts:check`
+- [x] Full read-only gate: `mise run check`
 
 #### Manual Verification
 

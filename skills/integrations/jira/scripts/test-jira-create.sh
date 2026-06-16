@@ -550,5 +550,83 @@ assert_eq "ADF round-trip matches expected output" "0" "$ADF_RC_26"
 echo ""
 
 # ---------------------------------------------------------------------------
+echo "=== jira-resolve-fields.sh: kind → issue type (via the shared resolver) ==="
+echo ""
+RESOLVE="$SCRIPT_DIR/jira-resolve-fields.sh"
+RR=$(setup_repo) # default_project_code=ENG
+for pair in "story:Story" "bug:Bug" "epic:Epic" "task:Task" "spike:Task" "unknownkind:Task"; do
+  kind="${pair%%:*}"
+  want="${pair#*:}"
+  got=$(cd "$RR" && bash "$RESOLVE" --kind "$kind" | cut -f1)
+  assert_eq "kind $kind → $want" "$want" "$got"
+done
+assert_eq "unknown kind reports default source" "default" \
+  "$(cd "$RR" && bash "$RESOLVE" --kind unknownkind | cut -f2)"
+assert_eq "known kind reports mapped source" "mapped" \
+  "$(cd "$RR" && bash "$RESOLVE" --kind bug | cut -f2)"
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "=== jira-resolve-fields.sh: project resolution ==="
+echo ""
+OUT=$(cd "$RR" && bash "$RESOLVE" --kind task)
+assert_eq "project from config" "ENG" "$(printf '%s' "$OUT" | cut -f3)"
+assert_eq "project source = config" "config" "$(printf '%s' "$OUT" | cut -f4)"
+
+RM=$(setup_repo_minimal) # no default_project_code
+OUT=$(cd "$RM" && bash "$RESOLVE" --kind task --id PROJ-0042)
+assert_eq "project from id project code" "PROJ" "$(printf '%s' "$OUT" | cut -f3)"
+assert_eq "project source = id" "id" "$(printf '%s' "$OUT" | cut -f4)"
+
+EXIT_CODE=0
+ERR=$(cd "$RM" && bash "$RESOLVE" --kind task --id 0042 2>&1 1>/dev/null) || EXIT_CODE=$?
+assert_eq "unresolvable project exits 108" "108" "$EXIT_CODE"
+assert_contains "names work.default_project_code" "$ERR" "work.default_project_code"
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "=== jira-resolve-fields.sh: already-synced refusal (file mode) ==="
+echo ""
+mkdir -p "$RR/work"
+printf -- '---\nid: "ENG-7"\ntitle: A thing\nkind: bug\nexternal_id: "ENG-7"\nstatus: ready\n---\n\nBody.\n' \
+  >"$RR/work/synced.md"
+EXIT_CODE=0
+ERR=$(cd "$RR" && bash "$RESOLVE" --file work/synced.md 2>&1 1>/dev/null) || EXIT_CODE=$?
+assert_eq "already-synced exits 109" "109" "$EXIT_CODE"
+assert_contains "E_RESOLVE_ALREADY_SYNCED in stderr" "$ERR" "E_RESOLVE_ALREADY_SYNCED"
+
+printf -- '---\nid: "ENG-8"\ntitle: A thing\nkind: bug\nstatus: ready\n---\n\nBody.\n' \
+  >"$RR/work/unsynced.md"
+assert_eq "unsynced file resolves type" "Bug" \
+  "$(cd "$RR" && bash "$RESOLVE" --file work/unsynced.md | cut -f1)"
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "=== jira-emit-key.sh: bare key on stdout + end-to-end external_id writeback ==="
+echo ""
+EMIT="$SCRIPT_DIR/jira-emit-key.sh"
+RW=$(setup_repo)
+write_site_json "$RW"
+mkdir -p "$RW/work"
+printf -- '---\nid: "ENG-9"\ntitle: Widget\nkind: task\nstatus: ready\n---\n\nThe body.\n' \
+  >"$RW/work/item.md"
+printf 'The body.\n' >"$RW/body.md"
+start_mock "$SCENARIOS/create-201-capture.json"
+KEY=$(cd "$RW" && ACCELERATOR_JIRA_TOKEN="$TEST_TOKEN" ACCELERATOR_TEST_MODE=1 \
+  ACCELERATOR_JIRA_BASE_URL_OVERRIDE_TEST="$MOCK_URL" \
+  bash "$EMIT" --project ENG --type Task --summary "Widget" --body-file body.md 2>/dev/null)
+stop_mock
+assert_eq "emit-key prints exactly the bare key (no JSON leakage)" "ENG-123" "$KEY"
+# End-to-end: the returned key lands in external_id on the work-item file (the
+# Jira flow's invocation of the upsert helper, not the helper in isolation).
+(
+  source "$PLUGIN_ROOT/scripts/config-common.sh"
+  config_upsert_frontmatter_field "$RW/work/item.md" external_id "$KEY"
+)
+assert_eq "external_id written to the work-item file" "external_id: ENG-123" \
+  "$(grep '^external_id:' "$RW/work/item.md")"
+echo ""
+
+# ---------------------------------------------------------------------------
 
 test_summary
