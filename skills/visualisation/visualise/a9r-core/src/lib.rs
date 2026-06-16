@@ -29,6 +29,7 @@ pub mod files;
 pub mod frontmatter;
 pub mod lookup;
 pub mod repo;
+pub mod template;
 
 use frontmatter::Frontmatter;
 

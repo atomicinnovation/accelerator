@@ -1,60 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Reads a template file, checking user overrides before plugin defaults.
-# Usage: config-read-template.sh <template_name>
+# Thin shim: route to the `a9r config-read-template` subcommand when a trusted
+# binary resolves, else run the verbatim bash implementation. Both paths are
+# proven byte-for-byte equivalent by the parity gate (scripts/test-config.sh +
+# test-config-parity.sh). Resolution precedence and trust gates live in
+# a9r-resolve.sh; A9R_FORCE_BASH forces the bash path.
 #
-# Template names: plan, research, adr, validation, pr-description, work-item
-# (Invalid names produce an error listing available templates.)
-#
-# Resolution order:
-# 1. Path specified in config: templates.<name> (if set and file exists)
-# 2. Configured templates directory: <paths.templates>/<name>.md
-#    (defaults to .accelerator/templates/<name>.md)
-# 3. Plugin default: <plugin_root>/templates/<name>.md
-#
-# All user-facing templates live in one place (.accelerator/templates/ or
-# whatever paths.templates is set to). The .accelerator/lenses/ directory
-# is for custom lenses, not templates.
-#
-# Outputs the template content to stdout, wrapped in markdown code fences
-# (```markdown ... ```) so the LLM interprets the content as a template to
-# follow rather than instructions to execute. If the template file already
-# starts with a code fence, it is output as-is (no double-wrapping).
+# The a9r subcommand cannot derive the plugin root from its own path, so the
+# shim exports ACCELERATOR_PLUGIN_ROOT (the parent of scripts/) — the same
+# value the bash impl computes from its SCRIPT_DIR/.. — before exec'ing it.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/config-common.sh"
-config_assert_no_legacy_layout
-PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=a9r-resolve.sh
+source "$SCRIPT_DIR/a9r-resolve.sh"
 
-TEMPLATE_NAME="${1:-}"
-if [ -z "$TEMPLATE_NAME" ]; then
-  echo "Usage: config-read-template.sh <template_name>" >&2
-  exit 1
+if [ -z "${A9R_FORCE_BASH:-}" ] && bin="$(a9r_bin 2>/dev/null)" && [ -n "$bin" ]; then
+  ACCELERATOR_PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+  export ACCELERATOR_PLUGIN_ROOT
+  exec "$bin" config-read-template "$@"
 fi
-
-# Output template content, wrapping in code fences if not already fenced.
-_output_template() {
-  local file="$1"
-  local first_line
-  first_line=$(head -1 "$file")
-  if [[ "$first_line" == '```'* ]]; then
-    # Already fenced — output as-is
-    cat "$file"
-  else
-    # Wrap in code fences
-    echo '```markdown'
-    cat "$file"
-    echo '```'
-  fi
-}
-
-# Resolve template through three-tier fallback
-RESOLUTION=$(config_resolve_template "$TEMPLATE_NAME" "$PLUGIN_ROOT") || {
-  AVAILABLE=$(config_format_available_templates "$PLUGIN_ROOT")
-  echo "Error: Template '$TEMPLATE_NAME' not found. Available templates: $AVAILABLE" >&2
-  exit 1
-}
-
-IFS=$'\t' read -r _SOURCE RESOLVED_PATH <<<"$RESOLUTION"
-_output_template "$RESOLVED_PATH"
+exec "$SCRIPT_DIR/config-read-template-impl.sh" "$@"

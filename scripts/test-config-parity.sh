@@ -32,6 +32,12 @@ fi
 
 READ_VALUE="$SCRIPT_DIR/config-read-value.sh"
 READ_PATH="$SCRIPT_DIR/config-read-path.sh"
+READ_TEMPLATE="$SCRIPT_DIR/config-read-template.sh"
+# Plugin root (parent of scripts/) for the config-read-template a9r subcommand,
+# which cannot derive it from the binary path. The bash impl reads its own
+# SCRIPT_DIR/..; export the same value to the a9r side so both resolve the same
+# plugin-default templates dir.
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 PASS=0
 FAIL=0
@@ -57,6 +63,7 @@ diff_cmd() {
   case "$subcommand" in
     config-read-value) script="$READ_VALUE" ;;
     config-read-path) script="$READ_PATH" ;;
+    config-read-template) script="$READ_TEMPLATE" ;;
     *)
       echo "  FAIL: $name (unknown subcommand: $subcommand)"
       FAIL=$((FAIL + 1))
@@ -73,7 +80,8 @@ diff_cmd() {
   # a9r-vs-a9r. A9R_FORCE_BASH=1 pins the genuine bash backend so the compare
   # is bash-impl vs a9r.
   (cd "$repo" && A9R_FORCE_BASH=1 bash "$script" "$@") >"$bash_out" 2>/dev/null || bash_rc=$?
-  (cd "$repo" && "$A9R_BIN" "$subcommand" "$@") >"$a9r_out" 2>/dev/null || a9r_rc=$?
+  (cd "$repo" && ACCELERATOR_PLUGIN_ROOT="$PLUGIN_ROOT" "$A9R_BIN" "$subcommand" "$@") \
+    >"$a9r_out" 2>/dev/null || a9r_rc=$?
   if [ "$bash_rc" != "$a9r_rc" ]; then
     echo "  FAIL: $name — exit code differs: bash=$bash_rc a9r=$a9r_rc"
     FAIL=$((FAIL + 1))
@@ -153,6 +161,21 @@ paths:
 ---
 FIXTURE
 diff_cmd "path configured override" "$REPO" config-read-path plans meta/plans
+
+# --- config-read-template: plugin-default (tier 3), fence-wrapped -----------
+REPO=$(setup_repo)
+diff_cmd "template plugin default (fenced)" "$REPO" config-read-template plan
+
+# --- config-read-template: user template (tier 2), already-fenced passthrough
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator/templates"
+# shellcheck disable=SC2016 # literal markdown fence text, not command substitution
+printf '```markdown\n# Already Fenced\n```\n' >"$REPO/.accelerator/templates/plan.md"
+diff_cmd "template user override (no double-wrap)" "$REPO" config-read-template plan
+
+# --- config-read-template: unknown name → error + available list, exit 1 ----
+REPO=$(setup_repo)
+diff_cmd "template unknown name (error+list)" "$REPO" config-read-template nope-not-a-template
 
 echo ""
 echo "=== Parity differential results ==="

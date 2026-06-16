@@ -4132,7 +4132,6 @@ echo ""
 echo "=== config-read-template.sh ==="
 echo ""
 
-READ_TEMPLATE="$SCRIPT_DIR/config-read-template.sh"
 LIST_TEMPLATE="$SCRIPT_DIR/config-list-template.sh"
 SHOW_TEMPLATE="$SCRIPT_DIR/config-show-template.sh"
 EJECT_TEMPLATE="$SCRIPT_DIR/config-eject-template.sh"
@@ -4142,7 +4141,7 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "Test: No user template -> outputs plugin default wrapped in code fences"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+OUTPUT=$(cd "$REPO" && run_sut read-template "plan")
 FIRST_LINE=$(echo "$OUTPUT" | head -1)
 LAST_LINE=$(echo "$OUTPUT" | tail -1)
 assert_eq "starts with code fence" '```markdown' "$FIRST_LINE"
@@ -4163,7 +4162,7 @@ cat >"$REPO/.accelerator/templates/plan.md" <<'FIXTURE'
 
 ## My Custom Section
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+OUTPUT=$(cd "$REPO" && run_sut read-template "plan")
 FIRST_LINE=$(echo "$OUTPUT" | head -1)
 assert_eq "starts with code fence" '```markdown' "$FIRST_LINE"
 if echo "$OUTPUT" | grep -q "My Custom Section"; then
@@ -4187,7 +4186,7 @@ FIXTURE
 cat >"$REPO/docs/templates/plan.md" <<'FIXTURE'
 # Overridden Directory Plan Template
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+OUTPUT=$(cd "$REPO" && run_sut read-template "plan")
 if echo "$OUTPUT" | grep -q "Overridden Directory Plan Template"; then
   echo "  PASS: finds template in overridden directory"
   PASS=$((PASS + 1))
@@ -4213,7 +4212,7 @@ FIXTURE
 cat >"$REPO/.accelerator/templates/plan.md" <<'FIXTURE'
 # Templates-Dir Plan (should NOT be used)
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+OUTPUT=$(cd "$REPO" && run_sut read-template "plan")
 if echo "$OUTPUT" | grep -q "Config-Specified Plan"; then
   echo "  PASS: config path takes precedence over templates dir"
   PASS=$((PASS + 1))
@@ -4227,7 +4226,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/templates"
 # shellcheck disable=SC2016 # single-quoted printf format; backticks are literal markdown fence text, intentionally not command substitution
 printf '```markdown\n# Already Fenced\n```\n' >"$REPO/.accelerator/templates/plan.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+OUTPUT=$(cd "$REPO" && run_sut read-template "plan")
 # Count occurrences of ```markdown - should be exactly 1
 FENCE_COUNT=$(echo "$OUTPUT" | grep -c '```markdown' || true)
 assert_eq "no double-wrapping" "1" "$FENCE_COUNT"
@@ -4241,7 +4240,7 @@ templates:
   plan: nonexistent/plan.md
 ---
 FIXTURE
-STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan" 2>&1 1>/dev/null)
+STDERR_OUTPUT=$(cd "$REPO" && run_sut read-template "plan" 2>&1 1>/dev/null)
 if echo "$STDERR_OUTPUT" | grep -q "Warning"; then
   echo "  PASS: warning emitted to stderr"
   PASS=$((PASS + 1))
@@ -4249,7 +4248,7 @@ else
   echo "  FAIL: warning emitted to stderr"
   FAIL=$((FAIL + 1))
 fi
-OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan" 2>/dev/null)
+OUTPUT=$(cd "$REPO" && run_sut read-template "plan" 2>/dev/null)
 if echo "$OUTPUT" | grep -q "## Overview"; then
   echo "  PASS: falls back to plugin default"
   PASS=$((PASS + 1))
@@ -4271,7 +4270,7 @@ FIXTURE
 cat >"$REPO/relative/path/plan.md" <<'FIXTURE'
 # Relative Path Plan
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+OUTPUT=$(cd "$REPO" && run_sut read-template "plan")
 if echo "$OUTPUT" | grep -q "Relative Path Plan"; then
   echo "  PASS: relative path resolved correctly"
   PASS=$((PASS + 1))
@@ -4293,7 +4292,7 @@ templates:
   plan: $ABS_TEMPLATE
 ---
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
+OUTPUT=$(cd "$REPO" && run_sut read-template "plan")
 if echo "$OUTPUT" | grep -q "Absolute Path Plan"; then
   echo "  PASS: absolute path used as-is"
   PASS=$((PASS + 1))
@@ -4304,7 +4303,7 @@ fi
 
 echo "Test: Unknown template name -> error listing available template names"
 REPO=$(setup_repo)
-STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "nonexistent" 2>&1 1>/dev/null || true)
+STDERR_OUTPUT=$(cd "$REPO" && run_sut read-template "nonexistent" 2>&1 1>/dev/null || true)
 if echo "$STDERR_OUTPUT" | grep -q "pr-description" &&
   echo "$STDERR_OUTPUT" | grep -q "plan" &&
   echo "$STDERR_OUTPUT" | grep -q "research" &&
@@ -4318,11 +4317,11 @@ else
   echo "    Actual stderr: $STDERR_OUTPUT"
   FAIL=$((FAIL + 1))
 fi
-assert_exit_code "exits 1 for unknown template" 1 bash "$READ_TEMPLATE" "nonexistent"
+assert_exit_code "exits 1 for unknown template" 1 run_sut read-template "nonexistent"
 
 echo "Test: pr-description template -> outputs plugin default"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "pr-description")
+OUTPUT=$(cd "$REPO" && run_sut read-template "pr-description")
 if echo "$OUTPUT" | grep -q "PR Title" && echo "$OUTPUT" | grep -q "Summary"; then
   echo "  PASS: pr-description template content output"
   PASS=$((PASS + 1))
@@ -5203,7 +5202,7 @@ echo ""
 
 echo "Test: Unknown template lists all 6 template names including pr-description and work-item"
 REPO=$(setup_repo)
-STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "nonexistent" 2>&1 1>/dev/null || true)
+STDERR_OUTPUT=$(cd "$REPO" && run_sut read-template "nonexistent" 2>&1 1>/dev/null || true)
 assert_contains "error lists plan" "$STDERR_OUTPUT" "plan"
 assert_contains "error lists codebase-research" "$STDERR_OUTPUT" "codebase-research"
 assert_contains "error lists adr" "$STDERR_OUTPUT" "adr"

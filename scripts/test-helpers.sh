@@ -22,6 +22,13 @@ SKIP=0
 # regardless of the sourcing suite's own SCRIPT_DIR.
 _TEST_HELPERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Plugin root (parent of scripts/) used by the `config-read-template` a9r
+# subcommand, which cannot derive it from the binary path. The bash impl reads
+# it from its own SCRIPT_DIR/..; run_sut exports this to the a9r invocation so
+# the two backends resolve the same plugin-default templates dir. Harmless for
+# subcommands that ignore it.
+_A9R_PLUGIN_ROOT="$(cd "$_TEST_HELPERS_DIR/.." && pwd)"
+
 # --- System-under-test (SUT) switch: bash scripts vs. the a9r binary --------
 #
 # The config-read suites must run unchanged against either the original bash
@@ -71,6 +78,10 @@ run_sut() {
       script="config-read-agents.sh"
       subcommand="config-read-agents"
       ;;
+    read-template)
+      script="config-read-template.sh"
+      subcommand="config-read-template"
+      ;;
     read-skill-context)
       script="config-read-skill-context.sh"
       subcommand="config-read-skill-context"
@@ -86,7 +97,7 @@ run_sut() {
   esac
   if [ -n "${A9R_BIN:-}" ]; then
     printf '.' >>"$A9R_RUN_SUT_COUNT_FILE"
-    "$A9R_BIN" "$subcommand" "$@"
+    ACCELERATOR_PLUGIN_ROOT="$_A9R_PLUGIN_ROOT" "$A9R_BIN" "$subcommand" "$@"
   else
     bash "$_TEST_HELPERS_DIR/$script" "$@"
   fi

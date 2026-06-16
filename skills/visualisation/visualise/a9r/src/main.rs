@@ -45,6 +45,12 @@ enum Command {
     ConfigReadContext,
     /// Print the resolved agent-name override block.
     ConfigReadAgents,
+    /// Resolve a template (config → templates dir → plugin default) and print
+    /// it, fence-wrapped. The plugin root comes from `ACCELERATOR_PLUGIN_ROOT`.
+    ConfigReadTemplate {
+        /// The template name, e.g. `plan` or `pr-description`.
+        key: Option<String>,
+    },
     /// Print a skill's `context.md` wrapped in a section header, if present.
     ConfigReadSkillContext {
         /// The skill name (the per-skill customisation directory).
@@ -152,6 +158,30 @@ fn run_config_read_skill(
     Ok(())
 }
 
+fn run_config_read_template(
+    start: &Path,
+    key: Option<String>,
+    mm: bool,
+) -> Result<(), ConfigError> {
+    // config-read-template asserts the layout, then validates the name, then
+    // resolves — matching the bash ordering.
+    a9r_core::assert_no_legacy_layout(start, mm)?;
+    let key = key.unwrap_or_default();
+    if key.is_empty() {
+        return Err(ConfigError::Usage(a9r_core::template::TEMPLATE_USAGE));
+    }
+    // The plugin root (parent of scripts/) is injected by the shim and the
+    // test harness via ACCELERATOR_PLUGIN_ROOT; the binary cannot derive it.
+    let plugin_root = std::env::var("ACCELERATOR_PLUGIN_ROOT").unwrap_or_default();
+    emit_command(&a9r_core::template::read_template(
+        start,
+        &key,
+        Path::new(&plugin_root),
+        mm,
+    )?);
+    Ok(())
+}
+
 fn run_config_read(result: Result<(), ConfigError>) -> ExitCode {
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -203,6 +233,9 @@ fn main() -> ExitCode {
         Command::ConfigReadAgents => {
             emit_command(&a9r_core::agents::read_agents(&start, mm));
             ExitCode::SUCCESS
+        }
+        Command::ConfigReadTemplate { key } => {
+            run_config_read(run_config_read_template(&start, key, mm))
         }
         Command::ConfigReadSkillContext { skill } => run_config_read(run_config_read_skill(
             &start,
