@@ -218,10 +218,10 @@ existing `_EXPECTED_CONFIG_SUITES` / `_EXPECTED_MIGRATE_SUITES` guards. Every ne
 
 #### Automated Verification
 
-- [ ] `mise run test:integration` lists and runs the `skills/work` and
+- [x] `mise run test:integration` lists and runs the `skills/work` and
       `skills/integrations` suites (verify by name in the output)
-- [ ] Removing the exec bit from a wired suite makes the count-floor guard fail
-- [ ] Full read-only gate: `mise run check`
+- [x] Removing the exec bit from a wired suite makes the count-floor guard fail
+- [x] Full read-only gate: `mise run check`
 
 ---
 

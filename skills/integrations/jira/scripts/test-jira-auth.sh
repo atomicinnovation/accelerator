@@ -26,7 +26,10 @@ setup_repo() {
 setup_git_repo() {
   local d
   d=$(mktemp -d "$TMPDIR_BASE/git-XXXXXX")
-  mkdir -p "$d/.accelerator"
+  # .claude holds the VCS-tracked insecure-local-ok override marker the
+  # permission tests (14b–14e) create; an empty dir is benign (legacy-layout
+  # detection keys on the .claude/accelerator.md file, not the directory).
+  mkdir -p "$d/.accelerator" "$d/.claude"
   (cd "$d" && git init -q && git config user.email "t@t.com" && git config user.name "T")
   echo "$d"
 }

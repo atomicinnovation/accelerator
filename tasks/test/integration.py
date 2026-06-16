@@ -13,6 +13,17 @@ _EXPECTED_MIGRATE_SUITES = 4
 # silently vanish from CI. Bumped as suites are added under scripts/.
 _EXPECTED_CONFIG_SUITES = 16
 
+# The skills/work subtree discoverable shell suites. At-least floor (mirror of
+# the migrate/config guards) so a dropped exec bit can't silently shrink the
+# regression net. Bumped as suites are added under skills/work.
+_EXPECTED_WORK_SUITES = 2
+
+# The skills/integrations subtree discoverable shell suites (every individual
+# test-jira-*.sh + test-linear-*.sh; the test-jira-scripts.sh umbrella runner is
+# excluded from discovery — see EXCLUDED_HELPER_NAMES). At-least floor so a
+# dropped exec bit can't silently drop a create/auth suite from CI.
+_EXPECTED_INTEGRATIONS_SUITES = 32
+
 # Fail-closed gates that MUST run by name, not merely satisfy the count floor —
 # a guard renamed off the `test-*.sh` convention would vanish while the count
 # still passes via other suites. The producer-conformance guard (work item
@@ -90,6 +101,32 @@ def hooks(context: Context) -> None:
 def github(context: Context) -> None:
     """Integration tests for the github skills (shell harnesses)."""
     run_shell_suites(context, "skills/github")
+
+
+@task
+def work(context: Context) -> None:
+    """Integration tests for the work-management skill scripts."""
+    suites = run_shell_suites(context, "skills/work")
+    if len(suites) < _EXPECTED_WORK_SUITES:
+        raise Exit(
+            f"Expected at least {_EXPECTED_WORK_SUITES} work shell suites, "
+            f"found {len(suites)}: {suites}. An exec bit may have been "
+            f"dropped — a work-management regression suite is missing from CI.",
+            code=1,
+        )
+
+
+@task
+def integrations(context: Context) -> None:
+    """Integration tests for the jira/linear integration scripts."""
+    suites = run_shell_suites(context, "skills/integrations")
+    if len(suites) < _EXPECTED_INTEGRATIONS_SUITES:
+        raise Exit(
+            f"Expected at least {_EXPECTED_INTEGRATIONS_SUITES} integration "
+            f"shell suites, found {len(suites)}: {suites}. An exec bit may "
+            f"have been dropped — a create/auth suite is missing from CI.",
+            code=1,
+        )
 
 
 @task

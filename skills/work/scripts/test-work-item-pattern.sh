@@ -34,27 +34,27 @@ assert_exit_code "exits 0" 0 bash "$PATTERN_CLI" --validate "{{x}}-{number:04d}"
 
 echo "Test: missing {number} token (rule 1) fails with E_PATTERN_NO_NUMBER_TOKEN"
 ERR=$(bash "$PATTERN_CLI" --validate "no-number" 2>&1 >/dev/null || true)
-assert_contains "stderr names rule" "E_PATTERN_NO_NUMBER_TOKEN" "$ERR"
+assert_contains "stderr names rule" "$ERR" "E_PATTERN_NO_NUMBER_TOKEN"
 assert_exit_code "exits 2" 2 bash "$PATTERN_CLI" --validate "no-number"
 
 echo "Test: hostile char (rule 2) fails with E_PATTERN_HOSTILE_CHAR"
 ERR=$(bash "$PATTERN_CLI" --validate "a/b-{number:04d}" 2>&1 >/dev/null || true)
-assert_contains "stderr names rule" "E_PATTERN_HOSTILE_CHAR" "$ERR"
+assert_contains "stderr names rule" "$ERR" "E_PATTERN_HOSTILE_CHAR"
 assert_exit_code "exits 2" 2 bash "$PATTERN_CLI" --validate "a/b-{number:04d}"
 
 echo "Test: adjacent dynamic tokens (rule 3) fails with E_PATTERN_ADJACENT_TOKENS"
 ERR=$(bash "$PATTERN_CLI" --validate "{project}{number:04d}" 2>&1 >/dev/null || true)
-assert_contains "stderr names rule" "E_PATTERN_ADJACENT_TOKENS" "$ERR"
+assert_contains "stderr names rule" "$ERR" "E_PATTERN_ADJACENT_TOKENS"
 assert_exit_code "exits 2" 2 bash "$PATTERN_CLI" --validate "{project}{number:04d}"
 
 echo "Test: bad format spec (rule 4) fails with E_PATTERN_BAD_FORMAT_SPEC"
 ERR=$(bash "$PATTERN_CLI" --validate "{number:foo}" 2>&1 >/dev/null || true)
-assert_contains "stderr names rule" "E_PATTERN_BAD_FORMAT_SPEC" "$ERR"
+assert_contains "stderr names rule" "$ERR" "E_PATTERN_BAD_FORMAT_SPEC"
 assert_exit_code "exits 2" 2 bash "$PATTERN_CLI" --validate "{number:foo}"
 
 echo "Test: non-padded format spec %d (rule 4) fails"
 ERR=$(bash "$PATTERN_CLI" --validate "{number:d}" 2>&1 >/dev/null || true)
-assert_contains "stderr names rule" "E_PATTERN_BAD_FORMAT_SPEC" "$ERR"
+assert_contains "stderr names rule" "$ERR" "E_PATTERN_BAD_FORMAT_SPEC"
 
 echo "Test: usage with no argument fails with exit 1"
 assert_exit_code "exits 1" 1 bash "$PATTERN_CLI" --validate
@@ -219,12 +219,12 @@ echo ""
 
 echo "Test: invalid project value '_low' rejected"
 ERR=$(bash "$PATTERN_CLI" --compile-scan "{project}-{number:04d}" "_low" 2>&1 >/dev/null || true)
-assert_contains "stderr names rule" "E_PATTERN_BAD_PROJECT_VALUE" "$ERR"
+assert_contains "stderr names rule" "$ERR" "E_PATTERN_BAD_PROJECT_VALUE"
 assert_exit_code "exits 2" 2 bash "$PATTERN_CLI" --compile-scan "{project}-{number:04d}" "_low"
 
 echo "Test: project value with internal hyphen rejected"
 ERR=$(bash "$PATTERN_CLI" --compile-scan "{project}-{number:04d}" "PROJ-FE" 2>&1 >/dev/null || true)
-assert_contains "stderr names rule" "E_PATTERN_BAD_PROJECT_VALUE" "$ERR"
+assert_contains "stderr names rule" "$ERR" "E_PATTERN_BAD_PROJECT_VALUE"
 
 echo "Test: single-char project value 'A' accepted"
 OUT=$(bash "$PATTERN_CLI" --compile-scan "{project}-{number:04d}" "A")

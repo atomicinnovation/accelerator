@@ -149,9 +149,9 @@ assert_eq "outputs 0001" "0001" "$OUTPUT"
 # Helper to write a {project} pattern config
 write_project_config() {
   local repo="$1" project_default="${2-}"
-  mkdir -p "$repo/.claude"
+  mkdir -p "$repo/.accelerator"
   if [ -n "$project_default" ]; then
-    cat >"$repo/.claude/accelerator.md" <<FIXTURE
+    cat >"$repo/.accelerator/config.md" <<FIXTURE
 ---
 work:
   id_pattern: "{project}-{number:04d}"
@@ -159,7 +159,7 @@ work:
 ---
 FIXTURE
   else
-    cat >"$repo/.claude/accelerator.md" <<'FIXTURE'
+    cat >"$repo/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{project}-{number:04d}"
@@ -202,7 +202,7 @@ mkdir -p "$REPO/meta/work"
 RC=0
 ERR=$(cd "$REPO" && bash "$NEXT_NUMBER" 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-assert_contains "stderr names rule" "E_PATTERN_MISSING_PROJECT" "$ERR"
+assert_contains "stderr names rule" "$ERR" "E_PATTERN_MISSING_PROJECT"
 
 echo "Test: default project_code from config when --project absent"
 REPO=$(setup_repo)
@@ -218,12 +218,12 @@ mkdir -p "$REPO/meta/work"
 RC=0
 ERR=$(cd "$REPO" && bash "$NEXT_NUMBER" --project PROJ 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-assert_contains "stderr names rule" "E_PATTERN_PROJECT_UNUSED" "$ERR"
+assert_contains "stderr names rule" "$ERR" "E_PATTERN_PROJECT_UNUSED"
 
 echo "Test: width change {number:05d} over 0001 corpus → 00002"
 REPO=$(setup_repo)
-mkdir -p "$REPO/.claude"
-cat >"$REPO/.claude/accelerator.md" <<'FIXTURE'
+mkdir -p "$REPO/.accelerator"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{number:05d}"
@@ -249,13 +249,13 @@ touch "$REPO/meta/work/9999-foo.md"
 RC=0
 ERR=$(cd "$REPO" && bash "$NEXT_NUMBER" 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-assert_contains "stderr names overflow" "E_PATTERN_OVERFLOW" "$ERR"
-assert_contains "stderr names highest" "highest=9999" "$ERR"
+assert_contains "stderr names overflow" "$ERR" "E_PATTERN_OVERFLOW"
+assert_contains "stderr names highest" "$ERR" "highest=9999"
 
 echo "Test: overflow boundary under {number:05d}, 99998 corpus, --count 1 succeeds"
 REPO=$(setup_repo)
-mkdir -p "$REPO/.claude"
-cat >"$REPO/.claude/accelerator.md" <<'FIXTURE'
+mkdir -p "$REPO/.accelerator"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{number:05d}"
@@ -278,7 +278,7 @@ touch "$REPO/meta/work/12345-foo.md"
 RC=0
 ERR=$(cd "$REPO" && bash "$NEXT_NUMBER" 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
-assert_contains "stderr names out-of-width file" "12345-foo.md" "$ERR"
+assert_contains "stderr names out-of-width file" "$ERR" "12345-foo.md"
 
 echo ""
 
@@ -342,13 +342,13 @@ touch "$REPO/meta/work/PROJ-0042-current.md"
 RC=0
 ERR=$(cd "$REPO" && bash "$RESOLVE" "0042" 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 2" "2" "$RC"
-assert_contains "lists legacy candidate" "[legacy]" "$ERR"
-assert_contains "lists project-prepended candidate" "[project-prepended]" "$ERR"
+assert_contains "lists legacy candidate" "$ERR" "[legacy]"
+assert_contains "lists project-prepended candidate" "$ERR" "[project-prepended]"
 
 echo "Test: ambiguity — cross-project, no default project code"
 REPO=$(setup_repo)
-mkdir -p "$REPO/.claude"
-cat >"$REPO/.claude/accelerator.md" <<'FIXTURE'
+mkdir -p "$REPO/.accelerator"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{project}-{number:04d}"
@@ -360,8 +360,8 @@ touch "$REPO/meta/work/OTHER-0042-y.md"
 RC=0
 ERR=$(cd "$REPO" && bash "$RESOLVE" "0042" 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 2" "2" "$RC"
-assert_contains "lists PROJ" "[PROJ]" "$ERR"
-assert_contains "lists OTHER" "[OTHER]" "$ERR"
+assert_contains "lists PROJ" "$ERR" "[PROJ]"
+assert_contains "lists OTHER" "$ERR" "[OTHER]"
 
 echo "Test: ambiguity — default project + cross-project (deduplication)"
 REPO=$(setup_repo)
@@ -372,16 +372,16 @@ touch "$REPO/meta/work/OTHER-0042-y.md"
 RC=0
 ERR=$(cd "$REPO" && bash "$RESOLVE" "0042" 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 2" "2" "$RC"
-assert_contains "lists project-prepended" "[project-prepended]" "$ERR"
-assert_contains "lists OTHER" "[OTHER]" "$ERR"
+assert_contains "lists project-prepended" "$ERR" "[project-prepended]"
+assert_contains "lists OTHER" "$ERR" "[OTHER]"
 # PROJ-0042-x.md must appear once with project-prepended tag, not twice
 PROJ_OCCURRENCES=$(printf '%s\n' "$ERR" | grep -c "PROJ-0042-x.md")
 assert_eq "PROJ-0042-x.md listed once" "1" "$PROJ_OCCURRENCES"
 
 echo "Test: single cross-project match resolves"
 REPO=$(setup_repo)
-mkdir -p "$REPO/.claude"
-cat >"$REPO/.claude/accelerator.md" <<'FIXTURE'
+mkdir -p "$REPO/.accelerator"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{project}-{number:04d}"
@@ -401,8 +401,8 @@ assert_eq "exit code 1" "1" "$RC"
 
 echo "Test: legacy 42 under {project} pattern, no default — finds legacy file"
 REPO=$(setup_repo)
-mkdir -p "$REPO/.claude"
-cat >"$REPO/.claude/accelerator.md" <<'FIXTURE'
+mkdir -p "$REPO/.accelerator"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 ---
 work:
   id_pattern: "{project}-{number:04d}"
@@ -1029,8 +1029,8 @@ assert_eq "returns empty string" "" "$OUTPUT"
 # Test 5: User-overridden template with custom values
 echo "Test: User-overridden template with custom values"
 REPO=$(setup_repo)
-mkdir -p "$REPO/meta/templates"
-cat >"$REPO/meta/templates/work-item.md" <<'FIXTURE'
+mkdir -p "$REPO/.accelerator/templates"
+cat >"$REPO/.accelerator/templates/work-item.md" <<'FIXTURE'
 ---
 work_item_id: NNNN
 status: open                                   # open | closed | wontfix
@@ -1057,8 +1057,8 @@ assert_eq "returns hardcoded status values" "$EXPECTED" "$OUTPUT"
 # Test 7: Field with no trailing comment → hardcoded fallback
 echo "Test: Field with no comment falls back to hardcoded"
 REPO=$(setup_repo)
-mkdir -p "$REPO/meta/templates"
-cat >"$REPO/meta/templates/work-item.md" <<'FIXTURE'
+mkdir -p "$REPO/.accelerator/templates"
+cat >"$REPO/.accelerator/templates/work-item.md" <<'FIXTURE'
 ---
 work_item_id: NNNN
 status: draft

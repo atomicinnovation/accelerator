@@ -3,7 +3,11 @@ from pathlib import Path
 
 from invoke import Context
 
-EXCLUDED_HELPER_NAMES = {"test-helpers.sh"}
+# test-helpers.sh is sourced, not run. test-jira-scripts.sh is an umbrella
+# runner that sequentially re-invokes every individual test-jira-*.sh suite;
+# under per-file discovery it would run the whole Jira subtree a second time, so
+# it is excluded and the individual suites gate on their own.
+EXCLUDED_HELPER_NAMES = {"test-helpers.sh", "test-jira-scripts.sh"}
 
 
 def repo_root() -> Path:

@@ -73,3 +73,45 @@ class TestMigrateSuiteGuard:
         )
         with pytest.raises(Exit):
             integration.migrate(Context())
+
+
+class TestWorkSuiteGuard:
+    def test_guard_fires_when_below_baseline(self, mocker):
+        mocker.patch.object(
+            integration,
+            "run_shell_suites",
+            return_value=["skills/work/test-a.sh"],
+        )
+        with pytest.raises(Exit):
+            integration.work(Context())
+
+    def test_guard_passes_at_baseline(self, mocker):
+        suites = [
+            f"skills/work/test-{i}.sh"
+            for i in range(integration._EXPECTED_WORK_SUITES)
+        ]
+        mocker.patch.object(
+            integration, "run_shell_suites", return_value=suites
+        )
+        integration.work(Context())  # must not raise
+
+
+class TestIntegrationsSuiteGuard:
+    def test_guard_fires_when_below_baseline(self, mocker):
+        mocker.patch.object(
+            integration,
+            "run_shell_suites",
+            return_value=["skills/integrations/test-a.sh"],
+        )
+        with pytest.raises(Exit):
+            integration.integrations(Context())
+
+    def test_guard_passes_at_baseline(self, mocker):
+        suites = [
+            f"skills/integrations/test-{i}.sh"
+            for i in range(integration._EXPECTED_INTEGRATIONS_SUITES)
+        ]
+        mocker.patch.object(
+            integration, "run_shell_suites", return_value=suites
+        )
+        integration.integrations(Context())  # must not raise
