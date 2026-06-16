@@ -1108,4 +1108,77 @@ assert_eq "hardcoded priority matches shipping template" "$SHIPPING_VALUES" "$HA
 
 echo ""
 
+# ============================================================
+echo "=== work-item-sync-label.sh ==="
+echo ""
+
+SYNC_LABEL="$SCRIPT_DIR/work-item-sync-label.sh"
+
+# Classification is presence-based: a non-empty external_id (after stripping
+# surrounding quotes + whitespace) is synced, everything else unsynced.
+echo "Test: classify non-empty external_id → synced"
+assert_eq "synced" "synced" "$(bash "$SYNC_LABEL" --classify 'PROJ-0042')"
+
+echo "Test: classify project-coded id-shape value → synced (independent of id shape)"
+assert_eq "synced" "synced" "$(bash "$SYNC_LABEL" --classify 'BLA-123')"
+
+echo "Test: classify github-style external_id → synced"
+assert_eq "synced" "synced" "$(bash "$SYNC_LABEL" --classify 'atomic-innovation/accelerator#42')"
+
+echo "Test: classify absent (empty) external_id → unsynced"
+assert_eq "unsynced" "unsynced" "$(bash "$SYNC_LABEL" --classify '')"
+
+echo "Test: classify quote-only \"\" → unsynced (normalisation strips quotes)"
+assert_eq "unsynced" "unsynced" "$(bash "$SYNC_LABEL" --classify '""')"
+
+echo "Test: classify whitespace-only → unsynced"
+assert_eq "unsynced" "unsynced" "$(bash "$SYNC_LABEL" --classify '   ')"
+
+echo "Test: classify quoted value → synced (quotes stripped, value remains)"
+assert_eq "synced" "synced" "$(bash "$SYNC_LABEL" --classify '"PROJ-0042"')"
+
+echo "Test: label synced → glyph + text"
+assert_eq "synced label" "🟢 synced" "$(bash "$SYNC_LABEL" --label synced)"
+
+echo "Test: label unsynced → glyph + text"
+assert_eq "unsynced label" "⚪ unsynced" "$(bash "$SYNC_LABEL" --label unsynced)"
+
+# The two states must differ in BOTH glyph and text so the signal survives
+# monochrome / glyph-blind rendering.
+echo "Test: synced and unsynced labels differ in glyph AND text"
+SYNCED_LABEL=$(bash "$SYNC_LABEL" --label synced)
+UNSYNCED_LABEL=$(bash "$SYNC_LABEL" --label unsynced)
+SYNCED_GLYPH="${SYNCED_LABEL%% *}"
+UNSYNCED_GLYPH="${UNSYNCED_LABEL%% *}"
+SYNCED_TEXT="${SYNCED_LABEL#* }"
+UNSYNCED_TEXT="${UNSYNCED_LABEL#* }"
+if [ "$SYNCED_GLYPH" != "$UNSYNCED_GLYPH" ] && [ "$SYNCED_TEXT" != "$UNSYNCED_TEXT" ]; then
+  echo "  PASS: glyph and text both distinct"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: glyph or text not distinct (synced='$SYNCED_LABEL' unsynced='$UNSYNCED_LABEL')"
+  FAIL=$((FAIL + 1))
+fi
+
+# Labels must be markdown-native, never ANSI escapes (output is a markdown
+# table in the conversation, not a TTY).
+echo "Test: labels emit no ANSI escape sequences"
+ALL_LABELS="$SYNCED_LABEL$UNSYNCED_LABEL"
+if printf '%s' "$ALL_LABELS" | grep -q $'\033'; then
+  echo "  FAIL: ANSI escape sequence present in label output"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: no ANSI escapes"
+  PASS=$((PASS + 1))
+fi
+
+echo "Test: default mode classifies then renders (external_id → label)"
+assert_eq "synced label" "🟢 synced" "$(bash "$SYNC_LABEL" 'PROJ-0042')"
+assert_eq "unsynced label" "⚪ unsynced" "$(bash "$SYNC_LABEL" '')"
+
+echo "Test: unknown status → exit 1"
+assert_exit_code "exits 1" 1 bash "$SYNC_LABEL" --label bogus
+
+echo ""
+
 test_summary

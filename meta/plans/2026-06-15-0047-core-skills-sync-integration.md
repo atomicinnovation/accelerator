@@ -630,16 +630,16 @@ work-item-script tests, not by mutating the shared fence.
 
 #### Automated Verification
 
-- [ ] `scripts/test-hierarchy-format.sh` still passes — the shared
+- [x] `scripts/test-hierarchy-format.sh` still passes — the shared
       `canonical-tree-fence` byte-identical assertion (list-work-items ≡
       refine-work-item) is preserved (the sync label is NOT added to the shared
       fence, per Change 4)
-- [ ] Work-item script tests pass: `bash skills/work/scripts/test-work-item-scripts.sh`
+- [x] Work-item script tests pass: `bash skills/work/scripts/test-work-item-scripts.sh`
       (these run in CI only once the suite is wired — see Phase 0)
-- [ ] Status lookup defines distinct glyph **and** distinct text for synced vs
+- [x] Status lookup defines distinct glyph **and** distinct text for synced vs
       unsynced (signal survives monochrome / glyph-blind rendering); no ANSI
       escape codes are emitted
-- [ ] Full read-only gate: `mise run check`
+- [x] Full read-only gate: `mise run check`
 
 #### Manual Verification
 

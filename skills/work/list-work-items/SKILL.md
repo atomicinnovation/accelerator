@@ -24,6 +24,13 @@ accelerator:web-search-researcher.
 **Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
 **Work item ID pattern**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh id_pattern`
 **Default project code**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh default_project_code`
+**Active integration**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh integration`
+
+The **Active integration** line above gates the sync-status rendering (Step 4).
+`config-read-work.sh integration` exits 0 with an **empty line** when no
+integration is configured, so branch on the **string**, not the exit code:
+treat a non-empty value as *integration configured* and an empty value as *not
+configured*.
 
 ## Work Item Template
 
@@ -187,6 +194,27 @@ If no argument was provided: filter is "all work items, no filter".
    - `priority` — the priority level
    - `tags` — a YAML inline array (e.g. `[backend, api]`)
    - `parent` — the parent work item number
+   - `external_id` — the remote tracker's identifier, used only for the
+     sync-status label in Step 4. It is already present in the single-pass
+     frontmatter stream above (the `awk` prints every frontmatter line), so
+     reading it adds no extra per-file process. Read it **only** when an
+     integration is configured; otherwise ignore it.
+
+   **Sync classification (only when an integration is configured).** For each
+   file that *passed* the frontmatter validity check above, classify it
+   presence-based:
+   - `external_id` absent → **unsynced** (never an error — the item was simply
+     never pushed).
+   - `external_id` present but normalising to empty (after stripping surrounding
+     quotes and whitespace — e.g. `external_id: ""`) → **unsynced**.
+   - `external_id` present and non-empty after normalisation → **synced**.
+
+   Do not hand-roll the normalisation: pass the raw `external_id` value (or
+   nothing, when the field is absent) to the authoritative classifier
+   `work-item-sync-label.sh` (Step 4), which owns the trimming rule and the
+   label vocabulary. A file that Step 2 already flagged as malformed stays a
+   **skip**, not an unsynced row. The filename remains the authoritative
+   displayed ID — `external_id` never changes the displayed ID.
 
 ## Step 3: Apply Filter
 
@@ -219,18 +247,49 @@ Apply the parsed filter from Step 1 to the scanned work items.
 
 ## Step 4: Render
 
+### Sync Status Labels (only when an integration is configured)
+
+When the **Active integration** read at the top of this skill is a **non-empty**
+string, each rendered work item carries a sync-status label. When it is empty,
+render exactly as today — **no** Sync column, no label, output unchanged.
+
+The label vocabulary and the presence-based classification rule are owned by a
+single source of truth so the table and hierarchy views never drift:
+
+```
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-sync-label.sh <external-id-value>
+```
+
+Pass each item's raw `external_id` value (or an empty string when the field is
+absent); the script classifies it and prints the markdown-native label —
+`🟢 synced` for a non-empty `external_id`, `⚪ unsynced` otherwise. The two
+states differ in **both glyph and text**, so the signal survives monochrome or
+glyph-blind rendering. The label is **markdown-native** (a Unicode glyph + text)
+and is emitted into the conversation's markdown table — **never** ANSI escape
+codes, which would surface as literal `\033[…]` text. This classifier is the
+extensible per-item status slot: story 0051 adds the baseline-dependent states
+(locally-modified, remotely-modified, conflict) by extending the script, with no
+change to the rendering here.
+
 ### Default Rendering (table)
 
 Present the filtered work items as a markdown table with these columns:
 
 | ID | Title | Kind | Status | Priority |
 
+When an integration is configured (see "Sync Status Labels" above), append a
+**Sync** column carrying each item's label:
+
+| ID | Title | Kind | Status | Priority | Sync |
+
 - Sort rows by work item number ascending.
 - Render missing fields as `—`.
 - If a column would be `—` for every row in the current result set,
   suppress that column entirely to reduce noise. For example, a listing
   of only legacy work items (which lack `priority`) would omit the Priority
-  column.
+  column. The **Sync** column follows the same rule in reverse: it is present
+  **only** when an integration is configured, and suppressed entirely when one
+  is not (there is no label to show).
 
 ### Hierarchy Rendering
 
@@ -253,6 +312,20 @@ NNNN — parent title (kind: <kind>, status: <status>)
   No ASCII fallback is attempted; terminals without Unicode
   support will render mojibake. Users on such terminals can
   re-display the hierarchy via /list-work-items.
+- **Sync labels in the tree** (only when an integration is configured): append
+  each item's sync label — obtained from `work-item-sync-label.sh`, the same
+  source of truth the table uses — to the end of its line, after the
+  `(kind: …, status: …)` segment. For example:
+
+  ```
+  0042 — User Auth Rework (kind: epic, status: ready) 🟢 synced
+    └── 0043 — Login form (kind: story, status: draft) ⚪ unsynced
+  ```
+
+  The shared `canonical-tree-fence` example above is deliberately kept
+  **label-free**: it is an integration-agnostic static example shared
+  byte-for-byte with `/refine-work-item` (which has no integration gate), so the
+  sync label is applied to the live rendered output, never to that example.
 - Work items whose `parent` points to a work item number that does not exist
   in the result set appear at the top level with a suffix:
   `(parent NNNN not found)`.
