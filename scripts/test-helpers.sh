@@ -63,6 +63,18 @@ run_sut() {
       script="config-read-value.sh"
       subcommand="config-read-value"
       ;;
+    read-context)
+      script="config-read-context.sh"
+      subcommand="config-read-context"
+      ;;
+    read-skill-context)
+      script="config-read-skill-context.sh"
+      subcommand="config-read-skill-context"
+      ;;
+    read-skill-instructions)
+      script="config-read-skill-instructions.sh"
+      subcommand="config-read-skill-instructions"
+      ;;
     *)
       echo "run_sut: unknown subcommand key: $key" >&2
       return 2

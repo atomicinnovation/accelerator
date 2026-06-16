@@ -1,35 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Reads skill-specific context from the per-skill customisation directory.
-# Outputs the content wrapped in a section header, or nothing if no file
-# exists.
-#
-# Usage: config-read-skill-context.sh <skill-name>
-#
-# Looks for: <project-root>/.accelerator/skills/<skill-name>/context.md
+# Thin shim: route to the `a9r config-read-skill-context` subcommand when a
+# trusted binary resolves, else run the verbatim bash implementation. Both
+# paths are proven byte-for-byte equivalent by the parity gate
+# (scripts/test-config.sh). Resolution precedence and trust gates live in
+# a9r-resolve.sh; A9R_FORCE_BASH forces the bash path.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/config-common.sh"
-config_assert_no_legacy_layout
+# shellcheck source=a9r-resolve.sh
+source "$SCRIPT_DIR/a9r-resolve.sh"
 
-SKILL_NAME="${1:-}"
-if [ -z "$SKILL_NAME" ]; then
-  echo "Usage: config-read-skill-context.sh <skill-name>" >&2
-  exit 1
+if [ -z "${A9R_FORCE_BASH:-}" ] && bin="$(a9r_bin 2>/dev/null)" && [ -n "$bin" ]; then
+  exec "$bin" config-read-skill-context "$@"
 fi
-
-PROJECT_ROOT=$(config_project_root)
-CONTEXT_FILE="$PROJECT_ROOT/.accelerator/skills/$SKILL_NAME/context.md"
-
-[ -f "$CONTEXT_FILE" ] || exit 0
-
-CONTENT=$(config_trim_body <"$CONTEXT_FILE")
-[ -z "$CONTENT" ] && exit 0
-
-echo "## Skill-Specific Context"
-echo ""
-echo "The following context is specific to the $SKILL_NAME skill. Apply this"
-echo "context in addition to any project-wide context above."
-echo ""
-printf '%s\n' "$CONTENT"
+exec "$SCRIPT_DIR/config-read-skill-context-impl.sh" "$@"

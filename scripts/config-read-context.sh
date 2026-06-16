@@ -1,33 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Reads the markdown body (project context) from accelerator config files.
-# Outputs the team context first, then local context, separated by a blank line.
-# If no config files exist or bodies are empty, outputs nothing.
-#
-# Usage: config-read-context.sh
+# Thin shim: route to the `a9r config-read-context` subcommand when a trusted
+# binary resolves, else run the verbatim bash implementation. Both paths are
+# proven byte-for-byte equivalent by the parity gate (scripts/test-config.sh).
+# Resolution precedence and trust gates live in a9r-resolve.sh; A9R_FORCE_BASH
+# forces the bash path.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/config-common.sh"
+# shellcheck source=a9r-resolve.sh
+source "$SCRIPT_DIR/a9r-resolve.sh"
 
-OUTPUT=""
-while IFS= read -r config_file; do
-  body=$(config_extract_body "$config_file")
-  trimmed=$(printf '%s\n' "$body" | config_trim_body)
-  if [ -n "$trimmed" ]; then
-    if [ -n "$OUTPUT" ]; then
-      OUTPUT="$OUTPUT"$'\n\n'"$trimmed"
-    else
-      OUTPUT="$trimmed"
-    fi
-  fi
-done < <(config_find_files)
-
-if [ -n "$OUTPUT" ]; then
-  echo "## Project Context"
-  echo ""
-  echo "The following project-specific context has been provided. Take this into"
-  echo "account when making decisions, selecting approaches, and generating output."
-  echo ""
-  printf '%s\n' "$OUTPUT"
+if [ -z "${A9R_FORCE_BASH:-}" ] && bin="$(a9r_bin 2>/dev/null)" && [ -n "$bin" ]; then
+  exec "$bin" config-read-context "$@"
 fi
+exec "$SCRIPT_DIR/config-read-context-impl.sh" "$@"

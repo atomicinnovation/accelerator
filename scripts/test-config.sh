@@ -11,15 +11,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # config-read-value / config-read-path are invoked via run_sut (SUT switch), not
 # a bare path, so they have no $READ_* variable here.
-READ_CONTEXT="$SCRIPT_DIR/config-read-context.sh"
 READ_AGENTS="$SCRIPT_DIR/config-read-agents.sh"
 READ_AGENT_NAME="$SCRIPT_DIR/config-read-agent-name.sh"
 READ_REVIEW="$SCRIPT_DIR/config-read-review.sh"
 CONFIG_DUMP="$SCRIPT_DIR/config-dump.sh"
 CONFIG_SUMMARY="$SCRIPT_DIR/config-summary.sh"
 CONFIG_DETECT="$SCRIPT_DIR/../hooks/config-detect.sh"
-READ_SKILL_CONTEXT="$SCRIPT_DIR/config-read-skill-context.sh"
-READ_SKILL_INSTRUCTIONS="$SCRIPT_DIR/config-read-skill-instructions.sh"
 
 # Source config-common.sh for direct function tests
 source "$SCRIPT_DIR/config-common.sh"
@@ -533,7 +530,7 @@ echo ""
 
 echo "Test: No config files -> outputs nothing"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_CONTEXT")
+OUTPUT=$(cd "$REPO" && run_sut read-context)
 assert_eq "outputs nothing" "" "$OUTPUT"
 
 echo "Test: Team config with body"
@@ -546,7 +543,7 @@ key: value
 
 This is the project context.
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_CONTEXT")
+OUTPUT=$(cd "$REPO" && run_sut read-context)
 EXPECTED=$(printf '## Project Context\n\nThe following project-specific context has been provided. Take this into\naccount when making decisions, selecting approaches, and generating output.\n\nThis is the project context.')
 assert_eq "outputs body under Project Context header" "$EXPECTED" "$OUTPUT"
 
@@ -560,7 +557,7 @@ key: value
 
 My personal context.
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_CONTEXT")
+OUTPUT=$(cd "$REPO" && run_sut read-context)
 EXPECTED=$(printf '## Project Context\n\nThe following project-specific context has been provided. Take this into\naccount when making decisions, selecting approaches, and generating output.\n\nMy personal context.')
 assert_eq "outputs local body under Project Context header" "$EXPECTED" "$OUTPUT"
 
@@ -581,7 +578,7 @@ key: value
 
 Personal context.
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_CONTEXT")
+OUTPUT=$(cd "$REPO" && run_sut read-context)
 EXPECTED=$(printf '## Project Context\n\nThe following project-specific context has been provided. Take this into\naccount when making decisions, selecting approaches, and generating output.\n\nTeam context.\n\nPersonal context.')
 assert_eq "outputs both, team first" "$EXPECTED" "$OUTPUT"
 
@@ -589,14 +586,14 @@ echo "Test: Config with frontmatter but no body"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_CONTEXT")
+OUTPUT=$(cd "$REPO" && run_sut read-context)
 assert_eq "outputs nothing" "" "$OUTPUT"
 
 echo "Test: Config with empty body"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\nkey: value\n---\n\n\n' >"$REPO/.accelerator/config.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_CONTEXT")
+OUTPUT=$(cd "$REPO" && run_sut read-context)
 assert_eq "outputs nothing" "" "$OUTPUT"
 
 echo "Test: Config with unclosed frontmatter -> outputs nothing"
@@ -607,7 +604,7 @@ cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 key: value
 no closing
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_CONTEXT" 2>/dev/null)
+OUTPUT=$(cd "$REPO" && run_sut read-context 2>/dev/null)
 assert_eq "outputs nothing (not entire file)" "" "$OUTPUT"
 
 echo ""
@@ -4592,24 +4589,24 @@ echo "=== config-read-skill-context.sh ==="
 echo ""
 
 echo "Test: No skill name argument -> exits with error"
-assert_exit_code "exits 1 with no argument" 1 bash "$READ_SKILL_CONTEXT"
+assert_exit_code "exits 1 with no argument" 1 run_sut read-skill-context
 
 echo "Test: No customisation directory -> no output"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-context create-plan)
 assert_empty "no output without directory" "$OUTPUT"
 
 echo "Test: Skill directory exists but no context.md -> no output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/create-plan"
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-context create-plan)
 assert_empty "no output without context.md" "$OUTPUT"
 
 echo "Test: context.md exists with content -> outputs section with header"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/create-plan"
 printf 'Some context content.\n' >"$REPO/.accelerator/skills/create-plan/context.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-context create-plan)
 EXPECTED="## Skill-Specific Context
 
 The following context is specific to the create-plan skill. Apply this
@@ -4622,21 +4619,21 @@ echo "Test: context.md exists but is empty -> no output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/create-plan"
 touch "$REPO/.accelerator/skills/create-plan/context.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-context create-plan)
 assert_empty "no output for empty file" "$OUTPUT"
 
 echo "Test: context.md exists with only whitespace/blank lines -> no output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/create-plan"
 printf '   \n\n  \n' >"$REPO/.accelerator/skills/create-plan/context.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-context create-plan)
 assert_empty "no output for whitespace-only file" "$OUTPUT"
 
 echo "Test: context.md with leading/trailing blank lines -> trimmed output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/review-pr"
 printf '\n\nTrimmed content.\n\n\n' >"$REPO/.accelerator/skills/review-pr/context.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" review-pr)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-context review-pr)
 assert_contains "content is trimmed" "$OUTPUT" "Trimmed content."
 # Should not start with blank lines in content section
 CONTENT_AFTER_HEADER=$(echo "$OUTPUT" | tail -1)
@@ -4646,7 +4643,7 @@ echo "Test: Output includes skill name in header text"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/review-pr"
 printf 'Content.\n' >"$REPO/.accelerator/skills/review-pr/context.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" review-pr)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-context review-pr)
 assert_contains "header mentions skill name" "$OUTPUT" "review-pr skill"
 
 echo "Test: Multiple skills with context -> each reads only its own"
@@ -4655,8 +4652,8 @@ mkdir -p "$REPO/.accelerator/skills/create-plan"
 mkdir -p "$REPO/.accelerator/skills/review-pr"
 printf 'Plan context.\n' >"$REPO/.accelerator/skills/create-plan/context.md"
 printf 'PR context.\n' >"$REPO/.accelerator/skills/review-pr/context.md"
-OUTPUT_PLAN=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" create-plan)
-OUTPUT_PR=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" review-pr)
+OUTPUT_PLAN=$(cd "$REPO" && run_sut read-skill-context create-plan)
+OUTPUT_PR=$(cd "$REPO" && run_sut read-skill-context review-pr)
 assert_contains "plan reads its own context" "$OUTPUT_PLAN" "Plan context."
 assert_contains "pr reads its own context" "$OUTPUT_PR" "PR context."
 # Verify isolation
@@ -4675,24 +4672,24 @@ echo "=== config-read-skill-instructions.sh ==="
 echo ""
 
 echo "Test: No skill name argument -> exits with error"
-assert_exit_code "exits 1 with no argument" 1 bash "$READ_SKILL_INSTRUCTIONS"
+assert_exit_code "exits 1 with no argument" 1 run_sut read-skill-instructions
 
 echo "Test: No customisation directory -> no output"
 REPO=$(setup_repo)
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-instructions review-pr)
 assert_empty "no output without directory" "$OUTPUT"
 
 echo "Test: Skill directory exists but no instructions.md -> no output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/review-pr"
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-instructions review-pr)
 assert_empty "no output without instructions.md" "$OUTPUT"
 
 echo "Test: instructions.md exists with content -> outputs section with header"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/review-pr"
 printf 'Always check for tests.\n' >"$REPO/.accelerator/skills/review-pr/instructions.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-instructions review-pr)
 EXPECTED="## Additional Instructions
 
 The following additional instructions have been provided for the
@@ -4706,21 +4703,21 @@ echo "Test: instructions.md exists but is empty -> no output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/review-pr"
 touch "$REPO/.accelerator/skills/review-pr/instructions.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-instructions review-pr)
 assert_empty "no output for empty file" "$OUTPUT"
 
 echo "Test: instructions.md exists with only whitespace/blank lines -> no output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/review-pr"
 printf '   \n\n  \n' >"$REPO/.accelerator/skills/review-pr/instructions.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-instructions review-pr)
 assert_empty "no output for whitespace-only file" "$OUTPUT"
 
 echo "Test: instructions.md with leading/trailing blank lines -> trimmed output"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/commit"
 printf '\n\nTrimmed instructions.\n\n\n' >"$REPO/.accelerator/skills/commit/instructions.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" commit)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-instructions commit)
 assert_contains "content is trimmed" "$OUTPUT" "Trimmed instructions."
 CONTENT_AFTER_HEADER=$(echo "$OUTPUT" | tail -1)
 assert_eq "last line is trimmed content" "Trimmed instructions." "$CONTENT_AFTER_HEADER"
@@ -4729,7 +4726,7 @@ echo "Test: Output includes skill name in header text"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/skills/commit"
 printf 'Instructions.\n' >"$REPO/.accelerator/skills/commit/instructions.md"
-OUTPUT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" commit)
+OUTPUT=$(cd "$REPO" && run_sut read-skill-instructions commit)
 assert_contains "header mentions skill name" "$OUTPUT" "commit skill"
 
 echo "Test: Multiple skills with instructions -> each reads only its own"
@@ -4738,8 +4735,8 @@ mkdir -p "$REPO/.accelerator/skills/commit"
 mkdir -p "$REPO/.accelerator/skills/review-pr"
 printf 'Commit instructions.\n' >"$REPO/.accelerator/skills/commit/instructions.md"
 printf 'Review instructions.\n' >"$REPO/.accelerator/skills/review-pr/instructions.md"
-OUTPUT_COMMIT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" commit)
-OUTPUT_PR=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
+OUTPUT_COMMIT=$(cd "$REPO" && run_sut read-skill-instructions commit)
+OUTPUT_PR=$(cd "$REPO" && run_sut read-skill-instructions review-pr)
 assert_contains "commit reads its own instructions" "$OUTPUT_COMMIT" "Commit instructions."
 assert_contains "pr reads its own instructions" "$OUTPUT_PR" "Review instructions."
 if printf '%s' "$OUTPUT_COMMIT" | grep -qF "Review instructions."; then

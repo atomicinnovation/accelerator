@@ -22,6 +22,7 @@
 
 use std::path::Path;
 
+pub mod body;
 pub mod defaults;
 pub mod files;
 pub mod frontmatter;
@@ -34,6 +35,10 @@ use frontmatter::Frontmatter;
 pub const VALUE_USAGE: &str = "Usage: config-read-value.sh <key> [default]";
 /// Usage string emitted by `config-read-path` on an empty/missing key.
 pub const PATH_USAGE: &str = "Usage: config-read-path.sh <path_key> [default]";
+/// Usage string emitted by `config-read-skill-context` with no skill name.
+pub const SKILL_CONTEXT_USAGE: &str = "Usage: config-read-skill-context.sh <skill-name>";
+/// Usage string emitted by `config-read-skill-instructions` with no skill name.
+pub const SKILL_INSTRUCTIONS_USAGE: &str = "Usage: config-read-skill-instructions.sh <skill-name>";
 
 /// The outcome of a config read: the single stdout line the binary prints
 /// (the binary appends exactly one trailing newline) and any stderr warning
@@ -42,6 +47,19 @@ pub const PATH_USAGE: &str = "Usage: config-read-path.sh <path_key> [default]";
 pub struct ReadOutcome {
     pub value: String,
     pub warnings: Vec<String>,
+}
+
+/// The exact stdout/stderr bytes a command produces. Unlike [`ReadOutcome`]
+/// (which the binary decorates with a trailing newline), [`Self::stdout`] is
+/// written **verbatim** — the section-emitting commands
+/// (`config-read-context`, `config-read-agents`, `config-read-template`, …)
+/// control their own trailing newline, and an empty `stdout` must print
+/// nothing at all. [`Self::stderr`] is likewise verbatim (already
+/// newline-terminated where bash emits a line).
+#[derive(Debug, PartialEq, Eq, Default)]
+pub struct CommandOutput {
+    pub stdout: String,
+    pub stderr: String,
 }
 
 /// A fatal config error. Exit-code mapping is centralised in
@@ -54,6 +72,10 @@ pub enum ConfigError {
     LegacyLayout,
     /// Missing/empty key — usage error.
     Usage(&'static str),
+    /// A dynamic error message (exit 1), e.g. the `config-read-template`
+    /// "not found, available templates: …" message whose text is computed at
+    /// runtime.
+    Message(String),
 }
 
 impl ConfigError {
@@ -76,6 +98,7 @@ impl ConfigError {
             )
             .to_string(),
             Self::Usage(msg) => (*msg).to_string(),
+            Self::Message(msg) => msg.clone(),
         }
     }
 }
@@ -144,6 +167,95 @@ pub fn read_value(start: &Path, key: &str, default: &str, migration_mode: bool) 
 
 fn file_contains(path: &Path, needle: &str) -> bool {
     std::fs::read_to_string(path).is_ok_and(|c| c.contains(needle))
+}
+
+/// The header `config-read-context` prints before the joined bodies.
+const CONTEXT_HEADER: &str = "## Project Context\n\nThe following project-specific context has been provided. Take this into\naccount when making decisions, selecting approaches, and generating output.\n";
+
+/// Read the project context (`config-read-context`): the trimmed markdown
+/// body of each config file (team first, local second), joined by a blank
+/// line, under a fixed header. If every body is empty, the output is empty
+/// (the binary prints nothing). This command does **not** run the
+/// legacy-layout guard, matching the bash script.
+pub fn read_context(start: &Path, migration_mode: bool) -> CommandOutput {
+    let root = repo::project_root(start);
+    let mut sections: Vec<String> = Vec::new();
+    for file in files::config_files(&root, migration_mode) {
+        let Ok(contents) = std::fs::read_to_string(&file) else {
+            continue;
+        };
+        let trimmed = body::trim_body(&body::extract_body(&contents));
+        if !trimmed.is_empty() {
+            sections.push(trimmed);
+        }
+    }
+    if sections.is_empty() {
+        return CommandOutput::default();
+    }
+    let joined = sections.join("\n\n");
+    CommandOutput {
+        stdout: format!("{CONTEXT_HEADER}\n{joined}\n"),
+        stderr: String::new(),
+    }
+}
+
+/// Which per-skill customisation file a [`read_skill_section`] call reads and
+/// the header wrapper it prints.
+pub enum SkillSection {
+    /// `context.md` → "## Skill-Specific Context".
+    Context,
+    /// `instructions.md` → "## Additional Instructions".
+    Instructions,
+}
+
+impl SkillSection {
+    fn file_name(&self) -> &'static str {
+        match self {
+            Self::Context => "context.md",
+            Self::Instructions => "instructions.md",
+        }
+    }
+
+    /// The full section text given the resolved skill name and trimmed body,
+    /// reproducing the script's `echo`/`printf` block byte-for-byte (trailing
+    /// newline included).
+    fn render(&self, skill: &str, content: &str) -> String {
+        match self {
+            Self::Context => format!(
+                "## Skill-Specific Context\n\nThe following context is specific to the {skill} skill. Apply this\ncontext in addition to any project-wide context above.\n\n{content}\n",
+            ),
+            Self::Instructions => format!(
+                "## Additional Instructions\n\nThe following additional instructions have been provided for the\n{skill} skill. Follow these instructions in addition to all\ninstructions above.\n\n{content}\n",
+            ),
+        }
+    }
+}
+
+/// Read a per-skill `context.md` / `instructions.md`
+/// (`config-read-skill-context` / `config-read-skill-instructions`). The file
+/// lives at `<root>/.accelerator/skills/<skill>/<file>`. A missing file, or a
+/// file that trims to empty, produces empty output (exit 0).
+///
+/// The caller (binary) runs the legacy-layout guard and the empty-skill usage
+/// check **before** this, matching the bash ordering (assert → arg check →
+/// read).
+pub fn read_skill_section(start: &Path, skill: &str, section: &SkillSection) -> CommandOutput {
+    let root = repo::project_root(start);
+    let file = root
+        .join(".accelerator/skills")
+        .join(skill)
+        .join(section.file_name());
+    let Ok(contents) = std::fs::read_to_string(&file) else {
+        return CommandOutput::default();
+    };
+    let trimmed = body::trim_body(&contents);
+    if trimmed.is_empty() {
+        return CommandOutput::default();
+    }
+    CommandOutput {
+        stdout: section.render(skill, &trimmed),
+        stderr: String::new(),
+    }
 }
 
 /// Resolve the default and migration warnings for a `config-read-path`
@@ -405,5 +517,125 @@ mod tests {
             "warnings: {:?}",
             pr.warnings,
         );
+    }
+
+    // ── read_context ────────────────────────────────────────────────────
+
+    #[test]
+    fn context_empty_when_no_config() {
+        let tmp = repo_with(None, None);
+        assert_eq!(read_context(tmp.path(), false), CommandOutput::default());
+    }
+
+    #[test]
+    fn context_team_body_under_header() {
+        let tmp = repo_with(
+            Some("---\nkey: value\n---\n\nThis is the project context.\n"),
+            None,
+        );
+        let out = read_context(tmp.path(), false);
+        assert_eq!(
+            out.stdout,
+            "## Project Context\n\nThe following project-specific context has been provided. Take this into\naccount when making decisions, selecting approaches, and generating output.\n\nThis is the project context.\n",
+        );
+        assert!(out.stderr.is_empty());
+    }
+
+    #[test]
+    fn context_both_team_first() {
+        let tmp = repo_with(
+            Some("---\nkey: value\n---\n\nTeam context.\n"),
+            Some("---\nkey: value\n---\n\nPersonal context.\n"),
+        );
+        let out = read_context(tmp.path(), false);
+        assert!(out.stdout.ends_with("Team context.\n\nPersonal context.\n"));
+    }
+
+    #[test]
+    fn context_empty_body_outputs_nothing() {
+        let tmp = repo_with(Some("---\nkey: value\n---\n\n\n"), None);
+        assert_eq!(read_context(tmp.path(), false), CommandOutput::default());
+    }
+
+    #[test]
+    fn context_unclosed_frontmatter_outputs_nothing() {
+        let tmp = repo_with(Some("---\nkey: value\nno closing\n"), None);
+        assert_eq!(read_context(tmp.path(), false), CommandOutput::default());
+    }
+
+    // ── read_skill_section ──────────────────────────────────────────────
+
+    fn skill_file(tmp: &tempfile::TempDir, skill: &str, file: &str, body: &str) {
+        let p = tmp
+            .path()
+            .join(".accelerator/skills")
+            .join(skill)
+            .join(file);
+        write(&p, body);
+    }
+
+    #[test]
+    fn skill_context_missing_is_empty() {
+        let tmp = repo_with(None, None);
+        let out = read_skill_section(tmp.path(), "create-plan", &SkillSection::Context);
+        assert_eq!(out, CommandOutput::default());
+    }
+
+    #[test]
+    fn skill_context_renders_section() {
+        let tmp = repo_with(None, None);
+        skill_file(&tmp, "create-plan", "context.md", "Some context content.\n");
+        let out = read_skill_section(tmp.path(), "create-plan", &SkillSection::Context);
+        assert_eq!(
+            out.stdout,
+            "## Skill-Specific Context\n\nThe following context is specific to the create-plan skill. Apply this\ncontext in addition to any project-wide context above.\n\nSome context content.\n",
+        );
+    }
+
+    #[test]
+    fn skill_context_whitespace_only_is_empty() {
+        let tmp = repo_with(None, None);
+        skill_file(&tmp, "create-plan", "context.md", "   \n\n  \n");
+        let out = read_skill_section(tmp.path(), "create-plan", &SkillSection::Context);
+        assert_eq!(out, CommandOutput::default());
+    }
+
+    #[test]
+    fn skill_context_trims_surrounding_blanks() {
+        let tmp = repo_with(None, None);
+        skill_file(
+            &tmp,
+            "review-pr",
+            "context.md",
+            "\n\nTrimmed content.\n\n\n",
+        );
+        let out = read_skill_section(tmp.path(), "review-pr", &SkillSection::Context);
+        assert!(out.stdout.ends_with("\n\nTrimmed content.\n"));
+    }
+
+    #[test]
+    fn skill_instructions_renders_section() {
+        let tmp = repo_with(None, None);
+        skill_file(
+            &tmp,
+            "review-pr",
+            "instructions.md",
+            "Always check for tests.\n",
+        );
+        let out = read_skill_section(tmp.path(), "review-pr", &SkillSection::Instructions);
+        assert_eq!(
+            out.stdout,
+            "## Additional Instructions\n\nThe following additional instructions have been provided for the\nreview-pr skill. Follow these instructions in addition to all\ninstructions above.\n\nAlways check for tests.\n",
+        );
+    }
+
+    #[test]
+    fn skill_section_reads_only_its_own_dir() {
+        let tmp = repo_with(None, None);
+        skill_file(&tmp, "create-plan", "context.md", "Plan context.\n");
+        skill_file(&tmp, "review-pr", "context.md", "PR context.\n");
+        let plan = read_skill_section(tmp.path(), "create-plan", &SkillSection::Context);
+        assert!(plan.stdout.contains("Plan context."));
+        assert!(!plan.stdout.contains("PR context."));
     }
 }

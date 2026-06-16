@@ -16,7 +16,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use a9r_core::{ConfigError, ReadOutcome};
+use a9r_core::{CommandOutput, ConfigError, ReadOutcome, SkillSection};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -41,6 +41,15 @@ enum Command {
         key: Option<String>,
         default: Option<String>,
     },
+    /// Print the project context (config-file markdown bodies) under a header.
+    ConfigReadContext,
+    /// Print a skill's `context.md` wrapped in a section header, if present.
+    ConfigReadSkillContext {
+        /// The skill name (the per-skill customisation directory).
+        skill: Option<String>,
+    },
+    /// Print a skill's `instructions.md` wrapped in a section header.
+    ConfigReadSkillInstructions { skill: Option<String> },
     /// Run the meta-directory visualiser server.
     Visualise {
         /// Path to the config.json written by launch-server.sh.
@@ -63,6 +72,18 @@ fn emit(outcome: &ReadOutcome) {
         eprintln!("{w}");
     }
     println!("{}", outcome.value);
+}
+
+/// Emit a `CommandOutput`: stderr verbatim, then stdout verbatim. Unlike
+/// [`emit`], nothing is added — the section commands own their trailing
+/// newline and an empty stdout prints nothing.
+fn emit_command(out: &CommandOutput) {
+    use std::io::Write;
+    if !out.stderr.is_empty() {
+        eprint!("{}", out.stderr);
+    }
+    print!("{}", out.stdout);
+    let _ = std::io::stdout().flush();
 }
 
 fn run_config_read_value(
@@ -111,6 +132,24 @@ fn run_config_read_path(
     Ok(())
 }
 
+fn run_config_read_skill(
+    start: &Path,
+    skill: Option<String>,
+    section: &SkillSection,
+    usage: &'static str,
+    mm: bool,
+) -> Result<(), ConfigError> {
+    // Both skill readers assert the layout BEFORE validating the argument,
+    // so a legacy layout + missing skill surfaces the legacy message.
+    a9r_core::assert_no_legacy_layout(start, mm)?;
+    let skill = skill.unwrap_or_default();
+    if skill.is_empty() {
+        return Err(ConfigError::Usage(usage));
+    }
+    emit_command(&a9r_core::read_skill_section(start, &skill, section));
+    Ok(())
+}
+
 fn run_config_read(result: Result<(), ConfigError>) -> ExitCode {
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -155,6 +194,24 @@ fn main() -> ExitCode {
         Command::ConfigReadPath { key, default } => {
             run_config_read(run_config_read_path(&start, key, default, mm))
         }
+        Command::ConfigReadContext => {
+            emit_command(&a9r_core::read_context(&start, mm));
+            ExitCode::SUCCESS
+        }
+        Command::ConfigReadSkillContext { skill } => run_config_read(run_config_read_skill(
+            &start,
+            skill,
+            &SkillSection::Context,
+            a9r_core::SKILL_CONTEXT_USAGE,
+            mm,
+        )),
+        Command::ConfigReadSkillInstructions { skill } => run_config_read(run_config_read_skill(
+            &start,
+            skill,
+            &SkillSection::Instructions,
+            a9r_core::SKILL_INSTRUCTIONS_USAGE,
+            mm,
+        )),
         Command::Visualise { config } => run_visualise(&config),
     }
 }
