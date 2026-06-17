@@ -45,6 +45,7 @@ for f in "${files[@]}"; do
       msg = ""
       if (code ~ /(declare|local|typeset)[[:space:]]+-A/)                 msg = "associative array (declare/local/typeset -A)"  # lint-bashisms: ignore
       else if (code ~ /(declare|local|typeset)[[:space:]]+-[[:alpha:]]*n/) msg = "nameref (declare/local/typeset -n)"            # lint-bashisms: ignore
+      else if (code ~ /\$\{[^}]*:[-=+?][^}]*\\[{}]/)                      msg = "escaped brace in parameter-expansion default (bash 3.2 keeps the backslash)"  # lint-bashisms: ignore
       else if (code ~ /(^|[^[:alnum:]_])(mapfile|readarray)([^[:alnum:]_]|$)/) msg = "mapfile/readarray"                          # lint-bashisms: ignore
       else if (code ~ /\$\{[[:alnum:]_\[\]@*]+(\^|,)/)                    msg = "case-modification expansion (^^ ^ ,, ,)"        # lint-bashisms: ignore
       else if (code ~ /&>>/)                                             msg = "&>> append-both redirect"                       # lint-bashisms: ignore

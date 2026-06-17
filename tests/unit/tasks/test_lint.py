@@ -95,10 +95,33 @@ class TestBashismsScript:
         # local -n / declare -n namerefs are bash 4.3+ — invalid on the
         # bash-3.2 floor, where `local: -n: invalid option` is fatal.
         f = tmp_path / "x.sh"
-        f.write_text("#!/usr/bin/env bash\nf() { local -n ref=\"$1\"; }\n")
+        f.write_text('#!/usr/bin/env bash\nf() { local -n ref="$1"; }\n')
         result = _run_lint(f)
         assert result.returncode != 0
         assert "nameref" in result.stdout
+
+    def test_flags_escaped_brace_in_expansion_default(self, tmp_path: Path):
+        # ${x:-{\}} yields "{}" on bash 4+ but "{\}" on the bash-3.2 floor,
+        # which kept the literal backslash — a silent data-corruption bug.
+        f = tmp_path / "x.sh"
+        f.write_text('#!/usr/bin/env bash\nv="${1:-{\\}}"\n')
+        result = _run_lint(f)
+        assert result.returncode != 0
+        assert "escaped brace" in result.stdout
+
+    def test_unescaped_braces_in_default_are_not_flagged(self, tmp_path: Path):
+        # ${x:-{}} is a plain empty-object default — identical on 3.2 and 4+.
+        f = tmp_path / "x.sh"
+        f.write_text('#!/usr/bin/env bash\nv="${1:-{}}"\necho "$v"\n')
+        result = _run_lint(f)
+        assert result.returncode == 0, result.stdout
+
+    def test_substitution_with_escaped_brace_not_flagged(self, tmp_path: Path):
+        # ${var//\}/x} is a pattern substitution, not a default — no false hit.
+        f = tmp_path / "x.sh"
+        f.write_text('#!/usr/bin/env bash\nv="${var//\\}/x}"\necho "$v"\n')
+        result = _run_lint(f)
+        assert result.returncode == 0, result.stdout
 
     def test_comment_naming_a_construct_is_not_flagged(self, tmp_path: Path):
         # A comment that mentions a forbidden construct must not trip the lint.
