@@ -56,12 +56,14 @@ meta/research/codebase/ meta/plans/    checked-off plan
    the plan phase by phase, checking off success criteria as each phase
    completes. The plan file serves as both instructions and progress tracker.
 
-A companion skill handles issue investigation:
+Companion skills handle issue investigation and quick note capture:
 
 - `/accelerator:research-issue "auth timeout on token refresh"` — Investigate
   production issues through hypothesis-driven debugging. Accepts stacktraces,
   logs, or behavioral descriptions and produces an RCA document in
   `meta/research/issues/`.
+- `/accelerator:create-note "rate limiter resets on deploy"` — Capture a
+  short-form note (observation, insight, snippet) to `meta/notes/`.
 
 Three complementary skills support this loop:
 
@@ -97,7 +99,7 @@ research, issue/RCA research, design inventories, and design gaps:
 | `validations/`                  | Plan validation reports                                        | `validate-plan`                                              |
 | `prs/`                          | PR descriptions                                                | `describe-pr`                                                |
 | `work/`                         | Work item files referenced by planning                         | `create-work-item`, `extract-work-items`, `update-work-item` |
-| `notes/`                        | Notes and working documents                                    | manual                                                       |
+| `notes/`                        | Notes and working documents                                    | `create-note`                                                |
 
 This approach means:
 
@@ -223,8 +225,9 @@ subcommands for managing templates without manually locating plugin internals:
 | `/accelerator:configure templates diff <key>`  | Show differences between your template and the default |
 | `/accelerator:configure templates reset <key>` | Remove your customisation, revert to plugin default    |
 
-Available template keys: `plan`, `research`, `adr`, `validation`,
-`pr-description`, `work-item`, `design-inventory`, `design-gap`.
+Available template keys: `adr`, `codebase-research`, `design-gap`,
+`design-inventory`, `note`, `plan`, `plan-review`, `pr-description`,
+`pr-review`, `rca`, `validation`, `work-item`, `work-item-review`.
 
 A typical customisation workflow:
 
@@ -293,8 +296,10 @@ configurable via `work.id_pattern` and `work.default_project_code` —
 e.g. `{project}-{number:04d}` with `default_project_code: PROJ` produces
 `meta/work/PROJ-0042-add-search.md`. The `work.integration` key (allowed
 values `jira`, `linear`, `trello`, `github-issues`; empty by default)
-selects the active remote tracker. When unset, all work-management skills
-operate purely against `meta/work/` with no external API calls. See
+selects the active remote tracker — only `jira` and `linear` ship skills today;
+`trello` and `github-issues` are reserved values with no implementation yet.
+When unset, all work-management skills operate purely against `meta/work/` with
+no external API calls. See
 [`skills/config/configure/SKILL.md`](skills/config/configure/SKILL.md#work)
 for the full reference.
 
@@ -508,11 +513,19 @@ and team workflows around pull requests:
 `/accelerator:visualise` opens a browser-based companion view of your project's
 `meta/` directory. Three views cover the breadth of the directory:
 
-| View          | What it shows                                                         |
-|---------------|-----------------------------------------------------------------------|
-| **Library**   | Markdown reader for every doc type (plans, research, ADRs, tickets …) |
-| **Lifecycle** | Slug-clustered timelines grouping related documents across phases     |
-| **Kanban**    | Ticket board driven by `status:` frontmatter; drag-and-drop to update |
+| View          | What it shows                                                              |
+|---------------|----------------------------------------------------------------------------|
+| **Library**   | Markdown reader for every doc type (plans, research, ADRs, work items …)   |
+| **Lifecycle** | Typed-linkage-clustered timelines grouping related documents across phases |
+| **Kanban**    | Work-item board driven by `status:` frontmatter; drag-and-drop to update   |
+
+Beyond the three core views, the sidebar's **META** section browses
+auto-discovered **templates** (each showing its active resolution tier and
+content), and root-cause analyses from `meta/research/issues/` are browsable as
+a first-class document type under an **Operate** category. The reader also
+supports global search (focus the sidebar box with `/`) and recovers gracefully
+from missing or unreadable documents with not-found ("Did you mean…") and
+load-error pages.
 
 ### Launching
 
@@ -559,6 +572,10 @@ pre-release version.
 | `visualiser.binary` config key             | Persistent binary override in `.accelerator/config.local.md`       |
 | `ACCELERATOR_VISUALISER_IDLE_TIMEOUT`      | One-shot override of the idle auto-shutdown window (duration string, or `never`/`0` to disable) |
 | `visualiser.idle_timeout` config key       | Persistent idle auto-shutdown window (humantime duration; default `8h`; `never`/`0` to disable) |
+| `visualiser.editor` config key             | Editor deep-link for the detail-page "Open in editor" action (preset key or `{abs}`/`{rel}` URL template) |
+| `ACCELERATOR_VISUALISER_EDITOR`            | One-shot override of `visualiser.editor`                          |
+| `visualiser.editor_project` config key     | JetBrains project name for the editor deep-link (defaults to the project directory basename) |
+| `ACCELERATOR_VISUALISER_EDITOR_PROJECT`    | One-shot override of `visualiser.editor_project`                  |
 | `ACCELERATOR_VISUALISER_RELEASES_URL`      | Alternative HTTPS mirror for air-gapped or self-hosted installs    |
 | `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE` | Set to `1` to verify SLSA build-provenance after the SHA-256 check |
 
