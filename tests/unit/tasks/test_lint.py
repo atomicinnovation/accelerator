@@ -91,6 +91,15 @@ class TestBashismsScript:
         assert result.returncode != 0
         assert "associative array" in result.stdout
 
+    def test_flags_nameref(self, tmp_path: Path):
+        # local -n / declare -n namerefs are bash 4.3+ — invalid on the
+        # bash-3.2 floor, where `local: -n: invalid option` is fatal.
+        f = tmp_path / "x.sh"
+        f.write_text("#!/usr/bin/env bash\nf() { local -n ref=\"$1\"; }\n")
+        result = _run_lint(f)
+        assert result.returncode != 0
+        assert "nameref" in result.stdout
+
     def test_comment_naming_a_construct_is_not_flagged(self, tmp_path: Path):
         # A comment that mentions a forbidden construct must not trip the lint.
         f = tmp_path / "x.sh"
