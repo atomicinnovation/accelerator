@@ -77,7 +77,12 @@ _linear_warn_if_accelerator_absent() {
 # exit code. Variables are optional (a JSON object string).
 _linear_gql() {
   local query="$1"
-  local variables="${2:-{\}}"
+  # Default to an empty JSON object. Set this in a separate statement rather
+  # than via `${2:-{\}}`: bash 3.2 (the macOS floor) keeps the literal
+  # backslash from a brace escaped inside a :-default, yielding "{\}" — invalid
+  # JSON — whereas bash 4+ strips it. A plain assignment is unambiguous.
+  local variables="${2:-}"
+  [ -n "$variables" ] || variables='{}'
   bash "$_LINEAR_INIT_SCRIPT_DIR/linear-graphql.sh" \
     --query "$query" --variables "$variables"
 }
