@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-06-17
+
 > **Upgrading from 1.21.0 requires running `/accelerator:migrate`.** After
 > updating the plugin, **restart your Claude Code session**, then run
 > `/accelerator:migrate` before your next Accelerator skill invocation. This
