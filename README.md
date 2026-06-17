@@ -7,7 +7,36 @@
 </p>
 
 A Claude Code plugin for structured, context-efficient software development.
-[Jump to installation](#installation) if you're ready to get started.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/visualiser_plan_dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="assets/visualiser_plan_light.png">
+    <img alt="The Accelerator visualiser rendering a plan document" src="assets/visualiser_plan_light.png" width="760px">
+  </picture>
+</p>
+
+## Getting Started
+
+Add the marketplace and install the stable plugin:
+
+```bash
+/plugin marketplace add atomicinnovation/accelerator
+/plugin install accelerator@atomic-innovation
+```
+
+Then initialise your project and run the research → plan → implement loop:
+
+```bash
+/accelerator:init
+/accelerator:research-codebase "how does auth work?"   # 1. research
+/accelerator:create-plan                               # 2. plan (optionally pass a work-item key)
+/accelerator:implement-plan                            # 3. implement
+```
+
+See the [Development Loop](#the-development-loop) for the full workflow, and
+[Installation](#installation) for the prerelease channel (where the newest
+features land first), local checkout, and compatibility details.
 
 ## Philosophy
 
@@ -240,7 +269,7 @@ A typical customisation workflow:
 Templates are resolved in order: config path (`templates.<key>`) → templates
 directory (`paths.templates`, default `.accelerator/templates/`) → plugin default.
 
-### Getting Started
+### Managing Configuration
 
 Run `/accelerator:configure` to create or view your configuration. The skill
 walks you through gathering project context and writes the config file for you.
@@ -791,7 +820,10 @@ for the executor wire protocol.
 
 ## Installation
 
-Add the marketplace and install the plugin:
+This expands on the stable install shown in
+[Getting Started](#getting-started) with the prerelease channel (where the
+newest features land first), local checkout, and compatibility details. Add the
+marketplace and install the plugin:
 
 ```bash
 /plugin marketplace add atomicinnovation/accelerator
