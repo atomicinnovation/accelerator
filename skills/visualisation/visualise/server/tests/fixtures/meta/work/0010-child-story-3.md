@@ -1,5 +1,6 @@
 ---
 title: Child Story 3
+id: "0010"
 parent: "0007"
 ---
 
