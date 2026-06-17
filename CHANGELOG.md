@@ -22,9 +22,64 @@
   duration disables idle auto-shutdown entirely — the server still exits when its
   launching process exits and on `/accelerator:visualise stop`. An unparseable
   value fails fast at launch with a clear error rather than silently defaulting.
+- **Linear Cloud integration** — eight verb-decomposed skills for working with a
+  Linear workspace directly over the GraphQL API (no external CLI dependency).
+  Run `/accelerator:init-linear` once to verify the token and cache the team and
+  workflow-state catalogue, then use:
+  - `search-linear-issues` — search issues by state, assignee, label, or text
+  - `show-linear-issue` — read a single issue with comments
+  - `create-linear-issue` — create an issue from a work-item file (payload
+    preview, then confirm)
+  - `update-linear-issue` — edit title, description, state, assignee, priority
+  - `comment-linear-issue` — add a comment
+  - `transition-linear-issue` — move an issue through its workflow by state name
+  - `attach-linear-issue` — attach a URL or file
+
+  Token-only auth: set `linear.token` (or `linear.token_cmd`) in the gitignored
+  `.accelerator/config.local.md`; set `work.integration: linear` to enable
+  auto-scoping. `init-linear` caches the team and workflow-state catalogue under
+  `.accelerator/state/integrations/linear/`. Read skills auto-trigger on natural
+  language; write skills are slash-only with a payload preview and confirmation,
+  mirroring the Jira set. See the
+  [Linear subsection of the README](README.md#linear).
+- **`/accelerator:create-note`** — capture a short-form note (observation,
+  insight, snippet) to `meta/notes/` using a new `note` template. Single
+  round-trip, no sub-agents.
+- **Visualiser — global search**: a sidebar search box (focus with `/`) across
+  every indexed document's title, slug, and body preview, bucket-and-rank
+  ordered.
+- **Visualiser — detail-page actions**: "Copy path" and "Open in editor"
+  buttons on document pages. The editor deep-link is configured via the new
+  `visualiser.editor` key (VS Code-family and JetBrains presets, or a custom
+  `{abs}`/`{rel}` URL template; `ACCELERATOR_VISUALISER_EDITOR` one-shot
+  override; `visualiser.editor_project` for JetBrains). The button renders
+  disabled with a tooltip when unset.
+- **Visualiser — recovery surfaces**: a document-not-found page with ranked
+  "Did you mean…" suggestions, a router catch-all not-found page, and a
+  load-error surface.
+- **Visualiser — browsable root-cause analyses**: RCAs from
+  `meta/research/issues/` appear as a first-class document type under a new
+  "Operate" category.
+- **Visualiser — Templates view**: templates are auto-discovered from the
+  `templates/` directory and browsable in the sidebar's META section, each
+  showing its active resolution tier and content.
+- **`rejected` ADR status** — added to the ADR status vocabulary
+  (`proposed | accepted | rejected | superseded | deprecated`).
+- **Remote-tracker sync ergonomics**: `/accelerator:create-work-item` offers to
+  push to the configured tracker on accept; `/accelerator:create-jira-issue`
+  accepts a work-item file and writes the created key back to `external_id`;
+  `/accelerator:list-work-items` shows a per-item sync label and Sync column
+  when an integration is configured.
 
 ### Changed
 
+- Visualiser lifecycle clustering now groups entries by composite typed-linkage
+  (walking `parent:` / `target:` back to a canonical work-item id) rather than
+  by slug alone; decisions (ADRs) and RCAs are dropped from the rendered
+  pipeline stages.
+- Visualiser reader polish: a remapped numeric typography size scale, shared
+  border-radius tokens, styled markdown tables / inline code / task-list
+  checkboxes, and smoother kanban drag-and-drop.
 - Visualiser server: the linkage reader now supports only the unified
   ADR-0033/0034 schema; the transitional fallbacks for pre-migration
   `work-item:` / `ticket:` / `work_item_id:` / filename-derived shapes are
@@ -42,6 +97,26 @@
   migration converges in a single pass. On a genuine leaf collision the target's
   copy of that file is replaced by the source's; `jj op restore` / `git reset`
   remains the recovery path.
+
+### Migrations
+
+This release adds migration **0007**. After updating the plugin, run
+`/accelerator:migrate` (see the upgrade note above): the runner applies pending
+migrations in numeric order, refuses to run on a dirty working tree, previews
+each one, and records results in `.accelerator/state/migrations-applied`.
+Recover from a failed migration with a VCS revert (`jj op restore` /
+`git reset`) and re-run — every migration is idempotent.
+
+- **0007 — Unify the `meta/` corpus to the ADR-0033/0034 schema.** Canonical
+  `id:` identity, typed linkage, provenance fields, status-vocabulary
+  reconciliation, and fence-less frontmatter backfill. This is the only
+  **interactive** migration (`# INTERACTIVE: yes`): the body-section
+  typed-linkage step prompts on ambiguous references. It has a read-only
+  precondition pre-pass that refuses to run if 0005/0006 haven't been applied.
+  Run `/accelerator:migrate` to apply it: until it runs, items still keyed by
+  the old `work-item:` / `ticket:` / filename-derived shapes lose their identity
+  and cross-references and drop out of the visualiser library and kanban —
+  applying the migration restores them.
 
 ## [1.21.0] - 2026-06-02
 
