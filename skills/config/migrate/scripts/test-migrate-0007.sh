@@ -191,16 +191,7 @@ assert_contains "legacy plan backfilled type" "$(fm_line "$LEG" type)" "type: pl
 assert_contains "legacy plan id from stem" "$(fm_line "$LEG" id)" 'id: "2026-03-01-legacy-plan"'
 
 echo "=== Validator passes over the migrated corpus ==="
-vrc=0
-"$VALIDATOR" "$REPO/meta" >/tmp/0007-val.out 2>&1 || vrc=$?
-if [ "$vrc" -eq 0 ]; then
-  echo "  PASS: migrated corpus validates"
-  PASS=$((PASS + 1))
-else
-  echo "  FAIL: migrated corpus has violations"
-  sed 's/^/    /' /tmp/0007-val.out
-  FAIL=$((FAIL + 1))
-fi
+assert_validates "migrated corpus validates" "$REPO/meta"
 
 echo "=== Idempotency: direct re-invocation is an empty diff ==="
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m migrated >/dev/null 2>&1
@@ -349,16 +340,7 @@ PLAN2="$PL/meta/plans/2026-05-13-0055-feature.md"
 assert_contains "path parent -> work-item:0030 (bare number)" "$(fm_line "$PLAN2" parent)" 'parent: "work-item:0030"'
 assert_contains "path relates_to plan -> full stem" "$(fm_line "$PLAN2" relates_to)" 'relates_to: ["plan:2026-05-13-0055-feature"]'
 assert_contains "body path-shape mention left untouched" "$(cat "$PLAN2")" 'meta/work/0099-nonexistent.md'
-plvrc=0
-"$VALIDATOR" "$PL/meta" >/tmp/0007-pl-val.out 2>&1 || plvrc=$?
-if [ "$plvrc" -eq 0 ]; then
-  echo "  PASS: path-normalised corpus validates"
-  PASS=$((PASS + 1))
-else
-  echo "  FAIL: path-normalised corpus has violations"
-  sed 's/^/    /' /tmp/0007-pl-val.out
-  FAIL=$((FAIL + 1))
-fi
+assert_validates "path-normalised corpus validates" "$PL/meta"
 
 # ── Interactive body-section linkage: resolved mechanical + ambiguous accept ─
 echo "=== Interactive linkage: resolved mechanical + ambiguous applied ==="
@@ -427,16 +409,7 @@ assert_contains "ambiguous relates_to applied on accept" "$(cat "$SRC")" 'relate
 SESSION="$LINK/.accelerator/state/migrations-0007-unify-meta-corpus-frontmatter-session.jsonl"
 assert_file_exists "session log written" "$SESSION"
 assert_contains "session log records an accepted ambiguous decision" "$(cat "$SESSION" 2>/dev/null)" '"outcome":"accepted"'
-lvrc=0
-"$VALIDATOR" "$LINK/meta" >/tmp/0007-link-val.out 2>&1 || lvrc=$?
-if [ "$lvrc" -eq 0 ]; then
-  echo "  PASS: linked corpus validates (incl. referential integrity)"
-  PASS=$((PASS + 1))
-else
-  echo "  FAIL: linked corpus has violations"
-  sed 's/^/    /' /tmp/0007-link-val.out
-  FAIL=$((FAIL + 1))
-fi
+assert_validates "linked corpus validates (incl. referential integrity)" "$LINK/meta"
 
 # ── Phase 1: meta/prs/ typing + meta/docs/ skip + single-sourced classification ─
 echo "=== Phase 1: meta/prs/ -> pr-description, meta/docs/ skipped ==="
@@ -1482,5 +1455,327 @@ git -C "$P5" add -A && git -C "$P5" commit -q -m migrated >/dev/null 2>&1
 run_0007 "$P5"
 assert_empty "Phase 5 second run is an empty meta/ diff" \
   "$(git -C "$P5" status --porcelain meta/ || true)"
+
+# ── Phase 6: combined-corpus capstone ────────────────────────────────────────
+# Seed one repo carrying EVERY reproduction shape (gaps 1-6 + the Phase 5
+# linkage coercion + the ';'/quote edge cases), all authored so the mechanical
+# passes leave the whole corpus validator-clean.
+seed_combined() { # $1 = repo root
+  local R="$1"
+  mkdir -p "$R/meta/prs" "$R/meta/notes" "$R/meta/work" \
+    "$R/meta/reviews/prs" "$R/meta/research/codebase" "$R/meta/docs"
+
+  # gap 1 (empty type -> pr-description) + gap 5 (PR #N -> pr:N).
+  cat >"$R/meta/prs/240-description.md" <<'EOF'
+---
+type:
+id: "240-description"
+title: "PR 240 Description"
+date: "2026-06-01T00:00:00+00:00"
+author: Toby
+status: complete
+relates_to: ["PR #416"]
+pr_number: 240
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 240 Description
+EOF
+
+  # gap 3 (ticket dropped) + gap 4 (topic backfill) + ';'-in-title edge case.
+  cat >"$R/meta/notes/2026-06-20-ticketed.md" <<'EOF'
+---
+type: note
+id: "2026-06-20-ticketed"
+title: "Ticketed; with semicolon"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+producer: create-note
+status: captured
+ticket: "PROJ-1234"
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Ticketed; with semicolon
+EOF
+
+  # gap 3 (ticket_id dropped on a non-note type).
+  cat >"$R/meta/work/0080-task.md" <<'EOF'
+---
+type: work-item
+id: "0080"
+title: "A Task"
+date: "2026-06-01T00:00:00+00:00"
+author: Toby
+producer: create-work-item
+kind: story
+priority: high
+status: ready
+ticket_id: "LEGACY-9"
+tags: []
+last_updated: "2026-06-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# A Task
+EOF
+
+  # gap 2 (pr_title discarded, title present) + review_pass dropped.
+  cat >"$R/meta/reviews/prs/2026-06-20-pr-100-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-20-pr-100-review"
+title: "Real Title"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+pr_title: "Different PR Title"
+review_pass: 1
+verdict: approve
+lenses: ["correctness"]
+review_number: 1
+pr_number: 100
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 100 Review
+EOF
+
+  # gap 2 (pr_title folds into title when absent).
+  cat >"$R/meta/reviews/prs/2026-06-20-pr-101-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-20-pr-101-review"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+pr_title: "Folded Title"
+review_pass: 1
+verdict: approve
+lenses: ["correctness"]
+review_number: 1
+pr_number: 101
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 101 Review
+EOF
+
+  # gap 4 (empty placeholders re-seeded).
+  cat >"$R/meta/reviews/prs/2026-06-20-pr-102-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-20-pr-102-review"
+title: "PR 102 Review"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+verdict: ""
+lenses: []
+review_number: 1
+pr_number: 102
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 102 Review
+EOF
+
+  # gap 4 (pr_number from a pr-token on a date-prefixed stem -> 430, not 2026;
+  # review_number/verdict/lenses sentinels).
+  cat >"$R/meta/reviews/prs/2026-06-17-pr-430-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-17-pr-430-review"
+title: "PR 430 Review"
+date: "2026-06-17T00:00:00+00:00"
+author: Toby
+status: complete
+tags: []
+last_updated: "2026-06-17T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 430 Review
+EOF
+
+  # gap 4 (titled-but-topic-less research -> topic from existing title).
+  cat >"$R/meta/research/codebase/2026-06-20-research.md" <<'EOF'
+---
+type: codebase-research
+id: "2026-06-20-research"
+title: "Some Research Topic"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Some Research Topic
+EOF
+
+  # gap 6 (freeform meta/docs/ skipped entirely).
+  cat >"$R/meta/docs/logging-guide.md" <<'EOF'
+---
+title: Logging Guide
+foo: bar
+---
+# Logging Guide
+
+Freeform documentation the plugin does not own.
+EOF
+}
+
+echo "=== Phase 6: combined-corpus capstone (validator-clean by construction) ==="
+C="$TMP/combined"
+seed_combined "$C"
+git_init "$C"
+run_0007 "$C"
+assert_eq "Phase 6 combined corpus exits 0" "0" "$RUN_RC"
+assert_contains "Phase 6 0007 recorded as applied (harness reached)" "$RUN_OUT" "applied"
+assert_contains "Phase 6 ledger records 0007" \
+  "$(cat "$C/.accelerator/state/migrations-applied" 2>/dev/null)" "0007-unify-meta-corpus-frontmatter"
+assert_not_contains "Phase 6 prepass coexistence: no REFUSE on the multi-type corpus" \
+  "$RUN_OUT" "0007-REFUSE"
+assert_contains "Phase 6 empty-type pr typed pr-description" \
+  "$(fm_line "$C/meta/prs/240-description.md" type)" "type: pr-description"
+assert_contains "Phase 6 PR #416 coerced to pr:416" \
+  "$(fm_line "$C/meta/prs/240-description.md" relates_to)" 'relates_to: ["pr:416"]'
+assert_contains "Phase 6 ';'-title topic intact" \
+  "$(fm_line "$C/meta/notes/2026-06-20-ticketed.md" topic)" 'topic: "Ticketed; with semicolon"'
+assert_contains "Phase 6 pr-430 pr_number from token (not year)" \
+  "$(fm_line "$C/meta/reviews/prs/2026-06-17-pr-430-review.md" pr_number)" 'pr_number: 430'
+assert_validates "Phase 6 combined corpus validates clean (full whole-corpus)" "$C/meta"
+
+# Combined idempotency.
+git -C "$C" add -A && git -C "$C" commit -q -m migrated >/dev/null 2>&1
+run_0007 "$C"
+assert_empty "Phase 6 combined corpus second run is an empty meta/ diff" \
+  "$(git -C "$C" status --porcelain meta/ || true)"
+
+# Regression guard: the MECHANICAL passes alone (run_backfill + run_rewrite, NO
+# harness) leave the corpus validator-clean — the core RCA fix. Driven via the
+# ACCELERATOR_0007_NO_RUN sourcing seam so only the two pre-harness passes run.
+echo "=== Phase 6: mechanical-passes-only regression guard ==="
+RG="$TMP/regguard"
+seed_combined "$RG"
+git_init "$RG"
+(
+  export ACCELERATOR_0007_NO_RUN=1 PROJECT_ROOT="$RG" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT"
+  # shellcheck disable=SC1090
+  source "$MIGRATION"
+  run_backfill
+  run_rewrite
+) >/dev/null 2>&1
+assert_validates "Phase 6 run_backfill+run_rewrite alone -> zero violations" "$RG/meta"
+
+# Broadened-namespace collision behaviour: two meta/prs/ files with the SAME
+# post-rewrite id correctly REFUSE.
+echo "=== Phase 6: pr-description namespace collision REFUSES ==="
+COL="$TMP/collision"
+mkdir -p "$COL/meta/prs"
+cat >"$COL/meta/prs/a-description.md" <<'EOF'
+---
+type: pr-description
+id: "dup-id"
+title: "A"
+date: "2026-06-01T00:00:00+00:00"
+author: Toby
+status: complete
+pr_number: 1
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# A
+EOF
+cat >"$COL/meta/prs/b-description.md" <<'EOF'
+---
+type: pr-description
+id: "dup-id"
+title: "B"
+date: "2026-06-01T00:00:00+00:00"
+author: Toby
+status: complete
+pr_number: 2
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# B
+EOF
+git_init "$COL"
+run_0007 "$COL"
+assert_neq "Phase 6 colliding pr-description ids: run fails" "0" "$RUN_RC"
+assert_contains "Phase 6 colliding pr-description ids: REFUSE emitted" "$RUN_OUT" "0007-REFUSE"
+
+# A pr-description and a different-type artifact sharing a STEM do NOT collide
+# (distinct typed refs).
+echo "=== Phase 6: shared stem across types does NOT collide ==="
+NOCOL="$TMP/no-collision"
+mkdir -p "$NOCOL/meta/prs" "$NOCOL/meta/plans"
+cat >"$NOCOL/meta/prs/2026-06-17-shared.md" <<'EOF'
+---
+type: pr-description
+id: "2026-06-17-shared"
+title: "Shared PR"
+date: "2026-06-17T00:00:00+00:00"
+author: Toby
+status: complete
+pr_number: 7
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-17T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Shared PR
+EOF
+cat >"$NOCOL/meta/plans/2026-06-17-shared.md" <<'EOF'
+---
+type: plan
+id: "2026-06-17-shared"
+title: "Shared Plan"
+date: "2026-06-17T00:00:00+00:00"
+author: Toby
+producer: create-plan
+status: done
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-17T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Shared Plan
+EOF
+git_init "$NOCOL"
+run_0007 "$NOCOL"
+assert_eq "Phase 6 shared stem across types: run exits 0 (no false collision)" "0" "$RUN_RC"
+assert_validates "Phase 6 shared-stem corpus validates" "$NOCOL/meta"
 
 test_summary
