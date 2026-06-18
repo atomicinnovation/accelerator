@@ -33,14 +33,15 @@ infer_type_from_path() {
   esac
 }
 
-# Out of scope (skip entirely): specs/talks/global (freeform) and meta/docs/
-# (freeform docs the plugin does not own; no schema type). The docs/ arm is
-# anchored to */meta/docs/* (NOT a bare */docs/*) so it excludes only the
-# top-level corpus docs tree and cannot over-match a nested `…/docs/…` segment
-# elsewhere in the corpus.
+# Out of scope (skip entirely): specs/talks/global (freeform), meta/docs/ and
+# meta/announcements/ (freeform docs the plugin does not own; no schema type).
+# The docs/ and announcements/ arms are anchored to */meta/docs/* and
+# */meta/announcements/* (NOT bare */docs/* or */announcements/*) so they
+# exclude only the top-level corpus subtrees and cannot over-match a nested
+# `…/docs/…` or `…/announcements/…` segment elsewhere in the corpus.
 out_of_scope() {
   case "$1" in
-    */specs/* | */talks/* | */global/* | */meta/docs/*) return 0 ;;
+    */specs/* | */talks/* | */global/* | */meta/docs/* | */meta/announcements/*) return 0 ;;
     *) return 1 ;;
   esac
 }
