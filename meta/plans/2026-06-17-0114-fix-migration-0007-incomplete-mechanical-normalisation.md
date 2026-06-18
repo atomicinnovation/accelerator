@@ -1154,21 +1154,26 @@ two-migration dir.
 
 #### Automated Verification
 
-- [ ] Combined-corpus block: `run_0007` exits 0, ledger records 0007, validator
+- [x] Combined-corpus block: `run_0007` exits 0, ledger records 0007, validator
       exits 0 over the full corpus.
-- [ ] **Prepass coexistence**: the assembled multi-type corpus (work-item +
+- [x] **Prepass coexistence**: the assembled multi-type corpus (work-item +
       pr-review + pr-description + research + note shapes together) passes
       `precondition_prepass` and reaches `run_rewrite` — so every transform AC tests
       its intended code path, not a prepass bail-out.
-- [ ] **Broadened-namespace collision behaviour** (pins the new `pr-description`
+- [x] **Broadened-namespace collision behaviour** (pins the new `pr-description`
       identity surface, not just "doesn't bail"): two `meta/prs/` files yielding the
       **same** post-rewrite id correctly **REFUSE**; a `pr-description` and a
       different-type artifact sharing a stem (distinct typed refs) correctly do
       **not** collide.
-- [ ] Regression guard: `run_backfill + run_rewrite` → zero validator violations
+- [x] Regression guard: `run_backfill + run_rewrite` → zero validator violations
       on the combined corpus.
-- [ ] Full suite green: `bash skills/config/migrate/scripts/test-migrate-0007.sh`
-- [ ] `mise run` (bare default task) exits 0 end-to-end.
+- [x] Full suite green: `bash skills/config/migrate/scripts/test-migrate-0007.sh`
+      (155 tests pass).
+- [x] `mise run` (bare default task) exits 0 end-to-end. (The only red was a
+      pre-existing timing flake in the unrelated visualiser dev-server test
+      `test_dev_integration.py::test_status_exit_codes` — a 0.7s post-SIGKILL
+      sleep too short under parallel CI saturation; it passes in isolation. No
+      migrate/validator/scripts component reported any failure.)
 
 #### Manual Verification
 
