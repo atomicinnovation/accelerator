@@ -5,7 +5,7 @@ title: "Fix Migration 0007 Incomplete Mechanical Normalisation Implementation Pl
 date: "2026-06-17T22:43:39+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0114"
 parent: "work-item:0114"
 derived_from: ["codebase-research:2026-06-17-0114-migration-0007-incomplete-mechanical-normalisation"]
