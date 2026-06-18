@@ -10,7 +10,7 @@ parent: "work-item:0045"
 tags: [work-management, integrations, sync]
 type: work-item
 schema_version: 1
-last_updated: "2026-06-15T21:12:34+00:00"
+last_updated: "2026-06-18T12:36:36+00:00"
 last_updated_by: Toby Clemson
 blocked_by: ["work-item:0046", "work-item:0047"]
 ---
@@ -60,10 +60,10 @@ plan before any side effects occur.
   - `--pull-only` — apply remote changes locally; do not push local changes
   - `--preview` — report what would change in any of the above modes without
     applying any writes; combinable with the directional flags
-- A `work_item_id` matching `^[0-9]+$` is numeric (never pushed); any other
-  non-empty value is a remote-format key — the classification rule defined in
-  0047.
-- For each local work item with a remote-format `work_item_id`:
+- A work item is synced when its `external_id` is present and unsynced (never
+  pushed) when `external_id` is absent — the sync-state classification rule
+  defined in 0047. The local `id` always stays local and is never pushed.
+- For each local work item with an `external_id` (a synced item):
   - Classify the item with the change-detection contract (Assumptions): a
     timestamp pre-filter against `last-sync.json`, followed by an authoritative
     normalised-content comparison against the stored baseline
@@ -77,7 +77,7 @@ plan before any side effects occur.
     in place of accepting remote. In `--push-only` and `--pull-only`,
     conflicting items are instead reported in the summary and skipped, since
     resolving them would require a write the mode forbids
-- For each local work item with a numeric `work_item_id` (never pushed):
+- For each local work item with no `external_id` (never pushed):
   offer to push to the remote — accept/decline per item, or batch
   accept/decline all
 - For untracked remote issues:
@@ -106,7 +106,7 @@ plan before any side effects occur.
   integration must be configured first
 - [ ] Given `--preview` is supplied with any directional flag (or none), when
   `/sync-work-items` runs, then the skill reports the full set of intended
-  changes (push, pull, conflict, push-numeric) without making any local writes
+  changes (push, pull, conflict, push-unsynced) without making any local writes
   or remote API writes, and `last-sync.json` is not updated
 - [ ] Given default mode and no conflicts, when `/sync-work-items` completes,
   then locally tracked items reflect remote changes where remote was ahead,
@@ -120,7 +120,8 @@ plan before any side effects occur.
   flagged as a conflict
 - [ ] Given an untracked remote issue within `work.default_project_code`, when
   `/sync-work-items` runs in default (or `--pull-only`) mode, then a local work
-  item is created carrying the remote-allocated key as its `work_item_id`
+  item is created carrying the remote-allocated key as its `external_id` (its
+  local `id` allocated independently)
 - [ ] Given `--push-only`, when `/sync-work-items` runs, then no local file is
   modified and only local-ahead items are pushed to the remote
 - [ ] Given `--pull-only`, when `/sync-work-items` runs, then no remote API
@@ -137,17 +138,17 @@ plan before any side effects occur.
   overwritten after explicit user confirmation
 - [ ] Given a conflict and the user supplies an override, when the user
   confirms, then the local version is pushed to the remote and a line recording
-  the override (the item's `work_item_id` and the direction chosen) is emitted to
+  the override (the item's `id` and the direction chosen) is emitted to
   the sync summary output
-- [ ] Given local work items with numeric `work_item_id` exist, when
+- [ ] Given local work items with no `external_id` exist, when
   `/sync-work-items` runs, then the user is offered to push each one per item;
-  accepted items are pushed and their `work_item_id` is rewritten to the key
-  returned by the integration's create operation (no longer matching `^[0-9]+$`),
+  accepted items are pushed and the key returned by the integration's create
+  operation is written to their `external_id` (their local `id` unchanged),
   and declined items remain unchanged
-- [ ] Given multiple local work items with numeric `work_item_id` exist, when
+- [ ] Given multiple local work items with no `external_id` exist, when
   the user chooses the batch accept-all (or decline-all) option, then all are
-  pushed (or all left unchanged) in one action, with accepted items' IDs
-  rewritten to their remote-allocated keys
+  pushed (or all left unchanged) in one action, with accepted items'
+  `external_id` set to their remote-allocated keys
 - [ ] Given filter options accepted by the active integration's `search-*` skill
   are supplied (e.g. `--assignee`, `--label`, `--state`), when pulling untracked
   remote issues, then the set of issues `/sync-work-items` pulls equals the set
@@ -198,7 +199,7 @@ plan before any side effects occur.
   blocker.
 - Integration capability: requires at least one integration's read/search and
   create APIs (the `search-*`/`list-*` skills are reused to fetch remote state
-  and the create skill to push numeric-ID items); Jira is already complete, so
+  and the create skill to push unsynced items); Jira is already complete, so
   this is satisfied today. Sync's filter flags are contractually coupled to the
   active integration's `search-*` skill. 0048 (Linear), 0049 (Trello), and 0050
   (GitHub Issues) extend sync coverage to their remotes as they land but are not
@@ -255,16 +256,18 @@ plan before any side effects occur.
 ## Technical Notes
 
 - **Size**: L — a net-new orchestration skill spanning four modes, bidirectional
-  reconciliation with conflict UX, numeric-ID batch push, untracked-issue
+  reconciliation with conflict UX, unsynced batch push, untracked-issue
   pulling, `last-sync.json` persistence with crash-safe resumability, plus the
   `/list-work-items` three-state rendering extension. Larger than the M-sized
   integration siblings; the capstone of the epic.
 - `last-sync.json` lives in the active integration's subdirectory under the
   configured integrations path (e.g.
   `.accelerator/state/integrations/jira/last-sync.json`).
-  Schema: `{ "timestamp": "<ISO8601>", "items": { "<work_item_id>": {
+  Schema: `{ "timestamp": "<ISO8601>", "items": { "<id>": {
   "remote_updated_at": "<ISO8601>", "local_hash": "<hash of normalised local
-  content at last sync>" } } }`. Per item, `remote_updated_at` is the remote
+  content at last sync>" } } }`, keyed by the stable local `id`; the live
+  file's `external_id` locates the remote counterpart. Per item,
+  `remote_updated_at` is the remote
   baseline and `local_hash` is the local baseline the change-detection contract
   compares against; the global `timestamp` is the local-mtime pre-filter
   reference. `local_hash` is a digest of the normalised local content used purely
@@ -321,6 +324,15 @@ plan before any side effects occur.
   seam; 0051 produces the baseline and completes the five-state display, so the
   state-derivation logic lives in one place rather than being split across the
   two skills.
+
+- Sync-state classification was re-based on `external_id` presence (synced)
+  vs absence (never pushed) after the `work_item_id` field was retired: `id`
+  is now the always-local identity and `external_id` holds the remote key. The
+  obsolete numeric-vs-remote-format (`^[0-9]+$`) distinction was removed
+  throughout. `last-sync.json` is keyed by local `id` (always present and
+  stable on disk) rather than `external_id`, with the live file's `external_id`
+  used to locate the remote counterpart — reconciling 0051 to the 0047
+  `external_id` convention.
 
 ## References
 
