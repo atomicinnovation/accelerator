@@ -13,6 +13,14 @@ source "$PLUGIN_ROOT/scripts/interactive-harness.sh"
 # Single source for path→doc-type classification + out-of-scope (previously a
 # byte-identical copy lived here and in the validator).
 source "$PLUGIN_ROOT/scripts/doc-type-inference.sh"
+# Cross-cutting schema rules: fm_assert_schema_columns (column-order guard) and
+# FM_OPTIONAL_EXTRAS (the optional-extra carve-out, consumed in the required-
+# extras backfill). NB: a shipped migration must reproduce its historical output
+# forever, but the SPECIFIC facts 0007 consumes — the column ORDER and the
+# optional-extra set for the types 0007 touches — are contractually stable
+# (those extras are *required*, not optional), so this dependency on the evolving
+# single source is safe and is regression-guarded by the test suite.
+source "$PLUGIN_ROOT/scripts/frontmatter-emission-rules.sh"
 
 # Byte-stable text processing across environments (parity with the launcher's
 # locale safety): the cmp -s idempotency gate and [:alnum:]/[:space:] classes
@@ -26,7 +34,9 @@ if PROJECT_ROOT_CANON="$(cd "$PROJECT_ROOT" 2>/dev/null && pwd -P)"; then
   PROJECT_ROOT="$PROJECT_ROOT_CANON"
 fi
 
-SCHEMA_TSV="$PLUGIN_ROOT/scripts/templates-schema.tsv"
+# Overridable (test-only seam, mirrors the validator's) so a fixture can prove
+# the forbidden-key drop and required-extras backfill are schema-driven.
+SCHEMA_TSV="${SCHEMA_TSV:-$PLUGIN_ROOT/scripts/templates-schema.tsv}"
 STATUS_MAP_TSV="$PLUGIN_ROOT/scripts/status-legacy-map.tsv"
 FRAG_AWK="$PLUGIN_ROOT/skills/config/migrate/scripts/frontmatter-frag.awk"
 BODY_AWK="$PLUGIN_ROOT/skills/config/migrate/scripts/0007-frontmatter-rewrite.awk"
@@ -63,6 +73,14 @@ own_id_key_for_type() {
     adr) echo adr_id ;;
     *) echo "" ;;
   esac
+}
+
+# Space-joined forbidden own-id keys for a type (schema TSV col 6); "-" → empty.
+forbidden_keys_for_type() {
+  local v
+  v="$(schema_row "$1" | cut -f6)"
+  [ "$v" = "-" ] && v=""
+  printf '%s' "$v"
 }
 
 # Canonicalise a legacy artifact-type alias to its ADR-0033 type (mirrors the
@@ -331,6 +349,8 @@ rewrite_file() {
   anchored=0
   [ "$(anchored_for_type "$type")" = "yes" ] && anchored=1
   own="$(own_id_key_for_type "$type")"
+  local forbidden
+  forbidden="$(forbidden_keys_for_type "$type")"
   vocab="$(status_vocab_of "$type")"
   smap="$(status_map_for_type "$type")"
   stem="$(derive_stem "$f" "$type")"
@@ -391,6 +411,7 @@ rewrite_file() {
   tmp_err="$(mktemp)"
   awk -f "$FRAG_AWK" -f "$BODY_AWK" \
     -v file="$f" -v type="$type" -v anchored="$anchored" -v own_id_key="$own" \
+    -v forbidden="$forbidden" \
     -v id_from_stem="$idstem" -v repo_name="$repo" \
     -v statusvocab="$vocab" -v statusmap="$smap" \
     -v title_default="$title_default" -v author_default="$author_default" \
@@ -604,6 +625,9 @@ migration_session_log_path() {
 # Everything before harness_run goes to stderr — the runner parses this
 # migration's stdout as the interactive frame stream.
 {
+  # Fail loudly (before mutating anything) if the schema's column order changed
+  # under the positional cut -fN reads (forbidden col 6, extras col 4).
+  fm_assert_schema_columns "$SCHEMA_TSV" || exit 1
   if ! precondition_prepass; then
     log_warn "0007: precondition pre-pass refused — zero files mutated — resolve the refusals above (or revert meta/ via your VCS), then re-run" >&2
     exit 1

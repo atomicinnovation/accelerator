@@ -43,6 +43,19 @@ run_0007() {
 
 fm_line() { grep -E "^$2:" "$1" | head -1; } # $1=file $2=key
 
+# Run 0007 DIRECTLY (bypassing the runner) against $1 with a minimal INIT
+# handshake, capturing the migration's own stderr; sets DIRECT_RC, DIRECT_ERR.
+# The runner sandboxes the migration's stderr to a per-migration log it DELETES
+# on success, so DIVERGE breadcrumbs are only assertable via a direct run. This
+# DOES mutate the corpus (the pre-harness backfill/rewrite runs before EOF), so
+# call it on a dedicated fixture, not one already migrated via run_0007.
+run_0007_direct() { # $1 = repo root
+  DIRECT_RC=0
+  DIRECT_ERR="$(printf 'INIT\t\t\n' | (cd "$1" && PROJECT_ROOT="$1" \
+    CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" MIGRATION_ID=0007-unify-meta-corpus-frontmatter \
+    bash "$MIGRATION" 2>&1 >/dev/null))" || DIRECT_RC=$?
+}
+
 # Assert the corpus dir (or file list) validates clean. Wraps the inline
 # validator-clean idiom so the suite has one gate implementation.
 assert_validates() { # $1=test_name $2..=dir|files
@@ -542,5 +555,288 @@ pt_out="$(awk -f "$FRAG" -f "$BODY" -f "$PT_PROBE" </dev/null 2>/dev/null)"
 assert_eq "path_to_typed id derivation per arm (incl. prs)" \
   "$(printf 'work-item:0030\nplan:2026-05-13-0055-feature\nadr:ADR-0050\npr-review:2026-06-17-pr-430-review\npr-description:240-description\ncodebase-research:2026-01-01-foo')" \
   "$pt_out"
+
+# ── Phase 2: schema-driven forbidden own-id key drop + pr_title fold ─────────
+echo "=== Phase 2: forbidden own-id keys dropped; pr_title folds to title ==="
+P2="$TMP/phase2"
+mkdir -p "$P2/meta/reviews/prs"
+
+# A: pr_title (non-empty) + review_pass, NO title -> pr_title folds into title,
+# review_pass drops. Otherwise-complete (verdict/lenses/review_number/pr_number).
+cat >"$P2/meta/reviews/prs/2026-06-10-pr-100-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-10-pr-100-review"
+date: "2026-06-10T00:00:00+00:00"
+author: Toby
+status: complete
+pr_title: "Folded From PR Title"
+review_pass: 1
+verdict: approve
+lenses: ["correctness"]
+review_number: 1
+pr_number: 100
+tags: []
+last_updated: "2026-06-10T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 100 Review
+EOF
+
+# B: pr_title (non-empty, DIFFERING) + existing title -> pr_title dropped,
+# title unchanged, DIVERGE[discarded-key].
+cat >"$P2/meta/reviews/prs/2026-06-11-pr-101-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-11-pr-101-review"
+title: "Real Title"
+date: "2026-06-11T00:00:00+00:00"
+author: Toby
+status: complete
+pr_title: "Different PR Title"
+review_pass: 1
+verdict: approve
+lenses: ["correctness"]
+review_number: 1
+pr_number: 101
+tags: []
+last_updated: "2026-06-11T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 101 Review
+EOF
+
+# C: pr_title EQUAL to existing title -> dropped, title unchanged (benign).
+cat >"$P2/meta/reviews/prs/2026-06-13-pr-103-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-13-pr-103-review"
+title: "Same Title"
+date: "2026-06-13T00:00:00+00:00"
+author: Toby
+status: complete
+pr_title: "Same Title"
+review_pass: 1
+verdict: approve
+lenses: ["correctness"]
+review_number: 1
+pr_number: 103
+tags: []
+last_updated: "2026-06-13T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 103 Review
+EOF
+
+# D: pr_title: "" (empty) + NO title -> drops cleanly (no title: "" fold), the
+# stem-derived title_default supplies the title.
+cat >"$P2/meta/reviews/prs/2026-06-12-pr-102-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-12-pr-102-review"
+date: "2026-06-12T00:00:00+00:00"
+author: Toby
+status: complete
+pr_title: ""
+review_pass: 1
+verdict: approve
+lenses: ["correctness"]
+review_number: 1
+pr_number: 102
+tags: []
+last_updated: "2026-06-12T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 102 Review
+EOF
+
+git_init "$P2"
+A2="$P2/meta/reviews/prs/2026-06-10-pr-100-review.md"
+B2="$P2/meta/reviews/prs/2026-06-11-pr-101-review.md"
+C2="$P2/meta/reviews/prs/2026-06-13-pr-103-review.md"
+D2="$P2/meta/reviews/prs/2026-06-12-pr-102-review.md"
+
+# Red step: pr_title + review_pass report FORBIDDEN-OWN-ID before the fix.
+assert_violation "Phase 2 red: pr_title/review_pass are FORBIDDEN-OWN-ID" \
+  "FORBIDDEN-OWN-ID" "$A2"
+
+run_0007 "$P2"
+assert_eq "Phase 2 corpus exits 0" "0" "$RUN_RC"
+
+# A: both forbidden keys gone; pr_title folded into title.
+assert_not_contains "Phase 2 A: pr_title removed" "$(cat "$A2")" "pr_title:"
+assert_not_contains "Phase 2 A: review_pass removed" "$(cat "$A2")" "review_pass:"
+assert_contains "Phase 2 A: pr_title folded into title" \
+  "$(fm_line "$A2" title)" 'title: "Folded From PR Title"'
+assert_eq "Phase 2 A: exactly one title line (folded)" "1" \
+  "$(grep -c '^title:' "$A2")"
+
+# B: pr_title dropped, title unchanged.
+assert_not_contains "Phase 2 B: pr_title removed" "$(cat "$B2")" "pr_title:"
+assert_contains "Phase 2 B: existing title unchanged" \
+  "$(fm_line "$B2" title)" 'title: "Real Title"'
+
+# C: pr_title == title -> dropped, title unchanged.
+assert_not_contains "Phase 2 C: pr_title removed (equal value)" "$(cat "$C2")" "pr_title:"
+assert_contains "Phase 2 C: title unchanged (equal value)" \
+  "$(fm_line "$C2" title)" 'title: "Same Title"'
+
+# D: empty pr_title drops; default title supplied; exactly one title; no placeholder.
+assert_not_contains "Phase 2 D: empty pr_title removed" "$(cat "$D2")" "pr_title:"
+assert_eq "Phase 2 D: exactly one title line (defaulted)" "1" \
+  "$(grep -c '^title:' "$D2")"
+assert_not_contains "Phase 2 D: no empty title placeholder" "$(cat "$D2")" 'title: ""'
+
+assert_validates "Phase 2 corpus validates clean" "$P2/meta"
+
+# Idempotency.
+git -C "$P2" add -A && git -C "$P2" commit -q -m migrated >/dev/null 2>&1
+run_0007 "$P2"
+assert_empty "Phase 2 second run is an empty meta/ diff" \
+  "$(git -C "$P2" status --porcelain meta/ || true)"
+
+# Discarded-key breadcrumb: a non-empty pr_title dropped because a differing
+# title: already exists is surfaced (asserted via a direct run, since the runner
+# deletes the migration stderr on success).
+echo "=== Phase 2: discarded-key breadcrumb (direct run) ==="
+P2BC="$TMP/phase2-breadcrumb"
+mkdir -p "$P2BC/meta/reviews/prs"
+cat >"$P2BC/meta/reviews/prs/2026-06-11-pr-101-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-11-pr-101-review"
+title: "Real Title"
+date: "2026-06-11T00:00:00+00:00"
+author: Toby
+status: complete
+pr_title: "Different PR Title"
+review_pass: 1
+verdict: approve
+lenses: ["correctness"]
+review_number: 1
+pr_number: 101
+tags: []
+last_updated: "2026-06-11T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 101 Review
+EOF
+git_init "$P2BC"
+run_0007_direct "$P2BC"
+assert_eq "Phase 2 direct run exits 0 (valid after drop)" "0" "$DIRECT_RC"
+assert_contains "Phase 2 discarded-key breadcrumb fired" \
+  "$DIRECT_ERR" "0007-DIVERGE[discarded-key]"
+
+# Schema-driven proof: a custom SCHEMA_TSV declaring a NOVEL forbidden key drops
+# it (a hard-coded implementation would not). SCHEMA_TSV is exported so the
+# migration's self-validation inherits the same custom schema.
+echo "=== Phase 2: forbidden-key drop is schema-driven (custom SCHEMA_TSV) ==="
+BOGUS="$TMP/phase2-bogus"
+mkdir -p "$BOGUS/meta/notes"
+SCHEMA_BOGUS="$TMP/schema-bogus.tsv"
+awk -F'\t' 'BEGIN { OFS = "\t" } NR > 1 && $2 == "note" { $6 = "bogus_key" } { print }' \
+  "$PLUGIN_ROOT/scripts/templates-schema.tsv" >"$SCHEMA_BOGUS"
+cat >"$BOGUS/meta/notes/2026-06-01-a-note.md" <<'EOF'
+---
+type: note
+id: "2026-06-01-a-note"
+title: "A Note"
+date: "2026-06-01T00:00:00+00:00"
+author: Toby
+producer: create-note
+status: captured
+topic: "A Note"
+bogus_key: "should be dropped"
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# A Note
+EOF
+git_init "$BOGUS"
+RC_BOGUS=0
+(cd "$BOGUS" && PROJECT_ROOT="$BOGUS" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATIONS_DIR="$ONLY_0007" ACCELERATOR_MIGRATE_FORCE=1 \
+  SCHEMA_TSV="$SCHEMA_BOGUS" bash "$DRIVER" >/dev/null 2>&1 </dev/null) || RC_BOGUS=$?
+assert_eq "Phase 2 schema-driven run exits 0" "0" "$RC_BOGUS"
+assert_not_contains "Phase 2 schema-driven: novel forbidden bogus_key dropped" \
+  "$(cat "$BOGUS/meta/notes/2026-06-01-a-note.md")" "bogus_key"
+
+# Header assertion (halt): a column-REORDERED SCHEMA_TSV makes the migration exit
+# non-zero with zero file mutations (the file would otherwise be rewritten).
+echo "=== Phase 2: reordered schema halts the migration (zero mutations) ==="
+REORD="$TMP/phase2-reorder"
+mkdir -p "$REORD/meta/work"
+cat >"$REORD/meta/work/0001-foo.md" <<'EOF'
+---
+type: work-item
+work_item_id: "0001"
+title: "Foo"
+date: "2026-06-01"
+author: Toby
+skill: create-work-item
+kind: story
+priority: high
+status: ready
+parent: ""
+---
+# Foo
+EOF
+SCHEMA_REORD="$TMP/schema-reorder.tsv"
+awk -F'\t' 'BEGIN { OFS = "\t" } { t = $3; $3 = $4; $4 = t; print }' \
+  "$PLUGIN_ROOT/scripts/templates-schema.tsv" >"$SCHEMA_REORD"
+git_init "$REORD"
+before_reord="$(cat "$REORD/meta/work/0001-foo.md")"
+RC_REORD=0
+(cd "$REORD" && PROJECT_ROOT="$REORD" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATIONS_DIR="$ONLY_0007" ACCELERATOR_MIGRATE_FORCE=1 \
+  SCHEMA_TSV="$SCHEMA_REORD" bash "$DRIVER" >/dev/null 2>&1 </dev/null) || RC_REORD=$?
+assert_neq "Phase 2 reordered schema: migration exits non-zero" "0" "$RC_REORD"
+assert_eq "Phase 2 reordered schema: zero file mutations" "$before_reord" \
+  "$(cat "$REORD/meta/work/0001-foo.md")"
+
+# Header assertion (extension tolerated): a SCHEMA_TSV with an extra TRAILING
+# column (canonical 7 unchanged) is accepted by both the migration and validator.
+echo "=== Phase 2: trailing schema column extension tolerated ==="
+EXT="$TMP/phase2-ext"
+mkdir -p "$EXT/meta/work"
+cat >"$EXT/meta/work/0002-bar.md" <<'EOF'
+---
+type: work-item
+id: "0002"
+title: "Bar"
+date: "2026-06-01T00:00:00+00:00"
+author: Toby
+producer: create-work-item
+kind: story
+priority: high
+status: ready
+tags: []
+last_updated: "2026-06-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Bar
+EOF
+SCHEMA_EXT="$TMP/schema-ext.tsv"
+awk -F'\t' 'BEGIN { OFS = "\t" } { print $0 OFS (NR == 1 ? "future_col" : "") }' \
+  "$PLUGIN_ROOT/scripts/templates-schema.tsv" >"$SCHEMA_EXT"
+git_init "$EXT"
+RC_EXT=0
+(cd "$EXT" && PROJECT_ROOT="$EXT" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATIONS_DIR="$ONLY_0007" ACCELERATOR_MIGRATE_FORCE=1 \
+  SCHEMA_TSV="$SCHEMA_EXT" bash "$DRIVER" >/dev/null 2>&1 </dev/null) || RC_EXT=$?
+assert_eq "Phase 2 extended schema: migration accepts (exits 0)" "0" "$RC_EXT"
+RC_EXTV=0
+(SCHEMA_TSV="$SCHEMA_EXT" "$VALIDATOR" "$EXT/meta" >/dev/null 2>&1) || RC_EXTV=$?
+assert_eq "Phase 2 extended schema: validator accepts (exits 0)" "0" "$RC_EXTV"
 
 test_summary

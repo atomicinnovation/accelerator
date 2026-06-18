@@ -598,41 +598,45 @@ Closing-fence guard:
 
 #### Automated Verification
 
-- [ ] **Red step**: the pr-review fixture with `pr_title:` + `review_pass:`
+- [x] **Red step**: the pr-review fixture with `pr_title:` + `review_pass:`
       reports `FORBIDDEN-OWN-ID` before the fix (`assert_violation`).
-- [ ] pr-review fixture with `pr_title:` + `review_pass:` → both keys removed
+- [x] pr-review fixture with `pr_title:` + `review_pass:` → both keys removed
       (asserted absent via `fm_line`), validates clean (fixture authored with
       `verdict`/`lenses`/`review_number`/`pr_number` present so it is otherwise
       complete).
-- [ ] `pr_title` + no `title:` (non-empty) → value promoted to `title:`,
+- [x] `pr_title` + no `title:` (non-empty) → value promoted to `title:`,
       `pr_title` removed.
-- [ ] `pr_title` + existing differing `title:` → `pr_title` dropped, `title:`
-      unchanged, and `0007-DIVERGE[discarded-key]` asserted present in the run
-      output.
-- [ ] `pr_title` **equal to** an existing `title:` → `pr_title` dropped, `title:`
+- [x] `pr_title` + existing differing `title:` → `pr_title` dropped, `title:`
+      unchanged, and `0007-DIVERGE[discarded-key]` asserted present. (Asserted via
+      a DIRECT migration run — the runner sandboxes the migration's stderr to a
+      per-migration log it DELETES on success, so DIVERGE breadcrumbs are NOT in
+      the driver's `RUN_OUT`; a `run_0007_direct` helper captures the migration's
+      own stderr. This corrects the plan's "captures runner stderr" assumption.)
+- [x] `pr_title` **equal to** an existing `title:` → `pr_title` dropped, `title:`
       unchanged (pins the equal-value boundary; the breadcrumb fires as for any
       title-present discard — a benign no-information-loss case).
-- [ ] **Empty-fold guard**: a `pr_title: ""` (no `title:`) → no `title: ""`
+- [x] **Empty-fold guard**: a `pr_title: ""` (no `title:`) → no `title: ""`
       emitted; the stem-derived `title_default` supplies the title; validates
       clean (no `EMPTY-PLACEHOLDER`).
-- [ ] **Closing-fence interaction**: a title-less file yields **exactly one**
+- [x] **Closing-fence interaction**: a title-less file yields **exactly one**
       `title:` line in both the `pr_title`-present (folded) and `pr_title`-absent
       (defaulted) variants (guards the `emitted_title` coupling).
-- [ ] **Schema-driven proof**: a fixture using a custom `SCHEMA_TSV` (via the new
+- [x] **Schema-driven proof**: a fixture using a custom `SCHEMA_TSV` (via the new
       env override) declaring a *novel* forbidden key (e.g. `bogus_key`) on some
       type, with a corpus file carrying it → dropped (asserted absent). A
       hard-coded implementation would fail this.
-- [ ] **Header assertion (halt, not just warn)**: a fixture pointing `SCHEMA_TSV`
+- [x] **Header assertion (halt, not just warn)**: a fixture pointing `SCHEMA_TSV`
       at a column-**reordered** TSV makes the migration **exit non-zero with zero
       file mutations** (empty `meta/` diff) — pins the guard's abort semantics, not
       only that the warning text appears.
-- [ ] **Header assertion (extension tolerated)**: a `SCHEMA_TSV` with an extra
+- [x] **Header assertion (extension tolerated)**: a `SCHEMA_TSV` with an extra
       **trailing** column (canonical 7 unchanged) is **accepted** by both the
       migration and the validator — proves the prefix-match does not break a
       forward-compatible column extension.
-- [ ] **Idempotency**: second `run_0007` over the migrated Phase 2 fixtures leaves
+- [x] **Idempotency**: second `run_0007` over the migrated Phase 2 fixtures leaves
       an empty `meta/` diff.
-- [ ] `bash skills/config/migrate/scripts/test-migrate-0007.sh` green; `mise run check`
+- [x] `bash skills/config/migrate/scripts/test-migrate-0007.sh` green; `mise run check`
+      (full `mise run check` deferred to end; `scripts:check` green)
 
 #### Manual Verification
 

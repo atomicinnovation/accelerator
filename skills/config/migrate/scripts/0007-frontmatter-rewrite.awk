@@ -155,6 +155,13 @@ function in_vocab(s,   n, a, i) {
   for (i = 1; i <= n; i++) if (trim(a[i]) == s) return 1
   return 0
 }
+
+# Schema-driven forbidden own-id keys (space-separated, from TSV col 6).
+function is_forbidden(k,   n, a, i) {
+  n = split(forbidden, a, " ")
+  for (i = 1; i <= n; i++) if (trim(a[i]) == k) return 1
+  return 0
+}
 function map_status(s,   n, a, i, kv) {
   n = split(statusmap, a, " ")
   for (i = 1; i <= n; i++) {
@@ -177,6 +184,7 @@ BEGIN {
   date_value = ""        # normalised date, for seeding last_updated
   author_value = ""      # author, for seeding last_updated_by
   emitted_id = 0; emitted_revision = 0
+  emitted_title = 0     # set when a pr_title value is folded into title:
   UNMAPPED_PATH = 0
 }
 
@@ -199,7 +207,7 @@ in_fm && fm_is_fence($0) {
     if (id_from_stem != "") print "id: \"" id_from_stem "\""
     else print "0007-REFUSE: " file " — no id and no derivable filename stem" > "/dev/stderr"
   }
-  if (!has_title && title_default != "") print "title: \"" title_default "\""
+  if (!has_title && !emitted_title && title_default != "") print "title: \"" title_default "\""
   if (!has_date && date_default != "") {
     print "date: \"" date_default "\""
     if (date_value == "") date_value = "\"" date_default "\""
@@ -264,6 +272,23 @@ in_fm && /^[A-Za-z_][A-Za-z0-9_]*:/ {
   if (key == "id") {
     if (fm_refuses(val)) { print $0; print "0007-REFUSE: " file " — refused id (unsafe value shape)" > "/dev/stderr"; next }
     print "id: " fm_normalise_value(val); emitted_id = 1; next
+  }
+
+  # Forbidden own-id keys (schema TSV col 6): drop. pr_title additionally folds
+  # into title: ONLY when the file has no title: AND the value is non-empty;
+  # otherwise it is discarded — and a non-empty discard (a real pr_title lost
+  # because a differing title: already exists) is surfaced as a breadcrumb so it
+  # is auditable rather than silently destroyed. An empty forbidden key drops
+  # cleanly (no title: "" fold, no breadcrumb): the stem-derived title_default
+  # then supplies a non-empty title:. Placed before the linkage and
+  # omit-when-empty arms so the fold runs before omit-when-empty could drop it.
+  if (is_forbidden(key)) {
+    if (key == "pr_title" && !has_title && !emitted_title && !is_empty_val(val)) {
+      print "title: " fm_normalise_value(val); emitted_title = 1
+    } else if (key == "pr_title" && !is_empty_val(val)) {
+      print "0007-DIVERGE[discarded-key]: " file " — pr_title discarded (title present): " val > "/dev/stderr"
+    }
+    next
   }
 
   # Dates → full ISO.
