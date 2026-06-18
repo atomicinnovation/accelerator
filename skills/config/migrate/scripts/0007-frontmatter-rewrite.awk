@@ -68,6 +68,13 @@ function is_linkage_key(k) {
 # target doc-type's identity convention (work-item/ADR → bare number / ADR-NNNN;
 # every other type → full filename stem). Returns "" for an unmapped directory
 # (specs/talks/global/typo) so the caller can DIVERGE and leave it untouched.
+#
+# This encodes the SAME directory→type fact as the shared
+# scripts/doc-type-inference.sh:infer_type_from_path, but for a DIFFERENT input
+# (a referenced meta-path inside a linkage value, not the current file), so it
+# cannot consume the file-level `-v type` channel. The two MUST be kept aligned
+# (a test-migrate-0007.sh fixture asserts the meta/prs/ → pr-description arm in
+# step with the shared helper).
 function path_to_typed(p,   type, base, id) {
   if (p ~ /^meta\/work\//) type = "work-item"
   else if (p ~ /^meta\/plans\//) type = "plan"
@@ -79,6 +86,7 @@ function path_to_typed(p,   type, base, id) {
   else if (p ~ /^meta\/reviews\/plans\//) type = "plan-review"
   else if (p ~ /^meta\/reviews\/work\//) type = "work-item-review"
   else if (p ~ /^meta\/reviews\/prs\//) type = "pr-review"
+  else if (p ~ /^meta\/prs\//) type = "pr-description" # after reviews/prs
   else if (p ~ /^meta\/validations\//) type = "plan-validation"
   else if (p ~ /^meta\/notes\//) type = "note"
   else return ""
@@ -230,8 +238,13 @@ in_fm && /^[A-Za-z_][A-Za-z0-9_]*:/ {
   val = $0; sub(/^[A-Za-z_][A-Za-z0-9_]*:[ \t]*/, "", val); val = trim(val)
 
   # Canonicalise a present legacy artifact-type alias (e.g. validation →
-  # plan-validation). A conforming type: passes through unchanged.
-  if (key == "type") { print "type: " canonical_type(val); next }
+  # plan-validation). A conforming type: passes through unchanged. An EMPTY
+  # type: value (the typeless meta/prs/ shape) is dropped so the closing-fence
+  # backfill emits the path-inferred `type` instead of leaving a duplicate.
+  if (key == "type") {
+    if (is_empty_val(val)) next
+    print "type: " canonical_type(val); next
+  }
 
   # Drop legacy provenance keys (git_commit migrates to revision; branch goes).
   if (key == "git_commit") {

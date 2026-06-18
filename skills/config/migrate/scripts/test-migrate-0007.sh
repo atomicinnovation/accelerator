@@ -15,6 +15,7 @@ MIGRATION="$PLUGIN_ROOT/skills/config/migrate/migrations/0007-unify-meta-corpus-
 DRIVER="$SCRIPT_DIR/run-migrations.sh"
 VALIDATOR="$PLUGIN_ROOT/scripts/validate-corpus-frontmatter.sh"
 FRAG="$SCRIPT_DIR/frontmatter-frag.awk"
+BODY="$SCRIPT_DIR/0007-frontmatter-rewrite.awk"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
@@ -41,6 +42,43 @@ run_0007() {
 }
 
 fm_line() { grep -E "^$2:" "$1" | head -1; } # $1=file $2=key
+
+# Assert the corpus dir (or file list) validates clean. Wraps the inline
+# validator-clean idiom so the suite has one gate implementation.
+assert_validates() { # $1=test_name $2..=dir|files
+  local name="$1"
+  shift
+  local out rc=0
+  out="$("$VALIDATOR" "$@" 2>&1)" || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    echo "  PASS: $name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $name (validator reported violations)"
+    printf '%s\n' "$out" | sed 's/^/    /'
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+# Assert the standalone validator reports a targeted violation code over the
+# given PRE-migration fixture file(s). Runs the validator DIRECTLY (NOT via
+# run_0007, which under set -euo pipefail mutates then aborts at
+# self_validate_structural, leaving a half-migrated tree whose surfaced code may
+# differ) so the red step asserts exactly the shape under test.
+assert_violation() { # $1=test_name $2=code $3..=files
+  local name="$1" code="$2"
+  shift 2
+  local out rc=0
+  out="$("$VALIDATOR" "$@" 2>&1)" || rc=$?
+  if [ "$rc" -ne 0 ] && grep -qF -- "$code" <<<"$out"; then
+    echo "  PASS: $name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $name (expected violation $code pre-fix)"
+    printf '%s\n' "$out" | sed 's/^/    /'
+    FAIL=$((FAIL + 1))
+  fi
+}
 
 # ── Happy-path corpus (post-0005/0006 shapes) ───────────────────────────────
 echo "=== Mechanical rewrite + backfill (happy path) ==="
@@ -386,5 +424,123 @@ else
   sed 's/^/    /' /tmp/0007-link-val.out
   FAIL=$((FAIL + 1))
 fi
+
+# ── Phase 1: meta/prs/ typing + meta/docs/ skip + single-sourced classification ─
+echo "=== Phase 1: meta/prs/ -> pr-description, meta/docs/ skipped ==="
+P1="$TMP/phase1"
+mkdir -p "$P1/meta/prs" "$P1/meta/docs"
+
+# Typeless (empty type:) pr-description, otherwise complete (anchored type, so
+# revision/repository present; pr_number required extra present — Phase 4
+# exercises that backfill separately). relates_to carries a path-shape ref to a
+# second pr-description, exercising the broadened identity namespace end-to-end.
+cat >"$P1/meta/prs/240-description.md" <<'EOF'
+---
+type:
+id: "240-description"
+title: "PR 240 Description"
+date: "2026-06-01T00:00:00+00:00"
+author: Toby
+status: complete
+relates_to: ["meta/prs/416-summary.md"]
+tags: []
+pr_number: 240
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 240 Description
+EOF
+
+cat >"$P1/meta/prs/416-summary.md" <<'EOF'
+---
+type: pr-description
+id: "416-summary"
+title: "PR 416 Summary"
+date: "2026-06-02T00:00:00+00:00"
+author: Toby
+status: complete
+tags: []
+pr_number: 416
+revision: "def456"
+repository: "accelerator"
+last_updated: "2026-06-02T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 416 Summary
+EOF
+
+# Freeform plugin-unowned doc (non-conforming frontmatter, no schema type) — must
+# be skipped entirely (byte-unchanged, never validated).
+cat >"$P1/meta/docs/logging-guide.md" <<'EOF'
+---
+title: Logging Guide
+foo: bar
+---
+# Logging Guide
+
+Freeform documentation the plugin does not own.
+EOF
+
+DOCS_BEFORE="$(cat "$P1/meta/docs/logging-guide.md")"
+git_init "$P1"
+
+# Red step: pre-migration, the typeless pr file reports INVALID-TYPE.
+assert_violation "Phase 1 red: typeless meta/prs/ file is INVALID-TYPE" \
+  "INVALID-TYPE" "$P1/meta/prs/240-description.md"
+
+run_0007 "$P1"
+assert_eq "Phase 1 corpus exits 0" "0" "$RUN_RC"
+assert_contains "Phase 1 typeless pr -> pr-description" \
+  "$(fm_line "$P1/meta/prs/240-description.md" type)" "type: pr-description"
+assert_eq "Phase 1 pr type line is unique (no duplicate)" "1" \
+  "$(grep -c '^type:' "$P1/meta/prs/240-description.md")"
+assert_contains "Phase 1 pr relates_to path -> pr-description:<stem>" \
+  "$(fm_line "$P1/meta/prs/240-description.md" relates_to)" 'relates_to: ["pr-description:416-summary"]'
+assert_eq "Phase 1 meta/docs/ byte-unchanged" "$DOCS_BEFORE" \
+  "$(cat "$P1/meta/docs/logging-guide.md")"
+
+# Standalone whole-corpus mode over a corpus containing meta/docs/ exits 0
+# (isolates the validator-side out_of_scope skip from the migration file-list path).
+assert_validates "Phase 1 whole-corpus validates (meta/docs/ skipped)" "$P1/meta"
+
+# Idempotency: a second run leaves an empty meta/ diff.
+git -C "$P1" add -A && git -C "$P1" commit -q -m migrated >/dev/null 2>&1
+run_0007 "$P1"
+assert_empty "Phase 1 second run is an empty meta/ diff" \
+  "$(git -C "$P1" status --porcelain meta/ || true)"
+
+# Both surfaces single-source path classification (no local definitions remain).
+assert_not_contains "migration defines no local infer_type_from_path" \
+  "$(grep -E '^infer_type_from_path\(\)' "$MIGRATION" || true)" "infer_type_from_path()"
+assert_not_contains "validator defines no local out_of_scope" \
+  "$(grep -E '^out_of_scope\(\)' "$VALIDATOR" || true)" "out_of_scope()"
+assert_contains "migration sources doc-type-inference.sh" \
+  "$(cat "$MIGRATION")" "doc-type-inference.sh"
+assert_contains "validator sources doc-type-inference.sh" \
+  "$(cat "$VALIDATOR")" "doc-type-inference.sh"
+
+# Linkage-target alignment (table-driven, full id): the awk path_to_typed encodes
+# the id-derivation halves the shared helper does not. Pin one representative path
+# per arm to its full doc-type:id, including the prs arm in step with the helper.
+echo "=== Phase 1: path_to_typed id-derivation alignment ==="
+PT_PROBE="$TMP/pt-probe.awk"
+cat >"$PT_PROBE" <<'AWK'
+BEGIN {
+  print path_to_typed("meta/work/0030-target.md")
+  print path_to_typed("meta/plans/2026-05-13-0055-feature.md")
+  print path_to_typed("meta/decisions/ADR-0050-some-decision.md")
+  print path_to_typed("meta/reviews/prs/2026-06-17-pr-430-review.md")
+  print path_to_typed("meta/prs/240-description.md")
+  print path_to_typed("meta/research/codebase/2026-01-01-foo.md")
+}
+AWK
+pt_out="$(awk -f "$FRAG" -f "$BODY" -f "$PT_PROBE" </dev/null 2>/dev/null)"
+assert_eq "path_to_typed id derivation per arm (incl. prs)" \
+  "$(printf 'work-item:0030\nplan:2026-05-13-0055-feature\nadr:ADR-0050\npr-review:2026-06-17-pr-430-review\npr-description:240-description\ncodebase-research:2026-01-01-foo')" \
+  "$pt_out"
 
 test_summary

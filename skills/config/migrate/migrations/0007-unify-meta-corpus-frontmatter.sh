@@ -10,6 +10,9 @@ source "$PLUGIN_ROOT/scripts/config-common.sh"
 source "$PLUGIN_ROOT/scripts/atomic-common.sh"
 source "$PLUGIN_ROOT/scripts/log-common.sh"
 source "$PLUGIN_ROOT/scripts/interactive-harness.sh"
+# Single source for path→doc-type classification + out-of-scope (previously a
+# byte-identical copy lived here and in the validator).
+source "$PLUGIN_ROOT/scripts/doc-type-inference.sh"
 
 # Byte-stable text processing across environments (parity with the launcher's
 # locale safety): the cmp -s idempotency gate and [:alnum:]/[:space:] classes
@@ -78,34 +81,8 @@ status_map_for_type() {
   awk -F'\t' -v t="$1" 'NR > 1 && $1 == t { printf "%s=%s ", $2, $3 }' "$STATUS_MAP_TSV"
 }
 
-# ── Location → doc-type (exhaustive; reviews by subdir) ──────────────────────
-infer_type_from_path() {
-  case "$1" in
-    # Reviews are discriminated by subdirectory and MUST precede the generic
-    # */work/* and */plans/* arms: a review path contains both segments (e.g.
-    # */reviews/work/*) so the generic arms would otherwise shadow them.
-    */reviews/plans/*) echo plan-review ;;
-    */reviews/work/*) echo work-item-review ;;
-    */reviews/prs/*) echo pr-review ;;
-    */work/*) echo work-item ;;
-    */plans/*) echo plan ;;
-    */decisions/*) echo adr ;;
-    */research/codebase/*) echo codebase-research ;;
-    */research/issues/*) echo issue-research ;;
-    */research/design-gaps/*) echo design-gap ;;
-    */research/design-inventories/*) echo design-inventory ;;
-    */validations/*) echo plan-validation ;;
-    */notes/*) echo note ;;
-    *) echo "" ;;
-  esac
-}
-
-out_of_scope() {
-  case "$1" in
-    */specs/* | */talks/* | */global/*) return 0 ;;
-    *) return 1 ;;
-  esac
-}
+# infer_type_from_path / out_of_scope are sourced from
+# scripts/doc-type-inference.sh (single source, shared with the validator).
 
 stem_of() {
   local b
@@ -628,13 +605,13 @@ migration_session_log_path() {
 # migration's stdout as the interactive frame stream.
 {
   if ! precondition_prepass; then
-    log_warn "0007: precondition pre-pass refused — zero files mutated" >&2
+    log_warn "0007: precondition pre-pass refused — zero files mutated — resolve the refusals above (or revert meta/ via your VCS), then re-run" >&2
     exit 1
   fi
   run_backfill
   run_rewrite
   if [ "$REFUSE_COUNT" -gt 0 ] || [ "$MALFORMED_COUNT" -gt 0 ]; then
-    log_warn "0007: $REFUSE_COUNT REFUSE / $MALFORMED_COUNT MALFORMED — failing" >&2
+    log_warn "0007: $REFUSE_COUNT REFUSE / $MALFORMED_COUNT MALFORMED — failing — revert meta/ via your VCS to recover, then re-run" >&2
     exit 1
   fi
   self_validate_structural

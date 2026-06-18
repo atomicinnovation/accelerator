@@ -5,7 +5,9 @@
 # (ADR-0033 / ADR-0034 / ADR-0040). Per-type tabular facts come from
 # templates-schema.tsv; the cross-cutting emission rules come from the shared
 # frontmatter-emission-rules.sh helper (single-sourced with
-# test-template-frontmatter.sh).
+# test-template-frontmatter.sh). Path→doc-type classification and the
+# out-of-scope skip set come from the shared doc-type-inference.sh helper
+# (single-sourced with the 0007 migration — previously a byte-identical copy).
 #
 # Usage:
 #   validate-corpus-frontmatter.sh <dir>          # whole-corpus mode
@@ -15,7 +17,8 @@
 # referential-integrity check (every typed-linkage value resolves to a real
 # artifact, `pr:<n>` tolerated). File-list mode runs structural checks only
 # (referential integrity is a whole-corpus property). Out-of-scope subtrees
-# (specs/, talks/, global/) are skipped in whole-corpus mode.
+# (specs/, talks/, global/, and meta/docs/ — all freeform, plugin-unowned, no
+# schema type) are skipped in BOTH modes.
 #
 # Exits non-zero with one diagnostic line per violation; exit 0 when clean.
 
@@ -25,7 +28,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FM_EMISSION_RULES="${FM_EMISSION_RULES:-$SCRIPT_DIR/frontmatter-emission-rules.sh}"
 # shellcheck source=frontmatter-emission-rules.sh
 source "$FM_EMISSION_RULES"
+# DOC_TYPE_INFERENCE is a TEST-ONLY override seam (mirrors FM_EMISSION_RULES; not
+# a production configuration knob).
+DOC_TYPE_INFERENCE="${DOC_TYPE_INFERENCE:-$SCRIPT_DIR/doc-type-inference.sh}"
+# shellcheck source=doc-type-inference.sh
+source "$DOC_TYPE_INFERENCE"
 SCHEMA_TSV="${SCHEMA_TSV:-$SCRIPT_DIR/templates-schema.tsv}"
+# Abort loudly if the schema's column order ever changes under the positional
+# `IFS=$'\t' read` below, rather than silently reading the wrong columns.
+fm_assert_schema_columns "$SCHEMA_TSV" || exit 1
 
 # Byte-stable classes/sorting regardless of host locale (parity with the
 # project's LANG=C discipline).
@@ -74,36 +85,9 @@ schema_index() {
   return 0
 }
 
-# ---- Location → doc-type map (for index identity when type: is absent) -----
-# Exhaustive per the plan; reviews discriminated by subdirectory.
-infer_type_from_path() {
-  case "$1" in
-    # Reviews are discriminated by subdirectory and MUST precede the generic
-    # */work/* and */plans/* arms: a review path contains both segments (e.g.
-    # */reviews/work/*) so the generic arms would otherwise shadow them.
-    */reviews/plans/*) echo plan-review ;;
-    */reviews/work/*) echo work-item-review ;;
-    */reviews/prs/*) echo pr-review ;;
-    */work/*) echo work-item ;;
-    */plans/*) echo plan ;;
-    */decisions/*) echo adr ;;
-    */research/codebase/*) echo codebase-research ;;
-    */research/issues/*) echo issue-research ;;
-    */research/design-gaps/*) echo design-gap ;;
-    */research/design-inventories/*) echo design-inventory ;;
-    */validations/*) echo plan-validation ;;
-    */notes/*) echo note ;;
-    *) echo "" ;;
-  esac
-}
-
-# A path is out of scope (skip entirely) if it lives under specs/talks/global.
-out_of_scope() {
-  case "$1" in
-    */specs/* | */talks/* | */global/*) return 0 ;;
-    *) return 1 ;;
-  esac
-}
+# infer_type_from_path / out_of_scope are sourced from doc-type-inference.sh
+# (single source, shared with the 0007 migration). out_of_scope now also skips
+# meta/docs/ (freeform, plugin-unowned, no schema type).
 
 # ---- Frontmatter extraction + field access --------------------------------
 # Loose fence detector (tolerates trailing whitespace on the opening `---`).

@@ -90,6 +90,31 @@ FM_TYPED_REF_RE="^(${FM_SOURCE_TYPE_RE}):[A-Za-z0-9.-]+$"
 # The blocked_by inverse-key guidance comment line (template surface only).
 FM_INVERSE_GUIDANCE_LINE='# inverse of blocks — producers SHOULD prefer writing blocks: on the canonical side'
 
+# ---- Schema column-order guard --------------------------------------------
+# Pin the column ORDER the cut -fN / positional `read` consumers depend on; a
+# reorder then fails here, in one place, for every positional reader instead of
+# silently skewing the extras/forbidden reads (the exact class of off-by-one
+# this guards against). Prefix-match (exact OR canonical columns followed by a
+# tab + extra columns) so a forward-compatible trailing extension is tolerated,
+# matching the validator's surplus-tolerant `IFS=$'\t' read`. Takes the schema
+# path as $1 so both the migration ($SCHEMA_TSV) and validator can call it.
+fm_assert_schema_columns() {
+  local hdr expected
+  hdr="$(head -1 "$1")"
+  hdr="${hdr%$'\r'}" # tolerate a CRLF-authored TSV
+  # Assembled across two appends to stay within the 80-col floor (a single
+  # $'...' literal would be ~110 cols and shfmt cannot wrap it).
+  expected=$'template\ttype\tcode_state_anchored\textras\t'
+  expected+=$'status_vocab\tforbidden_own_id_key\ttyped_linkage_keys'
+  case "$hdr" in
+    "$expected" | "$expected"$'\t'*) return 0 ;;
+    *)
+      printf '%s\n' "schema column order changed in $1; update positional readers" >&2
+      return 1
+      ;;
+  esac
+}
+
 # Returns 0 if $1 names a typed-linkage key (in the vocabulary).
 fm_is_linkage_key() {
   local k="$1" v

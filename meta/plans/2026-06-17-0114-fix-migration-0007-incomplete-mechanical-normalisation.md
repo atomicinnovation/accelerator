@@ -400,7 +400,7 @@ shared helper are observably in step.
 
 #### Automated Verification
 
-- [ ] **Red step**: before the fix, the empty-`type:` `meta/prs/240-description.md`
+- [x] **Red step**: before the fix, the empty-`type:` `meta/prs/240-description.md`
       fixture reports `INVALID-TYPE` (`assert_violation INVALID-TYPE`); after, it
       types as `pr-description` (`fm_line … type` = `type: pr-description`) and
       validates clean (`assert_validates`). **The fixture is authored
@@ -409,13 +409,15 @@ shared helper are observably in step.
       the fixture carries `pr_number` (and lets the anchored `revision`/`repository`
       backfill supply provenance). This keeps Phase 1 green in isolation — typing
       is the only variable under test; `pr_number` backfill is exercised separately
-      in Phase 4.
-- [ ] `meta/docs/logging-guide.md` fixture is byte-unchanged after 0007 and
+      in Phase 4. (NB: the awk now drops an EMPTY `type:` value so the closing-fence
+      backfill emits the inferred type — without this the empty value left a
+      duplicate `type:` line; see the awk `type` handler.)
+- [x] `meta/docs/logging-guide.md` fixture is byte-unchanged after 0007 and
       produces no `INVALID-TYPE` violation.
-- [ ] **Validator standalone-mode AC**: `validate-corpus-frontmatter.sh` invoked
+- [x] **Validator standalone-mode AC**: `validate-corpus-frontmatter.sh` invoked
       in whole-corpus mode over a corpus containing `meta/docs/` exits 0 (isolates
       the validator-side `out_of_scope` skip from the migration's file-list mode).
-- [ ] **Linkage-target alignment (table-driven, full id)**: a fixture iterating
+- [x] **Linkage-target alignment (table-driven, full id)**: a fixture iterating
       one representative path per shared directory arm (`meta/prs/`, `meta/work/`,
       `meta/plans/`, `meta/decisions/`, `meta/reviews/prs/`,
       `meta/research/codebase/`, …) as a linkage value asserts each resolves to the
@@ -423,19 +425,21 @@ shared helper are observably in step.
       differ by type (work-item bare number, ADR `ADR-NNNN`, pr-description full
       stem). This pins the awk `path_to_typed` *id* logic (which the shared
       `infer_type_from_path` does not encode) against drift, not only the
-      directory→type mapping.
-- [ ] **`pr-description` enters the namespace cleanly**: a `meta/prs/` fixture
+      directory→type mapping. (Implemented as a `path_to_typed` `BEGIN{}` probe.)
+- [x] **`pr-description` enters the namespace cleanly**: a `meta/prs/` fixture
       carrying a body-section linkage reference is processed without error and the
       `precondition_prepass` duplicate post-rewrite-id check behaves sanely across
       two `pr-description` stems (the broadened identity namespace is exercised,
-      not just the typing).
-- [ ] Both surfaces use the helper: migration + validator no longer define the
+      not just the typing). (Two distinct `meta/prs/` stems + a path-shape
+      `relates_to` ref between them, normalised to `pr-description:<stem>`.)
+- [x] Both surfaces use the helper: migration + validator no longer define the
       functions locally (grep guard, or a small unit asserting both source it).
-- [ ] **Idempotency**: a second `run_0007` over the just-migrated Phase 1 fixtures
+- [x] **Idempotency**: a second `run_0007` over the just-migrated Phase 1 fixtures
       leaves an empty `meta/` diff.
-- [ ] Existing suite still green: `bash skills/config/migrate/scripts/test-migrate-0007.sh`
-- [ ] Shell checks pass: `mise run scripts:check` (shfmt + ShellCheck + bashisms)
-- [ ] `mise run check`
+- [x] Existing suite still green: `bash skills/config/migrate/scripts/test-migrate-0007.sh`
+- [x] Shell checks pass: `mise run scripts:check` (shfmt + ShellCheck + bashisms)
+- [ ] `mise run check` (deferred to the end-of-implementation full run; Phase 1
+      touches only the `scripts` component, which is green)
 
 #### Manual Verification
 
