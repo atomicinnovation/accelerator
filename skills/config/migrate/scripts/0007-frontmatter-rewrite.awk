@@ -261,6 +261,15 @@ in_fm && /^[A-Za-z_][A-Za-z0-9_]*:/ {
   }
   if (key == "branch") { next }
 
+  # Obsolete legacy keys (cross-cutting, any type) — migrated out by 0001 (in
+  # meta/tickets/) and dropped everywhere else here. A non-empty value is logged
+  # so a real external-tracker reference is recoverable via the breadcrumb + VCS.
+  if (key == "ticket" || key == "ticket_id") {
+    if (!is_empty_val(val))
+      print "0007-DIVERGE[dropped-legacy-key]: " file " — dropped " key ": " val > "/dev/stderr"
+    next
+  }
+
   # Producer rename.
   if (key == "skill") { print "producer: " val; next }
 

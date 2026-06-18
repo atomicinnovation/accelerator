@@ -839,4 +839,182 @@ RC_EXTV=0
 (SCHEMA_TSV="$SCHEMA_EXT" "$VALIDATOR" "$EXT/meta" >/dev/null 2>&1) || RC_EXTV=$?
 assert_eq "Phase 2 extended schema: validator accepts (exits 0)" "0" "$RC_EXTV"
 
+# ── Phase 3: unconditional ticket/ticket_id drop ────────────────────────────
+echo "=== Phase 3: ticket/ticket_id dropped on any type ==="
+M0001="$PLUGIN_ROOT/skills/config/migrate/migrations/0001-rename-tickets-to-work.sh"
+P3="$TMP/phase3"
+mkdir -p "$P3/meta/notes" "$P3/meta/work"
+
+# A note carrying a hand-added external-tracker reference.
+cat >"$P3/meta/notes/2026-06-01-noted.md" <<'EOF'
+---
+type: note
+id: "2026-06-01-noted"
+title: "A Noted Thing"
+date: "2026-06-01T00:00:00+00:00"
+author: Toby
+producer: create-note
+status: captured
+topic: "A Noted Thing"
+ticket: "PROJ-1234"
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# A Noted Thing
+EOF
+
+# A non-note type carrying ticket_id (regardless of value).
+cat >"$P3/meta/work/0080-task.md" <<'EOF'
+---
+type: work-item
+id: "0080"
+title: "A Task"
+date: "2026-06-01T00:00:00+00:00"
+author: Toby
+producer: create-work-item
+kind: story
+priority: high
+status: ready
+ticket_id: "LEGACY-9"
+tags: []
+last_updated: "2026-06-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# A Task
+EOF
+
+NOTED="$P3/meta/notes/2026-06-01-noted.md"
+TASK="$P3/meta/work/0080-task.md"
+git_init "$P3"
+
+# Red step: the ticket-bearing note reports OBSOLETE-LEGACY-KEY before the fix.
+assert_violation "Phase 3 red: ticket: is OBSOLETE-LEGACY-KEY" \
+  "OBSOLETE-LEGACY-KEY" "$NOTED"
+
+run_0007 "$P3"
+assert_eq "Phase 3 corpus exits 0" "0" "$RUN_RC"
+assert_not_contains "Phase 3 note: ticket removed" "$(cat "$NOTED")" "ticket:"
+assert_not_contains "Phase 3 work-item: ticket_id removed" "$(cat "$TASK")" "ticket_id:"
+assert_validates "Phase 3 corpus validates clean" "$P3/meta"
+
+# Dropped-legacy-key breadcrumb on a non-empty value (direct run).
+P3BC="$TMP/phase3-breadcrumb"
+mkdir -p "$P3BC/meta/notes"
+cat >"$P3BC/meta/notes/2026-06-01-noted.md" <<'EOF'
+---
+type: note
+id: "2026-06-01-noted"
+title: "A Noted Thing"
+date: "2026-06-01T00:00:00+00:00"
+author: Toby
+producer: create-note
+status: captured
+topic: "A Noted Thing"
+ticket: "PROJ-1234"
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# A Noted Thing
+EOF
+git_init "$P3BC"
+run_0007_direct "$P3BC"
+assert_eq "Phase 3 direct run exits 0" "0" "$DIRECT_RC"
+assert_contains "Phase 3 dropped-legacy-key breadcrumb fired" \
+  "$DIRECT_ERR" "0007-DIVERGE[dropped-legacy-key]"
+
+# Integration (0001 -> 0007, same session): a meta/tickets/ file with ticket_id
+# run through a dir containing BOTH migrations lands as meta/work/ with id:.
+echo "=== Phase 3: 0001 -> 0007 same-session integration ==="
+BOTH="$TMP/both-0001-0007"
+mkdir -p "$BOTH"
+cp "$M0001" "$BOTH/"
+cp "$MIGRATION" "$BOTH/"
+TIX="$TMP/tickets"
+mkdir -p "$TIX/meta/tickets"
+cat >"$TIX/meta/tickets/0070-foo.md" <<'EOF'
+---
+type: work-item
+ticket_id: "0070"
+title: "Foo Ticket"
+date: "2026-01-01T00:00:00+00:00"
+author: Toby
+producer: create-work-item
+kind: story
+priority: high
+status: ready
+tags: []
+last_updated: "2026-01-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Foo Ticket
+EOF
+git_init "$TIX"
+TIX_RC=0
+(cd "$TIX" && PROJECT_ROOT="$TIX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATIONS_DIR="$BOTH" ACCELERATOR_MIGRATE_FORCE=1 \
+  bash "$DRIVER" >/dev/null 2>&1 </dev/null) || TIX_RC=$?
+assert_eq "Phase 3 two-migration run exits 0" "0" "$TIX_RC"
+assert_file_exists "Phase 3 ticket landed under meta/work/" "$TIX/meta/work/0070-foo.md"
+assert_dir_not_exists "Phase 3 meta/tickets/ removed" "$TIX/meta/tickets"
+assert_contains "Phase 3 work_item_id -> id" \
+  "$(fm_line "$TIX/meta/work/0070-foo.md" id)" 'id: "0070"'
+assert_not_contains "Phase 3 no ticket_id survives the sequence" \
+  "$(cat "$TIX/meta/work/0070-foo.md")" "ticket_id:"
+assert_validates "Phase 3 two-migration corpus validates" "$TIX/meta"
+
+# Combined idempotency: re-running BOTH migrations DIRECTLY (the runner ledger
+# would otherwise skip applied migrations) over the migrated corpus is a no-op.
+git -C "$TIX" add -A && git -C "$TIX" commit -q -m migrated >/dev/null 2>&1
+(cd "$TIX" && PROJECT_ROOT="$TIX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  bash "$M0001" >/dev/null 2>&1) || true
+run_0007_direct "$TIX"
+assert_empty "Phase 3 combined second pass is an empty meta/ diff" \
+  "$(git -C "$TIX" status --porcelain meta/ || true)"
+
+# Integration (0001 pre-applied, cross-session): only 0007 runs over an
+# already-renamed meta/work/ corpus; the drop is a no-op and the run idempotent.
+echo "=== Phase 3: 0001 pre-applied, 0007-alone cross-session ==="
+XS="$TMP/cross-session"
+mkdir -p "$XS/meta/work" "$XS/.accelerator/state"
+cat >"$XS/meta/work/0071-bar.md" <<'EOF'
+---
+type: work-item
+work_item_id: "0071"
+title: "Bar"
+date: "2026-01-01T00:00:00+00:00"
+author: Toby
+producer: create-work-item
+kind: story
+priority: high
+status: ready
+tags: []
+last_updated: "2026-01-01T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Bar
+EOF
+printf '0001-rename-tickets-to-work\n' >"$XS/.accelerator/state/migrations-applied"
+git_init "$XS"
+run_0007 "$XS"
+assert_eq "Phase 3 cross-session run exits 0" "0" "$RUN_RC"
+assert_contains "Phase 3 cross-session work_item_id -> id" \
+  "$(fm_line "$XS/meta/work/0071-bar.md" id)" 'id: "0071"'
+assert_not_contains "Phase 3 cross-session no ticket_id" \
+  "$(cat "$XS/meta/work/0071-bar.md")" "ticket_id:"
+git -C "$XS" add -A && git -C "$XS" commit -q -m migrated >/dev/null 2>&1
+run_0007_direct "$XS"
+assert_empty "Phase 3 cross-session second run is an empty meta/ diff" \
+  "$(git -C "$XS" status --porcelain meta/ || true)"
+
 test_summary

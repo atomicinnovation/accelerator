@@ -679,26 +679,29 @@ silently destroyed; an empty key drops quietly:
 
 #### Automated Verification
 
-- [ ] **Red step**: a `note` carrying `ticket: "PROJ-1234"` reports
+- [x] **Red step**: a `note` carrying `ticket: "PROJ-1234"` reports
       `OBSOLETE-LEGACY-KEY` before the fix (`assert_violation`).
-- [ ] A `note` with `ticket: "PROJ-1234"` → `ticket` removed (asserted absent),
-      validates clean, and `0007-DIVERGE[dropped-legacy-key]` asserted present in
-      the run output (non-empty value surfaced).
-- [ ] A non-note type carrying `ticket_id:` → `ticket_id` removed regardless of
+- [x] A `note` with `ticket: "PROJ-1234"` → `ticket` removed (asserted absent),
+      validates clean, and `0007-DIVERGE[dropped-legacy-key]` asserted present
+      (via a direct run — see Phase 2 note on the runner deleting migration stderr).
+- [x] A non-note type carrying `ticket_id:` → `ticket_id` removed regardless of
       value.
-- [ ] **Integration (0001 → 0007, same session)**: a `meta/tickets/NNNN-foo.md`
+- [x] **Integration (0001 → 0007, same session)**: a `meta/tickets/NNNN-foo.md`
       with `ticket_id:` run through a migrations dir containing **both** 0001 and
       0007 → lands as `meta/work/NNNN-foo.md` with `id: "NNNN"` (0001 renamed
       `ticket_id`→`work_item_id`, dir moved to `meta/work/`, 0007 folded
       `work_item_id`→`id`), with no `ticket_id` surviving and no data clobbered.
-- [ ] **Integration (0001 pre-applied, cross-session)**: the more common
+- [x] **Integration (0001 pre-applied, cross-session)**: the more common
       downstream path — 0001 already recorded applied, only the new 0007 runs over
       an already-renamed `meta/work/NNNN-foo.md` → the unconditional
       `ticket`/`ticket_id` drop is a no-op on the 0001-output shape and the run is
       idempotent.
-- [ ] **Combined idempotency**: a second pass of the two-migration sequence over
-      the already-migrated tickets corpus leaves an empty working-tree diff.
-- [ ] `bash skills/config/migrate/scripts/test-migrate-0007.sh` green; `mise run check`
+- [x] **Combined idempotency**: a second pass of the two-migration sequence over
+      the already-migrated tickets corpus leaves an empty working-tree diff (the
+      second pass re-runs both migrations DIRECTLY, since the runner ledger skips
+      already-applied migrations).
+- [x] `bash skills/config/migrate/scripts/test-migrate-0007.sh` green; `mise run check`
+      (full `mise run check` deferred to end; `scripts:check` green)
 
 #### Manual Verification
 
