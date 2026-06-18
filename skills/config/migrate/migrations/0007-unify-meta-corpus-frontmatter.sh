@@ -62,9 +62,15 @@ schema_row() {
   awk -F'\t' -v t="$1" 'NR > 1 && $2 == t { print; exit }' "$SCHEMA_TSV"
 }
 anchored_for_type() { schema_row "$1" | cut -f3; }
-extras_for_type() { schema_row "$1" | cut -f5; }
-status_vocab_for_type() { schema_row "$1" | cut -f5- | cut -f1; } # 5th col
-# Status vocab is column 5; re-extract cleanly.
+# Space-joined extras for a type (schema TSV col 4); "-" → empty. (Was wrongly
+# cut -f5 — status_vocab — and dead; now correct and live in the extras backfill.)
+extras_for_type() {
+  local v
+  v="$(schema_row "$1" | cut -f4)"
+  [ "$v" = "-" ] && v=""
+  printf '%s' "$v"
+}
+# Status vocab is column 5.
 status_vocab_of() { schema_row "$1" | awk -F'\t' '{print $5}'; }
 
 own_id_key_for_type() {
@@ -147,6 +153,49 @@ fm_inner() {
       ;;
   esac
   printf '%s' "$v"
+}
+
+# Empty-placeholder test, mirroring the awk is_empty_val and the validator's
+# EMPTY-PLACEHOLDER rule. Keep the three in lockstep. Used by the required-extras
+# backfill so a present-but-empty placeholder ("" / []) counts as absent (the awk
+# would otherwise drop it via omit-when-empty, leaving the file MISSING-EXTRA).
+fm_is_empty_val() { case "$1" in '' | '""' | '[]') return 0 ;; *) return 1 ;; esac }
+
+# Echo the default value for a required extra, or empty if none derivable.
+# CRITICAL: every command substitution here must succeed under `set -euo
+# pipefail` — an unguarded pipe whose grep finds no match exits non-zero and
+# aborts the whole migration mid-rewrite (the exact permanent-stall this fixes).
+# Hence the `|| true` guards.
+extra_default() { # $1=extra-name $2=file $3=stem $4=title
+  local n
+  case "$1" in
+    topic)
+      # ← title, with embedded quotes stripped (parity with title_default's
+      # `tr -d '"'`; an unescaped " in a double-quoted scalar is invalid YAML).
+      printf '%s' "$4" | tr -d '"'
+      ;;
+    pr_number)
+      # PR-anchored number: digits of a genuine pr-/PR- *segment* — the `pr` token
+      # must be at start-of-stem or preceded by a hyphen, so a `pr` embedded in a
+      # word (expr-3, improve-2) does NOT match.
+      n="$(printf '%s' "$3" | grep -oE '(^|-)[Pp][Rr]-?[0-9]+' | grep -oE '[0-9]+' | head -1 || true)"
+      # Leading-number fallback ONLY for a stem that is NOT date-prefixed (e.g.
+      # 240-description → 240). A date-prefixed, pr-token-less stem
+      # (2026-06-17-summary, 2026-06-17-0114-foo) has no derivable PR number →
+      # stays empty, so the builder breadcrumbs it rather than fabricating a part.
+      if [ -z "$n" ]; then
+        case "$3" in
+          [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*) : ;; # date-prefixed → no fallback
+          *) n="$(printf '%s' "$3" | grep -oE '^[0-9]+' | head -1 || true)" ;;
+        esac
+      fi
+      printf '%s' "$n"
+      ;;
+    review_number) printf '1' ;;
+    verdict) printf 'unknown' ;; # sentinel
+    lenses) printf 'unknown' ;;  # sentinel (emitted as a list)
+    *) printf '' ;;              # no derivable default → not backfilled
+  esac
 }
 
 # ── VCS author resolution (jj then git; LANG=C; Unknown on absence/failure) ──
@@ -276,6 +325,10 @@ backfill_file() {
   # on a quoted flow scalar ending in trailing whitespace).
   h1="$(awk '/^# / { sub(/^# /, ""); sub(/[[:space:]]+$/, ""); print; exit }' "$f" || true)"
   title="${h1:-$stem}"
+  # Strip embedded quotes — an unescaped " inside a double-quoted scalar is
+  # invalid YAML (parity with the fenced rewrite's title_default path). Applies
+  # to both the title: and the topic: emitted below.
+  title="$(printf '%s' "$title" | tr -d '"')"
   # Date from a leading YYYY-MM-DD filename prefix, else Unknown→skip date seed.
   date="$(printf '%s' "$stem" | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)"
   if [ -n "$date" ]; then iso="${date}T00:00:00+00:00"; else iso=""; fi
@@ -301,8 +354,13 @@ backfill_file() {
     if [ "$type" = "note" ]; then
       printf 'producer: create-note\n'
       printf 'status: captured\n'
-      printf 'topic: "%s"\n' "$title"
     fi
+    case "$type" in
+      note | codebase-research | issue-research)
+        # title is already quote-stripped above (parity with the fenced path).
+        printf 'topic: "%s"\n' "$title"
+        ;;
+    esac
     printf 'tags: []\n'
     if [ "$(anchored_for_type "$type")" = "yes" ]; then
       [ -n "$revision" ] && printf 'revision: "%s"\n' "$revision"
@@ -406,12 +464,35 @@ rewrite_file() {
     revision_default="$RESOLVED_REVISION"
   fi
 
+  # Build a SINGLE packed channel of required-and-absent extras to backfill, one
+  # `name=value` record per extra, separated by an ASCII Unit Separator (0x1F)
+  # that cannot occur in a single-line YAML scalar (safe under LC_ALL=C) — NOT a
+  # printable `;`, which a topic (an arbitrary user H1) could legitimately carry.
+  # One packed -v (parsed by a generic awk emit loop) instead of one -v per extra
+  # keeps a future schema extra from needing a new awk parameter.
+  local US backfill_extras="" ex dv cur_title
+  US=$'\x1F'
+  # Resolved current title: prefer the file's own title:, else the H1/stem default.
+  cur_title="$(fm_inner "$(fm_get title "$f")")"
+  [ -n "$cur_title" ] || cur_title="$title_default"
+  for ex in $(extras_for_type "$type"); do
+    case " $FM_OPTIONAL_EXTRAS " in *" $ex "*) continue ;; esac # optional → skip
+    fm_is_empty_val "$(fm_get "$ex" "$f")" || continue          # present & non-empty → skip
+    dv="$(extra_default "$ex" "$f" "$stem" "$cur_title")"
+    dv="${dv//$US/}" # defence-in-depth: strip any stray US byte from the value
+    if [ -z "$dv" ]; then
+      log_warn "0007-DIVERGE[missing-extra-no-default]: $f — required extra '$ex' has no derivable default; left absent" >&2
+      continue
+    fi
+    backfill_extras="${backfill_extras:+$backfill_extras$US}${ex}=${dv}"
+  done
+
   local tmp_out tmp_err
   tmp_out="$(mktemp)"
   tmp_err="$(mktemp)"
   awk -f "$FRAG_AWK" -f "$BODY_AWK" \
     -v file="$f" -v type="$type" -v anchored="$anchored" -v own_id_key="$own" \
-    -v forbidden="$forbidden" \
+    -v forbidden="$forbidden" -v backfill_extras="$backfill_extras" \
     -v id_from_stem="$idstem" -v repo_name="$repo" \
     -v statusvocab="$vocab" -v statusmap="$smap" \
     -v title_default="$title_default" -v author_default="$author_default" \
@@ -620,6 +701,15 @@ migration_verify_applied() {
 migration_session_log_path() {
   printf '.accelerator/state/migrations-%s-session.jsonl\n' "${MIGRATION_ID:-0007-unify-meta-corpus-frontmatter}"
 }
+
+# Test-only seam (never set in production, mirrors the SCHEMA_TSV/
+# DOC_TYPE_INFERENCE overrides): when sourced with this sentinel, stop here so the
+# suite can unit-test the pure helpers (extra_default, forbidden_keys_for_type,
+# …) without triggering the corpus orchestration / interactive harness below.
+# `return` when sourced (the test path); `exit 0` is the defensive
+# executed-with-sentinel fallback ShellCheck cannot see is reachable.
+# shellcheck disable=SC2317
+if [ "${ACCELERATOR_0007_NO_RUN:-}" = "1" ]; then return 0 2>/dev/null || exit 0; fi
 
 # ── Orchestration: (0) pre-pass → (1) backfill → (2) rewrite → (3) harness ───
 # Everything before harness_run goes to stderr — the runner parses this

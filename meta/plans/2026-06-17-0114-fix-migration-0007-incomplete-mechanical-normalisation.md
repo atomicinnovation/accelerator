@@ -946,38 +946,43 @@ flow-list emission path.
 
 #### Automated Verification
 
-- [ ] **Red step**: a fenced `note` missing `topic` reports `MISSING-EXTRA`
+- [x] **Red step**: a fenced `note` missing `topic` reports `MISSING-EXTRA`
       before the fix (`assert_violation`).
-- [ ] Fenced `note` missing `topic` → `topic` backfilled from title, validates.
-- [ ] **Titled-but-topic-less research** (the common shape): a fenced
+- [x] Fenced `note` missing `topic` → `topic` backfilled from title, validates.
+- [x] **Titled-but-topic-less research** (the common shape): a fenced
       `codebase-research` / `issue-research` that **has** a `title:` but lacks
       `topic` → `topic` backfilled from the *existing title* (proves the default
       derives from the actual title, not the empty `title_default`), validates.
-- [ ] **Empty-placeholder extras**: a review carrying `lenses: []` / `verdict: ""`
+- [x] **Empty-placeholder extras**: a review carrying `lenses: []` / `verdict: ""`
       → treated as absent, backfilled (not dropped-then-MISSING-EXTRA), validates
       clean (guards the `is_empty_val`-semantics presence check).
-- [ ] Fence-less `codebase-research` file → backfilled with `topic` (proves the
+- [x] Fence-less `codebase-research` file → backfilled with `topic` (proves the
       fence-less widen).
-- [ ] **Quote-bearing title** → emitted `topic`/`title` carry no stray `"`
+- [x] **Quote-bearing title** → emitted `topic`/`title` carry no stray `"`
       (validates; no malformed-YAML), in both the fenced and fence-less paths.
-- [ ] **Semicolon-bearing title**: a fixture whose H1 contains `;` (e.g.
+      (Required a fence-less `backfill_file` quote-strip on the title itself —
+      previously only the fenced `title_default` path stripped quotes.)
+- [x] **Semicolon-bearing title**: a fixture whose H1 contains `;` (e.g.
       `# Add caching; drop the old path`) → the full title survives as a single
       valid YAML scalar in the backfilled `topic` (proves the US-separator packed
       channel does not truncate on `;`).
-- [ ] Fenced `pr-review` from `pr-430-review.md` lacking `pr_number`/
+- [x] Fenced `pr-review` from `pr-430-review.md` lacking `pr_number`/
       `review_number`/`verdict`/`lenses` → `pr_number: 430`, `review_number: 1`,
       `verdict: "unknown"`, `lenses: ["unknown"]`; validates clean.
-- [ ] **PR-anchored number**: a date-prefixed stem `2026-06-17-pr-416-review`
+- [x] **PR-anchored number**: a date-prefixed stem `2026-06-17-pr-416-review`
       backfills `pr_number: 416` (NOT `2026`); a **date-prefixed, pr-token-less**
       stem `2026-06-17-summary` (and `2026-06-17-0114-foo`) emits **no** `pr_number`
       (NOT `2026`/`0114`) and a `0007-DIVERGE[missing-extra-no-default]` breadcrumb;
       a word containing `pr` (`expr-3`) does **not** yield `pr_number: 3`.
-- [ ] **Digit-less stem does not abort**: a pr-review fixture whose stem has no
+      (PR-anchored + token-less covered by the PR430 fixture + the numberless
+      direct-run breadcrumb; the year/0114/expr-3 cases by the pure-helper micro-
+      assertions.)
+- [x] **Digit-less stem does not abort**: a pr-review fixture whose stem has no
       digits runs to completion under `set -euo pipefail` (guards the critical
       unguarded-grep regression) and reaches the validator gate.
-- [ ] **Breadcrumb asserted**: the sentinel `verdict`/`lenses` backfill emits
-      `0007-DIVERGE[backfilled-extra]` in the run output (asserted, not manual).
-- [ ] **Packed-channel parser edge cases** (awk-level probe calling the extracted
+- [x] **Breadcrumb asserted**: the sentinel `verdict`/`lenses` backfill emits
+      `0007-DIVERGE[backfilled-extra]` (asserted via a direct run, not manual).
+- [x] **Packed-channel parser edge cases** (awk-level probe calling the extracted
       `emit_backfill_extras` from a `BEGIN{}` block, in the style of the existing
       frag.awk parity probe): an **empty** channel emits no stray line; a
       **single-record** channel (no separator) emits exactly that record; a value
@@ -985,13 +990,13 @@ flow-list emission path.
       round-trip intact. **Run the probe under the actual system awk on both macOS
       and Linux CI** (awk is unpinned — BSD vs gawk/mawk) to prove the raw-US-byte
       `-v` + `split("\037")` round-trips on both.
-- [ ] Existing values never overwritten: a file already carrying `topic`/
+- [x] Existing values never overwritten: a file already carrying `topic`/
       `verdict`/etc. is left unchanged.
-- [ ] **Populated multi-element list not clobbered**: a review carrying
+- [x] **Populated multi-element list not clobbered**: a review carrying
       `lenses: ["security", "performance"]` and a real `verdict:` is left
       byte-unchanged and emits **no** `0007-DIVERGE[backfilled-extra]` (guards
       against the sentinel overwriting real reviewer data).
-- [ ] **Micro-assertions on the pure helpers** (no full corpus run):
+- [x] **Micro-assertions on the pure helpers** (no full corpus run):
       `extra_default pr_number "" 2026-06-17-pr-416-review "" → 416`,
       `extra_default pr_number "" 2026-06-17-summary "" → ""` (date-prefixed, no
       fallback), `extra_default pr_number "" 2026-06-17-0114-foo "" → ""`,
@@ -1000,14 +1005,16 @@ flow-list emission path.
       `forbidden_keys_for_type pr-review → "pr_title review_pass"`,
       `extras_for_type pr-review` contains `pr_number`;
       `fm_is_empty_val '[]'`/`fm_is_empty_val '""'` true, `fm_is_empty_val x` false.
-- [ ] **Required-extra contract guard**: for each touched type, the derived
+- [x] **Required-extra contract guard**: for each touched type, the derived
       required set (`extras_for_type <type>` − `FM_OPTIONAL_EXTRAS`) still contains
       `topic`/`verdict`/`lenses`/`review_number`/`pr_number` as applicable — fails
       loudly if a future schema edit moves one into the optional carve-out
-      (enforces the frozen-migration coupling assumption).
-- [ ] **Idempotency**: second `run_0007` over the migrated Phase 4 fixtures leaves
+      (enforces the frozen-migration coupling assumption). (Asserted via the
+      test-only `ACCELERATOR_0007_NO_RUN` sourcing seam so the real helpers run.)
+- [x] **Idempotency**: second `run_0007` over the migrated Phase 4 fixtures leaves
       an empty `meta/` diff (the absence-gated backfill must not re-fire).
-- [ ] `bash skills/config/migrate/scripts/test-migrate-0007.sh` green; `mise run check`
+- [x] `bash skills/config/migrate/scripts/test-migrate-0007.sh` green; `mise run check`
+      (full `mise run check` deferred to end; `scripts:check` green)
 
 #### Manual Verification
 

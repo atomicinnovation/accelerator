@@ -1017,4 +1017,326 @@ run_0007_direct "$XS"
 assert_empty "Phase 3 cross-session second run is an empty meta/ diff" \
   "$(git -C "$XS" status --porcelain meta/ || true)"
 
+# ── Phase 4: required-extras backfill ────────────────────────────────────────
+echo "=== Phase 4: required type-extras backfilled (topic/pr_number/...) ==="
+P4="$TMP/phase4"
+mkdir -p "$P4/meta/notes" "$P4/meta/research/codebase" "$P4/meta/reviews/prs"
+
+# N: fenced note, has title, NO topic.
+cat >"$P4/meta/notes/2026-06-20-a-fenced-note.md" <<'EOF'
+---
+type: note
+id: "2026-06-20-a-fenced-note"
+title: "A Fenced Note"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+producer: create-note
+status: captured
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# A Fenced Note
+EOF
+
+# R: fenced codebase-research, HAS title, NO topic (proves topic derives from the
+# existing title, not the empty title_default).
+cat >"$P4/meta/research/codebase/2026-06-20-some-research.md" <<'EOF'
+---
+type: codebase-research
+id: "2026-06-20-some-research"
+title: "Some Research Topic"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Some Research Topic
+EOF
+
+# RV: fenced pr-review carrying EMPTY placeholders (lenses: [] / verdict: "").
+cat >"$P4/meta/reviews/prs/2026-06-20-pr-200-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-20-pr-200-review"
+title: "PR 200 Review"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+verdict: ""
+lenses: []
+review_number: 1
+pr_number: 200
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 200 Review
+EOF
+
+# PR430: fenced pr-review missing pr_number/review_number/verdict/lenses.
+cat >"$P4/meta/reviews/prs/2026-06-17-pr-430-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-17-pr-430-review"
+title: "PR 430 Review"
+date: "2026-06-17T00:00:00+00:00"
+author: Toby
+status: complete
+tags: []
+last_updated: "2026-06-17T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 430 Review
+EOF
+
+# EX: fenced note that ALREADY carries topic (must not be overwritten).
+cat >"$P4/meta/notes/2026-06-20-has-topic.md" <<'EOF'
+---
+type: note
+id: "2026-06-20-has-topic"
+title: "Has Topic"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+producer: create-note
+status: captured
+topic: "Existing Topic"
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Has Topic
+EOF
+
+# SEMI: fenced research whose title carries a ';' (US-channel must not truncate).
+cat >"$P4/meta/research/codebase/2026-06-20-semicolon.md" <<'EOF'
+---
+type: codebase-research
+id: "2026-06-20-semicolon"
+title: "Add caching; drop the old path"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Add caching; drop the old path
+EOF
+
+# QFENCED: fenced research with NO title and a quote-bearing H1 (title_default +
+# topic must both be quote-free).
+cat >"$P4/meta/research/codebase/2026-06-20-quoted-fenced.md" <<'EOF'
+---
+type: codebase-research
+id: "2026-06-20-quoted-fenced"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Quoted "Research" Title
+EOF
+
+# FL: fence-less codebase-research (exercises the widened fence-less topic seed).
+printf '# Fence-less Research\n\nA pre-frontmatter research note.\n' \
+  >"$P4/meta/research/codebase/2026-06-20-fenceless.md"
+
+# QF: fence-less note with a quote-bearing H1 (title + topic must be quote-free).
+printf '# A "Quoted" Note\n\nObservation.\n' \
+  >"$P4/meta/notes/2026-06-20-quoted.md"
+
+git_init "$P4"
+
+# Red step: the fenced note missing topic reports MISSING-EXTRA before the fix.
+assert_violation "Phase 4 red: fenced note missing topic is MISSING-EXTRA" \
+  "MISSING-EXTRA" "$P4/meta/notes/2026-06-20-a-fenced-note.md"
+
+run_0007 "$P4"
+assert_eq "Phase 4 corpus exits 0" "0" "$RUN_RC"
+
+assert_contains "Phase 4 N: topic backfilled from title" \
+  "$(fm_line "$P4/meta/notes/2026-06-20-a-fenced-note.md" topic)" 'topic: "A Fenced Note"'
+assert_contains "Phase 4 R: topic from EXISTING title (not empty default)" \
+  "$(fm_line "$P4/meta/research/codebase/2026-06-20-some-research.md" topic)" 'topic: "Some Research Topic"'
+assert_contains "Phase 4 RV: empty verdict placeholder backfilled" \
+  "$(fm_line "$P4/meta/reviews/prs/2026-06-20-pr-200-review.md" verdict)" 'verdict: "unknown"'
+assert_contains "Phase 4 RV: empty lenses placeholder backfilled" \
+  "$(fm_line "$P4/meta/reviews/prs/2026-06-20-pr-200-review.md" lenses)" 'lenses: ["unknown"]'
+PR430F="$P4/meta/reviews/prs/2026-06-17-pr-430-review.md"
+assert_contains "Phase 4 PR430: pr_number from pr-token (not the year)" \
+  "$(fm_line "$PR430F" pr_number)" 'pr_number: 430'
+assert_contains "Phase 4 PR430: review_number defaulted to 1" \
+  "$(fm_line "$PR430F" review_number)" 'review_number: 1'
+assert_contains "Phase 4 PR430: verdict sentinel" \
+  "$(fm_line "$PR430F" verdict)" 'verdict: "unknown"'
+assert_contains "Phase 4 PR430: lenses sentinel" \
+  "$(fm_line "$PR430F" lenses)" 'lenses: ["unknown"]'
+assert_contains "Phase 4 EX: existing topic NOT overwritten" \
+  "$(fm_line "$P4/meta/notes/2026-06-20-has-topic.md" topic)" 'topic: "Existing Topic"'
+assert_contains "Phase 4 SEMI: ';'-bearing title survives intact" \
+  "$(fm_line "$P4/meta/research/codebase/2026-06-20-semicolon.md" topic)" 'topic: "Add caching; drop the old path"'
+assert_eq "Phase 4 QFENCED: title quote-free" 'title: "Quoted Research Title"' \
+  "$(fm_line "$P4/meta/research/codebase/2026-06-20-quoted-fenced.md" title)"
+assert_eq "Phase 4 QFENCED: topic quote-free" 'topic: "Quoted Research Title"' \
+  "$(fm_line "$P4/meta/research/codebase/2026-06-20-quoted-fenced.md" topic)"
+assert_contains "Phase 4 FL: fence-less research topic seeded" \
+  "$(fm_line "$P4/meta/research/codebase/2026-06-20-fenceless.md" topic)" 'topic: "Fence-less Research"'
+assert_eq "Phase 4 QF: fence-less title quote-free" 'title: "A Quoted Note"' \
+  "$(fm_line "$P4/meta/notes/2026-06-20-quoted.md" title)"
+assert_eq "Phase 4 QF: fence-less topic quote-free" 'topic: "A Quoted Note"' \
+  "$(fm_line "$P4/meta/notes/2026-06-20-quoted.md" topic)"
+
+assert_validates "Phase 4 corpus validates clean" "$P4/meta"
+
+# Idempotency.
+git -C "$P4" add -A && git -C "$P4" commit -q -m migrated >/dev/null 2>&1
+run_0007 "$P4"
+assert_empty "Phase 4 second run is an empty meta/ diff" \
+  "$(git -C "$P4" status --porcelain meta/ || true)"
+
+# Breadcrumbs (direct run): sentinel backfill emits backfilled-extra; a numberless
+# pr-review emits missing-extra-no-default for pr_number AND runs to completion
+# under set -euo pipefail (the unguarded-grep regression guard).
+echo "=== Phase 4: backfill breadcrumbs + no-default (direct run) ==="
+P4BC="$TMP/phase4-breadcrumb"
+mkdir -p "$P4BC/meta/reviews/prs"
+cat >"$P4BC/meta/reviews/prs/no-pr-number-review.md" <<'EOF'
+---
+type: pr-review
+id: "no-pr-number-review"
+title: "Numberless Review"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Numberless Review
+EOF
+git_init "$P4BC"
+run_0007_direct "$P4BC"
+assert_contains "Phase 4 backfilled-extra breadcrumb fired (verdict/lenses)" \
+  "$DIRECT_ERR" "0007-DIVERGE[backfilled-extra]"
+assert_contains "Phase 4 missing-extra-no-default breadcrumb (pr_number)" \
+  "$DIRECT_ERR" "0007-DIVERGE[missing-extra-no-default]"
+# Completion-without-abort: review_number/verdict were still backfilled, proving
+# the numberless extra_default did NOT abort the migration mid-rewrite.
+assert_contains "Phase 4 numberless review still backfilled (no mid-rewrite abort)" \
+  "$(fm_line "$P4BC/meta/reviews/prs/no-pr-number-review.md" review_number)" 'review_number: 1'
+assert_not_contains "Phase 4 numberless review has no fabricated pr_number" \
+  "$(cat "$P4BC/meta/reviews/prs/no-pr-number-review.md")" "pr_number:"
+
+# Populated lists are not clobbered and emit NO backfill breadcrumb.
+echo "=== Phase 4: populated extras not clobbered (direct run) ==="
+P4POP="$TMP/phase4-populated"
+mkdir -p "$P4POP/meta/reviews/prs"
+cat >"$P4POP/meta/reviews/prs/2026-06-20-pr-209-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-20-pr-209-review"
+title: "PR 209 Review"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+verdict: approve
+lenses: ["security", "performance"]
+review_number: 2
+pr_number: 209
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 209 Review
+EOF
+POPF="$P4POP/meta/reviews/prs/2026-06-20-pr-209-review.md"
+POP_BEFORE="$(cat "$POPF")"
+git_init "$P4POP"
+run_0007_direct "$P4POP"
+assert_eq "Phase 4 direct run on populated review exits 0" "0" "$DIRECT_RC"
+assert_eq "Phase 4 populated multi-element lenses byte-unchanged" "$POP_BEFORE" "$(cat "$POPF")"
+assert_not_contains "Phase 4 no backfilled-extra breadcrumb on populated review" \
+  "$DIRECT_ERR" "0007-DIVERGE[backfilled-extra]"
+
+# Packed-channel parser edge cases (awk BEGIN{} probe over the actual system awk).
+echo "=== Phase 4: packed-channel parser edge cases (awk probe) ==="
+BF_PROBE="$TMP/bf-probe.awk"
+cat >"$BF_PROBE" <<'AWK'
+BEGIN { emit_backfill_extras(packed) }
+AWK
+US=$(printf '\037')
+bf_empty="$(awk -f "$FRAG" -f "$BODY" -f "$BF_PROBE" -v packed="" </dev/null 2>/dev/null)"
+bf_single="$(awk -f "$FRAG" -f "$BODY" -f "$BF_PROBE" -v packed="topic=Solo" </dev/null 2>/dev/null)"
+bf_multi="$(awk -f "$FRAG" -f "$BODY" -f "$BF_PROBE" -v packed="topic=a=b${US}review_number=2" </dev/null 2>/dev/null)"
+bf_space="$(awk -f "$FRAG" -f "$BODY" -f "$BF_PROBE" -v packed="topic=has space here" </dev/null 2>/dev/null)"
+assert_empty "Phase 4 packed-probe: empty channel emits nothing" "$bf_empty"
+assert_eq "Phase 4 packed-probe: single record" 'topic: "Solo"' "$bf_single"
+assert_eq "Phase 4 packed-probe: =-in-value split on first = + multi record" \
+  "$(printf 'topic: "a=b"\nreview_number: 2')" "$bf_multi"
+assert_eq "Phase 4 packed-probe: space-bearing value intact" 'topic: "has space here"' "$bf_space"
+
+# Pure-helper micro-assertions + frozen-migration required-extra contract guard
+# (sources the migration with the test-only ACCELERATOR_0007_NO_RUN seam so the
+# REAL functions are exercised, not a drift-prone re-derivation).
+echo "=== Phase 4: pure-helper micro-assertions + contract guard ==="
+micro_rc=0
+micro_out="$(ACCELERATOR_0007_NO_RUN=1 PROJECT_ROOT="$TMP" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  SCHEMA_TSV="$PLUGIN_ROOT/scripts/templates-schema.tsv" bash -c '
+    source "$0"
+    fail() { echo "MICRO-FAIL: $1"; exit 1; }
+    [ "$(extra_default pr_number "" 2026-06-17-pr-416-review "")" = "416" ] || fail pr416
+    [ "$(extra_default pr_number "" 2026-06-17-summary "")" = "" ] || fail summary
+    [ "$(extra_default pr_number "" 2026-06-17-0114-foo "")" = "" ] || fail dateid
+    [ "$(extra_default pr_number "" 240-description "")" = "240" ] || fail bare240
+    [ "$(extra_default pr_number "" expr-3-foo "")" = "" ] || fail expr3
+    [ "$(forbidden_keys_for_type pr-review)" = "pr_title review_pass" ] || fail forbidden
+    case " $(extras_for_type pr-review) " in *" pr_number "*) : ;; *) fail extras_prnum ;; esac
+    fm_is_empty_val "[]" || fail emptylist
+    fm_is_empty_val "\"\"" || fail emptystr
+    fm_is_empty_val x && fail nonempty
+    # Frozen-migration contract guard: the derived required set still carries the
+    # extras 0007 backfills (fails loudly if a schema edit moves one to optional).
+    required_set() {
+      local out="" e
+      for e in $(extras_for_type "$1"); do
+        case " $FM_OPTIONAL_EXTRAS " in *" $e "*) continue ;; esac
+        out="$out $e"
+      done
+      printf "%s" "$out"
+    }
+    for x in verdict lenses review_number pr_number; do
+      case " $(required_set pr-review) " in *" $x "*) : ;; *) fail "contract_prreview_$x" ;; esac
+    done
+    for t in note codebase-research issue-research; do
+      case " $(required_set "$t") " in *" topic "*) : ;; *) fail "contract_topic_$t" ;; esac
+    done
+    echo OK
+  ' "$MIGRATION" 2>&1)" || micro_rc=$?
+assert_eq "Phase 4 pure-helper + contract micro-assertions pass" "0" "$micro_rc"
+assert_contains "Phase 4 micro battery reached OK" "$micro_out" "OK"
+
 test_summary

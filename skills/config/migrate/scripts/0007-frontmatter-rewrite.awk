@@ -179,6 +179,34 @@ function omit_when_empty_key(k) {
 }
 function is_empty_val(v) { return (v == "" || v == "\"\"" || v == "[]") }
 
+function diverge_backfill(k) {
+  print "0007-DIVERGE[backfilled-extra]: " file " — " k " backfilled with sentinel; review manually" > "/dev/stderr"
+}
+
+# Parse "name=value\037name=value…" (built shell-side in rewrite_file) and emit
+# one frontmatter line per record. Pure/callable so a BEGIN{} probe can exercise
+# the empty / single-record / =-in-value cases. Split on the octal Unit Separator
+# (== the shell builder's $'\x1F' — same byte, two encodings); index() splits each
+# record on the FIRST `=` so a value may itself contain `=`.
+#
+# The list-vs-scalar cardinality is HARD-CODED here (lenses is the sole list
+# extra today; the TSV carries no cardinality column, so the schema-column guard
+# cannot pin it) — a future list-valued required extra needs a branch here.
+function emit_backfill_extras(packed,   nbf, bfa, bi, eq, bk, bv) {
+  if (packed == "") return
+  nbf = split(packed, bfa, "\037")
+  for (bi = 1; bi <= nbf; bi++) {
+    eq = index(bfa[bi], "=")
+    if (eq == 0) continue # malformed record → skip
+    bk = substr(bfa[bi], 1, eq - 1)
+    bv = substr(bfa[bi], eq + 1)
+    if (bk == "lenses") { print "lenses: [\"" bv "\"]"; diverge_backfill(bk) }
+    else if (bk == "verdict") { print "verdict: " fm_normalise_value(bv); diverge_backfill(bk) }
+    else if (bk == "pr_number" || bk == "review_number") print bk ": " bv
+    else print bk ": " fm_normalise_value(bv) # topic and any future scalar extra
+  }
+}
+
 BEGIN {
   in_fm = 0; seen_open = 0
   date_value = ""        # normalised date, for seeding last_updated
@@ -236,6 +264,9 @@ in_fm && fm_is_fence($0) {
       else print "0007-DIVERGE[nonconforming-base-field]: " file " — anchored type missing repository" > "/dev/stderr"
     }
   }
+  # Backfill required type-extras the file lacked (topic/pr_number/review_number/
+  # verdict/lenses), computed caller-side as a packed name=value channel.
+  emit_backfill_extras(backfill_extras)
   in_fm = 0
   print; next
 }
