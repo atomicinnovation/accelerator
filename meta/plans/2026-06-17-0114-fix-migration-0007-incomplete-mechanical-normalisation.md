@@ -1073,26 +1073,27 @@ alone. An already-typed `"plan:2026-…"` is likewise untouched, since `pl` fail
 
 #### Automated Verification
 
-- [ ] **Red step**: `target: "PR #416"` reports `BAD-LINKAGE-SHAPE` before the
+- [x] **Red step**: `target: "PR #416"` reports `BAD-LINKAGE-SHAPE` before the
       fix (`assert_violation`).
-- [ ] `target: "PR #416"` → `target: "pr:416"`, validates clean (`pr:` tolerated
+- [x] `target: "PR #416"` → `target: "pr:416"`, validates clean (`pr:` tolerated
       by `FM_TYPED_REF_RE` and skipped from the dangling-ref lookup).
-- [ ] `"#416"` form → `"pr:416"`.
-- [ ] **Spelling variants**: `"PR#416"`, `"pr #416"`, `"PR-416"`, `"pr-416"` each
+- [x] `"#416"` form → `"pr:416"`.
+- [x] **Spelling variants**: `"PR#416"`, `"pr #416"`, `"PR-416"`, `"pr-416"` each
       → `"pr:416"` (proves the broadened `[Pp][Rr][ -]?#?` pattern).
-- [ ] **List value, multiple tokens**: `relates_to: ["PR #416", "#417"]` →
+- [x] **List value, multiple tokens**: `relates_to: ["PR #416", "#417"]` →
       `["pr:416", "pr:417"]` (proves the `normalize_pr_ref` loop handles multiple
       tokens in one value).
-- [ ] **Mixed list**: a value mixing `"PR #416"` with an already-typed
+- [x] **Mixed list**: a value mixing `"PR #416"` with an already-typed
       `"plan:2026-…"` ref **and** a `"pr-review:2026-06-17-pr-430-review"` ref
       (whose stem embeds a `pr-430` token) → only the `"PR #416"` token is
       rewritten; both typed refs are byte-unchanged (confirms `normalize_pr_ref`
       requires both delimiting quotes and does not corrupt an embedded `pr-NNN`).
-- [ ] **Idempotency / no re-grab**: a corpus already carrying `target: "pr:416"`
+- [x] **Idempotency / no re-grab**: a corpus already carrying `target: "pr:416"`
       is **byte-unchanged** after a run (proves `normalize_bare`/`normalize_paths`
       do not re-grab the rewritten token), and a second `run_0007` over the
       migrated Phase 5 fixtures leaves an empty `meta/` diff.
-- [ ] `bash skills/config/migrate/scripts/test-migrate-0007.sh` green; `mise run check`
+- [x] `bash skills/config/migrate/scripts/test-migrate-0007.sh` green; `mise run check`
+      (full `mise run check` deferred to end; `scripts:check` green)
 
 #### Manual Verification
 

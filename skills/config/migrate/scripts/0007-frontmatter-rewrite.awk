@@ -150,6 +150,23 @@ function normalize_bare(val, t, k,   out, rest, pre, tok, num, tt) {
   return out rest
 }
 
+# Coerce non-canonical PR-reference tokens — "PR #N", "PR#N", "pr #N",
+# "PR-N"/"pr-N", and bare "#N" — to the canonical "pr:N". POSIX awk has no inline
+# case-insensitive flag, hence the explicit [Pp][Rr] class. Idempotent: a
+# rewritten "pr:N" has ':' immediately after pr, so the [ -]?#? tail fails to
+# re-match, and an already-typed "plan:…"/"pr:…" ref is left untouched.
+function normalize_pr_ref(val,   out, rest, pre, tok, num) {
+  out = ""; rest = val
+  while (match(rest, /"([Pp][Rr][ -]?#?|#)[0-9]+"/)) {
+    pre = substr(rest, 1, RSTART - 1)
+    tok = substr(rest, RSTART, RLENGTH)
+    num = tok; gsub(/[^0-9]/, "", num)
+    out = out pre "\"pr:" num "\""
+    rest = substr(rest, RSTART + RLENGTH)
+  }
+  return out rest
+}
+
 function in_vocab(s,   n, a, i) {
   n = split(statusvocab, a, "|")
   for (i = 1; i <= n; i++) if (trim(a[i]) == s) return 1
@@ -366,7 +383,7 @@ in_fm && /^[A-Za-z_][A-Za-z0-9_]*:/ {
   if (is_linkage_key(key)) {
     if (is_empty_val(val)) { next }
     UNMAPPED_PATH = 0; BARE_AMBIG = 0
-    newval = normalize_bare(normalize_paths(val), type, key)
+    newval = normalize_bare(normalize_pr_ref(normalize_paths(val)), type, key)
     print key ": " newval
     if (UNMAPPED_PATH)
       print "0007-DIVERGE[unmapped-dir]: " file " — " key " has a path under an unmapped directory: " val > "/dev/stderr"

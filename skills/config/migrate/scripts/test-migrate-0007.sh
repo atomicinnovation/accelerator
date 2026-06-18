@@ -1339,4 +1339,148 @@ micro_out="$(ACCELERATOR_0007_NO_RUN=1 PROJECT_ROOT="$TMP" CLAUDE_PLUGIN_ROOT="$
 assert_eq "Phase 4 pure-helper + contract micro-assertions pass" "0" "$micro_rc"
 assert_contains "Phase 4 micro battery reached OK" "$micro_out" "OK"
 
+# ── Phase 5: non-canonical PR-reference linkage coercion ─────────────────────
+echo "=== Phase 5: PR #N / #N / PR-N linkage tokens coerced to pr:N ==="
+P5="$TMP/phase5"
+mkdir -p "$P5/meta/plans" "$P5/meta/reviews/prs"
+
+# Referenced artifacts so F_mixed's typed refs resolve in whole-corpus mode.
+cat >"$P5/meta/plans/2026-05-13-0055-feature.md" <<'EOF'
+---
+type: plan
+id: "2026-05-13-0055-feature"
+title: "Feature Plan"
+date: "2026-05-13T00:00:00+00:00"
+author: Toby
+producer: create-plan
+status: done
+tags: []
+revision: "abc123"
+repository: "accelerator"
+last_updated: "2026-05-13T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Feature Plan
+EOF
+
+cat >"$P5/meta/reviews/prs/2026-06-17-pr-430-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-17-pr-430-review"
+title: "PR 430 Review"
+date: "2026-06-17T00:00:00+00:00"
+author: Toby
+status: complete
+verdict: approve
+lenses: ["correctness"]
+review_number: 1
+pr_number: 430
+tags: []
+last_updated: "2026-06-17T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 430 Review
+EOF
+
+# F_combo: target "PR #416" + a relates_to list mixing every spelling variant.
+cat >"$P5/meta/reviews/prs/2026-06-20-pr-500-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-20-pr-500-review"
+title: "PR 500 Review"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+verdict: approve
+lenses: ["correctness"]
+review_number: 1
+pr_number: 500
+target: "PR #416"
+relates_to: ["PR#416", "pr #416", "PR-416", "pr-416", "#417"]
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 500 Review
+EOF
+
+# F_mixed: "PR #416" alongside two already-typed refs (must be left untouched).
+cat >"$P5/meta/reviews/prs/2026-06-20-pr-504-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-20-pr-504-review"
+title: "PR 504 Review"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+verdict: approve
+lenses: ["correctness"]
+review_number: 1
+pr_number: 504
+relates_to: ["PR #416", "plan:2026-05-13-0055-feature", "pr-review:2026-06-17-pr-430-review"]
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 504 Review
+EOF
+
+# F_idem: already-canonical pr:N (must be byte-unchanged / not re-grabbed).
+cat >"$P5/meta/reviews/prs/2026-06-20-pr-505-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-20-pr-505-review"
+title: "PR 505 Review"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+verdict: approve
+lenses: ["correctness"]
+review_number: 1
+pr_number: 505
+target: "pr:416"
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# PR 505 Review
+EOF
+
+COMBO="$P5/meta/reviews/prs/2026-06-20-pr-500-review.md"
+MIXED="$P5/meta/reviews/prs/2026-06-20-pr-504-review.md"
+IDEM="$P5/meta/reviews/prs/2026-06-20-pr-505-review.md"
+IDEM_BEFORE="$(cat "$IDEM")"
+git_init "$P5"
+
+# Red step: a non-canonical "PR #N" reports BAD-LINKAGE-SHAPE before the fix.
+assert_violation "Phase 5 red: 'PR #416' is BAD-LINKAGE-SHAPE" \
+  "BAD-LINKAGE-SHAPE" "$COMBO"
+
+run_0007 "$P5"
+assert_eq "Phase 5 corpus exits 0" "0" "$RUN_RC"
+assert_contains "Phase 5 target 'PR #416' -> 'pr:416'" \
+  "$(fm_line "$COMBO" target)" 'target: "pr:416"'
+assert_contains "Phase 5 spelling variants + #N all coerced in a list" \
+  "$(fm_line "$COMBO" relates_to)" 'relates_to: ["pr:416", "pr:416", "pr:416", "pr:416", "pr:417"]'
+assert_contains "Phase 5 mixed: 'PR #416' coerced" \
+  "$(fm_line "$MIXED" relates_to)" '"pr:416"'
+assert_contains "Phase 5 mixed: typed plan ref untouched" \
+  "$(fm_line "$MIXED" relates_to)" '"plan:2026-05-13-0055-feature"'
+assert_contains "Phase 5 mixed: embedded pr-NNN typed ref untouched" \
+  "$(fm_line "$MIXED" relates_to)" '"pr-review:2026-06-17-pr-430-review"'
+assert_eq "Phase 5 already-canonical pr:416 byte-unchanged (no re-grab)" \
+  "$IDEM_BEFORE" "$(cat "$IDEM")"
+assert_validates "Phase 5 corpus validates clean" "$P5/meta"
+
+# Idempotency.
+git -C "$P5" add -A && git -C "$P5" commit -q -m migrated >/dev/null 2>&1
+run_0007 "$P5"
+assert_empty "Phase 5 second run is an empty meta/ diff" \
+  "$(git -C "$P5" status --porcelain meta/ || true)"
+
 test_summary
