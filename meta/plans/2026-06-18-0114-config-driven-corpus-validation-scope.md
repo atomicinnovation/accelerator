@@ -411,20 +411,22 @@ without the band-aid.
 ### Success Criteria
 
 #### Automated Verification
-- [ ] `mise run test:integration:config` passes (the originally-failing task).
-- [ ] `bash scripts/test-validate-corpus-frontmatter.sh` passes including the
+- [x] `mise run test:integration:config` passes (the originally-failing task).
+- [x] `bash scripts/test-validate-corpus-frontmatter.sh` passes including the
       new allowlist cases.
-- [ ] `scripts/validate-corpus-frontmatter.sh "$(pwd)/meta"` exits 0.
-- [ ] The doc-type table is resolved once per run regardless of corpus size
+- [x] `scripts/validate-corpus-frontmatter.sh "$(pwd)/meta"` exits 0.
+- [x] The doc-type table is resolved once per run regardless of corpus size
       (a counter/trace check that `config-read-doc-type-paths.sh` is spawned a
       constant number of times — not per file or per walk pass).
-- [ ] `bash skills/config/migrate/scripts/test-migrate-0007.sh` still passes
+- [x] `bash skills/config/migrate/scripts/test-migrate-0007.sh` still passes
       (migration still in fallback mode).
-- [ ] `mise run lint:scripts:check` passes.
+- [x] `mise run lint:scripts:check` passes.
 
 #### Manual Verification
-- [ ] In a scratch repo with `paths.work: custom/work` set, a work item placed
+- [x] In a scratch repo with `paths.work: custom/work` set, a work item placed
       under `custom/work/` is validated and one under `meta/work/` is ignored.
+      (Covered by allowlist test case (b): a malformed file under the configured
+      custom dir is flagged while the same at default `meta/work/` is skipped.)
 
 ---
 

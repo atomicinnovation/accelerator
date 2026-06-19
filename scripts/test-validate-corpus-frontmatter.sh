@@ -312,4 +312,83 @@ else
   skip_test "real-corpus sanity check" "meta/work not present"
 fi
 
+# ---- 6. Config-driven allowlist scope -------------------------------------
+echo "=== Allowlist scope (config-driven) ==="
+
+# (a) An arbitrary unknown subtree is skipped: a corpus carrying valid files
+# under configured dirs PLUS junk under unconfigured subtrees validates clean.
+ALLOW="$TMP/allow-ok/meta"
+mkdir -p "$ALLOW/work" "$ALLOW/announcements" "$ALLOW/random"
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$ALLOW/work/0001-real.md"
+# Junk that WOULD be flagged if it were ever validated (no fence / no type).
+printf '# Announcement\n\nnot a schema artifact\n' >"$ALLOW/announcements/news.md"
+printf -- '---\nfoo: bar\n---\n# Random\n' >"$ALLOW/random/whatever.md"
+assert_accepts "unknown subtrees skipped (allowlist) — corpus validates clean" "$ALLOW"
+
+# (b) A paths.work override is honoured: a malformed file under the CONFIGURED
+# custom dir IS flagged, while an equivalently-malformed file left at the now-
+# unconfigured default meta/work/ is skipped. Asserting BOTH halves proves the
+# override actually resolved rather than being silently ignored.
+OVR_REPO="$TMP/allow-override"
+mkdir -p "$OVR_REPO/.accelerator" "$OVR_REPO/meta/custom-work" "$OVR_REPO/meta/work"
+cat >"$OVR_REPO/.accelerator/config.md" <<'EOF'
+---
+paths:
+  work: meta/custom-work
+---
+EOF
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$OVR_REPO/meta/custom-work/0001-bad.md"
+sed -i.bak '/^title: /d' "$OVR_REPO/meta/custom-work/0001-bad.md"
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$OVR_REPO/meta/work/0002-bad.md"
+sed -i.bak '/^title: /d' "$OVR_REPO/meta/work/0002-bad.md"
+rm -f "$OVR_REPO"/meta/custom-work/*.bak "$OVR_REPO"/meta/work/*.bak
+ovr_rc=0
+ovr_err="$(cd "$OVR_REPO" && "$VALIDATOR" "$OVR_REPO/meta" 2>&1 >/dev/null)" || ovr_rc=$?
+if [ "$ovr_rc" -ne 0 ] &&
+  grep -qF "custom-work/0001-bad.md" <<<"$ovr_err" &&
+  grep -qF "MISSING-BASE-FIELD" <<<"$ovr_err" &&
+  ! grep -qF "meta/work/0002-bad.md" <<<"$ovr_err"; then
+  echo "  PASS: paths.work override flags configured custom dir, skips default meta/work"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: paths.work override not honoured (rc=$ovr_rc): $ovr_err"
+  FAIL=$((FAIL + 1))
+fi
+
+# (c) The referential-integrity index is scoped to configured dirs: a typed ref
+# to a target that lives in an out-of-scope subtree is unresolved (the target is
+# never indexed) -> DANGLING-REF. Confirms the index build honours the allowlist.
+SCOPED="$TMP/allow-scoped/meta"
+mkdir -p "$SCOPED/reviews/work" "$SCOPED/random"
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$SCOPED/random/9999-target.md"
+sed -i.bak 's/^id: "0001"$/id: "9999"/' "$SCOPED/random/9999-target.md"
+emit_valid work-item-review no "reviewer verdict lenses review_number review_pass work_item_id" "complete" \
+  "$SCOPED/reviews/work/0001-review-1.md" 'target: "work-item:9999"'
+rm -f "$SCOPED"/random/*.bak "$SCOPED"/reviews/work/*.bak
+assert_rejects "typed ref to out-of-scope target is DANGLING-REF (index scoped)" \
+  "DANGLING-REF" "$SCOPED"
+
+# (d) The doc-type table is resolved ONCE per run regardless of corpus size: a
+# counting wrapper around the resolver is spawned exactly once over a multi-file
+# corpus (not per file, not per walk pass).
+ONCE="$TMP/allow-once/meta"
+mkdir -p "$ONCE/work" "$ONCE/plans"
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$ONCE/work/0001-a.md"
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$ONCE/work/0002-b.md"
+sed -i.bak 's/^id: "0001"$/id: "0002"/' "$ONCE/work/0002-b.md"
+emit_valid plan yes "reviewer" "draft | ready | in-progress | done" "$ONCE/plans/2026-01-01-c.md"
+rm -f "$ONCE"/work/*.bak "$ONCE"/plans/*.bak
+COUNTER="$TMP/resolver-count"
+: >"$COUNTER"
+WRAP="$TMP/resolver-wrap.sh"
+cat >"$WRAP" <<WRAPEOF
+#!/usr/bin/env bash
+echo x >>"$COUNTER"
+exec "$SCRIPT_DIR/config-read-doc-type-paths.sh" "\$@"
+WRAPEOF
+chmod +x "$WRAP"
+DOC_TYPE_PATHS_RESOLVER="$WRAP" "$VALIDATOR" "$ONCE" >/dev/null 2>&1 || true
+assert_eq "doc-type table resolved exactly once per run (multi-file corpus)" \
+  "1" "$(grep -c x "$COUNTER")"
+
 test_summary

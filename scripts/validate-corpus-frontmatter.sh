@@ -5,9 +5,13 @@
 # (ADR-0033 / ADR-0034 / ADR-0040). Per-type tabular facts come from
 # templates-schema.tsv; the cross-cutting emission rules come from the shared
 # frontmatter-emission-rules.sh helper (single-sourced with
-# test-template-frontmatter.sh). Path→doc-type classification and the
-# out-of-scope skip set come from the shared doc-type-inference.sh helper
-# (single-sourced with the 0007 migration — previously a byte-identical copy).
+# test-template-frontmatter.sh). Path→doc-type classification comes from the
+# shared doc-type-inference.sh helper (single-sourced with the 0007 migration).
+# Scope is a config-driven ALLOWLIST: a file is validated iff its location
+# resolves to a configured schema doc-type directory (resolved once at startup
+# via doc-type-table.sh → config-read-doc-type-paths.sh). Any other subtree
+# (specs/, talks/, global/, docs/, announcements/, or anything a consumer
+# invents) is silently skipped — there is no denylist.
 #
 # Usage:
 #   validate-corpus-frontmatter.sh <dir>          # whole-corpus mode
@@ -16,9 +20,8 @@
 # Whole-corpus (single directory argument) mode walks the tree and ALSO runs the
 # referential-integrity check (every typed-linkage value resolves to a real
 # artifact, `pr:<n>` tolerated). File-list mode runs structural checks only
-# (referential integrity is a whole-corpus property). Out-of-scope subtrees
-# (specs/, talks/, global/, and meta/docs/ — all freeform, plugin-unowned, no
-# schema type) are skipped in BOTH modes.
+# (referential integrity is a whole-corpus property). Files outside every
+# configured doc-type directory are skipped in BOTH modes (the allowlist).
 #
 # Exits non-zero with one diagnostic line per violation; exit 0 when clean.
 
@@ -33,6 +36,10 @@ source "$FM_EMISSION_RULES"
 DOC_TYPE_INFERENCE="${DOC_TYPE_INFERENCE:-$SCRIPT_DIR/doc-type-inference.sh}"
 # shellcheck source=doc-type-inference.sh
 source "$DOC_TYPE_INFERENCE"
+# DOC_TYPE_TABLE is the matching TEST-ONLY seam for the allowlist loader.
+DOC_TYPE_TABLE="${DOC_TYPE_TABLE:-$SCRIPT_DIR/doc-type-table.sh}"
+# shellcheck source=doc-type-table.sh
+source "$DOC_TYPE_TABLE"
 SCHEMA_TSV="${SCHEMA_TSV:-$SCRIPT_DIR/templates-schema.tsv}"
 # Abort loudly if the schema's column order ever changes under the positional
 # `IFS=$'\t' read` below, rather than silently reading the wrong columns.
@@ -41,6 +48,16 @@ fm_assert_schema_columns "$SCHEMA_TSV" || exit 1
 # Byte-stable classes/sorting regardless of host locale (parity with the
 # project's LANG=C discipline).
 export LC_ALL=C
+
+# Resolve the config-driven doc-type allowlist ONCE (resolve-and-inject), before
+# build_index, so the index-build and validate passes observe one immutable
+# scope. The out_of_scope/infer_type_from_path call sites are unchanged — they
+# now consult this injected table. config resolves from the CWD (the corpus
+# root: callers invoke `validate-corpus-frontmatter.sh "$(pwd)/meta"`).
+if ! load_doc_type_table; then
+  echo "$0: failed to resolve the doc-type allowlist (config-read-doc-type-paths.sh)" >&2
+  exit 1
+fi
 
 VIOLATIONS=0
 violation() { # $1 = file, $2 = code, $3 = message
@@ -86,8 +103,9 @@ schema_index() {
 }
 
 # infer_type_from_path / out_of_scope are sourced from doc-type-inference.sh
-# (single source, shared with the 0007 migration). out_of_scope now also skips
-# meta/docs/ (freeform, plugin-unowned, no schema type).
+# (single source, shared with the 0007 migration). With the table injected above
+# they implement the config-driven allowlist (out_of_scope iff a path resolves
+# to no configured doc-type dir).
 
 # ---- Frontmatter extraction + field access --------------------------------
 # Loose fence detector (tolerates trailing whitespace on the opening `---`).
