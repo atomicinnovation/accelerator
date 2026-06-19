@@ -101,7 +101,7 @@ echo "=== playwright executor: run.sh daemon-stop ==="
 cd "$PLUGIN_ROOT"
 STOP_RESULT="$(bash "$RUN_SH" daemon-stop 2>/dev/null || true)"
 if [[ -n "$STOP_RESULT" ]]; then
-  if echo "$STOP_RESULT" | grep -q '"ok":true'; then
+  if grep -q '"ok":true' <<<"$STOP_RESULT"; then
     echo "  PASS: daemon-stop returned ok:true"
     PASS=$((PASS + 1))
   else
@@ -123,7 +123,7 @@ export ACCELERATOR_PLAYWRIGHT_CACHE="${ACCELERATOR_PLAYWRIGHT_CACHE:-$HOME/.cach
 (cd "$LINKS_PROJECT_TMP" && bash "$RUN_SH" navigate "{\"url\":\"$FIXTURE_URL\"}" || true)
 LINKS_OUT="$(cd "$LINKS_PROJECT_TMP" && bash "$RUN_SH" links 2>/dev/null || true)"
 
-if [[ -n "$LINKS_OUT" ]] && echo "$LINKS_OUT" | grep -q '"links"'; then
+if [[ -n "$LINKS_OUT" ]] && grep -q '"links"' <<<"$LINKS_OUT"; then
   # Envelope: includes the current page URL so callers can verify context.
   assert_contains "links output names the current page URL" "$LINKS_OUT" '"url":"file://'
   assert_contains "links output is JSON with links field" "$LINKS_OUT" '"links"'

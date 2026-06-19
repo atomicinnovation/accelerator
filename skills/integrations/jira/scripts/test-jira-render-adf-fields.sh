@@ -49,7 +49,7 @@ OUT=$(printf '%s' "$ISSUE" | ACCELERATOR_TEST_MODE=1 bash "$RENDER")
 DESC=$(printf '%s' "$OUT" | jq -r '.fields.description')
 assert_contains "heading marker present" "$DESC" "## "
 # BSD grep rejects patterns starting with '-'; use grep -- to bypass
-if printf '%s' "$DESC" | grep -qF -- "- "; then
+if grep -qF -- "- " <<<"$DESC"; then
   echo "  PASS: list item marker present"
   PASS=$((PASS + 1))
 else

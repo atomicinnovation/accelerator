@@ -41,7 +41,7 @@ MIGRATIONS_DIR="$SCRIPT_DIR/../migrations"
 MECHANICAL_MIGRATIONS_DIR="$TMPDIR_BASE/mechanical-migrations"
 mkdir -p "$MECHANICAL_MIGRATIONS_DIR"
 for _m in "$MIGRATIONS_DIR"/[0-9][0-9][0-9][0-9]-*.sh; do
-  if ! head -5 "$_m" | grep -qE '^# INTERACTIVE:[[:space:]]*yes$'; then
+  if ! grep -qE '^# INTERACTIVE:[[:space:]]*yes$' < <(head -5 "$_m"); then
     cp "$_m" "$MECHANICAL_MIGRATIONS_DIR/"
   fi
 done

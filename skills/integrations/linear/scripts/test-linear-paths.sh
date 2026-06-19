@@ -59,7 +59,7 @@ else
 fi
 
 echo "Test: catalogue.json is NOT in the gitignore rules (it is committed)"
-if printf '%s\n' "$COMMON_RULES" | grep -qx "catalogue.json"; then
+if grep -qx "catalogue.json" <<<"$COMMON_RULES"; then
   echo "  FAIL: catalogue.json must not be gitignored (it is team-shared)"
   FAIL=$((FAIL + 1))
 else
@@ -86,7 +86,7 @@ while IFS= read -r -d '' flow; do
     [ -z "$value" ] && continue
     CHECKED=$((CHECKED + 1))
     # Look for a table row carrying both the code and the name.
-    if grep -E "^\|[[:space:]]*${value}[[:space:]]*\|" "$EXIT_CODES_MD" | grep -qF "\`${name}\`"; then
+    if grep -qF "\`${name}\`" < <(grep -E "^\|[[:space:]]*${value}[[:space:]]*\|" "$EXIT_CODES_MD"); then
       :
     else
       echo "  FAIL: $(basename "$flow"): $name=$value not documented with that value in EXIT_CODES.md"

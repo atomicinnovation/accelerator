@@ -60,7 +60,7 @@ for LENS_DIR in "${LENS_DIRS[@]}"; do
 
   # --- Frontmatter checks ---
 
-  if echo "$FRONTMATTER" | grep -q "^user-invocable: false$"; then
+  if grep -q "^user-invocable: false$" <<<"$FRONTMATTER"; then
     echo "  PASS: $LENS_NAME has user-invocable: false"
     PASS=$((PASS + 1))
   else
@@ -68,7 +68,7 @@ for LENS_DIR in "${LENS_DIRS[@]}"; do
     FAIL=$((FAIL + 1))
   fi
 
-  if echo "$FRONTMATTER" | grep -q "^disable-model-invocation: true$"; then
+  if grep -q "^disable-model-invocation: true$" <<<"$FRONTMATTER"; then
     echo "  PASS: $LENS_NAME has disable-model-invocation: true"
     PASS=$((PASS + 1))
   else
@@ -85,7 +85,7 @@ for LENS_DIR in "${LENS_DIRS[@]}"; do
     FAIL=$((FAIL + 1))
   fi
 
-  if echo "$FRONTMATTER" | grep -q "^description:"; then
+  if grep -q "^description:" <<<"$FRONTMATTER"; then
     echo "  PASS: $LENS_NAME has 'description' in frontmatter"
     PASS=$((PASS + 1))
   else
@@ -137,7 +137,7 @@ for LENS_DIR in "${LENS_DIRS[@]}"; do
     PEER_COUNT=0
     for PEER in "${WORK_ITEM_LENSES[@]}"; do
       [ "$PEER" = "$LENS_ID" ] && continue
-      if echo "$WHAT_NOT_BODY" | grep -qE "\b$PEER\b"; then
+      if grep -qE "\b$PEER\b" <<<"$WHAT_NOT_BODY"; then
         PEER_COUNT=$((PEER_COUNT + 1))
       fi
     done

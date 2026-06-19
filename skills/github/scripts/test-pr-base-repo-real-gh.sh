@@ -134,7 +134,7 @@ allowlist_tokens=$(
 # stripping logic dropped real tokens), this assertion catches the
 # parser bug before it manifests as misleading per-field FAILs.
 CONTROL_FIELD='number'
-if ! printf '%s\n' "$allowlist_tokens" | grep -qx -- "$CONTROL_FIELD"; then
+if ! grep -qx -- "$CONTROL_FIELD" <<<"$allowlist_tokens"; then
   echo "  FAIL: real-gh smoke: parser sanity check — control field '$CONTROL_FIELD' not in parsed allowlist"
   echo "    (parser may be broken; gh's error format may have changed)"
   echo "    Captured stderr:"
@@ -148,7 +148,7 @@ if ! printf '%s\n' "$allowlist_tokens" | grep -qx -- "$CONTROL_FIELD"; then
 fi
 
 for field in $fields; do
-  if printf '%s\n' "$allowlist_tokens" | grep -qx -- "$field"; then
+  if grep -qx -- "$field" <<<"$allowlist_tokens"; then
     echo "  PASS: real-gh smoke: '$field' in gh's allowlist"
     PASS=$((PASS + 1))
   else

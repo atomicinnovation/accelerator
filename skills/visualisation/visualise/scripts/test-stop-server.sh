@@ -181,7 +181,7 @@ assert_eq "idmm: exit code (refused)" "1" "$RC"
 assert_json_eq "idmm: status" ".status" "refused" "$OUT"
 # Verify the reason field contains the expected substring from the captured output
 REASON="$(jq -r '.reason // empty' "$OUT" 2>/dev/null || true)"
-if echo "$REASON" | grep -qF "pid identity mismatch"; then
+if grep -qF "pid identity mismatch" <<<"$REASON"; then
   echo "  PASS: idmm: reason contains 'pid identity mismatch'"
   PASS=$((PASS + 1))
 else

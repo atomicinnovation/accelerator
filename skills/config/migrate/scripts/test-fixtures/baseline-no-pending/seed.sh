@@ -23,6 +23,6 @@ mkdir -p "$SANDBOX/.git"
 # mechanical-path snapshot (the harness pins the runner to the non-interactive
 # set), so they are excluded here too, keeping the seeded ledger in lock-step.
 for f in "$MIGRATIONS_DIR"/[0-9][0-9][0-9][0-9]-*.sh; do
-  head -5 "$f" | grep -qE '^# INTERACTIVE:[[:space:]]*yes$' && continue
+  grep -qE '^# INTERACTIVE:[[:space:]]*yes$' < <(head -5 "$f") && continue
   basename "$f" .sh
 done >"$SANDBOX/.accelerator/state/migrations-applied"
