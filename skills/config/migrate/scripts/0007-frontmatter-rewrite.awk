@@ -66,35 +66,35 @@ function is_linkage_key(k) {
 
 # Map a project-relative meta path to a typed "doc-type:id" reference, per the
 # target doc-type's identity convention (work-item/ADR → bare number / ADR-NNNN;
-# every other type → full filename stem). Returns "" for an unmapped directory
-# (specs/talks/global/typo) so the caller can DIVERGE and leave it untouched.
+# every other type → full filename stem). Returns "" for a path under no
+# configured doc-type directory so the caller can DIVERGE and leave it untouched.
 #
-# This encodes the SAME directory→type fact as the shared
-# scripts/doc-type-inference.sh:infer_type_from_path, but for a DIFFERENT input
-# (a referenced meta-path inside a linkage value, not the current file), so it
-# cannot consume the file-level `-v type` channel. The two MUST be kept aligned
-# (a test-migrate-0007.sh fixture asserts the meta/prs/ → pr-description arm in
-# step with the shared helper).
-function path_to_typed(p,   type, base, id) {
-  if (p ~ /^meta\/work\//) type = "work-item"
-  else if (p ~ /^meta\/plans\//) type = "plan"
-  else if (p ~ /^meta\/decisions\//) type = "adr"
-  else if (p ~ /^meta\/research\/codebase\//) type = "codebase-research"
-  else if (p ~ /^meta\/research\/issues\//) type = "issue-research"
-  else if (p ~ /^meta\/research\/design-gaps\//) type = "design-gap"
-  else if (p ~ /^meta\/research\/design-inventories\//) type = "design-inventory"
-  else if (p ~ /^meta\/reviews\/plans\//) type = "plan-review"
-  else if (p ~ /^meta\/reviews\/work\//) type = "work-item-review"
-  else if (p ~ /^meta\/reviews\/prs\//) type = "pr-review"
-  else if (p ~ /^meta\/prs\//) type = "pr-description" # after reviews/prs
-  else if (p ~ /^meta\/validations\//) type = "plan-validation"
-  else if (p ~ /^meta\/notes\//) type = "note"
-  else return ""
+# Directory→type classification is config-aware: it matches against the injected
+# DT_DIR[]/DT_TYPE[] table (parsed in BEGIN from the -v doc_type_table channel,
+# the SAME resolved allowlist the shell-side infer_type_from_path consumes), most-
+# specific (longest configured dir) wins. This is a THIRD encoding of the
+# directory→type fact for a DIFFERENT input (a referenced meta-path inside a
+# linkage value, not the current file), so it cannot consume the file-level
+# `-v type` channel. It MUST stay aligned with the shared helper — a
+# test-migrate-0007.sh fixture asserts representative arms in step with it.
+# The id-derivation halves (work-item stem trim, ADR prefix) are preserved here.
+function path_to_typed(p,   i, dir, blen, btype, base, id) {
+  blen = -1; btype = ""
+  for (i = 1; i <= DT_COUNT; i++) {
+    dir = DT_DIR[i]
+    if (dir == "") continue
+    # p is project-relative and begins with `dir/` when in that doc-type dir.
+    # Literal prefix compare (no regex) — config dirs match as-is, longest wins.
+    if (substr(p, 1, length(dir) + 1) == dir "/") {
+      if (length(dir) > blen) { blen = length(dir); btype = DT_TYPE[i] }
+    }
+  }
+  if (btype == "") return ""
   base = p; sub(/.*\//, "", base); sub(/\.md$/, "", base)
-  if (type == "work-item") { id = base; sub(/-.*/, "", id) }
-  else if (type == "adr") { if (match(base, /^ADR-[0-9]+/)) id = substr(base, RSTART, RLENGTH); else id = base }
+  if (btype == "work-item") { id = base; sub(/-.*/, "", id) }
+  else if (btype == "adr") { if (match(base, /^ADR-[0-9]+/)) id = substr(base, RSTART, RLENGTH); else id = base }
   else id = base
-  return type ":" id
+  return btype ":" id
 }
 
 # Rewrite every quoted meta-path token inside a linkage value to its typed form;
@@ -231,6 +231,22 @@ BEGIN {
   emitted_id = 0; emitted_revision = 0
   emitted_title = 0     # set when a pr_title value is folded into title:
   UNMAPPED_PATH = 0
+  # Parse the injected doc-type table for path_to_typed: type<TAB>dir records
+  # joined by the ASCII Record Separator 0x1E (octal \036). A newline record
+  # separator is unusable here — the one-true-awk (macOS) rejects a newline in a
+  # -v value ("newline in string"); 0x1E cannot occur in a type name or path and
+  # passes through -v cleanly. POSIX/BWK awk — single-literal-character
+  # separators only (no gensub/length(array)/asort).
+  DT_COUNT = 0
+  dt_nrows = split(doc_type_table, dt_rows, "\036")
+  for (dt_i = 1; dt_i <= dt_nrows; dt_i++) {
+    if (dt_rows[dt_i] == "") continue
+    split(dt_rows[dt_i], dt_kv, "\t")
+    if (dt_kv[1] == "" || dt_kv[2] == "") continue
+    DT_COUNT++
+    DT_TYPE[DT_COUNT] = dt_kv[1]
+    DT_DIR[DT_COUNT] = dt_kv[2]
+  }
 }
 
 # First fence opens the frontmatter region.

@@ -645,15 +645,17 @@ its id-derivation halves (work-item stem trimming, ADR prefix extraction).
 ### Success Criteria
 
 #### Automated Verification
-- [ ] `bash skills/config/migrate/scripts/test-migrate-0007.sh` passes,
+- [x] `bash skills/config/migrate/scripts/test-migrate-0007.sh` passes,
       including the retained literal `type:id` expectations, the non-default-path
       probe, and the alignment test run under the pinned macOS BWK awk.
-- [ ] `mise run lint:scripts:check` passes.
+- [x] `mise run lint:scripts:check` passes.
 
 #### Manual Verification
-- [ ] On a corpus that used a custom `paths.prs`, a body-section reference to a
-      file under that custom dir is rewritten to the correct `pr-description:`
-      typed ref.
+- [x] On a corpus that used a custom `paths.prs` (under `meta/`), a path-shaped
+      frontmatter linkage to a file under that custom dir is rewritten to the
+      correct `pr-description:` typed ref. (Records are passed to the awk joined
+      by `0x1E`, not newline — the one-true-awk rejects a newline in a `-v`
+      value.)
 
 ---
 

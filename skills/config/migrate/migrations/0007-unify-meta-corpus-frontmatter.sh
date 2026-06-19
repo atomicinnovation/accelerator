@@ -46,6 +46,17 @@ fi
 # closed on a wholesale resolution failure before anything is mutated.
 DOC_TYPE_TABLE_OK=1
 load_doc_type_table "$PROJECT_ROOT" || DOC_TYPE_TABLE_OK=0
+# type<TAB>dir snapshot of the injected table for the awk path_to_typed (-v
+# doc_type_table channel) so the linkage-value classifier is config-aware in step
+# with the shell-side scope/derivation. Records are joined by the ASCII Record
+# Separator 0x1E (NOT a newline — the one-true-awk rejects a newline in a -v
+# value; 0x1E cannot occur in a type name or a path).
+DOC_TYPE_RS=$'\x1e'
+DOC_TYPE_TSV=""
+for _dti in "${!DOC_TYPE_INJECTED_NAMES[@]}"; do
+  _dt_rec="$(printf '%s\t%s' "${DOC_TYPE_INJECTED_NAMES[$_dti]}" "${DOC_TYPE_INJECTED_DIRS[$_dti]}")"
+  DOC_TYPE_TSV="${DOC_TYPE_TSV:+$DOC_TYPE_TSV$DOC_TYPE_RS}$_dt_rec"
+done
 
 # Overridable (test-only seam, mirrors the validator's) so a fixture can prove
 # the forbidden-key drop and required-extras backfill are schema-driven.
@@ -505,6 +516,7 @@ rewrite_file() {
   tmp_err="$(mktemp)"
   awk -f "$FRAG_AWK" -f "$BODY_AWK" \
     -v file="$f" -v type="$type" -v anchored="$anchored" -v own_id_key="$own" \
+    -v doc_type_table="$DOC_TYPE_TSV" \
     -v forbidden="$forbidden" -v backfill_extras="$backfill_extras" \
     -v id_from_stem="$idstem" -v repo_name="$repo" \
     -v statusvocab="$vocab" -v statusmap="$smap" \

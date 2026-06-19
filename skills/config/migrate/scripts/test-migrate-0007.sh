@@ -512,7 +512,14 @@ assert_contains "validator sources doc-type-inference.sh" \
 # Linkage-target alignment (table-driven, full id): the awk path_to_typed encodes
 # the id-derivation halves the shared helper does not. Pin one representative path
 # per arm to its full doc-type:id, including the prs arm in step with the helper.
-echo "=== Phase 1: path_to_typed id-derivation alignment ==="
+# The awk is now config-aware: it classifies against the injected
+# doc_type_table (-v), so the probe feeds it the DEFAULT resolved table; the
+# literal type:id expectations remain the source of truth (NOT derived from the
+# same table) so a regression in the lookup or id-derivation is still caught.
+echo "=== Phase 6: path_to_typed id-derivation alignment (default table) ==="
+# The awk takes the table as 0x1E-joined records (a newline is unusable in a -v
+# value on the one-true-awk); convert the resolver's newline output accordingly.
+DEFAULT_TBL="$("$PLUGIN_ROOT/scripts/config-read-doc-type-paths.sh" | tr '\n' '\036')"
 PT_PROBE="$TMP/pt-probe.awk"
 cat >"$PT_PROBE" <<'AWK'
 BEGIN {
@@ -524,10 +531,29 @@ BEGIN {
   print path_to_typed("meta/research/codebase/2026-01-01-foo.md")
 }
 AWK
-pt_out="$(awk -f "$FRAG" -f "$BODY" -f "$PT_PROBE" </dev/null 2>/dev/null)"
-assert_eq "path_to_typed id derivation per arm (incl. prs)" \
+pt_out="$(awk -v doc_type_table="$DEFAULT_TBL" -f "$FRAG" -f "$BODY" -f "$PT_PROBE" </dev/null 2>/dev/null)"
+assert_eq "path_to_typed id derivation per arm (incl. prs, most-specific match)" \
   "$(printf 'work-item:0030\nplan:2026-05-13-0055-feature\nadr:ADR-0050\npr-review:2026-06-17-pr-430-review\npr-description:240-description\ncodebase-research:2026-01-01-foo')" \
   "$pt_out"
+
+# Non-default-path probe: a CUSTOM table resolves paths under custom configured
+# dirs to the right type:id (and a path under a now-unconfigured default dir is
+# unmapped). Literal expectations are kept as the source of truth.
+echo "=== Phase 6: path_to_typed honours custom configured dirs ==="
+CUSTOM_TBL="$(printf 'work-item\tcustom/work-items\036pr-description\tmeta/pull-requests\036plan\tmeta/plans')"
+PT_PROBE2="$TMP/pt-probe2.awk"
+cat >"$PT_PROBE2" <<'AWK'
+BEGIN {
+  print path_to_typed("custom/work-items/0001-foo.md")
+  print path_to_typed("meta/pull-requests/240-desc.md")
+  print path_to_typed("meta/plans/2026-01-01-x.md")
+  print "[" path_to_typed("meta/work/0099-x.md") "]"
+}
+AWK
+pt2_out="$(awk -v doc_type_table="$CUSTOM_TBL" -f "$FRAG" -f "$BODY" -f "$PT_PROBE2" </dev/null 2>/dev/null)"
+assert_eq "path_to_typed config-aware lookup + id derivation (custom dirs)" \
+  "$(printf 'work-item:0001\npr-description:240-desc\nplan:2026-01-01-x\n[]')" \
+  "$pt2_out"
 
 # ── Phase 2: schema-driven forbidden own-id key drop + pr_title fold ─────────
 echo "=== Phase 2: forbidden own-id keys dropped; pr_title folds to title ==="
