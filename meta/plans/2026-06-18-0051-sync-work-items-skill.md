@@ -792,9 +792,9 @@ design rests on).
 
 #### Automated Verification
 
-- [ ] Baseline-store tests pass: `bash skills/work/scripts/test-work-item-scripts.sh`
-- [ ] `mise run scripts:check` clean; bashisms clean on the new script
-- [ ] `mise run check` green
+- [x] Baseline-store tests pass: `bash skills/work/scripts/test-work-item-scripts.sh`
+- [x] `mise run scripts:check` clean; bashisms clean on the new script
+- [x] `mise run check` green
 
 #### Manual Verification
 

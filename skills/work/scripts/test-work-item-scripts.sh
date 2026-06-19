@@ -1269,4 +1269,110 @@ assert_eq "jq -S canonicalised projection is order-independent" "$D1" "$D2"
 
 echo ""
 
+# ============================================================
+echo "=== work-item-sync-baseline.sh ==="
+echo ""
+
+BASELINE="$SCRIPT_DIR/work-item-sync-baseline.sh"
+
+setup_baseline_repo() {
+  local d
+  d=$(mktemp -d "$TMPDIR_BASE/bl-XXXXXX")
+  mkdir -p "$d/.git" "$d/.accelerator"
+  cat >"$d/.accelerator/config.md" <<'CFG'
+---
+work:
+  integration: jira
+---
+CFG
+  echo "$d"
+}
+
+baseline() {
+  local repo="$1"
+  shift
+  (cd "$repo" && bash "$BASELINE" "$@")
+}
+
+echo "Test: path inserts the <system>/ segment under paths.integrations"
+BREPO=$(setup_baseline_repo)
+BPATH=$(baseline "$BREPO" path)
+assert_eq "path ends with jira/last-sync.json" \
+  ".accelerator/state/integrations/jira/last-sync.json" \
+  "${BPATH#"$BREPO"/}"
+
+echo "Test: reading a non-existent baseline yields empty, not an error"
+RC=0
+OUT=$(baseline "$BREPO" get 0042) || RC=$?
+assert_eq "get on missing file exits 0" "0" "$RC"
+assert_eq "get on missing file is empty" "" "$OUT"
+
+echo "Test: set then get round-trips an entry including remote_hash"
+baseline "$BREPO" set 0042 "2026-06-01T10:00:00.000+0000" "rh-abc" "lh-xyz"
+ENTRY=$(baseline "$BREPO" get 0042)
+assert_eq "remote_updated_at round-trips" "2026-06-01T10:00:00.000+0000" \
+  "$(printf '%s' "$ENTRY" | jq -r '.remote_updated_at')"
+assert_eq "remote_hash round-trips" "rh-abc" \
+  "$(printf '%s' "$ENTRY" | jq -r '.remote_hash')"
+assert_eq "local_hash round-trips" "lh-xyz" \
+  "$(printf '%s' "$ENTRY" | jq -r '.local_hash')"
+
+echo "Test: baseline file is valid JSON"
+BFILE=$(baseline "$BREPO" path)
+assert_exit_code "jq empty parses the baseline" 0 jq empty "$BFILE"
+
+echo "Test: set is idempotent (second identical set → no content change)"
+BEFORE=$(cat "$BFILE")
+baseline "$BREPO" set 0042 "2026-06-01T10:00:00.000+0000" "rh-abc" "lh-xyz"
+AFTER=$(cat "$BFILE")
+assert_eq "identical set leaves content unchanged" "$BEFORE" "$AFTER"
+
+echo "Test: set-timestamp records the global epoch reference"
+baseline "$BREPO" set-timestamp 1750000000
+assert_eq "timestamp stored as integer epoch" "1750000000" \
+  "$(jq -r '.timestamp' "$BFILE")"
+
+echo "Test: remove deletes one entry leaving others"
+baseline "$BREPO" set 0043 "2026-06-02T00:00:00.000+0000" "rh2" "lh2"
+baseline "$BREPO" remove 0042
+assert_eq "0042 removed" "" "$(baseline "$BREPO" get 0042)"
+assert_eq "0043 retained" "lh2" \
+  "$(baseline "$BREPO" get 0043 | jq -r '.local_hash')"
+
+echo "Test: present-but-unparseable (conflict-markered) file → empty, never error"
+CREPO=$(setup_baseline_repo)
+CFILE=$(baseline "$CREPO" path)
+mkdir -p "$(dirname "$CFILE")"
+cat >"$CFILE" <<'CONFLICT'
+<<<<<<< HEAD
+{"timestamp": 1, "items": {}}
+=======
+{"timestamp": 2, "items": {}}
+>>>>>>> branch
+CONFLICT
+RC=0
+OUT=$(baseline "$CREPO" get 0042) || RC=$?
+assert_eq "get on conflict-markered file exits 0" "0" "$RC"
+assert_eq "get on conflict-markered file is empty" "" "$OUT"
+
+echo "Test: crash-safety — set leaves no partial temp and a parseable file"
+SREPO=$(setup_baseline_repo)
+baseline "$SREPO" set 0001 "2026-06-01T00:00:00.000+0000" "rh" "lh"
+SFILE=$(baseline "$SREPO" path)
+SDIR=$(dirname "$SFILE")
+LEFTOVER=$(find "$SDIR" -name '.atomic-write.*' 2>/dev/null | wc -l | tr -d ' ')
+assert_eq "no atomic-write temp file survives a completed write" "0" "$LEFTOVER"
+assert_exit_code "post-write file still parses" 0 jq empty "$SFILE"
+# Structural: mutations route through atomic_write (same-dir temp + mv).
+# shellcheck disable=SC2016  # grepping for the literal call, not expanding it
+if grep -q 'atomic_write "$f"' "$BASELINE"; then
+  echo "  PASS: baseline writes go through atomic_write"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: baseline writes do not use atomic_write"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
 test_summary
