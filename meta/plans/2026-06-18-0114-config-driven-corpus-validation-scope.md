@@ -244,7 +244,7 @@ sentinel in one place, so the two consumers cannot drift on TSV shape.
 ### Success Criteria
 
 #### Automated Verification
-- [ ] New unit test `scripts/test-config-read-doc-type-paths.sh` passes (run:
+- [x] New unit test `scripts/test-config-read-doc-type-paths.sh` passes (run:
       `bash scripts/test-config-read-doc-type-paths.sh`): emits 13 `type\tdir`
       lines for a default repo; reflects a `paths.work` override from a fixture
       `.accelerator/config.md`; an *empty* `paths.work:` value falls back to the
@@ -252,16 +252,16 @@ sentinel in one place, so the two consumers cannot drift on TSV shape.
       normalised; and the output contains none of `meta/global`,
       `.accelerator/templates`, `.accelerator/tmp`,
       `.accelerator/state/integrations`.
-- [ ] Drift/coherence guard test asserts, in both directions, that
+- [x] Drift/coherence guard test asserts, in both directions, that
       `DOC_TYPE_NAMES` equals the `type` column of `templates-schema.tsv`; that
       `DOC_TYPE_NAMES` and `DOC_TYPE_PATH_KEYS` are equal length (index-coupled);
       and that every `DOC_TYPE_PATH_KEYS` entry is a member of `PATH_KEYS` (a
       typo'd key would otherwise resolve to an empty dir silently).
-- [ ] `mise run lint:scripts:check` passes (shfmt + ShellCheck + bashisms;
+- [x] `mise run lint:scripts:check` passes (shfmt + ShellCheck + bashisms;
       bash 3.2 floor).
 
 #### Manual Verification
-- [ ] `scripts/config-read-doc-type-paths.sh` run by hand in the repo lists the
+- [x] `scripts/config-read-doc-type-paths.sh` run by hand in the repo lists the
       expected 13 default dirs and excludes `global`, `templates`, `tmp`,
       `integrations`.
 

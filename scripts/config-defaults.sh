@@ -63,6 +63,25 @@ PATH_DEFAULTS=(
   "meta/research/issues"
 )
 
+# Schema doc-type → path key (parallel arrays; bash 3.2 — no associative
+# arrays). The single canonical link between a templates-schema.tsv type and the
+# config-defaults.sh path key whose directory holds artifacts of that type.
+# Drives the corpus validator's allowlist (and, transitively, doc-type
+# inference). DOC_TYPE_NAMES MUST equal the `type` column of
+# templates-schema.tsv; each DOC_TYPE_PATH_KEYS entry MUST be the bare suffix of
+# a member of PATH_KEYS (i.e. "paths.<entry>" exists) — both are pinned by a
+# coherence guard in test-config-read-doc-type-paths.sh.
+DOC_TYPE_NAMES=(
+  "work-item" "plan" "plan-validation" "pr-description" "adr"
+  "codebase-research" "issue-research" "design-inventory" "design-gap"
+  "plan-review" "work-item-review" "pr-review" "note"
+)
+DOC_TYPE_PATH_KEYS=(
+  "work" "plans" "validations" "prs" "decisions"
+  "research_codebase" "research_issues" "research_design_inventories"
+  "research_design_gaps" "review_plans" "review_work" "review_prs" "notes"
+)
+
 TEMPLATE_KEYS=(
   "templates.plan"
   "templates.codebase-research"
