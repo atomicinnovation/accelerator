@@ -1143,27 +1143,39 @@ assert_eq "synced label" "🟢 synced" "$(bash "$SYNC_LABEL" --label synced)"
 echo "Test: label unsynced → glyph + text"
 assert_eq "unsynced label" "⚪ unsynced" "$(bash "$SYNC_LABEL" --label unsynced)"
 
-# The two states must differ in BOTH glyph and text so the signal survives
-# monochrome / glyph-blind rendering.
-echo "Test: synced and unsynced labels differ in glyph AND text"
-SYNCED_LABEL=$(bash "$SYNC_LABEL" --label synced)
-UNSYNCED_LABEL=$(bash "$SYNC_LABEL" --label unsynced)
-SYNCED_GLYPH="${SYNCED_LABEL%% *}"
-UNSYNCED_GLYPH="${UNSYNCED_LABEL%% *}"
-SYNCED_TEXT="${SYNCED_LABEL#* }"
-UNSYNCED_TEXT="${UNSYNCED_LABEL#* }"
-if [ "$SYNCED_GLYPH" != "$UNSYNCED_GLYPH" ] && [ "$SYNCED_TEXT" != "$UNSYNCED_TEXT" ]; then
-  echo "  PASS: glyph and text both distinct"
+# All FIVE states must differ pairwise in BOTH glyph and text so the signal
+# survives monochrome / glyph-blind rendering.
+echo "Test: all five sync labels are pairwise distinct in glyph AND text"
+FIVE_STATES="synced unsynced locally-modified remotely-modified conflict"
+DISTINCT_OK=1
+ALL_LABELS=""
+for _s1 in $FIVE_STATES; do
+  _l1=$(bash "$SYNC_LABEL" --label "$_s1")
+  ALL_LABELS="$ALL_LABELS$_l1"
+  for _s2 in $FIVE_STATES; do
+    [ "$_s1" = "$_s2" ] && continue
+    _l2=$(bash "$SYNC_LABEL" --label "$_s2")
+    _g1="${_l1%% *}"
+    _g2="${_l2%% *}"
+    _t1="${_l1#* }"
+    _t2="${_l2#* }"
+    if [ "$_g1" = "$_g2" ] || [ "$_t1" = "$_t2" ]; then
+      echo "  detail: '$_s1' ($_l1) collides with '$_s2' ($_l2)"
+      DISTINCT_OK=0
+    fi
+  done
+done
+if [ "$DISTINCT_OK" -eq 1 ]; then
+  echo "  PASS: all five labels pairwise-distinct in glyph and text"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: glyph or text not distinct (synced='$SYNCED_LABEL' unsynced='$UNSYNCED_LABEL')"
+  echo "  FAIL: a label pair shares a glyph or text"
   FAIL=$((FAIL + 1))
 fi
 
 # Labels must be markdown-native, never ANSI escapes (output is a markdown
-# table in the conversation, not a TTY).
+# table in the conversation, not a TTY). Covers all five.
 echo "Test: labels emit no ANSI escape sequences"
-ALL_LABELS="$SYNCED_LABEL$UNSYNCED_LABEL"
 if printf '%s' "$ALL_LABELS" | grep -q $'\033'; then
   echo "  FAIL: ANSI escape sequence present in label output"
   FAIL=$((FAIL + 1))
@@ -1372,6 +1384,115 @@ else
   echo "  FAIL: baseline writes do not use atomic_write"
   FAIL=$((FAIL + 1))
 fi
+
+echo ""
+
+# ============================================================
+echo "=== work-item-sync-label.sh — baseline-dependent label arms ==="
+echo ""
+assert_eq "locally-modified label" "🔵 locally modified" \
+  "$(bash "$SYNC_LABEL" --label locally-modified)"
+assert_eq "remotely-modified label" "🟣 remotely modified" \
+  "$(bash "$SYNC_LABEL" --label remotely-modified)"
+assert_eq "conflict label" "🔴 conflict" "$(bash "$SYNC_LABEL" --label conflict)"
+
+echo ""
+
+# ============================================================
+echo "=== work-item-sync-classify.sh — change-detection engine ==="
+echo ""
+
+CLASSIFY="$SCRIPT_DIR/work-item-sync-classify.sh"
+
+# Fixtures: a tracked local item, a baseline that matches it, and a remote body.
+EFILE="$TMPDIR_BASE/eng-item.md"
+write_item "$EFILE"
+E_LOCAL_HASH=$(nhash "$EFILE")
+R_UPDATED="2026-06-01T10:00:00.000+0000"
+RBODY="$TMPDIR_BASE/eng-remote.md"
+printf '# Do the thing\n\nImplement the thing carefully.\n' >"$RBODY"
+E_REMOTE_HASH=$(bash "$NORMALISE" --stdin <"$RBODY" | hash_sha256_stdin)
+ENTRY=$(jq -cn --arg lh "$E_LOCAL_HASH" --arg rh "$E_REMOTE_HASH" --arg ru "$R_UPDATED" \
+  '{remote_updated_at: $ru, remote_hash: $rh, local_hash: $lh}')
+
+classify() { bash "$CLASSIFY" "$@"; }
+
+echo "Test: neither side changed → synced (remote updated-equality short-circuit)"
+assert_eq "synced" "synced" \
+  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "$ENTRY" \
+    --timestamp 0 --remote-status present --remote-updated "$R_UPDATED")"
+
+echo "Test: local edited, remote unchanged → locally-modified"
+EFILE_ED="$TMPDIR_BASE/eng-item-ed.md"
+write_item "$EFILE_ED"
+perl -pi -e 's/Implement the thing carefully\./Locally rewritten./' "$EFILE_ED"
+assert_eq "locally-modified" "locally-modified" \
+  "$(classify --file "$EFILE_ED" --external-id ENG-7 --baseline "$ENTRY" \
+    --timestamp 0 --remote-status present --remote-updated "$R_UPDATED")"
+
+echo "Test: remote edited (updated differs + body differs), local unchanged → remotely-modified"
+RBODY2="$TMPDIR_BASE/eng-remote2.md"
+printf '# Do the thing\n\nRemotely rewritten.\n' >"$RBODY2"
+assert_eq "remotely-modified" "remotely-modified" \
+  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "$ENTRY" \
+    --timestamp 0 --remote-status present --remote-updated "2026-12-01T00:00:00.000+0000" \
+    --remote-body-file "$RBODY2")"
+
+echo "Test: both sides changed → conflict"
+assert_eq "conflict" "conflict" \
+  "$(classify --file "$EFILE_ED" --external-id ENG-7 --baseline "$ENTRY" \
+    --timestamp 0 --remote-status present --remote-updated "2026-12-01T00:00:00.000+0000" \
+    --remote-body-file "$RBODY2")"
+
+echo "Test: remote updated EQUAL → unchanged without a body (trusted short-circuit)"
+# No --remote-body-file supplied; equality alone resolves the remote side.
+assert_eq "synced (no body fetched)" "synced" \
+  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "$ENTRY" \
+    --timestamp 0 --remote-status present --remote-updated "$R_UPDATED")"
+
+echo "Test: remote body matches baseline hash despite a ticked updated → synced"
+assert_eq "label/transition-only remote tick → synced" "synced" \
+  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "$ENTRY" \
+    --timestamp 0 --remote-status present --remote-updated "2026-12-01T00:00:00.000+0000" \
+    --remote-body-file "$RBODY")"
+
+echo "Test: whitespace-only local + updated-only remote delta → synced (AC)"
+EFILE_WS="$TMPDIR_BASE/eng-item-ws.md"
+write_item "$EFILE_WS"
+perl -pi -e 's/$/   /' "$EFILE_WS"
+assert_eq "whitespace-equivalent local stays synced" "synced" \
+  "$(classify --file "$EFILE_WS" --external-id ENG-7 --baseline "$ENTRY" \
+    --timestamp 0 --remote-status present --remote-updated "$R_UPDATED")"
+
+echo "Test: mtime pre-filter short-circuits to unchanged (pure integer compare)"
+# Edited content, but mtime ≤ timestamp → advisory short-circuit declares the
+# local side unchanged without hashing.
+E_MTIME=$(stat -f %m "$EFILE_ED" 2>/dev/null || stat -c %Y "$EFILE_ED")
+TS_FUTURE=$((E_MTIME + 100000))
+assert_eq "old mtime ≤ timestamp → local unchanged → synced" "synced" \
+  "$(classify --file "$EFILE_ED" --external-id ENG-7 --baseline "$ENTRY" \
+    --timestamp "$TS_FUTURE" --remote-status present --remote-updated "$R_UPDATED")"
+
+echo "Test: no external_id → presence-only (unsynced), even with a baseline entry"
+assert_eq "unsynced (5th branch)" "unsynced" \
+  "$(classify --file "$EFILE" --external-id "" --baseline "$ENTRY" \
+    --timestamp 0 --remote-status present --remote-updated "$R_UPDATED")"
+
+echo "Test: tracked but absent from a successful fetch → remote-absent"
+assert_eq "remote-absent" "remote-absent" \
+  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "$ENTRY" \
+    --timestamp 0 --remote-status absent)"
+
+echo "Test: failed/timed-out remote read → indeterminate (distinct from absent)"
+assert_eq "indeterminate" "indeterminate" \
+  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "$ENTRY" \
+    --timestamp 0 --remote-status indeterminate)"
+
+echo "Test: first-sync (external_id, no baseline) both-ahead → conflict, not synced"
+assert_eq "first-sync full contract → conflict" "conflict" \
+  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "" \
+    --timestamp 0 --remote-status present --remote-updated "$R_UPDATED" \
+    --remote-body-file "$RBODY2")"
 
 echo ""
 

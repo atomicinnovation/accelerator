@@ -13,8 +13,9 @@ set -euo pipefail
 #
 # The label is MARKDOWN-NATIVE — a Unicode glyph plus distinct text, never ANSI
 # escapes: /list-work-items emits a markdown table into the conversation, not to
-# a TTY, so escape codes would surface as literal text. The two states differ in
-# BOTH glyph and text so the signal survives monochrome / glyph-blind rendering.
+# a TTY, so escape codes would surface as literal text. All five states differ
+# pairwise in BOTH glyph and text so the signal survives monochrome / glyph-blind
+# rendering.
 #
 # Usage:
 #   work-item-sync-label.sh <external-id-value>   # classify + render label
@@ -55,6 +56,9 @@ sync_status_label() {
   case "$status" in
     synced) printf '🟢 synced' ;;
     unsynced) printf '⚪ unsynced' ;;
+    locally-modified) printf '🔵 locally modified' ;;
+    remotely-modified) printf '🟣 remotely modified' ;;
+    conflict) printf '🔴 conflict' ;;
     *)
       printf 'work-item-sync-label.sh: unknown sync status: %s\n' "$status" >&2
       return 1

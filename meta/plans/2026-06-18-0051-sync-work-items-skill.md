@@ -938,10 +938,10 @@ never fetches; it classifies from what it is handed.
 
 #### Automated Verification
 
-- [ ] Engine + label tests pass: `bash skills/work/scripts/test-work-item-scripts.sh`
-- [ ] All five labels pairwise distinct in glyph AND text (asserted in suite)
-- [ ] `mise run scripts:check` clean; bashisms clean on both scripts
-- [ ] `mise run check` green
+- [x] Engine + label tests pass: `bash skills/work/scripts/test-work-item-scripts.sh`
+- [x] All five labels pairwise distinct in glyph AND text (asserted in suite)
+- [x] `mise run scripts:check` clean; bashisms clean on both scripts
+- [x] `mise run check` green
 
 #### Manual Verification
 
