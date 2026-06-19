@@ -17,6 +17,24 @@ find_repo_root() {
   return 1
 }
 
+# Resolve which VCS COMMAND SET to drive for a repo root, by the repo's canonical
+# idiom: `.jj`-present-WINS (this includes the jj-colocated case where `.git` also
+# exists — jj wins), else `.git` ⇒ git, else neither. This is deliberately NOT
+# topology (classify_checkout returns workspace kinds, not a git-vs-jj selector):
+# in a colocated checkout a topology-based dispatch would wrongly route to git,
+# whose index lags the jj working-copy commit, so live uncommitted jj edits would
+# read as clean. Prints: jj | git | none.
+vcs_mode() {
+  local root="$1"
+  if [ -d "$root/.jj" ]; then
+    printf 'jj\n'
+  elif [ -d "$root/.git" ]; then
+    printf 'git\n'
+  else
+    printf 'none\n'
+  fi
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Internal: does any ancestor of <dir> (inclusive) contain a <marker> entry?
 # Exit 0 if found, 1 otherwise. Used ONLY by classify_checkout's missing-

@@ -1496,4 +1496,189 @@ assert_eq "first-sync full contract → conflict" "conflict" \
 
 echo ""
 
+# ============================================================
+echo "=== work-item-sync-decide.sh — (mode × state) decision table ==="
+echo ""
+
+DECIDE="$SCRIPT_DIR/work-item-sync-decide.sh"
+dec() { bash "$DECIDE" decide --mode "$1" --state "$2" ${3:+--dirty "$3"}; }
+
+echo "Test: mode resolution and the mutually-exclusive guard"
+assert_eq "no flags → bidirectional" "bidirectional" "$(bash "$DECIDE" mode)"
+assert_eq "--push-only" "push-only" "$(bash "$DECIDE" mode --push-only)"
+assert_eq "--pull-only" "pull-only" "$(bash "$DECIDE" mode --pull-only)"
+assert_exit_code "--push-only + --pull-only → error" 2 \
+  bash "$DECIDE" mode --push-only --pull-only
+
+echo "Test: synced/unsynced/indeterminate/remote-absent → noop in every mode"
+for m in bidirectional push-only pull-only; do
+  for s in synced unsynced indeterminate remote-absent; do
+    assert_eq "$m/$s → noop" "noop" "$(dec "$m" "$s")"
+  done
+done
+
+echo "Test: locally-modified pushes except under --pull-only (forbidden write)"
+assert_eq "bidi local-ahead → push" "push" "$(dec bidirectional locally-modified)"
+assert_eq "push-only local-ahead → push" "push" "$(dec push-only locally-modified)"
+assert_eq "pull-only local-ahead → noop (no push)" "noop" "$(dec pull-only locally-modified)"
+
+echo "Test: remotely-modified pulls except under --push-only; dirty routes safely"
+assert_eq "bidi remote-ahead clean → pull" "pull" "$(dec bidirectional remotely-modified 0)"
+assert_eq "pull-only remote-ahead clean → pull" "pull" "$(dec pull-only remotely-modified 0)"
+assert_eq "push-only remote-ahead → noop (no pull)" "noop" "$(dec push-only remotely-modified 0)"
+assert_eq "bidi remote-ahead dirty → prompt" "prompt" "$(dec bidirectional remotely-modified 1)"
+assert_eq "pull-only remote-ahead dirty → skip-dirty" "skip-dirty" "$(dec pull-only remotely-modified 1)"
+
+echo "Test: conflict prompts in bidirectional, reports+skips in directional modes"
+assert_eq "bidi conflict → prompt" "prompt" "$(dec bidirectional conflict)"
+assert_eq "push-only conflict → skip-conflict" "skip-conflict" "$(dec push-only conflict)"
+assert_eq "pull-only conflict → skip-conflict" "skip-conflict" "$(dec pull-only conflict)"
+
+echo "Test: resolve-conflict-token maps the destructive choice safely"
+assert_eq "remote → accept-remote" "accept-remote" \
+  "$(bash "$DECIDE" resolve-conflict-token '  REMOTE ')"
+assert_eq "local → push-local" "push-local" \
+  "$(bash "$DECIDE" resolve-conflict-token local)"
+assert_eq "skip → skip" "skip" "$(bash "$DECIDE" resolve-conflict-token skip)"
+assert_eq "empty → skip (never destructive)" "skip" \
+  "$(bash "$DECIDE" resolve-conflict-token '')"
+assert_eq "unrecognised → skip (never destructive)" "skip" \
+  "$(bash "$DECIDE" resolve-conflict-token frobnicate)"
+
+echo ""
+
+# ============================================================
+echo "=== work-item-file-dirty.sh — VCS-mode-aware overwrite guard ==="
+echo ""
+
+FILE_DIRTY="$SCRIPT_DIR/work-item-file-dirty.sh"
+dirty_repo() {
+  local d
+  d=$(mktemp -d "$TMPDIR_BASE/fd-XXXXXX")
+  mkdir -p "$d/.git" "$d/meta/work"
+  touch "$d/meta/work/0001-x.md"
+  echo "$d"
+}
+fd_check() {
+  # fd_check <repo> <mode> <status> ; echoes exit code
+  local repo="$1" mode="$2" status="$3" rc=0
+  (cd "$repo" && ACCELERATOR_TEST_MODE=1 WORK_DIRTY_MODE_OVERRIDE="$mode" \
+    WORK_DIRTY_STATUS_OVERRIDE="$status" \
+    bash "$FILE_DIRTY" "$repo/meta/work/0001-x.md") || rc=$?
+  echo "$rc"
+}
+FDREPO=$(dirty_repo)
+assert_eq "git porcelain non-empty → dirty (0)" "0" \
+  "$(fd_check "$FDREPO" git ' M meta/work/0001-x.md')"
+assert_eq "git porcelain empty → clean (1)" "1" "$(fd_check "$FDREPO" git '')"
+assert_eq "git untracked ?? → dirty (0)" "0" \
+  "$(fd_check "$FDREPO" git '?? meta/work/0001-x.md')"
+assert_eq "jj path in diff → dirty (0)" "0" \
+  "$(fd_check "$FDREPO" jj 'meta/work/0001-x.md')"
+assert_eq "jj path absent from diff → clean (1)" "1" \
+  "$(fd_check "$FDREPO" jj 'meta/work/other.md')"
+# jj-colocated: a repo with BOTH .jj and .git resolves to the jj arm (never git).
+COLO=$(dirty_repo)
+mkdir -p "$COLO/.jj"
+assert_eq "jj-colocated resolves to jj (clean diff → clean)" "1" \
+  "$(cd "$COLO" && ACCELERATOR_TEST_MODE=1 WORK_DIRTY_STATUS_OVERRIDE='meta/work/other.md' \
+    bash "$FILE_DIRTY" "$COLO/meta/work/0001-x.md" >/dev/null 2>&1 && echo 0 || echo 1)"
+assert_eq "indeterminate VCS mode → fail-safe dirty (0)" "0" \
+  "$(fd_check "$FDREPO" none '')"
+
+echo ""
+
+# ============================================================
+echo "=== work-item-project-remote.sh — per-tracker projection seam ==="
+echo ""
+
+PROJECT="$SCRIPT_DIR/work-item-project-remote.sh"
+JSHOW='{"key":"ENG-1","fields":{"summary":"Hi","description":{"type":"doc","b":1,"a":2},"updated":"2026-06-01T10:00:00.000+0000"}}'
+LSHOW='{"data":{"issue":{"identifier":"BLA-1","title":"Hi","updatedAt":"2026-06-02T11:00:00.000Z","description":"Body **md**."}}}'
+assert_eq "jira updated" "2026-06-01T10:00:00.000+0000" \
+  "$(printf '%s' "$JSHOW" | bash "$PROJECT" --integration jira updated)"
+assert_eq "linear updated" "2026-06-02T11:00:00.000Z" \
+  "$(printf '%s' "$LSHOW" | bash "$PROJECT" --integration linear updated)"
+# jira body canonicalises the ADF keys (jq -S), so reordered ADF hashes the same.
+JSHOW2='{"key":"ENG-1","fields":{"summary":"Hi","description":{"a":2,"type":"doc","b":1},"updated":"x"}}'
+PB1=$(printf '%s' "$JSHOW" | bash "$PROJECT" --integration jira body | bash "$NORMALISE" --stdin | hash_sha256_stdin)
+PB2=$(printf '%s' "$JSHOW2" | bash "$PROJECT" --integration jira body | bash "$NORMALISE" --stdin | hash_sha256_stdin)
+assert_eq "jira body canonicalisation is key-order-independent" "$PB1" "$PB2"
+assert_contains "linear body carries the Markdown description" \
+  "$(printf '%s' "$LSHOW" | bash "$PROJECT" --integration linear body)" "Body **md**."
+
+echo ""
+
+# ============================================================
+echo "=== work-item-sync-apply.sh — pull + finalise + resumability ==="
+echo ""
+
+APPLY="$SCRIPT_DIR/work-item-sync-apply.sh"
+CLASSIFY2="$SCRIPT_DIR/work-item-sync-classify.sh"
+
+# A repo with config (work.integration: jira) so the baseline path resolves.
+AREPO=$(setup_baseline_repo)
+mkdir -p "$AREPO/meta/work"
+LOCALFILE="$AREPO/meta/work/0050-x.md"
+write_item "$LOCALFILE"
+# Reconstructed post-pull content (what the SKILL would write: local frontmatter
+# kept, title/body from remote).
+NEWCONTENT="$TMPDIR_BASE/apply-new.md"
+write_item "$NEWCONTENT"
+perl -pi -e 's/Implement the thing carefully\./Pulled from remote./' "$NEWCONTENT"
+# Projected, canonicalised remote body the pull wrote.
+REMBODY="$TMPDIR_BASE/apply-rembody.md"
+printf '# Do the thing\n\nPulled from remote.\n' >"$REMBODY"
+A_RUPDATED="2026-07-01T09:00:00.000+0000"
+
+echo "Test: apply pull overwrites the file and sets the post-overwrite baseline"
+(cd "$AREPO" && bash "$APPLY" pull --id 0050 --file "$LOCALFILE" \
+  --new-content-file "$NEWCONTENT" --remote-updated "$A_RUPDATED" \
+  --remote-body-file "$REMBODY")
+assert_contains "local file replaced from remote" "$(cat "$LOCALFILE")" "Pulled from remote."
+PENTRY=$(cd "$AREPO" && bash "$BASELINE" get 0050)
+assert_eq "baseline remote_updated_at recorded" "$A_RUPDATED" \
+  "$(printf '%s' "$PENTRY" | jq -r '.remote_updated_at')"
+assert_eq "baseline local_hash is the POST-overwrite file hash" \
+  "$(bash "$NORMALISE" "$LOCALFILE" | hash_sha256_stdin)" \
+  "$(printf '%s' "$PENTRY" | jq -r '.local_hash')"
+assert_eq "baseline remote_hash is the projection actually written" \
+  "$(bash "$NORMALISE" --stdin <"$REMBODY" | hash_sha256_stdin)" \
+  "$(printf '%s' "$PENTRY" | jq -r '.remote_hash')"
+
+echo "Test: a freshly-pulled item classifies synced on the next run"
+assert_eq "post-pull → synced" "synced" \
+  "$(bash "$CLASSIFY2" --file "$LOCALFILE" --external-id ENG-7 \
+    --baseline "$PENTRY" --timestamp 0 --remote-status present \
+    --remote-updated "$A_RUPDATED")"
+
+echo "Test: finalise advances the global timestamp"
+(cd "$AREPO" && bash "$APPLY" finalise --timestamp 1751000000)
+assert_eq "timestamp persisted" "1751000000" \
+  "$(jq -r '.timestamp' "$(cd "$AREPO" && bash "$BASELINE" path)")"
+
+echo "Test: resumability — a crash between side-effect and baseline set leaves no entry"
+RREPO=$(setup_baseline_repo)
+mkdir -p "$RREPO/meta/work"
+RFILE="$RREPO/meta/work/0060-y.md"
+write_item "$RFILE"
+RNEW="$TMPDIR_BASE/resume-new.md"
+write_item "$RNEW"
+perl -pi -e 's/Implement the thing carefully\./Resumed pull./' "$RNEW"
+RC=0
+(cd "$RREPO" && ACCELERATOR_TEST_MODE=1 WORK_SYNC_FAIL_AFTER=side-effect \
+  bash "$APPLY" pull --id 0060 --file "$RFILE" --new-content-file "$RNEW" \
+  --remote-updated "$A_RUPDATED" --remote-body-file "$REMBODY") || RC=$?
+assert_eq "fault hook aborts (exit 99)" "99" "$RC"
+assert_contains "side-effect DID happen (file overwritten)" "$(cat "$RFILE")" "Resumed pull."
+assert_eq "baseline entry NOT set (interrupted before set)" "" \
+  "$(cd "$RREPO" && bash "$BASELINE" get 0060)"
+# Re-run without the fault → baseline now set (idempotent recovery).
+(cd "$RREPO" && bash "$APPLY" pull --id 0060 --file "$RFILE" \
+  --new-content-file "$RNEW" --remote-updated "$A_RUPDATED" --remote-body-file "$REMBODY")
+assert_neq "re-run sets the baseline entry" "" \
+  "$(cd "$RREPO" && bash "$BASELINE" get 0060)"
+
+echo ""
+
 test_summary

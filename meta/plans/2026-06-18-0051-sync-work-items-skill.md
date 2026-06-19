@@ -1246,10 +1246,14 @@ here for the push/pull side-effects — **not** PATH stubs), `scripts/test-confi
 
 #### Automated Verification
 
-- [ ] Work-item script suite green: `bash skills/work/scripts/test-work-item-scripts.sh`
-- [ ] Config/registration tests green: `bash scripts/test-config.sh`
-- [ ] `mise run scripts:check` clean
-- [ ] `mise run check` green
+- [x] Work-item script suite green: `bash skills/work/scripts/test-work-item-scripts.sh`
+      (plus `bash skills/work/scripts/test-work-item-sync-apply.sh` for the
+      mock-driven push path)
+- [x] Config/registration tests green: `bash scripts/test-config.sh` (skills are
+      registered by directory — `./skills/work/` already covers the new skill, so
+      no plugin.json edit was needed)
+- [x] `mise run scripts:check` clean
+- [x] `mise run check` green
 
 #### Manual Verification
 
