@@ -1356,9 +1356,9 @@ asserted here.)
 
 #### Automated Verification
 
-- [ ] Section-diff tests pass: `bash skills/work/scripts/test-work-item-scripts.sh`
-- [ ] `mise run scripts:check` clean; bashisms clean on the new script
-- [ ] `mise run check` green
+- [x] Section-diff tests pass: `bash skills/work/scripts/test-work-item-scripts.sh`
+- [x] `mise run scripts:check` clean; bashisms clean on the new script
+- [x] `mise run check` green
 
 #### Manual Verification
 

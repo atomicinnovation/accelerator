@@ -1681,4 +1681,114 @@ assert_neq "re-run sets the baseline entry" "" \
 
 echo ""
 
+# ============================================================
+echo "=== work-item-section-diff.sh — section-grouped conflict diff ==="
+echo ""
+
+SECTION_DIFF="$SCRIPT_DIR/work-item-section-diff.sh"
+SD_LOCAL="$TMPDIR_BASE/sd-local.md"
+SD_REMOTE="$TMPDIR_BASE/sd-remote.md"
+
+cat >"$SD_LOCAL" <<'EOF'
+---
+id: "0042"
+external_id: "ENG-7"
+title: "Do the thing"
+last_updated: "2026-06-10T00:00:00+00:00"
+---
+
+# 0042: Do the thing
+
+## Summary
+
+Local summary text.
+
+## Requirements
+
+- local req one
+- req two
+EOF
+cat >"$SD_REMOTE" <<'EOF'
+---
+id: "0042"
+external_id: "ENG-7"
+title: "Do the thing"
+last_updated: "2026-06-10T00:00:00+00:00"
+---
+
+# 0042: Do the thing
+
+## Summary
+
+Remote summary text.
+
+## Requirements
+
+- remote req one
+- req two
+EOF
+
+echo "Test: a conflict spanning two sections shows both, grouped by heading"
+SD_OUT=$(bash "$SECTION_DIFF" "$SD_LOCAL" "$SD_REMOTE")
+assert_contains "Summary section shown" "$SD_OUT" "=== Summary (- LOCAL / + REMOTE) ==="
+assert_contains "Requirements section shown" "$SD_OUT" "=== Requirements (- LOCAL / + REMOTE) ==="
+assert_contains "local Summary on the - side" "$SD_OUT" "-Local summary text."
+assert_contains "remote Summary on the + side" "$SD_OUT" "+Remote summary text."
+
+echo "Test: byte-equal (identical) frontmatter is omitted"
+assert_not_contains "identical frontmatter not shown" "$SD_OUT" "=== frontmatter"
+
+echo "Test: a whitespace-only section delta is omitted (normalised equal)"
+SD_WS_LOCAL="$TMPDIR_BASE/sd-ws-local.md"
+SD_WS_REMOTE="$TMPDIR_BASE/sd-ws-remote.md"
+cat >"$SD_WS_LOCAL" <<'EOF'
+---
+id: "0042"
+title: "T"
+---
+
+# T
+
+## Summary
+
+Same text.
+EOF
+cat >"$SD_WS_REMOTE" <<'EOF'
+---
+id: "0042"
+title: "T"
+---
+
+# T
+
+## Summary
+
+Same text.
+EOF
+# Add trailing whitespace to the remote Summary only.
+perl -pi -e 's/Same text\./Same text.   /' "$SD_WS_REMOTE"
+SD_WS_OUT=$(bash "$SECTION_DIFF" "$SD_WS_LOCAL" "$SD_WS_REMOTE")
+assert_contains "no differing sections after normalisation" "$SD_WS_OUT" \
+  "no differing sections"
+
+echo "Test: a frontmatter content change is its own section"
+SD_FM_REMOTE="$TMPDIR_BASE/sd-fm-remote.md"
+cat >"$SD_FM_REMOTE" <<'EOF'
+---
+id: "0042"
+title: "Renamed thing"
+---
+
+# T
+
+## Summary
+
+Same text.
+EOF
+SD_FM_OUT=$(bash "$SECTION_DIFF" "$SD_WS_LOCAL" "$SD_FM_REMOTE")
+assert_contains "frontmatter shown as its own section" "$SD_FM_OUT" \
+  "=== frontmatter (- LOCAL / + REMOTE) ==="
+
+echo ""
+
 test_summary

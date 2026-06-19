@@ -157,11 +157,12 @@ For each local item with a non-empty `external_id`, emitting
    - `skip-dirty` → skip the pull, **warn** and list the `id` (a dirty local file
      is never silently overwritten). Reported under `needs-retry`.
    - `skip-conflict` → report the `id` under `conflicts-skipped` and write
-     neither side. **In this version conflicts are reported and skipped in every
-     mode**; bidirectional gains interactive resolution in a later phase, where
-     `decide` returns `prompt` instead.
-   - `prompt` → for now (no interactive resolver yet) treat exactly like
-     `skip-conflict`: report under `conflicts-skipped`, write nothing.
+     neither side. This is the directional-mode outcome (`--push-only` /
+     `--pull-only`): resolving a conflict needs a write the mode forbids, so it
+     is reported and skipped with **no** prompt.
+   - `prompt` → bidirectional conflict resolution (see "Conflict resolution"
+     below). The dirty-pull route (`remotely-modified` + dirty in bidirectional)
+     also returns `prompt` and is resolved the same way.
    - `noop` → nothing to do (synced, or a forbidden-write cell, or
      `indeterminate`/`remote-absent`). Report `indeterminate` items under
      `needs-retry` and `remote-absent` items under `remote-absent` (never push to
@@ -188,6 +189,52 @@ For each local item with a non-empty `external_id`, emitting
 `work-item-sync-apply.sh` performs each item's side-effect, then sets that id's
 baseline entry **last** (per-item resumability). Re-running after a mid-run
 interruption is idempotent: reconciled items match their baseline and are skipped.
+
+### Conflict resolution (bidirectional only)
+
+When `decide` returns `prompt`, resolve the conflict interactively. First render a
+**section-grouped** diff so a large item stays reviewable — local is the `-`
+baseline side, remote is the `+` side (the recommended/default-accept side):
+
+```
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-section-diff.sh \
+  <local-file> <remote-reconstructed-file>
+```
+
+Then prompt with a **typed token** (not a `y/n` keystroke — a reflexive Enter
+must never discard local edits, and this avoids colliding with the `[y/N]`
+polarity used by the batch-push and untracked-pull gates). Pin the exact string:
+
+```
+Conflict on <id> (<external_id>). Recommended: keep remote.
+Type 'remote' to OVERWRITE your local edits with the remote version,
+'local' to push your local version to the remote, or
+'skip' to leave both unchanged and resolve it later. [remote/local/skip]
+No default — Enter (or an unrecognised entry) re-asks once, then skips.
+```
+
+Read the raw input and map it through the tested entry point (never re-derive the
+mapping in prose):
+
+```
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-sync-decide.sh \
+  resolve-conflict-token "<raw input>"
+```
+
+It returns one action:
+
+- `accept-remote` → resolve as a **pull**: overwrite the local file from the
+  remote via `work-item-sync-apply.sh pull` (Phase 6 ordering, incl. the
+  post-write `remote_hash`).
+- `push-local` → resolve as a **push**: push the local version via
+  `work-item-sync-apply.sh push`, and emit an **override-log** line to the
+  summary naming the item, e.g. `OVERRIDE <id> (<external_id>): pushed local→remote`.
+- `skip` → report under `conflicts-skipped`, write **nothing**.
+
+There is deliberately **no Enter default**: 'Recommended: keep remote' steers the
+choice but still requires typing the word, so a reflexive Enter (empty input) or
+any unrecognised token re-asks **once**, then resolves to `skip` — never to a
+destructive write.
 
 ## Step 4: Unsynced push offer and untracked pull
 
