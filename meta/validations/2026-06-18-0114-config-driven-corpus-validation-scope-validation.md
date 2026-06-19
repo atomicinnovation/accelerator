@@ -9,7 +9,6 @@ status: complete
 result: "pass"
 parent: "plan:2026-06-18-0114-config-driven-corpus-validation-scope"
 target: "plan:2026-06-18-0114-config-driven-corpus-validation-scope"
-relates_to: []
 tags: [validator, frontmatter, config, doc-type-inference, unified-schema, allowlist]
 last_updated: "2026-06-19T15:04:16+00:00"
 last_updated_by: "Toby Clemson"
