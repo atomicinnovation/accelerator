@@ -1467,7 +1467,8 @@ assert_eq "whitespace-equivalent local stays synced" "synced" \
 echo "Test: mtime pre-filter short-circuits to unchanged (pure integer compare)"
 # Edited content, but mtime ≤ timestamp → advisory short-circuit declares the
 # local side unchanged without hashing.
-E_MTIME=$(stat -f %m "$EFILE_ED" 2>/dev/null || stat -c %Y "$EFILE_ED")
+E_MTIME=$(stat -f %m "$EFILE_ED" 2>/dev/null) ||
+  E_MTIME=$(stat -c %Y "$EFILE_ED")
 TS_FUTURE=$((E_MTIME + 100000))
 assert_eq "old mtime ≤ timestamp → local unchanged → synced" "synced" \
   "$(classify --file "$EFILE_ED" --external-id ENG-7 --baseline "$ENTRY" \

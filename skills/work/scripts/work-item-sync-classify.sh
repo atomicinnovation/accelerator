@@ -65,7 +65,13 @@ USAGE
 # never an empty string into the `-le` arithmetic (which would abort under set -e).
 _wisc_mtime() {
   local f="$1" m
-  m=$(stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null || echo "")
+  # The `||` MUST stay outside the command substitution: GNU `stat -f %m` treats
+  # %m as a (missing) file yet still prints a `File:` filesystem block for $f to
+  # stdout AND exits non-zero. An inside-`$(... || ...)` capture would splice that
+  # block in front of the GNU epoch; separate assignments let the fallback
+  # overwrite the BSD attempt cleanly (matches linear/jira common.sh).
+  m=$(stat -f %m "$f" 2>/dev/null) ||
+    m=$(stat -c %Y "$f" 2>/dev/null) || m=""
   if [[ "$m" =~ ^[0-9]+$ ]]; then
     printf '%s' "$m"
   else
