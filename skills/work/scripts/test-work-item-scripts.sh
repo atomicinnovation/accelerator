@@ -934,7 +934,7 @@ RC=0
 STDERR=$(bash "$UPDATE_TAGS" "$REPO/meta/work/0001-test.md" add backend 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
 # shellcheck disable=SC2015 # test idiom; the && branch ends in a successful echo so the || cannot spuriously fire
-echo "$STDERR" | grep -q "block format" && echo "  PASS: stderr mentions block format" || {
+grep -q "block format" <<<"$STDERR" && echo "  PASS: stderr mentions block format" || {
   echo "  FAIL: stderr missing block format message"
   FAIL=$((FAIL + 1))
 }
@@ -945,7 +945,7 @@ RC=0
 STDERR=$(bash "$UPDATE_TAGS" "/nonexistent/file.md" add backend 2>&1 >/dev/null) || RC=$?
 assert_eq "exit code 1" "1" "$RC"
 # shellcheck disable=SC2015 # test idiom; the && branch ends in a successful echo so the || cannot spuriously fire
-echo "$STDERR" | grep -q "file not found" && echo "  PASS: stderr mentions file not found" || {
+grep -q "file not found" <<<"$STDERR" && echo "  PASS: stderr mentions file not found" || {
   echo "  FAIL: stderr missing file not found message"
   FAIL=$((FAIL + 1))
 }
@@ -1176,7 +1176,7 @@ fi
 # Labels must be markdown-native, never ANSI escapes (output is a markdown
 # table in the conversation, not a TTY). Covers all five.
 echo "Test: labels emit no ANSI escape sequences"
-if printf '%s' "$ALL_LABELS" | grep -q $'\033'; then
+if grep -q $'\033' <<<"$ALL_LABELS"; then
   echo "  FAIL: ANSI escape sequence present in label output"
   FAIL=$((FAIL + 1))
 else

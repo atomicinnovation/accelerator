@@ -449,7 +449,7 @@ OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "key" "default" 2>/dev/null)
 assert_eq "outputs default" "default" "$OUTPUT"
 # Verify warning goes to stderr
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "key" "default" 2>&1 1>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning"; then
+if grep -q "Warning" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: warning emitted to stderr"
   PASS=$((PASS + 1))
 else
@@ -619,7 +619,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
-if echo "$OUTPUT" | grep -q "Team config:"; then
+if grep -q "Team config:" <<<"$OUTPUT"; then
   echo "  PASS: lists team config"
   PASS=$((PASS + 1))
 else
@@ -634,7 +634,7 @@ mkdir -p "$REPO/.accelerator"
 printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.local.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
-if echo "$OUTPUT" | grep -q "Team config:" && echo "$OUTPUT" | grep -q "Personal config:"; then
+if grep -q "Team config:" <<<"$OUTPUT" && grep -q "Personal config:" <<<"$OUTPUT"; then
   echo "  PASS: lists both configs"
   PASS=$((PASS + 1))
 else
@@ -655,7 +655,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
-if echo "$OUTPUT" | grep -q "Configured sections:" && echo "$OUTPUT" | grep -q "agents" && echo "$OUTPUT" | grep -q "review"; then
+if grep -q "Configured sections:" <<<"$OUTPUT" && grep -q "agents" <<<"$OUTPUT" && grep -q "review" <<<"$OUTPUT"; then
   echo "  PASS: lists section names"
   PASS=$((PASS + 1))
 else
@@ -690,7 +690,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\nkey: value\n---\n\n   \n\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
-if echo "$OUTPUT" | grep -q "Project context:"; then
+if grep -q "Project context:" <<<"$OUTPUT"; then
   echo "  FAIL: should not report project context for whitespace-only body"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
@@ -704,7 +704,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\n---\n\nBody.\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
-if echo "$OUTPUT" | grep -q "Configured sections:"; then
+if grep -q "Configured sections:" <<<"$OUTPUT"; then
   echo "  FAIL: should not have Configured sections for empty frontmatter"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
@@ -723,7 +723,7 @@ my-section2:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
-if echo "$OUTPUT" | grep -q "my-section2"; then
+if grep -q "my-section2" <<<"$OUTPUT"; then
   echo "  PASS: hyphen/digit keys included"
   PASS=$((PASS + 1))
 else
@@ -742,7 +742,7 @@ no closing
 FIXTURE
 EXIT_CODE=0
 STDERR_OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>&1 1>/dev/null) || EXIT_CODE=$?
-if [ "$EXIT_CODE" -eq 0 ] && echo "$STDERR_OUTPUT" | grep -q "Warning"; then
+if [ "$EXIT_CODE" -eq 0 ] && grep -q "Warning" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: warns to stderr, does not crash"
   PASS=$((PASS + 1))
 else
@@ -808,14 +808,14 @@ echo ""
 echo "Test: No config files -> outputs all agents with default names"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q "## Agent Names" &&
-  echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: accelerator:reviewer' &&
-  echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: accelerator:codebase-locator' &&
-  echo "$OUTPUT" | grep -q '\- \*\*codebase analyser agent\*\*: accelerator:codebase-analyser' &&
-  echo "$OUTPUT" | grep -q '\- \*\*codebase pattern finder agent\*\*: accelerator:codebase-pattern-finder' &&
-  echo "$OUTPUT" | grep -q '\- \*\*documents locator agent\*\*: accelerator:documents-locator' &&
-  echo "$OUTPUT" | grep -q '\- \*\*documents analyser agent\*\*: accelerator:documents-analyser' &&
-  echo "$OUTPUT" | grep -q '\- \*\*web search researcher agent\*\*: accelerator:web-search-researcher'; then
+if grep -q "## Agent Names" <<<"$OUTPUT" &&
+  grep -q '\- \*\*reviewer agent\*\*: accelerator:reviewer' <<<"$OUTPUT" &&
+  grep -q '\- \*\*codebase locator agent\*\*: accelerator:codebase-locator' <<<"$OUTPUT" &&
+  grep -q '\- \*\*codebase analyser agent\*\*: accelerator:codebase-analyser' <<<"$OUTPUT" &&
+  grep -q '\- \*\*codebase pattern finder agent\*\*: accelerator:codebase-pattern-finder' <<<"$OUTPUT" &&
+  grep -q '\- \*\*documents locator agent\*\*: accelerator:documents-locator' <<<"$OUTPUT" &&
+  grep -q '\- \*\*documents analyser agent\*\*: accelerator:documents-analyser' <<<"$OUTPUT" &&
+  grep -q '\- \*\*web search researcher agent\*\*: accelerator:web-search-researcher' <<<"$OUTPUT"; then
   echo "  PASS: outputs all 7 agents with default names"
   PASS=$((PASS + 1))
 else
@@ -835,9 +835,9 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q "## Agent Names" &&
-  echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: my-custom-reviewer' &&
-  echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: my-locator'; then
+if grep -q "## Agent Names" <<<"$OUTPUT" &&
+  grep -q '\- \*\*reviewer agent\*\*: my-custom-reviewer' <<<"$OUTPUT" &&
+  grep -q '\- \*\*codebase locator agent\*\*: my-locator' <<<"$OUTPUT"; then
   echo "  PASS: outputs labeled agent names with overrides"
   PASS=$((PASS + 1))
 else
@@ -856,8 +856,8 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: my-reviewer' &&
-  echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: accelerator:codebase-locator'; then
+if grep -q '\- \*\*reviewer agent\*\*: my-reviewer' <<<"$OUTPUT" &&
+  grep -q '\- \*\*codebase locator agent\*\*: accelerator:codebase-locator' <<<"$OUTPUT"; then
   echo "  PASS: overridden agent shows new name, others show defaults"
   PASS=$((PASS + 1))
 else
@@ -882,8 +882,8 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: local-reviewer' &&
-  ! echo "$OUTPUT" | grep -q 'team-reviewer'; then
+if grep -q '\- \*\*reviewer agent\*\*: local-reviewer' <<<"$OUTPUT" &&
+  ! grep -q 'team-reviewer' <<<"$OUTPUT"; then
   echo "  PASS: local overrides team"
   PASS=$((PASS + 1))
 else
@@ -908,8 +908,8 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: custom-reviewer' &&
-  echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: custom-locator'; then
+if grep -q '\- \*\*reviewer agent\*\*: custom-reviewer' <<<"$OUTPUT" &&
+  grep -q '\- \*\*codebase locator agent\*\*: custom-locator' <<<"$OUTPUT"; then
   echo "  PASS: both overrides appear"
   PASS=$((PASS + 1))
 else
@@ -930,8 +930,8 @@ agents:
 FIXTURE
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS" 2>&1 1>/dev/null)
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS" 2>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning.*unknown-agent" &&
-  ! echo "$OUTPUT" | grep -q 'unknown-agent'; then
+if grep -q "Warning.*unknown-agent" <<<"$STDERR_OUTPUT" &&
+  ! grep -q 'unknown-agent' <<<"$OUTPUT"; then
   echo "  PASS: unknown key warned and ignored"
   PASS=$((PASS + 1))
 else
@@ -952,8 +952,8 @@ agents:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: reviewer' &&
-  echo "$OUTPUT" | grep -q '\- \*\*codebase locator agent\*\*: my-locator'; then
+if grep -q '\- \*\*reviewer agent\*\*: reviewer' <<<"$OUTPUT" &&
+  grep -q '\- \*\*codebase locator agent\*\*: my-locator' <<<"$OUTPUT"; then
   echo "  PASS: identity override shows default name, other override applied"
   PASS=$((PASS + 1))
 else
@@ -978,8 +978,8 @@ OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
 ROWS=$(echo "$OUTPUT" | grep '^- \*\*' || true)
 FIRST_ROW=$(echo "$ROWS" | head -1)
 LAST_ROW=$(echo "$ROWS" | tail -1)
-if echo "$FIRST_ROW" | grep -q 'reviewer agent' &&
-  echo "$LAST_ROW" | grep -q 'web search researcher agent'; then
+if grep -q 'reviewer agent' <<<"$FIRST_ROW" &&
+  grep -q 'web search researcher agent' <<<"$LAST_ROW"; then
   echo "  PASS: rows in AGENT_KEYS order"
   PASS=$((PASS + 1))
 else
@@ -998,8 +998,8 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_AGENTS")
-if echo "$OUTPUT" | grep -q "## Agent Names" &&
-  echo "$OUTPUT" | grep -q '\- \*\*reviewer agent\*\*: accelerator:reviewer'; then
+if grep -q "## Agent Names" <<<"$OUTPUT" &&
+  grep -q '\- \*\*reviewer agent\*\*: accelerator:reviewer' <<<"$OUTPUT"; then
   echo "  PASS: outputs all defaults when no agents section"
   PASS=$((PASS + 1))
 else
@@ -1240,12 +1240,12 @@ assert_exit_code "invalid argument exits" 1 bash "$READ_REVIEW" "invalid"
 echo "Test: No review config with pr mode -> outputs all PR-relevant defaults"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "## Review Configuration" &&
-  echo "$OUTPUT" | grep -q '\- \*\*max inline comments\*\*: 10' &&
-  echo "$OUTPUT" | grep -q '\- \*\*dedup proximity\*\*: 3' &&
-  echo "$OUTPUT" | grep -q '\- \*\*pr request changes severity\*\*: critical' &&
-  echo "$OUTPUT" | grep -q '\- \*\*min lenses\*\*: 4' &&
-  echo "$OUTPUT" | grep -q '\- \*\*max lenses\*\*: 8'; then
+if grep -q "## Review Configuration" <<<"$OUTPUT" &&
+  grep -q '\- \*\*max inline comments\*\*: 10' <<<"$OUTPUT" &&
+  grep -q '\- \*\*dedup proximity\*\*: 3' <<<"$OUTPUT" &&
+  grep -q '\- \*\*pr request changes severity\*\*: critical' <<<"$OUTPUT" &&
+  grep -q '\- \*\*min lenses\*\*: 4' <<<"$OUTPUT" &&
+  grep -q '\- \*\*max lenses\*\*: 8' <<<"$OUTPUT"; then
   echo "  PASS: outputs all PR-relevant defaults"
   PASS=$((PASS + 1))
 else
@@ -1257,11 +1257,11 @@ fi
 echo "Test: No review config with plan mode -> outputs all plan-relevant defaults"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-if echo "$OUTPUT" | grep -q "## Review Configuration" &&
-  echo "$OUTPUT" | grep -q '\- \*\*plan revise severity\*\*: critical' &&
-  echo "$OUTPUT" | grep -q '\- \*\*plan revise major count\*\*: 3' &&
-  echo "$OUTPUT" | grep -q '\- \*\*min lenses\*\*: 4' &&
-  echo "$OUTPUT" | grep -q '\- \*\*max lenses\*\*: 8'; then
+if grep -q "## Review Configuration" <<<"$OUTPUT" &&
+  grep -q '\- \*\*plan revise severity\*\*: critical' <<<"$OUTPUT" &&
+  grep -q '\- \*\*plan revise major count\*\*: 3' <<<"$OUTPUT" &&
+  grep -q '\- \*\*min lenses\*\*: 4' <<<"$OUTPUT" &&
+  grep -q '\- \*\*max lenses\*\*: 8' <<<"$OUTPUT"; then
   echo "  PASS: outputs all plan-relevant defaults"
   PASS=$((PASS + 1))
 else
@@ -1280,8 +1280,8 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q '\- \*\*max inline comments\*\*: 15 (default: 10)' &&
-  echo "$OUTPUT" | grep -q '\- \*\*dedup proximity\*\*: 3$'; then
+if grep -q '\- \*\*max inline comments\*\*: 15 (default: 10)' <<<"$OUTPUT" &&
+  grep -q '\- \*\*dedup proximity\*\*: 3$' <<<"$OUTPUT"; then
   echo "  PASS: overridden value annotated, default value plain"
   PASS=$((PASS + 1))
 else
@@ -1306,13 +1306,13 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q '\*\*max inline comments\*\*: 15 (default: 10)' &&
-  echo "$OUTPUT" | grep -q '\*\*dedup proximity\*\*: 5 (default: 3)' &&
-  echo "$OUTPUT" | grep -q '\*\*min lenses\*\*: 3 (default: 4)' &&
-  echo "$OUTPUT" | grep -q '\*\*max lenses\*\*: 10 (default: 8)' &&
-  echo "$OUTPUT" | grep -q "Core lenses" &&
-  echo "$OUTPUT" | grep -q "Disabled lenses" &&
-  echo "$OUTPUT" | grep -q "Verdict"; then
+if grep -q '\*\*max inline comments\*\*: 15 (default: 10)' <<<"$OUTPUT" &&
+  grep -q '\*\*dedup proximity\*\*: 5 (default: 3)' <<<"$OUTPUT" &&
+  grep -q '\*\*min lenses\*\*: 3 (default: 4)' <<<"$OUTPUT" &&
+  grep -q '\*\*max lenses\*\*: 10 (default: 8)' <<<"$OUTPUT" &&
+  grep -q "Core lenses" <<<"$OUTPUT" &&
+  grep -q "Disabled lenses" <<<"$OUTPUT" &&
+  grep -q "Verdict" <<<"$OUTPUT"; then
   echo "  PASS: outputs all overrides with annotations"
   PASS=$((PASS + 1))
 else
@@ -1331,7 +1331,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "Disabled lenses.*portability, compatibility"; then
+if grep -q "Disabled lenses.*portability, compatibility" <<<"$OUTPUT"; then
   echo "  PASS: disabled_lenses parsed correctly"
   PASS=$((PASS + 1))
 else
@@ -1350,7 +1350,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "Core lenses.*architecture, code-quality, test-coverage, correctness"; then
+if grep -q "Core lenses.*architecture, code-quality, test-coverage, correctness" <<<"$OUTPUT"; then
   echo "  PASS: hyphenated core lenses preserved"
   PASS=$((PASS + 1))
 else
@@ -1372,7 +1372,7 @@ auto_detect: Relevant when changes touch compliance code
 # Compliance Lens
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "| compliance |" && echo "$OUTPUT" | grep -q "| custom |"; then
+if grep -q "| compliance |" <<<"$OUTPUT" && grep -q "| custom |" <<<"$OUTPUT"; then
   echo "  PASS: custom lens listed in output"
   PASS=$((PASS + 1))
 else
@@ -1399,8 +1399,8 @@ description: Accessibility lens
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "| compliance |" &&
-  echo "$OUTPUT" | grep -q "| accessibility |"; then
+if grep -q "| compliance |" <<<"$OUTPUT" &&
+  grep -q "| accessibility |" <<<"$OUTPUT"; then
   echo "  PASS: multiple custom lenses listed"
   PASS=$((PASS + 1))
 else
@@ -1413,8 +1413,8 @@ echo "Test: Directory without SKILL.md -> skipped (no custom lens in output)"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator/lenses/empty-lens"
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "## Review Configuration" &&
-  ! echo "$OUTPUT" | grep -q "custom"; then
+if grep -q "## Review Configuration" <<<"$OUTPUT" &&
+  ! grep -q "custom" <<<"$OUTPUT"; then
   echo "  PASS: empty lens dir skipped, defaults still emitted"
   PASS=$((PASS + 1))
 else
@@ -1432,7 +1432,7 @@ description: Missing name field
 ---
 FIXTURE
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning.*missing.*name"; then
+if grep -q "Warning.*missing.*name" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: warning for missing name"
   PASS=$((PASS + 1))
 else
@@ -1451,7 +1451,7 @@ description: Custom security lens
 ---
 FIXTURE
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning.*security.*conflicts"; then
+if grep -q "Warning.*security.*conflicts" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: warning for name conflict"
   PASS=$((PASS + 1))
 else
@@ -1470,7 +1470,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if ! echo "$OUTPUT" | grep -q "custom"; then
+if ! grep -q "custom" <<<"$OUTPUT"; then
   echo "  PASS: no custom lenses"
   PASS=$((PASS + 1))
 else
@@ -1490,7 +1490,7 @@ auto_detect: Relevant when changes touch compliance
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep "compliance" | grep -q "| custom |"; then
+if grep -q "| custom |" < <(grep "compliance" <<<"$OUTPUT"); then
   echo "  PASS: custom lens with auto_detect shows 'custom'"
   PASS=$((PASS + 1))
 else
@@ -1509,7 +1509,7 @@ description: Accessibility lens
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep "accessibility" | grep -q "always include"; then
+if grep -q "always include" < <(grep "accessibility" <<<"$OUTPUT"); then
   echo "  PASS: custom lens without auto_detect shows 'always include'"
   PASS=$((PASS + 1))
 else
@@ -1528,7 +1528,7 @@ review:
 ---
 FIXTURE
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning.*min_lenses"; then
+if grep -q "Warning.*min_lenses" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: warning for negative min_lenses"
   PASS=$((PASS + 1))
 else
@@ -1548,7 +1548,7 @@ review:
 ---
 FIXTURE
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning.*min_lenses.*max_lenses"; then
+if grep -q "Warning.*min_lenses.*max_lenses" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: warning for min > max"
   PASS=$((PASS + 1))
 else
@@ -1567,7 +1567,7 @@ review:
 ---
 FIXTURE
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning.*unrecognised.*code_quality"; then
+if grep -q "Warning.*unrecognised.*code_quality" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: warning for unrecognised lens"
   PASS=$((PASS + 1))
 else
@@ -1587,7 +1587,7 @@ review:
 ---
 FIXTURE
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning.*security.*both"; then
+if grep -q "Warning.*security.*both" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: warning for core+disabled conflict"
   PASS=$((PASS + 1))
 else
@@ -1606,7 +1606,7 @@ review:
 ---
 FIXTURE
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning.*pr_request_changes_severity"; then
+if grep -q "Warning.*pr_request_changes_severity" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: warning for invalid severity"
   PASS=$((PASS + 1))
 else
@@ -1625,7 +1625,7 @@ review:
 ---
 FIXTURE
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan 2>&1 1>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning.*plan_revise_major_count"; then
+if grep -q "Warning.*plan_revise_major_count" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: warning for non-integer"
   PASS=$((PASS + 1))
 else
@@ -1646,7 +1646,7 @@ review:
 ---
 FIXTURE
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning.*lenses available"; then
+if grep -q "Warning.*lenses available" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: warning for insufficient lenses"
   PASS=$((PASS + 1))
 else
@@ -1665,7 +1665,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "Verdict.*REQUEST_CHANGES.*major"; then
+if grep -q "Verdict.*REQUEST_CHANGES.*major" <<<"$OUTPUT"; then
   echo "  PASS: severity major shown in output"
   PASS=$((PASS + 1))
 else
@@ -1684,7 +1684,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "Verdict.*disabled"; then
+if grep -q "Verdict.*disabled" <<<"$OUTPUT"; then
   echo "  PASS: severity none disables verdict"
   PASS=$((PASS + 1))
 else
@@ -1703,7 +1703,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-if echo "$OUTPUT" | grep -q "severity-based REVISE disabled"; then
+if grep -q "severity-based REVISE disabled" <<<"$OUTPUT"; then
   echo "  PASS: plan severity none disables"
   PASS=$((PASS + 1))
 else
@@ -1722,7 +1722,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-if echo "$OUTPUT" | grep -q "2+.*major"; then
+if grep -q "2+.*major" <<<"$OUTPUT"; then
   echo "  PASS: major count override shown"
   PASS=$((PASS + 1))
 else
@@ -1741,7 +1741,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-if echo "$OUTPUT" | grep -q '\*\*plan revise severity\*\*: critical$'; then
+if grep -q '\*\*plan revise severity\*\*: critical$' <<<"$OUTPUT"; then
   echo "  PASS: default severity shown without annotation"
   PASS=$((PASS + 1))
 else
@@ -1760,9 +1760,9 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "### Lens Catalogue" &&
-  echo "$OUTPUT" | grep -q "| architecture |" &&
-  echo "$OUTPUT" | grep -q "| usability |"; then
+if grep -q "### Lens Catalogue" <<<"$OUTPUT" &&
+  grep -q "| architecture |" <<<"$OUTPUT" &&
+  grep -q "| usability |" <<<"$OUTPUT"; then
   echo "  PASS: lens catalogue present with all 13 built-in lenses"
   PASS=$((PASS + 1))
 else
@@ -1782,8 +1782,8 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "max inline comments" &&
-  ! echo "$OUTPUT" | grep -q "plan revise"; then
+if grep -q "max inline comments" <<<"$OUTPUT" &&
+  ! grep -q "plan revise" <<<"$OUTPUT"; then
   echo "  PASS: PR mode excludes plan settings"
   PASS=$((PASS + 1))
 else
@@ -1803,8 +1803,8 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-if ! echo "$OUTPUT" | grep -q "max inline comments" &&
-  echo "$OUTPUT" | grep -q "plan revise major count.*2"; then
+if ! grep -q "max inline comments" <<<"$OUTPUT" &&
+  grep -q "plan revise major count.*2" <<<"$OUTPUT"; then
   echo "  PASS: Plan mode excludes PR settings"
   PASS=$((PASS + 1))
 else
@@ -1863,7 +1863,7 @@ fi
 echo "Test: No config files -> always outputs Review Configuration (regression guard)"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "## Review Configuration"; then
+if grep -q "## Review Configuration" <<<"$OUTPUT"; then
   echo "  PASS: always outputs Review Configuration"
   PASS=$((PASS + 1))
 else
@@ -1884,7 +1884,7 @@ OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 EXPECTED_LENSES="architecture code-quality compatibility correctness database documentation performance portability safety security standards test-coverage usability"
 CATALOGUE_OK=true
 for lens in $EXPECTED_LENSES; do
-  if ! echo "$OUTPUT" | grep -q "| $lens |"; then
+  if ! grep -q "| $lens |" <<<"$OUTPUT"; then
     echo "  FAIL: pr mode missing lens '$lens'"
     CATALOGUE_OK=false
     FAIL=$((FAIL + 1))
@@ -1901,7 +1901,7 @@ REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
 CATALOGUE_OK=true
 for lens in $EXPECTED_LENSES; do
-  if ! echo "$OUTPUT" | grep -q "| $lens |"; then
+  if ! grep -q "| $lens |" <<<"$OUTPUT"; then
     echo "  FAIL: plan mode missing lens '$lens'"
     CATALOGUE_OK=false
     FAIL=$((FAIL + 1))
@@ -1947,10 +1947,10 @@ PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
 LEAKED=""
 for lens in completeness testability clarity scope dependency; do
-  if echo "$PR_OUT" | grep -q "| $lens |"; then
+  if grep -q "| $lens |" <<<"$PR_OUT"; then
     LEAKED="$LEAKED pr:$lens"
   fi
-  if echo "$PLAN_OUT" | grep -q "| $lens |"; then
+  if grep -q "| $lens |" <<<"$PLAN_OUT"; then
     LEAKED="$LEAKED plan:$lens"
   fi
 done
@@ -1966,7 +1966,7 @@ review:
 ---
 FIXTURE
 STDERR_NOTE=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>&1 1>/dev/null)
-if echo "$STDERR_NOTE" | grep -q "Note: built-in work-item lens"; then
+if grep -q "Note: built-in work-item lens" <<<"$STDERR_NOTE"; then
   echo "  PASS: core_lenses override emits informational note in work-item mode"
   PASS=$((PASS + 1))
 else
@@ -1978,7 +1978,7 @@ fi
 echo "Test: empty core_lenses does not emit informational note in work-item mode"
 REPO=$(setup_repo)
 STDERR_EMPTY=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>&1 1>/dev/null)
-if echo "$STDERR_EMPTY" | grep -q "Note: built-in work-item lens"; then
+if grep -q "Note: built-in work-item lens" <<<"$STDERR_EMPTY"; then
   echo "  FAIL: empty core_lenses emits unexpected informational note in work-item mode"
   echo "    Stderr: $(printf '%q' "$STDERR_EMPTY")"
   FAIL=$((FAIL + 1))
@@ -1990,7 +1990,7 @@ fi
 echo "Test: unknown mode -> exit 1 and usage contains pr|plan|work-item"
 REPO=$(setup_repo)
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" "bad-mode" 2>&1 || true)
-if echo "$STDERR_OUTPUT" | grep -q "pr|plan|work-item"; then
+if grep -q "pr|plan|work-item" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: usage string includes work-item"
   PASS=$((PASS + 1))
 else
@@ -2013,9 +2013,9 @@ FIXTURE
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
 WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if ! echo "$PR_OUT" | grep -q "| plan-only |" &&
-  echo "$PLAN_OUT" | grep -q "| plan-only |" &&
-  ! echo "$WORK_ITEM_OUT" | grep -q "| plan-only |"; then
+if ! grep -q "| plan-only |" <<<"$PR_OUT" &&
+  grep -q "| plan-only |" <<<"$PLAN_OUT" &&
+  ! grep -q "| plan-only |" <<<"$WORK_ITEM_OUT"; then
   echo "  PASS: applies_to: [plan] restricts lens to plan mode only"
   PASS=$((PASS + 1))
 else
@@ -2038,9 +2038,9 @@ FIXTURE
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
 WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if echo "$PR_OUT" | grep -q "| all-modes |" &&
-  echo "$PLAN_OUT" | grep -q "| all-modes |" &&
-  echo "$WORK_ITEM_OUT" | grep -q "| all-modes |"; then
+if grep -q "| all-modes |" <<<"$PR_OUT" &&
+  grep -q "| all-modes |" <<<"$PLAN_OUT" &&
+  grep -q "| all-modes |" <<<"$WORK_ITEM_OUT"; then
   echo "  PASS: no applies_to means all modes"
   PASS=$((PASS + 1))
 else
@@ -2064,9 +2064,9 @@ FIXTURE
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
 WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if ! echo "$PR_OUT" | grep -q "| work-item-plan |" &&
-  echo "$PLAN_OUT" | grep -q "| work-item-plan |" &&
-  echo "$WORK_ITEM_OUT" | grep -q "| work-item-plan |"; then
+if ! grep -q "| work-item-plan |" <<<"$PR_OUT" &&
+  grep -q "| work-item-plan |" <<<"$PLAN_OUT" &&
+  grep -q "| work-item-plan |" <<<"$WORK_ITEM_OUT"; then
   echo "  PASS: applies_to: [work-item, plan] includes work-item and plan but not pr"
   PASS=$((PASS + 1))
 else
@@ -2084,7 +2084,7 @@ review:
 ---
 FIXTURE
 STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan 2>&1 1>/dev/null)
-if ! echo "$STDERR_OUT" | grep -q "unrecognised"; then
+if ! grep -q "unrecognised" <<<"$STDERR_OUT"; then
   echo "  PASS: architecture in core_lenses produces no warning in plan mode"
   PASS=$((PASS + 1))
 else
@@ -2111,7 +2111,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -qi "Filtered core lenses"; then
+if grep -qi "Filtered core lenses" <<<"$OUTPUT"; then
   echo "  PASS: cross-mode filtered core lenses shown in Review Configuration"
   PASS=$((PASS + 1))
 else
@@ -2130,7 +2130,7 @@ review:
 ---
 FIXTURE
 STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan 2>&1 1>/dev/null)
-if echo "$STDERR_OUT" | grep -q "unrecognised.*xyz"; then
+if grep -q "unrecognised.*xyz" <<<"$STDERR_OUT"; then
   echo "  PASS: unrecognised lens xyz still warns"
   PASS=$((PASS + 1))
 else
@@ -2152,9 +2152,9 @@ FIXTURE
 STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>/dev/null)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan 2>/dev/null)
-if echo "$STDERR_OUT" | grep -qi "unrecognised mode.*prr\|prr.*unrecognised" &&
-  ! echo "$PR_OUT" | grep -q "| bad-mode |" &&
-  ! echo "$PLAN_OUT" | grep -q "| bad-mode |"; then
+if grep -qi "unrecognised mode.*prr\|prr.*unrecognised" <<<"$STDERR_OUT" &&
+  ! grep -q "| bad-mode |" <<<"$PR_OUT" &&
+  ! grep -q "| bad-mode |" <<<"$PLAN_OUT"; then
   echo "  PASS: unrecognised mode warns and excludes lens from all catalogues"
   PASS=$((PASS + 1))
 else
@@ -2176,8 +2176,8 @@ applies_to: []
 FIXTURE
 STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>/dev/null)
-if echo "$STDERR_OUT" | grep -qi "empty applies_to" &&
-  ! echo "$PR_OUT" | grep -q "| empty-applies |"; then
+if grep -qi "empty applies_to" <<<"$STDERR_OUT" &&
+  ! grep -q "| empty-applies |" <<<"$PR_OUT"; then
   echo "  PASS: empty applies_to warns and excludes lens"
   PASS=$((PASS + 1))
 else
@@ -2199,8 +2199,8 @@ applies_to: pr
 FIXTURE
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-if echo "$PR_OUT" | grep -q "| scalar-applies |" &&
-  ! echo "$PLAN_OUT" | grep -q "| scalar-applies |"; then
+if grep -q "| scalar-applies |" <<<"$PR_OUT" &&
+  ! grep -q "| scalar-applies |" <<<"$PLAN_OUT"; then
   echo "  PASS: scalar applies_to treated as [pr]"
   PASS=$((PASS + 1))
 else
@@ -2240,7 +2240,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
-if echo "$OUTPUT" | grep -q "Verdict.*REQUEST_CHANGES.*major"; then
+if grep -q "Verdict.*REQUEST_CHANGES.*major" <<<"$OUTPUT"; then
   echo "  PASS: pr mode verdict override unchanged after refactor"
   PASS=$((PASS + 1))
 else
@@ -2259,7 +2259,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
-if echo "$OUTPUT" | grep -q "Verdict.*REVISE.*major"; then
+if grep -q "Verdict.*REVISE.*major" <<<"$OUTPUT"; then
   echo "  PASS: plan mode verdict override unchanged after refactor"
   PASS=$((PASS + 1))
 else
@@ -2271,8 +2271,8 @@ fi
 echo "Test: work-item mode emits work-item revise severity and count with defaults"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if echo "$OUTPUT" | grep -q '\*\*work-item revise severity\*\*: critical$' &&
-  echo "$OUTPUT" | grep -q '\*\*work-item revise major count\*\*: 2$'; then
+if grep -q '\*\*work-item revise severity\*\*: critical$' <<<"$OUTPUT" &&
+  grep -q '\*\*work-item revise major count\*\*: 2$' <<<"$OUTPUT"; then
   echo "  PASS: work-item mode emits verdict defaults without annotation"
   PASS=$((PASS + 1))
 else
@@ -2291,7 +2291,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if echo "$OUTPUT" | grep -q '\*\*work-item revise severity\*\*: major (default: critical)'; then
+if grep -q '\*\*work-item revise severity\*\*: major (default: critical)' <<<"$OUTPUT"; then
   echo "  PASS: work-item severity override annotated"
   PASS=$((PASS + 1))
 else
@@ -2310,7 +2310,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if echo "$OUTPUT" | grep -q '\*\*work-item revise major count\*\*: 5 (default: 2)'; then
+if grep -q '\*\*work-item revise major count\*\*: 5 (default: 2)' <<<"$OUTPUT"; then
   echo "  PASS: work-item major count override annotated"
   PASS=$((PASS + 1))
 else
@@ -2330,8 +2330,8 @@ review:
 FIXTURE
 STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>&1 1>/dev/null || true)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if echo "$STDERR_OUT" | grep -q "Warning.*work_item_revise_major_count" &&
-  echo "$OUTPUT" | grep -q '\*\*work-item revise major count\*\*: 2$'; then
+if grep -q "Warning.*work_item_revise_major_count" <<<"$STDERR_OUT" &&
+  grep -q '\*\*work-item revise major count\*\*: 2$' <<<"$OUTPUT"; then
   echo "  PASS: invalid major count warns and falls back to default"
   PASS=$((PASS + 1))
 else
@@ -2352,8 +2352,8 @@ review:
 FIXTURE
 STDERR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>&1 1>/dev/null || true)
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if echo "$STDERR_OUT" | grep -q "Warning.*work_item_revise_severity" &&
-  echo "$OUTPUT" | grep -q '\*\*work-item revise severity\*\*: critical$'; then
+if grep -q "Warning.*work_item_revise_severity" <<<"$STDERR_OUT" &&
+  grep -q '\*\*work-item revise severity\*\*: critical$' <<<"$OUTPUT"; then
   echo "  PASS: invalid severity warns and falls back to default"
   PASS=$((PASS + 1))
 else
@@ -2373,7 +2373,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if echo "$OUTPUT" | grep -q "severity-based REVISE disabled"; then
+if grep -q "severity-based REVISE disabled" <<<"$OUTPUT"; then
   echo "  PASS: work-item severity none produces disabled verdict line"
   PASS=$((PASS + 1))
 else
@@ -2387,9 +2387,9 @@ REPO=$(setup_repo)
 PR_OUT=$(cd "$REPO" && bash "$READ_REVIEW" pr)
 PLAN_OUT=$(cd "$REPO" && bash "$READ_REVIEW" plan)
 WORK_ITEM_OUT=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>/dev/null || true)
-if echo "$WORK_ITEM_OUT" | grep -q "| completeness |" &&
-  ! echo "$PR_OUT" | grep -q "| completeness |" &&
-  ! echo "$PLAN_OUT" | grep -q "| completeness |"; then
+if grep -q "| completeness |" <<<"$WORK_ITEM_OUT" &&
+  ! grep -q "| completeness |" <<<"$PR_OUT" &&
+  ! grep -q "| completeness |" <<<"$PLAN_OUT"; then
   echo "  PASS: completeness in work-item only"
   PASS=$((PASS + 1))
 else
@@ -2412,9 +2412,9 @@ FIXTURE
 PR_STDERR=$(cd "$REPO" && bash "$READ_REVIEW" pr 2>&1 1>/dev/null)
 PLAN_STDERR=$(cd "$REPO" && bash "$READ_REVIEW" plan 2>&1 1>/dev/null)
 WORK_ITEM_STDERR=$(cd "$REPO" && bash "$READ_REVIEW" work-item 2>&1 1>/dev/null || true)
-if ! echo "$PR_STDERR" | grep -q "unrecognised" &&
-  ! echo "$PLAN_STDERR" | grep -q "unrecognised" &&
-  ! echo "$WORK_ITEM_STDERR" | grep -q "unrecognised"; then
+if ! grep -q "unrecognised" <<<"$PR_STDERR" &&
+  ! grep -q "unrecognised" <<<"$PLAN_STDERR" &&
+  ! grep -q "unrecognised" <<<"$WORK_ITEM_STDERR"; then
   echo "  PASS: cross-mode core_lenses produces no unrecognised warning"
   PASS=$((PASS + 1))
 else
@@ -2506,7 +2506,7 @@ mkdir -p "$REPO/.accelerator"
 printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 # shellcheck disable=SC2016 # single-quoted grep -F patterns; backticks are literal markdown, intentionally not command substitution
-if echo "$OUTPUT" | grep -qF '| `paths.plans` |' && echo "$OUTPUT" | grep -qF '| `templates.plan` |'; then
+if grep -qF '| `paths.plans` |' <<<"$OUTPUT" && grep -qF '| `templates.plan` |' <<<"$OUTPUT"; then
   echo "  PASS: paths.* and templates.* rows present in config-dump output"
   PASS=$((PASS + 1))
 else
@@ -2545,7 +2545,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep -q "review.max_inline_comments.*15.*team"; then
+if grep -q "review.max_inline_comments.*15.*team" <<<"$OUTPUT"; then
   echo "  PASS: team source attribution correct"
   PASS=$((PASS + 1))
 else
@@ -2564,7 +2564,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep -q "review.max_inline_comments.*20.*local"; then
+if grep -q "review.max_inline_comments.*20.*local" <<<"$OUTPUT"; then
   echo "  PASS: local source attribution correct"
   PASS=$((PASS + 1))
 else
@@ -2590,8 +2590,8 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep "review.max_inline_comments" | grep -q "local" &&
-  echo "$OUTPUT" | grep "review.min_lenses" | grep -q "team"; then
+if grep -q "local" < <(grep "review.max_inline_comments" <<<"$OUTPUT") &&
+  grep -q "team" < <(grep "review.min_lenses" <<<"$OUTPUT"); then
   echo "  PASS: merged config shows correct sources"
   PASS=$((PASS + 1))
 else
@@ -2610,7 +2610,7 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep "review.dedup_proximity" | grep -q "default"; then
+if grep -q "default" < <(grep "review.dedup_proximity" <<<"$OUTPUT"); then
   echo "  PASS: default source attribution correct"
   PASS=$((PASS + 1))
 else
@@ -2642,7 +2642,7 @@ printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 ALL_KEYS_OK=true
 for key in review.max_inline_comments review.min_lenses review.max_lenses review.dedup_proximity review.core_lenses review.disabled_lenses review.pr_request_changes_severity review.plan_revise_severity review.plan_revise_major_count; do
-  if ! echo "$OUTPUT" | grep -q "$key"; then
+  if ! grep -q "$key" <<<"$OUTPUT"; then
     echo "  FAIL: missing key $key"
     ALL_KEYS_OK=false
     FAIL=$((FAIL + 1))
@@ -2664,8 +2664,8 @@ review:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep -q 'agents\.reviewer.*accelerator:reviewer.*default' &&
-  echo "$OUTPUT" | grep -q 'agents\.codebase-locator.*accelerator:codebase-locator.*default'; then
+if grep -q 'agents\.reviewer.*accelerator:reviewer.*default' <<<"$OUTPUT" &&
+  grep -q 'agents\.codebase-locator.*accelerator:codebase-locator.*default' <<<"$OUTPUT"; then
   echo "  PASS: config-dump shows prefixed agent defaults"
   PASS=$((PASS + 1))
 else
@@ -2686,7 +2686,7 @@ mkdir -p "$REPO/.accelerator"
 printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 # shellcheck disable=SC2016 # single-quoted grep patterns; backticks are literal markdown, intentionally not command substitution
-if echo "$OUTPUT" | grep -qF '`work.integration`' && echo "$OUTPUT" | grep 'work\.integration' | grep -qF '*(not set)*'; then
+if grep -qF '`work.integration`' <<<"$OUTPUT" && grep -qF '*(not set)*' < <(grep 'work\.integration' <<<"$OUTPUT"); then
   echo "  PASS: work.integration shows as not set"
   PASS=$((PASS + 1))
 else
@@ -2700,7 +2700,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep 'work\.id_pattern' | grep -q '{number:04d}'; then
+if grep -q '{number:04d}' < <(grep 'work\.id_pattern' <<<"$OUTPUT"); then
   echo "  PASS: work.id_pattern shows default"
   PASS=$((PASS + 1))
 else
@@ -2714,7 +2714,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep 'work\.default_project_code' | grep -qF '*(not set)*'; then
+if grep -qF '*(not set)*' < <(grep 'work\.default_project_code' <<<"$OUTPUT"); then
   echo "  PASS: work.default_project_code shows as not set"
   PASS=$((PASS + 1))
 else
@@ -2733,9 +2733,9 @@ work:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep 'work\.integration' | grep -q 'jira' &&
-  echo "$OUTPUT" | grep 'work\.integration' | grep -q 'team' &&
-  ! echo "$OUTPUT" | grep 'work\.integration' | grep -q 'invalid'; then
+if grep -q 'jira' < <(grep 'work\.integration' <<<"$OUTPUT") &&
+  grep -q 'team' < <(grep 'work\.integration' <<<"$OUTPUT") &&
+  ! grep -q 'invalid' < <(grep 'work\.integration' <<<"$OUTPUT"); then
   echo "  PASS: jira integration shown correctly with team source, no invalid annotation"
   PASS=$((PASS + 1))
 else
@@ -2760,8 +2760,8 @@ work:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep 'work\.integration' | grep -q 'linear' &&
-  echo "$OUTPUT" | grep 'work\.integration' | grep -q 'local'; then
+if grep -q 'linear' < <(grep 'work\.integration' <<<"$OUTPUT") &&
+  grep -q 'local' < <(grep 'work\.integration' <<<"$OUTPUT"); then
   echo "  PASS: local override shows linear with local source"
   PASS=$((PASS + 1))
 else
@@ -2780,7 +2780,7 @@ work:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
-if echo "$OUTPUT" | grep 'work\.integration' | grep -q 'invalid'; then
+if grep -q 'invalid' < <(grep 'work\.integration' <<<"$OUTPUT"); then
   echo "  PASS: invalid integration annotated as invalid"
   PASS=$((PASS + 1))
 else
@@ -2816,7 +2816,7 @@ printf -- '---\nreview:\n  max_inline_comments: 15\n---\n' >"$REPO/.accelerator/
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 COMPLETENESS_FAIL=0
 for key in work.integration work.id_pattern work.default_project_code; do
-  if ! echo "$OUTPUT" | grep -qF "\`$key\`"; then
+  if ! grep -qF "\`$key\`" <<<"$OUTPUT"; then
     echo "  FAIL: $key missing from dump output"
     COMPLETENESS_FAIL=$((COMPLETENESS_FAIL + 1))
   fi
@@ -2864,15 +2864,15 @@ work:
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
 MIXED_FAIL=0
-if ! echo "$OUTPUT" | grep 'work\.integration' | grep -q 'local'; then
+if ! grep -q 'local' < <(grep 'work\.integration' <<<"$OUTPUT"); then
   echo "  FAIL: work.integration should show local source"
   MIXED_FAIL=1
 fi
-if ! echo "$OUTPUT" | grep 'work\.id_pattern' | grep -q 'team'; then
+if ! grep -q 'team' < <(grep 'work\.id_pattern' <<<"$OUTPUT"); then
   echo "  FAIL: work.id_pattern should show team source"
   MIXED_FAIL=1
 fi
-if ! echo "$OUTPUT" | grep 'work\.default_project_code' | grep -q 'default'; then
+if ! grep -q 'default' < <(grep 'work\.default_project_code' <<<"$OUTPUT"); then
   echo "  FAIL: work.default_project_code should show default source"
   MIXED_FAIL=1
 fi
@@ -3407,7 +3407,7 @@ echo "Test: unknown work.* key -> warning to stderr, delegates with empty defaul
 REPO=$(setup_repo)
 STDERR_OUT=$(cd "$REPO" && bash "$READ_WORK" unknown_key 2>&1 1>/dev/null || true)
 STDOUT_OUT=$(cd "$REPO" && bash "$READ_WORK" unknown_key 2>/dev/null || true)
-if echo "$STDERR_OUT" | grep -q "warning" && [ -z "$STDOUT_OUT" ]; then
+if grep -q "warning" <<<"$STDERR_OUT" && [ -z "$STDOUT_OUT" ]; then
   echo "  PASS: unknown key produces warning to stderr and empty stdout"
   PASS=$((PASS + 1))
 else
@@ -3428,7 +3428,7 @@ work:
 FIXTURE
 STDERR_OUT=$(cd "$REPO" && bash "$READ_WORK" unknown_key 2>&1 1>/dev/null || true)
 STDOUT_OUT=$(cd "$REPO" && bash "$READ_WORK" unknown_key 2>/dev/null || true)
-if echo "$STDERR_OUT" | grep -q "warning" && [ "$STDOUT_OUT" = "somevalue" ]; then
+if grep -q "warning" <<<"$STDERR_OUT" && [ "$STDOUT_OUT" = "somevalue" ]; then
   echo "  PASS: unknown key with value set: warning + value returned"
   PASS=$((PASS + 1))
 else
@@ -3539,7 +3539,7 @@ FIXTURE
 STDERR=$(cd "$REPO" && bash "$READ_WORK" integration 2>&1 1>/dev/null || true)
 VALIDATION_FAIL=0
 for val in jira linear trello github-issues; do
-  if ! echo "$STDERR" | grep -q "$val"; then
+  if ! grep -q "$val" <<<"$STDERR"; then
     echo "  FAIL: stderr does not mention '$val'"
     VALIDATION_FAIL=$((VALIDATION_FAIL + 1))
   fi
@@ -3562,7 +3562,7 @@ work:
 ---
 FIXTURE
 STDERR=$(cd "$REPO" && bash "$READ_WORK" integration 2>&1 1>/dev/null || true)
-if echo "$STDERR" | grep -q "garbage"; then
+if grep -q "garbage" <<<"$STDERR"; then
   echo "  PASS: stderr contains the invalid input value"
   PASS=$((PASS + 1))
 else
@@ -3581,7 +3581,7 @@ work:
 ---
 FIXTURE
 STDERR=$(cd "$REPO" && bash "$READ_WORK" integration 2>&1 1>/dev/null || true)
-if echo "$STDERR" | grep -q "\.accelerator/config\.md" && echo "$STDERR" | grep -q "/accelerator:configure view"; then
+if grep -q "\.accelerator/config\.md" <<<"$STDERR" && grep -q "/accelerator:configure view" <<<"$STDERR"; then
   echo "  PASS: stderr names remediation pointers"
   PASS=$((PASS + 1))
 else
@@ -3752,7 +3752,7 @@ work:
 ---
 FIXTURE
 STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
-if echo "$STDERR" | grep -q "jira"; then
+if grep -q "jira" <<<"$STDERR"; then
   echo "  PASS: warning names jira"
   PASS=$((PASS + 1))
 else
@@ -3771,7 +3771,7 @@ work:
 ---
 FIXTURE
 STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
-if echo "$STDERR" | grep -q "linear"; then
+if grep -q "linear" <<<"$STDERR"; then
   echo "  PASS: warning names linear"
   PASS=$((PASS + 1))
 else
@@ -3790,7 +3790,7 @@ work:
 ---
 FIXTURE
 STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
-if echo "$STDERR" | grep -q "trello"; then
+if grep -q "trello" <<<"$STDERR"; then
   echo "  PASS: warning names trello"
   PASS=$((PASS + 1))
 else
@@ -3809,7 +3809,7 @@ work:
 ---
 FIXTURE
 STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
-if echo "$STDERR" | grep -q "github-issues"; then
+if grep -q "github-issues" <<<"$STDERR"; then
   echo "  PASS: warning names github-issues"
   PASS=$((PASS + 1))
 else
@@ -3828,7 +3828,7 @@ work:
 ---
 FIXTURE
 STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
-if echo "$STDERR" | grep -q "pass --project" && echo "$STDERR" | grep -q "default_project_code"; then
+if grep -q "pass --project" <<<"$STDERR" && grep -q "default_project_code" <<<"$STDERR"; then
   echo "  PASS: warning guides user to fix"
   PASS=$((PASS + 1))
 else
@@ -3847,7 +3847,7 @@ work:
 ---
 FIXTURE
 STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null || true)
-if echo "$STDERR" | grep -q "\.accelerator/config\.md"; then
+if grep -q "\.accelerator/config\.md" <<<"$STDERR"; then
   echo "  PASS: warning references config file"
   PASS=$((PASS + 1))
 else
@@ -3867,7 +3867,7 @@ work:
 FIXTURE
 EXIT_CODE=0
 STDERR=$(cd "$REPO" && source "$WORK_COMMON" && work_resolve_default_project 2>&1 1>/dev/null) || EXIT_CODE=$?
-if [ "$EXIT_CODE" -ne 0 ] && echo "$STDERR" | grep -q "jira"; then
+if [ "$EXIT_CODE" -ne 0 ] && grep -q "jira" <<<"$STDERR"; then
   echo "  PASS: AC4 surfaces through helper: exits non-zero, names valid values"
   PASS=$((PASS + 1))
 else
@@ -4139,7 +4139,7 @@ FIRST_LINE=$(echo "$OUTPUT" | head -1)
 LAST_LINE=$(echo "$OUTPUT" | tail -1)
 assert_eq "starts with code fence" '```markdown' "$FIRST_LINE"
 assert_eq "ends with code fence" '```' "$LAST_LINE"
-if echo "$OUTPUT" | grep -q "## Overview"; then
+if grep -q "## Overview" <<<"$OUTPUT"; then
   echo "  PASS: contains plan template content"
   PASS=$((PASS + 1))
 else
@@ -4158,7 +4158,7 @@ FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
 FIRST_LINE=$(echo "$OUTPUT" | head -1)
 assert_eq "starts with code fence" '```markdown' "$FIRST_LINE"
-if echo "$OUTPUT" | grep -q "My Custom Section"; then
+if grep -q "My Custom Section" <<<"$OUTPUT"; then
   echo "  PASS: contains user template content"
   PASS=$((PASS + 1))
 else
@@ -4180,7 +4180,7 @@ cat >"$REPO/docs/templates/plan.md" <<'FIXTURE'
 # Overridden Directory Plan Template
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
-if echo "$OUTPUT" | grep -q "Overridden Directory Plan Template"; then
+if grep -q "Overridden Directory Plan Template" <<<"$OUTPUT"; then
   echo "  PASS: finds template in overridden directory"
   PASS=$((PASS + 1))
 else
@@ -4206,7 +4206,7 @@ cat >"$REPO/.accelerator/templates/plan.md" <<'FIXTURE'
 # Templates-Dir Plan (should NOT be used)
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
-if echo "$OUTPUT" | grep -q "Config-Specified Plan"; then
+if grep -q "Config-Specified Plan" <<<"$OUTPUT"; then
   echo "  PASS: config path takes precedence over templates dir"
   PASS=$((PASS + 1))
 else
@@ -4234,7 +4234,7 @@ templates:
 ---
 FIXTURE
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan" 2>&1 1>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning"; then
+if grep -q "Warning" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: warning emitted to stderr"
   PASS=$((PASS + 1))
 else
@@ -4242,7 +4242,7 @@ else
   FAIL=$((FAIL + 1))
 fi
 OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan" 2>/dev/null)
-if echo "$OUTPUT" | grep -q "## Overview"; then
+if grep -q "## Overview" <<<"$OUTPUT"; then
   echo "  PASS: falls back to plugin default"
   PASS=$((PASS + 1))
 else
@@ -4264,7 +4264,7 @@ cat >"$REPO/relative/path/plan.md" <<'FIXTURE'
 # Relative Path Plan
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
-if echo "$OUTPUT" | grep -q "Relative Path Plan"; then
+if grep -q "Relative Path Plan" <<<"$OUTPUT"; then
   echo "  PASS: relative path resolved correctly"
   PASS=$((PASS + 1))
 else
@@ -4286,7 +4286,7 @@ templates:
 ---
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "plan")
-if echo "$OUTPUT" | grep -q "Absolute Path Plan"; then
+if grep -q "Absolute Path Plan" <<<"$OUTPUT"; then
   echo "  PASS: absolute path used as-is"
   PASS=$((PASS + 1))
 else
@@ -4297,12 +4297,12 @@ fi
 echo "Test: Unknown template name -> error listing available template names"
 REPO=$(setup_repo)
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "nonexistent" 2>&1 1>/dev/null || true)
-if echo "$STDERR_OUTPUT" | grep -q "pr-description" &&
-  echo "$STDERR_OUTPUT" | grep -q "plan" &&
-  echo "$STDERR_OUTPUT" | grep -q "research" &&
-  echo "$STDERR_OUTPUT" | grep -q "adr" &&
-  echo "$STDERR_OUTPUT" | grep -q "validation" &&
-  echo "$STDERR_OUTPUT" | grep -q "work-item"; then
+if grep -q "pr-description" <<<"$STDERR_OUTPUT" &&
+  grep -q "plan" <<<"$STDERR_OUTPUT" &&
+  grep -q "research" <<<"$STDERR_OUTPUT" &&
+  grep -q "adr" <<<"$STDERR_OUTPUT" &&
+  grep -q "validation" <<<"$STDERR_OUTPUT" &&
+  grep -q "work-item" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: error lists available templates (including pr-description and work-item)"
   PASS=$((PASS + 1))
 else
@@ -4315,7 +4315,7 @@ assert_exit_code "exits 1 for unknown template" 1 bash "$READ_TEMPLATE" "nonexis
 echo "Test: pr-description template -> outputs plugin default"
 REPO=$(setup_repo)
 OUTPUT=$(cd "$REPO" && bash "$READ_TEMPLATE" "pr-description")
-if echo "$OUTPUT" | grep -q "PR Title" && echo "$OUTPUT" | grep -q "Summary"; then
+if grep -q "PR Title" <<<"$OUTPUT" && grep -q "Summary" <<<"$OUTPUT"; then
   echo "  PASS: pr-description template content output"
   PASS=$((PASS + 1))
 else
@@ -4379,7 +4379,7 @@ FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$ADR_NEXT" 2>/dev/null)
 assert_eq "returns 0001" "0001" "$OUTPUT"
 STDERR_OUTPUT=$(cd "$REPO" && bash "$ADR_NEXT" 2>&1 1>/dev/null)
-if echo "$STDERR_OUTPUT" | grep -q "Warning"; then
+if grep -q "Warning" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: warning emitted to stderr"
   PASS=$((PASS + 1))
 else
@@ -4651,7 +4651,7 @@ OUTPUT_PR=$(cd "$REPO" && bash "$READ_SKILL_CONTEXT" review-pr)
 assert_contains "plan reads its own context" "$OUTPUT_PLAN" "Plan context."
 assert_contains "pr reads its own context" "$OUTPUT_PR" "PR context."
 # Verify isolation
-if printf '%s' "$OUTPUT_PLAN" | grep -qF "PR context."; then
+if grep -qF "PR context." <<<"$OUTPUT_PLAN"; then
   echo "  FAIL: plan output should not contain pr context"
   FAIL=$((FAIL + 1))
 else
@@ -4733,7 +4733,7 @@ OUTPUT_COMMIT=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" commit)
 OUTPUT_PR=$(cd "$REPO" && bash "$READ_SKILL_INSTRUCTIONS" review-pr)
 assert_contains "commit reads its own instructions" "$OUTPUT_COMMIT" "Commit instructions."
 assert_contains "pr reads its own instructions" "$OUTPUT_PR" "Review instructions."
-if printf '%s' "$OUTPUT_COMMIT" | grep -qF "Review instructions."; then
+if grep -qF "Review instructions." <<<"$OUTPUT_COMMIT"; then
   echo "  FAIL: commit output should not contain pr instructions"
   FAIL=$((FAIL + 1))
 else
@@ -4752,7 +4752,7 @@ REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY")
-if echo "$OUTPUT" | grep -q "Per-skill"; then
+if grep -q "Per-skill" <<<"$OUTPUT"; then
   echo "  FAIL: should not mention per-skill without directories"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
@@ -4808,7 +4808,7 @@ printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 mkdir -p "$REPO/.accelerator/skills/create-plan"
 printf 'Some other file.\n' >"$REPO/.accelerator/skills/create-plan/notes.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
-if echo "$OUTPUT" | grep -q "Per-skill"; then
+if grep -q "Per-skill" <<<"$OUTPUT"; then
   echo "  FAIL: should not list skill with no recognised files"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
@@ -4825,7 +4825,7 @@ mkdir -p "$REPO/.accelerator/skills/create-plan"
 touch "$REPO/.accelerator/skills/create-plan/context.md"
 touch "$REPO/.accelerator/skills/create-plan/instructions.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
-if echo "$OUTPUT" | grep -q "Per-skill"; then
+if grep -q "Per-skill" <<<"$OUTPUT"; then
   echo "  FAIL: should not list skill with empty files"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
@@ -4841,7 +4841,7 @@ printf -- '---\nkey: value\n---\n' >"$REPO/.accelerator/config.md"
 mkdir -p "$REPO/.accelerator/skills/create-plan"
 printf '   \n\n  \n' >"$REPO/.accelerator/skills/create-plan/context.md"
 OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>/dev/null)
-if echo "$OUTPUT" | grep -q "Per-skill"; then
+if grep -q "Per-skill" <<<"$OUTPUT"; then
   echo "  FAIL: should not list skill with whitespace-only files"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
@@ -4998,7 +4998,7 @@ STDERR_OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT" 2>&1 1>/dev/null)
 STDOUT_OUTPUT=$(cd "$REPO" && bash "$CONFIG_DETECT" 2>/dev/null)
 assert_contains "warning in stderr" "$STDERR_OUTPUT" "does not match any known skill name"
 # Verify warning is not in the JSON output
-if echo "$STDOUT_OUTPUT" | grep -qF "does not match"; then
+if grep -qF "does not match" <<<"$STDOUT_OUTPUT"; then
   echo "  FAIL: warning should not appear in JSON stdout"
   FAIL=$((FAIL + 1))
 else
@@ -5216,7 +5216,7 @@ OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 LINE_COUNT=$(echo "$OUTPUT" | grep -c '| `' || true)
 assert_eq "13 template rows" "13" "$LINE_COUNT"
 for KEY in plan codebase-research adr validation pr-description work-item rca plan-review work-item-review pr-review note; do
-  if echo "$OUTPUT" | grep "\`$KEY\`" | grep -q "plugin default"; then
+  if grep -q "plugin default" < <(grep "\`$KEY\`" <<<"$OUTPUT"); then
     echo "  PASS: $KEY shows plugin default"
     PASS=$((PASS + 1))
   else
@@ -5232,7 +5232,7 @@ mkdir -p "$REPO/.accelerator/templates"
 echo "# Custom" >"$REPO/.accelerator/templates/plan.md"
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 # shellcheck disable=SC2016 # single-quoted grep pattern; backticks are literal markdown, intentionally not command substitution
-if echo "$OUTPUT" | grep '`plan`' | grep -q "user override"; then
+if grep -q "user override" < <(grep '`plan`' <<<"$OUTPUT"); then
   echo "  PASS: plan shows user override"
   PASS=$((PASS + 1))
 else
@@ -5254,7 +5254,7 @@ templates:
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 # shellcheck disable=SC2016 # single-quoted grep pattern; backticks are literal markdown, intentionally not command substitution
-if echo "$OUTPUT" | grep '`plan`' | grep -q "config path"; then
+if grep -q "config path" < <(grep '`plan`' <<<"$OUTPUT"); then
   echo "  PASS: plan shows config path"
   PASS=$((PASS + 1))
 else
@@ -5276,7 +5276,7 @@ paths:
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 # shellcheck disable=SC2016 # single-quoted grep pattern; backticks are literal markdown, intentionally not command substitution
-if echo "$OUTPUT" | grep '`codebase-research`' | grep -q "user override"; then
+if grep -q "user override" < <(grep '`codebase-research`' <<<"$OUTPUT"); then
   echo "  PASS: codebase-research shows user override via custom paths.templates"
   PASS=$((PASS + 1))
 else
@@ -5308,9 +5308,9 @@ templates:
 FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 # shellcheck disable=SC2016 # single-quoted grep patterns; backticks are literal markdown, intentionally not command substitution
-if echo "$OUTPUT" | grep '`plan`' | grep -q "config path" &&
-  echo "$OUTPUT" | grep '`codebase-research`' | grep -q "user override" &&
-  echo "$OUTPUT" | grep '`adr`' | grep -q "plugin default"; then
+if grep -q "config path" < <(grep '`plan`' <<<"$OUTPUT") &&
+  grep -q "user override" < <(grep '`codebase-research`' <<<"$OUTPUT") &&
+  grep -q "plugin default" < <(grep '`adr`' <<<"$OUTPUT"); then
   echo "  PASS: mixed sources correctly labelled"
   PASS=$((PASS + 1))
 else
@@ -5333,7 +5333,7 @@ assert_contains "source line says plugin default" "$FIRST_LINE" "Source: plugin 
 SECOND_LINE=$(echo "$OUTPUT" | sed -n '2p')
 assert_eq "separator line" "---" "$SECOND_LINE"
 # Content should NOT have code fences
-if echo "$OUTPUT" | grep -q '```markdown'; then
+if grep -q '```markdown' <<<"$OUTPUT"; then
   echo "  FAIL: should not contain code fences"
   FAIL=$((FAIL + 1))
 else
@@ -5383,7 +5383,7 @@ printf '# Raw Template\n\nSome content here.\n' >"$REPO/.accelerator/templates/p
 OUTPUT=$(cd "$REPO" && bash "$SHOW_TEMPLATE" "plan")
 # Extract content after the --- separator
 CONTENT=$(echo "$OUTPUT" | sed '1,2d')
-if echo "$CONTENT" | grep -q '```'; then
+if grep -q '```' <<<"$CONTENT"; then
   echo "  FAIL: raw content should not contain added fences"
   FAIL=$((FAIL + 1))
 else
@@ -5727,7 +5727,7 @@ REPO=$(setup_repo)
 cd "$REPO" && bash "$EJECT_TEMPLATE" "plan" >/dev/null
 OUTPUT=$(cd "$REPO" && bash "$LIST_TEMPLATE")
 # shellcheck disable=SC2016 # single-quoted grep pattern; backticks are literal markdown, intentionally not command substitution
-if echo "$OUTPUT" | grep '`plan`' | grep -q "user override"; then
+if grep -q "user override" < <(grep '`plan`' <<<"$OUTPUT"); then
   echo "  PASS: plan shows user override after eject"
   PASS=$((PASS + 1))
 else
@@ -5951,7 +5951,7 @@ fi
 
 echo "Test: configure/SKILL.md recognised-keys paragraph lists work.integration"
 if grep -q "work\.integration" "$CONFIGURE_SKILL" &&
-  grep -A2 "Recognised keys" "$CONFIGURE_SKILL" | grep -q "work\.integration"; then
+  grep -q "work\.integration" < <(grep -A2 "Recognised keys" "$CONFIGURE_SKILL"); then
   echo "  PASS: recognised-keys paragraph mentions work.integration"
   PASS=$((PASS + 1))
 else
