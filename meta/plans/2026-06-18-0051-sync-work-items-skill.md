@@ -1454,10 +1454,12 @@ duplicates), never a per-item loop.
 
 #### Automated Verification
 
-- [ ] Work-item script suite green: `bash skills/work/scripts/test-work-item-scripts.sh`
-- [ ] `mise run scripts:check` clean
-- [ ] `mise run check` green
-- [ ] Full CI mirror green: `mise run`
+- [x] Work-item script suite green: `bash skills/work/scripts/test-work-item-scripts.sh`
+- [x] `mise run scripts:check` clean
+- [x] `mise run check` green
+- [x] Full CI mirror green: `mise run` (the only failures were the unrelated,
+      transient `inventory-design` Playwright suite — "browser has been closed" —
+      which passes cleanly in isolation; no work-management suite failed)
 
 #### Manual Verification
 

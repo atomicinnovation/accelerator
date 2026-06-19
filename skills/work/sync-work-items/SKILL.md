@@ -238,10 +238,84 @@ destructive write.
 
 ## Step 4: Unsynced push offer and untracked pull
 
-The unsynced-item push offer and the untracked-remote pull are added in a later
-phase. In this version, items with no `external_id` are listed under
-`unsynced (not pushed)` in the summary, and untracked remote issues are not
-pulled.
+### Unsynced push offer
+
+For each local item with **no** `external_id` (never pushed), offer a push using
+**one** pinned grammar (per-item `[y/N]` with the fast-path keys surfaced in the
+string so they are discoverable):
+
+```
+Push <id> "<title>" to <tracker>? [y/N]  (a = push all remaining, d = decline all remaining)
+```
+
+- `a` / `d` touch only **un-decided** items and **never resurrect** declines.
+- **Accepted** → push via the **create** bridge:
+
+  ```
+  ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-create-remote.sh \
+    --integration <sys> --title <t> --kind <kind> --body-file <tmp>
+  ```
+
+  Substitute the returned key into the item's `external_id` line **in memory**,
+  then write the whole item (frontmatter incl. `external_id` + body) in a
+  **single** `atomic_write`, so the file never exists half-linked.
+  `work-item-push-decide.sh` governs retry/terminal handling exactly as
+  `/create-work-item` does (a 71/terminal is never auto-retried; the returned
+  key, if any, is preserved with loud guidance).
+- **Declined** → untouched.
+- Under `--preview`: report the intended pushes via the create bridge's
+  `--dry-run`; make no write.
+
+### Untracked remote pull
+
+Fetch remote issues via the read bridge, forwarding the user's filter flags
+verbatim:
+
+```
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-fetch-remote.sh \
+  --integration <sys> search [filter-flags…]
+```
+
+- **Default scope** is `work.default_project_code` — for jira this is the search
+  flow's own default project, so plain `search` is already scoped; for linear the
+  team is catalogue-fixed (single-team), so there is no project scope.
+- `--all` forwards the tracker's `--all-projects` primitive (jira only), dropping
+  **only** the project clause; any user filters (e.g. `--label`) still apply.
+- Compute the **untracked** set: remote issues whose key is **not** already held
+  by any local item's `external_id` (a held key is already tracked — never create
+  a duplicate).
+
+**Blast-radius gate.** When the untracked set exceeds the shared threshold
+(**25** — the same constant the pull-overwrite gate in Step 3 uses), pin, and
+evaluate **before any creation write**:
+
+```
+N untracked remote issues will be created. Proceed? [y/N]
+```
+
+It **fails safe**: empty input, a non-interactive context, or any non-`y` answer
+aborts the untracked-pull class with **zero** creations and a non-zero exit. This
+stops a mis-scoped `--all` or an automation-flooded project from flooding the
+work directory and exhausting IDs.
+
+**Allocate the whole batch up front** — never per item in a loop (which would
+hand every pulled item the same number until each file lands):
+
+```
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-next-number.sh --count N
+```
+
+For each issue, build the full frontmatter (incl. `external_id` = remote key and
+the allocated `id`) and body in memory, write it in a **single** `atomic_write`,
+then record its baseline entry (`work-item-sync-baseline.sh set <id>
+<remote_updated_at> <remote_hash> <local_hash>`, with `remote_hash` from
+`work-item-project-remote.sh … body | work-item-normalise.sh --stdin` over the
+issue's `show` body, and `local_hash` from the just-written file). Re-validate
+each allocated `id` is still free immediately before its write and **abort** the
+batch on an unexpected collision rather than overwriting (single-writer
+assumption). The pull is idempotent across re-runs: a created item now carries an
+`external_id`, so it is no longer untracked. Under `--preview`: report the
+untracked set, allocate nothing, create nothing.
 
 ## Step 5: Persist and summarise
 
@@ -262,10 +336,13 @@ Print a summary grouped by action, listing the affected `id`s (not bare counts)
 so the user can see exactly which items changed without re-running:
 
 ```
-pushed:             <ids>
-pulled:             <ids>
-conflicts-skipped:  <ids>
-needs-retry:        <ids>
-remote-absent:      <ids>
-unsynced (not pushed): <ids>
+pushed:                <ids>
+pulled:                <ids>
+pushed-unsynced:       <ids>   (new external_id written back)
+pulled-untracked:      <ids>   (remote key → new local id)
+conflicts-skipped:     <ids>
+overrides:             OVERRIDE <id> (<external_id>): pushed local→remote
+needs-retry:           <ids>
+remote-absent:         <ids>
+unsynced (not pushed): <ids>   (declined)
 ```
