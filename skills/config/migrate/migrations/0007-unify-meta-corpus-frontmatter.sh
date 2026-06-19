@@ -13,6 +13,10 @@ source "$PLUGIN_ROOT/scripts/interactive-harness.sh"
 # Single source for path→doc-type classification + out-of-scope (previously a
 # byte-identical copy lived here and in the validator).
 source "$PLUGIN_ROOT/scripts/doc-type-inference.sh"
+# Shared loader (load_doc_type_table) for the config-driven doc-type allowlist
+# injected into the classifier above. Sourced by literal path like the classifier
+# itself; the resolver it spawns is overridable via DOC_TYPE_PATHS_RESOLVER.
+source "$PLUGIN_ROOT/scripts/doc-type-table.sh"
 # Cross-cutting schema rules: fm_assert_schema_columns (column-order guard) and
 # FM_OPTIONAL_EXTRAS (the optional-extra carve-out, consumed in the required-
 # extras backfill). NB: a shipped migration must reproduce its historical output
@@ -33,6 +37,15 @@ fi
 if PROJECT_ROOT_CANON="$(cd "$PROJECT_ROOT" 2>/dev/null && pwd -P)"; then
   PROJECT_ROOT="$PROJECT_ROOT_CANON"
 fi
+
+# Resolve-and-inject the config-driven doc-type allowlist ONCE, against the
+# canonicalised corpus root (not the migration's CWD), so BOTH the scope gate
+# (out_of_scope) and the type derivation (infer_type_from_path — the type
+# written into regenerated frontmatter) are config-aware and consistent with the
+# validator. Non-fatal here; the orchestration block's pre-mutation guard fails
+# closed on a wholesale resolution failure before anything is mutated.
+DOC_TYPE_TABLE_OK=1
+load_doc_type_table "$PROJECT_ROOT" || DOC_TYPE_TABLE_OK=0
 
 # Overridable (test-only seam, mirrors the validator's) so a fixture can prove
 # the forbidden-key drop and required-extras backfill are schema-driven.
@@ -535,10 +548,15 @@ self_validate_structural() {
     files+=("$f")
   done < <(corpus_files)
   [ "${#files[@]}" -gt 0 ] || return 0
-  bash "$VALIDATOR" "${files[@]}" >&2
+  # Pin CWD to PROJECT_ROOT so the spawned validator resolves the same allowlist
+  # that scoped the mutation (even though file-list mode does not filter by it).
+  (cd "$PROJECT_ROOT" && bash "$VALIDATOR" "${files[@]}") >&2
 }
 self_validate_referential() {
-  bash "$VALIDATOR" "$META_ABS" >&2
+  # Pin CWD to PROJECT_ROOT so the whole-corpus self-check observes the SAME
+  # doc-type allowlist that drove the mutation — a CWD != PROJECT_ROOT invocation
+  # cannot make it validate a different file set than was mutated.
+  (cd "$PROJECT_ROOT" && bash "$VALIDATOR" "$META_ABS") >&2
 }
 
 # ── Corpus identity index (for existence-checking resolved inferences) ───────
@@ -718,6 +736,16 @@ if [ "${ACCELERATOR_0007_NO_RUN:-}" = "1" ]; then return 0 2>/dev/null || exit 0
   # Fail loudly (before mutating anything) if the schema's column order changed
   # under the positional cut -fN reads (forbidden col 6, extras col 4).
   fm_assert_schema_columns "$SCHEMA_TSV" || exit 1
+  # Fail-closed net: a wholesale doc-type allowlist resolution failure (resolver
+  # non-zero or zero rows) would otherwise classify the entire corpus
+  # out-of-scope and exit 0 having migrated nothing — indistinguishable from a
+  # clean idempotent re-run (the clean-tree net does not catch a no-op). Because
+  # a blank config value is coerced to its registry default, a short/empty table
+  # only ever signals such a failure. Abort before mutating anything.
+  if [ "$DOC_TYPE_TABLE_OK" -ne 1 ]; then
+    log_warn "0007: doc-type allowlist resolution failed — zero files mutated — fix .accelerator/config.md (or revert meta/ via your VCS), then re-run" >&2
+    exit 1
+  fi
   if ! precondition_prepass; then
     log_warn "0007: precondition pre-pass refused — zero files mutated — resolve the refusals above (or revert meta/ via your VCS), then re-run" >&2
     exit 1
@@ -732,6 +760,17 @@ if [ "${ACCELERATOR_0007_NO_RUN:-}" = "1" ]; then return 0 2>/dev/null || exit 0
   # Build the identity index over the final (post-rewrite) corpus so the
   # emitter can existence-check resolved inferences before harness_run.
   build_corpus_index
+  # Independent backstop for a wrong-but-non-empty scope (which the same-scope
+  # self-validation cannot catch by itself): a non-empty corpus that resolved
+  # zero in-scope typed files signals a mis-resolved allowlist. The resolver's
+  # path-safety rejection removes the traversal/absolute mis-scope class at
+  # source; this catches the residue. Recover (as for all 0007 faults) via VCS.
+  guard_typed="$(printf '%s' "$CORPUS_INDEX" | grep -c . || true)"
+  guard_files="$(corpus_files | tr -cd '\0' | wc -c | tr -d ' ')"
+  if [ "$guard_files" -gt 0 ] && [ "$guard_typed" -eq 0 ]; then
+    log_warn "0007: corpus has $guard_files file(s) but zero resolved to a configured doc-type — aborting (scope mis-resolved); revert meta/ via your VCS" >&2
+    exit 1
+  fi
 } >&2
 
 harness_run

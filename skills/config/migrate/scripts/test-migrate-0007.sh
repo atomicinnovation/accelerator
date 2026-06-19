@@ -1778,4 +1778,172 @@ run_0007 "$NOCOL"
 assert_eq "Phase 6 shared stem across types: run exits 0 (no false collision)" "0" "$RUN_RC"
 assert_validates "Phase 6 shared-stem corpus validates" "$NOCOL/meta"
 
+# ── Config-driven allowlist scope (doc-type table injection) ─────────────────
+# These exercise the migration's resolve-and-inject path: default-layout
+# byte-equivalence, custom-path config-aware typing, the pre-mutation fail-closed
+# guard, CWD != PROJECT_ROOT, and the constant resolver-spawn count.
+
+echo "=== Allowlist: default-layout byte-equivalence (golden) ==="
+# A checked-in golden captured from the PRE-refactor migration over a fenced-only
+# (VCS-independent) fixture; the post-change migration must reproduce it
+# byte-for-byte, so the test cannot agree with a regressed implementation.
+BE_FIX="$SCRIPT_DIR/test-fixtures/migrate-byte-equiv"
+BE="$TMP/byte-equiv"
+mkdir -p "$BE"
+cp -R "$BE_FIX/input/." "$BE/"
+git_init "$BE"
+run_0007 "$BE"
+assert_eq "byte-equiv corpus exits 0" "0" "$RUN_RC"
+be_mismatch=""
+while IFS= read -r gf; do
+  rel="${gf#"$BE_FIX/golden/"}"
+  cmp -s "$gf" "$BE/$rel" || be_mismatch="$be_mismatch $rel"
+done < <(find "$BE_FIX/golden" -type f)
+assert_empty "migrated tree is byte-identical to the pre-refactor golden" "$be_mismatch"
+be_golden_n="$(find "$BE_FIX/golden/meta" -type f | wc -l | tr -d ' ')"
+be_actual_n="$(find "$BE/meta" -type f | wc -l | tr -d ' ')"
+assert_eq "no extra/missing files vs golden" "$be_golden_n" "$be_actual_n"
+# Prepass parity: the go/no-go verdict on the default layout is unchanged (the
+# config-aware out_of_scope/infer_type_from_path do not introduce a REFUSE).
+assert_not_contains "default-layout prepass emits no REFUSE (parity)" "$RUN_OUT" "0007-REFUSE"
+
+echo "=== Allowlist: custom paths.notes config-aware typing ==="
+# paths.notes overridden to a non-default dir UNDER meta/. A fence-less file
+# there is in scope AND typed; an equivalent file at the now-unconfigured
+# default meta/notes/ is out of scope (byte-unchanged) — proving derivation is
+# config-aware, not hardcoded.
+CP="$TMP/custom-path"
+mkdir -p "$CP/.accelerator" "$CP/meta/jottings" "$CP/meta/notes"
+cat >"$CP/.accelerator/config.md" <<'EOF'
+---
+paths:
+  notes: meta/jottings
+---
+EOF
+printf '# A Custom Jotting\n\nObservation.\n' >"$CP/meta/jottings/2026-06-20-jotting.md"
+printf '# A Default Note\n\nObservation.\n' >"$CP/meta/notes/2026-06-20-default.md"
+CP_DEFAULT_BEFORE="$(cat "$CP/meta/notes/2026-06-20-default.md")"
+git_init "$CP"
+run_0007 "$CP"
+assert_eq "custom-path corpus exits 0" "0" "$RUN_RC"
+assert_contains "fence-less file under configured custom dir typed note" \
+  "$(fm_line "$CP/meta/jottings/2026-06-20-jotting.md" type)" "type: note"
+assert_eq "file at unconfigured default meta/notes byte-unchanged (out of scope)" \
+  "$CP_DEFAULT_BEFORE" "$(cat "$CP/meta/notes/2026-06-20-default.md")"
+
+echo "=== Allowlist: pre-mutation fail-closed guard ==="
+guard_case() { # $1=label $2=bad-paths.work-value
+  local G="$TMP/guard-$1"
+  mkdir -p "$G/.accelerator" "$G/meta/work"
+  cat >"$G/.accelerator/config.md" <<EOF
+---
+paths:
+  work: $2
+---
+EOF
+  cat >"$G/meta/work/0001-foo.md" <<'EOF'
+---
+type: work-item
+work_item_id: "0001"
+title: "Foo"
+date: "2026-06-01"
+author: Toby
+skill: create-work-item
+kind: story
+priority: high
+status: ready
+parent: ""
+---
+# Foo
+EOF
+  local before
+  before="$(cat "$G/meta/work/0001-foo.md")"
+  git_init "$G"
+  run_0007 "$G"
+  assert_neq "guard ($1): migration aborts non-zero" "0" "$RUN_RC"
+  assert_eq "guard ($1): zero file mutations" "$before" "$(cat "$G/meta/work/0001-foo.md")"
+}
+guard_case traversal ".."
+guard_case absolute "/abs/work"
+
+echo "=== Allowlist: arbitrary unconfigured subtree skipped (allowlist origin) ==="
+# Not just docs/: an ARBITRARY subtree is skipped byte-unchanged, proving the
+# skip is the config-driven allowlist rather than a docs-specific denylist.
+ARB="$TMP/arbitrary-skip"
+mkdir -p "$ARB/meta/notes" "$ARB/meta/arbitrary"
+printf '# A Note\n\nx\n' >"$ARB/meta/notes/2026-06-20-n.md"
+printf -- '---\nfoo: bar\n---\n# Arbitrary\n' >"$ARB/meta/arbitrary/thing.md"
+ARB_BEFORE="$(cat "$ARB/meta/arbitrary/thing.md")"
+git_init "$ARB"
+run_0007 "$ARB"
+assert_eq "arbitrary-skip corpus exits 0" "0" "$RUN_RC"
+assert_eq "arbitrary unconfigured subtree skipped byte-unchanged (allowlist)" \
+  "$ARB_BEFORE" "$(cat "$ARB/meta/arbitrary/thing.md")"
+
+echo "=== Allowlist: CWD != PROJECT_ROOT (+ symlinked checkout) ==="
+XR="$TMP/cwd-root"
+mkdir -p "$XR/.accelerator" "$XR/meta/jottings" "$XR/meta/notes"
+cat >"$XR/.accelerator/config.md" <<'EOF'
+---
+paths:
+  notes: meta/jottings
+---
+EOF
+printf '# Jotting\n\nx\n' >"$XR/meta/jottings/2026-06-20-j.md"
+printf '# Default\n\nx\n' >"$XR/meta/notes/2026-06-20-d.md"
+XR_DBEFORE="$(cat "$XR/meta/notes/2026-06-20-d.md")"
+git_init "$XR"
+OTHER="$TMP/elsewhere"
+mkdir -p "$OTHER"
+xr_rc=0
+# shellcheck disable=SC2034 # captured only to harvest the exit code into xr_rc
+xr_out="$(cd "$OTHER" && PROJECT_ROOT="$XR" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATIONS_DIR="$ONLY_0007" ACCELERATOR_MIGRATE_FORCE=1 \
+  bash "$DRIVER" 2>&1 </dev/null)" || xr_rc=$?
+assert_eq "CWD!=root: migration exits 0" "0" "$xr_rc"
+assert_contains "CWD!=root: custom-dir file typed (config resolved against PROJECT_ROOT)" \
+  "$(fm_line "$XR/meta/jottings/2026-06-20-j.md" type)" "type: note"
+assert_eq "CWD!=root: default-dir file out of scope (self-validator agreed: exit 0)" \
+  "$XR_DBEFORE" "$(cat "$XR/meta/notes/2026-06-20-d.md")"
+# Symlinked checkout: a symlinked PROJECT_ROOT is canonicalised (pwd -P); a
+# forced re-run through the symlink is an empty, idempotent diff.
+XLINK="$TMP/cwd-root-link"
+ln -s "$XR" "$XLINK"
+git -C "$XR" add -A && git -C "$XR" commit -q -m migrated >/dev/null 2>&1
+xl_rc=0
+(cd "$OTHER" && PROJECT_ROOT="$XLINK" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATIONS_DIR="$ONLY_0007" ACCELERATOR_MIGRATE_FORCE=1 \
+  bash "$DRIVER" >/dev/null 2>&1 </dev/null) || xl_rc=$?
+assert_eq "symlinked PROJECT_ROOT: migration exits 0" "0" "$xl_rc"
+assert_empty "symlinked PROJECT_ROOT: empty meta/ diff (canonicalised, idempotent)" \
+  "$(git -C "$XR" status --porcelain meta/ || true)"
+
+echo "=== Allowlist: constant resolver-spawn count ==="
+spawn_count() { # $1=repo $2=tag -> echoes spawn count
+  local repo="$1" counter="$TMP/rescount-$2" wrap="$TMP/reswrap-$2.sh"
+  : >"$counter"
+  cat >"$wrap" <<WRAPEOF
+#!/usr/bin/env bash
+echo x >>"$counter"
+exec "$PLUGIN_ROOT/scripts/config-read-doc-type-paths.sh" "\$@"
+WRAPEOF
+  chmod +x "$wrap"
+  (cd "$repo" && PROJECT_ROOT="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    ACCELERATOR_MIGRATIONS_DIR="$ONLY_0007" ACCELERATOR_MIGRATE_FORCE=1 \
+    DOC_TYPE_PATHS_RESOLVER="$wrap" bash "$DRIVER" >/dev/null 2>&1 </dev/null) || true
+  grep -c x "$counter"
+}
+SC1="$TMP/spawn1"
+mkdir -p "$SC1/meta/notes"
+printf '# N1\n\nx\n' >"$SC1/meta/notes/2026-06-20-n1.md"
+git_init "$SC1"
+SC5="$TMP/spawn5"
+mkdir -p "$SC5/meta/notes"
+for i in 1 2 3 4 5; do printf '# N%s\n\nx\n' "$i" >"$SC5/meta/notes/2026-06-20-n$i.md"; done
+git_init "$SC5"
+c1="$(spawn_count "$SC1" a)"
+c5="$(spawn_count "$SC5" b)"
+assert_neq "resolver spawned at least once per migration run" "0" "$c1"
+assert_eq "resolver spawn count is constant across corpus sizes (1 vs 5 files)" "$c1" "$c5"
+
 test_summary

@@ -543,21 +543,22 @@ limitation, recovered (as for all 0007 faults) via VCS revert.
 ### Success Criteria
 
 #### Automated Verification
-- [ ] `bash skills/config/migrate/scripts/test-migrate-0007.sh` passes,
+- [x] `bash skills/config/migrate/scripts/test-migrate-0007.sh` passes,
       including the default-layout byte-equivalence, custom-path typing,
       non-empty-guard, and CWD≠root cases.
-- [ ] `bash scripts/test-validate-corpus-frontmatter.sh` still passes.
-- [ ] Migration self-validation (`self_validate_structural`, `build_corpus_index`)
+- [x] `bash scripts/test-validate-corpus-frontmatter.sh` still passes.
+- [x] Migration self-validation (`self_validate_structural`, `build_corpus_index`)
       behaves identically on a default-layout corpus.
-- [ ] `mise run lint:scripts:check` passes.
+- [x] `mise run lint:scripts:check` passes.
 
 #### Manual Verification
-- [ ] Dry-run the migration on a copy of a real default-layout corpus: the set
+- [x] Dry-run the migration on a copy of a real default-layout corpus: the set
       of files it processes vs skips, and the bytes written, are unchanged from
-      before the change.
-- [ ] Dry-run on a copy with `paths.work` overridden: an untyped file under the
+      before the change. (Automated as the byte-equivalence golden test.)
+- [x] Dry-run on a copy with `paths.work` overridden: an untyped file under the
       configured custom dir is typed `work-item`; an untyped file left at the
-      old default `meta/work/` is out of scope and byte-unchanged.
+      old default `meta/work/` is out of scope and byte-unchanged. (Automated as
+      the custom-path typing test, using `paths.notes`.)
 
 ---
 
