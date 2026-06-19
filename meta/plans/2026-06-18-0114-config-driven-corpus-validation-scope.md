@@ -333,7 +333,7 @@ required precondition (resolved-once, immutable for the run) and drops the stale
 ### Success Criteria
 
 #### Automated Verification
-- [ ] New unit test `scripts/test-doc-type-inference.sh` passes (run:
+- [x] New unit test `scripts/test-doc-type-inference.sh` passes (run:
       `bash scripts/test-doc-type-inference.sh`) covering: injected-table type
       match; **absolute-prefixed path** (`/abs/proj/meta/work/x.md` → `work-item`)
       as well as relative; most-specific-match (`…/meta/reviews/prs/x.md` →
@@ -342,19 +342,19 @@ required precondition (resolved-once, immutable for the run) and drops the stale
       metacharacter matched **literally**; equal-length tie (two types → same
       dir) resolves deterministically by array order; allowlist skip (unknown
       dir → `out_of_scope` true); **fallback mode**.
-- [ ] The fallback-mode case is **golden-pinned**: a snapshot of the current
+- [x] The fallback-mode case is **golden-pinned**: a snapshot of the current
       helper's output (one representative path per arm, including the
       order-sensitive `reviews/prs`-vs-`prs` and `research/codebase`-vs-`research`
       pairs) is captured *before* the refactor and checked in as the expected
       fixture, so a transcription error cannot make implementation and test agree
       on a wrong answer.
-- [ ] `bash scripts/test-validate-corpus-frontmatter.sh` still passes
+- [x] `bash scripts/test-validate-corpus-frontmatter.sh` still passes
       (validator unchanged — still in fallback mode).
-- [ ] `bash skills/config/migrate/scripts/test-migrate-0007.sh` still passes.
-- [ ] `mise run lint:scripts:check` passes.
+- [x] `bash skills/config/migrate/scripts/test-migrate-0007.sh` still passes.
+- [x] `mise run lint:scripts:check` passes.
 
 #### Manual Verification
-- [ ] Sourcing the helper without injecting a table reproduces the exact
+- [x] Sourcing the helper without injecting a table reproduces the exact
       current classifications for the default tree.
 
 ---

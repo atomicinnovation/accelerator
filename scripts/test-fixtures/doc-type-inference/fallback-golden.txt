@@ -1,0 +1,21 @@
+meta/work/0001-x.md	work-item	in
+/abs/proj/meta/work/0001-x.md	work-item	in
+meta/plans/2026-01-01-x.md	plan	in
+meta/validations/2026-01-01-x.md	plan-validation	in
+meta/prs/240-description.md	pr-description	in
+meta/decisions/ADR-0001-x.md	adr	in
+meta/research/codebase/2026-01-01-x.md	codebase-research	in
+meta/research/issues/2026-01-01-x.md	issue-research	in
+meta/research/design-gaps/2026-01-01-x.md	design-gap	in
+meta/research/design-inventories/2026-01-01/inventory.md	design-inventory	in
+meta/reviews/plans/2026-01-01-x.md	plan-review	in
+meta/reviews/work/0001-review-1.md	work-item-review	in
+meta/reviews/prs/42-review-1.md	pr-review	in
+/abs/proj/meta/reviews/prs/42-review-1.md	pr-review	in
+meta/notes/2026-01-01-x.md	note	in
+meta/specs/x.md		out
+meta/talks/x.md		out
+meta/global/x.md		out
+meta/docs/x.md		in
+meta/announcements/x.md		in
+meta/whatever/x.md		in
