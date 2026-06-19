@@ -133,6 +133,14 @@ child.on("exit", (code) => {
   if (code !== 0 && code !== null) {
     console.error(`[e2e] Server exited with code ${code}`);
   }
+  // The real server is gone, so this wrapper must not linger: a lingering
+  // wrapper keeps the health server answering 200 for a now-dead port, and a
+  // later run (reuseExistingServer) would silently reuse it and point every
+  // test at a dead origin (ERR_CONNECTION_REFUSED). Tear down and exit so the
+  // health port is freed and the next run starts a fresh server.
+  serverReady = false;
+  healthServer.close();
+  process.exit(code ?? 0);
 });
 
 // ── 5. Wait for server-info.json, publish port, signal health ─────────────────
