@@ -596,15 +596,15 @@ against accidental fail-open regressions.
 ### Success Criteria
 
 #### Automated Verification
-- [ ] `bash scripts/test-doc-type-inference.sh` passes.
-- [ ] `bash scripts/test-validate-corpus-frontmatter.sh` passes.
-- [ ] `bash skills/config/migrate/scripts/test-migrate-0007.sh` passes
+- [x] `bash scripts/test-doc-type-inference.sh` passes.
+- [x] `bash scripts/test-validate-corpus-frontmatter.sh` passes.
+- [x] `bash skills/config/migrate/scripts/test-migrate-0007.sh` passes
       (single-source guard still green).
-- [ ] `mise run test:integration:config` passes.
-- [ ] `mise run lint:scripts:check` passes.
+- [x] `mise run test:integration:config` passes.
+- [x] `mise run lint:scripts:check` passes.
 
 #### Manual Verification
-- [ ] `grep -n 'specs\|talks\|announcements' scripts/doc-type-inference.sh`
+- [x] `grep -n 'specs\|talks\|announcements' scripts/doc-type-inference.sh`
       returns nothing — the denylist is fully gone.
 
 ---

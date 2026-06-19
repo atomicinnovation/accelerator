@@ -12,8 +12,6 @@ export LC_ALL=C
 # shellcheck source=doc-type-inference.sh
 source "$SCRIPT_DIR/doc-type-inference.sh"
 
-GOLDEN="$SCRIPT_DIR/test-fixtures/doc-type-inference/fallback-golden.txt"
-
 # infer_type_from_path captured as a plain string (newline stripped).
 infer() { infer_type_from_path "$1"; }
 # "out"/"in" for out_of_scope.
@@ -62,17 +60,14 @@ DOC_TYPE_TABLE_INJECTED=1
 assert_eq "two types on same dir -> first-in-array wins" \
   "type-a" "$(infer meta/tie/x.md)"
 
-# ---- 4. Fallback mode reproduces the checked-in golden ---------------------
-echo "=== Fallback mode (golden-pinned) ==="
+# ---- 4. Fail-closed when no table is injected ------------------------------
+echo "=== Fail-closed (no table injected) ==="
 unset DOC_TYPE_TABLE_INJECTED
-assert_file_exists "fallback golden fixture present" "$GOLDEN"
-# Re-derive over the golden's own path column so the path list cannot drift from
-# the captured expectations.
-regen="$(while IFS=$'\t' read -r p _t _s; do
-  [ -n "$p" ] || continue
-  printf '%s\t%s\t%s\n' "$p" "$(infer "$p")" "$(scope "$p")"
-done <"$GOLDEN")"
-assert_eq "fallback classifications reproduce the golden snapshot" \
-  "$(cat "$GOLDEN")" "$regen"
+assert_eq "un-injected: infer returns empty (no fallback table)" \
+  "" "$(infer meta/work/0001-x.md)"
+assert_eq "un-injected: a configured-looking path is OUT of scope (fail closed)" \
+  "out" "$(scope meta/work/0001-x.md)"
+assert_eq "un-injected: an arbitrary path is OUT of scope (fail closed)" \
+  "out" "$(scope meta/anything/x.md)"
 
 test_summary
