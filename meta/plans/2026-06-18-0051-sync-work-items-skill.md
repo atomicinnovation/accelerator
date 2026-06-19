@@ -1008,13 +1008,14 @@ to describe the now-present five-state rendering and the degradation rule.
 
 #### Automated Verification
 
-- [ ] Hierarchy fence byte-equality still holds: `bash scripts/test-hierarchy-format.sh`
-- [ ] Work-item script suite green: `bash skills/work/scripts/test-work-item-scripts.sh`
-- [ ] Degradation is unit-tested (not manual-only): `work-item-sync-classify.sh`
-      returns presence-only when handed the fetch bridge's remote-unavailable
-      signal (mock bridge returns a connect error / slow-within-timeout response)
-- [ ] SKILL frontmatter/config tests green: `bash scripts/test-config.sh`
-- [ ] `mise run check` green
+- [x] Hierarchy fence byte-equality still holds: `bash scripts/test-hierarchy-format.sh`
+- [x] Work-item script suite green: `bash skills/work/scripts/test-work-item-scripts.sh`
+- [x] Degradation is unit-tested (not manual-only): `work-item-sync-classify.sh`
+      returns `indeterminate` (which the list path maps to presence-only) when
+      handed `--remote-status indeterminate` — the fetch bridge's
+      remote-unavailable signal (asserted in the engine state table)
+- [x] SKILL frontmatter/config tests green: `bash scripts/test-config.sh`
+- [x] `mise run check` green
 
 #### Manual Verification
 

@@ -216,6 +216,14 @@ If no argument was provided: filter is "all work items, no filter".
    **skip**, not an unsynced row. The filename remains the authoritative
    displayed ID — `external_id` never changes the displayed ID.
 
+   This presence-only `synced`/`unsynced` split is the **floor**. When a
+   `last-sync.json` baseline exists, Step 4 **upgrades** tracked items (those
+   with an `external_id` *and* a baseline entry) to the three baseline-dependent
+   states — `locally-modified`, `remotely-modified`, `conflict` — via a single
+   bulk remote read and the shared change-detection engine, degrading back to
+   this presence-only floor whenever the remote is unreachable or no baseline
+   exists. See "Sync Status Labels" in Step 4.
+
 ## Step 3: Apply Filter
 
 Apply the parsed filter from Step 1 to the scanned work items.
@@ -253,23 +261,95 @@ When the **Active integration** read at the top of this skill is a **non-empty**
 string, each rendered work item carries a sync-status label. When it is empty,
 render exactly as today — **no** Sync column, no label, output unchanged.
 
-The label vocabulary and the presence-based classification rule are owned by a
-single source of truth so the table and hierarchy views never drift:
+All five label states are owned by one source of truth so the table and
+hierarchy views never drift:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-sync-label.sh <external-id-value>
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-sync-label.sh --label <state>
 ```
 
-Pass each item's raw `external_id` value (or an empty string when the field is
-absent); the script classifies it and prints the markdown-native label —
-`🟢 synced` for a non-empty `external_id`, `⚪ unsynced` otherwise. The two
-states differ in **both glyph and text**, so the signal survives monochrome or
-glyph-blind rendering. The label is **markdown-native** (a Unicode glyph + text)
-and is emitted into the conversation's markdown table — **never** ANSI escape
-codes, which would surface as literal `\033[…]` text. This classifier is the
-extensible per-item status slot: story 0051 adds the baseline-dependent states
-(locally-modified, remotely-modified, conflict) by extending the script, with no
-change to the rendering here.
+where `<state>` ∈ `synced`, `unsynced`, `locally-modified`, `remotely-modified`,
+`conflict` renders the markdown-native label (`🟢 synced`, `⚪ unsynced`,
+`🔵 locally modified`, `🟣 remotely modified`, `🔴 conflict`). Every pair differs
+in **both glyph and text**, and the labels are **markdown-native** (a Unicode
+glyph + text) emitted into the conversation's table — **never** ANSI escape
+codes, which would surface as literal `\033[…]` text.
+
+#### Which states are reachable depends on the baseline
+
+Resolve the baseline path:
+
+```
+${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-sync-baseline.sh path
+```
+
+- **No `last-sync.json` baseline file** (the resolved path does not exist):
+  there is no referent for change detection, so classify every item
+  **presence-only** — `external_id` non-empty → `synced`, else `unsynced` (pass
+  the raw value to `work-item-sync-label.sh <external-id-value>`, which owns the
+  trimming rule). Do **no** remote read. This is exactly the 0047 behaviour.
+
+- **Baseline exists**: render the full five-state set for tracked items, driven
+  by a SINGLE bulk remote read plus the shared engine. Items with no
+  `external_id`, or no baseline entry, stay presence-only.
+
+#### Five-state classification (baseline present)
+
+1. **Bulk pre-filter read — one call, never N.** Collect the non-empty
+   `external_id`s of all listed items and fetch their remote `updated` stamps in
+   one call:
+
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-fetch-remote.sh \
+     --integration <sys> search --keys <comma-separated external_ids>
+   ```
+
+   It returns `{ "found": {<key>:{updated}}, "absent": [...],
+   "indeterminate": [...] }` — the adapter chose the per-tracker strategy, so you
+   never branch on tracker. **Graceful degradation:** if the bridge exits
+   non-zero (remote unreachable / timed out), do **not** retry or hang — fall
+   back to presence-only for **every** item, render the listing, and exit 0. One
+   bulk call bounds the whole degradation path; a key that lands in
+   `indeterminate` is likewise treated as unknown, never as remote-absent.
+
+2. **Per item, derive the remote status to hand the engine:**
+   - no `external_id` → presence-only `unsynced` (skip the engine).
+   - `external_id` present but **no baseline entry**
+     (`work-item-sync-baseline.sh get <id>` prints nothing) → presence-only
+     (`synced`); skip the engine.
+   - key in `indeterminate`, or the bulk read degraded → `--remote-status
+     indeterminate`.
+   - key in `absent` → `--remote-status absent`.
+   - key in `found` → `--remote-status present --remote-updated <its updated>`.
+     If that `updated` differs from the baseline entry's `remote_updated_at`,
+     this item is in the genuinely-changed minority: fetch its body
+     (`work-item-fetch-remote.sh … show --external-id <key>`), **project +
+     canonicalise** it to the comparable local shape (jira: `.fields.summary` →
+     title, `.fields.description` ADF through `jq -S`; linear:
+     `.data.issue.title` + `.data.issue.description` Markdown, **no** `jq -S`),
+     write it to a temp file, and pass `--remote-body-file`. Reserve `show` for
+     this minority and emit `classifying item k of N` progress so a long pass
+     never reads as a hang.
+
+3. **Classify** via the shared engine and render its keyword:
+
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-sync-classify.sh \
+     --file <path> --external-id <key> \
+     --baseline "$(work-item-sync-baseline.sh get <id>)" \
+     --timestamp "$(jq -r '.timestamp // 0' "$(work-item-sync-baseline.sh path)")" \
+     --remote-status <present|absent|indeterminate> \
+     [--remote-updated <iso>] [--remote-body-file <tmp>]
+   ```
+
+   The engine prints one of `synced | unsynced | locally-modified |
+   remotely-modified | conflict | remote-absent | indeterminate`. Feed the first
+   five straight to `work-item-sync-label.sh --label <state>`. For
+   `remote-absent` and `indeterminate`, render the **presence-only** label
+   (`synced`, since the item carries an `external_id`): the remote state is
+   unknown or the issue is gone, and the listing must never fail or hang on it.
+
+The `canonical-tree-fence` example below stays **label-free**.
 
 ### Default Rendering (table)
 
