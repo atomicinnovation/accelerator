@@ -5,7 +5,7 @@ title: "Config-Driven Corpus Validation Scope Implementation Plan"
 date: "2026-06-18T17:22:07+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0114"
 parent: "work-item:0114"
 relates_to: ["plan:2026-06-17-0114-fix-migration-0007-incomplete-mechanical-normalisation"]
