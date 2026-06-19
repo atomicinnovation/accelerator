@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": "{\"errors\": [{\"message\": \"internal: mutation outcome unknown\"}]}"
+      }
+    }
+  ]
+}

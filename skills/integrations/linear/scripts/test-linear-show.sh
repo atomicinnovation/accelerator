@@ -29,10 +29,13 @@ REPO=$(setup_repo)
 MOCK_PID=""
 MOCK_URL_FILE=""
 MOCK_URL=""
+MOCK_BODIES_FILE=""
 
 start_mock() {
   MOCK_URL_FILE=$(mktemp "$TMPDIR_BASE/url-XXXXXX")
-  python3 "$MOCK_SERVER" --scenario "$1" --url-file "$MOCK_URL_FILE" &
+  MOCK_BODIES_FILE=$(mktemp "$TMPDIR_BASE/bodies-XXXXXX")
+  python3 "$MOCK_SERVER" --scenario "$1" --url-file "$MOCK_URL_FILE" \
+    --captured-bodies-file "$MOCK_BODIES_FILE" &
   MOCK_PID=$!
   local i=0
   while [ ! -s "$MOCK_URL_FILE" ] && [ $i -lt 50 ]; do
@@ -73,6 +76,12 @@ assert_eq "state S" "In Review" "$(printf '%s' "$RESULT" | jq -r '.data.issue.st
 assert_eq "assignee A" "Carol" "$(printf '%s' "$RESULT" | jq -r '.data.issue.assignee.name')"
 assert_eq "description D" "The description D, in **Markdown**." \
   "$(printf '%s' "$RESULT" | jq -r '.data.issue.description')"
+# updatedAt is selected (assert against the captured request) and returned (the
+# sync remote pre-filter source).
+assert_eq "updatedAt returned" "2026-06-02T11:00:00.000Z" \
+  "$(printf '%s' "$RESULT" | jq -r '.data.issue.updatedAt')"
+BODY=$(jq -r '.[0] // ""' "$MOCK_BODIES_FILE")
+assert_contains "query selection requests updatedAt" "$BODY" "updatedAt"
 echo ""
 
 # ============================================================

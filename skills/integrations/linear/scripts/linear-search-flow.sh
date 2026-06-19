@@ -156,7 +156,7 @@ _linear_search() {
   # shellcheck disable=SC2016 # $cursor/$filter/$first are GraphQL variables
   local query='query($cursor: String, $filter: IssueFilter, $first: Int) {
     issues(first: $first, after: $cursor, filter: $filter) {
-      nodes { id identifier title state { name } assignee { name } }
+      nodes { id identifier title updatedAt state { name } assignee { name } }
       pageInfo { hasNextPage endCursor }
     }
   }'

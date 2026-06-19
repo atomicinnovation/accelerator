@@ -551,11 +551,11 @@ them. Mirror that harness rather than PATH-stubbing:
 
 #### Automated Verification
 
-- [ ] Fetch bridge tests pass: `bash skills/work/scripts/test-work-item-fetch-remote.sh`
-- [ ] Update bridge tests pass: `bash skills/work/scripts/test-work-item-update-remote.sh`
-- [ ] Shell lint/format clean: `mise run scripts:check`
-- [ ] bashisms (3.2 floor) clean: `bash scripts/lint-bashisms.sh skills/work/scripts/work-item-fetch-remote.sh skills/work/scripts/work-item-update-remote.sh`
-- [ ] Full read-only gate green: `mise run check`
+- [x] Fetch bridge tests pass: `bash skills/work/scripts/test-work-item-fetch-remote.sh`
+- [x] Update bridge tests pass: `bash skills/work/scripts/test-work-item-update-remote.sh`
+- [x] Shell lint/format clean: `mise run scripts:check`
+- [x] bashisms (3.2 floor) clean: `bash scripts/lint-bashisms.sh skills/work/scripts/work-item-fetch-remote.sh skills/work/scripts/work-item-update-remote.sh`
+- [x] Full read-only gate green: `mise run check`
 
 #### Manual Verification
 

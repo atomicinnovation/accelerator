@@ -1,0 +1,24 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"u1\", \"identifier\": \"BLA-1\", \"title\": \"One\", \"updatedAt\": \"2026-06-01T10:00:00.000Z\", \"state\": {\"name\": \"Todo\"}, \"assignee\": {\"name\": \"A\"}}, {\"id\": \"u2\", \"identifier\": \"BLA-2\", \"title\": \"Two\", \"updatedAt\": \"2026-06-02T10:00:00.000Z\", \"state\": {\"name\": \"Todo\"}, \"assignee\": {\"name\": \"A\"}}], \"pageInfo\": {\"hasNextPage\": true, \"endCursor\": \"c1\"}}}}"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": "{\"data\": {\"issues\": {\"nodes\": [{\"id\": \"u3\", \"identifier\": \"BLA-3\", \"title\": \"Three\", \"updatedAt\": \"2026-06-03T10:00:00.000Z\", \"state\": {\"name\": \"Todo\"}, \"assignee\": {\"name\": \"A\"}}], \"pageInfo\": {\"hasNextPage\": false, \"endCursor\": \"c2\"}}}}"
+      }
+    }
+  ]
+}

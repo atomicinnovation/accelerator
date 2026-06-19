@@ -1,0 +1,13 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/search/jql",
+      "response": {
+        "status": 400,
+        "headers": {"Content-Type": "application/json"},
+        "body": "{\"errorMessages\":[\"Bad JQL\"],\"errors\":{}}"
+      }
+    }
+  ]
+}

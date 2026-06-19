@@ -84,7 +84,7 @@ _linear_show() {
   # shellcheck disable=SC2016 # $id is a GraphQL variable
   local query='query($id: String!) {
     issue(id: $id) {
-      id identifier title
+      id identifier title updatedAt
       state { name }
       assignee { name }
       description

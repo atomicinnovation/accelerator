@@ -89,6 +89,9 @@ assert_eq "exactly BLA-1,BLA-2 returned" "BLA-1,BLA-2" "$IDS"
 COUNT=$(printf '%s' "$RESULT" | jq '.data.issues.nodes | length')
 assert_eq "exactly 2 issues" "2" "$COUNT"
 assert_not_contains "no BLA-3 leaked" "$IDS" "BLA-3"
+# updatedAt is selected and returned (the sync remote pre-filter source).
+UPD=$(printf '%s' "$RESULT" | jq -r '.data.issues.nodes[0].updatedAt')
+assert_eq "node carries updatedAt" "2026-06-01T10:00:00.000Z" "$UPD"
 echo ""
 
 # ============================================================
@@ -102,6 +105,8 @@ BODY=$(jq -r '.[0] // ""' "$MOCK_BODIES_FILE")
 assert_contains "request body carries resolved state-prog UUID" "$BODY" "state-prog"
 # Case-insensitive resolution: "in progress" resolved to "In Progress"'s UUID
 assert_contains "filter targets state.id.eq" "$BODY" "state-prog"
+# The issue selection requests updatedAt (the sync remote pre-filter source).
+assert_contains "query selection requests updatedAt" "$BODY" "updatedAt"
 echo ""
 
 # ============================================================

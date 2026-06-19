@@ -46,10 +46,10 @@ set -euo pipefail
 _WICR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _WICR_INTEGRATIONS="$(cd "$_WICR_DIR/../../integrations" && pwd)"
 
-readonly E_DISPATCH_RETRYABLE=70
-readonly E_DISPATCH_TERMINAL=71
-readonly E_DISPATCH_NOT_AVAILABLE=72
-readonly E_DISPATCH_UNRECOGNISED=73
+# Exit-code taxonomy (E_DISPATCH_*) is owned by one sourced definition shared by
+# every bridge and the decision scripts — see work-item-bridge-codes.sh.
+# shellcheck source=skills/work/scripts/work-item-bridge-codes.sh
+source "$_WICR_DIR/work-item-bridge-codes.sh"
 
 _wicr_usage() {
   cat <<'USAGE' >&2
@@ -91,8 +91,8 @@ _wicr_identifier_safe() {
 # Any other non-zero is treated conservatively as terminal (may have created).
 _wicr_map_linear() {
   case "$1" in
-    108) return $E_DISPATCH_RETRYABLE ;;
-    *) return $E_DISPATCH_TERMINAL ;;
+    108) return "$E_DISPATCH_RETRYABLE" ;;
+    *) return "$E_DISPATCH_TERMINAL" ;;
   esac
 }
 
@@ -104,9 +104,9 @@ _wicr_map_linear() {
 # transmitted, so a remote issue may exist.
 _wicr_map_jira() {
   case "$1" in
-    100 | 101 | 102 | 103 | 104 | 105 | 106 | 107 | 108) return $E_DISPATCH_RETRYABLE ;;
-    11 | 12 | 13 | 14 | 15 | 17 | 19 | 22 | 34) return $E_DISPATCH_RETRYABLE ;;
-    *) return $E_DISPATCH_TERMINAL ;;
+    100 | 101 | 102 | 103 | 104 | 105 | 106 | 107 | 108) return "$E_DISPATCH_RETRYABLE" ;;
+    11 | 12 | 13 | 14 | 15 | 17 | 19 | 22 | 34) return "$E_DISPATCH_RETRYABLE" ;;
+    *) return "$E_DISPATCH_TERMINAL" ;;
   esac
 }
 
@@ -130,12 +130,12 @@ _wicr_dry_run() {
     trello | github-issues)
       printf 'E_DISPATCH_NOT_AVAILABLE: create support for %s is not built yet (see work items 0049/0050)\n' \
         "$integration" >&2
-      return $E_DISPATCH_NOT_AVAILABLE
+      return "$E_DISPATCH_NOT_AVAILABLE"
       ;;
     *)
       printf 'E_DISPATCH_UNRECOGNISED: unknown or empty work.integration value: %q\n' \
         "$integration" >&2
-      return $E_DISPATCH_UNRECOGNISED
+      return "$E_DISPATCH_UNRECOGNISED"
       ;;
   esac
 }
@@ -174,7 +174,7 @@ _wicr_main() {
         ;;
       *)
         _wicr_usage
-        return $E_DISPATCH_UNRECOGNISED
+        return "$E_DISPATCH_UNRECOGNISED"
         ;;
     esac
   done
@@ -186,11 +186,11 @@ _wicr_main() {
 
   if ((!title_set)) || [[ -z "$title" ]]; then
     printf 'work-item-create-remote.sh: --title is required\n' >&2
-    return $E_DISPATCH_RETRYABLE
+    return "$E_DISPATCH_RETRYABLE"
   fi
   if ((!body_set)); then
     printf 'work-item-create-remote.sh: --body-file is required\n' >&2
-    return $E_DISPATCH_RETRYABLE
+    return "$E_DISPATCH_RETRYABLE"
   fi
 
   local identifier rc=0
@@ -226,12 +226,12 @@ _wicr_main() {
     trello | github-issues)
       printf 'E_DISPATCH_NOT_AVAILABLE: create support for %s is not built yet (see work items 0049/0050)\n' \
         "$integration" >&2
-      return $E_DISPATCH_NOT_AVAILABLE
+      return "$E_DISPATCH_NOT_AVAILABLE"
       ;;
     *)
       printf 'E_DISPATCH_UNRECOGNISED: unknown or empty work.integration value: %q\n' \
         "$integration" >&2
-      return $E_DISPATCH_UNRECOGNISED
+      return "$E_DISPATCH_UNRECOGNISED"
       ;;
   esac
 
@@ -242,7 +242,7 @@ _wicr_main() {
   if ! _wicr_identifier_safe "$identifier"; then
     printf 'E_DISPATCH_TERMINAL: %s returned an unsafe identifier %q; an issue may exist — do NOT retry\n' \
       "$integration" "$identifier" >&2
-    return $E_DISPATCH_TERMINAL
+    return "$E_DISPATCH_TERMINAL"
   fi
 
   printf '%s\n' "$identifier"

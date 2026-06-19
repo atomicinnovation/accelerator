@@ -9,9 +9,10 @@
         "headers": {
           "Content-Type": "application/json"
         },
-        "body": "{\"data\": {\"issue\": {\"id\": \"uuid-BLA-42\", \"identifier\": \"BLA-42\", \"title\": \"The title T\", \"state\": {\"name\": \"In Review\"}, \"assignee\": {\"name\": \"Carol\"}, \"description\": \"The description D, in **Markdown**.\", \"comments\": {\"nodes\": [{\"body\": \"first comment\"}, {\"body\": \"second comment\"}]}}}}"
+        "body": "{\"data\": {\"issue\": {\"id\": \"uuid-BLA-42\", \"identifier\": \"BLA-42\", \"title\": \"The title T\", \"updatedAt\": \"2026-06-02T11:00:00.000Z\", \"state\": {\"name\": \"In Review\"}, \"assignee\": {\"name\": \"Carol\"}, \"description\": \"The description D, in **Markdown**.\", \"comments\": {\"nodes\": [{\"body\": \"first comment\"}, {\"body\": \"second comment\"}]}}}}"
       },
-      "expect_body_contains": "issue"
+      "expect_body_contains": "issue",
+      "capture_body": true
     }
   ]
 }

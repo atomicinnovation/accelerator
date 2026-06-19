@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/search/jql",
+      "capture_body": true,
+      "response": {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": "{\"issues\":[{\"key\":\"ENG-1\",\"id\":\"10001\",\"fields\":{\"summary\":\"First issue\",\"updated\":\"2026-06-01T10:00:00.000+0000\",\"description\":null,\"status\":{\"name\":\"To Do\"}}}]}"
+      }
+    }
+  ]
+}

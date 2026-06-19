@@ -1,0 +1,15 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "capture_body": true,
+      "response": {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": "{\"data\": {\"issueUpdate\": {\"success\": true, \"issue\": {\"id\": \"u1\", \"identifier\": \"BLA-1\"}}}}"
+      }
+    }
+  ]
+}

@@ -31,10 +31,11 @@ set -euo pipefail
 # Retry is NEVER offered for a terminal-post-create outcome: the remote create is
 # non-idempotent, so retrying a post-send failure would risk a DUPLICATE issue.
 
-readonly E_DISPATCH_RETRYABLE=70
-readonly E_DISPATCH_TERMINAL=71
-readonly E_DISPATCH_NOT_AVAILABLE=72
-readonly E_DISPATCH_UNRECOGNISED=73
+# Exit-code taxonomy (E_DISPATCH_*) is owned by one sourced definition shared by
+# every bridge and the decision scripts — see work-item-bridge-codes.sh.
+_WPD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=skills/work/scripts/work-item-bridge-codes.sh
+source "$_WPD_DIR/work-item-bridge-codes.sh"
 
 _wpd_usage() {
   cat <<'USAGE' >&2
