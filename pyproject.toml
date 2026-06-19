@@ -115,30 +115,34 @@ ignore = [
 # unused-ignore + potential-bad-keyword-argument, strict-callable-subtyping.
 preset = "strict"
 python-version = "3.14"
-# Justified excludes (asserted by the coverage guard in
-# tests/unit/tasks/test_python_coverage.py so none of these can grow silently):
-#  - workspaces/  : jj workspace checkouts (full repo copies) — never checked.
+# Scope discovery to the first-party Python root. Everything pyrefly should
+# type-check lives under tasks/. Out of scope, by construction:
+#  - workspaces/  : jj workspace checkouts (full repo copies).
 #  - .venv/       : the virtualenv (third-party site-packages).
-#  - mock-jira-server.py / mock-linear-server.py : read ad-hoc attributes off
-#    HTTPServer and target the 3.9 floor (mirrors the ruff extend-exclude).
+#  - mock-jira-server.py / mock-linear-server.py (under skills/) : read ad-hoc
+#    attributes off HTTPServer and target the 3.9 floor.
 #  - tests/       : pytest + MagicMock suites are inherently dynamic — fixtures
 #    inject un-annotated params and mocks present arbitrary attributes/returns,
-#    so strict typing yields only false positives (None-subscripting of values
-#    the test knows are populated, mock attribute access). Tests are validated by
-#    execution; ruff still lints them (with ANN/D relaxed). This mirrors ruff's
-#    `tests/** = ["ANN", "D", ...]` looser-standard treatment of the same tree.
-#  - node_modules/: JS dependency trees (the frontend's, etc.) — no first-party
-#    Python. pyrefly does NOT honour .gitignore, so without this it walks
-#    node_modules while resolving `**/*.py*` and races with a concurrent
-#    `deps:install:node` (npm churns paths mid-walk → transient ENOENT that fails
-#    the whole `mise run check`). Excluding it prunes the walk entirely.
-project-excludes = [
-    "**/workspaces/**",
-    "**/.venv/**",
-    "**/skills/integrations/jira/scripts/test-helpers/mock-jira-server.py",
-    "**/skills/integrations/linear/scripts/test-helpers/mock-linear-server.py",
-    "**/tests/**",
-    "**/node_modules/**",
+#    so strict typing yields only false positives. Tests are validated by
+#    execution; ruff still lints them (with ANN/D relaxed).
+#  - node_modules/: JS dependency trees — no first-party Python.
+#
+# This is `project-includes`, NOT `project-excludes`, deliberately. A
+# project-exclude only FILTERS the matched-file set; it does NOT prune the
+# directory walk. With the default `**/*.py*` includes pyrefly still readdir's
+# node_modules (it does not honour .gitignore) to expand the glob, and races
+# with a concurrent `deps:install:node` — npm churns package dirs mid-walk, so a
+# readdir hits a vanished entry → a transient ENOENT that fails the whole
+# `mise run check`. Excluding node_modules does not help: an exclude of
+# `**/node_modules/**` *or* `**/node_modules` still triggers the walk (verified).
+# Rooting the walk at tasks/ means node_modules is never traversed at all.
+#
+# Asserted by the coverage guard in tests/unit/tasks/test_python_coverage.py
+# (the include set is pinned + a sentinel probe proves tasks/ is reached) so the
+# scope cannot silently narrow and drop files from type-checking.
+project-includes = [
+    "tasks/**/*.py",
+    "tasks/**/*.pyi",
 ]
 # Installed-but-untyped third-party packages: treat as Any so `untyped-import`
 # does not fire under strict. Finalised from the report-only run.

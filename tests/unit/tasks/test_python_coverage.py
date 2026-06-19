@@ -1,13 +1,15 @@
 """Coverage guard for the Python lint / type-check file set.
 
 Unlike shell — where `shell_sources()` is a single inspectable function with its
-own regression test — ruff's `extend-exclude` and pyrefly's `project-excludes`
-drive file discovery implicitly, so a mis-scoped exclude could silently leave
-files unchecked while every command still exits 0 (a vacuous pass). This turns
-that risk into a standing guard with two parts:
+own regression test — ruff's `extend-exclude` and pyrefly's `project-includes`
+drive file discovery implicitly, so a mis-scoped exclude (ruff) or a too-narrow
+include (pyrefly) could silently leave files unchecked while every command still
+exits 0 (a vacuous pass). This turns that risk into a standing guard with two
+parts:
 
-1. Config-set assertion: the configured excludes equal exactly the justified set
-   (no silent additions), and the in-scope `.py` walk is non-empty.
+1. Config-set assertion: ruff's excludes and pyrefly's include scope each equal
+   exactly the justified set (no silent drift), and the in-scope `.py` walk is
+   non-empty.
 2. Sentinel probe: a deliberate violation written at a real in-scope path is
    actually reported by `ruff check` / `pyrefly check` run with no path args —
    proving config-driven discovery reaches that location (not merely that the
@@ -34,19 +36,19 @@ MOCK_LINEAR = (
     "skills/integrations/linear/scripts/test-helpers/mock-linear-server.py"
 )
 
-# The justified excludes — kept in lockstep with pyproject.toml. The point of
-# pinning them here is that adding a NEW exclude must also change this test, so
+# The justified scope — kept in lockstep with pyproject.toml. The point of
+# pinning it here is that any change to discovery must also change this test, so
 # no file silently drops out of coverage.
 RUFF_JUSTIFIED_EXCLUDES = {"workspaces", MOCK_JIRA, MOCK_LINEAR}
-PYREFLY_JUSTIFIED_EXCLUDES = {
-    "**/workspaces/**",
-    "**/.venv/**",
-    f"**/{MOCK_JIRA}",
-    f"**/{MOCK_LINEAR}",
-    "**/tests/**",
-    # JS dep trees hold no first-party Python; pyrefly ignores .gitignore, so
-    # without this it walks node_modules and races with `deps:install:node`.
-    "**/node_modules/**",
+# pyrefly scopes by include, not exclude: project-excludes only filters the
+# matched-file set, it does not prune the directory walk, so it cannot keep
+# pyrefly out of node_modules (which it would otherwise readdir while expanding
+# `**/*.py*`, racing with `deps:install:node`). Rooting the walk at tasks/ — the
+# sole first-party Python tree — avoids the walk entirely. Narrowing this set
+# would silently drop files, so it is pinned.
+PYREFLY_JUSTIFIED_INCLUDES = {
+    "tasks/**/*.py",
+    "tasks/**/*.pyi",
 }
 
 # A padded comment forces a ruff E501; the mistyped assignment forces a pyrefly
@@ -67,8 +69,9 @@ def _py_files() -> set[str]:
     """Repo-relative `.py` paths: gitignore-honoured, `.venv` pruned.
 
     Mirrors what ruff/pyrefly discover — ruff excludes `.venv` by default and
-    pyrefly via `project-excludes`, but `.venv` is not in `.gitignore`, so it is
-    pruned here explicitly alongside the gitignore-matched directories.
+    pyrefly is scoped to `tasks/` via `project-includes`, but `.venv` is not in
+    `.gitignore`, so it is pruned here explicitly alongside the
+    gitignore-matched directories.
     """
     spec = _ignore_spec(REPO)
     out: set[str] = set()
@@ -98,16 +101,16 @@ def _tool(name: str) -> str:
     return path
 
 
-class TestConfiguredExcludes:
+class TestConfiguredScope:
     def test_ruff_extend_exclude_is_exactly_justified(self):
         cfg = _pyproject()
         configured = set(cfg["tool"]["ruff"]["extend-exclude"])
         assert configured == RUFF_JUSTIFIED_EXCLUDES
 
-    def test_pyrefly_project_excludes_is_exactly_justified(self):
+    def test_pyrefly_project_includes_is_exactly_justified(self):
         cfg = _pyproject()
-        configured = set(cfg["tool"]["pyrefly"]["project-excludes"])
-        assert configured == PYREFLY_JUSTIFIED_EXCLUDES
+        configured = set(cfg["tool"]["pyrefly"]["project-includes"])
+        assert configured == PYREFLY_JUSTIFIED_INCLUDES
 
 
 class TestInScopeSet:
