@@ -2,18 +2,18 @@
 # Shared helpers for launch-server.sh and stop-server.sh. Never
 # executed directly — sourced only (no exec bit).
 
+_LH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The portable full-digest sha256 idiom is owned by the repo-root shared utility;
+# sha256_of stays a thin wrapper so existing callers/tests are unchanged.
+# shellcheck source=scripts/hash-common.sh
+source "$_LH_DIR/../../../../scripts/hash-common.sh"
+
 die_json() {
   echo "$1" >&2
   exit 1
 }
 
-sha256_of() {
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$1" | awk '{print $1}'
-  else
-    shasum -a 256 "$1" | awk '{print $1}'
-  fi
-}
+sha256_of() { hash_sha256_file "$1"; }
 
 download_to() {
   local url="$1" dest="$2"

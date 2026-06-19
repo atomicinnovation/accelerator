@@ -8,6 +8,7 @@ producer: create-plan
 status: ready
 work_item_id: "work-item:0051"
 parent: "work-item:0051"
+tags: [work-management, integrations, sync]
 derived_from: ["codebase-research:2026-06-18-0051-sync-work-items-skill"]
 revision: "73cdbddec9bc53b0c84a1b780b3e143aa78ca773"
 repository: "ticket-management"
@@ -708,13 +709,14 @@ ADF/JSON keys (`jq` un-sorted vs `jq -S`) normalises to the same digest.
 
 #### Automated Verification
 
-- [ ] Normaliser + hash-utility tests pass: `bash skills/work/scripts/test-work-item-scripts.sh`
-- [ ] `sha256_of` still resolves and behaves identically after the launcher-helpers
+- [x] Normaliser + hash-utility tests pass: `bash skills/work/scripts/test-work-item-scripts.sh`
+      (normaliser) and `bash scripts/test-hash-common.sh` (hash utility)
+- [x] `sha256_of` still resolves and behaves identically after the launcher-helpers
       retrofit (its existing shell callers/tests pass) — the idiom is re-exported,
       not removed
-- [ ] `mise run scripts:check` clean
-- [ ] bashisms clean: `bash scripts/lint-bashisms.sh skills/work/scripts/work-item-normalise.sh scripts/hash-common.sh`
-- [ ] `mise run check` green
+- [x] `mise run scripts:check` clean
+- [x] bashisms clean: `bash scripts/lint-bashisms.sh skills/work/scripts/work-item-normalise.sh scripts/hash-common.sh`
+- [x] `mise run check` green
 
 #### Manual Verification
 

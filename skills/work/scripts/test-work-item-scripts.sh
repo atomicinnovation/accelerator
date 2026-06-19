@@ -1181,4 +1181,92 @@ assert_exit_code "exits 1" 1 bash "$SYNC_LABEL" --label bogus
 
 echo ""
 
+# ============================================================
+echo "=== work-item-normalise.sh ==="
+echo ""
+
+NORMALISE="$SCRIPT_DIR/work-item-normalise.sh"
+# shellcheck source=scripts/hash-common.sh
+source "$PLUGIN_ROOT/scripts/hash-common.sh"
+
+nhash() { bash "$NORMALISE" "$1" | hash_sha256_stdin; }
+
+# A baseline work item carrying the provenance/identity fields the normaliser
+# drops (the fixed IGNORE_KEYS denylist from the plan's Decisions Locked #3).
+write_item() {
+  cat >"$1" <<'ITEM'
+---
+id: "0042"
+external_id: "ENG-7"
+title: "Do the thing"
+kind: story
+status: ready
+priority: medium
+last_updated: "2026-06-10T00:00:00+00:00"
+last_updated_by: Toby Clemson
+revision: "abc123"
+---
+
+# 0042: Do the thing
+
+## Summary
+
+Implement the thing carefully.
+ITEM
+}
+
+BASE_WI="$TMPDIR_BASE/wi-base.md"
+write_item "$BASE_WI"
+BASE_WI_HASH=$(nhash "$BASE_WI")
+
+echo "Test: trailing whitespace / trailing newlines do not change the hash"
+WS="$TMPDIR_BASE/wi-ws.md"
+write_item "$WS"
+perl -pi -e 's/$/   /' "$WS"
+printf '\n\n\n' >>"$WS"
+assert_eq "whitespace-only delta → identical hash" "$BASE_WI_HASH" "$(nhash "$WS")"
+
+echo "Test: bumping last_updated / last_updated_by → identical hash"
+LU="$TMPDIR_BASE/wi-lu.md"
+write_item "$LU"
+perl -pi -e 's/^last_updated: .*/last_updated: "2026-12-31T23:59:59+00:00"/' "$LU"
+perl -pi -e 's/^last_updated_by: .*/last_updated_by: Someone Else/' "$LU"
+assert_eq "restamped last_updated → identical hash" "$BASE_WI_HASH" "$(nhash "$LU")"
+
+echo "Test: bumping revision → identical hash"
+RV="$TMPDIR_BASE/wi-rev.md"
+write_item "$RV"
+perl -pi -e 's/^revision: .*/revision: "deadbeef"/' "$RV"
+assert_eq "restamped revision → identical hash" "$BASE_WI_HASH" "$(nhash "$RV")"
+
+echo "Test: changing external_id or id → identical hash (ignored)"
+EX="$TMPDIR_BASE/wi-ex.md"
+write_item "$EX"
+perl -pi -e 's/^external_id: .*/external_id: "ENG-999"/' "$EX"
+perl -pi -e 's/^id: .*/id: "0099"/' "$EX"
+assert_eq "changed id/external_id → identical hash" "$BASE_WI_HASH" "$(nhash "$EX")"
+
+echo "Test: a real Summary edit → different hash"
+ED="$TMPDIR_BASE/wi-ed.md"
+write_item "$ED"
+perl -pi -e 's/Implement the thing carefully\./Implement the thing very differently./' "$ED"
+assert_neq "edited Summary → different hash" "$BASE_WI_HASH" "$(nhash "$ED")"
+
+echo "Test: determinism — same input twice → same digest"
+assert_eq "stable across runs" "$(nhash "$BASE_WI")" "$(nhash "$BASE_WI")"
+
+echo "Test: determinism — non-C caller locale → same digest"
+LOCALE_HASH=$(LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 bash "$NORMALISE" "$BASE_WI" |
+  hash_sha256_stdin)
+assert_eq "locale-independent digest" "$BASE_WI_HASH" "$LOCALE_HASH"
+
+echo "Test: remote projection — reordered JSON keys canonicalise to one digest"
+J1='{"type":"doc","version":1,"content":[{"type":"paragraph","text":"hi"}]}'
+J2='{"version":1,"content":[{"text":"hi","type":"paragraph"}],"type":"doc"}'
+D1=$(printf '%s' "$J1" | jq -S . | bash "$NORMALISE" --stdin | hash_sha256_stdin)
+D2=$(printf '%s' "$J2" | jq -S . | bash "$NORMALISE" --stdin | hash_sha256_stdin)
+assert_eq "jq -S canonicalised projection is order-independent" "$D1" "$D2"
+
+echo ""
+
 test_summary
