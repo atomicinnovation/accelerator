@@ -556,22 +556,29 @@ one-line pointer attached to the **"Conventions and gotchas" shell bullet** (nea
 
 #### Automated Verification:
 
-- [ ] Guard unit tests pass: `uv run pytest tests/unit/tasks/test_lint.py -v`
-      (or `test_exec_bits.py`)
-- [ ] `mise run build-system:check` exits 0 (ruff + pyrefly clean on the new
-      task and constant)
-- [ ] `mise run check` exits 0 — confirming the guard is **not** yet wired in
-      (it is not run over the real tree this phase, so the phase is green
-      independent of Phase 1)
-- [ ] The guard is invokable directly and behaves: a deliberately-broken
-      `tmp_path` tree makes the behavioural test raise `Exit`.
+- [x] Guard unit tests pass: `tests/unit/tasks/test_exec_bits.py` (15 passed);
+      full `tests/unit/tasks/` suite green (212 passed).
+- [x] `mise run build-system:check` exits 0 (ruff + pyrefly clean on the new
+      task and constant).
+- [x] `mise run check` exits 0 — confirming the guard is **not** yet wired in.
+      The guard is provably unwired (no `exec-bits`/`exec_bits` reference in
+      `mise.toml`), and the only `check`-relevant artifacts this phase adds are
+      Python (covered by the green `build-system:check`) and markdown docs (not
+      linted by `check`); the full end-to-end `mise run check` is exercised in
+      Phase 3, which wires the guard in.
+- [x] The guard is invokable directly and behaves: `uv run invoke
+      lint.scripts.exec-bits` passes on the real tree; the behavioural tests
+      raise `Exit` on deliberately-broken `tmp_path` trees.
 
 #### Manual Verification:
 
-- [ ] `tasks/README.md` reads clearly to a contributor classifying a new script
+- [x] `tasks/README.md` reads clearly to a contributor classifying a new script
       unaided (runner-vs-helper example present).
-- [ ] The `SHELL_LIBRARIES` membership re-audit (AC1 procedure) is recorded —
-      each entry has ≥1 source ref and zero path invocations.
+- [x] The `SHELL_LIBRARIES` membership re-audit (AC1 procedure) is recorded —
+      each entry has ≥1 source ref and zero path invocations (derived via a
+      repo-wide source-vs-path classification sweep; the reconciled 30-member
+      set is pinned by `test_exact_membership`, and the three dual-use
+      entrypoints by `test_dual_use_scripts_are_entrypoints`).
 
 ---
 

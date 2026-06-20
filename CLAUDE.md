@@ -107,6 +107,11 @@ detection + git-guard, migration reminders).
   the copies in sync — there is no automated check.
 - **Shell has no autofixer** — `scripts` is absent from `lint:fix`; ShellCheck
   findings are fixed by hand or with a justified `# shellcheck disable=`.
+- **Executable-bit invariant** — a tracked `.sh` is executable (`0755`) iff it
+  is *not* a sourced-only library; the `lint:scripts:exec-bits:check` guard
+  enforces it. New `.sh` files are entrypoints by default (`chmod +x` + commit);
+  only sourced-only libraries go in `SHELL_LIBRARIES`. See the "Executable-bit
+  invariant" subsection in `tasks/README.md`.
 - Tests deliberately have **no `__init__.py`** (pytest importlib mode) and are
   held to relaxed ruff/pyrefly standards.
 - Tooling versions (uv, python, rust, node, jj, shellcheck, shfmt, jq) are

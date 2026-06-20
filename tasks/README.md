@@ -43,3 +43,37 @@ applies `format:fix` + `lint:fix` (mechanical changes only).
 The `lint:<language>` task naming requested by work item 0098 is satisfied by
 these `<component>:check` roll-ups, and its aggregate `lint` / `format`
 acceptance criteria by the family aggregates above.
+
+### Executable-bit invariant
+
+A tracked `.sh` is executable (`0755`) **iff it is _not_ a sourced-only
+library**. The `lint:scripts:exec-bits:check` guard
+(`exec_bits` in `tasks/lint/scripts.py`) enforces this over every shell source
+and fails — naming each offending file with the exact `chmod` to run — when an
+off-list entrypoint lacks `+x`, a library carries `+x`, or a library-list path
+is no longer enumerated.
+
+- **Default: new `.sh` files are entrypoints.** `chmod +x` and commit them. You
+  only touch `SHELL_LIBRARIES` (the manifest in `tasks/lint/scripts.py`) for a
+  sourced-only library.
+- **The classification rule is two-part: sourced AND never invoked by path.**
+  "Sourced" alone is not enough. `jira-fields.sh` is `source`d by
+  `jira-init-flow.sh` *and* invoked `bash …/jira-fields.sh refresh` in
+  production, so it is an **entrypoint** that stays OFF the list at `0755`.
+  Dual-use ⇒ entrypoint.
+- **Maintenance:** a new sourced-only library must be **added** to
+  `SHELL_LIBRARIES` (or the guard demands `+x`); a removed/renamed library must
+  be **deleted/updated** there (or the stale-entry check fails).
+- **Runner vs helper:** `test-interactive-protocol.sh` is a test *runner* →
+  entrypoint → `0755`; `test-helpers.sh` is a sourced *helper* → on the list →
+  `0644`.
+- **Fixtures are a third category.** Scripts under `test-fixtures/**` are
+  bash-run migration fixtures (executed via `bash "$f"`, never sourced, never
+  path-invoked): the guard exempts them in both directions — they need neither
+  `+x` nor a list entry.
+- **Working-copy mode.** The guard reads the *working-copy* mode (matching
+  `tasks/test/helpers.py`), so the `chmod` must be **committed** to satisfy CI
+  on a fresh checkout. It intentionally enforces working-copy (not VCS-recorded)
+  mode and assumes an exec-bit-preserving filesystem — acceptable given the
+  macOS + Linux target matrix (CI runs `check-scripts` on `ubuntu-latest`; local
+  dev is macOS via jj workspaces).
