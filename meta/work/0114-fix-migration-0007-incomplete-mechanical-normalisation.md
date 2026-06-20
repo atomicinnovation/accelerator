@@ -5,7 +5,7 @@ title: "Migration 0007 Incomplete Mechanical Normalisation"
 date: "2026-06-17T21:06:54+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: bug
 priority: high
 parent: "work-item:0057"

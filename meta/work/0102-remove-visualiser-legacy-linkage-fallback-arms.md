@@ -5,7 +5,7 @@ title: "Remove Visualiser-Server Legacy Linkage Fallback Arms (Follow-on Contrac
 date: "2026-06-09T10:30:00+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: story
 priority: medium
 parent: "work-item:0057"
