@@ -14,6 +14,7 @@ last_updated_by: Toby Clemson
 blocked_by: ["work-item:0033"]
 blocks: ["work-item:0036", "work-item:0040", "work-item:0041", "work-item:0042", "work-item:0043", "work-item:0053", "work-item:0054", "work-item:0055"]
 source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
+external_id: PP-59
 ---
 
 # 0037: Glyph Component

@@ -13,6 +13,7 @@ tags: [scripts, permissions, ci, lint, plugin, executable-bit]
 last_updated: "2026-06-20T13:29:42+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-143
 ---
 
 # 0122: Audit and Correct Missing Executable Bits on Skill Entrypoint Scripts

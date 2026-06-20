@@ -13,6 +13,7 @@ last_updated_by: Toby Clemson
 schema_version: 1
 type: work-item
 relates_to: ["work-item:0042", "work-item:0089", "work-item:0029", "work-item:0037"]
+external_id: PP-118
 ---
 
 # 0096: Templates View Auto-Discovers Available Templates

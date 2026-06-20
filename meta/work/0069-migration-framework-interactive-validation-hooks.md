@@ -15,6 +15,7 @@ last_updated_by: Toby Clemson
 blocked_by: ["work-item:0092", "work-item:0037", "work-item:0062", "work-item:0038", "adr:ADR-0037", "adr:ADR-0038"]
 blocks: ["work-item:0070", "work-item:0038", "adr:ADR-0038"]
 relates_to: ["adr:ADR-0037", "adr:ADR-0031", "work-item:0057", "work-item:0068", "work-item:0023", "work-item:0037", "work-item:0031", "adr:ADR-0038", "adr:ADR-0023"]
+external_id: PP-91
 ---
 
 # 0069: Extend Migration Framework with Interactive Validation Hooks

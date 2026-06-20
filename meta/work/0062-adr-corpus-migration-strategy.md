@@ -15,6 +15,7 @@ last_updated_by: Toby Clemson
 blocked_by: ["work-item:0060", "work-item:0061", "work-item:0034", "work-item:0068", "work-item:0092", "work-item:0062", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "adr:ADR-0034"]
 blocks: ["work-item:0069", "work-item:0070", "work-item:0057"]
 relates_to: ["adr:ADR-0030", "adr:ADR-0034", "adr:ADR-0023", "work-item:0030", "work-item:0057", "work-item:0034", "work-item:0092", "work-item:0023", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
+external_id: PP-84
 ---
 
 # 0062: ADR: Interactive Validation for Corpus Migration

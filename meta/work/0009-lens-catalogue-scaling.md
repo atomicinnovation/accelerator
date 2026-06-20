@@ -12,6 +12,7 @@ last_updated: "2026-05-21T00:00:00+00:00"
 last_updated_by: Toby Clemson
 priority: medium
 source: "plan:2026-03-15-new-review-lenses"
+external_id: PP-31
 ---
 
 # ADR Ticket: Lens catalogue scaling: 7 to 13 with selection cap

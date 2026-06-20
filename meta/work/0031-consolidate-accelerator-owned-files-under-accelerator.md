@@ -13,6 +13,7 @@ last_updated: "2026-05-04T22:19:10+00:00"
 last_updated_by: Toby Clemson
 source: "note:2026-04-29-accelerator-config-state-reorg"
 relates_to: ["codebase-research:2026-04-29-jira-cloud-integration-skills", "adr:ADR-0016", "adr:ADR-0017", "adr:ADR-0019", "adr:ADR-0020", "adr:ADR-0023"]
+external_id: PP-53
 ---
 
 # 0031: Consolidate Accelerator-Owned Files Under .accelerator/

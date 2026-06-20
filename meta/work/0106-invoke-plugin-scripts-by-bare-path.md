@@ -14,6 +14,7 @@ tags: [permissions, allowed-tools, skills, plugin, authoring-convention]
 last_updated: "2026-06-10T20:58:58+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-128
 ---
 
 # 0106: Invoke Plugin Scripts by Bare Path in Skill Bodies

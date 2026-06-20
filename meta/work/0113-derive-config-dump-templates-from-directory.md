@@ -13,6 +13,7 @@ tags: [templates, configure, config-dump]
 last_updated: "2026-06-17T11:39:08+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-135
 ---
 
 # 0113: Derive the Config Dump's Template Rows From the Templates Directory

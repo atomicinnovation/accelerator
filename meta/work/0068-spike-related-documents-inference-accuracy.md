@@ -13,6 +13,7 @@ schema_version: 1
 last_updated: "2026-05-17T17:16:35+00:00"
 last_updated_by: Toby Clemson
 relates_to: ["work-item:0057", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
+external_id: PP-90
 ---
 
 # 0068: Spike: Evaluate `Related Documents` Body-Section Inference Accuracy

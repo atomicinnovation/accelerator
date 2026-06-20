@@ -12,6 +12,7 @@ last_updated: "2026-05-24T00:00:00+00:00"
 last_updated_by: Toby Clemson
 priority: medium
 source: "codebase-research:2026-03-16-jujutsu-integration-and-vcs-autodetection"
+external_id: PP-42
 ---
 
 # ADR Ticket: VCS abstraction layer

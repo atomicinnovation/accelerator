@@ -12,6 +12,7 @@ schema_version: 1
 last_updated: "2026-05-15T09:53:35+00:00"
 last_updated_by: Toby Clemson
 relates_to: ["work-item:0020"]
+external_id: PP-80
 ---
 
 # 0058: Workspace and Worktree Boundary Detection at Session Start

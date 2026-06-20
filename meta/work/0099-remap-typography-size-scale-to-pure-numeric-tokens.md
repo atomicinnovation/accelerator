@@ -13,6 +13,7 @@ last_updated_by: Toby Clemson
 schema_version: 1
 type: work-item
 relates_to: ["plan:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown", "work-item:0091", "work-item:0075", "work-item:0090", "adr:ADR-0036"]
+external_id: PP-121
 ---
 
 # 0099: Remap Typography Size Scale To Pure-Numeric Tokens

@@ -12,6 +12,7 @@ last_updated: "2026-05-21T00:00:00+00:00"
 last_updated_by: Toby Clemson
 priority: medium
 source: "codebase-research:2026-03-29-template-management-subcommands"
+external_id: PP-51
 ---
 
 # ADR Ticket: Template management subcommand surface

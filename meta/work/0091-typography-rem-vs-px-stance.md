@@ -12,6 +12,7 @@ schema_version: 1
 last_updated: "2026-06-12T22:08:58+00:00"
 last_updated_by: Toby Clemson
 relates_to: ["adr:ADR-0036", "work-item:0033", "work-item:0075", "work-item:0090", "work-item:0099", "plan:2026-05-23-0075-typography-size-scale-consumption"]
+external_id: PP-113
 ---
 
 # 0091: Typography rem-vs-px stance review

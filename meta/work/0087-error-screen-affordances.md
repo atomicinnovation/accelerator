@@ -14,6 +14,7 @@ last_updated_by: Toby Clemson
 blocked_by: ["work-item:0041", "work-item:0082", "work-item:0074"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0054"]
+external_id: PP-109
 ---
 
 # 0087: 404 / Error Screen with Affordances

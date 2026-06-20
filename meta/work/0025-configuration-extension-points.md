@@ -12,6 +12,7 @@ last_updated: "2026-05-21T00:00:00+00:00"
 last_updated_by: Toby Clemson
 priority: medium
 source: "plan:2026-03-23-template-and-path-customisation"
+external_id: PP-47
 ---
 
 # ADR Ticket: Configuration extension points: templates, agents, and custom lenses

@@ -16,6 +16,7 @@ tags: [migration, visualiser, frontmatter, cleanup, contract]
 last_updated: "2026-06-15T21:14:04+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-124
 ---
 
 # 0102: Remove Visualiser-Server Legacy Linkage Fallback Arms

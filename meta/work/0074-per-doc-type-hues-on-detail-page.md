@@ -14,6 +14,7 @@ last_updated_by: Toby Clemson
 blocked_by: ["work-item:0037", "work-item:0082"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0073"]
+external_id: PP-96
 ---
 
 # 0074: Per-Doc-Type Hues on Detail Page

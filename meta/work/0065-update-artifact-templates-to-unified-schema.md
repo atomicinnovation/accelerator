@@ -14,6 +14,7 @@ last_updated: "2026-05-17T17:16:35+00:00"
 last_updated_by: Toby Clemson
 relates_to: ["adr:ADR-0033", "work-item:0061", "work-item:0060", "work-item:0033", "work-item:0063", "work-item:0064", "work-item:0057", "work-item:0066"]
 blocks: ["work-item:0070", "work-item:0066"]
+external_id: PP-87
 ---
 
 # 0065: Update All Artifact Templates to Unified Schema

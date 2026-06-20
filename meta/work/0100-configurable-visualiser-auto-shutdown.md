@@ -12,6 +12,7 @@ schema_version: 1
 last_updated: "2026-06-02T13:37:32+00:00"
 last_updated_by: Toby Clemson
 relates_to: ["work-item:0055"]
+external_id: PP-122
 ---
 
 # 0100: Configurable Visualiser Auto-Shutdown

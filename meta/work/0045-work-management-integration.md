@@ -12,6 +12,7 @@ schema_version: 1
 last_updated: "2026-05-04T23:56:41+00:00"
 last_updated_by: Toby Clemson
 derived_from: ["codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-04-26-remaining-ticket-references-post-migration", "codebase-research:2026-04-27-create-work-item-open-from-existing", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "codebase-research:2026-04-29-jira-cloud-integration-skills"]
+external_id: PP-67
 ---
 
 # 0045: Work Management Integration

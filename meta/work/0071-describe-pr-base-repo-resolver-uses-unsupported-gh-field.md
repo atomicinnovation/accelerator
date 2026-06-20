@@ -11,6 +11,7 @@ type: work-item
 schema_version: 1
 last_updated: "2026-05-18T19:23:06+00:00"
 last_updated_by: Toby Clemson
+external_id: PP-93
 ---
 
 # 0071: describe-pr cannot post PR body — pr-base-repo.sh uses unsupported gh JSON field

@@ -12,6 +12,7 @@ last_updated: "2026-05-24T00:00:00+00:00"
 last_updated_by: Toby Clemson
 priority: medium
 source: "codebase-research:2026-02-22-skills-agents-commands-refactoring"
+external_id: PP-35
 ---
 
 # ADR Ticket: Skills and agents as complementary abstractions

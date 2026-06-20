@@ -15,6 +15,7 @@ tags: [tooling, linting, static-analysis, ci, skills, allowed-tools, guardrails]
 last_updated: "2026-06-11T13:10:03+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-129
 ---
 
 # 0107: Lint Skill-Body Script Invocations Against allowed-tools Rules

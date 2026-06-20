@@ -14,6 +14,7 @@ last_updated_by: Toby Clemson
 blocked_by: ["work-item:0038", "work-item:0078"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["adr:ADR-0033", "work-item:0038", "work-item:0078"]
+external_id: PP-106
 ---
 
 # 0084: Detail-Page Chip Strip Cap (Status, Date, Author)

@@ -15,6 +15,7 @@ tags: [frontmatter, schema, validator, provenance, linkage]
 last_updated: "2026-06-15T20:21:42+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-127
 ---
 
 # 0105: Close the Corpus Validator Provenance and Linkage Blind Spots

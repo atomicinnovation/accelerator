@@ -13,6 +13,7 @@ last_updated: "2026-05-21T09:16:34+00:00"
 last_updated_by: Toby Clemson
 blocked_by: ["work-item:0033"]
 relates_to: ["adr:ADR-0026", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "adr:ADR-0036", "work-item:0091"]
+external_id: PP-97
 ---
 
 # 0075: Typography Size-Scale Consumption Reconciliation

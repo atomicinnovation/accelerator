@@ -15,6 +15,7 @@ last_updated_by: Toby Clemson
 blocked_by: ["work-item:0033", "work-item:0037"]
 blocks: ["work-item:0054"]
 relates_to: ["work-item:0036", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
+external_id: PP-75
 ---
 
 # 0053: Sidebar Nav with Per-Type Change Indicators

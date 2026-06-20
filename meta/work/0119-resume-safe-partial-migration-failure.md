@@ -14,6 +14,7 @@ tags: [migrate, interactive-migration, agent-invocation, tooling]
 last_updated: "2026-06-20T13:21:56+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-141
 ---
 
 # 0119: Resume-Safe Partial Migration Failure

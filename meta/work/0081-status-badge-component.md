@@ -13,6 +13,7 @@ last_updated: "2026-05-21T09:16:34+00:00"
 last_updated_by: Toby Clemson
 blocks: ["work-item:0084"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
+external_id: PP-103
 ---
 
 # 0081: StatusBadge — Decompose FrontmatterChips and Map Status + Verdict to Tone

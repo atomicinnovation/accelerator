@@ -14,6 +14,7 @@ schema_version: 1
 type: work-item
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0043"]
+external_id: PP-101
 ---
 
 # 0079: Detail-Page Aside Region Redesign

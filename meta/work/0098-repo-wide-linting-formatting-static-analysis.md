@@ -13,6 +13,7 @@ relates_to: ["work-item:0090"]
 last_updated: "2026-06-09T19:53:06+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-120
 ---
 
 # 0098: Repo-Wide Linting, Formatting, And Static Analysis Guardrails

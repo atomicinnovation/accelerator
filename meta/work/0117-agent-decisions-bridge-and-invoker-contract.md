@@ -14,6 +14,7 @@ tags: [migrate, interactive-migration, agent-invocation, tooling]
 last_updated: "2026-06-20T12:29:41+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-139
 ---
 
 # 0117: Agent-Decisions Bridge and Documented Invoker Contract

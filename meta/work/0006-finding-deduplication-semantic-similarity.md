@@ -12,6 +12,7 @@ last_updated: "2026-05-21T00:00:00+00:00"
 last_updated_by: Toby Clemson
 priority: medium
 source: "plan:2026-02-22-pr-review-inline-comments"
+external_id: PP-28
 ---
 
 # ADR Ticket: Finding deduplication requires semantic similarity

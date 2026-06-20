@@ -15,6 +15,7 @@ last_updated_by: Toby Clemson
 blocked_by: ["work-item:0037", "work-item:0053", "work-item:0055"]
 source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0036", "design-inventory:2026-05-21-015231-claude-design-prototype"]
+external_id: PP-76
 ---
 
 # 0054: Sidebar Search Input and API Search Endpoint

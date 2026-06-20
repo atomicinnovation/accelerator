@@ -12,6 +12,7 @@ last_updated: "2026-05-24T00:00:00+00:00"
 last_updated_by: Toby Clemson
 priority: medium
 source: "codebase-research:2026-03-14-plugin-extraction"
+external_id: PP-38
 ---
 
 # ADR Ticket: Plugin packaging and scope boundary

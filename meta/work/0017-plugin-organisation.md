@@ -12,6 +12,7 @@ last_updated: "2026-05-24T00:00:00+00:00"
 last_updated_by: Toby Clemson
 priority: medium
 source: "plan:2026-03-14-plugin-extraction"
+external_id: PP-39
 ---
 
 # ADR Ticket: Plugin organisation: two-commit strategy and four skill groups

@@ -14,6 +14,7 @@ tags: [migrate, interactive-migration, agent-invocation, tooling]
 last_updated: "2026-06-20T13:48:16+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-142
 ---
 
 # 0120: Prevention Tests for the Agent-Invocation Path

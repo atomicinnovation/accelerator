@@ -12,6 +12,7 @@ schema_version: 1
 last_updated: "2026-05-15T11:26:39+00:00"
 last_updated_by: Toby Clemson
 relates_to: ["adr:ADR-0010"]
+external_id: PP-81
 ---
 
 # 0059: gh pr edit Fails Due to GitHub Projects Classic Deprecation

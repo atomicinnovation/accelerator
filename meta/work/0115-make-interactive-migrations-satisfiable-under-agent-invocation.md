@@ -15,6 +15,7 @@ tags: [migrate, interactive-migration, agent-invocation, tooling]
 last_updated: "2026-06-19T22:59:40+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-137
 ---
 
 # 0115: Make Interactive Migrations Satisfiable Under Agent Invocation

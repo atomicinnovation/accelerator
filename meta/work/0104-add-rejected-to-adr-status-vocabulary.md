@@ -14,6 +14,7 @@ tags: [frontmatter, schema, adr, status, validator]
 last_updated: "2026-06-11T12:39:24+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-126
 ---
 
 # 0104: Add rejected to the ADR Status Vocabulary in the Unified Schema

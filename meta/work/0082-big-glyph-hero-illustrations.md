@@ -15,6 +15,7 @@ blocked_by: ["work-item:0073", "work-item:0074"]
 blocks: ["work-item:0083"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0041", "work-item:0037"]
+external_id: PP-104
 ---
 
 # 0082: BigGlyph Hero Illustration Set

@@ -13,6 +13,7 @@ last_updated: "2026-06-13T07:24:32+00:00"
 last_updated_by: Toby Clemson
 blocked_by: ["work-item:0033", "work-item:0035", "work-item:0037", "work-item:0038", "work-item:0039", "work-item:0040", "work-item:0041", "work-item:0076", "work-item:0086"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
+external_id: PP-105
 ---
 
 # 0083: DevDesignSystem Reference Page

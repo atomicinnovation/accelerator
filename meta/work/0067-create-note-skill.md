@@ -17,6 +17,7 @@ schema_version: 1
 type: work-item
 blocked_by: ["work-item:0060", "work-item:0061", "work-item:0065"]
 blocks: ["work-item:0070"]
+external_id: PP-89
 ---
 
 # 0067: Create `create-note` Skill

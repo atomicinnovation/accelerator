@@ -12,6 +12,7 @@ last_updated: "2026-05-21T00:00:00+00:00"
 last_updated_by: Toby Clemson
 priority: medium
 source: "plan:2026-03-28-per-skill-userspace-customisation"
+external_id: PP-50
 ---
 
 # ADR Ticket: Per-skill userspace customisation directory

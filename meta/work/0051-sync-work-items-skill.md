@@ -13,6 +13,7 @@ schema_version: 1
 last_updated: "2026-06-18T12:36:36+00:00"
 last_updated_by: Toby Clemson
 blocked_by: ["work-item:0046", "work-item:0047"]
+external_id: PP-73
 ---
 
 # 0051: Sync Work Items Skill

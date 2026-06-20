@@ -12,6 +12,7 @@ tags: ["visual-regression", "testing", "ci", "developer-experience", "docker"]
 last_updated: "2026-06-12T11:05:01+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-130
 ---
 
 # 0108: Local Docker-Based Visual Regression Baseline Generation

@@ -15,6 +15,7 @@ blocked_by: ["work-item:0033"]
 blocks: ["work-item:0082"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["adr:ADR-0026"]
+external_id: PP-95
 ---
 
 # 0073: Atomic Brand-Layer Palette

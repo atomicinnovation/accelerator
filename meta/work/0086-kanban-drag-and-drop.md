@@ -15,6 +15,7 @@ schema_version: 1
 type: work-item
 blocked_by: ["work-item:0039", "work-item:0044"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
+external_id: PP-108
 ---
 
 # 0086: Kanban Drag-and-Drop with Toast Confirmations

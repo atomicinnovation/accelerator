@@ -13,6 +13,7 @@ schema_version: 1
 last_updated: "2026-05-06T17:49:44+00:00"
 last_updated_by: Toby Clemson
 blocks: ["work-item:0047", "work-item:0048", "work-item:0049", "work-item:0050", "work-item:0051"]
+external_id: PP-68
 ---
 
 # 0046: Work Management System Configuration

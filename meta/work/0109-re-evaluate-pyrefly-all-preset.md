@@ -13,6 +13,7 @@ tags: [tooling, static-analysis, pyrefly, types, build-system]
 last_updated: "2026-06-11T12:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-131
 ---
 
 # 0109: Re-Evaluate Pyrefly's All Preset When v1.1 Ships

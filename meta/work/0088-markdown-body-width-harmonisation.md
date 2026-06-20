@@ -13,6 +13,7 @@ last_updated: "2026-05-21T09:16:34+00:00"
 last_updated_by: Toby Clemson
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0076", "plan:2026-05-26-0088-markdown-body-width-harmonisation"]
+external_id: PP-110
 ---
 
 # 0088: Markdown Body Width Harmonisation

@@ -13,6 +13,7 @@ last_updated_by: Toby Clemson
 schema_version: 1
 type: work-item
 relates_to: ["work-item:0076"]
+external_id: PP-116
 ---
 
 # 0094: Inline Code Styling In Meta Artifact Markdown

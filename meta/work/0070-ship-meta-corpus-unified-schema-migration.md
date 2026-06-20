@@ -14,6 +14,7 @@ type: work-item
 schema_version: 1
 blocked_by: ["work-item:0060", "work-item:0033", "work-item:0061", "adr:ADR-0033"]
 relates_to: ["adr:ADR-0034", "adr:ADR-0038", "work-item:0057", "work-item:0056", "adr:ADR-0023", "adr:ADR-0033", "adr:ADR-0037", "adr:ADR-0040", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
+external_id: PP-92
 ---
 
 # 0070: Ship `meta/` Corpus Unified-Schema Migration

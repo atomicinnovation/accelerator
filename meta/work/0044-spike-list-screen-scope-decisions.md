@@ -13,6 +13,7 @@ last_updated: "2026-05-06T14:04:04+00:00"
 last_updated_by: Toby Clemson
 source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
 relates_to: ["adr:ADR-0024"]
+external_id: PP-66
 ---
 
 # 0044: Spike: Confirm List-Screen Scope Decisions

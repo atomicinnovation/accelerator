@@ -14,6 +14,7 @@ last_updated: "2026-05-11T12:11:50+00:00"
 last_updated_by: Toby Clemson
 source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0036"]
+external_id: PP-77
 ---
 
 # 0055: Sidebar Activity Feed and SSE Action Discriminator

@@ -11,6 +11,7 @@ type: work-item
 schema_version: 1
 last_updated: "2026-05-05T00:00:00+01:00"
 last_updated_by: Toby Clemson
+external_id: PP-54
 ---
 
 # 0032: Per-test server configuration and fixtures for E2E tests

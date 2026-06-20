@@ -13,6 +13,7 @@ last_updated: "2026-05-06T14:04:04+00:00"
 last_updated_by: Toby Clemson
 blocked_by: ["work-item:0033", "work-item:0037"]
 source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
+external_id: PP-64
 ---
 
 # 0042: Templates View Redesign

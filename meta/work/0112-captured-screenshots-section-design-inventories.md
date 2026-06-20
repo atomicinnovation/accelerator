@@ -13,6 +13,7 @@ tags: ["visualiser", "frontend", "polish", "markdown", "milestone-closeout"]
 last_updated: "2026-06-15T11:54:23+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-134
 ---
 
 # 0112: Captured Screenshots Section on Design Inventory Pages

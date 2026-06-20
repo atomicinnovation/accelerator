@@ -12,6 +12,7 @@ last_updated: "2026-05-24T00:00:00+00:00"
 last_updated_by: Toby Clemson
 priority: medium
 source: "plan:2026-03-22-validation-crossref-frontmatter"
+external_id: PP-44
 ---
 
 # ADR Ticket: Artifact metadata, cross-referencing, and lifecycle transitions

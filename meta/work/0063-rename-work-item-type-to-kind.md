@@ -14,6 +14,7 @@ last_updated: "2026-05-17T17:16:35+00:00"
 last_updated_by: Toby Clemson
 blocks: ["work-item:0065", "work-item:0070"]
 relates_to: ["adr:ADR-0023", "work-item:0023", "work-item:0057", "work-item:0060"]
+external_id: PP-85
 ---
 
 # 0063: Rename work-item `type:` Field to `kind:`

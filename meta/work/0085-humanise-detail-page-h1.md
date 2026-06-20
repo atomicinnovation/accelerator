@@ -14,6 +14,7 @@ last_updated_by: Toby Clemson
 blocked_by: ["work-item:0065", "work-item:0066", "work-item:0070"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0078"]
+external_id: PP-107
 ---
 
 # 0085: Humanise Detail-Page H1 Across All Doc Kinds

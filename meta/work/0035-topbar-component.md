@@ -14,6 +14,7 @@ last_updated_by: Toby Clemson
 blocked_by: ["work-item:0033"]
 blocks: ["work-item:0034", "work-item:0036"]
 source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
+external_id: PP-57
 ---
 
 # 0035: Topbar Component

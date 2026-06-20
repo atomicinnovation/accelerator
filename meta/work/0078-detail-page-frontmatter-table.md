@@ -14,6 +14,7 @@ last_updated_by: Toby Clemson
 blocked_by: ["work-item:0041"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0084", "work-item:0088", "work-item:0085"]
+external_id: PP-100
 ---
 
 # 0078: Detail-Page Frontmatter Table

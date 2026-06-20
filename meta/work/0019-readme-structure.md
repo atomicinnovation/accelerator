@@ -12,6 +12,7 @@ last_updated: "2026-05-24T00:00:00+00:00"
 last_updated_by: Toby Clemson
 priority: medium
 source: "plan:2026-03-15-readme-restructure"
+external_id: PP-41
 ---
 
 # ADR Ticket: README structured around philosophy and development loop

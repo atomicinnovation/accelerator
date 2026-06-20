@@ -13,6 +13,7 @@ tags: ["visualiser", "rca", "doc-types", "library"]
 last_updated: "2026-06-13T09:31:54+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-132
 ---
 
 # 0110: Surface Root Cause Analyses in the Visualiser Under a New Operate Category

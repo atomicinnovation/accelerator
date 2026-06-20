@@ -12,6 +12,7 @@ schema_version: 1
 last_updated: "2026-05-18T17:56:43+00:00"
 last_updated_by: Toby Clemson
 relates_to: ["codebase-research:2026-05-18-0072-playwright-daemon-cjs-import-bug", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues", "plan:2026-05-06-design-skill-localhost-and-mcp-issues"]
+external_id: PP-94
 ---
 
 # 0072: Playwright daemon imports CJS entry, hiding chromium named export

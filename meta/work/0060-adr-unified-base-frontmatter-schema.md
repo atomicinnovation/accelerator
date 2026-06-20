@@ -14,6 +14,7 @@ last_updated: "2026-05-17T17:16:35+00:00"
 last_updated_by: Toby Clemson
 blocks: ["work-item:0057"]
 relates_to: ["work-item:0021", "work-item:0022", "work-item:0023", "work-item:0057"]
+external_id: PP-82
 ---
 
 # 0060: ADR: Unified Base Frontmatter Schema

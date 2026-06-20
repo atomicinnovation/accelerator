@@ -12,6 +12,7 @@ schema_version: 1
 last_updated: "2026-05-11T16:39:44+00:00"
 last_updated_by: Toby Clemson
 relates_to: ["work-item:0021", "work-item:0022", "note:2026-05-02-research-directory-subcategory-restructure", "codebase-research:2026-05-02-design-convergence-workflow", "work-item:0030", "work-item:0052", "work-item:0027", "note:2026-04-26-agents-hardcode-default-directory-locations"]
+external_id: PP-78
 ---
 
 # 0056: Restructure meta/research/codebase/ into Subject Subcategories

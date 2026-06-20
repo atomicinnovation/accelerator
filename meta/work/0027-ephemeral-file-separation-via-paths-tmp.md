@@ -12,6 +12,7 @@ last_updated: "2026-05-21T00:00:00+00:00"
 last_updated_by: Toby Clemson
 priority: medium
 source: "codebase-research:2026-04-07-pr-review-tmp-directory-usage"
+external_id: PP-49
 ---
 
 # ADR Ticket: Ephemeral file separation via paths.tmp

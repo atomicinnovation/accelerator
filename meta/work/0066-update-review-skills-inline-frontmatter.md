@@ -15,6 +15,7 @@ last_updated_by: Toby Clemson
 blocked_by: ["work-item:0060", "work-item:0061", "work-item:0065"]
 blocks: ["work-item:0070"]
 relates_to: ["work-item:0057", "work-item:0064", "work-item:0065", "adr:ADR-0033", "adr:ADR-0034"]
+external_id: PP-88
 ---
 
 # 0066: Move Review/Validation Skills' Frontmatter into Templates on Unified Schema

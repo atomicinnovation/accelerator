@@ -13,6 +13,7 @@ last_updated_by: Toby Clemson
 schema_version: 1
 type: work-item
 relates_to: ["work-item:0085"]
+external_id: PP-119
 ---
 
 # 0097: Strip Redundant Document-Type Prefixes From Artifact Titles

@@ -14,6 +14,7 @@ tags: [frontmatter, schema, skills, validation, audit]
 last_updated: "2026-06-10T13:37:48+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-125
 ---
 
 # 0103: Audit Skill Frontmatter Emission Against the Unified Schema
