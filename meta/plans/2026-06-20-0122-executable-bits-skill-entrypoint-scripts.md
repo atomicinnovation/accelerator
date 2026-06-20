@@ -5,7 +5,7 @@ title: "Audit and Correct Missing Executable Bits on Skill Entrypoint Scripts Im
 date: "2026-06-20T17:07:39+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0122"
 parent: "work-item:0122"
 derived_from: ["codebase-research:2026-06-20-0122-executable-bits-skill-entrypoint-scripts"]
