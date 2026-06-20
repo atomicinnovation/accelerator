@@ -240,22 +240,29 @@ premise. Confirm the four named suspects land on their expected outcomes
 
 #### Automated Verification:
 
-- [ ] `mise run check` exits 0 (no regressions introduced by the mode changes):
+- [x] `mise run check` exits 0 (no regressions introduced by the mode changes):
       `mise run check`
-- [ ] All shell test suites still discovered and pass (the exec-bit discovery
+- [x] All shell test suites still discovered and pass (the exec-bit discovery
       count is non-zero — `run_shell_suites` fails loudly on a dropped bit):
-      `mise run test`
-- [ ] A `stat` sweep confirms each of the 18 entrypoints is `755` and each of the
+      `mise run test` — the newly-executable `test-interactive-protocol.sh` is
+      discovered and passes (24/0/0). Two unrelated, pre-existing failures remain
+      in `mise run test` (NOT caused by the mode changes, which are exec-bit-only
+      and cannot affect them): a corpus-frontmatter violation
+      (`meta/reviews/work/0118-reconcile-0007-backfill-sentinel-with-validator-review-1.md`
+      carries an empty `relates_to: []` — same class as commit `d7f1df88f`), and
+      the `test:e2e:visualiser` resolved-styles specs. Both predate this work and
+      are out of scope.
+- [x] A `stat` sweep confirms each of the 18 entrypoints is `755` and each of the
       5 libraries is `644` (working-copy modes match committed modes).
 
 #### Manual Verification:
 
-- [ ] `jj diff --summary` (run from within the build-system workspace) shows the
+- [x] `jj diff --summary` (run from within the build-system workspace) shows the
       23 files as mode-only changes (no content edits), and the recorded modes
       are the committed `100755`/`100644` — not merely a working-copy `chmod`
       (this is the property a fresh CI checkout sees, which the guard's
       working-copy read approximates).
-- [ ] Spot-invoke a corrected entrypoint by bare path (e.g.
+- [x] Spot-invoke a corrected entrypoint by bare path (e.g.
       `skills/work/scripts/work-item-sync-classify.sh`) and confirm it executes
       rather than "permission denied".
 
