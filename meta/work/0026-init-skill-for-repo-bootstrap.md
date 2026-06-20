@@ -1,6 +1,6 @@
 ---
 title: "Init skill for repo bootstrap"
-kind: adr-creation-task
+kind: task
 status: done
 type: work-item
 id: "0026"

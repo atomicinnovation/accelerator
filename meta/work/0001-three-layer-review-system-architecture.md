@@ -1,6 +1,6 @@
 ---
 title: "Three-layer review system architecture"
-kind: adr-creation-task
+kind: task
 status: done
 type: work-item
 id: "0001"

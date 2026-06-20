@@ -1,6 +1,6 @@
 ---
 title: "Performance as dedicated lens, resilience into architecture"
-kind: adr-creation-task
+kind: task
 status: done
 type: work-item
 id: "0008"

@@ -1,6 +1,6 @@
 ---
 title: "Lens design principles: PBR, boundaries, and structural invariants"
-kind: adr-creation-task
+kind: task
 status: done
 type: work-item
 id: "0007"

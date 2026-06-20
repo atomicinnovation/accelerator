@@ -1,6 +1,6 @@
 ---
 title: "Structured agent output contract with context-specific schemas"
-kind: adr-creation-task
+kind: task
 status: done
 type: work-item
 id: "0002"

@@ -1,6 +1,6 @@
 ---
 title: "Plugin organisation: two-commit strategy and four skill groups"
-kind: adr-creation-task
+kind: task
 status: draft
 type: work-item
 id: "0017"

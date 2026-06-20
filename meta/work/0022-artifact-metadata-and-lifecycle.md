@@ -1,6 +1,6 @@
 ---
 title: "Artifact metadata, cross-referencing, and lifecycle transitions"
-kind: adr-creation-task
+kind: task
 status: draft
 type: work-item
 id: "0022"

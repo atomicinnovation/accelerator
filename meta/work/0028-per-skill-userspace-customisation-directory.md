@@ -1,6 +1,6 @@
 ---
 title: "Per-skill userspace customisation directory"
-kind: adr-creation-task
+kind: task
 status: done
 type: work-item
 id: "0028"

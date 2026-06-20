@@ -1,6 +1,6 @@
 ---
 title: "Skills and agents as complementary abstractions"
-kind: adr-creation-task
+kind: task
 status: draft
 type: work-item
 id: "0013"

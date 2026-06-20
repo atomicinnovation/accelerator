@@ -1,6 +1,6 @@
 ---
 title: "Context isolation: filesystem communication, agent separation, and token budgets"
-kind: adr-creation-task
+kind: task
 status: done
 type: work-item
 id: "0018"

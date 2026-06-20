@@ -1,6 +1,6 @@
 ---
 title: "VCS abstraction layer"
-kind: adr-creation-task
+kind: task
 status: draft
 type: work-item
 id: "0020"

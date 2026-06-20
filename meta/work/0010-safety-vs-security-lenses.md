@@ -1,6 +1,6 @@
 ---
 title: "Safety vs security as distinct lenses"
-kind: adr-creation-task
+kind: task
 status: done
 type: work-item
 id: "0010"

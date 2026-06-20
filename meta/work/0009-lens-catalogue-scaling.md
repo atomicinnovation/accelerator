@@ -1,6 +1,6 @@
 ---
 title: "Lens catalogue scaling: 7 to 13 with selection cap"
-kind: adr-creation-task
+kind: task
 status: done
 type: work-item
 id: "0009"

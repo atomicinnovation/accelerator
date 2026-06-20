@@ -1,6 +1,6 @@
 ---
 title: "Plugin packaging and scope boundary"
-kind: adr-creation-task
+kind: task
 status: draft
 type: work-item
 id: "0016"

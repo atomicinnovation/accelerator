@@ -1,6 +1,6 @@
 ---
 title: "Respond-to-PR as sequential workflow with verify-before-implement"
-kind: adr-creation-task
+kind: task
 status: draft
 type: work-item
 id: "0015"

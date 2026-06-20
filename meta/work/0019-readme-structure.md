@@ -1,6 +1,6 @@
 ---
 title: "README structured around philosophy and development loop"
-kind: adr-creation-task
+kind: task
 status: draft
 type: work-item
 id: "0019"
