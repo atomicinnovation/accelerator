@@ -136,6 +136,31 @@ fi
 emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-empty.md" 'parent: ""'
 assert_rejects "empty-placeholder key rejected" "EMPTY-PLACEHOLDER" "$TMP/bad-empty.md"
 
+# name: unknown sentinel (the no-derivable-default backfill writes this; 0118) is
+# a present, non-empty value: neither MISSING-EXTRA nor EMPTY-PLACEHOLDER. The
+# validator's gates are extra-agnostic, so this holds for pr_number and result
+# alike. Guards the contract migration 0007's backfill relies on.
+emit_valid pr-description yes "pr_url pr_number merge_commit" "complete" \
+  "$TMP/ok-pr-unknown.md"
+sed -i.bak 's/^pr_number: "x"$/pr_number: unknown/' "$TMP/ok-pr-unknown.md"
+assert_accepts "pr_number: unknown sentinel accepted" "$TMP/ok-pr-unknown.md"
+assert_absent "pr_number: unknown is not MISSING-EXTRA" \
+  "MISSING-EXTRA" "$TMP/ok-pr-unknown.md"
+assert_absent "pr_number: unknown is not EMPTY-PLACEHOLDER" \
+  "EMPTY-PLACEHOLDER" "$TMP/ok-pr-unknown.md"
+
+# result is routed through the awk normaliser, so the migration writes it QUOTED
+# (result: "unknown"); the guard mirrors that emitted form. (The validator
+# accepts bare or quoted alike; pr_number above is the bare case.)
+emit_valid plan-validation no "result" "complete" "$TMP/ok-result-unknown.md"
+sed -i.bak 's/^result: "x"$/result: "unknown"/' "$TMP/ok-result-unknown.md"
+assert_accepts "result: \"unknown\" sentinel accepted (extra-agnostic)" \
+  "$TMP/ok-result-unknown.md"
+assert_absent "result: \"unknown\" is not MISSING-EXTRA" \
+  "MISSING-EXTRA" "$TMP/ok-result-unknown.md"
+assert_absent "result: \"unknown\" is not EMPTY-PLACEHOLDER" \
+  "EMPTY-PLACEHOLDER" "$TMP/ok-result-unknown.md"
+
 emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/bad-bare-linkage.md" 'parent: "0030"'
 assert_rejects "bare-number linkage rejected" "BAD-LINKAGE-SHAPE" "$TMP/bad-bare-linkage.md"
 

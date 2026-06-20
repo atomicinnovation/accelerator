@@ -285,14 +285,14 @@ assert_absent "result: \"unknown\" is not EMPTY-PLACEHOLDER" \
 
 #### Automated Verification:
 
-- [ ] Validator suite passes, including the six new assertions:
+- [x] Validator suite passes, including the six new assertions:
       `bash scripts/test-validate-corpus-frontmatter.sh`
-- [ ] Shell component checks pass (shfmt + ShellCheck + bashisms over the changed
+- [x] Shell component checks pass (shfmt + ShellCheck + bashisms over the changed
       test): `mise run scripts:check`
 
 #### Manual Verification:
 
-- [ ] The fixtures carry `pr_number: unknown` (bare) and `result: "unknown"`
+- [x] The fixtures carry `pr_number: unknown` (bare) and `result: "unknown"`
       (quoted) after the `sed` rewrite — mirroring the migration's per-extra
       emission — and the rewrites target `pr_number: "x"` / `result: "x"` as
       emitted by `emit_valid`.
