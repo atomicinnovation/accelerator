@@ -235,6 +235,8 @@ render_prompt() {
 
 # read_decision: read one line of input from the decisions file (if set)
 # or /dev/tty (interactive). Sets DECIDE_OUTCOME, DECIDE_VALUE.
+# Returns: 0 = decision read; 1 = read error / decisions file exhausted /
+# TTY EOF; 2 = no input channel available (caller emits the structured stall).
 read_decision() {
   local line
   if [ -n "${ACCELERATOR_MIGRATE_DECISIONS_FILE:-}" ]; then
@@ -259,7 +261,15 @@ read_decision() {
     if [ -t 0 ]; then
       IFS= read -r line </dev/tty || return 1
     else
-      IFS= read -r line || return 1
+      # No decisions file and stdin is not a TTY. Treat this as the no-input
+      # case ONLY when the read fails AND nothing was read (EOF, no channel);
+      # signal it distinctly (2) so callers emit the structured stall rather
+      # than the opaque abort. A populated-but-unterminated final line (read
+      # fails but `line` is non-empty) still carries a usable decision, so fall
+      # through and parse it instead of discarding it.
+      if ! IFS= read -r line && [ -z "$line" ]; then
+        return 2
+      fi
     fi
   fi
   # Parse outcome and value.
@@ -285,6 +295,63 @@ read_decision() {
       DECIDE_VALUE=""
       ;;
   esac
+}
+
+# emit_no_input_stall <id> <key>
+# Structured, parseable stall printed to stderr when no decision input channel
+# exists. Replaces the opaque "failed to obtain {decision,re-decision}" abort.
+# Diagnostic lines carry the [$id] log prefix; the resume command lines are
+# emitted flush-left so they can be copied and run verbatim. Caller still
+# performs `exec 7>&-; return 1`.
+emit_no_input_stall() {
+  local id="$1" key="$2"
+  # PROJECT_ROOT and RUNNER_SCRIPT_DIR are both hard preconditions of the
+  # interactive layer (set by run-migrations.sh before sourcing); the :-
+  # default on the driver path is belt-and-braces, not a real fallback.
+  local state_dir="$PROJECT_ROOT/.accelerator/state"
+  local decisions_path="$state_dir/migrations-${id}-decisions.txt"
+  local driver="${RUNNER_SCRIPT_DIR:-.}/run-migrations.sh"
+  {
+    echo "[$id] MIGRATION STALLED: no decision input available"
+    echo "[$id]   pending decision: $key"
+    echo "[$id]   No decisions file, terminal, or piped input was available to"
+    echo "[$id]   answer this prompt, so the migration cannot proceed."
+    echo "[$id]"
+    echo "[$id]   This migration may have already partially modified the"
+    echo "[$id]   working tree. Inspect or revert it before resuming;"
+    echo "[$id]   resume-safety for partial runs is tracked separately (0119)."
+    echo "[$id]"
+    echo "[$id]   To resume: each run answers the current prompt only (you"
+    echo "[$id]   may be stalled again for the next undecided transformation):"
+    echo "[$id]     1. write the decision (accept | skip | edit <value>),"
+    echo "[$id]        one per line, to: $decisions_path"
+    echo "[$id]        (create this file yourself; do not overwrite existing"
+    echo "[$id]        migrations-${id}-* state files)"
+    echo "[$id]     2. then run (copy-pasteable):"
+    echo ""
+    echo "bash $driver --decisions-file $decisions_path"
+    echo ""
+    echo "[$id]   equivalent env-var form:"
+    echo ""
+    echo "ACCELERATOR_MIGRATE_DECISIONS_FILE=$decisions_path bash $driver"
+  } >&2
+}
+
+# read_decision_or_stall <id> <key> <verb>
+# Reads the next decision. On no-input (status 2) emits the structured stall; on
+# any other failure emits the legacy "failed to obtain <verb> for <key>" abort.
+# Returns read_decision's status (0 on success); the caller tears down on nonzero.
+read_decision_or_stall() {
+  local id="$1" key="$2" verb="$3" rc=0
+  read_decision || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    if [ "$rc" -eq 2 ]; then
+      emit_no_input_stall "$id" "$key"
+    else
+      echo "[$id] failed to obtain $verb for $key" >&2
+    fi
+  fi
+  return "$rc"
 }
 
 # run_interactive_migration <path> <id>
@@ -446,8 +513,7 @@ run_interactive_migration() {
         local p_display="${fields[6]:-}"
         render_prompt "$p_key" "$p_path" "$p_anchor" "$p_proposed" \
           "$p_predicate" "$p_extras" "$p_display"
-        if ! read_decision; then
-          echo "[$id] failed to obtain decision for $p_key" >&2
+        if ! read_decision_or_stall "$id" "$p_key" decision; then
           exec 7>&-
           return 1
         fi
@@ -481,8 +547,7 @@ run_interactive_migration() {
           "$LAST_PROMPT_ANCHOR" "$LAST_PROMPT_PROPOSED" \
           "$LAST_PROMPT_PREDICATE" "$LAST_PROMPT_EXTRAS" \
           "$LAST_PROMPT_DISPLAY"
-        if ! read_decision; then
-          echo "[$id] failed to obtain re-decision for $LAST_PROMPT_KEY" >&2
+        if ! read_decision_or_stall "$id" "$LAST_PROMPT_KEY" re-decision; then
           exec 7>&-
           return 1
         fi

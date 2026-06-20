@@ -1180,4 +1180,92 @@ assert_eq "--help exits 0" "0" "$RC"
 assert_contains "--help lists --decisions-file" "$OUTPUT" "--decisions-file"
 
 echo ""
+echo "=== Structured stall on no decision input (0116 Phase 2) ==="
+echo ""
+
+echo "Test: PROMPT no-input → structured stall"
+RC=0
+SBX=$(setup_sandbox "stall-no-input")
+echo "$SBX" >"$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" "k1|f1|a1|v1|ambiguous|prose1"
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATE_FORCE=1 \
+  bash "$DRIVER" </dev/null 2>&1) || RC=$?
+assert_neq "non-zero exit on no-input stall" "0" "$RC"
+assert_contains "stall marker present" "$OUTPUT" "MIGRATION STALLED"
+assert_contains "names the current key" "$OUTPUT" "k1"
+assert_contains "resume switch form" "$OUTPUT" "--decisions-file"
+assert_contains "resume names the driver" "$OUTPUT" "run-migrations.sh"
+assert_contains "resume env-var form" "$OUTPUT" \
+  "ACCELERATOR_MIGRATE_DECISIONS_FILE="
+assert_contains "migration id in resume path" "$OUTPUT" "0002-predicate"
+assert_not_contains "old opaque message gone" "$OUTPUT" "failed to obtain decision"
+# Guard the new set -u plumbing: the stall path must complete cleanly, not exit
+# non-zero via a shell error (assert_neq alone would pass on such a crash).
+assert_not_contains "no shell errors on stall path" "$OUTPUT" "unbound variable"
+
+echo ""
+echo "Test: VALIDATE_ERR re-prompt no-input → structured stall"
+RC=0
+SBX=$(setup_sandbox "stall-revalidate-no-input")
+echo "$SBX" >"$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" "k1|artifact|a|original|ambiguous|p"
+OUTPUT=$(printf 'edit \n' |
+  ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+    PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    ACCELERATOR_MIGRATE_FORCE=1 \
+    bash "$DRIVER" 2>&1) || RC=$?
+assert_neq "non-zero exit on re-decision no-input stall" "0" "$RC"
+assert_contains "validator message surfaced" "$OUTPUT" "empty value not allowed"
+# Ordering + multiplicity: exactly one validation re-prompt occurred before the
+# stall (assert_contains alone is presence-only and order-agnostic).
+VE_COUNT=$(printf '%s\n' "$OUTPUT" | grep -c "empty value not allowed" || true)
+assert_eq "exactly one validation re-prompt before stall" "1" "$VE_COUNT"
+assert_contains "stall marker present" "$OUTPUT" "MIGRATION STALLED"
+assert_contains "names the current key" "$OUTPUT" "k1"
+assert_contains "resume switch form" "$OUTPUT" "--decisions-file"
+assert_not_contains "old opaque message gone" "$OUTPUT" \
+  "failed to obtain re-decision"
+assert_not_contains "no shell errors on stall path" "$OUTPUT" "unbound variable"
+
+echo ""
+echo "Test: exhausted decisions file → legacy abort, NOT the stall"
+RC=0
+SBX=$(setup_sandbox "stall-exhausted-not-stalled")
+echo "$SBX" >"$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+# Two ambiguous rows => two PROMPTs; the decisions file answers only the first.
+seed_predicate_sandbox "$SBX" \
+  "k1|f1|a1|v1|ambiguous|prose1" \
+  "k2|f2|a2|v2|ambiguous|prose2"
+DEC=$(mktemp)
+printf 'accept\n' >"$DEC"
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATE_FORCE=1 \
+  bash "$DRIVER" --decisions-file "$DEC" 2>&1) || RC=$?
+assert_neq "non-zero exit on exhausted decisions file" "0" "$RC"
+assert_contains "exhaustion message surfaced" "$OUTPUT" "decisions file exhausted"
+assert_contains "legacy abort fired" "$OUTPUT" "failed to obtain"
+assert_not_contains "stall must NOT fire on exhausted file" "$OUTPUT" \
+  "MIGRATION STALLED"
+
+echo ""
+echo "Test: unterminated final decision line is parsed, not stalled"
+RC=0
+SBX=$(setup_sandbox "stall-unterminated-line")
+echo "$SBX" >"$INTERACTIVE_FIXTURE_SANDBOX_FILE"
+seed_predicate_sandbox "$SBX" "k1|f1|a1|v1|ambiguous|prose1"
+OUTPUT=$(printf 'accept' |
+  ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+    PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    ACCELERATOR_MIGRATE_FORCE=1 \
+    bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "unterminated decision still applied (exit 0)" "0" "$RC"
+assert_not_contains "no stall on a usable unterminated line" "$OUTPUT" \
+  "MIGRATION STALLED"
+LOG="$SBX/.accelerator/state/migrations-0002-predicate-session.jsonl"
+assert_eq "the decision was recorded" "1" "$(wc -l <"$LOG" | tr -d ' ')"
+
+echo ""
 test_summary
