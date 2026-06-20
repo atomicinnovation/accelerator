@@ -1111,4 +1111,73 @@ else
 fi
 
 echo ""
+echo "=== --decisions-file switch (0116 Phase 1) ==="
+echo ""
+
+echo "Test: --decisions-file / env-var parity (exit + JSONL count)"
+DEC=$(mktemp)
+printf 'accept\n' >"$DEC"
+# Env-var run.
+SBX_ENV=$(setup_sandbox "decfile-parity-env")
+seed_predicate_sandbox "$SBX_ENV" "k1|f1|a1|v1|ambiguous|prose1"
+RC_ENV=0
+ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+  PROJECT_ROOT="$SBX_ENV" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATE_FORCE=1 ACCELERATOR_MIGRATE_DECISIONS_FILE="$DEC" \
+  bash "$DRIVER" >/dev/null 2>&1 || RC_ENV=$?
+LOG_ENV="$SBX_ENV/.accelerator/state/migrations-0002-predicate-session.jsonl"
+COUNT_ENV=$(wc -l <"$LOG_ENV" | tr -d ' ')
+# Flag run (no env var).
+SBX_FLAG=$(setup_sandbox "decfile-parity-flag")
+seed_predicate_sandbox "$SBX_FLAG" "k1|f1|a1|v1|ambiguous|prose1"
+RC_FLAG=0
+ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+  PROJECT_ROOT="$SBX_FLAG" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATE_FORCE=1 \
+  bash "$DRIVER" --decisions-file "$DEC" >/dev/null 2>&1 || RC_FLAG=$?
+LOG_FLAG="$SBX_FLAG/.accelerator/state/migrations-0002-predicate-session.jsonl"
+COUNT_FLAG=$(wc -l <"$LOG_FLAG" | tr -d ' ')
+assert_eq "--decisions-file exit parity" "$RC_ENV" "$RC_FLAG"
+assert_eq "--decisions-file JSONL count parity" "$COUNT_ENV" "$COUNT_FLAG"
+
+echo ""
+echo "Test: --decisions-file with no argument → usage error"
+RC=0
+OUTPUT=$(PROJECT_ROOT="$(setup_sandbox "decfile-noarg")" \
+  bash "$DRIVER" --decisions-file 2>&1) || RC=$?
+assert_neq "no-arg --decisions-file exits non-zero" "0" "$RC"
+assert_contains "usage message shown" "$OUTPUT" \
+  "Usage: run-migrations.sh --decisions-file"
+
+echo ""
+echo "Test: --decisions-file <missing-path> → relocated validation fires"
+RC=0
+OUTPUT=$(PROJECT_ROOT="$(setup_sandbox "decfile-missing")" \
+  bash "$DRIVER" --decisions-file /nonexistent/decisions.txt 2>&1) || RC=$?
+assert_neq "missing --decisions-file path exits non-zero" "0" "$RC"
+assert_contains "validation message shown" "$OUTPUT" "does not exist"
+
+echo ""
+echo "Test: --skip / --unskip non-regression after the reorder"
+SBX=$(setup_sandbox "skip-unskip-after-reorder")
+SKIPF="$SBX/.accelerator/state/migrations-skipped"
+RC=0
+PROJECT_ROOT="$SBX" bash "$DRIVER" --skip 0002-predicate >/dev/null 2>&1 || RC=$?
+assert_eq "--skip exits 0 after reorder" "0" "$RC"
+assert_contains "skip entry added" "$(cat "$SKIPF" 2>/dev/null)" "0002-predicate"
+RC=0
+PROJECT_ROOT="$SBX" bash "$DRIVER" --unskip 0002-predicate >/dev/null 2>&1 || RC=$?
+assert_eq "--unskip exits 0 after reorder" "0" "$RC"
+assert_not_contains "skip entry removed" "$(cat "$SKIPF" 2>/dev/null)" \
+  "0002-predicate"
+
+echo ""
+echo "Test: --help documents --decisions-file"
+RC=0
+OUTPUT=$(PROJECT_ROOT="$(setup_sandbox "help-lists-decisions-file")" \
+  bash "$DRIVER" --help 2>&1) || RC=$?
+assert_eq "--help exits 0" "0" "$RC"
+assert_contains "--help lists --decisions-file" "$OUTPUT" "--decisions-file"
+
+echo ""
 test_summary

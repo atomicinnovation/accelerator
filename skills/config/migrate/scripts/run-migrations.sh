@@ -11,35 +11,21 @@ source "$PLUGIN_ROOT/scripts/atomic-common.sh"
 # ── 1. Resolve PROJECT_ROOT ──────────────────────────────────────────────────
 PROJECT_ROOT="${PROJECT_ROOT:-$(config_project_root)}"
 
-# ── 1a. Optional: decisions-file env var (test-only, unused until Phase 4) ──
-# Test-only mechanism: scripted decisions for interactive migrations. Never
-# documented in --help or any user-facing banner. The runner validates the
-# file when set so failures land here with a clear message rather than deep
-# inside the prompt loop.
+# ── 1a. Decisions-file env var + --decisions-file flag ──────────────────────
+# Scripted decisions for interactive migrations: one decision per line
+# (accept | skip | edit <value>). Reachable two ways — the documented
+# --decisions-file flag (parsed below) and this env var, which the no-input
+# stall advertises as the equivalent resume form. The relocated validation
+# block (1b, after flag parsing) checks whichever form supplied the path, so
+# failures land here with a clear message rather than deep inside the prompt
+# loop. (0117 promotes the env var into --help and adds --list.)
 ACCELERATOR_MIGRATE_DECISIONS_FILE="${ACCELERATOR_MIGRATE_DECISIONS_FILE:-}"
 export ACCELERATOR_MIGRATE_DECISIONS_FILE
-if [ -n "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
-  if [ -d "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
-    echo "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE is a directory:" \
-      "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
-    exit 1
-  fi
-  if [ ! -e "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
-    echo "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE does not exist:" \
-      "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
-    exit 1
-  fi
-  if [ ! -r "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
-    echo "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE is not readable:" \
-      "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
-    exit 1
-  fi
-fi
 
 STATE_FILE="$PROJECT_ROOT/.accelerator/state/migrations-applied"
 SKIP_FILE="$PROJECT_ROOT/.accelerator/state/migrations-skipped"
 
-# ── --skip / --unskip flags ──────────────────────────────────────────────────
+# ── --skip / --unskip / --decisions-file / --help flags ──────────────────────
 if [ $# -gt 0 ]; then
   case "$1" in
     --skip)
@@ -61,7 +47,48 @@ if [ $# -gt 0 ]; then
       echo "Unskipped migration: $2"
       exit 0
       ;;
+    --decisions-file)
+      if [ $# -lt 2 ]; then
+        echo "Usage: run-migrations.sh --decisions-file <path>" >&2
+        exit 1
+      fi
+      # Unlike --skip/--unskip (which exit 0), this flag sets the env var and
+      # falls through to a normal migration run.
+      ACCELERATOR_MIGRATE_DECISIONS_FILE="$2"
+      export ACCELERATOR_MIGRATE_DECISIONS_FILE
+      shift 2
+      ;;
+    --help | -h)
+      cat >&2 <<'EOF'
+Usage: run-migrations.sh [FLAG]
+  --skip <id>             Mark migration <id> skipped; do not run it.
+  --unskip <id>           Remove migration <id> from the skip list.
+  --decisions-file <path> Scripted decisions for interactive migrations, one
+                          per line: accept | skip | edit <value>. The resume
+                          path the no-input stall points at.
+EOF
+      exit 0
+      ;;
   esac
+fi
+
+# ── 1b. Validate the decisions file (env- or flag-supplied) ──────────────────
+if [ -n "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
+  if [ -d "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
+    echo "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE is a directory:" \
+      "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
+    exit 1
+  fi
+  if [ ! -e "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
+    echo "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE does not exist:" \
+      "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
+    exit 1
+  fi
+  if [ ! -r "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
+    echo "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE is not readable:" \
+      "$ACCELERATOR_MIGRATE_DECISIONS_FILE" >&2
+    exit 1
+  fi
 fi
 
 # ── 2. Pre-flight: clean working tree check ──────────────────────────────────
