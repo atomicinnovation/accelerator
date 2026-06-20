@@ -308,3 +308,31 @@ class TestShellLibrariesIntegrity:
             assert os.access(repo / rel, os.X_OK), (
                 f"{rel} is an entrypoint and must be executable on the tree"
             )
+
+
+class TestExecBitsRealTree:
+    """Integration: the wired guard must pass over the actual repo.
+
+    This closes the TDD loop — the guard is the regression test for the
+    Phase 1 mode corrections. It runs over the real tree (no patching), so it
+    only goes green once those corrections are committed.
+    """
+
+    def test_guard_passes_over_real_tree(self, ctx):
+        # The guard never touches `context`; MagicMock(spec=Context) only
+        # satisfies the @task first-arg isinstance check.
+        lint.exec_bits(ctx)  # must not raise on the corrected tree
+
+    def test_no_node_modules_in_scope(self):
+        # AC5: third-party scripts under node_modules/ must never enter the
+        # guard's input set. Asserted on the stable `node_modules` segment
+        # (robust to Playwright reorganising its tree) rather than a concrete
+        # vendored filename that can move on a dependency bump.
+        offenders = [
+            rel
+            for rel in lint.shell_sources()
+            if "node_modules" in rel.split("/")
+        ]
+        assert not offenders, (
+            f"node_modules paths leaked into scope: {offenders}"
+        )

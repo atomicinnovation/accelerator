@@ -231,9 +231,13 @@ run = "invoke lint.scripts.shellcheck"
 description = "Guard the bash-3.2 floor (denylist of bash-4 constructs)"
 run = "invoke lint.scripts.bashisms"
 
+[tasks."lint:scripts:exec-bits:check"]
+description = "Enforce exec-bit invariant: a tracked .sh is executable iff not a sourced library"
+run = "invoke lint.scripts.exec-bits"
+
 [tasks."lint:scripts:check"]
 description = "Run all shell lint checks"
-depends = ["lint:scripts:shellcheck:check", "lint:scripts:bashisms:check"]
+depends = ["lint:scripts:shellcheck:check", "lint:scripts:bashisms:check", "lint:scripts:exec-bits:check"]
 
 [tasks."scripts:check"]
 description = "Run all shell format and lint checks (shfmt + ShellCheck + bashisms)"

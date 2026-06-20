@@ -625,29 +625,28 @@ TDD closing of the loop: the guard is the regression test for the corrections.
 
 #### Automated Verification:
 
-- [ ] The guard runs and passes within the check graph:
+- [x] The guard runs and passes within the check graph:
       `mise run lint:scripts:exec-bits:check`
-- [ ] `mise run scripts:check` exits 0 (guard is in the `lint:scripts:check`
+- [x] `mise run scripts:check` exits 0 (guard is in the `lint:scripts:check`
       dependency chain)
-- [ ] `mise run check` exits 0 end-to-end (the full CI mirror)
-- [ ] Negative path: temporarily `chmod -x` a corrected entrypoint →
+- [x] `mise run check` exits 0 end-to-end (the full CI mirror)
+- [x] Negative path: temporarily `chmod -x` a corrected entrypoint →
       `mise run lint:scripts:exec-bits:check` exits non-zero and names it;
-      `chmod +x` a library → same; add a bogus `SHELL_LIBRARIES` path → same.
-      (Revert all probes afterwards.)
-- [ ] AC5 exclusion: assert no path enumerated by `shell_sources()` contains a
-      `node_modules` segment (the stable invariant, robust to Playwright
-      reorganising its `node_modules` tree). Keep the deep guarantee at the
-      `shell_sources()` unit level (synthetic gitignore tree in
-      `test_sources.py`) rather than asserting on a concrete third-party file
-      such as `reinstall_chrome_stable_linux.sh`, which can move on a frontend
-      dependency bump and make the test flaky.
+      `chmod +x` a library → same (both probed and reverted). The bogus
+      `SHELL_LIBRARIES` path direction is covered by the unit test
+      `test_flags_stale_library_entry` (identical real-tree logic).
+- [x] AC5 exclusion: `test_no_node_modules_in_scope` asserts no path enumerated
+      by `shell_sources()` contains a `node_modules` segment (the stable
+      invariant). The deep guarantee stays at the `shell_sources()` unit level
+      (synthetic gitignore tree in `test_sources.py`).
 
 #### Manual Verification:
 
 - [ ] CI (`mise run scripts:check` in `.github/workflows/main.yml:99-115`) is
-      green on the branch.
-- [ ] The guard's offender message is actionable (names file + states the
-      required `chmod`).
+      green on the branch. *(Pending push — verified locally; the guard is in
+      the `lint:scripts:check` chain CI runs.)*
+- [x] The guard's offender message is actionable (names file + states the
+      required `chmod`) — confirmed by the two negative-path probes above.
 
 ---
 
