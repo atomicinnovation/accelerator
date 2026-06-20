@@ -1,6 +1,6 @@
 ---
 type: work-item
-id: "0113"
+id: "0121"
 title: "Topic Research Skillset"
 date: "2026-06-19T01:28:08+00:00"
 author: Toby Clemson
@@ -16,7 +16,7 @@ schema_version: 1
 external_id: PP-22
 ---
 
-# 0113: Topic Research Skillset
+# 0121: Topic Research Skillset
 
 **Kind**: Epic
 **Status**: Draft
