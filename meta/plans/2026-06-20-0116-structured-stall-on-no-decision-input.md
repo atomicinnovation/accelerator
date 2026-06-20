@@ -5,7 +5,7 @@ title: "Structured Stall on No Decision Input Implementation Plan"
 date: "2026-06-20T16:08:59+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0116"
 parent: "work-item:0116"
 derived_from: ["codebase-research:2026-06-20-0116-structured-stall-on-no-decision-input"]
