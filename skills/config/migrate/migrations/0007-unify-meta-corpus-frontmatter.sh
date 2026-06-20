@@ -216,9 +216,16 @@ extra_default() { # $1=extra-name $2=file $3=stem $4=title
       printf '%s' "$n"
       ;;
     review_number) printf '1' ;;
+    review_pass) printf '1' ;; # parity with review_number
+    sequence) printf '1' ;;    # design-inventory ordinal default
+    # screenshots_incomplete defaults true (conservative — an inventory whose
+    # flag was never set is treated as NOT vouched complete, per Migration Notes).
+    screenshots_incomplete) printf 'true' ;;
     verdict) printf 'unknown' ;; # sentinel
     lenses) printf 'unknown' ;;  # sentinel (emitted as a list)
-    *) printf '' ;;              # no derivable default → not backfilled
+    # No derivable default → the backfill loop stamps the `unknown` string
+    # sentinel for these string/enum extras (see the no-derivable-default branch).
+    *) printf '' ;;
   esac
 }
 
@@ -505,8 +512,14 @@ rewrite_file() {
     dv="$(extra_default "$ex" "$f" "$stem" "$cur_title")"
     dv="${dv//$US/}" # defence-in-depth: strip any stray US byte from the value
     if [ -z "$dv" ]; then
-      log_warn "0007-DIVERGE[missing-extra-no-default]: $f — required extra '$ex' has no derivable default; left absent" >&2
-      continue
+      # Underivable string/enum required extra → write the `unknown` sentinel
+      # (parity with the verdict/lenses contract) so self_validate_structural
+      # sees a present value rather than aborting on MISSING-EXTRA; breadcrumb
+      # each stamped file so the sentinel write is auditable, not silent (0118).
+      # Numeric/boolean extras never reach here — they get typed defaults in
+      # extra_default. See Migration Notes for the dual sentinel-source rationale.
+      dv='unknown'
+      log_warn "0007-DIVERGE[backfill-sentinel]: $f — required extra '$ex' has no derivable default; stamped 'unknown'" >&2
     fi
     backfill_extras="${backfill_extras:+$backfill_extras$US}${ex}=${dv}"
   done

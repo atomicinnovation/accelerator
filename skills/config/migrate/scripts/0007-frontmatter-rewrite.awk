@@ -208,7 +208,12 @@ function diverge_backfill(k) {
 #
 # The list-vs-scalar cardinality is HARD-CODED here (lenses is the sole list
 # extra today; the TSV carries no cardinality column, so the schema-column guard
-# cannot pin it) — a future list-valued required extra needs a branch here.
+# cannot pin it) — a future list-valued required extra needs a branch here. The
+# bare-print branch covers the BARE TYPED scalars: pr_number/review_number (bare
+# strings) plus the numeric/boolean typed defaults sequence/review_pass/
+# screenshots_incomplete (which must stay YAML numbers/booleans, not be quoted by
+# fm_normalise_value); every other scalar (topic, the unknown string sentinels)
+# goes through the quoting else-branch.
 function emit_backfill_extras(packed,   nbf, bfa, bi, eq, bk, bv) {
   if (packed == "") return
   nbf = split(packed, bfa, "\037")
@@ -219,7 +224,9 @@ function emit_backfill_extras(packed,   nbf, bfa, bi, eq, bk, bv) {
     bv = substr(bfa[bi], eq + 1)
     if (bk == "lenses") { print "lenses: [\"" bv "\"]"; diverge_backfill(bk) }
     else if (bk == "verdict") { print "verdict: " fm_normalise_value(bv); diverge_backfill(bk) }
-    else if (bk == "pr_number" || bk == "review_number") print bk ": " bv
+    else if (bk == "pr_number" || bk == "review_number" ||
+             bk == "sequence" || bk == "review_pass" ||
+             bk == "screenshots_incomplete") print bk ": " bv
     else print bk ": " fm_normalise_value(bv) # topic and any future scalar extra
   }
 }

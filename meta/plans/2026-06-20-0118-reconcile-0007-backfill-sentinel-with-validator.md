@@ -627,34 +627,34 @@ default, so no per-case duplication is introduced.
 
 #### Automated Verification:
 
-- [ ] 0007 suite passes, including the new/updated assertions:
+- [x] 0007 suite passes, including the new/updated assertions:
       `bash skills/config/migrate/scripts/test-migrate-0007.sh`
-- [ ] No regression in the broader migrate suites:
+- [x] No regression in the broader migrate suites:
       `bash skills/config/migrate/scripts/test-migrate.sh`,
       `bash skills/config/migrate/scripts/test-migrate-snapshot.sh`,
       `bash skills/config/migrate/scripts/test-migrate-interactive.sh`
-- [ ] Validator suite still passes:
+- [x] Validator suite still passes:
       `bash scripts/test-validate-corpus-frontmatter.sh`
-- [ ] Shell component checks pass (shfmt + ShellCheck + bashisms over the changed
+- [x] Shell component checks pass (shfmt + ShellCheck + bashisms over the changed
       migration + test): `mise run scripts:check`
-- [ ] Full local CI mirror is green: `mise run`
+- [x] Full local CI mirror is green: `mise run`
 
 #### Manual Verification:
 
-- [ ] String/enum sentinels are emitted as strings: `pr_number: unknown` bare
+- [x] String/enum sentinels are emitted as strings: `pr_number: unknown` bare
       (dedicated `awk:222` branch); `result: "unknown"` / `source: "unknown"`
       quoted (normalised `awk:223` path). Both parse as YAML strings and pass the
       validator.
-- [ ] Typed defaults are emitted with the correct YAML type, NOT as strings:
+- [x] Typed defaults are emitted with the correct YAML type, NOT as strings:
       `sequence: 1` / `review_pass: 1` as numbers, `screenshots_incomplete: true`
       as a boolean (all bare, via the extended `awk:222` branch) — confirm none
       is quoted (`"1"` / `"true"` would be a type regression the visualiser would
       propagate).
-- [ ] The `0007-DIVERGE[backfill-sentinel]` breadcrumb names each stamped file in
+- [x] The `0007-DIVERGE[backfill-sentinel]` breadcrumb names each stamped file in
       the migration's stderr/DIVERGE output, providing the audit trail for
       manual reconciliation. (Only string/enum sentinels breadcrumb; typed
       defaults do not, matching `review_number`.)
-- [ ] Confirm no *list-valued* required extra can reach the no-derivable-default
+- [x] Confirm no *list-valued* required extra can reach the no-derivable-default
       branch in the current schema — inspect `templates-schema.tsv` col 4 against
       the awk emitter's hard-coded `lenses` list case (`awk:209-211,220`):
       `lenses` already has a sentinel and never reaches the branch; all other

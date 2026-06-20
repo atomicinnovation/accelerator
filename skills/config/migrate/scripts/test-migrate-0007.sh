@@ -1166,6 +1166,84 @@ printf '# Fence-less Research\n\nA pre-frontmatter research note.\n' \
 printf '# A "Quoted" Note\n\nObservation.\n' \
   >"$P4/meta/notes/2026-06-20-quoted.md"
 
+# NODEFAULT: fenced pr-review whose stem carries no derivable PR number (no pr-
+# token, date-prefixed stem) — exercises the no-derivable-default backfill
+# end-to-end through the runner's self_validate_structural gate (0118).
+cat >"$P4/meta/reviews/prs/2026-06-20-dateonly-pr-review.md" <<'EOF'
+---
+type: pr-review
+id: "2026-06-20-dateonly-pr-review"
+title: "Date Only PR Review"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Date Only PR Review
+EOF
+
+# WIDENING: fenced plan-validation missing its required `result` extra —
+# exercises the no-derivable-default backfill for a non-pr_number, non-derivable
+# extra, proving the loop-level fix covers every required extra (0118).
+mkdir -p "$P4/meta/validations" # P4 setup only creates meta/reviews/prs etc.
+cat >"$P4/meta/validations/2026-06-20-widening-validation.md" <<'EOF'
+---
+type: plan-validation
+id: "2026-06-20-widening-validation"
+title: "Widening Validation"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Widening Validation
+EOF
+
+# HYBRID: design-inventory missing every required extra — sequence/
+# screenshots_incomplete get typed bare defaults; the string/enum bundle
+# (source/source_kind/source_location/crawler) gets the quoted unknown sentinel.
+mkdir -p "$P4/meta/research/design-inventories"
+cat >"$P4/meta/research/design-inventories/2026-06-20-hybrid-inventory.md" <<'EOF'
+---
+type: design-inventory
+id: "2026-06-20-hybrid-inventory"
+title: "Hybrid Inventory"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: draft
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Hybrid Inventory
+EOF
+
+# REVIEWPASS: plan-review missing its required review_pass — exercises the third
+# numeric typed default end-to-end (must emit bare review_pass: 1, not "1") (0118).
+mkdir -p "$P4/meta/reviews/plans"
+cat >"$P4/meta/reviews/plans/2026-06-20-reviewpass-review.md" <<'EOF'
+---
+type: plan-review
+id: "2026-06-20-reviewpass-review"
+title: "Review Pass Review"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Review Pass Review
+EOF
+
 git_init "$P4"
 
 # Red step: the fenced note missing topic reports MISSING-EXTRA before the fix.
@@ -1207,6 +1285,41 @@ assert_eq "Phase 4 QF: fence-less title quote-free" 'title: "A Quoted Note"' \
 assert_eq "Phase 4 QF: fence-less topic quote-free" 'topic: "A Quoted Note"' \
   "$(fm_line "$P4/meta/notes/2026-06-20-quoted.md" topic)"
 
+NODEF="$P4/meta/reviews/prs/2026-06-20-dateonly-pr-review.md"
+assert_contains "Phase 4 NODEFAULT: underivable pr_number -> unknown sentinel" \
+  "$(fm_line "$NODEF" pr_number)" 'pr_number: unknown'
+WIDEN="$P4/meta/validations/2026-06-20-widening-validation.md"
+assert_contains "Phase 4 WIDENING: underivable result -> unknown sentinel" \
+  "$(fm_line "$WIDEN" result)" 'result: "unknown"'
+
+# Derivable-path no-regression: a pr-token stem still derives the real number, so
+# the sentinel must NOT be applied where a value is derivable (AC #4).
+assert_not_contains "Phase 4 PR430: derivable pr_number NOT replaced by sentinel" \
+  "$(fm_line "$PR430F" pr_number)" 'unknown'
+
+INV="$P4/meta/research/design-inventories/2026-06-20-hybrid-inventory.md"
+# Numeric/boolean typed defaults: assert the EXACT bare line (assert_eq, not a
+# substring) so a quoted "1"/"true" type regression is caught — `sequence: 1`
+# must not pass for `sequence: 10` either.
+assert_eq "Phase 4 HYBRID: sequence -> bare typed default (not quoted)" \
+  'sequence: 1' "$(fm_line "$INV" sequence)"
+assert_eq "Phase 4 HYBRID: screenshots_incomplete -> bare bool (not quoted)" \
+  'screenshots_incomplete: true' "$(fm_line "$INV" screenshots_incomplete)"
+# String/enum bundle: quoted unknown sentinel (the whole bundle routes the same
+# way, so pin all four to catch an extras_for_type/optional-carve-out regression).
+assert_contains "Phase 4 HYBRID: source -> quoted unknown sentinel (string)" \
+  "$(fm_line "$INV" source)" 'source: "unknown"'
+assert_contains "Phase 4 HYBRID: source_kind -> quoted unknown sentinel" \
+  "$(fm_line "$INV" source_kind)" 'source_kind: "unknown"'
+assert_contains "Phase 4 HYBRID: source_location -> quoted unknown sentinel" \
+  "$(fm_line "$INV" source_location)" 'source_location: "unknown"'
+assert_contains "Phase 4 HYBRID: crawler -> quoted unknown sentinel" \
+  "$(fm_line "$INV" crawler)" 'crawler: "unknown"'
+
+RP="$P4/meta/reviews/plans/2026-06-20-reviewpass-review.md"
+assert_eq "Phase 4 REVIEWPASS: review_pass -> bare typed default (not quoted)" \
+  'review_pass: 1' "$(fm_line "$RP" review_pass)"
+
 assert_validates "Phase 4 corpus validates clean" "$P4/meta"
 
 # Idempotency.
@@ -1216,8 +1329,10 @@ assert_empty "Phase 4 second run is an empty meta/ diff" \
   "$(git -C "$P4" status --porcelain meta/ || true)"
 
 # Breadcrumbs (direct run): sentinel backfill emits backfilled-extra; a numberless
-# pr-review emits missing-extra-no-default for pr_number AND runs to completion
-# under set -euo pipefail (the unguarded-grep regression guard).
+# pr-review's underivable pr_number now gets the `unknown` sentinel via the loop's
+# no-derivable-default branch (emitting a backfill-sentinel breadcrumb, not the
+# removed missing-extra-no-default), so the migration runs to completion under
+# set -euo pipefail rather than aborting at self_validate_structural (0118).
 echo "=== Phase 4: backfill breadcrumbs + no-default (direct run) ==="
 P4BC="$TMP/phase4-breadcrumb"
 mkdir -p "$P4BC/meta/reviews/prs"
@@ -1240,14 +1355,30 @@ git_init "$P4BC"
 run_0007_direct "$P4BC"
 assert_contains "Phase 4 backfilled-extra breadcrumb fired (verdict/lenses)" \
   "$DIRECT_ERR" "0007-DIVERGE[backfilled-extra]"
-assert_contains "Phase 4 missing-extra-no-default breadcrumb (pr_number)" \
-  "$DIRECT_ERR" "0007-DIVERGE[missing-extra-no-default]"
-# Completion-without-abort: review_number/verdict were still backfilled, proving
-# the numberless extra_default did NOT abort the migration mid-rewrite.
-assert_contains "Phase 4 numberless review still backfilled (no mid-rewrite abort)" \
+# Post-fix: pr_number gets the unknown sentinel via the loop's
+# no-derivable-default branch, so NO extra is left absent and the migration
+# completes without aborting at self_validate_structural. The loop emits a
+# backfill-sentinel breadcrumb (not the removed missing-extra-no-default) (0118).
+assert_eq "Phase 4 numberless review: direct run completes (no abort)" \
+  "0" "$DIRECT_RC"
+assert_contains "Phase 4 backfill-sentinel breadcrumb fired (pr_number)" \
+  "$DIRECT_ERR" "0007-DIVERGE[backfill-sentinel]"
+# Verify the per-file AND per-extra audit contract, not just the family tag (the
+# Migration Notes recovery story depends on knowing which file AND which field).
+assert_contains "Phase 4 backfill-sentinel breadcrumb names the file" \
+  "$DIRECT_ERR" "no-pr-number-review.md"
+assert_contains "Phase 4 backfill-sentinel breadcrumb names the extra" \
+  "$DIRECT_ERR" "required extra 'pr_number'"
+assert_not_contains "Phase 4 no missing-extra-no-default (reconciled)" \
+  "$DIRECT_ERR" "missing-extra-no-default"
+# Completion-via-sentinel: review_number/verdict were still backfilled, and the
+# run completed cleanly through the sentinel rather than partially mutating then
+# aborting.
+assert_contains "Phase 4 numberless review still backfilled (run completes)" \
   "$(fm_line "$P4BC/meta/reviews/prs/no-pr-number-review.md" review_number)" 'review_number: 1'
-assert_not_contains "Phase 4 numberless review has no fabricated pr_number" \
-  "$(cat "$P4BC/meta/reviews/prs/no-pr-number-review.md")" "pr_number:"
+assert_contains "Phase 4 numberless review: pr_number -> unknown sentinel" \
+  "$(fm_line "$P4BC/meta/reviews/prs/no-pr-number-review.md" pr_number)" \
+  'pr_number: unknown'
 
 # Populated lists are not clobbered and emit NO backfill breadcrumb.
 echo "=== Phase 4: populated extras not clobbered (direct run) ==="
