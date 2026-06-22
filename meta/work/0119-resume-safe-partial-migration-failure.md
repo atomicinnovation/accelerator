@@ -5,7 +5,7 @@ title: "Resume-Safe Partial Migration Failure"
 date: "2026-06-19T23:13:17+00:00"
 author: Toby Clemson
 producer: refine-work-item
-status: ready
+status: done
 kind: task
 priority: high
 parent: "work-item:0115"
@@ -20,7 +20,7 @@ external_id: PP-141
 # 0119: Resume-Safe Partial Migration Failure
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

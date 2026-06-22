@@ -5,7 +5,7 @@ title: "Resume-Safe Partial Migration Failure Implementation Plan"
 date: "2026-06-21T08:06:03+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0119"
 parent: "work-item:0119"
 derived_from: ["codebase-research:2026-06-21-0119-resume-safe-partial-migration-failure"]
