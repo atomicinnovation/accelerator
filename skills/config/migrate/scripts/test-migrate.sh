@@ -491,6 +491,230 @@ assert_eq "run-id reset to current base revision" "$EXPECTED_REV" "$RECORDED_REV
 
 # ============================================================
 echo ""
+echo "=== Guarded resume (manifest-driven) ==="
+echo ""
+
+# A pending stub that succeeds, so a guarded resume proceeds into the apply loop.
+GR_OK_DIR=$(mktemp -d "$TMPDIR_BASE/gr-ok-migs-XXXXXX")
+cat >"$GR_OK_DIR/9100-gr-ok.sh" <<'STUB'
+#!/usr/bin/env bash
+# DESCRIPTION: pending stub that succeeds so a guarded resume proceeds
+exit 0
+STUB
+chmod +x "$GR_OK_DIR/9100-gr-ok.sh"
+
+# Build a repo under <vcs> whose tree is dirty at meta/work/{owned,foreign}.md
+# (modified-tracked under git; tracked-created under jj). Echoes the repo path.
+gr_setup_repo() {
+  local vcs="$1" repo
+  repo=$(mktemp -d "$TMPDIR_BASE/gr-$vcs-XXXXXX")
+  mkdir -p "$repo/meta/work"
+  printf 'base\n' >"$repo/meta/work/owned.md"
+  printf 'base\n' >"$repo/meta/work/foreign.md"
+  if [ "$vcs" = jj ]; then
+    (cd "$repo" && jj git init --quiet)
+  else
+    git -C "$repo" init -q
+    git -C "$repo" -c user.email=t@t -c user.name=T add .
+    git -C "$repo" -c user.email=t@t -c user.name=T commit -qm initial
+    printf 'x\n' >>"$repo/meta/work/owned.md"
+    printf 'x\n' >>"$repo/meta/work/foreign.md"
+  fi
+  printf '%s\n' "$repo"
+}
+
+# Echo the current base revision the runner would record (change_id of @ for jj,
+# HEAD for git) — must run from inside the repo for the jj case.
+gr_base_rev() {
+  local repo="$1" vcs="$2"
+  if [ "$vcs" = jj ]; then
+    (cd "$repo" && jj log -r @ --no-graph --no-pager -T change_id 2>/dev/null)
+  else
+    git -C "$repo" rev-parse HEAD
+  fi
+}
+
+# Seed the manifest (one path per arg after the revision) + the run-id sidecar.
+gr_seed() {
+  local repo="$1" rev="$2" p
+  shift 2
+  mkdir -p "$repo/.accelerator/state"
+  : >"$repo/.accelerator/state/migrations-run-paths.txt"
+  for p in "$@"; do
+    printf '%s\n' "$p" >>"$repo/.accelerator/state/migrations-run-paths.txt"
+  done
+  printf '%s\n' "$rev" >"$repo/.accelerator/state/migrations-run.id"
+}
+
+# Run the driver once (single invocation — a guarded resume MUTATES the tree, so
+# a second run would see a changed tree). Sets GR_OUT and GR_RC.
+gr_run() {
+  local repo="$1"
+  GR_RC=0
+  GR_OUT=$(cd "$repo" && ACCELERATOR_MIGRATIONS_DIR="$GR_OK_DIR" \
+    PROJECT_ROOT="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    bash "$DRIVER" 2>&1) || GR_RC=$?
+}
+
+# AC2/AC3/AC4 for one VCS. The change_id-vs-commit_id capture and untracked
+# handling are jj-specific, so these run under both git and jj.
+run_guarded_resume_cases() {
+  local vcs="$1" repo rev
+
+  echo "Test: [$vcs] guarded resume on fully-owned dirty tree"
+  repo=$(gr_setup_repo "$vcs")
+  rev=$(gr_base_rev "$repo" "$vcs")
+  gr_seed "$repo" "$rev" "meta/work/owned.md" "meta/work/foreign.md"
+  gr_run "$repo"
+  assert_eq "[$vcs] exit 0 (guarded resume, no FORCE)" "0" "$GR_RC"
+  assert_contains "[$vcs] resume affordance present" "$GR_OUT" \
+    "own partial migration output"
+  assert_contains "[$vcs] affordance lists owned path" "$GR_OUT" \
+    "meta/work/owned.md"
+
+  echo "Test: [$vcs] refuse on mixed/non-owned dirty tree"
+  repo=$(gr_setup_repo "$vcs")
+  rev=$(gr_base_rev "$repo" "$vcs")
+  gr_seed "$repo" "$rev" "meta/work/owned.md" # foreign.md NOT owned
+  gr_run "$repo"
+  assert_neq "[$vcs] non-zero exit (mixed)" "0" "$GR_RC"
+  assert_not_contains "[$vcs] no affordance on mixed" "$GR_OUT" \
+    "own partial migration output"
+  assert_contains "[$vcs] FORCE-hint refusal on mixed" "$GR_OUT" \
+    "ACCELERATOR_MIGRATE_FORCE"
+
+  echo "Test: [$vcs] fail-closed — manifest absent"
+  repo=$(gr_setup_repo "$vcs")
+  rev=$(gr_base_rev "$repo" "$vcs")
+  gr_seed "$repo" "$rev" "meta/work/owned.md" "meta/work/foreign.md"
+  rm -f "$repo/.accelerator/state/migrations-run-paths.txt"
+  gr_run "$repo"
+  assert_neq "[$vcs] manifest absent → non-zero" "0" "$GR_RC"
+  assert_contains "[$vcs] manifest absent → FORCE hint" "$GR_OUT" \
+    "ACCELERATOR_MIGRATE_FORCE"
+  assert_not_contains "[$vcs] manifest absent → no affordance" "$GR_OUT" \
+    "own partial migration output"
+
+  echo "Test: [$vcs] fail-closed — manifest empty"
+  repo=$(gr_setup_repo "$vcs")
+  rev=$(gr_base_rev "$repo" "$vcs")
+  gr_seed "$repo" "$rev" "meta/work/owned.md" "meta/work/foreign.md"
+  : >"$repo/.accelerator/state/migrations-run-paths.txt"
+  gr_run "$repo"
+  assert_neq "[$vcs] manifest empty → non-zero" "0" "$GR_RC"
+  assert_contains "[$vcs] manifest empty → FORCE hint" "$GR_OUT" \
+    "ACCELERATOR_MIGRATE_FORCE"
+
+  echo "Test: [$vcs] fail-closed — run-id sidecar absent"
+  repo=$(gr_setup_repo "$vcs")
+  rev=$(gr_base_rev "$repo" "$vcs")
+  gr_seed "$repo" "$rev" "meta/work/owned.md" "meta/work/foreign.md"
+  rm -f "$repo/.accelerator/state/migrations-run.id"
+  gr_run "$repo"
+  assert_neq "[$vcs] run-id absent → non-zero" "0" "$GR_RC"
+  assert_contains "[$vcs] run-id absent → FORCE hint" "$GR_OUT" \
+    "ACCELERATOR_MIGRATE_FORCE"
+
+  echo "Test: [$vcs] fail-closed — run-id sidecar empty"
+  repo=$(gr_setup_repo "$vcs")
+  rev=$(gr_base_rev "$repo" "$vcs")
+  gr_seed "$repo" "$rev" "meta/work/owned.md" "meta/work/foreign.md"
+  : >"$repo/.accelerator/state/migrations-run.id"
+  gr_run "$repo"
+  assert_neq "[$vcs] run-id empty → non-zero" "0" "$GR_RC"
+  assert_contains "[$vcs] run-id empty → FORCE hint" "$GR_OUT" \
+    "ACCELERATOR_MIGRATE_FORCE"
+
+  echo "Test: [$vcs] fail-closed — recorded base revision differs (stale)"
+  repo=$(gr_setup_repo "$vcs")
+  rev=$(gr_base_rev "$repo" "$vcs")
+  gr_seed "$repo" "$rev" "meta/work/owned.md" "meta/work/foreign.md"
+  printf 'stale-revision-xyz\n' >"$repo/.accelerator/state/migrations-run.id"
+  gr_run "$repo"
+  assert_neq "[$vcs] stale rev → non-zero" "0" "$GR_RC"
+  assert_contains "[$vcs] stale rev → FORCE hint" "$GR_OUT" \
+    "ACCELERATOR_MIGRATE_FORCE"
+  assert_not_contains "[$vcs] stale rev → no affordance" "$GR_OUT" \
+    "own partial migration output"
+}
+
+run_guarded_resume_cases git
+if command -v jj >/dev/null 2>&1; then
+  run_guarded_resume_cases jj
+else
+  skip_test "jj guarded-resume cases (AC2-AC4)" "jj not available"
+fi
+
+echo ""
+echo "Test: guarded resume that fails again accumulates correctly (git)"
+# A real partial run, re-run into a guarded resume whose later migration also
+# fails, then a third re-run where it succeeds — locks in the empty-baseline /
+# self-healing behaviour (a re-asserted manifest, not a truncated one).
+REPO=$(mktemp -d "$TMPDIR_BASE/gr-acc-XXXXXX")
+mkdir -p "$REPO/meta/work"
+printf 'a\n' >"$REPO/meta/work/fileA.md"
+printf 'b\n' >"$REPO/meta/work/fileB.md"
+git -C "$REPO" init -q
+git -C "$REPO" -c user.email=t@t -c user.name=T add .
+git -C "$REPO" -c user.email=t@t -c user.name=T commit -qm initial
+ACC_CTR="$TMPDIR_BASE/acc-ctr-$$"
+rm -f "$ACC_CTR"
+ACC_DIR=$(mktemp -d "$TMPDIR_BASE/acc-migs-XXXXXX")
+cat >"$ACC_DIR/9001-acc-ok.sh" <<'STUB'
+#!/usr/bin/env bash
+# DESCRIPTION: appends fileA then succeeds (applied on the first run)
+printf 'a\n' >>"$PROJECT_ROOT/meta/work/fileA.md"
+exit 0
+STUB
+cat >"$ACC_DIR/9002-acc-fail.sh" <<'STUB'
+#!/usr/bin/env bash
+# DESCRIPTION: appends fileB; fails the first two attempts, succeeds the third
+printf 'b\n' >>"$PROJECT_ROOT/meta/work/fileB.md"
+n=$(cat "$ACC_CTR" 2>/dev/null || echo 0)
+n=$((n + 1))
+printf '%s\n' "$n" >"$ACC_CTR"
+[ "$n" -ge 3 ] && exit 0
+exit 1
+STUB
+chmod +x "$ACC_DIR/9001-acc-ok.sh" "$ACC_DIR/9002-acc-fail.sh"
+ACC_MANIFEST="$REPO/.accelerator/state/migrations-run-paths.txt"
+
+# Run 1 (clean tree): 9001 applies (fileA), 9002 fails (fileB) → manifest {A,B}.
+RC=0
+OUT=$(cd "$REPO" && ACC_CTR="$ACC_CTR" ACCELERATOR_MIGRATIONS_DIR="$ACC_DIR" \
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_neq "acc run 1 fails" "0" "$RC"
+assert_eq "acc run 1 manifest has fileA" "1" \
+  "$(grep -cFx 'meta/work/fileA.md' "$ACC_MANIFEST" || true)"
+assert_eq "acc run 1 manifest has fileB" "1" \
+  "$(grep -cFx 'meta/work/fileB.md' "$ACC_MANIFEST" || true)"
+
+# Run 2 (resume): 9001 skipped (applied), 9002 fails again. Even though only
+# fileB is touched this run, the empty-baseline re-asserts fileA → manifest {A,B}.
+RC=0
+OUT=$(cd "$REPO" && ACC_CTR="$ACC_CTR" ACCELERATOR_MIGRATIONS_DIR="$ACC_DIR" \
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_neq "acc run 2 still fails" "0" "$RC"
+assert_contains "acc run 2 is a guarded resume" "$OUT" "own partial migration output"
+assert_eq "acc run 2 manifest still has fileA (self-healing)" "1" \
+  "$(grep -cFx 'meta/work/fileA.md' "$ACC_MANIFEST" || true)"
+assert_eq "acc run 2 manifest still has fileB" "1" \
+  "$(grep -cFx 'meta/work/fileB.md' "$ACC_MANIFEST" || true)"
+assert_eq "acc run 2 manifest still exactly two paths" "2" \
+  "$(grep -c . "$ACC_MANIFEST" || true)"
+
+# Run 3 (resume): 9002 now succeeds → full success, manifest deleted.
+RC=0
+OUT=$(cd "$REPO" && ACC_CTR="$ACC_CTR" ACCELERATOR_MIGRATIONS_DIR="$ACC_DIR" \
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "acc run 3 resumes to success" "0" "$RC"
+assert_contains "acc run 3 is a guarded resume" "$OUT" "own partial migration output"
+assert_file_not_exists "acc manifest deleted after successful resume" "$ACC_MANIFEST"
+ACC_APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_contains "9002 applied after resume" "$ACC_APPLIED" "9002-acc-fail"
+
+# ============================================================
+echo ""
 echo "=== --skip / --unskip flags ==="
 echo ""
 

@@ -163,6 +163,58 @@ clear_run_manifest() {
   rm -f "$RUN_PATHS_FILE" "$RUN_ID_FILE"
 }
 
+# ── refuse_dirty_tree ────────────────────────────────────────────────────────
+#   Emit the canonical dirty-tree refusal + FORCE hint and exit 1. The single
+#   definition of this message: both the guarded-resume `else` arm and the
+#   original refusal site call it, so the text cannot drift between them.
+refuse_dirty_tree() {
+  echo "Error: dirty working tree — uncommitted changes detected in meta/," \
+    ".claude/accelerator*.md, or .accelerator/." >&2
+  echo "Commit or discard those changes first, or set" \
+    "ACCELERATOR_MIGRATE_FORCE=1 to skip this check." >&2
+  exit 1
+}
+
+# ── dirty_tree_fully_owned <vcs> <dirty> ─────────────────────────────────────
+#   Return 0 iff the manifest + run-id sidecar are usable, the recorded base
+#   revision still equals the current one, AND every line in <dirty> is either a
+#   runner-managed bookkeeping file or present in the manifest. Fail-closed: any
+#   unusable manifest/sidecar, or a revision mismatch, returns 1 (→ refuse).
+#   Always invoked as an `if` condition, which suspends `set -e` for the body —
+#   so an internal grep no-match returns non-zero without aborting the script,
+#   and each explicit `|| return 1` is an intended refusal.
+dirty_tree_fully_owned() {
+  local vcs="$1" dirty="$2" path recorded current
+  # Usability gate (mirror launcher-helpers.sh identity gate).
+  [ -r "$RUN_ID_FILE" ] && [ -s "$RUN_ID_FILE" ] || return 1 # run-id non-empty
+  # The manifest must EXIST but may be EMPTY: an in-flight interactive interrupt
+  # that ran before any mechanical delta leaves an empty manifest, yet its
+  # session log is owned-by-pattern (Phase 4). Requiring non-empty (`-s`) here
+  # would make that resume unreachable. The per-path loop is the sole ownership
+  # authority — an empty manifest + a dirty mechanical path still refuses.
+  [ -r "$RUN_PATHS_FILE" ] || return 1
+  # Staleness: the recorded base revision must equal the current one. They
+  # differ only when the operator has committed since the failed run (the
+  # working copy has moved on) — the "different run" case AC4 requires we refuse.
+  recorded=$(head -n1 "$RUN_ID_FILE")
+  current=$(current_base_revision "$vcs")
+  [ -n "$current" ] && [ "$recorded" = "$current" ] || return 1
+  # Runner-managed bookkeeping files are implicitly owned; derive their
+  # repo-relative forms from the path variables (no hard-coded literals).
+  local rel_applied="${STATE_FILE#"$PROJECT_ROOT/"}"
+  local rel_skipped="${SKIP_FILE#"$PROJECT_ROOT/"}"
+  local rel_paths="${RUN_PATHS_FILE#"$PROJECT_ROOT/"}"
+  local rel_id="${RUN_ID_FILE#"$PROJECT_ROOT/"}"
+  while IFS= read -r path; do
+    [ -z "$path" ] && continue
+    case "$path" in
+      "$rel_applied" | "$rel_skipped" | "$rel_paths" | "$rel_id") continue ;;
+    esac
+    grep -Fxq -- "$path" "$RUN_PATHS_FILE" || return 1
+  done <<<"$dirty"
+  return 0
+}
+
 # ── 2. Pre-flight: clean working tree check ──────────────────────────────────
 # RESUME is set to 1 only by the guarded-resume branch (Phase 3). Initialise it
 # unconditionally here, not inside the FORCE-guarded block: the FORCE path skips
@@ -229,11 +281,21 @@ if [ -z "${ACCELERATOR_MIGRATE_FORCE:-}" ]; then
       echo "to see all uncommitted changes before proceeding." >&2
       exit 1
     fi
-    echo "Error: dirty working tree — uncommitted changes detected in meta/," \
-      ".claude/accelerator*.md, or .accelerator/." >&2
-    echo "Commit or discard those changes first, or set" \
-      "ACCELERATOR_MIGRATE_FORCE=1 to skip this check." >&2
-    exit 1
+    # Guarded resume: when every dirty path is owned by this run's manifest,
+    # proceed into the apply loop WITHOUT ACCELERATOR_MIGRATE_FORCE=1, printing
+    # the owned paths being resumed over. Any non-owned path or unusable/stale
+    # manifest falls to the canonical refusal (fail-closed).
+    if dirty_tree_fully_owned "$vcs" "$dirty"; then
+      RESUME=1
+      echo "Resuming over this run's own partial migration output:" >&2
+      while IFS= read -r path; do
+        [ -z "$path" ] && continue
+        echo "  $path" >&2
+      done <<<"$dirty"
+      # fall through past the refusal into "Read state files"
+    else
+      refuse_dirty_tree
+    fi
   fi
 fi
 
