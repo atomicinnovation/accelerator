@@ -5,13 +5,13 @@ title: "Agent-Decisions Bridge and Documented Invoker Contract"
 date: "2026-06-19T23:13:17+00:00"
 author: Toby Clemson
 producer: refine-work-item
-status: ready
+status: done
 kind: task
 priority: high
 parent: "work-item:0115"
 relates_to: ["work-item:0069", "work-item:0092", "work-item:0116", "work-item:0118", "work-item:0119"]
 tags: [migrate, interactive-migration, agent-invocation, tooling]
-last_updated: "2026-06-22T11:05:59+00:00"
+last_updated: "2026-06-22T21:46:54+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: PP-139
@@ -20,7 +20,7 @@ external_id: PP-139
 # 0117: Agent-Decisions Bridge and Documented Invoker Contract
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
@@ -202,10 +202,12 @@ decisions-file position *i* maps to `--list` entry *i*. ("Consumption order" and
   the unconditional dirty-tree pre-flight, and a partial interactive run is
   exactly what dirties the tree. Relaxing that guard for scripted resumes belongs
   to 0119 (resume-safe partial migration failure) — the concern the stall message
-  already defers to it. AC1–AC6 are unaffected (read-only `--list`, or pass
-  `ACCELERATOR_MIGRATE_FORCE=1`), so this does not block 0117's definition of
-  done; until 0119 lands, `FORCE=1` is the documented way to resume on a dirty
-  tree (recorded in the SKILL.md invoker contract).
+  already defers to it. AC1–AC6 were unaffected (read-only `--list`, or
+  `ACCELERATOR_MIGRATE_FORCE=1`), so this did not block 0117's definition of
+  done. **0119 has since landed**, so the shipped SKILL.md invoker contract
+  documents its guarded resume: a `--decisions-file` resume over the run's own
+  partial output proceeds **without** `FORCE` when the base revision is
+  unchanged, and `FORCE` is required only for un-owned dirt.
 - Merge-ordering coordination with 0116: both touch `interactive-lib.sh` in the
   same `PROMPT`/`read_decision` region, so if this is scheduled first, coordinate
   merge order to avoid conflicts and preserve 0116's standalone-mitigation value.

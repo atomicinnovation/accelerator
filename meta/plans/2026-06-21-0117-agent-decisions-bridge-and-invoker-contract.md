@@ -5,7 +5,7 @@ title: "Agent-Decisions Bridge and Documented Invoker Contract Implementation Pl
 date: "2026-06-21T00:48:14+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0117"
 parent: "work-item:0117"
 derived_from: ["codebase-research:2026-06-21-0117-agent-decisions-bridge-and-invoker-contract"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0115", "work-item:0116", "work-item:0118"]
 tags: [migrate, interactive-migration, agent-invocation, tooling]
 revision: "8bebd60d03af8132c1efddc31c8c8f9fb0b834d8"
 repository: "accelerator"
-last_updated: "2026-06-22T15:05:14+00:00"
+last_updated: "2026-06-22T21:46:54+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
