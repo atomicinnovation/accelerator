@@ -1510,4 +1510,298 @@ else
 fi
 
 echo ""
+echo "=== Phase: --list dry-emit + decisions bridge (0117) ==="
+echo ""
+
+# The standalone reference fixture (0006-decisions-bridge) pins exactly three
+# interactive transformations writing real frontmatter. --list does not read or
+# mutate the corpus, so most --list cases need no corpus seed; AC1/AC2 seed
+# stubs so the apply path and the byte-identity assertions have real files.
+BRIDGE_DIR="$MIGRATIONS_DIR_FIXTURE/0006-decisions-bridge/migrations"
+
+seed_bridge_corpus() {
+  local sbx="$1"
+  mkdir -p "$sbx/meta/work"
+  printf -- '---\nid: "0050"\n---\n' >"$sbx/meta/work/0050-example-a.md"
+  printf -- '---\nid: "0051"\n---\n' >"$sbx/meta/work/0051-example-b.md"
+  printf -- '---\nid: "0052"\n---\n' >"$sbx/meta/work/0052-example-c.md"
+}
+
+echo "Test: AC1 — --list byte-for-byte output, exit 0, stderr clean, corpus intact"
+SBX=$(setup_sandbox "list-ac1")
+seed_bridge_corpus "$SBX"
+# Snapshot the seeded corpus so we can prove --list mutates nothing.
+cp "$SBX/meta/work/0050-example-a.md" "$TMPDIR_BASE/ac1-0050.orig"
+cp "$SBX/meta/work/0051-example-b.md" "$TMPDIR_BASE/ac1-0051.orig"
+cp "$SBX/meta/work/0052-example-c.md" "$TMPDIR_BASE/ac1-0052.orig"
+LIST_OUT=$(mktemp "$TMPDIR_BASE/ac1-out-XXXXXX")
+LIST_ERR=$(mktemp "$TMPDIR_BASE/ac1-err-XXXXXX")
+RC=0
+ACCELERATOR_MIGRATIONS_DIR="$BRIDGE_DIR" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  bash "$DRIVER" --list >"$LIST_OUT" 2>"$LIST_ERR" || RC=$?
+assert_eq "AC1 --list exits 0 (no FORCE needed — read-only)" "0" "$RC"
+AC1_EXPECTED=$(mktemp "$TMPDIR_BASE/ac1-expected-XXXXXX")
+printf '%s\t%s\t%s\t%s\n' \
+  "1" "relates_to" "work-item:0042" "meta/work/0050-example-a.md:body/relates_to" \
+  >"$AC1_EXPECTED"
+printf '%s\t%s\t%s\t%s\n' \
+  "2" "parent" "work-item:0031" "meta/work/0051-example-b.md:body/parent" \
+  >>"$AC1_EXPECTED"
+printf '%s\t%s\t%s\t%s\n' \
+  "3" "relates_to" "work-item:0099" "meta/work/0052-example-c.md:body/relates_to" \
+  >>"$AC1_EXPECTED"
+assert_stdout_exact "AC1 --list output byte-for-byte" "$AC1_EXPECTED" "$LIST_OUT"
+assert_eq "AC1 stderr diagnostic-free on success" "" "$(cat "$LIST_ERR")"
+assert_files_identical "AC1 0050 stub unmutated" \
+  "$TMPDIR_BASE/ac1-0050.orig" "$SBX/meta/work/0050-example-a.md"
+assert_files_identical "AC1 0051 stub unmutated" \
+  "$TMPDIR_BASE/ac1-0051.orig" "$SBX/meta/work/0051-example-b.md"
+assert_files_identical "AC1 0052 stub unmutated" \
+  "$TMPDIR_BASE/ac1-0052.orig" "$SBX/meta/work/0052-example-c.md"
+assert_file_not_exists "AC1 leaves no session log" \
+  "$SBX/.accelerator/state/migrations-0006-decisions-bridge-session.jsonl"
+assert_file_not_exists "AC1 leaves no applied ledger" \
+  "$SBX/.accelerator/state/migrations-applied"
+
+echo ""
+echo "Test: AC1 — LIST_ENTRY/LIST_DONE frame counts lock the wire contract"
+PROTO_MIG=$(mktemp "$TMPDIR_BASE/list-proto-XXXXXX")
+SBX=$(setup_sandbox "list-frames")
+ACCELERATOR_MIGRATIONS_DIR="$BRIDGE_DIR" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_MIG" \
+  bash "$DRIVER" --list >/dev/null 2>&1 || true
+LE_COUNT=$(grep -c $'^LIST_ENTRY\t' "$PROTO_MIG" || true)
+LD_COUNT=$(grep -c $'^LIST_DONE$' "$PROTO_MIG" || true)
+assert_eq "3 LIST_ENTRY frames" "3" "$LE_COUNT"
+assert_eq "1 LIST_DONE frame" "1" "$LD_COUNT"
+
+echo ""
+echo "Test: AC3 — empty interactive fixture --list prints sentinel only"
+SBX=$(setup_sandbox "list-ac3")
+LIST_OUT=$(mktemp "$TMPDIR_BASE/ac3-out-XXXXXX")
+LIST_ERR=$(mktemp "$TMPDIR_BASE/ac3-err-XXXXXX")
+RC=0
+ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0001-empty-interactive/migrations" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  bash "$DRIVER" --list >"$LIST_OUT" 2>"$LIST_ERR" || RC=$?
+assert_eq "AC3 exit 0" "0" "$RC"
+AC3_EXPECTED=$(mktemp "$TMPDIR_BASE/ac3-expected-XXXXXX")
+printf 'no pending transformations\n' >"$AC3_EXPECTED"
+assert_stdout_exact "AC3 byte-exact 'no pending transformations'" \
+  "$AC3_EXPECTED" "$LIST_OUT"
+assert_file_not_exists "AC3 no session log written" \
+  "$SBX/.accelerator/state/migrations-0001-empty-interactive-session.jsonl"
+
+echo ""
+echo "Test: AC3 — genuinely empty pending set: --list precedes 'No pending migrations.'"
+SBX=$(setup_sandbox "list-empty-pending")
+EMPTY_MIG_DIR=$(mktemp -d "$TMPDIR_BASE/empty-migs-XXXXXX")
+LIST_OUT=$(mktemp "$TMPDIR_BASE/empty-out-XXXXXX")
+RC=0
+ACCELERATOR_MIGRATIONS_DIR="$EMPTY_MIG_DIR" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  bash "$DRIVER" --list >"$LIST_OUT" 2>/dev/null || RC=$?
+assert_eq "empty-pending --list exit 0" "0" "$RC"
+assert_stdout_exact "empty-pending prints sentinel, not 'No pending migrations.'" \
+  "$AC3_EXPECTED" "$LIST_OUT"
+assert_not_contains "empty-pending did NOT reach the preview early exit" \
+  "$(cat "$LIST_OUT")" "No pending migrations."
+
+echo ""
+echo "Test: AC2 — decisions file applies real frontmatter outcomes"
+SBX=$(setup_sandbox "bridge-ac2")
+seed_bridge_corpus "$SBX"
+DEC=$(mktemp "$TMPDIR_BASE/ac2-dec-XXXXXX")
+printf 'accept\nskip\nedit work-item:0100\n' >"$DEC"
+RC=0
+ACCELERATOR_MIGRATIONS_DIR="$BRIDGE_DIR" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATE_FORCE=1 ACCELERATOR_MIGRATE_DECISIONS_FILE="$DEC" \
+  bash "$DRIVER" >/dev/null 2>&1 || RC=$?
+assert_eq "AC2 exit 0" "0" "$RC"
+# Primary oracle: the decoupled sentinel log (decision + value per applied key).
+APPLIED_LOG="$SBX/.fixture/applied/log"
+assert_file_exists "AC2 applied sentinel present" "$APPLIED_LOG"
+APPLIED_CONTENT=$(cat "$APPLIED_LOG" 2>/dev/null || echo "")
+assert_contains "AC2 pos1 accept→proposed" "$APPLIED_CONTENT" \
+  $'relates_to\tmeta/work/0050-example-a.md\tbody/relates_to\taccept\twork-item:0042'
+assert_contains "AC2 pos3 edit→user value (not proposed)" "$APPLIED_CONTENT" \
+  $'relates_to\tmeta/work/0052-example-c.md\tbody/relates_to\tedit\twork-item:0100'
+assert_not_contains "AC2 pos2 skip never applied (no parent record)" \
+  "$APPLIED_CONTENT" "parent"
+# Secondary: the real frontmatter writes.
+assert_contains "AC2 0050 frontmatter has accepted value" \
+  "$(cat "$SBX/meta/work/0050-example-a.md")" "relates_to: [work-item:0042]"
+assert_not_contains "AC2 0051 frontmatter has no parent" \
+  "$(cat "$SBX/meta/work/0051-example-b.md")" "parent"
+assert_contains "AC2 0052 frontmatter has edited value" \
+  "$(cat "$SBX/meta/work/0052-example-c.md")" "relates_to: [work-item:0100]"
+assert_not_contains "AC2 0052 did NOT keep the proposed value" \
+  "$(cat "$SBX/meta/work/0052-example-c.md")" "work-item:0099"
+
+echo ""
+echo "Test: resume-aware --list excludes an already-decided key"
+SBX=$(setup_sandbox "list-resume")
+# Pre-decide the middle transformation (key 'parent'); --list must then emit
+# only the two relates_to rows, renumbered 1..2. (The fixture reuses the key
+# 'relates_to' for positions 1 and 3, so we pre-decide the unique 'parent' key
+# to exclude exactly one row.)
+LOG="$SBX/.accelerator/state/migrations-0006-decisions-bridge-session.jsonl"
+cat >"$LOG" <<'EOF'
+{"transformation_key":"parent","schema_version":1,"outcome":"skipped","proposed_value":"work-item:0031","timestamp":"2026-05-30T12:00:00Z"}
+EOF
+LIST_OUT=$(mktemp "$TMPDIR_BASE/resume-out-XXXXXX")
+RC=0
+ACCELERATOR_MIGRATIONS_DIR="$BRIDGE_DIR" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  bash "$DRIVER" --list >"$LIST_OUT" 2>/dev/null || RC=$?
+assert_eq "resume-aware --list exit 0" "0" "$RC"
+RESUME_EXPECTED=$(mktemp "$TMPDIR_BASE/resume-expected-XXXXXX")
+printf '%s\t%s\t%s\t%s\n' \
+  "1" "relates_to" "work-item:0042" "meta/work/0050-example-a.md:body/relates_to" \
+  >"$RESUME_EXPECTED"
+printf '%s\t%s\t%s\t%s\n' \
+  "2" "relates_to" "work-item:0099" "meta/work/0052-example-c.md:body/relates_to" \
+  >>"$RESUME_EXPECTED"
+assert_stdout_exact "resume-aware --list omits decided key, renumbers 1..2" \
+  "$RESUME_EXPECTED" "$LIST_OUT"
+
+echo ""
+echo "Test: multi-migration segmentation (headers + per-migration position reset)"
+MULTI_DIR=$(mktemp -d "$TMPDIR_BASE/multi-migs-XXXXXX")
+cp "$BRIDGE_DIR/0006-decisions-bridge.sh" "$MULTI_DIR/0006-decisions-bridge.sh"
+cat >"$MULTI_DIR/0009-second-bridge.sh" <<'SECOND_SH'
+#!/usr/bin/env bash
+# DESCRIPTION: second interactive migration for --list segmentation test.
+# INTERACTIVE: yes
+# shellcheck disable=SC2154 # CLAUDE_PLUGIN_ROOT provided by the interactive-migration harness environment
+set -euo pipefail
+source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
+source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"
+migration_emit_transformations() {
+  harness_emit_transformation key=blocks path=meta/work/0060-x.md \
+    anchor=body/blocks proposed=work-item:0061 predicate_value=ambiguous
+  harness_emit_transformation key=blocks path=meta/work/0062-y.md \
+    anchor=body/blocks proposed=work-item:0063 predicate_value=ambiguous
+}
+migration_evaluate_predicate() { return 0; }
+migration_validate_edit() { return 0; }
+migration_apply_decision() { return 0; }
+harness_run
+SECOND_SH
+SBX=$(setup_sandbox "list-multi")
+LIST_OUT=$(mktemp "$TMPDIR_BASE/multi-out-XXXXXX")
+LIST_ERR=$(mktemp "$TMPDIR_BASE/multi-err-XXXXXX")
+RC=0
+ACCELERATOR_MIGRATIONS_DIR="$MULTI_DIR" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  bash "$DRIVER" --list >"$LIST_OUT" 2>"$LIST_ERR" || RC=$?
+assert_eq "multi --list exit 0" "0" "$RC"
+MULTI_EXPECTED=$(mktemp "$TMPDIR_BASE/multi-expected-XXXXXX")
+{
+  printf '# migration %s\n' "0006-decisions-bridge"
+  printf '%s\t%s\t%s\t%s\n' "1" "relates_to" "work-item:0042" \
+    "meta/work/0050-example-a.md:body/relates_to"
+  printf '%s\t%s\t%s\t%s\n' "2" "parent" "work-item:0031" \
+    "meta/work/0051-example-b.md:body/parent"
+  printf '%s\t%s\t%s\t%s\n' "3" "relates_to" "work-item:0099" \
+    "meta/work/0052-example-c.md:body/relates_to"
+  printf '# migration %s\n' "0009-second-bridge"
+  printf '%s\t%s\t%s\t%s\n' "1" "blocks" "work-item:0061" "meta/work/0060-x.md:body/blocks"
+  printf '%s\t%s\t%s\t%s\n' "2" "blocks" "work-item:0063" "meta/work/0062-y.md:body/blocks"
+} >"$MULTI_EXPECTED"
+assert_stdout_exact "multi --list: two headers, positions restart per migration" \
+  "$MULTI_EXPECTED" "$LIST_OUT"
+assert_contains "multi --list notes single-file-per-migration on stderr" \
+  "$(cat "$LIST_ERR")" "not yet supported"
+
+echo ""
+echo "Test: single-migration --list emits NO '# migration' header"
+SBX=$(setup_sandbox "list-no-header")
+LIST_OUT=$(mktemp "$TMPDIR_BASE/nohdr-out-XXXXXX")
+ACCELERATOR_MIGRATIONS_DIR="$BRIDGE_DIR" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  bash "$DRIVER" --list >"$LIST_OUT" 2>/dev/null || true
+assert_not_contains "single-migration --list has no header" \
+  "$(cat "$LIST_OUT")" "# migration"
+
+echo ""
+echo "Test: --list bypasses the dirty-tree pre-flight (no FORCE)"
+if command -v git >/dev/null 2>&1; then
+  REPO=$(mktemp -d "$TMPDIR_BASE/list-dirty-XXXXXX")
+  (cd "$REPO" && git init -q && git config user.email t@e.x &&
+    git config user.name t && git commit --allow-empty -q -m init)
+  mkdir -p "$REPO/.accelerator/state" "$REPO/meta"
+  echo "uncommitted" >"$REPO/meta/dirty.md"
+  (cd "$REPO" && git add meta/dirty.md)
+  LIST_OUT=$(mktemp "$TMPDIR_BASE/dirty-out-XXXXXX")
+  RC=0
+  ACCELERATOR_MIGRATIONS_DIR="$BRIDGE_DIR" \
+    PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    bash "$DRIVER" --list >"$LIST_OUT" 2>/dev/null || RC=$?
+  assert_eq "--list on a dirty tree exits 0 (preflight bypassed)" "0" "$RC"
+  assert_contains "--list still prints the entries on a dirty tree" \
+    "$(cat "$LIST_OUT")" "meta/work/0050-example-a.md:body/relates_to"
+else
+  skip_test "--list dirty-tree bypass" "git not available"
+fi
+
+echo ""
+echo "Test: --list FAIL path (predicate returns an out-of-contract rc)"
+FAIL_DIR=$(mktemp -d "$TMPDIR_BASE/list-fail-migs-XXXXXX")
+cat >"$FAIL_DIR/0010-bad-predicate.sh" <<'BAD_SH'
+#!/usr/bin/env bash
+# DESCRIPTION: predicate returns rc 2 — --list FAIL path test.
+# INTERACTIVE: yes
+# shellcheck disable=SC2154 # CLAUDE_PLUGIN_ROOT provided by the interactive-migration harness environment
+set -euo pipefail
+source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
+source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"
+migration_emit_transformations() {
+  harness_emit_transformation key=badkey path=meta/work/0070-z.md \
+    anchor=body/badkey proposed=v predicate_value=ambiguous
+}
+migration_evaluate_predicate() { return 2; }
+migration_validate_edit() { return 0; }
+migration_apply_decision() { return 0; }
+harness_run
+BAD_SH
+SBX=$(setup_sandbox "list-fail")
+PROTO_MIG=$(mktemp "$TMPDIR_BASE/fail-proto-XXXXXX")
+LIST_ERR=$(mktemp "$TMPDIR_BASE/fail-err-XXXXXX")
+RC=0
+ACCELERATOR_MIGRATIONS_DIR="$FAIL_DIR" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_MIG" \
+  bash "$DRIVER" --list >/dev/null 2>"$LIST_ERR" || RC=$?
+assert_neq "--list FAIL path exits non-zero" "0" "$RC"
+assert_contains "--list FAIL names the offending key" "$(cat "$LIST_ERR")" "badkey"
+LD_COUNT=$(grep -c $'^LIST_DONE$' "$PROTO_MIG" || true)
+assert_eq "no LIST_DONE emitted on the FAIL path" "0" "$LD_COUNT"
+
+echo ""
+echo "Test: unknown flag is rejected (was silently ignored)"
+RC=0
+OUTPUT=$(PROJECT_ROOT="$(setup_sandbox "unknown-flag")" \
+  bash "$DRIVER" --frobnicate 2>&1) || RC=$?
+assert_neq "unknown flag exits non-zero" "0" "$RC"
+assert_contains "stderr names the unknown argument" "$OUTPUT" \
+  "Unknown argument: --frobnicate"
+
+echo ""
+echo "Test: AC4 — --help prints env var + --list to STDOUT (not stderr)"
+HELP_OUT=$(mktemp "$TMPDIR_BASE/help-out-XXXXXX")
+HELP_ERR=$(mktemp "$TMPDIR_BASE/help-err-XXXXXX")
+RC=0
+PROJECT_ROOT="$(setup_sandbox "help-stdout")" \
+  bash "$DRIVER" --help >"$HELP_OUT" 2>"$HELP_ERR" || RC=$?
+assert_eq "--help exits 0" "0" "$RC"
+assert_contains "AC4 env var on STDOUT" "$(cat "$HELP_OUT")" \
+  "ACCELERATOR_MIGRATE_DECISIONS_FILE"
+assert_contains "AC4 --list documented on STDOUT" "$(cat "$HELP_OUT")" "--list"
+assert_eq "AC4 --help stderr empty" "" "$(cat "$HELP_ERR")"
+
+echo ""
 test_summary

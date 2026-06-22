@@ -355,6 +355,193 @@ read_decision_or_stall() {
   return "$rc"
 }
 
+# ── Shared dry-fork plumbing (list + dry-apply) ──────────────────────────────
+# The live run (run_interactive_migration) keeps its own battle-tested fork loop
+# untouched — it carries the 0116 stall, the 0119 guarded-resume side effects,
+# the VALIDATE_ERR re-prompt cache, the watchdog tail, and the WAL APPLY round
+# trip. The two NET-NEW driver surfaces added for 0117 (--list enumeration and
+# the no-mutation dry-apply validation pass) are read-only / non-mutating and
+# far simpler, so they share one fork driver here rather than each cloning the
+# FIFO/fd/INIT plumbing. The single classify source the design prioritises
+# (Decision 2) lives on the harness side (_harness_classify_tx), shared by all
+# three modes; this helper is the runner-side counterpart for the dry modes.
+
+# Named sentinel for the handler / _interactive_fork contract: a frame handler
+# returns 0 to continue, _FORK_STOP to stop the loop cleanly on a *_DONE frame,
+# or any other non-zero to abort the run. Re-source-safe (the lib is sourced by
+# the driver and again per-test): a second source must not abort on a readonly
+# re-assignment. Value chosen clear of common exit codes.
+[ -n "${_FORK_STOP:-}" ] || readonly _FORK_STOP=10
+
+# _interactive_fork <path> <id> <mode> <frame_handler>
+#   Builds the pre-fork DEFAULT resume state (so dry modes exclude already-
+#   decided keys identically to the live run), sets up the two FIFOs + literal
+#   fd 7/8 (bash 3.2 has no {var}< allocator), forks the child with INIT
+#   carrying <mode> as the third field, and drives the frame loop dispatching
+#   each frame's (type, unescaped fields...) to <frame_handler>. READY is
+#   handled centrally (sets SESSION_LOG, rejects a non-canonical declared path
+#   exactly as the live run). Opens NO fd 9, writes NO session log, and sends NO
+#   APPLY of its own, so no mutation path is reachable; a handler may still send
+#   frames back to the child via the mig_in global (dry-apply relays DECIDE).
+#   Globals set for handlers: mig_in, mig_out, SESSION_LOG. Returns 0 on a clean
+#   _FORK_STOP, non-zero on handler abort / unexpected child exit.
+_interactive_fork() {
+  local f="$1" id="$2" mode="$3" handler="$4"
+  local state_dir="$PROJECT_ROOT/.accelerator/state"
+  local resume_state_path="$state_dir/migrations-${id}-resume-state.tmp"
+  local stderr_file="$state_dir/migrations-${id}-stderr.log"
+  local default_session_log="$state_dir/migrations-${id}-session.jsonl"
+  mkdir -p "$state_dir"
+  : >"$stderr_file"
+  build_resume_state_file "$default_session_log" "$resume_state_path" || {
+    echo "[$id] failed to build resume state" >&2
+    return 1
+  }
+
+  local runner_log_path="${MIGRATION_PROTOCOL_LOG_RUNNER:-}"
+  local fifo_r2m="$state_dir/migrations-${id}-r2m.fifo"
+  local fifo_m2r="$state_dir/migrations-${id}-m2r.fifo"
+  rm -f "$fifo_r2m" "$fifo_m2r"
+  mkfifo "$fifo_r2m" "$fifo_m2r"
+  exec 7<>"$fifo_r2m"
+  # The dry mode rides on MIGRATION_HARNESS_MODE (env), NOT a third INIT field:
+  # an empty decisions_path field would collapse under IFS-tab word-splitting
+  # and shift a trailing positional field. The INIT stays byte-identical to the
+  # live run's two-field form.
+  PROJECT_ROOT="$PROJECT_ROOT" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    ACCELERATOR_MIGRATION_MODE=1 MIGRATION_ID="$id" \
+    MIGRATION_HARNESS_MODE="$mode" \
+    MIGRATION_PROTOCOL_LOG_MIGRATION="${MIGRATION_PROTOCOL_LOG_MIGRATION:-}" \
+    bash "$f" <"$fifo_r2m" >"$fifo_m2r" 2>"$stderr_file" &
+  local pid=$!
+  exec 8<"$fifo_m2r"
+  mig_in=7
+  mig_out=8
+
+  printf 'INIT\t%s\t%s\n' \
+    "$(escape_field "$resume_state_path")" \
+    "$(escape_field "${ACCELERATOR_MIGRATE_DECISIONS_FILE:-}")" >&"$mig_in"
+  if [ -n "$runner_log_path" ]; then
+    printf 'INIT\t%s\t%s\n' \
+      "$(escape_field "$resume_state_path")" \
+      "$(escape_field "${ACCELERATOR_MIGRATE_DECISIONS_FILE:-}")" \
+      >>"$runner_log_path"
+  fi
+
+  SESSION_LOG="$default_session_log"
+  local rc=0 saw_stop=0 frame type rest
+  while IFS= read -r -u "$mig_out" frame; do
+    if [ -n "$runner_log_path" ]; then
+      printf '%s\n' "$frame" >>"$runner_log_path"
+    fi
+    type="${frame%%$'\t'*}"
+    if [[ "$frame" == *$'\t'* ]]; then
+      rest="${frame#*$'\t'}"
+    else
+      rest=""
+    fi
+    local IFS_save="$IFS"
+    IFS=$'\t'
+    # shellcheck disable=SC2206
+    local -a raw_fields=($rest)
+    IFS="$IFS_save"
+    local -a fields=()
+    local i
+    for ((i = 0; i < ${#raw_fields[@]}; i++)); do
+      fields+=("$(unescape_field "${raw_fields[$i]}")")
+    done
+
+    if [ "$type" = "READY" ]; then
+      SESSION_LOG="${fields[0]:-$default_session_log}"
+      case "$SESSION_LOG" in
+        /*) ;;
+        *) SESSION_LOG="$PROJECT_ROOT/$SESSION_LOG" ;;
+      esac
+      if [ "$SESSION_LOG" != "$default_session_log" ]; then
+        echo "[$id] migration declared a non-canonical session-log path:" >&2
+        echo "[$id]   $SESSION_LOG" >&2
+        echo "[$id]   expected: $default_session_log" >&2
+        rc=1
+        break
+      fi
+      continue
+    fi
+
+    local hrc=0
+    "$handler" "$type" "${fields[@]+"${fields[@]}"}" || hrc=$?
+    if [ "$hrc" -eq "$_FORK_STOP" ]; then
+      saw_stop=1
+      break
+    elif [ "$hrc" -ne 0 ]; then
+      rc=1
+      break
+    fi
+  done
+
+  _interactive_teardown "$pid" "$fifo_r2m" "$fifo_m2r"
+  # A loop that ended without a clean *_DONE stop (and without an explicit
+  # handler/READY failure) is an unexpected child EOF — fail closed.
+  if [ "$rc" -eq 0 ] && [ "$saw_stop" -ne 1 ]; then
+    rc=1
+  fi
+  if [ "$rc" -ne 0 ] && [ -s "$stderr_file" ]; then
+    echo "[$id] migration exited unexpectedly. Last stderr lines:" >&2
+    tail -n 20 "$stderr_file" | sed "s/^/[$id]   /" >&2
+  fi
+  rm -f "$resume_state_path" "$stderr_file"
+  return "$rc"
+}
+
+# _interactive_teardown <pid> <fifo_r2m> <fifo_m2r>
+#   Close fd 7/8 (delivering EOF to the child's stdin), remove the FIFOs, and
+#   reap the child. The dry modes are short-lived (the child returns from
+#   harness_run after LIST_DONE / DRY_DONE), so no watchdog is needed — closing
+#   fd 7 unblocks any pending child read.
+_interactive_teardown() {
+  local pid="$1" fifo_r2m="$2" fifo_m2r="$3"
+  exec 7>&- 8<&-
+  rm -f "$fifo_r2m" "$fifo_m2r"
+  wait "$pid" 2>/dev/null || true
+}
+
+# LIST_ENTRIES — output of enumerate_interactive_transformations, one
+# key<TAB>path<TAB>anchor<TAB>proposed row per pending decision.
+LIST_ENTRIES=()
+
+# enumerate_interactive_transformations <path> <id>
+#   Read-only fork (mode 1): populate LIST_ENTRIES with the pending decision-
+#   requiring transformations. Resets LIST_ENTRIES on entry so callers cannot
+#   leak state across migrations. A non-zero return / FAIL frame propagates so
+#   the driver aborts before any mutating run.
+enumerate_interactive_transformations() {
+  local f="$1" id="$2"
+  LIST_ENTRIES=()
+  _interactive_fork "$f" "$id" 1 _enum_handle_frame || return 1
+}
+
+_enum_handle_frame() {
+  case "$1" in # $1 = frame type, $2.. = unescaped fields
+    LIST_ENTRY)
+      # Guard BEFORE the tab-join: a field carrying an embedded TAB or newline
+      # would corrupt the joined row (and the downstream split). Fail closed
+      # here, while the fields are still individually intact.
+      case "$2$3$4$5" in
+        *$'\t'* | *$'\n'*)
+          echo "[$id] --list field for key '$2' contains a tab or newline;" \
+            "--list output is undefined for such values." >&2
+          return 1
+          ;;
+      esac
+      LIST_ENTRIES+=("$2"$'\t'"$3"$'\t'"$4"$'\t'"$5")
+      ;;
+    LIST_DONE) return "$_FORK_STOP" ;; # stop the fork loop cleanly
+    FAIL)
+      echo "[$id] $2" >&2
+      return 1
+      ;;
+  esac
+}
+
 # run_interactive_migration <path> <id>
 run_interactive_migration() {
   local f="$1" id="$2"

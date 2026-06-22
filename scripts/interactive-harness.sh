@@ -252,6 +252,13 @@ harness_run() {
     return 1
   fi
   local resume_state_path="${FRAME_FIELDS[0]:-}"
+  # FRAME_FIELDS[1] = decisions_path (runner-side concern, unused here).
+  # The runner selects a dry mode via the MIGRATION_HARNESS_MODE env var on the
+  # forked child ("1" = list enumeration, "2" = dry-apply validation;
+  # absent/empty = normal run). It rides on the environment rather than a third
+  # INIT field because an empty decisions_path would collapse under IFS-tab
+  # word-splitting and shift a trailing positional field out of place.
+  local mode="${MIGRATION_HARNESS_MODE:-}"
   # Decisions path is not used by the harness — it's a runner-side
   # concern. The harness pretends the input is interactive; the runner
   # multiplexes either user input or the decisions file.
@@ -283,59 +290,37 @@ harness_run() {
     done <<<"$emit_output"
   fi
 
+  # Dry modes branch BEFORE the decide handshake: list mode enumerates the
+  # decision-requiring transformations and exits; dry-apply runs the real
+  # decide/validate loop with every side effect suppressed. Both pass the
+  # buffered lines as args (TX_LINES is local to harness_run) and route each
+  # TX via the shared _harness_classify_tx, so all three modes share one
+  # parse/resume/predicate definition.
+  if [ "$mode" = "1" ]; then
+    _harness_emit_list "${TX_LINES[@]+"${TX_LINES[@]}"}"
+    return $?
+  elif [ "$mode" = "2" ]; then
+    _harness_dry_apply "${TX_LINES[@]+"${TX_LINES[@]}"}"
+    return $?
+  fi
+
   local tx i key path anchor proposed predicate_value extras_tsv display_b64
   for tx in "${TX_LINES[@]+"${TX_LINES[@]}"}"; do
-    # Parse the TX record.
-    local IFS_save="$IFS"
-    IFS=$'\t'
-    # shellcheck disable=SC2206
-    local -a fields=($tx)
-    IFS="$IFS_save"
-    if [ "${fields[0]:-}" != "TX" ]; then
-      emit_frame FAIL "harness_emit_transformation: malformed record (got '${fields[0]:-}')"
-      return 1
-    fi
-    key=$(unescape_field "${fields[1]:-}")
-    path=$(unescape_field "${fields[2]:-}")
-    anchor=$(unescape_field "${fields[3]:-}")
-    proposed=$(unescape_field "${fields[4]:-}")
-    predicate_value=$(unescape_field "${fields[5]:-}")
-    extras_tsv="${fields[6]:-}"
-    display_b64="${fields[7]:-}"
-
-    _HARNESS_CURRENT_TSV="$tx"
-
-    # Resume-state check (covered fully in Phase 6; Phase 3 just emits
-    # MECHANICAL_APPLIED / PROMPT placeholders for the predicate routing
-    # below).
-    _harness_resume_lookup "$key"
-    if [ "$RESUME_FOUND" -eq 1 ]; then
-      _harness_handle_resume "$key" "$path" "$anchor" "$proposed" \
-        "$predicate_value" "$extras_tsv" "$display_b64" || return 1
-      continue
-    fi
-
-    # Evaluate predicate; if migration_evaluate_predicate is not
-    # declared, default to "always prompt" (predicate=true).
-    local predicate_rc=0
-    if declare -F migration_evaluate_predicate >/dev/null; then
-      # Feed the transformation via a here-string, NOT a pipe. A predicate
-      # that returns without draining stdin (e.g. one that reads fields via
-      # harness_field rather than stdin) would close the read end of a pipe
-      # before `printf` finishes writing; under `set -o pipefail` the
-      # resulting SIGPIPE (141) on printf becomes the pipeline's exit status
-      # and gets misread as a contract violation. A here-string has no
-      # upstream writer to receive SIGPIPE, so the predicate's own return
-      # code is preserved.
-      migration_evaluate_predicate <<<"$tx" >/dev/null 2>&1 ||
-        predicate_rc=$?
-    fi
-    case "$predicate_rc" in
-      0)
+    _harness_classify_tx "$tx"
+    case "$ROUTE" in
+      malformed)
+        emit_frame FAIL "harness_emit_transformation: malformed record (got '${_CLASSIFY_RAW}')"
+        return 1
+        ;;
+      resumed)
+        _harness_handle_resume "$key" "$path" "$anchor" "$proposed" \
+          "$predicate_value" "$extras_tsv" "$display_b64" || return 1
+        ;;
+      prompt)
         _harness_run_prompt "$key" "$path" "$anchor" "$proposed" \
           "$predicate_value" "$extras_tsv" "$display_b64" || return 1
         ;;
-      1)
+      mechanical)
         # Mechanical route: apply without prompting; emit MECHANICAL_APPLIED.
         if ! migration_apply_decision "$key" "$path" "$anchor" accept "$proposed"; then
           emit_frame FAIL "migration_apply_decision failed for key $key (mechanical route)"
@@ -343,8 +328,8 @@ harness_run() {
         fi
         emit_frame MECHANICAL_APPLIED "$key"
         ;;
-      *)
-        emit_frame FAIL "migration_evaluate_predicate returned $predicate_rc for key $key (contract: 0 prompt, 1 mechanical)"
+      fail)
+        emit_frame FAIL "migration_evaluate_predicate returned $PREDICATE_RC for key $key (contract: 0 prompt, 1 mechanical)"
         return 1
         ;;
     esac
@@ -352,6 +337,92 @@ harness_run() {
 
   emit_frame DONE
   return 0
+}
+
+# _harness_classify_tx <tx>: parse one buffered TX line and decide its route.
+# Sets the FULL set of per-TX globals (UNESCAPED, exactly as the main loop's
+# unescape_field extraction): key/path/anchor/proposed AND predicate_value/
+# extras_tsv/display_b64 (the live PROMPT build needs all seven), plus ROUTE in
+# {malformed, resumed, mechanical, prompt, fail}. On the 'fail' route it also
+# sets PREDICATE_RC; on 'malformed' it sets _CLASSIFY_RAW. The ONLY place TX
+# parsing / resume / predicate routing lives — the main loop, list mode, and
+# dry-apply all act on ROUTE and read these globals rather than re-splitting the
+# TX. Callers that declare these names local (e.g. harness_run) receive the
+# values via dynamic scope; otherwise they land as globals.
+_harness_classify_tx() {
+  local tx="$1"
+  local IFS_save="$IFS"
+  IFS=$'\t'
+  # shellcheck disable=SC2206
+  local -a fields=($tx)
+  IFS="$IFS_save"
+  if [ "${fields[0]:-}" != "TX" ]; then
+    ROUTE=malformed
+    _CLASSIFY_RAW="${fields[0]:-}"
+    return 0
+  fi
+  key=$(unescape_field "${fields[1]:-}")
+  path=$(unescape_field "${fields[2]:-}")
+  anchor=$(unescape_field "${fields[3]:-}")
+  proposed=$(unescape_field "${fields[4]:-}")
+  predicate_value=$(unescape_field "${fields[5]:-}")
+  extras_tsv="${fields[6]:-}"
+  display_b64="${fields[7]:-}"
+  _HARNESS_CURRENT_TSV="$tx"
+  _harness_resume_lookup "$key"
+  if [ "$RESUME_FOUND" -eq 1 ]; then
+    ROUTE=resumed
+    return 0
+  fi
+  # Evaluate predicate; if migration_evaluate_predicate is not declared,
+  # default to "always prompt" (predicate=true).
+  local predicate_rc=0
+  if declare -F migration_evaluate_predicate >/dev/null; then
+    # Feed the transformation via a here-string, NOT a pipe. A predicate that
+    # returns without draining stdin (e.g. one that reads fields via
+    # harness_field rather than stdin) would close the read end of a pipe
+    # before `printf` finishes writing; under `set -o pipefail` the resulting
+    # SIGPIPE (141) on printf becomes the pipeline's exit status and gets
+    # misread as a contract violation. A here-string has no upstream writer to
+    # receive SIGPIPE, so the predicate's own return code is preserved.
+    migration_evaluate_predicate <<<"$tx" >/dev/null 2>&1 || predicate_rc=$?
+  fi
+  case "$predicate_rc" in
+    0) ROUTE=prompt ;;
+    1) ROUTE=mechanical ;;
+    *)
+      ROUTE=fail
+      PREDICATE_RC="$predicate_rc"
+      ;;
+  esac
+}
+
+# _harness_emit_list <tx...>: dry enumeration of decision-requiring
+# transformations. Takes the buffered lines as ARGS (TX_LINES is local to
+# harness_run), routes each via the shared _harness_classify_tx, and emits
+# LIST_ENTRY only for the 'prompt' route. Mutates nothing — resumed keys are
+# already decided (no line consumed) and mechanical rows would mutate, so both
+# are excluded. emit_frame re-escapes on the wire and the runner unescapes once
+# on receipt, so the round-trip is byte-identical to the PROMPT path.
+_harness_emit_list() {
+  local tx
+  for tx in "$@"; do
+    _harness_classify_tx "$tx"
+    case "$ROUTE" in
+      malformed)
+        emit_frame FAIL "harness_emit_transformation: malformed record (got '${_CLASSIFY_RAW}')"
+        return 1
+        ;;
+      resumed) : ;;    # already decided -> no line consumed
+      mechanical) : ;; # mutates + consumes no line, excluded
+      prompt) emit_frame LIST_ENTRY "$key" "$path" "$anchor" "$proposed" ;;
+      fail)
+        emit_frame FAIL "predicate returned $PREDICATE_RC for key $key"
+        return 1
+        ;;
+    esac
+  done
+  emit_frame LIST_DONE
 }
 
 # _harness_run_prompt: emit PROMPT, read DECIDE, write-ahead-log loop.

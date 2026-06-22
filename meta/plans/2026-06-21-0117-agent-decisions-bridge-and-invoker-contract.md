@@ -779,13 +779,13 @@ floor of 4 is unchanged).
 
 #### Automated Verification:
 
-- [ ] Migrate suite passes: `bash skills/config/migrate/scripts/test-migrate-interactive.sh`
-- [ ] AC1 byte-for-byte `--list` output asserted via `assert_stdout_exact` (the §8 cmp helper, not `assert_eq`), against an expected-output file
-- [ ] AC3 `no pending transformations` asserted; AC2 real-frontmatter outcomes asserted
-- [ ] `--help` (now on **stdout**) contains the literal `ACCELERATOR_MIGRATE_DECISIONS_FILE` and a `--list` line: `bash skills/config/migrate/scripts/run-migrations.sh --help | grep -e ACCELERATOR_MIGRATE_DECISIONS_FILE -e -- --list`
-- [ ] Shell lint/format/bashisms clean: `mise run scripts:check`
-- [ ] Full read-only gate green: `mise run check`
-- [ ] Migrate-suite floor still satisfied (no new `test-*.sh`; count stays 4): `mise run test:integration:migrate`
+- [x] Migrate suite passes: `bash skills/config/migrate/scripts/test-migrate-interactive.sh`
+- [x] AC1 byte-for-byte `--list` output asserted via `assert_stdout_exact` (the §8 cmp helper, not `assert_eq`), against an expected-output file
+- [x] AC3 `no pending transformations` asserted; AC2 real-frontmatter outcomes asserted
+- [x] `--help` (now on **stdout**) contains the literal `ACCELERATOR_MIGRATE_DECISIONS_FILE` and a `--list` line: `bash skills/config/migrate/scripts/run-migrations.sh --help | grep -e ACCELERATOR_MIGRATE_DECISIONS_FILE -e -- --list`
+- [x] Shell lint/format/bashisms clean: `mise run scripts:check`
+- [ ] Full read-only gate green: `mise run check` (deferred to end of implementation — shell-only changes)
+- [x] Migrate-suite floor still satisfied (no new `test-*.sh`; count stays 4): `mise run test:integration:migrate`
 
 #### Manual Verification:
 

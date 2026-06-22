@@ -30,6 +30,19 @@
 #   DRIFT              key
 #   DONE
 #   FAIL               message
+#   LIST_ENTRY         key path anchor proposed   one pending decision (list mode)
+#   LIST_DONE                                      end of list-mode enumeration
+#   DRY_OK             key                         decision validated, not applied
+#   DRY_REJECT         key reason                  edit/verb rejected (dry-apply)
+#   DRY_DONE                                       end of dry-apply validation
+#
+# LIST_ENTRY / DRY_* fields use the same escape_field encoding as PROMPT; a
+# normal run never emits these five frames. They are produced only when the
+# runner forks the migration in a dry mode, signalled by the MIGRATION_HARNESS_MODE
+# environment variable ("1" = list enumeration, "2" = dry-apply validation;
+# absent/empty = normal run). The mode rides on the environment rather than a
+# third INIT field because an empty decisions_path field would collapse under
+# IFS-tab word-splitting and shift a trailing positional field out of place.
 #
 # Legal transitions per transformation:
 #   PROMPT → DECIDE → optional (VALIDATE_ERR loop) → RECORDED → APPLY

@@ -31,8 +31,12 @@ SKIP_FILE="$PROJECT_ROOT/.accelerator/state/migrations-skipped"
 RUN_PATHS_FILE="$PROJECT_ROOT/.accelerator/state/migrations-run-paths.txt"
 RUN_ID_FILE="$PROJECT_ROOT/.accelerator/state/migrations-run.id"
 
-# ── --skip / --unskip / --decisions-file / --help flags ──────────────────────
-if [ $# -gt 0 ]; then
+# ── --skip / --unskip / --decisions-file / --list / --help flags ─────────────
+# A while/shift loop (not a single-leading-flag if/case): --list and
+# --decisions-file fall through to a run, so more than one flag may precede it,
+# and an unrecognised flag/positional must be REJECTED (was silently ignored).
+LIST_MODE=""
+while [ $# -gt 0 ]; do
   case "$1" in
     --skip)
       if [ $# -lt 2 ]; then
@@ -64,19 +68,46 @@ if [ $# -gt 0 ]; then
       export ACCELERATOR_MIGRATE_DECISIONS_FILE
       shift 2
       ;;
+    --list)
+      LIST_MODE=1
+      shift
+      ;;
     --help | -h)
-      cat >&2 <<'EOF'
+      # Route the explicit help path to STDOUT (GNU/POSIX convention) so an
+      # agent's `--help | grep` finds the promoted env var; usage-on-error
+      # messages stay on stderr.
+      cat <<'EOF'
 Usage: run-migrations.sh [FLAG]
   --skip <id>             Mark migration <id> skipped; do not run it.
   --unskip <id>           Remove migration <id> from the skip list.
+  --list                  Dry-emit pending interactive transformations, one
+                          tab-delimited line each, then exit (no mutation):
+                            <pos>\t<key>\t<proposed>\t<path>:<field>
+                          With >1 pending interactive migration, output is
+                          segmented by a `# migration <id>` header and <pos>
+                          restarts at 1 per migration.
   --decisions-file <path> Scripted decisions for interactive migrations, one
                           per line: accept | skip | edit <value>. The resume
                           path the no-input stall points at.
+
+Environment:
+  ACCELERATOR_MIGRATE_DECISIONS_FILE=<path>
+                          Same as --decisions-file: newline-delimited verbs
+                          (accept | skip | edit <value>) matched to pending
+                          transformations by emission order. Validated up front
+                          (dry-apply); a rejected edit, unknown verb, or wrong
+                          count fails closed naming the position, corpus
+                          unmutated.
 EOF
       exit 0
       ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      echo "Run with --help for usage." >&2
+      exit 1
+      ;;
   esac
-fi
+done
 
 # ── 1b. Validate the decisions file (env- or flag-supplied) ──────────────────
 if [ -n "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
@@ -266,7 +297,12 @@ elif [ -d "$PROJECT_ROOT/.git" ]; then
   vcs="git"
 fi
 
-if [ -z "${ACCELERATOR_MIGRATE_FORCE:-}" ]; then
+# --list is a dry, read-only emit: it skips the WHOLE pre-flight (the manifest /
+# run-id setup, the RESUME state, the guarded-resume branch, and the in-flight
+# session-log steer 0119 added inside it). Because --list excludes already-
+# decided keys via the resume filter, it notes any in-flight session log on
+# stderr (below, in the --list branch) rather than re-deriving it here.
+if [ -z "$LIST_MODE" ] && [ -z "${ACCELERATOR_MIGRATE_FORCE:-}" ]; then
   dirty=$(enumerate_scoped_dirty "$vcs")
 
   if [ -n "$dirty" ]; then
@@ -435,6 +471,66 @@ for f in "${migration_files[@]+"${migration_files[@]}"}"; do
   fi
 done
 
+# Source the interactive library here (sourcing only defines functions, so it is
+# safe to do before the preview banner / early exits). The --list and dry-apply
+# surfaces below are defined here. Both paths run on bash 3.2+.
+# shellcheck source=interactive-lib.sh
+source "$RUNNER_SCRIPT_DIR/interactive-lib.sh"
+
+# ── --list: dry-emit pending interactive transformations ─────────────────────
+# Read-only enumeration, before the "No pending migrations." early exit so an
+# empty corpus prints the empty sentinel rather than the preview banner.
+if [ -n "$LIST_MODE" ]; then
+  # Identify pending interactive migrations up front so we know whether to
+  # segment. Mechanical migrations are NOT run in list mode (they would mutate).
+  int_files=()
+  for f in "${pending_files[@]+"${pending_files[@]}"}"; do
+    is_interactive_migration "$f" && int_files+=("$f")
+  done
+  multi=0
+  [ "${#int_files[@]}" -gt 1 ] && multi=1
+  if [ "$multi" -eq 1 ]; then
+    # stderr only (stdout stays parseable data); fires only in the multi case,
+    # so the single-migration stderr-clean guarantee is unaffected.
+    echo "Note: ${#int_files[@]} interactive migrations pending; resume one at a" \
+      "time with --decisions-file per '# migration <id>' section — a single" \
+      "multi-migration decisions file is not yet supported." >&2
+  fi
+  # Because --list excludes already-decided keys via the resume filter, note any
+  # in-flight session on stderr (never on the parseable stdout stream) so the
+  # read-only path is not silent about partial state.
+  for f in "${int_files[@]+"${int_files[@]}"}"; do
+    id="$(basename "$f" .sh)"
+    sess="$PROJECT_ROOT/.accelerator/state/migrations-${id}-session.jsonl"
+    if [ -s "$sess" ]; then
+      echo "Note: migration $id has an in-flight session log; --list shows only" \
+        "the remaining (undecided) transformations. Re-run" \
+        "/accelerator:migrate to resume, or rm $sess to discard." >&2
+    fi
+  done
+  emitted=0
+  for f in "${int_files[@]+"${int_files[@]}"}"; do
+    id="$(basename "$f" .sh)"
+    enumerate_interactive_transformations "$f" "$id" || exit 1
+    [ "${#LIST_ENTRIES[@]}" -eq 0 ] && continue
+    # Segment ONLY when >1 pending, so the single-migration case stays bare
+    # canonical lines; positions RESTART at 1 per migration to match the
+    # per-migration decisions file.
+    [ "$multi" -eq 1 ] && printf '# migration %s\n' "$id"
+    pos=0
+    for entry in "${LIST_ENTRIES[@]}"; do
+      pos=$((pos + 1))
+      emitted=$((emitted + 1))
+      # entry = key<TAB>path<TAB>anchor<TAB>proposed (fields already guarded
+      # against embedded TAB/newline at enumerate time, so the split is safe).
+      IFS=$'\t' read -r k p a v <<<"$entry"
+      printf '%s\t%s\t%s\t%s:%s\n' "$pos" "$k" "$v" "$p" "$a"
+    done
+  done
+  [ "$emitted" -eq 0 ] && echo "no pending transformations"
+  exit 0
+fi
+
 # ── 7. Print preview ─────────────────────────────────────────────────────────
 if [ ${#pending_files[@]} -eq 0 ]; then
   echo "No pending migrations."
@@ -464,10 +560,6 @@ echo "your working tree before running so VCS revert is available as"
 echo "rollback. The pre-flight will refuse to run on a dirty tree"
 echo "unless ACCELERATOR_MIGRATE_FORCE=1 is set."
 echo ""
-
-# Source the interactive library. Both paths run on bash 3.2+.
-# shellcheck source=interactive-lib.sh
-source "$RUNNER_SCRIPT_DIR/interactive-lib.sh"
 
 # ── Establish run identity + baseline before the apply loop ──────────────────
 # On a fresh run (RESUME=0 — Phase 3 sets RESUME=1 for a guarded resume) mint a

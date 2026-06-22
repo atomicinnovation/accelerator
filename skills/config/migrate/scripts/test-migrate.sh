@@ -1721,8 +1721,13 @@ setup_0005_repo() {
 }
 
 # Run 0005 via the driver (with no-VCS bypass) so the state file is updated.
+# The repo is consumed positionally for `cd`; remaining args (if any) forward
+# to the driver. (The driver takes PROJECT_ROOT from the cwd, not a positional —
+# and as of 0117 it rejects unrecognised positionals, so the repo must NOT leak
+# through as one.)
 run_0005_driver() {
   local repo="$1"
+  shift
   cd "$repo" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
     ACCELERATOR_MIGRATIONS_DIR="$ONLY_0005_DIR" \
     ACCELERATOR_MIGRATE_FORCE=1 \

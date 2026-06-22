@@ -302,6 +302,29 @@ assert_json_eq() {
   fi
 }
 
+# assert_files_identical <label> <expected_file> <actual_file>
+#   Byte-exact file comparison via cmp. Unlike assert_eq / assert_file_content_eq
+#   (which capture via $(cat ...) and so strip trailing newlines), this proves
+#   two files are byte-identical — including the terminal newline.
+assert_files_identical() {
+  local test_name="$1" expected_file="$2" actual_file="$3"
+  if cmp -s "$expected_file" "$actual_file"; then
+    echo "  PASS: $test_name"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $test_name: files differ"
+    diff "$expected_file" "$actual_file" >&2 || true
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+# assert_stdout_exact <label> <expected_file> <captured_stdout_file>
+#   Thin alias around assert_files_identical for byte-exact stdout assertions
+#   (the AC1 / segmentation --list cases). Capture stdout to a file, then cmp.
+assert_stdout_exact() {
+  assert_files_identical "$1" "$2" "$3"
+}
+
 skip_test() {
   local test_name="$1"
   local reason="$2"
