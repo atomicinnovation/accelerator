@@ -5,8 +5,6 @@
 
 # Find the repository root by walking up the directory tree.
 # Outputs the root path and returns 0 if found, returns 1 if not.
-# Test existence (-e), not directory-ness (-d): in a git linked worktree .git
-# is a regular file (a gitdir: pointer), so -d would skip it and walk to /.
 find_repo_root() {
   local dir="$PWD"
   while [ "$dir" != "/" ]; do
@@ -26,10 +24,6 @@ find_repo_root() {
 # in a colocated checkout a topology-based dispatch would wrongly route to git,
 # whose index lags the jj working-copy commit, so live uncommitted jj edits would
 # read as clean. Prints: jj | git | none.
-# Test existence (-e), not directory-ness (-d): in a git linked worktree .git is
-# a regular file (a gitdir: pointer), so -d would miss it and return 'none'. The
-# .jj-WINS ordering is preserved: -e "$root/.jj" is false in a plain worktree and
-# falls through to .git; in a colocated checkout .jj is a real directory and wins.
 vcs_mode() {
   local root="$1"
   if [ -e "$root/.jj" ]; then
