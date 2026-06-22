@@ -20,7 +20,7 @@ external_id: PP-138
 # 0116: Structured Stall on No Decision Input
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

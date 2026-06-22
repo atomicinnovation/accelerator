@@ -19,7 +19,7 @@ external_id: PP-143
 # 0122: Audit and Correct Missing Executable Bits on Skill Entrypoint Scripts
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

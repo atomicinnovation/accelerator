@@ -21,7 +21,7 @@ external_id: PP-136
 # 0114: Migration 0007 Incomplete Mechanical Normalisation
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

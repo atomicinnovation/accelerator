@@ -20,7 +20,7 @@ external_id: PP-140
 # 0118: Reconcile 0007 Backfill Sentinel With Its Validator
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
