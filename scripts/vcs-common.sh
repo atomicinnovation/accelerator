@@ -8,7 +8,7 @@
 find_repo_root() {
   local dir="$PWD"
   while [ "$dir" != "/" ]; do
-    if [ -d "$dir/.jj" ] || [ -d "$dir/.git" ]; then
+    if [ -e "$dir/.jj" ] || [ -e "$dir/.git" ]; then
       echo "$dir"
       return 0
     fi
@@ -26,9 +26,9 @@ find_repo_root() {
 # read as clean. Prints: jj | git | none.
 vcs_mode() {
   local root="$1"
-  if [ -d "$root/.jj" ]; then
+  if [ -e "$root/.jj" ]; then
     printf 'jj\n'
-  elif [ -d "$root/.git" ]; then
+  elif [ -e "$root/.git" ]; then
     printf 'git\n'
   else
     printf 'none\n'

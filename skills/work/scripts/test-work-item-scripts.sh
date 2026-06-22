@@ -1587,6 +1587,33 @@ assert_eq "jj-colocated resolves to jj (clean diff → clean)" "1" \
 assert_eq "indeterminate VCS mode → fail-safe dirty (0)" "0" \
   "$(fd_check "$FDREPO" none '')"
 
+# End-to-end (no override): in a REAL git linked worktree the find_repo_root →
+# vcs_mode → dispatch chain must report a committed work-item file as CLEAN
+# (exit 1) and a modified one as DIRTY (exit 0). Pre-fix vcs_mode returns 'none'
+# in a worktree (.git is a file → the -d test fails) → fail-safe-to-dirty → the
+# clean case wrongly returns exit 0. The override-driven cases above bypass the
+# real vcs_mode(); this is the only coverage that exercises it. (Capture the
+# exit code immediately — the guard runs under this suite's `set -e`.)
+if command -v git >/dev/null 2>&1; then
+  WT_PARENT=$(mktemp -d "$TMPDIR_BASE/wtp-XXXXXX")
+  (cd "$WT_PARENT" && git init -q && git config user.email t@e.x &&
+    git config user.name T && git commit --allow-empty -q -m init)
+  WT=$(mktemp -d "$TMPDIR_BASE/wt-XXXXXX")
+  rm -rf "$WT"
+  (cd "$WT_PARENT" && git worktree add -q "$WT")
+  printf 'original\n' >"$WT/item.md"
+  (cd "$WT" && git add item.md && git commit -q -m "add item")
+  rc=0
+  (cd "$WT" && bash "$FILE_DIRTY" "$WT/item.md") || rc=$?
+  assert_eq "worktree committed file → clean (1)" "1" "$rc"
+  printf 'changed\n' >>"$WT/item.md"
+  rc=0
+  (cd "$WT" && bash "$FILE_DIRTY" "$WT/item.md") || rc=$?
+  assert_eq "worktree modified file → dirty (0)" "0" "$rc"
+else
+  echo "  SKIP: git not on PATH — worktree end-to-end dirty check"
+fi
+
 echo ""
 
 # ============================================================
