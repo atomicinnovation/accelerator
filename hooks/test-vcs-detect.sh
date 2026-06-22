@@ -464,6 +464,21 @@ RC=0
 ) || RC=$?
 assert_eq "git linked worktree exit code" "0" "$RC"
 
+# vcs_mode carries the identical -d defect: in a worktree it returns 'none',
+# routing work-item-file-dirty.sh into fail-safe-to-dirty. Reuse the
+# $FIXTURE_WORKTREE built above rather than rebuilding it.
+echo "Test [0123]: vcs_mode returns git for a git linked worktree root"
+# pre-fix: .git is a file, the -d test fails → vcs_mode returns 'none'.
+assert_eq "vcs_mode worktree" "git" "$(vcs_mode "$FIXTURE_WORKTREE")"
+
+# Non-regression guard for the .jj-WINS ordering: a colocated checkout has .jj
+# (a directory) and .git (a file), so this returns 'jj' under both -d and -e —
+# it does not go RED, but it locks the precedence the -d→-e change must not
+# disturb.
+echo "Test [0123]: vcs_mode preserves .jj-WINS for a colocated checkout"
+make_colocated_secondary
+assert_eq "vcs_mode colocated" "jj" "$(vcs_mode "$FIXTURE_TARGET")"
+
 echo "=== boundary block: jj secondary and git linked worktree ==="
 
 # Extract additionalContext from the hook's JSON envelope.

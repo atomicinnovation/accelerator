@@ -210,8 +210,9 @@ false once the fix lands, so none of it may survive; do not append to it.
       (129 passed, 0 failed).
 - [x] Reverting line 11 to `-d` makes the new tests fail again (red-green proof).
 - [x] Bashisms/bash-3.2 floor passes: `bash scripts/lint-bashisms.sh`
-- [ ] Full read-only CI mirror passes: `mise run check` (run once at end of
-      Phase 2 — both phases touch only shell files).
+- [x] Full read-only CI mirror passes: `mise run check` (run once at end of
+      Phase 2 — both phases touch only shell files; exits 0 across all four
+      components).
 
 #### Manual Verification
 
@@ -313,20 +314,21 @@ is a bug.
 
 #### Automated Verification
 
-- [ ] Before the fix, the new `vcs_mode` worktree assertion FAILS (returns
-      `none`): `bash hooks/test-vcs-detect.sh`
-- [ ] Before the fix, the new end-to-end consumer test FAILS (the clean
+- [x] Before the fix, the new `vcs_mode` worktree assertion FAILS (returns
+      `none`): `bash hooks/test-vcs-detect.sh` (confirmed FAIL).
+- [x] Before the fix, the new end-to-end consumer test FAILS (the clean
       work-item file wrongly reads dirty/exit 0):
-      `bash skills/work/scripts/test-work-item-scripts.sh`
-- [ ] After the fix, both suites pass: `mise run test:integration:hooks` and
-      `bash skills/work/scripts/test-work-item-scripts.sh`
-      (`work-item-file-dirty.sh` is shell-tested there — there is no pytest
-      target for it).
-- [ ] The colocated non-regression assertion (`vcs_mode` → `jj`) passes both
+      `bash skills/work/scripts/test-work-item-scripts.sh` (confirmed FAIL on
+      the clean case).
+- [x] After the fix, both suites pass: `mise run test:integration:hooks` (131
+      passed) and `bash skills/work/scripts/test-work-item-scripts.sh` (240
+      passed) (`work-item-file-dirty.sh` is shell-tested there — there is no
+      pytest target for it).
+- [x] The colocated non-regression assertion (`vcs_mode` → `jj`) passes both
       before and after the fix (WINS ordering undisturbed).
-- [ ] Reverting lines 29/31 to `-d` makes the worktree `vcs_mode` test and the
-      end-to-end consumer test fail again.
-- [ ] `bash scripts/lint-bashisms.sh` and `mise run check` pass.
+- [x] Reverting lines 29/31 to `-d` makes the worktree `vcs_mode` test and the
+      end-to-end consumer test fail again (proven by the RED run above).
+- [x] `bash scripts/lint-bashisms.sh` and `mise run check` pass.
 
 #### Manual Verification
 

@@ -26,11 +26,15 @@ find_repo_root() {
 # in a colocated checkout a topology-based dispatch would wrongly route to git,
 # whose index lags the jj working-copy commit, so live uncommitted jj edits would
 # read as clean. Prints: jj | git | none.
+# Test existence (-e), not directory-ness (-d): in a git linked worktree .git is
+# a regular file (a gitdir: pointer), so -d would miss it and return 'none'. The
+# .jj-WINS ordering is preserved: -e "$root/.jj" is false in a plain worktree and
+# falls through to .git; in a colocated checkout .jj is a real directory and wins.
 vcs_mode() {
   local root="$1"
-  if [ -d "$root/.jj" ]; then
+  if [ -e "$root/.jj" ]; then
     printf 'jj\n'
-  elif [ -d "$root/.git" ]; then
+  elif [ -e "$root/.git" ]; then
     printf 'git\n'
   else
     printf 'none\n'
