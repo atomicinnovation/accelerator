@@ -9,9 +9,9 @@ status: ready
 kind: task
 priority: high
 parent: "work-item:0115"
-relates_to: ["work-item:0069", "work-item:0092", "work-item:0116", "work-item:0118"]
+relates_to: ["work-item:0069", "work-item:0092", "work-item:0116", "work-item:0118", "work-item:0119"]
 tags: [migrate, interactive-migration, agent-invocation, tooling]
-last_updated: "2026-06-20T12:29:41+00:00"
+last_updated: "2026-06-22T11:05:59+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: PP-139
@@ -176,7 +176,7 @@ decisions-file position *i* maps to `--list` entry *i*. ("Consumption order" and
 
 - Blocked by: none as a hard build-time blocker — the `--list` and
   decisions-bridge code compiles and ships independently. See the soft ordering
-  and functional-precondition notes below (0116, 0118).
+  and functional-precondition notes below (0116, 0118, 0119).
 - Blocks: none.
 - Soft ordering / content dependency on 0116: AC for the `SKILL.md` contract
   documents the no-input outcome as 0116's structured stall, so 0116 should land
@@ -192,6 +192,15 @@ decisions-file position *i* maps to `--list` entry *i*. ("Consumption order" and
   structural self-validation — and is therefore **out of scope for 0117**, owned
   and tracked by 0118 / the parent epic's integration check. The bridge code and
   all in-item verification stand alone.
+- Functional precondition on 0119 (resume-on-a-dirty-tree only): the documented
+  `list -> decide -> write -> resume` flow's final `--decisions-file` resume hits
+  the unconditional dirty-tree pre-flight, and a partial interactive run is
+  exactly what dirties the tree. Relaxing that guard for scripted resumes belongs
+  to 0119 (resume-safe partial migration failure) — the concern the stall message
+  already defers to it. AC1–AC6 are unaffected (read-only `--list`, or pass
+  `ACCELERATOR_MIGRATE_FORCE=1`), so this does not block 0117's definition of
+  done; until 0119 lands, `FORCE=1` is the documented way to resume on a dirty
+  tree (recorded in the SKILL.md invoker contract).
 - Merge-ordering coordination with 0116: both touch `interactive-lib.sh` in the
   same `PROMPT`/`read_decision` region, so if this is scheduled first, coordinate
   merge order to avoid conflicts and preserve 0116's standalone-mitigation value.
@@ -199,7 +208,9 @@ decisions-file position *i* maps to `--list` entry *i*. ("Consumption order" and
   0092 / ADR-0037 (the interactive contract this work touches on the invoker
   side — see Open Questions on whether it is recorded as an amendment),
   0116 (the stall the contract documents as the no-input outcome),
-  0118 (fix C, the functional precondition for AC2 above).
+  0118 (fix C, the functional precondition for AC2 above),
+  0119 (resume-safe partial migration failure; owns the dirty-tree bypass for
+  `--decisions-file` resume — functional precondition for resume-on-a-dirty-tree).
 
 ## Assumptions
 
