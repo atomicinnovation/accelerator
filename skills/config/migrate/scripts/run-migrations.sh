@@ -175,6 +175,35 @@ refuse_dirty_tree() {
   exit 1
 }
 
+# ── is_session_log <repo-relative-path> ──────────────────────────────────────
+#   True ONLY for the canonical interactive session log. Used by the detector
+#   and the resume affordance (which run `wc -l` for the decision count); a
+#   looser match would mislabel a stderr.log / resume-state.tmp as a decisions
+#   log with a bogus count.
+is_session_log() {
+  case "$1" in
+    .accelerator/state/migrations-[0-9a-z]*-session.jsonl) return 0 ;;
+  esac
+  return 1
+}
+
+# ── is_session_artifact <repo-relative-path> ─────────────────────────────────
+#   True for ANY runner-managed interactive session artifact preserved across a
+#   failure: the log, the stderr capture, or the resume-state tmp. Used by the
+#   owned-check (a preserved stderr.log under jj must not defeat resume). Shares
+#   is_session_log's migrations-<id>- id-class so the two recognisers agree on
+#   what counts as this-run's. FIFOs (migrations-<id>-{r2m,m2r}.fifo) are
+#   omitted: neither git nor jj tracks named pipes, so they never appear in
+#   enumerate_scoped_dirty.
+is_session_artifact() {
+  case "$1" in
+    .accelerator/state/migrations-[0-9a-z]*-session.jsonl) return 0 ;;
+    .accelerator/state/migrations-[0-9a-z]*-stderr.log) return 0 ;;
+    .accelerator/state/migrations-[0-9a-z]*-resume-state.tmp) return 0 ;;
+  esac
+  return 1
+}
+
 # ── dirty_tree_fully_owned <vcs> <dirty> ─────────────────────────────────────
 #   Return 0 iff the manifest + run-id sidecar are usable, the recorded base
 #   revision still equals the current one, AND every line in <dirty> is either a
@@ -210,6 +239,11 @@ dirty_tree_fully_owned() {
     case "$path" in
       "$rel_applied" | "$rel_skipped" | "$rel_paths" | "$rel_id") continue ;;
     esac
+    # A current-run interactive session artifact is owned by pattern (gated by
+    # the base-revision check above, so a stale-run artifact is NOT owned). The
+    # session log stays out of the mechanical manifest; this is where the two
+    # resume axes share one ownership decision.
+    is_session_artifact "$path" && continue
     grep -Fxq -- "$path" "$RUN_PATHS_FILE" || return 1
   done <<<"$dirty"
   return 0
@@ -236,64 +270,88 @@ if [ -z "${ACCELERATOR_MIGRATE_FORCE:-}" ]; then
   dirty=$(enumerate_scoped_dirty "$vcs")
 
   if [ -n "$dirty" ]; then
-    # Detect any in-flight interactive session logs among the dirty paths
-    # and emit a distinct, named message that names the resume command and
-    # the explicit discard command. Prevents jj-abandon-in-confusion.
-    dirty_session_logs=$(printf '%s\n' "$dirty" |
-      grep -E '\.accelerator/state/migrations-[0-9a-z-]+-session\.jsonl' |
-      sed 's/^[[:space:]]*//; s/^[A-Z?][[:space:]]*//' ||
-      true)
-    if [ -n "$dirty_session_logs" ]; then
-      echo "Found in-flight interactive migration session(s):" >&2
-      while IFS= read -r path; do
-        [ -z "$path" ] && continue
-        # Resolve the absolute path so the user can copy/paste rm commands.
-        abs="$path"
-        case "$abs" in /*) ;; *) abs="$PROJECT_ROOT/$path" ;; esac
-        decision_count=0
-        if [ -f "$abs" ]; then
-          decision_count=$(wc -l <"$abs" 2>/dev/null | tr -d ' ' || echo 0)
-        fi
-        echo "  $path  ($decision_count decisions recorded)" >&2
-      done <<<"$dirty_session_logs"
-      echo "" >&2
-      echo "To resume: re-run /accelerator:migrate (the session log is read on entry;" >&2
-      echo "you will be prompted only for un-decided transformations)." >&2
-      while IFS= read -r path; do
-        [ -z "$path" ] && continue
-        abs="$path"
-        case "$abs" in /*) ;; *) abs="$PROJECT_ROOT/$path" ;; esac
-        decision_count=0
-        if [ -f "$abs" ]; then
-          decision_count=$(wc -l <"$abs" 2>/dev/null | tr -d ' ' || echo 0)
-        fi
-        echo "To discard: rm $path  (loses $decision_count decisions)" >&2
-      done <<<"$dirty_session_logs"
-      echo "" >&2
-      # Pick the right status command for the detected VCS. git is the
-      # fallback when no VCS is detected (or the binary is missing) — it
-      # is the more widely-installed of the two.
-      case "$vcs" in
-        jj) status_cmd='jj status' ;;
-        *) status_cmd='git status' ;;
-      esac
-      echo "If the above does not match what you expected, run \`$status_cmd\`" >&2
-      echo "to see all uncommitted changes before proceeding." >&2
-      exit 1
-    fi
-    # Guarded resume: when every dirty path is owned by this run's manifest,
-    # proceed into the apply loop WITHOUT ACCELERATOR_MIGRATE_FORCE=1, printing
-    # the owned paths being resumed over. Any non-owned path or unusable/stale
-    # manifest falls to the canonical refusal (fail-closed).
+    # Owned-check FIRST: when every dirty path is owned by this run (mechanical
+    # manifest paths AND current-run interactive session artifacts), resume
+    # WITHOUT ACCELERATOR_MIGRATE_FORCE=1. 0069's replay-on-entry resumes any
+    # in-flight interactive migration, the applied ledger skips completed ones,
+    # and the mechanical tail re-runs. A NOT-owned tree (foreign dirt, or a
+    # stale/foreign session log) falls to today's behaviour: steer in-flight
+    # session logs to the structured resume/discard scaffold, else refuse.
     if dirty_tree_fully_owned "$vcs" "$dirty"; then
       RESUME=1
       echo "Resuming over this run's own partial migration output:" >&2
       while IFS= read -r path; do
         [ -z "$path" ] && continue
-        echo "  $path" >&2
+        if is_session_log "$path"; then
+          # Resolve the absolute path so the decision count + rm command are
+          # accurate and copy/pasteable.
+          abs="$path"
+          case "$abs" in /*) ;; *) abs="$PROJECT_ROOT/$path" ;; esac
+          decision_count=0
+          if [ -f "$abs" ]; then
+            decision_count=$(wc -l <"$abs" 2>/dev/null | tr -d ' ' || echo 0)
+          fi
+          echo "  $path" >&2
+          echo "    interactive migration — resuming: replays $decision_count" \
+            "decided transformation(s) and re-prompts only undecided ones" >&2
+          echo "    (with no decisions channel it re-stalls — resume" \
+            "non-interactively via --decisions-file)." >&2
+          echo "    To discard instead: rm $abs  (loses $decision_count decisions)" >&2
+        else
+          echo "  $path" >&2
+        fi
       done <<<"$dirty"
       # fall through past the refusal into "Read state files"
     else
+      # NOT fully owned. Detect in-flight interactive session logs among the
+      # dirty paths and emit the structured resume/discard scaffold (prevents
+      # jj-abandon-in-confusion); reuse is_session_log so the detector and the
+      # owned-check agree on what counts as a session log.
+      dirty_session_logs=""
+      while IFS= read -r path; do
+        [ -z "$path" ] && continue
+        if is_session_log "$path"; then
+          dirty_session_logs="${dirty_session_logs}${path}"$'\n'
+        fi
+      done <<<"$dirty"
+      if [ -n "$dirty_session_logs" ]; then
+        echo "Found in-flight interactive migration session(s):" >&2
+        while IFS= read -r path; do
+          [ -z "$path" ] && continue
+          # Resolve the absolute path so the user can copy/paste rm commands.
+          abs="$path"
+          case "$abs" in /*) ;; *) abs="$PROJECT_ROOT/$path" ;; esac
+          decision_count=0
+          if [ -f "$abs" ]; then
+            decision_count=$(wc -l <"$abs" 2>/dev/null | tr -d ' ' || echo 0)
+          fi
+          echo "  $path  ($decision_count decisions recorded)" >&2
+        done <<<"$dirty_session_logs"
+        echo "" >&2
+        echo "To resume: re-run /accelerator:migrate (the session log is read on entry;" >&2
+        echo "you will be prompted only for un-decided transformations)." >&2
+        while IFS= read -r path; do
+          [ -z "$path" ] && continue
+          abs="$path"
+          case "$abs" in /*) ;; *) abs="$PROJECT_ROOT/$path" ;; esac
+          decision_count=0
+          if [ -f "$abs" ]; then
+            decision_count=$(wc -l <"$abs" 2>/dev/null | tr -d ' ' || echo 0)
+          fi
+          echo "To discard: rm $path  (loses $decision_count decisions)" >&2
+        done <<<"$dirty_session_logs"
+        echo "" >&2
+        # Pick the right status command for the detected VCS. git is the
+        # fallback when no VCS is detected (or the binary is missing) — it
+        # is the more widely-installed of the two.
+        case "$vcs" in
+          jj) status_cmd='jj status' ;;
+          *) status_cmd='git status' ;;
+        esac
+        echo "If the above does not match what you expected, run \`$status_cmd\`" >&2
+        echo "to see all uncommitted changes before proceeding." >&2
+        exit 1
+      fi
       refuse_dirty_tree
     fi
   fi

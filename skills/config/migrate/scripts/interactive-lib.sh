@@ -318,8 +318,9 @@ emit_no_input_stall() {
     echo "[$id]   answer this prompt, so the migration cannot proceed."
     echo "[$id]"
     echo "[$id]   This migration may have already partially modified the"
-    echo "[$id]   working tree. Inspect or revert it before resuming;"
-    echo "[$id]   resume-safety for partial runs is tracked separately (0119)."
+    echo "[$id]   working tree. Re-running /accelerator:migrate resumes this"
+    echo "[$id]   partial run when the base revision is unchanged (decided"
+    echo "[$id]   transformations are replayed, not re-applied)."
     echo "[$id]"
     echo "[$id]   To resume: each run answers the current prompt only (you"
     echo "[$id]   may be stalled again for the next undecided transformation):"
@@ -494,13 +495,17 @@ run_interactive_migration() {
           /*) ;;
           *) SESSION_LOG="$PROJECT_ROOT/$SESSION_LOG" ;;
         esac
-        # Re-derive the resume state if the migration declared a custom
-        # session-log path.
+        # The session log must conform to the canonical shape
+        # .accelerator/state/migrations-<id>-session.jsonl so the runner's
+        # pre-flight owned-check predicates (is_session_artifact / is_session_log)
+        # are total over real session logs. A non-canonical declared path would
+        # escape both and fall to the generic FORCE-only refusal — neither resume
+        # nor steer. (The default path's resume state was already built above.)
         if [ "$SESSION_LOG" != "$default_session_log" ]; then
-          build_resume_state_file "$SESSION_LOG" "$resume_state_path" || {
-            echo "[$id] failed to rebuild resume state from custom path" >&2
-            return 1
-          }
+          echo "[$id] migration declared a non-canonical session-log path:" >&2
+          echo "[$id]   $SESSION_LOG" >&2
+          echo "[$id]   expected: $default_session_log" >&2
+          return 1
         fi
         ;;
       MECHANICAL_APPLIED | RESUMED_APPLIED | RESUMED_SKIPPED | APPLIED_CONFIRM)

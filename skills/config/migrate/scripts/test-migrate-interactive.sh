@@ -1268,4 +1268,246 @@ LOG="$SBX/.accelerator/state/migrations-0002-predicate-session.jsonl"
 assert_eq "the decision was recorded" "1" "$(wc -l <"$LOG" | tr -d ' ')"
 
 echo ""
+echo "=== Phase 8: guarded resume across the interactive axis (0119) ==="
+echo ""
+
+# Unlike the FORCE-bypass resume tests above, these drive the pre-flight WITHOUT
+# FORCE: a REAL repo (so the base revision is valid), an EMPTY manifest + a
+# run-id matching the current base revision, and a dirty session log owned
+# by pattern. The owned-check then reaches guarded resume.
+gr_base_rev_int() {
+  local repo="$1" vcs="$2"
+  if [ "$vcs" = jj ]; then
+    (cd "$repo" && jj log -r @ --no-graph --no-pager -T change_id 2>/dev/null)
+  else
+    git -C "$repo" rev-parse HEAD
+  fi
+}
+
+# Stand up a real <vcs> repo with an initial commit, an EMPTY manifest, and a
+# run-id matching the current base revision. Echoes the repo path.
+gr_int_repo() {
+  local vcs="$1" repo
+  repo=$(mktemp -d "$TMPDIR_BASE/gr-int-$vcs-XXXXXX")
+  mkdir -p "$repo/.accelerator/state" "$repo/meta"
+  if [ "$vcs" = jj ]; then
+    (cd "$repo" && jj git init --quiet)
+  else
+    git -C "$repo" init -q
+    git -C "$repo" -c user.email=t@t -c user.name=T commit -q --allow-empty -m init
+  fi
+  : >"$repo/.accelerator/state/migrations-run-paths.txt" # empty manifest
+  gr_base_rev_int "$repo" "$vcs" >"$repo/.accelerator/state/migrations-run.id"
+  printf '%s\n' "$repo"
+}
+
+# Make a path dirty-and-visible to the runner's enumeration under <vcs>: git
+# needs it staged (untracked '??' is excluded); jj tracks created files.
+gr_int_track() {
+  local repo="$1" vcs="$2" rel="$3"
+  if [ "$vcs" != jj ]; then
+    git -C "$repo" add "$rel"
+  fi
+}
+
+run_inflight_resume_case() {
+  local vcs="$1" repo log dec proto rc resumed prompt
+  echo "Test: [$vcs] in-flight interactive migration resumes via guarded resume"
+  repo=$(gr_int_repo "$vcs")
+  seed_predicate_sandbox "$repo" \
+    "k1|f1|a|v1|ambiguous|p" "k2|f2|a|v2|ambiguous|p"
+  log="$repo/.accelerator/state/migrations-0002-predicate-session.jsonl"
+  # In-flight: k1 already decided (1 record), k2 still undecided.
+  cat >"$log" <<'EOF'
+{"transformation_key":"k1","schema_version":1,"outcome":"accepted","proposed_value":"v1","timestamp":"2026-05-30T12:00:00Z","band":"ambiguous","prose":"p"}
+EOF
+  gr_int_track "$repo" "$vcs" \
+    ".accelerator/state/migrations-0002-predicate-session.jsonl"
+  dec=$(mktemp "$TMPDIR_BASE/gr-int-dec-XXXXXX")
+  printf 'accept\n' >"$dec" # answers k2
+  proto=$(mktemp "$TMPDIR_BASE/gr-int-proto-XXXXXX")
+  rc=0
+  GR_OUT=$(cd "$repo" &&
+    ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+      PROJECT_ROOT="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+      ACCELERATOR_MIGRATE_DECISIONS_FILE="$dec" \
+      MIGRATION_PROTOCOL_LOG_MIGRATION="$proto" \
+      bash "$DRIVER" 2>&1) || rc=$?
+  assert_eq "[$vcs] in-flight resume exits 0" "0" "$rc"
+  assert_contains "[$vcs] guarded-resume affordance present" "$GR_OUT" \
+    "own partial migration output"
+  assert_contains "[$vcs] names the interactive resume" "$GR_OUT" \
+    "interactive migration — resuming"
+  resumed=$(grep -c $'^RESUMED_APPLIED\t' "$proto" || true)
+  prompt=$(grep -c $'^PROMPT\t' "$proto" || true)
+  assert_eq "[$vcs] k1 replayed (not re-prompted)" "1" "$resumed"
+  assert_eq "[$vcs] only k2 prompted" "1" "$prompt"
+}
+
+run_inflight_resume_case git
+if command -v jj >/dev/null 2>&1; then
+  run_inflight_resume_case jj
+else
+  skip_test "[jj] in-flight interactive guarded resume" "jj not available"
+fi
+
+echo ""
+echo "Test: [jj] preserved stderr.log is owned (does not defeat resume)"
+if command -v jj >/dev/null 2>&1; then
+  REPO=$(gr_int_repo jj)
+  seed_predicate_sandbox "$REPO" "k1|f1|a|v1|ambiguous|p"
+  LOG="$REPO/.accelerator/state/migrations-0002-predicate-session.jsonl"
+  cat >"$LOG" <<'EOF'
+{"transformation_key":"k1","schema_version":1,"outcome":"accepted","proposed_value":"v1","timestamp":"2026-05-30T12:00:00Z","band":"ambiguous","prose":"p"}
+EOF
+  # A failed interactive run preserves migrations-<id>-stderr.log; under jj it is
+  # tracked and dirty. The owned-check must recognise it (is_session_artifact).
+  printf 'leftover stderr\n' \
+    >"$REPO/.accelerator/state/migrations-0002-predicate-stderr.log"
+  RC=0
+  OUT=$(cd "$REPO" &&
+    ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+      PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+      bash "$DRIVER" 2>&1) || RC=$?
+  assert_eq "[jj] resume proceeds with a dirty stderr.log present" "0" "$RC"
+  assert_contains "[jj] guarded-resume affordance" "$OUT" \
+    "own partial migration output"
+else
+  skip_test "[jj] stderr.log owned" "jj not available"
+fi
+
+echo ""
+echo "Test: migration declaring a non-canonical session-log path is rejected"
+mkdir -p "$MIGRATIONS_DIR_FIXTURE/0003-custom-path/migrations"
+cat >"$MIGRATIONS_DIR_FIXTURE/0003-custom-path/migrations/0003-custom-path.sh" <<'CUSTOM_SH'
+#!/usr/bin/env bash
+# DESCRIPTION: declares a non-canonical session-log path — Phase 4 rejection test.
+# INTERACTIVE: yes
+# shellcheck disable=SC2154 # CLAUDE_PLUGIN_ROOT provided by the interactive-migration harness environment
+# shellcheck disable=SC2329 # stub migration_* hooks are required by the harness contract
+set -euo pipefail
+source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
+source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"
+migration_emit_transformations() { :; }
+migration_evaluate_predicate() { return 0; }
+migration_validate_edit() { return 0; }
+migration_apply_decision() { return 0; }
+migration_session_log_path() { printf 'custom/weird-session.jsonl\n'; }
+harness_run
+CUSTOM_SH
+chmod +x "$MIGRATIONS_DIR_FIXTURE/0003-custom-path/migrations/0003-custom-path.sh"
+SBX=$(setup_sandbox "custom-path")
+RC=0
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0003-custom-path/migrations" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATE_FORCE=1 \
+  bash "$DRIVER" 2>&1) || RC=$?
+assert_neq "non-canonical session-log path rejected (non-zero)" "0" "$RC"
+assert_contains "names the non-canonical path error" "$OUTPUT" \
+  "non-canonical session-log path"
+
+echo ""
+echo "Test: stale session log still steers (revision mismatch), not generic refusal"
+if command -v git >/dev/null 2>&1; then
+  REPO=$(gr_int_repo git)
+  LOG="$REPO/.accelerator/state/migrations-0002-predicate-session.jsonl"
+  printf '{"transformation_key":"k1","schema_version":1,"outcome":"accepted","proposed_value":"v","timestamp":"2026-05-30T12:00:00Z"}\n' \
+    >"$LOG"
+  gr_int_track "$REPO" git \
+    ".accelerator/state/migrations-0002-predicate-session.jsonl"
+  # Overwrite the run-id with a sentinel that cannot match the current base
+  # revision — isolates the revision-mismatch branch (distinct from no-run-id).
+  printf 'stale-revision-sentinel\n' >"$REPO/.accelerator/state/migrations-run.id"
+  RC=0
+  OUT=$(cd "$REPO" &&
+    ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+      PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+      bash "$DRIVER" 2>&1) || RC=$?
+  assert_neq "stale session log → non-zero" "0" "$RC"
+  assert_contains "stale session log → resume/discard scaffold" "$OUT" \
+    "in-flight interactive migration"
+  assert_contains "stale session log → discard hint" "$OUT" "To discard:"
+  assert_not_contains "stale session log → NOT the generic FORCE-hint refusal" \
+    "$OUT" "dirty working tree"
+  assert_not_contains "stale session log → NOT a guarded resume" "$OUT" \
+    "own partial migration output"
+else
+  skip_test "stale session log steers" "git not available"
+fi
+
+echo ""
+echo "Test: near-miss .accelerator/state filename is not owned"
+if command -v git >/dev/null 2>&1; then
+  REPO=$(mktemp -d "$TMPDIR_BASE/gr-nearmiss-XXXXXX")
+  mkdir -p "$REPO/meta/work"
+  printf 'm\n' >"$REPO/meta/work/mech.md"
+  git -C "$REPO" init -q
+  git -C "$REPO" -c user.email=t@t -c user.name=T add .
+  git -C "$REPO" -c user.email=t@t -c user.name=T commit -qm init
+  printf 'x\n' >>"$REPO/meta/work/mech.md" # owned mechanical path (dirty)
+  mkdir -p "$REPO/.accelerator/state"
+  : >"$REPO/.accelerator/state/migrations-run-paths.txt"
+  printf 'meta/work/mech.md\n' >"$REPO/.accelerator/state/migrations-run-paths.txt"
+  git -C "$REPO" rev-parse HEAD >"$REPO/.accelerator/state/migrations-run.id"
+  # Sole non-owned path: a near-miss that is NOT a canonical session artifact.
+  printf 'x\n' >"$REPO/.accelerator/state/migrations-0002-session.jsonl.bak"
+  git -C "$REPO" add ".accelerator/state/migrations-0002-session.jsonl.bak"
+  RC=0
+  OUT=$(cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
+    PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    bash "$DRIVER" 2>&1) || RC=$?
+  assert_neq "near-miss → refuse (non-zero)" "0" "$RC"
+  assert_not_contains "near-miss → no guarded resume" "$OUT" \
+    "own partial migration output"
+  assert_contains "near-miss → generic FORCE-hint refusal" "$OUT" \
+    "ACCELERATOR_MIGRATE_FORCE"
+else
+  skip_test "near-miss filename not owned" "git not available"
+fi
+
+echo ""
+echo "Test: mixed dirty set (session log + mechanical path) resumes with exact discard count"
+if command -v git >/dev/null 2>&1; then
+  GR_MIX_OK=$(mktemp -d "$TMPDIR_BASE/gr-mix-ok-XXXXXX")
+  cat >"$GR_MIX_OK/9100-ok.sh" <<'STUB'
+#!/usr/bin/env bash
+# DESCRIPTION: pending stub that succeeds so the guarded resume completes
+exit 0
+STUB
+  chmod +x "$GR_MIX_OK/9100-ok.sh"
+  REPO=$(mktemp -d "$TMPDIR_BASE/gr-mix-XXXXXX")
+  mkdir -p "$REPO/meta/work"
+  printf 'm\n' >"$REPO/meta/work/mech.md"
+  git -C "$REPO" init -q
+  git -C "$REPO" -c user.email=t@t -c user.name=T add .
+  git -C "$REPO" -c user.email=t@t -c user.name=T commit -qm init
+  printf 'x\n' >>"$REPO/meta/work/mech.md" # owned mechanical (manifest)
+  mkdir -p "$REPO/.accelerator/state"
+  printf 'meta/work/mech.md\n' >"$REPO/.accelerator/state/migrations-run-paths.txt"
+  git -C "$REPO" rev-parse HEAD >"$REPO/.accelerator/state/migrations-run.id"
+  LOG="$REPO/.accelerator/state/migrations-0002-predicate-session.jsonl"
+  printf '%s\n%s\n' \
+    '{"transformation_key":"k1","schema_version":1,"outcome":"accepted","proposed_value":"v","timestamp":"2026-05-30T12:00:00Z"}' \
+    '{"transformation_key":"k2","schema_version":1,"outcome":"skipped","proposed_value":"v","timestamp":"2026-05-30T12:00:00Z"}' \
+    >"$LOG"
+  git -C "$REPO" add ".accelerator/state/migrations-0002-predicate-session.jsonl"
+  LOGLINES=$(wc -l <"$LOG" | tr -d ' ')
+  RC=0
+  OUT=$(cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$GR_MIX_OK" \
+    PROJECT_ROOT="$REPO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    bash "$DRIVER" 2>&1) || RC=$?
+  assert_eq "mixed owned tree resumes (exit 0)" "0" "$RC"
+  assert_contains "mixed → guarded-resume affordance" "$OUT" \
+    "own partial migration output"
+  assert_contains "mixed → lists the owned mechanical path" "$OUT" \
+    "meta/work/mech.md"
+  assert_contains "mixed → lists the owned session log" "$OUT" \
+    "migrations-0002-predicate-session.jsonl"
+  assert_contains "mixed → exact discard count preserved" "$OUT" \
+    "loses $LOGLINES decisions"
+else
+  skip_test "mixed-run resume" "git not available"
+fi
+
+echo ""
 test_summary
