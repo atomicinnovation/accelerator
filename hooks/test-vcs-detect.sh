@@ -440,10 +440,29 @@ make_jj_secondary_workspace
 RESULT=$( (cd "$FIXTURE_SECONDARY" && find_repo_root))
 # .jj is a directory in a jj secondary workspace, so find_repo_root finds it.
 assert_eq "jj secondary" "$FIXTURE_SECONDARY" "$RESULT"
-# (We deliberately do NOT lock in find_repo_root's behaviour for git linked
-# worktrees: .git is a file there, find_repo_root's -d test skips it, and
-# the result is implementation-detail. Leaving the assertion off keeps room
-# for a future fix without breaking this regression guard.)
+
+# 0123: find_repo_root must succeed in a git linked worktree, where .git is a
+# regular file (a gitdir: pointer), not a directory — the marker test is -e,
+# not -d. $FIXTURE_WORKTREE is reused by the vcs_mode stanza below.
+echo "Test [0123]: find_repo_root returns worktree root in a git linked worktree"
+make_git_linked_worktree
+RESULT=$( (cd "$FIXTURE_WORKTREE" && find_repo_root))
+assert_eq "git linked worktree root" "$FIXTURE_WORKTREE" "$RESULT"
+
+echo "Test [0123]: find_repo_root walks up from a nested subdir in a worktree"
+mkdir -p "$FIXTURE_WORKTREE/nested/deeper"
+RESULT=$( (cd "$FIXTURE_WORKTREE/nested/deeper" && find_repo_root))
+assert_eq "git linked worktree nested subdir" "$FIXTURE_WORKTREE" "$RESULT"
+
+# Guards the actual production failure mode: a non-zero return aborting a
+# `set -euo pipefail` caller (the visualiser launchers) with empty stderr.
+echo "Test [0123]: find_repo_root exits 0 under set -e in a worktree"
+RC=0
+(
+  set -e
+  cd "$FIXTURE_WORKTREE" && find_repo_root >/dev/null
+) || RC=$?
+assert_eq "git linked worktree exit code" "0" "$RC"
 
 echo "=== boundary block: jj secondary and git linked worktree ==="
 

@@ -202,12 +202,16 @@ false once the fix lands, so none of it may survive; do not append to it.
 
 #### Automated Verification
 
-- [ ] Before the fix, the new worktree assertions FAIL: `bash hooks/test-vcs-detect.sh`
-      reports FAIL for the two `[0123]` `find_repo_root` tests.
-- [ ] After the fix, the hooks suite passes: `mise run test:integration:hooks`
-- [ ] Reverting line 11 to `-d` makes the new tests fail again (red-green proof).
-- [ ] Bashisms/bash-3.2 floor passes: `bash scripts/lint-bashisms.sh`
-- [ ] Full read-only CI mirror passes: `mise run check`
+- [x] Before the fix, the new worktree assertions FAIL: `bash hooks/test-vcs-detect.sh`
+      reports FAIL for the two `[0123]` `find_repo_root` tests. (RED confirmed —
+      under `set -e` the suite aborts at the first `[0123]` value assertion,
+      reproducing the production failure mode exactly.)
+- [x] After the fix, the hooks suite passes: `mise run test:integration:hooks`
+      (129 passed, 0 failed).
+- [x] Reverting line 11 to `-d` makes the new tests fail again (red-green proof).
+- [x] Bashisms/bash-3.2 floor passes: `bash scripts/lint-bashisms.sh`
+- [ ] Full read-only CI mirror passes: `mise run check` (run once at end of
+      Phase 2 — both phases touch only shell files).
 
 #### Manual Verification
 
