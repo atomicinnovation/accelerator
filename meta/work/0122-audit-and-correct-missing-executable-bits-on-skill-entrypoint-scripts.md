@@ -5,7 +5,7 @@ title: "Audit and Correct Missing Executable Bits on Skill Entrypoint Scripts"
 date: "2026-06-20T13:29:42+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: task
 priority: medium
 relates_to: ["work-item:0106", "work-item:0098", "work-item:0107"]

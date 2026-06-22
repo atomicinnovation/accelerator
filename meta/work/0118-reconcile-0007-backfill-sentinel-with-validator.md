@@ -5,7 +5,7 @@ title: "Reconcile 0007 Backfill Sentinel With Its Validator"
 date: "2026-06-19T23:13:17+00:00"
 author: Toby Clemson
 producer: refine-work-item
-status: ready
+status: done
 kind: task
 priority: high
 parent: "work-item:0115"
