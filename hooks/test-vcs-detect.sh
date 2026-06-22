@@ -441,22 +441,22 @@ RESULT=$( (cd "$FIXTURE_SECONDARY" && find_repo_root))
 # .jj is a directory in a jj secondary workspace, so find_repo_root finds it.
 assert_eq "jj secondary" "$FIXTURE_SECONDARY" "$RESULT"
 
-# 0123: find_repo_root must succeed in a git linked worktree, where .git is a
+# 0124: find_repo_root must succeed in a git linked worktree, where .git is a
 # regular file (a gitdir: pointer), not a directory — the marker test is -e,
 # not -d. $FIXTURE_WORKTREE is reused by the vcs_mode stanza below.
-echo "Test [0123]: find_repo_root returns worktree root in a git linked worktree"
+echo "Test [0124]: find_repo_root returns worktree root in a git linked worktree"
 make_git_linked_worktree
 RESULT=$( (cd "$FIXTURE_WORKTREE" && find_repo_root))
 assert_eq "git linked worktree root" "$FIXTURE_WORKTREE" "$RESULT"
 
-echo "Test [0123]: find_repo_root walks up from a nested subdir in a worktree"
+echo "Test [0124]: find_repo_root walks up from a nested subdir in a worktree"
 mkdir -p "$FIXTURE_WORKTREE/nested/deeper"
 RESULT=$( (cd "$FIXTURE_WORKTREE/nested/deeper" && find_repo_root))
 assert_eq "git linked worktree nested subdir" "$FIXTURE_WORKTREE" "$RESULT"
 
 # Guards the actual production failure mode: a non-zero return aborting a
 # `set -euo pipefail` caller (the visualiser launchers) with empty stderr.
-echo "Test [0123]: find_repo_root exits 0 under set -e in a worktree"
+echo "Test [0124]: find_repo_root exits 0 under set -e in a worktree"
 RC=0
 (
   set -e
@@ -467,7 +467,7 @@ assert_eq "git linked worktree exit code" "0" "$RC"
 # vcs_mode carries the identical -d defect: in a worktree it returns 'none',
 # routing work-item-file-dirty.sh into fail-safe-to-dirty. Reuse the
 # $FIXTURE_WORKTREE built above rather than rebuilding it.
-echo "Test [0123]: vcs_mode returns git for a git linked worktree root"
+echo "Test [0124]: vcs_mode returns git for a git linked worktree root"
 # pre-fix: .git is a file, the -d test fails → vcs_mode returns 'none'.
 assert_eq "vcs_mode worktree" "git" "$(vcs_mode "$FIXTURE_WORKTREE")"
 
@@ -475,7 +475,7 @@ assert_eq "vcs_mode worktree" "git" "$(vcs_mode "$FIXTURE_WORKTREE")"
 # (a directory) and .git (a file), so this returns 'jj' under both -d and -e —
 # it does not go RED, but it locks the precedence the -d→-e change must not
 # disturb.
-echo "Test [0123]: vcs_mode preserves .jj-WINS for a colocated checkout"
+echo "Test [0124]: vcs_mode preserves .jj-WINS for a colocated checkout"
 make_colocated_secondary
 assert_eq "vcs_mode colocated" "jj" "$(vcs_mode "$FIXTURE_TARGET")"
 
