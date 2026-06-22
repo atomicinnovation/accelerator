@@ -2033,4 +2033,35 @@ assert_eq "live proto shows 3 PROMPTs (not doubled by the dry pass)" "3" \
   "$LIVE_PROMPT_COUNT"
 
 echo ""
+echo "=== Phase: SKILL.md invoker contract (0117 AC5) ==="
+echo ""
+
+AC5_SKILL_MD="$PLUGIN_ROOT/skills/config/migrate/SKILL.md"
+AC5_BODY=$(cat "$AC5_SKILL_MD")
+assert_contains "AC5(a) literal 'list → decide → write → resume'" \
+  "$AC5_BODY" "list → decide → write → resume"
+assert_contains "AC5(b) verb token accept" "$AC5_BODY" "accept"
+assert_contains "AC5(b) verb token skip" "$AC5_BODY" "skip"
+assert_contains "AC5(b) verb token edit" "$AC5_BODY" "edit"
+assert_contains "AC5(b) phrase 'matched by emission order'" \
+  "$AC5_BODY" "matched by emission order"
+assert_contains "AC5(c) links work item 0116" "$AC5_BODY" \
+  "meta/work/0116-structured-stall-on-no-decision-input.md"
+assert_contains "AC5(c) names the stall marker" "$AC5_BODY" \
+  "MIGRATION STALLED: no decision input available"
+assert_contains "AC5(d) names the env var" "$AC5_BODY" \
+  "ACCELERATOR_MIGRATE_DECISIONS_FILE"
+assert_contains "AC5(d) points at --help for discovery" "$AC5_BODY" \
+  "discoverable via \`--help\`"
+assert_contains "AC5(e) fail-closed behaviour documented" "$AC5_BODY" \
+  "fails closed"
+assert_contains "AC5(e) corpus left unmutated on validation failure" \
+  "$AC5_BODY" "unmutated"
+# Author contract: callbacks may run more than once → must be deterministic/pure.
+assert_contains "author contract: callbacks may run more than once" \
+  "$AC5_BODY" "invoked more than once per run"
+assert_contains "author contract: validator must be pure" \
+  "$AC5_BODY" "pure function of its arguments"
+
+echo ""
 test_summary

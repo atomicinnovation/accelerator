@@ -144,6 +144,8 @@ Authors NEVER hand-write TSV positional fields, base64-encode display blocks, or
 - `migration_apply_decision` is called once per `accept` or `edit` decision, **after** the runner has durably persisted the JSONL session-log record (write-ahead-log invariant). It is **not** called for `skip`. A non-zero exit aborts the migration without ledger append.
 - `migration_verify_applied` (optional) is called on resume *before* emitting `RESUMED_APPLIED`. Returning non-zero tells the framework the recorded mutation is absent (e.g. from a partial-apply crash); the framework removes the stale record via DRIFT and re-prompts.
 
+> **Callbacks may be invoked more than once per run, so they must be deterministic and side-effect-free.** A `--decisions-file` run runs `migration_emit_transformations` and `migration_evaluate_predicate` during `--list` enumeration and again during the dry-apply validation pass before the live run, and runs `migration_validate_edit` during dry-apply and again at live apply. In particular `migration_validate_edit` **must be a pure function of its arguments** — it must **not** read corpus state that an earlier transformation in the same run could mutate. (If it did, dry-apply could pass against the unmutated corpus while the live run fails validation at a later position after earlier files changed, re-opening the partial-mutation hole dry-apply closes.) A validator that depends on mutable corpus state is **unsupported**; this is documented rather than enforced.
+
 ### Runner guarantees (ADR-0037 §§1–4)
 
 - **§1 Predicate routing**: each transformation is routed to either the prompt loop or the mechanical path based on the predicate's exit code.
@@ -213,6 +215,86 @@ And the on-disk session log (with timestamps redacted) is:
 
 The middle transformation (`link-B`, band `resolved`) routed through the mechanical path — predicate exited 1, the harness emitted `MECHANICAL_APPLIED`, no record was persisted, the artefact was mutated unconditionally.
 
+## Answering prompts as an agent (the invoker contract)
+
+When `/accelerator:migrate` runs without a human at a terminal, an agent answers
+the interactive prompts with a **decisions file**, following the four steps
+`list → decide → write → resume`:
+
+In practice the agent first runs the migration and hits the **structured stall**,
+which names the exact decisions-file path — including the migration `<id>` —
+(`.accelerator/state/migrations-<id>-decisions.txt`) and a copy-pasteable resume
+command. `--list` is then the step that **reveals the proposed values** (which the
+stall does not show), so the realistic order is run → stall (learn the `<id>` and
+path) → `--list` (see proposed values) → write → resume. The `<id>` comes from the
+stall/preview, not from `--list` output.
+
+1. **list** — `bash …/run-migrations.sh --list` dry-emits every pending
+   interactive transformation, one tab-delimited line each, without mutating the
+   corpus:
+
+   ```
+   <position>\t<key>\t<proposed>\t<path>:<field>
+   ```
+
+   (Fields are separated by a literal TAB, shown as `\t` here; the same column
+   vocabulary — `<path>:<field>` — is used in `--help`.) Proposed values are
+   revealed only here, so list before deciding. When parsing, **skip lines
+   beginning with `#`**: with more than one pending interactive migration the
+   output is segmented by a `# migration <id>` header and `<position>` restarts
+   at 1 per migration. Resume each `# migration <id>` section separately with its
+   own decisions file (a single multi-migration decisions file is not yet
+   supported; `--list` prints a stderr note when more than one is pending).
+2. **decide** — choose a verb per transformation: `accept`, `skip`, or
+   `edit <value>`.
+3. **write** — write one verb per line to a decisions file,
+   **matched by emission order** (line *i* answers list position *i*;
+   skipped/mechanical transformations consume no line). Create the file yourself
+   at a path that exists and is readable — the stall message points at
+   `.accelerator/state/migrations-<id>-decisions.txt`; do not overwrite existing
+   `migrations-<id>-*` state files. For example:
+
+   ```bash
+   printf 'accept\nskip\nedit work-item:0100\n' \
+     > .accelerator/state/migrations-<id>-decisions.txt
+   ```
+4. **resume** — re-run with `--decisions-file <path>` (or the equivalent
+   `ACCELERATOR_MIGRATE_DECISIONS_FILE` env var, discoverable via `--help`). The
+   stall's copy-pasteable command is exactly this bare form — **no
+   `ACCELERATOR_MIGRATE_FORCE=1` is needed** in the normal case. A partial
+   interactive run dirties the tree only with files this run owns (the
+   interactive session log, plus any frontmatter already written), and the
+   **guarded resume** shipped in 0119 lets the re-run proceed over that own
+   output without `FORCE` when the base revision is unchanged, printing a
+   one-line affordance listing the owned paths being resumed over. `FORCE` is
+   required **only** when the pre-flight refuses — i.e. the tree carries dirt this
+   run does *not* own (foreign changes, or you have committed since the partial
+   run so the base revision moved). In that case, re-run once without `FORCE`
+   first to read the refusal / in-flight-session guidance, confirm via `jj
+   status`/`git status` that the dirty paths really are this migration's own, and
+   only then add `ACCELERATOR_MIGRATE_FORCE=1`. (The guarded-resume behaviour is
+   owned by `meta/work/0119-resume-safe-partial-migration-failure.md`, now
+   landed.)
+
+The driver **validates the decisions file up front (a no-mutation dry-apply pass)
+and fails closed**: an unknown verb, a count mismatch (too few or too many
+verbs), or a rejected `edit` value that no following line corrects exits
+non-zero, names the offending position, and leaves the corpus **unmutated** —
+validation never partially applies. (The dry-apply pass mirrors the live run, so
+a `migration_validate_edit` rejection followed by a corrected value on the next
+line is accepted just as it would apply.) Once validation passes and the live
+apply begins, transformations are applied in order without rollback, so an
+apply-time failure can leave a partial corpus; recover with VCS revert, then
+re-run — 0119's guarded resume replays the run's own partial output without
+`FORCE` when the base revision is unchanged.
+
+When no decision input is available at all, the run emits the structured stall
+(`MIGRATION STALLED: no decision input available`) and stops without further
+mutation — see `meta/work/0116-structured-stall-on-no-decision-input.md`.
+
+This contract is scoped to a single pending interactive migration (the realistic
+case); decisions files are consumed per migration.
+
 ## Executing the migration
 
 Invoke via Bash:
@@ -228,5 +310,6 @@ The driver script resolves `PROJECT_ROOT` automatically from the current working
 - `meta/decisions/ADR-0023-meta-directory-migration-framework.md` — framework design rationale
 - `meta/decisions/ADR-0037-optional-interactive-contract-supplement-to-adr-0023.md` — optional interactive contract
 - `meta/decisions/ADR-0038-interactive-validation-parameters-for-unified-schema-linkage-migration.md` — first consumer's parameterisation
+- `meta/work/0116-structured-stall-on-no-decision-input.md` — the structured stall (`MIGRATION STALLED: no decision input available`) the invoker contract defers to when no decision input is available
 - `skills/config/init/SKILL.md` — `init` bootstraps fresh repos; `migrate` upgrades existing ones
 - `skills/config/configure/SKILL.md` — configuration reference

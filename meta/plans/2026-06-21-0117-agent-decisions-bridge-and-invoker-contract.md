@@ -784,7 +784,7 @@ floor of 4 is unchanged).
 - [x] AC3 `no pending transformations` asserted; AC2 real-frontmatter outcomes asserted
 - [x] `--help` (now on **stdout**) contains the literal `ACCELERATOR_MIGRATE_DECISIONS_FILE` and a `--list` line: `bash skills/config/migrate/scripts/run-migrations.sh --help | grep -e ACCELERATOR_MIGRATE_DECISIONS_FILE -e -- --list`
 - [x] Shell lint/format/bashisms clean: `mise run scripts:check`
-- [ ] Full read-only gate green: `mise run check` (deferred to end of implementation — shell-only changes)
+- [x] Full read-only gate green: `mise run check`
 - [x] Migrate-suite floor still satisfied (no new `test-*.sh`; count stays 4): `mise run test:integration:migrate`
 
 #### Manual Verification:
@@ -1036,7 +1036,7 @@ grep-for-absence), and no session-log / applied entry under `.accelerator/state/
 - [x] A rejected `edit` value fails before any mutation (position-1 file byte-identical)
 - [x] The valid decisions file still applies (AC2 regression green)
 - [x] Shell lint/format/bashisms clean: `mise run scripts:check`
-- [ ] Full read-only gate green: `mise run check` (deferred to end — shell-only changes)
+- [x] Full read-only gate green: `mise run check`
 
 #### Manual Verification:
 
@@ -1217,11 +1217,11 @@ assert_contains "AC5(b) matched by emission order" \
 
 #### Automated Verification:
 
-- [ ] AC5 string-search assertions pass: `bash skills/config/migrate/scripts/test-migrate-interactive.sh`
-- [ ] `grep -F 'list → decide → write → resume' skills/config/migrate/SKILL.md` succeeds
-- [ ] `grep -F 'matched by emission order' skills/config/migrate/SKILL.md` succeeds
-- [ ] `grep -F 'ACCELERATOR_MIGRATE_DECISIONS_FILE' skills/config/migrate/SKILL.md` succeeds and 0116 is linked
-- [ ] Markdown/format gate green: `mise run check`
+- [x] AC5 string-search assertions pass: `bash skills/config/migrate/scripts/test-migrate-interactive.sh`
+- [x] `grep -F 'list → decide → write → resume' skills/config/migrate/SKILL.md` succeeds
+- [x] `grep -F 'matched by emission order' skills/config/migrate/SKILL.md` succeeds
+- [x] `grep -F 'ACCELERATOR_MIGRATE_DECISIONS_FILE' skills/config/migrate/SKILL.md` succeeds and 0116 is linked
+- [x] Markdown/format gate green: `mise run check`
 
 #### Manual Verification:
 

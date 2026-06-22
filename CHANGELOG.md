@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+### Added
+
+- **`/accelerator:migrate` — agent decisions bridge.** Interactive migrations can
+  now be completed without a human at the terminal. A new `--list` flag dry-emits
+  every pending interactive transformation as tab-delimited
+  `<position>\t<key>\t<proposed>\t<path>:<field>` lines (segmented by a
+  `# migration <id>` header when more than one is pending) without mutating the
+  corpus or requiring a clean tree, so an agent can see the proposed values it
+  must decide on. `ACCELERATOR_MIGRATE_DECISIONS_FILE` (equivalently
+  `--decisions-file`) is now a documented, `--help`-discoverable interface, and
+  its contents are **validated up front** by a no-mutation dry-apply pass that
+  fails closed — naming the offending position and leaving the corpus unmutated —
+  on an unknown verb, a count mismatch, or an unrecoverable rejected edit.
+  `SKILL.md` documents the full invoker contract (`list → decide → write →
+  resume`).
+
+### Changed
+
+- **`/accelerator:migrate` — strict argument handling.** An unrecognised driver
+  flag **or positional argument** now exits non-zero with an error (previously it
+  was silently ignored). `--help` / `-h` now print to **stdout** (was stderr) so
+  `--help | grep` works; usage-on-error messages stay on stderr.
+
 ## [1.22.0] - 2026-06-17
 
 > **Upgrading from 1.21.0 requires running `/accelerator:migrate`.** After

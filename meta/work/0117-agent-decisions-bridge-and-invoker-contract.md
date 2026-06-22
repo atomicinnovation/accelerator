@@ -112,12 +112,12 @@ fixture (positions 1..3 above); `--list` prints in that same order, and
 decisions-file position *i* maps to `--list` entry *i*. ("Consumption order" and
 "emission order" denote this same single ordering.)
 
-- [ ] **AC1** — Given the standalone reference fixture (3 pending
+- [x] **AC1** — Given the standalone reference fixture (3 pending
       transformations), when the driver is run with `--list`, then it prints
       exactly the three canonical lines shown in the fixture's expected `--list`
       output block above (byte-for-byte, tab-delimited, in emission order
       1..3), and exits 0 without mutating the corpus.
-- [ ] **AC2** — Given the standalone reference fixture and a decisions file
+- [x] **AC2** — Given the standalone reference fixture and a decisions file
       holding `accept` (position 1), `skip` (position 2), and
       `edit work-item:0100` (position 3), when the driver is resumed against that
       decisions file, then the migration completes and the corpus reflects the
@@ -127,16 +127,16 @@ decisions-file position *i* maps to `--list` entry *i*. ("Consumption order" and
       `relates_to: [work-item:0100]` (the edit value, not the proposed
       `work-item:0099`). (Binding form is deterministic — a fixed decisions file,
       not a live agentic decision; verifiable without 0118 having landed.)
-- [ ] **AC3** — Given a corpus with no pending interactive transformations, when
+- [x] **AC3** — Given a corpus with no pending interactive transformations, when
       the driver is run with `--list`, then it prints exactly the single line
       `no pending transformations` and nothing else, and exits 0 without mutating
       the corpus.
-- [ ] **AC4** — Given the migration driver, when its `--help` output is
+- [x] **AC4** — Given the migration driver, when its `--help` output is
       inspected, then it contains the literal string
       `ACCELERATOR_MIGRATE_DECISIONS_FILE` together with a one-line description
       of its format — i.e. a `grep` for the variable name in `--help` succeeds
       (it is no longer described only as a hidden test-only seam).
-- [ ] **AC5** — Given the invoker-contract section of `SKILL.md`, then it
+- [x] **AC5** — Given the invoker-contract section of `SKILL.md`, then it
       contains all of: (a) the literal phrase `list → decide → write → resume`
       (or the four steps named in order); (b) the verb tokens `accept`, `skip`,
       and `edit` and the phrase "matched by emission order"; (c) a link to 0116
@@ -145,7 +145,7 @@ decisions-file position *i* maps to `--list` entry *i*. ("Consumption order" and
       discoverable (`--help`); and (e) the fail-closed behaviour on a malformed
       decisions file (count mismatch / unknown verb → non-zero exit, corpus
       unmutated). Each element is confirmable by a string search.
-- [ ] **AC6** — Given the standalone reference fixture (3 pending
+- [x] **AC6** — Given the standalone reference fixture (3 pending
       transformations) and a **malformed** decisions file, when the driver is
       resumed against it, then the driver fails closed without mutating the
       corpus, exiting non-zero with a message naming the offending position, for
@@ -168,9 +168,14 @@ decisions-file position *i* maps to `--list` entry *i*. ("Consumption order" and
 
 ## Open Questions
 
-- Should this change to the invoker side of the interactive contract be recorded
+- ~~Should this change to the invoker side of the interactive contract be recorded
   as an amendment to ADR-0037 (work item 0092), or treated as an implementation
-  detail under the existing decision? (Inherited from 0115.)
+  detail under the existing decision? (Inherited from 0115.)~~ **Resolved:
+  implementation detail, not an amendment.** The invoker bridge (`--list`,
+  decisions-file validation, the documented `list → decide → write → resume`
+  contract) adds no new control verb, display element, or resumability guarantee,
+  and ADR-0037 is neutral on how the runner is invoked — so the recursive-supplement
+  clause is not tripped. The immutable, accepted ADR-0037 is left unedited.
 
 ## Dependencies
 
