@@ -420,5 +420,3 @@ becoming permanent-by-default (the exact failure mode that produced 0124):
 - `vcs_mode` consumer: [`skills/work/scripts/work-item-file-dirty.sh:45,101-104`](../../skills/work/scripts/work-item-file-dirty.sh#L45)
 - Test fixture + regression block: [`hooks/test-vcs-detect.sh:86-94`](../../hooks/test-vcs-detect.sh#L86-L94), [`hooks/test-vcs-detect.sh:424-446`](../../hooks/test-vcs-detect.sh#L424-L446)
 - Predecessor work item: [`meta/work/0058-workspace-worktree-boundary-detection.md`](../work/0058-workspace-worktree-boundary-detection.md)
-</content>
-</invoke>
