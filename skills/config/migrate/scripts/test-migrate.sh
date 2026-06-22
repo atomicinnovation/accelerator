@@ -364,6 +364,14 @@ RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_neq "non-zero exit (dirty tree)" "0" "$RC"
 assert_contains "error mentions dirty working tree" "$OUTPUT" "dirty"
+# Golden capture of the entire refusal block. On a dirty tree the pre-flight
+# exits before any stdout, so OUTPUT is exactly these two stderr lines —
+# byte-for-byte. This pins the canonical refusal text (the only place the
+# ACCELERATOR_MIGRATE_FORCE hint appears) so the Phase 1 porcelain-stripping
+# refactor and the Phase 3 refuse_dirty_tree extraction cannot drift it.
+EXPECTED_DIRTY_REFUSAL="Error: dirty working tree — uncommitted changes detected in meta/, .claude/accelerator*.md, or .accelerator/.
+Commit or discard those changes first, or set ACCELERATOR_MIGRATE_FORCE=1 to skip this check."
+assert_eq "exact dirty-tree refusal block" "$EXPECTED_DIRTY_REFUSAL" "$OUTPUT"
 APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
 assert_not_contains "no state entry on abort" "$APPLIED" "0001-rename-tickets-to-work"
 # Re-run with ACCELERATOR_MIGRATE_FORCE=1 bypasses the check

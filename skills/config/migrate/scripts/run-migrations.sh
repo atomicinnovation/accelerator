@@ -91,6 +91,32 @@ if [ -n "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
   fi
 fi
 
+# ── enumerate_scoped_dirty <vcs> ─────────────────────────────────────────────
+#   Emit one normalized repo-relative path per line for uncommitted changes
+#   under meta/, .claude/accelerator*.md, .accelerator/. Single source of truth
+#   for the pre-flight owned-check and the apply-loop manifest recording, so the
+#   jj-vs-git untracked asymmetry has exactly one definition.
+#
+#   The git branch strips the porcelain status prefix to a bare repo-relative
+#   path (so recorded paths string-match dirty paths at resume time), and
+#   resolves rename porcelain (`R  old -> new`) to the *new* path via the
+#   trailing `s/^.* -> //`. The jj-vs-git untracked asymmetry is deliberate: the
+#   git branch keeps `grep -v '^??'` (excludes untracked, preserving the existing
+#   guard's git behaviour); jj tracks created files by default and includes them.
+enumerate_scoped_dirty() {
+  local vcs="$1"
+  if [ "$vcs" = "jj" ] && command -v jj >/dev/null 2>&1; then
+    jj --no-pager diff --name-only 2>/dev/null |
+      grep -E '^(meta/|\.claude/accelerator|\.accelerator/)' || true
+  elif [ "$vcs" = "git" ]; then
+    git -C "$PROJECT_ROOT" status --porcelain \
+      "meta/" ".claude/accelerator.md" ".claude/accelerator.local.md" \
+      ".accelerator/" 2>/dev/null |
+      grep -v '^??' |
+      sed 's/^[[:space:]]*//; s/^[A-Z?][[:space:]]*//; s/^.* -> //' || true
+  fi
+}
+
 # ── 2. Pre-flight: clean working tree check ──────────────────────────────────
 if [ -z "${ACCELERATOR_MIGRATE_FORCE:-}" ]; then
   vcs=""
@@ -100,18 +126,7 @@ if [ -z "${ACCELERATOR_MIGRATE_FORCE:-}" ]; then
     vcs="git"
   fi
 
-  dirty=""
-  if [ "$vcs" = "jj" ]; then
-    if command -v jj &>/dev/null; then
-      dirty=$(jj --no-pager diff --name-only 2>/dev/null |
-        grep -E '^(meta/|\.claude/accelerator|\.accelerator/)' || true)
-    fi
-  elif [ "$vcs" = "git" ]; then
-    dirty=$(git -C "$PROJECT_ROOT" status --porcelain \
-      "meta/" ".claude/accelerator.md" ".claude/accelerator.local.md" \
-      ".accelerator/" \
-      2>/dev/null | grep -v '^??' || true)
-  fi
+  dirty=$(enumerate_scoped_dirty "$vcs")
 
   if [ -n "$dirty" ]; then
     # Detect any in-flight interactive session logs among the dirty paths
