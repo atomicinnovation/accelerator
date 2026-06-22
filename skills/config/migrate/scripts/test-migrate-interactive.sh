@@ -630,6 +630,11 @@ fi
 
 echo ""
 echo "Test: AC-8 — validation re-prompt loop (empty edit → error, then valid edit succeeds)"
+# A recoverable bad edit: the 0117 dry-apply gate mirrors the live VALIDATE_ERR
+# re-prompt, so the file validates (consuming the recovery line exactly as the
+# live run does) and then the live run re-prompts + applies. VALIDATE_ERR is
+# asserted via MIGRATION_PROTOCOL_LOG_MIGRATION, which carries only the LIVE
+# frames (the dry pass logs to the isolated dry proto), so the count stays 1.
 RC=0
 DECISIONS_FILE=$(mktemp "$TMPDIR_BASE/dec-revalidate-XXXXXX")
 printf 'edit \nedit recovered\n' >"$DECISIONS_FILE"
@@ -1027,6 +1032,10 @@ run_doc_example() {
   mkdir -p "$sandbox/.git" "$sandbox/.accelerator/state"
   local dec
   dec=$(mktemp "$TMPDIR_BASE/doc-decisions-XXXXXX")
+  # The first decision is a deliberate empty edit the validator rejects; the
+  # next line recovers it. The 0117 dry-apply gate mirrors the live VALIDATE_ERR
+  # re-prompt, so this recoverable file validates exactly as it applies and the
+  # worked-example transcript is reproduced unchanged.
   printf 'edit \nedit 0123-renamed\nskip\n' >"$dec"
   ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/doc-example/migrations" \
     PROJECT_ROOT="$sandbox" \
@@ -1230,7 +1239,7 @@ assert_not_contains "old opaque message gone" "$OUTPUT" \
 assert_not_contains "no shell errors on stall path" "$OUTPUT" "unbound variable"
 
 echo ""
-echo "Test: exhausted decisions file → legacy abort, NOT the stall"
+echo "Test: too-few decisions file → fail-closed at the dry-apply gate, NOT the stall"
 RC=0
 SBX=$(setup_sandbox "stall-exhausted-not-stalled")
 echo "$SBX" >"$INTERACTIVE_FIXTURE_SANDBOX_FILE"
@@ -1244,10 +1253,17 @@ OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migr
   PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
   ACCELERATOR_MIGRATE_FORCE=1 \
   bash "$DRIVER" --decisions-file "$DEC" 2>&1) || RC=$?
-assert_neq "non-zero exit on exhausted decisions file" "0" "$RC"
-assert_contains "exhaustion message surfaced" "$OUTPUT" "decisions file exhausted"
-assert_contains "legacy abort fired" "$OUTPUT" "failed to obtain"
-assert_not_contains "stall must NOT fire on exhausted file" "$OUTPUT" \
+assert_neq "non-zero exit on too-few decisions file" "0" "$RC"
+# As of 0117 the no-mutation dry-apply pass catches a too-few file up front and
+# names the first unanswered position, BEFORE the live apply run — so the live
+# run's legacy "failed to obtain" abort is unreachable for the decisions-file
+# path. (The dry pass runs read_decision quietly, so no raw "decisions file
+# exhausted" line leaks; the actionable, position-naming error is what shows.)
+assert_contains "fail-closed names the unanswered position" "$OUTPUT" \
+  "missing a decision for position 2"
+assert_not_contains "live legacy abort is NOT reached (dry-apply gates first)" \
+  "$OUTPUT" "failed to obtain"
+assert_not_contains "stall must NOT fire on a too-few file" "$OUTPUT" \
   "MIGRATION STALLED"
 
 echo ""
@@ -1802,6 +1818,219 @@ assert_contains "AC4 env var on STDOUT" "$(cat "$HELP_OUT")" \
   "ACCELERATOR_MIGRATE_DECISIONS_FILE"
 assert_contains "AC4 --list documented on STDOUT" "$(cat "$HELP_OUT")" "--list"
 assert_eq "AC4 --help stderr empty" "" "$(cat "$HELP_ERR")"
+
+echo ""
+echo "=== Phase: fail-closed dry-apply validation (0117 AC6) ==="
+echo ""
+
+# Snapshot the seeded corpus so each malformed case can prove byte-identity.
+snapshot_bridge() {
+  local sbx="$1" tag="$2"
+  cp "$sbx/meta/work/0050-example-a.md" "$TMPDIR_BASE/$tag-0050.snap"
+  cp "$sbx/meta/work/0051-example-b.md" "$TMPDIR_BASE/$tag-0051.snap"
+  cp "$sbx/meta/work/0052-example-c.md" "$TMPDIR_BASE/$tag-0052.snap"
+}
+assert_bridge_unmutated() {
+  local sbx="$1" tag="$2"
+  assert_files_identical "$tag: 0050 byte-identical" \
+    "$TMPDIR_BASE/$tag-0050.snap" "$sbx/meta/work/0050-example-a.md"
+  assert_files_identical "$tag: 0051 byte-identical" \
+    "$TMPDIR_BASE/$tag-0051.snap" "$sbx/meta/work/0051-example-b.md"
+  assert_files_identical "$tag: 0052 byte-identical" \
+    "$TMPDIR_BASE/$tag-0052.snap" "$sbx/meta/work/0052-example-c.md"
+  assert_file_not_exists "$tag: no session log left behind" \
+    "$sbx/.accelerator/state/migrations-0006-decisions-bridge-session.jsonl"
+  assert_file_not_exists "$tag: no applied ledger" \
+    "$sbx/.accelerator/state/migrations-applied"
+  assert_file_not_exists "$tag: no applied sentinel (corpus untouched)" \
+    "$sbx/.fixture/applied/log"
+}
+run_bridge() { # <sandbox> <decisions-file>
+  ACCELERATOR_MIGRATIONS_DIR="$BRIDGE_DIR" \
+    PROJECT_ROOT="$1" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    ACCELERATOR_MIGRATE_FORCE=1 ACCELERATOR_MIGRATE_DECISIONS_FILE="$2" \
+    bash "$DRIVER" 2>&1
+}
+
+echo "Test: AC6(a) too few — 2 verbs for 3 prompts → names position 3, corpus intact"
+SBX=$(setup_sandbox "ac6-toofew")
+seed_bridge_corpus "$SBX"
+snapshot_bridge "$SBX" "ac6a"
+DEC=$(mktemp "$TMPDIR_BASE/ac6a-dec-XXXXXX")
+printf 'accept\nskip\n' >"$DEC"
+RC=0
+OUTPUT=$(run_bridge "$SBX" "$DEC") || RC=$?
+assert_neq "AC6(a) non-zero exit" "0" "$RC"
+assert_contains "AC6(a) names position 3" "$OUTPUT" \
+  "missing a decision for position 3"
+assert_bridge_unmutated "$SBX" "ac6a"
+
+echo ""
+echo "Test: AC6(b) too many — 4 verbs for 3 prompts → names surplus position 4"
+SBX=$(setup_sandbox "ac6-toomany")
+seed_bridge_corpus "$SBX"
+snapshot_bridge "$SBX" "ac6b"
+DEC=$(mktemp "$TMPDIR_BASE/ac6b-dec-XXXXXX")
+printf 'accept\nskip\nedit work-item:0100\naccept\n' >"$DEC"
+RC=0
+OUTPUT=$(run_bridge "$SBX" "$DEC") || RC=$?
+assert_neq "AC6(b) non-zero exit" "0" "$RC"
+assert_contains "AC6(b) names surplus position 4" "$OUTPUT" \
+  "surplus decision at position 4"
+assert_bridge_unmutated "$SBX" "ac6b"
+
+echo ""
+echo "Test: AC6(c) unknown verb at position 2 → names position 2"
+SBX=$(setup_sandbox "ac6-unknown")
+seed_bridge_corpus "$SBX"
+snapshot_bridge "$SBX" "ac6c"
+DEC=$(mktemp "$TMPDIR_BASE/ac6c-dec-XXXXXX")
+printf 'accept\nfrobnicate\nedit work-item:0100\n' >"$DEC"
+RC=0
+OUTPUT=$(run_bridge "$SBX" "$DEC") || RC=$?
+assert_neq "AC6(c) non-zero exit" "0" "$RC"
+assert_contains "AC6(c) names position 2 + the unknown verb" "$OUTPUT" \
+  "position 2: unknown verb 'frobnicate'"
+assert_bridge_unmutated "$SBX" "ac6c"
+
+echo ""
+echo "Test: terminal rejected edit (no recovery line) → fail-closed before any mutation"
+SBX=$(setup_sandbox "ac6-rejected-edit")
+seed_bridge_corpus "$SBX"
+snapshot_bridge "$SBX" "ac6re"
+DEC=$(mktemp "$TMPDIR_BASE/ac6re-dec-XXXXXX")
+# Position 3 is a bare (empty) edit the fixture's validator rejects, with no
+# further line to recover — so the dry-apply re-prompt exhausts and fails closed.
+printf 'accept\nskip\nedit\n' >"$DEC"
+RC=0
+OUTPUT=$(run_bridge "$SBX" "$DEC") || RC=$?
+assert_neq "rejected-edit non-zero exit" "0" "$RC"
+assert_contains "rejected-edit names position 3 + reject reason" "$OUTPUT" \
+  "position 3: edit rejected ([interactive] empty value not allowed)"
+# Position 1 (an accept) must be byte-identical: dry-apply fails before the live
+# apply loop, so NOTHING is written.
+assert_bridge_unmutated "$SBX" "ac6re"
+
+echo ""
+echo "Test: recoverable bad edit — dry-apply mirrors the live re-prompt, then applies"
+SBX=$(setup_sandbox "ac6-recover")
+seed_bridge_corpus "$SBX"
+DEC=$(mktemp "$TMPDIR_BASE/ac6rec-dec-XXXXXX")
+# Position 1 edit is empty (rejected) but the next line recovers it; positions
+# 2/3 follow. Consumes exactly as the live run, so it validates and applies.
+printf 'edit\nedit work-item:0042\nskip\nedit work-item:0100\n' >"$DEC"
+RC=0
+OUTPUT=$(run_bridge "$SBX" "$DEC") || RC=$?
+assert_eq "recoverable-edit exit 0" "0" "$RC"
+assert_contains "recoverable-edit applied the recovery value" \
+  "$(cat "$SBX/meta/work/0050-example-a.md")" "relates_to: [work-item:0042]"
+assert_contains "recoverable-edit applied position 3 edit" \
+  "$(cat "$SBX/meta/work/0052-example-c.md")" "relates_to: [work-item:0100]"
+
+echo ""
+echo "Test: CRLF endings + interspersed blank line are tolerated"
+SBX=$(setup_sandbox "ac6-crlf")
+seed_bridge_corpus "$SBX"
+DEC=$(mktemp "$TMPDIR_BASE/ac6crlf-dec-XXXXXX")
+printf 'accept\r\n\r\nskip\r\nedit work-item:0100\r\n' >"$DEC"
+RC=0
+OUTPUT=$(run_bridge "$SBX" "$DEC") || RC=$?
+assert_eq "CRLF/blank decisions file exit 0" "0" "$RC"
+assert_contains "CRLF/blank applied accept value" \
+  "$(cat "$SBX/meta/work/0050-example-a.md")" "relates_to: [work-item:0042]"
+assert_contains "CRLF/blank applied edit value" \
+  "$(cat "$SBX/meta/work/0052-example-c.md")" "relates_to: [work-item:0100]"
+
+echo ""
+echo "Test: resume + validate — pre-decided key excluded, remaining file validates + applies"
+SBX=$(setup_sandbox "ac6-resume")
+seed_bridge_corpus "$SBX"
+# Pre-decide 'parent' (position 2); the cleanly-resumed key consumes no decision
+# in either the dry pass or the live run, so a 2-verb file for the two relates_to
+# prompts is correctly sized.
+LOG="$SBX/.accelerator/state/migrations-0006-decisions-bridge-session.jsonl"
+cat >"$LOG" <<'EOF'
+{"transformation_key":"parent","schema_version":1,"outcome":"skipped","proposed_value":"work-item:0031","timestamp":"2026-05-30T12:00:00Z"}
+EOF
+DEC=$(mktemp "$TMPDIR_BASE/ac6resume-dec-XXXXXX")
+printf 'accept\nedit work-item:0100\n' >"$DEC"
+RC=0
+OUTPUT=$(run_bridge "$SBX" "$DEC") || RC=$?
+assert_eq "resume+validate exit 0" "0" "$RC"
+assert_contains "resume+validate applied 0050 accept" \
+  "$(cat "$SBX/meta/work/0050-example-a.md")" "relates_to: [work-item:0042]"
+assert_contains "resume+validate applied 0052 edit" \
+  "$(cat "$SBX/meta/work/0052-example-c.md")" "relates_to: [work-item:0100]"
+
+echo ""
+echo "Test: drift consumes a decision in dry-apply (no false surplus)"
+SBX=$(setup_sandbox "ac6-drift")
+seed_bridge_corpus "$SBX"
+# Pre-decide 'parent' with a DRIFTED proposed_value (≠ the live work-item:0031).
+# The live run re-prompts the drifted key (consuming a decision); dry-apply must
+# do the same, so all THREE prompts need a verb — a 3-verb file must NOT be
+# flagged as a surplus.
+LOG="$SBX/.accelerator/state/migrations-0006-decisions-bridge-session.jsonl"
+cat >"$LOG" <<'EOF'
+{"transformation_key":"parent","schema_version":1,"outcome":"skipped","proposed_value":"work-item:9999-STALE","timestamp":"2026-05-30T12:00:00Z"}
+EOF
+DEC=$(mktemp "$TMPDIR_BASE/ac6drift-dec-XXXXXX")
+printf 'accept\nskip\nedit work-item:0100\n' >"$DEC"
+RC=0
+OUTPUT=$(run_bridge "$SBX" "$DEC") || RC=$?
+assert_eq "drift+3-verbs exit 0 (drift consumed a decision, no false surplus)" \
+  "0" "$RC"
+assert_not_contains "drift case not mis-flagged as surplus" "$OUTPUT" \
+  "surplus decision"
+
+echo ""
+echo "Test: fork failure during dry-apply fails closed before the live apply loop"
+# 0002-fail-frame emits FAIL right after READY. With a decisions file the
+# dry-apply pass forks it first, sees the FAIL, and aborts → the live apply loop
+# never runs.
+SBX=$(setup_sandbox "ac6-forkfail")
+DEC=$(mktemp "$TMPDIR_BASE/ac6ff-dec-XXXXXX")
+printf 'accept\n' >"$DEC"
+RC=0
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-fail-frame/migrations" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATE_FORCE=1 ACCELERATOR_MIGRATE_DECISIONS_FILE="$DEC" \
+  bash "$DRIVER" 2>&1) || RC=$?
+assert_neq "fork-failure non-zero exit" "0" "$RC"
+assert_contains "fork-failure surfaces the FAIL message" "$OUTPUT" \
+  "synthetic failure for testing"
+assert_file_not_exists "fork-failure: migration not applied" \
+  "$SBX/.accelerator/state/migrations-applied"
+
+echo ""
+echo "Test: AC2 regression through the gate — valid file validates, applies, dry seq matches"
+SBX=$(setup_sandbox "ac6-regression")
+seed_bridge_corpus "$SBX"
+DEC=$(mktemp "$TMPDIR_BASE/ac6reg-dec-XXXXXX")
+printf 'accept\nskip\nedit work-item:0100\n' >"$DEC"
+PROTO_DRY=$(mktemp "$TMPDIR_BASE/ac6reg-dry-XXXXXX")
+PROTO_LIVE=$(mktemp "$TMPDIR_BASE/ac6reg-live-XXXXXX")
+RC=0
+OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$BRIDGE_DIR" \
+  PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+  ACCELERATOR_MIGRATE_FORCE=1 ACCELERATOR_MIGRATE_DECISIONS_FILE="$DEC" \
+  MIGRATION_PROTOCOL_LOG_DRY="$PROTO_DRY" \
+  MIGRATION_PROTOCOL_LOG_MIGRATION="$PROTO_LIVE" \
+  bash "$DRIVER" 2>&1) || RC=$?
+assert_eq "AC2-through-gate exit 0" "0" "$RC"
+assert_contains "AC2-through-gate applied accept" \
+  "$(cat "$SBX/meta/work/0050-example-a.md")" "relates_to: [work-item:0042]"
+assert_contains "AC2-through-gate applied edit" \
+  "$(cat "$SBX/meta/work/0052-example-c.md")" "relates_to: [work-item:0100]"
+# The dry pass enumerated the same three prompt routes the live run did, and
+# logged to its OWN proto (no doubling of the live counts).
+DRY_OK_COUNT=$(grep -c $'^DRY_OK\t' "$PROTO_DRY" || true)
+DRY_DONE_COUNT=$(grep -c $'^DRY_DONE$' "$PROTO_DRY" || true)
+LIVE_PROMPT_COUNT=$(grep -c $'^PROMPT\t' "$PROTO_LIVE" || true)
+assert_eq "dry pass validated 3 decisions" "3" "$DRY_OK_COUNT"
+assert_eq "dry pass emitted 1 DRY_DONE" "1" "$DRY_DONE_COUNT"
+assert_eq "live proto shows 3 PROMPTs (not doubled by the dry pass)" "3" \
+  "$LIVE_PROMPT_COUNT"
 
 echo ""
 test_summary

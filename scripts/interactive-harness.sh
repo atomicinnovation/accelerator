@@ -425,6 +425,125 @@ _harness_emit_list() {
   emit_frame LIST_DONE
 }
 
+# _harness_dry_apply <tx...>: dry-apply validation pass. Routes each buffered TX
+# via the shared _harness_classify_tx and, for any transformation the live run
+# would PROMPT — a fresh prompt route, OR a resumed key that has drifted / fails
+# verification — runs the SAME decide handshake the live loop uses (emit PROMPT,
+# receive DECIDE, run migration_validate_edit on an edit) but suppresses every
+# side effect: no migration_apply_decision, no session record, no
+# RECORDED/APPLY/APPLIED_CONFIRM, and no DRIFT round-trip (which would mutate the
+# session log). A cleanly-resumed key and a mechanical row consume NO decision,
+# exactly as the live run, so consumption matches by construction. On a
+# validation failure it emits DRY_REJECT (a hard stop — not VALIDATE_ERR, so
+# dry-apply fails fast rather than re-prompting). Emits DRY_DONE at the end.
+_harness_dry_apply() {
+  local tx
+  for tx in "$@"; do
+    _harness_classify_tx "$tx"
+    case "$ROUTE" in
+      malformed)
+        emit_frame FAIL "harness_emit_transformation: malformed record (got '${_CLASSIFY_RAW}')"
+        return 1
+        ;;
+      resumed)
+        # Replicate the live resume drift check WITHOUT mutation: a recorded key
+        # whose proposed_value still matches (and whose mutation verifies, if a
+        # verifier is declared) consumes NO decision; otherwise the live run
+        # re-prompts it, so dry-apply must too — to consume the same decision.
+        if _harness_dry_resume_clean "$key" "$path" "$anchor" "$proposed"; then
+          : # cleanly resumed -> no decision consumed (same as live)
+        else
+          _harness_dry_prompt "$key" "$path" "$anchor" "$proposed" \
+            "$predicate_value" "$extras_tsv" "$display_b64" || return 1
+        fi
+        ;;
+      mechanical) : ;; # mutates + consumes no decision; suppressed in dry mode
+      prompt)
+        _harness_dry_prompt "$key" "$path" "$anchor" "$proposed" \
+          "$predicate_value" "$extras_tsv" "$display_b64" || return 1
+        ;;
+      fail)
+        emit_frame FAIL "migration_evaluate_predicate returned $PREDICATE_RC for key $key (contract: 0 prompt, 1 mechanical)"
+        return 1
+        ;;
+    esac
+  done
+  emit_frame DRY_DONE
+}
+
+# _harness_dry_resume_clean <key> <path> <anchor> <proposed>
+#   Return 0 iff the recorded resume decision is still valid (no drift, and the
+#   mutation verifies when a verifier is declared) — i.e. the live run would
+#   replay it WITHOUT consuming a decision. Returns non-zero on drift or
+#   verify-fail, the cases where the live run re-prompts. RESUME_LOOKUP_* were
+#   set by _harness_classify_tx -> _harness_resume_lookup. Mutates nothing.
+_harness_dry_resume_clean() {
+  local key="$1" path="$2" anchor="$3" proposed="$4"
+  [ "$RESUME_LOOKUP_PROPOSED" = "$proposed" ] || return 1 # source drift
+  if [ "$RESUME_LOOKUP_OUTCOME" = "accepted" ] ||
+    [ "$RESUME_LOOKUP_OUTCOME" = "edited" ]; then
+    if declare -F migration_verify_applied >/dev/null; then
+      migration_verify_applied "$key" "$path" "$anchor" \
+        "$RESUME_LOOKUP_OUTCOME" "$RESUME_LOOKUP_PROPOSED" "$RESUME_LOOKUP_USER" ||
+        return 1
+    fi
+  fi
+  return 0
+}
+
+# _harness_dry_prompt: the dry-mode counterpart of _harness_run_prompt. Emits
+# PROMPT, reads DECIDE, validates an edit via migration_validate_edit (pure, no
+# mutation), and emits DRY_OK — but never RECORDED/APPLY, so no artefact or
+# session-log mutation occurs. On a rejected edit it mirrors the live run: emit
+# VALIDATE_ERR and loop, so a decisions file that recovers via a subsequent line
+# validates exactly as it applies (consuming the same lines). A terminal bad
+# edit (no recovery line) surfaces on the runner side as the decisions file
+# exhausting during re-prompt. _HARNESS_CURRENT_TSV was set to the raw TX line
+# by _harness_classify_tx, so harness_field works inside the validator without a
+# rebuild.
+_harness_dry_prompt() {
+  local key="$1" path="$2" anchor="$3" proposed="$4"
+  local predicate_value="$5" extras_tsv="$6" display_b64="$7"
+  emit_frame PROMPT "$key" "$path" "$anchor" "$proposed" \
+    "$predicate_value" "$extras_tsv" "$display_b64"
+  while true; do
+    read_frame || {
+      emit_frame FAIL "EOF awaiting DECIDE for $key"
+      return 1
+    }
+    if [ "$FRAME_TYPE" != "DECIDE" ]; then
+      emit_frame FAIL "expected DECIDE for $key, got $FRAME_TYPE"
+      return 1
+    fi
+    local outcome="${FRAME_FIELDS[0]:-}"
+    local value="${FRAME_FIELDS[1]:-}"
+    case "$outcome" in
+      accept | skip)
+        emit_frame DRY_OK "$key"
+        return 0
+        ;;
+      edit)
+        if declare -F migration_validate_edit >/dev/null; then
+          local err
+          err=$(migration_validate_edit "$key" "$path" "$anchor" "$proposed" "$value" 2>&1) || {
+            # Mirror the live re-prompt: surface the rejection and await another
+            # DECIDE (the runner reads the next decision line, or fails closed if
+            # the file is exhausted).
+            emit_frame VALIDATE_ERR "$err"
+            continue
+          }
+        fi
+        emit_frame DRY_OK "$key"
+        return 0
+        ;;
+      *)
+        emit_frame DRY_REJECT "$key" "unknown decision outcome '$outcome'"
+        return 1
+        ;;
+    esac
+  done
+}
+
 # _harness_run_prompt: emit PROMPT, read DECIDE, write-ahead-log loop.
 # Phase 3 stub: defer the full implementation to Phase 4/5; for now this
 # is enough for handshake / FAIL paths.

@@ -824,6 +824,41 @@ a failed `migration_validate_edit` is a **hard reject** (fail fast), not a
 re-prompt, so the live run — reached only for a fully-valid file — cannot
 partial-mutate on a bad edit.
 
+### As-built notes (decisions taken during implementation)
+
+- **Dry-apply mirrors the live re-prompt rather than hard-rejecting a bad edit.**
+  The plan above first described a failed `migration_validate_edit` as a hard
+  reject. As built (confirmed with the author), dry-apply instead replicates the
+  live `VALIDATE_ERR` re-prompt: a bad edit followed by a recovery line consumes
+  both lines and validates exactly as it applies, so "validates == applies"
+  holds and the worked example (driven by a recoverable empty-then-valid edit)
+  is reproduced unchanged. A **terminal** bad edit (no recovery line) still fails
+  closed — the re-prompt read exhausts the file and the runner reports the
+  position and the reject reason. The work item's AC6 (too-few / too-many /
+  unknown-verb at positions 3/4/2) is satisfied regardless.
+- **Resume drift is modelled in dry-apply** (also confirmed with the author): a
+  recorded key whose `proposed_value` has drifted (or whose `migration_verify_applied`
+  fails) is re-prompted in the dry pass — consuming a decision exactly as the
+  live run — but WITHOUT the `DRIFT` round-trip (which would mutate the session
+  log). A cleanly-resumed key consumes none. This keeps consumption identical to
+  the live run when a session log has drifted.
+- **The dry mode rides on the `MIGRATION_HARNESS_MODE` env var, not a third
+  `INIT` field.** An empty `decisions_path` middle field collapses under IFS-tab
+  word-splitting and would shift a trailing positional field, so the runner
+  signals the mode out-of-band; the `INIT` frame stays byte-identical to the
+  live run's two-field form.
+- **Dry-apply proto frames go to dedicated logs** (`MIGRATION_PROTOCOL_LOG_DRY`
+  / `_DRY_RUNNER`, default empty), and `read_decision` is silenced during the
+  dry pass (`DECISIONS_QUIET`), so the validation fork never doubles the live
+  run's asserted frame counts or its consumption log.
+- **Shared fork scope.** `_interactive_fork`/`_interactive_teardown` are shared
+  by the two new dry surfaces (`--list`, dry-apply); the battle-tested live
+  `run_interactive_migration` loop is left untouched to avoid behavioural risk to
+  the landed 0116/0119 machinery. The shared single-classify source the design
+  prioritises lives on the harness side (`_harness_classify_tx`), used by all
+  three modes. The dry fork closes its inherited fd 7 in the child so an aborted
+  validation delivers a clean EOF instead of hanging the teardown's wait.
+
 ### Changes Required:
 
 #### 1. Child-side dry-apply mode
@@ -996,12 +1031,12 @@ grep-for-absence), and no session-log / applied entry under `.accelerator/state/
 
 #### Automated Verification:
 
-- [ ] AC6(a/b/c) + rejected-edit + CRLF/blank + bare-edit + resume + fork-failure cases pass: `bash skills/config/migrate/scripts/test-migrate-interactive.sh`
-- [ ] Each malformed case exits non-zero, names the correct position, and leaves every seed file byte-identical (cmp/checksum asserted) with a clean `.accelerator/state/`
-- [ ] A rejected `edit` value fails before any mutation (position-1 file byte-identical)
-- [ ] The valid decisions file still applies (AC2 regression green)
-- [ ] Shell lint/format/bashisms clean: `mise run scripts:check`
-- [ ] Full read-only gate green: `mise run check`
+- [x] AC6(a/b/c) + rejected-edit + CRLF/blank + bare-edit + resume + fork-failure cases pass: `bash skills/config/migrate/scripts/test-migrate-interactive.sh`
+- [x] Each malformed case exits non-zero, names the correct position, and leaves every seed file byte-identical (cmp/checksum asserted) with a clean `.accelerator/state/`
+- [x] A rejected `edit` value fails before any mutation (position-1 file byte-identical)
+- [x] The valid decisions file still applies (AC2 regression green)
+- [x] Shell lint/format/bashisms clean: `mise run scripts:check`
+- [ ] Full read-only gate green: `mise run check` (deferred to end — shell-only changes)
 
 #### Manual Verification:
 

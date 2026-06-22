@@ -239,9 +239,14 @@ render_prompt() {
 # TTY EOF; 2 = no input channel available (caller emits the structured stall).
 read_decision() {
   local line
+  # DECISIONS_QUIET (set by the dry-apply pass) silences the informational
+  # consumption / exhaustion echoes — a validation pass must not double the
+  # consumption log the live run prints, nor leak an "exhausted" line when its
+  # surplus look-ahead hits the expected EOF. Return values are unchanged.
   if [ -n "${ACCELERATOR_MIGRATE_DECISIONS_FILE:-}" ]; then
     if ! IFS= read -r line <&"$DECISIONS_FD"; then
-      echo "[interactive] decisions file exhausted" >&2
+      [ -n "${DECISIONS_QUIET:-}" ] ||
+        echo "[interactive] decisions file exhausted" >&2
       return 1
     fi
     DECISIONS_LINE_NUM=$((DECISIONS_LINE_NUM + 1))
@@ -250,13 +255,15 @@ read_decision() {
     # Skip empty lines.
     while [ -z "$line" ]; do
       if ! IFS= read -r line <&"$DECISIONS_FD"; then
-        echo "[interactive] decisions file exhausted" >&2
+        [ -n "${DECISIONS_QUIET:-}" ] ||
+          echo "[interactive] decisions file exhausted" >&2
         return 1
       fi
       DECISIONS_LINE_NUM=$((DECISIONS_LINE_NUM + 1))
       line="${line%$'\r'}"
     done
-    echo "[decisions] consumed line $DECISIONS_LINE_NUM: ${line%% *}" >&2
+    [ -n "${DECISIONS_QUIET:-}" ] ||
+      echo "[decisions] consumed line $DECISIONS_LINE_NUM: ${line%% *}" >&2
   else
     if [ -t 0 ]; then
       IFS= read -r line </dev/tty || return 1
@@ -385,6 +392,14 @@ read_decision_or_stall() {
 #   frames back to the child via the mig_in global (dry-apply relays DECIDE).
 #   Globals set for handlers: mig_in, mig_out, SESSION_LOG. Returns 0 on a clean
 #   _FORK_STOP, non-zero on handler abort / unexpected child exit.
+#
+#   Proto-log isolation: the child's frame log goes to _FORK_MIG_PROTO and the
+#   runner-side mirror to _FORK_RUN_PROTO (both set by the caller, default
+#   empty). The dry-apply driver points these at DEDICATED logs, NOT the live
+#   run's MIGRATION_PROTOCOL_LOG_{MIGRATION,RUNNER}, so a dry-apply pass before a
+#   live run cannot double the frame counts the live-run tests assert on. (List
+#   mode has no following live run, so its driver maps these to the standard
+#   test vars.)
 _interactive_fork() {
   local f="$1" id="$2" mode="$3" handler="$4"
   local state_dir="$PROJECT_ROOT/.accelerator/state"
@@ -398,7 +413,7 @@ _interactive_fork() {
     return 1
   }
 
-  local runner_log_path="${MIGRATION_PROTOCOL_LOG_RUNNER:-}"
+  local runner_log_path="${_FORK_RUN_PROTO:-}"
   local fifo_r2m="$state_dir/migrations-${id}-r2m.fifo"
   local fifo_m2r="$state_dir/migrations-${id}-m2r.fifo"
   rm -f "$fifo_r2m" "$fifo_m2r"
@@ -408,11 +423,18 @@ _interactive_fork() {
   # an empty decisions_path field would collapse under IFS-tab word-splitting
   # and shift a trailing positional field. The INIT stays byte-identical to the
   # live run's two-field form.
+  # Close the runner's fd 7 IN THE CHILD (7<&-): the child reads its stdin from
+  # the r2m FIFO (fd 0), and must NOT inherit a read-write handle on r2m — that
+  # inherited writer would keep the pipe open so the child's read_frame never
+  # sees EOF when the runner closes its own fd 7 on an abort, and the teardown's
+  # wait would hang forever. (The live run sidesteps this by orphaning the child
+  # on abort instead of waiting; this shared driver waits, so it needs the clean
+  # EOF.)
   PROJECT_ROOT="$PROJECT_ROOT" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
     ACCELERATOR_MIGRATION_MODE=1 MIGRATION_ID="$id" \
     MIGRATION_HARNESS_MODE="$mode" \
-    MIGRATION_PROTOCOL_LOG_MIGRATION="${MIGRATION_PROTOCOL_LOG_MIGRATION:-}" \
-    bash "$f" <"$fifo_r2m" >"$fifo_m2r" 2>"$stderr_file" &
+    MIGRATION_PROTOCOL_LOG_MIGRATION="${_FORK_MIG_PROTO:-}" \
+    bash "$f" <"$fifo_r2m" >"$fifo_m2r" 2>"$stderr_file" 7<&- &
   local pid=$!
   exec 8<"$fifo_m2r"
   mig_in=7
@@ -501,6 +523,10 @@ _interactive_teardown() {
   local pid="$1" fifo_r2m="$2" fifo_m2r="$3"
   exec 7>&- 8<&-
   rm -f "$fifo_r2m" "$fifo_m2r"
+  # Closing fd 7 delivers EOF so the child exits on its own. As a backstop
+  # against any other block, signal it before reaping — a dry-mode child never
+  # mutates, so terminating it is always safe and a hung CI suite is worse.
+  kill "$pid" 2>/dev/null || true
   wait "$pid" 2>/dev/null || true
 }
 
@@ -516,6 +542,10 @@ LIST_ENTRIES=()
 enumerate_interactive_transformations() {
   local f="$1" id="$2"
   LIST_ENTRIES=()
+  # List has no following live run, so its proto frames may go to the standard
+  # test logs without doubling anything.
+  local _FORK_MIG_PROTO="${MIGRATION_PROTOCOL_LOG_MIGRATION:-}"
+  local _FORK_RUN_PROTO="${MIGRATION_PROTOCOL_LOG_RUNNER:-}"
   _interactive_fork "$f" "$id" 1 _enum_handle_frame || return 1
 }
 
@@ -541,6 +571,111 @@ _enum_handle_frame() {
       ;;
   esac
 }
+
+# ── Dry-apply validation pass (mode 2) ───────────────────────────────────────
+# dry_apply_interactive_migration <path> <id>
+#   Validate the decisions file by running the real decide/validate loop with
+#   mutation, session-log writes, and the APPLY round-trip suppressed — BEFORE
+#   the live apply run. Opens fd 9 on the decisions file exactly as the live run
+#   so read_decision consumes it identically; what validates is what applies.
+#   Fails closed (naming the offending position) on a rejected edit, an unknown
+#   verb, too few, or too many decisions, leaving the corpus unmutated.
+dry_apply_interactive_migration() {
+  local f="$1" id="$2"
+  # Validation pass: silence read_decision's consumption/exhaustion echoes so the
+  # log isn't doubled (dry + live) and the surplus look-ahead's expected EOF
+  # doesn't leak an "exhausted" line. read_decision sees this via dynamic scope.
+  local DECISIONS_QUIET=1
+  exec 9<"$ACCELERATOR_MIGRATE_DECISIONS_FILE"
+  DECISIONS_FD=9
+  DECISIONS_LINE_NUM=0
+  DRY_POS=0
+  # Dedicated dry proto logs (default empty → no logging), so a dry pass before
+  # a live run never pollutes the live-run frame counts.
+  local _FORK_MIG_PROTO="${MIGRATION_PROTOCOL_LOG_DRY:-}"
+  local _FORK_RUN_PROTO="${MIGRATION_PROTOCOL_LOG_DRY_RUNNER:-}"
+  _interactive_fork "$f" "$id" 2 _dry_handle_frame
+  local rc=$?
+  # Too-many: a further non-blank verb remains on fd 9 after DRY_DONE.
+  if [ "$rc" -eq 0 ] && _decisions_have_more; then
+    echo "Error: decisions file has a surplus decision at position" \
+      "$((DRY_POS + 1)) (only $DRY_POS transformation(s) require one)." >&2
+    rc=1
+  fi
+  exec 9<&-
+  return "$rc"
+}
+
+_dry_handle_frame() { # $1 = frame type, $2.. = unescaped fields
+  case "$1" in
+    PROMPT)
+      DRY_POS=$((DRY_POS + 1))
+      if ! read_decision; then # rc 1 = exhausted -> too few
+        echo "Error: decisions file is missing a decision for position" \
+          "$DRY_POS ($2)." >&2
+        return 1
+      fi
+      case "$DECIDE_OUTCOME" in # reuse read_decision's parse; reject unknown
+        accept | skip | edit) : ;;
+        *)
+          echo "Error: decisions file position $DRY_POS: unknown verb" \
+            "'$DECIDE_OUTCOME' (expected accept | skip | edit <value>)." >&2
+          return 1
+          ;;
+      esac
+      _dry_send_decide # DECIDE to the child (no APPLY ever follows)
+      ;;
+    VALIDATE_ERR)
+      # The edit was rejected; the harness re-prompts the SAME position (DRY_POS
+      # unchanged). Read the next decision to recover, exactly as the live run.
+      # Exhaustion here means the bad edit had no recovery line -> fail closed,
+      # naming the position and the reject reason.
+      if ! read_decision; then
+        echo "Error: decisions file position $DRY_POS: edit rejected ($2) and" \
+          "no further decision to recover." >&2
+        return 1
+      fi
+      case "$DECIDE_OUTCOME" in
+        accept | skip | edit) : ;;
+        *)
+          echo "Error: decisions file position $DRY_POS: unknown verb" \
+            "'$DECIDE_OUTCOME' (expected accept | skip | edit <value>)." >&2
+          return 1
+          ;;
+      esac
+      _dry_send_decide
+      ;;
+    DRY_REJECT) # unknown decision outcome (verb the runner did not pre-screen)
+      echo "Error: decisions file position $DRY_POS: $3 (key $2)." >&2
+      return 1
+      ;;
+    DRY_OK) : ;;
+    DRY_DONE) return "$_FORK_STOP" ;; # stop the fork loop cleanly
+    FAIL)
+      echo "[$id] $2" >&2
+      return 1
+      ;;
+  esac
+}
+
+# Relay the decision read by read_decision to the child (mirrors the live PROMPT
+# arm's DECIDE emission; no APPLY ever follows in dry mode). mig_in and
+# runner_log_path are visible via the _interactive_fork frame loop's scope.
+_dry_send_decide() {
+  printf 'DECIDE\t%s\t%s\n' \
+    "$(escape_field "$DECIDE_OUTCOME")" "$(escape_field "$DECIDE_VALUE")" \
+    >&"$mig_in"
+  if [ -n "${runner_log_path:-}" ]; then
+    printf 'DECIDE\t%s\t%s\n' \
+      "$(escape_field "$DECIDE_OUTCOME")" "$(escape_field "$DECIDE_VALUE")" \
+      >>"$runner_log_path"
+  fi
+}
+
+# Surplus look-ahead: reuse read_decision's OWN blank/CRLF-skipping (do NOT
+# re-implement it, or a trailing blank line false-positives a surplus). A
+# successful read of a further non-blank verb means a genuine surplus.
+_decisions_have_more() { read_decision; }
 
 # run_interactive_migration <path> <id>
 run_interactive_migration() {

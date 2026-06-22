@@ -588,6 +588,22 @@ else
   enumerate_scoped_dirty "$vcs" >"$BASELINE_FILE" 2>/dev/null || true
 fi
 
+# ── Fail-closed validation of the decisions file (no-mutation dry-apply) ─────
+# When a decisions file is supplied, validate it against each pending
+# interactive migration BEFORE the live apply loop. A non-zero return / FAIL
+# aborts here, so a malformed decisions file (rejected edit, unknown verb, too
+# few/too many) never falls through to a mutating run — the corpus stays
+# unmutated. read_decision's silent unknown-verb pass-through is left intact but
+# is now unreachable for the decisions-file path (dry-apply rejects first).
+if [ -n "$ACCELERATOR_MIGRATE_DECISIONS_FILE" ]; then
+  for f in "${pending_files[@]+"${pending_files[@]}"}"; do
+    id="$(basename "$f" .sh)"
+    if is_interactive_migration "$f"; then
+      dry_apply_interactive_migration "$f" "$id" || exit 1
+    fi
+  done
+fi
+
 # ── 8. Apply each pending migration ─────────────────────────────────────────
 applied_count=0
 for f in "${pending_files[@]}"; do
