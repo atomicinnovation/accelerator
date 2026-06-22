@@ -1,3 +1,26 @@
+---
+type: note
+id: "2026-06-22-ideas-backlog"
+title: "Ideas Backlog"
+date: "2026-06-22T23:49:56+00:00"
+author: "Toby Clemson"
+producer: create-note
+status: captured
+topic: "Ideas backlog"
+tags: [backlog, ideas]
+revision: "59c765f5533a34285f086d31f5190fbb2689082e"
+repository: "miscellaneous"
+last_updated: "2026-06-22T23:49:56+00:00"
+last_updated_by: "Toby Clemson"
+schema_version: 1
+---
+
+# Ideas Backlog
+
+Running backlog of feature, skill, and infrastructure ideas for the
+Accelerator plugin. Captured from `stories.md`. Many of these have been
+extracted into structured work items in `meta/work/`.
+
 * Make the visualiser UI responsive and more appropriate for larger screens
 * Migrate shell scripts into Rust CLI
 * Graph based representation of knowledge base
@@ -59,4 +82,4 @@
   * Metrics definition skills? Metrics analysis skills?
 * Add prototyping skills
   * Add `/create-prototype-brief` skill
-  * Add `/build-prototype` skill (with `--mode=wireframes|interactive`) 
+  * Add `/build-prototype` skill (with `--mode=wireframes|interactive`)
