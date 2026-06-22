@@ -21,7 +21,7 @@ external_id: PP-104
 # 0082: BigGlyph Hero Illustration Set
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

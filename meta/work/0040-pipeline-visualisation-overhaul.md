@@ -20,7 +20,7 @@ external_id: PP-62
 # 0040: Pipeline Visualisation Overhaul
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

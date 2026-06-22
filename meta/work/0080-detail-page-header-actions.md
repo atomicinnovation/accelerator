@@ -19,7 +19,7 @@ external_id: PP-102
 # 0080: Detail-Page Header Actions (Open in Editor, Copy Path)
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

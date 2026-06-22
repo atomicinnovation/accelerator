@@ -20,7 +20,7 @@ external_id: PP-85
 # 0063: Rename work-item `type:` Field to `kind:`
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

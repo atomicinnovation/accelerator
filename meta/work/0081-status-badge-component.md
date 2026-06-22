@@ -19,7 +19,7 @@ external_id: PP-103
 # 0081: StatusBadge — Decompose FrontmatterChips and Map Status + Verdict to Tone
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

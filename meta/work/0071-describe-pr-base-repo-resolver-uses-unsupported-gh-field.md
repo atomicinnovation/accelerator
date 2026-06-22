@@ -17,7 +17,7 @@ external_id: PP-93
 # 0071: describe-pr cannot post PR body — pr-base-repo.sh uses unsupported gh JSON field
 
 **Kind**: Bug
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

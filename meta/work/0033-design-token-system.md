@@ -19,7 +19,7 @@ external_id: PP-55
 # 0033: Design Token System
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

@@ -21,7 +21,7 @@ external_id: PP-114
 # 0092: ADR: Optional Interactive Contract for the Migration Framework
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

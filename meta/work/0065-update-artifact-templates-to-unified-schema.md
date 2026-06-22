@@ -20,7 +20,7 @@ external_id: PP-87
 # 0065: Update All Artifact Templates to Unified Schema
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

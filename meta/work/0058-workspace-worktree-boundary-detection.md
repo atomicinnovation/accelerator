@@ -18,7 +18,7 @@ external_id: PP-80
 # 0058: Workspace and Worktree Boundary Detection at Session Start
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

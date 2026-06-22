@@ -18,7 +18,7 @@ external_id: PP-81
 # 0059: gh pr edit Fails Due to GitHub Projects Classic Deprecation
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

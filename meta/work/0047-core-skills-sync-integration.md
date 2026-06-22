@@ -20,7 +20,7 @@ external_id: PP-69
 # 0047: Core Skills Sync Integration
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

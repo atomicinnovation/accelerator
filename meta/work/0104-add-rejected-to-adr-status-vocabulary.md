@@ -20,7 +20,7 @@ external_id: PP-126
 # 0104: Add rejected to the ADR Status Vocabulary in the Unified Schema
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

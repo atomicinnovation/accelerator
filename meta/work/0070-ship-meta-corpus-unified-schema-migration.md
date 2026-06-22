@@ -20,7 +20,7 @@ external_id: PP-92
 # 0070: Ship `meta/` Corpus Unified-Schema Migration
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

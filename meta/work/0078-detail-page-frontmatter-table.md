@@ -20,7 +20,7 @@ external_id: PP-100
 # 0078: Detail-Page Frontmatter Table
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

@@ -19,7 +19,7 @@ external_id: PP-117
 # 0095: Theme-Reactive Markdown Task-List Checkboxes
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

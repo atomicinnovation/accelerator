@@ -19,7 +19,7 @@ external_id: PP-97
 # 0075: Typography Size-Scale Consumption Reconciliation
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

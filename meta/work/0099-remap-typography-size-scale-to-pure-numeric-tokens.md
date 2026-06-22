@@ -19,7 +19,7 @@ external_id: PP-121
 # 0099: Remap Typography Size Scale To Pure-Numeric Tokens
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

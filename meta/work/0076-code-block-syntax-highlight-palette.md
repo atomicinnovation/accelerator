@@ -20,7 +20,7 @@ external_id: PP-98
 # 0076: Code-Block Syntax-Highlight Tokens and Renderer Adoption
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

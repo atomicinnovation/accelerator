@@ -21,7 +21,7 @@ external_id: PP-91
 # 0069: Extend Migration Framework with Interactive Validation Hooks
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

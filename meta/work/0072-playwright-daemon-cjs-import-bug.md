@@ -18,7 +18,7 @@ external_id: PP-94
 # 0072: Playwright daemon imports CJS entry, hiding chromium named export
 
 **Kind**: Bug
-**Status**: Draft
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

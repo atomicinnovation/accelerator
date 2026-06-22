@@ -22,7 +22,7 @@ external_id: PP-124
 # 0102: Remove Visualiser-Server Legacy Linkage Fallback Arms
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

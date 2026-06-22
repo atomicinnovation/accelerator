@@ -19,7 +19,7 @@ external_id: PP-53
 # 0031: Consolidate Accelerator-Owned Files Under .accelerator/
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

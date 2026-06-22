@@ -21,7 +21,7 @@ external_id: PP-95
 # 0073: Atomic Brand-Layer Palette
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

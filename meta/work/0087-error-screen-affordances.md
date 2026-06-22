@@ -20,7 +20,7 @@ external_id: PP-109
 # 0087: 404 / Error Screen with Affordances
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 

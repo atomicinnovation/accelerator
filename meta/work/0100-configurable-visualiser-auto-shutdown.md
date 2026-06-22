@@ -18,7 +18,7 @@ external_id: PP-122
 # 0100: Configurable Visualiser Auto-Shutdown
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 

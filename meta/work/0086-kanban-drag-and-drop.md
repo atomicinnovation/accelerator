@@ -21,7 +21,7 @@ external_id: PP-108
 # 0086: Kanban Drag-and-Drop with Toast Confirmations
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

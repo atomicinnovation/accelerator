@@ -21,7 +21,7 @@ external_id: PP-84
 # 0062: ADR: Interactive Validation for Corpus Migration
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

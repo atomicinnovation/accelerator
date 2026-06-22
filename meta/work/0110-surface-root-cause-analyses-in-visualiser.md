@@ -19,7 +19,7 @@ external_id: PP-132
 # 0110: Surface Root Cause Analyses in the Visualiser Under a New Operate Category
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

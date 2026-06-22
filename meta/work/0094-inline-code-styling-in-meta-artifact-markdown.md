@@ -19,7 +19,7 @@ external_id: PP-116
 # 0094: Inline Code Styling In Meta Artifact Markdown
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

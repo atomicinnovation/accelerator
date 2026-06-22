@@ -19,7 +19,7 @@ external_id: PP-61
 # 0039: Toaster and External-Edit Notifications
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

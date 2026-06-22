@@ -19,7 +19,7 @@ external_id: PP-133
 # 0111: Visualiser Frontend Fixes for First Milestone Closeout
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

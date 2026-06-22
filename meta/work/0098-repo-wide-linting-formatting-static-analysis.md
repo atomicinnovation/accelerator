@@ -19,7 +19,7 @@ external_id: PP-120
 # 0098: Repo-Wide Linting, Formatting, And Static Analysis Guardrails
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

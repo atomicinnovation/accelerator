@@ -20,7 +20,7 @@ external_id: PP-107
 # 0085: Humanise Detail-Page H1 Across All Doc Kinds
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 

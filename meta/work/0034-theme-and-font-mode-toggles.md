@@ -19,7 +19,7 @@ external_id: PP-56
 # 0034: Theme and Font-Mode Toggles
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

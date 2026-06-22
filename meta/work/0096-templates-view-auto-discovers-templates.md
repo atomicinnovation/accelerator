@@ -19,7 +19,7 @@ external_id: PP-118
 # 0096: Templates View Auto-Discovers Available Templates
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

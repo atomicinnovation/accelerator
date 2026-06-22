@@ -20,7 +20,7 @@ external_id: PP-125
 # 0103: Audit Skill Frontmatter Emission Against the Unified Schema
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

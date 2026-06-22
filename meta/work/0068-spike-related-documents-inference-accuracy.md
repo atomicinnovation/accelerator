@@ -19,7 +19,7 @@ external_id: PP-90
 # 0068: Spike: Evaluate `Related Documents` Body-Section Inference Accuracy
 
 **Kind**: Spike
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

@@ -18,7 +18,7 @@ external_id: PP-130
 # 0108: Local Docker-Based Visual Regression Baseline Generation
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

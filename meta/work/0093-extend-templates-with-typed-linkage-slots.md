@@ -22,7 +22,7 @@ external_id: PP-115
 # 0093: Extend Templates With Typed-Linkage Slots
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

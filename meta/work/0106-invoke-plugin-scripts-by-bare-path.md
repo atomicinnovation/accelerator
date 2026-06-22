@@ -20,7 +20,7 @@ external_id: PP-128
 # 0106: Invoke Plugin Scripts by Bare Path in Skill Bodies
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

@@ -20,7 +20,7 @@ external_id: PP-57
 # 0035: Topbar Component
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

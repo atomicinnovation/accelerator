@@ -20,7 +20,7 @@ external_id: PP-106
 # 0084: Detail-Page Chip Strip Cap (Status, Date, Author)
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

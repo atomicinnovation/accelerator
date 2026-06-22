@@ -21,7 +21,7 @@ external_id: PP-76
 # 0054: Sidebar Search Input and API Search Endpoint
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

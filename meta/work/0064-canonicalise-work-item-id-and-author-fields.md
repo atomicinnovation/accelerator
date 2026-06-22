@@ -20,7 +20,7 @@ external_id: PP-86
 # 0064: Canonicalise `work_item_id` and `author` Field Names
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

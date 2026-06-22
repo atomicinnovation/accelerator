@@ -20,7 +20,7 @@ external_id: PP-96
 # 0074: Per-Doc-Type Hues on Detail Page
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

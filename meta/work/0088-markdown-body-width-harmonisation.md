@@ -19,7 +19,7 @@ external_id: PP-110
 # 0088: Markdown Body Width Harmonisation
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 

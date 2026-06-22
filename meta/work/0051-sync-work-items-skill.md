@@ -19,7 +19,7 @@ external_id: PP-73
 # 0051: Sync Work Items Skill
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

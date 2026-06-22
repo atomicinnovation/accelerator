@@ -19,7 +19,7 @@ external_id: PP-58
 # 0036: Sidebar Redesign
 
 **Kind**: Epic
-**Status**: Draft
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
