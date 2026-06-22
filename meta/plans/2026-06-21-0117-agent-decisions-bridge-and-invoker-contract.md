@@ -11,9 +11,9 @@ parent: "work-item:0117"
 derived_from: ["codebase-research:2026-06-21-0117-agent-decisions-bridge-and-invoker-contract"]
 relates_to: ["work-item:0115", "work-item:0116", "work-item:0118"]
 tags: [migrate, interactive-migration, agent-invocation, tooling]
-revision: "2fcde2d5888eadd24f3fcba164dfca5bc837fc05"
+revision: "8bebd60d03af8132c1efddc31c8c8f9fb0b834d8"
 repository: "accelerator"
-last_updated: "2026-06-22T13:53:23+00:00"
+last_updated: "2026-06-22T15:05:14+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -58,12 +58,12 @@ the wire protocol in `scripts/interactive-protocol.sh`; the child-side harness i
 
 **0116 has already landed**, so part of 0117's *described* scope is done:
 
-- `--decisions-file <path>` flag exists (`run-migrations.sh:50-60`) and sets +
+- `--decisions-file <path>` flag exists (`run-migrations.sh:56-66`) and sets +
   exports `ACCELERATOR_MIGRATE_DECISIONS_FILE`.
 - The env var is **no longer** described as a "hidden test-only seam"; the inline
-  comment (`run-migrations.sh:14-23`) even names this ticket.
+  comment (`run-migrations.sh:14-21`) even names this ticket.
 - The structured stall (`emit_no_input_stall` / `read_decision_or_stall`,
-  `interactive-lib.sh:306-355`) prints the stable marker `MIGRATION STALLED: no
+  `interactive-lib.sh:306-356`) prints the stable marker `MIGRATION STALLED: no
   decision input available` and resume commands. `read_decision` returns a
   three-valued status (0 ok / 1 read-error / 2 no-input).
 
@@ -80,10 +80,10 @@ What genuinely remains, and the constraints found in the code:
   joins `path:anchor` with a colon (`interactive-lib.sh:213`) — exactly the
   `--list` join the work item specifies.
 - **Flag parsing is a single-leading-flag `if/case` on `$1`**
-  (`run-migrations.sh:29-73`) with **no `*)` catch-all** — an unknown first arg
+  (`run-migrations.sh:35-79`) with **no `*)` catch-all** — an unknown first arg
   silently falls through to a normal run. `--list` forces conversion to a
   `while`/`shift` loop.
-- **Decisions-file validation is filesystem-only** (`run-migrations.sh:75-92`):
+- **Decisions-file validation is filesystem-only** (`run-migrations.sh:82-98`):
   not-a-directory / exists / readable. There is **no content validation**.
   `read_decision`'s `*)` arm passes unknown verbs through silently
   (`interactive-lib.sh:293-296`).
@@ -193,27 +193,34 @@ new AC1–AC6 cases; `grep` confirms the `--help` and `SKILL.md` strings.
   file), it mutates per transformation with no rollback, so an apply-time failure
   (e.g. a `migration_apply_decision` error) can leave a partial corpus — VCS
   revert is the recovery path (consistent with the existing stall message and
-  0119). `SKILL.md` states this scope explicitly rather than claiming "never a
+  0119's guarded resume, now landed). `SKILL.md` states this scope explicitly
+  rather than claiming "never a
   partial application" unconditionally. Note too that dry-apply validates only the
   **prompt-route** transformations (those requiring a decision); **mechanical**-route
   applies (predicate rc 1, which mutate without a decisions-file line) are not
   dry-run, so the apply-time partial-mutation caveat applies to them in full. The
   reference fixture is all-prompt, so this gap is unexercised by AC1–AC6.
-- **No dirty-tree-bypass for `--decisions-file` resume.** The dirty-tree
-  pre-flight (`run-migrations.sh:94-168`) is bypassed for the read-only `--list`,
-  but a `--decisions-file` *resume* still requires a clean tree or
-  `ACCELERATOR_MIGRATE_FORCE=1`. A partial interactive run is exactly what dirties
-  the tree, so a real resume-after-stall currently needs `FORCE`. Relaxing the
-  guard for scripted resumes belongs to **0119 (partial-run resume-safety)** —
-  the same concern the stall message already defers to it. This is a
-  **functional precondition on 0119**, analogous to AC7/0118: it does not block
-  0117's standalone definition of done (the AC1–AC6 fixture cases are read-only or
-  pass `FORCE`), but the SKILL.md contract records that resume-on-a-dirty-tree
-  needs `FORCE` until 0119 lands. Note the 0116 stall's copy-pasteable resume
-  command currently omits `FORCE` (and does not mention `--list`); reconciling that
-  on-screen command with this contract — growing the `FORCE` prefix and pointing at
-  `--list` for proposed values — belongs with the 0119 dirty-tree-bypass work, not
-  here.
+- **No new dirty-tree-resume machinery — 0119 already provides it.** The
+  dirty-tree pre-flight (`run-migrations.sh:252-358`) is bypassed for the
+  read-only `--list`. For a `--decisions-file` *resume* on a dirty tree, **0119 has
+  landed** (status `done`): its manifest-based **guarded resume**
+  (`run-migrations.sh:269-358`) lets a re-run proceed **without
+  `ACCELERATOR_MIGRATE_FORCE=1`** when every dirty path is owned by this run — the
+  mechanical path manifest *and*, via 0119's Phase 4 interactive reconciliation,
+  the current-run interactive session log (`dirty_tree_fully_owned` +
+  `is_session_artifact`, base revision unchanged). The canonical agent flow (stall
+  at the first prompt → no corpus mutated, only the owned session log dirty)
+  therefore resumes cleanly without `FORCE`. `FORCE` remains the escape only for
+  genuinely *un-owned* dirt: foreign changes, a moved base revision (the operator
+  committed since the partial run), or interactive corpus mutations that are
+  deliberately not manifest-tracked — and the `--decisions-file` path never reaches
+  the last case, because dry-apply (Phase 2) rejects a too-few file before any
+  apply. So 0117 adds **no** dirty-tree-resume code; it only *documents* the
+  guarded-resume behaviour 0119 ships. The 0116 stall's copy-pasteable command was
+  also reconciled by 0119: it already omits `FORCE` and tells the operator the
+  re-run resumes when the base revision is unchanged
+  (`interactive-lib.sh:306-339`). The SKILL.md invoker contract must match that —
+  it must **not** re-introduce a `FORCE` prefix (Phase 3 §1 step 4).
 - **No `migration_verify_applied`/DRIFT handling in list mode** — `--list`
   excludes resumed keys; drift re-prompting is a resume-time concern not modelled
   in the dry emit (documented as such).
@@ -481,7 +488,7 @@ failure must never fall through to a mutating run (Phase 2 §3 wires the
 
 **File**: `skills/config/migrate/scripts/run-migrations.sh`
 **Changes**: Convert the `if [ $# -gt 0 ]; then case "$1" …` block
-(`:29-73`) to a `while [ $# -gt 0 ]; do case "$1" … shift … done` loop. Add a
+(`:35-79`) to a `while [ $# -gt 0 ]; do case "$1" … shift … done` loop. Add a
 `--list` arm (`LIST_MODE=1; shift`) and a `*)` arm that rejects unknown flags
 (`echo "Unknown argument: $1" >&2; exit 1`) instead of today's silent
 fall-through. `--skip`/`--unskip`/`--help` keep exiting; `--decisions-file`
@@ -508,17 +515,20 @@ done
 
 **File**: `skills/config/migrate/scripts/run-migrations.sh`
 **Changes**:
-- Gate the dirty-tree pre-flight (`:94-168`) on `if [ -z "$LIST_MODE" ]` — a dry,
-  read-only list does not require a clean tree. Because `--list` excludes
+- Gate the dirty-tree pre-flight (`:252-358`) on `if [ -z "$LIST_MODE" ]` — a dry,
+  read-only list does not require a clean tree. This block is now larger than the
+  plan originally assumed: 0119 added the manifest/run-id setup, the `RESUME` state,
+  the guarded-resume branch, and the in-flight session-log steer inside it
+  (`:269-358`), so `--list` must skip the **whole** block. Because `--list` excludes
   already-decided keys via the resume filter, when an in-flight session log is
   detected in `.accelerator/state/`, emit a one-line notice **on stderr** (not on
   the parseable stdout stream) that a session is in flight and `--list` shows only
   the remaining transformations, pointing at the same resume/discard guidance the
-  mutating path prints. Keeps the read-only path from being silent about partial
-  state.
-- Move `source "$RUNNER_SCRIPT_DIR/interactive-lib.sh"` (currently `:277`) up to
-  immediately after the pending list is computed (`:246`), before the preview
-  banner — sourcing only defines functions, so it is safe to do earlier.
+  pre-flight's affordance already prints (`:282-302`). Keeps the read-only path from
+  being silent about partial state.
+- Move `source "$RUNNER_SCRIPT_DIR/interactive-lib.sh"` (currently `:470`) up to
+  immediately after the pending list is computed (`:421-436`), before the preview
+  banner (`:438`) — sourcing only defines functions, so it is safe to do earlier.
 - Insert the `--list` branch right after sourcing, before the preview banner /
   the "No pending migrations." early exit, so it owns its own output:
 
@@ -575,7 +585,7 @@ so each section maps 1:1 to that migration's decisions file.
 #### 6. `--help` promotion (AC4)
 
 **File**: `skills/config/migrate/scripts/run-migrations.sh`
-**Changes**: Extend the `--help` heredoc (`:62-69`) with a `--list` line, the
+**Changes**: Extend the `--help` heredoc (`:67-75`) with a `--list` line, the
 column legend, and an `ACCELERATOR_MIGRATE_DECISIONS_FILE` line carrying its
 one-line format. **Route the explicit `--help`/`-h` path to stdout** (the heredoc
 is `>&2` today); usage-on-error messages stay on stderr. This matches the
@@ -936,6 +946,15 @@ through to a mutating run. `read_decision`'s silent `*)` pass-through is left
 intact but is now unreachable for the decisions-file path (dry-apply rejects an
 unknown `DECIDE_OUTCOME` first).
 
+**Composition with 0119's guarded resume.** This dry-apply branch sits *after* the
+pre-flight, which 0119 now lets proceed (`RESUME=1`) for a `--decisions-file`
+resume over the run's own owned dirt — so the realistic resume path is pre-flight
+guarded-resume → dry-apply → live apply, with no `FORCE`. The dry-apply fork
+honours the same READY resume-rebuild as the live run (Phase 1 §3), so it validates
+only the **remaining** (undecided) transformations against the decisions file —
+already-decided keys are excluded identically on both passes. The "Resume +
+validate" test below locks this.
+
 #### 4. Tests (TDD)
 
 **File**: `skills/config/migrate/scripts/test-migrate-interactive.sh`
@@ -1072,16 +1091,21 @@ stall/preview, not from `--list` output.
      > .accelerator/state/migrations-<id>-decisions.txt
    ```
 4. **resume** — re-run with `--decisions-file <path>` (or the equivalent
-   `ACCELERATOR_MIGRATE_DECISIONS_FILE` env var, discoverable via `--help`).
-   **Note the stall's copy-pasteable command omits `ACCELERATOR_MIGRATE_FORCE=1`** —
-   but an earlier partial run leaves the tree dirty, so that bare command will fail
-   the dirty-tree pre-flight. Add `ACCELERATOR_MIGRATE_FORCE=1` to resume a partial
-   run, but **only after** running once without it to read the in-flight-session
-   guidance (resume/discard commands, decision count) that `FORCE` suppresses, and
-   after confirming via `jj status`/`git status` that the dirty paths are this
-   migration's own partial run. Bypassing the guard for scripted resumes is tracked
-   under `meta/work/0119-resume-safe-partial-migration-failure.md`; until it lands,
-   `FORCE` is the interim resume path on a dirty tree.
+   `ACCELERATOR_MIGRATE_DECISIONS_FILE` env var, discoverable via `--help`). The
+   stall's copy-pasteable command is exactly this bare form — **no
+   `ACCELERATOR_MIGRATE_FORCE=1` is needed** in the normal case. A partial
+   interactive run dirties the tree only with files this run owns (the interactive
+   session log, plus any frontmatter already written), and the **guarded resume**
+   shipped in 0119 lets the re-run proceed over that own output without `FORCE`
+   when the base revision is unchanged, printing a one-line affordance listing the
+   owned paths being resumed over. `FORCE` is required **only** when the pre-flight
+   refuses — i.e. the tree carries dirt this run does *not* own (foreign changes,
+   or you have committed since the partial run so the base revision moved). In that
+   case, re-run once without `FORCE` first to read the refusal / in-flight-session
+   guidance, confirm via `jj status`/`git status` that the dirty paths really are
+   this migration's own, and only then add `ACCELERATOR_MIGRATE_FORCE=1`. (The
+   guarded-resume behaviour is owned by
+   `meta/work/0119-resume-safe-partial-migration-failure.md`, now landed.)
 
 The driver **validates the decisions file up front (a no-mutation dry-apply pass)
 and fails closed**: a rejected `edit` value, an unknown verb, or a count mismatch
@@ -1089,7 +1113,8 @@ and fails closed**: a rejected `edit` value, an unknown verb, or a count mismatc
 leaves the corpus **unmutated** — validation never partially applies. Once
 validation passes and the live apply begins, transformations are applied in order
 without rollback, so an apply-time failure can leave a partial corpus; recover
-with VCS revert (partial-run resume-safety is tracked under 0119).
+with VCS revert, then re-run — 0119's guarded resume replays the run's own partial
+output without `FORCE` when the base revision is unchanged.
 
 When no decision input is available at all, the run emits the structured stall
 (`MIGRATION STALLED: no decision input available`) and stops without further
@@ -1248,11 +1273,12 @@ exits non-zero (previously silently ignored) and that `--help` prints to stdout.
 - Parent / siblings: `meta/work/0115-make-interactive-migrations-satisfiable-under-agent-invocation.md`,
   `meta/work/0116-structured-stall-on-no-decision-input.md` (landed),
   `meta/work/0118-reconcile-0007-backfill-sentinel-with-validator.md` (fix C; owns AC7),
-  `meta/work/0119-resume-safe-partial-migration-failure.md` (owns the dirty-tree
-  bypass for `--decisions-file` resume; functional precondition for resume-on-a-
-  dirty-tree)
+  `meta/work/0119-resume-safe-partial-migration-failure.md` (landed; owns the
+  manifest-based guarded resume that lets a `--decisions-file` resume proceed over
+  the run's own owned dirt without `FORCE`)
 - ADR: `meta/decisions/ADR-0037-optional-interactive-contract-supplement-to-adr-0023.md`
-- Driver flag block + `--help`: `skills/config/migrate/scripts/run-migrations.sh:29-92`
+- Driver flag block + `--help` + decisions-file validation: `skills/config/migrate/scripts/run-migrations.sh:34-98`
+- Guarded resume / dirty-tree pre-flight (0119, landed): `skills/config/migrate/scripts/run-migrations.sh:252-358`
 - Child TX buffering + predicate filter: `scripts/interactive-harness.sh:272-351`
 - PROMPT relay + `path:anchor` join: `skills/config/migrate/scripts/interactive-lib.sh:204,213,509-515`
 - Protocol field contract: `scripts/interactive-protocol.sh:14-39`
