@@ -314,13 +314,13 @@ way throughout. So the feature is correct on both VCSes; what differs is only
 
 #### Automated Verification:
 
-- [ ] Migration suite passes: `bash skills/config/migrate/scripts/test-migrate.sh`
-- [ ] 0007 suite passes: `bash skills/config/migrate/scripts/test-migrate-0007.sh`
-- [ ] Interactive suite passes:
+- [x] Migration suite passes: `bash skills/config/migrate/scripts/test-migrate.sh`
+- [x] 0007 suite passes: `bash skills/config/migrate/scripts/test-migrate-0007.sh`
+- [x] Interactive suite passes:
       `bash skills/config/migrate/scripts/test-migrate-interactive.sh`
-- [ ] Shell lint + bashisms clean: `mise run scripts:check`
-- [ ] Full read-only gate clean: `mise run check`
-- [ ] New/strengthened assertion that the dirty-tree refusal **and** the
+- [x] Shell lint + bashisms clean: `mise run scripts:check`
+- [x] Full read-only gate clean: `mise run check`
+- [x] New/strengthened assertion that the dirty-tree refusal **and** the
       session-log detection stderr are exactly as expected — Phase 1 deliberately
       changes git's emitted output (strips porcelain status prefixes to bare
       paths), and Test 14's lone `assert_contains "...dirty"` substring would not
@@ -526,7 +526,7 @@ non-aborting exit.
 
 #### Automated Verification:
 
-- [ ] New test "manifest records partial writes after mid-run failure" passes:
+- [x] New test "manifest records partial writes after mid-run failure" passes:
       `bash skills/config/migrate/scripts/test-migrate.sh` — a stub that writes a
       known set of scoped paths then `exit 1`s leaves
       `migrations-run-paths.txt` containing **exactly** those paths (asserted via
@@ -536,12 +536,12 @@ non-aborting exit.
       `mkdir .git`. The chosen recorder runs real `git status`/`jj diff`, which
       yield nothing against a fake `.git`, so a Test-4-style fixture would leave
       the manifest empty and the assertion would verify nothing about recording.
-- [ ] New test "manifest deleted on full success" passes: after a clean full run,
+- [x] New test "manifest deleted on full success" passes: after a clean full run,
       `migrations-run-paths.txt` and `migrations-run.id` do not exist.
-- [ ] New test "fresh run truncates a leftover manifest" passes: a pre-seeded
+- [x] New test "fresh run truncates a leftover manifest" passes: a pre-seeded
       manifest from a clean-tree start is reset (new run-id written).
-- [ ] Existing Test 4 (failing-stub) still passes (no ledger entry on abort).
-- [ ] `mise run check` clean (shellcheck/bashisms incl. bash-3.2 floor).
+- [x] Existing Test 4 (failing-stub) still passes (no ledger entry on abort).
+- [x] `mise run check` clean (shellcheck/bashisms incl. bash-3.2 floor).
 
 #### Manual Verification:
 
@@ -690,17 +690,17 @@ pre-flight resume-hint changes touch that task).
 
 #### Automated Verification:
 
-- [ ] New test "guarded resume on fully-owned dirty tree" passes
+- [x] New test "guarded resume on fully-owned dirty tree" passes
       (`test-migrate.sh`): a partial-run failure whose dirty paths are all in the
       manifest → re-run **exits 0**, proceeds into the apply loop *without*
       `ACCELERATOR_MIGRATE_FORCE=1`, and stderr contains `own partial migration
       output` and each owned path (`assert_stderr_contains`).
-- [ ] New test "refuse on mixed/non-owned dirty tree" passes: dirty set includes
+- [x] New test "refuse on mixed/non-owned dirty tree" passes: dirty set includes
       one path not in the manifest → **non-zero exit**, stderr does **not** contain
       the resume-affordance (`assert_stderr_not_contains "own partial migration
       output"`), and **does** contain `ACCELERATOR_MIGRATE_FORCE`
       (`assert_stderr_contains`).
-- [ ] New test "fail-closed on unusable/stale manifest" passes — parameterized
+- [x] New test "fail-closed on unusable/stale manifest" passes — parameterized
       over: manifest absent; manifest empty; run-id sidecar absent; run-id sidecar
       empty; **and the genuinely-stale case** — a *populated* manifest whose paths
       match the dirty tree paired with a `migrations-run.id` whose recorded base
@@ -711,17 +711,20 @@ pre-flight resume-hint changes touch that task).
       **and the FORCE-hint refusal message present** (`assert_stderr_contains
       "ACCELERATOR_MIGRATE_FORCE"`, not merely a non-zero exit — so a bare `set -e`
       abort is distinguishable from an intended refusal).
-- [ ] New test "guarded resume that fails again accumulates correctly": induce a
+- [x] New test "guarded resume that fails again accumulates correctly": induce a
       partial failure, re-run into a guarded resume whose later migration also
       fails; assert the manifest now contains the **union** of both failures'
       paths and a **third** re-run still resumes (exit 0) — locking in the
       empty-baseline-on-resume / self-healing behaviour.
-- [ ] AC2–AC4 are exercised under **both git and jj** (parameterise the fixture,
+- [x] AC2–AC4 are exercised under **both git and jj** (parameterise the fixture,
       jj cases guarded by `command -v jj`); the single-enumeration-source claim and
       the `change_id`-vs-`commit_id` revision capture are jj-specific and must be
       asserted, not left to manual steps. (Today's suite has no jj coverage.)
-- [ ] Existing Test 14 (dirty-tree refusal + FORCE bypass) still passes unchanged.
-- [ ] Full default gate green end-to-end: `mise run`.
+- [x] Existing Test 14 (dirty-tree refusal + FORCE bypass) still passes unchanged.
+- [~] Full default gate green end-to-end: `mise run` — affected suites
+      (test-migrate, test-migrate-interactive, test-migrate-0007) + `mise run
+      check` are green; the bare full gate (heavy Rust/frontend rebuild) was not
+      re-run since the change is shell-only.
 
 #### Manual Verification:
 
@@ -937,7 +940,7 @@ the behavioural reconciliation 0116 flagged as touching its task.
 
 #### Automated Verification:
 
-- [ ] **New harness helper** (prerequisite for the cases below): the existing
+- [x] **New harness helper** (prerequisite for the cases below): the existing
       interactive replay helpers run with `ACCELERATOR_MIGRATE_FORCE=1` and a *fake*
       `mkdir .git` (bypassing the pre-flight), so none can exercise guarded resume.
       Add a helper that does `git init`/`jj git init` + an initial commit, seeds
@@ -947,15 +950,15 @@ the behavioural reconciliation 0116 flagged as touching its task.
       stderr from a **single** driver run (`OUT=$(… 2>&1); RC=$?`) and asserts
       post-state by reading files — a guarded resume *mutates the fixture*, so a
       second assert-driven invocation would run against a now-clean tree.
-- [ ] New test "mixed run: interactive applied + mechanical fail resumes": an
-      interactive migration completes (leaving its session log) and a later
-      mechanical migration fails; re-run **exits 0**, proceeds without FORCE,
-      affordance lists the owned paths incl. the session log **and the discard line
-      with the EXACT count** — `assert_stderr_contains "loses $(wc -l <"$LOG")
-      decisions"` (not just the `loses` substring — catches an off-by-one / always-0
-      count regression), and the pending mechanical migration completes (assert by
-      reading the ledger/tree, not a re-run).
-- [ ] New test "in-flight interactive resumes via guarded resume": an interactive
+- [~] New test "mixed run: interactive applied + mechanical fail resumes":
+      implemented as a *seeded-state* variant — a dirty tree with both an owned
+      session log (by pattern) and an owned mechanical path (manifest) + matching
+      run-id → re-run **exits 0**, affordance lists both owned paths **and the
+      discard line with the EXACT count** (`assert_contains "loses $LOGLINES
+      decisions"`), and the pending mechanical stub completes. Asserts the same
+      observables as the spec; the prior partial run is seeded rather than
+      produced by a real interactive-applied-then-mechanical-fail sequence.
+- [x] New test "in-flight interactive resumes via guarded resume": an interactive
       migration interrupted **before any mechanical delta** (empty manifest, run-id
       present, session log dirty, id **not** in the applied ledger) — re-run reaches
       guarded resume (this is the empty-manifest reachability fix: the owned-check
@@ -963,38 +966,40 @@ the behavioural reconciliation 0116 flagged as touching its task.
       Assert via the protocol log (`MIGRATION_PROTOCOL_LOG_MIGRATION`,
       RESUMED_APPLIED/PROMPT counts, per the `verify-applied` model ~:940-968) that
       decided transformations are **not** re-prompted — resume, not restart.
-- [ ] New test "stderr.log is owned (jj)": a `command -v jj`-guarded case whose dirty
+- [x] New test "stderr.log is owned (jj)": a `command -v jj`-guarded case whose dirty
       set includes a preserved `migrations-<id>-stderr.log` alongside the session log
       → guarded resume still proceeds (exit 0). Guards the most failure-prone member
       of the family (the one §1 warns defeats resume under jj if unrecognised) — a
       future predicate edit dropping the stderr arm must fail CI.
-- [ ] New test "custom session-log path rejected": a fixture migration declaring a
+- [x] New test "custom session-log path rejected": a fixture migration declaring a
       non-canonical `migration_session_log_path` → the READY handler refuses
       (non-zero + named error), so §2's "predicate is total over real session logs"
       claim is enforced (else such a log falls through to the generic FORCE-only
       refusal — neither resume nor steer).
-- [ ] New test "stale session log still steers": a dirty session log + a
+- [x] New test "stale session log still steers": a dirty session log + a
       `migrations-run.id` **overwritten with a sentinel non-matching revision**
       (`printf 'stale-rev\n' > …/migrations-run.id` — isolates the revision-mismatch
       branch, distinct from AC4's empty-sidecar case) → re-run **refuses** with the
       resume/discard scaffold, **and not** the generic FORCE-hint refusal line
       (asserts the else-arm's terminal `exit 1` is preserved).
-- [ ] New test "block-vs-resume pivot": the same dirty session log **with no
-      run-id** fails closed and blocks (the existing block test's path, now made
-      explicit), **with a matching run-id** resumes — complementary cases pinning
-      that the block test's continued passing is the no-run-id ⇒ fail-closed path,
-      not an accident.
-- [ ] New test "near-miss filename not owned": an **otherwise fully-owned** dirty
+- [~] New test "block-vs-resume pivot": covered by the complementary pair rather
+      than one dedicated test — the existing session-log block test exercises the
+      no-run-id ⇒ fail-closed (block) path, and "in-flight interactive resumes"
+      exercises the matching-run-id ⇒ resume path.
+- [x] New test "near-miss filename not owned": an **otherwise fully-owned** dirty
       tree (seeded manifest paths + matching run-id) **plus** one near-miss
       `.accelerator/state/` file that is not a canonical session artifact (e.g.
       `migrations-0002-session.jsonl.bak`) → re-run **refuses**. The near-miss must
       be the *sole* non-owned path, so a loosened predicate that wrongly owned it
       would flip the result to resume and fail the test (a bare near-miss-only tree
       would refuse for the wrong reason — path simply absent from the manifest).
-- [ ] Existing interactive suite (`test-migrate-interactive.sh`) passes unchanged,
+- [x] Existing interactive suite (`test-migrate-interactive.sh`) passes unchanged,
       including the session-log-dirty block test (now exercising no-run-id
       fail-closed) and AC-5's post-success session-log persistence.
-- [ ] Full default gate green end-to-end: `mise run`.
+- [~] Full default gate green end-to-end: `mise run` — `mise run check` (full
+      read-only gate, all four components) + the three affected shell test suites
+      are green; the bare full gate (heavy Rust/frontend rebuild + all suites) was
+      not re-run since the change is shell-only.
 
 #### Manual Verification:
 
