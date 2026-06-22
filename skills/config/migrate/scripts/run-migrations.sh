@@ -24,6 +24,12 @@ export ACCELERATOR_MIGRATE_DECISIONS_FILE
 
 STATE_FILE="$PROJECT_ROOT/.accelerator/state/migrations-applied"
 SKIP_FILE="$PROJECT_ROOT/.accelerator/state/migrations-skipped"
+# Per-run path manifest (sidecar pair). RUN_PATHS_FILE is a pure list of
+# repo-relative paths this run mutated (one per line, deduped); RUN_ID_FILE
+# records the base revision the run started against for the staleness gate.
+# Both live under .accelerator/state/ and are deleted on full success.
+RUN_PATHS_FILE="$PROJECT_ROOT/.accelerator/state/migrations-run-paths.txt"
+RUN_ID_FILE="$PROJECT_ROOT/.accelerator/state/migrations-run.id"
 
 # ── --skip / --unskip / --decisions-file / --help flags ──────────────────────
 if [ $# -gt 0 ]; then
@@ -117,15 +123,64 @@ enumerate_scoped_dirty() {
   fi
 }
 
-# ── 2. Pre-flight: clean working tree check ──────────────────────────────────
-if [ -z "${ACCELERATOR_MIGRATE_FORCE:-}" ]; then
-  vcs=""
-  if [ -d "$PROJECT_ROOT/.jj" ]; then
-    vcs="jj"
-  elif [ -d "$PROJECT_ROOT/.git" ]; then
-    vcs="git"
-  fi
+# ── manifest_record_delta <vcs> <baseline_file> ──────────────────────────────
+#   Append every currently-dirty scoped path not present in <baseline_file> to
+#   the run manifest, deduped (atomic_append_unique is idempotent). Paths are
+#   already repo-relative (single enumeration source), so no normalization is
+#   needed. Takes vcs as a parameter rather than reading an ambient global,
+#   matching enumerate_scoped_dirty's signature (unbound-safe under set -u).
+manifest_record_delta() {
+  local vcs="$1" baseline="$2" path
+  mkdir -p "$(dirname "$RUN_PATHS_FILE")"
+  while IFS= read -r path; do
+    [ -z "$path" ] && continue
+    grep -Fxq -- "$path" "$baseline" 2>/dev/null && continue
+    atomic_append_unique "$RUN_PATHS_FILE" "$path"
+  done < <(enumerate_scoped_dirty "$vcs")
+}
 
+# ── current_base_revision <vcs> ──────────────────────────────────────────────
+#   Emit the committed base revision the working copy sits on. For jj this is
+#   the change_id of @ — STABLE while the working copy is edited (it moves only
+#   on `jj new`/`jj commit`), unlike commit_id (a content hash that changes on
+#   every write). For git it is HEAD, stable across uncommitted edits.
+#   Migrations never commit, so this value is constant for a run's duration and
+#   differs only when the operator has committed since — the staleness signal.
+current_base_revision() {
+  local vcs="$1"
+  if [ "$vcs" = "jj" ] && command -v jj >/dev/null 2>&1; then
+    jj log -r @ --no-graph --no-pager -T change_id 2>/dev/null || true
+  elif [ "$vcs" = "git" ]; then
+    git -C "$PROJECT_ROOT" rev-parse HEAD 2>/dev/null || true
+  fi
+}
+
+# ── clear_run_manifest ───────────────────────────────────────────────────────
+#   Remove the run manifest + run-id sidecar. Called on every non-aborting exit
+#   (full success and the no-pending early-exit) so a leftover manifest from a
+#   prior failed run never survives a run that ends without partial state.
+clear_run_manifest() {
+  rm -f "$RUN_PATHS_FILE" "$RUN_ID_FILE"
+}
+
+# ── 2. Pre-flight: clean working tree check ──────────────────────────────────
+# RESUME is set to 1 only by the guarded-resume branch (Phase 3). Initialise it
+# unconditionally here, not inside the FORCE-guarded block: the FORCE path skips
+# that whole block, so an in-block default would leave RESUME unset and the
+# fresh-run guard would fail under `set -u`. A FORCE run stays RESUME=0 and
+# correctly mints a fresh run-id + truncates (FORCE is a brand-new run).
+RESUME=0
+# VCS detection is hoisted out of the FORCE-guarded block so `vcs` is computed
+# unconditionally (cheap, side-effect-free) and visible to the FORCE path, the
+# non-FORCE path, and the apply-loop manifest helpers.
+vcs=""
+if [ -d "$PROJECT_ROOT/.jj" ]; then
+  vcs="jj"
+elif [ -d "$PROJECT_ROOT/.git" ]; then
+  vcs="git"
+fi
+
+if [ -z "${ACCELERATOR_MIGRATE_FORCE:-}" ]; then
   dirty=$(enumerate_scoped_dirty "$vcs")
 
   if [ -n "$dirty" ]; then
@@ -266,6 +321,9 @@ if [ ${#pending_files[@]} -eq 0 ]; then
   if [ "${#skipped_ids[@]}" -gt 0 ]; then
     echo "Skipped: $(printf '%s ' "${skipped_ids[@]}")"
   fi
+  # A "nothing to do" invocation ends without partial state — clear any stale
+  # manifest a prior failed run may have left behind.
+  clear_run_manifest
   exit 0
 fi
 
@@ -291,6 +349,33 @@ echo ""
 # shellcheck source=interactive-lib.sh
 source "$RUNNER_SCRIPT_DIR/interactive-lib.sh"
 
+# ── Establish run identity + baseline before the apply loop ──────────────────
+# On a fresh run (RESUME=0 — Phase 3 sets RESUME=1 for a guarded resume) mint a
+# new run-id (the current base revision) and truncate the manifest, so a prior
+# failed run's manifest cannot survive a clean start. An empty base revision
+# (unborn git HEAD, or absent/failed VCS) writes the sidecar empty, which
+# disables guarded resume for the run (fail-closed, by design).
+if [ "$RESUME" -ne 1 ]; then
+  mkdir -p "$(dirname "$RUN_ID_FILE")"
+  current_base_revision "$vcs" | atomic_write "$RUN_ID_FILE"
+  : | atomic_write "$RUN_PATHS_FILE" # truncate to empty
+fi
+# The baseline is the dirty set to EXCLUDE from this run's manifest. Fresh clean
+# run: empty (the pre-flight guaranteed a clean tree). FORCE run: the foreign
+# dirt the run must not claim ownership of. Guarded resume: empty — re-assert
+# ownership of every still-dirty path on each step (self-healing across
+# successive failures, rather than depending on the prior append surviving).
+BASELINE_FILE=$(mktemp) ||
+  {
+    echo "migrate: cannot create baseline temp file" >&2
+    exit 1
+  }
+if [ "$RESUME" -eq 1 ]; then
+  : >"$BASELINE_FILE"
+else
+  enumerate_scoped_dirty "$vcs" >"$BASELINE_FILE" 2>/dev/null || true
+fi
+
 # ── 8. Apply each pending migration ─────────────────────────────────────────
 applied_count=0
 for f in "${pending_files[@]}"; do
@@ -298,10 +383,14 @@ for f in "${pending_files[@]}"; do
   echo "[${id}] running" >&2
   export PROJECT_ROOT
 
-  # Dispatch on the # INTERACTIVE: yes header marker.
+  # Dispatch on the # INTERACTIVE: yes header marker. The interactive path is
+  # deliberately NOT recorded into the mechanical manifest — interactive
+  # partial-resume is governed by the 0069 session-log scaffold (Phase 4 owns
+  # the session-log axis), so a manifest entry for it would blur the two axes.
   if is_interactive_migration "$f"; then
     INTERACTIVE_APPLIED=0
     if ! run_interactive_migration "$f" "$id"; then
+      rm -f "$BASELINE_FILE"
       echo "[${id}] failed" >&2
       exit 1
     fi
@@ -313,11 +402,13 @@ for f in "${pending_files[@]}"; do
 
   STDOUT_FILE=$(mktemp)
   if ! PROJECT_ROOT="$PROJECT_ROOT" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" ACCELERATOR_MIGRATION_MODE=1 bash "$f" >"$STDOUT_FILE" 2>&1; then
+    manifest_record_delta "$vcs" "$BASELINE_FILE" # capture partial writes (AC1)
     cat "$STDOUT_FILE" >&2
-    rm -f "$STDOUT_FILE"
+    rm -f "$STDOUT_FILE" "$BASELINE_FILE"
     echo "[${id}] failed" >&2
     exit 1
   fi
+  manifest_record_delta "$vcs" "$BASELINE_FILE" # capture successful writes
   # Inspect stdout for the no_op_pending sentinel
   NO_OP_PENDING=0
   if grep -qx 'MIGRATION_RESULT: no_op_pending' "$STDOUT_FILE"; then
@@ -337,6 +428,12 @@ for f in "${pending_files[@]}"; do
   echo "[${id}] applied" >&2
   applied_count=$((applied_count + 1))
 done
+
+# Full run completed without aborting — no partial state to resume over, so the
+# manifest + run-id sidecar are deleted. (Guarded resume is scoped strictly to
+# partial-failure re-runs.)
+clear_run_manifest
+rm -f "$BASELINE_FILE"
 
 # ── 9. Summary ───────────────────────────────────────────────────────────────
 echo ""

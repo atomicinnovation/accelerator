@@ -385,6 +385,112 @@ assert_contains "migration applied with FORCE" "$APPLIED" "0001-rename-tickets-t
 
 # ============================================================
 echo ""
+echo "=== Per-run path manifest (resume-safety recording) ==="
+echo ""
+
+# AC1: a migration that mutates scoped paths then fails leaves the manifest
+# listing exactly those paths — including the failing migration's partial
+# writes. Uses a REAL git repo (Test 14 model) with the target files committed
+# clean, so the diff-based recorder observes them as modified-tracked: a fake
+# `mkdir .git` would make `git status` yield nothing and the manifest empty.
+echo "Test: manifest records partial writes after mid-run failure"
+REPO=$(mktemp -d "$TMPDIR_BASE/m-manifest-XXXXXX")
+mkdir -p "$REPO/meta/work"
+printf 'a\n' >"$REPO/meta/work/aaa.md"
+printf 'b\n' >"$REPO/meta/work/bbb.md"
+git -C "$REPO" init -q
+git -C "$REPO" -c user.email=t@t -c user.name=T add .
+git -C "$REPO" -c user.email=t@t -c user.name=T commit -qm initial
+MANIFEST_DIR=$(mktemp -d "$TMPDIR_BASE/manifestmigs-XXXXXX")
+cat >"$MANIFEST_DIR/9001-stub-ok.sh" <<'STUB'
+#!/usr/bin/env bash
+# DESCRIPTION: stub appends to aaa then succeeds
+printf 'x\n' >>"$PROJECT_ROOT/meta/work/aaa.md"
+exit 0
+STUB
+# 9002 re-touches aaa (already recorded by 9001's success) AND writes bbb, then
+# fails — exercising both partial-failure capture (bbb) and atomic_append_unique
+# dedup (aaa recorded across two recording points).
+cat >"$MANIFEST_DIR/9002-stub-fail.sh" <<'STUB'
+#!/usr/bin/env bash
+# DESCRIPTION: stub appends to bbb and aaa then fails
+printf 'y\n' >>"$PROJECT_ROOT/meta/work/bbb.md"
+printf 'z\n' >>"$PROJECT_ROOT/meta/work/aaa.md"
+exit 1
+STUB
+chmod +x "$MANIFEST_DIR/9001-stub-ok.sh" "$MANIFEST_DIR/9002-stub-fail.sh"
+RC=0
+cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$MANIFEST_DIR" \
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1 || RC=$?
+assert_neq "non-zero exit (mid-run failure)" "0" "$RC"
+MANIFEST="$REPO/.accelerator/state/migrations-run-paths.txt"
+assert_file_exists "manifest written on failure" "$MANIFEST"
+assert_eq "aaa recorded exactly once (dedup across two points)" "1" \
+  "$(grep -cFx 'meta/work/aaa.md' "$MANIFEST" || true)"
+assert_eq "bbb (failing migration's partial write) recorded once" "1" \
+  "$(grep -cFx 'meta/work/bbb.md' "$MANIFEST" || true)"
+assert_eq "manifest has exactly those two paths" "2" \
+  "$(grep -c . "$MANIFEST" || true)"
+
+echo ""
+
+echo "Test: manifest + run-id deleted on full success"
+REPO=$(mktemp -d "$TMPDIR_BASE/m-manifest-ok-XXXXXX")
+mkdir -p "$REPO/meta"
+git -C "$REPO" init -q
+git -C "$REPO" -c user.email=t@t -c user.name=T commit -q --allow-empty -m initial
+OK_DIR=$(mktemp -d "$TMPDIR_BASE/okmigs-XXXXXX")
+cat >"$OK_DIR/9001-stub-ok.sh" <<'STUB'
+#!/usr/bin/env bash
+# DESCRIPTION: stub that succeeds without writing
+exit 0
+STUB
+chmod +x "$OK_DIR/9001-stub-ok.sh"
+RC=0
+cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$OK_DIR" \
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1 || RC=$?
+assert_eq "exit 0 on full success" "0" "$RC"
+assert_file_not_exists "run-paths.txt removed on success" \
+  "$REPO/.accelerator/state/migrations-run-paths.txt"
+assert_file_not_exists "run.id removed on success" \
+  "$REPO/.accelerator/state/migrations-run.id"
+
+echo ""
+
+echo "Test: fresh run truncates a leftover manifest and mints a new run-id"
+REPO=$(mktemp -d "$TMPDIR_BASE/m-manifest-stale-XXXXXX")
+mkdir -p "$REPO/meta/work"
+printf 'c\n' >"$REPO/meta/work/ccc.md"
+git -C "$REPO" init -q
+git -C "$REPO" -c user.email=t@t -c user.name=T add .
+git -C "$REPO" -c user.email=t@t -c user.name=T commit -qm initial
+mkdir -p "$REPO/.accelerator/state"
+# Pre-seed a leftover manifest + run-id from an imagined prior run.
+printf 'meta/work/STALE.md\n' >"$REPO/.accelerator/state/migrations-run-paths.txt"
+printf 'old-stale-run-id\n' >"$REPO/.accelerator/state/migrations-run.id"
+STALE_DIR=$(mktemp -d "$TMPDIR_BASE/stalemigs-XXXXXX")
+cat >"$STALE_DIR/9001-stub-fail.sh" <<'STUB'
+#!/usr/bin/env bash
+# DESCRIPTION: stub appends to ccc then fails (so manifest persists)
+printf 'd\n' >>"$PROJECT_ROOT/meta/work/ccc.md"
+exit 1
+STUB
+chmod +x "$STALE_DIR/9001-stub-fail.sh"
+RC=0
+cd "$REPO" && ACCELERATOR_MIGRATIONS_DIR="$STALE_DIR" \
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1 || RC=$?
+assert_neq "non-zero exit" "0" "$RC"
+MANIFEST="$REPO/.accelerator/state/migrations-run-paths.txt"
+assert_eq "leftover STALE path truncated away" "0" \
+  "$(grep -cFx 'meta/work/STALE.md' "$MANIFEST" || true)"
+assert_eq "this run's own write recorded" "1" \
+  "$(grep -cFx 'meta/work/ccc.md' "$MANIFEST" || true)"
+EXPECTED_REV=$(git -C "$REPO" rev-parse HEAD)
+RECORDED_REV=$(head -n1 "$REPO/.accelerator/state/migrations-run.id")
+assert_eq "run-id reset to current base revision" "$EXPECTED_REV" "$RECORDED_REV"
+
+# ============================================================
+echo ""
 echo "=== --skip / --unskip flags ==="
 echo ""
 
