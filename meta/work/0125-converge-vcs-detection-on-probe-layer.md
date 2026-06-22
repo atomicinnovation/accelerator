@@ -1,6 +1,6 @@
 ---
 type: work-item
-id: "0124"
+id: "0125"
 title: "Converge legacy lexical VCS detection (find_repo_root / vcs_mode) on the 0058 probe layer"
 date: "2026-06-22T14:38:56+00:00"
 author: Phil Helm
@@ -8,14 +8,14 @@ producer: create-work-item
 status: draft
 kind: task
 priority: medium
-relates_to: ["work-item:0123", "work-item:0058", "work-item:0020"]
+relates_to: ["work-item:0124", "work-item:0058", "work-item:0020"]
 tags: [tech-debt, scripts, vcs, git, jj, worktree, vcs-common]
 last_updated: "2026-06-22T14:38:56+00:00"
 last_updated_by: Phil Helm
 schema_version: 1
 ---
 
-# 0124: Converge legacy lexical VCS detection on the 0058 probe layer
+# 0125: Converge legacy lexical VCS detection on the 0058 probe layer
 
 **Kind**: Task (tech debt)
 **Status**: Draft
@@ -36,11 +36,11 @@ sync:
    git / jj directly (`git rev-parse …`, `jj workspace root`) and are correct
    across worktrees, submodules, bare repos, and colocated/nested topologies.
 
-This drift is not theoretical: work item [`0123`](0123-find-repo-root-fails-in-git-worktrees.md)
+This drift is not theoretical: work item [`0124`](0124-find-repo-root-fails-in-git-worktrees.md)
 (the `-d`→`-e` fix) exists *because* 0058 taught the probe layer about git
 worktrees but left the lexical helpers' directory-only marker test untouched and
 untracked, and the gap resurfaced months later as a production bug (the
-visualiser aborting in Conductor workspaces). 0123 resyncs the two strategies
+visualiser aborting in Conductor workspaces). 0124 resyncs the two strategies
 for *today's known topologies*; it does not remove the divergence. The next
 uncovered topology — or a future git/jj layout change handled only in the probe
 layer — will split them apart again.
@@ -51,19 +51,19 @@ source of truth for repo-root and VCS-mode detection.
 ## Context
 
 This is the tracked follow-up that 0058 should have produced. It is deliberately
-*not* folded into 0123: 0123 is an urgent, one-character, monotonic, zero-new-
+*not* folded into 0124: 0124 is an urgent, one-character, monotonic, zero-new-
 dependency bug fix, whereas this convergence is a higher-risk redesign of the
 single most widely-sourced detection function and must be done with care.
 
-See the 0123 plan's "Follow-up" section
-([`meta/plans/2026-06-22-0123-find-repo-root-fails-in-git-worktrees.md`](../plans/2026-06-22-0123-find-repo-root-fails-in-git-worktrees.md))
+See the 0124 plan's "Follow-up" section
+([`meta/plans/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md`](../plans/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md))
 for the originating analysis.
 
 ## The root cause being addressed
 
 `find_repo_root` / `vcs_mode` detect by **guessing from filesystem markers**.
 This heuristic is correct for common cases but structurally wrong for whole
-categories of layout. The 0123 `-d`→`-e` change fixes exactly one category
+categories of layout. The 0124 `-d`→`-e` change fixes exactly one category
 (git linked worktrees, where `.git` is a file). The guessing approach itself
 remains, so other categories can still bite:
 
@@ -75,7 +75,7 @@ remains, so other categories can still bite:
   worktree" and scrubs an ambient `GIT_DIR`; the lexical helpers are oblivious.
 - **`vcs_mode` → `none`** — any topology where markers don't sit where the walk
   expects re-triggers the silent "fail-safe-to-dirty → every work-item file reads
-  dirty" degradation that 0123 fixed for worktrees.
+  dirty" degradation that 0124 fixed for worktrees.
 
 ## Known constraints (why this is non-trivial)
 
@@ -115,7 +115,7 @@ remains, so other categories can still bite:
 - Optionally harden the loud-failure idiom: callers using
   `PROJECT_ROOT="$(find_repo_root)"` under `set -euo pipefail` abort with empty
   stderr on failure. Decide whether to make the failure legible (this is the
-  *symptom-mechanism* that made 0123 a baffling blank error).
+  *symptom-mechanism* that made 0124 a baffling blank error).
 
 ## Acceptance criteria
 
@@ -135,11 +135,11 @@ remains, so other categories can still bite:
 
 ## Out of scope
 
-- The 0123 `-d`→`-e` fix itself (separately shipped).
+- The 0124 `-d`→`-e` fix itself (separately shipped).
 
 ## Dependencies
 
-- Relates to / follows: [`0123`](0123-find-repo-root-fails-in-git-worktrees.md)
+- Relates to / follows: [`0124`](0124-find-repo-root-fails-in-git-worktrees.md)
   (the immediate fix), [`0058`](0058-workspace-worktree-boundary-detection.md)
   (built the probe layer), [`0020`](0020-vcs-abstraction-layer.md) (origin of
   the VCS abstraction).
@@ -152,5 +152,5 @@ remains, so other categories can still bite:
   `find_jj_main_workspace_root` (`vcs-common.sh:90-114`)
 - Legacy helpers: `find_repo_root` (`vcs-common.sh:8-18`),
   `vcs_mode` (`vcs-common.sh:27-36`)
-- Originating analysis: [`meta/plans/2026-06-22-0123-find-repo-root-fails-in-git-worktrees.md`](../plans/2026-06-22-0123-find-repo-root-fails-in-git-worktrees.md) (Follow-up section)
-- Research: [`meta/research/codebase/2026-06-22-0123-find-repo-root-fails-in-git-worktrees.md`](../research/codebase/2026-06-22-0123-find-repo-root-fails-in-git-worktrees.md)
+- Originating analysis: [`meta/plans/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md`](../plans/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md) (Follow-up section)
+- Research: [`meta/research/codebase/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md`](../research/codebase/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md)

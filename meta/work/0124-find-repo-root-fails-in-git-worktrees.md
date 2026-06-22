@@ -1,6 +1,6 @@
 ---
 type: work-item
-id: "0123"
+id: "0124"
 title: "find_repo_root fails in git worktrees (-d test on .git)"
 date: "2026-06-22T13:47:05+00:00"
 author: Phil Helm
@@ -8,14 +8,14 @@ producer: create-work-item
 status: draft
 kind: bug
 priority: high
-relates_to: ["work-item:0058", "work-item:0020", "work-item:0124"]
+relates_to: ["work-item:0058", "work-item:0020", "work-item:0125"]
 tags: [bug, scripts, vcs, git, worktree, conductor]
 last_updated: "2026-06-22T14:18:48+00:00"
 last_updated_by: Phil Helm
 schema_version: 1
 ---
 
-# 0123: find_repo_root fails in git worktrees (-d test on .git)
+# 0124: find_repo_root fails in git worktrees (-d test on .git)
 
 **Kind**: Bug
 **Status**: Draft
@@ -149,7 +149,7 @@ in Conductor workspaces.
   change — in particular, delegating them to the 0058 authoritative-probe layer
   (`classify_checkout`, `find_git_main_worktree_root`). That convergence is real
   but separate, and is tracked as
-  [`0124`](0124-converge-vcs-detection-on-probe-layer.md).
+  [`0125`](0125-converge-vcs-detection-on-probe-layer.md).
 
 ## Acceptance Criteria
 

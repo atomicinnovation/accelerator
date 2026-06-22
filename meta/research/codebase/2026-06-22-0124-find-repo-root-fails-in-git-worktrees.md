@@ -1,13 +1,13 @@
 ---
 type: codebase-research
-id: "2026-06-22-0123-find-repo-root-fails-in-git-worktrees"
+id: "2026-06-22-0124-find-repo-root-fails-in-git-worktrees"
 title: "Research: find_repo_root fails in git worktrees (-d test on .git)"
 date: "2026-06-22T14:01:39+00:00"
 author: Phil Helm
 producer: research-codebase
 status: complete
-work_item_id: "0123"
-parent: "work-item:0123"
+work_item_id: "0124"
+parent: "work-item:0124"
 relates_to: ["codebase-research:2026-05-15-0058-workspace-worktree-boundary-detection"]
 topic: "find_repo_root fails in git worktrees (-d vs -e marker test)"
 tags: [research, codebase, scripts, vcs, git, worktree, conductor, vcs-common]
@@ -28,7 +28,7 @@ schema_version: 1
 
 ## Research Question
 
-Work item [`0123`](../../work/0123-find-repo-root-fails-in-git-worktrees.md)
+Work item [`0124`](../../work/0124-find-repo-root-fails-in-git-worktrees.md)
 reports that `find_repo_root()` in `scripts/vcs-common.sh` uses a directory
 test (`[ -d "$dir/.git" ]`) to detect a repo root, which fails inside a git
 linked worktree because `.git` is a regular *file* (a `gitdir:` pointer) there.
@@ -59,7 +59,7 @@ Three findings sharpen the work item:
 
 2. **There is a latent *second* `-d` bug in the same file that the work item
    scopes out.** [`vcs_mode()`](https://github.com/atomicinnovation/accelerator/blob/de38f5413b80f247fa8104ebebca0ed43d9a234b/scripts/vcs-common.sh#L27-L36)
-   (lines 29, 31) uses the identical `-d` test on `.jj`/`.git`. After 0123's
+   (lines 29, 31) uses the identical `-d` test on `.jj`/`.git`. After 0124's
    fix, `find_repo_root` will correctly return the worktree root, but `vcs_mode`
    called on that root returns `none` (because `.git` is a file), which routes
    [`work-item-file-dirty.sh`](https://github.com/atomicinnovation/accelerator/blob/de38f5413b80f247fa8104ebebca0ed43d9a234b/skills/work/scripts/work-item-file-dirty.sh#L101-L104)
@@ -75,7 +75,7 @@ Three findings sharpen the work item:
    `find_repo_root`" out of scope. The existing regression block in
    `hooks/test-vcs-detect.sh` (lines 424–446) carries a comment stating it
    deliberately does *not* lock in `find_repo_root`'s worktree behaviour "to
-   keep room for a future fix." 0123 is that future fix, and the
+   keep room for a future fix." 0124 is that future fix, and the
    `make_git_linked_worktree` fixture it needs already exists.
 
 ## Detailed Findings
@@ -166,7 +166,7 @@ some other file type (e.g. a stray symlink), but that is not a realistic repo
 layout and the authoritative-probe helpers (`classify_checkout`) are unaffected
 either way.
 
-### The second `-d` defect: `vcs_mode()` (out of 0123's stated scope)
+### The second `-d` defect: `vcs_mode()` (out of 0124's stated scope)
 
 [`vcs_mode()`](https://github.com/atomicinnovation/accelerator/blob/de38f5413b80f247fa8104ebebca0ed43d9a234b/scripts/vcs-common.sh#L27-L36)
 selects the VCS *command set* for a given root:
@@ -198,7 +198,7 @@ indeterminate, returning "dirty" by default
 104      ;;
 ```
 
-So even after 0123's fix lands, work-item dirty-detection silently degrades to
+So even after 0124's fix lands, work-item dirty-detection silently degrades to
 "always dirty" inside any git worktree. Applying the *same* `-d`→`-e` reasoning
 to `vcs_mode` (lines 29, 31) would fix it: `-e "$root/.jj"` (false) →
 `-e "$root/.git"` (true, the pointer file) → returns `git`, which is correct.
@@ -240,7 +240,7 @@ needs no change.
 ## Code References
 
 - [`scripts/vcs-common.sh:8-18`](https://github.com/atomicinnovation/accelerator/blob/de38f5413b80f247fa8104ebebca0ed43d9a234b/scripts/vcs-common.sh#L8-L18) — `find_repo_root`; the `-d` bug is line 11.
-- [`scripts/vcs-common.sh:27-36`](https://github.com/atomicinnovation/accelerator/blob/de38f5413b80f247fa8104ebebca0ed43d9a234b/scripts/vcs-common.sh#L27-L36) — `vcs_mode`; identical `-d` defect (lines 29, 31), out of 0123's stated scope.
+- [`scripts/vcs-common.sh:27-36`](https://github.com/atomicinnovation/accelerator/blob/de38f5413b80f247fa8104ebebca0ed43d9a234b/scripts/vcs-common.sh#L27-L36) — `vcs_mode`; identical `-d` defect (lines 29, 31), out of 0124's stated scope.
 - [`scripts/vcs-common.sh:45-62`](https://github.com/atomicinnovation/accelerator/blob/de38f5413b80f247fa8104ebebca0ed43d9a234b/scripts/vcs-common.sh#L45-L62) — `_ancestor_has_marker`; already uses `-e` (line 49), the consistency precedent.
 - [`scripts/vcs-common.sh:127-155`](https://github.com/atomicinnovation/accelerator/blob/de38f5413b80f247fa8104ebebca0ed43d9a234b/scripts/vcs-common.sh#L127-L155) — `find_git_main_worktree_root`; the 0058 probe-based helper that handles worktrees correctly.
 - [`skills/visualisation/visualise/scripts/launch-server.sh:13`](https://github.com/atomicinnovation/accelerator/blob/de38f5413b80f247fa8104ebebca0ed43d9a234b/skills/visualisation/visualise/scripts/launch-server.sh#L13) — the hard-aborting caller (reported symptom).
@@ -257,7 +257,7 @@ needs no change.
   is worktree-correct. The bug is that the most widely-sourced entry point
   (`find_repo_root`, ~26 call sites) is still on the legacy strategy. The clean
   long-term direction is for `find_repo_root`/`vcs_mode` to delegate to the
-  probe layer, but 0123 (rightly) chooses the minimal `-d`→`-e` patch.
+  probe layer, but 0124 (rightly) chooses the minimal `-d`→`-e` patch.
 - **`-e` vs `-d` is the load-bearing distinction for worktree topology.** Across
   the file the file-vs-directory nature of a marker *is* the signal: `.git` file
   = git worktree; `.jj/repo` file = jj secondary workspace. `find_repo_root`
@@ -278,7 +278,7 @@ needs no change.
   and built the probe-based helpers, but **explicitly carved `find_repo_root`
   out of scope** ("No refactor of `find_repo_root`. Its directory-only `-d` test
   is the underlying gap that motivates the new helpers, but its callers … are
-  out of scope"). 0123 is the deferred follow-up.
+  out of scope"). 0124 is the deferred follow-up.
 - [`meta/research/codebase/2026-05-15-0058-workspace-worktree-boundary-detection.md`](2026-05-15-0058-workspace-worktree-boundary-detection.md)
   — its "Critical gap in current detection" section names the `find_repo_root`
   `-d` failure mode precisely, and Open Question #4 recommended leaving it

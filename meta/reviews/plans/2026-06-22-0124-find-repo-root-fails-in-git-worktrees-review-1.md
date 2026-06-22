@@ -1,13 +1,13 @@
 ---
 type: plan-review
-id: "2026-06-22-0123-find-repo-root-fails-in-git-worktrees-review-1"
+id: "2026-06-22-0124-find-repo-root-fails-in-git-worktrees-review-1"
 title: "Plan Review: find_repo_root fails in git worktrees (-d → -e)"
 date: "2026-06-22T14:18:48+00:00"
 author: Phil Helm
 producer: review-plan
 status: complete
-parent: "plan:2026-06-22-0123-find-repo-root-fails-in-git-worktrees"
-target: "plan:2026-06-22-0123-find-repo-root-fails-in-git-worktrees"
+parent: "plan:2026-06-22-0124-find-repo-root-fails-in-git-worktrees"
+target: "plan:2026-06-22-0124-find-repo-root-fails-in-git-worktrees"
 reviewer: Phil Helm
 verdict: REVISE
 lenses: [correctness, test-coverage, code-quality, architecture, portability]
@@ -52,7 +52,7 @@ all are addressable with small, targeted edits to the plan.
 - **A deliberate deferral is named but not tracked — the same pattern that
   produced this bug** (flagged by: architecture ×2) — 0058 carved `find_repo_root`
   out of scope, that deferral was never recorded as actionable, and the gap
-  resurfaced as 0123. This plan again defers the convergence of the two detection
+  resurfaced as 0124. This plan again defers the convergence of the two detection
   strategies in prose only, with no follow-up work item, ADR, or `relates_to`
   link to keep it from becoming permanent.
 
@@ -66,7 +66,7 @@ all are addressable with small, targeted edits to the plan.
   record the convergence as tracked debt and consider a cheap cross-strategy
   agreement assertion on the shared fixtures.
 
-- **Scope: work item vs. plan**: the work item (0123) scopes only `find_repo_root`
+- **Scope: work item vs. plan**: the work item (0124) scopes only `find_repo_root`
   and lists "any broader refactor of the VCS detection helpers" as out of scope;
   the plan correctly also fixes `vcs_mode` because the acceptance criterion ("all
   ~30 downstream callers work unchanged in Conductor workspaces") is otherwise
@@ -110,7 +110,7 @@ _None._
 - 🟡 **Architecture**: Deferred convergence of the two detection strategies is named but not tracked
   **Location**: What We're NOT Doing (lines 99–110)
   The deferral lives only as a sentence, with no follow-up work item / ADR / `relates_to`.
-  This is exactly the failure mode that produced 0123 (0058's untracked deferral). Without
+  This is exactly the failure mode that produced 0124 (0058's untracked deferral). Without
   a tracked artifact, the two-strategy duplication becomes permanent-by-default.
 
 - 🟡 **Architecture**: Patch re-entrenches the legacy strategy with no drift safeguard
@@ -217,7 +217,7 @@ _None._
    Add a backlog work item ("migrate legacy lexical helpers to delegate to the 0058 probe layer") linked via `relates_to`, or a short ADR capturing the deliberate two-strategy coexistence. Optionally add a cheap cross-strategy agreement assertion on the shared fixtures.
 
 5. **Reconcile work-item vs plan scope** (addresses: "scope expansion stretches traceability")
-   Amend 0123's "Out of scope" / "Acceptance Criteria" to include `vcs_mode`, or note the expansion in the plan's Overview.
+   Amend 0124's "Out of scope" / "Acceptance Criteria" to include `vcs_mode`, or note the expansion in the plan's Overview.
 
 6. **Tidy the regression stanzas** (addresses: "redundant fixture calls", "phase-independence eroded by shared stanza")
    Build the worktree once and reuse `$FIXTURE_WORKTREE`; give each phase a clearly-delimited sub-stanza so the diffs don't overlap, or soften the "mergeable in either order" claim. Add the self-documenting RED-expectation comment for `vcs_mode`.
@@ -327,9 +327,9 @@ point.
 - Carries the `.jj`-WINS / lagging-git-index invariant through the Phase 2 change.
 
 **Findings**:
-- 🟡 major / high — *Deferred convergence is named but not recorded as a tracked artifact* (What We're NOT Doing, 99-110). This is the exact failure mode that produced 0123 (0058's untracked deferral). Record a follow-up work item (`relates_to`) or a short ADR.
+- 🟡 major / high — *Deferred convergence is named but not recorded as a tracked artifact* (What We're NOT Doing, 99-110). This is the exact failure mode that produced 0124 (0058's untracked deferral). Record a follow-up work item (`relates_to`) or a short ADR.
 - 🟡 major / medium — *Patch re-entrenches the legacy strategy at the most widely-sourced entry point without a drift safeguard* (Overview / What We're NOT Doing, 36-41, 101-104). The legacy and probe layers can drift to contradictory verdicts; nothing asserts they agree. Add (or follow up to add) a cross-strategy agreement assertion on the shared fixtures.
-- 🔵 minor / medium — *Scope expansion from work item to plan is sound but stretches the boundary* (Implementation Approach / Phase 2). Adding `vcs_mode` is correct, but 0123's "Out of scope"/"Acceptance Criteria" still describe the narrower fix. Amend the work item or note it in the plan.
+- 🔵 minor / medium — *Scope expansion from work item to plan is sound but stretches the boundary* (Implementation Approach / Phase 2). Adding `vcs_mode` is correct, but 0124's "Out of scope"/"Acceptance Criteria" still describe the narrower fix. Amend the work item or note it in the plan.
 - 🔵 minor / medium — *Claimed phase independence partially eroded by a shared, mutated test stanza* (Phase 1 vs Phase 2 / Testing Strategy). Both phases edit the same block and rewrite the same comment; "mergeable in either order" is weaker than stated. Use delimited sub-stanzas or soften the claim.
 
 ### Portability

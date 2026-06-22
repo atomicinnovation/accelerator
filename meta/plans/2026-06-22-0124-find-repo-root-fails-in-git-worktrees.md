@@ -1,15 +1,15 @@
 ---
 type: plan
-id: "2026-06-22-0123-find-repo-root-fails-in-git-worktrees"
+id: "2026-06-22-0124-find-repo-root-fails-in-git-worktrees"
 title: "find_repo_root fails in git worktrees (-d → -e) Implementation Plan"
 date: "2026-06-22T14:07:17+00:00"
 author: Phil Helm
 producer: create-plan
 status: draft
-work_item_id: "work-item:0123"
-parent: "work-item:0123"
-derived_from: ["codebase-research:2026-06-22-0123-find-repo-root-fails-in-git-worktrees"]
-relates_to: ["work-item:0058", "work-item:0020", "work-item:0124"]
+work_item_id: "work-item:0124"
+parent: "work-item:0124"
+derived_from: ["codebase-research:2026-06-22-0124-find-repo-root-fails-in-git-worktrees"]
+relates_to: ["work-item:0058", "work-item:0020", "work-item:0125"]
 tags: [plan, scripts, vcs, git, worktree, conductor, bug]
 revision: "de38f5413b80f247fa8104ebebca0ed43d9a234b"
 repository: "accelerator"
@@ -33,13 +33,13 @@ branch, so every work-item file reads as dirty inside a worktree).
 
 The fix is the same one-character change in both functions — `-d` → `-e`
 (existence rather than directory-ness) — mirroring the sibling helper
-`_ancestor_has_marker`, which already uses `-e`. The work item (0123) scoped
+`_ancestor_has_marker`, which already uses `-e`. The work item (0124) scoped
 only `find_repo_root`; this plan additionally fixes `vcs_mode` (per the
 research's headline finding and the user's scope decision) so the work item's
 acceptance criterion — "all ~30 downstream callers work unchanged in Conductor
 workspaces" — is genuinely met.
 
-> **Scope note**: This widens the work item's stated scope. Work item 0123's
+> **Scope note**: This widens the work item's stated scope. Work item 0124's
 > "Out of scope" and "Acceptance Criteria" sections have been amended to include
 > `vcs_mode` and its regression test so the two artifacts agree.
 
@@ -106,7 +106,7 @@ From inside a git linked worktree:
   authoritative-probe layer (`classify_checkout`,
   `find_git_main_worktree_root`). The minimal `-d`→`-e` patch is the chosen
   direction; delegation is a separate, larger concern. **This deferral must be
-  tracked, not left in prose** — 0123 exists precisely because 0058 carved
+  tracked, not left in prose** — 0124 exists precisely because 0058 carved
   `find_repo_root` out of scope and that deferral was never recorded as
   actionable, so the gap resurfaced as a production bug. Capture the convergence
   as a backlog work item ("migrate the legacy lexical helpers `find_repo_root` /
@@ -133,7 +133,7 @@ The two *fixes* are independent (the functions do not interact), but the two
 Phase 1 is the one that deletes-and-replaces the "room for a future fix" comment
 there. If the phases land out of the presented order, that shared block must be
 reconciled by hand. Treat Phase 1 → Phase 2 as the intended order; if they are
-landed as a single change, merge the two `[0123]` stanzas into one.
+landed as a single change, merge the two `[0124]` stanzas into one.
 
 Within each phase, follow red-green: add the failing worktree assertion to the
 existing regression block first, confirm it fails against the current `-d`
@@ -162,17 +162,17 @@ regression block (lines 424-446) and update the closing comment, which currently
 documents the deliberate omission, to state the behaviour is now asserted.
 
 ```bash
-echo "Test [0123]: find_repo_root returns worktree root in a git linked worktree"
+echo "Test [0124]: find_repo_root returns worktree root in a git linked worktree"
 make_git_linked_worktree
 RESULT=$( (cd "$FIXTURE_WORKTREE" && find_repo_root))
 assert_eq "git linked worktree root" "$FIXTURE_WORKTREE" "$RESULT"
 
-echo "Test [0123]: find_repo_root walks up from a nested subdir in a worktree"
+echo "Test [0124]: find_repo_root walks up from a nested subdir in a worktree"
 mkdir -p "$FIXTURE_WORKTREE/nested/deeper"
 RESULT=$( (cd "$FIXTURE_WORKTREE/nested/deeper" && find_repo_root))
 assert_eq "git linked worktree nested subdir" "$FIXTURE_WORKTREE" "$RESULT"
 
-echo "Test [0123]: find_repo_root exits 0 under set -e in a worktree"
+echo "Test [0124]: find_repo_root exits 0 under set -e in a worktree"
 RC=0
 ( set -e; cd "$FIXTURE_WORKTREE" && find_repo_root >/dev/null ) || RC=$?
 assert_eq "git linked worktree exit code" "0" "$RC"
@@ -185,7 +185,7 @@ pattern at [`hooks/test-vcs-detect.sh:286-288`](../../hooks/test-vcs-detect.sh#L
 
 **Delete the entire lines 443-446 comment block** (`(We deliberately do NOT lock
 in … keeps room for a future fix.)`) and replace it wholesale with a one-line
-note that 0123 now asserts the worktree case. Every clause of the old comment —
+note that 0124 now asserts the worktree case. Every clause of the old comment —
 including ".git is a file there, find_repo_root's -d test skips it" — becomes
 false once the fix lands, so none of it may survive; do not append to it.
 
@@ -203,8 +203,8 @@ false once the fix lands, so none of it may survive; do not append to it.
 #### Automated Verification
 
 - [x] Before the fix, the new worktree assertions FAIL: `bash hooks/test-vcs-detect.sh`
-      reports FAIL for the two `[0123]` `find_repo_root` tests. (RED confirmed —
-      under `set -e` the suite aborts at the first `[0123]` value assertion,
+      reports FAIL for the two `[0124]` `find_repo_root` tests. (RED confirmed —
+      under `set -e` the suite aborts at the first `[0124]` value assertion,
       reproducing the production failure mode exactly.)
 - [x] After the fix, the hooks suite passes: `mise run test:integration:hooks`
       (129 passed, 0 failed).
@@ -244,11 +244,11 @@ wasted work that reads as if a fresh fixture were required). Also lock in the
 where the `-e "$root/.jj"` precedence must still win.
 
 ```bash
-echo "Test [0123]: vcs_mode returns git for a git linked worktree root"
+echo "Test [0124]: vcs_mode returns git for a git linked worktree root"
 # pre-fix: .git is a file, the -d test fails → vcs_mode returns 'none'.
 assert_eq "vcs_mode worktree" "git" "$(vcs_mode "$FIXTURE_WORKTREE")"
 
-echo "Test [0123]: vcs_mode preserves .jj-WINS for a colocated checkout"
+echo "Test [0124]: vcs_mode preserves .jj-WINS for a colocated checkout"
 make_colocated_secondary
 assert_eq "vcs_mode colocated" "jj" "$(vcs_mode "$FIXTURE_TARGET")"
 ```
@@ -390,9 +390,9 @@ None. The change is backward-compatible (monotonic): `-e` matches everything
 
 This plan deliberately patches the legacy lexical detection strategy rather than
 converging it with the 0058 authoritative-probe layer. To stop that divergence
-becoming permanent-by-default (the exact failure mode that produced 0123):
+becoming permanent-by-default (the exact failure mode that produced 0124):
 
-1. **Tracked as work item [`0124`](../work/0124-converge-vcs-detection-on-probe-layer.md)**
+1. **Tracked as work item [`0125`](../work/0125-converge-vcs-detection-on-probe-layer.md)**
    — "converge the legacy lexical helpers (`find_repo_root`, `vcs_mode`) on the
    0058 probe layer" — linked from this plan's `relates_to`. This is the tracked
    follow-up that 0058 failed to produce; it is what stops the divergence
@@ -412,8 +412,8 @@ becoming permanent-by-default (the exact failure mode that produced 0123):
 
 ## References
 
-- Original work item: [`meta/work/0123-find-repo-root-fails-in-git-worktrees.md`](../work/0123-find-repo-root-fails-in-git-worktrees.md)
-- Research: [`meta/research/codebase/2026-06-22-0123-find-repo-root-fails-in-git-worktrees.md`](../research/codebase/2026-06-22-0123-find-repo-root-fails-in-git-worktrees.md)
+- Original work item: [`meta/work/0124-find-repo-root-fails-in-git-worktrees.md`](../work/0124-find-repo-root-fails-in-git-worktrees.md)
+- Research: [`meta/research/codebase/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md`](../research/codebase/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md)
 - `find_repo_root`: [`scripts/vcs-common.sh:8-18`](../../scripts/vcs-common.sh#L8-L18)
 - `vcs_mode`: [`scripts/vcs-common.sh:27-36`](../../scripts/vcs-common.sh#L27-L36)
 - Consistency precedent (`-e`): [`scripts/vcs-common.sh:45-62`](../../scripts/vcs-common.sh#L45-L62)
