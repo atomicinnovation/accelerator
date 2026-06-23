@@ -20,7 +20,7 @@ external_id: PP-142
 # 0120: Prevention Tests for the Agent-Invocation Path
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

@@ -21,7 +21,7 @@ external_id: PP-137
 # 0115: Make Interactive Migrations Satisfiable Under Agent Invocation
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
