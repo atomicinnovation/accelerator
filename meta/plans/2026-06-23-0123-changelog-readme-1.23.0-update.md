@@ -222,27 +222,27 @@ supplement — the two detailed migrate bullets currently at `CHANGELOG.md:5-26`
 
 #### Automated Verification:
 
-- [ ] Read-only CI mirror passes: `mise run check`
-- [ ] No version-coherence file changed (path-scoped, so unrelated
+- [x] Read-only CI mirror passes: `mise run check`
+- [x] No version-coherence file changed (path-scoped, so unrelated
       working-copy state cannot mask it): `jj diff --stat
       .claude-plugin/plugin.json
       skills/visualisation/visualise/server/Cargo.toml
       skills/visualisation/visualise/bin/checksums.json` prints nothing
-- [ ] This phase's file did change: `jj diff --stat CHANGELOG.md` is non-empty
-- [ ] No `## [1.23.0]` heading or release date was added:
+- [x] This phase's file did change: `jj diff --stat CHANGELOG.md` is non-empty
+- [x] No `## [1.23.0]` heading or release date was added:
       `grep -n "## \[1.23.0\]" CHANGELOG.md` returns nothing
 
 #### Manual Verification:
 
-- [ ] All new entries sit under `## [Unreleased]`, above the `## [1.22.0]`
+- [x] All new entries sit under `## [Unreleased]`, above the `## [1.22.0]`
       heading
-- [ ] The two detailed `/accelerator:migrate` bullets are gone, replaced by the
+- [x] The two detailed `/accelerator:migrate` bullets are gone, replaced by the
       single consolidated *Migration framework* line
-- [ ] Grouping (`Added` / `Changed` / `Fixed` / `Migrations`) matches the 1.22.0
+- [x] Grouping (`Added` / `Changed` / `Fixed` / `Migrations`) matches the 1.22.0
       entry's Keep a Changelog conventions (acceptance criterion 5)
-- [ ] The 0007 callout reads as an upgrade alert modelled on the 1.22.0
+- [x] The 0007 callout reads as an upgrade alert modelled on the 1.22.0
       blockquote (acceptance criterion 3)
-- [ ] No developer-internal change appears (acceptance criterion 1)
+- [x] No developer-internal change appears (acceptance criterion 1)
 
 ---
 

@@ -4,26 +4,65 @@
 
 ### Added
 
-- **`/accelerator:migrate` — agent decisions bridge.** Interactive migrations can
-  now be completed without a human at the terminal. A new `--list` flag dry-emits
-  every pending interactive transformation as tab-delimited
-  `<position>\t<key>\t<proposed>\t<path>:<field>` lines (segmented by a
-  `# migration <id>` header when more than one is pending) without mutating the
-  corpus or requiring a clean tree, so an agent can see the proposed values it
-  must decide on. `ACCELERATOR_MIGRATE_DECISIONS_FILE` (equivalently
-  `--decisions-file`) is now a documented, `--help`-discoverable interface, and
-  its contents are **validated up front** by a no-mutation dry-apply pass that
-  fails closed — naming the offending position and leaving the corpus unmutated —
-  on an unknown verb, a count mismatch, or an unrecoverable rejected edit.
-  `SKILL.md` documents the full invoker contract (`list → decide → write →
-  resume`).
+- **`/accelerator:sync-work-items`** — reconcile local work items in `meta/work/`
+  with your configured remote tracker (Jira or Linear).
+  - Bidirectional by default, plus `--push-only`, `--pull-only`, a
+    non-destructive `--preview`, `--all` (drops project scope on project-scoped
+    trackers — Jira; Linear is single-team), and pass-through tracker filter
+    flags (`--label`, `--assignee`, `--state`, …).
+  - Detects five per-item sync states against a `last-sync.json` baseline:
+    **synced**, **unsynced**, **locally modified** / **remotely modified**
+    (changed on one side since the last sync), and **conflict** (changed on
+    both).
+  - Resolves conflicts via a section-grouped diff and an explicit typed prompt
+    (`remote`/`local`/`skip` — never `y/n`, so a reflexive Enter cannot discard
+    local edits); offers to push never-synced items and pull untracked remote
+    issues.
+  - Never overwrites dirty local files; crash-safe and idempotent across
+    interrupted runs.
+- **`/accelerator:list-work-items` — richer Sync column.** The Sync column
+  (introduced in 1.22.0) now distinguishes five colour-coded states against a
+  `last-sync.json` baseline (`🟢 synced`, `⚪ unsynced`, `🔵 locally modified`,
+  `🟣 remotely modified`, `🔴 conflict`). With no baseline it shows presence-only
+  (synced/unsynced); once a baseline exists, tracked items upgrade to the three
+  change-detected states. Output is unchanged when no integration is set.
 
 ### Changed
 
-- **`/accelerator:migrate` — strict argument handling.** An unrecognised driver
-  flag **or positional argument** now exits non-zero with an error (previously it
-  was silently ignored). `--help` / `-h` now print to **stdout** (was stderr) so
-  `--help | grep` works; usage-on-error messages stay on stderr.
+- **Migration framework — more robust and resilient.** Interactive migrations can
+  now be completed reliably in non-interactive/automated contexts, partially
+  applied migrations resume cleanly after an interruption, and several
+  frontmatter-normalisation bugs were fixed so migrations run to completion on
+  more corpora. (See the upgrade note for migration 0007.)
+
+### Fixed
+
+- **Skills and hooks now work inside git linked worktrees.** Repository-root and
+  VCS-mode detection tested for a `.git` *directory*, but in a git linked
+  worktree (e.g. a Conductor workspace) `.git` is a file, not a directory.
+  Because repository-root detection underpins many skills, the symptoms were
+  session-wide: `/accelerator:visualise` (and its stop/status variants) could
+  fail with an empty error message, work-item sync could treat every work-item
+  file as having uncommitted changes, and other repository-root-dependent skills
+  could misbehave. Detection now recognises both forms, so worktree-based
+  sessions behave exactly like plain checkouts.
+
+### Migrations
+
+> **No new migration this release, but migration 0007 was fixed.** If a previous
+> `/accelerator:migrate` run stalled on migration 0007, **re-run it** — it now
+> runs to completion. Previously it could rewrite files and then fail its own
+> validation gate without recording completion, so it repeated identically on
+> re-run.
+
+What 0007 now does (for the curious — no action needed): types PR-description
+files under `meta/prs/`; drops schema-forbidden keys (folding `pr_title` into
+`title` when absent); strips obsolete `ticket` / `ticket_id` keys; backfills
+missing required fields (derived where possible, otherwise stamped `unknown`);
+normalises PR links like `"PR #416"` to `"pr:416"`; and scopes itself to your
+configured `paths.*` directories (skipping freeform directories like
+`meta/docs/`). All non-trivial coercions are logged as `0007-DIVERGE[...]`
+breadcrumbs; VCS revert remains the recovery path.
 
 ## [1.22.0] - 2026-06-17
 
