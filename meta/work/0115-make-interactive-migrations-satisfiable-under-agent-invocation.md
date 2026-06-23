@@ -5,7 +5,7 @@ title: "Make Interactive Migrations Satisfiable Under Agent Invocation"
 date: "2026-06-19T22:59:40+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: story
 priority: high
 parent: "work-item:0057"
