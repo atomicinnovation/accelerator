@@ -164,9 +164,10 @@ pub struct IndexEntry {
     pub path: PathBuf,
     pub rel_path: PathBuf,
     pub slug: Option<String>,
-    /// Filename-derived work-item ID (via the configured scan regex).
-    /// `Some(id)` when the entry is a work-item and the filename matches;
-    /// `None` for non-work-item types or unmatched filenames.
+    /// Work-item identity, read from the frontmatter `id:` key and normalised
+    /// via `WorkItemConfig::normalise_id`. `Some(id)` only when the entry is a
+    /// work item whose frontmatter carries an `id:`; `None` for non-work-item
+    /// types and for work items lacking a frontmatter `id:`.
     pub work_item_id: Option<String>,
     pub title: String,
     pub frontmatter: serde_json::Value,

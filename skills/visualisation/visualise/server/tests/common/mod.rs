@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use accelerator_visualiser::config::{Config, TemplateTiers};
+use accelerator_visualiser::config::{
+    Config, RawWorkItemConfig, TemplateTiers,
+};
 
 // Shared helper compiled into every integration test binary; only some use
 // it, so binaries that don't would otherwise flag it as dead code.
@@ -137,5 +139,19 @@ pub fn seeded_cfg_with_work_items(tmp: &Path) -> Config {
     )
     .unwrap();
     cfg.doc_paths.insert("work".into(), work);
+    cfg
+}
+
+// Seeds the standard corpus plus a project-code work-item config (e.g.
+// `ENG`), so frontmatter `id: "0042"` normalises to `ENG-0042`. Used by the
+// search id-matching suite to exercise the non-numeric / project-code paths.
+#[allow(dead_code)]
+pub fn seeded_cfg_project_code(tmp: &Path, code: &str) -> Config {
+    let mut cfg = seeded_cfg(tmp);
+    cfg.work_item = Some(RawWorkItemConfig {
+        scan_regex: format!("^({code}-[0-9]{{4}})-"),
+        id_pattern: "{project}-{number:04d}".to_string(),
+        default_project_code: Some(code.to_string()),
+    });
     cfg
 }
