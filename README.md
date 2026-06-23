@@ -175,8 +175,11 @@ Accelerator automatically detects whether a repository uses git or
 [jujutsu (jj)](https://github.com/jj-vcs/jj) and adapts its behaviour
 accordingly. A `SessionStart` hook inspects the working directory for `.jj/` and
 `.git/` directories, injecting VCS-specific context (command references and
-conventions) into the session. A complementary `PreToolUse` guard warns when raw
-git commands are used in a jujutsu repository.
+conventions) into the session. Detection also recognises git **linked
+worktrees** — where `.git` is a file (a `gitdir:` pointer) rather than a
+directory — so worktree-based sessions are detected just like plain checkouts. A
+complementary `PreToolUse` guard warns when raw git commands are used in a
+jujutsu repository.
 
 This means all VCS-aware skills — `commit`, `respond-to-pr`, and ad-hoc
 interactions — use the correct CLI commands without manual configuration. The
@@ -339,17 +342,19 @@ existing docs (specs, PRDs, notes)
        │                     ↓
        create-work-item ──→  meta/work/  ←── update-work-item
                               │
-                         list-work-items ──┬──→  review-work-item → meta/reviews/work/
-                                        └──→  create-plan → implement-plan
+                              ├── list-work-items ──┬──→  review-work-item → meta/reviews/work/
+                              │                     └──→  create-plan → implement-plan
+                              └── sync-work-items ⇄ remote tracker (Jira/Linear)
 ```
 
-| Skill                  | Usage                                                      | Description                                                                                |
-|------------------------|------------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| **create-work-item**   | `/accelerator:create-work-item [topic-or-ref]`             | Interactively create a work item from a topic, or enrich an existing one by path or number |
-| **extract-work-items** | `/accelerator:extract-work-items [doc paths...]`           | Batch-extract work items from existing specs, PRDs, research, plans, or notes              |
-| **list-work-items**    | `/accelerator:list-work-items [filter]`                    | List and filter work items by status, type, priority, tag, parent, or title                |
-| **update-work-item**   | `/accelerator:update-work-item [work-item-ref] [field-op]` | Update work item fields with diff preview and confirmation                                 |
-| **review-work-item**   | `/accelerator:review-work-item [work-item-ref]`            | Review a work item through completeness, testability, and clarity lenses                   |
+| Skill                  | Usage                                                                                         | Description                                                                                                                                           |
+|------------------------|-----------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **create-work-item**   | `/accelerator:create-work-item [topic-or-ref]`                                                | Interactively create a work item from a topic, or enrich an existing one by path or number                                                            |
+| **extract-work-items** | `/accelerator:extract-work-items [doc paths...]`                                              | Batch-extract work items from existing specs, PRDs, research, plans, or notes                                                                         |
+| **list-work-items**    | `/accelerator:list-work-items [filter]`                                                       | List and filter work items by status, type, priority, tag, parent, or title; shows a colour-coded Sync column when a remote integration is configured |
+| **update-work-item**   | `/accelerator:update-work-item [work-item-ref] [field-op]`                                    | Update work item fields with diff preview and confirmation                                                                                            |
+| **sync-work-items**    | `/accelerator:sync-work-items [--push-only\|--pull-only] [--preview] [--all] [filter-flags…]` | Reconcile local work items with the configured remote tracker (Jira or Linear), detecting per-item sync state and resolving conflicts                 |
+| **review-work-item**   | `/accelerator:review-work-item [work-item-ref]`                                               | Review a work item through completeness, testability, and clarity lenses                                                                              |
 
 Work items use a shared template with YAML frontmatter (`work_item_id`, `title`,
 `type`, `status`, `priority`, `parent`, `tags`) and structured body sections
@@ -366,9 +371,12 @@ on natural-language phrasing; write skills are slash-only and display a payload
 preview that you must explicitly confirm before any change reaches the tracker.
 Each integration keeps a team-shared catalogue (committed) alongside gitignored
 per-developer credentials, and treats the presence of an `external_id` on a work
-item as the signal that it is synced to the remote. Select the active tracker
-with the `work.integration` key (`jira` or `linear`); when unset, the
-work-management skills stay local with no external API calls.
+item as the signal that it is synced to the remote. Building on that signal,
+`/accelerator:sync-work-items` reconciles `meta/work/` against the tracker in
+batch — pushing never-synced items, pulling untracked remote issues, and
+resolving per-item divergence. Select the active tracker with the
+`work.integration` key (`jira` or `linear`); when unset, the work-management
+skills stay local with no external API calls.
 
 <a id="jira-integration"></a>
 
@@ -595,18 +603,18 @@ pre-release version.
 
 ### Customisation
 
-| Mechanism                                  | Purpose                                                            |
-|--------------------------------------------|--------------------------------------------------------------------|
-| `ACCELERATOR_VISUALISER_BIN`               | One-shot override pointing at a locally-built binary               |
-| `visualiser.binary` config key             | Persistent binary override in `.accelerator/config.local.md`       |
-| `ACCELERATOR_VISUALISER_IDLE_TIMEOUT`      | One-shot override of the idle auto-shutdown window (duration string, or `never`/`0` to disable) |
-| `visualiser.idle_timeout` config key       | Persistent idle auto-shutdown window (humantime duration; default `8h`; `never`/`0` to disable) |
+| Mechanism                                  | Purpose                                                                                                   |
+|--------------------------------------------|-----------------------------------------------------------------------------------------------------------|
+| `ACCELERATOR_VISUALISER_BIN`               | One-shot override pointing at a locally-built binary                                                      |
+| `visualiser.binary` config key             | Persistent binary override in `.accelerator/config.local.md`                                              |
+| `ACCELERATOR_VISUALISER_IDLE_TIMEOUT`      | One-shot override of the idle auto-shutdown window (duration string, or `never`/`0` to disable)           |
+| `visualiser.idle_timeout` config key       | Persistent idle auto-shutdown window (humantime duration; default `8h`; `never`/`0` to disable)           |
 | `visualiser.editor` config key             | Editor deep-link for the detail-page "Open in editor" action (preset key or `{abs}`/`{rel}` URL template) |
-| `ACCELERATOR_VISUALISER_EDITOR`            | One-shot override of `visualiser.editor`                          |
-| `visualiser.editor_project` config key     | JetBrains project name for the editor deep-link (defaults to the project directory basename) |
-| `ACCELERATOR_VISUALISER_EDITOR_PROJECT`    | One-shot override of `visualiser.editor_project`                  |
-| `ACCELERATOR_VISUALISER_RELEASES_URL`      | Alternative HTTPS mirror for air-gapped or self-hosted installs    |
-| `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE` | Set to `1` to verify SLSA build-provenance after the SHA-256 check |
+| `ACCELERATOR_VISUALISER_EDITOR`            | One-shot override of `visualiser.editor`                                                                  |
+| `visualiser.editor_project` config key     | JetBrains project name for the editor deep-link (defaults to the project directory basename)              |
+| `ACCELERATOR_VISUALISER_EDITOR_PROJECT`    | One-shot override of `visualiser.editor_project`                                                          |
+| `ACCELERATOR_VISUALISER_RELEASES_URL`      | Alternative HTTPS mirror for air-gapped or self-hosted installs                                           |
+| `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE` | Set to `1` to verify SLSA build-provenance after the SHA-256 check                                        |
 
 The `ACCELERATOR_VISUALISER_RELEASES_URL` mirror must be HTTPS. A localhost
 exemption (`127.0.0.1`, `::1`, `localhost`) accepts HTTP for integration
@@ -729,9 +737,9 @@ For the executor wire protocol see
 
 ### Cache & cleanup
 
-| Path | Purpose |
-|------|---------|
-| `~/.cache/accelerator/playwright/` | Per-machine Playwright + Chromium cache |
+| Path                                                      | Purpose                                   |
+|-----------------------------------------------------------|-------------------------------------------|
+| `~/.cache/accelerator/playwright/`                        | Per-machine Playwright + Chromium cache   |
 | `<project>/.accelerator/tmp/inventory-design-playwright/` | Per-project daemon state (port file, PID) |
 
 To reset both:

@@ -323,25 +323,25 @@ a directory), so worktree-based sessions are detected like plain checkouts.
 
 #### Automated Verification:
 
-- [ ] Read-only CI mirror passes: `mise run check`
-- [ ] No version-coherence file changed (path-scoped): `jj diff --stat
+- [x] Read-only CI mirror passes: `mise run check`
+- [x] No version-coherence file changed (path-scoped): `jj diff --stat
       .claude-plugin/plugin.json
       skills/visualisation/visualise/server/Cargo.toml
       skills/visualisation/visualise/bin/checksums.json` prints nothing
-- [ ] This phase's file did change: `jj diff --stat README.md` is non-empty
-- [ ] The new table row keeps the markdown table well-formed (renders as a
+- [x] This phase's file did change: `jj diff --stat README.md` is non-empty
+- [x] The new table row keeps the markdown table well-formed (renders as a
       table in **preview** — `mise run check` does not parse markdown; the
       escaped pipe `\|` must display as `|`, not literally as `\|`)
 
 #### Manual Verification:
 
-- [ ] `sync-work-items` appears in the Work Item Management table and the
+- [x] `sync-work-items` appears in the Work Item Management table and the
       workflow diagram (acceptance criterion 4)
-- [ ] The `list-work-items` row mentions the Sync column (acceptance criterion 4)
-- [ ] The Remote Work Item Management intro cross-references batch sync
-- [ ] VCS Detection notes linked-worktree support
-- [ ] The Migrations section is unchanged
-- [ ] No mention of specific migrations or new migrate flags was added to the
+- [x] The `list-work-items` row mentions the Sync column (acceptance criterion 4)
+- [x] The Remote Work Item Management intro cross-references batch sync
+- [x] VCS Detection notes linked-worktree support
+- [x] The Migrations section is unchanged
+- [x] No mention of specific migrations or new migrate flags was added to the
       README (resolved decision)
 
 ---
