@@ -337,20 +337,23 @@ commit the revert.
 
 #### Automated Verification:
 
-- [ ] 0007 suite passes: `bash skills/config/migrate/scripts/test-migrate-0007.sh`
-- [ ] Migrate integration suite passes: `mise run test:integration:migrate`
+- [x] 0007 suite passes: `bash skills/config/migrate/scripts/test-migrate-0007.sh`
+      (196 passed, 0 failed)
+- [x] Migrate integration suite passes: `mise run test:integration:migrate`
       (suite-file floor `_EXPECTED_MIGRATE_SUITES = 4` still met)
-- [ ] Shell lint/format clean: `mise run lint:scripts:check` and
+- [x] Shell lint/format clean: `mise run lint:scripts:check` and
       `mise run format:scripts:check`
-- [ ] Full read-only check green: `mise run check`
+- [x] Full read-only check green: `mise run check`
 
 #### Manual Verification:
 
-- [ ] Inspecting the migrated `meta/prs/ENG-1234-description.md` shows
+- [x] Inspecting the migrated `meta/prs/ENG-1234-description.md` shows
       `pr_number: unknown` (bare) and **no** `pr_url:` / `merge_commit:` lines
-      (optional extras, left absent — not stamped).
-- [ ] The TDD sanity revert confirms the cross-check actually bites (goes red
-      without the sentinel branch).
+      (optional extras, left absent — not stamped). (Asserted directly by the
+      INCIDENT assertions.)
+- [x] The TDD sanity revert confirms the cross-check actually bites: disabling
+      the sentinel turned `Phase 4 corpus exits 0` and the INCIDENT sentinel
+      assertion red, restored to green.
 
 ---
 
@@ -439,18 +442,19 @@ than any non-empty token.
 
 #### Automated Verification:
 
-- [ ] Interactive suite passes:
+- [x] Interactive suite passes:
       `bash skills/config/migrate/scripts/test-migrate-interactive.sh`
-- [ ] Migrate integration suite passes: `mise run test:integration:migrate`
-- [ ] Shell lint/format clean: `mise run lint:scripts:check` and
+      (294 passed, 0 failed)
+- [x] Migrate integration suite passes: `mise run test:integration:migrate`
+- [x] Shell lint/format clean: `mise run lint:scripts:check` and
       `mise run format:scripts:check`
-- [ ] Full read-only check green: `mise run check`
+- [x] Full read-only check green: `mise run check`
 
 #### Manual Verification:
 
-- [ ] The test output / section banner now reads as the agent-invocation-path
+- [x] The test output / section banner now reads as the agent-invocation-path
       regression and cites the incident, so a future reader traces it to 0115/0120.
-- [ ] The pinned key in the stall output is the distinctive token, not `k1`.
+- [x] The pinned key in the stall output is the distinctive token, not `k1`.
 
 ---
 
