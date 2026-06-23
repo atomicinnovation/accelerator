@@ -11,7 +11,7 @@ parent: "work-item:0125"
 derived_from: ["codebase-research:2026-06-22-0125-search-id-matching"]
 tags: [visualiser, search, indexer]
 revision: "9b00844d77584e964f34faac55fd3be02c88220d"
-repository: "douala"
+repository: "accelerator"
 last_updated: "2026-06-22T16:03:30+00:00"
 last_updated_by: "Phil Helm"
 schema_version: 1

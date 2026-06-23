@@ -11,7 +11,7 @@ parent: "work-item:0125"
 topic: "How visualiser search ranks/matches entries, and how work_item_id and external_id flow into the search index"
 tags: [research, codebase, visualiser, search, indexer]
 revision: "9b00844d77584e964f34faac55fd3be02c88220d"
-repository: "douala"
+repository: "accelerator"
 last_updated: "2026-06-22T15:38:13+00:00"
 last_updated_by: "Phil Helm"
 schema_version: 1
@@ -22,8 +22,8 @@ schema_version: 1
 **Date**: 2026-06-22T15:38:13+00:00
 **Author**: Phil Helm
 **Git Commit**: 9b00844d77584e964f34faac55fd3be02c88220d
-**Branch**: douala
-**Repository**: douala
+**Branch**: visualiser-search-work-item-id
+**Repository**: accelerator
 
 ## Research Question
 
