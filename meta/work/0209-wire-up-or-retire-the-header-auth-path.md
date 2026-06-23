@@ -15,6 +15,7 @@ tags: [design, security, playwright, auth]
 last_updated: "2026-08-12T23:21:12+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-739
 ---
 
 # Wire Up Or Retire The Header-Auth Path

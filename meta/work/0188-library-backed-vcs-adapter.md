@@ -18,6 +18,7 @@ tags: [rust, vcs, dependencies]
 last_updated: "2026-08-05T17:36:44+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-718
 ---
 
 # 0188: Library-Backed VCS Adapter over gix and jj-lib

@@ -15,6 +15,7 @@ tags: [cli, launcher, performance, bootstrap]
 last_updated: "2026-08-17T20:36:50+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-747
 ---
 
 # 0218: Bound cache-root growth

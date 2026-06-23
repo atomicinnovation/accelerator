@@ -17,6 +17,7 @@ tags: [cli, launcher, performance, bootstrap, measurement]
 last_updated: "2026-08-13T15:28:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-735
 ---
 
 # 0205: Close the warm-dispatch latency measurement method

@@ -13,6 +13,7 @@ tags: [bug, cli, config, templates, plugin-root]
 last_updated: "2026-07-29T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-714
 ---
 
 # 0184: template_names succeeds-with-nothing on a plugin root that is not an installation
