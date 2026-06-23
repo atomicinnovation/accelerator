@@ -13,6 +13,7 @@ tags: [bug, scripts, vcs, git, worktree, conductor]
 last_updated: "2026-06-22T14:18:48+00:00"
 last_updated_by: Phil Helm
 schema_version: 1
+external_id: PP-145
 ---
 
 # 0124: find_repo_root fails in git worktrees (-d test on .git)

@@ -13,6 +13,7 @@ tags: []
 last_updated: "2026-06-22T23:41:03+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-149
 ---
 
 # 0128: Select jj Workspace / Git Worktree in Visualiser

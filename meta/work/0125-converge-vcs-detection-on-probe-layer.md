@@ -13,6 +13,7 @@ tags: [tech-debt, scripts, vcs, git, jj, worktree, vcs-common]
 last_updated: "2026-06-22T14:38:56+00:00"
 last_updated_by: Phil Helm
 schema_version: 1
+external_id: PP-146
 ---
 
 # 0125: Converge legacy lexical VCS detection on the 0058 probe layer

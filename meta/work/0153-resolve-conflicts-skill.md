@@ -13,6 +13,7 @@ tags: []
 last_updated: "2026-06-22T23:41:03+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-174
 ---
 
 # 0153: /resolve-conflicts VCS Skill
