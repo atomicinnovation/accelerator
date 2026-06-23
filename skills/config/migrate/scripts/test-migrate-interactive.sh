@@ -1189,21 +1189,35 @@ assert_eq "--help exits 0" "0" "$RC"
 assert_contains "--help lists --decisions-file" "$OUTPUT" "--decisions-file"
 
 echo ""
-echo "=== Structured stall on no decision input (0116 Phase 2) ==="
+echo "=== Structured stall on no decision input (0116 Phase 2; 0120 AC1) ==="
 echo ""
 
-echo "Test: PROMPT no-input → structured stall"
+# 0120 AC1 — the AGENT-INVOCATION PATH regression. This is the real
+# skill-invocation shape from incident 0115: no TTY, no decisions file, fd 0 at
+# EOF (`</dev/null`), ACCELERATOR_MIGRATE_DECISIONS_FILE unset. It must reach the
+# bare fd-0 branch of read_decision() (interactive-lib.sh:270-280, status 2) and
+# emit the structured stall — NOT the legacy `failed to obtain decision` abort,
+# and NOT via a supplied decisions file (which proved the wrong thing).
+echo "Test: PROMPT no-input → structured stall (agent-invocation path)"
 RC=0
 SBX=$(setup_sandbox "stall-no-input")
 echo "$SBX" >"$INTERACTIVE_FIXTURE_SANDBOX_FILE"
-seed_predicate_sandbox "$SBX" "k1|f1|a1|v1|ambiguous|prose1"
+# Distinctive pinned key (not the short `k1`) so AC1(a)'s literal-substring
+# assertion is unambiguous and self-documenting.
+seed_predicate_sandbox "$SBX" "agent-invocation-pending-key|f1|a1|v1|ambiguous|prose1"
 OUTPUT=$(ACCELERATOR_MIGRATIONS_DIR="$MIGRATIONS_DIR_FIXTURE/0002-predicate/migrations" \
   PROJECT_ROOT="$SBX" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
   ACCELERATOR_MIGRATE_FORCE=1 \
   bash "$DRIVER" </dev/null 2>&1) || RC=$?
 assert_neq "non-zero exit on no-input stall" "0" "$RC"
 assert_contains "stall marker present" "$OUTPUT" "MIGRATION STALLED"
-assert_contains "names the current key" "$OUTPUT" "k1"
+assert_contains "names the current key" "$OUTPUT" "agent-invocation-pending-key"
+# The resume-command strings below (--decisions-file switch, the
+# ACCELERATOR_MIGRATE_DECISIONS_FILE= env form, run-migrations.sh as driver) are
+# the output format owned by emit_no_input_stall (interactive-lib.sh:313-346).
+# The work item flags 0119 (resume-safe partial-migration failure) as a possible
+# future editor of this format — if these substrings break, check whether 0119
+# changed the resume hint before assuming a regression here.
 assert_contains "resume switch form" "$OUTPUT" "--decisions-file"
 assert_contains "resume names the driver" "$OUTPUT" "run-migrations.sh"
 assert_contains "resume env-var form" "$OUTPUT" \
