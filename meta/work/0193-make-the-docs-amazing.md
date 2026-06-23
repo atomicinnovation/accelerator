@@ -15,6 +15,7 @@ last_updated: "2026-07-10T19:55:16+00:00"
 last_updated_by: Phil Helm
 last_updated_note: "Corrected skill count to 69; recorded generation decisions from research"
 schema_version: 1
+external_id: PP-723
 ---
 
 # 0193: Make the Docs Amazing

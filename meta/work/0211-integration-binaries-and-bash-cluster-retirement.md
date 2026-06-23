@@ -16,6 +16,7 @@ tags: [rust, jira, linear, integrations, cli, cutover]
 last_updated: "2026-08-17T13:33:15+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-741
 ---
 
 # 0211: Integration Binaries and Bash Cluster Retirement

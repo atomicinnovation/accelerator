@@ -15,6 +15,7 @@ tags: [rust, vcs, cli, performance]
 last_updated: "2026-08-06T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-728
 ---
 
 # 0198: Migrate vcs status/log off subprocess onto library-backed adapters

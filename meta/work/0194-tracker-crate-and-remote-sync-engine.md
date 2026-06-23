@@ -15,6 +15,7 @@ tags: [rust, work-items, sync, tracker]
 last_updated: "2026-08-13T12:20:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-724
 ---
 
 # 0194: Tracker Crate and Remote Sync Engine

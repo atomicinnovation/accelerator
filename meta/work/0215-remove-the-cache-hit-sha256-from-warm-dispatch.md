@@ -15,6 +15,7 @@ tags: [cli, launcher, performance, bootstrap]
 last_updated: "2026-08-17T20:36:49+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-744
 ---
 
 # 0215: Remove the cache-hit sha256 from warm dispatch

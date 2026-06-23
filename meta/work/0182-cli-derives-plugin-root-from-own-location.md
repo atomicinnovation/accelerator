@@ -16,6 +16,7 @@ last_updated: "2026-08-09T00:00:00+00:00"
 last_updated_by: Toby Clemson
 last_updated_note: "Reciprocal relates_to edge to 0172, added while closing out 0172's Phase 10 (retirement cutover): 0172 removed the CLAUDE_PLUGIN_ROOT-allowlist entries this item's rename set covered for the retired bash migration engine, and repointed hooks/hooks.json's migrate SessionStart entry, which coordinates with this item's own launcher-link-refresh.sh entry ordering."
 schema_version: 1
+external_id: PP-712
 ---
 
 # 0182: bin/accelerator requires CLAUDE_PLUGIN_ROOT in the environment (never exported to skills)
