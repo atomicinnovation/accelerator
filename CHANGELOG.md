@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.23.0] - 2026-06-23
+
 ### Added
 
 - **`/accelerator:sync-work-items`** — reconcile local work items in `meta/work/`
