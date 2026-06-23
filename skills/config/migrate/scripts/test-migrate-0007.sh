@@ -1244,6 +1244,50 @@ schema_version: 1
 # Review Pass Review
 EOF
 
+# INCIDENT (0120 AC2): a pr-description whose filename carries an external
+# tracker key (ENG-1234-description). `pr_number` has no derivable default — the
+# stem has no pr/PR segment and is not numeric-leading, so the leading-numeric
+# fallback returns empty (the date-prefix exclusion is never even reached) — so
+# the backfill stamps the bare `unknown` sentinel on this one required extra.
+# This is the exact file shape from the 0115 incident; the cross-check proves
+# what the tolerant backfill emits is a state the validator accepts.
+mkdir -p "$P4/meta/prs"
+cat >"$P4/meta/prs/ENG-1234-description.md" <<'EOF'
+---
+type: pr-description
+id: "ENG-1234-description"
+title: "Tracker Keyed PR Description"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Tracker Keyed PR Description
+EOF
+
+# COUNTER (0120 AC2): a derivable pr-description — `pr-42-description` matches
+# the `(^|-)[Pp][Rr]-?[0-9]+` segment, so pr_number derives to 42 and is NOT
+# sentinel-replaced. Guards the boundary: the sentinel fires only where the
+# value is genuinely underivable.
+cat >"$P4/meta/prs/pr-42-description.md" <<'EOF'
+---
+type: pr-description
+id: "pr-42-description"
+title: "Derivable PR Description"
+date: "2026-06-20T00:00:00+00:00"
+author: Toby
+status: complete
+tags: []
+last_updated: "2026-06-20T00:00:00+00:00"
+last_updated_by: Toby
+schema_version: 1
+---
+# Derivable PR Description
+EOF
+
 git_init "$P4"
 
 # Red step: the fenced note missing topic reports MISSING-EXTRA before the fix.
@@ -1319,6 +1363,49 @@ assert_contains "Phase 4 HYBRID: crawler -> quoted unknown sentinel" \
 RP="$P4/meta/reviews/plans/2026-06-20-reviewpass-review.md"
 assert_eq "Phase 4 REVIEWPASS: review_pass -> bare typed default (not quoted)" \
   'review_pass: 1' "$(fm_line "$RP" review_pass)"
+
+# ── 0120 AC2: backfill↔validator cross-check (incident-shaped fixture) ──
+INCIDENT="$P4/meta/prs/ENG-1234-description.md"
+# Only pr_number is a genuinely REQUIRED extra for pr-description, so the
+# underivable tracker-key stem gets the BARE `unknown` sentinel. pr_url and
+# merge_commit are in FM_OPTIONAL_EXTRAS (frontmatter-emission-rules.sh:74), so
+# the backfill loop skips them (0007:510) and they stay ABSENT — which the
+# validator accepts (MISSING-EXTRA also skips optional extras). Assert both: the
+# present bare sentinel on the required extra, and the benign absence of the
+# optional pair (no quoted "unknown" is ever written for them).
+assert_contains "Phase 4 INCIDENT: tracker-key pr_number -> bare unknown sentinel" \
+  "$(fm_line "$INCIDENT" pr_number)" 'pr_number: unknown'
+# Assert absence against the WHOLE migrated file (not fm_line, which returns
+# empty for an absent key and would pass vacuously) so a stray quoted-`unknown`
+# stamping anywhere in the frontmatter is caught — the `assert_not_contains
+# "$(cat …)"` idiom already used at :164,:169-170.
+assert_not_contains "Phase 4 INCIDENT: optional pr_url left absent (not stamped)" \
+  "$(cat "$INCIDENT")" 'pr_url:'
+assert_not_contains "Phase 4 INCIDENT: optional merge_commit left absent (not stamped)" \
+  "$(cat "$INCIDENT")" 'merge_commit:'
+# AC2 names the regex `FAIL:.*MISSING-EXTRA`, but it matches NO single validator
+# line: violations print `<file>: MISSING-EXTRA — <msg>` (no FAIL: prefix) and
+# the only FAIL: line is the codeless summary. So assert the MEANINGFUL
+# equivalent: the validator emits no MISSING-EXTRA token over the migrated
+# incident fixture, proving the present `unknown` is an accepted state rather
+# than a tolerated-but-rejected one. Exit-0 acceptance of this fixture is
+# already covered by the corpus-wide `assert_validates "$P4/meta"` below (which
+# now includes it), so no separate per-file assert_validates is needed.
+INCIDENT_VOUT="$("$VALIDATOR" "$INCIDENT" 2>&1)" || true
+assert_not_contains "Phase 4 INCIDENT: no MISSING-EXTRA for present sentinel" \
+  "$INCIDENT_VOUT" "MISSING-EXTRA"
+
+# ── 0120 AC2 counter: derivable pr_number is NOT sentinel-replaced ──
+# Guards the pr-description / meta/prs/ derivation path specifically — distinct
+# from the existing PR430 block (:1264-1298), which proves the same boundary for
+# a pr-review under meta/reviews/prs/. Exact-equality positive form (not a bare
+# substring) so a regression that DROPPED the line entirely also fails rather
+# than passing a vacuous not_contains.
+COUNTER="$P4/meta/prs/pr-42-description.md"
+assert_eq "Phase 4 COUNTER: derivable pr_number from pr- segment" \
+  'pr_number: 42' "$(fm_line "$COUNTER" pr_number)"
+assert_not_contains "Phase 4 COUNTER: derivable pr_number NOT sentinel-replaced" \
+  "$(fm_line "$COUNTER" pr_number)" 'unknown'
 
 assert_validates "Phase 4 corpus validates clean" "$P4/meta"
 
