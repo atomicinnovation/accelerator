@@ -5,7 +5,7 @@ title: "Prevention Tests for the Agent-Invocation Path Implementation Plan"
 date: "2026-06-23T08:46:31+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0120"
 parent: "work-item:0120"
 derived_from: ["codebase-research:2026-06-23-0120-prevention-tests-agent-invocation-path"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0115", "work-item:0116", "work-item:0118"]
 tags: [migrate, interactive-migration, agent-invocation, testing, 0007]
 revision: "794b453cdb78aa98360c723799ef1f313ee754c5"
 repository: "accelerator"
-last_updated: "2026-06-23T09:17:20+00:00"
+last_updated: "2026-06-23T12:13:42+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
