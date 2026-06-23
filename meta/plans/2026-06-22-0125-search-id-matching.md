@@ -552,14 +552,14 @@ slug-less entries don't consume a slot.
 
 #### Manual Verification:
 
-- [ ] In a running visualiser (`mise run dev`), focusing the sidebar search and
+- [x] In a running visualiser (`mise run dev`), focusing the sidebar search and
       typing a work item's number (e.g. `0125`) surfaces that item; typing the
       unpadded number (e.g. `125`) also surfaces it.
-- [ ] A broad-match query (e.g. a common two-digit fragment, or the project code
+- [x] A broad-match query (e.g. a common two-digit fragment, or the project code
       under a project-code config) returns a bounded list rather than the whole
       corpus. (The frontend gates searches at ≥ 2 characters — `use-search.ts` —
       so a single digit never reaches the API; use a 2+ character query here.)
-- [ ] Title / slug / body searches behave exactly as before.
+- [x] Title / slug / body searches behave exactly as before.
 
 ---
 
