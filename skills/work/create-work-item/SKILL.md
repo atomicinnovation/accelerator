@@ -525,14 +525,12 @@ concurrently. Please re-run /create-work-item.
       type/project fields (the team is fixed by `/init-linear`). State **both**
       outcomes inline:
 
-      ```
-      Push to <tracker> now? [y/N]  (y = create the remote issue + save locally;
-      anything else = save locally only, unsynced — you can push it later by
-      running /create-<tracker>-issue <path>)
-      ```
+      Use the `AskUserQuestion` tool with two options:
 
-      Interpret strictly: exactly `y`/`Y` (trimmed) accepts; **anything else**
-      declines. `/sync-work-items` is **not built yet** — do not tell the user
+      1. **Yes, push to [tracker] now** — create the remote issue and save
+         locally
+      2. **No, save locally only** — save as unsynced; push later with
+         `/create-[tracker]-issue <path>` `/sync-work-items` is **not built yet** — do not tell the user
       to run it; the "push later" path is the standalone `/create-<tracker>-issue`
       skill on the saved file (it shares this `external_id` contract).
 
@@ -633,8 +631,12 @@ Work item created: `{work_dir}/<full-id>-kebab-slug.md`
    Frontmatter fields preserved verbatim: id, date, author
      [+ any unmodified proposable fields]
 
-   Proceed? (y/n)
    ```
+
+   Then use the `AskUserQuestion` tool with two options:
+
+   1. **Yes, proceed** — overwrite the work item with the changes shown
+   2. **No, cancel** — make no changes
 
 4. **Confirmation interpretation** (fail-safe):
    - Exactly `y` or `Y` (after trimming whitespace): proceed to step 5.

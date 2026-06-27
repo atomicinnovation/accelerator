@@ -172,13 +172,12 @@ For each local item with a non-empty `external_id`, emitting
    overwrite from remote exceeds the shared threshold (**25**, the same constant
    the untracked-pull gate uses), pin and evaluate **before any pull write**:
 
-   ```
-   N local files will be overwritten from remote. Proceed? [y/N]
-   ```
+   Use the `AskUserQuestion` tool with two options (stating the count N):
 
-   It **fails safe**: empty input, a non-interactive context, or any non-`y`
-   answer aborts the entire pull-overwrite class with **zero** writes and a
-   non-zero exit. Never proceed on no answer.
+   1. **Yes, proceed** — overwrite the N local files from remote
+   2. **No, abort** — abort with zero writes and a non-zero exit
+
+   It **fails safe**: if not running interactively, abort with zero writes.
 
 5. **Terminal push handling.** A 71/terminal code from the update bridge is
    **never** auto-retried (a resent request could apply twice on a
@@ -289,12 +288,12 @@ ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-fetch-remote.sh \
 (**25** — the same constant the pull-overwrite gate in Step 3 uses), pin, and
 evaluate **before any creation write**:
 
-```
-N untracked remote issues will be created. Proceed? [y/N]
-```
+Use the `AskUserQuestion` tool with two options (stating the count N):
 
-It **fails safe**: empty input, a non-interactive context, or any non-`y` answer
-aborts the untracked-pull class with **zero** creations and a non-zero exit. This
+1. **Yes, proceed** — create the N untracked issues locally
+2. **No, abort** — abort with zero creations and a non-zero exit
+
+It **fails safe**: if not running interactively, abort with zero creations. This
 stops a mis-scoped `--all` or an automation-flooded project from flooding the
 work directory and exhausting IDs.
 

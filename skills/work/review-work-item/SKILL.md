@@ -477,15 +477,13 @@ After presenting the review:
 
 ### Step 7: Offer Re-Review
 
-After edits are complete:
+After edits are complete, use the `AskUserQuestion` tool with two options:
 
-```
-The work item has been updated. Would you like me to run another review pass to
-verify the changes address the findings? This will re-run the relevant lenses
-to check for any remaining issues.
-```
+1. **Yes, run another review pass** — re-run the relevant lenses to verify the
+   changes address the findings
+2. **No, done** — exit without re-reviewing
 
-If the user accepts:
+If the user chooses option 1:
 
 - Re-run **only the lenses that had findings** in the previous pass
 - Use the same spawn pattern and JSON extraction strategy from Steps 3-4
