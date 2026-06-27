@@ -252,10 +252,21 @@ Based on the PR's scope, I'll review through these lenses:
 - Portability: [reason — or "Skipping: ..."]
 - Safety: [reason — or "Skipping: ..."]
 
-Shall I proceed, or would you like to adjust the selection?
 ```
 
-Wait for confirmation before spawning reviewers.
+Then use the `AskUserQuestion` tool to ask the user whether to proceed, with
+two options:
+
+1. **Yes, use the proposed lenses** — run the review with the selected lenses
+2. **No, specify which lenses to use** — adjust the selection before running
+
+Wait for the user's answer before spawning reviewers. If they choose option 2,
+ask which lenses they want using a **plain-text question only** — do NOT use
+`AskUserQuestion` for this follow-up (the lens list is too large for the
+4-option limit). If any lens name is unrecognised, seek clarification. Once
+confirmed, update the selection and re-present it using the same
+`AskUserQuestion` proceed/adjust pattern. This loop is user-controlled with
+no hard termination limit.
 
 ### Step 3: Spawn Review Agents
 

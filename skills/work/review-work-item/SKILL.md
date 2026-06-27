@@ -141,18 +141,28 @@ who previously pinned `core_lenses` to the Phase 4 work item lenses
 set `max_lenses` to their subset size.
 
 Present the selection briefly — enumerate the chosen lenses with a one-line
-focus each — then wait for confirmation before spawning reviewers. The
-confirmation gate is preserved even though the default always selects every
+focus each — then use the `AskUserQuestion` tool with two options:
+
+1. **Yes, use the proposed lenses** — run the review with the selected lenses
+2. **No, specify which lenses to use** — adjust the selection before running
+
+The confirmation gate is preserved even though the default always selects every
 lens; the gate is useful when focus args or config have narrowed the set.
 
 Example (default path, no focus args, no `core_lenses` restriction):
 
 ```
 I'll review this work item through all work item lenses (clarity, completeness,
-dependency, scope, testability). Shall I proceed?
+dependency, scope, testability).
 ```
 
-Wait for confirmation before spawning reviewers.
+Wait for the user's answer before spawning reviewers. If they choose option 2,
+ask which lenses they want using a **plain-text question only** — do NOT use
+`AskUserQuestion` for this follow-up (the lens list is too large for the
+4-option limit). If any lens name is unrecognised, seek clarification. Once
+confirmed, update the selection and re-present it using the same
+`AskUserQuestion` proceed/adjust pattern. This loop is user-controlled with
+no hard termination limit.
 
 ### Step 3: Spawn Review Agents
 
