@@ -469,35 +469,36 @@ References: spike 0159 primary + lum ADR-0011 full URL.
 
 #### Automated Verification:
 
-- [ ] All 11 exist (and the glob expands to 11 — the gate for the negative checks below): `ls meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md | wc -l` → `11`
-- [ ] All `proposed` (sum-aware): `grep -l '^status: proposed' meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md | wc -l` → `11`
-- [ ] No `producer:` / `parent:` keys (only meaningful given the glob-expands-to-11 gate above): `! grep -E '^(producer|parent):' meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md`
-- [ ] Each cites luminosity origin: `grep -L 'github.com/atomicinnovation/luminosity' meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md` → empty
-- [ ] No leftover product-name reference **outside the origin URL** (token-level, not line-level — a line carrying both the origin URL and a stray `Luminosity` must still be caught): `grep -roEn 'Luminosity|\.luminosity/' meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md` then confirm every hit is part of the `github.com/atomicinnovation/luminosity` origin URL (the `-o` token match avoids the whole-line `grep -v` false-negative).
-- [ ] No bare luminosity work-item reference (path **or** prose): `grep -rinE 'meta/work/000[0-9]|(work[ -]?item|epic|story|slice) 000[0-9]' meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md` — every hit must be either a rewritten local ref or inside the origin URL.
-- [ ] **§D `relates_to` map exact-match** (the highest-risk wrong-but-resolvable class) — runnable per ADR: `grep '^relates_to:' meta/decisions/ADR-00NN-*.md | grep -oE 'adr:ADR-[0-9]{4}' | sort` must equal the sorted `adr:` set from the §D table for that ADR. Note: compare only `adr:` tokens (lines also carry research/plan/work-item refs). **ADR-0052's full `adr:` set is ADR-0051 + ADR-0045 + ADR-0001** (ADR-0001 is a deliberate `relates_to`, listed in the supersession column of §D, not the `relates_to` column — include it). ADR-0047's prose config refs (0016/0017/0020/0021) are *not* in `relates_to` and must not appear there. Walk all 11.
-- [ ] Supersets declare the **exact** `supersedes` set (presence *and* no extras): `grep 'supersedes:' meta/decisions/ADR-0047-*.md | grep -oE 'ADR-[0-9]{4}' | sort` equals `ADR-0016 ADR-0017`; ADR-0052's equals `ADR-0027` (guards against an accidental extra such as ADR-0001 in ADR-0052's `supersedes`).
-- [ ] Suspect in-prose ordinals flagged for review: `grep -rinE 'the [0-9]+(st|nd|rd|th) ADR|decision [0-9]+' meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md` — every hit confirmed to name the correct **local** number.
-- [ ] **No pre-existing ADR edited in Phase 2**: `jj diff --stat` shows no changes to `meta/decisions/ADR-0016-*.md`, `ADR-0017-*.md`, or `ADR-0027-*.md` (the `status` flip is Phase 3, after acceptance).
-- [ ] Corpus validator green (referential integrity over all new refs): `bash scripts/validate-corpus-frontmatter.sh meta/` (exit 0)
-- [ ] `mise run check` passes
+- [x] All 11 exist (and the glob expands to 11 — the gate for the negative checks below): `ls meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md | wc -l` → `11`
+- [x] All `proposed` (sum-aware): `grep -l '^status: proposed' meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md | wc -l` → `11`
+- [x] No `producer:` / `parent:` keys (only meaningful given the glob-expands-to-11 gate above): `! grep -E '^(producer|parent):' meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md` *(also confirmed no `decision_makers`/`revision`/`repository`.)*
+- [x] Each cites luminosity origin: `grep -L 'github.com/atomicinnovation/luminosity' meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md` → empty
+- [x] No leftover product-name reference **outside the origin URL** (token-level, not line-level — a line carrying both the origin URL and a stray `Luminosity` must still be caught): `grep -roEn 'Luminosity|\.luminosity/' meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md` then confirm every hit is part of the `github.com/atomicinnovation/luminosity` origin URL (the `-o` token match avoids the whole-line `grep -v` false-negative). *(Zero `Luminosity`/`.luminosity/` hits; bare lowercase `luminosity` appears only in the mandated "Ported from luminosity" notes and origin URLs — no command/crate names.)*
+- [x] No bare luminosity work-item reference (path **or** prose): `grep -rinE 'meta/work/000[0-9]|(work[ -]?item|epic|story|slice) 000[0-9]' meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md` — every hit must be either a rewritten local ref or inside the origin URL. *(Only origin-URL hits remain.)*
+- [x] **§D `relates_to` map exact-match** (the highest-risk wrong-but-resolvable class) — runnable per ADR: `grep '^relates_to:' meta/decisions/ADR-00NN-*.md | grep -oE 'adr:ADR-[0-9]{4}' | sort` must equal the sorted `adr:` set from the §D table for that ADR. Note: compare only `adr:` tokens (lines also carry research/plan/work-item refs). **ADR-0052's full `adr:` set is ADR-0051 + ADR-0045 + ADR-0001** (ADR-0001 is a deliberate `relates_to`, listed in the supersession column of §D, not the `relates_to` column — include it). ADR-0047's prose config refs (0016/0017/0020/0021) are *not* in `relates_to` and must not appear there. Walk all 11. *(All 11 exact-match; ADR-0052 includes ADR-0001; ADR-0047 keeps 0016/0017/0020/0021 in prose only.)*
+- [x] Supersets declare the **exact** `supersedes` set (presence *and* no extras): `grep 'supersedes:' meta/decisions/ADR-0047-*.md | grep -oE 'ADR-[0-9]{4}' | sort` equals `ADR-0016 ADR-0017`; ADR-0052's equals `ADR-0027` (guards against an accidental extra such as ADR-0001 in ADR-0052's `supersedes`). *(Only 0047 and 0052 carry `supersedes:`.)*
+- [x] Suspect in-prose ordinals flagged for review: `grep -rinE 'the [0-9]+(st|nd|rd|th) ADR|decision [0-9]+' meta/decisions/ADR-004[5-9]-*.md meta/decisions/ADR-005[0-5]-*.md` — every hit confirmed to name the correct **local** number. *(No hits — all ordinals rewritten to local ADR numbers.)*
+- [x] **No pre-existing ADR edited in Phase 2**: `jj diff --stat` shows no changes to `meta/decisions/ADR-0016-*.md`, `ADR-0017-*.md`, or `ADR-0027-*.md` (the `status` flip is Phase 3, after acceptance).
+- [x] Corpus validator green (referential integrity over all new refs): `bash scripts/validate-corpus-frontmatter.sh meta/` (exit 0)
+- [x] `mise run check` passes
 
 #### Manual Verification:
 
-- [ ] Cross-reference graph matches the §D map; no luminosity self-ref left
+- [x] Cross-reference graph matches the §D map; no luminosity self-ref left
       un-shifted and no Accelerator ref (0016/0017/0020/0021) wrongly shifted.
       (Backed by the §D exact-match automated assertion above.)
-- [ ] No in-prose ordinal cross-reference survives in luminosity terms — search
+- [x] No in-prose ordinal cross-reference survives in luminosity terms — search
       ADR-0049/0053/0054/0055 (and any other) for "the Nth ADR" / "decision N"
       phrasings and confirm each names the correct **local** number.
-- [ ] Perspective inversion complete — no sentence treats Accelerator as an
+- [x] Perspective inversion complete — no sentence treats Accelerator as an
       external/precedent repo; ADR-0045's cautionary framing reads as
       Accelerator's own history.
-- [ ] ADR-0048 says four toolchains; ADR-0055's reasoning no longer depends on
+- [x] ADR-0048 says four toolchains; ADR-0055's reasoning no longer depends on
       "no fourth toolchain" — `grep -in 'fourth toolchain\|three languages\|no fourth' meta/decisions/ADR-0055-*.md` returns no count-minimisation phrasing.
-- [ ] ADR-0052 contains no `content/` marketing material; supersedes ADR-0027
-      only and `relates_to` ADR-0001.
-- [ ] ADR-0054 describes `accelerator visualiser …` as the folded-in visualiser.
+- [x] ADR-0052 contains no `content/` marketing material; supersedes ADR-0027
+      only and `relates_to` ADR-0001. *(`content/` appears only in the
+      intentional scope note recording what luminosity had and what was dropped.)*
+- [x] ADR-0054 describes `accelerator visualiser …` as the folded-in visualiser.
 
 ---
 
