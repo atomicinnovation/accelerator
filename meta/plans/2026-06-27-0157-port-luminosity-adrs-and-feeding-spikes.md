@@ -296,27 +296,27 @@ bash skills/work/scripts/work-item-next-number.sh --count 2   # → 0158, 0159
 
 #### Automated Verification:
 
-- [ ] **Pre-flight — IDs unmoved**: `bash skills/work/scripts/work-item-next-number.sh` still returns `0158` before authoring. If the corpus moved, re-allocate and regenerate the §D map rather than proceeding with hard-coded numbers.
-- [ ] Both files exist: `ls meta/work/0158-*.md meta/work/0159-*.md | wc -l` → `2`
-- [ ] Both `done` (sum-aware): `grep -l '^status: done' meta/work/0158-*.md meta/work/0159-*.md | wc -l` → `2`
-- [ ] No un-ported parent/blocks leak: `! grep -E '^(parent|blocks):' meta/work/0158-*.md meta/work/0159-*.md`
-- [ ] Luminosity origin cited as full URL: `grep -l 'github.com/atomicinnovation/luminosity' meta/work/0158-*.md meta/work/0159-*.md | wc -l` → `2`
-- [ ] Date-sensitive anchor survived in 0158 (lum 0002): `grep -l 'sigstore\|archived May 2026' meta/work/0158-*.md | wc -l` → `1`.
-- [ ] Date-sensitive anchor survived in 0159 (lum 0003): `grep -l 'OpenAI' meta/work/0159-*.md | wc -l` → `1`. (Confirm the exact upstream wording of each anchor before relying on these tokens.)
-- [ ] No residual luminosity product-name/command in the ported spikes (token-level): `grep -roEn 'Luminosity|\.luminosity/|\bluminosity\b' meta/work/0158-*.md meta/work/0159-*.md` — every hit confirmed part of the origin URL.
-- [ ] Coarse content-survival guard against silent truncation: each ported spike's line count is within tolerance of its `../luminosity` source (the spikes are ~373 / ~316 lines — a large shortfall signals lost research).
-- [ ] Corpus validator green: `bash scripts/validate-corpus-frontmatter.sh meta/` (exit 0)
-- [ ] `mise run check` passes
+- [x] **Pre-flight — IDs unmoved**: `bash skills/work/scripts/work-item-next-number.sh` still returns `0158` before authoring. If the corpus moved, re-allocate and regenerate the §D map rather than proceeding with hard-coded numbers.
+- [x] Both files exist: `ls meta/work/0158-*.md meta/work/0159-*.md | wc -l` → `2`
+- [x] Both `done` (sum-aware): `grep -l '^status: done' meta/work/0158-*.md meta/work/0159-*.md | wc -l` → `2`
+- [x] No un-ported parent/blocks leak: `! grep -E '^(parent|blocks):' meta/work/0158-*.md meta/work/0159-*.md`
+- [x] Luminosity origin cited as full URL: `grep -l 'github.com/atomicinnovation/luminosity' meta/work/0158-*.md meta/work/0159-*.md | wc -l` → `2`
+- [x] Date-sensitive anchor survived in 0158 (lum 0002): `grep -l 'sigstore\|archived May 2026' meta/work/0158-*.md | wc -l` → `1`.
+- [x] Date-sensitive anchor survived in 0159 (lum 0003): `grep -l 'OpenAI' meta/work/0159-*.md | wc -l` → `1`. (Confirm the exact upstream wording of each anchor before relying on these tokens.)
+- [x] No residual luminosity product-name/command in the ported spikes (token-level): `grep -roEn 'Luminosity|\.luminosity/|\bluminosity\b' meta/work/0158-*.md meta/work/0159-*.md` — every hit confirmed part of the origin URL. *(All hits are the lowercase project name in the mandated "Ported from luminosity" banner and the origin URL; no `Luminosity` product name, `.luminosity/` path, or `luminosity` command/crate name remains.)*
+- [x] Coarse content-survival guard against silent truncation: each ported spike's line count is within tolerance of its `../luminosity` source (the spikes are ~373 / ~316 lines — a large shortfall signals lost research). *(0158: 381 vs 372; 0159: 317 vs 315.)*
+- [x] Corpus validator green: `bash scripts/validate-corpus-frontmatter.sh meta/` (exit 0)
+- [x] `mise run check` passes
 
 #### Manual Verification:
 
-- [ ] `## Spike Outcome` / `## Recommendation` content matches the luminosity
+- [x] `## Spike Outcome` / `## Recommendation` content matches the luminosity
       originals (diff against the `../luminosity` source — no research lost),
       with date-sensitive facts intact. **Boundary**: these two sections are
       preserved as verbatim historical record (only luminosity self-paths/names
       rewritten); the earlier narrative/options sections additionally get
       first-person/Accelerator perspective inversion.
-- [ ] Prose reads in the first person / Accelerator voice; no dangling
+- [x] Prose reads in the first person / Accelerator voice; no dangling
       references to luminosity work items by bare number, and no residual
       `luminosity`/`.luminosity/` command names (grep the ported spike files).
 
