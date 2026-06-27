@@ -224,8 +224,10 @@ two options:
 2. **No, specify which lenses to use** — adjust the selection before running
 
 Wait for the user's answer before spawning reviewers. If they choose option 2,
-ask which lenses they want, then re-present the updated selection using the
-same `AskUserQuestion` pattern.
+ask which lenses they want as a **plain-text question only** — do NOT use
+`AskUserQuestion` for this follow-up (the lens list is too large for the
+4-option limit). Once confirmed, update the selection and re-present it using
+the same `AskUserQuestion` proceed/adjust pattern above.
 
 ### Step 3: Spawn Review Agents
 

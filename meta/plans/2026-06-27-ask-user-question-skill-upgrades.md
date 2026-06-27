@@ -96,8 +96,15 @@ Use the `AskUserQuestion` tool with the following options:
 ```
 
 The `AskUserQuestion` tool has a hard limit of **4 options** per question.
-Where the existing text lists 5 options, the two most closely related options
-are merged or the least-common one is dropped to "Other".
+Where the existing text lists 5 options, the least-common one is dropped; the
+5-option `review-pr` post-review menu is excluded from this plan entirely (left
+as plain-text markdown) because no option can be dropped without meaningful loss.
+
+**Line numbers are approximate hints.** Phases 1, 2, and 3 all touch
+`review-pr/SKILL.md`; Phases 2 and 3 both touch `respond-to-pr/SKILL.md`. Each
+phase is independently mergeable, but merging an earlier phase shifts line
+numbers for later phases in the same file. Implementers should locate changes
+by the **quoted text content**, not by line number alone.
 
 ---
 
@@ -106,8 +113,8 @@ are merged or the least-common one is dropped to "Other".
 **Files**: `skills/github/review-pr/SKILL.md`,
 `skills/work/review-work-item/SKILL.md`
 
-**Pattern**: Identical to the existing `review-plan` change — 1 explicit option
-(**Proceed**) with "Other" for adjustments.
+**Pattern**: Identical to the existing `review-plan` change — 2 options: a
+positive (proceed) and a negative (adjust).
 
 ### Changes Required
 
@@ -129,8 +136,12 @@ two options:
 2. **No, specify which lenses to use** — adjust the selection before running
 
 Wait for the user's answer before spawning reviewers. If they choose option 2,
-ask which lenses they want, then re-present the updated selection using the
-same `AskUserQuestion` pattern.
+ask which lenses they want using a **plain-text question only** — do NOT use
+`AskUserQuestion` for this follow-up (the lens list is too large for the
+4-option limit). If any lens name is unrecognised, seek clarification. Once
+confirmed, update the selection and re-present it using the same
+`AskUserQuestion` proceed/adjust pattern. This loop is user-controlled with
+no hard termination limit.
 ```
 
 #### 2. `skills/work/review-work-item/SKILL.md` — Lines 143–155
@@ -151,17 +162,24 @@ Then use the `AskUserQuestion` tool with two options:
 2. **No, specify which lenses to use** — adjust the selection before running
 
 Wait for the user's answer before spawning reviewers. If they choose option 2,
-ask which lenses they want, then re-present the updated selection using the
-same `AskUserQuestion` pattern.
+ask which lenses they want using a **plain-text question only** — do NOT use
+`AskUserQuestion` for this follow-up (the lens list is too large for the
+4-option limit). If any lens name is unrecognised, seek clarification. Once
+confirmed, update the selection and re-present it using the same
+`AskUserQuestion` proceed/adjust pattern. This loop is user-controlled with
+no hard termination limit.
 ```
 
 ### Success Criteria
 
 #### Manual Verification:
 - [ ] Run `/review-pr` on any open PR — `AskUserQuestion` panel appears before
-  reviewers are spawned; the panel shows **Proceed** as the sole option plus the
-  "Other" input.
-- [ ] Entering text in "Other" triggers the adjustment loop.
+  reviewers are spawned with **Yes, use the proposed lenses** and **No, specify
+  which lenses to use** as options.
+- [ ] Choose "No, specify which lenses to use" — Claude prompts for lens names
+  in plain text, then re-presents the updated selection via `AskUserQuestion`.
+- [ ] Specify an unrecognised lens name — Claude seeks clarification before
+  updating the selection.
 - [ ] Run `/review-work-item` on any work item — same panel behaviour.
 
 ---
@@ -180,31 +198,7 @@ Where 5 options exist, the two most closely related are merged to respect the
 
 ### Changes Required
 
-#### 1. `skills/github/review-pr/SKILL.md` — Lines 586–593 (5-option post-review menu)
-
-**Current:**
-```
-The review is ready. Would you like to:
-1. Post the review? …
-2. Change the verdict? …
-3. Edit or remove specific inline comments before posting?
-4. Discuss any findings in more detail?
-5. Re-run specific lenses with adjusted focus?
-```
-
-**4-option limit resolution**: Options 4 (Discuss) and 5 (Re-run lenses) are
-distinct enough to keep both. Drop "Discuss" to "Other" (users can type "discuss
-X") and keep Post, Change verdict, Edit comments, Re-run lenses as 4 options.
-
-**Replace with instruction to use `AskUserQuestion` with:**
-1. **Post the review** — submit summary + inline comments with [verdict]
-2. **Change the verdict** — currently: [verdict]
-3. **Edit or remove inline comments** — modify before posting
-4. **Re-run specific lenses** — adjust focus and re-review
-
-"Other" handles discussion requests.
-
-#### 2. `skills/github/review-pr/SKILL.md` — Lines 652–653 (verdict picker)
+#### 1. `skills/github/review-pr/SKILL.md` — Lines 652–653 (verdict picker)
 
 **Current:**
 ```
@@ -247,9 +241,8 @@ Would you like to:
 **Replace with instruction to use `AskUserQuestion` with:**
 1. **Address findings** — edit the work item to resolve issues
 2. **Change the verdict** — currently: [verdict]
-3. **Re-run specific lenses** — adjust focus and re-review
-
-"Other" handles discussion requests (3 explicit options, keeping under the cap).
+3. **Discuss specific findings** — explore any finding in more detail
+4. **Re-run specific lenses** — adjust focus and re-review
 
 #### 5. `skills/work/extract-work-items/SKILL.md` — Lines 207–219 (per-candidate menu)
 
@@ -331,9 +324,9 @@ What would you prefer?
 `skills/research/conduct-spike/SKILL.md`,
 `skills/decisions/create-adr/SKILL.md`
 
-**Pattern**: Each plain-text confirmation is replaced with a 1-option
-`AskUserQuestion` (the action label), with "Other" as the implicit cancel/adjust
-path. No "recommended" label on any option.
+**Pattern**: Each plain-text confirmation is replaced with a 2-option
+`AskUserQuestion` — a positive action and a negative (cancel/skip/abort). No
+"recommended" label on any option.
 
 ### Changes Required
 
@@ -428,10 +421,10 @@ path. No "recommended" label on any option.
 ### Success Criteria
 
 #### Manual Verification:
-- [ ] Run `/commit` — `AskUserQuestion` panel appears showing the commit plan
-  with **Proceed** as the sole option.
-- [ ] Run `/respond-to-pr` on a closed PR — panel appears with **Proceed anyway**;
-  entering nothing or "cancel" in Other exits cleanly.
+- [ ] Run `/commit` — `AskUserQuestion` panel appears with **Yes, proceed** and
+  **No, cancel**; choosing No aborts without creating any commits.
+- [ ] Run `/respond-to-pr` on a closed PR — panel appears with **Yes, proceed
+  anyway** and **No, abort**; choosing No exits without posting anything.
 - [ ] Run `/respond-to-pr` on a PR from a different branch — branch-switch panel
   appears.
 - [ ] Step through `/respond-to-pr` feedback items — per-fix **Proceed** and
@@ -454,7 +447,7 @@ path. No "recommended" label on any option.
 `skills/work/update-work-item/SKILL.md` (2),
 `skills/work/sync-work-items/SKILL.md` (2)
 
-**Pattern**: Same 1-option `AskUserQuestion` binary confirmation as Phase 3.
+**Pattern**: Same 2-option `AskUserQuestion` binary confirmation as Phase 3.
 
 ### Changes Required
 
@@ -554,34 +547,38 @@ path. No "recommended" label on any option.
 1. **Yes, proceed** — create [N] new local work items from remote
 2. **No, abort** — cancel the sync
 
+**Note**: The per-item push loop at lines 246–248 (`Push <id>? [y/N] (a/d
+shortcuts)`) is excluded from this plan. Its loop-level semantics make it a
+more complex upgrade; deferred to a future pass.
+
 ### Success Criteria
 
 #### Manual Verification:
 - [ ] Run `/create-work-item` and reach the push-to-tracker offer — panel appears.
 - [ ] Run `/create-work-item` in enrich-existing mode — overwrite confirm panel
-  appears before any fields are changed.
+  appears before any fields are changed; choosing No leaves the work item unchanged.
 - [ ] Run `/refine-work-item --decompose` on a bug or spike — warning panel
-  appears before decomposition begins.
+  appears; choosing No aborts without writing any files.
 - [ ] Run `/refine-work-item --decompose` on a large story — file-count warning
-  panel appears.
+  panel appears; choosing No aborts without allocating any IDs.
 - [ ] Run `/refine-work-item --size` with a size change — diff + confirm panel
-  appears before the edit.
+  appears before the edit; choosing No leaves Size unchanged.
 - [ ] Complete a `/refine-work-item` operation — "Run review" offer panel appears.
-- [ ] Complete a `/review-work-item` edit loop — "Run another review" panel
-  appears.
+- [ ] Complete a `/review-work-item` edit loop — "Run another review" panel appears.
 - [ ] Complete `/stress-test-work-item` — update offer panel appears.
 - [ ] Run `/update-work-item` on the `date` field — warning + proceed panel appears.
-- [ ] Run `/update-work-item` on any field — diff + apply confirm panel appears.
+- [ ] Run `/update-work-item` on any field — diff + apply confirm panel appears;
+  choosing No discards the changes without writing any file.
 - [ ] Run `/sync-work-items --pull` with overwriteable files — overwrite gate
-  panel appears.
+  panel appears; choosing No aborts the sync leaving local files intact.
 - [ ] Run `/sync-work-items --pull` with untracked remote items — create gate
-  panel appears.
+  panel appears; choosing No aborts without creating any local files.
 
 ---
 
 ## References
 
 - Research document: `meta/research/codebase/2026-06-27-ask-user-question-opportunities.md`
-- Reference implementation: `skills/planning/review-plan/SKILL.md` (commit `e72cb305`)
+- Reference implementation: `skills/planning/review-plan/SKILL.md` (commit `bf534298`)
 - AskUserQuestion tool constraints: max 4 options, min 2; `multiSelect` available
   but not used in Priorities 1–3.
