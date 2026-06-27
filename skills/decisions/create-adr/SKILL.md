@@ -130,13 +130,17 @@ Wait for user input before proceeding.
    review:
 
 ```
-Here's my draft ADR. Please review and let me know if you'd like any changes
-before I write it to disk:
+Here's my draft ADR:
 
 [draft content]
 ```
 
-Wait for user approval or revision requests before writing.
+Use the `AskUserQuestion` tool with two options:
+
+1. **Yes, write to disk** — save the ADR as shown
+2. **No, revise first** — make changes before saving
+
+Wait for the user's answer before writing.
 
 3. **Iterate** on the draft based on user feedback. Only proceed to writing
    when the user approves.

@@ -143,8 +143,9 @@ the user's input.
   be found and suggest checking the number. If on a branch with no PR, list
   open PRs with `gh pr list --limit 10` and ask the user to select one.
 - **Empty diff**: If `diff.patch` is empty (e.g., a draft PR with no changes),
-  inform the user and ask whether to proceed with a review of the PR
-  description and commits only.
+  inform the user and use the `AskUserQuestion` tool with two options:
+  1. **Yes, review description and commits only** — proceed without a diff
+  2. **No, abort** — exit without reviewing
 
 ### Step 2: Select Review Lenses
 

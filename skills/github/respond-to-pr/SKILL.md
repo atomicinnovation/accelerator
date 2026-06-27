@@ -57,10 +57,11 @@ the user's input.
    ```
 
 2. **Validate PR state**: Check that `state` is `OPEN`. If the PR is closed
-   or merged, inform the user and ask whether they still want to proceed
-   (they may want to make changes for a follow-up, but posting responses
-   and resolving threads on a closed PR is typically not useful). If the user
-   declines, exit the workflow.
+   or merged, inform the user and use the `AskUserQuestion` tool with two
+   options:
+   1. **Yes, proceed anyway** — continue responding to a closed/merged PR
+   2. **No, abort** — exit the workflow
+   If the user chooses No, exit the workflow.
 
 3. **Get repo info and current user**:
    ```bash
@@ -71,7 +72,9 @@ the user's input.
 4. **Ensure on the correct branch**: Check the current branch or bookmark
    using the appropriate VCS command for this repository (refer to the
    session's VCS context). Compare with the PR's `headRefName`. If different,
-   inform the user and ask if they want to switch.
+   inform the user and use the `AskUserQuestion` tool with two options:
+   1. **Yes, switch to PR branch** — check out [headRefName] before continuing
+   2. **No, stay on current branch** — continue without switching
 
 5. **Check for a structured review artifact**:
 
@@ -308,7 +311,13 @@ For items where the feedback is correct:
 **Proposed change**: {description of what you'll do}
 **Draft response**: "Fixed. {concise description of what will be changed}"
 
-Shall I proceed with this change?
+```
+
+Use the `AskUserQuestion` tool with two options:
+1. **Yes, apply this change** — make the edit now
+2. **No, skip this item** — leave it unaddressed and move on
+
+```
 ```
 
 For items where the feedback seems incorrect (Disagreement category):
@@ -341,7 +350,13 @@ For questions (no code changes needed):
 
 **Draft response**: {response explaining the reasoning}
 
-Shall I post this response, or would you like to adjust it?
+```
+
+Use the `AskUserQuestion` tool with two options:
+1. **Post as-is** — submit the draft response to GitHub
+2. **Adjust first** — revise the response before posting
+
+```
 ```
 
 In all cases, show the user the exact text that will be posted to GitHub
@@ -450,19 +465,15 @@ After all items have been addressed (or the user says "stop here"):
    to pick up remaining unresolved items.
    ```
 
-2. **Offer to push** (if there are unpushed commits):
-   ```
-   Would you like me to push these changes to the remote?
-   ```
+2. **Offer to push** (if there are unpushed commits): use the `AskUserQuestion`
+   tool with two options:
+   1. **Yes, push now** — push committed changes to the remote
+   2. **No, skip** — leave changes unpushed
 
-3. **Offer to re-request review**:
-   ```
-   The following reviewers left feedback:
-   - {reviewer1} (requested changes)
-   - {reviewer2} (commented)
-
-   Would you like me to re-request review from them?
-   ```
+3. **Offer to re-request review**: present the list of reviewers who left
+   feedback, then use the `AskUserQuestion` tool with two options:
+   1. **Yes, re-request** — re-request review from the listed reviewers
+   2. **No, skip** — leave review requests as-is
 
    If yes:
    ```bash
