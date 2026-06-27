@@ -165,14 +165,15 @@ Evaluate the ADR against these quality criteria:
 ---
 
 **Actions available:**
-1. **Accept** — Mark as accepted (ADR becomes immutable)
-2. **Reject** — Mark as rejected with reason (ADR becomes immutable)
-3. **Revise** — Make suggested improvements (stays proposed)
-
-What would you like to do?
 ```
 
-Wait for user decision.
+Use the `AskUserQuestion` tool with three options:
+
+1. **Accept** — mark the ADR as accepted (becomes immutable)
+2. **Reject** — mark as rejected with reason (becomes immutable; reason prompted after)
+3. **Revise** — make suggested improvements (stays proposed)
+
+Wait for the user's decision.
 
 #### Step 4: Execute Action
 

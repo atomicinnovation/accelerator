@@ -661,7 +661,10 @@ stale commit):
 - After edits, re-present the preview and offer the same action options
 
 **When the user changes the verdict** (option 2):
-- Ask which verdict they prefer (APPROVE, COMMENT, REQUEST_CHANGES)
+- Use the `AskUserQuestion` tool with three options:
+  1. **APPROVE** — approve the PR
+  2. **COMMENT** — leave a non-blocking comment review
+  3. **REQUEST_CHANGES** — request changes before merge
 - Update the summary body and re-present the preview
 
 ## Important Guidelines

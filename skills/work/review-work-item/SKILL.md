@@ -443,13 +443,14 @@ After presenting, offer the user control before proceeding to iteration:
 
 ```
 The review is complete. Verdict: [verdict]
-
-Would you like to:
-1. Proceed to address findings? (I'll help edit the work item)
-2. Change the verdict? (currently: [verdict])
-3. Discuss any specific findings in more detail?
-4. Re-run specific lenses with adjusted focus?
 ```
+
+Use the `AskUserQuestion` tool with four options:
+
+1. **Address findings** — edit the work item to resolve issues
+2. **Change the verdict** — currently: [verdict]
+3. **Discuss specific findings** — explore any finding in more detail
+4. **Re-run specific lenses** — adjust focus and re-review
 
 ### Step 6: Collaborative Work Item Iteration
 

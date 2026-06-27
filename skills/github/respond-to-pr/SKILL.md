@@ -325,12 +325,11 @@ implementation is correct because:
 
 **Draft response** (if pushing back): "{technical reasoning}"
 
-**Options**:
-1. Push back with this reasoning
-2. Implement the suggestion anyway
-3. Propose an alternative approach
+Use the `AskUserQuestion` tool with three options:
 
-What would you prefer?
+1. **Push back** — post the draft reasoning as a response
+2. **Implement anyway** — make the suggested change
+3. **Propose alternative** — draft an alternative approach
 ```
 
 For questions (no code changes needed):
