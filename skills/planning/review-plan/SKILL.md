@@ -215,11 +215,19 @@ Based on the plan's scope, I'll review through these lenses:
 - Compatibility: [reason — or "Skipping: ..."]
 - Portability: [reason — or "Skipping: ..."]
 - Safety: [reason — or "Skipping: ..."]
-
-Shall I proceed, or would you like to adjust the selection?
 ```
 
-Wait for confirmation before spawning reviewers.
+Then use the `AskUserQuestion` tool to ask the user whether to proceed, with
+exactly two options:
+
+1. **Proceed** — run the review with the selected lenses (recommended, first
+   option)
+2. **Specify something else** — let the user adjust the lens selection before
+   running
+
+Wait for the user's answer before spawning reviewers. If they choose option 2,
+apply their adjustments and re-present the updated selection using the same
+`AskUserQuestion` pattern.
 
 ### Step 3: Spawn Review Agents
 
