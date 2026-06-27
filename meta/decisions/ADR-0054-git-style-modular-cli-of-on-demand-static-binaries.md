@@ -2,7 +2,7 @@
 id: "ADR-0054"
 date: "2026-06-27T12:23:42+00:00"
 author: Toby Clemson
-status: proposed
+status: accepted
 tags: [architecture, cli, modular, git-style, dispatch, launcher, workspace, rust]
 type: adr
 title: "ADR-0054: Git-Style Modular CLI of On-Demand Static Binaries"
@@ -15,7 +15,7 @@ relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0053", "work-item:0158"]
 # ADR-0054: Git-Style Modular CLI of On-Demand Static Binaries
 
 **Date**: 2026-06-27
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context
@@ -36,11 +36,10 @@ here too. This ADR fills exactly that gap. A spike (work item 0158) resolved the
 choices; its Recommendation §1 (crate split), §2 (dispatch), and §3 (launcher)
 are the source.
 
-> **CLI command name is provisional.** This ADR uses `accelerator` for the
-> launcher and `accelerator-<sub>` for sub-binaries, aligning with the Rust-CLI
-> migration direction researched in work item 0136, which still lists the CLI name
-> as open. The name here is **provisional pending 0136**, not frozen by this
-> decision.
+> **CLI command name.** This ADR uses `accelerator` for the launcher and
+> `accelerator-<sub>` for sub-binaries. `accelerator` is the **settled** command
+> name for the Rust-CLI migration (work item 0136): it matches the plugin name and
+> folds in the existing `accelerator-visualiser` binary as `accelerator visualiser`.
 
 Accelerator already ships one such binary today: the visualiser HTTP server is
 distributed as the standalone `accelerator-visualiser` binary. Under this
@@ -157,8 +156,8 @@ it grows monolithically and ships every subdomain's dependencies to everyone —
 opposite of on-demand. Option 3 (rustup shims) was rejected: its per-tool-on-PATH
 benefit does not apply to a single-entry-point CLI and it adds shim management for
 no gain. Option 4 (one shared `core`) was rejected: a subdomain's heavy
-dependencies (e.g. a rendering subdomain's media codecs) would land in the shared
-closure and bleed into every binary, defeating the lean goal.
+dependencies (e.g. a browser-automation subdomain embedding Playwright) would
+land in the shared closure and bleed into every binary, defeating the lean goal.
 
 ## Consequences
 
@@ -217,7 +216,7 @@ closure and bleed into every binary, defeating the lean goal.
 - **Ported from luminosity** — original decision (lum ADR-0010):
   https://github.com/atomicinnovation/luminosity/blob/main/meta/decisions/ADR-0010-git-style-modular-cli-of-on-demand-static-binaries.md
 - `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
-  — Rust-CLI migration direction; the CLI command name remains open there.
+  — Rust-CLI migration direction; `accelerator` is the settled command name.
 - `meta/decisions/ADR-0045-skills-vs-cli-division-of-labour.md` — Establishes the
   CLI exists.
 - `meta/decisions/ADR-0046-zero-setup-static-binary-distribution.md` —

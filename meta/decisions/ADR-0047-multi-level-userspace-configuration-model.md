@@ -2,7 +2,7 @@
 id: "ADR-0047"
 date: "2026-06-27T12:23:42+00:00"
 author: Toby Clemson
-status: proposed
+status: accepted
 tags: [architecture, configuration, cli, skills, foundations]
 type: adr
 title: "ADR-0047: Multi-Level Userspace Configuration Model"
@@ -16,7 +16,7 @@ supersedes: ["adr:ADR-0016", "adr:ADR-0017"]
 # ADR-0047: Multi-Level Userspace Configuration Model
 
 **Date**: 2026-06-27
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context
@@ -148,8 +148,8 @@ command (e.g. `accelerator config get` / `set`). This is the deterministic work
 the CLI owns under ADR-0045. Skills inject values at load time via the `!`
 preprocessor invoking the CLI; a SessionStart hook injects a configuration
 summary into session context. Natural-language interpretation is not used to
-carry config values. This preserves ADR-0016's injection mechanism (preprocessor
-+ SessionStart summary) while replacing its bash/awk reader.
+carry config values. This preserves ADR-0016's injection mechanism 
+(preprocessor + SessionStart summary) while replacing its bash/awk reader.
 
 **Frontmatter expressiveness** (relaxes ADR-0016's cap): Arbitrary YAML
 structure. Because the CLI parses natively, we drop the two-level `section.key`

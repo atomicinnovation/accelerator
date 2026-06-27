@@ -2,7 +2,7 @@
 id: "ADR-0051"
 date: "2026-06-27T12:23:42+00:00"
 author: Toby Clemson
-status: proposed
+status: accepted
 tags: [architecture, skills, plugin, product, foundations]
 type: adr
 title: "ADR-0051: Skills as the Product"
@@ -15,7 +15,7 @@ relates_to: ["adr:ADR-0045"]
 # ADR-0051: Skills as the Product
 
 **Date**: 2026-06-27
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context

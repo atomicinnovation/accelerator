@@ -2,7 +2,7 @@
 id: "ADR-0046"
 date: "2026-06-27T12:23:42+00:00"
 author: Toby Clemson
-status: proposed
+status: accepted
 tags: [architecture, distribution, static-binaries, zero-setup, rust, foundations]
 type: adr
 title: "ADR-0046: Zero-Setup Static-Binary Distribution"
@@ -15,7 +15,7 @@ relates_to: ["adr:ADR-0045", "work-item:0158"]
 # ADR-0046: Zero-Setup Static-Binary Distribution
 
 **Date**: 2026-06-27
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context
@@ -36,8 +36,8 @@ distributions a user might run.
 
 The primary basis for this decision is our **existing binary-distribution
 pipeline** — the one that already ships the visualiser as a pre-compiled binary
-verified against `bin/checksums.json` (SHA-256, optional SLSA provenance). That
-pipeline ports cleanly to the CLI. Our existing bash launcher, by contrast, is a
+verified against a published `checksums.json` (SHA-256, optional SLSA
+provenance). That pipeline ports cleanly to the CLI. Our existing bash launcher, by contrast, is a
 daemon launcher that does not model a git-style sub-binary CLI and is deliberately
 not carried over (see ADR-0054). The modular-CLI architecture spike (work item
 0158) is a contributing input that confirmed the concrete choices: its §3

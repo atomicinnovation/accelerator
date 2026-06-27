@@ -2,7 +2,7 @@
 id: "ADR-0055"
 date: "2026-06-27T12:23:42+00:00"
 author: Toby Clemson
-status: proposed
+status: accepted
 tags: [evaluation, skills, testing, inspect, harness, quality-gate, python]
 type: adr
 title: "ADR-0055: Inspect as the Skill-Evaluation Harness"
@@ -15,7 +15,7 @@ relates_to: ["adr:ADR-0048", "adr:ADR-0050", "adr:ADR-0051", "adr:ADR-0052", "wo
 # ADR-0055: Inspect as the Skill-Evaluation Harness
 
 **Date**: 2026-06-27
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context
@@ -23,9 +23,15 @@ relates_to: ["adr:ADR-0048", "adr:ADR-0050", "adr:ADR-0051", "adr:ADR-0052", "wo
 Skills are the product (ADR-0051), so their quality needs a regression gate as
 deliberate as the lint and type checks guarding the rest of the repo. A spike
 (work item 0159) was run to choose that harness; this ADR records its
-Recommendation. No skill eval exists yet — the harness is selected on verified
-mechanism, and the first eval target is the existing `configure` skill, built out
-and evaluated by downstream work.
+Recommendation. A **partial `skill-creator` eval framework already exists** —
+several skills carry colocated `evals/evals.json` task sets (e.g. under
+`skills/work/`, `skills/design/`, `skills/review/lenses/`) — but no headless,
+threshold-gating harness does. The Inspect harness here is selected on verified
+mechanism rather than a live run, and adopting it means **porting those existing
+`skill-creator` evals into the new tier**, out from under `skills/`. That
+migration, and the rollout of Inspect evals across the remaining skills, are
+tracked as separate work items — this ADR records only the harness choice and
+the tier's shape, not a per-skill rollout schedule.
 
 The leading hypothesis was Anthropic's `skill-creator`. The spike reversed it. The
 decisive constraint, surfaced during the spike, is the requirement to **run evals
@@ -101,21 +107,21 @@ skill evals as a third **test tier** alongside `unit/` and `integration/`.
   path, never under `skills/`:
 
   ```
-  tests/evals/skills/configure/
-  ├── configure_eval.py     # Inspect @task: dataset + with-skill/baseline solvers + scorer
+  tests/evals/skills/<skill>/
+  ├── <skill>_eval.py       # Inspect @task: dataset + with-skill/baseline solvers + scorer
   ├── dataset.jsonl         # the eval tasks
   └── results/
       └── <timestamp>.json  # committed Inspect log (--log-format json, so it diffs)
   ```
 
-- **Invocation.** Entry point `mise run eval:skills:configure` (roll-up
+- **Invocation.** Entry point `mise run eval:skills:<skill>` (roll-up
   `mise run eval`). The eval tier is **excluded from the default `mise run` /
   `check` sweep** so it never runs on every CI build; it is run on demand during
   development, and results are committed by hand.
-- **Bootstrap floor.** For `configure`: **≥ 3 tasks gated at pass^k ≥ 0.8 over
-  k = 3 trials** — an explicit bootstrap smoke-test, with a ramp commitment toward
-  the 20–50 real-failure-derived tasks that 2025–2026 guidance recommends, raising
-  k as token budget allows.
+- **Bootstrap floor.** Each skill's eval suite starts at **≥ 3 tasks gated at
+  pass^k ≥ 0.8 over k = 3 trials** — an explicit smoke-test — with a ramp
+  commitment toward the 20–50 real-failure-derived tasks that 2025–2026 guidance
+  recommends, raising k as token budget allows.
 - **skill-creator is retained as an optional, interactive authoring aid** —
   useful for hands-on authoring and blind A/B comparison, but not the gating
   harness.
@@ -153,17 +159,20 @@ lacking native variance/repeat and its small-company longevity risk.
   the author (promptfoo provides these turnkey) — a one-time authoring cost.
 - The pass^k threshold check is hand-wired in the invoke task; Inspect ships no
   turnkey score-gate flag.
-- The harness was selected on verified mechanism, not a live run against
-  `configure`; an Inspect-driving-Claude-Code integration detail could bite during
+- The harness was selected on verified mechanism, not a live Inspect run against
+  any skill; an Inspect-driving-Claude-Code integration detail could bite during
   the downstream eval-application work.
+- The existing `skill-creator` `evals/evals.json` task sets, currently colocated
+  under `skills/`, must be ported to Inspect's `@task`/dataset format and moved
+  under `tests/evals/` — migration work this decision creates.
 
 ### Neutral
 
 - `skill-creator` stays installed as an optional authoring/A-B convenience, not a
   necessity — a standing dual-tool distinction.
 - The bootstrap floor (≥ 3 tasks, pass^k ≥ 0.8, k = 3) is explicitly provisional;
-  the ramp toward 20–50 real-failure tasks is triggered by the first material
-  `configure` behaviour change or first uncovered real-world failure.
+  the ramp toward 20–50 real-failure tasks is triggered by a skill's first
+  material behaviour change or first uncovered real-world failure.
 - promptfoo is the pre-vetted fallback if the external-agent A/B proves awkward;
   its longevity under OpenAI stewardship is worth a re-check if invoked.
 - Eval files are named so pytest does not collect them (Inspect `@task` files,

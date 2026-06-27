@@ -2,7 +2,7 @@
 id: "ADR-0053"
 date: "2026-06-27T12:23:42+00:00"
 author: Toby Clemson
-status: proposed
+status: accepted
 tags: [architecture, hexagonal, ports-and-adapters, dependency-inversion, rust, cli]
 type: adr
 title: "ADR-0053: Thin CLI over a Hexagonal Ports-and-Adapters Core"
@@ -15,7 +15,7 @@ relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "work-item:0158"]
 # ADR-0053: Thin CLI over a Hexagonal Ports-and-Adapters Core
 
 **Date**: 2026-06-27
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context
@@ -34,11 +34,11 @@ the CLI is *packaged and dispatched* (the git-style, multi-binary, on-demand
 modular split) is a distinct concern, recorded as ADR-0054. The Rust CLI does not
 yet exist; this decision governs the eventual scaffold.
 
-> **CLI command name is provisional.** This ADR uses `accelerator` for the
-> command and `accelerator-<sub>` for sub-binaries, aligning with the Rust-CLI
-> migration direction researched in work item 0136. That migration still lists the
-> CLI name as an open question, so the name here is **provisional pending 0136**,
-> not frozen by this decision.
+> **CLI command name.** This ADR uses `accelerator` for the command and
+> `accelerator-<sub>` for sub-binaries. `accelerator` is the **settled** command
+> name for the Rust-CLI migration (work item 0136): it matches the plugin name and
+> folds in the existing `accelerator-visualiser` binary as `accelerator visualiser`
+> (ADR-0054).
 
 The forces:
 
@@ -172,7 +172,7 @@ survive the domain's expected growth.
 - **Ported from luminosity** — original decision (lum ADR-0009):
   https://github.com/atomicinnovation/luminosity/blob/main/meta/decisions/ADR-0009-thin-cli-over-a-hexagonal-ports-and-adapters-core.md
 - `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
-  — Rust-CLI migration direction; the CLI command name remains open there.
+  — Rust-CLI migration direction; `accelerator` is the settled command name.
 - `meta/decisions/ADR-0045-skills-vs-cli-division-of-labour.md` — Establishes the
   CLI exists; defers its internal architecture to this decision.
 - `meta/decisions/ADR-0046-zero-setup-static-binary-distribution.md` —

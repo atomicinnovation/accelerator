@@ -2,7 +2,7 @@
 id: "ADR-0045"
 date: "2026-06-27T12:23:42+00:00"
 author: Toby Clemson
-status: proposed
+status: accepted
 tags: [architecture, skills, cli, division-of-labour, foundations]
 type: adr
 title: "ADR-0045: Skills-vs-CLI Division of Labour"
@@ -14,7 +14,7 @@ last_updated_by: Toby Clemson
 # ADR-0045: Skills-vs-CLI Division of Labour
 
 **Date**: 2026-06-27
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context
@@ -32,9 +32,13 @@ to test, slow, token-expensive, and error-prone, and it accretes ad hoc as the
 plugin grows. We know this from our own history: Accelerator's deterministic
 logic grew into a large body of bash scripts (~226 `.sh` files) that became hard
 to test, slow to change, and error-prone — concrete evidence of the failure mode
-this boundary exists to avoid. The plugin is expected to grow further, and a
-future backend or frontend may need to reuse the same non-probabilistic logic
-the skills rely on.
+this boundary exists to avoid. The plugin is expected to grow further, and it
+already runs a backend and a frontend: the visualiser's Rust HTTP server and its
+React SPA. Building the visualiser forced us to **duplicate deterministic logic
+and data definitions across Bash and Rust** — the same corpus parsing, schema,
+and path conventions implemented once for the skills' shell library and again for
+the visualiser server. A shared compiled core lets both surfaces reuse one
+implementation rather than re-deriving it per surface, removing that duplication.
 
 The plugin therefore needs an explicit, durable boundary that assigns each kind
 of work to the medium suited to it, rather than letting probabilistic and
@@ -46,7 +50,9 @@ deterministic concerns intermingle in Markdown and bash.
 - Token cost and latency — the model should not perform mechanical work it
   cannot do reliably or cheaply.
 - A clear separation of concerns that holds as the plugin scales.
-- Reusability of the deterministic core by a future backend or frontend.
+- Reuse of the deterministic core across surfaces — the skills and the existing
+  visualiser server — removing the Bash/Rust duplication the visualiser currently
+  requires.
 - Using each tool for what it is genuinely best at.
 
 ## Considered Options
@@ -84,8 +90,9 @@ effectively untestable, token-heavy, and non-deterministic, and it does not
 scale as the plugin grows. Option 3 was rejected as the long-term home for
 product logic — our own bash body is the cautionary precedent: the bash 3.2 floor
 and the absence of static typing limit robustness, the zero-setup distribution
-story for scripts is weak, and scripts are not cleanly reusable by a future
-backend or frontend.
+story for scripts is weak, and scripts are not cleanly reusable by the visualiser
+server or other surfaces — building the visualiser already forced duplicating
+logic and definitions across Bash and Rust.
 
 ## Consequences
 
@@ -97,8 +104,9 @@ backend or frontend.
   evaluability.
 - A clear, enforceable boundary scales as the plugin grows rather than accreting
   logic ad hoc.
-- The compiled core is reusable by a future backend or frontend, and ships as
-  zero-setup static binaries.
+- The compiled core is reusable across surfaces — the skills and the visualiser
+  server — collapsing the duplicated Bash/Rust logic into one implementation, and
+  ships as zero-setup static binaries.
 
 ### Negative
 
@@ -129,4 +137,3 @@ backend or frontend.
   — Accelerator's existing shell-script surface and Rust-CLI migration research.
 - `meta/decisions/ADR-0053-thin-cli-over-a-hexagonal-ports-and-adapters-core.md`
   — the CLI's internal architecture (a thin CLI over a hexagonal core).
-</content>

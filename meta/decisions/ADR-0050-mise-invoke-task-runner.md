@@ -2,7 +2,7 @@
 id: "ADR-0050"
 date: "2026-06-27T12:23:42+00:00"
 author: Toby Clemson
-status: proposed
+status: accepted
 tags: [architecture, tooling, task-runner, mise, invoke, foundations]
 type: adr
 title: "ADR-0050: `mise` + invoke Task Runner"
@@ -15,7 +15,7 @@ relates_to: ["adr:ADR-0045", "adr:ADR-0048", "adr:ADR-0049"]
 # ADR-0050: `mise` + invoke Task Runner
 
 **Date**: 2026-06-27
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context

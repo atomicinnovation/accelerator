@@ -2,7 +2,7 @@
 id: "ADR-0049"
 date: "2026-06-27T12:23:42+00:00"
 author: Toby Clemson
-status: proposed
+status: accepted
 tags: [architecture, toolchain, shell, bash, portability, foundations]
 type: adr
 title: "ADR-0049: Bash 3.2 Compatibility Floor"
@@ -15,7 +15,7 @@ relates_to: ["adr:ADR-0048", "adr:ADR-0046", "adr:ADR-0047", "adr:ADR-0045"]
 # ADR-0049: Bash 3.2 Compatibility Floor
 
 **Date**: 2026-06-27
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context
@@ -92,11 +92,12 @@ We chose option 1 over the alternatives:
 
 Because no static tool targets a bash version, the faithful check is execution
 under bash 3.2.57 itself — available for free on macOS CI runners, which ship
-exactly that interpreter. The shell suites are run under bash 3.2.57 on macOS CI
-as the **authoritative** conformance gate. A static denylist
-(`lint-bashisms.sh`), alongside the shfmt + ShellCheck pipeline that already lints
-all shell, is the **backstop** for branches the suites do not exercise; with the
-real-interpreter gate in place the denylist need not be exhaustive.
+exactly that interpreter. The shell suites run on macOS CI under bash 3.2.57 — the
+exact target — so they are exercised against a real floor interpreter. A static
+denylist (`lint-bashisms.sh`), alongside the shfmt + ShellCheck pipeline that
+already lints all shell, guards branches the suites do not exercise; with the
+suites running against a real floor interpreter the denylist need not be
+exhaustive.
 
 ## Consequences
 
@@ -107,8 +108,9 @@ real-interpreter gate in place the denylist need not be exhaustive.
 - Targeting the oldest supported bash maximises host portability by construction.
 - Retains the safety constructs (arrays, `local`, `[[ ]]`, `pipefail`, process
   substitution) that strict POSIX would forfeit.
-- The real-interpreter gate on macOS CI gives faithful conformance rather than
-  heuristics, letting the static denylist serve as a non-exhaustive backstop.
+- Running the suites on macOS CI under bash 3.2.57 exercises them against the real
+  floor interpreter rather than heuristics, letting the static denylist serve as a
+  non-exhaustive backstop.
 
 ### Negative
 
@@ -127,8 +129,8 @@ real-interpreter gate in place the denylist need not be exhaustive.
 
 ### Neutral
 
-- macOS CI runners ship bash 3.2.57 — the exact target — so the authoritative
-  gate runs essentially for free there.
+- macOS CI runners ship bash 3.2.57 — the exact target — so the suites are
+  exercised against the real floor interpreter essentially for free there.
 - ShellCheck and shfmt versions are pinned via `mise` (ADR-0050); shfmt reads
   `.editorconfig` with no explicit dialect set.
 - The floor governs a substantial existing shell library (~226 `.sh` files), not

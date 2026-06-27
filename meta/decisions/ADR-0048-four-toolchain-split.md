@@ -2,7 +2,7 @@
 id: "ADR-0048"
 date: "2026-06-27T12:23:42+00:00"
 author: Toby Clemson
-status: proposed
+status: accepted
 tags: [architecture, toolchain, rust, python, shell, typescript, foundations]
 type: adr
 title: "ADR-0048: Four-Toolchain Split (Python / Shell / Rust / TypeScript)"
@@ -15,7 +15,7 @@ relates_to: ["adr:ADR-0045", "adr:ADR-0046"]
 # ADR-0048: Four-Toolchain Split (Python / Shell / Rust / TypeScript)
 
 **Date**: 2026-06-27
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context
@@ -76,7 +76,7 @@ fewer or reverting to a shell substrate.
    visualiser frontend.
 2. **Collapse the frontend** — drop the TypeScript/React toolchain by rendering
    the visualiser server-side in Rust (templated HTML) or abandoning the browser
-   UI, to hold the line at three toolchains.
+   UI, avoiding a dedicated frontend toolchain.
 3. **Single runtime language** — drive everything from Rust (including
    build/release automation and the tests for non-Rust surfaces), or the prior
    shell-substrate-plus-Python model with no compiled core.
@@ -129,8 +129,8 @@ few integration points that genuinely require a shell entry point — better to 
 shell and bound it tightly than to ban it.
 
 This ADR records only the **split and the role each toolchain plays**. The
-toolchain-specific decisions that hang off it — the bash 3.2 floor and the `mise`
-+ invoke task runner — are recorded as their own ADRs (ADR-0049 and ADR-0050).
+toolchain-specific decisions that hang off it — the bash 3.2 floor and the 
+`mise` + invoke task runner — are recorded as their own ADRs (ADR-0049 and ADR-0050).
 
 ## Consequences
 

@@ -2,7 +2,7 @@
 id: "ADR-0052"
 date: "2026-06-27T12:23:42+00:00"
 author: Toby Clemson
-status: proposed
+status: accepted
 tags: [architecture, filesystem, message-bus, knowledge-corpus, foundations]
 type: adr
 title: "ADR-0052: Filesystem as Message Bus and Knowledge Corpus"
@@ -16,7 +16,7 @@ supersedes: ["adr:ADR-0027"]
 # ADR-0052: Filesystem as Message Bus and Knowledge Corpus
 
 **Date**: 2026-06-27
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context
@@ -42,9 +42,9 @@ This ADR records that model and **supersedes ADR-0027** (persist structured skil
 outputs to `meta/`), carrying its decision forward: ADR-0027 established that
 every skill producing structured output valuable to a later phase must write to
 `meta/` (reversing the earlier "don't write to file" guidance in the review
-skills) and that `meta/tmp/` stays purely ephemeral. That decision is the
-persistence half of the same filesystem-as-message-bus principle, so the two are
-unified here.
+skills) and that ephemeral working data is kept separate and disposable. That
+decision is the persistence half of the same filesystem-as-message-bus principle,
+so the two are unified here.
 
 The luminosity original (lum ADR-0008) additionally split the filesystem into a
 second top-level `content/` tree for shippable marketing deliverables (articles,
@@ -71,13 +71,13 @@ half is kept, which is exactly the half that overlaps ADR-0027.
 1. **Filesystem as message bus + knowledge corpus, single `meta/` root** — phases
    communicate by reading and writing predictable paths under `meta/`; structured
    outputs that a later phase, session, or teammate needs are persisted there
-   (reviews under `meta/reviews/`), while `meta/tmp/` holds only ephemeral working
-   data.
+   (reviews under `meta/reviews/`), while ephemeral working data lives outside the
+   corpus in `.accelerator/tmp`.
 2. **Conversation as the channel** — pass artefacts inline through the transcript
    and rely on context to carry them between phases.
-3. **Everything ephemeral in `meta/tmp/`** — both working data and durable
-   outputs share one directory; persistence depends on someone remembering to
-   copy files elsewhere.
+3. **Durable and ephemeral mixed in one tmp directory** — both working data and
+   durable outputs share a single tmp tree; persistence depends on someone
+   remembering to copy files elsewhere.
 4. **External store** — hold state in a database or service rather than the repo
    filesystem.
 
@@ -98,9 +98,12 @@ Carried forward from ADR-0027 (which this ADR supersedes): **every skill
 producing structured output valuable to a later phase, future session, or another
 team member must write to `meta/`.** Reviews are persisted to `meta/reviews/plans/`
 and `meta/reviews/prs/` as numbered, never-replaced documents with appendable
-re-review history. `meta/tmp/` is kept purely ephemeral and is always safe to
-delete. This reverses the "don't write to file" guidance the review skills once
-carried.
+re-review history. Ephemeral working data is kept outside the corpus, in the
+plugin-owned `.accelerator/tmp` directory, and is always safe to delete. (ADR-0027
+originally placed this ephemeral data under `meta/tmp/`; the consolidation of
+plugin-owned files under `.accelerator/` — work item 0031, the same move ADR-0047
+records for the config files — relocated it to `.accelerator/tmp`.) This reverses
+the "don't write to file" guidance the review skills once carried.
 
 We chose option 1 because it gives phases a durable, cheap handoff that survives
 compaction, keeps the conversation lean, and provides a complete, VCS-reviewable
@@ -125,8 +128,9 @@ superseded**, and remains in force.
 - A complete audit trail for all significant skill outputs; reviews and other
   structured outputs are recoverable later.
 - All state is VCS-tracked — diffable, reviewable, and revertable.
-- A clean semantic boundary: `meta/tmp/` is always safe to delete, the rest of
-  `meta/` is committed knowledge.
+- A clean semantic boundary: everything under `meta/` is committed knowledge,
+  while ephemeral scratch lives outside it in `.accelerator/tmp` and is always
+  safe to delete.
 - Unifies the message-bus and persist-structured-outputs decisions (ADR-0027)
   under one principle, removing the prior split across two ADRs.
 
@@ -155,6 +159,9 @@ superseded**, and remains in force.
   https://github.com/atomicinnovation/luminosity/blob/main/meta/decisions/ADR-0008-filesystem-as-message-bus-and-knowledge-corpus.md
 - `meta/decisions/ADR-0027-persist-structured-skill-outputs-to-meta.md` —
   Superseded; its persist-structured-outputs decision is carried forward here.
+- `meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md` — The
+  consolidation that relocated ephemeral storage from `meta/tmp/` to
+  `.accelerator/tmp`.
 - `meta/decisions/ADR-0051-skills-as-the-product.md` — Companion; deferred this
   mechanism to this decision.
 - `meta/decisions/ADR-0045-skills-vs-cli-division-of-labour.md` — Related;
