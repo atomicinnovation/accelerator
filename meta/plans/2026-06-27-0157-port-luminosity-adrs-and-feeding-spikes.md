@@ -544,29 +544,29 @@ contingency edits.
 
 #### Automated Verification:
 
-- [ ] Pre-flight (before enactment): `grep '^status: accepted'` matches all of ADR-0016/0017/0027 (transition legality).
-- [ ] Supersets accepted: `grep '^status: accepted' meta/decisions/ADR-0047-*.md meta/decisions/ADR-0052-*.md` (both match).
-- [ ] Status flipped: `grep -l '^status: superseded' meta/decisions/ADR-0016-*.md meta/decisions/ADR-0017-*.md meta/decisions/ADR-0027-*.md | wc -l` → `3`.
-- [ ] **`superseded_by` target correct** (the validator does NOT check this key — assert by hand): `grep '^superseded_by:' meta/decisions/ADR-0016-*.md meta/decisions/ADR-0017-*.md` each → `"adr:ADR-0047"`; `grep '^superseded_by:' meta/decisions/ADR-0027-*.md` → `"adr:ADR-0052"`.
-- [ ] **Reverse-link invariant** (catches a half-applied/stranded flip): every ADR with `status: superseded` among the three is named in its superset's `supersedes:` AND its own `superseded_by` names that same superset — i.e. ADR-0016/0017 ↔ ADR-0047, ADR-0027 ↔ ADR-0052 round-trip.
-- [ ] **Only `status` + `superseded_by` changed** on the three old ADRs: `jj diff meta/decisions/ADR-0016-*.md meta/decisions/ADR-0017-*.md meta/decisions/ADR-0027-*.md` shows only the `status:` line changed and the `superseded_by:` line added — no body edits.
-- [ ] Reciprocal `supersedes:` targets still correct: ADR-0047 names `adr:ADR-0016` + `adr:ADR-0017`, ADR-0052 names `adr:ADR-0027`.
-- [ ] Corpus validator green: `bash scripts/validate-corpus-frontmatter.sh meta/` (exit 0)
-- [ ] `mise run check` passes
+- [x] Pre-flight (before enactment): `grep '^status: accepted'` matches all of ADR-0016/0017/0027 (transition legality).
+- [x] Supersets accepted: `grep '^status: accepted' meta/decisions/ADR-0047-*.md meta/decisions/ADR-0052-*.md` (both match).
+- [x] Status flipped: `grep -l '^status: superseded' meta/decisions/ADR-0016-*.md meta/decisions/ADR-0017-*.md meta/decisions/ADR-0027-*.md | wc -l` → `3`.
+- [x] **`superseded_by` target correct** (the validator does NOT check this key — assert by hand): `grep '^superseded_by:' meta/decisions/ADR-0016-*.md meta/decisions/ADR-0017-*.md` each → `"adr:ADR-0047"`; `grep '^superseded_by:' meta/decisions/ADR-0027-*.md` → `"adr:ADR-0052"`.
+- [x] **Reverse-link invariant** (catches a half-applied/stranded flip): every ADR with `status: superseded` among the three is named in its superset's `supersedes:` AND its own `superseded_by` names that same superset — i.e. ADR-0016/0017 ↔ ADR-0047, ADR-0027 ↔ ADR-0052 round-trip.
+- [x] **Only `status` + `superseded_by` changed** on the three old ADRs: `jj diff meta/decisions/ADR-0016-*.md meta/decisions/ADR-0017-*.md meta/decisions/ADR-0027-*.md` shows only the `status:` line changed and the `superseded_by:` line added — no body edits.
+- [x] Reciprocal `supersedes:` targets still correct: ADR-0047 names `adr:ADR-0016` + `adr:ADR-0017`, ADR-0052 names `adr:ADR-0027`.
+- [x] Corpus validator green: `bash scripts/validate-corpus-frontmatter.sh meta/` (exit 0)
+- [x] `mise run check` passes
 
 #### Manual Verification:
 
-- [ ] ADR-0047/0052 `## Decision` genuinely subsumes the decisions of the ADRs
+- [x] ADR-0047/0052 `## Decision` genuinely subsumes the decisions of the ADRs
       they supersede (ADR-0016/0017 config axes; ADR-0027 persist-outputs), not
       merely a supersedes note.
-- [ ] ADR-0016's body "forthcoming superseder" note is now satisfied by ADR-0047
+- [x] ADR-0016's body "forthcoming superseder" note is now satisfied by ADR-0047
       (machine-linked via the added `superseded_by`); the body sentence itself
       stays as-authored (body is immutable) — this stale-but-now-linked phrasing
       is a tolerated, acknowledged consequence of body immutability.
-- [ ] The intentional frontmatter/in-body `**Status**` divergence on the three
+- [x] The intentional frontmatter/in-body `**Status**` divergence on the three
       flipped ADRs (frontmatter `superseded`, body block unchanged) matches the
       live ADR-0036 convention — frontmatter is authoritative.
-- [ ] ADR-0001 remains `accepted`/active and is *not* superseded.
+- [x] ADR-0001 remains `accepted`/active and is *not* superseded.
 
 ---
 

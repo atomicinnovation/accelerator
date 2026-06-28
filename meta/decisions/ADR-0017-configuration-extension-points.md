@@ -2,7 +2,8 @@
 id: "ADR-0017"
 date: "2026-04-18T09:00:21+01:00"
 author: Toby Clemson
-status: accepted
+status: superseded
+superseded_by: "adr:ADR-0047"
 tags: [configuration, templates, agents, lenses, plugin]
 type: adr
 title: "ADR-0017: Configuration Extension Points for Templates, Agents, and Custom Lenses"

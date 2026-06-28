@@ -2,7 +2,8 @@
 id: "ADR-0027"
 date: "2026-05-17T20:13:38+00:00"
 author: Toby Clemson
-status: accepted
+status: superseded
+superseded_by: "adr:ADR-0052"
 tags: [artifacts, persistence, reviews, meta-directory]
 type: adr
 title: "ADR-0027: Persist structured skill outputs to meta/"

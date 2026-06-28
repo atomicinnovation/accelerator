@@ -2,7 +2,8 @@
 id: "ADR-0016"
 date: "2026-04-17T17:18:53+01:00"
 author: Toby Clemson
-status: accepted
+status: superseded
+superseded_by: "adr:ADR-0047"
 tags: [configuration, plugin, skills, bash, preprocessor]
 type: adr
 title: "ADR-0016: Userspace Configuration Model"
