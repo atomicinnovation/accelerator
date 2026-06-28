@@ -5,7 +5,7 @@ title: "User-Facing CHANGELOG and README Update for 1.23.0"
 date: "2026-06-19T21:20:28+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: task
 priority: high
 tags: [documentation, release, changelog, readme]
@@ -18,7 +18,7 @@ external_id: PP-144
 # 0123: User-Facing CHANGELOG and README Update for 1.23.0
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
