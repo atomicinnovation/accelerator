@@ -15,7 +15,7 @@ schema_version: 1
 external_id: PP-144
 ---
 
-# 0115: User-Facing CHANGELOG and README Update for 1.23.0
+# 0123: User-Facing CHANGELOG and README Update for 1.23.0
 
 **Kind**: Task
 **Status**: Ready

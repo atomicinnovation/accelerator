@@ -18,7 +18,7 @@ external_id: PP-79
 # 0057: Unified Artifact Frontmatter and Typed Cross-Linking
 
 **Kind**: Epic
-**Status**: In-Progress
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
