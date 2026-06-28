@@ -5,7 +5,7 @@ title: "Port Luminosity ADRs and Feeding Spikes into Accelerator"
 date: "2026-06-27T11:43:29+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: draft
+status: done
 kind: task
 priority: medium
 external_id: "PP-178"
@@ -18,7 +18,7 @@ schema_version: 1
 # 0157: Port Luminosity ADRs and Feeding Spikes into Accelerator
 
 **Kind**: Task
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

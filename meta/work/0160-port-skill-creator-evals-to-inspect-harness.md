@@ -7,6 +7,7 @@ author: Toby Clemson
 status: draft
 kind: task
 priority: medium
+external_id: "PP-179"
 tags: [evaluation, skills, inspect, testing, migration]
 relates_to: ["adr:ADR-0055", "adr:ADR-0050", "adr:ADR-0052"]
 last_updated: "2026-06-28T11:44:00+00:00"

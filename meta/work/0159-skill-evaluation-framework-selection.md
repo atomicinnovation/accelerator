@@ -7,6 +7,7 @@ author: Toby Clemson
 status: done
 kind: spike
 priority: high
+external_id: "PP-182"
 tags: [spike, evaluation, skills, tooling]
 last_updated: "2026-06-27T12:23:42+00:00"
 last_updated_by: Toby Clemson
