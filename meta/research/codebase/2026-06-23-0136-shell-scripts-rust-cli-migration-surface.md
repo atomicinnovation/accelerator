@@ -68,19 +68,19 @@ Repo-wide (verified live, excluding `workspaces/` and `node_modules`):
 **226 `.sh` files, ~58,909 lines.** Distribution by area (line counts from the
 locator sweep):
 
-| Area | Dir | ~Files | ~Lines | Production vs test |
-|---|---|---|---|---|
-| Core library + config/frontmatter | `scripts/` | 63 | 16,230 | mixed; biggest test suite here |
-| Hooks | `hooks/` | 7 | 1,267 | 4 prod + 2 test + 1 fixture |
-| Work-item lifecycle | `skills/work/scripts/` | 28 | 6,572 | 22 prod + 6 test |
-| Jira integration | `skills/integrations/jira/scripts/` | 43 | 11,938 | 22 prod + 21 test |
-| Linear integration | `skills/integrations/linear/scripts/` | 24 | 5,245 | 12 prod + 12 test |
-| Migration engine + migrations | `skills/config/migrate/` | 23 | 11,476 | engine + 7 migrations + 4 large test suites + fixtures |
-| Design / inventory tooling | `skills/design/` | 14 | 1,904 | 10 prod + 4 test |
-| Visualiser launcher | `skills/visualisation/visualise/scripts/` | 13 | 2,255 | 7 prod + 6 test |
-| GitHub PR helpers | `skills/github/` | 6 | 1,445 | 3 prod + 3 test |
-| ADR helpers | `skills/decisions/scripts/` | 3 | 362 | 2 prod + 1 test |
-| Config init | `skills/config/init/scripts/` | 2 | 215 | 1 prod + 1 test |
+| Area                              | Dir                                       | ~Files | ~Lines | Production vs test                                     |
+|-----------------------------------|-------------------------------------------|--------|--------|--------------------------------------------------------|
+| Core library + config/frontmatter | `scripts/`                                | 63     | 16,230 | mixed; biggest test suite here                         |
+| Hooks                             | `hooks/`                                  | 7      | 1,267  | 4 prod + 2 test + 1 fixture                            |
+| Work-item lifecycle               | `skills/work/scripts/`                    | 28     | 6,572  | 22 prod + 6 test                                       |
+| Jira integration                  | `skills/integrations/jira/scripts/`       | 43     | 11,938 | 22 prod + 21 test                                      |
+| Linear integration                | `skills/integrations/linear/scripts/`     | 24     | 5,245  | 12 prod + 12 test                                      |
+| Migration engine + migrations     | `skills/config/migrate/`                  | 23     | 11,476 | engine + 7 migrations + 4 large test suites + fixtures |
+| Design / inventory tooling        | `skills/design/`                          | 14     | 1,904  | 10 prod + 4 test                                       |
+| Visualiser launcher               | `skills/visualisation/visualise/scripts/` | 13     | 2,255  | 7 prod + 6 test                                        |
+| GitHub PR helpers                 | `skills/github/`                          | 6      | 1,445  | 3 prod + 3 test                                        |
+| ADR helpers                       | `skills/decisions/scripts/`               | 3      | 362    | 2 prod + 1 test                                        |
+| Config init                       | `skills/config/init/scripts/`             | 2      | 215    | 1 prod + 1 test                                        |
 
 **Key structural fact**: `tasks/` has **no `.sh` files** — the build system is
 pure Python invoke. Shell is confined to `scripts/`, `hooks/`, and
