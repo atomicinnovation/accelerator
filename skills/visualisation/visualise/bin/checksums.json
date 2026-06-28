@@ -1,10 +1,10 @@
 {
-  "version": "1.24.0-pre.3",
+  "version": "1.24.0-pre.4",
   "note": "Placeholder checksums. Real SHA-256 values are written by the release pipeline in Phase 12. Any value of sha256:0\u20260 is a deliberate sentinel; fail any build that sees it.",
   "binaries": {
-    "darwin-arm64": "sha256:97e5d6976e81e490e8b3800af0d800a88267e2045e9779f47cdb9b78bcc0fdf3",
-    "darwin-x64": "sha256:eb30590c0d5618345a5f6e1dc8d986c28a6d76ab403fcea9f434c3d8deb52c94",
-    "linux-arm64": "sha256:37e1c3fdec630970ef665d0b1331acf19fa6974c04f3933e2c263b704aea0877",
-    "linux-x64": "sha256:09aa987ba103079a7fe717d3acd1ea1c24b1440ae782bfef6752f7b06b85fb77"
+    "darwin-arm64": "sha256:7a107e7e2137257754cb8e4ecac6c3594c649ad7292d70fea66ad785ac8b7e83",
+    "darwin-x64": "sha256:34ffc5692ad3ba73657a74261bf4488a47685dc30061e1568454698bce8388ce",
+    "linux-arm64": "sha256:3f69c30f2ec7e4a9a48150895a61f34e3ead485a13a99359861bd6a735934d62",
+    "linux-x64": "sha256:39f431451cb18b864a445324449d66f07835331f6fde2c502f883944f8da459b"
   }
 }
