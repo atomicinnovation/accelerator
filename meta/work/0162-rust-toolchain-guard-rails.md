@@ -5,14 +5,14 @@ title: "Rust Toolchain Guard Rails in mise + CI"
 date: "2026-06-28T17:01:56+00:00"
 author: Toby Clemson
 producer: extract-work-items
-status: draft
+status: ready
 kind: story
 priority: high
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0163"]
 tags: [rust, tooling, ci, guard-rails, architecture-enforcement]
-last_updated: "2026-06-28T17:01:56+00:00"
+last_updated: "2026-06-28T22:52:20+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-183"
@@ -21,7 +21,7 @@ external_id: "PP-183"
 # 0162: Rust Toolchain Guard Rails in mise + CI
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Ready
 **Priority**: High
 **Author**: Toby Clemson
 
@@ -94,8 +94,9 @@ work item 0006, rewritten for Accelerator's brownfield state and ADR set
 
 - The quality-tool stack (nextest, llvm-cov, cargo-deny) is taken from the
   established direction; no dedicated ADR ratifies it. Architecture enforcement
-  (cargo-pup + cargo-deny ban-lists) derives from ADR-0053; the spike's grep
-  tripwire is retained as a cheap floor beneath cargo-pup.
+  (cargo-pup + cargo-deny ban-lists) derives from ADR-0053; a cheap grep-based
+  dependency tripwire (proposed in the source research) is added as a floor
+  beneath cargo-pup — no such check exists in the repo today.
 
 ## Technical Notes
 
@@ -107,10 +108,6 @@ work item 0006, rewritten for Accelerator's brownfield state and ADR set
 
 - Treated as the Phase 0 enforcement story mirroring luminosity 0006, scoped as an
   extension of the existing Rust wiring rather than a green-field stand-up.
-
-> Extracted from source documents without interactive enrichment.
-> Acceptance criteria, dependencies, and kind may need refinement before
-> promoting from `draft` to `ready`.
 
 ## References
 
