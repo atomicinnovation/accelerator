@@ -3,15 +3,15 @@ type: work-item
 id: "0176"
 title: "Author per-skill-family reference docs under docs/"
 date: "2026-06-29T10:28:21+00:00"
-author: Toby Clemson
+author: Phil Helm
 producer: refine-work-item
 status: draft
 kind: story
 priority: medium
 parent: "work-item:0145"
 tags: []
-last_updated: "2026-06-29T10:28:21+00:00"
-last_updated_by: Toby Clemson
+last_updated: "2026-06-29T14:46:59+00:00"
+last_updated_by: Phil Helm
 schema_version: 1
 ---
 
@@ -20,7 +20,7 @@ schema_version: 1
 **Kind**: Story
 **Status**: Draft
 **Priority**: Medium
-**Author**: Toby Clemson
+**Author**: Phil Helm
 
 ## Summary
 
