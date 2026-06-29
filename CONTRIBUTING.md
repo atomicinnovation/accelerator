@@ -1,5 +1,13 @@
 # Contributing
 
+## Local development
+
+To load the plugin from a local checkout:
+
+```bash
+claude --plugin-dir /path/to/accelerator
+```
+
 ## Linting, formatting, and type-checking
 
 Enforcement is **CI-only** — there are no pre-commit hooks. So before you push:
