@@ -62,6 +62,8 @@ Code compatibility, see [Releases & Compatibility](docs/releases-and-compatibili
 
 **Skills**
 
+- [All Skills](docs/skills/index.md) — the full index of every skill, grouped by
+  family.
 - [Planning](docs/skills/planning.md) — research, issue investigation, and plan
   review companions.
 - [Work Items](docs/skills/work-items.md) — capturing features, bugs, and tasks

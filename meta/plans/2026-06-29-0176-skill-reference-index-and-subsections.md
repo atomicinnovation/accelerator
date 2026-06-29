@@ -479,28 +479,28 @@ reference subsection.
 
 #### Automated Verification
 
-- [ ] New test fails before the index exists, passes after:
+- [x] New test fails before the index exists, passes after:
       `bash scripts/test-skills-index.sh`
-- [ ] Full suite green: `mise run test:integration:config`
-- [ ] New script passes lint + exec-bit invariant: `mise run scripts:check`
+- [x] Full suite green: `mise run test:integration:config`
+- [x] New script passes lint + exec-bit invariant: `mise run scripts:check`
       (shellcheck, shfmt, bashisms 3.2 floor, exec-bits)
-- [ ] Index references all 46 invokable skills and no internal skill (asserted
+- [x] Index references all 46 invokable skills and no internal skill (asserted
       by the test above)
-- [ ] Liveness gate holds: the test's derived invokable set is exactly 46
+- [x] Liveness gate holds: the test's derived invokable set is exactly 46
       (fails loudly on an enumeration/exclusion regression)
-- [ ] Every deep link resolves (all 46): the test confirms a `### <name>`
+- [x] Every deep link resolves (all 46): the test confirms a `### <name>`
       heading exists on each target page (family AND concept pages)
-- [ ] Description-match holds: the test confirms each skill's index gloss and
+- [x] Description-match holds: the test confirms each skill's index gloss and
       home-page "what it does" reproduce the first sentence of its `SKILL.md`
       `description` verbatim
-- [ ] The test's negative self-test passes (a deliberately broken temp index is
+- [x] The test's negative self-test passes (a deliberately broken temp index is
       reported FAIL), proving the assertions are not vacuous
 
 #### Manual Verification
 
-- [ ] Index groups match the nine families; counts total 46.
-- [ ] README **Skills** section leads with the All Skills index and renders.
-- [ ] `review-system.md` cross-reference notes are present and correct.
+- [x] Index groups match the nine families; counts total 46.
+- [x] README **Skills** section leads with the All Skills index and renders.
+- [x] `review-system.md` cross-reference notes are present and correct.
 
 ---
 
