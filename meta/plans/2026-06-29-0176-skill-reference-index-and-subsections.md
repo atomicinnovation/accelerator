@@ -311,35 +311,35 @@ assert it (and the index gloss) against frontmatter and catch drift.
 
 #### Automated Verification
 
-- [ ] Docs grep contracts still pass: `mise run test:integration:config`
-- [ ] `grep -q "work\.integration" docs/skills/work-items.md`
-- [ ] Design tokens preserved on the now-edited `configuration.md`:
+- [x] Docs grep contracts still pass: `mise run test:integration:config`
+- [x] `grep -q "work\.integration" docs/skills/work-items.md`
+- [x] Design tokens preserved on the now-edited `configuration.md`:
       `bash scripts/test-design.sh` exits 0
-- [ ] No accidental `work item`-spaced identifiers introduced (README sweep
+- [x] No accidental `work item`-spaced identifiers introduced (README sweep
       unaffected, but keep prose clean): spot-check passes
       `mise run test:integration:config`
 
 #### Manual Verification
 
-- [ ] Every skill on every home page now has an `### <name>` subsection with a
+- [x] Every skill on every home page now has an `### <name>` subsection with a
       working GitHub anchor (`#name`).
-- [ ] Per-page subsection counts match the mapping (no skill dropped):
+- [x] Per-page subsection counts match the mapping (no skill dropped):
       `work-items.md` = 8, `issue-trackers.md` = 16, `vcs-and-pr.md` = 4,
       `adrs.md` = 3, `design-convergence.md` = 2, `planning.md` = 6
       (research-issue, create-note, conduct-spike, review-plan, stress-test-plan,
       validate-plan); concept pages: `development-loop.md` = 3,
       `configuration.md` = 2 (configure, init), `migrations.md` = 1,
       `visualiser.md` = 1. Total = 46.
-- [ ] Each subsection's "What it does" reproduces the first sentence of the
+- [x] Each subsection's "What it does" reproduces the first sentence of the
       skill's `SKILL.md` `description` verbatim; usage matches `argument-hint`.
-- [ ] `init` has a real subsection on `configuration.md` and is no longer a
+- [x] `init` has a real subsection on `configuration.md` and is no longer a
       second home on `internals.md`.
-- [ ] Each review skill subsection (`review-pr`, `review-plan`,
+- [x] Each review skill subsection (`review-pr`, `review-plan`,
       `review-work-item`) links to `review-system.md` (load-bearing
       cross-reference).
-- [ ] "Advice & guidelines" appears only where it adds genuine value; no filler.
-- [ ] `review-system.md` is unchanged; its lens tables remain.
-- [ ] Pages render correctly on GitHub (tables gone, subsections legible).
+- [x] "Advice & guidelines" appears only where it adds genuine value; no filler.
+- [x] `review-system.md` is unchanged; its lens tables remain.
+- [x] Pages render correctly on GitHub (tables gone, subsections legible).
 
 ---
 

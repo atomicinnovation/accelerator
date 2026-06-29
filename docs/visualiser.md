@@ -82,3 +82,14 @@ Setting `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE=1` adds a second layer: the
 launcher calls `gh attestation verify --repo atomicinnovation/accelerator`
 and refuses to start if the attestation is missing or invalid. Requires
 `gh >= 2.49.0` and network reachability to `api.github.com`.
+
+## Skill reference
+
+### visualise
+
+**What it does** — Open the accelerator meta visualiser.
+
+**How to use it** — `/accelerator:visualise [stop | status]`
+
+**Advice & guidelines** — Bare `visualise` starts (or re-attaches to) the server;
+`status` reports its state and `stop` shuts it down. See [Lifecycle](#lifecycle).

@@ -126,3 +126,25 @@ individual skills by placing files in
 Both files are optional. Directory names must match the skill name exactly (the
 part after `/accelerator:`). The SessionStart hook warns about unrecognised
 directory names. See `/accelerator:configure help` for the full reference.
+
+## Skill reference
+
+### configure
+
+**What it does** — View, create, or edit Accelerator plugin configuration.
+
+**How to use it** — `/accelerator:configure [view | create | help | templates ...]`
+
+**Advice & guidelines** — `configure help` prints the full configuration-key
+reference; the `templates` subcommands manage document templates (see [Template
+Management](#template-management)).
+
+### init
+
+**What it does** — Prepare a repository with the directories and gitignore
+entries that Accelerator skills expect.
+
+**How to use it** — `/accelerator:init` (no arguments — safe to run repeatedly)
+
+**Advice & guidelines** — Idempotent: it creates the `meta/` directories up
+front, but skills also create them on first use, so running `init` is optional.

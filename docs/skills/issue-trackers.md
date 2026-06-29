@@ -66,7 +66,69 @@ The default project key reuses `work.default_project_code`; set
 Read skills (`search-jira-issues`, `show-jira-issue`) trigger automatically on
 natural-language phrasing. Write skills are slash-only — they display a
 payload preview and require explicit confirmation before making any change to
-the tenant.
+the tenant. Each skill's reference subsection follows.
+
+### init-jira
+
+**What it does** — Set up the Jira Cloud integration for this project.
+
+**How to use it** — `/accelerator:init-jira [--site <subdomain>] [--email <addr>] [--refresh-fields] [--list-projects] [--list-fields]`
+
+**Advice & guidelines** — Run once before the other Jira skills: it verifies
+credentials and persists the team-shared field and project catalogue.
+
+### search-jira-issues
+
+**What it does** — Use this skill whenever the user wants to search, list, or
+filter Jira tickets — by assignee, status, label, project, type, component,
+reporter, parent, or free text — even if they say 'find', 'show me', 'what's
+open', 'list my tickets', or similar phrasing rather than 'search Jira'.
+
+**How to use it** — `/accelerator:search-jira-issues [flags] [free-text]`
+
+### show-jira-issue
+
+**What it does** — Use this skill when the user asks about a specific Jira issue
+by key (e.g. PROJ-123, ENG-456) — for viewing the description, status, comments,
+transitions, or any other field.
+
+**How to use it** — `/accelerator:show-jira-issue <ISSUE-KEY> [flags]`
+
+### create-jira-issue
+
+**What it does** — Use this skill only when the user explicitly invokes
+/create-jira-issue to create a new Jira issue.
+
+**How to use it** — `/accelerator:create-jira-issue --type NAME --summary TEXT [flags]`
+
+### update-jira-issue
+
+**What it does** — Use this skill only when the user explicitly invokes
+/update-jira-issue to modify an existing Jira issue.
+
+**How to use it** — `/accelerator:update-jira-issue ISSUE-KEY [flags]`
+
+### comment-jira-issue
+
+**What it does** — Use this skill only when the user explicitly invokes
+/comment-jira-issue to add, list, edit, or delete comments on a Jira issue.
+
+**How to use it** — `/accelerator:comment-jira-issue <add|list|edit|delete> ISSUE-KEY [flags]`
+
+### transition-jira-issue
+
+**What it does** — Use this skill only when the user explicitly invokes
+/transition-jira-issue to move a Jira issue through its workflow by state name.
+
+**How to use it** — `/accelerator:transition-jira-issue ISSUE-KEY (STATE-NAME | --transition-id ID) [flags]`
+
+### attach-jira-issue
+
+**What it does** — Use this skill only when the user explicitly invokes
+/attach-jira-issue to upload one or more local files as attachments to a Jira
+issue.
+
+**How to use it** — `/accelerator:attach-jira-issue ISSUE-KEY FILE [FILE...] [--quiet]`
 
 ### Jira ADF / Markdown
 
@@ -140,4 +202,68 @@ team-shared, while `viewer.json` is gitignored and per-developer. Set
 Read skills (`search-linear-issues`, `show-linear-issue`) trigger automatically
 on natural-language phrasing. Write skills are slash-only — they display a
 payload preview and require explicit confirmation before making any change to
-the workspace.
+the workspace. Each skill's reference subsection follows.
+
+### init-linear
+
+**What it does** — Set up the Linear integration for this project.
+
+**How to use it** — `/accelerator:init-linear [--team-id <uuid>]`
+
+**Advice & guidelines** — Run once before the other Linear skills: it verifies
+the token and caches the team and workflow-state catalogue.
+
+### search-linear-issues
+
+**What it does** — Use this skill whenever the user wants to search, list, or
+filter Linear issues — by state, assignee, label, or free text — even if they
+say 'find', 'show me', 'what's open', 'list my issues', or similar phrasing
+rather than 'search Linear'.
+
+**How to use it** — `/accelerator:search-linear-issues [flags]`
+
+### show-linear-issue
+
+**What it does** — Use this skill when the user asks about a specific Linear
+issue by identifier (e.g. BLA-123, ENG-456) — for viewing the description,
+state, assignee, or comments.
+
+**How to use it** — `/accelerator:show-linear-issue <IDENTIFIER> [--comments N]`
+
+### create-linear-issue
+
+**What it does** — Use this skill only when the user explicitly invokes
+/create-linear-issue to create a new Linear issue from a local work-item file.
+
+**How to use it** — `/accelerator:create-linear-issue <work-item-file> [flags]`
+
+### update-linear-issue
+
+**What it does** — Use this skill only when the user explicitly invokes
+/update-linear-issue to change fields on an existing Linear issue (title,
+description, state, assignee, priority).
+
+**How to use it** — `/accelerator:update-linear-issue <IDENTIFIER> [flags]`
+
+### comment-linear-issue
+
+**What it does** — Use this skill only when the user explicitly invokes
+/comment-linear-issue to add a Markdown comment to an existing Linear issue.
+
+**How to use it** — `/accelerator:comment-linear-issue <IDENTIFIER> --body TEXT | --body-file PATH`
+
+### transition-linear-issue
+
+**What it does** — Use this skill only when the user explicitly invokes
+/transition-linear-issue to move an existing Linear issue to a different
+workflow state.
+
+**How to use it** — `/accelerator:transition-linear-issue <IDENTIFIER> <STATE-NAME> [flags]`
+
+### attach-linear-issue
+
+**What it does** — Use this skill only when the user explicitly invokes
+/attach-linear-issue to attach a link or a binary file to an existing Linear
+issue.
+
+**How to use it** — `/accelerator:attach-linear-issue <IDENTIFIER> (--url URL | --file PATH) [flags]`

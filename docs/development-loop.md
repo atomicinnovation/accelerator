@@ -24,3 +24,35 @@ meta/research/codebase/ meta/plans/    checked-off plan
 
 See [Planning](skills/planning.md) for the issue-investigation, note-capture,
 and plan-review companions.
+
+## Skill reference
+
+### research-codebase
+
+**What it does** — Conduct comprehensive codebase research by spawning parallel
+sub-agents and synthesising findings into a research document.
+
+**How to use it** — `/accelerator:research-codebase [research question]`
+
+**Advice & guidelines** — Writes a structured document to
+`meta/research/codebase/`; run it first so the plan can cite concrete findings.
+
+### create-plan
+
+**What it does** — Create detailed implementation plans through interactive,
+iterative collaboration.
+
+**How to use it** — `/accelerator:create-plan [work item reference or description]`
+
+**Advice & guidelines** — Produces a phased plan in `meta/plans/` with success
+criteria; review it (optionally via `review-plan`) before implementing.
+
+### implement-plan
+
+**What it does** — Execute an approved implementation plan from the configured
+plans directory.
+
+**How to use it** — `/accelerator:implement-plan [path to plan file]`
+
+**Advice & guidelines** — Works phase by phase, checking off success criteria in
+the plan file as each phase completes.

@@ -14,10 +14,30 @@ inventory-design (current)  ─┐
 inventory-design (target)   ─┘
 ```
 
-| Skill                   | Usage                                                                     | Description                                                                               |
-|-------------------------|---------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
-| **inventory-design**    | `/accelerator:inventory-design [source-id] [location] [--crawler MODE]`   | Generate a design inventory (tokens, components, screens, features) for a frontend source |
-| **analyse-design-gaps** | `/accelerator:analyse-design-gaps [current-source-id] [target-source-id]` | Compute a structured gap between two inventories as actionable prose                      |
+### inventory-design
+
+**What it does** — Generate a structured design inventory for a frontend
+source — tokens, components, screens, and features — by crawling it with code
+analysis, live Playwright inspection, or both.
+
+**How to use it** — `/accelerator:inventory-design [source-id] [location] [--crawler code|runtime|hybrid] [--allow-internal] [--allow-insecure-scheme]`
+
+**Advice & guidelines** — Pick the crawler mode to match the source: `code` for
+a local repo, `runtime` for a hosted prototype, `hybrid` (default for code
+repos) for both. See [Requirements](#requirements) before using
+`runtime`/`hybrid`.
+
+### analyse-design-gaps
+
+**What it does** — Compare two design inventories produced by inventory-design
+and emit a structured gap artifact whose prose paragraphs satisfy the
+extract-work-items cue-phrase contract.
+
+**How to use it** — `/accelerator:analyse-design-gaps [current-source-id] [target-source-id]`
+
+**Advice & guidelines** — The gap artifact feeds straight into
+`/accelerator:extract-work-items`, so run both inventories first, then this, then
+extract.
 
 Three-step example:
 
