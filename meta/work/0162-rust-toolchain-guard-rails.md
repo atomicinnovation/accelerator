@@ -12,7 +12,7 @@ parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0163"]
 tags: [rust, tooling, ci, guard-rails, architecture-enforcement]
-last_updated: "2026-06-29T00:04:47+00:00"
+last_updated: "2026-06-29T00:12:32+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-183"
@@ -62,8 +62,8 @@ silently as the workspace grows.
   rule — keep infrastructure crates out of the dependency closures of the
   *light* (infra-free) crates, i.e. the domain subdomain crates plus the shared
   pure crates such as `kernel`/`config` (ADR-0053); (b) ban native-tls/OpenSSL
-  workspace-wide so nothing
-  re-enables `default-tls` and breaks the musl-static build (ADR-0046).
+  workspace-wide so nothing re-enables `default-tls` and breaks the musl-static
+  build (ADR-0046).
 - Add cargo-pup as a blocking check on a **pinned-nightly lane** (nightly pinned in
   `mise.toml`) enforcing intra-crate module-import (inward-dependency) rules, while
   the product build and all other checks stay on stable.
@@ -156,7 +156,10 @@ generation mechanism demonstrated to extend to further members. See Dependencies
   (cargo-pup + cargo-deny ban-lists) derives from ADR-0053. The source research
   proposed a cheap grep-based dependency tripwire as a floor beneath cargo-pup;
   this story deliberately omits it and relies wholly on cargo-pup for
-  intra-crate module-import enforcement.
+  intra-crate module-import enforcement. Trade-off: with no stable-lane floor, a
+  nightly/cargo-pup outage (or an unavailable pinned nightly) leaves the
+  inward-dependency rule unenforced until the lane is restored — module-import
+  violations would not be caught on the stable lane in the interim.
 
 ## Technical Notes
 
