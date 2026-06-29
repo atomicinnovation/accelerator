@@ -211,19 +211,18 @@ Source: [paths]
 
 [work item content with XXXX placeholder, including Drafting Notes section]
 
-How would you like to proceed?
-  1. enrich              — interactive Q&A, web research where useful, then approve
-  2. accept as-is        — write this skeleton as a thin draft for later refinement
-  3. skip                — exclude from this batch
-  4. accept remaining as-is — fast-path every remaining candidate as a thin draft
 ```
 
-Wait for the user's choice. The four options behave as follows.
+Use the `AskUserQuestion` tool with four options:
 
-If the user types something other than the four options — for example
-`revise <instructions>` or free-form revision text — treat it as
-`enrich` seeded with those instructions: enter the enrichment loop in
-3.3 and use the supplied text as the user's first round of revision
+1. **Enrich** — interactive Q&A, web research where useful, then approve
+2. **Accept as-is** — write this skeleton as a thin draft for later refinement
+3. **Skip** — exclude from this batch
+4. **Accept all remaining** — fast-path every remaining candidate as a thin draft
+
+Wait for the user's choice. If the user enters free-form text via the "Other"
+input, treat it as **Enrich** seeded with those instructions: enter the
+enrichment loop in 3.3 using the supplied text as the first round of revision
 guidance, skipping the question phase if the instructions are already
 substantive.
 
@@ -263,15 +262,13 @@ flow, seeded with the skeleton above:
      unresolved so the user can challenge them
    - Lists remaining open questions in the `Open Questions` section
 
-   Then offer next steps with numbers:
+   Then use the `AskUserQuestion` tool with four options:
 
-   ```
-   How would you like to proceed?
-     1. approve    — accept this draft and move on to the next candidate
-     2. revise <instructions> — provide revision instructions and I'll update the draft
-     3. skip       — discard this candidate entirely
-     4. accept as-is — discard enrichment and use the original source-only skeleton
-   ```
+   1. **Approve** — accept this draft and move on to the next candidate
+   2. **Revise** — update the draft with additional instructions (prompted after
+      via plain-text — do NOT use `AskUserQuestion` for the instructions)
+   3. **Skip** — discard this candidate entirely
+   4. **Accept as-is** — discard enrichment and use the original source-only skeleton
 
 4. **Iterate on the same candidate.** Challenge weak or untestable
    acceptance criteria — when a criterion is not measurable, ask what a

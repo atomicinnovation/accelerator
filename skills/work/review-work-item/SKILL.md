@@ -141,18 +141,28 @@ who previously pinned `core_lenses` to the Phase 4 work item lenses
 set `max_lenses` to their subset size.
 
 Present the selection briefly — enumerate the chosen lenses with a one-line
-focus each — then wait for confirmation before spawning reviewers. The
-confirmation gate is preserved even though the default always selects every
+focus each — then use the `AskUserQuestion` tool with two options:
+
+1. **Yes, use the proposed lenses** — run the review with the selected lenses
+2. **No, specify which lenses to use** — adjust the selection before running
+
+The confirmation gate is preserved even though the default always selects every
 lens; the gate is useful when focus args or config have narrowed the set.
 
 Example (default path, no focus args, no `core_lenses` restriction):
 
 ```
 I'll review this work item through all work item lenses (clarity, completeness,
-dependency, scope, testability). Shall I proceed?
+dependency, scope, testability).
 ```
 
-Wait for confirmation before spawning reviewers.
+Wait for the user's answer before spawning reviewers. If they choose option 2,
+ask which lenses they want using a **plain-text question only** — do NOT use
+`AskUserQuestion` for this follow-up (the lens list is too large for the
+4-option limit). If any lens name is unrecognised, seek clarification. Once
+confirmed, update the selection and re-present it using the same
+`AskUserQuestion` proceed/adjust pattern. This loop is user-controlled with
+no hard termination limit.
 
 ### Step 3: Spawn Review Agents
 
@@ -433,13 +443,14 @@ After presenting, offer the user control before proceeding to iteration:
 
 ```
 The review is complete. Verdict: [verdict]
-
-Would you like to:
-1. Proceed to address findings? (I'll help edit the work item)
-2. Change the verdict? (currently: [verdict])
-3. Discuss any specific findings in more detail?
-4. Re-run specific lenses with adjusted focus?
 ```
+
+Use the `AskUserQuestion` tool with four options:
+
+1. **Address findings** — edit the work item to resolve issues
+2. **Change the verdict** — currently: [verdict]
+3. **Discuss specific findings** — explore any finding in more detail
+4. **Re-run specific lenses** — adjust focus and re-review
 
 ### Step 6: Collaborative Work Item Iteration
 
@@ -466,15 +477,13 @@ After presenting the review:
 
 ### Step 7: Offer Re-Review
 
-After edits are complete:
+After edits are complete, use the `AskUserQuestion` tool with two options:
 
-```
-The work item has been updated. Would you like me to run another review pass to
-verify the changes address the findings? This will re-run the relevant lenses
-to check for any remaining issues.
-```
+1. **Yes, run another review pass** — re-run the relevant lenses to verify the
+   changes address the findings
+2. **No, done** — exit without re-reviewing
 
-If the user accepts:
+If the user chooses option 1:
 
 - Re-run **only the lenses that had findings** in the previous pass
 - Use the same spawn pattern and JSON extraction strategy from Steps 3-4

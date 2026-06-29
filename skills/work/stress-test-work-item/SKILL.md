@@ -153,10 +153,15 @@ Here's what we found during the stress test:
 **Risks accepted:**
 - [Risk]: [User acknowledges this and accepts it]
 
-Would you like me to update the work item with these changes?
 ```
 
-2. **If the user agrees, edit the work item**:
+Use the `AskUserQuestion` tool with two options:
+
+1. **Yes, update the work item** — apply the stress-test findings to the work
+   item body
+2. **No, leave unchanged** — keep the work item as-is
+
+2. **If the user chooses option 1, edit the work item**:
 
    - Use the Edit tool to apply targeted modifications to the body sections
      **Acceptance Criteria**, **Dependencies**, **Assumptions**, or

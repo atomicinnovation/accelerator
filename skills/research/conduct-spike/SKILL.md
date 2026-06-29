@@ -191,7 +191,11 @@ When uncertainty is acceptably low, synthesise with the user:
   acceptable to proceed anyway (or what would trigger revisiting).
 - **Implications** — what this unblocks and any follow-on work it implies.
 
-Confirm the synthesis with the user before recording it.
+Use the `AskUserQuestion` tool to confirm the synthesis with the user before
+recording it, with two options:
+
+1. **Yes, record this synthesis** — write the outcome to the spike document
+2. **No, revise first** — adjust the synthesis before recording
 
 ### Step 6: Record the outcome
 

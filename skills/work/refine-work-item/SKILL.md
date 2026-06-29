@@ -126,11 +126,11 @@ any link operation references them.
 Propose 2–5 candidate children (2–4 for story decomposing to tasks) with
 draft titles and one-line Summaries derived from the Requirements section.
 
-**Bug/spike challenge**: if the work item kind is `bug` or `spike`, first ask:
-```
-bug/spike work items don't typically decompose — are you sure? (y/n)
-```
-Only proceed on explicit `y`. On `n`, exit decompose and return to the menu.
+**Bug/spike challenge**: if the work item kind is `bug` or `spike`, first use
+the `AskUserQuestion` tool with two options:
+
+1. **Yes, proceed anyway** — continue with decompose
+2. **No, cancel** — exit decompose and return to the menu
 
 **Existing children**: if the Requirements section already contains a
 `### Child work items` subsection, offer:
@@ -164,13 +164,12 @@ Process user input:
 - Any other input → print "unrecognised command", restate the legend, and
   re-show the unchanged proposal unchanged. Do NOT treat as approval.
 
-**Pre-write warning**: before writing, emit:
-```
-This will allocate N work item numbers and write N files; aborting mid-write
-leaves partial state — use `jj restore <file>` to discard any children
-written. Proceed? (y/n)
-```
-Wait for explicit `y`. On `n`, cancel without writing.
+**Pre-write warning**: before writing, use the `AskUserQuestion` tool with two
+options. State the allocation count and warn about partial state:
+
+1. **Yes, proceed** — allocate N numbers and write N files (partial state is
+   possible if aborted mid-write; use `jj restore <file>` to discard)
+2. **No, cancel** — cancel without writing
 
 **On approval**:
 
@@ -356,8 +355,9 @@ On approval:
   and make no Edit.
 - **Existing `**Size**:` line with a different value or rationale**: show a
   unified diff of the proposed change (existing line struck, new line added)
-  and require an explicit second `y/n` confirmation before invoking Edit.
-  On `y`, replace the line in place. On `n`, make no Edit.
+  then use the `AskUserQuestion` tool with two options:
+  1. **Yes, apply size change** — replace the line in place
+  2. **No, cancel** — make no Edit
 
 ### 4e. Link
 
@@ -414,13 +414,14 @@ subsequent operations.
 
 ## Step 6 — Offer Review
 
-After the entire selected operation set completes, offer:
-```
-Would you like to run `/review-work-item` on this work item now?
-```
-If decompose was in the selection, also offer to run review on each child
-written. Do NOT invoke `/review-work-item` automatically — only make the offer.
-The skill exits after this offer regardless of the user's response.
+After the entire selected operation set completes, use the `AskUserQuestion`
+tool with two options:
+
+1. **Yes, run review** — run `/review-work-item` on this work item now (and
+   each child if decompose was in the selection)
+2. **No, done** — exit without running review
+
+Do NOT invoke `/review-work-item` automatically — wait for the user's choice.
 
 ## Important Guidelines
 

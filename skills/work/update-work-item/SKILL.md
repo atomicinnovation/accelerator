@@ -140,10 +140,12 @@ block applies if the user names the field as `work_item_id` (the
 legacy alias accepted on read for files predating the unified
 schema).
 
-**`date` — warned**: print `"date records the work item's creation time and
-is typically not edited. Proceed anyway? (y/n)"`. If the user confirms,
-proceed through the normal diff-and-confirm flow. If declined, print
-"No changes applied." and exit.
+**`date` — warned**: inform the user that `date` records the work item's
+creation time and is typically not edited, then use the `AskUserQuestion` tool
+with two options:
+
+1. **Yes, proceed anyway** — proceed through the normal diff-and-confirm flow
+2. **No, cancel** — print "No changes applied." and exit
 
 **`parent` — canonicalised**: normalise the value via
 `work-item-common.sh:wip_canonicalise_id` before writing. The
@@ -219,11 +221,10 @@ after `# ` with the new title. Only the first H1 is touched.
 
 ### Confirmation prompt
 
-Print the diff and `"Apply these changes? (y/n)"`. Wait for user
-response. Accepted affirmatives: case-insensitive `y` or `yes`. On `n`
-or `no`: print "No changes applied." and exit without writing. On any
-other input: re-prompt once. If the second response is still
-unrecognised, treat as decline.
+Print the diff, then use the `AskUserQuestion` tool with two options:
+
+1. **Yes, apply changes** — write the changes to disk
+2. **No, cancel** — print "No changes applied." and exit without writing
 
 ### Field insertion preview
 

@@ -33,7 +33,9 @@ allowed-tools:
 
 - List the files you plan to include in each commit
 - Show the commit message(s) you'll use
-- Ask: "I plan to create [N] commit(s) with these changes. Shall I proceed?"
+- Use the `AskUserQuestion` tool with two options:
+  1. **Yes, proceed** — create [N] commit(s) with the staged changes
+  2. **No, cancel** — abort without committing
 
 4. **Execute upon confirmation:**
 

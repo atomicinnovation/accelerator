@@ -143,8 +143,9 @@ the user's input.
   be found and suggest checking the number. If on a branch with no PR, list
   open PRs with `gh pr list --limit 10` and ask the user to select one.
 - **Empty diff**: If `diff.patch` is empty (e.g., a draft PR with no changes),
-  inform the user and ask whether to proceed with a review of the PR
-  description and commits only.
+  inform the user and use the `AskUserQuestion` tool with two options:
+  1. **Yes, review description and commits only** — proceed without a diff
+  2. **No, abort** — exit without reviewing
 
 ### Step 2: Select Review Lenses
 
@@ -252,10 +253,21 @@ Based on the PR's scope, I'll review through these lenses:
 - Portability: [reason — or "Skipping: ..."]
 - Safety: [reason — or "Skipping: ..."]
 
-Shall I proceed, or would you like to adjust the selection?
 ```
 
-Wait for confirmation before spawning reviewers.
+Then use the `AskUserQuestion` tool to ask the user whether to proceed, with
+two options:
+
+1. **Yes, use the proposed lenses** — run the review with the selected lenses
+2. **No, specify which lenses to use** — adjust the selection before running
+
+Wait for the user's answer before spawning reviewers. If they choose option 2,
+ask which lenses they want using a **plain-text question only** — do NOT use
+`AskUserQuestion` for this follow-up (the lens list is too large for the
+4-option limit). If any lens name is unrecognised, seek clarification. Once
+confirmed, update the selection and re-present it using the same
+`AskUserQuestion` proceed/adjust pattern. This loop is user-controlled with
+no hard termination limit.
 
 ### Step 3: Spawn Review Agents
 
@@ -650,7 +662,10 @@ stale commit):
 - After edits, re-present the preview and offer the same action options
 
 **When the user changes the verdict** (option 2):
-- Ask which verdict they prefer (APPROVE, COMMENT, REQUEST_CHANGES)
+- Use the `AskUserQuestion` tool with three options:
+  1. **APPROVE** — approve the PR
+  2. **COMMENT** — leave a non-blocking comment review
+  3. **REQUEST_CHANGES** — request changes before merge
 - Update the summary body and re-present the preview
 
 ## Important Guidelines
