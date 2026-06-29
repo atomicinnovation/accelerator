@@ -186,15 +186,20 @@ prefix; refs to `meta/` become `../meta/`):
 ### Success Criteria
 
 **Automated:**
-- [ ] All seven files exist: `for f in how-it-works development-loop
+- [x] All seven files exist: `for f in how-it-works development-loop
       configuration visualiser internals migrations installation; do test -f
       docs/$f.md; done`.
-- [ ] `grep -l "meta/" docs/how-it-works.md docs/development-loop.md` returns
+- [x] `grep -l "meta/" docs/how-it-works.md docs/development-loop.md` returns
       both files.
 
 **Manual:**
-- [ ] Each page's relative asset/`meta/` links resolve from its `docs/` location.
-- [ ] No content from the mapped ranges was dropped or altered (verbatim move).
+- [x] Each page's relative asset/`meta/` links resolve from its `docs/` location.
+      (Relocated narrative sections contain no asset paths or repo-relative
+      markdown links — only inline-code path prose + external URLs — so no
+      `../` rewrites were needed. `configuration.md` links to
+      `skills/review-system.md` and `installation.md` to `../README.md`.)
+- [x] No content from the mapped ranges was dropped or altered (verbatim move;
+      H3→H2 promotion under each page H1 to keep heading hierarchy).
 
 ---
 
