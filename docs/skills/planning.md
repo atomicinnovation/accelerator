@@ -8,6 +8,9 @@ Companion skills handle issue investigation and quick note capture:
   `meta/research/issues/`.
 - `/accelerator:create-note "rate limiter resets on deploy"` — Capture a
   short-form note (observation, insight, snippet) to `meta/notes/`.
+- `/accelerator:conduct-spike @meta/work/0042-spike-x.md` — Interactively run a
+  time-boxed spike against a spike work item (or brief), recording the outcome
+  back on the work item.
 
 Three complementary skills support the core [development
 loop](../development-loop.md):

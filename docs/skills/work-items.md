@@ -32,6 +32,8 @@ existing docs (specs, PRDs, notes)
 | **extract-work-items** | `/accelerator:extract-work-items [doc paths...]`                                              | Batch-extract work items from existing specs, PRDs, research, plans, or notes                                                                         |
 | **list-work-items**    | `/accelerator:list-work-items [filter]`                                                       | List and filter work items by status, type, priority, tag, parent, or title; shows a colour-coded Sync column when a remote integration is configured |
 | **update-work-item**   | `/accelerator:update-work-item [work-item-ref] [field-op]`                                    | Update work item fields with diff preview and confirmation                                                                                            |
+| **refine-work-item**      | `/accelerator:refine-work-item [work-item-ref]`      | Decompose, enrich, size, or link a drafted work item before planning |
+| **stress-test-work-item** | `/accelerator:stress-test-work-item [work-item-ref]` | Adversarially grill scope, assumptions, and acceptance criteria before planning |
 | **sync-work-items**    | `/accelerator:sync-work-items [--push-only\|--pull-only] [--preview] [--all] [filter-flags…]` | Reconcile local work items with the configured remote tracker (Jira or Linear), detecting per-item sync state and resolving conflicts                 |
 | **review-work-item**   | `/accelerator:review-work-item [work-item-ref]`                                               | Review a work item through completeness, testability, and clarity lenses                                                                              |
 
