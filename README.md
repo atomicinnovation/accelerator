@@ -41,23 +41,24 @@ Then initialise your project and run the research → plan → implement loop:
 ```
 
 For the prerelease channel (where the newest features land first) and Claude
-Code compatibility, see [Installation](docs/installation.md).
+Code compatibility, see [Releases & Compatibility](docs/releases-and-compatibility.md).
 
 ## Documentation
 
 **Concepts**
 
-- [How It Works](docs/how-it-works.md) — the phase model and VCS detection.
+- [Philosophy](docs/philosophy.md) — the phase model and why development is
+  split across the filesystem.
 - [The Development Loop](docs/development-loop.md) — the research → plan →
   implement workflow in detail.
 - [Configuration](docs/configuration.md) — config files, templates, per-skill
   customisation, and custom review lenses.
 - [Visualiser](docs/visualiser.md) — the browser-based companion view of `meta/`.
-- [Internals](docs/internals.md) — the `meta/` directory deep-dive and the agent
-  roster.
+- [Internals](docs/internals.md) — the `meta/` directory deep-dive, the agent
+  roster, and VCS detection.
 - [Migrations](docs/migrations.md) — upgrading a repo with `/accelerator:migrate`.
-- [Installation](docs/installation.md) — the prerelease channel and Claude Code
-  compatibility.
+- [Releases & Compatibility](docs/releases-and-compatibility.md) — the prerelease
+  channel and Claude Code compatibility.
 
 **Skills**
 

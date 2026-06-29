@@ -1,4 +1,4 @@
-# Installation
+# Releases & Compatibility
 
 The stable install is covered in the [README](../README.md). This page covers
 the prerelease channel (where the newest features land first) and Claude Code

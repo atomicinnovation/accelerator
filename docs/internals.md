@@ -61,3 +61,25 @@ broadly and read deeply, keeping each agent's context bounded.
 (`run.sh`), a Bash wrapper around a Node.js TCP daemon that runs Chromium.
 No MCP server is required. See `skills/design/inventory-design/PROTOCOL.md`
 for the executor wire protocol.
+
+## VCS Detection
+
+Accelerator automatically detects whether a repository uses git or
+[jujutsu (jj)](https://github.com/jj-vcs/jj) and adapts its behaviour
+accordingly. A `SessionStart` hook inspects the working directory for `.jj/` and
+`.git/` directories, injecting VCS-specific context (command references and
+conventions) into the session. Detection also recognises git **linked
+worktrees** — where `.git` is a file (a `gitdir:` pointer) rather than a
+directory — so worktree-based sessions are detected just like plain checkouts. A
+complementary `PreToolUse` guard warns when raw git commands are used in a
+jujutsu repository.
+
+This means all VCS-aware skills — `commit`, `respond-to-pr`, and ad-hoc
+interactions — use the correct CLI commands without manual configuration. The
+detection covers three modes:
+
+| Mode               | Detected when      | VCS commands used |
+|--------------------|--------------------|-------------------|
+| **git**            | `.git/` only       | `git`             |
+| **jj (colocated)** | `.jj/` and `.git/` | `jj`              |
+| **jj (pure)**      | `.jj/` only        | `jj`              |
