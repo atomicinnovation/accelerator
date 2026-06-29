@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Interactive option panels replace typed confirmations across 15 skills.**
+  All `y/n` typed gates, plain-text "Shall I proceed?" prompts, and numbered
+  action menus have been replaced with `AskUserQuestion` panels — the terminal
+  presents a labelled option list you select from rather than a free-text prompt
+  you type into. Affected skills:
+  - **Review flow**: `/review-pr` and `/review-work-item` lens-selection prompts
+    ("Yes, use proposed lenses / No, specify which lenses") — previously asked in
+    plain text and required a typed reply.
+  - **Post-analysis action menus**: `/create-adr`, `/review-adr`,
+    `/respond-to-pr`, `/review-plan`, `/stress-test-plan`, `/conduct-spike`,
+    and `/extract-work-items` — numbered selection menus replaced by labelled
+    button panels.
+  - **Binary confirmations**: `/commit` (push confirmation), `/respond-to-pr`
+    (post confirmation), `/create-work-item` (push + overwrite gates),
+    `/refine-work-item` (decompose challenge, pre-write warning, size change,
+    offer review), `/review-work-item` (re-review offer),
+    `/stress-test-work-item` (update confirmation), `/update-work-item`
+    (date warning + diff confirmation), and `/sync-work-items` (overwrite +
+    untracked-pull gates).
+
 ## [1.23.0] - 2026-06-23
 
 ### Added
