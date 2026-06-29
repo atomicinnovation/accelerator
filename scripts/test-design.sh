@@ -6,7 +6,8 @@ source "$SCRIPT_DIR/test-helpers.sh"
 
 INIT="$PLUGIN_ROOT/skills/config/init/SKILL.md"
 CONFIGURE="$PLUGIN_ROOT/skills/config/configure/SKILL.md"
-README="$PLUGIN_ROOT/README.md"
+DOCS_INTERNALS="$PLUGIN_ROOT/docs/internals.md"
+DOCS_CONFIGURATION="$PLUGIN_ROOT/docs/configuration.md"
 
 echo "=== Foundation: init SKILL.md ==="
 
@@ -42,16 +43,16 @@ assert_exit_code "no SKILL.md or agent uses bare design_(inventories|gaps)" 1 \
 
 echo ""
 
-echo "=== Foundation: README ==="
+echo "=== Foundation: docs ==="
 
-assert_contains "README meta/ table lists design-inventories/" \
-  "$(cat "$README")" "design-inventories/"
-assert_contains "README meta/ table lists design-gaps/" \
-  "$(cat "$README")" "design-gaps/"
-assert_contains "README template keys include design-inventory" \
-  "$(cat "$README")" "design-inventory"
-assert_contains "README template keys include design-gap" \
-  "$(cat "$README")" "design-gap"
+assert_contains "internals meta/ table lists design-inventories/" \
+  "$(cat "$DOCS_INTERNALS")" "design-inventories/"
+assert_contains "internals meta/ table lists design-gaps/" \
+  "$(cat "$DOCS_INTERNALS")" "design-gaps/"
+assert_contains "configuration template keys include design-inventory" \
+  "$(cat "$DOCS_CONFIGURATION")" "design-inventory"
+assert_contains "configuration template keys include design-gap" \
+  "$(cat "$DOCS_CONFIGURATION")" "design-gap"
 
 echo ""
 

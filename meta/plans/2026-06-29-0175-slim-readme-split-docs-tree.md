@@ -326,17 +326,23 @@ Handle the `#jira-integration` anchor: either preserve it in
 ### Success Criteria
 
 **Automated:**
-- [ ] `mise run check` exits 0.
-- [ ] Any retained README content-check passes (or has been updated to scan the
-      docs tree).
+- [x] `mise run check` exits 0.
+- [x] Any retained README content-check passes (or has been updated to scan the
+      docs tree). `test-config.sh` (work.integration) repointed to
+      `docs/skills/work-items.md`; `test-design.sh` (design-inventories/gaps +
+      template keys) repointed to `docs/internals.md` / `docs/configuration.md`.
 
 **Manual:**
-- [ ] Every mapping row verified: present in one destination, dropped/duplicated
-      in none (AC5).
-- [ ] Every `docs/` page reachable from the README with H1-matching link text
+- [x] Every mapping row verified: present in one destination, dropped/duplicated
+      in none (AC5). Line-accounting over the original README found only 10
+      non-matching lines — all superseded single-page navigation prose or
+      deliberate `../../` link-prefix/wording changes; the sole cross-file
+      duplicate is the stable-install command pair, which the original README
+      already repeated in three places.
+- [x] Every `docs/` page reachable from the README with H1-matching link text
       (AC6).
-- [ ] README renders correctly in GitHub markdown (logo, screenshot, links,
-      dev-loop diagram if retained).
+- [x] README renders correctly in GitHub markdown (logo `<picture>`, visualiser
+      screenshot, links, dev-loop diagram now lives in `docs/development-loop.md`).
 
 ---
 
