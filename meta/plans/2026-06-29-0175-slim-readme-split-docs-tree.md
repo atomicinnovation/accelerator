@@ -226,12 +226,14 @@ Handle the `#jira-integration` anchor: either preserve it in
 ### Success Criteria
 
 **Automated:**
-- [ ] All seven files exist under `docs/skills/`.
+- [x] All seven files exist under `docs/skills/`.
 
 **Manual:**
-- [ ] Every per-family skills table survives intact in exactly one page.
-- [ ] `docs/configuration.md`'s custom-lens link to
-      `docs/skills/review-system.md` resolves.
+- [x] Every per-family skills table survives intact in exactly one page.
+- [x] `docs/configuration.md`'s custom-lens link to
+      `docs/skills/review-system.md` resolves (relative `skills/review-system.md`).
+      `#jira-integration` anchor preserved in `issue-trackers.md`; `../../skills/`
+      link fixes applied in `work-items.md` and `design-convergence.md`.
 
 ---
 
