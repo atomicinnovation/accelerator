@@ -21,3 +21,6 @@ meta/research/codebase/ meta/plans/    checked-off plan
 3. **Implement** (`/accelerator:implement-plan @meta/plans/plan.md`): Execute
    the plan phase by phase, checking off success criteria as each phase
    completes. The plan file serves as both instructions and progress tracker.
+
+See [Planning](skills/planning.md) for the issue-investigation, note-capture,
+and plan-review companions.

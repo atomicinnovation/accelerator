@@ -9,7 +9,8 @@ Companion skills handle issue investigation and quick note capture:
 - `/accelerator:create-note "rate limiter resets on deploy"` — Capture a
   short-form note (observation, insight, snippet) to `meta/notes/`.
 
-Three complementary skills support this loop:
+Three complementary skills support the core [development
+loop](../development-loop.md):
 
 - `/accelerator:review-plan @meta/plans/plan.md` — Review a plan through
   multiple quality lenses before implementation

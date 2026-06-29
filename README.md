@@ -47,8 +47,7 @@ Code compatibility, see [Installation](docs/installation.md).
 
 **Concepts**
 
-- [How It Works](docs/how-it-works.md) — the phase model, the `meta/` directory,
-  and VCS detection.
+- [How It Works](docs/how-it-works.md) — the phase model and VCS detection.
 - [The Development Loop](docs/development-loop.md) — the research → plan →
   implement workflow in detail.
 - [Configuration](docs/configuration.md) — config files, templates, per-skill

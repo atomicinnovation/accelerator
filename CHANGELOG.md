@@ -129,7 +129,7 @@ breadcrumbs; VCS revert remains the recovery path.
   `.accelerator/state/integrations/linear/`. Read skills auto-trigger on natural
   language; write skills are slash-only with a payload preview and confirmation,
   mirroring the Jira set. See the
-  [Linear subsection of the README](README.md#linear).
+  [Linear section of the Issue Trackers docs](docs/skills/issue-trackers.md#linear).
 - **`/accelerator:create-note`** — capture a short-form note (observation,
   insight, snippet) to `meta/notes/` using a new `note` template. Single
   round-trip, no sub-agents.
@@ -263,7 +263,7 @@ Recover from a failed migration with a VCS revert (`jj op restore` /
   and verifies it against a committed SHA-256 manifest. `visualise stop` and
   `visualise status` subcommands manage the running server, which also auto-exits
   after 30 minutes idle or when its launching process exits. See the
-  [Visualiser section of the README](README.md#visualiser).
+  [Visualiser docs](docs/visualiser.md).
 
 - **`/accelerator:research-issue`** — hypothesis-driven root-cause analysis for
   production issues and bugs. Accepts stacktraces, logs, error messages, or
