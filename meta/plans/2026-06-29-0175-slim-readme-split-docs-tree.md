@@ -274,13 +274,14 @@ Handle the `#jira-integration` anchor: either preserve it in
 ### Success Criteria
 
 **Automated:**
-- [ ] `[ "$(grep -c '' README.md)" -lt 150 ]` (line count under 150).
-- [ ] README links to all 14 destination pages: `grep -c "docs/" README.md`
-      ≥ 14 (7 narrative incl. the 2 new + 7 skills) plus the CONTRIBUTING link.
+- [x] `[ "$(grep -c '' README.md)" -lt 150 ]` (line count under 150 — now 84).
+- [x] README links to all 14 destination pages: `grep -c "docs/" README.md`
+      ≥ 14 (15: 7 narrative incl. the 2 new + 7 skills + inline Installation),
+      plus the CONTRIBUTING link.
 
 **Manual:**
-- [ ] Only §1, §2, Documentation links, and License remain.
-- [ ] Each docs link text equals the destination H1 from the mapping table.
+- [x] Only §1, §2, Documentation links, and License remain.
+- [x] Each docs link text equals the destination H1 from the mapping table.
 
 ---
 
