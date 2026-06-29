@@ -250,7 +250,7 @@ Recover from a failed migration with a VCS revert (`jj op restore` /
   default Jira project key. `init-jira` caches the field catalogue, project
   list, and site metadata under `.accelerator/state/integrations/jira/`
   (version-controlled and team-shared). See the
-  [Jira Integration section of the README](README.md#jira-integration).
+  [Jira section of the Issue Trackers docs](docs/skills/issue-trackers.md#jira-integration).
 
 - **Meta visualiser** — a browser-based companion view of your `meta/`
   directory, launched with `/accelerator:visualise` or the

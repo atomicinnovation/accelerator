@@ -298,13 +298,17 @@ Handle the `#jira-integration` anchor: either preserve it in
 ### Success Criteria
 
 **Automated:**
-- [ ] A markdown link check over `README.md`, `CONTRIBUTING.md`, and `docs/**`
-      reports no broken relative links / images (e.g. a `lychee`/`markdown-link
-      -check` run, or a scripted check).
+- [x] A markdown link check over `README.md`, `CONTRIBUTING.md`, and `docs/**`
+      reports no broken relative links / images (scripted Python check: 25
+      relative links resolved; the sole "failure" is an illustrative format
+      string in inline code at `CHANGELOG.md:487`, not a real link).
 
 **Manual:**
-- [ ] Logo renders (dark + light) from the slimmed README and any page that
-      embeds it.
+- [x] Logo renders (dark + light) from the slimmed README and any page that
+      embeds it. (README §1 keeps the `<picture>` block with root-relative
+      `assets/` paths, unchanged; all four referenced assets exist. No relocated
+      page embeds an asset, so no `../` rewrites were required. `#jira-integration`
+      referrer in `CHANGELOG.md` repointed to `docs/skills/issue-trackers.md`.)
 
 ---
 
