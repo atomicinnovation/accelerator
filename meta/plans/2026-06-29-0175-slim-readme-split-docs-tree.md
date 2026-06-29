@@ -249,10 +249,10 @@ Handle the `#jira-integration` anchor: either preserve it in
 ### Success Criteria
 
 **Automated:**
-- [ ] `grep -q "plugin-dir" CONTRIBUTING.md`.
+- [x] `grep -q "plugin-dir" CONTRIBUTING.md`.
 
 **Manual:**
-- [ ] Reads naturally ahead of the CI-checks section.
+- [x] Reads naturally ahead of the CI-checks section.
 
 ---
 
