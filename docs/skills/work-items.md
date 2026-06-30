@@ -26,18 +26,72 @@ existing docs (specs, PRDs, notes)
                               └── sync-work-items ⇄ remote tracker (Jira/Linear)
 ```
 
-| Skill                  | Usage                                                                                         | Description                                                                                                                                           |
-|------------------------|-----------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **create-work-item**   | `/accelerator:create-work-item [topic-or-ref]`                                                | Interactively create a work item from a topic, or enrich an existing one by path or number                                                            |
-| **extract-work-items** | `/accelerator:extract-work-items [doc paths...]`                                              | Batch-extract work items from existing specs, PRDs, research, plans, or notes                                                                         |
-| **list-work-items**    | `/accelerator:list-work-items [filter]`                                                       | List and filter work items by status, type, priority, tag, parent, or title; shows a colour-coded Sync column when a remote integration is configured |
-| **update-work-item**   | `/accelerator:update-work-item [work-item-ref] [field-op]`                                    | Update work item fields with diff preview and confirmation                                                                                            |
-| **sync-work-items**    | `/accelerator:sync-work-items [--push-only\|--pull-only] [--preview] [--all] [filter-flags…]` | Reconcile local work items with the configured remote tracker (Jira or Linear), detecting per-item sync state and resolving conflicts                 |
-| **review-work-item**   | `/accelerator:review-work-item [work-item-ref]`                                               | Review a work item through completeness, testability, and clarity lenses                                                                              |
+### <img src="https://api.iconify.design/ph/file-plus-bold.svg?color=%230d9488" width="18" align="center" alt=""> `/create-work-item [topic or existing work item path/number]`
+
+Interactively create a well-formed work item. Can also enrich an existing one
+when given its path or number.
+
+*Pair with `refine-work-item` to decompose and sharpen the draft before planning
+begins.*
+
+### <img src="https://api.iconify.design/ph/export-bold.svg?color=%230d9488" width="18" align="center" alt=""> `/extract-work-items [document paths...]`
+
+Extract work items in batch from existing documents (specs, PRDs, research,
+plans, meeting notes, design docs).
+
+*Leave the paths empty to scan all documents.*
+
+### <img src="https://api.iconify.design/ph/sliders-horizontal-bold.svg?color=%230d9488" width="18" align="center" alt=""> `/refine-work-item [work item number or path]`
+
+Interactively refine a work item by decomposing it into children, enriching it
+with codebase context, sharpening its acceptance criteria, sizing it, or linking
+it to dependencies.
+
+*Use after a work item is drafted and before planning begins.*
+
+### <img src="https://api.iconify.design/ph/binoculars-bold.svg?color=%230d9488" width="18" align="center" alt=""> `/review-work-item [path to work item file]`
+
+Review a work item through multiple quality lenses and collaboratively iterate
+based on findings.
+
+*Runs the multi-lens [Review System](review-system.md) (completeness,
+testability, clarity); see that page for the lens catalogue.*
+
+### <img src="https://api.iconify.design/ph/barbell-bold.svg?color=%230d9488" width="18" align="center" alt=""> `/stress-test-work-item [work item number or path]`
+
+Interactively stress-test a work item by grilling the user on scope, assumptions,
+acceptance criteria, edge cases, and dependencies to surface issues, gaps, and
+flawed assumptions before implementation is planned.
+
+*Complements `review-work-item`: review applies fixed quality lenses, stress-test
+interrogates **your** assumptions interactively.*
+
+### <img src="https://api.iconify.design/ph/pencil-bold.svg?color=%230d9488" width="18" align="center" alt=""> `/update-work-item [work-item-ref] [field-op...]`
+
+Update fields (status, priority, tags, parent, etc.) of an existing work item.
+
+*Shows a diff preview and asks for confirmation. There is no transition
+enforcement — arbitrary field changes are allowed.*
+
+### <img src="https://api.iconify.design/ph/list-bold.svg?color=%230d9488" width="18" align="center" alt=""> `/list-work-items [filter description]`
+
+List and filter work items from the configured work directory.
+
+*Filters by status, type, priority, tag, parent, or title; shows a colour-coded
+Sync column when a remote integration is configured.*
+
+### <img src="https://api.iconify.design/ph/arrows-clockwise-bold.svg?color=%230d9488" width="18" align="center" alt=""> `/sync-work-items [options]`
+
+Reconcile local work items in meta/work/ with the active remote tracker named by
+work.integration.
+
+*Run with `--preview` first to see what a sync would change before any write
+reaches the tracker. Flags: `--push-only`, `--pull-only`, `--preview`, `--all`,
+plus filter flags.*
 
 Work items use a shared template with YAML frontmatter (`work_item_id`, `title`,
 `type`, `status`, `priority`, `parent`, `tags`) and structured body sections
 (Summary, Context, Requirements, Acceptance Criteria, Open Questions,
 Dependencies, Assumptions, Technical Notes, Drafting Notes, References).
 The template is customisable via
-`/accelerator:configure templates eject work-item`.
+`/configure templates eject work-item`.

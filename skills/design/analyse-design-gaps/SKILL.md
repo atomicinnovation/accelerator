@@ -1,9 +1,9 @@
 ---
 name: analyse-design-gaps
 description: Compare two design inventories produced by inventory-design and emit
-  a structured gap artifact whose prose paragraphs satisfy the extract-work-items
+  a structured gap artefact whose prose paragraphs satisfy the extract-work-items
   cue-phrase contract. Use after running inventory-design for both a current and
-  target design surface. The resulting gap artifact under meta/design-gaps/ feeds
+  target design surface. The resulting gap artefact under meta/design-gaps/ feeds
   directly into /accelerator:extract-work-items to produce actionable work items.
 argument-hint: "[current-source-id] [target-source-id]"
 disable-model-invocation: true

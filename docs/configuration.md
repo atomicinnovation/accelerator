@@ -47,7 +47,7 @@ The YAML frontmatter supports `agents` (override which agents skills spawn),
 `review` (customise review behaviour), `paths` (override where skills write
 output documents), `templates` (point to custom document templates), and
 `work` (customise work-item ID filename pattern and default project code).
-See `/accelerator:configure help` for the full key reference.
+See `/configure help` for the full key reference.
 
 ## Template Management
 
@@ -57,12 +57,12 @@ subcommands for managing templates without manually locating plugin internals:
 
 | Command                                        | Description                                            |
 |------------------------------------------------|--------------------------------------------------------|
-| `/accelerator:configure templates list`        | List all templates with resolution source and path     |
-| `/accelerator:configure templates show <key>`  | Display the effective template content                 |
-| `/accelerator:configure templates eject <key>` | Copy plugin default to your templates directory        |
-| `/accelerator:configure templates eject --all` | Eject all templates at once                            |
-| `/accelerator:configure templates diff <key>`  | Show differences between your template and the default |
-| `/accelerator:configure templates reset <key>` | Remove your customisation, revert to plugin default    |
+| `/configure templates list`        | List all templates with resolution source and path     |
+| `/configure templates show <key>`  | Display the effective template content                 |
+| `/configure templates eject <key>` | Copy plugin default to your templates directory        |
+| `/configure templates eject --all` | Eject all templates at once                            |
+| `/configure templates diff <key>`  | Show differences between your template and the default |
+| `/configure templates reset <key>` | Remove your customisation, revert to plugin default    |
 
 Available template keys: `adr`, `codebase-research`, `design-gap`,
 `design-inventory`, `note`, `plan`, `plan-review`, `pr-description`,
@@ -81,7 +81,7 @@ directory (`paths.templates`, default `.accelerator/templates/`) → plugin defa
 
 ## Managing Configuration
 
-Run `/accelerator:configure` to create or view your configuration. The skill
+Run `/configure` to create or view your configuration. The skill
 walks you through gathering project context and writes the config file for you.
 
 ## How It Works
@@ -98,7 +98,7 @@ You can add custom review lenses alongside the 13 built-in ones. Place them in
 `.accelerator/lenses/` following the `[name]-lens/SKILL.md` convention.
 Custom lenses are auto-discovered and included in the lens catalogue. See
 the [Review System](skills/review-system.md) for the built-in lens catalogue and
-`/accelerator:configure help` for details and a minimal template.
+`/configure help` for details and a minimal template.
 
 ## Per-Skill Customisation
 
@@ -124,5 +124,23 @@ individual skills by placing files in
   instructions.
 
 Both files are optional. Directory names must match the skill name exactly (the
-part after `/accelerator:`). The SessionStart hook warns about unrecognised
-directory names. See `/accelerator:configure help` for the full reference.
+part after `/`). The SessionStart hook warns about unrecognised
+directory names. See `/configure help` for the full reference.
+
+## Skill reference
+
+### <img src="https://api.iconify.design/ph/gear-six-bold.svg?color=%23475569" width="18" align="center" alt=""> `/configure [view | create | help | templates ...]`
+
+View, create, or edit Accelerator plugin configuration.
+
+*`configure help` prints the full configuration-key reference; the `templates`
+subcommands manage document templates (see [Template
+Management](#template-management)).*
+
+### <img src="https://api.iconify.design/ph/rocket-launch-bold.svg?color=%23475569" width="18" align="center" alt=""> `/init`
+
+Prepare a repository with the directories and gitignore entries that Accelerator
+skills expect. Takes no arguments and is safe to run repeatedly.
+
+*Idempotent: it creates the `meta/` directories up front, but skills also create
+them on first use, so running `init` is optional.*

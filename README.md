@@ -49,31 +49,37 @@ Code compatibility, see [Releases & Compatibility](docs/releases-and-compatibili
 
 - [Philosophy](docs/philosophy.md) — the phase model and why development is
   split across the filesystem.
-- [The Development Loop](docs/development-loop.md) — the research → plan →
-  implement workflow in detail.
-- [Configuration](docs/configuration.md) — config files, templates, per-skill
-  customisation, and custom review lenses.
+- [Full Workflow](docs/workflow.md) — the map of every skill family and how
+  they fit together, so you can pick the parts you need.
+- [Development Loop](docs/development-loop.md) — the research → plan →
+  implement spine in detail, including the plan review/stress-test cycle.
 - [Visualiser](docs/visualiser.md) — the browser-based companion view of `meta/`.
 - [Internals](docs/internals.md) — the `meta/` directory deep-dive, the agent
   roster, and VCS detection.
+- [Configuration](docs/configuration.md) — config files, templates, per-skill
+  customisation, and custom review lenses.
 - [Migrations](docs/migrations.md) — upgrading a repo with `/accelerator:migrate`.
 - [Releases & Compatibility](docs/releases-and-compatibility.md) — the prerelease
   channel and Claude Code compatibility.
 
 **Skills**
 
-- [Planning](docs/skills/planning.md) — research, issue investigation, and plan
-  review companions.
-- [Work Items](docs/skills/work-items.md) — capturing features, bugs, and tasks
+- <img src="https://api.iconify.design/ph/squares-four-bold.svg?color=%23475569" width="16" align="center" alt=""> [All Skills](docs/skills/README.md) — the full index of every skill, grouped by
+  family.
+- <img src="https://api.iconify.design/ph/arrows-clockwise-bold.svg?color=%236366f1" width="16" align="center" alt=""> [Development Loop](docs/skills/development-loop.md) — research, plan, implement,
+  and the plan review/stress-test/validate companions.
+- <img src="https://api.iconify.design/ph/strategy-bold.svg?color=%23f59e0b" width="16" align="center" alt=""> [Investigation & Notes](docs/skills/investigation.md) — issue investigation,
+  time-boxed spikes, and short-form note capture that feed the loop.
+- <img src="https://api.iconify.design/ph/kanban-bold.svg?color=%230d9488" width="16" align="center" alt=""> [Work Items](docs/skills/work-items.md) — capturing features, bugs, and tasks
   that feed into planning.
-- [Issue Trackers (Jira & Linear)](docs/skills/issue-trackers.md) — remote
+- <img src="https://api.iconify.design/ph/ticket-bold.svg?color=%232563eb" width="16" align="center" alt=""> [Issue Trackers (Jira & Linear)](docs/skills/issue-trackers.md) — remote
   tracker integration.
-- [Architecture Decision Records (ADRs)](docs/skills/adrs.md) — capturing
+- <img src="https://api.iconify.design/ph/scroll-bold.svg?color=%237c3aed" width="16" align="center" alt=""> [Architecture Decision Records (ADRs)](docs/skills/adrs.md) — capturing
   architectural decisions.
-- [VCS & PR Workflow](docs/skills/vcs-and-pr.md) — commit, describe, review, and
+- <img src="https://api.iconify.design/ph/git-branch-bold.svg?color=%2316a34a" width="16" align="center" alt=""> [VCS & PR Workflow](docs/skills/vcs-and-pr.md) — commit, describe, review, and
   respond to PRs.
-- [Review System](docs/skills/review-system.md) — the multi-lens review system.
-- [Design Convergence](docs/skills/design-convergence.md) — design inventories
+- <img src="https://api.iconify.design/ph/scales-bold.svg?color=%23e11d48" width="16" align="center" alt=""> [Review System](docs/skills/review-system.md) — the multi-lens review system.
+- <img src="https://api.iconify.design/ph/palette-bold.svg?color=%23db2777" width="16" align="center" alt=""> [Design Convergence](docs/skills/design-convergence.md) — design inventories
   and gap analysis.
 
 Contributing to Accelerator? See [CONTRIBUTING](CONTRIBUTING.md) for local
