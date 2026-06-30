@@ -62,20 +62,20 @@ Code compatibility, see [Releases & Compatibility](docs/releases-and-compatibili
 
 **Skills**
 
-- [All Skills](docs/skills/README.md) — the full index of every skill, grouped by
+- <img src="https://api.iconify.design/ph/squares-four-bold.svg?color=%23475569" width="16" align="center" alt=""> [All Skills](docs/skills/README.md) — the full index of every skill, grouped by
   family.
-- [Planning](docs/skills/planning.md) — research, issue investigation, and plan
+- <img src="https://api.iconify.design/ph/strategy-bold.svg?color=%23f59e0b" width="16" align="center" alt=""> [Planning](docs/skills/planning.md) — research, issue investigation, and plan
   review companions.
-- [Work Items](docs/skills/work-items.md) — capturing features, bugs, and tasks
+- <img src="https://api.iconify.design/ph/kanban-bold.svg?color=%230d9488" width="16" align="center" alt=""> [Work Items](docs/skills/work-items.md) — capturing features, bugs, and tasks
   that feed into planning.
-- [Issue Trackers (Jira & Linear)](docs/skills/issue-trackers.md) — remote
+- <img src="https://api.iconify.design/ph/ticket-bold.svg?color=%232563eb" width="16" align="center" alt=""> [Issue Trackers (Jira & Linear)](docs/skills/issue-trackers.md) — remote
   tracker integration.
-- [Architecture Decision Records (ADRs)](docs/skills/adrs.md) — capturing
+- <img src="https://api.iconify.design/ph/scroll-bold.svg?color=%237c3aed" width="16" align="center" alt=""> [Architecture Decision Records (ADRs)](docs/skills/adrs.md) — capturing
   architectural decisions.
-- [VCS & PR Workflow](docs/skills/vcs-and-pr.md) — commit, describe, review, and
+- <img src="https://api.iconify.design/ph/git-branch-bold.svg?color=%2316a34a" width="16" align="center" alt=""> [VCS & PR Workflow](docs/skills/vcs-and-pr.md) — commit, describe, review, and
   respond to PRs.
-- [Review System](docs/skills/review-system.md) — the multi-lens review system.
-- [Design Convergence](docs/skills/design-convergence.md) — design inventories
+- <img src="https://api.iconify.design/ph/scales-bold.svg?color=%23e11d48" width="16" align="center" alt=""> [Review System](docs/skills/review-system.md) — the multi-lens review system.
+- <img src="https://api.iconify.design/ph/palette-bold.svg?color=%23db2777" width="16" align="center" alt=""> [Design Convergence](docs/skills/design-convergence.md) — design inventories
   and gap analysis.
 
 Contributing to Accelerator? See [CONTRIBUTING](CONTRIBUTING.md) for local

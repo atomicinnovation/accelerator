@@ -15,7 +15,7 @@ meta/research/codebase/ meta/plans/
   review-adr → accepted ADRs inform future research & planning
 ```
 
-### `/create-adr [topic or description]`
+### <img src="https://api.iconify.design/ph/scroll-bold.svg?color=%237c3aed" width="18" align="center" alt=""> `/create-adr [topic or description]`
 
 Interactively create an architecture decision record (ADR). Walks through context
 gathering, options analysis, and consequence documentation.
@@ -23,7 +23,7 @@ gathering, options analysis, and consequence documentation.
 *Pass `--supersedes ADR-NNNN` when the new decision replaces an accepted one —
 the superseded ADR stays immutable and is marked, rather than edited.*
 
-### `/extract-adrs [research doc paths...]`
+### <img src="https://api.iconify.design/ph/export-bold.svg?color=%237c3aed" width="18" align="center" alt=""> `/extract-adrs [research doc paths...]`
 
 Extract architecture decision records from existing meta documents (research,
 plans).
@@ -32,7 +32,7 @@ plans).
 planning documents and need to be captured formally; it proposes candidates for
 you to select before writing.*
 
-### `/review-adr [path to ADR]`
+### <img src="https://api.iconify.design/ph/binoculars-bold.svg?color=%237c3aed" width="18" align="center" alt=""> `/review-adr [path to ADR]`
 
 Review an architecture decision record for quality and completeness, then accept,
 reject, or suggest revisions.

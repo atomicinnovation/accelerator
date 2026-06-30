@@ -30,7 +30,7 @@ haven't run migration `0003` yet, the hook reads the legacy
 
 ## Skill reference
 
-### `/migrate`
+### <img src="https://api.iconify.design/ph/wrench-bold.svg?color=%23475569" width="18" align="center" alt=""> `/migrate`
 
 Apply pending Accelerator meta-directory migrations to bring a repo into line
 with the latest plugin schema.

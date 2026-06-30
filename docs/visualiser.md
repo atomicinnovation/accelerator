@@ -85,7 +85,7 @@ and refuses to start if the attestation is missing or invalid. Requires
 
 ## Skill reference
 
-### `/visualise [stop | status]`
+### <img src="https://api.iconify.design/ph/presentation-chart-bold.svg?color=%23ea580c" width="18" align="center" alt=""> `/visualise [stop | status]`
 
 Open the accelerator meta visualiser.
 

@@ -14,7 +14,7 @@ inventory-design (current)  ─┐
 inventory-design (target)   ─┘
 ```
 
-### `/inventory-design [source-id] [location] [options]`
+### <img src="https://api.iconify.design/ph/swatches-bold.svg?color=%23db2777" width="18" align="center" alt=""> `/inventory-design [source-id] [location] [options]`
 
 Generate a structured design inventory for a frontend source — tokens,
 components, screens, and features — by crawling it with code analysis, live
@@ -25,7 +25,7 @@ for a hosted prototype, `hybrid` (default for code repos) for both. See
 [Requirements](#requirements) before using `runtime`/`hybrid`. Flags:
 `--crawler code|runtime|hybrid`, `--allow-internal`, `--allow-insecure-scheme`.*
 
-### `/analyse-design-gaps [current-source-id] [target-source-id]`
+### <img src="https://api.iconify.design/ph/git-diff-bold.svg?color=%23db2777" width="18" align="center" alt=""> `/analyse-design-gaps [current-source-id] [target-source-id]`
 
 Compare two design inventories produced by inventory-design and emit a structured
 gap artifact whose prose paragraphs satisfy the extract-work-items cue-phrase

@@ -27,7 +27,7 @@ and plan-review companions.
 
 ## Skill reference
 
-### `/research-codebase [research question]`
+### <img src="https://api.iconify.design/ph/magnifying-glass-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/research-codebase [research question]`
 
 Conduct comprehensive codebase research by spawning parallel sub-agents and
 synthesising findings into a research document.
@@ -35,7 +35,7 @@ synthesising findings into a research document.
 *Writes a structured document to `meta/research/codebase/`; run it first so the
 plan can cite concrete findings.*
 
-### `/create-plan [work item reference or description]`
+### <img src="https://api.iconify.design/ph/clipboard-text-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/create-plan [work item reference or description]`
 
 Create detailed implementation plans through interactive, iterative
 collaboration.
@@ -43,7 +43,7 @@ collaboration.
 *Produces a phased plan in `meta/plans/` with success criteria; review it
 (optionally via `review-plan`) before implementing.*
 
-### `/implement-plan [path to plan file]`
+### <img src="https://api.iconify.design/ph/hammer-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/implement-plan [path to plan file]`
 
 Execute an approved implementation plan from the configured plans directory.
 
