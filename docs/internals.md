@@ -18,7 +18,7 @@ research, issue/RCA research, design inventories, and design gaps:
 | `  ├─ codebase/`                | Codebase research findings with YAML frontmatter               | `research-codebase`                                          |
 | `  ├─ issues/`                  | Issue / RCA research findings                                  | `research-issue`                                             |
 | `  ├─ design-inventories/`      | Per-source design inventory snapshots (markdown + screenshots) | `inventory-design`                                           |
-| `  └─ design-gaps/`             | Design-gap analysis artifacts                                  | `analyse-design-gaps`                                        |
+| `  └─ design-gaps/`             | Design-gap analysis artefacts                                  | `analyse-design-gaps`                                        |
 | `plans/`                        | Implementation plans with phased changes                       | `create-plan`                                                |
 | `decisions/`                    | Architecture decision records (ADRs)                           | `create-adr`, `extract-adrs`, `review-adr`                   |
 | `reviews/`                      | Review summaries and per-lens results                          | `review-pr`, `review-plan`                                   |
@@ -33,7 +33,7 @@ This approach means:
 - Work survives session boundaries and context compaction
 - Plans can be resumed after interruption (implement-plan picks up from the
   first unchecked item)
-- Artifacts are structured and machine-parseable (YAML frontmatter, JSON
+- Artefacts are structured and machine-parseable (YAML frontmatter, JSON
   schemas)
 
 ## Agents

@@ -1,8 +1,8 @@
 # Design Convergence
 
 Design convergence skills capture two design surfaces — a current frontend and a
-target prototype — as structured inventory artifacts, then compute a structured
-gap between them. The gap artifact's prose paragraphs satisfy the cue-phrase
+target prototype — as structured inventory artefacts, then compute a structured
+gap between them. The gap artefact's prose paragraphs satisfy the cue-phrase
 contract that `extract-work-items` consumes, so the workflow plugs straight into
 the existing work-item lifecycle. Each inventory snapshot is self-contained
 (markdown plus screenshots in a dated directory); re-running for the same source
@@ -28,10 +28,10 @@ for a hosted prototype, `hybrid` (default for code repos) for both. See
 ### <img src="https://api.iconify.design/ph/git-diff-bold.svg?color=%23db2777" width="18" align="center" alt=""> `/analyse-design-gaps [current-source-id] [target-source-id]`
 
 Compare two design inventories produced by inventory-design and emit a structured
-gap artifact whose prose paragraphs satisfy the extract-work-items cue-phrase
+gap artefact whose prose paragraphs satisfy the extract-work-items cue-phrase
 contract.
 
-*The gap artifact feeds straight into `/extract-work-items`, so run both
+*The gap artefact feeds straight into `/extract-work-items`, so run both
 inventories first, then this, then extract.*
 
 Three-step example:
@@ -42,7 +42,7 @@ Three-step example:
 /analyse-design-gaps current prototype
 ```
 
-The resulting gap artifact under `meta/research/design-gaps/` feeds straight into
+The resulting gap artefact under `meta/research/design-gaps/` feeds straight into
 `/extract-work-items <gap-file>`.
 
 `inventory-design` supports three crawler modes: `code` (static analysis only,

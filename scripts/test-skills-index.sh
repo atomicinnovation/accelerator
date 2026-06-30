@@ -14,8 +14,8 @@
 #   (d) every index deep link <page>.md#<name> resolves to a real
 #       `### `/<name>`` heading on its target page;
 #   (e) each skill's index gloss AND its home-page description reproduce the
-#       first sentence of its SKILL.md description verbatim (whitespace-
-#       normalised), so a reworded description can't drift past the docs.
+#       first sentence of its SKILL.md description verbatim (whitespace- and
+#       <br>-normalised), so a reworded description can't drift past the docs.
 #
 # Bash 3.2 floor: no associative arrays, no ${var,,}. Parallel data lives in a
 # temp facts file and space-separated name lists.
@@ -84,15 +84,20 @@ compute_first() {
   printf '%s' "$first"
 }
 
-# Collapse all whitespace runs to single spaces; trim ends.
-norm() { tr '\n' ' ' | tr -s ' ' | sed 's/^ //; s/ $//'; }
+# Collapse all whitespace runs to single spaces; trim ends. `<br>` (in any of
+# its spellings) is a presentational line break inside index glosses, so treat
+# it as whitespace too — invariant (e) compares the prose, not the wrapping.
+norm() {
+  tr '\n' ' ' | sed 's|<br */*>| |g' | tr -s ' ' | sed 's/^ //; s/ $//'
+}
 
 # Text of a `### `/<name>`` subsection on a docs page (up to the next ###/## or
 # EOF). The heading may carry an inline argument hint — `### `/<name> [args]`` —
-# so match the `/<name>` prefix up to the space or closing backtick that follows.
+# and/or a leading inline icon — `### <img …> `/<name>`` — so match an optional
+# <img> prefix, then the `/<name>` prefix up to the space or backtick that follows.
 section_text() {
   awk -v name="$2" '
-    BEGIN { pat = "^### `/" name "[ `]" }
+    BEGIN { pat = "^### (<img[^>]*> )?`/" name "[ `]" }
     $0 ~ pat { grab = 1; next }
     grab && (/^### / || /^## /) { exit }
     grab { print }
@@ -186,7 +191,7 @@ while IFS=$'\t' read -r name first; do
   resolved="$DOCS_SKILLS_DIR/$page"
   if [ -f "$resolved" ]; then
     assert_matches_regex "anchor #$name resolves to a ### heading on $page" \
-      "^### \`/${name}[ \`]" "$(cat "$resolved")"
+      "^### (<img[^>]*> )?\`/${name}[ \`]" "$(cat "$resolved")"
     sect="$(section_text "$resolved" "$name" | norm)"
     nfirst="$(printf '%s' "$first" | norm)"
     assert_contains "home-page description for $name matches SKILL.md" \

@@ -10,20 +10,20 @@ Note: `review-pr`, `review-plan`, and `review-work-item` run the multi-lens
 
 |  |  |
 | --- | --- |
-| <img src="https://api.iconify.design/ph/magnifying-glass-bold.svg?color=%236366f1" width="20" align="center" alt=""> [`/research-codebase`](../development-loop.md#research-codebase) | Conduct comprehensive codebase research by<br>spawning parallel sub-agents and synthesising<br>findings into a research document. |
-| <img src="https://api.iconify.design/ph/clipboard-text-bold.svg?color=%236366f1" width="20" align="center" alt=""> [`/create-plan`](../development-loop.md#create-plan) | Create detailed implementation plans through<br>interactive, iterative collaboration. |
-| <img src="https://api.iconify.design/ph/hammer-bold.svg?color=%236366f1" width="20" align="center" alt=""> [`/implement-plan`](../development-loop.md#implement-plan) | Execute an approved implementation plan from<br>the configured plans directory. |
+| <img src="https://api.iconify.design/ph/magnifying-glass-bold.svg?color=%236366f1" width="20" align="center" alt=""> [`/research-codebase`](development-loop.md#research-codebase) | Conduct comprehensive codebase research by<br>spawning parallel subagents and synthesising<br>findings into a research document. |
+| <img src="https://api.iconify.design/ph/clipboard-text-bold.svg?color=%236366f1" width="20" align="center" alt=""> [`/create-plan`](development-loop.md#create-plan) | Create detailed implementation plans through<br>interactive, iterative collaboration. |
+| <img src="https://api.iconify.design/ph/hammer-bold.svg?color=%236366f1" width="20" align="center" alt=""> [`/implement-plan`](development-loop.md#implement-plan) | Execute an approved implementation plan from<br>the configured plans directory. |
+| <img src="https://api.iconify.design/ph/binoculars-bold.svg?color=%236366f1" width="20" align="center" alt=""> [`/review-plan`](development-loop.md#review-plan) | Review an implementation plan through multiple<br>quality lenses and collaboratively iterate based<br>on findings. |
+| <img src="https://api.iconify.design/ph/barbell-bold.svg?color=%236366f1" width="20" align="center" alt=""> [`/stress-test-plan`](development-loop.md#stress-test-plan) | Interactively stress-test an implementation plan<br>by grilling the user on decisions, edge cases,<br>and assumptions to find issues, inconsistencies,<br>and gaps before implementation begins. |
+| <img src="https://api.iconify.design/ph/seal-check-bold.svg?color=%236366f1" width="20" align="center" alt=""> [`/validate-plan`](development-loop.md#validate-plan) | Validate that an implementation plan was<br>correctly executed by verifying success criteria<br>and identifying deviations. |
 
-## Planning
+## Investigation & Notes
 
 |  |  |
 | --- | --- |
-| <img src="https://api.iconify.design/ph/bug-bold.svg?color=%23f59e0b" width="20" align="center" alt=""> [`/research-issue`](planning.md#research-issue) | Investigate production issues and bugs through<br>hypothesis-driven debugging. |
-| <img src="https://api.iconify.design/ph/note-pencil-bold.svg?color=%23f59e0b" width="20" align="center" alt=""> [`/create-note`](planning.md#create-note) | Interactively capture a short-form note. |
-| <img src="https://api.iconify.design/ph/flask-bold.svg?color=%23f59e0b" width="20" align="center" alt=""> [`/conduct-spike`](planning.md#conduct-spike) | Interactively conduct a time-boxed spike —<br>collaboratively reduce uncertainty through<br>discussion mixed with agent-driven research (and<br>small throwaway prototypes where a question is<br>empirical), then record the outcome on the<br>spike's work item. |
-| <img src="https://api.iconify.design/ph/binoculars-bold.svg?color=%23f59e0b" width="20" align="center" alt=""> [`/review-plan`](planning.md#review-plan) | Review an implementation plan through multiple<br>quality lenses and collaboratively iterate based<br>on findings. |
-| <img src="https://api.iconify.design/ph/barbell-bold.svg?color=%23f59e0b" width="20" align="center" alt=""> [`/stress-test-plan`](planning.md#stress-test-plan) | Interactively stress-test an implementation plan<br>by grilling the user on decisions, edge cases,<br>and assumptions to find issues, inconsistencies,<br>and gaps before implementation begins. |
-| <img src="https://api.iconify.design/ph/seal-check-bold.svg?color=%23f59e0b" width="20" align="center" alt=""> [`/validate-plan`](planning.md#validate-plan) | Validate that an implementation plan was<br>correctly executed by verifying success criteria<br>and identifying deviations. |
+| <img src="https://api.iconify.design/ph/bug-bold.svg?color=%23f59e0b" width="20" align="center" alt=""> [`/research-issue`](investigation.md#research-issue) | Investigate production issues and bugs through<br>hypothesis-driven debugging. |
+| <img src="https://api.iconify.design/ph/note-pencil-bold.svg?color=%23f59e0b" width="20" align="center" alt=""> [`/create-note`](investigation.md#create-note) | Interactively capture a short-form note. |
+| <img src="https://api.iconify.design/ph/flask-bold.svg?color=%23f59e0b" width="20" align="center" alt=""> [`/conduct-spike`](investigation.md#conduct-spike) | Interactively conduct a time-boxed spike —<br>collaboratively reduce uncertainty through<br>discussion mixed with agent-driven research (and<br>small throwaway prototypes where a question is<br>empirical), then record the outcome on the<br>spike's work item. |
 
 ## Work Items
 
@@ -81,7 +81,7 @@ Note: `review-pr`, `review-plan`, and `review-work-item` run the multi-lens
 |  |  |
 | --- | --- |
 | <img src="https://api.iconify.design/ph/swatches-bold.svg?color=%23db2777" width="20" align="center" alt=""> [`/inventory-design`](design-convergence.md#inventory-design) | Generate a structured design inventory for a<br>frontend source — tokens, components, screens, and<br>features — by crawling it with code analysis, live<br>Playwright inspection, or both. |
-| <img src="https://api.iconify.design/ph/git-diff-bold.svg?color=%23db2777" width="20" align="center" alt=""> [`/analyse-design-gaps`](design-convergence.md#analyse-design-gaps) | Compare two design inventories produced by<br>inventory-design and emit a structured gap<br>artifact whose prose paragraphs satisfy the<br>extract-work-items cue-phrase contract. |
+| <img src="https://api.iconify.design/ph/git-diff-bold.svg?color=%23db2777" width="20" align="center" alt=""> [`/analyse-design-gaps`](design-convergence.md#analyse-design-gaps) | Compare two design inventories produced by<br>inventory-design and emit a structured gap<br>artefact whose prose paragraphs satisfy the<br>extract-work-items cue-phrase contract. |
 
 ## Config & Maintenance
 
